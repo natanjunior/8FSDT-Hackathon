@@ -1,0 +1,24 @@
+# --- Material de terceiros ---------------------------------------------------
+# Enunciado do desafio, PDFs e notas das aulas do curso. Não redistribuir.
+refs/
+
+# --- Nosso material de processo ----------------------------------------------
+# Depósito de ideias, decisões em andamento, análise do material do curso.
+# Fora do git por decisão do time. O que vai versionado e entregue é docs/.
+trabalho/
+
+# --- Segredos ----------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Ferramentas locais ------------------------------------------------------
+.claude/settings.local.json
+
+# --- Sistema operacional -----------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Build e dependências ----------------------------------------------------
+# A completar quando a stack for decidida.
