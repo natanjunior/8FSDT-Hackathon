@@ -17,14 +17,13 @@ Os dois checklists da **aula 9** (p.5–6), adaptados ao projeto. A distinção,
 
 ## Por que estes dois checklists existem aqui
 
-O projeto tem uma característica que os torna mais úteis que o normal: **um único implementador, quatro
-colegas em papéis não-código, e seis semanas.** Nessa configuração, testes, Docker, deploy e documentação
-— que são **entregáveis exigidos pelo enunciado** — são exatamente os itens que "ficam para depois" e não
-acontecem.
+A configuração do projeto — **um único implementador, papéis não-implementadores no restante da equipe, e
+seis semanas** — torna-os mais necessários que o usual. Nela, testes, Docker, deploy e documentação, que
+são **entregáveis exigidos pelo enunciado**, são exatamente os itens que ficam por último e não acontecem.
 
-O DoD converte cada um deles de *tarefa futura* em **condição de conclusão de toda funcionalidade**. E dá
-aos quatro colegas um papel de qualidade objetivo: **eles verificam o DoD**, item por item, sem precisar
-ler código.
+O DoD converte cada um deles de tarefa futura em **condição de conclusão de toda funcionalidade**. E
+define uma verificação de qualidade que **não exige leitura de código**: cada item é conferível por quem
+não implementou.
 
 ---
 
@@ -40,7 +39,7 @@ Uma tarefa só entra em desenvolvimento quando:
       com resultado escrito, antes de virar tarefa de implementação.
 - [ ] **3. Quebrada em item implementável.** Cabe numa sessão de trabalho — noite de semana ou manhã de
       fim de semana. Se não cabe, quebra de novo.
-- [ ] **4. Priorizada no board pelo grupo.**
+- [ ] **4. Priorizada no board.**
 - [ ] **5. Nenhum ponto de atenção em aberto que mude o comportamento desta tarefa.** Consulta a
       `docs/premissas-e-questoes-abertas.md`. Se houver, ou a questão se resolve, ou a tarefa espera, ou
       a premissa é assumida **por escrito**.
@@ -53,7 +52,7 @@ Uma tarefa só entra em desenvolvimento quando:
 | "Refinamento Técnico realizado" + "Arquitetura da solução desenhada" | **Fundidos** no item 2 | No nível de **uma tarefa** os dois significam a mesma coisa: a abordagem técnica está clara. A arquitetura do **projeto** está desenhada em `docs/arquitetura.md` e não se redesenha por tarefa |
 | "Quebra em itens de desenvolvimento" | **Mantido**, com critério concreto de tamanho | — |
 | "Estimativa das demandas" | **Cortado** | Exige base histórica de velocidade que não existe e não existirá em seis semanas. O próprio professor admite que *"sem uma base histórica, dificilmente vamos conseguir ser assertivos"* (aula 8, p.9). Estimar aqui seria teatro |
-| "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board pelo grupo" | Não há PM nem PO no projeto |
+| "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board" | Não há PM nem PO no projeto |
 | — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 23 pontos de atenção registrados. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
 
 > **Divergência de contagem, declarada:** o plano em `trabalho/ddd-o-que-adotar.md` previa reduzir o DoR
@@ -89,12 +88,11 @@ cinco famílias da definição da p.5.
 
 ### Revisões
 
-- [ ] **Revisão funcional** pelos colegas, contra os critérios de aceitação escritos no DoR.
+- [ ] **Revisão funcional** por quem não implementou, contra os critérios de aceitação escritos no DoR.
 
-> **Limitação declarada, e ela é real:** sendo **um único implementador, não há revisão de código por
-> pares.** A coluna `Code Review` da esteira da aula 7 vira `Revisão funcional`, em que quem não codifica
-> valida comportamento. Registrar essa limitação vale mais que fingir que houve peer review — e é
-> honestidade que a banca pode conferir olhando o histórico do repositório.
+> **Limitação declarada.** Com **um único implementador, não há revisão de código por pares.** A revisão
+> que existe é **funcional**: valida comportamento contra critério de aceitação, não implementação.
+> Registrar a limitação é mais defensável que classificar como peer review algo que não é.
 
 ### Documentação
 
@@ -106,26 +104,25 @@ cinco famílias da definição da p.5.
 
 ### Aprovação e publicação
 
-- [ ] **Sobe no `docker compose` local, do zero** — atende E7 e é verificável por outra pessoa do grupo.
+- [ ] **Sobe no `docker compose` local, do zero** — atende E7, e é verificável em outra máquina por quem
+      não implementou.
 - [ ] **Publicado no ambiente de preview** e acessível por URL — atende E8 e é o que permite a revisão
       funcional acontecer sem instalar nada.
-- [ ] **Validado pelo grupo** contra os critérios de aceitação.
+- [ ] **Validado contra os critérios de aceitação**, por quem não implementou.
 
-> **Adaptação:** onde o curso pede *"aprovação do Product Owner"*, aqui é **validação pelo grupo**. Não
-> há PO. Onde pede *"aprovado pela QA"* (no exemplo da p.6), não há QA — está coberto por Testes e por
-> Revisão funcional.
+> **Adaptação:** onde o curso pede *"aprovação do Product Owner"*, aqui é validação contra critério de
+> aceitação escrito — não há PO. Onde pede *"aprovado pela QA"* (no exemplo da p.6), não há QA: está
+> coberto por Testes e por Revisão funcional.
 
 ---
 
 ## Onde estes checklists vivem no dia a dia
 
-O DoD é colado no **template de issue do GitHub**, para aparecer em toda tarefa sem ninguém precisar
-lembrar dele. O DoR é o critério de passagem da coluna `Refinado` para `Em andamento` no board.
+O DoD é colado no **template de issue do GitHub**, para aparecer em toda tarefa sem depender de memória. O
+DoR é o critério de passagem para o desenvolvimento.
 
-Na esteira reduzida de seis colunas (`docs/arquitetura.md`, tópico 4), os dois são os **portões entre
-Upstream e Downstream**: o DoR fecha o Upstream, que é onde os quatro colegas trabalham; o DoD fecha o
-Downstream, que é onde o implementador trabalha. É o desenho organizacional do grupo, e ele saiu do
-material do curso.
+Os dois são os **portões entre Upstream e Downstream** no vocabulário da aula 7: o DoR fecha o Upstream —
+requisitos, vocabulário, critérios de aceitação —, e o DoD fecha o Downstream, que é a implementação.
 
 ---
 

@@ -57,8 +57,9 @@ praticamente elimina RLS como mecanismo primário.**
 banco real e um usuário autenticado por caso de teste. Com um implementador e seis semanas, testes que
 precisam de banco tendem a não ser escritos.
 
-**3. Revisibilidade.** A regra em código aparece em diff de PR e é lida por qualquer pessoa do grupo.
-Política em SQL é difícil de revisar, e o grupo não codifica.
+**3. Revisibilidade.** A regra em código aparece no diff do pull request e é legível por quem não a
+escreveu. Política de RLS é difícil de revisar, e exige familiaridade com SQL que a revisão funcional do
+projeto não pressupõe.
 
 **4. Coerência com a ADR-0001.** Já decidimos que a regra de negócio vive no domínio e não no banco.
 Colocar o isolamento no banco criaria duas filosofias no mesmo sistema.
@@ -67,7 +68,7 @@ Colocar o isolamento no banco criaria duas filosofias no mesmo sistema.
 
 | Alternativa | Por que não |
 |---|---|
-| **RLS como mecanismo primário** | O modelo de múltiplos vínculos por pessoa (D4) não cabe num claim único. Além disso: testes exigem banco real, e a regra fica em SQL, ilegível para o resto do grupo |
+| **RLS como mecanismo primário** | O modelo de múltiplos vínculos por pessoa (D4) não cabe num claim único. Além disso: testes exigem banco real, e a regra fica em SQL, fora do alcance da revisão funcional |
 | **Filtro por organização escrito em cada consulta** | É o anti-padrão que a D2 se comprometeu a evitar. Uma consulta esquecida vaza dados de outro condomínio, e não há como garantir a cobertura por revisão |
 | **Um banco (ou schema) por organização** | Isolamento mais forte que qualquer um dos dois. Inviável no free tier — o Supabase permite 2 projetos ativos — e o custo de migração por tenant é incompatível com o prazo |
 | **Não fazer multi-tenant** | Foi recomendado no início da descoberta e recusado pelo Domain Expert com o trade-off à vista. Registrado na D2 |

@@ -262,28 +262,16 @@ localizado; trocar de provedor de auth também. Trocar a Vercel implica revisar 
 
 ## 4. Estratégias de Implementação e Desenvolvimento
 
-**Esteira reduzida.** O kanban de 11 colunas da aula 7 (p.6–7) vira seis: `Backlog → Refinado →
-Em andamento → Revisão funcional → Pronto para Deploy → Feito`.
-
-**A divisão Upstream/Downstream é mantida nomeada, porque é ela que organiza o grupo:** os **4 colegas
-ocupam o Upstream** (requisitos, glossário, critérios de aceite, verificação de DoD) e o **implementador
-ocupa o Downstream**. A tese da aula 7 (p.7) — se o desenvolvedor fica fora do Upstream surgem *"não
-compreensão dos requisitos, imprevisibilidades e bugs/débito técnico"* — é o argumento para o
-implementador participar da descoberta, o que aconteceu.
-
-> **Limitação declarada:** sendo **um único implementador**, **não há revisão de código por pares**. A
-> coluna `Code Review` do curso vira **`Revisão funcional`**, em que os colegas validam contra os
-> critérios de aceite. Registrar isso vale mais que fingir que houve peer review.
-
-**CI/CD.** Push na branch → *preview deployment* automático da Vercel. Merge em `main` → produção. O
-pipeline do GitHub Actions roda lint, tipos e testes; **falha bloqueia o merge**.
-
-**Descartados com justificativa:** *Planning Poker* — o propósito declarado pelo professor é *"provocar a
-discussão dos impactos na squad"*, e não há squad estimando. *Monte Carlo* — exige base histórica de
-velocidade que não existe e não existirá em seis semanas; aplicá-lo seria teatro estatístico. *Spikes e POC
-como cerimônias* — spike é definido como item "feito durante a sprint", e não há sprint formal; e a POC
-de deploy foi descartada pelo raciocínio registrado no topo deste documento. Fica a **ordenação**: o
-pipeline de deploy é a primeira tarefa de implementação, antes de qualquer código de domínio.
+> **Tópico deliberadamente não desenvolvido.** O template da aula 8 pede aqui a metodologia de
+> desenvolvimento e as práticas de equipe. Entendemos que **arquitetura de software existe e se sustenta
+> independentemente do processo que a implementa** — metodologia, cerimônias e organização de trabalho
+> não pertencem à descrição da solução. A numeração original do template é preservada para que a
+> correspondência com ele permaneça verificável.
+>
+> O que este tópico teria de conteúdo **técnico** está nos tópicos onde ele de fato pertence: a
+> integração contínua e o bloqueio de merge por falha de teste estão no **tópico 7**; ambientes, rollout
+> e rollback estão no **tópico 9**; e a ausência de revisão de código por pares — consequência de haver
+> um único implementador — está declarada no Definition of Done.
 
 ## 5. Segurança e Conformidade
 
@@ -378,7 +366,7 @@ da entrega.
 | Ambiente | Onde | Para quê |
 |---|---|---|
 | **Local** | Docker: aplicação + Supabase CLI (Postgres, Auth, Storage) | Desenvolvimento e testes de integração |
-| **Preview** | Deploy automático da Vercel por branch | Revisão funcional pelos colegas, com URL compartilhável |
+| **Preview** | Deploy automático da Vercel por branch | Revisão funcional em URL compartilhável, sem instalação local |
 | **Produção** | Vercel + projeto Supabase | Demonstração e entrega |
 
 **Rollout:** merge em `main` dispara build e publicação. **Rollback:** a Vercel mantém os deploys
@@ -403,10 +391,10 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A2 | **100% das transições** com os 5 campos do histórico | Teste unitário + inspeção na interface (E2E) |
 | A3 | Histórico **imutável**: não existe caminho de escrita que o altere | Revisão da API do agregado + ausência de operação de update no repositório |
 | A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com dois tenants semeados |
-| A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional dos colegas contra o inventário |
-| A6 | Sobe com `docker compose` local, do zero | Executado por outra pessoa do grupo, em outra máquina |
+| A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional contra o inventário de requisitos |
+| A6 | Sobe com `docker compose` local, do zero | Executado em outra máquina, por quem não implementou |
 | A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |
-| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado por três pessoas do grupo, em rede móvel |
+| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, por três pessoas distintas |
 | A9 | Lista de atribuições do Encarregado abre **sem rede** (RNF7) | Verificado com o modo offline do navegador |
 
 **Validação de produto** — os objetivos O1 a O6 da Documentação da Demanda. Com a ressalva já declarada

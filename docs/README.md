@@ -1,110 +1,57 @@
-# Resolve Aí — Documentação de Entrega
+# Resolve Aí — Documentação
 
-Plataforma de Gestão de Ocorrências. Trabalho da Fase 5 da pós em Full Stack Development (FIAP).
+Plataforma de Gestão de Ocorrências. Permite que moradores, funcionários ou membros de uma organização
+registrem ocorrências — iluminação, vazamento, limpeza, segurança, manutenção — e acompanhem o processo
+até a resolução, com trilha auditável de cada mudança de status.
 
-Esta pasta contém **só o que vai ser entregue**. O material de apoio — enunciado, PDFs das aulas,
-depósito de ideias, registro de decisões em andamento — fica fora do repositório, porque é material de
-terceiros ou processo interno.
-
----
-
-## Por onde começar
-
-A ordem abaixo é a ordem em que os documentos foram produzidos, e é também a melhor ordem de leitura:
-cada um usa o anterior.
-
-| # | Documento | O que responde | Tamanho |
-|---|---|---|---|
-| 1 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Para quem é, qual o problema, como funciona hoje, o que queremos que passe a funcionar, e os requisitos | ~15 min |
-| 2 | **[Glossário](glossario.md)** | O vocabulário do projeto. Uma definição por termo, e o que **não** confundir com o quê | ~10 min |
-| 3 | **[Arquitetura](arquitetura.md)** | O desenho técnico: contextos, o agregado central, a tabela de transições, e os 10 tópicos do requisito técnico | ~25 min |
-| 4 | **[Registros de Decisão (ADR)](adr/)** | Três decisões de arquitetura, cada uma com as alternativas rejeitadas e as consequências ruins | ~15 min |
-| 5 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | O que assumimos sem ter certeza, e o que ainda não sabemos | ~10 min |
-| 6 | **[Definition of Done / Ready](definition-of-done.md)** | Os dois portões de qualidade: quando uma tarefa pode começar, e quando está pronta | ~8 min |
-
-**Se você só tiver 10 minutos:** leia a seção 2 da Documentação da Demanda (o problema e a jornada atual)
-e a seção 1 das Premissas. São as duas que mais precisam de gente conferindo.
+Trabalho da Fase 5 da pós-graduação em Full Stack Development (FIAP).
 
 ---
 
-## Como este pacote foi construído
+## Conteúdo desta pasta
+
+Esta pasta contém a documentação da solução. Material de terceiros — o enunciado do desafio e as
+apostilas das aulas — e o material de processo interno ficam fora do repositório.
+
+Os documentos abaixo estão na ordem em que foram produzidos, que é também a ordem de leitura: cada um
+usa o anterior.
+
+| # | Documento | O que contém |
+|---|---|---|
+| 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
+| 02 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 45 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
+| 03 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
+| 04 | **[Registros de Decisão de Arquitetura](adr/)** | Três decisões, no formato Nygard: o histórico de transições como conceito de domínio, a escolha de stack e plataforma, e o isolamento entre organizações |
+| 05 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
+| 06 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
+
+---
+
+## Como o modelo foi construído
 
 Três fontes, nesta ordem de autoridade:
 
-1. **O enunciado do desafio** — todo requisito dele é obrigatório e está inventariado. Onde ele define o
-   quê *e* o como, seguimos literalmente; onde só exige que algo exista, a forma foi decidida por nós.
-2. **O material da disciplina de DDD da Fase 1** — 9 aulas. Cada prática adotada é citada como
-   `aula N, p.X`. O que veio de fora está marcado **[FONTE EXTERNA]**, porque a distinção importa.
-3. **Descoberta própria** — Event Storming pelos 10 passos da aula 6, entrevista de domínio, e benchmark
-   de mercado (sistemas de condomínio, CMMS de manutenção, service desk e apps cívicos).
+1. **O enunciado do desafio.** Todo requisito dele é obrigatório e está inventariado item a item na
+   Documentação da Demanda. Onde o enunciado define o quê *e* o como, ele é seguido literalmente; onde
+   apenas exige que algo exista, a forma foi decidida no projeto.
+2. **O material da disciplina de DDD da Fase 1** — nove aulas. Cada prática adotada é citada como
+   `aula N, p.X`. O que veio de fora da disciplina está marcado **[FONTE EXTERNA]**.
+3. **Descoberta própria** — Event Storming pelos dez passos da aula 6, entrevista de domínio, e benchmark
+   de mercado sobre sistemas de gestão de condomínio, softwares de manutenção, service desk e plataformas
+   cívicas de relato.
 
-Toda decisão nossa carrega um marcador de origem:
+---
 
-| Marcador | Significa | Pode ser cortado? |
+## Marcadores de origem
+
+Todo requisito e toda decisão nos documentos carregam a origem. A distinção define o que é obrigação e o
+que é escolha:
+
+| Marcador | Significado | Pode ser cortado? |
 |---|---|---|
 | `ENUNCIADO · literal` | O enunciado define o quê **e** o como | **Não** |
-| `ENUNCIADO · aberto` | A existência é imposta; a forma é nossa | **Não** (a existência) |
-| `NOSSO` | Adição nossa — precisa justificar valor contra custo | **Sim** |
+| `ENUNCIADO · aberto` | A existência é imposta; a forma é decisão do projeto | **Não** (a existência) |
+| `NOSSO` | Adição do projeto — justificada em valor contra custo | **Sim** |
 
----
-
-## O que precisamos de vocês
-
-O pacote está completo, mas **não está validado**. Quatro frentes de revisão, e nenhuma exige
-conhecimento técnico:
-
-### A · A realidade do problema
-**Onde:** [Documentação da Demanda](documentacao-da-demanda.md), seções 1 e 2.
-**O que conferir:** as duas personas de síndico e as duas jornadas atuais descrevem como a coisa
-realmente acontece? Falta alguma dor? Alguma está exagerada?
-**Por que importa:** a **Persona 1B** (síndico profissional, de imobiliária) foi descrita **de fora** — e
-é ela que sustenta os requisitos mais caros. Se alguém conhece um síndico profissional, uma conversa
-curta com ele vale mais que qualquer revisão de documento.
-
-### B · O vocabulário
-**Onde:** [Glossário](glossario.md).
-**O que conferir:** os termos são os que você usaria naturalmente? Algum soa artificial? A seção 7 lista
-cinco colisões que resolvemos — as resoluções fazem sentido?
-**Por que importa:** estes termos viram nome de tela, de tabela e de botão. Trocar agora é barato.
-
-### C · As suposições
-**Onde:** [Premissas e Questões Abertas](premissas-e-questoes-abertas.md).
-**O que conferir:** as premissas (P1, P3, P4, P5) são apostas razoáveis? E os pontos de atenção ainda
-abertos — algum deles você sabe responder?
-**Por que importa:** é o documento que assume que podemos estar errados. Quanto mais coisa sair dele
-com resposta, menor o risco.
-
-### D · Os critérios de aceite
-**Onde:** [Arquitetura](arquitetura.md), tópico 10.
-**O que conferir:** os nove critérios (A1 a A9) são o suficiente para dizer "está pronto"? Falta algo
-que você checaria?
-**Por que importa:** vocês são quem vai verificar. Se o critério não estiver claro para vocês, não
-serve.
-
----
-
-## Como devolver a revisão
-
-Três saídas possíveis para cada frente:
-
-- **Está ok** — diga explicitamente, para a gente poder seguir.
-- **Precisa mudar** — aponte o trecho e o que está errado. Pode ser comentário no arquivo aqui no
-  GitHub, ou mensagem no grupo.
-- **Precisa conversar** — se for algo que não se resolve por escrito, marcamos.
-
----
-
-## Estado do trabalho
-
-| | |
-|---|---|
-| **Decisões de produto registradas** | 27 |
-| **Questões abertas** | 0 — todas as 14 foram fechadas |
-| **Premissas assumidas sem validação** | 4 |
-| **Pontos de atenção ainda abertos** | 15 |
-| **Histórias na primeira entrega** | 36 |
-| **Entrega** | 29/09/2026 |
-
-**O que vem depois desta revisão:** implementação. A ordem já está definida — primeiro o pipeline de
-deploy, o agregado com a trilha de auditoria e o isolamento entre organizações; depois as
-funcionalidades, seguindo a jornada da esquerda para a direita.
+Decisões de produto são referenciadas por identificador (`D1` a `D27`), premissas por `P1` a `P5`, e
+pontos de atenção por `PA-nn`. Os identificadores são estáveis e usados em todos os documentos.
