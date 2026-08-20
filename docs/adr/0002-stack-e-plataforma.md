@@ -1,6 +1,19 @@
 # ADR-0002 — Next.js com PWA, APIs próprias, Vercel e Supabase
 
-**Status:** Aceita · 18/08/2026
+**Status:** **Parcialmente substituída pela [ADR-0004](0004-execucao-em-container-no-azure.md)** · 20/08/2026
+
+> **O que foi substituído:** a plataforma de **execução** (Vercel → Azure Container Apps) e o **storage de
+> anexo** (Supabase Storage → Azure Blob Storage), com o acréscimo de um **registro de imagem**
+> (`ghcr.io`). O motivo está na ADR-0004: a consequência negativa registrada abaixo — *"o `Dockerfile` não
+> é o que roda em produção"* — deixou de ser aceitável quando se verificou que a disciplina de DevOps da
+> Fase 5 ensina exatamente esse caminho, e que ele cabe no custo zero.
+>
+> **O que permanece válido:** Next.js com TypeScript, PWA, route handlers como APIs, GitHub e GitHub
+> Actions, e **Supabase para PostgreSQL e autenticação**. O restante deste documento — inclusive as
+> alternativas rejeitadas de NestJS+Angular, Spring+Angular, BaaS com regra no banco e app nativo —
+> continua sendo a justificativa vigente dessas escolhas.
+
+**Status original:** Aceita · 18/08/2026
 
 ## Contexto
 

@@ -195,10 +195,14 @@ importa o cliente de banco.
 
 ## 1. Descrição Detalhada da Solução
 
-Aplicação **Next.js** única, em TypeScript, publicada na **Vercel**, com **Supabase** (PostgreSQL, Auth
-e Storage) como plataforma de dados, e **PWA** para leitura offline. Internamente organizada em quatro
-camadas (Parte I, §5) e dois contextos delimitados (Parte I, §2), com o agregado `Ocorrência` (§4) como
-centro.
+Aplicação **Next.js** única, em TypeScript, empacotada em **container** e executada no **Azure Container
+Apps**, com **Supabase** para PostgreSQL e autenticação, **Azure Blob Storage** para os anexos, e **PWA**
+para leitura offline. Internamente organizada em quatro camadas (Parte I, §5) e dois contextos
+delimitados (Parte I, §2), com o agregado `Ocorrência` (§4) como centro.
+
+**O container que é construído é o que roda em produção** — ver
+[ADR-0004](adr/0004-execucao-em-container-no-azure.md), que substituiu parcialmente a escolha original de
+plataforma justamente para eliminar a divergência entre o `Dockerfile` e o ambiente publicado.
 
 O fluxo de uma operação, de ponta a ponta: o cliente chama um **route handler**; a **camada de aplicação**
 resolve o contexto da requisição — usuário, pessoa, organização, papel — num **ponto único**
@@ -219,9 +223,9 @@ como"* (p.6) — é exemplo, não prescrição. Registramos componente a compone
 | 3 | Banco de dados | **Sim** | PostgreSQL (Supabase). Relacional, porque o domínio é relacional e a auditoria exige integridade |
 | 4 | Serviços de autenticação | **Sim** | Supabase Auth, integrado como **Conformista + ACL** |
 | 5 | API Gateway | **Não** | Um único serviço, um único ponto de entrada. Gateway existe para rotear entre serviços |
-| 6 | Microsserviços em cloud | **Não** | Dois contextos e um implementador. A aula 3 autoriza poucos contextos em solução pequena |
+| 6 | Microsserviços em cloud | **Cloud sim, microsserviços não** | O serviço roda em nuvem, num container no Azure Container Apps. **Microsserviços não**: são dois contextos e um implementador, e a aula 3 autoriza poucos contextos em solução pequena |
 | 7 | Filas e mensageria | **Não** | Nenhuma operação assíncrona pesada no MVP. As dez políticas são in-process |
-| 8 | Monitoramento e log | **Parcial** | Logs da plataforma (Vercel) e do banco (Supabase). Sem ELK nem Prometheus — **Caminhos Separados** |
+| 8 | Monitoramento e log | **Parcial** | Logs do Container Apps e do banco (Supabase). Sem ELK nem Prometheus — **Caminhos Separados** |
 | 9 | Segurança | **Sim** | Tópico 5 |
 
 ## 2. Tecnologias e Ferramentas Utilizadas
@@ -236,9 +240,10 @@ contra um requisito, como o tópico pede:
 | **Route handlers próprios** | **E3** (APIs como entregável) e o consumo pelo PWA |
 | **PostgreSQL** | **RNF2** (auditabilidade) exige integridade transacional entre a transição e o registro |
 | **Supabase Auth** | Subdomínio **Genérico** — comprado, não construído. Prazo |
-| **Supabase Storage** | **RNF8**, com compressão no cliente para 400 KB |
-| **Vercel Hobby** | **Custo zero obrigatório**. E o comportamento de *pausar em vez de cobrar* torna a restrição uma garantia mecânica |
-| **Docker + Supabase CLI** | **E7**, literal no enunciado. Ambiente local completo, incluindo a aplicação em container |
+| **Azure Blob Storage** | **RNF8**. Remove o teto de arquivo que o free tier anterior impunha, por cerca de US$ 1 ao ano no nosso volume |
+| **Azure Container Apps** | **E8** e **custo zero**: franquia mensal permanente com escala a zero. E é o que faz o **E7** deixar de ser apenas ambiente local |
+| **`ghcr.io`** | Registro da imagem. Gratuito para imagem pública, e o `GITHUB_TOKEN` do Actions já autentica — sem recurso nem segredo novo. ACR foi considerado e recusado (ADR-0004) |
+| **Docker + Supabase CLI** | **E7**, literal no enunciado. Ambiente local completo, incluindo a aplicação em container — e **o mesmo `Dockerfile` que vai para produção** |
 | **Vitest** | **RNF2** e a máquina de estados testáveis **sem banco**, em milissegundos |
 | **Playwright** | Caminho crítico de ponta a ponta; e verificação do **RNF1** por fora |
 | **ESLint com regra de fronteira** | Torna mecânica a regra de dependência (Parte I, §5) e o ponto único da ADR-0003 |
@@ -250,15 +255,21 @@ Levantadas no passo 8 do Event Storming.
 | Sistema externo | Direção | Como é gerenciada |
 |---|---|---|
 | **Supabase Auth** | entra | **Conformista**: aceitamos o contrato dele. **ACL** no ponto de resolução de contexto traduz sessão em `{usuário, pessoa, organização, papel}`. O domínio nunca vê token |
-| **Supabase Storage** | sai/entra | Upload por URL assinada emitida pelo servidor. Nunca do cliente direto |
+| **Azure Blob Storage** | sai/entra | Upload por URL assinada emitida pelo servidor. Nunca do cliente direto |
+| **`ghcr.io`** | sai | O GitHub Actions publica a imagem; o Container Apps a consome. Imagem pública, sem credencial de leitura |
 | **E-mail · Push · WhatsApp** | sai | **Fora do MVP.** POL-07 é o único ponto que consulta o plano; a entrega é plugável por trás dela. A API do WhatsApp é **cobrada por mensagem** — é o canal que mais pressiona o modelo comercial da D13 |
 | **Fonte da carga de pessoas** | entra | Importação de arquivo, validada e transformada na camada de aplicação. Persona 1A traz planilha; 1B, o sistema da administradora |
 | **Meio de pagamento** | sai | Fora do MVP. Decorre da D13 |
 
-**Dependência de plataforma, declarada:** a solução depende de Vercel e Supabase. O acoplamento está
-concentrado na camada de Infraestrutura e no ACL de autenticação — trocar de provedor de banco é trabalho
-localizado; trocar de provedor de auth também. Trocar a Vercel implica revisar o modelo de execução
-(serverless), o que é mais caro.
+**Dependência de plataforma, declarada:** a solução depende de **três provedores** — GitHub para código e
+esteira, Azure para execução e storage, Supabase para banco e autenticação. É uma superfície de
+configuração maior que a de um provedor único, e cada peça tem razão própria registrada na
+[ADR-0004](adr/0004-execucao-em-container-no-azure.md).
+
+O acoplamento está concentrado na camada de Infraestrutura e no ACL de autenticação: trocar de provedor de
+banco, de storage ou de auth é trabalho localizado. **Trocar o provedor de execução deixou de ser caro** —
+a aplicação é um container, e container roda em qualquer lugar. Foi um dos ganhos da ADR-0004: a
+portabilidade que o modelo serverless anterior não tinha.
 
 ## 4. Estratégias de Implementação e Desenvolvimento
 
@@ -314,11 +325,16 @@ O que **está** projetado para mudar:
   o caminho para event sourcing aberto por custo quase zero.
 - **Permissão como conceito** — RBAC configurável entra trocando a fonte do mapa, sem mexer nas checagens.
 
-**Tetos conhecidos:** 500 MB de banco e ~1 GB de arquivo no free tier; com imagem de 400 KB, ~2.000
-ocorrências. Acima disso, o caminho pronto é mover arquivo para storage com franquia maior e egress zero
-(Cloudflare R2), deliberadamente fora do escopo.
+**Teto conhecido: o banco.** São 500 MB no free tier do Supabase, o que comporta cerca de **55.000
+ocorrências** — quase trinta vezes o alvo declarado no RNF3. **O storage deixou de ser restrição** com a
+[ADR-0004](adr/0004-execucao-em-container-no-azure.md): no Azure Blob, o limite prático na nossa escala é
+o custo, e o custo é da ordem de **US$ 1 por ano**.
 
-**⟨a medir no primeiro deploy⟩** Cold start e p95 reais.
+Vale registrar o que essa troca resolveu: enquanto o arquivo vivia no free tier anterior, o gargalo era o
+storage, e ele apertava cerca de vinte vezes antes do banco. A restrição que ditava o número do RNF3 era
+essa — e ela não existe mais.
+
+**⟨a medir no primeiro deploy⟩** Cold start com escala a zero, e p95 reais.
 
 ## 7. Testes
 
@@ -366,17 +382,25 @@ da entrega.
 | Ambiente | Onde | Para quê |
 |---|---|---|
 | **Local** | Docker: aplicação + Supabase CLI (Postgres, Auth, Storage) | Desenvolvimento e testes de integração |
-| **Preview** | Deploy automático da Vercel por branch | Revisão funcional em URL compartilhável, sem instalação local |
-| **Produção** | Vercel + projeto Supabase | Demonstração e entrega |
+| **Produção** | Azure Container Apps + projeto Supabase + Azure Blob Storage | Revisão funcional, demonstração e entrega |
 
-**Rollout:** merge em `main` dispara build e publicação. **Rollback:** a Vercel mantém os deploys
-anteriores e permite promover um deploy antigo — rollback é imediato e não depende de rebuild.
-**Migrações de banco** são versionadas em arquivo e aplicadas pelo CLI do Supabase; **migração não é
-reversível automaticamente**, então mudança destrutiva de esquema exige script de volta escrito à mão.
+**A cadeia de entrega:** merge em `main` → GitHub Actions constrói a imagem → publica no `ghcr.io` →
+Container Apps cria uma **revisão** nova e passa a servir por ela.
 
-> **Divergência de ambientes, declarada.** O `Dockerfile` roda local, **não em produção** — a Vercel
-> executa funções. Está registrado como consequência negativa na ADR-0002. Ler E7 como "a aplicação em
-> produção roda no seu container" exigiria outra plataforma, ao custo de cold start na casa do minuto.
+**Rollback:** o Container Apps mantém revisões anteriores e permite redirecionar o tráfego para uma delas
+— imediato, sem rebuild. **Migrações de banco** são versionadas em arquivo e aplicadas pelo CLI do
+Supabase; **migração não é reversível automaticamente**, então mudança destrutiva de esquema exige script
+de volta escrito à mão. Como o rollback da aplicação é instantâneo e o do banco não é, **a ordem segura é
+migração compatível primeiro, código depois**.
+
+> **O que se perdeu na troca de plataforma, declarado.** Não há mais **ambiente de preview por branch** —
+> a plataforma anterior gerava URL por branch automaticamente, e o Container Apps não faz isso de forma
+> nativa. **A revisão funcional passa a acontecer no ambiente único**, com o que isso implica: código não
+> validado chega ao mesmo lugar que a demonstração. A mitigação é o portão do Definition of Done, não a
+> infraestrutura.
+
+**Ambiente de desenvolvimento e produção rodam o mesmo `Dockerfile`.** É o que faz E7 e E8 serem
+satisfeitos pelo mesmo artefato, e foi a razão da [ADR-0004](adr/0004-execucao-em-container-no-azure.md).
 
 **Risco de calendário:** o projeto Supabase free **pausa após 7 dias de inatividade**. Se houver
 demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron semanal no GitHub Actions.
@@ -390,7 +414,7 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A1 | Os 5 status e as transições da tabela da Parte I, §4 — e **nenhuma outra** | Teste unitário de domínio, incluindo transições ilegais |
 | A2 | **100% das transições** com os 5 campos do histórico | Teste unitário + inspeção na interface (E2E) |
 | A3 | Histórico **imutável**: não existe caminho de escrita que o altere | Revisão da API do agregado + ausência de operação de update no repositório |
-| A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com dois tenants semeados |
+| A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte dela |
 | A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional contra o inventário de requisitos |
 | A6 | Sobe com `docker compose` local, do zero | Executado em outra máquina, por quem não implementou |
 | A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |

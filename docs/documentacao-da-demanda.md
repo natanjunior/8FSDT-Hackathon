@@ -126,6 +126,12 @@ andamento **sem precisar perguntar** e o gestor não perca ocorrências em esper
 > jornada atual não mede nada, em nenhuma das duas personas. Os números de O1 a O5 são **hipóteses a
 > calibrar** depois das primeiras semanas de uso — e **produzir a linha de base é, ele próprio, o
 > primeiro resultado do produto**. O6 é diferente: não é meta, é consequência estrutural do desenho.
+>
+> **Estes são objetivos do produto, não da primeira entrega.** O recorte em [escopo.md](escopo.md)
+> instrumenta O3, O4 e O6 desde o início. **O5 não é medido na primeira entrega**, porque a comparação
+> entre tempo de calendário e tempo ativo depende de indicadores adiados; e O1 e O2 são **mensuráveis mas
+> não assistidos**, porque o alarme de ocorrência parada e o aviso automático ficaram para depois. A
+> distinção está declarada aqui para que a ausência não seja lida como esquecimento.
 
 ---
 
@@ -201,26 +207,29 @@ Seguindo o modelo do curso, **com número e não com adjetivo** (p.9).
 |---|---|---|
 | RNF1 | **Isolamento entre organizações** | Nenhuma consulta retorna dado de outra organização. **100%**, verificado por teste automatizado, com o isolamento aplicado num **único ponto de estrangulamento** |
 | RNF2 | **Auditabilidade** | **100%** das transições com os 5 campos preenchidos; registro **imutável**; impossível mudar status sem gerar registro |
-| RNF3 | **Escala** | 50 organizações · 200 pessoas por organização · **2.000 ocorrências** no total · 20 usuários simultâneos — **dentro do free tier**. Ver a conta em RNF8 |
+| RNF3 | **Escala** | 50 organizações · 200 pessoas por organização · **2.000 ocorrências** no total · 20 usuários simultâneos. O modelo de dados mede esse alvo em ~26 MB, cerca de 5% dos 500 MB do free tier do banco |
 | RNF4 | **Desempenho** | p95 ≤ 1s em requisição morna |
-| RNF5 | **Disponibilidade** | **Sem SLA de produção.** Compatível com free tier: indisponibilidade programada e **cold start de até 60s** na primeira requisição após inatividade são esperados e declarados |
+| RNF5 | **Disponibilidade** | **Sem SLA de produção.** O serviço usa **escala a zero** para caber na franquia gratuita, então **cold start na primeira requisição após ociosidade é esperado e declarado**. O banco no free tier também pausa após 7 dias sem atividade |
 | RNF6 | **Registro em menos de 1 minuto** pelo celular | Da abertura do app ao envio da ocorrência, incluindo foto — mitiga o risco de usabilidade |
 | RNF7 | **Leitura offline** para o Encarregado | A lista de atribuições e o detalhe devem abrir sem rede. Escrita offline **não** é requisito |
 | RNF8 | **Imagem** | Uma por ocorrência, JPEG ou PNG, **comprimida no cliente** para no máximo **400 KB** (redimensionada para 1600px no maior lado). O aceite no seletor é de até 10 MB; o que sobe é o comprimido |
 | RNF9 | **Retenção** | O histórico não expira — ele **é** o produto |
 | RNF10 | **LGPD** | Foto e localização são dados pessoais. Base legal declarada; dado acessível apenas dentro da organização; exclusão de conta preserva a trilha de auditoria com o autor anonimizado |
-| RNF11 | **Publicação em container** | A aplicação sobe por Docker — `ENUNCIADO · literal` (E7) |
+| RNF11 | **Publicação em container** | A aplicação sobe por Docker — `ENUNCIADO · literal` (E7) — e **o mesmo container é o que executa em produção**, não apenas em desenvolvimento |
 
-> **A conta que fixou RNF3 e RNF8.** A primeira versão deste documento dizia 5.000 ocorrências com
-> imagem de até 5 MB — **25 GB**, contra 500 MB a 1 GB de arquivo no free tier do Supabase. Estourava
-> em vinte e cinco vezes. Com compressão no cliente para 400 KB, **2.000 ocorrências ocupam ~800 MB**,
-> que cabe. A compressão, no entanto, não entrou por causa do storage: entrou porque **upload de 5 MB
-> em rede móvel quebra o RNF6**, que é o requisito que mitiga o risco de usabilidade.
+> **A conta que fixou RNF3 e RNF8, e o que mudou depois.** A primeira versão deste documento dizia 5.000
+> ocorrências com imagem de até 5 MB — **25 GB**, contra o teto de arquivo do free tier então escolhido.
+> Estourava em vinte e cinco vezes. O alvo foi corrigido para 2.000 e a imagem passou a ser comprimida.
 >
-> **Limitação declarada:** acima desse volume o free tier não comporta as imagens. O caminho pronto é
-> mover o arquivo para um storage com franquia maior e egress zero (Cloudflare R2, 10 GB grátis) —
-> deliberadamente **fora do escopo**, para não adicionar serviço, credencial e fluxo de URL assinada a
-> uma restrição que não aperta na entrega.
+> **A compressão não entrou por causa do storage**, e por isso permanece: ela entrou porque **upload de
+> 5 MB em rede móvel quebra o RNF6**, que é o requisito que mitiga o risco de usabilidade — o segundo mais
+> alto da análise de Cagan.
+>
+> **O teto de storage, esse sim, deixou de existir.** Com a
+> [ADR-0004](adr/0004-execucao-em-container-no-azure.md) os anexos passaram para o Azure Blob Storage,
+> onde o limite prático na escala deste projeto é o custo — cerca de US$ 1 por ano. O gargalo do free tier
+> voltou a ser o banco, com folga de aproximadamente trinta vezes sobre o alvo. O RNF3 permanece em 2.000
+> por ser **meta declarada**, não por ser teto.
 >
 > **Dependência declarada.** Os números de RNF4 e RNF5 são metas a fechar no **primeiro deploy real**,
 > que é a primeira tarefa de implementação.

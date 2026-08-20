@@ -28,5 +28,6 @@ disciplina, a citação vem como `aula N, p.X`.
 | # | Decisão | Status |
 |---|---|---|
 | [0001](0001-historico-de-transicoes-como-conceito-de-dominio.md) | Histórico de transições é conceito de domínio, não auditoria de infraestrutura | Aceita |
-| [0002](0002-stack-e-plataforma.md) | Next.js com PWA, APIs próprias, Vercel e Supabase | Aceita |
+| [0002](0002-stack-e-plataforma.md) | Next.js com PWA, APIs próprias, Vercel e Supabase | **Parcialmente substituída pela 0004** |
 | [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação; RLS como defesa em profundidade | Aceita |
+| [0004](0004-execucao-em-container-no-azure.md) | Execução em container no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
