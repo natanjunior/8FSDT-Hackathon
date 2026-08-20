@@ -141,9 +141,12 @@ O produto atende várias organizações na mesma instância, e **a Organização
 nenhuma consulta atravessa a fronteira de uma. A Organização é criada por auto-serviço, e quem a cria
 vira o Gestor inicial — é o que resolve o primeiro vínculo, que não teria quem o aprovasse.
 
-Depois disso, **todo vínculo nasce aprovado por um Gestor**: ou porque ele convidou por um link de uso
-único, ou porque aprovou um pedido de entrada feito com o código público da Organização — aquele que
-vive no cartaz do elevador. Código vazado não vira acesso: vira um pedido aguardando aprovação.
+Depois disso, **todo vínculo nasce por ação de um Gestor**, por um de três caminhos: ele **cadastra** a
+pessoa diretamente — é assim que o Encarregado sem conta entra (D27) —, ou **convida** por um link de uso
+único, ou **aprova** um pedido de entrada feito com o código público da Organização, aquele que vive no
+cartaz do elevador. Código vazado não vira acesso: vira um pedido aguardando aprovação.
+
+Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega; o convite é evolução prevista.
 
 ---
 

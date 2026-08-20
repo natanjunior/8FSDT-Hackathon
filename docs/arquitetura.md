@@ -145,6 +145,68 @@ Nenhuma outra transição existe. Comandos que **não** transicionam estão list
 | `Pausada` | `retomar` | **o `status anterior` do registro de pausa** | Gestor |
 | `Pausada` | `cancelar` | `Cancelada` | Gestor |
 
+A tabela diz **quem pode**; o diagrama abaixo diz **que forma o grafo tem**. São o mesmo argumento em duas
+metades, e por isso ficam juntos: uma transição nova que entre num e não no outro fica visivelmente errada.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    state "Aberta" as ABERTA
+    state "Em análise" as ANALISE
+    state "Em atendimento" as ATENDIMENTO
+    state "Pausada · NOSSO D8" as PAUSADA
+    state "Resolvida" as RESOLVIDA
+    state "Cancelada" as CANCELADA
+
+    [*] --> ABERTA : registrar
+
+    ABERTA --> ANALISE : analisar
+    ANALISE --> ATENDIMENTO : iniciarAtendimento
+    ATENDIMENTO --> RESOLVIDA : resolver
+
+    ANALISE --> PAUSADA : pausar
+    ATENDIMENTO --> PAUSADA : pausar
+    PAUSADA --> ANALISE : retomar
+    PAUSADA --> ATENDIMENTO : retomar
+
+    ABERTA --> CANCELADA : cancelar
+    ANALISE --> CANCELADA : cancelar
+    ATENDIMENTO --> CANCELADA : cancelar
+    PAUSADA --> CANCELADA : cancelar
+
+    RESOLVIDA --> [*]
+    CANCELADA --> [*]
+
+    note right of PAUSADA
+        NOSSO — D8. Não existe em nenhuma
+        das três fontes do enunciado.
+        retomar devolve ao status anterior
+        gravado no registro da pausa: os dois
+        destinos desenhados são os únicos.
+    end note
+
+    note left of RESOLVIDA
+        Resolvida e Cancelada são terminais
+        de verdade — D24. Não existe reabrir.
+        E avaliar não é seta: age sobre
+        Resolvida sem mudar o status — D1.
+    end note
+
+    classDef nosso stroke-dasharray: 5 5
+    class PAUSADA nosso
+```
+
+> **O que este diagrama afirma:** a máquina tem **dois poços e nenhum caminho de volta** — de `Resolvida`
+> e de `Cancelada` não se sai, e `Pausada` é o único desvio que retorna, sempre para o estado de onde
+> saiu. O enunciado desenha os cinco estados sem o desvio: **tudo o que está tracejado é nosso**.
+
+Os cinco estados e as setas entre eles são `ENUNCIADO · literal` (fluxo principal, p.3 do PDF, e o
+`fluxograma-2`). `Pausada`, as duas setas de `pausar`, as duas de `retomar` e a seta
+`Pausada → Cancelada` são `NOSSO` (D8, D12). A seta inicial `[*] → Aberta` é a premissa **P1**. A análise
+completa de origem e a comparação com as três fontes do enunciado estão em
+[`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
+
 **`Resolvida` e `Cancelada` são terminais de verdade — não existe `reabrir`** (D24). Problema que volta é
 **nova ocorrência vinculada à original**, reusando o vínculo que a D17 criou para duplicidade. Isso
 preserva a D6, que congela a prioridade em estado terminal para o dashboard ser reproduzível, e o sinal
@@ -208,8 +270,24 @@ O fluxo de uma operação, de ponta a ponta: o cliente chama um **route handler*
 resolve o contexto da requisição — usuário, pessoa, organização, papel — num **ponto único**
 ([ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md)); carrega o agregado por um
 **repositório já escopado** à organização; executa um **comando de domínio**, que valida a transição e
-emite o registro de histórico na mesma operação; persiste; e as **políticas** in-process reagem ao evento,
-criando notificação ou abrindo canal — **sem nunca escrever no agregado**.
+emite o registro de histórico na mesma operação; persiste; e as **políticas** in-process reagem ao evento
+— **sem nunca escrever no agregado `Ocorrência`**.
+
+> **Quais políticas de fato rodam na primeira entrega.** Das dez do passo 6 do Event Storming, **três**:
+> a POL-01 (semear categorias e áreas ao registrar a Organização), a POL-02 (estabelecer vínculo ao
+> aceitar convite) e a **POL-11**, acrescentada em 20/08/2026 (estabelecer vínculo ao aprovar pedido de
+> entrada). As sete restantes dependem de notificação, dos canais 2 e 3 ou de alarme por tempo, que são
+> evolução prevista.
+>
+> A consequência é contraintuitiva e vale dizer: **nenhuma política reage a uma transição de status na
+> primeira entrega.** As três que rodam reagem a eventos de cadastro, não do ciclo de vida. A frase acima
+> descreve o desenho completo; na primeira entrega a operação termina em *"persiste"*.
+>
+> Duas notas de precisão que decorrem disso. A ressalva *"sem nunca escrever no agregado"* vale para o
+> agregado **`Ocorrência`** — a POL-01 escreve `Categoria` e `Área`, que o passo 9 põe dentro do agregado
+> `Organização`, e é justamente o trabalho dela. E o único encadeamento previsto entre política e comando
+> — a POL-04 arquivando o canal da atribuição ao reatribuir — **não tem canal para arquivar hoje**, porque
+> o canal 3 é fatia 2.
 
 ### A arquitetura de referência da aula 8 como checklist de decisão
 
@@ -347,6 +425,8 @@ Plano organizado pelo que cada tipo **protege**, e não por meta de cobertura.
 | **Integração de repositório** | **O ponto único de isolamento (RNF1)**: consulta em nome da organização A **nunca** retorna dado de B | Vitest + Postgres do Supabase CLI | Não |
 | **Ponta a ponta** | Caminho crítico: registrar → analisar → atribuir → atender → resolver → avaliar, com histórico conferido na interface | Playwright | Não |
 | **Verificação de fronteira** | A regra de dependência (Parte I, §5): nada fora da Infraestrutura importa o cliente de banco | ESLint | — |
+| **Verificação de contrato** | Que `docs/api/openapi.yaml` corresponda aos schemas de validação, e que as três regras mecânicas da §15 do contrato passem | Passo do pipeline | — |
+| **Verificação de diagrama** | Que todo bloco Mermaid do repositório tenha sintaxe válida — diagrama que não renderiza é documentação que não existe | `mermaid.parse()` sobre os blocos, em Node | — |
 
 **Integração ao ciclo de vida:** o pipeline roda em todo push e **falha bloqueia merge**. E o
 Definition of Done exige, por funcionalidade, *teste do caminho feliz **e de ao menos uma transição
@@ -403,6 +483,57 @@ da entrega.
 **A cadeia de entrega:** merge em `main` → GitHub Actions constrói a imagem → publica no `ghcr.io` →
 Container Apps cria uma **revisão** nova e passa a servir por ela.
 
+```mermaid
+flowchart LR
+    subgraph DEV["Máquina do implementador"]
+        DF["Dockerfile<br/>E7 · ENUNCIADO literal"]
+        DKR["docker compose: a aplicação<br/>mais o Supabase CLI local"]
+    end
+
+    subgraph GH["GitHub"]
+        REPO["Repositório: código, docs e migrações"]
+        GA["GitHub Actions: testes, build da<br/>imagem, e bloqueio de merge na falha"]
+    end
+
+    GHCR["ghcr.io — imagem pública. O Actions publica<br/>com o GITHUB_TOKEN; o consumo é sem credencial"]
+
+    subgraph AZ["Azure"]
+        ACA["Container Apps — E8 · ENUNCIADO aberto.<br/>Uma revisão nova por deploy, escala a zero.<br/>A plataforma é NOSSA: ADR-0004"]
+        BLOB["Blob Storage — os anexos"]
+    end
+
+    SUPA["Supabase — PostgreSQL e Auth.<br/>O free tier pausa após 7 dias ociosos"]
+    USR["Solicitante · Gestor, no navegador"]
+    MIG["Migrações versionadas, aplicadas pelo CLI do Supabase<br/>num passo do próprio workflow, ANTES do deploy"]
+
+    DF --> DKR
+    DF --> GA
+    REPO -->|"merge em main"| GA
+    GA --> MIG
+    MIG -->|"migração compatível primeiro"| SUPA
+    GA -->|"docker push"| GHCR
+    GHCR -->|"pull, sem segredo"| ACA
+    GA -.->|"cron semanal, só para o banco não pausar"| SUPA
+
+    USR --> ACA
+    ACA --> SUPA
+    ACA -->|"emite SAS, faz HEAD, troca a etiqueta"| BLOB
+    USR -.->|"PUT dos bytes com SAS · GET por 302"| BLOB
+    ACA -->|"rollback: reapontar para a revisão anterior,<br/>imediato e sem rebuild"| ACA
+```
+
+> **O que este diagrama afirma:** o `Dockerfile` que roda na máquina do implementador é o mesmo artefato
+> que serve em produção — é o que faz E7 e E8 serem satisfeitos pela mesma coisa —, e a única seta que não
+> passa pelo contêiner da aplicação é a dos bytes da imagem, que o usuário escreve direto no storage.
+> **O rollback da aplicação é imediato; o do banco não é, e é por isso que a migração vai primeiro.**
+
+**Quem aplica a migração: o próprio workflow do Actions**, num passo que roda **antes** de o Container
+Apps receber a imagem nova. A alternativa era comando manual antes do merge, e ela foi recusada pelo mesmo
+motivo das ADR-0001 e 0003: com ela, a ordem segura passa a depender de alguém lembrar. O passo falhando
+interrompe a cadeia, e o deploy não acontece — que é o comportamento desejado, porque **código novo sobre
+esquema velho é o modo de falha que a ordem existe para evitar**. A análise de origem do diagrama está em
+[`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
+
 **Rollback:** o Container Apps mantém revisões anteriores e permite redirecionar o tráfego para uma delas
 — imediato, sem rebuild. **Migrações de banco** são versionadas em arquivo e aplicadas pelo CLI do
 Supabase; **migração não é reversível automaticamente**, então mudança destrutiva de esquema exige script
@@ -430,7 +561,7 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A1 | Os 5 status e as transições da tabela da Parte I, §4 — e **nenhuma outra** | Teste unitário de domínio, incluindo transições ilegais |
 | A2 | **100% das transições** com os 5 campos do histórico | Teste unitário + inspeção na interface (E2E) |
 | A3 | Histórico **imutável**: não existe caminho de escrita que o altere | Revisão da API do agregado + ausência de operação de update no repositório |
-| A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte dela |
+| A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte dela. **Mais um caso próprio para as duas escritas que rodam fora do funil** ([ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), emenda de 20/08): pedido de entrada criado com o Código da Organização A **não** produz linha escopada em B |
 | A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional contra o inventário de requisitos |
 | A6 | Sobe com `docker compose` local, do zero | Executado em outra máquina, por quem não implementou |
 | A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |

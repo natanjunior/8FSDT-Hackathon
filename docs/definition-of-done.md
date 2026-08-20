@@ -122,6 +122,10 @@ cinco famílias da definição da p.5.
 - [ ] **Glossário atualizado** se surgiu termo novo — `docs/glossario.md`.
 - [ ] **ADR escrita** se houve decisão de arquitetura com alternativa rejeitada — `docs/adr/`.
 - [ ] Endpoint novo documentado.
+- [ ] **Todo bloco Mermaid do repositório tem sintaxe válida**, verificado por `mermaid.parse()` no
+      pipeline. São poucas linhas de Node e roda em segundos — e é o mesmo princípio da regeneração do
+      OpenAPI: **garantia mecânica em vez de disciplina**. Diagrama que não renderiza é documentação que
+      não existe, e a falha é silenciosa: o GitHub mostra o bloco de código cru e ninguém percebe.
 - [ ] **Ponto de atenção resolvido é riscado**, e ponto de atenção novo é registrado, em
       `docs/premissas-e-questoes-abertas.md`.
 

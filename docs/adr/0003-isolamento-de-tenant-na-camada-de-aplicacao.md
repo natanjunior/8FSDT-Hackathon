@@ -21,9 +21,16 @@ O modelo de atores, porém, tem uma característica que muda a conta. Pela **D4*
 
 **O escopo de organização é aplicado na camada de aplicação**, em dois pontos e somente dois:
 
-**1. Resolução — uma vez por requisição.** O handler que valida a sessão lê o usuário autenticado, busca
-o vínculo ativo e monta um contexto: `{ usuarioId, pessoaId, organizacaoId, papel }`. É o **único lugar
-do sistema que descobre em qual organização se está operando**.
+**1. Resolução — uma vez por requisição.** A **camada de aplicação**, invocada uma vez por requisição, lê
+o usuário autenticado, busca o vínculo ativo e monta um contexto:
+`{ usuarioId, pessoaId, organizacaoId, papel }`. É o **único lugar do sistema que descobre em qual
+organização se está operando**.
+
+> **Correção de redação — 20/08/2026.** Esta linha dizia *"o handler que valida a sessão"*, e o handler é
+> da camada de **Interface**, que a `arquitetura.md` §5 proíbe de tocar o banco. Resolver o contexto exige
+> consultar `vinculos`, então o passo nunca poderia morar lá. **A decisão não mudou** — a Parte II §1 da
+> arquitetura já atribuía a resolução à Aplicação. Mudou a palavra, que apontava para a camada errada na
+> fronteira mais cara do projeto. Encontrado ao desenhar o DG-3 de `fluxos-e-diagramas.md`.
 
 **2. Aplicação — um repositório base.** Nenhuma consulta é escrita à mão com o filtro de organização
 espalhado. Em vez de `db.ocorrencia.findMany({ where: { organizacaoId } })` repetido em dezenas de
@@ -43,6 +50,32 @@ tráfego pelo servidor. A divisão fica:
 | RLS | **quem pode falar com o banco** | Banco, nega o papel anônimo |
 
 Duas responsabilidades distintas, nenhuma sobreposta.
+
+### As duas exceções, enumeradas — emenda de 20/08/2026
+
+O desenho do DG-3 expôs uma lacuna nesta decisão: **duas escritas em tabela escopada acontecem sem que
+haja sessão de onde tirar a organização.** Quem pede entrada numa Organização ainda não tem vínculo com
+ela, e quem cria uma Organização está criando o próprio escopo. Nenhum documento dizia de onde vinha o
+`organizacao_id` nesses dois casos — e "não dito" na garantia de isolamento é exatamente o que esta ADR
+existe para não permitir.
+
+A regra que fecha isso, e que vale como invariante do produto:
+
+> **O `organizacao_id` de uma escrita entra por um de dois caminhos, e não existe um terceiro:**
+> **resolvido da sessão** (o caminho normal, de todas as outras escritas), ou **produzido pela própria
+> operação sob regra declarada** — e as operações com essa licença são **exatamente duas**.
+
+| Operação | De onde vem o `organizacao_id` | O que o protege |
+|---|---|---|
+| `POST /pedidos-de-entrada` | Do **Código da Organização** apresentado na requisição, resolvido para uma Organização. O código é a credencial daquela escrita e de nenhuma outra | O pedido só pode nascer na Organização cujo código foi apresentado. Código de A não cria pedido em B |
+| `POST /organizacoes` | Da Organização que a própria operação **acabou de criar**. As escritas seguintes — o vínculo do Gestor inicial e as sementes da POL-01 — usam esse identificador | Não há Organização anterior a proteger: a operação é o nascimento do escopo |
+
+**A lista é fechada.** Um terceiro endpoint que precise escrever fora do funil não é caso a resolver no
+código: é emenda a esta ADR. Isso é o que mantém a exceção enumerável em vez de virar precedente.
+
+**Verificação:** o critério A4 da `arquitetura.md` ganha um caso próprio — pedido de entrada criado com o
+código da Organização A **não** produz linha escopada em B. É teste, não revisão: a regra de lint não
+alcança este caso, porque as duas escritas são legítimas.
 
 ## Justificativa
 

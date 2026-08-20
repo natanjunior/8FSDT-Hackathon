@@ -171,6 +171,10 @@ São dez caminhos para onze comandos: **`/atribuir-responsavel` realiza dois** (
 a resposta diz qual dos dois aconteceu, no campo `reatribuicao`. Reatribuir encerra a atribuição anterior
 com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 
+> **Na primeira entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
+> atribuição — é evolução prevista. A política fica declarada porque o encadeamento é do desenho e volta
+> inteiro quando o canal existir; **hoje reatribuir encerra a atribuição anterior e para aí.**
+
 > **Alternativa rejeitada, também por pouco:** `PUT /ocorrencias/{id}/responsavel`. O responsável é um
 > sub-recurso singular, e `PUT` expressaria *"faça desta pessoa a responsável"* cobrindo atribuir e
 > reatribuir com semântica correta e idempotente. Perdeu por **uniformidade**: seria o único comando de
@@ -808,7 +812,8 @@ O que cada um tem de específico:
 - **`/atribuir-responsavel`** — `422 RESPONSAVEL_SEM_VINCULO_ATIVO` se a pessoa indicada não tem vínculo
   ativo aqui. **A auto-atribuição em um clique não é endpoint:** o cliente envia o próprio `pessoaId`, que
   `GET /contexto` já lhe deu. **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
-  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3) e devolve `reatribuicao: true`.
+  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3 — **que não existe na primeira entrega**,
+  ver §3.4) e devolve `reatribuicao: true`.
 - **`/iniciar-atendimento`** — `409 RESPONSAVEL_NAO_ATRIBUIDO` (invariante 9, D21: *"quem está fazendo"* é
   exatamente o que se perde hoje). É a única precondição de estado que não é sobre `status`.
 - **`/pausar`** — `motivo` e `observacao` são **obrigatórios no schema** (D23 virou regra estática, §3.3).
@@ -875,7 +880,7 @@ permissões. Ex.: `["pausar", "resolver", "cancelar", "alterar-prioridade"]`.
 | | `linha-do-tempo` | `trilha-de-auditoria` |
 |---|---|---|
 | **O que é** | Transições **+** mensagens **+** atribuições, intercaladas por instante | **Só** os registros de transição, na ordem em que ocorreram |
-| **Vocabulário** | `rotulo` em linguagem de gente (D19) — *"o síndico está avaliando"* | `statusAnterior` e `statusNovo` crus, os nomes internos |
+| **Vocabulário** | `rotulo` em linguagem de gente (D19) — *"Parada — esperando você responder"* | `statusAnterior` e `statusNovo` crus, os nomes internos |
 | **Para quê** | Acompanhar (S9) | Auditar (F6) — os cinco campos, um por campo |
 | **Formato** | `[{ tipo: "transicao"|"mensagem"|"atribuicao", ocorridoEm, … }]` | `[{ statusAnterior, statusNovo, ocorreuEm, autor, observacao, motivoPausa, motivoCancelamento }]` |
 
@@ -1149,6 +1154,21 @@ permite a uma pessoa autenticada consumir armazenamento externo sem criar nenhum
 Todos os demais criam linha em tabela, e portanto já esbarram nas regras do próprio domínio. Não há política
 geral de limitação de tráfego no MVP — declarar uma seria fingir uma capacidade operacional que não
 construímos.
+
+**O terceiro caso residual, declarado.** A troca da etiqueta para `confirmado` acontece **antes** do
+commit da transação que cria a ocorrência. Se a transação falhar depois disso, o objeto fica `confirmado`
+**sem nenhuma linha que o referencie**: está fora do banco e fora da faxina, que só recolhe `pendente`. Ele
+vive para sempre.
+
+A ordem documentada continua sendo a **mais segura das duas**: se a etiqueta fosse trocada depois do
+commit, a falha inversa produziria uma ocorrência **apontando para um objeto que a faxina vai apagar** — e
+perder o anexo de uma ocorrência que existe é pior que guardar um objeto que ninguém referencia. Trocar a
+ordem move o custo do byte desperdiçado para o dado perdido.
+
+O que falta é isto estar escrito ao lado dos outros dois caminhos, e não é. O volume é desprezível — exige
+falha de transação **entre** duas operações que distam milissegundos —, mas *"desprezível"* precisa ser
+afirmado, não presumido. Levantado ao desenhar o DG-5 de
+[`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
 
 ### 10.4 A leitura
 

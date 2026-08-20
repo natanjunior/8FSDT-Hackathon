@@ -42,9 +42,14 @@ hoje.
 
 ### P3 — A avaliação do Solicitante não é um sexto estado
 
-Formalizada na decisão **D1**. A imagem do ciclo de vida (p.2 e p.4 do PDF) mostra um nó "Avaliação do
-solicitante" após `Resolvida`, que **não existe** na lista textual dos cinco estados (p.3) nem no
-`fluxograma-2`. Prevaleceu o texto.
+Formalizada na decisão **D1**. A imagem do ciclo de vida **da p.2 do PDF** (bloco ②) mostra um nó
+"Avaliação do solicitante" após `Resolvida`, que **não existe** na lista textual dos cinco estados (p.3),
+nem no `fluxograma-2`, nem na segunda imagem do ciclo de vida — a da **p.4** (bloco ④), que traz os cinco
+estados e nada mais. Prevaleceu o texto, e o placar é de **três fontes contra uma**.
+
+> **Correção — 20/08/2026.** Esta premissa dizia *"(p.2 e p.4 do PDF)"*, atribuindo o nó de avaliação às
+> duas imagens. Conferido página por página: só a p.2 o tem. O erro **enfraquecia a própria premissa**, ao
+> transformar 3 a 1 em 2 a 2.
 
 **Se estiver errada:** a máquina de estados ganha um sexto estado terminal cuja transição depende de ação
 do Solicitante — e o enunciado não diz o que fazer se ele nunca avaliar. Impacto alto no modelo, e é a
@@ -129,11 +134,14 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-21 | **Cinco eventos não couberam na linha do tempo** (comentário, nota interna, alteração de prioridade, reatribuição, mensagem na atribuição). O método do curso não trata de evento transversal — **limitação registrada em vez de forçá-los** |
 | PA-22 | **Pausar para melhorar o número.** O material de ITSM alerta que a classe *on-hold* *"não deve ser mal utilizada para atingir o SLA intencionalmente"*. Na Persona 1B o Gestor presta contas à imobiliária — o incentivo existe |
 | PA-24 | **A Organização com um Gestor só não tem caminho de volta.** Três decisões corretas isoladamente se fecham num beco: a organização nasce com **um** Gestor (D26), o papel de um vínculo **não pode ser alterado** depois de criado, e **só um Gestor aprova pedido de entrada** (D25). Se esse único Gestor perder o acesso, ninguém entra, ninguém aprova e ninguém promove — a organização fica inacessível **para sempre**. A saída existe só **fora do produto**, por acesso direto ao banco, que é justamente o caminho que a ADR-0003 declara como o que escapa do isolamento. Aceitável num MVP acadêmico; não aceitável sem estar escrito. Levantado na revisão do contrato de API, 20/08/2026 |
+| PA-25 | **Aprovar um pedido de entrada com o papel errado é irreversível na primeira entrega.** Não há alteração de papel de um vínculo já criado, *revogar vínculo* é evolução prevista, e um novo pedido da mesma Pessoa é recusado por já haver vínculo. Um morador aprovado como `Encarregado` fica **sem nenhuma permissão** e não consegue nem registrar ocorrência — e a causa é um erro de clique num formulário de rotina, não um caso de borda. **Decidido, aguardando entrar no escopo:** o conserto é um **desfazer estreito** — anular a aprovação enquanto o vínculo não tiver histórico —, e não *revogar vínculo*, que é maior porque precisa responder o que acontece com as ocorrências e atribuições da pessoa. Escopo e contrato entram juntos numa próxima rodada. Levantado ao desenhar o DG-4, 20/08/2026 |
 
-> **PA-24 não veio do Event Storming**, e por isso quebra a proveniência desta seção: ele apareceu na
-> revisão do contrato de API, quando três decisões tomadas em momentos diferentes foram lidas juntas pela
-> primeira vez. Fica aqui porque é onde os pontos de atenção vivem — e o modo como surgiu é informação:
-> **nenhuma das três decisões erra sozinha.**
+> **PA-24 e PA-25 não vieram do Event Storming**, e por isso quebram a proveniência desta seção. Os dois
+> apareceram depois: um na revisão do contrato de API, outro ao desenhar o fluxo de entrada na
+> Organização — nos dois casos, quando decisões tomadas em momentos diferentes foram lidas juntas pela
+> primeira vez. Ficam aqui porque é onde os pontos de atenção vivem, e o modo como surgiram é informação:
+> **nenhuma das decisões envolvidas erra sozinha.** Os dois também compartilham a causa raiz — **o papel de
+> um vínculo é imutável e não há como desfazer um vínculo na primeira entrega**.
 
 ### Resolvidos
 
