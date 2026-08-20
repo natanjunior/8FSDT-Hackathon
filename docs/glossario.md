@@ -29,8 +29,9 @@ Duas regras de vocabulário que valem para todo o projeto:
 
 | Termo | Definição | Não confundir com | Origem |
 |---|---|---|---|
-| **Pessoa** | A entidade de domínio que representa um ser humano no sistema: nome e contato. Existe independentemente de conseguir entrar no sistema. | **Usuário** — Pessoa pode existir sem Usuário | `NOSSO` (D4) |
-| **Usuário** | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um Usuário. | **Pessoa**; e **Vínculo** | `ENUNCIADO · aberto` (S1, S2) |
+| **Pessoa** | A entidade de domínio que representa um ser humano no sistema: nome e **contato**. Existe independentemente de conseguir entrar no sistema. O **e-mail de contato** da Pessoa **não é a credencial** — são campos distintos, e podem divergir: o condomínio tem um e-mail da pessoa, e ela entra no sistema com outro. | **Usuário** — Pessoa pode existir sem Usuário | `NOSSO` (D4) |
+| **Usuário** | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um Usuário. | **Pessoa**; e **Vínculo**; e o **e-mail de contato**, que é da Pessoa e não daqui | `ENUNCIADO · aberto` (S1, S2) |
+| **Pedido de entrada** | A solicitação de uma Pessoa para se vincular a uma Organização, feita com o código público, e que **aguarda decisão do Gestor**. Só depois da aprovação o Vínculo passa a existir. | ⚠️ **"fila de aprovação"** — descrição usada antes de o termo existir; **"fila" é termo retirado** do projeto. E **Convite**, que dispensa aprovação | `NOSSO` (D25) |
 | **Vínculo** | A ligação entre uma Pessoa, um **Papel** e uma **Organização**. Uma Pessoa pode ter vários vínculos, em organizações diferentes e com papéis diferentes. | **Papel** — o vínculo *carrega* um papel, não é o papel | `NOSSO` (D4) |
 | **Papel** | O que a Pessoa é dentro de uma Organização: `Solicitante`, `Gestor` ou `Encarregado`. | **Permissão** — papel é do vínculo; permissão é o que o papel autoriza | `NOSSO` (D4) |
 | **Solicitante** | Papel de quem registra e acompanha ocorrências. | **Observador** | `ENUNCIADO · literal` |
@@ -48,12 +49,12 @@ Duas regras de vocabulário que valem para todo o projeto:
 |---|---|---|---|
 | **Organização** | O condomínio, a empresa, o bairro ou a organização que usa o Resolve Aí. **É o limite de isolamento de dados** e o cliente do produto. | **`tenant`** — termo técnico para o mesmo limite, usado só ao falar de isolamento. **Nunca é nome de domínio.** | `ENUNCIADO · aberto` |
 | **Área** | Uma subdivisão configurada da Organização — bloco B, garagem, salão de festas, apartamento 302. Toda Área tem um **tipo**. | **Localização** | `NOSSO` (D10) |
-| **Área comum** | Tipo de Área acessível a todos. Ocorrências nela são **visíveis aos demais moradores** da Organização. | **Unidade privativa** | `NOSSO` (D10) |
-| **Unidade privativa** | Tipo de Área de uso exclusivo. Ocorrências nela são visíveis **só ao autor e aos Gestores**. | **Área comum** | `NOSSO` (D10) |
+| **Área comum** | Tipo de Área acessível a todos. Ocorrências nela são **visíveis aos demais moradores** da Organização — conforme o tipo **vigente quando a ocorrência foi registrada**, não o tipo atual da Área. | **Unidade privativa** | `NOSSO` (D10) |
+| **Unidade privativa** | Tipo de Área de uso exclusivo. Ocorrências nela são visíveis **só ao autor e aos Gestores** — conforme o tipo **vigente quando a ocorrência foi registrada**. Reclassificar a Área depois **não muda** a visibilidade do que já foi registrado. | **Área comum** | `NOSSO` (D10) |
 | **Localização** | A indicação de **onde, dentro da Organização**, a ocorrência aconteceu: uma referência a uma **Área** mais um complemento em texto livre ("ao lado da vaga 34"). | **Área** — Localização *aponta para* uma Área. E não é geolocalização: não há mapa nem coordenada. | `ENUNCIADO · aberto` (S5) |
 | **Categoria** | A natureza da ocorrência — iluminação, vazamento, limpeza. **Configurável por Organização**, com semente das 7 do enunciado. | **Prioridade** — categoria é *o que é*; prioridade é *quanto corre* | `ENUNCIADO · aberto` |
-| **Código da Organização** | Identificador **público e persistente** que permite pedir entrada numa Organização. Vive em cartaz, QR code no elevador, mensagem de grupo. Quem usa **cai na fila de aprovação** do Gestor. | **Convite** — o convite é privado e de uso único | `NOSSO` (D25) |
-| **Convite** | **Token de uso único**, vinculado a uma Pessoa específica e com validade, que leva à página de cadastro com os dados dela pré-preenchidos e editáveis. Entrar por convite **dispensa a fila de aprovação**, porque o Gestor já criou aquela Pessoa. É um **link**, não um e-mail — pode ir por e-mail, WhatsApp ou QR. | **Código da Organização** | `NOSSO` (D25) |
+| **Código da Organização** | Identificador **público e persistente** que permite pedir entrada numa Organização. Vive em cartaz, QR code no elevador, mensagem de grupo. Quem usa abre um **Pedido de entrada**, que o Gestor decide. | **Convite** — o convite é privado e de uso único | `NOSSO` (D25) |
+| **Convite** | **Token de uso único**, vinculado a uma Pessoa específica e com validade, que leva à página de cadastro com os dados dela pré-preenchidos e editáveis. Entrar por convite **dispensa o Pedido de entrada**, porque o Gestor já criou aquela Pessoa. É um **link**, não um e-mail — pode ir por e-mail, WhatsApp ou QR. | **Código da Organização** | `NOSSO` (D25) |
 | **Whitelabel** | Personalização da página pública de cadastro de uma Organização: logo e nome. | — | `NOSSO` (D25) |
 
 > **Termo retirado: "Local".** Existiu enquanto considerávamos uma hierarquia acima do condomínio. Com
@@ -193,6 +194,16 @@ Registrar o que **não** é vocabulário do projeto evita que ele volte por desc
 do professor são praticamente idênticas e as orientações que ele dá são opostas, e ambos os exemplos
 são de ambiguidade, não de sinonímia. Adotamos a orientação operante do mesmo trecho: **um termo, uma
 definição.**
+
+**Nome técnico não é automaticamente termo de linguagem ubíqua.** Critério estabelecido em 20/08/2026, ao
+modelar os dados, e que vale para nome de coluna, de tabela, de endpoint e de recurso: **entra no glossário
+o conceito**, não o identificador. A coluna ou o endpoint herda o nome do conceito quando houver um; quando
+não houver, o nome é decisão técnica — desde que **a distinção que ele representa** esteja no glossário.
+
+O caso que fixou o critério: `email_contato` é nome de coluna e **não** virou termo, mas a distinção que
+ele carrega — o e-mail de contato da Pessoa não é a credencial, e os dois podem divergir — entrou na
+definição de **Pessoa**, que é onde faz falta. Já `Pedido de entrada` virou termo, porque é conceito: é
+uma coisa que existe no domínio, aguardando decisão de alguém.
 
 **Duas definições deste glossário nasceram de análise, não de coleta** — e por isso são as mais
 frágeis: a separação entre **Área** e **Localização**, e a distinção entre **Trilha de auditoria** e

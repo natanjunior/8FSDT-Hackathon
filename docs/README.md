@@ -19,11 +19,13 @@ usa o anterior.
 | # | Documento | O que contém |
 |---|---|---|
 | 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
-| 02 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 45 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
-| 03 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
-| 04 | **[Registros de Decisão de Arquitetura](adr/)** | Três decisões, no formato Nygard: o histórico de transições como conceito de domínio, a escolha de stack e plataforma, e o isolamento entre organizações |
-| 05 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
-| 06 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
+| 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra na primeira entrega, o que ficou para depois e por quê, e a evolução prevista |
+| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 45 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
+| 04 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
+| 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
+| 06 | **[Registros de Decisão de Arquitetura](adr/)** | Quatro decisões, no formato Nygard: o histórico de transições como conceito de domínio, a stack, o isolamento entre organizações, e a execução em container |
+| 07 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
+| 08 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
 
 ---
 

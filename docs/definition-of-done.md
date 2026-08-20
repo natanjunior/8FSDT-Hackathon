@@ -75,6 +75,14 @@ cinco famílias da definição da p.5.
       **risco mais sério da [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md)**: a
       garantia de isolamento é do código, e um caminho que ignore o repositório vaza dados entre
       condomínios.
+- [ ] **Consulta que envolva pessoas parte de `vinculos`, nunca de `pessoas`.** `pessoas` é global e não
+      tem coluna de organização — não há filtro que o repositório possa aplicar nela. Uma listagem que
+      parta de `pessoas` devolve o cadastro do sistema inteiro. **A regra de lint não alcança este caso**,
+      porque a consulta é legítima: ela apenas parte da tabela errada. A defesa é teste.
+- [ ] **Nenhum segredo assado na imagem.** Sem `ARG` com segredo, sem `.env` copiado para dentro do
+      container. A imagem publicada é **pública** ([ADR-0004](adr/0004-execucao-em-container-no-azure.md)),
+      e o que entra numa camada permanece legível **mesmo que um `RUN rm` apague o arquivo depois**. Em
+      Next.js, apenas variáveis `NEXT_PUBLIC_*` podem ser embutidas em tempo de build.
 
 ### Testes
 

@@ -78,13 +78,13 @@ escopo destrava — por isso segue registrada como pendência, e não como resol
 Numeração herdada de `trabalho/produto/decisoes-de-produto.md`. Das catorze, **doze foram resolvidas** —
 por decisão direta ou por consequência de outra decisão.
 
-**Restam duas, e nenhuma é decisão de domínio: as duas são corte de escopo**, e se resolvem no mapa de
-histórias, quando o MVP for recortado.
+**Não resta nenhuma.** As duas últimas eram corte de escopo, e foram fechadas pelo recorte da primeira
+entrega, registrado em [escopo.md](escopo.md):
 
-| # | Questão | O que muda |
-|---|---|---|
-| **Q10** | **Notificação por canal externo entra no MVP?** A D14 já definiu que toda transição notifica; a D13 já definiu que e-mail, push e WhatsApp são plano pago; e a emenda à D13 já separou e-mail transacional de acesso, que existe em qualquer plano. Resta o corte | Escopo, e a integração com sistemas externos |
-| **Q11** | **O login do Encarregado entra no MVP?** O modelo (D4, D21) suporta os dois. A Persona 1A funciona sem ele — Seu Antônio não usa celular | A diferença entre duas visões e três no MVP |
+| # | Resolução |
+|---|---|
+| **Q10** | O aviso automático **não entra na primeira entrega**, em nenhum canal — nem externo, nem dentro do aplicativo. O Solicitante acompanha pela lista e pela linha do tempo, que são requisitos do enunciado. O e-mail transacional de acesso permanece, por ser infraestrutura de conta e não notificação |
+| **Q11** | O **acesso próprio do Encarregado não entra na primeira entrega**, e com ele saem a leitura offline, o reporte de execução, a recusa de atribuição e a conversa da atribuição. O critério não foi prazo: os itens se apoiam na persona do síndico profissional, que é a premissa **P5**, não validada |
 
 ### Resolvidas, para rastreabilidade
 
