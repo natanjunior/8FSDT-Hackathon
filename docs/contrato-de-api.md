@@ -237,6 +237,15 @@ Consequência para o Swagger: o botão *Authorize* aceita as duas formas em que 
 organização. É lá, e só lá, que `auth.users.id` vira `pessoas.id`, criando a `Pessoa` se ainda não existir
 (a resolução idempotente da §9.2 do modelo de dados).
 
+**De onde vem o `nome` dessa Pessoa recém-criada.** `pessoas.nome` é obrigatório e não nulável, então a
+criação pelo ACL precisa de um valor e o contrato precisa dizer qual: **vem dos metadados da conta**,
+preenchidos no cadastro. Isso obriga o formulário de criação de conta — que é do provedor, mas cuja tela é
+nossa — a **pedir o nome**, e não só e-mail e senha.
+
+A alternativa era tornar `nome` obrigatório em `POST /pedidos-de-entrada`, o que empurraria a pergunta para
+depois e deixaria um intervalo em que a Pessoa existe sem nome. O campo `nome` daquele endpoint continua
+existindo e **opcional** — mas com outro papel: é o ponto de **correção**, não de origem (§8.2).
+
 ### 4.2 Onde vive a organização
 
 > **A organização ativa vem da sessão. Nunca do caminho, nunca de um cabeçalho, nunca do corpo.**
@@ -273,6 +282,19 @@ O síndico que também mora em outro prédio tem vínculo em duas organizações
 
 O `organizacaoId` aparece **uma vez** em todo o contrato: no corpo deste `PUT`. É o único ponto onde o
 cliente nomeia uma organização, e é o ponto que a verificação automatizada do RNF1 tem de cobrir.
+
+**Qual é a organização ativa antes de existir cookie — a situação de todo primeiro login.** Acrescentado
+em 20/08/2026: a redação anterior descrevia o mecanismo de troca e não dizia qual é o estado inicial.
+
+> Se a Pessoa tem **exatamente um vínculo ativo**, o servidor **escolhe esse** e grava o cookie na própria
+> resposta de `GET /contexto`. Se tem **dois ou mais**, `organizacaoAtiva` vem `null` e o cliente precisa
+> chamar o `PUT`. Se tem **zero**, vem `null` e não há o que escolher.
+
+Não é conveniência: sem isso, **todo login de todo usuário** custaria um `PUT` antes de qualquer tela,
+inclusive no caso comum — em que a pergunta *"qual organização?"* tem uma resposta só. Sob a escala a zero
+do RNF5, essa é uma segunda espera cobrada de graça, na primeira impressão do dia. A escolha automática
+não afrouxa nada: só existe vínculo porque um Gestor o criou, e o `PUT` valida a mesma coisa que o
+servidor já sabe aqui.
 
 **A trava contra a aba esquecida.** Um PWA com duas abas compartilha o cookie: trocar de organização na aba
 A muda silenciosamente o contexto da aba B, e o Gestor pode resolver na organização errada. Por isso o
@@ -640,7 +662,7 @@ comentários, e não há exclusão de mensagem (P6).
 
 ## 8. Os endpoints
 
-**36 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
+**37 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
 (§4.5); *Capacidade* é a linha do `escopo.md` com o marcador de origem; *Comando/Leitura* é a origem no
 Event Storming.
 
@@ -689,6 +711,17 @@ depois, e é assim que a §14 as contabiliza.
   disputa por códigos bonitos e permitiria adivinhação dirigida.
 - É um dos quatro endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
   D26 — o primeiro Gestor não tem quem o aprove.
+
+**A ordenação das duas listas, declarada.** `Categoria` tem `ordem`; **`Area` não tem**, e a diferença é
+deliberada: as sete categorias têm ordem de apresentação natural e são poucas, enquanto as Áreas de um
+condomínio médio passam de trinta e não têm ordem óbvia. **`GET /areas` devolve em ordem alfabética de
+nome.**
+
+> Fica registrado o que isso custa, porque é a lista mais longa que o Solicitante percorre com pressa, e o
+> RNF6 lhe dá menos de um minuto para o registro inteiro. Se a ordenação alfabética se mostrar ruim quando
+> o protótipo do passo 5 for cronometrado, a saída é dar `ordem` à `Area` — mudança de esquema, de contrato
+> e de tela de configuração. **Não a fizemos agora porque não há evidência**, e o passo 5 é a primeira
+> oportunidade de obtê-la.
 
 **`PATCH /categorias/{id}`** — `{ nome?, ordem?, ativa? }`. `ordem` existe porque *"qual categoria aparece
 antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`** (P6) e a
@@ -746,9 +779,26 @@ que protege a única tabela global do esquema:
 > **Só é aceito quando a Pessoa alvo não tem Usuário.** Com conta: `409 PESSOA_COM_CONTA_NAO_EDITAVEL`.
 
 O motivo: `pessoas` é global. Um Gestor editando o nome de alguém que tem conta estaria **alterando o
-cadastro daquela pessoa em todas as outras organizações** — inclusive naquela em que ela é Gestora. Quem tem
-conta edita os próprios dados; quem não tem existe apenas como cadastro de quem o criou. **`papel` não é
-alterável por aqui:** promover alguém a Gestor não é capacidade ✅ do escopo (§10).
+cadastro daquela pessoa em todas as outras organizações** — inclusive naquela em que ela é Gestora. Quem
+não tem conta existe apenas como cadastro de quem o criou. **`papel` não é alterável por aqui:** promover
+alguém a Gestor não é capacidade ✅ do escopo (§10).
+
+> **Onde quem tem conta corrige o próprio nome — e a limitação declarada.** A primeira redação desta seção
+> dizia *"quem tem conta edita os próprios dados"*, e **essa frase prometia um caminho que não existe**:
+> este `PATCH` recusa justamente quem tem conta, não há `PATCH /contexto/pessoa`, e `/pessoas` não existe
+> nem deve existir (§4.6). Encontrado ao montar o inventário de telas, pela pergunta *"o que uma tela de
+> perfil salvaria?"*.
+>
+> Como fica na primeira entrega: o nome nasce do **cadastro da conta** e é **corrigível no momento em que
+> a pessoa entra numa Organização** — o campo `nome` de `POST /pedidos-de-entrada`, que já existe e é
+> opcional, e cuja tela pré-preenche com o nome atual. Depois disso, **não há como alterá-lo**.
+>
+> A consequência precisa ser dita porque é permanente: **o registro de transição é imutável**, então o
+> nome vigente no momento de cada transição fica na trilha de auditoria para sempre. Quem digitou errado e
+> já agiu no sistema carrega o erro no histórico. É limitação aceita, não descuido — está registrada como
+> ponto de atenção em `premissas-e-questoes-abertas.md`.
+>
+> **Não existe tela de perfil** na primeira entrega, e a razão é esta: ela não teria o que salvar.
 
 **`DELETE /vinculos/{pessoaId}` — o único `DELETE` do contrato, e por que ele existe.**
 
@@ -916,8 +966,22 @@ do síndico morador (§6.4 do modelo), resolvido por parâmetro e não por segun
 - **Paginação:** cursor (§7.7). Devolve `{ itens: OcorrenciaResumo[], proximoCursor, visibilidadeAplicada }`.
 
 **`GET /ocorrencias/{id}`** devolve `OcorrenciaDetalhe`, que inclui **`acoesDisponiveis`** — a lista dos
-comandos que **este** chamador pode executar **agora**, derivada da máquina de estados cruzada com as
-permissões. Ex.: `["pausar", "resolver", "cancelar", "alterar-prioridade"]`.
+comandos que **este** chamador pode executar **agora**. Ex.:
+`["pausar", "resolver", "cancelar", "alterar-prioridade"]`.
+
+> **A lista aplica *todas* as precondições do comando, não só status × permissão.** Precisão acrescentada
+> em 20/08/2026, porque a redação anterior — *"derivada da máquina de estados cruzada com as permissões"* —
+> deixava três invariantes de fora e esvaziava a razão de o campo existir:
+>
+> | Invariante | Por que ficava de fora |
+> |---|---|
+> | **9 ·** `iniciarAtendimento` exige responsável atribuído (D21) | Não é sobre status. O próprio §8.4 a chama de *"a única precondição de estado que não é sobre `status`"* |
+> | **7 ·** `prioridade` é imutável em estado terminal (D6) | `alterar-prioridade` **não transiciona**, então não aparece na tabela de transições |
+> | **8 ·** uma ocorrência é avaliada **uma vez** | Idem — `avaliar` não muda status (D1) |
+>
+> Se a lista não as aplicasse, o cliente ou ofereceria um botão que falha sempre, ou reimplementaria as
+> três — que é **exatamente a segunda cópia da máquina de estados** que este campo existe para impedir. Um
+> comando ausente de `acoesDisponiveis` é um comando que **vai** responder `409` ou `422` se for chamado.
 
 > **Por que o contrato carrega isso.** Sem ele, o PWA reimplementa a tabela de transições da
 > `arquitetura.md` — e passa a existir uma **segunda cópia da máquina de estados**, na camada que a

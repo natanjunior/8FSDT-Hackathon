@@ -25,9 +25,10 @@ usa o anterior.
 | 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
 | 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em **[api/openapi.yaml](api/openapi.yaml)**, em OpenAPI 3.1 |
 | 07 | **[Fluxos e Diagramas](fluxos-e-diagramas.md)** | Os fluxos que o texto explica pior: o comando de transição de ponta a ponta, a resolução de contexto, a entrada na organização, o registro com imagem — mais a relação de cada um com os três fluxogramas do enunciado, e a lista do que foi deliberadamente **não** desenhado |
-| 08 | **[Registros de Decisão de Arquitetura](adr/)** | Quatro decisões, no formato Nygard: o histórico de transições como conceito de domínio, a stack, o isolamento entre organizações, e a execução em container |
-| 09 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
-| 10 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
+| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As dez telas da primeira entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
+| 09 | **[Registros de Decisão de Arquitetura](adr/)** | Quatro decisões, no formato Nygard: o histórico de transições como conceito de domínio, a stack, o isolamento entre organizações, e a execução em container |
+| 10 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
+| 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
 
 ---
 

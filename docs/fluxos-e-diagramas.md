@@ -5,9 +5,9 @@ eles**. A segunda parte é tão conteúdo quanto a primeira: um pacote de docume
 é suspeito, mas um pacote com doze diagramas corretos e nenhuma escolha declarada é pior — não dá para
 saber se alguém decidiu ou se alguém desenhou tudo o que deu.
 
-Deriva de [escopo.md](escopo.md) (as 41 capacidades da primeira entrega),
+Deriva de [escopo.md](escopo.md) (as 42 capacidades da primeira entrega),
 [arquitetura.md](arquitetura.md) (o agregado, as camadas e o plano de implantação),
-[contrato-de-api.md](contrato-de-api.md) (os 36 endpoints), [modelo-de-dados.md](modelo-de-dados.md)
+[contrato-de-api.md](contrato-de-api.md) (os 37 endpoints), [modelo-de-dados.md](modelo-de-dados.md)
 (as tabelas e as invariantes), [glossario.md](glossario.md) — **todo rótulo de nó saiu daqui** — e das
 três fontes de `refs/`, que são os fluxogramas do próprio enunciado.
 
@@ -435,7 +435,7 @@ Doze recusas. Cada uma tem o motivo, porque **recusa sem motivo é indistinguív
 | **Trilha de auditoria × linha do tempo** | A diferença é de recorte e vocabulário, e está numa tabela de quatro linhas no contrato §8.5. Não há topologia nem ordem |
 | **Os três canais de conversa** | Dois dos três são fatia 2. Desenhar uma máquina de canais na primeira entrega mostraria dois nós inalcançáveis — foi por essa mesma razão que o contrato recusou expor `canais/{tipo}` |
 | **Modelo de leitura do dashboard** | Cinco indicadores num endpoint. É um schema de resposta, e ele já está escrito |
-| **Mapa de navegação de telas** | **Não é nosso.** É o passo 4 da sequência — o inventário de telas. Desenhá-lo aqui criaria a duplicata antes mesmo de o original existir |
+| **Mapa de navegação de telas** | **Não é nosso.** É o passo 4 da sequência. Desenhá-lo aqui criaria a duplicata antes mesmo de o original existir — e o original **já existe**: [`inventario-de-telas.md`](inventario-de-telas.md) §3 |
 
 ---
 

@@ -1182,11 +1182,17 @@ paths:
       summary: Detalhe da ocorrência
       description: |
         Devolve a ocorrência com **`acoesDisponiveis`** — a lista dos comandos que **este** chamador pode
-        executar **agora**, derivada da máquina de estados cruzada com as permissões dele.
+        executar **agora**.
+
+        A lista aplica **todas** as precondições de cada comando, não apenas o status e a permissão. Entram
+        também as invariantes que não são sobre status: `iniciar-atendimento` exige responsável atribuído;
+        `alterar-prioridade` não aparece em ocorrência já resolvida ou cancelada, porque a prioridade
+        congela em estado terminal; e `avaliar` não aparece duas vezes.
 
         Isso existe para que o cliente **não reimplemente a tabela de transições**. Sem esse campo,
         passaria a existir uma segunda cópia da máquina de estados na camada que não pode conter regra de
-        negócio — e ela divergiria na primeira mudança de regra.
+        negócio — e ela divergiria na primeira mudança de regra. Um comando ausente daqui é um comando que
+        **vai** ser recusado se for chamado.
 
         **`404` quando a ocorrência não é visível a quem pediu**, seja porque é de outra organização, seja
         porque é de outro Solicitante: o que você não pode ver não existe para você.

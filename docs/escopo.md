@@ -229,7 +229,15 @@ resolve o problema que o produto veio resolver.
 | Importar pessoas em lote | `NOSSO` (D25) | ⬜ |
 | Revogar vínculo | `NOSSO` (D4) | ⬜ |
 
-### 2 · Registrar a ocorrência
+> **Um estado sem capacidade, que ainda assim precisa aparecer na interface.** Como o acesso próprio do
+> `Encarregado` ficou de fora (Q11), o vínculo com esse papel tem **nenhuma permissão** na primeira
+> entrega. Se uma pessoa **com conta** for aprovada assim, ela autentica, tem organização ativa e **não
+> pode fazer nada** — nem registrar ocorrência.
+>
+> Isso não é capacidade nova e não entra na contagem: não há nada a construir além de texto. Mas a tela
+> tem de existir e dizer o que houve, porque tela vazia sem explicação é defeito, e porque **é essa
+> pessoa que precisa procurar o Gestor** — o conserto (*remover vínculo sem histórico*, acima) é dele, não
+> dela. Está especificada como **T-10** em [inventario-de-telas.md](inventario-de-telas.md).
 
 | Capacidade | Origem | 1ª entrega |
 |---|---|---|
