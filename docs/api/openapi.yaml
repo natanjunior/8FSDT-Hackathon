@@ -581,6 +581,75 @@ paths:
                 traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+    delete:
+      tags: [Vínculos]
+      operationId: removerVinculo
+      summary: Remover um vínculo que ainda não tem histórico
+      description: |
+        Desfaz um vínculo criado com o **papel errado** — por aprovação de pedido de entrada ou por
+        cadastro direto. É o **único `DELETE` do contrato**, e a licença é estreita de propósito.
+
+        **Só remove vínculo sem nenhuma linha dependente.** Se a pessoa já registrou ocorrência, foi
+        responsável, escreveu mensagem ou autorou uma transição, a resposta é `409
+        VINCULO_COM_HISTORICO`. Essa recusa **não é uma verificação da aplicação**: é o
+        `ON DELETE RESTRICT` do esquema, que já impede apagar o que tem dependente. O endpoint traduz a
+        recusa do banco. Um vínculo sem dependente é exatamente o caso em que não há histórico a
+        preservar — e é por isso que a exceção ao princípio *"nada é apagado"* cabe aqui e em nenhum
+        outro lugar.
+
+        **Não remove o último Gestor.** Sem essa guarda, o Gestor inicial de uma organização recém-criada
+        — que por definição ainda não tem histórico — poderia remover a si mesmo e deixar a organização
+        sem ninguém capaz de aprovar qualquer entrada. É a única regra deste endpoint que o banco não
+        garante.
+
+        A **Pessoa permanece**: ela é global e nunca se apaga por aqui. Depois da remoção, um novo pedido
+        de entrada é aceito, agora com o papel certo.
+
+        Para encerrar o acesso de quem **tem** histórico a operação é outra — *revogar* —, e ela preserva
+        o registro. Não está na primeira entrega.
+
+        *Capacidade: remover vínculo sem histórico · `NOSSO` (D25, PA-25). Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "204":
+          description: Vínculo removido. A Pessoa permanece, e um novo pedido de entrada passa a ser aceito.
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: |
+            O vínculo tem histórico, ou é o último com permissão de gerir.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                comHistorico:
+                  summary: A pessoa já deixou rastro na organização
+                  value:
+                    type: "https://resolveai.app/erros/vinculo-com-historico"
+                    title: "Este vínculo já tem histórico"
+                    status: 409
+                    detail: "A pessoa já registrou ocorrências nesta organização. Remover apagaria o rastro dela; o caminho é revogar o acesso."
+                    codigo: "VINCULO_COM_HISTORICO"
+                    traceId: "01JB8Z6K9T2M4N7Q"
+                ultimoGestor:
+                  summary: É o último Gestor da organização
+                  value:
+                    type: "https://resolveai.app/erros/ultimo-gestor"
+                    title: "Esta organização ficaria sem Gestor"
+                    status: 409
+                    detail: "Aprove outra pessoa como Gestor antes de remover este vínculo."
+                    codigo: "ULTIMO_GESTOR"
+                    traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /categorias:
     get:
       tags: [Configuração]

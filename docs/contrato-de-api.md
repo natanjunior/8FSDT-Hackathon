@@ -1,6 +1,6 @@
 # Contrato de API — Resolve Aí
 
-Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 41 capacidades ✅),
+Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
 [modelo-de-dados.md](modelo-de-dados.md) (as 14 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
 [Event Storming](../trabalho/produto/event-storming.md) (comandos do passo 5, modelos de leitura do passo 7).
@@ -62,9 +62,15 @@ Registro nasce como **efeito** de um comando. §9.
 **P5 · O que você não pode ver não existe.** Falta de acesso de **leitura** responde `404`; falta de
 permissão para **agir** sobre algo que você já pode ler responde `403`. §6.
 
-**P6 · Nada é apagado.** Não há `DELETE` em lugar nenhum do contrato — nem em ocorrência, nem em mensagem,
-nem em categoria. O que existe é desativar, arquivar e cancelar. Decorre do RNF9 e do `ON DELETE RESTRICT`
-que é padrão do esquema (`modelo-de-dados.md`, §2.5).
+**P6 · Quase nada é apagado — e a exceção é uma só.** Não há `DELETE` em ocorrência, em mensagem, em
+categoria nem em área. O que existe é desativar, arquivar e cancelar. Decorre do RNF9 e do
+`ON DELETE RESTRICT` que é padrão do esquema (`modelo-de-dados.md`, §2.5).
+
+> **A exceção, enumerada: `DELETE /vinculos/{pessoaId}`**, e somente ele. Remove um vínculo que **não tem
+> histórico**, para desfazer um papel aprovado por engano (PA-25). A licença é estreita e a guarda não é
+> nossa: `RESTRICT` **já recusa** apagar o que tem dependente, então o endpoint só consegue apagar
+> exatamente o que o RNF9 não precisa preservar. Detalhe em §8.2. Um segundo `DELETE` no contrato não é
+> decisão de implementação: é emenda a este princípio.
 
 **P7 · Resposta de dado de organização nunca é cacheável por intermediário.** Toda resposta autenticada sai
 com `Cache-Control: private, no-store`. Numa aplicação multi-tenant em que a única diferença entre a
@@ -509,6 +515,8 @@ contrato:
 | `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | Já há pedido pendente (índice único parcial, §6.15 do modelo) |
 | `PEDIDO_JA_DECIDIDO` | 409 | Aprovar ou recusar pedido já decidido |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | Editar dados de Pessoa que tem Usuário (§12, S-A3) |
+| `VINCULO_COM_HISTORICO` | 409 | Remover vínculo que já tem linha dependente. **Recusa vinda do `ON DELETE RESTRICT`**, traduzida — o caminho é revogar, que é fatia 2 (§8.2) |
+| `ULTIMO_GESTOR` | 409 | Remover o último vínculo com `gerir` da Organização. A única regra do `DELETE` que o banco não garante (§8.2) |
 | `CATEGORIA_NOME_DUPLICADO` · `AREA_NOME_DUPLICADO` | 409 | `UNIQUE (organizacao_id, nome)` |
 | `CATEGORIA_INVALIDA` · `AREA_INVALIDA` | 422 | Existe, mas está **inativa** — ou não é desta organização |
 | `RESPONSAVEL_SEM_VINCULO_ATIVO` | 422 | A pessoa indicada não tem vínculo ativo aqui (D21) |
@@ -710,6 +718,7 @@ descuido, e registrada na §11.
 | `GET /vinculos` | `vinculo.gerir` | Cadastro de Encarregados, sem conta · `NOSSO` (D27) | leitura: a quem atribuir |
 | `POST /vinculos` | `vinculo.gerir` | idem | `Cadastrar pessoa` |
 | `PATCH /vinculos/{pessoaId}` | `vinculo.gerir` | idem (o **U** do CRUD de Encarregados) | `Cadastrar pessoa` |
+| `DELETE /vinculos/{pessoaId}` | `vinculo.gerir` | Remover vínculo sem histórico, desfazendo papel errado · `NOSSO` (D25, PA-25) | `Remover vínculo` |
 
 **`POST /pedidos-de-entrada`** — recebe `{ codigoPublico, nome?, telefone? }` e roda **sem organização ativa**
 (§4.4), porque o vínculo ainda não existe: *"o Vínculo só passa a existir com aprovação do Gestor"* (D25).
@@ -740,6 +749,47 @@ O motivo: `pessoas` é global. Um Gestor editando o nome de alguém que tem cont
 cadastro daquela pessoa em todas as outras organizações** — inclusive naquela em que ela é Gestora. Quem tem
 conta edita os próprios dados; quem não tem existe apenas como cadastro de quem o criou. **`papel` não é
 alterável por aqui:** promover alguém a Gestor não é capacidade ✅ do escopo (§10).
+
+**`DELETE /vinculos/{pessoaId}` — o único `DELETE` do contrato, e por que ele existe.**
+
+Este endpoint conserta um erro específico e frequente: **aprovar um pedido de entrada com o papel errado**,
+ou cadastrar um Encarregado com o papel errado. É um erro de clique num `select` de formulário de rotina, e
+sem este endpoint ele era **irreversível** — o ponto de atenção **PA-25**.
+
+Ele existe porque três regras corretas se fechavam num beco:
+
+| Regra | De onde vem |
+|---|---|
+| **Nada é apagado** | P6 deste contrato, RNF9 e o `ON DELETE RESTRICT` do esquema |
+| **O `papel` de um vínculo não muda** | Resposta do hub à Q-API-6; promover a Gestor não é capacidade ✅ |
+| **Uma Pessoa tem no máximo um vínculo por Organização** | `PRIMARY KEY (pessoa_id, organizacao_id)` — suposição S1 do modelo |
+
+Com as três de pé, um morador aprovado como `Encarregado` fica com `permissoes: []` e **não consegue nem
+registrar uma ocorrência**, para sempre. Não há como trocar o papel, não há como apagar o vínculo, e um
+novo pedido é recusado com `409 JA_VINCULADO`. **Alguma das três tinha de ceder**, e a escolhida foi o P6 —
+por uma razão que não é preferência:
+
+> **O `ON DELETE RESTRICT` do esquema não é um obstáculo a contornar aqui: é a própria guarda.** `RESTRICT`
+> recusa apagar quando existe linha dependente e permite quando não existe. Um vínculo **sem histórico** não
+> tem nada que o RNF9 precise preservar — é justamente por isso que ele pode sair. A condição *"sem
+> histórico"* não é verificação que o código faz antes: é o que o banco impõe, e o endpoint apenas traduz a
+> recusa dele.
+
+Nada é enviado no corpo. As respostas:
+
+- **`204`** — vínculo removido. A `Pessoa` **permanece** (é global; nunca se apaga por aqui), e um novo
+  pedido de entrada passa a ser aceito, agora com o papel certo.
+- **`404 VINCULO_NAO_ENCONTRADO`** — inclusive quando o vínculo existe em outra organização (§6.3).
+- **`409 VINCULO_COM_HISTORICO`** — a pessoa já registrou ocorrência, foi responsável, escreveu mensagem ou
+  autorou uma transição. **Aqui o caminho é *revogar*, que é fatia 2** (§11, item 6): revogar encerra o
+  acesso e **preserva** o registro. Os dois não são a mesma operação com nomes diferentes — ver o glossário.
+- **`409 ULTIMO_GESTOR`** — não se remove o último vínculo com `gerir` da Organização. Sem esta guarda o
+  endpoint abriria um caminho **novo** para o **PA-24**: numa Organização recém-criada o Gestor inicial não
+  tem histórico, e poderia remover a si mesmo, deixando a Organização sem ninguém que possa aprovar
+  qualquer entrada. Esta é a única regra do endpoint que o banco **não** garante.
+
+**O que ele não conserta:** o PA-24 em si. Se o único Gestor perder o acesso à conta, continua não havendo
+caminho de volta dentro do produto — remover vínculo não cria Gestor.
 
 ### 8.3 Atividade 2 — Registrar a ocorrência
 
@@ -1013,10 +1063,13 @@ descuido.
 
 **9.2 · `GET /pessoas` — nem ele, nem `/pessoas/{id}`, nem busca de pessoa.** §4.6.
 
-**9.3 · Nenhum `DELETE`, em nenhum recurso.** Ocorrência não se apaga (cancela-se); categoria e área não se
-apagam (desativam-se); mensagem não se apaga; vínculo não se apaga (revoga-se — e revogar é ⬜ fatia 2).
-Decorre do RNF9 e do `ON DELETE RESTRICT` (§2.5 do modelo). O banco recusaria de qualquer forma; o contrato
-nem oferece.
+**9.3 · Nenhum `DELETE`, com uma exceção nomeada.** Ocorrência não se apaga (cancela-se); categoria e área
+não se apagam (desativam-se); mensagem não se apaga. Decorre do RNF9 e do `ON DELETE RESTRICT` (§2.5 do
+modelo): o banco recusaria de qualquer forma, e o contrato nem oferece.
+
+**A exceção é `DELETE /vinculos/{pessoaId}`** (§8.2, P6), e ela cabe exatamente porque o `RESTRICT` a
+delimita: só passa o vínculo **sem nenhuma linha dependente**, que é o único caso em que não há histórico a
+preservar. Vínculo **com** histórico não se apaga — revoga-se, e revogar é ⬜ fatia 2.
 
 **9.4 · Nenhum `PATCH` de ocorrência.** §3.5. Em particular, **`status` não aparece em nenhum schema de
 entrada** — a verificação é textual e cabe no Definition of Done.
@@ -1214,22 +1267,22 @@ modelo de dados já registra que *"a imagem não é tocada pelo passo 3"* da ano
 | 3 | Página pública da organização com código na URL (D25) | `GET /organizacoes/publica?codigo=` — **o único endpoint anônimo do produto**, devolvendo só nome e logo | ✅ |
 | 4 | Convite por link de uso único (D25) | `POST /convites` · `GET /convites/{token}` (anônimo) · `POST /convites/{token}/aceitar` | ✅ |
 | 5 | Importar pessoas em lote (D25) | `POST /vinculos/importacoes` | ✅ |
-| 6 | Revogar vínculo (D4) | `POST /vinculos/{pessoaId}/revogar` — comando, não `DELETE` (P6) | ✅ |
+| 6 | Revogar vínculo (D4) | `POST /vinculos/{pessoaId}/revogar` — comando, não `DELETE` (P6), porque **revogar preserva o registro**. É a operação para o vínculo **com** histórico, que o `DELETE /vinculos/{pessoaId}` da §8.2 não alcança e nem deve alcançar | ✅ |
 | 7 | Ver semelhantes e **aderir** (D11) | `GET /ocorrencias?semelhantesA={id}` + `POST /ocorrencias/{id}/aderir` | ✅ |
 | 8 | Filtros rápidos (D15) | `?filtroRapido=nao_triadas\|pausadas_esperando_gestor\|sem_atualizacao\|alta_prioridade` | ✅ |
 | 9 | Cancelar por duplicidade com vínculo (D17) | `ocorrenciaOrigemId` no corpo de `/cancelar` — **hoje devolve `422 CAMPO_NAO_SUPORTADO`**, então o campo já tem lugar reservado e comportamento definido | ✅ |
-| 10 | Conversa privada da atribuição (D9) | `GET/POST /ocorrencias/{id}/atribuicoes/{atribuicaoId}/mensagens` | ✅ |
-| 11 | Encarregado recusa a atribuição | `POST /ocorrencias/{id}/recusar-atribuicao` | ✅ |
-| 12 | Encarregado entra e vê a própria lista (P5) | `?responsavel=eu` em `GET /ocorrencias` + permissões novas no mapa da §4.5 | ✅ |
-| 13 | **Leitura sem rede** (RNF7) | **Nada.** As leituras já são `GET` com URL estável — inclusive a imagem (§10.4). O service worker cacheia o que já existe | ✅ |
-| 14 | Reportar execução concluída (P5) | `POST /ocorrencias/{id}/reportar-execucao-concluida` | ✅ |
-| 15 | Nova ocorrência vinculada à original (D24) | `ocorrenciaOrigemId` + `vinculoOrigem` opcionais em `POST /ocorrencias` | ✅ |
-| 16 | Ver ocorrências de área comum do meu local (D10) | **Nenhum campo, nenhum endpoint** — o conjunto devolvido por `GET /ocorrencias` **aumenta** | ⚠️ ver abaixo |
-| 17 | Sino com as notificações (D14, D15) | `GET /notificacoes` · `POST /notificacoes/{id}/marcar-como-lida` | ✅ |
-| 18 | Notificação a cada transição (D14) | Nada — é política (POL-05/06); aparece pelo item 17 | ✅ |
-| 19 | Nota interna entre Gestores (D9) | `GET/POST /ocorrencias/{id}/notas-internas` | ✅ |
-| 20 | Tempo de calendário × tempo ativo (D19) | Campos novos em `GET /dashboard` | ✅ |
-| 21 | Alarme de ocorrência parada (D15) | Campos novos em `/dashboard` + notificações do item 17 | ✅ |
+| 11 | Conversa privada da atribuição (D9) | `GET/POST /ocorrencias/{id}/atribuicoes/{atribuicaoId}/mensagens` | ✅ |
+| 12 | Encarregado recusa a atribuição | `POST /ocorrencias/{id}/recusar-atribuicao` | ✅ |
+| 13 | Encarregado entra e vê a própria lista (P5) | `?responsavel=eu` em `GET /ocorrencias` + permissões novas no mapa da §4.5 | ✅ |
+| 14 | **Leitura sem rede** (RNF7) | **Nada.** As leituras já são `GET` com URL estável — inclusive a imagem (§10.4). O service worker cacheia o que já existe | ✅ |
+| 15 | Reportar execução concluída (P5) | `POST /ocorrencias/{id}/reportar-execucao-concluida` | ✅ |
+| 16 | Nova ocorrência vinculada à original (D24) | `ocorrenciaOrigemId` + `vinculoOrigem` opcionais em `POST /ocorrencias` | ✅ |
+| 17 | Ver ocorrências de área comum do meu local (D10) | **Nenhum campo, nenhum endpoint** — o conjunto devolvido por `GET /ocorrencias` **aumenta** | ⚠️ ver abaixo |
+| 18 | Sino com as notificações (D14, D15) | `GET /notificacoes` · `POST /notificacoes/{id}/marcar-como-lida` | ✅ |
+| 19 | Notificação a cada transição (D14) | Nada — é política (POL-05/06); aparece pelo item 17 | ✅ |
+| 20 | Nota interna entre Gestores (D9) | `GET/POST /ocorrencias/{id}/notas-internas` | ✅ |
+| 21 | Tempo de calendário × tempo ativo (D19) | Campos novos em `GET /dashboard` | ✅ |
+| 22 | Alarme de ocorrência parada (D15) | Campos novos em `/dashboard` + notificações do item 17 | ✅ |
 
 **Vinte dos vinte e um são aditivos. O item 16 é a exceção, e ela merece nome.** Ligar a visibilidade
 comunitária **não muda schema nenhum** — muda *quem vê o quê*. Um cliente antigo continua funcionando e
@@ -1472,13 +1525,15 @@ quebra**, que é o que separa decisão de omissão.
 
 ---
 
-## 14. Rastreabilidade — as 41 capacidades ✅
+## 14. Rastreabilidade — as 42 capacidades ✅
 
 Critério: **toda capacidade ✅ tem de ser alcançável pelo contrato**, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
 
-> **Eram 40 até 20/08/2026.** A capacidade nº 35 — *tempo médio de resolução, mês a mês* — entrou por
-> decisão do hub ao resolver a contradição C-4. O `escopo.md` passa a 41 ✅ de 62; a correção lá é do hub.
+> **Eram 40 até 20/08/2026**, e duas entraram no mesmo dia por decisão do hub. A nº 36 — *tempo médio de
+> resolução, mês a mês* — ao resolver a contradição C-4; e a nº 10 — *remover vínculo sem histórico* — ao
+> resolver o **PA-25**, o beco em que aprovar com o papel errado era irreversível. O `escopo.md` passa a
+> **42 ✅ de 63**.
 
 | # | Capacidade (escopo) | Origem | Endpoint(s) |
 |---|---|---|---|
@@ -1493,55 +1548,56 @@ A verificação nos dois sentidos.
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | `POST /pedidos-de-entrada` |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | `GET /pedidos-de-entrada` · `POST …/aprovar` · `POST …/recusar` |
 | 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | `GET/POST /vinculos` · `PATCH /vinculos/{pessoaId}` |
+| 10 | **Remover vínculo sem histórico, desfazendo papel errado** | `NOSSO` (D25, PA-25) | `DELETE /vinculos/{pessoaId}` |
 | **2 · Registrar a ocorrência** |
-| 10 | Registrar com título, descrição e categoria | `ENUNCIADO · literal` (S3,S4) | `POST /ocorrencias` |
-| 11 | Informar a localização — Área + complemento | `ENUNCIADO · aberto` (S5) + D10 | `POST /ocorrencias` (`areaId`, `localizacaoComplemento`) + `GET /areas` |
-| 12 | Anexar uma imagem comprimida no celular | `ENUNCIADO · aberto` (S6) + RNF8 | `POST /imagens/autorizacoes` → `POST /ocorrencias` → `GET /ocorrencias/{id}/imagem` |
+| 11 | Registrar com título, descrição e categoria | `ENUNCIADO · literal` (S3,S4) | `POST /ocorrencias` |
+| 12 | Informar a localização — Área + complemento | `ENUNCIADO · aberto` (S5) + D10 | `POST /ocorrencias` (`areaId`, `localizacaoComplemento`) + `GET /areas` |
+| 13 | Anexar uma imagem comprimida no celular | `ENUNCIADO · aberto` (S6) + RNF8 | `POST /imagens/autorizacoes` → `POST /ocorrencias` → `GET /ocorrencias/{id}/imagem` |
 | **3 · Triar** |
-| 13 | Listar todas as ocorrências | `ENUNCIADO · aberto` (G1) | `GET /ocorrencias` |
-| 14 | Filtrar por categoria, status e prioridade | `ENUNCIADO · literal` (G2) | `GET /ocorrencias?status=&categoriaId=&prioridade=` |
-| 15 | Analisar | `ENUNCIADO · literal` (F2) | `POST /ocorrencias/{id}/analisar` |
-| 16 | Alterar a prioridade | `ENUNCIADO · aberto` (G3) + D6 | `POST /ocorrencias/{id}/alterar-prioridade` |
-| 17 | Cancelar com motivo estruturado | `ENUNCIADO · literal` (F3) + D12 | `POST /ocorrencias/{id}/cancelar` |
+| 14 | Listar todas as ocorrências | `ENUNCIADO · aberto` (G1) | `GET /ocorrencias` |
+| 15 | Filtrar por categoria, status e prioridade | `ENUNCIADO · literal` (G2) | `GET /ocorrencias?status=&categoriaId=&prioridade=` |
+| 16 | Analisar | `ENUNCIADO · literal` (F2) | `POST /ocorrencias/{id}/analisar` |
+| 17 | Alterar a prioridade | `ENUNCIADO · aberto` (G3) + D6 | `POST /ocorrencias/{id}/alterar-prioridade` |
+| 18 | Cancelar com motivo estruturado | `ENUNCIADO · literal` (F3) + D12 | `POST /ocorrencias/{id}/cancelar` |
 | **4 · Atribuir** |
-| 18 | Atribuir o responsável | `ENUNCIADO · aberto` (G4) + D21 | `POST /ocorrencias/{id}/atribuir-responsavel` + `GET /vinculos` |
-| 19 | Auto-atribuição em um clique | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
-| 20 | Reatribuir | `NOSSO` | mesmo endpoint, com atribuição vigente |
+| 19 | Atribuir o responsável | `ENUNCIADO · aberto` (G4) + D21 | `POST /ocorrencias/{id}/atribuir-responsavel` + `GET /vinculos` |
+| 20 | Auto-atribuição em um clique | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
+| 21 | Reatribuir | `NOSSO` | mesmo endpoint, com atribuição vigente |
 | **5 · Executar** |
-| 21 | Iniciar o atendimento | `ENUNCIADO · literal` (F2) + D21 | `POST /ocorrencias/{id}/iniciar-atendimento` |
-| 22 | Pausar com motivo estruturado | `NOSSO` (D8) | `POST /ocorrencias/{id}/pausar` |
-| 23 | Retomar | `NOSSO` (D8) | `POST /ocorrencias/{id}/retomar` |
+| 22 | Iniciar o atendimento | `ENUNCIADO · literal` (F2) + D21 | `POST /ocorrencias/{id}/iniciar-atendimento` |
+| 23 | Pausar com motivo estruturado | `NOSSO` (D8) | `POST /ocorrencias/{id}/pausar` |
+| 24 | Retomar | `NOSSO` (D8) | `POST /ocorrencias/{id}/retomar` |
 | **6 · Fechar** |
-| 24 | Registrar a solução aplicada | `ENUNCIADO · aberto` (G7) + D22 | `POST /ocorrencias/{id}/registrar-solucao-aplicada` (ou no corpo de `/resolver`) |
-| 25 | Resolver | `ENUNCIADO · literal` (F2) | `POST /ocorrencias/{id}/resolver` |
-| 26 | Avaliar a resolução | `ENUNCIADO · aberto` (S10) + D1 | `POST /ocorrencias/{id}/avaliar` |
+| 25 | Registrar a solução aplicada | `ENUNCIADO · aberto` (G7) + D22 | `POST /ocorrencias/{id}/registrar-solucao-aplicada` (ou no corpo de `/resolver`) |
+| 26 | Resolver | `ENUNCIADO · literal` (F2) | `POST /ocorrencias/{id}/resolver` |
+| 27 | Avaliar a resolução | `ENUNCIADO · aberto` (S10) + D1 | `POST /ocorrencias/{id}/avaliar` |
 | **7 · Acompanhar** |
-| 27 | Ver as minhas ocorrências e o status | `ENUNCIADO · aberto` (S7) | `GET /ocorrencias` (`?autor=eu`) |
-| 28 | Ver a linha do tempo | `ENUNCIADO · aberto` (S9) | `GET /ocorrencias/{id}/linha-do-tempo` |
-| 29 | Comentar com os Gestores | `ENUNCIADO · aberto` (S8,G6) + D9 | `GET/POST /ocorrencias/{id}/comentarios` |
-| 30 | Rótulos em linguagem de gente | `NOSSO` (D19) | campo `statusRotulo` em todo payload de ocorrência |
+| 28 | Ver as minhas ocorrências e o status | `ENUNCIADO · aberto` (S7) | `GET /ocorrencias` (`?autor=eu`) |
+| 29 | Ver a linha do tempo | `ENUNCIADO · aberto` (S9) | `GET /ocorrencias/{id}/linha-do-tempo` |
+| 30 | Comentar com os Gestores | `ENUNCIADO · aberto` (S8,G6) + D9 | `GET/POST /ocorrencias/{id}/comentarios` |
+| 31 | Rótulos em linguagem de gente | `NOSSO` (D19) | campo `statusRotulo` em todo payload de ocorrência |
 | **8 · Gerir** |
-| 31 | Dashboard com indicadores | `ENUNCIADO · aberto` (G8) | `GET /dashboard` |
-| 32 | Backlog por status e por categoria | `NOSSO` (D19) | `GET /dashboard` → `backlogPorStatus`, `backlogPorCategoria` |
-| 33 | Média das avaliações | `NOSSO` (D19) | `GET /dashboard` → `mediaDasAvaliacoes` |
-| 34 | Recorrência por categoria e por área | `NOSSO` (D19) | `GET /dashboard` → `recorrenciaPorCategoria`, `recorrenciaPorArea` |
-| 35 | **Tempo médio de resolução, mês a mês** *(entrou em 20/08/2026)* | `NOSSO` (D19) | `GET /dashboard` → `tempoMedioDeResolucao` |
+| 32 | Dashboard com indicadores | `ENUNCIADO · aberto` (G8) | `GET /dashboard` |
+| 33 | Backlog por status e por categoria | `NOSSO` (D19) | `GET /dashboard` → `backlogPorStatus`, `backlogPorCategoria` |
+| 34 | Média das avaliações | `NOSSO` (D19) | `GET /dashboard` → `mediaDasAvaliacoes` |
+| 35 | Recorrência por categoria e por área | `NOSSO` (D19) | `GET /dashboard` → `recorrenciaPorCategoria`, `recorrenciaPorArea` |
+| 36 | **Tempo médio de resolução, mês a mês** *(entrou em 20/08/2026)* | `NOSSO` (D19) | `GET /dashboard` → `tempoMedioDeResolucao` |
 | **Fundação técnica** |
-| 36 | Agregado com máquina de estados e trilha imutável | `ENUNCIADO · literal` (F4–F6) | **molda o contrato inteiro**: §3 (comando, não campo), §9.1 (trilha só de leitura), `GET …/trilha-de-auditoria` |
-| 37 | Isolamento por organização em ponto único | `NOSSO` (D2,D3,RNF1) | **molda o contrato inteiro**: §4.2 (organização vem da sessão), §4.4 (os quatro endpoints fora do escopo), §6.3 (`404`) |
-| 38 | Ambiente executável em contêiner | `ENUNCIADO · literal` (E7) | não é API |
-| 39 | Publicação em nuvem, com pipeline | `ENUNCIADO · aberto` (E8) | não é API |
-| 40 | Testes de domínio, aplicação, isolamento e ponta a ponta | `ENUNCIADO · aberto` (E6) | não é API — mas §15 acopla o contrato a eles |
-| 41 | Documentação e README | `ENUNCIADO · aberto` (E9) | **este documento + `openapi.yaml`** são parte da entrega |
+| 37 | Agregado com máquina de estados e trilha imutável | `ENUNCIADO · literal` (F4–F6) | **molda o contrato inteiro**: §3 (comando, não campo), §9.1 (trilha só de leitura), `GET …/trilha-de-auditoria` |
+| 38 | Isolamento por organização em ponto único | `NOSSO` (D2,D3,RNF1) | **molda o contrato inteiro**: §4.2 (organização vem da sessão), §4.4 (os quatro endpoints fora do escopo), §6.3 (`404`) |
+| 39 | Ambiente executável em contêiner | `ENUNCIADO · literal` (E7) | não é API |
+| 40 | Publicação em nuvem, com pipeline | `ENUNCIADO · aberto` (E8) | não é API |
+| 41 | Testes de domínio, aplicação, isolamento e ponta a ponta | `ENUNCIADO · aberto` (E6) | não é API — mas §15 acopla o contrato a eles |
+| 42 | Documentação e README | `ENUNCIADO · aberto` (E9) | **este documento + `openapi.yaml`** são parte da entrega |
 
 **Fechamento da contagem:**
 
-- **35 capacidades de usuário.** Todas alcançáveis: **32 com endpoint dedicado**, 3 sem endpoint próprio e
+- **36 capacidades de usuário.** Todas alcançáveis: **33 com endpoint dedicado**, 3 sem endpoint próprio e
   com motivo declarado — nº 6 (autenticação, realizada pelo provedor) e nº 2 e 3 (sementes, efeito de
   política).
-- **6 de fundação técnica.** Duas (36 e 37) **moldam o contrato inteiro** em vez de virar endpoint; quatro
-  não são de API — e a nº 41 é, em parte, este par de arquivos.
-- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 36 endpoints existe sem
+- **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
+  não são de API — e a nº 42 é, em parte, este par de arquivos.
+- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 37 endpoints existe sem
   capacidade correspondente** — os três de pedido de entrada têm capacidade (nº 8) e **não têm comando no
   Event Storming**, o que está registrado como lacuna C-5, não como invenção.
 
@@ -1612,18 +1668,18 @@ exatamente quando se quer saber.
 | 7 | Recurso de outra organização | `404`, com `organizacaoAtiva` e `traceId` no corpo | `403` — confirma existência de identificador, contra o RNF1 |
 | 8 | Corpo de erro | RFC 9457 + `codigo` estável + `traceId` | Só mensagem (muda e quebra cliente) · código HTTP sozinho (não distingue 12 casos de `409`) |
 | 9 | Transição ilegal | `409` com `statusAtual` e `acoesDisponiveis` | `422` — não é valor inválido, é conflito com o estado |
-| 10 | Máquina de estados no cliente | `acoesDisponiveis` na resposta | Tabela de transições duplicada no PWA |
-| 11 | Upload | SAS de escrita + **ticket assinado**, validado no `POST /ocorrencias` por `HEAD` | Proxy pela API (queima franquia) · SAS sem validação posterior (aceita qualquer coisa) · tabela de uploads (mudaria o modelo de dados) |
+| 11 | Máquina de estados no cliente | `acoesDisponiveis` na resposta | Tabela de transições duplicada no PWA |
+| 12 | Upload | SAS de escrita + **ticket assinado**, validado no `POST /ocorrencias` por `HEAD` | Proxy pela API (queima franquia) · SAS sem validação posterior (aceita qualquer coisa) · tabela de uploads (mudaria o modelo de dados) |
 | 11b | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do modelo pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
-| 12 | Leitura da imagem | `GET /ocorrencias/{id}/imagem` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) |
-| 13 | Paginação | Cursor `(registradaEm, id)` | Offset — duplica itens numa lista que recebe inserções |
-| 14 | Versionamento | `/api`, sem `/v1` | `/api/v1` por hábito — sem consumidor independente, é custo sem benefício |
-| 15 | Concorrência | Sem `ETag`; a máquina de estados é o controle otimista | `If-Match` em todo comando — resolve o que já estava resolvido e piora a mensagem de erro |
-| 16 | Idempotência | Não há chave; o desfazer é `aberta_por_engano` | `Idempotency-Key` — exige tabela nova (§13, Q-API-4) |
-| 17 | Rótulo de status | `statusRotulo` calculado no servidor, por papel | Mapa no cliente — divergiria entre clientes e tiraria o texto do glossário |
-| 18 | Dashboard | Um endpoint, cinco indicadores | Cinco endpoints — cinco cold starts para uma tela |
-| 19 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis na primeira entrega |
-| 20 | Sincronia contrato ↔ código | Spec-first agora; `zod` + geração com portão no CI depois | Spec-first para sempre (depende de disciplina) · JSDoc (comentário mente igual) |
+| 13 | Leitura da imagem | `GET /ocorrencias/{id}/imagem` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) |
+| 14 | Paginação | Cursor `(registradaEm, id)` | Offset — duplica itens numa lista que recebe inserções |
+| 15 | Versionamento | `/api`, sem `/v1` | `/api/v1` por hábito — sem consumidor independente, é custo sem benefício |
+| 16 | Concorrência | Sem `ETag`; a máquina de estados é o controle otimista | `If-Match` em todo comando — resolve o que já estava resolvido e piora a mensagem de erro |
+| 17 | Idempotência | Não há chave; o desfazer é `aberta_por_engano` | `Idempotency-Key` — exige tabela nova (§13, Q-API-4) |
+| 18 | Rótulo de status | `statusRotulo` calculado no servidor, por papel | Mapa no cliente — divergiria entre clientes e tiraria o texto do glossário |
+| 19 | Dashboard | Um endpoint, cinco indicadores | Cinco endpoints — cinco cold starts para uma tela |
+| 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis na primeira entrega |
+| 21 | Sincronia contrato ↔ código | Spec-first agora; `zod` + geração com portão no CI depois | Spec-first para sempre (depende de disciplina) · JSDoc (comentário mente igual) |
 
 ---
 

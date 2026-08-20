@@ -152,12 +152,12 @@ Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega; o
 
 ## 2 · O recorte da primeira entrega
 
-**62 itens de escopo mapeados. 41 entram na primeira entrega; 21 são evolução prevista.**
+**63 itens de escopo mapeados. 42 entram na primeira entrega; 21 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
 | 0 · Configurar a organização | **5** | 2 |
-| 1 · Entrar na organização | **4** | 4 |
+| 1 · Entrar na organização | **5** | 4 |
 | 2 · Registrar a ocorrência | **3** | 1 |
 | 3 · Triar | **5** | 2 |
 | 4 · Atribuir | **3** | 2 |
@@ -166,7 +166,7 @@ Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega; o
 | 7 · Acompanhar | **4** | 4 |
 | 8 · Gerir | **5** | 2 |
 | Fundação técnica | **6** | — |
-| **Total** | **41** | **21** |
+| **Total** | **42** | **21** |
 
 E a proporção que importa para o critério de corte:
 
@@ -174,19 +174,24 @@ E a proporção que importa para o critério de corte:
 |---|---|---|---|
 | `ENUNCIADO · literal` | **8** | 0 | 8 |
 | `ENUNCIADO · aberto` | **16** | 0 | 16 |
-| `NOSSO` | **17** | **21** | 38 |
-| **Total** | **41** | **21** | **62** |
+| `NOSSO` | **18** | **21** | 39 |
+| **Total** | **42** | **21** | **63** |
 
 > **Correção de inventário — 20/08/2026.** Este documento fechou originalmente em **61 itens, 40 na
 > primeira entrega**. A revisão do contrato de API encontrou um item descrito na seção 1 — *tempo médio
 > de resolução mês a mês* — que **nunca chegou à tabela da atividade 8**, nem como ✅ nem como ⬜. Ele
 > entra, e a contagem sobe para 62 e 41. O motivo de entrar em vez de virar ⬜ está no fim daquela
 > seção. Contagem que muda sem explicação é pior que contagem errada; por isso a nota.
+>
+> **Segunda correção, no mesmo dia.** Ao desenhar o fluxo de entrada na Organização apareceu o **PA-25**:
+> aprovar um pedido de entrada com o papel errado era **irreversível**, e a causa é um erro de clique num
+> formulário de rotina. Entrou *remover vínculo sem histórico*, e a contagem fecha em **63 e 42**. A
+> justificativa está na atividade 1.
 
 **Os 24 itens `ENUNCIADO` estão inteiros na primeira entrega.** Todo o corte recaiu sobre adições do
-projeto: dos 38 itens `NOSSO`, 17 entraram e 21 ficaram para depois.
+projeto: dos 39 itens `NOSSO`, 18 entraram e 21 ficaram para depois.
 
-Os 17 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
+Os 18 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
 não funciona. Sem Organização não há onde registrar; sem categorias e áreas semeadas, a Organização
 nasce vazia e nada pode ser registrado; sem pedido de entrada e aprovação, ninguém além de quem criou
 consegue entrar; sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o Solicitante
@@ -218,6 +223,7 @@ resolve o problema que o produto veio resolver.
 | Pedir entrada com o código da organização, aguardando aprovação | `NOSSO` (D25) | ✅ |
 | Gestor aprova ou recusa o pedido de entrada | `NOSSO` (D25) | ✅ |
 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | ✅ |
+| **Remover vínculo sem histórico**, desfazendo papel aprovado por engano | `NOSSO` (D25, PA-25) | ✅ |
 | Página pública da organização, com o código embutido na URL | `NOSSO` (D25) | ⬜ |
 | Convite por link de uso único, com dados pré-preenchidos e editáveis | `NOSSO` (D25) | ⬜ |
 | Importar pessoas em lote | `NOSSO` (D25) | ⬜ |

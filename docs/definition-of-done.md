@@ -54,7 +54,7 @@ Uma tarefa só entra em desenvolvimento quando:
 | "Quebra em itens de desenvolvimento" | **Mantido**, com critério concreto de tamanho | — |
 | "Estimativa das demandas" | **Cortado** | Exige base histórica de velocidade que não existe e não existirá em seis semanas. O próprio professor admite que *"sem uma base histórica, dificilmente vamos conseguir ser assertivos"* (aula 8, p.9). Estimar aqui seria teatro |
 | "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board" | Não há PM nem PO no projeto |
-| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 24 pontos de atenção registrados, 16 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
+| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 25 pontos de atenção registrados, 16 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
 
 > **Divergência de contagem, declarada:** o plano em `trabalho/ddd-o-que-adotar.md` previa reduzir o DoR
 > de 6 para 4 itens. Ficaram **5**. A fusão prevista aconteceu, mas o item novo (5) se mostrou necessário

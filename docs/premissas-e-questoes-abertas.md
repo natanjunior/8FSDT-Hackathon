@@ -134,14 +134,18 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-21 | **Cinco eventos não couberam na linha do tempo** (comentário, nota interna, alteração de prioridade, reatribuição, mensagem na atribuição). O método do curso não trata de evento transversal — **limitação registrada em vez de forçá-los** |
 | PA-22 | **Pausar para melhorar o número.** O material de ITSM alerta que a classe *on-hold* *"não deve ser mal utilizada para atingir o SLA intencionalmente"*. Na Persona 1B o Gestor presta contas à imobiliária — o incentivo existe |
 | PA-24 | **A Organização com um Gestor só não tem caminho de volta.** Três decisões corretas isoladamente se fecham num beco: a organização nasce com **um** Gestor (D26), o papel de um vínculo **não pode ser alterado** depois de criado, e **só um Gestor aprova pedido de entrada** (D25). Se esse único Gestor perder o acesso, ninguém entra, ninguém aprova e ninguém promove — a organização fica inacessível **para sempre**. A saída existe só **fora do produto**, por acesso direto ao banco, que é justamente o caminho que a ADR-0003 declara como o que escapa do isolamento. Aceitável num MVP acadêmico; não aceitável sem estar escrito. Levantado na revisão do contrato de API, 20/08/2026 |
-| PA-25 | **Aprovar um pedido de entrada com o papel errado é irreversível na primeira entrega.** Não há alteração de papel de um vínculo já criado, *revogar vínculo* é evolução prevista, e um novo pedido da mesma Pessoa é recusado por já haver vínculo. Um morador aprovado como `Encarregado` fica **sem nenhuma permissão** e não consegue nem registrar ocorrência — e a causa é um erro de clique num formulário de rotina, não um caso de borda. **Decidido, aguardando entrar no escopo:** o conserto é um **desfazer estreito** — anular a aprovação enquanto o vínculo não tiver histórico —, e não *revogar vínculo*, que é maior porque precisa responder o que acontece com as ocorrências e atribuições da pessoa. Escopo e contrato entram juntos numa próxima rodada. Levantado ao desenhar o DG-4, 20/08/2026 |
 
 > **PA-24 e PA-25 não vieram do Event Storming**, e por isso quebram a proveniência desta seção. Os dois
 > apareceram depois: um na revisão do contrato de API, outro ao desenhar o fluxo de entrada na
 > Organização — nos dois casos, quando decisões tomadas em momentos diferentes foram lidas juntas pela
-> primeira vez. Ficam aqui porque é onde os pontos de atenção vivem, e o modo como surgiram é informação:
-> **nenhuma das decisões envolvidas erra sozinha.** Os dois também compartilham a causa raiz — **o papel de
-> um vínculo é imutável e não há como desfazer um vínculo na primeira entrega**.
+> primeira vez. O modo como surgiram é informação: **nenhuma das decisões envolvidas erra sozinha.**
+>
+> Os dois compartilhavam a causa raiz — *o papel de um vínculo é imutável e não havia como desfazer um
+> vínculo*. **O PA-25 foi resolvido** (ver Resolvidos). O **PA-24 continua aberto e não foi resolvido pelo
+> mesmo conserto**: remover um vínculo não cria Gestor, então a Organização cujo único Gestor perde o
+> acesso segue sem caminho de volta dentro do produto. Vale registrar que o conserto do PA-25 **abriria**
+> uma segunda porta para o PA-24 se não tivesse a guarda do último Gestor — o Gestor inicial de uma
+> Organização recém-criada não tem histórico e poderia remover a si mesmo.
 
 ### Resolvidos
 
@@ -155,6 +159,7 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-18 | D23 — é a Q12 |
 | PA-20 | D13 e D14, e a emenda sobre e-mail transacional — resta só o corte de escopo (Q10) |
 | PA-23 | D26 — auto-serviço; quem cria a organização é o Gestor inicial |
+| PA-25 | **`DELETE /vinculos/{pessoaId}`** — remover vínculo sem histórico, capacidade ✅ da atividade 1 do [escopo](escopo.md). Foi preciso ceder em uma de três regras corretas (*nada é apagado* · *papel imutável* · *um vínculo por pessoa por organização*), e cedeu a primeira — porque o `ON DELETE RESTRICT` do esquema **já** delimita a exceção: só passa o vínculo sem dependente, que é o único sem histórico a preservar. Detalhe em [contrato-de-api.md](contrato-de-api.md) §8.2 |
 
 ---
 

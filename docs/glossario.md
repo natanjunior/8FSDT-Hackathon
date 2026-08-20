@@ -34,6 +34,8 @@ Duas regras de vocabulário que valem para todo o projeto:
 | **Pedido de entrada** | A solicitação de uma Pessoa para se vincular a uma Organização, feita com o código público, e que **aguarda decisão do Gestor**. Só depois da aprovação o Vínculo passa a existir. | ⚠️ **"fila de aprovação"** — descrição usada antes de o termo existir; **"fila" é termo retirado** do projeto. E **Convite**, que dispensa aprovação | `NOSSO` (D25) |
 | **Vínculo** | A ligação entre uma Pessoa, um **Papel** e uma **Organização**. Uma Pessoa pode ter vários vínculos, em organizações diferentes e com papéis diferentes. | **Papel** — o vínculo *carrega* um papel, não é o papel | `NOSSO` (D4) |
 | **Papel** | O que a Pessoa é dentro de uma Organização: `Solicitante`, `Gestor` ou `Encarregado`. | **Permissão** — papel é do vínculo; permissão é o que o papel autoriza | `NOSSO` (D4) |
+| **Remover vínculo** | Apagar um vínculo que **não deixou rastro** — nenhuma ocorrência, atribuição, mensagem ou transição. Existe para desfazer um papel dado por engano: o vínculo **não deveria ter existido**. | ⚠️ **Revogar vínculo** — ver abaixo. E não apaga a **Pessoa**, que é global | `NOSSO` (D25, PA-25) |
+| **Revogar vínculo** | Encerrar o acesso de quem **tem** histórico na Organização. O vínculo **existiu e terminou**, e o registro permanece — é o que o RNF9 exige. | ⚠️ **Remover vínculo**. Os dois **não são a mesma operação com nomes diferentes**: um apaga o que não aconteceu, o outro encerra o que aconteceu | `NOSSO` (D4) |
 | **Solicitante** | Papel de quem registra e acompanha ocorrências. | **Observador** | `ENUNCIADO · literal` |
 | **Gestor** | Papel de quem analisa e administra as ocorrências de uma Organização. É **sempre** quem decide que uma ocorrência está resolvida. | **Encarregado** | `ENUNCIADO · literal` |
 | **Encarregado** | Papel de quem executa o trabalho — zelador, técnico, prestador. **Pode ou não ter Usuário**: o Gestor cadastra encarregados sem conta apenas para fins de gerenciamento. Há CRUD de Encarregados. | ⚠️ **Responsável pela ocorrência** — que é a *atribuição*, não o papel. Ver colisão nº 2 | `NOSSO` (D27) |
@@ -226,6 +228,12 @@ Registrar o que **não** é vocabulário do projeto evita que ele volte por desc
 do professor são praticamente idênticas e as orientações que ele dá são opostas, e ambos os exemplos
 são de ambiguidade, não de sinonímia. Adotamos a orientação operante do mesmo trecho: **um termo, uma
 definição.**
+
+**Duas operações parecidas com um efeito diferente merecem dois termos.** *Remover* e *revogar* um vínculo
+fazem, de longe, a mesma coisa: a pessoa deixa de ter acesso. A distinção que os separa é **o que sobra
+depois** — remover apaga um vínculo que não deixou rastro, revogar encerra um que deixou e preserva o
+registro. Chamar os dois de "revogar" não seria simplificação: faria a operação da primeira entrega parecer
+a operação inteira, e a decisão de adiar a segunda ficaria invisível. **O nome carrega a fronteira.**
 
 **Nome técnico não é automaticamente termo de linguagem ubíqua.** Critério estabelecido em 20/08/2026, ao
 modelar os dados, e que vale para nome de coluna, de tabela, de endpoint e de recurso: **entra no glossário
