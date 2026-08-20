@@ -1,0 +1,2742 @@
+openapi: 3.1.0
+
+info:
+  title: Resolve Aí — API
+  version: "1.0.0"
+  summary: Gestão de ocorrências com trilha de auditoria imutável, multi-organização.
+  description: |
+    Superfície HTTP da **primeira entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
+    suposições declaradas e a rastreabilidade das 40 capacidades estão em `docs/contrato-de-api.md`.
+
+    ## As cinco regras que explicam a forma desta API
+
+    1. **Comando de domínio não vira campo.** O `status` de uma ocorrência **não é escrevível**. Nenhum
+       corpo de requisição, em nenhuma operação, aceita `status`. Mudar status é chamar um comando
+       nomeado (`analisar`, `pausar`, `resolver`…), e cada comando grava um registro de transição com os
+       cinco campos exigidos pelo desafio — é assim que *"cada transição de status deve ser auditável"*
+       deixa de depender de disciplina.
+    2. **A organização vem da sessão, nunca da URL.** Não existe `/organizacoes/{id}/...`. O escopo é
+       resolvido num ponto único no servidor (ADR-0003). Uma Pessoa com vínculo em várias organizações
+       troca de contexto com `PUT /contexto/organizacao`.
+    3. **Gente só existe dentro de uma organização.** Não existe `GET /pessoas`. Toda listagem de gente é
+       listagem de **vínculos**.
+    4. **A trilha é só de leitura.** Não existe `POST`, `PATCH` nem `DELETE` de registro de transição —
+       ele nasce como efeito de um comando.
+    5. **Nada é apagado.** Não há `DELETE` em nenhum recurso. Existe desativar, arquivar e cancelar.
+
+    ## Antes de clicar em *Try it out*
+
+    1. Autentique-se (botão **Authorize**): cookie de sessão do provedor, ou `Bearer <access_token>`.
+    2. Chame `GET /contexto` para ver seus vínculos.
+    3. Chame `PUT /contexto/organizacao` para escolher a organização ativa. **Sem isso, toda operação de
+       negócio responde `403 SEM_ORGANIZACAO_ATIVA`.**
+
+    ## Convenções
+
+    - Vocabulário **pt-BR**, do glossário do projeto. Campos em `camelCase`; valores de enum em
+      `snake_case`, idênticos aos do banco.
+    - Datas ISO 8601 com fuso, em UTC na saída. Janelas do dashboard são `date` em America/Sao_Paulo.
+    - Erros em `application/problem+json` (RFC 9457), sempre com `codigo` estável e `traceId`.
+    - Paginação por **cursor**; a resposta traz `proximoCursor`.
+    - Nos exemplos, pessoas são nomeadas **por função** — é a regra de vocabulário do projeto. Em
+      produção o campo recebe o nome civil.
+  contact:
+    name: Resolve Aí — documentação do projeto
+    url: https://github.com/resolve-ai/resolve-ai/tree/main/docs
+  license:
+    name: Uso acadêmico — pós-graduação FIAP, Fase 5
+
+servers:
+  - url: /api
+    description: Mesma origem da aplicação (o PWA e a API sobem no mesmo container)
+  - url: http://localhost:3000/api
+    description: Ambiente local em Docker
+
+tags:
+  - name: Contexto
+    description: |
+      Quem sou eu, em quais organizações tenho vínculo, e qual delas está ativa. **São os dois únicos
+      endpoints em que o cliente nomeia uma organização.**
+  - name: Organização
+    description: Criação por auto-serviço. Quem cria vira o Gestor inicial (D26).
+  - name: Entrada na organização
+    description: Pedido de entrada com o código público, e a decisão do Gestor. Nenhum vínculo nasce sem aprovação (D25).
+  - name: Vínculos
+    description: |
+      A ponte entre a Pessoa (global) e a Organização. **Toda listagem de gente passa por aqui** — é o que
+      substitui, de propósito, um inexistente `GET /pessoas`.
+  - name: Configuração
+    description: Categorias e Áreas da organização, configuráveis pelo Gestor (D18), semeadas na criação.
+  - name: Ocorrências — leitura
+    description: Listagem, detalhe, linha do tempo, trilha de auditoria e imagem.
+  - name: Ocorrências — comandos
+    description: |
+      Os comandos do agregado. Cada um é `POST /ocorrencias/{id}/<comando>`, com o caminho no imperativo e
+      idêntico ao nome do comando no domínio. Todos devolvem a ocorrência atualizada com
+      `ultimaTransicao` — o registro de auditoria recém-gravado.
+  - name: Conversa
+    description: O comentário (canal 1 — Gestores e Solicitante). Os canais 2 e 3 são evolução prevista.
+  - name: Imagem
+    description: Autorização de upload direto para o storage, e leitura por URL assinada de vida curta.
+  - name: Dashboard
+    description: Os indicadores de gestão — o que a listagem não responde.
+
+security:
+  - sessaoSupabase: []
+  - bearerSupabase: []
+
+paths:
+  /contexto:
+    get:
+      tags: [Contexto]
+      operationId: obterContexto
+      summary: Quem sou eu, e em quais organizações
+      description: |
+        Devolve a Pessoa da sessão, a **organização ativa** (se houver), o papel, as permissões e a lista de
+        vínculos. É o primeiro pedido de qualquer cliente.
+
+        **Funciona sem organização ativa** — é o que sustenta a tela de escolha de organização e a tela de
+        quem ainda não entrou em nenhuma. A lista de vínculos parte de `vinculos`, nunca de `pessoas`.
+
+        *Fundação técnica: isolamento por organização em ponto único · `NOSSO` (D2, D3, ADR-0003).*
+      responses:
+        "200":
+          description: Contexto da sessão.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contexto" }
+              examples:
+                doisVinculos:
+                  summary: Persona 1B — síndico profissional com vínculo em duas organizações
+                  value:
+                    pessoa: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
+                    organizacaoAtiva: { id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul", codigoPublico: "RECANTO7" }
+                    papel: "gestor"
+                    permissoes: ["ocorrencia.registrar", "ocorrencia.ler_todas", "ocorrencia.analisar", "ocorrencia.resolver", "vinculo.gerir", "dashboard.ler", "organizacao.configurar"]
+                    vinculos:
+                      - { organizacaoId: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul", papel: "gestor" }
+                      - { organizacaoId: "3c7f2a10-11aa-4c3e-8f2b-77e9b0c1d2e3", nome: "Edifício Alvorada", papel: "solicitante" }
+                    pedidosDeEntrada: []
+                semVinculo:
+                  summary: Conta recém-criada, ainda sem organização
+                  value:
+                    pessoa: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    organizacaoAtiva: null
+                    papel: null
+                    permissoes: []
+                    vinculos: []
+                    pedidosDeEntrada:
+                      - { id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9", organizacao: { nome: "Condomínio Recanto Azul" }, situacao: "pendente", criadoEm: "2026-08-20T13:02:11Z" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /contexto/organizacao:
+    put:
+      tags: [Contexto]
+      operationId: trocarOrganizacaoAtiva
+      summary: Escolher a organização ativa da sessão
+      description: |
+        Define qual organização a sessão está usando. O servidor valida que existe **vínculo ativo** da
+        Pessoa naquela organização e grava a escolha num cookie de sessão assinado.
+
+        **É o único lugar do contrato onde o cliente nomeia uma organização.** Em todas as demais operações
+        o escopo é derivado da sessão — o cliente não pode escolher, nem por engano.
+
+        Organização inexistente e organização real sem vínculo ativo devolvem **a mesma resposta**, para
+        não confirmar existência.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizacaoId]
+              properties:
+                organizacaoId:
+                  type: string
+                  format: uuid
+                  description: Uma das organizações devolvidas em `GET /contexto`.
+            example: { organizacaoId: "3c7f2a10-11aa-4c3e-8f2b-77e9b0c1d2e3" }
+      responses:
+        "200":
+          description: Organização ativa trocada. O cookie de sessão é atualizado.
+          headers:
+            Set-Cookie:
+              description: Cookie de sessão assinado com a organização ativa.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contexto" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403":
+          description: Não há vínculo ativo da Pessoa naquela organização — ou a organização não existe.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/sem-vinculo-na-organizacao"
+                title: "Sem vínculo nesta organização"
+                status: 403
+                detail: "Você não tem vínculo ativo nesta organização."
+                codigo: "SEM_VINCULO_NA_ORGANIZACAO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /organizacoes:
+    post:
+      tags: [Organização]
+      operationId: criarOrganizacao
+      summary: Criar a organização (auto-serviço)
+      description: |
+        Cria a organização, **vincula quem chamou como Gestor inicial** e deixa a nova organização ativa na
+        sessão. É o bootstrap da D26: o primeiro Gestor não teria quem o aprovasse.
+
+        Dois efeitos acontecem aqui por **política** (POL-01), sem chamada do cliente: as **sete
+        categorias-semente** do desafio e as **áreas-semente** com os tipos *comum* e *privativa*.
+        Verifique com `GET /categorias` e `GET /areas` logo em seguida.
+
+        O `codigoPublico` é **gerado pelo servidor** — ele vive em cartaz de elevador e é digitado à mão, e
+        deixar o cliente escolher permitiria adivinhação dirigida.
+
+        *Capacidade: criar a organização por auto-serviço · `NOSSO` (D26). Comando: `Registrar organização`.*
+        *Roda sem organização ativa — é um dos quatro endpoints fora do escopo (contrato, §4.4).*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+            example: { nome: "Condomínio Recanto Azul" }
+      responses:
+        "201":
+          description: Organização criada, com o vínculo de Gestor e as sementes.
+          headers:
+            Set-Cookie:
+              description: A nova organização já fica ativa na sessão.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organizacao" }
+              example:
+                id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+                nome: "Condomínio Recanto Azul"
+                codigoPublico: "RECANTO7"
+                criadoEm: "2026-08-20T12:00:00Z"
+                categoriasSemeadas: 7
+                areasSemeadas: 4
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /pedidos-de-entrada:
+    post:
+      tags: [Entrada na organização]
+      operationId: pedirEntrada
+      summary: Pedir entrada com o código público
+      description: |
+        Cria um **pedido de entrada** aguardando decisão do Gestor. **Nunca cria vínculo** — é o que faz
+        *"código vazado não virar acesso, e sim um pedido aguardando aprovação"* (D25).
+
+        Roda **sem organização ativa**: o vínculo ainda não existe. A resposta traz apenas o nome da
+        organização — o código é público, mas isso não autoriza ler quem está lá dentro.
+
+        *Capacidade: pedir entrada com o código, aguardando aprovação · `NOSSO` (D25).*
+        *Sem comando correspondente no Event Storming — lacuna registrada (contrato, C-5).*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigoPublico]
+              properties:
+                codigoPublico:
+                  type: string
+                  pattern: "^[A-Z0-9]{6,12}$"
+                  description: Sem minúscula e sem caractere ambíguo — ele é digitado à mão.
+                nome: { type: string, maxLength: 120, description: "Preenche ou corrige o nome da Pessoa." }
+                telefone: { type: string, maxLength: 20 }
+            example: { codigoPublico: "RECANTO7", nome: "Morador do 302", telefone: "11 99999-0000" }
+      responses:
+        "201":
+          description: Pedido registrado, aguardando decisão do Gestor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PedidoDeEntrada" }
+              example:
+                id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9"
+                organizacao: { nome: "Condomínio Recanto Azul" }
+                situacao: "pendente"
+                criadoEm: "2026-08-20T13:02:11Z"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: Nenhuma organização com aquele código.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/codigo-publico-nao-encontrado"
+                title: "Código não encontrado"
+                status: 404
+                detail: "Nenhuma organização usa este código."
+                codigo: "CODIGO_PUBLICO_NAO_ENCONTRADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "409":
+          description: Já existe vínculo ativo, ou já existe pedido pendente.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                jaVinculado:
+                  value: { type: "https://resolveai.app/erros/ja-vinculado", title: "Você já está nesta organização", status: 409, codigo: "JA_VINCULADO", traceId: "01JB8Z6K9T2M4N7Q" }
+                jaPendente:
+                  value: { type: "https://resolveai.app/erros/pedido-de-entrada-pendente", title: "Pedido já enviado", status: 409, detail: "Seu pedido está aguardando a decisão do Gestor.", codigo: "PEDIDO_DE_ENTRADA_PENDENTE", traceId: "01JB8Z6K9T2M4N7Q" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    get:
+      tags: [Entrada na organização]
+      operationId: listarPedidosDeEntrada
+      summary: Pedidos de entrada da organização
+      description: |
+        Lista os pedidos da organização ativa. É o modelo de leitura que precede `aprovar` e `recusar`.
+
+        *Capacidade: Gestor aprova ou recusa o pedido de entrada · `NOSSO` (D25). Permissão: `vinculo.gerir`.*
+      parameters:
+        - name: situacao
+          in: query
+          description: Padrão — só os pendentes.
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/SituacaoPedidoEntrada" }
+            default: [pendente]
+          style: form
+          explode: false
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Pedidos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/PedidoDeEntradaDetalhe" }
+              example:
+                itens:
+                  - id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9"
+                    pessoa: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302", emailContato: "302@exemplo.com", telefone: "11 99999-0000" }
+                    situacao: "pendente"
+                    criadoEm: "2026-08-20T13:02:11Z"
+                    decididoEm: null
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /pedidos-de-entrada/{pedidoId}/aprovar:
+    post:
+      tags: [Entrada na organização]
+      operationId: aprovarPedidoDeEntrada
+      summary: Aprovar o pedido e criar o vínculo
+      description: |
+        Cria o **Vínculo** com o papel escolhido. É aqui que a invariante da D25 se fecha: *"o Vínculo só
+        passa a existir com aprovação do Gestor"*.
+
+        *Capacidade: Gestor aprova ou recusa · `NOSSO` (D25). Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PedidoId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papel]
+              properties:
+                papel: { $ref: "#/components/schemas/PapelVinculo" }
+            example: { papel: "solicitante" }
+      responses:
+        "200":
+          description: Pedido aprovado; vínculo criado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vinculo" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/PedidoNaoEncontrado" }
+        "409":
+          description: Pedido já decidido, ou a Pessoa já tem vínculo ativo.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/pedido-ja-decidido", title: "Pedido já decidido", status: 409, codigo: "PEDIDO_JA_DECIDIDO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /pedidos-de-entrada/{pedidoId}/recusar:
+    post:
+      tags: [Entrada na organização]
+      operationId: recusarPedidoDeEntrada
+      summary: Recusar o pedido
+      description: |
+        Marca o pedido como recusado. **Não cria nada.** Um pedido recusado pode ser refeito pela Pessoa —
+        bloquear para sempre seria mais restritivo do que qualquer decisão registrada (suposição S-A12).
+
+        *Capacidade: Gestor aprova ou recusa · `NOSSO` (D25). Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PedidoId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                observacao: { type: string, maxLength: 500 }
+            example: { observacao: "Não consta como morador na lista da administradora." }
+      responses:
+        "200":
+          description: Pedido recusado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PedidoDeEntradaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/PedidoNaoEncontrado" }
+        "409":
+          description: Pedido já decidido.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos:
+    get:
+      tags: [Vínculos]
+      operationId: listarVinculos
+      summary: Quem está nesta organização
+      description: |
+        Lista os vínculos **ativos** da organização ativa, com a Pessoa embutida.
+
+        **Este endpoint é o que substitui, de propósito, um `GET /pessoas` que não existe.** `pessoas` é
+        tabela global, sem coluna de organização: uma listagem que partisse dela devolveria o cadastro do
+        sistema inteiro. Aqui a consulta parte de `vinculos`, que já vem escopado, e faz `JOIN` para
+        `pessoas` — nunca o contrário.
+
+        **É também a lista de candidatos a responsável**, porque a atribuição aponta para *qualquer Pessoa
+        com vínculo na organização* (D21). Não há — e não deve haver — endpoint de busca de pessoas.
+
+        *Capacidade: cadastro de Encarregados · `NOSSO` (D27). Permissão: `vinculo.gerir`.*
+        *Contato (e-mail e telefone) é dado pessoal sob o RNF10 e só aparece aqui.*
+      parameters:
+        - name: papel
+          in: query
+          description: Filtro opcional por papel.
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/PapelVinculo" }
+          style: form
+          explode: false
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Vínculos ativos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Vinculo" }
+              example:
+                itens:
+                  - pessoa: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Zelador — Bloco B", emailContato: null, telefone: "11 98888-1234" }
+                    papel: "encarregado"
+                    temConta: false
+                    criadoEm: "2026-08-20T12:05:00Z"
+                  - pessoa: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul", emailContato: "sindica@exemplo.com", telefone: null }
+                    papel: "gestor"
+                    temConta: true
+                    criadoEm: "2026-08-20T12:00:00Z"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    post:
+      tags: [Vínculos]
+      operationId: criarVinculo
+      summary: Cadastrar Encarregado (ou pessoa sem conta)
+      description: |
+        Cria **Pessoa e Vínculo na mesma transação**. É o cadastro do Encarregado sem conta (D27) — o
+        zelador que não usa celular existe como cadastro, recebe atribuições e aparece como responsável,
+        mesmo sem nunca entrar no sistema.
+
+        **Sempre cria uma Pessoa nova; nunca procura por e-mail.** Procurar exigiria consultar `pessoas`
+        globalmente — a consulta proibida — e a resposta vazaria a existência de um cadastro em outra
+        organização. O custo (linhas duplicadas para o mesmo ser humano em organizações diferentes) é
+        coerente com o modelo, que deixa `email_contato` **não único** de propósito.
+
+        *Capacidade: cadastro de Encarregados, sem conta · `NOSSO` (D27). Comando: `Cadastrar pessoa`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, papel]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+                papel: { $ref: "#/components/schemas/PapelVinculo" }
+                emailContato:
+                  type: [string, "null"]
+                  format: email
+                  maxLength: 255
+                  description: Contato, **não** credencial. Os dois podem divergir, e não é único.
+                telefone: { type: [string, "null"], maxLength: 20 }
+            example: { nome: "Zelador — Bloco B", papel: "encarregado", telefone: "11 98888-1234" }
+      responses:
+        "201":
+          description: Pessoa e vínculo criados.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vinculo" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}:
+    patch:
+      tags: [Vínculos]
+      operationId: atualizarPessoaDoVinculo
+      summary: Corrigir os dados de uma pessoa sem conta
+      description: |
+        Atualiza nome, e-mail de contato e telefone da Pessoa **através do vínculo** — nunca por um
+        endereço global de Pessoa.
+
+        **Só é aceito quando a Pessoa não tem Usuário.** `pessoas` é global: editar quem tem conta
+        alteraria o cadastro daquela pessoa **em todas as outras organizações**, inclusive naquela em que
+        ela é Gestora. Quem tem conta edita os próprios dados.
+
+        **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade da primeira entrega.
+
+        *Capacidade: cadastro de Encarregados (o **U** do CRUD) · `NOSSO` (D27). Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+                emailContato: { type: [string, "null"], format: email, maxLength: 255 }
+                telefone: { type: [string, "null"], maxLength: 20 }
+            example: { telefone: "11 98888-4321" }
+      responses:
+        "200":
+          description: Dados atualizados.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vinculo" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: A Pessoa tem Usuário — o cadastro dela vale em outras organizações.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/pessoa-com-conta-nao-editavel"
+                title: "Esta pessoa tem conta"
+                status: 409
+                detail: "Quem tem conta edita os próprios dados; o cadastro vale em outras organizações."
+                codigo: "PESSOA_COM_CONTA_NAO_EDITAVEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /categorias:
+    get:
+      tags: [Configuração]
+      operationId: listarCategorias
+      summary: Categorias da organização
+      description: |
+        Lista as categorias. É a leitura que precede o registro de ocorrência — e é onde se confirma que a
+        **semente das sete categorias do desafio** foi criada junto com a organização (POL-01).
+
+        *Capacidade: editar categorias · `ENUNCIADO · aberto`. Qualquer vínculo ativo pode ler.*
+      parameters:
+        - name: ativa
+          in: query
+          description: Padrão — só as ativas. O formulário de registro nunca oferece categoria desativada.
+          schema: { type: boolean, default: true }
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Categorias, na ordem definida pelo Gestor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Categoria" }
+              example:
+                itens:
+                  - { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação", ativa: true, ordem: 1 }
+                  - { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos", ativa: true, ordem: 2 }
+                  - { id: "6b1c8f2e-3333-4a2b-8c3d-4e5f6a7b8c9d", nome: "Limpeza", ativa: true, ordem: 3 }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    post:
+      tags: [Configuração]
+      operationId: criarCategoria
+      summary: Criar categoria
+      description: |
+        *Capacidade: editar categorias · `ENUNCIADO · aberto` (o desafio dá sete exemplos e autoriza
+        "outras situações definidas pelo grupo"). Comando: `Criar categoria`. Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 60 }
+                ordem: { type: integer, minimum: 0, maximum: 999, default: 0 }
+            example: { nome: "Jardinagem", ordem: 8 }
+      responses:
+        "201":
+          description: Categoria criada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Categoria" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /categorias/{categoriaId}:
+    patch:
+      tags: [Configuração]
+      operationId: atualizarCategoria
+      summary: Renomear, reordenar ou desativar categoria
+      description: |
+        **`ativa: false` é como uma categoria sai de uso — não há exclusão.** Categoria usada por ocorrência
+        antiga não pode sumir sem destruir o histórico, e a chave estrangeira é `RESTRICT`.
+
+        Este é um dos dois lugares do contrato em que `PATCH` existe. O critério: *campo governado por
+        máquina de estados, ou que obrigue a gravar registro de transição, muda por comando nomeado; o
+        resto é `PATCH`.* Nenhum campo aqui tem estado anterior a validar.
+
+        *Capacidade: editar categorias · `ENUNCIADO · aberto`. Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/CategoriaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 60 }
+                ordem: { type: integer, minimum: 0, maximum: 999 }
+                ativa: { type: boolean }
+            example: { ativa: false }
+      responses:
+        "200":
+          description: Categoria atualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Categoria" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/CategoriaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /areas:
+    get:
+      tags: [Configuração]
+      operationId: listarAreas
+      summary: Áreas da organização
+      description: |
+        Lista as áreas com o **tipo** de cada uma. É a leitura que precede o registro: *Localização* é uma
+        Área mais um complemento em texto (D10).
+
+        *Capacidade: editar áreas · `NOSSO` (D18). Qualquer vínculo ativo pode ler.*
+      parameters:
+        - name: ativa
+          in: query
+          schema: { type: boolean, default: true }
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Áreas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Area" }
+              example:
+                itens:
+                  - { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true }
+                  - { id: "0f9a4d71-2222-4b2c-9d3e-4f5a6b7c8d9e", nome: "Salão de festas", tipo: "comum", ativa: true }
+                  - { id: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e", nome: "Apartamento 302", tipo: "privativa", ativa: true }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    post:
+      tags: [Configuração]
+      operationId: criarArea
+      summary: Criar área
+      description: |
+        **`tipo` é obrigatório e não tem padrão.** Um padrão implícito escolheria a visibilidade das
+        ocorrências em silêncio — que é exatamente o que a D10 recusa ao dizer que a visibilidade é
+        *derivação, não configuração*.
+
+        *Capacidade: editar áreas · `NOSSO` (D18). Comando: `Definir áreas do local`. Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, tipo]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 80 }
+                tipo: { $ref: "#/components/schemas/TipoArea" }
+            example: { nome: "Playground", tipo: "comum" }
+      responses:
+        "201":
+          description: Área criada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Area" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /areas/{areaId}:
+    patch:
+      tags: [Configuração]
+      operationId: atualizarArea
+      summary: Renomear, reclassificar ou desativar área
+      description: |
+        **Reclassificar o tipo muda o futuro e não mexe no passado.** Cada ocorrência guarda uma cópia
+        congelada do tipo da Área no momento do registro (emenda à D10): reclassificar de *privativa* para
+        *comum* **não** expõe retroativamente ocorrências registradas sob expectativa de privacidade.
+
+        A resposta traz `ocorrenciasComTipoAnterior` para que a interface possa dizer isso ao Gestor em
+        português, em vez de deixá-lo adivinhar.
+
+        *Capacidade: editar áreas · `NOSSO` (D18). Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/AreaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 80 }
+                tipo: { $ref: "#/components/schemas/TipoArea" }
+                ativa: { type: boolean }
+            example: { tipo: "privativa" }
+      responses:
+        "200":
+          description: Área atualizada.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Area"
+                  - type: object
+                    properties:
+                      ocorrenciasComTipoAnterior:
+                        type: integer
+                        description: Quantas ocorrências já registradas mantêm o tipo antigo — e continuarão mantendo.
+              example: { id: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e", nome: "Apartamento 302", tipo: "privativa", ativa: true, ocorrenciasComTipoAnterior: 3 }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/AreaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /imagens/autorizacoes:
+    post:
+      tags: [Imagem]
+      operationId: autorizarUploadDeImagem
+      summary: Autorizar o upload da imagem, direto para o storage
+      description: |
+        Devolve uma **credencial temporária de escrita** para o cliente enviar a foto **direto ao storage** —
+        a API nunca recebe, nunca repassa e nunca guarda bytes de imagem.
+
+        O fluxo completo:
+
+        1. O cliente **comprime no aparelho** para ~400 KB / 1600 px no maior lado (RNF8).
+        2. Chama esta operação e recebe `chave`, `ticket` e `upload`.
+        3. Faz `PUT` na `upload.url` com os bytes e os `upload.cabecalhos` — **fora desta API**, contra o
+           storage. Este passo não aparece na especificação porque não é operação nossa.
+        4. Envia `imagem: { chave, ticket }` em `POST /ocorrencias`.
+
+        **A validação acontece no passo 4, não no 3.** Ao reivindicar, o servidor confere a assinatura do
+        `ticket`, confere que o portador é quem pediu, e faz um `HEAD` no objeto — que devolve tamanho e
+        tipo reais sem baixar nada. Objeto ausente, grande demais ou de outro tipo derruba o registro.
+
+        Por que assim: a aplicação roda com franquia medida em vCPU-segundos, e *streaming* de arquivo é
+        exatamente o trabalho que consome franquia sem produzir nada. E o passo 3 corre **em paralelo** com
+        o preenchimento do formulário — é o que faz o registro caber em menos de um minuto (RNF6).
+
+        ## O objeto que nunca é reivindicado
+
+        O passo 4 pode nunca acontecer — o aplicativo fechou, a rede caiu na garagem, a pessoa desistiu.
+        Nesse caso o objeto ficaria no storage e **nada no sistema saberia que ele existe**: não há linha no
+        banco, e o `ticket` era um token que expirou.
+
+        Por isso **todo objeto nasce marcado `estado=pendente`**, numa etiqueta de índice escrita pelo
+        servidor. Reivindicar troca a marca para `estado=confirmado` — uma operação de metadado, que **não
+        move bytes** e portanto não desfaz a razão de este desenho existir. Uma regra de ciclo de vida do
+        contêiner apaga o que continuar `pendente`; como a granularidade do provedor é de dias, um objeto
+        abandonado vive entre 24 e 48 horas. Ele já era irrecuperável depois de 15 minutos, quando o
+        `ticket` expirou: o resto é espera de faxina, não janela de risco.
+
+        **Este é o único endpoint do contrato com limite de chamadas** — 30 por Pessoa por hora. É o único
+        que permite a alguém autenticado consumir armazenamento externo **sem criar registro de domínio
+        nenhum**; todos os outros criam linha em tabela e já esbarram nas regras do próprio domínio.
+
+        *Capacidade: anexar uma imagem, comprimida no próprio celular · `ENUNCIADO · aberto` (S6) + RNF8.*
+        *Não é comando do Event Storming: é decomposição técnica de `Registrar ocorrência`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipoConteudo, tamanhoBytes]
+              properties:
+                tipoConteudo:
+                  type: string
+                  enum: [image/jpeg, image/png]
+                tamanhoBytes:
+                  type: integer
+                  minimum: 1
+                  maximum: 524288
+                  description: Teto de 512 KB — os 400 KB do RNF8, com margem.
+            example: { tipoConteudo: "image/jpeg", tamanhoBytes: 391244 }
+      responses:
+        "201":
+          description: Autorização emitida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutorizacaoDeUpload" }
+              example:
+                chave: "img_01JB8Z6K9T2M4N7Q"
+                ticket: "eyJhbGciOiJIUzI1NiJ9.eyJjaGF2ZSI6ImltZ18wMUpCOFo2SzlUMk00TjdRIn0"
+                estado: "pendente"
+                upload:
+                  url: "https://exemplo.blob.core.windows.net/anexos/img_01JB8Z6K9T2M4N7Q?sv=2024-11-04&sig=..."
+                  metodo: "PUT"
+                  cabecalhos:
+                    x-ms-blob-type: "BlockBlob"
+                    x-ms-blob-content-type: "image/jpeg"
+                  expiraEm: "2026-08-20T13:17:00Z"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "422":
+          description: Tipo ou tamanho fora do permitido.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/imagem-acima-do-limite"
+                title: "Imagem grande demais"
+                status: 422
+                detail: "A imagem precisa ser comprimida no aparelho antes de subir."
+                codigo: "IMAGEM_ACIMA_DO_LIMITE"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "429":
+          description: |
+            Mais de 30 autorizações por Pessoa por hora. Existe porque este endpoint é o único que consome
+            armazenamento externo sem criar registro de domínio.
+          headers:
+            Retry-After:
+              description: Segundos até a próxima autorização ser aceita.
+              schema: { type: integer }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/limite-de-autorizacoes-de-upload"
+                title: "Muitas imagens em pouco tempo"
+                status: 429
+                detail: "Aguarde alguns minutos para enviar outra imagem."
+                codigo: "LIMITE_DE_AUTORIZACOES_DE_UPLOAD"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: registrarOcorrencia
+      summary: Registrar a ocorrência
+      description: |
+        Registra a ocorrência e **grava o primeiro registro da trilha**, com `statusAnterior` nulo — a
+        premissa P1. Ele volta na resposta, em `ultimaTransicao`.
+
+        **Quatro coisas o servidor escreve e o cliente não pode enviar:** `status` (nasce `aberta`),
+        `prioridade` (nasce `normal`, D6), `areaTipo` (cópia congelada do tipo da Área, que decide a
+        visibilidade para sempre) e o registro de transição.
+
+        A imagem chega como **referência já enviada** (`chave` + `ticket`), nunca como bytes. Ao aceitar a
+        referência, o servidor **confirma o objeto no storage** — o que o tira da faxina automática descrita
+        em `POST /imagens/autorizacoes`.
+
+        *Capacidades: registrar com título, descrição e categoria · `ENUNCIADO · literal` (S3, S4);
+        informar a localização · `ENUNCIADO · aberto` (S5) + D10; anexar uma imagem · `ENUNCIADO · aberto`
+        (S6). Comando: `Registrar ocorrência`. Permissão: `ocorrencia.registrar` — Solicitante e Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistroDeOcorrencia" }
+            examples:
+              comFoto:
+                summary: Área comum, com foto
+                value:
+                  titulo: "Lâmpada queimada na garagem"
+                  descricao: "A lâmpada da vaga 34 está queimada há três dias; à noite o corredor fica escuro."
+                  categoriaId: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d"
+                  areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e"
+                  localizacaoComplemento: "ao lado da vaga 34"
+                  imagem: { chave: "img_01JB8Z6K9T2M4N7Q", ticket: "eyJhbGciOiJIUzI1NiJ9..." }
+              semFoto:
+                summary: Unidade privativa, sem foto
+                value:
+                  titulo: "Infiltração na parede do quarto"
+                  descricao: "Mancha crescendo na parede que dá para a área externa, depois da chuva de ontem."
+                  categoriaId: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d"
+                  areaId: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e"
+      responses:
+        "201":
+          description: Ocorrência registrada, com o primeiro registro da trilha.
+          headers:
+            Location:
+              description: URL da ocorrência criada.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OcorrenciaDetalhe" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "422":
+          description: |
+            Categoria ou área inexistente **nesta organização** ou desativada; imagem não reconhecida;
+            campo cuja capacidade é evolução prevista (`ocorrenciaOrigemId`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                categoriaInvalida:
+                  value: { type: "https://resolveai.app/erros/categoria-invalida", title: "Categoria inválida", status: 422, detail: "Esta categoria não existe nesta organização ou está desativada.", codigo: "CATEGORIA_INVALIDA", traceId: "01JB8Z6K9T2M4N7Q" }
+                areaInvalida:
+                  value: { type: "https://resolveai.app/erros/area-invalida", title: "Área inválida", status: 422, detail: "Esta área não existe nesta organização ou está desativada.", codigo: "AREA_INVALIDA", traceId: "01JB8Z6K9T2M4N7Q" }
+                imagem:
+                  value: { type: "https://resolveai.app/erros/imagem-nao-reconhecida", title: "Imagem não reconhecida", status: 422, detail: "A autorização expirou ou o arquivo não chegou ao storage.", codigo: "IMAGEM_NAO_RECONHECIDA", traceId: "01JB8Z6K9T2M4N7Q" }
+                campoDeEvolucaoPrevista:
+                  summary: Campo cuja capacidade ainda não existe
+                  value: { type: "https://resolveai.app/erros/campo-nao-suportado", title: "Campo não suportado", status: 422, detail: "O vínculo com a ocorrência original é evolução prevista.", codigo: "CAMPO_NAO_SUPORTADO", traceId: "01JB8Z6K9T2M4N7Q", erros: [{ campo: "ocorrenciaOrigemId", codigo: "CAMPO_NAO_SUPORTADO" }] }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: listarOcorrencias
+      summary: Listar ocorrências
+      description: |
+        **A mesma URL devolve conjuntos diferentes conforme quem pergunta**, e isso é a regra de
+        visibilidade, não um filtro escondido:
+
+        - quem tem `ocorrencia.ler_todas` (Gestor) recebe **todas** as da organização ativa;
+        - quem tem só `ocorrencia.ler_propria` (Solicitante) recebe **apenas as de que é autor**.
+
+        Na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores — a visibilidade
+        comunitária das áreas comuns é evolução prevista. A resposta declara o recorte aplicado em
+        `visibilidadeAplicada`.
+
+        O Gestor que também mora no prédio usa `autor=eu` para ver as próprias — é o síndico morador,
+        resolvido por parâmetro e não por um segundo vínculo.
+
+        **Ordenação fixa em `registradaEm` decrescente** e **paginação por cursor**: a lista recebe
+        inserções o tempo todo, e com deslocamento numérico um item registrado entre duas páginas
+        apareceria duas vezes.
+
+        *Capacidades: listar todas as ocorrências · `ENUNCIADO · aberto` (G1); filtrar por categoria,
+        status e prioridade · `ENUNCIADO · literal` (G2); ver as minhas ocorrências · `ENUNCIADO · aberto` (S7).*
+      parameters:
+        - name: status
+          in: query
+          description: Um ou mais status.
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/StatusOcorrencia" }
+          style: form
+          explode: false
+          example: [aberta, em_analise]
+        - name: categoriaId
+          in: query
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+        - name: prioridade
+          in: query
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/PrioridadeOcorrencia" }
+          style: form
+          explode: false
+        - name: autor
+          in: query
+          description: |
+            `eu` restringe às ocorrências de que o chamador é autor. É o que dá ao Gestor a visão de
+            Solicitante sem um segundo vínculo.
+          schema: { type: string, enum: [eu] }
+        - $ref: "#/components/parameters/Limite"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Página de ocorrências.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens, proximoCursor, visibilidadeAplicada]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/OcorrenciaResumo" }
+                  proximoCursor:
+                    type: [string, "null"]
+                    description: Cursor da próxima página; `null` quando acabou.
+                  visibilidadeAplicada:
+                    type: string
+                    enum: [todas, apenas_minhas]
+                    description: O recorte que o servidor aplicou, para a interface poder dizê-lo ao usuário.
+              example:
+                visibilidadeAplicada: "todas"
+                proximoCursor: "MjAyNi0wOC0yMFQxMzowMjoxMVp8OWExZg"
+                itens:
+                  - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
+                    titulo: "Lâmpada queimada na garagem"
+                    status: "em_analise"
+                    statusRotulo: "Em análise"
+                    motivoPausa: null
+                    prioridade: "normal"
+                    categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }
+                    area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum" }
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    responsavel: null
+                    temImagem: true
+                    registradaEm: "2026-08-20T13:02:11Z"
+                    atualizadaEm: "2026-08-20T14:10:00Z"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}:
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: obterOcorrencia
+      summary: Detalhe da ocorrência
+      description: |
+        Devolve a ocorrência com **`acoesDisponiveis`** — a lista dos comandos que **este** chamador pode
+        executar **agora**, derivada da máquina de estados cruzada com as permissões dele.
+
+        Isso existe para que o cliente **não reimplemente a tabela de transições**. Sem esse campo,
+        passaria a existir uma segunda cópia da máquina de estados na camada que não pode conter regra de
+        negócio — e ela divergiria na primeira mudança de regra.
+
+        **`404` quando a ocorrência não é visível a quem pediu**, seja porque é de outra organização, seja
+        porque é de outro Solicitante: o que você não pode ver não existe para você.
+
+        *Capacidade: listar/consultar ocorrências · `ENUNCIADO · aberto` (G1, S7).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Ocorrência.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OcorrenciaDetalhe" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/linha-do-tempo:
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: obterLinhaDoTempo
+      summary: Linha do tempo — o que o Solicitante acompanha
+      description: |
+        **Transições + mensagens + atribuições**, intercaladas na ordem em que aconteceram, com os status
+        em **rótulo de linguagem de gente** (*"Em execução"* para o Solicitante onde o Gestor lê
+        *"Em atendimento"*). Os rótulos são definidos no glossário do projeto e calculados no servidor.
+
+        Não confundir com a **trilha de auditoria**: a trilha é só transições, com os nomes internos, e é a
+        fonte; a linha do tempo é a apresentação dela somada à conversa e às atribuições.
+
+        *Capacidades: ver a linha do tempo · `ENUNCIADO · aberto` (S9); rótulos em linguagem de gente ·
+        `NOSSO` (D19). Modelo de leitura: "linha do tempo da ocorrência" (passo 7).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Eventos em ordem cronológica.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventoDaLinhaDoTempo" }
+              example:
+                itens:
+                  - tipo: "transicao"
+                    ocorridoEm: "2026-08-20T13:02:11Z"
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    rotulo: "Recebida — aguardando análise"
+                    statusNovo: "aberta"
+                    statusAnterior: null
+                  - tipo: "transicao"
+                    ocorridoEm: "2026-08-20T14:10:00Z"
+                    autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
+                    rotulo: "Em análise"
+                    statusNovo: "em_analise"
+                    statusAnterior: "aberta"
+                    observacao: "Vou verificar se temos lâmpada em estoque."
+                  - tipo: "atribuicao"
+                    ocorridoEm: "2026-08-20T14:12:00Z"
+                    autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
+                    responsavel: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Zelador — Bloco B" }
+                  - tipo: "mensagem"
+                    ocorridoEm: "2026-08-20T15:00:00Z"
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    texto: "Obrigado! A vaga ao lado também está escura."
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/trilha-de-auditoria:
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: obterTrilhaDeAuditoria
+      summary: Trilha de auditoria — só as transições, imutáveis
+      description: |
+        A sequência completa dos **registros de transição**, cada um com os cinco campos exigidos pelo
+        desafio: status anterior · novo status · data e horário · autor da transição · observação.
+
+        **É a única forma de alcançar um registro de transição pela API, e é somente leitura.** Não existe
+        `POST`, `PATCH` nem `DELETE` neste recurso: registro de transição é objeto de valor imutável dentro
+        do agregado e nasce como **efeito** de um comando. Se um dia aparecer escrita aqui, a garantia
+        central do produto terá sido perdida.
+
+        *Capacidade: agregado com máquina de estados e trilha imutável · `ENUNCIADO · literal` (F4–F6) · ADR-0001.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Registros de transição, do mais antigo para o mais recente.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/RegistroDeTransicao" }
+              example:
+                itens:
+                  - { statusAnterior: null, statusNovo: "aberta", ocorreuEm: "2026-08-20T13:02:11Z", autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }, observacao: null, motivoPausa: null, motivoCancelamento: null }
+                  - { statusAnterior: "aberta", statusNovo: "em_analise", ocorreuEm: "2026-08-20T14:10:00Z", autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }, observacao: "Vou verificar se temos lâmpada em estoque.", motivoPausa: null, motivoCancelamento: null }
+                  - { statusAnterior: "em_analise", statusNovo: "pausada", ocorreuEm: "2026-08-21T09:00:00Z", autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }, observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.", motivoPausa: "aguardando_peca", motivoCancelamento: null }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/imagem:
+    get:
+      tags: [Imagem]
+      operationId: obterImagemDaOcorrencia
+      summary: Abrir a imagem da ocorrência
+      description: |
+        Responde **`302`** para uma URL assinada de leitura, válida por 10 minutos. **A API não faz proxy
+        dos bytes** — pelo mesmo motivo de custo que decidiu o upload.
+
+        A URL **deste endpoint** é estável, então serve em `<img src>` e é cacheável pelo service worker;
+        a URL assinada, que muda a cada pedido, nunca aparece em payload de listagem.
+
+        O contêiner não é público: ocorrência em unidade privativa é visível só ao autor e aos Gestores, e
+        a autorização é feita aqui, a cada leitura.
+
+        *Capacidade: anexar uma imagem · `ENUNCIADO · aberto` (S6).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "302":
+          description: Redirecionamento para a URL assinada.
+          headers:
+            Location:
+              description: URL assinada de leitura, com validade de 10 minutos.
+              schema: { type: string }
+            Referrer-Policy:
+              description: Sempre `no-referrer` — a URL assinada não deve vazar por cabeçalho de origem.
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "404":
+          description: A ocorrência não existe para quem pediu, ou não tem imagem.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/comentarios:
+    get:
+      tags: [Conversa]
+      operationId: listarComentarios
+      summary: Comentários da ocorrência
+      description: |
+        O **canal 1**: Gestores e o Solicitante autor. É o que o desafio chama de *"adicionar comentários"*.
+
+        Os participantes são **derivados**, não listados: Gestores da organização mais o autor da
+        ocorrência. Quem não é nenhum dos dois nem chega aqui — recebe `404` da ocorrência.
+
+        Os outros dois canais (nota interna e conversa da atribuição) são evolução prevista e terão caminho
+        próprio; expor um `tipo` polimórfico agora criaria dois valores inalcançáveis.
+
+        *Capacidade: comentar com os Gestores dentro da ocorrência · `ENUNCIADO · aberto` (S8, G6) + D9.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/Limite"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Página de comentários, do mais antigo para o mais recente.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens, proximoCursor]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Comentario" }
+                  proximoCursor: { type: [string, "null"] }
+              example:
+                proximoCursor: null
+                itens:
+                  - id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+                    texto: "Obrigado! A vaga ao lado também está escura."
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    criadoEm: "2026-08-20T15:00:00Z"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    post:
+      tags: [Conversa]
+      operationId: enviarComentario
+      summary: Comentar na ocorrência
+      description: |
+        Publica no canal 1 e atualiza `atualizadaEm` da ocorrência.
+
+        **Sem edição e sem exclusão** — o modelo não tem coluna para isso, e nada foi decidido a respeito.
+        Consequência declarada: dois toques criam dois comentários; esta é a única operação de escrita do
+        contrato que não é protegida por repetição.
+
+        *Capacidade: comentar com os Gestores · `ENUNCIADO · aberto` (S8, G6) + D9.*
+        *Comando: `Enviar mensagem no canal`. Permissão: `ocorrencia.comentar`.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [texto]
+              properties:
+                texto: { type: string, minLength: 1, maxLength: 4000 }
+            example: { texto: "A lâmpada nova já foi instalada — obrigado pelo aviso." }
+      responses:
+        "201":
+          description: Comentário publicado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comentario" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/analisar:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: analisar
+      summary: "Comando: analisar"
+      description: |
+        `Aberta` → `Em análise`. Marca que o Gestor começou a olhar — e é a transição que tira a ocorrência
+        do limbo do ponto de vista do Solicitante.
+
+        `observacao` é **opcional** aqui: é avanço rotineiro, e exigir texto onde não há decisão a
+        justificar produz "ok" e mata o dado (D23).
+
+        *Capacidade: analisar · `ENUNCIADO · literal` (F2). Comando: `Analisar`. Permissão: `ocorrencia.analisar` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoComObservacaoOpcional" }
+            example: { observacao: "Vou verificar se temos lâmpada em estoque." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/alterar-prioridade:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: alterarPrioridade
+      summary: "Comando: alterar prioridade"
+      description: |
+        **Não transiciona status e não gera registro na trilha** — a trilha é só de status. É a razão de a
+        alteração de prioridade não aparecer na linha do tempo, e é limitação conhecida do modelo.
+
+        **Recusada em `resolvida` e `cancelada`** (invariante 7, D6): se a prioridade mudasse depois do
+        fim, *"quantas ocorrências de prioridade alta resolvemos em setembro"* responderia coisas
+        diferentes conforme o dia da pergunta — e indicador que muda o passado não é indicador.
+
+        Nada sobe de prioridade sozinho: **nenhuma política altera prioridade** (D16); o envelhecimento
+        apenas sinaliza.
+
+        *Capacidade: alterar a prioridade · `ENUNCIADO · aberto` (G3) + D6. Comando: `Alterar prioridade`.
+        Permissão: `ocorrencia.alterar_prioridade` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prioridade]
+              properties:
+                prioridade: { $ref: "#/components/schemas/PrioridadeOcorrencia" }
+                observacao: { type: string, maxLength: 1000 }
+            example: { prioridade: "alta", observacao: "Garagem sem iluminação é risco de segurança." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409":
+          description: Ocorrência em estado terminal — a prioridade está congelada.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/prioridade-imutavel-em-estado-terminal"
+                title: "Prioridade congelada"
+                status: 409
+                detail: "A prioridade não muda depois de resolvida ou cancelada, para o dashboard não mudar o passado."
+                codigo: "PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL"
+                traceId: "01JB8Z6K9T2M4N7Q"
+                statusAtual: "resolvida"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/atribuir-responsavel:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: atribuirResponsavel
+      summary: "Comando: atribuir responsável (e reatribuir)"
+      description: |
+        Designa **qualquer Pessoa com vínculo ativo** na organização — Encarregado **ou** Gestor. Papel e
+        atribuição são ortogonais (D21): o Gestor se atribui em um clique enviando o próprio `pessoaId`,
+        sem precisar de um segundo vínculo. **Não há endpoint separado de auto-atribuição.**
+
+        **Este endpoint realiza dois comandos do domínio.** Se já houver responsável, ele *reatribui*: a
+        atribuição vigente é encerrada com motivo `reatribuicao` e a conversa daquela atribuição é
+        **arquivada, nunca apagada**. A resposta diz qual dos dois aconteceu, em `reatribuicao`.
+
+        **Não transiciona status** — mas é pré-condição de `iniciar-atendimento`.
+
+        *Capacidades: atribuir o responsável · `ENUNCIADO · aberto` (G4) + D21; auto-atribuição em um
+        clique · `NOSSO`; reatribuir · `NOSSO`. Comandos: `Atribuir responsável`, `Reatribuir`.
+        Permissão: `ocorrencia.atribuir` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [responsavelPessoaId]
+              properties:
+                responsavelPessoaId:
+                  type: string
+                  format: uuid
+                  description: Uma Pessoa da lista de `GET /vinculos`. Para auto-atribuição, o `pessoaId` do próprio chamador.
+                observacao: { type: string, maxLength: 1000 }
+            example: { responsavelPessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f" }
+      responses:
+        "200":
+          description: Responsável atribuído (ou reatribuído).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/OcorrenciaDetalhe"
+                  - type: object
+                    properties:
+                      reatribuicao:
+                        type: boolean
+                        description: "`true` quando havia responsável anterior — a atribuição dele foi encerrada e a conversa, arquivada."
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "422":
+          description: A pessoa indicada não tem vínculo ativo nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/responsavel-sem-vinculo-ativo"
+                title: "Pessoa sem vínculo ativo"
+                status: 422
+                detail: "Só é possível atribuir a quem tem vínculo ativo nesta organização."
+                codigo: "RESPONSAVEL_SEM_VINCULO_ATIVO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/iniciar-atendimento:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: iniciarAtendimento
+      summary: "Comando: iniciar atendimento"
+      description: |
+        `Em análise` → `Em atendimento`.
+
+        **Exige responsável atribuído** (invariante 9, D21). Não é burocracia: *"quem está fazendo"* é
+        exatamente a informação que hoje se perde, e a atribuição é o que a torna registrada. Sem
+        responsável, `409 RESPONSAVEL_NAO_ATRIBUIDO` — a única pré-condição de estado do contrato que não
+        é sobre o `status`.
+
+        *Capacidade: iniciar o atendimento · `ENUNCIADO · literal` (F2) + D21. Comando: `Iniciar atendimento`.
+        Permissão: `ocorrencia.iniciar_atendimento` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoComObservacaoOpcional" }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409":
+          description: Transição não permitida, ou nenhum responsável atribuído.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                semResponsavel:
+                  value:
+                    type: "https://resolveai.app/erros/responsavel-nao-atribuido"
+                    title: "Ninguém atribuído"
+                    status: 409
+                    detail: "Atribua um responsável antes de iniciar o atendimento."
+                    codigo: "RESPONSAVEL_NAO_ATRIBUIDO"
+                    traceId: "01JB8Z6K9T2M4N7Q"
+                    statusAtual: "em_analise"
+                    acoesDisponiveis: ["atribuir-responsavel", "pausar", "cancelar", "alterar-prioridade"]
+                transicao:
+                  value:
+                    type: "https://resolveai.app/erros/transicao-nao-permitida"
+                    title: "Transição não permitida"
+                    status: 409
+                    detail: "Só é possível iniciar o atendimento de uma ocorrência em análise."
+                    codigo: "TRANSICAO_NAO_PERMITIDA"
+                    traceId: "01JB8Z6K9T2M4N7Q"
+                    statusAtual: "aberta"
+                    acoesDisponiveis: ["analisar", "cancelar", "alterar-prioridade"]
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/pausar:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: pausar
+      summary: "Comando: pausar"
+      description: |
+        `Em análise` **ou** `Em atendimento` → `Pausada`.
+
+        `Pausada` é acréscimo nosso ao ciclo de vida, e existe porque **é onde o trabalho se perde hoje**:
+        nomear a espera é o que permite vigiá-la. Por isso **motivo e observação são obrigatórios** —
+        aqui há uma decisão a justificar, e é o caso em que a D23 exige texto.
+
+        *Capacidade: pausar com motivo estruturado · `NOSSO` (D8). Comando: `Pausar`.
+        Permissão: `ocorrencia.pausar` — Gestor (e o responsável atribuído, quando ele tiver acesso próprio).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo, observacao]
+              properties:
+                motivo: { $ref: "#/components/schemas/MotivoPausa" }
+                observacao: { type: string, minLength: 1, maxLength: 1000 }
+            example: { motivo: "aguardando_peca", observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/retomar:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: retomar
+      summary: "Comando: retomar"
+      description: |
+        `Pausada` → **o status anterior à pausa**.
+
+        **O cliente não escolhe o destino, e não o conhece antes de pedir**: o agregado lê o
+        `statusAnterior` do registro de pausa e volta para lá (invariante 6). Não há campo para isso — é
+        um dividendo direto de a trilha ser conceito de domínio.
+
+        *Capacidade: retomar, voltando ao status anterior · `NOSSO` (D8). Comando: `Retomar`.
+        Permissão: `ocorrencia.retomar` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoComObservacaoOpcional" }
+            example: { observacao: "Lâmpada chegou." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/registrar-solucao-aplicada:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: registrarSolucaoAplicada
+      summary: "Comando: registrar solução aplicada"
+      description: |
+        Grava **o que foi efetivamente feito**. Não transiciona status e não gera registro na trilha.
+
+        Não é obrigatória por regra do sistema (D22): a obrigação vem por interface — o formulário de
+        resolver abre com o campo em foco, e pular exige um clique a mais. O objetivo é que `Resolvida`
+        **signifique** algo; campo obrigatório em momento rotineiro é preenchido com "ok" e o dado morre.
+
+        Na prática, o caminho comum é enviar `solucaoAplicada` no próprio `/resolver` — uma requisição em
+        vez de duas.
+
+        *Capacidade: registrar a solução aplicada · `ENUNCIADO · aberto` (G7) + D22.
+        Comando: `Registrar solução aplicada`. Permissão: `ocorrencia.registrar_solucao` — Gestor.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [solucaoAplicada]
+              properties:
+                solucaoAplicada: { type: string, minLength: 1, maxLength: 4000 }
+            example: { solucaoAplicada: "Trocada a lâmpada da vaga 34 e revisado o reator do corredor." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/resolver:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: resolver
+      summary: "Comando: resolver"
+      description: |
+        `Em atendimento` → `Resolvida`. **Estado terminal de verdade: não existe reabertura.** Problema que
+        volta é uma ocorrência nova vinculada à original (D24).
+
+        **Só o Gestor resolve, sempre.** É a regra de autorização mais firme do produto — apareceu idêntica
+        nas duas personas da pesquisa: *"sempre eu que decido que acabou"*.
+
+        Aceita `solucaoAplicada` no mesmo corpo, para que o formulário induzido pela D22 seja uma
+        requisição só. O registro de transição continua sendo **um**.
+
+        *Capacidade: resolver · `ENUNCIADO · literal` (F2). Comando: `Resolver`.
+        Permissão: `ocorrencia.resolver` — **Gestor apenas**.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                solucaoAplicada: { type: string, maxLength: 4000 }
+                observacao: { type: string, maxLength: 1000 }
+            example: { solucaoAplicada: "Trocada a lâmpada da vaga 34 e revisado o reator do corredor." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/cancelar:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: cancelar
+      summary: "Comando: cancelar"
+      description: |
+        `Aberta`, `Em análise`, `Em atendimento` ou `Pausada` → `Cancelada`. Terminal.
+
+        **Motivo e observação são obrigatórios** (D12, D23): `Cancelada` não é *"resolvida com resultado
+        ruim"*, e o motivo importa tanto quanto o fato — é o que faz o cancelamento virar indicador em vez
+        de buraco.
+
+        **Duas checagens de autorização**, e elas são diferentes entre si:
+
+        - **Quem:** o Solicitante cancela **a própria** ocorrência até `Em análise`; a partir de
+          `Em atendimento` **só o Gestor**, porque alguém já está trabalhando e pode haver custo incorrido.
+          O Solicitante continua podendo **pedir** o cancelamento pelo comentário.
+        - **Qual motivo:** Solicitante usa `desistencia`, `resolvido_por_conta_propria`,
+          `aberta_por_engano` e `duplicada`; o Gestor usa os sete.
+
+        **`ocorrenciaOrigemId` não é aceito nesta entrega:** o motivo `duplicada` existe, mas o vínculo com
+        a ocorrência original é evolução prevista — enviar o campo devolve `422 CAMPO_NAO_SUPORTADO`, e é
+        assim que o contrato reserva o lugar sem fingir que a capacidade existe.
+
+        *Capacidade: cancelar com motivo estruturado e observação · `ENUNCIADO · literal` (F3) + D12.
+        Comando: `Cancelar`. Permissões: `ocorrencia.cancelar_propria` · `ocorrencia.cancelar_qualquer`.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo, observacao]
+              properties:
+                motivo: { $ref: "#/components/schemas/MotivoCancelamento" }
+                observacao: { type: string, minLength: 1, maxLength: 1000 }
+            examples:
+              peloSolicitante:
+                summary: O Solicitante desiste
+                value: { motivo: "resolvido_por_conta_propria", observacao: "Chamei um eletricista por conta própria." }
+              peloGestor:
+                summary: O Gestor cancela por improcedência
+                value: { motivo: "improcedente", observacao: "A área não pertence ao condomínio; é da concessionária." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403":
+          description: A partir de `em_atendimento`, só o Gestor cancela.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/somente-o-gestor-cancela-neste-estado"
+                title: "Só o Gestor cancela agora"
+                status: 403
+                detail: "O atendimento já começou. Peça o cancelamento pelo comentário."
+                codigo: "SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "422":
+          description: Motivo fora da lista permitida ao papel, ou campo de evolução prevista.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/motivo-nao-permitido-para-o-papel"
+                title: "Motivo não disponível"
+                status: 422
+                codigo: "MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/avaliar:
+    post:
+      tags: [Ocorrências — comandos]
+      operationId: avaliar
+      summary: "Comando: avaliar a resolução"
+      description: |
+        A nota que o **Solicitante autor** dá à resolução. **Não é um sexto estado** (D1): a ocorrência
+        continua `Resolvida` depois de avaliada — é ação sobre um estado terminal, não um estado novo.
+
+        É a **única medida de qualidade que o produto tem**. Nota inteira de 1 a 5, comentário opcional.
+
+        Três recusas: quem não é o autor (`403`), ocorrência que não está resolvida (`409`) e segunda
+        avaliação (`409`) — a avaliação é `0..1` por ocorrência.
+
+        *Capacidade: avaliar a resolução · `ENUNCIADO · aberto` (S10) + D1. Comando: `Avaliar resolução`.
+        Permissão: `ocorrencia.avaliar` — **só o Solicitante autor**.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nota]
+              properties:
+                nota: { type: integer, minimum: 1, maximum: 5 }
+                comentario: { type: string, maxLength: 1000 }
+            example: { nota: 5, comentario: "Resolveram no mesmo dia e avisaram quando terminou." }
+      responses:
+        "200": { $ref: "#/components/responses/ComandoExecutado" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403":
+          description: Só o Solicitante autor avalia.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/somente-o-autor-pode-avaliar"
+                title: "Só quem registrou pode avaliar"
+                status: 403
+                codigo: "SOMENTE_O_AUTOR_PODE_AVALIAR"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409":
+          description: Ocorrência não está resolvida, ou já foi avaliada.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                naoResolvida:
+                  value: { type: "https://resolveai.app/erros/avaliacao-exige-resolvida", title: "Ainda não dá para avaliar", status: 409, codigo: "AVALIACAO_EXIGE_RESOLVIDA", traceId: "01JB8Z6K9T2M4N7Q", statusAtual: "em_atendimento" }
+                jaAvaliada:
+                  value: { type: "https://resolveai.app/erros/ja-avaliada", title: "Já avaliada", status: 409, codigo: "JA_AVALIADA", traceId: "01JB8Z6K9T2M4N7Q", statusAtual: "resolvida" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      operationId: obterDashboard
+      summary: Indicadores de gestão
+      description: |
+        Os cinco indicadores da primeira entrega, em **uma requisição** — o dashboard é uma tela, e a
+        aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
+
+        O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
+        *o que eu mudo no mês*.** Por isso `backlog` é fotografia de agora (ignora a janela) e `recorrencia`
+        é série mensal dentro dela.
+
+        **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
+        em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
+        do reativo.
+
+        `mediaDasAvaliacoes` e `tempoMedioDeResolucao` vêm com o denominador de propósito: sem ele, a média
+        mente quando poucos avaliam, e a duração média mente quando o mês teve duas resoluções.
+
+        `tempoMedioDeResolucao` é **tempo de calendário** — do registro à resolução, pausas incluídas.
+        Separar calendário de tempo ativo é evolução prevista. Mês sem nenhuma resolução aparece com
+        `horas: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico mentir.
+
+        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); backlog por status e
+        categoria, média das avaliações, recorrência por categoria e área, e tempo médio de resolução mês a
+        mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
+      parameters:
+        - name: de
+          in: query
+          description: Início da janela, em America/Sao_Paulo. Padrão — 90 dias atrás.
+          schema: { type: string, format: date }
+        - name: ate
+          in: query
+          description: Fim da janela, em America/Sao_Paulo. Padrão — hoje.
+          schema: { type: string, format: date }
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Indicadores.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+              example:
+                periodo: { de: "2026-05-23", ate: "2026-08-20" }
+                backlogPorStatus:
+                  - { status: "aberta", statusRotulo: "Aberta", quantidade: 12 }
+                  - { status: "em_analise", statusRotulo: "Em análise", quantidade: 7 }
+                  - { status: "em_atendimento", statusRotulo: "Em atendimento", quantidade: 4 }
+                  - { status: "pausada", statusRotulo: "Pausada", quantidade: 3 }
+                backlogPorCategoria:
+                  - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8 }
+                  - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6 }
+                mediaDasAvaliacoes: { media: 4.3, avaliadas: 31, resolvidas: 47 }
+                recorrenciaPorCategoria:
+                  - categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
+                    porMes:
+                      - { mes: "2026-06", quantidade: 3 }
+                      - { mes: "2026-07", quantidade: 5 }
+                      - { mes: "2026-08", quantidade: 4 }
+                recorrenciaPorArea:
+                  - area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum" }
+                    porMes:
+                      - { mes: "2026-06", quantidade: 2 }
+                      - { mes: "2026-07", quantidade: 6 }
+                      - { mes: "2026-08", quantidade: 4 }
+                tempoMedioDeResolucao:
+                  porMes:
+                    - { mes: "2026-06", horas: 52.4, resolvidas: 11 }
+                    - { mes: "2026-07", horas: 41.5, resolvidas: 9 }
+                    - { mes: "2026-08", horas: null, resolvidas: 0 }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+components:
+
+  securitySchemes:
+    sessaoSupabase:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: |
+        Cookie de sessão emitido pelo provedor de autenticação (Supabase Auth). É como o PWA se autentica.
+        **Criar conta, entrar e sair não são operações desta API** — autenticação é subdomínio genérico,
+        comprado e integrado como Conformista, com camada anticorrupção: o domínio nunca vê token.
+    bearerSupabase:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        `Authorization: Bearer <access_token>` — a mesma sessão, para `curl`, Postman e testes de ponta a
+        ponta. **A organização ativa continua vindo do cookie de sessão**, então clientes fora do navegador
+        precisam guardar cookies (`curl -c/-b`) depois de chamar `PUT /contexto/organizacao`.
+
+  parameters:
+    OrganizacaoAfirmada:
+      name: X-Organizacao-Id
+      in: header
+      required: false
+      description: |
+        **Afirmação, nunca fonte.** Este cabeçalho não escolhe a organização — apenas confirma a que a
+        sessão já escolheu. Ausente, não há verificação; presente e diferente da organização ativa, a
+        requisição é recusada com `409 ORGANIZACAO_DIVERGENTE` e **nada é executado**.
+
+        Existe para uma falha operacional real: duas abas do PWA compartilham o cookie, e trocar de
+        organização numa delas muda silenciosamente o contexto da outra.
+      schema: { type: string, format: uuid }
+    OcorrenciaId:
+      name: ocorrenciaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
+    PedidoId:
+      name: pedidoId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PessoaId:
+      name: pessoaId
+      in: path
+      required: true
+      description: A Pessoa é endereçada **através do vínculo**, dentro da organização ativa. Não existe endereço global de Pessoa.
+      schema: { type: string, format: uuid }
+    CategoriaId:
+      name: categoriaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AreaId:
+      name: areaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limite:
+      name: limite
+      in: query
+      description: Tamanho da página.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: |
+        Cursor opaco devolvido em `proximoCursor`. Codifica o par (data de registro, id) — o mesmo par do
+        índice de listagem. Não é deslocamento numérico, e por isso a lista não duplica itens quando algo
+        novo é registrado entre uma página e outra.
+      schema: { type: string }
+
+  responses:
+    ComandoExecutado:
+      description: |
+        Comando executado. Devolve a ocorrência atualizada **com `ultimaTransicao`** — o registro de
+        auditoria recém-gravado. É `200`, e não `201`, porque nenhum recurso endereçável foi criado: o
+        registro de transição não tem URL própria, por desenho.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/OcorrenciaDetalhe" }
+    FormatoInvalido:
+      description: |
+        Requisição mal formada — campo faltando, tipo errado, tamanho fora do limite. Rejeitada na camada
+        de interface, contra o schema, antes de o domínio ser acionado.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/formato-invalido"
+            title: "Requisição inválida"
+            status: 400
+            detail: "Confira os campos indicados."
+            codigo: "FORMATO_INVALIDO"
+            traceId: "01JB8Z6K9T2M4N7Q"
+            erros:
+              - { campo: "titulo", codigo: "OBRIGATORIO", mensagem: "Informe um título." }
+              - { campo: "descricao", codigo: "TAMANHO_MAXIMO", mensagem: "A descrição excede o limite." }
+    NaoAutenticado:
+      description: Sessão ausente, inválida ou expirada.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "https://resolveai.app/erros/nao-autenticado", title: "Não autenticado", status: 401, codigo: "NAO_AUTENTICADO", traceId: "01JB8Z6K9T2M4N7Q" }
+    SemOrganizacaoAtiva:
+      description: |
+        Autenticado, mas a sessão ainda não tem organização ativa. Chame `PUT /contexto/organizacao`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/sem-organizacao-ativa"
+            title: "Escolha uma organização"
+            status: 403
+            detail: "Sua sessão ainda não tem organização ativa."
+            codigo: "SEM_ORGANIZACAO_ATIVA"
+            traceId: "01JB8Z6K9T2M4N7Q"
+    SemPermissao:
+      description: |
+        O papel do vínculo não tem a permissão exigida — ou a operação depende de uma relação com o recurso
+        (ser o autor, ser o responsável) que o chamador não tem. As checagens perguntam o que o vínculo
+        **pode**, nunca qual é o papel dele.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/permissao-insuficiente"
+            title: "Sem permissão"
+            status: 403
+            detail: "Seu papel nesta organização não permite esta ação."
+            codigo: "PERMISSAO_INSUFICIENTE"
+            traceId: "01JB8Z6K9T2M4N7Q"
+    OrganizacaoDivergente:
+      description: |
+        O cabeçalho `X-Organizacao-Id` afirma uma organização diferente da que está ativa na sessão.
+        **Nada foi executado.**
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/organizacao-divergente"
+            title: "Contexto trocado"
+            status: 409
+            detail: "Sua sessão está em outra organização. Recarregue a página."
+            codigo: "ORGANIZACAO_DIVERGENTE"
+            traceId: "01JB8Z6K9T2M4N7Q"
+    OcorrenciaNaoEncontrada:
+      description: |
+        A ocorrência não existe **para quem pediu**. A resposta é idêntica quando ela nunca existiu, quando
+        pertence a outra organização e quando é de outro Solicitante — porque `403` confirmaria que aquele
+        identificador existe, e isso seria vazar informação pelo código de status num produto cujo primeiro
+        requisito não funcional é isolamento.
+
+        Para depurar: o corpo traz `organizacaoAtiva` — metade das vezes a resposta é *"estou na organização
+        errada"* — e o `traceId`, que no log do servidor distingue *inexistente* de *fora da organização*.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/ocorrencia-nao-encontrada"
+            title: "Ocorrência não encontrada"
+            status: 404
+            codigo: "OCORRENCIA_NAO_ENCONTRADA"
+            traceId: "01JB8Z6K9T2M4N7Q"
+            organizacaoAtiva: { id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul" }
+    PedidoNaoEncontrado:
+      description: O pedido não existe nesta organização.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "https://resolveai.app/erros/pedido-nao-encontrado", title: "Pedido não encontrado", status: 404, codigo: "PEDIDO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+    CategoriaNaoEncontrada:
+      description: A categoria não existe nesta organização.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "https://resolveai.app/erros/categoria-nao-encontrada", title: "Categoria não encontrada", status: 404, codigo: "CATEGORIA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
+    AreaNaoEncontrada:
+      description: A área não existe nesta organização.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "https://resolveai.app/erros/area-nao-encontrada", title: "Área não encontrada", status: 404, codigo: "AREA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
+    NomeDuplicado:
+      description: |
+        Já existe outra categoria (ou área) com este nome na organização. Não é capricho: dois nomes iguais
+        quebrariam o indicador de recorrência, que é o número mais importante do dashboard.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "https://resolveai.app/erros/categoria-nome-duplicado", title: "Nome já usado", status: 409, codigo: "CATEGORIA_NOME_DUPLICADO", traceId: "01JB8Z6K9T2M4N7Q" }
+    TransicaoNaoPermitida:
+      description: |
+        O par (status atual, comando) não está na tabela de transições do agregado. **Toda transição fora
+        dela é este erro.** O corpo traz `statusAtual` e `acoesDisponiveis`, para que o cliente descubra
+        pelo próprio erro o que pode fazer.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example:
+            type: "https://resolveai.app/erros/transicao-nao-permitida"
+            title: "Transição não permitida"
+            status: 409
+            detail: "Não é possível resolver uma ocorrência que está aberta."
+            codigo: "TRANSICAO_NAO_PERMITIDA"
+            traceId: "01JB8Z6K9T2M4N7Q"
+            statusAtual: "aberta"
+            acoesDisponiveis: ["analisar", "cancelar", "alterar-prioridade"]
+    ErroInterno:
+      description: Falha inesperada. Sem detalhe de domínio — só o `traceId`, que liga ao log.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          example: { type: "about:blank", title: "Erro interno", status: 500, codigo: "ERRO_INTERNO", traceId: "01JB8Z6K9T2M4N7Q" }
+
+  schemas:
+
+    Problema:
+      type: object
+      description: |
+        Corpo de erro uniforme, no formato RFC 9457 (`application/problem+json`), com três extensões.
+
+        **`codigo` é o contrato**: estável, comparável por código de cliente. `title` e `detail` são texto
+        para gente e podem mudar sem aviso — nunca compare por eles.
+      required: [type, title, status, codigo, traceId]
+      properties:
+        type: { type: string, format: uri, description: "URI de documentação do erro." }
+        title: { type: string, description: "Resumo legível, em pt-BR." }
+        status: { type: integer }
+        detail: { type: string, description: "Explicação em pt-BR, exibível ao usuário." }
+        instance: { type: string, description: "Caminho da requisição que falhou." }
+        codigo: { type: string, description: "Código estável do erro.", example: "TRANSICAO_NAO_PERMITIDA" }
+        traceId: { type: string, description: "Liga esta resposta à linha de log do servidor." }
+        erros:
+          type: array
+          description: Só em `400` — uma entrada por campo violado.
+          items:
+            type: object
+            required: [campo, codigo]
+            properties:
+              campo: { type: string }
+              codigo: { type: string }
+              mensagem: { type: string }
+        statusAtual:
+          description: Em conflitos de estado — o status da ocorrência no momento da recusa.
+          $ref: "#/components/schemas/StatusOcorrencia"
+        acoesDisponiveis:
+          type: array
+          description: Em conflitos de estado — o que o chamador pode fazer agora.
+          items: { $ref: "#/components/schemas/Comando" }
+        organizacaoAtiva:
+          type: object
+          description: Em `404` — a organização em que a sessão está, para desfazer o engano mais comum.
+          properties:
+            id: { type: string, format: uuid }
+            nome: { type: string }
+
+    StatusOcorrencia:
+      type: string
+      description: |
+        Os cinco status do desafio mais `pausada`, acréscimo autorizado pelo *"no mínimo"* do enunciado.
+        `resolvida` e `cancelada` são terminais de verdade — **não existe reabertura**.
+      enum: [aberta, em_analise, em_atendimento, pausada, resolvida, cancelada]
+
+    PrioridadeOcorrencia:
+      type: string
+      description: Nasce `normal`; congela em estado terminal.
+      enum: [baixa, normal, alta]
+
+    TipoArea:
+      type: string
+      description: |
+        Deriva a visibilidade da ocorrência, **conforme o tipo vigente no momento do registro** — não o
+        atual. Reclassificar a Área não muda o que já foi registrado.
+      enum: [comum, privativa]
+
+    PapelVinculo:
+      type: string
+      description: |
+        O que a Pessoa é dentro da Organização. O papel define a visão padrão e o conjunto de permissões —
+        **não retira capacidade que o desafio concede**: o Gestor acumula as do Solicitante, e é por isso
+        que o síndico que mora no prédio não precisa de um segundo vínculo.
+
+        Na primeira entrega, `encarregado` **não tem permissão nenhuma**: ele existe como cadastro e
+        recebe atribuições, mas o acesso próprio dele é evolução prevista.
+      enum: [gestor, solicitante, encarregado]
+
+    MotivoPausa:
+      type: string
+      description: Obrigatório ao pausar. Nomear a espera é o que permite vigiá-la.
+      enum: [aguardando_informacao_solicitante, aguardando_peca, aguardando_autorizacao, aguardando_terceiro]
+
+    MotivoCancelamento:
+      type: string
+      description: |
+        Conjunto único, filtrado por papel na autorização: o Solicitante usa `desistencia`,
+        `resolvido_por_conta_propria`, `aberta_por_engano` e `duplicada`; o Gestor usa todos.
+        `Cancelada` não é *"resolvida com resultado ruim"* — o motivo importa tanto quanto o fato.
+      enum: [desistencia, resolvido_por_conta_propria, aberta_por_engano, duplicada, improcedente, fora_de_escopo, sem_informacao_suficiente]
+
+    SituacaoPedidoEntrada:
+      type: string
+      enum: [pendente, aprovado, recusado]
+
+    Comando:
+      type: string
+      description: Os comandos do agregado, com o mesmo nome que têm no domínio.
+      enum: [analisar, alterar-prioridade, atribuir-responsavel, iniciar-atendimento, pausar, retomar, registrar-solucao-aplicada, resolver, cancelar, avaliar]
+
+    PessoaReferencia:
+      type: object
+      description: |
+        Como uma Pessoa aparece **dentro** de um recurso escopado — autor, responsável, autor da transição.
+        Nunca traz contato, e nunca é endereçável por conta própria.
+      required: [pessoaId, nome]
+      properties:
+        pessoaId: { type: string, format: uuid }
+        nome: { type: string }
+
+    PessoaComContato:
+      allOf:
+        - $ref: "#/components/schemas/PessoaReferencia"
+        - type: object
+          description: Só aparece em `GET /vinculos`, que exige permissão de gestão de vínculos — contato é dado pessoal.
+          properties:
+            emailContato:
+              type: [string, "null"]
+              description: Contato, **não** credencial. Pode divergir do e-mail de login, e não é único.
+            telefone: { type: [string, "null"] }
+
+    Contexto:
+      type: object
+      description: |
+        Quem sou eu, em qual organização estou agora, o que posso fazer, e onde mais tenho vínculo.
+        A lista de vínculos parte de `vinculos`, nunca de `pessoas`.
+      required: [pessoa, organizacaoAtiva, papel, permissoes, vinculos, pedidosDeEntrada]
+      properties:
+        pessoa: { $ref: "#/components/schemas/PessoaReferencia" }
+        organizacaoAtiva:
+          oneOf:
+            - $ref: "#/components/schemas/OrganizacaoResumo"
+            - type: "null"
+        papel:
+          oneOf:
+            - $ref: "#/components/schemas/PapelVinculo"
+            - type: "null"
+        permissoes:
+          type: array
+          description: O que este vínculo pode fazer. É a lista que a interface usa para desenhar (ou esconder) ações.
+          items: { type: string }
+        vinculos:
+          type: array
+          description: Todas as organizações em que a Pessoa tem vínculo ativo — o insumo do seletor de organização.
+          items:
+            type: object
+            required: [organizacaoId, nome, papel]
+            properties:
+              organizacaoId: { type: string, format: uuid }
+              nome: { type: string }
+              papel: { $ref: "#/components/schemas/PapelVinculo" }
+        pedidosDeEntrada:
+          type: array
+          description: Pedidos da própria Pessoa, para a tela de quem ainda está esperando aprovação.
+          items: { $ref: "#/components/schemas/PedidoDeEntrada" }
+
+    OrganizacaoResumo:
+      type: object
+      required: [id, nome, codigoPublico]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        codigoPublico:
+          type: string
+          description: O código do cartaz do elevador. É público por natureza — quem o usa abre um pedido de entrada, não um acesso.
+
+    Organizacao:
+      allOf:
+        - $ref: "#/components/schemas/OrganizacaoResumo"
+        - type: object
+          required: [criadoEm]
+          properties:
+            criadoEm: { type: string, format: date-time }
+            categoriasSemeadas:
+              type: integer
+              description: Quantas categorias-semente a política criou junto com a organização.
+            areasSemeadas:
+              type: integer
+              description: Quantas áreas-semente a política criou junto com a organização.
+
+    PedidoDeEntrada:
+      type: object
+      required: [id, situacao, criadoEm]
+      properties:
+        id: { type: string, format: uuid }
+        organizacao:
+          type: object
+          description: Só o nome — o código é público, mas isso não autoriza ler quem está dentro.
+          properties:
+            nome: { type: string }
+        situacao: { $ref: "#/components/schemas/SituacaoPedidoEntrada" }
+        criadoEm: { type: string, format: date-time }
+
+    PedidoDeEntradaDetalhe:
+      type: object
+      description: Como o Gestor vê o pedido, com os dados de contato de quem pediu.
+      required: [id, pessoa, situacao, criadoEm]
+      properties:
+        id: { type: string, format: uuid }
+        pessoa: { $ref: "#/components/schemas/PessoaComContato" }
+        situacao: { $ref: "#/components/schemas/SituacaoPedidoEntrada" }
+        criadoEm: { type: string, format: date-time }
+        decididoEm: { type: [string, "null"], format: date-time }
+        decididoPor:
+          oneOf:
+            - $ref: "#/components/schemas/PessoaReferencia"
+            - type: "null"
+
+    Vinculo:
+      type: object
+      description: A ligação entre uma Pessoa, um Papel e uma Organização. É a ponte entre o global e o escopado.
+      required: [pessoa, papel, temConta, criadoEm]
+      properties:
+        pessoa: { $ref: "#/components/schemas/PessoaComContato" }
+        papel: { $ref: "#/components/schemas/PapelVinculo" }
+        temConta:
+          type: boolean
+          description: |
+            `false` é o Encarregado sem conta — existe como cadastro, recebe atribuições e aparece como
+            responsável, e **para agir no sistema seria preciso ter conta**.
+        criadoEm: { type: string, format: date-time }
+
+    Categoria:
+      type: object
+      required: [id, nome, ativa, ordem]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string, maxLength: 60 }
+        ativa:
+          type: boolean
+          description: Categoria sai de uso desativando — **nunca apagando**, porque ocorrência antiga aponta para ela.
+        ordem: { type: integer, description: "Qual aparece antes é escolha do Gestor." }
+
+    Area:
+      type: object
+      required: [id, nome, tipo, ativa]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string, maxLength: 80 }
+        tipo: { $ref: "#/components/schemas/TipoArea" }
+        ativa: { type: boolean }
+
+    RegistroDeOcorrencia:
+      type: object
+      description: |
+        O corpo de `POST /ocorrencias`. **Não aceita `status`, `prioridade`, `areaTipo` nem qualquer campo
+        escrito pelo servidor** — enviá-los devolve `422`.
+      required: [titulo, descricao, categoriaId, areaId]
+      properties:
+        titulo: { type: string, minLength: 1, maxLength: 150 }
+        descricao: { type: string, minLength: 1, maxLength: 5000 }
+        categoriaId: { type: string, format: uuid }
+        areaId:
+          type: string
+          format: uuid
+          description: |
+            A localização é **uma Área mais um complemento em texto** — não há mapa nem coordenada. A Área
+            é obrigatória porque é dela que a visibilidade deriva.
+        localizacaoComplemento:
+          type: [string, "null"]
+          maxLength: 200
+          description: 'Texto livre — "ao lado da vaga 34".'
+        imagem:
+          type: [object, "null"]
+          description: Referência à imagem já enviada ao storage. Nunca bytes.
+          required: [chave, ticket]
+          properties:
+            chave: { type: string }
+            ticket: { type: string }
+
+    OcorrenciaResumo:
+      type: object
+      description: Como a ocorrência aparece na listagem.
+      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, temImagem, registradaEm, atualizadaEm]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        status: { $ref: "#/components/schemas/StatusOcorrencia" }
+        statusRotulo:
+          type: string
+          description: |
+            O status em linguagem de gente, **calculado no servidor e dependente de quem lê**: o Solicitante
+            vê "Em execução" onde o Gestor vê "Em atendimento". Em `pausada` o rótulo do Solicitante
+            depende do motivo ("Parada — esperando material chegar"). Ficar no servidor mantém uma fonte só
+            do texto; no cliente, cada cliente inventaria o seu.
+
+            A tabela de rótulos é propriedade do **glossário** do projeto, não deste contrato.
+          examples: ["Em execução", "Parada — esperando você responder"]
+        motivoPausa:
+          description: |
+            O motivo da pausa vigente; `null` fora de `pausada`. Está no resumo porque o rótulo do Gestor é
+            sempre "Pausada" — sem este campo, a lista dele mostraria quatro esperas diferentes com a mesma
+            palavra, escondendo justamente o que nomear a espera existe para tornar visível.
+          oneOf:
+            - $ref: "#/components/schemas/MotivoPausa"
+            - type: "null"
+        prioridade: { $ref: "#/components/schemas/PrioridadeOcorrencia" }
+        categoria:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            nome: { type: string }
+        area:
+          type: object
+          description: O `tipo` aqui é o **congelado no registro** — não necessariamente o tipo atual da Área.
+          properties:
+            id: { type: string, format: uuid }
+            nome: { type: string }
+            tipo: { $ref: "#/components/schemas/TipoArea" }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        responsavel:
+          description: Quem está cuidando. Visível ao Solicitante — mostrar constrói confiança —, mas não há canal direto entre os dois.
+          oneOf:
+            - $ref: "#/components/schemas/PessoaReferencia"
+            - type: "null"
+        temImagem: { type: boolean }
+        registradaEm: { type: string, format: date-time }
+        atualizadaEm:
+          type: string
+          format: date-time
+          description: Muda a cada comando e a cada mensagem nova.
+
+    OcorrenciaDetalhe:
+      allOf:
+        - $ref: "#/components/schemas/OcorrenciaResumo"
+        - type: object
+          required: [descricao, acoesDisponiveis, ultimaTransicao]
+          properties:
+            descricao: { type: string }
+            localizacaoComplemento: { type: [string, "null"] }
+            imagemUrl:
+              type: [string, "null"]
+              description: |
+                Caminho **estável** desta API (`/ocorrencias/{id}/imagem`), que redireciona para uma URL
+                assinada de vida curta. Nunca a URL do storage — ela expira, e mudaria a cada resposta,
+                quebrando o cache do PWA.
+            solucaoAplicada: { type: [string, "null"] }
+            avaliacao:
+              description: Objeto de valor opcional, preenchido só depois de `resolvida`. Não é um estado.
+              oneOf:
+                - type: "null"
+                - type: object
+                  required: [nota, avaliadaEm]
+                  properties:
+                    nota: { type: integer, minimum: 1, maximum: 5 }
+                    comentario: { type: [string, "null"] }
+                    avaliadaEm: { type: string, format: date-time }
+            ultimaTransicao:
+              description: |
+                O registro de transição mais recente. Presente na resposta de **todo comando** — é como o
+                contrato afirma, de fora, que toda transição produziu exatamente um registro.
+              $ref: "#/components/schemas/RegistroDeTransicao"
+            acoesDisponiveis:
+              type: array
+              description: |
+                Os comandos que **este chamador** pode executar **agora**, cruzando a máquina de estados com
+                as permissões dele. Existe para que o cliente não mantenha uma segunda cópia da tabela de
+                transições.
+              items: { $ref: "#/components/schemas/Comando" }
+
+    RegistroDeTransicao:
+      type: object
+      description: |
+        A unidade da trilha de auditoria, com os cinco campos exigidos pelo desafio — um por campo, sem
+        serialização. **Imutável**: nasce como efeito de um comando e nunca é editado nem apagado.
+      required: [statusAnterior, statusNovo, ocorreuEm, autor]
+      properties:
+        statusAnterior:
+          description: Nulo **apenas** no registro de criação, que é a origem da trilha.
+          oneOf:
+            - $ref: "#/components/schemas/StatusOcorrencia"
+            - type: "null"
+        statusNovo: { $ref: "#/components/schemas/StatusOcorrencia" }
+        ocorreuEm: { type: string, format: date-time }
+        autor:
+          description: O **autor da transição** — quem fez a mudança. Aponta para a Pessoa, nunca para a credencial.
+          $ref: "#/components/schemas/PessoaReferencia"
+        observacao:
+          type: [string, "null"]
+          description: |
+            A intenção humana declarada no momento do comando — não uma diferença de dados. É o campo que
+            nenhuma auditoria genérica conseguiria produzir, e a razão de a trilha ser conceito de domínio.
+            Obrigatória em `pausar` e `cancelar`; opcional no avanço rotineiro.
+        motivoPausa:
+          oneOf:
+            - $ref: "#/components/schemas/MotivoPausa"
+            - type: "null"
+        motivoCancelamento:
+          oneOf:
+            - $ref: "#/components/schemas/MotivoCancelamento"
+            - type: "null"
+
+    EventoDaLinhaDoTempo:
+      description: |
+        Um item da linha do tempo. Três formas — transição, mensagem e atribuição —, distinguidas por
+        `tipo`. É modelo de leitura derivado, não tabela.
+      oneOf:
+        - $ref: "#/components/schemas/EventoTransicao"
+        - $ref: "#/components/schemas/EventoMensagem"
+        - $ref: "#/components/schemas/EventoAtribuicao"
+      discriminator:
+        propertyName: tipo
+        mapping:
+          transicao: "#/components/schemas/EventoTransicao"
+          mensagem: "#/components/schemas/EventoMensagem"
+          atribuicao: "#/components/schemas/EventoAtribuicao"
+
+    EventoTransicao:
+      type: object
+      required: [tipo, ocorridoEm, autor, statusNovo, rotulo]
+      properties:
+        tipo: { type: string, const: transicao }
+        ocorridoEm: { type: string, format: date-time }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        rotulo:
+          type: string
+          description: |
+            O status em linguagem de gente, conforme quem lê. Em `pausada` ele depende também do motivo:
+            o Solicitante lê "Parada — esperando material chegar", o Gestor lê "Pausada".
+        statusAnterior:
+          oneOf:
+            - $ref: "#/components/schemas/StatusOcorrencia"
+            - type: "null"
+        statusNovo: { $ref: "#/components/schemas/StatusOcorrencia" }
+        observacao: { type: [string, "null"] }
+        motivoPausa:
+          oneOf:
+            - $ref: "#/components/schemas/MotivoPausa"
+            - type: "null"
+        motivoCancelamento:
+          oneOf:
+            - $ref: "#/components/schemas/MotivoCancelamento"
+            - type: "null"
+
+    EventoMensagem:
+      type: object
+      required: [tipo, ocorridoEm, autor, texto]
+      properties:
+        tipo: { type: string, const: mensagem }
+        ocorridoEm: { type: string, format: date-time }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        texto: { type: string }
+
+    EventoAtribuicao:
+      type: object
+      required: [tipo, ocorridoEm, autor, responsavel]
+      properties:
+        tipo: { type: string, const: atribuicao }
+        ocorridoEm: { type: string, format: date-time }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        responsavel: { $ref: "#/components/schemas/PessoaReferencia" }
+        encerradaEm: { type: [string, "null"], format: date-time }
+        motivoEncerramento:
+          type: [string, "null"]
+          enum: [reatribuicao, recusa, null]
+
+    Comentario:
+      type: object
+      description: Uma mensagem do canal 1 — Gestores e Solicitante. Sem edição e sem exclusão.
+      required: [id, texto, autor, criadoEm]
+      properties:
+        id: { type: string, format: uuid }
+        texto: { type: string }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        criadoEm: { type: string, format: date-time }
+
+    ComandoComObservacaoOpcional:
+      type: object
+      description: |
+        Corpo dos comandos de avanço rotineiro. `observacao` é **opcional** aqui de propósito: exigir texto
+        onde não há decisão a justificar produz "ok" e destrói o próprio dado.
+      properties:
+        observacao: { type: string, maxLength: 1000 }
+
+    AutorizacaoDeUpload:
+      type: object
+      required: [chave, ticket, estado, upload]
+      properties:
+        chave:
+          type: string
+          description: |
+            **Chave opaca do objeto.** É o que vai para o banco — nunca uma URL, nunca com nome de
+            contêiner embutido. A plataforma de storage já mudou uma vez neste projeto; com chave opaca,
+            trocar de provedor não toca o banco.
+        ticket:
+          type: string
+          description: |
+            Token assinado pelo servidor, com validade de 15 minutos, que amarra a chave a quem pediu.
+            É apresentado em `POST /ocorrencias` e é o que permite validar o upload **na hora de
+            reivindicar** — sem tabela de uploads pendentes.
+        estado:
+          type: string
+          const: pendente
+          description: |
+            O objeto nasce pendente e é apagado pela regra de ciclo de vida se nunca for reivindicado.
+            Reivindicar o promove a confirmado. Devolvido para que o comportamento seja visível ao cliente,
+            e não uma regra invisível do storage.
+        upload:
+          type: object
+          required: [url, metodo, cabecalhos, expiraEm]
+          properties:
+            url: { type: string, description: "URL assinada de escrita, no storage. Enviar os bytes aqui, fora desta API." }
+            metodo: { type: string, const: PUT }
+            cabecalhos:
+              type: object
+              additionalProperties: { type: string }
+              description: Cabeçalhos exigidos pelo storage no envio.
+            expiraEm: { type: string, format: date-time }
+
+    Dashboard:
+      type: object
+      description: |
+        O que a listagem não responde: **padrão e tendência**, não item individual. `backlog` é fotografia
+        de agora; `recorrencia` é série mensal dentro da janela.
+      required: [periodo, backlogPorStatus, backlogPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoMedioDeResolucao]
+      properties:
+        periodo:
+          type: object
+          properties:
+            de: { type: string, format: date }
+            ate: { type: string, format: date }
+        backlogPorStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { $ref: "#/components/schemas/StatusOcorrencia" }
+              statusRotulo: { type: string }
+              quantidade: { type: integer }
+        backlogPorCategoria:
+          type: array
+          items:
+            type: object
+            properties:
+              categoria:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  nome: { type: string }
+              quantidade: { type: integer }
+        mediaDasAvaliacoes:
+          type: object
+          description: |
+            A única medida de qualidade do produto. `avaliadas` e `resolvidas` vêm junto porque sem o
+            denominador a média mente quando poucos avaliam.
+          properties:
+            media: { type: [number, "null"] }
+            avaliadas: { type: integer }
+            resolvidas: { type: integer }
+        recorrenciaPorCategoria:
+          type: array
+          description: |
+            **O indicador que justifica o dashboard existir.** Oito vazamentos no mesmo bloco em três meses
+            não são oito ordens de serviço, são uma obra.
+          items:
+            type: object
+            properties:
+              categoria:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  nome: { type: string }
+              porMes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
+                    quantidade: { type: integer }
+        recorrenciaPorArea:
+          type: array
+          items:
+            type: object
+            properties:
+              area: { $ref: "#/components/schemas/Area" }
+              porMes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
+                    quantidade: { type: integer }
+        tempoMedioDeResolucao:
+          type: object
+          description: |
+            Tempo médio de calendário entre o registro e a resolução, mês a mês, dentro da janela. Se está
+            subindo, o problema é estrutural — gente, fornecedor, orçamento.
+          properties:
+            porMes:
+              type: array
+              items:
+                type: object
+                properties:
+                  mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
+                  horas:
+                    type: [number, "null"]
+                    description: "`null` quando o mês não teve nenhuma resolução — o mês continua na série."
+                  resolvidas:
+                    type: integer
+                    description: O denominador. Sem ele, a média de um mês com duas resoluções parece igual à de um mês com trinta.

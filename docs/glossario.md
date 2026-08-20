@@ -55,6 +55,7 @@ Duas regras de vocabulário que valem para todo o projeto:
 | **Categoria** | A natureza da ocorrência — iluminação, vazamento, limpeza. **Configurável por Organização**, com semente das 7 do enunciado. | **Prioridade** — categoria é *o que é*; prioridade é *quanto corre* | `ENUNCIADO · aberto` |
 | **Código da Organização** | Identificador **público e persistente** que permite pedir entrada numa Organização. Vive em cartaz, QR code no elevador, mensagem de grupo. Quem usa abre um **Pedido de entrada**, que o Gestor decide. | **Convite** — o convite é privado e de uso único | `NOSSO` (D25) |
 | **Convite** | **Token de uso único**, vinculado a uma Pessoa específica e com validade, que leva à página de cadastro com os dados dela pré-preenchidos e editáveis. Entrar por convite **dispensa o Pedido de entrada**, porque o Gestor já criou aquela Pessoa. É um **link**, não um e-mail — pode ir por e-mail, WhatsApp ou QR. | **Código da Organização** | `NOSSO` (D25) |
+| **Organização ativa** | A Organização cuja lente a sessão está usando **agora**. Uma Pessoa com vários vínculos tem uma só de cada vez, e trocar é operação explícita. | **Vínculo** — os vínculos são todos os que a Pessoa tem; a organização ativa é o que ela está enxergando neste momento | `NOSSO` (ADR-0003) |
 | **Whitelabel** | Personalização da página pública de cadastro de uma Organização: logo e nome. | — | `NOSSO` (D25) |
 
 > **Termo retirado: "Local".** Existiu enquanto considerávamos uma hierarquia acima do condomínio. Com
@@ -90,12 +91,43 @@ nem removidos. `Pausada` é acréscimo nosso, autorizado pelo *"no mínimo"* do 
 | **Resolvida** | O Gestor conferiu e declarou concluída. Estado terminal. | **Cancelada** — não é "resolvida com resultado ruim" | `ENUNCIADO · literal` |
 | **Cancelada** | Encerrada sem resolução, com **motivo obrigatório**. Estado terminal. | **Resolvida**; e **Pausada** | `ENUNCIADO · literal` |
 | **Pausada** | Parada esperando alguém, com **motivo obrigatório** (aguardando informação do solicitante · peça · autorização · terceiro). Sai da lista de em andamento; ao retomar, volta ao status anterior. | **Cancelada** (terminal) e **"Impedimento"** (termo absorvido) | `NOSSO` (D8) |
-| **Transição de status** | A operação de negócio que muda o status. Só acontece por **comando nomeado** (`analisar`, `iniciarAtendimento`, `pausar`, `retomar`, `resolver`, `cancelar`, `reabrir`). | **Atualizar o campo status** — não existe; ninguém de fora escreve status | `ENUNCIADO · aberto` |
+| **Transição de status** | A operação de negócio que muda o status. Só acontece por **comando nomeado** (`analisar`, `atribuirResponsavel`, `iniciarAtendimento`, `pausar`, `retomar`, `registrarSolucaoAplicada`, `resolver`, `cancelar`, `avaliar`). | **Atualizar o campo status** — não existe; ninguém de fora escreve status. E **`reabrir`**, que já constou desta lista por engano: reabertura **não existe** (ver §8) | `ENUNCIADO · aberto` |
 | **Registro de transição** | O registro imutável gerado por **cada** transição, com os cinco campos: status anterior · novo status · data e horário · usuário responsável · observação da alteração. | **Histórico** (ver colisão nº 1) | `ENUNCIADO · literal` |
 | **Observação da alteração** | O texto que o autor da transição escreve **no momento do comando**, explicando o porquê. É intenção humana, não diferença de dados. | **Comentário** e **Solução aplicada** | `ENUNCIADO · literal` |
 | **Trilha de auditoria** | A sequência completa e imutável dos registros de transição de uma ocorrência. É o que satisfaz *"cada transição de status deve ser auditável"*. | **Linha do tempo** | `ENUNCIADO · aberto` |
 | **Linha do tempo** | A visão que o Solicitante consulta ao acompanhar o andamento: transições **mais** mensagens **mais** atribuições. É **modelo de leitura derivado**, não tabela. | **Trilha de auditoria** — a trilha é só transições e é a fonte; a linha do tempo é a apresentação | `NOSSO` |
-| **Rótulo exibido** | O texto mostrado ao Solicitante para um status ("o síndico está avaliando"). Diferente do nome interno, que é fixo. | Os nomes dos estados, que são literais do enunciado | `NOSSO` (D19) |
+| **Rótulo exibido** | O texto mostrado a uma pessoa para um status. Depende de **quem lê**: o Solicitante vê linguagem de gente, o Gestor e o Encarregado veem o nome interno, porque operam a máquina. Calculado no servidor, nunca no cliente. | Os nomes dos estados, que são literais do enunciado e **não mudam** | `NOSSO` (D19) |
+
+### Os rótulos exibidos, na íntegra
+
+Esta tabela é a fonte: o contrato de API a consome, e nenhum rótulo nasce fora daqui.
+
+| `status` · motivo da pausa | Ao Solicitante | Ao Gestor e ao Encarregado |
+|---|---|---|
+| `aberta` | Recebida — aguardando análise | Aberta |
+| `em_analise` | Em análise | Em análise |
+| `em_atendimento` | Em execução | Em atendimento |
+| `pausada` · aguardando informação do solicitante | Parada — esperando você responder | Pausada |
+| `pausada` · aguardando peça | Parada — esperando material chegar | Pausada |
+| `pausada` · aguardando autorização | Parada — esperando autorização | Pausada |
+| `pausada` · aguardando terceiro | Parada — esperando um terceiro | Pausada |
+| `resolvida` | Resolvida | Resolvida |
+| `cancelada` | Cancelada | Cancelada |
+
+Três regras que a tabela carrega e que valem para qualquer rótulo novo:
+
+1. **Nenhum rótulo nomeia o Gestor por profissão.** A D19 nasceu de uma entrevista com um síndico, e a
+   redação original dizia *"o síndico está avaliando"*. Isso trava o produto em condomínio, enquanto a
+   D3 admite empresa e bairro como Organização — e a promessa multi-tenant (D2) é a adição `NOSSO` mais
+   cara do projeto para ser desmentida por uma palavra de interface.
+2. **`Pausada` tem quatro rótulos, não um molde com o motivo interpolado.** Frase montada em tempo de
+   execução produz *"Parada, esperando aguardando peça"*. O motivo é enumerado; a frase é escrita.
+3. **Rótulo é estado, não convite.** *"Resolvida — conte como foi"* mistura o que a ocorrência é com o
+   que se pede de quem lê. O convite a avaliar pertence à tela.
+
+> **Consequência para quem exibe uma lista ao Gestor:** os quatro motivos de pausa colapsam num único
+> rótulo, "Pausada". Como *nomear a espera é o que permite vigiá-la* (D8), o motivo precisa viajar como
+> campo próprio ao lado do rótulo — não embutido nele.
 
 ---
 

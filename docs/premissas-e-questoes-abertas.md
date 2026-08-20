@@ -128,6 +128,12 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-19 | **Visão do Gestor atravessando organizações.** Na Persona 1B ele responde por vários condomínios e vai querer uma lista única — **exceção deliberada ao isolamento que a D2 existe para garantir**. Não resolvido pela ADR-0003, que trata do escopo por requisição |
 | PA-21 | **Cinco eventos não couberam na linha do tempo** (comentário, nota interna, alteração de prioridade, reatribuição, mensagem na atribuição). O método do curso não trata de evento transversal — **limitação registrada em vez de forçá-los** |
 | PA-22 | **Pausar para melhorar o número.** O material de ITSM alerta que a classe *on-hold* *"não deve ser mal utilizada para atingir o SLA intencionalmente"*. Na Persona 1B o Gestor presta contas à imobiliária — o incentivo existe |
+| PA-24 | **A Organização com um Gestor só não tem caminho de volta.** Três decisões corretas isoladamente se fecham num beco: a organização nasce com **um** Gestor (D26), o papel de um vínculo **não pode ser alterado** depois de criado, e **só um Gestor aprova pedido de entrada** (D25). Se esse único Gestor perder o acesso, ninguém entra, ninguém aprova e ninguém promove — a organização fica inacessível **para sempre**. A saída existe só **fora do produto**, por acesso direto ao banco, que é justamente o caminho que a ADR-0003 declara como o que escapa do isolamento. Aceitável num MVP acadêmico; não aceitável sem estar escrito. Levantado na revisão do contrato de API, 20/08/2026 |
+
+> **PA-24 não veio do Event Storming**, e por isso quebra a proveniência desta seção: ele apareceu na
+> revisão do contrato de API, quando três decisões tomadas em momentos diferentes foram lidas juntas pela
+> primeira vez. Fica aqui porque é onde os pontos de atenção vivem — e o modo como surgiu é informação:
+> **nenhuma das três decisões erra sozinha.**
 
 ### Resolvidos
 

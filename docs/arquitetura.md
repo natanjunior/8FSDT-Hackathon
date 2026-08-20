@@ -255,7 +255,7 @@ Levantadas no passo 8 do Event Storming.
 | Sistema externo | Direção | Como é gerenciada |
 |---|---|---|
 | **Supabase Auth** | entra | **Conformista**: aceitamos o contrato dele. **ACL** no ponto de resolução de contexto traduz sessão em `{usuário, pessoa, organização, papel}`. O domínio nunca vê token |
-| **Azure Blob Storage** | sai/entra | Upload por URL assinada emitida pelo servidor. Nunca do cliente direto |
+| **Azure Blob Storage** | sai/entra | **O cliente sobe direto para o Blob**, com credencial de escrita temporária e restrita emitida pelo servidor. A chave da conta nunca sai do servidor, e os bytes nunca passam pelo contêiner — o que preserva a franquia de vCPU-s da ADR-0004. O objeto só vale depois de reivindicado no registro da ocorrência; o abandonado é recolhido por regra de ciclo de vida |
 | **`ghcr.io`** | sai | O GitHub Actions publica a imagem; o Container Apps a consome. Imagem pública, sem credencial de leitura |
 | **E-mail · Push · WhatsApp** | sai | **Fora do MVP.** POL-07 é o único ponto que consulta o plano; a entrega é plugável por trás dela. A API do WhatsApp é **cobrada por mensagem** — é o canal que mais pressiona o modelo comercial da D13 |
 | **Fonte da carga de pessoas** | entra | Importação de arquivo, validada e transformada na camada de aplicação. Persona 1A traz planilha; 1B, o sistema da administradora |
@@ -363,12 +363,28 @@ verificados manualmente no primeiro deploy.
 | Este documento | `docs/arquitetura.md` | Banca, e o próprio implementador |
 | Glossário da linguagem ubíqua | `docs/glossario.md` | Todo o grupo — é o contrato de vocabulário |
 | Documentação da Demanda | `docs/documentacao-da-demanda.md` | Banca |
+| Escopo — o produto e o recorte da entrega | `docs/escopo.md` | Banca, e quem prioriza |
+| Modelo de dados | `docs/modelo-de-dados.md` | Quem for implementar |
 | Registros de decisão (ADR) | `docs/adr/` | Banca, e quem mantiver o código depois |
 | Definition of Done e Definition of Ready | `docs/definition-of-done.md` | O grupo |
 | Premissas e questões abertas | `docs/premissas-e-questoes-abertas.md` | Banca |
 | Event Storming curado | `docs/event-storming.md` | Banca |
 | README com como rodar local | raiz | Quem clonar |
-| Contrato das APIs | gerado dos route handlers | Consumidor da API |
+| Contrato das APIs | `docs/contrato-de-api.md` e `docs/api/openapi.yaml` | Consumidor da API |
+
+**Como o contrato de API deixa de ser verdade, e o que impede isso.** Route handlers do Next.js **não
+geram OpenAPI sozinhos** — não há decorator nem reflexão, como haveria em NestJS ou Spring. Enquanto não
+existe código, `docs/api/openapi.yaml` é escrito à mão e é a fonte da verdade. Quando o código chegar, a
+especificação passa a ser **gerada a partir dos schemas de validação** que a camada de Interface já
+precisa ter — validar formato é a única coisa que a §5 permite a ela fazer —, e um passo do pipeline
+regenera e falha se o resultado divergir do arquivo versionado.
+
+Não deixar isso por conta da disciplina de quem implementa segue o mesmo princípio das ADR-0001 e 0003:
+as duas recusaram depender de boa vontade e puseram a garantia numa invariante e numa regra de lint. Um
+contrato mantido à mão é exatamente o que essas decisões recusaram em outro lugar. O que a geração
+**não** cobre está declarado na §15 do contrato: ela garante forma, não semântica — se o handler
+devolver `200` onde a especificação diz `409`, nenhuma ferramenta reclama, e quem cobre é o teste de
+transição inválida que o DoD já exige por funcionalidade.
 
 **Diretriz de operação e manutenção:** o README cobre subir o ambiente local em Docker, rodar migrações e
 executar os testes. O plano de implantação está no tópico 9.

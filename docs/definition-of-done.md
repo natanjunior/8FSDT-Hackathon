@@ -39,7 +39,8 @@ Uma tarefa só entra em desenvolvimento quando:
       com resultado escrito, antes de virar tarefa de implementação.
 - [ ] **3. Quebrada em item implementável.** Cabe numa sessão de trabalho — noite de semana ou manhã de
       fim de semana. Se não cabe, quebra de novo.
-- [ ] **4. Priorizada no board.**
+- [ ] **4. Priorizada no board, e alocada a uma sprint.** O board é o **Azure Boards**, e as sprints são
+      semanais até a entrega.
 - [ ] **5. Nenhum ponto de atenção em aberto que mude o comportamento desta tarefa.** Consulta a
       `docs/premissas-e-questoes-abertas.md`. Se houver, ou a questão se resolve, ou a tarefa espera, ou
       a premissa é assumida **por escrito**.
@@ -53,11 +54,11 @@ Uma tarefa só entra em desenvolvimento quando:
 | "Quebra em itens de desenvolvimento" | **Mantido**, com critério concreto de tamanho | — |
 | "Estimativa das demandas" | **Cortado** | Exige base histórica de velocidade que não existe e não existirá em seis semanas. O próprio professor admite que *"sem uma base histórica, dificilmente vamos conseguir ser assertivos"* (aula 8, p.9). Estimar aqui seria teatro |
 | "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board" | Não há PM nem PO no projeto |
-| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 23 pontos de atenção registrados. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
+| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 24 pontos de atenção registrados, 16 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
 
 > **Divergência de contagem, declarada:** o plano em `trabalho/ddd-o-que-adotar.md` previa reduzir o DoR
 > de 6 para 4 itens. Ficaram **5**. A fusão prevista aconteceu, mas o item novo (5) se mostrou necessário
-> depois, quando os pontos de atenção chegaram a 23.
+> depois, quando os pontos de atenção passaram de vinte.
 
 ---
 
@@ -83,6 +84,20 @@ cinco famílias da definição da p.5.
       container. A imagem publicada é **pública** ([ADR-0004](adr/0004-execucao-em-container-no-azure.md)),
       e o que entra numa camada permanece legível **mesmo que um `RUN rm` apague o arquivo depois**. Em
       Next.js, apenas variáveis `NEXT_PUBLIC_*` podem ser embutidas em tempo de build.
+- [ ] **As três verificações mecânicas do contrato de API passam**, se a tarefa toca um endpoint. São
+      automáticas, rodam sobre `docs/api/openapi.yaml`, e cada uma protege uma decisão que se perde em
+      silêncio (§15 de [contrato-de-api.md](contrato-de-api.md)):
+
+      | Verificação | O que ela impede |
+      |---|---|
+      | `status` não aparece em **nenhum** schema de entrada | Que a `Ocorrência` ganhe um `PATCH` e a ADR-0001 caia junto |
+      | Nenhum caminho contém `pessoas` | O vazamento entre organizações mais provável do produto, subindo da consulta para a superfície pública |
+      | `organizacao` só nos dois caminhos permitidos | Que a organização volte a ser informada pelo cliente, contra a ADR-0003 |
+
+- [ ] **A especificação versionada corresponde ao código.** Enquanto não há código, `openapi.yaml` é
+      escrito à mão. Quando houver, o pipeline regenera a especificação a partir dos schemas de validação
+      e **falha se o resultado divergir do arquivo versionado**. Sem esse portão, o contrato vira
+      documentação que descreve um sistema que não existe mais.
 
 ### Testes
 
@@ -114,8 +129,13 @@ cinco famílias da definição da p.5.
 
 - [ ] **Sobe no `docker compose` local, do zero** — atende E7, e é verificável em outra máquina por quem
       não implementou.
-- [ ] **Publicado no ambiente de preview** e acessível por URL — atende E8 e é o que permite a revisão
-      funcional acontecer sem instalar nada.
+- [ ] **Publicado no ambiente único e acessível por URL** — atende E8 e é o que permite a revisão
+      funcional acontecer sem instalar nada. **Não há ambiente de preview por branch**: a
+      [ADR-0004](adr/0004-execucao-em-container-no-azure.md) o perdeu ao sair da plataforma anterior, e
+      `arquitetura.md` §9 declara a consequência — código não validado chega ao mesmo lugar da
+      demonstração, e a mitigação é este checklist, não a infraestrutura. **Se a revisão reprovar, o
+      caminho de volta é redirecionar o tráfego para a revisão anterior do Container Apps**, que é
+      imediato e não exige rebuild.
 - [ ] **Validado contra os critérios de aceitação**, por quem não implementou.
 
 > **Adaptação:** onde o curso pede *"aprovação do Product Owner"*, aqui é validação contra critério de
@@ -126,11 +146,24 @@ cinco famílias da definição da p.5.
 
 ## Onde estes checklists vivem no dia a dia
 
-O DoD é colado no **template de issue do GitHub**, para aparecer em toda tarefa sem depender de memória. O
-DoR é o critério de passagem para o desenvolvimento.
-
 Os dois são os **portões entre Upstream e Downstream** no vocabulário da aula 7: o DoR fecha o Upstream —
-requisitos, vocabulário, critérios de aceitação —, e o DoD fecha o Downstream, que é a implementação.
+requisitos, vocabulário, critérios de aceitação —, e o DoD fecha o Downstream, que é a implementação. E
+cada um tem um item de trabalho próprio no **Azure Boards**, o que é o que os impede de virar checklist
+que ninguém abre:
+
+| Portão | Onde vive | Quem verifica |
+|---|---|---|
+| **DoR** | Critério de entrada do **PBI**. Enquanto os cinco itens não forem verdadeiros, o PBI não entra em sprint | Quem escreve o PBI |
+| **DoD** | Critério de aceitação do **`Item Revision`**, o tipo de item criado para isto | **Quem não implementou** |
+
+O `Item Revision` é um tipo customizado do processo, e existe por um motivo específico: **revisão é
+atividade, não etapa implícita de outra atividade.** Enquanto o checklist morava no mesmo item em que
+quem fez o trabalho declara que fez, ele era autoavaliação. Em item separado, com dono separado, o DoD
+tem uma lista concreta a percorrer — e a "revisão funcional por quem não implementou" que este documento
+exige deixa de depender de alguém lembrar.
+
+A consequência prática é que **toda tarefa gera pelo menos dois itens de trabalho**: o que faz e o que
+confere.
 
 ---
 

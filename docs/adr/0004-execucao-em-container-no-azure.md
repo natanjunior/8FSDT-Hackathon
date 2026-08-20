@@ -64,8 +64,22 @@ existir na escala do projeto.
 | **Manter a Vercel** | Continua defensável — a Vercel também é nuvem e satisfaz E8 literalmente. O que ela não satisfaz é *"o container que construí é o que roda"*, e o custo de resolver isso é cerca de um dia de trabalho. A troca foi feita porque converte uma fraqueza declarada em capacidade demonstrável |
 | **ACR como registro** | **Recusado com crédito disponível para pagá-lo** — o que é o ponto. O ACR Basic custa ~US$ 0,167/dia, cerca de US$ 61 em doze meses, e **não compra nada técnico neste caso**: imagem privada é inútil num repositório acadêmico que será público, e a diferença de latência de pull é irrelevante no nosso volume. Somando: o `GITHUB_TOKEN` do Actions já autentica no `ghcr.io` sem segredo novo, enquanto o ACR exigiria um recurso e uma identidade a mais. Gastar 61% de um crédito finito no que o `ghcr.io` faz de graça seria gasto sem contrapartida |
 | **Azure Container Instances · Azure Web App** (aulas 7 e 8) | Container Apps foi escolhida pela **franquia mensal gratuita documentada com escala a zero**, que é o que preserva o custo zero sem consumir crédito |
-| **Azure Repos · Boards · Pipelines** (aulas 1 a 4) | O código e a esteira permanecem no GitHub. A escolha do GitHub Actions veio da **Fase 2**, que o ensinou e cuja entrega recebeu nota máxima — é alinhamento com o curso, não afastamento dele. O curso não é uma voz só, e onde duas disciplinas divergem, escolhemos a que já foi validada em entrega |
+| **Azure Repos · Azure Pipelines** (aulas 1 a 4) | O código e a esteira permanecem no GitHub. A escolha do GitHub Actions veio da **Fase 2**, que o ensinou e cuja entrega recebeu nota máxima — é alinhamento com o curso, não afastamento dele. O curso não é uma voz só, e onde duas disciplinas divergem, escolhemos a que já foi validada em entrega. **Azure Boards não está nesta linha:** foi adotado, ver a nota abaixo |
 | **Mover PostgreSQL e autenticação para o Azure** | O modelo de dados já entregue está construído sobre `auth.users` do Supabase, e a autenticação é subdomínio genérico que decidimos comprar e não construir. Mover exigiria substituir o provedor de identidade e refazer parte do modelo, a 40 dias da entrega |
+
+> **Emenda — 20/08/2026 · o Azure Boards foi adotado.** A primeira redação desta ADR recusou *"Azure
+> Repos · Boards · Pipelines"* numa linha só, com um argumento que só cobria dois deles: *"o código e a
+> esteira permanecem no GitHub"* responde por Repos e Pipelines, e **não responde por Boards**, que não é
+> código nem esteira.
+>
+> Com a separação, o critério fica mais preciso do que era — e mais defensável: **adotamos a ferramenta
+> que a disciplina ensina onde não havia precedente validado, e mantivemos a de fora onde havia.** O
+> GitHub Actions ficou porque a Fase 2 o ensinou numa entrega que recebeu nota máxima; o acompanhamento
+> de trabalho não tinha precedente equivalente, então segue a disciplina de DevOps das aulas 1 a 4.
+>
+> O que muda em consequência disso: o `Definition of Done` deixa de citar template de issue do GitHub, e
+> os dois portões passam a ter item de trabalho próprio no Boards. O código, os *pull requests* e o
+> pipeline continuam integralmente no GitHub.
 
 ## Consequências
 

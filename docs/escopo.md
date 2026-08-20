@@ -62,7 +62,8 @@ Organização, e é ele que carrega o papel.
   os Gestores.
 - **Acompanha as próprias ocorrências** pelo status atual e pela **linha do tempo** de cada uma —
   transições, mensagens e atribuições na ordem em que aconteceram. Os status aparecem com rótulo em
-  linguagem de gente: *"o síndico está avaliando"*, não *"Em análise"*.
+  linguagem de gente: *"Parada — esperando você responder"*, não *"Pausada"*. A tabela completa está no
+  [glossário](glossario.md).
 - **Comenta** dentro da ocorrência, num espaço que é dele com os Gestores.
 - **É avisado a cada mudança de status**, inclusive quando a ocorrência é pausada esperando uma
   informação dele.
@@ -148,7 +149,7 @@ vive no cartaz do elevador. Código vazado não vira acesso: vira um pedido agua
 
 ## 2 · O recorte da primeira entrega
 
-**61 itens de escopo mapeados. 40 entram na primeira entrega; 21 são evolução prevista.**
+**62 itens de escopo mapeados. 41 entram na primeira entrega; 21 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
@@ -160,9 +161,9 @@ vive no cartaz do elevador. Código vazado não vira acesso: vira um pedido agua
 | 5 · Executar | **3** | 3 |
 | 6 · Fechar | **3** | 1 |
 | 7 · Acompanhar | **4** | 4 |
-| 8 · Gerir | **4** | 2 |
+| 8 · Gerir | **5** | 2 |
 | Fundação técnica | **6** | — |
-| **Total** | **40** | **21** |
+| **Total** | **41** | **21** |
 
 E a proporção que importa para o critério de corte:
 
@@ -170,13 +171,19 @@ E a proporção que importa para o critério de corte:
 |---|---|---|---|
 | `ENUNCIADO · literal` | **8** | 0 | 8 |
 | `ENUNCIADO · aberto` | **16** | 0 | 16 |
-| `NOSSO` | **16** | **21** | 37 |
-| **Total** | **40** | **21** | **61** |
+| `NOSSO` | **17** | **21** | 38 |
+| **Total** | **41** | **21** | **62** |
+
+> **Correção de inventário — 20/08/2026.** Este documento fechou originalmente em **61 itens, 40 na
+> primeira entrega**. A revisão do contrato de API encontrou um item descrito na seção 1 — *tempo médio
+> de resolução mês a mês* — que **nunca chegou à tabela da atividade 8**, nem como ✅ nem como ⬜. Ele
+> entra, e a contagem sobe para 62 e 41. O motivo de entrar em vez de virar ⬜ está no fim daquela
+> seção. Contagem que muda sem explicação é pior que contagem errada; por isso a nota.
 
 **Os 24 itens `ENUNCIADO` estão inteiros na primeira entrega.** Todo o corte recaiu sobre adições do
-projeto: dos 37 itens `NOSSO`, 16 entraram e 21 ficaram para depois.
+projeto: dos 38 itens `NOSSO`, 17 entraram e 21 ficaram para depois.
 
-Os 16 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
+Os 17 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
 não funciona. Sem Organização não há onde registrar; sem categorias e áreas semeadas, a Organização
 nasce vazia e nada pode ser registrado; sem pedido de entrada e aprovação, ninguém além de quem criou
 consegue entrar; sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o Solicitante
@@ -290,12 +297,24 @@ escopo: são o alvo de qualidade sobre os itens acima.
 | Backlog por status e por categoria | `NOSSO` (D19) | ✅ |
 | Média das avaliações | `NOSSO` (D19) | ✅ |
 | **Recorrência por categoria e por área** | `NOSSO` (D19) | ✅ |
+| Tempo médio de resolução, mês a mês | `NOSSO` (D19) | ✅ |
 | Tempo de calendário × tempo ativo | `NOSSO` (D19) | ⬜ |
 | Alarme de ocorrência parada há muito tempo | `NOSSO` (D15) | ⬜ |
 
 A recorrência entra porque é ela que faz o dashboard responder o que a lista não responde. Sem ela, o
 indicador exigido pelo desafio mostraria o mesmo que a listagem já mostra — e oito vazamentos no mesmo
 bloco em três meses continuariam parecendo oito ordens de serviço, em vez de **uma obra**.
+
+**O tempo médio de resolução entra por um motivo mais prosaico, e vale registrá-lo como é.** O enunciado
+não o exige: ele pede apenas *"visualizar indicadores em um dashboard"*, sem dizer quais — por isso o
+item é `NOSSO` e poderia ser cortado. O que decidiu foi o custo já pago: `modelo-de-dados.md` §6.8
+justifica o índice `(organizacao_id, ocorreu_em DESC)` citando literalmente *"tempo médio de resolução
+mês a mês"*. O índice existe, foi dimensionado na estimativa de volume, e o indicador é uma agregação
+sobre ele. Deixá-lo de fora manteria o custo e descartaria o retorno.
+
+Ele mede **tempo de calendário**, com as pausas incluídas. Separar calendário de tempo ativo continua
+sendo ⬜, e é justamente essa separação que o objetivo O5 da Documentação da Demanda espera — o que
+significa que **O5 segue não medido na primeira entrega**, como já está declarado lá.
 
 ### Fundação técnica
 
