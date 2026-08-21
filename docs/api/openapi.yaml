@@ -6,7 +6,7 @@ info:
   summary: Gestão de ocorrências com trilha de auditoria imutável, multi-organização.
   description: |
     Superfície HTTP da **primeira entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
-    suposições declaradas e a rastreabilidade das 40 capacidades estão em `docs/contrato-de-api.md`.
+    suposições declaradas e a rastreabilidade das 42 capacidades estão em `docs/contrato-de-api.md`.
 
     ## As cinco regras que explicam a forma desta API
 
@@ -791,9 +791,9 @@ paths:
                     items: { $ref: "#/components/schemas/Area" }
               example:
                 itens:
-                  - { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true }
-                  - { id: "0f9a4d71-2222-4b2c-9d3e-4f5a6b7c8d9e", nome: "Salão de festas", tipo: "comum", ativa: true }
-                  - { id: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e", nome: "Apartamento 302", tipo: "privativa", ativa: true }
+                  - { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true, ordem: 1 }
+                  - { id: "0f9a4d71-2222-4b2c-9d3e-4f5a6b7c8d9e", nome: "Salão de festas", tipo: "comum", ativa: true, ordem: 2 }
+                  - { id: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e", nome: "Apartamento 302", tipo: "privativa", ativa: true, ordem: 3 }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
@@ -821,7 +821,8 @@ paths:
               properties:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
-            example: { nome: "Playground", tipo: "comum" }
+                ordem: { type: integer, minimum: 0, maximum: 999, default: 0 }
+            example: { nome: "Playground", tipo: "comum", ordem: 4 }
       responses:
         "201":
           description: Área criada.
@@ -862,6 +863,7 @@ paths:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
                 ativa: { type: boolean }
+                ordem: { type: integer, minimum: 0, maximum: 999 }
             example: { tipo: "privativa" }
       responses:
         "200":
@@ -2312,8 +2314,18 @@ components:
 
     Comando:
       type: string
-      description: Os comandos do agregado, com o mesmo nome que têm no domínio.
-      enum: [analisar, alterar-prioridade, atribuir-responsavel, iniciar-atendimento, pausar, retomar, registrar-solucao-aplicada, resolver, cancelar, avaliar]
+      description: |
+        Os comandos do agregado, com o mesmo nome que têm no domínio.
+
+        **A ordem deste enum é estável e significativa, e `acoesDisponiveis` a respeita**: os comandos que
+        movem a ocorrência adiante vêm na sequência do ciclo de vida, e os que não movem — `alterar-prioridade`
+        e `cancelar` — vêm por último.
+
+        Isso existe para que o cliente **não mantenha uma segunda lista de comandos** só para ordená-los na
+        tela: renderizar na ordem recebida já produz uma barra coerente. **Não é promessa de que o primeiro
+        item seja a ação em destaque** — em `em_atendimento`, por exemplo, `pausar` precede `resolver`.
+        Escolher o destaque é decisão de tela, e a regra está no inventário de telas.
+      enum: [analisar, atribuir-responsavel, iniciar-atendimento, pausar, retomar, registrar-solucao-aplicada, resolver, avaliar, alterar-prioridade, cancelar]
 
     PessoaReferencia:
       type: object
@@ -2323,7 +2335,7 @@ components:
       required: [pessoaId, nome]
       properties:
         pessoaId: { type: string, format: uuid }
-        nome: { type: string }
+        nome: { type: string, maxLength: 120 }
 
     PessoaComContato:
       allOf:
@@ -2450,12 +2462,20 @@ components:
 
     Area:
       type: object
-      required: [id, nome, tipo, ativa]
+      required: [id, nome, tipo, ativa, ordem]
       properties:
         id: { type: string, format: uuid }
         nome: { type: string, maxLength: 80 }
         tipo: { $ref: "#/components/schemas/TipoArea" }
         ativa: { type: boolean }
+        ordem:
+          type: integer
+          description: |
+            Qual Área aparece antes é escolha do Gestor, como já era em `Categoria`. Existe por um motivo
+            medido: a lista de Áreas passa de trinta itens num condomínio médio e está no caminho crítico
+            do RNF6 — em ordem alfabética ela custa cerca de 12 segundos de um orçamento de 60. Busca e
+            "usadas recentemente" resolvem a partir do segundo registro; **`ordem` é o que resolve o
+            primeiro**, e é o primeiro que decide se existe um segundo.
 
     RegistroDeOcorrencia:
       type: object

@@ -712,16 +712,21 @@ depois, e é assim que a §14 as contabiliza.
 - É um dos quatro endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
   D26 — o primeiro Gestor não tem quem o aprove.
 
-**A ordenação das duas listas, declarada.** `Categoria` tem `ordem`; **`Area` não tem**, e a diferença é
-deliberada: as sete categorias têm ordem de apresentação natural e são poucas, enquanto as Áreas de um
-condomínio médio passam de trinta e não têm ordem óbvia. **`GET /areas` devolve em ordem alfabética de
-nome.**
+**A ordenação das duas listas, declarada.** `Categoria` e `Area` têm **`ordem`**, e as duas listas saem
+na ordem que o Gestor definiu, com desempate alfabético.
 
-> Fica registrado o que isso custa, porque é a lista mais longa que o Solicitante percorre com pressa, e o
-> RNF6 lhe dá menos de um minuto para o registro inteiro. Se a ordenação alfabética se mostrar ruim quando
-> o protótipo do passo 5 for cronometrado, a saída é dar `ordem` à `Area` — mudança de esquema, de contrato
-> e de tela de configuração. **Não a fizemos agora porque não há evidência**, e o passo 5 é a primeira
-> oportunidade de obtê-la.
+> **A `Area` ganhou `ordem` em 21/08/2026, e vale registrar por quê — porque a decisão anterior era a
+> oposta.** A primeira redação desta seção deixou a `Area` sem `ordem`, em ordem alfabética, e declarou:
+> *"não a fizemos agora porque não há evidência, e o passo 5 é a primeira oportunidade de obtê-la"*.
+>
+> **A evidência chegou.** O orçamento de tempo do protótipo mediu o campo de Área em **cerca de 12
+> segundos** no caso típico e 20 no pior — um quinto do orçamento do RNF6 gasto em dizer *onde*, que não é
+> o conteúdo da ocorrência, é só o endereço dela. Busca e *"usadas recentemente"* derrubam isso para ~4
+> segundos, mas **só a partir do segundo registro de cada pessoa**: no primeiro não há recentes, e o
+> primeiro registro é o único que decide se existe um segundo.
+>
+> `ordem` é o único conserto que atua no primeiro. Custa uma coluna, um campo opcional num `PATCH` que já
+> existe, e reordenação numa tela que já reordena `Categoria`.
 
 **`PATCH /categorias/{id}`** — `{ nome?, ordem?, ativa? }`. `ordem` existe porque *"qual categoria aparece
 antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`** (P6) e a
@@ -982,6 +987,8 @@ comandos que **este** chamador pode executar **agora**. Ex.:
 > Se a lista não as aplicasse, o cliente ou ofereceria um botão que falha sempre, ou reimplementaria as
 > três — que é **exatamente a segunda cópia da máquina de estados** que este campo existe para impedir. Um
 > comando ausente de `acoesDisponiveis` é um comando que **vai** responder `409` ou `422` se for chamado.
+>
+> **E a ordem da lista é declarada**, acrescentado em 21/08/2026: ela sai na ordem do enum `Comando`, com os comandos que movem a ocorrência adiante na sequência do ciclo de vida e os que não movem — `alterar-prioridade` e `cancelar` — por último. Isso evita que o cliente mantenha **uma segunda lista só para ordenar botões**, que seria a mesma duplicação por outro caminho. **Não é promessa de destaque:** em `em_atendimento`, `pausar` vem antes de `resolver`. Qual ação ganha ênfase é decisão de tela.
 
 > **Por que o contrato carrega isso.** Sem ele, o PWA reimplementa a tabela de transições da
 > `arquitetura.md` — e passa a existir uma **segunda cópia da máquina de estados**, na camada que a

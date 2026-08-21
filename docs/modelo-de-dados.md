@@ -676,10 +676,19 @@ vinda de `ocorrencias`.
 | `nome` | `varchar(80)` | não | — |
 | `tipo` | `tipo_area` | não | — |
 | `ativa` | `boolean` | não | `true` |
+| `ordem` | `smallint` | não | `0` |
 | `criado_em` | `timestamptz` | não | `now()` |
 
 **Chaves e constraints:** iguais às de `categorias` — `PRIMARY KEY (id)`, `UNIQUE (id, organizacao_id)`,
 `UNIQUE (organizacao_id, nome)`, FK para `organizacoes` com `RESTRICT`.
+
+> **`ordem` foi acrescentada em 21/08/2026, e a decisão anterior era não tê-la.** `Categoria` sempre teve
+> `ordem`; `Area` não, sob o argumento de que trinta itens sem ordem natural não se curam à mão. O
+> protótipo mediu: o campo de Área custa **cerca de 12 segundos** do orçamento de 60 do RNF6 — um quinto
+> do tempo gasto em dizer *onde*, que é o endereço da ocorrência e não o conteúdo dela. Busca e *"usadas
+> recentemente"* derrubam para ~4 s, **mas só do segundo registro em diante**; no primeiro não há
+> recentes, e o primeiro registro é o único que decide se existe um segundo. É a única coluna deste
+> esquema que entrou por medição de tempo de interface.
 
 **`tipo` não tem valor padrão, de propósito.** Toda Área nasce com um dos dois tipos (D18), e um padrão
 implícito escolheria a visibilidade da ocorrência em silêncio — que é exatamente o que a D10 recusa ao

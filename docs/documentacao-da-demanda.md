@@ -210,7 +210,7 @@ Seguindo o modelo do curso, **com número e não com adjetivo** (p.9).
 | RNF3 | **Escala** | 50 organizações · 200 pessoas por organização · **2.000 ocorrências** no total · 20 usuários simultâneos. O modelo de dados mede esse alvo em ~26 MB, cerca de 5% dos 500 MB do free tier do banco |
 | RNF4 | **Desempenho** | p95 ≤ 1s em requisição morna |
 | RNF5 | **Disponibilidade** | **Sem SLA de produção.** O serviço usa **escala a zero** para caber na franquia gratuita, então **cold start na primeira requisição após ociosidade é esperado e declarado**. O banco no free tier também pausa após 7 dias sem atividade |
-| RNF6 | **Registro em menos de 1 minuto** pelo celular | Da abertura do app ao envio da ocorrência, incluindo foto — mitiga o risco de usabilidade |
+| RNF6 | **Registro em menos de 1 minuto** pelo celular | Do toque no atalho ao `201` do envio, **incluindo foto**, num aparelho já autenticado e com o aplicativo aquecido. Mitiga o risco de usabilidade. **O cenário de medição está declarado abaixo** — sem ele o requisito não é verificável |
 | RNF7 | **Leitura offline** para o Encarregado | A lista de atribuições e o detalhe devem abrir sem rede. Escrita offline **não** é requisito |
 | RNF8 | **Imagem** | Uma por ocorrência, JPEG ou PNG, **comprimida no cliente** para no máximo **400 KB** (redimensionada para 1600px no maior lado). O aceite no seletor é de até 10 MB; o que sobe é o comprimido |
 | RNF9 | **Retenção** | O histórico não expira — ele **é** o produto |
@@ -231,6 +231,36 @@ Seguindo o modelo do curso, **com número e não com adjetivo** (p.9).
 > voltou a ser o banco, com folga de aproximadamente trinta vezes sobre o alvo. O RNF3 permanece em 2.000
 > por ser **meta declarada**, não por ser teto.
 >
+> **O RNF6 e o RNF5 se atropelam, e o protótipo foi quem percebeu.** A redação original do RNF6 media *"da
+> abertura do app"* — e o RNF5 diz que **é exatamente na abertura que o cold start acontece**. Os dois
+> requisitos mediam a mesma janela e se contradiziam: nenhum aparelho abriria o aplicativo frio e registraria
+> em menos de um minuto, porque a escala a zero sozinha come de 5 a 15 segundos.
+>
+> **Eles medem coisas diferentes e passam a dizer isso.** O RNF6 mede a **interação**: quanto tempo a pessoa
+> gasta. O RNF5 mede a **plataforma**: quanto tempo a plataforma gasta antes de responder. Somar os dois num
+> número só tornava os dois inverificáveis.
+>
+> **O pior caso combinado fica declarado, porque é ele que o morador vive:** primeira ocorrência do dia,
+> aplicativo frio, cerca de **75 segundos**. Não é o alvo, e não se esconde.
+>
+> **Cenário de medição do RNF6.** Sem ele, o mesmo requisito dá resultados que variam mais que o próprio
+> alvo — o protótipo mediu **49 segundos de diferença** entre cenários, o que é mais de 80% do orçamento.
+> Fica fixado:
+>
+> | | |
+> |---|---|
+> | **Começa** | No toque no atalho do aplicativo já instalado, com sessão válida e organização ativa |
+> | **Termina** | Na resposta `201` do registro |
+> | **Inclui** | Tirar e confirmar a foto, e a compressão no aparelho (RNF8) |
+> | **Exclui** | Cold start da plataforma (RNF5) e o primeiro carregamento do aplicativo — declarados à parte |
+> | **Conteúdo** | Título curto e **descrição de até cerca de 40 caracteres** — é o que o orçamento comporta |
+> | **Quem mede** | Alguém que **não** é o implementador, num aparelho real, em rede móvel |
+>
+> **A descrição é a variável que decide.** O orçamento fecha em 53 s com uma descrição de ~40 caracteres e
+> **estoura em 69 s** com os 79 caracteres do exemplo do próprio contrato de API. O texto do campo tem de
+> pedir brevidade; se as pessoas escreverem mais que isso, **o requisito falha por comportamento, não por
+> desenho** — e é isso que a medição vai dizer.
+
 > **Dependência declarada.** Os números de RNF4 e RNF5 são metas a fechar no **primeiro deploy real**,
 > que é a primeira tarefa de implementação.
 

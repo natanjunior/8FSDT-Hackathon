@@ -54,7 +54,7 @@ Uma tarefa só entra em desenvolvimento quando:
 | "Quebra em itens de desenvolvimento" | **Mantido**, com critério concreto de tamanho | — |
 | "Estimativa das demandas" | **Cortado** | Exige base histórica de velocidade que não existe e não existirá em seis semanas. O próprio professor admite que *"sem uma base histórica, dificilmente vamos conseguir ser assertivos"* (aula 8, p.9). Estimar aqui seria teatro |
 | "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board" | Não há PM nem PO no projeto |
-| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 26 pontos de atenção registrados, 17 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
+| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 27 pontos de atenção registrados, 18 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
 
 > **Divergência de contagem, declarada:** o plano em `trabalho/ddd-o-que-adotar.md` previa reduzir o DoR
 > de 6 para 4 itens. Ficaram **5**. A fusão prevista aconteceu, mas o item novo (5) se mostrou necessário
@@ -108,6 +108,12 @@ cinco famílias da definição da p.5.
       do agregado (ADR-0001).
 - [ ] Se a tarefa toca consulta de dados: teste de integração provando que **organização A não vê dado de
       B**.
+- [ ] **Se a tarefa entrega o registro de ocorrência: ele foi cronometrado.** Num aparelho real, em rede
+      móvel, por **alguém que não é o implementador**, no cenário declarado do **RNF6**. Leva vinte
+      minutos e o número é anotado, mesmo que estoure. Este item existe porque o RNF6 é o **único
+      requisito cronometrado do projeto** e porque o orçamento de tempo do protótipo indicou que ele
+      **fecha por pouco** — um requisito nessa margem que nunca é medido é um requisito que se supõe
+      cumprido. Não é teste de usabilidade: é a diferença entre **medido** e **declarado**.
 
 ### Revisões
 

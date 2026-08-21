@@ -20,7 +20,7 @@ usa o anterior.
 |---|---|---|
 | 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
 | 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra na primeira entrega, o que ficou para depois e por quê, e a evolução prevista |
-| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 45 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
+| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 56 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
 | 04 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
 | 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
 | 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em **[api/openapi.yaml](api/openapi.yaml)**, em OpenAPI 3.1 |
