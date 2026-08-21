@@ -602,11 +602,10 @@ estão declarados: `contexto` (§13, Q-API-2), `anexos/autorizacoes` (§10), `co
 > vida próprio no storage. Pelo critério que a §9 do glossário fixou em 20/08/2026 — *entra no glossário o
 > conceito, não o identificador* —, ele **deveria ser termo**.
 >
-> **Este contrato não inventa termo.** A definição está **proposta ao glossário**, não escrita aqui, e a
-> proposta é: *"a evidência que acompanha uma Ocorrência — foto, e no futuro outros tipos. Não confundir
-> com **Solução aplicada**, que é texto do Gestor sobre o que foi feito, nem com **Comentário**, que é
-> conversa."* Enquanto não houver decisão, `anexo` é nome de recurso e de tabela, exatamente como
-> `email_contato` foi antes de a distinção dele entrar no glossário.
+> **Este contrato não inventou o termo: propôs.** A definição foi escrita **no glossário**, não aqui —
+> *"a evidência que acompanha uma Ocorrência: foto hoje, outros tipos depois"*, com *não confundir com*
+> **Solução aplicada** e **Comentário**. **Aprovada e incorporada ao glossário §3 em 21/08/2026**, no
+> mesmo caminho que `Pedido de entrada` percorreu: o artefato propõe, o glossário decide.
 
 **7.3 · Caixa: `snake_case` no banco, `camelCase` no JSON, mesmo vocábulo nos dois.**
 `registros_transicao.autor_pessoa_id` vira `autorPessoaId`. A convenção segue o **meio** — SQL e JSON têm as
@@ -1930,7 +1929,13 @@ do `409`: já está pedida, e agora tem uma segunda razão de existir.
 
 **Três verificações mecânicas para o Definition of Done**, todas derivadas deste documento:
 
-1. **`status` não aparece em nenhum schema de entrada do `openapi.yaml`** (§3.5, P1). Uma linha de `grep`.
+1. **`status` não aparece em nenhum schema de entrada do `openapi.yaml`** (§3.5, P1). **Não é uma linha de
+   `grep`, e a diferença importa.** A palavra aparece mais de cem vezes no arquivo, e quase todas são
+   legítimas: o schema `StatusOcorrencia`, o campo `status` do `Problema` — que é o código HTTP que a RFC
+   9457 exige —, os exemplos de resposta e as descrições. Buscar a palavra encontra tudo isso e não
+   responde a pergunta. A verificação real **distingue entrada de saída**: percorre o `requestBody` de cada
+   operação, segue os `$ref` até os schemas concretos, e confere que a propriedade `status` não existe em
+   nenhum deles. São algumas dezenas de linhas sobre o YAML carregado — não uma busca textual.
 2. **Nenhum caminho do `openapi.yaml` contém `organizacao`**, exceto `POST /organizacoes` e
    `PUT /contexto/organizacao` (§4.4, P2).
 3. **Nenhum caminho contém `pessoas`** (§4.6, P3).

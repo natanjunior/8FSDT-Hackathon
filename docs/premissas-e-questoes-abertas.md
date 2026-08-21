@@ -118,7 +118,7 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 
 | # | Ponto de atenção |
 |---|---|
-| PA-01 | **A imagem pode ser anexada depois do registro?** Na vida real o morador fotografa depois de abrir. S6 exige poder anexar, não diz quando |
+| PA-01 | **O anexo pode ser adicionado depois do registro?** Na vida real o morador fotografa depois de abrir. S6 exige poder anexar, não diz quando. **O preço da resposta caiu em 21/08/2026:** enquanto a imagem era uma coluna da ocorrência, anexar depois exigia mudança de esquema; com a tabela `anexos` (modelo §6.16), o dia daquela decisão custa **um endpoint e uma tela**, não uma migração. **O corte continua sendo de escopo, não de modelo** — e é por isso que a pergunta segue aberta em vez de resolvida |
 | PA-02 | **Em ocorrência de área comum, o nome do autor aparece para os vizinhos?** A pesquisa cívica registra que cidadãos hesitam por **medo de retaliação** — e reclamar de algo que envolve um vizinho é rotina em condomínio |
 | PA-03 | **Quem pode aderir** — qualquer pessoa com vínculo no local, ou só quem tem papel de Solicitante? O autor pode aderir à própria? |
 | PA-05 | **LGPD** — foto e localização de pessoas. Tratado no RNF10, mas **sem revisão jurídica** |

@@ -71,6 +71,7 @@ Duas regras de vocabulário que valem para todo o projeto:
 | Termo | Definição | Não confundir com | Origem |
 |---|---|---|---|
 | **Ocorrência** | O problema registrado por um Solicitante e acompanhado até a resolução. É o objeto central do sistema. | **"solicitação"**, **"chamado"**, **"demanda"**, **"ticket"** — o enunciado usa "solicitações" ao descrever o contexto, mas o termo do domínio é **Ocorrência**, e só ele. Ver colisão nº 2 | `ENUNCIADO · literal` |
+| **Anexo** | A evidência que acompanha uma Ocorrência: **foto hoje, outros tipos depois**. Tem tipo, autor e ciclo de vida próprio no storage — o objeto só passa a existir para o sistema quando é **reivindicado** no registro da ocorrência. | **Solução aplicada** — que é o texto do Gestor sobre o que foi feito; e **Comentário**, que é conversa | `ENUNCIADO · aberto` (S6) |
 | **Prioridade** | O quanto uma ocorrência corre, definido **pelo Gestor**. Nasce "normal"; alterável enquanto a ocorrência não estiver em estado terminal. | **Urgência** (termo não usado) e **Categoria** | `ENUNCIADO · aberto` (G3) |
 | **Solução aplicada** | O registro do que foi efetivamente feito para resolver a ocorrência, feito pelo Gestor. | **Observação da alteração** | `ENUNCIADO · aberto` (G7) |
 | **Avaliação** | A nota que o Solicitante autor dá à resolução, depois de a ocorrência estar `Resolvida`. **Não é um estado** do ciclo de vida. | ⚠️ **`Em análise`**, que é o estado em que o **Gestor** avalia a ocorrência. Ver colisão nº 3 | `ENUNCIADO · aberto` (S10) |

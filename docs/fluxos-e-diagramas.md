@@ -35,7 +35,7 @@ levantamos aqui e recusamos também.
 | **DG-2** | Um comando de transição, de ponta a ponta | `sequenceDiagram` | A **ordem no tempo** que prova a ADR-0001: o registro de histórico é efeito dentro do agregado, não chamada de fora |
 | **DG-3** | Resolução de contexto e autorização | `flowchart` | O **ponto de estrangulamento** do RNF1 — e as duas escritas que passam por fora dele |
 | **DG-4** | Entrada na organização | `flowchart` | A **topologia dos caminhos** até um Vínculo, e os dois becos que ela contém |
-| **DG-5** | Registro da ocorrência com imagem | `sequenceDiagram` | A **travessia de fronteira**: os bytes nunca tocam a aplicação |
+| **DG-5** | Registro da ocorrência com anexo | `sequenceDiagram` | A **travessia de fronteira**: os bytes nunca tocam a aplicação |
 | **DG-6** | Cadeia de implantação | `flowchart` | A **topologia de execução**: três provedores, um `Dockerfile`, e onde a migração de banco entra |
 
 ### Duas regras que valem para todos
@@ -312,7 +312,7 @@ Vínculo e um dos dois que existem inteiros na primeira entrega).
 
 ---
 
-### DG-5 · Registro da ocorrência com imagem
+### DG-5 · Registro da ocorrência com anexo
 
 ```mermaid
 sequenceDiagram
@@ -325,7 +325,7 @@ sequenceDiagram
 
     SOL->>PWA: escolhe a foto — o seletor aceita até 10 MB
     PWA->>PWA: comprime para 400 KB e 1600 px no maior lado — RNF8, no aparelho
-    PWA->>API: POST /imagens/autorizacoes, com tipoConteudo e tamanhoBytes
+    PWA->>API: POST /anexos/autorizacoes, com tipoConteudo e tamanhoBytes
     Note right of API: recusa acima de 512 KB, ou fora de image/jpeg<br/>e image/png. É o único endpoint com limite<br/>de chamadas: 30 por Pessoa por hora
     API->>BLOB: emite SAS de escrita e marca o objeto como pendente
     API-->>PWA: 201 com chave, ticket assinado de 15 min, e a URL do PUT
@@ -336,12 +336,12 @@ sequenceDiagram
         SOL->>PWA: título, descrição, categoria, área e complemento
     end
 
-    PWA->>API: POST /ocorrencias, com a imagem por referência: chave e ticket
+    PWA->>API: POST /ocorrencias, com o anexo por referência: chave e ticket
     API->>API: confere a assinatura do ticket e se o portador é quem pediu
     API->>BLOB: HEAD do objeto
     BLOB-->>API: tamanho e tipo reais, sem baixar um byte
     API->>BLOB: troca a etiqueta do objeto para confirmado
-    API->>BD: grava a ocorrência e o primeiro registro de transição, na mesma transação
+    API->>BD: grava a ocorrência, o primeiro registro de transição e a linha do anexo<br/>— três escritas, uma transação só
     BD-->>API: commit
     API-->>PWA: 201 OcorrenciaDetalhe, com ultimaTransicao de statusAnterior nulo
 
@@ -364,8 +364,8 @@ decisão inteira está na [§10 do contrato](contrato-de-api.md); a coluna que g
 
 **O que ele deliberadamente não mostra:**
 
-- **A leitura da imagem.** `GET /ocorrencias/{id}/imagem` responde `302` para uma URL assinada de 10
-  minutos, com URL estável para o cache do PWA. É simétrico ao que está desenhado; o segundo desenho não
+- **A leitura do anexo.** `GET /ocorrencias/{id}/anexos/{anexoId}` responde `302` para uma URL assinada
+  de 10 minutos, com URL estável para o cache do PWA. É simétrico ao que está desenhado; o segundo desenho não
   acrescentaria fronteira nova.
 - **O ciclo de vida do objeto no storage** (`pendente → confirmado`, ou `pendente → apagado`) como
   espaço de estados próprio: são três estados e duas setas, e as duas já aparecem aqui como passos.
@@ -548,7 +548,7 @@ migração for manual e o deploy automático, **a ordem depende de a pessoa lemb
 o tipo de garantia que a ADR-0001 e a ADR-0003 recusaram em outros pontos.
 **Recomendação:** um passo do próprio workflow do Actions, antes do passo de deploy.
 
-### L-5 · O objeto de imagem pode ficar órfão e imortal
+### L-5 · O objeto do anexo pode ficar órfão e imortal
 
 A [§10.2 do contrato](contrato-de-api.md) ordena a reivindicação assim: confere o ticket, faz `HEAD`,
 **marca o objeto como confirmado** e só então grava a ocorrência. Se a transação do banco falhar depois
@@ -557,10 +557,21 @@ ciclo de vida do contêiner só recolhe o que está `pendente`. Ele fica fora do
 para sempre.
 
 **A ordem documentada é a mais segura das duas** — inverter (gravar e depois etiquetar) trocaria um
-objeto órfão de 400 KB por uma ocorrência real cuja imagem some em 24 a 48 h, que é perda de dado. Não
+objeto órfão de 400 KB por uma ocorrência real cujo anexo some em 24 a 48 h, que é perda de dado. Não
 há defeito a corrigir; há um caminho de falha que a §10.3 descreve para dois casos (o feliz e o
 abandonado) e não descreve para o terceiro. **Proposta:** declarar o caso residual, com o custo, ao
 lado dos outros dois.
+
+> **E apareceu um quarto caminho, que não existia quando este achado foi escrito — 21/08/2026.** A
+> imagem virou a tabela `anexos`, e o `UNIQUE (chave)` dela faz o banco recusar a **segunda**
+> reivindicação do mesmo objeto. Isso encosta na **S-T7** do inventário de telas, que manda a tela
+> reenviar a mesma `chave` quando o `POST /ocorrencias` cai por rede: se a primeira chamada tiver
+> comitado e só a resposta se perdido, o reenvio agora recebe **`409 ANEXO_JA_REIVINDICADO`**.
+>
+> **Antes, esse reenvio criava em silêncio uma segunda ocorrência apontando para a mesma foto.** O
+> caminho de falha ganhou nome, e o terceiro caso residual **não mudou** — a §10.3 do contrato registra
+> os dois. É o tipo de coisa que uma decisão de modelagem entrega de graça, e que não estaria escrita
+> em lugar nenhum se ninguém tivesse voltado ao desenho.
 
 ### L-6 · Aprovar um pedido de entrada com o papel errado é irreversível
 
