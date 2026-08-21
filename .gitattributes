@@ -1,0 +1,14 @@
+# Fim de linha normalizado no repositorio.
+#
+# Motivo: sem isto, um arquivo convertido de LF para CRLF aparece no diff como
+# se cada linha tivesse mudado. Ja aconteceu: docs/modelo-de-dados.md apareceu
+# com 5.132 linhas alteradas num commit que mudou 928.
+
+* text=auto
+
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.html text eol=lf
+*.mmd  text eol=lf
+*.json text eol=lf
