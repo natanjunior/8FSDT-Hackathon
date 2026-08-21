@@ -31,3 +31,6 @@ disciplina, a citação vem como `aula N, p.X`.
 | [0002](0002-stack-e-plataforma.md) | Next.js com PWA, APIs próprias, Vercel e Supabase | **Parcialmente substituída pela 0004** |
 | [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação; RLS como defesa em profundidade | Aceita |
 | [0004](0004-execucao-em-container-no-azure.md) | Execução em container no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
+| [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Aceita |
+
+> **0005 e 0006 estão reservadas** para as decisões de estrutura interna do código — a regra de dependência e a organização de módulos —, em redação no momento em que a 0007 foi aceita.

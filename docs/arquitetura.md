@@ -308,7 +308,7 @@ como"* (p.6) — é exemplo, não prescrição. Registramos componente a compone
 
 ## 2. Tecnologias e Ferramentas Utilizadas
 
-Decisão e alternativas rejeitadas em [ADR-0002](adr/0002-stack-e-plataforma.md). Cada escolha justificada
+Decisão e alternativas rejeitadas em [ADR-0002](adr/0002-stack-e-plataforma.md), com a plataforma de execução revista pela [ADR-0004](adr/0004-execucao-em-container-no-azure.md) e a camada de interface decidida pela [ADR-0007](adr/0007-camada-de-interface-com-shadcn-ui.md). Cada escolha justificada
 contra um requisito, como o tópico pede:
 
 | Tecnologia | Justificativa — contra qual requisito |
