@@ -10,11 +10,15 @@ Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP. En
 
 ## Estado do projeto
 
-**Documentação de descoberta e arquitetura. Ainda não há código.**
+**A documentação está entregue, e o código começou pelo esqueleto de deploy.**
 
-Não há `package.json`, não há build e não há o que instalar. A escolha da stack está registrada e
-justificada nas ADRs, mas a implementação começa depois desta etapa — e isso é deliberado: a disciplina
-posiciona a escolha de tecnologia no Design Tático, depois do design estratégico.
+O que existe hoje: a esteira inteira de entrega — `docker compose` local, imagem publicada no `ghcr.io`,
+revisão no Azure Container Apps —, com **um** endpoint (`GET /contexto`), as duas telas que ele sustenta
+(entrar e "onde eu trabalho?"), as três tabelas de que ele depende, e as regras de fronteira da arquitetura
+convertidas em configuração de `lint`. Ver **[Como rodar](#como-rodar)**.
+
+O que ainda não existe: a `Ocorrência` e tudo que gira em volta dela — que são as próximas tarefas, e são
+oito dos nove entregáveis do enunciado.
 
 ## O que está entregue
 
@@ -65,10 +69,93 @@ corte recaiu sobre adições nossas.
 
 ## Como rodar
 
-**Não há o que rodar ainda.** Quando houver código, esta seção passa a ser o procedimento — subir o
-ambiente local em Docker, aplicar as migrações e executar os testes —, e ela é preenchida no primeiro
-deploy, que é a primeira tarefa de implementação. O plano de implantação já está escrito na
-[Arquitetura](docs/arquitetura.md).
+**O que já roda: o esqueleto de deploy.** Criar conta, entrar, e ver em qual organização você está — ou
+que não está em nenhuma. Um endpoint (`GET /contexto`), duas telas (T-01 e T-02), três tabelas, e a
+esteira inteira de `push` a container publicado. O resto do produto vem nas tarefas seguintes.
+
+### O que precisa estar instalado
+
+| Ferramenta | Para quê | Conferir com |
+|---|---|---|
+| **Node 24** | build, testes e verificadores | `node --version` |
+| **Docker** | a aplicação em container (E7) | `docker compose version` |
+| **Supabase CLI** | Postgres e autenticação locais | `supabase --version` |
+
+### Subir o ambiente local, do zero
+
+```bash
+npm ci                              # dependências
+
+supabase start                      # Postgres + Auth locais, em containers
+supabase db reset                   # aplica as migrações de supabase/migrations/
+
+cp .env.example .env.local          # e preencha com o que o `supabase start` imprimiu
+docker compose up --build           # a aplicação, no MESMO Dockerfile que vai a produção
+```
+
+Depois: **<http://host.docker.internal:3000>**.
+
+> ⚠️ **Abra por `host.docker.internal`, não por `localhost`.** O `@supabase/ssr` deriva o **nome do cookie
+> de sessão do host do provedor**: com `127.0.0.1` ele grava `sb-127-auth-token`, com
+> `host.docker.internal` grava `sb-host-auth-token`. Se o navegador falar do provedor por um nome e o
+> container por outro, o cookie que o navegador guarda tem um nome que o servidor não procura — e a sessão
+> simplesmente **não existe do lado de dentro**, sem erro nenhum. Em produção o problema não existe: os dois
+> lados usam a mesma URL pública. Os detalhes estão em `.env.example`.
+
+> ⚠️ **As portas locais do Supabase não são as padrão do CLI** (`54391` para a API, `54392` para o banco). O
+> Windows reserva faixas de porta para o Hyper-V, e na máquina onde isto foi escrito a faixa reservada cobria
+> as nove portas padrão. O motivo e como conferir a sua estão no cabeçalho de `supabase/config.toml`.
+
+Sem Docker, para o laço curto de quem implementa: `npm run dev` — mas aí a URL do provedor é
+`http://127.0.0.1:54391` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
+nome de host só**.
+
+### Verificar
+
+```bash
+npm run verificar                   # lint + tipos + teste unitário + os três verificadores de docs
+npm run teste:integracao            # exige Postgres — é o critério A4 (organização A não vê dado de B)
+```
+
+Cada peça, separada:
+
+| Comando | O que confere |
+|---|---|
+| `npm run lint` | **As três regras de fronteira da ADR-0006**, como configuração e não como parágrafo: nada fora de `infraestrutura/clientes/` importa um SDK; `infraestrutura/` só é importada por `composicao/`; importação só para dentro e só pela superfície pública do módulo |
+| `npm run tipos` | `tsc --noEmit`, em modo estrito |
+| `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
+| `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
+| `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
+| `npm run verificar:openapi` | As três regras mecânicas da §15 do contrato, mais `$ref` e `operationId` |
+| `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
+
+`BANCO_URL_TESTE` aponta o teste de integração para um Postgres. Sem ela, ele cai em `BANCO_URL`.
+
+### Publicar
+
+Não há comando: **`merge` em `main` publica.** O `.github/workflows/entrega.yml` verifica, aplica as
+migrações, constrói a imagem, publica no `ghcr.io` e cria uma revisão nova no Azure Container Apps — nessa
+ordem, porque *o rollback da aplicação é imediato e o do banco não é*.
+
+**Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
+Migração destrutiva de esquema exige script de volta escrito à mão.
+
+### O mapa das pastas de código
+
+| Pasta | Camada | Regra |
+|---|---|---|
+| `app/` | Interface, metade externa | rotas e telas. **Não alcança `infraestrutura/` nem `composicao/`** |
+| `src/interface/` | Interface, metade adaptadora | `http/` (o `comContexto`), `schemas/`, `projecoes/`, `acoes/`, `componentes/` |
+| `src/aplicacao/` | Aplicação | **declara as portas** e recebe as implementações |
+| `src/dominio/` | Domínio | as regras. Não persiste, não conhece HTTP |
+| `src/infraestrutura/` | Infraestrutura | `clientes/` (o único lugar com SDK), `repositorios/`, `contexto/` (o ponto único de escopo) |
+| `src/composicao/` | — | monta o grafo de objetos; não decide regra |
+| `ferramentas/verificadores/` | — | os três verificadores de documentação |
+| `supabase/migrations/` | — | o esquema, versionado |
+| `testes/` | — | `dominio/` e `aplicacao/` sem banco; `integracao/` com |
+
+A decisão está na [ADR-0006](docs/adr/0006-organizacao-de-modulos.md); as três regras de importação viram
+configuração em `eslint.config.mjs`, com o comentário de cada uma no arquivo.
 
 ## Como este repositório está organizado
 

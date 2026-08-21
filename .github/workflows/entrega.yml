@@ -1,0 +1,238 @@
+# =============================================================================
+#  A esteira de entrega — arquitetura.md §9
+#
+#    merge em main → verifica → migra o banco → constrói a imagem →
+#    publica no ghcr.io → Container Apps cria uma revisão nova
+#
+#  **A ordem entre migrar e publicar não é estética.** O rollback da aplicação é
+#  imediato (reapontar o tráfego para a revisão anterior, sem rebuild); o do
+#  banco não é. Então a ordem segura é **migração compatível primeiro, código
+#  depois** — e o passo de migração falhando interrompe a cadeia, que é o
+#  comportamento desejado: *código novo sobre esquema velho é o modo de falha
+#  que a ordem existe para evitar*.
+#
+#  Quem aplica a migração é **o próprio workflow**. A alternativa era comando
+#  manual antes do merge, recusada pelo mesmo motivo das ADR-0001 e 0003: com
+#  ela, a ordem segura passa a depender de alguém lembrar.
+# =============================================================================
+
+name: entrega
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Um deploy por vez. Sem isso, dois merges próximos podem migrar o banco em
+# ordem e publicar fora de ordem.
+concurrency:
+  group: entrega-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGEM: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1 · Verificar. Roda em push E em pull request: falha bloqueia merge
+  #     (arquitetura.md §7).
+  # ---------------------------------------------------------------------------
+  verificar:
+    name: Verificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # **Postgres nu, e não a pilha inteira do provedor.** O que o teste do
+      # critério A4 mede é a consulta que vai ao banco, não o servidor de
+      # autenticação — e subir a pilha do provedor custaria mais de um minuto
+      # em toda execução, num pipeline que vai ser pago dezenas de vezes nas
+      # próximas cinco semanas. O `auth.users` de que a FK depende vem do shim
+      # declarado em `testes/integracao/esquema-de-auth.sql`, cujo risco está
+      # escrito lá — e que a migração de produção, no job seguinte, fecha.
+      banco:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: resolveai_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # --- Qualidade do código (DoD) -------------------------------------
+      - name: lint — as regras de fronteira da ADR-0006
+        run: npm run lint
+
+      - name: verificação de tipos
+        run: npm run tipos
+
+      # --- Testes (DoD) --------------------------------------------------
+      - name: teste unitário — domínio e aplicação, sem banco
+        run: npm run teste
+
+      - name: teste de integração — critério A4, organização A não vê dado de B
+        run: npm run teste:integracao
+        env:
+          BANCO_URL_TESTE: postgresql://postgres:postgres@127.0.0.1:5432/resolveai_teste
+
+      # --- Documentação (DoD) --------------------------------------------
+      # Os três verificadores. Falham o build: a §15 do contrato e o DoD
+      # dependem deles.
+      - name: verificador de diagrama — com controle diferencial
+        run: npm run verificar:mermaid
+
+      - name: verificador de contrato — as três regras mecânicas da §15
+        run: npm run verificar:openapi
+
+      - name: verificador de links e referências
+        run: npm run verificar:referencias
+
+      # --- E o build tem de passar antes de valer a pena construir imagem --
+      - name: build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 2 · Migrar. **Antes do deploy, e antes até de construir a imagem.**
+  # ---------------------------------------------------------------------------
+  migrar:
+    name: Migrar o banco
+    needs: verificar
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: aplicar as migrações versionadas
+        # A migração é aplicada **ao projeto Supabase de verdade**, com o
+        # `auth.users` de verdade. É isto que fecha o risco do shim do job
+        # anterior: se a migração mentir contra a tabela do provedor, a esteira
+        # para aqui, antes de qualquer deploy.
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          supabase db push
+
+  # ---------------------------------------------------------------------------
+  # 3 · Construir e publicar a imagem no ghcr.io.
+  # ---------------------------------------------------------------------------
+  publicar:
+    name: Publicar a imagem
+    needs: migrar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      # O `GITHUB_TOKEN` do Actions já autentica no ghcr.io — sem recurso nem
+      # segredo novo. Foi um dos argumentos que recusaram o ACR (ADR-0004).
+      packages: write
+
+    outputs:
+      etiqueta: ${{ steps.etiquetas.outputs.etiqueta }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: etiquetas
+        # A etiqueta é o SHA do commit, não `latest`: é o que faz cada revisão
+        # do Container Apps apontar para um artefato identificável, e é o que
+        # torna o rollback uma escolha de revisão em vez de um rebuild.
+        run: echo "etiqueta=${{ env.IMAGEM }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: construir e publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Sem `build-args`. A imagem não recebe configuração em tempo de
+          # build, e ela é pública (ADR-0004).
+          tags: |
+            ${{ steps.etiquetas.outputs.etiqueta }}
+            ${{ env.IMAGEM }}:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # 4 · Publicar a revisão no Azure Container Apps.
+  # ---------------------------------------------------------------------------
+  implantar:
+    name: Implantar no Container Apps
+    needs: publicar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    environment:
+      name: producao
+      url: ${{ steps.endereco.outputs.url }}
+
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: nova revisão com a imagem recém-publicada
+        # **As variáveis de ambiente da aplicação NÃO passam por aqui.** Elas
+        # ficam no próprio Container App, definidas uma vez no provisionamento
+        # (`az containerapp create --env-vars`). Assim os segredos de execução
+        # não precisam existir como segredo do repositório — e o que não está
+        # aqui não pode vazar num log de Actions.
+        run: |
+          az containerapp update \
+            --name "${{ secrets.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ needs.publicar.outputs.etiqueta }}"
+
+      - id: endereco
+        run: |
+          FQDN=$(az containerapp show \
+            --name "${{ secrets.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
+          echo "Publicado em https://$FQDN" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: conferir que a URL pública responde
+        # Não é enfeite: um deploy verde com a aplicação em `CrashLoopBackOff`
+        # é o modo de falha mais comum de container em nuvem, e sem este passo
+        # ele passaria como sucesso. A primeira requisição depois de ociosidade
+        # é justamente o cold start do RNF5, então a espera é generosa.
+        run: |
+          for tentativa in $(seq 1 20); do
+            codigo=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.endereco.outputs.url }}/entrar" || true)
+            echo "tentativa $tentativa: HTTP $codigo"
+            [ "$codigo" = "200" ] && exit 0
+            sleep 6
+          done
+          echo "A URL pública não respondeu 200 em /entrar. Reaponte o tráfego para a revisão anterior."
+          exit 1

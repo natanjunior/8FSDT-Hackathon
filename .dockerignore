@@ -1,0 +1,28 @@
+# --- Nunca entram na imagem -------------------------------------------------
+# A imagem é PÚBLICA (ADR-0004). O que entra numa camada permanece legível mesmo
+# que um `RUN rm` apague depois. Segredo aqui é segredo publicado.
+.env
+.env.*
+!.env.example
+
+.git
+.github
+node_modules
+.next
+npm-debug.log*
+
+# --- Não servem à execução --------------------------------------------------
+docs
+refs
+trabalho
+ferramentas
+supabase/.temp
+supabase/.branches
+testes
+**/*.test.ts
+**/*.test.tsx
+Dockerfile
+docker-compose.yml
+README.md
+CLAUDE.md
+.claude

@@ -1,0 +1,142 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   Vocabulário visual do Resolve Aí
+
+   As cores vêm do protótipo low-fi (`docs/prototipo/telas.html`), que é o único
+   lugar do pacote onde a paleta foi decidida. O protótipo é monoespaçado de
+   propósito — para não se confundir com produto —, e é a única coisa que muda
+   aqui: o texto passa a ser de leitura.
+
+   Escrito uma vez, como o protótipo declara: "duas cópias divergem na primeira
+   alteração, e a divergente é pior que a ausente".
+   ============================================================================ */
+
+:root {
+  --radius: 0.5rem;
+
+  --ground: #f2f2f4;
+  --chrome: #e4e4e8;
+  --surface: #ffffff;
+  --sunken: #f7f7f9;
+  --ink: #1a1a1d;
+  --ink-soft: #5c5c63;
+  --ink-faint: #8b8b93;
+  --line: #d9d9de;
+  --line-soft: #eaeaee;
+  --accent: #b4341f;
+  --accent-bg: #fbeeec;
+
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--chrome);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sunken);
+  --muted-foreground: var(--ink-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--accent);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0e0e11;
+    --chrome: #1a1a1f;
+    --surface: #1c1c21;
+    --sunken: #232329;
+    --ink: #ededf0;
+    --ink-soft: #9a9aa3;
+    --ink-faint: #6e6e78;
+    --line: #35353d;
+    --line-soft: #27272e;
+    --accent: #e8735c;
+    --accent-bg: #30201c;
+
+    --primary: var(--ink);
+    --primary-foreground: #1c1c21;
+    --destructive-foreground: #1c1c21;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0e0e11;
+  --chrome: #1a1a1f;
+  --surface: #1c1c21;
+  --sunken: #232329;
+  --ink: #ededf0;
+  --ink-soft: #9a9aa3;
+  --ink-faint: #6e6e78;
+  --line: #35353d;
+  --line-soft: #27272e;
+  --accent: #e8735c;
+  --accent-bg: #30201c;
+
+  --primary: var(--ink);
+  --primary-foreground: #1c1c21;
+  --destructive-foreground: #1c1c21;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-bg);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-marca: var(--accent);
+  --color-superficie: var(--surface);
+  --color-tinta: var(--ink);
+  --color-tinta-suave: var(--ink-soft);
+  --color-tinta-fraca: var(--ink-faint);
+  --color-linha: var(--line);
+  --color-linha-suave: var(--line-soft);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Compromisso de acessibilidade A-4 do protótipo (§8): foco visível não removido. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

@@ -1,0 +1,41 @@
+# =============================================================================
+#  O cron que a arquitetura.md §9 declarou como mitigação
+#
+#  > **Risco de calendário:** o projeto Supabase free **pausa após 7 dias de
+#  > inatividade**. Se houver demonstração ao vivo, o banco precisa ser acordado
+#  > antes. Mitigação: cron semanal no GitHub Actions.
+#
+#  Ele **não** chama a aplicação. Uma requisição a `/entrar` não toca o banco —
+#  sem cookie, a resolução de contexto recusa antes de qualquer consulta —, e um
+#  cron que não toca o banco não impede a pausa. O que impede é uma consulta, e
+#  é o que este arquivo faz.
+#
+#  Roda de sexta, porque a entrega e as revisões funcionais acontecem no fim de
+#  semana: o banco chega acordado ao dia em que alguém vai olhar.
+# =============================================================================
+
+name: manter o banco acordado
+
+on:
+  schedule:
+    # Sexta, 12:00 UTC — 09:00 em São Paulo.
+    - cron: "0 12 * * 5"
+  workflow_dispatch:
+
+jobs:
+  acordar:
+    name: Acordar o Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: uma consulta trivial, só para haver atividade
+        env:
+          BANCO_URL: ${{ secrets.BANCO_URL }}
+        run: |
+          if [ -z "$BANCO_URL" ]; then
+            echo "::error::BANCO_URL não está cadastrada. Sem ela este cron não protege nada, e a" \
+                 "demonstração pode cair num banco pausado."
+            exit 1
+          fi
+          psql "$BANCO_URL" -Atc "select 'acordado em ' || now();"

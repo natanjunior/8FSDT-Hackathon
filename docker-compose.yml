@@ -1,0 +1,82 @@
+# =============================================================================
+#  Ambiente local — E7 do enunciado
+#
+#  A `arquitetura.md` (§9) define o ambiente local como *"Docker: aplicação +
+#  Supabase CLI (Postgres, Auth, Storage)"*, e é literalmente isso: **este
+#  arquivo sobe a aplicação; o Supabase CLI sobe os serviços de apoio** — que
+#  também são containers, gerenciados por ele.
+#
+#  A divisão não é acidental. Reimplementar Postgres e o servidor de
+#  autenticação aqui produziria um ambiente local que **não é** o de produção:
+#  em produção quem serve o Auth é o Supabase, e um Auth diferente no local é
+#  exatamente o "roda na minha máquina" que esta tarefa existe para não
+#  produzir.
+#
+#  ---------------------------------------------------------------------------
+#   Como subir, do zero
+#  ---------------------------------------------------------------------------
+#
+#    supabase start                      # Postgres + Auth + API do provedor
+#    supabase db reset                   # aplica as migrações
+#    cp .env.example .env.local          # e preencha com o que o start imprimiu
+#    docker compose up --build           # a aplicação, no MESMO Dockerfile
+#
+#  Depois: http://localhost:3000
+#
+#  O procedimento completo, com o que conferir a cada passo, está no README.
+# =============================================================================
+
+services:
+  aplicacao:
+    build:
+      context: .
+      # **Sem `args`.** A imagem não recebe configuração em tempo de build
+      # (ADR-0004: ela é pública). Se um dia aparecer um `args` aqui, é
+      # regressão — não conveniência.
+      dockerfile: Dockerfile
+    image: resolve-ai:local
+    container_name: resolve-ai
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    # As quatro variáveis chegam em tempo de execução, do arquivo que o git
+    # ignora. Nenhuma delas está na imagem.
+    env_file:
+      - .env.local
+
+    # **Só `NODE_ENV` aqui, e a razão custou depuração de verdade.**
+    #
+    # `environment:` tem precedência sobre `env_file:` no Compose. A primeira
+    # versão deste arquivo trazia `SUPABASE_URL` e `BANCO_URL` aqui, com um
+    # `${VAR:-padrão}` "para ajudar" — e o padrão **sobrescreveu em silêncio** o
+    # valor do `.env.local`, porque a interpolação lê o ambiente do shell (ou o
+    # `.env` do Compose), nunca o `env_file`. O container subiu **saudável**,
+    # servindo `/entrar` com `200`, apontando para uma porta que não existia
+    # mais; a falha só apareceu na primeira requisição que precisava do
+    # provedor — e apareceu como `401`, que é indistinguível de credencial
+    # errada.
+    #
+    # Regra que fica: **as quatro variáveis da aplicação vivem em um lugar só.**
+    environment:
+      NODE_ENV: production
+
+    # Dentro do container, `127.0.0.1` é o próprio container — não a máquina. O
+    # `.env.local` aponta para `host.docker.internal`, e este mapeamento o torna
+    # resolvível também em Linux, onde ele não existe nativamente.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # O mesmo `/entrar` do HEALTHCHECK da imagem — declarado aqui só para que
+    # `docker compose ps` mostre o estado sem precisar inspecionar a imagem.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/entrar').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3

@@ -1,0 +1,45 @@
+import { fileURLToPath } from "node:url";
+
+import { defineConfig } from "vitest/config";
+
+/**
+ * Vitest — a ferramenta que a `arquitetura.md` (Parte II, §2 e §7) escolheu, por um motivo concreto: *"o
+ * RNF2 e a máquina de estados testáveis **sem banco**, em milissegundos"*.
+ *
+ * O apelido `@/` é o mesmo do `tsconfig.json`: sem ele o teste importaria por caminho relativo, e a regra de
+ * fronteira do lint — que lê o especificador do `import` — deixaria de valer dentro de `testes/`.
+ *
+ * **Dois projetos, e a separação é a da §7.** `unitario` roda em qualquer clone, sem nada instalado.
+ * `integracao` exige Postgres, e é onde vive o teste do critério A4 — *organização A não vê dado de B* —,
+ * que **não pode** ser feito em memória: o que ele mede é a consulta que vai ao banco. Os dois rodam no
+ * pipeline; só o primeiro está no `npm run teste`, que é o laço curto de quem implementa.
+ */
+const apelido = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
+
+export default defineConfig({
+  resolve: { alias: apelido },
+  test: {
+    // Uma suíte vazia é indistinguível de uma suíte que não roda.
+    passWithNoTests: false,
+    projects: [
+      {
+        resolve: { alias: apelido },
+        test: {
+          name: "unitario",
+          include: ["testes/dominio/**/*.test.ts", "testes/aplicacao/**/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        resolve: { alias: apelido },
+        test: {
+          name: "integracao",
+          include: ["testes/integracao/**/*.test.ts"],
+          environment: "node",
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
+    ],
+  },
+});

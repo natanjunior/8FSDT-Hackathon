@@ -1,0 +1,5 @@
+# Trabalho acadêmico da pós-graduação em Full Stack Development da FIAP.
+# Não há razão para indexar: o produto só serve a quem tem vínculo numa
+# organização, e a tela pública é o formulário de entrar.
+User-agent: *
+Disallow: /

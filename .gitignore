@@ -14,6 +14,8 @@ trabalho/
 
 # --- Ferramentas locais ------------------------------------------------------
 .claude/settings.local.json
+.eslintcache
+.tmp/
 
 # --- Sistema operacional -----------------------------------------------------
 .DS_Store
@@ -21,4 +23,8 @@ Thumbs.db
 desktop.ini
 
 # --- Build e dependências ----------------------------------------------------
-# A completar quando a stack for decidida.
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo

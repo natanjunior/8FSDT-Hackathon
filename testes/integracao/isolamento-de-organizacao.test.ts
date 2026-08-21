@@ -1,0 +1,365 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { ConsultaSemEscopo, escoparConsulta } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeVinculos, repositorioGlobalDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
+
+/**
+ * ============================================================================
+ *  O critério A4 — **nenhum dado atravessa organizações**
+ * ============================================================================
+ *
+ * A `arquitetura.md` (tópico 10) não pede só o teste: pede o **cenário certo**.
+ *
+ * > Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa
+ * > vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não
+ * > detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte
+ * > dela.
+ *
+ * É o que este arquivo semeia, e por isso ele não pode ser feito em memória: o que está sob teste é a
+ * consulta que vai ao banco.
+ *
+ * **Ele também é o teste que o Definition of Done cobra por outro caminho:** *"consulta que envolva pessoas
+ * parte de `vinculos`, nunca de `pessoas`… a regra de lint não alcança este caso, porque a consulta é
+ * legítima: ela apenas parte da tabela errada. A defesa é teste."*
+ */
+
+const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+
+/**
+ * Sufixo de execução para os e-mails das credenciais.
+ *
+ * **É o contrato do provedor aparecendo de novo:** `auth.users` tem índice único parcial em `email`, e as
+ * nossas três tabelas são derrubadas e recriadas em cada execução — mas `auth.users` **não é nossa para
+ * derrubar**. Sem o sufixo, a segunda execução contra o mesmo banco colide com as credenciais da primeira.
+ *
+ * A alternativa era apagar linhas de `auth.users` no início, e ela foi recusada: contra o Supabase local
+ * essa tabela guarda as contas de quem está desenvolvendo. Sufixo por execução não destrói nada, e o
+ * `afterAll` recolhe o que esta execução criou.
+ */
+const SUFIXO = `${Date.now()}`;
+const emailDeTeste = (quem: string) => `${quem}-${SUFIXO}@exemplo.test`;
+
+const RECANTO = { nome: "Condomínio Recanto Azul", codigo: "RECANTO7" };
+const AURORA = { nome: "Edifício Aurora", codigo: "AURORA22" };
+
+let pool: Pool;
+let consulta: <L extends object>(sql: string, valores?: readonly unknown[]) => Promise<L[]>;
+let idRecanto: string;
+let idAurora: string;
+let idSindica: string;
+let idMoradora: string;
+
+beforeAll(async () => {
+  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
+    throw new Error(
+      "BANCO_URL_TESTE não definida. Este teste exige Postgres — é o critério A4, e ele mede a consulta " +
+        "que vai ao banco. Suba com `docker compose up banco` e rode `npm run teste:integracao`.",
+    );
+  }
+
+  pool = new Pool({ connectionString: URL_DO_BANCO, max: 4 });
+  consulta = async <L extends object>(sql: string, valores: readonly unknown[] = []) =>
+    (await pool.query(sql, valores as unknown[])).rows as L[];
+
+  await aplicarEsquema();
+  await semear();
+});
+
+afterAll(async () => {
+  if (pool !== undefined) {
+    // Recolhe só o que ESTA execução criou. `pessoas.usuario_id` é `on delete set null`, então apagar a
+    // credencial não apaga a Pessoa — é o mecanismo do RNF10 sendo exercido de graça.
+    await consulta(`delete from auth.users where email like $1`, [`%-${SUFIXO}@exemplo.test`]).catch(
+      () => undefined,
+    );
+    await pool.end();
+  }
+});
+
+// ---------------------------------------------------------------------------
+
+describe("o repositório escopado nunca devolve linha de outra organização", () => {
+  it("a mesma Pessoa está nas duas organizações — o cenário que detecta o vazamento", async () => {
+    const globais = repositorioGlobalDeVinculos(consulta);
+    const daSindica = await globais.ativosDaPessoa(idSindica);
+
+    expect(daSindica).toHaveLength(2);
+    // O repositório ordena por nome de organização (`order by o.nome`), e o `collation` do banco põe
+    // "Condomínio" antes de "Edifício".
+    expect(daSindica.map((v) => v.organizacao.nome)).toStrictEqual([RECANTO.nome, AURORA.nome]);
+  });
+
+  it("escopado em Recanto, vê só quem é de Recanto", async () => {
+    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idRecanto));
+    const ativos = await repos.ativos();
+
+    expect(ativos.map((a) => a.pessoa.pessoaId).sort()).toEqual([idMoradora, idSindica].sort());
+    for (const ativo of ativos) {
+      expect(ativo.vinculo.organizacaoId).toBe(idRecanto);
+    }
+  });
+
+  /**
+   * **O teste que importa.** Em Aurora a síndica é `solicitante`; em Recanto é `gestor`. Se o escopo
+   * vazasse, a moradora de Recanto apareceria aqui — e o papel da síndica sairia errado.
+   */
+  it("escopado em Aurora, NÃO vê a moradora de Recanto, e o papel é o de Aurora", async () => {
+    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idAurora));
+    const ativos = await repos.ativos();
+
+    expect(ativos).toHaveLength(1);
+    expect(ativos[0]?.pessoa.pessoaId).toBe(idSindica);
+    expect(ativos[0]?.vinculo.papel).toBe("solicitante");
+    expect(ativos.map((a) => a.pessoa.pessoaId)).not.toContain(idMoradora);
+  });
+
+  it("vínculo revogado desaparece da leitura, sem apagar a linha", async () => {
+    await consulta(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [idMoradora, idRecanto],
+    );
+
+    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idRecanto));
+    expect((await repos.ativos()).map((a) => a.pessoa.pessoaId)).toEqual([idSindica]);
+
+    // A linha continua lá — é o que mantém as FKs compostas válidas para a trilha (modelo §6.4).
+    const linhas = await consulta<{ contagem: string }>(
+      `select count(*) as contagem from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [idMoradora, idRecanto],
+    );
+    expect(linhas[0]?.contagem).toBe("1");
+
+    await consulta(`update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`, [
+      idMoradora,
+      idRecanto,
+    ]);
+  });
+});
+
+describe("o ponto de estrangulamento recusa consulta sem escopo", () => {
+  it("consulta escopada que não referencia $1 é recusada, com erro nomeado", () => {
+    const escopada = escoparConsulta(consulta, idRecanto);
+    expect(() => escopada(`select 1 from vinculos`)).toThrow(ConsultaSemEscopo);
+  });
+
+  it("o repositório escopado não recebe o identificador da organização — ele não tem como errar o filtro", () => {
+    // A assinatura é a garantia: `repositorioEscopadoDeVinculos` recebe uma função, não um uuid. É a
+    // ADR-0003 levada à assinatura — *o filtro é aplicado em uma função*.
+    expect(repositorioEscopadoDeVinculos.length).toBe(1);
+  });
+});
+
+describe("a resolução da Pessoa é idempotente no banco, não numa checagem", () => {
+  it("garantirParaUsuario chamado duas vezes devolve a mesma Pessoa", async () => {
+    const usuarioId = await criarUsuario(emailDeTeste("recem"));
+    const pessoas = repositorioDePessoas(consulta);
+
+    const primeira = await pessoas.garantirParaUsuario(usuarioId, "Helena Rocha");
+    const segunda = await pessoas.garantirParaUsuario(usuarioId, "Outro Nome Qualquer");
+
+    expect(segunda.pessoaId).toBe(primeira.pessoaId);
+    // O nome gravado é o da primeira: o `do update` é no-op de propósito.
+    expect(segunda.nome).toBe("Helena Rocha");
+  });
+
+  it("porUsuario devolve null para conta sem Pessoa, em vez de lançar", async () => {
+    const usuarioId = await criarUsuario(emailDeTeste("nunca-usou"));
+    expect(await repositorioDePessoas(consulta).porUsuario(usuarioId)).toBeNull();
+  });
+});
+
+describe("as invariantes que o banco garante", () => {
+  it("recusa código público fora do formato do cartaz de elevador", async () => {
+    await expect(
+      consulta(`insert into organizacoes (nome, codigo_publico) values ('X', 'minusculo')`),
+    ).rejects.toThrow(/organizacoes_codigo_publico_ck/u);
+  });
+
+  it("recusa duas organizações com o mesmo código público", async () => {
+    await expect(
+      consulta(`insert into organizacoes (nome, codigo_publico) values ('Outro', $1)`, [RECANTO.codigo]),
+    ).rejects.toThrow(/organizacoes_codigo_publico_uk/u);
+  });
+
+  it("recusa dois vínculos da mesma Pessoa na mesma Organização", async () => {
+    await expect(
+      consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+        idSindica,
+        idRecanto,
+      ]),
+    ).rejects.toThrow(/vinculos_pk/u);
+  });
+
+  it("recusa duas Pessoas para o mesmo Usuário, e aceita N Pessoas sem Usuário", async () => {
+    const usuarioId = await criarUsuario(emailDeTeste("duplicado"));
+    await consulta(`insert into pessoas (usuario_id, nome) values ($1, 'Primeira')`, [usuarioId]);
+
+    await expect(
+      consulta(`insert into pessoas (usuario_id, nome) values ($1, 'Segunda')`, [usuarioId]),
+    ).rejects.toThrow(/pessoas_usuario_uk/u);
+
+    // NULLs são distintos entre si num índice único: N pessoas sem conta convivem (modelo §6.2).
+    await consulta(`insert into pessoas (nome) values ('Encarregado sem conta A')`);
+    await consulta(`insert into pessoas (nome) values ('Encarregado sem conta B')`);
+  });
+
+  it("recusa Pessoa anonimizada que ainda tem conta", async () => {
+    const usuarioId = await criarUsuario(emailDeTeste("anonimizar"));
+    await expect(
+      consulta(`insert into pessoas (usuario_id, nome, anonimizada_em) values ($1, 'X', now())`, [
+        usuarioId,
+      ]),
+    ).rejects.toThrow(/pessoas_anonimizada_sem_conta_ck/u);
+  });
+
+  /**
+   * A FK diferida do ovo-e-galinha (modelo §6.3): a organização entra **antes** do vínculo, e a verificação
+   * acontece no `COMMIT`. Fora de transação, o `INSERT` da organização com criador falharia.
+   */
+  it("a FK de `criada_por_pessoa_id` é diferida: organização e vínculo entram na mesma transação", async () => {
+    const cliente = await pool.connect();
+    try {
+      await cliente.query("begin");
+      const usuarioId = (
+        await cliente.query<{ id: string }>(
+          `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+          [emailDeTeste("fundadora")],
+        )
+      ).rows[0]!.id;
+      const pessoaId = (
+        await cliente.query<{ id: string }>(
+          `insert into pessoas (usuario_id, nome) values ($1, 'Fundadora') returning id`,
+          [usuarioId],
+        )
+      ).rows[0]!.id;
+      const organizacaoId = (
+        await cliente.query<{ id: string }>(
+          `insert into organizacoes (nome, codigo_publico, criada_por_pessoa_id)
+                values ('Bairro Novo', 'BAIRRO01', $1) returning id`,
+          [pessoaId],
+        )
+      ).rows[0]!.id;
+      await cliente.query(
+        `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+        [pessoaId, organizacaoId],
+      );
+      await cliente.query("commit");
+    } catch (erro) {
+      await cliente.query("rollback");
+      throw erro;
+    } finally {
+      cliente.release();
+    }
+  });
+
+  it("... e recusa no COMMIT quando o vínculo do criador não chega", async () => {
+    const cliente = await pool.connect();
+    try {
+      await cliente.query("begin");
+      await cliente.query(
+        `insert into organizacoes (nome, codigo_publico, criada_por_pessoa_id)
+              values ('Sem Gestor', 'SEMGES01', $1)`,
+        [idSindica],
+      );
+      await expect(cliente.query("commit")).rejects.toThrow(
+        /organizacoes_criada_por_vinculo_fk/u,
+      );
+    } finally {
+      await cliente.query("rollback").catch(() => undefined);
+      cliente.release();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+async function aplicarEsquema(): Promise<void> {
+  const raiz = new URL("../../", import.meta.url);
+  const shim = readFileSync(fileURLToPath(new URL("testes/integracao/esquema-de-auth.sql", raiz)), "utf8");
+  const migracao = readFileSync(
+    fileURLToPath(
+      new URL("supabase/migrations/20260821120000_001_pessoas_organizacoes_vinculos.sql", raiz),
+    ),
+    "utf8",
+  );
+
+  // Estado limpo em toda execução: o teste não pode depender do que a execução anterior deixou.
+  //
+  // **O schema `auth` NUNCA é derrubado.** Contra o Postgres do Supabase CLI ele é o do provedor, com as
+  // contas de verdade — e um `drop schema auth cascade` aqui apagaria o login de quem está desenvolvendo.
+  // O shim é `create ... if not exists`, então contra o Supabase local ele é um no-op, e contra o Postgres
+  // nu do CI ele cria as duas colunas de que a FK depende.
+  await consulta(`drop table if exists vinculos, organizacoes, pessoas cascade`);
+  await consulta(`drop type if exists papel_vinculo`);
+
+  await consulta(shim);
+  await consulta(migracao);
+}
+
+/**
+ * Cria uma credencial na tabela do provedor.
+ *
+ * **O `id` é fornecido, não gerado pelo banco**, e isso é o contrato do provedor aparecendo: em
+ * `auth.users` a chave primária **não tem `default`** — quem a gera é o servidor de autenticação. O shim de
+ * CI declara um `default gen_random_uuid()` por conveniência, e esta função não depende dele justamente para
+ * que o teste rode igual nos dois ambientes.
+ */
+async function criarUsuario(email: string): Promise<string> {
+  const linhas = await consulta<{ id: string }>(
+    `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+    [email],
+  );
+  return linhas[0]!.id;
+}
+
+async function semear(): Promise<void> {
+  idRecanto = (
+    await consulta<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [RECANTO.nome, RECANTO.codigo],
+    )
+  )[0]!.id;
+
+  idAurora = (
+    await consulta<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [AURORA.nome, AURORA.codigo],
+    )
+  )[0]!.id;
+
+  const usuarioSindica = await criarUsuario(emailDeTeste("sindica"));
+  const usuarioMoradora = await criarUsuario(emailDeTeste("moradora"));
+
+  idSindica = (
+    await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, 'Síndica profissional') returning id`,
+      [usuarioSindica],
+    )
+  )[0]!.id;
+
+  idMoradora = (
+    await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, 'Moradora do Recanto') returning id`,
+      [usuarioMoradora],
+    )
+  )[0]!.id;
+
+  // **A Persona 1B**: a mesma Pessoa nas duas organizações, com papéis diferentes.
+  await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`, [
+    idSindica,
+    idRecanto,
+  ]);
+  await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+    idSindica,
+    idAurora,
+  ]);
+  await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+    idMoradora,
+    idRecanto,
+  ]);
+}
