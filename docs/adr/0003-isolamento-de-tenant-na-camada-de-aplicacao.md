@@ -41,6 +41,23 @@ O que torna isso estrangulamento e não boa intenção: **nada fora da camada de
 cliente de banco**, garantido por **regra de lint** — mecânica, não disciplinar. É a mesma lógica da
 ADR-0001.
 
+> **Emenda de 21/08/2026 — `repos(ctx)` é recebido, não construído.** Como esta decisão foi escrita,
+> `repos(ctx)` é uma **fábrica chamada de dentro da camada de Aplicação** — ou seja, a camada interna
+> constrói infraestrutura. A [ADR-0005](0005-regra-de-dependencia-por-inversao.md) inverte isso: a
+> Aplicação **declara a porta** e **recebe** o repositório escopado, montado pelo route handler no anel
+> externo. E o que atravessa essa porta é **agregado ou objeto de leitura declarado, nunca linha de
+> banco**.
+>
+> **O isolamento não muda em nada** — continua num ponto único, continua sendo `repos(ctx)` do ponto de
+> vista de quem consulta, e continua sendo o filtro aplicado numa função só. **Muda quem monta.** O que
+> se ganha é o que a §7 da `arquitetura.md` já prometia e não tinha como cumprir: substituir o repositório
+> por um duplo em memória passa a ser **passar outro argumento**, em vez de interceptar um módulo — o que
+> torna provável que o teste de isolamento por consequência exista, que é o argumento 2 desta ADR.
+>
+> Encontrado ao confrontar esta ADR com a disciplina de Clean Architecture da Fase 5 (aula 8, p.8,
+> regra 1). A lacuna era nossa: nenhum documento declarava a interface do repositório, embora a
+> `arquitetura.md` §7 dependesse dela desde que foi escrita.
+
 **RLS é ligada, com outra responsabilidade:** **negar acesso direto do cliente ao banco**, forçando todo
 tráfego pelo servidor. A divisão fica:
 
@@ -120,8 +137,10 @@ Colocar o isolamento no banco criaria duas filosofias no mesmo sistema.
 **Negativas e custos assumidos**
 
 - **A garantia é do código, não do banco.** Um caminho novo que ignore o repositório base vaza. A defesa
-  é a regra de lint; se ela for contornada, a proteção cai. **É o risco mais sério desta decisão** e
-  precisa aparecer no Definition of Done: toda consulta nova passa pelo repositório escopado.
+  passou a ser dupla com a emenda de 21/08: **estrutural** — a Aplicação não tem o que importar para
+  construir uma consulta crua ([ADR-0005](0005-regra-de-dependencia-por-inversao.md)) — e **mecânica**,
+  pela regra de lint, que é o alarme. **Continua sendo o risco mais sério desta decisão** e continua
+  precisando aparecer no Definition of Done: toda consulta nova passa pelo repositório escopado.
 - **Acesso administrativo direto ao banco não tem isolamento nenhum.** Script de migração e consulta
   manual escapam. Aceito num MVP acadêmico; num produto real exigiria RLS completa.
 - **Trocar de organização é operação explícita de sessão**, com uma tela ou seletor. É custo de interface

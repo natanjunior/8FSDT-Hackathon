@@ -31,6 +31,12 @@ disciplina, a citação vem como `aula N, p.X`.
 | [0002](0002-stack-e-plataforma.md) | Next.js com PWA, APIs próprias, Vercel e Supabase | **Parcialmente substituída pela 0004** |
 | [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação; RLS como defesa em profundidade | Aceita |
 | [0004](0004-execucao-em-container-no-azure.md) | Execução em container no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
+| [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão; o lint é a verificação | Aceita |
+| [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
 | [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Aceita |
 
-> **0005 e 0006 estão reservadas** para as decisões de estrutura interna do código — a regra de dependência e a organização de módulos —, em redação no momento em que a 0007 foi aceita.
+> **A 0005 e a 0006 são as duas decisões de estrutura interna do código**, escritas em 21/08/2026 ao
+> confrontar o pacote com a disciplina de **Clean Architecture da Fase 5**. As duas são a primeira vez em
+> que a documentação cita essa disciplina: até então, onze documentos citavam DDD (Fase 1) e Banco de
+> Dados (Fase 2), e nenhum citava a fase que está sendo entregue. **Quando uma ADR se apoiar no material
+> da Fase 5, a citação vem como `aula N, p.X` — e, quando vier da fala, `aula N, transcrição NN`.**

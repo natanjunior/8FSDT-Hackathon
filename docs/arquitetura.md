@@ -215,7 +215,23 @@ não se perde: "voltou a acontecer" é **recorrência**, o indicador central da 
 **Comandos que não transicionam:** `alterarPrioridade` · `atribuirResponsavel` · `reatribuir` ·
 `recusarAtribuicao` · `reportarExecucaoConcluida` · `registrarSolucaoAplicada` · `avaliar` · `aderir`.
 
-### Invariantes do agregado
+### Invariantes
+
+**As oito primeiras são do agregado** — dependem só do estado da própria `Ocorrência`, e por isso são
+testáveis sem banco. **As duas últimas são do comando de aplicação**, porque atravessam outra tabela no
+momento em que o comando roda. A numeração é estável e não muda: `invariante 9` continua sendo a mesma
+coisa em todos os documentos que a citam.
+
+> **Por que a distinção existe.** A Clean Architecture da Fase 5 dá o critério (aula 3, p.8–9): regra que
+> depende **do estado do próprio objeto** fica na entidade; regra que **coordena vários objetos** é do caso
+> de uso — *"essas informações não estão definidas nas entidades, porque não estão relacionadas diretamente
+> ao estado delas, e sim a uma regra complexa definida como um Caso de Uso"*. O `modelo-de-dados.md` §8.2
+> já classificava as invariantes 9 e 10 como *"garantidas pela aplicação"*, com a razão certa — *"atravessa
+> duas tabelas no momento do comando"* e *"depende de configuração de outra tabela"*. Os dois documentos
+> estavam certos em separado e discordavam sobre a mesma linha. **Esta é a linha que os concilia**, e não
+> muda comportamento nenhum: muda onde o teste procura a regra.
+
+**Do agregado** — dependem só do estado da própria `Ocorrência`:
 
 1. `status` **nunca** é escrito de fora — a única porta são os comandos acima.
 2. Toda transição produz **exatamente um** `HistoricoTransicao`, na mesma operação. Não existe transição
@@ -228,16 +244,22 @@ não se perde: "voltou a acontecer" é **recorrência**, o indicador central da 
 6. `retomar` usa o `status anterior` do registro de pausa como alvo — **não há campo extra para isso**.
 7. `prioridade` é imutável em `Resolvida` e `Cancelada` (D6), para que o dashboard seja reproduzível.
 8. `avaliar` só é aceito em `Resolvida`, e só do Solicitante autor.
+
+**Do comando de aplicação** — atravessam outra tabela, e por isso não cabem no agregado:
+
 9. **`iniciarAtendimento` exige responsável atribuído** (D21), com auto-atribuição em um clique — "quem
-   está fazendo" é exatamente o que o Gestor não sabe hoje.
+   está fazendo" é exatamente o que o Gestor não sabe hoje. Depende de `atribuicoes`.
 10. **`resolver` não exige solução aplicada por regra do sistema** (D22): ela é induzida por UX, com um
-    interruptor por organização para quem precisar exigir.
+    interruptor por organização para quem precisar exigir. Depende da configuração da `Organização`.
 
 ## 5. As quatro camadas e a regra de dependência
 
-Camadas da aula 5 (p.5–7), adotadas como **organização e regra de dependência** — não como discussão
-arquitetural. O professor autoriza simplificar: *"em algumas arquiteturas, essa camada [Aplicação] não
-existe, ela é integrada à camada de interface de usuário"* (p.5).
+> **Convenção de citação, válida nesta seção.** Aqui convivem duas disciplinas com aulas de mesmo número.
+> **`DDD aula N`** é a Fase 1; **`CA aula N`** é Clean Architecture, da Fase 5. No resto do documento,
+> `aula N` sem prefixo continua sendo DDD.
+
+Camadas do **DDD aula 5 (p.5–7)**, adotadas como **organização e regra de dependência** — não como
+discussão arquitetural.
 
 | Camada | O que pode | O que **não** pode |
 |---|---|---|
@@ -248,8 +270,162 @@ existe, ela é integrada à camada de interface de usuário"* (p.5).
 
 **Esta é a regra que protege a ADR-0001.** Se o Domínio não persiste e a Aplicação não tem regra, a
 lógica de transição não pode vazar para o handler nem para o repositório — que é exatamente onde ela vaza
-sob pressão de prazo. **Garantida por regra de lint**, não por disciplina: nada fora da Infraestrutura
-importa o cliente de banco.
+sob pressão de prazo.
+
+> **Uma permissão do material que não exercemos.** O DDD aula 5 (p.5) autoriza simplificar: *"em algumas
+> arquiteturas, essa camada [Aplicação] não existe, ela é integrada à camada de interface de usuário"*.
+> **Aqui ela não é exercível**, e a razão está na §5 do contrato de API: existem **dois transportes** para
+> a mesma leitura — o route handler e o Server Component —, e por isso a autorização vive no serviço de
+> aplicação, não no handler. *"Se a checagem estivesse no handler, a estrada direta a contornaria, e a
+> decisão inteira cairia."* A citação está correta; a simplificação é que não cabe neste projeto.
+
+### 5.1 O de-para com os quatro anéis da Clean Architecture
+
+As quatro camadas acima vêm do DDD. A Clean Architecture (Fase 5) tem **quatro anéis com nomes próprios**
+— `Entities` · `Use Cases` · `Interface Adapters` (Controllers, Gateways, Presenters) · `Frameworks &
+Drivers` —, e o mapeamento **não é um para um**. A diferença está **nas duas pontas**:
+
+| Nossa camada | Anel(éis) da Clean Architecture | O que a fusão esconde |
+|---|---|---|
+| **Interface** | `Frameworks & Drivers` (o `route.ts` — *"é nesta camada que fazemos a implementação das rotas da nossa API"*, CA aula 5, p.6) **+** `Interface Adapters` na metade de entrada | O route handler **não é adaptador**: é o anel mais externo. O *Controller* da Clean Architecture é outro objeto, e **não existe como objeto no nosso desenho** — o trabalho dele está dividido entre o handler e a função de aplicação |
+| **Aplicação** | `Use Cases` | Nada. Mapeia bem |
+| **Domínio** | `Entities` | Nada de estrutural. Ver a ressalva sobre "agregado", abaixo |
+| **Infraestrutura** | `Interface Adapters` (o **Gateway**) **+** `Frameworks & Drivers` (cliente de banco, ORM, storage) | **É a fusão que custava.** Nada obrigava o repositório a devolver **agregado** em vez de **linha** — o vazamento que a CA aula 3 (p.6–7) chama de *"erro estrutural"*. Fechado pela [ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md) |
+
+**Por que não renomeamos.** Trocar `Interface` e `Infraestrutura` pelos nomes dos anéis atingiria
+referências cruzadas em `contrato-de-api.md`, `modelo-de-dados.md`, `definition-of-done.md`,
+`fluxos-e-diagramas.md`, `inventario-de-telas.md` e na ADR-0003. **O custo de renomear é maior que o de
+explicar** — e o vocabulário atual tem a virtude de vir da mesma disciplina de onde vem o resto do
+vocabulário do projeto. O que a distinção exigia era uma **regra**, não um nome, e a regra está na §5.2. A
+[ADR-0006](adr/0006-organizacao-de-modulos.md) torna as duas fusões visíveis na árvore de diretórios, sem
+renomear camada nenhuma.
+
+> **"Agregado" não existe na Clean Architecture.** Ela tem `Entities` e `Use Cases`, e **nada entre os
+> dois**. Nosso `Ocorrência` é agregado pelo DDD (aula 5, p.9), e o termo sustenta o glossário, a ADR-0001,
+> o modelo de dados e duas ADRs. **Mantemos o termo** — e registramos que a ausência é lacuna da disciplina
+> da Fase 5, não excesso nosso. A CA aula 3 (p.8–9 e transcrição 01) dá cobertura ao conceito sem o nome:
+> regra sobre o próprio estado fica na entidade (*"uma venda zerada não existe... é responsabilidade da
+> venda cuidar disso"*); regra que coordena vários objetos sobe para o caso de uso.
+
+### 5.2 A regra de dependência: inversão é a estrutura, lint é o alarme
+
+> **A camada que consome um recurso externo declara a interface; a camada externa implementa e entrega.
+> Nenhuma camada interna constrói infraestrutura.**
+
+É a regra 1 da **CA aula 8, p.8**: *"os componentes internos devem sempre definir uma interface para
+'receber' este componente externo"*. Decidida na
+[ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md), com três consequências:
+
+1. **A porta é da Aplicação.** Ela declara a interface do repositório; a Infraestrutura a implementa. O
+   **Domínio não declara porta nenhuma** — ele não persiste, e quem carrega o agregado é a Aplicação.
+2. **A montagem é do anel externo.** O route handler constrói o cliente, monta o repositório escopado e o
+   entrega. Nenhuma função de aplicação chama fábrica de infraestrutura.
+3. **O que atravessa a porta é agregado ou objeto de leitura declarado — nunca linha de banco.** O Gateway
+   da CA aula 5 (p.8–9) tem assinatura `obterEstudantePorPessoa(PessoaEntity): EstudanteEntity`: entra
+   entidade, sai entidade.
+
+**E o lint continua, mais estreito:** *nada fora de `infraestrutura/clientes/` importa um SDK* — banco,
+storage ou autenticação. A redação anterior falava só em "cliente de banco" e autorizava uma camada
+inteira; esta autoriza **um diretório** e cobre os três SDKs.
+
+**Por que as duas coisas, e não uma.** São garantias de naturezas diferentes: a **inversão é estrutura** —
+a camada interna não tem o que importar; o **lint é alarme** — avisa quando alguém reintroduz o que a
+estrutura tirou. O lint sozinho não alcança três casos que a ADR-0005 enumera, e o Definition of Done já
+registra um quarto que ele não alcança (a consulta que parte de `pessoas` em vez de `vinculos`). É a mesma
+lógica das ADR-0001 e 0003 — garantia mecânica em vez de boa vontade —, com a garantia primária agora
+sendo estrutural.
+
+### 5.3 A organização de módulos
+
+Decidida na [ADR-0006](adr/0006-organizacao-de-modulos.md): **camada no primeiro nível, agregado no
+segundo**. É a organização da estrutura de referência da CA aula 8 (transcrição 01), com o critério de
+agrupamento por agregado da CA aula 7 (transcrição 02).
+
+```
+app/                              ← Interface, metade externa (imposta pelo Next.js)
+  api/<recurso>/route.ts            traduz HTTP, valida formato, monta e entrega
+  (rotas de tela)/                  as dez telas
+
+src/
+  interface/                      ← Interface, metade adaptadora
+    schemas/                        zod: valida o campo E gera o openapi.yaml
+    projecoes/                      agregado → os formatos de resposta (§5.5)
+  aplicacao/<agregado>/           ← Aplicação: um arquivo por comando, mais portas.ts
+  dominio/<agregado>/             ← Domínio: a raiz, os comandos, as invariantes
+  infraestrutura/
+    repositorios/<agregado>/        implementam as portas; devolvem agregado
+    clientes/                       banco, storage, auth — o único lugar com SDK
+    contexto/                       o ponto único de resolução de escopo (ADR-0003)
+  composicao/                     ← monta o grafo de objetos; não decide regra
+```
+
+**As duas fusões da §5.1 aparecem aqui como diretórios:** `app/` mais `src/interface/` são a camada
+Interface; `infraestrutura/repositorios/` mais `infraestrutura/clientes/` são a camada Infraestrutura. A
+fronteira que a Clean Architecture desenha por dentro delas fica visível **sem renomear camada nenhuma**.
+
+Três regras de importação, e a segunda é a que torna a §5.2 mecânica:
+
+1. **Só para dentro** — `app/` e `src/interface/` → `aplicacao/` → `dominio/`. Nunca ao contrário.
+2. **`infraestrutura/` é importada apenas por `composicao/`.** Nem a Aplicação a importa: ela declara a
+   porta e recebe a implementação.
+3. **Entre módulos da mesma camada, só pela superfície pública** (`index.ts`).
+
+**Módulo novo passa por dois testes** (CA aula 6, p.5): é **útil** — limites e responsabilidade definidos —
+e é **competente** — faz inteiro o que faz. Pasta vazia por simetria falha os dois: dos seis agregados, só
+os que têm comportamento na primeira entrega ganham diretório.
+
+### 5.4 A camada de Aplicação: funções, não objetos de caso de uso
+
+**Cada comando de domínio é uma função**, agrupada por agregado — não uma classe por caso de uso. É a regra
+da **CA aula 4, p.7**:
+
+> *"Os casos de uso podem ser agrupados em classes e módulos/bibliotecas/pacotes... **No caso do uso de uma
+> classe, precisamos implementar isso como um grupo de métodos estáticos, uma vez que os casos de uso devem
+> funcionar de forma independente, sem dividir estado.**"*
+
+Com a única trava da CA aula 7 (transcrição 02): agrupar por agregado, **nunca tudo numa classe só**.
+
+O que isso evita é concreto: são **onze comandos de domínio**, e um objeto por comando multiplicaria a
+cerimônia por onze sem mover decisão nenhuma. E o custo por comando já é baixo por desenho — com a
+ADR-0001 a regra mora no agregado, então a função de aplicação é sempre a mesma sequência: **resolver
+contexto → carregar o agregado pelo repositório escopado → invocar o comando → persistir na mesma unidade
+de trabalho → devolver**.
+
+**Um caso de uso pode chamar outro, de forma explícita** (CA aula 4, p.7). É o que `atribuir-responsavel`
+faz: ele realiza dois comandos, e `Reatribuir` encerra a atribuição vigente antes de criar a nova.
+
+### 5.5 Quem monta a resposta
+
+O contrato de API define **três formatos de ocorrência** (§8.8). Montá-los é trabalho de **projeção**, e
+ele tem dono: a metade adaptadora da camada de Interface, em `src/interface/projecoes/`.
+
+Não é do Domínio — ele não conhece HTTP. E não é do route handler, por duas razões: a tabela acima só lhe
+permite *traduzir HTTP e validar formato*; e **há dois transportes** (contrato §5), então uma projeção que
+morasse no handler não existiria para o Server Component, e as duas estradas deixariam de produzir a mesma
+resposta.
+
+Na Clean Architecture isso é o **Presenter** (CA aula 5, p.8): *"preparar os dados para o retorno ao
+cliente... retornar **no modelo que o cliente consegue entender**"*, e é **só saída**.
+
+**Adotado com a redução que a própria disciplina autoriza.** A CA aula 8 (transcrição 02) dispensa o
+componente quando os dois lados falam a mesma língua: *"eu não estou usando adapter... o cliente conversa
+em JSON nos dois sentidos, e para o TypeScript o JSON é um tipo nativo... **a gente sabe onde precisa
+usar**, mas nesse momento o meu adapter **está implícito**."* É o nosso caso literal. Então: **funções de
+projeção puras, não classes** — o que se adota é o lugar e a responsabilidade, não a cerimônia.
+
+### 5.6 Onde o SOLID aparece
+
+A Clean Architecture apresenta o SOLID como *"a base para toda essa arquitetura"* (CA aula 8, p.10). As
+decisões deste projeto já o aplicam; esta tabela é o rastro, para que a correspondência seja verificável em
+vez de alegada.
+
+| Princípio | Onde já está | Decisão |
+|---|---|---|
+| **S** — responsabilidade única *"um único motivo para mudar"* (CA aula 1, p.7) | A tabela de camadas, e sobretudo a coluna **"o que não pode"** — é ela que dá o motivo único a cada camada | §5 |
+| **O** — aberto-fechado (CA aula 1, p.8) | Entrega de notificação **plugável**: a POL-07 é o único ponto que consulta o plano comercial, e um canal novo entra por trás dela sem alterar quem a chama | §6 |
+| **L** — substituição de Liskov (CA aula 1, p.8) | O **repositório em memória** substituindo o real nos testes de aplicação. É o princípio no seu uso literal, e é o que a ADR-0005 tornou possível | §7 · ADR-0005 |
+| **I** — segregação de interface, *"referir-se ao comportamento, não à forma"* (CA aula 1, p.9) | As checagens perguntam **`vinculo.pode(X)`**, nunca `vinculo.papel == GESTOR` — depende-se do comportamento autorizado, não do papel concreto | Tópico 5 · contrato §4.5 |
+| **D** — inversão de dependência (CA aula 1, p.9) | O ponto único de escopo **recebe** o contexto resolvido em vez de descobri-lo, e a Aplicação **recebe** o repositório em vez de fabricá-lo | ADR-0003 · ADR-0005 |
 
 ---
 
@@ -423,10 +599,10 @@ Plano organizado pelo que cada tipo **protege**, e não por meta de cobertura.
 | Tipo | O que protege | Ferramenta | Sem banco? |
 |---|---|---|---|
 | **Unitário de domínio** | A máquina de estados e a invariante de auditoria: toda transição gera exatamente um registro; transição ilegal é rejeitada; `retomar` volta ao `status anterior` | Vitest | **Sim** |
-| **Unitário de aplicação** | Autorização por comando: quem pode cancelar em cada estado (D12), quem pode resolver | Vitest | Sim (repositório em memória) |
+| **Unitário de aplicação** | Autorização por comando: quem pode cancelar em cada estado (D12), quem pode resolver. E as **invariantes 9 e 10** (Parte I, §4), que atravessam outra tabela e por isso não cabem no teste de domínio | Vitest | Sim (repositório em memória, substituído **pela porta** — [ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md), não por *mock* de módulo) |
 | **Integração de repositório** | **O ponto único de isolamento (RNF1)**: consulta em nome da organização A **nunca** retorna dado de B | Vitest + Postgres do Supabase CLI | Não |
 | **Ponta a ponta** | Caminho crítico: registrar → analisar → atribuir → atender → resolver → avaliar, com histórico conferido na interface | Playwright | Não |
-| **Verificação de fronteira** | A regra de dependência (Parte I, §5): nada fora da Infraestrutura importa o cliente de banco | ESLint | — |
+| **Verificação de fronteira** | A regra de dependência (Parte I, §5.2): **nada fora de `infraestrutura/clientes/` importa um SDK** — banco, storage ou autenticação —, e `infraestrutura/` só é importada por `composicao/`. É o **alarme**; a garantia é estrutural (ADR-0005) | ESLint | — |
 | **Verificação de contrato** | Que `docs/api/openapi.yaml` corresponda aos schemas de validação, e que as três regras mecânicas da §15 do contrato passem | Passo do pipeline | — |
 | **Verificação de diagrama** | Que todo bloco Mermaid do repositório tenha sintaxe válida — diagrama que não renderiza é documentação que não existe | `mermaid.parse()` sobre os blocos, em Node | — |
 

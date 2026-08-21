@@ -70,8 +70,21 @@ cinco famílias da definição da p.5.
 ### Qualidade do código
 
 - [ ] `lint` e verificação de tipos passando, sem exceção adicionada para fazer passar.
-- [ ] **A regra de fronteira respeitada:** nada fora da camada de Infraestrutura importa o cliente de
-      banco (`docs/arquitetura.md`, Parte I §5).
+- [ ] **A regra de fronteira respeitada:** nada fora de `infraestrutura/clientes/` importa um SDK — banco,
+      storage ou autenticação —, e `infraestrutura/` só é importada por `composicao/`
+      (`docs/arquitetura.md`, Parte I §5.2 e §5.3). **A regra é o alarme, não a garantia:** a garantia é a
+      Aplicação não ter o que importar, porque recebe a porta em vez de construir infraestrutura
+      ([ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md)).
+- [ ] **O repositório devolve agregado ou objeto de leitura declarado — nunca linha de banco**, nunca tipo
+      de ORM. É o tipo de retorno que impede a forma do esquema de subir para dentro (ADR-0005), e é o
+      único item desta lista que o lint **não** consegue conferir: a assinatura é legítima, só devolve a
+      coisa errada. **A defesa é a revisão do tipo.**
+- [ ] **Módulo novo passa nos dois testes**, se a tarefa criou um: ele é **útil** — limites e
+      responsabilidade definidos — e é **competente**, faz inteiro o que faz (`docs/arquitetura.md`
+      §5.3). Pasta vazia por simetria falha os dois.
+- [ ] **Nenhum handler toca mais de um agregado.** É o sinal do *fat controller*, e o Next.js já protege
+      por acidente — um `route.ts` por caminho. Um handler que precise de dois agregados é caso para
+      dividir, não para acumular.
 - [ ] **Toda consulta nova passa pelo repositório escopado à organização.** Este item existe porque é o
       **risco mais sério da [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md)**: a
       garantia de isolamento é do código, e um caminho que ignore o repositório vaza dados entre

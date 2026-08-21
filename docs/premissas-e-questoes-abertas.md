@@ -181,7 +181,9 @@ Já mapeadas. **Não redescobrir, não resolver em silêncio.**
 
 ## 5. Limitações do material do curso
 
-Encontradas na leitura das nove aulas. Registradas porque afetam o que citamos como fonte.
+Encontradas na leitura. Registradas porque afetam o que citamos como fonte.
+
+### 5.1 Domain-Driven Design — Fase 1, nove aulas
 
 | Aula | Limitação | Como tratamos |
 |---|---|---|
@@ -193,6 +195,22 @@ Encontradas na leitura das nove aulas. Registradas porque afetam o que citamos c
 | 7 e 8 | A aula 7 promete ensinar *"como buscar a resposta caso ela não venha no requisito"* e **não ensina**; a aula 8 promete tratar requisitos funcionais e não funcionais e **não trata** | Lacunas do material, sem impacto no que adotamos |
 | 6 | O professor **não cita Alberto Brandolini**, criador do Event Storming | Registrado; nossa citação é do material da disciplina |
 | — | **Multi-tenancy e RBAC não são cobertos por nenhuma das 9 aulas** | Tudo que escrevemos sobre tenancy é **[FONTE EXTERNA]** e se sustenta por mérito próprio |
+
+### 5.2 Clean Architecture — Fase 5, oito aulas
+
+Levantadas em 21/08/2026, ao confrontar o pacote com a disciplina desta fase. A curadoria completa está em
+`trabalho/clean-architecture-o-que-adotar.md`; aqui ficam só as limitações que afetam o que citamos.
+
+| Aula | Limitação | Como tratamos |
+|---|---|---|
+| 4, 5 e 6 | **O título não descreve a aula, três vezes.** A 4 promete *"Clean Code em testes na prática"* e é sobre **casos de uso**; a 5 promete *"Program paradigms e components paradigms"* e é sobre **Controller, Gateway e Presenter**; a 6 chama-se *"Design Principles"* e é sobre **componentização qualitativa**. As palavras-chave de cada uma confirmam o conteúdo, não o título | Citamos pelo **conteúdo**, sempre com a página. Onde o título importaria — a aula 4 e os testes — a consequência está na linha abaixo |
+| 4 | **A disciplina não ensina técnicas de teste.** Uma página (p.9–10) trata do assunto, e o que diz é *"use um mock do repositório"*. **Não há um único teste escrito em oito aulas** — nem no fechamento, que roda a aplicação inteira. O professor remete o assunto a outra disciplina: *"a gente vai falar mais sobre isso lá na nossa aula de qualidade de software, quando a gente fala de TDD"* (aula 3, transcrição 02) | **Nada muda no Definition of Done nem em `arquitetura.md` §7.** O que a aula 4 diz — domínio testável sem infraestrutura — já é a coluna *"Sem banco? Sim"* da §7 e o argumento 3 da ADR-0001 |
+| 5 e 6 | **Os princípios de componente do livro não são ensinados** — REP, CCP, CRP, ADP, SDP, SAP não aparecem, nem os nomes, e **não há regra de aciclicidade**. O que sobra é *"responsabilidade mínima"* e *"contexto de uso"*, que são orientações, não critérios | A regra de superfície pública por módulo (ADR-0006, regra 3) é **[FONTE EXTERNA]** e se sustenta por mérito próprio — mesma situação da multi-tenancy |
+| — | **A disciplina nunca trata de transação.** Zero menções a atomicidade, unidade de trabalho ou consistência entre duas escritas, em oito aulas; todo exemplo tem **uma escrita por operação** | É por isso que **recusamos** a regra *"quem grava é o Controller"* (aula 4, p.8; aula 8, transcrições 01 e 02): ela quebraria a invariante 2 da ADR-0001, e foi formulada num universo onde o problema não existe. Recusa da **regra**, não da fonte |
+| 5 p.8 vs 8 p.8 | **O terceiro componente de Interface Adapters troca de nome:** é **Presenter** na aula 5 e no diagrama de referência, e **Adapter** na aula 8 — com a mesma descrição | Usamos **Presenter**, que é o nome do diagrama e o do livro (`arquitetura.md` §5.5) |
+| 2, 4, 5, 8 | **Quem fala com o repositório muda quatro vezes** entre apostila e transcrição, e o próprio professor admite não ter fechado: *"às vezes eu me pego pensando nisso"* (aula 2, transcrição 02) | Seguimos a versão que **tem código**: aula 5, transcrição 01, e aula 8 — o anel externo cria, o adaptador envolve, o caso de uso recebe. Registrado na ADR-0005 |
+| 3, p.7 | A **Figura 1 é código em imagem** e não foi transcrita para o `.md` convertido | Recuperada pela transcrição 03 e pelo repositório da aula. É a única perda de conteúdo nas oito aulas |
+| — | **"Agregado" não existe na disciplina.** Ela tem `Entities` e `Use Cases`, e nada entre os dois | Mantivemos o termo, que vem do DDD (aula 5, p.9) e sustenta o glossário, a ADR-0001 e o modelo de dados. **A ausência é lacuna da Fase 5, não excesso nosso** — registrado em `arquitetura.md` §5.1 |
 
 ---
 
