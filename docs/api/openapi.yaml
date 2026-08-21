@@ -265,8 +265,14 @@ paths:
                   pattern: "^[A-Z0-9]{6,12}$"
                   description: Sem minúscula e sem caractere ambíguo — ele é digitado à mão.
                 nome: { type: string, maxLength: 120, description: "Preenche ou corrige o nome da Pessoa." }
-                telefone: { type: string, maxLength: 20 }
-            example: { codigoPublico: "RECANTO7", nome: "Morador do 302", telefone: "11 99999-0000" }
+                telefone:
+                  type: string
+                  maxLength: 20
+                  description: |
+                    **Em E.164** — `+5511999990000`. Vira o primeiro contato da Pessoa, com
+                    `finalidade: pessoal`. É o único ponto do contrato em que um contato entra fora de
+                    `/vinculos`, e ele existe porque **aqui ainda não há vínculo** (D25).
+            example: { codigoPublico: "RECANTO7", nome: "Morador do 302", telefone: "+5511999990000" }
       responses:
         "201":
           description: Pedido registrado, aguardando decisão do Gestor.
@@ -338,7 +344,12 @@ paths:
               example:
                 itens:
                   - id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9"
-                    pessoa: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302", emailContato: "302@exemplo.com", telefone: "11 99999-0000" }
+                    pessoa:
+                      pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d"
+                      nome: "Morador do 302"
+                      contatos:
+                        - { id: "dd44ee55-ff66-4a77-8b88-c99dd00ee11f", tipo: "email", valor: "302@exemplo.com", finalidade: "pessoal", temWhatsapp: false, ordem: 1, observacao: null }
+                        - { id: "ee55ff66-aa77-4b88-8c99-d00ee11ff22a", tipo: "telefone", valor: "+5511999990000", finalidade: "pessoal", temWhatsapp: true, ordem: 2, observacao: null }
                     situacao: "pendente"
                     criadoEm: "2026-08-20T13:02:11Z"
                     decididoEm: null
@@ -408,7 +419,17 @@ paths:
             schema:
               type: object
               properties:
-                observacao: { type: string, maxLength: 500 }
+                observacao:
+                  type: string
+                  maxLength: 500
+                  description: |
+                    O motivo da recusa, escrito pelo Gestor. **É guardado** em
+                    `pedidos_de_entrada.observacao` — até 22/08/2026 este campo era aceito e **descartado**,
+                    porque não havia coluna para ele. É a única explicação existente de por que alguém não
+                    entrou; jogá-la fora produzia a pergunta que o produto veio eliminar.
+
+                    **Mostrá-la a quem foi recusado é decisão de produto e ainda não foi tomada** —
+                    `GET /contexto` devolve `situacao`, não o motivo.
             example: { observacao: "Não consta como morador na lista da administradora." }
       responses:
         "200":
@@ -443,7 +464,8 @@ paths:
         com vínculo na organização* (D21). Não há — e não deve haver — endpoint de busca de pessoas.
 
         *Capacidade: cadastro de Encarregados · `NOSSO` (D27). Permissão: `vinculo.gerir`.*
-        *Contato (e-mail e telefone) é dado pessoal sob o RNF10 e só aparece aqui.*
+        *Contato é dado pessoal sob o RNF10 e **só aparece aqui**, em nenhum outro endpoint do contrato.*
+        *Telefone sai em **E.164** — é o formato que um link de WhatsApp consome sem tratamento.*
       parameters:
         - name: papel
           in: query
@@ -468,11 +490,20 @@ paths:
                     items: { $ref: "#/components/schemas/Vinculo" }
               example:
                 itens:
-                  - pessoa: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Zelador — Bloco B", emailContato: null, telefone: "11 98888-1234" }
+                  - pessoa:
+                      pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f"
+                      nome: "Zelador — Bloco B"
+                      contatos:
+                        - { id: "aa11bb22-cc33-4d44-8e55-f66aa77bb88c", tipo: "telefone", valor: "+5511988881234", finalidade: "trabalho", temWhatsapp: true, ordem: 1, observacao: null }
+                        - { id: "bb22cc33-dd44-4e55-8f66-a77bb88cc99d", tipo: "telefone", valor: "+5511933334444", finalidade: "recado", temWhatsapp: false, ordem: 2, observacao: "escritório da terceirizada" }
                     papel: "encarregado"
                     temConta: false
                     criadoEm: "2026-08-20T12:05:00Z"
-                  - pessoa: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul", emailContato: "sindica@exemplo.com", telefone: null }
+                  - pessoa:
+                      pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f"
+                      nome: "Síndica do Recanto Azul"
+                      contatos:
+                        - { id: "cc33dd44-ee55-4f66-8a77-b88cc99dd00e", tipo: "email", valor: "sindica@exemplo.com", finalidade: "trabalho", temWhatsapp: false, ordem: 1, observacao: null }
                     papel: "gestor"
                     temConta: true
                     criadoEm: "2026-08-20T12:00:00Z"
@@ -508,13 +539,26 @@ paths:
               properties:
                 nome: { type: string, minLength: 1, maxLength: 120 }
                 papel: { $ref: "#/components/schemas/PapelVinculo" }
-                emailContato:
+                areaId:
                   type: [string, "null"]
-                  format: email
-                  maxLength: 255
-                  description: Contato, **não** credencial. Os dois podem divergir, e não é único.
-                telefone: { type: [string, "null"], maxLength: 20 }
-            example: { nome: "Zelador — Bloco B", papel: "encarregado", telefone: "11 98888-1234" }
+                  format: uuid
+                  description: |
+                    A **unidade** desta pessoa nesta organização — o apartamento 302, a sala 14. Anulável:
+                    Gestor e Encarregado terceirizado não têm unidade. Precisa ser uma Área **desta**
+                    organização, senão `422 AREA_INVALIDA`.
+                contatos:
+                  type: array
+                  description: |
+                    Como alcançar esta pessoa. Contato **não** é credencial: os dois podem divergir, e nem
+                    o e-mail nem o telefone são únicos — dois Encarregados de uma terceirizada podem
+                    compartilhar o e-mail do escritório.
+                  items: { $ref: "#/components/schemas/ContatoParaEscrita" }
+            example:
+              nome: "Zelador — Bloco B"
+              papel: "encarregado"
+              contatos:
+                - { tipo: "telefone", valor: "+5511988881234", finalidade: "trabalho", temWhatsapp: true, ordem: 1 }
+                - { tipo: "telefone", valor: "+5511933334444", finalidade: "recado", ordem: 2, observacao: "escritório da terceirizada" }
       responses:
         "201":
           description: Pessoa e vínculo criados.
@@ -533,8 +577,13 @@ paths:
       operationId: atualizarPessoaDoVinculo
       summary: Corrigir os dados de uma pessoa sem conta
       description: |
-        Atualiza nome, e-mail de contato e telefone da Pessoa **através do vínculo** — nunca por um
+        Atualiza nome, unidade e contatos da Pessoa **através do vínculo** — nunca por um
         endereço global de Pessoa.
+
+        **`contatos` é substituição, não mesclagem.** Enviar a lista troca os contatos daquela Pessoa por
+        ela; enviar `[]` remove todos; **omitir o campo não mexe em nada**. A alternativa — endpoints
+        próprios de contato — criaria três operações novas para gerir o que cabe no corpo do vínculo, e
+        contato não é recurso do domínio: é atributo de uma Pessoa que só existe dentro de uma organização.
 
         **Só é aceito quando a Pessoa não tem Usuário.** `pessoas` é global: editar quem tem conta
         alteraria o cadastro daquela pessoa **em todas as outras organizações**, inclusive naquela em que
@@ -555,9 +604,14 @@ paths:
               minProperties: 1
               properties:
                 nome: { type: string, minLength: 1, maxLength: 120 }
-                emailContato: { type: [string, "null"], format: email, maxLength: 255 }
-                telefone: { type: [string, "null"], maxLength: 20 }
-            example: { telefone: "11 98888-4321" }
+                areaId: { type: [string, "null"], format: uuid }
+                contatos:
+                  type: array
+                  description: '**Substitui** a lista inteira. `[]` remove todos; omitir não mexe.'
+                  items: { $ref: "#/components/schemas/ContatoParaEscrita" }
+            example:
+              contatos:
+                - { tipo: "telefone", valor: "+5511988884321", finalidade: "trabalho", temWhatsapp: true, ordem: 1 }
       responses:
         "200":
           description: Dados atualizados.
@@ -979,6 +1033,7 @@ paths:
               schema: { $ref: "#/components/schemas/AutorizacaoDeUpload" }
               example:
                 chave: "anx_01JB8Z6K9T2M4N7Q"
+                chaveMiniatura: "anx_01JB8Z6K9T2M4N7Q_mini"
                 ticket: "eyJhbGciOiJIUzI1NiJ9.eyJjaGF2ZSI6ImFueF8wMUpCOFo2SzlUMk00TjdRIn0"
                 estado: "pendente"
                 upload:
@@ -987,6 +1042,13 @@ paths:
                   cabecalhos:
                     x-ms-blob-type: "BlockBlob"
                     x-ms-blob-content-type: "image/jpeg"
+                  expiraEm: "2026-08-20T13:17:00Z"
+                uploadMiniatura:
+                  url: "https://exemplo.blob.core.windows.net/anexos/anx_01JB8Z6K9T2M4N7Q_mini?sv=2024-11-04&sig=..."
+                  metodo: "PUT"
+                  cabecalhos:
+                    x-ms-blob-type: "BlockBlob"
+                    x-ms-blob-content-type: "image/webp"
                   expiraEm: "2026-08-20T13:17:00Z"
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
@@ -1065,7 +1127,7 @@ paths:
                   areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e"
                   localizacaoComplemento: "ao lado da vaga 34"
                   anexos:
-                    - { chave: "anx_01JB8Z6K9T2M4N7Q", ticket: "eyJhbGciOiJIUzI1NiJ9..." }
+                    - { chave: "anx_01JB8Z6K9T2M4N7Q", ticket: "eyJhbGciOiJIUzI1NiJ9...", titulo: "Lâmpada da vaga 34" }
               semFoto:
                 summary: Unidade privativa, sem foto
                 value:
@@ -1382,6 +1444,16 @@ paths:
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/AnexoId"
+        - name: variante
+          in: query
+          required: false
+          description: |
+            `miniatura` devolve a versão reduzida, se existir. Ausente devolve o objeto principal.
+
+            **É parâmetro e não caminho novo de propósito:** a miniatura é outra *representação* do mesmo
+            anexo, não outro recurso — e assim a operação continua sendo uma, com a URL igualmente estável
+            para o cache do service worker. `404` quando o anexo existe e não tem miniatura.
+          schema: { type: string, enum: [miniatura] }
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       responses:
         "302":
@@ -2406,16 +2478,85 @@ components:
         pessoaId: { type: string, format: uuid }
         nome: { type: string, maxLength: 120 }
 
+    TipoContato:
+      type: string
+      description: |
+        O meio pelo qual se alcança a Pessoa. É o `system` do `ContactPoint` do HL7 FHIR, **podado aos dois
+        valores que este produto alcança** — declarar `fax`, `pager` ou `url` seria publicar valores que
+        ninguém produz.
+      enum: [email, telefone]
+
+    FinalidadeContato:
+      type: string
+      description: |
+        Para que serve este contato. É o `use` do FHIR, traduzido: `recado` é o telefone de terceiro que
+        aceita mensagem — a portaria, o escritório da terceirizada.
+      enum: [pessoal, trabalho, recado]
+
+    Contato:
+      type: object
+      description: |
+        Uma forma de alcançar a Pessoa. **Contato é dado pessoal sob o RNF10** e só aparece em
+        `GET /vinculos`, que exige `vinculo.gerir`.
+      required: [id, tipo, valor, finalidade, temWhatsapp, ordem]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { $ref: "#/components/schemas/TipoContato" }
+        valor:
+          type: string
+          maxLength: 255
+          description: |
+            **Telefone vem e vai em E.164** — `+5511987654321`, com `+`, código do país e até 15 dígitos.
+            É o formato que o banco impõe por `CHECK` e o que um link de WhatsApp consome direto.
+            Normalizar o que a pessoa digitou é do cliente ou do servidor, **antes** de chegar aqui.
+          examples: ["+5511987654321", "sindica@exemplo.com"]
+        finalidade: { $ref: "#/components/schemas/FinalidadeContato" }
+        temWhatsapp:
+          type: boolean
+          description: |
+            **Indicação sobre um número, não um tipo de contato** — por isso é booleano e não um valor de
+            `tipo`. Só pode ser `true` quando `tipo` é `telefone`; o banco recusa o contrário.
+        ordem:
+          type: integer
+          minimum: 1
+          description: |
+            Ordem de preferência: **`1` é para onde se tenta primeiro**. É o `rank` do FHIR. Substitui um
+            booleano `principal`, que não diria o que fazer com o segundo contato.
+        observacao:
+          type: [string, "null"]
+          maxLength: 200
+          description: 'Instrução humana — "falar com a portaria", "só à tarde".'
+
+    ContatoParaEscrita:
+      type: object
+      description: |
+        Como um contato **entra**. Sem `id`: a escrita é **substituição** — o corpo traz a lista completa,
+        e o servidor troca os contatos daquela Pessoa por ela.
+      required: [tipo, valor]
+      properties:
+        tipo: { $ref: "#/components/schemas/TipoContato" }
+        valor:
+          type: string
+          maxLength: 255
+          description: Telefone **em E.164**; e-mail em forma normal. Fora disso é `400 FORMATO_INVALIDO`.
+        finalidade: { $ref: "#/components/schemas/FinalidadeContato" }
+        temWhatsapp: { type: boolean, default: false }
+        ordem: { type: integer, minimum: 1, default: 1 }
+        observacao: { type: [string, "null"], maxLength: 200 }
+
     PessoaComContato:
       allOf:
         - $ref: "#/components/schemas/PessoaReferencia"
         - type: object
           description: Só aparece em `GET /vinculos`, que exige permissão de gestão de vínculos — contato é dado pessoal.
+          required: [contatos]
           properties:
-            emailContato:
-              type: [string, "null"]
-              description: Contato, **não** credencial. Pode divergir do e-mail de login, e não é único.
-            telefone: { type: [string, "null"] }
+            contatos:
+              type: array
+              description: |
+                Lista vazia quando não há contato — nunca `null`, para o cliente não precisar de dois
+                caminhos de leitura. Ordenada por `ordem`.
+              items: { $ref: "#/components/schemas/Contato" }
 
     Contexto:
       type: object
@@ -2511,6 +2652,19 @@ components:
       properties:
         pessoa: { $ref: "#/components/schemas/PessoaComContato" }
         papel: { $ref: "#/components/schemas/PapelVinculo" }
+        area:
+          description: |
+            A **unidade** desta pessoa nesta organização — o apartamento 302, a sala 14. `null` para quem
+            não tem unidade: Gestor, Encarregado terceirizado, e quem entrou por pedido de entrada sem
+            informá-la. **Pertence ao vínculo e não à Pessoa**, porque a mesma pessoa mora num lugar e
+            trabalha em outro.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [id, nome]
+              properties:
+                id: { type: string, format: uuid }
+                nome: { type: string }
         temConta:
           type: boolean
           description: |
@@ -2661,6 +2815,16 @@ components:
                 Na primeira entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
                 schema: nem o banco nem esta resposta limitam a quantidade.
               items: { $ref: "#/components/schemas/Anexo" }
+              examples:
+                - - id: "c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
+                    tipo: "imagem"
+                    titulo: "Lâmpada da vaga 34"
+                    nomeArquivo: "IMG_20260820_130150.jpg"
+                    tipoConteudo: "image/jpeg"
+                    tamanhoBytes: 391244
+                    url: "/api/ocorrencias/9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8/anexos/c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
+                    miniaturaUrl: "/api/ocorrencias/9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8/anexos/c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f?variante=miniatura"
+                    anexadoEm: "2026-08-20T13:02:11Z"
             solucaoAplicada: { type: [string, "null"] }
             avaliacao:
               description: Objeto de valor opcional, preenchido só depois de `resolvida`. Não é um estado.
@@ -2826,6 +2990,14 @@ components:
         ticket:
           type: string
           description: O token assinado da mesma autorização, com validade de 15 minutos.
+        titulo:
+          type: [string, "null"]
+          maxLength: 150
+          description: |
+            Rótulo **opcional** que a pessoa escreve para a evidência — *"Orçamento do eletricista"*.
+            É dado de domínio, diferente do nome do arquivo, que é resíduo do sistema de arquivos.
+            **Custa segundos do orçamento do RNF6**, e é o primeiro campo a sair da tela se a medição
+            estourar — sai sem tocar schema, porque é opcional.
 
     Anexo:
       type: object
@@ -2837,6 +3009,24 @@ components:
       properties:
         id: { type: string, format: uuid }
         tipo: { $ref: "#/components/schemas/TipoAnexo" }
+        titulo:
+          type: [string, "null"]
+          maxLength: 150
+          description: O rótulo que a pessoa escreveu, se escreveu. É o que uma lista de anexos deve exibir.
+        nomeArquivo:
+          type: [string, "null"]
+          maxLength: 255
+          description: |
+            O nome do arquivo enviado, se houver. Para foto costuma ser ruído
+            (`IMG_20260821_143022.jpg`); para documento é a única etiqueta humana que o arquivo tem.
+            **Pode conter dado pessoal escrito por quem enviou, e a anonimização não o alcança** — entra na
+            mesma lista de texto livre não varrido do PA-05.
+        miniaturaUrl:
+          type: [string, "null"]
+          description: |
+            Caminho **estável** desta API para a miniatura — o mesmo do anexo, com `?variante=miniatura`.
+            `null` quando o cliente não gerou miniatura, que é caso normal. A miniatura é gerada **no
+            aparelho**, no mesmo passe de compressão do RNF8, e sobe pela **mesma autorização**.
         tipoConteudo:
           type: string
           description: |
@@ -2858,7 +3048,14 @@ components:
 
     AutorizacaoDeUpload:
       type: object
-      required: [chave, ticket, estado, upload]
+      required: [chave, chaveMiniatura, ticket, estado, upload, uploadMiniatura]
+      description: |
+        **Uma autorização, dois destinos.** O anexo e a miniatura sobem por SAS distintas, mas com **um
+        ticket só, um slot do limite de 30/h e uma reivindicação**. Duas autorizações dobrariam a ida e
+        volta dentro do orçamento de 60 segundos do RNF6 — é por isso que não são duas.
+
+        Enviar a miniatura é **opcional**: quem não a gerar simplesmente não usa `uploadMiniatura`, e o
+        objeto pendente é recolhido pela faxina como qualquer outro.
       properties:
         chave:
           type: string
@@ -2866,6 +3063,11 @@ components:
             **Chave opaca do objeto.** É o que vai para o banco — nunca uma URL, nunca com nome de
             contêiner embutido. A plataforma de storage já mudou uma vez neste projeto; com chave opaca,
             trocar de provedor não toca o banco.
+        chaveMiniatura:
+          type: string
+          description: |
+            A chave do **segundo objeto**, opaca pela mesma regra. Distinta da principal, e o banco recusa
+            que sejam iguais.
         ticket:
           type: string
           description: |
@@ -2890,6 +3092,19 @@ components:
               type: object
               additionalProperties: { type: string }
               description: Cabeçalhos exigidos pelo storage no envio.
+            expiraEm: { type: string, format: date-time }
+        uploadMiniatura:
+          type: object
+          description: |
+            O destino da miniatura. **Mesmo formato, mesma validade, mesmo ticket** — e o `PUT` corre no
+            mesmo paralelo do principal, enquanto a pessoa digita.
+          required: [url, metodo, cabecalhos, expiraEm]
+          properties:
+            url: { type: string }
+            metodo: { type: string, const: PUT }
+            cabecalhos:
+              type: object
+              additionalProperties: { type: string }
             expiraEm: { type: string, format: date-time }
 
     Dashboard:

@@ -1,7 +1,7 @@
 # Contrato de API — Resolve Aí
 
 Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
-[modelo-de-dados.md](modelo-de-dados.md) (as 15 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
+[modelo-de-dados.md](modelo-de-dados.md) (as 16 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
 **Event Storming** do projeto (comandos do passo 5, modelos de leitura do passo 7) — que é material de
 processo e não acompanha esta pasta.
@@ -36,6 +36,25 @@ YAML as declara.
 > **Por que agora e não depois:** cada linha dessa tabela seria, depois da primeira entrega, uma mudança
 > **não-aditiva** pela regra da §11 deste documento. Hoje custa reescrever texto; depois custaria quebrar
 > cliente. A §11.1 mede o que o desenho novo torna barato.
+
+> **Nota de revisão — 22/08/2026 · a rodada de revisão do modelo bateu aqui.** Uma leitura crítica do
+> esquema produziu mudanças que atravessam a superfície. **Os 37 endpoints e as 42 capacidades ✅ continuam
+> os mesmos** — nada entrou, nada saiu, e o `escopo.md` segue com 63 itens.
+>
+> | Antes | Agora | Onde |
+> |---|---|---|
+> | `pessoa.emailContato` + `pessoa.telefone` | **`pessoa.contatos[]`** — com `tipo`, `finalidade`, `ordem` e `temWhatsapp` | §8.2, §12 |
+> | *(nada)* | **`vinculo.area`** — a unidade do morador, e `areaId` na escrita | §8.2 |
+> | `/recusar` aceitava `observacao` e **a descartava** | `observacao` é **guardada** | §8.2 |
+> | `Anexo` com quatro campos | **+ `titulo`, `nomeArquivo`, `miniaturaUrl`** | §8.3, §10 |
+> | Uma autorização, um destino de upload | **Uma autorização, dois destinos** — anexo e miniatura | §10.2 |
+>
+> **Duas coisas que este documento passa a dizer e não dizia:** que **telefone entra e sai em E.164**
+> (§7.11), e que a escrita de contatos é **substituição, não mesclagem** (§8.2). As duas são decisões de
+> contrato, não de banco, e sem elas o cliente adivinharia.
+>
+> **O contexto completo da rodada — incluindo o que foi recusado e por quê — está na nota de 22/08/2026 do
+> `modelo-de-dados.md`, e as duas reversões declaradas estão nas §7.8 e §7.9 de lá.**
 
 ---
 
@@ -401,8 +420,8 @@ Três consequências concretas no contrato:
    a lista de candidatos **é literalmente a lista de vínculos ativos**. Não há endpoint de busca de pessoas
    a criar, porque não há pergunta que ele responderia.
 2. **Cadastrar Encarregado é `POST /vinculos`**, não `POST /pessoas`. O corpo traz os dados da Pessoa
-   (`nome`, `emailContato`, `telefone`) e o `papel`; o servidor cria a `Pessoa` global e o `Vínculo` escopado
-   na mesma transação. A escrita segue a mesma direção da leitura: entra-se pelo vínculo.
+   (`nome`, `contatos[]`) e o `papel`; o servidor cria a `Pessoa` global, os **contatos** e o `Vínculo`
+   escopado na mesma transação. A escrita segue a mesma direção da leitura: entra-se pelo vínculo.
 3. **`POST /vinculos` sempre cria uma Pessoa nova — nunca reaproveita por e-mail.** Reaproveitar exigiria
    procurar em `pessoas` por `email_contato`, que é exatamente a consulta global proibida, e a resposta
    vazaria a existência de um cadastro em outra organização. O custo é duplicação de linhas em `pessoas`
@@ -415,6 +434,16 @@ Três consequências concretas no contrato:
 `autorDaTransicao`, `autorDaMensagem` —, com `pessoaId` e `nome`, e nunca com contato. Contato só aparece em
 `GET /vinculos`, que exige `vinculo.gerir` (§12, suposição S-A5) — dado de contato é dado pessoal sob o
 RNF10, e não há razão para o Solicitante ler o telefone do vizinho.
+
+> **A regra aperta em 22/08/2026, e não por decisão nova — por consequência.** Com o contato virando a
+> tabela `contatos` (§6.17 do modelo), **a segunda tabela global do esquema**, o que a consulta errada
+> vazaria deixou de ser *nomes* e passou a ser **telefone e e-mail de todas as pessoas de todas as
+> organizações**. A regra do vínculo primeiro é a mesma; o que mudou é o prêmio de quebrá-la.
+>
+> Consequência para a superfície: **`contatos[]` aparece em exatamente um lugar** — `GET /vinculos` — e o
+> `PessoaReferencia` embutido em ocorrência, mensagem e transição continua sendo `{pessoaId, nome}` e nada
+> mais. Se algum dia um schema de resposta ganhar contato fora de `GET /vinculos`, **é emenda a este
+> princípio**, não detalhe de implementação.
 
 ---
 
@@ -570,7 +599,8 @@ contrato:
 | `ANEXO_NAO_RECONHECIDO` | 422 | Chave/ticket inválido, expirado, ou objeto ausente no storage |
 | `ANEXO_ACIMA_DO_LIMITE` | 422 | Objeto maior que o teto do RNF8 |
 | `ANEXO_JA_REIVINDICADO` | 409 | O objeto já está anexado a uma ocorrência — `UNIQUE (chave)` em `anexos` (§6.16 do modelo). O corpo traz `ocorrenciaId`, para o cliente navegar em vez de registrar de novo. Ver §10.3 |
-| `ANEXO_NAO_ENCONTRADO` | 404 | O anexo não é desta ocorrência, ou não existe. **Mesma resposta para os dois casos**, pela §6.3 |
+| `ANEXO_NAO_ENCONTRADO` | 404 | O anexo não é desta ocorrência, ou não existe — **ou existe e não tem miniatura**, quando `?variante=miniatura`. Mesma resposta para os três casos, pela §6.3 |
+| `CONTATO_DUPLICADO` | 409 | O mesmo par (`tipo`, `valor`) repetido na mesma Pessoa — `UNIQUE (pessoa_id, tipo, valor)` em `contatos` (§6.17 do modelo) |
 | `CAMPO_NAO_SUPORTADO` | 422 | Campo cuja capacidade é evolução prevista (ex.: `ocorrenciaOrigemId`) ou escrito só pelo servidor |
 | `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | Mais de 30 autorizações de anexo por Pessoa por hora. **É o único limite de chamadas do contrato** — e a §10.3 diz por quê. *(O nome deste código não mudou em 21/08/2026: ele nunca nomeou o exemplo, nomeia a operação.)* |
 | `ERRO_INTERNO` | 500 | Sem `detail` de domínio; só `traceId` |
@@ -640,6 +670,28 @@ da organização ativa — nunca um id sintético que o modelo recusou criar.
 - **Coleções pequenas não paginam:** categorias, áreas e vínculos devolvem tudo em `{ itens }`. São ~15, ~30
   e ≤ 200 linhas (RNF3). Se uma organização passar disso, o envelope já é o mesmo e ganha `proximoCursor`
   sem quebrar cliente nenhum.
+
+**7.11 · Telefone entra e sai em E.164. [FONTE EXTERNA]**
+
+`+5511987654321` — `+`, código do país, e no máximo 15 dígitos. Vale em **toda** a superfície: no corpo de
+`POST /vinculos`, no de `POST /pedidos-de-entrada`, e em `contatos[].valor` de `GET /vinculos`.
+
+**Duas razões, e a segunda é de produto.** A primeira é que representações diferentes do mesmo número —
+`(11) 98765-4321`, `11987654321`, `+55 11 98765-4321` — tornam comparação e deduplicação impossíveis, e a
+restrição `UNIQUE (pessoa_id, tipo, valor)` do banco passaria a não garantir nada. A segunda é que **é
+exatamente o formato que um link de WhatsApp consome**: guardar em qualquer outro obrigaria a normalizar em
+cada lugar que montasse o link.
+
+> **Quem normaliza é o cliente ou o servidor, antes de chegar ao banco — e precisa de biblioteca, não de
+> expressão regular.** Transformar o que a pessoa digitou em E.164 depende de país padrão, regra de discagem
+> nacional e validade do número; a referência é a `libphonenumber` do Google. **O banco não normaliza: ele
+> recusa o que não foi normalizado** (`CHECK` na §6.17 do modelo), e o schema deste contrato recusa antes,
+> com `400 FORMATO_INVALIDO`. É a divisão de sempre — a Interface valida forma, o banco garante forma, e
+> nenhum dos dois inventa a regra do outro.
+
+**Custo declarado:** a tela precisa de máscara de entrada e de um seletor de país, ou de uma suposição de
+país padrão (`BR`). É trabalho de interface que não existia quando o telefone era texto livre — e é o
+preço de o número servir para algo além de ser lido.
 
 **7.8 · Versionamento: não há `/v1`. O prefixo é `/api`.** Contra o hábito, com quatro razões:
 
@@ -795,7 +847,8 @@ descuido, e registrada na §11.
 | `PATCH /vinculos/{pessoaId}` | `vinculo.gerir` | idem (o **U** do CRUD de Encarregados) | `Cadastrar pessoa` |
 | `DELETE /vinculos/{pessoaId}` | `vinculo.gerir` | Remover vínculo sem histórico, desfazendo papel errado · `NOSSO` (D25, PA-25) | `Remover vínculo` |
 
-**`POST /pedidos-de-entrada`** — recebe `{ codigoPublico, nome?, telefone? }` e roda **sem organização ativa**
+**`POST /pedidos-de-entrada`** — recebe `{ codigoPublico, nome?, telefone? }`, com o **telefone em E.164**
+(§7.11), e roda **sem organização ativa**
 (§4.4), porque o vínculo ainda não existe: *"o Vínculo só passa a existir com aprovação do Gestor"* (D25).
 Devolve `201` com `{ id, organizacao{nome}, situacao: "pendente" }` — **e nada mais da organização**: o
 código é público, mas isso não autoriza ler quem está lá dentro.
@@ -809,14 +862,51 @@ código é público, mas isso não autoriza ler quem está lá dentro.
 **`POST /pedidos-de-entrada/{id}/aprovar`** — recebe `{ papel }` (`solicitante` · `gestor` · `encarregado`) e
 cria o **Vínculo**. É onde a invariante da D25 se fecha: nenhum vínculo nasce sem decisão de um Gestor.
 Erros: `404 PEDIDO_NAO_ENCONTRADO` · `409 PEDIDO_JA_DECIDIDO` · `409 JA_VINCULADO`. **`/recusar`** recebe
-`{ observacao? }` e não cria nada.
+`{ observacao? }` e não cria nada — **e a observação agora é guardada.**
 
-**`POST /vinculos`** — recebe `{ nome, papel, emailContato?, telefone? }` e cria **Pessoa + Vínculo na mesma
-transação**. É o cadastro de Encarregado sem conta (D27) e o caminho de **escrita** da regra do vínculo
-primeiro (§4.6): entra-se pelo vínculo, nunca pela Pessoa. Devolve `201` com o vínculo e a pessoa embutida.
+> **Até 22/08/2026 este campo era aceito e descartado.** O `openapi.yaml` declarava `observacao` com
+> `maxLength: 500` e **não existia coluna** em `pedidos_de_entrada` para ela. O contrato recebia um dado e o
+> jogava fora em silêncio.
+>
+> **Havia duas saídas, e guardar foi a escolhida.** Tirar o campo do contrato era mais barato e seria pior:
+> a frase que o Gestor escreve — *"não consta como morador na lista da administradora"* — é a **única
+> explicação existente** de por que alguém não entrou. Descartá-la produz exatamente a pergunta que o
+> produto veio eliminar, *"por que fui recusado?"*, sem ninguém capaz de responder.
+>
+> **O que continua fora:** mostrá-la a quem foi recusado. `GET /contexto` devolve `pedidosDeEntrada[]` com
+> `situacao`, e **não** com o motivo. A informação passa a existir; se ela é dita, é decisão de produto.
 
-**`PATCH /vinculos/{pessoaId}`** — `{ nome?, emailContato?, telefone? }`, com uma regra de fronteira própria
-que protege a única tabela global do esquema:
+**`POST /vinculos`** — recebe `{ nome, papel, areaId?, contatos[]? }` e cria **Pessoa + contatos + Vínculo
+na mesma transação**. É o cadastro de Encarregado sem conta (D27) e o caminho de **escrita** da regra do
+vínculo primeiro (§4.6): entra-se pelo vínculo, nunca pela Pessoa. Devolve `201` com o vínculo e a pessoa
+embutida.
+
+> ### Os contatos viajam no corpo do vínculo, e a escrita é **substituição** — 22/08/2026
+>
+> **Por que embutidos e não em recurso próprio.** Endpoints de contato
+> (`POST/PATCH/DELETE /vinculos/{pessoaId}/contatos/{id}`) seriam três operações novas para gerir o que
+> cabe num campo — e criariam a pergunta *"contato é recurso do domínio?"*, cuja resposta é **não**: é
+> atributo de uma Pessoa que **só é alcançável através de um vínculo** (§4.6). Recurso próprio precisaria
+> de URL própria, e URL própria é exatamente o que a regra do vínculo primeiro nega a `Pessoa`.
+> **Consequência boa:** continuam **37 operações**.
+>
+> **Por que substituição e não mesclagem.** `PATCH` com `contatos[]` **troca a lista inteira**; `[]`
+> remove todos; **omitir o campo não mexe em nada**. A alternativa — mesclar por `id` — exigiria que o
+> cliente devolvesse os `id`s que recebeu, e criaria três casos que o contrato teria de definir (item sem
+> `id` é novo? `id` ausente da lista é remoção? conflito de `ordem`?). **Substituição tem um caso só**, e
+> o custo é que o cliente precisa mandar a lista completa — que ele já tem, porque acabou de ler.
+>
+> **O que a substituição significa no banco:** `DELETE` das linhas antigas e `INSERT` das novas, na mesma
+> transação. É a razão de `contatos` ser a única tabela do esquema que recebe `DELETE` de rotina, e está
+> declarado na §11.4 do modelo — a suposição *"nada é apagado"* do RNF9 **não vale** para esta tabela.
+>
+> **Erros próprios:** `400 FORMATO_INVALIDO` para telefone fora de E.164 ou `temWhatsapp: true` num e-mail
+> (as duas são forma, e o schema pega antes do domínio) · `409 CONTATO_DUPLICADO` para o mesmo
+> `(tipo, valor)` repetido na mesma pessoa · `422 AREA_INVALIDA` quando `areaId` não é Área **desta**
+> organização ou está inativa.
+
+**`PATCH /vinculos/{pessoaId}`** — `{ nome?, areaId?, contatos[]? }`, com uma regra de fronteira própria
+que protege as **duas** tabelas globais do esquema:
 
 > **Só é aceito quando a Pessoa alvo não tem Usuário.** Com conta: `409 PESSOA_COM_CONTA_NAO_EDITAVEL`.
 
@@ -1303,24 +1393,38 @@ Solicitante escolhe a foto
    │ (1) o cliente comprime para ~400 KB / 1600px no maior lado  ── RNF8, no aparelho
    ▼
 POST /anexos/autorizacoes  { tipoConteudo, tamanhoBytes }
-   │   ← 201 { chave, ticket, estado: "pendente",
-   │           upload: { url, metodo: "PUT", cabecalhos, expiraEm } }
+   │   ← 201 { chave, chaveMiniatura, ticket, estado: "pendente",
+   │           upload:          { url, metodo: "PUT", cabecalhos, expiraEm },
+   │           uploadMiniatura: { url, metodo: "PUT", cabecalhos, expiraEm } }
    ▼
-PUT <url do Blob>  (bytes)                       ── direto para o Azure, fora da API
+PUT <url do Blob>  (bytes)              ── os DOIS objetos, direto para o Azure, fora da API
+PUT <url da miniatura>  (bytes)            um ticket, um slot do limite, dois PUT em paralelo
    │
    │ (2) enquanto isso, o Solicitante ainda está digitando a descrição   ── RNF6
    ▼
-POST /ocorrencias  { …, anexos: [ { chave, ticket } ] }
-   │   (3) o servidor confere o ticket, faz HEAD no objeto,
-   │       marca o objeto como confirmado e, na MESMA transação:
+POST /ocorrencias  { …, anexos: [ { chave, ticket, titulo? } ] }
+   │   (3) o servidor confere o ticket, faz HEAD nos objetos,
+   │       marca os objetos como confirmados e, na MESMA transação:
    │          INSERT ocorrencias · INSERT registros_transicao · INSERT anexos
    ▼
-201 OcorrenciaDetalhe  — com anexos[] e ultimaTransicao
+201 OcorrenciaDetalhe  — com anexos[] (url e miniaturaUrl) e ultimaTransicao
 ```
 
 **(1)** A compressão é do cliente. A API **não pode forçá-la** — só recusar o que não couber: a autorização é
 emitida com `tamanhoBytes` declarado e é recusada acima de **512 KB** (os 400 KB do RNF8 mais margem) ou com
 `tipoConteudo` fora de `image/jpeg` e `image/png`.
+
+> **A miniatura sai do mesmo passe — 22/08/2026.** O cliente já redimensiona para 1600 px e comprime para
+> ~400 KB; gerar uma versão de ~200 px e ~15 KB é a mesma operação de canvas, no mesmo momento. **Nenhum
+> trabalho novo de servidor, e nenhum byte a mais atravessando o contêiner da aplicação.**
+>
+> **É opcional.** Cliente que não gerar miniatura simplesmente não usa `uploadMiniatura`; o objeto pendente
+> é recolhido pela faxina como qualquer outro, e `anexos.thumbnail_chave` fica nulo. O produto funciona
+> igual — só a listagem perde a prévia.
+>
+> **Por que uma autorização e não duas.** Duas chamadas custariam duas idas e voltas dentro de um orçamento
+> de 60 segundos, e consumiriam **dois** slots do limite de 30 por hora. Com uma, continua sendo **um
+> ticket, um slot, uma reivindicação, uma transação** — o DG-5 mantém a forma que ele tem hoje.
 
 **(2)** É o passo que faz o RNF6 caber: o upload roda **em paralelo** com o preenchimento do formulário, e o
 `POST /ocorrencias` transporta 200 bytes de JSON em vez de 400 KB de foto.
@@ -1336,6 +1440,13 @@ Se passa, o servidor **marca o objeto como confirmado** — é o que a §10.3 ex
 > `imagem_caminho` = chave"*, uma escrita na mesma linha da ocorrência. Agora ele grava **uma linha em
 > `anexos`**, com `tipo` (derivado do `tipoConteudo` autorizado), `tipo_conteudo` e `tamanho_bytes`
 > **vindos do `HEAD`, não do que o cliente declarou**, e `anexado_por_pessoa_id`.
+>
+> **E o que ele ganhou em 22/08/2026:** `fonte` (`azure_blob`, do enum — é o que permite migração
+> incremental de provedor), `titulo` (o que o cliente mandou, se mandou), `nome_arquivo` (lido do
+> `Content-Disposition` do objeto, se houver) e `thumbnail_chave` — **preenchida só se o `HEAD` da
+> miniatura passar**. Miniatura ausente ou inválida **não derruba o registro**: a coluna fica nula, o
+> objeto pendente é recolhido pela faxina, e a ocorrência é criada. É a diferença entre um anexo, que é
+> evidência, e uma prévia, que é conveniência de listagem.
 >
 > **As três escritas são uma transação só.** A invariante 2 da ADR-0001 já exigia que ocorrência e registro
 > de transição nascessem juntos; o anexo entra no mesmo `BEGIN … COMMIT`. Não é mecanismo novo — é uma
@@ -1490,6 +1601,18 @@ primária, imutável, e **não** a `chave` do objeto. Se a URL carregasse a chav
 dia em que a variante de prefixo da §10.3 fosse necessária — e o cache do service worker, que é a razão de
 o endpoint existir, quebraria junto.
 
+**A miniatura é `?variante=miniatura` no mesmo endpoint, e não um caminho novo.** Decidido em 22/08/2026:
+ela é outra **representação** do mesmo anexo, não outro recurso. Três consequências, e a terceira é a que
+decidiu: a operação continua sendo uma (**37 no total**); a URL continua estável e cacheável, agora em duas
+chaves de cache distintas; e **a autorização é a mesma** — quem pode ver o anexo pode ver a prévia dele, sem
+um segundo lugar onde a permissão precise ser checada. Um caminho separado teria criado exatamente esse
+segundo lugar.
+
+**A `fonte` do objeto não aparece na resposta, e é de propósito.** `anexos.fonte` diz **qual provedor**
+resolve a chave, e isso é infraestrutura: o cliente recebe uma URL desta API e segue o `302`. Expor o
+provedor daria ao cliente uma informação que ele não pode usar e criaria acoplamento onde a §2.8 do modelo
+gastou uma seção para não ter nenhum.
+
 **Custo declarado:** o alvo do `302` é uma URL com token que, uma vez emitida, vale 10 minutos para quem a
 tiver. Mitigações: TTL curto, `Referrer-Policy: no-referrer` na resposta, e nenhum registro de *query
 string* em log. É a mesma classe de risco que qualquer URL assinada tem, e a razão de o TTL não ser de horas.
@@ -1593,7 +1716,9 @@ delas foi resolvida dentro do YAML.
 | **S-A2** | **`POST /vinculos` sempre cria uma Pessoa nova**, sem procurar por e-mail | Se um dia se quiser reaproveitar cadastro, é preciso um mecanismo que **não** consulte `pessoas` globalmente — provavelmente convite (evolução prevista). Custo hoje: linhas duplicadas em `pessoas` |
 | **S-A3** | **`PATCH /vinculos/{pessoaId}` só aceita Pessoa sem Usuário** | Se for permitido editar quem tem conta, um Gestor passa a alterar cadastro que vale em outras organizações — e isso precisaria de decisão de produto, não de contrato |
 | **S-A4** | **Ocorrência que o chamador não pode ver responde `404`**, mesmo dentro da própria organização | Trocar por `403` tornaria a depuração mais fácil e confirmaria a existência de ocorrências de terceiros — o que a D10 recusa |
-| **S-A5** | **`GET /vinculos` exige `vinculo.gerir`**, e é o único lugar onde e-mail e telefone aparecem | Se o Solicitante precisar ver a lista de gente, o schema ganha uma variante sem contato. Dado de contato é dado pessoal (RNF10) |
+| **S-A5** | **`GET /vinculos` exige `vinculo.gerir`**, e é o único lugar onde `contatos[]` aparece | Se o Solicitante precisar ver a lista de gente, o schema ganha uma variante sem contato. Dado de contato é dado pessoal (RNF10) — e desde 22/08/2026 ele é a **tabela global mais sensível** do esquema |
+| **S-A17** | **A escrita de `contatos[]` é substituição, não mesclagem**, e não há endpoint próprio de contato — acrescentada em 22/08/2026 | Mesclar por `id` exigiria definir três casos de borda no contrato, e endpoint próprio custaria três operações novas mais uma URL de Pessoa que a §4.6 nega |
+| **S-A18** | **`vinculo.area` é a unidade da pessoa naquela organização**, anulável, e não é exposta a quem não tem `vinculo.gerir` | Se a unidade precisar aparecer ao Solicitante — *"ocorrências de área comum do meu local"* (D10, ⬜) —, o campo entra em `GET /contexto`. **Aditivo** |
 | **S-A6** | **Vínculo com papel `encarregado` tem `permissoes: []`** na primeira entrega | Se o acesso do Encarregado for antecipado (Q11 do produto), muda o mapa da §4.5 — nenhum endpoint novo, exceto os da evolução prevista |
 | **S-A7** | **Não existe edição de ocorrência.** Título, descrição, categoria, área e anexo são escritos uma vez | Editar exige `PATCH /ocorrencias` com uma lista explícita de campos, e reabre a **PA-01** (o anexo pode ser anexado depois?) |
 | **S-A8** | **O anexo é anexado apenas no registro** (PA-01 segue aberta) | Um **comando na ocorrência** — não um `POST` em coleção de anexo (§9.9) — e uma decisão sobre substituir/remover, que hoje esbarra em P6. **A tabela `anexos` já comporta o segundo anexo sem migração**, então o custo desse dia é de contrato e de tela, não de esquema |
@@ -1831,7 +1956,7 @@ A verificação nos dois sentidos.
 | 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1,S2) | **fora do contrato** — Supabase Auth (§4.1); consumida por `GET /contexto` |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | `POST /pedidos-de-entrada` |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | `GET /pedidos-de-entrada` · `POST …/aprovar` · `POST …/recusar` |
-| 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | `GET/POST /vinculos` · `PATCH /vinculos/{pessoaId}` |
+| 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | `GET/POST /vinculos` · `PATCH /vinculos/{pessoaId}` — desde 22/08/2026 com `contatos[]` e `areaId` no corpo |
 | 10 | **Remover vínculo sem histórico, desfazendo papel errado** | `NOSSO` (D25, PA-25) | `DELETE /vinculos/{pessoaId}` |
 | **2 · Registrar a ocorrência** |
 | 11 | Registrar com título, descrição e categoria | `ENUNCIADO · literal` (S3,S4) | `POST /ocorrencias` |
@@ -1963,6 +2088,10 @@ exatamente quando se quer saber.
 | 12 | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do modelo pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
 | 13 | Leitura do anexo | `GET /ocorrencias/{id}/anexos/{anexoId}` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) · `/anexos` singular (codifica o escopo na URL, que é a coisa mais cara de trocar) · coleção `GET /ocorrencias/{id}/anexos` (segundo caminho para o que o detalhe já traz — §9.9) |
 | 13b | **Forma do anexo no contrato** *(21/08/2026)* | Lista em `OcorrenciaDetalhe.anexos[]`, **contagem** em `OcorrenciaResumo.quantidadeDeAnexos`, `maxItems: 1` no corpo de entrada | Lista nos três formatos — verbosidade na leitura mais chamada · booleano `temAnexo` — vira quebra no dia do segundo anexo · restrição de quantidade no banco — devolve a migração que a tabela veio evitar |
+| 22 | **Contato na superfície** *(22/08/2026)* | `pessoa.contatos[]` embutido em `GET /vinculos`; escrita por **substituição** no corpo do vínculo | `emailContato` + `telefone` soltos — **era a decisão anterior**, e removê-los depois seria quebra (§11) · três endpoints próprios de contato — URL de recurso que a §4.6 nega a `Pessoa` · mesclagem por `id` — três casos de borda em vez de um |
+| 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |
+| 24 | **Miniatura do anexo** | Segundo objeto, **na mesma autorização**, lido por `?variante=miniatura` | Duas autorizações — dobra a ida e volta e consome dois slots do limite · caminho separado `/miniatura` — operação nova e um segundo lugar onde checar permissão · sem miniatura, servindo a imagem de 400 KB na listagem — 8 MB por página |
+| 25 | **Unidade do morador na superfície** | `vinculo.area` na leitura, `areaId` na escrita, só com `vinculo.gerir` | Não expor — mas então o produto continuaria guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia |
 | 14 | Paginação | Cursor `(registradaEm, id)` | Offset — duplica itens numa lista que recebe inserções |
 | 15 | Versionamento | `/api`, sem `/v1` | `/api/v1` por hábito — sem consumidor independente, é custo sem benefício |
 | 16 | Concorrência | Sem `ETag`; a máquina de estados é o controle otimista | `If-Match` em todo comando — resolve o que já estava resolvido e piora a mensagem de erro |
