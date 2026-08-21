@@ -423,9 +423,9 @@ Três consequências concretas no contrato:
    (`nome`, `contatos[]`) e o `papel`; o servidor cria a `Pessoa` global, os **contatos** e o `Vínculo`
    escopado na mesma transação. A escrita segue a mesma direção da leitura: entra-se pelo vínculo.
 3. **`POST /vinculos` sempre cria uma Pessoa nova — nunca reaproveita por e-mail.** Reaproveitar exigiria
-   procurar em `pessoas` por `email_contato`, que é exatamente a consulta global proibida, e a resposta
+   procurar em `contatos` por e-mail, que é exatamente a consulta global proibida, e a resposta
    vazaria a existência de um cadastro em outra organização. O custo é duplicação de linhas em `pessoas`
-   para o mesmo ser humano em organizações diferentes — coerente com o modelo, que declara `email_contato`
+   para o mesmo ser humano em organizações diferentes — coerente com o modelo, que **não** impõe unicidade global de e-mail em `contatos` e declara isso
    **não único** de propósito (§6.2: *"dois Encarregados de uma terceirizada podem compartilhar o e-mail do
    escritório"*). A unificação de identidade acontece pelo caminho oposto e correto: a pessoa cria conta e o
    `usuario_id` a liga.
@@ -908,7 +908,14 @@ embutida.
 **`PATCH /vinculos/{pessoaId}`** — `{ nome?, areaId?, contatos[]? }`, com uma regra de fronteira própria
 que protege as **duas** tabelas globais do esquema:
 
-> **Só é aceito quando a Pessoa alvo não tem Usuário.** Com conta: `409 PESSOA_COM_CONTA_NAO_EDITAVEL`.
+> **A guarda nomeia campos, não o endpoint.** `409 PESSOA_COM_CONTA_NAO_EDITAVEL` recusa alteração de
+> `nome` e dos **contatos** quando a Pessoa tem Usuário — porque essas duas coisas são **globais** e
+> mudá-las alteraria o cadastro daquela pessoa em todas as outras organizações. **`areaId` não está sob a
+> guarda:** ele pertence ao `Vínculo`, é escopado a esta organização, e o Gestor tem toda a legitimidade
+> para dizer em qual unidade a pessoa mora aqui.
+>
+> Precisão de 22/08/2026: a redação anterior aplicava a recusa ao **endpoint inteiro**, e o alcance ficava
+> maior que a razão dela.
 
 O motivo: `pessoas` é global. Um Gestor editando o nome de alguém que tem conta estaria **alterando o
 cadastro daquela pessoa em todas as outras organizações** — inclusive naquela em que ela é Gestora. Quem

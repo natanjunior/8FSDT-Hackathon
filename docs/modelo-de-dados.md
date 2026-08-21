@@ -1924,9 +1924,24 @@ indicação de que um número aceita WhatsApp.
   e ela é discutida abaixo
 - `UNIQUE (pessoa_id, tipo, valor)` — o mesmo número duas vezes na mesma pessoa é ruído, não dado
 - `CHECK (ordem >= 1)`
+- **`UNIQUE (pessoa_id, ordem)`** — sem ela, dois contatos empatam em `1` e a tela apresenta **empate como
+  preferência**. Foi acrescentada em 22/08/2026, e vale registrar como a restrição nasceu: o `principal
+  boolean` recusado acima tinha um índice único parcial justamente para garantir *"um só principal"*, e ao
+  trocá-lo por `ordem` a garantia não veio junto. Trocar de mecanismo sem trocar de garantia é o modo de
+  falha desse tipo de decisão
 - `CHECK (tem_whatsapp = false OR tipo = 'telefone')` — **WhatsApp é indicação sobre um número**, e o banco
   recusa marcá-la num e-mail
 - `CHECK (tipo <> 'telefone' OR valor ~ '^\+[1-9][0-9]{7,14}$')` — **E.164**, abaixo
+
+> **Como o E.164 é produzido na primeira entrega, sem biblioteca.** O `CHECK` aceita qualquer país, mas
+> **quem escreve só produz números brasileiros**: a aplicação remove tudo que não é dígito, exige 10 ou 11
+> deles, e prefixa `+55`. São cerca de dez linhas.
+>
+> A alternativa era `libphonenumber`, e ela foi **recusada** — seria a única dependência de terceiro do
+> produto sem saída barata, num projeto que já recusou o componente de gráfico pelo mesmo critério. O que
+> se perde está declarado: **número estrangeiro não é registrável na primeira entrega**, o que num
+> condomínio brasileiro é caso de borda. A coluna aceita; o formulário não produz. No dia em que precisar,
+> a biblioteca entra sem tocar o esquema — que é a razão de o `CHECK` ser E.164 completo e não `^\+55`.
 - `CHECK (tipo <> 'email' OR valor LIKE '%_@_%.__%')` — forma mínima. Validação de e-mail de verdade é da
   aplicação; aqui é só a garantia de que não entrou um telefone no campo errado
 

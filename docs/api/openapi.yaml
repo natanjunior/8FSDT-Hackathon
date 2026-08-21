@@ -126,7 +126,7 @@ paths:
                 semVinculo:
                   summary: Conta recém-criada, ainda sem organização
                   value:
-                    pessoa: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    pessoa: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     organizacaoAtiva: null
                     papel: null
                     permissoes: []
@@ -272,7 +272,7 @@ paths:
                     **Em E.164** — `+5511999990000`. Vira o primeiro contato da Pessoa, com
                     `finalidade: pessoal`. É o único ponto do contrato em que um contato entra fora de
                     `/vinculos`, e ele existe porque **aqui ainda não há vínculo** (D25).
-            example: { codigoPublico: "RECANTO7", nome: "Morador do 302", telefone: "+5511999990000" }
+            example: { codigoPublico: "RECANTO7", nome: "Helena Rocha", telefone: "+5511999990000" }
       responses:
         "201":
           description: Pedido registrado, aguardando decisão do Gestor.
@@ -346,7 +346,7 @@ paths:
                   - id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9"
                     pessoa:
                       pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d"
-                      nome: "Morador do 302"
+                      nome: "Helena Rocha"
                       contatos:
                         - { id: "dd44ee55-ff66-4a77-8b88-c99dd00ee11f", tipo: "email", valor: "302@exemplo.com", finalidade: "pessoal", temWhatsapp: false, ordem: 1, observacao: null }
                         - { id: "ee55ff66-aa77-4b88-8c99-d00ee11ff22a", tipo: "telefone", valor: "+5511999990000", finalidade: "pessoal", temWhatsapp: true, ordem: 2, observacao: null }
@@ -380,7 +380,17 @@ paths:
               required: [papel]
               properties:
                 papel: { $ref: "#/components/schemas/PapelVinculo" }
-            example: { papel: "solicitante" }
+                areaId:
+                  type: [string, "null"]
+                  format: uuid
+                  description: |
+                    A **unidade** desta pessoa nesta organização — o apartamento 302, a sala 14. Opcional, e
+                    este é o **único momento em que ela pode ser informada para quem tem conta**: o `PATCH`
+                    de vínculo recusa Pessoa com Usuário, e o morador sempre tem uma. Sem este campo,
+                    `vinculos.area_id` seria preenchível apenas para quem **não** é morador — e ela existe
+                    para descrever exatamente quem é. `422 AREA_INVALIDA` se a Área não for desta
+                    organização ou estiver inativa.
+            example: { papel: "solicitante", areaId: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e" }
       responses:
         "200":
           description: Pedido aprovado; vínculo criado.
@@ -397,6 +407,12 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problema" }
               example: { type: "https://resolveai.app/erros/pedido-ja-decidido", title: "Pedido já decidido", status: 409, codigo: "PEDIDO_JA_DECIDIDO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "422":
+          description: A `areaId` informada não é Área desta organização, ou está inativa.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/area-invalida", title: "Área inválida", status: 422, detail: "Esta área não existe nesta organização ou está desativada.", codigo: "AREA_INVALIDA", traceId: "01JB8Z6K9T2M4N7Q" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /pedidos-de-entrada/{pedidoId}/recusar:
@@ -492,7 +508,7 @@ paths:
                 itens:
                   - pessoa:
                       pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f"
-                      nome: "Zelador — Bloco B"
+                      nome: "Antônio Ferreira"
                       contatos:
                         - { id: "aa11bb22-cc33-4d44-8e55-f66aa77bb88c", tipo: "telefone", valor: "+5511988881234", finalidade: "trabalho", temWhatsapp: true, ordem: 1, observacao: null }
                         - { id: "bb22cc33-dd44-4e55-8f66-a77bb88cc99d", tipo: "telefone", valor: "+5511933334444", finalidade: "recado", temWhatsapp: false, ordem: 2, observacao: "escritório da terceirizada" }
@@ -524,7 +540,7 @@ paths:
         **Sempre cria uma Pessoa nova; nunca procura por e-mail.** Procurar exigiria consultar `pessoas`
         globalmente — a consulta proibida — e a resposta vazaria a existência de um cadastro em outra
         organização. O custo (linhas duplicadas para o mesmo ser humano em organizações diferentes) é
-        coerente com o modelo, que deixa `email_contato` **não único** de propósito.
+        coerente com o modelo, que **não** impõe unicidade global de e-mail em `contatos`.
 
         *Capacidade: cadastro de Encarregados, sem conta · `NOSSO` (D27). Comando: `Cadastrar pessoa`.*
       parameters:
@@ -554,7 +570,7 @@ paths:
                     compartilhar o e-mail do escritório.
                   items: { $ref: "#/components/schemas/ContatoParaEscrita" }
             example:
-              nome: "Zelador — Bloco B"
+              nome: "Antônio Ferreira"
               papel: "encarregado"
               contatos:
                 - { tipo: "telefone", valor: "+5511988881234", finalidade: "trabalho", temWhatsapp: true, ordem: 1 }
@@ -1273,7 +1289,7 @@ paths:
                     prioridade: "normal"
                     categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }
                     area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum" }
-                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     responsavel: null
                     quantidadeDeAnexos: 1
                     registradaEm: "2026-08-20T13:02:11Z"
@@ -1356,7 +1372,7 @@ paths:
                 itens:
                   - tipo: "transicao"
                     ocorridoEm: "2026-08-20T13:02:11Z"
-                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     rotulo: "Recebida — aguardando análise"
                     statusNovo: "aberta"
                     statusAnterior: null
@@ -1370,10 +1386,10 @@ paths:
                   - tipo: "atribuicao"
                     ocorridoEm: "2026-08-20T14:12:00Z"
                     autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
-                    responsavel: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Zelador — Bloco B" }
+                    responsavel: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Antônio Ferreira" }
                   - tipo: "mensagem"
                     ocorridoEm: "2026-08-20T15:00:00Z"
-                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     texto: "Obrigado! A vaga ao lado também está escura."
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
@@ -1413,7 +1429,7 @@ paths:
                     items: { $ref: "#/components/schemas/RegistroDeTransicao" }
               example:
                 itens:
-                  - { statusAnterior: null, statusNovo: "aberta", ocorreuEm: "2026-08-20T13:02:11Z", autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }, observacao: null, motivoPausa: null, motivoCancelamento: null }
+                  - { statusAnterior: null, statusNovo: "aberta", ocorreuEm: "2026-08-20T13:02:11Z", autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }, observacao: null, motivoPausa: null, motivoCancelamento: null }
                   - { statusAnterior: "aberta", statusNovo: "em_analise", ocorreuEm: "2026-08-20T14:10:00Z", autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }, observacao: "Vou verificar se temos lâmpada em estoque.", motivoPausa: null, motivoCancelamento: null }
                   - { statusAnterior: "em_analise", statusNovo: "pausada", ocorreuEm: "2026-08-21T09:00:00Z", autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }, observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.", motivoPausa: "aguardando_peca", motivoCancelamento: null }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
@@ -1516,7 +1532,7 @@ paths:
                 itens:
                   - id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
                     texto: "Obrigado! A vaga ao lado também está escura."
-                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
+                    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     criadoEm: "2026-08-20T15:00:00Z"
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
@@ -2558,6 +2574,21 @@ components:
                 caminhos de leitura. Ordenada por `ordem`.
               items: { $ref: "#/components/schemas/Contato" }
 
+    PessoaDoPedido:
+      allOf:
+        - $ref: "#/components/schemas/PessoaReferencia"
+        - type: object
+          description: |
+            Como quem pediu entrada aparece para o Gestor que vai decidir. **Não é `PessoaComContato`, e a
+            diferença é de privacidade, não de conveniência:** `contatos` é tabela **global**, então
+            devolver a lista aqui mostraria ao Gestor desta organização os contatos que a pessoa cadastrou
+            em **outra**. O pedido carrega apenas o telefone que a própria pessoa informou nele — um valor,
+            não uma lista —, e é o mais que este Gestor tem direito de ver antes de aprovar.
+          properties:
+            telefoneInformado:
+              type: [string, "null"]
+              description: O telefone enviado no próprio pedido, em E.164. `null` se não foi informado.
+
     Contexto:
       type: object
       description: |
@@ -2636,7 +2667,7 @@ components:
       required: [id, pessoa, situacao, criadoEm]
       properties:
         id: { type: string, format: uuid }
-        pessoa: { $ref: "#/components/schemas/PessoaComContato" }
+        pessoa: { $ref: "#/components/schemas/PessoaDoPedido" }
         situacao: { $ref: "#/components/schemas/SituacaoPedidoEntrada" }
         criadoEm: { type: string, format: date-time }
         decididoEm: { type: [string, "null"], format: date-time }
