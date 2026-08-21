@@ -12,3 +12,7 @@
 *.html text eol=lf
 *.mmd  text eol=lf
 *.json text eol=lf
+
+# Scripts que rodam DENTRO do container Linux: CRLF os quebra em silencio,
+# e a mensagem de erro nao diz que o problema e o fim de linha.
+*.sh   text eol=lf
