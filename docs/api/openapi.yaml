@@ -22,7 +22,10 @@ info:
        listagem de **vínculos**.
     4. **A trilha é só de leitura.** Não existe `POST`, `PATCH` nem `DELETE` de registro de transição —
        ele nasce como efeito de um comando.
-    5. **Nada é apagado.** Não há `DELETE` em nenhum recurso. Existe desativar, arquivar e cancelar.
+    5. **Quase nada é apagado, e a exceção é uma só.** Ocorrência não se apaga (cancela-se), categoria e
+       área não se apagam (desativam-se), mensagem não se apaga. O único `DELETE` do contrato é
+       `DELETE /vinculos/{pessoaId}`, que remove um vínculo **sem histórico** — e quem delimita a exceção
+       é o `ON DELETE RESTRICT` do esquema, que recusa apagar qualquer vínculo com linha dependente.
 
     ## Antes de clicar em *Try it out*
 
@@ -42,7 +45,7 @@ info:
       produção o campo recebe o nome civil.
   contact:
     name: Resolve Aí — documentação do projeto
-    url: https://github.com/resolve-ai/resolve-ai/tree/main/docs
+    url: https://github.com/natanjunior/8FSDT-Hackathon/tree/main/docs
   license:
     name: Uso acadêmico — pós-graduação FIAP, Fase 5
 
@@ -68,7 +71,7 @@ tags:
   - name: Configuração
     description: Categorias e Áreas da organização, configuráveis pelo Gestor (D18), semeadas na criação.
   - name: Ocorrências — leitura
-    description: Listagem, detalhe, linha do tempo, trilha de auditoria e imagem.
+    description: Listagem, detalhe, linha do tempo, trilha de auditoria e anexos.
   - name: Ocorrências — comandos
     description: |
       Os comandos do agregado. Cada um é `POST /ocorrencias/{id}/<comando>`, com o caminho no imperativo e
@@ -76,8 +79,11 @@ tags:
       `ultimaTransicao` — o registro de auditoria recém-gravado.
   - name: Conversa
     description: O comentário (canal 1 — Gestores e Solicitante). Os canais 2 e 3 são evolução prevista.
-  - name: Imagem
-    description: Autorização de upload direto para o storage, e leitura por URL assinada de vida curta.
+  - name: Anexo
+    description: |
+      A **evidência** anexada a uma ocorrência: autorização de upload direto para o storage, e leitura por
+      URL assinada de vida curta. **Na primeira entrega o anexo é exatamente um, do tipo `imagem`** — a
+      forma é de anexo, o escopo é de imagem, e os dois são coisas diferentes de propósito.
   - name: Dashboard
     description: Os indicadores de gestão — o que a listagem não responde.
 
@@ -886,14 +892,14 @@ paths:
         "409": { $ref: "#/components/responses/NomeDuplicado" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
-  /imagens/autorizacoes:
+  /anexos/autorizacoes:
     post:
-      tags: [Imagem]
-      operationId: autorizarUploadDeImagem
-      summary: Autorizar o upload da imagem, direto para o storage
+      tags: [Anexo]
+      operationId: autorizarUploadDeAnexo
+      summary: Autorizar o upload do anexo, direto para o storage
       description: |
-        Devolve uma **credencial temporária de escrita** para o cliente enviar a foto **direto ao storage** —
-        a API nunca recebe, nunca repassa e nunca guarda bytes de imagem.
+        Devolve uma **credencial temporária de escrita** para o cliente enviar a evidência **direto ao
+        storage** — a API nunca recebe, nunca repassa e nunca guarda bytes.
 
         O fluxo completo:
 
@@ -901,7 +907,7 @@ paths:
         2. Chama esta operação e recebe `chave`, `ticket` e `upload`.
         3. Faz `PUT` na `upload.url` com os bytes e os `upload.cabecalhos` — **fora desta API**, contra o
            storage. Este passo não aparece na especificação porque não é operação nossa.
-        4. Envia `imagem: { chave, ticket }` em `POST /ocorrencias`.
+        4. Envia `anexos: [{ chave, ticket }]` em `POST /ocorrencias`.
 
         **A validação acontece no passo 4, não no 3.** Ao reivindicar, o servidor confere a assinatura do
         `ticket`, confere que o portador é quem pediu, e faz um `HEAD` no objeto — que devolve tamanho e
@@ -911,6 +917,17 @@ paths:
         exatamente o trabalho que consome franquia sem produzir nada. E o passo 3 corre **em paralelo** com
         o preenchimento do formulário — é o que faz o registro caber em menos de um minuto (RNF6).
 
+        ## O que esta operação aceita hoje, e por que o nome é `anexos`
+
+        **O corpo aceita `image/jpeg` e `image/png`, e nada mais** — é o escopo da primeira entrega
+        (RNF8, e a capacidade *"anexar uma imagem"* do escopo). O caminho fala em anexo porque o conceito
+        do domínio é **evidência**, e imagem é um tipo dela; o dia em que outro tipo entrar, o que muda é a
+        lista de `tipoConteudo` aceitos, **não o caminho, não o schema e não o cliente**.
+
+        **O cliente nunca envia o tipo de anexo.** O `tipo` da linha em `anexos` é **derivado** do
+        `tipoConteudo` pelo servidor, no ato de reivindicar. É o que mantém o enum de tipos fora de todo
+        schema de entrada — e é o que torna acrescentar um tipo novo uma mudança aditiva.
+
         ## O objeto que nunca é reivindicado
 
         O passo 4 pode nunca acontecer — o aplicativo fechou, a rede caiu na garagem, a pessoa desistiu.
@@ -918,11 +935,12 @@ paths:
         banco, e o `ticket` era um token que expirou.
 
         Por isso **todo objeto nasce marcado `estado=pendente`**, numa etiqueta de índice escrita pelo
-        servidor. Reivindicar troca a marca para `estado=confirmado` — uma operação de metadado, que **não
-        move bytes** e portanto não desfaz a razão de este desenho existir. Uma regra de ciclo de vida do
-        contêiner apaga o que continuar `pendente`; como a granularidade do provedor é de dias, um objeto
-        abandonado vive entre 24 e 48 horas. Ele já era irrecuperável depois de 15 minutos, quando o
-        `ticket` expirou: o resto é espera de faxina, não janela de risco.
+        servidor. Reivindicar troca a marca para `estado=confirmado` **e grava a linha em `anexos`** — a
+        troca da etiqueta é uma operação de metadado, que **não move bytes** e portanto não desfaz a razão
+        de este desenho existir. Uma regra de ciclo de vida do contêiner apaga o que continuar `pendente`;
+        como a granularidade do provedor é de dias, um objeto abandonado vive entre 24 e 48 horas. Ele já
+        era irrecuperável depois de 15 minutos, quando o `ticket` expirou: o resto é espera de faxina, não
+        janela de risco.
 
         **Este é o único endpoint do contrato com limite de chamadas** — 30 por Pessoa por hora. É o único
         que permite a alguém autenticado consumir armazenamento externo **sem criar registro de domínio
@@ -943,6 +961,10 @@ paths:
                 tipoConteudo:
                   type: string
                   enum: [image/jpeg, image/png]
+                  description: |
+                    **Os dois tipos da primeira entrega** (RNF8). O servidor deriva daqui o `tipo` do anexo
+                    — hoje sempre `imagem`. Aceitar um tipo novo é acrescentar um valor a esta lista, e é a
+                    única mudança de entrada que a ampliação do anexo exigiria.
                 tamanhoBytes:
                   type: integer
                   minimum: 1
@@ -956,11 +978,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AutorizacaoDeUpload" }
               example:
-                chave: "img_01JB8Z6K9T2M4N7Q"
-                ticket: "eyJhbGciOiJIUzI1NiJ9.eyJjaGF2ZSI6ImltZ18wMUpCOFo2SzlUMk00TjdRIn0"
+                chave: "anx_01JB8Z6K9T2M4N7Q"
+                ticket: "eyJhbGciOiJIUzI1NiJ9.eyJjaGF2ZSI6ImFueF8wMUpCOFo2SzlUMk00TjdRIn0"
                 estado: "pendente"
                 upload:
-                  url: "https://exemplo.blob.core.windows.net/anexos/img_01JB8Z6K9T2M4N7Q?sv=2024-11-04&sig=..."
+                  url: "https://exemplo.blob.core.windows.net/anexos/anx_01JB8Z6K9T2M4N7Q?sv=2024-11-04&sig=..."
                   metodo: "PUT"
                   cabecalhos:
                     x-ms-blob-type: "BlockBlob"
@@ -975,11 +997,11 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problema" }
               example:
-                type: "https://resolveai.app/erros/imagem-acima-do-limite"
-                title: "Imagem grande demais"
+                type: "https://resolveai.app/erros/anexo-acima-do-limite"
+                title: "Arquivo grande demais"
                 status: 422
                 detail: "A imagem precisa ser comprimida no aparelho antes de subir."
-                codigo: "IMAGEM_ACIMA_DO_LIMITE"
+                codigo: "ANEXO_ACIMA_DO_LIMITE"
                 traceId: "01JB8Z6K9T2M4N7Q"
         "429":
           description: |
@@ -994,7 +1016,7 @@ paths:
               schema: { $ref: "#/components/schemas/Problema" }
               example:
                 type: "https://resolveai.app/erros/limite-de-autorizacoes-de-upload"
-                title: "Muitas imagens em pouco tempo"
+                title: "Muitos envios em pouco tempo"
                 status: 429
                 detail: "Aguarde alguns minutos para enviar outra imagem."
                 codigo: "LIMITE_DE_AUTORIZACOES_DE_UPLOAD"
@@ -1014,9 +1036,14 @@ paths:
         `prioridade` (nasce `normal`, D6), `areaTipo` (cópia congelada do tipo da Área, que decide a
         visibilidade para sempre) e o registro de transição.
 
-        A imagem chega como **referência já enviada** (`chave` + `ticket`), nunca como bytes. Ao aceitar a
-        referência, o servidor **confirma o objeto no storage** — o que o tira da faxina automática descrita
-        em `POST /imagens/autorizacoes`.
+        O anexo chega como **referência já enviada** (`chave` + `ticket`), nunca como bytes. Ao aceitar a
+        referência, o servidor **confirma o objeto no storage e grava a linha em `anexos`**, na mesma
+        transação que cria a ocorrência e o primeiro registro da trilha — o que o tira da faxina automática
+        descrita em `POST /anexos/autorizacoes`.
+
+        **`anexos` aceita no máximo um item nesta entrega** (`maxItems: 1`), e o único tipo que chega até
+        aqui é imagem, porque a autorização não emite outro. A lista é a forma permanente; o teto é o
+        escopo, e mora aqui — **não no banco**, que não tem restrição alguma de quantidade.
 
         *Capacidades: registrar com título, descrição e categoria · `ENUNCIADO · literal` (S3, S4);
         informar a localização · `ENUNCIADO · aberto` (S5) + D10; anexar uma imagem · `ENUNCIADO · aberto`
@@ -1037,7 +1064,8 @@ paths:
                   categoriaId: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d"
                   areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e"
                   localizacaoComplemento: "ao lado da vaga 34"
-                  imagem: { chave: "img_01JB8Z6K9T2M4N7Q", ticket: "eyJhbGciOiJIUzI1NiJ9..." }
+                  anexos:
+                    - { chave: "anx_01JB8Z6K9T2M4N7Q", ticket: "eyJhbGciOiJIUzI1NiJ9..." }
               semFoto:
                 summary: Unidade privativa, sem foto
                 value:
@@ -1058,10 +1086,27 @@ paths:
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
-        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "409":
+          description: |
+            Organização divergente do cabeçalho de afirmação; ou anexo **já reivindicado** por outra
+            ocorrência.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                organizacaoDivergente:
+                  value: { type: "https://resolveai.app/erros/organizacao-divergente", title: "Organização divergente", status: 409, detail: "A organização afirmada não é a organização ativa da sessão.", codigo: "ORGANIZACAO_DIVERGENTE", traceId: "01JB8Z6K9T2M4N7Q" }
+                anexoJaReivindicado:
+                  summary: O mesmo objeto sendo anexado duas vezes
+                  description: |
+                    Acontece no reenvio da tela: o `POST` chegou ao servidor, a resposta se perdeu na rede e
+                    o cliente refez a chamada com a **mesma** `chave` (o comportamento desenhado, para a
+                    foto não subir duas vezes). A primeira chamada tinha funcionado. `ocorrenciaId` diz para
+                    onde navegar em vez de registrar de novo.
+                  value: { type: "https://resolveai.app/erros/anexo-ja-reivindicado", title: "Este anexo já foi registrado", status: 409, detail: "Este arquivo já está anexado a uma ocorrência.", codigo: "ANEXO_JA_REIVINDICADO", traceId: "01JB8Z6K9T2M4N7Q", ocorrenciaId: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8" }
         "422":
           description: |
-            Categoria ou área inexistente **nesta organização** ou desativada; imagem não reconhecida;
+            Categoria ou área inexistente **nesta organização** ou desativada; anexo não reconhecido;
             campo cuja capacidade é evolução prevista (`ocorrenciaOrigemId`).
           content:
             application/problem+json:
@@ -1071,8 +1116,8 @@ paths:
                   value: { type: "https://resolveai.app/erros/categoria-invalida", title: "Categoria inválida", status: 422, detail: "Esta categoria não existe nesta organização ou está desativada.", codigo: "CATEGORIA_INVALIDA", traceId: "01JB8Z6K9T2M4N7Q" }
                 areaInvalida:
                   value: { type: "https://resolveai.app/erros/area-invalida", title: "Área inválida", status: 422, detail: "Esta área não existe nesta organização ou está desativada.", codigo: "AREA_INVALIDA", traceId: "01JB8Z6K9T2M4N7Q" }
-                imagem:
-                  value: { type: "https://resolveai.app/erros/imagem-nao-reconhecida", title: "Imagem não reconhecida", status: 422, detail: "A autorização expirou ou o arquivo não chegou ao storage.", codigo: "IMAGEM_NAO_RECONHECIDA", traceId: "01JB8Z6K9T2M4N7Q" }
+                anexo:
+                  value: { type: "https://resolveai.app/erros/anexo-nao-reconhecido", title: "Anexo não reconhecido", status: 422, detail: "A autorização expirou ou o arquivo não chegou ao storage.", codigo: "ANEXO_NAO_RECONHECIDO", traceId: "01JB8Z6K9T2M4N7Q" }
                 campoDeEvolucaoPrevista:
                   summary: Campo cuja capacidade ainda não existe
                   value: { type: "https://resolveai.app/erros/campo-nao-suportado", title: "Campo não suportado", status: 422, detail: "O vínculo com a ocorrência original é evolução prevista.", codigo: "CAMPO_NAO_SUPORTADO", traceId: "01JB8Z6K9T2M4N7Q", erros: [{ campo: "ocorrenciaOrigemId", codigo: "CAMPO_NAO_SUPORTADO" }] }
@@ -1168,7 +1213,7 @@ paths:
                     area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum" }
                     autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Morador do 302" }
                     responsavel: null
-                    temImagem: true
+                    quantidadeDeAnexos: 1
                     registradaEm: "2026-08-20T13:02:11Z"
                     atualizadaEm: "2026-08-20T14:10:00Z"
         "400": { $ref: "#/components/responses/FormatoInvalido" }
@@ -1315,24 +1360,28 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
-  /ocorrencias/{ocorrenciaId}/imagem:
+  /ocorrencias/{ocorrenciaId}/anexos/{anexoId}:
     get:
-      tags: [Imagem]
-      operationId: obterImagemDaOcorrencia
-      summary: Abrir a imagem da ocorrência
+      tags: [Anexo]
+      operationId: obterAnexoDaOcorrencia
+      summary: Abrir um anexo da ocorrência
       description: |
         Responde **`302`** para uma URL assinada de leitura, válida por 10 minutos. **A API não faz proxy
         dos bytes** — pelo mesmo motivo de custo que decidiu o upload.
 
         A URL **deste endpoint** é estável, então serve em `<img src>` e é cacheável pelo service worker;
-        a URL assinada, que muda a cada pedido, nunca aparece em payload de listagem.
+        a URL assinada, que muda a cada pedido, nunca aparece em payload de listagem. O `anexoId` é o
+        identificador da linha, que nunca muda — o cliente **não o constrói**: ele vem pronto em
+        `OcorrenciaDetalhe.anexos[].url`.
 
         O contêiner não é público: ocorrência em unidade privativa é visível só ao autor e aos Gestores, e
-        a autorização é feita aqui, a cada leitura.
+        a autorização é feita aqui, **a cada leitura** — é a ocorrência que decide quem vê, nunca a posse
+        de um link.
 
         *Capacidade: anexar uma imagem · `ENUNCIADO · aberto` (S6).*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/AnexoId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       responses:
         "302":
@@ -1347,10 +1396,14 @@ paths:
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
         "404":
-          description: A ocorrência não existe para quem pediu, ou não tem imagem.
+          description: |
+            A ocorrência não existe para quem pediu, ou o anexo não é dela. **A mesma resposta para os dois
+            casos** — anexo de outra ocorrência responde como anexo inexistente, pela regra da §6.3 do
+            contrato.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/anexo-nao-encontrado", title: "Anexo não encontrado", status: 404, detail: "Este anexo não existe nesta ocorrência.", codigo: "ANEXO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /ocorrencias/{ocorrenciaId}/comentarios:
@@ -2045,6 +2098,15 @@ components:
       required: true
       schema: { type: string, format: uuid }
       example: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
+    AnexoId:
+      name: anexoId
+      in: path
+      required: true
+      description: |
+        O anexo é endereçado **dentro da ocorrência**, nunca no nível superior: é ela que decide quem pode
+        ler. O valor vem pronto em `OcorrenciaDetalhe.anexos[].url` — o cliente não o monta.
+      schema: { type: string, format: uuid }
+      example: "c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
     PedidoId:
       name: pedidoId
       in: path
@@ -2264,6 +2326,13 @@ components:
           properties:
             id: { type: string, format: uuid }
             nome: { type: string }
+        ocorrenciaId:
+          type: string
+          format: uuid
+          description: |
+            Só em `409 ANEXO_JA_REIVINDICADO` — a ocorrência que **já** tem este anexo. Existe para que o
+            cliente possa navegar até ela em vez de pedir à pessoa que registre de novo. É seguro devolver:
+            o `ticket` amarra a chave a quem pediu, então quem recebe este erro é o próprio autor.
 
     StatusOcorrencia:
       type: string
@@ -2497,18 +2566,23 @@ components:
           type: [string, "null"]
           maxLength: 200
           description: 'Texto livre — "ao lado da vaga 34".'
-        imagem:
-          type: [object, "null"]
-          description: Referência à imagem já enviada ao storage. Nunca bytes.
-          required: [chave, ticket]
-          properties:
-            chave: { type: string }
-            ticket: { type: string }
+        anexos:
+          type: [array, "null"]
+          maxItems: 1
+          description: |
+            As evidências **já enviadas ao storage**, por referência. Nunca bytes.
+
+            **`maxItems: 1` é o escopo da primeira entrega, e é aqui que ele mora.** A tabela `anexos` do
+            banco não tem restrição nenhuma de quantidade, de propósito: se o banco proibisse o segundo
+            anexo, permiti-lo depois seria migração — e evitar migração é a razão inteira de o anexo ser
+            tabela. Ampliar é trocar este número, o que **aceita mais e nunca menos**, e portanto não quebra
+            cliente nenhum.
+          items: { $ref: "#/components/schemas/ReferenciaDeAnexo" }
 
     OcorrenciaResumo:
       type: object
       description: Como a ocorrência aparece na listagem.
-      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, temImagem, registradaEm, atualizadaEm]
+      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, quantidadeDeAnexos, registradaEm, atualizadaEm]
       properties:
         id: { type: string, format: uuid }
         titulo: { type: string }
@@ -2550,7 +2624,20 @@ components:
           oneOf:
             - $ref: "#/components/schemas/PessoaReferencia"
             - type: "null"
-        temImagem: { type: boolean }
+        quantidadeDeAnexos:
+          type: integer
+          minimum: 0
+          description: |
+            Quantos anexos a ocorrência tem. **Na listagem vai a contagem, não a lista** — uma lista de um
+            elemento em cada item de página é verbosidade na leitura mais chamada do produto, e a tela só
+            precisa da marca *"com foto"*, que é `quantidadeDeAnexos > 0`.
+
+            É contagem e não booleano porque o número **já é a forma final**: o dia em que a ocorrência
+            aceitar mais de um anexo, esta resposta continua correta sem nenhuma mudança de schema. A lista
+            inteira está em `OcorrenciaDetalhe`, que é uma ocorrência só e não paga verbosidade.
+
+            Hoje o valor é sempre `0` ou `1`, por escopo — não por schema.
+          examples: [0, 1]
         registradaEm: { type: string, format: date-time }
         atualizadaEm:
           type: string
@@ -2561,16 +2648,19 @@ components:
       allOf:
         - $ref: "#/components/schemas/OcorrenciaResumo"
         - type: object
-          required: [descricao, acoesDisponiveis, ultimaTransicao]
+          required: [descricao, anexos, acoesDisponiveis, ultimaTransicao]
           properties:
             descricao: { type: string }
             localizacaoComplemento: { type: [string, "null"] }
-            imagemUrl:
-              type: [string, "null"]
+            anexos:
+              type: array
               description: |
-                Caminho **estável** desta API (`/ocorrencias/{id}/imagem`), que redireciona para uma URL
-                assinada de vida curta. Nunca a URL do storage — ela expira, e mudaria a cada resposta,
-                quebrando o cache do PWA.
+                As evidências da ocorrência, da mais antiga para a mais recente. **Lista vazia quando não
+                há anexo** — nunca `null`, para o cliente não precisar de dois caminhos de leitura.
+
+                Na primeira entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
+                schema: nem o banco nem esta resposta limitam a quantidade.
+              items: { $ref: "#/components/schemas/Anexo" }
             solucaoAplicada: { type: [string, "null"] }
             avaliacao:
               description: Objeto de valor opcional, preenchido só depois de `resolvida`. Não é um estado.
@@ -2709,6 +2799,63 @@ components:
       properties:
         observacao: { type: string, maxLength: 1000 }
 
+    TipoAnexo:
+      type: string
+      description: |
+        O **tipo de evidência**. Enum de **saída apenas** — o cliente nunca o envia: o servidor o deriva do
+        `tipoConteudo` declarado na autorização de upload.
+
+        **Um valor hoje, e isso é deliberado.** O escopo da primeira entrega é *"anexar uma imagem"*
+        (`escopo.md`, atividade 2) com RNF8 fixando JPEG ou PNG; declarar `video`, `documento` e `audio`
+        aqui seria publicar três caminhos de renderização para dado que nunca chega. Acrescentar um valor
+        depois é `ALTER TYPE tipo_anexo ADD VALUE` no banco e **valor novo em enum de saída** no contrato —
+        aditivo pelas duas regras, e sem cliente a atualizar.
+      enum: [imagem]
+
+    ReferenciaDeAnexo:
+      type: object
+      description: |
+        Como o anexo **entra**: a referência a um objeto já enviado ao storage. Nunca bytes, e **nunca o
+        tipo** — quem o determina é o servidor, a partir do que autorizou.
+      required: [chave, ticket]
+      properties:
+        chave:
+          type: string
+          description: A chave opaca devolvida por `POST /anexos/autorizacoes`.
+          example: "anx_01JB8Z6K9T2M4N7Q"
+        ticket:
+          type: string
+          description: O token assinado da mesma autorização, com validade de 15 minutos.
+
+    Anexo:
+      type: object
+      description: |
+        Como o anexo **sai**: um item de `OcorrenciaDetalhe.anexos`. Note o que **não** está aqui — nome de
+        arquivo original (texto de quem enviou, que ninguém exibe e que carrega dado pessoal com
+        frequência), legenda e ordem. O que a interface precisa para desenhar é o tipo, a URL e o tamanho.
+      required: [id, tipo, tipoConteudo, tamanhoBytes, url, anexadoEm]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { $ref: "#/components/schemas/TipoAnexo" }
+        tipoConteudo:
+          type: string
+          description: |
+            O tipo MIME real, conferido por `HEAD` no objeto na hora de reivindicar. `tipo` é o conceito do
+            domínio; isto é o fato técnico, e é o que decide como a interface renderiza.
+          example: "image/jpeg"
+        tamanhoBytes:
+          type: integer
+          description: O tamanho real do objeto, também conferido no `HEAD`. Nunca o declarado pelo cliente.
+          example: 391244
+        url:
+          type: string
+          description: |
+            Caminho **estável** desta API (`/ocorrencias/{id}/anexos/{anexoId}`), que responde `302` para
+            uma URL assinada de vida curta. Nunca a URL do storage — ela expira, mudaria a cada resposta e
+            quebraria o cache do PWA.
+          example: "/api/ocorrencias/9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8/anexos/c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
+        anexadoEm: { type: string, format: date-time }
+
     AutorizacaoDeUpload:
       type: object
       required: [chave, ticket, estado, upload]
@@ -2730,8 +2877,9 @@ components:
           const: pendente
           description: |
             O objeto nasce pendente e é apagado pela regra de ciclo de vida se nunca for reivindicado.
-            Reivindicar o promove a confirmado. Devolvido para que o comportamento seja visível ao cliente,
-            e não uma regra invisível do storage.
+            Reivindicar o promove a confirmado **e grava a linha em `anexos`**, na mesma transação da
+            ocorrência. Devolvido para que o comportamento seja visível ao cliente, e não uma regra
+            invisível do storage.
         upload:
           type: object
           required: [url, metodo, cabecalhos, expiraEm]

@@ -1,9 +1,10 @@
 # Contrato de API — Resolve Aí
 
 Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
-[modelo-de-dados.md](modelo-de-dados.md) (as 14 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
+[modelo-de-dados.md](modelo-de-dados.md) (as 15 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
-[Event Storming](../trabalho/produto/event-storming.md) (comandos do passo 5, modelos de leitura do passo 7).
+**Event Storming** do projeto (comandos do passo 5, modelos de leitura do passo 7) — que é material de
+processo e não acompanha esta pasta.
 
 A especificação executável está em [`docs/api/openapi.yaml`](api/openapi.yaml) — **OpenAPI 3.1**, carregável
 no Swagger UI sem edição. **Os dois arquivos são o mesmo contrato**: este documento defende as decisões, o
@@ -11,7 +12,30 @@ YAML as declara.
 
 > **O que este documento não faz.** Não escreve handler, repositório nem estrutura de pastas — isso é
 > implementação. Não decide produto: onde a documentação anterior não respondia, a resposta virou
-> **suposição declarada** (§12) ou **questão ao hub** (§13), nunca uma escolha invisível dentro do YAML.
+> **suposição declarada** (§12) ou **questão registrada** (§13), nunca uma escolha invisível dentro do YAML.
+
+> **Nota de revisão — 21/08/2026 · a imagem virou anexo.** A `imagem_caminho` da ocorrência passou a ser a
+> tabela **`anexos`** (§6.16 e §7.8 do `modelo-de-dados.md`), porque o conceito do domínio é **evidência** e
+> a coluna modelava o exemplo. **O escopo não mudou:** continua sendo **um anexo, do tipo imagem,
+> comprimido no aparelho** — as 42 capacidades ✅ e os 37 endpoints são exatamente os mesmos.
+>
+> O que mudou na superfície, em cinco linhas:
+>
+> | Antes | Agora |
+> |---|---|
+> | `POST /imagens/autorizacoes` | `POST /anexos/autorizacoes` — mesma operação, renomeada |
+> | `GET /ocorrencias/{id}/imagem` | `GET /ocorrencias/{id}/anexos/{anexoId}` — mesma operação, endereçada |
+> | corpo `imagem: { chave, ticket }` | `anexos: [ { chave, ticket } ]`, com **`maxItems: 1`** |
+> | `OcorrenciaResumo.temImagem` | `quantidadeDeAnexos` (contagem) |
+> | `OcorrenciaDetalhe.imagemUrl` | `anexos[]` (lista) |
+>
+> Erros: `IMAGEM_*` → `ANEXO_*`, e **dois códigos novos** — `409 ANEXO_JA_REIVINDICADO` (§10.3) e
+> `404 ANEXO_NAO_ENCONTRADO`. **`LIMITE_DE_AUTORIZACOES_DE_UPLOAD` não mudou de nome**, porque nunca
+> nomeou o exemplo.
+>
+> **Por que agora e não depois:** cada linha dessa tabela seria, depois da primeira entrega, uma mudança
+> **não-aditiva** pela regra da §11 deste documento. Hoje custa reescrever texto; depois custaria quebrar
+> cliente. A §11.1 mede o que o desenho novo torna barato.
 
 ---
 
@@ -122,7 +146,7 @@ O caminho REST óbvio — `PATCH /ocorrencias/{id}` com `{"status": "em_analise"
 de negócio que muda o status. Só acontece por **comando nomeado** (`analisar`, `iniciarAtendimento`,
 `pausar`, `retomar`, `resolver`, `cancelar`)"*. Esses nomes são linguagem ubíqua (aula 3, p.6: um termo, uma
 definição). A opção A exigiria inventar `analise`, `atendimento`, `retomada` — nomes técnicos que a §9 do
-glossário manda **propor ao hub**, não criar no contrato. Pagar essa invenção para obter ortodoxia REST é
+glossário manda **propor ao glossário**, não criar no contrato. Pagar essa invenção para obter ortodoxia REST é
 trocar a linguagem do negócio por uma convenção de transporte.
 
 **2 · Um schema por comando transforma regra condicional em regra estática.** A D23 diz que `observacao` é
@@ -147,7 +171,7 @@ uniformidade de recursos realmente paga (cache, paginação, links estáveis par
 `Registro de transição` é termo do glossário enquanto "comando" não é recurso. O que a derrubou não foi
 elegância, foi risco: ela nomeia como recurso de escrita justamente a entidade que precisa ser
 inescrevível. Fica registrada aqui porque, se um dia o contrato precisar de um caminho genérico de comando
-(por exemplo, uma fila de comandos offline para o Encarregado — RNF7, fatia 2), **C é para onde voltar**.
+(por exemplo, uma fila de comandos offline para o Encarregado — RNF7, evolução prevista), **C é para onde voltar**.
 
 ### 3.4 Os dez endpoints de comando — para onze comandos
 
@@ -195,7 +219,7 @@ com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 
 | Campo de `ocorrencias` | Como muda |
 |---|---|
-| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `imagem` | Escritos **uma vez**, em `POST /ocorrencias`. **Não há endpoint de edição na primeira entrega** — editar ocorrência não é capacidade ✅ do escopo (§12, suposição S-A7) |
+| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. **Não há endpoint de edição na primeira entrega** — editar ocorrência não é capacidade ✅ do escopo (§12, suposição S-A7) |
 | `status` | **Só por comando.** Não aparece em nenhum schema de entrada do contrato |
 | `prioridade` | Só por `POST /ocorrencias/{id}/alterar-prioridade` — que recusa em estado terminal (D6) |
 | `solucaoAplicada` | Só por `POST /ocorrencias/{id}/registrar-solucao-aplicada` |
@@ -342,7 +366,7 @@ constante em código.
 | `ocorrencia.avaliar` | ✅ (só o autor) | ✅ (só o autor) | — |
 | `organizacao.configurar` · `vinculo.gerir` · `dashboard.ler` | — | ✅ | — |
 
-**O Gestor acumula as capacidades do Solicitante.** É a resposta 1 do hub em 20/08/2026 (`modelo-de-dados.md`,
+**O Gestor acumula as capacidades do Solicitante.** É a resposta 1 de 20/08/2026 (`modelo-de-dados.md`,
 §13): *o papel define a visão padrão e o conjunto de permissões; não retira capacidade que o enunciado
 concede*. É o que dispensa o segundo vínculo do síndico que mora no prédio — e, no contrato, é o que faz
 `POST /ocorrencias` e `POST /ocorrencias/{id}/avaliar` aceitarem um Gestor sem nenhuma exceção escrita.
@@ -419,7 +443,7 @@ chamada por dois transportes.
 
 O que se ganha: numa plataforma cuja franquia é medida em **vCPU-segundos** (ADR-0004) e cujo p95 já convive
 com **cold start** (RNF5), um salto HTTP interno para si mesmo é trabalho medido e cobrado que não produz
-nada. E o PWA continua consumindo os mesmos `GET`s — o que, em fatia 2, é o que torna a **leitura sem rede**
+nada. E o PWA continua consumindo os mesmos `GET`s — o que, na evolução prevista, é o que torna a **leitura sem rede**
 (RNF7) possível: o service worker cacheia respostas HTTP, e só existe o que passou por HTTP.
 
 O que se perde, declarado: **dois transportes, duas oportunidades de checar autorização**. A mitigação é
@@ -537,16 +561,18 @@ contrato:
 | `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | Já há pedido pendente (índice único parcial, §6.15 do modelo) |
 | `PEDIDO_JA_DECIDIDO` | 409 | Aprovar ou recusar pedido já decidido |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | Editar dados de Pessoa que tem Usuário (§12, S-A3) |
-| `VINCULO_COM_HISTORICO` | 409 | Remover vínculo que já tem linha dependente. **Recusa vinda do `ON DELETE RESTRICT`**, traduzida — o caminho é revogar, que é fatia 2 (§8.2) |
+| `VINCULO_COM_HISTORICO` | 409 | Remover vínculo que já tem linha dependente. **Recusa vinda do `ON DELETE RESTRICT`**, traduzida — o caminho é revogar, que é evolução prevista (§8.2) |
 | `ULTIMO_GESTOR` | 409 | Remover o último vínculo com `gerir` da Organização. A única regra do `DELETE` que o banco não garante (§8.2) |
 | `CATEGORIA_NOME_DUPLICADO` · `AREA_NOME_DUPLICADO` | 409 | `UNIQUE (organizacao_id, nome)` |
 | `CATEGORIA_INVALIDA` · `AREA_INVALIDA` | 422 | Existe, mas está **inativa** — ou não é desta organização |
 | `RESPONSAVEL_SEM_VINCULO_ATIVO` | 422 | A pessoa indicada não tem vínculo ativo aqui (D21) |
 | `MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` | 422 | Motivo de cancelamento fora da lista do papel (D5) |
-| `IMAGEM_NAO_RECONHECIDA` | 422 | Chave/ticket inválido, expirado, já usado, ou objeto ausente no storage |
-| `IMAGEM_ACIMA_DO_LIMITE` | 422 | Objeto maior que o teto do RNF8 |
-| `CAMPO_NAO_SUPORTADO` | 422 | Campo cuja capacidade é fatia 2 (ex.: `ocorrenciaOrigemId`) ou escrito só pelo servidor |
-| `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | Mais de 30 autorizações de imagem por Pessoa por hora. **É o único limite de chamadas do contrato** — e a §10.3 diz por quê |
+| `ANEXO_NAO_RECONHECIDO` | 422 | Chave/ticket inválido, expirado, ou objeto ausente no storage |
+| `ANEXO_ACIMA_DO_LIMITE` | 422 | Objeto maior que o teto do RNF8 |
+| `ANEXO_JA_REIVINDICADO` | 409 | O objeto já está anexado a uma ocorrência — `UNIQUE (chave)` em `anexos` (§6.16 do modelo). O corpo traz `ocorrenciaId`, para o cliente navegar em vez de registrar de novo. Ver §10.3 |
+| `ANEXO_NAO_ENCONTRADO` | 404 | O anexo não é desta ocorrência, ou não existe. **Mesma resposta para os dois casos**, pela §6.3 |
+| `CAMPO_NAO_SUPORTADO` | 422 | Campo cuja capacidade é evolução prevista (ex.: `ocorrenciaOrigemId`) ou escrito só pelo servidor |
+| `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | Mais de 30 autorizações de anexo por Pessoa por hora. **É o único limite de chamadas do contrato** — e a §10.3 diz por quê. *(O nome deste código não mudou em 21/08/2026: ele nunca nomeou o exemplo, nomeia a operação.)* |
 | `ERRO_INTERNO` | 500 | Sem `detail` de domínio; só `traceId` |
 
 **Nenhum código de erro expõe nome de tabela, coluna, SQL ou identificador de outra organização.** É regra
@@ -567,8 +593,20 @@ toda leitura. **Um único termo estrangeiro sobrevive: `status`**, que é palavr
 
 **7.2 · Vocabulário: sai do glossário, e o que não está lá vira pergunta.** Nome de recurso e de campo é o
 **conceito**, não o identificador (glossário, §9). Quatro nomes do contrato não existiam no glossário e
-estão declarados: `contexto` (§13, Q-API-2), `imagens/autorizacoes` (§10), `comentarios` como recurso
+estão declarados: `contexto` (§13, Q-API-2), `anexos/autorizacoes` (§10), `comentarios` como recurso
 (deriva de *Comentário*, o canal 1) e `dashboard` (palavra do enunciado, G8). Nenhum foi criado em silêncio.
+
+> **`Anexo` é o quinto, e ele é diferente dos outros quatro — 21/08/2026.** Os quatro acima são nomes
+> técnicos: `contexto` e `dashboard` não são conceitos de domínio, e `autorizacoes` é decomposição de um
+> comando. **`Anexo` é conceito**: é uma coisa que existe no domínio, tem tipo, tem autor e tem ciclo de
+> vida próprio no storage. Pelo critério que a §9 do glossário fixou em 20/08/2026 — *entra no glossário o
+> conceito, não o identificador* —, ele **deveria ser termo**.
+>
+> **Este contrato não inventa termo.** A definição está **proposta ao glossário**, não escrita aqui, e a
+> proposta é: *"a evidência que acompanha uma Ocorrência — foto, e no futuro outros tipos. Não confundir
+> com **Solução aplicada**, que é texto do Gestor sobre o que foi feito, nem com **Comentário**, que é
+> conversa."* Enquanto não houver decisão, `anexo` é nome de recurso e de tabela, exatamente como
+> `email_contato` foi antes de a distinção dele entrar no glossário.
 
 **7.3 · Caixa: `snake_case` no banco, `camelCase` no JSON, mesmo vocábulo nos dois.**
 `registros_transicao.autor_pessoa_id` vira `autorPessoaId`. A convenção segue o **meio** — SQL e JSON têm as
@@ -613,7 +651,7 @@ da organização ativa — nunca um id sintético que o modelo recusou criar.
    implementador** e franquia gratuita, é custo garantido contra benefício hipotético.
 3. **Prefixo não precisa ser reservado.** No dia da primeira quebra, criar `/api/v2` custa o mesmo que
    custaria se `/api/v1` existisse desde hoje. Não há dívida a antecipar.
-4. **A evolução prevista é aditiva por construção** (§11): dos 21 itens da fatia 2, 20 entram por endpoint
+4. **A evolução prevista é aditiva por construção** (§11): dos 21 itens, 20 entram por endpoint
    novo ou campo opcional novo.
 
 **Custo declarado:** se o produto ganhar consumidor externo — o plano pago da D13 é o caminho —, a primeira
@@ -653,7 +691,7 @@ O risco é real e está no RNF6: toque duplo em rede móvel ruim cria duas ocorr
   a máquina de estados faz o papel da chave.
 - **O caso que sobra tem desfazer dentro do produto:** ocorrência duplicada por toque duplo nasce `Aberta`, e
   o Solicitante cancela a própria com o motivo `aberta_por_engano` (D5/D12) — que existe no enum exatamente
-  para isto. E em fatia 2, *ver semelhantes e aderir* (D11) intercepta antes de criar.
+  para isto. E na evolução prevista, *ver semelhantes e aderir* (D11) intercepta antes de criar.
 
 Custo declarado: `POST /ocorrencias/{id}/comentarios` **não** é protegido — dois toques criam dois
 comentários, e não há exclusão de mensagem (P6).
@@ -741,7 +779,7 @@ ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D1
 o passado não muda. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
 **Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
-(fatia 2). Na primeira entrega **a organização é imutável depois de criada** — consequência do corte, não
+(evolução prevista). Na primeira entrega **a organização é imutável depois de criada** — consequência do corte, não
 descuido, e registrada na §11.
 
 ### 8.2 Atividade 1 — Entrar na organização
@@ -816,7 +854,7 @@ Ele existe porque três regras corretas se fechavam num beco:
 | Regra | De onde vem |
 |---|---|
 | **Nada é apagado** | P6 deste contrato, RNF9 e o `ON DELETE RESTRICT` do esquema |
-| **O `papel` de um vínculo não muda** | Resposta do hub à Q-API-6; promover a Gestor não é capacidade ✅ |
+| **O `papel` de um vínculo não muda** | Resposta à Q-API-6, §13.2; promover a Gestor não é capacidade ✅ |
 | **Uma Pessoa tem no máximo um vínculo por Organização** | `PRIMARY KEY (pessoa_id, organizacao_id)` — suposição S1 do modelo |
 
 Com as três de pé, um morador aprovado como `Encarregado` fica com `permissoes: []` e **não consegue nem
@@ -836,7 +874,7 @@ Nada é enviado no corpo. As respostas:
   pedido de entrada passa a ser aceito, agora com o papel certo.
 - **`404 VINCULO_NAO_ENCONTRADO`** — inclusive quando o vínculo existe em outra organização (§6.3).
 - **`409 VINCULO_COM_HISTORICO`** — a pessoa já registrou ocorrência, foi responsável, escreveu mensagem ou
-  autorou uma transição. **Aqui o caminho é *revogar*, que é fatia 2** (§11, item 6): revogar encerra o
+  autorou uma transição. **Aqui o caminho é *revogar*, que é evolução prevista** (§11, item 6): revogar encerra o
   acesso e **preserva** o registro. Os dois não são a mesma operação com nomes diferentes — ver o glossário.
 - **`409 ULTIMO_GESTOR`** — não se remove o último vínculo com `gerir` da Organização. Sem esta guarda o
   endpoint abriria um caminho **novo** para o **PA-24**: numa Organização recém-criada o Gestor inicial não
@@ -850,13 +888,20 @@ caminho de volta dentro do produto — remover vínculo não cria Gestor.
 
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
-| `POST /imagens/autorizacoes` | `ocorrencia.registrar` | Anexar imagem, comprimida no celular · `ENUNCIADO · aberto` (S6) + RNF8 | decomposição técnica de `Registrar ocorrência` (§10) |
+| `POST /anexos/autorizacoes` | `ocorrencia.registrar` | Anexar imagem, comprimida no celular · `ENUNCIADO · aberto` (S6) + RNF8 | decomposição técnica de `Registrar ocorrência` (§10) |
 | `POST /ocorrencias` | `ocorrencia.registrar` | Registrar com título, descrição e categoria · `ENUNCIADO · literal` (S3,S4) · Informar a localização · `ENUNCIADO · aberto` (S5) + D10 | `Registrar ocorrência` |
 
-**`POST /imagens/autorizacoes`** é o único endpoint com limite de chamadas do contrato — 30 por Pessoa por
+**`POST /anexos/autorizacoes`** é o único endpoint com limite de chamadas do contrato — 30 por Pessoa por
 hora, `429` acima disso —, porque é o único que permite consumir armazenamento externo **sem criar registro
 de domínio nenhum**. O fluxo inteiro, incluindo o que acontece com o objeto que nunca é reivindicado, está
 na §10.
+
+> **O caminho fala em anexo; o corpo aceita imagem — e a diferença é deliberada.** O `tipoConteudo` aceito
+> é `image/jpeg` ou `image/png`, e nada mais: é o escopo da primeira entrega (RNF8). O nome do recurso é o
+> **conceito** — evidência —, e o corpo é o **recorte**. Admitir outro tipo é acrescentar um valor àquela
+> lista; **o caminho, o schema e o cliente não mudam**, porque o cliente nunca envia o tipo do anexo: o
+> servidor o deriva do `tipoConteudo` que autorizou. É o mesmo raciocínio da §7.8 do modelo de dados —
+> *estrutura certa, escopo estreito*.
 
 **`POST /ocorrencias`** recebe:
 
@@ -867,9 +912,14 @@ na §10.
   "categoriaId": "6b1c8f2e-…",
   "areaId": "0f9a4d71-…",
   "localizacaoComplemento": "ao lado da vaga 34",
-  "imagem": { "chave": "img_01JB8Z…", "ticket": "eyJhbGciOi…" }
+  "anexos": [ { "chave": "anx_01JB8Z…", "ticket": "eyJhbGciOi…" } ]
 }
 ```
+
+**`anexos` é lista com `maxItems: 1`, e é aí que o escopo mora.** A tabela `anexos` do banco **não tem
+restrição de quantidade** — de propósito, porque proibir no banco devolveria a migração que a tabela veio
+evitar (§7.8 do modelo). O teto de um vive **aqui**, no schema de entrada, e ampliá-lo é trocar um número:
+uma mudança que **aceita mais e nunca menos**, e portanto não quebra cliente nenhum pela regra da §11.
 
 Devolve `201` + `Location` + `OcorrenciaDetalhe`. **Três coisas o servidor escreve e o cliente não pode
 enviar:** `status: "aberta"`, `prioridade: "normal"` (D6) e **`areaTipo`** — a cópia congelada que decide a
@@ -877,14 +927,20 @@ visibilidade para sempre (§7.5 do modelo). E mais uma, que é o requisito centr
 registro de transição**, com `statusAnterior` nulo — a premissa **P1** —, devolvido em `ultimaTransicao`.
 
 Erros: `400 FORMATO_INVALIDO` (título acima de 150, título ou descrição vazios — os `CHECK
-(length(trim(...)) > 0)` do modelo têm par no schema) · `422 CATEGORIA_INVALIDA` e `422 AREA_INVALIDA`
+(length(trim(...)) > 0)` do modelo têm par no schema; **e mais de um anexo**, que é `maxItems` violado e
+portanto forma, não domínio) · `422 CATEGORIA_INVALIDA` e `422 AREA_INVALIDA`
 (inexistente **nesta** organização **ou** desativada — mesma resposta para os dois casos, §6.3) ·
-`422 IMAGEM_NAO_RECONHECIDA` · `422 CAMPO_NAO_SUPORTADO` para `ocorrenciaOrigemId`, cuja coluna existe mas
-cuja capacidade é ⬜ fatia 2.
+`422 ANEXO_NAO_RECONHECIDO` · **`409 ANEXO_JA_REIVINDICADO`** (§10.3) · `422 CAMPO_NAO_SUPORTADO` para
+`ocorrenciaOrigemId`, cuja coluna existe mas cuja capacidade é ⬜, evolução prevista.
 
-**Por que a imagem chega como referência, e não como bytes.** O corpo é JSON puro: a foto já subiu para o
+**Por que o anexo chega como referência, e não como bytes.** O corpo é JSON puro: a foto já subiu para o
 storage enquanto o Solicitante digitava. É o que faz o registro caber em menos de um minuto (RNF6) — o
 fluxo inteiro está na §10.
+
+**E a reivindicação agora escreve uma linha.** Com a coluna, aceitar a referência era preencher um campo
+da própria ocorrência; com a tabela, é `INSERT` em `anexos`, **na mesma transação** que grava a ocorrência
+e o primeiro registro de transição. Três escritas, um `BEGIN … COMMIT` — a invariante 2 da ADR-0001 já
+exigia a transação, e o anexo entrou nela.
 
 ### 8.4 Atividades 3 a 6 — os comandos sobre a ocorrência
 
@@ -935,7 +991,7 @@ O que cada um tem de específico:
   filtrado por papel (`422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL`) — Solicitante: `desistencia` ·
   `resolvido_por_conta_propria` · `aberta_por_engano` · `duplicada`; Gestor: os sete. **`ocorrenciaOrigemId`
   não é aceito** (`422 CAMPO_NAO_SUPORTADO`): o motivo `duplicada` existe, o vínculo com a original é ⬜.
-- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado pelo hub em 20/08/2026).
+- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado em 20/08/2026).
   `403 SOMENTE_O_AUTOR_PODE_AVALIAR` · `409 AVALIACAO_EXIGE_RESOLVIDA` · `409 JA_AVALIADA`. **Não é um sexto
   estado** (D1): a ocorrência continua `resolvida` depois de avaliada.
 
@@ -947,7 +1003,7 @@ O que cada um tem de específico:
 | `GET /ocorrencias/{id}` | idem, sobre uma | idem | *Quem é o Responsável* · *Onde é, exatamente* |
 | `GET /ocorrencias/{id}/linha-do-tempo` | quem pode ler a ocorrência | Ver a linha do tempo · `ENUNCIADO · aberto` (S9) | *Linha do tempo da ocorrência* |
 | `GET /ocorrencias/{id}/trilha-de-auditoria` | quem pode ler a ocorrência | Agregado com trilha imutável · `ENUNCIADO · literal` (F4–F6) | — (auditoria, não decisão) |
-| `GET /ocorrencias/{id}/imagem` | quem pode ler a ocorrência | Anexar uma imagem · `ENUNCIADO · aberto` (S6) | *Onde é, exatamente* |
+| `GET /ocorrencias/{id}/anexos/{anexoId}` | quem pode ler a ocorrência | Anexar uma imagem · `ENUNCIADO · aberto` (S6) | *Onde é, exatamente* |
 
 **`GET /ocorrencias` — a mesma URL, conjuntos diferentes.** Não há `/minhas-ocorrencias`. O resultado é
 determinado pela permissão de quem pergunta:
@@ -1006,12 +1062,12 @@ comandos que **este** chamador pode executar **agora**. Ex.:
 | **Formato** | `[{ tipo: "transicao"|"mensagem"|"atribuicao", ocorridoEm, … }]` | `[{ statusAnterior, statusNovo, ocorreuEm, autor, observacao, motivoPausa, motivoCancelamento }]` |
 
 **As duas mostram o mesmo conjunto de fatos** — mudam a forma e o vocabulário, não o recorte, e as duas são
-legíveis pelo autor e pelos Gestores. **Confirmado pelo hub em 20/08/2026** (§13.2, Q-API-3): a
+legíveis pelo autor e pelos Gestores. **Confirmado em 20/08/2026** (§13.2, Q-API-3): a
 `observacao` de cada transição, o motivo da pausa e o motivo do cancelamento **são visíveis ao
 Solicitante**. Negar a trilha crua a ele não protegeria nada — é a mesma informação que a linha do tempo já
 apresenta —, e esconder o porquê recriaria a pergunta que o produto veio eliminar.
 
-> ### ⚠️ Restrição de tela que decorre disto — para o passo 4 herdar
+> ### ⚠️ Restrição de tela que decorre disto — para o inventário de telas herdar
 >
 > **A tela onde a `observacao` é escrita precisa dizer, no momento da escrita, que o Solicitante vai lê-la.**
 > Sem esse aviso, um Gestor escreve nota interna ali por engano — e o erro é **irreversível**, porque o
@@ -1023,8 +1079,19 @@ apresenta —, e esconder o porquê recriaria a pergunta que o produto veio elim
 > **na primeira entrega, não existe lugar nenhum para texto interno entre Gestores**. Isso é agravante, não
 > atenuante, e é a razão de o aviso na interface não ser opcional.
 
-**`GET /ocorrencias/{id}/imagem`** devolve **`302`** para uma URL assinada de leitura, válida por 10 minutos
-(§10). Não devolve bytes: a API não faz proxy de arquivo. `404` quando a ocorrência não tem imagem.
+**`GET /ocorrencias/{id}/anexos/{anexoId}`** devolve **`302`** para uma URL assinada de leitura, válida por
+10 minutos (§10). Não devolve bytes: a API não faz proxy de arquivo. `404 ANEXO_NAO_ENCONTRADO` quando o
+anexo não é desta ocorrência ou não existe — **a mesma resposta para os dois**, pela §6.3.
+
+> **Por que o anexo é endereçado, e não singular.** `/ocorrencias/{id}/anexo` teria codificado o escopo na
+> própria URL — e URL é a coisa mais cara de trocar num contrato. O `anexoId` endereça a linha, sobrevive
+> ao dia em que houver mais de uma, e **o cliente nunca o constrói**: ele chega pronto em
+> `OcorrenciaDetalhe.anexos[].url`. A URL continua **estável** (o `anexoId` é imutável), que é a
+> propriedade de que o service worker depende para cachear — a razão da §10.4.
+>
+> **Não existe `GET /ocorrencias/{id}/anexos`.** A lista já vem no detalhe, e uma coleção separada seria um
+> segundo caminho para o mesmo dado. A regra da §5.1 pede endpoint para todo **modelo de leitura**; o
+> modelo de leitura aqui é a ocorrência, e o anexo é campo dela. Ver §9.9.
 
 ### 8.6 Atividade 7 — conversa
 
@@ -1034,7 +1101,7 @@ apresenta —, e esconder o porquê recriaria a pergunta que o produto veio elim
 | `POST /ocorrencias/{id}/comentarios` | idem | idem | `Enviar mensagem no canal` |
 
 **O recurso é `comentarios`, não `canais/{tipo}/mensagens`.** *Comentário* é o **canal 1** (Gestores +
-Solicitante) e é termo do glossário; os canais 2 e 3 são ⬜ fatia 2. Expor a máquina de canais agora
+Solicitante) e é termo do glossário; os canais 2 e 3 são ⬜, evolução prevista. Expor a máquina de canais agora
 significaria um `tipo` polimórfico com dois valores inalcançáveis. Quando os outros dois entrarem, ganham
 caminho próprio (`/notas-internas`, `/atribuicoes/{id}/mensagens`) — §11.
 
@@ -1078,21 +1145,30 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
   Meses sem nenhuma resolução aparecem com `horas: null` e `resolvidas: 0`, em vez de sumir: buraco na
   série é informação, e omitir o mês faria a linha do gráfico mentir.
 
-> **Este indicador entrou por decisão do hub em 20/08/2026, e a razão vale registrar.** Ele estava na D19 e
+> **Este indicador entrou por decisão de 20/08/2026, e a razão vale registrar.** Ele estava na D19 e
 > no passo 7, mas **não constava da tabela de capacidades** do `escopo.md` — nem como ✅ nem como ⬜ (era a
 > contradição C-4). O que decidiu não foi o enunciado, que aqui é genérico (*"visualizar indicadores em um
 > dashboard"*), e sim o **modelo de dados**: a §6.8 justifica o índice `(organizacao_id, ocorreu_em DESC)`
 > citando literalmente *"tempo médio de resolução mês a mês"*. Havia um índice **já pago** por uma
 > capacidade que não estava no escopo — e o cálculo é uma agregação sobre a trilha, usando esse índice.
-> O `escopo.md` passa a 41 itens ✅ de 62; a correção é do hub.
+> O `escopo.md` passa a 41 itens ✅ de 62 — e a **42 de 63** ainda no mesmo dia, quando o conserto do
+> **PA-25** acrescentou *remover vínculo sem histórico*. A §14 já conta os 42.
 
 ### 8.8 O que o cliente recebe — os três formatos de ocorrência
 
 | Schema | Onde aparece | Campos |
 |---|---|---|
-| `OcorrenciaResumo` | `GET /ocorrencias` | `id` · `titulo` · `status` · `statusRotulo` · `motivoPausa\|null` · `prioridade` · `categoria{id,nome}` · `area{id,nome,tipo}` · `autor{pessoaId,nome}` · `responsavel{pessoaId,nome}\|null` · `temImagem` · `registradaEm` · `atualizadaEm` |
-| `OcorrenciaDetalhe` | `GET /ocorrencias/{id}` e **resposta de todo comando** | tudo do resumo **+** `descricao` · `localizacaoComplemento` · `imagemUrl\|null` · `solucaoAplicada\|null` · `avaliacao{nota,comentario,avaliadaEm}\|null` · `ultimaTransicao` · `acoesDisponiveis[]` |
+| `OcorrenciaResumo` | `GET /ocorrencias` | `id` · `titulo` · `status` · `statusRotulo` · `motivoPausa\|null` · `prioridade` · `categoria{id,nome}` · `area{id,nome,tipo}` · `autor{pessoaId,nome}` · `responsavel{pessoaId,nome}\|null` · `quantidadeDeAnexos` · `registradaEm` · `atualizadaEm` |
+| `OcorrenciaDetalhe` | `GET /ocorrencias/{id}` e **resposta de todo comando** | tudo do resumo **+** `descricao` · `localizacaoComplemento` · `anexos[]` · `solucaoAplicada\|null` · `avaliacao{nota,comentario,avaliadaEm}\|null` · `ultimaTransicao` · `acoesDisponiveis[]` |
 | `RegistroDeTransicao` | trilha, linha do tempo e `ultimaTransicao` | `statusAnterior\|null` · `statusNovo` · `ocorreuEm` · `autor{pessoaId,nome}` · `observacao\|null` · `motivoPausa\|null` · `motivoCancelamento\|null` |
+
+> **A listagem leva a contagem; o detalhe leva a lista.** Uma lista de um elemento em cada item de página é
+> verbosidade na leitura mais chamada do produto, e a tela só precisa da marca *"com foto"*, que é
+> `quantidadeDeAnexos > 0`. É **contagem e não booleano** porque o número já é a forma final: no dia do
+> segundo anexo, esta resposta continua correta **sem mudança de schema**.
+>
+> E o `RegistroDeTransicao` **não muda**, o que vale dizer em voz alta: **a trilha não conhece anexo**, e é
+> bom que continue assim.
 
 **`statusRotulo` é calculado no servidor e depende de quem pergunta.** O Solicitante lê *"Em execução"*
 onde o Gestor lê *"Em atendimento"* — o rótulo é função de (`status`, `motivoPausa`, papel de quem lê).
@@ -1100,7 +1176,7 @@ Pôr essa função no cliente significaria reimplementá-la em cada cliente futu
 servidor mantém uma fonte só. **Custo declarado:** é apresentação viajando na API, o que um purista
 recusaria.
 
-**A tabela de rótulos é do glossário, não deste contrato** — aprovada pelo hub em 20/08/2026 (§13.2,
+**A tabela de rótulos é do glossário, não deste contrato** — aprovada em 20/08/2026 (§13.2,
 Q-API-2). O contrato define o **campo** e a **regra de derivação**; o texto de cada rótulo vive onde vive
 o termo *Rótulo exibido*. Os exemplos do YAML usam exatamente os rótulos aprovados.
 
@@ -1112,6 +1188,15 @@ lista do Gestor mostraria quatro esperas diferentes com a mesma palavra.
 
 **`RegistroDeTransicao` tem os cinco campos do F5, um por campo, sem serialização.** `autor` é a Pessoa
 (*autor da transição*, colisão nº 2 do glossário) — nunca o Usuário.
+
+> **Quem monta estes três formatos.** É a metade adaptadora da camada de Interface, em
+> `src/interface/projecoes/` — ver [`arquitetura.md`](arquitetura.md) §5.5. Não é o Domínio, que não
+> conhece HTTP; e **não é o route handler**, por causa da §5 deste documento: existem **dois transportes**
+> para a mesma leitura, e uma projeção que morasse no handler não existiria para o Server Component — as
+> duas estradas deixariam de produzir a mesma resposta, que é exatamente o que a regra *"é a mesma função
+> de aplicação, chamada por dois transportes"* existe para impedir. Na Clean Architecture da Fase 5 isso é
+> o **Presenter** (aula 5, p.8), adotado como **funções de projeção puras** — o que se adota é o lugar e a
+> responsabilidade, não a cerimônia.
 
 ---
 
@@ -1140,7 +1225,7 @@ modelo): o banco recusaria de qualquer forma, e o contrato nem oferece.
 
 **A exceção é `DELETE /vinculos/{pessoaId}`** (§8.2, P6), e ela cabe exatamente porque o `RESTRICT` a
 delimita: só passa o vínculo **sem nenhuma linha dependente**, que é o único caso em que não há histórico a
-preservar. Vínculo **com** histórico não se apaga — revoga-se, e revogar é ⬜ fatia 2.
+preservar. Vínculo **com** histórico não se apaga — revoga-se, e revogar é ⬜ evolução prevista.
 
 **9.4 · Nenhum `PATCH` de ocorrência.** §3.5. Em particular, **`status` não aparece em nenhum schema de
 entrada** — a verificação é textual e cabe no Definition of Done.
@@ -1152,30 +1237,56 @@ não emite, não renova e não revoga sessão.
 operação sobre a coleção, e não há `GET /organizacoes` — listar organizações do sistema é a versão
 multi-tenant do `GET /pessoas`.
 
-**9.7 · Nada da fatia 2.** Sem `/notificacoes`, `/adesoes`, `/convites`, `/notas-internas`,
+**9.7 · Nada da evolução prevista.** Sem `/notificacoes`, `/adesoes`, `/convites`, `/notas-internas`,
 `/atribuicoes/{id}/mensagens`, `/filtros-rapidos`, `reabrir`, `recusar-atribuicao`,
 `reportar-execucao-concluida`. **`reabrir` merece nota própria:** ele **não existe e não vai existir** —
 `Resolvida` e `Cancelada` são terminais de verdade (D24), e problema que volta é ocorrência nova vinculada à
-original. O glossário ainda o lista como comando na definição de *Transição de status*, o que é erro do
-glossário e não do contrato (§13, contradição C-1).
+original. O glossário chegou a listá-lo como comando na definição de *Transição de status*, e foi corrigido em
+20/08/2026 — o registro do erro está na contradição C-1 da §13.
 
 **9.8 · Nada de busca textual.** Não há `?q=`. Nenhuma história pede busca por texto, e o índice GIN
 correspondente foi deliberadamente não criado (§6.7 do modelo). Acrescentar o parâmetro sem o índice seria
 varredura em toda listagem.
 
+**9.9 · Nenhuma coleção de anexos, e nenhum recurso `/anexos` de nível superior.**
+
+> **Existe exatamente uma URL de anexo: `GET /ocorrencias/{id}/anexos/{anexoId}`.** Não há
+> `GET /ocorrencias/{id}/anexos`, não há `POST` nessa coleção, não há `DELETE`, e não há
+> `/anexos/{id}` fora da ocorrência.
+
+Acrescentado em 21/08/2026, quando o anexo virou tabela (§6.16 do modelo) — porque **é exatamente aqui que
+uma ferramenta de scaffolding olharia uma tabela nova e geraria cinco rotas**.
+
+Cada ausência tem motivo próprio: a **coleção de leitura** duplicaria o campo `anexos` que
+`OcorrenciaDetalhe` já traz; o **`POST` na coleção** contornaria a reivindicação da §10, que é onde a
+validação acontece; o **`DELETE`** violaria o P6 e, pior, apagaria evidência de uma ocorrência viva; e o
+**recurso de nível superior** repetiria o erro que a §9.6 já nomeia para organização — é a ocorrência que
+decide quem vê o anexo, então o anexo não tem endereço fora dela.
+
+**Anexar depois do registro continua sendo PA-01, em aberto** (§12, S-A8). Quando for decidido, o caminho
+é um comando na ocorrência — não um `POST` em coleção de anexo.
+
 ---
 
-## 10. Upload de imagem
+## 10. Upload do anexo
 
 O requisito manda em duas direções ao mesmo tempo: **RNF6** (registro completo em menos de um minuto pelo
 celular, com foto) e **RNF8** (imagem comprimida **no próprio aparelho** para ~400 KB, aceite de até 10 MB no
 seletor). E a `arquitetura.md` (tópico 3 e tópico 5) já decidiu o mecanismo: *"upload por URL assinada
 emitida pelo servidor"*.
 
+> **Nota de revisão — 21/08/2026.** Esta seção falava em *imagem* porque o anexo era uma coluna chamada
+> `imagem_caminho`. Ele passou a ser a tabela **`anexos`** (§6.16 e §7.8 do modelo de dados), e o texto
+> passa a falar em *anexo*. **O mecanismo não mudou em nada** — SAS de escrita, ticket assinado, validação
+> na reivindicação, etiqueta `pendente`/`confirmado` e faxina por ciclo de vida continuam exatamente como
+> estavam, pelas mesmas razões. **O que mudou é que a reivindicação passou a escrever uma linha**, e isso
+> tem consequência em dois pontos, os dois marcados abaixo: o passo (3) da §10.2 e o **quarto caminho** da
+> §10.3, que não existia.
+
 ### 10.1 A decisão
 
 > **O cliente sobe os bytes direto para o Azure Blob Storage, com uma credencial temporária (SAS) emitida
-> pela API. A API nunca recebe, nunca repassa e nunca armazena bytes de imagem — ela emite credencial e
+> pela API. A API nunca recebe, nunca repassa e nunca armazena bytes de anexo — ela emite credencial e
 > valida o resultado.**
 
 O que pesa contra passar pela API é a plataforma: o Container Apps cobra em **vCPU-segundos e GiB-segundos**
@@ -1184,7 +1295,7 @@ KB por ocorrência e 2.000 ocorrências (RNF3) é pouco em absoluto — mas é p
 com SAS custa o mesmo em complexidade.
 
 **O que pesa contra o SAS é a validação**, e é aqui que este contrato dá a resposta que o mecanismo sozinho
-não dá: **a validação não acontece no upload, acontece na hora de reivindicar a imagem.**
+não dá: **a validação não acontece no upload, acontece na hora de reivindicar o anexo.**
 
 ### 10.2 O fluxo, inteiro
 
@@ -1193,18 +1304,20 @@ Solicitante escolhe a foto
    │
    │ (1) o cliente comprime para ~400 KB / 1600px no maior lado  ── RNF8, no aparelho
    ▼
-POST /imagens/autorizacoes  { tipoConteudo, tamanhoBytes }
-   │   ← 201 { chave, ticket, upload: { url, metodo: "PUT", cabecalhos, expiraEm } }
+POST /anexos/autorizacoes  { tipoConteudo, tamanhoBytes }
+   │   ← 201 { chave, ticket, estado: "pendente",
+   │           upload: { url, metodo: "PUT", cabecalhos, expiraEm } }
    ▼
 PUT <url do Blob>  (bytes)                       ── direto para o Azure, fora da API
    │
    │ (2) enquanto isso, o Solicitante ainda está digitando a descrição   ── RNF6
    ▼
-POST /ocorrencias  { …, imagem: { chave, ticket } }
+POST /ocorrencias  { …, anexos: [ { chave, ticket } ] }
    │   (3) o servidor confere o ticket, faz HEAD no objeto,
-   │       marca o objeto como confirmado e grava imagem_caminho = chave
+   │       marca o objeto como confirmado e, na MESMA transação:
+   │          INSERT ocorrencias · INSERT registros_transicao · INSERT anexos
    ▼
-201 OcorrenciaDetalhe
+201 OcorrenciaDetalhe  — com anexos[] e ultimaTransicao
 ```
 
 **(1)** A compressão é do cliente. A API **não pode forçá-la** — só recusar o que não couber: a autorização é
@@ -1218,12 +1331,29 @@ emitida com `tamanhoBytes` declarado e é recusada acima de **512 KB** (os 400 K
 contendo `chave`, `organizacaoId`, `pessoaId`, `tipoConteudo`, `tamanhoMaximo` e expiração de 15 minutos. Ao
 reivindicar, o servidor confere a assinatura, confere que o portador é o mesmo que pediu, e faz um **`HEAD`
 no objeto** — que devolve tamanho e tipo reais sem baixar nada. Se o objeto não existe, excede o teto ou tem
-outro tipo: `422 IMAGEM_NAO_RECONHECIDA` ou `422 IMAGEM_ACIMA_DO_LIMITE`, e a ocorrência **não é criada**.
+outro tipo: `422 ANEXO_NAO_RECONHECIDO` ou `422 ANEXO_ACIMA_DO_LIMITE`, e a ocorrência **não é criada**.
 Se passa, o servidor **marca o objeto como confirmado** — é o que a §10.3 explica.
+
+> **O que o passo (3) ganhou com a tabela — 21/08/2026.** Antes ele terminava em *"grava
+> `imagem_caminho` = chave"*, uma escrita na mesma linha da ocorrência. Agora ele grava **uma linha em
+> `anexos`**, com `tipo` (derivado do `tipoConteudo` autorizado), `tipo_conteudo` e `tamanho_bytes`
+> **vindos do `HEAD`, não do que o cliente declarou**, e `anexado_por_pessoa_id`.
+>
+> **As três escritas são uma transação só.** A invariante 2 da ADR-0001 já exigia que ocorrência e registro
+> de transição nascessem juntos; o anexo entra no mesmo `BEGIN … COMMIT`. Não é mecanismo novo — é uma
+> instrução a mais dentro do que já era atômico.
+>
+> **E o `tipo` nunca vem do cliente.** É o que mantém `tipo_anexo` fora de todo schema de entrada, e é o
+> que torna aceitar um tipo novo uma mudança aditiva pela regra da §11.
 
 > **Por que ticket assinado e não uma tabela de uploads pendentes.** Uma tabela seria o desenho óbvio — e é
 > **mudança no modelo de dados**, que este artefato não pode decidir. O token assinado carrega o mesmo
 > estado sem linha nenhuma, com uma propriedade extra: expira sozinho.
+>
+> **A entrada de `anexos` não reabre esta escolha, e vale dizer por quê:** `anexos` guarda o objeto
+> **reivindicado**, não o pendente. Ela nasce no `COMMIT` e nunca existe antes dele — que é exatamente o
+> oposto de uma tabela de uploads pendentes, que precisaria existir *antes* do upload e ser limpa depois.
+> A suposição **S-A13** continua de pé, sem emenda.
 
 ### 10.3 O objeto abandonado — o terceiro caminho
 
@@ -1241,7 +1371,7 @@ chamada quantas vezes quiser, e nada apaga o que ela deixou.
 > **1 · Todo objeto nasce marcado `estado=pendente`. Reivindicar troca a marca para `estado=confirmado`.
 > Uma regra de ciclo de vida do contêiner apaga o que continuar `pendente`.**
 >
-> **2 · `POST /imagens/autorizacoes` é o único endpoint com limite de chamadas: 30 por Pessoa por hora,
+> **2 · `POST /anexos/autorizacoes` é o único endpoint com limite de chamadas: 30 por Pessoa por hora,
 > `429` acima disso.**
 
 A marca é uma **etiqueta de índice do próprio objeto** (*blob index tag*) **[FONTE EXTERNA]**, escrita pelo
@@ -1294,36 +1424,88 @@ falha de transação **entre** duas operações que distam milissegundos —, ma
 afirmado, não presumido. Levantado ao desenhar o DG-5 de
 [`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
 
+> ### Reconferido em 21/08/2026, com a tabela no lugar da coluna — a forma **não** muda, e a janela cresce
+> ### uma inserção
+>
+> **Não muda:** a etiqueta continua sendo trocada antes do `commit`; a falha continua deixando um objeto
+> `confirmado` sem referência; a faxina continua só recolhendo `pendente`; o argumento de que esta ordem é
+> a mais segura das duas continua valendo, **e continua valendo pelo mesmo motivo** — perder o anexo de uma
+> ocorrência viva é pior que guardar um órfão de 400 KB.
+>
+> **Muda um detalhe, e ele é a favor:** a transação passou de duas inserções para três, então o intervalo
+> entre a troca da etiqueta e o `commit` ganhou **uma instrução**. Continua na ordem de milissegundos, e o
+> `INSERT` a mais é numa tabela sem gatilho e com duas chaves estrangeiras já validadas. A probabilidade
+> muda de desprezível para desprezível.
+>
+> **O que a tabela dá de novo, e é uma melhoria real:** com a coluna, o objeto órfão era **impossível de
+> encontrar** — a única forma de saber quais chaves o banco conhece era varrer `ocorrencias.imagem_caminho`
+> linha a linha. Com `anexos.chave` sob índice único, comparar o inventário do contêiner com as chaves
+> conhecidas vira uma consulta. **A faxina do órfão continua não existindo**; deixou de ser inviável.
+
+> ### O quarto caminho — apareceu com a tabela, e não existia antes
+>
+> `UNIQUE (chave)` em `anexos` (§6.16 do modelo) faz o banco recusar a **segunda** reivindicação do mesmo
+> objeto. Isso interage com um comportamento que já estava desenhado, e a interação precisa estar escrita.
+>
+> **A tela reenvia a mesma `chave` quando o `POST /ocorrencias` cai por rede** — é a suposição **S-T7** do
+> inventário de telas, e existe para a foto não subir duas vezes dentro dos 15 minutos do ticket. Se a
+> primeira chamada tiver **comitado** e apenas a resposta se perdido, o reenvio agora recebe
+> **`409 ANEXO_JA_REIVINDICADO`**, com `ocorrenciaId` no corpo.
+>
+> **Antes, esse mesmo reenvio criava silenciosamente uma segunda ocorrência apontando para a mesma foto** —
+> e a saída era o Solicitante cancelar uma delas com `aberta_por_engano`, que a §7.10 declara como o
+> desfazer do toque duplo. A restrição converte isso num erro nomeado, com destino: o cliente navega para a
+> ocorrência que já existe.
+>
+> **É idempotência parcial, ganha sem mecanismo de transporte.** A §7.10 recusou chave de idempotência por
+> exigir tabela nova; esta não exige nada — é efeito colateral de uma restrição que existe por outra razão
+> (fazer `confirmado` significar *reivindicado uma vez*). A resposta à **Q-API-4** não muda: continua não
+> havendo `Idempotency-Key`, e o `POST /ocorrencias/{id}/comentarios` continua desprotegido.
+>
+> **O que isto cobra da interface:** o campo da foto em T-04 precisa de texto para este `409`, e ele é
+> diferente dos outros — não é *"escolha a foto de novo"*, é *"isto já foi registrado, ver a ocorrência"*.
+> **Não é decisão de contrato e não está desenhado aqui**; fica registrado para o inventário de telas e o
+> protótipo herdarem, como a restrição de tela da §8.5.
+
 ### 10.4 A leitura
 
-A chave guardada em `ocorrencias.imagem_caminho` é **opaca** — nunca uma URL, nunca com nome de contêiner
-embutido (§2.8 do modelo). E o contêiner **não é público**: ocorrência de unidade privativa é visível só ao
-autor e aos Gestores (D10).
+A chave guardada em `anexos.chave` é **opaca** — nunca uma URL, nunca com nome de contêiner
+embutido (§2.8 do modelo, agora com um `CHECK` que recusa `://`). E o contêiner **não é público**:
+ocorrência de unidade privativa é visível só ao autor e aos Gestores (D10).
 
-> **`GET /ocorrencias/{id}/imagem` → `302` para uma URL assinada de leitura, válida por 10 minutos.**
+> **`GET /ocorrencias/{id}/anexos/{anexoId}` → `302` para uma URL assinada de leitura, válida por 10
+> minutos.**
 
 Rejeitados os dois vizinhos:
 
 | Alternativa | Por que não |
 |---|---|
 | **A API faz proxy dos bytes** | Devolve o custo de *streaming* que a decisão de upload evitou — e agora em **toda leitura**, não só na escrita |
-| **URL assinada embutida no payload** de `GET /ocorrencias/{id}` | A URL muda a cada resposta, então **o service worker nunca acerta o cache** — e leitura offline (RNF7) é requisito da fatia 2. Também espalha credencial por respostas que ficam em log e em histórico |
+| **URL assinada embutida no payload** de `GET /ocorrencias/{id}` | A URL muda a cada resposta, então **o service worker nunca acerta o cache** — e leitura offline (RNF7) é requisito da evolução prevista. Também espalha credencial por respostas que ficam em log e em histórico |
 
 O endpoint de redirecionamento tem **URL estável** (cacheável pelo PWA), autoriza **em toda leitura** (é a
 ocorrência que decide quem vê, não a posse de um link) e não move bytes. `OcorrenciaDetalhe` traz
-`imagemUrl` apontando para ele — nunca para o Blob.
+`anexos[].url` apontando para ele — nunca para o Blob.
+
+**A URL continua estável depois de o anexo virar linha**, e isso não é acidente: o `anexoId` é a chave
+primária, imutável, e **não** a `chave` do objeto. Se a URL carregasse a chave do storage, ela mudaria no
+dia em que a variante de prefixo da §10.3 fosse necessária — e o cache do service worker, que é a razão de
+o endpoint existir, quebraria junto.
 
 **Custo declarado:** o alvo do `302` é uma URL com token que, uma vez emitida, vale 10 minutos para quem a
 tiver. Mitigações: TTL curto, `Referrer-Policy: no-referrer` na resposta, e nenhum registro de *query
 string* em log. É a mesma classe de risco que qualquer URL assinada tem, e a razão de o TTL não ser de horas.
 
 **Fora do contrato, declarado:** a exclusão do objeto quando a Pessoa é anonimizada (RNF10). A §10.2 do
-modelo de dados já registra que *"a imagem não é tocada pelo passo 3"* da anonimização e que isso é
-**pendência do artefato de storage**. Este contrato não a resolve e não a esconde.
+modelo de dados **passou a responder isso em 21/08/2026**, e a resposta é *nada acontece*, com o argumento:
+o anexo pertence à Ocorrência e não à Pessoa; a tabela não carrega dado de contato; e anonimizar por autor
+apagaria o conjunto errado, porque o rosto numa foto costuma ser o de **um terceiro**. O instrumento certo
+seria um *takedown* por anexo, que **não existe, não foi decidido e não foi modelado** — é o **PA-05**, que
+segue aberto e sem revisão jurídica. Este contrato não o resolve e não o esconde.
 
 ---
 
-## 11. Evolução — como os 21 itens da fatia 2 entram
+## 11. Evolução — como os 21 itens da evolução prevista entram
 
 **A regra de compatibilidade, que é o que substitui o `/v1` (§7.8):**
 
@@ -1331,7 +1513,7 @@ modelo de dados já registra que *"a imagem não é tocada pelo passo 3"* da ano
 > em enum de *saída*. Nunca: campo obrigatório novo, remoção de campo, mudança de tipo, ou valor novo em enum
 > de *entrada* que o cliente antigo não saiba produzir.**
 
-| # | Item da fatia 2 (escopo, §4) | O que muda no contrato | Aditivo? |
+| # | Item da evolução prevista (escopo, §4) | O que muda no contrato | Aditivo? |
 |---|---|---|---|
 | 1 | Identidade da organização — logo e nome (D25) | `PATCH /organizacao` (novo) + campos em `Contexto` | ✅ |
 | 2 | Interruptor *exigir solução ao resolver* (D22) | `PATCH /organizacao` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
@@ -1342,18 +1524,18 @@ modelo de dados já registra que *"a imagem não é tocada pelo passo 3"* da ano
 | 7 | Ver semelhantes e **aderir** (D11) | `GET /ocorrencias?semelhantesA={id}` + `POST /ocorrencias/{id}/aderir` | ✅ |
 | 8 | Filtros rápidos (D15) | `?filtroRapido=nao_triadas\|pausadas_esperando_gestor\|sem_atualizacao\|alta_prioridade` | ✅ |
 | 9 | Cancelar por duplicidade com vínculo (D17) | `ocorrenciaOrigemId` no corpo de `/cancelar` — **hoje devolve `422 CAMPO_NAO_SUPORTADO`**, então o campo já tem lugar reservado e comportamento definido | ✅ |
-| 11 | Conversa privada da atribuição (D9) | `GET/POST /ocorrencias/{id}/atribuicoes/{atribuicaoId}/mensagens` | ✅ |
-| 12 | Encarregado recusa a atribuição | `POST /ocorrencias/{id}/recusar-atribuicao` | ✅ |
-| 13 | Encarregado entra e vê a própria lista (P5) | `?responsavel=eu` em `GET /ocorrencias` + permissões novas no mapa da §4.5 | ✅ |
-| 14 | **Leitura sem rede** (RNF7) | **Nada.** As leituras já são `GET` com URL estável — inclusive a imagem (§10.4). O service worker cacheia o que já existe | ✅ |
-| 15 | Reportar execução concluída (P5) | `POST /ocorrencias/{id}/reportar-execucao-concluida` | ✅ |
-| 16 | Nova ocorrência vinculada à original (D24) | `ocorrenciaOrigemId` + `vinculoOrigem` opcionais em `POST /ocorrencias` | ✅ |
-| 17 | Ver ocorrências de área comum do meu local (D10) | **Nenhum campo, nenhum endpoint** — o conjunto devolvido por `GET /ocorrencias` **aumenta** | ⚠️ ver abaixo |
-| 18 | Sino com as notificações (D14, D15) | `GET /notificacoes` · `POST /notificacoes/{id}/marcar-como-lida` | ✅ |
-| 19 | Notificação a cada transição (D14) | Nada — é política (POL-05/06); aparece pelo item 17 | ✅ |
-| 20 | Nota interna entre Gestores (D9) | `GET/POST /ocorrencias/{id}/notas-internas` | ✅ |
-| 21 | Tempo de calendário × tempo ativo (D19) | Campos novos em `GET /dashboard` | ✅ |
-| 22 | Alarme de ocorrência parada (D15) | Campos novos em `/dashboard` + notificações do item 17 | ✅ |
+| 10 | Conversa privada da atribuição (D9) | `GET/POST /ocorrencias/{id}/atribuicoes/{atribuicaoId}/mensagens` | ✅ |
+| 11 | Encarregado recusa a atribuição | `POST /ocorrencias/{id}/recusar-atribuicao` | ✅ |
+| 12 | Encarregado entra e vê a própria lista (P5) | `?responsavel=eu` em `GET /ocorrencias` + permissões novas no mapa da §4.5 | ✅ |
+| 13 | **Leitura sem rede** (RNF7) | **Nada.** As leituras já são `GET` com URL estável — inclusive o anexo (§10.4). O service worker cacheia o que já existe | ✅ |
+| 14 | Reportar execução concluída (P5) | `POST /ocorrencias/{id}/reportar-execucao-concluida` | ✅ |
+| 15 | Nova ocorrência vinculada à original (D24) | `ocorrenciaOrigemId` + `vinculoOrigem` opcionais em `POST /ocorrencias` | ✅ |
+| 16 | Ver ocorrências de área comum do meu local (D10) | **Nenhum campo, nenhum endpoint** — o conjunto devolvido por `GET /ocorrencias` **aumenta** | ⚠️ ver abaixo |
+| 17 | Sino com as notificações (D14, D15) | `GET /notificacoes` · `POST /notificacoes/{id}/marcar-como-lida` | ✅ |
+| 18 | Notificação a cada transição (D14) | Nada — é política (POL-05/06); aparece pelo item 17 | ✅ |
+| 19 | Nota interna entre Gestores (D9) | `GET/POST /ocorrencias/{id}/notas-internas` | ✅ |
+| 20 | Tempo de calendário × tempo ativo (D19) | Campos novos em `GET /dashboard` | ✅ |
+| 21 | Alarme de ocorrência parada (D15) | Campos novos em `/dashboard` + notificações do item 17 | ✅ |
 
 **Vinte dos vinte e um são aditivos. O item 16 é a exceção, e ela merece nome.** Ligar a visibilidade
 comunitária **não muda schema nenhum** — muda *quem vê o quê*. Um cliente antigo continua funcionando e
@@ -1361,7 +1543,7 @@ passa a receber mais itens na lista sem ter pedido. É **quebra semântica sem q
 nenhum contrato detecta e nenhum teste de schema pega. Duas consequências práticas:
 
 1. Ela exige nota de versão e comunicação ao usuário, não só migração de código.
-2. Ela é o único item da fatia 2 que **precisa de teste de isolamento novo**, porque alarga deliberadamente
+2. Ela é o único item da evolução prevista que **precisa de teste de isolamento novo**, porque alarga deliberadamente
    um limite de visibilidade que hoje é *"autor e Gestores"*.
 
 **Também previsto e fora dos 21:** `PATCH /ocorrencias` para corrigir título e descrição (§12, S-A7), e a
@@ -1369,7 +1551,36 @@ recuperação de uma organização cujo único Gestor perdeu o acesso (§12, S-A
 de conveniência, é buraco declarado no desenho**.
 
 **Saiu desta lista em 20/08/2026:** `tempoMedioDeResolucao`, que era a contradição C-4 e passou a fazer
-parte da primeira entrega por decisão do hub (§8.7).
+parte da primeira entrega por decisão de 20/08/2026 (§8.7).
+
+### 11.1 Ampliar o anexo — fora dos 21, e o motivo de estar aqui
+
+**Mais de um anexo por ocorrência, e anexo de outro tipo, não são itens de escopo** — não estão entre os 21
+e **não entram na contagem**: o `escopo.md` segue com 63 itens, 42 na primeira entrega. Estão nesta seção
+porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do modelo) foi
+desenhada em 21/08/2026 **exatamente para que estes dois dias custassem pouco**. Se o custo não estiver
+escrito, a decisão de modelagem que o barateou vira folclore.
+
+| O que muda | Onde | Aditivo? |
+|---|---|---|
+| **Mais de um anexo** | `maxItems: 1` → `maxItems: N` em `RegistroDeOcorrencia.anexos` | ✅ — o schema passa a **aceitar mais e nunca menos**. Cliente antigo continua válido |
+| | `OcorrenciaDetalhe.anexos[]` e `quantidadeDeAnexos` | ✅ — **nada muda**. Já são lista e contagem; passam a trazer mais de um item e um número maior |
+| | Banco | ✅ — **nada muda**. `anexos` nunca teve restrição de quantidade, e a §6.16 explica por que não deve ter |
+| **Outro tipo** (vídeo, PDF, áudio) | `tipoConteudo` em `POST /anexos/autorizacoes` ganha um valor | ✅ — enum de **entrada** ganhando valor é o caso delicado da regra acima, mas aqui é seguro: **nenhum cliente antigo precisa produzir o valor novo**, e os antigos continuam funcionando com os dois que já conhecem |
+| | `Anexo.tipo` ganha um valor | ✅ — enum de **saída**, explicitamente aditivo |
+| | Banco | `ALTER TYPE tipo_anexo ADD VALUE` — barato, não reescreve tabela |
+| | Tela | **Não é aditivo.** Renderizar vídeo não é renderizar imagem, e o `<img>` de T-05 não serve |
+
+**Duas coisas que a tabela não barateia, e por isso a decisão continua sendo de produto:**
+
+1. **A tela.** Cada tipo novo é um jeito novo de exibir e um jeito novo de capturar. É trabalho de
+   interface, e não há schema que o evite.
+2. **O RNF6 e o custo.** A §11.5 do modelo de dados põe número nisso: vídeo comprimido no aparelho custa
+   ~10× o armazenamento de hoje (~US$ 10/ano, 10% do crédito Azure), e **vídeo sem compressão custa mais
+   que o crédito inteiro**. Pior: 4 MB em rede móvel derrubam o paralelismo do upload, que é o que faz o
+   registro caber em menos de um minuto. **O que impede vídeo hoje não é o esquema — é o RNF6.**
+
+É essa a forma da promessa: *"o esquema não atrapalha; o custo e a tela decidem, e estão medidos"*.
 
 ---
 
@@ -1381,18 +1592,19 @@ delas foi resolvida dentro do YAML.
 | # | Suposição | O que muda se estiver errada |
 |---|---|---|
 | **S-A1** | **Linha do tempo e trilha de auditoria mostram o mesmo conjunto de fatos na primeira entrega**, mudando forma e vocabulário, e as duas são legíveis pelo autor e pelos Gestores | Só o schema de resposta de `linha-do-tempo` (recorte de campos por papel). Nenhum endpoint entra ou sai. §13, Q-API-3 |
-| **S-A2** | **`POST /vinculos` sempre cria uma Pessoa nova**, sem procurar por e-mail | Se o hub quiser reaproveitar cadastro, é preciso um mecanismo que **não** consulte `pessoas` globalmente — provavelmente convite (fatia 2). Custo hoje: linhas duplicadas em `pessoas` |
+| **S-A2** | **`POST /vinculos` sempre cria uma Pessoa nova**, sem procurar por e-mail | Se um dia se quiser reaproveitar cadastro, é preciso um mecanismo que **não** consulte `pessoas` globalmente — provavelmente convite (evolução prevista). Custo hoje: linhas duplicadas em `pessoas` |
 | **S-A3** | **`PATCH /vinculos/{pessoaId}` só aceita Pessoa sem Usuário** | Se for permitido editar quem tem conta, um Gestor passa a alterar cadastro que vale em outras organizações — e isso precisaria de decisão de produto, não de contrato |
 | **S-A4** | **Ocorrência que o chamador não pode ver responde `404`**, mesmo dentro da própria organização | Trocar por `403` tornaria a depuração mais fácil e confirmaria a existência de ocorrências de terceiros — o que a D10 recusa |
 | **S-A5** | **`GET /vinculos` exige `vinculo.gerir`**, e é o único lugar onde e-mail e telefone aparecem | Se o Solicitante precisar ver a lista de gente, o schema ganha uma variante sem contato. Dado de contato é dado pessoal (RNF10) |
-| **S-A6** | **Vínculo com papel `encarregado` tem `permissoes: []`** na primeira entrega | Se o hub antecipar o acesso do Encarregado (Q11 do produto), muda o mapa da §4.5 — nenhum endpoint novo, exceto os da fatia 2 |
-| **S-A7** | **Não existe edição de ocorrência.** Título, descrição, categoria, área e imagem são escritos uma vez | Editar exige `PATCH /ocorrencias` com uma lista explícita de campos, e reabre a **PA-01** (a imagem pode ser anexada depois?) |
-| **S-A8** | **A imagem é anexada apenas no registro** (PA-01 segue aberta) | `POST /ocorrencias/{id}/imagem` (ou o `PATCH` acima) e uma decisão sobre substituir/remover — que hoje esbarra em P6 |
+| **S-A6** | **Vínculo com papel `encarregado` tem `permissoes: []`** na primeira entrega | Se o acesso do Encarregado for antecipado (Q11 do produto), muda o mapa da §4.5 — nenhum endpoint novo, exceto os da evolução prevista |
+| **S-A7** | **Não existe edição de ocorrência.** Título, descrição, categoria, área e anexo são escritos uma vez | Editar exige `PATCH /ocorrencias` com uma lista explícita de campos, e reabre a **PA-01** (o anexo pode ser anexado depois?) |
+| **S-A8** | **O anexo é anexado apenas no registro** (PA-01 segue aberta) | Um **comando na ocorrência** — não um `POST` em coleção de anexo (§9.9) — e uma decisão sobre substituir/remover, que hoje esbarra em P6. **A tabela `anexos` já comporta o segundo anexo sem migração**, então o custo desse dia é de contrato e de tela, não de esquema |
 | **S-A9** | **Autorização de upload: máximo 512 KB, `image/jpeg` ou `image/png`, ticket de 15 min, SAS de leitura de 10 min, 30 autorizações por Pessoa por hora, e ~24–48 h até a faxina do objeto abandonado (§10.3)** | São números, não desenho. Mudam em uma linha do YAML — exceto o prazo da faxina, que é a granularidade de dias do provedor |
+| **S-A16** | **`anexos` na resposta é lista; na listagem vai só a contagem** (`quantidadeDeAnexos`) — acrescentada em 21/08/2026 | Se a listagem precisar dos anexos inteiros, o campo vira lista lá também: **aditivo**, mas paga verbosidade na leitura mais chamada. O caminho contrário — voltar a um booleano — é que seria quebra |
 | **S-A10** | **`statusRotulo` é calculado no servidor e depende do papel de quem lê** | Se for do cliente, o campo sai da resposta e a tabela de rótulos vira responsabilidade de cada cliente |
 | **S-A11** | **`GET /ocorrencias` só ordena por `registradaEm DESC`** | Ordenar por outra coluna exige índice novo (§6.7 do modelo) — é decisão de banco, não de contrato |
 | **S-A12** | **Pedido de entrada recusado pode ser refeito** — herdada da suposição S4 do modelo de dados | Índice único absoluto em vez de parcial, e `409` no segundo pedido |
-| **S-A13** | **O ticket de imagem é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão do hub |
+| **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* |
 | **S-A14** | **`POST /organizacoes` gera o `codigoPublico`**; o cliente não escolhe | Se o Gestor puder escolher, precisa de checagem de unicidade global e de proteção contra códigos ofensivos ou adivinháveis |
 | **S-A15** | **Organização com um só Gestor que perde o acesso fica inacessível para sempre** — ver abaixo | Sair disso exige uma capacidade nova: promover a Gestor, transferir a organização, ou um segundo Gestor obrigatório na criação |
 
@@ -1403,7 +1615,7 @@ Três decisões que são certas isoladamente se somam num beco:
 | Decisão | O que ela diz |
 |---|---|
 | **D26** | Quem cria a organização é o **Gestor inicial** — é o bootstrap, e resolve o primeiro vínculo |
-| **Q-API-6** (hub, 20/08/2026) | O contrato **não** permite alterar `papel` de um vínculo existente |
+| **Q-API-6**, respondida em 20/08/2026 | O contrato **não** permite alterar `papel` de um vínculo existente |
 | **D25** | Todo vínculo novo nasce da aprovação de **um Gestor** |
 
 Some as três: **se o único Gestor de uma organização perde o acesso — conta apagada, e-mail perdido,
@@ -1427,53 +1639,55 @@ avaliador reconhece quem sabe onde o próprio desenho não fecha.
 
 ---
 
-## 13. Questões ao hub — e as respostas de 20/08/2026
+## 13. As questões que este contrato levantou — e as respostas de 20/08/2026
 
 **Todas foram respondidas.** As cinco contradições foram conferidas contra os arquivos e **as cinco
-procedem**; o hub corrige os documentos de origem. Das sete questões, **seis confirmaram o que o contrato
+procedem**, e os documentos de origem foram corrigidos. Das sete questões, **seis confirmaram o que o contrato
 tinha assumido e uma mudou o contrato** — junto com a C-4, que trouxe um indicador novo.
 
 | # | Assunto | Resposta | Efeito neste contrato |
 |---|---|---|---|
-| Q-API-1 | Comandos de pedido de entrada no Event Storming | **Sim**, o hub acrescenta | Nenhum — a rastreabilidade fecha |
+| Q-API-1 | Comandos de pedido de entrada no Event Storming | **Sim**, foram acrescentados | Nenhum — a rastreabilidade fecha |
 | Q-API-2 | Tabela de rótulos exibidos | **Mecanismo aprovado, tabela alterada** | `pausada` desdobra em quatro rótulos → `motivoPausa` entra no `OcorrenciaResumo` (§8.8) |
-| Q-API-3 | Recorte da linha do tempo | **(a) — mostra tudo** | Restrição de tela registrada em §8.5, para o passo 4 herdar |
+| Q-API-3 | Recorte da linha do tempo | **(a) — mostra tudo** | Restrição de tela registrada em §8.5, para o inventário de telas herdar |
 | Q-API-4 | Chave de idempotência | **(a) — não ter** | Nenhum |
-| Q-API-5 | `contexto` vira termo? | **Não; `Organização ativa` vira** | Nenhum — o glossário é do hub |
+| Q-API-5 | `contexto` vira termo? | **Não; `Organização ativa` vira** | Nenhum — o termo é do glossário |
 | Q-API-6 | Promover a Gestor | **(a) — fica como está** | **Nova suposição S-A15**: a organização sem volta |
 | Q-API-7 | Contrato sem `/v1` | **Confirmado** | §7.8 ganhou *o dia da quebra* |
 | C-4 | Tempo médio de resolução | **Entra na primeira entrega** | **Quinto indicador** em `GET /dashboard` (§8.7) |
 
-**Duas lacunas foram encontradas pelo hub na revisão deste contrato**, e as duas estão resolvidas aqui: o
+**Duas lacunas foram encontradas na revisão deste contrato**, e as duas estão resolvidas aqui: o
 **objeto abandonado** no storage (§10.3) e a **organização sem volta** (§12, S-A15).
 
 ### 13.1 Contradições e lacunas encontradas na documentação
 
-Registradas, não resolvidas em silêncio. **As cinco foram confirmadas pelo hub em 20/08/2026, e a correção
-de cada documento de origem é dele — este contrato não os toca.**
+Registradas, não resolvidas em silêncio. **As cinco foram confirmadas em 20/08/2026 e aplicadas nos
+documentos de origem** — este contrato não os tocou, e o fecho registra onde cada uma caiu.
 
-**C-1 · `glossario.md:93` lista `reabrir` como comando nomeado — e a `D24` diz que reabertura não existe.**
-A própria §8 do glossário registra *"Reabertura | Não existe"*. É contradição interna de um documento, e o
-contrato seguiu a D24 e a `arquitetura.md` (Parte I, §4: *"`Resolvida` e `Cancelada` são terminais de verdade
-— não existe `reabrir`"*), duas fontes contra uma linha. **Proposta:** remover `reabrir` da definição de
+**C-1 · O glossário listava `reabrir` como comando nomeado** na definição de *Transição de status* (§4),
+e a `D24` diz que reabertura não existe. A própria §8 do glossário registra *"Reabertura | Não existe"*.
+É contradição interna de um documento, e o contrato seguiu a D24 e a `arquitetura.md` (Parte I, §4:
+*"`Resolvida` e `Cancelada` são terminais de verdade — não existe `reabrir`"*), duas fontes contra uma
+linha. **Proposta:** remover `reabrir` da definição de
 *Transição de status*.
 
-**C-2 · `arquitetura.md:371` diz que o contrato das APIs é *"gerado dos route handlers"*.** Isso não é
-possível hoje: route handlers do Next.js **não geram OpenAPI** — não há decorator nem reflexão como em
+**C-2 · A `arquitetura.md` dizia, no tópico 8, que o contrato das APIs é *"gerado dos route
+handlers"*.** Isso não é possível hoje: route handlers do Next.js **não geram OpenAPI** — não há decorator nem reflexão como em
 NestJS ou Spring (§15). A linha descreve um mecanismo que não existe. **Proposta:** trocar por
 *"`docs/api/openapi.yaml`, mantido em sincronia por geração a partir dos schemas de validação (§15 do
 contrato de API)"*.
 
-**C-3 · `arquitetura.md:258` diz *"Upload por URL assinada emitida pelo servidor. Nunca do cliente direto"*.**
+**C-3 · A `arquitetura.md` dizia, no tópico 5: *"Upload por URL assinada emitida pelo servidor. Nunca do
+cliente direto"*.**
 As duas metades se contradizem: uma URL assinada existe **precisamente** para que o cliente suba direto.
 O contrato leu a frase como *"nunca do cliente **sem credencial emitida pelo servidor**"*, que é a leitura
 que preserva a intenção (o servidor nunca expõe a chave da conta de storage) e é a única compatível com a
 justificativa de custo da ADR-0004. **Proposta:** reescrever para *"upload direto do cliente para o Blob,
 com SAS de escrita emitida pelo servidor; a chave da conta nunca sai do servidor"*.
 
-**C-4 · `escopo.md:99` cita *"tempo médio de resolução mês a mês"* como parte do dashboard, e o indicador
-não aparecia na tabela de capacidades da atividade 8 — nem como ✅ nem como ⬜.** Ele existe na D19 e no
-passo 7 do Event Storming.
+**C-4 · O `escopo.md` cita *"tempo médio de resolução mês a mês"* na parte 1, entre o que o Gestor lê no
+dashboard, e o indicador não aparecia na tabela de capacidades da atividade 8** — nem como ✅ nem como ⬜.
+Ele existe na D19 e no passo 7 do Event Storming.
 
 > **✅ Resolvida em 20/08/2026 — e é a única resposta que mudou este contrato.** O indicador **entra na
 > primeira entrega**. O enunciado aqui é genérico (*"visualizar indicadores em um dashboard"*, p.5), então
@@ -1481,15 +1695,15 @@ passo 7 do Event Storming.
 > `(organizacao_id, ocorreu_em DESC)` citando literalmente *"tempo médio de resolução mês a mês"* — havia um
 > índice **já pago** por uma capacidade que não estava no escopo, e o cálculo é uma agregação sobre ele.
 > `GET /dashboard` passa a devolver **cinco** indicadores (§8.7); o `escopo.md` passa a **41 ✅ de 62**,
-> correção do hub.
+> e a **42 de 63** ainda no mesmo dia, com o conserto do **PA-25**.
 
 **C-5 · Lacuna no Event Storming: não existe comando `Aprovar pedido de entrada`.** O passo 5 tem
 `Aceitar convite` e a POL-02, escritos antes da D25 criar o caminho do código público. Três endpoints do
 contrato (`/pedidos-de-entrada`, `/aprovar`, `/recusar`) realizam capacidades ✅ do escopo **sem comando
 correspondente no passo 5**. É lacuna real da documentação anterior, não endpoint inventado.
 
-> **✅ Confirmada em 20/08/2026.** O hub acrescenta os três comandos ao passo 5, com uma política espelhando
-> a POL-02. **Nada muda no contrato** — os endpoints já estavam certos; o que faltava era a origem.
+> **✅ Confirmada em 20/08/2026.** Os três comandos foram acrescentados ao passo 5 do Event Storming, com
+> uma política espelhando a POL-02. **Nada muda no contrato** — os endpoints já estavam certos; o que faltava era a origem.
 
 ### 13.2 Questões, com opções e recomendação
 
@@ -1498,7 +1712,7 @@ Opções: (a) acrescentar `Pedir entrada`, `Aprovar pedido de entrada`, `Recusar
 com uma política *"vínculo estabelecido ao aprovar"* espelhando a POL-02; (b) deixar como está e aceitar que
 o contrato tem três endpoints sem origem no passo 5.
 **Recomendo (a).** É meia hora de trabalho e fecha a rastreabilidade que a §14 usa como critério.
-**✅ Respondida: (a).** O hub acrescenta; o contrato não muda.
+**✅ Respondida: (a).** Os comandos foram acrescentados; o contrato não muda.
 
 **Q-API-2 · Qual é a tabela de rótulos exibidos?**
 A D19 dá **um** exemplo (*"o síndico está avaliando"* para `em_analise`) e o contrato precisa de seis, por
@@ -1523,7 +1737,7 @@ derivação. **Três correções na proposta acima, e cada uma vale mais que a l
 2. **`pausada` são quatro rótulos, não um molde.** *"Parada, esperando &lt;motivo&gt;"* interpolava um valor
    de enum numa frase em português: com `aguardando_peca`, produziria *"Parada, esperando aguardando peça"*.
 3. **Fora a chamada para ação.** *"Resolvida — conte como foi"* misturava estado com convite. O rótulo é o
-   estado; o convite a avaliar é decisão de tela, e vai para o passo 4.
+   estado; o convite a avaliar é decisão de tela, e vai para o inventário de telas.
 
 **A tabela aprovada — é a que os exemplos do YAML usam:**
 
@@ -1553,11 +1767,11 @@ assumiu, S-A1); (b) esconde a `observacao` das transições, mostrando só o fat
 **Recomendo (a).** O produto existe para que *"o Solicitante saiba o andamento sem precisar perguntar"*, e a
 D8 já manda mostrar a ele quando a pausa é *aguardando informação do solicitante*. Esconder o porquê
 recriaria a pergunta que o produto veio eliminar. Se houver receio de texto interno vazando, o lugar do
-texto interno é a **nota interna** (canal 2, fatia 2) — não a observação da transição.
+texto interno é a **nota interna** (canal 2, evolução prevista) — não a observação da transição.
 
 **✅ Respondida: (a), mostra tudo.** Com uma restrição que veio junto e que o contrato passa adiante: **a
 tela onde a `observacao` é escrita precisa avisar, no momento da escrita, que o Solicitante vai lê-la** —
-porque o registro é imutável e o engano é irreversível. Está em §8.5, para o passo 4 herdar.
+porque o registro é imutável e o engano é irreversível. Está em §8.5, para o inventário de telas herdar.
 
 **Q-API-4 · Vale uma chave de idempotência em `POST /ocorrencias`?**
 Ela exige guardar `chave → resposta`, e **não há tabela para isso** — seria mudança no modelo de dados.
@@ -1583,7 +1797,7 @@ escopo. Mas a organização nasce com **um** Gestor (D26) e não há como ter um
 entrada aprovado com papel `gestor`. Opções: (a) fica como está — segundo Gestor só entra por pedido de
 entrada; (b) `PATCH /vinculos/{pessoaId}` aceita `papel`.
 **Recomendo (a)**, coerente com o corte (nota interna saiu justamente porque o cenário é o do síndico
-único). Se o hub escolher (b), é um campo — mas vira capacidade nova no escopo.
+único). Se a escolha for (b), é um campo — mas vira capacidade nova no escopo.
 
 **✅ Respondida: (a), fica como está — com uma consequência que a pergunta não tinha visto.** (a) + D26 +
 D25 fecham um beco: **se o único Gestor perder o acesso, a organização fica inacessível para sempre.**
@@ -1601,7 +1815,7 @@ quebra**, que é o que separa decisão de omissão.
 Critério: **toda capacidade ✅ tem de ser alcançável pelo contrato**, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
 
-> **Eram 40 até 20/08/2026**, e duas entraram no mesmo dia por decisão do hub. A nº 36 — *tempo médio de
+> **Eram 40 até 20/08/2026**, e duas entraram no mesmo dia. A nº 36 — *tempo médio de
 > resolução, mês a mês* — ao resolver a contradição C-4; e a nº 10 — *remover vínculo sem histórico* — ao
 > resolver o **PA-25**, o beco em que aprovar com o papel errado era irreversível. O `escopo.md` passa a
 > **42 ✅ de 63**.
@@ -1623,7 +1837,7 @@ A verificação nos dois sentidos.
 | **2 · Registrar a ocorrência** |
 | 11 | Registrar com título, descrição e categoria | `ENUNCIADO · literal` (S3,S4) | `POST /ocorrencias` |
 | 12 | Informar a localização — Área + complemento | `ENUNCIADO · aberto` (S5) + D10 | `POST /ocorrencias` (`areaId`, `localizacaoComplemento`) + `GET /areas` |
-| 13 | Anexar uma imagem comprimida no celular | `ENUNCIADO · aberto` (S6) + RNF8 | `POST /imagens/autorizacoes` → `POST /ocorrencias` → `GET /ocorrencias/{id}/imagem` |
+| 13 | Anexar uma imagem comprimida no celular | `ENUNCIADO · aberto` (S6) + RNF8 | `POST /anexos/autorizacoes` → `POST /ocorrencias` → `GET /ocorrencias/{id}/anexos/{anexoId}` |
 | **3 · Triar** |
 | 14 | Listar todas as ocorrências | `ENUNCIADO · aberto` (G1) | `GET /ocorrencias` |
 | 15 | Filtrar por categoria, status e prioridade | `ENUNCIADO · literal` (G2) | `GET /ocorrencias?status=&categoriaId=&prioridade=` |
@@ -1739,10 +1953,11 @@ exatamente quando se quer saber.
 | 7 | Recurso de outra organização | `404`, com `organizacaoAtiva` e `traceId` no corpo | `403` — confirma existência de identificador, contra o RNF1 |
 | 8 | Corpo de erro | RFC 9457 + `codigo` estável + `traceId` | Só mensagem (muda e quebra cliente) · código HTTP sozinho (não distingue 12 casos de `409`) |
 | 9 | Transição ilegal | `409` com `statusAtual` e `acoesDisponiveis` | `422` — não é valor inválido, é conflito com o estado |
-| 11 | Máquina de estados no cliente | `acoesDisponiveis` na resposta | Tabela de transições duplicada no PWA |
-| 12 | Upload | SAS de escrita + **ticket assinado**, validado no `POST /ocorrencias` por `HEAD` | Proxy pela API (queima franquia) · SAS sem validação posterior (aceita qualquer coisa) · tabela de uploads (mudaria o modelo de dados) |
-| 11b | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do modelo pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
-| 13 | Leitura da imagem | `GET /ocorrencias/{id}/imagem` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) |
+| 10 | Máquina de estados no cliente | `acoesDisponiveis` na resposta | Tabela de transições duplicada no PWA |
+| 11 | Upload | SAS de escrita + **ticket assinado**, validado no `POST /ocorrencias` por `HEAD` | Proxy pela API (queima franquia) · SAS sem validação posterior (aceita qualquer coisa) · tabela de uploads (mudaria o modelo de dados) |
+| 12 | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do modelo pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
+| 13 | Leitura do anexo | `GET /ocorrencias/{id}/anexos/{anexoId}` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) · `/anexos` singular (codifica o escopo na URL, que é a coisa mais cara de trocar) · coleção `GET /ocorrencias/{id}/anexos` (segundo caminho para o que o detalhe já traz — §9.9) |
+| 13b | **Forma do anexo no contrato** *(21/08/2026)* | Lista em `OcorrenciaDetalhe.anexos[]`, **contagem** em `OcorrenciaResumo.quantidadeDeAnexos`, `maxItems: 1` no corpo de entrada | Lista nos três formatos — verbosidade na leitura mais chamada · booleano `temAnexo` — vira quebra no dia do segundo anexo · restrição de quantidade no banco — devolve a migração que a tabela veio evitar |
 | 14 | Paginação | Cursor `(registradaEm, id)` | Offset — duplica itens numa lista que recebe inserções |
 | 15 | Versionamento | `/api`, sem `/v1` | `/api/v1` por hábito — sem consumidor independente, é custo sem benefício |
 | 16 | Concorrência | Sem `ETag`; a máquina de estados é o controle otimista | `If-Match` em todo comando — resolve o que já estava resolvido e piora a mensagem de erro |
@@ -1754,6 +1969,17 @@ exatamente quando se quer saber.
 
 ---
 
-**Documentos que este contrato propõe alterar — e que não foram alterados:** `docs/glossario.md` (C-1 e
-Q-API-5), `docs/arquitetura.md` (C-2 e C-3), `docs/escopo.md` (C-4) e
-`trabalho/produto/event-storming.md` (C-5). Todas as propostas estão na §13, e nenhuma foi aplicada.
+**As cinco propostas deste contrato a outros documentos foram aplicadas em 20/08/2026**, nos documentos de
+origem — não aqui. Onde cada uma caiu:
+
+| Proposta | Onde foi aplicada |
+|---|---|
+| **C-1** · tirar `reabrir` da definição de *Transição de status* | `docs/glossario.md` §4 |
+| **C-2** · o `openapi.yaml` não é gerado dos route handlers | `docs/arquitetura.md`, tópico 8 |
+| **C-3** · upload direto do cliente, com credencial emitida pelo servidor | `docs/arquitetura.md`, tópicos 3 e 5 |
+| **C-4** · *tempo médio de resolução* entra como capacidade | `docs/escopo.md`, atividade 8 |
+| **Q-API-5** · `Organização ativa` vira termo | `docs/glossario.md` §2 |
+
+A sexta — **C-5**, os comandos de pedido de entrada — é do Event Storming, que não é entregável: foi
+aplicada no material de processo do projeto. O argumento de cada proposta continua na §13, que é onde ele
+vive; esta tabela diz apenas que nenhuma ficou pendente.

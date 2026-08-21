@@ -6,7 +6,7 @@ decisões de produto. É o primeiro artefato depois da descoberta — dele saem 
 as telas e as issues.
 
 **O que este documento não faz.** Não decide produto: onde faltou uma decisão de domínio, a suposição foi
-declarada e devolvida ao hub. **As cinco perguntas foram respondidas em 20/08/2026** — a §13 registra as
+declarada e devolvida ao dono da decisão. **As cinco perguntas foram respondidas em 20/08/2026** — a §13 registra as
 respostas e o que cada uma mudou aqui. Não traz DDL completo nem migrações — só SQL onde a constraint é
 sutil e o texto não bastaria. Não decide camadas, ORM nem organização de pastas.
 
@@ -15,6 +15,18 @@ sutil e o texto não bastaria. Não decide camadas, ORM nem organização de pas
 > que este documento foi escrito. **Nenhuma decisão de modelagem mudou** — foram corrigidos §2.3, §2.8,
 > §6.15, §7.7 e §11, e a redação da coluna de imagem passou a ser **agnóstica de provedor**. **PostgreSQL
 > e autenticação continuam no Supabase**, então a §9 e a §10 permanecem exatamente como estavam.
+
+> **Nota de revisão — 21/08/2026 · uma decisão de modelagem foi revertida.** A imagem da ocorrência era a
+> coluna `ocorrencias.imagem_caminho`; passa a ser a tabela **`anexos`** (§6.16). O argumento — o conceito
+> do domínio é **evidência**, e a assimetria de custo entre virar tabela agora e virar tabela depois —
+> está na **§7.8**, com a reversão declarada em vez de substituída em silêncio.
+>
+> **O escopo não mudou:** continua sendo **um anexo, do tipo imagem, comprimido no aparelho** (RNF8). O
+> `escopo.md` segue com 63 itens, 42 na primeira entrega.
+>
+> Mudaram §2.2, §2.8, §3, §4.1, §5, §6.7, §8.1, §8.2, §10.2 e §11, e entraram §6.16, §7.8 e §11.5. Duas
+> perguntas que ninguém tinha feito ganharam resposta escrita: **o que a LGPD faz com o anexo quando uma
+> Pessoa é anonimizada** (§10.2) e **quanto custaria admitir vídeo** (§11.5).
 
 > ## ⚠️ A regra que nenhuma constraint impõe
 >
@@ -37,9 +49,9 @@ não veio de nenhuma das duas está marcado **[FONTE EXTERNA]** e se sustenta po
 **Marcadores de origem**, herdados do resto da documentação: **`ENUNCIADO · literal`** (o enunciado define
 o quê e o como) · **`ENUNCIADO · aberto`** (a existência é imposta, a forma é nossa) · **`NOSSO`**.
 
-**Fatia.** Cada tabela indica se pertence ao **MVP** ou à **fatia 2**, conforme
-`trabalho/produto/mapa-de-historias.md`. Tabelas de fatia 2 estão modeladas de propósito: o esquema
-completo evita migração destrutiva depois, e o custo de declarar uma tabela vazia é zero.
+**Recorte.** Cada tabela indica se pertence ao **MVP** ou à **evolução prevista**, conforme o recorte do
+[escopo](escopo.md). As tabelas de evolução prevista estão modeladas de propósito: o esquema completo
+evita migração destrutiva depois, e o custo de declarar uma tabela vazia é zero.
 
 ---
 
@@ -77,8 +89,8 @@ nome de tabela, de endpoint e de classe"*. Acento em identificador exigiria aspa
 `users`, `posts`), colunas no singular.
 
 **2.2 · Chave primária: UUID onde a linha tem identidade própria; chave natural composta onde a linha
-*é* a relação.** A aula 2 fixa `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`, e é o padrão em doze das
-catorze tabelas. As duas exceções são `vinculos` (PK `pessoa_id, organizacao_id`) e `adesoes` (PK
+*é* a relação.** A aula 2 fixa `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`, e é o padrão em treze das
+quinze tabelas. As duas exceções são `vinculos` (PK `pessoa_id, organizacao_id`) e `adesoes` (PK
 `ocorrencia_id, pessoa_id`): nenhuma das duas tem identidade fora do par que a define, e **todas as
 referências a elas no esquema são pelo par**, não por um surrogate. Um `id` ali seria uma coluna e um
 índice único que ninguém usa.
@@ -133,8 +145,8 @@ consulta que a justifica.
 têm o mesmo desempenho e o mesmo armazenamento; `VARCHAR(n)` é validação declarada, não otimização
 **[FONTE EXTERNA]**. Por isso `titulo VARCHAR(150)` (cabe numa linha de lista) e `descricao TEXT`.
 
-**2.8 · Imagem não entra no banco, e a coluna é agnóstica de provedor.**
-`ocorrencias.imagem_caminho` guarda uma **chave opaca do objeto** — nunca os bytes, nunca uma URL (que é
+**2.8 · Anexo não entra no banco, e a chave é opaca e agnóstica de provedor.**
+`anexos.chave` guarda uma **chave opaca do objeto** — nunca os bytes, nunca uma URL (que é
 assinada e expira) e **nunca o nome do contêiner ou do bucket embutido no valor**. Onde essa chave é
 resolvida em objeto é decisão de infraestrutura, hoje o **Azure Blob Storage**
 ([ADR-0004](adr/0004-execucao-em-container-no-azure.md)).
@@ -145,6 +157,11 @@ linhas. Com chave opaca, a troca de provedor não toca o banco.
 
 A §11 mostra o que aconteceria se os bytes viessem para cá: o teto de 500 MB seria estourado **antes** do
 alvo do RNF3.
+
+> **Onde essa chave morava, e por que mudou de lugar — 21/08/2026.** Até esta data a chave era a coluna
+> `ocorrencias.imagem_caminho`. Ela passou a ser a **tabela `anexos`** (§6.16), pela razão argumentada na
+> **§7.8**. O que **não** mudou: a chave continua opaca, e esta convenção vale exatamente como estava
+> escrita — só trocou de endereço.
 
 **2.9 · Em toda tabela escopada, `organizacao_id` é a primeira coluna de todo índice de listagem.**
 Consequência direta da [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md): **toda**
@@ -178,11 +195,13 @@ erDiagram
     VINCULOS ||--o{ MENSAGENS : "autor"
     VINCULOS ||--o{ ADESOES : "aderiu"
     VINCULOS ||--o{ NOTIFICACOES : "destinatario"
+    VINCULOS ||--o{ ANEXOS : "anexou"
 
     OCORRENCIAS ||--|{ REGISTROS_TRANSICAO : "trilha de auditoria"
     OCORRENCIAS ||--o{ ATRIBUICOES : "designa"
     OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa em"
     OCORRENCIAS ||--o{ ADESOES : "recebe"
+    OCORRENCIAS ||--o{ ANEXOS : "evidencia - um na 1a entrega"
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem - duplicada ou recorrencia"
 
     ATRIBUICOES     ||--o| CANAIS_CONVERSA : "identifica o canal 3"
@@ -242,7 +261,6 @@ erDiagram
         uuid categoria_id FK
         uuid area_id FK
         varchar localizacao_complemento "texto livre"
-        text imagem_caminho "chave opaca do objeto"
         enum prioridade "baixa | normal | alta"
         enum status "aberta | em_analise | em_atendimento | pausada | resolvida | cancelada"
         uuid autor_pessoa_id FK
@@ -267,6 +285,18 @@ erDiagram
         text observacao
         enum motivo_pausa
         enum motivo_cancelamento
+    }
+
+    ANEXOS {
+        uuid id PK
+        uuid organizacao_id FK
+        uuid ocorrencia_id FK
+        enum tipo "imagem - um valor hoje"
+        text chave UK "chave opaca do objeto"
+        varchar tipo_conteudo "MIME real, conferido no HEAD"
+        integer tamanho_bytes
+        uuid anexado_por_pessoa_id FK
+        timestamptz anexado_em
     }
 
     ATRIBUICOES {
@@ -353,7 +383,12 @@ aplicação**, num repositório base. O modelo de dados não é dispensado disso
 | `categorias` · `areas` | Sim | |
 | `convites` · `pedidos_de_entrada` | Sim | |
 | `ocorrencias` | Sim | |
-| `registros_transicao` · `atribuicoes` · `canais_conversa` · `mensagens` · `adesoes` · `notificacoes` | Sim | `organizacao_id` **desnormalizado** — ver §7.3 |
+| `registros_transicao` · `atribuicoes` · `canais_conversa` · `mensagens` · `adesoes` · `notificacoes` · `anexos` | Sim | `organizacao_id` **desnormalizado** — ver §7.3 |
+
+> **`anexos` entrou nesta lista em 21/08/2026** (§6.16). Ela carrega `organizacao_id` pelo mesmo motivo das
+> outras seis filhas — e ganha um uso que nenhuma delas tem: **é ela que torna enumerável o conjunto de
+> objetos de uma organização no storage**, coisa que uma coluna de texto em `ocorrencias` não permitia sem
+> varredura. A consequência para a LGPD está na §10.2.
 
 ### 4.2 A regra de referência a Pessoa, e por que ela importa
 
@@ -436,13 +471,15 @@ ADR-0003 recusa.
 
 ## 5. Tipos `ENUM`
 
-Nove tipos. Todos vêm de decisão fechada; nenhum é editável pela Organização (§2.4).
+Onze tipos. Todos vêm de decisão fechada; nenhum é editável pela Organização (§2.4).
+*(A redação anterior dizia "nove" e a tabela já tinha dez linhas — erro de contagem corrigido em
+21/08/2026, junto com a entrada de `tipo_anexo`, que é a décima primeira.)*
 
 | Tipo | Valores | Origem |
 |---|---|---|
 | `status_ocorrencia` | `aberta` · `em_analise` · `em_atendimento` · `pausada` · `resolvida` · `cancelada` | `ENUNCIADO · literal` (F1) + D8 |
 | `papel_vinculo` | `gestor` · `solicitante` · `encarregado` | D4, D27 |
-| `prioridade_ocorrencia` | `baixa` · `normal` · `alta` | D6 · **três níveis confirmados pelo hub** (§13) |
+| `prioridade_ocorrencia` | `baixa` · `normal` · `alta` | D6 · **três níveis confirmados** (§13) |
 | `tipo_area` | `comum` · `privativa` | D10 · usado em `areas.tipo` **e** na cópia `ocorrencias.area_tipo` (§7.5) |
 | `motivo_pausa` | `aguardando_informacao_solicitante` · `aguardando_peca` · `aguardando_autorizacao` · `aguardando_terceiro` | D8 |
 | `motivo_cancelamento` | `desistencia` · `resolvido_por_conta_propria` · `aberta_por_engano` · `duplicada` · `improcedente` · `fora_de_escopo` · `sem_informacao_suficiente` | D5, D12 |
@@ -450,6 +487,38 @@ Nove tipos. Todos vêm de decisão fechada; nenhum é editável pela Organizaç�
 | `vinculo_ocorrencia` | `duplicada` · `recorrencia` | D17, D24 |
 | `motivo_encerramento_atribuicao` | `reatribuicao` · `recusa` | D9, Event Storming passo 5 |
 | `situacao_pedido_entrada` | `pendente` · `aprovado` · `recusado` | D25 |
+| `tipo_anexo` | `imagem` | S6 + RNF8 · **um valor, deliberadamente** — abaixo |
+
+> ### `tipo_anexo` tem **um** valor, e a pergunta não é de custo
+>
+> A objeção correta a um enum de um valor é que ele **parece uma coluna disfarçada** — e, se parecesse, a
+> tabela `anexos` (§6.16) não estaria modelando *evidência*, estaria modelando *imagem* com passos a mais.
+>
+> **O que prova que a tabela modela evidência não é a cardinalidade do enum; é o ponto de discriminação
+> existir e estar nomeado.** Uma linha com `tipo`, `tipo_conteudo`, `chave` e `tamanho_bytes`, numa tabela
+> chamada `anexos`, já discrimina tipos. O enum declara **qual é o alcance de hoje**, e é exatamente a
+> aplicação da regra desta rodada: *estrutura certa, escopo estreito*. Declarar `video`, `documento` e
+> `audio` seria alargar o **escopo** no esquema, não a estrutura.
+>
+> **E há um custo que não é do banco:** o valor sai no contrato, em `Anexo.tipo`. Quatro valores fariam
+> qualquer cliente que leia o YAML construir quatro caminhos de renderização para dado que nunca chega.
+>
+> **Onde está escrito que os outros três não entram**, que é o que impede o valor de virar promessa:
+> `escopo.md`, atividade 2 — *"Anexar uma imagem, comprimida no próprio celular"*, `ENUNCIADO · aberto`
+> (S6) — e **RNF8** em `documentacao-da-demanda.md`, que fixa *"uma por ocorrência, JPEG ou PNG"*. Os dois
+> são declaração de escopo, não omissão.
+>
+> **O que custa acrescentar, em linhas, para não ser preciso descobrir depois:**
+>
+> ```sql
+> ALTER TYPE tipo_anexo ADD VALUE 'video';   -- barato: ADD VALUE não reescreve tabela
+> ```
+>
+> No contrato é `image/jpeg`/`image/png` ganhando um vizinho em `POST /anexos/autorizacoes` e um valor novo
+> num enum de **saída** — aditivo pelas duas regras da §11 do contrato de API. **O cliente não muda**,
+> porque ele nunca envia o tipo: o servidor o deriva do `tipoConteudo` autorizado. A conta de quanto isso
+> custaria em armazenamento e em RNF6 está na §11.5, e é ela que transforma *"vídeo depois"* em decisão de
+> produto com número.
 
 **`motivo_cancelamento` é um conjunto só, não dois.** As listas da D5 são por papel — Solicitante
 (*desisti · resolvi por conta própria · abri por engano · é duplicada*) e Gestor (*improcedente ·
@@ -544,8 +613,8 @@ parte de `vinculos` (§4.3); um índice global aqui só serviria a uma consulta 
   vive em cartaz de elevador e é digitado à mão.
 
 `nome` + `logo_caminho` **são** o whitelabel da D25 — não há tabela separada para dois campos.
-`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Ambos são fatia 2 no mapa de
-histórias, mas custam duas colunas e evitam migração depois.
+`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Ambos são **evolução prevista**, mas custam duas
+colunas e evitam migração depois.
 
 **Índices:** só a PK e o único de `codigo_publico`, que serve à consulta da página de entrada
 (`WHERE codigo_publico = $1`). Com 50 organizações (RNF3), a aula 3 é explícita: *"tabelas com < 1000
@@ -573,7 +642,7 @@ global (`pessoas`) e o mundo escopado.
 - `FOREIGN KEY (pessoa_id) REFERENCES pessoas (id) ON DELETE RESTRICT`
 - `FOREIGN KEY (organizacao_id) REFERENCES organizacoes (id) ON DELETE RESTRICT`
 
-**Um vínculo por Pessoa por Organização — confirmado pelo hub em 20/08/2026.** O glossário diz que uma
+**Um vínculo por Pessoa por Organização — confirmado em 20/08/2026.** O glossário diz que uma
 Pessoa tem vários vínculos *"em organizações diferentes e com papéis diferentes"*, e a ADR-0003 resolve um
 contexto de requisição com **um** `papel`. As duas frases juntas sustentam a PK acima.
 
@@ -608,7 +677,7 @@ acúmulo de capacidade vive no mapa `papel → permissões`.
 válidas para toda a trilha de auditoria escrita por alguém que depois saiu. Um vínculo revogado e
 reconcedido **reaproveita a mesma linha** (limpa `revogado_em`, eventualmente com outro `papel`).
 
-> **Limitação declarada — não há histórico de vínculo.** Decidido pelo hub em 20/08/2026: fica como está.
+> **Limitação declarada — não há histórico de vínculo.** Decidido em 20/08/2026: fica como está.
 > Duas perdas, e a segunda é a que a análise inicial não tinha visto:
 >
 > 1. Não se sabe **quando** alguém foi Solicitante e passou a Gestor.
@@ -717,7 +786,6 @@ dizer que a visibilidade é *derivação, não configuração*.
 | `area_id` | `uuid` | não | — |
 | `area_tipo` | `tipo_area` | não | — |
 | `localizacao_complemento` | `varchar(200)` | sim | — |
-| `imagem_caminho` | `text` | sim | — |
 | `prioridade` | `prioridade_ocorrencia` | não | `'normal'` |
 | `status` | `status_ocorrencia` | não | `'aberta'` |
 | `autor_pessoa_id` | `uuid` | não | — |
@@ -747,8 +815,12 @@ dizer que a visibilidade é *derivação, não configuração*.
 **Localização = Área + complemento** (D10, glossário). `area_id` é obrigatório e `localizacao_complemento`
 é o texto livre — *"ao lado da vaga 34"*. Não há coordenada nem mapa.
 
+> **`imagem_caminho` saiu desta tabela em 21/08/2026.** A evidência anexada à ocorrência é a tabela
+> **`anexos`** (§6.16); o argumento da reversão está na **§7.8**. Nenhuma outra coluna mudou, e a
+> `Ocorrência` continua sendo a raiz do agregado — `anexos` é filha dela, dentro do mesmo limite.
+
 **A visibilidade deriva de `area_tipo`, a cópia gravada no registro — não do tipo atual da Área.** É a
-**emenda à D10 decidida pelo hub em 20/08/2026** (pergunta 4, §13), e o argumento é o sentido perigoso da
+**emenda à D10 decidida em 20/08/2026** (pergunta 4, §13), e o argumento é o sentido perigoso da
 mudança: reclassificar uma Área de `privativa` para `comum` **exporia ao condomínio inteiro ocorrências
 registradas sob expectativa de privacidade**. Seria vazamento causado por configuração, não por defeito — e
 a D10 existe justamente para que a visibilidade seja previsível sem ninguém ter de configurá-la.
@@ -779,7 +851,7 @@ ALTER TABLE ocorrencias ADD CONSTRAINT ocorrencias_avaliacao_ck CHECK (
 status de outra tabela — mais código, mais lugares, mesma regra. *"Só do Solicitante autor"* não precisa
 de coluna: o autor **é** `autor_pessoa_id`.
 
-**A escala 1–5 com comentário opcional foi confirmada pelo hub em 20/08/2026**, com um argumento que vale
+**A escala 1–5 com comentário opcional foi confirmada em 20/08/2026**, com um argumento que vale
 guardar para outras decisões de formato: **escala → polegar é conversão sem perda** (4–5 colapsam em
 positivo); **polegar → escala não é**, porque exigiria inventar dado que nunca existiu. Diante de
 incerteza sobre o formato certo, grava-se a forma mais rica.
@@ -798,7 +870,7 @@ prejudicam INSERT/UPDATE/DELETE"* e em não fazer otimização prematura:
 | Não criado | Por quê |
 |---|---|
 | `(organizacao_id, prioridade)` | **Baixa seletividade** — o caso que a aula 3 dá como exemplo do que evitar. A prioridade nasce `normal` (D6), então a esmagadora maioria das linhas tem o mesmo valor |
-| `(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` | Servem à **recorrência** (D19), que é uma **agregação sobre o conjunto inteiro** da organização — o plano correto para `GROUP BY` sobre toda a partição é varredura, não índice. *(A primeira redação também dizia que a recorrência era fatia 2. Ela **está na primeira entrega** — o escopo a marca ✅ e o contrato a devolve no dashboard. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo.)* |
+| `(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` | Servem à **recorrência** (D19), que é uma **agregação sobre o conjunto inteiro** da organização — o plano correto para `GROUP BY` sobre toda a partição é varredura, não índice. *(A primeira redação também dizia que a recorrência era evolução prevista. Ela **está na primeira entrega** — o escopo a marca ✅ e o contrato a devolve no dashboard. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo.)* |
 | GIN + `to_tsvector('portuguese', ...)` em `titulo`/`descricao` | O padrão de busca textual da aula 3. **Nenhuma história do mapa pede busca por texto** — *"ver ocorrências semelhantes"* (D11) é semelhança por **Área e status**, não por palavra. Fica registrado como o índice a criar no dia em que a busca existir |
 | `(autor_pessoa_id)` e demais colunas de FK isoladas | A aula 3 recomenda índice em toda FK. Aqui as FKs de pessoa já entram como **segunda coluna** de índices compostos que começam por `organizacao_id`, e o pai (`vinculos`, `pessoas`) **nunca é apagado** (§2.5) — então não há verificação de `RESTRICT` a acelerar |
 
@@ -955,12 +1027,12 @@ CREATE UNIQUE INDEX atribuicoes_vigente_uk
 | Índice | Consulta que o justifica |
 |---|---|
 | `UNIQUE (ocorrencia_id) WHERE encerrada_em IS NULL` | A invariante acima; e resolve *"quem é o responsável desta ocorrência"* (D20 — o Solicitante vê o nome) em uma busca |
-| `(responsavel_pessoa_id, organizacao_id) WHERE encerrada_em IS NULL` | **"Só o que é meu"** — a lista do Encarregado (fatia 2, mas é a consulta que a tela dele inteira depende) e a auto-atribuição do Gestor |
+| `(responsavel_pessoa_id, organizacao_id) WHERE encerrada_em IS NULL` | **"Só o que é meu"** — a lista do Encarregado (evolução prevista, mas é a consulta que a tela dele inteira depende) e a auto-atribuição do Gestor |
 | `(ocorrencia_id, atribuido_em)` | A linha do tempo, que intercala atribuições com transições e mensagens |
 
 ---
 
-### 6.10 `canais_conversa` — o `Canal de conversa` · canal 1 no MVP, canais 2 e 3 na fatia 2
+### 6.10 `canais_conversa` — o `Canal de conversa` · canal 1 no MVP, canais 2 e 3 na evolução prevista
 
 **Propósito:** o espaço de mensagens escopado a uma Ocorrência, nos três tipos da D9.
 
@@ -1038,7 +1110,7 @@ a versão anterior é preservada — o que, pela ADR-0001, seria histórico de o
 
 ---
 
-### 6.12 `adesoes` — a `Adesão` · **fatia 2**
+### 6.12 `adesoes` — a `Adesão` · **evolução prevista**
 
 **Propósito:** registrar o *"também estou com esse problema"* de um Observador numa ocorrência de área
 comum (D11) — a única ação dele.
@@ -1069,7 +1141,7 @@ duas respostas; a regra é da aplicação.
 
 ---
 
-### 6.13 `notificacoes` — o agregado `Notificação` · **fatia 2**
+### 6.13 `notificacoes` — o agregado `Notificação` · **evolução prevista**
 
 **Propósito:** o aviso gerado a cada transição de status, para o Solicitante autor e para o responsável
 atribuído **que tenha Usuário** (D14).
@@ -1100,7 +1172,7 @@ transição** (D14: *"a notificação é disparada pelo mesmo evento que grava o
 própria abriria a porta para notificação sem transição, que nenhuma política prevê.
 
 **Não há coluna de entrega por canal externo.** POL-07 (e-mail, push, WhatsApp) é plano pago e está fora do
-MVP e da fatia 2 (Q10). Quando entrar, entra como tabela própria de tentativas de entrega — uma coluna
+MVP e da evolução prevista (Q10). Quando entrar, entra como tabela própria de tentativas de entrega — uma coluna
 `entregue_em` não comportaria N canais nem repetição.
 
 **Índices:** `(destinatario_pessoa_id, criado_em DESC)` — o **sino** é literalmente esta consulta. O índice
@@ -1109,7 +1181,7 @@ aparecer em toda tela.
 
 ---
 
-### 6.14 `convites` — o `Convite` · **fatia 2**
+### 6.14 `convites` — o `Convite` · **evolução prevista**
 
 **Propósito:** o token de uso único, vinculado a uma Pessoa e com validade, que leva à página de cadastro
 com os dados dela pré-preenchidos e **dispensa o `Pedido de entrada`** (D25) — o Gestor já criou aquela
@@ -1155,7 +1227,7 @@ aprovado pelo Gestor.
 > **Termo aprovado e incorporado ao glossário em 20/08/2026.** A D25 descrevia isto como *"cair na fila de
 > aprovação do Gestor"*, e **"fila" é vocabulário de ferramenta já retirado do projeto** — veio do Jira e
 > foi substituído por *filtro rápido* (colisão nº 5 do glossário). O termo proposto por este documento,
-> **`Pedido de entrada`**, foi aceito pelo hub e está no glossário, com a distinção de que **não se
+> **`Pedido de entrada`**, foi aceito e está no glossário, com a distinção de que **não se
 > confunde com `Convite`, que dispensa aprovação**.
 
 | Coluna | Tipo | Nulo | Padrão |
@@ -1185,6 +1257,111 @@ todas as FKs compostas da §4.2 passariam a aceitar como autor alguém que ainda
 **Índices:** `(organizacao_id, criado_em) WHERE situacao = 'pendente'` — os pedidos pendentes que o Gestor
 abre para aprovar ou recusar. Índice parcial no padrão da aula 3, e aqui a seletividade é ótima: o normal é
 a tabela ter quase só linhas já decididas.
+
+---
+
+### 6.16 `anexos` — a evidência da ocorrência · MVP
+
+> **Fora da ordem de agregado, de propósito.** Esta tabela pertence ao agregado `Ocorrência` e deveria vir
+> logo depois da §6.7. Ficou no fim porque inseri-la ali renumeraria de §6.8 a §6.15 — e essas oito seções
+> são citadas por número em `contrato-de-api.md`, `arquitetura.md`, `fluxos-e-diagramas.md` e
+> `inventario-de-telas.md`. **Numeração aditiva custa uma nota; renumerar custa quatro documentos.**
+
+**Propósito:** guardar a **evidência** anexada a uma ocorrência — a chave do objeto no storage, o tipo e
+os dados necessários para lê-lo. É a substituição da coluna `ocorrencias.imagem_caminho`, e a **§7.8**
+argumenta a reversão.
+
+| Coluna | Tipo | Nulo | Padrão |
+|---|---|---|---|
+| `id` | `uuid` | não | `gen_random_uuid()` |
+| `organizacao_id` | `uuid` | não | — |
+| `ocorrencia_id` | `uuid` | não | — |
+| `tipo` | `tipo_anexo` | não | — |
+| `chave` | `text` | não | — |
+| `tipo_conteudo` | `varchar(100)` | não | — |
+| `tamanho_bytes` | `integer` | não | — |
+| `anexado_por_pessoa_id` | `uuid` | não | — |
+| `anexado_em` | `timestamptz` | não | `now()` |
+
+**Chaves e constraints**
+
+- `PRIMARY KEY (id)`
+- `FOREIGN KEY (ocorrencia_id, organizacao_id) → ocorrencias (id, organizacao_id) RESTRICT` — o padrão da
+  §4.2: o banco recusa um anexo cujo `organizacao_id` não bata com o da ocorrência
+- `FOREIGN KEY (anexado_por_pessoa_id, organizacao_id) → vinculos (pessoa_id, organizacao_id) RESTRICT`
+- `UNIQUE (chave)` — **global**, e a razão está abaixo
+- `CHECK (tamanho_bytes > 0)`
+- `CHECK (length(trim(chave)) > 0 AND chave NOT LIKE '%://%')` — a §2.8 escrita como constraint: **chave
+  opaca nunca é URL**. É a única regra desta rodada que o banco impõe, e ela é *forma do dado* (classe A da
+  §8), não regra de negócio
+
+**`UNIQUE (chave)` é o que faz "reivindicar" significar alguma coisa.** O mecanismo da §10.3 do contrato de
+API é uma transição de estado do objeto: nasce `pendente`, a reivindicação o promove a `confirmado`,
+**uma vez**. Sem esta restrição, duas linhas poderiam reivindicar o mesmo objeto — e `confirmado` deixaria
+de significar *"reivindicado exatamente uma vez"*: a etiqueta no storage e a tabela discordariam sobre o
+estado do objeto. Com ela, o banco impõe o que a etiqueta já quer dizer.
+
+> **E ela muda um comportamento que já estava desenhado — vale dizer qual.** A tela de registro reenvia a
+> **mesma** `chave` quando o `POST /ocorrencias` cai por rede (é a suposição **S-T7** do inventário de
+> telas, e existe para a foto não subir duas vezes). Se a primeira chamada tiver **comitado** e só a
+> resposta se perdido, o reenvio agora esbarra nesta restrição e recebe `409 ANEXO_JA_REIVINDICADO`, com o
+> `ocorrenciaId` de destino — em vez de criar **uma segunda ocorrência apontando para a mesma foto**, que é
+> o que a coluna fazia em silêncio. É idempotência parcial ganha de graça, num caminho em que o contrato
+> declarou (§7.10) que não construiria mecanismo nenhum.
+
+**O índice único é global e isso não fere a §2.9.** A convenção diz que todo **índice de listagem** começa
+por `organizacao_id`; este é restrição de unicidade, na mesma família de `pessoas.usuario_id` e de
+`organizacoes.codigo_publico`. E precisa ser global porque **o contêiner de storage é um só**: duas
+organizações não podem reivindicar a mesma chave, e um único por organização não impediria isso.
+
+### O que esta tabela **não** tem, e por que
+
+| Ausência | Razão |
+|---|---|
+| **Índice único parcial ou `CHECK` limitando a um anexo** | **É a decisão mais importante desta seção** — desenvolvida abaixo |
+| `UNIQUE (id, organizacao_id)` | O par da §4.4 existe para ser **alvo de chave estrangeira composta**, e nada no esquema referencia `anexos`. Criá-lo seria um índice que nenhuma consulta usa — o mesmo critério que recusou índices em `pessoas.nome` (§6.2). Se um dia algo apontar para um anexo, ele entra junto com a FK |
+| `nome_original` | Texto controlado por quem envia, que **nenhuma tela exibe** e que carrega dado pessoal com frequência (*"vazamento-apto-302.jpg"*). O cliente recomprime e reenquadra o arquivo (RNF8), então o nome já é resíduo de outro arquivo. Guardá-lo seria dado pessoal a mais sob o RNF10, sem consumidor |
+| `ordem` | Com um anexo não há o que ordenar; com N, a ordem é `anexado_em`, que já existe |
+| `legenda` / `descricao` | Nada no produto consome. A descrição da ocorrência é o lugar do texto |
+| `removido_em` / `removido_por_pessoa_id` | Seriam o mecanismo de um *takedown* por LGPD, que **não existe e não foi decidido** (§10.2). Acrescentá-los depois são duas colunas anuláveis e um campo novo de saída — migração barata e aditiva. Modelar preventivamente seria o oposto do que foi decidido sobre a **PA-19** |
+
+> ### ⚠️ Não há restrição de quantidade no banco — e isso é a decisão, não um esquecimento
+>
+> **O escopo da primeira entrega é um anexo por ocorrência.** O banco **não** o impõe: não existe
+> `CREATE UNIQUE INDEX anexos_um_por_ocorrencia ON anexos (ocorrencia_id)`, não existe `CHECK`, não existe
+> gatilho.
+>
+> **O motivo é a razão de esta rodada existir.** Se o banco proibir o segundo anexo, permitir o segundo
+> depois é **migração** — e a tabela substituiu a coluna precisamente para não pagar migração depois.
+> Restrição de quantidade que hoje custa uma linha de DDL custaria, no dia da mudança, uma migração no
+> ambiente de produção de um projeto com um implementador.
+>
+> **A restrição de *um* é de escopo, e mora onde o escopo mora:** no schema de entrada do contrato
+> (`RegistroDeOcorrencia.anexos` com `maxItems: 1`) e na aplicação, que só emite autorização de upload para
+> imagem. Ampliar é trocar um número num schema — **aceita mais e nunca menos**, e portanto não quebra
+> cliente algum.
+>
+> **Para quem vier depois:** acrescentar aqui um índice único *"por segurança"* **desfaz esta decisão** e
+> recria o problema que ela consertou. Se o argumento for *"o banco tem de garantir"*, a resposta está na
+> §8 — a §8.2 classifica esta regra explicitamente como aplicação, com o motivo.
+
+**Índices**
+
+| Índice | Consulta que o justifica |
+|---|---|
+| `(organizacao_id, ocorrencia_id)` | **As duas únicas leituras que existem**: os anexos de uma ocorrência no detalhe, e a contagem por ocorrência na listagem (`quantidadeDeAnexos`). Começa por `organizacao_id` pela §2.9, e é o que faz a listagem pagar 20 buscas indexadas em vez de uma varredura |
+| `UNIQUE (chave)` | A reivindicação: `WHERE chave = $1`. E é a invariante acima, não só desempenho |
+
+**Índice deliberadamente não criado:** nenhum em `tipo`. Com um valor no enum a seletividade é zero — é o
+caso que a aula 3 dá como exemplo do que evitar, e é o mesmo argumento que recusou
+`(organizacao_id, prioridade)` em §6.7. Ele entra no dia em que houver mais de um tipo **e** uma consulta
+que filtre por tipo — as duas coisas, não só a primeira.
+
+**A listagem paga um `join`, e não se desnormaliza um contador.** `GET /ocorrencias` devolve
+`quantidadeDeAnexos` por item, e derivá-lo exige juntar com esta tabela. Uma coluna
+`ocorrencias.total_anexos` foi considerada e **recusada pelo critério da própria §7.1**: desnormaliza-se o
+que é **filtrado ou ordenado** por consulta frequente, nunca o que é apenas projetado. Nenhum filtro do G2
+menciona anexo, e a página tem no máximo 20 itens contra um índice.
 
 ---
 
@@ -1248,14 +1425,14 @@ leitura *"última atualização há X"* do Solicitante (Event Storming, passo 7)
 entre três subconsultas correlacionadas — trilha, mensagens e atribuições — por linha da listagem. Com
 coluna, é `WHERE organizacao_id = $1 AND atualizada_em < $2`.
 
-**Honestidade sobre o alvo:** o filtro rápido é fatia 2. A coluna entra no MVP porque custa uma escrita e
+**Honestidade sobre o alvo:** o filtro rápido é evolução prevista. A coluna entra no MVP porque custa uma escrita e
 porque acrescentá-la depois exigiria uma migração de preenchimento retroativo — que não teria de onde
 reconstituir as mensagens já apagadas... exceto que nada é apagado. Ou seja: é conveniência, não
 necessidade, e está declarada como tal.
 
 ### 7.5 Desnormalização 4 — `ocorrencias.area_tipo`, a visibilidade congelada
 
-> **Emenda à D10, decidida pelo hub em 20/08/2026.** A D10 diz que a visibilidade é *derivada* do tipo da
+> **Emenda à D10, decidida em 20/08/2026.** A D10 diz que a visibilidade é *derivada* do tipo da
 > Área. A emenda precisa **de qual momento**: a visibilidade deriva do tipo da Área **vigente no momento do
 > registro**, não do tipo atual.
 
@@ -1285,7 +1462,7 @@ tipo)` do outro lado. Mas ela **congelaria a Área**: com `ON UPDATE RESTRICT`, 
 reclassificar uma Área que já tivesse ocorrência — que é exatamente a operação que a emenda existe para
 tornar segura. **A cópia é escrita pela aplicação, no comando `registrar`** (§8.2).
 
-**Ganho colateral:** a consulta *"ocorrências de área comum do meu local"* (D10, fatia 2) deixa de precisar
+**Ganho colateral:** a consulta *"ocorrências de área comum do meu local"* (D10, evolução prevista) deixa de precisar
 de `JOIN` com `areas`. Não cria índice novo — `area_tipo` tem dois valores e a baixa seletividade que a
 aula 3 manda evitar continua valendo.
 
@@ -1314,11 +1491,74 @@ aula 3 manda evitar continua valendo.
 | 9 | Isolamento no esquema | `organizacao_id` + FK composta em toda tabela escopada | FK simples (permite filho no tenant errado); RLS como mecanismo primário | §4, **ADR-0003** |
 | 10 | Localização | `area_id` obrigatório + complemento em texto | Texto livre (quebra a D10); hierarquia de áreas (nível a mais em toda consulta, D3) | §6.7 |
 | 10b | Visibilidade | Congelada em `ocorrencias.area_tipo` no registro | Derivar de `areas.tipo` vigente — reclassificar a Área exporia retroativamente ocorrências privadas; FK composta — congelaria a Área para sempre | §7.5 |
-| 11 | Imagem | **Chave opaca do objeto**, resolvida no Azure Blob Storage (ADR-0004) | `BYTEA` — estoura os 500 MB antes do alvo do RNF3 (§11); URL completa — expira, e amarra a coluna ao provedor | §2.8, §11 |
+| 11 | Onde mora o anexo | **Chave opaca do objeto**, resolvida no Azure Blob Storage (ADR-0004) | `BYTEA` — estoura os 500 MB antes do alvo do RNF3 (§11); URL completa — expira, e amarra a coluna ao provedor | §2.8, §11 |
+| 11b | **Forma** do anexo | Tabela **`anexos`**, com `tipo`, e **sem restrição de quantidade no banco** | Coluna `ocorrencias.imagem_caminho` — **era a decisão anterior, e foi revertida**: modelava o exemplo do enunciado em vez do conceito, e virar tabela depois custaria migração mais toda leitura, escrita, contrato e tela | **§7.8**, §6.16 |
 | 12 | Vínculo revogado | Uma linha por par, com `revogado_em` | N linhas com índice único parcial — perde a FK composta, que é a garantia da §4.2 | §6.4 |
 | 13 | Escopo de `Pessoa` | Global, sem `organizacao_id` | Pessoa por organização — quebraria a D4, o login único da Persona 1B | §4.1 |
 | 14 | Coluna de tempo | `TIMESTAMPTZ` | `TIMESTAMP` da aula 2 — instante ambíguo num campo `ENUNCIADO · literal` | §2.3 |
 | 15 | Coluna `comando` no registro | **Não existe** | Guardá-la — é **derivável** do par (`status_anterior`, `status_novo`), inclusive para `retomar`. Coluna derivável quebra a 3FN sem consulta que a justifique | esta tabela |
+
+### 7.8 Reversão declarada — a imagem deixa de ser coluna e vira a tabela `anexos`
+
+> **A primeira redação deste documento escolheu coluna. Esta escolhe tabela.** Não é correção de erro de
+> digitação nem ajuste de redação: é uma decisão de modelagem trocada por outra, em 21/08/2026, e este
+> projeto trata rastro de decisão como conteúdo. O que segue é o argumento — não a substituição silenciosa
+> do que estava escrito.
+
+**O que a coluna modelava.** O enunciado diz *"anexar uma imagem"*, e `ocorrencias.imagem_caminho` copiou
+a frase literalmente. Uma coluna `text` anulável, com a chave opaca do objeto: barata, correta para o
+requisito como escrito, e — vista de perto — **modelando o exemplo em vez do conceito**.
+
+**O conceito não é imagem, é evidência.** O que a pessoa anexa é a prova do que ela está relatando: a foto
+da lâmpada queimada, mas também o vídeo do vazamento que só se entende em movimento, o orçamento em PDF
+que o Gestor recebeu do fornecedor, o áudio de quem não digita bem. *Imagem* é **um tipo** de evidência —
+o único que a primeira entrega produz, e o único que o enunciado nomeia. **Uma coluna consegue guardar um
+exemplo; só uma tabela consegue guardar o conceito com o tipo dele.**
+
+**A assimetria de custo é o que decide o momento — e ela é grande.** Não é uma escolha entre duas coisas
+que custam o mesmo:
+
+| | Virar tabela **agora** | Virar tabela **depois** |
+|---|---|---|
+| Esquema | Uma tabela em vez de uma coluna | Tabela **mais** migração de dados de 2.000 linhas |
+| Leitura | Um `join` já escrito | Toda consulta de detalhe e de listagem reescrita |
+| Escrita | Uma inserção na transação que já existe | O comando `registrar` reescrito |
+| Contrato | Escrito uma vez | `imagemUrl` → `anexos[]` e `temImagem` → contagem — **mudança incompatível** pela regra da §11 do contrato, que proíbe remover campo |
+| Tela | Nenhuma | O que consome os campos removidos |
+
+Do lado esquerdo, o custo é **uma tabela em vez de uma coluna**. Do lado direito, cinco custos, e o quarto
+é o que fecha o caso: depois da primeira entrega, `imagemUrl` e `temImagem` são campos publicados, e
+trocá-los é exatamente o tipo de mudança que a §11 do contrato de API define como não-aditiva. A hora de
+pagar é agora, e o preço agora é quase zero.
+
+> ### A regra que esta decisão estabelece, e que vale para as próximas
+>
+> **Estrutura certa, escopo estreito.** A tabela suporta muitos anexos e mais de um tipo. A primeira
+> entrega grava **um**, de **um** tipo. As duas coisas convivem porque moram em lugares diferentes: a
+> **estrutura** está no esquema, permanente; o **escopo** está no contrato e na aplicação, e é um número
+> que se troca.
+>
+> **O teste que separa uma da outra:** *mudar isso amanhã custa migração?* Se sim, é estrutura e se decide
+> agora. Se não, é escopo e se aperta o quanto for útil. `maxItems: 1` não custa migração; um índice único
+> em `anexos (ocorrencia_id)` custaria. Por isso o primeiro existe e o segundo não (§6.16).
+
+**O que esta reversão *não* muda**, e vale listar para que ninguém procure mudança onde não há:
+
+- **A chave continua opaca** (§2.8) — nunca URL, nunca contêiner embutido. Só mudou de endereço.
+- **Os bytes continuam fora do banco** (§11.3) e **fora do contêiner da aplicação** (§10 do contrato).
+- **O escopo continua o mesmo:** um anexo, tipo imagem, comprimido no aparelho (RNF8). Nenhuma capacidade
+  entrou ou saiu do `escopo.md` — a contagem segue **63 itens, 42 na primeira entrega**.
+- **A `Ocorrência` continua a raiz do agregado.** `anexos` é filha dentro do mesmo limite, como
+  `registros_transicao` — não é agregado novo, e não tem porta de escrita própria.
+
+**Alternativas consideradas e recusadas:**
+
+| Alternativa | Por que não |
+|---|---|
+| **Manter a coluna e renomeá-la** para `anexo_caminho` | Resolve o nome e não resolve nada: continua uma evidência por ocorrência, continua sem tipo, e o dia da mudança custa a mesma migração |
+| **Coluna `jsonb` com uma lista de anexos** | Comportaria N e o tipo — e perderia chave estrangeira, `UNIQUE (chave)` e a garantia de tenant da §4.2. Seria trocar integridade referencial por conveniência de escrita, exatamente o que a §1 usa para justificar relacional |
+| **Tabela genérica `arquivos`, referenciada por várias entidades** | Nada além de `Ocorrência` tem anexo, hoje nem na evolução prevista. Uma tabela polimórfica pagaria `entidade_tipo` + `entidade_id`, que **não pode ser chave estrangeira** — e perderia a garantia da §4.2 pelo mesmo motivo do `jsonb` |
+| **Tabela agora, com índice único garantindo um anexo** | É a tentação desta rodada, e está recusada no quadro da §6.16 — proibir no banco o que o escopo já limita devolve a migração que a tabela veio evitar |
 
 ---
 
@@ -1333,9 +1573,45 @@ aula 3 manda evitar continua valendo.
 > **Na aplicação fica o que depende de *quem* está agindo, do *estado anterior*, ou de *várias linhas em
 > sequência* — que é onde vive a regra de negócio.**
 
+> ## ⚠️ Correção de 21/08/2026 — esta seção afirmava o que a tabela abaixo desmente
+>
+> Até aqui, este parágrafo dizia: *"as constraints abaixo **não são regra de negócio duplicada** — são a
+> forma do dado, e **nenhuma delas exigiria mudança se a regra de negócio mudasse**."* **É falso, e a
+> própria §8.1 prova**: a linha do `CHECK` de motivo e observação credita a origem a **"D8, D12, D23,
+> invariante 5"** — e ela mudaria se a D23 mudasse.
+>
+> A correção não é no esquema. É trocar uma afirmação absoluta por uma **classificação honesta**, e o
+> instrumento vem da disciplina de Clean Architecture da Fase 5 (aula 5, transcrição 01), que trata
+> exatamente deste caso — uma chave única que codifica regra de negócio:
+>
+> > *"Isso é lícito, isso não é lícito? **Depende muito da aplicação. Mas isso, teoricamente, é uma regra
+> > de negócio.** ... **Ok, documenta e fala: essa regra de negócio para mim é um serviço, ela não é uma
+> > regra de negócio que eu cuido.**"*
+>
+> A disciplina **não proíbe** a constraint. Ela exige que a regra seja **declarada como serviço externo**,
+> e não contada como regra que o domínio garante. É o mesmo vocabulário da **aula 8, p.8, dessa mesma
+> disciplina**: *"os recursos externos são vistos como **serviços externos e não como dependências**"*.
+>
+> **Atenção à citação nesta correção:** pela convenção do topo deste documento, `aula N` sem qualificação é
+> **Banco de Dados (Fase 2)** e `aula N, p.X` é **DDD (Fase 1)**. As citações desta seção que trazem
+> *"Clean Architecture"* ou *"Fase 5"* no texto são da **terceira** disciplina, e estão sempre nomeadas por
+> extenso justamente para não colidirem com as outras duas.
+
 O corolário importa: **regra de negócio no banco criaria uma segunda casa para o domínio**, e a ADR-0001 já
-decidiu que a casa é o agregado. As constraints abaixo não são regra de negócio duplicada — são a forma do
-dado, e nenhuma delas exigiria mudança se a regra de negócio mudasse.
+decidiu que a casa é o agregado. As constraints da §8.1 se dividem em três, e a divisão é o que substitui a
+afirmação anterior:
+
+| Classe | O que é | Se a regra de negócio mudar |
+|---|---|---|
+| **A · forma do dado** | Existência, unicidade de identidade, pertencimento a um tenant, integridade referencial. As FKs compostas e `CHECK (status_anterior IS DISTINCT FROM status_novo)` | Não muda nada |
+| **B · regra de negócio cuja única casa é o banco** | Regras sobre **um conjunto de linhas**, que nenhum agregado consegue garantir sozinho: um responsável ativo por ocorrência (D21) · um vínculo por Pessoa por Organização (D4) · adesão única (D11) · convite de uso único e um pedido pendente (D25) · pessoa anonimizada sem contato (RNF10) | **Muda o esquema.** São **serviços**, no sentido da Clean Architecture citada acima: o banco as opera, o domínio não as garante |
+| **C · regra de negócio duplicada, de propósito** | Vive no agregado **e** no banco, como segunda barreira: invariantes **4** (P1), **5** (D23) e **8** (D1) | **Muda os dois.** E vale a regra de desempate abaixo |
+
+> **Regra de desempate, para a classe C: a fonte da verdade é o agregado.** Se um `CHECK` e uma invariante
+> divergirem, **o agregado está certo e a constraint está velha** — porque é o agregado que a ADR-0001
+> torna a única porta de escrita, e é ele que o Definition of Done manda testar. A constraint existe como
+> defesa em profundidade contra o caminho que a ADR-0001 declara como o que *"escapa do histórico"*:
+> `psql` administrativo e script de migração.
 
 ### 8.1 Garantidas pelo banco
 
@@ -1350,7 +1626,9 @@ dado, e nenhuma delas exigiria mudança se a regra de negócio mudasse.
 | Autor, responsável, autor de mensagem e destinatário **têm vínculo na organização** | FK composta para `vinculos (pessoa_id, organizacao_id)` | **D4**, RNF1 |
 | Categoria e Área de uma ocorrência **são da mesma organização** | FK composta para `categorias`/`areas (id, organizacao_id)` | RNF1 |
 | Toda linha filha está **no mesmo tenant do pai** | FK composta para `ocorrencias (id, organizacao_id)` | RNF1, §7.3 |
-| **Um vínculo** por Pessoa por Organização | `PRIMARY KEY (pessoa_id, organizacao_id)` | **D4**, confirmado pelo hub (§13) |
+| **Um objeto de storage é reivindicado uma vez só** | `UNIQUE (chave)` em `anexos` | §6.16 · classe **A** — é o que faz `confirmado` significar *"reivindicado exatamente uma vez"* |
+| A chave do anexo **nunca é uma URL** | `CHECK (chave NOT LIKE '%://%')` em `anexos` | **§2.8** · classe **A** — a regra que nasceu de uma troca de provedor real |
+| **Um vínculo** por Pessoa por Organização | `PRIMARY KEY (pessoa_id, organizacao_id)` | **D4**, confirmado em 20/08/2026 (§13) |
 | **Um Usuário no máximo** por Pessoa | `UNIQUE (usuario_id)` em `pessoas` | **D4** |
 | Canais 1 e 2 **únicos por ocorrência**; canal 3 **único por atribuição** | Índice único parcial + `UNIQUE (atribuicao_id)` | **D9** |
 | Uma pessoa **adere uma vez só** | `PRIMARY KEY (ocorrencia_id, pessoa_id)` | **D11** |
@@ -1363,7 +1641,7 @@ dado, e nenhuma delas exigiria mudança se a regra de negócio mudasse.
 
 | Invariante | Por que não no banco |
 |---|---|
-| **`status` nunca é escrito de fora** (invariante 1) | O banco não distingue *quem* escreve. A porta única são os comandos do agregado, e a regra de lint que impede importar o cliente de banco fora da Infraestrutura (`arquitetura.md`, Parte I, §5) |
+| **`status` nunca é escrito de fora** (invariante 1) | O banco não distingue *quem* escreve. A porta única são os comandos do agregado; e a camada de Aplicação **não tem o que importar** para escrever à mão, porque recebe a porta em vez de construir infraestrutura ([ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md)). A regra de lint — *nada fora de `infraestrutura/clientes/` importa um SDK* — é o alarme (`arquitetura.md`, Parte I, §5.2) |
 | **Toda transição produz exatamente um registro, na mesma operação** (invariante 2) | É sobre **duas escritas ocorrerem juntas**. Vive no comando, dentro de uma transação `BEGIN … COMMIT` — atomicidade ACID (aula 2), não constraint |
 | Só as **transições da tabela** da `arquitetura.md` existem | Depende do estado anterior **e** do papel de quem age. É a máquina de estados, testável sem banco em milissegundos — o argumento 3 da ADR-0001 |
 | **`retomar` volta ao `status anterior` do registro de pausa** (invariante 6) | O banco **contribui pela ausência**: não há coluna para o alvo do retorno. A leitura do último registro de pausa é do agregado |
@@ -1374,9 +1652,33 @@ dado, e nenhuma delas exigiria mudança se a regra de negócio mudasse.
 | **Encadeamento da trilha** (`status_anterior` = `status_novo` do registro anterior) | Exigiria consulta à própria tabela a cada inserção. Já é consequência da máquina de estados |
 | **Vínculo ativo** para agir | A FK composta garante que o vínculo **existe**; que ele não está revogado é checagem de contexto, feita uma vez por requisição (ADR-0003) |
 | **`ocorrencias.area_tipo` é a cópia fiel de `areas.tipo` no momento do registro** | A FK composta que garantiria isso **congelaria a Área para sempre** (§7.5). É uma escrita no comando `registrar`, e a única forma de errar seria escrever outro valor de propósito |
-| **A visibilidade é lida de `area_tipo`, nunca de `areas.tipo`** | Regra de leitura, aplicada na montagem da consulta pelo repositório escopado. É o par de leitura da linha acima, e as duas juntas são a emenda à D10 |
+| **A visibilidade é lida de `area_tipo`, nunca de `areas.tipo`** | Regra de leitura, aplicada na montagem da consulta pelo repositório escopado. É o par de leitura da linha acima, e as duas juntas são a emenda à D10. **Ver a limitação declarada abaixo** |
 | **O papel `Gestor` acumula as capacidades do `Solicitante`** | Vive no mapa `papel → permissões`, constante em código (`arquitetura.md`, Parte II, tópico 5). Não há coluna nem constraint — e é o que dispensa o segundo vínculo do síndico que mora no prédio (§6.4) |
 | **`pessoas` só é alcançada por `join` com `vinculos`** | Não há coluna que force isso (§4.3). É a regra do repositório base, e o ponto que mais merece teste de integração |
+| **Uma ocorrência recebe no máximo **um** anexo, do tipo imagem** | **Não é invariante de domínio: é recorte de escopo.** Uma regra que o banco impusesse viraria migração no dia em que o escopo mudar — e o esquema foi trocado por tabela justamente para não pagar essa migração (§7.8). Mora no `maxItems: 1` do schema de entrada e na aplicação, que só emite autorização de upload para `image/jpeg` e `image/png`. É a única linha desta tabela cujo motivo **não** é "o banco não consegue", e sim "o banco não deve" |
+| **O `tipo` do anexo é derivado do `tipoConteudo` autorizado** | O cliente nunca envia o tipo. Uma constraint cruzando `tipo` e `tipo_conteudo` codificaria no banco o mapa MIME→tipo, que é regra de aplicação e muda junto com a lista de tipos aceitos |
+| **A troca da etiqueta do objeto acontece antes do `commit`** | O storage não participa da transação do PostgreSQL. A ordem é escolha do comando `registrar`, e o caso residual que ela deixa está declarado na §10.3 do contrato de API |
+
+> ### ⚠️ Limitação declarada — uma regra de negócio mora no montador de consulta
+>
+> Duas linhas desta tabela dizem que a **visibilidade** — quem enxerga uma ocorrência de unidade privativa
+> (D10) — é *"aplicada na montagem da consulta pelo repositório escopado"*. **Visibilidade é regra de
+> negócio, e o repositório não é lugar de regra de negócio.** A disciplina de Clean Architecture é direta
+> (aula 5, transcrição 01): *"a gente não pode implementar regra de negócio nos controllers **e nos
+> gateways**"*.
+>
+> **É o único ponto do projeto onde uma regra de negócio está declaradamente fora do domínio**, e não é
+> acidente: é decisão de desempenho de listagem. Mover a regra para dentro exigiria decidir a visibilidade
+> **por linha, depois de carregar** — o que na tela principal do Gestor significa carregar o que não se
+> pode mostrar, ou uma subconsulta correlacionada por linha, que é exatamente o custo que a §7.2 já
+> rejeitou para derivar o `status`.
+>
+> **Fica declarada em vez de consertada**, e é o mesmo tratamento que a §8 dá às constraints da classe B:
+> a regra é operada como **serviço** do repositório, e quem a mantiver precisa saber que ela está lá. O
+> par que a protege é o de sempre — o critério **A4** da `arquitetura.md`, com duas organizações semeadas
+> e a mesma Pessoa vinculada às duas.
+>
+> Encontrado ao confrontar o pacote com a disciplina da Fase 5, em 21/08/2026.
 
 ---
 
@@ -1481,9 +1783,48 @@ número de unidade de terceiros. Apagá-los destruiria a trilha; varrê-los exig
 em texto, que está muito além do MVP. **[FONTE EXTERNA]**, sem revisão jurídica — é o **PA-05**, que segue
 aberto.
 
-**2 · A imagem não é tocada pelo passo 3.** `ocorrencias.imagem_caminho` aponta para um arquivo no Storage
-que pode mostrar pessoas. O ciclo de vida do arquivo não é do banco, e o RNF10 cita foto explicitamente
-como dado pessoal. **Fica registrado como pendência do artefato de storage**, não deste.
+**2 · O anexo não é tocado pelos cinco passos — e isso é resposta, não omissão.**
+
+> **Pergunta que ninguém tinha feito, respondida em 21/08/2026:** quando uma Pessoa é anonimizada, o que
+> acontece com os anexos das ocorrências que ela registrou? **Nada.** O argumento, em quatro partes.
+
+**a · O anexo pertence à Ocorrência, não à Pessoa.** A chave estrangeira que o define é
+`anexos.ocorrencia_id`; `anexado_por_pessoa_id` registra *quem anexou*, e é campo de trilha, da mesma
+família de `registros_transicao.autor_pessoa_id`. Apagar a evidência porque quem a anexou saiu destruiria
+o registro de uma ocorrência **que continua existindo** — é o mesmo raciocínio que fez a exclusão de conta
+ser anonimização e não `DELETE` (§10.1).
+
+**b · O `CHECK` de `pessoas` não alcança esta tabela, e não precisa alcançar.** Ele garante que Pessoa
+anonimizada não carrega e-mail, telefone nem conta. **`anexos` não tem nenhuma coluna de dado pessoal**:
+tem uma chave opaca, um MIME, um tamanho, duas chaves estrangeiras e um instante. Não há o que anular —
+e é por isso que a tabela nasceu sem `nome_original`, que teria sido a única coluna com esse problema
+(§6.16).
+
+**c · O conteúdo pode mostrar um rosto, e a anonimização por autor apagaria o conjunto errado.** É a parte
+que decide. O **PA-05** registra exatamente este risco — *"LGPD: foto e localização de pessoas"*, sem
+revisão jurídica —, mas o rosto numa foto de ocorrência é, quase sempre, o de **um terceiro**, não o de
+quem registrou. Apagar os anexos *das ocorrências que ela registrou* apagaria fotos cujo retratado é outra
+pessoa, **e deixaria intactas as fotos dela que outra pessoa registrou**. A anonimização por autor erra
+nos dois sentidos: apaga demais e de menos. Não é o instrumento.
+
+**d · Qual seria o instrumento certo, declarado e não modelado.** Se a revisão jurídica exigir remover uma
+imagem com terceiro identificável, isso é um **pedido sobre aquele objeto**, decidido caso a caso — não
+efeito colateral de anonimizar alguém. Custaria duas colunas anuláveis (`removido_em`,
+`removido_por_pessoa_id`), um comando novo no contrato e a exclusão do objeto no storage. **Nada disso
+existe, e nada foi modelado preventivamente** — mesma disciplina aplicada à **PA-19**. Fica
+registrado o preço para que o dia da decisão não comece por uma descoberta: é migração aditiva e barata,
+não reestruturação.
+
+> **O que a tabela ganha em relação à coluna, e é ganho real de LGPD.** Com `ocorrencias.imagem_caminho`,
+> a pergunta *"quais objetos de storage pertencem a esta organização?"* exigia varrer uma coluna de texto
+> de toda a tabela de ocorrências. Com `anexos`, é `WHERE organizacao_id = $1` contra um índice.
+> **Enumerar os objetos é pré-condição de qualquer mecanismo de exclusão** — de um anexo, de uma
+> organização inteira, de um pedido de titular. A coluna não tornava isso possível; a tabela torna. O
+> mecanismo continua não existindo, mas deixou de ser inviável.
+
+**O que permanece pendência do artefato de storage** (e não deste): o ciclo de vida do objeto em si —
+apagar bytes no Blob não é operação de banco. O **PA-05 segue aberto**, agora com a análise acima em vez
+de uma linha dizendo que o assunto é de outro documento.
 
 ---
 
@@ -1512,15 +1853,16 @@ atribuições**, **2 canais**, **1 adesão**.
 | `vinculos` | 10.000 | ~80 | 0,8 MB |
 | `convites` + `pedidos_de_entrada` | ~10.000 | ~120 | 1,2 MB |
 | `organizacoes` · `categorias` · `areas` | ~1.550 | ~110 | 0,2 MB |
-| `ocorrencias` | 2.000 | ~900 | 1,8 MB |
+| `ocorrencias` | 2.000 | ~870 | 1,7 MB |
 | **`registros_transicao`** | **10.000** | ~200 | **2,0 MB** |
 | `atribuicoes` | 2.400 | ~110 | 0,3 MB |
 | `canais_conversa` | 4.000 | ~90 | 0,4 MB |
 | `mensagens` | 10.000 | ~330 | 3,3 MB |
 | `adesoes` | 2.000 | ~70 | 0,1 MB |
 | `notificacoes` | 20.000 | ~90 | 1,8 MB |
-| **Subtotal de dados** | | | **~13,5 MB** |
-| Índices e restrições únicas (~40 no esquema; ~+90% sobre os dados) | | | ~12,5 MB |
+| **`anexos`** *(nova em 21/08/2026)* | **2.000** | ~150 | **0,3 MB** |
+| **Subtotal de dados** | | | **~13,7 MB** |
+| Índices e restrições únicas (~43 no esquema; ~+90% sobre os dados) | | | ~12,7 MB |
 | **Total no alvo do RNF3** | | | **~26 MB** |
 
 O acréscimo de índices é alto em proporção — quase 1:1 — e isso é esperado num esquema em que a maior parte
@@ -1532,14 +1874,41 @@ sugeriria por hábito.
 parcela fixa que não controlamos, mas ela é da mesma ordem — e mesmo somando as duas sobra uma ordem de
 grandeza inteira.
 
+> ### A conta com `anexos`, e o que ela **não** muda
+>
+> **De onde vem cada número.** Uma linha de `anexos` soma ~150 bytes: 24 de cabeçalho de tupla, 64 de
+> quatro UUIDs (`id`, `organizacao_id`, `ocorrencia_id`, `anexado_por_pessoa_id`), 4 do enum, 8 do
+> `timestamptz`, 4 do `integer`, ~28 da `chave` e ~11 do `tipo_conteudo` — mais alinhamento. **2.000
+> linhas** é o teto do escopo: uma por ocorrência do RNF3, assumindo que **toda** ocorrência tem foto, que
+> é o pior caso e não o caso típico. Os três índices (PK, `UNIQUE (chave)`, `(organizacao_id,
+> ocorrencia_id)`) somam ~0,25 MB, dentro da proporção de ~+90% que a linha de índices já aplica.
+>
+> **`ocorrencias` encolheu**, porque perdeu `imagem_caminho`: ~900 → ~870 bytes por linha, ~0,1 MB no
+> total. A tabela nova custa ~0,3 MB de dados; o saldo líquido é **+0,2 MB de dados e +0,2 MB de índices**.
+>
+> **Nenhuma conclusão muda, e a razão é a mesma que a §11.3 sempre deu:** o que pesaria seriam os
+> **bytes**, e eles continuam fora do banco. A tabela guarda uma chave, não um arquivo — trocar uma coluna
+> por uma linha muda o total em **menos de 2%**, contra uma folga de vinte vezes.
+>
+> | | Antes (coluna) | Depois (tabela) |
+> |---|---:|---:|
+> | Total no alvo do RNF3 | ~26 MB | **~26 MB** |
+> | Fração do teto de 500 MB | ~5% | **~5%** |
+> | Custo por ocorrência, ponta a ponta | ~9,0 KB | **~9,3 KB** |
+> | Ocorrências até os 500 MB | ~55.000 | **~54.000** |
+>
+> **A única linha que se move é a última, e ela se move 2%.** ~54.000 continua sendo **quase 30× o alvo do
+> RNF3**, e o banco continua não sendo o gargalo. *(Refazer a conta era a obrigação; repetir a conclusão
+> antiga com um número trocado teria sido o contrário disso.)*
+
 ### 11.2 Até onde o modelo cresce
 
-Somando ocorrência, trilha, mensagens, canais, atribuições, adesões e notificações com seus índices, uma
-ocorrência **custa cerca de 9 KB** no banco, de ponta a ponta.
+Somando ocorrência, trilha, mensagens, canais, atribuições, adesões, notificações **e o anexo** com seus
+índices, uma ocorrência **custa cerca de 9,3 KB** no banco, de ponta a ponta.
 
 | Limite | Quando é atingido |
 |---|---|
-| **500 MB de banco** (Supabase free) | ~55.000 ocorrências — **quase 30× o alvo do RNF3** |
+| **500 MB de banco** (Supabase free) | ~54.000 ocorrências — **quase 30× o alvo do RNF3** |
 | **Azure Blob Storage**, com imagem de 400 KB (RNF8) | **Não é atingido.** 2.000 ocorrências ocupam ~800 MB e custam cerca de US$ 1 por ano; o custo cresce linear e só se tornaria relevante em ordens de grandeza acima do RNF3 |
 
 > **A conclusão mudou com a ADR-0004, e vale dizer que mudou.** A primeira versão deste documento concluía
@@ -1547,8 +1916,9 @@ ocorrência **custa cerca de 9 KB** no banco, de ponta a ponta.
 > ~1 GB do Supabase Storage, atingido em ~2.500 ocorrências.
 >
 > **Com o Azure Blob Storage esse teto deixou de existir na escala do projeto, e o gargalo volta a ser o
-> banco: ~55.000 ocorrências, quase 30× o alvo do RNF3.** Não há, no MVP, nenhum limite de plataforma que
-> aperte antes do banco — e o banco tem quase trinta vezes a folga necessária.
+> banco: ~54.000 ocorrências, quase 30× o alvo do RNF3.** Não há, no MVP, nenhum limite de plataforma que
+> aperte antes do banco — e o banco tem quase trinta vezes a folga necessária. *(Era ~55.000 antes de a
+> tabela `anexos` entrar, em 21/08/2026 — a diferença é de 2%, e a conclusão é a mesma.)*
 >
 > Efeito colateral que vale registrar: **esta conta foi um dos insumos da própria ADR-0004**, que a cita
 > como justificativa 4. O modelo de dados encontrou o teto de storage; a decisão de plataforma o removeu.
@@ -1564,8 +1934,8 @@ inteiros para dentro do banco:
 
 | Onde a imagem mora | Ocorrências que cabem nos 500 MB de banco |
 |---|---|
-| **Azure Blob Storage** (adotado) — no banco fica só a chave opaca | **~55.000** |
-| `BYTEA` na tabela `ocorrencias` | **~1.200** |
+| **Azure Blob Storage** (adotado) — no banco fica só a chave opaca | **~54.000** |
+| `BYTEA` na tabela `anexos` | **~1.200** |
 
 **1.200 é menos que o alvo de 2.000 do RNF3.** Guardar a imagem no banco quebraria um requisito não
 funcional declarado antes do fim do MVP.
@@ -1573,6 +1943,10 @@ funcional declarado antes do fim do MVP.
 **A troca de provedor não enfraqueceu este argumento — e não poderia.** Ele nunca foi sobre o storage: é
 sobre o teto de **500 MB do banco**, que a ADR-0004 não mexeu. Trocar de Supabase Storage para Blob mudou
 para onde a imagem vai; não mudou em nada o preço de trazê-la para dentro do PostgreSQL.
+
+**E a tabela também não o enfraqueceu.** Um `BYTEA` em `anexos` custaria os mesmos 400 KB por linha que
+custava em `ocorrencias`: o argumento é sobre **bytes**, e bytes não se importam com qual tabela os
+hospeda. A §7.8 trocou a forma do registro, não o lugar do arquivo.
 
 ### 11.4 Manutenção
 
@@ -1587,12 +1961,49 @@ plataforma anterior; passa a ser a **escala a zero** do Container Apps) e **não
 compromisso deste modelo continua sendo não ser o gargalo; medir é tarefa do primeiro deploy, como já está
 marcado em `arquitetura.md`.
 
+### 11.5 O que aconteceria se vídeo entrasse
+
+A §7.8 diz que a tabela suporta outros tipos e que ampliar é decisão de produto. **Esta seção é o preço
+dessa decisão, para que ela não seja tomada sem número.** O esquema não muda em nada: é um `ALTER TYPE`, e
+`anexos` continua com as mesmas nove colunas. O que muda é o que está fora do banco.
+
+**Armazenamento**, na base da §11.2 — cerca de US$ 1 por ano para 800 MB, crescendo linear
+**[FONTE EXTERNA]**, com 2.000 ocorrências e um anexo cada:
+
+| Cenário | Por anexo | 2.000 ocorrências | Custo/ano | Contra o crédito de US$ 100 |
+|---|---:|---:|---:|---|
+| **Imagem comprimida** — hoje, RNF8 | 400 KB | ~0,8 GB | **~US$ 1** | 1% |
+| Vídeo comprimido no aparelho — 720p, 30 s, ~1 Mbps | ~4 MB | ~8 GB | **~US$ 10** | 10% |
+| Vídeo direto da câmera — 1080p, 30 s | ~45 MB | ~90 GB | **~US$ 110** | **acima do crédito inteiro** |
+
+**A terceira linha é a que importa.** Vídeo sem compressão no aparelho consome, em um ano, mais que todo o
+crédito Azure for Students — o mesmo crédito que a ADR-0004 declarou permanecer *"praticamente intacto"*.
+Não é um custo que se absorve: é o fim da premissa de custo zero do projeto.
+
+**Mas o que mata o vídeo não é o custo — é o RNF6.** Um anexo de 4 MB é **10× a imagem de hoje**, e o
+protótipo mediu a imagem de 400 KB em **~3,5 s em 4G real e ~12 s em rede ruim**. Dez vezes isso são ~35 s
+e ~120 s. O desenho inteiro do upload (DG-5) depende de o envio correr **em paralelo** com o preenchimento
+do formulário, que leva cerca de 40 segundos: com 4 MB o paralelismo deixa de cobrir, e o envio passa a
+ser espera visível dentro do orçamento de 60 segundos. **O vídeo estoura o RNF6 muito antes de incomodar
+o storage**, e o RNF6 é o requisito que mitiga o risco de usabilidade — o segundo mais alto da análise de
+Cagan.
+
+**No banco, nada acontece.** Uma linha de `anexos` custa ~150 bytes independentemente do que a chave
+aponta. Mesmo com **três** anexos por ocorrência — 6.000 linhas — são ~0,9 MB de dados, sobre um total de
+~26 MB. **O banco nunca é o gargalo do anexo**, nem em quantidade nem em tipo; o gargalo é sempre o tempo
+de subir os bytes.
+
+> **Como ler esta tabela quando a decisão chegar.** Ela não diz *não*. Diz que vídeo é viável **se for
+> comprimido no aparelho como a imagem já é** (linha 2: ~US$ 10/ano, 10% do crédito) e **inviável sem
+> isso** (linha 3). E diz que a conversa certa não começa pelo esquema — começa por *"o que a compressão
+> no aparelho consegue fazer com 30 segundos de vídeo, e quanto tempo isso leva em rede móvel?"*.
+
 ---
 
 ## 12. Suposições declaradas, e o que aconteceu com cada uma
 
 Cinco suposições foram feitas na primeira versão deste documento, cada uma dizendo **o que muda se estiver
-errada** — no formato de `premissas-e-questoes-abertas.md`. **Quatro foram levadas ao hub e respondidas em
+errada** — no formato de `premissas-e-questoes-abertas.md`. **Quatro foram levadas à decisão e respondidas em
 20/08/2026.** Ficam registradas com o raciocínio original, porque é ele que explica por que o esquema tem a
 forma que tem.
 
@@ -1601,7 +2012,7 @@ forma que tem.
 | **S1** | Um vínculo por Pessoa por Organização | **Confirmada** — e o caso do síndico morador resolve-se por permissão (§6.4) |
 | **S2** | Prioridade `baixa` · `normal` · `alta` | **Confirmada** |
 | **S3** | Avaliação inteira 1–5 com comentário opcional | **Confirmada** |
-| **S4** | Pedido de entrada recusado pode ser refeito | Não levada ao hub — custo trivial de reverter |
+| **S4** | Pedido de entrada recusado pode ser refeito | Não levada à decisão — custo trivial de reverter |
 | **S5** | `email_contato` e `Pedido de entrada` como termos novos | **Resolvida** — ambos aprovados, com tratamentos diferentes (abaixo) |
 
 ### S1 — Uma Pessoa tem no máximo **um** vínculo por Organização
@@ -1667,9 +2078,10 @@ representa esteja no glossário.
 
 ---
 
-## 13. Respostas do hub — 20/08/2026
+## 13. As cinco perguntas de domínio — e as respostas de 20/08/2026
 
-Cinco perguntas de **domínio** foram devolvidas ao hub, porque nenhuma delas era decisão de modelagem e
+Cinco perguntas de **domínio** foram devolvidas a quem decide o produto, porque nenhuma delas era
+decisão de modelagem e
 todas mudariam o esquema. Todas foram respondidas. **Quatro confirmaram o que estava modelado; uma mudou o
 esquema.**
 
@@ -1687,7 +2099,7 @@ Mantém-se um vínculo por Pessoa por Organização, com todas as chaves estrang
 O síndico que mora no prédio é resolvido por **permissão**: o conjunto de permissões do papel `Gestor`
 inclui registrar ocorrência.
 
-**A formulação que o hub registrou, e que passa a valer como regra do produto:** *o papel define a visão
+**A formulação registrada, e que passa a valer como regra do produto:** *o papel define a visão
 padrão e o conjunto de permissões; **não restringe capacidade que o enunciado concede**.* É o espelho da
 D21, que já tornara papel e atribuição ortogonais. Consequência no modelo: **nenhuma coluna** — o acúmulo
 vive no mapa `papel → permissões`, que a `arquitetura.md` já define como constante em código, checado por
@@ -1715,16 +2127,16 @@ retroativamente ocorrências registradas sob expectativa de privacidade** — va
 configuração, não por defeito. Modelagem, alternativas e a razão de **não** existir chave estrangeira
 composta para garantir a cópia estão na §7.5; a invariante de aplicação está na §8.2.
 
-> **Pendência fora deste documento.** A emenda precisa ser registrada em
-> `trabalho/produto/decisoes-de-produto.md` (como emenda à D10) e conferida contra
-> [glossario.md](glossario.md), cujas definições de *Área comum* e *Unidade privativa* seguem corretas mas
-> não dizem **de que momento** o tipo é lido. **Não alterei nenhum dos dois** — está fora do escopo deste
-> artefato.
+> **O que a emenda obrigou fora deste documento — e já foi feito.** As definições de *Área comum* e de
+> *Unidade privativa* no [glossário](glossario.md) diziam de que tipo a visibilidade deriva, e não **de
+> que momento** o tipo é lido. As duas passaram a dizer *"conforme o tipo vigente quando a ocorrência foi
+> registrada"* — que é a emenda inteira, na única frase em que ela muda o vocabulário. O registro da
+> emenda no material de decisões de produto é do processo, não desta entrega.
 
 ### 5 · Histórico de vínculo — **não agora**, com a limitação declarada
 
 `revogado_em` fica na própria linha de `vinculos`. Além da perda já prevista (não se sabe *quando* alguém
-mudou de papel), o hub apontou um efeito que a pergunta não tinha visto: **readmitir exige limpar
+mudou de papel), a resposta apontou um efeito que a pergunta não tinha visto: **readmitir exige limpar
 `revogado_em`, e com isso some o registro de que houve revogação anterior** — a linha volta a parecer um
 vínculo nunca interrompido.
 
@@ -1739,6 +2151,6 @@ linhas em `vinculos` (§6.4).
 |---|---|
 | **PA-03** — quem pode aderir; o autor pode aderir à própria? | Aberto. **O esquema comporta as duas respostas** — é regra de aplicação (§6.12) |
 | **PA-05** — LGPD sem revisão jurídica | Aberto. Ver as duas limitações declaradas na §10.2 |
-| **PA-19** — visão do Gestor atravessando organizações (Persona 1B) | Aberto, e **confirmado pelo hub que está certo assim**: o modelo não suporta hoje, porque toda consulta parte de uma organização. Seria exceção deliberada ao isolamento da D2. **Nada foi modelado preventivamente** |
+| **PA-19** — visão do Gestor atravessando organizações (Persona 1B) | Aberto, e **confirmado que está certo assim**: o modelo não suporta hoje, porque toda consulta parte de uma organização. Seria exceção deliberada ao isolamento da D2. **Nada foi modelado preventivamente** |
 | **S5** — os termos `email_contato` e `Pedido de entrada` | **Fechado.** `Pedido de entrada` virou termo do glossário; `email_contato` ficou como nome de coluna, com a distinção que ela carrega registrada na definição de `Pessoa` (§12) |
 | **Correção pós-ADR-0004** | Aplicada em 20/08/2026 — ver a nota de revisão no topo do documento. **Nenhuma decisão de modelagem mudou** |
