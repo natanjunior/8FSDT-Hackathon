@@ -2027,18 +2027,17 @@ dizer que o Gestor se atribui *"sem precisar de um segundo vínculo"*.
 estrangeiras compostas do esquema precisariam ser reescritas** (§4.2), e o contexto da ADR-0003 passaria a
 carregar uma lista de papéis. Era a suposição mais cara do documento.
 
-**✅ Confirmada em 20/08/2026.** O esquema fica como está. O caso do síndico morador é resolvido por
-**permissão**, não por vínculo: o papel `Gestor` acumula as capacidades do `Solicitante` (§6.4).
+**✅ Confirmada em 20/08/2026.** O esquema fica como está, e o caso do síndico morador é resolvido por
+**permissão**, não por vínculo — o argumento inteiro está na §13.
 
 ### S2 — Os níveis de prioridade são `baixa` · `normal` · `alta`
 
 **Por que assumimos.** A D6 fixa que a prioridade *nasce* `normal`; a D15 cita o filtro rápido *"alta
 prioridade"*. Os dois valores estão documentados; o terceiro é inferência.
 
-**✅ Confirmada em 20/08/2026**, com um argumento que a inferência não tinha: a **D7** decidiu não ter campo
-de urgência e capturar a intenção do Solicitante na descrição — inclusive o *"quando der, dá"*. **Sem
-`baixa`, o Gestor não tem para onde traduzir isso, e `normal` vira piso.** Quatro níveis ou mais foi
-considerado e recusado: granularidade que não se usa num volume de dezenas de ocorrências por mês.
+**✅ Confirmada em 20/08/2026**, com um argumento que a inferência não tinha — **sem `baixa`, o Gestor não
+tem para onde traduzir o *"quando der, dá"* que a D7 mandou capturar na descrição, e `normal` vira piso**.
+O argumento inteiro, e a recusa de quatro níveis, estão na §13.
 
 ### S3 — A avaliação é uma nota inteira de **1 a 5**, com comentário opcional
 
@@ -2046,9 +2045,8 @@ considerado e recusado: granularidade que não se usa num volume de dezenas de o
 Obrigatória?"* — e nenhuma decisão fechou. 1–5 é o formato que a D19 pressupõe ao pedir *"média das
 avaliações"*.
 
-**✅ Confirmada em 20/08/2026.** O argumento decisivo é de conversão, não de preferência: **escala → polegar
-é conversão sem perda** (4–5 colapsam em positivo); **polegar → escala não é**, porque exigiria inventar
-dado inexistente. Diante de incerteza sobre o formato, grava-se a forma mais rica. A *"média das
+**✅ Confirmada em 20/08/2026.** O argumento decisivo é de conversão, não de preferência — **escala →
+polegar é conversão sem perda; polegar → escala não é** —, e está inteiro na §13. A *"média das
 avaliações"* da D19 permanece como está.
 
 ### S4 — Pedido de entrada recusado pode ser refeito

@@ -111,6 +111,21 @@ cinco famílias da definição da p.5.
       escrito à mão. Quando houver, o pipeline regenera a especificação a partir dos schemas de validação
       e **falha se o resultado divergir do arquivo versionado**. Sem esse portão, o contrato vira
       documentação que descreve um sistema que não existe mais.
+- [ ] **Os sete compromissos de acessibilidade do protótipo estão cumpridos**, se a tarefa toca interface
+      (§8 de [prototipo-low-fi.md](prototipo-low-fi.md)). **Não há teste de acessibilidade neste projeto e
+      não haverá** — está declarado como limitação. O que existe no lugar é compromisso de construção,
+      conferido a olho por quem revisa, e **três dos sete não precisam de ferramenta nenhuma**:
+
+| # | Confere-se assim |
+|---|---|
+| **A-1** · todo campo tem rótulo associado ao controle | Clicar no rótulo põe o foco no campo. `placeholder` **não** é rótulo: se o texto some ao digitar, está errado |
+| **A-3** · nenhum alvo de toque menor que ~44 px no celular | Medir um botão e um item de lista na largura de celular. É a pessoa com **uma mão no corrimão**, que é o cenário literal do RNF6 |
+| **A-5** · nada é comunicado só por cor | `prioridade`, `status` e `motivoPausa` **sempre carregam a palavra**. Marcador colorido sem texto é defeito, em qualquer tela |
+
+Os outros quatro — ordem de foco igual à de leitura (A-2), foco visível não removido (A-4), nada só em
+`Tooltip` (A-6) e a trilha de auditoria como tabela de verdade (A-7) — são compromissos de construção que
+a revisão confere quando a tela existir. **Isto não é conformidade declarada:** afirmar acessibilidade sem
+teste seria o mesmo erro que afirmar usabilidade sem teste.
 
 ### Testes
 

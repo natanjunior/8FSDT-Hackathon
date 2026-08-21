@@ -366,8 +366,8 @@ constante em código.
 | `ocorrencia.avaliar` | ✅ (só o autor) | ✅ (só o autor) | — |
 | `organizacao.configurar` · `vinculo.gerir` · `dashboard.ler` | — | ✅ | — |
 
-**O Gestor acumula as capacidades do Solicitante.** É a resposta 1 de 20/08/2026 (`modelo-de-dados.md`,
-§13): *o papel define a visão padrão e o conjunto de permissões; não retira capacidade que o enunciado
+**O Gestor acumula as capacidades do Solicitante.** É a resposta 1 registrada em `modelo-de-dados.md`,
+§13: *o papel define a visão padrão e o conjunto de permissões; não retira capacidade que o enunciado
 concede*. É o que dispensa o segundo vínculo do síndico que mora no prédio — e, no contrato, é o que faz
 `POST /ocorrencias` e `POST /ocorrencias/{id}/avaliar` aceitarem um Gestor sem nenhuma exceção escrita.
 
@@ -991,7 +991,7 @@ O que cada um tem de específico:
   filtrado por papel (`422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL`) — Solicitante: `desistencia` ·
   `resolvido_por_conta_propria` · `aberta_por_engano` · `duplicada`; Gestor: os sete. **`ocorrenciaOrigemId`
   não é aceito** (`422 CAMPO_NAO_SUPORTADO`): o motivo `duplicada` existe, o vínculo com a original é ⬜.
-- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado em 20/08/2026).
+- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado — `modelo-de-dados.md`, §13).
   `403 SOMENTE_O_AUTOR_PODE_AVALIAR` · `409 AVALIACAO_EXIGE_RESOLVIDA` · `409 JA_AVALIADA`. **Não é um sexto
   estado** (D1): a ocorrência continua `resolvida` depois de avaliada.
 
@@ -1062,7 +1062,7 @@ comandos que **este** chamador pode executar **agora**. Ex.:
 | **Formato** | `[{ tipo: "transicao"|"mensagem"|"atribuicao", ocorridoEm, … }]` | `[{ statusAnterior, statusNovo, ocorreuEm, autor, observacao, motivoPausa, motivoCancelamento }]` |
 
 **As duas mostram o mesmo conjunto de fatos** — mudam a forma e o vocabulário, não o recorte, e as duas são
-legíveis pelo autor e pelos Gestores. **Confirmado em 20/08/2026** (§13.2, Q-API-3): a
+legíveis pelo autor e pelos Gestores. **Confirmado** (§13.2, Q-API-3): a
 `observacao` de cada transição, o motivo da pausa e o motivo do cancelamento **são visíveis ao
 Solicitante**. Negar a trilha crua a ele não protegeria nada — é a mesma informação que a linha do tempo já
 apresenta —, e esconder o porquê recriaria a pergunta que o produto veio eliminar.
@@ -1176,9 +1176,8 @@ Pôr essa função no cliente significaria reimplementá-la em cada cliente futu
 servidor mantém uma fonte só. **Custo declarado:** é apresentação viajando na API, o que um purista
 recusaria.
 
-**A tabela de rótulos é do glossário, não deste contrato** — aprovada em 20/08/2026 (§13.2,
-Q-API-2). O contrato define o **campo** e a **regra de derivação**; o texto de cada rótulo vive onde vive
-o termo *Rótulo exibido*. Os exemplos do YAML usam exatamente os rótulos aprovados.
+**A tabela de rótulos é do glossário, não deste contrato** — aprovada na §13.2 (Q-API-2). O contrato define o **campo** e a **regra
+de derivação**; o texto de cada rótulo vive onde vive o termo *Rótulo exibido*. Os exemplos do YAML usam exatamente os rótulos aprovados.
 
 **A regra tem uma consequência que muda o schema:** `pausada` não tem **um** rótulo, tem **quatro** — um
 por motivo de pausa, e só do lado do Solicitante (*"Parada — esperando material chegar"*). Do lado do
@@ -1551,7 +1550,7 @@ recuperação de uma organização cujo único Gestor perdeu o acesso (§12, S-A
 de conveniência, é buraco declarado no desenho**.
 
 **Saiu desta lista em 20/08/2026:** `tempoMedioDeResolucao`, que era a contradição C-4 e passou a fazer
-parte da primeira entrega por decisão de 20/08/2026 (§8.7).
+parte da primeira entrega por decisão registrada na §8.7.
 
 ### 11.1 Ampliar o anexo — fora dos 21, e o motivo de estar aqui
 
@@ -1615,7 +1614,7 @@ Três decisões que são certas isoladamente se somam num beco:
 | Decisão | O que ela diz |
 |---|---|
 | **D26** | Quem cria a organização é o **Gestor inicial** — é o bootstrap, e resolve o primeiro vínculo |
-| **Q-API-6**, respondida em 20/08/2026 | O contrato **não** permite alterar `papel` de um vínculo existente |
+| **Q-API-6** (§13.2) | O contrato **não** permite alterar `papel` de um vínculo existente |
 | **D25** | Todo vínculo novo nasce da aprovação de **um Gestor** |
 
 Some as três: **se o único Gestor de uma organização perde o acesso — conta apagada, e-mail perdido,
@@ -1641,8 +1640,9 @@ avaliador reconhece quem sabe onde o próprio desenho não fecha.
 
 ## 13. As questões que este contrato levantou — e as respostas de 20/08/2026
 
-**Todas foram respondidas.** As cinco contradições foram conferidas contra os arquivos e **as cinco
-procedem**, e os documentos de origem foram corrigidos. Das sete questões, **seis confirmaram o que o contrato
+**Todas foram respondidas em 20/08/2026** — e a data vale para toda esta seção, por isso não se repete em
+cada linha dela. As cinco contradições foram conferidas contra os arquivos e **as cinco procedem**, e os
+documentos de origem foram corrigidos. Das sete questões, **seis confirmaram o que o contrato
 tinha assumido e uma mudou o contrato** — junto com a C-4, que trouxe um indicador novo.
 
 | # | Assunto | Resposta | Efeito neste contrato |
@@ -1702,7 +1702,7 @@ Ele existe na D19 e no passo 7 do Event Storming.
 contrato (`/pedidos-de-entrada`, `/aprovar`, `/recusar`) realizam capacidades ✅ do escopo **sem comando
 correspondente no passo 5**. É lacuna real da documentação anterior, não endpoint inventado.
 
-> **✅ Confirmada em 20/08/2026.** Os três comandos foram acrescentados ao passo 5 do Event Storming, com
+> **✅ Confirmada.** Os três comandos foram acrescentados ao passo 5 do Event Storming, com
 > uma política espelhando a POL-02. **Nada muda no contrato** — os endpoints já estavam certos; o que faltava era a origem.
 
 ### 13.2 Questões, com opções e recomendação
@@ -1866,7 +1866,7 @@ A verificação nos dois sentidos.
 | 33 | Backlog por status e por categoria | `NOSSO` (D19) | `GET /dashboard` → `backlogPorStatus`, `backlogPorCategoria` |
 | 34 | Média das avaliações | `NOSSO` (D19) | `GET /dashboard` → `mediaDasAvaliacoes` |
 | 35 | Recorrência por categoria e por área | `NOSSO` (D19) | `GET /dashboard` → `recorrenciaPorCategoria`, `recorrenciaPorArea` |
-| 36 | **Tempo médio de resolução, mês a mês** *(entrou em 20/08/2026)* | `NOSSO` (D19) | `GET /dashboard` → `tempoMedioDeResolucao` |
+| 36 | **Tempo médio de resolução, mês a mês** | `NOSSO` (D19) | `GET /dashboard` → `tempoMedioDeResolucao` |
 | **Fundação técnica** |
 | 37 | Agregado com máquina de estados e trilha imutável | `ENUNCIADO · literal` (F4–F6) | **molda o contrato inteiro**: §3 (comando, não campo), §9.1 (trilha só de leitura), `GET …/trilha-de-auditoria` |
 | 38 | Isolamento por organização em ponto único | `NOSSO` (D2,D3,RNF1) | **molda o contrato inteiro**: §4.2 (organização vem da sessão), §4.4 (os quatro endpoints fora do escopo), §6.3 (`404`) |

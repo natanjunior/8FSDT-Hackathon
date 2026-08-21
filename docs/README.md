@@ -56,7 +56,7 @@ resto — a auditabilidade como invariante do agregado, e não como convenção 
 | *Como a auditabilidade é garantida?* | ADR-0001, e a tabela de transições em Arquitetura, Parte I §4 |
 | *Como um condomínio não vê o dado do outro?* | ADR-0003, e a §4 do Modelo de Dados |
 | *O que a API expõe?* | `api/openapi.yaml` no Swagger; o porquê de cada escolha, no Contrato de API |
-| *O que vocês não sabem ainda?* | Premissas e Questões Abertas — as premissas, os pontos de atenção em aberto e as divergências das fontes |
+| *O que ainda não se sabe?* | Premissas e Questões Abertas — as premissas, os pontos de atenção em aberto e as divergências das fontes |
 
 ---
 

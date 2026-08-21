@@ -69,8 +69,8 @@ emoji atrapalha leitor de tela e não sobrevive a copiar e colar.
 | **Diagrama Entidade-Relacionamento** — o esquema físico inteiro, mais `auth.users` | [`modelo-de-dados.md` §3](modelo-de-dados.md) | É o esquema físico. O DG-4 e o DG-5 apontam para ele em vez de repetir colunas |
 
 **A regra que isso serve: um diagrama, um lugar.** Nunca o mesmo diagrama em dois arquivos — duplicata
-diverge, e diagrama divergente é pior que diagrama ausente. Dois dos seis aceitos provavelmente
-mudaram-se para `arquitetura.md` em 20/08/2026 — o DG-1 e o DG-6. Ver §5.
+diverge, e diagrama divergente é pior que diagrama ausente. Dois dos seis aceitos moram em
+`arquitetura.md` — o DG-1 e o DG-6. A §5 diz quais, onde, quando e por quê.
 
 ---
 
@@ -106,7 +106,7 @@ mais. A documentação citava *"p.2 e p.4"*, e **a citação foi corrigida em 20
 ### DG-1 · Máquina de estados da `Ocorrência`
 
 > **Este diagrama mudou-se para [`arquitetura.md`, Parte I §4](arquitetura.md), logo abaixo da tabela de
-> transições permitidas** — decisão de 20/08/2026. O motivo: a tabela diz **quem pode** e o
+> transições permitidas** (§5). O motivo: a tabela diz **quem pode** e o
 > diagrama diz **que forma o grafo tem**; são duas metades de um argumento só, e uma transição nova que
 > entre num e não no outro fica visivelmente errada quando os dois estão juntos. Separados, não fica.
 >
@@ -272,7 +272,7 @@ flowchart TD
 
     P --> A1["POST /organizacoes — auto-serviço<br/>NOSSO D26"]
     P --> B1["POST /pedidos-de-entrada, com o código público<br/>NOSSO D25"]
-    P -.-> C1["Aceitar convite de uso único<br/>NOSSO D25 · FATIA 2, não existe na primeira entrega"]
+    P -.-> C1["Aceitar convite de uso único<br/>NOSSO D25 · EVOLUÇÃO PREVISTA, não existe na primeira entrega"]
     G --> D1["POST /vinculos — cadastra Encarregado sem conta<br/>NOSSO D27"]
 
     A1 --> V0["Vínculo de Gestor inicial. O ÚNICO que nasce<br/>sem aprovação de ninguém: o primeiro Gestor<br/>não tem quem o aprove"]
@@ -382,7 +382,7 @@ falha, que é a **L-5**.
 ### DG-6 · Cadeia de implantação
 
 > **Este diagrama mudou-se para [`arquitetura.md`, Parte II §9](arquitetura.md), dentro do plano de
-> implantação** — decisão de 20/08/2026. O motivo: ele é o parágrafo *"a cadeia de entrega"* com os
+> implantação** (§5). O motivo: ele é o parágrafo *"a cadeia de entrega"* com os
 > outros dois provedores e a migração no lugar, e quem lê um plano de implantação é exatamente quem precisa
 > dele. **Um diagrama, um lugar** — ele não é reproduzido aqui.
 >
