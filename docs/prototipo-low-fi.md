@@ -33,9 +33,26 @@ sustenta por mérito próprio, no mesmo regime que o inventário aplicou ao voca
 
 ### 1.1 O que "low-fi" significa aqui, e como se cumpre
 
-**Meio: blocos de texto monoespaçado dentro deste arquivo.** Renderiza no GitHub, entra em diff de
-*pull request*, e é honestamente feio — que é o ponto. Protótipo bonito cedo demais impede exatamente o
-que ele existe para produzir: ninguém critica o que parece pronto.
+**Meio: HTML em [`prototipo/telas.html`](prototipo/telas.html), e blocos de texto monoespaçado neste
+arquivo enquanto o HTML de cada tela não existir.** Decisão do hub de 21/08/2026 — ver a §15.
+
+A moldura de texto renderiza no GitHub e entra em diff, o que a fez ser a escolha certa por dois passos.
+Mas ela tem um defeito que só apareceu na revisão: **ela convence escolhendo o texto que cabe.** Largura
+fixa esconde exatamente o que precisa ser visto — o título de 150 caracteres, a lista de trinta áreas, o
+nome de organização que ocupa a barra inteira. O HTML mostra o pior caso e o tamanho real do alvo de
+toque; a moldura não mostrava nem um nem outro.
+
+**Os dois continuam feios de propósito**, e isso é a regra e não a desculpa: cinzas, uma cor de destaque
+para estado, sem marca e sem tipografia autoral. Protótipo bonito cedo demais impede exatamente o que ele
+existe para produzir — **ninguém critica o que parece pronto.**
+
+> **Um desenho, um lugar.** Onde o HTML de uma tela existir, **a moldura correspondente sai deste
+> arquivo**, substituída por um link. O que fica é o que a moldura nunca carregou: a afirmação do que a
+> tela mostra, a origem de cada elemento, o que ela deliberadamente não mostra, e o orçamento da §2.
+>
+> **E o HTML herda a obrigação dos outros documentos: se a tela mudar na revisão, ele muda junto.**
+> Entregável desatualizado é pior que entregável ausente, e este é o mais fácil de esquecer, porque
+> ninguém relê HTML.
 
 | Proibido, porque é o passo seguinte ou não é passo nenhum | Obrigatório |
 |---|---|
@@ -53,37 +70,47 @@ lista de celular comporta cerca de 38. A §10, achado **P-06**, é o que isso pr
 > deles decide o layout — texto falso mentiria sobre isso. **Os atores continuam sendo `Solicitante`,
 > `Gestor` e `Encarregado`**, e é assim que são nomeados em toda a prosa (aula 2, p.7).
 
-### 1.2 O que foi desenhado, o que foi descrito, e por quê
+### 1.2 O que foi renderizado, e quantos estados cada tela ganhou
 
-O critério é o mesmo que os passos 3 e 4 aplicaram: **desenhar onde o layout carrega informação.** Uma
-tela cuja forma é dedutível do inventário não precisa de desenho — precisa de uma descrição estruturada
-de regiões, ordem e ênfase. Dez blocos de arte ASCII onde seis bastam é ruído, e ruído esconde o que
-importa.
+**As treze telas do inventário estão renderizadas**, em [`prototipo/telas.html`](prototipo/telas.html).
+A divisão que este documento fazia — *seis desenhadas, sete descritas* — **deixou de existir em
+21/08/2026**, quando o hub tornou o HTML entregável.
 
-| Tela | Tratamento | Por quê |
-|---|---|---|
-| **T-04 · Registrar ocorrência** | **desenhada**, em três estados | É o RNF6 inteiro. A ordem dos campos, o que fica sem rolar e o que acontece quando o teclado sobe **são** o conteúdo. Nenhuma tabela de especificação decide isso |
-| **T-03 · Ocorrências** | **desenhada**, em três recortes | O inventário decidiu que uma tela tem duas caras, escolhidas por `visibilidadeAplicada`. Duas caras são dois desenhos — e o terceiro, `todas` no celular, é o caso que o inventário não cobriu |
-| **T-05 · Ocorrência** | **desenhada**, mais a gaveta de `pausar` | Onze comandos, alcance do polegar e o aviso de visibilidade. É a tela onde a forma decide se `pausar` é rápido no elevador |
-| **T-06 · Trilha de auditoria** | **desenhada**, nas duas larguras | O inventário herdou uma restrição explícita: *"nenhum dos cinco campos do F5 pode ser escondido por falta de espaço"*. Provar que cabem exige desenhar — e ao desenhar descobre-se que **não cabem como cinco colunas** (P-07) |
-| **T-07 · Dashboard** | **desenhada** | *"Cinco números com o mesmo peso visual comunicam zero"* é problema de layout puro. A hierarquia só se prova desenhando |
-| **T-08 · aprovação do pedido** | **desenhada** — só o bloco de aprovação | É o caso onde a forma previne o defeito: o **PA-25** nasceu de um erro de clique. O resto da tela são duas listas convencionais, e está descrito |
-| T-01 · Entrar ou criar conta | descrita | Dois campos e um botão, e nenhuma decisão de forma muda coisa alguma. Desenhar seria ilustrar |
-| T-02 · Sem organização ativa | descrita | Quatro faces, e cada face é *um texto mais um campo*. O que carrega informação é **qual face aparece quando**, que é tabela, não desenho |
-| T-09 · Categorias e áreas | descrita | Duas listas editáveis. O que carrega informação são **as frases obrigatórias e o gatilho de cada uma** — e frase não precisa de desenho, precisa de saber quando aparece |
-| T-10 · Vínculo sem permissões | descrita | A tela **é** três parágrafos de texto. Desenhar uma caixa em volta de três parágrafos não descobre nada |
+E vale registrar por que ela existia, porque o motivo não era preguiça: **desenhar em texto monoespaçado
+custava caro e rendia pouco.** Uma moldura de ASCII de trinta linhas para dizer *"um campo e um botão"*
+era ruído, e ruído esconde o que importa. Em HTML o custo desaparece — a tela é escrita uma vez e mostra
+o pior caso, o alvo de toque e o teclado subindo, coisas que nenhuma descrição estruturada entrega.
 
-**Seis desenhadas, quatro descritas.**
+**O critério não morreu; ele mudou de alvo.** Antes decidia *se* a tela era desenhada. Agora decide
+**quantos estados ela ganha** — e a distribuição continua sendo informação:
 
-### 1.3 Convenções dos desenhos
+| Tela | Estados | O que os estados provam |
+|---|---:|---|
+| **T-04 · Registrar ocorrência** | 9 | É o RNF6 inteiro. A ordem dos campos, o que fica sem rolar, o teclado subindo, o upload em paralelo, e os dois vazios que quebram a tela |
+| **T-03 · Ocorrências** | 8 | Duas caras escolhidas por `visibilidadeAplicada`, mais `todas` no celular — e os **três vazios diferentes**, que é onde o erro clássico mora |
+| **T-05 · Ocorrência** | 8 | Onze comandos, a gaveta com a pré-visualização do aviso, o mesmo detalhe visto por dois papéis, e o `409` que se explica sozinho |
+| **T-01 · Entrar** | 6 | O pior caso do e-mail, e os dois estados de aterrissagem de e-mail que não são tela |
+| **T-02 · Sem organização ativa** | 6 | As quatro faces, o cold start, e os três erros do código |
+| **T-08 · Aprovação do pedido** | 6 | O PA-25 sendo prevenido pela forma — e o que a prevenção custa em altura no celular |
+| **T-06 · Trilha de auditoria** | 5 | Que os cinco campos do F5 **não são cinco colunas**, com uma `observacao` de 1.000 caracteres de verdade |
+| **T-07 · Dashboard** | 5 | Cinco indicadores sem virar painel de aeroporto, **e sem biblioteca de gráfico** |
+| **T-12 · Redefinir senha** | 5 | A frase condicional do fim, que é o conteúdo da tela |
+| **T-11 · Criar conta** | 4 | Os três campos, e o `nome` que fecha o F6 e vai para a trilha imutável |
+| **T-09 · Categorias e áreas** | 4 | As cinco frases e o gatilho de cada uma — inclusive a que só existe para gastar `ocorrenciasComTipoAnterior` |
+| **T-13 · Definir nova senha** | 4 | O link vencido, que é o caso **provável** e não o raro |
+| **T-10 · Vínculo sem permissões** | 3 | Que a tela **é** o texto, e que o terceiro parágrafo não pode ser nota de rodapé |
 
-```
-┌───┐   limite da tela                    [ Botão ]   ação primária
-│   │   celular ≈ 48 colunas ≈ 390 px     ( Botão )   ação secundária
-└───┘   tela grande ≈ 96 colunas          ▾           abre uma lista
-┌ ─ ┐   limite do que aparece SEM ROLAR   ( ) (•)     escolha única: vazia, marcada
-├───┤   fronteira entre blocos            ░░░░        esqueleto de espera
-```
+**Treze telas, 73 estados, 56 molduras de celular e 17 de tela grande.** A tela mais restringida do
+inventário e a que carrega dezesseis capacidades ficaram com o maior número de estados, e a que é três
+parágrafos de texto ficou com o menor — que é o critério funcionando.
+
+### 1.3 A notação que saiu junto com os desenhos
+
+**As convenções dos desenhos saíram junto com eles.** A tabela de símbolos que vivia aqui —
+`┌───┐` para o limite da tela, `┌ ─ ┐` para a dobra, `[ Botão ]` para a ação primária — descrevia uma
+notação que este documento não usa mais. **O que a substitui não é uma legenda: é a própria tela**, em
+[`prototipo/telas.html`](prototipo/telas.html), onde o limite da tela é o limite da tela e o alvo de toque
+tem o tamanho que vai ter.
 
 ---
 
@@ -198,6 +225,28 @@ São **três justificativas independentes para a mesma ordem de campos**: econom
 cold start e paralelismo do upload. É o tipo de convergência que dá alguma confiança numa decisão que
 não foi testada com ninguém.
 
+### 2.6 A conta depois da rodada de 22/08 — zero segundo
+
+**A modelagem mudou T-04, e o orçamento não mudou.** Isso precisa de prova, não de afirmação:
+
+| O que mudou em T-04 | Custo em segundos | Por quê |
+|---|---:|---|
+| `POST /imagens/autorizacoes` → `POST /anexos/autorizacoes` | **0** | O nome do endpoint não é interação. A requisição é a mesma, no mesmo momento |
+| Uma autorização passou a subir **dois** objetos — original e miniatura | **0** | Os dois `PUT` correm **em paralelo**, fora do caminho crítico, e a miniatura tem ~15 KB contra ~400 KB. O passo 3 do orçamento (compressão) já gerava as duas: redimensionar para 200 px é a mesma operação de canvas do RNF8, no mesmo passe |
+| `IMAGEM_*` → `ANEXO_*` nas mensagens de erro | **0** | Caminho de erro não entra no cenário de medição |
+| `409 ANEXO_JA_REIVINDICADO` | **0** | Idem — e é caminho que só existe depois de a rede cair |
+| O campo **`titulo` do anexo NÃO entra** | **0**, e é o ponto | Ver abaixo |
+
+> **O `titulo` do anexo teria custado, e é por isso que ele fica fora.** O contrato o aceita e a coluna
+> existe. Um campo de texto opcional a mais em T-04 custa: o **espaço acima da dobra**, que o **R-09** já
+> mediu como insuficiente; e, para quem o preenchesse, **~4 s de digitação** pela premissa 2 da §2.1.
+> Com **7 segundos de folga**, um campo que a maioria deixa vazio e que a minoria paga em 4 é troca ruim.
+>
+> **E ele passa a valer no dia em que existir o segundo anexo** — porque aí o título distingue *qual*
+> foto —, e nesse dia ele entra **sem tocar esquema nem contrato**. Concordo com a decisão do hub, e o
+> número acima é a razão.
+
+**O total continua: 53 s no cenário do RNF6, contra 60. Sete segundos de folga, e nenhum foi gasto.**
 ---
 
 ## 3. A lista de Áreas — o que o orçamento fez com ela
@@ -257,55 +306,19 @@ topo, e **o primeiro registro de todo mundo fica rápido**, não só o do reinci
 
 ### D-1 · T-04 · Registrar ocorrência — celular
 
-**A tela mais restringida do inventário**, e a única cujo layout é medido em segundos. Três estados,
-porque os três decidem coisas diferentes.
+> ### → [Ver a tela renderizada](prototipo/telas.html#t04)
+>
+> **Nove estados, em 390 px, com o conteúdo no pior caso.** A moldura de texto que estava aqui saiu em
+> 21/08/2026: onde o HTML existe, o desenho mora nele, porque duas representações da mesma tela divergem
+> na primeira alteração — e a divergente é pior que a ausente.
+>
+> **O que ficou nesta seção é o que a moldura nunca carregou**, e é o que decide: as cinco decisões de
+> forma com a razão de cada uma, o que elas desmentem no inventário, e o orçamento de tempo da §2, que é
+> a parte mais cara deste documento.
 
-#### A · Aberta, teclado fechado — o formulário inteiro cabe sem rolar
+**A tela mais restringida do inventário**, e a única cujo layout é medido em segundos.
 
-```
-┌──────────────────────────────────────────────┐
-│  ←  Registrar ocorrência     Recanto Azul ▾  │
-├──────────────────────────────────────────────┤
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │                                        │  │
-│  │      [  Tirar foto (opcional)  ]       │  │
-│  │                                        │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  Título                                      │
-│  ┌────────────────────────────────────────┐  │
-│  │ Lâmpada queimada na garagem            │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  Descrição                                   │
-│  ┌────────────────────────────────────────┐  │
-│  │ Queimada faz três dias                 │  │
-│  │                                        │  │
-│  └────────────────────────────────────────┘  │
-│  Uma ou duas frases bastam.                  │
-│                                              │
-│  Categoria                                   │
-│  ┌────────────────────────────────────────┐  │
-│  │ Iluminação                          ▾  │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  ┌─ Onde ─────────────────────────────────┐  │
-│  │ Área                                   │  │
-│  │ ┌────────────────────────────────────┐ │  │
-│  │ │ Garagem                         ▾  │ │  │
-│  │ └────────────────────────────────────┘ │  │
-│  │ Referência do lugar (opcional)         │  │
-│  │ ┌────────────────────────────────────┐ │  │
-│  │ │ ao lado da vaga 34                 │ │  │
-│  │ └────────────────────────────────────┘ │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  [        Registrar ocorrência       ]       │
-│  ( Cancelar )                                │
-│                                              │
-└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┘
-```
+#### A · Aberta, teclado fechado
 
 **Cinco decisões de forma, e a razão de cada uma:**
 
@@ -345,23 +358,7 @@ rola sem fim (uma lista); botão no fim do conteúdo onde o conteúdo é curto e
 
 #### B · Teclado aberto, descrição em foco — sobra metade da tela
 
-```
-┌──────────────────────────────────────────────┐
-│  ←  Registrar ocorrência     Recanto Azul ▾  │
-├──────────────────────────────────────────────┤
-│  Descrição                                   │
-│  ┌────────────────────────────────────────┐  │
-│  │ A lâmpada da vaga 34 está queimada há  │  │
-│  │ três dias; à noite o corredor fica     │  │
-│  └────────────────────────────────────────┘  │
-│  Uma ou duas frases bastam.                  │
-├──────────────────────────────────────────────┤
-│  q  w  e  r  t  y  u  i  o  p                │
-│   a  s  d  f  g  h  j  k  l                  │
-│    z  x  c  v  b  n  m                       │
-│              espaço                 enviar   │
-└──────────────────────────────────────────────┘
-```
+*(estado 3 da [tela renderizada](prototipo/telas.html#t04) — o teclado sobe de verdade ao tocar num campo)*
 
 > **O inventário raciocinou "o que aparece sem rolar" com o teclado fechado.** Com o teclado aberto — que
 > é o estado em que a pessoa passa a maior parte do registro — **sobra cerca de metade da tela**. A
@@ -371,23 +368,8 @@ rola sem fim (uma lista); botão no fim do conteúdo onde o conteúdo é curto e
 
 #### C · O campo de Área aberto — a decisão da §3
 
-```
-┌──────────────────────────────────────────────┐
-│  ┌─ Onde ─────────────────────────────────┐  │
-│  │ Área                                   │  │
-│  │ ┌────────────────────────────────────┐ │  │
-│  │ │ gar                                │ │  │
-│  │ ├────────────────────────────────────┤ │  │
-│  │ │ Usadas recentemente                │ │  │
-│  │ │    Garagem                         │ │  │
-│  │ ├────────────────────────────────────┤ │  │
-│  │ │ Todas as áreas                     │ │  │
-│  │ │    Garagem — área comum            │ │  │
-│  │ │    Garagem, rampa — área comum     │ │  │
-│  │ └────────────────────────────────────┘ │  │
-│  └────────────────────────────────────────┘  │
-└──────────────────────────────────────────────┘
-```
+*(estado 4 da [tela renderizada](prototipo/telas.html#t04) — 32 áreas de verdade, com busca e rolagem
+de verdade)*
 
 **Sem nada digitado**, o campo abre com *Usadas recentemente* no topo e a lista alfabética inteira
 abaixo — o comportamento de quem registra pela segunda vez. **Com texto digitado**, filtra as duas
@@ -402,6 +384,13 @@ decide a visibilidade da ocorrência e o Solicitante não tem outro lugar para v
 
 ### D-2 · T-03 · Ocorrências — as duas caras, e a terceira
 
+> ### → [Ver a tela renderizada](prototipo/telas.html#t03)
+>
+> A moldura de texto saiu daqui em 21/08/2026: **onde o HTML existe, o desenho mora nele**. O que ficou
+> nesta seção é o que a moldura nunca carregou — as decisões de forma, a razão de cada uma, e o que elas
+> desmentem no inventário.
+
+
 O inventário decidiu que **o alvo primário vem de `visibilidadeAplicada`, que chega na resposta** — não
 da largura da janela. Desenhar isso obrigou a separar dois eixos que o inventário tratava como um:
 
@@ -412,35 +401,7 @@ da largura da janela. Desenhar isso obrigou a separar dois eixos que o inventár
 
 #### A · `apenas_minhas` — celular, o alvo primário do Solicitante
 
-```
-┌──────────────────────────────────────────────┐
-│  Minhas ocorrências          Recanto Azul ▾  │
-├──────────────────────────────────────────────┤
-│  Você tem 2 resolvidas para avaliar.      →  │
-├──────────────────────────────────────────────┤
-│  Parada — esperando você responder           │
-│  Vazamento no teto da garagem                │
-│  Vazamento · Garagem                         │
-│  Antônio Ferreira está cuidando · há 6 dias  │
-├──────────────────────────────────────────────┤
-│  Resolvida               [ Conte como foi ]  │
-│  Lâmpada queimada na garagem                 │
-│  Iluminação · Garagem · com foto             │
-│  há 12 dias                                  │
-├──────────────────────────────────────────────┤
-│  Recebida — aguardando análise               │
-│  Portão da garagem bate ao fechar            │
-│  Manutenção · Garagem                        │
-│  há 2 dias                                   │
-├──────────────────────────────────────────────┤
-│  Em execução                                 │
-│  Infiltração na parede do hall, perto da…    │
-│  Manutenção · Hall de entrada · com foto     │
-│  Roberto Salles está cuidando · há 3 dias    │
-├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┤
-│         [ + Registrar ocorrência ]           │
-└──────────────────────────────────────────────┘
-```
+*(estado 1 da [tela renderizada](prototipo/telas.html#t03) — `apenas_minhas` no celular)*
 
 **O rótulo é a primeira linha do item, e é o que fica em destaque.** É a resposta literal à pergunta com
 que o Solicitante chega — *"o que aconteceu com o meu pedido?"* —, e os rótulos são **literais** da tabela
@@ -454,28 +415,7 @@ e a prioridade é decisão do Gestor.
 
 #### B · `todas` — tela grande, o alvo primário do Gestor
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│  Todas as ocorrências                                       Recanto Azul ▾   Marina Rocha ▾  │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Status ▾   Categoria ▾   Prioridade ▾     ( Ver as minhas )   [ + Registrar ocorrência ]    │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  STATUS           TÍTULO                          ONDE             PRIOR.  RESPONSÁVEL  TEMPO│
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Pausada          Vazamento no teto da garagem    Garagem          Alta    Antônio F.    6 d │
-│  esperando peça   Vazamento · com foto                                                 ↻ 1 d │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Aberta           Portão da garagem bate ao       Garagem          Normal  —             2 d │
-│                   fechar · Manutenção                                                  ↻ 2 d │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Em atendimento   Infiltração na parede do hall   Hall de entrada  Alta    Roberto S.    3 d │
-│                   Manutenção · com foto                                                ↻ 4 h │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Pausada          Interfone do bloco B mudo       Bloco B          Normal  Antônio F.   21 d │
-│  esperando um     Equipamento quebrado                                                 ↻ 9 d │
-│  terceiro                                                                                    │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+*(estado 2 da [tela renderizada](prototipo/telas.html#t03) — `todas` na tela grande)*
 
 **Quatro decisões, e a última contradiz o inventário:**
 
@@ -505,31 +445,14 @@ O inventário diz apenas que *"no celular eles empilham"*. Mas o Gestor da **Per
 mora no prédio** e anda por ele com o celular na mão: ele recebe `todas` numa tela de 390 px, e alguma
 coisa tem de cair.
 
-```
-┌──────────────────────────────────────────────┐
-│  Todas as ocorrências        Recanto Azul ▾  │
-├──────────────────────────────────────────────┤
-│  Status ▾  Categoria ▾  Prioridade ▾     ⋯   │
-├──────────────────────────────────────────────┤
-│  Pausada · esperando peça             Alta   │
-│  Vazamento no teto da garagem                │
-│  Garagem · Antônio Ferreira · 6 d ↻1 d       │
-├──────────────────────────────────────────────┤
-│  Aberta                             Normal   │
-│  Portão da garagem bate ao fechar            │
-│  Garagem · sem responsável · 2 d ↻2 d        │
-├──────────────────────────────────────────────┤
-│  Em atendimento                       Alta   │
-│  Infiltração na parede do hall, perto…       │
-│  Hall de entrada · Roberto S. · 3 d ↻4 h     │
-└──────────────────────────────────────────────┘
-```
+*(estado 3 da [tela renderizada](prototipo/telas.html#t03) — `todas` no celular)*
 
 **O que fica, e por quê:** `statusRotulo`, `motivoPausa`, `prioridade`, `responsavel` e `titulo` — as
 **três dimensões de comparação** que o inventário nomeou, mais as duas que identificam a ocorrência.
 
 **O que cai:** `categoria.nome`, que está na barra de filtros e é a dimensão pela qual o Gestor recorta,
-não a que ele compara; e a marca de `temImagem`, que só importa depois de abrir. Três linhas por item,
+não a que ele compara; e a marca de anexo — hoje `quantidadeDeAnexos > 0` —, que só importa depois de
+abrir. Três linhas por item,
 cinco itens por tela. Achado **P-04**: **a lista do Gestor no celular perde a categoria, e essa decisão
 não estava em lugar nenhum.**
 
@@ -571,55 +494,17 @@ não estava em lugar nenhum.**
 
 ### D-3 · T-05 · Ocorrência — celular, e a gaveta de um comando
 
+> ### → [Ver a tela renderizada](prototipo/telas.html#t05)
+>
+> A moldura de texto saiu daqui em 21/08/2026: **onde o HTML existe, o desenho mora nele**. O que ficou
+> nesta seção é o que a moldura nunca carregou — as decisões de forma, a razão de cada uma, e o que elas
+> desmentem no inventário.
+
+
 **Dezesseis capacidades, onze comandos, quatro requisições.** É a tela que mais decide, e o alcance do
 polegar é o que decide se `pausar` é rápido no elevador.
 
-```
-┌──────────────────────────────────────────────┐
-│  ←  Ocorrência               Recanto Azul ▾  │
-├──────────────────────────────────────────────┤
-│  Pausada · esperando peça                    │
-│  Vazamento no teto da garagem                │
-│                                              │
-│  Última mudança                              │
-│  Roberto Salles · ontem, 16h40               │
-│  "O material só chega na terça. Assim que    │
-│   chegar, o Antônio sobe."                   │
-│                       ver a linha do tempo → │
-├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ┤
-│  Prioridade  ┌──────────────┐                │
-│              │ Alta      ▾  │                │
-│              └──────────────┘                │
-│  Vazamento · Garagem — ao lado da vaga 34    │
-│  Registrada por Marina Rocha · há 6 dias     │
-│  Responsável: Antônio Ferreira               │
-├──────────────────────────────────────────────┤
-│  Descrição                                   │
-│  Está pingando água do teto da garagem,      │
-│  perto da vaga 34. Aumentou depois da chuva  │
-│  de sábado.                                  │
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │                                        │  │
-│  │            (a foto anexada)            │  │
-│  │                                        │  │
-│  └────────────────────────────────────────┘  │
-├──────────────────────────────────────────────┤
-│  Solução aplicada                            │
-│  ┌────────────────────────────────────────┐  │
-│  │                                        │  │
-│  └────────────────────────────────────────┘  │
-│  ( Salvar )                                  │
-├──────────────────────────────────────────────┤
-│  Linha do tempo                          (6) │
-│  ...                                         │
-├──────────────────────────────────────────────┤
-│  Mensagens                               (2) │
-│  ...                                         │
-├──────────────────────────────────────────────┤
-│  [      Retomar      ]   ( Mais ações ▾ )    │
-└──────────────────────────────────────────────┘
-```
+*(estado 1 da [tela renderizada](prototipo/telas.html#t05) — o Gestor, ocorrência pausada)*
 
 **Cinco decisões, e a primeira reordena o inventário:**
 
@@ -649,8 +534,14 @@ A mesma barra serve os dois papéis sem nenhuma verificação de papel no client
 `registrar-solucao-aplicada` está em `acoesDisponiveis`, ou quando `solucaoAplicada` já tem conteúdo — e
 nesse caso como texto, não como campo.
 
-**5 · A imagem carrega por último e nunca segura o resto** (decisão do inventário, mantida). Tocar nela
-abre em tamanho grande; `imagemUrl` aponta sempre para `/ocorrencias/{id}/imagem`, nunca para o storage.
+**5 · O anexo carrega por último e nunca segura o resto** (decisão do inventário, mantida). Tocar nele abre
+em tamanho grande; o `url` de `anexos[]` aponta sempre para `/ocorrencias/{id}/anexos/{anexoId}`, nunca para
+o storage.
+
+**E desde 22/08/2026 o lugar da foto não fica cinza esperando:** a **miniatura** de ~15 KB —
+`?variante=miniatura`, a mesma URL com outra variante — pinta primeiro, e os ~400 KB entram por cima. É a
+única tela onde eu uso a miniatura, e o porquê está no D-2: **na listagem ela custaria uma requisição por
+item**, e o custo de leitura não é o mesmo que o custo de upload, que o contrato já pagou.
 
 > #### O que a ordem de `acoesDisponiveis` não diz — achado P-09
 >
@@ -667,39 +558,7 @@ abre em tamanho grande; `imagemUrl` aponta sempre para `/ocorrencias/{id}/imagem
 
 #### A gaveta de `pausar` — e o aviso que não pode virar paisagem
 
-```
-┌──────────────────────────────────────────────┐
-│  Vazamento no teto da garagem                │
-│  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
-│ ┌──────────────────────────────────────────┐ │
-│ │                  ───                     │ │
-│ │  Pausar                                  │ │
-│ │                                          │ │
-│ │  Motivo                                  │ │
-│ │  ( ) Aguardando informação do            │ │
-│ │      solicitante                         │ │
-│ │  (•) Aguardando peça                     │ │
-│ │  ( ) Aguardando autorização              │ │
-│ │  ( ) Aguardando um terceiro              │ │
-│ │                                          │ │
-│ │  Observação                              │ │
-│ │  ┌────────────────────────────────────┐  │ │
-│ │  │ O material só chega na terça.      │  │ │
-│ │  │ Assim que chegar, o Antônio sobe.  │  │ │
-│ │  └────────────────────────────────────┘  │ │
-│ │  O Solicitante vê esta observação.       │ │
-│ │  Não há como editá-la depois.            │ │
-│ │                                          │ │
-│ │  ┌─ Assim ele vai ler ────────────────┐  │ │
-│ │  │ Roberto Salles · agora             │  │ │
-│ │  │ "O material só chega na terça.     │  │ │
-│ │  │  Assim que chegar, o Antônio sobe."│  │ │
-│ │  └────────────────────────────────────┘  │ │
-│ │                                          │ │
-│ │  [       Pausar       ]   ( Voltar )     │ │
-│ └──────────────────────────────────────────┘ │
-└──────────────────────────────────────────────┘
-```
+*(estado 3 da [tela renderizada](prototipo/telas.html#t05) — a gaveta, com a pré-visualização do texto)*
 
 **Por que gaveta no celular e caixa centrada em tela grande.** São formas diferentes do mesmo comando, e
 a diferença é o polegar: uma caixa centrada põe os botões no meio da tela, onde a mão que segura o
@@ -759,31 +618,19 @@ de conserto.
 
 ### D-4 · T-06 · Trilha de auditoria — o requisito central do desafio
 
+> ### → [Ver a tela renderizada](prototipo/telas.html#t06)
+>
+> A moldura de texto saiu daqui em 21/08/2026: **onde o HTML existe, o desenho mora nele**. O que ficou
+> nesta seção é o que a moldura nunca carregou — as decisões de forma, a razão de cada uma, e o que elas
+> desmentem no inventário.
+
+
 O inventário herdou daqui uma restrição explícita: *"nenhum dos cinco campos do F5 pode ser escondido por
 falta de espaço"*. Desenhar mostrou que **os cinco campos não são cinco colunas**.
 
 #### Tela grande — quatro colunas e uma linha de continuação
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│  Trilha de auditoria · Vazamento no teto da garagem                            ← voltar      │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  DE                NOVO STATUS        QUANDO                   AUTOR DA TRANSIÇÃO            │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  —                 aberta             14/08/2026 09:14:02      Marina Rocha                  │
-│  observação: —                                                                               │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  aberta            em_analise         14/08/2026 11:02:47      Roberto Salles                │
-│  observação: —                                                                               │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  em_analise        em_atendimento     15/08/2026 08:30:11      Roberto Salles                │
-│  observação: O Antônio sobe hoje à tarde para ver de onde vem a água.                        │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  em_atendimento    pausada            19/08/2026 16:40:55      Roberto Salles                │
-│  motivo da pausa: aguardando_peca                                                            │
-│  observação: O material só chega na terça. Assim que chegar, o Antônio sobe.                 │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+*(estado 1 da [tela renderizada](prototipo/telas.html#t06) — a tabela de quatro colunas)*
 
 > **Os cinco campos do F5 não cabem como cinco colunas, e nunca caberiam: quatro são valores curtos e o
 > quinto é um parágrafo de até 1.000 caracteres** (`openapi.yaml`, `observacao`). Uma coluna de tabela com
@@ -800,28 +647,7 @@ nome interno, e é assim porque **auditoria que traduz não é auditoria**.
 
 #### Celular — o mesmo registro empilhado, com os cinco campos inteiros
 
-```
-┌──────────────────────────────────────────────┐
-│  ←  Trilha de auditoria                      │
-│  Vazamento no teto da garagem                │
-├──────────────────────────────────────────────┤
-│  1                                           │
-│  de: —                                       │
-│  para: aberta                                │
-│  em: 14/08/2026 09:14:02                     │
-│  autor da transição: Marina Rocha            │
-│  observação: —                               │
-├──────────────────────────────────────────────┤
-│  4                                           │
-│  de: em_atendimento                          │
-│  para: pausada                               │
-│  em: 19/08/2026 16:40:55                     │
-│  autor da transição: Roberto Salles          │
-│  motivo da pausa: aguardando_peca            │
-│  observação: O material só chega na terça.   │
-│  Assim que chegar, o Antônio sobe.           │
-└──────────────────────────────────────────────┘
-```
+*(estado 3 da [tela renderizada](prototipo/telas.html#t06) — o registro empilhado no celular)*
 
 **Cada campo com o nome dele à esquerda.** É verboso, e é assim de propósito: quem lê esta tela está
 provando algo, e prova sem rótulo de campo é afirmação.
@@ -835,39 +661,14 @@ não seja lido como ausência de dados.
 
 ### D-5 · T-07 · Dashboard — cinco indicadores sem virar painel de aeroporto
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│  Dashboard                                                 Recanto Azul ▾   Marina Rocha ▾   │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Período    de 01/06/2026    até 29/08/2026     (últimos 90 dias)                            │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  1 · RECORRÊNCIA                                                              no período     │
-│  Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.                │
-│                                                                                              │
-│  Por categoria                            │  Por área                                        │
-│   8│        ██                            │   Garagem             ████████████   12          │
-│   6│  ██    ██    ██                      │   Hall de entrada     ██████          6          │
-│   4│  ██    ██    ██                      │   Bloco B             █████           5          │
-│   2│  ██ ▒▒ ██ ▒▒ ██ ▒▒                   │   Elevador social     ███             3          │
-│   0└─────────────────────                 │   Salão de festas     █               1          │
-│      jun    jul    ago                    │   mais 26 áreas com 1 ocorrência ou nenhuma      │
-│      ██ Vazamento    ▒▒ Iluminação        │                                                  │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  2 · BACKLOG POR STATUS               agora │  3 · BACKLOG POR CATEGORIA              agora  │
-│   Aberta           ████████    8            │   Vazamento         ███████    7               │
-│   Em análise       ████        4            │   Manutenção        █████      5               │
-│   Em atendimento   ███         3            │   Iluminação        ███        3               │
-│   Pausada          ██          2            │   Limpeza           ██         2               │
-│   Resolvida        ██████████ 14            │   Segurança         █          1               │
-│   Cancelada        ██          2            │                                                │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  4 · TEMPO MÉDIO DE RESOLUÇÃO   no período  │  5 · MÉDIA DAS AVALIAÇÕES         no período   │
-│   jun     72 h     (5 resolvidas)           │                                                │
-│   jul      —       (0 resolvidas)           │            4,2   de 1 a 5                      │
-│   ago     41 h     (9 resolvidas)           │                                                │
-│   Tempo de calendário, com as pausas.       │            6 de 14 resolvidas avaliadas        │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+> ### → [Ver a tela renderizada](prototipo/telas.html#t07)
+>
+> A moldura de texto saiu daqui em 21/08/2026: **onde o HTML existe, o desenho mora nele**. O que ficou
+> nesta seção é o que a moldura nunca carregou — as decisões de forma, a razão de cada uma, e o que elas
+> desmentem no inventário.
+
+
+*(estado 1 da [tela renderizada](prototipo/telas.html#t07) — os cinco indicadores)*
 
 **Cinco decisões, e as duas primeiras são o que impede o painel de aeroporto:**
 
@@ -912,53 +713,22 @@ categorias não é legível, e fingir que é seria o oposto do que este passo ex
 
 ### D-6 · T-08 · A aprovação do pedido de entrada — onde a forma previne o defeito
 
+> ### → [Ver a tela renderizada](prototipo/telas.html#t08)
+>
+> A moldura de texto saiu daqui em 21/08/2026: **onde o HTML existe, o desenho mora nele**. O que ficou
+> nesta seção é o que a moldura nunca carregou — as decisões de forma, a razão de cada uma, e o que elas
+> desmentem no inventário.
+
+
 O **PA-25** nasceu de um erro de clique num `select`. O conserto existe — `DELETE /vinculos/{pessoaId}` —,
 mas conserto é remendo: o conserto é do Gestor, e quem precisa saber que deve procurá-lo é a pessoa
 aprovada com o papel errado, que se caiu em `encarregado` **não consegue fazer nada** (T-10).
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│  Quem está na organização                                  Recanto Azul ▾   Marina Rocha ▾   │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  PEDIDOS DE ENTRADA (1)                                                                      │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│  Camila Duarte · camila.duarte@exemplo.com · (11) 98877-1234 · pediu há 2 dias               │
-│                                                                                              │
-│  Qual papel Camila Duarte vai ter nesta organização?                                         │
-│                                                                                              │
-│   ( ) Solicitante                                                                            │
-│       Registra e acompanha as próprias ocorrências.                                          │
-│                                                                                              │
-│   ( ) Gestor                                                                                 │
-│       Analisa, atribui, resolve e cancela qualquer ocorrência. Configura a organização e     │
-│       aprova quem entra.                                                                     │
-│                                                                                              │
-│   ────────────────────────────────────────────────────────────────────────────────────────   │
-│                                                                                              │
-│   ( ) Encarregado                                                                            │
-│       Aparece como responsável pela ocorrência. NESTA VERSÃO, NÃO CONSEGUE FAZER NADA        │
-│       DENTRO DO SISTEMA.                                                                     │
-│                                                                                              │
-│   [ Aprovar ]  indisponível até escolher um papel            ( Recusar )                     │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+*(estado 1 da [tela renderizada](prototipo/telas.html#t08) — o bloco de aprovação)*
 
 E a confirmação, que é onde o papel vira palavra:
 
-```
-        ┌───────────────────────────────────────────────────────────┐
-        │  Aprovar Camila Duarte como Gestor nesta organização?     │
-        │                                                           │
-        │  Como Gestor, ela analisa, atribui, resolve e cancela     │
-        │  qualquer ocorrência, configura a organização e aprova    │
-        │  quem entra.                                              │
-        │                                                           │
-        │  O papel não pode ser alterado depois. Para corrigir, é   │
-        │  preciso remover o vínculo e pedir entrada de novo.       │
-        │                                                           │
-        │             ( Voltar )     [ Aprovar como Gestor ]        │
-        └───────────────────────────────────────────────────────────┘
-```
+*(estado 2 da [tela renderizada](prototipo/telas.html#t08) — a confirmação)*
 
 **Cinco decisões, e três delas vêm literalmente do inventário:**
 
@@ -990,22 +760,47 @@ de Camila Duarte. O cadastro da pessoa não é apagado, e ela pode pedir entrada
 
 ---
 
-## 5. As quatro telas descritas — regiões, ordem e ênfase
+## 5. As sete telas descritas — regiões, ordem e ênfase
 
-Nenhuma das quatro tem decisão de layout que mude alguma coisa. O que decide, nelas, é **qual conteúdo
+Nenhuma das sete tem decisão de layout que mude alguma coisa. O que decide, nelas, é **qual conteúdo
 aparece quando** — e isso é tabela, não desenho.
 
-### T-01 · Entrar ou criar conta
+### As quatro da credencial — T-01, T-11, T-12, T-13
 
-| Região | Ordem | Conteúdo | Ênfase |
+**Eram uma até 21/08/2026**, e a razão de terem virado quatro está no inventário: a tela declarava três
+ações e especificava um formulário. Aqui interessa o que isso muda de **forma**, e a resposta é pouco —
+**exceto em dois pontos, que são os únicos desta seção que mereceriam ser errados de propósito para se
+ver o estrago.**
+
+**A estrutura é a mesma nas quatro:** o nome do produto, discreto; o formulário, que **é** o conteúdo e
+cabe sem rolar; e abaixo, os caminhos para as irmãs. **Nada da organização em nenhuma delas** — a
+identidade da organização na página de cadastro é ⬜ (D25), então as quatro são as mesmas para todo
+mundo. **Espera:** botão em estado de espera, e **nunca a frase do RNF5**, porque nenhuma toca a nossa
+API. **Alvo primário: celular**, nas quatro.
+
+| Tela | Campos, na ordem | O caminho de saída | A frase que decide |
 |---|---|---|---|
-| Identidade | 1 | O nome do produto. **Nada da organização** — a identidade da organização na página de cadastro é ⬜ (D25), e por isso esta tela é a mesma para todo mundo | discreta |
-| Formulário | 2 | E-mail · senha · **Entrar** | **é o conteúdo**; os três cabem sem rolar |
-| Alternativas | 3 | Criar conta · Redefinir senha | abaixo, secundárias |
+| **T-01 · Entrar** | e-mail · senha | Criar conta → T-11 · Esqueci a senha → T-12 | *"E-mail ou senha incorretos."* — **uma linha só, acima do formulário**, sem distinguir e-mail inexistente de senha errada |
+| **T-11 · Criar conta** | **nome** · e-mail · senha | Já tenho conta → T-01 | *"Enviamos um e-mail para {e-mail}. Toque no link para confirmar a conta."* — e a tela **não finge que a pessoa entrou** |
+| **T-12 · Redefinir senha** | e-mail | Voltar → T-01 | *"Se existe uma conta com este e-mail, o link foi enviado. Confira também o spam."* |
+| **T-13 · Definir nova senha** | senha nova | **quando o link venceu** → T-12 | *"Este link expirou. Peça um novo."* |
 
-**Erro:** uma linha só, acima do formulário — *"E-mail ou senha incorretos."*, sem distinguir e-mail
-inexistente de senha errada. **Espera:** o botão em estado de espera; **nunca a frase do RNF5**, porque
-esta tela não toca a nossa API. **Alvo primário: celular.**
+**Os dois pontos de forma que não são triviais:**
+
+**1 · Em T-11, o `nome` é o primeiro campo, e a regra de senha aparece antes de digitar.** A ordem não é
+estética: o `nome` é o campo que fecha o **F6** e é o que vai para a **trilha de auditoria imutável**.
+Pô-lo por último, depois de e-mail e senha, é pô-lo onde se preenche no automático — e é o único dos
+três que ninguém pode corrigir depois (**F11**). E a regra de força da senha **dita antes** evita o modo
+de falha mais comum de um cadastro: a pessoa escolhe, envia, e descobre a regra como erro.
+
+**2 · Em T-13, o caminho de saída do link vencido não é opcional.** É a tela alcançada **só de fora**,
+por um e-mail lido quando é lido, possivelmente dias depois e em outro aparelho — o link vencido não é
+caso raro, é o caso provável. Sem o caminho de volta a T-12, a tela é um beco. **É o mesmo defeito que a
+face C de T-02 foi corrigida para não ter**, e é a regra geral que já vale nos dois lugares: *nenhuma
+tela de recuperação termina sem caminho de volta.*
+
+**E a que não é tela:** a aterrissagem do e-mail de **confirmação de conta** é uma linha acima do
+formulário de T-01 — *"Conta confirmada. Entre para continuar."* Zero campos, e a única ação é entrar.
 
 ### T-02 · Sem organização ativa — quatro faces, uma tela
 
@@ -1023,6 +818,12 @@ parágrafo, e no máximo um campo.**
 digita o código do cartaz está no elevador. O campo do código aceita `^[A-Z0-9]{6,12}$`, e a decisão de
 forma é uma só: **maiúsculas automáticas e teclado alfanumérico**, porque o código vem de um cartaz e
 ninguém digita maiúscula de propósito com uma mão.
+
+**E a face A ganhou dois campos em 22/08/2026, os dois opcionais e os dois com peso desproporcional ao
+tamanho.** `nome`, **pré-preenchido com o nome atual** — o contrato §8.2 declarou que este é o **último
+momento em que ele é corrigível**, e depois dele o nome vai para a trilha imutável; e `telefone` **em
+E.164**, que vira o primeiro contato da Pessoa. **A ajuda do campo de nome diz onde ele vai aparecer**, e
+não é firula: é a única chance que a pessoa tem de saber que aquilo é permanente.
 
 ### T-09 · Categorias e áreas
 
@@ -1104,7 +905,11 @@ produto cujo usuário *"não vai aprender nada"*, a diferença é entre esperar 
 | `FORMATO_INVALIDO` (400) — vem com `erros[]` de `{campo, codigo, mensagem}` | **no campo** | o contrato já entrega a mensagem por campo; espalhá-la numa faixa desperdiçaria a estrutura |
 | `CODIGO_PUBLICO_NAO_ENCONTRADO` (404) · T-02 | **no campo** | *"Nenhuma organização usa este código. Confira as letras e os números."* Tem campo, e a ação é corrigi-lo |
 | `CATEGORIA_INVALIDA` · `AREA_INVALIDA` (422) · T-04 | **no campo**, com a lista recarregada e o resto do formulário intacto | *"Esta {categoria \| área} não está mais disponível. Escolha outra."* |
-| `IMAGEM_NAO_RECONHECIDA` · `IMAGEM_ACIMA_DO_LIMITE` (422) · T-04 | **no campo da foto** | *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A segunda metade é o conteúdo**: perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
+| `ANEXO_NAO_RECONHECIDO` · `ANEXO_ACIMA_DO_LIMITE` (422) · T-04 | **no campo da foto** | *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A segunda metade é o conteúdo**: perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
+| **`ANEXO_JA_REIVINDICADO` (409) · T-04** | **bloco na página, substituindo o formulário** | **É o único erro do produto que anuncia um sucesso**, e por isso não cabe em campo nenhum: *"Esta ocorrência já foi registrada — a foto que você anexou já está nela."* + **[Ver a ocorrência]**. O `POST` anterior comitou e só a resposta se perdeu; oferecer *"tentar de novo"* aqui produziria a segunda ocorrência que este erro existe para impedir. Ver a releitura da **S-T7** no inventário |
+| `CONTATO_DUPLICADO` (409) · T-08 | **no campo do contato repetido** | *"Este contato já está na lista."* Tem campo, e a ação é corrigi-lo |
+| `FORMATO_INVALIDO` (400) de telefone · T-08 | **no campo do número** | *"Não reconheci este número. Confira o DDD."* O banco exige **E.164** e o schema pega antes do domínio — mas a pessoa digitou no formato nacional, então a frase fala do que ela vê, não do formato que vai ser guardado |
+| `FORMATO_INVALIDO` (400) de `temWhatsapp` em e-mail · T-08 | **não aparece** | É defeito, não caminho: a caixa de WhatsApp **só existe** quando o tipo é telefone. Se este erro chegar, a tela falhou antes |
 | `TRANSICAO_NAO_PERMITIDA` (409) · T-05 | **bloco na página**, imediatamente acima da barra de ações | *"Esta ocorrência mudou enquanto você estava olhando: agora ela está **Em atendimento**."* — **e as ações abaixo já são as novas**, que vêm no corpo do próprio `409`. Uma notificação flutuante seria errado: ela some, e o que mudou fica |
 | `RESPONSAVEL_NAO_ATRIBUIDO` (409) · T-05 | **bloco na página** + abre o modal de atribuir | muda o que a tela pode fazer |
 | `PEDIDO_JA_DECIDIDO` · `JA_AVALIADA` (409) | **bloco na página** + recarrega | idem |
@@ -1165,6 +970,12 @@ e `Chart` foram lidas individualmente. **O que não consegui confirmar está mar
 | Texto longo — descrição, observação, solução aplicada, comentário | **`Textarea`** | ✅ |
 | Escolher categoria — 7 a 15 itens, ordem do Gestor | **`Select`** | ✅ |
 | **Escolher área — ~30 itens, o campo caro do RNF6** | **`Combobox`** (`Popover` + `Command`) | ✅ — os três estão no catálogo |
+| **Escolher a unidade do vínculo — a mesma lista de Áreas, em T-08** | **`Combobox`**, o mesmo de T-04 | ✅ · e é reuso de propósito: duas listas de Área com comportamentos diferentes seriam duas coisas para manter |
+| **Sub-formulário repetível de contatos (T-08)** | **`FieldSet` + `FieldLegend`** por contato, dentro de uma lista que o cliente gerencia | ⚠️ **não há componente de lista repetível no catálogo** — ver §7.2, item 5 |
+| Tipo e finalidade do contato, 2 e 3 valores | **`Select`** | ✅ |
+| `temWhatsapp` — indicação sobre um número | **`Checkbox`**, **sempre com a palavra ao lado** | ✅ · A-5 |
+| **Telefone em E.164, com país padrão BR** | **`Input`** + prefixo de país em **`Select`**, e normalização no cliente | ⚠️ **não há componente de telefone**, e a normalização exige biblioteca — ver §7.2, item 6 |
+| Reordenar contatos — subir e descer | **`Button`** com rótulo textual, **não** arrastar | ✅ · arrastar é hostil no celular e invisível em low-fi |
 | Motivo de pausa (4) e de cancelamento (4 ou 7), nenhum pré-selecionado | **`RadioGroup`** | ✅ |
 | Papel na aprovação (3), com consequência por linha (D-6) | **`RadioGroup`** + `FieldDescription` por opção | ✅ |
 | Comando com texto — **celular** | **`Drawer`** | ✅ |
@@ -1218,6 +1029,11 @@ declarada como improviso, não como escolha de catálogo.
 celular-primeiro e não há cursor: **toda explicação que só existisse num tooltip desapareceria para o
 usuário principal.** É a regra **A-6** da §8, e é o que obriga a explicação de *"área comum × unidade
 privativa"* a ser texto visível em T-09 e a aparecer na própria linha do item em T-04.
+
+
+**5 · Lista repetível de contatos.** **Não há componente de *array field* no catálogo.** A saída é um `FieldSet` por item, dentro de um contêiner que o cliente adiciona e remove — a integração de formulário que o shadcn/ui recomenda (`react-hook-form`) tem `useFieldArray` para isso, mas **isso é da biblioteca de formulário, não do catálogo de componentes**. Vale registrar porque a diferença aparece na hora de instalar: não existe `add contact-list`.
+
+**6 · Telefone em E.164.** **Não há componente de telefone**, e o problema não é o componente: é a **normalização**. Transformar `(11) 98888-4321` em `+5511988884321` depende de país padrão, regra de discagem nacional e validade do número — o modelo de dados é explícito de que expressão regular não cobre isso e nomeia a `libphonenumber`. **É a segunda dependência de terceiro que este protótipo encosta**, depois do gráfico. Diferença importante: o gráfico era conveniência e saiu; esta é a única forma de produzir o formato que o `CHECK` do banco exige. **Vai como proposta na §13, não como decisão.**
 
 ### 7.3 O que a verificação do catálogo revelou — e que não é sobre o desenho
 
@@ -1489,6 +1305,10 @@ abaixo são as que mudam o desenho se estiverem erradas.
 | 14 | `definition-of-done.md`, seção **Qualidade do código** | Uma linha para os sete compromissos de acessibilidade da §8, com foco em A-1 (rótulo associado), A-3 (alvo de toque) e A-5 (nada só por cor) — os três verificáveis a olho | **§8** |
 | 15 | `premissas-e-questoes-abertas.md`, **PA-16** | Acrescentar que a mitigação possível na primeira entrega é **limitada pela paginação por cursor**: a contagem de *"resolvidas para avaliar"* é da página carregada, não do total, porque `GET /ocorrencias` não devolve `total` | **P-05** |
 | 16 | `premissas-e-questoes-abertas.md`, §3 | **PA novo:** *"A tela do Gestor não pode mostrar o rótulo que o Solicitante lê — `statusRotulo` é calculado no servidor em função de quem lê, e nenhum endpoint devolve o rótulo do outro lado."* | **P-10** |
+| 17 | **`docs/README.md`**, linha 28 | *"As **dez** telas da primeira entrega"* → *"As **treze**"*. O inventário passou a treze em 21/08/2026. **Não é o `README.md` da raiz** | **§15**, revisão de T-01 |
+| 18 | `contrato-de-api.md` §9.5 | Qualificar *"Criar conta, entrar, sair, redefinir senha: Supabase Auth"*. A frase é verdadeira sobre **endpoints** e foi lida como verdadeira sobre **telas** — e foi essa leitura que deixou três formulários sem especificação por dois passos. Proposta: *"…são do provedor. **As telas que os consomem são nossas** — o SDK não traz interface."* | **§15**, revisão de T-01 |
+| 19 | `contrato-de-api.md` §8.2 · `escopo.md` atividade 1 | **Só se o hub aprovar a Q-T6 como (b):** `PATCH /contexto/pessoa` no contrato, e a capacidade *"Editar os próprios dados pessoais"* no escopo. **Não proponho o texto** — é capacidade nova, e capacidade nova não nasce numa revisão de tela | **F11**, recomendação trocada |
+| 20 | `arquitetura.md` §2, tabela de tecnologias | **Dependência de terceiro nº 2, e esta não tem saída barata:** normalizar telefone para **E.164** exige biblioteca (`libphonenumber` ou equivalente), porque país padrão, regra de discagem nacional e validade de número não caem em expressão regular — o próprio `modelo-de-dados.md` §6.17 diz isso e nomeia a referência. Diferente do gráfico, que era conveniência e saiu: **sem isto, o `CHECK` do banco recusa o que o formulário produzir** | **§7.2, item 6** |
 
 ---
 
@@ -1499,10 +1319,15 @@ abaixo são as que mudam o desenho se estiverem erradas.
 não uma medição**. É exatamente por isso que a §9 recomenda o artefato clicável: **este documento afirma
 que o RNF6 não fecha, e essa afirmação precisa de um cronômetro para virar evidência.**
 
-**2 · Os desenhos não foram renderizados num navegador.** São blocos de texto monoespaçado, e o
-alinhamento deles vale como esquema de regiões e ordem — **não como medida de pixels**. A afirmação *"o
-formulário de T-04 cabe numa tela de celular sem rolar"* é uma conta de altura de campos, não uma captura
-de tela. É a primeira coisa que o artefato clicável derrubaria ou confirmaria.
+**2 · As treze telas foram renderizadas num navegador; nenhuma foi vista por um usuário.** A limitação
+que vivia aqui — *"os desenhos não foram renderizados, e o alinhamento deles vale como esquema de regiões,
+não como medida de pixels"* — **foi cumprida em 21/08/2026**, e a primeira coisa que a renderização fez foi
+derrubar afirmações deste documento. Estão na §16.
+
+**O que sobra da limitação, e é a metade maior:** renderizar prova que **cabe**; não prova que **funciona**.
+Nenhuma das 73 telas foi posta na frente de um Solicitante ou de um Gestor, não há teste de usabilidade no
+projeto, e o risco de usabilidade continua classificado como **alto**. As oito suposições da §11 seguem
+sendo suposições.
 
 **3 · O catálogo do `shadcn/ui` foi conferido na documentação oficial em 20/08/2026, mas nenhum componente
 foi instalado.** *"Existe na documentação"* e *"funciona como eu suponho neste contexto"* não são a mesma
@@ -1517,8 +1342,278 @@ duas verificações diferentes — a mesma limitação que o inventário já dec
 **5 · A acessibilidade da §8 é compromisso, não conformidade.** Não há auditoria, não há ferramenta no
 Definition of Done, e nenhuma das sete linhas foi testada com quem depende delas.
 
+---
+
+## 15. Decisões da revisão
+
+**O que mudou desde que estes documentos foram fechados, e por quê.** Cada linha existe para que o
+`git diff` seja legível: o diff diz *o que* mudou, esta seção diz *por que*. **A voz do que foi
+observado é de quem revisou**, não minha.
+
+---
+
+### 22/08 · A rodada da modelagem — contatos, unidade e anexo
+
+**O que foi observado.** *"A modelagem de dados foi revisada e agora as telas mudam. Na rodada do anexo não
+mudavam; nesta, sim."* — atualização escopada: o que os campos e os endpoints se chamam, mais três lugares
+que ganham controle novo. **Nada da estrutura foi posto em questão.**
+
+**O que mudou, tela por tela.**
+
+| Tela | O quê |
+|---|---|
+| **T-02** face A | **Dois campos novos**, os dois opcionais: `nome` **pré-preenchido**, que é a última chance de corrigir um dado que vai para a trilha imutável; e `telefone` **em E.164**, com máscara e país padrão BR |
+| **T-03** | A marca *"com foto"* deixou de ser booleana: é **`quantidadeDeAnexos > 0`**. **Sem miniatura na listagem** — o porquê está abaixo |
+| **T-04** | `POST /anexos/autorizacoes`, **duas** `PUT` numa autorização só (original + miniatura), `ANEXO_*` no lugar de `IMAGEM_*`, e o erro novo **`ANEXO_JA_REIVINDICADO`**. **Nenhum campo mudou de lugar** |
+| **T-05** | `anexos[]` no lugar de `imagemUrl`; `GET /ocorrencias/{id}/anexos/{anexoId}`; e a **miniatura como o que pinta primeiro** no lugar do retângulo cinza |
+| **T-08** | **A tela que mais mudou.** Contato virou lista, e o cadastro ganhou um **sub-formulário repetível**; coluna de **unidade**; `409 CONTATO_DUPLICADO`; e `observacao` na recusa de pedido |
+| **T-11** | Nada de campo. A razão de **não** pedir contato ficou mais forte, e está reescrita |
+| T-01 · T-06 · T-07 · T-09 · T-10 · T-12 · T-13 | **nada.** E isso é informativo: a modelagem não tocou trilha, indicador, configuração nem credencial |
+
+**O que NÃO mudou, e vale dizer.** As treze telas, a decisão de uma área com telas compartilhadas, a ordem
+dos campos de T-04, os três vazios de T-03, os estados de espera e erro, a barra de ações de T-05, a
+restrição do PA-25 em T-08 e os sete compromissos de acessibilidade: **tudo de pé, e nada disso foi
+reaberto.**
+
+**O que custou no orçamento do RNF6: zero segundo.** A conta está na §2.6.
+
+**As quatro decisões que sobraram para mim** estão na §2.6 e na §16.4.
+
+**O que ficou pendente, e é do hub:** o achado **F13** do inventário — `vinculos.area_id` não tem escritor
+para quem tem conta —, a **Q-T10** que ele abre, e a dependência de normalização de telefone (proposta 20 da
+§13).
+---
+
+### 21/08 · As treze telas renderizadas — o HTML substitui o ASCII
+
+**O que foi observado.** *"Pode fazer de todas as outras telas que restam! Faça todas sem parar [...] o
+importante é fazer todas nessa execução!"* — com a ressalva de que mudanças em curso no modelo de dados
+seriam trazidas depois.
+
+**O que mudou.**
+
+| Onde | O quê |
+|---|---|
+| **`docs/prototipo/telas.html`** | Passou de 3 para **13 telas**, em **73 estados**. Ordem de leitura, não de identificador: credencial → sem organização → lista → registro → detalhe → trilha → dashboard → pessoas → configuração → sem permissão |
+| idem, folha de estilo | Vocabulário compartilhado estendido: moldura de tela grande, rótulo, filtros, lista, tabela com linha de continuação, gaveta, caixa centrada, escolha única, indicadores e esqueleto. **Escrito uma vez** — é o que impede as telas de divergirem entre si |
+| `prototipo-low-fi.md` §1.2 | A divisão *desenhada × descrita* deixou de existir. O critério passa a decidir **quantos estados**, não *se* desenha |
+| idem, §1.3 | A tabela de convenções do ASCII saiu — descrevia uma notação que o documento não usa mais |
+| idem, **D-2 a D-6** | **As dez molduras restantes saíram**, substituídas por link para o estado correspondente. A prosa ficou inteira: as decisões de forma, as razões, e os achados P-01 a P-16 |
+
+**O que custou.** **Nada no orçamento do RNF6** — a §2 não foi tocada, porque nenhuma decisão de ordem de
+campo mudou. O custo real é outro e é permanente: **treze telas agora têm obrigação de manutenção**, e o
+HTML é o entregável mais fácil de esquecer, porque ninguém o relê.
+
+**O que a renderização descobriu**, e é o motivo de ela existir — está tudo na §16.
+---
+
+### 21/08 · Mudança de escopo — o HTML passa a ser entregável
+
+**O que foi observado.** Decisão do hub: *"o HTML que você gera para revisão deixa de ser instrumento
+descartável e passa a ser entregável, dentro de `docs/`. Ele é material de implementação: mostra o
+conteúdo no pior caso, o tamanho real dos alvos de toque e o comportamento em largura de celular — coisas
+que a moldura de texto monoespaçado não consegue mostrar, porque ela convence escolhendo o texto que
+cabe."*
+
+**O que mudou.**
+
+| Onde | O quê |
+|---|---|
+| **`docs/prototipo/telas.html`** | Arquivo novo. Autocontido — sem CDN, sem build, sem rede —, abre do sistema de arquivos com dois cliques. Contém **T-04 inteira, em nove estados**, e as cinco pendentes marcadas como pendentes |
+| `prototipo-low-fi.md` §1.1 | O meio deixa de ser *"blocos de texto monoespaçado dentro deste arquivo"*. Regra registrada: **um desenho, um lugar** |
+| idem, **D-1** | **As três molduras de T-04 saíram**, substituídas por link. **A prosa ficou inteira** — as cinco decisões de forma, o P-01 e o P-02 |
+| idem, §14, limitação 2 | Passa a valer só para D-2 a D-6 |
+
+**Por que um arquivo e não seis.** As seis telas compartilham vocabulário visual pesado: a barra do shell
+com o nome da organização, o rótulo de status, o item de lista, a barra de ações, a gaveta, a tabela.
+Escrito uma vez, elas **não podem** divergir entre si; em seis arquivos, o dia em que o rótulo mudar são
+seis lugares para lembrar — que é o mesmo apodrecimento calado que a obrigação de manutenção existe para
+impedir. O índice fixo no topo resolve achar a tela sem instrução.
+
+**O que a renderização já custou, e é o item mais caro desta entrada.**
+
+> **A afirmação *"o formulário inteiro cabe sem rolar"* não sobreviveu ao primeiro navegador.** Com os
+> tamanhos reais — alvo de toque de 48 px, descrição de duas linhas, o bloco *Onde* com dois campos —, o
+> conteúdo de T-04 passa dos 844 px do aparelho, e passa **muito** dos ~745 px que sobram dentro do
+> navegador depois da barra do sistema.
+>
+> A página **mede isso no aparelho de quem abre e imprime o número na legenda**, em vez de afirmar — era
+> exatamente o que a limitação 2 dizia que o primeiro navegador faria com essa frase.
+>
+> **Isto não muda o orçamento do RNF6 da §2**, e vale dizer por quê: rolar não é um passo cronometrado
+> ali, e a ordem dos campos — que é o que os 9,5 segundos economizados compraram — **não mudou**. O que
+> muda é a afirmação sobre a dobra, que era do inventário e do D-1, não da conta.
+
+**O que ficou pendente.**
+
+- **Corrigir o texto de D-1 e o *Alvo primário* de T-04 no inventário**, que ainda afirmam o que a
+  renderização desmente. Não alterei: a frase é do inventário, o número aparece no aparelho de quem
+  revisa, e a correção espera a leitura dele.
+- **Renderizar D-2 a D-6.** Cinco telas, na ordem de revisão. Enquanto não existirem, **as molduras de
+  texto delas ficam onde estão** — documento sem desenho nenhum seria pior que documento com desenho
+  velho.
+- **A lista de Áreas está na ordem do Gestor**, e não alfabética, porque `Area` ganhou `ordem` no
+  contrato em 21/08. **A §3 deste documento ainda trata isso como proposta**, e a §2.4 ainda precifica o
+  campo pela busca com recentes. Fica declarado até o hub decidir se a conta é recalculada.
+- **As sete categorias-semente são citadas em quatro documentos e não estão enumeradas em nenhum** — nem
+  no enunciado, nem no `openapi.yaml`, nem na POL-01. Os dados do HTML são de exemplo e estão marcados
+  como tal, mas **quem implementar vai precisar saber quais sete**.
+
+---
+
+### 21/08 · T-01 — *"faz sentido T-01 ser duas telas?"*
+
+**O que foi observado.** *"Faz sentido T-01 ser duas telas? Não seria melhor ter uma tela só para entrar
+e outra tela para cadastro com ligação entre as duas?"* E, sobre o cadastro: *"só cadastra usuário, ou
+vai ter os dados de pessoa também? Faria sentido pensar nessa tela como tela de edição também? [...] no
+MVP está previsto que gestor pode editar pessoas e usuários?"*
+
+**O que a revisão encontrou, e é maior que a pergunta.** T-01 declarava **três ações** —
+*"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. Cadastro e redefinição
+nunca tiveram campos escritos, e **o link do e-mail de redefinição não tinha onde aterrissar**. O erro
+foi de leitura: *"nenhuma das três chama endpoint deste contrato"* é verdade sobre **endpoints** e foi
+lida como verdade sobre **telas**. O Supabase Auth entra por **SDK**, não por interface hospedada — os
+formulários sempre foram nossos.
+
+**O que mudou.**
+
+| Onde | O quê |
+|---|---|
+| `inventario-de-telas.md` | **Dez telas → treze.** T-01 vira *Entrar*; nascem **T-11 · Criar conta**, **T-12 · Redefinir senha** e **T-13 · Definir nova senha**. Identificadores **no fim da lista**, não renumerados: `escopo.md` cita T-10 pelo nome |
+| idem, §1 | **Critério novo, escrito porque foi ele que decidiu:** *"uma tela tem conjunto de campos próprio e fim próprio — e estar nela exclui estar na outra. Sem campo próprio, é estado."* |
+| idem, §3 | Mapa de navegação e tabela do botão *voltar* com as três novas. **T-13 nunca volta ao formulário** — o endereço carrega token |
+| idem, §4 | Seção nova das quatro, com o que elas têm em comum escrito **uma vez** em vez de quatro |
+| idem, §5 | Linha *"Perfil / minha conta"* revista: metade tem dono, metade não |
+| `prototipo-low-fi.md` §1.2, §5 | **Seis desenhadas, sete descritas.** Nenhuma das quatro é desenhada, pela mesma razão que a original não era |
+
+**O que custou, e o que fechou.**
+
+- **Nada no orçamento do RNF6.** O cenário do RNF6 começa *"no toque no atalho do aplicativo já
+  instalado, com sessão válida e organização ativa"* (`documentacao-da-demanda.md` §5.2) — as quatro
+  telas da credencial estão **fora do relógio**, por definição do próprio requisito. A §2 não muda.
+- **Fechou o F6** — *"o nome de uma Pessoa recém-criada não tem origem declarada"*. **T-11 pede o
+  `nome`, obrigatório**, e o grava no metadado do provedor no `signUp`; o ACL semeia `pessoas.nome` de um
+  campo que **nós** escrevemos. Custo: **zero** mudança de contrato — não é a opção (b) da Q-T5, que
+  mexia em schema. A **S-T12 deixou de ser suposição** e a **Q-T5 está respondida por construção**.
+- **O cadastro não pede contato nenhum**, e em 22/08 a razão ficou mais forte: contato virou **lista** com tipo, finalidade, ordem e WhatsApp, e pôr um sub-formulário repetível entre alguém e a própria conta seria o oposto do que a primeira tela do produto precisa. O e-mail do cadastro não é a
+  credencial, mas no cadastro só existe a credencial — pedir as duas cobra de todo mundo uma distinção
+  que quase ninguém tem; e `telefone` já tem casa no pedido de entrada, que é onde a necessidade nasce.
+
+**O que ficou pendente, e é do hub.**
+
+- **Q-T6, com a recomendação trocada.** A tela de perfil que foi perguntada **não é T-11** — T-11 é sem
+  sessão e a edição exige uma. E a divisão proposta na revisão (*dados pessoais* × *dados de acesso*) é
+  exatamente a linha entre o que a nossa API faz e o que ela não faz: acesso é SDK, **zero endpoint**;
+  dados pessoais **não têm endpoint nenhum**. Este documento recomendava (a) — *"edita no provedor"* — e
+  **a recomendação estava errada pelo mesmo motivo do F6**: não existe página do provedor. Passa a
+  recomendar **(b)**, `PATCH /contexto/pessoa`. **É capacidade nova; é do hub.**
+- **Q-T9, nova:** a confirmação de e-mail é obrigatória antes do primeiro login? É interruptor do
+  provedor e decide como T-11 termina. **Recomendo obrigatória** — o e-mail é o único canal de
+  recuperação, e um endereço errado nunca confirmado deixa a conta irrecuperável sem ninguém descobrir.
+- **Propostas 17, 18 e 19 da §13** — `README.md`, a frase do contrato §9.5 que produziu a leitura errada,
+  e o par contrato/escopo que só existe se a Q-T6 for (b).
+
+**O que foi confirmado sem mudar nada.** *"Gestor pode editar pessoas e usuários?"* — **usuário: nunca**
+(o Gestor não toca credencial em lugar nenhum); **pessoa: só quem não tem conta**
+(`409 PESSOA_COM_CONTA_NAO_EDITAVEL`); **papel: nunca** (`PATCH /vinculos/{pessoaId}` não aceita `papel`,
+Q-API-6). O *"não deve explodir"* da tela do Gestor **já está garantido por construção**: T-08 mostra
+`pessoa` + `temConta` + `papel` — exatamente os três nomeados na revisão — e não tem como crescer para
+editor de perfil, porque os endpoints que faltam não existem.
+
 **6 · Os três desenhos de tela grande assumem ~1280 px e os de celular ~390 px.** Larguras entre os dois
 extremos — um tablet, uma janela estreita num monitor grande — **não foram desenhadas**, e o que acontece
 nelas é decisão de implementação. A regra que fica: **a densidade do item vem do recorte; o número de
 colunas vem da largura** (D-2), e ela se aplica a qualquer largura intermediária sem precisar de desenho
 novo.
+
+---
+
+## 16. O que a renderização descobriu
+
+**Trinta e dois itens, e nenhum foi resolvido em silêncio.** Dez nasceram na rodada de 22/08 — cinco meus, cinco achados ao renderizar T-08 — e um, o R-01, foi fechado por ela — ambiguidade se registra (aula 6, p.7–8).
+
+A série **P** da §10 veio de desenhar em texto monoespaçado. A série **R** abaixo vem de **renderizar num
+navegador**, com os tamanhos reais e o conteúdo no limite do schema. A distinção importa: são dois
+instrumentos diferentes, e o segundo enxerga o que o primeiro escondia por construção.
+
+**Sete deles não são achados novos: são divergências que já existiam e que a renderização obrigou a
+encarar**, porque não dá para desenhar um campo sem decidir qual é o nome dele.
+
+### 16.1 · Divergências entre documentos — fatos verificáveis, não interpretação
+
+| # | O que é | Onde | Quem conserta |
+|---|---|---|---|
+| ~~**R-01**~~ | ~~`temImagem` → `quantidadeDeAnexos`~~ | — | ✅ **corrigido em 22/08** |
+| **R-02** | `Area` **ganhou `ordem`** no contrato, mas a §3 deste documento ainda trata isso como proposta e a §2.4 ainda precifica o campo pela busca com recentes | `prototipo-low-fi.md` §3 e §2.4 · `api/openapi.yaml`, `Area` | **meu**, e mexe no orçamento |
+| **R-03** | `PessoaReferencia.nome` **ganhou `maxLength: 120`**; o achado P-16 afirma que ele não tem limite | `prototipo-low-fi.md` §10, P-16 | **meu** |
+| **R-04** | O componente de gráfico **saiu da primeira entrega**; a §7.1 ainda o lista ✅ e a Q-P6 ainda está aberta | `prototipo-low-fi.md` §7.1 e §12 · `arquitetura.md` §2 | **meu** |
+| **R-05** | O glossário **aposentou o termo *fatia 2*** em favor de *evolução prevista*; ele aparece **5 vezes** no inventário | `inventario-de-telas.md` · `glossario.md` §6 e §8 | **meu** |
+| **R-06** | O glossário corrigiu a lista de comandos que transicionam: são **seis**, e `avaliar`, `atribuirResponsavel` e `registrarSolucaoAplicada` **não** estão entre eles | `glossario.md` §4 | já corrigido lá |
+| **R-07** | A ordem de `acoesDisponiveis` **foi declarada** — e numa ordem **diferente** da que o P-09 propôs | `api/openapi.yaml`, `Comando` | já corrigido lá |
+
+### 16.2 · O buraco que a declaração do contrato abriu — R-08
+
+> **Ninguém escolhe a ação primária de T-05, e os dois documentos apontam um para o outro.**
+
+O contrato declarou a ordem de `acoesDisponiveis`, como o **P-09** pedia. Mas declarou **negando** a
+segunda metade do pedido, e com razão: *"não é promessa de que o primeiro item seja a ação em destaque —
+em `em_atendimento`, por exemplo, `pausar` precede `resolver`. Escolher o destaque é decisão de tela, **e
+a regra está no inventário de telas**."*
+
+**O inventário não tem essa regra.** A barra de ações de T-05 tem um primário largo e um menu *Mais
+ações* — e nada, em documento nenhum, diz qual comando vai no primário. Ao renderizar, foi preciso
+escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do enum seria **Reatribuir**, que
+é obviamente errado.
+
+**É achado de gravidade alta, e é o único desta lista que impede alguém de implementar a tela.**
+
+### 16.3 · Achados novos, da renderização
+
+| # | O que é | Gravidade |
+|---|---|---|
+| **R-09** | **A afirmação *"o formulário de T-04 cabe sem rolar"* é falsa nos tamanhos reais.** Com alvo de toque de 48 px, o conteúdo passa dos 844 px do aparelho e passa muito dos ~745 que sobram dentro do navegador. A página mede e imprime o número | **alta** |
+| **R-10** | **`visibilidadeAplicada` chega na resposta**, então durante a primeira carga T-03 não sabe qual das duas caras desenhar — nem se há barra de filtros, nem se o título é *Minhas* ou *Todas*. O esqueleto é obrigatoriamente neutro. **Não está em documento nenhum** | média |
+| **R-11** | **Não existe texto exibível para `motivoPausa` do lado do Gestor.** As molduras escrevem *"esperando peça"* e *"Aguardando peça"* — duas redações diferentes para o mesmo motivo, na mesma tela — e **o glossário §4 não tem nenhuma das duas**. Montar a frase no cliente é a segunda cópia da tabela de rótulos, que o contrato §8.8 recusa | **alta** |
+| **R-12** | **Abreviar nome de pessoa não está autorizado em lugar nenhum.** As molduras escrevem *"Antônio F."* e *"Roberto S."* ao lado de *"Antônio Ferreira"* por extenso, na mesma lista. E `responsavel` nulo tem **dois textos** — *"—"* e *"sem responsável"* | média |
+| **R-13** | **O aviso de visibilidade é obrigatório em todo modal com `observacao` — inclusive no `cancelar` do próprio Solicitante**, onde a frase *"O Solicitante vê esta observação"* fica sem sentido, porque quem escreve é ele | média |
+| **R-14** | Em T-05, uma `observacao` de **1.000 caracteres** empurra tudo para fora da primeira tela, quebrando a decisão 1 de D-3 — *"sem rolar: rótulo, título e a última entrada"* | média |
+| **R-15** | Em T-06, o **vazio que é defeito** chega como **`200` com lista vazia**: o defeito mais grave daquela tela é o único que a API não sinaliza como erro, e quem conta zero é o cliente. Sem `traceId`, sem código | média |
+| **R-16** | **O gráfico de recorrência só comporta duas séries** sem cor — e a justificativa do celular na D-5 pressupõe sete. Renderizar as duas mais frequentes é uma **regra de top-N que nenhum documento define** | média |
+| **R-17** | Em T-08, o nome de organização de 120 caracteres **é cortado em ~28** no cabeçalho — e T-08 é exatamente a tela onde o Gestor confirma em qual organização está agindo. O nome inteiro não aparece em lugar nenhum dela | média |
+| **R-18** | A restrição do **PA-25 custa altura**: com as três opções e as três consequências visíveis ao mesmo tempo, o botão *Aprovar* fica **abaixo da dobra** no celular. Rolar para aprovar é o preço — e a alternativa que caberia é o seletor fechado que produziu o PA-25 | declarado |
+| **R-19** | **O Encarregado sem conta só é removível entre o cadastro e a primeira atribuição.** *"Cadastrei o zelador errado"* é engano provável, e a janela para desfazê-lo é curta | média |
+| **R-20** | **A ancoragem vertical das quatro telas de credencial não está decidida em lugar nenhum.** As quatro usam menos de um terço da altura, e nada diz se o formulário é topo ou centro | baixa |
+| **R-21** | **A regra de força da senha não existe em documento nenhum** — nem no inventário, nem no contrato, nem na arquitetura. É configuração do provedor, e é irmã da Q-T9 | média |
+| **R-22** | **As sete categorias-semente são citadas em quatro documentos e enumeradas em nenhum** — nem no enunciado, nem no `openapi.yaml`, nem na POL-01. Quem implementar vai precisar saber quais sete | média |
+| **R-23** | **`vinculos.area_id` não tem escritor para quem tem conta.** A unidade existe para descrever o morador, e só é registrável para quem **não** é morador. Detalhado no achado **F13** do inventário, com três saídas e uma recomendação | **alta** |
+| **R-24** | **A guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` protege `pessoas`, que é global — mas está aplicada ao endpoint inteiro**, inclusive a `areaId`, que é do vínculo e escopado por organização. O alcance da regra ficou maior que a razão dela | média |
+| **R-25** | **Normalizar telefone para E.164 exige biblioteca de terceiro.** É a segunda dependência que este protótipo encosta, e a primeira sem saída barata: sem ela, o `CHECK` do banco recusa o que o formulário produzir | média |
+| **R-26** | **A miniatura é gratuita na escrita e paga na leitura.** O upload já está pago — mesma autorização, mesmo slot do limite. Mas exibi-la numa **listagem** custa uma requisição por item, numa plataforma medida em vCPU-segundos e com cold start. Por isso ela entra só em T-05, e como o que pinta primeiro | decisão desta rodada |
+| **R-27** | **`ANEXO_JA_REIVINDICADO` é o único erro do produto que anuncia um sucesso**, e por isso é o único cuja cópia contradiz a regra das outras: não diz *"tente de novo"* nem *"escolha a foto de novo"* — diz *"já foi registrada"* e navega. Dizer qualquer outra coisa produz a segunda ocorrência que ele existe para impedir | decisão desta rodada |
+| **R-28** | **`PessoaComContato` diz que *"só aparece em `GET /vinculos`"* — e aparece em `GET /pedidos-de-entrada`.** Como `contatos` é tabela **global** e o pedido de entrada só carrega **um** `telefone`, qualquer contato a mais que apareça ali **veio de outra organização**. É a §4.3 do modelo acontecendo por um caminho que ninguém previu | **alta** |
+| **R-29** | **`ordem` não tem `UNIQUE (pessoa_id, ordem)`.** Dois contatos podem ter `ordem: 1`, e aí *"a ordem da lista é o significado"* deixa de valer — a tela apresenta um empate como se fosse preferência. A alternativa que o modelo recusou (`principal boolean`) tinha índice único parcial justamente para impedir isso | média |
+| **R-30** | **Os exemplos do `openapi.yaml` ainda embutem a unidade no nome** — *"Morador do 302"*, *"Zelador — Bloco B"* —, que é exatamente o que `vinculos.area_id` existe para acabar. Exemplo é a primeira coisa que alguém copia | baixa |
+| **R-31** | **O contrato §4.3 e o `openapi.yaml` ainda citam `email_contato`**, que deixou de existir. O argumento em volta continua correto; o nome do campo não | baixa |
+| **R-32** | A §8.2 do contrato lista `422 AREA_INVALIDA` para `POST /vinculos`, e **o `openapi.yaml` não declara esse `422`** naquele endpoint. A tela precisa saber se o erro existe para dar-lhe frase | baixa |
+
+### 16.4 · Três bugs que a renderização achou no próprio protótipo
+
+Não são achados de produto: são defeitos do artefato, encontrados por escrevê-lo e corrigidos na hora.
+Ficam registrados porque **os três eram invisíveis em ASCII e só apareceram com layout de verdade**.
+
+1. **A escolha única empilhava errado.** Rótulo e consequência sairiam na mesma linha — o oposto exato da
+   decisão 3 do PA-25, que existe para deixar as três consequências legíveis ao mesmo tempo.
+2. **Rótulo longo fazia a barra do indicador desaparecer.** Um nome de categoria de 60 caracteres empurrava
+   a coluna até a barra encolher a 2 px e a linha estourar o cartão: o número sobrevivia, a comparação
+   visual morria.
+3. **O filtro ligado se distinguia só por cor**, contra o compromisso **A-5**.
+
+E um quarto, de entrega e não de desenho: **o arquivo não declarava codificação**, e o hub exige que ele
+abra do sistema de arquivos com dois cliques. Sem `charset`, acento vira lixo em `file://`.
+
+### 16.5 · A tensão que ficou sem conserto
+
+**Três símbolos ainda comunicam sozinhos**, contra o compromisso **A-5**: o `→` da linha de chamada, o `⋯`
+dos filtros no celular e o `↻` da coluna de tempo. Todos têm rótulo acessível, mas **nenhum tem palavra
+visível** — e A-5 diz que nada é comunicado só por forma ou cor. As molduras originais os introduziram e a
+renderização os herdou. **Fica declarado como dívida, não como decisão.**

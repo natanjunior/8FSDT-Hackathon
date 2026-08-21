@@ -1,7 +1,17 @@
 # Inventário de Telas — Resolve Aí
 
-**Dez telas.** É o número que este documento defende, contra as 42 capacidades ✅ do
+**Treze telas.** É o número que este documento defende, contra as 42 capacidades ✅ do
 [escopo](escopo.md) e os 37 endpoints do [contrato de API](contrato-de-api.md).
+
+> **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
+> — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
+> tiveram campos escritos, e o link do e-mail de redefinição não tinha onde aterrissar. Ver a §4 e o
+> registro na §13 do [protótipo](prototipo-low-fi.md).
+>
+> As três novas receberam **identificadores no fim da lista** — T-11, T-12, T-13 — em vez de renumerar
+> as dez existentes. `escopo.md` cita **T-10** pelo nome, e renumerar quebraria uma referência num
+> arquivo que não é deste passo para ganhar estética. **Identificador serve para ser estável**; a ordem
+> de leitura está nas tabelas, não no número.
 
 Deriva de [escopo.md](escopo.md) (as capacidades), [contrato-de-api.md](contrato-de-api.md) e
 [`api/openapi.yaml`](api/openapi.yaml) (o que cada tela chama e os campos exatos que mostra),
@@ -52,10 +62,23 @@ são **uma**, e as atividades 2 e 7 se dividem entre registrar e acompanhar. O q
 
 | Vem de | Telas |
 |---|---|
-| Estar autenticado e não pertencer a lugar nenhum | 2 (T-01, T-02) |
+| A credencial — entrar, criar, recuperar | 4 (T-01, T-11, T-12, T-13) |
+| Estar autenticado e não pertencer a lugar nenhum | 1 (T-02) |
 | A ocorrência — listar, registrar, operar, auditar | 4 (T-03 a T-06) |
 | A gestão da organização | 3 (T-07 a T-09) |
 | Um estado declarado que não é capacidade nenhuma | 1 (T-10) |
+
+### O critério que separa tela de estado
+
+O critério de aceitação acima diz **quando um assunto merece tela**. Falta o que separa uma tela de um
+estado da tela vizinha, e ele foi escrito em 21/08/2026, ao partir T-01:
+
+> **Uma tela tem conjunto de campos próprio e fim próprio — e estar nela exclui estar na outra. Sem
+> campo próprio, é estado.**
+
+É o que torna *Entrar* e *Criar conta* duas telas — campos diferentes, fins diferentes, e ninguém está
+nas duas ao mesmo tempo — e o que mantém a **aterrissagem do e-mail de confirmação** como estado de
+T-01: ela não tem campo nenhum, e a única ação dela é entrar.
 
 **A lista do que foi recusado é conteúdo**, e está na §5. Sem ela não há como distinguir curadoria de
 omissão.
@@ -136,11 +159,17 @@ está em curso e já diz.** [FONTE EXTERNA]
 
 ## 3. O mapa
 
-### As dez telas
+### As treze telas
+
+Em ordem de leitura, não de identificador — as quatro da credencial vêm juntas, e três delas têm número
+alto porque foram descobertas depois (ver o quadro do topo).
 
 | # | Tela | Quem vê | A pergunta | Alvo primário | Endereço próprio |
 |---|---|---|---|---|---|
-| **T-01** | Entrar ou criar conta | qualquer pessoa, **sem sessão** | *"Como eu entro?"* | celular | sim |
+| **T-01** | Entrar | qualquer pessoa, **sem sessão** | *"Como eu entro?"* | celular | sim |
+| **T-11** | Criar conta | qualquer pessoa, **sem sessão** | *"Não tenho conta."* | celular | sim |
+| **T-12** | Redefinir senha | qualquer pessoa, **sem sessão** | *"Esqueci a senha."* | celular | sim |
+| **T-13** | Definir nova senha | quem chegou pelo link do e-mail | *"Recebi o link. E agora?"* | celular | sim, **com o token** |
 | **T-02** | Sem organização ativa | sessão válida, **sem** organização ativa | *"Onde eu trabalho?"* | celular | sim |
 | **T-03** | Ocorrências | qualquer vínculo com `ler_propria` ou `ler_todas` | *"O que aconteceu com os meus pedidos?"* / *"O que eu preciso resolver agora?"* | ver §2 | sim, **com os filtros** |
 | **T-04** | Registrar ocorrência | `ocorrencia.registrar` | *"Preciso avisar de um problema."* | **celular** (RNF6) | sim |
@@ -169,7 +198,10 @@ usuário está em linguagem de gente, escrito na seção de cada uma. Dois nomes
 
 ```mermaid
 flowchart TD
-    T01["T-01 · Entrar ou criar conta<br/>fora do contrato — Supabase Auth"]
+    T01["T-01 · Entrar<br/>fora do contrato — Supabase Auth"]
+    T11["T-11 · Criar conta<br/>nome · e-mail · senha"]
+    T12["T-12 · Redefinir senha"]
+    T13["T-13 · Definir nova senha<br/>aterrissagem do link do e-mail"]
     LINK["Link direto de uma ocorrência,<br/>recebido de fora do produto"]
     CTX{"GET /contexto<br/>tem organização ativa?"}
     T02["T-02 · Sem organização ativa<br/>quatro faces: entrar · criar · esperando · escolher"]
@@ -183,6 +215,12 @@ flowchart TD
     T08["T-08 · Quem está na organização"]
     T09["T-09 · Categorias e áreas"]
     MENU["Menu da organização ativa<br/>PUT /contexto/organizacao"]
+
+    T01 -->|"não tenho conta"| T11
+    T11 -->|"conta criada e confirmada"| T01
+    T01 -->|"esqueci a senha"| T12
+    T12 -->|"o link do e-mail, minutos ou dias depois"| T13
+    T13 -->|"senha trocada"| T01
 
     T01 --> CTX
     LINK --> CTX
@@ -240,6 +278,8 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 | T-04 | volta a T-03 e **descarta o formulário**, com confirmação se algo foi digitado |
 | T-05 recém-chegado de um `201` de T-04 | volta a **T-03**, nunca ao formulário — a ocorrência já existe, e reabrir o formulário convida ao toque duplo que o contrato §7.10 declarou não proteger |
 | **modal aberto** | **fecha o modal e permanece na tela** |
+| T-11, T-12 | volta a **T-01** — é de lá que as duas são alcançadas |
+| **T-13** | **nunca volta ao formulário.** O endereço carrega o token de redefinição; consumido ele, voltar leva a T-01 |
 | T-02, T-10 | não há para onde voltar; o botão é inerte |
 
 A última linha da tabela do meio exige um mecanismo, e ele é decisão declarada:
@@ -256,41 +296,181 @@ fechar, e ele levaria o usuário fora da ocorrência no meio de um cancelamento.
 
 ## 4. Uma seção por tela
 
-### T-01 · Entrar ou criar conta
+### As quatro telas da credencial — T-01, T-11, T-12, T-13
+
+**Eram uma até 21/08/2026, e a razão de terem virado quatro é um buraco, não uma preferência.** A tela
+declarava três ações — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário.
+Cadastro e redefinição nunca tiveram campos escritos, e o **link do e-mail de redefinição não tinha onde
+aterrissar**.
+
+O erro foi de leitura, e vale nomeá-lo para não voltar: *"nenhuma das três chama endpoint deste
+contrato"* é verdade, e foi lida como *"nenhuma das três é tela nossa"*. **Não é a mesma coisa.** O
+Supabase Auth entra como **Conformista + ACL** e é consumido por **SDK** (`arquitetura.md` Parte I §1 e
+§3; contrato §4.1: *"o contrato consome a sessão; não a emite"*) — não é interface hospedada. Os quatro
+formulários são nossos para construir. E o `escopo.md` §3.2 confirma que os **dois** e-mails
+transacionais existem — confirmar conta e redefinir senha —, o que significa dois links, e todo link
+aterrissa em algum lugar.
+
+**O que as quatro têm em comum**, e por isso está escrito uma vez só:
+
+- **Nenhuma chama endpoint deste contrato.** Todas chamam o SDK do provedor. A primeira requisição ao
+  Resolve Aí acontece **depois** da sessão existir, no `GET /contexto` do shell.
+- **Nenhuma mostra nada da organização.** A identidade da organização na página de cadastro é ⬜
+  (`escopo.md`, atividade 0, D25) — então as quatro são as mesmas para todo mundo, em toda organização.
+- **Nenhuma mostra o texto de cold start do RNF5**, porque nenhuma toca a nossa API. Dizer *"acordando o
+  servidor"* aqui seria explicar uma espera que não é essa.
+- *Carregando:* botão em estado de espera, e nada mais.
+- **Não reagem a status** — não há ocorrência nenhuma aqui.
+- *Vazio:* não existe. O formulário é o conteúdo.
+- **Alvo primário: celular**, nas quatro.
+
+**A doutrina de erro, que é a mesma do contrato §6.3 aplicada à credencial:** *"não confirmar a
+existência do que você não pode alcançar"*. Ela decide duas frases, em duas telas diferentes — a de
+T-01 e a de T-12 —, e é por isso que está aqui e não repetida lá embaixo. [FONTE EXTERNA]
+
+**Capacidade que as quatro realizam, juntas.** nº 6 — *Criar conta e autenticar-se* ·
+`ENUNCIADO · aberto` (S1, S2). É **uma** capacidade em quatro telas, e isso não é inflação: a capacidade
+sempre incluiu *"autenticar-se"*, e autenticar-se inclui recuperar o acesso quando a senha se perde.
+
+> **Uma decisão de plataforma que muda o fluxo e que ainda não foi tomada: a confirmação de e-mail é
+> obrigatória antes do primeiro login?** É um interruptor do Supabase Auth, e ele decide se T-11 termina
+> em *"olhe seu e-mail"* ou em sessão válida direto. **Recomendo obrigatória** — ver **Q-T9**. As quatro
+> telas abaixo estão escritas para funcionar nas duas configurações, e o único texto que muda é o fim de
+> T-11.
+
+---
+
+#### T-01 · Entrar
 
 | Campo | Conteúdo |
 |---|---|
-| **Quem vê** | Qualquer pessoa **sem sessão válida**. É a única tela pública do produto. |
+| **Quem vê** | Qualquer pessoa **sem sessão válida** |
 | **A pergunta** | *"Como eu entro?"* |
 
-**O que mostra.** E-mail, senha, e o caminho de criar conta e de redefinir senha. **Não mostra nada da
-organização**: a identidade da organização na página de cadastro é ⬜ (`escopo.md`, atividade 0, D25), e
-por isso esta tela é a mesma para todo mundo, em toda organização.
+**O que mostra.** E-mail e senha. Abaixo, dois caminhos secundários: **criar conta** (→ T-11) e
+**esqueci a senha** (→ T-12).
 
-**O que oferece.** Entrar · criar conta · redefinir senha. **Nenhuma das três chama endpoint deste
-contrato** — autenticação é o subdomínio **Genérico** comprado no Supabase Auth (`arquitetura.md` Parte
-I §1 e §3; contrato §4.1: *"o contrato consome a sessão; não a emite"*), integrado como Conformista +
-ACL. A tela chama o SDK do provedor, e o e-mail transacional de confirmação e de redefinição é a única
-mensagem automática que a primeira entrega envia (emenda à D13, `escopo.md` §3.2). Ao final, navegação
-para o shell, que faz `GET /contexto`.
+**O que oferece.** Entrar. Ao final, navegação para o shell, que faz `GET /contexto` — e daí o mapa da
+§3 decide entre T-02, T-03 e T-10.
 
-**Como reage ao status.** Não reage — não há ocorrência aqui.
+**Erro.** **Credencial inválida não distingue "e-mail não existe" de "senha errada"** —
+*"E-mail ou senha incorretos."* Distinguir transformaria a tela de login num verificador de quem tem
+conta no produto.
 
-**Vazio · carregando · erro.**
-- *Vazio:* não existe — o formulário é o conteúdo.
-- *Carregando:* botão em estado de espera. **Não é aqui que o cold start aparece**: esta tela não toca a
-  nossa API. A primeira requisição ao Resolve Aí acontece na tela seguinte, e é lá que o RNF5 é dito.
-- *Erro:* as mensagens são do provedor. Uma decisão nossa: **credencial inválida não distingue "e-mail
-  não existe" de "senha errada"** — *"E-mail ou senha incorretos."* É a mesma lógica do `404` do
-  contrato §6.3 aplicada à autenticação, e pela mesma razão. [FONTE EXTERNA]
+**O estado que não é tela: a aterrissagem do e-mail de confirmação.** Quem toca o link do e-mail de
+confirmação de conta chega **aqui**, com uma linha acima do formulário: *"Conta confirmada. Entre para
+continuar."* Não é tela porque **não tem campo próprio** e a única ação dela é entrar (§1, o critério).
+Se o link estiver vencido, a mesma linha vira *"Este link expirou. Crie a conta de novo ou peça outro
+e-mail de confirmação."*
 
-**Alvo primário.** Celular. O que aparece sem rolar são os dois campos e o botão de entrar; criar conta
-vem abaixo.
+**Alvo primário.** Celular. Sem rolar: os dois campos e o botão de entrar. Criar conta e esqueci a senha
+vêm abaixo.
 
-**Endereço próprio.** Sim, e é o destino de qualquer redirecionamento por falta de sessão — que precisa
-carregar o endereço pretendido para devolver depois (§3, decisão 2).
+**Endereço próprio.** Sim, **e é o destino de qualquer redirecionamento por falta de sessão** — que
+precisa carregar o endereço pretendido para devolver depois (§3, decisão 2). É a tela que faz o link
+profundo sobreviver à autenticação.
 
-**Capacidades que realiza.** nº 6 — *Criar conta e autenticar-se* · `ENUNCIADO · aberto` (S1, S2).
+---
+
+#### T-11 · Criar conta
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | Qualquer pessoa **sem sessão válida** |
+| **A pergunta** | *"Não tenho conta."* |
+
+**O que mostra. Três campos**, e o primeiro é o que fecha um achado:
+
+| Campo | Obrigatório | Nota |
+|---|---|---|
+| **`nome`** | **sim**, ≤ 120 | Gravado no metadado do provedor no `signUp`, e é de lá que o ACL semeia `pessoas.nome`. **É o conserto do F6** — ver abaixo |
+| **e-mail** | sim | É a **credencial**, e só ela |
+| **senha** | sim | Regra de força do provedor, dita **antes** de digitar, não como erro depois |
+
+> **Por que `nome` no cadastro, e por que isso não é um campo a mais por conforto.**
+> `PessoaReferencia.nome` é `required` e não-nulável (`api/openapi.yaml`, schema `PessoaReferencia`), e o
+> ACL *"cria a `Pessoa` se ainda não existir"* (contrato §4.1). Então o primeiro login **precisa** de um
+> nome, e até aqui **nenhum documento dizia de onde ele vinha** — a S-T12 o resolvia por esperança
+> (*"vem dos metadados do provedor"*), e o **F6** ficou aberto por isso.
+>
+> **Pedindo o nome no formulário, o metadado passa a existir porque nós o escrevemos, não porque
+> torcemos.** O F6 fecha por construção, e custa **zero** mudança de contrato: não toca schema nenhum, ao
+> contrário da opção (b) da Q-T5, que mexia em `POST /pedidos-de-entrada`.
+
+**O que a tela deliberadamente não pede: contato nenhum.** E a razão ficou mais forte em 22/08/2026, não
+mais fraca:
+
+- **Contato deixou de ser dois campos e virou uma lista** — `tipo`, `valor`, `finalidade`, `temWhatsapp`,
+  `ordem`, `observacao`. Pedir isso na **primeira tela do produto**, antes de a pessoa pertencer a lugar
+  nenhum, seria pôr um sub-formulário repetível entre alguém e a própria conta. O lugar dele é T-08, que é
+  trabalho de escritório e não tem relógio correndo.
+- **O e-mail do cadastro é a credencial, e só ela.** A distinção entre credencial e contato existe no
+  glossário e é real, mas quase ninguém a tem — cobrá-la de todo mundo aqui é caro no lugar errado.
+- **`telefone` tem casa, e é a casa certa**: o campo opcional de `POST /pedidos-de-entrada`, em T-02, que
+  *"vira o primeiro contato da Pessoa, com `finalidade: pessoal`"*. É onde a necessidade nasce — é o contato
+  que o Gestor lê para decidir a aprovação, em T-08.
+
+**O que oferece.** Criar a conta, e voltar para T-01.
+
+**Como termina.** Depende da Q-T9. Com confirmação obrigatória: *"Enviamos um e-mail para
+{e-mail}. Toque no link para confirmar a conta."* — e a tela **não** finge que a pessoa já entrou. Sem
+confirmação: sessão válida, e o shell segue para T-02.
+
+**Erro.** E-mail já cadastrado é o caso comum, e aqui a doutrina do não-confirmar **cede**: negá-la
+produziria uma pessoa presa tentando criar uma conta que já existe. Texto: *"Já existe uma conta com
+este e-mail."* + o caminho para T-01 e para T-12. O provedor já expõe essa informação no fluxo de
+recuperação de qualquer forma; escondê-la aqui custaria uso e não compraria sigilo.
+
+**Endereço próprio.** Sim.
+
+---
+
+#### T-12 · Redefinir senha
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | Qualquer pessoa **sem sessão válida** |
+| **A pergunta** | *"Esqueci a senha."* |
+
+**O que mostra.** Um campo: e-mail.
+
+**O que oferece.** Pedir o link.
+
+**Como termina — e é o texto que carrega a decisão.** *"Se existe uma conta com este e-mail, o link
+foi enviado. Confira também o spam."* **A frase é condicional de propósito**: é a mesma doutrina do
+`404` do contrato §6.3 e da frase de T-01. Uma tela que responda *"este e-mail não está cadastrado"*
+é um verificador de quem tem conta no produto, operável por qualquer um, sem sessão.
+
+**Erro.** Nenhum que a pessoa possa consertar aqui — a resposta é a mesma existindo conta ou não. O
+único erro visível é o limite de envios do provedor: *"Muitos pedidos seguidos. Espere um pouco."*
+
+**Endereço próprio.** Sim.
+
+---
+
+#### T-13 · Definir nova senha
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | Quem chegou pelo **link do e-mail de redefinição** |
+| **A pergunta** | *"Recebi o link. E agora?"* |
+
+**Existe porque um link precisa aterrissar.** É a tela que o inventário anterior não tinha, e a mais
+fácil de esquecer até a implementação: ela não aparece em nenhuma navegação de dentro do produto, e só
+é alcançada de fora, por um e-mail, **possivelmente dias depois** e possivelmente em outro aparelho.
+
+**O que mostra.** Um campo de senha nova. **Sem pedir a senha antiga** — quem chegou aqui é justamente
+quem não a tem —, e a regra de força dita antes de digitar, como em T-11.
+
+**O que oferece.** Definir a senha e seguir para T-01.
+
+**Erro.** O caso real é o link vencido, e ele **não é raro**: o token tem validade curta e o e-mail é
+lido quando é lido. Texto: *"Este link expirou. Peça um novo."* + o caminho para T-12. Sem esse caminho
+a tela é um beco — o mesmo defeito que a face C de T-02 foi corrigida para não ter.
+
+**Endereço próprio.** Sim, **com o token na URL**. É o único endereço do produto que carrega credencial,
+e por isso é o único que **não** deve sobreviver ao botão voltar: consumido o token, voltar leva a T-01,
+nunca de volta ao formulário.
 
 ---
 
@@ -314,9 +494,17 @@ escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem v
 | **D · Escolher a organização** | `vinculos[]` com **dois ou mais**, e nenhuma ativa | É a Persona 1B, o síndico que também mora em outro prédio |
 
 **O que mostra, por face.**
-- **A:** um campo para o **Código da Organização** (`^[A-Z0-9]{6,12}$`, o do cartaz do elevador) e,
-  separado dele, o caminho de **criar uma organização** com um campo de `nome`. Dois caminhos, e a
-  hierarquia é clara: quem chega aqui quase sempre está **entrando**, não fundando.
+- **A:** o **Código da Organização** (`^[A-Z0-9]{6,12}$`, o do cartaz do elevador) e, separado dele, o
+  caminho de **criar uma organização** com um campo de `nome`. Dois caminhos, e a hierarquia é clara: quem
+  chega aqui quase sempre está **entrando**, não fundando.
+
+  **E dois campos que 22/08/2026 acrescentou ao pedido**, os dois opcionais:
+  **`nome`, pré-preenchido com o nome atual da Pessoa** — o contrato §8.2 declarou que este é o **último
+  momento em que o nome é corrigível**, porque depois dele não há como alterá-lo e ele vai para a trilha
+  imutável; e **`telefone`, em E.164**, que *"vira o primeiro contato da Pessoa, com `finalidade: pessoal`"*
+  e é o único ponto do contrato em que um contato entra fora de `/vinculos`.
+  **A máscara é a mesma de T-08** — prefixo de país padrão `+55` mais o número no formato nacional —,
+  porque ninguém digita `+55` de propósito e o `CHECK` do banco recusa qualquer outra forma.
 - **B:** `pedidosDeEntrada[].organizacao.nome` e `criadoEm`. Texto: *"Seu pedido para entrar em
   {nome} está aguardando a decisão de um Gestor."* **E a frase que a ausência de notificação obriga:**
   *"Você não será avisado automaticamente — volte aqui para ver."* Mentir por omissão aqui é pior do que
@@ -392,7 +580,7 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
    §3) e não há nada que o Solicitante faça com ela.
 6. `responsavel.nome` quando não nulo — *"quem está cuidando"*. Visível ao Solicitante de propósito
    (*"mostrar constrói confiança"*, `openapi.yaml`), e sem canal direto entre os dois.
-7. `temImagem` como marca, `registradaEm` e `atualizadaEm`.
+7. **`quantidadeDeAnexos`** como marca — *"com foto"* é `quantidadeDeAnexos > 0`. O campo deixou de ser booleano em 22/08/2026, quando o anexo virou tabela: **é contagem**, e o número já é a forma final para o dia em que existir o segundo anexo. Mais `registradaEm` e `atualizadaEm`.
 8. **O convite a avaliar**, quando `status == "resolvida"`, quem lê é o autor, e ainda não avaliou. É a
    restrição herdada nº 2, e ela aparece **aqui e em T-05** — ver o quadro no fim desta seção.
 
@@ -495,7 +683,7 @@ cuja coluna existe e cuja capacidade é ⬜.
 | Ação | Endpoint |
 |---|---|
 | Escolher a foto e comprimi-la | **no aparelho** — 400 KB / 1600 px no maior lado (RNF8). O seletor aceita até 10 MB; o que sobe é o comprimido |
-| Subir a foto | `POST /imagens/autorizacoes` `{ tipoConteudo, tamanhoBytes }` → `PUT` direto no storage, **fora da API** |
+| Subir a foto | `POST /anexos/autorizacoes` `{ tipoConteudo, tamanhoBytes }` → **dois `PUT`** diretos no storage, **fora da API**: o original e a miniatura, com **uma autorização só** e um slot do limite por hora |
 | Enviar | `POST /ocorrencias` — devolve `201` + `Location` + `OcorrenciaDetalhe` |
 | Cancelar | **navegação** → T-03, com confirmação se algo foi digitado |
 
@@ -520,8 +708,9 @@ visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
   obrigatório vazio e insubmissível, sem dizer por quê.
 - *Carregando:* as duas listas carregam junto com a tela. A foto tem indicação de progresso própria,
   **e ela não bloqueia o formulário** — bloquear é perder o RNF6.
-- *Erro:* `422 CATEGORIA_INVALIDA`, `422 AREA_INVALIDA`, `422 IMAGEM_NAO_RECONHECIDA`,
-  `422 IMAGEM_ACIMA_DO_LIMITE`, `429 LIMITE_DE_AUTORIZACOES_DE_UPLOAD`, e **a rede caindo no meio** —
+- *Erro:* `422 CATEGORIA_INVALIDA`, `422 AREA_INVALIDA`, `422 ANEXO_NAO_RECONHECIDO`,
+  `422 ANEXO_ACIMA_DO_LIMITE`, `409 ANEXO_JA_REIVINDICADO`, `429 LIMITE_DE_AUTORIZACOES_DE_UPLOAD`, e
+  **a rede caindo no meio** —
   todos na §7, que é onde esta tela mais contribui.
 
 **Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar: `titulo`, `categoria` e o
@@ -549,16 +738,22 @@ na cabeça ao abrir o aplicativo.
 quatro `GET` e pode chamar onze `POST`.
 
 **O que mostra.** `OcorrenciaDetalhe` — tudo de `OcorrenciaResumo` mais `descricao`,
-`localizacaoComplemento`, `imagemUrl`, `solucaoAplicada`, `avaliacao`, `ultimaTransicao` e
+`localizacaoComplemento`, **`anexos[]`**, `solucaoAplicada`, `avaliacao`, `ultimaTransicao` e
 `acoesDisponiveis` — em quatro blocos de conteúdo:
 
 **1 · Identidade.** `statusRotulo` (+ `motivoPausa` para o Gestor, pela mesma razão de T-03), `titulo`,
 `prioridade`, `categoria.nome`, `area.nome` + `localizacaoComplemento`, `autor.nome`,
 `responsavel.nome`, `registradaEm`.
 
-**2 · Conteúdo.** `descricao` e a imagem, se houver — via `imagemUrl`, que aponta para
-`GET /ocorrencias/{id}/imagem` (URL **estável** desta API, que responde `302` para uma URL assinada de 10
-minutos). A tela **nunca guarda nem exibe a URL do storage**.
+**2 · Conteúdo.** `descricao` e o anexo, se houver — via **`anexos[]`**, cujo `url` aponta para
+`GET /ocorrencias/{id}/anexos/{anexoId}` (URL **estável** desta API, que responde `302` para uma URL
+assinada de 10 minutos). A tela **nunca guarda nem exibe a URL do storage**.
+
+**A miniatura é `?variante=miniatura` no mesmo endpoint** — outra *representação* do mesmo anexo, não outro
+recurso, e por isso a autorização é a mesma. **Onde a tela a usa está decidido: só aqui, e só como o que
+pinta primeiro.** O bloco 2 já carregava por último e nunca segurava o resto; com a miniatura, o lugar da
+foto deixa de ser um retângulo cinza e passa a mostrar a foto borrada em ~15 KB enquanto os ~400 KB chegam.
+**Uma requisição a mais, na tela de detalhe, e nenhuma na listagem** — ver o porquê em T-03.
 
 **3 · A linha do tempo.** `GET /ocorrencias/{id}/linha-do-tempo` — transições **+** mensagens **+**
 atribuições, intercaladas por instante, com o `rotulo` em linguagem de gente. É a capacidade nº 29 (S9),
@@ -870,11 +1065,31 @@ tela cuja resposta é *"nenhum pedido"* na esmagadora maioria dos dias.
 o que exige ação.
 
 **1 · Pedidos de entrada** — `GET /pedidos-de-entrada` (padrão `situacao=pendente`). Por item,
-`PedidoDeEntradaDetalhe`: `pessoa.nome`, `pessoa.emailContato`, `pessoa.telefone`, `criadoEm`. É o único
-lugar, com a lista abaixo, onde contato aparece — **dado pessoal sob o RNF10** (S-A5).
+`PedidoDeEntradaDetalhe`: `pessoa.nome`, **`pessoa.contatos[]`**, `criadoEm`. É o único lugar, com a
+lista abaixo, onde contato aparece — **dado pessoal sob o RNF10** (S-A5).
 
-**2 · Vínculos ativos** — `GET /vinculos`. Por item, `Vinculo`: `pessoa.nome`, `papel`, `temConta`,
-contato, `criadoEm`. **`temConta` não é detalhe técnico:** `false` é o Encarregado sem conta — *"existe
+**2 · Vínculos ativos** — `GET /vinculos`. Por item, `Vinculo`: `pessoa.nome`, **`pessoa.contatos[]`**,
+`papel`, **`area`**, `temConta`, `criadoEm`.
+
+> **Contato deixou de ser dois campos e passou a ser uma lista — 22/08/2026.** `pessoas.email_contato` e
+> `pessoas.telefone` não existem mais; no lugar, `contatos[]` com `tipo`, `valor`, `finalidade`,
+> `temWhatsapp`, `ordem` e `observacao`. **Três consequências de tela, e a terceira é a que muda o
+> desenho:**
+>
+> 1. **`ordem` é o significado, não um enfeite.** Não há caixa de *"contato preferido"*: `1` é para onde se
+>    liga primeiro, e a lista **é** a cadeia de tentativa. A tela apresenta na ordem e a reordenação é
+>    explícita.
+> 2. **`temWhatsapp` aparece como palavra**, nunca como marca colorida — é a regra A-5, e aqui ela é
+>    literal: um ícone verde sem texto some para quem não distingue as duas cores.
+> 3. **A listagem mostra o primeiro contato e a contagem do resto.** Quatro contatos por pessoa numa tabela
+>    de vínculos empurram a linha para três alturas, e a pergunta desta tela é *"quem está aqui"*, não
+>    *"como alcanço esta pessoa"*. O resto abre no item.
+
+**`area` é a unidade da pessoa nesta organização** — o apartamento 302, a sala 14 —, e é `null` para o
+Gestor e para o Encarregado terceirizado. **A tela a mostra em coluna própria, nunca embutida no nome.** A
+razão não é estética: o `nome` vai para a trilha de auditoria, que é **imutável**; a unidade pertence ao
+vínculo e pode mudar. Embutir uma no outro é congelar um fato mutável dentro de um imutável — e é
+exatamente o que os exemplos antigos do contrato faziam ao chamar alguém de *"Morador do 302"*. **`temConta` não é detalhe técnico:** `false` é o Encarregado sem conta — *"existe
 como cadastro, recebe atribuições e aparece como responsável, e para agir no sistema seria preciso ter
 conta"*. É a informação que explica por que o zelador nunca move nada no sistema, e ela precisa estar
 visível ou o Gestor a interpreta como defeito.
@@ -885,8 +1100,8 @@ visível ou o Gestor a interpreta como defeito.
 |---|---|
 | Aprovar um pedido, escolhendo o papel | `POST /pedidos-de-entrada/{id}/aprovar` `{ papel }` |
 | Recusar um pedido | `POST /pedidos-de-entrada/{id}/recusar` `{ observacao? }` |
-| Cadastrar pessoa sem conta (o Encarregado) | `POST /vinculos` `{ nome, papel, emailContato?, telefone? }` |
-| Corrigir os dados de quem **não tem conta** | `PATCH /vinculos/{pessoaId}` `{ nome?, emailContato?, telefone? }` |
+| Cadastrar pessoa sem conta (o Encarregado) | `POST /vinculos` `{ nome, papel, areaId?, contatos[]? }` |
+| Corrigir os dados de quem **não tem conta** | `PATCH /vinculos/{pessoaId}` `{ nome?, areaId?, contatos[]? }` — **`contatos` é substituição, não mesclagem**: a lista enviada troca a anterior inteira, `[]` remove todos, e omitir não mexe |
 | Remover um vínculo sem histórico | `DELETE /vinculos/{pessoaId}` — sem corpo, devolve `204` |
 | Filtrar por papel · por situação do pedido | `GET /vinculos?papel=` · `GET /pedidos-de-entrada?situacao=` |
 
@@ -899,6 +1114,26 @@ visível ou o Gestor a interpreta como defeito.
   boa: `pessoas` é tabela **global**, e um Gestor editando o nome de quem tem conta alteraria o cadastro
   daquela pessoa **em todas as outras organizações**. A tela mostra os campos como leitura, com a frase
   em §7. Mas **isso deixa um buraco que não é de tela** — ver §9, achado F11.
+- **Não há como registrar a unidade de quem entrou por pedido de entrada.** `vinculos.area_id` existe, e
+  esta tela mostra a coluna — mas **nenhum caminho que um morador percorre consegue escrevê-la**. Ver §9,
+  achado **F13**, que é o achado desta rodada.
+
+**E uma coisa nova que a tela passa a oferecer:** o **sub-formulário repetível de contatos**, no cadastro e
+na correção de quem não tem conta. Cada linha traz `tipo`, `valor`, `finalidade`, `temWhatsapp`, `ordem` e
+`observacao`; a lista é reordenável e a escrita é **substituição**.
+
+> **Esta é a única tela do inventário que ganhou complexidade de propósito**, e vale dizer por que isso não
+> contradiz nada. O RNF6 cronometra **T-04**, não esta: o cadastro de Encarregado é *"trabalho de escritório,
+> feito sentado, uma vez"*, e é a própria seção de alvo primário que já dizia isso. **Aqui a completude vale
+> mais que a velocidade** — e o custo da complexidade foi comprado com essa conta na mão.
+>
+> **`409 CONTATO_DUPLICADO`** é o erro novo, e ele tem campo: aparece **no campo do contato repetido**, pela
+> regra da §6.2 do protótipo, nunca como faixa na página.
+>
+> **E a recusa de um pedido ganhou `observacao`.** O Gestor registra por que recusou, e o texto **passa a ser
+> guardado** — até 22/08 o contrato o aceitava e o descartava em silêncio. **A tela desenha supondo que o
+> recusado não vê esse texto**, porque dizer-lhe é decisão de produto em aberto, e a face C de T-02 continua
+> dizendo apenas *"não foi aprovado"*.
 
 **Como reage ao status.** Não reage a status de ocorrência. Reage ao **estado do vínculo**: os três
 botões de remover não aparecem iguais — ver o quadro adiante.
@@ -991,6 +1226,12 @@ schema de `Area` **não tem `ordem`**, ao contrário de `Categoria` — ver §9,
 | Renomear, reordenar, desativar e reativar categoria | `PATCH /categorias/{id}` `{ nome?, ordem?, ativa? }` |
 | Criar área | `POST /areas` |
 | Renomear, mudar o tipo, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa? }` |
+
+> **`categorias.icone` existe no esquema e não tem interface nenhuma nesta entrega — 22/08/2026.** A coluna
+> é semeada pela POL-01 e mais nada: **nenhuma tela oferece escolher ícone, e nenhuma tela exibe ícone de
+> categoria.** Fica escrito aqui porque *"a coluna existe"* é exatamente o argumento que faria alguém
+> desenhá-la depois — e desenhar cria expectativa de escopo que não existe. O mesmo regime do `titulo` do
+> anexo em T-04: a coluna espera, a tela não.
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma categoria sai de uso — não há
 `DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar:
@@ -1157,7 +1398,7 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 
 | O que poderia ter sido tela | Por que não |
 |---|---|
-| **Perfil / minha conta** | **Não haveria o que salvar.** `PATCH /vinculos/{pessoaId}` é recusado para quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3) e **não há endpoint que o substitua** — ver §9, achado **F11**. Redefinir senha é do provedor, em T-01 |
+| **Perfil / minha conta** | **Não existe, e em 22/08/2026 isso passou de lacuna a decisão declarada** (contrato §8.2, e ver §9, **F11**). Os *dados de acesso* — e-mail de login e senha — são do provedor, via SDK, e vivem em T-01, T-12 e T-13. Os *dados pessoais* da `Pessoa`, que é tabela **global**, **não têm endpoint**: `PATCH /vinculos/{pessoaId}` recusa justamente quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3), não há `PATCH /contexto/pessoa` e não há `/pessoas` (§4.6, e não deve haver). **O `nome` é corrigível uma última vez** no campo de `POST /pedidos-de-entrada`, em T-02 face A; **`contatos[]` só por quem gere vínculos**, em T-08. Depois disso, nada muda — e o nome fica na trilha imutável |
 | **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático na primeira entrega, em nenhum canal |
 | **Filtros rápidos** | ⬜ — D15. É *"o corte de maior custo operacional: são o que o Gestor faz todo dia"* (`escopo.md` §3.3), e o que sobra são os três filtros de G2 em T-03 |
 | **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Na primeira entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
@@ -1261,9 +1502,12 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `ULTIMO_GESTOR` | 409 | T-08 | *"Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas."* Igual à de cima: **o botão não aparece**, a razão aparece. É a guarda que impede este endpoint de abrir uma segunda porta para o **PA-24** |
 | `TRANSICAO_NAO_PERMITIDA` | 409 | T-05 | **O caso das duas pessoas triando ao mesmo tempo.** Não há controle otimista no contrato (§7.9) — a segunda descobre pelo erro. *"Esta ocorrência mudou enquanto você estava olhando: agora ela está **{statusAtual em rótulo}**."* + **a tela se recarrega e mostra as ações novas**, que vêm no próprio corpo do erro em `acoesDisponiveis`. É a resposta mais completa que o inventário dá a um erro, e ela é possível **só porque o contrato pôs `statusAtual` e `acoesDisponiveis` no corpo do `409`** |
 | `OCORRENCIA_NAO_ENCONTRADA` | 404 | T-03, T-05, T-06 | Por decisão do contrato (§6.3), é **indistinguível** de "existe em outra organização". Então a frase tem de cobrir os dois sem escolher: *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* — e o nome da organização vem no corpo do erro exatamente para isto: *"metade das vezes a resposta é 'ah, estou na organização errada', e a resposta já diz em qual você está"*. A tela oferece **trocar de organização** quando `contexto.vinculos` tiver outra, e o `traceId` |
-| `IMAGEM_NAO_RECONHECIDA` | 422 | T-04 | A imagem recusada **depois** de o upload já ter acontecido. *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A última meia frase é o conteúdo:** perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
-| `IMAGEM_ACIMA_DO_LIMITE` | 422 | T-04 | *"A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."* Não menciona bytes: 512 KB não é informação para quem está no subsolo |
-| `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | T-04 | *"Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."* O único limite de chamadas do contrato, e a única razão de ele existir é declarada lá |
+| `ANEXO_NAO_RECONHECIDO` | 422 | T-04 | A imagem recusada **depois** de o upload já ter acontecido. *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A última meia frase é o conteúdo:** perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
+| `ANEXO_ACIMA_DO_LIMITE` | 422 | T-04 | *"A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."* Não menciona bytes: 512 KB não é informação para quem está no subsolo |
+| `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Texto: *"Esta ocorrência já foi registrada — a foto que você anexou já está nela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir |
+| `ANEXO_NAO_ENCONTRADO` | 404 | T-05 | O anexo não existe nesta ocorrência — ou existe em outra organização, indistinguível pela mesma razão do `404` de ocorrência. *"Esta foto não está mais disponível."* Na navegação normal não acontece: o `url` vem de `anexos[]`, que a própria tela acabou de ler |
+| `CONTATO_DUPLICADO` | 409 | T-08 | *"Este contato já está na lista."* **No campo do contato repetido**, porque tem campo e a ação é corrigi-lo. O par (`tipo`, `valor`) é único por Pessoa: o mesmo número duas vezes é ruído, não dado |
+| `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | T-04 | *"Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."* O único limite de chamadas do contrato. **O nome do código não mudou em 22/08:** ele nunca nomeou o exemplo, nomeia a operação |
 | `CATEGORIA_INVALIDA` · `AREA_INVALIDA` | 422 | T-04 | O caso real: o Gestor desativou a categoria **enquanto o formulário estava aberto**. *"Esta {categoria \| área} não está mais disponível. Escolha outra."* + recarrega a lista, mantendo o resto do formulário |
 | `CODIGO_PUBLICO_NAO_ENCONTRADO` | 404 | T-02 | *"Nenhuma organização usa este código. Confira as letras e os números."* — o código é digitado à mão de um cartaz, e errar é o caso comum |
 | `JA_VINCULADO` | 409 | T-02 | *"Você já está em {nome}."* + **entrar nela** (`PUT /contexto/organizacao`). O erro é a resposta certa e a ação óbvia é seguir adiante |
@@ -1307,7 +1551,7 @@ Três conjuntos: **42 capacidades ✅**, **37 endpoints**, **10 telas**.
 | 4 | Editar categorias | `ENUNCIADO · aberto` | T-09 |
 | 5 | Editar áreas | `NOSSO` (D18) | T-09 |
 | **1 · Entrar na organização** ||||
-| 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1, S2) | **T-01** — realizada pelo provedor, **sem endpoint do contrato** |
+| 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1, S2) | **T-01 · T-11 · T-12 · T-13** — realizada pelo provedor, **sem endpoint do contrato**. Uma capacidade em quatro telas: *autenticar-se* inclui recuperar o acesso |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | T-02 |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | T-08 |
 | 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | T-08 |
@@ -1363,7 +1607,9 @@ interface sem tela** (nº 38) e **4 não são de interface**.
 
 ### 8.2 · Toda tela realiza ao menos uma capacidade
 
-Nove das dez, sim. **A exceção é T-10**, e é achado — F3 da §9.
+Doze das treze, sim. **A exceção é T-10**, e é achado — F3 da §9. As quatro da credencial realizam
+**uma** capacidade entre si (nº 6), o que é o inverso de T-05 e não é problema: a razão de serem quatro
+é o critério da §1, não a contagem de capacidades.
 
 ### 8.3 · Todo endpoint é chamado por alguma tela
 
@@ -1389,7 +1635,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /vinculos` | T-08 |
 | `PATCH /vinculos/{pessoaId}` | T-08 |
 | `DELETE /vinculos/{pessoaId}` | T-08 |
-| `POST /imagens/autorizacoes` | T-04 |
+| `POST /anexos/autorizacoes` | T-04 |
 | `POST /ocorrencias` | T-04 |
 | `POST /ocorrencias/{id}/analisar` | T-05 |
 | `POST /ocorrencias/{id}/alterar-prioridade` | T-05 |
@@ -1405,7 +1651,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `GET /ocorrencias/{id}` | T-05 |
 | `GET /ocorrencias/{id}/linha-do-tempo` | T-05 |
 | `GET /ocorrencias/{id}/trilha-de-auditoria` | **T-06 — e só ela** |
-| `GET /ocorrencias/{id}/imagem` | T-05 |
+| `GET /ocorrencias/{id}/anexos/{anexoId}` | T-05 — e `?variante=miniatura` é a **mesma** operação, não outra |
 | `GET /ocorrencias/{id}/comentarios` | T-05 |
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
@@ -1426,8 +1672,10 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 
 ## 9. O que o inventário revelou
 
-Doze itens. Nenhum foi resolvido aqui — **ambiguidade se registra, não se resolve em silêncio** (aula 6,
-p.7–8), e cinco deles tocam decisões que são do hub.
+Treze itens. **Um foi fechado em 21/08/2026** — o F6, pelo desenho de T-11 —, **um foi decidido pelo hub em
+22/08** — o F11, e a decisão está no contrato §8.2 — e **o F13 nasceu em 22/08**, ao conferir quem escreve
+`vinculos.area_id`. Os outros dez seguem abertos: **ambiguidade se registra, não
+se resolve em silêncio** (aula 6, p.7–8), e cinco deles tocam decisões que são do hub.
 
 | # | O que é | Onde | Gravidade |
 |---|---|---|---|
@@ -1436,13 +1684,14 @@ p.7–8), e cinco deles tocam decisões que são do hub.
 | **F3** | Nada na documentação cobre o que o vínculo sem permissão vê | — | **média** |
 | **F4** | Três contagens desatualizadas em dois documentos | `contrato-de-api.md:643` · `fluxos-e-diagramas.md:8,10` | baixa |
 | **F5** | O Gestor não tem como listar o que atribuiu a si mesmo | `escopo.md` cap. 20 vs. `contrato-de-api.md:1276` | média |
-| **F6** | O nome de uma Pessoa recém-criada não tem origem declarada | `contrato-de-api.md:236-238` · `api/openapi.yaml:2317-2320` | média |
+| **F6** | O nome de uma Pessoa recém-criada não tem origem declarada | `contrato-de-api.md:236-238` · `api/openapi.yaml`, `PessoaReferencia` | ✅ **fechado 21/08** — T-11 pede o `nome` |
 | **F7** | O `409` de transição inválida é a única defesa contra dois Gestores triando junto | `contrato-de-api.md:610-622` | declarado, sem conserto |
 | **F8** | O PA-16 não tem mitigação possível nesta entrega | `premissas-e-questoes-abertas.md:131` | média |
 | **F9** | Nada avisa o Gestor de que chegou um pedido de entrada | `escopo.md` §3.2 | média |
 | **F10** | A contagem de pedidos pendentes custa uma requisição a mais no shell do Gestor | — | decisão desta tela |
 | **F11** | Quem tem conta não consegue editar os próprios dados em lugar nenhum | `contrato-de-api.md:750` | **alta** |
 | **F12** | `Categoria` tem `ordem`; `Area` não | `api/openapi.yaml:2434-2452` | baixa |
+| **F13** | **`vinculos.area_id` não tem escritor para quem tem conta** — a unidade do morador é inalcançável | `api/openapi.yaml`, `POST /pedidos-de-entrada` e `/aprovar` | **alta** |
 
 ### F1 · `acoesDisponiveis` não diz se considera as precondições que não são status nem permissão
 
@@ -1538,10 +1787,25 @@ Para a tela isso é concreto: T-02 ou cumprimenta a pessoa pelo nome, ou tem de 
 lugar onde um nome pode ser informado é o campo opcional `nome` de `POST /pedidos-de-entrada` —
 *"preenche ou corrige o nome da Pessoa"* —, o que sugere que já existe um para corrigir.
 
-**Recomendação:** declarar que o ACL semeia `pessoas.nome` a partir dos metadados do provedor
+**Recomendação original:** declarar que o ACL semeia `pessoas.nome` a partir dos metadados do provedor
 (`display_name` do Supabase Auth), e que o campo `nome` de `POST /pedidos-de-entrada` é a correção
 disponível. Se o provedor não garantir o metadado, o campo `nome` do pedido passa a ser **obrigatório** —
 que é mudança de schema, e não é deste inventário.
+
+> ### ✅ Fechado em 21/08/2026, e por um caminho que não estava nas opções
+>
+> As duas opções da Q-T5 partiam do mesmo pressuposto errado: **que o formulário de cadastro não era
+> nosso.** Ele é — o Supabase Auth entra por SDK, não por interface hospedada. Ao partir T-01, **T-11
+> passou a pedir o `nome`** e a gravá-lo no metadado do provedor no `signUp`.
+>
+> **O metadado deixa de ser hipótese e passa a ser consequência**: o ACL semeia `pessoas.nome` a partir
+> de um campo que **nós escrevemos**, num formulário que **nós desenhamos**. Não há mudança de schema,
+> não há endpoint novo, e o campo `nome` de `POST /pedidos-de-entrada` continua sendo o que era — a
+> correção disponível, agora corrigindo um valor que existe em vez de suprindo um que faltava.
+>
+> **A Q-T5 fica respondida por construção**, e a **S-T12 deixa de ser suposição**. O que sobra de aviso
+> é operacional, não de projeto: se o `signUp` do provedor for chamado sem o metadado, a Pessoa nasce sem
+> nome e o defeito é de implementação — e é uma linha verificável no Definition of Done.
 
 ### F7 · O `409` de transição é a única defesa contra dois Gestores triando junto
 
@@ -1614,10 +1878,45 @@ ela esconde.
 **É o achado que decidiu não haver tela de perfil neste inventário**, e ele apareceu exatamente por
 perguntar *"o que uma tela de perfil salvaria?"*. **Duas saídas, e a escolha é do hub:**
 (a) qualificar a frase — quem tem conta edita no provedor, e o ACL ressincroniza `pessoas.nome`; ou
-(b) `PATCH /contexto/pessoa`, que é endpoint novo e capacidade nova. **Recomendo (a)** para a primeira
-entrega, e nesse caso T-01 ganha um caminho para a tela de conta do provedor. **Se ficar como está, o
-nome que a pessoa digitou ao entrar é o nome que aparece na trilha de auditoria para sempre** — e a
-trilha é imutável.
+(b) `PATCH /contexto/pessoa`, que é endpoint novo e capacidade nova.
+
+> ### ⚠️ Correção da recomendação, 21/08/2026 — a opção (a) é oca
+>
+> Este documento recomendava **(a)**. **A recomendação estava errada, e o erro é o mesmo do F6:**
+> supunha que existe *"o provedor"* como lugar onde alguém edita alguma coisa. Não existe. O Supabase
+> Auth entra por **SDK**, não por interface hospedada — **a página de conta teríamos de construir de
+> qualquer jeito.**
+>
+> E construindo-a, ela se parte exatamente na linha que separa o que a nossa API faz do que ela não faz:
+>
+> | Seção | Quem atende | Custo |
+> |---|---|---|
+> | **Dados de acesso** — e-mail de login, senha | o provedor, via SDK | **zero endpoint nosso.** É a mesma chamada que T-13 já faz |
+> | **Dados pessoais** — `nome` e `contatos[]` da `Pessoa` | **ninguém, para quem tem conta** | é este achado |
+>
+> Ou seja: **(a) só produz lugar para trocar credencial.** O `nome` continuaria ineditável para sempre,
+> que é precisamente o que este achado denuncia. **Passo a recomendar (b)** — `PATCH /contexto/pessoa`,
+> restrito ao próprio chamador, sem tocar `papel` nem `Vinculo`, e sem abrir `/pessoas`.
+>
+> **A urgência não é estética.** `POST /pedidos-de-entrada` grava o `nome` **uma vez, ao entrar**; a
+> **trilha de auditoria é imutável** (contrato §9.1); e a trilha é *"a entrega mais defensável do
+> projeto"*. Um nome digitado errado no cadastro — e agora ele é digitado no cadastro, pelo F6 — fica na
+> trilha **para sempre**, e não há operação no produto inteiro que o corrija.
+>
+> ### ✅ Decidido pelo hub em 22/08/2026 — e por uma terceira via
+>
+> **Nem (a) nem (b).** O contrato §8.2 fechou assim: o nome **nasce do cadastro da conta** (T-11), é
+> **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com
+> o nome atual** —, e **depois disso não há como alterá-lo**. Não há `PATCH /contexto/pessoa`, e **não há
+> tela de perfil**.
+>
+> **A consequência foi declarada em vez de escondida, e é permanente:** o registro de transição é imutável,
+> então o nome vigente no momento de cada transição fica na trilha **para sempre**. Quem digitou errado e já
+> agiu no sistema carrega o erro no histórico.
+>
+> **Isso eleva o campo `nome` de T-11 e o de T-02 face A** de campo de formulário a **último ponto de
+> conserto de um dado permanente** — e é por isso que os dois trazem a frase que explica onde aquele nome
+> vai aparecer. Ver **Q-T6**, fechada.
 
 ### F12 · `Categoria` tem `ordem`; `Area` não
 
@@ -1631,6 +1930,51 @@ mudança de schema, que não é deste artefato. **Proposta ao hub:** ou `Area` g
 à `Categoria` e pela mesma razão, ou a ordenação por `nome` é declarada no contrato para que a tela não a
 escolha em silêncio.
 
+### F13 · `vinculos.area_id` não tem escritor para quem tem conta
+
+**A modelagem de 22/08/2026 tirou a unidade do morador de dentro do nome e a transformou em referência a
+uma `Área`, com integridade.** A intenção é clara e está escrita: os exemplos antigos do contrato chamavam
+alguém de *"Morador do 302"*, e a coluna existe para acabar com isso.
+
+**Percorri os 37 endpoints procurando quem escreve essa coluna. São dois, e os dois estão fechados para
+quem tem conta:**
+
+| Endpoint | Aceita `areaId`? | Quem alcança |
+|---|---|---|
+| `POST /vinculos` | **sim** | cria Pessoa **sem** Usuário — é o cadastro de Encarregado (D27) |
+| `PATCH /vinculos/{pessoaId}` | **sim** | recusa quem tem conta: `409 PESSOA_COM_CONTA_NAO_EDITAVEL` |
+| `POST /pedidos-de-entrada` | **não** — `{ codigoPublico, nome?, telefone? }` | é por aqui que o morador entra |
+| `POST /pedidos-de-entrada/{id}/aprovar` | **não** — `{ papel }` e nada mais | é por aqui que o Gestor o admite |
+
+**O morador tem conta** — *"sempre tem conta: sem ela não consegue registrar"* (Documentação da Demanda,
+personas secundárias). Então:
+
+> **A unidade só é registrável para quem não tem conta, e a unidade existe para descrever quem tem.**
+> O Encarregado terceirizado, que é justamente quem `area` deveria deixar `null`, é o único que pode
+> receber uma. O morador do 302 — o caso que nomeou a decisão — não pode.
+
+**Onde isso bate na tela, e por que é achado e não implicância.** T-08 mostra a coluna de unidade, e ela
+ficaria **vazia para todo morador da organização, para sempre**. Uma coluna que nunca se preenche não é
+dado incompleto: é uma tela prometendo uma informação que o produto não consegue produzir.
+
+**Três saídas, e a escolha é do hub:**
+
+| # | Saída | Custo |
+|---|---|---|
+| **(a)** | **`/aprovar` passa a aceitar `areaId?`** | um campo opcional num endpoint que já existe. O Gestor escolhe a unidade **no momento em que decide o papel** — que é exatamente quando ele está olhando o pedido e sabe quem é a pessoa. **É a que eu recomendo** |
+| **(b)** | **`POST /pedidos-de-entrada` aceita `areaId?`** | a própria pessoa declara a unidade. Mais barato de tela, e pior de domínio: ela declara onde mora **antes de ser admitida**, e ninguém confere — é dado que o Gestor teria de corrigir e não pode |
+| **(c)** | **`PATCH /vinculos` deixa de recusar `areaId` para quem tem conta** | a fronteira que a regra protege é `pessoas`, que é **global**; `vinculos.area_id` é **escopado por organização**. Editar a unidade de alguém **não** alteraria nada em outra organização. **A recusa atual é mais ampla do que o motivo dela** |
+
+**A (c) merece nota própria porque ela expõe algo maior que o campo:** a regra
+`PESSOA_COM_CONTA_NAO_EDITAVEL` foi escrita para proteger `pessoas` e está aplicada ao **endpoint inteiro**
+— inclusive a `areaId`, que não é de `pessoas`. Não é erro do contrato; é uma guarda cujo alcance ficou
+maior que a razão. **Se o hub escolher (c), a regra precisa dizer *quais campos* ela protege**, e não
+*qual endpoint*.
+
+**O que eu fiz na tela, enquanto isto está aberto:** T-08 mostra a coluna de unidade (o dado existe no
+schema e chega em `Vinculo.area`), o cadastro de Encarregado tem o seletor, **e a aprovação de pedido de
+entrada não tem** — porque não há campo para onde mandar. Desenhar o seletor lá seria oferecer um controle
+que não escreve nada, que é o começo da divergência que este documento evita em toda parte.
 ---
 
 ## 10. Suposições declaradas
@@ -1647,13 +1991,36 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **S-T4** | **Uma área, telas compartilhadas, ações por permissão** | Duas áreas dobram shell, navegação e estados vazios, e reintroduzem o de-para que o `?autor=eu` do contrato removeu. É a suposição mais cara de reverter |
 | **S-T5** | **T-03 escolhe o alvo primário por `visibilidadeAplicada`**, não pela largura da janela | Se a leitura certa for por viewport, a lista do Gestor no celular passa a mostrar três dimensões de comparação num espaço que não as comporta — ou a do Solicitante na tela grande ganha uma barra de filtros que ele nunca usa |
 | **S-T6** | **O *service worker* cacheia só o shell** nesta entrega | Se o hub quiser cache de leitura antes da fatia 2, é preciso decidir invalidação — e um detalhe de ocorrência velho é pior que uma espera |
-| **S-T7** | **`chave` + `ticket` sobrevivem à queda de rede por 15 minutos**, e o `POST /ocorrencias` é refeito sem novo upload | Se o ticket for de uso único no instante da emissão, a foto sobe duas vezes e o RNF6 sofre na segunda tentativa, que é justamente a que acontece com rede ruim |
+| **S-T7** | **`chave` + `ticket` sobrevivem à queda de rede por 15 minutos**, e o `POST /ocorrencias` é refeito sem novo upload. **Relida em 22/08/2026 — ver o quadro abaixo** | Se o ticket for de uso único no instante da emissão, a foto sobe duas vezes e o RNF6 sofre na segunda tentativa, que é justamente a que acontece com rede ruim |
 | **S-T8** | **A tela inicial de todo papel que age é T-03**, e o aplicativo instalado abre nela | Se o Gestor precisar do Dashboard primeiro, a tela inicial passa a depender de permissão, e o mapa da §3 ganha um ramo |
 | **S-T9** | **`analisar` é o único comando sem modal** | Se a `observacao` da análise se revelar valiosa, ele ganha modal e a triagem passa a ter um clique a mais por item — multiplicado pelos trinta de uma segunda-feira |
 | **S-T10** | **A lista de Áreas é ordenada por `nome`** (**F12**) | Se `Area` ganhar `ordem`, T-04 e T-09 passam a respeitá-la, como já fazem com `Categoria` |
 | **S-T11** | **Não há convite de instalação próprio do PWA** | Se a instalação virar meta, é uma tela-estado a projetar — e vale mais quando houver leitura offline para justificar instalar |
-| **S-T12** | **O nome da Pessoa no primeiro login vem dos metadados do provedor** (**F6**) | Se não vier, T-02 tem de pedir o nome, e o campo `nome` de `POST /pedidos-de-entrada` passa a ser obrigatório |
+| ~~**S-T12**~~ | ~~**O nome da Pessoa no primeiro login vem dos metadados do provedor** (**F6**)~~ | **Deixou de ser suposição em 21/08/2026.** T-11 pede o `nome` e o grava no metadado no `signUp` — o metadado existe porque nós o escrevemos. Ver o quadro do F6 |
 | **S-T13** | **Modal empurra histórico por fragmento**, então "voltar" fecha o modal | Se a plataforma não sustentar isso, "voltar" com modal aberto leva o usuário fora da ocorrência no meio de um cancelamento |
+
+> ### A releitura da S-T7 — o reenvio nunca foi seguro, e agora ele falha em voz alta
+>
+> **A S-T7 foi escrita supondo que reenviar a mesma `chave` era inofensivo.** Não era. Ela cobria um caso e
+> ignorava o outro:
+>
+> | O que aconteceu | O que o reenvio fazia até 22/08 | O que faz agora |
+> |---|---|---|
+> | O `POST` **não** chegou ao servidor | reenvia e cria **uma** ocorrência — correto, e é o caso que a suposição descrevia | igual |
+> | O `POST` **comitou** e só a resposta se perdeu | reenvia e cria **uma segunda ocorrência apontando para a mesma foto**, em silêncio | `409 ANEXO_JA_REIVINDICADO`, com o `ocorrenciaId` de destino |
+>
+> **O `UNIQUE (chave)` de `anexos` não criou o problema: ele tornou o problema visível.** Antes, a coluna
+> `imagem_caminho` aceitava a mesma chave em duas ocorrências, e o duplicado nascia sem que ninguém
+> percebesse — nem o Solicitante, que via a ocorrência ir embora, nem o Gestor, que recebia duas.
+>
+> **O que muda na suposição:** ela deixa de dizer *"o reenvio é seguro"* e passa a dizer **"o reenvio é
+> seguro ou informativo"**. A tela não precisa distinguir os dois casos — ela reenvia, e se vier o `409`,
+> **navega para a ocorrência que existe** em vez de insistir. É idempotência parcial ganha de graça, num
+> caminho onde o contrato §7.10 declarou que não construiria mecanismo nenhum.
+>
+> **E o que continua suposição:** que o `ticket` sobreviva os 15 minutos e que os **dois** `PUT` — original
+> e miniatura — possam ser refeitos com a mesma autorização. Se o storage recusar o segundo `PUT` numa
+> chave já escrita, o reenvio depois de rede ruim precisa de outra ideia.
 
 ---
 
@@ -1665,10 +2032,11 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **Q-T2** | **Qual é a `organizacaoAtiva` numa sessão sem cookie?** (F2) | (a) com um vínculo, o servidor a escolhe; com vários, `null`; (b) sempre `null`, e o cliente sempre escolhe | **(a).** (b) cobra uma pergunta de resposta única em todo login, sob cold start |
 | **Q-T3** | **Ação indisponível: escondida ou desabilitada?** (S-T2) | (a) escondida; (b) desabilitada com o motivo | **(a)**, com uma ressalva honesta: **(b) ensina o produto**, e sem teste de usabilidade não temos evidência de qual vence. Se o hub escolher (b), a lista completa de comandos vira constante no cliente — e isso precisa estar declarado como exceção à §8.5 do contrato |
 | **Q-T4** | **T-10 vira capacidade no `escopo.md`?** (F3) | (a) não — nota na atividade 1, ao lado da nº 10; (b) sim — capacidade nova, `NOSSO` | **(a).** Não há nada a construir além de texto, e a nota é o instrumento que a S-A15 já usou para o mesmo tipo de estado |
-| **Q-T5** | **De onde vem o nome de uma Pessoa recém-criada?** (F6) | (a) metadados do provedor, corrigível no pedido de entrada; (b) `nome` obrigatório em `POST /pedidos-de-entrada` | **(a)**, se o Supabase Auth garantir o metadado. Se não garantir, é (b) — e (b) é mudança de schema |
-| **Q-T6** | **Quem tem conta edita os próprios dados onde?** (F11) | (a) no provedor, com o ACL ressincronizando `pessoas.nome` — e a frase do §8.2 é qualificada; (b) `PATCH /contexto/pessoa`, endpoint e capacidade novos | **(a)** para a primeira entrega. Em qualquer das duas, **não há tela de perfil neste inventário** |
+| ~~**Q-T5**~~ | ~~**De onde vem o nome de uma Pessoa recém-criada?** (F6)~~ | — | ✅ **Respondida por construção em 21/08/2026, e por um caminho que não estava nas opções:** as duas supunham que o formulário de cadastro não era nosso. **T-11 pede o `nome`**, sem mudança de schema. Ver o quadro do F6 |
+| ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026, e por uma terceira via.** Nem (a) nem (b): o contrato §8.2 declarou que o nome nasce do cadastro da conta, é **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com o nome atual** —, e **depois disso não há como alterá-lo**. Continua **não havendo tela de perfil**, e a consequência permanente está declarada: o nome vigente em cada transição fica na trilha para sempre. É limitação aceita, e é o que faz o campo `nome` de T-11 e o de T-02 face A serem os dois pontos que mais importam do produto inteiro |
 | **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(a)** por ora. *"Pessoas"* contradiria a regra do vínculo primeiro na primeira palavra, e **nome novo é proposta ao glossário, não invenção deste inventário** (glossário §9) |
 | **Q-T8** | **A contagem de pedidos pendentes no menu do Gestor vale uma requisição a mais no shell?** (F10) | (a) sim; (b) não — o Gestor descobre abrindo T-08 | **(a).** Com a notificação ⬜, é a única coisa que separa "entra hoje" de "entra quando alguém lembrar" |
+| **Q-T10** | **Onde a unidade de quem tem conta é registrada?** (F13) | (a) `/aprovar` aceita `areaId?`; (b) `POST /pedidos-de-entrada` aceita `areaId?`; (c) `PATCH /vinculos` deixa de recusar `areaId` para quem tem conta | **(a).** O Gestor escolhe a unidade **no mesmo momento em que escolhe o papel**, que é quando ele está olhando o pedido e sabe quem é a pessoa. (b) faz a própria pessoa declarar onde mora antes de ser admitida, sem ninguém conferir. (c) é defensável e expõe algo maior — a guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` protege `pessoas`, que é global, mas está aplicada ao **endpoint inteiro**, inclusive a um campo que é do vínculo. **Sem decisão, a coluna de unidade de T-08 fica vazia para todo morador, para sempre** |
 
 ---
 
@@ -1681,9 +2049,13 @@ negativo, um rótulo com parêntese fora de aspas (`A[Em análise (pelo Gestor)]
 mostra que a verificação de fato verifica. **Parsear não é renderizar:** a conferência visual no GitHub
 está pendente.
 
+**Revalidado em 21/08/2026**, depois de o mapa ganhar T-11, T-12 e T-13: mesmo método, mesma versão
+(11.17.0), bloco `OK` e controle negativo recusado. Um diagrama alterado e não reparseado é um diagrama
+que se supõe válido.
+
 **2 · Nenhuma tela foi validada com um usuário.** Não há teste de usabilidade no projeto (limitação 4
-da Documentação da Demanda), e o risco de usabilidade é **alto**. As treze suposições da §10 são
-suposições de verdade, não hipóteses de fachada — e a mais frágil é a **S-T2** (esconder a ação
+da Documentação da Demanda), e o risco de usabilidade é **alto**. As doze suposições ainda vivas da §10
+são suposições de verdade, não hipóteses de fachada — e a mais frágil é a **S-T2** (esconder a ação
 indisponível), porque as duas opções ensinam coisas diferentes e nenhuma foi testada.
 
 **3 · Nenhum texto de interface foi revisado por outra pessoa.** As frases da §7 e dos estados vazios
