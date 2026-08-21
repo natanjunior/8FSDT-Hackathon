@@ -137,13 +137,15 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-26 | **Quem tem conta não corrige o próprio nome depois de entrar.** `pessoas` é global, e por isso `PATCH /vinculos/{pessoaId}` recusa quem tem Usuário — um Gestor não pode alterar o cadastro de alguém em todas as outras organizações. A regra está certa; o que faltava era o outro lado. Na primeira entrega o nome nasce do cadastro da conta e é corrigível **uma vez**, no pedido de entrada. Depois disso, não há caminho. **A consequência é permanente**: o registro de transição é imutável, então o nome vigente em cada transição fica na trilha de auditoria para sempre. Não há tela de perfil porque ela não teria o que salvar. Encontrado ao montar o inventário de telas, pela pergunta *"o que uma tela de perfil salvaria?"*, 20/08/2026 |
 | PA-27 | **O Gestor não consegue ver o que o Solicitante lê.** Os rótulos de status dependem de quem lê, e são calculados no servidor para o chamador — então nenhum endpoint devolve o rótulo *do outro lado*. Na prática, um Gestor escrevendo a observação de uma transição **não tem como conferir na tela dele o texto que o morador vai receber**, e a observação é imutável depois de gravada. O protótipo contornou mostrando o texto cru na pré-visualização, em vez do rótulo — o que ajuda, mas não é a mesma coisa. Levantado no protótipo low-fi, 21/08/2026 |
 
-> **PA-24 e PA-25 não vieram do Event Storming**, e por isso quebram a proveniência desta seção. Os dois
-> apareceram depois: um na revisão do contrato de API, outro ao desenhar o fluxo de entrada na
-> Organização — nos dois casos, quando decisões tomadas em momentos diferentes foram lidas juntas pela
-> primeira vez. O modo como surgiram é informação: **nenhuma das decisões envolvidas erra sozinha.**
+> **Quatro pontos de atenção não vieram do Event Storming**, e por isso quebram a proveniência desta
+> seção: **PA-24** (revisão do contrato de API), **PA-25** (ao desenhar o fluxo de entrada na
+> Organização), **PA-26** e **PA-27** (ao montar o inventário de telas e ao desenhar o protótipo). Nos
+> quatro casos foi a mesma circunstância: decisões tomadas em momentos diferentes lidas juntas pela
+> primeira vez. O modo como surgiram é informação: **nenhuma das decisões envolvidas erra sozinha** — e
+> o instrumento que as pegou não foi revisão de texto, foi desenhar e listar.
 >
-> Os dois compartilhavam a causa raiz — *o papel de um vínculo é imutável e não havia como desfazer um
-> vínculo*. **O PA-25 foi resolvido** (ver Resolvidos). O **PA-24 continua aberto e não foi resolvido pelo
+> **O PA-24 e o PA-25 compartilhavam a causa raiz** — *o papel de um vínculo é imutável e não havia como
+> desfazer um vínculo*. **O PA-25 foi resolvido** (ver Resolvidos). O **PA-24 continua aberto e não foi resolvido pelo
 > mesmo conserto**: remover um vínculo não cria Gestor, então a Organização cujo único Gestor perde o
 > acesso segue sem caminho de volta dentro do produto. Vale registrar que o conserto do PA-25 **abriria**
 > uma segunda porta para o PA-24 se não tivesse a guarda do último Gestor — o Gestor inicial de uma

@@ -101,11 +101,11 @@ cinco famílias da definição da p.5.
       automáticas, rodam sobre `docs/api/openapi.yaml`, e cada uma protege uma decisão que se perde em
       silêncio (§15 de [contrato-de-api.md](contrato-de-api.md)):
 
-      | Verificação | O que ela impede |
-      |---|---|
-      | `status` não aparece em **nenhum** schema de entrada | Que a `Ocorrência` ganhe um `PATCH` e a ADR-0001 caia junto |
-      | Nenhum caminho contém `pessoas` | O vazamento entre organizações mais provável do produto, subindo da consulta para a superfície pública |
-      | `organizacao` só nos dois caminhos permitidos | Que a organização volte a ser informada pelo cliente, contra a ADR-0003 |
+| Verificação | O que ela impede |
+|---|---|
+| `status` não aparece em **nenhum** schema de entrada | Que a `Ocorrência` ganhe um `PATCH` e a ADR-0001 caia junto |
+| Nenhum caminho contém `pessoas` | O vazamento entre organizações mais provável do produto, subindo da consulta para a superfície pública |
+| `organizacao` só nos dois caminhos permitidos | Que a organização volte a ser informada pelo cliente, contra a ADR-0003 |
 
 - [ ] **A especificação versionada corresponde ao código.** Enquanto não há código, `openapi.yaml` é
       escrito à mão. Quando houver, o pipeline regenera a especificação a partir dos schemas de validação

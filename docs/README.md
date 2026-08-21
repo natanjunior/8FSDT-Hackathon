@@ -13,22 +13,50 @@ Trabalho da Fase 5 da pós-graduação em Full Stack Development (FIAP).
 Esta pasta contém a documentação da solução. Material de terceiros — o enunciado do desafio e as
 apostilas das aulas — e o material de processo interno ficam fora do repositório.
 
-Os documentos abaixo estão na ordem em que foram produzidos, que é também a ordem de leitura: cada um
-usa o anterior.
+Os documentos abaixo estão na **ordem em que foram produzidos** — cada um usa o anterior. O número é
+identificador, não posição de leitura: quem entra agora encontra as duas trilhas logo depois da tabela.
 
 | # | Documento | O que contém |
 |---|---|---|
 | 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
 | 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra na primeira entrega, o que ficou para depois e por quê, e a evolução prevista |
-| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: cerca de 56 termos com uma definição cada, o que não confundir com o quê, cinco colisões de vocabulário resolvidas, e os termos deliberadamente não usados |
+| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: **uma definição por termo**, o que não confundir com o quê, as cinco colisões de vocabulário que ele resolve, e os termos deliberadamente não usados |
 | 04 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
 | 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
 | 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em **[api/openapi.yaml](api/openapi.yaml)**, em OpenAPI 3.1 |
 | 07 | **[Fluxos e Diagramas](fluxos-e-diagramas.md)** | Os fluxos que o texto explica pior: o comando de transição de ponta a ponta, a resolução de contexto, a entrada na organização, o registro com imagem — mais a relação de cada um com os três fluxogramas do enunciado, e a lista do que foi deliberadamente **não** desenhado |
-| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As dez telas da primeira entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
-| 09 | **[Registros de Decisão de Arquitetura](adr/)** | Quatro decisões, no formato Nygard: o histórico de transições como conceito de domínio, a stack, o isolamento entre organizações, e a execução em container |
+| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As telas da primeira entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
+| 09 | **[Registros de Decisão de Arquitetura](adr/)** | Uma decisão por arquivo, no formato Nygard, cada uma com o contexto, as alternativas rejeitadas e as consequências — inclusive as ruins. O índice, com o status de cada uma, está em **[adr/README.md](adr/README.md)** |
 | 10 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
 | 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
+| 12 | **[Protótipo Low-Fi](prototipo-low-fi.md)** | A forma das telas: o orçamento de tempo do registro em menos de um minuto — o único requisito cronometrado do projeto —, os desenhos em baixa fidelidade, e o que desenhar descobriu |
+
+> **O 12 é identificador, não fim de fila.** O protótipo foi produzido depois do inventário de telas e
+> lê-se logo em seguida a ele — mas renumerar 09, 10 e 11 quebraria referências que outros documentos já
+> fazem por número. Identificador serve para ser estável.
+
+---
+
+## Por onde começar
+
+**Caminho curto.** A [narrativa da primeira entrega](escopo.md#a-primeira-entrega-em-uma-passada), na
+abertura do Escopo, conta o produto de ponta a ponta e termina com o que ele **não** faz. De lá:
+[Arquitetura](arquitetura.md) para o mecanismo, e a
+[ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md) para a decisão que sustenta o
+resto — a auditabilidade como invariante do agregado, e não como convenção do time.
+
+**Caminho completo.** A ordem 01 a 12 da tabela acima.
+
+**Se a pergunta for específica**, o atalho é outro:
+
+| A pergunta | Onde ela é respondida |
+|---|---|
+| *Por que este produto existe?* | Documentação da Demanda, §2 — as duas jornadas atuais, narradas |
+| *O que entra e o que não entra?* | Escopo, partes 2 e 3 — com o motivo de cada corte |
+| *Como a auditabilidade é garantida?* | ADR-0001, e a tabela de transições em Arquitetura, Parte I §4 |
+| *Como um condomínio não vê o dado do outro?* | ADR-0003, e a §4 do Modelo de Dados |
+| *O que a API expõe?* | `api/openapi.yaml` no Swagger; o porquê de cada escolha, no Contrato de API |
+| *O que vocês não sabem ainda?* | Premissas e Questões Abertas — as premissas, os pontos de atenção em aberto e as divergências das fontes |
 
 ---
 
@@ -41,9 +69,11 @@ Três fontes, nesta ordem de autoridade:
    apenas exige que algo exista, a forma foi decidida no projeto.
 2. **O material da disciplina de DDD da Fase 1** — nove aulas. Cada prática adotada é citada como
    `aula N, p.X`. O que veio de fora da disciplina está marcado **[FONTE EXTERNA]**.
-3. **Descoberta própria** — Event Storming pelos dez passos da aula 6, entrevista de domínio, e benchmark
-   de mercado sobre sistemas de gestão de condomínio, softwares de manutenção, service desk e plataformas
-   cívicas de relato.
+3. **Descoberta própria** — Event Storming pelos dez passos da aula 6; a experiência vivida de um
+   integrante do time, que é síndico do condomínio onde mora; e benchmark de mercado sobre sistemas de
+   gestão de condomínio, softwares de manutenção, service desk e plataformas cívicas de relato.
+   **Não houve entrevista com pessoas de fora do time** — é a limitação declarada na premissa **P5**, e a
+   que mais escopo destravaria se fosse resolvida.
 
 ---
 

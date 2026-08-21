@@ -66,11 +66,11 @@ emoji atrapalha leitor de tela e não sobrevive a copiar e colar.
 | Diagrama | Onde | Por que não é refeito aqui |
 |---|---|---|
 | **Mapa de contexto** — contextos delimitados e padrões de integração | [`arquitetura.md` §3](arquitetura.md) | É o desenho do design estratégico de DDD (aulas 3 e 4). Um segundo desenho das mesmas caixas seria a segunda cópia a manter |
-| **Diagrama Entidade-Relacionamento** — as 14 tabelas, mais `auth.users` | [`modelo-de-dados.md` §3](modelo-de-dados.md) | É o esquema físico. O DG-4 e o DG-5 apontam para ele em vez de repetir colunas |
+| **Diagrama Entidade-Relacionamento** — o esquema físico inteiro, mais `auth.users` | [`modelo-de-dados.md` §3](modelo-de-dados.md) | É o esquema físico. O DG-4 e o DG-5 apontam para ele em vez de repetir colunas |
 
 **A regra que isso serve: um diagrama, um lugar.** Nunca o mesmo diagrama em dois arquivos — duplicata
 diverge, e diagrama divergente é pior que diagrama ausente. Dois dos seis aceitos provavelmente
-mudaram-se para `arquitetura.md` por decisão do hub em 20/08/2026 — o DG-1 e o DG-6. Ver §5.
+mudaram-se para `arquitetura.md` em 20/08/2026 — o DG-1 e o DG-6. Ver §5.
 
 ---
 
@@ -95,7 +95,7 @@ vida traz um nó *"Avaliação do solicitante"* depois de `Resolvida`, que a lis
 `fluxograma-2` não têm — resolvido pela **D1**: avaliação é ação sobre `Resolvida`, não sexto estado.
 Conferindo o PDF página a página para escrever esta seção, apareceu que **só a imagem da p.2 (bloco ②)
 tem esse nó**: a imagem da p.4 (bloco ④, *"Fluxo principal da ocorrência"*) tem os cinco estados e nada
-mais. A documentação citava *"p.2 e p.4"*, e o hub **corrigiu a citação em 20/08/2026**. A correção
+mais. A documentação citava *"p.2 e p.4"*, e **a citação foi corrigida em 20/08/2026**. A correção
 **reforça a D1** em vez de enfraquecê-la — são três fontes contra uma, e não duas contra duas. Detalhe em
 §6, **L-8**.
 
@@ -106,7 +106,7 @@ mais. A documentação citava *"p.2 e p.4"*, e o hub **corrigiu a citação em 2
 ### DG-1 · Máquina de estados da `Ocorrência`
 
 > **Este diagrama mudou-se para [`arquitetura.md`, Parte I §4](arquitetura.md), logo abaixo da tabela de
-> transições permitidas** — decisão do hub em 20/08/2026. O motivo: a tabela diz **quem pode** e o
+> transições permitidas** — decisão de 20/08/2026. O motivo: a tabela diz **quem pode** e o
 > diagrama diz **que forma o grafo tem**; são duas metades de um argumento só, e uma transição nova que
 > entre num e não no outro fica visivelmente errada quando os dois estão juntos. Separados, não fica.
 >
@@ -178,7 +178,7 @@ sequenceDiagram
     end
 
     Note over CLI,BD: nenhuma seta escreve status vindo de fora do Domínio,<br/>e nenhuma seta pede grave um registro
-    Note over APP: na primeira entrega NENHUMA política reage a uma transição:<br/>POL-05 e POL-06, que notificam, são fatia 2 — ver L-3
+    Note over APP: na primeira entrega NENHUMA política reage a uma transição:<br/>POL-05 e POL-06, que notificam, são evolução prevista — ver L-3
 ```
 
 > **O que este diagrama afirma:** não existe caminho em que o status muda sem que o registro de
@@ -286,7 +286,7 @@ flowchart TD
     V1 --> ORG
     ORG --> G
 
-    V1 --> TRAVA["O papel escolhido na aprovação é DEFINITIVO na primeira<br/>entrega: não há PATCH de papel, revogar vínculo é fatia 2,<br/>e um novo pedido responde 409 JA_VINCULADO — lacuna L-6"]
+    V1 --> TRAVA["O papel escolhido na aprovação é DEFINITIVO na primeira<br/>entrega: não há PATCH de papel, revogar vínculo é evolução prevista,<br/>e um novo pedido responde 409 JA_VINCULADO — lacuna L-6"]
     ORG --> BECO["Se o único Gestor perde o acesso: ninguém entra,<br/>ninguém aprova e ninguém promove. A saída existe<br/>só fora do produto — S-A15 e PA-24"]
 ```
 
@@ -297,8 +297,8 @@ flowchart TD
 **Origem dos elementos.** *Criar conta* e *autenticar-se* são `ENUNCIADO · aberto` (S1, S2) — e nem
 sequer são endpoints deste produto, porque autenticação é subdomínio **Genérico**, comprado do provedor
 (aula 1; [`arquitetura.md` §1](arquitetura.md)). **Todo o resto é `NOSSO`**: auto-serviço (D26), código
-público e pedido de entrada (D25), convite (D25, fatia 2), cadastro de Encarregado (D27). **O que está
-tracejado é fatia 2.**
+público e pedido de entrada (D25), convite (D25, evolução prevista), cadastro de Encarregado (D27). **O que está
+tracejado é evolução prevista.**
 
 **O que ele deliberadamente não mostra:** os campos de cada requisição, que estão no
 [contrato §8.2](contrato-de-api.md); e a tabela `pessoas` — global e sem `organizacao_id` —, que é a
@@ -382,12 +382,12 @@ falha, que é a **L-5**.
 ### DG-6 · Cadeia de implantação
 
 > **Este diagrama mudou-se para [`arquitetura.md`, Parte II §9](arquitetura.md), dentro do plano de
-> implantação** — decisão do hub em 20/08/2026. O motivo: ele é o parágrafo *"a cadeia de entrega"* com os
+> implantação** — decisão de 20/08/2026. O motivo: ele é o parágrafo *"a cadeia de entrega"* com os
 > outros dois provedores e a migração no lugar, e quem lê um plano de implantação é exatamente quem precisa
 > dele. **Um diagrama, um lugar** — ele não é reproduzido aqui.
 >
 > **Uma seta mudou na mudança.** Aqui ela era tracejada, com a lacuna L-4 escrita no rótulo: *"quem dispara
-> a migração não está definido"*. O hub respondeu — **um passo do próprio workflow do Actions, antes do
+> a migração não está definido"*. A resposta veio — **um passo do próprio workflow do Actions, antes do
 > deploy** — e na versão que mora na arquitetura a seta é firme e nomeada. **O achado sobreviveu ao
 > conserto**: fica registrado no L-4 da §6, porque o rastro de como a lacuna foi encontrada vale mais que a
 > seta.
@@ -433,9 +433,9 @@ Doze recusas. Cada uma tem o motivo, porque **recusa sem motivo é indistinguív
 | **Ciclo de vida do objeto no storage** (`pendente → confirmado → apagado`) | Três estados e duas setas, e as duas já são passos do DG-5. Um `stateDiagram-v2` com três nós é uma frase escrita de forma cara |
 | **Anonimização de uma Pessoa (LGPD, RNF10)** | Os cinco passos já estão numerados em `modelo-de-dados.md` §10.1, em ordem, com a camada de cada um. O que interessa ali é o que **não** é alcançado — texto livre e imagem —, e isso é prosa, não seta |
 | **Trilha de auditoria × linha do tempo** | A diferença é de recorte e vocabulário, e está numa tabela de quatro linhas no contrato §8.5. Não há topologia nem ordem |
-| **Os três canais de conversa** | Dois dos três são fatia 2. Desenhar uma máquina de canais na primeira entrega mostraria dois nós inalcançáveis — foi por essa mesma razão que o contrato recusou expor `canais/{tipo}` |
+| **Os três canais de conversa** | Dois dos três são evolução prevista. Desenhar uma máquina de canais na primeira entrega mostraria dois nós inalcançáveis — foi por essa mesma razão que o contrato recusou expor `canais/{tipo}` |
 | **Modelo de leitura do dashboard** | Cinco indicadores num endpoint. É um schema de resposta, e ele já está escrito |
-| **Mapa de navegação de telas** | **Não é nosso.** É o passo 4 da sequência. Desenhá-lo aqui criaria a duplicata antes mesmo de o original existir — e o original **já existe**: [`inventario-de-telas.md`](inventario-de-telas.md) §3 |
+| **Mapa de navegação de telas** | **Não é nosso.** É do inventário de telas. Desenhá-lo aqui criaria a duplicata antes mesmo de o original existir — e o original **já existe**: [`inventario-de-telas.md`](inventario-de-telas.md) §3 |
 
 ---
 
@@ -443,10 +443,10 @@ Doze recusas. Cada uma tem o motivo, porque **recusa sem motivo é indistinguív
 
 Dois destes seis ficam melhor dentro de um documento existente, e a razão é a mesma nos dois casos: **um
 diagrama que precisa concordar com uma tabela deve estar ao lado dela**, porque distância é como a
-divergência começa. **O hub aprovou e moveu os dois em 20/08/2026** — as âncoras abaixo são onde eles
-estão, não onde deveriam estar.
+divergência começa. **Os dois foram movidos em 20/08/2026** — as âncoras abaixo são onde eles estão, não
+onde deveriam estar.
 
-| Diagrama | Deveria morar em | Âncora exata | Por que lá é melhor |
+| Diagrama | Mora em | Âncora exata | Por que lá é melhor |
 |---|---|---|---|
 | **DG-1** — máquina de estados | `docs/arquitetura.md` | **Parte I, §4**, logo após a tabela *"Tabela de transições permitidas"* e antes do parágrafo *"`Resolvida` e `Cancelada` são terminais de verdade"* | A tabela e o diagrama são **um argumento só**: a tabela diz quem pode, o desenho diz que forma o grafo tem. Separados, o dia em que uma transição mudar só um dos dois muda |
 | **DG-6** — cadeia de implantação | `docs/arquitetura.md` | **Parte II, §9**, logo após o parágrafo que começa em *"**A cadeia de entrega:** merge em `main` → …"* | O diagrama é aquele parágrafo com os outros dois provedores e a migração no lugar. O leitor do plano de implantação é exatamente quem precisa dele |
@@ -463,7 +463,7 @@ diagrama divergente é pior que diagrama ausente.
 ## 6. O que desenhar revelou
 
 Nove itens. Nenhum foi resolvido *aqui* — **ambiguidade se registra, não se resolve em silêncio**, e
-quatro deles tocavam decisões que eram do hub.
+quatro deles tocavam decisões de produto, que não são deste documento.
 
 **Os nove foram respondidos em 20/08/2026**, e a tabela abaixo é o que aconteceu com cada um. As seções
 seguintes preservam o achado como foi encontrado, porque **o rastro vale mais que a conclusão**: o que
@@ -478,22 +478,22 @@ deles existiam havia semanas em documentos já revisados.
 | **L-4** | A migração de banco não tinha dono na cadeia de implantação | **Passo do próprio workflow do Actions, antes do deploy.** Recusado o comando manual, pelo motivo das ADR-0001 e 0003: com ele, a ordem segura depende de alguém lembrar |
 | **L-5** | O objeto de imagem pode ficar confirmado e órfão se a transação falhar | Declarado como **terceiro caso residual** na §10.3 do contrato, com o argumento de por que a ordem atual é a mais segura das duas |
 | **L-6** | Aprovar pedido de entrada com o papel errado é irreversível | **PA-25**, com o conserto decidido: um **desfazer estreito** — anular a aprovação enquanto o vínculo não tiver histórico —, e não *revogar vínculo*. Escopo e contrato entram juntos numa próxima rodada |
-| **L-7** | O modelo de dados chamava a recorrência de fatia 2 | Justificativa corrigida. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo |
+| **L-7** | O modelo de dados classificava a recorrência como adiada | Justificativa corrigida. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo |
 | **L-8** | A citação *"p.2 e p.4 do PDF"* atribuía o nó de avaliação a duas imagens | Corrigida para **p.2**, nas premissas. O erro **enfraquecia a própria premissa**, ao transformar 3 a 1 em 2 a 2 |
 | **L-9** | Dois textos enumeravam caminhos de entrada e deixavam um de fora | `escopo.md` §1.5 passou a listar os **três** caminhos, e a arquitetura passou a dizer *"no agregado `Ocorrência`"* onde generalizava |
 
 ### L-1 · A camada que resolve o contexto tem dois donos diferentes em dois documentos
 
-[`adr/0003`](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), linha 24, diz: *"**O handler**
-que valida a sessão lê o usuário autenticado, **busca o vínculo ativo** e monta um contexto"*. Mas
-[`arquitetura.md`](arquitetura.md) linha 183 proíbe a camada de **Interface** — que é onde o *route
-handler* vive — de **tocar o banco**, e a Parte II §1 atribui a resolução à camada de **Aplicação**:
+A [`ADR-0003`](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md) dizia, no ponto 1 da Decisão:
+*"**O handler** que valida a sessão lê o usuário autenticado, **busca o vínculo ativo** e monta um
+contexto"*. Mas a [`arquitetura.md`](arquitetura.md) (Parte I, §5) proíbe a camada de **Interface** — que
+é onde o *route handler* vive — de **tocar o banco**, e a Parte II §1 atribui a resolução à camada de **Aplicação**:
 *"a camada de aplicação resolve o contexto da requisição"*.
 
 Desenhar o DG-3 obrigou a escolher de quem é o passo, e as duas leituras têm consequência: se o ponto
 único vive na Interface, ele viola a regra de dependência que a ADR-0001 e a ADR-0003 declaram proteger.
 **Assumimos a leitura da `arquitetura.md`** (Aplicação) e declaramos a suposição em §7.
-**Proposta ao hub:** trocar *"o handler"* por *"a camada de aplicação, invocada uma vez por
+**Proposta:** trocar *"o handler"* por *"a camada de aplicação, invocada uma vez por
 requisição"* na ADR-0003. É redação, não decisão — mas é redação sobre a fronteira mais cara do projeto.
 
 ### L-2 · Duas escritas em tabela escopada acontecem fora do repositório escopado
@@ -515,7 +515,7 @@ do funil"*) e acrescentar caso de teste próprio ao critério **A4**.
 
 ### L-3 · Na primeira entrega, nenhuma política reage a uma transição de status
 
-[`arquitetura.md` Parte II §1](arquitetura.md), linha 211, descreve o fluxo de ponta a ponta terminando
+A [`arquitetura.md`](arquitetura.md), Parte II §1, descreve o fluxo de ponta a ponta terminando
 em *"as **políticas** in-process reagem ao evento, criando notificação ou abrindo canal"*. Cruzando as
 dez políticas do passo 6 do Event Storming com o recorte do [`escopo.md`](escopo.md):
 
@@ -529,7 +529,7 @@ dez políticas do passo 6 do Event Storming com o recorte do [`escopo.md`](escop
 | POL-08 pausar o relógio ativo | Não escreve nada, por desenho |
 | POL-09 e POL-10 alarme e envelhecimento | Não — ⬜ |
 
-**Sobra uma**, mais a que o hub acrescentou ao aprovar a Q-API-1 (*vínculo estabelecido ao aprovar
+**Sobra uma**, mais a que foi acrescentada ao aprovar a Q-API-1 (*vínculo estabelecido ao aprovar
 pedido de entrada*) — e **essa não está na tabela do passo 6**: o passo 5 foi atualizado em 20/08/2026
 e o passo 6 não. Duas consequências: a frase da arquitetura descreve um passo que na primeira entrega é
 vazio para **todo** comando de transição; e o contrato afirma, em §3.4 e §8.4, que reatribuir
@@ -538,7 +538,7 @@ vazio para **todo** comando de transição; e o contrato afirma, em §3.4 e §8.
 
 ### L-4 · A migração de banco não tem dono na cadeia de implantação
 
-[`arquitetura.md` §9](arquitetura.md), linha 407: *"**Migrações de banco** são versionadas em arquivo e
+A [`arquitetura.md`](arquitetura.md), Parte II §9, diz: *"**Migrações de banco** são versionadas em arquivo e
 aplicadas pelo CLI do Supabase"*, e a ordem segura é *"migração compatível primeiro, código depois"*.
 **Quem executa o CLI, e em que momento da cadeia, não está escrito** — desenhar o DG-6 obrigou a
 escolher a origem de uma seta, e ela ficou tracejada com a lacuna no rótulo.
@@ -568,7 +568,7 @@ Achado do DG-4, e é irmão mais amplo do **PA-24 / S-A15**. `POST /pedidos-de-e
 recebe `{ papel }` e cria o Vínculo. A partir daí, na primeira entrega:
 
 - **`PATCH /vinculos/{pessoaId}` não aceita `papel`** — Q-API-6, resposta (a);
-- **revogar vínculo é ⬜** (fatia 2);
+- **revogar vínculo é ⬜** (evolução prevista);
 - **um novo pedido responde `409 JA_VINCULADO`**.
 
 Aprovar um morador como `encarregado` por engano produz uma pessoa que autentica, atravessa o funil
@@ -580,11 +580,11 @@ formulário de rotina.
 primeira entrega** — é uma história `P` no mapa e desfaz os dois casos; (c) aceitar `papel` no `PATCH`,
 que é um campo mas vira capacidade nova no escopo. **Recomendamos (b).**
 
-### L-7 · O modelo de dados chama a recorrência de fatia 2; o escopo e o contrato a põem na primeira entrega
+### L-7 · O modelo de dados classificava a recorrência como adiada; o escopo e o contrato a põem na primeira entrega
 
-[`modelo-de-dados.md`](modelo-de-dados.md), linha 792, justifica **não criar** os índices
-`(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` dizendo que eles *"servem à recorrência
-(D19), **que é fatia 2**"*. Mas [`escopo.md`](escopo.md) lista *"Recorrência por categoria e por área"*
+O [`modelo-de-dados.md`](modelo-de-dados.md), na §6.7, justifica **não criar** os índices
+`(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` com dois argumentos — e o primeiro deles
+dizia que a recorrência ainda **não estava na primeira entrega**. Mas [`escopo.md`](escopo.md) lista *"Recorrência por categoria e por área"*
 como ✅ da primeira entrega, e o [contrato §8.7](contrato-de-api.md) a devolve em `GET /dashboard`.
 
 **A decisão de não criar os índices pode continuar certa** — o segundo argumento da mesma linha é que
@@ -594,9 +594,8 @@ argumento do plano de consulta.
 
 ### L-8 · A divergência da avaliação é citada em duas páginas do PDF; só uma tem o nó
 
-[`premissas-e-questoes-abertas.md`](premissas-e-questoes-abertas.md), linha 45 (e o mesmo em
-`CLAUDE.md`): *"A imagem do ciclo de vida (**p.2 e p.4** do PDF) mostra um nó 'Avaliação do
-solicitante'"*. Conferido página a página: **a p.2 (bloco ②, "Ciclo de vida da ocorrência") mostra; a
+A [`premissas-e-questoes-abertas.md`](premissas-e-questoes-abertas.md), na **P3**, dizia: *"A imagem do
+ciclo de vida (**p.2 e p.4** do PDF) mostra um nó 'Avaliação do solicitante'"*. Conferido página a página: **a p.2 (bloco ②, "Ciclo de vida da ocorrência") mostra; a
 p.4 (bloco ④, "Fluxo principal da ocorrência") não** — ela tem os cinco estados, `Cancelada` tracejada
 e o quadro de histórico, e nada mais.
 
@@ -630,7 +629,7 @@ foi assumido para fechar um desenho está aqui, com o que muda se estiver errado
 | **S-DG2** | **A etiqueta do objeto é trocada antes do `commit`**, na ordem literal da §10.2 do contrato (**L-5**) | Se a ordem for a inversa, o DG-5 troca duas linhas de lugar — e o caminho de falha declarado passa a ser perda de imagem em ocorrência real, que é pior |
 | **S-DG3** | **A migração é aplicada antes de a revisão nova servir tráfego** — o DG-6 desenha a seta assim, com o disparador em aberto (**L-4**) | Se a migração for manual e posterior, o rollback instantâneo da aplicação deixa de ser seguro, e a ordem declarada na §9 vira recomendação sem lugar onde é aplicada |
 | **S-DG4** | **`retomar` tem exatamente dois destinos** — `Em análise` e `Em atendimento` —, derivado de `pausar` só sair desses dois estados | Se algum dia `pausar` sair de `Aberta`, o DG-1 ganha uma terceira seta de volta. Nada mais muda: o alvo continua sendo o `status anterior` do registro de pausa |
-| **S-DG5** | **`POST /vinculos` é um caminho de entrada de pleno direito** no DG-4, e não um detalhe de cadastro (**L-9**) | Se o hub entender que cadastro não é "entrada", o nó sai do DG-4 e vira parte da atividade 1 do escopo. A invariante da D25 não muda em nenhuma das duas leituras |
+| **S-DG5** | **`POST /vinculos` é um caminho de entrada de pleno direito** no DG-4, e não um detalhe de cadastro (**L-9**) | Se cadastro não for entendido como "entrada", o nó sai do DG-4 e vira parte da atividade 1 do escopo. A invariante da D25 não muda em nenhuma das duas leituras |
 | **S-DG6** | **Nenhuma política reage a transição na primeira entrega** (**L-3**), o que sustenta a última nota do DG-2 | A nota sai, e o DG-2 ganha um participante de política. É a suposição mais barata de corrigir das seis |
 
 **Nenhum termo novo foi criado.** Todo rótulo de nó veio do [glossário](glossario.md) ou é identificador
@@ -680,4 +679,4 @@ projeto inteiro, com um implementador só.
 
 **5 · A validação de sintaxe não está no pipeline.** Foi feita à mão, uma vez. Enquanto não for um passo
 do CI, o próximo commit pode quebrar um diagrama sem que nada reclame — e a §7 da `arquitetura.md` já
-tem o lugar onde esse passo entraria. Proposta registrada para o hub.
+tem o lugar onde esse passo entraria. Proposta registrada.

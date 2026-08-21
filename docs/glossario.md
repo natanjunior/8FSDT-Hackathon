@@ -93,12 +93,18 @@ nem removidos. `Pausada` é acréscimo nosso, autorizado pelo *"no mínimo"* do 
 | **Resolvida** | O Gestor conferiu e declarou concluída. Estado terminal. | **Cancelada** — não é "resolvida com resultado ruim" | `ENUNCIADO · literal` |
 | **Cancelada** | Encerrada sem resolução, com **motivo obrigatório**. Estado terminal. | **Resolvida**; e **Pausada** | `ENUNCIADO · literal` |
 | **Pausada** | Parada esperando alguém, com **motivo obrigatório** (aguardando informação do solicitante · peça · autorização · terceiro). Sai da lista de em andamento; ao retomar, volta ao status anterior. | **Cancelada** (terminal) e **"Impedimento"** (termo absorvido) | `NOSSO` (D8) |
-| **Transição de status** | A operação de negócio que muda o status. Só acontece por **comando nomeado** (`analisar`, `atribuirResponsavel`, `iniciarAtendimento`, `pausar`, `retomar`, `registrarSolucaoAplicada`, `resolver`, `cancelar`, `avaliar`). | **Atualizar o campo status** — não existe; ninguém de fora escreve status. E **`reabrir`**, que já constou desta lista por engano: reabertura **não existe** (ver §8) | `ENUNCIADO · aberto` |
+| **Transição de status** | A operação de negócio que muda o status. Só acontece por **comando nomeado**, e são exatamente seis: `analisar` · `iniciarAtendimento` · `pausar` · `retomar` · `resolver` · `cancelar`. | **Atualizar o campo status** — não existe; ninguém de fora escreve status. E os **comandos que não transicionam** — `alterarPrioridade`, `atribuirResponsavel`, `registrarSolucaoAplicada`, `avaliar` e os demais —, que agem sobre a ocorrência **sem** mudar o status; a lista está em `arquitetura.md`, Parte I §4. E **`reabrir`**, que já constou desta lista por engano: reabertura **não existe** (ver §8) | `ENUNCIADO · aberto` |
 | **Registro de transição** | O registro imutável gerado por **cada** transição, com os cinco campos: status anterior · novo status · data e horário · usuário responsável · observação da alteração. | **Histórico** (ver colisão nº 1) | `ENUNCIADO · literal` |
 | **Observação da alteração** | O texto que o autor da transição escreve **no momento do comando**, explicando o porquê. É intenção humana, não diferença de dados. | **Comentário** e **Solução aplicada** | `ENUNCIADO · literal` |
 | **Trilha de auditoria** | A sequência completa e imutável dos registros de transição de uma ocorrência. É o que satisfaz *"cada transição de status deve ser auditável"*. | **Linha do tempo** | `ENUNCIADO · aberto` |
 | **Linha do tempo** | A visão que o Solicitante consulta ao acompanhar o andamento: transições **mais** mensagens **mais** atribuições. É **modelo de leitura derivado**, não tabela. | **Trilha de auditoria** — a trilha é só transições e é a fonte; a linha do tempo é a apresentação | `NOSSO` |
 | **Rótulo exibido** | O texto mostrado a uma pessoa para um status. Depende de **quem lê**: o Solicitante vê linguagem de gente, o Gestor e o Encarregado veem o nome interno, porque operam a máquina. Calculado no servidor, nunca no cliente. | Os nomes dos estados, que são literais do enunciado e **não mudam** | `NOSSO` (D19) |
+
+> **Correção — 21/08/2026.** Esta definição listava `atribuirResponsavel`, `registrarSolucaoAplicada` e
+> `avaliar` entre os comandos que mudam o status. Os três **não transicionam**, e a `arquitetura.md`
+> (Parte I, §4) sempre os listou fora. O erro não era cosmético: **comando que transiciona gera registro
+> de histórico**, então incluir `avaliar` sugeria que avaliar produz transição — exatamente o que a **D1**
+> existe para negar, ao dizer que a avaliação é ação sobre `Resolvida` e não um sexto estado.
 
 ### Os rótulos exibidos, na íntegra
 
@@ -158,6 +164,8 @@ Três regras que a tabela carrega e que valem para qualquer rótulo novo:
 | **Recorrência** | Volume de ocorrências por Categoria e por Área ao longo do tempo. É o indicador que distingue oito ordens de serviço de **uma obra**. | **Duplicidade** — recorrência é padrão no tempo; duplicidade é o mesmo problema relatado duas vezes | `NOSSO` (D19) |
 | **Plano gratuito** · **plano pago** | Os planos comerciais **do produto**. No gratuito, notificação só dentro do app; no pago, também e-mail, push e WhatsApp. | ⚠️ **Free tier de infraestrutura** — a restrição de custo zero do *projeto*. Duas coisas diferentes. Ver colisão nº 4 | `NOSSO` (D13) |
 | **Free tier de infraestrutura** | O limite gratuito do provedor de nuvem onde o Resolve Aí é publicado. Restrição do trabalho acadêmico, invisível ao cliente. | **Plano gratuito** do produto | `NOSSO` (restrição do projeto) |
+| **Primeira entrega** | O recorte que é construído agora: as capacidades marcadas ✅ no [escopo](escopo.md). | **Evolução prevista** | `NOSSO` |
+| **Evolução prevista** | O que está **projetado e não implementado**: as capacidades ⬜ do escopo, cada uma com decisão registrada, alternativa rejeitada e custo assumido. Não implementar não é o mesmo que não ter pensado. | ⚠️ **"fatia 2"** — nome vindo do mapa de histórias, **retirado** (ver §8). E **primeira entrega** | `NOSSO` |
 
 ---
 
@@ -219,6 +227,7 @@ Registrar o que **não** é vocabulário do projeto evita que ele volte por desc
 | **Reabertura** | Não existe. Problema que volta é **nova ocorrência vinculada à original** (D24) — `Resolvida` e `Cancelada` são terminais de verdade |
 | **"Responsável" como papel** | O papel é **Encarregado** (D27). "Responsável" ficou reservado para a atribuição |
 | **Fila de trabalho** | Ver "Fila" acima. O termo é **filtro rápido** |
+| **Fatia 2** | Vocabulário do mapa de histórias, que é material de processo e não entregável. O termo é **evolução prevista** (§6) |
 
 ---
 

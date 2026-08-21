@@ -19,8 +19,15 @@ disciplina, a citação vem como `aula N, p.X`.
 ## Regras
 
 - Uma decisão por arquivo, numerada e nunca renumerada.
-- ADR não se edita depois de aceita: se a decisão mudar, escreve-se **outra** ADR que a substitui, e a
-  antiga passa a `Status: Substituída por ADR-NNNN`. O histórico da decisão é o valor do artefato.
+- **Mudar de decisão exige ADR nova.** Uma ADR aceita não é reescrita para dizer outra coisa: escreve-se
+  **outra** que a substitui, e a antiga passa a `Status: Substituída por ADR-NNNN`. O histórico da decisão
+  é o valor do artefato.
+- **Emenda é permitida, e tem forma.** Quando a decisão continua a mesma e o que estava errado é o texto —
+  uma palavra que aponta para a camada errada, uma lacuna que o desenho expôs depois —, a correção entra
+  **no próprio arquivo**, em bloco datado, dizendo o que estava escrito antes e por que mudou. O que a
+  emenda não pode fazer é mudar o que foi decidido sem que se veja. A [ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md)
+  e a [ADR-0004](0004-execucao-em-container-no-azure.md) têm emendas assim, de 20/08/2026, e as duas dizem
+  qual era a redação anterior.
 - Status possíveis: `Proposta` · `Aceita` · `Substituída por ADR-NNNN` · `Descartada`.
 
 ## Índice

@@ -1,5 +1,52 @@
 # Escopo — Resolve Aí
 
+## A primeira entrega, em uma passada
+
+Antes das tabelas, o produto contado como quem o usa o encontra. Aqui não há marcador de origem nem
+identificador de decisão: é a porta. O resto do documento é a versão verificável disto.
+
+Alguém cria conta com e-mail e senha e não pertence a organização nenhuma. Cai numa tela com dois
+caminhos: **digitar o código** que está no cartaz do elevador, ou **criar uma organização**. Quem cria
+vira o Gestor inicial, e a organização nasce já povoada — com as sete categorias do desafio e um conjunto
+inicial de áreas, porque uma organização vazia não deixa ninguém registrar nada.
+
+Quem digitou o código abre um **pedido de entrada** e vê uma tela dizendo que está aguardando — e dizendo
+também que **ninguém vai avisá-lo**, porque nesta entrega não existe notificação de espécie alguma. O
+Gestor encontra o pedido, aprova e escolhe o papel de quem entra. Código vazado não vira acesso: vira um
+pedido esperando decisão.
+
+O morador **registra uma ocorrência**: foto, título, descrição, categoria, a área onde foi e um
+complemento em texto — *"ao lado da vaga 34"*. O alvo é que isso caiba em **menos de um minuto pelo
+celular**, com a foto subindo enquanto ele ainda digita. Depois ele acompanha: vê as ocorrências que são
+dele, com o status em linguagem de gente, e conversa com os Gestores dentro da própria ocorrência.
+
+O Gestor vê **todas** as da organização e filtra por categoria, status e prioridade. Analisa, ajusta a
+prioridade, **atribui um responsável** — que pode ser ele mesmo, num clique —, inicia o atendimento,
+**pausa com motivo** e retoma de onde parou, ou cancela com motivo. No fim, registra a **solução
+aplicada** e resolve. Quem decide que acabou é sempre ele. O morador então **avalia**.
+
+Cada uma dessas mudanças grava um registro imutável com os cinco campos que o desafio exige — status
+anterior, novo status, data e hora, autor e observação —, e existe uma tela só para isso: a **trilha de
+auditoria**, separada da linha do tempo que o morador lê. E o Gestor tem um **dashboard** com o backlog
+por status e por categoria, a média das avaliações, a recorrência por categoria e por área, e o tempo
+médio de resolução mês a mês.
+
+**O que não existe nesta entrega** — e a lista importa tanto quanto a de cima:
+
+> **Aviso automático de qualquer tipo** — nem notificação, nem sino, nem alarme de ocorrência parada.
+> Quem quiser saber, abre o sistema. **Acesso próprio do Encarregado**: ele existe como cadastro,
+> aparece como responsável e recebe o trabalho pessoalmente — o Gestor age em nome dele, e por isso a
+> trilha registra o Gestor mesmo quando o trabalho foi de outra pessoa. **Convite por link**, **página
+> pública da organização** e **importação de pessoas em lote**. **Leitura sem rede**. **Filtros
+> rápidos**. **Adesão** a uma ocorrência parecida em vez de abrir outra igual. **Nota interna entre
+> Gestores** — o que significa que, nesta entrega, não há lugar nenhum para texto que o morador não deva
+> ler. **Ver as ocorrências de área comum do vizinho.** E **editar uma ocorrência** depois de registrada.
+
+A lista completa do que ficou de fora, com o motivo de cada corte, está na parte 3; o que está projetado
+para depois, na parte 4.
+
+---
+
 Este documento responde a quatro perguntas, nesta ordem: **o que o Resolve Aí é** quando estiver
 completo, **o que entra na primeira entrega**, **o que ficou de fora e por quê**, e **o que está
 projetado para depois**.
@@ -239,6 +286,8 @@ resolve o problema que o produto veio resolver.
 > pessoa que precisa procurar o Gestor** — o conserto (*remover vínculo sem histórico*, acima) é dele, não
 > dela. Está especificada como **T-10** em [inventario-de-telas.md](inventario-de-telas.md).
 
+### 2 · Registrar a ocorrência
+
 | Capacidade | Origem | 1ª entrega |
 |---|---|---|
 | Registrar com título, descrição e categoria | `ENUNCIADO · literal` (S3, S4) | ✅ |
@@ -250,6 +299,29 @@ Duas restrições de qualidade atravessam esta atividade e valem desde a primeir
 completo cabe em **menos de um minuto pelo celular**, com foto (RNF6), e a imagem é **comprimida no
 próprio aparelho** antes de subir (RNF8) — é ela que faz o anexo caber nesse tempo. Não são itens de
 escopo: são o alvo de qualidade sobre os itens acima.
+
+> **O esquema comporta mais do que esta linha promete — e a diferença é deliberada. Nota de 21/08/2026.**
+>
+> A capacidade acima é **uma imagem**, e continua sendo: `ENUNCIADO · aberto` (S6) com RNF8 fixando *"uma
+> por ocorrência, JPEG ou PNG"*. Não mudou nada aqui.
+>
+> O que mudou foi o **modelo de dados**: a imagem deixou de ser uma coluna da ocorrência e passou a ser a
+> tabela `anexos` (`modelo-de-dados.md` §7.8), porque o conceito do domínio é **evidência** — foto hoje,
+> possivelmente vídeo, orçamento em PDF ou áudio depois — e uma coluna modelava o exemplo do enunciado em
+> vez do conceito. A tabela suporta **muitos anexos e mais de um tipo**; a primeira entrega grava **um, de
+> um tipo**, e o limite mora no contrato de API e na aplicação, **nunca no banco**.
+>
+> **Isto não é capacidade nova e não entra na contagem.** O escopo segue em **63 itens, 42 na primeira
+> entrega**, e não há linha ⬜ correspondente: *"mais de um anexo"* e *"anexo de outro tipo"* não estão
+> entre os 21 itens da evolução prevista. É a mesma natureza da nota da atividade 1 sobre a tela do
+> Encarregado — algo que a documentação precisa dizer sem virar item.
+>
+> **Por que registrar aqui, então.** Porque alguém lendo esta tabela e depois o esquema encontraria uma
+> tabela que aceita o que a capacidade não promete, e a diferença precisa estar dita em vez de descoberta.
+> E porque o dia da ampliação é **decisão de produto com preço**: `modelo-de-dados.md` §11.5 mede vídeo em
+> ~10× o armazenamento de hoje se comprimido no aparelho, e **acima do crédito Azure inteiro** se não for.
+> E, antes do custo, o **RNF6**: 4 MB em rede móvel derrubam o paralelismo do upload, que é o que faz o
+> registro caber em menos de um minuto.
 
 ### 3 · Triar
 
