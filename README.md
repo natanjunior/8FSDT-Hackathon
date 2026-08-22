@@ -85,13 +85,12 @@ esteira inteira de `push` a container publicado. O resto do produto vem nas tare
 
 ```bash
 npm ci                              # dependências
-
-supabase start                      # Postgres + Auth locais, em containers
-supabase db reset                   # aplica as migrações de supabase/migrations/
-
-cp .env.example .env.local          # e preencha com o que o `supabase start` imprimiu
-docker compose up --build           # a aplicação, no MESMO Dockerfile que vai a produção
+npm run local                       # tudo o resto
 ```
+
+`npm run local` faz, nesta ordem: `supabase start` (Postgres e Auth locais, em containers) → escreve o
+`.env.local` a partir do `supabase status`, **se ele não existir** → `supabase migration up` → `docker
+compose up --build`, no **mesmo `Dockerfile` que vai a produção**.
 
 Depois: **<http://host.docker.internal:3000>**.
 
@@ -128,6 +127,7 @@ Cada peça, separada:
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As três regras mecânicas da §15 do contrato, mais `$ref` e `operationId` |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
+| `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso **não** está no `npm run verificar`; no pipeline ele roda **antes** do `push`, porque imagem publicada com segredo dentro não se desfaz |
 
 `BANCO_URL_TESTE` aponta o teste de integração para um Postgres. Sem ela, ele cai em `BANCO_URL`.
 
@@ -135,7 +135,10 @@ Cada peça, separada:
 
 Não há comando: **`merge` em `main` publica.** O `.github/workflows/entrega.yml` verifica, aplica as
 migrações, constrói a imagem, publica no `ghcr.io` e cria uma revisão nova no Azure Container Apps — nessa
-ordem, porque *o rollback da aplicação é imediato e o do banco não é*.
+ordem, porque *o rollback da aplicação é imediato e o do banco não é*. Antes de qualquer publicação, a
+esteira **sobe o `docker compose` num runner limpo e bate na aplicação por HTTP** — é a mesma `npm run
+local` desta página, rodando numa máquina que nunca viu este projeto. É o que prova que não há estado local
+escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 
 **Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
