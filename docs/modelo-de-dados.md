@@ -2994,6 +2994,6 @@ linhas em `vinculos` (§6.4).
 |---|---|
 | **PA-03** — quem pode aderir; o autor pode aderir à própria? | Aberto. **O esquema comporta as duas respostas** — é regra de aplicação (§6.12) |
 | **PA-05** — LGPD sem revisão jurídica | Aberto. Ver as duas limitações declaradas na §10.2 |
-| **PA-19** — visão do Gestor atravessando organizações (Persona 1B) | Aberto, e **confirmado que está certo assim**: o modelo não suporta hoje, porque toda consulta parte de uma organização. Seria exceção deliberada ao isolamento da D2. **Nada foi modelado preventivamente** |
+| **PA-19** — visão do Gestor atravessando organizações (Persona 1B) | **Fechado em 22/08/2026**, e o modelo já estava certo: o sistema opera sempre no escopo de um vínculo, e toda consulta parte de uma organização. **Nada foi modelado preventivamente** |
 | **S5** — os termos `email_contato` e `Pedido de entrada` | **Fechado.** `Pedido de entrada` virou termo do glossário; `email_contato` ficou como nome de coluna, com a distinção que ela carrega registrada na definição de `Pessoa` (§12) |
 | **Correção pós-ADR-0004** | Aplicada em 20/08/2026 — ver a nota de revisão no topo do documento. **Nenhuma decisão de modelagem mudou** |
