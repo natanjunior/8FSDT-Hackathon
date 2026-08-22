@@ -149,6 +149,17 @@ jobs:
           [ "$tela" = "200" ] || { echo "::error::A tela não respondeu 200."; exit 1; }
           [ "$api" = "401" ]  || { echo "::error::A API não respondeu 401 sem sessão."; exit 1; }
 
+          # As duas sondas acima não provam que o container alcança o provedor:
+          # `auth.getUser()` sem cookie devolve `AuthSessionMissingError` sem
+          # nenhuma chamada de rede, e `/entrar` não toca o banco (Dockerfile).
+          # Um container que não resolve coisa nenhuma passaria nas duas do
+          # mesmo jeito — e é o modo de falha mais provável na primeira
+          # execução real: no Linux, `host-gateway` resolve para `172.17.0.1`,
+          # que só alcança porta publicada em `0.0.0.0`, ao contrário do Docker
+          # Desktop de quem implementou. Esta sonda roda de dentro do
+          # container e prova a rede de verdade, não só a lógica local.
+          docker compose exec -T aplicacao node -e "fetch(process.env.SUPABASE_URL+'/auth/v1/health').then(r=>{console.log('provedor alcançável →',r.status);process.exit(r.ok?0:1)}).catch(e=>{console.error('::error::O container não alcança o provedor:',e.message);process.exit(1)})"
+
       # Sem isto, um compose que sobe e morre aparece como uma linha de curl com
       # o número errado, e a causa fica dentro do container que já foi embora.
       - name: os logs, quando algo falha
