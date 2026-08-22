@@ -107,11 +107,60 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
+  # 1b · O compose num runner limpo. **Critério 5 do item 39, e é o verificador
+  #      do A6.** O que ele prova não é que a imagem sobe: é que ela sobe **do
+  #      zero, sem nada da máquina de quem implementou** — e prova a cada push,
+  #      em vez de valer para o commit em que alguém olhou.
+  # ---------------------------------------------------------------------------
+  compose:
+    name: Subir o compose, do zero
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Só o que a aplicação usa: banco, autenticação e o gateway que a serve.
+      # Estúdio, storage, realtime e o resto são minutos de download que nada
+      # aqui exercita. `auth` não é excluível, e é justamente o que queremos.
+      - name: Postgres e Auth locais
+        run: supabase start -x studio,imgproxy,inbucket,realtime,storage,analytics,vector,edge-runtime,functions,meta
+
+      # **O mesmo comando que o README manda rodar** — não há `npm ci` aqui de
+      # propósito: o script não tem dependência nenhuma, e as da aplicação são
+      # instaladas dentro do Dockerfile, que é justamente o que se quer provar.
+      - name: npm run local, desanexado
+        run: npm run local -- --desanexado
+
+      - name: bater na aplicação por HTTP
+        run: |
+          tela=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/entrar)
+          api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/contexto)
+          echo "tela /entrar       → $tela (esperado 200)"
+          echo "API  /api/contexto → $api (esperado 401, porque não há sessão)"
+          [ "$tela" = "200" ] || { echo "::error::A tela não respondeu 200."; exit 1; }
+          [ "$api" = "401" ]  || { echo "::error::A API não respondeu 401 sem sessão."; exit 1; }
+
+      # Sem isto, um compose que sobe e morre aparece como uma linha de curl com
+      # o número errado, e a causa fica dentro do container que já foi embora.
+      - name: os logs, quando algo falha
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+  # ---------------------------------------------------------------------------
   # 2 · Migrar. **Antes do deploy, e antes até de construir a imagem.**
   # ---------------------------------------------------------------------------
   migrar:
     name: Migrar o banco
-    needs: verificar
+    needs: [verificar, compose]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
