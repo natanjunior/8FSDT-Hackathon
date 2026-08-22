@@ -13,9 +13,11 @@ trabalho/
 !.env.example
 
 # --- Ferramentas locais ------------------------------------------------------
-# Configuração e skills do Claude Code. Ferramenta de quem desenvolve, não
-# artefato do projeto — fora do git por decisão do time, como trabalho/.
+# Configuração, skills e instruções do Claude Code. Ferramenta de quem
+# desenvolve, não artefato do projeto — fora do git por decisão do time,
+# como trabalho/.
 .claude/
+CLAUDE.md
 .eslintcache
 .tmp/
 

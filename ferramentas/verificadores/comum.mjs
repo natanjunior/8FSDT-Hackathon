@@ -21,10 +21,12 @@ export const RAIZ = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 /**
  * O que os verificadores varrem.
  *
- * `refs/` e `trabalho/` estão **fora**, e não por descuido: os dois são `.gitignore`, então num clone limpo
- * não existem — e um verificador que só passa na máquina de quem escreveu não verifica nada.
+ * `refs/`, `trabalho/` e `CLAUDE.md` estão **fora**, e não por descuido: os três são `.gitignore`, então
+ * num clone limpo não existem — e um verificador que só passa na máquina de quem escreveu não verifica
+ * nada. O `CLAUDE.md` saiu em 22/08/2026, quando passou a ser ignorado; enquanto esteve aqui, as seis
+ * seções dele entravam no universo conferido e o número era diferente na máquina e no clone.
  */
-const RAIZES_DE_DOCUMENTO = ["docs", "README.md", "CLAUDE.md"];
+const RAIZES_DE_DOCUMENTO = ["docs", "README.md"];
 
 const IGNORADOS = new Set([
   "node_modules",
