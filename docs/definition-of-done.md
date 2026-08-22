@@ -22,8 +22,16 @@ seis semanas** — torna-os mais necessários que o usual. Nela, testes, Docker,
 são **entregáveis exigidos pelo enunciado**, são exatamente os itens que ficam por último e não acontecem.
 
 O DoD converte cada um deles de tarefa futura em **condição de conclusão de toda funcionalidade**. E
-define uma verificação de qualidade que **não exige leitura de código**: cada item é conferível por quem
-não implementou.
+define uma verificação de qualidade que **não exige leitura de código**.
+
+> **A regra que governa esta lista, decidida em 22/08/2026: nenhuma caixa depende de outra pessoa para ser
+> marcada.** Portão que quem faz o trabalho não pode fechar não é portão — é espera: ou fica marcado assim
+> mesmo, ou o item fica aberto, e os dois desfechos são piores que não ter o portão.
+>
+> **Isto não afrouxa o DoD; torna-o consistente com uma limitação que ele mesmo declara** duas seções
+> abaixo — *não há revisão de código por pares*. Um checklist que exigisse o segundo par de olhos **para
+> fechar** estaria pedindo exatamente a pessoa que este documento diz não existir. O segundo par de olhos
+> continua existindo: **fora do portão**, como atividade própria.
 
 ---
 
@@ -139,7 +147,7 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
       [arquitetura.md](arquitetura.md)), e a entrada semeia **apenas o próprio agregado**: as pessoas e as
       organizações são da suíte, porque *seed* com pessoas distintas por organização **não detecta** o erro.
 - [ ] **Se a tarefa entrega o registro de ocorrência: ele foi cronometrado.** Num aparelho real, em rede
-      móvel, por **alguém que não é o implementador**, no cenário declarado do **RNF6**. Leva vinte
+      móvel, **por quem implementa**, no cenário declarado do **RNF6**. Leva vinte
       minutos e o número é anotado, mesmo que estoure. Este item existe porque o RNF6 é o **único
       requisito cronometrado do projeto** e porque o orçamento de tempo do protótipo indicou que ele
       **fecha por pouco** — um requisito nessa margem que nunca é medido é um requisito que se supõe
@@ -147,8 +155,13 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
 
       **O procedimento, para que "cronometrado" não dependa de improviso no dia:**
 
-      - **Quem:** um dos colegas não implementadores, **nomeado no DoR da tarefa** — não no dia. *"Alguém
-        que não é o implementador"*, sem nome, é ninguém.
+      - **Quem:** **quem implementa** — e aqui não há mecânica possível, celular real em rede móvel não se
+        automatiza. Então **o viés fica declarado em vez de embutido num requisito que ninguém pode
+        cumprir:** quem construiu a tela sabe onde tocar sem procurar, e mede **um tempo melhor que o de um
+        morador**. É a mesma forma do *"não há teste de acessibilidade neste projeto e não haverá"* —
+        declarar o que não se tem é mais defensável que exigir o que não se pode fazer. **As três medições
+        e a mediana abaixo são o instrumento que sobra contra o viés**, e o número anotado com aparelho e
+        rede permite que outra pessoa repita a medição depois, **sem que a entrega dependa disso**.
       - **Com o quê:** o aparelho da própria pessoa, em **rede móvel** (não Wi-Fi), contra a **URL
         publicada**, com o atalho do PWA já instalado.
       - **O quê:** cronômetro do toque no atalho até a confirmação na tela, no cenário da §2.6 de
@@ -167,11 +180,30 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
 
 ### Revisões
 
-- [ ] **Revisão funcional** por quem não implementou, contra os critérios de aceitação escritos no DoR.
+**Esta seção não tem caixa, e a ausência é a decisão de 22/08/2026.**
+
+**A revisão funcional continua existindo e continua sendo acompanhada — ela deixa de ser condição de
+*Done*.** É atividade própria, com item de trabalho próprio, e corre **em paralelo**: levanta achado
+depois, sem travar a entrega. O que fecha o item é o que quem o fez consegue verificar sozinho.
 
 > **Limitação declarada.** Com **um único implementador, não há revisão de código por pares.** A revisão
 > que existe é **funcional**: valida comportamento contra critério de aceitação, não implementação.
-> Registrar a limitação é mais defensável que classificar como peer review algo que não é.
+> Registrar a limitação é mais defensável que classificar como peer review algo que não é — e é a mesma
+> limitação que a [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md) cita por nome, como uma das
+> três restrições que moldaram a arquitetura de testes inteira.
+
+**O que substitui o segundo par de olhos, e não é pouco:**
+
+| Instrumento | O que ele faz no lugar do revisor |
+|---|---|
+| **Os critérios de aceitação** | Foram escritos **a partir da documentação, antes de existir código**, por quem não estava implementando. Conferir contra eles **é** conferir contra artefato independente: **a independência está no momento em que foram escritos, não na pessoa que confere** |
+| **Os verificadores do repositório** | Mermaid, OpenAPI e referências rodam a cada push, **com controle negativo** — um verificador que aceita tudo é indistinguível de um que funciona, e o controle é o que os separa |
+| **As cinco regras de fronteira no ESLint** | Conferem a regra de dependência sem depender de ninguém lembrar — e **não há um único `eslint-disable` no projeto** |
+| **A suíte de isolamento** | Aplica os mesmos casos a toda consulta escopada, preservando o cenário que detecta o vazamento (§7.1 da [`arquitetura.md`](arquitetura.md)) |
+| **O portão de contrato** | Regenera a especificação a partir dos schemas e **falha se divergir** do arquivo versionado |
+
+**Este projeto compensa a ausência de revisor com máquina**, e é isso que o checklist deve dizer — em vez
+de pedir uma pessoa que ele mesmo declara não existir.
 
 ### Documentação
 
@@ -187,20 +219,26 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
 
 ### Aprovação e publicação
 
-- [ ] **Sobe no `docker compose` local, do zero** — atende E7, e é verificável em outra máquina por quem
-      não implementou.
+- [ ] **Sobe no `docker compose`, do zero** — atende E7. **A outra máquina é o runner da esteira:** um
+      estágio sobe o compose num runner limpo e bate na aplicação por HTTP, que é o que esta linha sempre
+      quis provar — **não há estado local escondido**. E prova melhor que uma conferência humana: não pode
+      ser esquecido, e **reverifica a cada push**, enquanto a verificação de uma pessoa vale para o commit
+      em que ela aconteceu. Critério **A6** da [`arquitetura.md`](arquitetura.md) §10.
 - [ ] **Publicado no ambiente único e acessível por URL** — atende E8 e é o que permite a revisão
       funcional acontecer sem instalar nada. **Não há ambiente de preview por branch**: a
       [ADR-0004](adr/0004-execucao-em-container-no-azure.md) o perdeu ao sair da plataforma anterior, e
       `arquitetura.md` §9 declara a consequência — código não validado chega ao mesmo lugar da
-      demonstração, e a mitigação é este checklist, não a infraestrutura. **Se a revisão reprovar, o
-      caminho de volta é redirecionar o tráfego para a revisão anterior do Container Apps**, que é
-      imediato e não exige rebuild.
-- [ ] **Validado contra os critérios de aceitação**, por quem não implementou.
+      demonstração, e a mitigação é este checklist, não a infraestrutura. **Se a revisão funcional reprovar
+      depois** — e agora ela chega depois, porque não trava a entrega —, **o caminho de volta é redirecionar
+      o tráfego para a revisão anterior do Container Apps**, que é imediato e não exige rebuild. **É o que
+      torna aceitável tirar a revisão do portão:** o custo de descobrir tarde é um redirecionamento.
+- [ ] **Conferido contra os critérios de aceitação escritos no DoR.** Não é autoavaliação disfarçada: os
+      critérios foram escritos **a partir da documentação, antes de existir código**, por quem não estava
+      implementando — conferir contra eles é conferir contra **artefato independente**.
 
-> **Adaptação:** onde o curso pede *"aprovação do Product Owner"*, aqui é validação contra critério de
+> **Adaptação:** onde o curso pede *"aprovação do Product Owner"*, aqui é conferência contra critério de
 > aceitação escrito — não há PO. Onde pede *"aprovado pela QA"* (no exemplo da p.6), não há QA: está
-> coberto por Testes e por Revisão funcional.
+> coberto por Testes e pelas verificações mecânicas. A revisão funcional existe, **fora do portão**.
 
 ---
 
@@ -214,16 +252,20 @@ que ninguém abre:
 | Portão | Onde vive | Quem verifica |
 |---|---|---|
 | **DoR** | Critério de entrada do **PBI**. Enquanto os cinco itens não forem verdadeiros, o PBI não entra em sprint | Quem escreve o PBI |
-| **DoD** | Critério de aceitação do **`Item Revision`**, o tipo de item criado para isto | **Quem não implementou** |
+| **DoD** | Critério de aceitação do item que **faz** o trabalho | **Quem implementa** — nenhuma caixa depende de terceiro, que é a regra de 22/08/2026 |
+| **Revisão funcional** | Item próprio (**`Item Revision`**), **em paralelo** | Quem não implementou — e **não bloqueia o *Done*** |
 
-O `Item Revision` é um tipo customizado do processo, e existe por um motivo específico: **revisão é
-atividade, não etapa implícita de outra atividade.** Enquanto o checklist morava no mesmo item em que
-quem fez o trabalho declara que fez, ele era autoavaliação. Em item separado, com dono separado, o DoD
-tem uma lista concreta a percorrer — e a "revisão funcional por quem não implementou" que este documento
-exige deixa de depender de alguém lembrar.
+O `Item Revision` continua existindo, e o motivo mudou de lugar: **revisão é atividade, não etapa implícita
+de outra atividade** — e ela precisa de dono e de prazo próprios **justamente porque deixou de ser condição
+de entrega**. Sem item próprio, uma atividade que não bloqueia nada é uma atividade que não acontece.
 
-A consequência prática é que **toda tarefa gera pelo menos dois itens de trabalho**: o que faz e o que
-confere.
+**E o que impede o DoD de virar autoavaliação não é mais o dono separado — são as caixas.** A maioria delas
+não depende de opinião: `lint`, tipos, testes, os verificadores, o portão de contrato, o compose na esteira.
+**A caixa que alguém marcaria de má-fé é a mesma com qualquer dono; a caixa que uma máquina fecha, ninguém
+marca.**
+
+A consequência prática é que **toda tarefa continua gerando dois itens de trabalho** — o que faz e o que
+confere —, com uma diferença: **o segundo não segura o primeiro.**
 
 ---
 

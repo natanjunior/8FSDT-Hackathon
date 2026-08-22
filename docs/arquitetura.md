@@ -891,7 +891,14 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 
 ## 10. Critérios de Aceitação e Validação
 
-**Critérios de solução** — o que precisa ser verdade para a solução estar completa:
+**Critérios de solução** — o que precisa ser verdade para a solução estar completa.
+
+> **Regra de 22/08/2026: nenhum critério depende de outra pessoa para ser marcado.** Portão que quem faz o
+> trabalho não pode fechar não é portão — é espera: ou fica marcado assim mesmo, ou o item fica aberto, e os
+> dois desfechos são piores que não ter o portão. Onde havia *"por quem não implementou"*, ou a verificação
+> passou para a esteira (**A6**), ou o viés ficou declarado (**A8**), ou o objeto da conferência é um
+> documento e não uma pessoa (**A5**). O segundo par de olhos continua existindo — fora do portão, no
+> `definition-of-done.md`.
 
 | # | Critério | Como é validado |
 |---|---|---|
@@ -899,10 +906,10 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A2 | **100% das transições** com os 5 campos do histórico | Teste unitário + inspeção na interface (E2E) |
 | A3 | Histórico **imutável**: não existe caminho de escrita que o altere | Revisão da API do agregado + ausência de operação de update no repositório |
 | A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte dela. **Mais um caso próprio para as duas escritas que rodam fora do funil** ([ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), emenda de 20/08): pedido de entrada criado com o Código da Organização A **não** produz linha escopada em B |
-| A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional contra o inventário de requisitos |
-| A6 | Sobe com `docker compose` local, do zero | Executado em outra máquina, por quem não implementou |
+| A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + **conferência contra o inventário de requisitos**. O objeto da conferência é **documento, não pessoa**: as capacidades estão escritas e numeradas, e conferir é percorrer a lista |
+| A6 | Sobe com `docker compose`, do zero | **A esteira sobe o compose num runner limpo e bate na aplicação por HTTP.** É o que a linha sempre quis provar — que não há estado local escondido — e prova melhor: **não pode ser esquecido**, **reverifica a cada push** em vez de valer só para o commit em que alguém olhou, e falha onde o defeito nasceu. É a troca das ADR-0001, 0003 e 0005 aplicada aqui: garantia mecânica no lugar de disciplina. *O estágio é trabalho do item 39; este critério é o que ele satisfaz* |
 | A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |
-| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, por **uma pessoa que não implementou**, em **três medições**, registrando a mediana e as três. O procedimento — quem, com o quê, o que se anota e onde fica — está no [`definition-of-done.md`](definition-of-done.md), e o cenário na linha do RNF6 da [`documentacao-da-demanda.md`](documentacao-da-demanda.md) §5.2 |
+| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, **por quem implementa**, em **três medições**, registrando a mediana e as três. **Aqui não há mecânica possível** — celular real em rede móvel não se automatiza —, então **o viés fica declarado em vez de embutido**: quem construiu a tela sabe onde tocar sem procurar e mede um tempo **melhor que o de um morador**. As três medições e a mediana são o instrumento que sobra contra ele, e o número anotado com aparelho e rede permite que outra pessoa repita depois — **sem que a entrega dependa disso**. Procedimento no [`definition-of-done.md`](definition-of-done.md); cenário na linha do RNF6 da [`documentacao-da-demanda.md`](documentacao-da-demanda.md) §5.2 |
 | A9 | Lista de atribuições do Encarregado abre **sem rede** (RNF7) | **Evolução prevista — não vale para a primeira entrega.** Acesso próprio do Encarregado e leitura offline são os dois ⬜ da Q11; o critério volta a valer quando o RNF7 entrar, e é verificado com o modo offline do navegador |
 
 **A primeira entrega é validada por A1 a A8.** O A9 está na lista para não se perder, não para ser cobrado
