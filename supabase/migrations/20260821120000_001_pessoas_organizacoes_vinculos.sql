@@ -115,8 +115,18 @@ comment on column pessoas.usuario_id is
 
 create table organizacoes (
   id                          uuid         primary key default gen_random_uuid(),
-  nome                        varchar(120) not null,
+  nome                        varchar(120) not null collate "pt-BR-x-icu",
   codigo_publico              varchar(12)  not null,
+
+  -- `collate` em `nome` pela §2.10: a face D de T-02 lista organizações por
+  -- esta coluna, e em collation C ou en_US "Água Branca" ordenaria DEPOIS de
+  -- "Zona Sul". A convenção cobria `categorias.nome` e `areas.nome` e deixou
+  -- esta de fora — é o tipo de defeito que só aparece na demonstração, com a
+  -- lista fora de ordem na frente de quem avalia.
+  --
+  -- Caminho de volta, se o ICU não existir no servidor: `pt_BR.utf8`. Confira
+  -- com `select collname from pg_collation where collname like 'pt%'`.
+
 
   -- `nome` + `logo_caminho` **são** o whitelabel da D25 — não há tabela para
   -- dois campos. TEXT por escolha dita (§2.7): é chave gerada por máquina, cujo
