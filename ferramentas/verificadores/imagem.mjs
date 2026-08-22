@@ -13,13 +13,24 @@ import { relatar, RAIZ } from "./comum.mjs";
  * pública (ADR-0004), e o que entra numa camada permanece legível **mesmo que
  * um `RUN rm` apague o arquivo depois**."*
  *
- * Era item de conferência humana. Aqui vira portão: vale em toda construção,
- * não só no dia em que alguém olhou.
+ * Era item de conferência humana. Aqui vira portão: obrigatório antes de a
+ * imagem ir ao registro, no emprego `publicar` — não em toda construção. Em
+ * pull request ele não roda, porque `publicar` depende de `migrar`, que a
+ * esteira pula ali (`entrega.yml`).
  *
  * **Quatro recusas, e a primeira é a que a frase do DoD exige.** Olhar só o
  * sistema de arquivos final não encontra o arquivo apagado por um `RUN rm` — a
  * camada guarda, o sistema final não mostra. Por isso a conferência A lê o
  * histórico de construção, que é onde o `COPY` continua escrito.
+ *
+ * **C e D toleram falha, e saída vazia é o resultado que as duas dão tanto
+ * para "imagem limpa" quanto para "não consegui olhar".** Sem `sh` no
+ * container, com os diretórios movidos, ou com uma opção do BusyBox faltando,
+ * as duas voltariam vazias do mesmo jeito. Por isso existe o canário positivo:
+ * antes de confiar na saída vazia de C ou D, ele prova, contra a própria
+ * `IMAGEM`, que `/app`, `/app/.next/static` e `/app/public` existem e são
+ * legíveis pelo usuário com que ela roda. Canário mudo é falha, não imagem
+ * limpa.
  *
  * **Limite declarado (1):** o histórico do artefato final não mostra os
  * estágios intermediários de uma construção multi-estágio. A defesa contra eles
@@ -70,8 +81,25 @@ const historicoDe = (imagem, { tolerarFalha = false } = {}) =>
     .split(/\r?\n/u)
     .filter((linha) => linha.trim() !== "");
 
+// Acumulador de notas informativas — linhas que aparecem no relatório mas não
+// derrubam a esteira. Declarado aqui, e não mais abaixo, porque a subtração de
+// camadas da base já pode gerar uma logo em seguida.
+const notas = [];
+
 /** As camadas que já vieram da base não são nossas — e não são conferidas. */
 const daBase = new Set(historicoDe(BASE, { tolerarFalha: true }));
+
+if (daBase.size === 0) {
+  // No runner, a base é puxada pelo construtor buildx, não para o daemon — o
+  // `docker history` dela falha, `tolerarFalha` devolve "", e a subtração vira
+  // conjunto vazio. Hoje inofensivo (a conferência A passa a varrer também as
+  // camadas da própria base, e nada nelas casa com as regras), mas silencioso
+  // não pode ser: fica registrado aqui.
+  notas.push(
+    "a base (`node:24-alpine`) não estava no daemon; a subtração de camadas da base não foi aplicada — " +
+      "a conferência A também varreu as camadas dela.",
+  );
+}
 
 /** As quatro conferências. Devolve a lista de falhas — vazia quer dizer limpa. */
 function conferir(imagem) {
@@ -90,7 +118,7 @@ function conferir(imagem) {
   }
 
   // --- B · o ambiente que a imagem carrega ---------------------------------
-  const ambiente = JSON.parse(docker(["image", "inspect", "--format", "{{json .Config.Env}}", imagem]));
+  const ambiente = JSON.parse(docker(["image", "inspect", "--format", "{{json .Config.Env}}", imagem])) ?? [];
 
   for (const par of ambiente) {
     const nome = par.split("=")[0] ?? "";
@@ -128,6 +156,27 @@ function conferir(imagem) {
   return falhas;
 }
 
+/**
+ * O canário positivo — o oposto do controle negativo, mais abaixo. O controle
+ * prova que C e D disparam contra uma imagem que erra de propósito; ele não
+ * prova que as duas enxergam a imagem sob teste de verdade. Este canário
+ * prova isso: roda `sh` dentro da imagem indicada e exige que os diretórios
+ * que C (`/app`) e D (`/app/.next/static`, `/app/public`) varrem existam e
+ * sejam legíveis pelo usuário com que a imagem roda. Sem `sh`, sem os
+ * diretórios, ou sem permissão de leitura, o canário não ecoa — e devolve
+ * `false`, não uma saída vazia que alguém possa confundir com "está tudo bem".
+ */
+function canarioPositivo(imagem) {
+  const saida = docker(
+    [
+      "run", "--rm", "--entrypoint", "sh", imagem,
+      "-c", "test -r /app && test -r /app/.next/static && test -r /app/public && echo CANARIO-OK",
+    ],
+    { tolerarFalha: true },
+  );
+  return saida.includes("CANARIO-OK");
+}
+
 // ---------------------------------------------------------------------------
 
 const existe = docker(["image", "inspect", "--format", "{{.Id}}", IMAGEM], { tolerarFalha: true });
@@ -143,14 +192,33 @@ if (existe.trim() === "") {
 const falhas = conferir(IMAGEM);
 
 // ---------------------------------------------------------------------------
+// Canário positivo, contra a própria IMAGEM. Se ele não ecoar, C e D acabaram
+// de ficar cegas — e uma saída vazia delas, sem isto, seria lida como imagem
+// limpa em vez de conferência que não conseguiu olhar.
+// ---------------------------------------------------------------------------
+
+if (!canarioPositivo(IMAGEM)) {
+  falhas.push(
+    "CANÁRIO · `sh` não respondeu, ou /app, /app/.next/static ou /app/public não são legíveis nesta imagem — " +
+      "sem isso, a saída vazia de C ou D não distingue imagem limpa de conferência cega.",
+  );
+}
+
+// ---------------------------------------------------------------------------
 // O controle diferencial: uma imagem que comete os erros de propósito. Se ela
 // passar, o verificador não está verificando — e aí a falha é do verificador,
 // não da imagem de verdade. Ver o Dockerfile em fixtures/imagem-insegura/.
+//
+// `--load`: no emprego `publicar`, o `docker/setup-buildx-action` já trocou o
+// construtor corrente para o driver `docker-container`. Com ele, um `build`
+// sem `--load` e sem `--push` não entrega nada ao daemon — a etiqueta nunca
+// passa a existir, e o `docker history` do controle, logo abaixo, falharia
+// por um motivo que não tem nada a ver com a imagem de verdade. `--load` é
+// no-op com o driver `docker` padrão, então a máquina de quem desenvolve não
+// muda em nada.
 // ---------------------------------------------------------------------------
 
-const notas = [];
-
-docker(["build", "--quiet", "-t", CONTROLE, join(RAIZ, "ferramentas/verificadores/fixtures/imagem-insegura")]);
+docker(["build", "--quiet", "--load", "-t", CONTROLE, join(RAIZ, "ferramentas/verificadores/fixtures/imagem-insegura")]);
 
 const doControle = conferir(CONTROLE);
 
@@ -159,7 +227,9 @@ const doControle = conferir(CONTROLE);
  * As conferências C e D rodam `find` e `grep` dentro do container e toleram
  * falha — uma opção que o BusyBox não tenha devolveria saída vazia, que é
  * indistinguível de imagem limpa. Exigir que cada conferência dispare contra o
- * controle é o que impede uma delas de passar em silêncio para sempre.
+ * controle prova que as quatro funcionam **contra uma imagem que erra de
+ * propósito** — não que elas enxergam a imagem sob teste; essa segunda prova
+ * é o canário positivo, lá em cima, contra a própria `IMAGEM`.
  */
 const familias = new Set(doControle.map((falha) => falha.slice(0, 1)));
 const mudas = ["A", "B", "C", "D"].filter((letra) => !familias.has(letra));
