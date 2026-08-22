@@ -51,10 +51,10 @@ resto — a auditabilidade como invariante do agregado, e não como convenção 
 
 | A pergunta | Onde ela é respondida |
 |---|---|
-| *Por que este produto existe?* | Documentação da Demanda, §2 — as duas jornadas atuais, narradas |
+| *Por que este produto existe?* | [Documentação da Demanda](documentacao-da-demanda.md) §2 — as duas jornadas atuais, narradas |
 | *O que entra e o que não entra?* | Escopo, partes 2 e 3 — com o motivo de cada corte |
-| *Como a auditabilidade é garantida?* | ADR-0001, e a tabela de transições em Arquitetura, Parte I §4 |
-| *Como um condomínio não vê o dado do outro?* | ADR-0003, e a §4 do Modelo de Dados |
+| *Como a auditabilidade é garantida?* | ADR-0001, e a tabela de transições em [Arquitetura](arquitetura.md) Parte I §4 |
+| *Como um condomínio não vê o dado do outro?* | ADR-0003, e a §4 do [Modelo de Dados](modelo-de-dados.md) |
 | *O que a API expõe?* | `api/openapi.yaml` no Swagger; o porquê de cada escolha, no Contrato de API |
 | *O que ainda não se sabe?* | Premissas e Questões Abertas — as premissas, os pontos de atenção em aberto e as divergências das fontes |
 
@@ -90,3 +90,29 @@ que é escolha:
 
 Decisões de produto são referenciadas por identificador (`D1` a `D27`), premissas por `P1` a `P5`, e
 pontos de atenção por `PA-nn`. Os identificadores são estáveis e usados em todos os documentos.
+
+---
+
+## Como as seções se citam
+
+Os documentos se referem às seções uns dos outros o tempo todo. A convenção existe para que uma referência
+possa ser **conferida por máquina**, e é de uma regra só:
+
+> **`§N` sozinho é sempre deste documento. Para citar outro, o nome do arquivo acompanha o número.**
+
+Duas formas são aceitas, porque o português não aceita uma só — o nome **antes**, *"a `arquitetura.md`
+Parte I §4 decide"*, e o nome **depois, com a preposição**, *"a §4.3 do `modelo-de-dados.md`"*. Vale também
+como **link**, quando o alvo é o arquivo: *"a §4 do [Modelo de Dados](modelo-de-dados.md)"*. Uma cadeia
+herda o marcador de qualquer uma das pontas: em *"`modelo-de-dados.md` §6.16 e §7.8"*, as duas são de lá.
+O que **não** vale é o nome solto na frase, longe do número — aí quem lê, e quem verifica, adivinha.
+
+**O que a regra compra.** Sem ela, a única pergunta que uma ferramenta consegue fazer é *"este número existe
+em algum documento do pacote?"*. Uma seção renumerada num documento continua existindo em outro, e a
+referência quebrada passa calada. Com ela a pergunta vira *"existe no documento certo?"*, que é a que
+interessa.
+
+**A normalização retroativa foi deliberadamente parcial** (22/08/2026): entraram o
+[Contrato de API](contrato-de-api.md) e o [Inventário de Telas](inventario-de-telas.md), os dois documentos
+que mais citam para fora. Nos demais a convenção vale para o que for escrito de agora em diante, e converge
+conforme cada um for tocado por outro motivo. Percorrer todas as citações do pacote de uma vez custaria mais
+do que o erro que evitaria.

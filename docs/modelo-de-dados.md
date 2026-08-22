@@ -814,7 +814,7 @@ revisão jurídica. **Coluna vazia não é neutra — é passivo.** **[FONTE EXT
 | **Endereço em texto livre** | O Gestor, para saber de onde é o morador | **A pergunta tinha resposta melhor dentro do domínio.** Dentro do tenant, o endereço da pessoa **é uma Área**: *"apartamento 302"* já existe como linha em `areas`, com tipo, ordem e `ativa`. Um texto livre paralelo criaria **duas verdades sobre o mesmo fato**, e a segunda sem nenhuma dessas garantias | **Nada — já foi feito.** Virou **`vinculos.area_id`** (§6.4), que é a modelagem correta: a unidade pertence ao **vínculo**, não à Pessoa, porque a mesma pessoa mora num lugar e trabalha em outro |
 | **Nome social** | Quem é chamado por nome diferente do civil — e é a ausência mais justa das seis | **O sistema já guarda só o nome social; faltava dizer isso.** O produto **nunca pede nome civil**: não há cobrança, contrato, nota fiscal nem documento. `pessoas.nome` é, e sempre foi, *o nome pelo qual a pessoa é chamada* — e a coluna agora diz isso na própria descrição. Uma segunda coluna criaria a distinção que o produto não tem | Não se aplica. **O buraco real é outro, e está declarado:** quem tem conta **não consegue corrigir o próprio nome** depois de entrar numa Organização (§8.2 do contrato de API). Coluna nova não conserta; caminho de edição conserta |
 | **Foto de perfil** | Uma lista de moradores com rosto | Três razões, e a terceira decide: (a) nada no produto exibe foto de pessoa — `PessoaReferencia` é `{pessoaId, nome}`; (b) rosto é dado biométrico-adjacente, e um diretório de 10.000 rostos é ativo de risco desproporcional ao valor; (c) **`pessoas` é global** (§4.3) — seria pôr o dado mais sensível do produto exatamente na tabela que este documento marca como o caminho de vazamento mais provável | Uma linha em `anexos` com `ocorrencia_id` anulável. **O mecanismo já existe** — ver o princípio abaixo |
-| **CPF ou documento** | Ninguém pediu; fica registrado por completude | Não há cobrança, contrato nem obrigação fiscal. CPF é o identificador que mais atrai vazamento e o que menos serve a este produto | Uma coluna anulável — e uma conversa de LGPD que hoje não precisamos ter |
+| **CPF ou documento** | Ninguém pediu; fica registrado por completude | Não há cobrança, contrato nem obrigação fiscal. CPF é o identificador que mais atrai vazamento e o que menos serve a este produto | Uma coluna anulável — e uma conversa de LGPD que o produto hoje não precisa ter |
 
 > ### O princípio que fecha os casos de foto, logo e afins
 >
@@ -2482,8 +2482,14 @@ a credencial e falhar antes de criar a Pessoa; as duas escritas estão em bancos
 
 **A resposta adotada: a resolução de contexto é idempotente.** A ADR-0003 já define um ponto único que roda
 **uma vez por requisição** e monta `{ usuarioId, pessoaId, organizacaoId, papel }`. É ele que garante a
-Pessoa: se `usuario_id` não tem Pessoa, cria — nome e e-mail de contato vindos do que o Auth expõe — e
-segue. Idempotente por natureza, porque `UNIQUE (usuario_id)` recusa a segunda tentativa.
+Pessoa: se `usuario_id` não tem Pessoa, cria — **só o `nome`**, vindo dos metadados da conta — e segue.
+Idempotente por natureza, porque `UNIQUE (usuario_id)` recusa a segunda tentativa.
+
+> **Corrigido em 22/08/2026.** A redação anterior dizia que o ACL semeava *"nome e e-mail de contato vindos
+> do que o Auth expõe"*. A frase **sobreviveu a uma mudança**: quando o contato virou a tabela `contatos`
+> (§6.17), semear contato deixou de ser preencher uma coluna e passou a ser **escrever numa segunda tabela**
+> — e nenhum documento pede isso. O `contrato-de-api.md` §4.1 já dizia que **só o nome** vem dos metadados;
+> desde o mesmo dia ele diz também o que acontece quando eles não trazem nome nenhum.
 
 > **Rejeitado: gatilho `AFTER INSERT ON auth.users` criando a Pessoa.** É o padrão idiomático do Supabase
 > **[FONTE EXTERNA]**, e é mais direto. Ficou de fora por três motivos: (a) põe regra do nosso domínio num

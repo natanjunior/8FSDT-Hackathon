@@ -6,7 +6,7 @@
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
 > tiveram campos escritos, e o link do e-mail de redefinição não tinha onde aterrissar. Ver a §4 e o
-> registro na §13 do [protótipo](prototipo-low-fi.md).
+> registro na §13 do [`prototipo-low-fi.md`](prototipo-low-fi.md).
 >
 > As três novas receberam **identificadores no fim da lista** — T-11, T-12, T-13 — em vez de renumerar
 > as dez existentes. `escopo.md` cita **T-10** pelo nome, e renumerar quebraria uma referência num
@@ -112,18 +112,18 @@ sentado, provavelmente numa tela grande, e usa o produto todo dia.
 Três argumentos decidiram, e o primeiro é o mais forte porque não é nosso:
 
 **1 · O contrato já foi desenhado para telas compartilhadas.** `GET /ocorrencias` é *"a mesma URL,
-conjuntos diferentes"* e o contrato **recusou explicitamente** criar `/minhas-ocorrencias` (§8.5).
+conjuntos diferentes"* e o contrato **recusou explicitamente** criar `/minhas-ocorrencias` (`contrato-de-api.md` §8.5).
 `GET /ocorrencias/{id}` devolve `acoesDisponiveis` calculado para *aquele* chamador, justamente para que
-a interface *"desenhe botões a partir do que o domínio respondeu"* (§8.5). E `statusRotulo` é calculado
-no servidor **em função de quem lê** (§8.8, S-A10). Duas áreas exigiriam duas telas de lista consumindo
+a interface *"desenhe botões a partir do que o domínio respondeu"* (`contrato-de-api.md` §8.5). E `statusRotulo` é calculado
+no servidor **em função de quem lê** (`contrato-de-api.md` §8.8, S-A10). Duas áreas exigiriam duas telas de lista consumindo
 o mesmo endpoint com o mesmo schema — a duplicata que a `fluxos-e-diagramas.md` §1 recusa em diagrama,
 recusada aqui em tela.
 
 **2 · O síndico morador já foi resolvido por parâmetro, não por área.** O Gestor que também mora no
-prédio usa `?autor=eu` na **mesma** lista (contrato §8.5, `modelo-de-dados.md` §6.4) — foi decisão
+prédio usa `?autor=eu` na **mesma** lista (`contrato-de-api.md` §8.5, `modelo-de-dados.md` §6.4) — foi decisão
 explícita não lhe dar um segundo vínculo. Com duas áreas ele teria de **trocar de área** para ver a
 própria ocorrência, que é exatamente o de-para que o contrato removeu. Ele **registra ocorrência** (o
-mapa de permissões da §4.5 dá `ocorrencia.registrar` ao Gestor *"sem nenhuma exceção escrita"*) e
+mapa de permissões da `contrato-de-api.md` §4.5 dá `ocorrencia.registrar` ao Gestor *"sem nenhuma exceção escrita"*) e
 **avalia a própria** — e faz as duas coisas nas mesmas telas.
 
 **3 · O custo.** Duas áreas são dois shells, duas navegações, duas árvores de rota e duas respostas para
@@ -185,14 +185,14 @@ alto porque foram descobertas depois (ver o quadro do topo).
 identificador nomeia um estado (*Organização ativa*, *Permissão*, *Vínculo* são termos) e o texto ao
 usuário está em linguagem de gente, escrito na seção de cada uma. Dois nomes precisaram de decisão:
 
-- **T-07 é `Dashboard`, não "Painel".** *Dashboard* é palavra do enunciado (G8) e o contrato §7.2 já a
+- **T-07 é `Dashboard`, não "Painel".** *Dashboard* é palavra do enunciado (G8) e o `contrato-de-api.md` §7.2 já a
   declara como um dos quatro nomes que vieram de fora do glossário sem serem inventados. Criar "Painel"
   seria um segundo nome para uma coisa só — exatamente o que o glossário existe para impedir.
 - **T-08 é `Quem está na organização`**, que é a frase que o próprio `openapi.yaml` usa como resumo de
   `GET /vinculos`. Não é "Pessoas": `Pessoa` é a tabela **global**, e a *regra do vínculo primeiro*
-  (contrato §4.6) diz que toda listagem de gente é listagem de `Vínculo`. Nomear a tela "Pessoas"
+  (`contrato-de-api.md` §4.6) diz que toda listagem de gente é listagem de `Vínculo`. Nomear a tela "Pessoas"
   contradiria a regra na primeira palavra. **Se o hub quiser um nome curto, ele é proposta ao
-  glossário — não é invenção deste inventário** (glossário §9).
+  glossário — não é invenção deste inventário** (`glossario.md` §9).
 
 ### A navegação
 
@@ -260,7 +260,7 @@ etapa 03), e a lista é onde a triagem acontece.
 passa por T-01, e sem organização ativa passa por T-02 — e **volta ao destino** depois. Sem isso, *"uma
 ocorrência que não pode ser mandada por link é uma ocorrência que vai ser descrita por WhatsApp"*, que é
 o comportamento que o produto veio substituir. Se o destino for de outra organização, o resultado é
-`404` (contrato §6.3) — e a §7 dá a frase.
+`404` (`contrato-de-api.md` §6.3) — e a §7 dá a frase.
 
 **3 · A troca de organização ativa é um menu do shell, não uma tela.** Ele vive no cabeçalho, é
 alimentado por `contexto.vinculos` e chama `PUT /contexto/organizacao`. O nome da organização ativa fica
@@ -276,7 +276,7 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 |---|---|
 | T-05, T-06, T-07, T-08, T-09 | volta a **T-03 com os filtros preservados** — é por isso que os filtros vivem na *query string* |
 | T-04 | volta a T-03 e **descarta o formulário**, com confirmação se algo foi digitado |
-| T-05 recém-chegado de um `201` de T-04 | volta a **T-03**, nunca ao formulário — a ocorrência já existe, e reabrir o formulário convida ao toque duplo que o contrato §7.10 declarou não proteger |
+| T-05 recém-chegado de um `201` de T-04 | volta a **T-03**, nunca ao formulário — a ocorrência já existe, e reabrir o formulário convida ao toque duplo que o `contrato-de-api.md` §7.10 declarou não proteger |
 | **modal aberto** | **fecha o modal e permanece na tela** |
 | T-11, T-12 | volta a **T-01** — é de lá que as duas são alcançadas |
 | **T-13** | **nunca volta ao formulário.** O endereço carrega o token de redefinição; consumido ele, voltar leva a T-01 |
@@ -306,7 +306,7 @@ aterrissar**.
 O erro foi de leitura, e vale nomeá-lo para não voltar: *"nenhuma das três chama endpoint deste
 contrato"* é verdade, e foi lida como *"nenhuma das três é tela nossa"*. **Não é a mesma coisa.** O
 Supabase Auth entra como **Conformista + ACL** e é consumido por **SDK** (`arquitetura.md` Parte I §1 e
-§3; contrato §4.1: *"o contrato consome a sessão; não a emite"*) — não é interface hospedada. Os quatro
+§3; `contrato-de-api.md` §4.1: *"o contrato consome a sessão; não a emite"*) — não é interface hospedada. Os quatro
 formulários são nossos para construir. E o `escopo.md` §3.2 confirma que os **dois** e-mails
 transacionais existem — confirmar conta e redefinir senha —, o que significa dois links, e todo link
 aterrissa em algum lugar.
@@ -324,7 +324,7 @@ aterrissa em algum lugar.
 - *Vazio:* não existe. O formulário é o conteúdo.
 - **Alvo primário: celular**, nas quatro.
 
-**A doutrina de erro, que é a mesma do contrato §6.3 aplicada à credencial:** *"não confirmar a
+**A doutrina de erro, que é a mesma do `contrato-de-api.md` §6.3 aplicada à credencial:** *"não confirmar a
 existência do que você não pode alcançar"*. Ela decide duas frases, em duas telas diferentes — a de
 T-01 e a de T-12 —, e é por isso que está aqui e não repetida lá embaixo. [FONTE EXTERNA]
 
@@ -389,7 +389,7 @@ profundo sobreviver à autenticação.
 
 > **Por que `nome` no cadastro, e por que isso não é um campo a mais por conforto.**
 > `PessoaReferencia.nome` é `required` e não-nulável (`api/openapi.yaml`, schema `PessoaReferencia`), e o
-> ACL *"cria a `Pessoa` se ainda não existir"* (contrato §4.1). Então o primeiro login **precisa** de um
+> ACL *"cria a `Pessoa` se ainda não existir"* (`contrato-de-api.md` §4.1). Então o primeiro login **precisa** de um
 > nome, e até aqui **nenhum documento dizia de onde ele vinha** — a S-T12 o resolvia por esperança
 > (*"vem dos metadados do provedor"*), e o **F6** ficou aberto por isso.
 >
@@ -438,7 +438,7 @@ recuperação de qualquer forma; escondê-la aqui custaria uso e não compraria 
 
 **Como termina — e é o texto que carrega a decisão.** *"Se existe uma conta com este e-mail, o link
 foi enviado. Confira também o spam."* **A frase é condicional de propósito**: é a mesma doutrina do
-`404` do contrato §6.3 e da frase de T-01. Uma tela que responda *"este e-mail não está cadastrado"*
+`404` do `contrato-de-api.md` §6.3 e da frase de T-01. Uma tela que responda *"este e-mail não está cadastrado"*
 é um verificador de quem tem conta no produto, operável por qualquer um, sem sessão.
 
 **Erro.** Nenhum que a pessoa possa consertar aqui — a resposta é a mesma existindo conta ou não. O
@@ -484,7 +484,7 @@ nunca de volta ao formulário.
 Esta é a tela que a documentação anterior mais deixou implícita, e ela cobre **quatro estados
 diferentes** — três dos quais não são capacidade nenhuma e por isso são fáceis de esquecer. A face é
 escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem vínculo consegue usar
-(contrato §8.0).
+(`contrato-de-api.md` §8.0).
 
 | Face | Condição em `GET /contexto` | O que a pessoa acabou de fazer |
 |---|---|---|
@@ -499,7 +499,7 @@ escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem v
   chega aqui quase sempre está **entrando**, não fundando.
 
   **E dois campos que 22/08/2026 acrescentou ao pedido**, os dois opcionais:
-  **`nome`, pré-preenchido com o nome atual da Pessoa** — o contrato §8.2 declarou que este é o **último
+  **`nome`, pré-preenchido com o nome atual da Pessoa** — o `contrato-de-api.md` §8.2 declarou que este é o **último
   momento em que o nome é corrigível**, porque depois dele não há como alterá-lo e ele vai para a trilha
   imutável; e **`telefone`, em E.164**, que *"vira o primeiro contato da Pessoa, com `finalidade: pessoal`"*
   e é o único ponto do contrato em que um contato entra fora de `/vinculos`.
@@ -514,7 +514,7 @@ escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem v
   pedido recusado **pode ser refeito**. Sem o campo, a face C é um beco que o modelo de dados não quis
   criar.
 - **D:** `contexto.vinculos[]` — `nome` e `papel` de cada uma. Nada mais: não há contagem de ocorrências
-  por organização, porque não há endpoint que a dê sem organização ativa (§4.4).
+  por organização, porque não há endpoint que a dê sem organização ativa (`contrato-de-api.md` §4.4).
 
 **O que oferece.**
 
@@ -562,7 +562,7 @@ configurar as Áreas mora — ver T-03.
 permissão de quem pergunta, e a resposta **declara o recorte** em `visibilidadeAplicada`
 (`todas` | `apenas_minhas`). A tela mostra esse recorte em palavras — *"Todas as ocorrências"* ou
 *"Minhas ocorrências"* —, porque o contrato o devolve exatamente *"para que o cliente possa dizer ao
-usuário o que está vendo"* (§8.5).
+usuário o que está vendo"* (`contrato-de-api.md` §8.5).
 
 **O que mostra.** Uma lista de `OcorrenciaResumo`, em **ordem fixa `registradaEm` decrescente** (S-A11 —
 não há parâmetro de ordenação, e não há `total`). Por item, na ordem de leitura:
@@ -572,11 +572,11 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
 2. `motivoPausa`, **quando o status é `pausada` e quem lê é Gestor.** É obrigatório e não é enfeite: o
    rótulo do Gestor é sempre *"Pausada"*, e sem este campo a lista dele mostraria **quatro esperas
    diferentes com a mesma palavra** — escondendo justamente o que a D8 existe para tornar visível
-   (glossário §4, contrato §8.8). Ao Solicitante o motivo já está dentro do rótulo, e repeti-lo seria
+   (`glossario.md` §4, `contrato-de-api.md` §8.8). Ao Solicitante o motivo já está dentro do rótulo, e repeti-lo seria
    redundância.
 3. `titulo`
 4. `categoria.nome` · `area.nome` — o `tipo` da área é o **congelado no registro**, não o atual.
-5. `prioridade` — só quando `visibilidadeAplicada == "todas"`. Prioridade é decisão do Gestor (glossário
+5. `prioridade` — só quando `visibilidadeAplicada == "todas"`. Prioridade é decisão do Gestor (`glossario.md`
    §3) e não há nada que o Solicitante faça com ela.
 6. `responsavel.nome` quando não nulo — *"quem está cuidando"*. Visível ao Solicitante de propósito
    (*"mostrar constrói confiança"*, `openapi.yaml`), e sem canal direto entre os dois.
@@ -596,7 +596,7 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
 | Dashboard · Quem está na organização · Categorias e áreas | **navegação** → T-07, T-08, T-09, cada uma só com a permissão respectiva |
 
 **Sobre os filtros.** São **exatamente os três de G2** (`ENUNCIADO · literal`), mais `autor=eu`.
-`areaId` **não existe** e não deve ser acrescentado: o contrato o excluiu deliberadamente (§8.5), e
+`areaId` **não existe** e não deve ser acrescentado: o contrato o excluiu deliberadamente (`contrato-de-api.md` §8.5), e
 oferecer na tela um filtro que a API não tem é o começo da divergência. Os **filtros rápidos** — não
 triadas, pausadas esperando o Gestor, sem atualização — são ⬜ (D15), e a §5 registra o que isso custa.
 
@@ -607,7 +607,7 @@ Gestor estava lendo, e não a lista do zero.
 seleção múltipla, não há triagem em lote**. Toda ação sobre uma ocorrência acontece em T-05, porque
 todo comando exige contexto (e dois deles exigem texto obrigatório) e porque `acoesDisponiveis` chega no
 `OcorrenciaDetalhe`, **não** no `OcorrenciaResumo`. Ação de lote sem `acoesDisponiveis` obrigaria o
-cliente a adivinhar quais itens aceitam o comando — a segunda cópia da máquina de estados que o contrato
+cliente a adivinhar quais itens aceitam o comando — a segunda cópia da máquina de estados que o `contrato-de-api.md`
 §8.5 existe para impedir.
 
 **Vazio · carregando · erro.** São **três** vazios diferentes, e confundi-los é o erro clássico:
@@ -639,7 +639,7 @@ sobrevive ao botão voltar.
 > ### O convite a avaliar — restrição herdada nº 2
 >
 > O rótulo de `resolvida` é **"Resolvida"**, e o *"conte como foi"* foi deliberadamente tirado dele
-> porque *"rótulo é estado, não convite"* (glossário §4, regra 3; contrato §13.2, Q-API-2, correção 3).
+> porque *"rótulo é estado, não convite"* (`glossario.md` §4, regra 3; `contrato-de-api.md` §13.2, Q-API-2, correção 3).
 > **O convite é da tela, e a tela decide onde.** Decisão:
 >
 > **O convite aparece em dois lugares: como marca no item em T-03, e como chamada em T-05.** Texto:
@@ -656,7 +656,7 @@ sobrevive ao botão voltar.
 
 | Campo | Conteúdo |
 |---|---|
-| **Quem vê** | `ocorrencia.registrar` — Solicitante **e Gestor** (§4.5: o Gestor acumula as capacidades do Solicitante) |
+| **Quem vê** | `ocorrencia.registrar` — Solicitante **e Gestor** (`contrato-de-api.md` §4.5: o Gestor acumula as capacidades do Solicitante) |
 | **A pergunta** | *"Preciso avisar de um problema."* |
 
 **A tela mais restringida do inventário.** O **RNF6** manda: da abertura ao envio, **menos de um
@@ -668,14 +668,14 @@ da análise de Cagan. Tudo aqui se subordina a isso.
 | Campo | Restrição do schema | Nota |
 |---|---|---|
 | `titulo` | obrigatório, 1–150 | |
-| `descricao` | obrigatório, 1–5000 | É onde a intenção do Solicitante vive — **não há campo de urgência** (glossário §8: o campo sofre inflação e vira ruído, D7) |
+| `descricao` | obrigatório, 1–5000 | É onde a intenção do Solicitante vive — **não há campo de urgência** (`glossario.md` §8: o campo sofre inflação e vira ruído, D7) |
 | `categoriaId` | obrigatório | de `GET /categorias`, **só as com `ativa: true`**, na ordem de `ordem` (D18: *"qual categoria aparece antes é escolha do Gestor"*) |
 | `areaId` | **obrigatório** | de `GET /areas`, só as ativas. É obrigatório porque **é dela que a visibilidade deriva** |
 | `localizacaoComplemento` | opcional, ≤ 200 | texto livre — *"ao lado da vaga 34"* |
 | `imagem` | opcional | uma só (RNF8), como **referência** — nunca bytes |
 
 **Não mostra, e não pode:** `status`, `prioridade`, `areaTipo` — os três são escritos pelo servidor, e
-enviá-los devolve `422 CAMPO_NAO_SUPORTADO` (contrato §3.5). Também não mostra `ocorrenciaOrigemId`,
+enviá-los devolve `422 CAMPO_NAO_SUPORTADO` (`contrato-de-api.md` §3.5). Também não mostra `ocorrenciaOrigemId`,
 cuja coluna existe e cuja capacidade é ⬜.
 
 **O que oferece.**
@@ -715,7 +715,7 @@ visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
 
 **Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar: `titulo`, `categoria` e o
 botão de foto. `descricao`, `area` e `localizacaoComplemento` vêm abaixo. A razão de a área não estar
-acima é que ela é o campo mais longo de escolher (~30 opções, contrato §7.7) e não é o que a pessoa tem
+acima é que ela é o campo mais longo de escolher (~30 opções, `contrato-de-api.md` §7.7) e não é o que a pessoa tem
 na cabeça ao abrir o aplicativo.
 
 **Endereço próprio.** Sim — e é o alvo do atalho do aplicativo instalado (§6).
@@ -763,7 +763,7 @@ Cada item traz `ocorridoEm`, `autor.nome` e, nas transições, `observacao`, `mo
 
 Cinco tipos de evento **não** aparecem na linha do tempo, e isso é limitação conhecida, não bug de tela:
 comentário fora do canal 1, nota interna, **alteração de prioridade**, reatribuição e mensagem da
-atribuição (**PA-21**). A alteração de prioridade em particular *"não entra na trilha"* (contrato §8.4),
+atribuição (**PA-21**). A alteração de prioridade em particular *"não entra na trilha"* (`contrato-de-api.md` §8.4),
 então mudá-la não deixa rastro em lugar nenhum que a tela possa mostrar.
 
 **4 · A conversa.** `GET /ocorrencias/{id}/comentarios` — o **canal 1**, Gestores + Solicitante autor.
@@ -828,11 +828,11 @@ Três razões, e a primeira é estrutural:
 1. **Desabilitar exige a segunda cópia da máquina de estados.** Para mostrar `resolver` cinza em
    `aberta`, o cliente precisa conhecer o **conjunto completo** de comandos e saber quais faltam — o que
    é a tabela de transições no cliente, pela porta de trás. O contrato criou `acoesDisponiveis`
-   precisamente para evitar isso (§8.5: *"alternativa rejeitada: cliente com a tabela em código,
+   precisamente para evitar isso (`contrato-de-api.md` §8.5: *"alternativa rejeitada: cliente com a tabela em código,
    sincronizada por disciplina"*).
 2. **O Solicitante veria sete botões cinza que ele nunca poderá usar** — num produto cujo risco número
    dois é usabilidade e cujo usuário *"não vai aprender nada"*.
-3. É a mesma escolha que o contrato fez ao responder `404` em vez de `403` (§6.3): **não confirmar a
+3. É a mesma escolha que o contrato fez ao responder `404` em vez de `403` (`contrato-de-api.md` §6.3): **não confirmar a
    existência do que você não pode alcançar.**
 
 **O que isso custa, declarado:** o Gestor **não aprende a máquina de estados pela tela.** Ele não vê que
@@ -884,7 +884,7 @@ Sobrevive à autenticação (§3, decisão 2). Os modais são fragmentos, não e
 > ### O aviso de visibilidade — restrição herdada nº 1
 >
 > A `observacao` de cada transição, o motivo da pausa e o motivo do cancelamento **são visíveis ao
-> Solicitante** (Q-API-3, resposta (a); contrato §8.5). Decorre disso uma restrição que o contrato
+> Solicitante** (Q-API-3, resposta (a); `contrato-de-api.md` §8.5). Decorre disso uma restrição que o contrato
 > passou explicitamente para este passo:
 >
 > **Todo modal que tem campo `observacao` — `pausar`, `cancelar`, `resolver`, `iniciar-atendimento`,
@@ -893,7 +893,7 @@ Sobrevive à autenticação (§3, decisão 2). Os modais são fragmentos, não e
 > > *"O Solicitante vê esta observação. Não há como editá-la depois."*
 >
 > **Duas frases porque os dois fatos importam**, e cada uma sozinha é insuficiente: quem lê, e que é
-> final. O registro de transição é **imutável** (contrato §9.1) — não há `PATCH`, não há `DELETE`, e não
+> final. O registro de transição é **imutável** (`contrato-de-api.md` §9.1) — não há `PATCH`, não há `DELETE`, e não
 > pode haver. Um Gestor que escreva nota interna ali por engano **não tem volta**.
 >
 > **O agravante que torna o aviso obrigatório e não recomendável:** a **nota interna** é o canal 2, e
@@ -936,7 +936,7 @@ começo). Cada registro traz os **cinco campos do F5, um por campo, sem serializ
 | `observacao` | mais `motivoPausa` e `motivoCancelamento` quando houver |
 
 **O que oferece.** Nada que chame endpoint. **Não há ação nenhuma nesta tela** — é a expressão de
-interface da invariante 3 do agregado (*"o histórico é append-only"*) e da §9.1 do contrato (*"não
+interface da invariante 3 do agregado (*"o histórico é append-only"*) e da §9.1 do `contrato-de-api.md` (*"não
 existe `POST`, não existe `PATCH`, não existe `DELETE`"*). Só navegação de volta a T-05.
 
 **Como reage ao status.** Não reage — e isso é o ponto. A trilha de uma ocorrência `cancelada` tem
@@ -971,7 +971,7 @@ sem esta tela `GET /ocorrencias/{id}/trilha-de-auditoria` seria **endpoint órf�
 | **Quem vê** | `dashboard.ler` — Gestor |
 | **A pergunta** | *"Está melhorando ou piorando, e onde?"* |
 
-**Uma tela, cinco indicadores, uma requisição.** `GET /dashboard` devolve os cinco juntos, e o contrato
+**Uma tela, cinco indicadores, uma requisição.** `GET /dashboard` devolve os cinco juntos, e o `contrato-de-api.md`
 §8.7 explica por que não são cinco endpoints: *"o dashboard é uma tela, e numa aplicação com escala a
 zero cinco requisições podem significar cinco esperas de cold start onde uma bastaria"*. **Cinco telas
 seria o mesmo erro com um custo maior.**
@@ -982,7 +982,7 @@ cinco números não são iguais em valor, e a tela declara isso pela ordem em qu
 | # | Indicador | Campo | Por que nesta posição |
 |---|---|---|---|
 | 1 | **Recorrência por categoria e por área** | `recorrenciaPorCategoria[]`, `recorrenciaPorArea[]` — série mensal, `{ mes, quantidade }` | **É a justificativa do dashboard existir.** Sem ela o indicador exigido pelo desafio mostraria o que a lista já mostra, e oito vazamentos no mesmo bloco em três meses continuariam parecendo oito ordens de serviço em vez de **uma obra** (D19) |
-| 2 | **Backlog por status** | `backlogPorStatus[]` — `{ status, statusRotulo, quantidade }` | É a única resposta a *"quantas em cada status"*, que a lista não dá: `GET /ocorrencias` **não devolve `total`** de propósito (§7.7) |
+| 2 | **Backlog por status** | `backlogPorStatus[]` — `{ status, statusRotulo, quantidade }` | É a única resposta a *"quantas em cada status"*, que a lista não dá: `GET /ocorrencias` **não devolve `total`** de propósito (`contrato-de-api.md` §7.7) |
 | 3 | **Backlog por categoria** | `backlogPorCategoria[]` | Onde o volume está agora |
 | 4 | **Tempo médio de resolução, mês a mês** | `tempoMedioDeResolucao.porMes[]` — `{ mes, horas, resolvidas }` | Tendência. É **tempo de calendário**, com as pausas incluídas |
 | 5 | **Média das avaliações** | `mediaDasAvaliacoes` — `{ media, avaliadas, resolvidas }` | Última porque é a mais frágil: é a única medida de qualidade do produto **e** a que depende de alguém agir |
@@ -1004,10 +1004,10 @@ assim na Documentação da Demanda. A tela não insinua o contrário, e não há
 
 | Ação | Endpoint |
 |---|---|
-| Escolher a janela — `de` e `ate` | `GET /dashboard?de=&ate=` — `date`, padrão de **90 dias**, interpretado em **America/Sao_Paulo** (§7.5) |
+| Escolher a janela — `de` e `ate` | `GET /dashboard?de=&ate=` — `date`, padrão de **90 dias**, interpretado em **America/Sao_Paulo** (`contrato-de-api.md` §7.5) |
 
 **Nada mais.** Não há navegação daqui para a lista filtrada: seria um filtro por área ou por mês, e
-`areaId` não é filtro de `GET /ocorrencias` (§8.5) nem existe filtro por data. Oferecer o atalho
+`areaId` não é filtro de `GET /ocorrencias` (`contrato-de-api.md` §8.5) nem existe filtro por data. Oferecer o atalho
 exigiria um parâmetro que o contrato recusou — **é o exemplo mais claro de tela que se contém para não
 divergir da API.**
 
@@ -1128,7 +1128,7 @@ na correção de quem não tem conta. Cada linha traz `tipo`, `valor`, `finalida
 > mais que a velocidade** — e o custo da complexidade foi comprado com essa conta na mão.
 >
 > **`409 CONTATO_DUPLICADO`** é o erro novo, e ele tem campo: aparece **no campo do contato repetido**, pela
-> regra da §6.2 do protótipo, nunca como faixa na página.
+> regra da §6.2 do `prototipo-low-fi.md`, nunca como faixa na página.
 >
 > **E a recusa de um pedido ganhou `observacao`.** O Gestor registra por que recusou, e o texto **passa a ser
 > guardado** — até 22/08 o contrato o aceitava e o descartava em silêncio. **A tela desenha supondo que o
@@ -1246,7 +1246,7 @@ aviso de visibilidade:**
   tela** (ver o estado vazio de T-04).
 - **Ao mudar o `tipo` de uma Área**, a resposta do `PATCH` traz `ocorrenciasComTipoAnterior` — uma
   contagem que existe *"para que a interface possa dizer ao Gestor, em português, que o passado não
-  muda"* (contrato §8.1). A frase: *"{N} ocorrências já registradas mantêm o tipo anterior. Mudar o
+  muda"* (`contrato-de-api.md` §8.1). A frase: *"{N} ocorrências já registradas mantêm o tipo anterior. Mudar o
   tipo vale de agora em diante — o passado não muda."* Sem ela, um Gestor que reclassifique uma área
   espera que a visibilidade das ocorrências antigas mude, e ela não muda (emenda à D10). **É um campo
   de resposta que só existe para produzir uma frase de tela; deixar de produzi-la desperdiça a decisão
@@ -1259,7 +1259,7 @@ aviso de visibilidade:**
   duas listas vierem vazias, a POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem
   {categorias | áreas} ativas."*
 - *Carregando:* duas requisições, disparadas juntas. Coleções pequenas — ~15 e ~30 —, **sem paginação**
-  (§7.7).
+  (`contrato-de-api.md` §7.7).
 - *Erro:* `409 CATEGORIA_NOME_DUPLICADO`, `409 AREA_NOME_DUPLICADO` — ver §7.
 
 **Alvo primário.** Tela grande. Duas listas editáveis lado a lado, com reordenação — trabalho de
@@ -1292,7 +1292,7 @@ Gestores vai chegar aqui.
   uma vez: entrar e ver a própria lista, leitura sem rede, reportar execução concluída, recusar
   atribuição, e a conversa da atribuição (`escopo.md` §3.1).
 - O contrato registra a consequência: **`permissoes: []`** para o vínculo `encarregado`, e
-  `403 PERMISSAO_INSUFICIENTE` em qualquer endpoint de negócio (§4.5, suposição **S-A6**). O mapa de
+  `403 PERMISSAO_INSUFICIENTE` em qualquer endpoint de negócio (`contrato-de-api.md` §4.5, suposição **S-A6**). O mapa de
   permissões tem a coluna dele inteira preenchida com `—`.
 - O DG-3 desenha o caminho: um vínculo `encarregado` com conta *"atravessa o funil inteiro e chega ao
   losango de permissão com `permissoes: []`"* — *"um caminho que termina em nada"*.
@@ -1374,7 +1374,7 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 |---|---|
 | **Os onze comandos do agregado**, um por tela | **T-05, todos.** É o corolário do critério: ação não é tela. Onze telas produziriam um aplicativo em que o Gestor sai da ocorrência para agir sobre ela e volta para ver o resultado — navegar em vez de trabalhar. E o contrato já provê `acoesDisponiveis` no `OcorrenciaDetalhe`, ou seja **no payload da tela onde a pessoa já está** |
 | **Alterar prioridade** | Seletor no bloco 1 de T-05. Nenhum texto a escrever, e a D6 já o congela em estado terminal |
-| **Auto-atribuição do Gestor** (capacidade ✅ nº 20) | Primeira linha do modal de atribuir, em T-05. *"A auto-atribuição em um clique não é endpoint"* (contrato §8.4) — pela mesma razão, não é tela: é a primeira opção de uma lista |
+| **Auto-atribuição do Gestor** (capacidade ✅ nº 20) | Primeira linha do modal de atribuir, em T-05. *"A auto-atribuição em um clique não é endpoint"* (`contrato-de-api.md` §8.4) — pela mesma razão, não é tela: é a primeira opção de uma lista |
 | **Reatribuir** (capacidade ✅ nº 21) | O **mesmo** modal, quando já existe responsável. A distinção é derivada do estado, não da intenção do cliente — a resposta diz qual dos dois aconteceu, em `reatribuicao` |
 | **Registrar solução aplicada** | Campo no corpo de T-05, e o mesmo campo pré-preenchido no modal de resolver. `/resolver` aceita `solucaoAplicada` no mesmo corpo, de propósito (D22) |
 
@@ -1386,7 +1386,7 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 | **Pedir entrada com o código** | Face de T-02. Um campo obrigatório e dois opcionais |
 | **Escolher a organização** no login de quem tem dois vínculos | Face D de T-02. É a mesma pergunta — *"onde eu trabalho?"* — em outra circunstância |
 | **Trocar a organização ativa** depois de dentro | **Menu do shell**, com o nome da organização ativa sempre visível. Já foi recusado como diagrama próprio no passo 3 (candidato 5) pela mesma razão: *"o que importa não é a sequência, é a regra"* |
-| **"Minhas ocorrências"** como tela separada | T-03 com `?autor=eu`. O contrato **recusou** `/minhas-ocorrencias` (§8.5), e uma tela a mais reintroduziria o que ele recusou |
+| **"Minhas ocorrências"** como tela separada | T-03 com `?autor=eu`. O contrato **recusou** `/minhas-ocorrencias` (`contrato-de-api.md` §8.5), e uma tela a mais reintroduziria o que ele recusou |
 | **Os filtros** como tela ou passo | *Query string* de T-03. Filtro que exige uma tela é filtro que ninguém usa duas vezes |
 | **Linha do tempo** | Bloco 3 de T-05. É a resposta à pergunta do detalhe, não a outra pergunta — quem quer saber "o que aconteceu" está perguntando sobre **esta** ocorrência |
 | **Comentários** | Bloco 4 de T-05. Uma conversa sobre uma ocorrência não tem vida fora dela, e o canal 1 **não tem lista própria** no contrato |
@@ -1398,14 +1398,14 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 
 | O que poderia ter sido tela | Por que não |
 |---|---|
-| **Perfil / minha conta** | **Não existe, e em 22/08/2026 isso passou de lacuna a decisão declarada** (contrato §8.2, e ver §9, **F11**). Os *dados de acesso* — e-mail de login e senha — são do provedor, via SDK, e vivem em T-01, T-12 e T-13. Os *dados pessoais* da `Pessoa`, que é tabela **global**, **não têm endpoint**: `PATCH /vinculos/{pessoaId}` recusa justamente quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3), não há `PATCH /contexto/pessoa` e não há `/pessoas` (§4.6, e não deve haver). **O `nome` é corrigível uma última vez** no campo de `POST /pedidos-de-entrada`, em T-02 face A; **`contatos[]` só por quem gere vínculos**, em T-08. Depois disso, nada muda — e o nome fica na trilha imutável |
+| **Perfil / minha conta** | **Não existe, e em 22/08/2026 isso passou de lacuna a decisão declarada** (`contrato-de-api.md` §8.2, e ver §9, **F11**). Os *dados de acesso* — e-mail de login e senha — são do provedor, via SDK, e vivem em T-01, T-12 e T-13. Os *dados pessoais* da `Pessoa`, que é tabela **global**, **não têm endpoint**: `PATCH /vinculos/{pessoaId}` recusa justamente quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3), não há `PATCH /contexto/pessoa` e não há `/pessoas` (`contrato-de-api.md` §4.6, e não deve haver). **O `nome` é corrigível uma última vez** no campo de `POST /pedidos-de-entrada`, em T-02 face A; **`contatos[]` só por quem gere vínculos**, em T-08. Depois disso, nada muda — e o nome fica na trilha imutável |
 | **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático na primeira entrega, em nenhum canal |
 | **Filtros rápidos** | ⬜ — D15. É *"o corte de maior custo operacional: são o que o Gestor faz todo dia"* (`escopo.md` §3.3), e o que sobra são os três filtros de G2 em T-03 |
 | **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Na primeira entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
 | **Ver semelhantes e aderir** | ⬜ — D11 |
-| **Lista do Encarregado** | ⬜ — Q11. E `?responsavel=eu` é fatia 2 (contrato §11, item 13) |
+| **Lista do Encarregado** | ⬜ — Q11. E `?responsavel=eu` é fatia 2 (`contrato-de-api.md` §11, item 13) |
 | **Nota interna** | ⬜ — D9. E é justamente essa ausência que torna o aviso de visibilidade em T-05 obrigatório |
-| **Busca por texto** | Não existe `?q=` (contrato §9.8), e o índice GIN foi deliberadamente não criado |
+| **Busca por texto** | Não existe `?q=` (`contrato-de-api.md` §9.8), e o índice GIN foi deliberadamente não criado |
 | **Editar ocorrência** | Não existe `PATCH /ocorrencias` (S-A7). Título, descrição, categoria, área e imagem são escritos **uma vez** |
 | **Página pública da organização** | ⬜ — D25. A primeira entrega usa o código digitado à mão em T-02 |
 | **Onboarding, tour ou ajuda** | Não é capacidade, e contradiz o RNF6: o Solicitante *"não vai aprender nada"*, então o produto tem de funcionar sem ensinar |
@@ -1417,7 +1417,7 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 
 ### Sem organização ativa
 
-O contrato tem **quatro** endpoints que rodam sem organização (§4.4), e é essa lista curta que define
+O contrato tem **quatro** endpoints que rodam sem organização (`contrato-de-api.md` §4.4), e é essa lista curta que define
 onde a aplicação existe antes de a pessoa pertencer a algum lugar: `GET /contexto`,
 `PUT /contexto/organizacao`, `POST /organizacoes`, `POST /pedidos-de-entrada`. **Os quatro são
 consumidos por T-02 e pelo shell, e por mais ninguém.**
@@ -1486,7 +1486,7 @@ fila é indistinguível, para o usuário, de um comando recusado pelo domínio.
 
 ## 7. Erros que aparecem para o usuário, e a frase de cada um
 
-O contrato tem uma taxonomia com **códigos estáveis** (§6.4), e `title` e `detail` já vêm em pt-BR e
+O contrato tem uma taxonomia com **códigos estáveis** (`contrato-de-api.md` §6.4), e `title` e `detail` já vêm em pt-BR e
 *"podem ir direto para a tela"*. **Nem todo código precisa de tratamento próprio na interface.** A regra
 que usei para escolher:
 
@@ -1500,8 +1500,8 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 |---|---|---|---|
 | `VINCULO_COM_HISTORICO` | 409 | T-08 | *"{nome} já registrou ocorrências, foi responsável ou escreveu mensagens nesta organização. Um vínculo com histórico não pode ser removido — o histórico não se apaga."* **A tela não mostra o botão** quando o vínculo tem histórico: mostra essa razão no lugar dele. O caminho correto é **revogar**, que é ⬜ — e a frase diz: *"Encerrar o acesso preservando o registro é uma função que ainda não existe."* |
 | `ULTIMO_GESTOR` | 409 | T-08 | *"Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas."* Igual à de cima: **o botão não aparece**, a razão aparece. É a guarda que impede este endpoint de abrir uma segunda porta para o **PA-24** |
-| `TRANSICAO_NAO_PERMITIDA` | 409 | T-05 | **O caso das duas pessoas triando ao mesmo tempo.** Não há controle otimista no contrato (§7.9) — a segunda descobre pelo erro. *"Esta ocorrência mudou enquanto você estava olhando: agora ela está **{statusAtual em rótulo}**."* + **a tela se recarrega e mostra as ações novas**, que vêm no próprio corpo do erro em `acoesDisponiveis`. É a resposta mais completa que o inventário dá a um erro, e ela é possível **só porque o contrato pôs `statusAtual` e `acoesDisponiveis` no corpo do `409`** |
-| `OCORRENCIA_NAO_ENCONTRADA` | 404 | T-03, T-05, T-06 | Por decisão do contrato (§6.3), é **indistinguível** de "existe em outra organização". Então a frase tem de cobrir os dois sem escolher: *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* — e o nome da organização vem no corpo do erro exatamente para isto: *"metade das vezes a resposta é 'ah, estou na organização errada', e a resposta já diz em qual você está"*. A tela oferece **trocar de organização** quando `contexto.vinculos` tiver outra, e o `traceId` |
+| `TRANSICAO_NAO_PERMITIDA` | 409 | T-05 | **O caso das duas pessoas triando ao mesmo tempo.** Não há controle otimista no `contrato-de-api.md` (§7.9) — a segunda descobre pelo erro. *"Esta ocorrência mudou enquanto você estava olhando: agora ela está **{statusAtual em rótulo}**."* + **a tela se recarrega e mostra as ações novas**, que vêm no próprio corpo do erro em `acoesDisponiveis`. É a resposta mais completa que o inventário dá a um erro, e ela é possível **só porque o contrato pôs `statusAtual` e `acoesDisponiveis` no corpo do `409`** |
+| `OCORRENCIA_NAO_ENCONTRADA` | 404 | T-03, T-05, T-06 | Por decisão do `contrato-de-api.md` (§6.3), é **indistinguível** de "existe em outra organização". Então a frase tem de cobrir os dois sem escolher: *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* — e o nome da organização vem no corpo do erro exatamente para isto: *"metade das vezes a resposta é 'ah, estou na organização errada', e a resposta já diz em qual você está"*. A tela oferece **trocar de organização** quando `contexto.vinculos` tiver outra, e o `traceId` |
 | `ANEXO_NAO_RECONHECIDO` | 422 | T-04 | A imagem recusada **depois** de o upload já ter acontecido. *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A última meia frase é o conteúdo:** perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
 | `ANEXO_ACIMA_DO_LIMITE` | 422 | T-04 | *"A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."* Não menciona bytes: 512 KB não é informação para quem está no subsolo |
 | `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Texto: *"Esta ocorrência já foi registrada — a foto que você anexou já está nela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir |
@@ -1526,7 +1526,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `CATEGORIA_NOME_DUPLICADO` · `AREA_NOME_DUPLICADO` | 409 | T-09 | *"Já existe uma {categoria \| área} com este nome."* O nome é único por organização porque *"duas categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do dashboard"* |
 | `PEDIDO_JA_DECIDIDO` | 409 | T-08 | *"Este pedido já foi decidido por outro Gestor."* + recarrega a lista |
 | `NAO_AUTENTICADO` | 401 | qualquer tela | Não tem frase: leva a T-01, guardando o destino |
-| `ERRO_INTERNO` | 500 | qualquer tela | *"Algo deu errado do nosso lado."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da §6.3 |
+| `ERRO_INTERNO` | 500 | qualquer tela | *"Algo deu errado do nosso lado."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
 | `FORMATO_INVALIDO` | 400 | formulários | Não vira faixa de erro: vira mensagem **por campo**, de `erros[]` (`{ campo, codigo, mensagem }`) |
 
 **Códigos que deliberadamente não têm frase própria:** `CORPO_NAO_SUPORTADO` (415), `CAMPO_NAO_SUPORTADO`
@@ -1664,7 +1664,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
   tomada em voz alta**, e a conclusão foi que a pergunta é outra.
 - **`POST /ocorrencias/{id}/registrar-solucao-aplicada` seria órfão** se o campo de solução aplicada
   vivesse **apenas** dentro do modal de resolver — que era a leitura mais natural da D22 (*"campo em
-  foco, induzido por UX"*). O contrato §8.4 diz que enviá-lo em `/resolver` *"equivale a chamar
+  foco, induzido por UX"*). O `contrato-de-api.md` §8.4 diz que enviá-lo em `/resolver` *"equivale a chamar
   `/registrar-solucao-aplicada` antes"*, e isso torna o endpoint dispensável se a tela não lhe der um
   lugar. Deu: o campo no corpo de T-05, para o Gestor que registra o que foi feito antes de fechar.
 
@@ -1673,7 +1673,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 ## 9. O que o inventário revelou
 
 Treze itens. **Um foi fechado em 21/08/2026** — o F6, pelo desenho de T-11 —, **um foi decidido pelo hub em
-22/08** — o F11, e a decisão está no contrato §8.2 — e **o F13 nasceu em 22/08**, ao conferir quem escreve
+22/08** — o F11, e a decisão está no `contrato-de-api.md` §8.2 — e **o F13 nasceu em 22/08**, ao conferir quem escreve
 `vinculos.area_id`. Os outros dez seguem abertos: **ambiguidade se registra, não
 se resolve em silêncio** (aula 6, p.7–8), e cinco deles tocam decisões que são do hub.
 
@@ -1700,7 +1700,7 @@ O contrato define `acoesDisponiveis` como *"a lista dos comandos que **este** ch
 agregado não são nem máquina de estados nem permissão**:
 
 - **invariante 9** — `iniciarAtendimento` exige responsável atribuído (D21). Não é sobre `status`, e o
-  contrato §8.4 diz literalmente que *"é a única precondição de estado que não é sobre `status`"*.
+  `contrato-de-api.md` §8.4 diz literalmente que *"é a única precondição de estado que não é sobre `status`"*.
 - **invariante 7** — `prioridade` é imutável em estado terminal (D6). E `alterar-prioridade` **não
   transiciona**, logo não está na tabela de transições.
 - **invariante 8 / `JA_AVALIADA`** — `avaliar` é do autor, em `resolvida`, uma vez só. O "uma vez só" não
@@ -1709,7 +1709,7 @@ agregado não são nem máquina de estados nem permissão**:
 **Por que isso é da tela e não do contrato.** T-05 renderiza exatamente `acoesDisponiveis`. Se a lista
 não aplicar as três, a tela tem duas saídas e **as duas são ruins**: oferecer um botão que falha de
 forma previsível, ou reimplementar as três invariantes no cliente — que é a **segunda cópia da máquina
-de estados** que o campo existe para impedir (§8.5).
+de estados** que o campo existe para impedir (`contrato-de-api.md` §8.5).
 
 **Recomendação:** `acoesDisponiveis` aplica **todas** as precondições do comando, não só status ×
 permissão — e o contrato diz isso com essas palavras. O nome do campo já promete: uma ação que falha
@@ -1732,7 +1732,7 @@ mostra a face D de T-02.
 
 ### F3 · Nada na documentação cobre o que o vínculo sem permissão vê
 
-O estado está **declarado três vezes** — S-A6 (`permissoes: []`), §4.5 (*"o Encarregado não tem
+O estado está **declarado três vezes** — S-A6 (`permissoes: []`), `contrato-de-api.md` §4.5 (*"o Encarregado não tem
 permissão nenhuma na primeira entrega"*), e o DG-3 (*"um caminho que termina em nada"*). Mas não há
 **capacidade**, não há **endpoint** e não há **fluxo** para o que a pessoa vê ao chegar lá.
 
@@ -1748,11 +1748,10 @@ sem volta: **estado sem saída que ninguém documentou é o que vira suporte às
 
 ### F4 · Três contagens desatualizadas em dois documentos
 
-- **`contrato-de-api.md:643`** abre a §8 com *"**36 operações**"*; a §14, na linha 1600, diz *"nenhum dos
-  **37** endpoints existe sem capacidade correspondente"*.
-- **`fluxos-e-diagramas.md:10`** cita *"[contrato-de-api.md] (os **36** endpoints)"*.
-- **`fluxos-e-diagramas.md:8`** cita *"[escopo.md] (as **41** capacidades da primeira entrega)"*, e o
-  escopo fechou em **42**.
+- A **`contrato-de-api.md` §8** abria com *"**36 operações**"*; a **`contrato-de-api.md` §14** dizia
+  *"nenhum dos **37** endpoints existe sem capacidade correspondente"*.
+- O **`fluxos-e-diagramas.md`**, na lista de origens do cabeçalho, citava *"[contrato-de-api.md] (os **36**
+  endpoints)"* e *"[escopo.md] (as **41** capacidades da primeira entrega)"* — e o escopo fechou em **42**.
 
 **Verificado no YAML:** 30 caminhos, **37 operações**
 (`grep -cE '^    (get|post|put|patch|delete):' docs/api/openapi.yaml` → 37; 12 `get`, 20 `post`, 3
@@ -1766,7 +1765,7 @@ sem volta: **estado sem saída que ninguém documentou é o que vira suporte às
 
 **Auto-atribuição do Gestor, em um clique** é capacidade ✅ (nº 20, `NOSSO`, D21), e a justificativa dela
 é forte: *"quem está fazendo é exatamente o que o Gestor não sabe hoje"*. Mas o filtro
-`?responsavel=eu` é **fatia 2** (contrato §11, item 13), e os filtros de T-03 são só os três de G2.
+`?responsavel=eu` é **fatia 2** (`contrato-de-api.md` §11, item 13), e os filtros de T-03 são só os três de G2.
 
 Consequência: o Gestor se atribui e **não tem lista do que é dele**. Ele vê `responsavel` item por item,
 percorrendo a lista inteira. **A capacidade entra sem a leitura que a torna útil.**
@@ -1779,7 +1778,7 @@ demonstração ao vivo.
 
 ### F6 · O nome de uma Pessoa recém-criada não tem origem declarada
 
-O ACL *"cria a `Pessoa` se ainda não existir"* (§4.1, resolução idempotente da §9.2 do modelo). E
+O ACL *"cria a `Pessoa` se ainda não existir"* (`contrato-de-api.md` §4.1, resolução idempotente da §9.2 do `modelo-de-dados.md`). E
 `PessoaReferencia` tem `nome` em `required`, tipado `string` — **não nulável**. Então uma Pessoa criada
 no primeiro login **precisa** de um nome, e **nenhum documento diz de onde ele vem**.
 
@@ -1809,7 +1808,7 @@ que é mudança de schema, e não é deste inventário.
 
 ### F7 · O `409` de transição é a única defesa contra dois Gestores triando junto
 
-Não há `ETag`/`If-Match` (§7.9), por decisão consciente: *"nos comandos de transição o problema não
+Não há `ETag`/`If-Match` (`contrato-de-api.md` §7.9), por decisão consciente: *"nos comandos de transição o problema não
 existe — a máquina de estados já é o controle otimista"*. Correto. Mas restam **dois** pontos onde a
 última escrita vence sem aviso: `alterar-prioridade` e `registrar-solucao-aplicada`. E a alteração de
 prioridade **não entra na trilha** (PA-21), então ela é sobrescrita **sem deixar rastro em lugar
@@ -1832,7 +1831,7 @@ Os dois instrumentos que resolveriam — o **sino** e os **filtros rápidos** �
 
 Fica declarado: **a interface da primeira entrega não tem mecanismo que traga de volta uma resolução não
 avaliada.** O Solicitante consegue chegar lá filtrando por `status=resolvida`, e o Solicitante não vai
-filtrar. É o custo do corte do aviso automático (§3.2 do escopo) aparecendo num lugar que aquela seção
+filtrar. É o custo do corte do aviso automático (§3.2 do `escopo.md`) aparecendo num lugar que aquela seção
 não previu.
 
 ### F9 · Nada avisa o Gestor de que chegou um pedido de entrada
@@ -1861,13 +1860,13 @@ requisição de propósito.
 
 ### F11 · Quem tem conta não consegue editar os próprios dados em lugar nenhum
 
-O contrato §8.2 justifica `409 PESSOA_COM_CONTA_NAO_EDITAVEL` com uma frase que **promete um caminho que
+O `contrato-de-api.md` §8.2 justifica `409 PESSOA_COM_CONTA_NAO_EDITAVEL` com uma frase que **promete um caminho que
 não existe**:
 
 > *"Quem tem conta edita os próprios dados; quem não tem existe apenas como cadastro de quem o criou."*
 
 **Não há endpoint onde isso aconteça.** Percorrendo os 37: `PATCH /vinculos/{pessoaId}` é recusado
-justamente para quem tem conta; não há `PATCH /contexto/pessoa`; não há recurso `/pessoas` (§4.6, e não
+justamente para quem tem conta; não há `PATCH /contexto/pessoa`; não há recurso `/pessoas` (`contrato-de-api.md` §4.6, e não
 deve haver). O único momento em que uma pessoa com conta informa o próprio nome é o campo opcional
 `nome` de `POST /pedidos-de-entrada` — **uma vez, ao entrar, e nunca mais.**
 
@@ -1899,13 +1898,13 @@ perguntar *"o que uma tela de perfil salvaria?"*. **Duas saídas, e a escolha é
 > restrito ao próprio chamador, sem tocar `papel` nem `Vinculo`, e sem abrir `/pessoas`.
 >
 > **A urgência não é estética.** `POST /pedidos-de-entrada` grava o `nome` **uma vez, ao entrar**; a
-> **trilha de auditoria é imutável** (contrato §9.1); e a trilha é *"a entrega mais defensável do
+> **trilha de auditoria é imutável** (`contrato-de-api.md` §9.1); e a trilha é *"a entrega mais defensável do
 > projeto"*. Um nome digitado errado no cadastro — e agora ele é digitado no cadastro, pelo F6 — fica na
 > trilha **para sempre**, e não há operação no produto inteiro que o corrija.
 >
 > ### ✅ Decidido pelo hub em 22/08/2026 — e por uma terceira via
 >
-> **Nem (a) nem (b).** O contrato §8.2 fechou assim: o nome **nasce do cadastro da conta** (T-11), é
+> **Nem (a) nem (b).** O `contrato-de-api.md` §8.2 fechou assim: o nome **nasce do cadastro da conta** (T-11), é
 > **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com
 > o nome atual** —, e **depois disso não há como alterá-lo**. Não há `PATCH /contexto/pessoa`, e **não há
 > tela de perfil**.
@@ -1922,7 +1921,7 @@ perguntar *"o que uma tela de perfil salvaria?"*. **Duas saídas, e a escolha é
 
 `Categoria` traz `ordem` em `required`, porque *"qual categoria aparece antes é escolha do Gestor"*
 (D18). `Area` traz `id`, `nome`, `tipo`, `ativa` — **e nada de ordem**. Mas a lista de áreas é a **mais
-longa das duas** (~30 contra ~15, §7.7) e é a que o Solicitante percorre com pressa, no celular, dentro
+longa das duas** (~30 contra ~15, `contrato-de-api.md` §7.7) e é a que o Solicitante percorre com pressa, no celular, dentro
 do RNF6.
 
 Este inventário assume **ordenação por `nome`** (S-T10) e a declara. Acrescentar `ordem` a `Area` seria
@@ -1986,7 +1985,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | # | Suposição | O que muda se estiver errada |
 |---|---|---|
 | **S-T1** | **Com exatamente um vínculo, `GET /contexto` devolve a organização como ativa** sem `PUT` prévio (**F2**) | Se não, todo login precisa de um `PUT` antes de qualquer tela — e a face D de T-02 deixa de ser exceção e passa a ser o caminho de **todo mundo**, inclusive de quem tem uma organização só |
-| **S-T2** | **Ação indisponível não é renderizada** — nem desabilitada | Se o hub preferir desabilitadas, T-05 ganha a lista completa de comandos no cliente (a segunda cópia da máquina de estados que o contrato §8.5 recusou), e o Solicitante passa a ver sete controles cinza. O que se ganha é o Gestor aprendendo o ciclo de vida pela tela |
+| **S-T2** | **Ação indisponível não é renderizada** — nem desabilitada | Se o hub preferir desabilitadas, T-05 ganha a lista completa de comandos no cliente (a segunda cópia da máquina de estados que o `contrato-de-api.md` §8.5 recusou), e o Solicitante passa a ver sete controles cinza. O que se ganha é o Gestor aprendendo o ciclo de vida pela tela |
 | **S-T3** | **`acoesDisponiveis` aplica todas as precondições**, não só status × permissão (**F1**) | Se não, T-05 precisa das invariantes 7, 8 e 9 em código próprio — e o campo perde a razão de existir |
 | **S-T4** | **Uma área, telas compartilhadas, ações por permissão** | Duas áreas dobram shell, navegação e estados vazios, e reintroduzem o de-para que o `?autor=eu` do contrato removeu. É a suposição mais cara de reverter |
 | **S-T5** | **T-03 escolhe o alvo primário por `visibilidadeAplicada`**, não pela largura da janela | Se a leitura certa for por viewport, a lista do Gestor no celular passa a mostrar três dimensões de comparação num espaço que não as comporta — ou a do Solicitante na tela grande ganha uma barra de filtros que ele nunca usa |
@@ -2016,7 +2015,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 > **O que muda na suposição:** ela deixa de dizer *"o reenvio é seguro"* e passa a dizer **"o reenvio é
 > seguro ou informativo"**. A tela não precisa distinguir os dois casos — ela reenvia, e se vier o `409`,
 > **navega para a ocorrência que existe** em vez de insistir. É idempotência parcial ganha de graça, num
-> caminho onde o contrato §7.10 declarou que não construiria mecanismo nenhum.
+> caminho onde o `contrato-de-api.md` §7.10 declarou que não construiria mecanismo nenhum.
 >
 > **E o que continua suposição:** que o `ticket` sobreviva os 15 minutos e que os **dois** `PUT` — original
 > e miniatura — possam ser refeitos com a mesma autorização. Se o storage recusar o segundo `PUT` numa
@@ -2030,11 +2029,11 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 |---|---|---|---|
 | **Q-T1** | **`acoesDisponiveis` considera as precondições que não são status nem permissão?** (F1) | (a) sim — aplica invariantes 7, 8 e 9, e o contrato diz isso; (b) não — a tela reimplementa as três | **(a).** O nome do campo já promete, e (b) devolve ao cliente a cópia da máquina de estados que o campo existe para eliminar |
 | **Q-T2** | **Qual é a `organizacaoAtiva` numa sessão sem cookie?** (F2) | (a) com um vínculo, o servidor a escolhe; com vários, `null`; (b) sempre `null`, e o cliente sempre escolhe | **(a).** (b) cobra uma pergunta de resposta única em todo login, sob cold start |
-| **Q-T3** | **Ação indisponível: escondida ou desabilitada?** (S-T2) | (a) escondida; (b) desabilitada com o motivo | **(a)**, com uma ressalva honesta: **(b) ensina o produto**, e sem teste de usabilidade não temos evidência de qual vence. Se o hub escolher (b), a lista completa de comandos vira constante no cliente — e isso precisa estar declarado como exceção à §8.5 do contrato |
+| **Q-T3** | **Ação indisponível: escondida ou desabilitada?** (S-T2) | (a) escondida; (b) desabilitada com o motivo | **(a)**, com uma ressalva honesta: **(b) ensina o produto**, e sem teste de usabilidade não temos evidência de qual vence. Se o hub escolher (b), a lista completa de comandos vira constante no cliente — e isso precisa estar declarado como exceção à §8.5 do `contrato-de-api.md` |
 | **Q-T4** | **T-10 vira capacidade no `escopo.md`?** (F3) | (a) não — nota na atividade 1, ao lado da nº 10; (b) sim — capacidade nova, `NOSSO` | **(a).** Não há nada a construir além de texto, e a nota é o instrumento que a S-A15 já usou para o mesmo tipo de estado |
 | ~~**Q-T5**~~ | ~~**De onde vem o nome de uma Pessoa recém-criada?** (F6)~~ | — | ✅ **Respondida por construção em 21/08/2026, e por um caminho que não estava nas opções:** as duas supunham que o formulário de cadastro não era nosso. **T-11 pede o `nome`**, sem mudança de schema. Ver o quadro do F6 |
-| ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026, e por uma terceira via.** Nem (a) nem (b): o contrato §8.2 declarou que o nome nasce do cadastro da conta, é **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com o nome atual** —, e **depois disso não há como alterá-lo**. Continua **não havendo tela de perfil**, e a consequência permanente está declarada: o nome vigente em cada transição fica na trilha para sempre. É limitação aceita, e é o que faz o campo `nome` de T-11 e o de T-02 face A serem os dois pontos que mais importam do produto inteiro |
-| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(a)** por ora. *"Pessoas"* contradiria a regra do vínculo primeiro na primeira palavra, e **nome novo é proposta ao glossário, não invenção deste inventário** (glossário §9) |
+| ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026, e por uma terceira via.** Nem (a) nem (b): o `contrato-de-api.md` §8.2 declarou que o nome nasce do cadastro da conta, é **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com o nome atual** —, e **depois disso não há como alterá-lo**. Continua **não havendo tela de perfil**, e a consequência permanente está declarada: o nome vigente em cada transição fica na trilha para sempre. É limitação aceita, e é o que faz o campo `nome` de T-11 e o de T-02 face A serem os dois pontos que mais importam do produto inteiro |
+| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(a)** por ora. *"Pessoas"* contradiria a regra do vínculo primeiro na primeira palavra, e **nome novo é proposta ao glossário, não invenção deste inventário** (`glossario.md` §9) |
 | **Q-T8** | **A contagem de pedidos pendentes no menu do Gestor vale uma requisição a mais no shell?** (F10) | (a) sim; (b) não — o Gestor descobre abrindo T-08 | **(a).** Com a notificação ⬜, é a única coisa que separa "entra hoje" de "entra quando alguém lembrar" |
 | **Q-T10** | **Onde a unidade de quem tem conta é registrada?** (F13) | (a) `/aprovar` aceita `areaId?`; (b) `POST /pedidos-de-entrada` aceita `areaId?`; (c) `PATCH /vinculos` deixa de recusar `areaId` para quem tem conta | **(a).** O Gestor escolhe a unidade **no mesmo momento em que escolhe o papel**, que é quando ele está olhando o pedido e sabe quem é a pessoa. (b) faz a própria pessoa declarar onde mora antes de ser admitida, sem ninguém conferir. (c) é defensável e expõe algo maior — a guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` protege `pessoas`, que é global, mas está aplicada ao **endpoint inteiro**, inclusive a um campo que é do vínculo. **Sem decisão, a coluna de unidade de T-08 fica vazia para todo morador, para sempre** |
 
@@ -2068,6 +2067,6 @@ de T-04 e o paralelismo do upload são o que este inventário faz por ele. **Se 
 disponível para o segundo risco mais alto do projeto.
 
 **5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 37 saíram de
-`grep` sobre o `openapi.yaml`. As 42 capacidades foram lidas da tabela da §14 do contrato e conferidas
-contra as tabelas por atividade do `escopo.md` — mas o somatório por atividade da §2 do escopo
+`grep` sobre o `openapi.yaml`. As 42 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
+contra as tabelas por atividade do `escopo.md` — mas o somatório por atividade da §2 do `escopo.md`
 (5+5+3+5+3+3+3+4+5+6 = 42) fecha, e é o que dá confiança na contagem.

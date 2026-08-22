@@ -1,7 +1,7 @@
 # Contrato de API — Resolve Aí
 
 Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
-[modelo-de-dados.md](modelo-de-dados.md) (as 16 tabelas e a regra da §4.3), [arquitetura.md](arquitetura.md)
+[modelo-de-dados.md](modelo-de-dados.md) (as 16 tabelas e a regra do vínculo), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
 **Event Storming** do projeto (comandos do passo 5, modelos de leitura do passo 7) — que é material de
 processo e não acompanha esta pasta.
@@ -54,7 +54,7 @@ YAML as declara.
 > contrato, não de banco, e sem elas o cliente adivinharia.
 >
 > **O contexto completo da rodada — incluindo o que foi recusado e por quê — está na nota de 22/08/2026 do
-> `modelo-de-dados.md`, e as duas reversões declaradas estão nas §7.8 e §7.9 de lá.**
+> `modelo-de-dados.md`, e as duas reversões declaradas estão nas §7.8 e §7.9 do `modelo-de-dados.md`.**
 
 ---
 
@@ -96,7 +96,7 @@ nenhum cabeçalho o define. O escopo vem da sessão, resolvido no ponto único d
 [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md). §4.
 
 **P3 · Gente só existe dentro de uma organização.** Nenhum endpoint expõe `Pessoa` fora do contexto de uma
-organização; **toda listagem de gente é listagem de `Vínculo`**. É a regra da §4.3 do modelo de dados
+organização; **toda listagem de gente é listagem de `Vínculo`**. É a regra da §4.3 do `modelo-de-dados.md`
 promovida a regra de superfície. §4.4.
 
 **P4 · A trilha é só de leitura.** Não existe `POST`, `PATCH` nem `DELETE` sobre registro de transição.
@@ -165,7 +165,7 @@ O caminho REST óbvio — `PATCH /ocorrencias/{id}` com `{"status": "em_analise"
 de negócio que muda o status. Só acontece por **comando nomeado** (`analisar`, `iniciarAtendimento`,
 `pausar`, `retomar`, `resolver`, `cancelar`)"*. Esses nomes são linguagem ubíqua (aula 3, p.6: um termo, uma
 definição). A opção A exigiria inventar `analise`, `atendimento`, `retomada` — nomes técnicos que a §9 do
-glossário manda **propor ao glossário**, não criar no contrato. Pagar essa invenção para obter ortodoxia REST é
+`glossario.md` manda **propor ao glossário**, não criar no contrato. Pagar essa invenção para obter ortodoxia REST é
 trocar a linguagem do negócio por uma convenção de transporte.
 
 **2 · Um schema por comando transforma regra condicional em regra estática.** A D23 diz que `observacao` é
@@ -244,7 +244,7 @@ com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 | `solucaoAplicada` | Só por `POST /ocorrencias/{id}/registrar-solucao-aplicada` |
 | `avaliacaoNota` · `avaliacaoComentario` · `avaliadaEm` | Só por `POST /ocorrencias/{id}/avaliar` |
 | responsável (tabela `atribuicoes`) | Só por `POST /ocorrencias/{id}/atribuir-responsavel` |
-| `areaTipo` | **Escrito pelo servidor** no registro, cópia congelada da Área (emenda à D10, §7.5 do modelo de dados). **Nunca aceito no corpo**, em nenhum endpoint |
+| `areaTipo` | **Escrito pelo servidor** no registro, cópia congelada da Área (emenda à D10, §7.5 do `modelo-de-dados.md`). **Nunca aceito no corpo**, em nenhum endpoint |
 | `organizacaoId` · `autorPessoaId` · `registradaEm` · `atualizadaEm` | Escritos pelo servidor. Enviados no corpo → `422 CAMPO_NAO_SUPORTADO` |
 
 **Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ordem`, `ativa`, `tipo`. Nenhum
@@ -278,7 +278,7 @@ Consequência para o Swagger: o botão *Authorize* aceita as duas formas em que 
 
 **A tradução de sessão em contexto é o ACL**, e acontece no ponto único da ADR-0003 — o mesmo que descobre a
 organização. É lá, e só lá, que `auth.users.id` vira `pessoas.id`, criando a `Pessoa` se ainda não existir
-(a resolução idempotente da §9.2 do modelo de dados).
+(a resolução idempotente da §9.2 do `modelo-de-dados.md`).
 
 **De onde vem o `nome` dessa Pessoa recém-criada.** `pessoas.nome` é obrigatório e não nulável, então a
 criação pelo ACL precisa de um valor e o contrato precisa dizer qual: **vem dos metadados da conta**,
@@ -288,6 +288,19 @@ nossa — a **pedir o nome**, e não só e-mail e senha.
 A alternativa era tornar `nome` obrigatório em `POST /pedidos-de-entrada`, o que empurraria a pergunta para
 depois e deixaria um intervalo em que a Pessoa existe sem nome. O campo `nome` daquele endpoint continua
 existindo e **opcional** — mas com outro papel: é o ponto de **correção**, não de origem (§8.2).
+
+**E quando os metadados não trazem nome — acrescentado em 22/08/2026.** A redação acima prometia a origem
+e não dizia o que acontece quando ela falha. Conta criada por outro fluxo do provedor — ou semeada — não
+passa pelo nosso formulário, e a coluna é `NOT NULL`: o ACL precisa de um valor de qualquer forma.
+
+> **O valor é o literal `"Sem nome"`.** É corrigível **uma última vez** em T-02, face A — o mesmo campo
+> `nome` do pedido de entrada que a §8.2 já descreve como ponto de correção. Depois disso, quem tem conta
+> não edita mais o próprio cadastro: `409 PESSOA_COM_CONTA_NAO_EDITAVEL`.
+>
+> **As duas alternativas foram recusadas com motivo.** Cair no **trecho local do e-mail** poria credencial
+> dentro de uma trilha que é imutável por invariante (§9.1), e o RNF10 pede exatamente o contrário.
+> **Recusar o login** inutiliza a conta, e não há código para isso na taxonomia da §6.4 — seria erro novo
+> numa porta que este contrato declara não cobrir (§9.5).
 
 ### 4.2 Onde vive a organização
 
@@ -391,7 +404,7 @@ concede*. É o que dispensa o segundo vínculo do síndico que mora no prédio �
 `POST /ocorrencias` e `POST /ocorrencias/{id}/avaliar` aceitarem um Gestor sem nenhuma exceção escrita.
 
 **O Encarregado não tem permissão nenhuma na primeira entrega.** Não é esquecimento: as cinco capacidades do
-acesso próprio dele são ⬜ (escopo, §3.1). Um vínculo `encarregado` que tenha conta autentica normalmente,
+acesso próprio dele são ⬜ (`escopo.md` §3.1). Um vínculo `encarregado` que tenha conta autentica normalmente,
 recebe `permissoes: []` em `GET /contexto` e leva `403 PERMISSAO_INSUFICIENTE` em qualquer endpoint de
 negócio. O contrato **declara** esse estado em vez de deixá-lo acontecer por acidente.
 
@@ -436,7 +449,7 @@ Três consequências concretas no contrato:
 RNF10, e não há razão para o Solicitante ler o telefone do vizinho.
 
 > **A regra aperta em 22/08/2026, e não por decisão nova — por consequência.** Com o contato virando a
-> tabela `contatos` (§6.17 do modelo), **a segunda tabela global do esquema**, o que a consulta errada
+> tabela `contatos` (§6.17 do `modelo-de-dados.md`), **a segunda tabela global do esquema**, o que a consulta errada
 > vazaria deixou de ser *nomes* e passou a ser **telefone e e-mail de todas as pessoas de todas as
 > organizações**. A regra do vínculo primeiro é a mesma; o que mudou é o prêmio de quebrá-la.
 >
@@ -587,7 +600,7 @@ contrato:
 | `AVALIACAO_EXIGE_RESOLVIDA` | 409 | Avaliar antes de `resolvida` (D1) |
 | `JA_AVALIADA` | 409 | A avaliação é `0..1` por ocorrência |
 | `JA_VINCULADO` | 409 | Pedido de entrada onde já existe vínculo ativo |
-| `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | Já há pedido pendente (índice único parcial, §6.15 do modelo) |
+| `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | Já há pedido pendente (índice único parcial, §6.15 do `modelo-de-dados.md`) |
 | `PEDIDO_JA_DECIDIDO` | 409 | Aprovar ou recusar pedido já decidido |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | Editar dados de Pessoa que tem Usuário (§12, S-A3) |
 | `VINCULO_COM_HISTORICO` | 409 | Remover vínculo que já tem linha dependente. **Recusa vinda do `ON DELETE RESTRICT`**, traduzida — o caminho é revogar, que é evolução prevista (§8.2) |
@@ -598,9 +611,9 @@ contrato:
 | `MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` | 422 | Motivo de cancelamento fora da lista do papel (D5) |
 | `ANEXO_NAO_RECONHECIDO` | 422 | Chave/ticket inválido, expirado, ou objeto ausente no storage |
 | `ANEXO_ACIMA_DO_LIMITE` | 422 | Objeto maior que o teto do RNF8 |
-| `ANEXO_JA_REIVINDICADO` | 409 | O objeto já está anexado a uma ocorrência — `UNIQUE (chave)` em `anexos` (§6.16 do modelo). O corpo traz `ocorrenciaId`, para o cliente navegar em vez de registrar de novo. Ver §10.3 |
+| `ANEXO_JA_REIVINDICADO` | 409 | O objeto já está anexado a uma ocorrência — `UNIQUE (chave)` em `anexos` (§6.16 do `modelo-de-dados.md`). O corpo traz `ocorrenciaId`, para o cliente navegar em vez de registrar de novo. Ver §10.3 |
 | `ANEXO_NAO_ENCONTRADO` | 404 | O anexo não é desta ocorrência, ou não existe — **ou existe e não tem miniatura**, quando `?variante=miniatura`. Mesma resposta para os três casos, pela §6.3 |
-| `CONTATO_DUPLICADO` | 409 | O mesmo par (`tipo`, `valor`) repetido na mesma Pessoa — `UNIQUE (pessoa_id, tipo, valor)` em `contatos` (§6.17 do modelo) |
+| `CONTATO_DUPLICADO` | 409 | O mesmo par (`tipo`, `valor`) repetido na mesma Pessoa — `UNIQUE (pessoa_id, tipo, valor)` em `contatos` (§6.17 do `modelo-de-dados.md`) |
 | `CAMPO_NAO_SUPORTADO` | 422 | Campo cuja capacidade é evolução prevista (ex.: `ocorrenciaOrigemId`) ou escrito só pelo servidor |
 | `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | Mais de 30 autorizações de anexo por Pessoa por hora. **É o único limite de chamadas do contrato** — e a §10.3 diz por quê. *(O nome deste código não mudou em 21/08/2026: ele nunca nomeou o exemplo, nomeia a operação.)* |
 | `ERRO_INTERNO` | 500 | Sem `detail` de domínio; só `traceId` |
@@ -622,24 +635,24 @@ toda leitura. **Um único termo estrangeiro sobrevive: `status`**, que é palavr
 (`ENUNCIADO · literal`) e já é termo do glossário.
 
 **7.2 · Vocabulário: sai do glossário, e o que não está lá vira pergunta.** Nome de recurso e de campo é o
-**conceito**, não o identificador (glossário, §9). Quatro nomes do contrato não existiam no glossário e
+**conceito**, não o identificador (`glossario.md` §9). Quatro nomes do contrato não existiam no glossário e
 estão declarados: `contexto` (§13, Q-API-2), `anexos/autorizacoes` (§10), `comentarios` como recurso
 (deriva de *Comentário*, o canal 1) e `dashboard` (palavra do enunciado, G8). Nenhum foi criado em silêncio.
 
 > **`Anexo` é o quinto, e ele é diferente dos outros quatro — 21/08/2026.** Os quatro acima são nomes
 > técnicos: `contexto` e `dashboard` não são conceitos de domínio, e `autorizacoes` é decomposição de um
 > comando. **`Anexo` é conceito**: é uma coisa que existe no domínio, tem tipo, tem autor e tem ciclo de
-> vida próprio no storage. Pelo critério que a §9 do glossário fixou em 20/08/2026 — *entra no glossário o
+> vida próprio no storage. Pelo critério que a §9 do `glossario.md` fixou em 20/08/2026 — *entra no glossário o
 > conceito, não o identificador* —, ele **deveria ser termo**.
 >
 > **Este contrato não inventou o termo: propôs.** A definição foi escrita **no glossário**, não aqui —
 > *"a evidência que acompanha uma Ocorrência: foto hoje, outros tipos depois"*, com *não confundir com*
-> **Solução aplicada** e **Comentário**. **Aprovada e incorporada ao glossário §3 em 21/08/2026**, no
+> **Solução aplicada** e **Comentário**. **Aprovada e incorporada ao glossário (`glossario.md` §3) em 21/08/2026**, no
 > mesmo caminho que `Pedido de entrada` percorreu: o artefato propõe, o glossário decide.
 
 **7.3 · Caixa: `snake_case` no banco, `camelCase` no JSON, mesmo vocábulo nos dois.**
 `registros_transicao.autor_pessoa_id` vira `autorPessoaId`. A convenção segue o **meio** — SQL e JSON têm as
-suas —, a palavra segue o domínio. É a mesma lógica da §2.1 do modelo de dados, que adotou `snake_case` sem
+suas —, a palavra segue o domínio. É a mesma lógica da §2.1 do `modelo-de-dados.md`, que adotou `snake_case` sem
 acento por ser convenção de SQL. **Identificador nunca leva acento; texto para humano sempre leva.**
 
 **7.4 · Valores de `enum`: idênticos aos do banco.** `em_analise`, `aguardando_peca`, `aberta_por_engano` —
@@ -647,12 +660,13 @@ minúsculo, sem acento, `snake_case`. Um vocabulário só, do banco à tela; o *
 campo à parte, nunca uma tradução do valor.
 
 **7.5 · Datas: ISO 8601 com fuso, sempre em UTC na saída.** `2026-08-20T17:32:10Z`. O banco é `TIMESTAMPTZ`
-(§2.3 do modelo), a nuvem roda em UTC e os usuários estão em BRT: converter é do cliente. Na **entrada**,
+(§2.3 do `modelo-de-dados.md`), a nuvem roda em UTC e os usuários estão em BRT: converter é do cliente. Na **entrada**,
 qualquer deslocamento é aceito. **Exceção declarada:** os parâmetros de janela do dashboard são `date`
 (`2026-08-01`) e são interpretados em **America/Sao_Paulo** — agregação "mês a mês" em UTC parte o mês
 brasileiro em dois, e o indicador passaria a depender do fuso do servidor.
 
-**7.6 · Identificadores: UUID v4 em string.** É o que o modelo usa (§2.2), inclusive pela propriedade que
+**7.6 · Identificadores: UUID v4 em string.** É o que a §2.2 do `modelo-de-dados.md` fixa, inclusive pela
+propriedade que
 importa aqui: **id sequencial em URL vaza o volume de uma organização para outra**. Duas tabelas têm chave
 natural composta, e o contrato as endereça pelo par que as define: o vínculo é `/vinculos/{pessoaId}` dentro
 da organização ativa — nunca um id sintético que o modelo recusou criar.
@@ -664,7 +678,7 @@ da organização ativa — nunca um id sintético que o modelo recusou criar.
   vezes** — e quem lê a lista de cima é justamente o Gestor que ainda não triou. Cursor é imune a isso.
 - **Como.** `?limite=20&cursor=<opaco>`; a resposta traz `{ itens, proximoCursor }`. O cursor codifica o par
   `(registradaEm, id)`, que é exatamente o índice `(organizacao_id, registrada_em DESC)` já existente
-  (§6.7 do modelo). Nenhum índice novo.
+  (§6.7 do `modelo-de-dados.md`). Nenhum índice novo.
 - **Sem `total`.** Contar exigiria uma segunda varredura da partição a cada página, e o número que o Gestor
   precisa — quantas em cada status — é do `GET /dashboard`, que já o calcula.
 - **Coleções pequenas não paginam:** categorias, áreas e vínculos devolvem tudo em `{ itens }`. São ~15, ~30
@@ -685,7 +699,7 @@ cada lugar que montasse o link.
 > **Quem normaliza é o cliente ou o servidor, antes de chegar ao banco — e precisa de biblioteca, não de
 > expressão regular.** Transformar o que a pessoa digitou em E.164 depende de país padrão, regra de discagem
 > nacional e validade do número; a referência é a `libphonenumber` do Google. **O banco não normaliza: ele
-> recusa o que não foi normalizado** (`CHECK` na §6.17 do modelo), e o schema deste contrato recusa antes,
+> recusa o que não foi normalizado** (`CHECK` na §6.17 do `modelo-de-dados.md`), e o schema deste contrato recusa antes,
 > com `400 FORMATO_INVALIDO`. É a divisão de sempre — a Interface valida forma, o banco garante forma, e
 > nenhum dos dois inventa a regra do outro.
 
@@ -728,7 +742,7 @@ existe:** a máquina de estados já é o controle otimista. Se dois chamam `anal
 Sobra exposição real em **dois** pontos: `alterar-prioridade` e `registrar-solucao-aplicada`, onde a última
 escrita sobrescreve a anterior sem aviso — e a alteração de prioridade **não entra na trilha** (só transições
 entram; é o PA-21). Aceitamos, por três razões: o cenário da primeira entrega é o do **síndico único**
-(escopo, §3.3 — o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
+(`escopo.md` §3.3 — o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
 `If-Unmodified-Since` for necessário depois; e toda resposta de comando devolve `atualizadaEm`, então um
 cliente atento detecta a corrida sem que o contrato mude.
 
@@ -795,7 +809,7 @@ sessão**. Duas capacidades ✅ acontecem aqui sem endpoint próprio — **categ
 —, porque são efeito da **POL-01**, não chamada do cliente. Ficam verificáveis com um `GET /categorias` logo
 depois, e é assim que a §14 as contabiliza.
 
-- O `codigoPublico` é gerado pelo servidor no formato `^[A-Z0-9]{6,12}$` (§6.3 do modelo — ele vive em
+- O `codigoPublico` é gerado pelo servidor no formato `^[A-Z0-9]{6,12}$` (§6.3 do `modelo-de-dados.md` — ele vive em
   cartaz de elevador e é digitado à mão). **Não é aceito no corpo:** deixar o cliente escolher abriria
   disputa por códigos bonitos e permitiria adivinhação dirigida.
 - É um dos quatro endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
@@ -854,7 +868,7 @@ Devolve `201` com `{ id, organizacao{nome}, situacao: "pendente" }` — **e nada
 código é público, mas isso não autoriza ler quem está lá dentro.
 
 - Erros: `404 CODIGO_PUBLICO_NAO_ENCONTRADO` · `409 JA_VINCULADO` · `409 PEDIDO_DE_ENTRADA_PENDENTE` (o
-  índice único parcial da §6.15 do modelo). Pedido **recusado pode ser refeito** — suposição S4 do modelo de
+  índice único parcial da §6.15 do `modelo-de-dados.md`). Pedido **recusado pode ser refeito** — suposição S4 do modelo de
   dados, aqui herdada e não redecidida.
 - *"Código vazado não vira acesso: vira um pedido aguardando aprovação"* (D25) é o comportamento inteiro
   deste endpoint. Ele **nunca** cria vínculo.
@@ -898,7 +912,7 @@ embutida.
 >
 > **O que a substituição significa no banco:** `DELETE` das linhas antigas e `INSERT` das novas, na mesma
 > transação. É a razão de `contatos` ser a única tabela do esquema que recebe `DELETE` de rotina, e está
-> declarado na §11.4 do modelo — a suposição *"nada é apagado"* do RNF9 **não vale** para esta tabela.
+> declarado na §11.4 do `modelo-de-dados.md` — a suposição *"nada é apagado"* do RNF9 **não vale** para esta tabela.
 >
 > **Erros próprios:** `400 FORMATO_INVALIDO` para telefone fora de E.164 ou `temWhatsapp: true` num e-mail
 > (as duas são forma, e o schema pega antes do domínio) · `409 CONTATO_DUPLICADO` para o mesmo
@@ -920,7 +934,7 @@ que protege as **duas** tabelas globais do esquema:
 O motivo: `pessoas` é global. Um Gestor editando o nome de alguém que tem conta estaria **alterando o
 cadastro daquela pessoa em todas as outras organizações** — inclusive naquela em que ela é Gestora. Quem
 não tem conta existe apenas como cadastro de quem o criou. **`papel` não é alterável por aqui:** promover
-alguém a Gestor não é capacidade ✅ do escopo (§10).
+alguém a Gestor não é capacidade ✅ do `escopo.md`.
 
 > **Onde quem tem conta corrige o próprio nome — e a limitação declarada.** A primeira redação desta seção
 > dizia *"quem tem conta edita os próprios dados"*, e **essa frase prometia um caminho que não existe**:
@@ -996,7 +1010,7 @@ na §10.
 > é `image/jpeg` ou `image/png`, e nada mais: é o escopo da primeira entrega (RNF8). O nome do recurso é o
 > **conceito** — evidência —, e o corpo é o **recorte**. Admitir outro tipo é acrescentar um valor àquela
 > lista; **o caminho, o schema e o cliente não mudam**, porque o cliente nunca envia o tipo do anexo: o
-> servidor o deriva do `tipoConteudo` que autorizou. É o mesmo raciocínio da §7.8 do modelo de dados —
+> servidor o deriva do `tipoConteudo` que autorizou. É o mesmo raciocínio da §7.8 do `modelo-de-dados.md` —
 > *estrutura certa, escopo estreito*.
 
 **`POST /ocorrencias`** recebe:
@@ -1014,12 +1028,12 @@ na §10.
 
 **`anexos` é lista com `maxItems: 1`, e é aí que o escopo mora.** A tabela `anexos` do banco **não tem
 restrição de quantidade** — de propósito, porque proibir no banco devolveria a migração que a tabela veio
-evitar (§7.8 do modelo). O teto de um vive **aqui**, no schema de entrada, e ampliá-lo é trocar um número:
+evitar (§7.8 do `modelo-de-dados.md`). O teto de um vive **aqui**, no schema de entrada, e ampliá-lo é trocar um número:
 uma mudança que **aceita mais e nunca menos**, e portanto não quebra cliente nenhum pela regra da §11.
 
 Devolve `201` + `Location` + `OcorrenciaDetalhe`. **Três coisas o servidor escreve e o cliente não pode
 enviar:** `status: "aberta"`, `prioridade: "normal"` (D6) e **`areaTipo`** — a cópia congelada que decide a
-visibilidade para sempre (§7.5 do modelo). E mais uma, que é o requisito central do desafio: **o primeiro
+visibilidade para sempre (§7.5 do `modelo-de-dados.md`). E mais uma, que é o requisito central do desafio: **o primeiro
 registro de transição**, com `statusAnterior` nulo — a premissa **P1** —, devolvido em `ultimaTransicao`.
 
 Erros: `400 FORMATO_INVALIDO` (título acima de 150, título ou descrição vazios — os `CHECK
@@ -1110,14 +1124,14 @@ determinado pela permissão de quem pergunta:
 | só `ocorrencia.ler_propria` (Solicitante) | Só aquelas de que ele é **autor** |
 
 Isto **não** é um filtro implícito escondido: é a regra de visibilidade da primeira entrega, e ela está
-declarada no escopo (§3.3): *"na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
+declarada no `escopo.md` (§3.3): *"na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
 A resposta devolve `visibilidadeAplicada: "todas" | "apenas_minhas"` para que o cliente possa dizer ao
 usuário o que está vendo. O Gestor que também mora no prédio usa `?autor=eu` para ver as próprias — é o caso
-do síndico morador (§6.4 do modelo), resolvido por parâmetro e não por segundo vínculo.
+do síndico morador (§6.4 do `modelo-de-dados.md`), resolvido por parâmetro e não por segundo vínculo.
 
 - **Filtros:** `status` (múltiplo), `categoriaId` (múltiplo), `prioridade` (múltiplo), `autor=eu`. **São
   exatamente os três de G2, mais um.** `areaId` foi **deliberadamente não incluído**: não está em G2, seria
-  `NOSSO` sem justificativa de valor, e não há índice que o sirva (§6.7 do modelo).
+  `NOSSO` sem justificativa de valor, e não há índice que o sirva (§6.7 do `modelo-de-dados.md`).
 - **Ordenação fixa:** `registradaEm DESC`. Não há parâmetro de ordenação, porque só existe um índice de
   listagem e ordenar por outra coluna seria varredura da partição inteira a cada página.
 - **Paginação:** cursor (§7.7). Devolve `{ itens: OcorrenciaResumo[], proximoCursor, visibilidadeAplicada }`.
@@ -1202,10 +1216,10 @@ significaria um `tipo` polimórfico com dois valores inalcançáveis. Quando os 
 caminho próprio (`/notas-internas`, `/atribuicoes/{id}/mensagens`) — §11.
 
 - `POST` recebe `{ texto }`, devolve `201` com `{ id, texto, autor{pessoaId,nome}, criadoEm }`, e atualiza
-  `ocorrencias.atualizada_em` (a desnormalização §7.4 do modelo).
+  `ocorrencias.atualizada_em` (a desnormalização §7.4 do `modelo-de-dados.md`).
 - **Participantes derivados, nunca listados:** canal 1 = Gestores da organização + `autorPessoaId` da
   ocorrência (D9). Quem não é nenhum dos dois recebe `404` da ocorrência, não `403` do comentário (§6.2).
-- **Sem edição e sem exclusão** — o modelo não tem coluna para isso e nada foi decidido (§6.11 do modelo).
+- **Sem edição e sem exclusão** — o modelo não tem coluna para isso e nada foi decidido (§6.11 do `modelo-de-dados.md`).
 
 ### 8.7 Atividade 8 — gerir
 
@@ -1244,7 +1258,7 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
 > **Este indicador entrou por decisão de 20/08/2026, e a razão vale registrar.** Ele estava na D19 e
 > no passo 7, mas **não constava da tabela de capacidades** do `escopo.md` — nem como ✅ nem como ⬜ (era a
 > contradição C-4). O que decidiu não foi o enunciado, que aqui é genérico (*"visualizar indicadores em um
-> dashboard"*), e sim o **modelo de dados**: a §6.8 justifica o índice `(organizacao_id, ocorreu_em DESC)`
+> dashboard"*), e sim o `modelo-de-dados.md` §6.8, que justifica o índice `(organizacao_id, ocorreu_em DESC)`
 > citando literalmente *"tempo médio de resolução mês a mês"*. Havia um índice **já pago** por uma
 > capacidade que não estava no escopo — e o cálculo é uma agregação sobre a trilha, usando esse índice.
 > O `escopo.md` passa a 41 itens ✅ de 62 — e a **42 de 63** ainda no mesmo dia, quando o conserto do
@@ -1308,7 +1322,7 @@ Registro de transição é **objeto de valor imutável dentro do limite do agreg
 Parte I, §4) e nasce **como efeito** de um comando, na mesma operação — invariante 2 da ADR-0001. As duas
 únicas formas de alcançá-lo pela API são `GET .../trilha-de-auditoria` e `GET .../linha-do-tempo`, e o único
 jeito de criar um é executar um comando. No banco a mesma regra tem gatilho que recusa `UPDATE` e `DELETE`
-(§6.8 do modelo); aqui ela é ausência de rota. **Se um dia aparecer um endpoint de escrita nesse recurso, o
+(§6.8 do `modelo-de-dados.md`); aqui ela é ausência de rota. **Se um dia aparecer um endpoint de escrita nesse recurso, o
 requisito central do desafio foi perdido** — e é isso que esta seção existe para tornar difícil de fazer por
 descuido.
 
@@ -1316,7 +1330,7 @@ descuido.
 
 **9.3 · Nenhum `DELETE`, com uma exceção nomeada.** Ocorrência não se apaga (cancela-se); categoria e área
 não se apagam (desativam-se); mensagem não se apaga. Decorre do RNF9 e do `ON DELETE RESTRICT` (§2.5 do
-modelo): o banco recusaria de qualquer forma, e o contrato nem oferece.
+`modelo-de-dados.md`): o banco recusaria de qualquer forma, e o contrato nem oferece.
 
 **A exceção é `DELETE /vinculos/{pessoaId}`** (§8.2, P6), e ela cabe exatamente porque o `RESTRICT` a
 delimita: só passa o vínculo **sem nenhuma linha dependente**, que é o único caso em que não há histórico a
@@ -1340,7 +1354,7 @@ original. O glossário chegou a listá-lo como comando na definição de *Transi
 20/08/2026 — o registro do erro está na contradição C-1 da §13.
 
 **9.8 · Nada de busca textual.** Não há `?q=`. Nenhuma história pede busca por texto, e o índice GIN
-correspondente foi deliberadamente não criado (§6.7 do modelo). Acrescentar o parâmetro sem o índice seria
+correspondente foi deliberadamente não criado (§6.7 do `modelo-de-dados.md`). Acrescentar o parâmetro sem o índice seria
 varredura em toda listagem.
 
 **9.9 · Nenhuma coleção de anexos, e nenhum recurso `/anexos` de nível superior.**
@@ -1349,7 +1363,7 @@ varredura em toda listagem.
 > `GET /ocorrencias/{id}/anexos`, não há `POST` nessa coleção, não há `DELETE`, e não há
 > `/anexos/{id}` fora da ocorrência.
 
-Acrescentado em 21/08/2026, quando o anexo virou tabela (§6.16 do modelo) — porque **é exatamente aqui que
+Acrescentado em 21/08/2026, quando o anexo virou tabela (§6.16 do `modelo-de-dados.md`) — porque **é exatamente aqui que
 uma ferramenta de scaffolding olharia uma tabela nova e geraria cinco rotas**.
 
 Cada ausência tem motivo próprio: a **coleção de leitura** duplicaria o campo `anexos` que
@@ -1371,7 +1385,7 @@ seletor). E a `arquitetura.md` (tópico 3 e tópico 5) já decidiu o mecanismo: 
 emitida pelo servidor"*.
 
 > **Nota de revisão — 21/08/2026.** Esta seção falava em *imagem* porque o anexo era uma coluna chamada
-> `imagem_caminho`. Ele passou a ser a tabela **`anexos`** (§6.16 e §7.8 do modelo de dados), e o texto
+> `imagem_caminho`. Ele passou a ser a tabela **`anexos`** (§6.16 e §7.8 do `modelo-de-dados.md`), e o texto
 > passa a falar em *anexo*. **O mecanismo não mudou em nada** — SAS de escrita, ticket assinado, validação
 > na reivindicação, etiqueta `pendente`/`confirmado` e faxina por ciclo de vida continuam exatamente como
 > estavam, pelas mesmas razões. **O que mudou é que a reivindicação passou a escrever uma linha**, e isso
@@ -1503,7 +1517,7 @@ recusada por três motivos, e o terceiro é o que decidiu:
 2. A cópia é assíncrona do lado do provedor: reivindicar passaria a ter um estado transitório a acompanhar,
    dentro da transação que cria a ocorrência.
 3. **A chave mudaria entre a autorização e a reivindicação** — o cliente recebe uma, o banco guarda outra. A
-   §2.8 do modelo de dados pede uma **chave opaca**; um valor cujo prefixo codifica o estado do objeto não é
+   §2.8 do `modelo-de-dados.md` pede uma **chave opaca**; um valor cujo prefixo codifica o estado do objeto não é
    opaco, é caminho com significado, e volta a acoplar a coluna à organização física do storage.
 
 **Fica declarada a dependência:** a etiqueta de índice existe em conta de storage de uso geral, e **não**
@@ -1560,7 +1574,7 @@ afirmado, não presumido. Levantado ao desenhar o DG-5 de
 
 > ### O quarto caminho — apareceu com a tabela, e não existia antes
 >
-> `UNIQUE (chave)` em `anexos` (§6.16 do modelo) faz o banco recusar a **segunda** reivindicação do mesmo
+> `UNIQUE (chave)` em `anexos` (§6.16 do `modelo-de-dados.md`) faz o banco recusar a **segunda** reivindicação do mesmo
 > objeto. Isso interage com um comportamento que já estava desenhado, e a interação precisa estar escrita.
 >
 > **A tela reenvia a mesma `chave` quando o `POST /ocorrencias` cai por rede** — é a suposição **S-T7** do
@@ -1586,7 +1600,7 @@ afirmado, não presumido. Levantado ao desenhar o DG-5 de
 ### 10.4 A leitura
 
 A chave guardada em `anexos.chave` é **opaca** — nunca uma URL, nunca com nome de contêiner
-embutido (§2.8 do modelo, agora com um `CHECK` que recusa `://`). E o contêiner **não é público**:
+embutido (§2.8 do `modelo-de-dados.md`, agora com um `CHECK` que recusa `://`). E o contêiner **não é público**:
 ocorrência de unidade privativa é visível só ao autor e aos Gestores (D10).
 
 > **`GET /ocorrencias/{id}/anexos/{anexoId}` → `302` para uma URL assinada de leitura, válida por 10
@@ -1617,7 +1631,7 @@ segundo lugar.
 
 **A `fonte` do objeto não aparece na resposta, e é de propósito.** `anexos.fonte` diz **qual provedor**
 resolve a chave, e isso é infraestrutura: o cliente recebe uma URL desta API e segue o `302`. Expor o
-provedor daria ao cliente uma informação que ele não pode usar e criaria acoplamento onde a §2.8 do modelo
+provedor daria ao cliente uma informação que ele não pode usar e criaria acoplamento onde a §2.8 do `modelo-de-dados.md`
 gastou uma seção para não ter nenhum.
 
 **Custo declarado:** o alvo do `302` é uma URL com token que, uma vez emitida, vale 10 minutos para quem a
@@ -1625,7 +1639,7 @@ tiver. Mitigações: TTL curto, `Referrer-Policy: no-referrer` na resposta, e ne
 string* em log. É a mesma classe de risco que qualquer URL assinada tem, e a razão de o TTL não ser de horas.
 
 **Fora do contrato, declarado:** a exclusão do objeto quando a Pessoa é anonimizada (RNF10). A §10.2 do
-modelo de dados **passou a responder isso em 21/08/2026**, e a resposta é *nada acontece*, com o argumento:
+`modelo-de-dados.md` **passou a responder isso em 21/08/2026**, e a resposta é *nada acontece*, com o argumento:
 o anexo pertence à Ocorrência e não à Pessoa; a tabela não carrega dado de contato; e anonimizar por autor
 apagaria o conjunto errado, porque o rosto numa foto costuma ser o de **um terceiro**. O instrumento certo
 seria um *takedown* por anexo, que **não existe, não foi decidido e não foi modelado** — é o **PA-05**, que
@@ -1641,7 +1655,7 @@ segue aberto e sem revisão jurídica. Este contrato não o resolve e não o esc
 > em enum de *saída*. Nunca: campo obrigatório novo, remoção de campo, mudança de tipo, ou valor novo em enum
 > de *entrada* que o cliente antigo não saiba produzir.**
 
-| # | Item da evolução prevista (escopo, §4) | O que muda no contrato | Aditivo? |
+| # | Item da evolução prevista (`escopo.md` §4) | O que muda no contrato | Aditivo? |
 |---|---|---|---|
 | 1 | Identidade da organização — logo e nome (D25) | `PATCH /organizacao` (novo) + campos em `Contexto` | ✅ |
 | 2 | Interruptor *exigir solução ao resolver* (D22) | `PATCH /organizacao` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
@@ -1685,7 +1699,7 @@ parte da primeira entrega por decisão registrada na §8.7.
 
 **Mais de um anexo por ocorrência, e anexo de outro tipo, não são itens de escopo** — não estão entre os 21
 e **não entram na contagem**: o `escopo.md` segue com 63 itens, 42 na primeira entrega. Estão nesta seção
-porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do modelo) foi
+porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do `modelo-de-dados.md`) foi
 desenhada em 21/08/2026 **exatamente para que estes dois dias custassem pouco**. Se o custo não estiver
 escrito, a decisão de modelagem que o barateou vira folclore.
 
@@ -1693,7 +1707,7 @@ escrito, a decisão de modelagem que o barateou vira folclore.
 |---|---|---|
 | **Mais de um anexo** | `maxItems: 1` → `maxItems: N` em `RegistroDeOcorrencia.anexos` | ✅ — o schema passa a **aceitar mais e nunca menos**. Cliente antigo continua válido |
 | | `OcorrenciaDetalhe.anexos[]` e `quantidadeDeAnexos` | ✅ — **nada muda**. Já são lista e contagem; passam a trazer mais de um item e um número maior |
-| | Banco | ✅ — **nada muda**. `anexos` nunca teve restrição de quantidade, e a §6.16 explica por que não deve ter |
+| | Banco | ✅ — **nada muda**. `anexos` nunca teve restrição de quantidade, e a §6.16 do `modelo-de-dados.md` explica por que não deve ter |
 | **Outro tipo** (vídeo, PDF, áudio) | `tipoConteudo` em `POST /anexos/autorizacoes` ganha um valor | ✅ — enum de **entrada** ganhando valor é o caso delicado da regra acima, mas aqui é seguro: **nenhum cliente antigo precisa produzir o valor novo**, e os antigos continuam funcionando com os dois que já conhecem |
 | | `Anexo.tipo` ganha um valor | ✅ — enum de **saída**, explicitamente aditivo |
 | | Banco | `ALTER TYPE tipo_anexo ADD VALUE` — barato, não reescreve tabela |
@@ -1703,7 +1717,7 @@ escrito, a decisão de modelagem que o barateou vira folclore.
 
 1. **A tela.** Cada tipo novo é um jeito novo de exibir e um jeito novo de capturar. É trabalho de
    interface, e não há schema que o evite.
-2. **O RNF6 e o custo.** A §11.5 do modelo de dados põe número nisso: vídeo comprimido no aparelho custa
+2. **O RNF6 e o custo.** A §11.5 do `modelo-de-dados.md` põe número nisso: vídeo comprimido no aparelho custa
    ~10× o armazenamento de hoje (~US$ 10/ano, 10% do crédito Azure), e **vídeo sem compressão custa mais
    que o crédito inteiro**. Pior: 4 MB em rede móvel derrubam o paralelismo do upload, que é o que faz o
    registro caber em menos de um minuto. **O que impede vídeo hoje não é o esquema — é o RNF6.**
@@ -1732,7 +1746,7 @@ delas foi resolvida dentro do YAML.
 | **S-A9** | **Autorização de upload: máximo 512 KB, `image/jpeg` ou `image/png`, ticket de 15 min, SAS de leitura de 10 min, 30 autorizações por Pessoa por hora, e ~24–48 h até a faxina do objeto abandonado (§10.3)** | São números, não desenho. Mudam em uma linha do YAML — exceto o prazo da faxina, que é a granularidade de dias do provedor |
 | **S-A16** | **`anexos` na resposta é lista; na listagem vai só a contagem** (`quantidadeDeAnexos`) — acrescentada em 21/08/2026 | Se a listagem precisar dos anexos inteiros, o campo vira lista lá também: **aditivo**, mas paga verbosidade na leitura mais chamada. O caminho contrário — voltar a um booleano — é que seria quebra |
 | **S-A10** | **`statusRotulo` é calculado no servidor e depende do papel de quem lê** | Se for do cliente, o campo sai da resposta e a tabela de rótulos vira responsabilidade de cada cliente |
-| **S-A11** | **`GET /ocorrencias` só ordena por `registradaEm DESC`** | Ordenar por outra coluna exige índice novo (§6.7 do modelo) — é decisão de banco, não de contrato |
+| **S-A11** | **`GET /ocorrencias` só ordena por `registradaEm DESC`** | Ordenar por outra coluna exige índice novo (§6.7 do `modelo-de-dados.md`) — é decisão de banco, não de contrato |
 | **S-A12** | **Pedido de entrada recusado pode ser refeito** — herdada da suposição S4 do modelo de dados | Índice único absoluto em vez de parcial, e `409` no segundo pedido |
 | **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* |
 | **S-A14** | **`POST /organizacoes` gera o `codigoPublico`**; o cliente não escolhe | Se o Gestor puder escolher, precisa de checagem de unicidade global e de proteção contra códigos ofensivos ou adivinháveis |
@@ -1795,8 +1809,8 @@ tinha assumido e uma mudou o contrato** — junto com a C-4, que trouxe um indic
 Registradas, não resolvidas em silêncio. **As cinco foram confirmadas em 20/08/2026 e aplicadas nos
 documentos de origem** — este contrato não os tocou, e o fecho registra onde cada uma caiu.
 
-**C-1 · O glossário listava `reabrir` como comando nomeado** na definição de *Transição de status* (§4),
-e a `D24` diz que reabertura não existe. A própria §8 do glossário registra *"Reabertura | Não existe"*.
+**C-1 · O glossário listava `reabrir` como comando nomeado** na definição de *Transição de status* (`glossario.md` §4),
+e a `D24` diz que reabertura não existe. A própria §8 do `glossario.md` registra *"Reabertura | Não existe"*.
 É contradição interna de um documento, e o contrato seguiu a D24 e a `arquitetura.md` (Parte I, §4:
 *"`Resolvida` e `Cancelada` são terminais de verdade — não existe `reabrir`"*), duas fontes contra uma
 linha. **Proposta:** remover `reabrir` da definição de
@@ -1822,7 +1836,7 @@ Ele existe na D19 e no passo 7 do Event Storming.
 
 > **✅ Resolvida em 20/08/2026 — e é a única resposta que mudou este contrato.** O indicador **entra na
 > primeira entrega**. O enunciado aqui é genérico (*"visualizar indicadores em um dashboard"*, p.5), então
-> cortá-lo teria sido legítimo; o que decidiu foi o **modelo de dados**, cuja §6.8 justifica o índice
+> cortá-lo teria sido legítimo; o que decidiu foi o `modelo-de-dados.md` §6.8, que justifica o índice
 > `(organizacao_id, ocorreu_em DESC)` citando literalmente *"tempo médio de resolução mês a mês"* — havia um
 > índice **já pago** por uma capacidade que não estava no escopo, e o cálculo é uma agregação sobre ele.
 > `GET /dashboard` passa a devolver **cinco** indicadores (§8.7); o `escopo.md` passa a **41 ✅ de 62**,
@@ -1914,7 +1928,7 @@ o mesmo problema com valor de produto em vez de mecanismo de transporte.
 
 **Q-API-5 · `contexto` vira termo do glossário?**
 O nome vem da ADR-0003 (*"o contexto da requisição"*) e agora é recurso de API (`GET /contexto`). Pelo
-critério da §9 do glossário — entra o **conceito**, não o identificador —, ele parece ser nome técnico. Mas
+critério da §9 do `glossario.md` — entra o **conceito**, não o identificador —, ele parece ser nome técnico. Mas
 a **distinção** que ele carrega (*organização ativa* ≠ *vínculos da Pessoa*) não está registrada em lugar
 nenhum. **Recomendo:** não virar termo, e acrescentar **`Organização ativa`** ao glossário, definida como
 *"a organização cuja lente a sessão está usando agora; uma Pessoa com vários vínculos tem uma só de cada
@@ -2085,20 +2099,16 @@ exatamente quando se quer saber.
 | 2 | Campos sem regra | Não há `PATCH` de ocorrência; `PATCH` só em `categorias` e `areas` | Híbrido com `PATCH` de título e descrição — editar ocorrência não é capacidade ✅ |
 | 3 | Onde vive a organização | Derivada da **sessão**; troca por `PUT /contexto/organizacao` | Organização na URL (validação replicável e esquecível) · cabeçalho como fonte (mantém a organização como entrada do cliente) |
 | 4 | Aba esquecida | Cabeçalho **opcional** `X-Organizacao-Id` como **afirmação**, `409` na divergência | Não ter verificação nenhuma |
-| 5 | Listar gente | `GET /vinculos`; cadastro por `POST /vinculos` | `GET /pessoas` e busca por e-mail — a consulta que a §4.3 do modelo proíbe |
+| 5 | Listar gente | `GET /vinculos`; cadastro por `POST /vinculos` | `GET /pessoas` e busca por e-mail — a consulta que a §4.3 do `modelo-de-dados.md` proíbe |
 | 6 | Porta única | HTTP obrigatório na **escrita**; leitura pode ir direto, mas **todo modelo de leitura tem endpoint** | Tudo por HTTP (paga vCPU-s por salto interno) · leitura livre sem endpoint equivalente (contrato mentiria por omissão) |
 | 7 | Recurso de outra organização | `404`, com `organizacaoAtiva` e `traceId` no corpo | `403` — confirma existência de identificador, contra o RNF1 |
 | 8 | Corpo de erro | RFC 9457 + `codigo` estável + `traceId` | Só mensagem (muda e quebra cliente) · código HTTP sozinho (não distingue 12 casos de `409`) |
 | 9 | Transição ilegal | `409` com `statusAtual` e `acoesDisponiveis` | `422` — não é valor inválido, é conflito com o estado |
 | 10 | Máquina de estados no cliente | `acoesDisponiveis` na resposta | Tabela de transições duplicada no PWA |
 | 11 | Upload | SAS de escrita + **ticket assinado**, validado no `POST /ocorrencias` por `HEAD` | Proxy pela API (queima franquia) · SAS sem validação posterior (aceita qualquer coisa) · tabela de uploads (mudaria o modelo de dados) |
-| 12 | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do modelo pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
+| 12 | Objeto abandonado no storage | Etiqueta `estado=pendente` na emissão, trocada para `confirmado` na reivindicação; ciclo de vida apaga o que sobrar · **30 autorizações por Pessoa por hora** | Mover de prefixo com cópia — três operações em vez de uma, cópia assíncrona dentro da transação, e **a chave mudaria entre autorização e reivindicação**, o que quebra a opacidade que a §2.8 do `modelo-de-dados.md` pede · aceitar o órfão sem prazo — sem limite, qualquer pessoa acumula objetos que ninguém apaga |
 | 13 | Leitura do anexo | `GET /ocorrencias/{id}/anexos/{anexoId}` → `302` para SAS de 10 min | Proxy de bytes · URL assinada no payload (quebra o cache do service worker) · `/anexos` singular (codifica o escopo na URL, que é a coisa mais cara de trocar) · coleção `GET /ocorrencias/{id}/anexos` (segundo caminho para o que o detalhe já traz — §9.9) |
 | 13b | **Forma do anexo no contrato** *(21/08/2026)* | Lista em `OcorrenciaDetalhe.anexos[]`, **contagem** em `OcorrenciaResumo.quantidadeDeAnexos`, `maxItems: 1` no corpo de entrada | Lista nos três formatos — verbosidade na leitura mais chamada · booleano `temAnexo` — vira quebra no dia do segundo anexo · restrição de quantidade no banco — devolve a migração que a tabela veio evitar |
-| 22 | **Contato na superfície** *(22/08/2026)* | `pessoa.contatos[]` embutido em `GET /vinculos`; escrita por **substituição** no corpo do vínculo | `emailContato` + `telefone` soltos — **era a decisão anterior**, e removê-los depois seria quebra (§11) · três endpoints próprios de contato — URL de recurso que a §4.6 nega a `Pessoa` · mesclagem por `id` — três casos de borda em vez de um |
-| 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |
-| 24 | **Miniatura do anexo** | Segundo objeto, **na mesma autorização**, lido por `?variante=miniatura` | Duas autorizações — dobra a ida e volta e consome dois slots do limite · caminho separado `/miniatura` — operação nova e um segundo lugar onde checar permissão · sem miniatura, servindo a imagem de 400 KB na listagem — 8 MB por página |
-| 25 | **Unidade do morador na superfície** | `vinculo.area` na leitura, `areaId` na escrita, só com `vinculo.gerir` | Não expor — mas então o produto continuaria guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia |
 | 14 | Paginação | Cursor `(registradaEm, id)` | Offset — duplica itens numa lista que recebe inserções |
 | 15 | Versionamento | `/api`, sem `/v1` | `/api/v1` por hábito — sem consumidor independente, é custo sem benefício |
 | 16 | Concorrência | Sem `ETag`; a máquina de estados é o controle otimista | `If-Match` em todo comando — resolve o que já estava resolvido e piora a mensagem de erro |
@@ -2107,6 +2117,10 @@ exatamente quando se quer saber.
 | 19 | Dashboard | Um endpoint, cinco indicadores | Cinco endpoints — cinco cold starts para uma tela |
 | 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis na primeira entrega |
 | 21 | Sincronia contrato ↔ código | Spec-first agora; `zod` + geração com portão no CI depois | Spec-first para sempre (depende de disciplina) · JSDoc (comentário mente igual) |
+| 22 | **Contato na superfície** *(22/08/2026)* | `pessoa.contatos[]` embutido em `GET /vinculos`; escrita por **substituição** no corpo do vínculo | `emailContato` + `telefone` soltos — **era a decisão anterior**, e removê-los depois seria quebra (§11) · três endpoints próprios de contato — URL de recurso que a §4.6 nega a `Pessoa` · mesclagem por `id` — três casos de borda em vez de um |
+| 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |
+| 24 | **Miniatura do anexo** | Segundo objeto, **na mesma autorização**, lido por `?variante=miniatura` | Duas autorizações — dobra a ida e volta e consome dois slots do limite · caminho separado `/miniatura` — operação nova e um segundo lugar onde checar permissão · sem miniatura, servindo a imagem de 400 KB na listagem — 8 MB por página |
+| 25 | **Unidade do morador na superfície** | `vinculo.area` na leitura, `areaId` na escrita, só com `vinculo.gerir` | Não expor — mas então o produto continuaria guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia |
 
 ---
 
