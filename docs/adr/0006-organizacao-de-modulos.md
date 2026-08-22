@@ -70,7 +70,7 @@ Interface; `infraestrutura/repositorios/` mais `infraestrutura/clientes/` são a
 fronteira que a Clean Architecture desenha por dentro delas fica **visível na árvore** sem que nenhuma
 camada precise ser renomeada.
 
-### As três regras de importação
+### As regras de importação
 
 **1 · Só para dentro.** `app/` e `src/interface/` → `aplicacao/` → `dominio/`. Nunca ao contrário. É a
 regra da aula 2 (p.11): *"apenas elementos das camadas exteriores podem instanciar os elementos das
@@ -83,6 +83,34 @@ que torna a inversão mecânica em vez de combinada.
 **3 · Entre módulos da mesma camada, só pela superfície pública.** Cada módulo expõe um `index.ts`; ninguém
 alcança arquivo interno de outro módulo. É o que faz *"componentes podem fazer parte de componentes"*
 (aula 1, transcrição 03) ser verificável.
+
+> ### Emenda de 22/08/2026 — duas regras que o esqueleto descobriu serem necessárias
+>
+> **Esta seção se chamava "As três regras de importação"**, e trazia só as três acima. O esqueleto de
+> deploy acrescentou mais duas, e as duas existem porque as três não bastavam: a regra 2 mantém a Aplicação
+> longe da Infraestrutura e **não impedia um `route.ts` de montar o grafo por conta própria** — que é
+> exatamente o caminho por onde a resolução de contexto se perde.
+>
+> **2b · `src/composicao/` é importada apenas por `src/interface/http/`.** É mais estrita que a letra da
+> [ADR-0005](0005-regra-de-dependencia-por-inversao.md), que exige apenas que **o anel externo** monte, e
+> serve exatamente ao propósito dela. Somada à regra 2, o efeito deixa de ser convenção e passa a ser
+> estrutura: **`app/` não alcança `infraestrutura/` nem `composicao/`, então um `route.ts` que não passe
+> pelo ajudante `comContexto` não tem porta, não tem consulta e não tem cliente — ele não tem *como* falar
+> com o banco.** Não é o desenvolvedor lembrar de usar o ajudante; é não existir outro caminho. É a defesa
+> estrutural do risco nº 1 da [ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md), e está
+> verificada por controle negativo: `import { Pool } from "pg"` e `import { montarPortasGlobais } from
+> "@/composicao"` dentro de um `route.ts` são os dois primeiros erros que o lint aponta.
+>
+> **E uma quinta, que não recebe número porque não fala de camada:** `semOrganizacao` só é importável nos
+> **quatro `route.ts` da lista fechada** do contrato §4.4 — `GET /contexto`, `PUT /contexto/organizacao`,
+> `POST /organizacoes` e `POST /pedidos-de-entrada`. O quinto endpoint que tentar **não passa no lint**. Ela
+> é a lista fechada da ADR-0003 virada mecanismo: o que aquela ADR exige de uma exceção nova — *"revisão
+> explícita"* — passa a ser **uma linha de configuração com o caminho do endpoint escrito nela**, e três dos
+> quatro caminhos já estão lá, reservados para endpoints que ainda não existem.
+>
+> **Onde as cinco moram:** em `eslint.config.mjs`, sobre a regra `no-restricted-imports` do próprio ESLint
+> com `files` por diretório — sem plugin de fronteira novo. A escolha da ferramenta, e sobretudo **o que
+> ela não alcança**, estão documentados naquele arquivo.
 
 ### Quando criar um módulo novo
 

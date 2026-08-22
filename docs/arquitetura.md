@@ -55,6 +55,18 @@ indicadores de contextos delimitados"* (aula 6, p.8), e foi o que se confirmou.
 **`Notificação` fica em ① mas é o candidato natural a extração** se o produto crescer: hoje todos os seus
 gatilhos são eventos de ocorrência, mas ela não tem nada de específico do domínio.
 
+> **`Vínculo` não é um sétimo agregado: ele pertence ao agregado `Organização` — 22/08/2026.** A tabela
+> acima lista seis agregados e o `Vínculo` não está entre eles. Só que ele **tem comportamento** —
+> `vinculo.pode(permissao)` é a única pergunta de autorização do sistema (§5.6; contrato §4.5) —, e
+> comportamento precisa de casa no Domínio. Nenhum documento dizia qual, e o esqueleto teve de escrever a
+> classe antes de a pergunta ter resposta.
+>
+> **O critério é o limite de consistência.** O `Vínculo` é escopado por `organizacao_id`, é criado e
+> revogado por um Gestor **daquela** Organização e não existe fora dela: quem decide se ele é válido é a
+> Organização. A `Pessoa` é o contrário — **global**, sobrevive à revogação e existe sem vínculo nenhum
+> (modelo §6.2) —, e é por isso que ela é agregado e o `Vínculo` não. Uma raiz própria custaria cerimônia
+> para um objeto que nunca é carregado sozinho.
+
 ## 3. Mapa de contexto e padrões de integração
 
 ```mermaid
@@ -363,12 +375,22 @@ src/
 Interface; `infraestrutura/repositorios/` mais `infraestrutura/clientes/` são a camada Infraestrutura. A
 fronteira que a Clean Architecture desenha por dentro delas fica visível **sem renomear camada nenhuma**.
 
-Três regras de importação, e a segunda é a que torna a §5.2 mecânica:
+**Cinco regras de importação.** As três primeiras são de camada e nasceram com a ADR-0006; as duas últimas
+o esqueleto descobriu serem necessárias para que a §5.2 fosse **estrutura** e não convenção, e entraram por
+emenda de 22/08/2026. Todas vivem em `eslint.config.mjs`.
 
-1. **Só para dentro** — `app/` e `src/interface/` → `aplicacao/` → `dominio/`. Nunca ao contrário.
-2. **`infraestrutura/` é importada apenas por `composicao/`.** Nem a Aplicação a importa: ela declara a
-   porta e recebe a implementação.
-3. **Entre módulos da mesma camada, só pela superfície pública** (`index.ts`).
+- **1 · Só para dentro** — `app/` e `src/interface/` → `aplicacao/` → `dominio/`. Nunca ao contrário.
+- **2 · `infraestrutura/` é importada apenas por `composicao/`.** Nem a Aplicação a importa: ela declara a
+  porta e recebe a implementação.
+- **2b · `composicao/` é importada apenas por `src/interface/http/`.** Somada à 2, é o que fecha o caminho:
+  **`app/` não alcança infraestrutura nem composição**, então um `route.ts` que não passe pelo ajudante
+  `comContexto` não tem porta, não tem consulta e não tem cliente — não tem *como* falar com o banco. É a
+  defesa estrutural do risco nº 1 da [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md):
+  deixa de depender de o desenvolvedor lembrar.
+- **3 · Entre módulos da mesma camada, só pela superfície pública** (`index.ts`).
+- **A lista fechada, que não é regra de camada** — `semOrganizacao` só é importável nos **quatro `route.ts`
+  do contrato §4.4**. O quinto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a ser
+  emenda à ADR-0003 **com o caminho do endpoint escrito na configuração**.
 
 **Módulo novo passa por dois testes** (CA aula 6, p.5): é **útil** — limites e responsabilidade definidos —
 e é **competente** — faz inteiro o que faz. Pasta vazia por simetria falha os dois: dos seis agregados, só
@@ -426,6 +448,62 @@ vez de alegada.
 | **L** — substituição de Liskov (CA aula 1, p.8) | O **repositório em memória** substituindo o real nos testes de aplicação. É o princípio no seu uso literal, e é o que a ADR-0005 tornou possível | §7 · ADR-0005 |
 | **I** — segregação de interface, *"referir-se ao comportamento, não à forma"* (CA aula 1, p.9) | As checagens perguntam **`vinculo.pode(X)`**, nunca `vinculo.papel == GESTOR` — depende-se do comportamento autorizado, não do papel concreto | Tópico 5 · contrato §4.5 |
 | **D** — inversão de dependência (CA aula 1, p.9) | O ponto único de escopo **recebe** o contexto resolvido em vez de descobri-lo, e a Aplicação **recebe** o repositório em vez de fabricá-lo | ADR-0003 · ADR-0005 |
+
+### 5.7 De qual camada é cada recusa
+
+O catálogo de códigos de erro do contrato (§6.4) põe **os quarenta códigos num espaço só**, e nenhum
+documento dizia de qual camada cada um é. Três da mesma tabela mostram por que a pergunta existe:
+`TRANSICAO_NAO_PERMITIDA` é recusa do **agregado**; `SEM_ORGANIZACAO_ATIVA` é recusa da **resolução de
+contexto**; `CORPO_NAO_SUPORTADO` é **transporte**.
+
+Isso importa por uma razão só, e é a regra desta seção: **o `status` HTTP não pode viajar junto com o
+código**, porque a tabela de camadas proíbe o Domínio de conhecer HTTP. O contrato mostra `codigo` e
+`status` lado a lado porque é contrato; o código-fonte não pode copiar essa tabela para dentro do Domínio.
+
+| Natureza da recusa | Quem a produz | Onde nasce |
+|---|---|---|
+| **Regra de negócio** — o estado atual não permite, a invariante recusa (`TRANSICAO_NAO_PERMITIDA`, `AVALIACAO_EXIGE_RESOLVIDA`, `JA_AVALIADA`) | Domínio | `src/dominio/erros/` |
+| **Sessão e escopo** — não há sessão, não há organização ativa, não há vínculo ativo na organização pedida (`NAO_AUTENTICADO`, `SEM_ORGANIZACAO_ATIVA`, `SEM_VINCULO_NA_ORGANIZACAO`) | Aplicação | `src/aplicacao/contexto/erros.ts` |
+| **Transporte** — `Content-Type` não suportado, schema violado, cabeçalho divergente (`CORPO_NAO_SUPORTADO`, `FORMATO_INVALIDO`, `ORGANIZACAO_DIVERGENTE`) | Interface | `src/interface/http/problema.ts` — que é **também** onde vive o de-para `codigo` → `status` |
+
+**O `codigo` é o contrato; o `status` é a tradução dele.** É isso que permite que a recusa nasça numa camada
+que não conhece HTTP e ainda assim chegue ao cliente como `403`. É a divisão de trabalho da §5.5 aplicada ao
+caminho de erro em vez do de sucesso — e, como lá, o que se adota é **o lugar e a responsabilidade**, não
+uma hierarquia de tipos por camada: o tipo-base é um só, e o que muda é quem o constrói.
+
+Duas fronteiras que a tabela não resolve sozinha, e que por isso ficam ditas:
+
+- **`NAO_AUTENTICADO` é sessão, não transporte.** O `401` faz parecer transporte, e não é: quem descobre que
+  não há sessão válida é **quem resolve o contexto**, no ponto único da ADR-0003. O código nasce onde a
+  descoberta acontece.
+- **`PERMISSAO_INSUFICIENTE` mora em `dominio/erros/`, e isso não move autorização para o Domínio.** O que é
+  do Domínio é o **vocabulário** — quais permissões um papel tem, respondido por `vinculo.pode(X)`. **A
+  checagem por comando continua sendo da Aplicação**, como o tópico 7 da Parte II e a §8.2 do modelo de
+  dados já diziam. Um erro definido numa camada pode ser levantado pela de fora; o contrário é que não vale.
+
+### 5.8 O carimbo de atualização é do banco, não da aplicação
+
+**Decidido em 22/08/2026, e deliberadamente ainda não implementado.** `atualizado_em` é mantido por
+**gatilho `BEFORE UPDATE`**; nenhum comando o escreve.
+
+O argumento é o que sustenta metade da §8 do modelo de dados: **num esquema cuja razão de existir é
+auditabilidade, garantia que um script administrativo escapa não é garantia.** Um `UPDATE` de manutenção por
+`psql` — o caminho que a ADR-0001 nomeia como o que *"escapa do histórico"* — deixa o carimbo mentindo se
+quem o escreve é a aplicação. E isto **não abre exceção na tabela de camadas**: pela classificação da §8 do
+modelo, o carimbo é **classe A**, forma do dado. O gatilho não decide regra nenhuma; ele registra que a linha
+mudou, que é fato sobre a linha e não sobre o domínio.
+
+**Não entra agora, e isso é parte da decisão.** Nenhuma das três tabelas da migração 001 recebe `UPDATE`
+nesta fatia. O gatilho entra na **primeira migração que precisar**, e a linha correspondente entra na §8.1 do
+modelo **nesse dia** — antes disso ela seria uma garantia que o esquema não tem. O registro existe para que
+aquele dia não comece por uma discussão.
+
+> **Uma exceção, e ela é nominal: `ocorrencias.atualizada_em` continua escrita pelo agregado.** É a
+> desnormalização §7.4 do modelo, e ela **não quer dizer "esta linha mudou"** — quer dizer *"houve atividade
+> nesta ocorrência"*, o que **inclui mensagem nova, que é `INSERT` em outra tabela**. Um gatilho
+> `BEFORE UPDATE ON ocorrencias` erraria nos dois sentidos: não veria o `INSERT` em `mensagens`, e
+> carimbaria escritas que não são atividade. É o único carimbo de tempo do esquema com significado de
+> domínio, e por isso é o único que a regra acima não alcança.
 
 ---
 
@@ -499,7 +577,7 @@ contra um requisito, como o tópico pede:
 | **`ghcr.io`** | Registro da imagem. Gratuito para imagem pública, e o `GITHUB_TOKEN` do Actions já autentica — sem recurso nem segredo novo. ACR foi considerado e recusado (ADR-0004) |
 | **Docker + Supabase CLI** | **E7**, literal no enunciado. Ambiente local completo, incluindo a aplicação em container — e **o mesmo `Dockerfile` que vai para produção** |
 | **Tailwind CSS** | Pré-requisito do shadcn/ui, abaixo. Estilo no próprio componente elimina a folha de estilo global como lugar onde regras colidem — o modo de falha mais provável de CSS mantido por uma pessoa só |
-| **shadcn/ui** | **Risco de usabilidade**, o mais alto da análise de Cagan, e o **RNF6**: controles de formulário com foco, teclado e ARIA corretos **sem** construí-los. Não é dependência — o CLI **copia o código para o repositório**, então nada quebra numa atualização não pedida, e em troca o código é nosso para manter. A integração de formulário recomendada é `react-hook-form` + `zod`, e é isso que fecha o círculo: **o schema que valida o campo é o mesmo que gera o `openapi.yaml`** (§15 do contrato). Duas ressalvas levantadas ao conferir o catálogo em 21/08/2026: o projeto oferece **mais de uma base de primitivos**, então a base é escolha explícita por componente e não um padrão herdado; e o componente de gráfico **traz uma biblioteca de terceiro de verdade**, sendo a única exceção à frase *"o CLI copia o código"* — por isso ele **não entra na primeira entrega** |
+| **shadcn/ui** | **Risco de usabilidade**, o mais alto da análise de Cagan, e o **RNF6**: controles de formulário com foco, teclado e ARIA corretos **sem** construí-los. Não é dependência — o CLI **copia o código para o repositório**, então nada quebra numa atualização não pedida, e em troca o código é nosso para manter. A integração de formulário recomendada é `react-hook-form` + `zod`, e é isso que fecha o círculo: **o schema que valida o campo é o mesmo que gera o `openapi.yaml`** (§15 do contrato). Duas ressalvas levantadas ao conferir o catálogo em 21/08/2026: o projeto oferece **mais de uma base de primitivos**, então a base é escolha explícita por componente e não um padrão herdado — e ela passou a ter nome em 22/08/2026, o meta-pacote `radix-ui`, que é o que o CLI instala (emenda à ADR-0007); e o componente de gráfico **traz uma biblioteca de terceiro de verdade**, sendo a única exceção à frase *"o CLI copia o código"* — por isso ele **não entra na primeira entrega** |
 | **Vitest** | **RNF2** e a máquina de estados testáveis **sem banco**, em milissegundos |
 | **Playwright** | Caminho crítico de ponta a ponta; e verificação do **RNF1** por fora |
 | **ESLint com regra de fronteira** | Torna mecânica a regra de dependência (Parte I, §5) e o ponto único da ADR-0003 |
@@ -602,7 +680,7 @@ Plano organizado pelo que cada tipo **protege**, e não por meta de cobertura.
 | **Unitário de aplicação** | Autorização por comando: quem pode cancelar em cada estado (D12), quem pode resolver. E as **invariantes 9 e 10** (Parte I, §4), que atravessam outra tabela e por isso não cabem no teste de domínio | Vitest | Sim (repositório em memória, substituído **pela porta** — [ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md), não por *mock* de módulo) |
 | **Integração de repositório** | **O ponto único de isolamento (RNF1)**: consulta em nome da organização A **nunca** retorna dado de B | Vitest + Postgres do Supabase CLI | Não |
 | **Ponta a ponta** | Caminho crítico: registrar → analisar → atribuir → atender → resolver → avaliar, com histórico conferido na interface | Playwright | Não |
-| **Verificação de fronteira** | A regra de dependência (Parte I, §5.2): **nada fora de `infraestrutura/clientes/` importa um SDK** — banco, storage ou autenticação —, e `infraestrutura/` só é importada por `composicao/`. É o **alarme**; a garantia é estrutural (ADR-0005) | ESLint | — |
+| **Verificação de fronteira** | A regra de dependência (Parte I, §5.2): **nada fora de `infraestrutura/clientes/` importa um SDK** — banco, storage ou autenticação —, `infraestrutura/` só é importada por `composicao/`, e `composicao/` só por `interface/http/` (as cinco regras da §5.3). É o **alarme** onde a garantia é estrutural (ADR-0005), e é a **própria** garantia da lista fechada do contrato §4.4, que estrutura nenhuma alcança | ESLint | — |
 | **Verificação de contrato** | Que `docs/api/openapi.yaml` corresponda aos schemas de validação, e que as três regras mecânicas da §15 do contrato passem | Passo do pipeline | — |
 | **Verificação de diagrama** | Que todo bloco Mermaid do repositório tenha sintaxe válida — diagrama que não renderiza é documentação que não existe | `mermaid.parse()` sobre os blocos, em Node | — |
 

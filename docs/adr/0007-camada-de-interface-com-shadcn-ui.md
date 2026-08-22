@@ -43,6 +43,27 @@ manutenção é nossa.
 herdar o padrão sem decidir produziria uma interface com bases misturadas. Onde um componente exigir uma
 base diferente da predominante, isso é decisão registrada, não acidente.
 
+> ### Emenda de 22/08/2026 — a base predominante tem nome: o meta-pacote `radix-ui`
+>
+> **O parágrafo acima ficou sem sujeito.** Ele exige que a base seja escolha explícita e não diz qual é a
+> predominante — e, no esqueleto, **quem escolheu foi o CLI**: `shadcn add` instalou o meta-pacote
+> `radix-ui` e escreveu os imports contra ele (`import { Slot } from "radix-ui"` em `button.tsx`), em vez
+> dos pacotes individuais por primitivo.
+>
+> **Decidido: aceitar, e é isto que torna a escolha explícita.** Trocar pelos pacotes individuais seria
+> brigar com o CLI a cada `shadcn add` — briga que se perde, e que se perde **em silêncio**: bastaria um
+> `add` esquecido para o repositório passar a conviver com as duas convenções, que é precisamente a
+> *"interface com bases misturadas"* que a regra 2 existe para impedir. **A base predominante deste projeto
+> é a base predominante do projeto de origem.**
+>
+> **A regra 2 continua inteira**, e é só ela que muda de estado: deixa de ter um lugar em branco. Componente
+> que exigir base diferente segue sendo decisão registrada.
+>
+> **O custo, declarado:** o meta-pacote traz a família toda como uma dependência só, então o `package.json`
+> deixa de mostrar quais primitivos estão realmente em uso — a lista de dependências para de servir como
+> inventário da interface. Em troca há **uma versão para atualizar em vez de uma por primitivo**, o que num
+> projeto de dez telas mantido por uma pessoa é o lado certo da troca.
+
 **3 · O schema que valida o campo é o mesmo que gera a especificação.** A integração de formulário
 recomendada é `react-hook-form` com `zod`, e `zod` **já entraria de qualquer forma**: é a camada de
 Interface fazendo a única coisa que a regra de dependência lhe permite — validar formato. O que se ganha é
