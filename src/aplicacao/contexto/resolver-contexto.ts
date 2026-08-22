@@ -71,7 +71,7 @@ export type ResolucaoDeContexto = {
  * > cadastro"*, e T-11 torna o campo obrigatório no nosso formulário. **Nenhum documento diz o que
  * > acontece quando o metadado não existe** — conta criada por outro fluxo do provedor, ou semeada. A
  * > coluna é `NOT NULL`, então é preciso um valor. Cair no trecho local do e-mail poria credencial na
- * > trilha imutável, contra o RNF10; recusar o login brica a conta e não há código para isso na §6.4.
+ * > trilha imutável, contra o RNF10; recusar o login inutiliza a conta e não há código para isso na §6.4.
  * > Fica este literal, e o nome é corrigível uma última vez em T-02 face A (contrato §8.2).
  */
 export const NOME_AUSENTE = "Sem nome";
