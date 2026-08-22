@@ -115,7 +115,8 @@ seria uma intenção.
   HTTP e validar formato*, e o schema `zod` que ela usa é o mesmo que gera o `openapi.yaml`, conferido por
   passo de pipeline (§15 do `contrato-de-api.md`). **Isto é argumento, não cobertura**, e está escrito como
   argumento.
-- **O único E2E só pode existir quando o caminho crítico existir**, o que é ao fim do lote 6 — e **nenhum
+- **O único E2E só pode existir quando o caminho crítico existir**, o que é ao fim do **lote 8** — porque o
+  último elo do percurso é *avaliar*, e ele está lá, não no lote 6 — e **nenhum
   portão do projeto o cobra.** Conferido ao escrever esta ADR: *"testes de ponta a ponta"* é **capacidade ✅
   do `escopo.md`**, marcada `ENUNCIADO · aberto` (E6), e o `definition-of-done.md` **não tem item de teste de
   ponta a ponta** — as cinco famílias dele são caminho feliz, transição inválida, transição gerando
