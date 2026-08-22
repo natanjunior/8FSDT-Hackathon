@@ -38,9 +38,22 @@ import nextTypescript from "eslint-config-next/typescript";
  *
  * | Regra da ADR-0006 | Vira lint? |
  * |---|---|
- * | 1 · nada fora de `infraestrutura/clientes/` importa um SDK | **sim** — `SDKS` |
+ * | 1 · importação só para dentro | **sim** — `PARA_FORA_DO_*` |
  * | 2 · `infraestrutura/` só é importada por `composicao/` | **sim** — `INFRAESTRUTURA` |
- * | 3 · importação só para dentro, e só pela superfície pública | **sim** — `PARA_FORA_DO_*` e `SUPERFICIE_PUBLICA` |
+ * | 2b · `composicao/` só é importada por `interface/http/` | **sim** — `COMPOSICAO` |
+ * | 3 · só pela superfície pública do módulo | **sim** — `SUPERFICIE_PUBLICA` |
+ * | *(sem número — não fala de camada)* `semOrganizacao` só nos quatro caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
+ *
+ * E uma que **não é regra numerada da ADR-0006** — vem da §5.2 da `arquitetura.md`,
+ * que é onde a inversão de dependência mora:
+ *
+ * | Origem | Vira lint? |
+ * |---|---|
+ * | `arquitetura.md` §5.2 · nada fora de `infraestrutura/clientes/` importa um SDK | **sim** — `SDKS` |
+ *
+ * A distinção importa: a numeração daqui **tem de bater com a da ADR**, senão duas
+ * fontes discordam sobre o que é "a regra 1" e alguém perde meia hora daqui a três
+ * semanas descobrindo qual das duas manda.
  *
  * **O que o lint não alcança, e continua sendo teste ou revisão:**
  *

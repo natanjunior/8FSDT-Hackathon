@@ -10,8 +10,9 @@ import { PERMISSOES_POR_PAPEL, type Permissao } from "./Permissao";
  * **Por que o Vínculo mora sob `dominio/organizacao/`.** A `arquitetura.md` §2 lista seis agregados e
  * `Vínculo` não é um deles. Ele é escopado por `organizacao_id`, é criado e revogado por um Gestor daquela
  * Organização, e não existe fora dela — então o limite de consistência a que ele pertence é o da
- * `Organização`. A `Pessoa` é global e sobrevive à revogação do vínculo. Ver o achado nº 4 do relatório
- * desta tarefa: nenhum documento decide isso, e esta é a leitura adotada.
+ * `Organização`. A `Pessoa` é global e sobrevive à revogação do vínculo — e é por isso que ela é agregado
+ * e ele não. **Decidido e registrado em `arquitetura.md` §2**, em 22/08/2026: quando esta classe foi
+ * escrita nenhum documento dizia, e a pergunta subiu do código para a arquitetura.
  */
 export class Vinculo {
   private constructor(
