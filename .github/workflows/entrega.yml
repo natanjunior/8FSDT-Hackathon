@@ -170,6 +170,26 @@ jobs:
         # torna o rollback uma escolha de revisão em vez de um rebuild.
         run: echo "etiqueta=${{ env.IMAGEM }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # **Construir sem publicar, e carregar no daemon local.** É o que permite
+      # conferir a imagem ANTES de ela existir para o mundo — a imagem é pública
+      # (ADR-0004), e imagem publicada com segredo dentro não se desfaz.
+      - name: construir a imagem para conferência
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: resolve-ai:conferencia
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: verificador de imagem — nenhum segredo assado
+        run: npm run verificar:imagem -- resolve-ai:conferencia
+
       - name: construir e publicar
         uses: docker/build-push-action@v6
         with:
