@@ -241,13 +241,13 @@ com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 | `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. **Não há endpoint de edição na primeira entrega** — editar ocorrência não é capacidade ✅ do escopo (§12, suposição S-A7) |
 | `status` | **Só por comando.** Não aparece em nenhum schema de entrada do contrato |
 | `prioridade` | Só por `POST /ocorrencias/{id}/alterar-prioridade` — que recusa em estado terminal (D6) |
-| `solucaoAplicada` | Só por `POST /ocorrencias/{id}/registrar-solucao-aplicada` |
+| `solucaoAplicada` | Por `POST /ocorrencias/{id}/registrar-solucao-aplicada` **ou no corpo de `POST /ocorrencias/{id}/resolver`** — os dois, e é de propósito (§8.4) |
 | `avaliacaoNota` · `avaliacaoComentario` · `avaliadaEm` | Só por `POST /ocorrencias/{id}/avaliar` |
 | responsável (tabela `atribuicoes`) | Só por `POST /ocorrencias/{id}/atribuir-responsavel` |
 | `areaTipo` | **Escrito pelo servidor** no registro, cópia congelada da Área (emenda à D10, §7.5 do `modelo-de-dados.md`). **Nunca aceito no corpo**, em nenhum endpoint |
 | `organizacaoId` · `autorPessoaId` · `registradaEm` · `atualizadaEm` | Escritos pelo servidor. Enviados no corpo → `422 CAMPO_NAO_SUPORTADO` |
 
-**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ordem`, `ativa`, `tipo`. Nenhum
+**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ordem`, `ativa`, `icone`, `tipo`. Nenhum
 desses campos é governado por máquina de estados nem gera registro de transição. O critério, escrito para
 ser aplicado a campos futuros:
 
@@ -870,9 +870,30 @@ na ordem que o Gestor definiu, com desempate alfabético.
 > `ordem` é o único conserto que atua no primeiro. Custa uma coluna, um campo opcional num `PATCH` que já
 > existe, e reordenação numa tela que já reordena `Categoria`.
 
-**`PATCH /categorias/{id}`** — `{ nome?, ordem?, ativa? }`. `ordem` existe porque *"qual categoria aparece
-antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`** (P6) e a
-FK vinda de `ocorrencias` é `RESTRICT`. Erros: `404 CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra
+**`PATCH /categorias/{id}`** — `{ nome?, ordem?, ativa?, icone? }`. `ordem` existe porque *"qual categoria
+aparece antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`**
+(P6) e a FK vinda de `ocorrencias` é `RESTRICT`.
+
+> ### `icone` entrou em 22/08/2026, e vem com uma lista fechada
+>
+> `POST /categorias` e este `PATCH` passam a aceitar **`icone`**, e a `Categoria` passa a devolvê-lo como
+> campo **obrigatório na resposta**. É o item 4b do backlog — escopo `NOSSO`, justificado pelo **RNF6**:
+> lista de triagem em texto corrido custa leitura, e ícone é o que faz a mesma lista se ler de relance no
+> celular.
+>
+> **A lista de valores é fechada, e a fonte normativa é a §14.5 do `modelo-de-dados.md`** — 25 nomes do
+> conjunto `lucide`, sete deles fixados nas categorias-semente. O contrato a declara como `enum` no schema
+> de entrada, e nome fora dela responde `400 FORMATO_INVALIDO`, que é forma e não domínio.
+>
+> **É opcional no corpo, e o servidor grava `tag` quando o cliente não manda.** Obrigar a escolher um
+> ícone para salvar um *nome* poria um seletor de 25 células entre o Gestor e a edição de uma palavra —
+> e T-09 é trabalho de escritório, não o caminho cronometrado. A consequência é que **`icone` nunca é
+> nulo na resposta**: nenhuma tela precisa de caminho para ausência.
+>
+> **Por que a lista não é `ENUM` de banco**, que seria o gosto da casa: o cliente **não consegue
+> renderizar uma string** — `lucide-react` exporta componentes, então já existe obrigatoriamente um mapa
+> nome → componente na Interface. Com a lista no banco seriam três cópias da mesma decisão de produto. A
+> §14.5 do `modelo-de-dados.md` pesa isso contra a classificação da §8 de lá, e declara o que se perde. Erros: `404 CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra
 organização, §6.3) · `409 CATEGORIA_NOME_DUPLICADO` — `UNIQUE (organizacao_id, nome)`, porque duas
 categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do
 dashboard.
@@ -1157,8 +1178,23 @@ atual, comando) fora da tabela da `arquitetura.md` (Parte I, §4) — o corpo do
 > ele omitia `atribuir-responsavel`.)*
 >
 > **Por que solução aplicada só a partir de `em_atendimento`:** solução aplicada descreve trabalho feito, e
-> antes de o atendimento começar não há trabalho a descrever. Nos dois estados terminais a recusa é a
-> mesma razão da invariante 7 — registro fechado não recebe escrita nova.
+> antes de o atendimento começar não há trabalho a descrever.
+>
+> **Nos dois terminais a razão é mais forte que *"registro fechado não recebe escrita nova"*, e precisa
+> estar dita** — porque a consequência é permanente. `registrarSolucaoAplicada` **não gera registro de
+> transição**. Admiti-lo em `resolvida` faria o detalhe de uma ocorrência encerrada mudar **sem nada na
+> linha do tempo dizendo quando nem por quem**: mutação silenciosa de registro fechado, que é precisamente
+> o que a [ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md) existe para impedir.
+>
+> **O custo aceito, escrito porque é irreversível:** uma ocorrência resolvida com o campo vazio **fica sem
+> solução aplicada para sempre**. Não há caminho de volta, e não deve haver.
+>
+> **A alavanca para quem se importa já existe, e é o interruptor da D22** — *"exigir solução ao resolver"*,
+> evolução prevista (§11, item 2). Ligado, `/resolver` passa a recusar sem `solucaoAplicada`, e o caso do
+> campo vazio deixa de acontecer na origem em vez de ser consertado depois. Organização que quer toda
+> resolução documentada liga; quem deixa desligado **decidiu** que não precisa. Até o interruptor existir,
+> a indução é de interface: o formulário de resolver abre com o campo em foco, e pular exige um clique a
+> mais.
 >
 > **A tabela normativa é a da `arquitetura.md` (Parte I, §4)**, que ganha estes dois em rodada própria; o
 > que está aqui é a metade de superfície, e é ela que dá alvo ao *"teste cobrindo ao menos uma transição
@@ -1234,17 +1270,26 @@ comandos que **este** chamador pode executar **agora**. Ex.:
 
 > **A lista aplica *todas* as precondições do comando, não só status × permissão.** Precisão acrescentada
 > em 20/08/2026, porque a redação anterior — *"derivada da máquina de estados cruzada com as permissões"* —
-> deixava três invariantes de fora e esvaziava a razão de o campo existir:
+> deixava de fora as precondições que a tabela de transições não expressa, e esvaziava a razão de o campo
+> existir.
 >
-> | Invariante | Por que ficava de fora |
+> **A fonte da derivação cresceu em 22/08/2026, e são três, não uma:**
+>
+> | Fonte | O que ela responde |
 > |---|---|
-> | **9 ·** `iniciarAtendimento` exige responsável atribuído (D21) | Não é sobre status. O próprio §8.4 a chama de *"a única precondição de estado que não é sobre `status`"* |
-> | **7 ·** `prioridade` é imutável em estado terminal (D6) | `alterar-prioridade` **não transiciona**, então não aparece na tabela de transições |
-> | **8 ·** uma ocorrência é avaliada **uma vez** | Idem — `avaliar` não muda status (D1) |
+> | A **tabela de transições** da `arquitetura.md` (Parte I, §4) | De onde sai cada um dos seis comandos que transicionam |
+> | A **tabela companheira**, logo abaixo dela | De onde saem os comandos que **não** transicionam e têm endpoint: `alterarPrioridade`, `avaliar`, `atribuirResponsavel` e `registrarSolucaoAplicada`. Antes desta tabela, as duas primeiras linhas eram lidas aqui como *"invariantes 7 e 8"*, e as duas últimas **não existiam em documento nenhum** |
+> | O que **não é status nem permissão** | Sobram três, e só três: a **invariante 9** (`iniciarAtendimento` exige responsável atribuído, D21) · a metade *"uma vez só"* da **invariante 8** (`avaliar` some depois de avaliada) · e as checagens de **relação** com o recurso — ser o autor, em `avaliar` e em `cancelar` |
 >
-> Se a lista não as aplicasse, o cliente ou ofereceria um botão que falha sempre, ou reimplementaria as
-> três — que é **exatamente a segunda cópia da máquina de estados** que este campo existe para impedir. Um
-> comando ausente de `acoesDisponiveis` é um comando que **vai** responder `409` ou `422` se for chamado.
+> **O que isso muda na prática: nada na forma da lista, e tudo em quem a mantém.** As duas regras novas
+> **são** sobre status, então entram pelo caminho normal da derivação. O que mudou é onde se procura a
+> regra quando ela for alterada: dois documentos e uma lista curta, em vez de *"a máquina de estados e
+> três invariantes"*.
+>
+> Se a lista não aplicasse as três fontes, o cliente ou ofereceria um botão que falha sempre, ou
+> reimplementaria a regra — que é **exatamente a segunda cópia da máquina de estados** que este campo
+> existe para impedir. Um comando ausente de `acoesDisponiveis` é um comando que **vai** responder `409` ou
+> `422` se for chamado.
 >
 > **E a ordem da lista é declarada**, acrescentado em 21/08/2026: ela sai na ordem do enum `Comando`, com os comandos que movem a ocorrência adiante na sequência do ciclo de vida e os que não movem — `alterar-prioridade` e `cancelar` — por último. Isso evita que o cliente mantenha **uma segunda lista só para ordenar botões**, que seria a mesma duplicação por outro caminho. **Não é promessa de destaque:** em `em_atendimento`, `pausar` vem antes de `resolver`. Qual ação ganha ênfase é decisão de tela.
 

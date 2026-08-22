@@ -1034,7 +1034,7 @@ enunciado — **enumeradas na §14.1**.
 | `id` | `uuid` | não | `gen_random_uuid()` |
 | `organizacao_id` | `uuid` | não | — |
 | `nome` | `varchar(60)` **`COLLATE "pt-BR-x-icu"`** | não | — |
-| `icone` | `varchar(40)` | **sim** | — |
+| `icone` | `varchar(40)` | não | — |
 | `ativa` | `boolean` | não | `true` |
 | `ordem` | `smallint` | não | `0` |
 | `criado_por_pessoa_id` | `uuid` | **sim** | — |
@@ -1061,9 +1061,27 @@ enunciado — **enumeradas na §14.1**.
 > protótipo mediu que lista sem apoio visual custa segundos de um orçamento de sessenta. As sete
 > categorias-semente do enunciado são conceitos visuais — iluminação, vazamento, limpeza.
 >
-> **Anulável, e na primeira entrega é só de semente:** as sete nascem com ícone pela POL-01, e **não há
-> seletor de ícone** na tela do Gestor. Assim a coluna custa zero de interface agora, e ganha o seletor no
-> dia em que a edição de categoria virar tela de verdade.
+> ### ⚠️ A coluna deixou de ser morta, e deixou de ser anulável — 22/08/2026
+>
+> Até hoje esta nota dizia *"anulável, e na primeira entrega é só de semente: não há seletor de ícone na
+> tela do Gestor"*. **Passou a haver.** O Gestor escolhe o ícone ao criar e ao editar a categoria, e as
+> telas de lista e de registro renderizam — é o item **4b** do backlog, escopo `NOSSO` decidido hoje, e o
+> que o justifica é o **RNF6**: lista de triagem em texto corrido custa leitura, e ícone é o que faz a
+> mesma lista se ler de relance no celular.
+>
+> **Duas consequências no esquema, e as duas são desta seção:**
+>
+> 1. **`icone` passa a ser `NOT NULL`.** A razão de ser anulável era não haver escritor; agora há dois — a
+>    POL-01 e o Gestor —, e o servidor grava o padrão `tag` quando o cliente não manda (§14.5). **Custa
+>    zero**: `categorias` ainda não tem migração escrita, então isto é uma palavra no `CREATE TABLE` que
+>    ainda não existe, não um `ALTER`.
+> 2. **Ganha um `CHECK` de forma**, e só de forma: `CHECK (icone ~ '^[a-z0-9-]{1,40}$')`. A **lista** de
+>    valores permitidos **não** mora no banco, e a §14.5 tem o argumento inteiro e o que ele custa.
+>
+> **Um ajuste de fonte, no mesmo movimento:** o parágrafo acima creditava o conjunto `lucide` à
+> [ADR-0007](adr/0007-camada-de-interface-com-shadcn-ui.md), que **não o menciona**. Quem o declara é o
+> `components.json` na raiz, com `"iconLibrary": "lucide"`. O `lucide-react` **ainda não é dependência
+> instalada** — entra com o item 4b, e é a segunda dependência de interface do projeto.
 
 > ### Auditoria de configuração — `criado_por` e `atualizado_por` · 22/08/2026
 >
@@ -3023,15 +3041,15 @@ O enunciado lista **oito** marcadores sob *"Exemplos de ocorrências"* (p.1 do P
 situações definidas pelo grupo"*, que **não é uma categoria**: é a licença que a D18 exerce ao tornar a
 lista configurável. Os sete concretos são a semente, na ordem em que aparecem:
 
-| `ordem` | `nome` | Marcador do enunciado |
-|---|---|---|
-| 1 | Problemas de iluminação | *"Problemas de iluminação"* |
-| 2 | Equipamentos quebrados | *"Equipamentos quebrados"* |
-| 3 | Falta de acessibilidade | *"Falta de acessibilidade"* |
-| 4 | Problemas de limpeza | *"Problemas de limpeza"* |
-| 5 | Vazamentos | *"Vazamentos"* |
-| 6 | Problemas de segurança | *"Problemas de segurança"* |
-| 7 | Solicitações de manutenção | *"Solicitações de manutenção"* |
+| `ordem` | `nome` | `icone` | Marcador do enunciado |
+|---|---|---|---|
+| 1 | Problemas de iluminação | `lightbulb` | *"Problemas de iluminação"* |
+| 2 | Equipamentos quebrados | `unplug` | *"Equipamentos quebrados"* |
+| 3 | Falta de acessibilidade | `accessibility` | *"Falta de acessibilidade"* |
+| 4 | Problemas de limpeza | `trash-2` | *"Problemas de limpeza"* |
+| 5 | Vazamentos | `droplets` | *"Vazamentos"* |
+| 6 | Problemas de segurança | `shield` | *"Problemas de segurança"* |
+| 7 | Solicitações de manutenção | `wrench` | *"Solicitações de manutenção"* |
 
 **Todos os sete `nome` são cópia literal do enunciado, e isso é deliberado:** nenhum foi encurtado,
 reordenado ou reescrito aqui. A `ordem` é a do próprio enunciado, que é a única que existe — ele não a
@@ -3060,11 +3078,16 @@ justifica, e nós também não; é ponto de partida, e o Gestor reordena.
 > alternativa. Encurtar é decisão do hub, e no dia em que for tomada é **uma coluna desta tabela**, mais os
 > exemplos do `openapi.yaml` e do protótipo — não mais que isso.
 
-**`icone` fica sem valor fixado aqui, e a razão é que nada o consome.** A coluna guarda **identificador do
-conjunto `lucide`** (§6.5), a POL-01 a preenche, e o `inventario-de-telas.md` declara em T-09 que *"nenhuma
-tela oferece escolher ícone, e nenhuma tela exibe ícone de categoria"* nesta entrega. Fixar sete nomes de
-ícone aqui seria escrever especificação para um campo que ninguém lê — e a §6.5 já dá a regra e três
-exemplos (`lightbulb`, `droplets`, `trash-2`), que é o que a implementação precisa.
+> **A coluna do `icone` foi acrescentada em 22/08/2026, e até aquela manhã esta seção dizia o oposto.** O
+> texto anterior era *"`icone` fica sem valor fixado aqui, e a razão é que nada o consome"* — verdade
+> enquanto nenhuma tela oferecia escolher ícone e nenhuma o exibia. **O item 4b mudou isso**, e um campo
+> com consumidor precisa de valor semeado: sete categorias nascendo sem ícone produziriam exatamente a
+> lista irregular que o 4b existe para acabar.
+>
+> Os sete nomes são da **lista fechada da §14.5**, e cada um é o mapeamento óbvio do marcador do enunciado
+> — nenhum exige interpretação. `unplug` para *"Equipamentos quebrados"* é o único que merece nota: é o
+> aparelho fora do ar, e não a ferramenta que o conserta, que é `wrench` e está reservada para
+> *"Solicitações de manutenção"*.
 
 ### 14.2 As áreas-semente — **não decididas**, e a razão é de produto
 
@@ -3147,3 +3170,79 @@ lugar, e é por isso que a próxima linha não é opcional:
 **O que ela não é.** Não é *fixture* de teste automatizado — a suíte da [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)
 monta o próprio cenário, e cenário compartilhado entre teste e demonstração é o caminho para um teste que
 depende de dado que alguém editou à mão na apresentação.
+
+### 14.5 A lista fechada de ícones
+
+**Por que este vocabulário mora numa seção de dados-semente.** Porque a §14.1 precisa nomear um ícone por
+categoria, e um nome só é dado se existir uma lista que o torne válido. A lista é curta, fechada, e é a
+mesma coisa que os `ENUM` da §5 são para `motivo_pausa` e `papel`: um conjunto de valores permitidos.
+
+> **São 25 nomes, e o conjunto é fechado. Não é o Lucide inteiro.**
+
+**Três razões, e a terceira é a que decide.**
+
+1. **Seletor de mil e quinhentos ícones num celular não é seletor, é busca** — e busca em grade pequena é
+   pior que a lista de texto que o item veio melhorar.
+2. **Uma grade de 25 cabe numa tela** e se escolhe com o polegar.
+3. **`varchar(40)` livre é campo que não se valida.** Um erro de digitação produz categoria sem ícone, em
+   silêncio e para sempre. Este esquema **não tem um único vocabulário solto**: `motivo_cancelamento`,
+   `motivo_pausa`, `papel_vinculo` e `tipo_area` são todos listas fechadas (§5), e um `varchar` livre aqui
+   seria a exceção sem argumento.
+
+#### A lista
+
+**Os sete primeiros são os das categorias-semente** (§14.1); os dezoito seguintes existem para o que uma
+organização invente sem precisar de migração nem de decisão nova.
+
+| Grupo | Nomes |
+|---|---|
+| **Das sete sementes** | `lightbulb` · `unplug` · `accessibility` · `trash-2` · `droplets` · `shield` · `wrench` |
+| Instalações | `zap` · `flame` · `thermometer` · `wind` · `snowflake` |
+| Acesso e segurança | `door-open` · `key` · `camera` · `wifi` · `package` |
+| Convivência | `car` · `dog` · `bug` · `trees` · `volume-2` |
+| Obra e conservação | `hammer` · `paintbrush` |
+| **Neutro — o padrão** | `tag` |
+
+**`tag` é o padrão**, e existe por uma razão de forma: `icone` é **opcional no corpo** de
+`POST /categorias` e de `PATCH /categorias/{id}` — obrigar o Gestor a escolher um ícone para salvar um
+*nome* seria pôr um seletor de 25 células entre ele e uma edição de uma palavra. **O servidor grava `tag`
+quando o cliente não manda**, e é isso que permite a coluna ser `NOT NULL`: nenhuma categoria existe sem
+ícone, e nenhuma tela precisa de caminho para `null`.
+
+> **A lista é `NOSSO` e não tem origem em documento nenhum — é escolha, e está declarada como tal.** O que
+> a ancora é a cobertura: as sete sementes têm um nome cada, e os dezoito restantes cobrem as famílias que
+> apareceram nas personas e nos exemplos do pacote (garagem, elevador, portaria, barulho, animais, obra).
+> Ampliá-la é acrescentar um nome à constante — **não é migração**, pela decisão da subseção seguinte.
+
+#### Onde mora a guarda, e o que pesou
+
+> **A lista mora no schema de validação da Interface. O banco guarda a *forma*, não a lista.**
+
+| Camada | O que garante |
+|---|---|
+| **Banco** | `icone varchar(40) NOT NULL`, com `CHECK (icone ~ '^[a-z0-9-]{1,40}$')` — minúsculo, sem espaço, sem acento. É **forma**, classe **A** da §8: não muda quando a lista muda |
+| **Interface** | O `enum` do schema de validação, gerado da constante. Nome fora da lista → `400 FORMATO_INVALIDO`, antes de o domínio existir |
+| **Esteira** | Um teste que percorre a constante e afirma que **todo nome resolve a um componente exportado pelo `lucide-react`** — e que as sete sementes estão na lista |
+
+**Por que a lista não entrou no banco**, que era a alternativa e é o gosto da casa:
+
+1. **Pela própria §8, ela não é classe A.** Classe A é o que não muda quando a regra de negócio muda; esta
+   lista muda no dia em que o produto decidir oferecer outro ícone, e isso não é forma. Também não é classe
+   **B** — nenhuma regra aqui atravessa linhas. Sobraria a classe **C**, duplicada de propósito, e a regra
+   de desempate da classe C manda a fonte da verdade ser **o agregado**. Só que `Categoria` está **fora do
+   limite** do agregado `Ocorrência` (`arquitetura.md`, Parte I, §4). **Classe C sem agregado é duplicação
+   sem desempate** — dois lugares e nenhuma regra de quem vence.
+2. **Ícone é vocabulário de apresentação**, e a §5 da `arquitetura.md` põe apresentação na Interface.
+   `motivo_pausa` muda o que o produto **significa**; ícone muda o que ele **parece**.
+3. **A terceira cópia é inevitável, e é ela que decide.** O cliente **não consegue renderizar uma string**:
+   `lucide-react` exporta componentes, então existe obrigatoriamente um mapa nome → componente no código
+   da Interface. Com a lista no banco, seriam **três** cópias — tipo `ENUM`, schema de validação e mapa —
+   e três cópias de uma lista que muda por decisão de produto é a definição de divergência futura. Com ela
+   fora, são **uma constante e três usos gerados dela**.
+4. **O custo é concreto:** `ALTER TYPE … ADD VALUE` para uma decisão cosmética, com um implementador e
+   cinco semanas.
+
+**O que se perde, declarado.** Um `psql` administrativo pode gravar `icone = 'xyz'`, e o banco aceita —
+a mesma classe de escape que a [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md) já
+declara para o isolamento. **O que a tela faz nesse caso é decisão de interface**, e a recomendação é
+degradar para o padrão `tag` em vez de quebrar. É o preço de não pagar migração por ícone.

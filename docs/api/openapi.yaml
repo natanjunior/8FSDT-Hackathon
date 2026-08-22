@@ -760,8 +760,8 @@ paths:
                     items: { $ref: "#/components/schemas/Categoria" }
               example:
                 itens:
-                  - { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação", ativa: true, ordem: 1 }
-                  - { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos", ativa: true, ordem: 2 }
+                  - { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Problemas de iluminação", ativa: true, ordem: 1, icone: "lightbulb" }
+                  - { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos", ativa: true, ordem: 5, icone: "droplets" }
                   - { id: "6b1c8f2e-3333-4a2b-8c3d-4e5f6a7b8c9d", nome: "Limpeza", ativa: true, ordem: 3 }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemOrganizacaoAtiva" }
@@ -787,7 +787,8 @@ paths:
               properties:
                 nome: { type: string, minLength: 1, maxLength: 60 }
                 ordem: { type: integer, minimum: 0, maximum: 999, default: 0 }
-            example: { nome: "Jardinagem", ordem: 8 }
+                icone: { $ref: "#/components/schemas/IconeCategoria" }
+            example: { nome: "Jardinagem", ordem: 8, icone: "trees" }
       responses:
         "201":
           description: Categoria criada.
@@ -828,7 +829,8 @@ paths:
                 nome: { type: string, minLength: 1, maxLength: 60 }
                 ordem: { type: integer, minimum: 0, maximum: 999 }
                 ativa: { type: boolean }
-            example: { ativa: false }
+                icone: { $ref: "#/components/schemas/IconeCategoria" }
+            example: { icone: "droplets" }
       responses:
         "200":
           description: Categoria atualizada.
@@ -2717,12 +2719,54 @@ components:
             responsável, e **para agir no sistema seria preciso ter conta**.
         criadoEm: { type: string, format: date-time }
 
+    IconeCategoria:
+      type: string
+      description: |
+        O ícone da categoria — **identificador do conjunto `lucide`**, nunca emoji e nunca URL.
+
+        **A lista é fechada**, e a fonte normativa é a §14.5 do `modelo-de-dados.md`. Ela existe porque um
+        seletor de mil e quinhentos ícones num celular é busca, não seletor, e porque um `varchar` livre
+        produz categoria sem ícone por erro de digitação, em silêncio e para sempre.
+
+        **É opcional no corpo: o servidor grava `tag` quando o cliente não manda.** Obrigar a escolher um
+        ícone para salvar um *nome* poria um seletor de 25 células entre o Gestor e a edição de uma
+        palavra. A coluna é `NOT NULL` — nenhuma categoria existe sem ícone, e nenhuma tela precisa de
+        caminho para nulo.
+      default: tag
+      enum:
+        - lightbulb
+        - unplug
+        - accessibility
+        - trash-2
+        - droplets
+        - shield
+        - wrench
+        - zap
+        - flame
+        - thermometer
+        - wind
+        - snowflake
+        - door-open
+        - key
+        - camera
+        - wifi
+        - package
+        - car
+        - dog
+        - bug
+        - trees
+        - volume-2
+        - hammer
+        - paintbrush
+        - tag
+
     Categoria:
       type: object
-      required: [id, nome, ativa, ordem]
+      required: [id, nome, ativa, ordem, icone]
       properties:
         id: { type: string, format: uuid }
         nome: { type: string, maxLength: 60 }
+        icone: { $ref: "#/components/schemas/IconeCategoria" }
         ativa:
           type: boolean
           description: Categoria sai de uso desativando — **nunca apagando**, porque ocorrência antiga aponta para ela.
