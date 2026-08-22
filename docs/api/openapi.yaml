@@ -206,7 +206,9 @@ paths:
         deixar o cliente escolher permitiria adivinhação dirigida.
 
         *Capacidade: criar a organização por auto-serviço · `NOSSO` (D26). Comando: `Registrar organização`.*
-        *Roda sem organização ativa — é um dos quatro endpoints fora do escopo (contrato, §4.4).*
+        *Não exige organização ativa — é um dos quatro endpoints fora do escopo (contrato, §4.4). E também
+        não a recusa: um Gestor de uma organização pode fundar outra, e a nova fica ativa pelo `Set-Cookie`
+        da própria resposta.*
       requestBody:
         required: true
         content:
@@ -247,7 +249,9 @@ paths:
         Cria um **pedido de entrada** aguardando decisão do Gestor. **Nunca cria vínculo** — é o que faz
         *"código vazado não virar acesso, e sim um pedido aguardando aprovação"* (D25).
 
-        Roda **sem organização ativa**: o vínculo ainda não existe. A resposta traz apenas o nome da
+        **Não exige organização ativa** — o vínculo ainda não existe —, **e também não a recusa**: quem já
+        está numa organização pede entrada em outra por aqui, que é o único caminho para o segundo vínculo
+        da Persona 1B (contrato, §4.4). A resposta traz apenas o nome da
         organização — o código é público, mas isso não autoriza ler quem está lá dentro.
 
         *Capacidade: pedir entrada com o código, aguardando aprovação · `NOSSO` (D25).*
@@ -1679,6 +1683,11 @@ paths:
 
         **Não transiciona status** — mas é pré-condição de `iniciar-atendimento`.
 
+        **De onde pode ser chamado:** `aberta`, `em_analise`, `em_atendimento` e `pausada`. Nos dois estados
+        terminais — `resolvida` e `cancelada` — responde `409 TRANSICAO_NAO_PERMITIDA`, pela mesma razão da
+        invariante 7: registro fechado não recebe escrita nova. **`aberta` entra de propósito**, porque a
+        auto-atribuição em um clique acontece na triagem, e proibi-la ali transformaria um clique em dois.
+
         *Capacidades: atribuir o responsável · `ENUNCIADO · aberto` (G4) + D21; auto-atribuição em um
         clique · `NOSSO`; reatribuir · `NOSSO`. Comandos: `Atribuir responsável`, `Reatribuir`.
         Permissão: `ocorrencia.atribuir` — Gestor.*
@@ -1775,7 +1784,7 @@ paths:
                     codigo: "RESPONSAVEL_NAO_ATRIBUIDO"
                     traceId: "01JB8Z6K9T2M4N7Q"
                     statusAtual: "em_analise"
-                    acoesDisponiveis: ["atribuir-responsavel", "pausar", "cancelar", "alterar-prioridade"]
+                    acoesDisponiveis: ["atribuir-responsavel", "pausar", "alterar-prioridade", "cancelar"]
                 transicao:
                   value:
                     type: "https://resolveai.app/erros/transicao-nao-permitida"
@@ -1785,7 +1794,7 @@ paths:
                     codigo: "TRANSICAO_NAO_PERMITIDA"
                     traceId: "01JB8Z6K9T2M4N7Q"
                     statusAtual: "aberta"
-                    acoesDisponiveis: ["analisar", "cancelar", "alterar-prioridade"]
+                    acoesDisponiveis: ["analisar", "atribuir-responsavel", "alterar-prioridade", "cancelar"]
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /ocorrencias/{ocorrenciaId}/pausar:
@@ -1871,6 +1880,11 @@ paths:
 
         Na prática, o caminho comum é enviar `solucaoAplicada` no próprio `/resolver` — uma requisição em
         vez de duas.
+
+        **Não transiciona status, e de onde pode ser chamado:** `em_atendimento` e `pausada`. Em `aberta` e
+        `em_analise` responde `409 TRANSICAO_NAO_PERMITIDA` — solução aplicada descreve trabalho feito, e
+        antes de o atendimento começar não há trabalho a descrever. Nos dois terminais, a recusa é a da
+        invariante 7.
 
         *Capacidade: registrar a solução aplicada · `ENUNCIADO · aberto` (G7) + D22.
         Comando: `Registrar solução aplicada`. Permissão: `ocorrencia.registrar_solucao` — Gestor.*
@@ -2365,7 +2379,7 @@ components:
             codigo: "TRANSICAO_NAO_PERMITIDA"
             traceId: "01JB8Z6K9T2M4N7Q"
             statusAtual: "aberta"
-            acoesDisponiveis: ["analisar", "cancelar", "alterar-prioridade"]
+            acoesDisponiveis: ["analisar", "atribuir-responsavel", "alterar-prioridade", "cancelar"]
     ErroInterno:
       description: Falha inesperada. Sem detalhe de domínio — só o `traceId`, que liga ao log.
       content:
@@ -2875,9 +2889,15 @@ components:
             acoesDisponiveis:
               type: array
               description: |
-                Os comandos que **este chamador** pode executar **agora**, cruzando a máquina de estados com
-                as permissões dele. Existe para que o cliente não mantenha uma segunda cópia da tabela de
-                transições.
+                Os comandos que **este chamador** pode executar **agora** — a máquina de estados cruzada com
+                as permissões dele **e com todas as demais precondições do comando**. Existe para que o
+                cliente não mantenha uma segunda cópia da tabela de transições.
+
+                **Pode vir vazia, e vazia é resposta legítima.** Em `cancelada` não há um único comando
+                disponível para ninguém; em `resolvida` a lista é vazia para todos menos para o Solicitante
+                autor que ainda não avaliou, para quem é `["avaliar"]`. **Nunca vem nula e nunca vem
+                ausente** — o campo é `required`, e a tela que renderiza exatamente esta lista precisa
+                distinguir *"não há o que fazer"* de *"a lista não veio"*.
               items: { $ref: "#/components/schemas/Comando" }
 
     RegistroDeTransicao:

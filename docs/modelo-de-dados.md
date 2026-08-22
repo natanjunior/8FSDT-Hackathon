@@ -1026,7 +1026,8 @@ reconcedido **reaproveita a mesma linha** (limpa `revogado_em`, eventualmente co
 
 ### 6.5 `categorias` — a `Categoria` · MVP
 
-**Propósito:** a natureza da ocorrência, configurável por Organização (D18), com semente das 7 do enunciado.
+**Propósito:** a natureza da ocorrência, configurável por Organização (D18), com semente das 7 do
+enunciado — **enumeradas na §14.1**.
 
 | Coluna | Tipo | Nulo | Padrão |
 |---|---|---|---|
@@ -1095,7 +1096,8 @@ vinda de `ocorrencias`.
 ### 6.6 `areas` — a `Área` · MVP
 
 **Propósito:** a subdivisão configurada da Organização — bloco B, garagem, apartamento 302 —, cujo
-**tipo deriva a visibilidade** de toda ocorrência ali registrada (D10).
+**tipo deriva a visibilidade** de toda ocorrência ali registrada (D10). A **semente** desta tabela é a
+metade do dado-semente que ainda **não** foi decidida — §14.2.
 
 | Coluna | Tipo | Nulo | Padrão |
 |---|---|---|---|
@@ -2997,3 +2999,151 @@ linhas em `vinculos` (§6.4).
 | **PA-19** — visão do Gestor atravessando organizações (Persona 1B) | **Fechado em 22/08/2026**, e o modelo já estava certo: o sistema opera sempre no escopo de um vínculo, e toda consulta parte de uma organização. **Nada foi modelado preventivamente** |
 | **S5** — os termos `email_contato` e `Pedido de entrada` | **Fechado.** `Pedido de entrada` virou termo do glossário; `email_contato` ficou como nome de coluna, com a distinção que ela carrega registrada na definição de `Pessoa` (§12) |
 | **Correção pós-ADR-0004** | Aplicada em 20/08/2026 — ver a nota de revisão no topo do documento. **Nenhuma decisão de modelagem mudou** |
+
+---
+
+## 14. Dados-semente — o que a POL-01 cria junto com a Organização
+
+**Esta seção existe porque a semente era citada em quatro documentos e enumerada em nenhum.** O achado é o
+`R-22` do `prototipo-low-fi.md` — *"as sete categorias-semente são citadas em quatro documentos e
+enumeradas em nenhum: nem no enunciado, nem no `openapi.yaml`, nem na POL-01"* —, e ao escrever os critérios
+de aceitação das capacidades **2** e **3** ficou claro que a metade das áreas estava igualmente em branco.
+
+Sem esta seção, os critérios daquelas duas capacidades só conseguem conferir **contagem**; com ela, conferem
+**conteúdo**. É essa a diferença que ela paga.
+
+> **O que a semente é, e o que ela não é.** Ela é **ponto de partida**, não resposta: a D18 existe porque
+> *"qual categoria aparece antes é escolha do Gestor"*, e o estado vazio de T-03 numa organização
+> recém-criada convida explicitamente a conferir as áreas antes de registrar a primeira ocorrência. Uma
+> organização que nunca edite a semente é uma organização mal configurada — não um caso de uso previsto.
+
+### 14.1 As sete categorias — do enunciado, uma por marcador
+
+O enunciado lista **oito** marcadores sob *"Exemplos de ocorrências"* (p.1 do PDF). O oitavo é *"Outras
+situações definidas pelo grupo"*, que **não é uma categoria**: é a licença que a D18 exerce ao tornar a
+lista configurável. Os sete concretos são a semente, na ordem em que aparecem:
+
+| `ordem` | `nome` | Marcador do enunciado |
+|---|---|---|
+| 1 | Problemas de iluminação | *"Problemas de iluminação"* |
+| 2 | Equipamentos quebrados | *"Equipamentos quebrados"* |
+| 3 | Falta de acessibilidade | *"Falta de acessibilidade"* |
+| 4 | Problemas de limpeza | *"Problemas de limpeza"* |
+| 5 | Vazamentos | *"Vazamentos"* |
+| 6 | Problemas de segurança | *"Problemas de segurança"* |
+| 7 | Solicitações de manutenção | *"Solicitações de manutenção"* |
+
+**Todos os sete `nome` são cópia literal do enunciado, e isso é deliberado:** nenhum foi encurtado,
+reordenado ou reescrito aqui. A `ordem` é a do próprio enunciado, que é a única que existe — ele não a
+justifica, e nós também não; é ponto de partida, e o Gestor reordena.
+
+> ### ⚠️ Cinco dos sete já aparecem **encurtados** em dois artefatos, e a forma precisa de uma decisão
+>
+> | Onde | Forma usada |
+> |---|---|
+> | `openapi.yaml`, exemplos de `GET /categorias` e do dashboard | `Iluminação` · `Vazamentos` |
+> | `prototipo/telas.html` | `Iluminação` · `Vazamento` · `Limpeza` · `Manutenção` · `Segurança` |
+> | §6.5 deste documento, na nota sobre `icone` | *"iluminação, vazamento, limpeza"* |
+>
+> São **três vocabulários** para a mesma lista, e dois deles divergem até no número — `Vazamentos` no
+> `openapi.yaml`, `Vazamento` no protótipo.
+>
+> **O argumento para encurtar é bom:** o enunciado mistura três formas (*"Problemas de X"*, plural nu,
+> *"Solicitações de X"*), e uma lista com as três lado a lado lê-se como colada, não escolhida — num
+> seletor que está no caminho crítico do RNF6.
+>
+> **O argumento para não encurtar também é bom:** encurtar exige **inventar** nome para *"Equipamentos
+> quebrados"* e *"Falta de acessibilidade"*, que não aparecem encurtados em lugar nenhum, e o segundo muda
+> de sentido ao virar *"Acessibilidade"* — a categoria é a **falta** dela.
+>
+> **Esta seção não decide.** Fixa a forma literal, que é a única com origem documentada, e registra a
+> alternativa. Encurtar é decisão do hub, e no dia em que for tomada é **uma coluna desta tabela**, mais os
+> exemplos do `openapi.yaml` e do protótipo — não mais que isso.
+
+**`icone` fica sem valor fixado aqui, e a razão é que nada o consome.** A coluna guarda **identificador do
+conjunto `lucide`** (§6.5), a POL-01 a preenche, e o `inventario-de-telas.md` declara em T-09 que *"nenhuma
+tela oferece escolher ícone, e nenhuma tela exibe ícone de categoria"* nesta entrega. Fixar sete nomes de
+ícone aqui seria escrever especificação para um campo que ninguém lê — e a §6.5 já dá a regra e três
+exemplos (`lightbulb`, `droplets`, `trash-2`), que é o que a implementação precisa.
+
+### 14.2 As áreas-semente — **não decididas**, e a razão é de produto
+
+**Nenhum documento do pacote enumera as áreas-semente.** O que existe é:
+
+| Fonte | O que ela fixa |
+|---|---|
+| `escopo.md`, atividade 0 | *"Áreas-semente, **com os tipos comum e privativa**"* — a única exigência de conteúdo |
+| `openapi.yaml`, exemplo de `POST /organizacoes` | `areasSemeadas: 4` — **exemplo, não especificação** |
+| §6.6 deste documento | `tipo` não tem valor padrão: toda Área nasce com um dos dois, de propósito |
+| `inventario-de-telas.md`, T-09 | *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* — texto **explicativo de tela**, não lista de semente |
+
+**Não escolhi as áreas, e não é falta de material — é que a escolha certa depende de uma decisão de produto
+que não é deste documento.** O argumento está na **D3**: o tenant é condomínio **ou** empresa **ou** bairro.
+Uma semente de *Garagem · Hall · Salão de festas · Apartamento* está certa para um prédio e errada para um
+bairro, e a promessa multi-tenant é a adição `NOSSO` mais cara do projeto — semear o vocabulário de um só
+tipo de cliente a contradiz na primeira tela que o Gestor abre.
+
+**Duas saídas, e a segunda é a recomendada:**
+
+| | O que é | Custo |
+|---|---|---|
+| **(a) Semente rica, de condomínio** | Quatro a seis áreas com nome de prédio, como o `areasSemeadas: 4` sugere | A organização nasce usável **se** for um condomínio. Um bairro nasce com vocabulário errado, e apagar dá mais trabalho que criar |
+| **(b) Semente mínima e neutra** | **Duas** áreas, uma de cada tipo, com nome genérico — bastante para o formulário de T-04 não nascer insubmissível, e pouco para não parecer resposta | A organização nasce vazia de significado e **precisa** da visita a T-09 — que é exatamente para onde o estado vazio de T-03 já manda o Gestor |
+
+**Recomendada a (b)**, pelo mesmo motivo da nota de abertura desta seção: a semente é ponto de partida. O
+único requisito real é que **nada fique insubmissível** — sem categoria e sem área ativas ninguém registra
+ocorrência (§6.5 e §6.6) —, e duas áreas o cumprem.
+
+**Enquanto a decisão não for tomada, o critério de aceitação da capacidade 3 confere o que está fixado:**
+pelo menos uma área `comum`, pelo menos uma `privativa`, todas ativas, todas com `ordem`, e a contagem
+batendo com o `areasSemeadas` da resposta. **Conteúdo, não.**
+
+### 14.3 Como a semente é criada
+
+**Tudo na mesma transação de `POST /organizacoes`** — organização, vínculo de Gestor, categorias e áreas. É
+a POL-01, e é o que a FK composta `DEFERRABLE INITIALLY DEFERRED` de `categorias` e `areas` para `vinculos`
+existe para permitir (§6.3): as duas inserções já estão dentro do mesmo `COMMIT`.
+
+Três consequências que valem estar escritas, porque são o que os critérios de aceitação conferem:
+
+1. **Não existe organização com zero categorias.** Se a semente falhar, a organização não nasce.
+2. **`criado_por_pessoa_id` e `atualizado_por_pessoa_id` ficam nulos** nas linhas de semente. As colunas são
+   anuláveis exatamente por isto (§6.5): a semente é criada pela política, não por uma pessoa clicando.
+3. **A resposta devolve as duas contagens** — `categoriasSemeadas` e `areasSemeadas`. Conferir com
+   `GET /categorias` e `GET /areas` continua sendo o teste de verdade; as contagens são o que permite
+   detectar **semente parcial** sem uma segunda chamada.
+
+### 14.4 A semente de **demonstração** — outra coisa, e por isso está separada
+
+**Não confundir com as §14.1 a §14.3.** Aquela semente é da POL-01, roda em toda organização criada, e é
+ponto de partida de configuração. Esta é **dado de exemplo**, existe para que duas capacidades sejam
+**conferíveis**, e não roda em organização nenhuma que não seja de demonstração.
+
+**A razão de ela existir é aritmética.** As capacidades *recorrência por categoria e por área* e *tempo
+médio de resolução, mês a mês* são **séries mensais**. O projeto tem cinco semanas: qualquer dado produzido
+durante ele cabe em um mês e meio, e uma série de um ponto não é uma série. Sem semente de demonstração,
+os dois indicadores mais caros do dashboard entram na banca com *"não deu para conferir"* — justamente o
+indicador que o `escopo.md` chama de justificativa de o dashboard existir.
+
+**O que ela precisa produzir**, e é isto que os critérios de aceitação conferem:
+
+| # | O que | Por quê |
+|---|---|---|
+| 1 | Ocorrências distribuídas por **pelo menos três meses**, com `registrada_em` e `registros_transicao.ocorreu_em` no passado | Duas séries mensais só têm forma com três pontos. Escrever data no passado é do próprio comando de semente — não há endpoint que aceite `registradaEm` (§3.5 do `contrato-de-api.md`) |
+| 2 | **Um mês sem nenhuma resolução** | É o que faz `tempoMedioDeResolucao` devolver `horas: null` com `resolvidas: 0` e o buraco da série ficar visível. Sem esse mês, o comportamento declarado no `contrato-de-api.md` §8.7 nunca é exercido |
+| 3 | Ocorrências **resolvidas e avaliadas** e ocorrências **resolvidas e não avaliadas** | Sem as duas, `mediaDasAvaliacoes` nunca mostra denominador menor que `resolvidas`, que é exatamente o caso que o **PA-16** existe para tornar visível |
+| 4 | Ocorrências em **todos os status**, incluindo `pausada` com os quatro motivos | É o que dá conteúdo ao `backlogPorStatus` e o que faz a lista do Gestor mostrar quatro esperas diferentes — a razão de `motivoPausa` viajar no resumo |
+| 5 | **Duas organizações**, com a mesma Pessoa vinculada às duas | Reaproveita o cenário que o critério **A4** da `arquitetura.md` já exige do teste de isolamento, e dá à demonstração a Persona 1B, que é o argumento inteiro do multi-tenant |
+
+**Onde ela pode rodar, e onde não pode.** No ambiente local (`docker compose` mais `supabase start`) e no
+**ambiente publicado**, que é único e não tem preview por branch (`arquitetura.md` §9). Não há terceiro
+lugar, e é por isso que a próxima linha não é opcional:
+
+> **As organizações de demonstração são identificáveis pelo nome, e nenhum dado de demonstração é criado
+> dentro de uma organização real.** A semente **cria** as organizações que usa; ela nunca escreve numa
+> organização existente. É o que a torna reversível: apagar a demonstração é apagar duas organizações, não
+> caçar linhas espalhadas.
+
+**O que ela não é.** Não é *fixture* de teste automatizado — a suíte da [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)
+monta o próprio cenário, e cenário compartilhado entre teste e demonstração é o caminho para um teste que
+depende de dado que alguém editou à mão na apresentação.

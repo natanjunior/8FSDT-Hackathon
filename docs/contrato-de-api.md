@@ -379,6 +379,29 @@ escopado**, e nenhuma delas lê dado de ocorrência:
 Qualquer endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita. É a versão de
 superfície do compromisso da ADR-0003.
 
+> ### ⚠️ *"Não exige organização ativa"* ≠ *"exige não ter organização ativa"* — 22/08/2026
+>
+> A redação anterior desta seção e das tabelas da §8.1 e da §8.2 dizia que `POST /organizacoes` e
+> `POST /pedidos-de-entrada` rodam *"sem organização ativa"*, e a coluna *Quem* chegava a escrever
+> **"sessão válida, sem organização ativa"** — que se lê como **pré-condição**. Nenhum código do catálogo da
+> §6.4 correspondia a essa pré-condição, e o `openapi.yaml` nunca declarou recusa. A frase descrevia **a
+> tela**, não o endpoint.
+>
+> **Fica decidido: os dois ignoram a organização ativa e não a recusam.** Um Gestor de A pode fundar B, e
+> quem já está em A pode pedir entrada em B.
+>
+> **A segunda metade não é conveniência — é o que faz a Persona 1B existir.** O síndico que também mora em
+> outro prédio precisa de um **segundo vínculo**, e o único caminho para um vínculo novo é o pedido de
+> entrada aprovado por um Gestor (D25) — `POST /vinculos` cria sempre uma Pessoa nova (§12, S-A2) e
+> `PATCH /vinculos/{pessoaId}` não muda papel nem organização. Se `POST /pedidos-de-entrada` exigisse não
+> ter organização ativa, **o segundo vínculo seria inalcançável dentro do produto** — e com ele cairiam o
+> `PUT /contexto/organizacao`, a face D de T-02 e o cabeçalho `X-Organizacao-Id`, que existem para servir
+> exatamente essa pessoa.
+>
+> **O que isto não resolve, e é de tela:** nenhuma tela oferece *"entrar em outra organização"* a quem já
+> tem uma — T-02 só aparece quando `organizacaoAtiva` é nula. O contrato deixa o caminho aberto; quem o
+> desenha é o inventário de telas.
+
 ### 4.5 Autorização — permissão, nunca papel
 
 As checagens perguntam `vinculo.pode(X)`, **nunca** `vinculo.papel == GESTOR` (`arquitetura.md`, Parte II,
@@ -621,6 +644,14 @@ contrato:
 **Nenhum código de erro expõe nome de tabela, coluna, SQL ou identificador de outra organização.** É regra
 de contrato, e é o que impede que a mensagem de erro faça o que o status foi projetado para não fazer.
 
+> **O que este catálogo não tem, e a ausência é decisão — 22/08/2026.** Não existe código para *"você já
+> tem organização ativa"*, e não vai existir: os quatro endpoints da §4.4 **ignoram** a organização ativa
+> em vez de recusá-la. Consequência direta para quem lê a tabela acima: **`SEM_ORGANIZACAO_ATIVA` nunca é
+> resposta de nenhum dos quatro** — ele é a resposta dos outros trinta e três, e é o que leva a T-02.
+>
+> A ausência está escrita porque um catálogo é lido como exaustivo, e um leitor que não achasse o código
+> concluiria que ele foi esquecido.
+
 ---
 
 ## 7. Convenções
@@ -795,7 +826,7 @@ permissoes[], vinculos[], pedidosDeEntrada[] }`.
 
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
-| `POST /organizacoes` | sessão válida, **sem** organização ativa | Criar a organização por auto-serviço; quem cria vira Gestor inicial · `NOSSO` (D26) | `Registrar organização` |
+| `POST /organizacoes` | qualquer sessão válida — **não exige** organização ativa | Criar a organização por auto-serviço; quem cria vira Gestor inicial · `NOSSO` (D26) | `Registrar organização` |
 | `GET /categorias` | qualquer vínculo ativo | Editar categorias · `ENUNCIADO · aberto` | leitura do formulário de registro |
 | `POST /categorias` | `organizacao.configurar` | idem | `Criar categoria` |
 | `PATCH /categorias/{id}` | `organizacao.configurar` | idem | `Criar` / `Desativar categoria` |
@@ -809,11 +840,19 @@ sessão**. Duas capacidades ✅ acontecem aqui sem endpoint próprio — **categ
 —, porque são efeito da **POL-01**, não chamada do cliente. Ficam verificáveis com um `GET /categorias` logo
 depois, e é assim que a §14 as contabiliza.
 
+> **O conteúdo da semente é do `modelo-de-dados.md`, §14** — as sete categorias enumeradas, uma por
+> marcador do enunciado, e a metade das áreas que segue **não decidida**. Este contrato descreve o efeito
+> e as duas contagens que a resposta devolve; a lista é dado, e dado mora lá.
+
 - O `codigoPublico` é gerado pelo servidor no formato `^[A-Z0-9]{6,12}$` (§6.3 do `modelo-de-dados.md` — ele vive em
   cartaz de elevador e é digitado à mão). **Não é aceito no corpo:** deixar o cliente escolher abriria
   disputa por códigos bonitos e permitiria adivinhação dirigida.
 - É um dos quatro endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
   D26 — o primeiro Gestor não tem quem o aprove.
+- **Não exige organização ativa, e também não a recusa.** Chamá-lo com uma organização já ativa na sessão
+  funciona e **troca a ativa pela recém-criada**, pelo `Set-Cookie` da própria resposta. Não há código de
+  erro para *"você já tem organização"*, e a §6.4 declara a ausência: um Gestor de A pode fundar B, que é
+  o caso da Persona 1B (§4.3 e §4.4).
 
 **A ordenação das duas listas, declarada.** `Categoria` e `Area` têm **`ordem`**, e as duas listas saem
 na ordem que o Gestor definiu, com desempate alfabético.
@@ -852,7 +891,7 @@ descuido, e registrada na §11.
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
 | — | — | Criar conta e autenticar-se · `ENUNCIADO · aberto` (S1,S2) | **fora do contrato** — Supabase Auth (§4.1) |
-| `POST /pedidos-de-entrada` | sessão válida, **sem** organização ativa | Pedir entrada com o código, aguardando aprovação · `NOSSO` (D25) | *(lacuna — §13, Q-API-1)* |
+| `POST /pedidos-de-entrada` | qualquer sessão válida — **não exige** organização ativa | Pedir entrada com o código, aguardando aprovação · `NOSSO` (D25) | *(lacuna — §13, Q-API-1)* |
 | `GET /pedidos-de-entrada` | `vinculo.gerir` | Gestor aprova ou recusa o pedido · `NOSSO` (D25) | leitura: pedidos pendentes |
 | `POST /pedidos-de-entrada/{id}/aprovar` | `vinculo.gerir` | idem | *(lacuna — §13, Q-API-1)* |
 | `POST /pedidos-de-entrada/{id}/recusar` | `vinculo.gerir` | idem | *(lacuna — §13, Q-API-1)* |
@@ -862,10 +901,13 @@ descuido, e registrada na §11.
 | `DELETE /vinculos/{pessoaId}` | `vinculo.gerir` | Remover vínculo sem histórico, desfazendo papel errado · `NOSSO` (D25, PA-25) | `Remover vínculo` |
 
 **`POST /pedidos-de-entrada`** — recebe `{ codigoPublico, nome?, telefone? }`, com o **telefone em E.164**
-(§7.11), e roda **sem organização ativa**
+(§7.11), e **não exige organização ativa**
 (§4.4), porque o vínculo ainda não existe: *"o Vínculo só passa a existir com aprovação do Gestor"* (D25).
 Devolve `201` com `{ id, organizacao{nome}, situacao: "pendente" }` — **e nada mais da organização**: o
 código é público, mas isso não autoriza ler quem está lá dentro.
+
+**E também não a recusa** — quem já está em A pede entrada em B por aqui, que é o **único** caminho para o
+segundo vínculo da Persona 1B. O quadro da §4.4 tem o argumento inteiro.
 
 - Erros: `404 CODIGO_PUBLICO_NAO_ENCONTRADO` · `409 JA_VINCULADO` · `409 PEDIDO_DE_ENTRADA_PENDENTE` (o
   índice único parcial da §6.15 do `modelo-de-dados.md`). Pedido **recusado pode ser refeito** — suposição S4 do modelo de
@@ -873,10 +915,30 @@ código é público, mas isso não autoriza ler quem está lá dentro.
 - *"Código vazado não vira acesso: vira um pedido aguardando aprovação"* (D25) é o comportamento inteiro
   deste endpoint. Ele **nunca** cria vínculo.
 
-**`POST /pedidos-de-entrada/{id}/aprovar`** — recebe `{ papel }` (`solicitante` · `gestor` · `encarregado`) e
-cria o **Vínculo**. É onde a invariante da D25 se fecha: nenhum vínculo nasce sem decisão de um Gestor.
-Erros: `404 PEDIDO_NAO_ENCONTRADO` · `409 PEDIDO_JA_DECIDIDO` · `409 JA_VINCULADO`. **`/recusar`** recebe
-`{ observacao? }` e não cria nada — **e a observação agora é guardada.**
+**`POST /pedidos-de-entrada/{id}/aprovar`** — recebe `{ papel, areaId? }` (`solicitante` · `gestor` ·
+`encarregado`) e cria o **Vínculo**. É onde a invariante da D25 se fecha: nenhum vínculo nasce sem decisão
+de um Gestor. Erros: `404 PEDIDO_NAO_ENCONTRADO` · `409 PEDIDO_JA_DECIDIDO` · `409 JA_VINCULADO` ·
+`422 AREA_INVALIDA`. **`/recusar`** recebe `{ observacao? }` e não cria nada — **e a observação agora é
+guardada.**
+
+> ### `areaId` na aprovação — e por que esta linha estava errada até 22/08/2026
+>
+> Este parágrafo dizia *"recebe `{ papel }`"*, e o `openapi.yaml` **já aceitava `areaId`**. A divergência
+> não era cosmética: ela descrevia como buraco aberto uma coisa que já tinha conserto declarado.
+>
+> **`areaId` é a unidade da pessoa nesta organização** — o apartamento 302, a sala 14 —, e **este é o
+> único momento em que ela pode ser informada para quem tem conta**: o `PATCH /vinculos/{pessoaId}`
+> recusa Pessoa com Usuário (§12, S-A3), e o morador sempre tem uma. Sem o campo aqui,
+> `vinculos.area_id` seria preenchível apenas para quem **não** é morador — e ela existe justamente para
+> descrever quem é.
+>
+> É opcional: um pedido aprovado sem `areaId` cria o vínculo com `area` nula, que é o caso do Gestor e do
+> Encarregado terceirizado. Área que não é desta organização, ou está inativa, responde
+> `422 AREA_INVALIDA` — a mesma resposta para os dois casos, pela §6.3.
+>
+> **Consequência fora deste documento:** o achado `F13` do `inventario-de-telas.md` e o `R-23` do
+> `prototipo-low-fi.md` descrevem esta lacuna como aberta, e ela **não está**. Os dois precisam ser
+> riscados, e a tela de T-08 precisa oferecer o campo — é conserto de quem tem aqueles arquivos.
 
 > **Até 22/08/2026 este campo era aceito e descartado.** O `openapi.yaml` declarava `observacao` com
 > `maxLength: 500` e **não existia coluna** em `pedidos_de_entrada` para ela. O contrato recebia um dado e o
@@ -1075,13 +1137,41 @@ a quem pediu, §6.3) · `403 PERMISSAO_INSUFICIENTE` · `409 TRANSICAO_NAO_PERMI
 atual, comando) fora da tabela da `arquitetura.md` (Parte I, §4) — o corpo do `409` traz `statusAtual` e
 `acoesDisponiveis`.
 
+> ### De onde saem os dois comandos que não transicionam — 22/08/2026
+>
+> **A tabela da `arquitetura.md` (Parte I, §4) diz de onde sai cada comando que transiciona, e por
+> construção não diz nada dos que não transicionam** — eles estão listados abaixo dela, sem estados. Mesmo
+> assim `/atribuir-responsavel` e `/registrar-solucao-aplicada` declaram `409 TRANSICAO_NAO_PERMITIDA`
+> neste contrato e no `openapi.yaml`, e até aqui **nenhum documento dizia quando ele acontece**. Dos oito
+> comandos sem transição, dois já tinham regra — `alterarPrioridade` pela invariante 7 e `avaliar` pela
+> invariante 8 — e quatro são evolução prevista. Sobravam estes dois:
+>
+> | Comando | Admitido em | Recusado em |
+> |---|---|---|
+> | `atribuirResponsavel` | `aberta` · `em_analise` · `em_atendimento` · `pausada` | `resolvida` · `cancelada` |
+> | `registrarSolucaoAplicada` | `em_atendimento` · `pausada` | `aberta` · `em_analise` · `resolvida` · `cancelada` |
+>
+> **Por que `atribuir` já em `aberta`:** a auto-atribuição em um clique é capacidade ✅ e acontece na
+> triagem, onde a ocorrência normalmente está `aberta`. Proibir ali transformaria um clique em dois — e
+> atribuir não é triar, é dizer de quem é. *(O exemplo de `aberta` do `openapi.yaml` foi corrigido junto:
+> ele omitia `atribuir-responsavel`.)*
+>
+> **Por que solução aplicada só a partir de `em_atendimento`:** solução aplicada descreve trabalho feito, e
+> antes de o atendimento começar não há trabalho a descrever. Nos dois estados terminais a recusa é a
+> mesma razão da invariante 7 — registro fechado não recebe escrita nova.
+>
+> **A tabela normativa é a da `arquitetura.md` (Parte I, §4)**, que ganha estes dois em rodada própria; o
+> que está aqui é a metade de superfície, e é ela que dá alvo ao *"teste cobrindo ao menos uma transição
+> inválida"* que o `definition-of-done.md` cobra.
+
 O que cada um tem de específico:
 
 - **`/alterar-prioridade`** — `409 PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL` em `resolvida` e `cancelada`
   (D6: dashboard que muda o passado não é dashboard). **Não gera registro de transição** — a trilha é só de
   status —, e é a razão de a alteração de prioridade não aparecer na linha do tempo (PA-21).
 - **`/atribuir-responsavel`** — `422 RESPONSAVEL_SEM_VINCULO_ATIVO` se a pessoa indicada não tem vínculo
-  ativo aqui. **A auto-atribuição em um clique não é endpoint:** o cliente envia o próprio `pessoaId`, que
+  ativo aqui, e `409 TRANSICAO_NAO_PERMITIDA` em `resolvida` e `cancelada` (quadro acima). **A
+  auto-atribuição em um clique não é endpoint:** o cliente envia o próprio `pessoaId`, que
   `GET /contexto` já lhe deu. **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
   com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3 — **que não existe na primeira entrega**,
   ver §3.4) e devolve `reatribuicao: true`.
@@ -1093,6 +1183,8 @@ O que cada um tem de específico:
 - **`/retomar`** — devolve ao **`statusAnterior` do registro de pausa**, lido pelo agregado (invariante 6).
   O cliente **não escolhe o destino**, e nem é informado dele antes: descobre pela resposta. É a expressão
   contratual de *"não há campo extra para isso"*.
+- **`/registrar-solucao-aplicada`** — `409 TRANSICAO_NAO_PERMITIDA` fora de `em_atendimento` e `pausada`
+  (quadro acima). **Não gera registro de transição.**
 - **`/resolver`** — aceita `solucaoAplicada` no mesmo corpo, para que o formulário da D22 (campo em foco,
   induzido por UX) seja **uma requisição, não duas**. Enviado aqui, equivale a chamar
   `/registrar-solucao-aplicada` antes — e o registro de transição é um só.
@@ -1138,7 +1230,7 @@ do síndico morador (§6.4 do `modelo-de-dados.md`), resolvido por parâmetro e 
 
 **`GET /ocorrencias/{id}`** devolve `OcorrenciaDetalhe`, que inclui **`acoesDisponiveis`** — a lista dos
 comandos que **este** chamador pode executar **agora**. Ex.:
-`["pausar", "resolver", "cancelar", "alterar-prioridade"]`.
+`["atribuir-responsavel", "pausar", "resolver", "alterar-prioridade", "cancelar"]`.
 
 > **A lista aplica *todas* as precondições do comando, não só status × permissão.** Precisão acrescentada
 > em 20/08/2026, porque a redação anterior — *"derivada da máquina de estados cruzada com as permissões"* —
@@ -1155,6 +1247,26 @@ comandos que **este** chamador pode executar **agora**. Ex.:
 > comando ausente de `acoesDisponiveis` é um comando que **vai** responder `409` ou `422` se for chamado.
 >
 > **E a ordem da lista é declarada**, acrescentado em 21/08/2026: ela sai na ordem do enum `Comando`, com os comandos que movem a ocorrência adiante na sequência do ciclo de vida e os que não movem — `alterar-prioridade` e `cancelar` — por último. Isso evita que o cliente mantenha **uma segunda lista só para ordenar botões**, que seria a mesma duplicação por outro caminho. **Não é promessa de destaque:** em `em_atendimento`, `pausar` vem antes de `resolver`. Qual ação ganha ênfase é decisão de tela.
+
+> ### `acoesDisponiveis` pode vir **vazia**, e isso não é erro — 22/08/2026
+>
+> Em `cancelada` **não há um único comando disponível para ninguém**: os cinco de transição não saem de um
+> estado terminal, `alterar-prioridade` cai pela invariante 7, `avaliar` exige `resolvida`, e
+> `atribuir-responsavel` e `registrar-solucao-aplicada` são recusados nos terminais pelo quadro da §8.4. A
+> resposta é `200` com **`acoesDisponiveis: []`**.
+>
+> Em `resolvida` a lista é vazia **para todo mundo, menos para o Solicitante autor que ainda não avaliou** —
+> para ele é `["avaliar"]`, e volta a ser vazia depois de ele avaliar.
+>
+> **Por que isto precisava estar escrito:** T-05 renderiza exatamente `acoesDisponiveis` e nada além, então
+> a lista vazia é a barra de ações **desaparecendo** — o estado que mais precisa de explicação chegando como
+> um `200` silencioso. Sem esta frase, a tela não distingue *"não há o que fazer"* de *"algo falhou ao
+> montar a lista"*, e é a mesma classe do `R-15` do `prototipo-low-fi.md`, em que o vazio que é defeito
+> chega como `200` com lista vazia.
+>
+> **O que a tela põe no lugar é decisão do `inventario-de-telas.md`**, não deste documento. O contrato
+> garante só que a lista vazia é resposta legítima e prevista, nunca ausência de campo: `acoesDisponiveis`
+> é `required` no `OcorrenciaDetalhe` e nunca vem nulo.
 
 > **Por que o contrato carrega isso.** Sem ele, o PWA reimplementa a tabela de transições da
 > `arquitetura.md` — e passa a existir uma **segunda cópia da máquina de estados**, na camada que a
