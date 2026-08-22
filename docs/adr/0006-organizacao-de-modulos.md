@@ -45,11 +45,11 @@ app/                              ← camada Interface, metade externa (imposta 
 
 src/
   interface/                      ← camada Interface, metade adaptadora
-    schemas/                        zod: valida o campo E gera o openapi.yaml (ADR-0007, §15 do contrato)
-    projecoes/                      agregado → OcorrenciaResumo · OcorrenciaDetalhe · … (§5.5)
+    schemas/                        zod: valida o campo E gera o openapi.yaml (ADR-0007, §15 do contrato-de-api.md)
+    projecoes/                      agregado → OcorrenciaResumo · OcorrenciaDetalhe · … (arquitetura.md §5.5)
 
   aplicacao/<agregado>/           ← camada Aplicação
-    <comando>.ts                    uma função por comando de domínio (§5.4)
+    <comando>.ts                    uma função por comando de domínio (arquitetura.md §5.4)
     consultas.ts                    os modelos de leitura
     portas.ts                       AS INTERFACES QUE ESTA CAMADA CONSOME (ADR-0005)
 
@@ -65,7 +65,7 @@ src/
   composicao/                     ← o ponto de composição: monta o grafo, não decide regra
 ```
 
-**As duas fusões da §5.1 viram diretórios, não prosa.** `app/` mais `src/interface/` são a camada
+**As duas fusões da §5.1 da `arquitetura.md` viram diretórios, não prosa.** `app/` mais `src/interface/` são a camada
 Interface; `infraestrutura/repositorios/` mais `infraestrutura/clientes/` são a camada Infraestrutura. A
 fronteira que a Clean Architecture desenha por dentro delas fica **visível na árvore** sem que nenhuma
 camada precise ser renomeada.
@@ -102,7 +102,7 @@ alcança arquivo interno de outro módulo. É o que faz *"componentes podem faze
 > "@/composicao"` dentro de um `route.ts` são os dois primeiros erros que o lint aponta.
 >
 > **E uma quinta, que não recebe número porque não fala de camada:** `semOrganizacao` só é importável nos
-> **quatro `route.ts` da lista fechada** do contrato §4.4 — `GET /contexto`, `PUT /contexto/organizacao`,
+> **quatro `route.ts` da lista fechada** do `contrato-de-api.md` §4.4 — `GET /contexto`, `PUT /contexto/organizacao`,
 > `POST /organizacoes` e `POST /pedidos-de-entrada`. O quinto endpoint que tentar **não passa no lint**. Ela
 > é a lista fechada da ADR-0003 virada mecanismo: o que aquela ADR exige de uma exceção nova — *"revisão
 > explícita"* — passa a ser **uma linha de configuração com o caminho do endpoint escrito nela**, e três dos
@@ -150,7 +150,7 @@ justamente porque a mesma aula alerta para o risco oposto (*"jockey de framework
 agregado no topo produziria seis diretórios com quatro subdiretórios cada, a maioria vazia.
 
 **5 · `src/interface/schemas/` fecha um círculo que já estava decidido.** A [ADR-0007](0007-camada-de-interface-com-shadcn-ui.md)
-escolheu `zod` para validar o formulário, e a §15 do contrato determina que o `openapi.yaml` passe a ser
+escolheu `zod` para validar o formulário, e a §15 do `contrato-de-api.md` determina que o `openapi.yaml` passe a ser
 gerado dos schemas de validação. Um lugar só para eles é o que faz *"o schema que valida o campo é o mesmo
 que gera a especificação"* deixar de ser intenção.
 
@@ -158,10 +158,10 @@ que gera a especificação"* deixar de ser intenção.
 
 | Alternativa | Por que não |
 |---|---|
-| **Colocation por funcionalidade** — `app/ocorrencias/{page.tsx, actions.ts, queries.ts, db.ts}`, que é o padrão que o Next.js sugere | É exatamente o que a aula 7 (transcrição 02) desaconselha: *"[o framework] fala para eu fazer aqui, já na própria API, o controller e o acesso no banco de dados porque é mais rápido... **Se você já está usando um framework para criar uma aplicação mais complexa, faz sentido seguir essa orientação básica? Não.**"* E põe o domínio **ao lado da rota**, que é precisamente onde a lógica de transição evapora sob pressão de prazo — o modo de falha que a §5 existe para impedir |
+| **Colocation por funcionalidade** — `app/ocorrencias/{page.tsx, actions.ts, queries.ts, db.ts}`, que é o padrão que o Next.js sugere | É exatamente o que a aula 7 (transcrição 02) desaconselha: *"[o framework] fala para eu fazer aqui, já na própria API, o controller e o acesso no banco de dados porque é mais rápido... **Se você já está usando um framework para criar uma aplicação mais complexa, faz sentido seguir essa orientação básica? Não.**"* E põe o domínio **ao lado da rota**, que é precisamente onde a lógica de transição evapora sob pressão de prazo — o modo de falha que a §5 da `arquitetura.md` existe para impedir |
 | **Agregado no primeiro nível** (*screaming architecture*) — `src/ocorrencias/{dominio,aplicacao,infra}` | Comunica melhor o que o sistema faz, e é a escolha certa em base grande com vários times. Aqui: multiplica diretórios quase vazios por seis, torna a regra 2 intra-módulo (mais frágil), e **contraria a única referência que a disciplina oferece**. Registrado porque é a alternativa boa — se o produto crescer e `Notificação` for extraída (`arquitetura.md` §2), é para cá que se migra |
 | **Sem estrutura declarada** — deixar nascer no esqueleto | É o estado atual, e é o que esta ADR existe para não deixar acontecer. O custo de decidir agora é uma tabela; o de decidir depois é mover arquivos com o histórico de git junto |
-| **Espelhar os nomes dos anéis** (`entities/`, `usecases/`, `adapters/`, `frameworks/`) | Ficaria fiel à disciplina e **discordaria de onze documentos** que falam em Interface, Aplicação, Domínio e Infraestrutura. A §5.1 resolve isso com um de-para, que custa uma tabela em vez de uma refatoração de referências cruzadas |
+| **Espelhar os nomes dos anéis** (`entities/`, `usecases/`, `adapters/`, `frameworks/`) | Ficaria fiel à disciplina e **discordaria de onze documentos** que falam em Interface, Aplicação, Domínio e Infraestrutura. A §5.1 da `arquitetura.md` resolve isso com um de-para, que custa uma tabela em vez de uma refatoração de referências cruzadas |
 
 ## Consequências
 
@@ -169,7 +169,7 @@ que gera a especificação"* deixar de ser intenção.
 
 - A regra de dependência da [ADR-0005](0005-regra-de-dependencia-por-inversao.md) vira **caminho de
   arquivo**, que é o que uma regra de lint sabe conferir.
-- As duas fusões de nome que a §5.1 documenta ficam **visíveis na árvore**, sem renomear camada nenhuma.
+- As duas fusões de nome que a §5.1 da `arquitetura.md` documenta ficam **visíveis na árvore**, sem renomear camada nenhuma.
 - O esqueleto de deploy nasce com lugar para cada coisa — que é o benefício que a disciplina persegue desde
   a aula 1 (transcrição 02): *"eu não sei onde eu tenho que colocar essa classe"*.
 - Um lugar só para os schemas `zod`, servindo formulário e `openapi.yaml`.

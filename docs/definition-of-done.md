@@ -54,7 +54,7 @@ Uma tarefa só entra em desenvolvimento quando:
 | "Quebra em itens de desenvolvimento" | **Mantido**, com critério concreto de tamanho | — |
 | "Estimativa das demandas" | **Cortado** | Exige base histórica de velocidade que não existe e não existirá em seis semanas. O próprio professor admite que *"sem uma base histórica, dificilmente vamos conseguir ser assertivos"* (aula 8, p.9). Estimar aqui seria teatro |
 | "Priorizada pelo PM ou PO" | **Trocado** por "priorizada no board" | Não há PM nem PO no projeto |
-| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 27 pontos de atenção registrados, 18 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
+| — | **Acrescentado** o item 5 | O curso não tem equivalente, mas este projeto **não tem Domain Expert real**: toda decisão de domínio é suposição, e há 27 pontos de atenção registrados, 17 deles ainda abertos. Sem esse portão, uma tarefa é implementada sobre uma ambiguidade não resolvida |
 
 > **Divergência de contagem, declarada:** o plano em `trabalho/ddd-o-que-adotar.md` previa reduzir o DoR
 > de 6 para 4 itens. Ficaram **5**. A fusão prevista aconteceu, mas o item novo (5) se mostrou necessário
@@ -135,13 +135,35 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
       **defesa processual** do requisito que o enunciado mais destaca, complementar à defesa estrutural
       do agregado (ADR-0001).
 - [ ] Se a tarefa toca consulta de dados: teste de integração provando que **organização A não vê dado de
-      B**.
+      B**. **É uma entrada na suíte de isolamento, não um teste novo** (§7.1 de
+      [arquitetura.md](arquitetura.md)), e a entrada semeia **apenas o próprio agregado**: as pessoas e as
+      organizações são da suíte, porque *seed* com pessoas distintas por organização **não detecta** o erro.
 - [ ] **Se a tarefa entrega o registro de ocorrência: ele foi cronometrado.** Num aparelho real, em rede
       móvel, por **alguém que não é o implementador**, no cenário declarado do **RNF6**. Leva vinte
       minutos e o número é anotado, mesmo que estoure. Este item existe porque o RNF6 é o **único
       requisito cronometrado do projeto** e porque o orçamento de tempo do protótipo indicou que ele
       **fecha por pouco** — um requisito nessa margem que nunca é medido é um requisito que se supõe
       cumprido. Não é teste de usabilidade: é a diferença entre **medido** e **declarado**.
+
+      **O procedimento, para que "cronometrado" não dependa de improviso no dia:**
+
+      - **Quem:** um dos colegas não implementadores, **nomeado no DoR da tarefa** — não no dia. *"Alguém
+        que não é o implementador"*, sem nome, é ninguém.
+      - **Com o quê:** o aparelho da própria pessoa, em **rede móvel** (não Wi-Fi), contra a **URL
+        publicada**, com o atalho do PWA já instalado.
+      - **O quê:** cronômetro do toque no atalho até a confirmação na tela, no cenário da §2.6 de
+        [prototipo-low-fi.md](prototipo-low-fi.md) — **inclusive o comprimento da descrição**, que é a
+        premissa que sozinha move o resultado em mais de vinte segundos.
+      - **Quantas vezes:** três. Registra-se a **mediana**, e também as três.
+      - **O que se anota:** os três tempos, o modelo do aparelho, a rede (4G ou 5G) e **qual passo pareceu
+        mais longo** — porque a premissa mais frágil do orçamento é a velocidade de digitação, e é a nota
+        qualitativa que a refutaria.
+      - **Onde fica:** uma linha datada na **§2 de [prototipo-low-fi.md](prototipo-low-fi.md)**, ao lado do
+        orçamento que ela testa. **Não é documento novo.**
+
+      **E se estourar, é decisão de produto, não de teste.** O orçamento fecha em **53 s de 60**. Uma
+      medição acima de 60 s não reprova a tarefa: abre questão de escopo — cortar campo, reordenar a tela —
+      e entra como **questão aberta registrada**, não como conserto silencioso.
 
 ### Revisões
 

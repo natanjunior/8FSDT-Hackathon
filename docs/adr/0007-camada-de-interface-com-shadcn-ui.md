@@ -24,7 +24,7 @@ projeto tem instrumento para detectar.
 **Há um implementador e seis semanas.** Construir controles acessíveis do zero — combobox com busca,
 gaveta, diálogo modal com armadilha de foco — é trabalho que não entrega capacidade nenhuma do escopo.
 
-E há uma restrição de projeto que já estava decidida e que se conecta a esta: a §15 do contrato de API
+E há uma restrição de projeto que já estava decidida e que se conecta a esta: a §15 do `contrato-de-api.md`
 determina que, quando houver código, o `openapi.yaml` passa a ser **gerado a partir dos schemas de
 validação**, com portão de pipeline que falha se divergir.
 
@@ -82,7 +82,7 @@ aplicada à borda que ainda não tinha.
 | **RNF6**, com margem de sete segundos | O atrito de formulário é onde a margem se perde, e é exatamente o que a biblioteca resolve |
 | Acessibilidade sem instrumento de verificação | A base de primitivos dá um **piso**. Não é conformidade, e o protótipo declara os compromissos que dependem de nós — ordem de foco, alvo de toque, contraste que não dependa só de cor |
 | Um implementador, seis semanas | Nenhuma hora gasta construindo combobox, gaveta ou armadilha de foco |
-| Contrato e código sincronizados (§15) | `zod` no formulário **e** na geração da especificação |
+| Contrato e código sincronizados (`contrato-de-api.md` §15) | `zod` no formulário **e** na geração da especificação |
 
 **Tailwind não é escolha separada:** é pré-requisito. E tem uma consequência própria que vale registrar —
 estilo declarado no próprio componente elimina a folha de estilo global como lugar onde regras colidem, que

@@ -50,8 +50,8 @@ Três partes.
 **1 · A porta é declarada pela camada que a consome, e quem a consome é a Aplicação.**
 
 A camada de **Aplicação** declara a interface do repositório; a **Infraestrutura** a implementa. O
-**Domínio não declara porta nenhuma** — ele não persiste (§5) e não recebe repositório, porque quem carrega
-o agregado é a Aplicação (Parte II, §1). Isto é mais estrito que o exemplo da própria disciplina, onde o
+**Domínio não declara porta nenhuma** — ele não persiste (`arquitetura.md` §5) e não recebe repositório, porque quem carrega
+o agregado é a Aplicação (`arquitetura.md` Parte II §1). Isto é mais estrito que o exemplo da própria disciplina, onde o
 caso de uso recebe o repositório (aula 4, p.9), e é deliberado: a
 [ADR-0001](0001-historico-de-transicoes-como-conceito-de-dominio.md) depende de o comando do agregado não
 conhecer persistência.
@@ -106,14 +106,14 @@ aplicada à única fronteira do projeto onde ela ainda não tinha chegado.
 
 **4 · Custo marginal quase nulo no código.** A implementação seria escrita de qualquer forma. Com a porta
 declarada ela custa **um parâmetro a mais por função de aplicação** e **um ajudante** no anel externo — e
-devolve o teste que a §7 promete.
+devolve o teste que a §7 da `arquitetura.md` promete.
 
 ## Alternativas consideradas
 
 | Alternativa | Por que não |
 |---|---|
-| **Manter só a regra de lint** (o estado atual) | Não alcança os três casos do Contexto, e o DoD já registra um quarto que ele não alcança. Manter significaria aceitar que o *"repositório em memória"* da §7 **não tem como existir** — ou passa a existir por *mock* de módulo, que amarra o teste ao empacotador |
-| **Declarar a porta no Domínio e injetar o repositório no agregado** | É o que a disciplina faz (aula 4, p.9: *"o caso de uso recebeu uma instância de um repositório de dados"*). Recusado: o Domínio **não persiste** (§5), e a ADR-0001 depende de o comando não conhecer persistência. Além disso, quem resolve o contexto de organização é a Aplicação (ADR-0003) — um agregado que carrega repositório teria de carregar escopo junto |
+| **Manter só a regra de lint** (o estado atual) | Não alcança os três casos do Contexto, e o DoD já registra um quarto que ele não alcança. Manter significaria aceitar que o *"repositório em memória"* da §7 da `arquitetura.md` **não tem como existir** — ou passa a existir por *mock* de módulo, que amarra o teste ao empacotador |
+| **Declarar a porta no Domínio e injetar o repositório no agregado** | É o que a disciplina faz (aula 4, p.9: *"o caso de uso recebeu uma instância de um repositório de dados"*). Recusado: o Domínio **não persiste** (`arquitetura.md` §5), e a ADR-0001 depende de o comando não conhecer persistência. Além disso, quem resolve o contexto de organização é a Aplicação (ADR-0003) — um agregado que carrega repositório teria de carregar escopo junto |
 | **Contêiner de injeção de dependências** (`tsyringe`, `inversify`) | Peso e indireção para **um implementador**. A montagem manual num ponto único custa menos código do que a configuração do contêiner, e é legível por quem não a escreveu — o mesmo argumento 3 da ADR-0003 |
 | **Passar a conexão de banco crua por toda a cadeia** | É o que o código de referência da disciplina faz (aula 8, transcrição 01: `dbConnection` viaja por três camadas como argumento). Recusado: reintroduz na Aplicação o conhecimento de que existe um banco, que é o que se está removendo |
 

@@ -42,6 +42,7 @@ disciplina, a citação vem como `aula N, p.X`.
 | [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão; o lint é a verificação | Aceita |
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
 | [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Aceita |
+| [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, não a pirâmide | Aceita |
 
 > **A 0005 e a 0006 são as duas decisões de estrutura interna do código**, escritas em 21/08/2026 ao
 > confrontar o pacote com a disciplina de **Clean Architecture da Fase 5**. As duas são a primeira vez em
