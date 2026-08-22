@@ -227,6 +227,36 @@ não se perde: "voltou a acontecer" é **recorrência**, o indicador central da 
 **Comandos que não transicionam:** `alterarPrioridade` · `atribuirResponsavel` · `reatribuir` ·
 `recusarAtribuicao` · `reportarExecucaoConcluida` · `registrarSolucaoAplicada` · `avaliar` · `aderir`.
 
+**Não transicionar não é poder ser chamado de qualquer estado**, e a tabela acima não responde por eles —
+ela tem uma coluna `Para`. O `contrato-de-api.md` delega a resposta para cá: o `409
+TRANSICAO_NAO_PERMITIDA` vale *"para todo par (status atual, comando) fora da tabela"*. Onde a regra já
+existia, ela é invariante; onde não existia, foi **decidida em 22/08/2026**:
+
+| Comando | Admitido em | Recusado em | De onde vem |
+|---|---|---|---|
+| `alterarPrioridade` | `Aberta` · `Em análise` · `Em atendimento` · `Pausada` | `Resolvida` · `Cancelada` | **invariante 7** (D6) |
+| `avaliar` | `Resolvida` | os cinco demais | **invariante 8** (D1) |
+| `atribuirResponsavel` | `Aberta` · `Em análise` · `Em atendimento` · `Pausada` | `Resolvida` · `Cancelada` | decidido em 22/08/2026 |
+| `registrarSolucaoAplicada` | `Em atendimento` · `Pausada` | `Aberta` · `Em análise` · `Resolvida` · `Cancelada` | decidido em 22/08/2026 |
+
+**A linha de `atribuirResponsavel` cobre a reatribuição**: é um endpoint só, e qual dos dois comandos
+aconteceu é **derivado do estado** — existe atribuição vigente? —, não da intenção do cliente (§5.4).
+
+**Por que `atribuir` já em `Aberta`.** A auto-atribuição do Gestor em um clique acontece na lista de
+triagem, onde a ocorrência normalmente está `Aberta`; proibir ali transformaria um clique em dois.
+**Atribuir não é triar — é dizer de quem é.**
+
+**Os outros três** — `recusarAtribuicao`, `reportarExecucaoConcluida` e `aderir` — **não têm endpoint na
+primeira entrega**, e por isso não têm linha aqui: a regra deles nasce junto com o endpoint. A tabela está
+completa de propósito, não por esquecimento.
+
+> **`registrarSolucaoAplicada` recusado em `Resolvida` é uma porta de mão única, e é deliberada.** O caminho
+> normal não passa por este comando: `/resolver` aceita `solucaoAplicada` **no mesmo corpo**, com o campo em
+> foco e pré-preenchido, exatamente para que a solução seja escrita **no ato** (D22). A consequência é que
+> uma ocorrência resolvida com o campo vazio fica **sem solução aplicada para sempre** — e é o mesmo
+> congelamento que a invariante 7 já impõe à prioridade, pela mesma razão: o que se lê de um estado terminal
+> tem de ser o que era verdade quando ele foi alcançado.
+
 ### Invariantes
 
 **As oito primeiras são do agregado** — dependem só do estado da própria `Ocorrência`, e por isso são
@@ -872,8 +902,12 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + revisão funcional contra o inventário de requisitos |
 | A6 | Sobe com `docker compose` local, do zero | Executado em outra máquina, por quem não implementou |
 | A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |
-| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, por três pessoas distintas |
-| A9 | Lista de atribuições do Encarregado abre **sem rede** (RNF7) | Verificado com o modo offline do navegador |
+| A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, por **uma pessoa que não implementou**, em **três medições**, registrando a mediana e as três. O procedimento — quem, com o quê, o que se anota e onde fica — está no [`definition-of-done.md`](definition-of-done.md), e o cenário na linha do RNF6 da [`documentacao-da-demanda.md`](documentacao-da-demanda.md) §5.2 |
+| A9 | Lista de atribuições do Encarregado abre **sem rede** (RNF7) | **Evolução prevista — não vale para a primeira entrega.** Acesso próprio do Encarregado e leitura offline são os dois ⬜ da Q11; o critério volta a valer quando o RNF7 entrar, e é verificado com o modo offline do navegador |
+
+**A primeira entrega é validada por A1 a A8.** O A9 está na lista para não se perder, não para ser cobrado
+agora — e é dele que vem a ressalva: **critério que valida capacidade fora do escopo é linha morta no meio
+de uma lista viva.**
 
 **Validação de produto** — os objetivos O1 a O6 da Documentação da Demanda. Com a ressalva já declarada
 lá: **não há linha de base**, porque a jornada atual não mede nada. O6 (auditabilidade em 100%) é o único
