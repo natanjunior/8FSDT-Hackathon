@@ -2,11 +2,17 @@
 
 import { redirect } from "next/navigation";
 
-import { criarConta, entrar, sair, type RecusaDeCredencial } from "@/aplicacao/credenciais";
+import {
+  criarConta,
+  entrar,
+  pedirRedefinicaoDeSenha,
+  sair,
+  type RecusaDeCredencial,
+} from "@/aplicacao/credenciais";
 import { montarCredenciais } from "@/composicao";
 
 import { armazenamentoDeCookies } from "@/interface/http";
-import { criarContaSchema, entrarSchema } from "@/interface/schemas";
+import { criarContaSchema, entrarSchema, pedirRedefinicaoSchema } from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -27,6 +33,8 @@ export type EstadoDoFormulario = {
   readonly erros?: Readonly<Record<string, string>>;
   /** **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026). */
   readonly aviso?: "confirme-o-email";
+  /** T-12: o pedido foi aceito. **Não diz se a conta existe** — nem poderia (critério 1). */
+  readonly enviado?: boolean;
 };
 
 /** T-01 · Entrar. Ao final, navegação para o shell, que faz `GET /contexto` (inventário, T-01). */
@@ -86,6 +94,28 @@ export async function acaoDeCriarConta(
   }
 
   redirect("/");
+}
+
+/**
+ * T-12 · pedir o link de redefinição.
+ *
+ * **A resposta é a mesma exista ou não a conta** (critério 1). O ACL já garante isso; aqui a garantia
+ * aparece na forma da função: não há ramo que dependa da existência.
+ */
+export async function acaoDePedirRedefinicao(
+  _anterior: EstadoDoFormulario,
+  formulario: FormData,
+): Promise<EstadoDoFormulario> {
+  const conferido = pedirRedefinicaoSchema.safeParse({ email: formulario.get("email") });
+  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+
+  const resultado = await pedirRedefinicaoDeSenha(
+    montarCredenciais(await armazenamentoDeCookies()),
+    conferido.data.email,
+  );
+
+  if (!resultado.ok) return { recusa: resultado.recusa };
+  return { enviado: true };
 }
 
 /** O link "Sair" de T-02 e do shell. */
