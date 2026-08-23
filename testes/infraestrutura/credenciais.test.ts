@@ -138,3 +138,39 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
     expect(resultado).toStrictEqual({ ok: false, recusa: "SENHA_RECUSADA_PELO_PROVEDOR" });
   });
 });
+
+describe("criarConta — o nome no metadado (critério 2)", () => {
+  it("manda o nome em options.data.nome, e é de lá que o ACL semeia pessoas.nome", async () => {
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "fingido" }, user: { id: "usuario-novo" } },
+      error: null,
+    });
+
+    await criarCredenciais(cookiesVazios).criarConta(
+      "Helena Rocha",
+      "helena@exemplo.test",
+      "segredo",
+    );
+
+    expect(signUp).toHaveBeenCalledWith({
+      email: "helena@exemplo.test",
+      password: "segredo",
+      options: { data: { nome: "Helena Rocha" } },
+    });
+  });
+
+  it("com sessão na resposta, não pede confirmação — é a Q-T9 fechada em 22/08/2026", async () => {
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "fingido" }, user: { id: "usuario-novo" } },
+      error: null,
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).criarConta(
+      "Helena Rocha",
+      "helena@exemplo.test",
+      "segredo",
+    );
+
+    expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false });
+  });
+});
