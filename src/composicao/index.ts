@@ -7,12 +7,13 @@ import {
   criarTransacao,
   type ArmazenamentoDeCookies,
 } from "@/infraestrutura/clientes";
-import { escoparConsulta } from "@/infraestrutura/contexto";
+import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import {
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDePedidosDeEntrada,
   repositorioGlobalDeVinculos,
@@ -74,6 +75,12 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     vinculos: repositorioEscopadoDeVinculos(consulta),
     categorias: repositorioEscopadoDeCategorias(consulta),
     areas: repositorioEscopadoDeAreas(consulta),
+    // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
+    // aprovação, que faz duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
+    pedidosDeEntrada: repositorioEscopadoDePedidosDeEntrada(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
   };
 }
 
