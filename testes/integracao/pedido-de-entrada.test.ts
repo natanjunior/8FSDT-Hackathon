@@ -209,6 +209,35 @@ describe("pedir entrada", () => {
 
     expect(resultado.desfecho).toBe("registrado");
   });
+
+  /**
+   * O terceiro desfecho de recusa do critério 2, e o único dos três que faltava tocar o Postgres. O que
+   * fica sem prova sem este caso é o `select … where revogado_em is null` do repositório — o predicado que
+   * separa vínculo **ativo** de vínculo **revogado**. `outra` ainda não tem vínculo nenhum até aqui, então
+   * o vínculo é inserido direto pela `consulta`, como o arranjo do arquivo já faz com as outras tabelas.
+   *
+   * **Sem o par revogado/reaceito:** por esta altura `outra` já tem um pedido pendente em B (do caso
+   * "grava o telefone…", acima) — é a mesma organização e a mesma Pessoa por escolha do próprio achado.
+   * Revogar o vínculo e chamar `registrar` de novo colidiria com o índice único parcial de
+   * `pedidos_de_entrada` e devolveria `ja-pendente`, não `registrado`: provaria a regra errada, não a do
+   * vínculo. Trocar de Pessoa ou de organização só para fechar o par tiraria o caso do texto do achado
+   * sem necessidade — fica só a primeira metade, que é a que faltava.
+   */
+  it("recusa quando a Pessoa já tem vínculo ativo na organização", async () => {
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [outra, organizacaoB],
+    );
+
+    const resultado = await escrita.registrar({
+      pessoaId: outra,
+      codigoPublico: "P4NHY9WB",
+      nome: null,
+      telefone: null,
+    });
+
+    expect(resultado.desfecho).toBe("ja-vinculado");
+  });
 });
 
 describe("a leitura de contexto", () => {
