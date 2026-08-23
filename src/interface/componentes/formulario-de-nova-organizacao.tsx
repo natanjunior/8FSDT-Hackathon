@@ -7,6 +7,10 @@ import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 
+// Mesma mensagem nos dois desfechos sem `detail` utilizável: a resposta `4xx/5xx` sem corpo legível e a
+// rejeição do próprio `fetch` (rede caiu, DNS falhou) — ver o `catch` abaixo.
+const MENSAGEM_DE_ERRO_GENERICA = "Não foi possível criar a organização agora. Tente de novo em instantes.";
+
 /**
  * **T-02 face A, o segundo caminho:** *"Você administra um condomínio, empresa ou bairro que ainda não usa
  * o Resolve Aí?"*
@@ -43,7 +47,7 @@ export function FormularioDeNovaOrganizacao() {
       if (!resposta.ok) {
         // O corpo de erro é `application/problem+json` (contrato §6.1), e `detail` é o texto para gente.
         const problema = (await resposta.json().catch(() => null)) as { detail?: string } | null;
-        setErro(problema?.detail ?? "Não foi possível criar a organização agora. Tente de novo em instantes.");
+        setErro(problema?.detail ?? MENSAGEM_DE_ERRO_GENERICA);
         return;
       }
 
@@ -52,6 +56,11 @@ export function FormularioDeNovaOrganizacao() {
       // ainda não há organização, e voltaria para cá.
       router.refresh();
       router.push("/");
+    } catch {
+      // `fetch` rejeitou antes de haver resposta — rede caiu, DNS falhou. Sem este `catch`, a exceção
+      // sobe sem tratamento: o `finally` reabilita o botão, mas ninguém chama `setErro`, e a pessoa fica
+      // sem mensagem nenhuma. RNF de cold start e nuvem sem SLA: rede instável é o caso esperado.
+      setErro(MENSAGEM_DE_ERRO_GENERICA);
     } finally {
       setEnviando(false);
     }
