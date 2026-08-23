@@ -115,6 +115,14 @@ jobs:
   #      do A6.** O que ele prova não é que a imagem sobe: é que ela sobe **do
   #      zero, sem nada da máquina de quem implementou** — e prova a cada push,
   #      em vez de valer para o commit em que alguém olhou.
+  #
+  #      **Alcance e custo, porque este é o emprego mais caro do arquivo.** Ele
+  #      roda em push E em pull request, e paga o preço inteiro nas duas — pilha
+  #      do Supabase mais construção da imagem num runner sem cache. Em push ele
+  #      barra estruturalmente, porque `migrar` declara `needs: [verificar,
+  #      compose]`. **Em pull request quem o torna obrigatório é a proteção de
+  #      branch, não este arquivo** — sem ela, `migrar` já é pulado e não há o
+  #      que barrar.
   # ---------------------------------------------------------------------------
   compose:
     name: Subir o compose, do zero
@@ -130,7 +138,12 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # **Pinada, e não `latest`.** Os nomes que o `ambiente-local.mjs` lê
+          # do `supabase status -o env` — `API_URL`, `DB_URL`,
+          # `PUBLISHABLE_KEY` — foram conferidos nesta versão. Com `latest`, um
+          # release de terceiro renomeando qualquer um deles quebra a esteira
+          # num dia em que ninguém tocou no repositório.
+          version: 2.101.0
 
       # Só o que a aplicação usa: banco, autenticação e o gateway que a serve.
       # Estúdio, storage, realtime e o resto são minutos de download que nada
@@ -185,7 +198,12 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # **Pinada, e não `latest`.** Os nomes que o `ambiente-local.mjs` lê
+          # do `supabase status -o env` — `API_URL`, `DB_URL`,
+          # `PUBLISHABLE_KEY` — foram conferidos nesta versão. Com `latest`, um
+          # release de terceiro renomeando qualquer um deles quebra a esteira
+          # num dia em que ninguém tocou no repositório.
+          version: 2.101.0
 
       - name: aplicar as migrações versionadas
         # A migração é aplicada **ao projeto Supabase de verdade**, com o
@@ -197,7 +215,7 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          supabase db push
+          supabase db push --yes
 
   # ---------------------------------------------------------------------------
   # 3 · Construir e publicar a imagem no ghcr.io.
