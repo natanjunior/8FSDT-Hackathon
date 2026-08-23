@@ -81,7 +81,14 @@ export function FormularioDeCadastro() {
         <Campo
           id="senha"
           rotulo="Senha"
-          // A regra de força é do provedor, e é dita **antes** de digitar — não como erro depois (T-11).
+          // **Seis caracteres, comprimento e nada mais** — decidido em 22/08/2026, item 6a. Antes disso o
+          // valor era herança do padrão do provedor, sem origem em documento nenhum: era o risco **R-21**
+          // do `prototipo-low-fi.md`. O mesmo número está em `supabase/config.toml:196`, e os dois têm de
+          // continuar batendo.
+          //
+          // É dita **antes** de digitar, não como erro depois (T-11). E é por a regra ser de comprimento
+          // que o texto da recusa — *"Escolha uma senha mais longa."* — continua verdadeiro: regra de
+          // classes de caractere o transformaria em mentira sobre o que consertar.
           ajuda="No mínimo 6 caracteres."
           erro={estado.erros?.["senha"]}
         >
@@ -109,9 +116,12 @@ export function FormularioDeCadastro() {
 }
 
 function textoDaRecusa(recusa: string): string {
+  // A primeira frase é **verbatim** do critério 4 do item 6a e do inventário (T-11). A segunda é o caminho
+  // para T-01 dito em palavras — o caminho de fato é o link "Já tenho conta", abaixo do formulário.
+  //
   // Aqui a doutrina do não-confirmar **cede**: negá-la produziria alguém preso tentando criar uma conta
   // que já existe (inventário, T-11).
-  if (recusa === "CONTA_JA_EXISTE") return "Já existe uma conta com esse e-mail. Entre em vez de criar.";
+  if (recusa === "CONTA_JA_EXISTE") return "Já existe uma conta com este e-mail. Entre em vez de criar.";
   if (recusa === "SENHA_RECUSADA_PELO_PROVEDOR") return "Escolha uma senha mais longa.";
   return "Não foi possível criar a conta agora. Tente de novo em instantes.";
 }
