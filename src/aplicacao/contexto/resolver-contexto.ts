@@ -1,3 +1,4 @@
+import type { PedidoDaPessoa } from "@/aplicacao/organizacao";
 import type { Vinculo } from "@/dominio/organizacao";
 
 import { NaoAutenticado } from "./erros";
@@ -57,6 +58,14 @@ export type ResolucaoDeContexto = {
   /** Todos os vínculos ativos da Pessoa — o insumo do seletor de organização. */
   vinculos: readonly VinculoNaOrganizacao[];
   /**
+   * Todos os pedidos de entrada da Pessoa, em `criadoEm` decrescente e **nas três situações** — o insumo
+   * das faces B e C de T-02 (contrato, schema `Contexto`).
+   *
+   * **Nesta fatia só existe `pendente`**, porque `aprovado` e `recusado` são produzidos pelo item 8. É
+   * forma correta esperando produtor, não código morto: quando aquele item entrar, a face C é só tela.
+   */
+  pedidos: readonly PedidoDaPessoa[];
+  /**
    * `true` quando **o servidor escolheu sozinho** porque havia exatamente um vínculo. É o sinal para o
    * anel externo gravar o cookie na própria resposta (contrato §4.3), e existe para que todo login não
    * custe um `PUT` antes de qualquer tela.
@@ -100,10 +109,16 @@ export async function resolverContexto(
     nome: pessoa.nome,
   };
 
-  const vinculos = await portas.vinculos.ativosDaPessoa(pessoa.pessoaId);
+  // **Em paralelo, e é o que torna a leitura nova barata:** duas consultas independentes numa ida só. Em
+  // série, `GET /contexto` — que roda em toda requisição — pagaria uma latência de rede a mais.
+  const [vinculos, pedidos] = await Promise.all([
+    portas.vinculos.ativosDaPessoa(pessoa.pessoaId),
+    portas.pedidosDeEntrada.daPessoa(pessoa.pessoaId),
+  ]);
+
   const pedida = escolha.organizacaoEscolhida(sessao.usuarioId);
 
-  return { sessao, vinculos, ...escolherAtivo(vinculos, pedida) };
+  return { sessao, vinculos, pedidos, ...escolherAtivo(vinculos, pedida) };
 }
 
 /**

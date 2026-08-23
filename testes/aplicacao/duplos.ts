@@ -11,7 +11,10 @@ import type {
 import {
   CodigoPublicoEmUso,
   type NovaOrganizacao,
+  type PedidoDaPessoa,
   type RepositorioDeOrganizacoes,
+  type RepositorioDePedidosDeEntrada,
+  type RepositorioGlobalDePedidosDeEntrada,
 } from "@/aplicacao/organizacao";
 import { Vinculo, type Papel } from "@/dominio/organizacao";
 
@@ -51,6 +54,8 @@ export type VinculoSemeado = {
 export type Semente = {
   pessoas?: readonly PessoaSemeada[];
   vinculos?: readonly VinculoSemeado[];
+  /** Os pedidos que a leitura global devolve. A ordem é a que o teste escrever. */
+  pedidos?: readonly PedidoDaPessoa[];
 };
 
 /** O que o teste inspeciona depois de rodar — o rastro que os duplos deixam. */
@@ -67,6 +72,33 @@ export type Duplos = {
   /** Lê o estado da tabela `pessoas` do duplo — o que o teste confere no fim. */
   pessoas(): readonly PessoaSemeada[];
 };
+
+/**
+ * O duplo da porta de leitura de pedidos. **Substituição pela porta**, não *mock* de módulo (ADR-0005).
+ *
+ * Devolve a lista tal como recebeu: a ordenação é responsabilidade da consulta, e o teste de que ela
+ * ordena é o de integração — aqui provar ordenação seria provar que o duplo ordena.
+ */
+export function pedidosGlobaisFalsos(
+  pedidos: readonly PedidoDaPessoa[] = [],
+): RepositorioGlobalDePedidosDeEntrada {
+  return {
+    async daPessoa() {
+      return [...pedidos];
+    },
+  };
+}
+
+/**
+ * O duplo da porta de **escrita**. Está aqui pela mesma razão que `organizacoes` já está: `PortasGlobais`
+ * o exige, e `resolverContexto` **nunca o exerce**. Quem o exerce é o teste de `pedirEntrada`, que monta o
+ * seu próprio (tarefa 3) para poder inspecionar o que a porta recebeu.
+ */
+export function escritaDePedidosFalsa(): RepositorioDePedidosDeEntrada {
+  return {
+    registrar: () => Promise.reject(new Error("porta de escrita não exercida por este duplo")),
+  };
+}
 
 /**
  * Monta o grafo à mão, que é o que os testes podem fazer e a Aplicação não (ADR-0005).
@@ -138,6 +170,8 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
       // cria organização. Quem exerce a porta é `duploDeOrganizacoes` acima, montado pelo próprio teste
       // de `criarOrganizacao` — que inspeciona o que a porta recebeu, e por isso não a quer compartilhada.
       organizacoes: duploDeOrganizacoes().porta,
+      pedidosDeEntrada: pedidosGlobaisFalsos(semente.pedidos),
+      escritaDePedidosDeEntrada: escritaDePedidosFalsa(),
     },
     rastro,
     pessoas: () => pessoas,
