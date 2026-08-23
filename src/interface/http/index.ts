@@ -34,4 +34,4 @@ export { aterrissarConfirmacaoDeConta } from "./confirmacao-de-conta";
 
 export { novoTraceId } from "./traco";
 
-export { lerBooleanoDaUrl } from "./consulta-de-url";
+export { lerBooleanoDaUrl, lerSituacoesDaUrl } from "./consulta-de-url";

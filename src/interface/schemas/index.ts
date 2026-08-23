@@ -23,8 +23,12 @@ export {
 } from "./organizacao";
 
 export {
+  aprovacaoDePedidoSchema,
   codigoPublico,
   pedidoDeEntradaSchema,
+  recusaDePedidoSchema,
   telefoneE164,
+  type EntradaDeAprovacao,
   type EntradaDePedidoDeEntrada,
+  type EntradaDeRecusa,
 } from "./pedido-de-entrada";
