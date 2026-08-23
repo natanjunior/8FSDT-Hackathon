@@ -101,7 +101,11 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
             resultado = {
               recusa: {
                 codigo: codigoDaRecusa,
-                detalhe: TEXTO_DA_RECUSA[codigoDaRecusa] ?? MENSAGEM_DE_RECUSA_GENERICA,
+                // O texto que nós escrevemos para os três códigos conhecidos ganha do `detail` do
+                // servidor, porque é redigido para a tela; o `detail` só entra quando não temos texto
+                // próprio (contrato §6.1, mesma leitura de `formulario-de-nova-organizacao.tsx`); o
+                // genérico é o último recurso.
+                detalhe: TEXTO_DA_RECUSA[codigoDaRecusa] ?? problema.detail ?? MENSAGEM_DE_RECUSA_GENERICA,
               },
             };
           }
