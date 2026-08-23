@@ -13,6 +13,11 @@ import { defineConfig } from "vitest/config";
  * `integracao` exige Postgres, e é onde vive o teste do critério A4 — *organização A não vê dado de B* —,
  * que **não pode** ser feito em memória: o que ele mede é a consulta que vai ao banco. Os dois rodam no
  * pipeline; só o primeiro está no `npm run teste`, que é o laço curto de quem implementa.
+ *
+ * **As quatro pastas de `unitario` espelham as quatro camadas de `src/`**, e nenhuma delas toca banco:
+ * `interface/` confere schema, `infraestrutura/` confere o ACL com o SDK do provedor **simulado**. Pasta de
+ * teste que não estiver nesta lista **não é executada e não falha** — que é a pior forma de um portão ser
+ * marcado sem ser cumprido.
  */
 const apelido = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
 
@@ -26,7 +31,12 @@ export default defineConfig({
         resolve: { alias: apelido },
         test: {
           name: "unitario",
-          include: ["testes/dominio/**/*.test.ts", "testes/aplicacao/**/*.test.ts"],
+          include: [
+            "testes/dominio/**/*.test.ts",
+            "testes/aplicacao/**/*.test.ts",
+            "testes/interface/**/*.test.ts",
+            "testes/infraestrutura/**/*.test.ts",
+          ],
           environment: "node",
         },
       },

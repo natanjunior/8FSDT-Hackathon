@@ -95,7 +95,29 @@ estilo declarado no próprio componente elimina a folha de estilo global como lu
 | **Biblioteca de componentes convencional** (instalada como dependência) | Entrega o mesmo piso de acessibilidade, e custa o oposto na manutenção: o código não é nosso, o tema é o dela, e customizar significa lutar contra ela. A troca que fizemos — código nosso, atualização nenhuma — é a que cabe num projeto que termina em seis semanas e cuja manutenção depois é incerta |
 | **Construir os componentes do zero** | Recusada pelo risco, não pelo prazo. Sem teste de acessibilidade no projeto, um controle feito à mão **parece pronto e não é**, e o defeito só aparece com quem depende de teclado ou leitor de tela — que é exatamente quem não vai estar na demonstração |
 | **CSS sem framework de utilitários** | Defensável com mais de uma pessoa e um sistema de design. Com uma pessoa e sem revisão de código por pares, a folha global vira o lugar onde regras colidem sem ninguém perceber |
-| **Componente de gráfico da própria biblioteca** | **Recusado para a primeira entrega**, e é a exceção que confirma a regra 1: ele traz uma biblioteca de terceiro de verdade, e seria a única dependência do pacote que contradiz *"o CLI copia o código"*. O painel entrega os cinco indicadores sem ele — a recorrência por área tem cerca de trinta itens e é lista ordenada, não gráfico. Se o painel se provar ilegível, entra depois: é aditivo |
+| **Componente de gráfico da própria biblioteca** | **Recusado para a primeira entrega**, e é a exceção que confirma a regra 1: ele traz uma biblioteca de terceiro de verdade — **de porte, e só para o painel**. *(Até 23/08/2026 esta linha dizia que ele seria "a única dependência do pacote que contradiz «o CLI copia o código»". **Não é a única** — o conjunto de ícones chega antes dele; ver a emenda abaixo. A recusa continua de pé pelo próprio mérito; o que caiu foi a exclusividade.)* O painel entrega os cinco indicadores sem ele — a recorrência por área tem cerca de trinta itens e é lista ordenada, não gráfico. Se o painel se provar ilegível, entra depois: é aditivo |
+
+> ### Emenda de 23/08/2026 — o conjunto de ícones é `lucide`, e ele nunca foi nomeado
+>
+> **Esta ADR não menciona ícone uma única vez**, e a interface precisa de um conjunto. Quem o declara é o
+> `components.json` na raiz, com `"iconLibrary": "lucide"` — **configuração escrita pelo CLI, não decisão
+> registrada**, que é exatamente a lacuna que a regra 2 desta ADR existe para não deixar acontecer.
+>
+> **Decidido: o conjunto é `lucide`, e é decisão desta ADR e não do CLI.** A razão é a mesma da base de
+> primitivos: é o conjunto do projeto de origem, e trocá-lo seria brigar com cada `shadcn add` — briga que
+> se perde em silêncio, com o repositório convivendo com dois conjuntos.
+>
+> **Não é dependência que uma tarefa de ícone introduz.** O `lucide-react` chega no **primeiro `shadcn add`
+> de um `Select` ou de um `Dialog`**, com ou sem ícone de categoria na tela: os componentes do projeto de
+> origem já importam de lá. Ou seja, **é dependência que esta ADR já implicava desde 21/08 e não nomeou**.
+> Hoje ela ainda não está no `package.json`, porque os dois componentes copiados até agora — `button` e
+> `input` — não usam ícone. Ela entra sozinha, e é melhor que entre com a decisão escrita antes.
+>
+> **O que isto custa à regra 1, e é o ponto honesto:** `lucide-react` é **pacote instalado**, não código
+> copiado. A frase *"o CLI copia o código"* passa a ter **duas exceções conhecidas** — os primitivos
+> (`radix-ui`, emenda de 22/08) e os ícones —, e a linha do componente de gráfico acima foi corrigida por
+> isso. A regra 1 continua verdadeira no que importa: **o código dos componentes é nosso**; o que vem
+> instalado é a base sobre a qual ele roda.
 
 ## Consequências
 

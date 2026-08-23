@@ -142,6 +142,13 @@ teste seria o mesmo erro que afirmar usabilidade sem teste.
 - [ ] **Transição gerando registro de histórico, verificado em teste.** Este é o item central: é a
       **defesa processual** do requisito que o enunciado mais destaca, complementar à defesa estrutural
       do agregado (ADR-0001).
+- [ ] **O custo de teste desta tarefa foi um arquivo curto ou nenhum** — casos no teste do agregado, e uma
+      entrada na suíte de isolamento se ela tocou consulta. **Quatro arquivos de teste novos são sinal de
+      que a forma da [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md) foi abandonada.** Confere-se
+      contando arquivos no próprio diff. **Está aqui, e não na ADR, porque ADR registra e não confere:** a
+      regra só vale se alguém a aplicar no décimo item, e o instrumento que roda a cada item é este
+      checklist. A hora de perceber é no item que abandona a forma — não no décimo, quando o DoD já virou
+      teatro.
 - [ ] Se a tarefa toca consulta de dados: teste de integração provando que **organização A não vê dado de
       B**. **É uma entrada na suíte de isolamento, não um teste novo** (§7.1 de
       [arquitetura.md](arquitetura.md)), e a entrada semeia **apenas o próprio agregado**: as pessoas e as
@@ -214,8 +221,20 @@ de pedir uma pessoa que ele mesmo declara não existir.
       pipeline. São poucas linhas de Node e roda em segundos — e é o mesmo princípio da regeneração do
       OpenAPI: **garantia mecânica em vez de disciplina**. Diagrama que não renderiza é documentação que
       não existe, e a falha é silenciosa: o GitHub mostra o bloco de código cru e ninguém percebe.
-- [ ] **Ponto de atenção resolvido é riscado**, e ponto de atenção novo é registrado, em
-      `docs/premissas-e-questoes-abertas.md`.
+- [ ] **Ponto de atenção novo está escrito na seção *Achados* do relatório do item**, e ponto de atenção
+      resolvido está apontado lá. **Não em `docs/`:** o fluxo de implementação proíbe tocar a documentação,
+      e com razão — é o que impede uma conversa de trabalho de reescrever documentação em vez de levantar
+      achado. Conferível por quem implementa, no próprio relatório, **sem terceiro e sem acesso a `docs/`**.
+
+> **A outra metade, e ela precisa estar dita aqui ou vira promessa oral.** Levar os achados do relatório
+> para `docs/premissas-e-questoes-abertas.md` é **passo declarado do ciclo de quem commita**, não do item:
+> ao commitar o trabalho de um item, os achados do relatório são transcritos. É atividade **com dono** e
+> que **não segura entrega** — a mesma forma do `Item Revision`.
+>
+> Sem isto escrito, o achado fica no relatório e *"alguém transcreve depois"* — que é exatamente o que a
+> regra de 22/08 chama de **espera em vez de portão**. O item 39 fechou com **sete achados nessa
+> condição**, e foi o que mostrou que a caixa antiga era inmarcável por construção: ela pedia uma escrita
+> em `docs/` que o próprio fluxo de trabalho proíbe.
 
 ### Aprovação e publicação
 
