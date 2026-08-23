@@ -209,7 +209,7 @@ Seguindo o modelo do curso, **com número e não com adjetivo** (p.9).
 | RNF2 | **Auditabilidade** | **100%** das transições com os 5 campos preenchidos; registro **imutável**; impossível mudar status sem gerar registro |
 | RNF3 | **Escala** | 50 organizações · 200 pessoas por organização · **2.000 ocorrências** no total · 20 usuários simultâneos. O modelo de dados mede esse alvo em ~26 MB, cerca de 5% dos 500 MB do free tier do banco |
 | RNF4 | **Desempenho** | p95 ≤ 1s em requisição morna |
-| RNF5 | **Disponibilidade** | **Sem SLA de produção.** O serviço usa **escala a zero** para caber na franquia gratuita, então **cold start na primeira requisição após ociosidade é esperado e declarado**. O banco no free tier também pausa após 7 dias sem atividade |
+| RNF5 | **Disponibilidade** | **Sem SLA de produção.** O serviço usa **escala a zero** para caber na franquia gratuita, então **cold start na primeira requisição após ociosidade é esperado e declarado** — e agora **medido: 20,7 s** (23/08/2026, primeira publicação real), contra **0,30 s** com a aplicação quente. O banco no free tier também pausa após 7 dias sem atividade |
 | RNF6 | **Registro em menos de 1 minuto** pelo celular | Do toque no atalho ao `201` do envio, **incluindo foto**, num aparelho já autenticado e com o aplicativo aquecido. Mitiga o risco de usabilidade. **O cenário de medição está declarado abaixo** — sem ele o requisito não é verificável |
 | RNF7 | **Leitura offline** para o Encarregado | A lista de atribuições e o detalhe devem abrir sem rede. Escrita offline **não** é requisito |
 | RNF8 | **Imagem** | Uma por ocorrência, JPEG ou PNG, **comprimida no cliente** para no máximo **400 KB** (redimensionada para 1600px no maior lado). O aceite no seletor é de até 10 MB; o que sobe é o comprimido |
@@ -234,7 +234,18 @@ Seguindo o modelo do curso, **com número e não com adjetivo** (p.9).
 > **O RNF6 e o RNF5 se atropelam, e o protótipo foi quem percebeu.** A redação original do RNF6 media *"da
 > abertura do app"* — e o RNF5 diz que **é exatamente na abertura que o cold start acontece**. Os dois
 > requisitos mediam a mesma janela e se contradiziam: nenhum aparelho abriria o aplicativo frio e registraria
-> em menos de um minuto, porque a escala a zero sozinha come de 5 a 15 segundos.
+> em menos de um minuto, porque a escala a zero sozinha come **20,7 segundos**.
+>
+> **A medição de 23/08/2026 refutou a estimativa desta linha, e por cima.** Ela dizia *"de 5 a 15
+> segundos"*; o número real é **20,7 s**. **A conclusão não muda** — os dois requisitos continuam medindo
+> janelas diferentes —, e o pior caso combinado declarado abaixo continua valendo: 53 s de orçamento mais
+> 20,7 s de escala do zero dão **73,7 s**, dentro do *"cerca de 75 segundos"* que já estava escrito.
+>
+> **E há uma confirmação que vale mais que a refutação.** A §2.5 do [protótipo](prototipo-low-fi.md)
+> calculou que *"um cold start de até ~24 segundos é invisível ao Solicitante, porque os dois únicos campos
+> que dependem da rede são os dois últimos"*. **Os 20,7 s cabem dentro dos 24 s, com 3,3 s de folga** — a
+> ordem dos campos da tela de registro, decidida por três argumentos independentes, sobreviveu ao primeiro
+> número real.
 >
 > **Eles medem coisas diferentes e passam a dizer isso.** O RNF6 mede a **interação**: quanto tempo a pessoa
 > gasta. O RNF5 mede a **plataforma**: quanto tempo a plataforma gasta antes de responder. Somar os dois num
