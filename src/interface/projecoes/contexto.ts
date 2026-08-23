@@ -1,5 +1,7 @@
 import type { ResolucaoDeContexto } from "@/aplicacao/contexto";
 
+import { projetarPedidoDeEntrada, type PedidoDeEntradaProjetado } from "./pedido-de-entrada";
+
 /**
  * A projeção do schema `Contexto` do `openapi.yaml`.
  *
@@ -19,7 +21,7 @@ export type ContextoProjetado = {
   papel: string | null;
   permissoes: readonly string[];
   vinculos: ReadonlyArray<{ organizacaoId: string; nome: string; papel: string }>;
-  pedidosDeEntrada: readonly never[];
+  pedidosDeEntrada: readonly PedidoDeEntradaProjetado[];
 };
 
 export function projetarContexto(resolucao: ResolucaoDeContexto): ContextoProjetado {
@@ -56,14 +58,13 @@ export function projetarContexto(resolucao: ResolucaoDeContexto): ContextoProjet
     })),
 
     /**
-     * **Sempre vazio nesta fatia, e isso é verdade e não omissão.** O schema declara o campo como
-     * `required`, e `[]` é o valor correto porque `POST /pedidos-de-entrada` não existe ainda: nenhum
-     * pedido pode ter sido criado. As faces **B** e **C** de T-02, que são as que consomem esta lista,
-     * estão fora da fatia pela mesma razão.
+     * **Todos os pedidos da Pessoa, nas três situações, em `criadoEm` decrescente** (spec §2.6) — o insumo
+     * das faces B e C de T-02.
      *
-     * Quando o endpoint entrar, esta linha passa a ler `pedidos_de_entrada` — e o campo não muda de forma,
-     * que é o que torna a evolução aditiva (contrato §11).
+     * Nesta fatia só existe `pendente`: `aprovado` e `recusado` são produzidos pelo item 8, e até lá a
+     * lista tem no máximo um item. A forma, porém, já é a final — é o que faz a face C ser **só tela**
+     * quando aquele item chegar.
      */
-    pedidosDeEntrada: [],
+    pedidosDeEntrada: resolucao.pedidos.map(projetarPedidoDeEntrada),
   };
 }

@@ -30,10 +30,16 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   }
 
   // Estado limpo em toda execução: o teste não pode depender do que a anterior deixou. `cascade` cobre as
-  // FKs entre elas, inclusive a composta que `vinculos` passou a ter para `areas`.
-  await consulta(`drop table if exists categorias, areas, vinculos, organizacoes, pessoas cascade`);
+  // FKs entre elas, inclusive a composta que `vinculos` tem para `areas` e a que `pedidos_de_entrada` tem
+  // para `vinculos`.
+  await consulta(
+    `drop table if exists contatos, pedidos_de_entrada, categorias, areas, vinculos, organizacoes, pessoas cascade`,
+  );
   await consulta(`drop type if exists papel_vinculo`);
   await consulta(`drop type if exists tipo_area`);
+  await consulta(`drop type if exists situacao_pedido_entrada`);
+  await consulta(`drop type if exists tipo_contato`);
+  await consulta(`drop type if exists finalidade_contato`);
 
   await consulta(shim);
   for (const migracao of migracoes) await consulta(migracao);
