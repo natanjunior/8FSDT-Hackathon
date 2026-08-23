@@ -31,8 +31,12 @@ concurrency:
   group: entrega-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  IMAGEM: ghcr.io/${{ github.repository }}
+# **Não há `env: IMAGEM` aqui, e a ausência é deliberada.** O nome da imagem tem
+# de estar em minúsculas: `github.repository` devolve a caixa original do
+# repositório — `natanjunior/8FSDT-Hackathon` — e a referência de imagem Docker
+# não aceita maiúscula no caminho. As expressões do Actions não têm função de
+# minúsculas, então a conversão só existe em shell, e o nome nasce no passo
+# `etiquetas` do job `publicar`.
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -228,7 +232,14 @@ jobs:
         # A etiqueta é o SHA do commit, não `latest`: é o que faz cada revisão
         # do Container Apps apontar para um artefato identificável, e é o que
         # torna o rollback uma escolha de revisão em vez de um rebuild.
-        run: echo "etiqueta=${{ env.IMAGEM }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        #
+        # `${GITHUB_REPOSITORY,,}` é a expansão do bash para minúsculas, e ela
+        # não é estética: sem ela o buildx recusa a etiqueta antes de publicar,
+        # com `invalid tag … repository name must be lowercase`.
+        run: |
+          IMAGEM="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "etiqueta=$IMAGEM:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "movel=$IMAGEM:main"                 >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v5
         with:
@@ -259,7 +270,7 @@ jobs:
           # build, e ela é pública (ADR-0004).
           tags: |
             ${{ steps.etiquetas.outputs.etiqueta }}
-            ${{ env.IMAGEM }}:main
+            ${{ steps.etiquetas.outputs.movel }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
