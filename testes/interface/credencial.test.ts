@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+// `@/interface/http` alcança `next/headers`, que não roda fora de uma requisição. Aqui o que está sob
+// teste é a **regra de nomes** — pura —, então o módulo do framework é simulado, do mesmo jeito que o
+// teste de infraestrutura simula o SDK do provedor. Sem isto, a importação derruba o arquivo inteiro.
+vi.mock("next/headers", () => ({
+  cookies: () => {
+    throw new Error("cookies() não é usado neste teste");
+  },
+  headers: () => {
+    throw new Error("headers() não é usado neste teste");
+  },
+}));
+
+import { PREFIXO_DE_REDEFINICAO, somenteDeRedefinicao } from "@/interface/http";
 import {
   criarContaSchema,
   definirSenhaSchema,
@@ -120,5 +133,27 @@ describe("definirSenhaSchema — o campo único de T-13 (critério 2)", () => {
     // como SENHA_RECUSADA_PELO_PROVEDOR — que é a mesma mecânica de T-11.
     expect(definirSenhaSchema.safeParse({ senha: "123456" }).success).toBe(true);
     expect(definirSenhaSchema.safeParse({ senha: "12345" }).success).toBe(true);
+  });
+});
+
+describe("somenteDeRedefinicao — a sessão de recuperação não é a sessão do produto", () => {
+  it("não enxerga o cookie de sessão normal, e devolve o de recuperação sem o prefixo", () => {
+    // É o mecanismo inteiro da decisão D-6b-2: `sessaoAtual()` lê o pote sem prefixo e não acha nada, então
+    // abrir o link válido e digitar `/` **não entra no produto**.
+    const pote = [
+      { name: "sb-projeto-auth-token", value: "sessao-normal" },
+      { name: `${PREFIXO_DE_REDEFINICAO}sb-projeto-auth-token`, value: "sessao-de-recuperacao" },
+      { name: "resolveai_organizacao", value: "cookie-de-organizacao" },
+    ];
+
+    expect(somenteDeRedefinicao(pote)).toStrictEqual([
+      { name: "sb-projeto-auth-token", value: "sessao-de-recuperacao" },
+    ]);
+  });
+
+  it("sem cookie de recuperação o armazenamento é vazio — o SDK não encontra sessão nenhuma", () => {
+    const pote = [{ name: "sb-projeto-auth-token", value: "sessao-normal" }];
+
+    expect(somenteDeRedefinicao(pote)).toStrictEqual([]);
   });
 });
