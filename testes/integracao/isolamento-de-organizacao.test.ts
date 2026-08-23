@@ -1,10 +1,12 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ConsultaSemEscopo, escoparConsulta } from "@/infraestrutura/contexto";
+import { criarTransacao } from "@/infraestrutura/clientes";
+import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import {
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDeVinculos,
 } from "@/infraestrutura/repositorios/organizacao";
@@ -58,6 +60,8 @@ let idRecanto: string;
 let idAurora: string;
 let idSindica: string;
 let idMoradora: string;
+let idPedidoRecanto: string;
+let idPedidoAurora: string;
 
 beforeAll(async () => {
   if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
@@ -356,6 +360,18 @@ async function semear(): Promise<void> {
     `insert into areas (organizacao_id, nome, tipo, ordem) values ($1, $2, 'comum', 1), ($3, $4, 'comum', 1)`,
     [idRecanto, "Garagem do Recanto", idAurora, "Garagem da Aurora"],
   );
+
+  // **Os pedidos da mesma Pessoa nas duas organizações** — é a armadilha do A4 na forma deste item: quem
+  // tem pedido pendente não tem vínculo, então a consulta parte de `pedidos_de_entrada` e faz `JOIN` para
+  // `pessoas`, que é global. Se o escopo falhar, a Gestora de Recanto vê o pedido feito na Aurora.
+  const pedidos = await consulta<{ id: string; organizacao_id: string }>(
+    `insert into pedidos_de_entrada (organizacao_id, pessoa_id)
+          values ($1, $3), ($2, $3)
+       returning id, organizacao_id`,
+    [idRecanto, idAurora, idMoradora],
+  );
+  idPedidoRecanto = pedidos.find((p) => p.organizacao_id === idRecanto)!.id;
+  idPedidoAurora = pedidos.find((p) => p.organizacao_id === idAurora)!.id;
 }
 
 /**
@@ -385,5 +401,34 @@ describe("as consultas de configuração não atravessam organizações", () => 
       }),
     chaveDaLinha: (area) => area.nome,
     esperadas: { emA: ["Garagem do Recanto"], emB: ["Garagem da Aurora"] },
+  });
+
+  /**
+   * **A terceira consulta escopada desta suíte, e a primeira que não é de configuração.** Ela declara
+   * `chaveDaLinha` pelo `id` do pedido, e não pelo nome da pessoa: é a **mesma** Pessoa nas duas
+   * organizações, que é exatamente o cenário que detecta o vazamento.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /pedidos-de-entrada",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDePedidosDeEntrada(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      ).listar({ situacoes: ["pendente"] }),
+    chaveDaLinha: (pedido) => pedido.id,
+    // **Lidos tarde, e é obrigatório.** O corpo do `describe` roda na **coleta**, antes de qualquer
+    // `beforeAll`: `[idPedidoRecanto]` avaliado ali seria `[undefined]`, e os dois casos falhariam
+    // comparando conjuntos de `undefined`. As duas entradas existentes escapam disso por acaso — as
+    // chaves delas são literais (`"Portaria do Recanto"`). Aqui a chave é um `uuid` gerado pelo banco,
+    // então o valor tem de ser lido no instante do caso, que é o que o `get` faz. É a mesma razão de
+    // `mundo` ser `{ a: () => …, b: () => … }` com funções.
+    esperadas: {
+      get emA() {
+        return [idPedidoRecanto];
+      },
+      get emB() {
+        return [idPedidoAurora];
+      },
+    },
   });
 });
