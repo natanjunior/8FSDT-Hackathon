@@ -64,6 +64,8 @@ export type Rastro = {
   pessoasCriadas: number;
   /** As consultas de vínculo, na ordem, com a Pessoa por que partiram. */
   consultasDeVinculo: string[];
+  /** As consultas de pedidos de entrada, na ordem, com a Pessoa por que partiram. */
+  consultasDePedido: string[];
 };
 
 export type Duplos = {
@@ -80,10 +82,15 @@ export type Duplos = {
  * ordena é o de integração — aqui provar ordenação seria provar que o duplo ordena.
  */
 export function pedidosGlobaisFalsos(
+  rastro: Rastro,
   pedidos: readonly PedidoDaPessoa[] = [],
 ): RepositorioGlobalDePedidosDeEntrada {
   return {
-    async daPessoa() {
+    async daPessoa(pessoaId) {
+      // Mesmo mecanismo de `repositorioGlobalDeVinculos` logo abaixo: registra por qual Pessoa a consulta
+      // partiu. Sem isto, `resolverContexto` poderia passar `sessao.usuarioId` em vez de `pessoa.pessoaId`
+      // e nenhum teste em memória perceberia.
+      rastro.consultasDePedido.push(pessoaId);
       return [...pedidos];
     },
   };
@@ -109,7 +116,7 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
   const pessoas: PessoaSemeada[] = [...(semente.pessoas ?? [])];
   const vinculos: VinculoSemeado[] = [...(semente.vinculos ?? [])];
 
-  const rastro: Rastro = { pessoasCriadas: 0, consultasDeVinculo: [] };
+  const rastro: Rastro = { pessoasCriadas: 0, consultasDeVinculo: [], consultasDePedido: [] };
 
   const autenticacao: PortaDeAutenticacao = {
     sessaoAtual: () => Promise.resolve(sessao),
@@ -170,7 +177,7 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
       // cria organização. Quem exerce a porta é `duploDeOrganizacoes` acima, montado pelo próprio teste
       // de `criarOrganizacao` — que inspeciona o que a porta recebeu, e por isso não a quer compartilhada.
       organizacoes: duploDeOrganizacoes().porta,
-      pedidosDeEntrada: pedidosGlobaisFalsos(semente.pedidos),
+      pedidosDeEntrada: pedidosGlobaisFalsos(rastro, semente.pedidos),
       escritaDePedidosDeEntrada: escritaDePedidosFalsa(),
     },
     rastro,

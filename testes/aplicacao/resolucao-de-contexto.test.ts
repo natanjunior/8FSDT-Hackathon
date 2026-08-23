@@ -139,6 +139,12 @@ describe("resolverContexto — o contexto é o da sessão", () => {
   it("carrega os pedidos de entrada da Pessoa, nas três situações", async () => {
     const pedidos = [
       {
+        id: "ped-3",
+        organizacao: { nome: "Edifício Alvorada" },
+        situacao: "aprovado" as const,
+        criadoEm: "2026-08-21T10:00:00.000Z",
+      },
+      {
         id: "ped-2",
         organizacao: { nome: "Edifício Aurora" },
         situacao: "recusado" as const,
@@ -159,6 +165,9 @@ describe("resolverContexto — o contexto é o da sessão", () => {
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
     expect(resolucao.pedidos).toStrictEqual(pedidos);
+
+    // A consulta partiu da Pessoa resolvida — "pessoa-vizinha" — nunca do `usuarioId` da sessão.
+    expect(duplos.rastro.consultasDePedido).toStrictEqual(["pessoa-vizinha"]);
   });
 });
 
