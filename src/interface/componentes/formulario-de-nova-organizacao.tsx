@@ -37,6 +37,12 @@ export function FormularioDeNovaOrganizacao() {
 
     setErro(null);
     setEnviando(true);
+
+    // `criada` separa o que o `catch` deve cobrir (a chamada de rede e a leitura da resposta) do que
+    // vem depois (a navegação). Se a navegação lançasse **dentro** do `try`, o `catch` mostraria a
+    // mensagem de erro genérica depois de a organização já ter sido criada — engano ativo, não erro
+    // neutro. Por isso `router.refresh`/`router.push` ficam fora do `try`, condicionados a este flag.
+    let criada = false;
     try {
       const resposta = await fetch("/api/organizacoes", {
         method: "POST",
@@ -48,14 +54,9 @@ export function FormularioDeNovaOrganizacao() {
         // O corpo de erro é `application/problem+json` (contrato §6.1), e `detail` é o texto para gente.
         const problema = (await resposta.json().catch(() => null)) as { detail?: string } | null;
         setErro(problema?.detail ?? MENSAGEM_DE_ERRO_GENERICA);
-        return;
+      } else {
+        criada = true;
       }
-
-      // O `Set-Cookie` do `201` já deixou a nova organização ativa. `refresh` refaz o `GET /contexto` do
-      // shell **antes** de navegar — sem ele, a tela seguinte pintaria com o contexto anterior, em que
-      // ainda não há organização, e voltaria para cá.
-      router.refresh();
-      router.push("/");
     } catch {
       // `fetch` rejeitou antes de haver resposta — rede caiu, DNS falhou. Sem este `catch`, a exceção
       // sobe sem tratamento: o `finally` reabilita o botão, mas ninguém chama `setErro`, e a pessoa fica
@@ -63,6 +64,16 @@ export function FormularioDeNovaOrganizacao() {
       setErro(MENSAGEM_DE_ERRO_GENERICA);
     } finally {
       setEnviando(false);
+    }
+
+    if (criada) {
+      // O `Set-Cookie` do `201` já deixou a nova organização ativa. `refresh` refaz o `GET /contexto` do
+      // shell **antes** de navegar — sem ele, a tela seguinte pintaria com o contexto anterior, em que
+      // ainda não há organização, e voltaria para cá. Fora do `try`: uma falha síncrona aqui (o limite
+      // que o navegador aplica à History API, por exemplo) não pode virar mensagem de erro de criação —
+      // a organização já foi criada com sucesso.
+      router.refresh();
+      router.push("/");
     }
   }
 
