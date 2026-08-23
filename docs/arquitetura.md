@@ -871,11 +871,35 @@ interrompe a cadeia, e o deploy não acontece — que é o comportamento desejad
 esquema velho é o modo de falha que a ordem existe para evitar**. A análise de origem do diagrama está em
 [`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
 
+**Região: `chilecentral`, com o Supabase em São Paulo — latência app↔banco de ~40 ms**, medida em
+23/08/2026. **Não é escolha nossa:** a assinatura de estudante traz a política *"Allowed resource deployment
+regions"* com cinco regiões — `canadacentral`, `southafricanorth`, `spaincentral`, `chilecentral` e
+`eastus` —, e **`brazilsouth` é proibida**; `chilecentral` é a mais próxima das cinco. Nenhum documento
+deste pacote prometia app e banco na mesma região, então isto é **registro, não correção**. E o tamanho
+importa: 40 ms contra o orçamento de 60 s do RNF6 é ruído — o número que pesa na experiência é o cold start
+da escala a zero, e ele não vem da região. Fica escrito para que ninguém gaste uma tarde tentando mover
+para o Brasil.
+
 **Rollback:** o Container Apps mantém revisões anteriores e permite redirecionar o tráfego para uma delas
 — imediato, sem rebuild. **Migrações de banco** são versionadas em arquivo e aplicadas pelo CLI do
 Supabase; **migração não é reversível automaticamente**, então mudança destrutiva de esquema exige script
 de volta escrito à mão. Como o rollback da aplicação é instantâneo e o do banco não é, **a ordem segura é
 migração compatível primeiro, código depois**.
+
+> **O modo de revisões é precondição do rollback — por isso é decisão, e não configuração (23/08/2026).**
+> O parágrafo acima promete *"redirecionar o tráfego para uma revisão anterior, imediato e sem rebuild"*, e
+> **isso só existe em `--revisions-mode multiple`**, que **não é o padrão do Container Apps**. No modo
+> padrão a única volta é um `az containerapp update` apontando para a etiqueta antiga: **cria revisão nova,
+> leva dezenas de segundos, e não é redirecionar tráfego — é publicar de novo.**
+>
+> **Decidido: o ambiente roda em `multiple`.** Não é preferência operacional. É a precondição de uma
+> garantia que o [`definition-of-done.md`](definition-of-done.md) usa para **tirar a revisão funcional do
+> portão** — o argumento de lá, *"o custo de descobrir tarde é um redirecionamento"*, **só é verdadeiro
+> neste modo**. Provisionado no padrão, a garantia não existiria, e ninguém descobriria **até precisar
+> dela**, que é o pior momento possível.
+>
+> Uma garantia cuja precondição não está escrita é a classe de defeito que este pacote mais encontrou nesta
+> semana. Esta fica escrita.
 
 > **O que se perdeu na troca de plataforma, declarado.** Não há mais **ambiente de preview por branch** —
 > a plataforma anterior gerava URL por branch automaticamente, e o Container Apps não faz isso de forma
@@ -888,6 +912,16 @@ satisfeitos pelo mesmo artefato, e foi a razão da [ADR-0004](adr/0004-execucao-
 
 **Risco de calendário:** o projeto Supabase free **pausa após 7 dias de inatividade**. Se houver
 demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron semanal no GitHub Actions.
+
+> **Nota operacional — o `504` depois de um deploy não é cold start, e o número é outro (23/08/2026).**
+> Publicada uma revisão nova, a primeira requisição respondeu **`504`**, e o `200` veio cerca de **6 s
+> adiante**. Essa janela **inclui puxar a imagem e ativar a revisão**, e o gateway desiste antes de a
+> aplicação responder. É consequência de **deploy**, não de ociosidade — e por isso **não entra no RNF5**,
+> que mede a plataforma acordando do zero: seria outro número com o mesmo nome.
+>
+> **A consequência é de calendário, e vale ao lado do banco que pausa:** para a demonstração, **acordar a
+> aplicação antes** e **não publicar nas horas anteriores**. Um `504` na abertura da apresentação custa
+> mais, num projeto cujo risco mais alto é usabilidade, do que os 20,7 s da escala a zero custam.
 
 ## 10. Critérios de Aceitação e Validação
 
@@ -908,7 +942,7 @@ demonstração ao vivo, o banco precisa ser acordado antes. Mitigação: cron se
 | A4 | **Nenhum dado atravessa organizações** | Teste de integração no repositório escopado, com **duas organizações semeadas e a mesma Pessoa vinculada às duas** — o cenário da Persona 1B. Seed com pessoas distintas por organização **não detecta** o erro, porque o vazamento aparece justamente quando a Pessoa é global e a consulta parte dela. **Mais um caso próprio para as duas escritas que rodam fora do funil** ([ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), emenda de 20/08): pedido de entrada criado com o Código da Organização A **não** produz linha escopada em B |
 | A5 | Solicitante e Gestor cumprem todas as capacidades do enunciado (S1–S10, G1–G8) | E2E do caminho crítico + **conferência contra o inventário de requisitos**. O objeto da conferência é **documento, não pessoa**: as capacidades estão escritas e numeradas, e conferir é percorrer a lista |
 | A6 | Sobe com `docker compose`, do zero | **A esteira sobe o compose num runner limpo e bate na aplicação por HTTP.** É o que a linha sempre quis provar — que não há estado local escondido — e prova melhor: **não pode ser esquecido**, **reverifica a cada push** em vez de valer só para o commit em que alguém olhou, e falha onde o defeito nasceu. É a troca das ADR-0001, 0003 e 0005 aplicada aqui: garantia mecânica no lugar de disciplina. *O estágio é trabalho do item 39; este critério é o que ele satisfaz* |
-| A7 | Publicado em cloud, acessível por URL | ⟨a medir no primeiro deploy — que é a primeira tarefa de implementação⟩ |
+| A7 | Publicado em cloud, acessível por URL | **Medido em 23/08/2026, na primeira publicação real:** URL no ar, esteira verde nos cinco estágios. **Escala do zero: 20,7 s** — o número do RNF5 — contra **0,30 s** com a aplicação quente, na mesma revisão: fator **~69×**. O método é o que torna o número repetível: esperar o `cooldownPeriod` de 300 s **e** a contagem de réplicas cair a zero antes de cronometrar. O `504` que aparece logo após um deploy **é outra coisa** e está na nota operacional da §9 |
 | A8 | Registro de ocorrência pelo celular em **menos de 1 minuto** (RNF6) | Cronometrado em rede móvel, **por quem implementa**, em **três medições**, registrando a mediana e as três. **Aqui não há mecânica possível** — celular real em rede móvel não se automatiza —, então **o viés fica declarado em vez de embutido**: quem construiu a tela sabe onde tocar sem procurar e mede um tempo **melhor que o de um morador**. As três medições e a mediana são o instrumento que sobra contra ele, e o número anotado com aparelho e rede permite que outra pessoa repita depois — **sem que a entrega dependa disso**. Procedimento no [`definition-of-done.md`](definition-of-done.md); cenário na linha do RNF6 da [`documentacao-da-demanda.md`](documentacao-da-demanda.md) §5.2 |
 | A9 | Lista de atribuições do Encarregado abre **sem rede** (RNF7) | **Evolução prevista — não vale para a primeira entrega.** Acesso próprio do Encarregado e leitura offline são os dois ⬜ da Q11; o critério volta a valer quando o RNF7 entrar, e é verificado com o modo offline do navegador |
 
