@@ -49,12 +49,16 @@ export function repositorioDePedidosDeEntrada(
 
         // `on conflict do nothing` sem alvo cobre **todos** os índices únicos da tabela — aqui, o parcial
         // `WHERE situacao = 'pendente'`. Zero linhas significa que já havia um pendente.
+        //
+        // **`telefone_informado` entrou na migração 004**, e é o dado que o Gestor vê em T-08 antes de
+        // decidir. Ele é gravado aqui **e** em `contatos` logo abaixo: um é do pedido, escopado e
+        // congelado; o outro é da Pessoa, global e permanente (achado A-8-1 do item 8).
         const criados = await consulta<{ id: string; criado_em: Date }>(
-          `insert into pedidos_de_entrada (organizacao_id, pessoa_id)
-                values ($1, $2)
+          `insert into pedidos_de_entrada (organizacao_id, pessoa_id, telefone_informado)
+                values ($1, $2, $3)
            on conflict do nothing
              returning id, criado_em`,
-          [organizacao.id, pessoaId],
+          [organizacao.id, pessoaId, telefone],
         );
         const criado = criados[0];
         if (criado === undefined) return { desfecho: "ja-pendente" };

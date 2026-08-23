@@ -238,6 +238,65 @@ describe("pedir entrada", () => {
 
     expect(resultado.desfecho).toBe("ja-vinculado");
   });
+
+  /** Abre uma credencial e uma Pessoa só para este caso, sem tocar no mundo dos casos acima. */
+  async function pessoaNova(nome: string, apelido: string): Promise<string> {
+    const usuarios = await consulta<{ id: string }>(
+      `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+      [`${apelido}-${SUFIXO}@exemplo.test`],
+    );
+    const pessoas = await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, $2) returning id`,
+      [usuarios[0]!.id, nome],
+    );
+    return pessoas[0]!.id;
+  }
+
+  /**
+   * **O critério 5 do item 8 começa aqui.** O telefone vira contato da Pessoa (global) **e** fica no
+   * pedido (escopado). O segundo é o que o Gestor vê antes de aprovar; o primeiro é o cadastro dela.
+   */
+  it("o telefone informado fica no próprio pedido, além de virar contato", async () => {
+    const comTelefone = await pessoaNova("Com Telefone", "com-telefone");
+
+    const resultado = await escrita.registrar({
+      pessoaId: comTelefone,
+      codigoPublico: "P4NHY9WB",
+      nome: null,
+      telefone: "+5511988887777",
+    });
+
+    expect(resultado.desfecho).toBe("registrado");
+
+    const pedidos = await consulta<{ telefone_informado: string | null }>(
+      `select telefone_informado from pedidos_de_entrada where pessoa_id = $1 and organizacao_id = $2`,
+      [comTelefone, organizacaoB],
+    );
+    expect(pedidos[0]?.telefone_informado).toBe("+5511988887777");
+
+    const contatos = await consulta<{ valor: string }>(
+      `select valor from contatos where pessoa_id = $1`,
+      [comTelefone],
+    );
+    expect(contatos.map((c) => c.valor)).toContain("+5511988887777");
+  });
+
+  it("sem telefone, a coluna do pedido fica nula", async () => {
+    const semTelefone = await pessoaNova("Sem Telefone", "sem-telefone");
+
+    await escrita.registrar({
+      pessoaId: semTelefone,
+      codigoPublico: "K7QMX3TD",
+      nome: null,
+      telefone: null,
+    });
+
+    const pedidos = await consulta<{ telefone_informado: string | null }>(
+      `select telefone_informado from pedidos_de_entrada where pessoa_id = $1`,
+      [semTelefone],
+    );
+    expect(pedidos[0]?.telefone_informado).toBeNull();
+  });
 });
 
 describe("a leitura de contexto", () => {
