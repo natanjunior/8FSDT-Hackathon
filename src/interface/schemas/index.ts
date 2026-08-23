@@ -8,12 +8,16 @@
  */
 export {
   criarContaSchema,
+  definirSenhaSchema,
   email,
   entrarSchema,
   nomeDePessoa,
+  pedirRedefinicaoSchema,
   senha,
   type EntradaDeCadastro,
   type EntradaDeLogin,
+  type EntradaDeNovaSenha,
+  type EntradaDeRedefinicao,
 } from "./credencial";
 
 export {

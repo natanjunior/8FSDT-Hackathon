@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { criarContaSchema, entrarSchema } from "@/interface/schemas";
+import {
+  criarContaSchema,
+  definirSenhaSchema,
+  entrarSchema,
+  pedirRedefinicaoSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -71,5 +76,49 @@ describe("entrarSchema — os dois campos de T-01", () => {
 
   it("recusa credencial vazia sem ir ao provedor", () => {
     expect(entrarSchema.safeParse({ email: "", senha: "" }).success).toBe(false);
+  });
+});
+
+describe("pedirRedefinicaoSchema — o campo único de T-12", () => {
+  it("pede e-mail, e só e-mail", () => {
+    const conferido = pedirRedefinicaoSchema.safeParse({ email: "helena@exemplo.test" });
+
+    expect(conferido.success).toBe(true);
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["email"]);
+  });
+
+  it("recusa e-mail malformado antes de gastar um envio do teto de dois por hora", () => {
+    expect(pedirRedefinicaoSchema.safeParse({ email: "helena-arroba-exemplo" }).success).toBe(false);
+  });
+
+  it("recusa e-mail vazio sem ir ao provedor", () => {
+    expect(pedirRedefinicaoSchema.safeParse({ email: "" }).success).toBe(false);
+  });
+});
+
+describe("definirSenhaSchema — o campo único de T-13 (critério 2)", () => {
+  it("pede a senha nova e NÃO pede a antiga", () => {
+    const conferido = definirSenhaSchema.safeParse({ senha: "senha-nova-boa" });
+
+    expect(conferido.success).toBe(true);
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["senha"]);
+  });
+
+  it("descarta um campo de senha antiga se alguém o mandar", () => {
+    const conferido = definirSenhaSchema.safeParse({ senha: "nova", senhaAntiga: "velha" });
+
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["senha"]);
+  });
+
+  it("recusa senha vazia sem ir ao provedor", () => {
+    expect(definirSenhaSchema.safeParse({ senha: "" }).success).toBe(false);
+  });
+
+  it("aceita senha de 6 e de 5 — a regra de força é do provedor, não deste schema", () => {
+    // **Deliberado, e é a restrição G1.** O número 6 já vive na frase da tela e no `config.toml`; escrevê-lo
+    // aqui criaria um terceiro lugar guardando o mesmo valor. Senha curta é recusada pelo provedor e volta
+    // como SENHA_RECUSADA_PELO_PROVEDOR — que é a mesma mecânica de T-11.
+    expect(definirSenhaSchema.safeParse({ senha: "123456" }).success).toBe(true);
+    expect(definirSenhaSchema.safeParse({ senha: "12345" }).success).toBe(true);
   });
 });
