@@ -8,6 +8,11 @@ import type {
   SessaoDoProvedor,
   VinculoNaOrganizacao,
 } from "@/aplicacao/contexto";
+import {
+  CodigoPublicoEmUso,
+  type NovaOrganizacao,
+  type RepositorioDeOrganizacoes,
+} from "@/aplicacao/organizacao";
 import { Vinculo, type Papel } from "@/dominio/organizacao";
 
 /**
@@ -129,6 +134,10 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
       autenticacao,
       pessoas: repositorioDePessoas,
       vinculos: repositorioGlobalDeVinculos,
+      // Presente para satisfazer o pacote, e **nunca exercida por este duplo**: `resolverContexto` não
+      // cria organização. Quem exerce a porta é `duploDeOrganizacoes` acima, montado pelo próprio teste
+      // de `criarOrganizacao` — que inspeciona o que a porta recebeu, e por isso não a quer compartilhada.
+      organizacoes: duploDeOrganizacoes().porta,
     },
     rastro,
     pessoas: () => pessoas,
@@ -147,4 +156,44 @@ export function escolhaDaSessao(porUsuario: Readonly<Record<string, string>> = {
 
 function referencia(pessoa: PessoaSemeada): PessoaReferencia {
   return { pessoaId: pessoa.pessoaId, nome: pessoa.nome };
+}
+
+/** O que o teste inspeciona depois de chamar `criarOrganizacao`. */
+export type DuploDeOrganizacoes = {
+  porta: RepositorioDeOrganizacoes;
+  /** Cada `NovaOrganizacao` que a porta recebeu, na ordem. É o rastro do sorteio. */
+  recebidas: NovaOrganizacao[];
+};
+
+/**
+ * O duplo do repositório de organizações.
+ *
+ * **As contagens que ele devolve são do que recebeu**, e não constantes: é o que faz o teste de aplicação
+ * provar que a Aplicação não inventa o número. Quem prova que o banco inseriu aquilo é a integração.
+ */
+export function duploDeOrganizacoes(
+  comportamento: { recusarAsPrimeiras?: number; falharCom?: Error } = {},
+): DuploDeOrganizacoes {
+  const recebidas: NovaOrganizacao[] = [];
+  const recusar = comportamento.recusarAsPrimeiras ?? 0;
+
+  const porta: RepositorioDeOrganizacoes = {
+    criar(nova) {
+      recebidas.push(nova);
+
+      if (comportamento.falharCom !== undefined) return Promise.reject(comportamento.falharCom);
+      if (recebidas.length <= recusar) return Promise.reject(new CodigoPublicoEmUso(nova.codigoPublico));
+
+      return Promise.resolve({
+        id: `organizacao-${recebidas.length}`,
+        nome: nova.nome,
+        codigoPublico: nova.codigoPublico,
+        criadoEm: "2026-08-23T12:00:00.000Z",
+        categoriasSemeadas: nova.categorias.length,
+        areasSemeadas: nova.areas.length,
+      });
+    },
+  };
+
+  return { porta, recebidas };
 }

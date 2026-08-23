@@ -6,7 +6,7 @@
  * Note o que **não** está exportado: nenhum tipo do `pg`, nenhum `SupabaseClient`. O que sai daqui é
  * porta ou função de consulta.
  */
-export { criarConsulta, type Consulta } from "./banco";
+export { criarConsulta, criarTransacao, type Consulta, type Transacao } from "./banco";
 export {
   criarAutenticacao,
   criarCredenciais,

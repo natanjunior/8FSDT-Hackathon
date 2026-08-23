@@ -1,12 +1,17 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ConsultaSemEscopo, escoparConsulta } from "@/infraestrutura/contexto";
-import { repositorioEscopadoDeVinculos, repositorioGlobalDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import {
+  repositorioEscopadoDeAreas,
+  repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeVinculos,
+  repositorioGlobalDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
+
+import { aplicarEsquema } from "./esquema";
+import { casosDeIsolamento } from "./suite-de-isolamento";
 
 /**
  * ============================================================================
@@ -66,7 +71,7 @@ beforeAll(async () => {
   consulta = async <L extends object>(sql: string, valores: readonly unknown[] = []) =>
     (await pool.query(sql, valores as unknown[])).rows as L[];
 
-  await aplicarEsquema();
+  await aplicarEsquema(consulta);
   await semear();
 });
 
@@ -278,29 +283,6 @@ describe("as invariantes que o banco garante", () => {
 
 // ---------------------------------------------------------------------------
 
-async function aplicarEsquema(): Promise<void> {
-  const raiz = new URL("../../", import.meta.url);
-  const shim = readFileSync(fileURLToPath(new URL("testes/integracao/esquema-de-auth.sql", raiz)), "utf8");
-  const migracao = readFileSync(
-    fileURLToPath(
-      new URL("supabase/migrations/20260821120000_001_pessoas_organizacoes_vinculos.sql", raiz),
-    ),
-    "utf8",
-  );
-
-  // Estado limpo em toda execução: o teste não pode depender do que a execução anterior deixou.
-  //
-  // **O schema `auth` NUNCA é derrubado.** Contra o Postgres do Supabase CLI ele é o do provedor, com as
-  // contas de verdade — e um `drop schema auth cascade` aqui apagaria o login de quem está desenvolvendo.
-  // O shim é `create ... if not exists`, então contra o Supabase local ele é um no-op, e contra o Postgres
-  // nu do CI ele cria as duas colunas de que a FK depende.
-  await consulta(`drop table if exists vinculos, organizacoes, pessoas cascade`);
-  await consulta(`drop type if exists papel_vinculo`);
-
-  await consulta(shim);
-  await consulta(migracao);
-}
-
 /**
  * Cria uma credencial na tabela do provedor.
  *
@@ -362,4 +344,46 @@ async function semear(): Promise<void> {
     idMoradora,
     idRecanto,
   ]);
+
+  // Uma categoria e uma área por organização, com nomes que se distinguem. A entrada da suíte semeia
+  // **só o seu agregado**: pessoas e organizações são do mundo compartilhado, e é isso que preserva a
+  // armadilha do A4 (arquitetura.md §7.1).
+  await consulta(
+    `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'shield', 1), ($3, $4, 'wrench', 1)`,
+    [idRecanto, "Portaria do Recanto", idAurora, "Portaria da Aurora"],
+  );
+  await consulta(
+    `insert into areas (organizacao_id, nome, tipo, ordem) values ($1, $2, 'comum', 1), ($3, $4, 'comum', 1)`,
+    [idRecanto, "Garagem do Recanto", idAurora, "Garagem da Aurora"],
+  );
 }
+
+/**
+ * **As duas consultas novas desta linha, pela suíte da §7.1.** Custo por consulta: uma entrada.
+ *
+ * Nenhuma das duas declara `organizacaoDaLinha`, e é por desenho: `CategoriaLida` e `AreaLida` **não
+ * expõem `organizacao_id`** — a projeção o filtra, como o Definition of Done exige do tipo de retorno.
+ */
+describe("as consultas de configuração não atravessam organizações", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /categorias",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeCategorias(escoparConsulta(consulta, organizacaoId)).listar({
+        apenasAtivas: true,
+      }),
+    chaveDaLinha: (categoria) => categoria.nome,
+    esperadas: { emA: ["Portaria do Recanto"], emB: ["Portaria da Aurora"] },
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /areas",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeAreas(escoparConsulta(consulta, organizacaoId)).listar({
+        apenasAtivas: true,
+      }),
+    chaveDaLinha: (area) => area.nome,
+    esperadas: { emA: ["Garagem do Recanto"], emB: ["Garagem da Aurora"] },
+  });
+});

@@ -1,3 +1,8 @@
+import type {
+  RepositorioDeOrganizacoes,
+  RepositorioEscopadoDeAreas,
+  RepositorioEscopadoDeCategorias,
+} from "@/aplicacao/organizacao";
 import type { Vinculo } from "@/dominio/organizacao";
 
 /**
@@ -114,9 +119,16 @@ export type PortasGlobais = {
   autenticacao: PortaDeAutenticacao;
   pessoas: RepositorioDePessoas;
   vinculos: RepositorioGlobalDeVinculos;
+  /**
+   * A escrita que **cria** o escopo (contrato §4.4). Está aqui, e não nas escopadas, porque no instante em
+   * que ela roda ainda não há organização a que escopar — é o bootstrap da D26.
+   */
+  organizacoes: RepositorioDeOrganizacoes;
 };
 
 /** O que os outros 33 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
+  categorias: RepositorioEscopadoDeCategorias;
+  areas: RepositorioEscopadoDeAreas;
 };
