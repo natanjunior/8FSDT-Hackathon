@@ -193,19 +193,42 @@ describe("pedir entrada", () => {
       tem_whatsapp: false,
     });
   });
+
+  /**
+   * Helena pede entrada também em B — depois de já ter uma linha pendente em A. É o que dá à leitura de
+   * contexto duas linhas da mesma Pessoa para ordenar; nasce pela porta de escrita, como os outros casos,
+   * porque o que a leitura vai provar é a ordem sobre dado que a escrita produziu.
+   */
+  it("Helena também pede entrada em B", async () => {
+    const resultado = await escrita.registrar({
+      pessoaId: helena,
+      codigoPublico: "P4NHY9WB",
+      nome: null,
+      telefone: null,
+    });
+
+    expect(resultado.desfecho).toBe("registrado");
+  });
 });
 
 describe("a leitura de contexto", () => {
   /**
    * A consulta **atravessa organizações de propósito** (§4.4), então não há entrada de suíte a escrever. O
    * risco dela é outro: devolver pedido de **outra Pessoa**. É o que a segunda Pessoa do mundo prova.
+   *
+   * Helena chega aqui com **dois** pedidos — A, depois B —, o que exercita de verdade o `order by
+   * criado_em desc`: o primeiro da lista tem de ser o de B, criado por último.
    */
   it("devolve só os pedidos da própria Pessoa, do mais recente para o mais antigo", async () => {
     const deHelena = await leitura.daPessoa(helena);
     const deOutra = await leitura.daPessoa(outra);
 
-    expect(deHelena).toHaveLength(1);
+    expect(deHelena).toHaveLength(2);
     expect(deHelena[0]).toMatchObject({
+      organizacao: { nome: "Edifício Aurora" },
+      situacao: "pendente",
+    });
+    expect(deHelena[1]).toMatchObject({
       organizacao: { nome: "Condomínio Recanto Azul" },
       situacao: "pendente",
     });
