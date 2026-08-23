@@ -59,3 +59,41 @@ export class PedidoDeEntradaPendente extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `404 PEDIDO_NAO_ENCONTRADO` — não há pedido com aquele identificador **nesta** organização.
+ *
+ * **Pedido de outra organização responde exatamente isto** (contrato §6.3): a resposta não distingue
+ * *"não existe"* de *"não é seu"*, porque distinguir transformaria o endpoint num verificador de
+ * existência de pedidos alheios.
+ */
+export class PedidoNaoEncontrado extends ErroDeDominio {
+  constructor() {
+    super("PEDIDO_NAO_ENCONTRADO", "Pedido não encontrado", "Este pedido de entrada não existe.");
+  }
+}
+
+/**
+ * `409 PEDIDO_JA_DECIDIDO` — outro Gestor chegou primeiro.
+ *
+ * **É tradução do `update … where situacao = 'pendente'` devolvendo zero linhas**, não de uma leitura
+ * prévia — que perderia exatamente a corrida que este erro existe para cobrir. O texto de tela é do
+ * inventário §7: *"Este pedido já foi decidido por outro Gestor."*
+ */
+export class PedidoJaDecidido extends ErroDeDominio {
+  constructor() {
+    super("PEDIDO_JA_DECIDIDO", "Pedido já decidido", "Este pedido já foi decidido por outro Gestor.");
+  }
+}
+
+/**
+ * `422 AREA_INVALIDA` — a Área informada não é desta organização, ou está inativa.
+ *
+ * **A mesma resposta para os dois casos** (contrato §6.3). Um deles o banco recusa sozinho — a FK composta
+ * `(area_id, organizacao_id)` —, o outro nenhuma constraint alcança.
+ */
+export class AreaInvalida extends ErroDeDominio {
+  constructor() {
+    super("AREA_INVALIDA", "Área inválida", "Esta área não existe nesta organização ou está desativada.");
+  }
+}

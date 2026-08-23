@@ -15,6 +15,11 @@ export {
 } from "./CodigoPublico";
 export { TIPOS_DE_AREA, ehTipoDeArea, type TipoArea } from "./TipoArea";
 export {
+  SITUACOES_DO_PEDIDO,
+  ehSituacaoDoPedido,
+  type SituacaoDoPedido,
+} from "./SituacaoDoPedido";
+export {
   AREAS_SEMENTE,
   CATEGORIAS_SEMENTE,
   ICONE_PADRAO,

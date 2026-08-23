@@ -1,4 +1,10 @@
-import type { AreaSemente, CategoriaSemente, TipoArea } from "@/dominio/organizacao";
+import type {
+  AreaSemente,
+  CategoriaSemente,
+  Papel,
+  SituacaoDoPedido,
+  TipoArea,
+} from "@/dominio/organizacao";
 
 /**
  * **As portas da Organização** (ADR-0005, parte 1): a Aplicação declara, a Infraestrutura implementa.
@@ -100,7 +106,7 @@ export type PedidoDeEntradaRegistrado = {
 export type PedidoDaPessoa = {
   id: string;
   organizacao: { nome: string };
-  situacao: "pendente" | "aprovado" | "recusado";
+  situacao: SituacaoDoPedido;
   criadoEm: string;
 };
 
@@ -143,4 +149,108 @@ export interface RepositorioDePedidosDeEntrada {
 export interface RepositorioGlobalDePedidosDeEntrada {
   /** Todos os pedidos da Pessoa, em `criadoEm` decrescente, nas três situações (spec §2.6). */
   daPessoa(pessoaId: string): Promise<PedidoDaPessoa[]>;
+}
+
+// ---------------------------------------------------------------------------
+// A decisão do pedido — item 8 (D25)
+// ---------------------------------------------------------------------------
+
+/** O schema `Contato` do contrato, do lado de dentro. Sai **ordenado por `ordem`** (modelo §6.17). */
+export type ContatoLido = {
+  id: string;
+  tipo: "email" | "telefone";
+  valor: string;
+  finalidade: "pessoal" | "trabalho" | "recado";
+  temWhatsapp: boolean;
+  ordem: number;
+  observacao: string | null;
+};
+
+/**
+ * **Como o Gestor vê um pedido** — o schema `PedidoDeEntradaDetalhe` do contrato.
+ *
+ * `pessoa` traz `telefoneInformado` e **não traz `contatos[]`**, e a diferença é de privacidade, não de
+ * conveniência: `contatos` é tabela **global**, e devolvê-la aqui mostraria ao Gestor desta organização os
+ * contatos que a pessoa cadastrou em **outra** (schema `PessoaDoPedido`).
+ *
+ * **`observacao` não está aqui, e é o achado A-8-2:** o contrato guarda o motivo da recusa e nenhum schema
+ * de leitura o devolve. O repositório não a expõe — pôr aqui o que o contrato não declara seria decidir
+ * sozinho uma questão que é do hub.
+ */
+export type PedidoDeEntradaLido = {
+  id: string;
+  pessoa: {
+    pessoaId: string;
+    nome: string;
+    /** Em E.164, ou `null`. O telefone **deste pedido**, não o cadastro dela. */
+    telefoneInformado: string | null;
+  };
+  situacao: SituacaoDoPedido;
+  criadoEm: string;
+  decididoEm: string | null;
+  decididoPor: { pessoaId: string; nome: string } | null;
+};
+
+/**
+ * O que a aprovação devolve — o schema `Vinculo` do contrato.
+ *
+ * **Aqui `contatos` aparece, e é legítimo:** depois da aprovação a Pessoa **tem** vínculo nesta
+ * organização, que é a condição da §6.17 (*"só de pessoas com vínculo na organização dele"*).
+ */
+export type VinculoCriado = {
+  pessoa: { pessoaId: string; nome: string; contatos: readonly ContatoLido[] };
+  papel: Papel;
+  /** A **unidade** da pessoa nesta organização. `null` para o Gestor e o Encarregado terceirizado. */
+  area: { id: string; nome: string; tipo: TipoArea } | null;
+  temConta: boolean;
+  criadoEm: string;
+};
+
+/**
+ * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
+ * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do
+ * contrato pertence à Aplicação, não à Infraestrutura.
+ */
+export type ResultadoDaAprovacao =
+  | { desfecho: "aprovado"; vinculo: VinculoCriado }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ja-decidido" }
+  | { desfecho: "ja-vinculado" }
+  | { desfecho: "area-invalida" };
+
+export type ResultadoDaRecusa =
+  | { desfecho: "recusado"; pedido: PedidoDeEntradaLido }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ja-decidido" };
+
+/**
+ * **A porta escopada dos pedidos** — leitura e as duas decisões.
+ *
+ * Não recebe o identificador da organização: ele está amarrado ao `$1` pelo ponto único (ADR-0003). Um
+ * pedido de outra organização é **inalcançável**, e é isso que produz o `404` idêntico ao de inexistente
+ * que a §6.3 do contrato exige.
+ *
+ * **A atomicidade da aprovação é promessa desta porta, não parâmetro dela:** quem chama não abre
+ * transação e não sabe que há uma.
+ */
+export interface RepositorioEscopadoDePedidosDeEntrada {
+  /** Os pedidos desta organização nas situações pedidas, em `criadoEm` **crescente** — é fila de espera. */
+  listar(opcoes: { situacoes: readonly SituacaoDoPedido[] }): Promise<readonly PedidoDeEntradaLido[]>;
+
+  /** Decide o pedido e cria o Vínculo, **na mesma transação**. */
+  aprovar(decisao: {
+    pedidoId: string;
+    papel: Papel;
+    /** A unidade, quando informada. `null` é *sem unidade*, e é o caso do Gestor. */
+    areaId: string | null;
+    decididoPorPessoaId: string;
+  }): Promise<ResultadoDaAprovacao>;
+
+  /** Decide o pedido e **não cria nada**. */
+  recusar(decisao: {
+    pedidoId: string;
+    /** Já aparada; `null` quando vazia. O `CHECK` do banco só a aceita em pedido recusado (§6.15). */
+    observacao: string | null;
+    decididoPorPessoaId: string;
+  }): Promise<ResultadoDaRecusa>;
 }
