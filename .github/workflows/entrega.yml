@@ -314,6 +314,26 @@ jobs:
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --image "${{ needs.publicar.outputs.etiqueta }}"
 
+      # **Em modo de múltiplas revisões, criar revisão não move tráfego.** O
+      # modo é o que torna verdadeiro o caminho de volta que a `arquitetura.md`
+      # §9 e o `definition-of-done.md` descrevem — *reapontar o tráfego para a
+      # revisão anterior, sem rebuild* —, e o preço dele é este passo. Sem ele o
+      # deploy sobe, a URL continua servindo a revisão velha e o `curl` do fim
+      # do emprego passa: **o modo de falha mais traiçoeiro deste arquivo é o
+      # que fica verde.**
+      #
+      # **Este passo exige o modo `Multiple`.** Em `Single` o `az` recusa antes
+      # de chamar a API — *"is configured for single revision. Set revision
+      # mode to multiple in order to set ingress traffic"* —, e a recusa cairia
+      # aqui, depois de a imagem já estar publicada. O modo é trocado no O-1a,
+      # antes do merge que traz este passo para `main`.
+      - name: mandar o tráfego para a revisão nova
+        run: |
+          az containerapp ingress traffic set \
+            --name "${{ vars.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight latest=100
+
       - id: endereco
         run: |
           FQDN=$(az containerapp show \
