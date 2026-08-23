@@ -18,21 +18,25 @@ import { Input } from "@/interface/componentes/ui/input";
  * de *"senha errada"*. Distinguir transformaria a tela de login num verificador de quem tem conta no
  * produto (inventário, T-01).
  *
- * **Dois estados dormentes.** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa` só
- * acontecem com a confirmação de e-mail ligada, e ela **não** está: a Q-T9 foi fechada em 22/08/2026. Os
- * dois ficam pelo dia em que o interruptor *Confirm email* virar no painel do provedor.
+ * **Dois estados dormentes, e um vivo.** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa`
+ * só acontecem com a confirmação de e-mail ligada, e ela **não** está: a Q-T9 foi fechada em 22/08/2026.
+ * `senhaAlterada` é o terceiro, e é o **primeiro aviso vivo desta tela**: quem acabou de trocar a senha em
+ * T-13 chega aqui, e sem a linha não saberia por que saiu de lá.
  */
 export function FormularioDeEntrada({
   destino,
   confirmacao,
+  senhaAlterada = false,
 }: {
   destino?: string;
   confirmacao?: "confirmada" | "expirada";
+  senhaAlterada?: boolean;
 }) {
   const [estado, agir, aguardando] = useActionState(acaoDeEntrar, {});
 
   return (
     <>
+      {senhaAlterada && <Aviso tom="nota">Senha alterada. Entre com ela.</Aviso>}
       {confirmacao === "confirmada" && <Aviso tom="nota">Conta confirmada. Entre para continuar.</Aviso>}
       {confirmacao === "expirada" && (
         <Aviso>Este link expirou. Crie a conta de novo ou peça outro e-mail de confirmação.</Aviso>
@@ -78,8 +82,12 @@ export function FormularioDeEntrada({
         <Link href="/criar-conta" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
           Criar conta
         </Link>
-        {/* T-12 é a fatia 2: o caminho existe no inventário e a tela não existe nesta entrega. */}
-        <span className="text-tinta-fraca text-sm">Esqueci a senha — em breve.</span>
+        <Link
+          href="/redefinir-senha"
+          className="text-marca w-fit py-1 text-sm underline underline-offset-4"
+        >
+          Esqueci a senha
+        </Link>
       </div>
     </>
   );

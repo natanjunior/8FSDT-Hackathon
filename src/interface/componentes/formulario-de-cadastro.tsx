@@ -43,7 +43,22 @@ export function FormularioDeCadastro() {
 
   return (
     <>
-      {estado.recusa !== undefined && <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>}
+      {estado.recusa !== undefined && (
+        <>
+          <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>
+          {/* O critério 4 do item 6a pede a frase **com os caminhos para T-01 e T-12**. O de T-01 é o link
+              "Já tenho conta", abaixo do formulário; este é o de T-12, e é a metade que o 6a declarou como
+              dívida do 6b (spec do 6a, §3.6). */}
+          {estado.recusa === "CONTA_JA_EXISTE" && (
+            <Link
+              href="/redefinir-senha"
+              className="text-marca w-fit py-1 text-sm underline underline-offset-4"
+            >
+              Esqueci a senha
+            </Link>
+          )}
+        </>
+      )}
 
       <form action={agir} className="flex flex-col gap-5" noValidate>
         <Campo
