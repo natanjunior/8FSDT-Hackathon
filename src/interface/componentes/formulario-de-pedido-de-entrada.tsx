@@ -41,6 +41,10 @@ const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
   JA_VINCULADO: "Você já está nesta organização.",
 };
 
+// Mesma mensagem nos dois desfechos sem detalhe utilizável: a resposta de erro sem código conhecido e a
+// rejeição do próprio `fetch` (rede caiu, DNS falhou) — ver o `catch` abaixo.
+const MENSAGEM_DE_RECUSA_GENERICA = "Não foi possível enviar o pedido agora. Tente de novo.";
+
 export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
   const router = useRouter();
 
@@ -51,7 +55,8 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
       const telefoneDigitado = String(dados.get("telefone") ?? "").trim();
 
       // A conversão acontece aqui, e o campo é o único lugar onde ela pode falhar de forma explicável:
-      // quem digitou nove dígitos merece a frase, não um `400` genérico do servidor.
+      // quem digitou nove dígitos merece a frase, não um `400` genérico do servidor. Não é rede, então
+      // fica fora do `try` abaixo.
       let telefone: string | undefined;
       if (telefoneDigitado !== "" && telefoneDigitado !== "+55") {
         const convertido = paraE164Brasileiro(telefoneDigitado);
@@ -61,42 +66,62 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
         telefone = convertido;
       }
 
-      const resposta = await fetch("/api/pedidos-de-entrada", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          codigoPublico: codigo,
-          ...(nomeInformado === "" ? {} : { nome: nomeInformado }),
-          ...(telefone === undefined ? {} : { telefone }),
-        }),
-      });
+      // `enviado` separa o que o `catch` deve cobrir (a chamada de rede e a leitura da resposta) do que
+      // vem depois (a navegação). Se `router.refresh` lançasse **dentro** do `try`, o `catch` devolveria a
+      // recusa genérica depois de o pedido já ter sido enviado — engano ativo, não erro neutro. Mesmo
+      // padrão de `formulario-de-nova-organizacao.tsx` (`let criada = false`).
+      let enviado = false;
+      let resultado: EstadoDoPedido = {};
 
-      if (resposta.ok) {
-        // O contexto refeito escolhe a face B — sem tela nova e sem texto novo (spec §2.7).
-        router.refresh();
-        return {};
-      }
+      try {
+        const resposta = await fetch("/api/pedidos-de-entrada", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            codigoPublico: codigo,
+            ...(nomeInformado === "" ? {} : { nome: nomeInformado }),
+            ...(telefone === undefined ? {} : { telefone }),
+          }),
+        });
 
-      const problema = (await resposta.json().catch(() => ({}))) as ProblemaDaApi;
+        if (resposta.ok) {
+          enviado = true;
+        } else {
+          const problema = (await resposta.json().catch(() => ({}))) as ProblemaDaApi;
 
-      if (problema.erros !== undefined && problema.erros.length > 0) {
-        const erros: Record<string, string> = {};
-        for (const erro of problema.erros) {
-          const campo = erro.campo === "codigoPublico" ? "codigo" : erro.campo;
-          erros[campo] = erro.mensagem ?? "Confira este campo.";
+          if (problema.erros !== undefined && problema.erros.length > 0) {
+            const erros: Record<string, string> = {};
+            for (const erro of problema.erros) {
+              const campo = erro.campo === "codigoPublico" ? "codigo" : erro.campo;
+              erros[campo] = erro.mensagem ?? "Confira este campo.";
+            }
+            resultado = { erros };
+          } else {
+            const codigoDaRecusa = problema.codigo ?? "ERRO_INTERNO";
+            resultado = {
+              recusa: {
+                codigo: codigoDaRecusa,
+                detalhe: TEXTO_DA_RECUSA[codigoDaRecusa] ?? MENSAGEM_DE_RECUSA_GENERICA,
+              },
+            };
+          }
         }
-        return { erros };
+      } catch {
+        // `fetch` rejeitou antes de haver resposta — rede caiu, DNS falhou. Sem este `catch`, a rejeição
+        // sobe sem tratamento pela transição do `useActionState`: risco de acionar o Error Boundary mais
+        // próximo em vez de simplesmente mostrar `<Aviso>`. RNF de cold start e nuvem sem SLA: rede
+        // instável é o caso esperado.
+        resultado = { recusa: { codigo: "ERRO_INTERNO", detalhe: MENSAGEM_DE_RECUSA_GENERICA } };
       }
 
-      const codigoDaRecusa = problema.codigo ?? "ERRO_INTERNO";
-      return {
-        recusa: {
-          codigo: codigoDaRecusa,
-          detalhe:
-            TEXTO_DA_RECUSA[codigoDaRecusa] ??
-            "Não foi possível enviar o pedido agora. Tente de novo.",
-        },
-      };
+      if (enviado) {
+        // O contexto refeito escolhe a face B — sem tela nova e sem texto novo (spec §2.7). Fora do
+        // `try`: uma falha síncrona aqui não pode virar mensagem de erro de envio — o pedido já foi
+        // enviado com sucesso.
+        router.refresh();
+      }
+
+      return resultado;
     },
     {},
   );
