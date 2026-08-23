@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import {
   criarConta,
+  definirSenha,
   entrar,
   pedirRedefinicaoDeSenha,
   sair,
@@ -11,8 +12,13 @@ import {
 } from "@/aplicacao/credenciais";
 import { montarCredenciais } from "@/composicao";
 
-import { armazenamentoDeCookies } from "@/interface/http";
-import { criarContaSchema, entrarSchema, pedirRedefinicaoSchema } from "@/interface/schemas";
+import { armazenamentoDeCookies, armazenamentoDeRedefinicao } from "@/interface/http";
+import {
+  criarContaSchema,
+  definirSenhaSchema,
+  entrarSchema,
+  pedirRedefinicaoSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -116,6 +122,36 @@ export async function acaoDePedirRedefinicao(
 
   if (!resultado.ok) return { recusa: resultado.recusa };
   return { enviado: true };
+}
+
+/**
+ * T-13 · gravar a senha nova, e devolver a pessoa a T-01.
+ *
+ * **`limpar()` antes do redirecionamento**, e não depois: é o que faz o botão voltar não reencontrar o
+ * formulário (critério 4). Sem o cookie, a tela redireciona para T-01 sozinha.
+ */
+export async function acaoDeDefinirSenha(
+  _anterior: EstadoDoFormulario,
+  formulario: FormData,
+): Promise<EstadoDoFormulario> {
+  const conferido = definirSenhaSchema.safeParse({ senha: formulario.get("senha") });
+  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+
+  const armazenamento = await armazenamentoDeRedefinicao();
+  const resultado = await definirSenha(montarCredenciais(armazenamento), conferido.data.senha);
+
+  if (!resultado.ok) {
+    // A sessão de recuperação sumiu no meio do caminho. A face de link vencido é a que tem os dois
+    // caminhos de saída, e ela já existe — mandar para lá é melhor que uma frase sem saída aqui.
+    if (resultado.recusa === "LINK_INVALIDO_OU_EXPIRADO") {
+      armazenamento.limpar();
+      redirect("/definir-senha?estado=expirado");
+    }
+    return { recusa: resultado.recusa };
+  }
+
+  armazenamento.limpar();
+  redirect("/entrar?senha=alterada");
 }
 
 /** O link "Sair" de T-02 e do shell. */
