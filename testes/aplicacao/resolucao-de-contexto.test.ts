@@ -135,6 +135,40 @@ describe("resolverContexto — o contexto é o da sessão", () => {
     expect(duplos.rastro.consultasDeVinculo).toStrictEqual([]);
     expect(duplos.rastro.pessoasCriadas).toBe(0);
   });
+
+  it("carrega os pedidos de entrada da Pessoa, nas três situações", async () => {
+    const pedidos = [
+      {
+        id: "ped-3",
+        organizacao: { nome: "Edifício Alvorada" },
+        situacao: "aprovado" as const,
+        criadoEm: "2026-08-21T10:00:00.000Z",
+      },
+      {
+        id: "ped-2",
+        organizacao: { nome: "Edifício Aurora" },
+        situacao: "recusado" as const,
+        criadoEm: "2026-08-22T10:00:00.000Z",
+      },
+      {
+        id: "ped-1",
+        organizacao: { nome: "Condomínio Recanto Azul" },
+        situacao: "pendente" as const,
+        criadoEm: "2026-08-23T10:00:00.000Z",
+      },
+    ];
+
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, {
+      ...CENARIO,
+      pedidos,
+    });
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    expect(resolucao.pedidos).toStrictEqual(pedidos);
+
+    // A consulta partiu da Pessoa resolvida — "pessoa-vizinha" — nunca do `usuarioId` da sessão.
+    expect(duplos.rastro.consultasDePedido).toStrictEqual(["pessoa-vizinha"]);
+  });
 });
 
 describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () => {

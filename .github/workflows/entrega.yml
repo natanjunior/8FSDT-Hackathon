@@ -115,6 +115,14 @@ jobs:
   #      do A6.** O que ele prova não é que a imagem sobe: é que ela sobe **do
   #      zero, sem nada da máquina de quem implementou** — e prova a cada push,
   #      em vez de valer para o commit em que alguém olhou.
+  #
+  #      **Alcance e custo, porque este é o emprego mais caro do arquivo.** Ele
+  #      roda em push E em pull request, e paga o preço inteiro nas duas — pilha
+  #      do Supabase mais construção da imagem num runner sem cache. Em push ele
+  #      barra estruturalmente, porque `migrar` declara `needs: [verificar,
+  #      compose]`. **Em pull request quem o torna obrigatório é a proteção de
+  #      branch, não este arquivo** — sem ela, `migrar` já é pulado e não há o
+  #      que barrar.
   # ---------------------------------------------------------------------------
   compose:
     name: Subir o compose, do zero
@@ -130,7 +138,12 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # **Pinada, e não `latest`.** Os nomes que o `ambiente-local.mjs` lê
+          # do `supabase status -o env` — `API_URL`, `DB_URL`,
+          # `PUBLISHABLE_KEY` — foram conferidos nesta versão. Com `latest`, um
+          # release de terceiro renomeando qualquer um deles quebra a esteira
+          # num dia em que ninguém tocou no repositório.
+          version: 2.101.0
 
       # Só o que a aplicação usa: banco, autenticação e o gateway que a serve.
       # Estúdio, storage, realtime e o resto são minutos de download que nada
@@ -185,7 +198,12 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # **Pinada, e não `latest`.** Os nomes que o `ambiente-local.mjs` lê
+          # do `supabase status -o env` — `API_URL`, `DB_URL`,
+          # `PUBLISHABLE_KEY` — foram conferidos nesta versão. Com `latest`, um
+          # release de terceiro renomeando qualquer um deles quebra a esteira
+          # num dia em que ninguém tocou no repositório.
+          version: 2.101.0
 
       - name: aplicar as migrações versionadas
         # A migração é aplicada **ao projeto Supabase de verdade**, com o
@@ -197,7 +215,7 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          supabase db push
+          supabase db push --yes
 
   # ---------------------------------------------------------------------------
   # 3 · Construir e publicar a imagem no ghcr.io.
@@ -283,6 +301,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # **OIDC federado, e o `environment` logo abaixo é a âncora dele.** O
+    # *subject* da credencial é
+    # `repo:natanjunior/8FSDT-Hackathon:environment:producao`, então o token só
+    # é emitido para um job que declara este environment.
+    #
+    # Declarar `permissions` no job substitui o padrão inteiro, então
+    # `contents: read` precisa estar aqui mesmo sem ser novidade.
+    permissions:
+      id-token: write
+      contents: read
+
     environment:
       name: producao
       url: ${{ steps.endereco.outputs.url }}
@@ -290,7 +319,9 @@ jobs:
     steps:
       - uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: nova revisão com a imagem recém-publicada
         # **As variáveis de ambiente da aplicação NÃO passam por aqui.** Elas
@@ -313,6 +344,26 @@ jobs:
             --name "${{ vars.AZURE_CONTAINER_APP }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --image "${{ needs.publicar.outputs.etiqueta }}"
+
+      # **Em modo de múltiplas revisões, criar revisão não move tráfego.** O
+      # modo é o que torna verdadeiro o caminho de volta que a `arquitetura.md`
+      # §9 e o `definition-of-done.md` descrevem — *reapontar o tráfego para a
+      # revisão anterior, sem rebuild* —, e o preço dele é este passo. Sem ele o
+      # deploy sobe, a URL continua servindo a revisão velha e o `curl` do fim
+      # do emprego passa: **o modo de falha mais traiçoeiro deste arquivo é o
+      # que fica verde.**
+      #
+      # **Este passo exige o modo `Multiple`.** Em `Single` o `az` recusa antes
+      # de chamar a API — *"is configured for single revision. Set revision
+      # mode to multiple in order to set ingress traffic"* —, e a recusa cairia
+      # aqui, depois de a imagem já estar publicada. O modo é trocado no O-1a,
+      # antes do merge que traz este passo para `main`.
+      - name: mandar o tráfego para a revisão nova
+        run: |
+          az containerapp ingress traffic set \
+            --name "${{ vars.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight latest=100
 
       - id: endereco
         run: |

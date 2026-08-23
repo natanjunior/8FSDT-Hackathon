@@ -2,27 +2,26 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
-import { Campo, MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
-import { Button } from "@/interface/componentes/ui/button";
-import { Input } from "@/interface/componentes/ui/input";
+import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
+import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
+import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { resolverParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
 /**
  * **T-02 · Sem organização ativa** — *"Onde eu trabalho?"*
  *
- * Uma tela, **quatro faces**, e a face é escolhida por `GET /contexto` — o único endpoint que uma Pessoa sem
- * vínculo consegue usar (contrato §8.0). Aqui a leitura vai pela **estrada direta** da §5, com a mesma
+ * Uma tela, **quatro faces**, e a face é escolhida por `GET /contexto` — o único endpoint que uma Pessoa
+ * sem vínculo consegue usar (contrato §8.0). Aqui a leitura vai pela **estrada direta** da §5, com a mesma
  * projeção do route handler.
  *
- * **Nesta fatia existem duas faces, A e D.** As faces **B** (esperando aprovação) e **C** (pedido recusado)
- * dependem de `pedidosDeEntrada`, e `POST /pedidos-de-entrada` está fora da fatia — então nenhum pedido pode
- * existir, e as duas faces são **inalcançáveis por construção**, não escondidas.
+ * **Nesta fatia existem três faces: A, B e D.** A face **C** (pedido recusado) depende de
+ * `situacao: "recusado"`, e quem a produz é `POST /pedidos-de-entrada/{id}/recusar` — o item 8. Ela é
+ * **inalcançável por construção**, não escondida, e sobe com aquele item.
  *
- * **Os botões não funcionam, e isso está dito na tela.** Pedir entrada, criar organização e escolher
- * organização são `POST /pedidos-de-entrada`, `POST /organizacoes` e `PUT /contexto/organizacao` — os três
- * fora desta fatia. Um botão morto e mudo seria pior que um botão ausente; um botão morto que **diz que
- * ainda não faz** é o desenho aparecendo antes da função, que é o propósito do esqueleto.
+ * **Com o item 1 mesclado, as duas ações da face A funcionam** — pedir entrada é esta linha, criar
+ * organização é o item 1. O que continua fora é **escolher** organização na face D, que é o item 7b, e é
+ * o único botão que ainda diz na tela que não faz.
  */
 export const dynamic = "force-dynamic";
 
@@ -33,98 +32,85 @@ export default async function TelaSemOrganizacaoAtiva() {
   // Quem tem organização ativa não pertence a esta tela: o shell decide para onde vai.
   if (contexto.organizacaoAtiva !== null) redirect("/");
 
-  return contexto.vinculos.length >= 2 ? (
-    <FaceD vinculos={contexto.vinculos} />
-  ) : (
-    <FaceA nome={contexto.pessoa.nome} />
-  );
+  // **Pendente ganha de tudo.** Quem tem pedido em andamento não deve ser convidado a abrir outro — e é
+  // por isso que a face B não tem campo de código.
+  const pendente = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "pendente");
+  if (pendente !== undefined) return <FaceB pedido={pendente} />;
+
+  if (contexto.vinculos.length >= 2) return <FaceD vinculos={contexto.vinculos} />;
+  return <FaceA nome={contexto.pessoa.nome} />;
 }
 
 /**
  * **Face A · Entrar em uma organização.** `vinculos: []` e `pedidosDeEntrada: []` — acabou de criar a conta.
  *
  * **É o estado vazio, e por isso é convite e não aviso.** Dois caminhos, com hierarquia clara: quem chega
- * aqui quase sempre está **entrando**, não fundando.
+ * aqui quase sempre está **entrando**, não fundando — e desde esta linha os dois funcionam.
  */
 function FaceA({ nome }: { nome: string }) {
   return (
     <MolduraDeTela titulo="Você ainda não está em nenhuma organização.">
-      <AvisoDeFatia>
-        Pedir entrada e criar organização chegam na próxima tarefa. Esta entrega é o esqueleto de deploy:
-        criar conta, entrar, e ver em qual organização você está.
-      </AvisoDeFatia>
-
-      <form className="flex flex-col gap-5">
-        <Campo
-          id="codigo"
-          rotulo="Código da organização"
-          ajuda="Está no cartaz do elevador ou na mensagem do grupo. Seis a doze letras e números."
-        >
-          <Input
-            id="codigo"
-            name="codigo"
-            type="text"
-            maxLength={12}
-            autoComplete="off"
-            disabled
-            className="h-12 text-base tracking-[0.12em] uppercase"
-          />
-        </Campo>
-
-        <Campo
-          id="nome"
-          rotulo="Seu nome"
-          ajuda={
-            <>
-              É como você vai aparecer para os Gestores e no histórico das ocorrências.{" "}
-              <strong className="text-tinta font-semibold">Depois daqui não há como mudar.</strong>
-            </>
-          }
-        >
-          <Input
-            id="nome"
-            name="nome"
-            type="text"
-            maxLength={120}
-            defaultValue={nome}
-            disabled
-            className="h-12 text-base"
-          />
-        </Campo>
-
-        <Campo
-          id="telefone"
-          rotulo="Telefone (opcional)"
-          ajuda="Vai virar o seu primeiro contato na organização."
-        >
-          <Input
-            id="telefone"
-            name="telefone"
-            type="tel"
-            inputMode="tel"
-            defaultValue="+55 "
-            disabled
-            className="h-12 text-base"
-          />
-        </Campo>
-
-        <Button type="button" disabled className="h-12 w-full text-base">
-          Pedir entrada
-        </Button>
-      </form>
+      <FormularioDePedidoDeEntrada nome={nome} />
 
       <hr className="border-linha-suave my-1" />
 
       <p className="text-tinta-suave text-sm leading-relaxed">
         Você administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?
       </p>
-      <Button type="button" variant="outline" disabled className="h-12 w-full text-base">
-        Criar uma organização
-      </Button>
+      {/* Do item 1 — não trocar por botão desabilitado. */}
+      <FormularioDeNovaOrganizacao />
 
       <BotaoDeSair />
     </MolduraDeTela>
   );
+}
+
+/**
+ * **Face B · Esperando aprovação.** `vinculos: []` e um pedido `pendente`.
+ *
+ * **A segunda frase não é enfeite.** O aviso automático de aprovação é ⬜ (Q10), e uma tela que diz
+ * *"aguarde"* sem dizer *"e nada vai te chamar"* produz uma pessoa que espera para sempre. Mentir por
+ * omissão aqui é pior do que a limitação.
+ *
+ * **Não há campo de código:** quem tem pedido em andamento não abre outro. O caminho de volta é a decisão
+ * do Gestor, que é o item 8.
+ */
+function FaceB({ pedido }: { pedido: { organizacao: { nome: string }; criadoEm: string } }) {
+  return (
+    <MolduraDeTela titulo={`Seu pedido para entrar em ${pedido.organizacao.nome} está aguardando a decisão de um Gestor.`}>
+      <p className="text-tinta-suave text-sm leading-relaxed">
+        Você não será avisado automaticamente — volte aqui para ver.
+      </p>
+
+      <dl className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
+        <dt className="text-tinta-suave text-xs">Pedido enviado em</dt>
+        <dd className="text-tinta text-base leading-snug font-medium">
+          {formatarData(pedido.criadoEm)}
+        </dd>
+      </dl>
+
+      <BotaoDeSair />
+    </MolduraDeTela>
+  );
+}
+
+/**
+ * Data e hora em pt-BR, **com o fuso escrito por extenso**.
+ *
+ * **`FaceB` é Server Component**, então isto roda no servidor — e o servidor roda em UTC (modelo §2.3:
+ * *"a nuvem roda em UTC enquanto os usuários estão em BRT"*). Sem `timeZone`, o pedido enviado às 22h de
+ * uma terça apareceria como 01h de quarta, na primeira tela que este item entrega.
+ *
+ * O fuso do aparelho exigiria formatar no cliente, e formatar no cliente aqui custaria um componente
+ * `"use client"` só para uma linha de texto — mais uma divergência de hidratação a administrar. **Um
+ * produto de condomínio brasileiro tem um fuso**, e escrevê-lo é mais honesto que herdar o do contêiner.
+ */
+function formatarData(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(iso));
 }
 
 /**

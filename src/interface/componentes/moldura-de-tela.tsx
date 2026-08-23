@@ -29,6 +29,10 @@ export function MolduraDeTela({
  * aqui, e não opcional: um campo sem rótulo não compila.
  *
  * E **A-5**: nada é comunicado só por cor. O erro leva `role="alert"`, e a mensagem é texto.
+ *
+ * **A cor do erro é `destructive`, não a marca.** Até o tema Meridian entrar, `--destructive` era
+ * `var(--accent)` — marca e erro eram a mesma cor, e usar uma pela outra não tinha consequência. Agora a
+ * marca é laranja e o destructive é vermelho: `text-marca` aqui pintaria o erro com a cor da identidade.
  */
 export function Campo({
   id,
@@ -58,7 +62,7 @@ export function Campo({
         </span>
       )}
       {erro !== undefined && (
-        <span id={idDoErro} role="alert" className="text-marca text-xs font-medium">
+        <span id={idDoErro} role="alert" className="text-destructive text-xs font-medium">
           {erro}
         </span>
       )}

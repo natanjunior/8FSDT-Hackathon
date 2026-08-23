@@ -1,3 +1,10 @@
+import type {
+  RepositorioDeOrganizacoes,
+  RepositorioDePedidosDeEntrada,
+  RepositorioEscopadoDeAreas,
+  RepositorioEscopadoDeCategorias,
+  RepositorioGlobalDePedidosDeEntrada,
+} from "@/aplicacao/organizacao";
 import type { Vinculo } from "@/dominio/organizacao";
 
 /**
@@ -114,9 +121,27 @@ export type PortasGlobais = {
   autenticacao: PortaDeAutenticacao;
   pessoas: RepositorioDePessoas;
   vinculos: RepositorioGlobalDeVinculos;
+  /**
+   * A escrita que **cria** o escopo (contrato §4.4). Está aqui, e não nas escopadas, porque no instante em
+   * que ela roda ainda não há organização a que escopar — é o bootstrap da D26.
+   */
+  organizacoes: RepositorioDeOrganizacoes;
+  /**
+   * Os pedidos da própria Pessoa, atravessando organizações. Entra em `PortasGlobais` e não em
+   * `RepositoriosEscopados` pela mesma razão de `vinculos`: quem tem escopo não tem o que perguntar aqui.
+   */
+  pedidosDeEntrada: RepositorioGlobalDePedidosDeEntrada;
+  /**
+   * A escrita de `POST /pedidos-de-entrada`. **Está aqui pelo mesmo motivo que `organizacoes` está**: é a
+   * porta de uma das quatro operações da §4.4, e no instante em que ela roda ainda não há organização a
+   * que escapar. `resolverContexto` a recebe e **não a usa** — exatamente como já não usa `organizacoes`.
+   */
+  escritaDePedidosDeEntrada: RepositorioDePedidosDeEntrada;
 };
 
 /** O que os outros 33 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
+  categorias: RepositorioEscopadoDeCategorias;
+  areas: RepositorioEscopadoDeAreas;
 };

@@ -4,10 +4,19 @@ import {
   criarAutenticacao,
   criarConsulta,
   criarCredenciais,
+  criarTransacao,
   type ArmazenamentoDeCookies,
 } from "@/infraestrutura/clientes";
 import { escoparConsulta } from "@/infraestrutura/contexto";
-import { repositorioEscopadoDeVinculos, repositorioGlobalDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import {
+  repositorioDeOrganizacoes,
+  repositorioDePedidosDeEntrada,
+  repositorioEscopadoDeAreas,
+  repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeVinculos,
+  repositorioGlobalDePedidosDeEntrada,
+  repositorioGlobalDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 
 /**
@@ -44,6 +53,12 @@ export function montarPortasGlobais(
     autenticacao: criarAutenticacao(cookies, tokenPortador),
     pessoas: repositorioDePessoas(consulta),
     vinculos: repositorioGlobalDeVinculos(consulta),
+    // A escrita que **cria** o escopo. Recebe a transação, não a consulta: as quatro escritas da POL-01
+    // acontecem num `COMMIT` só, e a FK diferida de `organizacoes` depende disso (modelo §6.3).
+    organizacoes: repositorioDeOrganizacoes(criarTransacao()),
+    pedidosDeEntrada: repositorioGlobalDePedidosDeEntrada(consulta),
+    // A escrita das três linhas num `COMMIT` só. Recebe a transação, não a consulta.
+    escritaDePedidosDeEntrada: repositorioDePedidosDeEntrada(criarTransacao()),
   };
 }
 
@@ -57,6 +72,8 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
   const consulta = escoparConsulta(criarConsulta(), organizacaoId);
   return {
     vinculos: repositorioEscopadoDeVinculos(consulta),
+    categorias: repositorioEscopadoDeCategorias(consulta),
+    areas: repositorioEscopadoDeAreas(consulta),
   };
 }
 
