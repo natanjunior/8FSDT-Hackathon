@@ -16,13 +16,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * provar *"outro transporte, não outro fluxo"*.
  */
 
-const { signInWithPassword, signUp } = vi.hoisted(() => ({
-  signInWithPassword: vi.fn(),
-  signUp: vi.fn(),
-}));
+const { signInWithPassword, signUp, resetPasswordForEmail, verifyOtp, updateUser, signOut } = vi.hoisted(
+  () => ({
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
+    resetPasswordForEmail: vi.fn(),
+    verifyOtp: vi.fn(),
+    updateUser: vi.fn(),
+    signOut: vi.fn(),
+  }),
+);
 
 vi.mock("@supabase/ssr", () => ({
-  createServerClient: () => ({ auth: { signInWithPassword, signUp } }),
+  createServerClient: () => ({
+    auth: { signInWithPassword, signUp, resetPasswordForEmail, verifyOtp, updateUser, signOut },
+  }),
 }));
 
 // `vi.mock` é içado acima deste `import` pelo próprio Vitest — por isso o módulo real nunca é carregado,
@@ -34,6 +42,8 @@ const cookiesVazios = { todos: () => [], definir: () => {} };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `definirSenha` encerra a sessão de recuperação ao terminar; sem isto o duplo devolveria `undefined`.
+  signOut.mockResolvedValue({ error: null });
   // `cliente()` recusa subir sem as duas — é a guarda da ADR-0004, e ela vale também no teste.
   vi.stubEnv("SUPABASE_URL", "http://provedor.test");
   vi.stubEnv("SUPABASE_CHAVE_ANONIMA", "chave-publicavel-de-teste");
@@ -172,5 +182,128 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
     );
 
     expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false });
+  });
+});
+
+describe("pedirRedefinicaoDeSenha — a doutrina do não-confirmar (critério 1)", () => {
+  it("conta que existe e conta que não existe produzem o MESMO resultado", async () => {
+    const credenciais = criarCredenciais(cookiesVazios);
+
+    resetPasswordForEmail.mockResolvedValue({ error: null });
+    const existe = await credenciais.pedirRedefinicaoDeSenha("helena@exemplo.test");
+
+    // O provedor hoje não distingue os dois casos. "Hoje não distingue" é fato sobre uma dependência; o
+    // critério 1 é requisito nosso, e é isto que o torna garantia em vez de sorte.
+    resetPasswordForEmail.mockResolvedValue({
+      error: { code: "user_not_found", message: "User not found" },
+    });
+    const naoExiste = await credenciais.pedirRedefinicaoDeSenha("ninguem@exemplo.test");
+
+    expect(existe).toStrictEqual({ ok: true });
+    expect(naoExiste).toStrictEqual(existe);
+  });
+
+  it("limite por endereço e limite por IP viram a MESMA recusa", async () => {
+    const credenciais = criarCredenciais(cookiesVazios);
+
+    resetPasswordForEmail.mockResolvedValue({
+      error: { code: "over_email_send_rate_limit", message: "Email rate limit exceeded" },
+    });
+    const porEndereco = await credenciais.pedirRedefinicaoDeSenha("helena@exemplo.test");
+
+    resetPasswordForEmail.mockResolvedValue({
+      error: { code: "over_request_rate_limit", message: "Request rate limit reached" },
+    });
+    const porIp = await credenciais.pedirRedefinicaoDeSenha("helena@exemplo.test");
+
+    expect(porEndereco).toStrictEqual({ ok: false, recusa: "LIMITE_DE_ENVIOS" });
+    expect(porIp).toStrictEqual(porEndereco);
+  });
+
+  it("falha que o ACL não reconhece NÃO vira sucesso — a tela não pode dizer que enviou", async () => {
+    resetPasswordForEmail.mockResolvedValue({
+      error: { code: "unexpected_failure", message: "Internal error" },
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).pedirRedefinicaoDeSenha(
+      "helena@exemplo.test",
+    );
+
+    expect(resultado).toStrictEqual({ ok: false, recusa: "FALHA_DO_PROVEDOR" });
+  });
+});
+
+describe("iniciarRedefinicao — a aterrissagem do link (critério 3)", () => {
+  it("troca o token como recovery, e não como confirmação de conta", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const resultado = await criarCredenciais(cookiesVazios).iniciarRedefinicao("token-do-email");
+
+    expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "token-do-email", type: "recovery" });
+    expect(resultado).toStrictEqual({ ok: true });
+  });
+
+  it("token vencido vira LINK_INVALIDO_OU_EXPIRADO", async () => {
+    verifyOtp.mockResolvedValue({ error: { code: "otp_expired", message: "Token has expired" } });
+
+    const resultado = await criarCredenciais(cookiesVazios).iniciarRedefinicao("token-velho");
+
+    expect(resultado).toStrictEqual({ ok: false, recusa: "LINK_INVALIDO_OU_EXPIRADO" });
+  });
+});
+
+describe("definirSenha — a senha nova, e o que acontece depois", () => {
+  it("grava a senha e encerra SÓ esta sessão", async () => {
+    updateUser.mockResolvedValue({ error: null });
+
+    const resultado = await criarCredenciais(cookiesVazios).definirSenha("senha-nova-boa");
+
+    expect(updateUser).toHaveBeenCalledWith({ password: "senha-nova-boa" });
+    // `scope: "global"` derrubaria as outras sessões da pessoa — inclusive a normal de quem trocou a
+    // senha estando dentro do produto (spec, D-6b-5), que não foi o que se pediu.
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(resultado).toStrictEqual({ ok: true });
+  });
+
+  it("senha igual à anterior NÃO vira 'escolha uma senha mais longa'", async () => {
+    // A mensagem do provedor traz a palavra `password`, e a regra de força a apanharia se viesse antes.
+    updateUser.mockResolvedValue({
+      error: {
+        code: "same_password",
+        message: "New password should be different from the old password.",
+      },
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).definirSenha("a-mesma-de-antes");
+
+    expect(resultado).toStrictEqual({ ok: false, recusa: "SENHA_IGUAL_A_ANTERIOR" });
+  });
+
+  it("senha curta vira SENHA_RECUSADA_PELO_PROVEDOR — a regra de força continua sendo dele", async () => {
+    updateUser.mockResolvedValue({
+      error: { code: "weak_password", message: "Password should be at least 6 characters" },
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).definirSenha("curta");
+
+    expect(resultado).toStrictEqual({ ok: false, recusa: "SENHA_RECUSADA_PELO_PROVEDOR" });
+  });
+
+  it("sessão de recuperação perdida vira LINK_INVALIDO_OU_EXPIRADO, não falha genérica", async () => {
+    updateUser.mockResolvedValue({
+      error: { code: "session_not_found", message: "Session from session_id claim does not exist" },
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).definirSenha("senha-nova-boa");
+
+    expect(resultado).toStrictEqual({ ok: false, recusa: "LINK_INVALIDO_OU_EXPIRADO" });
+  });
+
+  it("senha recusada não encerra sessão nenhuma — quem falhou continua podendo tentar", async () => {
+    updateUser.mockResolvedValue({ error: { code: "weak_password", message: "Password is too weak" } });
+
+    await criarCredenciais(cookiesVazios).definirSenha("curta");
+
+    expect(signOut).not.toHaveBeenCalled();
   });
 });

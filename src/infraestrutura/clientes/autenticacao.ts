@@ -141,6 +141,45 @@ export function criarCredenciais(cookies: ArmazenamentoDeCookies): PortaDeCreden
       return { ok: false, recusa: "LINK_INVALIDO_OU_EXPIRADO" };
     },
 
+    async pedirRedefinicaoDeSenha(email): Promise<ResultadoDeCredencial> {
+      // **Sem `redirectTo`, de propósito.** O template de `supabase/templates/recuperacao.html` monta o
+      // link com `{{ .SiteURL }}` e `{{ .TokenHash }}`, apontando direto para a nossa rota — que é o que a
+      // documentação do provedor manda fazer quando o SDK roda no servidor, e o que faz o link funcionar
+      // **em outro aparelho** (inventário, T-13).
+      const { error } = await cliente(cookies).auth.resetPasswordForEmail(email);
+      if (error === null) return { ok: true };
+      return traduzirPedidoDeRedefinicao(error.code, error.message);
+    },
+
+    async iniciarRedefinicao(tokenHash): Promise<ResultadoDeCredencial> {
+      const { error } = await cliente(cookies).auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "recovery",
+      });
+      if (error === null) return { ok: true };
+      // Todo motivo de falha aqui é o mesmo para quem lê: o link não serve mais. A face de T-13 é uma só.
+      return { ok: false, recusa: "LINK_INVALIDO_OU_EXPIRADO" };
+    },
+
+    async definirSenha(senhaNova): Promise<ResultadoDeCredencial> {
+      const conexao = cliente(cookies);
+
+      const { error } = await conexao.auth.updateUser({ password: senhaNova });
+      if (error !== null) {
+        return { ok: false, recusa: traduzirDefinicaoDeSenha(error.code, error.message) };
+      }
+
+      // **`scope: "local"`, e a escolha é deliberada.** O padrão do SDK é `"global"`, que revogaria toda
+      // sessão da pessoa — inclusive a normal de quem trocou a senha estando dentro do produto, que a
+      // decisão D-6b-5 permite. O que precisa morrer aqui é só a sessão de recuperação.
+      //
+      // **O que esta linha NÃO governa:** o que o próprio provedor faz com as demais sessões ao ver a senha
+      // mudar. Isso é dele, não nosso, e nenhuma fonte o decide — é a **premissa P-6b-1**, conferida no
+      // passo manual 15b.
+      await conexao.auth.signOut({ scope: "local" });
+      return { ok: true };
+    },
+
     async sair(): Promise<void> {
       await cliente(cookies).auth.signOut();
     },
@@ -159,6 +198,43 @@ function traduzirEntrada(codigo: string | undefined, mensagem: string): RecusaDe
 
 function traduzirCadastro(codigo: string | undefined, mensagem: string): RecusaDeCredencial {
   if (codigo === "user_already_exists" || /already registered/i.test(mensagem)) return "CONTA_JA_EXISTE";
+  if (codigo === "weak_password" || /password/i.test(mensagem)) return "SENHA_RECUSADA_PELO_PROVEDOR";
+  return "FALHA_DO_PROVEDOR";
+}
+
+/**
+ * **A doutrina do não-confirmar, e aqui ela é nossa, não do provedor.**
+ *
+ * Conta inexistente devolve `{ ok: true }` — a mesma resposta de conta existente. O provedor hoje já não
+ * distingue os dois casos; *"hoje não distingue"* é fato sobre uma dependência, e o critério 1 é requisito
+ * nosso. Com esta linha, T-12 continua não sendo um verificador de contas mesmo que ele mude de ideia.
+ */
+function traduzirPedidoDeRedefinicao(
+  codigo: string | undefined,
+  mensagem: string,
+): ResultadoDeCredencial {
+  if (codigo === "user_not_found" || /user not found/i.test(mensagem)) return { ok: true };
+  if (
+    codigo === "over_email_send_rate_limit" ||
+    codigo === "over_request_rate_limit" ||
+    /rate limit/i.test(mensagem)
+  ) {
+    return { ok: false, recusa: "LIMITE_DE_ENVIOS" };
+  }
+  // Falha que não reconhecemos **não** vira sucesso: a tela não pode dizer que enviou o que não enviou.
+  return { ok: false, recusa: "FALHA_DO_PROVEDOR" };
+}
+
+/**
+ * **A ordem das três primeiras linhas é o conteúdo desta função.** `same_password` traz a palavra
+ * *password* na mensagem e cairia na regra de força se viesse depois — e a tela mandaria escolher *"uma
+ * senha mais longa"* para quem escolheu uma senha boa e só repetiu a antiga.
+ */
+function traduzirDefinicaoDeSenha(codigo: string | undefined, mensagem: string): RecusaDeCredencial {
+  if (codigo === "same_password") return "SENHA_IGUAL_A_ANTERIOR";
+  if (codigo === "session_not_found" || codigo === "session_expired" || codigo === "otp_expired") {
+    return "LINK_INVALIDO_OU_EXPIRADO";
+  }
   if (codigo === "weak_password" || /password/i.test(mensagem)) return "SENHA_RECUSADA_PELO_PROVEDOR";
   return "FALHA_DO_PROVEDOR";
 }
