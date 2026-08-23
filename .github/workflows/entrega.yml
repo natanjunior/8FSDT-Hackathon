@@ -301,10 +301,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # **OIDC federado, e o `environment` logo abaixo é a âncora dele.** O
-    # *subject* da credencial é
-    # `repo:natanjunior/8FSDT-Hackathon:environment:producao`, então o token só
-    # é emitido para um job que declara este environment.
+    # **OIDC federado, e o `environment` logo abaixo é a âncora dele.** O token
+    # só é emitido para um job que declare este environment.
+    #
+    # O *subject* que casa é o **formato imutável** — com os IDs numéricos do
+    # dono e do repositório, que o GitHub emite para o vínculo sobreviver a
+    # renomeações. O nomeado está registrado como segunda credencial, como rede.
+    # Escrever só o nomeado dá `AADSTS700213`, que não diz nada disso
+    # (`docs/arquitetura.md` §9).
     #
     # Declarar `permissions` no job substitui o padrão inteiro, então
     # `contents: read` precisa estar aqui mesmo sem ser novidade.

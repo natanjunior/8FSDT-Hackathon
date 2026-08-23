@@ -32,6 +32,13 @@ export {
 
 export { aterrissarConfirmacaoDeConta } from "./confirmacao-de-conta";
 
+export {
+  PREFIXO_DE_REDEFINICAO,
+  armazenamentoDeRedefinicao,
+  aterrissarRedefinicaoDeSenha,
+  somenteDeRedefinicao,
+} from "./redefinicao-de-senha";
+
 export { novoTraceId } from "./traco";
 
 export { lerBooleanoDaUrl } from "./consulta-de-url";
