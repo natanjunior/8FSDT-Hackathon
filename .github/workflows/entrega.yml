@@ -283,6 +283,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # **OIDC federado, e o `environment` logo abaixo é a âncora dele.** O
+    # *subject* da credencial é
+    # `repo:natanjunior/8FSDT-Hackathon:environment:producao`, então o token só
+    # é emitido para um job que declara este environment.
+    #
+    # Declarar `permissions` no job substitui o padrão inteiro, então
+    # `contents: read` precisa estar aqui mesmo sem ser novidade.
+    permissions:
+      id-token: write
+      contents: read
+
     environment:
       name: producao
       url: ${{ steps.endereco.outputs.url }}
@@ -290,7 +301,9 @@ jobs:
     steps:
       - uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: nova revisão com a imagem recém-publicada
         # **As variáveis de ambiente da aplicação NÃO passam por aqui.** Elas
