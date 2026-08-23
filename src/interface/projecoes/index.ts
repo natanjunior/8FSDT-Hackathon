@@ -12,5 +12,9 @@ export {
 
 export {
   projetarPedidoDeEntrada,
+  projetarPedidoDeEntradaDetalhe,
+  projetarVinculo,
+  type PedidoDeEntradaDetalheProjetado,
   type PedidoDeEntradaProjetado,
+  type VinculoProjetado,
 } from "./pedido-de-entrada";

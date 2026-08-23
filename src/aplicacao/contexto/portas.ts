@@ -3,6 +3,7 @@ import type {
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDePedidosDeEntrada,
   RepositorioGlobalDePedidosDeEntrada,
 } from "@/aplicacao/organizacao";
 import type { Vinculo } from "@/dominio/organizacao";
@@ -144,4 +145,10 @@ export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
+  /**
+   * Os pedidos **desta** organização, e as duas decisões. Escopado, ao contrário da escrita de
+   * `POST /pedidos-de-entrada`: aquela roda antes de existir vínculo, esta acontece dentro de uma
+   * organização ativa.
+   */
+  pedidosDeEntrada: RepositorioEscopadoDePedidosDeEntrada;
 };

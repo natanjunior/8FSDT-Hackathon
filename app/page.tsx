@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
+import { listarPedidosDeEntrada } from "@/aplicacao/organizacao";
 import { acaoDeSair } from "@/interface/acoes";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
-import { resolverParaTela } from "@/interface/http";
+import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
 /**
@@ -26,18 +28,32 @@ import { projetarContexto } from "@/interface/projecoes";
 export const dynamic = "force-dynamic";
 
 export default async function Shell() {
-  let resolucao;
+  let escopo;
   try {
-    resolucao = await resolverParaTela();
+    escopo = await resolverEscopoParaTela("vinculo.gerir");
   } catch (erro) {
     if (erro instanceof NaoAutenticado) redirect("/entrar");
     throw erro;
   }
 
-  const contexto = projetarContexto(resolucao);
+  if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
+
+  const contexto = projetarContexto(escopo.resolucao);
   const ativa = contexto.organizacaoAtiva;
 
   if (ativa === null) redirect("/organizacao");
+
+  /**
+   * **A contagem de pedidos pendentes** — Q-T8 do inventário, respondida (a): *"com a notificação ⬜, é a
+   * única coisa que separa 'entra hoje' de 'entra quando alguém lembrar'"*.
+   *
+   * Custa **uma consulta**, não uma requisição: a leitura vai pela estrada direta, e é a mesma consulta
+   * que T-08 faz. Só acontece para quem tem `vinculo.gerir`.
+   */
+  const pendentes =
+    escopo.situacao === "pronto"
+      ? (await listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {})).length
+      : null;
 
   return (
     <MolduraDeTela titulo={`Olá, ${contexto.pessoa.nome}.`}>
@@ -67,11 +83,30 @@ export default async function Shell() {
         )}
       </section>
 
+      {pendentes !== null && (
+        <nav className="flex flex-col gap-2">
+          <h2 className="text-tinta text-sm font-semibold">Gestão</h2>
+          <Link
+            href="/vinculos"
+            className="border-linha bg-superficie text-tinta flex min-h-11 items-center justify-between rounded-md border px-4 py-3 text-sm"
+          >
+            <span>Quem está na organização</span>
+            {/* A-5: a contagem carrega a palavra, nunca só o número colorido. */}
+            <span className="text-tinta-suave text-xs">
+              {pendentes === 0
+                ? "nenhum pedido aguardando"
+                : pendentes === 1
+                  ? "1 pedido aguardando"
+                  : `${pendentes} pedidos aguardando`}
+            </span>
+          </Link>
+        </nav>
+      )}
+
       <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-        Esta entrega é o <strong className="text-tinta font-semibold">esqueleto de deploy</strong>: a esteira
-        inteira, de <code>push</code> a container publicado, com um endpoint —{" "}
-        <code>GET /contexto</code> — e as duas telas que ele sustenta. A lista de ocorrências (T-03) e o resto
-        do produto vêm nas tarefas seguintes.
+        Quem entra, quem cria a organização e quem decide os pedidos já está de pé. O que ainda não existe
+        é a <strong className="text-tinta font-semibold">lista de ocorrências</strong> (T-03) — e é ela que
+        o produto passa a ter nas tarefas seguintes.
       </p>
 
       <form action={acaoDeSair} className="pt-2">

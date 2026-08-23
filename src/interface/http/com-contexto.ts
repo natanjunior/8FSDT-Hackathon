@@ -458,3 +458,49 @@ export async function resolverParaTela(): Promise<ResolucaoDeContexto> {
   const { resolucao } = await abrirRequisicao();
   return resolucao;
 }
+
+/**
+ * O que uma tela escopada recebe. **A situação é explícita porque as três têm destinos diferentes**, e
+ * quem decide para onde ir é a página — não este ajudante.
+ */
+export type EscopoDaTela =
+  | {
+      situacao: "pronto";
+      ctx: ContextoDaRequisicao;
+      repos: RepositoriosEscopados;
+      resolucao: ResolucaoDeContexto;
+    }
+  | { situacao: "sem-organizacao"; resolucao: ResolucaoDeContexto }
+  | { situacao: "sem-permissao"; ctx: ContextoDaRequisicao; resolucao: ResolucaoDeContexto };
+
+/**
+ * A **estrada direta** do contrato §5, na forma escopada — irmã de `resolverParaTela`.
+ *
+ * *"HTTP obrigatório na escrita; leitura pode ir direto"*. `resolverParaTela` serve a tela que só precisa
+ * do contexto; esta serve a tela que precisa **ler dado da organização** — T-08 lê a fila de pedidos e as
+ * áreas.
+ *
+ * **Por que ela existe em vez de a página chamar a própria API.** `app/` não pode importar `@/composicao`
+ * (lint, regra 2b), então a página não tem como montar repositório; e um `fetch` interno custaria o salto
+ * HTTP que a §5 recusou por vCPU-s da franquia da ADR-0004 — um salto que, sob escala a zero, é cobrado
+ * do tempo de quem abre a tela.
+ *
+ * **Ela não redireciona.** Redirecionar daqui esconderia a decisão de navegação dentro de um ajudante de
+ * transporte, e o mapa de navegação é do inventário (§3): quem o aplica é a página.
+ *
+ * @throws NaoAutenticado quando não há sessão — mesmo contrato de `resolverParaTela`.
+ */
+export async function resolverEscopoParaTela(
+  exige: Permissao | "qualquer-vinculo-ativo",
+): Promise<EscopoDaTela> {
+  const { resolucao } = await abrirRequisicao();
+
+  if (resolucao.ativo === null) return { situacao: "sem-organizacao", resolucao };
+
+  const ctx = contextoDaRequisicao(resolucao, resolucao.ativo);
+  if (exige !== "qualquer-vinculo-ativo" && !ctx.vinculo.pode(exige)) {
+    return { situacao: "sem-permissao", ctx, resolucao };
+  }
+
+  return { situacao: "pronto", ctx, repos: montarPortasEscopadas(ctx.vinculo.organizacaoId), resolucao };
+}

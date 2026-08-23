@@ -8,11 +8,13 @@
 export {
   armazenamentoDeCookies,
   comContexto,
+  resolverEscopoParaTela,
   resolverParaTela,
   resposta,
   semOrganizacao,
   type EntradaEscopada,
   type EntradaSemOrganizacao,
+  type EscopoDaTela,
 } from "./com-contexto";
 
 export {
@@ -41,4 +43,4 @@ export {
 
 export { novoTraceId } from "./traco";
 
-export { lerBooleanoDaUrl } from "./consulta-de-url";
+export { lerBooleanoDaUrl, lerSituacoesDaUrl } from "./consulta-de-url";

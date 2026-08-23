@@ -1,7 +1,24 @@
-import { pedirEntrada } from "@/aplicacao/organizacao";
-import { resposta, semOrganizacao } from "@/interface/http";
-import { projetarPedidoDeEntrada } from "@/interface/projecoes";
+import { listarPedidosDeEntrada, pedirEntrada } from "@/aplicacao/organizacao";
+import { comContexto, lerSituacoesDaUrl, resposta, semOrganizacao } from "@/interface/http";
+import { projetarPedidoDeEntrada, projetarPedidoDeEntradaDetalhe } from "@/interface/projecoes";
 import { pedidoDeEntradaSchema } from "@/interface/schemas";
+
+/**
+ * **`GET /pedidos-de-entrada`** — a fila que o Gestor abre para decidir (T-08).
+ *
+ * **Escopado, ao contrário do `POST` logo abaixo — e as duas portas no mesmo arquivo são corretas.** A
+ * escrita acontece antes de existir vínculo, e por isso é uma das quatro da §4.4; a leitura acontece
+ * dentro de uma organização ativa, e por isso passa pelo funil. Nenhuma linha de `eslint.config.mjs` muda:
+ * a lista fechada nomeia quem pode importar `semOrganizacao`, e `comContexto` é livre.
+ *
+ * **Sem paginação** — são os pedidos pendentes de um condomínio, e o contrato §7.7 já excluiu paginação
+ * das coleções desta natureza.
+ */
+export const GET = comContexto({ exige: "vinculo.gerir" }, async ({ repos, requisicao }) => {
+  const situacoes = lerSituacoesDaUrl(requisicao);
+  const itens = await listarPedidosDeEntrada(repos.pedidosDeEntrada, { situacoes });
+  return { itens: itens.map(projetarPedidoDeEntradaDetalhe) };
+});
 
 /**
  * **`POST /pedidos-de-entrada`** — pedir entrada com o Código da Organização (D25).
