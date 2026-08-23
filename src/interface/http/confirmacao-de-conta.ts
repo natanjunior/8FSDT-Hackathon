@@ -10,11 +10,20 @@ import { armazenamentoDeCookies } from "./com-contexto";
  * próprios, e a única ação é entrar. Ele consome o código do link, cria a sessão e devolve a pessoa a T-01
  * com a linha certa acima do formulário (protótipo, T-01, quadros 5 e 6).
  *
- * **Por que ele existe, e não é escopo a mais.** O inventário registra que a redação anterior tratava as
- * telas de credencial como *"não são telas nossas"*, e que o erro concreto disso foi que o **link do e-mail
- * de redefinição não tinha onde aterrissar**. O mesmo valia para o de confirmação. Com a confirmação de
- * e-mail ligada — que é a recomendação da Q-T9 —, sem esta rota T-01 não fecha: a conta é criada e ninguém
- * consegue entrar.
+ * ---------------------------------------------------------------------------
+ *  DORMENTE — existe, e nada a alcança nesta entrega
+ * ---------------------------------------------------------------------------
+ *
+ * **O hub fechou a Q-T9 em 22/08/2026: a confirmação de e-mail NÃO é obrigatória antes do primeiro login.**
+ * T-11 termina em sessão válida, o provedor não envia e-mail de confirmação, e **nenhum link aterrissa
+ * aqui**. O que desliga esta rota é o interruptor *Confirm email* no painel do provedor — não o código.
+ *
+ * **Por que ela fica.** Virar o interruptor é decisão de painel, e apagar a rota cobraria reescrevê-la no
+ * mesmo dia. O item 6b precisa da mesma mecânica de aterrissagem para T-13.
+ *
+ * **Nota de método, e é o que este comentário existe para não repetir.** A redação anterior justificava a
+ * rota citando *"a recomendação da Q-T9"* — recomendação de uma questão que estava **aberta**. Virou o
+ * achado A-6a-1 da spec do item 6a. Recomendação não decide nada (convenção 6 do `CLAUDE.md`).
  *
  * **Não é `route.ts` de contrato**, então não entra no `openapi.yaml` e não tem `comContexto`: aqui não há
  * sessão a resolver ainda — é o pedido que a cria.

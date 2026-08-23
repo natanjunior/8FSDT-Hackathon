@@ -25,6 +25,7 @@ import { criarContaSchema, entrarSchema } from "@/interface/schemas";
 export type EstadoDoFormulario = {
   readonly recusa?: RecusaDeCredencial;
   readonly erros?: Readonly<Record<string, string>>;
+  /** **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026). */
   readonly aviso?: "confirme-o-email";
 };
 
@@ -74,8 +75,12 @@ export async function acaoDeCriarConta(
 
   if (!resultado.ok) return { recusa: resultado.recusa };
 
-  // Como T-11 termina depende do interruptor de confirmação de e-mail do provedor (inventário, Q-T9). A
-  // tela está escrita para as duas configurações, e é este sinal que decide qual texto ela mostra.
+  // **DORMENTE.** A Q-T9 foi **fechada** em 22/08/2026: a confirmação de e-mail não é obrigatória, o
+  // provedor devolve sessão no `signUp`, e `precisaConfirmarEmail` é sempre `false` — este ramo não é
+  // alcançado. T-11 termina no `redirect("/")` abaixo, direto.
+  //
+  // A tela continua escrita para as duas configurações de propósito: o que decide é o interruptor
+  // *Confirm email* do painel do provedor, não o código. O ramo fica pelo dia em que ele virar.
   if ("precisaConfirmarEmail" in resultado && resultado.precisaConfirmarEmail) {
     return { aviso: "confirme-o-email" };
   }
