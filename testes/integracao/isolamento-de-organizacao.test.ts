@@ -2,10 +2,16 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ConsultaSemEscopo, escoparConsulta } from "@/infraestrutura/contexto";
-import { repositorioEscopadoDeVinculos, repositorioGlobalDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import {
+  repositorioEscopadoDeAreas,
+  repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeVinculos,
+  repositorioGlobalDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 
 import { aplicarEsquema } from "./esquema";
+import { casosDeIsolamento } from "./suite-de-isolamento";
 
 /**
  * ============================================================================
@@ -338,4 +344,46 @@ async function semear(): Promise<void> {
     idMoradora,
     idRecanto,
   ]);
+
+  // Uma categoria e uma área por organização, com nomes que se distinguem. A entrada da suíte semeia
+  // **só o seu agregado**: pessoas e organizações são do mundo compartilhado, e é isso que preserva a
+  // armadilha do A4 (arquitetura.md §7.1).
+  await consulta(
+    `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'shield', 1), ($3, $4, 'wrench', 1)`,
+    [idRecanto, "Portaria do Recanto", idAurora, "Portaria da Aurora"],
+  );
+  await consulta(
+    `insert into areas (organizacao_id, nome, tipo, ordem) values ($1, $2, 'comum', 1), ($3, $4, 'comum', 1)`,
+    [idRecanto, "Garagem do Recanto", idAurora, "Garagem da Aurora"],
+  );
 }
+
+/**
+ * **As duas consultas novas desta linha, pela suíte da §7.1.** Custo por consulta: uma entrada.
+ *
+ * Nenhuma das duas declara `organizacaoDaLinha`, e é por desenho: `CategoriaLida` e `AreaLida` **não
+ * expõem `organizacao_id`** — a projeção o filtra, como o Definition of Done exige do tipo de retorno.
+ */
+describe("as consultas de configuração não atravessam organizações", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /categorias",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeCategorias(escoparConsulta(consulta, organizacaoId)).listar({
+        apenasAtivas: true,
+      }),
+    chaveDaLinha: (categoria) => categoria.nome,
+    esperadas: { emA: ["Portaria do Recanto"], emB: ["Portaria da Aurora"] },
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /areas",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeAreas(escoparConsulta(consulta, organizacaoId)).listar({
+        apenasAtivas: true,
+      }),
+    chaveDaLinha: (area) => area.nome,
+    esperadas: { emA: ["Garagem do Recanto"], emB: ["Garagem da Aurora"] },
+  });
+});
