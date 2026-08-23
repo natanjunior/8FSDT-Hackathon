@@ -8,11 +8,13 @@
 export {
   armazenamentoDeCookies,
   comContexto,
+  resolverEscopoParaTela,
   resolverParaTela,
   resposta,
   semOrganizacao,
   type EntradaEscopada,
   type EntradaSemOrganizacao,
+  type EscopoDaTela,
 } from "./com-contexto";
 
 export {
