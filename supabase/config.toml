@@ -262,6 +262,14 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# O link de redefinição precisa aterrissar num endpoint NOSSO, e isso não é preferência: com o SDK rodando
+# no servidor (ADR-0006), a documentação do provedor diz que o link padrão devolve a sessão em fragmento de
+# URL — que o servidor não lê. Com `{{ .TokenHash }}` o link aponta direto para a nossa rota, e passa a
+# funcionar **em outro aparelho**, que é o que o inventário afirma sobre T-13.
+[auth.email.template.recovery]
+subject = "Redefinir a sua senha no Resolve Aí"
+content_path = "./supabase/templates/recuperacao.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
