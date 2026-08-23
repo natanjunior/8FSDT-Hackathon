@@ -123,6 +123,16 @@ export type EntradaSemOrganizacao<C> = {
   corpo: C;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
+  /**
+   * Torna uma organização a ativa da sessão, gravando o cookie assinado na **própria resposta**
+   * (contrato §4.3).
+   *
+   * **Está aqui, e não no handler, porque a assinatura é mecânica de sessão.** Um `route.ts` que montasse
+   * o cookie seria a segunda cópia da regra do §4.3 — e é sempre a segunda cópia que diverge. Duas
+   * operações precisam disto: `POST /organizacoes`, que a cria, e `PUT /contexto/organizacao`, que a
+   * troca.
+   */
+  definirOrganizacaoAtiva: (organizacaoId: string) => void;
 };
 
 type Manipulador<E> = (entrada: E) => unknown | Promise<unknown>;
@@ -204,7 +214,7 @@ export function semOrganizacao<C>(
   return async (requisicao, contextoDaRota) => {
     const traceId = novoTraceId();
     try {
-      const { resolucao, portas } = await abrirRequisicao();
+      const { resolucao, portas, armazenamento } = await abrirRequisicao();
 
       const resultado = await manipulador({
         ctx: resolucao.sessao,
@@ -213,6 +223,13 @@ export function semOrganizacao<C>(
         corpo: await lerCorpo(requisicao, opcoes.corpo),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
+        definirOrganizacaoAtiva: (organizacaoId) => {
+          const { valor, opcoes: doCookie } = assinarOrganizacao(
+            organizacaoId,
+            resolucao.sessao.usuarioId,
+          );
+          armazenamento.definir([{ name: NOME_DO_COOKIE, value: valor, options: doCookie }]);
+        },
       });
 
       return montarResposta(resultado);
@@ -236,6 +253,7 @@ export function semOrganizacao<C>(
 async function abrirRequisicao(): Promise<{
   resolucao: ResolucaoDeContexto;
   portas: PortasGlobais;
+  armazenamento: Awaited<ReturnType<typeof armazenamentoDeCookies>>;
 }> {
   const armazenamento = await armazenamentoDeCookies();
   const portas = montarPortasGlobais(armazenamento, await tokenPortador());
@@ -258,7 +276,7 @@ async function abrirRequisicao(): Promise<{
     armazenamento.definir([{ name: NOME_DO_COOKIE, value: valor, options: opcoes }]);
   }
 
-  return { resolucao, portas };
+  return { resolucao, portas, armazenamento };
 }
 
 /**

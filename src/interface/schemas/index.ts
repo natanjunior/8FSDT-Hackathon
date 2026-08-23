@@ -15,3 +15,9 @@ export {
   type EntradaDeCadastro,
   type EntradaDeLogin,
 } from "./credencial";
+
+export {
+  criacaoDeOrganizacaoSchema,
+  nomeDeOrganizacao,
+  type EntradaDeCriacaoDeOrganizacao,
+} from "./organizacao";
