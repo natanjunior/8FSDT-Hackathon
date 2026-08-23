@@ -68,3 +68,51 @@ export function criarConsulta(): Consulta {
     return resultado.rows as L[];
   };
 }
+
+/**
+ * Uma unidade de trabalho: tudo o que passar pela `Consulta` recebida acontece na **mesma transação**.
+ *
+ * **Por que ela existe, e não é conveniência.** A FK `(criada_por_pessoa_id, id)` de `organizacoes` para
+ * `vinculos` é `DEFERRABLE INITIALLY DEFERRED` — a verificação é adiada para o `COMMIT` justamente porque
+ * a organização é inserida **antes** do vínculo que ela referencia (modelo §6.3). Sem uma transação, o
+ * `INSERT` da organização é recusado na hora. A POL-01 **não é implementável** sem isto.
+ *
+ * O que atravessa continua sendo `Consulta`: nenhum tipo do driver sai daqui, e quem recebe não sabe que
+ * está numa transação — sabe apenas que o que ele fizer acontece junto.
+ */
+export interface Transacao {
+  <T>(trabalho: (consulta: Consulta) => Promise<T>): Promise<T>;
+}
+
+/**
+ * A função de transação do processo.
+ *
+ * **Um client dedicado, e não o pool.** `pool.query` pode servir cada chamada por uma conexão diferente, e
+ * `begin` numa e `insert` noutra é uma transação vazia seguida de escritas soltas — o modo de falhar mais
+ * silencioso que existe aqui. `connect()` amarra as chamadas a uma conexão só, e o `finally` a devolve
+ * mesmo quando o trabalho lança.
+ */
+export function criarTransacao(): Transacao {
+  return async <T>(trabalho: (consulta: Consulta) => Promise<T>): Promise<T> => {
+    const cliente = await pool().connect();
+
+    const consulta: Consulta = async <L extends object>(sql: string, valores: readonly unknown[] = []) => {
+      const resultado = await cliente.query(sql, valores as unknown[]);
+      return resultado.rows as L[];
+    };
+
+    try {
+      await cliente.query("begin");
+      const resultado = await trabalho(consulta);
+      await cliente.query("commit");
+      return resultado;
+    } catch (erro) {
+      // O `rollback` pode falhar se a conexão já caiu. O erro que importa é o original — engoli-lo aqui
+      // trocaria "a semente falhou" por "rollback falhou", que é a mensagem errada para quem depura.
+      await cliente.query("rollback").catch(() => undefined);
+      throw erro;
+    } finally {
+      cliente.release();
+    }
+  };
+}
