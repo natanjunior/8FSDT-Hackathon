@@ -21,3 +21,10 @@ export {
   nomeDeOrganizacao,
   type EntradaDeCriacaoDeOrganizacao,
 } from "./organizacao";
+
+export {
+  codigoPublico,
+  pedidoDeEntradaSchema,
+  telefoneE164,
+  type EntradaDePedidoDeEntrada,
+} from "./pedido-de-entrada";

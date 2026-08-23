@@ -9,3 +9,8 @@ export {
   type CategoriaProjetada,
   type OrganizacaoProjetada,
 } from "./organizacao";
+
+export {
+  projetarPedidoDeEntrada,
+  type PedidoDeEntradaProjetado,
+} from "./pedido-de-entrada";
