@@ -10,6 +10,8 @@ import {
 import { escoparConsulta } from "@/infraestrutura/contexto";
 import {
   repositorioDeOrganizacoes,
+  repositorioEscopadoDeAreas,
+  repositorioEscopadoDeCategorias,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDeVinculos,
 } from "@/infraestrutura/repositorios/organizacao";
@@ -65,6 +67,8 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
   const consulta = escoparConsulta(criarConsulta(), organizacaoId);
   return {
     vinculos: repositorioEscopadoDeVinculos(consulta),
+    categorias: repositorioEscopadoDeCategorias(consulta),
+    areas: repositorioEscopadoDeAreas(consulta),
   };
 }
 
