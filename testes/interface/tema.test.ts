@@ -94,12 +94,16 @@ describe("app/globals.css — a estrutura de três estados", () => {
     );
   });
 
-  it("o raio é declarado uma vez, fora dos blocos escuros", () => {
-    // O `.dark` do Meridian troca o raio das bordas junto com a cor. É resíduo do editor: ninguém
-    // decide que o cantinho dos botões muda ao trocar o esquema de cor. Só cor muda.
-    expect(claro.has("--radius")).toBe(true);
-    expect(sistema.has("--radius")).toBe(false);
-    expect(escolhido.has("--radius")).toBe(false);
+  it("tipografia e raio são declarados uma vez, fora dos blocos escuros", () => {
+    // O `.dark` do Meridian troca as TRÊS tipografias e o raio das bordas junto com a cor. É resíduo
+    // do editor: ninguém decide que a tipografia e o cantinho dos botões mudam ao trocar o esquema de
+    // cor — e o layout dele carrega só as três do claro, então no escuro o navegador cairia no que
+    // houvesse. Só cor muda.
+    for (const token of ["--font-sans", "--radius"]) {
+      expect(claro.has(token)).toBe(true);
+      expect(sistema.has(token)).toBe(false);
+      expect(escolhido.has(token)).toBe(false);
+    }
   });
 
   it("não declara as famílias de fonte que o produto não carrega", () => {

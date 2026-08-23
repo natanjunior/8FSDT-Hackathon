@@ -1,6 +1,24 @@
 import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 
 import "./globals.css";
+
+/**
+ * **A única família do tema Meridian que entra.**
+ *
+ * O tema traz três — `Geist`, `Instrument Serif` e `Geist Mono`. Serifada não tem consumidor nenhum no
+ * produto, e monoespaçada tem dois (`font-mono` em `app/page.tsx`) que caem na pilha do sistema sem custo.
+ * `next/font/google` traz a família em **tempo de construção**: cada uma pesa no build e na imagem.
+ *
+ * **A variável vai no `<body>`, não no `<html>`.** O `globals.css` declara `--font-sans` no `:root`, que
+ * *é* o `<html>` — as duas declarações disputariam por ordem de origem, que não é garantida. No `<body>`
+ * não há disputa: ela vale para o elemento e tudo abaixo dele, e a do `:root` fica sendo o piso.
+ */
+const fonteDeTexto = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 /**
  * O casco da aplicação.
@@ -26,7 +44,7 @@ export const viewport: Viewport = {
 export default function CascoDaAplicacao({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className={`${fonteDeTexto.variable} min-h-dvh antialiased`}>{children}</body>
     </html>
   );
 }
