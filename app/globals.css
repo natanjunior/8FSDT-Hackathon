@@ -6,86 +6,211 @@
 /* ============================================================================
    Vocabulário visual do Resolve Aí
 
-   As cores vêm do protótipo low-fi (`docs/prototipo/telas.html`), que é o único
-   lugar do pacote onde a paleta foi decidida. O protótipo é monoespaçado de
-   propósito — para não se confundir com produto —, e é a única coisa que muda
-   aqui: o texto passa a ser de leitura.
+   As cores vêm do tema **Meridian**, de Sushmoy Roy (tweakcn), encaixado na
+   estrutura que já existia aqui — que é nossa e não a dele:
+
+     · duas camadas: vocabulário (onze nomes) -> contrato do shadcn;
+     · três estados: :root claro, prefers-color-scheme guardado por
+       :not([data-theme="light"]), e :root[data-theme="dark"] explícito.
+
+   O Meridian entrega :root + .dark. Achatar nisso faria a página renderizar
+   texto de um tema sobre o fundo do outro no estado "sistema", que é o padrão
+   de quem nunca escolheu.
+
+   Duas colisões de nome, e são o risco do arquivo:
+     · o nosso --accent é TINTA DE MARCA; o --accent do shadcn é FUNDO. O do
+       Meridian entra como --accent-bg;
+     · o --secondary do Meridian é laranja saturado, e o nosso alimenta as
+       barras do esqueleto de cold start. O laranja entra como marca; o nosso
+       --secondary segue cinza.
 
    Escrito uma vez, como o protótipo declara: "duas cópias divergem na primeira
    alteração, e a divergente é pior que a ausente".
    ============================================================================ */
 
 :root {
-  --radius: 0.5rem;
+  /* Forma — declarada uma vez. Só cor muda entre claro e escuro. */
+  --radius: 0.625rem;
 
-  --ground: #f2f2f4;
-  --chrome: #e4e4e8;
-  --surface: #ffffff;
-  --sunken: #f7f7f9;
-  --ink: #1a1a1d;
-  --ink-soft: #5c5c63;
-  --ink-faint: #8b8b93;
-  --line: #d9d9de;
-  --line-soft: #eaeaee;
-  --accent: #b4341f;
-  --accent-bg: #fbeeec;
+  /* ---- Vocabulário -------------------------------------------------------
+     Os onze nomes do produto. O contrato do shadcn os consome por var().
+     Três não têm origem no Meridian, e estão marcados. */
+  --ground: oklch(0.9545 0.0046 258.3249);
+  --chrome: oklch(0.9367 0.0058 264.5315);
+  --surface: oklch(1.0000 0 0);
+  --sunken: oklch(0.9367 0.0058 264.5315);
+  --ink: oklch(0.2217 0.0126 264.2756);
+  --ink-soft: oklch(0.4905 0.0298 270.7441);
+  /* NOSSO — o Meridian tem dois níveis de texto e nós temos três. Matiz dele,
+     croma entre o --muted-foreground e o --border. */
+  --ink-faint: oklch(0.6178 0.0180 264.2756);
+  --line: oklch(0.8525 0.0141 258.3489);
+  /* Valor do --sidebar-border, copiado: é "borda mais leve", e acompanha o
+     --line na direção certa nos dois temas. Copiado, não var(): o vocabulário
+     não pode depender de um token declarado como sem consumidor. */
+  --line-soft: oklch(0.8689 0.0106 261.7872);
+  /* A marca. Vem do --secondary do Meridian — o Meridian não tem token de
+     marca, e este é o que mais perto fica do #b4341f que havia aqui. */
+  --accent: oklch(0.6031 0.1107 41.8526);
+  /* O --accent do Meridian. O nome colide: lá é fundo, aqui é o par do fundo. */
+  --accent-bg: oklch(0.9088 0.0196 252.8865);
 
+  /* ---- Contrato shadcn · fiação ------------------------------------------
+     Estes seguem o vocabulário e por isso NÃO se repetem nos blocos escuros. */
   --background: var(--ground);
   --foreground: var(--ink);
   --card: var(--surface);
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary: var(--ink);
-  --primary-foreground: #ffffff;
   --secondary: var(--chrome);
   --secondary-foreground: var(--ink);
   --muted: var(--sunken);
   --muted-foreground: var(--ink-soft);
-  --accent-foreground: var(--ink);
-  --destructive: var(--accent);
-  --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
+  /* Um foco, uma cor: o :focus-visible do @layer base usa var(--accent), e
+     pegar o --ring do Meridian daria contorno laranja com anel azul (A-4). */
   --ring: var(--accent);
+
+  /* ---- Contrato shadcn · literais do Meridian ----------------------------
+     Cores para as quais o vocabulário não tem nome, e cada uma com um
+     consumidor só. Nome de vocabulário para cor usada num lugar é indireção
+     que parece estrutura e não é. */
+  --primary: oklch(0.4833 0.0873 255.0550);
+  --primary-foreground: oklch(1.0000 0 0);
+  --accent-foreground: oklch(0.3448 0.0685 255.0266);
+  --destructive: oklch(0.5237 0.1707 27.0455);
+  --destructive-foreground: oklch(1.0000 0 0);
+
+  /* ---- Inventário, sem consumidor hoje -----------------------------------
+     Não há barra lateral, e a ADR-0007 recusou o componente de gráfico "para
+     a primeira entrega", dizendo que ele é aditivo. Ficam no valor que o autor
+     do tema escolheu, para o dia em que houver consumidor.
+     As sombras são diferentes: shadow-xs JÁ tem consumidor — o input.tsx e a
+     variante outline do button.tsx. */
+  --chart-1: oklch(0.4833 0.0873 255.0550);
+  --chart-2: oklch(0.6031 0.1107 41.8526);
+  --chart-3: oklch(0.6191 0.0750 240.6139);
+  --chart-4: oklch(0.5406 0.0773 152.7118);
+  --chart-5: oklch(0.7288 0.1150 84.3842);
+
+  --sidebar: oklch(0.9210 0.0075 260.7315);
+  --sidebar-foreground: oklch(0.2217 0.0126 264.2756);
+  --sidebar-primary: oklch(0.4833 0.0873 255.0550);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.9088 0.0196 252.8865);
+  --sidebar-accent-foreground: oklch(0.3448 0.0685 255.0266);
+  --sidebar-border: oklch(0.8689 0.0106 261.7872);
+  --sidebar-ring: oklch(0.6178 0.0703 257.8148);
+
+  --shadow-2xs: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.04);
+  --shadow-xs: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.04);
+  --shadow-sm: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.08), 0px 1px 2px -2px hsl(220.0000 15.7895% 11.1765% / 0.08);
+  --shadow: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.08), 0px 1px 2px -2px hsl(220.0000 15.7895% 11.1765% / 0.08);
+  --shadow-md: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.08), 0px 2px 4px -2px hsl(220.0000 15.7895% 11.1765% / 0.08);
+  --shadow-lg: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.08), 0px 4px 6px -2px hsl(220.0000 15.7895% 11.1765% / 0.08);
+  --shadow-xl: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.08), 0px 8px 10px -2px hsl(220.0000 15.7895% 11.1765% / 0.08);
+  --shadow-2xl: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.20);
 }
 
+/* ============================================================================
+   O escuro, duas vezes — e os dois corpos são IDÊNTICOS de propósito.
+
+   Um está dentro de @media e o outro não, então não há lista de seletores que
+   os una: a duplicação é estrutural e não tem saída em CSS. O que a segura é
+   `testes/interface/tema.test.ts`, e por isso ele existe.
+
+   Só cor. Tipografia e --radius ficam no :root.
+   ============================================================================ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #0e0e11;
-    --chrome: #1a1a1f;
-    --surface: #1c1c21;
-    --sunken: #232329;
-    --ink: #ededf0;
-    --ink-soft: #9a9aa3;
-    --ink-faint: #6e6e78;
-    --line: #35353d;
-    --line-soft: #27272e;
-    --accent: #e8735c;
-    --accent-bg: #30201c;
+    --ground: oklch(0.2037 0.0110 260.6650);
+    --chrome: oklch(0.2758 0.0182 262.1965);
+    --surface: oklch(0.2425 0.0147 261.6545);
+    --sunken: oklch(0.2758 0.0182 262.1965);
+    --ink: oklch(0.9335 0.0087 264.5206);
+    --ink-soft: oklch(0.6756 0.0235 265.6880);
+    --ink-faint: oklch(0.5100 0.0200 265.0000);
+    --line: oklch(0.3546 0.0230 261.2175);
+    --line-soft: oklch(0.2758 0.0182 262.1965);
+    --accent: oklch(0.6940 0.1017 45.5865);
+    --accent-bg: oklch(0.2921 0.0350 252.3026);
 
-    --primary: var(--ink);
-    --primary-foreground: #1c1c21;
-    --destructive-foreground: #1c1c21;
+    --primary: oklch(0.6347 0.0756 254.6243);
+    --primary-foreground: oklch(0.1808 0.0095 255.6419);
+    --accent-foreground: oklch(0.8036 0.0477 249.4116);
+    --destructive: oklch(0.6097 0.1654 25.8411);
+    --destructive-foreground: oklch(0.1562 0.0257 25.5104);
+
+    --chart-1: oklch(0.6347 0.0756 254.6243);
+    --chart-2: oklch(0.6940 0.1017 45.5865);
+    --chart-3: oklch(0.7194 0.0599 249.4577);
+    --chart-4: oklch(0.6451 0.0736 152.4322);
+    --chart-5: oklch(0.7959 0.1048 86.4619);
+
+    --sidebar: oklch(0.1808 0.0095 255.6419);
+    --sidebar-foreground: oklch(0.9335 0.0087 264.5206);
+    --sidebar-primary: oklch(0.6347 0.0756 254.6243);
+    --sidebar-primary-foreground: oklch(0.1808 0.0095 255.6419);
+    --sidebar-accent: oklch(0.2921 0.0350 252.3026);
+    --sidebar-accent-foreground: oklch(0.8036 0.0477 249.4116);
+    --sidebar-border: oklch(0.2758 0.0182 262.1965);
+    --sidebar-ring: oklch(0.7194 0.0599 249.4577);
+
+    --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
+    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
+    --shadow-sm: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.10);
+    --shadow: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.10);
+    --shadow-md: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 2px 4px -1px hsl(0 0% 10.1961% / 0.10);
+    --shadow-lg: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 4px 6px -1px hsl(0 0% 10.1961% / 0.10);
+    --shadow-xl: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 8px 10px -1px hsl(0 0% 10.1961% / 0.10);
+    --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.25);
   }
 }
 
 :root[data-theme="dark"] {
-  --ground: #0e0e11;
-  --chrome: #1a1a1f;
-  --surface: #1c1c21;
-  --sunken: #232329;
-  --ink: #ededf0;
-  --ink-soft: #9a9aa3;
-  --ink-faint: #6e6e78;
-  --line: #35353d;
-  --line-soft: #27272e;
-  --accent: #e8735c;
-  --accent-bg: #30201c;
+  --ground: oklch(0.2037 0.0110 260.6650);
+  --chrome: oklch(0.2758 0.0182 262.1965);
+  --surface: oklch(0.2425 0.0147 261.6545);
+  --sunken: oklch(0.2758 0.0182 262.1965);
+  --ink: oklch(0.9335 0.0087 264.5206);
+  --ink-soft: oklch(0.6756 0.0235 265.6880);
+  --ink-faint: oklch(0.5100 0.0200 265.0000);
+  --line: oklch(0.3546 0.0230 261.2175);
+  --line-soft: oklch(0.2758 0.0182 262.1965);
+  --accent: oklch(0.6940 0.1017 45.5865);
+  --accent-bg: oklch(0.2921 0.0350 252.3026);
 
-  --primary: var(--ink);
-  --primary-foreground: #1c1c21;
-  --destructive-foreground: #1c1c21;
+  --primary: oklch(0.6347 0.0756 254.6243);
+  --primary-foreground: oklch(0.1808 0.0095 255.6419);
+  --accent-foreground: oklch(0.8036 0.0477 249.4116);
+  --destructive: oklch(0.6097 0.1654 25.8411);
+  --destructive-foreground: oklch(0.1562 0.0257 25.5104);
+
+  --chart-1: oklch(0.6347 0.0756 254.6243);
+  --chart-2: oklch(0.6940 0.1017 45.5865);
+  --chart-3: oklch(0.7194 0.0599 249.4577);
+  --chart-4: oklch(0.6451 0.0736 152.4322);
+  --chart-5: oklch(0.7959 0.1048 86.4619);
+
+  --sidebar: oklch(0.1808 0.0095 255.6419);
+  --sidebar-foreground: oklch(0.9335 0.0087 264.5206);
+  --sidebar-primary: oklch(0.6347 0.0756 254.6243);
+  --sidebar-primary-foreground: oklch(0.1808 0.0095 255.6419);
+  --sidebar-accent: oklch(0.2921 0.0350 252.3026);
+  --sidebar-accent-foreground: oklch(0.8036 0.0477 249.4116);
+  --sidebar-border: oklch(0.2758 0.0182 262.1965);
+  --sidebar-ring: oklch(0.7194 0.0599 249.4577);
+
+  --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
+  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
+  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.10);
+  --shadow: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.10);
+  --shadow-md: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 2px 4px -1px hsl(0 0% 10.1961% / 0.10);
+  --shadow-lg: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 4px 6px -1px hsl(0 0% 10.1961% / 0.10);
+  --shadow-xl: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.10), 0px 8px 10px -1px hsl(0 0% 10.1961% / 0.10);
+  --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.25);
 }
 
 @theme inline {
@@ -113,6 +238,30 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
 
   --color-marca: var(--accent);
   --color-superficie: var(--surface);
