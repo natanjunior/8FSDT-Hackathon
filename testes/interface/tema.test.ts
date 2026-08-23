@@ -58,8 +58,10 @@ function tokensDe(corpo: string): Map<string, string> {
   // Sem poda de comentário aqui: ela já aconteceu em `CSS`, uma vez e para o arquivo inteiro.
   for (const pedaco of corpo.split(";")) {
     const encontrado = /(--[\w-]+)\s*:\s*([\s\S]+)/.exec(pedaco);
-    if (encontrado !== null) {
-      mapa.set(encontrado[1], encontrado[2].trim().replace(/\s+/g, " "));
+    const nome = encontrado?.[1];
+    const valor = encontrado?.[2];
+    if (nome !== undefined && valor !== undefined) {
+      mapa.set(nome, valor.trim().replace(/\s+/g, " "));
     }
   }
   return mapa;
