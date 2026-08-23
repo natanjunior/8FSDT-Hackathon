@@ -15,13 +15,11 @@ import { projetarContexto } from "@/interface/projecoes";
  * sem vínculo consegue usar (contrato §8.0). Aqui a leitura vai pela **estrada direta** da §5, com a mesma
  * projeção do route handler.
  *
- * **Nesta fatia existem três faces: A, B e D.** A face **C** (pedido recusado) depende de
- * `situacao: "recusado"`, e quem a produz é `POST /pedidos-de-entrada/{id}/recusar` — o item 8. Ela é
- * **inalcançável por construção**, não escondida, e sobe com aquele item.
+ * **Nesta fatia existem as quatro faces.** A face **C** (pedido recusado) passou a ser alcançável com o
+ * item 8, que é quem produz `situacao: "recusado"` — até ele, ela era inalcançável por construção.
  *
- * **Com o item 1 mesclado, as duas ações da face A funcionam** — pedir entrada é esta linha, criar
- * organização é o item 1. O que continua fora é **escolher** organização na face D, que é o item 7b, e é
- * o único botão que ainda diz na tela que não faz.
+ * **O que continua fora é escolher organização na face D**, que é o item 7b, e é o único botão que ainda
+ * diz na tela que não faz.
  */
 export const dynamic = "force-dynamic";
 
@@ -36,6 +34,14 @@ export default async function TelaSemOrganizacaoAtiva() {
   // por isso que a face B não tem campo de código.
   const pendente = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "pendente");
   if (pendente !== undefined) return <FaceB pedido={pendente} />;
+
+  // **Face C — recusado.** A lista vem em `criadoEm` decrescente (spec §2.6 do 7a), então o primeiro
+  // recusado é o mais recente. Só aparece para quem não tem vínculo nenhum: quem foi recusado em B e
+  // entrou em A tem organização ativa e nem chega aqui.
+  const recusado = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "recusado");
+  if (recusado !== undefined && contexto.vinculos.length === 0) {
+    return <FaceC nome={contexto.pessoa.nome} organizacao={recusado.organizacao.nome} />;
+  }
 
   if (contexto.vinculos.length >= 2) return <FaceD vinculos={contexto.vinculos} />;
   return <FaceA nome={contexto.pessoa.nome} />;
@@ -88,6 +94,31 @@ function FaceB({ pedido }: { pedido: { organizacao: { nome: string }; criadoEm: 
           {formatarData(pedido.criadoEm)}
         </dd>
       </dl>
+
+      <BotaoDeSair />
+    </MolduraDeTela>
+  );
+}
+
+/**
+ * **Face C · Pedido recusado.** Um pedido `recusado`, nenhum pendente e nenhum vínculo.
+ *
+ * **O campo de código volta, e não é enfeite:** *"pedido recusado pode ser refeito"* é a suposição S4 do
+ * modelo, e é o índice único **parcial** que a permite. Sem o campo, esta face é um beco — palavras do
+ * protótipo.
+ *
+ * **O motivo da recusa não aparece, e é decisão de três documentos:** `GET /contexto` devolve `situacao`
+ * e não o motivo; dizê-lo a quem foi recusado é decisão de produto ainda não tomada. A tela diz o que
+ * aconteceu e o que fazer, e mais nada.
+ */
+function FaceC({ nome, organizacao }: { nome: string; organizacao: string }) {
+  return (
+    <MolduraDeTela titulo={`Seu pedido para entrar em ${organizacao} não foi aprovado.`}>
+      <p className="text-tinta-suave text-sm leading-relaxed">
+        Você pode pedir entrada de novo, aqui mesmo.
+      </p>
+
+      <FormularioDePedidoDeEntrada nome={nome} />
 
       <BotaoDeSair />
     </MolduraDeTela>
