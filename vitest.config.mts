@@ -48,6 +48,10 @@ export default defineConfig({
           environment: "node",
           testTimeout: 30_000,
           hookTimeout: 60_000,
+          // **Um banco só, e cada arquivo derruba e recria o esquema.** Em paralelo, o `beforeAll` de um
+          // arquivo apagaria as tabelas que o outro está usando — falha intermitente que não é defeito, e
+          // falha intermitente com um implementador é esteira abandonada, não consertada (ADR-0008).
+          fileParallelism: false,
         },
       },
     ],

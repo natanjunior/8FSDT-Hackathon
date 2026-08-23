@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ConsultaSemEscopo, escoparConsulta } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeVinculos, repositorioGlobalDeVinculos } from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
+
+import { aplicarEsquema } from "./esquema";
 
 /**
  * ============================================================================
@@ -66,7 +65,7 @@ beforeAll(async () => {
   consulta = async <L extends object>(sql: string, valores: readonly unknown[] = []) =>
     (await pool.query(sql, valores as unknown[])).rows as L[];
 
-  await aplicarEsquema();
+  await aplicarEsquema(consulta);
   await semear();
 });
 
@@ -277,29 +276,6 @@ describe("as invariantes que o banco garante", () => {
 });
 
 // ---------------------------------------------------------------------------
-
-async function aplicarEsquema(): Promise<void> {
-  const raiz = new URL("../../", import.meta.url);
-  const shim = readFileSync(fileURLToPath(new URL("testes/integracao/esquema-de-auth.sql", raiz)), "utf8");
-  const migracao = readFileSync(
-    fileURLToPath(
-      new URL("supabase/migrations/20260821120000_001_pessoas_organizacoes_vinculos.sql", raiz),
-    ),
-    "utf8",
-  );
-
-  // Estado limpo em toda execução: o teste não pode depender do que a execução anterior deixou.
-  //
-  // **O schema `auth` NUNCA é derrubado.** Contra o Postgres do Supabase CLI ele é o do provedor, com as
-  // contas de verdade — e um `drop schema auth cascade` aqui apagaria o login de quem está desenvolvendo.
-  // O shim é `create ... if not exists`, então contra o Supabase local ele é um no-op, e contra o Postgres
-  // nu do CI ele cria as duas colunas de que a FK depende.
-  await consulta(`drop table if exists vinculos, organizacoes, pessoas cascade`);
-  await consulta(`drop type if exists papel_vinculo`);
-
-  await consulta(shim);
-  await consulta(migracao);
-}
 
 /**
  * Cria uma credencial na tabela do provedor.
