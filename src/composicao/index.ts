@@ -10,9 +10,11 @@ import {
 import { escoparConsulta } from "@/infraestrutura/contexto";
 import {
   repositorioDeOrganizacoes,
+  repositorioDePedidosDeEntrada,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
   repositorioEscopadoDeVinculos,
+  repositorioGlobalDePedidosDeEntrada,
   repositorioGlobalDeVinculos,
 } from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
@@ -54,6 +56,9 @@ export function montarPortasGlobais(
     // A escrita que **cria** o escopo. Recebe a transação, não a consulta: as quatro escritas da POL-01
     // acontecem num `COMMIT` só, e a FK diferida de `organizacoes` depende disso (modelo §6.3).
     organizacoes: repositorioDeOrganizacoes(criarTransacao()),
+    pedidosDeEntrada: repositorioGlobalDePedidosDeEntrada(consulta),
+    // A escrita das três linhas num `COMMIT` só. Recebe a transação, não a consulta.
+    escritaDePedidosDeEntrada: repositorioDePedidosDeEntrada(criarTransacao()),
   };
 }
 
