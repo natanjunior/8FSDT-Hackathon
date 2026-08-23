@@ -1,0 +1,87 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+
+import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
+import { Button } from "@/interface/componentes/ui/button";
+import { Input } from "@/interface/componentes/ui/input";
+
+/**
+ * **T-02 face A, o segundo caminho:** *"Você administra um condomínio, empresa ou bairro que ainda não usa
+ * o Resolve Aí?"*
+ *
+ * **Um campo de texto, e o inventário diz por que não é uma tela:** *"Criar organização — face de T-02. É
+ * um campo de texto. Um campo não é um lugar a visitar"* (§8). A hierarquia da face também é do
+ * inventário: quem chega aqui quase sempre está **entrando**, não fundando — por isso este bloco fica
+ * **abaixo** da linha divisória.
+ */
+export function FormularioDeNovaOrganizacao() {
+  const router = useRouter();
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+
+    // Lido **antes** do `await`: depois dele, `currentTarget` já é nulo.
+    const nome = String(new FormData(evento.currentTarget).get("nome") ?? "").trim();
+    if (nome === "") {
+      setErro("Informe o nome da organização.");
+      return;
+    }
+
+    setErro(null);
+    setEnviando(true);
+    try {
+      const resposta = await fetch("/api/organizacoes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nome }),
+      });
+
+      if (!resposta.ok) {
+        // O corpo de erro é `application/problem+json` (contrato §6.1), e `detail` é o texto para gente.
+        const problema = (await resposta.json().catch(() => null)) as { detail?: string } | null;
+        setErro(problema?.detail ?? "Não foi possível criar a organização agora. Tente de novo em instantes.");
+        return;
+      }
+
+      // O `Set-Cookie` do `201` já deixou a nova organização ativa. `refresh` refaz o `GET /contexto` do
+      // shell **antes** de navegar — sem ele, a tela seguinte pintaria com o contexto anterior, em que
+      // ainda não há organização, e voltaria para cá.
+      router.refresh();
+      router.push("/");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <>
+      {erro !== null && <Aviso>{erro}</Aviso>}
+
+      <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
+        <Campo
+          id="nome-da-organizacao"
+          rotulo="Nome da organização"
+          ajuda="É o nome que aparece para todo mundo que entrar. Depois de criada, não há como mudar."
+        >
+          <Input
+            id="nome-da-organizacao"
+            name="nome"
+            type="text"
+            maxLength={120}
+            autoComplete="organization"
+            disabled={enviando}
+            className="h-12 text-base"
+          />
+        </Campo>
+
+        <Button type="submit" variant="outline" disabled={enviando} className="h-12 w-full text-base">
+          {enviando ? "Criando…" : "Criar uma organização"}
+        </Button>
+      </form>
+    </>
+  );
+}

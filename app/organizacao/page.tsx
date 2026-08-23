@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
+import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
 import { Campo, MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
@@ -19,10 +20,10 @@ import { projetarContexto } from "@/interface/projecoes";
  * dependem de `pedidosDeEntrada`, e `POST /pedidos-de-entrada` está fora da fatia — então nenhum pedido pode
  * existir, e as duas faces são **inalcançáveis por construção**, não escondidas.
  *
- * **Os botões não funcionam, e isso está dito na tela.** Pedir entrada, criar organização e escolher
- * organização são `POST /pedidos-de-entrada`, `POST /organizacoes` e `PUT /contexto/organizacao` — os três
- * fora desta fatia. Um botão morto e mudo seria pior que um botão ausente; um botão morto que **diz que
- * ainda não faz** é o desenho aparecendo antes da função, que é o propósito do esqueleto.
+ * **Dois botões ainda não funcionam, e isso está dito na tela.** Pedir entrada e escolher organização são
+ * `POST /pedidos-de-entrada` e `PUT /contexto/organizacao` — os dois fora desta fatia. Um botão morto e
+ * mudo seria pior que um botão ausente; um botão morto que **diz que ainda não faz** é o desenho aparecendo
+ * antes da função, que é o propósito do esqueleto.
  */
 export const dynamic = "force-dynamic";
 
@@ -50,8 +51,8 @@ function FaceA({ nome }: { nome: string }) {
   return (
     <MolduraDeTela titulo="Você ainda não está em nenhuma organização.">
       <AvisoDeFatia>
-        Pedir entrada e criar organização chegam na próxima tarefa. Esta entrega é o esqueleto de deploy:
-        criar conta, entrar, e ver em qual organização você está.
+        Pedir entrada com o código chega na próxima tarefa. Criar uma organização já funciona — e a
+        organização nasce com as sete categorias do desafio e duas áreas para você ajustar.
       </AvisoDeFatia>
 
       <form className="flex flex-col gap-5">
@@ -118,9 +119,7 @@ function FaceA({ nome }: { nome: string }) {
       <p className="text-tinta-suave text-sm leading-relaxed">
         Você administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?
       </p>
-      <Button type="button" variant="outline" disabled className="h-12 w-full text-base">
-        Criar uma organização
-      </Button>
+      <FormularioDeNovaOrganizacao />
 
       <BotaoDeSair />
     </MolduraDeTela>
