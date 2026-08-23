@@ -901,6 +901,38 @@ migração compatível primeiro, código depois**.
 > Uma garantia cuja precondição não está escrita é a classe de defeito que este pacote mais encontrou nesta
 > semana. Esta fica escrita.
 
+> **E o modo múltiplo traz uma armadilha que o padrão não tem: a revisão nova nasce com peso de tráfego
+> ZERO.** Sem alguém apontar, o deploy fica **verde e inerte** — a esteira diz *"publicado"*, e a URL
+> continua servindo o código anterior. Por isso o emprego de implantação executa
+> `az containerapp ingress traffic set --revision-weight latest=100`. **Não é detalhe de comando: é o que
+> impede o modo múltiplo de transformar todo deploy numa mentira silenciosa.**
+>
+> A primeira publicação real de código, em 23/08/2026, mostra as duas coisas ao mesmo tempo:
+>
+> | Revisão | Estado | Peso de tráfego |
+> |---|---|---|
+> | `ca-resolve-ai--0000003` | ativa | **0** — o alvo do rollback, existindo de verdade |
+> | `ca-resolve-ai--0000004` | ativa | **100** — a revisão nova, servindo |
+>
+> **A linha de peso 0 é a prova de que o caminho de volta do [`definition-of-done.md`](definition-of-done.md)
+> tem alvo.** Em modo `Single` ela não existiria: haveria uma revisão só, e *"voltar"* seria publicar de
+> novo — que é o que o parágrafo acima recusa.
+
+> **O `subject` da credencial federada é o formato imutável, e descobri-lo custou uma execução vermelha
+> (23/08/2026).** A credencial de deploy foi criada com o formato que a documentação da Microsoft usa como
+> exemplo — `repo:<dono>/<repositorio>:environment:producao` —, e **o que o GitHub apresenta é outro**:
+>
+> ```
+> repo:<dono>@<idNumericoDoDono>/<repositorio>@<idNumericoDoRepositorio>:environment:producao
+> ```
+>
+> Ele embute os identificadores numéricos **para que o vínculo sobreviva a renomeações**. O erro foi
+> `AADSTS700213: No matching federated identity record found`, que não diz nada disso. **As duas formas
+> ficam registradas no aplicativo**: a imutável, que é a que funciona, e a nomeada, como rede se a
+> configuração do GitHub mudar. A lição de método — **o `subject` se descobre lendo o log de uma execução
+> real, não escrevendo o que se espera** — está na emenda da
+> [ADR-0004](adr/0004-execucao-em-container-no-azure.md).
+
 > **O que se perdeu na troca de plataforma, declarado.** Não há mais **ambiente de preview por branch** —
 > a plataforma anterior gerava URL por branch automaticamente, e o Container Apps não faz isso de forma
 > nativa. **A revisão funcional passa a acontecer no ambiente único**, com o que isso implica: código não

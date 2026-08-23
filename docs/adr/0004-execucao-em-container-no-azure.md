@@ -81,6 +81,48 @@ existir na escala do projeto.
 > os dois portões passam a ter item de trabalho próprio no Boards. O código, os *pull requests* e o
 > pipeline continuam integralmente no GitHub.
 
+> ### Emenda de 23/08/2026 — a esteira autentica no Azure por OIDC, não por segredo de longa vida
+>
+> **O que mudou.** O emprego de implantação deixou de autenticar com `AZURE_CREDENTIALS` — uma **senha de
+> cliente de longa duração** guardada nos segredos do repositório — e passa a autenticar por **credencial
+> federada**: o GitHub emite um token curto **por execução**, e o Entra ID o aceita porque confia naquele
+> repositório e naquele *environment*. No lugar do segredo ficam três **identificadores públicos** —
+> `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` e `AZURE_SUBSCRIPTION_ID` —, guardados como *Variables* e **não**
+> como *Secrets*, porque não são credencial.
+>
+> **A parte incômoda, e ela não se suaviza.** Aquela senha era **o único segredo de longa vida do
+> projeto**, e existiu **por acidente de sequência**: a decisão pelo OIDC foi tomada ao responder uma
+> pergunta de especificação e **nunca chegou à conversa que provisionou a nuvem**. O ambiente foi criado, a
+> esteira ficou verde, e só depois a decisão foi reencontrada. **O modo de falha não foi técnico — foi uma
+> decisão certa que não atravessou de uma conversa para outra**, e é por isso que vale estar escrito aqui
+> em vez de a ADR fingir que ela sempre esteve.
+>
+> **A alternativa rejeitada funcionava, e a ADR precisa dizer isso.** *Service principal com senha* deixou
+> a esteira **verde** e não exigia mudar uma linha do workflow. Foi recusada por dois motivos:
+>
+> - **É a doutrina desta própria ADR, aplicada ao outro lado.** A regra da imagem pública é *o que não
+>   existe não vaza* — nenhum segredo é assado em tempo de build. **Segredo de longa vida nas configurações
+>   do repositório é a mesma categoria de risco em outro lugar**, e aceitá-lo ali enquanto se proíbe na
+>   imagem seria incoerência, não pragmatismo.
+> - **`az ad sp create-for-rbac --sdk-auth` está depreciado**, com aviso da própria CLI. Construir sobre
+>   uma bandeira que já foi anunciada como saída, para economizar dez linhas, é a troca errada num trabalho
+>   avaliado por arquitetura.
+>
+> **O que se ganha é escopo, e ele é mensurável.** A credencial federada se amarra a **repositório mais
+> *environment***: o `environment: producao` que o emprego declara é a âncora, e **nem outro ramo nem um
+> *fork* obtêm o token**. A senha não tinha limite nenhum — quem a tivesse, usava de qualquer lugar e por
+> tempo indeterminado.
+>
+> **O custo, declarado:** três variáveis a manter em vez de um segredo, e **uma dependência a mais do
+> formato de `subject` que o GitHub emite** — que custou uma execução vermelha e está registrado na §9 da
+> [`arquitetura.md`](../arquitetura.md).
+>
+> **E uma consequência de método, que é o que se leva para a próxima vez.** O `subject` foi escrito a
+> partir do exemplo da documentação e conferido **listando a credencial e comparando com o que se havia
+> escrito** — o que **confirma a própria digitação e não prova nada**. **O `subject` se descobre lendo o
+> log de uma execução real, não escrevendo o que se espera.** É a mesma classe de defeito que este pacote
+> já nomeou mais de uma vez: conferir o artefato contra a lista que o produziu.
+
 ## Consequências
 
 **Positivas**
@@ -101,8 +143,12 @@ existir na escala do projeto.
 - **Perde-se o *preview* por branch.** A Vercel gerava URL por branch automaticamente, e o plano de
   implantação a usava como ambiente de revisão funcional. O Container Apps tem revisões, mas *preview*
   automático por branch não é nativo: a revisão passa a acontecer num ambiente único.
-- **A imagem é pública** — qualquer pessoa pode executar `docker pull`. Isso é aceitável porque o
-  repositório será aberto na entrega, mas impõe uma regra: **nenhum segredo pode ser assado em tempo de
+- **A imagem é pública** — qualquer pessoa pode executar `docker pull`. *(Precisão de 23/08/2026: esta
+  linha creditava a publicidade a **"o repositório será aberto na entrega"**, e o mecanismo é outro. **A
+  visibilidade do pacote no `ghcr.io` é independente da do repositório** — o pacote nasce privado mesmo em
+  repositório público, e teve de ser tornado público explicitamente. Hoje **o pacote é público e o
+  repositório continua privado**, e é isso que preserva esta ADR sem exigir a decisão de abrir o
+  repositório.)* Isso é aceitável, mas impõe uma regra: **nenhum segredo pode ser assado em tempo de
   build**. Segredo passado como `ARG`, ou `.env` copiado para a imagem, permanece nas camadas **mesmo que
   um `RUN rm` o apague depois**, e em imagem pública isso é leitura livre. Entra no Definition of Done.
   Em Next.js, variáveis `NEXT_PUBLIC_*` são embutidas no bundle por natureza e são públicas por desenho;
