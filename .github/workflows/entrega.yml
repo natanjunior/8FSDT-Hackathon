@@ -298,17 +298,27 @@ jobs:
         # (`az containerapp create --env-vars`). Assim os segredos de execução
         # não precisam existir como segredo do repositório — e o que não está
         # aqui não pode vazar num log de Actions.
+        #
+        # **`vars.` e não `secrets.` para os dois nomes de recurso, e a diferença
+        # é visível.** Nome de Container App e de grupo de recursos não são
+        # credencial — saber o FQDN não dá acesso a nada, porque a aplicação é
+        # pública por desenho. Como segredo, eles mascaravam a URL no resumo
+        # (`https://***.jollypebble-…`) e faziam o GitHub **recusar** o
+        # `environment url` com *"environment 'producao' may contain secret"* —
+        # deixando o ambiente sem link clicável. O critério 1 do item 40 pede uma
+        # URL pública onde a revisão funcional acontece; ela existia e estava
+        # invisível para quem ia revisar.
         run: |
           az containerapp update \
-            --name "${{ secrets.AZURE_CONTAINER_APP }}" \
-            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --image "${{ needs.publicar.outputs.etiqueta }}"
 
       - id: endereco
         run: |
           FQDN=$(az containerapp show \
-            --name "${{ secrets.AZURE_CONTAINER_APP }}" \
-            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --query "properties.configuration.ingress.fqdn" -o tsv)
           echo "url=https://$FQDN" >> "$GITHUB_OUTPUT"
           echo "Publicado em https://$FQDN" >> "$GITHUB_STEP_SUMMARY"
