@@ -17,6 +17,10 @@ import { Input } from "@/interface/componentes/ui/input";
  * **A doutrina de erro, e ela decide o texto:** credencial inválida **não distingue** *"e-mail não existe"*
  * de *"senha errada"*. Distinguir transformaria a tela de login num verificador de quem tem conta no
  * produto (inventário, T-01).
+ *
+ * **Dois estados dormentes.** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa` só
+ * acontecem com a confirmação de e-mail ligada, e ela **não** está: a Q-T9 foi fechada em 22/08/2026. Os
+ * dois ficam pelo dia em que o interruptor *Confirm email* virar no painel do provedor.
  */
 export function FormularioDeEntrada({
   destino,
@@ -82,6 +86,7 @@ export function FormularioDeEntrada({
 }
 
 function textoDaRecusa(recusa: string): string {
+  // DORMENTE — ver o cabeçalho: sem confirmação de e-mail, o provedor não produz esta recusa.
   if (recusa === "EMAIL_NAO_CONFIRMADO") {
     return "Confirme a conta pelo link que enviamos por e-mail e tente de novo.";
   }

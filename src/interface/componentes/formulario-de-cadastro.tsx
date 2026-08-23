@@ -22,6 +22,8 @@ import { Input } from "@/interface/componentes/ui/input";
 export function FormularioDeCadastro() {
   const [estado, agir, aguardando] = useActionState(acaoDeCriarConta, {});
 
+  // DORMENTE — este bloco é o estado *"olhe seu e-mail"*, e ele **não acontece** nesta entrega: a Q-T9 foi
+  // fechada em 22/08/2026 e T-11 termina em sessão válida, direto. Fica pelo dia do interruptor.
   if (estado.aviso === "confirme-o-email") {
     return (
       <>

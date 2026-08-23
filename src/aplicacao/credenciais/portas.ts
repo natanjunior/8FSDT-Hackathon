@@ -28,6 +28,10 @@ export type RecusaDeCredencial =
   /** T-11: aqui a doutrina do não-confirmar **cede** — negar produz alguém preso tentando criar o que já existe. */
   | "CONTA_JA_EXISTE"
   | "SENHA_RECUSADA_PELO_PROVEDOR"
+  /**
+   * **DORMENTE.** Com a Q-T9 fechada em 22/08/2026 — confirmação de e-mail **não** obrigatória —, o
+   * provedor nunca recusa uma entrada por conta não confirmada. Fica pelo dia em que o interruptor virar.
+   */
   | "EMAIL_NAO_CONFIRMADO"
   /** T-01, estado 6: o link do e-mail venceu ou já foi usado. */
   | "LINK_INVALIDO_OU_EXPIRADO"
@@ -43,6 +47,8 @@ export interface PortaDeCredenciais {
   criarConta(nome: string, email: string, senha: string): Promise<ResultadoDeCredencial>;
 
   /**
+   * **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026).
+   *
    * Troca o código que o link de confirmação de e-mail carrega por uma sessão.
    *
    * É o que faz **os estados 5 e 6 de T-01** existirem — *"Conta confirmada. Entre para continuar."* e

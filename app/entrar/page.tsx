@@ -10,6 +10,9 @@ import { resolverParaTela } from "@/interface/http";
  *
  * O `?destino=` é o que faz o link profundo sobreviver à autenticação: *"uma ocorrência que não pode ser
  * mandada por link é uma ocorrência que vai ser descrita por WhatsApp"*.
+ *
+ * **`?confirmacao=` é dormente.** Ele só chega aqui vindo de `/confirmar-conta`, que nada alcança nesta
+ * entrega (Q-T9 fechada em 22/08/2026). O parâmetro fica, e é inofensivo: valor desconhecido é ignorado.
  */
 export const dynamic = "force-dynamic";
 
