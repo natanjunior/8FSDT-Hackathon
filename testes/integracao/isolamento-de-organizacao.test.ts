@@ -104,13 +104,19 @@ describe("o repositório escopado nunca devolve linha de outra organização", (
   });
 
   it("escopado em Recanto, vê só quem é de Recanto", async () => {
-    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idRecanto));
+    const repos = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
     const ativos = await repos.ativos();
 
     expect(ativos.map((a) => a.pessoa.pessoaId).sort()).toEqual([idMoradora, idSindica].sort());
-    for (const ativo of ativos) {
-      expect(ativo.vinculo.organizacaoId).toBe(idRecanto);
-    }
+
+    // `organizacaoId` **não existe mais no resultado, e é melhoria e não perda**: um modelo de leitura
+    // correto não expõe a coluna de escopo (é o que a suíte de isolamento diz do terceiro caso, que é
+    // opcional por essa razão). O que prova o isolamento é a comparação com o que foi semeado em cada
+    // organização — os dois casos abaixo —, e ela é mais forte do que acreditar num campo que a própria
+    // consulta preencheu.
   });
 
   /**
@@ -118,12 +124,15 @@ describe("o repositório escopado nunca devolve linha de outra organização", (
    * vazasse, a moradora de Recanto apareceria aqui — e o papel da síndica sairia errado.
    */
   it("escopado em Aurora, NÃO vê a moradora de Recanto, e o papel é o de Aurora", async () => {
-    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idAurora));
+    const repos = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
     const ativos = await repos.ativos();
 
     expect(ativos).toHaveLength(1);
     expect(ativos[0]?.pessoa.pessoaId).toBe(idSindica);
-    expect(ativos[0]?.vinculo.papel).toBe("solicitante");
+    expect(ativos[0]?.papel).toBe("solicitante");
     expect(ativos.map((a) => a.pessoa.pessoaId)).not.toContain(idMoradora);
   });
 
@@ -133,7 +142,10 @@ describe("o repositório escopado nunca devolve linha de outra organização", (
       [idMoradora, idRecanto],
     );
 
-    const repos = repositorioEscopadoDeVinculos(escoparConsulta(consulta, idRecanto));
+    const repos = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
     expect((await repos.ativos()).map((a) => a.pessoa.pessoaId)).toEqual([idSindica]);
 
     // A linha continua lá — é o que mantém as FKs compostas válidas para a trilha (modelo §6.4).
@@ -157,9 +169,10 @@ describe("o ponto de estrangulamento recusa consulta sem escopo", () => {
   });
 
   it("o repositório escopado não recebe o identificador da organização — ele não tem como errar o filtro", () => {
-    // A assinatura é a garantia: `repositorioEscopadoDeVinculos` recebe uma função, não um uuid. É a
-    // ADR-0003 levada à assinatura — *o filtro é aplicado em uma função*.
-    expect(repositorioEscopadoDeVinculos.length).toBe(1);
+    // A assinatura é a garantia: `repositorioEscopadoDeVinculos` recebe **duas funções** — a consulta e a
+    // transação, ambas já amarradas ao `$1` —, e nenhum uuid. Era `1` até o item 9a, quando o cadastro e a
+    // correção passaram a precisar de transação; o que a asserção prova é o mesmo.
+    expect(repositorioEscopadoDeVinculos.length).toBe(2);
   });
 });
 
@@ -428,6 +441,33 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [idPedidoAurora];
+      },
+    },
+  });
+
+  /**
+   * **A quarta, e a que fecha o item 9a.** Ela semeia **apenas o próprio agregado**: as pessoas e as
+   * organizações são da suíte, e o cenário que detecta o vazamento já está montado — a síndica tem vínculo
+   * nas **duas** organizações, e a moradora só em Recanto. *Seed* com pessoas distintas por organização
+   * não detectaria o erro; é o critério A4, e a suíte é dona desse mundo.
+   *
+   * **`esperadas` vai em getter pela razão da entrada acima:** o corpo do `describe` roda na coleta, antes
+   * de qualquer `beforeAll`, e `idSindica` lido ali ainda é `undefined`.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /vinculos",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeVinculos(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      ).ativos(),
+    chaveDaLinha: (vinculo) => vinculo.pessoa.pessoaId,
+    esperadas: {
+      get emA() {
+        return [idSindica, idMoradora];
+      },
+      get emB() {
+        return [idSindica];
       },
     },
   });
