@@ -75,7 +75,7 @@ function tipoDoErro(codigo: string): string {
   return `https://resolveai.app/erros/${codigo.toLowerCase().replace(/_/gu, "-")}`;
 }
 
-/** Uma violação de campo — só em `400` (contrato §6.1). */
+/** Uma violação de campo — em `400 FORMATO_INVALIDO` e em `422 CAMPO_NAO_SUPORTADO` (contrato §6.1). */
 export type ErroDeCampo = {
   campo: string;
   codigo: string;
@@ -97,6 +97,28 @@ export class CorpoNaoSuportado extends ErroDeDominio {
 export class FormatoInvalido extends ErroDeDominio {
   constructor(erros: readonly ErroDeCampo[]) {
     super("FORMATO_INVALIDO", "Formato inválido", "Um ou mais campos estão inválidos.", { erros });
+  }
+}
+
+/**
+ * `422 CAMPO_NAO_SUPORTADO` — o campo existe no vocabulário do produto e **esta operação não o aceita**.
+ *
+ * **Não é `400`, e a diferença é a §6.2 do contrato:** `400` é *"você escreveu errado"*; isto é *"o
+ * produto não faz isso"*. O catálogo de erros define o código como *"campo cuja capacidade é evolução
+ * prevista, ou escrito só pelo servidor"* — e `papel` no `PATCH` de vínculo é o primeiro caso: promover
+ * alguém a Gestor não é capacidade da primeira entrega.
+ *
+ * **Recusar em voz alta é o ponto.** Descartar o campo em silêncio — que é o que um schema Zod faz de
+ * graça — deixaria quem chamou a API convencido de ter promovido alguém.
+ */
+export class CampoNaoSuportado extends ErroDeDominio {
+  constructor(campos: readonly string[]) {
+    super(
+      "CAMPO_NAO_SUPORTADO",
+      "Campo não suportado",
+      "Um ou mais campos enviados não são aceitos por esta operação.",
+      { erros: campos.map((campo) => ({ campo, codigo: "CAMPO_NAO_SUPORTADO" })) },
+    );
   }
 }
 

@@ -20,7 +20,6 @@ export type {
   PortaDeAutenticacao,
   PortasGlobais,
   RepositorioDePessoas,
-  RepositorioEscopadoDeVinculos,
   RepositorioGlobalDeVinculos,
   RepositoriosEscopados,
   SessaoDoProvedor,

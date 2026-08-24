@@ -12,7 +12,7 @@ import {
   type RepositorioEscopadoDePedidosDeEntrada,
   type ResultadoDaAprovacao,
   type ResultadoDaRecusa,
-  type VinculoCriado,
+  type VinculoLido,
 } from "@/aplicacao/organizacao";
 
 /**
@@ -27,7 +27,7 @@ import {
  * **Sem banco, em milissegundos**, que é o que a ADR-0005 comprou ao pôr a porta na camada que a consome.
  */
 
-const VINCULO: VinculoCriado = {
+const VINCULO: VinculoLido = {
   pessoa: { pessoaId: "pessoa-1", nome: "Camila Duarte", contatos: [] },
   papel: "solicitante",
   area: { id: "area-1", nome: "Apartamento 302", tipo: "privativa" },
@@ -94,7 +94,7 @@ describe("aprovar", () => {
   });
 
   it("sem unidade, passa null para a porta", async () => {
-    const semArea: VinculoCriado = { ...VINCULO, papel: "gestor", area: null };
+    const semArea: VinculoLido = { ...VINCULO, papel: "gestor", area: null };
     const { porta, recebido } = portaFalsa({ desfecho: "aprovado", vinculo: semArea });
 
     const vinculo = await aprovarPedidoDeEntrada(porta, {

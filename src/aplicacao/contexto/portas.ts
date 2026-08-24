@@ -4,6 +4,7 @@ import type {
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDePedidosDeEntrada,
+  RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
 } from "@/aplicacao/organizacao";
 import type { Vinculo } from "@/dominio/organizacao";
@@ -91,15 +92,6 @@ export type VinculoNaOrganizacao = {
  */
 export interface RepositorioGlobalDeVinculos {
   ativosDaPessoa(pessoaId: string): Promise<VinculoNaOrganizacao[]>;
-}
-
-/**
- * **A porta escopada.** Toda leitura passa por aqui já filtrada pela organização ativa — o filtro é
- * aplicado numa função só, que é o compromisso da ADR-0003. Quem monta é o anel externo (ADR-0005).
- */
-export interface RepositorioEscopadoDeVinculos {
-  /** Os vínculos ativos **desta** organização. Nunca vê linha de outra. */
-  ativos(): Promise<Array<{ vinculo: Vinculo; pessoa: PessoaReferencia }>>;
 }
 
 // ---------------------------------------------------------------------------
