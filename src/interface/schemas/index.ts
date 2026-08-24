@@ -36,3 +36,10 @@ export {
   type EntradaDePedidoDeEntrada,
   type EntradaDeRecusa,
 } from "./pedido-de-entrada";
+
+export {
+  cadastroDeVinculoSchema,
+  correcaoDeVinculoSchema,
+  type EntradaDeCadastroDeVinculo,
+  type EntradaDeCorrecaoDeVinculo,
+} from "./vinculo";
