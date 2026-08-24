@@ -72,7 +72,12 @@ export function montarPortasGlobais(
 export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopados {
   const consulta = escoparConsulta(criarConsulta(), organizacaoId);
   return {
-    vinculos: repositorioEscopadoDeVinculos(consulta),
+    // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para o
+    // cadastro e a correção, que fazem duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
+    vinculos: repositorioEscopadoDeVinculos(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
     categorias: repositorioEscopadoDeCategorias(consulta),
     areas: repositorioEscopadoDeAreas(consulta),
     // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
