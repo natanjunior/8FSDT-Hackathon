@@ -2,10 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarAreas, listarPedidosDeEntrada } from "@/aplicacao/organizacao";
+import { listarAreas, listarPedidosDeEntrada, listarVinculos } from "@/aplicacao/organizacao";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
+import { ListaDeVinculos } from "@/interface/componentes/lista-de-vinculos";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarArea, projetarPedidoDeEntradaDetalhe } from "@/interface/projecoes";
+import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@/interface/projecoes";
 
 /**
  * **T-08 · Quem está na organização** — *"Quem está aqui, e quem quer entrar?"*
@@ -48,9 +49,10 @@ export default async function QuemEstaNaOrganizacao({
     );
   }
 
-  const [pedidos, areas] = await Promise.all([
+  const [pedidos, areas, vinculos] = await Promise.all([
     listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {}),
     listarAreas(escopo.repos.areas),
+    listarVinculos(escopo.repos.vinculos),
   ]);
 
   const parametros = await searchParams;
@@ -87,10 +89,14 @@ export default async function QuemEstaNaOrganizacao({
         )}
       </section>
 
-      <section className="border-linha text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-        A lista de quem já está na organização — com papel, unidade e contatos — chega no próximo item.
-        Esta tela hoje decide quem entra.
-      </section>
+      <ListaDeVinculos vinculos={vinculos.map(projetarVinculo)} />
+
+      <Link
+        href="/vinculos/nova"
+        className="border-linha text-tinta inline-flex min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium"
+      >
+        Cadastrar pessoa sem conta
+      </Link>
 
       <Link href="/" className="text-marca text-sm underline underline-offset-4">
         Voltar
@@ -109,6 +115,31 @@ function FaixaDoDesfecho({ parametros }: { parametros: Record<string, string | s
     const valor = parametros[chave];
     return typeof valor === "string" ? valor : "";
   };
+
+  const cadastrado = texto("cadastrado");
+  if (cadastrado !== "") {
+    return (
+      <p
+        role="status"
+        className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
+      >
+        {cadastrado} foi cadastrada como {rotuloDoPapel(texto("papel"))}. Ela existe como cadastro e
+        recebe atribuições; para agir no sistema seria preciso ter conta.
+      </p>
+    );
+  }
+
+  const corrigido = texto("corrigido");
+  if (corrigido !== "") {
+    return (
+      <p
+        role="status"
+        className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
+      >
+        Os dados de {corrigido} foram corrigidos.
+      </p>
+    );
+  }
 
   const decidido = texto("decidido");
   if (decidido !== "aprovado" && decidido !== "recusado") return null;
