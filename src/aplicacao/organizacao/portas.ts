@@ -192,12 +192,14 @@ export type PedidoDeEntradaLido = {
 };
 
 /**
- * O que a aprovação devolve — o schema `Vinculo` do contrato.
+ * O schema `Vinculo` do contrato — **um objeto de leitura declarado, nunca a linha de `vinculos`**
+ * (ADR-0005, parte 3). `organizacao_id`, `revogado_em` e os relógios de auditoria existem no esquema e
+ * não aparecem aqui.
  *
- * **Aqui `contatos` aparece, e é legítimo:** depois da aprovação a Pessoa **tem** vínculo nesta
- * organização, que é a condição da §6.17 (*"só de pessoas com vínculo na organização dele"*).
+ * **Serve três consumidores**: o `200` de `POST …/aprovar` (item 8), o `201` de `POST /vinculos` e cada
+ * item de `GET /vinculos` (item 9a). Um tipo só, porque o schema do contrato é um só.
  */
-export type VinculoCriado = {
+export type VinculoLido = {
   pessoa: { pessoaId: string; nome: string; contatos: readonly ContatoLido[] };
   papel: Papel;
   /** A **unidade** da pessoa nesta organização. `null` para o Gestor e o Encarregado terceirizado. */
@@ -206,13 +208,72 @@ export type VinculoCriado = {
   criadoEm: string;
 };
 
+/** O que `POST /vinculos` recebe, já conferido pelo schema. */
+export type DadosDoCadastro = {
+  nome: string;
+  papel: Papel;
+  /** `null` é *sem unidade* — o caso do Gestor e do Encarregado terceirizado. */
+  areaId: string | null;
+};
+
+/**
+ * O que `PATCH /vinculos/{pessoaId}` recebe.
+ *
+ * **`undefined` e `null` significam coisas diferentes em `areaId`**, e é o contrato que exige a
+ * distinção: ausente é *"não mexa"*; `null` é *"tire a unidade"*.
+ */
+export type DadosDaCorrecao = {
+  pessoaId: string;
+  nome?: string;
+  areaId?: string | null;
+};
+
+/**
+ * Os desfechos das duas escritas. **Etiqueta, não exceção** — a mesma doutrina do item 8: o vocabulário de
+ * recusa do contrato pertence à Aplicação, e a Infraestrutura só relata o que o banco decidiu.
+ */
+export type ResultadoDoCadastro =
+  | { desfecho: "cadastrado"; vinculo: VinculoLido }
+  | { desfecho: "area-invalida" };
+
+export type ResultadoDaCorrecao =
+  | { desfecho: "corrigido"; vinculo: VinculoLido }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "pessoa-com-conta" }
+  | { desfecho: "area-invalida" };
+
+/**
+ * **A porta escopada dos vínculos.**
+ *
+ * Mudou de módulo em 23/08/2026, e a razão é dependência: os casos de uso que a consomem são capacidades
+ * de **organização**, e deixá-la em `aplicacao/contexto/` produziria `organizacao → contexto →
+ * organizacao` — um ciclo entre módulos irmãos que hoje não existe.
+ *
+ * **A consulta parte de `vinculos` e faz `JOIN` para `pessoas`** — nunca o contrário (contrato §4.6,
+ * modelo §4.3). É por isso que não existe, e não deve existir, uma porta de `Pessoa` escopada: `pessoas` é
+ * global e não tem coluna de organização para filtrar.
+ */
+export interface RepositorioEscopadoDeVinculos {
+  /** Os vínculos ativos **desta** organização, ordenados por nome. É a lista de T-08 e a de candidatos a responsável (D21). */
+  ativos(): Promise<readonly VinculoLido[]>;
+
+  /** Um vínculo desta organização, ou `null` — que é o `404` da §6.3, idêntico ao de inexistente. */
+  porPessoa(pessoaId: string): Promise<VinculoLido | null>;
+
+  /** Cria **Pessoa e Vínculo na mesma transação** (contrato §4.6). Nunca procura por Pessoa existente. */
+  cadastrar(dados: DadosDoCadastro): Promise<ResultadoDoCadastro>;
+
+  /** Corrige nome e unidade. **A guarda de quem tem conta nomeia campos, não o endpoint** (contrato §8.2). */
+  corrigir(dados: DadosDaCorrecao): Promise<ResultadoDaCorrecao>;
+}
+
 /**
  * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
  * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do
  * contrato pertence à Aplicação, não à Infraestrutura.
  */
 export type ResultadoDaAprovacao =
-  | { desfecho: "aprovado"; vinculo: VinculoCriado }
+  | { desfecho: "aprovado"; vinculo: VinculoLido }
   | { desfecho: "nao-encontrado" }
   | { desfecho: "ja-decidido" }
   | { desfecho: "ja-vinculado" }

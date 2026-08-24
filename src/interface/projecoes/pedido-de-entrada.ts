@@ -2,7 +2,7 @@ import type {
   PedidoDaPessoa,
   PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
-  VinculoCriado,
+  VinculoLido,
 } from "@/aplicacao/organizacao";
 
 /**
@@ -76,7 +76,7 @@ export function projetarPedidoDeEntradaDetalhe(
  * aparecem aqui** — não porque alguém se lembrou de omiti-los, mas porque este tipo não os tem.
  *
  * **`area` sai com `id` e `nome`, e não com `tipo`** — é o que o schema `Vinculo` do `openapi.yaml`
- * declara (`required: [id, nome]`, e nenhuma outra propriedade). O `tipo` existe em `VinculoCriado`, do
+ * declara (`required: [id, nome]`, e nenhuma outra propriedade). O `tipo` existe em `VinculoLido`, do
  * lado de dentro, porque o repositório o lê para conferir a Área; publicá-lo aqui seria acrescentar à
  * resposta um campo que o contrato não tem — a mesma coisa que este item recusa fazer com `observacao`
  * em `/recusar` (achado A-8-2). Se o `tipo` fizer falta na tela do 9a, o caminho é emendar o contrato,
@@ -102,7 +102,7 @@ export type VinculoProjetado = {
   criadoEm: string;
 };
 
-export function projetarVinculo(vinculo: VinculoCriado): VinculoProjetado {
+export function projetarVinculo(vinculo: VinculoLido): VinculoProjetado {
   return {
     pessoa: {
       pessoaId: vinculo.pessoa.pessoaId,

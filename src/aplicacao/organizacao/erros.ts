@@ -97,3 +97,36 @@ export class AreaInvalida extends ErroDeDominio {
     super("AREA_INVALIDA", "Área inválida", "Esta área não existe nesta organização ou está desativada.");
   }
 }
+
+/**
+ * `404 VINCULO_NAO_ENCONTRADO` — não há vínculo com esta Pessoa **nesta** organização.
+ *
+ * **A resposta é a mesma quando a Pessoa não existe, quando o vínculo é de outra organização e quando ele
+ * foi revogado** (contrato §6.3). Um `403` aqui confirmaria que aquele identificador existe em algum
+ * lugar, e isso é vazamento pelo código de status.
+ */
+export class VinculoNaoEncontrado extends ErroDeDominio {
+  constructor() {
+    super(
+      "VINCULO_NAO_ENCONTRADO",
+      "Vínculo não encontrado",
+      "Não há vínculo com esta pessoa nesta organização.",
+    );
+  }
+}
+
+/**
+ * `409 PESSOA_COM_CONTA_NAO_EDITAVEL` — o cadastro de quem tem conta vale em **todas** as organizações.
+ *
+ * **A guarda nomeia campos, não o endpoint** (contrato §8.2, precisão de 22/08/2026): `nome` é da
+ * `Pessoa`, que é global; `areaId` é do `Vínculo`, que é escopado, e continua editável.
+ */
+export class PessoaComContaNaoEditavel extends ErroDeDominio {
+  constructor() {
+    super(
+      "PESSOA_COM_CONTA_NAO_EDITAVEL",
+      "Esta pessoa tem conta",
+      "Quem tem conta edita os próprios dados; o cadastro vale em outras organizações.",
+    );
+  }
+}

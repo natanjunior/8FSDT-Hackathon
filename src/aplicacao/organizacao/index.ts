@@ -8,6 +8,7 @@ export {
   type DecisaoDeAprovacao,
   type DecisaoDeRecusa,
 } from "./decidir-pedido-de-entrada";
+export { cadastrarVinculo, corrigirVinculo, listarVinculos, verVinculo } from "./vinculos";
 export {
   AreaInvalida,
   CodigoPublicoEmUso,
@@ -16,11 +17,15 @@ export {
   PedidoDeEntradaPendente,
   PedidoJaDecidido,
   PedidoNaoEncontrado,
+  PessoaComContaNaoEditavel,
+  VinculoNaoEncontrado,
 } from "./erros";
 export type {
   AreaLida,
   CategoriaLida,
   ContatoLido,
+  DadosDaCorrecao,
+  DadosDoCadastro,
   NovaOrganizacao,
   OrganizacaoCriada,
   PedidoDaPessoa,
@@ -31,9 +36,12 @@ export type {
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDePedidosDeEntrada,
+  RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
   ResultadoDaAprovacao,
+  ResultadoDaCorrecao,
   ResultadoDaRecusa,
+  ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
-  VinculoCriado,
+  VinculoLido,
 } from "./portas";

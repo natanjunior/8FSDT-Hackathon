@@ -5,7 +5,7 @@ import type {
   RepositorioGlobalDePedidosDeEntrada,
   ResultadoDaAprovacao,
   ResultadoDaRecusa,
-  VinculoCriado,
+  VinculoLido,
 } from "@/aplicacao/organizacao";
 import { ehPapel, ehSituacaoDoPedido, ehTipoDeArea } from "@/dominio/organizacao";
 import type { Consulta, Transacao } from "@/infraestrutura/clientes";
@@ -344,7 +344,7 @@ async function lerVinculoCriado(
   consulta: ConsultaEscopada,
   pessoaId: string,
   criadoEm: Date,
-): Promise<VinculoCriado> {
+): Promise<VinculoLido> {
   const vinculos = await consulta<{
     papel: string;
     pessoa_nome: string;
@@ -390,7 +390,7 @@ async function lerVinculoCriado(
     [pessoaId],
   );
 
-  let area: VinculoCriado["area"] = null;
+  let area: VinculoLido["area"] = null;
   if (linha.area_id !== null && linha.area_nome !== null) {
     if (!ehTipoDeArea(linha.area_tipo)) {
       throw new Error(`tipo de área desconhecido vindo do banco: ${String(linha.area_tipo)}`);

@@ -4,7 +4,7 @@ import { AreaInvalida, JaVinculado, PedidoJaDecidido, PedidoNaoEncontrado } from
 import type {
   PedidoDeEntradaLido,
   RepositorioEscopadoDePedidosDeEntrada,
-  VinculoCriado,
+  VinculoLido,
 } from "./portas";
 
 /**
@@ -34,7 +34,7 @@ export type DecisaoDeAprovacao = {
 export async function aprovarPedidoDeEntrada(
   pedidos: RepositorioEscopadoDePedidosDeEntrada,
   decisao: DecisaoDeAprovacao,
-): Promise<VinculoCriado> {
+): Promise<VinculoLido> {
   const resultado = await pedidos.aprovar(decisao);
 
   switch (resultado.desfecho) {
