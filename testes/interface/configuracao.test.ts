@@ -1,6 +1,8 @@
+import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
+import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
 import {
   ICONES_DE_CATEGORIA,
   correcaoDeAreaSchema,
@@ -22,10 +24,10 @@ import {
  * cliente não consegue renderizar uma string — já existe obrigatoriamente um mapa nome → componente lá, e
  * a lista no banco seria a terceira cópia.
  *
- * **A metade que este arquivo consegue provar é a de dentro:** que a lista tem 25 nomes, que as sete
- * sementes estão nela e que o padrão está nela. A outra metade — *"todo nome resolve a um componente
- * exportado pelo `lucide-react`"* — é o critério **4b.5**, e depende de uma dependência que não está
- * instalada.
+ * **As duas metades do critério 4b.5 estão aqui, e foram escritas em itens diferentes.** A de dentro é do
+ * item 4a: que a lista tem 25 nomes, que as sete sementes estão nela e que o padrão está nela. A de fora
+ * — *"todo nome resolve a um componente exportado pelo `lucide-react`"* — é do item **4b**, e entrou junto
+ * com a dependência; está no último `describe` deste arquivo.
  */
 
 /**
@@ -144,5 +146,41 @@ describe("criacaoDeAreaSchema", () => {
 describe("correcaoDeAreaSchema", () => {
   it("aceita mudar só o tipo", () => {
     expect(correcaoDeAreaSchema.parse({ tipo: "privativa" })).toStrictEqual({ tipo: "privativa" });
+  });
+});
+
+/**
+ * ============================================================================
+ *  Critério 4b.5 · a metade externa — os 25 nomes contra o `lucide-react`
+ * ============================================================================
+ *
+ * **A garantia mecânica que substitui o `CHECK` de lista que o banco não tem** (modelo §14.5). Nome errado
+ * na constante quebra a esteira, em vez de produzir categoria sem ícone em silêncio.
+ *
+ * **O `import * as` é legítimo aqui e proibido no componente:** este arquivo roda em Node e não é
+ * empacotado. No código de aplicação o *namespace* levaria os mais de mil ícones para o pacote entregue ao
+ * celular, que é a rede do RNF6 — por isso o mapa de `icone-de-categoria.tsx` usa 25 importações nomeadas.
+ */
+function emPascal(nome: string): string {
+  return nome
+    .split("-")
+    .map((pedaco) => pedaco.charAt(0).toUpperCase() + pedaco.slice(1))
+    .join("");
+}
+
+describe("os 25 nomes resolvem a componentes do lucide-react", () => {
+  it.each([...ICONES_DE_CATEGORIA])("$nome → $rotulo", ({ nome }) => {
+    const exportado = (lucide as unknown as Record<string, unknown>)[emPascal(nome)];
+
+    expect(exportado, `lucide-react não exporta ${emPascal(nome)}`).toBeDefined();
+    // Ícone do lucide é componente criado por `createLucideIcon` — função ou objeto de `forwardRef`.
+    expect(["function", "object"]).toContain(typeof exportado);
+  });
+
+  it("o mapa do componente cobre a lista inteira", () => {
+    for (const { nome } of ICONES_DE_CATEGORIA) {
+      expect(DESENHO_DO_ICONE[nome], `o mapa não tem entrada para ${nome}`).toBeDefined();
+    }
+    expect(Object.keys(DESENHO_DO_ICONE)).toHaveLength(25);
   });
 });
