@@ -36,6 +36,7 @@ export const POST = comContexto(
       nome: corpo.nome,
       papel: corpo.papel,
       areaId: corpo.areaId,
+      contatos: corpo.contatos,
     });
     return resposta(projetarVinculo(vinculo), { status: 201 });
   },
