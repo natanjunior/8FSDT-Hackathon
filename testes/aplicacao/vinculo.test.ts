@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AreaInvalida,
+  ContatoDuplicado,
   PessoaComContaNaoEditavel,
   VinculoNaoEncontrado,
   cadastrarVinculo,
@@ -73,12 +74,14 @@ describe("cadastrarVinculo", () => {
       nome: "  Sebastião Alves de Moura  ",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
 
     expect(recebido.cadastrar).toStrictEqual({
       nome: "Sebastião Alves de Moura",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
   });
 
@@ -88,6 +91,7 @@ describe("cadastrarVinculo", () => {
       nome: "Sebastião",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
     expect(vinculo).toStrictEqual(ENCARREGADO);
   });
@@ -95,7 +99,12 @@ describe("cadastrarVinculo", () => {
   it("área inválida vira AreaInvalida — 422, não 400: a forma estava certa", async () => {
     const { porta } = portaFalsa({ desfecho: "area-invalida" });
     await expect(
-      cadastrarVinculo(porta, { nome: "Sebastião", papel: "encarregado", areaId: "area-de-outra" }),
+      cadastrarVinculo(porta, {
+        nome: "Sebastião",
+        papel: "encarregado",
+        areaId: "area-de-outra",
+        contatos: [],
+      }),
     ).rejects.toBeInstanceOf(AreaInvalida);
   });
 });
@@ -125,5 +134,67 @@ describe("corrigirVinculo", () => {
     const { porta, recebido } = portaFalsa();
     await corrigirVinculo(porta, { pessoaId: "pessoa-1", nome: "Novo nome" });
     expect(recebido.corrigir).toStrictEqual({ pessoaId: "pessoa-1", nome: "Novo nome" });
+  });
+});
+
+describe("contatos — a tradução do desfecho e o que não pode ser inventado", () => {
+  const UM_CONTATO = [
+    {
+      tipo: "telefone" as const,
+      valor: "+5511955217788",
+      finalidade: "trabalho" as const,
+      temWhatsapp: true,
+      observacao: null,
+    },
+  ];
+
+  it("cadastrar traduz contato-duplicado em CONTATO_DUPLICADO", async () => {
+    const { porta } = portaFalsa({ desfecho: "contato-duplicado" });
+
+    await expect(
+      cadastrarVinculo(porta, {
+        nome: "Sebastião",
+        papel: "encarregado",
+        areaId: null,
+        contatos: UM_CONTATO,
+      }),
+    ).rejects.toBeInstanceOf(ContatoDuplicado);
+  });
+
+  it("corrigir traduz contato-duplicado em CONTATO_DUPLICADO", async () => {
+    const { porta } = portaFalsa(undefined, { desfecho: "contato-duplicado" });
+
+    await expect(
+      corrigirVinculo(porta, { pessoaId: "pessoa-1", contatos: UM_CONTATO }),
+    ).rejects.toBeInstanceOf(ContatoDuplicado);
+  });
+
+  it("a lista chega à porta como veio — a Aplicação não reordena nem apara contato", async () => {
+    const { porta, recebido } = portaFalsa();
+    await cadastrarVinculo(porta, {
+      nome: "  Sebastião  ",
+      papel: "encarregado",
+      areaId: null,
+      contatos: UM_CONTATO,
+    });
+
+    // O `nome` é aparado — vai para a trilha imutável. O contato, não: quem o normaliza é o schema.
+    expect(recebido.cadastrar).toStrictEqual({
+      nome: "Sebastião",
+      papel: "encarregado",
+      areaId: null,
+      contatos: UM_CONTATO,
+    });
+  });
+
+  /**
+   * **O caso que protege dado de gente.** Corrigir só a unidade não pode inventar `contatos: []` no
+   * caminho — a porta tem de receber um objeto **sem a chave**, que é o *"não mexa"* do contrato §8.2.
+   */
+  it("corrigir sem contatos entrega à porta um objeto SEM a chave contatos", async () => {
+    const { porta, recebido } = portaFalsa();
+    await corrigirVinculo(porta, { pessoaId: "pessoa-1", areaId: null });
+
+    expect(Object.hasOwn(recebido.corrigir as object, "contatos")).toBe(false);
   });
 });

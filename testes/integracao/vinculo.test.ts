@@ -118,6 +118,7 @@ describe("POST /vinculos — Pessoa e Vínculo na mesma transação", () => {
       nome: "Sebastião Alves de Moura",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
 
     expect(resultado.desfecho).toBe("cadastrado");
@@ -138,8 +139,8 @@ describe("POST /vinculos — Pessoa e Vínculo na mesma transação", () => {
 
   it("dois cadastros com o mesmo nome produzem DUAS Pessoas — nunca reaproveita", async () => {
     const repos = repositorio();
-    const um = await repos.cadastrar({ nome: "Antônio Ferreira", papel: "encarregado", areaId: null });
-    const dois = await repos.cadastrar({ nome: "Antônio Ferreira", papel: "encarregado", areaId: null });
+    const um = await repos.cadastrar({ nome: "Antônio Ferreira", papel: "encarregado", areaId: null, contatos: [] });
+    const dois = await repos.cadastrar({ nome: "Antônio Ferreira", papel: "encarregado", areaId: null, contatos: [] });
 
     expect(um.desfecho).toBe("cadastrado");
     expect(dois.desfecho).toBe("cadastrado");
@@ -158,6 +159,7 @@ describe("POST /vinculos — Pessoa e Vínculo na mesma transação", () => {
       nome: "Zelador com unidade",
       papel: "encarregado",
       areaId: AREA_ATIVA,
+      contatos: [],
     });
     expect(resultado.desfecho).toBe("cadastrado");
     if (resultado.desfecho !== "cadastrado") return;
@@ -179,6 +181,7 @@ describe("POST /vinculos — Pessoa e Vínculo na mesma transação", () => {
       nome: "Nunca deveria existir",
       papel: "encarregado",
       areaId: AREA_INATIVA,
+      contatos: [],
     });
 
     expect(resultado.desfecho).toBe("area-invalida");
@@ -190,6 +193,7 @@ describe("POST /vinculos — Pessoa e Vínculo na mesma transação", () => {
       nome: "Também não",
       papel: "encarregado",
       areaId: AREA_DE_OUTRA_ORGANIZACAO,
+      contatos: [],
     });
     expect(resultado.desfecho).toBe("area-invalida");
   });
@@ -201,6 +205,7 @@ describe("PATCH /vinculos/{pessoaId} — a guarda nomeia campos, não o endpoint
       nome: "Nome errado",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
     if (criado.desfecho !== "cadastrado") throw new Error("cenário não montou");
 
@@ -253,6 +258,7 @@ describe("PATCH /vinculos/{pessoaId} — a guarda nomeia campos, não o endpoint
       nome: "Antes",
       papel: "encarregado",
       areaId: null,
+      contatos: [],
     });
     if (criado.desfecho !== "cadastrado") throw new Error("cenário não montou");
 
