@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, listarCategorias } from "@/aplicacao/organizacao";
+import { IconeDeCategoria } from "@/interface/componentes/icone-de-categoria";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
@@ -96,7 +97,19 @@ export default async function CategoriasEAreas({
               {categorias.map((categoria) => (
                 <tr key={categoria.id} className="border-linha-suave border-b">
                   <td className="text-tinta-suave py-2.5 pr-3 tabular-nums">{categoria.ordem}</td>
-                  <td className="text-tinta py-2.5 pr-3">{categoria.nome}</td>
+                  {/* **Critério 4b.4 · o ícone ao lado do nome, nunca no lugar dele.** Não há coluna
+                      `Ícone`: uma coluna inteira de desenho seria exatamente o marcador sem palavra que o
+                      compromisso A-5 proíbe, com um cabeçalho que não descreve o conteúdo. O desenho vai
+                      `aria-hidden` — quem lê por leitor de tela recebe o nome, que é a informação. */}
+                  <td className="text-tinta py-2.5 pr-3">
+                    <span className="flex items-center gap-2">
+                      <IconeDeCategoria
+                        nome={categoria.icone}
+                        className="text-tinta-suave size-4 shrink-0"
+                      />
+                      {categoria.nome}
+                    </span>
+                  </td>
                   {/* A-5: a situação carrega a palavra, nunca só a cor. */}
                   <td className="text-tinta-suave py-2.5 pr-3">
                     {categoria.ativa ? "Ativa" : "Inativa"}
