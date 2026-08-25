@@ -100,6 +100,17 @@ export default async function Shell() {
                   : `${pendentes} pedidos aguardando`}
             </span>
           </Link>
+
+          {/* T-09 só aparece com a permissão que a governa — o inventário §6 pede exatamente isso. */}
+          {contexto.permissoes.includes("organizacao.configurar") && (
+            <Link
+              href="/configuracao"
+              className="border-linha bg-superficie text-tinta flex min-h-11 items-center justify-between rounded-md border px-4 py-3 text-sm"
+            >
+              <span>Categorias e áreas</span>
+              <span className="text-tinta-suave text-xs">as opções do formulário de registro</span>
+            </Link>
+          )}
         </nav>
       )}
 
