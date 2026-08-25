@@ -3,8 +3,10 @@ export { projetarContexto, type ContextoProjetado } from "./contexto";
 
 export {
   projetarArea,
+  projetarAreaAtualizada,
   projetarCategoria,
   projetarOrganizacao,
+  type AreaAtualizadaProjetada,
   type AreaProjetada,
   type CategoriaProjetada,
   type OrganizacaoProjetada,
