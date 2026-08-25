@@ -52,6 +52,7 @@ export default async function CorrigirCategoria({
           tipo: "edicao",
           categoriaId: categoria.id,
           nome: categoria.nome,
+          icone: categoria.icone,
           ordem: categoria.ordem,
           ativa: categoria.ativa,
           ehUltimaAtiva: categoria.ativa && ativas === 1,

@@ -57,4 +57,5 @@ export {
   type EntradaDeCorrecaoDeCategoria,
   type EntradaDeCriacaoDeArea,
   type EntradaDeCriacaoDeCategoria,
+  type NomeDeIcone,
 } from "./configuracao";

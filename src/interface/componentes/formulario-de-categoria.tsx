@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { ICONE_PADRAO } from "@/dominio/organizacao";
+import { SeletorDeIcone } from "@/interface/componentes/icone-de-categoria";
 import { Campo } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import { ICONES_DE_CATEGORIA, type NomeDeIcone } from "@/interface/schemas";
 
 /**
  * **T-09 · o formulário de categoria**, nos dois modos.
@@ -18,8 +21,10 @@ import { Input } from "@/interface/componentes/ui/input";
  * **Desativar passa por confirmação, e a segunda frase é a que quebra outra tela.** É o único ajuste
  * desta tela capaz de tornar T-04 insubmissível, e por isso o botão muda de texto.
  *
- * **`icone` não aparece aqui, e é escopo:** o seletor de 25 células é o item 4b. O servidor grava `tag`
- * quando ninguém manda, e a categoria nunca fica sem ícone.
+ * **O seletor de ícone é o item 4b, e está aqui.** Vinte e cinco células de 44 px; na criação a etiqueta
+ * neutra já vem marcada, e na edição vem a que está salva. **Escolher ícone nunca é obrigatório** — o
+ * servidor grava `tag` para quem não manda, e obrigar poria uma grade entre o Gestor e a edição de uma
+ * palavra (modelo §14.5).
  */
 
 export type ModoDeCategoria =
@@ -28,6 +33,7 @@ export type ModoDeCategoria =
       tipo: "edicao";
       categoriaId: string;
       nome: string;
+      icone: string;
       ordem: number;
       ativa: boolean;
       /** Calculado pela página, que já tem a lista inteira — não é uma consulta a mais. */
@@ -44,6 +50,11 @@ const MENSAGEM_GENERICA = "Não foi possível salvar agora. Tente de novo.";
 export function FormularioDeCategoria({ modo }: { modo: ModoDeCategoria }) {
   const router = useRouter();
   const [nome, setNome] = useState(modo.tipo === "edicao" ? modo.nome : "");
+  const [icone, setIcone] = useState<NomeDeIcone>(() => {
+    if (modo.tipo !== "edicao") return ICONE_PADRAO;
+    const salvo = ICONES_DE_CATEGORIA.find((i) => i.nome === modo.icone);
+    return salvo?.nome ?? ICONE_PADRAO;
+  });
   const [ordem, setOrdem] = useState(String(modo.tipo === "edicao" ? modo.ordem : modo.proximaOrdem));
   const [ativa, setAtiva] = useState(modo.tipo === "edicao" ? modo.ativa : true);
   const [enviando, setEnviando] = useState(false);
@@ -64,8 +75,8 @@ export function FormularioDeCategoria({ modo }: { modo: ModoDeCategoria }) {
     const alvo = modo.tipo === "cadastro" ? "/api/categorias" : `/api/categorias/${modo.categoriaId}`;
     const corpo =
       modo.tipo === "cadastro"
-        ? { nome: nome.trim(), ordem: ordemNumero }
-        : { nome: nome.trim(), ordem: ordemNumero, ativa };
+        ? { nome: nome.trim(), icone, ordem: ordemNumero }
+        : { nome: nome.trim(), icone, ordem: ordemNumero, ativa };
 
     try {
       const resposta = await fetch(alvo, {
@@ -112,6 +123,8 @@ export function FormularioDeCategoria({ modo }: { modo: ModoDeCategoria }) {
             onChange={(evento) => setNome(evento.target.value)}
           />
         </Campo>
+
+        <SeletorDeIcone valor={icone} aoEscolher={setIcone} />
 
         <Campo
           id="ordem"

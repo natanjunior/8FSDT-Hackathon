@@ -18,47 +18,67 @@ import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
  */
 
 /**
- * **Os 25 nomes da §14.5, na ordem em que ela os agrupa.** Os sete primeiros são os das
- * categorias-semente; os dezoito seguintes cobrem o que uma organização invente sem precisar de migração.
+ * **Os 25 ícones da §14.5, na ordem em que ela os agrupa** — nome do conjunto `lucide` e rótulo em
+ * português, no **mesmo registro**.
  *
- * Ampliar é acrescentar um nome aqui — **não é migração**, e é isso que a decisão comprou.
+ * **O rótulo mora aqui e não num segundo arranjo**, porque dois arranjos paralelos divergem na primeira
+ * alteração. Da mesma constante saem os **três usos gerados** que a §14.5 nomeia: o `enum` do Zod logo
+ * abaixo, o mapa nome → componente de `interface/componentes/icone-de-categoria.tsx`, e o teste da
+ * esteira.
+ *
+ * **O rótulo nomeia o desenho, nunca a categoria** — `droplets` é *Gotas*, não *Vazamentos*. São nomes de
+ * figura e **não entram no glossário**: o vocabulário de domínio é o `nome` da `Categoria`, que o Gestor
+ * digita.
+ *
+ * Ampliar é acrescentar um par aqui — **não é migração**, e é isso que a decisão da §14.5 comprou.
  */
 export const ICONES_DE_CATEGORIA = [
   // Das sete sementes (§14.1)
-  "lightbulb",
-  "unplug",
-  "accessibility",
-  "trash-2",
-  "droplets",
-  "shield",
-  "wrench",
+  { nome: "lightbulb", rotulo: "Lâmpada" },
+  { nome: "unplug", rotulo: "Tomada" },
+  { nome: "accessibility", rotulo: "Acessibilidade" },
+  { nome: "trash-2", rotulo: "Lixeira" },
+  { nome: "droplets", rotulo: "Gotas" },
+  { nome: "shield", rotulo: "Escudo" },
+  { nome: "wrench", rotulo: "Chave inglesa" },
   // Instalações
-  "zap",
-  "flame",
-  "thermometer",
-  "wind",
-  "snowflake",
+  { nome: "zap", rotulo: "Raio" },
+  { nome: "flame", rotulo: "Chama" },
+  { nome: "thermometer", rotulo: "Termômetro" },
+  { nome: "wind", rotulo: "Vento" },
+  { nome: "snowflake", rotulo: "Floco de neve" },
   // Acesso e segurança
-  "door-open",
-  "key",
-  "camera",
-  "wifi",
-  "package",
+  { nome: "door-open", rotulo: "Porta aberta" },
+  { nome: "key", rotulo: "Chave" },
+  { nome: "camera", rotulo: "Câmera" },
+  { nome: "wifi", rotulo: "Wi-Fi" },
+  { nome: "package", rotulo: "Encomenda" },
   // Convivência
-  "car",
-  "dog",
-  "bug",
-  "trees",
-  "volume-2",
+  { nome: "car", rotulo: "Carro" },
+  { nome: "dog", rotulo: "Cachorro" },
+  { nome: "bug", rotulo: "Inseto" },
+  { nome: "trees", rotulo: "Árvores" },
+  { nome: "volume-2", rotulo: "Som" },
   // Obra e conservação
-  "hammer",
-  "paintbrush",
+  { nome: "hammer", rotulo: "Martelo" },
+  { nome: "paintbrush", rotulo: "Pincel" },
   // Neutro — o padrão, que mora no Domínio e é repetido aqui **como membro da lista**, não como valor
-  ICONE_PADRAO,
+  { nome: ICONE_PADRAO, rotulo: "Etiqueta" },
 ] as const;
 
+/** A união dos 25 literais. É o tipo que a guarda do teste impede de alargar para `string`. */
+export type NomeDeIcone = (typeof ICONES_DE_CATEGORIA)[number]["nome"];
+
+/**
+ * **Gerado da constante, e é isso que impede a lista de existir duas vezes.**
+ *
+ * O `z.enum` da versão instalada aceita `readonly string[]` e infere a união de `T[number]` — o `.map`
+ * perde a tupla e **preserva os literais**, que é o que o tipo `NomeDeIcone` precisa.
+ */
+const NOMES_DE_ICONE = ICONES_DE_CATEGORIA.map((icone) => icone.nome);
+
 /** Nome fora da lista → `400 FORMATO_INVALIDO`, porque é **forma** e não domínio (contrato §8.1). */
-export const iconeDeCategoria = z.enum(ICONES_DE_CATEGORIA, {
+export const iconeDeCategoria = z.enum(NOMES_DE_ICONE, {
   error: "Escolha um ícone da lista.",
 });
 
