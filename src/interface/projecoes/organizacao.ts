@@ -1,4 +1,9 @@
-import type { AreaLida, CategoriaLida, OrganizacaoCriada } from "@/aplicacao/organizacao";
+import type {
+  AreaAtualizada,
+  AreaLida,
+  CategoriaLida,
+  OrganizacaoCriada,
+} from "@/aplicacao/organizacao";
 
 /**
  * As projeções dos schemas `Organizacao`, `Categoria` e `Area` do `openapi.yaml`.
@@ -68,4 +73,17 @@ export function projetarArea(area: AreaLida): AreaProjetada {
     ativa: area.ativa,
     ordem: area.ordem,
   };
+}
+
+export type AreaAtualizadaProjetada = AreaProjetada & { ocorrenciasComTipoAnterior: number };
+
+/**
+ * A resposta de `PATCH /areas/{id}` — o schema `Area` **mais** a contagem.
+ *
+ * Ela é um `allOf` no `openapi.yaml`, e é o único ponto do contrato em que a escrita devolve mais que o
+ * schema de leitura. O campo existe *"para que a interface possa dizer ao Gestor, em português, que o
+ * passado não muda"*.
+ */
+export function projetarAreaAtualizada(area: AreaAtualizada): AreaAtualizadaProjetada {
+  return { ...projetarArea(area), ocorrenciasComTipoAnterior: area.ocorrenciasComTipoAnterior };
 }

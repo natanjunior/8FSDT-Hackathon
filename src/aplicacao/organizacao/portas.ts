@@ -78,15 +78,91 @@ export type AreaLida = {
 };
 
 /**
- * As duas portas escopadas desta fatia. Nenhuma das duas recebe o identificador da organização — ele está
- * amarrado ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é.
+ * O que `POST /categorias` grava. **`icone` e `ordem` chegam resolvidos** — o padrão é decisão de produto
+ * e mora na Aplicação, não no schema de entrada nem no banco.
+ */
+export type NovaCategoria = {
+  nome: string;
+  icone: string;
+  ordem: number;
+  /** Vai para `criado_por_pessoa_id`. **Exige vínculo vivo** — a FK é composta para `vinculos`. */
+  criadaPorPessoaId: string;
+};
+
+/** O que `PATCH /categorias/{id}` altera. **Campo ausente é *não mexa*** — não é *apague*. */
+export type CorrecaoDeCategoria = {
+  categoriaId: string;
+  nome?: string;
+  icone?: string;
+  ordem?: number;
+  ativa?: boolean;
+  /** Vai para `atualizado_por_pessoa_id`. É *"último a escrever"*, não histórico (modelo §6.5). */
+  atualizadaPorPessoaId: string;
+};
+
+export type NovaArea = {
+  nome: string;
+  tipo: TipoArea;
+  ordem: number;
+  criadaPorPessoaId: string;
+};
+
+export type CorrecaoDeArea = {
+  areaId: string;
+  nome?: string;
+  tipo?: TipoArea;
+  ordem?: number;
+  ativa?: boolean;
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * A Área depois do `PATCH`, mais a contagem que **só a correção** devolve.
+ *
+ * `ocorrenciasComTipoAnterior` existe *"para que a interface possa dizer ao Gestor, em português, que o
+ * passado não muda"* (contrato §8.1). **É um campo de resposta que só existe para produzir uma frase de
+ * tela.**
+ */
+export type AreaAtualizada = AreaLida & { ocorrenciasComTipoAnterior: number };
+
+/**
+ * Os quatro desfechos. **Etiqueta, não exceção** — a mesma doutrina dos itens 7a, 8 e 9a: nome duplicado
+ * é tradução de índice único, e o vocabulário de recusa do contrato pertence à Aplicação.
+ */
+export type ResultadoDeCriacaoDeCategoria =
+  | { desfecho: "criada"; categoria: CategoriaLida }
+  | { desfecho: "nome-duplicado" };
+
+export type ResultadoDeCorrecaoDeCategoria =
+  | { desfecho: "corrigida"; categoria: CategoriaLida }
+  | { desfecho: "nome-duplicado" }
+  | { desfecho: "nao-encontrada" };
+
+export type ResultadoDeCriacaoDeArea =
+  | { desfecho: "criada"; area: AreaLida }
+  | { desfecho: "nome-duplicado" };
+
+export type ResultadoDeCorrecaoDeArea =
+  | { desfecho: "corrigida"; area: AreaAtualizada }
+  | { desfecho: "nome-duplicado" }
+  | { desfecho: "nao-encontrada" };
+
+/**
+ * As duas portas escopadas desta fatia. Nenhuma recebe o identificador da organização — ele está amarrado
+ * ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é. É isso que torna
+ * *"categoria de outra organização"* **inalcançável**, e é daí que sai o `404` idêntico ao de inexistente
+ * que a §6.3 do contrato exige.
  */
 export interface RepositorioEscopadoDeCategorias {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly CategoriaLida[]>;
+  criar(nova: NovaCategoria): Promise<ResultadoDeCriacaoDeCategoria>;
+  corrigir(correcao: CorrecaoDeCategoria): Promise<ResultadoDeCorrecaoDeCategoria>;
 }
 
 export interface RepositorioEscopadoDeAreas {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly AreaLida[]>;
+  criar(nova: NovaArea): Promise<ResultadoDeCriacaoDeArea>;
+  corrigir(correcao: CorrecaoDeArea): Promise<ResultadoDeCorrecaoDeArea>;
 }
 
 // ---------------------------------------------------------------------------

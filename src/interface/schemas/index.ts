@@ -45,3 +45,16 @@ export {
   type EntradaDeCadastroDeVinculo,
   type EntradaDeCorrecaoDeVinculo,
 } from "./vinculo";
+
+export {
+  ICONES_DE_CATEGORIA,
+  correcaoDeAreaSchema,
+  correcaoDeCategoriaSchema,
+  criacaoDeAreaSchema,
+  criacaoDeCategoriaSchema,
+  iconeDeCategoria,
+  type EntradaDeCorrecaoDeArea,
+  type EntradaDeCorrecaoDeCategoria,
+  type EntradaDeCriacaoDeArea,
+  type EntradaDeCriacaoDeCategoria,
+} from "./configuracao";
