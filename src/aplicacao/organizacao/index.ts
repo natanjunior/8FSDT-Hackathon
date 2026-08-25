@@ -10,10 +10,24 @@ export {
 } from "./decidir-pedido-de-entrada";
 export { cadastrarVinculo, corrigirVinculo, listarVinculos, verVinculo } from "./vinculos";
 export {
+  corrigirArea,
+  corrigirCategoria,
+  criarArea,
+  criarCategoria,
+  type ComandoDeCorrecaoDeArea,
+  type ComandoDeCorrecaoDeCategoria,
+  type ComandoDeNovaArea,
+  type ComandoDeNovaCategoria,
+} from "./configuracao";
+export {
   AreaInvalida,
+  AreaNaoEncontrada,
+  CategoriaNaoEncontrada,
   CodigoPublicoEmUso,
   CodigoPublicoNaoEncontrado,
   JaVinculado,
+  NomeDeAreaDuplicado,
+  NomeDeCategoriaDuplicado,
   PedidoDeEntradaPendente,
   PedidoJaDecidido,
   PedidoNaoEncontrado,
@@ -21,11 +35,16 @@ export {
   VinculoNaoEncontrado,
 } from "./erros";
 export type {
+  AreaAtualizada,
   AreaLida,
   CategoriaLida,
   ContatoLido,
+  CorrecaoDeArea,
+  CorrecaoDeCategoria,
   DadosDaCorrecao,
   DadosDoCadastro,
+  NovaArea,
+  NovaCategoria,
   NovaOrganizacao,
   OrganizacaoCriada,
   PedidoDaPessoa,
@@ -41,6 +60,10 @@ export type {
   ResultadoDaAprovacao,
   ResultadoDaCorrecao,
   ResultadoDaRecusa,
+  ResultadoDeCorrecaoDeArea,
+  ResultadoDeCorrecaoDeCategoria,
+  ResultadoDeCriacaoDeArea,
+  ResultadoDeCriacaoDeCategoria,
   ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
   VinculoLido,

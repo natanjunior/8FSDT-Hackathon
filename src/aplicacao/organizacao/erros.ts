@@ -130,3 +130,44 @@ export class PessoaComContaNaoEditavel extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `404 CATEGORIA_NAO_ENCONTRADA` — e **a resposta é idêntica** para categoria inexistente e para
+ * categoria de outra organização (contrato §6.3). Não é discrição: distinguir transformaria o endpoint
+ * num verificador de existência entre condomínios.
+ */
+export class CategoriaNaoEncontrada extends ErroDeDominio {
+  constructor() {
+    super(
+      "CATEGORIA_NAO_ENCONTRADA",
+      "Categoria não encontrada",
+      "Esta categoria não existe nesta organização.",
+    );
+  }
+}
+
+/**
+ * `409 CATEGORIA_NOME_DUPLICADO` — `UNIQUE (organizacao_id, nome)`.
+ *
+ * **Não é capricho:** duas categorias com o mesmo nome quebrariam o indicador de recorrência, que é o
+ * número mais importante do dashboard (D19).
+ */
+export class NomeDeCategoriaDuplicado extends ErroDeDominio {
+  constructor() {
+    super("CATEGORIA_NOME_DUPLICADO", "Nome já usado", "Já existe uma categoria com este nome.");
+  }
+}
+
+/** `404 AREA_NAO_ENCONTRADA` — mesma doutrina da categoria (contrato §6.3). */
+export class AreaNaoEncontrada extends ErroDeDominio {
+  constructor() {
+    super("AREA_NAO_ENCONTRADA", "Área não encontrada", "Esta área não existe nesta organização.");
+  }
+}
+
+/** `409 AREA_NOME_DUPLICADO` — `UNIQUE (organizacao_id, nome)`, pela mesma razão da categoria. */
+export class NomeDeAreaDuplicado extends ErroDeDominio {
+  constructor() {
+    super("AREA_NOME_DUPLICADO", "Nome já usado", "Já existe uma área com este nome.");
+  }
+}

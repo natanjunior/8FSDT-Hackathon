@@ -472,3 +472,162 @@ describe("as consultas de configuração não atravessam organizações", () => 
     },
   });
 });
+
+/**
+ * ============================================================================
+ *  As escritas escopadas — itens 4a e 5
+ * ============================================================================
+ *
+ * **A suíte `casosDeIsolamento` não serve aqui, e a razão é a forma:** ela recebe
+ * `consultar(organizacaoId) → readonly L[]` e compara conjuntos. Uma escrita não devolve conjunto —
+ * devolve um desfecho. O que estes casos provam é a **mesma garantia pelo outro lado**: um `update` cujo
+ * `where` carrega o `$1` de outra organização **não alcança a linha**, e o desfecho é `nao-encontrada` —
+ * que é exatamente o `404` idêntico ao de inexistente que a §6.3 do contrato exige.
+ */
+describe("as escritas de configuração não atravessam organizações", () => {
+  it("PATCH de categoria de outra organização não encontra a linha", async () => {
+    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+    const emAurora = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idAurora));
+
+    const daAurora = (await emAurora.listar({ apenasAtivas: false }))[0];
+    if (daAurora === undefined) throw new Error("a semente de Aurora não criou categoria");
+
+    const recusado = await emRecanto.corrigir({
+      categoriaId: daAurora.id,
+      nome: "Sequestrada",
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    expect(recusado.desfecho).toBe("nao-encontrada");
+
+    // E a linha continua intacta do lado de lá.
+    const aindaLa = (await emAurora.listar({ apenasAtivas: false })).find((c) => c.id === daAurora.id);
+    expect(aindaLa?.nome).toBe(daAurora.nome);
+  });
+
+  it("PATCH de área de outra organização não encontra a linha", async () => {
+    const emRecanto = repositorioEscopadoDeAreas(escoparConsulta(consulta, idRecanto));
+    const emAurora = repositorioEscopadoDeAreas(escoparConsulta(consulta, idAurora));
+
+    const daAurora = (await emAurora.listar({ apenasAtivas: false }))[0];
+    if (daAurora === undefined) throw new Error("a semente de Aurora não criou área");
+
+    const recusado = await emRecanto.corrigir({
+      areaId: daAurora.id,
+      tipo: "privativa",
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    expect(recusado.desfecho).toBe("nao-encontrada");
+  });
+
+  it("o mesmo nome pode existir nas duas organizações — a unicidade é por organização", async () => {
+    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+    const emAurora = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idAurora));
+
+    const aqui = await emRecanto.criar({
+      nome: "Jardinagem",
+      icone: "trees",
+      ordem: 90,
+      criadaPorPessoaId: idSindica,
+    });
+    // **`idSindica` e não `idMoradora`:** a FK de auditoria é composta para
+    // `vinculos (pessoa_id, organizacao_id)`, e a síndica é a única Pessoa da semente com vínculo nas
+    // **duas** organizações. A moradora só tem vínculo no Recanto — usá-la aqui violaria a FK, e o teste
+    // falharia por uma razão que não é a que ele investiga.
+    const la = await emAurora.criar({
+      nome: "Jardinagem",
+      icone: "trees",
+      ordem: 90,
+      criadaPorPessoaId: idSindica,
+    });
+
+    expect(aqui.desfecho).toBe("criada");
+    expect(la.desfecho).toBe("criada");
+  });
+
+  it("o mesmo nome duas vezes na mesma organização é recusado", async () => {
+    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+
+    await emRecanto.criar({
+      nome: "Paisagismo",
+      icone: "trees",
+      ordem: 91,
+      criadaPorPessoaId: idSindica,
+    });
+    const repetido = await emRecanto.criar({
+      nome: "Paisagismo",
+      icone: "trees",
+      ordem: 92,
+      criadaPorPessoaId: idSindica,
+    });
+
+    expect(repetido.desfecho).toBe("nome-duplicado");
+  });
+
+  /**
+   * **O critério 4a.2, pela metade que existe hoje.** *"`PATCH {ativa: false}` **não apaga**"* — o
+   * seletor de T-04 é do item 11, mas a lista que o alimenta é esta, e o padrão dela é *só as ativas*
+   * (`consultas.ts`). O que este caso prova é que desativar **tira da leitura padrão sem tirar a linha**,
+   * que é a diferença entre desativar e apagar.
+   */
+  it("desativar não apaga: sai da leitura padrão e continua na completa", async () => {
+    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+
+    const criada = await emRecanto.criar({
+      nome: "Sauna",
+      icone: "flame",
+      ordem: 94,
+      criadaPorPessoaId: idSindica,
+    });
+    if (criada.desfecho !== "criada") throw new Error("a criação de Sauna não devolveu categoria");
+
+    await emRecanto.corrigir({
+      categoriaId: criada.categoria.id,
+      ativa: false,
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    const soAtivas = await emRecanto.listar({ apenasAtivas: true });
+    expect(soAtivas.map((c) => c.id)).not.toContain(criada.categoria.id);
+
+    // E a linha continua lá — é a leitura de T-09, que é onde se reativa o que foi desativado.
+    const todas = await emRecanto.listar({ apenasAtivas: false });
+    expect(todas.find((c) => c.id === criada.categoria.id)?.ativa).toBe(false);
+  });
+
+  it("a criação grava quem criou, e a correção grava quem alterou", async () => {
+    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+
+    const criada = await emRecanto.criar({
+      nome: "Piscina",
+      icone: "droplets",
+      ordem: 93,
+      criadaPorPessoaId: idSindica,
+    });
+    expect(criada.desfecho).toBe("criada");
+    if (criada.desfecho !== "criada") return;
+
+    const [antes] = await consulta<{
+      criado_por_pessoa_id: string | null;
+      atualizado_por_pessoa_id: string | null;
+    }>(`select criado_por_pessoa_id, atualizado_por_pessoa_id from categorias where id = $1`, [
+      criada.categoria.id,
+    ]);
+    expect(antes?.criado_por_pessoa_id).toBe(idSindica);
+    // Na criação, **não há alteração ainda** — a coluna do último a escrever fica nula de propósito.
+    expect(antes?.atualizado_por_pessoa_id).toBeNull();
+
+    await emRecanto.corrigir({
+      categoriaId: criada.categoria.id,
+      nome: "Piscina e sauna",
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    const [depois] = await consulta<{ atualizado_por_pessoa_id: string | null }>(
+      `select atualizado_por_pessoa_id from categorias where id = $1`,
+      [criada.categoria.id],
+    );
+    expect(depois?.atualizado_por_pessoa_id).toBe(idSindica);
+  });
+});
