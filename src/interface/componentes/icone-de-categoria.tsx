@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import { ICONE_PADRAO } from "@/dominio/organizacao";
-import { type NomeDeIcone } from "@/interface/schemas";
+import { ICONES_DE_CATEGORIA, type NomeDeIcone } from "@/interface/schemas";
 
 /**
  * **O ícone da categoria — o item 4b.**
@@ -85,4 +85,80 @@ export const DESENHO_DO_ICONE: Record<NomeDeIcone, LucideIcon> = {
 export function IconeDeCategoria({ nome, className }: { nome: string; className?: string }) {
   const Desenho = DESENHO_DO_ICONE[nome as NomeDeIcone] ?? DESENHO_DO_ICONE[ICONE_PADRAO];
   return <Desenho className={className} aria-hidden />;
+}
+
+/**
+ * **A grade de 25, e ela é um grupo de `radio` de verdade.**
+ *
+ * **Por que `input type="radio"` e não botões com `aria-label`** (spec §2.2): o compromisso **A-1** pede
+ * *rótulo associado ao controle — `htmlFor` ↔ `id`*, e `aria-label` num `<button>` dá **nome acessível**,
+ * que é outra coisa. Com `radio` de verdade, teclado (setas), agrupamento e semântica de formulário vêm
+ * do navegador, em vez de serem reimplementados — que é o risco que a ADR-0007 recusou ao não construir
+ * controles do zero.
+ *
+ * **`sr-only` no `input`, nunca `display:none`:** o segundo tira a célula da ordem de foco, e o
+ * compromisso **A-2** é ordem de foco igual à de leitura.
+ *
+ * **O anel de foco migra para o `<label>` por `peer-focus-visible`** — é o compromisso **A-4**, *foco
+ * visível não removido*, e aqui ele é o mais frágil da tela: sem esta classe, quem navega por teclado
+ * atravessa 25 células sem ver onde está.
+ *
+ * **A medida é o compromisso A-3**, que nomeia *"opções de escolha única"*: `size-11` são 44 px, e seis
+ * por linha cabem em 312 px — 6 × 44 + 5 × 8 = 304. São **cinco linhas**, a última com uma célula.
+ *
+ * **O A-5 não se aplica à grade** (spec §2.4): aqui o desenho **é o objeto da escolha**, como as amostras
+ * num seletor de cor — não um marcador que substitui palavra. Onde o A-5 vale é na exibição, e lá a
+ * palavra está sempre ao lado.
+ */
+export function SeletorDeIcone({
+  valor,
+  aoEscolher,
+}: {
+  valor: NomeDeIcone;
+  aoEscolher: (nome: NomeDeIcone) => void;
+}) {
+  const escolhido = ICONES_DE_CATEGORIA.find((icone) => icone.nome === valor);
+
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="text-tinta text-sm font-medium">Ícone</legend>
+      <p className="text-tinta-suave text-xs leading-relaxed">
+        Aparece ao lado do nome da categoria nas listas e no formulário de registro.
+      </p>
+
+      <div className="grid w-fit grid-cols-6 gap-2">
+        {ICONES_DE_CATEGORIA.map((icone) => (
+          <div key={icone.nome} className="contents">
+            <input
+              id={`icone-${icone.nome}`}
+              type="radio"
+              name="icone"
+              value={icone.nome}
+              checked={valor === icone.nome}
+              className="peer sr-only"
+              onChange={() => aoEscolher(icone.nome)}
+            />
+            <label
+              htmlFor={`icone-${icone.nome}`}
+              className="border-linha text-tinta-suave peer-checked:border-marca peer-checked:bg-accent peer-checked:text-tinta peer-focus-visible:ring-marca flex size-11 cursor-pointer items-center justify-center rounded-md border peer-focus-visible:ring-2"
+            >
+              <IconeDeCategoria nome={icone.nome} className="size-5" />
+              <span className="sr-only">{icone.rotulo}</span>
+            </label>
+          </div>
+        ))}
+      </div>
+
+      {/* A palavra do escolhido, **visível** — é o que faz a escolha ser legível sem passar o mouse
+          célula a célula, e A-6 proíbe que isso viva num tooltip.
+
+          **Sem texto de reserva escrito à mão:** `valor` é `NomeDeIcone`, então o `find` acha sempre, e
+          repetir *"Etiqueta"* aqui criaria uma segunda fonte para um rótulo que já mora na constante. */}
+      {escolhido !== undefined && (
+        <p className="text-tinta-suave text-xs">
+          Ícone: <strong className="text-tinta font-medium">{escolhido.rotulo}</strong>
+        </p>
+      )}
+    </fieldset>
+  );
 }
