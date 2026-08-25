@@ -27,6 +27,7 @@ export {
 } from "./organizacao";
 
 export {
+  MENSAGEM_DE_TELEFONE,
   aprovacaoDePedidoSchema,
   codigoPublico,
   pedidoDeEntradaSchema,
@@ -39,6 +40,7 @@ export {
 
 export {
   cadastroDeVinculoSchema,
+  contatosParaEscritaSchema,
   correcaoDeVinculoSchema,
   type EntradaDeCadastroDeVinculo,
   type EntradaDeCorrecaoDeVinculo,

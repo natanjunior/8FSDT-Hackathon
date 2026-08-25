@@ -130,3 +130,19 @@ export class PessoaComContaNaoEditavel extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `409 CONTATO_DUPLICADO` — o mesmo par (`tipo`, `valor`) repetido na mesma Pessoa.
+ *
+ * **É tradução da `contatos_par_uk`** (modelo §6.17), não de checagem prévia — a mesma doutrina de
+ * `PedidoDeEntradaPendente`. E como a escrita é **substituição**, o estado final é a lista enviada: um par
+ * repetido só pode vir de dentro do próprio corpo, e é por isso que a tela consegue vê-lo antes de enviar.
+ * **Este erro é a rede, não o caminho.**
+ *
+ * O texto é o da §6.2 do `prototipo-low-fi.md`, e ele aparece **no campo do contato repetido**.
+ */
+export class ContatoDuplicado extends ErroDeDominio {
+  constructor() {
+    super("CONTATO_DUPLICADO", "Contato repetido", "Este contato já está na lista.");
+  }
+}

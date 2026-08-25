@@ -5,6 +5,7 @@ import type {
   SituacaoDoPedido,
   TipoArea,
 } from "@/dominio/organizacao";
+import type { FinalidadeDeContato, TipoDeContato } from "@/dominio/pessoa";
 
 /**
  * **As portas da Organização** (ADR-0005, parte 1): a Aplicação declara, a Infraestrutura implementa.
@@ -158,11 +159,32 @@ export interface RepositorioGlobalDePedidosDeEntrada {
 /** O schema `Contato` do contrato, do lado de dentro. Sai **ordenado por `ordem`** (modelo §6.17). */
 export type ContatoLido = {
   id: string;
-  tipo: "email" | "telefone";
+  tipo: TipoDeContato;
   valor: string;
-  finalidade: "pessoal" | "trabalho" | "recado";
+  finalidade: FinalidadeDeContato;
   temWhatsapp: boolean;
   ordem: number;
+  observacao: string | null;
+};
+
+/**
+ * Um contato **entrando** — o `ContatoParaEscrita` do contrato, do lado de dentro.
+ *
+ * **Sem `id`**, porque a escrita é substituição: o corpo traz a lista completa e o servidor troca a
+ * anterior inteira.
+ *
+ * **E sem `ordem`, que é a decisão 2.1 da spec:** quem a grava é o servidor, pela posição na lista. O
+ * schema de entrada aceita `ordem` e **recusa** a que não bate com a posição, então nada chega aqui com
+ * ordem própria a respeitar — e `UNIQUE (pessoa_id, ordem)` deixa de ser alcançável por entrada.
+ *
+ * **Os opcionais do contrato já vêm resolvidos:** o schema aplica `finalidade: "pessoal"`,
+ * `temWhatsapp: false` e `observacao: null`. A porta recebe dado resolvido, nunca ausência.
+ */
+export type ContatoParaEscrita = {
+  tipo: TipoDeContato;
+  valor: string;
+  finalidade: FinalidadeDeContato;
+  temWhatsapp: boolean;
   observacao: string | null;
 };
 
@@ -214,6 +236,12 @@ export type DadosDoCadastro = {
   papel: Papel;
   /** `null` é *sem unidade* — o caso do Gestor e do Encarregado terceirizado. */
   areaId: string | null;
+  /**
+   * **Sempre uma lista, nunca ausente.** No cadastro a Pessoa é nova: *"omitir"* e *"lista vazia"*
+   * descrevem o mesmo estado, e o schema resolve a ausência em `[]`. A distinção que importa é a do
+   * `PATCH`, e mora em `DadosDaCorrecao`.
+   */
+  contatos: readonly ContatoParaEscrita[];
 };
 
 /**
@@ -226,6 +254,12 @@ export type DadosDaCorrecao = {
   pessoaId: string;
   nome?: string;
   areaId?: string | null;
+  /**
+   * **Ausente e `[]` são instruções diferentes** (contrato §8.2): ausente é *não mexa em nada*, `[]` é
+   * *remova todos*. É a armadilha de vazio-versus-ausente, e aqui ela **apaga dados** — um `?? []` em
+   * qualquer ponto deste caminho destrói o contato de quem só corrigiu a unidade.
+   */
+  contatos?: readonly ContatoParaEscrita[];
 };
 
 /**
@@ -234,13 +268,15 @@ export type DadosDaCorrecao = {
  */
 export type ResultadoDoCadastro =
   | { desfecho: "cadastrado"; vinculo: VinculoLido }
-  | { desfecho: "area-invalida" };
+  | { desfecho: "area-invalida" }
+  | { desfecho: "contato-duplicado" };
 
 export type ResultadoDaCorrecao =
   | { desfecho: "corrigido"; vinculo: VinculoLido }
   | { desfecho: "nao-encontrado" }
   | { desfecho: "pessoa-com-conta" }
-  | { desfecho: "area-invalida" };
+  | { desfecho: "area-invalida" }
+  | { desfecho: "contato-duplicado" };
 
 /**
  * **A porta escopada dos vínculos.**

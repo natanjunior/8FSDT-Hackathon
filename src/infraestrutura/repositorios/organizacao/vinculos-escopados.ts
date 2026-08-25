@@ -1,4 +1,5 @@
 import type {
+  ContatoParaEscrita,
   DadosDaCorrecao,
   DadosDoCadastro,
   RepositorioEscopadoDeVinculos,
@@ -27,6 +28,12 @@ import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/conte
  * corretamente. A CTE do `cadastrar` põe a criação da Pessoa **dentro** da instrução que cria o Vínculo:
  * a instrução referencia `$1`, é atômica por si só, e **não existe caminho que produza Pessoa sem
  * Vínculo** — que é exatamente o que o contrato §4.6 promete.
+ *
+ * **A escrita em `contatos` cavalga do mesmo jeito, e por um motivo mais forte.** `contatos` é global e é
+ * a tabela mais sensível do esquema. Um `delete from contatos where pessoa_id = $2` seria **recusado em
+ * execução** pela trava do `escoparConsulta`, que exige `$1` — e é bom que seja: sem passar por
+ * `vinculos`, uma organização reescreveria o contato de quem só tem vínculo em outra. As duas instruções
+ * abaixo partem de `vinculos`, e é o `where organizacao_id = $1` delas que fecha essa porta.
  */
 export function repositorioEscopadoDeVinculos(
   consulta: ConsultaEscopada,
@@ -67,6 +74,14 @@ export function repositorioEscopadoDeVinculos(
           throw new Error("insert ... returning não devolveu linha — invariante violada");
         }
 
+        try {
+          await escreverContatos(dentro, criado.pessoa_id, dados.contatos);
+        } catch (erro) {
+          // A transação inteira volta atrás: nem Pessoa, nem Vínculo, nem contato pela metade.
+          if (ehContatoDuplicado(erro)) return { desfecho: "contato-duplicado" };
+          throw erro;
+        }
+
         const vinculo = (await lerVinculos(dentro, criado.pessoa_id))[0];
         if (vinculo === undefined) {
           throw new Error("vínculo recém-criado não encontrado — invariante violada");
@@ -99,6 +114,26 @@ export function repositorioEscopadoDeVinculos(
           );
 
           if (alteradas.length === 0) return await distinguirRecusa(dentro, dados.pessoaId);
+        }
+
+        if (dados.contatos !== undefined) {
+          // A guarda de quem tem conta vale para contatos pela mesma razão do `nome`: `contatos` é
+          // global, e reescrevê-la mudaria como aquela pessoa é alcançada em TODAS as organizações dela.
+          if (!(await pessoaEditavel(dentro, dados.pessoaId))) {
+            return await distinguirRecusa(dentro, dados.pessoaId);
+          }
+
+          // Substituição: apaga a lista inteira e reinsere. É a única tabela do esquema que recebe
+          // `DELETE` de rotina, e está declarado na §11.4 do modelo — o "nada é apagado" do RNF9 não vale
+          // aqui.
+          await apagarContatos(dentro, dados.pessoaId);
+
+          try {
+            await escreverContatos(dentro, dados.pessoaId, dados.contatos);
+          } catch (erro) {
+            if (ehContatoDuplicado(erro)) return { desfecho: "contato-duplicado" };
+            throw erro;
+          }
         }
 
         if (dados.areaId !== undefined) {
@@ -273,4 +308,95 @@ async function lerVinculos(
       criadoEm: linha.criado_em.toISOString(),
     };
   });
+}
+
+/**
+ * Apaga os contatos daquela Pessoa — **partindo de `vinculos`**, sempre.
+ *
+ * O `using vinculos` não é estilo: é o filtro. `contatos` não tem `organizacao_id`, então a única coisa
+ * que impede uma organização de apagar o contato de quem está noutra é este `join`.
+ */
+async function apagarContatos(consulta: ConsultaEscopada, pessoaId: string): Promise<void> {
+  await consulta(
+    `delete from contatos c
+       using vinculos v
+      where v.organizacao_id = $1
+        and v.pessoa_id = $2
+        and v.revogado_em is null
+        and c.pessoa_id = v.pessoa_id`,
+    [pessoaId],
+  );
+}
+
+/**
+ * Insere a lista, **gravando `ordem` pela posição** (decisão 2.1 da spec).
+ *
+ * Uma instrução por contato, e não um `unnest`: são um a cinco por pessoa, a transação é a mesma, e o SQL
+ * legível vale mais que a viagem economizada. Cada uma parte de `vinculos`, pela razão do `apagarContatos`.
+ */
+async function escreverContatos(
+  consulta: ConsultaEscopada,
+  pessoaId: string,
+  contatos: readonly ContatoParaEscrita[],
+): Promise<void> {
+  for (const [indice, contato] of contatos.entries()) {
+    await consulta(
+      `insert into contatos (pessoa_id, tipo, valor, finalidade, tem_whatsapp, ordem, observacao)
+       select v.pessoa_id, $3::tipo_contato, $4, $5::finalidade_contato, $6, $7, $8
+         from vinculos v
+        where v.organizacao_id = $1
+          and v.pessoa_id = $2
+          and v.revogado_em is null`,
+      [
+        pessoaId,
+        contato.tipo,
+        contato.valor,
+        contato.finalidade,
+        contato.temWhatsapp,
+        indice + 1,
+        contato.observacao,
+      ],
+    );
+  }
+}
+
+/**
+ * A Pessoa existe **nesta** organização e **não tem conta**?
+ *
+ * **É leitura prévia, e é a única deste arquivo — vale explicar por quê.** A doutrina daqui é *"nenhum
+ * desfecho vem de leitura prévia"*, e o `nome` a cumpre pondo a guarda no `where` do próprio `update`. Para
+ * contatos isso não fecha: com `contatos: []` **não há instrução nenhuma** cujo número de linhas possa
+ * carregar a guarda — apagar zero contatos de quem não tinha contato é indistinguível de apagar zero por
+ * ser proibido.
+ *
+ * A corrida que ela não cobre é uma Pessoa **ganhar conta** entre esta leitura e a escrita, dentro da mesma
+ * transação. Não é cenário deste produto: `usuario_id` é preenchido quando alguém cria conta e pede
+ * entrada, nunca por um caminho concorrente ao Gestor corrigindo um cadastro.
+ */
+async function pessoaEditavel(consulta: ConsultaEscopada, pessoaId: string): Promise<boolean> {
+  const linhas = await consulta<{ id: string }>(
+    `select p.id
+       from vinculos v
+       join pessoas p on p.id = v.pessoa_id
+      where v.organizacao_id = $1
+        and v.pessoa_id = $2
+        and v.revogado_em is null
+        and p.usuario_id is null`,
+    [pessoaId],
+  );
+  return linhas.length > 0;
+}
+
+/**
+ * **Lê `code` e `constraint` de um objeto desconhecido, sem importar o driver** — a mesma técnica de
+ * `organizacoes.ts` e `pedidos-de-entrada.ts`. Confere as **duas**: `23505` sozinho pegaria qualquer
+ * unicidade da transação.
+ *
+ * **`contatos_ordem_uk` não aparece aqui de propósito.** Depois da decisão 2.1 a `ordem` é escrita pelo
+ * servidor, `1..N` pela posição — ela não é alcançável por entrada, e traduzi-la para uma recusa do
+ * contrato daria nome de erro de usuário a um defeito do servidor.
+ */
+function ehContatoDuplicado(erro: unknown): boolean {
+  const comCodigo = erro as { code?: unknown; constraint?: unknown };
+  return comCodigo.code === "23505" && comCodigo.constraint === "contatos_par_uk";
 }

@@ -3,6 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  SubFormularioDeContatos,
+  contatoVindoDaApi,
+  indicesDuplicados,
+  listaMudou,
+  paraCorpo,
+  type ContatoEmEdicao,
+} from "@/interface/componentes/sub-formulario-de-contatos";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 
@@ -19,7 +27,9 @@ import { Input } from "@/interface/componentes/ui/input";
  * **O papel não aparece no modo de correção**, e isso não é omissão: `PATCH /vinculos/{pessoaId}` não o
  * aceita, e o único conserto de papel errado é remover o vínculo e refazer o pedido (item 10).
  *
- * **`contatos[]` é o item 9b.** O aviso na tela diz isso em vez de deixar a ausência parecer defeito.
+ * **`contatos[]` chegou no item 9b**, e a escrita é **substituição**: a lista enviada troca a anterior
+ * inteira. Na correção, ela só é enviada quando mudou de verdade — omitir é o *"não mexe em nada"* do
+ * contrato §8.2, e é o que preserva o `criadoEm` de cada contato quando o Gestor corrige só a unidade.
  */
 
 type Area = { id: string; nome: string };
@@ -32,6 +42,14 @@ type Modo =
       nome: string;
       temConta: boolean;
       areaIdAtual: string | null;
+      contatosAtuais: ReadonlyArray<{
+        id: string;
+        tipo: string;
+        valor: string;
+        finalidade: string;
+        temWhatsapp: boolean;
+        observacao: string | null;
+      }>;
     };
 
 const PAPEIS: ReadonlyArray<{ papel: string; rotulo: string; texto: string; alerta?: string }> = [
@@ -61,6 +79,7 @@ const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
   VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais nesta organização.",
   CAMPO_NAO_SUPORTADO: "Um dos campos enviados não é aceito por esta operação.",
   FORMATO_INVALIDO: "Confira os campos indicados.",
+  CONTATO_DUPLICADO: "Este contato já está na lista. Confira os contatos marcados.",
 };
 
 const MENSAGEM_GENERICA = "Não foi possível salvar agora. Tente de novo.";
@@ -75,23 +94,50 @@ export function FormularioDeVinculo({ modo, areas }: { modo: Modo; areas: readon
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // `originais` é recalculado a cada renderização de propósito — é só a lista de referência para o
+  // `listaMudou`, e as props desta tela não mudam sem remontar a página.
+  const originais = modo.tipo === "correcao" ? modo.contatosAtuais.map(contatoVindoDaApi) : [];
+  const [contatos, setContatos] = useState<readonly ContatoEmEdicao[]>(originais);
+  const [abertoNoCelular, setAbertoNoCelular] = useState<string | null>(null);
+
+  const corpoDosContatos = paraCorpo(contatos);
+  const contatosValem = corpoDosContatos !== null && indicesDuplicados(contatos).size === 0;
+
   // No cadastro, o botão nasce indisponível — é a decisão 1 do PA-25. Na correção não há papel a
-  // escolher, e travar o botão seria travar por nada.
-  const podeSalvar = modo.tipo === "cadastro" ? papel !== null && nome.trim() !== "" : true;
+  // escolher, e travar o botão seria travar por nada. Em qualquer dos dois, contato malformado ou
+  // repetido segura o envio: o erro já está no campo, e mandar produziria um `400`/`409` que a tela sabe
+  // evitar.
+  const podeSalvar =
+    contatosValem && (modo.tipo === "cadastro" ? papel !== null && nome.trim() !== "" : true);
 
   async function salvar() {
     setEnviando(true);
     setErro(null);
 
     const alvo = modo.tipo === "cadastro" ? "/api/vinculos" : `/api/vinculos/${modo.pessoaId}`;
+
+    // Quem tem conta nunca manda contatos: eles são globais, como o nome, e a tela os mostra em leitura.
+    // Ele cai no mesmo caminho de quem não mexeu na lista — sem caso especial (decisão 2.4).
+    const mandaContatos =
+      modo.tipo === "cadastro" || (!modo.temConta && listaMudou(contatos, originais));
+
     const corpo =
       modo.tipo === "cadastro"
-        ? { nome: nome.trim(), papel, areaId: areaId === "" ? null : areaId }
+        ? {
+            nome: nome.trim(),
+            papel,
+            areaId: areaId === "" ? null : areaId,
+            contatos: corpoDosContatos,
+          }
         : {
             // Quem tem conta não tem o nome enviado: a tela mostra o campo como leitura, e mandá-lo
             // produziria o `409` que a tela existe para não provocar.
             ...(modo.temConta ? {} : { nome: nome.trim() }),
             areaId: areaId === "" ? null : areaId,
+            // **Omitir e `[]` são coisas diferentes** (contrato §8.2): a chave só entra quando a lista
+            // mudou de verdade. Sem isto, corrigir a unidade apagaria e reinseriria todo contato da
+            // pessoa, trocando o `id` e o `criadoEm` de cada um.
+            ...(mandaContatos ? { contatos: corpoDosContatos } : {}),
           };
 
     try {
@@ -220,10 +266,13 @@ export function FormularioDeVinculo({ modo, areas }: { modo: Modo; areas: readon
         </p>
       </div>
 
-      <p className="border-linha text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-        Os contatos — telefone, e-mail, ordem de quem se liga primeiro — chegam no próximo item. Quem for
-        cadastrado agora aparece na lista sem contato.
-      </p>
+      <SubFormularioDeContatos
+        contatos={contatos}
+        aoMudar={setContatos}
+        aberto={abertoNoCelular}
+        aoAbrir={setAbertoNoCelular}
+        somenteLeitura={modo.tipo === "correcao" && modo.temConta}
+      />
 
       {erro !== null && (
         <p role="alert" className="text-tinta text-sm">
@@ -237,6 +286,11 @@ export function FormularioDeVinculo({ modo, areas }: { modo: Modo; areas: readon
         </Button>
         {modo.tipo === "cadastro" && papel === null && (
           <span className="text-tinta-suave text-sm">indisponível até escolher um papel</span>
+        )}
+        {!contatosValem && (
+          <span className="text-tinta-suave text-sm">
+            indisponível até os contatos ficarem completos e sem repetição
+          </span>
         )}
         <a href="/vinculos" className="text-marca ml-auto text-sm underline underline-offset-4">
           Cancelar

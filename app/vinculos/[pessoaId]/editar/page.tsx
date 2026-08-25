@@ -58,6 +58,7 @@ export default async function CorrigirVinculo({
           nome: vinculo.pessoa.nome,
           temConta: vinculo.temConta,
           areaIdAtual: vinculo.area?.id ?? null,
+          contatosAtuais: vinculo.pessoa.contatos,
         }}
         areas={areas.map(projetarArea)}
       />

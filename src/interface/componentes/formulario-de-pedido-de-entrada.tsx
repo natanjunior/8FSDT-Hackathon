@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
-import { paraE164Brasileiro } from "@/dominio/pessoa";
+import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
 import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
@@ -56,15 +56,13 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
 
       // A conversão acontece aqui, e o campo é o único lugar onde ela pode falhar de forma explicável:
       // quem digitou nove dígitos merece a frase, não um `400` genérico do servidor. Não é rede, então
-      // fica fora do `try` abaixo.
-      let telefone: string | undefined;
-      if (telefoneDigitado !== "" && telefoneDigitado !== "+55") {
-        const convertido = paraE164Brasileiro(telefoneDigitado);
-        if (convertido === null) {
-          return { erros: { telefone: "Informe um telefone com DDD, como (11) 99999-0000." } };
-        }
-        telefone = convertido;
+      // fica fora do `try` abaixo. **A regra saiu para `componentes/telefone.ts` em 24/08/2026**, para
+      // T-08 usar a mesma — ver a decisão 2.2 da spec do 9b.
+      const convertido = converterTelefoneDigitado(telefoneDigitado);
+      if (convertido.situacao === "recusado") {
+        return { erros: { telefone: convertido.mensagem } };
       }
+      const telefone = convertido.situacao === "convertido" ? convertido.valor : undefined;
 
       // `enviado` separa o que o `catch` deve cobrir (a chamada de rede e a leitura da resposta) do que
       // vem depois (a navegação). Se `router.refresh` lançasse **dentro** do `try`, o `catch` devolveria a
@@ -207,7 +205,7 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
             name="telefone"
             type="tel"
             inputMode="tel"
-            defaultValue="+55 "
+            defaultValue={PREFIXO_BR}
             aria-invalid={estado.erros?.["telefone"] !== undefined}
             className="h-12 text-base"
           />

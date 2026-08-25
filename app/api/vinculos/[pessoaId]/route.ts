@@ -15,6 +15,9 @@ import { correcaoDeVinculoSchema } from "@/interface/schemas";
  *    mandou `{ papel }` sozinho precisa saber que o campo não é aceito, não que faltou preencher algo.
  * 2. **Corpo sem nada a corrigir → `400 FORMATO_INVALIDO`.** É o `minProperties: 1` do contrato.
  *
+ * **E `{ "contatos": [] }` é corpo válido, não vazio:** ele diz *remova todos*. Quem colapsar vazio com
+ * ausente aqui apaga o contato de quem só queria corrigir a unidade.
+ *
  * O `DELETE` deste mesmo caminho é o item 10.
  */
 export const PATCH = comContexto(
@@ -23,8 +26,9 @@ export const PATCH = comContexto(
     if (corpo.papel !== undefined) throw new CampoNaoSuportado(["papel"]);
 
     // `"areaId" in corpo` e não `corpo.areaId !== undefined`: `null` é um valor — *tire a unidade* — e
-    // ausência é *não mexa*. As duas coisas colapsariam numa comparação com `undefined`.
-    if (corpo.nome === undefined && !("areaId" in corpo)) {
+    // ausência é *não mexa*. `contatos` usa `=== undefined` porque `null` não é valor válido dele: ou vem
+    // lista, ou não vem.
+    if (corpo.nome === undefined && !("areaId" in corpo) && corpo.contatos === undefined) {
       throw new FormatoInvalido([
         {
           campo: "corpo",
@@ -38,6 +42,7 @@ export const PATCH = comContexto(
       pessoaId: parametros["pessoaId"] ?? "",
       ...(corpo.nome === undefined ? {} : { nome: corpo.nome }),
       ...("areaId" in corpo ? { areaId: corpo.areaId ?? null } : {}),
+      ...(corpo.contatos === undefined ? {} : { contatos: corpo.contatos }),
     });
 
     return projetarVinculo(vinculo);

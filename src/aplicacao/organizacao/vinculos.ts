@@ -1,4 +1,9 @@
-import { AreaInvalida, PessoaComContaNaoEditavel, VinculoNaoEncontrado } from "./erros";
+import {
+  AreaInvalida,
+  ContatoDuplicado,
+  PessoaComContaNaoEditavel,
+  VinculoNaoEncontrado,
+} from "./erros";
 import type {
   DadosDaCorrecao,
   DadosDoCadastro,
@@ -64,6 +69,8 @@ export async function cadastrarVinculo(
   switch (resultado.desfecho) {
     case "area-invalida":
       throw new AreaInvalida();
+    case "contato-duplicado":
+      throw new ContatoDuplicado();
     case "cadastrado":
       return resultado.vinculo;
   }
@@ -92,6 +99,8 @@ export async function corrigirVinculo(
       throw new PessoaComContaNaoEditavel();
     case "area-invalida":
       throw new AreaInvalida();
+    case "contato-duplicado":
+      throw new ContatoDuplicado();
     case "corrigido":
       return resultado.vinculo;
   }
