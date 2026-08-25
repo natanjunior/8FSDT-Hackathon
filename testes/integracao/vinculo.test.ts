@@ -27,6 +27,8 @@ let idGestora = "";
 let AREA_ATIVA = "";
 let AREA_INATIVA = "";
 let AREA_DE_OUTRA_ORGANIZACAO = "";
+let idOutraOrganizacao = "";
+let idSoDaOutra = "";
 
 beforeAll(async () => {
   if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
@@ -65,7 +67,7 @@ beforeAll(async () => {
     [`A${SUFIXO.slice(-7).toUpperCase()}`, `B${SUFIXO.slice(-7).toUpperCase()}`],
   );
   idOrganizacao = organizacoes[0]!.id;
-  const idOutraOrganizacao = organizacoes[1]!.id;
+  idOutraOrganizacao = organizacoes[1]!.id;
 
   await consulta(
     `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
@@ -89,6 +91,24 @@ beforeAll(async () => {
     [idOutraOrganizacao],
   );
   AREA_DE_OUTRA_ORGANIZACAO = daOutra[0]!.id;
+
+  // Uma Pessoa que existe **só na outra organização**, com um contato. É o alvo do caso de vazamento de
+  // escrita: `contatos` é global, e sem o `join` para `vinculos` a organização A alcançaria esta linha.
+  const soDaOutra = await consulta<{ id: string }>(
+    `insert into pessoas (nome) values ('Zelador da outra organização') returning id`,
+  );
+  idSoDaOutra = soDaOutra[0]!.id;
+
+  await consulta(
+    `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+    [idSoDaOutra, idOutraOrganizacao],
+  );
+
+  await consulta(
+    `insert into contatos (pessoa_id, tipo, valor, finalidade, ordem)
+          values ($1, 'telefone', '+5511900000001', 'trabalho', 1)`,
+    [idSoDaOutra],
+  );
 });
 
 afterAll(async () => {
@@ -297,5 +317,166 @@ describe("GET /vinculos — a leitura", () => {
 
   it("porPessoa devolve null para quem não tem vínculo aqui", async () => {
     expect(await repositorio().porPessoa("00000000-0000-4000-8000-000000000000")).toBeNull();
+  });
+});
+
+describe("contatos — substituição, e não mesclagem (item 9b)", () => {
+  const TELEFONE = {
+    tipo: "telefone" as const,
+    valor: "+5511955217788",
+    finalidade: "trabalho" as const,
+    temWhatsapp: true,
+    observacao: null,
+  };
+
+  const EMAIL = {
+    tipo: "email" as const,
+    valor: "zelador@exemplo.test",
+    finalidade: "recado" as const,
+    temWhatsapp: false,
+    observacao: "falar com a portaria",
+  };
+
+  async function comContatos(contatos: readonly (typeof TELEFONE | typeof EMAIL)[]) {
+    const criado = await repositorio().cadastrar({
+      nome: "Pessoa de contato",
+      papel: "encarregado",
+      areaId: null,
+      contatos,
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error("cenário não montou");
+    return criado.vinculo.pessoa.pessoaId;
+  }
+
+  it("o cadastro grava a lista, e ordem sai 1..N pela POSIÇÃO", async () => {
+    const pessoaId = await comContatos([TELEFONE, EMAIL]);
+    const lido = await repositorio().porPessoa(pessoaId);
+
+    expect(lido?.pessoa.contatos.map((c) => [c.ordem, c.valor])).toStrictEqual([
+      [1, TELEFONE.valor],
+      [2, EMAIL.valor],
+    ]);
+    expect(lido?.pessoa.contatos[0]?.temWhatsapp).toBe(true);
+    expect(lido?.pessoa.contatos[1]?.observacao).toBe("falar com a portaria");
+  });
+
+  it("a correção TROCA a lista inteira — não mescla", async () => {
+    const pessoaId = await comContatos([TELEFONE, EMAIL]);
+
+    const resultado = await repositorio().corrigir({ pessoaId, contatos: [EMAIL] });
+
+    expect(resultado.desfecho).toBe("corrigido");
+    if (resultado.desfecho !== "corrigido") return;
+    expect(resultado.vinculo.pessoa.contatos.map((c) => c.valor)).toStrictEqual([EMAIL.valor]);
+    expect(resultado.vinculo.pessoa.contatos[0]?.ordem).toBe(1);
+  });
+
+  it("lista vazia remove todos", async () => {
+    const pessoaId = await comContatos([TELEFONE]);
+
+    const resultado = await repositorio().corrigir({ pessoaId, contatos: [] });
+
+    expect(resultado.desfecho).toBe("corrigido");
+    if (resultado.desfecho !== "corrigido") return;
+    expect(resultado.vinculo.pessoa.contatos).toStrictEqual([]);
+  });
+
+  /** **O caso que protege dado de gente**, e o mais fácil de quebrar sem perceber. */
+  it("omitir contatos NÃO mexe em nada — corrigir só a unidade preserva a lista", async () => {
+    const pessoaId = await comContatos([TELEFONE, EMAIL]);
+    const antes = await repositorio().porPessoa(pessoaId);
+
+    const resultado = await repositorio().corrigir({ pessoaId, areaId: AREA_ATIVA });
+
+    expect(resultado.desfecho).toBe("corrigido");
+    if (resultado.desfecho !== "corrigido") return;
+    expect(resultado.vinculo.pessoa.contatos).toStrictEqual(antes?.pessoa.contatos);
+  });
+
+  it("par (tipo, valor) repetido no mesmo corpo é contato-duplicado", async () => {
+    const resultado = await repositorio().cadastrar({
+      nome: "Repetido",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [TELEFONE, { ...TELEFONE, finalidade: "pessoal" }],
+    });
+
+    expect(resultado.desfecho).toBe("contato-duplicado");
+  });
+
+  it("o duplicado no cadastro NÃO deixa Pessoa órfã — a transação inteira volta atrás", async () => {
+    const antes = await contarPessoas();
+    await repositorio().cadastrar({
+      nome: "Nunca deveria existir",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [TELEFONE, TELEFONE],
+    });
+
+    expect(await contarPessoas()).toBe(antes);
+  });
+});
+
+describe("contatos — a guarda de quem tem conta, e o vazamento de escrita", () => {
+  const UM = {
+    tipo: "telefone" as const,
+    valor: "+5511944443333",
+    finalidade: "pessoal" as const,
+    temWhatsapp: false,
+    observacao: null,
+  };
+
+  it("contatos de quem TEM conta é recusado — contatos é global, como o nome", async () => {
+    const resultado = await repositorio().corrigir({ pessoaId: idGestora, contatos: [UM] });
+
+    expect(resultado.desfecho).toBe("pessoa-com-conta");
+  });
+
+  /** **A metade que o `[]` esconde:** sem instrução para contar linhas, a guarda precisa ser explícita. */
+  it("lista VAZIA em quem tem conta também é recusada, e não apaga nada", async () => {
+    const resultado = await repositorio().corrigir({ pessoaId: idGestora, contatos: [] });
+
+    expect(resultado.desfecho).toBe("pessoa-com-conta");
+  });
+
+  /**
+   * **O caso que fixa a ORDEM dos blocos dentro da transação**, e o único que a pega errada em silêncio.
+   *
+   * `areaId` é editável em quem tem conta; `contatos`, não. Num corpo que traz os dois, a recusa tem de
+   * chegar **antes** de a unidade ser gravada — senão o `409` sai sobre uma transação que gravou, e quem
+   * chamou não tem como saber que metade do corpo pegou.
+   */
+  it("areaId + contatos em quem tem conta recusa SEM gravar a unidade", async () => {
+    await repositorio().corrigir({ pessoaId: idGestora, areaId: null });
+
+    const resultado = await repositorio().corrigir({
+      pessoaId: idGestora,
+      areaId: AREA_ATIVA,
+      contatos: [UM],
+    });
+
+    expect(resultado.desfecho).toBe("pessoa-com-conta");
+
+    const depois = await repositorio().porPessoa(idGestora);
+    expect(depois?.area).toBeNull();
+  });
+
+  /**
+   * **O caso que a suíte de isolamento não consegue expressar**, porque ela é de leitura.
+   *
+   * `contatos` é global e não tem `organizacao_id`. Se a escrita não partisse de `vinculos`, a organização
+   * A reescreveria o contato de quem só tem vínculo em B — e o vazamento seria de **escrita**, que é pior
+   * que o de leitura: destrói dado em vez de mostrá-lo.
+   */
+  it("A não reescreve contato de quem só tem vínculo em B", async () => {
+    const resultado = await repositorio().corrigir({ pessoaId: idSoDaOutra, contatos: [] });
+
+    expect(resultado.desfecho).toBe("nao-encontrado");
+
+    const restaram = await consulta<{ valor: string }>(
+      `select valor from contatos where pessoa_id = $1`,
+      [idSoDaOutra],
+    );
+    expect(restaram.map((c) => c.valor)).toStrictEqual(["+5511900000001"]);
   });
 });
