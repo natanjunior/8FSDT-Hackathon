@@ -176,7 +176,40 @@ if (projeto === undefined) {
 // ---------------------------------------------------------------------------
 
 anunciar("Migrações");
-rodar("supabase", ["migration", "up"]);
+
+const migracao = spawnSync("supabase", ["migration", "up"], {
+  cwd: RAIZ,
+  encoding: "utf8",
+  shell: NO_WINDOWS,
+  stdio: ["ignore", "pipe", "pipe"],
+});
+
+const saidaDaMigracao = `${migracao.stdout ?? ""}${migracao.stderr ?? ""}`;
+console.log(saidaDaMigracao.trimEnd());
+
+if (migracao.status !== 0) {
+  console.error(`\n✗ \`supabase migration up\` falhou (código ${migracao.status}).`);
+
+  // `already exists` é a assinatura de esquema à frente do histórico: os objetos estão no banco e
+  // `schema_migrations` não os registra. Sem esta explicação, a mensagem do Postgres fala de um tipo
+  // duplicado e não menciona a causa, que costuma ser um caminho que escreveu por fora da CLI.
+  if (saidaDaMigracao.includes("already exists")) {
+    console.error(
+      "\n  O esquema tem objetos que o histórico de migrações não registra — alguma coisa aplicou\n" +
+        "  migração por fora da CLI. Veja a divergência com:\n" +
+        "\n      supabase migration list --local\n" +
+        "\n  E escolha, sabendo o preço de cada um:\n" +
+        "\n      supabase migration repair --status applied <versão> --local\n" +
+        "        Registra sem rodar SQL. Só é correto se o esquema JÁ tiver tudo o que aquela migração\n" +
+        "        cria — senão ele fica faltando objeto em silêncio, e isso só aparece no `db push`.\n" +
+        "\n      npm run migrar:local\n" +
+        "        `supabase db reset`: recria do zero e registra certo. APAGA os dados locais E as contas\n" +
+        "        de login do `auth`.\n",
+    );
+  }
+
+  process.exit(migracao.status ?? 1);
+}
 
 // ---------------------------------------------------------------------------
 // 5 · A aplicação, no mesmo Dockerfile que vai a produção. Fica em primeiro
