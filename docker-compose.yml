@@ -80,3 +80,44 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 3
+
+  # ---------------------------------------------------------------------------
+  #  Azurite — o storage local
+  #
+  #  **A ADR-0004 escolheu Azure Blob Storage, e o local fala a API real.** A
+  #  alternativa era um adaptador falso servido pela própria aplicação, e ela
+  #  faria a API LOCAL RECEBER OS BYTES — exatamente o que a §10.1 do contrato
+  #  proíbe em produção, no ponto único em que a decisão se importou. O caminho
+  #  exercitado aqui é o mesmo que vai à nuvem: SAS assinada, PUT direto.
+  #
+  #  **A ressalva, declarada:** o Azurite não tem motor de regra de ciclo de
+  #  vida. A faxina do objeto pendente é CONFIGURAÇÃO DE INFRAESTRUTURA, não
+  #  código — não é conferível localmente em desenho nenhum, nem apontando para
+  #  o Azure de verdade, cuja granularidade é de dias.
+  #
+  #  As credenciais são as públicas e fixas do emulador. Elas podem estar no
+  #  `.env.example` porque não são segredo de ninguém — é o que preserva o
+  #  "clone limpo, sem passo manual" do critério 39.1.
+  # ---------------------------------------------------------------------------
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    container_name: resolve-ai-azurite
+    restart: unless-stopped
+    command: azurite-blob --blobHost 0.0.0.0 --location /dados --skipApiVersionCheck
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-dados:/dados
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:10000/devstoreaccount1?comp=list').then(()=>process.exit(0)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+volumes:
+  azurite-dados:

@@ -105,11 +105,14 @@ if (existsSync(caminhoDoEnv)) {
     `SUPABASE_CHAVE_ANONIMA=${exigir("PUBLISHABLE_KEY", "ANON_KEY")}`,
     `BANCO_URL=${paraODocker(exigir("DB_URL"))}`,
     `SEGREDO_DE_SESSAO=${randomBytes(32).toString("base64url")}`,
+    "ARMAZENAMENTO_CONEXAO=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
+      "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
+      "BlobEndpoint=http://host.docker.internal:10000/devstoreaccount1;",
     "",
   ].join("\n");
 
   writeFileSync(caminhoDoEnv, conteudo, "utf8");
-  console.log("   · quatro variáveis escritas; o segredo de sessão foi gerado agora.");
+  console.log("   · cinco variáveis escritas; o segredo de sessão foi gerado agora.");
 }
 
 // ---------------------------------------------------------------------------
@@ -120,8 +123,13 @@ if (existsSync(caminhoDoEnv)) {
 //     dados de trabalho e deixava `schema_migrations` atrasada — e a subida seguinte falhava com
 //     `type "..." already exists`. O outro lado desta decisão é `testes/integracao/banco.ts`.
 //
-//     **`docker exec` e não o `pg` do package.json**, porque este script não tem dependência nenhuma: o
-//     emprego `compose` do `entrega.yml` roda `npm run local` num runner **sem `npm ci`**.
+//     **`docker exec` e não o `pg` do package.json**, para que este arquivo continue sem dependência
+//     nenhuma: ele é o caminho de subida, e um `import` aqui o prenderia a `node_modules`.
+//
+//     *(Até o item 13a a segunda metade desta frase dizia que o emprego `compose` do `entrega.yml` roda
+//     `npm run local` num runner **sem `npm ci`**. Deixou de ser verdade: `ferramentas/azurite.mjs`, que
+//     o bloco 4.5 abaixo invoca, importa o SDK do Azure, e o emprego passou a instalar. A razão de este
+//     arquivo seguir sem `import` é a de cima, que não dependia daquela.)*
 // ---------------------------------------------------------------------------
 
 /** Repetido de `testes/integracao/banco.ts` de propósito — ver o comentário acima sobre dependências. */
@@ -210,6 +218,15 @@ if (migracao.status !== 0) {
 
   process.exit(migracao.status ?? 1);
 }
+
+// ---------------------------------------------------------------------------
+// 4.5 · O storage local. Sobe sozinho e é configurado antes da aplicação, para
+//       que a primeira foto do dia não caia num contêiner que não existe.
+// ---------------------------------------------------------------------------
+
+anunciar("Storage local (Azurite)");
+rodar("docker", ["compose", "up", "--detach", "--wait", "--wait-timeout", "60", "azurite"]);
+rodar("node", [join(RAIZ, "ferramentas", "azurite.mjs")]);
 
 // ---------------------------------------------------------------------------
 // 5 · A aplicação, no mesmo Dockerfile que vai a produção. Fica em primeiro

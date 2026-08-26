@@ -135,6 +135,20 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: npm
+
+      # **Este `npm ci` não existia, e a razão de ele passar a existir está no
+      # comentário abaixo.** O emprego foi escrito sem instalação de propósito:
+      # `ambiente-local.mjs` não tinha dependência nenhuma. O item 13a lhe deu
+      # uma — `ferramentas/azurite.mjs` importa `@azure/storage-blob` para criar
+      # o contêiner e configurar CORS no emulador. Sem `node_modules`, o script
+      # morre em `ERR_MODULE_NOT_FOUND` e leva o emprego junto.
+      #
+      # **O que o emprego continua provando não muda:** as dependências da
+      # APLICAÇÃO seguem vindo do Dockerfile, instaladas pelo
+      # `docker compose up --build`. Isto aqui é só o que o script do HOST
+      # precisa.
+      - run: npm ci
 
       - uses: supabase/setup-cli@v1
         with:
@@ -151,9 +165,9 @@ jobs:
       - name: Postgres e Auth locais
         run: supabase start -x studio,imgproxy,inbucket,realtime,storage,analytics,vector,edge-runtime,functions,meta
 
-      # **O mesmo comando que o README manda rodar** — não há `npm ci` aqui de
-      # propósito: o script não tem dependência nenhuma, e as da aplicação são
-      # instaladas dentro do Dockerfile, que é justamente o que se quer provar.
+      # **O mesmo comando que o README manda rodar.** O `npm ci` acima serve
+      # **só** ao `ferramentas/azurite.mjs`; as dependências da aplicação
+      # continuam vindo do Dockerfile, que é justamente o que se quer provar.
       - name: npm run local, desanexado
         run: npm run local -- --desanexado
 
