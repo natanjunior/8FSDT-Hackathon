@@ -14,6 +14,7 @@ import {
 } from "@/infraestrutura/repositorios/organizacao";
 import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 import { casosDeIsolamento } from "./suite-de-isolamento";
 
@@ -37,7 +38,7 @@ import { casosDeIsolamento } from "./suite-de-isolamento";
  * legítima: ela apenas parte da tabela errada. A defesa é teste."*
  */
 
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 
 /**
  * Sufixo de execução para os e-mails das credenciais.
@@ -88,13 +89,6 @@ function portasDe(organizacaoId: string) {
 }
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — é o critério A4, e ele mede a consulta " +
-        "que vai ao banco. Suba com `docker compose up banco` e rode `npm run teste:integracao`.",
-    );
-  }
-
   // `criarTransacao` lê `BANCO_URL`; o teste aponta pela `BANCO_URL_TESTE`. Amarrar as duas é o que faz
   // o teste exercer o cliente de produção, e não um pool montado à parte. Passou a ser necessário com a
   // entrada de `GET /ocorrencias/{id}` (item 11): as entradas anteriores só chamam `criarTransacao()` —

@@ -5,6 +5,7 @@ import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeVinculos } from "@/infraestrutura/repositorios/organizacao";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
 /**
@@ -16,7 +17,7 @@ import { aplicarEsquema } from "./esquema";
  * Pessoa órfã, a FK composta da Área, e o `where usuario_id is null` que faz a guarda ser por campo.
  * Contra um duplo, nada disso seria testado — seria testado o duplo.
  */
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `9a-${Date.now()}`;
 
 let pool: Pool;
@@ -31,13 +32,6 @@ let idOutraOrganizacao = "";
 let idSoDaOutra = "";
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — o que ele mede é a CTE, a FK composta " +
-        "e o `where usuario_id is null`. Suba com `npm run local` e rode `npm run teste:integracao`.",
-    );
-  }
-
   // `criarTransacao` lê `BANCO_URL`; o teste aponta pela `BANCO_URL_TESTE`. Amarrar as duas é o que faz
   // este arquivo exercer a função de verdade, em vez de uma cópia dela montada à mão.
   process.env.BANCO_URL = URL_DO_BANCO;

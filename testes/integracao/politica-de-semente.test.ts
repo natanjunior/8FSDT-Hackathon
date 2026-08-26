@@ -6,6 +6,7 @@ import { criarTransacao } from "@/infraestrutura/clientes";
 import { repositorioDeOrganizacoes } from "@/infraestrutura/repositorios/organizacao";
 import { AREAS_SEMENTE, CATEGORIAS_SEMENTE } from "@/dominio/organizacao";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
 /**
@@ -22,7 +23,7 @@ import { aplicarEsquema } from "./esquema";
  * 3. **`criado_por_pessoa_id` fica nulo nas linhas de semente** — quem as criou foi a política.
  */
 
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `${Date.now()}`;
 
 let pool: Pool;
@@ -30,13 +31,6 @@ let consulta: <L extends object>(sql: string, valores?: readonly unknown[]) => P
 let idDaSindica: string;
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — o que ele mede é o COMMIT. " +
-        "Suba com `npm run local` e rode `npm run teste:integracao`.",
-    );
-  }
-
   // `criarTransacao` lê `BANCO_URL`, e o teste pode estar apontando para outro banco pela
   // `BANCO_URL_TESTE`. Amarrar as duas aqui é o que faz o teste exercer a função de verdade, em vez de
   // uma cópia dela montada à mão sobre o pool do próprio arquivo.
