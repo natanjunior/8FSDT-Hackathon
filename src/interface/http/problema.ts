@@ -75,6 +75,16 @@ function tipoDoErro(codigo: string): string {
   return `https://resolveai.app/erros/${codigo.toLowerCase().replace(/_/gu, "-")}`;
 }
 
+/**
+ * A única extensão de erro que **não** vai para o corpo: ela vira cabeçalho.
+ *
+ * O contrato declara **três** extensões de corpo — `codigo`, `traceId` e `erros[]` — e declara, no `429`
+ * de `POST /anexos/autorizacoes`, o cabeçalho `Retry-After`. Este é o caminho de um para o outro: o erro
+ * de domínio carrega o número em `extensoes` (que é onde um erro carrega dado), e a tradução para HTTP
+ * acontece **aqui**, na única camada a quem a tabela de camadas permite conhecer cabeçalho.
+ */
+const EXTENSAO_DE_CABECALHO = "segundosAteLiberar";
+
 /** Uma violação de campo — em `400 FORMATO_INVALIDO` e em `422 CAMPO_NAO_SUPORTADO` (contrato §6.1). */
 export type ErroDeCampo = {
   campo: string;
@@ -148,6 +158,13 @@ export function problemaDe(
 ): { status: number; corpo: Record<string, unknown> } {
   if (erro instanceof ErroDeDominio) {
     const status = STATUS_POR_CODIGO[erro.codigo] ?? 500;
+
+    // Sem desestruturação com descarte: `@typescript-eslint/no-unused-vars` não ignora variável
+    // desestruturada por prefixo `_`, e o primeiro `eslint-disable` do projeto não nasce aqui.
+    const extensoesDoCorpo = Object.fromEntries(
+      Object.entries(erro.extensoes).filter(([chave]) => chave !== EXTENSAO_DE_CABECALHO),
+    );
+
     return {
       status,
       corpo: {
@@ -158,7 +175,7 @@ export function problemaDe(
         instance: instancia,
         codigo: erro.codigo,
         traceId,
-        ...erro.extensoes,
+        ...extensoesDoCorpo,
       },
     };
   }
@@ -185,8 +202,15 @@ export function respostaDeProblema(
   traceId: string,
 ): Response {
   const { status, corpo } = problemaDe(erro, instancia, traceId);
+
+  const segundos =
+    erro instanceof ErroDeDominio ? erro.extensoes[EXTENSAO_DE_CABECALHO] : undefined;
+
   return new Response(JSON.stringify(corpo), {
     status,
-    headers: { "content-type": "application/problem+json; charset=utf-8" },
+    headers: {
+      "content-type": "application/problem+json; charset=utf-8",
+      ...(typeof segundos === "number" ? { "retry-after": String(segundos) } : {}),
+    },
   });
 }
