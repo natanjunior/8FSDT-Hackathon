@@ -13,6 +13,13 @@ export {
 } from "./organizacao";
 
 export {
+  projetarOcorrenciaDetalhe,
+  projetarTransicao,
+  rotuloDeStatus,
+  type QuemLe,
+} from "./ocorrencia";
+
+export {
   projetarPedidoDeEntrada,
   projetarPedidoDeEntradaDetalhe,
   type PedidoDeEntradaDetalheProjetado,

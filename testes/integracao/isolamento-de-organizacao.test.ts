@@ -1,8 +1,10 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
@@ -62,6 +64,28 @@ let idSindica: string;
 let idMoradora: string;
 let idPedidoRecanto: string;
 let idPedidoAurora: string;
+let idDaOcorrenciaEmA: string;
+let idDaOcorrenciaEmB: string;
+
+/**
+ * As portas de uma organizacao, montadas como a producao as monta.
+ *
+ * **`escoparConsulta(consulta, ...)` e nao `criarConsulta()`:** `consulta` e a variavel de modulo que o
+ * arquivo ja tem, ligada ao `Pool` local — o mesmo em que `aplicarEsquema` rodou. `criarConsulta()`
+ * abriria um segundo pool e exigiria um import novo. `criarTransacao()` continua sendo o cliente de
+ * producao, que e o que as entradas de `GET /pedidos-de-entrada` e `GET /vinculos` ja fazem.
+ */
+function portasDe(organizacaoId: string) {
+  const escopada = escoparConsulta(consulta, organizacaoId);
+  return {
+    ocorrencias: repositorioEscopadoDeOcorrencias(
+      escopada,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    categorias: repositorioEscopadoDeCategorias(escopada),
+    areas: repositorioEscopadoDeAreas(escopada),
+  };
+}
 
 beforeAll(async () => {
   if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
@@ -71,12 +95,48 @@ beforeAll(async () => {
     );
   }
 
+  // `criarTransacao` lê `BANCO_URL`; o teste aponta pela `BANCO_URL_TESTE`. Amarrar as duas é o que faz
+  // o teste exercer o cliente de produção, e não um pool montado à parte. Passou a ser necessário com a
+  // entrada de `GET /ocorrencias/{id}` (item 11): as entradas anteriores só chamam `criarTransacao()` —
+  // que devolve uma função — e nunca **executam** uma transação, então o pool nunca era aberto.
+  process.env.BANCO_URL = URL_DO_BANCO;
+
   pool = new Pool({ connectionString: URL_DO_BANCO, max: 4 });
   consulta = async <L extends object>(sql: string, valores: readonly unknown[] = []) =>
     (await pool.query(sql, valores as unknown[])).rows as L[];
 
   await aplicarEsquema(consulta);
   await semear();
+
+  /**
+   * **Uma ocorrência em cada organização, e a autora é a mesma nas duas.** `idSindica` tem vínculo em
+   * Recanto e em Aurora — e é exatamente isso que faz o caso detectar o vazamento (critério A4). A FK
+   * `ocorrencias_autor_fk` aponta para `vinculos (pessoa_id, organizacao_id)`, e ela o tem nas duas.
+   *
+   * A categoria e a área são as que o próprio `semear()` criou por organização. **Não é a semente da
+   * POL-01:** este arquivo insere as duas por SQL direto, e é de lá que elas vêm.
+   */
+  for (const [organizacaoId, guardar] of [
+    [idRecanto, (id: string) => (idDaOcorrenciaEmA = id)],
+    [idAurora, (id: string) => (idDaOcorrenciaEmB = id)],
+  ] as const) {
+    const portas = portasDe(organizacaoId);
+    const [categoria] = await portas.categorias.listar({ apenasAtivas: true });
+    const [area] = await portas.areas.listar({ apenasAtivas: true });
+
+    const lida = await registrarOcorrencia(
+      portas,
+      { pessoaId: idSindica },
+      {
+        titulo: "Lâmpada queimada na garagem",
+        descricao: "Queimada faz três dias, corredor escuro.",
+        categoriaId: categoria!.id,
+        areaId: area!.id,
+        localizacaoComplemento: null,
+      },
+    );
+    guardar(lida.id);
+  }
 });
 
 afterAll(async () => {
@@ -468,6 +528,41 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [idSindica];
+      },
+    },
+  });
+
+  /**
+   * **A quinta, e a primeira do agregado `Ocorrência` (item 11).** Ela semeia **apenas o próprio
+   * agregado**: as pessoas e as organizações são da suíte (§7.1 da `arquitetura.md`).
+   *
+   * Tenta ler **as duas** ocorrências com o escopo de **uma** só — a da outra organização tem de sumir.
+   * É o cenário que detecta o vazamento de verdade: **a mesma Pessoa é autora nas duas**, então uma
+   * consulta que partisse de `pessoas` em vez de `vinculos` devolveria as duas e passaria despercebida
+   * num cenário com pessoas distintas.
+   *
+   * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora por decisão da
+   * própria suíte: `OcorrenciaLida` **não expõe `organizacao_id`**, de propósito, e onde ele não existe
+   * os dois primeiros casos são a prova mais forte, porque comparam com as chaves realmente semeadas.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const lidas = await Promise.all([repo.porId(idDaOcorrenciaEmA), repo.porId(idDaOcorrenciaEmB)]);
+      return lidas.filter((lida) => lida !== null);
+    },
+    chaveDaLinha: (ocorrencia) => ocorrencia.id,
+    // **Em getter, e e obrigatorio** — a razao esta escrita na entrada de `GET /pedidos-de-entrada`,
+    // acima no mesmo arquivo: o corpo do `describe` roda na **coleta**, antes de qualquer `beforeAll`, e
+    // um `uuid` gerado pelo banco lido ali ainda e `undefined`. As duas entradas de configuracao escapam
+    // por acaso, porque as chaves delas sao literais.
+    esperadas: {
+      get emA() {
+        return [idDaOcorrenciaEmA];
+      },
+      get emB() {
+        return [idDaOcorrenciaEmB];
       },
     },
   });

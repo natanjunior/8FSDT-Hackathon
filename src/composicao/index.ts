@@ -8,6 +8,7 @@ import {
   type ArmazenamentoDeCookies,
 } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
@@ -83,6 +84,12 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
     // aprovação, que faz duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
     pedidosDeEntrada: repositorioEscopadoDePedidosDeEntrada(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    // Recebe as **duas** formas de acesso: a consulta para as duas leituras, e a transação escopada para
+    // o registro, que grava ocorrência e primeiro registro de transição num `COMMIT` só (invariante 2).
+    ocorrencias: repositorioEscopadoDeOcorrencias(
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),

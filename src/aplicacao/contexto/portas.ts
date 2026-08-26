@@ -7,6 +7,7 @@ import type {
   RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
 } from "@/aplicacao/organizacao";
+import type { RepositorioEscopadoDeOcorrencias } from "@/aplicacao/ocorrencia";
 import type { Vinculo } from "@/dominio/organizacao";
 
 /**
@@ -143,4 +144,10 @@ export type RepositoriosEscopados = {
    * organização ativa.
    */
   pedidosDeEntrada: RepositorioEscopadoDePedidosDeEntrada;
+  /**
+   * O agregado `Ocorrência`. Escopado como todos: o `organizacao_id` entra em `$1` no
+   * `escoparTransacao`, e este repositório **não recebe** o identificador — não tem como escrever o
+   * filtro errado porque não tem o valor.
+   */
+  ocorrencias: RepositorioEscopadoDeOcorrencias;
 };

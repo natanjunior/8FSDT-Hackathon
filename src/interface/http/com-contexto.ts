@@ -149,6 +149,17 @@ type OpcoesEscopadas<C> = {
    */
   exige: Permissao | "qualquer-vinculo-ativo";
   corpo?: ZodType<C>;
+  /**
+   * Um passo de recusa que roda **sobre o corpo cru, antes do `schema`**.
+   *
+   * Existe porque `400 FORMATO_INVALIDO` e `422 CAMPO_NAO_SUPORTADO` respondem a perguntas diferentes
+   * (§6.2): o primeiro é *"você escreveu errado"*, o segundo é *"o produto não faz isso"*. Um schema
+   * Zod não distingue os dois — ele descarta o campo desconhecido de graça, e quem chamou fica
+   * convencido de ter definido o status da própria ocorrência.
+   *
+   * Deve lançar um `ErroDeDominio`; a tradução para `problem+json` é a de sempre.
+   */
+  recusar?: (corpo: unknown) => void;
 };
 
 type OpcoesSemOrganizacao<C> = { corpo?: ZodType<C> };
@@ -181,7 +192,7 @@ export function comContexto<C = undefined>(
       const resultado = await manipulador({
         ctx,
         repos,
-        corpo: await lerCorpo(requisicao, opcoes.corpo),
+        corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
       });
@@ -317,7 +328,11 @@ async function conferirAfirmacaoDeOrganizacao(organizacaoAtiva: string): Promise
  * **`415` antes de `400`**: `Content-Type` diferente de `application/json` é recusado sem olhar o
  * conteúdo. Depois, o schema — que é a única coisa que a §5 permite à camada de Interface fazer.
  */
-async function lerCorpo<C>(requisicao: Request, schema: ZodType<C> | undefined): Promise<C> {
+async function lerCorpo<C>(
+  requisicao: Request,
+  schema: ZodType<C> | undefined,
+  recusar?: (corpo: unknown) => void,
+): Promise<C> {
   if (schema === undefined) return undefined as C;
 
   const tipo = requisicao.headers.get("content-type");
@@ -333,6 +348,10 @@ async function lerCorpo<C>(requisicao: Request, schema: ZodType<C> | undefined):
       { campo: "", codigo: "JSON_INVALIDO", mensagem: "O corpo não é JSON válido." },
     ]);
   }
+
+  // **Antes do schema, sobre o corpo cru.** Depois dele o campo ja foi descartado em silencio, e e o
+  // silencio que o `422 CAMPO_NAO_SUPORTADO` existe para quebrar.
+  recusar?.(bruto);
 
   const conferido = schema.safeParse(bruto);
   if (!conferido.success) throw new FormatoInvalido(conferido.error.issues.map(traduzirViolacao));

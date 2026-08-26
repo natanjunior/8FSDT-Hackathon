@@ -39,6 +39,12 @@ export {
 } from "./pedido-de-entrada";
 
 export {
+  camposEscritosPeloServidor,
+  registroDeOcorrenciaSchema,
+  type EntradaDeRegistroDeOcorrencia,
+} from "./ocorrencia";
+
+export {
   cadastroDeVinculoSchema,
   contatosParaEscritaSchema,
   correcaoDeVinculoSchema,

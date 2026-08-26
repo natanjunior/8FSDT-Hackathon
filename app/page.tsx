@@ -83,6 +83,21 @@ export default async function Shell() {
         )}
       </section>
 
+      {/* **T-04, e ela vem antes de Gestão** — registrar é o que todo vínculo com a permissão faz, e é
+          o atalho do PWA (inventário §6). T-03 não existe até o item 14; até lá, o shell é o mapa. */}
+      {contexto.permissoes.includes("ocorrencia.registrar") && (
+        <nav className="flex flex-col gap-2">
+          <h2 className="text-tinta text-sm font-semibold">Ocorrências</h2>
+          <Link
+            href="/ocorrencias/nova"
+            className="border-linha bg-superficie text-tinta flex min-h-11 items-center justify-between rounded-md border px-4 py-3 text-sm"
+          >
+            <span>Registrar ocorrência</span>
+            <span className="text-tinta-suave text-xs">avisar de um problema</span>
+          </Link>
+        </nav>
+      )}
+
       {pendentes !== null && (
         <nav className="flex flex-col gap-2">
           <h2 className="text-tinta text-sm font-semibold">Gestão</h2>
@@ -115,9 +130,10 @@ export default async function Shell() {
       )}
 
       <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-        Quem entra, quem cria a organização e quem decide os pedidos já está de pé. O que ainda não existe
-        é a <strong className="text-tinta font-semibold">lista de ocorrências</strong> (T-03) — e é ela que
-        o produto passa a ter nas tarefas seguintes.
+        Já dá para <strong className="text-tinta font-semibold">registrar</strong> e acompanhar uma
+        ocorrência pelo endereço dela. O que ainda não existe é a{" "}
+        <strong className="text-tinta font-semibold">lista</strong> (T-03) e os comandos de triagem — e é
+        isso que o produto passa a ter nas tarefas seguintes.
       </p>
 
       <form action={acaoDeSair} className="pt-2">
