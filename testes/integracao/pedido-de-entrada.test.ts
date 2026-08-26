@@ -9,6 +9,7 @@ import {
   repositorioGlobalDePedidosDeEntrada,
 } from "@/infraestrutura/repositorios/organizacao";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
 /**
@@ -27,7 +28,7 @@ import { aplicarEsquema } from "./esquema";
  * **O mundo é o da §7.2:** duas organizações e duas Pessoas, a segunda existindo para provar que a
  * leitura de contexto não devolve pedido de quem não pediu.
  */
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `7a-${Date.now()}`;
 
 let pool: Pool;
@@ -41,13 +42,6 @@ let helena = "";
 let outra = "";
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — o que ele mede é o índice parcial e o " +
-        "ROLLBACK. Suba com `npm run local` e rode `npm run teste:integracao`.",
-    );
-  }
-
   // `criarTransacao` lê `BANCO_URL`; o teste aponta pela `BANCO_URL_TESTE`. Amarrar as duas é o que faz
   // este arquivo exercer a função de verdade, em vez de uma cópia dela montada à mão.
   process.env.BANCO_URL = URL_DO_BANCO;

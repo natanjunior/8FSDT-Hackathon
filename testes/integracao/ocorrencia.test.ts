@@ -10,6 +10,7 @@ import {
   repositorioEscopadoDeCategorias,
 } from "@/infraestrutura/repositorios/organizacao";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
 /**
@@ -27,7 +28,7 @@ import { aplicarEsquema } from "./esquema";
  * 4. **A FK composta do autor**, que aponta para `vinculos` e não para `pessoas`.
  */
 
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `${Date.now()}`;
 
 let pool: Pool;
@@ -50,12 +51,6 @@ function portas() {
 }
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — o que ele mede é o COMMIT e os CHECK. " +
-        "Suba com `npm run local` e rode `npm run teste:integracao`.",
-    );
-  }
   process.env.BANCO_URL = URL_DO_BANCO;
 
   pool = new Pool({ connectionString: URL_DO_BANCO, max: 4 });
