@@ -89,8 +89,9 @@ npm run local                       # tudo o resto
 ```
 
 `npm run local` faz, nesta ordem: `supabase start` (Postgres e Auth locais, em containers) → escreve o
-`.env.local` a partir do `supabase status`, **se ele não existir** → `supabase migration up` → `docker
-compose up --build`, no **mesmo `Dockerfile` que vai a produção**.
+`.env.local` a partir do `supabase status`, **se ele não existir** → cria o database `resolveai_teste`, da
+suíte de integração, se ele não existir → `supabase migration up` → `docker compose up --build`, no **mesmo
+`Dockerfile` que vai a produção**.
 
 Depois: **<http://host.docker.internal:3000>**.
 
@@ -129,7 +130,9 @@ Cada peça, separada:
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso **não** está no `npm run verificar`; no pipeline ele roda **antes** do `push`, porque imagem publicada com segredo dentro não se desfaz |
 
-`BANCO_URL_TESTE` aponta o teste de integração para um Postgres. Sem ela, ele cai em `BANCO_URL`.
+**O teste de integração roda num database só dele, `resolveai_teste`**, criado pelo `npm run local`. Sem
+`BANCO_URL_TESTE`, ele deriva do `BANCO_URL` trocando o database — e **recusa rodar** se o destino for o
+mesmo banco onde você trabalha, porque a suíte derruba e recria as tabelas a cada execução.
 
 ### Publicar
 
