@@ -27,3 +27,5 @@ export {
 } from "./pedido-de-entrada";
 
 export { projetarVinculo, type VinculoProjetado } from "./vinculo";
+
+export { projetarAutorizacaoDeUpload } from "./anexo";

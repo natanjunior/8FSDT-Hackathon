@@ -33,10 +33,11 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // FKs entre elas, inclusive a composta que `vinculos` tem para `areas` e a que `pedidos_de_entrada` tem
   // para `vinculos`.
   // A ordem importa: `registros_transicao` antes de `ocorrencias`, e as duas antes de
-  // `categorias`/`areas`. O `cascade` cobre, mas a ordem explícita documenta a direção das FKs.
+  // `categorias`/`areas`. `autorizacoes_de_upload` vem na frente de `pessoas`, que é para onde a FK dela
+  // aponta. O `cascade` cobre, mas a ordem explícita documenta a direção das FKs.
   await consulta(
-    `drop table if exists registros_transicao, ocorrencias, contatos, pedidos_de_entrada,
-                          categorias, areas, vinculos, organizacoes, pessoas cascade`,
+    `drop table if exists autorizacoes_de_upload, registros_transicao, ocorrencias, contatos,
+                          pedidos_de_entrada, categorias, areas, vinculos, organizacoes, pessoas cascade`,
   );
   await consulta(`drop type if exists papel_vinculo`);
   await consulta(`drop type if exists tipo_area`);

@@ -1,13 +1,16 @@
+import type { PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
 import {
   criarAutenticacao,
   criarConsulta,
   criarCredenciais,
+  criarEmissorDeCredencialDeUpload,
   criarTransacao,
   type ArmazenamentoDeCookies,
 } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioDeOrganizacoes,
@@ -29,8 +32,10 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
  * **Monta o grafo de objetos; não decide regra** (ADR-0006).
  *
  * É o único lugar do repositório que importa `infraestrutura/` — regra de lint 2, conferida por
- * `eslint.config.mjs`. E a sua **superfície pública tem três funções e nenhum cliente**: quem chega aqui
- * não consegue obter uma conexão de banco nem um objeto do SDK. Só portas.
+ * `eslint.config.mjs`. E a sua **superfície pública tem quatro funções e nenhum cliente**: quem chega aqui
+ * não consegue obter uma conexão de banco nem um objeto do SDK. Só portas. *(Eram três até o item 13a
+ * acrescentar `montarPortasDeAnexo`, cujas portas não são escopadas nem globais no sentido da §4.4 — ver
+ * o comentário dela.)*
  *
  * Isso é o que fecha a pergunta *"e se um `route.ts` novo esquecer o contexto?"*: não há como. `app/` não
  * pode importar nem `infraestrutura/` nem este módulo (regras 2 e 2b), então o único caminho de um handler
@@ -93,6 +98,23 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
+  };
+}
+
+/**
+ * As portas do anexo. **Nenhuma das duas é escopada, e isso é decisão** — spec do item 13a §3.1.
+ *
+ * O emissor não tem dado de organização nenhum. O livro-caixa é global porque o limite protege a conta de
+ * armazenamento, que é uma só para todas as organizações: escopá-lo daria 60/h a quem tem dois vínculos.
+ *
+ * **Quem alcança isto é um arquivo só** — `interface/http/portas-de-anexo.ts` —, e o `eslint.config.mjs`
+ * restringe a importação daquela função ao único `route.ts` que a usa, no mesmo mecanismo de lista fechada
+ * que já protege `semOrganizacao`.
+ */
+export function montarPortasDeAnexo(): PortasDeAnexo {
+  return {
+    emissor: criarEmissorDeCredencialDeUpload(),
+    livro: livroDeAutorizacoesDeUpload(criarTransacao()),
   };
 }
 

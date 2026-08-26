@@ -65,3 +65,9 @@ export {
   type EntradaDeCriacaoDeCategoria,
   type NomeDeIcone,
 } from "./configuracao";
+
+export {
+  TETO_DE_BYTES_DO_ANEXO,
+  pedidoDeAutorizacaoSchema,
+  type EntradaDePedidoDeAutorizacao,
+} from "./anexo";
