@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ControleDeFoto } from "./controle-de-foto";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { Campo } from "./moldura-de-tela";
 
@@ -19,7 +20,10 @@ import { Campo } from "./moldura-de-tela";
  *    teclado: ele descer, a tela reposicionar, e ele subir de novo.
  * 2. **Cobertura de cold start** — os dois únicos campos que dependem de rede são os dois últimos, então
  *    um cold start de até ~24 s é invisível ao Solicitante (RNF5 × RNF6).
- * 3. **Paralelismo do upload** — quando a foto entrar (13a), ela é o primeiro alvo, acima do título.
+ * 3. **Paralelismo do upload** — a foto é o primeiro alvo, acima do título, e o upload corre enquanto a
+ *    pessoa digita. Entrou com o item 13a; a ordem de foco é
+ *    `foto → titulo → descricao → categoria → area → complemento → registrar`, que é o orçamento da §2 do
+ *    protótipo e o compromisso **A-2**.
  *
  * **Área e Referência num bloco só, chamado "Onde".** Não é agrupamento estético: o glossário define
  * **Localização** como *"uma referência a uma Área mais um complemento em texto livre"*. Um conceito, um
@@ -115,6 +119,10 @@ export function FormularioDeOcorrencia({
 
   return (
     <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
+      {/* **A foto é o primeiro alvo da tela** — protótipo §2.3 e desenho D-1. O item 11 deixou este
+          lugar reservado de propósito, e o 13a o preenche sem reordenar mais nada. */}
+      <ControleDeFoto />
+
       <Campo id="titulo" rotulo="Título" erro={erros.titulo}>
         <input
           id="titulo"
