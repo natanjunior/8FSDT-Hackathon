@@ -17,6 +17,16 @@ export function ehTipoDeConteudoDeAnexo(valor: unknown): valor is TipoDeConteudo
   return typeof valor === "string" && (TIPOS_DE_CONTEUDO_DE_ANEXO as readonly string[]).includes(valor);
 }
 
+/**
+ * O tipo da **miniatura**, fixo.
+ *
+ * **Ele mora no Domínio, e não no adaptador, porque duas camadas precisam do mesmo valor**: o emissor o
+ * escreve no `x-ms-blob-content-type` da SAS da prévia (item 13a), e a **reivindicação** o compara com o
+ * que o `HEAD` devolve, para não gravar como prévia um objeto que não é a prévia. O ticket **não** o
+ * carrega — acrescentá-lo mudaria o formato do token que o 13a assinou.
+ */
+export const TIPO_DE_CONTEUDO_DA_MINIATURA = "image/webp";
+
 /** O enum `tipo_anexo` do banco (modelo §5). **Um valor, deliberadamente** — §7.8 do modelo. */
 export const TIPOS_DE_ANEXO = ["imagem"] as const;
 

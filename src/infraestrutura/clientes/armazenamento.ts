@@ -13,6 +13,7 @@ import type {
   EmissorDeCredencialDeUpload,
   PedidoDeAutorizacao,
 } from "@/aplicacao/anexo";
+import { TIPO_DE_CONTEUDO_DA_MINIATURA } from "@/dominio/anexo";
 
 /**
  * ============================================================================
@@ -38,9 +39,6 @@ const CONTEINER = "anexos";
 
 /** Quinze minutos: a validade da SAS e a do ticket são a mesma janela (contrato §10.2). */
 const VALIDADE_EM_MINUTOS = 15;
-
-/** O tipo da miniatura é fixo, e o `openapi.yaml` o mostra assim no exemplo de `uploadMiniatura`. */
-const TIPO_DA_MINIATURA = "image/webp";
 
 type Conta = {
   nome: string;
@@ -205,7 +203,7 @@ export function criarEmissorDeCredencialDeUpload(): EmissorDeCredencialDeUpload 
         chaveMiniatura,
         ticket,
         upload: destino(chave, pedido.tipoConteudo, expiraEm),
-        uploadMiniatura: destino(chaveMiniatura, TIPO_DA_MINIATURA, expiraEm),
+        uploadMiniatura: destino(chaveMiniatura, TIPO_DE_CONTEUDO_DA_MINIATURA, expiraEm),
       };
     },
   };

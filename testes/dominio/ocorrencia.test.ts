@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AnexoDaOcorrencia,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   Ocorrencia,
@@ -226,5 +227,65 @@ describe("comandosDisponiveis", () => {
     expect(comandosDisponiveis({ ...base, status: "aberta" })).toStrictEqual(["alterar-prioridade"]);
     expect(comandosDisponiveis({ ...base, status: "resolvida" })).toStrictEqual([]);
     expect(comandosDisponiveis({ ...base, status: "cancelada" })).toStrictEqual([]);
+  });
+});
+
+describe("o anexo é filho do agregado, não vizinho dele", () => {
+  const dadosDoAnexo = {
+    tipo: "imagem" as const,
+    chave: "anx_01JB8Z6K9T2M4N7Q",
+    thumbnailChave: "anx_01JB8Z6K9T2M4N7Q_mini",
+    nomeArquivo: null,
+    titulo: null,
+    tipoConteudo: "image/jpeg",
+    tamanhoBytes: 391_244,
+    anexadoPorPessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d",
+    anexadoEm: "2026-08-27T13:02:11.000Z",
+  };
+
+  const base = {
+    titulo: "Lâmpada queimada na garagem",
+    descricao: "Está escuro à noite.",
+    categoriaId: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
+    areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e",
+    areaTipo: "comum" as const,
+    localizacaoComplemento: null,
+    autorPessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d",
+    ocorreuEm: "2026-08-27T13:02:11.000Z",
+  };
+
+  it("sem anexo, a lista é vazia — nunca indefinida", () => {
+    expect(Ocorrencia.registrar(base).anexos).toStrictEqual([]);
+  });
+
+  it("com anexo, o agregado o carrega inteiro", () => {
+    const ocorrencia = Ocorrencia.registrar({ ...base, anexos: [dadosDoAnexo] });
+
+    expect(ocorrencia.anexos).toHaveLength(1);
+    expect(ocorrencia.anexos[0]).toMatchObject({
+      tipo: "imagem",
+      chave: "anx_01JB8Z6K9T2M4N7Q",
+      thumbnailChave: "anx_01JB8Z6K9T2M4N7Q_mini",
+      tipoConteudo: "image/jpeg",
+      tamanhoBytes: 391_244,
+    });
+  });
+
+  it("a lista é congelada — não se acrescenta anexo por fora do comando", () => {
+    const ocorrencia = Ocorrencia.registrar({ ...base, anexos: [dadosDoAnexo] });
+    // Mesma invariante 3 da trilha, aplicada à outra filha do agregado.
+    expect(() => (ocorrencia.anexos as AnexoDaOcorrencia[]).push(ocorrencia.anexos[0]!)).toThrow();
+  });
+
+  it("o anexo em si é imutável", () => {
+    const anexo = Ocorrencia.registrar({ ...base, anexos: [dadosDoAnexo] }).anexos[0]!;
+    expect(Object.isFrozen(anexo)).toBe(true);
+  });
+
+  it("anexar NÃO produz registro de transição — a trilha não conhece anexo", () => {
+    const ocorrencia = Ocorrencia.registrar({ ...base, anexos: [dadosDoAnexo] });
+    // `contrato-de-api.md` §8.8: "o RegistroDeTransicao não muda, e é bom que continue assim".
+    expect(ocorrencia.trilha).toHaveLength(1);
+    expect(ocorrencia.trilha[0]!.statusAnterior).toBeNull();
   });
 });

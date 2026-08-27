@@ -1,4 +1,5 @@
 /** Superfície pública do módulo `dominio/ocorrencia` (ADR-0006, regra 3). */
+export { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
 export { COMANDOS, COMANDOS_IMPLEMENTADOS, type Comando } from "./Comando";
 export { comandosDisponiveis, transicaoPermitida, type PerguntaDeAcoes } from "./MaquinaDeEstados";
 export {
