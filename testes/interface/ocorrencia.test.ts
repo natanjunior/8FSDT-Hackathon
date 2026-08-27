@@ -8,6 +8,8 @@ import {
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
 import { lerCursorDaUrl, lerLimiteDaUrl } from "@/interface/http";
+import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
+import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
 
 /**
@@ -353,5 +355,51 @@ describe("os dois parâmetros de GET /ocorrencias", () => {
 
   it("cursor ilegível é 400, não a primeira página", () => {
     expect(() => lerCursorDaUrl(pedido("?cursor=pagina-2"))).toThrowError(/FORMATO_INVALIDO|inválid/iu);
+  });
+});
+
+/**
+ * **O critério 14.4 é sobre não trocar uma frase pela outra**, e a troca é uma decisão — não uma
+ * redação. Por isso a decisão é uma função pura com os três ramos cobertos, mesmo com o terceiro só
+ * ficando alcançável no item 15.
+ */
+describe("qual dos três vazios a tela mostra", () => {
+  it("todas + sem filtro: a organização, com os dois convites", () => {
+    expect(vazioDaLista("todas", false)).toBe("organizacao");
+  });
+
+  it("apenas_minhas + sem filtro: o Solicitante sem histórico", () => {
+    expect(vazioDaLista("apenas_minhas", false)).toBe("solicitante");
+  });
+
+  it("com filtro aplicado, o filtro GANHA da visibilidade — nas duas", () => {
+    expect(vazioDaLista("todas", true)).toBe("filtro");
+    // O caso que a decisão existe para acertar: um Solicitante que chega por URL filtrada e recebe zero
+    // não pode ler "você ainda não registrou nenhuma" — seria a mentira que o 14.4 proíbe.
+    expect(vazioDaLista("apenas_minhas", true)).toBe("filtro");
+  });
+
+  it("as três frases são diferentes entre si", () => {
+    const titulos = Object.values(TEXTO_DO_VAZIO).map((texto) => texto.titulo);
+    expect(new Set(titulos).size).toBe(3);
+  });
+});
+
+describe("o tempo relativo", () => {
+  const AGORA = Date.parse("2026-08-26T12:00:00.000Z");
+
+  it.each([
+    ["2026-08-26T11:59:00.000Z", "agora há pouco", "1 min"],
+    ["2026-08-26T08:00:00.000Z", "há 4 horas", "4 h"],
+    ["2026-08-25T12:00:00.000Z", "há 1 dia", "1 d"],
+    ["2026-08-20T12:00:00.000Z", "há 6 dias", "6 d"],
+  ])("%s vira %s (e %s na forma curta)", (iso, longo, curto) => {
+    expect(tempoRelativo(iso, AGORA)).toBe(longo);
+    expect(tempoCurto(iso, AGORA)).toBe(curto);
+  });
+
+  it("data ilegível não estoura a lista inteira — vira travessão", () => {
+    expect(tempoRelativo("ontem", AGORA)).toBe("—");
+    expect(tempoCurto("ontem", AGORA)).toBe("—");
   });
 });
