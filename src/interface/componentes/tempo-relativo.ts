@@ -13,6 +13,20 @@
  */
 const MINUTO = 60_000;
 
+/**
+ * O instante do servidor, lido **uma vez por requisição** e descido como prop.
+ *
+ * **Por que tem nome próprio em vez de um `Date.now()` no JSX.** O `react-hooks/purity` do
+ * `eslint-config-next` recusa chamada impura dentro de um componente, e a recusa está certa no caso
+ * geral: um relógio lido no meio do render produz valor diferente a cada re-render. **Aqui o valor é
+ * lido de propósito uma vez, no servidor, e congelado como prop** — que é o que impede a divergência de
+ * hidratação que o módulo inteiro existe para evitar. Dar-lhe nome torna a intenção legível e dá um
+ * ponto único para substituir o relógio, em vez de espalhar leituras pelas telas.
+ */
+export function instanteDoServidor(): number {
+  return Date.now();
+}
+
 function minutosDesde(iso: string, agora: number): number | null {
   const instante = Date.parse(iso);
   if (Number.isNaN(instante)) return null;
