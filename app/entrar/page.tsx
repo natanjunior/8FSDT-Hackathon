@@ -13,15 +13,21 @@ import { resolverParaTela } from "@/interface/http";
  *
  * **`?confirmacao=` é dormente.** Ele só chega aqui vindo de `/confirmar-conta`, que nada alcança nesta
  * entrega (Q-T9 fechada em 22/08/2026). O parâmetro fica, e é inofensivo: valor desconhecido é ignorado.
+ *
+ * **`?senha=alterada` é vivo, e vem de T-13.** É a chegada de quem acabou de trocar a senha (item 6b,
+ * D-6b-4). Quem já tinha sessão ao trocar **provavelmente** não passa por aqui — o `redirect` acima o leva
+ * ao shell —, e o *provavelmente* é a **premissa P-6b-1**: se o provedor revogar as outras sessões ao ver a
+ * senha mudar, essa pessoa cai aqui como qualquer outra, e o aviso é exatamente o certo para ela. **Os dois
+ * desfechos são aceitáveis; o que não é aceitável é este comentário afirmar um deles sem fonte.**
  */
 export const dynamic = "force-dynamic";
 
 export default async function TelaDeEntrar({
   searchParams,
 }: {
-  searchParams: Promise<{ destino?: string; confirmacao?: string }>;
+  searchParams: Promise<{ destino?: string; confirmacao?: string; senha?: string }>;
 }) {
-  const { destino, confirmacao } = await searchParams;
+  const { destino, confirmacao, senha } = await searchParams;
 
   // Quem já tem sessão não vê a porta. O shell resolve para onde ir.
   if (await temSessao()) redirect(destino !== undefined && destino.startsWith("/") ? destino : "/");
@@ -31,6 +37,7 @@ export default async function TelaDeEntrar({
       <FormularioDeEntrada
         {...(destino !== undefined && destino.startsWith("/") ? { destino } : {})}
         {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
+        senhaAlterada={senha === "alterada"}
       />
     </MolduraDeTela>
   );

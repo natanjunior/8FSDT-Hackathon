@@ -1,18 +1,24 @@
+import type { ArmazenamentoDeAnexos, PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
 import {
+  criarArmazenamentoDeAnexos,
   criarAutenticacao,
   criarConsulta,
   criarCredenciais,
+  criarEmissorDeCredencialDeUpload,
   criarTransacao,
   type ArmazenamentoDeCookies,
 } from "@/infraestrutura/clientes";
-import { escoparConsulta } from "@/infraestrutura/contexto";
+import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo";
+import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDePedidosDeEntrada,
   repositorioGlobalDeVinculos,
@@ -27,8 +33,10 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
  * **Monta o grafo de objetos; não decide regra** (ADR-0006).
  *
  * É o único lugar do repositório que importa `infraestrutura/` — regra de lint 2, conferida por
- * `eslint.config.mjs`. E a sua **superfície pública tem três funções e nenhum cliente**: quem chega aqui
- * não consegue obter uma conexão de banco nem um objeto do SDK. Só portas.
+ * `eslint.config.mjs`. E a sua **superfície pública tem quatro funções e nenhum cliente**: quem chega aqui
+ * não consegue obter uma conexão de banco nem um objeto do SDK. Só portas. *(Eram três até o item 13a
+ * acrescentar `montarPortasDeAnexo`, cujas portas não são escopadas nem globais no sentido da §4.4 — ver
+ * o comentário dela.)*
  *
  * Isso é o que fecha a pergunta *"e se um `route.ts` novo esquecer o contexto?"*: não há como. `app/` não
  * pode importar nem `infraestrutura/` nem este módulo (regras 2 e 2b), então o único caminho de um handler
@@ -71,9 +79,59 @@ export function montarPortasGlobais(
 export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopados {
   const consulta = escoparConsulta(criarConsulta(), organizacaoId);
   return {
-    vinculos: repositorioEscopadoDeVinculos(consulta),
+    // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para o
+    // cadastro e a correção, que fazem duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
+    vinculos: repositorioEscopadoDeVinculos(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
     categorias: repositorioEscopadoDeCategorias(consulta),
     areas: repositorioEscopadoDeAreas(consulta),
+    // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
+    // aprovação, que faz duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
+    pedidosDeEntrada: repositorioEscopadoDePedidosDeEntrada(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    // Recebe as **duas** formas de acesso: a consulta para as duas leituras, e a transação escopada para
+    // o registro, que grava ocorrência e primeiro registro de transição num `COMMIT` só (invariante 2).
+    ocorrencias: repositorioEscopadoDeOcorrencias(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+  };
+}
+
+/**
+ * A porta de leitura e etiqueta do anexo.
+ *
+ * **Separada de `montarPortasDeAnexo`, e a separação é a decisão** (spec §3.5): aquela entrega o emissor
+ * de **SAS de escrita** e o livro-caixa das 30/h; esta lê objeto, troca etiqueta e assina **SAS de
+ * leitura**. Fundi-las daria ao endpoint de leitura o poder de emitir crédito de upload — precisão
+ * perdida por economia de quinze linhas.
+ *
+ * **Ela também não é escopada**, pelo mesmo motivo da outra: o adaptador não conhece organização. Quem
+ * amarra o escopo é o ticket, na escrita, e a linha de `anexos` lida pelo repositório escopado, na
+ * leitura. Por isso ela não entra em `RepositoriosEscopados`.
+ */
+export function montarArmazenamentoDeAnexos(): ArmazenamentoDeAnexos {
+  return criarArmazenamentoDeAnexos();
+}
+
+/**
+ * As portas do anexo. **Nenhuma das duas é escopada, e isso é decisão** — spec do item 13a §3.1.
+ *
+ * O emissor não tem dado de organização nenhum. O livro-caixa é global porque o limite protege a conta de
+ * armazenamento, que é uma só para todas as organizações: escopá-lo daria 60/h a quem tem dois vínculos.
+ *
+ * **Quem alcança isto é um arquivo só** — `interface/http/portas-de-anexo.ts` —, e o `eslint.config.mjs`
+ * restringe a importação daquela função ao único `route.ts` que a usa, no mesmo mecanismo de lista fechada
+ * que já protege `semOrganizacao`.
+ */
+export function montarPortasDeAnexo(): PortasDeAnexo {
+  return {
+    emissor: criarEmissorDeCredencialDeUpload(),
+    livro: livroDeAutorizacoesDeUpload(criarTransacao()),
   };
 }
 

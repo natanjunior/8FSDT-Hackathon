@@ -1,4 +1,8 @@
 import type {
+  EmissorDeCredencialDeUpload,
+  LivroDeAutorizacoesDeUpload,
+} from "@/aplicacao/anexo";
+import type {
   EscolhaDaSessao,
   PessoaReferencia,
   PortaDeAutenticacao,
@@ -237,4 +241,69 @@ export function duploDeOrganizacoes(
   };
 
   return { porta, recebidas };
+}
+
+// ---------------------------------------------------------------------------
+// Anexo — o livro-caixa e o emissor
+// ---------------------------------------------------------------------------
+
+/** O livro-caixa em memória, com a mesma janela deslizante do SQL. */
+export function livroEmMemoria(): LivroDeAutorizacoesDeUpload & { emissoesDe(pessoaId: string): number } {
+  const emissoes = new Map<string, number[]>();
+
+  return {
+    emissoesDe: (pessoaId) => emissoes.get(pessoaId)?.length ?? 0,
+
+    async registrarSeCouber(pessoaId, limite, janelaEmSegundos) {
+      const agora = Date.now();
+      const inicio = agora - janelaEmSegundos * 1000;
+
+      const naJanela = (emissoes.get(pessoaId) ?? []).filter((quando) => quando > inicio);
+
+      if (naJanela.length >= limite) {
+        const maisAntiga = Math.min(...naJanela);
+        const segundos = Math.ceil((maisAntiga + janelaEmSegundos * 1000 - agora) / 1000);
+        emissoes.set(pessoaId, naJanela);
+        return { concedida: false, segundosAteLiberar: Math.max(1, segundos) };
+      }
+
+      emissoes.set(pessoaId, [...naJanela, agora]);
+      return { concedida: true };
+    },
+  };
+}
+
+/**
+ * O emissor falso. **Não assina nada** — devolve a forma, que é o que o caso de uso orquestra. Que a
+ * assinatura seja válida é problema do adaptador, e o teste dele é outro.
+ */
+export function emissorFalso(): EmissorDeCredencialDeUpload {
+  let contador = 0;
+
+  return {
+    async emitir(pedido) {
+      contador += 1;
+      const chave = `anx_falso_${contador}`;
+      const expiraEm = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      const destino = (nome: string, tipo: string) => ({
+        url: `http://storage.invalido/anexos/${nome}?sig=falsa`,
+        metodo: "PUT" as const,
+        cabecalhos: {
+          "x-ms-blob-type": "BlockBlob",
+          "x-ms-blob-content-type": tipo,
+          "x-ms-tags": "estado=pendente",
+        },
+        expiraEm,
+      });
+
+      return {
+        chave,
+        chaveMiniatura: `${chave}_mini`,
+        ticket: `ticket-de-${pedido.pessoaId}-${contador}`,
+        upload: destino(chave, pedido.tipoConteudo),
+        uploadMiniatura: destino(`${chave}_mini`, "image/webp"),
+      };
+    },
+  };
 }

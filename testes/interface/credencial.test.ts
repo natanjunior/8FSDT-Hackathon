@@ -1,6 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { criarContaSchema, entrarSchema } from "@/interface/schemas";
+// `@/interface/http` alcança `next/headers`, que não roda fora de uma requisição. Aqui o que está sob
+// teste é a **regra de nomes** — pura —, então o módulo do framework é simulado, do mesmo jeito que o
+// teste de infraestrutura simula o SDK do provedor. Sem isto, a importação derruba o arquivo inteiro.
+vi.mock("next/headers", () => ({
+  cookies: () => {
+    throw new Error("cookies() não é usado neste teste");
+  },
+  headers: () => {
+    throw new Error("headers() não é usado neste teste");
+  },
+}));
+
+import { PREFIXO_DE_REDEFINICAO, somenteDeRedefinicao } from "@/interface/http";
+import {
+  criarContaSchema,
+  definirSenhaSchema,
+  entrarSchema,
+  pedirRedefinicaoSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -71,5 +89,71 @@ describe("entrarSchema — os dois campos de T-01", () => {
 
   it("recusa credencial vazia sem ir ao provedor", () => {
     expect(entrarSchema.safeParse({ email: "", senha: "" }).success).toBe(false);
+  });
+});
+
+describe("pedirRedefinicaoSchema — o campo único de T-12", () => {
+  it("pede e-mail, e só e-mail", () => {
+    const conferido = pedirRedefinicaoSchema.safeParse({ email: "helena@exemplo.test" });
+
+    expect(conferido.success).toBe(true);
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["email"]);
+  });
+
+  it("recusa e-mail malformado antes de gastar um envio do teto de dois por hora", () => {
+    expect(pedirRedefinicaoSchema.safeParse({ email: "helena-arroba-exemplo" }).success).toBe(false);
+  });
+
+  it("recusa e-mail vazio sem ir ao provedor", () => {
+    expect(pedirRedefinicaoSchema.safeParse({ email: "" }).success).toBe(false);
+  });
+});
+
+describe("definirSenhaSchema — o campo único de T-13 (critério 2)", () => {
+  it("pede a senha nova e NÃO pede a antiga", () => {
+    const conferido = definirSenhaSchema.safeParse({ senha: "senha-nova-boa" });
+
+    expect(conferido.success).toBe(true);
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["senha"]);
+  });
+
+  it("descarta um campo de senha antiga se alguém o mandar", () => {
+    const conferido = definirSenhaSchema.safeParse({ senha: "nova", senhaAntiga: "velha" });
+
+    expect(conferido.success && Object.keys(conferido.data)).toStrictEqual(["senha"]);
+  });
+
+  it("recusa senha vazia sem ir ao provedor", () => {
+    expect(definirSenhaSchema.safeParse({ senha: "" }).success).toBe(false);
+  });
+
+  it("aceita senha de 6 e de 5 — a regra de força é do provedor, não deste schema", () => {
+    // **Deliberado, e é a restrição G1.** O número 6 já vive na frase da tela e no `config.toml`; escrevê-lo
+    // aqui criaria um terceiro lugar guardando o mesmo valor. Senha curta é recusada pelo provedor e volta
+    // como SENHA_RECUSADA_PELO_PROVEDOR — que é a mesma mecânica de T-11.
+    expect(definirSenhaSchema.safeParse({ senha: "123456" }).success).toBe(true);
+    expect(definirSenhaSchema.safeParse({ senha: "12345" }).success).toBe(true);
+  });
+});
+
+describe("somenteDeRedefinicao — a sessão de recuperação não é a sessão do produto", () => {
+  it("não enxerga o cookie de sessão normal, e devolve o de recuperação sem o prefixo", () => {
+    // É o mecanismo inteiro da decisão D-6b-2: `sessaoAtual()` lê o pote sem prefixo e não acha nada, então
+    // abrir o link válido e digitar `/` **não entra no produto**.
+    const pote = [
+      { name: "sb-projeto-auth-token", value: "sessao-normal" },
+      { name: `${PREFIXO_DE_REDEFINICAO}sb-projeto-auth-token`, value: "sessao-de-recuperacao" },
+      { name: "resolveai_organizacao", value: "cookie-de-organizacao" },
+    ];
+
+    expect(somenteDeRedefinicao(pote)).toStrictEqual([
+      { name: "sb-projeto-auth-token", value: "sessao-de-recuperacao" },
+    ]);
+  });
+
+  it("sem cookie de recuperação o armazenamento é vazio — o SDK não encontra sessão nenhuma", () => {
+    const pote = [{ name: "sb-projeto-auth-token", value: "sessao-normal" }];
+
+    expect(somenteDeRedefinicao(pote)).toStrictEqual([]);
   });
 });

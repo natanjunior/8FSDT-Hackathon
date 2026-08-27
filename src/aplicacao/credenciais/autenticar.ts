@@ -34,6 +34,30 @@ export function confirmarPorCodigo(
   return credenciais.confirmarPorCodigo(codigo);
 }
 
+/** T-12 · pedir o link. O e-mail é aparado; o resultado não distingue conta existente de inexistente. */
+export function pedirRedefinicaoDeSenha(
+  credenciais: PortaDeCredenciais,
+  email: string,
+): Promise<ResultadoDeCredencial> {
+  return credenciais.pedirRedefinicaoDeSenha(email.trim());
+}
+
+/** A aterrissagem do link de T-13 — o token vem da URL, e a Interface é quem o lê. */
+export function iniciarRedefinicao(
+  credenciais: PortaDeCredenciais,
+  tokenHash: string,
+): Promise<ResultadoDeCredencial> {
+  return credenciais.iniciarRedefinicao(tokenHash.trim());
+}
+
+/** T-13 · gravar a senha nova. **A senha não é aparada** — aparar mudaria o segredo escolhido. */
+export function definirSenha(
+  credenciais: PortaDeCredenciais,
+  senhaNova: string,
+): Promise<ResultadoDeCredencial> {
+  return credenciais.definirSenha(senhaNova);
+}
+
 export function sair(credenciais: PortaDeCredenciais): Promise<void> {
   return credenciais.sair();
 }

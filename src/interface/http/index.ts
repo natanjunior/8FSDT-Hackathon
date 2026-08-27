@@ -4,18 +4,30 @@
  * `semOrganizacao` é exportado daqui, mas **o lint só permite importá-lo nos quatro `route.ts` da lista
  * fechada da §4.4 do contrato** — ver `eslint.config.mjs`. É a lista enumerável da ADR-0003 virada
  * mecanismo, em vez de comentário.
+ *
+ * **São TRÊS listas fechadas, e as três são independentes.** `portasDeAnexo` é a segunda, com um arquivo
+ * só — o que emite credencial de upload. `armazenamentoDeAnexos` é a terceira, com dois: os que
+ * reivindicam e os que leem anexo. Independentes quer dizer que nenhum bloco do lint herda a folga de
+ * outro: os quatro da §4.4 não podem importar as duas de anexo, quem emite credencial não pode importar
+ * `semOrganizacao` nem `armazenamentoDeAnexos`, e quem lê anexo não pode emitir credencial.
  */
+export { portasDeAnexo } from "./portas-de-anexo";
+export { armazenamentoDeAnexos } from "./armazenamento-de-anexos";
+
 export {
   armazenamentoDeCookies,
   comContexto,
+  resolverEscopoParaTela,
   resolverParaTela,
   resposta,
   semOrganizacao,
   type EntradaEscopada,
   type EntradaSemOrganizacao,
+  type EscopoDaTela,
 } from "./com-contexto";
 
 export {
+  CampoNaoSuportado,
   CorpoNaoSuportado,
   FormatoInvalido,
   OrganizacaoDivergente,
@@ -32,6 +44,22 @@ export {
 
 export { aterrissarConfirmacaoDeConta } from "./confirmacao-de-conta";
 
+export {
+  PREFIXO_DE_REDEFINICAO,
+  armazenamentoDeRedefinicao,
+  aterrissarRedefinicaoDeSenha,
+  somenteDeRedefinicao,
+} from "./redefinicao-de-senha";
+
 export { novoTraceId } from "./traco";
 
-export { lerBooleanoDaUrl } from "./consulta-de-url";
+export {
+  algumFiltroAplicado,
+  consultaDe,
+  lerBooleanoDaUrl,
+  lerCursorDaUrl,
+  lerFiltroDeOcorrenciasDaUrl,
+  lerLimiteDaUrl,
+  lerSituacoesDaUrl,
+  lerVarianteDaUrl,
+} from "./consulta-de-url";

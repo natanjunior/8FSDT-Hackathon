@@ -1,4 +1,4 @@
-import type { Consulta } from "@/infraestrutura/clientes";
+import type { Consulta, Transacao } from "@/infraestrutura/clientes";
 
 /**
  * ============================================================================
@@ -50,4 +50,39 @@ export function escoparConsulta(consulta: Consulta, organizacaoId: string): Cons
     if (!/\$1\b/u.test(sql)) throw new ConsultaSemEscopo(sql);
     return consulta<L>(sql, [organizacaoId, ...valores]);
   };
+}
+
+/**
+ * Uma **transação** em que toda consulta já nasce escopada.
+ *
+ * O que atravessa continua sendo `ConsultaEscopada`: quem recebe não sabe que está numa transação — sabe
+ * apenas que o que ele fizer acontece junto, e que `$1` é a organização ativa.
+ */
+export interface TransacaoEscopada {
+  <T>(trabalho: (consulta: ConsultaEscopada) => Promise<T>): Promise<T>;
+}
+
+/**
+ * A mesma amarração de `escoparConsulta`, na forma transacional.
+ *
+ * **Por que ela existe, e por que não é emenda à ADR-0003.** O ponto único continua sendo um: o
+ * `organizacao_id` entra em `$1` aqui, nesta função, e o repositório escopado **não recebe** o
+ * identificador. O que muda é a forma de acesso — `aprovar` faz duas escritas (`update` no pedido,
+ * `insert` no vínculo) que não podem ficar pela metade, e a `Consulta` solta não dá atomicidade.
+ *
+ * **A trava vale por consulta, e é mais importante aqui do que na leitura:** uma consulta escopada sem
+ * `$1` devolveria dado de outra organização; uma **escrita** sem `$1` gravaria numa.
+ */
+export function escoparTransacao(transacao: Transacao, organizacaoId: string): TransacaoEscopada {
+  return <T>(trabalho: (consulta: ConsultaEscopada) => Promise<T>): Promise<T> =>
+    transacao((consulta) => {
+      const escopada: ConsultaEscopada = <L extends object>(
+        sql: string,
+        valores: readonly unknown[] = [],
+      ): Promise<L[]> => {
+        if (!/\$1\b/u.test(sql)) throw new ConsultaSemEscopo(sql);
+        return consulta<L>(sql, [organizacaoId, ...valores]);
+      };
+      return trabalho(escopada);
+    });
 }

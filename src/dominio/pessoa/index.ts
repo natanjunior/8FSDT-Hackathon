@@ -5,3 +5,12 @@
  * existe sem vínculo nenhum. Este módulo começa pelo que o item 7a exige: o telefone que vira contato.
  */
 export { ehE164, paraE164Brasileiro } from "./Telefone";
+
+export {
+  FINALIDADES_DE_CONTATO,
+  TIPOS_DE_CONTATO,
+  ehFinalidadeDeContato,
+  ehTipoDeContato,
+  type FinalidadeDeContato,
+  type TipoDeContato,
+} from "./Contato";

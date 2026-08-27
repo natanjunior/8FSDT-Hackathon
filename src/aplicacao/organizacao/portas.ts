@@ -1,4 +1,11 @@
-import type { AreaSemente, CategoriaSemente, TipoArea } from "@/dominio/organizacao";
+import type {
+  AreaSemente,
+  CategoriaSemente,
+  Papel,
+  SituacaoDoPedido,
+  TipoArea,
+} from "@/dominio/organizacao";
+import type { FinalidadeDeContato, TipoDeContato } from "@/dominio/pessoa";
 
 /**
  * **As portas da Organização** (ADR-0005, parte 1): a Aplicação declara, a Infraestrutura implementa.
@@ -71,15 +78,91 @@ export type AreaLida = {
 };
 
 /**
- * As duas portas escopadas desta fatia. Nenhuma das duas recebe o identificador da organização — ele está
- * amarrado ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é.
+ * O que `POST /categorias` grava. **`icone` e `ordem` chegam resolvidos** — o padrão é decisão de produto
+ * e mora na Aplicação, não no schema de entrada nem no banco.
+ */
+export type NovaCategoria = {
+  nome: string;
+  icone: string;
+  ordem: number;
+  /** Vai para `criado_por_pessoa_id`. **Exige vínculo vivo** — a FK é composta para `vinculos`. */
+  criadaPorPessoaId: string;
+};
+
+/** O que `PATCH /categorias/{id}` altera. **Campo ausente é *não mexa*** — não é *apague*. */
+export type CorrecaoDeCategoria = {
+  categoriaId: string;
+  nome?: string;
+  icone?: string;
+  ordem?: number;
+  ativa?: boolean;
+  /** Vai para `atualizado_por_pessoa_id`. É *"último a escrever"*, não histórico (modelo §6.5). */
+  atualizadaPorPessoaId: string;
+};
+
+export type NovaArea = {
+  nome: string;
+  tipo: TipoArea;
+  ordem: number;
+  criadaPorPessoaId: string;
+};
+
+export type CorrecaoDeArea = {
+  areaId: string;
+  nome?: string;
+  tipo?: TipoArea;
+  ordem?: number;
+  ativa?: boolean;
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * A Área depois do `PATCH`, mais a contagem que **só a correção** devolve.
+ *
+ * `ocorrenciasComTipoAnterior` existe *"para que a interface possa dizer ao Gestor, em português, que o
+ * passado não muda"* (contrato §8.1). **É um campo de resposta que só existe para produzir uma frase de
+ * tela.**
+ */
+export type AreaAtualizada = AreaLida & { ocorrenciasComTipoAnterior: number };
+
+/**
+ * Os quatro desfechos. **Etiqueta, não exceção** — a mesma doutrina dos itens 7a, 8 e 9a: nome duplicado
+ * é tradução de índice único, e o vocabulário de recusa do contrato pertence à Aplicação.
+ */
+export type ResultadoDeCriacaoDeCategoria =
+  | { desfecho: "criada"; categoria: CategoriaLida }
+  | { desfecho: "nome-duplicado" };
+
+export type ResultadoDeCorrecaoDeCategoria =
+  | { desfecho: "corrigida"; categoria: CategoriaLida }
+  | { desfecho: "nome-duplicado" }
+  | { desfecho: "nao-encontrada" };
+
+export type ResultadoDeCriacaoDeArea =
+  | { desfecho: "criada"; area: AreaLida }
+  | { desfecho: "nome-duplicado" };
+
+export type ResultadoDeCorrecaoDeArea =
+  | { desfecho: "corrigida"; area: AreaAtualizada }
+  | { desfecho: "nome-duplicado" }
+  | { desfecho: "nao-encontrada" };
+
+/**
+ * As duas portas escopadas desta fatia. Nenhuma recebe o identificador da organização — ele está amarrado
+ * ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é. É isso que torna
+ * *"categoria de outra organização"* **inalcançável**, e é daí que sai o `404` idêntico ao de inexistente
+ * que a §6.3 do contrato exige.
  */
 export interface RepositorioEscopadoDeCategorias {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly CategoriaLida[]>;
+  criar(nova: NovaCategoria): Promise<ResultadoDeCriacaoDeCategoria>;
+  corrigir(correcao: CorrecaoDeCategoria): Promise<ResultadoDeCorrecaoDeCategoria>;
 }
 
 export interface RepositorioEscopadoDeAreas {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly AreaLida[]>;
+  criar(nova: NovaArea): Promise<ResultadoDeCriacaoDeArea>;
+  corrigir(correcao: CorrecaoDeArea): Promise<ResultadoDeCorrecaoDeArea>;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +183,7 @@ export type PedidoDeEntradaRegistrado = {
 export type PedidoDaPessoa = {
   id: string;
   organizacao: { nome: string };
-  situacao: "pendente" | "aprovado" | "recusado";
+  situacao: SituacaoDoPedido;
   criadoEm: string;
 };
 
@@ -143,4 +226,204 @@ export interface RepositorioDePedidosDeEntrada {
 export interface RepositorioGlobalDePedidosDeEntrada {
   /** Todos os pedidos da Pessoa, em `criadoEm` decrescente, nas três situações (spec §2.6). */
   daPessoa(pessoaId: string): Promise<PedidoDaPessoa[]>;
+}
+
+// ---------------------------------------------------------------------------
+// A decisão do pedido — item 8 (D25)
+// ---------------------------------------------------------------------------
+
+/** O schema `Contato` do contrato, do lado de dentro. Sai **ordenado por `ordem`** (modelo §6.17). */
+export type ContatoLido = {
+  id: string;
+  tipo: TipoDeContato;
+  valor: string;
+  finalidade: FinalidadeDeContato;
+  temWhatsapp: boolean;
+  ordem: number;
+  observacao: string | null;
+};
+
+/**
+ * Um contato **entrando** — o `ContatoParaEscrita` do contrato, do lado de dentro.
+ *
+ * **Sem `id`**, porque a escrita é substituição: o corpo traz a lista completa e o servidor troca a
+ * anterior inteira.
+ *
+ * **E sem `ordem`, que é a decisão 2.1 da spec:** quem a grava é o servidor, pela posição na lista. O
+ * schema de entrada aceita `ordem` e **recusa** a que não bate com a posição, então nada chega aqui com
+ * ordem própria a respeitar — e `UNIQUE (pessoa_id, ordem)` deixa de ser alcançável por entrada.
+ *
+ * **Os opcionais do contrato já vêm resolvidos:** o schema aplica `finalidade: "pessoal"`,
+ * `temWhatsapp: false` e `observacao: null`. A porta recebe dado resolvido, nunca ausência.
+ */
+export type ContatoParaEscrita = {
+  tipo: TipoDeContato;
+  valor: string;
+  finalidade: FinalidadeDeContato;
+  temWhatsapp: boolean;
+  observacao: string | null;
+};
+
+/**
+ * **Como o Gestor vê um pedido** — o schema `PedidoDeEntradaDetalhe` do contrato.
+ *
+ * `pessoa` traz `telefoneInformado` e **não traz `contatos[]`**, e a diferença é de privacidade, não de
+ * conveniência: `contatos` é tabela **global**, e devolvê-la aqui mostraria ao Gestor desta organização os
+ * contatos que a pessoa cadastrou em **outra** (schema `PessoaDoPedido`).
+ *
+ * **`observacao` não está aqui, e é o achado A-8-2:** o contrato guarda o motivo da recusa e nenhum schema
+ * de leitura o devolve. O repositório não a expõe — pôr aqui o que o contrato não declara seria decidir
+ * sozinho uma questão que é do hub.
+ */
+export type PedidoDeEntradaLido = {
+  id: string;
+  pessoa: {
+    pessoaId: string;
+    nome: string;
+    /** Em E.164, ou `null`. O telefone **deste pedido**, não o cadastro dela. */
+    telefoneInformado: string | null;
+  };
+  situacao: SituacaoDoPedido;
+  criadoEm: string;
+  decididoEm: string | null;
+  decididoPor: { pessoaId: string; nome: string } | null;
+};
+
+/**
+ * O schema `Vinculo` do contrato — **um objeto de leitura declarado, nunca a linha de `vinculos`**
+ * (ADR-0005, parte 3). `organizacao_id`, `revogado_em` e os relógios de auditoria existem no esquema e
+ * não aparecem aqui.
+ *
+ * **Serve três consumidores**: o `200` de `POST …/aprovar` (item 8), o `201` de `POST /vinculos` e cada
+ * item de `GET /vinculos` (item 9a). Um tipo só, porque o schema do contrato é um só.
+ */
+export type VinculoLido = {
+  pessoa: { pessoaId: string; nome: string; contatos: readonly ContatoLido[] };
+  papel: Papel;
+  /** A **unidade** da pessoa nesta organização. `null` para o Gestor e o Encarregado terceirizado. */
+  area: { id: string; nome: string; tipo: TipoArea } | null;
+  temConta: boolean;
+  criadoEm: string;
+};
+
+/** O que `POST /vinculos` recebe, já conferido pelo schema. */
+export type DadosDoCadastro = {
+  nome: string;
+  papel: Papel;
+  /** `null` é *sem unidade* — o caso do Gestor e do Encarregado terceirizado. */
+  areaId: string | null;
+  /**
+   * **Sempre uma lista, nunca ausente.** No cadastro a Pessoa é nova: *"omitir"* e *"lista vazia"*
+   * descrevem o mesmo estado, e o schema resolve a ausência em `[]`. A distinção que importa é a do
+   * `PATCH`, e mora em `DadosDaCorrecao`.
+   */
+  contatos: readonly ContatoParaEscrita[];
+};
+
+/**
+ * O que `PATCH /vinculos/{pessoaId}` recebe.
+ *
+ * **`undefined` e `null` significam coisas diferentes em `areaId`**, e é o contrato que exige a
+ * distinção: ausente é *"não mexa"*; `null` é *"tire a unidade"*.
+ */
+export type DadosDaCorrecao = {
+  pessoaId: string;
+  nome?: string;
+  areaId?: string | null;
+  /**
+   * **Ausente e `[]` são instruções diferentes** (contrato §8.2): ausente é *não mexa em nada*, `[]` é
+   * *remova todos*. É a armadilha de vazio-versus-ausente, e aqui ela **apaga dados** — um `?? []` em
+   * qualquer ponto deste caminho destrói o contato de quem só corrigiu a unidade.
+   */
+  contatos?: readonly ContatoParaEscrita[];
+};
+
+/**
+ * Os desfechos das duas escritas. **Etiqueta, não exceção** — a mesma doutrina do item 8: o vocabulário de
+ * recusa do contrato pertence à Aplicação, e a Infraestrutura só relata o que o banco decidiu.
+ */
+export type ResultadoDoCadastro =
+  | { desfecho: "cadastrado"; vinculo: VinculoLido }
+  | { desfecho: "area-invalida" }
+  | { desfecho: "contato-duplicado" };
+
+export type ResultadoDaCorrecao =
+  | { desfecho: "corrigido"; vinculo: VinculoLido }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "pessoa-com-conta" }
+  | { desfecho: "area-invalida" }
+  | { desfecho: "contato-duplicado" };
+
+/**
+ * **A porta escopada dos vínculos.**
+ *
+ * Mudou de módulo em 23/08/2026, e a razão é dependência: os casos de uso que a consomem são capacidades
+ * de **organização**, e deixá-la em `aplicacao/contexto/` produziria `organizacao → contexto →
+ * organizacao` — um ciclo entre módulos irmãos que hoje não existe.
+ *
+ * **A consulta parte de `vinculos` e faz `JOIN` para `pessoas`** — nunca o contrário (contrato §4.6,
+ * modelo §4.3). É por isso que não existe, e não deve existir, uma porta de `Pessoa` escopada: `pessoas` é
+ * global e não tem coluna de organização para filtrar.
+ */
+export interface RepositorioEscopadoDeVinculos {
+  /** Os vínculos ativos **desta** organização, ordenados por nome. É a lista de T-08 e a de candidatos a responsável (D21). */
+  ativos(): Promise<readonly VinculoLido[]>;
+
+  /** Um vínculo desta organização, ou `null` — que é o `404` da §6.3, idêntico ao de inexistente. */
+  porPessoa(pessoaId: string): Promise<VinculoLido | null>;
+
+  /** Cria **Pessoa e Vínculo na mesma transação** (contrato §4.6). Nunca procura por Pessoa existente. */
+  cadastrar(dados: DadosDoCadastro): Promise<ResultadoDoCadastro>;
+
+  /** Corrige nome e unidade. **A guarda de quem tem conta nomeia campos, não o endpoint** (contrato §8.2). */
+  corrigir(dados: DadosDaCorrecao): Promise<ResultadoDaCorrecao>;
+}
+
+/**
+ * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
+ * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do
+ * contrato pertence à Aplicação, não à Infraestrutura.
+ */
+export type ResultadoDaAprovacao =
+  | { desfecho: "aprovado"; vinculo: VinculoLido }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ja-decidido" }
+  | { desfecho: "ja-vinculado" }
+  | { desfecho: "area-invalida" };
+
+export type ResultadoDaRecusa =
+  | { desfecho: "recusado"; pedido: PedidoDeEntradaLido }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ja-decidido" };
+
+/**
+ * **A porta escopada dos pedidos** — leitura e as duas decisões.
+ *
+ * Não recebe o identificador da organização: ele está amarrado ao `$1` pelo ponto único (ADR-0003). Um
+ * pedido de outra organização é **inalcançável**, e é isso que produz o `404` idêntico ao de inexistente
+ * que a §6.3 do contrato exige.
+ *
+ * **A atomicidade da aprovação é promessa desta porta, não parâmetro dela:** quem chama não abre
+ * transação e não sabe que há uma.
+ */
+export interface RepositorioEscopadoDePedidosDeEntrada {
+  /** Os pedidos desta organização nas situações pedidas, em `criadoEm` **crescente** — é fila de espera. */
+  listar(opcoes: { situacoes: readonly SituacaoDoPedido[] }): Promise<readonly PedidoDeEntradaLido[]>;
+
+  /** Decide o pedido e cria o Vínculo, **na mesma transação**. */
+  aprovar(decisao: {
+    pedidoId: string;
+    papel: Papel;
+    /** A unidade, quando informada. `null` é *sem unidade*, e é o caso do Gestor. */
+    areaId: string | null;
+    decididoPorPessoaId: string;
+  }): Promise<ResultadoDaAprovacao>;
+
+  /** Decide o pedido e **não cria nada**. */
+  recusar(decisao: {
+    pedidoId: string;
+    /** Já aparada; `null` quando vazia. O `CHECK` do banco só a aceita em pedido recusado (§6.15). */
+    observacao: string | null;
+    decididoPorPessoaId: string;
+  }): Promise<ResultadoDaRecusa>;
 }

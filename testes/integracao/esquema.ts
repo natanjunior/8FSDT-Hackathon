@@ -32,14 +32,34 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // Estado limpo em toda execução: o teste não pode depender do que a anterior deixou. `cascade` cobre as
   // FKs entre elas, inclusive a composta que `vinculos` tem para `areas` e a que `pedidos_de_entrada` tem
   // para `vinculos`.
+  // A ordem importa: `anexos` antes de `ocorrencias` (a FK é RESTRICT),
+  // `registros_transicao` antes de `ocorrencias`, e as três antes de
+  // `categorias`/`areas`. `autorizacoes_de_upload` vem na frente de `pessoas`,
+  // que é para onde a FK dela aponta. O `cascade` cobre, mas a ordem explícita
+  // documenta a direção das FKs.
   await consulta(
-    `drop table if exists contatos, pedidos_de_entrada, categorias, areas, vinculos, organizacoes, pessoas cascade`,
+    `drop table if exists anexos, autorizacoes_de_upload, registros_transicao, ocorrencias, contatos,
+                          pedidos_de_entrada, categorias, areas, vinculos, organizacoes, pessoas cascade`,
   );
   await consulta(`drop type if exists papel_vinculo`);
   await consulta(`drop type if exists tipo_area`);
   await consulta(`drop type if exists situacao_pedido_entrada`);
   await consulta(`drop type if exists tipo_contato`);
   await consulta(`drop type if exists finalidade_contato`);
+  await consulta(`drop type if exists status_ocorrencia`);
+  await consulta(`drop type if exists prioridade_ocorrencia`);
+  await consulta(`drop type if exists motivo_pausa`);
+  await consulta(`drop type if exists motivo_cancelamento`);
+  await consulta(`drop type if exists vinculo_ocorrencia`);
+  await consulta(`drop type if exists tipo_anexo`);
+  await consulta(`drop type if exists fonte_anexo`);
+  // **A migração 005 é a primeira do repositório a criar uma FUNÇÃO**, e é por isso que aparece um
+  // `drop function` aqui. `drop table ... cascade` derruba o **gatilho**, porque ele depende da tabela —
+  // e **não** derruba a função, que não depende de nada. Sem esta linha, o **segundo** arquivo de
+  // integração a chamar `aplicarEsquema` no mesmo banco falha em
+  // `create function registros_transicao_append_only ... already exists`. E são cinco arquivos rodando
+  // em série (`fileParallelism: false`).
+  await consulta(`drop function if exists registros_transicao_append_only() cascade`);
 
   await consulta(shim);
   for (const migracao of migracoes) await consulta(migracao);

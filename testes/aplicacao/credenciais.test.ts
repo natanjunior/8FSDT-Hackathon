@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   criarConta,
+  definirSenha,
   entrar,
+  pedirRedefinicaoDeSenha,
   type PortaDeCredenciais,
   type ResultadoDeCredencial,
 } from "@/aplicacao/credenciais";
@@ -33,6 +35,18 @@ function portaQueRegistra(): PortaDeCredenciais & { recebido: unknown[] } {
     },
     criarConta(nome, email, senha) {
       recebido.push({ operacao: "criarConta", nome, email, senha });
+      return aceita();
+    },
+    pedirRedefinicaoDeSenha(email) {
+      recebido.push({ operacao: "pedirRedefinicaoDeSenha", email });
+      return aceita();
+    },
+    iniciarRedefinicao(tokenHash) {
+      recebido.push({ operacao: "iniciarRedefinicao", tokenHash });
+      return aceita();
+    },
+    definirSenha(senhaNova) {
+      recebido.push({ operacao: "definirSenha", senhaNova });
       return aceita();
     },
     confirmarPorCodigo() {
@@ -79,5 +93,25 @@ describe("entrar — o que chega ao provedor", () => {
     expect(porta.recebido).toStrictEqual([
       { operacao: "entrar", email: "helena@exemplo.test", senha: "  segredo  " },
     ]);
+  });
+});
+
+describe("as operações de recuperação — o que chega ao provedor", () => {
+  it("apara o e-mail de T-12", async () => {
+    const porta = portaQueRegistra();
+
+    await pedirRedefinicaoDeSenha(porta, "  helena@exemplo.test  ");
+
+    expect(porta.recebido).toStrictEqual([
+      { operacao: "pedirRedefinicaoDeSenha", email: "helena@exemplo.test" },
+    ]);
+  });
+
+  it("NÃO apara a senha nova de T-13 — aparar mudaria o segredo escolhido", async () => {
+    const porta = portaQueRegistra();
+
+    await definirSenha(porta, "  com espaco  ");
+
+    expect(porta.recebido).toStrictEqual([{ operacao: "definirSenha", senhaNova: "  com espaco  " }]);
   });
 });

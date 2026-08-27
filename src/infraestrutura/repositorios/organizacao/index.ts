@@ -6,5 +6,6 @@ export { repositorioEscopadoDeCategorias } from "./categorias-escopadas";
 export { repositorioEscopadoDeAreas } from "./areas-escopadas";
 export {
   repositorioDePedidosDeEntrada,
+  repositorioEscopadoDePedidosDeEntrada,
   repositorioGlobalDePedidosDeEntrada,
 } from "./pedidos-de-entrada";

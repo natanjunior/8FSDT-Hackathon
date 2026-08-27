@@ -73,7 +73,10 @@ export function FormularioDeNovaOrganizacao() {
       // que o navegador aplica à History API, por exemplo) não pode virar mensagem de erro de criação —
       // a organização já foi criada com sucesso.
       router.refresh();
-      router.push("/");
+      // *"Criar organização leva direto a T-03 com o estado vazio de organização nova"* — inventário,
+      // T-02. Antes ia para `/`, que era o mapa; agora T-03 existe, e é lá que o convite a conferir as
+      // áreas semeadas mora.
+      router.push("/ocorrencias");
     }
   }
 

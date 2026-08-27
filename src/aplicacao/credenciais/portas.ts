@@ -35,6 +35,16 @@ export type RecusaDeCredencial =
   | "EMAIL_NAO_CONFIRMADO"
   /** T-01, estado 6: o link do e-mail venceu ou já foi usado. */
   | "LINK_INVALIDO_OU_EXPIRADO"
+  /**
+   * T-12: o provedor recusou o envio por limite — por endereço (`over_email_send_rate_limit`) ou por IP
+   * (`over_request_rate_limit`). É o único erro desta tela que a pessoa conserta esperando.
+   */
+  | "LIMITE_DE_ENVIOS"
+  /**
+   * T-13: a senha nova é igual à atual. **Não é regra de força**, e por isso não pode cair em
+   * `SENHA_RECUSADA_PELO_PROVEDOR`: *"escolha uma senha mais longa"* mandaria consertar o que está certo.
+   */
+  | "SENHA_IGUAL_A_ANTERIOR"
   | "FALHA_DO_PROVEDOR";
 
 export interface PortaDeCredenciais {
@@ -56,6 +66,31 @@ export interface PortaDeCredenciais {
    * inventário registra esse buraco como o erro que partiu T-01 em quatro telas.
    */
   confirmarPorCodigo(codigo: string): Promise<ResultadoDeCredencial>;
+
+  /**
+   * T-12 · pede o e-mail com o link de redefinição.
+   *
+   * **Nunca informa se a conta existe** — nem por resultado, nem por recusa: conta inexistente devolve
+   * `{ ok: true }`, igual a conta existente. É a doutrina do não-confirmar do contrato §6.3 aplicada à
+   * credencial, e é o critério 1 do item 6b.
+   */
+  pedirRedefinicaoDeSenha(email: string): Promise<ResultadoDeCredencial>;
+
+  /**
+   * A aterrissagem do link de T-13: troca o `token_hash` do e-mail por sessão de recuperação.
+   *
+   * **Recebe o token porque ler a URL é traduzir HTTP**, e é a camada de Interface quem o faz — a mesma
+   * forma de `confirmarPorCodigo`. Deste passo em diante nenhum token atravessa a fronteira.
+   */
+  iniciarRedefinicao(tokenHash: string): Promise<ResultadoDeCredencial>;
+
+  /**
+   * T-13 · grava a senha nova e encerra a sessão de recuperação.
+   *
+   * **Não recebe token:** a sessão já está no armazenamento de cookies que a Interface entregou ao montar
+   * a porta. É o que mantém verdadeira a frase do contrato §4.1 — *o domínio nunca vê token*.
+   */
+  definirSenha(senhaNova: string): Promise<ResultadoDeCredencial>;
 
   sair(): Promise<void>;
 }

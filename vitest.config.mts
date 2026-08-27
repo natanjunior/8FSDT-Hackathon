@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 /**
  * Vitest — a ferramenta que a `arquitetura.md` (Parte II, §2 e §7) escolheu, por um motivo concreto: *"o
@@ -36,6 +36,13 @@ export default defineConfig({
             "testes/aplicacao/**/*.test.ts",
             "testes/interface/**/*.test.ts",
             "testes/infraestrutura/**/*.test.ts",
+            // **Arquivo avulso, e a exceção é declarada.** As quatro pastas acima espelham as quatro
+            // camadas de `src/`; este teste não é de camada nenhuma — ele prova a função que decide onde a
+            // suíte de integração escreve. Mora em `testes/integracao/` porque o lint proíbe importar por
+            // `../` dentro de `testes/` (ADR-0006, regra 3), então módulo e teste ficam lado a lado. Mas o
+            // que ele prova é **puro**, e tem de rodar no laço curto — por isso entra aqui, e sai do
+            // projeto `integracao` logo abaixo.
+            "testes/integracao/banco.test.ts",
           ],
           environment: "node",
         },
@@ -45,6 +52,11 @@ export default defineConfig({
         test: {
           name: "integracao",
           include: ["testes/integracao/**/*.test.ts"],
+          // Ele já roda no projeto `unitario`, e é puro. Sem esta linha rodaria duas vezes, a segunda
+          // exigindo um Postgres de que não precisa. `configDefaults.exclude` vem junto porque `exclude`
+          // **substitui** o padrão do Vitest em vez de complementá-lo — sem o spread, os
+          // `**/node_modules/**` do default deixariam de valer para este projeto.
+          exclude: [...configDefaults.exclude, "testes/integracao/banco.test.ts"],
           environment: "node",
           testTimeout: 30_000,
           hookTimeout: 60_000,

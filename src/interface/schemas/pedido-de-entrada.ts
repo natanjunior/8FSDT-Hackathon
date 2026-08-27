@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PAPEIS } from "@/dominio/organizacao";
 import { ehE164 } from "@/dominio/pessoa";
 
 /**
@@ -17,11 +18,16 @@ export const codigoPublico = z
   .trim()
   .regex(/^[A-Z0-9]{6,12}$/u, "O código tem de 6 a 12 letras e números, sem espaços.");
 
+/**
+ * A frase do telefone recusado, num lugar só.
+ *
+ * **Ela fala do que a pessoa vê, não do que vai ser guardado** (§6.2 do protótipo): quem digitou lê
+ * `(11) 99999-0000`, e dizer *"fora de E.164"* seria falar do banco com quem está no elevador.
+ */
+export const MENSAGEM_DE_TELEFONE = "Informe um telefone com DDD, como (11) 99999-0000.";
+
 /** E.164, o mesmo formato do `CHECK` de `contatos` (modelo §6.17). */
-export const telefoneE164 = z
-  .string()
-  .trim()
-  .refine(ehE164, "Informe um telefone com DDD, como (11) 99999-0000.");
+export const telefoneE164 = z.string().trim().refine(ehE164, MENSAGEM_DE_TELEFONE);
 
 /**
  * **O nome aqui não é o mesmo schema de T-11, e a diferença é a decisão §2.7 da spec:** *"vazio ou só
@@ -45,3 +51,32 @@ export const pedidoDeEntradaSchema = z.object({
 });
 
 export type EntradaDePedidoDeEntrada = z.infer<typeof pedidoDeEntradaSchema>;
+
+/**
+ * O corpo de `POST /pedidos-de-entrada/{id}/aprovar` — `{ papel, areaId? }` (contrato §8.2).
+ *
+ * **`areaId` é a unidade, e este é o único momento em que ela pode ser informada para quem tem conta:** o
+ * `PATCH /vinculos/{pessoaId}` recusa Pessoa com Usuário, e o morador sempre tem uma. Opcional, e
+ * `null` explícito é aceito — a tela manda `null` quando o Gestor escolhe *"Sem unidade"*.
+ *
+ * **Área que não é desta organização, ou inativa, é `422 AREA_INVALIDA`** — recusa de domínio, não de
+ * forma: o schema só confere que é um `uuid`.
+ */
+export const aprovacaoDePedidoSchema = z.object({
+  papel: z.enum(PAPEIS),
+  areaId: z.uuid("Escolha uma unidade da lista.").nullish(),
+});
+
+export type EntradaDeAprovacao = z.infer<typeof aprovacaoDePedidoSchema>;
+
+/**
+ * O corpo de `POST /pedidos-de-entrada/{id}/recusar` — `{ observacao? }`, no máximo 500.
+ *
+ * **O corpo inteiro é opcional** no contrato (`required: false`), então o schema aceita objeto vazio. O
+ * `CHECK` do banco só admite observação em pedido recusado, que é exatamente o que este endpoint produz.
+ */
+export const recusaDePedidoSchema = z.object({
+  observacao: z.string().max(500, "O motivo cabe em 500 caracteres.").nullish(),
+});
+
+export type EntradaDeRecusa = z.infer<typeof recusaDePedidoSchema>;

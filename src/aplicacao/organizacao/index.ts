@@ -1,24 +1,72 @@
 /** Superfície pública do módulo `aplicacao/organizacao` (ADR-0006, regra 3). */
 export { criarOrganizacao } from "./criar-organizacao";
-export { listarAreas, listarCategorias } from "./consultas";
+export { listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
 export { pedirEntrada, type ComandoDePedirEntrada } from "./pedir-entrada";
 export {
+  aprovarPedidoDeEntrada,
+  recusarPedidoDeEntrada,
+  type DecisaoDeAprovacao,
+  type DecisaoDeRecusa,
+} from "./decidir-pedido-de-entrada";
+export { cadastrarVinculo, corrigirVinculo, listarVinculos, verVinculo } from "./vinculos";
+export {
+  corrigirArea,
+  corrigirCategoria,
+  criarArea,
+  criarCategoria,
+  type ComandoDeCorrecaoDeArea,
+  type ComandoDeCorrecaoDeCategoria,
+  type ComandoDeNovaArea,
+  type ComandoDeNovaCategoria,
+} from "./configuracao";
+export {
+  AreaInvalida,
+  AreaNaoEncontrada,
+  CategoriaNaoEncontrada,
   CodigoPublicoEmUso,
   CodigoPublicoNaoEncontrado,
+  ContatoDuplicado,
   JaVinculado,
+  NomeDeAreaDuplicado,
+  NomeDeCategoriaDuplicado,
   PedidoDeEntradaPendente,
+  PedidoJaDecidido,
+  PedidoNaoEncontrado,
+  PessoaComContaNaoEditavel,
+  VinculoNaoEncontrado,
 } from "./erros";
 export type {
+  AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ContatoLido,
+  ContatoParaEscrita,
+  CorrecaoDeArea,
+  CorrecaoDeCategoria,
+  DadosDaCorrecao,
+  DadosDoCadastro,
+  NovaArea,
+  NovaCategoria,
   NovaOrganizacao,
   OrganizacaoCriada,
   PedidoDaPessoa,
+  PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDePedidosDeEntrada,
+  RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
+  ResultadoDaAprovacao,
+  ResultadoDaCorrecao,
+  ResultadoDaRecusa,
+  ResultadoDeCorrecaoDeArea,
+  ResultadoDeCorrecaoDeCategoria,
+  ResultadoDeCriacaoDeArea,
+  ResultadoDeCriacaoDeCategoria,
+  ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
+  VinculoLido,
 } from "./portas";

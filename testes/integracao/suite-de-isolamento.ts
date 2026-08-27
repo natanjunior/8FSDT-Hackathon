@@ -49,12 +49,23 @@ export function casosDeIsolamento<L>(
     expect(new Set(linhas.map(entrada.chaveDaLinha))).toStrictEqual(new Set(entrada.esperadas.emA));
   });
 
-  it(`${entrada.nome}: escopada em B não devolve nada de A`, async () => {
+  it(`${entrada.nome}: escopada em B não devolve nada que seja SÓ de A`, async () => {
     const linhas = await entrada.consultar(mundo.b());
     const chaves = new Set(linhas.map(entrada.chaveDaLinha));
+    const deB = new Set(entrada.esperadas.emB);
 
-    for (const deA of entrada.esperadas.emA) expect(chaves.has(deA)).toBe(false);
-    expect(chaves).toStrictEqual(new Set(entrada.esperadas.emB));
+    // **`só de A` e não `de A`**, e a diferença nasceu com a entrada de `GET /vinculos` (item 9a): a
+    // mesma Pessoa tem vínculo nas **duas** organizações, e a chave dela aparece legitimamente nos dois
+    // conjuntos. Exigir ausência de toda chave de `emA` contradiria a linha seguinte, que exige o
+    // resultado igual a `emB`.
+    //
+    // **O que a suíte prova continua sendo o mesmo**, e é o que o critério A4 encomenda: o que pertence
+    // **só** a A não pode aparecer em B. Para as três entradas anteriores os dois conjuntos são
+    // disjuntos, e o caso é literalmente o de antes.
+    for (const deA of entrada.esperadas.emA) {
+      if (!deB.has(deA)) expect(chaves.has(deA)).toBe(false);
+    }
+    expect(chaves).toStrictEqual(deB);
   });
 
   if (entrada.organizacaoDaLinha !== undefined) {

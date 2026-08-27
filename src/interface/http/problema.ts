@@ -75,7 +75,17 @@ function tipoDoErro(codigo: string): string {
   return `https://resolveai.app/erros/${codigo.toLowerCase().replace(/_/gu, "-")}`;
 }
 
-/** Uma violação de campo — só em `400` (contrato §6.1). */
+/**
+ * A única extensão de erro que **não** vai para o corpo: ela vira cabeçalho.
+ *
+ * O contrato declara **três** extensões de corpo — `codigo`, `traceId` e `erros[]` — e declara, no `429`
+ * de `POST /anexos/autorizacoes`, o cabeçalho `Retry-After`. Este é o caminho de um para o outro: o erro
+ * de domínio carrega o número em `extensoes` (que é onde um erro carrega dado), e a tradução para HTTP
+ * acontece **aqui**, na única camada a quem a tabela de camadas permite conhecer cabeçalho.
+ */
+const EXTENSAO_DE_CABECALHO = "segundosAteLiberar";
+
+/** Uma violação de campo — em `400 FORMATO_INVALIDO` e em `422 CAMPO_NAO_SUPORTADO` (contrato §6.1). */
 export type ErroDeCampo = {
   campo: string;
   codigo: string;
@@ -97,6 +107,28 @@ export class CorpoNaoSuportado extends ErroDeDominio {
 export class FormatoInvalido extends ErroDeDominio {
   constructor(erros: readonly ErroDeCampo[]) {
     super("FORMATO_INVALIDO", "Formato inválido", "Um ou mais campos estão inválidos.", { erros });
+  }
+}
+
+/**
+ * `422 CAMPO_NAO_SUPORTADO` — o campo existe no vocabulário do produto e **esta operação não o aceita**.
+ *
+ * **Não é `400`, e a diferença é a §6.2 do contrato:** `400` é *"você escreveu errado"*; isto é *"o
+ * produto não faz isso"*. O catálogo de erros define o código como *"campo cuja capacidade é evolução
+ * prevista, ou escrito só pelo servidor"* — e `papel` no `PATCH` de vínculo é o primeiro caso: promover
+ * alguém a Gestor não é capacidade da primeira entrega.
+ *
+ * **Recusar em voz alta é o ponto.** Descartar o campo em silêncio — que é o que um schema Zod faz de
+ * graça — deixaria quem chamou a API convencido de ter promovido alguém.
+ */
+export class CampoNaoSuportado extends ErroDeDominio {
+  constructor(campos: readonly string[]) {
+    super(
+      "CAMPO_NAO_SUPORTADO",
+      "Campo não suportado",
+      "Um ou mais campos enviados não são aceitos por esta operação.",
+      { erros: campos.map((campo) => ({ campo, codigo: "CAMPO_NAO_SUPORTADO" })) },
+    );
   }
 }
 
@@ -126,6 +158,13 @@ export function problemaDe(
 ): { status: number; corpo: Record<string, unknown> } {
   if (erro instanceof ErroDeDominio) {
     const status = STATUS_POR_CODIGO[erro.codigo] ?? 500;
+
+    // Sem desestruturação com descarte: `@typescript-eslint/no-unused-vars` não ignora variável
+    // desestruturada por prefixo `_`, e o primeiro `eslint-disable` do projeto não nasce aqui.
+    const extensoesDoCorpo = Object.fromEntries(
+      Object.entries(erro.extensoes).filter(([chave]) => chave !== EXTENSAO_DE_CABECALHO),
+    );
+
     return {
       status,
       corpo: {
@@ -136,7 +175,7 @@ export function problemaDe(
         instance: instancia,
         codigo: erro.codigo,
         traceId,
-        ...erro.extensoes,
+        ...extensoesDoCorpo,
       },
     };
   }
@@ -163,8 +202,15 @@ export function respostaDeProblema(
   traceId: string,
 ): Response {
   const { status, corpo } = problemaDe(erro, instancia, traceId);
+
+  const segundos =
+    erro instanceof ErroDeDominio ? erro.extensoes[EXTENSAO_DE_CABECALHO] : undefined;
+
   return new Response(JSON.stringify(corpo), {
     status,
-    headers: { "content-type": "application/problem+json; charset=utf-8" },
+    headers: {
+      "content-type": "application/problem+json; charset=utf-8",
+      ...(typeof segundos === "number" ? { "retry-after": String(segundos) } : {}),
+    },
   });
 }

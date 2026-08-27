@@ -8,12 +8,16 @@
  */
 export {
   criarContaSchema,
+  definirSenhaSchema,
   email,
   entrarSchema,
   nomeDePessoa,
+  pedirRedefinicaoSchema,
   senha,
   type EntradaDeCadastro,
   type EntradaDeLogin,
+  type EntradaDeNovaSenha,
+  type EntradaDeRedefinicao,
 } from "./credencial";
 
 export {
@@ -23,8 +27,47 @@ export {
 } from "./organizacao";
 
 export {
+  MENSAGEM_DE_TELEFONE,
+  aprovacaoDePedidoSchema,
   codigoPublico,
   pedidoDeEntradaSchema,
+  recusaDePedidoSchema,
   telefoneE164,
+  type EntradaDeAprovacao,
   type EntradaDePedidoDeEntrada,
+  type EntradaDeRecusa,
 } from "./pedido-de-entrada";
+
+export {
+  camposEscritosPeloServidor,
+  registroDeOcorrenciaSchema,
+  type EntradaDeRegistroDeOcorrencia,
+} from "./ocorrencia";
+
+export {
+  cadastroDeVinculoSchema,
+  contatosParaEscritaSchema,
+  correcaoDeVinculoSchema,
+  type EntradaDeCadastroDeVinculo,
+  type EntradaDeCorrecaoDeVinculo,
+} from "./vinculo";
+
+export {
+  ICONES_DE_CATEGORIA,
+  correcaoDeAreaSchema,
+  correcaoDeCategoriaSchema,
+  criacaoDeAreaSchema,
+  criacaoDeCategoriaSchema,
+  iconeDeCategoria,
+  type EntradaDeCorrecaoDeArea,
+  type EntradaDeCorrecaoDeCategoria,
+  type EntradaDeCriacaoDeArea,
+  type EntradaDeCriacaoDeCategoria,
+  type NomeDeIcone,
+} from "./configuracao";
+
+export {
+  TETO_DE_BYTES_DO_ANEXO,
+  pedidoDeAutorizacaoSchema,
+  type EntradaDePedidoDeAutorizacao,
+} from "./anexo";

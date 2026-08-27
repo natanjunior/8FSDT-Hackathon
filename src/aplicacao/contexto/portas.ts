@@ -3,8 +3,11 @@ import type {
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDePedidosDeEntrada,
+  RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
 } from "@/aplicacao/organizacao";
+import type { RepositorioEscopadoDeOcorrencias } from "@/aplicacao/ocorrencia";
 import type { Vinculo } from "@/dominio/organizacao";
 
 /**
@@ -92,15 +95,6 @@ export interface RepositorioGlobalDeVinculos {
   ativosDaPessoa(pessoaId: string): Promise<VinculoNaOrganizacao[]>;
 }
 
-/**
- * **A porta escopada.** Toda leitura passa por aqui já filtrada pela organização ativa — o filtro é
- * aplicado numa função só, que é o compromisso da ADR-0003. Quem monta é o anel externo (ADR-0005).
- */
-export interface RepositorioEscopadoDeVinculos {
-  /** Os vínculos ativos **desta** organização. Nunca vê linha de outra. */
-  ativos(): Promise<Array<{ vinculo: Vinculo; pessoa: PessoaReferencia }>>;
-}
-
 // ---------------------------------------------------------------------------
 // Os dois conjuntos de portas
 // ---------------------------------------------------------------------------
@@ -144,4 +138,16 @@ export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
+  /**
+   * Os pedidos **desta** organização, e as duas decisões. Escopado, ao contrário da escrita de
+   * `POST /pedidos-de-entrada`: aquela roda antes de existir vínculo, esta acontece dentro de uma
+   * organização ativa.
+   */
+  pedidosDeEntrada: RepositorioEscopadoDePedidosDeEntrada;
+  /**
+   * O agregado `Ocorrência`. Escopado como todos: o `organizacao_id` entra em `$1` no
+   * `escoparTransacao`, e este repositório **não recebe** o identificador — não tem como escrever o
+   * filtro errado porque não tem o valor.
+   */
+  ocorrencias: RepositorioEscopadoDeOcorrencias;
 };

@@ -1,8 +1,12 @@
+import type { SituacaoDoPedido } from "@/dominio/organizacao";
+
 import type {
   AreaLida,
   CategoriaLida,
+  PedidoDeEntradaLido,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDePedidosDeEntrada,
 } from "./portas";
 
 /**
@@ -26,4 +30,18 @@ export function listarAreas(
   filtro: { incluirInativas?: boolean } = {},
 ): Promise<readonly AreaLida[]> {
   return areas.listar({ apenasAtivas: filtro.incluirInativas !== true });
+}
+
+/**
+ * Os pedidos que o Gestor abre para decidir.
+ *
+ * **O padrão *"só os pendentes"* mora aqui**, e não na Interface, pela mesma razão do *"só as ativas"*
+ * logo acima: ele é regra de produto, escrita no `openapi.yaml` como `default: [pendente]`. A Interface
+ * traduz `?situacao=`; quem sabe o que acontece quando ninguém pede nada é esta camada.
+ */
+export function listarPedidosDeEntrada(
+  pedidos: RepositorioEscopadoDePedidosDeEntrada,
+  filtro: { situacoes?: readonly SituacaoDoPedido[] } = {},
+): Promise<readonly PedidoDeEntradaLido[]> {
+  return pedidos.listar({ situacoes: filtro.situacoes ?? ["pendente"] });
 }

@@ -2,11 +2,14 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { criarTransacao } from "@/infraestrutura/clientes";
+import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import {
   repositorioDePedidosDeEntrada,
+  repositorioEscopadoDePedidosDeEntrada,
   repositorioGlobalDePedidosDeEntrada,
 } from "@/infraestrutura/repositorios/organizacao";
 
+import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
 /**
@@ -25,7 +28,7 @@ import { aplicarEsquema } from "./esquema";
  * **O mundo é o da §7.2:** duas organizações e duas Pessoas, a segunda existindo para provar que a
  * leitura de contexto não devolve pedido de quem não pediu.
  */
-const URL_DO_BANCO = process.env.BANCO_URL_TESTE ?? process.env.BANCO_URL;
+const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `7a-${Date.now()}`;
 
 let pool: Pool;
@@ -39,13 +42,6 @@ let helena = "";
 let outra = "";
 
 beforeAll(async () => {
-  if (URL_DO_BANCO === undefined || URL_DO_BANCO === "") {
-    throw new Error(
-      "BANCO_URL_TESTE não definida. Este teste exige Postgres — o que ele mede é o índice parcial e o " +
-        "ROLLBACK. Suba com `npm run local` e rode `npm run teste:integracao`.",
-    );
-  }
-
   // `criarTransacao` lê `BANCO_URL`; o teste aponta pela `BANCO_URL_TESTE`. Amarrar as duas é o que faz
   // este arquivo exercer a função de verdade, em vez de uma cópia dela montada à mão.
   process.env.BANCO_URL = URL_DO_BANCO;
@@ -238,6 +234,65 @@ describe("pedir entrada", () => {
 
     expect(resultado.desfecho).toBe("ja-vinculado");
   });
+
+  /** Abre uma credencial e uma Pessoa só para este caso, sem tocar no mundo dos casos acima. */
+  async function pessoaNova(nome: string, apelido: string): Promise<string> {
+    const usuarios = await consulta<{ id: string }>(
+      `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+      [`${apelido}-${SUFIXO}@exemplo.test`],
+    );
+    const pessoas = await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, $2) returning id`,
+      [usuarios[0]!.id, nome],
+    );
+    return pessoas[0]!.id;
+  }
+
+  /**
+   * **O critério 5 do item 8 começa aqui.** O telefone vira contato da Pessoa (global) **e** fica no
+   * pedido (escopado). O segundo é o que o Gestor vê antes de aprovar; o primeiro é o cadastro dela.
+   */
+  it("o telefone informado fica no próprio pedido, além de virar contato", async () => {
+    const comTelefone = await pessoaNova("Com Telefone", "com-telefone");
+
+    const resultado = await escrita.registrar({
+      pessoaId: comTelefone,
+      codigoPublico: "P4NHY9WB",
+      nome: null,
+      telefone: "+5511988887777",
+    });
+
+    expect(resultado.desfecho).toBe("registrado");
+
+    const pedidos = await consulta<{ telefone_informado: string | null }>(
+      `select telefone_informado from pedidos_de_entrada where pessoa_id = $1 and organizacao_id = $2`,
+      [comTelefone, organizacaoB],
+    );
+    expect(pedidos[0]?.telefone_informado).toBe("+5511988887777");
+
+    const contatos = await consulta<{ valor: string }>(
+      `select valor from contatos where pessoa_id = $1`,
+      [comTelefone],
+    );
+    expect(contatos.map((c) => c.valor)).toContain("+5511988887777");
+  });
+
+  it("sem telefone, a coluna do pedido fica nula", async () => {
+    const semTelefone = await pessoaNova("Sem Telefone", "sem-telefone");
+
+    await escrita.registrar({
+      pessoaId: semTelefone,
+      codigoPublico: "K7QMX3TD",
+      nome: null,
+      telefone: null,
+    });
+
+    const pedidos = await consulta<{ telefone_informado: string | null }>(
+      `select telefone_informado from pedidos_de_entrada where pessoa_id = $1`,
+      [semTelefone],
+    );
+    expect(pedidos[0]?.telefone_informado).toBeNull();
+  });
 });
 
 describe("a leitura de contexto", () => {
@@ -267,5 +322,211 @@ describe("a leitura de contexto", () => {
 
     // Nenhum identificador de organização atravessa a porta: o modelo de leitura tem `nome` e mais nada.
     expect(deHelena[0]).not.toHaveProperty("organizacaoId");
+  });
+});
+
+/**
+ * ============================================================================
+ *  A decisão do Gestor — item 8
+ * ============================================================================
+ *
+ * **O que só o banco prova**, e por isso está aqui e não em memória:
+ *
+ * 1. **`PEDIDO_JA_DECIDIDO`** é o `update … where situacao = 'pendente'` devolvendo zero linhas. É a
+ *    máquina de estados do pedido, e este é o caso de **transição inválida** que o DoD cobra.
+ * 2. **`JA_VINCULADO`** é a violação da `PRIMARY KEY (pessoa_id, organizacao_id)` de `vinculos`.
+ * 3. **`AREA_INVALIDA`** nos dois casos, com a **mesma** resposta: a inativa, que nenhuma constraint pega,
+ *    e a de outra organização, que a FK composta recusa.
+ * 4. **O `404` de pedido de outra organização** — o escopo produzindo a resposta da §6.3 sem uma linha de
+ *    código.
+ */
+describe("decidir o pedido", () => {
+  let gestora = "";
+  let candidata = "";
+  let areaDeA = "";
+  let areaInativaDeA = "";
+  let areaDeB = "";
+
+  /** O repositório escopado em A, montado como a composição o monta. */
+  const escopadoEm = (organizacaoId: string) =>
+    repositorioEscopadoDePedidosDeEntrada(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  beforeAll(async () => {
+    const usuarios = await consulta<{ id: string }>(
+      `insert into auth.users (id, email)
+            values (gen_random_uuid(), $1), (gen_random_uuid(), $2)
+         returning id`,
+      [`gestora-${SUFIXO}@exemplo.test`, `candidata-${SUFIXO}@exemplo.test`],
+    );
+    const pessoas = await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, 'Marina Rocha'), ($2, 'Camila Duarte')
+         returning id`,
+      [usuarios[0]!.id, usuarios[1]!.id],
+    );
+    gestora = pessoas[0]!.id;
+    candidata = pessoas[1]!.id;
+
+    // A Gestora precisa de vínculo em A: é a FK composta `(decidido_por_pessoa_id, organizacao_id)`.
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [gestora, organizacaoA],
+    );
+
+    const areas = await consulta<{ id: string }>(
+      `insert into areas (organizacao_id, nome, tipo, ordem, ativa)
+            values ($1, 'Apartamento 302', 'privativa', 1, true),
+                   ($1, 'Apartamento 404', 'privativa', 2, false),
+                   ($2, 'Sala 14', 'privativa', 1, true)
+         returning id`,
+      [organizacaoA, organizacaoB],
+    );
+    areaDeA = areas[0]!.id;
+    areaInativaDeA = areas[1]!.id;
+    areaDeB = areas[2]!.id;
+  });
+
+  /** Abre um pedido pendente da candidata em A, e devolve o id. */
+  async function pedidoPendente(): Promise<string> {
+    await consulta(`delete from vinculos where pessoa_id = $1`, [candidata]);
+    await consulta(`delete from pedidos_de_entrada where pessoa_id = $1`, [candidata]);
+    const criados = await consulta<{ id: string }>(
+      `insert into pedidos_de_entrada (organizacao_id, pessoa_id, telefone_informado)
+            values ($1, $2, '+5511988771234')
+         returning id`,
+      [organizacaoA, candidata],
+    );
+    return criados[0]!.id;
+  }
+
+  it("aprovar cria o vínculo com papel e unidade, e devolve o Vinculo", async () => {
+    const pedidoId = await pedidoPendente();
+
+    const resultado = await escopadoEm(organizacaoA).aprovar({
+      pedidoId,
+      papel: "solicitante",
+      areaId: areaDeA,
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(resultado.desfecho).toBe("aprovado");
+    if (resultado.desfecho !== "aprovado") return;
+    expect(resultado.vinculo.papel).toBe("solicitante");
+    expect(resultado.vinculo.area?.nome).toBe("Apartamento 302");
+    expect(resultado.vinculo.temConta).toBe(true);
+
+    const vinculos = await consulta<{ area_id: string | null }>(
+      `select area_id from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [candidata, organizacaoA],
+    );
+    expect(vinculos[0]?.area_id).toBe(areaDeA);
+  });
+
+  it("o pedido já decidido recusa a segunda decisão — a transição inválida", async () => {
+    const pedidoId = await pedidoPendente();
+    await escopadoEm(organizacaoA).aprovar({
+      pedidoId,
+      papel: "solicitante",
+      areaId: null,
+      decididoPorPessoaId: gestora,
+    });
+
+    const segunda = await escopadoEm(organizacaoA).recusar({
+      pedidoId,
+      observacao: "mudei de ideia",
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(segunda.desfecho).toBe("ja-decidido");
+  });
+
+  it("aprovar quem já tem vínculo devolve ja-vinculado", async () => {
+    const pedidoId = await pedidoPendente();
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [candidata, organizacaoA],
+    );
+
+    const resultado = await escopadoEm(organizacaoA).aprovar({
+      pedidoId,
+      papel: "solicitante",
+      areaId: null,
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(resultado.desfecho).toBe("ja-vinculado");
+
+    // **O `ROLLBACK` aconteceu:** o pedido continua pendente, porque as duas escritas são uma só.
+    const pedidos = await consulta<{ situacao: string }>(
+      `select situacao from pedidos_de_entrada where id = $1`,
+      [pedidoId],
+    );
+    expect(pedidos[0]?.situacao).toBe("pendente");
+  });
+
+  it("área inativa e área de outra organização dão o mesmo desfecho", async () => {
+    const primeiro = await pedidoPendente();
+    const comInativa = await escopadoEm(organizacaoA).aprovar({
+      pedidoId: primeiro,
+      papel: "solicitante",
+      areaId: areaInativaDeA,
+      decididoPorPessoaId: gestora,
+    });
+
+    const segundo = await pedidoPendente();
+    const comAreaDeB = await escopadoEm(organizacaoA).aprovar({
+      pedidoId: segundo,
+      papel: "solicitante",
+      areaId: areaDeB,
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(comInativa.desfecho).toBe("area-invalida");
+    expect(comAreaDeB.desfecho).toBe("area-invalida");
+  });
+
+  it("pedido de A é inalcançável de B — o 404 que o escopo produz", async () => {
+    const pedidoId = await pedidoPendente();
+
+    const deB = await escopadoEm(organizacaoB).recusar({
+      pedidoId,
+      observacao: null,
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(deB.desfecho).toBe("nao-encontrado");
+
+    const pedidos = await consulta<{ situacao: string }>(
+      `select situacao from pedidos_de_entrada where id = $1`,
+      [pedidoId],
+    );
+    expect(pedidos[0]?.situacao).toBe("pendente");
+  });
+
+  it("recusar guarda a observação e não cria vínculo", async () => {
+    const pedidoId = await pedidoPendente();
+
+    const resultado = await escopadoEm(organizacaoA).recusar({
+      pedidoId,
+      observacao: "Não consta na lista da administradora.",
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(resultado.desfecho).toBe("recusado");
+
+    const linhas = await consulta<{ observacao: string | null; decidido_por_pessoa_id: string }>(
+      `select observacao, decidido_por_pessoa_id from pedidos_de_entrada where id = $1`,
+      [pedidoId],
+    );
+    expect(linhas[0]?.observacao).toBe("Não consta na lista da administradora.");
+    expect(linhas[0]?.decidido_por_pessoa_id).toBe(gestora);
+
+    const vinculos = await consulta<{ total: string }>(
+      `select count(*) as total from vinculos where pessoa_id = $1`,
+      [candidata],
+    );
+    expect(Number(vinculos[0]!.total)).toBe(0);
   });
 });
