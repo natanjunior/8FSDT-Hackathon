@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
+import {
+  codificarCursor,
+  decodificarCursor,
+  projetarOcorrenciaResumo,
+  projetarPaginaDeOcorrencias,
+} from "@/interface/projecoes";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
 
 /**
@@ -170,5 +177,134 @@ describe("o critério 11.4 — a forma, com erros[] por campo", () => {
       registroDeOcorrenciaSchema.safeParse({ ...VALIDO, localizacaoComplemento: "a".repeat(201) })
         .success,
     ).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A listagem — o item 14
+ * ============================================================================
+ *
+ * **O que se prova aqui é a forma da resposta**, que é o que o contrato promete e o que a tela consome.
+ * O SQL tem teste próprio contra Postgres; a visibilidade tem teste próprio na Aplicação.
+ */
+
+const RESUMO_LIDO: OcorrenciaResumoLida = {
+  id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+  titulo: "Lâmpada queimada na garagem",
+  status: "aberta",
+  prioridade: "normal",
+  categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Problemas de iluminação" },
+  area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem", tipo: "comum" },
+  autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" },
+  responsavel: null,
+  motivoPausa: null,
+  registradaEm: "2026-08-20T13:02:11.000Z",
+  atualizadaEm: "2026-08-20T14:10:00.000Z",
+};
+
+describe("o OcorrenciaResumo projetado", () => {
+  it("traz os treze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+
+    expect(resumo.categoria).toStrictEqual({
+      id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
+      nome: "Problemas de iluminação",
+    });
+    expect(resumo.categoria).not.toHaveProperty("icone");
+    expect(resumo).not.toHaveProperty("descricao");
+    expect(resumo).not.toHaveProperty("acoesDisponiveis");
+  });
+
+  it("statusRotulo é o rótulo de gente, nunca o enum cru", () => {
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO).statusRotulo).toBe("Recebida — aguardando análise");
+  });
+
+  it("motivoPausa é nulo fora de pausada, e é o motivo dentro dela", () => {
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO).motivoPausa).toBeNull();
+
+    const pausada = projetarOcorrenciaResumo({
+      ...RESUMO_LIDO,
+      status: "pausada",
+      motivoPausa: "aguardando_peca",
+    });
+    expect(pausada.motivoPausa).toBe("aguardando_peca");
+    expect(pausada.statusRotulo).toBe("Parada — esperando material chegar");
+  });
+
+  it("quantidadeDeAnexos é 0 e responsavel é null — forçados, itens 13b e 19", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+    expect(resumo.quantidadeDeAnexos).toBe(0);
+    expect(resumo.responsavel).toBeNull();
+  });
+});
+
+describe("o envelope da página", () => {
+  it("com temMais, proximoCursor é o do ÚLTIMO item devolvido", () => {
+    const envelope = projetarPaginaDeOcorrencias({
+      itens: [RESUMO_LIDO],
+      temMais: true,
+      visibilidadeAplicada: "todas",
+    });
+
+    expect(envelope.visibilidadeAplicada).toBe("todas");
+    expect(decodificarCursor(envelope.proximoCursor!)).toStrictEqual({
+      registradaEm: RESUMO_LIDO.registradaEm,
+      id: RESUMO_LIDO.id,
+    });
+  });
+
+  it("sem temMais, proximoCursor é nulo — e nunca abre uma página vazia", () => {
+    const envelope = projetarPaginaDeOcorrencias({
+      itens: [RESUMO_LIDO],
+      temMais: false,
+      visibilidadeAplicada: "apenas_minhas",
+    });
+
+    expect(envelope.proximoCursor).toBeNull();
+  });
+
+  it("página vazia com temMais impossível: sem itens, não há cursor", () => {
+    const envelope = projetarPaginaDeOcorrencias({
+      itens: [],
+      temMais: true,
+      visibilidadeAplicada: "todas",
+    });
+
+    expect(envelope.itens).toStrictEqual([]);
+    expect(envelope.proximoCursor).toBeNull();
+  });
+
+  it("não há total no envelope — o contrato §7.7 o recusou", () => {
+    const envelope = projetarPaginaDeOcorrencias({
+      itens: [RESUMO_LIDO],
+      temMais: false,
+      visibilidadeAplicada: "todas",
+    });
+
+    expect(envelope).not.toHaveProperty("total");
+  });
+});
+
+describe("o codec do cursor", () => {
+  it("ida e volta preserva o par exato", () => {
+    const cursor = { registradaEm: "2026-08-20T13:02:11.000Z", id: RESUMO_LIDO.id };
+    expect(decodificarCursor(codificarCursor(cursor))).toStrictEqual(cursor);
+  });
+
+  it("é opaco: o valor não é o par legível", () => {
+    const codificado = codificarCursor({ registradaEm: "2026-08-20T13:02:11.000Z", id: RESUMO_LIDO.id });
+    expect(codificado).not.toContain("2026");
+    expect(codificado).not.toContain(RESUMO_LIDO.id);
+  });
+
+  it.each([
+    ["texto solto", "pagina-2"],
+    ["base64 de coisa nenhuma", Buffer.from("nada", "utf8").toString("base64url")],
+    ["data inválida", Buffer.from(`ontem|${RESUMO_LIDO.id}`, "utf8").toString("base64url")],
+    ["id que não é uuid", Buffer.from("2026-08-20T13:02:11.000Z|42", "utf8").toString("base64url")],
+    ["vazio", ""],
+  ])("recusa %s devolvendo null — quem traduz em 400 é a camada de transporte", (_nome, bruto) => {
+    expect(decodificarCursor(bruto)).toBeNull();
   });
 });
