@@ -1,3 +1,5 @@
+import { AnexoNaoEncontrado, type ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type {
   CursorDeListagem,
@@ -24,6 +26,57 @@ export async function verOcorrencia(
   const ocorrencia = await repositorio.porId(id);
   if (ocorrencia === null) throw new OcorrenciaNaoEncontrada();
   return ocorrencia;
+}
+
+/**
+ * **A visibilidade da primeira entrega, numa função só** — autor **ou** `ocorrencia.ler_todas`
+ * (`escopo.md` §3.3).
+ *
+ * Ela estava escrita duas vezes, copiada: em `app/api/ocorrencias/[ocorrenciaId]/route.ts` e em
+ * `app/ocorrencias/[ocorrenciaId]/page.tsx`. O `verOcorrencia` acima explica por que ela é **aplicada
+ * pelo handler** — é ele quem tem o `Vinculo` —, e isso justifica **onde ela é chamada**, não que ela
+ * seja escrita três vezes. Agora é uma, com três chamadores.
+ */
+export function podeLerOcorrencia(
+  lida: { autor: { pessoaId: string } },
+  quem: QuemPergunta,
+): boolean {
+  return quem.podeLerTodas || lida.autor.pessoaId === quem.pessoaId;
+}
+
+/** A representação pedida. `?variante=miniatura` é **outra representação do mesmo anexo**, não outro
+ *  recurso — e é por isso que a autorização é a mesma (contrato §10.4). */
+export type VarianteDoAnexo = "original" | "miniatura";
+
+/**
+ * `GET /ocorrencias/{id}/anexos/{anexoId}` — devolve a **URL assinada**, e o `302` é do handler.
+ *
+ * **Quatro passos, e o terceiro é o que faz a chave nunca sair:** a chave é lida, entregue ao assinador e
+ * descartada dentro desta função. Ela não volta ao chamador e não existe em tipo nenhum que alimente
+ * payload.
+ *
+ * **A autorização acontece a cada leitura** — é a ocorrência que decide quem vê, nunca a posse de um
+ * link. Por isso a mesma regra de `GET /ocorrencias/{id}` roda aqui, e a recusa é o mesmo `404`.
+ */
+export async function verAnexoDaOcorrencia(
+  repositorio: RepositorioEscopadoDeOcorrencias,
+  armazenamento: ArmazenamentoDeAnexos,
+  quem: QuemPergunta,
+  pedido: { ocorrenciaId: string; anexoId: string; variante: VarianteDoAnexo },
+): Promise<string> {
+  const ocorrencia = await repositorio.porId(pedido.ocorrenciaId);
+  if (ocorrencia === null) throw new OcorrenciaNaoEncontrada();
+  if (!podeLerOcorrencia(ocorrencia, quem)) throw new OcorrenciaNaoEncontrada();
+
+  const objeto = await repositorio.objetoDoAnexo(pedido.ocorrenciaId, pedido.anexoId);
+  if (objeto === null) throw new AnexoNaoEncontrado();
+
+  const chave = pedido.variante === "miniatura" ? objeto.thumbnailChave : objeto.chave;
+  // Miniatura ausente é `404 ANEXO_NAO_ENCONTRADO`, e não o objeto principal disfarçado de prévia —
+  // critério 13b.5 e §6.3.
+  if (chave === null) throw new AnexoNaoEncontrado();
+
+  return armazenamento.urlDeLeitura(chave);
 }
 
 /**

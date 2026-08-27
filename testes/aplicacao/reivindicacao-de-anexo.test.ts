@@ -2,12 +2,19 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   AnexoAcimaDoLimite,
+  AnexoNaoEncontrado,
   AnexoNaoReconhecido,
   type ArmazenamentoDeAnexos,
   type CargaDoTicketDeAnexo,
   type ObjetoDescrito,
 } from "@/aplicacao/anexo";
-import { reivindicarAnexo } from "@/aplicacao/ocorrencia";
+import {
+  OcorrenciaNaoEncontrada,
+  podeLerOcorrencia,
+  reivindicarAnexo,
+  verAnexoDaOcorrencia,
+  type RepositorioEscopadoDeOcorrencias,
+} from "@/aplicacao/ocorrencia";
 import { TIPO_DE_CONTEUDO_DA_MINIATURA } from "@/dominio/anexo";
 
 /**
@@ -249,5 +256,110 @@ describe("a falha ao confirmar o PRINCIPAL derruba tudo", () => {
   it("exceção na troca de etiqueta também sobe", async () => {
     cenario.confirmacaoEstoura.add(CHAVE);
     await expect(reivindicar()).rejects.toThrow();
+  });
+});
+
+describe("a leitura do anexo — o 302, e a chave que nunca sai daqui", () => {
+  const OCORRENCIA = "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8";
+  const ANEXO = "c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f";
+  const AUTOR = { pessoaId: PESSOA, nome: "Helena Rocha" };
+
+  const repositorio = (opcoes: {
+    ocorrencia?: unknown;
+    objeto?: { chave: string; thumbnailChave: string | null } | null;
+  }) =>
+    ({
+      // **`in` e não `??`**: o caso da ocorrência inalcançável injeta `null` de propósito, e o `??` o
+      // trataria como ausente — devolvendo a ocorrência padrão e provando o contrário do que o caso diz.
+      porId: async () => ("ocorrencia" in opcoes ? opcoes.ocorrencia : { id: OCORRENCIA, autor: AUTOR }),
+      objetoDoAnexo: async () => opcoes.objeto ?? null,
+    }) as unknown as RepositorioEscopadoDeOcorrencias;
+
+  const eu = { pessoaId: PESSOA, podeLerTodas: false };
+  const outro = { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", podeLerTodas: false };
+  const gestor = { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", podeLerTodas: true };
+
+  const pedido = { ocorrenciaId: OCORRENCIA, anexoId: ANEXO, variante: "original" as const };
+
+  it("o autor recebe a URL assinada do objeto principal", async () => {
+    const url = await verAnexoDaOcorrencia(
+      repositorio({ objeto: { chave: CHAVE, thumbnailChave: MINIATURA } }),
+      armazenamento(),
+      eu,
+      pedido,
+    );
+    expect(url).toBe(`https://storage.invalido/anexos/${CHAVE}?sig=falsa`);
+  });
+
+  it("`?variante=miniatura` é a MESMA operação, com a mesma autorização", async () => {
+    const url = await verAnexoDaOcorrencia(
+      repositorio({ objeto: { chave: CHAVE, thumbnailChave: MINIATURA } }),
+      armazenamento(),
+      eu,
+      { ...pedido, variante: "miniatura" },
+    );
+    expect(url).toBe(`https://storage.invalido/anexos/${MINIATURA}?sig=falsa`);
+  });
+
+  it("miniatura ausente é 404 ANEXO_NAO_ENCONTRADO, e não o objeto principal", async () => {
+    await expect(
+      verAnexoDaOcorrencia(
+        repositorio({ objeto: { chave: CHAVE, thumbnailChave: null } }),
+        armazenamento(),
+        eu,
+        { ...pedido, variante: "miniatura" },
+      ),
+    ).rejects.toBeInstanceOf(AnexoNaoEncontrado);
+  });
+
+  it("anexo que não é desta ocorrência é 404 ANEXO_NAO_ENCONTRADO", async () => {
+    await expect(
+      verAnexoDaOcorrencia(repositorio({ objeto: null }), armazenamento(), eu, pedido),
+    ).rejects.toBeInstanceOf(AnexoNaoEncontrado);
+  });
+
+  it("ocorrência inalcançável é 404 OCORRENCIA_NAO_ENCONTRADA — e nem chega a ler o anexo", async () => {
+    await expect(
+      verAnexoDaOcorrencia(repositorio({ ocorrencia: null }), armazenamento(), eu, pedido),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("quem não é autor nem Gestor recebe o MESMO 404 da ocorrência, nunca 403", async () => {
+    // §6.3: não confirmar a existência do que você não pode alcançar.
+    await expect(
+      verAnexoDaOcorrencia(
+        repositorio({ objeto: { chave: CHAVE, thumbnailChave: null } }),
+        armazenamento(),
+        outro,
+        pedido,
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("o Gestor alcança o anexo de ocorrência de que não é autor", async () => {
+    await expect(
+      verAnexoDaOcorrencia(
+        repositorio({ objeto: { chave: CHAVE, thumbnailChave: null } }),
+        armazenamento(),
+        gestor,
+        pedido,
+      ),
+    ).resolves.toContain(CHAVE);
+  });
+});
+
+describe("`podeLerOcorrencia` — a regra que estava escrita duas vezes", () => {
+  const lida = { autor: { pessoaId: PESSOA } };
+
+  it("o autor pode", () => {
+    expect(podeLerOcorrencia(lida, { pessoaId: PESSOA, podeLerTodas: false })).toBe(true);
+  });
+
+  it("quem tem `ler_todas` pode, mesmo sem ser autor", () => {
+    expect(podeLerOcorrencia(lida, { pessoaId: "outro", podeLerTodas: true })).toBe(true);
+  });
+
+  it("mais ninguém", () => {
+    expect(podeLerOcorrencia(lida, { pessoaId: "outro", podeLerTodas: false })).toBe(false);
   });
 });

@@ -18,9 +18,12 @@ export {
   LIMITE_MAXIMO,
   LIMITE_PADRAO,
   listarOcorrencias,
+  podeLerOcorrencia,
+  verAnexoDaOcorrencia,
   verOcorrencia,
   verTrilhaDeAuditoria,
   type PaginaDeOcorrencias,
   type QuemPergunta,
+  type VarianteDoAnexo,
   type VisibilidadeAplicada,
 } from "./consultas";
