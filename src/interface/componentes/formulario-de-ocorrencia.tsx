@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ControleDeFoto } from "./controle-de-foto";
+import { ControleDeFoto, type EstadoDoAnexo } from "./controle-de-foto";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { Campo } from "./moldura-de-tela";
 
@@ -39,6 +40,14 @@ import { Campo } from "./moldura-de-tela";
  * texto com `role="alert"`, nunca cor sozinha (A-5).
  */
 
+/** Os textos são os que o `inventario-de-telas.md` §10 fixou. Nenhum foi inventado aqui. */
+const ERRO_DO_ANEXO: Readonly<Record<string, string>> = {
+  ANEXO_NAO_RECONHECIDO:
+    "A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui.",
+  ANEXO_ACIMA_DO_LIMITE:
+    "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
+};
+
 type CategoriaEscolhivel = { id: string; nome: string; icone: string };
 type AreaEscolhivel = { id: string; nome: string; tipo: "comum" | "privativa" };
 
@@ -55,6 +64,11 @@ export function FormularioDeOcorrencia({
   const [falha, setFalha] = useState<string | null>(null);
   /** A categoria escolhida — so para o icone ao lado do seletor (criterio 11.6). */
   const [escolhida, setEscolhida] = useState("");
+  const [anexo, setAnexo] = useState<EstadoDoAnexo>({ nome: "vazio" });
+  /** Trocar a chave **remonta** o controle: é como ele volta a *vazio* sem um método imperativo. */
+  const [chaveDoControle, setChaveDoControle] = useState(0);
+  /** O `409`: a ocorrência que **já** tem esta foto. Presente, ele substitui o formulário inteiro. */
+  const [jaRegistrada, setJaRegistrada] = useState<string | null>(null);
 
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -64,6 +78,17 @@ export function FormularioDeOcorrencia({
 
     const dados = new FormData(evento.currentTarget);
     const complemento = String(dados.get("localizacaoComplemento") ?? "").trim();
+
+    /**
+     * **O envio espera o `PUT`.** Com o upload em voo, aguarda a promessa; pronto, usa a referência;
+     * vazio ou falhou, manda sem anexo — que é desfecho legítimo.
+     */
+    const referencia =
+      anexo.nome === "pronta"
+        ? anexo.referencia
+        : anexo.nome === "subindo"
+          ? await anexo.conclusao
+          : null;
 
     try {
       const resposta = await fetch("/api/ocorrencias", {
@@ -75,6 +100,7 @@ export function FormularioDeOcorrencia({
           categoriaId: String(dados.get("categoriaId") ?? ""),
           areaId: String(dados.get("areaId") ?? ""),
           localizacaoComplemento: complemento === "" ? null : complemento,
+          anexos: referencia === null ? null : [referencia],
         }),
       });
 
@@ -93,8 +119,40 @@ export function FormularioDeOcorrencia({
       const problema = (await resposta.json()) as {
         detail?: string;
         codigo?: string;
+        ocorrenciaId?: string;
         erros?: { campo: string; mensagem?: string }[];
       };
+
+      /**
+       * **O `409` substitui o formulário, e o critério 13b.3 é explícito sobre por quê:** ele diz que a
+       * tela *"não oferece tentar de novo nem escolher outra foto"* — e um formulário que continua na
+       * tela oferece as duas por construção, porque o botão está lá. Bloco terminal é a forma que torna o
+       * critério verdadeiro em vez de prometido.
+       *
+       * **Mostrar, e não navegar sozinho.** O quadro da S-T7 do inventário diz *"navega para a
+       * ocorrência"*; a tabela de erros do mesmo documento e o critério pedem o texto **mais** o botão.
+       * Seguimos o critério — navegar sozinho faria o texto recém-escrito desaparecer sem explicação, num
+       * caminho que a pessoa já vive como falha de rede. *(Achado A-2 da spec.)*
+       */
+      if (problema.codigo === "ANEXO_JA_REIVINDICADO" && typeof problema.ocorrenciaId === "string") {
+        setJaRegistrada(problema.ocorrenciaId);
+        return;
+      }
+
+      /**
+       * Os dois `422` do anexo são **erro de campo**, e o campo é a foto. O controle volta a *vazio* pela
+       * remontagem por `key`, e a pessoa escolhe outra foto **sem perder uma palavra do que escreveu** —
+       * que é a meia frase que o inventário chama de *"o conteúdo"*.
+       *
+       * *(A `blob:` da prévia descartada só é liberada quando a aba fecha: o controle revoga ao trocar e
+       * ao remover, não no `unmount`. Um objeto por `422`, e é achado do relatório, não desta linha.)*
+       */
+      if (problema.codigo !== undefined && problema.codigo in ERRO_DO_ANEXO) {
+        setErros({ foto: ERRO_DO_ANEXO[problema.codigo]! });
+        setAnexo({ nome: "vazio" });
+        setChaveDoControle((numero) => numero + 1);
+        return;
+      }
 
       if (problema.erros !== undefined && problema.erros.length > 0) {
         setErros(
@@ -117,11 +175,30 @@ export function FormularioDeOcorrencia({
     }
   }
 
+  if (jaRegistrada !== null) {
+    return (
+      <section
+        role="alert"
+        className="border-linha bg-superficie flex flex-col gap-3 rounded-md border px-4 py-4"
+      >
+        <p className="text-tinta text-base leading-snug">
+          Esta ocorrência já foi registrada — a foto que você anexou já está nela.
+        </p>
+        <Link
+          href={`/ocorrencias/${jaRegistrada}`}
+          className="bg-marca inline-flex min-h-11 items-center justify-center rounded-md px-4 text-base font-semibold text-white"
+        >
+          Ver a ocorrência
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
       {/* **A foto é o primeiro alvo da tela** — protótipo §2.3 e desenho D-1. O item 11 deixou este
           lugar reservado de propósito, e o 13a o preenche sem reordenar mais nada. */}
-      <ControleDeFoto />
+      <ControleDeFoto key={chaveDoControle} aoMudar={setAnexo} erro={erros.foto} />
 
       <Campo id="titulo" rotulo="Título" erro={erros.titulo}>
         <input

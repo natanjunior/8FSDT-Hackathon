@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type { OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
+import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
+  projetarAnexo,
+  projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
-import { lerCursorDaUrl, lerLimiteDaUrl } from "@/interface/http";
+import {
+  FormatoInvalido,
+  lerCursorDaUrl,
+  lerLimiteDaUrl,
+  lerVarianteDaUrl,
+} from "@/interface/http";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
@@ -201,6 +208,7 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem", tipo: "comum" },
   autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" },
   responsavel: null,
+  quantidadeDeAnexos: 0,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
@@ -235,10 +243,15 @@ describe("o OcorrenciaResumo projetado", () => {
     expect(pausada.statusRotulo).toBe("Parada — esperando material chegar");
   });
 
-  it("quantidadeDeAnexos é 0 e responsavel é null — forçados, itens 13b e 19", () => {
+  it("quantidadeDeAnexos vem do repositório; responsavel continua forçado — item 19", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
     expect(resumo.quantidadeDeAnexos).toBe(0);
     expect(resumo.responsavel).toBeNull();
+    // **A asserção que torna o caso útil.** Com o campo vindo do repositório, provar que ele sai `0`
+    // quando entra `0` não prova nada; o que prova é o REPASSE.
+    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 3 }).quantidadeDeAnexos).toBe(
+      3,
+    );
   });
 });
 
@@ -401,5 +414,163 @@ describe("o tempo relativo", () => {
   it("data ilegível não estoura a lista inteira — vira travessão", () => {
     expect(tempoRelativo("ontem", AGORA)).toBe("—");
     expect(tempoCurto("ontem", AGORA)).toBe("—");
+  });
+});
+
+/**
+ * ============================================================================
+ *  O anexo na Interface — o item 13b
+ * ============================================================================
+ */
+
+describe("o critério 13b.4 — `anexos` é lista de no máximo um", () => {
+  const base = {
+    titulo: "Lâmpada queimada na garagem",
+    descricao: "Está escuro à noite.",
+    categoriaId: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
+    areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e",
+  };
+  const referencia = { chave: "anx_01JB8Z6K9T2M4N7Q", ticket: "eyJ.qualquer" };
+
+  it("aceita a lista com um item", () => {
+    const conferido = registroDeOcorrenciaSchema.safeParse({ ...base, anexos: [referencia] });
+    expect(conferido.success).toBe(true);
+  });
+
+  it("aceita ausente e aceita `null` — o anexo é opcional em todo o contrato", () => {
+    expect(registroDeOcorrenciaSchema.safeParse(base).success).toBe(true);
+    expect(registroDeOcorrenciaSchema.safeParse({ ...base, anexos: null }).success).toBe(true);
+  });
+
+  it("recusa DOIS itens, e a recusa é de forma — 400, não 422", () => {
+    const conferido = registroDeOcorrenciaSchema.safeParse({
+      ...base,
+      anexos: [referencia, { chave: "anx_outra", ticket: "eyJ.outra" }],
+    });
+    expect(conferido.success).toBe(false);
+    // `maxItems: 1` é ESCOPO e mora no schema (contrato §8.3): é forma, não domínio.
+    expect(conferido.error!.issues[0]!.code).toBe("too_big");
+  });
+
+  it("recusa item sem `ticket`", () => {
+    const conferido = registroDeOcorrenciaSchema.safeParse({
+      ...base,
+      anexos: [{ chave: "anx_01JB8Z6K9T2M4N7Q" }],
+    });
+    expect(conferido.success).toBe(false);
+  });
+
+  it("aceita `titulo` no item — o campo é aceito e gravado, mesmo sem tela que o escreva", () => {
+    const conferido = registroDeOcorrenciaSchema.safeParse({
+      ...base,
+      anexos: [{ ...referencia, titulo: "Lâmpada da vaga 34" }],
+    });
+    expect(conferido.success).toBe(true);
+  });
+});
+
+/** Um anexo lido, do jeito que o repositório o devolve. **Sem `chave` — ela não existe neste tipo.** */
+const ANEXO_LIDO: AnexoLido = {
+  id: "c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+  tipo: "imagem",
+  titulo: null,
+  nomeArquivo: null,
+  tipoConteudo: "image/jpeg",
+  tamanhoBytes: 391_244,
+  temMiniatura: true,
+  anexadoEm: "2026-08-27T13:02:11.000Z",
+};
+
+describe("o anexo projetado — as duas URLs saem daqui, nunca do storage", () => {
+  const OCORRENCIA = "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8";
+
+  it("monta o caminho estável desta API", () => {
+    expect(projetarAnexo(OCORRENCIA, ANEXO_LIDO)).toMatchObject({
+      url: `/api/ocorrencias/${OCORRENCIA}/anexos/${ANEXO_LIDO.id}`,
+      miniaturaUrl: `/api/ocorrencias/${OCORRENCIA}/anexos/${ANEXO_LIDO.id}?variante=miniatura`,
+    });
+  });
+
+  it("sem miniatura, `miniaturaUrl` é null — e o campo continua existindo", () => {
+    expect(projetarAnexo(OCORRENCIA, { ...ANEXO_LIDO, temMiniatura: false }).miniaturaUrl).toBeNull();
+  });
+
+  it("nenhuma URL de storage aparece", () => {
+    expect(JSON.stringify(projetarAnexo(OCORRENCIA, ANEXO_LIDO))).not.toContain(
+      "blob.core.windows.net",
+    );
+  });
+});
+
+/** Quem lê, para o detalhe. Sem permissão de comando: `acoesDisponiveis` sai vazia, que é a verdade. */
+const QUEM_LE = { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", permissoes: [] };
+
+/** Um `OcorrenciaLida` com a lista de anexos que o caso pedir. */
+function umaOcorrenciaLidaCom(anexos: readonly AnexoLido[]): OcorrenciaLida {
+  return {
+    id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+    titulo: RESUMO_LIDO.titulo,
+    descricao: "Queimada faz três dias, corredor escuro.",
+    status: "aberta",
+    prioridade: "normal",
+    categoria: { ...RESUMO_LIDO.categoria, icone: "lightbulb" },
+    area: RESUMO_LIDO.area,
+    localizacaoComplemento: null,
+    anexos,
+    autor: RESUMO_LIDO.autor,
+    responsavel: null,
+    solucaoAplicada: null,
+    avaliacao: null,
+    motivoPausa: null,
+    ultimaTransicao: {
+      sequencia: 1,
+      statusAnterior: null,
+      statusNovo: "aberta",
+      ocorreuEm: RESUMO_LIDO.registradaEm,
+      autor: RESUMO_LIDO.autor,
+      observacao: null,
+      motivoPausa: null,
+      motivoCancelamento: null,
+    },
+    registradaEm: RESUMO_LIDO.registradaEm,
+    atualizadaEm: RESUMO_LIDO.atualizadaEm,
+  };
+}
+
+describe("os dois zeros forçados viram contagem de verdade", () => {
+  it("o detalhe conta os anexos que tem", () => {
+    const projetado = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([ANEXO_LIDO]), QUEM_LE);
+    expect(projetado.quantidadeDeAnexos).toBe(1);
+    expect(projetado.anexos).toHaveLength(1);
+  });
+
+  it("o resumo devolve a contagem que o repositório apurou", () => {
+    expect(
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 1 }).quantidadeDeAnexos,
+    ).toBe(1);
+  });
+
+  it("sem anexo, o detalhe traz `[]` e `0` — nunca `null`", () => {
+    const projetado = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
+    expect(projetado.anexos).toStrictEqual([]);
+    expect(projetado.quantidadeDeAnexos).toBe(0);
+  });
+});
+
+describe("`?variante=`", () => {
+  const url = (consulta: string) => new Request(`http://local/api/x${consulta}`);
+
+  it("ausente é o objeto principal", () => {
+    expect(lerVarianteDaUrl(url(""))).toBe("original");
+  });
+
+  it("`miniatura` é a prévia", () => {
+    expect(lerVarianteDaUrl(url("?variante=miniatura"))).toBe("miniatura");
+  });
+
+  it("valor fora da lista é 400, e NÃO o objeto principal em silêncio", () => {
+    // A mesma doutrina de `?ativa=` e `?situacao=`: o cliente pedindo uma coisa e recebendo outra é o
+    // que a recusa existe para impedir.
+    expect(() => lerVarianteDaUrl(url("?variante=xpto"))).toThrow(FormatoInvalido);
   });
 });

@@ -7,6 +7,8 @@ import type {
 } from "@/aplicacao/ocorrencia";
 import { comandosDisponiveis, type MotivoPausa, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
+import { projetarAnexo } from "./anexo";
+
 /**
  * ============================================================================
  *  Os rótulos exibidos — transcritos do `glossario.md` §4
@@ -84,9 +86,10 @@ export type QuemLe = {
 /**
  * O schema `OcorrenciaDetalhe`.
  *
- * **`anexos` é `[]` e `quantidadeDeAnexos` é `0` nesta fatia**, e os dois valores são forçados, não
- * escolhidos: a tabela `anexos` é do item 13b. O schema diz *"lista vazia quando não há anexo — nunca
- * `null`, para o cliente não precisar de dois caminhos de leitura"*, e a contagem *"já é a forma final"*.
+ * **`anexos` e `quantidadeDeAnexos` vêm do que o repositório leu** — desde o item 13b. O schema diz
+ * *"lista vazia quando não há anexo — nunca `null`, para o cliente não precisar de dois caminhos de
+ * leitura"*, e é o que `OcorrenciaLida.anexos` garante em tipo. A contagem é o comprimento da lista: no
+ * detalhe os anexos já vieram, e uma segunda consulta para contá-los seria trabalho por nada.
  *
  * **`acoesDisponiveis` nunca vem nula e nunca vem ausente** — o campo é `required`, e a tela que
  * renderiza exatamente esta lista precisa distinguir *"não há o que fazer"* de *"a lista não veio"*.
@@ -105,12 +108,12 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
     area: lida.area,
     autor: lida.autor,
     responsavel: lida.responsavel,
-    quantidadeDeAnexos: 0,
+    quantidadeDeAnexos: lida.anexos.length,
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
     descricao: lida.descricao,
     localizacaoComplemento: lida.localizacaoComplemento,
-    anexos: [],
+    anexos: lida.anexos.map((anexo) => projetarAnexo(lida.id, anexo)),
     solucaoAplicada: lida.solucaoAplicada,
     avaliacao: lida.avaliacao,
     ultimaTransicao: projetarTransicao(lida.ultimaTransicao),
@@ -130,8 +133,8 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
  * 14.6): o payload embute campo emprestado quando ele carrega **significado** — `area.tipo` deriva
  * visibilidade —, e ícone não carrega nenhum. T-03 cruza contra `GET /categorias`, que já o traz.
  *
- * **`quantidadeDeAnexos: 0` e `responsavel: null` são forçados**, pelos itens 13b e 19. É a mesma escolha
- * que `projetarOcorrenciaDetalhe` já faz, e pela mesma razão: `0` e `null` são a **verdade sobre o
+ * **`quantidadeDeAnexos` vem do repositório desde o item 13b** — subconsulta correlacionada, não coluna
+ * materializada. **`responsavel: null` continua forçado**, pelo item 19: `null` é a **verdade sobre o
  * produto de hoje**, não um valor de reserva.
  */
 export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
@@ -146,7 +149,7 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
     area: lida.area,
     autor: lida.autor,
     responsavel: lida.responsavel,
-    quantidadeDeAnexos: 0,
+    quantidadeDeAnexos: lida.quantidadeDeAnexos,
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
   };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { OcorrenciaNaoEncontrada, verOcorrencia } from "@/aplicacao/ocorrencia";
+import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { rotuloDePrioridade } from "@/interface/componentes/rotulos";
 import { resolverEscopoParaTela } from "@/interface/http";
@@ -55,9 +55,13 @@ export default async function Ocorrencia({
   // `pessoaId` e `vinculo`. `ResolucaoDeContexto` **nao tem `pessoaId`**: la ele mora em
   // `resolucao.sessao.pessoaId`, e `ativo` e `VinculoNaOrganizacao`, o que ainda exigiria um `!`.
   const vinculo = escopo.ctx.vinculo;
-  if (!vinculo.pode("ocorrencia.ler_todas") && lida.autor.pessoaId !== escopo.ctx.pessoaId) {
-    notFound();
-  }
+  // **A regra é uma função da Aplicação, chamada por quem tem o `Vinculo`.** Ela estava copiada aqui e
+  // em `app/api/ocorrencias/[ocorrenciaId]/route.ts`; o item 13b seria a terceira cópia.
+  const quem = {
+    pessoaId: escopo.ctx.pessoaId,
+    podeLerTodas: vinculo.pode("ocorrencia.ler_todas"),
+  };
+  if (!podeLerOcorrencia(lida, quem)) notFound();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
     pessoaId: escopo.ctx.pessoaId,
@@ -90,12 +94,47 @@ export default async function Ocorrencia({
         </dl>
       </section>
 
-      {/* **Bloco 2 · Conteúdo.** O anexo entra aqui no item 13b. */}
+      {/* **Bloco 2 · Conteúdo.** */}
       <section className="flex flex-col gap-2">
         <h2 className="text-tinta text-sm font-semibold">O que foi relatado</h2>
         <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
           {detalhe.descricao}
         </p>
+
+        {/*
+          **A foto, e ela é `div` com `background-image` — não `<img>` e não `next/image`.**
+
+          `<img>` dispara `@next/next/no-img-element`, e desativá-lo gastaria o **primeiro
+          `eslint-disable` do repositório**, que o DoD lista como um dos instrumentos que substituem o
+          revisor humano. `next/image` é pior: ele otimizaria no servidor, o que significa **os bytes do
+          anexo atravessando o contêiner da aplicação** — o que a §10.1 do contrato proíbe na única frase
+          em que ela é absoluta.
+
+          **A miniatura é a SEGUNDA camada da mesma propriedade, e isso é CSS, não JavaScript.** A
+          primeira camada cobre a segunda quando termina de carregar; até lá aparece a de ~15 KB. Sem uma
+          linha de script, e sem tornar T-05 uma ilha de cliente. Com `miniaturaUrl` nula, a declaração
+          tem uma camada só.
+
+          **`role="img"` + `aria-label` dão ao leitor de tela o que o `alt` daria** (A-5).
+
+          **Ampliar é um `<a>` em volta**, e não uma tela: *"ampliar uma foto é um gesto, não um
+          destino"* (inventário). Custa um elemento e dá o gesto.
+        */}
+        {detalhe.anexos.map((anexo) => (
+          <a key={anexo.id} href={anexo.url} target="_blank" rel="noreferrer" className="mt-1 block">
+            <div
+              role="img"
+              aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
+              className="bg-superficie border-linha h-56 w-full rounded-md border bg-cover bg-center bg-no-repeat"
+              style={{
+                backgroundImage:
+                  anexo.miniaturaUrl === null
+                    ? `url(${anexo.url})`
+                    : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
+              }}
+            />
+          </a>
+        ))}
       </section>
 
       {/* **A primeira entrada da trilha** — a prova, para quem acabou de reclamar, de que o pedido

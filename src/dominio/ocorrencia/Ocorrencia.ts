@@ -1,3 +1,4 @@
+import { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
 import { PRIORIDADE_INICIAL, type Prioridade } from "./Prioridade";
 import { RegistroDeTransicao } from "./RegistroDeTransicao";
 import { type StatusOcorrencia } from "./StatusOcorrencia";
@@ -17,6 +18,13 @@ export type DadosDeRegistro = {
   autorPessoaId: string;
   /** ISO 8601. O agregado não lê relógio — isso o torna testável sem congelar o tempo. */
   ocorreuEm: string;
+  /**
+   * As evidências reivindicadas **no ato do registro**. Ausente é lista vazia.
+   *
+   * **Chegam já apuradas**, como `areaTipo` chega: conferir ticket, ler o objeto e trocar a etiqueta é
+   * conversa com o mundo, e conversa com o mundo é do comando de aplicação, nunca do agregado.
+   */
+  anexos?: readonly DadosDeAnexo[];
 };
 
 /**
@@ -47,6 +55,7 @@ export class Ocorrencia {
     private readonly _status: StatusOcorrencia,
     private readonly _prioridade: Prioridade,
     private readonly _trilha: readonly RegistroDeTransicao[],
+    private readonly _anexos: readonly AnexoDaOcorrencia[],
   ) {}
 
   /**
@@ -74,6 +83,7 @@ export class Ocorrencia {
           autorPessoaId: dados.autorPessoaId,
         }),
       ],
+      (dados.anexos ?? []).map((anexo) => AnexoDaOcorrencia.reivindicado(anexo)),
     );
   }
 
@@ -88,6 +98,15 @@ export class Ocorrencia {
   /** **Congelada**: quem lê não consegue acrescentar registro por fora do comando (invariante 3). */
   get trilha(): readonly RegistroDeTransicao[] {
     return Object.freeze([...this._trilha]);
+  }
+
+  /**
+   * **Congelada, pela mesma razão da trilha:** quem lê não consegue pendurar anexo por fora do comando.
+   * Lista, e não `anexo | null` — a lista é a forma permanente do contrato; o teto de **um** é escopo, e
+   * mora no `maxItems: 1` do schema de entrada (contrato §8.3).
+   */
+  get anexos(): readonly AnexoDaOcorrencia[] {
+    return Object.freeze([...this._anexos]);
   }
 
   /** O registro que a resposta de todo comando devolve em `ultimaTransicao`. */

@@ -4,6 +4,7 @@
  * Regra 3 da ADR-0006: entre módulos da mesma camada, só pela superfície pública.
  */
 export {
+  TIPO_DE_CONTEUDO_DA_MINIATURA,
   TIPOS_DE_ANEXO,
   TIPOS_DE_CONTEUDO_DE_ANEXO,
   ehTipoDeConteudoDeAnexo,

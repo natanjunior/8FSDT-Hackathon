@@ -1,6 +1,7 @@
 import { listarOcorrencias, registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import {
   CampoNaoSuportado,
+  armazenamentoDeAnexos,
   comContexto,
   lerCursorDaUrl,
   lerLimiteDaUrl,
@@ -28,6 +29,11 @@ function recusarEscritosPeloServidor(corpo: unknown): void {
  * (nasce `normal`, D6) e `areaTipo` (a cópia congelada que decide a visibilidade para sempre). E uma
  * quarta, que é o requisito central do desafio: o registro de transição.
  *
+ * **E o anexo é reivindicado aqui, na mesma transação.** `anexos: [{chave, ticket}]` chega como
+ * referência a um objeto que já subiu ao storage; o servidor confere o ticket, lê o objeto, troca a
+ * etiqueta para `confirmado` e grava a terceira linha do mesmo `COMMIT`. Nenhum byte de anexo atravessa
+ * este contêiner (contrato §10.1).
+ *
  * *Permissão: `ocorrencia.registrar` — Solicitante **e** Gestor, que acumula (§4.5).*
  */
 export const POST = comContexto(
@@ -39,7 +45,14 @@ export const POST = comContexto(
     recusar: recusarEscritosPeloServidor,
   },
   async ({ ctx, repos, corpo }) => {
-    const lida = await registrarOcorrencia(repos, { pessoaId: ctx.pessoaId }, corpo);
+    const lida = await registrarOcorrencia(
+      // **`repos` mais uma porta que não é repositório escopado.** `RepositoriosEscopados` continua sem
+      // membro que não seja repositório escopado — quem junta as duas coisas é o anel externo, que é
+      // quem monta (ADR-0005).
+      { ...repos, armazenamento: armazenamentoDeAnexos() },
+      { pessoaId: ctx.pessoaId, organizacaoId: ctx.vinculo.organizacaoId },
+      corpo,
+    );
 
     return resposta(
       projetarOcorrenciaDetalhe(lida, {

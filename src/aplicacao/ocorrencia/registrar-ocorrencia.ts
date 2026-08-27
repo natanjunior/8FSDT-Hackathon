@@ -1,7 +1,9 @@
-import { Ocorrencia } from "@/dominio/ocorrencia";
+import { AnexoJaReivindicado } from "@/aplicacao/anexo";
+import { Ocorrencia, type DadosDeAnexo } from "@/dominio/ocorrencia";
 
 import { AreaInvalida, CategoriaInvalida } from "./erros";
 import type { OcorrenciaLida, PortasDoRegistro } from "./portas";
+import { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";
 
 export type EntradaDeRegistro = {
   titulo: string;
@@ -9,6 +11,8 @@ export type EntradaDeRegistro = {
   categoriaId: string;
   areaId: string;
   localizacaoComplemento?: string | null;
+  /** `maxItems: 1` é do schema de entrada; aqui a lista é a forma permanente. */
+  anexos?: readonly ReferenciaDeAnexo[] | null;
 };
 
 /**
@@ -32,7 +36,7 @@ export type EntradaDeRegistro = {
  */
 export async function registrarOcorrencia(
   portas: PortasDoRegistro,
-  ctx: { pessoaId: string; agora?: string },
+  ctx: { pessoaId: string; organizacaoId: string; agora?: string },
   entrada: EntradaDeRegistro,
 ): Promise<OcorrenciaLida> {
   // **Só as ativas**, que é o padrão de T-04 (contrato §8.1). A recusa é a mesma para inexistente e para
@@ -52,6 +56,35 @@ export async function registrarOcorrencia(
   if (area === undefined || !area.ativa) throw new AreaInvalida();
 
   const complemento = entrada.localizacaoComplemento?.trim();
+
+  // **O relógio é lido UMA vez**, e o mesmo instante carimba a ocorrência, o primeiro registro da trilha
+  // e o anexo. Três leituras diferentes de `Date.now()` produziriam um anexo anterior à própria
+  // ocorrência por milissegundos — e o modelo §6.16 declara que a ordem entre os dois é garantida pela
+  // transação, não por um `CHECK`.
+  const agora = ctx.agora ?? new Date().toISOString();
+
+  /**
+   * **A reivindicação roda AQUI, e a ordem é decisão.**
+   *
+   * Ela vem **depois** de categoria e área porque trocar a etiqueta para `confirmado` num pedido que vai
+   * levar `422 CATEGORIA_INVALIDA` produziria, de graça, o objeto órfão-confirmado que a §10.3 do
+   * contrato declara irrecuperável. E vem **antes** de a transação abrir, porque conversar com o storage
+   * dentro de um `BEGIN` seguraria uma conexão do pool pelo tempo de duas idas e voltas de rede.
+   *
+   * **Laço sequencial e não `Promise.all`, de propósito:** hoje `maxItems: 1` garante um elemento, e no
+   * dia do segundo anexo reivindicar em paralelo faria duas falhas concorrerem para decidir qual erro
+   * sobe. O laço mantém a primeira recusa sendo a que responde.
+   */
+  const anexos: DadosDeAnexo[] = [];
+  for (const referencia of entrada.anexos ?? []) {
+    anexos.push(
+      await reivindicarAnexo(
+        portas.armazenamento,
+        { organizacaoId: ctx.organizacaoId, pessoaId: ctx.pessoaId, agora },
+        referencia,
+      ),
+    );
+  }
 
   /**
    * **O agregado é a porta, e é aqui que ele é atravessado.**
@@ -73,8 +106,18 @@ export async function registrarOcorrencia(
     autorPessoaId: ctx.pessoaId,
     // O agregado não lê relógio — isso o torna testável sem congelar o tempo. Quem informa o instante é
     // este comando; o banco carimba `ocorreu_em` com o mesmo valor.
-    ocorreuEm: ctx.agora ?? new Date().toISOString(),
+    ocorreuEm: agora,
+    anexos,
   });
 
-  return portas.ocorrencias.registrar(agregado);
+  const resultado = await portas.ocorrencias.registrar(agregado);
+
+  // **A segunda porta de entrada do `409`.** A primeira é a corrida entre dois reenvios simultâneos, que
+  // passam os dois pela conferência 5 e chegam juntos ao `INSERT`; a segunda é o reenvio da S-T7. As
+  // duas chegam aqui como o mesmo desfecho, e é o `UNIQUE (chave)` que as separa do caminho feliz.
+  if (resultado.desfecho === "anexo-ja-reivindicado") {
+    throw new AnexoJaReivindicado(resultado.ocorrenciaId);
+  }
+
+  return resultado.ocorrencia;
 }

@@ -5,10 +5,14 @@
  * fechada da §4.4 do contrato** — ver `eslint.config.mjs`. É a lista enumerável da ADR-0003 virada
  * mecanismo, em vez de comentário.
  *
- * **`portasDeAnexo` é a segunda lista fechada**, com um arquivo só, e as duas são independentes: nenhum
- * dos quatro da §4.4 pode importá-la, e o `route.ts` do anexo não pode importar `semOrganizacao`.
+ * **São TRÊS listas fechadas, e as três são independentes.** `portasDeAnexo` é a segunda, com um arquivo
+ * só — o que emite credencial de upload. `armazenamentoDeAnexos` é a terceira, com dois: os que
+ * reivindicam e os que leem anexo. Independentes quer dizer que nenhum bloco do lint herda a folga de
+ * outro: os quatro da §4.4 não podem importar as duas de anexo, quem emite credencial não pode importar
+ * `semOrganizacao` nem `armazenamentoDeAnexos`, e quem lê anexo não pode emitir credencial.
  */
 export { portasDeAnexo } from "./portas-de-anexo";
+export { armazenamentoDeAnexos } from "./armazenamento-de-anexos";
 
 export {
   armazenamentoDeCookies,
@@ -49,4 +53,10 @@ export {
 
 export { novoTraceId } from "./traco";
 
-export { lerBooleanoDaUrl, lerCursorDaUrl, lerLimiteDaUrl, lerSituacoesDaUrl } from "./consulta-de-url";
+export {
+  lerBooleanoDaUrl,
+  lerCursorDaUrl,
+  lerLimiteDaUrl,
+  lerSituacoesDaUrl,
+  lerVarianteDaUrl,
+} from "./consulta-de-url";

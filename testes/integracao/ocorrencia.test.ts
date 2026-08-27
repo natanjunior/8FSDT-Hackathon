@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
@@ -38,6 +39,23 @@ let pessoaId: string;
 let categoriaId: string;
 let areaId: string;
 
+/** **Nunca chamada aqui**: nenhum caso deste arquivo registra com anexo, e a porta só é tocada dentro
+ *  do laço de `entrada.anexos`. Estourar é o ponto — ver o comentário do passo. */
+const SEM_ANEXO = {
+  conferirTicket: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  descrever: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  marcarConfirmado: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  urlDeLeitura: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+} as unknown as ArmazenamentoDeAnexos;
+
 function portas() {
   const consulta = escoparConsulta(criarConsulta(), organizacaoId);
   return {
@@ -47,6 +65,7 @@ function portas() {
     ),
     categorias: repositorioEscopadoDeCategorias(consulta),
     areas: repositorioEscopadoDeAreas(consulta),
+    armazenamento: SEM_ANEXO,
   };
 }
 
@@ -105,7 +124,7 @@ describe("o registro contra Postgres", () => {
   it("grava ocorrência E primeiro registro no mesmo COMMIT", async () => {
     const lida = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: "Lâmpada queimada na garagem",
         descricao: "Queimada faz três dias, corredor escuro.",
@@ -130,7 +149,7 @@ describe("o registro contra Postgres", () => {
   it("a trilha da ocorrência recém-criada tem EXATAMENTE um registro, com os cinco campos", async () => {
     const lida = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: "Infiltração na parede",
         descricao: "Mancha crescendo depois da chuva.",
@@ -155,7 +174,7 @@ describe("o registro contra Postgres", () => {
   it("area_tipo é gravado como cópia congelada, e reclassificar a Área não o muda", async () => {
     const lida = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: "Portão emperrado",
         descricao: "Não fecha sozinho.",
@@ -178,7 +197,7 @@ describe("o que o banco recusa", () => {
   it("um segundo registro com status_anterior nulo viola o CHECK de P1", async () => {
     const lida = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: "Lixeira quebrada",
         descricao: "Tampa solta.",
@@ -206,7 +225,7 @@ describe("o que o banco recusa", () => {
   it("o gatilho append-only recusa update e delete na trilha (ADR-0001)", async () => {
     const lida = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: "Corrimão solto",
         descricao: "Balança ao apoiar.",
@@ -256,7 +275,7 @@ describe("a listagem paginada por cursor", () => {
     for (const titulo of ["Primeira", "Segunda", "Terceira"]) {
       const lida = await registrarOcorrencia(
         portas(),
-        { pessoaId },
+        { pessoaId, organizacaoId },
         {
           titulo: `${titulo} ${SUFIXO}`,
           descricao: "Descrição suficiente para o CHECK de texto.",
@@ -300,7 +319,7 @@ describe("a listagem paginada por cursor", () => {
     // A intrusa entra no topo da lista, depois de a página 1 já ter sido lida.
     const intrusa = await registrarOcorrencia(
       portas(),
-      { pessoaId },
+      { pessoaId, organizacaoId },
       {
         titulo: `Intrusa ${SUFIXO}`,
         descricao: "Registrada entre a página 1 e a 2.",

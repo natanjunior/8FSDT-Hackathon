@@ -1,7 +1,8 @@
-import type { PortasDeAnexo } from "@/aplicacao/anexo";
+import type { ArmazenamentoDeAnexos, PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
 import {
+  criarArmazenamentoDeAnexos,
   criarAutenticacao,
   criarConsulta,
   criarCredenciais,
@@ -99,6 +100,22 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
   };
+}
+
+/**
+ * A porta de leitura e etiqueta do anexo.
+ *
+ * **Separada de `montarPortasDeAnexo`, e a separação é a decisão** (spec §3.5): aquela entrega o emissor
+ * de **SAS de escrita** e o livro-caixa das 30/h; esta lê objeto, troca etiqueta e assina **SAS de
+ * leitura**. Fundi-las daria ao endpoint de leitura o poder de emitir crédito de upload — precisão
+ * perdida por economia de quinze linhas.
+ *
+ * **Ela também não é escopada**, pelo mesmo motivo da outra: o adaptador não conhece organização. Quem
+ * amarra o escopo é o ticket, na escrita, e a linha de `anexos` lida pelo repositório escopado, na
+ * leitura. Por isso ela não entra em `RepositoriosEscopados`.
+ */
+export function montarArmazenamentoDeAnexos(): ArmazenamentoDeAnexos {
+  return criarArmazenamentoDeAnexos();
 }
 
 /**

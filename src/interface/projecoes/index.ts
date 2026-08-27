@@ -35,4 +35,4 @@ export {
 
 export { projetarVinculo, type VinculoProjetado } from "./vinculo";
 
-export { projetarAutorizacaoDeUpload } from "./anexo";
+export { projetarAnexo, projetarAutorizacaoDeUpload, type AnexoProjetado } from "./anexo";
