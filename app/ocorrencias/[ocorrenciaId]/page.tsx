@@ -5,7 +5,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { rotuloDePrioridade } from "@/interface/componentes/rotulos";
-import { resolverEscopoParaTela } from "@/interface/http";
+import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
 /**
@@ -23,10 +23,40 @@ import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * **O `de=` é reconstruído, nunca repassado cru** — item 15, critério 15.3.
+ *
+ * Ele vem de uma URL que qualquer pessoa pode ter editado. Passar a *query string* adiante sem olhar seria
+ * confiar em texto de fora; em vez disso ela atravessa a **mesma** leitura que a lista usa, e só os quatro
+ * parâmetros conhecidos voltam para o endereço. Filtro estragado no `de=` degrada para o *Voltar* limpo —
+ * a lista sem recorte —, que é o pior caso aceitável.
+ *
+ * **`catch {}` sem tipo é o único caminho honesto aqui**, e não é engolir erro: qualquer coisa que a
+ * leitura recuse é lixo vindo de fora, e a resposta certa é a lista inteira — não uma tela de erro em
+ * T-05, que é a tela que precisa abrir para quem recebeu o link por mensagem.
+ */
+function destinoDeVolta(de: string | undefined): string {
+  if (de === undefined || de === "") return "/ocorrencias";
+  try {
+    const filtro = lerFiltroDeOcorrenciasDaUrl(new URLSearchParams(de));
+    const consulta = new URLSearchParams();
+    if (filtro.status !== undefined) consulta.set("status", filtro.status.join(","));
+    if (filtro.categoriaId !== undefined) consulta.set("categoriaId", filtro.categoriaId.join(","));
+    if (filtro.prioridade !== undefined) consulta.set("prioridade", filtro.prioridade.join(","));
+    if (filtro.apenasDoAutor === true) consulta.set("autor", "eu");
+    const texto = consulta.toString();
+    return texto === "" ? "/ocorrencias" : `/ocorrencias?${texto}`;
+  } catch {
+    return "/ocorrencias";
+  }
+}
+
 export default async function Ocorrencia({
   params,
+  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -40,6 +70,9 @@ export default async function Ocorrencia({
   if (escopo.situacao === "sem-permissao") redirect("/");
 
   const { ocorrenciaId } = await params;
+
+  const parametros = await searchParams;
+  const voltarPara = destinoDeVolta(typeof parametros.de === "string" ? parametros.de : undefined);
 
   let lida;
   try {
@@ -123,7 +156,7 @@ export default async function Ocorrencia({
         </p>
       )}
 
-      <Link href="/ocorrencias" className="text-marca py-1 text-sm underline underline-offset-4">
+      <Link href={voltarPara} className="text-marca py-1 text-sm underline underline-offset-4">
         Voltar
       </Link>
     </MolduraDeTela>

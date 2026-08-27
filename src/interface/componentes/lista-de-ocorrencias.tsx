@@ -109,7 +109,27 @@ export function ListaDeOcorrencias({
     }
   }
 
-  const comum = { iconePorCategoria, mostrarPrioridade, agora };
+  /**
+   * **O recorte viaja com o link, e só quando existe** — a metade do critério 15.3 que fala do *Voltar*.
+   *
+   * Um `<Link href="/ocorrencias">` estático em T-05 devolveria a lista **do zero**: o gesto de voltar do
+   * sistema preserva a URL, o **controle da tela** não. Com `?de=`, T-05 sabe para onde voltar mesmo quem
+   * abriu o link numa aba nova, sem histórico — que é a condição que o critério 11.7 impõe ao endereço.
+   *
+   * **Sem filtro, o endereço não ganha nada:** `/ocorrencias/{id}` continua limpo, e é ele que se
+   * compartilha. Quem copia a URL no meio de uma triagem filtrada leva `?de=` junto — inútil para quem
+   * recebe, e inofensivo: T-05 não a usa para mais nada.
+   *
+   * **Montado aqui, e não recebido pronto da página.** O plano previa `destinoDoItem` descendo como
+   * propriedade, mas este é um Client Component e **função não atravessa a fronteira do servidor**. A
+   * regra é a mesma; a peça que atravessa é `consultaAtual`, que é texto.
+   */
+  const destinoDoItem = (id: string) =>
+    consultaAtual === ""
+      ? `/ocorrencias/${id}`
+      : `/ocorrencias/${id}?de=${encodeURIComponent(consultaAtual)}`;
+
+  const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora };
 
   return (
     <div className="flex flex-col gap-4">
@@ -152,6 +172,8 @@ export function ListaDeOcorrencias({
 
 type PropsDoItem = {
   item: OcorrenciaResumoProjetada;
+  /** O endereço de T-05 **com o recorte de origem**, quando há um. */
+  destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
   agora: number;
@@ -162,11 +184,11 @@ type PropsDoItem = {
  * *"o que aconteceu com o meu pedido?"*. Sem prioridade: é decisão do Gestor, e não há nada que o
  * Solicitante faça com ela.
  */
-function CartaoDoSolicitante({ item, iconePorCategoria, agora }: PropsDoItem) {
+function CartaoDoSolicitante({ item, destinoDoItem, iconePorCategoria, agora }: PropsDoItem) {
   return (
     <li>
       <Link
-        href={`/ocorrencias/${item.id}`}
+        href={destinoDoItem(item.id)}
         className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
       >
         <span className="text-tinta text-sm font-semibold">{item.statusRotulo}</span>
@@ -196,11 +218,11 @@ function CartaoDoSolicitante({ item, iconePorCategoria, agora }: PropsDoItem) {
  * categoria é a dimensão pela qual o Gestor **recorta**, não a que ele **compara**. O critério 14.6 vale
  * nos recortes que exibem o nome — *"ao lado do nome, nunca no lugar dele"* é regra que se autolimita.
  */
-function CartaoDeTriagem({ item, mostrarPrioridade, agora }: PropsDoItem) {
+function CartaoDeTriagem({ item, destinoDoItem, mostrarPrioridade, agora }: PropsDoItem) {
   return (
     <li>
       <Link
-        href={`/ocorrencias/${item.id}`}
+        href={destinoDoItem(item.id)}
         className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
       >
         <span className="flex items-baseline justify-between gap-3">
@@ -239,11 +261,13 @@ function CartaoDeTriagem({ item, mostrarPrioridade, agora }: PropsDoItem) {
  */
 function TabelaDeTriagem({
   itens,
+  destinoDoItem,
   iconePorCategoria,
   mostrarPrioridade,
   agora,
 }: {
   itens: readonly OcorrenciaResumoProjetada[];
+  destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
   agora: number;
@@ -288,7 +312,7 @@ function TabelaDeTriagem({
               </td>
               <td className="py-3 pr-3">
                 <Link
-                  href={`/ocorrencias/${item.id}`}
+                  href={destinoDoItem(item.id)}
                   className="text-tinta font-medium underline-offset-4 hover:underline"
                 >
                   {item.titulo}
