@@ -1,4 +1,6 @@
+import { LIMITE_MAXIMO, type CursorDeListagem } from "@/aplicacao/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
+import { decodificarCursor } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -50,4 +52,55 @@ export function lerSituacoesDaUrl(requisicao: Request): readonly SituacaoDoPedid
   }
 
   return pedidas as readonly SituacaoDoPedido[];
+}
+
+/**
+ * Lê `?limite=` — `undefined` quando ausente.
+ *
+ * **O padrão de 20 não mora aqui**, pela mesma razão do `?ativa=` e do `?situacao=` acima: *"quem decide
+ * o que acontece quando ninguém pede nada é a camada de Aplicação"*. Aqui só se traduz e se recusa.
+ *
+ * **A faixa é a do contrato** (`openapi.yaml`, parâmetro `Limite`: `minimum: 1, maximum: 100`). Valor
+ * fora dela é `400` — e não um valor "ajustado" em silêncio, que devolveria uma página de tamanho
+ * diferente do pedido sem dizer nada.
+ */
+export function lerLimiteDaUrl(requisicao: Request): number | undefined {
+  const bruto = new URL(requisicao.url).searchParams.get("limite");
+  if (bruto === null || bruto === "") return undefined;
+
+  const numero = Number(bruto);
+  // `Number("20.5")` é 20.5 e `Number("1e2")` é 100 — os dois passam num `Number.isFinite`, e nenhum é
+  // o que a pessoa escreveu. `/^\d+$/` é o que separa "o inteiro 20" de "algo que vira 20".
+  if (!/^\d+$/u.test(bruto) || !Number.isInteger(numero) || numero < 1 || numero > LIMITE_MAXIMO) {
+    throw new FormatoInvalido([
+      { campo: "limite", codigo: "VALOR_INVALIDO", mensagem: "Use um inteiro de 1 a 100." },
+    ]);
+  }
+
+  return numero;
+}
+
+/**
+ * Lê `?cursor=` — `null` quando ausente.
+ *
+ * **Cursor ilegível é `400`, nunca a primeira página.** Responder o começo da lista a quem pediu a
+ * terceira página é o cliente pedindo uma coisa e recebendo outra em silêncio — e num *"Carregar mais"*
+ * isso vira a lista repetindo os mesmos vinte itens para sempre, sem nenhum sinal de erro.
+ */
+export function lerCursorDaUrl(requisicao: Request): CursorDeListagem | null {
+  const bruto = new URL(requisicao.url).searchParams.get("cursor");
+  if (bruto === null || bruto === "") return null;
+
+  const cursor = decodificarCursor(bruto);
+  if (cursor === null) {
+    throw new FormatoInvalido([
+      {
+        campo: "cursor",
+        codigo: "VALOR_INVALIDO",
+        mensagem: "Cursor inválido — use o proximoCursor devolvido pela página anterior.",
+      },
+    ]);
+  }
+
+  return cursor;
 }

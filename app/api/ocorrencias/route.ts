@@ -1,6 +1,12 @@
-import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
-import { CampoNaoSuportado, comContexto, resposta } from "@/interface/http";
-import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
+import { listarOcorrencias, registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import {
+  CampoNaoSuportado,
+  comContexto,
+  lerCursorDaUrl,
+  lerLimiteDaUrl,
+  resposta,
+} from "@/interface/http";
+import { projetarOcorrenciaDetalhe, projetarPaginaDeOcorrencias } from "@/interface/projecoes";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
 
 /**
@@ -44,5 +50,26 @@ export const POST = comContexto(
     );
   },
 );
+
+/**
+ * **`GET /ocorrencias`** — a mesma URL, conjuntos diferentes conforme quem pergunta (contrato §8.5).
+ *
+ * **A permissão exigida é `ocorrencia.ler_propria`, e não é engano.** O contrato diz *"`ler_todas` **ou**
+ * `ler_propria`"*, e `comContexto` aceita **uma**. Não há caso a resolver: o Gestor **acumula** as do
+ * Solicitante (§4.5), então `ler_propria` é verdadeira para os dois papéis que leem, e falsa só para o
+ * `encarregado` — que é justamente quem tem de levar `403`. Qual dos dois conjuntos volta é decidido
+ * **depois**, por `ler_todas`, e sai declarado em `visibilidadeAplicada`.
+ *
+ * *Capacidades: listar todas da organização · `ENUNCIADO · aberto` (G1).*
+ */
+export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx, repos, requisicao }) => {
+  const pagina = await listarOcorrencias(
+    repos.ocorrencias,
+    { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") },
+    { limite: lerLimiteDaUrl(requisicao), cursor: lerCursorDaUrl(requisicao) },
+  );
+
+  return projetarPaginaDeOcorrencias(pagina);
+});
 
 export const dynamic = "force-dynamic";

@@ -7,6 +7,7 @@ import {
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
+import { lerCursorDaUrl, lerLimiteDaUrl } from "@/interface/http";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
 
 /**
@@ -306,5 +307,51 @@ describe("o codec do cursor", () => {
     ["vazio", ""],
   ])("recusa %s devolvendo null — quem traduz em 400 é a camada de transporte", (_nome, bruto) => {
     expect(decodificarCursor(bruto)).toBeNull();
+  });
+});
+
+/**
+ * **Traduzir HTTP é a única coisa que esta camada faz** (arquitetura.md §5), e o padrão — *"20 quando
+ * ninguém pede"* — **não** mora aqui: quem sabe o que acontece quando ninguém pede nada é a Aplicação. É
+ * a mesma divisão de `?ativa=` e `?situacao=`, logo acima neste arquivo.
+ */
+const pedido = (consulta: string) => new Request(`https://resolveai.app/api/ocorrencias${consulta}`);
+
+describe("os dois parâmetros de GET /ocorrencias", () => {
+  it("limite ausente é undefined — o padrão é da Aplicação, não daqui", () => {
+    expect(lerLimiteDaUrl(pedido(""))).toBeUndefined();
+    expect(lerLimiteDaUrl(pedido("?limite="))).toBeUndefined();
+  });
+
+  it("limite dentro da faixa vira número", () => {
+    expect(lerLimiteDaUrl(pedido("?limite=1"))).toBe(1);
+    expect(lerLimiteDaUrl(pedido("?limite=100"))).toBe(100);
+  });
+
+  it.each(["0", "101", "-3", "20.5", "vinte", "1e2"])(
+    "limite=%s é recusado em voz alta, nunca corrigido em silêncio",
+    (valor) => {
+      expect(() => lerLimiteDaUrl(pedido(`?limite=${valor}`))).toThrowError(/FORMATO_INVALIDO|inválid/iu);
+    },
+  );
+
+  it("cursor ausente é null", () => {
+    expect(lerCursorDaUrl(pedido(""))).toBeNull();
+  });
+
+  it("cursor legível volta como par", () => {
+    const codificado = codificarCursor({
+      registradaEm: "2026-08-20T13:02:11.000Z",
+      id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+    });
+
+    expect(lerCursorDaUrl(pedido(`?cursor=${encodeURIComponent(codificado)}`))).toStrictEqual({
+      registradaEm: "2026-08-20T13:02:11.000Z",
+      id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+    });
+  });
+
+  it("cursor ilegível é 400, não a primeira página", () => {
+    expect(() => lerCursorDaUrl(pedido("?cursor=pagina-2"))).toThrowError(/FORMATO_INVALIDO|inválid/iu);
   });
 });
