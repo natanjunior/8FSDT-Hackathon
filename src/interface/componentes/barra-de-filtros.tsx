@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 
@@ -141,12 +142,12 @@ export function BarraDeFiltros({
       )}
 
       {algumLigado && (
-        <a
+        <Link
           href={caminho}
           className="text-marca ml-auto px-2 py-1 text-sm underline underline-offset-4"
         >
           Limpar filtros
-        </a>
+        </Link>
       )}
 
       {/*

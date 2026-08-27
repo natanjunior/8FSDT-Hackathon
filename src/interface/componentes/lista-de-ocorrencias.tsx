@@ -35,6 +35,13 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  */
 type Props = {
   primeiraPagina: PaginaDeOcorrenciasProjetada;
+  /**
+   * A *query string* de T-03, crua — o recorte que definiu esta lista. Vazia quando não há filtro.
+   *
+   * **Obrigatória de propósito** (item 15): opcional, um esquecimento em quem monta a lista faz o
+   * *Carregar mais* voltar a perder o filtro em silêncio, e o compilador deixa de ser a garantia.
+   */
+  consultaAtual: string;
   /** `categoriaId → nome do ícone`, cruzado **no cliente** contra `GET /categorias` (critério 14.6). */
   iconePorCategoria: Readonly<Record<string, string>>;
   /**
@@ -51,6 +58,7 @@ type Props = {
 
 export function ListaDeOcorrencias({
   primeiraPagina,
+  consultaAtual,
   iconePorCategoria,
   mostrarPrioridade,
   agora,
@@ -71,7 +79,20 @@ export function ListaDeOcorrencias({
     setFalha(null);
 
     try {
-      const resposta = await fetch(`/api/ocorrencias?cursor=${encodeURIComponent(cursor)}`);
+      /**
+       * **A consulta atual MAIS o cursor, nunca o cursor sozinho** — §3.7 da spec do item 15.
+       *
+       * O `proximoCursor` é uma posição **dentro de um conjunto**; pedi-lo sem o recorte que definiu esse
+       * conjunto devolve a página seguinte de *outra* lista. Anexada à que já está na tela, ela mistura
+       * dois conjuntos sem nenhum aviso — e a pessoa lê como dado, não como defeito.
+       *
+       * `consultaAtual` já vem sem `cursor`: quem a monta é a página, a partir dos `searchParams`, e toda
+       * mudança de filtro apaga o cursor antes de navegar. Se ainda vier um — link colado com cursor na
+       * URL —, o `set` abaixo o sobrescreve, que é o comportamento certo.
+       */
+      const destino = new URLSearchParams(consultaAtual);
+      destino.set("cursor", cursor);
+      const resposta = await fetch(`/api/ocorrencias?${destino.toString()}`);
 
       if (!resposta.ok) {
         setFalha("Não foi possível carregar mais agora. Tente de novo.");
