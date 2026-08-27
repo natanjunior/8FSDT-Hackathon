@@ -77,7 +77,7 @@ const repoDeOcorrencias = () =>
     },
     porId: async () => null,
     trilha: async () => [],
-  }) as RepositorioEscopadoDeOcorrencias;
+  }) as unknown as RepositorioEscopadoDeOcorrencias;
 
 /** `agora` fixo: o comando não lê relógio quando quem chama informa o instante. */
 const CTX = { pessoaId: ID_PESSOA, agora: "2026-08-25T13:02:11.000Z" };
