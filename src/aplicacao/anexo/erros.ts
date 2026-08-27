@@ -66,3 +66,26 @@ export class AnexoNaoEncontrado extends ErroDeDominio {
     super("ANEXO_NAO_ENCONTRADO", "Anexo não encontrado", "Este anexo não existe nesta ocorrência.");
   }
 }
+
+/**
+ * `409 ANEXO_JA_REIVINDICADO` — o objeto **já** está anexado a uma ocorrência.
+ *
+ * **Ele vem do `UNIQUE (chave)` de `anexos`, e é idempotência parcial ganha de graça** (contrato §10.3):
+ * o caminho normal é o reenvio da S-T7 — o `POST` comitou, a resposta se perdeu, e a tela reenviou a
+ * mesma `chave` para a foto não subir duas vezes. Antes desta restrição isso criava, em silêncio, uma
+ * segunda ocorrência apontando para a mesma foto.
+ *
+ * **`ocorrenciaId` é o conteúdo do erro**, e é seguro devolvê-lo: o ticket amarra a chave a quem pediu,
+ * então quem recebe este erro é o próprio autor. Ele viaja em `extensoes`, que é onde um erro de domínio
+ * carrega dado, e a camada de Interface o copia para o corpo do `problem+json`.
+ */
+export class AnexoJaReivindicado extends ErroDeDominio {
+  constructor(ocorrenciaId: string) {
+    super(
+      "ANEXO_JA_REIVINDICADO",
+      "Este anexo já foi registrado",
+      "Este arquivo já está anexado a uma ocorrência.",
+      { ocorrenciaId },
+    );
+  }
+}

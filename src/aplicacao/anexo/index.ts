@@ -1,6 +1,7 @@
 /** Superfície pública do módulo `aplicacao/anexo`. */
 export {
   AnexoAcimaDoLimite,
+  AnexoJaReivindicado,
   AnexoNaoEncontrado,
   AnexoNaoReconhecido,
   LimiteDeAutorizacoesDeUpload,

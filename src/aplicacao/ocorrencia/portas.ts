@@ -1,3 +1,5 @@
+import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+import type { TipoDeAnexo } from "@/dominio/anexo";
 import type {
   Comando,
   MotivoCancelamento,
@@ -25,6 +27,26 @@ export type TransicaoLida = {
 };
 
 /**
+ * Um anexo, do jeito que a leitura o devolve — o schema `Anexo` do contrato, menos as URLs.
+ *
+ * **Repare no que NÃO está aqui: `chave` e `thumbnail_chave`.** *"A chave nunca sai"* (modelo §2.8) deixa
+ * de ser disciplina e passa a ser **tipo**: não há como vazá-la em payload porque o objeto que alimenta
+ * todo payload não a tem. Quem precisa dela é uma leitura só — `objetoDoAnexo`, do `302` —, e ela devolve
+ * um tipo estreito que não serve para mais nada.
+ */
+export type AnexoLido = {
+  id: string;
+  tipo: TipoDeAnexo;
+  titulo: string | null;
+  nomeArquivo: string | null;
+  tipoConteudo: string;
+  tamanhoBytes: number;
+  /** Se há prévia. **A projeção monta a URL; ela não precisa da chave para isso.** */
+  temMiniatura: boolean;
+  anexadoEm: string;
+};
+
+/**
  * O modelo de leitura da ocorrência.
  *
  * **Não é a linha do banco, e não é o agregado.** É o que o repositório tem permissão de devolver
@@ -42,6 +64,8 @@ export type OcorrenciaLida = {
   /** O `tipo` aqui é o **congelado no registro**, não o atual da Área (modelo §7.5). */
   area: { id: string; nome: string; tipo: TipoDeAreaCongelado };
   localizacaoComplemento: string | null;
+  /** Da mais antiga para a mais recente. **Lista vazia quando não há anexo, nunca `null`.** */
+  anexos: readonly AnexoLido[];
   autor: PessoaReferencia;
   /** Sempre `null` nesta fatia: `atribuicoes` é do item 19. */
   responsavel: PessoaReferencia | null;
@@ -77,6 +101,13 @@ export type OcorrenciaResumoLida = {
   autor: PessoaReferencia;
   /** Sempre `null` nesta fatia: `atribuicoes` é o item 19. */
   responsavel: PessoaReferencia | null;
+  /**
+   * **Contagem, não lista** (contrato §8.8) — a tela só precisa da marca *"com foto"*. Vem de
+   * subconsulta correlacionada contra o índice `(organizacao_id, ocorrencia_id)`; `ocorrencias
+   * .total_anexos` foi recusada pelo critério da §7.1 do modelo: desnormaliza-se o que é **filtrado ou
+   * ordenado**, nunca o que é só projetado.
+   */
+  quantidadeDeAnexos: number;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;
@@ -104,6 +135,15 @@ export type FiltroDeListagem = {
   cursor: CursorDeListagem | null;
 };
 
+/**
+ * O que o registro pode dar. **Desfecho, não exceção** — é o idioma que `categorias-escopadas.ts` já usa
+ * para o nome duplicado, e ele existe porque traduzir código de banco em erro de domínio é decisão de
+ * Aplicação, não de repositório.
+ */
+export type ResultadoDoRegistro =
+  | { desfecho: "registrada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "anexo-ja-reivindicado"; ocorrenciaId: string };
+
 export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Recebe o agregado, não um DTO — e a diferença é a invariante 1.**
@@ -117,9 +157,20 @@ export interface RepositorioEscopadoDeOcorrencias {
    * **Ocorrência + registro num `COMMIT` só**, que é a invariante 2, e é a razão de esta porta receber a
    * transação escopada e não só a consulta.
    */
-  registrar(ocorrencia: Ocorrencia): Promise<OcorrenciaLida>;
+  registrar(ocorrencia: Ocorrencia): Promise<ResultadoDoRegistro>;
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;
+
+  /**
+   * **A única leitura do produto que devolve `chave`, e ela devolve só isso.**
+   *
+   * Existe para o `302` de `GET /ocorrencias/{id}/anexos/{anexoId}` assinar a SAS. `null` quando o anexo
+   * não existe **ou não é desta ocorrência** — os dois casos dão o mesmo `404`, pela §6.3.
+   */
+  objetoDoAnexo(
+    ocorrenciaId: string,
+    anexoId: string,
+  ): Promise<{ chave: string; thumbnailChave: string | null } | null>;
   /**
    * Uma página da listagem, em `registrada_em DESC, id DESC`.
    *
@@ -145,6 +196,12 @@ export type PortasDoRegistro = {
       readonly { id: string; ativa: boolean; tipo: TipoDeAreaCongelado }[]
     >;
   };
+  /**
+   * **Não é repositório escopado, e por isso não está em `RepositoriosEscopados`.** O adaptador não
+   * conhece organização: quem amarra o escopo é o ticket. Quem o entrega ao comando é o `route.ts`,
+   * pela terceira lista fechada do lint.
+   */
+  armazenamento: ArmazenamentoDeAnexos;
 };
 
 export type { Comando };

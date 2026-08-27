@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
@@ -76,6 +77,23 @@ let idDaOcorrenciaEmB: string;
  * abriria um segundo pool e exigiria um import novo. `criarTransacao()` continua sendo o cliente de
  * producao, que e o que as entradas de `GET /pedidos-de-entrada` e `GET /vinculos` ja fazem.
  */
+/** **Nunca chamada aqui**: nenhum caso deste arquivo registra com anexo, e a porta só é tocada dentro
+ *  do laço de `entrada.anexos`. Estourar é o ponto. */
+const SEM_ANEXO = {
+  conferirTicket: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  descrever: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  marcarConfirmado: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+  urlDeLeitura: () => {
+    throw new Error("Este arquivo não registra com anexo.");
+  },
+} as unknown as ArmazenamentoDeAnexos;
+
 function portasDe(organizacaoId: string) {
   const escopada = escoparConsulta(consulta, organizacaoId);
   return {
@@ -85,6 +103,7 @@ function portasDe(organizacaoId: string) {
     ),
     categorias: repositorioEscopadoDeCategorias(escopada),
     areas: repositorioEscopadoDeAreas(escopada),
+    armazenamento: SEM_ANEXO,
   };
 }
 
@@ -120,7 +139,7 @@ beforeAll(async () => {
 
     const lida = await registrarOcorrencia(
       portas,
-      { pessoaId: idSindica },
+      { pessoaId: idSindica, organizacaoId },
       {
         titulo: "Lâmpada queimada na garagem",
         descricao: "Queimada faz três dias, corredor escuro.",
