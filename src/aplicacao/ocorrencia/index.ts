@@ -10,6 +10,7 @@ export {
   type RepositorioEscopadoDeOcorrencias,
   type TransicaoLida,
 } from "./portas";
+export { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";
 export { registrarOcorrencia, type EntradaDeRegistro } from "./registrar-ocorrencia";
 export {
   LIMITE_MAXIMO,
