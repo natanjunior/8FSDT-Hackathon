@@ -67,6 +67,8 @@ let idPedidoRecanto: string;
 let idPedidoAurora: string;
 let idDaOcorrenciaEmA: string;
 let idDaOcorrenciaEmB: string;
+/** A categoria da ocorrência de B — o identificador de FORA que o filtro do item 15 aceita do cliente. */
+let idDaCategoriaDeB: string;
 
 /**
  * As portas de uma organizacao, montadas como a producao as monta.
@@ -130,6 +132,10 @@ beforeAll(async () => {
       },
     );
     guardar(lida.id);
+    // O identificador de categoria que a oitava entrada de isolamento pede **dentro de A**. Lido aqui
+    // porque é a categoria que a ocorrência de B de fato aponta — o `insert` de `semear()` cria uma por
+    // organização, e qual delas é a de B só se sabe lendo.
+    if (organizacaoId === idAurora) idDaCategoriaDeB = categoria!.id;
   }
 });
 
@@ -577,6 +583,42 @@ describe("as consultas de configuração não atravessam organizações", () => 
     esperadas: {
       get emA() {
         return [idDaOcorrenciaEmA];
+      },
+      get emB() {
+        return [idDaOcorrenciaEmB];
+      },
+    },
+  });
+
+  /**
+   * **A sétima entrada, e a primeira em que um identificador de FORA entra na consulta vindo do cliente.**
+   *
+   * A entrada de `GET /ocorrencias` acima prova que a listagem **sem filtro** não atravessa organizações.
+   * Esta prova o caminho novo do item 15: `?categoriaId=<uuid de B>` pedido **dentro de A**. Se o `where`
+   * do filtro fosse escrito fora do repositório escopado, ou se o `join` de categoria perdesse o
+   * `and c.organizacao_id = o.organizacao_id`, é este caso que acende — e nenhum dos anteriores acenderia.
+   *
+   * **O caso *"escopada em A devolve o que foi semeado em A"* passa com `emA` vazio**, e é justamente essa
+   * a prova: pedir a categoria de B dentro de A não traz **nada**, nem de A nem de B.
+   *
+   * **`organizacaoDaLinha` fica de fora de propósito:** o terceiro caso que ele liga exige
+   * `linhas.length > 0` em A, e aqui A devolve zero **por construção**.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias?categoriaId= (identificador da outra organização)",
+    // O identificador é SEMPRE o da categoria de B — inclusive quando quem pergunta é A.
+    consultar: (organizacaoId) =>
+      portasDe(organizacaoId).ocorrencias.listar({
+        limite: 50,
+        cursor: null,
+        filtro: { categoriaId: [idDaCategoriaDeB] },
+      }),
+    chaveDaLinha: (ocorrencia) => ocorrencia.id,
+    // **Em getter, pela razão que as entradas vizinhas já explicam**: o corpo do `describe` roda na
+    // coleta, antes de qualquer `beforeAll`, e um `uuid` lido ali ainda é `undefined`.
+    esperadas: {
+      get emA() {
+        return [];
       },
       get emB() {
         return [idDaOcorrenciaEmB];
