@@ -44,6 +44,7 @@ import nextTypescript from "eslint-config-next/typescript";
  * | 3 · só pela superfície pública do módulo | **sim** — `SUPERFICIE_PUBLICA` |
  * | *(sem número — não fala de camada)* `semOrganizacao` só nos quatro caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
+ * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
  *
  * E uma que **não é regra numerada da ADR-0006** — vem da §5.2 da `arquitetura.md`,
  * que é onde a inversão de dependência mora:
@@ -241,6 +242,35 @@ const PORTAS_DE_ANEXO = {
 /** O único `route.ts` que emite credencial de upload. */
 const ROTA_DE_ANEXO = ["app/api/anexos/autorizacoes/route.ts"];
 
+/**
+ * **A terceira lista fechada.**
+ *
+ * `armazenamentoDeAnexos` entrega a porta que lê objeto no storage, troca a etiqueta `estado` e assina
+ * **SAS de leitura**. É capacidade diferente da de `portasDeAnexo`, que assina SAS de **escrita** e
+ * consome o limite de 30/h — por isso são duas listas, e não uma alargada.
+ */
+const ARMAZENAMENTO_DE_ANEXOS = {
+  group: ["@/interface/http"],
+  importNames: ["armazenamentoDeAnexos"],
+  message:
+    "armazenamentoDeAnexos é de POST /ocorrencias e de GET /ocorrencias/{id}/anexos/{anexoId}, e mais " +
+    "nenhum endpoint: ela lê objeto no storage, troca a etiqueta de estado e assina SAS de LEITURA. " +
+    "Acrescentar um terceiro consumidor passa por acrescentar o caminho em eslint.config.mjs.",
+};
+
+/**
+ * Os dois `route.ts` que reivindicam ou leem anexo.
+ *
+ * **`[[]` e `[]]` no lugar de `[` e `]`, e não é enfeite:** o `files` do ESLint casa por *glob*, e ali
+ * `[ocorrenciaId]` é uma **classe de caracteres** — casaria `c`, `o`, `r`… e nunca o diretório literal do
+ * App Router. `[[]` é a classe que contém `[`, e `[]]` a que contém `]`; as duas dão o caractere
+ * literal, sem contrabarra (que o glob desliga em caminho do Windows).
+ */
+const ROTAS_DE_ARMAZENAMENTO = [
+  "app/api/ocorrencias/route.ts",
+  "app/api/ocorrencias/[[]ocorrenciaId[]]/anexos/[[]anexoId[]]/route.ts",
+];
+
 const proibir = (...grupos) => ["error", { patterns: grupos }];
 
 const configuracao = [
@@ -274,6 +304,7 @@ const configuracao = [
         RELATIVO_PARA_FORA,
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
+        ARMAZENAMENTO_DE_ANEXOS,
       ),
     },
   },
@@ -390,6 +421,9 @@ const configuracao = [
         // daria a estes quatro `route.ts` acesso livre a `portasDeAnexo` — uma
         // lista de cinco arquivos, não de um.
         PORTAS_DE_ANEXO,
+        // Pela mesma razão, e é a terceira lista: nenhum destes quatro
+        // reivindica nem lê anexo.
+        ARMAZENAMENTO_DE_ANEXOS,
       ),
     },
   },
@@ -409,6 +443,35 @@ const configuracao = [
         // Simétrico ao bloco acima: este dispensa `PORTAS_DE_ANEXO` e mantém
         // `SEM_ORGANIZACAO` — ele é escopado, e passa pelo `comContexto`.
         SEM_ORGANIZACAO,
+        // E mantém a terceira: emitir credencial de upload não dá o direito de
+        // ler objeto, trocar etiqueta e assinar SAS de leitura.
+        ARMAZENAMENTO_DE_ANEXOS,
+      ),
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // Os dois `route.ts` que alcançam o storage para reivindicar ou ler (item 13b).
+  // -------------------------------------------------------------------------
+  {
+    files: ROTAS_DE_ARMAZENAMENTO,
+    rules: {
+      "no-restricted-imports": proibir(
+        SDKS,
+        INFRAESTRUTURA,
+        COMPOSICAO,
+        SUPERFICIE_PUBLICA,
+        RELATIVO_PARA_FORA,
+        // Estes dois dispensam `ARMAZENAMENTO_DE_ANEXOS` — é o que os define.
+        //
+        // **E mantêm as OUTRAS DUAS listas fechadas, que são independentes:**
+        // `SEM_ORGANIZACAO` porque nenhum dos dois está na lista da §4.4 do
+        // contrato — os dois são escopados —, e `PORTAS_DE_ANEXO` porque
+        // nenhum dos dois emite credencial de upload. Omitir qualquer uma
+        // delas aqui abriria aquela lista em silêncio, que é exatamente o
+        // defeito que o bloco dos quatro foi escrito para impedir.
+        SEM_ORGANIZACAO,
+        PORTAS_DE_ANEXO,
       ),
     },
   },
@@ -425,6 +488,7 @@ const configuracao = [
         RELATIVO_PARA_FORA,
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
+        ARMAZENAMENTO_DE_ANEXOS,
       ),
     },
   },

@@ -1,4 +1,4 @@
-import { OcorrenciaNaoEncontrada, verOcorrencia } from "@/aplicacao/ocorrencia";
+import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { comContexto } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
@@ -19,9 +19,15 @@ export const GET = comContexto(
     // O `escopo.md` §3.3 fixa a regra: *"na primeira entrega toda ocorrência é visível apenas ao autor e
     // aos Gestores"*. `area_tipo` está gravado desde o primeiro registro, mas a visibilidade derivada
     // dele é evolução prevista — o dado entra, o comportamento não é exercido.
-    const podeLer =
-      ctx.vinculo.pode("ocorrencia.ler_todas") || lida.autor.pessoaId === ctx.pessoaId;
-    if (!podeLer) throw new OcorrenciaNaoEncontrada();
+    //
+    // **A regra é uma função da Aplicação, chamada pelo handler** — que é quem tem o `Vinculo`. Ela
+    // estava copiada aqui e em `app/ocorrencias/[ocorrenciaId]/page.tsx`; o item 13b seria a terceira
+    // cópia, e por isso ela virou `podeLerOcorrencia`.
+    const quem = {
+      pessoaId: ctx.pessoaId,
+      podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas"),
+    };
+    if (!podeLerOcorrencia(lida, quem)) throw new OcorrenciaNaoEncontrada();
 
     return projetarOcorrenciaDetalhe(lida, {
       pessoaId: ctx.pessoaId,
