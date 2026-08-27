@@ -3,6 +3,7 @@ import {
   CampoNaoSuportado,
   comContexto,
   lerCursorDaUrl,
+  lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   resposta,
 } from "@/interface/http";
@@ -60,13 +61,19 @@ export const POST = comContexto(
  * `encarregado` — que é justamente quem tem de levar `403`. Qual dos dois conjuntos volta é decidido
  * **depois**, por `ler_todas`, e sai declarado em `visibilidadeAplicada`.
  *
+ * **Os quatro filtros são do item 15**, e o endpoint não os gateia por permissão: o contrato não o faz
+ * (§8.5), e quem só tem `ler_propria` já recebe apenas as próprias — filtrar dentro disso é legítimo. **O
+ * que é de permissão é a barra na tela**, não o parâmetro na URL.
+ *
  * *Capacidades: listar todas da organização · `ENUNCIADO · aberto` (G1).*
  */
 export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx, repos, requisicao }) => {
+  const filtro = lerFiltroDeOcorrenciasDaUrl(new URL(requisicao.url).searchParams);
+
   const pagina = await listarOcorrencias(
     repos.ocorrencias,
     { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") },
-    { limite: lerLimiteDaUrl(requisicao), cursor: lerCursorDaUrl(requisicao) },
+    { limite: lerLimiteDaUrl(requisicao), cursor: lerCursorDaUrl(requisicao), filtro },
   );
 
   return projetarPaginaDeOcorrencias(pagina);
