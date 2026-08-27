@@ -16,6 +16,10 @@ import {
   type RepositorioEscopadoDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { TIPO_DE_CONTEUDO_DA_MINIATURA } from "@/dominio/anexo";
+import {
+  criarArmazenamentoDeAnexos,
+  criarEmissorDeCredencialDeUpload,
+} from "@/infraestrutura/clientes";
 
 /**
  * ============================================================================
@@ -361,5 +365,78 @@ describe("`podeLerOcorrencia` — a regra que estava escrita duas vezes", () => 
 
   it("mais ninguém", () => {
     expect(podeLerOcorrencia(lida, { pessoaId: "outro", podeLerTodas: false })).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O ida e volta do ticket — o único par desta fatia em que um duplo não prova nada
+ * ============================================================================
+ *
+ * Um ticket falso conferido por um verificador falso é tautologia: só o par REAL prova que o que o 13a
+ * assina é o que o 13b lê. E ele não toca a rede — assinar e conferir são HMAC puro —, então roda no laço
+ * curto como qualquer teste de aplicação. **É por isto que este bloco está aqui e não num terceiro
+ * arquivo:** o DoD conta arquivos de teste novos, e a spec fixou dois.
+ */
+describe("o ticket que o 13a assina é o que o 13b lê", () => {
+  const CONEXAO =
+    "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
+    "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
+    "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
+
+  beforeEach(() => {
+    process.env.SEGREDO_DE_SESSAO = "um-segredo-de-teste-com-mais-de-32-caracteres";
+    process.env.ARMAZENAMENTO_CONEXAO = CONEXAO;
+  });
+
+  it("devolve a carga inteira", async () => {
+    const emitida = await criarEmissorDeCredencialDeUpload().emitir({
+      organizacaoId: ORGANIZACAO,
+      pessoaId: PESSOA,
+      tipoConteudo: "image/jpeg",
+      tamanhoBytes: 400_000,
+    });
+
+    const carga = criarArmazenamentoDeAnexos().conferirTicket(emitida.ticket);
+
+    expect(carga).toMatchObject({
+      chave: emitida.chave,
+      chaveMiniatura: emitida.chaveMiniatura,
+      organizacaoId: ORGANIZACAO,
+      pessoaId: PESSOA,
+      tipoConteudo: "image/jpeg",
+      tamanhoMaximo: 400_000,
+    });
+  });
+
+  it("recusa ticket adulterado — a carga trocada não bate com a assinatura", async () => {
+    const emitida = await criarEmissorDeCredencialDeUpload().emitir({
+      organizacaoId: ORGANIZACAO,
+      pessoaId: PESSOA,
+      tipoConteudo: "image/jpeg",
+      tamanhoBytes: 400_000,
+    });
+
+    const [, assinatura] = emitida.ticket.split(".");
+    const forjada = Buffer.from(
+      JSON.stringify({ ...cargaBoa(), tamanhoMaximo: 99_000_000 }),
+      "utf8",
+    ).toString("base64url");
+
+    expect(criarArmazenamentoDeAnexos().conferirTicket(`${forjada}.${assinatura!}`)).toBeNull();
+  });
+
+  it("recusa lixo sem estourar", () => {
+    const armazem = criarArmazenamentoDeAnexos();
+    expect(armazem.conferirTicket("")).toBeNull();
+    expect(armazem.conferirTicket("sem-ponto")).toBeNull();
+    expect(armazem.conferirTicket("a.b.c.d")).toBeNull();
+  });
+
+  it("a SAS de leitura aponta para o contêiner `anexos` e não é a de escrita", () => {
+    const url = criarArmazenamentoDeAnexos().urlDeLeitura("anx_qualquer");
+    expect(url).toContain("/anexos/anx_qualquer?");
+    // `sp=r` — leitura, e só. A SAS de escrita do 13a é `cwt`.
+    expect(url).toMatch(/[?&]sp=r(&|$)/u);
   });
 });

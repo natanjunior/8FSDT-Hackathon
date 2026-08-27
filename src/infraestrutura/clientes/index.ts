@@ -11,7 +11,10 @@
  * `@azure/storage-blob`. O que sai daqui é porta ou função de consulta.
  */
 export { criarConsulta, criarTransacao, type Consulta, type Transacao } from "./banco";
-export { criarEmissorDeCredencialDeUpload } from "./armazenamento";
+export {
+  criarArmazenamentoDeAnexos,
+  criarEmissorDeCredencialDeUpload,
+} from "./armazenamento";
 export {
   criarAutenticacao,
   criarCredenciais,

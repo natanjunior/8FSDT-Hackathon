@@ -1,16 +1,20 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 import {
   BlobSASPermissions,
+  BlobServiceClient,
   SASProtocol,
   StorageSharedKeyCredential,
   generateBlobSASQueryParameters,
 } from "@azure/storage-blob";
 
 import type {
+  ArmazenamentoDeAnexos,
   AutorizacaoEmitida,
+  CargaDoTicketDeAnexo,
   CredencialDeUpload,
   EmissorDeCredencialDeUpload,
+  ObjetoDescrito,
   PedidoDeAutorizacao,
 } from "@/aplicacao/anexo";
 import { TIPO_DE_CONTEUDO_DA_MINIATURA } from "@/dominio/anexo";
@@ -39,6 +43,10 @@ const CONTEINER = "anexos";
 
 /** Quinze minutos: a validade da SAS e a do ticket são a mesma janela (contrato §10.2). */
 const VALIDADE_EM_MINUTOS = 15;
+
+/** Dez minutos: a SAS de leitura vive menos que o ticket, e a razão está no contrato §10.4 — uma vez
+ *  emitida, a URL vale para quem a tiver. TTL curto é a mitigação, junto do `Referrer-Policy`. */
+const VALIDADE_DE_LEITURA_EM_MINUTOS = 10;
 
 type Conta = {
   nome: string;
@@ -141,16 +149,9 @@ function destino(chave: string, tipoConteudo: string, expiraEm: Date): Credencia
   };
 }
 
-/** O que o ticket carrega, e é o que o item 13b vai conferir na reivindicação (contrato §10.2). */
-type CargaDoTicket = {
-  chave: string;
-  chaveMiniatura: string;
-  organizacaoId: string;
-  pessoaId: string;
-  tipoConteudo: string;
-  tamanhoMaximo: number;
-  expiraEm: string;
-};
+/** A carga é declarada pela Aplicação, que é quem a consome. Aqui só se assina e se confere — **um tipo
+ *  só nas duas pontas do HMAC** (contrato §10.2). */
+type Carga = CargaDoTicketDeAnexo;
 
 /**
  * A chave de assinatura do ticket, **derivada** do segredo de sessão em vez de reutilizá-lo.
@@ -170,7 +171,7 @@ function chaveDoTicket(): Buffer {
   return createHmac("sha256", segredo).update("ticket-de-anexo/v1").digest();
 }
 
-function assinarTicket(carga: CargaDoTicket): string {
+function assinarTicket(carga: Carga): string {
   const corpo = Buffer.from(JSON.stringify(carga)).toString("base64url");
   const assinatura = createHmac("sha256", chaveDoTicket()).update(corpo).digest("base64url");
   return `${corpo}.${assinatura}`;
@@ -207,4 +208,132 @@ export function criarEmissorDeCredencialDeUpload(): EmissorDeCredencialDeUpload 
       };
     },
   };
+}
+
+/**
+ * ============================================================================
+ *  O adaptador de objeto — o outro lado do ticket
+ * ============================================================================
+ *
+ * **Ele não decide nada**, e é o que a spec do 13b §3.4 chama de porta burra: descreve, troca etiqueta e
+ * assina. As seis conferências são da Aplicação, e é lá que elas se testam com duplo.
+ *
+ * **`conferirTicket` não toca a conta de storage** — é HMAC puro —, e é por isso que `conta()` só é
+ * chamada dentro dos outros três métodos. Quem só confere ticket não precisa de `ARMAZENAMENTO_CONEXAO`.
+ */
+export function criarArmazenamentoDeAnexos(): ArmazenamentoDeAnexos {
+  function blob(chave: string) {
+    const { credencial, endpoint } = conta();
+    return new BlobServiceClient(endpoint, credencial)
+      .getContainerClient(CONTEINER)
+      .getBlobClient(chave);
+  }
+
+  return {
+    conferirTicket(ticket) {
+      const partes = ticket.split(".");
+      if (partes.length !== 2) return null;
+
+      const [corpo, assinatura] = partes;
+      if (corpo === undefined || assinatura === undefined || corpo === "") return null;
+
+      const esperada = createHmac("sha256", chaveDoTicket()).update(corpo).digest("base64url");
+      // **Comparação de tempo constante**: `timingSafeEqual` recusa buffers de tamanhos diferentes, então
+      // o tamanho é conferido antes — e um tamanho diferente já é assinatura errada.
+      const a = Buffer.from(assinatura, "utf8");
+      const b = Buffer.from(esperada, "utf8");
+      if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+
+      try {
+        return JSON.parse(Buffer.from(corpo, "base64url").toString("utf8")) as Carga;
+      } catch {
+        // Assinatura válida com corpo ilegível é impossível por construção — mas ler JSON de um valor
+        // vindo de fora nunca estoura em silêncio.
+        return null;
+      }
+    },
+
+    /**
+     * **`HEAD` e etiquetas em paralelo, devolvidos como um fato só.**
+     *
+     * No Azure são duas chamadas: `getProperties` traz tamanho, tipo e `Content-Disposition`, e só
+     * `getTags` traz o **valor** da etiqueta (`x-ms-tag-count` diz que há etiqueta, não qual). Separá-las
+     * na porta obrigaria a Aplicação a sequenciá-las.
+     *
+     * **Objeto ausente é `null`, não exceção** — é um desfecho normal do caminho de reivindicação, e a
+     * porta prometeu `null`.
+     */
+    async descrever(chave) {
+      const cliente = blob(chave);
+
+      const [propriedades, etiquetas] = await Promise.all([
+        cliente.getProperties().catch(() => null),
+        cliente.getTags().catch(() => null),
+      ]);
+
+      if (propriedades === null) return null;
+
+      const descrito: ObjetoDescrito = {
+        tipoConteudo: propriedades.contentType ?? null,
+        tamanhoBytes: propriedades.contentLength ?? 0,
+        nomeArquivo: nomeDoContentDisposition(propriedades.contentDisposition ?? null),
+        estado: etiquetas?.tags.estado ?? null,
+      };
+
+      return descrito;
+    },
+
+    /**
+     * A troca de etiqueta — **uma chamada de metadado**. Não move bytes, e portanto não desfaz a razão de
+     * a §10.1 do contrato ter escolhido SAS.
+     *
+     * **`setTags` substitui o conjunto inteiro**, e é o comportamento certo aqui: `estado` é a única
+     * etiqueta que este produto escreve.
+     */
+    async marcarConfirmado(chave) {
+      try {
+        await blob(chave).setTags({ estado: "confirmado" });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    /**
+     * A SAS de **leitura**, de 10 minutos. `sp=r` e mais nada — a de escrita do 13a é `cwt`, e dar `w`
+     * aqui deixaria qualquer leitor sobrescrever a evidência.
+     */
+    urlDeLeitura(chave) {
+      const { credencial, endpoint } = conta();
+      const expiraEm = new Date(Date.now() + VALIDADE_DE_LEITURA_EM_MINUTOS * 60 * 1000);
+
+      const parametros = generateBlobSASQueryParameters(
+        {
+          containerName: CONTEINER,
+          blobName: chave,
+          permissions: BlobSASPermissions.parse("r"),
+          expiresOn: expiraEm,
+          protocol: endpoint.startsWith("https://") ? SASProtocol.Https : SASProtocol.HttpsAndHttp,
+        },
+        credencial,
+      ).toString();
+
+      return `${endpoint}/${CONTEINER}/${chave}?${parametros}`;
+    },
+  };
+}
+
+/**
+ * `Content-Disposition: attachment; filename="x.jpg"` → `x.jpg`.
+ *
+ * **Pelo nosso cliente isto é sempre `null`**: `controle-de-foto.tsx` não escreve o cabeçalho, e não vai
+ * passar a escrever — o arquivo é recomprimido no aparelho, então o nome original é resíduo de outro
+ * arquivo (modelo §6.16 recusou `nome_original` por isso). A leitura existe porque o `HEAD` já a traz de
+ * graça e porque o contrato declara a coluna.
+ */
+function nomeDoContentDisposition(cabecalho: string | null): string | null {
+  if (cabecalho === null) return null;
+  const achado = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/iu.exec(cabecalho);
+  const nome = achado?.[1]?.trim();
+  return nome === undefined || nome === "" ? null : nome;
 }
