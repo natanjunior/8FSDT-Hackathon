@@ -247,8 +247,8 @@ export function FormularioDeOcorrencia({
           {enviando ? "Registrando…" : "Registrar ocorrência"}
         </button>
         {/*
-          **Cancelar volta ao shell.** O inventário manda ir para T-03, que não existe até o item 14 —
-          o destino vira uma linha lá. A confirmação só aparece se algo foi digitado.
+          **Cancelar volta a T-03**, que é o que o inventário manda (`:278`) e o que o item 11 deixou
+          anotado: *"o destino vira uma linha no item 14"*. A confirmação só aparece se algo foi digitado.
         */}
         <button
           type="button"
@@ -257,7 +257,7 @@ export function FormularioDeOcorrencia({
             const digitou =
               formulario !== null &&
               [...new FormData(formulario).values()].some((valor) => String(valor).trim() !== "");
-            if (!digitou || confirm("Descartar o que você escreveu?")) router.push("/");
+            if (!digitou || confirm("Descartar o que você escreveu?")) router.push("/ocorrencias");
           }}
           className="text-marca min-h-11 text-sm underline underline-offset-4"
         >

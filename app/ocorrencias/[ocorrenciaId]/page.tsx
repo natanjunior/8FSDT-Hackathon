@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { rotuloDePrioridade } from "@/interface/componentes/rotulos";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
@@ -122,14 +123,9 @@ export default async function Ocorrencia({
         </p>
       )}
 
-      <Link href="/" className="text-marca py-1 text-sm underline underline-offset-4">
+      <Link href="/ocorrencias" className="text-marca py-1 text-sm underline underline-offset-4">
         Voltar
       </Link>
     </MolduraDeTela>
   );
-}
-
-/** **A-5:** a prioridade sempre carrega a palavra. Marcador colorido sem texto é defeito. */
-function rotuloDePrioridade(prioridade: "baixa" | "normal" | "alta"): string {
-  return { baixa: "Baixa", normal: "Normal", alta: "Alta" }[prioridade];
 }

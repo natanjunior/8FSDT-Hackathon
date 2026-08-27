@@ -1,5 +1,11 @@
 import { OcorrenciaNaoEncontrada } from "./erros";
-import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias, TransicaoLida } from "./portas";
+import type {
+  CursorDeListagem,
+  OcorrenciaLida,
+  OcorrenciaResumoLida,
+  RepositorioEscopadoDeOcorrencias,
+  TransicaoLida,
+} from "./portas";
 
 /**
  * `GET /ocorrencias/{id}`.
@@ -36,4 +42,57 @@ export async function verTrilhaDeAuditoria(
 ): Promise<readonly TransicaoLida[]> {
   if ((await repositorio.porId(id)) === null) throw new OcorrenciaNaoEncontrada();
   return repositorio.trilha(id);
+}
+
+/** O padrão do contrato (`openapi.yaml`, parâmetro `Limite`). */
+export const LIMITE_PADRAO = 20;
+/** O teto do contrato. Quem pedir acima leva `400` — a recusa é da camada de Interface. */
+export const LIMITE_MAXIMO = 100;
+
+/** Quem está perguntando, reduzido ao que a listagem precisa saber. */
+export type QuemPergunta = { pessoaId: string; podeLerTodas: boolean };
+
+/** O recorte aplicado, declarado na resposta *"para que o cliente possa dizer ao usuário o que está
+ *  vendo"* (`contrato-de-api.md` §8.5). */
+export type VisibilidadeAplicada = "todas" | "apenas_minhas";
+
+export type PaginaDeOcorrencias = {
+  itens: readonly OcorrenciaResumoLida[];
+  /** Há pelo menos mais uma linha depois desta página. Quem projeta transforma isto em `proximoCursor`. */
+  temMais: boolean;
+  visibilidadeAplicada: VisibilidadeAplicada;
+};
+
+/**
+ * `GET /ocorrencias` — e a **estrada direta** de T-03, que é a mesma função.
+ *
+ * **A visibilidade desce até o `where`, e isso não é otimização.** Em T-05 ela é uma pergunta sobre *uma*
+ * ocorrência e pode ser respondida depois de ler. Numa lista, não: filtrar depois de paginar devolveria
+ * páginas de tamanho aleatório e uma última página falsamente vazia. Por isso ela chega aqui como
+ * `podeLerTodas` — calculado por `vinculo.pode("ocorrencia.ler_todas")`, nunca pelo papel (contrato §4.5)
+ * — e sai como `autorPessoaId` no filtro.
+ *
+ * **Pede uma linha a mais do que devolve.** É como se sabe que há próxima página sem um `count`, que o
+ * contrato recusou (§7.7): a linha excedente é lida, contada e descartada. E é o que garante que
+ * `proximoCursor` só existe quando há mesmo o que carregar — um cursor que abre página vazia é pior que
+ * nenhum.
+ */
+export async function listarOcorrencias(
+  repositorio: RepositorioEscopadoDeOcorrencias,
+  quem: QuemPergunta,
+  pagina: { limite?: number; cursor?: CursorDeListagem | null } = {},
+): Promise<PaginaDeOcorrencias> {
+  const limite = pagina.limite ?? LIMITE_PADRAO;
+
+  const lidas = await repositorio.listar({
+    ...(quem.podeLerTodas ? {} : { autorPessoaId: quem.pessoaId }),
+    limite: limite + 1,
+    cursor: pagina.cursor ?? null,
+  });
+
+  return {
+    itens: lidas.slice(0, limite),
+    temMais: lidas.length > limite,
+    visibilidadeAplicada: quem.podeLerTodas ? "todas" : "apenas_minhas",
+  };
 }

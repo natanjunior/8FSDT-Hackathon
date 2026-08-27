@@ -13,9 +13,16 @@ export {
 } from "./organizacao";
 
 export {
+  codificarCursor,
+  decodificarCursor,
   projetarOcorrenciaDetalhe,
+  projetarOcorrenciaResumo,
+  projetarPaginaDeOcorrencias,
   projetarTransicao,
+  rotuloDeMotivoPausa,
   rotuloDeStatus,
+  type OcorrenciaResumoProjetada,
+  type PaginaDeOcorrenciasProjetada,
   type QuemLe,
 } from "./ocorrencia";
 

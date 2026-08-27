@@ -1,4 +1,10 @@
-import type { OcorrenciaLida, TransicaoLida } from "@/aplicacao/ocorrencia";
+import type {
+  CursorDeListagem,
+  OcorrenciaLida,
+  OcorrenciaResumoLida,
+  PaginaDeOcorrencias,
+  TransicaoLida,
+} from "@/aplicacao/ocorrencia";
 import { comandosDisponiveis, type MotivoPausa, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
 /**
@@ -38,6 +44,22 @@ export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPaus
   // Sem motivo não deveria acontecer — o `CHECK` do banco garante o par —, mas o rótulo não é o lugar
   // de estourar: degrada para a palavra, que continua sendo texto e não cor (A-5).
   return motivoPausa === null ? "Parada" : ROTULO_DE_PAUSA[motivoPausa];
+}
+
+/**
+ * O motivo da pausa **em palavras**, para a segunda linha do item na lista do Gestor (critério 14.3).
+ *
+ * **Reusa a mesma tabela do rótulo — não há segundo vocabulário.** A regra 2 do glossário proíbe frase
+ * montada em tempo de execução, e inventar uma forma curta aqui criaria exatamente o segundo texto que a
+ * tabela existe para impedir.
+ *
+ * **Hoje isto é inalcançável:** nada pode estar `pausada` antes do item 23. E entre o 23 e o 31 o rótulo
+ * do Solicitante — que é o de todo mundo até lá — já traz o motivo dentro dele, então a segunda linha vai
+ * repeti-lo. A janela é curta e está declarada na §3.4 da spec; quem a fecha é o **31**, trocando o rótulo
+ * do Gestor para *"Pausada"*.
+ */
+export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
+  return ROTULO_DE_PAUSA[motivo];
 }
 
 /** O schema `RegistroDeTransicao` do contrato. **`sequencia` não sai** — é ordem interna da trilha. */
@@ -100,3 +122,88 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
     }),
   };
 }
+
+/**
+ * O schema `OcorrenciaResumo` do contrato — o que a **listagem** devolve.
+ *
+ * **`categoria` sai `{id, nome}` e o `icone` não entra**, e isso é decisão, não esquecimento (critério
+ * 14.6): o payload embute campo emprestado quando ele carrega **significado** — `area.tipo` deriva
+ * visibilidade —, e ícone não carrega nenhum. T-03 cruza contra `GET /categorias`, que já o traz.
+ *
+ * **`quantidadeDeAnexos: 0` e `responsavel: null` são forçados**, pelos itens 13b e 19. É a mesma escolha
+ * que `projetarOcorrenciaDetalhe` já faz, e pela mesma razão: `0` e `null` são a **verdade sobre o
+ * produto de hoje**, não um valor de reserva.
+ */
+export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
+  return {
+    id: lida.id,
+    titulo: lida.titulo,
+    status: lida.status,
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa),
+    motivoPausa: lida.status === "pausada" ? lida.motivoPausa : null,
+    prioridade: lida.prioridade,
+    categoria: { id: lida.categoria.id, nome: lida.categoria.nome },
+    area: lida.area,
+    autor: lida.autor,
+    responsavel: lida.responsavel,
+    quantidadeDeAnexos: 0,
+    registradaEm: lida.registradaEm,
+    atualizadaEm: lida.atualizadaEm,
+  };
+}
+
+export type OcorrenciaResumoProjetada = ReturnType<typeof projetarOcorrenciaResumo>;
+
+/**
+ * O cursor opaco: `base64url` do par `(registradaEm, id)` — *"exatamente o índice já existente"*
+ * (`contrato-de-api.md` §7.7).
+ *
+ * **Opaco de propósito.** O cliente não deve montar cursor: no dia em que a ordenação ganhar uma segunda
+ * coluna, um cliente que tenha aprendido a forma quebra. O que ele guarda é o que veio.
+ */
+export function codificarCursor(item: { registradaEm: string; id: string }): string {
+  return Buffer.from(`${item.registradaEm}|${item.id}`, "utf8").toString("base64url");
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * O caminho de volta — `null` quando o valor não é um cursor desta API.
+ *
+ * **`Buffer.from(x, "base64url")` não estoura com lixo: ele ignora o que não é do alfabeto.** Por isso a
+ * validação real acontece **depois** de decodificar, sobre o conteúdo: duas partes, uma data que o
+ * `Date.parse` entende, e um `uuid`. Sem isso, `?cursor=pagina-2` viraria uma consulta com data
+ * `Invalid Date` — e um `500` no lugar do `400` que o contrato manda.
+ */
+export function decodificarCursor(bruto: string): CursorDeListagem | null {
+  if (bruto === "") return null;
+
+  const partes = Buffer.from(bruto, "base64url").toString("utf8").split("|");
+  if (partes.length !== 2) return null;
+
+  const [registradaEm, id] = partes;
+  if (registradaEm === undefined || id === undefined) return null;
+  if (Number.isNaN(Date.parse(registradaEm))) return null;
+  if (!UUID.test(id)) return null;
+
+  return { registradaEm, id };
+}
+
+/**
+ * O envelope de `GET /ocorrencias` — **e o da estrada direta de T-03**, que é a mesma função.
+ *
+ * **`proximoCursor` é o do último item devolvido, e só existe com `temMais`.** Um cursor emitido sem haver
+ * próxima página produziria um *"Carregar mais"* que devolve zero itens — o vazio que é defeito chegando
+ * como `200`, que é a classe do achado R-15 do protótipo.
+ */
+export function projetarPaginaDeOcorrencias(pagina: PaginaDeOcorrencias) {
+  const ultimo = pagina.itens[pagina.itens.length - 1];
+
+  return {
+    itens: pagina.itens.map(projetarOcorrenciaResumo),
+    proximoCursor: pagina.temMais && ultimo !== undefined ? codificarCursor(ultimo) : null,
+    visibilidadeAplicada: pagina.visibilidadeAplicada,
+  };
+}
+
+export type PaginaDeOcorrenciasProjetada = ReturnType<typeof projetarPaginaDeOcorrencias>;
