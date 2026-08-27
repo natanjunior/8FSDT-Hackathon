@@ -7,9 +7,12 @@ import { z } from "zod";
  * verificações mecânicas do `openapi.yaml`, e o que ela impede é a `Ocorrência` ganhar um `PATCH` e a
  * ADR-0001 cair junto.
  *
- * **`anexos` também não entra nesta fatia.** A tabela `anexos` é do item 13b; aceitar o campo agora
- * significaria descartá-lo em silêncio, que é exatamente o que o `CAMPO_NAO_SUPORTADO` existe para não
- * fazer.
+ * **`anexos` entra aqui, e é onde o teto de UM mora.** A tabela do banco não tem restrição de quantidade,
+ * de propósito (modelo §6.16): proibir o segundo anexo lá devolveria a migração que a tabela veio evitar.
+ * Ampliar é trocar este número — mudança que **aceita mais e nunca menos**, e portanto não quebra cliente
+ * nenhum (contrato §11).
+ *
+ * **O `tipo` do anexo continua fora**, e continuará: o servidor o deriva do `tipoConteudo` que autorizou.
  */
 
 /** `varchar(150)`, com o `CHECK (length(trim(titulo)) > 0)` do modelo tendo par aqui. */
@@ -30,6 +33,18 @@ const descricao = z
 // `pedido-de-entrada.ts` ja usam.
 const identificador = z.uuid("Escolha uma opção da lista.");
 
+/**
+ * O schema `ReferenciaDeAnexo` do contrato: **a referência a um objeto já enviado**, nunca bytes.
+ *
+ * `titulo` é aceito e gravado embora T-04 não ofereça onde escrevê-lo nesta entrega — recusá-lo aqui
+ * seria divergir do contrato, que o declara.
+ */
+const referenciaDeAnexoSchema = z.object({
+  chave: z.string().trim().min(1, "Envie a foto de novo."),
+  ticket: z.string().trim().min(1, "Envie a foto de novo."),
+  titulo: z.string().trim().max(150, "O título do anexo cabe em 150 caracteres.").nullish(),
+});
+
 export const registroDeOcorrenciaSchema = z.object({
   titulo,
   descricao,
@@ -41,6 +56,8 @@ export const registroDeOcorrenciaSchema = z.object({
     .trim()
     .max(200, "A referência do lugar cabe em 200 caracteres.")
     .nullish(),
+  /** `maxItems: 1` — **forma, não domínio**: mais de um item é `400`, e é o critério 13b.4. */
+  anexos: z.array(referenciaDeAnexoSchema).max(1, "Só é possível anexar uma foto.").nullish(),
 });
 
 export type EntradaDeRegistroDeOcorrencia = z.infer<typeof registroDeOcorrenciaSchema>;

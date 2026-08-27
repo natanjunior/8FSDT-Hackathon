@@ -1,4 +1,8 @@
-import { LIMITE_MAXIMO, type CursorDeListagem } from "@/aplicacao/ocorrencia";
+import {
+  LIMITE_MAXIMO,
+  type CursorDeListagem,
+  type VarianteDoAnexo,
+} from "@/aplicacao/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
 import { decodificarCursor } from "@/interface/projecoes";
 
@@ -103,4 +107,22 @@ export function lerCursorDaUrl(requisicao: Request): CursorDeListagem | null {
   }
 
   return cursor;
+}
+
+/**
+ * Lê `?variante=` de `GET /ocorrencias/{id}/anexos/{anexoId}` — ausente é o objeto principal.
+ *
+ * **Valor fora da lista é recusado, não tratado como ausente**, pela mesma razão do `?ativa=` e do
+ * `?situacao=`: `?variante=xpto` devolvendo a foto em tamanho real seria o cliente pedindo uma coisa e
+ * recebendo outra, em silêncio. O `openapi.yaml` declara `enum: [miniatura]`, e esta é a recusa que o faz
+ * verdadeiro.
+ */
+export function lerVarianteDaUrl(requisicao: Request): VarianteDoAnexo {
+  const bruto = new URL(requisicao.url).searchParams.get("variante");
+  if (bruto === null || bruto === "") return "original";
+  if (bruto === "miniatura") return "miniatura";
+
+  throw new FormatoInvalido([
+    { campo: "variante", codigo: "VALOR_INVALIDO", mensagem: 'O único valor aceito é "miniatura".' },
+  ]);
 }

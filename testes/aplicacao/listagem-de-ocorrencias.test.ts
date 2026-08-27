@@ -39,6 +39,7 @@ function resumo(n: number): OcorrenciaResumoLida {
     area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem", tipo: "comum" },
     autor: { pessoaId: ID_PESSOA, nome: "Helena Rocha" },
     responsavel: null,
+    quantidadeDeAnexos: 0,
     motivoPausa: null,
     registradaEm: `2026-08-2${n}T13:02:11.000Z`,
     atualizadaEm: `2026-08-2${n}T13:02:11.000Z`,
