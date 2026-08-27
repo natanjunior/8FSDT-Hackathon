@@ -210,7 +210,7 @@ export default async function CategoriasEAreas({
         Não há como apagar. Desativar tira do formulário de registro e preserva o que já foi registrado.
       </p>
 
-      <Link href="/" className="text-marca text-sm underline underline-offset-4">
+      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
         Voltar
       </Link>
     </main>
@@ -293,7 +293,7 @@ function SemAcesso() {
       <p role="alert" className="text-tinta-suave text-sm">
         Seu papel nesta organização não dá acesso a esta página.
       </p>
-      <Link href="/" className="text-marca text-sm underline underline-offset-4">
+      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
         Voltar
       </Link>
     </main>
