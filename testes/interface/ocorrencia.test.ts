@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
+import { STATUS } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
+  descricaoDoRecorte,
+  nomeDaPrioridade,
+  nomeDoStatus,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
@@ -476,5 +480,57 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
 
   it("parâmetro repetido é recusado — o contrato descreve UMA gramática", () => {
     expect(() => ler("status=aberta&status=pausada")).toThrow(FormatoInvalido);
+  });
+});
+
+describe("o critério 15.5 — os nomes das opções de filtro", () => {
+  it("os seis status têm nome, e nenhum é o enum cru", () => {
+    for (const status of STATUS) {
+      const nome = nomeDoStatus(status);
+      expect(nome).not.toBe(status);
+      expect(nome.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("pausada tem UM nome de opção, sem motivo — que é o que a coluna do Solicitante não tem", () => {
+    expect(nomeDoStatus("pausada")).toBe("Pausada");
+  });
+
+  it("as três prioridades também", () => {
+    expect(nomeDaPrioridade("baixa")).toBe("Baixa");
+    expect(nomeDaPrioridade("normal")).toBe("Normal");
+    expect(nomeDaPrioridade("alta")).toBe("Alta");
+  });
+});
+
+describe("o critério 15.6 — a descrição do recorte, para o subtítulo do vazio", () => {
+  const nomeDaCategoria = (id: string) => (id === "c-1" ? "Iluminação" : undefined);
+
+  it("sem filtro nenhum, não há o que descrever", () => {
+    expect(descricaoDoRecorte({}, nomeDaCategoria)).toStrictEqual([]);
+  });
+
+  it("cada dimensão vira uma cláusula com o MESMO rótulo do chip", () => {
+    expect(
+      descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomeDaCategoria),
+    ).toStrictEqual(["Status: Pausada", "Prioridade: Alta"]);
+  });
+
+  it("dois valores na mesma dimensão viram uma cláusula só, com os dois", () => {
+    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomeDaCategoria)).toStrictEqual([
+      "Status: Aberta, Em análise",
+    ]);
+  });
+
+  it("categoria desconhecida não vira texto inventado", () => {
+    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomeDaCategoria)).toStrictEqual([
+      "Categoria: 1 selecionado",
+    ]);
+  });
+
+  it("só as minhas é uma cláusula como as outras", () => {
+    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
+      "Só as minhas",
+    ]);
   });
 });

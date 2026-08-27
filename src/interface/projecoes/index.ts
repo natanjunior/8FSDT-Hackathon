@@ -15,6 +15,9 @@ export {
 export {
   codificarCursor,
   decodificarCursor,
+  descricaoDoRecorte,
+  nomeDaPrioridade,
+  nomeDoStatus,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
