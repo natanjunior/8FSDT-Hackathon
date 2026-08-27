@@ -3,14 +3,31 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarOcorrencias, type PaginaDeOcorrencias } from "@/aplicacao/ocorrencia";
+import {
+  listarOcorrencias,
+  type FiltroDeOcorrencias,
+  type PaginaDeOcorrencias,
+} from "@/aplicacao/ocorrencia";
 import { listarCategorias, listarPedidosDeEntrada, type CategoriaLida } from "@/aplicacao/organizacao";
+import { PRIORIDADES, STATUS } from "@/dominio/ocorrencia";
 import { acaoDeSair } from "@/interface/acoes";
+import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
 import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
-import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarPaginaDeOcorrencias } from "@/interface/projecoes";
+import {
+  algumFiltroAplicado,
+  consultaDe,
+  FormatoInvalido,
+  lerFiltroDeOcorrenciasDaUrl,
+  resolverEscopoParaTela,
+} from "@/interface/http";
+import {
+  descricaoDoRecorte,
+  nomeDaPrioridade,
+  nomeDoStatus,
+  projetarPaginaDeOcorrencias,
+} from "@/interface/projecoes";
 
 /**
  * ============================================================================
@@ -30,7 +47,26 @@ import { projetarPaginaDeOcorrencias } from "@/interface/projecoes";
  */
 export const dynamic = "force-dynamic";
 
-export default async function Ocorrencias() {
+export default async function Ocorrencias({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const consulta = consultaDe(await searchParams);
+
+  let filtro: FiltroDeOcorrencias;
+  try {
+    filtro = lerFiltroDeOcorrenciasDaUrl(consulta);
+  } catch (erro) {
+    // §3.9 — **isto não é o quarto vazio.** Os três vazios do critério 14.4 respondem "a consulta correu e
+    // não achou nada"; este responde "a consulta não correu". Confundi-los é o erro que o 14.4 existe para
+    // impedir, e é a classe do R-15: o defeito chegando como 200 silencioso.
+    if (erro instanceof FormatoInvalido) return <FiltroInvalido />;
+    throw erro;
+  }
+
+  const consultaAtual = consulta.toString();
+
   let escopo;
   try {
     escopo = await resolverEscopoParaTela("ocorrencia.ler_propria");
@@ -49,16 +85,41 @@ export default async function Ocorrencias() {
   const vinculo = ctx.vinculo;
   const podeLerTodas = vinculo.pode("ocorrencia.ler_todas");
   const podeRegistrar = vinculo.pode("ocorrencia.registrar");
+  const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");
   const organizacao = resolucao.ativo?.organizacao ?? null;
+
+  /**
+   * **O recorte em palavras, derivado — não esperado.**
+   *
+   * É a **mesma regra** de `listarOcorrencias` (`consultas.ts`), e a duplicação é deliberada e barata: o
+   * cabeçalho está **fora** da fronteira de espera de propósito (critério 14.7), e ler
+   * `visibilidadeAplicada` da resposta o arrastaria para dentro dela — trocando um título correto por uma
+   * tela que não pinta nada até o banco responder.
+   *
+   * **Sem isto o título mente:** com `?autor=eu` a lista traz só as próprias e o cabeçalho continuaria
+   * dizendo *"Todas as ocorrências"*, que é o critério 14.3 ao contrário.
+   */
+  const visibilidade = podeLerTodas && filtro.apenasDoAutor !== true ? "todas" : "apenas_minhas";
+
+  /** As opções que não dependem de leitura nenhuma — as duas listas são do Domínio. */
+  const opcoesDeStatus: readonly OpcaoDeFiltro[] = STATUS.map((status) => ({
+    valor: status,
+    rotulo: nomeDoStatus(status),
+  }));
+  const opcoesDePrioridade: readonly OpcaoDeFiltro[] = PRIORIDADES.map((prioridade) => ({
+    valor: prioridade,
+    rotulo: nomeDaPrioridade(prioridade),
+  }));
 
   /**
    * **As duas leituras da lista partem agora e não são esperadas aqui.** Elas são passadas como promessa
    * para dentro do `<Suspense>`, que é quem as espera — é o que faz o cabeçalho pintar antes da lista.
    */
-  const paginaPedida = listarOcorrencias(repos.ocorrencias, {
-    pessoaId: ctx.pessoaId,
-    podeLerTodas,
-  });
+  const paginaPedida = listarOcorrencias(
+    repos.ocorrencias,
+    { pessoaId: ctx.pessoaId, podeLerTodas },
+    { filtro },
+  );
   const categoriasPedidas = listarCategorias(repos.categorias, { incluirInativas: true });
 
   /**
@@ -76,7 +137,7 @@ export default async function Ocorrencias() {
       <header className="flex flex-col gap-1">
         <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
         <h1 className="text-tinta text-xl leading-snug font-semibold">
-          {podeLerTodas ? "Todas as ocorrências" : "Minhas ocorrências"}
+          {visibilidade === "todas" ? "Todas as ocorrências" : "Minhas ocorrências"}
         </h1>
         {/* A organização ativa, permanentemente visível: *"num produto em que a organização vem da sessão
             e não da URL, o endereço não diz onde você está, então a tela tem de dizer"* (inventário §3,
@@ -97,9 +158,16 @@ export default async function Ocorrencias() {
         <Lista
           pagina={paginaPedida}
           categorias={categoriasPedidas}
+          filtro={filtro}
+          consultaAtual={consultaAtual}
+          nomeDaOrganizacao={organizacao?.nome ?? null}
+          podeLerTodas={podeLerTodas}
+          podeAlterarPrioridade={podeAlterarPrioridade}
+          opcoesDeStatus={opcoesDeStatus}
+          opcoesDePrioridade={opcoesDePrioridade}
           podeRegistrar={podeRegistrar}
           podeConfigurar={vinculo.pode("organizacao.configurar")}
-          mostrarPrioridade={vinculo.pode("ocorrencia.alterar_prioridade")}
+          mostrarPrioridade={podeAlterarPrioridade}
         />
       </Suspense>
 
@@ -163,12 +231,26 @@ export default async function Ocorrencias() {
 async function Lista({
   pagina,
   categorias,
+  filtro,
+  consultaAtual,
+  nomeDaOrganizacao,
+  podeLerTodas,
+  podeAlterarPrioridade,
+  opcoesDeStatus,
+  opcoesDePrioridade,
   podeRegistrar,
   podeConfigurar,
   mostrarPrioridade,
 }: {
   pagina: Promise<PaginaDeOcorrencias>;
   categorias: Promise<readonly CategoriaLida[]>;
+  filtro: FiltroDeOcorrencias;
+  consultaAtual: string;
+  nomeDaOrganizacao: string | null;
+  podeLerTodas: boolean;
+  podeAlterarPrioridade: boolean;
+  opcoesDeStatus: readonly OpcaoDeFiltro[];
+  opcoesDePrioridade: readonly OpcaoDeFiltro[];
   podeRegistrar: boolean;
   podeConfigurar: boolean;
   mostrarPrioridade: boolean;
@@ -176,13 +258,65 @@ async function Lista({
   const [resultado, listaDeCategorias] = await Promise.all([pagina, categorias]);
   const projetada = projetarPaginaDeOcorrencias(resultado);
 
+  /**
+   * §3.8 — o **menu** oferece só as ativas, por coerência com T-04, que *"nunca oferece categoria
+   * desativada"*. A busca traz as inativas porque o **ícone** precisa delas (§3.6 da spec do 14): a
+   * filtragem é do componente, não do pedido, e por isso mudar de ideia aqui custa **zero requisição**. A
+   * ordem é a de `ordem`, que já vem do repositório e é a escolha do Gestor (D18).
+   */
+  const opcoesDeCategoria: readonly OpcaoDeFiltro[] = listaDeCategorias
+    .filter((categoria) => categoria.ativa)
+    .map((categoria) => ({ valor: categoria.id, rotulo: categoria.nome }));
+
+  /** Categoria que veio na URL e não está no mapa — desativada, ou de outra organização — não vira nome. */
+  const nomeDaCategoria = (id: string) => listaDeCategorias.find((uma) => uma.id === id)?.nome;
+
+  /**
+   * **A barra vive DENTRO da fronteira de espera**, junto da lista, e o preço está declarado: durante a
+   * **primeira** carga ela ainda não está na tela e aparece com a lista. Não é o caso do 15.4 — ali a
+   * árvore anterior fica pintada inteira, barra inclusive. A alternativa era dar `await` em `categorias`
+   * no corpo da página, o que atrasaria o cabeçalho que o item 14 tirou daqui de propósito.
+   *
+   * **Ela aparece nos dois ramos, inclusive no vazio** — que é onde ela é mais necessária: sem ela, o
+   * vazio de filtro seria um beco.
+   */
+  const barra =
+    podeLerTodas ? (
+      <BarraDeFiltros
+        consultaAtual={consultaAtual}
+        status={opcoesDeStatus}
+        categorias={opcoesDeCategoria}
+        prioridades={podeAlterarPrioridade ? opcoesDePrioridade : null}
+        mostrarSoAsMinhas
+      />
+    ) : (
+      algumFiltroAplicado(filtro) && (
+        /*
+         * §3.1 — **URL filtrada nunca é beco.** Quem não tem `ler_todas` não tem barra, e pode chegar aqui
+         * por um link filtrado que um Gestor compartilhou (critério 15.3). Sem esta saída, ele fica preso
+         * num recorte que não sabe que existe.
+         */
+        <p className="border-linha border-b px-4 py-3 text-sm">
+          <Link href="/ocorrencias" className="text-marca underline underline-offset-4">
+            Limpar filtros
+          </Link>
+        </p>
+      )
+    );
+
   if (projetada.itens.length === 0) {
     return (
-      <Vazio
-        visibilidade={projetada.visibilidadeAplicada}
-        podeRegistrar={podeRegistrar}
-        podeConfigurar={podeConfigurar}
-      />
+      <div className="flex flex-col gap-4">
+        {barra}
+        <Vazio
+          visibilidade={projetada.visibilidadeAplicada}
+          filtro={filtro}
+          nomeDaOrganizacao={nomeDaOrganizacao}
+          nomeDaCategoria={nomeDaCategoria}
+          podeRegistrar={podeRegistrar}
+          podeConfigurar={podeConfigurar}
+        />
+      </div>
     );
   }
 
@@ -196,12 +330,46 @@ async function Lista({
   );
 
   return (
-    <ListaDeOcorrencias
-      primeiraPagina={projetada}
-      iconePorCategoria={iconePorCategoria}
-      mostrarPrioridade={mostrarPrioridade}
-      agora={instanteDoServidor()}
-    />
+    <div className="flex flex-col gap-4">
+      {barra}
+      {/*
+        **A `key` e a propriedade fazem coisas diferentes, e as duas são obrigatórias.** A `key` remonta o
+        componente quando o recorte muda — sem ela o `useState` semeado por `primeiraPagina` guarda a lista
+        antiga para sempre, e o filtro não muda um pixel. `consultaAtual` faz a **página seguinte** vir com
+        o mesmo recorte. Uma sem a outra deixa metade do item 15 quebrada.
+      */}
+      <ListaDeOcorrencias
+        key={consultaAtual}
+        primeiraPagina={projetada}
+        consultaAtual={consultaAtual}
+        iconePorCategoria={iconePorCategoria}
+        mostrarPrioridade={mostrarPrioridade}
+        agora={instanteDoServidor()}
+      />
+    </div>
+  );
+}
+
+/**
+ * O link com filtro que não existe — §3.9 da spec.
+ *
+ * Acontece com URL editada à mão ou compartilhada depois de o vocabulário mudar. **Nunca com filtro
+ * produzido pela barra** — ela só escreve valores que o servidor lhe deu.
+ */
+function FiltroInvalido() {
+  return (
+    <div className="border-linha bg-superficie m-4 rounded-md border px-4 py-6 text-center">
+      <h2 className="text-tinta text-base font-medium">Este link tem um filtro que não existe.</h2>
+      <p className="text-tinta-suave mt-1 text-sm">
+        Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
+      </p>
+      <Link
+        href="/ocorrencias"
+        className="text-marca mt-4 inline-block text-sm underline underline-offset-4"
+      >
+        Limpar filtros
+      </Link>
+    </div>
   );
 }
 
@@ -209,20 +377,27 @@ async function Lista({
  * Os vazios — critério 14.4.
  *
  * **Qual dos três é decisão de `vazioDaLista`**, que tem teste próprio. Aqui só se desenha o que ela
- * escolheu. **`algumFiltroAplicado` é `false` fixo nesta fatia:** não há filtro até o item 15, que é quem
- * torna o terceiro ramo alcançável e quem acrescenta o subtítulo com os valores e o *"Limpar filtros"*
- * (critério 15.6).
+ * escolheu. **O terceiro ramo passou a ser alcançável com o item 15**, que é quem tem os valores do
+ * recorte: o `false` fixo virou `algumFiltroAplicado(filtro)`, e o subtítulo e o *"Limpar filtros"*
+ * entraram (critério 15.6). **A função de escolha é reusada, não reescrita** — a precedência *filtro ganha
+ * da visibilidade* já vinha decidida do 14.
  */
 function Vazio({
   visibilidade,
+  filtro,
+  nomeDaOrganizacao,
+  nomeDaCategoria,
   podeRegistrar,
   podeConfigurar,
 }: {
   visibilidade: "todas" | "apenas_minhas";
+  filtro: FiltroDeOcorrencias;
+  nomeDaOrganizacao: string | null;
+  nomeDaCategoria: (id: string) => string | undefined;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
 }) {
-  const tipo = vazioDaLista(visibilidade, false);
+  const tipo = vazioDaLista(visibilidade, algumFiltroAplicado(filtro));
   const texto = TEXTO_DO_VAZIO[tipo];
 
   return (
@@ -230,6 +405,26 @@ function Vazio({
       <h2 className="text-tinta text-base font-semibold">{texto.titulo}</h2>
       {texto.corpo !== null && (
         <p className="text-tinta-suave text-sm leading-relaxed">{texto.corpo}</p>
+      )}
+
+      {/*
+        O subtítulo do **terceiro vazio** — critério 15.6. `corpo` é `null` para este tipo de propósito,
+        esperando exatamente isto: o recorte em palavras, com os mesmos rótulos dos chips. **`nomeDaOrganizacao`
+        pode ser nulo**, e a frase sem o nome continua verdadeira; inventá-lo seria pior.
+      */}
+      {tipo === "filtro" && (
+        <>
+          <p className="text-tinta-suave text-sm leading-relaxed">
+            {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
+            {descricaoDoRecorte(filtro, nomeDaCategoria).join(" · ")}.
+          </p>
+          <Link
+            href="/ocorrencias"
+            className="text-marca inline-block text-sm underline underline-offset-4"
+          >
+            Limpar filtros
+          </Link>
+        </>
       )}
 
       <div className="flex flex-wrap gap-2">

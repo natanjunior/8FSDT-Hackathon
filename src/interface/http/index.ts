@@ -54,8 +54,11 @@ export {
 export { novoTraceId } from "./traco";
 
 export {
+  algumFiltroAplicado,
+  consultaDe,
   lerBooleanoDaUrl,
   lerCursorDaUrl,
+  lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,

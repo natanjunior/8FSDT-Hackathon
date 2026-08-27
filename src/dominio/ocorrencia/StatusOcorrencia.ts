@@ -16,6 +16,15 @@ export const STATUS = [
 
 export type StatusOcorrencia = (typeof STATUS)[number];
 
+/**
+ * **O guarda de valor, e ele é do Domínio de propósito.** Quem decide o que é um status é o Domínio; a
+ * Interface só traduz o que chegou pela URL. Sem isto, a lista dos seis valores viveria em dois lugares —
+ * e a segunda cópia é a que esquece de crescer quando o sétimo estado nascer.
+ */
+export function ehStatusOcorrencia(valor: unknown): valor is StatusOcorrencia {
+  return typeof valor === "string" && (STATUS as readonly string[]).includes(valor);
+}
+
 /** **`Resolvida` e `Cancelada` são terminais de verdade — não existe `reabrir`** (D24). */
 export const TERMINAIS: readonly StatusOcorrencia[] = ["resolvida", "cancelada"];
 

@@ -9,5 +9,10 @@ export const PRIORIDADES = ["baixa", "normal", "alta"] as const;
 
 export type Prioridade = (typeof PRIORIDADES)[number];
 
+/** O guarda de valor — mesma razão do `ehStatusOcorrencia`: a lista dos três mora aqui e só aqui. */
+export function ehPrioridade(valor: unknown): valor is Prioridade {
+  return typeof valor === "string" && (PRIORIDADES as readonly string[]).includes(valor);
+}
+
 /** O que o servidor escreve no registro. */
 export const PRIORIDADE_INICIAL: Prioridade = "normal";

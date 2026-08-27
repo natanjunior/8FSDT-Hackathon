@@ -4,6 +4,7 @@ export {
   type AnexoLido,
   type CursorDeListagem,
   type FiltroDeListagem,
+  type FiltroDeOcorrencias,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type PessoaReferencia,

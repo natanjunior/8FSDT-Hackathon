@@ -119,3 +119,59 @@ describe("a aritmética da página", () => {
     expect(pedidos[0]?.cursor).toStrictEqual(cursor);
   });
 });
+
+describe("o critério 15.1 — o filtro atravessa a Aplicação sem ser interpretado", () => {
+  it("o filtro chega ao repositório exatamente como veio", async () => {
+    const filtro = { status: ["pausada"], prioridade: ["alta"] } as const;
+
+    await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: true }, { filtro });
+
+    expect(pedidos[0]).toMatchObject({ filtro });
+  });
+
+  it("quem tem ler_todas e pede autor=eu recebe apenas_minhas", async () => {
+    const pagina = await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: true },
+      { filtro: { apenasDoAutor: true } },
+    );
+
+    expect(pagina.visibilidadeAplicada).toBe("apenas_minhas");
+    expect(pedidos[0]).toMatchObject({ autorPessoaId: ID_PESSOA });
+  });
+
+  it("quem tem ler_todas e NAO pede autor=eu continua vendo todas", async () => {
+    const pagina = await listarOcorrencias(repositorio(), {
+      pessoaId: ID_PESSOA,
+      podeLerTodas: true,
+    });
+
+    expect(pagina.visibilidadeAplicada).toBe("todas");
+    expect(pedidos[0]?.autorPessoaId).toBeUndefined();
+  });
+
+  it("para quem só tem ler_propria, autor=eu não muda nada — já era apenas_minhas", async () => {
+    const pagina = await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: false },
+      { filtro: { apenasDoAutor: true } },
+    );
+
+    expect(pagina.visibilidadeAplicada).toBe("apenas_minhas");
+    expect(pedidos[0]).toMatchObject({ autorPessoaId: ID_PESSOA });
+  });
+
+  /**
+   * **A aritmética da página não pode morrer no caminho.** É o caso que pega o erro mais caro desta
+   * tarefa: reescrever o corpo de `listarOcorrencias` e perder o `limite + 1` que produz `temMais`.
+   */
+  it("com filtro, continua pedindo uma linha a mais do que devolve", async () => {
+    await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: true },
+      { limite: 2, filtro: { status: ["aberta"] } },
+    );
+
+    expect(pedidos[0]?.limite).toBe(3);
+  });
+});

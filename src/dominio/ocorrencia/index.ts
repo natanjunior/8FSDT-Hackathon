@@ -9,6 +9,12 @@ export {
   type MotivoPausa,
 } from "./Motivos";
 export { Ocorrencia, type DadosDeRegistro, type TipoDeAreaCongelado } from "./Ocorrencia";
-export { PRIORIDADE_INICIAL, PRIORIDADES, type Prioridade } from "./Prioridade";
+export { ehPrioridade, PRIORIDADE_INICIAL, PRIORIDADES, type Prioridade } from "./Prioridade";
 export { RegistroDeTransicao } from "./RegistroDeTransicao";
-export { ehTerminal, STATUS, TERMINAIS, type StatusOcorrencia } from "./StatusOcorrencia";
+export {
+  ehStatusOcorrencia,
+  ehTerminal,
+  STATUS,
+  TERMINAIS,
+  type StatusOcorrencia,
+} from "./StatusOcorrencia";

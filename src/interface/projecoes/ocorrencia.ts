@@ -1,11 +1,17 @@
 import type {
   CursorDeListagem,
+  FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   PaginaDeOcorrencias,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
-import { comandosDisponiveis, type MotivoPausa, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import {
+  comandosDisponiveis,
+  type MotivoPausa,
+  type Prioridade,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 
 import { projetarAnexo } from "./anexo";
 
@@ -62,6 +68,96 @@ export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPaus
  */
 export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
   return ROTULO_DE_PAUSA[motivo];
+}
+
+/**
+ * ============================================================================
+ *  A coluna do Gestor — o nome do status como OPÇÃO DE FILTRO
+ * ============================================================================
+ *
+ * **É a mesma tabela do glossário §4, na outra coluna** (`contrato-de-api.md`) — não é rótulo novo e não é
+ * rótulo montado no navegador. Ela existe separada do `rotuloDeStatus` porque responde outra pergunta:
+ * *"qual conjunto você quer"*, e não *"o que está acontecendo com a sua ocorrência"*.
+ *
+ * **A coluna do Solicitante não serviria**, e a razão é mecânica: nela `pausada` tem **quatro** rótulos,
+ * um por motivo, e uma opção de filtro não tem motivo.
+ *
+ * **Não é a segunda cópia que o contrato §8.8 recusa** — essa seria montar rótulo no navegador, e aqui os
+ * rótulos descem prontos do Server Component para a barra.
+ *
+ * **Custo declarado, e temporário:** até o item **31**, o chip diz *"Aberta"* enquanto o item da lista diz
+ * *"Recebida — aguardando análise"* — dois vocabulários para o mesmo status na mesma tela. É o custo que a
+ * spec do item 11 já declarou ao escolher uma coluna só, ficando visível lado a lado. Achado **A-6**.
+ */
+const NOME_DO_STATUS: Readonly<Record<StatusOcorrencia, string>> = {
+  aberta: "Aberta",
+  em_analise: "Em análise",
+  em_atendimento: "Em atendimento",
+  pausada: "Pausada",
+  resolvida: "Resolvida",
+  cancelada: "Cancelada",
+};
+
+const NOME_DA_PRIORIDADE: Readonly<Record<Prioridade, string>> = {
+  baixa: "Baixa",
+  normal: "Normal",
+  alta: "Alta",
+};
+
+export function nomeDoStatus(status: StatusOcorrencia): string {
+  return NOME_DO_STATUS[status];
+}
+
+export function nomeDaPrioridade(prioridade: Prioridade): string {
+  return NOME_DA_PRIORIDADE[prioridade];
+}
+
+/**
+ * O recorte aplicado, em cláusulas — o subtítulo do **terceiro vazio** (critério 15.6).
+ *
+ * **A forma é mecânica de propósito, e diverge do exemplo que o critério ilustra.** O 15.6 mostra
+ * *"Nenhuma **pausada** com prioridade **alta** em Recanto Azul."*, que depende de concordância em
+ * português: funciona para `pausada`, `aberta`, `resolvida` e `cancelada`, e **quebra** para `em_analise`
+ * e `em_atendimento` — *"Nenhuma em análise com…"*. Com dois valores na mesma dimensão quebra sempre:
+ * *"Nenhuma pausada, aberta com…"*.
+ *
+ * **A saída é reusar o rótulo do chip.** *"Status: Pausada · Prioridade: Alta"* não precisa concordar com
+ * nada, é literalmente o que a pessoa marcou, e mantém **um vocabulário só** na tela. Quem monta a frase
+ * em volta — *"Em Recanto Azul, com …"* — é a página, que é quem sabe o nome da organização. Foi ao hub
+ * como **P2** do plano, e segue pela opção recomendada até alguém dizer o contrário.
+ *
+ * **`nomeDaCategoria` devolve `undefined` para a categoria desativada que veio na URL** (§3.8 da spec), e
+ * aí a cláusula conta em vez de nomear — nunca inventa nome.
+ */
+export function descricaoDoRecorte(
+  filtro: FiltroDeOcorrencias,
+  nomeDaCategoria: (id: string) => string | undefined,
+): readonly string[] {
+  const clausulas: string[] = [];
+
+  if (filtro.status !== undefined) {
+    clausulas.push(`Status: ${filtro.status.map(nomeDoStatus).join(", ")}`);
+  }
+
+  if (filtro.categoriaId !== undefined) {
+    const nomes = filtro.categoriaId.map(nomeDaCategoria).filter((nome) => nome !== undefined);
+    clausulas.push(
+      nomes.length === filtro.categoriaId.length
+        ? `Categoria: ${nomes.join(", ")}`
+        : // **`selecionado`, masculino, concordando com o "valor" implícito** — e é a MESMA palavra que o
+          // chip usa (`Status: 2 selecionados`, §3.5 da spec). Duas superfícies mostrando o mesmo recorte
+          // com duas palavras diferentes seria o começo de dois vocabulários.
+          `Categoria: ${filtro.categoriaId.length} selecionado${filtro.categoriaId.length > 1 ? "s" : ""}`,
+    );
+  }
+
+  if (filtro.prioridade !== undefined) {
+    clausulas.push(`Prioridade: ${filtro.prioridade.map(nomeDaPrioridade).join(", ")}`);
+  }
+
+  if (filtro.apenasDoAutor === true) clausulas.push("Só as minhas");
+
+  return clausulas;
 }
 
 /** O schema `RegistroDeTransicao` do contrato. **`sequencia` não sai** — é ordem interna da trilha. */

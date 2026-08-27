@@ -1,8 +1,12 @@
+import { z } from "zod";
+
 import {
   LIMITE_MAXIMO,
   type CursorDeListagem,
+  type FiltroDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
+import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
 import { decodificarCursor } from "@/interface/projecoes";
 
@@ -125,4 +129,142 @@ export function lerVarianteDaUrl(requisicao: Request): VarianteDoAnexo {
   throw new FormatoInvalido([
     { campo: "variante", codigo: "VALOR_INVALIDO", mensagem: 'O único valor aceito é "miniatura".' },
   ]);
+}
+
+/** `z.uuid()`, e não expressão regular à mão: é a mesma forma dos schemas (`schemas/ocorrencia.ts`). */
+const identificador = z.uuid();
+
+function ehIdentificador(valor: unknown): valor is string {
+  return identificador.safeParse(valor).success;
+}
+
+/**
+ * Lê **um** valor de um parâmetro — e recusa o parâmetro repetido.
+ *
+ * **Por que recusar em vez de juntar.** O contrato declara os três filtros como `style: form,
+ * explode: false` (`openapi.yaml`): a lista viaja **num parâmetro só, separada por vírgula**. Aceitar
+ * também `?status=a&status=b` seria sustentar em silêncio uma segunda gramática que nenhuma tela produz e
+ * que o contrato não descreve — e o dia em que as duas divergirem, ninguém sabe qual está certa.
+ */
+function lerUnico(parametros: URLSearchParams, nome: string): string | undefined {
+  const todos = parametros.getAll(nome);
+  if (todos.length > 1) {
+    throw new FormatoInvalido([
+      {
+        campo: nome,
+        codigo: "VALOR_INVALIDO",
+        mensagem: "Envie os valores separados por vírgula, num parâmetro só.",
+      },
+    ]);
+  }
+
+  const bruto = todos[0];
+  return bruto === undefined || bruto === "" ? undefined : bruto;
+}
+
+/**
+ * Lê uma lista separada por vírgula — `undefined` quando ausente, exceção quando algum valor não serve.
+ *
+ * **Recusado, nunca ignorado**, pela razão que já está escrita no topo deste arquivo: descartar o valor
+ * inválido devolveria um conjunto que o cliente não pediu, em silêncio.
+ */
+function lerLista<V extends string>(
+  parametros: URLSearchParams,
+  nome: string,
+  eh: (valor: unknown) => valor is V,
+  mensagem: string,
+): readonly V[] | undefined {
+  const bruto = lerUnico(parametros, nome);
+  if (bruto === undefined) return undefined;
+
+  const pedidos = bruto.split(",").map((valor) => valor.trim());
+  if (!pedidos.every(eh)) {
+    throw new FormatoInvalido([{ campo: nome, codigo: "VALOR_INVALIDO", mensagem }]);
+  }
+
+  return pedidos;
+}
+
+/**
+ * Os quatro parâmetros de `GET /ocorrencias` — o **item 15**.
+ *
+ * **Assina sobre `URLSearchParams`, e não sobre `Request`, porque tem dois chamadores de formas
+ * diferentes:** o `route.ts` tem a requisição, e a página tem os `searchParams` do App Router. Uma função
+ * só é o que faz a página **validar antes de consultar** em vez de descobrir o filtro inválido por um
+ * `400` que ela mesma provocou.
+ *
+ * **`categoriaId` inexistente não é erro aqui nem adiante:** é filtro que não casa com nada, e devolve
+ * lista vazia. Um `422` diria a quem perguntasse se aquele identificador é categoria de **alguma**
+ * organização, que é informação que o produto não dá.
+ */
+export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): FiltroDeOcorrencias {
+  const status = lerLista(
+    parametros,
+    "status",
+    ehStatusOcorrencia,
+    'Use "aberta", "em_analise", "em_atendimento", "pausada", "resolvida" ou "cancelada", separados por vírgula.',
+  );
+  const categoriaId = lerLista(
+    parametros,
+    "categoriaId",
+    ehIdentificador,
+    "Use identificadores de categoria separados por vírgula.",
+  );
+  const prioridade = lerLista(
+    parametros,
+    "prioridade",
+    ehPrioridade,
+    'Use "baixa", "normal" ou "alta", separados por vírgula.',
+  );
+
+  const autor = lerUnico(parametros, "autor");
+  if (autor !== undefined && autor !== "eu") {
+    throw new FormatoInvalido([
+      { campo: "autor", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "eu".' },
+    ]);
+  }
+
+  // Campo ausente é "não filtre por esta dimensão" — por isso o espalhamento condicional em vez de
+  // `status: undefined`, que faria `toStrictEqual({})` falhar e, pior, esconderia a diferença.
+  return {
+    ...(status === undefined ? {} : { status }),
+    ...(categoriaId === undefined ? {} : { categoriaId }),
+    ...(prioridade === undefined ? {} : { prioridade }),
+    ...(autor === undefined ? {} : { apenasDoAutor: true }),
+  };
+}
+
+/**
+ * Se **algum** dos quatro está aplicado.
+ *
+ * É o segundo argumento do `vazioDaLista` que o item 14 declarou — e é o que faz o terceiro vazio ganhar
+ * da visibilidade: quem chega por URL filtrada e recebe zero lê *"Nenhuma ocorrência com estes filtros."*,
+ * **mesmo sem barra na tela**.
+ */
+export function algumFiltroAplicado(filtro: FiltroDeOcorrencias): boolean {
+  return (
+    filtro.status !== undefined ||
+    filtro.categoriaId !== undefined ||
+    filtro.prioridade !== undefined ||
+    filtro.apenasDoAutor === true
+  );
+}
+
+/**
+ * Os `searchParams` do App Router virando `URLSearchParams`.
+ *
+ * **Preserva repetições de propósito:** `Record<string, string | string[]>` é como o Next entrega
+ * `?status=a&status=b`, e é justamente o caso que `lerUnico` precisa enxergar para recusar. Achatar aqui
+ * apagaria a evidência antes de a regra agir.
+ */
+export function consultaDe(
+  parametros: Record<string, string | string[] | undefined>,
+): URLSearchParams {
+  const consulta = new URLSearchParams();
+  for (const [nome, valor] of Object.entries(parametros)) {
+    if (valor === undefined) continue;
+    if (Array.isArray(valor)) for (const um of valor) consulta.append(nome, um);
+    else consulta.append(nome, valor);
+  }
+  return consulta;
 }
