@@ -84,3 +84,59 @@ export type PortasDeAnexo = {
   emissor: EmissorDeCredencialDeUpload;
   livro: LivroDeAutorizacoesDeUpload;
 };
+
+/**
+ * O que o ticket carrega. **É o mesmo objeto que `assinarTicket` serializou** no item 13a — a forma vive
+ * nos dois lados de um HMAC, e por isso é declarada aqui, onde a regra a consome.
+ */
+export type CargaDoTicketDeAnexo = {
+  chave: string;
+  chaveMiniatura: string;
+  organizacaoId: string;
+  pessoaId: string;
+  tipoConteudo: string;
+  /** O que o cliente **declarou** na autorização. É o teto comparado, e é mais apertado que 512 KB. */
+  tamanhoMaximo: number;
+  /** ISO 8601. */
+  expiraEm: string;
+};
+
+/**
+ * O que o `HEAD` mais a leitura de etiquetas apuram sobre um objeto — **um fato só**.
+ *
+ * No Azure são duas chamadas: `Get Blob Properties` traz tamanho e tipo, e só `Get Blob Tags` traz o
+ * **valor** da etiqueta. Separá-las na porta obrigaria o caso de uso a sequenciá-las; fundidas, o
+ * adaptador as dispara em paralelo e a Aplicação vê um fato.
+ */
+export type ObjetoDescrito = {
+  /** O `x-ms-blob-content-type` que o **cliente** escreveu no `PUT`. Não é leitura dos bytes. */
+  tipoConteudo: string | null;
+  tamanhoBytes: number;
+  /** Do `Content-Disposition`, quando houver. Pelo nosso cliente é sempre `null`. */
+  nomeArquivo: string | null;
+  /** O valor da etiqueta `estado`, ou `null` quando o objeto **não tem** a etiqueta. */
+  estado: string | null;
+};
+
+/**
+ * A porta do storage no caminho da **reivindicação e da leitura** — e ela é burra de propósito.
+ *
+ * **Nenhum dos quatro métodos decide nada.** As seis conferências do critério 13b.2 são **regra**, e regra
+ * que mora no adaptador só se testa contra o Azurite; na Aplicação ela se testa com um duplo, que é como
+ * o 13a testou o limite de 30/h e como `registrarOcorrencia` já testa `ativa`.
+ *
+ * **Ela não é escopada, e os chamadores são.** O adaptador não conhece organização: quem amarra o escopo
+ * é o `ticket` (na escrita) e a linha de `anexos` lida pelo repositório escopado (na leitura). Por isso
+ * ela **não** entra em `RepositoriosEscopados`, que continua sem membro que não seja repositório
+ * escopado.
+ */
+export interface ArmazenamentoDeAnexos {
+  /** Confere a **assinatura** e devolve a carga, ou `null`. Não compara portador nem validade. */
+  conferirTicket(ticket: string): CargaDoTicketDeAnexo | null;
+  /** `HEAD` **e** etiquetas, em paralelo. `null` quando o objeto não existe. Não julga nada. */
+  descrever(chave: string): Promise<ObjetoDescrito | null>;
+  /** Troca a etiqueta para `estado=confirmado`; devolve se conseguiu. Não decide o que fazer com a falha. */
+  marcarConfirmado(chave: string): Promise<boolean>;
+  /** Assina uma SAS de **leitura**, de 10 minutos. Não autoriza nada — quem autoriza é a ocorrência. */
+  urlDeLeitura(chave: string): string;
+}
