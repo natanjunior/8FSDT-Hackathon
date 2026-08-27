@@ -68,6 +68,12 @@ let idPedidoRecanto: string;
 let idPedidoAurora: string;
 let idDaOcorrenciaEmA: string;
 let idDaOcorrenciaEmB: string;
+let idDoAnexoEmA: string;
+let idDoAnexoEmB: string;
+/** Constantes, e não `uuid` do banco: são a `chaveDaLinha` da entrada, e o `SUFIXO` já as torna únicas
+ *  entre execuções — que é o que o `UNIQUE (chave)` GLOBAL de `anexos` exige. */
+const chaveDoAnexoEmA = `anx_iso_a_${SUFIXO}`;
+const chaveDoAnexoEmB = `anx_iso_b_${SUFIXO}`;
 
 /**
  * As portas de uma organizacao, montadas como a producao as monta.
@@ -129,9 +135,23 @@ beforeAll(async () => {
    * A categoria e a área são as que o próprio `semear()` criou por organização. **Não é a semente da
    * POL-01:** este arquivo insere as duas por SQL direto, e é de lá que elas vêm.
    */
-  for (const [organizacaoId, guardar] of [
-    [idRecanto, (id: string) => (idDaOcorrenciaEmA = id)],
-    [idAurora, (id: string) => (idDaOcorrenciaEmB = id)],
+  for (const [organizacaoId, chaveDoAnexo, guardar] of [
+    [
+      idRecanto,
+      chaveDoAnexoEmA,
+      (o: string, a: string) => {
+        idDaOcorrenciaEmA = o;
+        idDoAnexoEmA = a;
+      },
+    ],
+    [
+      idAurora,
+      chaveDoAnexoEmB,
+      (o: string, a: string) => {
+        idDaOcorrenciaEmB = o;
+        idDoAnexoEmB = a;
+      },
+    ],
   ] as const) {
     const portas = portasDe(organizacaoId);
     const [categoria] = await portas.categorias.listar({ apenasAtivas: true });
@@ -148,7 +168,18 @@ beforeAll(async () => {
         localizacaoComplemento: null,
       },
     );
-    guardar(lida.id);
+
+    // A FK `anexos_anexado_por_fk` aponta para `vinculos (pessoa_id, organizacao_id)`, e `idSindica`
+    // tem vínculo nas duas organizações — é a mesma razão que faz a ocorrência caber nas duas.
+    const [anexo] = await consulta<{ id: string }>(
+      `insert into anexos
+         (organizacao_id, ocorrencia_id, tipo, chave, tipo_conteudo, tamanho_bytes, anexado_por_pessoa_id)
+       values ($1, $2, 'imagem', $3, 'image/jpeg', 391244, $4)
+       returning id`,
+      [organizacaoId, lida.id, chaveDoAnexo, idSindica],
+    );
+
+    guardar(lida.id, anexo!.id);
   }
 });
 
@@ -599,6 +630,37 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [idDaOcorrenciaEmB];
+      },
+    },
+  });
+
+  /**
+   * **A sétima entrada, e a primeira do anexo (item 13b).** Ela semeia **apenas o próprio agregado** —
+   * as pessoas e as organizações são da suíte (§7.1).
+   *
+   * O que ela mira é o `objetoDoAnexo`: uma consulta por `(ocorrenciaId, anexoId)` que devolve a **chave
+   * do storage**. Se o `$1` sumisse do `where`, o `anexoId` de outra organização passaria a ser
+   * resolvível — e o `302` entregaria a foto de outro condomínio a quem tem o identificador.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/anexos/{anexoId}",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const lidos = await Promise.all([
+        repo.objetoDoAnexo(idDaOcorrenciaEmA, idDoAnexoEmA),
+        repo.objetoDoAnexo(idDaOcorrenciaEmB, idDoAnexoEmB),
+      ]);
+      return lidos.filter((objeto) => objeto !== null);
+    },
+    chaveDaLinha: (objeto) => objeto.chave,
+    // **Os `get` são obrigatórios** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. É a mesma nota que a entrada de `GET /ocorrencias/{id}` já carrega.
+    esperadas: {
+      get emA() {
+        return [chaveDoAnexoEmA];
+      },
+      get emB() {
+        return [chaveDoAnexoEmB];
       },
     },
   });

@@ -1,6 +1,11 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { Ocorrencia } from "@/dominio/ocorrencia";
+import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
+import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
+
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
@@ -136,5 +141,195 @@ describe("a tabela `anexos` impõe o que a §6.16 do modelo decidiu", () => {
     // **O teto de um é de ESCOPO e mora no `maxItems: 1` do schema de entrada.** Este caso existe para
     // que ninguém acrescente "por segurança" o índice único que o modelo §6.16 recusa em voz alta.
     expect(contagem!.total).toBe("2");
+  });
+});
+
+function repositorio() {
+  return repositorioEscopadoDeOcorrencias(
+    escoparConsulta(criarConsulta(), organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
+/** Um agregado com anexo, montado direto — a reivindicação já foi provada com duplo. */
+function agregadoComAnexo(chave: string, thumbnailChave: string | null) {
+  return Ocorrencia.registrar({
+    titulo: "Lâmpada queimada na garagem",
+    descricao: "Está escuro à noite.",
+    categoriaId,
+    areaId,
+    areaTipo: "comum",
+    localizacaoComplemento: null,
+    autorPessoaId: pessoaId,
+    ocorreuEm: new Date().toISOString(),
+    anexos: [
+      {
+        tipo: "imagem",
+        chave,
+        thumbnailChave,
+        nomeArquivo: null,
+        titulo: "Lâmpada da vaga 34",
+        tipoConteudo: "image/jpeg",
+        tamanhoBytes: 391_244,
+        anexadoPorPessoaId: pessoaId,
+        anexadoEm: new Date().toISOString(),
+      },
+    ],
+  });
+}
+
+describe("as TRÊS escritas são uma transação só", () => {
+  it("ocorrência, registro de transição e anexo nascem no mesmo COMMIT", async () => {
+    const chave = `anx_${SUFIXO}_trio`;
+    const resultado = await repositorio().registrar(agregadoComAnexo(chave, `${chave}_mini`));
+
+    expect(resultado.desfecho).toBe("registrada");
+    const id = resultado.desfecho === "registrada" ? resultado.ocorrencia.id : "";
+
+    const [transicoes] = await consultaCrua<{ total: string }>(
+      `select count(*) as total from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    const [anexos] = await consultaCrua<{ total: string }>(
+      `select count(*) as total from anexos where ocorrencia_id = $1`,
+      [id],
+    );
+
+    expect(transicoes!.total).toBe("1");
+    expect(anexos!.total).toBe("1");
+  });
+
+  it("anexo que viola a FK derruba as TRÊS — nenhuma linha sobra", async () => {
+    const antes = await consultaCrua<{ total: string }>(`select count(*) as total from ocorrencias`);
+
+    const agregado = Ocorrencia.registrar({
+      titulo: "Com anexo impossível",
+      descricao: "A chave é uma URL, e o CHECK recusa.",
+      categoriaId,
+      areaId,
+      areaTipo: "comum",
+      localizacaoComplemento: null,
+      autorPessoaId: pessoaId,
+      ocorreuEm: new Date().toISOString(),
+      anexos: [
+        {
+          tipo: "imagem",
+          chave: "https://conta.blob.core.windows.net/anexos/x",
+          thumbnailChave: null,
+          nomeArquivo: null,
+          titulo: null,
+          tipoConteudo: "image/jpeg",
+          tamanhoBytes: 1,
+          anexadoPorPessoaId: pessoaId,
+          anexadoEm: new Date().toISOString(),
+        },
+      ],
+    });
+
+    await expect(repositorio().registrar(agregado)).rejects.toThrow();
+
+    const depois = await consultaCrua<{ total: string }>(`select count(*) as total from ocorrencias`);
+    // É a invariante 2 da ADR-0001 valendo para a terceira escrita: ou as três, ou nenhuma.
+    expect(depois[0]!.total).toBe(antes[0]!.total);
+  });
+});
+
+describe("a segunda reivindicação da mesma chave", () => {
+  it("devolve o desfecho `anexo-ja-reivindicado`, com o ocorrenciaId da PRIMEIRA", async () => {
+    const chave = `anx_${SUFIXO}_repetida`;
+    const primeira = await repositorio().registrar(agregadoComAnexo(chave, `${chave}_mini`));
+    const idDaPrimeira = primeira.desfecho === "registrada" ? primeira.ocorrencia.id : "";
+
+    const segunda = await repositorio().registrar(agregadoComAnexo(chave, `${chave}_mini`));
+
+    expect(segunda).toStrictEqual({
+      desfecho: "anexo-ja-reivindicado",
+      ocorrenciaId: idDaPrimeira,
+    });
+  });
+
+  it("e NÃO cria a segunda ocorrência", async () => {
+    const chave = `anx_${SUFIXO}_repetida2`;
+    await repositorio().registrar(agregadoComAnexo(chave, null));
+    const antes = await consultaCrua<{ total: string }>(`select count(*) as total from ocorrencias`);
+
+    await repositorio().registrar(agregadoComAnexo(chave, null));
+
+    const depois = await consultaCrua<{ total: string }>(`select count(*) as total from ocorrencias`);
+    expect(depois[0]!.total).toBe(antes[0]!.total);
+  });
+});
+
+describe("as leituras do anexo", () => {
+  it("o detalhe traz o anexo inteiro — e NUNCA a chave", async () => {
+    const chave = `anx_${SUFIXO}_detalhe`;
+    const criada = await repositorio().registrar(agregadoComAnexo(chave, `${chave}_mini`));
+    const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
+
+    const lida = await repositorio().porId(id);
+
+    expect(lida!.anexos).toHaveLength(1);
+    expect(lida!.anexos[0]).toMatchObject({
+      tipo: "imagem",
+      titulo: "Lâmpada da vaga 34",
+      tipoConteudo: "image/jpeg",
+      tamanhoBytes: 391_244,
+      temMiniatura: true,
+    });
+    // A propriedade é de TIPO, e este caso a prova em tempo de execução também.
+    expect(JSON.stringify(lida!.anexos)).not.toContain(chave);
+  });
+
+  it("sem anexo, a lista é vazia — nunca `null`", async () => {
+    const agregado = Ocorrencia.registrar({
+      titulo: "Sem foto",
+      descricao: "Nada anexado.",
+      categoriaId,
+      areaId,
+      areaTipo: "comum",
+      localizacaoComplemento: null,
+      autorPessoaId: pessoaId,
+      ocorreuEm: new Date().toISOString(),
+    });
+    const criada = await repositorio().registrar(agregado);
+    const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
+
+    expect((await repositorio().porId(id))!.anexos).toStrictEqual([]);
+  });
+
+  it("a listagem traz a contagem REAL, e não o zero forçado", async () => {
+    const chave = `anx_${SUFIXO}_contagem`;
+    const criada = await repositorio().registrar(agregadoComAnexo(chave, null));
+    const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
+
+    const pagina = await repositorio().listar({ limite: 50, cursor: null });
+    const item = pagina.find((linha) => linha.id === id);
+
+    expect(item!.quantidadeDeAnexos).toBe(1);
+    expect(pagina.some((linha) => linha.quantidadeDeAnexos === 0)).toBe(true);
+  });
+
+  it("`objetoDoAnexo` devolve a chave e a da miniatura, e só isso", async () => {
+    const chave = `anx_${SUFIXO}_objeto`;
+    const criada = await repositorio().registrar(agregadoComAnexo(chave, `${chave}_mini`));
+    const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
+    const anexoId = (await repositorio().porId(id))!.anexos[0]!.id;
+
+    expect(await repositorio().objetoDoAnexo(id, anexoId)).toStrictEqual({
+      chave,
+      thumbnailChave: `${chave}_mini`,
+    });
+  });
+
+  it("`objetoDoAnexo` de anexo que não é desta ocorrência devolve `null`", async () => {
+    const chave = `anx_${SUFIXO}_alheio`;
+    const criada = await repositorio().registrar(agregadoComAnexo(chave, null));
+    const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
+    const anexoId = (await repositorio().porId(id))!.anexos[0]!.id;
+
+    const outra = await repositorio().registrar(agregadoComAnexo(`anx_${SUFIXO}_alheio2`, null));
+    const idDaOutra = outra.desfecho === "registrada" ? outra.ocorrencia.id : "";
+
+    expect(await repositorio().objetoDoAnexo(idDaOutra, anexoId)).toBeNull();
   });
 });

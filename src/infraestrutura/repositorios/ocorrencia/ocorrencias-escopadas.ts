@@ -1,7 +1,9 @@
 import type {
+  AnexoLido,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
+  ResultadoDoRegistro,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
 import type { Ocorrencia } from "@/dominio/ocorrencia";
@@ -59,6 +61,17 @@ type LinhaDeTransicao = {
   motivo_cancelamento: TransicaoLida["motivoCancelamento"];
 };
 
+type LinhaDeAnexo = {
+  id: string;
+  tipo: AnexoLido["tipo"];
+  titulo: string | null;
+  nome_arquivo: string | null;
+  tipo_conteudo: string;
+  tamanho_bytes: number;
+  tem_miniatura: boolean;
+  anexado_em: Date;
+};
+
 /**
  * O `select` da ocorrência. **O `join` de autor começa em `vinculos`** e só então alcança `pessoas` —
  * é o que impede a consulta de enxergar o cadastro do sistema inteiro.
@@ -107,6 +120,38 @@ const SELECT_DA_TRILHA = `
    where r.organizacao_id = $1 and r.ocorrencia_id = $2
    order by r.sequencia`;
 
+/**
+ * Os anexos de uma ocorrência, pelo índice `(organizacao_id, ocorrencia_id)`.
+ *
+ * **`thumbnail_chave` não sai — sai se ela existe.** A projeção monta as duas URLs a partir do `id`, que
+ * é a chave primária e é o que torna a URL estável (contrato §10.4); a chave do storage não participa.
+ */
+const SELECT_DOS_ANEXOS = `
+  select a.id,
+         a.tipo,
+         a.titulo,
+         a.nome_arquivo,
+         a.tipo_conteudo,
+         a.tamanho_bytes,
+         (a.thumbnail_chave is not null) as tem_miniatura,
+         a.anexado_em
+    from anexos a
+   where a.organizacao_id = $1 and a.ocorrencia_id = $2
+   order by a.anexado_em, a.id`;
+
+function montarAnexo(linha: LinhaDeAnexo): AnexoLido {
+  return {
+    id: linha.id,
+    tipo: linha.tipo,
+    titulo: linha.titulo,
+    nomeArquivo: linha.nome_arquivo,
+    tipoConteudo: linha.tipo_conteudo,
+    tamanhoBytes: linha.tamanho_bytes,
+    temMiniatura: linha.tem_miniatura,
+    anexadoEm: linha.anexado_em.toISOString(),
+  };
+}
+
 function montarTransicao(linha: LinhaDeTransicao): TransicaoLida {
   return {
     sequencia: linha.sequencia,
@@ -120,7 +165,11 @@ function montarTransicao(linha: LinhaDeTransicao): TransicaoLida {
   };
 }
 
-function montarOcorrencia(linha: LinhaDeOcorrencia, ultima: TransicaoLida): OcorrenciaLida {
+function montarOcorrencia(
+  linha: LinhaDeOcorrencia,
+  ultima: TransicaoLida,
+  anexos: readonly AnexoLido[],
+): OcorrenciaLida {
   return {
     id: linha.id,
     titulo: linha.titulo,
@@ -130,6 +179,7 @@ function montarOcorrencia(linha: LinhaDeOcorrencia, ultima: TransicaoLida): Ocor
     categoria: { id: linha.categoria_id, nome: linha.categoria_nome, icone: linha.categoria_icone },
     area: { id: linha.area_id, nome: linha.area_nome, tipo: linha.area_tipo },
     localizacaoComplemento: linha.localizacao_complemento,
+    anexos,
     autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
     // `atribuicoes` é do item 19: hoje não há quem preencha, e `null` é a verdade.
     responsavel: null,
@@ -164,6 +214,7 @@ type LinhaDeResumo = {
   autor_pessoa_id: string;
   autor_nome: string;
   motivo_pausa: OcorrenciaResumoLida["motivoPausa"];
+  quantidade_de_anexos: number;
   registrada_em: Date;
   atualizada_em: Date;
 };
@@ -196,6 +247,10 @@ const SELECT_DO_RESUMO = `
          o.autor_pessoa_id,
          pa.nome as autor_nome,
          ult.motivo_pausa,
+         (select count(*)
+            from anexos ax
+           where ax.ocorrencia_id = o.id
+             and ax.organizacao_id = o.organizacao_id)::int as quantidade_de_anexos,
          o.registrada_em,
          o.atualizada_em
     from ocorrencias o
@@ -224,11 +279,35 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
     // `atribuicoes` é do item 19: hoje não há quem preencha, e `null` é a verdade.
     responsavel: null,
+    // **Subconsulta correlacionada e não coluna materializada.** O índice `(organizacao_id,
+    // ocorrencia_id)` existe exatamente para as duas leituras deste arquivo, e `ocorrencias
+    // .total_anexos` está na lista dos recusados (modelo §7.1): desnormaliza-se o que é **filtrado ou
+    // ordenado**, nunca o que é só projetado.
+    quantidadeDeAnexos: linha.quantidade_de_anexos,
     // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
     motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
     registradaEm: linha.registrada_em.toISOString(),
     atualizadaEm: linha.atualizada_em.toISOString(),
   };
+}
+
+/**
+ * **Lê `code` e `constraint` de um objeto desconhecido, sem importar o driver** — a mesma técnica de
+ * `categorias-escopadas.ts` e `organizacoes.ts`. Confere as **duas**, porque `23505` sozinho pegaria
+ * qualquer unicidade da transação.
+ *
+ * **As duas constraints de `anexos`, e não só a da chave** (decisão D-P4 do plano): `chave` e
+ * `thumbnail_chave` vêm do **mesmo ticket**, então a segunda reivindicação viola as duas, e qual índice o
+ * Postgres reporta primeiro não é contratual. Conferir só a primeira transformaria metade das corridas
+ * em `500`.
+ */
+function ehAnexoJaReivindicado(erro: unknown): boolean {
+  const comCodigo = erro as { code?: unknown; constraint?: unknown };
+  return (
+    comCodigo.code === "23505" &&
+    (comCodigo.constraint === "anexos_chave_uk" ||
+      comCodigo.constraint === "anexos_thumbnail_chave_uk")
+  );
 }
 
 export function repositorioEscopadoDeOcorrencias(
@@ -240,14 +319,19 @@ export function repositorioEscopadoDeOcorrencias(
     const linha = linhas[0];
     if (linha === undefined) return null;
 
-    const trilha = await executar<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]);
+    // As duas leituras filhas em paralelo — é uma ida e volta, não duas.
+    const [trilha, anexos] = await Promise.all([
+      executar<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]),
+      executar<LinhaDeAnexo>(SELECT_DOS_ANEXOS, [id]),
+    ]);
+
     const ultima = trilha[trilha.length - 1];
     if (ultima === undefined) {
       // Ocorrência sem trilha é a invariante 2 violada. Não se conserta lendo: grita.
       throw new Error(`Ocorrência ${id} sem registro de transição — invariante 2 violada.`);
     }
 
-    return montarOcorrencia(linha, montarTransicao(ultima));
+    return montarOcorrencia(linha, montarTransicao(ultima), anexos.map(montarAnexo));
   }
 
   return {
@@ -260,64 +344,140 @@ export function repositorioEscopadoDeOcorrencias(
      * administrativa; **o escritor do caminho normal é o agregado**, e é o que faz a invariante 1 ser
      * estrutural.
      */
-    async registrar(ocorrencia: Ocorrencia): Promise<OcorrenciaLida> {
-      return emTransacao(async (executar) => {
-        const criadas = await executar<{ id: string }>(
-          `insert into ocorrencias
-             (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo,
-              localizacao_complemento, prioridade, status, autor_pessoa_id, registrada_em, atualizada_em)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
-           returning id`,
-          [
-            ocorrencia.titulo,
-            ocorrencia.descricao,
-            ocorrencia.categoriaId,
-            ocorrencia.areaId,
-            ocorrencia.areaTipo,
-            ocorrencia.localizacaoComplemento,
-            ocorrencia.prioridade,
-            ocorrencia.status,
-            ocorrencia.autorPessoaId,
-            ocorrencia.registradaEm,
-          ],
+    async registrar(ocorrencia: Ocorrencia): Promise<ResultadoDoRegistro> {
+      try {
+        const lida = await emTransacao(async (executar) => {
+          const criadas = await executar<{ id: string }>(
+            `insert into ocorrencias
+               (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo,
+                localizacao_complemento, prioridade, status, autor_pessoa_id, registrada_em, atualizada_em)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+             returning id`,
+            [
+              ocorrencia.titulo,
+              ocorrencia.descricao,
+              ocorrencia.categoriaId,
+              ocorrencia.areaId,
+              ocorrencia.areaTipo,
+              ocorrencia.localizacaoComplemento,
+              ocorrencia.prioridade,
+              ocorrencia.status,
+              ocorrencia.autorPessoaId,
+              ocorrencia.registradaEm,
+            ],
+          );
+
+          const criada = criadas[0];
+          if (criada === undefined) {
+            throw new Error("insert ... returning não devolveu linha — invariante violada");
+          }
+
+          // **A premissa P1**, e ela vem do agregado — não de literais escritos aqui. Os `CHECK` da
+          // migração 005 conferem os três fatos nos dois sentidos: `sequencia` 1, `status_anterior` nulo,
+          // destino `aberta`.
+          const primeira = ocorrencia.ultimaTransicao;
+          await executar(
+            `insert into registros_transicao
+               (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo,
+                ocorreu_em, autor_pessoa_id, observacao, motivo_pausa, motivo_cancelamento)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+              criada.id,
+              primeira.sequencia,
+              primeira.statusAnterior,
+              primeira.statusNovo,
+              primeira.ocorreuEm,
+              primeira.autorPessoaId,
+              primeira.observacao,
+              primeira.motivoPausa,
+              primeira.motivoCancelamento,
+            ],
+          );
+
+          /**
+           * **A terceira escrita, no mesmo `COMMIT`.** O caso de uso NÃO chama
+           * `repos.anexos.gravar(...)`: seriam duas transações, a invariante 2 cairia, e o anexo passaria
+           * a ser escrito por fora do agregado — o defeito que a ADR-0001 recusa em uma frase. O
+           * repositório continua transcritor: `tipo`, `chave`, `tipo_conteudo` e `tamanho_bytes` saem do
+           * objeto de valor, e `fonte` fica no `default` do enum, que é o único provedor que existe.
+           */
+          for (const anexo of ocorrencia.anexos) {
+            await executar(
+              `insert into anexos
+                 (organizacao_id, ocorrencia_id, tipo, chave, thumbnail_chave, nome_arquivo,
+                  titulo, tipo_conteudo, tamanho_bytes, anexado_por_pessoa_id, anexado_em)
+               values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              [
+                criada.id,
+                anexo.tipo,
+                anexo.chave,
+                anexo.thumbnailChave,
+                anexo.nomeArquivo,
+                anexo.titulo,
+                anexo.tipoConteudo,
+                anexo.tamanhoBytes,
+                anexo.anexadoPorPessoaId,
+                anexo.anexadoEm,
+              ],
+            );
+          }
+
+          const relida = await lerPorId(executar, criada.id);
+          if (relida === null) {
+            throw new Error("Ocorrência recém-gravada não foi relida — transação inconsistente.");
+          }
+          return relida;
+        });
+
+        return { desfecho: "registrada", ocorrencia: lida };
+      } catch (erro) {
+        if (!ehAnexoJaReivindicado(erro)) throw erro;
+
+        const chave = ocorrencia.anexos[0]?.chave;
+        if (chave === undefined) throw erro;
+
+        /**
+         * **A consulta que monta o corpo do `409` é ESCOPADA**, e é o que impede o `ocorrenciaId` de
+         * apontar para fora da organização. A conferência 2 da reivindicação já provou que o ticket é
+         * desta organização e desta Pessoa; se a linha existisse em outra — o que aquela conferência
+         * torna inalcançável —, esta consulta devolveria nada e a resposta degradaria para `500` em vez
+         * de vazar. O ponto de estrangulamento da D2 continua único.
+         *
+         * **Note que o `catch` envolve o `emTransacao` inteiro, e não o `insert`:** esta consulta precisa
+         * rodar **depois** do `rollback` — de dentro da transação abortada, o Postgres recusa qualquer
+         * comando com `25P02`.
+         */
+        const linhas = await consulta<{ ocorrencia_id: string }>(
+          `select ocorrencia_id from anexos where organizacao_id = $1 and chave = $2`,
+          [chave],
         );
 
-        const criada = criadas[0];
-        if (criada === undefined) {
-          throw new Error("insert ... returning não devolveu linha — invariante violada");
-        }
+        const linha = linhas[0];
+        if (linha === undefined) throw erro;
 
-        // **A premissa P1**, e ela vem do agregado — não de literais escritos aqui. Os `CHECK` da
-        // migração 005 conferem os três fatos nos dois sentidos: `sequencia` 1, `status_anterior` nulo,
-        // destino `aberta`.
-        const primeira = ocorrencia.ultimaTransicao;
-        await executar(
-          `insert into registros_transicao
-             (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo,
-              ocorreu_em, autor_pessoa_id, observacao, motivo_pausa, motivo_cancelamento)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            criada.id,
-            primeira.sequencia,
-            primeira.statusAnterior,
-            primeira.statusNovo,
-            primeira.ocorreuEm,
-            primeira.autorPessoaId,
-            primeira.observacao,
-            primeira.motivoPausa,
-            primeira.motivoCancelamento,
-          ],
-        );
-
-        const lida = await lerPorId(executar, criada.id);
-        if (lida === null) {
-          throw new Error("Ocorrência recém-gravada não foi relida — transação inconsistente.");
-        }
-        return lida;
-      });
+        return { desfecho: "anexo-ja-reivindicado", ocorrenciaId: linha.ocorrencia_id };
+      }
     },
 
     porId: (id) => lerPorId(consulta, id),
+
+    /**
+     * **A única leitura do produto que devolve `chave`.** O tipo de retorno é estreito de propósito: ele
+     * não serve para montar payload nenhum, e é o que transforma *"a chave nunca sai"* de disciplina em
+     * tipo.
+     */
+    async objetoDoAnexo(ocorrenciaId, anexoId) {
+      const linhas = await consulta<{ chave: string; thumbnail_chave: string | null }>(
+        `select a.chave, a.thumbnail_chave
+           from anexos a
+          where a.organizacao_id = $1 and a.ocorrencia_id = $2 and a.id = $3`,
+        [ocorrenciaId, anexoId],
+      );
+
+      const linha = linhas[0];
+      if (linha === undefined) return null;
+      return { chave: linha.chave, thumbnailChave: linha.thumbnail_chave };
+    },
 
     /**
      * A página da listagem.
