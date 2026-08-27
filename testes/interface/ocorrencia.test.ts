@@ -7,7 +7,13 @@ import {
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
-import { lerCursorDaUrl, lerLimiteDaUrl } from "@/interface/http";
+import {
+  FormatoInvalido,
+  lerCursorDaUrl,
+  lerFiltroDeOcorrenciasDaUrl,
+  lerLimiteDaUrl,
+  type ErroDeCampo,
+} from "@/interface/http";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
@@ -401,5 +407,74 @@ describe("o tempo relativo", () => {
   it("data ilegível não estoura a lista inteira — vira travessão", () => {
     expect(tempoRelativo("ontem", AGORA)).toBe("—");
     expect(tempoCurto("ontem", AGORA)).toBe("—");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os quatro parâmetros de `GET /ocorrencias` — o item 15
+ * ============================================================================
+ *
+ * **O que este bloco prova é a REGRA, não o `400`.** O de-para de `FormatoInvalido` para resposta HTTP já
+ * existe e já é exercido; aqui se prova quais valores a URL aceita, quais recusa **em voz alta**, e que
+ * "ausente" e "vazio" são a mesma coisa.
+ */
+const CATEGORIA = "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d";
+const OUTRA_CATEGORIA = "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d";
+
+const ler = (consulta: string) => lerFiltroDeOcorrenciasDaUrl(new URLSearchParams(consulta));
+
+describe("o critério 15.1 — a leitura dos quatro filtros", () => {
+  it("sem parâmetro nenhum, o filtro é vazio", () => {
+    expect(ler("")).toStrictEqual({});
+  });
+
+  it("lista separada por vírgula vira lista de valores", () => {
+    expect(ler("status=aberta,em_analise")).toStrictEqual({ status: ["aberta", "em_analise"] });
+  });
+
+  it("espaço em volta da vírgula não é valor", () => {
+    expect(ler("prioridade=alta, baixa")).toStrictEqual({ prioridade: ["alta", "baixa"] });
+  });
+
+  it("as três dimensões combinam entre si, e o autor com elas", () => {
+    expect(
+      ler(`status=pausada&categoriaId=${CATEGORIA},${OUTRA_CATEGORIA}&prioridade=alta&autor=eu`),
+    ).toStrictEqual({
+      status: ["pausada"],
+      categoriaId: [CATEGORIA, OUTRA_CATEGORIA],
+      prioridade: ["alta"],
+      apenasDoAutor: true,
+    });
+  });
+
+  it("parâmetro presente e vazio é ausente, não erro", () => {
+    expect(ler("status=&categoriaId=&prioridade=&autor=")).toStrictEqual({});
+  });
+});
+
+describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
+  it.each([
+    ["status=arquivada", "status"],
+    ["status=aberta,arquivada", "status"],
+    ["prioridade=urgentissima", "prioridade"],
+    ["autor=todos", "autor"],
+    ["categoriaId=nao-e-uuid", "categoriaId"],
+    [`categoriaId=${CATEGORIA},nao-e-uuid`, "categoriaId"],
+  ])("%s é recusado, e o erro nomeia o campo", (consulta, campo) => {
+    try {
+      ler(consulta);
+      expect.unreachable("devia ter recusado");
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(FormatoInvalido);
+      // **`extensoes.erros`, e não `erros`.** `FormatoInvalido` passa a lista para o quarto argumento de
+      // `ErroDeDominio`, que é `extensoes` — é de lá que `problema.ts` monta o `erros[]` do corpo.
+      const erros = (erro as FormatoInvalido).extensoes.erros as readonly ErroDeCampo[];
+      expect(erros[0]).toMatchObject({ campo, codigo: "VALOR_INVALIDO" });
+    }
+  });
+
+  it("parâmetro repetido é recusado — o contrato descreve UMA gramática", () => {
+    expect(() => ler("status=aberta&status=pausada")).toThrow(FormatoInvalido);
   });
 });

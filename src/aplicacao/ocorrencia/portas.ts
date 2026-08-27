@@ -102,6 +102,31 @@ export type FiltroDeListagem = {
   /** Quantas linhas ler. **Quem chama pede uma a mais do que vai devolver** (`consultas.ts`). */
   limite: number;
   cursor: CursorDeListagem | null;
+  /**
+   * **O recorte de G2 — o item 15, e ele mora aqui e não numa consulta separada:** filtrar depois de
+   * paginar devolveria páginas de tamanho aleatório e uma última página falsamente vazia. O recorte
+   * precisa acontecer **antes** do `limit`.
+   *
+   * O parâmetro da porta já se chama `filtro`, então lá dentro isto é `filtro.filtro` — feio e correto,
+   * e melhor que renomear um tipo que três arquivos já usam.
+   */
+  filtro?: FiltroDeOcorrencias;
+};
+
+/**
+ * O recorte que `GET /ocorrencias` aceita — os três de G2 mais *"só as minhas"* (item 15).
+ *
+ * **Campo ausente é "não filtre por esta dimensão"**, e não uma lista vazia: lista vazia significaria
+ * *"nenhum valor serve"*, que é um pedido diferente e que nenhuma tela produz.
+ *
+ * **`apenasDoAutor` é `boolean`, não a string `"eu"`.** `eu` é vocabulário de URL; esta camada recebe a
+ * decisão, e quem é *"eu"* já está no contexto de quem pergunta.
+ */
+export type FiltroDeOcorrencias = {
+  readonly status?: readonly StatusOcorrencia[];
+  readonly categoriaId?: readonly string[];
+  readonly prioridade?: readonly Prioridade[];
+  readonly apenasDoAutor?: boolean;
 };
 
 export interface RepositorioEscopadoDeOcorrencias {

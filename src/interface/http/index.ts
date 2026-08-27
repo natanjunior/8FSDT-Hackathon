@@ -49,4 +49,12 @@ export {
 
 export { novoTraceId } from "./traco";
 
-export { lerBooleanoDaUrl, lerCursorDaUrl, lerLimiteDaUrl, lerSituacoesDaUrl } from "./consulta-de-url";
+export {
+  algumFiltroAplicado,
+  consultaDe,
+  lerBooleanoDaUrl,
+  lerCursorDaUrl,
+  lerFiltroDeOcorrenciasDaUrl,
+  lerLimiteDaUrl,
+  lerSituacoesDaUrl,
+} from "./consulta-de-url";

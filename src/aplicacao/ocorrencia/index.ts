@@ -3,6 +3,7 @@ export { AreaInvalida, CategoriaInvalida, OcorrenciaNaoEncontrada } from "./erro
 export {
   type CursorDeListagem,
   type FiltroDeListagem,
+  type FiltroDeOcorrencias,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type PessoaReferencia,
