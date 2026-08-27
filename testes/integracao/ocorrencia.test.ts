@@ -344,3 +344,96 @@ describe("a listagem paginada por cursor", () => {
     expect(minhas[0]).not.toHaveProperty("descricao");
   });
 });
+
+describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensões", () => {
+  /** Duas `aberta`, uma `cancelada` e uma `alta`, com títulos próprios deste bloco. */
+  async function semearParaFiltro(): Promise<{ cancelada: string; alta: string }> {
+    const ids: string[] = [];
+    for (const titulo of ["Filtro A", "Filtro B", "Filtro C"]) {
+      const lida = await registrarOcorrencia(
+        portas(),
+        { pessoaId },
+        {
+          titulo: `${titulo} ${SUFIXO}`,
+          descricao: "Descrição suficiente para o CHECK de texto.",
+          categoriaId,
+          areaId,
+          localizacaoComplemento: null,
+        },
+      );
+      ids.push(lida.id);
+    }
+
+    // **`cancelada` e `alta` não têm comando que as produza** — são os itens 17 e 18. Semente de teste
+    // por `update` direto, que é o caminho que este arquivo já usa para o que o produto ainda não faz.
+    // O gatilho *append-only* é de `registros_transicao`, não de `ocorrencias`: o `update` passa.
+    await consultaCrua(`update ocorrencias set status = 'cancelada' where id = $1`, [ids[2]]);
+    await consultaCrua(`update ocorrencias set prioridade = 'alta' where id = $1`, [ids[0]]);
+    return { cancelada: ids[2]!, alta: ids[0]! };
+  }
+
+  it("dois status devolvem a união dos dois, e nada fora dela", async () => {
+    const { cancelada } = await semearParaFiltro();
+
+    const linhas = await portas().ocorrencias.listar({
+      limite: 50,
+      cursor: null,
+      filtro: { status: ["aberta", "cancelada"] },
+    });
+
+    expect(linhas.map((o) => o.id)).toContain(cancelada);
+    for (const linha of linhas) expect(["aberta", "cancelada"]).toContain(linha.status);
+  });
+
+  it("duas dimensões estreitam uma à outra", async () => {
+    const { alta } = await semearParaFiltro();
+
+    const linhas = await portas().ocorrencias.listar({
+      limite: 50,
+      cursor: null,
+      filtro: { status: ["aberta"], prioridade: ["alta"] },
+    });
+
+    expect(linhas.map((o) => o.id)).toContain(alta);
+    for (const linha of linhas) {
+      expect(linha.status).toBe("aberta");
+      expect(linha.prioridade).toBe("alta");
+    }
+  });
+
+  it("categoriaId que não existe devolve lista vazia, e não erro", async () => {
+    await semearParaFiltro();
+
+    const linhas = await portas().ocorrencias.listar({
+      limite: 50,
+      cursor: null,
+      filtro: { categoriaId: ["00000000-0000-4000-8000-000000000000"] },
+    });
+
+    expect(linhas).toStrictEqual([]);
+  });
+
+  it("o cursor continua valendo COM o filtro — a segunda página não repete nem perde", async () => {
+    await semearParaFiltro();
+    const recorte = { status: ["aberta"] } as const;
+
+    const primeira = await portas().ocorrencias.listar({
+      limite: 2,
+      cursor: null,
+      filtro: recorte,
+    });
+    expect(primeira).toHaveLength(2);
+
+    const ultimo = primeira[1]!;
+    const segunda = await portas().ocorrencias.listar({
+      limite: 2,
+      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
+      filtro: recorte,
+    });
+
+    for (const linha of segunda) expect(linha.status).toBe("aberta");
+    // **Nada se repete entre as duas páginas**, com filtro como sem.
+    const lidos = [...primeira, ...segunda].map((o) => o.id);
+    expect(new Set(lidos).size).toBe(lidos.length);
+  });
+});

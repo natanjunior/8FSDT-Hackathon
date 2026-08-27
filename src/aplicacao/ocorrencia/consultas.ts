@@ -1,6 +1,7 @@
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type {
   CursorDeListagem,
+  FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
@@ -80,19 +81,37 @@ export type PaginaDeOcorrencias = {
 export async function listarOcorrencias(
   repositorio: RepositorioEscopadoDeOcorrencias,
   quem: QuemPergunta,
-  pagina: { limite?: number; cursor?: CursorDeListagem | null } = {},
+  pagina: {
+    limite?: number;
+    cursor?: CursorDeListagem | null;
+    filtro?: FiltroDeOcorrencias;
+  } = {},
 ): Promise<PaginaDeOcorrencias> {
   const limite = pagina.limite ?? LIMITE_PADRAO;
 
+  /**
+   * **Duas coisas produzem `apenas_minhas`, e só uma delas é permissão.**
+   *
+   * A primeira é não ter `ocorrencia.ler_todas` — a regra de visibilidade da primeira entrega. A segunda é
+   * o `?autor=eu` do item 15, que é como *"o síndico morador"* vê as próprias **sem um segundo vínculo**
+   * (contrato §8.5). Quem já só vê as próprias não muda de nada ao pedir: o parâmetro *"só faz diferença
+   * para quem tem `ler_todas`"* (critério 28.1).
+   */
+  const autorPessoaId =
+    quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true ? undefined : quem.pessoaId;
+
   const lidas = await repositorio.listar({
-    ...(quem.podeLerTodas ? {} : { autorPessoaId: quem.pessoaId }),
+    ...(autorPessoaId === undefined ? {} : { autorPessoaId }),
+    // **Uma linha a mais do que se devolve** — é como se sabe que há próxima página sem `count` (§7.7).
+    // Quem editar esta função não pode perder isto: sem o `+ 1`, `temMais` fica falso para sempre.
     limite: limite + 1,
     cursor: pagina.cursor ?? null,
+    ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
   });
 
   return {
     itens: lidas.slice(0, limite),
     temMais: lidas.length > limite,
-    visibilidadeAplicada: quem.podeLerTodas ? "todas" : "apenas_minhas",
+    visibilidadeAplicada: autorPessoaId === undefined ? "todas" : "apenas_minhas",
   };
 }

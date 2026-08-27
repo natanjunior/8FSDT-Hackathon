@@ -347,6 +347,41 @@ export function repositorioEscopadoDeOcorrencias(
         condicoes.push(`(o.registrada_em, o.id) < (${data}::timestamptz, ${id}::uuid)`);
       }
 
+      /**
+       * **O recorte de G2 — três `= any(...)`, e nenhum deles é opcional por acaso.**
+       *
+       * `and` entre dimensões e `or` dentro de cada uma: é o que `= any(lista)` já significa, e é a
+       * leitura literal de *"aceitam múltiplos valores e combinam entre si"* (critério 15.1).
+       *
+       * **Os `::` não são decoração**, pela mesma razão da comparação de linha logo acima: sem o *cast*
+       * o Postgres recusa comparar `text[]` com `status_ocorrencia`. `pg` converte `readonly string[]` em
+       * array de Postgres sozinho; o *cast* é o que lhe dá o tipo do enum.
+       *
+       * **Condição só entra quando o filtro existe** — a mesma disciplina do `autorPessoaId` acima. Não
+       * há guarda de nulo porque não há parâmetro sem valor. E a **ordem importa**: `proximo()` numera
+       * pela ordem de inserção em `valores`, então as três entram antes do `limite`.
+       *
+       * **O índice que serve esta consulta é `(organizacao_id, registrada_em DESC)`**, o da ordenação —
+       * não o `(organizacao_id, status)`. É o achado **A-2** da spec, e o `EXPLAIN` que o confirmaria
+       * continua sem ser rodado (passo manual **M.2**).
+       */
+      const recorte = filtro.filtro;
+
+      if (recorte?.status !== undefined) {
+        condicoes.push(`o.status = any(${proximo()}::status_ocorrencia[])`);
+        valores.push(recorte.status);
+      }
+
+      if (recorte?.categoriaId !== undefined) {
+        condicoes.push(`o.categoria_id = any(${proximo()}::uuid[])`);
+        valores.push(recorte.categoriaId);
+      }
+
+      if (recorte?.prioridade !== undefined) {
+        condicoes.push(`o.prioridade = any(${proximo()}::prioridade_ocorrencia[])`);
+        valores.push(recorte.prioridade);
+      }
+
       const limite = proximo();
       valores.push(filtro.limite);
 
