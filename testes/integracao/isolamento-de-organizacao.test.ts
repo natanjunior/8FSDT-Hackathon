@@ -560,6 +560,29 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
     },
   });
+
+  /**
+   * **A sexta entrada, e a primeira de listagem do agregado (item 14).**
+   *
+   * A anterior lê **duas ocorrências por id** e conta com o `null` para a de fora. Esta é o caso mais
+   * perigoso e o que o critério **A4** de fato mira: uma consulta **sem identificador**, que devolve
+   * *"tudo o que houver"*. Se o `$1` sumisse do `where`, esta entrada devolveria as duas organizações e
+   * a anterior continuaria verde.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias",
+    consultar: (organizacaoId) =>
+      portasDe(organizacaoId).ocorrencias.listar({ limite: 50, cursor: null }),
+    chaveDaLinha: (ocorrencia) => ocorrencia.id,
+    esperadas: {
+      get emA() {
+        return [idDaOcorrenciaEmA];
+      },
+      get emB() {
+        return [idDaOcorrenciaEmB];
+      },
+    },
+  });
 });
 
 /**

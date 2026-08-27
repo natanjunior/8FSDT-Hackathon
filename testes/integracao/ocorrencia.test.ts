@@ -238,3 +238,109 @@ describe("o que o banco recusa", () => {
     ).rejects.toThrow(/ocorrencias_texto_ck/u);
   });
 });
+
+/**
+ * ============================================================================
+ *  A paginação por cursor — o critério 14.2, e ele não tem duplo
+ * ============================================================================
+ *
+ * **O que só o banco prova:** que o *keyset* `(registrada_em, id) < (…, …)` devolve exatamente a
+ * continuação, e que **uma ocorrência registrada entre a página 1 e a página 2 não empurra ninguém para
+ * trás**. Com deslocamento numérico este caso falharia — e é literalmente o cenário do Gestor que tria a
+ * lista de cima enquanto alguém registra.
+ */
+describe("a listagem paginada por cursor", () => {
+  /** Três ocorrências, registradas em instantes distintos e conhecidos. */
+  async function semearTres(): Promise<string[]> {
+    const ids: string[] = [];
+    for (const titulo of ["Primeira", "Segunda", "Terceira"]) {
+      const lida = await registrarOcorrencia(
+        portas(),
+        { pessoaId },
+        {
+          titulo: `${titulo} ${SUFIXO}`,
+          descricao: "Descrição suficiente para o CHECK de texto.",
+          categoriaId,
+          areaId,
+          localizacaoComplemento: null,
+        },
+      );
+      ids.push(lida.id);
+    }
+    return ids;
+  }
+
+  it("devolve em registrada_em DESC, e o cursor continua de onde parou", async () => {
+    const ids = await semearTres();
+
+    const primeira = await portas().ocorrencias.listar({ limite: 2, cursor: null });
+    expect(primeira).toHaveLength(2);
+    // A mais recente primeiro: a terceira semeada.
+    expect(primeira[0]!.id).toBe(ids[2]);
+    expect(primeira[1]!.id).toBe(ids[1]);
+
+    const ultimo = primeira[1]!;
+    const segunda = await portas().ocorrencias.listar({
+      limite: 2,
+      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
+    });
+
+    expect(segunda.map((o) => o.id)).toContain(ids[0]);
+    // **Nada se repete entre as duas páginas** — é a metade do 14.2 que o cursor existe para garantir.
+    expect(segunda.map((o) => o.id)).not.toContain(ids[1]);
+    expect(segunda.map((o) => o.id)).not.toContain(ids[2]);
+  });
+
+  it("uma ocorrência registrada ENTRE as páginas não faz nenhum item aparecer duas vezes", async () => {
+    const ids = await semearTres();
+
+    const primeira = await portas().ocorrencias.listar({ limite: 2, cursor: null });
+    const ultimo = primeira[1]!;
+
+    // A intrusa entra no topo da lista, depois de a página 1 já ter sido lida.
+    const intrusa = await registrarOcorrencia(
+      portas(),
+      { pessoaId },
+      {
+        titulo: `Intrusa ${SUFIXO}`,
+        descricao: "Registrada entre a página 1 e a 2.",
+        categoriaId,
+        areaId,
+        localizacaoComplemento: null,
+      },
+    );
+
+    const segunda = await portas().ocorrencias.listar({
+      limite: 2,
+      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
+    });
+
+    const lidos = [...primeira, ...segunda].map((o) => o.id);
+    expect(new Set(lidos).size).toBe(lidos.length);
+    // A intrusa é mais nova que o cursor: ela **não** entra na página seguinte, e não empurra ninguém.
+    expect(segunda.map((o) => o.id)).not.toContain(intrusa.id);
+    expect(segunda.map((o) => o.id)).toContain(ids[0]);
+  });
+
+  it("o filtro de autor devolve só as de quem pediu — e o resumo não traz descrição", async () => {
+    await semearTres();
+
+    const minhas = await portas().ocorrencias.listar({
+      autorPessoaId: pessoaId,
+      limite: 50,
+      cursor: null,
+    });
+    expect(minhas.length).toBeGreaterThan(0);
+    for (const item of minhas) expect(item.autor.pessoaId).toBe(pessoaId);
+
+    const nenhuma = await portas().ocorrencias.listar({
+      autorPessoaId: "00000000-0000-4000-8000-000000000000",
+      limite: 50,
+      cursor: null,
+    });
+    expect(nenhuma).toStrictEqual([]);
+
+    // O modelo de leitura do resumo **não tem** `descricao` — e é o que faz a lista não pagar por ela.
+    expect(minhas[0]).not.toHaveProperty("descricao");
+  });
+});

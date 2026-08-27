@@ -1,5 +1,6 @@
 import type {
   OcorrenciaLida,
+  OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
@@ -149,6 +150,87 @@ function montarOcorrencia(linha: LinhaDeOcorrencia, ultima: TransicaoLida): Ocor
   };
 }
 
+/** As colunas do resumo. **Menos que as do detalhe, de propósito** — sem `descricao` e sem a trilha. */
+type LinhaDeResumo = {
+  id: string;
+  titulo: string;
+  status: OcorrenciaResumoLida["status"];
+  prioridade: OcorrenciaResumoLida["prioridade"];
+  categoria_id: string;
+  categoria_nome: string;
+  area_id: string;
+  area_nome: string;
+  area_tipo: OcorrenciaResumoLida["area"]["tipo"];
+  autor_pessoa_id: string;
+  autor_nome: string;
+  motivo_pausa: OcorrenciaResumoLida["motivoPausa"];
+  registrada_em: Date;
+  atualizada_em: Date;
+};
+
+/**
+ * O `select` da listagem.
+ *
+ * **Três coisas para reparar, e nenhuma é estilo:**
+ *
+ * 1. **`o.area_tipo`, nunca `a.tipo`.** É a cópia congelada no instante do registro (modelo §7.5):
+ *    reclassificar a Área **não** muda o que a lista mostra para as ocorrências antigas. É o critério
+ *    12.3 se completando aqui.
+ * 2. **O `join` do autor começa em `vinculos`** e só então alcança `pessoas` — item do DoD que o lint não
+ *    alcança, porque a consulta seria legítima; ela apenas partiria da tabela global.
+ * 3. **O `LATERAL` do motivo da pausa.** O `status` é coluna desnormalizada justamente para a lista não
+ *    precisar da trilha (modelo §7.2); o **motivo** não é. Uma linha por ocorrência, pelo índice único
+ *    `(ocorrencia_id, sequencia)`. Hoje devolve `null` sempre, porque nada pode estar `pausada` antes do
+ *    item 23 — e entra assim mesmo, para o 23 não herdar uma dívida que nenhum critério dele nomeia.
+ */
+const SELECT_DO_RESUMO = `
+  select o.id,
+         o.titulo,
+         o.status,
+         o.prioridade,
+         o.categoria_id,
+         c.nome  as categoria_nome,
+         o.area_id,
+         a.nome  as area_nome,
+         o.area_tipo,
+         o.autor_pessoa_id,
+         pa.nome as autor_nome,
+         ult.motivo_pausa,
+         o.registrada_em,
+         o.atualizada_em
+    from ocorrencias o
+    join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
+    join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
+    join vinculos  va on va.pessoa_id = o.autor_pessoa_id and va.organizacao_id = o.organizacao_id
+    join pessoas   pa on pa.id = va.pessoa_id
+    left join lateral (
+      select r.motivo_pausa
+        from registros_transicao r
+       where r.ocorrencia_id = o.id
+         and r.organizacao_id = o.organizacao_id
+       order by r.sequencia desc
+       limit 1
+    ) ult on true
+   where o.organizacao_id = $1`;
+
+function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
+  return {
+    id: linha.id,
+    titulo: linha.titulo,
+    status: linha.status,
+    prioridade: linha.prioridade,
+    categoria: { id: linha.categoria_id, nome: linha.categoria_nome },
+    area: { id: linha.area_id, nome: linha.area_nome, tipo: linha.area_tipo },
+    autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
+    // `atribuicoes` é do item 19: hoje não há quem preencha, e `null` é a verdade.
+    responsavel: null,
+    // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
+    motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
+    registradaEm: linha.registrada_em.toISOString(),
+    atualizadaEm: linha.atualizada_em.toISOString(),
+  };
+}
+
 export function repositorioEscopadoDeOcorrencias(
   consulta: ConsultaEscopada,
   emTransacao: TransacaoEscopada,
@@ -236,6 +318,48 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     porId: (id) => lerPorId(consulta, id),
+
+    /**
+     * A página da listagem.
+     *
+     * **`$1` é a organização, e os parâmetros de quem chama começam em `$2`** — por isso o contador
+     * começa em 2. O SQL é montado por partes porque as duas condições são opcionais, e **não há
+     * interpolação de valor em lugar nenhum**: o que entra no texto é sempre `$n`.
+     *
+     * **Os `::` não são decoração.** Numa comparação de linha `(a, b) < ($2, $3)` o Postgres não infere
+     * o tipo dos parâmetros, e sem a marcação ele recusa a consulta.
+     */
+    async listar(filtro) {
+      const valores: unknown[] = [];
+      const condicoes: string[] = [];
+      const proximo = () => `$${valores.length + 2}`;
+
+      if (filtro.autorPessoaId !== undefined) {
+        condicoes.push(`o.autor_pessoa_id = ${proximo()}::uuid`);
+        valores.push(filtro.autorPessoaId);
+      }
+
+      if (filtro.cursor !== null) {
+        const data = proximo();
+        valores.push(filtro.cursor.registradaEm);
+        const id = proximo();
+        valores.push(filtro.cursor.id);
+        condicoes.push(`(o.registrada_em, o.id) < (${data}::timestamptz, ${id}::uuid)`);
+      }
+
+      const limite = proximo();
+      valores.push(filtro.limite);
+
+      const linhas = await consulta<LinhaDeResumo>(
+        `${SELECT_DO_RESUMO}
+           ${condicoes.map((condicao) => `and ${condicao}`).join("\n           ")}
+         order by o.registrada_em desc, o.id desc
+         limit ${limite}::int`,
+        valores,
+      );
+
+      return linhas.map(montarResumo);
+    },
 
     async trilha(ocorrenciaId) {
       const linhas = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [ocorrenciaId]);
