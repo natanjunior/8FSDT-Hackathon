@@ -46,6 +46,22 @@ export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPaus
   return motivoPausa === null ? "Parada" : ROTULO_DE_PAUSA[motivoPausa];
 }
 
+/**
+ * O motivo da pausa **em palavras**, para a segunda linha do item na lista do Gestor (critério 14.3).
+ *
+ * **Reusa a mesma tabela do rótulo — não há segundo vocabulário.** A regra 2 do glossário proíbe frase
+ * montada em tempo de execução, e inventar uma forma curta aqui criaria exatamente o segundo texto que a
+ * tabela existe para impedir.
+ *
+ * **Hoje isto é inalcançável:** nada pode estar `pausada` antes do item 23. E entre o 23 e o 31 o rótulo
+ * do Solicitante — que é o de todo mundo até lá — já traz o motivo dentro dele, então a segunda linha vai
+ * repeti-lo. A janela é curta e está declarada na §3.4 da spec; quem a fecha é o **31**, trocando o rótulo
+ * do Gestor para *"Pausada"*.
+ */
+export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
+  return ROTULO_DE_PAUSA[motivo];
+}
+
 /** O schema `RegistroDeTransicao` do contrato. **`sequencia` não sai** — é ordem interna da trilha. */
 export function projetarTransicao(lida: TransicaoLida) {
   return {

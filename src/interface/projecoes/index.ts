@@ -19,6 +19,7 @@ export {
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
   projetarTransicao,
+  rotuloDeMotivoPausa,
   rotuloDeStatus,
   type OcorrenciaResumoProjetada,
   type PaginaDeOcorrenciasProjetada,
