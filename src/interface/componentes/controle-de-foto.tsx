@@ -26,9 +26,9 @@ import {
  * espera o `PUT` terminar, porque reivindicar um objeto que ainda não chegou produziria um `422`
  * evitável. Isso passa a valer no item 13b, que é quem reivindica.
  *
- * **Nesta fatia a foto sobe e não é reivindicada.** O item 13b é quem a liga à ocorrência; até lá, o
- * objeto fica pendente e a faxina o recolhe em 24–48 h. A janela está registrada no
- * `trabalho/roteiro-de-validacao.md` — não na tela, que não deve trazer texto construído para ser apagado.
+ * **A referência sobe para o formulário, e é o item 13b.** O controle anuncia o estado inteiro por
+ * `aoMudar` — inclusive a **promessa** do `PUT` em voo —, e é o formulário que a manda em `anexos[]`. Ela
+ * não é guardada aqui: guardá-la nos dois lugares seria a segunda cópia que diverge.
  *
  * **Acessibilidade:** rótulo associado ao controle (A-1); alvo de 44 px (A-3); e **todo estado carrega a
  * palavra**, nunca só a barra ou a cor (A-5).
@@ -39,8 +39,8 @@ import {
  * upload, e ele não é entregável nesta fatia por duas razões independentes: `fetch` **não emite evento de
  * progresso de envio** — quem emite é `XMLHttpRequest`, e trocar o transporte é escopo que ninguém pediu —,
  * e `ui/progress.tsx` não existe no repositório. Guardar um `progresso: number` que nada renderiza seria
- * exatamente a sobra que o comentário de `guardadas` abaixo condena. **O que o compromisso A-5 exige é a
- * palavra, e ela está lá:** *"Enviando a foto — você pode continuar escrevendo."* Está na §9 como achado.
+ * sobra — estado sem leitor. **O que o compromisso A-5 exige é a palavra, e ela está lá:** *"Enviando a
+ * foto — você pode continuar escrevendo."* Está na §9 como achado.
  */
 type Situacao =
   | { nome: "vazio" }
@@ -51,10 +51,40 @@ type Situacao =
 
 const ACEITOS = "image/*";
 
-export function ControleDeFoto() {
+/** O que o formulário manda em `anexos[]`. **Só isto sai do controle** — a miniatura vem do ticket. */
+export type ReferenciaDoAnexo = { chave: string; ticket: string };
+
+/**
+ * O estado do anexo, **como o formulário precisa vê-lo**.
+ *
+ * **A promessa em `subindo` é o ponto, e ela existe por uma frase do 13a:** *"o botão não espera para
+ * habilitar — é o critério 13a.4 — mas o envio espera o `PUT` terminar. Vale a partir do 13b"*. Habilitar
+ * e submeter são coisas diferentes: o botão fica clicável o tempo todo, e ao ser clicado com o upload em
+ * voo o formulário **aguarda `conclusao`**, com o botão em *"Registrando…"*.
+ *
+ * Sem a promessa, a única forma de esperar seria pesquisar estado em laço — e a única forma de não
+ * esperar seria mandar reivindicar um objeto que ainda não chegou, produzindo um `422` evitável.
+ *
+ * **`conclusao` NUNCA rejeita:** resolve com a referência, ou com `null` quando o `PUT` falhou. Registro
+ * enviado sem foto é desfecho legítimo — o anexo é opcional em todo o contrato.
+ */
+export type EstadoDoAnexo =
+  | { nome: "vazio" }
+  | { nome: "subindo"; conclusao: Promise<ReferenciaDoAnexo | null> }
+  | { nome: "pronta"; referencia: ReferenciaDoAnexo }
+  | { nome: "falhou" };
+
+export function ControleDeFoto({
+  aoMudar,
+  erro,
+}: {
+  /** O formulário é quem guarda o estado do anexo — o controle apenas o anuncia. */
+  aoMudar: (estado: EstadoDoAnexo) => void;
+  /** O erro que veio do `POST /ocorrencias` sobre a foto. Vai **abaixo do campo** (achado P-02). */
+  erro?: string;
+}) {
   const [situacao, setSituacao] = useState<Situacao>({ nome: "vazio" });
   const entrada = useRef<HTMLInputElement>(null);
-  const guardadas = useRef<{ chave: string; ticket: string } | null>(null);
 
   /**
    * Uma repetição silenciosa antes de desistir. Rede de garagem cai uma vez e volta; transformar a
@@ -84,6 +114,7 @@ export function ControleDeFoto() {
         nome: "erro",
         mensagem: "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
       });
+      aoMudar({ nome: "falhou" });
       return;
     }
 
@@ -106,6 +137,7 @@ export function ControleDeFoto() {
               ? "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."
               : "Não foi possível preparar esta foto. Escolha outra.",
       });
+      aoMudar({ nome: "falhou" });
       return;
     }
 
@@ -128,6 +160,7 @@ export function ControleDeFoto() {
             ? "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."
             : "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
       });
+      aoMudar({ nome: "falhou" });
       return;
     }
 
@@ -138,31 +171,46 @@ export function ControleDeFoto() {
       uploadMiniatura: { url: string; cabecalhos: Record<string, string> };
     } = await resposta.json();
 
-    // Guardados para o item 13b, que é quem os manda no `POST /ocorrencias`.
-    guardadas.current = { chave: autorizacao.chave, ticket: autorizacao.ticket };
+    const referencia: ReferenciaDoAnexo = {
+      chave: autorizacao.chave,
+      ticket: autorizacao.ticket,
+    };
 
     // Os dois `PUT` em paralelo, direto no storage, **fora da API**. A miniatura é opcional: se ela não
     // subir, a ocorrência é criada igual e a listagem só perde a prévia.
-    const principal = enviar(autorizacao.upload, comprimida.arquivo);
+    const principal = enviar(autorizacao.upload, comprimida.arquivo).catch(() => false);
     const miniatura =
       comprimida.miniatura === null
         ? Promise.resolve(true)
         : enviar(autorizacao.uploadMiniatura, comprimida.miniatura).catch(() => false);
 
-    const subiu = await principal.catch(() => false);
-    await miniatura;
+    /**
+     * **A promessa que o formulário aguarda.** Ela é criada aqui, no instante em que os `PUT` começam, e
+     * é entregue ao formulário **antes** de terminarem — que é a razão de ela existir. Nunca rejeita.
+     */
+    const conclusao: Promise<ReferenciaDoAnexo | null> = (async () => {
+      const subiu = await principal;
+      // A miniatura é aguardada, mas não decide nada: prévia é conveniência, anexo é evidência.
+      await miniatura;
+      return subiu ? referencia : null;
+    })();
+
+    aoMudar({ nome: "subindo", conclusao });
+
+    const pronta = await conclusao;
 
     setSituacao(
-      subiu
+      pronta !== null
         ? { nome: "pronta", previa }
         : { nome: "erro", mensagem: "A foto não subiu. Toque para tentar de novo." },
     );
+    aoMudar(pronta !== null ? { nome: "pronta", referencia } : { nome: "falhou" });
   }
 
   function limpar() {
     if ("previa" in situacao) URL.revokeObjectURL(situacao.previa);
-    guardadas.current = null;
     setSituacao({ nome: "vazio" });
+    aoMudar({ nome: "vazio" });
     // Trocar a foto **abandona** o objeto que já subiu — a faxina o recolhe, e a foto nova consome um slot
     // novo das 30/h. Não há chamada de cancelamento no contrato, e não vai haver.
     if (entrada.current !== null) entrada.current.value = "";
@@ -233,6 +281,14 @@ export function ControleDeFoto() {
                 ? situacao.mensagem
                 : ""}
       </p>
+
+      {erro !== undefined && (
+        /* **A-5: texto, nunca só cor.** E fica logo abaixo do campo, porque com o teclado aberto sobra
+           metade da tela e o campo, o rótulo e o erro têm de caber juntos acima dele (achado P-02). */
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {erro}
+        </p>
+      )}
     </div>
   );
 }
