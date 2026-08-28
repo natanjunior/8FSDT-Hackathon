@@ -150,6 +150,14 @@ type OpcoesEscopadas<C> = {
   exige: Permissao | "qualquer-vinculo-ativo";
   corpo?: ZodType<C>;
   /**
+   * **Opt-in por endpoint:** corpo com zero byte vira `{}` e o schema roda sobre ele, em vez de `415`.
+   *
+   * Existe para os endpoints que declaram `requestBody: required: false` no `openapi.yaml` — hoje
+   * `/analisar` e `POST /pedidos-de-entrada/{id}/recusar`. **Corpo presente continua sendo conferido**:
+   * tipo não-JSON é `415`, JSON inválido é `400`. Ver `lerCorpoOpcional`.
+   */
+  corpoOpcional?: boolean;
+  /**
    * Um passo de recusa que roda **sobre o corpo cru, antes do `schema`**.
    *
    * Existe porque `400 FORMATO_INVALIDO` e `422 CAMPO_NAO_SUPORTADO` respondem a perguntas diferentes
@@ -192,7 +200,7 @@ export function comContexto<C = undefined>(
       const resultado = await manipulador({
         ctx,
         repos,
-        corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar),
+        corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar, opcoes.corpoOpcional === true),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
       });
@@ -325,29 +333,20 @@ async function conferirAfirmacaoDeOrganizacao(organizacaoAtiva: string): Promise
 /**
  * Lê e valida o corpo.
  *
- * **`415` antes de `400`**: `Content-Type` diferente de `application/json` é recusado sem olhar o
- * conteúdo. Depois, o schema — que é a única coisa que a §5 permite à camada de Interface fazer.
+ * **Com `corpoOpcional`, a decisão de o que é "ausente" muda de critério** — de cabeçalho para conteúdo.
+ * Ver `lerCorpoOpcional`.
  */
 async function lerCorpo<C>(
   requisicao: Request,
   schema: ZodType<C> | undefined,
   recusar?: (corpo: unknown) => void,
+  corpoOpcional = false,
 ): Promise<C> {
   if (schema === undefined) return undefined as C;
 
-  const tipo = requisicao.headers.get("content-type");
-  if (tipo === null || !tipo.toLowerCase().includes("application/json")) {
-    throw new CorpoNaoSuportado(tipo);
-  }
-
-  let bruto: unknown;
-  try {
-    bruto = await requisicao.json();
-  } catch {
-    throw new FormatoInvalido([
-      { campo: "", codigo: "JSON_INVALIDO", mensagem: "O corpo não é JSON válido." },
-    ]);
-  }
+  const bruto = corpoOpcional
+    ? await lerCorpoOpcional(requisicao)
+    : await lerCorpoObrigatorio(requisicao);
 
   // **Antes do schema, sobre o corpo cru.** Depois dele o campo ja foi descartado em silencio, e e o
   // silencio que o `422 CAMPO_NAO_SUPORTADO` existe para quebrar.
@@ -357,6 +356,65 @@ async function lerCorpo<C>(
   if (!conferido.success) throw new FormatoInvalido(conferido.error.issues.map(traduzirViolacao));
 
   return conferido.data;
+}
+
+/**
+ * O caminho de sempre, dos endpoints cujo corpo é obrigatório.
+ *
+ * **`415` antes de `400`**: `Content-Type` diferente de `application/json` é recusado sem olhar o
+ * conteúdo.
+ */
+async function lerCorpoObrigatorio(requisicao: Request): Promise<unknown> {
+  const tipo = requisicao.headers.get("content-type");
+  if (tipo === null || !tipo.toLowerCase().includes("application/json")) {
+    throw new CorpoNaoSuportado(tipo);
+  }
+
+  try {
+    return (await requisicao.json()) as unknown;
+  } catch {
+    throw new FormatoInvalido([
+      { campo: "", codigo: "JSON_INVALIDO", mensagem: "O corpo não é JSON válido." },
+    ]);
+  }
+}
+
+/**
+ * ============================================================================
+ *  O corpo opcional — e por que "ausente" é ZERO BYTE
+ * ============================================================================
+ *
+ * Cinco endpoints declaram `requestBody: required: false` no `openapi.yaml` — `/analisar`,
+ * `/iniciar-atendimento`, `/retomar`, `/resolver` e o `/recusar` do item 8. Quem seguisse a
+ * especificação e não mandasse corpo levava `415`, e o portão do DoD *"a especificação versionada
+ * corresponde ao código"* ficava aberto.
+ *
+ * **A distinção que sustenta tudo:** *ausente* é **nenhum byte**, não *"sem `content-type`"*. Se fosse
+ * pelo cabeçalho, um cliente que mandasse `{"observacao": "…"}` esquecendo o `content-type` teria a
+ * observação **aceita e descartada em silêncio** — o modo de falha que o contrato mais evita, criado pelo
+ * conserto de outro. Por isso o conteúdo é lido **antes** de o cabeçalho ser consultado.
+ *
+ * **Só aceita mais, e nunca menos** (contrato §11): nenhum cliente que funcionava deixa de funcionar.
+ *
+ * **Exportada porque é o que se pode testar.** `comContexto` inteiro depende de `cookies()` e `headers()`
+ * do framework; esta função recebe um `Request` e mais nada, e é onde o critério 16.7 é afirmado.
+ */
+export async function lerCorpoOpcional(requisicao: Request): Promise<unknown> {
+  const texto = await requisicao.text();
+  if (texto === "") return {};
+
+  const tipo = requisicao.headers.get("content-type");
+  if (tipo === null || !tipo.toLowerCase().includes("application/json")) {
+    throw new CorpoNaoSuportado(tipo);
+  }
+
+  try {
+    return JSON.parse(texto) as unknown;
+  } catch {
+    throw new FormatoInvalido([
+      { campo: "", codigo: "JSON_INVALIDO", mensagem: "O corpo não é JSON válido." },
+    ]);
+  }
 }
 
 /**

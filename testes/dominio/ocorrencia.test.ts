@@ -5,6 +5,7 @@ import {
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   Ocorrencia,
+  RegistroDeTransicao,
   transicaoPermitida,
 } from "@/dominio/ocorrencia";
 
@@ -121,11 +122,23 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje devolve vazia, porque COMANDOS_IMPLEMENTADOS está vazia", () => {
-    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([]);
-    expect(
-      comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false }),
-    ).toStrictEqual([]);
+  it("hoje traz UM comando — o analisar do item 16", () => {
+    // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
+    // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar"]);
+  });
+
+  it("o Gestor em aberta vê analisar, e mais nada — o filtro ainda corta os outros nove", () => {
+    expect(comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false })).toStrictEqual([
+      "analisar",
+    ]);
+  });
+
+  it("em em_analise a lista volta a ser vazia — o caso DOMINANTE depois desta fatia", () => {
+    // É o que o Gestor vê no instante seguinte a clicar em Analisar, e é o que o critério 16.6 cobre.
+    expect(comandosDisponiveis({ status: "em_analise", permissoes: TODAS, ehAutor: false })).toStrictEqual(
+      [],
+    );
   });
 
   /**
@@ -287,5 +300,161 @@ describe("o anexo é filho do agregado, não vizinho dele", () => {
     // `contrato-de-api.md` §8.8: "o RegistroDeTransicao não muda, e é bom que continue assim".
     expect(ocorrencia.trilha).toHaveLength(1);
     expect(ocorrencia.trilha[0]!.statusAnterior).toBeNull();
+  });
+});
+
+/**
+ * ============================================================================
+ *  O agregado volta do banco, e executa um comando — o item 16
+ * ============================================================================
+ *
+ * **É a primeira transição do produto.** Até aqui o agregado sabia nascer e a máquina de estados sabia
+ * responder perguntas; ninguém sabia executar um comando sobre ocorrência que já existe.
+ */
+describe("Ocorrencia.reconstituir e o comando analisar", () => {
+  const GESTOR = "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f";
+
+  const ABERTA = {
+    titulo: "Lâmpada queimada na garagem",
+    descricao: "Queimada faz três dias, corredor escuro.",
+    categoriaId: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
+    areaId: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e",
+    areaTipo: "comum" as const,
+    localizacaoComplemento: "ao lado da vaga 34",
+    autorPessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d",
+    registradaEm: "2026-08-25T13:02:11.000Z",
+    status: "aberta" as const,
+    prioridade: "normal" as const,
+    trilha: [
+      RegistroDeTransicao.reconstituir({
+        sequencia: 1,
+        statusAnterior: null,
+        statusNovo: "aberta",
+        ocorreuEm: "2026-08-25T13:02:11.000Z",
+        autorPessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d",
+        observacao: null,
+        motivoPausa: null,
+        motivoCancelamento: null,
+      }),
+    ],
+  };
+
+  const ANALISE = { autorPessoaId: GESTOR, ocorreuEm: "2026-08-27T09:14:00.000Z" };
+
+  it("reconstituir devolve o agregado no estado em que ele foi gravado", () => {
+    const ocorrencia = Ocorrencia.reconstituir(ABERTA);
+
+    expect(ocorrencia.status).toBe("aberta");
+    expect(ocorrencia.prioridade).toBe("normal");
+    expect(ocorrencia.titulo).toBe(ABERTA.titulo);
+    expect(ocorrencia.areaTipo).toBe("comum");
+    expect(ocorrencia.trilha).toHaveLength(1);
+  });
+
+  it("reconstituir sem trilha estoura — a invariante 2 não se conserta lendo", () => {
+    expect(() => Ocorrencia.reconstituir({ ...ABERTA, trilha: [] })).toThrow(/invariante 2/u);
+  });
+
+  it("o agregado reconstituído NÃO carrega anexos, e dizê-lo é o ponto", () => {
+    // A chave do anexo não sai do repositório (modelo §2.8), então o caminho de ESCRITA não os reidrata.
+    // Devolver `[]` seria mentira; o getter estoura, no mesmo idioma de `ultimaTransicao`.
+    expect(() => Ocorrencia.reconstituir(ABERTA).anexos).toThrow(/sem anexos/u);
+  });
+
+  it("analisar sai de aberta e chega a em_analise — o critério 16.1", () => {
+    expect(Ocorrencia.reconstituir(ABERTA).analisar(ANALISE).status).toBe("em_analise");
+  });
+
+  it("analisar acrescenta UM registro, com os cinco campos — o critério 16.2", () => {
+    const analisada = Ocorrencia.reconstituir(ABERTA).analisar({
+      ...ANALISE,
+      observacao: "Vou ver o estoque.",
+    });
+    const registro = analisada.ultimaTransicao;
+
+    expect(analisada.trilha).toHaveLength(2);
+    expect(registro.sequencia).toBe(2);
+    expect(registro.statusAnterior).toBe("aberta");
+    expect(registro.statusNovo).toBe("em_analise");
+    expect(registro.ocorreuEm).toBe("2026-08-27T09:14:00.000Z");
+    expect(registro.autorPessoaId).toBe(GESTOR);
+    expect(registro.observacao).toBe("Vou ver o estoque.");
+    expect(registro.motivoPausa).toBeNull();
+    expect(registro.motivoCancelamento).toBeNull();
+  });
+
+  it("a trilha CRESCE — o registro de origem continua lá, na posição 1", () => {
+    const trilha = Ocorrencia.reconstituir(ABERTA).analisar(ANALISE).trilha;
+
+    expect(trilha[0]?.sequencia).toBe(1);
+    expect(trilha[0]?.statusAnterior).toBeNull();
+    expect(trilha[1]?.sequencia).toBe(2);
+  });
+
+  it("sem observação, o registro fica com null — nunca string vazia", () => {
+    expect(Ocorrencia.reconstituir(ABERTA).analisar(ANALISE).ultimaTransicao.observacao).toBeNull();
+  });
+
+  it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+    const antes = Ocorrencia.reconstituir(ABERTA);
+    const depois = antes.analisar(ANALISE);
+
+    expect(antes.status).toBe("aberta");
+    expect(antes.trilha).toHaveLength(1);
+    expect(depois).not.toBe(antes);
+  });
+
+  it("analisar fora de aberta estoura — a invariante 1 é estrutural", () => {
+    const emAnalise = Ocorrencia.reconstituir({ ...ABERTA, status: "em_analise" });
+    // `Error`, e não `ErroDeDominio`: alcançar isto significa que a Aplicação esqueceu de conferir.
+    expect(() => emAnalise.analisar(ANALISE)).toThrow(/invariante 1/u);
+  });
+
+  it("a sequência vem do último registro, não do tamanho da lista", () => {
+    const comBuraco = Ocorrencia.reconstituir({
+      ...ABERTA,
+      trilha: [
+        ...ABERTA.trilha,
+        RegistroDeTransicao.reconstituir({
+          sequencia: 7,
+          statusAnterior: "em_analise",
+          statusNovo: "aberta",
+          ocorreuEm: "2026-08-26T10:00:00.000Z",
+          autorPessoaId: GESTOR,
+          observacao: null,
+          motivoPausa: null,
+          motivoCancelamento: null,
+        }),
+      ],
+    });
+
+    expect(comBuraco.analisar(ANALISE).ultimaTransicao.sequencia).toBe(8);
+  });
+});
+
+describe("RegistroDeTransicao.avanco", () => {
+  const BASE = {
+    sequencia: 2,
+    statusAnterior: "aberta" as const,
+    statusNovo: "em_analise" as const,
+    ocorreuEm: "2026-08-27T09:14:00.000Z",
+    autorPessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    observacao: null,
+  };
+
+  it("produz registro sem motivo — avanço rotineiro não tem o que justificar (D23)", () => {
+    const registro = RegistroDeTransicao.avanco(BASE);
+
+    expect(registro.motivoPausa).toBeNull();
+    expect(registro.motivoCancelamento).toBeNull();
+    expect(Object.isFrozen(registro)).toBe(true);
+  });
+
+  it("recusa pausada e cancelada — é o CHECK do banco expresso em fábrica", () => {
+    // `registros_transicao_motivo_ck` exige motivo E observação nesses dois destinos. Os itens 18 e 23
+    // ganham as fábricas próprias; esta porta não os deixa nascer sem motivo.
+    for (const destino of ["pausada", "cancelada"] as const) {
+      expect(() => RegistroDeTransicao.avanco({ ...BASE, statusNovo: destino })).toThrow(/motivo/u);
+    }
   });
 });

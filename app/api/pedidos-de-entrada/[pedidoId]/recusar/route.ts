@@ -15,7 +15,12 @@ import { recusaDePedidoSchema } from "@/interface/schemas";
  * quebraria o portão da §15 no primeiro `npm run verificar:openapi`.
  */
 export const POST = comContexto(
-  { exige: "vinculo.gerir", corpo: recusaDePedidoSchema },
+  // **`corpoOpcional`, e é retroação declarada sobre item fechado.** O `openapi.yaml:435-436` declara
+  // `requestBody: required: false` desde o item 8, e a rota respondia `415` a quem não mandasse corpo —
+  // divergência que ninguém decidiu, e sim consequência não vista de declarar schema. Ela fecha aqui
+  // porque `/analisar` tem declaração **idêntica**, e dois endpoints iguais no contrato não podem ter
+  // comportamento oposto. **Só aceita mais** (contrato §11): nenhum cliente muda de resultado.
+  { exige: "vinculo.gerir", corpo: recusaDePedidoSchema, corpoOpcional: true },
   async ({ ctx, repos, corpo, parametros }) => {
     const pedido = await recusarPedidoDeEntrada(repos.pedidosDeEntrada, {
       pedidoId: parametros["pedidoId"] ?? "",

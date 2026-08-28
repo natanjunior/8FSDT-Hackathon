@@ -17,6 +17,7 @@ export { armazenamentoDeAnexos } from "./armazenamento-de-anexos";
 export {
   armazenamentoDeCookies,
   comContexto,
+  lerCorpoOpcional,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,

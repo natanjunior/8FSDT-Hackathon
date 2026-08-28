@@ -3,8 +3,14 @@ import { notFound, redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
+import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
-import { rotuloDePrioridade } from "@/interface/componentes/rotulos";
+import {
+  nomesDeStatus,
+  rotuloDeComando,
+  rotuloDePrioridade,
+  rotulosDeStatus,
+} from "@/interface/componentes/rotulos";
 import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
@@ -101,6 +107,26 @@ export default async function Ocorrencia({
     permissoes: vinculo.permissoes,
   });
 
+  /**
+   * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
+   * é a forma do comando na tela. Dois deles nunca serão botão (`alterar-prioridade` é seletor,
+   * `registrar-solucao-aplicada` é campo), e os que ainda não existem não têm rótulo porque não existem.
+   */
+  const acoes = detalhe.acoesDisponiveis
+    // **O retorno é anotado como `string`, e não é enfeite:** sem a anotação o `map` infere `comando` como
+    // o literal `Comando`, e aí o guarda de tipo abaixo — que promete `{ comando: string }` — deixa de ser
+    // atribuível ao próprio parâmetro (`TS2677`). Anotar aqui mantém o Domínio fora do `import` de `app/`.
+    .map((comando): { comando: string; rotulo: string | null } => ({
+      comando,
+      rotulo: rotuloDeComando(comando),
+    }))
+    .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
+
+  // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
+  // diferentes — ver `rotulos.ts`.
+  const rotulos = rotulosDeStatus();
+  const nomes = nomesDeStatus();
+
   return (
     <MolduraDeTela titulo={detalhe.titulo}>
       {/* **Bloco 1 · Identidade.** `statusRotulo` sem rolar — é a resposta literal a "o que aconteceu
@@ -174,30 +200,57 @@ export default async function Ocorrencia({
           existe. É o critério 11.2 visível na interface, e não só em teste. */}
       <section className="flex flex-col gap-2">
         <h2 className="text-tinta text-sm font-semibold">Histórico</h2>
+        {/*
+          **Este ramo nunca foi alcançável** — nenhuma transição existia —, e é o item 16 que o alcança.
+          Sem o conserto, a tela passaria a dizer *"De aberta para em_analise"* na cara de quem acabou de
+          reclamar. É o achado **A-1** da spec, e a coluna usada é a do **Gestor**: ela é substantivo e
+          sobrevive dentro de *"De X para Y"*, enquanto a do Solicitante é uma oração inteira.
+        */}
         <p className="text-tinta-suave text-sm">
           {detalhe.ultimaTransicao.statusAnterior === null
             ? "Registrada"
-            : `De ${detalhe.ultimaTransicao.statusAnterior} para ${detalhe.ultimaTransicao.statusNovo}`}{" "}
+            : `De ${nomes[detalhe.ultimaTransicao.statusAnterior]} para ${nomes[detalhe.ultimaTransicao.statusNovo]}`}{" "}
           por {detalhe.ultimaTransicao.autor.nome} em{" "}
           {new Date(detalhe.ultimaTransicao.ocorreuEm).toLocaleString("pt-BR")}.
         </p>
       </section>
 
       {/*
-        **A barra de ações, com `acoesDisponiveis` vazia.** A tela renderiza *exatamente*
-        `acoesDisponiveis` e nada além — hoje a lista é vazia porque nenhum dos onze endpoints de comando
-        foi construído, e vazia é verdade sobre o produto de hoje. No lugar entra a nota tracejada que o
-        shell já usa: **andaime declarado, não UI de produto**, e sai no item 16.
+        **A barra de ações, e o vazio dela.** A tela renderiza *exatamente* `acoesDisponiveis` — nada
+        desabilitado, nada cinza (`inventario-de-telas.md`).
+
+        **Com a lista vazia, a nota tracejada FICA**, e isso é decisão do hub (P1 desta fatia): renderizar
+        nada é o `200` silencioso que a §8.5 do contrato existe para impedir — *"a tela não distingue 'não
+        há o que fazer' de 'algo falhou ao montar a lista'"*. E o vazio não é a borda: depois desta fatia
+        ele é o caso **dominante**, e o Gestor cai nele no instante seguinte a clicar em Analisar.
+
+        **O inciso que nomeava os comandos saiu**, porque mentiria no item que entrega o primeiro deles.
+        A borda tracejada fica: é o que marca andaime declarado, e não UI de produto. **Sai no item 27**,
+        quando o último comando existir.
       */}
-      {detalhe.acoesDisponiveis.length === 0 && (
+      {acoes.length === 0 && (
         <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-          Os comandos da ocorrência — analisar, atribuir, atender, resolver — chegam nos próximos itens.
+          Os comandos da ocorrência chegam nos próximos itens.
         </p>
       )}
 
       <Link href={voltarPara} className="text-marca py-1 text-sm underline underline-offset-4">
         Voltar
       </Link>
+
+      {/*
+        **Montada SEMPRE, e é a correção que a revisão trouxe.** Ela some sozinha quando não há botão nem
+        aviso — mas quem decide isso é ela, não a tela.
+
+        **Se a tela a montasse só com `acoes.length > 0`**, o `router.refresh()` que o `409` dispara
+        trocaria o ramo do JSX, o componente perderia o `useState` e a frase *"Esta ocorrência mudou
+        enquanto você estava olhando"* sumiria no mesmo repinte que a exibiu. **Nesta fatia isso seria
+        100% dos `409`**: `analisar` é o único comando renderizável, então todo conflito zera a lista.
+
+        **E ela vem depois do `Voltar`** porque leva o próprio espaçador: a barra é `fixed`, e folga
+        colocada *acima* do `Voltar` não impede a barra de cobri-lo no fim da rolagem.
+      */}
+      <BarraDeAcoes ocorrenciaId={detalhe.id} acoes={acoes} rotulosDeStatus={rotulos} />
     </MolduraDeTela>
   );
 }

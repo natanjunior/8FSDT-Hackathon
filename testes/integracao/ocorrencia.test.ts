@@ -2,7 +2,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
-import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import { analisarOcorrencia, registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import { Ocorrencia } from "@/dominio/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
@@ -454,5 +455,164 @@ describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensõ
     // **Nada se repete entre as duas páginas**, com filtro como sem.
     const lidos = [...primeira, ...segunda].map((o) => o.id);
     expect(new Set(lidos).size).toBe(lidos.length);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A transição contra Postgres — o item 16
+ * ============================================================================
+ *
+ * **Três coisas aqui não têm duplo:** o `COMMIT` das duas escritas, o `update … where status` como
+ * controle otimista, e o escopo de `$1` valendo na **escrita** — onde errar não devolve dado de outra
+ * organização: **grava** numa.
+ */
+describe("a transição contra Postgres", () => {
+  /** Registra uma ocorrência nova e devolve o id — cada caso quer a sua, e o arquivo semeia por cima. */
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      {
+        titulo,
+        descricao: "Semeada para o teste de transição.",
+        categoriaId,
+        areaId,
+        localizacaoComplemento: null,
+      },
+    );
+    return lida.id;
+  }
+
+  /** O agregado carregado, já analisado — o que a porta de escrita recebe. */
+  async function analisado(id: string): Promise<Ocorrencia> {
+    const agregado = await portas().ocorrencias.carregar(id);
+    expect(agregado).not.toBeNull();
+    return agregado!.analisar({ autorPessoaId: pessoaId, ocorreuEm: new Date().toISOString() });
+  }
+
+  it("carregar reidrata o agregado com a trilha inteira", async () => {
+    const id = await registrada("Reidratação");
+    const agregado = await portas().ocorrencias.carregar(id);
+
+    expect(agregado?.status).toBe("aberta");
+    expect(agregado?.prioridade).toBe("normal");
+    expect(agregado?.autorPessoaId).toBe(pessoaId);
+    expect(agregado?.areaTipo).toBe("comum");
+    expect(agregado?.trilha).toHaveLength(1);
+    expect(agregado?.ultimaTransicao.sequencia).toBe(1);
+    expect(agregado?.ultimaTransicao.statusAnterior).toBeNull();
+  });
+
+  it("carregar devolve null para id que não existe nesta organização", async () => {
+    expect(await portas().ocorrencias.carregar("2f9b0f6c-0000-4a00-8000-000000000000")).toBeNull();
+  });
+
+  it("aplicarTransicao grava o update E o registro no mesmo COMMIT — critérios 16.1 e 16.2", async () => {
+    const id = await registrada("Mesmo COMMIT");
+    const resultado = await portas().ocorrencias.aplicarTransicao(id, await analisado(id));
+
+    expect(resultado.desfecho).toBe("aplicada");
+
+    const [linha] = await consultaCrua<{ status: string; atualizada_em: Date }>(
+      `select status, atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    const registros = await consultaCrua<{
+      sequencia: number;
+      status_anterior: string | null;
+      status_novo: string;
+      ocorreu_em: Date;
+      observacao: string | null;
+    }>(
+      `select sequencia, status_anterior, status_novo, ocorreu_em, observacao
+          from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+
+    expect(linha?.status).toBe("em_analise");
+    // **Exatamente dois** — a origem e a transição. Nem um a mais.
+    expect(registros).toHaveLength(2);
+    expect(registros[1]).toMatchObject({
+      sequencia: 2,
+      status_anterior: "aberta",
+      status_novo: "em_analise",
+      observacao: null,
+    });
+    // `atualizada_em` é o INSTANTE DA TRANSIÇÃO, nunca `now()` — dois relógios produziriam uma
+    // ocorrência atualizada milissegundos antes ou depois do registro que a atualizou.
+    expect(linha?.atualizada_em.toISOString()).toBe(registros[1]?.ocorreu_em.toISOString());
+  });
+
+  it("a corrida: a SEGUNDA aplicação devolve conflito e NÃO escreve nada", async () => {
+    const id = await registrada("Corrida");
+    // Os dois Gestores leem `aberta` e montam a transição a partir dali. É a corrida da §3.3 da spec.
+    const primeiro = await analisado(id);
+    const segundo = await analisado(id);
+
+    expect((await portas().ocorrencias.aplicarTransicao(id, primeiro)).desfecho).toBe("aplicada");
+    expect((await portas().ocorrencias.aplicarTransicao(id, segundo)).desfecho).toBe("conflito");
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    // **Continua com dois.** O `where status = 'aberta'` não achou linha, e o `insert` não rodou.
+    expect(registros).toHaveLength(2);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não transiciona — critério A4", async () => {
+    const id = await registrada("Isolamento de escrita");
+    const agregado = await analisado(id);
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA (`consultar`
+    // devolve lista), então o caso é nomeado aqui.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho ${SUFIXO}`, `VZ${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    expect((await deOutra.aplicarTransicao(id, agregado)).desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Não escreveu.** O `organizacao_id = $1` do `update` é o que impede, e ele vem do escopo.
+    expect(linha?.status).toBe("aberta");
+  });
+
+  it("pelo comando: analisar duas vezes dá 409 na segunda, e a trilha continua com dois", async () => {
+    const id = await registrada("Analisar duas vezes");
+    const ctx = { pessoaId, permissoes: ["ocorrencia.ler_todas", "ocorrencia.analisar"] };
+
+    const lida = await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    expect(lida.status).toBe("em_analise");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("aberta");
+
+    const erro = await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id }).catch(
+      (causa: unknown) => causa,
+    );
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "em_analise",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(2);
   });
 });

@@ -27,6 +27,24 @@ export type DadosDeRegistro = {
   anexos?: readonly DadosDeAnexo[];
 };
 
+/** O que o repositório devolve ao reidratar a raiz. **Sem `id`**: quem gera identidade é o banco. */
+export type DadosDeReconstituicao = {
+  titulo: string;
+  descricao: string;
+  categoriaId: string;
+  areaId: string;
+  areaTipo: TipoDeAreaCongelado;
+  localizacaoComplemento: string | null;
+  autorPessoaId: string;
+  registradaEm: string;
+  status: StatusOcorrencia;
+  prioridade: Prioridade;
+  /** **A trilha inteira, da origem à última.** Trilha parcial dentro do agregado é mentira no lugar
+   *  onde a invariante 3 mora — e quem lesse cinco registros de um agregado que tem oito não teria
+   *  como saber. O tamanho é limitado pela máquina de estados: meia dúzia de linhas por ocorrência. */
+  trilha: readonly RegistroDeTransicao[];
+};
+
 /**
  * ============================================================================
  *  A raiz do agregado — consistência forçada (aula 5, p.9)
@@ -55,7 +73,13 @@ export class Ocorrencia {
     private readonly _status: StatusOcorrencia,
     private readonly _prioridade: Prioridade,
     private readonly _trilha: readonly RegistroDeTransicao[],
-    private readonly _anexos: readonly AnexoDaOcorrencia[],
+    /**
+     * **`null` significa "não carregado", e não "sem anexo".** O caminho de **escrita** reidrata o
+     * agregado sem anexos de propósito: `AnexoDaOcorrencia` carrega `chave`, e *"a chave nunca sai"*
+     * (modelo §2.8) é garantido por `SELECT_DOS_ANEXOS` **não a selecionar**. Trazer os anexos de volta
+     * abriria a segunda leitura do produto que devolve chave; devolver `[]` seria mentira. Estoura.
+     */
+    private readonly _anexos: readonly AnexoDaOcorrencia[] | null,
   ) {}
 
   /**
@@ -87,6 +111,35 @@ export class Ocorrencia {
     );
   }
 
+  /**
+   * **A volta do banco — a segunda fábrica.**
+   *
+   * `registrar` cria; esta reidrata. **O agregado continua sem `id`**, e é decisão: quem gera identidade
+   * é o banco (`gen_random_uuid()`), e dar `id` ao Domínio o obrigaria a inventar UUID — a mesma conversa
+   * com o mundo que o fez não ler relógio. **O `id` viaja ao lado**, nos dois métodos da porta.
+   */
+  static reconstituir(dados: DadosDeReconstituicao): Ocorrencia {
+    if (dados.trilha.length === 0) {
+      throw new Error("Ocorrência sem trilha — a invariante 2 foi violada antes desta leitura.");
+    }
+
+    return new Ocorrencia(
+      dados.titulo,
+      dados.descricao,
+      dados.categoriaId,
+      dados.areaId,
+      dados.areaTipo,
+      dados.localizacaoComplemento,
+      dados.autorPessoaId,
+      dados.registradaEm,
+      dados.status,
+      dados.prioridade,
+      [...dados.trilha],
+      // Ver o comentário do campo: `null` é "não carregado", e o getter estoura em vez de mentir.
+      null,
+    );
+  }
+
   get status(): StatusOcorrencia {
     return this._status;
   }
@@ -106,6 +159,12 @@ export class Ocorrencia {
    * mora no `maxItems: 1` do schema de entrada (contrato §8.3).
    */
   get anexos(): readonly AnexoDaOcorrencia[] {
+    if (this._anexos === null) {
+      throw new Error(
+        "Agregado reconstituído sem anexos — o caminho de escrita não os carrega. " +
+          "Quem precisa de anexo lê o modelo de leitura (OcorrenciaLida.anexos).",
+      );
+    }
     return Object.freeze([...this._anexos]);
   }
 
@@ -116,5 +175,64 @@ export class Ocorrencia {
       throw new Error("Ocorrência sem trilha — a invariante 2 foi violada na construção.");
     }
     return ultima;
+  }
+
+  /**
+   * O comando `analisar` — a seta `Aberta → Em análise` (F2, critérios 16.1 e 16.2).
+   *
+   * **Devolve instância nova**, porque `_status` e `_trilha` são `private readonly` e a imutabilidade é o
+   * que sustenta a invariante 3.
+   *
+   * **A guarda aqui é `Error`, não `ErroDeDominio`, e é deliberado.** Alcançá-la significa que a
+   * Aplicação esqueceu de conferir com `transicaoPermitida` — defeito nosso, não recusa de negócio —, e é
+   * o idioma que este arquivo já usa para invariante violada. **Ela não é o caminho da corrida entre dois
+   * Gestores:** esse é o `where status = <anterior>` do repositório.
+   */
+  analisar(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    observacao?: string | null;
+  }): Ocorrencia {
+    if (this._status !== "aberta") {
+      throw new Error(
+        `analisar exige status 'aberta'; a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    return this.comTransicao(
+      "em_analise",
+      RegistroDeTransicao.avanco({
+        // **Do último registro, não do tamanho da lista:** correto mesmo se um dia alguém carregar
+        // trilha parcial, e o `unique (ocorrencia_id, sequencia)` continua sendo a rede.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        statusNovo: "em_analise",
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao ?? null,
+      }),
+    );
+  }
+
+  /**
+   * **A cópia com um estado novo e um registro a mais.** É o que todo comando de transição faz, e por
+   * isso mora num lugar só: os itens 17 a 27 acrescentam o método público e chamam isto.
+   */
+  private comTransicao(status: StatusOcorrencia, registro: RegistroDeTransicao): Ocorrencia {
+    return new Ocorrencia(
+      this.titulo,
+      this.descricao,
+      this.categoriaId,
+      this.areaId,
+      this.areaTipo,
+      this.localizacaoComplemento,
+      this.autorPessoaId,
+      this.registradaEm,
+      status,
+      this._prioridade,
+      [...this._trilha, registro],
+      this._anexos,
+    );
   }
 }

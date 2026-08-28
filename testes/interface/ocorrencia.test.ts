@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { STATUS } from "@/dominio/ocorrencia";
+import { COMANDOS_IMPLEMENTADOS, STATUS } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
@@ -14,16 +14,27 @@ import {
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
 import {
+  CorpoNaoSuportado,
   FormatoInvalido,
+  lerCorpoOpcional,
   lerCursorDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
   type ErroDeCampo,
 } from "@/interface/http";
+import {
+  nomesDeStatus,
+  rotuloDeComando,
+  rotulosDeStatus,
+} from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
-import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
+import {
+  camposEscritosPeloServidor,
+  comandoComObservacaoSchema,
+  registroDeOcorrenciaSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -698,5 +709,115 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
     expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
       "Só as minhas",
     ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `corpoOpcional` — o critério 16.7, e por que ele é sobre BYTES
+ * ============================================================================
+ *
+ * Cinco endpoints do `openapi.yaml` declaram `requestBody: required: false` — os quatro comandos de
+ * avanço rotineiro e o `/recusar` do item 8 —, e até aqui todos respondiam `415` a quem não mandasse
+ * corpo. O portão do DoD *"a especificação versionada corresponde ao código"* estava aberto.
+ *
+ * **"Corpo ausente" é ZERO BYTE, e não "sem `content-type`"**, e é isso que impede `corpoOpcional` de
+ * virar máquina de descarte silencioso: um cliente que mande `{"observacao": "…"}` esquecendo o
+ * cabeçalho teria a observação aceita e jogada fora sem resposta.
+ */
+describe("lerCorpoOpcional", () => {
+  const URL_QUALQUER = "http://localhost/api/ocorrencias/x/analisar";
+
+  it("requisição SEM corpo chega com zero byte, e vira objeto vazio", async () => {
+    // A afirmação que o plano precisava provar: `Request` sem `body` devolve string vazia em `.text()`.
+    const requisicao = new Request(URL_QUALQUER, { method: "POST" });
+    expect(await requisicao.clone().text()).toBe("");
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({});
+  });
+
+  it("corpo PRESENTE com content-type que não é JSON continua 415 — nada é descartado em silêncio", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(CorpoNaoSuportado);
+  });
+
+  it("corpo presente com JSON inválido continua 400 FORMATO_INVALIDO", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(FormatoInvalido);
+  });
+
+  it("corpo presente e válido chega inteiro", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({ observacao: "Vou ver o estoque." });
+  });
+});
+
+describe("o corpo dos comandos de avanço rotineiro", () => {
+  it("aceita objeto vazio — o corpo inteiro é opcional (ComandoComObservacaoOpcional)", () => {
+    const conferido = comandoComObservacaoSchema.safeParse({});
+    expect(conferido.success).toBe(true);
+  });
+
+  it("aceita observação até 1000, e recusa acima — o limite é o do openapi.yaml", () => {
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1000) }).success).toBe(true);
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("NÃO tem minLength — o contrato declara maxLength e mais nada", () => {
+    // Um `.min(1)` aqui recusaria mais do que a especificação versionada declara, e é o portão do DoD
+    // olhando na direção contrária: o código não pode ser mais estrito que o contrato.
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "" }).success).toBe(true);
+  });
+});
+
+describe("os rótulos que descem para a barra de ações", () => {
+  it("todo comando implementado tem rótulo — senão a barra some sem dizer nada", () => {
+    // **É o alarme da tarefa 6 para os itens 17 a 27:** quem acrescentar um comando a
+    // `COMANDOS_IMPLEMENTADOS` e esquecer o rótulo faria a barra renderizar nada, em silêncio.
+    for (const comando of COMANDOS_IMPLEMENTADOS) {
+      expect(rotuloDeComando(comando)).not.toBeNull();
+    }
+  });
+
+  it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
+    expect(rotuloDeComando("resolver")).toBeNull();
+  });
+
+  it("analisar é palavra, não ícone — compromisso A-5", () => {
+    expect(rotuloDeComando("analisar")).toBe("Analisar");
+  });
+
+  it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {
+    const rotulos = rotulosDeStatus();
+    const nomes = nomesDeStatus();
+
+    for (const status of STATUS) {
+      expect(typeof rotulos[status]).toBe("string");
+      expect(typeof nomes[status]).toBe("string");
+    }
+
+    // A frase do `409` usa a coluna do Solicitante — "agora ela está Parada" —, e `pausada` degrada
+    // para a palavra sozinha, porque um erro não carrega motivo de pausa.
+    expect(rotulos.pausada).toBe("Parada");
+    expect(rotulos.em_analise).toBe("Em análise");
+
+    // O bloco Histórico usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
+    expect(nomes.aberta).toBe("Aberta");
+    expect(nomes.em_analise).toBe("Em análise");
   });
 });

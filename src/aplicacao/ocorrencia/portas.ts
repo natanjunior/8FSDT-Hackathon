@@ -169,6 +169,19 @@ export type ResultadoDoRegistro =
   | { desfecho: "registrada"; ocorrencia: OcorrenciaLida }
   | { desfecho: "anexo-ja-reivindicado"; ocorrenciaId: string };
 
+/**
+ * O que a escrita de uma transição pode dar. **Desfecho, não exceção**, na fronteira da porta — é o
+ * idioma que `ResultadoDoRegistro` já usa aqui em cima para o anexo já reivindicado.
+ *
+ * **`conflito` é a corrida entre dois Gestores**, e o repositório a detecta sem coluna de versão: o
+ * `update … where status = <anterior>` devolve zero linhas quando alguém chegou antes. Traduzir estado de
+ * banco em erro de domínio é decisão de **Aplicação** — por isso o repositório devolve um desfecho, e
+ * não lança.
+ */
+export type ResultadoDaTransicao =
+  | { desfecho: "aplicada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
 export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Recebe o agregado, não um DTO — e a diferença é a invariante 1.**
@@ -183,6 +196,32 @@ export interface RepositorioEscopadoDeOcorrencias {
    * transação escopada e não só a consulta.
    */
   registrar(ocorrencia: Ocorrencia): Promise<ResultadoDoRegistro>;
+
+  /**
+   * **Devolve o AGREGADO, não `OcorrenciaLida` — e a diferença é a invariante 1.**
+   *
+   * É o item do DoD que o lint não alcança (*"o repositório devolve agregado ou objeto de leitura
+   * declarado"*): para **escrever**, o que volta tem de ser o agregado, senão a invariante 1 vira
+   * disciplina. `null` quando não existe **nesta organização** — o repositório escopado não vê as outras.
+   *
+   * **Não traz anexos**, e o agregado diz isso em voz alta em vez de devolver lista vazia:
+   * `AnexoDaOcorrencia` carrega `chave`, e `objetoDoAnexo` é a única leitura do produto que a devolve.
+   */
+  carregar(id: string): Promise<Ocorrencia | null>;
+
+  /**
+   * **Transcreve a transição que o agregado decidiu, num `COMMIT` só** — `update` da raiz mais `insert`
+   * do registro, que é a invariante 2.
+   *
+   * **Este método não decide nada.** `status`, `atualizada_em` e os oito campos do registro saem de
+   * `ocorrencia` e de `ocorrencia.ultimaTransicao`. O predicado do `update` é o `statusAnterior` do
+   * próprio registro — nada foi inventado, e é o controle otimista que o contrato §7.9 afirma existir.
+   *
+   * **Não há `atualizar` nem `apagar` para `registros_transicao`**, aqui nem em lugar nenhum: a ausência
+   * é a invariante 3 expressa em tipo.
+   */
+  aplicarTransicao(id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao>;
+
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;
 

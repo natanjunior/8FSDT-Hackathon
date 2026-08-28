@@ -31,11 +31,15 @@ export type Comando = (typeof COMANDOS)[number];
  * **vai responder `409` ou `422`** se for chamado"*. Lida ao contrário: **comando presente é comando
  * cujo endpoint existe.**
  *
- * Nenhum dos dez foi construído ainda. Anunciar `analisar` numa lista que T-05 renderiza *"exatamente, e
- * nada além"* produziria um botão que responde `404` — um status que o contrato não prevê ali.
+ * Anunciar um comando numa lista que T-05 renderiza *"exatamente, e nada além"* produziria um botão que
+ * responde `404` — um status que o contrato não prevê ali.
  *
  * **Isto não é `[]` chumbado.** A derivação em `MaquinaDeEstados.ts` é real e completa; este filtro é a
  * última etapa dela. **Cada item de 16 a 27 acrescenta o próprio comando aqui — uma linha — e a
  * derivação já está pronta e testada.**
+ *
+ * **O item 16 foi o primeiro a fazê-lo**, e o momento importa: a linha entra na tarefa que cria o
+ * `route.ts`, nunca antes. Anunciar um comando cujo endpoint ainda não existe produz um botão que
+ * responde `404`, status que o contrato não prevê em T-05.
  */
-export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [];
+export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = ["analisar"];
