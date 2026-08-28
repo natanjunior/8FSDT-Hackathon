@@ -1,28 +1,9 @@
-import {
-  comandosDisponiveis,
-  transicaoPermitida,
-  TransicaoNaoPermitida,
-  type Ocorrencia,
-} from "@/dominio/ocorrencia";
+import { transicaoPermitida } from "@/dominio/ocorrencia";
 
+import { recusaDeTransicao, type ContextoDoComando } from "./comando";
 import { podeLerOcorrencia } from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
-
-/**
- * Quem está comandando.
- *
- * **Carrega `permissoes` e deriva o resto.** `podeLerTodas` não entra como segundo campo porque duas
- * fontes para o mesmo fato divergem — e `comandosDisponiveis`, que monta o corpo do `409`, já recebe a
- * lista crua. Permissão é **lista**, nunca papel (contrato §4.5).
- */
-export type ContextoDoComando = {
-  pessoaId: string;
-  /** `Vinculo.permissoes`. */
-  permissoes: readonly string[];
-  /** ISO 8601. O relógio é lido **uma vez**, e o mesmo instante carimba o registro e `atualizada_em`. */
-  agora?: string;
-};
 
 /**
  * ============================================================================
@@ -84,23 +65,4 @@ export async function analisarOcorrencia(
   const atual = await repositorio.carregar(entrada.ocorrenciaId);
   if (atual === null) throw new OcorrenciaNaoEncontrada();
   throw recusaDeTransicao(atual, ctx);
-}
-
-/**
- * O corpo do `409`, montado **num lugar só** — as duas portas de entrada, a guarda e o conflito, chegam
- * aqui. Duas construções do mesmo corpo seriam a segunda cópia de sempre.
- *
- * **`jaAvaliada` não é informado, e a omissão é declarada:** ela só muda a presença de `avaliar`, que é
- * filtrado por `COMANDOS_IMPLEMENTADOS` enquanto o item 27 não existir. É o **item 27** que traz a
- * avaliação para dentro do agregado, porque é ele que precisa dela para o próprio comando.
- */
-function recusaDeTransicao(ocorrencia: Ocorrencia, ctx: ContextoDoComando): TransicaoNaoPermitida {
-  return new TransicaoNaoPermitida(
-    ocorrencia.status,
-    comandosDisponiveis({
-      status: ocorrencia.status,
-      permissoes: ctx.permissoes,
-      ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
-    }),
-  );
 }

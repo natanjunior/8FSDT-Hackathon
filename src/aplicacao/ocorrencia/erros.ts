@@ -57,3 +57,22 @@ export class OcorrenciaNaoEncontrada extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `422 RESPONSAVEL_SEM_VINCULO_ATIVO` — a pessoa indicada **não tem vínculo ativo nesta organização**.
+ *
+ * **Três casos, uma resposta**, e é a §6.3: nunca teve vínculo · teve e foi revogado · tem vínculo em
+ * **outra** organização. Separar o terceiro dos dois primeiros confirmaria que a pessoa existe em algum
+ * lugar do sistema — que é exatamente o vazamento que o `404` genérico existe para impedir.
+ *
+ * **O texto é o do `openapi.yaml`**, literal: o `detail` é contrato publicado, não frase nova.
+ */
+export class ResponsavelSemVinculoAtivo extends ErroDeDominio {
+  constructor() {
+    super(
+      "RESPONSAVEL_SEM_VINCULO_ATIVO",
+      "Pessoa sem vínculo ativo",
+      "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+    );
+  }
+}

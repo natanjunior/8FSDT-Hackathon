@@ -3,9 +3,12 @@ export {
   AreaInvalida,
   CategoriaInvalida,
   OcorrenciaNaoEncontrada,
+  ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
 } from "./erros";
-export { analisarOcorrencia, type ContextoDoComando } from "./analisar-ocorrencia";
+export { analisarOcorrencia } from "./analisar-ocorrencia";
+export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
+export { type ContextoDoComando } from "./comando";
 export {
   type AnexoLido,
   type CursorDeListagem,
