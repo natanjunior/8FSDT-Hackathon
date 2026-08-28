@@ -105,10 +105,14 @@ export function camposEscritosPeloServidor(corpo: unknown): readonly string[] {
  *
  * **O corpo INTEIRO é opcional**, e quem trata disso é o `corpoOpcional` do `comContexto`: aqui o schema
  * só precisa aceitar `{}`, que é o que ele faz por não ter campo obrigatório.
+ *
+ * **O campo é `const` de módulo desde o item 26**, e não é estilo: `resolucaoSchema` o reusa, e dois
+ * `.max(1000)` para o mesmo campo divergiriam no dia em que o contrato mudasse um deles. É a forma que
+ * `titulo`, `descricao` e `identificador` já usam neste arquivo.
  */
-export const comandoComObservacaoSchema = z.object({
-  observacao: z.string().trim().max(1000, "A observação cabe em 1000 caracteres.").nullish(),
-});
+const observacao = z.string().trim().max(1000, "A observação cabe em 1000 caracteres.").nullish();
+
+export const comandoComObservacaoSchema = z.object({ observacao });
 
 export type EntradaDeComandoComObservacao = z.infer<typeof comandoComObservacaoSchema>;
 
@@ -125,6 +129,45 @@ export const atribuicaoDeResponsavelSchema = z.object({
 });
 
 export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeResponsavelSchema>;
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/resolver` — o primeiro comando com DOIS campos
+ * ============================================================================
+ *
+ * **Não é uma extensão do `comandoComObservacaoSchema`, e a diferença importa.** Estendê-lo tocaria o
+ * `analisar`, o `iniciar-atendimento` e o `retomar`, que **não** aceitam `solucaoAplicada` no contrato —
+ * eles passariam a aceitar um campo que o `openapi.yaml` não declara para eles, e o portão do DoD
+ * (*"a especificação versionada corresponde ao código"*) olha exatamente nessa direção.
+ *
+ * **Ele reusa o campo `observacao` do módulo** em vez de redigitar o teto: um número, um lugar.
+ *
+ * **`solucaoAplicada` entra aqui, e não é escopo emprestado do item 25** (spec §3.2): o
+ * `openapi.yaml:1936-1944` declara os dois campos **neste** endpoint, o contrato §8.4 explica por quê
+ * — *"para que o formulário da D22 seja uma requisição, não duas"* — e o `inventario-de-telas.md:783`
+ * põe os dois no modal **deste** item. O que pertence ao 25 é o endpoint próprio e o campo no corpo da
+ * tela.
+ *
+ * **Sem `.min(1)` nos dois, e é deliberado.** O `openapi.yaml:1942` declara `maxLength: 4000` e
+ * **nenhum** `minLength` para `/resolver` — ao contrário de `/registrar-solucao-aplicada`, que traz
+ * `minLength: 1` (`:1901`). **Quem transforma `""` em `null` é o comando de aplicação**, e lá vazio
+ * significa *ausente*: `resolver` preserva a solução que já houvesse, porque apagá-la não é capacidade
+ * de endpoint nenhum.
+ *
+ * **Nada de `recusar:` no `route.ts`.** `camposSemDestino` é dos comandos que declaram `observacao` sem
+ * ter onde guardá-la; aqui os **dois** campos têm destino — `observacao` é coluna do registro de
+ * transição, `solucaoAplicada` é coluna de `ocorrencias`.
+ */
+export const resolucaoSchema = z.object({
+  observacao,
+  solucaoAplicada: z
+    .string()
+    .trim()
+    .max(4000, "A solução aplicada cabe em 4000 caracteres.")
+    .nullish(),
+});
+
+export type EntradaDeResolucao = z.infer<typeof resolucaoSchema>;
 
 /**
  * ============================================================================

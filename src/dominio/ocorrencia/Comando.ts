@@ -47,9 +47,14 @@ export type Comando = (typeof COMANDOS)[number];
  *
  * **O item 22 foi o terceiro**, e com ele `acoesDisponiveis` passa a depender de um fato que **não é
  * status nem permissão**: a invariante 9. A linha entra na tarefa que cria o `route.ts`, nunca antes.
+ *
+ * **O item 26 foi o quarto**, e com ele `resolvida` passa a ser alcançável — o **primeiro estado
+ * terminal do produto**, do qual `acoesDisponiveis` sai vazia por derivação e não por comando faltando.
+ * A linha entra na tarefa que cria o `route.ts`, nunca antes.
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
   "atribuir-responsavel",
   "iniciar-atendimento",
+  "resolver",
 ];

@@ -41,6 +41,7 @@ import {
   camposSemDestino,
   comandoComObservacaoSchema,
   registroDeOcorrenciaSchema,
+  resolucaoSchema,
 } from "@/interface/schemas";
 
 /**
@@ -606,6 +607,17 @@ describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeç�
     expect(projetado.acoesDisponiveis).toContain("iniciar-atendimento");
     expect(projetado.responsavel).toStrictEqual(RESPONSAVEL);
   });
+
+  it("em resolvida a projeção devolve lista VAZIA — o critério 26.4, e é derivação", () => {
+    // **Nem para o Gestor com todas as permissões.** `TRANSICOES.resolvida` é vazia; `avaliar` é o único
+    // admitido ali e está fora de `COMANDOS_IMPLEMENTADOS` até o item 27.
+    const projetado = projetarOcorrenciaDetalhe(
+      { ...umaOcorrenciaLidaCom([]), status: "resolvida" as const, responsavel: RESPONSAVEL },
+      { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.resolver"] },
+    );
+
+    expect(projetado.acoesDisponiveis).toStrictEqual([]);
+  });
 });
 
 describe("`?variante=`", () => {
@@ -829,7 +841,12 @@ describe("os rótulos que descem para a barra de ações", () => {
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    expect(rotuloDeComando("resolver")).toBeNull();
+    // Era `resolver`, até o item 26. `pausar` é o próximo — item 23.
+    expect(rotuloDeComando("pausar")).toBeNull();
+  });
+
+  it("resolver é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("resolver")).toBe("Resolver");
   });
 
   it("analisar é palavra, não ícone — compromisso A-5", () => {
@@ -1050,8 +1067,15 @@ describe("acaoPrimaria — a regra do destaque de T-05", () => {
   it("o desempate: comando nomeado que não está renderizável cede ao primeiro que está", () => {
     // `em_analise` sem responsável — `iniciar-atendimento` não é renderizável, e sobra um só.
     expect(acaoPrimaria("em_analise", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
-    // `em_atendimento` — `resolver` é do item 26 e ainda não existe.
-    expect(acaoPrimaria("em_atendimento", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+    // `pausada` — `retomar` é do item 24 e ainda não existe.
+    expect(acaoPrimaria("pausada", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+  });
+
+  it("em em_atendimento o destaque é resolver, e NÃO o primeiro da lista — a decisão do item 22", () => {
+    // **É a primeira vez que a tabela `ACAO_PRIMARIA` é conferível neste estado.** A ordem do enum põe
+    // `atribuir-responsavel` na frente; a derivação por `transicaoPermitida` daria *Pausar*. A tabela
+    // acerta os dois — e é por isso que ela é tabela, e por isso os itens 23 a 27 não a editam.
+    expect(acaoPrimaria("em_atendimento", ["atribuir-responsavel", "resolver"])).toBe("resolver");
   });
 
   it("sem nenhuma ação renderizável, não há primário", () => {
@@ -1066,5 +1090,52 @@ describe("acaoPrimaria — a regra do destaque de T-05", () => {
       expect(() => acaoPrimaria(status, [])).not.toThrow();
       expect(acaoPrimaria(status, ["cancelar"])).toBe("cancelar");
     }
+  });
+});
+
+describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", () => {
+  it("aceita o corpo vazio: os dois campos são opcionais (requestBody: required: false)", () => {
+    expect(resolucaoSchema.safeParse({}).success).toBe(true);
+  });
+
+  it("aceita os dois, e aceita cada um sozinho", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "Trocada a lâmpada." }).success).toBe(true);
+    expect(resolucaoSchema.safeParse({ observacao: "Conferido." }).success).toBe(true);
+    expect(
+      resolucaoSchema.safeParse({ solucaoAplicada: "Trocada.", observacao: "Conferido." }).success,
+    ).toBe(true);
+  });
+
+  it("aceita null nos dois — `nullish`, como o resto dos comandos", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: null, observacao: null }).success).toBe(true);
+  });
+
+  it("recusa solucaoAplicada acima de 4000 — o maxLength do openapi.yaml", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4000) }).success).toBe(true);
+  });
+
+  it("recusa observacao acima de 1000 — o MESMO teto do comandoComObservacaoSchema", () => {
+    // **Um número só, num lugar só** (D-P5): o campo é reusado, não redigitado. Dois `.max()` para o
+    // mesmo campo divergiriam no dia em que o contrato mudasse um deles.
+    expect(resolucaoSchema.safeParse({ observacao: "a".repeat(1001) }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ observacao: "a".repeat(1000) }).success).toBe(true);
+  });
+
+  it("aceita string VAZIA nos dois — não há minLength no contrato, e quem apara é a Aplicação", () => {
+    // **É o critério 16.7 do avesso, aplicado ao quarto endpoint:** schema mais estrito que a
+    // especificação versionada é a mesma divergência, do outro lado. `/registrar-solucao-aplicada`
+    // declara `minLength: 1`; `/resolver` **não** declara, e o produto obedece ao que está publicado.
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "", observacao: "" }).success).toBe(true);
+  });
+
+  it("apara os dois — o `.trim()` do schema, como em todo campo de texto do produto", () => {
+    const conferido = resolucaoSchema.safeParse({
+      solucaoAplicada: "  Trocada a lâmpada.  ",
+      observacao: "  Conferido.  ",
+    });
+    expect(conferido.success).toBe(true);
+    expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
+    expect(conferido.data!.observacao).toBe("Conferido.");
   });
 });

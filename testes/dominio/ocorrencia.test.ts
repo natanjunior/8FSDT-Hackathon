@@ -191,13 +191,14 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz TRÊS comandos — o analisar do 16, o atribuir do 19 e o iniciar-atendimento do 22", () => {
+  it("hoje traz QUATRO comandos — 16, 19, 22 e o resolver do 26", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
       "iniciar-atendimento",
+      "resolver",
     ]);
   });
 
@@ -437,6 +438,23 @@ describe("comandosDisponiveis", () => {
         sem.filter((comando) => comando !== "iniciar-atendimento"),
       );
     }
+  });
+
+  it("em em_atendimento o Gestor vê atribuir e resolver, nessa ordem — a §3.8 da spec", () => {
+    // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
+    // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
+    //
+    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar`, `alterar-prioridade` e `cancelar`
+    // saem porque `COMANDOS_IMPLEMENTADOS` ainda não os tem. É por isso que este caso mora aqui e não na
+    // tarefa 1 — antes do passo 4 ele devolveria `["atribuir-responsavel"]`.
+    expect(
+      comandosDisponiveis({
+        status: "em_atendimento",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: true,
+      }),
+    ).toStrictEqual(["atribuir-responsavel", "resolver"]);
   });
 
   it("o Solicitante autor em em_atendimento continua com a lista VAZIA — o critério 26.3 na lista", () => {
