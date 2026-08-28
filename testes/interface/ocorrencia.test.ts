@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
 import {
   COMANDOS_IMPLEMENTADOS,
+  MOTIVOS_DE_CANCELAMENTO,
   MOTIVOS_DE_PAUSA,
   STATUS,
   type Comando,
@@ -32,6 +33,7 @@ import {
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
+  recusarEvolucaoPrevista,
   recusarSemDestino,
   type ErroDeCampo,
 } from "@/interface/http";
@@ -52,6 +54,8 @@ import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-l
 import {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
+  cancelamentoSchema,
+  camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
@@ -1581,5 +1585,127 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
     expect(acoesDaBarra("em_analise", renderizaveis).destaque).toBe(
       acaoPrimaria("em_analise", renderizaveis),
     );
+  });
+});
+
+describe("o corpo de POST …/cancelar — o segundo com DOIS campos obrigatórios", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = cancelamentoSchema.safeParse({
+      motivo: "improcedente",
+      observacao: "  Vistoriado no local: não há vazamento.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Vistoriado no local: não há vazamento.");
+    expect(analisado.data?.motivo).toBe("improcedente");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — o critério 18.1", () => {
+    const analisado = cancelamentoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("aceita os SETE motivos — o enum é o conjunto inteiro, e a filtragem por papel NÃO é aqui", () => {
+    // **É a §3.8 em asserção, e ela decide qual ERRO a pessoa recebe.** Um enum estreito devolveria
+    // `400 FORMATO_INVALIDO` — *"você escreveu errado"* — onde a verdade é *"isso não é seu"*, e o
+    // `422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` do critério 18.4 se perderia.
+    for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+      expect(cancelamentoSchema.safeParse({ motivo, observacao: "Encerrando." }).success).toBe(true);
+    }
+  });
+
+  it("aceita improcedente — o motivo que o Solicitante NÃO alcança passa pelo schema", () => {
+    // O par do caso acima, escrito sozinho porque é a diferença que importa: quem recusa `improcedente`
+    // para o Solicitante é o comando de aplicação, com `422`, e não este schema com `400`.
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "improcedente", observacao: "Sem procedência." })
+        .success,
+    ).toBe(true);
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "mudei_de_ideia", observacao: "ok" }).success,
+    ).toBe(false);
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "" }).success).toBe(
+      false,
+    );
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("camposDeEvolucaoPrevista — a SEGUNDA lista de recusa, e por que não é a primeira", () => {
+  it("aponta ocorrenciaOrigemId, e o corpo sem ele passa limpo — o critério 18.5", () => {
+    expect(
+      camposDeEvolucaoPrevista({
+        motivo: "duplicada",
+        observacao: "É a mesma da vaga 34.",
+        ocorrenciaOrigemId: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      }),
+    ).toStrictEqual(["ocorrenciaOrigemId"]);
+
+    expect(
+      camposDeEvolucaoPrevista({ motivo: "duplicada", observacao: "É a mesma da vaga 34." }),
+    ).toStrictEqual([]);
+  });
+
+  it("ocorrenciaOrigemId NULO também é recusado — o campo presente é o que importa", () => {
+    // `"campo" in corpo`, e não `corpo.campo !== undefined`: quem mandou o campo tentou usar a
+    // capacidade, e o silêncio o faria acreditar que o vínculo entre as duas ocorrências foi gravado.
+    expect(camposDeEvolucaoPrevista({ ocorrenciaOrigemId: null })).toStrictEqual([
+      "ocorrenciaOrigemId",
+    ]);
+  });
+
+  it("não estoura com corpo que não é objeto", () => {
+    expect(camposDeEvolucaoPrevista(null)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista(undefined)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista("ocorrenciaOrigemId")).toStrictEqual([]);
+  });
+
+  it("as DUAS listas são por endpoint, e este par é o que impede alguém de fundi-las", () => {
+    // **Se elas fossem uma só, `/cancelar` recusaria com `422` o próprio campo obrigatório dele.** É a
+    // razão fatal da §3.9, virada asserção — e do outro lado, `/atribuir-responsavel` e
+    // `/alterar-prioridade` passariam a recusar um campo que o `openapi.yaml` nem declara para eles.
+    expect(camposDeEvolucaoPrevista({ observacao: "Conte por quê." })).toStrictEqual([]);
+    expect(camposSemDestino({ ocorrenciaOrigemId: "x" })).toStrictEqual([]);
+  });
+
+  it("recusarEvolucaoPrevista estoura com o campo, e passa limpo sem ele", () => {
+    expect(() =>
+      recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x", ocorrenciaOrigemId: "y" }),
+    ).toThrow(CampoNaoSuportado);
+
+    expect(() => recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x" })).not.toThrow();
+  });
+
+  it("recusarEvolucaoPrevista nomeia o campo em erros[], que é o que o cliente lê", () => {
+    const erro = (() => {
+      try {
+        recusarEvolucaoPrevista({ ocorrenciaOrigemId: "x" });
+        return null;
+      } catch (causa) {
+        return causa as CampoNaoSuportado;
+      }
+    })();
+
+    expect(erro?.extensoes["erros"]).toStrictEqual([
+      { campo: "ocorrenciaOrigemId", codigo: "CAMPO_NAO_SUPORTADO" },
+    ]);
   });
 });

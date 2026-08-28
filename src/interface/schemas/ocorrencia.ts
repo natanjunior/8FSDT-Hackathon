@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MOTIVOS_DE_PAUSA, PRIORIDADES } from "@/dominio/ocorrencia";
+import { MOTIVOS_DE_CANCELAMENTO, MOTIVOS_DE_PAUSA, PRIORIDADES } from "@/dominio/ocorrencia";
 
 /**
  * O corpo de `POST /ocorrencias` — o schema `RegistroDeOcorrencia` do contrato.
@@ -301,4 +301,83 @@ const SEM_DESTINO = ["observacao"] as const;
 export function camposSemDestino(corpo: unknown): readonly string[] {
   if (typeof corpo !== "object" || corpo === null) return [];
   return SEM_DESTINO.filter((campo) => campo in corpo);
+}
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/cancelar` — item 18, e o corpo com DOIS campos obrigatórios
+ * ============================================================================
+ *
+ * **`z.enum(MOTIVOS_DE_CANCELAMENTO)`, importado do Domínio**, pelo mesmo caminho do `pausaSchema`. Os
+ * sete valores **não** são redigitados.
+ *
+ * **O enum é o conjunto INTEIRO, e não o do papel de quem chama** — é a decisão da fatia, e ela é sobre
+ * qual erro a pessoa recebe. Um enum estreito (os quatro do Solicitante) devolveria
+ * `400 FORMATO_INVALIDO` — *"você escreveu errado"* — onde a verdade é *"isso não é seu"*, e perderia o
+ * `422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` que o critério 18.4 exige. **Domínio de valor aqui;
+ * autorização no comando de aplicação** — é a mesma repartição que o `Motivos.ts` escreve.
+ *
+ * **O `.min(1)` da observação ESTÁ publicado** (`openapi.yaml:1992`, `minLength: 1`), e
+ * `required: [motivo, observacao]` também — o schema não está inventando piso.
+ *
+ * **Não reusa a `observacao` de módulo deste arquivo**, e é a segunda vez que isso acontece: aquela é
+ * `.nullish()`, para os comandos de avanço rotineiro, e estendê-la com `.min(1)` mudaria o campo dos
+ * outros três. **A duplicação com `pausaSchema` é declarada em vez de escondida** (achado A-4 da spec):
+ * as duas cadeias são iguais e as mensagens são diferentes, porque a frase é sobre o que se está
+ * fazendo. **O gatilho da extração está nomeado: o terceiro campo de texto obrigatório**, se o item 27
+ * trouxer um — extrair agora acoplaria os tetos de dois endpoints que o contrato declara separadamente.
+ *
+ * **Nada de `corpoOpcional` no `route.ts`**: `requestBody: required: true` (`openapi.yaml:1985`). Corpo
+ * ausente é `415` pelo caminho normal do `comContexto`; corpo `{}` é `400` com os **dois** campos em
+ * `erros[]` — que é o critério **18.1**.
+ *
+ * **COM `recusar:` no `route.ts`, e é o terceiro endpoint do produto a ter um** — critério **18.5**, com
+ * a lista própria logo abaixo.
+ */
+export const cancelamentoSchema = z.object({
+  motivo: z.enum(MOTIVOS_DE_CANCELAMENTO, { error: "Escolha o motivo do cancelamento." }),
+  observacao: z
+    .string()
+    .trim()
+    .min(1, "Conte por que está cancelando.")
+    .max(1000, "A observação cabe em 1000 caracteres."),
+});
+
+export type EntradaDeCancelamento = z.infer<typeof cancelamentoSchema>;
+
+/**
+ * ============================================================================
+ *  A SEGUNDA lista de recusa — e por que ela não é a primeira
+ * ============================================================================
+ *
+ * `ocorrenciaOrigemId` é o campo que ligaria a ocorrência cancelada por *"duplicada"* àquela de que ela é
+ * cópia. **O vínculo entre as duas é evolução prevista** — não há coluna, não há linha do tempo que o
+ * mostre, e o próprio protótipo pede a referência em texto livre na observação (`telas.html:2502-2503`).
+ * **Campo cuja capacidade é evolução prevista é a definição literal de `CAMPO_NAO_SUPORTADO`**
+ * (contrato §6.2), e é o critério **18.5**.
+ *
+ * **`camposSemDestino` NÃO serve aqui, e a razão é fatal:** aquela lista é `["observacao"]`, e
+ * `/cancelar` **exige** `observacao`. Aplicá-la recusaria com `422` o campo obrigatório do próprio
+ * comando. E acrescentar `ocorrenciaOrigemId` àquela faria `/atribuir-responsavel` e
+ * `/alterar-prioridade` recusarem um campo que o `openapi.yaml` nem declara para eles.
+ * **As listas são por endpoint, e é isso que a segunda torna visível.**
+ *
+ * **A fábrica `recusarCampos(lista)` NÃO foi feita, e a decisão fica escrita** (achado A-5): ela tocaria
+ * os `route.ts` dos itens 17 e 19 — os dois `Impl ✓` — para economizar quatro linhas. **O gatilho está
+ * nomeado: o terceiro caso.**
+ *
+ * **A checagem é `in`, e não valor definido** — `{ ocorrenciaOrigemId: null }` também é recusado, pela
+ * mesma razão de `camposSemDestino`: quem mandou o campo tentou usar a capacidade, e o silêncio faria a
+ * pessoa acreditar que o vínculo foi gravado.
+ *
+ * **O campo NÃO é declarado nas `properties` do `requestBody`** publicado, ao contrário do `observacao`
+ * de `/atribuir-responsavel` e de `/alterar-prioridade`, que **são** declarados para poderem ser
+ * recusados. **Isso não muda o código** — a checagem olha o corpo cru, antes do `parse` —, e o conserto
+ * é do documento (achado A-6, fila de documentação).
+ */
+const DE_EVOLUCAO_PREVISTA = ["ocorrenciaOrigemId"] as const;
+
+export function camposDeEvolucaoPrevista(corpo: unknown): readonly string[] {
+  if (typeof corpo !== "object" || corpo === null) return [];
+  return DE_EVOLUCAO_PREVISTA.filter((campo) => campo in corpo);
 }

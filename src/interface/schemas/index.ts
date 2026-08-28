@@ -41,6 +41,8 @@ export {
 export {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
+  cancelamentoSchema,
+  camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
@@ -50,6 +52,7 @@ export {
   solucaoAplicadaSchema,
   type EntradaDeAlteracaoDePrioridade,
   type EntradaDeAtribuicaoDeResponsavel,
+  type EntradaDeCancelamento,
   type EntradaDeComandoComObservacao,
   type EntradaDePausa,
   type EntradaDeRegistroDeOcorrencia,
