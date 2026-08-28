@@ -8,6 +8,27 @@ import {
 import { nomeDoStatus, rotuloDeStatus } from "@/interface/projecoes";
 
 /**
+ * ============================================================================
+ *  O aviso de visibilidade — **restrição herdada nº 1** do inventário de telas
+ * ============================================================================
+ *
+ * *"Todo modal que tem campo `observacao` — `pausar`, `cancelar`, `resolver`, `iniciar-atendimento`,
+ * `retomar` — mostra, junto ao campo e antes de ele ser preenchido"*, esta frase. **Duas frases porque
+ * os dois fatos importam**: quem lê, e que é final.
+ *
+ * **Ela morava em `modal-de-observacao.tsx` e mudou para cá no item 23** — o achado **A-5** da spec do
+ * item 22, que deixou o lugar definitivo para o item que descobrisse se aquele componente serve para
+ * `pausar`. **Não serve** (o formulário tem escolha obrigatória), então a constante passou a ter três
+ * consumidores e um componente importando texto de um componente irmão deixou de ser defensável.
+ *
+ * **`rotulos.ts` é o módulo do texto pronto que os componentes consomem**, e já guarda **frase de
+ * produto**, não só rótulo: `vazioDaBarra` devolve *"Esta ocorrência está encerrada."* desde o item 26.
+ * Ele já é alcançado por componente de cliente, então nada novo entra no pacote do navegador.
+ */
+export const AVISO_DE_VISIBILIDADE =
+  "O Solicitante vê esta observação. Não há como editá-la depois.";
+
+/**
  * A prioridade **em palavra**, que é o compromisso **A-5**: *"`prioridade`, `status` e `motivoPausa`
  * sempre carregam a palavra. Marcador colorido sem texto é defeito, em qualquer tela."*
  *

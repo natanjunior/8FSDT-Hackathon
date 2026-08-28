@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Dialog,
@@ -15,24 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
-
-/**
- * ============================================================================
- *  O aviso de visibilidade — **restrição herdada nº 1** do inventário
- * ============================================================================
- *
- * *"Todo modal que tem campo `observacao` — `pausar`, `cancelar`, `resolver`, `iniciar-atendimento`,
- * `retomar` — mostra, junto ao campo e antes de ele ser preenchido"*, esta frase. **Duas frases porque os
- * dois fatos importam**: quem lê, e que é final.
- *
- * **Exportada, e é decisão do plano (D-P7).** São **cinco** modais, e `pausar` e `cancelar` têm campos a
- * mais e podem não reusar este componente. Se não reusarem, o texto passa a existir em duas ou três
- * strings — que é a definição de frase que diverge. Exportá-la garante que **hoje** ele exista uma vez
- * só, e dá ao item 23 um símbolo para importar em vez de uma string para copiar. **O lugar canônico
- * definitivo é decisão do 23**, que é quem descobre se o componente serve (achado A-5 da spec).
- */
-export const AVISO_DE_VISIBILIDADE =
-  "O Solicitante vê esta observação. Não há como editá-la depois.";
 
 /**
  * ============================================================================
