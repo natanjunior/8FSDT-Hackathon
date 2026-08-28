@@ -4,7 +4,9 @@ import {
   alterarPrioridade,
   analisarOcorrencia,
   atribuirResponsavel,
+  cancelarOcorrencia,
   iniciarAtendimento,
+  MotivoNaoPermitidoParaOPapel,
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
@@ -13,6 +15,7 @@ import {
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   retomarOcorrencia,
+  SomenteOGestorCancelaNesteEstado,
   TransicaoNaoPermitida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
@@ -64,6 +67,27 @@ const DO_GESTOR = [
   // conferem `acoesDisponiveis` por igualdade em `aberta` e `em_analise`, que são estados que o admitem.
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
+  // O NONO comando construído — item 18. **Ela não muda asserção nenhuma**: `cancelar_qualquer`, logo
+  // acima, decide tudo o que este arquivo confere, e a condição de autoria e de estado só olha quem
+  // **não** a tem. Entra porque a lista deve descrever a produção — o Gestor **acumula** as permissões
+  // do Solicitante (`Permissao.ts:71-72`), e uma lista que omite o que a produção dá esconde o caso em
+  // que a acumulação é o que decide.
+  "ocorrencia.cancelar_propria",
+];
+
+/**
+ * As permissões **reais** do Solicitante (`Permissao.ts`, `DO_SOLICITANTE`) — e é o que torna o `403` do
+ * item 18 alcançável neste arquivo.
+ *
+ * **`ler_todas` NÃO está aqui, e a ausência é o teste:** quem tenta cancelar a ocorrência de outra
+ * pessoa leva `404`, e não `403`.
+ */
+const DO_SOLICITANTE = [
+  "ocorrencia.registrar",
+  "ocorrencia.ler_propria",
+  "ocorrencia.cancelar_propria",
+  "ocorrencia.comentar",
+  "ocorrencia.avaliar",
 ];
 
 function agregadoEm(status: StatusOcorrencia): Ocorrencia {
@@ -1278,5 +1302,230 @@ describe("alterarPrioridade", () => {
     expect(
       (erro as PrioridadeImutavelEmEstadoTerminal).extensoes["acoesDisponiveis"],
     ).toStrictEqual([]);
+  });
+});
+
+describe("cancelarOcorrencia", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-29T11:30:00.000Z" };
+  /** **O autor de `agregadoEm` é a MORADORA**, e é isso que torna o `403` e o `422` alcançáveis. */
+  const ctxDoAutor = {
+    pessoaId: MORADORA,
+    permissoes: DO_SOLICITANTE,
+    agora: "2026-08-29T11:30:00.000Z",
+  };
+  const ENTRADA = {
+    ocorrenciaId: ID,
+    motivo: "improcedente" as const,
+    observacao: "Vistoriado no local: não há vazamento.",
+  };
+  const DO_AUTOR = { ...ENTRADA, motivo: "desistencia" as const, observacao: "Resolvi sozinha." };
+
+  it("caminho feliz nas QUATRO origens: o agregado ATRAVESSADO chega ao repositório em cancelada", async () => {
+    for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      aplicados = [];
+      const lida = await cancelarOcorrencia(
+        repositorio({ cargas: [agregadoEm(origem)], temResponsavel: true }),
+        ctx,
+        ENTRADA,
+      );
+
+      const gravado = aplicados[0]!;
+      expect(gravado.status).toBe("cancelada");
+      expect(gravado.ultimaTransicao.statusAnterior).toBe(origem);
+      expect(gravado.ultimaTransicao.motivoCancelamento).toBe("improcedente");
+      expect(gravado.ultimaTransicao.motivoPausa).toBeNull();
+      // **O autor da transição é quem CHAMOU, nunca o autor da ocorrência.**
+      expect(gravado.ultimaTransicao.autorPessoaId).toBe(GESTOR);
+      expect(gravado.ultimaTransicao.ocorreuEm).toBe("2026-08-29T11:30:00.000Z");
+
+      expect(lida.status).toBe("cancelada");
+    }
+  });
+
+  it("a observação é APARADA, e nunca vira null — aqui o vazio já foi recusado pelo schema", async () => {
+    await cancelarOcorrencia(repositorio({ cargas: [agregadoEm("aberta")] }), ctx, {
+      ...ENTRADA,
+      observacao: "  Vistoriado no local: não há vazamento.  ",
+    });
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBe("Vistoriado no local: não há vazamento.");
+  });
+
+  it("nos DOIS terminais: 409 TRANSICAO_NAO_PERMITIDA, e aplicarTransicao NÃO é chamado", async () => {
+    for (const status of ["resolvida", "cancelada"] as const) {
+      aplicados = [];
+      const erro = await cancelarOcorrencia(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        ENTRADA,
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      const recusa = erro as TransicaoNaoPermitida;
+      expect(recusa.extensoes["statusAtual"]).toBe(status);
+      expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+      // **Nenhum registro é criado na recusa** — é estrutural: o insert só existe em aplicarTransicao.
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("a ORDEM: em resolvida o Solicitante autor leva 409, e NÃO o 403 — o caso que a inversão quebra", async () => {
+    // Uma ocorrência `resolvida` responderia que só o Gestor cancela neste estado, e isso é falso: ali
+    // **ninguém** cancela. É por isso que a guarda de transição vem antes da de papel.
+    const erro = await cancelarOcorrencia(
+      repositorio({ cargas: [agregadoEm("resolvida")], temResponsavel: true }),
+      ctxDoAutor,
+      DO_AUTOR,
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect(erro).not.toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
+  });
+
+  it("o 403: o Solicitante autor em em_atendimento e em pausada — o critério 18.3", async () => {
+    for (const status of ["em_atendimento", "pausada"] as const) {
+      aplicados = [];
+      const erro = await cancelarOcorrencia(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctxDoAutor,
+        DO_AUTOR,
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
+      const recusa = erro as SomenteOGestorCancelaNesteEstado;
+      expect(recusa.codigo).toBe("SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO");
+      expect(recusa.detalhe).toBe("O atendimento já começou. Peça o cancelamento pelo comentário.");
+      expect(recusa.extensoes["statusAtual"]).toBe(status);
+      // **`[]`, e é a verdade sobre o que sobrou:** o autor não tem `resolver`, não tem `pausar`, não
+      // tem `atribuir`. É a mesma lista que `comandosDisponiveis` devolve para ele nesses dois estados.
+      expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("o Gestor passa nos MESMOS dois estados — a recusa é de papel, não de estado", async () => {
+    for (const status of ["em_atendimento", "pausada"] as const) {
+      aplicados = [];
+      await cancelarOcorrencia(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        ENTRADA,
+      );
+
+      expect(aplicados[0]!.status).toBe("cancelada");
+    }
+  });
+
+  it("a ORDEM: em em_atendimento o autor com motivo de Gestor leva o 403, e NÃO o 422", async () => {
+    // **O estado é fato do recurso; o motivo é dado do corpo.** A resposta útil é a que não se contorna
+    // reescrevendo o corpo — dizer-lhe primeiro que o motivo não é dele o mandaria tentar de novo.
+    const erro = await cancelarOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")], temResponsavel: true }),
+      ctxDoAutor,
+      { ...DO_AUTOR, motivo: "improcedente" },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
+  });
+
+  it("o 422: o Solicitante mandando um motivo de Gestor em aberta — o critério 18.4", async () => {
+    const erro = await cancelarOcorrencia(
+      repositorio({ cargas: [agregadoEm("aberta")] }),
+      ctxDoAutor,
+      { ...DO_AUTOR, motivo: "improcedente" },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(MotivoNaoPermitidoParaOPapel);
+    const recusa = erro as MotivoNaoPermitidoParaOPapel;
+    expect(recusa.codigo).toBe("MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL");
+    expect(recusa.extensoes["erros"]).toStrictEqual([
+      { campo: "motivo", codigo: "MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL" },
+    ]);
+    // **SEM `acoesDisponiveis`, e a ausência é a decisão:** o estado está certo; o que está errado é o
+    // valor enviado. Pôr a lista aqui diria que o problema é o estado.
+    expect(recusa.extensoes["acoesDisponiveis"]).toBeUndefined();
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("o Gestor manda o MESMO motivo no MESMO estado e passa — a recusa é do papel, não do valor", async () => {
+    await cancelarOcorrencia(repositorio({ cargas: [agregadoEm("aberta")] }), ctx, {
+      ...ENTRADA,
+      motivo: "improcedente",
+    });
+
+    expect(aplicados[0]!.ultimaTransicao.motivoCancelamento).toBe("improcedente");
+  });
+
+  it("os QUATRO motivos do autor passam para o autor — a outra metade do 18.4", async () => {
+    const seus = [
+      "desistencia",
+      "resolvido_por_conta_propria",
+      "aberta_por_engano",
+      "duplicada",
+    ] as const;
+
+    for (const motivo of seus) {
+      aplicados = [];
+      await cancelarOcorrencia(repositorio({ cargas: [agregadoEm("aberta")] }), ctxDoAutor, {
+        ...DO_AUTOR,
+        motivo,
+      });
+
+      expect(aplicados[0]!.ultimaTransicao.motivoCancelamento).toBe(motivo);
+      // **O autor da transição é quem chamou** — aqui, a própria Solicitante.
+      expect(aplicados[0]!.ultimaTransicao.autorPessoaId).toBe(MORADORA);
+    }
+  });
+
+  it("os TRÊS do Gestor são recusados para o autor, um a um", async () => {
+    for (const motivo of ["improcedente", "fora_de_escopo", "sem_informacao_suficiente"] as const) {
+      aplicados = [];
+      await expect(
+        cancelarOcorrencia(repositorio({ cargas: [agregadoEm("aberta")] }), ctxDoAutor, {
+          ...DO_AUTOR,
+          motivo,
+        }),
+      ).rejects.toBeInstanceOf(MotivoNaoPermitidoParaOPapel);
+
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      cancelarOcorrencia(repositorio({ cargas: [null] }), ctx, ENTRADA),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("o Solicitante que NÃO é autor recebe 404, e nunca 403 — o podeLerOcorrencia fazendo o trabalho", async () => {
+    // **Aqui a conferência de visibilidade não é redundante**, e é o primeiro comando de que isso é
+    // verdade: o Solicitante tem `cancelar_propria` e **não** tem `ler_todas`. Confirmar que a
+    // ocorrência existe seria o vazamento que o `404` genérico impede (contrato §6.3).
+    const outraPessoa = { pessoaId: GESTOR, permissoes: DO_SOLICITANTE };
+
+    await expect(
+      cancelarOcorrencia(repositorio({ cargas: [agregadoEm("aberta")] }), outraPessoa, DO_AUTOR),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("a corrida: conflito na escrita relê e responde 409 com o status de AGORA", async () => {
+    const erro = await cancelarOcorrencia(
+      repositorio({
+        cargas: [agregadoEm("em_analise"), agregadoEm("resolvida")],
+        temResponsavel: true,
+        conflito: true,
+      }),
+      ctx,
+      ENTRADA,
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
+    // Duas leituras: a de entrada e a releitura do conflito.
+    expect(carregados).toHaveLength(2);
   });
 });

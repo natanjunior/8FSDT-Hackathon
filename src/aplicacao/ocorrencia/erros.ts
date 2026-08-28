@@ -112,3 +112,68 @@ export class ResponsavelNaoAtribuido extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` — o critério **18.3**, e a **primeira recusa do produto
+ * que depende de quem chamou E do estado ao mesmo tempo**.
+ *
+ * **Nasce aqui e não no Domínio**, ao lado de `ResponsavelSemVinculoAtivo` e `ResponsavelNaoAtribuido`,
+ * e pela mesma razão que as duas: **ela atravessa a identidade de quem chama**. `TransicaoNaoPermitida`
+ * e `PrioridadeImutavelEmEstadoTerminal` moram no Domínio porque são recusa da máquina de estados — a
+ * mesma resposta para todo mundo; esta muda de resposta conforme as permissões, e o agregado não sabe
+ * quem chamou (nem deve: é o que o mantém testável sem contexto de requisição).
+ *
+ * **`cancelar` é o único comando do produto em que duas pessoas diferentes chamam o mesmo endpoint com
+ * regras diferentes**, e este erro é a metade *"de estado"* da diferença. A outra metade é
+ * `MotivoNaoPermitidoParaOPapel`, logo abaixo.
+ *
+ * **Os textos são os do `openapi.yaml:2011-2013`, literais** — `detail` publicado é contrato, não frase
+ * nova, como as três classes anteriores fizeram. E o `codigo` **já está mapeado para 403** em
+ * `problema.ts:28`: nada nasce lá.
+ *
+ * **Carrega `statusAtual` e `acoesDisponiveis`, como `ResponsavelNaoAtribuido`**, porque é recusa sobre
+ * o **recurso**: quem levou este `403` precisa saber o que ainda lhe resta — e, para o Solicitante autor
+ * em `em_atendimento`, resta `[]`.
+ */
+export class SomenteOGestorCancelaNesteEstado extends ErroDeDominio {
+  constructor(statusAtual: StatusOcorrencia, acoesDisponiveis: readonly Comando[]) {
+    super(
+      "SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO",
+      "Só o Gestor cancela agora",
+      "O atendimento já começou. Peça o cancelamento pelo comentário.",
+      { statusAtual, acoesDisponiveis },
+    );
+  }
+}
+
+/**
+ * `422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` — o critério **18.4**, e a metade *"de valor"* da diferença
+ * entre os dois papéis que chamam `/cancelar`.
+ *
+ * **O conjunto de motivos é do Domínio** (`motivosPermitidos`, em `Motivos.ts`); **a recusa é daqui**,
+ * porque é aqui que a identidade de quem chama existe. É a mesma repartição de `PERMISSAO_DO_COMANDO`:
+ * o mapa é do Domínio, a recusa é da Aplicação.
+ *
+ * **As extensões são diferentes das da irmã, e de propósito:** esta carrega **só** `erros[]`, porque é
+ * recusa de **valor de campo** — como `CampoNaoSuportado` faz. Pôr `acoesDisponiveis` aqui diria que o
+ * problema é o estado, quando o estado está certo e o que está errado é o valor enviado: quem levou
+ * este `422` conserta reescrevendo o corpo, e não é verdade do `403`.
+ *
+ * **O `detail` é texto novo, e não literal do YAML**, e a diferença é declarada: a `description` do
+ * `422` publicado cita os **dois** casos e traz `example` de **um** só — o do campo não suportado —, sem
+ * `detail` para este. É a metade de código do achado **A-6**, e ela **não espera o documento**: o
+ * `Problema` exige `detail`, e um erro sem frase chegaria à tela como texto vazio. O conserto do YAML
+ * está na fila de documentação.
+ *
+ * **O `codigo` já está mapeado para 422** em `problema.ts:60`: nada nasce lá.
+ */
+export class MotivoNaoPermitidoParaOPapel extends ErroDeDominio {
+  constructor() {
+    super(
+      "MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL",
+      "Motivo não disponível",
+      "Este motivo não está disponível para você.",
+      { erros: [{ campo: "motivo", codigo: "MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL" }] },
+    );
+  }
+}

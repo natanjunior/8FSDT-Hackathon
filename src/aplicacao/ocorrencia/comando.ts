@@ -5,7 +5,7 @@ import {
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 
-import { ResponsavelNaoAtribuido } from "./erros";
+import { ResponsavelNaoAtribuido, SomenteOGestorCancelaNesteEstado } from "./erros";
 
 /**
  * ============================================================================
@@ -130,6 +130,40 @@ export function recusaPorPrioridadeImutavel(
   ctx: ContextoDoComando,
 ): PrioridadeImutavelEmEstadoTerminal {
   return new PrioridadeImutavelEmEstadoTerminal(
+    carregada.ocorrencia.status,
+    comandosDisponiveis({
+      status: carregada.ocorrencia.status,
+      permissoes: ctx.permissoes,
+      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
+      temResponsavel: carregada.temResponsavel,
+    }),
+  );
+}
+
+/**
+ * O **quarto** construtor de corpo, e o primeiro que não é de `409`: o `403` do critério **18.3**.
+ *
+ * **Ele existe por causa de um furo da spec, e a nota fica onde ele foi fechado.** A §3.7 da spec do
+ * item 18 dizia que a lista deste erro *"sai por `recusaDeTransicao`"* — e `recusaDeTransicao` constrói
+ * `TransicaoNaoPermitida`, uma classe com **outro código e outro status HTTP**. Chamá-la aqui devolveria
+ * `409` onde o `openapi.yaml` publica `403`, que é divergência entre a especificação versionada e o
+ * código — o portão do DoD. O que a spec quis dizer é que a **lista** vem de `comandosDisponiveis`, que
+ * é o que as três irmãs já fazem.
+ *
+ * **Mora aqui pela mesma razão das três**: duas construções do mesmo corpo em arquivos diferentes seriam
+ * a cópia que sempre diverge.
+ *
+ * **Recebe o ENVELOPE**, como `recusaDeTransicao` e `recusaPorPrioridadeImutavel`, e não o estado nu: não
+ * há fato construído aqui — a ocorrência em `em_atendimento` **tem** responsável na prática, e o corpo
+ * tem de dizer a verdade sobre o que sobrou (que, para o Solicitante autor, é `[]`).
+ *
+ * **`jaAvaliada` não é informado, e a omissão é declarada** — mesma razão das três irmãs.
+ */
+export function recusaPorEstadoDeCancelamento(
+  carregada: EstadoCarregado,
+  ctx: ContextoDoComando,
+): SomenteOGestorCancelaNesteEstado {
+  return new SomenteOGestorCancelaNesteEstado(
     carregada.ocorrencia.status,
     comandosDisponiveis({
       status: carregada.ocorrencia.status,
