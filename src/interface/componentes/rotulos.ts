@@ -32,6 +32,7 @@ export function rotuloDePrioridade(prioridade: Prioridade): string {
 const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
   analisar: "Analisar",
   "atribuir-responsavel": "Atribuir",
+  "iniciar-atendimento": "Iniciar atendimento",
 };
 
 /** `null` quando o comando não é botão desta barra — ou porque não foi construído, ou porque a forma

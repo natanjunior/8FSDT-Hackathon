@@ -2,7 +2,11 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
-import { analisarOcorrencia, registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import {
+  analisarOcorrencia,
+  iniciarAtendimento,
+  registrarOcorrencia,
+} from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
@@ -1018,5 +1022,185 @@ describe("a atribuição contra Postgres — item 19", () => {
 
     const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
     expect(pagina.find((linha) => linha.id === id)?.responsavel).toBeNull();
+  });
+});
+
+/**
+ * ============================================================================
+ *  O atendimento contra Postgres — o item 22
+ * ============================================================================
+ *
+ * **Três coisas aqui não têm duplo:**
+ *
+ * 1. **A trilha de TRÊS registros**, no banco, com o terceiro gravado no mesmo `COMMIT` do `update`.
+ * 2. **O `exists` da invariante 9 decidindo de verdade** — com e sem atribuição vigente, contra a tabela.
+ * 3. **A recusa não escrevendo nada:** `ocorrencias.status` continua `em_analise` e a trilha continua
+ *    com dois.
+ */
+describe("o atendimento contra Postgres — item 22", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+  ];
+
+  /** Quem vai ser o responsável — precisa de vínculo ATIVO nesta organização (D21 como FK). */
+  let zeladorPessoaId: string;
+
+  beforeAll(async () => {
+    const [zelador] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Atendente ${SUFIXO}`],
+    );
+    zeladorPessoaId = zelador!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [zeladorPessoaId, organizacaoId],
+    );
+  });
+
+  /** Uma ocorrência nova, pelo caminho de verdade. */
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa começar.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("o ciclo mínimo: analisar → atribuir → iniciar-atendimento, e a trilha fica com TRÊS — critério 22.1", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Ciclo mínimo");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+
+    const lida = await iniciarAtendimento(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      observacao: "O Zelador começa amanhã.",
+    });
+
+    // **`em_atendimento` existe pela primeira vez em banco.**
+    expect(lida.status).toBe("em_atendimento");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("em_analise");
+    expect(lida.ultimaTransicao.observacao).toBe("O Zelador começa amanhã.");
+
+    const registros = await consultaCrua<{ sequencia: number; status_novo: string }>(
+      `select sequencia, status_novo from registros_transicao
+        where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+    ]);
+
+    // **A atribuição NÃO entrou na trilha** — critério 19.4, conferido de novo agora que há três.
+    expect(registros).toHaveLength(3);
+  });
+
+  it("SEM atribuição, o comando recusa e o banco não muda — critério 22.2", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Sem responsável");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const erro = await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id }).catch(
+      (causa: unknown) => causa,
+    );
+
+    expect((erro as { codigo?: string }).codigo).toBe("RESPONSAVEL_NAO_ATRIBUIDO");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "em_analise",
+    );
+
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("em_analise");
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    // **Continua com dois.** Nenhum registro é criado na recusa.
+    expect(registros).toHaveLength(2);
+  });
+
+  it("iniciar duas vezes dá 409 na segunda, e a trilha continua com três — critério 22.4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Iniciar duas vezes");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const erro = await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id }).catch(
+      (causa: unknown) => causa,
+    );
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "em_atendimento",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(3);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não inicia — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Isolamento do atendimento");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho22 ${SUFIXO}`, `V2${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(iniciarAtendimento(deOutra, ctx, { ocorrenciaId: id })).rejects.toMatchObject({
+      codigo: "OCORRENCIA_NAO_ENCONTRADA",
+    });
+
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Não escreveu.** O `organizacao_id = $1` vem do escopo, e o comando nem chegou à escrita.
+    expect(linha?.status).toBe("em_analise");
   });
 });

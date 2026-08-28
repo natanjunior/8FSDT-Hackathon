@@ -44,5 +44,12 @@ export type Comando = (typeof COMANDOS)[number];
  *
  * **O item 19 foi o segundo**, e com ele a barra de T-05 passa a renderizar **dois** botões pela primeira
  * vez. A linha entra na tarefa que cria o `route.ts`, nunca antes.
+ *
+ * **O item 22 foi o terceiro**, e com ele `acoesDisponiveis` passa a depender de um fato que **não é
+ * status nem permissão**: a invariante 9. A linha entra na tarefa que cria o `route.ts`, nunca antes.
  */
-export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = ["analisar", "atribuir-responsavel"];
+export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
+  "analisar",
+  "atribuir-responsavel",
+  "iniciar-atendimento",
+];

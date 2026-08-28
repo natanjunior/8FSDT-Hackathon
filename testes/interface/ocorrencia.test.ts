@@ -593,18 +593,14 @@ describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeç�
     return { ...umaOcorrenciaLidaCom([]), status: "em_analise" as const, responsavel };
   }
 
-  // **Os dois entram `it.todo` e são ligados na tarefa 4**, quando `COMANDOS_IMPLEMENTADOS` ganhar o
-  // comando: a projeção usa o filtro padrão, e antes disso o primeiro caso passaria por acidente — o
-  // comando está ausente da lista por não existir, não por falta de responsável. Verde por motivo errado
-  // é pior que vermelho.
-  it.todo("sem responsável, iniciar-atendimento NÃO é anunciado — critério 22.3", () => {
+  it("sem responsável, iniciar-atendimento NÃO é anunciado — critério 22.3", () => {
     // A projeção não pergunta a `atribuicoes`: ela lê `responsavel`, que o `lateral` do item 19 preenche.
     expect(projetarOcorrenciaDetalhe(emAnaliseCom(null), GESTOR_LE).acoesDisponiveis).not.toContain(
       "iniciar-atendimento",
     );
   });
 
-  it.todo("com responsável, ele é anunciado — e o campo do payload continua sendo o mesmo", () => {
+  it("com responsável, ele é anunciado — e o campo do payload continua sendo o mesmo", () => {
     const projetado = projetarOcorrenciaDetalhe(emAnaliseCom(RESPONSAVEL), GESTOR_LE);
     expect(projetado.acoesDisponiveis).toContain("iniciar-atendimento");
     expect(projetado.responsavel).toStrictEqual(RESPONSAVEL);
@@ -841,6 +837,13 @@ describe("os rótulos que descem para a barra de ações", () => {
 
   it("atribuir é palavra, e cabe ao lado de Analisar em 390 px — compromisso A-5", () => {
     expect(rotuloDeComando("atribuir-responsavel")).toBe("Atribuir");
+  });
+
+  it("iniciar-atendimento é palavra, e o rótulo fica INTEIRO — compromisso A-5", () => {
+    // **Encurtar para *Atender* trocaria o VERBO** que o glossário §4, o contrato §8.4 e o inventário
+    // usam. Não é o caso de *Atribuir*, que é a cabeça de *Atribuir responsável*: mesmo verbo, objeto
+    // encurtado.
+    expect(rotuloDeComando("iniciar-atendimento")).toBe("Iniciar atendimento");
   });
 
   it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {

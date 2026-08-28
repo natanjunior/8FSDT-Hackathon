@@ -188,10 +188,14 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz DOIS comandos — o analisar do item 16 e o atribuir do 19", () => {
+  it("hoje traz TRÊS comandos — o analisar do 16, o atribuir do 19 e o iniciar-atendimento do 22", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
-    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar", "atribuir-responsavel"]);
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
+      "analisar",
+      "atribuir-responsavel",
+      "iniciar-atendimento",
+    ]);
   });
 
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
@@ -210,17 +214,27 @@ describe("comandosDisponiveis", () => {
     ]);
   });
 
-  it("em em_analise sobra o atribuir — a lista deixa de ser vazia, e o critério 16.6 muda de caso", () => {
+  it("em em_analise, o botão de iniciar depende do responsável — o filtro padrão, critério 22.3", () => {
     // Era `[]` até o item 19: `analisar` sai da lista assim que a ocorrência é analisada, e não havia
-    // outro comando construído. Agora o Gestor tem o que fazer no instante seguinte à triagem.
-    expect(
-      comandosDisponiveis({
-        status: "em_analise",
-        permissoes: TODAS,
-        ehAutor: false,
-        temResponsavel: false,
-      }),
-    ).toStrictEqual(["atribuir-responsavel"]);
+    // outro comando construído. Agora o Gestor tem o que fazer no instante seguinte à triagem — e, desde
+    // o item 22, o que ele tem depende de haver responsável.
+    const semResponsavel = comandosDisponiveis({
+      status: "em_analise",
+      permissoes: TODAS,
+      ehAutor: false,
+      temResponsavel: false,
+    });
+    const comResponsavel = comandosDisponiveis({
+      status: "em_analise",
+      permissoes: TODAS,
+      ehAutor: false,
+      temResponsavel: true,
+    });
+
+    expect(semResponsavel).toStrictEqual(["atribuir-responsavel"]);
+    // **Na ordem do enum**: `atribuir-responsavel` vem antes de `iniciar-atendimento`, e é o que faz o
+    // R-08 morder — a ordem não é promessa de destaque (contrato §8.5).
+    expect(comResponsavel).toStrictEqual(["atribuir-responsavel", "iniciar-atendimento"]);
   });
 
   it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
