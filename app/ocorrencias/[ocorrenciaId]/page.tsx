@@ -6,11 +6,12 @@ import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/apl
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
+import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import {
-  acaoPrimaria,
+  acoesDaBarra,
   nomesDeStatus,
   rotuloDeComando,
   rotuloDePrioridade,
@@ -18,7 +19,7 @@ import {
   vazioDaBarra,
 } from "@/interface/componentes/rotulos";
 import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
-import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
+import { opcoesDeMotivoPausa, projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
 /**
  * **T-05 · Ocorrência**, na forma mínima que o critério 11.7 encomenda: os **blocos 1 e 2** do
@@ -185,19 +186,29 @@ export default async function Ocorrencia({
   );
 
   /**
-   * **Qual ação ganha ênfase — uma fonte só, e é a mudança do item 22.**
+   * **Qual ação ganha ênfase, e o que vai para o menu — uma fonte só.**
    *
    * A tela tinha **duas**: `acoes[0]?.comando` decidia a `variante` do modal, e `indice === 0` decidia a
    * `variant` do botão dentro da barra. Elas concordavam por sorte. Agora as duas leem o mesmo valor, e a
-   * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos.
+   * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos. `acaoPrimaria`
+   * continua sendo a dona da tabela `ACAO_PRIMARIA`; `acoesDaBarra` a chama e acrescenta a conta de
+   * largura — **três renderizáveis ou mais → primário + *"Mais ações ▾"*** (item 23).
    *
-   * **O R-08 morde aqui**: em `em_analise` com responsável, a ordem do enum daria *Atribuir* como
-   * primeiro renderizável, na tela em que o responsável **acabou de ser atribuído**.
+   * **O R-08 morde aqui, e agora tem estado real que o prova:** em `em_analise` **sem** responsável,
+   * `pausar` é permitido pela máquina de estados, e a derivação por `transicaoPermitida` — que o item
+   * 22 recusou — daria ***Pausar*** como ação em destaque numa ocorrência que ninguém pegou ainda. A
+   * tabela dá ***Atribuir***.
    */
-  const primario = acaoPrimaria(
+  const { destaque: primario, emMenu } = acoesDaBarra(
     detalhe.status,
     renderizaveis.map((acao) => acao.comando),
   );
+
+  /** A variante do gatilho de cada comando: no menu, é `DropdownMenuItem`; fora dele, botão. */
+  function varianteDe(comando: string): "primario" | "secundario" | "menu" {
+    if (emMenu.includes(comando)) return "menu";
+    return primario === comando ? "primario" : "secundario";
+  }
 
   /**
    * **Qual frase o vazio da barra mostra — e a moldura que vem com ela.**
@@ -245,6 +256,30 @@ export default async function Ocorrencia({
         rotulosDeStatus={rotulos}
       />
     ),
+    /**
+     * **Entra SEMPRE, como os dois de cima.** Ele não precisa de consulta nenhuma além do que a página
+     * já leu; quem decide se **aparece** continua sendo `acoesDisponiveis`.
+     *
+     * **Os quatro rótulos descem PRONTOS** — `nomeDoMotivoPausa`, e não `rotuloDeMotivoPausa`: o
+     * primeiro responde *"o que ela está esperando?"*, que é a pergunta de um seletor; o segundo
+     * responde *"o que aconteceu com a sua ocorrência"*, e dentro de um formulário chamado **Motivo**
+     * seria uma frase respondendo a outra pergunta.
+     */
+    pausar: (
+      <ModalDeMotivo
+        ocorrenciaId={detalhe.id}
+        comando="pausar"
+        titulo="Pausar"
+        descricao="O que a ocorrência está esperando."
+        rotuloDoGrupo="Motivo"
+        motivos={opcoesDeMotivoPausa()}
+        rotuloDoGatilho="Pausar"
+        rotuloDeConfirmar="Pausar"
+        verboEnviando="Pausando…"
+        variante={varianteDe("pausar")}
+        rotulosDeStatus={rotulos}
+      />
+    ),
     ...(podeAtribuir
       ? {
           "atribuir-responsavel": (
@@ -253,7 +288,7 @@ export default async function Ocorrencia({
               candidatos={candidatos}
               responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
               rotulosDeStatus={rotulos}
-              variante={primario === "atribuir-responsavel" ? "primario" : "secundario"}
+              variante={varianteDe("atribuir-responsavel")}
             />
           ),
         }
@@ -400,6 +435,7 @@ export default async function Ocorrencia({
         rotulosDeStatus={rotulos}
         formularios={formularios}
         primario={primario}
+        emMenu={emMenu}
       />
     </MolduraDeTela>
   );

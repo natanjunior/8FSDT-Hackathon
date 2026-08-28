@@ -848,8 +848,12 @@ describe("os rótulos que descem para a barra de ações", () => {
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    // Era `resolver`, até o item 26. `pausar` é o próximo — item 23.
-    expect(rotuloDeComando("pausar")).toBeNull();
+    // Era `resolver` até o item 26 e `pausar` até o 23. `retomar` é o próximo — item 24.
+    expect(rotuloDeComando("retomar")).toBeNull();
+  });
+
+  it("pausar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("pausar")).toBe("Pausar");
   });
 
   it("resolver é palavra, e é o verbo do glossário — compromisso A-5", () => {

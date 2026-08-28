@@ -191,13 +191,14 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz QUATRO comandos — 16, 19, 22 e o resolver do 26", () => {
+  it("hoje traz CINCO comandos — 16, 19, 22, o resolver do 26 e o pausar do 23", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
       "iniciar-atendimento",
+      "pausar",
       "resolver",
     ]);
   });

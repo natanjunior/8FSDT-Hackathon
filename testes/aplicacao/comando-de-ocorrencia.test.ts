@@ -246,7 +246,10 @@ describe("analisarOcorrencia", () => {
     // devolve a única ação que sobrou para este Gestor. É a mesma mudança dos três casos de
     // `testes/dominio/ocorrencia.test.ts`, e o critério 16.3 fica **mais** satisfeito: ele pede que o
     // campo exista e diga a verdade, não que ele seja vazio.
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel"]);
+    //
+    // **E ganhou `pausar` no item 23**, que é admitido em `em_analise` pela tabela de transições. A
+    // asserção continua provando o mesmo: o corpo do `409` nomeia o que ainda dá para fazer.
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
     expect(aplicados).toHaveLength(0);
@@ -476,9 +479,10 @@ describe("iniciarAtendimento", () => {
     // **Os textos são os do `openapi.yaml`, literais** — `detail` publicado é contrato.
     expect(recusa.titulo).toBe("Ninguém atribuído");
     expect(recusa.detalhe).toBe("Atribua um responsável antes de iniciar o atendimento.");
-    // **As DUAS extensões, como o exemplo mostra.**
+    // **As DUAS extensões, como o exemplo mostra.** A lista ganhou `pausar` no item 23 — em `em_analise`
+    // sem responsável, pausar é o que sobra além de atribuir.
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel"]);
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
 
     // **Nenhum registro é criado** — e é estrutural: o `insert` só existe dentro de `aplicarTransicao`.
     expect(aplicados).toHaveLength(0);

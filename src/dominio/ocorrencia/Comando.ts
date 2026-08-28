@@ -51,10 +51,18 @@ export type Comando = (typeof COMANDOS)[number];
  * **O item 26 foi o quarto**, e com ele `resolvida` passa a ser alcançável — o **primeiro estado
  * terminal do produto**, do qual `acoesDisponiveis` sai vazia por derivação e não por comando faltando.
  * A linha entra na tarefa que cria o `route.ts`, nunca antes.
+ *
+ * **O item 23 foi o quinto**, e com ele `pausada` passa a ser alcançável — o **primeiro desvio que
+ * retorna**, e o estado de onde o item 24 vai sair. **A linha entrou na tarefa da TELA, e não na do
+ * `route.ts`**, e a diferença é a que a regra existe para proteger: `pausar` é o primeiro comando com
+ * `requestBody: required: true`, então um botão sem formulário responderia `400` em vez de funcionar.
+ * A regra continua sendo *"nunca antes de o comando existir"* — o que mudou é que, para ele, existir é
+ * ter endpoint **e** forma.
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
   "atribuir-responsavel",
   "iniciar-atendimento",
+  "pausar",
   "resolver",
 ];
