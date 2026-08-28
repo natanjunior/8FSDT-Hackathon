@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
 import { COMANDOS_IMPLEMENTADOS, STATUS } from "@/dominio/ocorrencia";
@@ -23,6 +23,10 @@ import {
   lerVarianteDaUrl,
   type ErroDeCampo,
 } from "@/interface/http";
+import {
+  executarComando,
+  MENSAGEM_GENERICA,
+} from "@/interface/componentes/comando-de-ocorrencia";
 import {
   nomesDeStatus,
   rotuloDeComando,
@@ -874,5 +878,109 @@ describe("o corpo da atribuição", () => {
     // mandou o campo, e precisa saber que ele não é aceito. É a mesma leitura de
     // `camposEscritosPeloServidor`.
     expect(camposSemDestino({ observacao: null })).toStrictEqual(["observacao"]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `executarComando` — a chamada e as três frases, num lugar só
+ * ============================================================================
+ *
+ * **A barra montava a frase do `409` dentro dela; o modal precisa da mesma.** Duas construções do mesmo
+ * texto é a segunda cópia de sempre — e esta seria a que aparece quando o Gestor está com pressa.
+ *
+ * **`rotulosDeStatus` entra por parâmetro, e não por `import`.** Se a função importasse
+ * `@/interface/projecoes`, arrastaria `comandosDisponiveis` — a máquina de estados inteira — para dentro
+ * do pacote do navegador, que é literalmente a *segunda cópia* que `acoesDisponiveis` existe para impedir.
+ */
+describe("executarComando", () => {
+  const ROTULOS = { em_analise: "Em análise", cancelada: "Cancelada" };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function responderCom(estado: { ok: boolean; corpo?: unknown }) {
+    const chamadas: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      chamadas.push({ url, init });
+      return Promise.resolve({
+        ok: estado.ok,
+        json: () => Promise.resolve(estado.corpo ?? {}),
+      });
+    });
+    return chamadas;
+  }
+
+  it("sucesso: POSTa no caminho do comando, com o corpo em JSON, e devolve ok", async () => {
+    const chamadas = responderCom({ ok: true });
+
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      { responsavelPessoaId: "z" },
+      ROTULOS,
+    );
+
+    expect(resultado).toStrictEqual({ ok: true });
+    expect(chamadas[0]!.url).toBe("/api/ocorrencias/abc/atribuir-responsavel");
+    expect(chamadas[0]!.init.body).toBe(JSON.stringify({ responsavelPessoaId: "z" }));
+  });
+
+  it("409 com statusAtual vira a frase do inventário, COM o rótulo e não com o enum", async () => {
+    responderCom({
+      ok: false,
+      corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "cancelada", detail: "não importa" },
+    });
+
+    const resultado = await executarComando("abc", "atribuir-responsavel", {}, ROTULOS);
+
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está Cancelada.",
+    });
+  });
+
+  it("422 usa o detail do problema — é o texto que o contrato publica", async () => {
+    responderCom({
+      ok: false,
+      corpo: {
+        codigo: "RESPONSAVEL_SEM_VINCULO_ATIVO",
+        detail: "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+      },
+    });
+
+    const resultado = await executarComando("abc", "atribuir-responsavel", {}, ROTULOS);
+
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+    });
+  });
+
+  it("problema sem detail cai na frase genérica — nunca em 'undefined'", async () => {
+    responderCom({ ok: false, corpo: { codigo: "ERRO_INTERNO" } });
+    expect(await executarComando("abc", "analisar", {}, ROTULOS)).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("rede caída não estoura — nuvem sem SLA é o caso esperado, não a borda", async () => {
+    // Sem este caminho, a rejeição do `fetch` aciona o Error Boundary em vez de mostrar a linha de aviso.
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
+    expect(await executarComando("abc", "analisar", {}, ROTULOS)).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("status desconhecido no 409 degrada para o próprio valor, sem quebrar a frase", async () => {
+    responderCom({ ok: false, corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "hibernada" } });
+    const resultado = await executarComando("abc", "analisar", {}, ROTULOS);
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está hibernada.",
+    });
   });
 });

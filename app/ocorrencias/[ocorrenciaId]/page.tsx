@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
+import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
+import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import {
   nomesDeStatus,
@@ -28,6 +30,20 @@ import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
  * interno custaria o salto HTTP que a §5 do contrato recusou.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * O papel **em palavra**, para descer por prop ao modal.
+ *
+ * **Mora aqui e não em `rotulos.ts`** porque tem um consumidor só, e porque a lista de papéis é do módulo
+ * de organização, não do de ocorrência. Se o segundo consumidor aparecer — T-08 já mostra papel, com o
+ * próprio `rotuloDoPapel` em `lista-de-vinculos.tsx` —, o lugar dos dois é um módulo, e **isso é achado,
+ * não conserto**: são duas cópias hoje, e a segunda nasceu aqui.
+ */
+const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
+  gestor: "Gestor",
+  encarregado: "Encarregado",
+  solicitante: "Solicitante",
+};
 
 /**
  * **O `de=` é reconstruído, nunca repassado cru** — item 15, critério 15.3.
@@ -127,6 +143,64 @@ export default async function Ocorrencia({
   const rotulos = rotulosDeStatus();
   const nomes = nomesDeStatus();
 
+  /**
+   * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
+   * `listarVinculos`, não um `fetch` interno — *"`app/` não monta repositório, e um `fetch` interno
+   * custaria o salto HTTP que a §5 do contrato recusou"*. O critério 19.3 diz *"a lista de candidatos é
+   * `GET /vinculos`"*, e é a **mesma leitura**: aquele `route.ts` chama esta função.
+   *
+   * **Só quando `atribuir-responsavel` está em `acoesDisponiveis`.** É uma consulta a mais por abertura de
+   * T-05, e ela não roda para o Solicitante nem em estado terminal — que é o caso dominante da tela.
+   *
+   * **A permissão que guarda a leitura é `vinculo.gerir`**, a mesma do endpoint. Hoje ela anda junto com
+   * `ocorrencia.atribuir` (as duas são do Gestor, no mesmo `SO_DO_GESTOR`), e **o dia em que se separarem
+   * é o dia em que `acoesDisponiveis` precisará de uma quarta fonte**. Fica declarado como suposição.
+   */
+  const podeAtribuir =
+    acoes.some((acao) => acao.comando === "atribuir-responsavel") && vinculo.pode("vinculo.gerir");
+
+  const candidatos: readonly Candidato[] = podeAtribuir
+    ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
+        pessoaId: lido.pessoa.pessoaId,
+        nome: lido.pessoa.nome,
+        // **A palavra, montada aqui.** O navegador não monta rótulo, e `contatos[]` não desce: é dado
+        // pessoal sob o RNF10, e a projeção estreita é o que impede o telefone de todo mundo de viajar.
+        papel: PAPEL_EM_PALAVRA[lido.papel] ?? lido.papel,
+        area: lido.area?.nome ?? null,
+      }))
+    : [];
+
+  /**
+   * **Comando com formulário se monta sozinho** (spec §3.9). A barra recebe o nó pronto; ela não conhece
+   * `atribuir-responsavel` e não ganha um `if` por comando.
+   *
+   * **`variante` é decidida aqui** porque é a página que sabe qual ação é a primeira — e em `aberta` a
+   * ordem do enum dá `analisar` primeiro, que **é** a ação de volume da triagem.
+   */
+  const formularios = podeAtribuir
+    ? {
+        "atribuir-responsavel": (
+          <ModalDeAtribuicao
+            ocorrenciaId={detalhe.id}
+            candidatos={candidatos}
+            responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
+            rotulosDeStatus={rotulos}
+            variante={acoes[0]?.comando === "atribuir-responsavel" ? "primario" : "secundario"}
+          />
+        ),
+      }
+    : {};
+
+  /**
+   * **A barra só renderiza o que ela consegue renderizar.** Sem o modal, `atribuir-responsavel` viraria um
+   * botão de disparo direto que faria `POST` sem `responsavelPessoaId` e levaria `400` — hoje inalcançável
+   * (quem tem `ocorrencia.atribuir` tem `vinculo.gerir`), e amanhã não. É a mesma natureza do filtro por
+   * rótulo logo acima: não é uma segunda regra, é a **forma** do comando na tela.
+   */
+  const renderizaveis = acoes.filter(
+    (acao) => acao.comando !== "atribuir-responsavel" || podeAtribuir,
+  );
+
   return (
     <MolduraDeTela titulo={detalhe.titulo}>
       {/* **Bloco 1 · Identidade.** `statusRotulo` sem rolar — é a resposta literal a "o que aconteceu
@@ -148,6 +222,12 @@ export default async function Ocorrencia({
           </dd>
           <dt className="font-medium">Registrada por</dt>
           <dd>{detalhe.autor.nome}</dd>
+          {/* **Nulo escreve *"sem responsável"***, que é a palavra que `lista-de-ocorrencias.tsx` já
+              usa. **Não se inventa um terceiro texto:** o achado R-12 registra que `responsavel` nulo já
+              tem dois — *"—"* na tabela larga e *"sem responsável"* no cartão —, e escolher o que já
+              existe mantém o achado do tamanho que ele tem em vez de aumentá-lo. */}
+          <dt className="font-medium">Responsável</dt>
+          <dd>{detalhe.responsavel?.nome ?? "sem responsável"}</dd>
           <dt className="font-medium">Quando</dt>
           <dd>{new Date(detalhe.registradaEm).toLocaleString("pt-BR")}</dd>
         </dl>
@@ -228,7 +308,7 @@ export default async function Ocorrencia({
         A borda tracejada fica: é o que marca andaime declarado, e não UI de produto. **Sai no item 27**,
         quando o último comando existir.
       */}
-      {acoes.length === 0 && (
+      {renderizaveis.length === 0 && (
         <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
           Os comandos da ocorrência chegam nos próximos itens.
         </p>
@@ -250,7 +330,12 @@ export default async function Ocorrencia({
         **E ela vem depois do `Voltar`** porque leva o próprio espaçador: a barra é `fixed`, e folga
         colocada *acima* do `Voltar` não impede a barra de cobri-lo no fim da rolagem.
       */}
-      <BarraDeAcoes ocorrenciaId={detalhe.id} acoes={acoes} rotulosDeStatus={rotulos} />
+      <BarraDeAcoes
+        ocorrenciaId={detalhe.id}
+        acoes={renderizaveis}
+        rotulosDeStatus={rotulos}
+        formularios={formularios}
+      />
     </MolduraDeTela>
   );
 }
