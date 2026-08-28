@@ -5,6 +5,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
+import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
@@ -401,6 +402,37 @@ export default async function Ocorrencia({
           </a>
         ))}
       </section>
+
+      {/*
+        **Bloco de solução aplicada — o primeiro bloco de T-05 cuja PRESENÇA depende de `acoesDisponiveis`.**
+        Os anteriores dependem só do dado.
+
+        **As três formas são do protótipo, e não desta tela** (`prototipo-low-fi.md`): *"o campo só
+        existe quando o comando existe. Ele aparece quando `registrar-solucao-aplicada` está em
+        `acoesDisponiveis`, **ou quando `solucaoAplicada` já tem conteúdo — e nesse caso como texto, não
+        como campo**"*. A terceira forma é a que o **Solicitante** vê numa ocorrência resolvida, e é a
+        única em que ele alcança esse dado na tela.
+
+        **O ramo de texto é servidor puro** — não há por que embarcar no navegador um parágrafo que não
+        muda —, e `app/` continua sem `import` do Domínio: o que desce ao componente é `string | null` e um
+        mapa de rótulos, nunca um tipo de comando.
+      */}
+      {detalhe.acoesDisponiveis.includes("registrar-solucao-aplicada") ? (
+        <CampoDeSolucaoAplicada
+          ocorrenciaId={detalhe.id}
+          valorAtual={detalhe.solucaoAplicada}
+          rotulosDeStatus={rotulos}
+        />
+      ) : (
+        detalhe.solucaoAplicada !== null && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-tinta text-sm font-semibold">Solução aplicada</h2>
+            <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
+              {detalhe.solucaoAplicada}
+            </p>
+          </section>
+        )
+      )}
 
       {/* **A primeira entrada da trilha** — a prova, para quem acabou de reclamar, de que o pedido
           existe. É o critério 11.2 visível na interface, e não só em teste. */}
