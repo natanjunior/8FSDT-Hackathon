@@ -1,5 +1,11 @@
 /** Superfície pública do módulo `aplicacao/ocorrencia` (ADR-0006, regra 3). */
-export { AreaInvalida, CategoriaInvalida, OcorrenciaNaoEncontrada } from "./erros";
+export {
+  AreaInvalida,
+  CategoriaInvalida,
+  OcorrenciaNaoEncontrada,
+  TransicaoNaoPermitida,
+} from "./erros";
+export { analisarOcorrencia, type ContextoDoComando } from "./analisar-ocorrencia";
 export {
   type AnexoLido,
   type CursorDeListagem,

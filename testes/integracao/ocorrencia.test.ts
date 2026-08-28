@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
-import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import { analisarOcorrencia, registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
@@ -591,5 +591,28 @@ describe("a transição contra Postgres", () => {
     );
     // **Não escreveu.** O `organizacao_id = $1` do `update` é o que impede, e ele vem do escopo.
     expect(linha?.status).toBe("aberta");
+  });
+
+  it("pelo comando: analisar duas vezes dá 409 na segunda, e a trilha continua com dois", async () => {
+    const id = await registrada("Analisar duas vezes");
+    const ctx = { pessoaId, permissoes: ["ocorrencia.ler_todas", "ocorrencia.analisar"] };
+
+    const lida = await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    expect(lida.status).toBe("em_analise");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("aberta");
+
+    const erro = await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id }).catch(
+      (causa: unknown) => causa,
+    );
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "em_analise",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(2);
   });
 });

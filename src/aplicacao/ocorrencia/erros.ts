@@ -1,8 +1,9 @@
 import { AreaInvalida } from "@/aplicacao/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
+import { TransicaoNaoPermitida } from "@/dominio/ocorrencia";
 
-/** Reexportada, nao redefinida — ver a nota abaixo. */
-export { AreaInvalida };
+/** Reexportadas, nao redefinidas — ver as notas abaixo. */
+export { AreaInvalida, TransicaoNaoPermitida };
 
 /**
  * `422 CATEGORIA_INVALIDA` — inexistente **nesta** organização **ou** desativada.
@@ -31,6 +32,14 @@ export class CategoriaInvalida extends ErroDeDominio {
  *
  * O lint permite: `@/aplicacao/organizacao` e superficie publica de modulo irmao da mesma camada, e nao
  * cria ciclo — `aplicacao/organizacao` nao importa `aplicacao/ocorrencia`.
+ */
+
+/**
+ * **`TransicaoNaoPermitida` também não nasce aqui**, e por outro motivo: ela é do **Domínio**
+ * (`src/dominio/ocorrencia/erros.ts`), porque é recusa da máquina de estados — não erro transversal.
+ * Redefini-la aqui criaria duas classes com o mesmo `codigo` de contrato e textos divergentes, e é o
+ * `codigo` que o cliente compara. Este módulo a reexporta e o `index.ts` a repassa: mesmo caminho de
+ * `AreaInvalida`, na direção oposta.
  */
 
 /**
