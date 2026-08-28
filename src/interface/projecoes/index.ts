@@ -20,6 +20,7 @@ export {
   nomeDoMotivoPausa,
   nomeDoStatus,
   opcoesDeMotivoPausa,
+  opcoesDePrioridade,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,

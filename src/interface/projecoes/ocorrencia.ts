@@ -9,6 +9,7 @@ import type {
 import {
   comandosDisponiveis,
   MOTIVOS_DE_PAUSA,
+  PRIORIDADES,
   type MotivoPausa,
   type Prioridade,
   type StatusOcorrencia,
@@ -189,6 +190,28 @@ export function nomeDoStatus(status: StatusOcorrencia): string {
 
 export function nomeDaPrioridade(prioridade: Prioridade): string {
   return NOME_DA_PRIORIDADE[prioridade];
+}
+
+/**
+ * Os três pares **prontos**, para descer por prop até o seletor de T-05 e até a barra de filtros de T-03.
+ *
+ * **Existe para que `app/` e o navegador não montem rótulo**, que é a mesma razão de `opcoesDeMotivoPausa()`
+ * logo acima. Importar `PRIORIDADES` de dentro de um componente de cliente arrastaria `@/dominio/ocorrencia`
+ * inteiro para o pacote do navegador.
+ *
+ * **`valor` é `string`, e não `Prioridade`** — quem consome é componente de cliente, e tipo do Domínio não
+ * atravessa essa fronteira. É também o que torna o retorno atribuível a `OpcaoDeFiltro`
+ * (`barra-de-filtros.tsx:16`) sem conversão.
+ *
+ * **Usa `nomeDaPrioridade`, deste módulo, e NÃO o `rotuloDePrioridade` de `componentes/rotulos.ts`** — os
+ * dois devolvem as mesmas três palavras, e `rotulos.ts:8` já importa **daqui**: chamá-lo fecharia um ciclo.
+ * *(Que existam duas funções para o mesmo texto é achado do plano desta fatia, não conserto dela.)*
+ *
+ * **A ordem é a de `PRIORIDADES`** — `baixa · normal · alta` —, que é a escala, e é o que faz o seletor ler
+ * na mesma direção que o filtro de T-03.
+ */
+export function opcoesDePrioridade(): readonly { valor: string; rotulo: string }[] {
+  return PRIORIDADES.map((prioridade) => ({ valor: prioridade, rotulo: nomeDaPrioridade(prioridade) }));
 }
 
 /**

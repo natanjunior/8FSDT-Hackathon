@@ -11,6 +11,7 @@ import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
 import {
   acoesDaBarra,
   nomesDeStatus,
@@ -20,7 +21,11 @@ import {
   vazioDaBarra,
 } from "@/interface/componentes/rotulos";
 import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
-import { opcoesDeMotivoPausa, projetarOcorrenciaDetalhe } from "@/interface/projecoes";
+import {
+  opcoesDeMotivoPausa,
+  opcoesDePrioridade,
+  projetarOcorrenciaDetalhe,
+} from "@/interface/projecoes";
 
 /**
  * **T-05 · Ocorrência**, na forma mínima que o critério 11.7 encomenda: os **blocos 1 e 2** do
@@ -337,9 +342,34 @@ export default async function Ocorrencia({
         <span className="text-tinta text-base leading-snug font-semibold">
           {detalhe.statusRotulo}
         </span>
+        {/*
+          **A prioridade sai do `<dl>` e vira a linha acima dele** — nas duas formas. `<label htmlFor>`
+          dentro de `<dt>` é marcação errada, e o protótipo já a desenha fora da lista de pares nos dois
+          recortes (`telas.html:2154-2158` para o Gestor, `:2276` e `:2473` para o Solicitante e para o
+          estado terminal).
+
+          **A presença do CONTROLE depende de `acoesDisponiveis`, não do dado** — a mesma forma que o item
+          25 estabeleceu para o campo de solução aplicada. **A prioridade nunca some da tela:** ela é dado
+          do bloco 1 desde o item 11, e o que muda é a forma.
+
+          **O ramo de texto é servidor puro** — não há por que embarcar no navegador uma linha que não muda
+          —, e `app/` continua sem `import` do Domínio: o que desce ao componente é `string`, uma lista de
+          pares e um mapa de rótulos, nunca um tipo de comando.
+        */}
+        {detalhe.acoesDisponiveis.includes("alterar-prioridade") ? (
+          <SeletorDePrioridade
+            ocorrenciaId={detalhe.id}
+            valorAtual={detalhe.prioridade}
+            opcoes={opcoesDePrioridade()}
+            rotulosDeStatus={rotulos}
+          />
+        ) : (
+          <p className="text-tinta-suave text-sm">
+            <span className="font-medium">Prioridade:</span>{" "}
+            {rotuloDePrioridade(detalhe.prioridade)}
+          </p>
+        )}
         <dl className="text-tinta-suave grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="font-medium">Prioridade</dt>
-          <dd>{rotuloDePrioridade(detalhe.prioridade)}</dd>
           <dt className="font-medium">Categoria</dt>
           <dd>{detalhe.categoria.nome}</dd>
           <dt className="font-medium">Onde</dt>

@@ -15,6 +15,7 @@ import {
   nomeDoMotivoPausa,
   nomeDoStatus,
   opcoesDeMotivoPausa,
+  opcoesDePrioridade,
   projetarAnexo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
@@ -788,6 +789,18 @@ describe("o critério 15.5 — os nomes das opções de filtro", () => {
     expect(nomeDaPrioridade("baixa")).toBe("Baixa");
     expect(nomeDaPrioridade("normal")).toBe("Normal");
     expect(nomeDaPrioridade("alta")).toBe("Alta");
+  });
+
+  it("opcoesDePrioridade devolve os TRÊS pares, na ordem de PRIORIDADES e com a palavra", () => {
+    // **A ordem é a do Domínio**, e ela é significativa no seletor: `baixa · normal · alta` é a escala,
+    // e reordenar aqui produziria um controle que lê ao contrário do resto do produto.
+    //
+    // **A palavra sempre** — compromisso A-5. Marcador colorido sem texto é defeito, em qualquer tela.
+    expect(opcoesDePrioridade()).toStrictEqual([
+      { valor: "baixa", rotulo: "Baixa" },
+      { valor: "normal", rotulo: "Normal" },
+      { valor: "alta", rotulo: "Alta" },
+    ]);
   });
 });
 
