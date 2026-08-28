@@ -2166,3 +2166,225 @@ describe("a solução aplicada contra Postgres — item 25", () => {
     expect(linha?.solucao_aplicada).toBeNull();
   });
 });
+
+describe("a prioridade contra Postgres — item 17", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.alterar_prioridade",
+    "ocorrencia.resolver",
+  ];
+
+  let executorPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Triador ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa ser triado.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  /** Leva a ocorrência até `em_atendimento` pelo caminho de verdade — analisar, atribuir, iniciar. */
+  async function emAtendimento(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  /** Quantos registros a trilha tem agora. */
+  async function registrosDe(id: string): Promise<number> {
+    const linhas = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    return linhas.length;
+  }
+
+  /** A porta, chamada com o agregado atravessado — o caminho que o comando de aplicação usa. */
+  async function gravarPrioridade(id: string, prioridade: "baixa" | "normal" | "alta") {
+    const carregada = await portas().ocorrencias.carregar(id);
+    return portas().ocorrencias.alterarPrioridade(
+      id,
+      carregada!.ocorrencia.alterarPrioridade({ prioridade }),
+      new Date().toISOString(),
+    );
+  }
+
+  it("a coluna é gravada e a TRILHA CONTINUA DO MESMO TAMANHO — o critério 17.3 contra Postgres", async () => {
+    const id = await registrada("Prioridade sem registro");
+    const antes = await registrosDe(id);
+
+    const resultado = await gravarPrioridade(id, "alta");
+    expect(resultado.desfecho).toBe("alterada");
+
+    const [linha] = await consultaCrua<{ status: string; prioridade: string }>(
+      `select status, prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.prioridade).toBe("alta");
+    // **O status não muda**, e a trilha não cresce. É o segundo comando construído do qual os dois são
+    // verdade, e o único cuja alteração não aparece nem na linha do tempo (PA-21).
+    expect(linha?.status).toBe("aberta");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("grava a partir dos QUATRO estados admitidos — o complemento de TERMINAIS", async () => {
+    // `aberta` e `em_atendimento` cobrem as duas pontas do intervalo admitido; os outros dois estados
+    // passam pelo mesmo predicado, e o unitário do domínio cobre os quatro.
+    for (const [titulo, id] of [
+      ["Prioridade em aberta", await registrada("Prioridade em aberta")],
+      ["Prioridade em atendimento", await emAtendimento("Prioridade em atendimento")],
+    ] as const) {
+      const resultado = await gravarPrioridade(id, "baixa");
+      expect(resultado.desfecho, titulo).toBe("alterada");
+
+      const [linha] = await consultaCrua<{ prioridade: string }>(
+        `select prioridade from ocorrencias where id = $1`,
+        [id],
+      );
+      expect(linha?.prioridade, titulo).toBe("baixa");
+    }
+  });
+
+  it("atualizada_em AVANÇA, e é o carimbo que o comando leu — nunca now()", async () => {
+    const id = await registrada("Carimbo de atividade da prioridade");
+
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+
+    // **Um instante escolhido, e não o relógio do banco.** A §5.8 da arquitetura diz que o campo significa
+    // *"houve atividade nesta ocorrência"*, e alterar prioridade é atividade.
+    const instante = new Date(Date.now() + 60_000).toISOString();
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.alterarPrioridade(
+      id,
+      carregada!.ocorrencia.alterarPrioridade({ prioridade: "alta" }),
+      instante,
+    );
+
+    const [depois] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(new Date(depois!.atualizada_em).getTime()).toBe(new Date(instante).getTime());
+    expect(new Date(depois!.atualizada_em).getTime()).toBeGreaterThan(
+      new Date(antes!.atualizada_em).getTime(),
+    );
+  });
+
+  it("A CORRIDA LEGAL: o estado mudou para outro NÃO terminal, e a porta GRAVA — a §3.4 provada", async () => {
+    // **É o caso que nenhum item anterior tem, e é o que distingue este predicado do do item 25.** Ele é
+    // alcançável porque o teste SEGURA o agregado carregado: analisamos a ocorrência por outro caminho e
+    // só então chamamos a porta com a instância velha. É literalmente a janela entre `carregar` e `update`.
+    //
+    // **Com o predicado do item 25 (`status = <o que leu>`) este caso responderia `conflito`**, e a tela
+    // mostraria o `detail` publicado — *"a prioridade não muda depois de resolvida ou cancelada"* — sobre
+    // uma ocorrência `em_analise`. Frase falsa, sem compensatória (`inventario-de-telas.md:1532-1536`).
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Corrida legal com o analisar");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const comAlta = carregada!.ocorrencia.alterarPrioridade({ prioridade: "alta" });
+
+    // Outro Gestor chega antes e move a ocorrência — para um estado que **continua admitindo** o comando.
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    // **O instante é lido AGORA**, depois da transição, para que o carimbo não ande para trás. Que a porta
+    // *possa* escrever um carimbo mais antigo se quem chama entregar um instante velho é verdade também no
+    // item 25, e é achado, não conserto desta fatia.
+    const resultado = await portas().ocorrencias.alterarPrioridade(
+      id,
+      comAlta,
+      new Date().toISOString(),
+    );
+
+    expect(resultado.desfecho).toBe("alterada");
+
+    const [linha] = await consultaCrua<{ status: string; prioridade: string }>(
+      `select status, prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Os dois juntos são a asserção.** A prioridade entrou, e o status é o que o outro Gestor deixou —
+    // o `update` não tocou a coluna de status.
+    expect(linha?.prioridade).toBe("alta");
+    expect(linha?.status).toBe("em_analise");
+  });
+
+  it("A CORRIDA TERMINAL: a ocorrência foi resolvida no meio, e a porta RECUSA — o predicado provado", async () => {
+    // A outra metade. **Sem o predicado, esta escrita cairia numa ocorrência `resolvida`**, mudando o
+    // detalhe de um registro fechado sem nada na trilha nem na linha do tempo dizendo quando nem por quem
+    // — a mutação silenciosa que a ADR-0001 existe para impedir (contrato §8.4).
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Corrida terminal com o resolver");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const comAlta = carregada!.ocorrencia.alterarPrioridade({ prioridade: "alta" });
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Fechada antes de a prioridade mudar.",
+    });
+
+    const resultado = await portas().ocorrencias.alterarPrioridade(
+      id,
+      comAlta,
+      new Date().toISOString(),
+    );
+
+    expect(resultado.desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ status: string; prioridade: string }>(
+      `select status, prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("resolvida");
+    // **A coluna NÃO mudou** — é o critério 17.2 no estado que importa, medido no banco.
+    expect(linha?.prioridade).toBe("normal");
+  });
+
+  it("aplicarTransicao NÃO toca prioridade — o critério 17.5 do lado do banco", async () => {
+    // **O critério 17.5 é uma AUSÊNCIA:** *"nenhuma política altera prioridade sozinha"*. Não há código
+    // para exercitar, então o que se prova é que nenhum outro caminho de escrita mexe na coluna.
+    //
+    // **Este caso é o mais barato e o mais fácil de esquecer**, e ele quebra no dia em que alguém
+    // acrescentar `prioridade` ao `set` de uma transição.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Prioridade que atravessa a transicao");
+
+    await gravarPrioridade(id, "alta");
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const [linha] = await consultaCrua<{ status: string; prioridade: string }>(
+      `select status, prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("em_analise");
+    expect(linha?.prioridade).toBe("alta");
+  });
+});

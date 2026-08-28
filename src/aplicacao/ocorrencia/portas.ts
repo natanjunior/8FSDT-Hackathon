@@ -231,6 +231,30 @@ export type ResultadoDaSolucaoAplicada =
   | { desfecho: "conflito" };
 
 /**
+ * O que a alteração de prioridade pode dar. **Desfecho, não exceção**, na fronteira da porta — o idioma que
+ * `ResultadoDoRegistro`, `ResultadoDaTransicao`, `ResultadoDaAtribuicao` e `ResultadoDaSolucaoAplicada` já
+ * usam aqui em cima.
+ *
+ * **`conflito` significa UMA coisa e só uma: *"virou terminal entre a leitura e a escrita"***. Não há
+ * segundo caso — `carregar` já provou que a linha existe nesta organização, e não existe `DELETE` de
+ * ocorrência em endpoint nenhum. É a diferença para `ResultadoDaSolucaoAplicada`, cujo `conflito` significa
+ * *"o estado mudou"* e por isso alcança estados que ainda admitem o comando (achado A-5 da spec do 17).
+ *
+ * **Movimento LEGAL entre a leitura e a escrita não é conflito:** `aberta → em_analise` grava, porque a
+ * prioridade continua alterável nos quatro estados. Quem quiser ver por quê, o predicado está no
+ * repositório e a razão está na §3.4 da spec — o `409` deste comando nomeia um fato, e o
+ * `inventario-de-telas.md:1532-1536` decidiu que ele **não tem frase de tela própria**, então ele não pode
+ * aparecer sobre um caso em que a frase publicada mente.
+ *
+ * **E o que ele NÃO detecta, por decisão de contrato:** dois Gestores alterando a prioridade no mesmo
+ * estado — o segundo vence, sem aviso. É um dos **dois** pontos que a §7.9 nomeia como exposição aceita.
+ * O que o produto passa a ter contra o toque errado é a **janela de conserto** do critério 17.7, na tela.
+ */
+export type ResultadoDaPrioridade =
+  | { desfecho: "alterada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/**
  * ============================================================================
  *  O que a porta de ESCRITA devolve — o agregado, **e o fato que ele não tem**
  * ============================================================================
@@ -340,6 +364,27 @@ export interface RepositorioEscopadoDeOcorrencias {
     ocorrencia: Ocorrencia,
     em: string,
   ): Promise<ResultadoDaSolucaoAplicada>;
+
+  /**
+   * **Altera a prioridade, em UM `COMMIT` — e a ausência de `insert` é o critério 17.3 em estrutura.**
+   *
+   * Uma instrução e uma releitura: o `update` da raiz, seguido do `lerPorId` de dentro da transação. **Não
+   * há como este método gravar na trilha, porque ele não tem a instrução** — e não há como a alteração
+   * aparecer na linha do tempo, porque ela também sai da trilha (PA-21).
+   *
+   * **A assinatura é IDÊNTICA à de `registrarSolucaoAplicada`, e o predicado é diferente.** Aqui ele é
+   * `status <> all(TERMINAIS)`: a lista **não sobe pela assinatura** porque é a **invariante 7**, e a
+   * invariante mora no Domínio — o repositório a importa de `@/dominio/ocorrencia`, que ele já importa.
+   *
+   * **Recebe o AGREGADO — a instância que o comando devolveu.** O valor gravado sai de
+   * `ocorrencia.prioridade`. **O `status` dela NÃO é o predicado** (é a diferença para a porta vizinha): a
+   * instância viaja porque é ela que carrega o valor, e o método continua transcrevendo em vez de decidir.
+   *
+   * **`em` viaja ao lado porque `atualizada_em` não é campo da raiz** — em `aplicarTransicao` ele sai do
+   * registro, e aqui não há registro. O carimbo não é opcional: alterar prioridade é **atividade** na
+   * ocorrência (`arquitetura.md` §5.8).
+   */
+  alterarPrioridade(id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaPrioridade>;
 
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;
