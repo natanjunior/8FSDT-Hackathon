@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
+  alterarPrioridade,
   analisarOcorrencia,
   iniciarAtendimento,
   pausarOcorrencia,
@@ -2386,5 +2387,63 @@ describe("a prioridade contra Postgres — item 17", () => {
     );
     expect(linha?.status).toBe("em_analise");
     expect(linha?.prioridade).toBe("alta");
+  });
+
+  it("em resolvida o COMANDO responde 409 e a coluna não muda — o critério 17.2 ponta a ponta", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Recusa do comando no terminal");
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Fechada, e a prioridade congela com ela.",
+    });
+
+    const erro = await alterarPrioridade(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      prioridade: "alta",
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "resolvida",
+    );
+
+    const [linha] = await consultaCrua<{ prioridade: string }>(
+      `select prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.prioridade).toBe("normal");
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não altera — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Isolamento da prioridade");
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho17 ${SUFIXO}`, `V7${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      alterarPrioridade(deOutra, ctx, { ocorrenciaId: id, prioridade: "alta" }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ prioridade: string }>(
+      `select prioridade from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.prioridade).toBe("normal");
   });
 });

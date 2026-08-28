@@ -1,4 +1,9 @@
-import { comandosDisponiveis, TransicaoNaoPermitida, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import {
+  comandosDisponiveis,
+  PrioridadeImutavelEmEstadoTerminal,
+  TransicaoNaoPermitida,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 
 import { ResponsavelNaoAtribuido } from "./erros";
 
@@ -100,6 +105,37 @@ export function recusaPorFaltaDeResponsavel(
       permissoes: ctx.permissoes,
       ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
       temResponsavel: false,
+    }),
+  );
+}
+
+/**
+ * O corpo do **terceiro** `409` do produto — o da **invariante 7** (critério 17.2).
+ *
+ * **Mora aqui pela mesma razão das duas irmãs**: duas construções do mesmo corpo em arquivos diferentes
+ * seriam a cópia que sempre diverge. As extensões são as **duas** que o schema `Problema` declara para
+ * conflitos de estado — o exemplo publicado da operação traz só `statusAtual`, e isso é falta de exemplo,
+ * não de schema (achado A-2 da spec do item 17).
+ *
+ * **Recebe o ENVELOPE, como `recusaDeTransicao` e ao contrário de `recusaPorFaltaDeResponsavel`.** Lá
+ * `temResponsavel` é `false` por construção — é exatamente por isso que se está lá. **Aqui não há fato
+ * construído:** a ocorrência terminal pode ter tido responsável ou não, e o corpo tem de dizer a verdade
+ * sobre o que sobrou.
+ *
+ * **`jaAvaliada` não é informado, e a omissão é declarada** — mesma razão de `recusaDeTransicao`: ela só
+ * muda a presença de `avaliar`, que `COMANDOS_IMPLEMENTADOS` filtra até o item 27 existir.
+ */
+export function recusaPorPrioridadeImutavel(
+  carregada: EstadoCarregado,
+  ctx: ContextoDoComando,
+): PrioridadeImutavelEmEstadoTerminal {
+  return new PrioridadeImutavelEmEstadoTerminal(
+    carregada.ocorrencia.status,
+    comandosDisponiveis({
+      status: carregada.ocorrencia.status,
+      permissoes: ctx.permissoes,
+      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
+      temResponsavel: carregada.temResponsavel,
     }),
   );
 }
