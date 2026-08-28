@@ -33,6 +33,7 @@ import {
 } from "@/interface/componentes/comando-de-ocorrencia";
 import {
   acaoPrimaria,
+  acoesDaBarra,
   nomesDeStatus,
   rotuloDeComando,
   rotulosDeStatus,
@@ -1097,6 +1098,14 @@ describe("acaoPrimaria — a regra do destaque de T-05", () => {
       expect(acaoPrimaria(status, ["cancelar"])).toBe("cancelar");
     }
   });
+
+  it("em_analise SEM responsável dá Atribuir, e não Pausar — o caso que a derivação erraria", () => {
+    // `pausar` é permitido pela máquina de estados aqui. A derivação por `transicaoPermitida`, que o
+    // item 22 recusou, daria **Pausar** como ação em destaque numa ocorrência que ninguém pegou ainda.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel", "pausar"])).toBe(
+      "atribuir-responsavel",
+    );
+  });
 });
 
 describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", () => {
@@ -1293,5 +1302,50 @@ describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
 
   it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
     expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
+  });
+});
+
+describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é de largura", () => {
+  it("com UM, ele é o destaque e o menu fica vazio", () => {
+    expect(acoesDaBarra("pausada", ["atribuir-responsavel"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("com DOIS, os dois viram botão e o menu continua vazio — a decisão dos itens 19 e 22, intacta", () => {
+    expect(acoesDaBarra("em_analise", ["atribuir-responsavel", "pausar"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("com TRÊS, o destaque sai da tabela e os outros DOIS vão para o menu, na ordem recebida", () => {
+    expect(
+      acoesDaBarra("em_analise", ["atribuir-responsavel", "iniciar-atendimento", "pausar"]),
+    ).toStrictEqual({
+      destaque: "iniciar-atendimento",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("em em_atendimento com três, o destaque é resolver — e pausar vai para o menu", () => {
+    expect(
+      acoesDaBarra("em_atendimento", ["atribuir-responsavel", "pausar", "resolver"]),
+    ).toStrictEqual({
+      destaque: "resolver",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("com NENHUM, não há destaque nem menu", () => {
+    expect(acoesDaBarra("resolvida", [])).toStrictEqual({ destaque: null, emMenu: [] });
+  });
+
+  it("o destaque é sempre o de acaoPrimaria — acoesDaBarra não tem tabela própria", () => {
+    const renderizaveis = ["atribuir-responsavel", "iniciar-atendimento", "pausar"];
+    expect(acoesDaBarra("em_analise", renderizaveis).destaque).toBe(
+      acaoPrimaria("em_analise", renderizaveis),
+    );
   });
 });

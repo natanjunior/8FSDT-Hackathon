@@ -99,6 +99,46 @@ export function acaoPrimaria(
 
 /**
  * ============================================================================
+ *  O que vai na barra e o que vai no menu — a regra do item 23
+ * ============================================================================
+ *
+ * **Três renderizáveis ou mais → primário + *"Mais ações ▾"*; dois → dois botões.**
+ *
+ * **Não é contagem por gosto: é a largura.** Com três em 390 px, o mínimo de conteúdo soma **~365 px**
+ * contra **~358 px** disponíveis — *"Iniciar atendimento"* (~178) + *"Atribuir"* (~87) + *"Pausar"*
+ * (~84) + dois `gap-2`. `ui/button.tsx` carrega `whitespace-nowrap` e nenhum `overflow-hidden`, então
+ * o que acontece não é texto cortado: é a **barra transbordando a viewport**. É o mesmo argumento
+ * aritmético da spec do item 22, do outro lado do limiar.
+ *
+ * **Com dois, a decisão dos itens 19 e 22 continua valendo inteira** — *"o protótipo previu um primário
+ * largo e um Mais ações porque quatro rótulos legíveis não cabem em 390 px; com dois, cabem"*. Esta
+ * função não a revisita; ela só escreve o outro ramo.
+ *
+ * **Mora aqui, numa função, e não em dois `if` que precisam concordar.** A página decide a `variante`
+ * de cada nó de formulário e a barra decide onde renderizá-lo; se cada uma contasse por conta própria,
+ * teríamos duas fontes para a mesma coisa — que é literalmente o defeito que o item 22 consertou ao
+ * criar `acaoPrimaria`.
+ *
+ * **`acaoPrimaria` continua existindo e continua sendo a única dona de `ACAO_PRIMARIA`** — esta função
+ * a chama, e não duplica a tabela nem o desempate.
+ */
+const RENDERIZAVEIS_ATE_A_BARRA_CABER = 2;
+
+export function acoesDaBarra(
+  status: StatusOcorrencia,
+  renderizaveis: readonly string[],
+): { destaque: string | null; emMenu: readonly string[] } {
+  const destaque = acaoPrimaria(status, renderizaveis);
+
+  if (renderizaveis.length <= RENDERIZAVEIS_ATE_A_BARRA_CABER) {
+    return { destaque, emMenu: [] };
+  }
+
+  return { destaque, emMenu: renderizaveis.filter((comando) => comando !== destaque) };
+}
+
+/**
+ * ============================================================================
  *  As duas frases do vazio da barra — o critério 26.6 e o 16.6, irmãos
  * ============================================================================
  *
