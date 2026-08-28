@@ -1,8 +1,32 @@
 import { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
-import { type MotivoPausa } from "./Motivos";
+import { type MotivoCancelamento, type MotivoPausa } from "./Motivos";
 import { PRIORIDADE_INICIAL, type Prioridade } from "./Prioridade";
 import { RegistroDeTransicao } from "./RegistroDeTransicao";
 import { ehTerminal, type StatusOcorrencia } from "./StatusOcorrencia";
+
+/**
+ * **As quatro origens de `cancelar`** — `arquitetura.md` §4, as quatro setas que chegam a `Cancelada`.
+ *
+ * **Não é `!ehTerminal(status)`, e a diferença não é de estilo.** São duas perguntas: *"este estado é um
+ * poço?"* e *"deste estado se cancela?"*. Elas coincidem **hoje** porque a máquina tem seis estados e os
+ * dois terminais são exatamente os que não cancelam; um sétimo estado não-terminal do qual não se
+ * cancelasse faria a negação mentir sem que nada quebrasse.
+ *
+ * **Reconhecido, e é o achado P-3 do plano:** `transicaoPermitida(status, "cancelar")` responde
+ * literalmente esta pergunta, e `TRANSICOES` já carrega a informação nas quatro entradas. O que decidiu a
+ * cópia foi **forma**: as seis guardas anteriores deste arquivo redigitam os próprios estados, e
+ * `Ocorrencia.ts` **não importa `MaquinaDeEstados.ts`** — fazer a sétima ser a única a consultar a tabela
+ * quebraria a simetria do arquivo por quatro strings. **A duplicação está fechada por comportamento**:
+ * um caso de `testes/dominio/ocorrencia.test.ts` assere, para os seis status, que `cancelar` estoura **se
+ * e somente se** `transicaoPermitida(status, "cancelar")` for falso. Se um sétimo estado entrar numa das
+ * duas listas e não na outra, ele cai.
+ */
+const ORIGENS_DE_CANCELAMENTO: readonly StatusOcorrencia[] = [
+  "aberta",
+  "em_analise",
+  "em_atendimento",
+  "pausada",
+];
 
 /** O tipo da Área, congelado no registro. Repetido aqui e não importado: `dominio/ocorrencia` não
  *  importa `dominio/organizacao` — módulos irmãos não se atravessam (ADR-0006, regra 5). */
@@ -61,8 +85,8 @@ export type DadosDeReconstituicao = {
  * *"Somente a lógica do agregado pode alterar o seu estado."* As invariantes que esta classe carrega:
  *
  * 1. **`status` nunca é escrito de fora** — não há setter, o campo é privado, e a única porta são os
- *    comandos. São **seis** os que transicionam — `registrar`, `analisar`, `iniciarAtendimento`,
- *    `resolver`, `pausar` e `retomar`; os itens 18 e 27 trazem o resto.
+ *    comandos. São **sete** os que transicionam — `registrar`, `analisar`, `iniciarAtendimento`,
+ *    `resolver`, `pausar`, `retomar` e `cancelar`; o item 27 traz o resto.
  * 1b. **Nem todo comando é transição, e o item 25 é o primeiro.** `registrarSolucaoAplicada` muda um dado
  *    da raiz — `solucao_aplicada` — **sem tocar `status` e sem tocar a trilha**, e por isso não passa por
  *    `comTransicao`. A invariante 1 continua intacta: ele não escreve `status`.
@@ -540,6 +564,64 @@ export class Ocorrencia {
     }
 
     return this.comPrioridade(entrada.prioridade);
+  }
+
+  /**
+   * O comando `cancelar` — **as QUATRO origens** (`arquitetura.md` §4, critério 18.2), e o **último
+   * comando de transição da máquina de estados**: depois dele as dez setas têm código e os seis estados
+   * existem em banco.
+   *
+   * **A guarda aceita quatro origens, e é a maior do arquivo.** `analisar`, `iniciarAtendimento` e
+   * `resolver` têm origem única; `pausar` tem duas; esta tem `aberta`, `em_analise`, `em_atendimento` e
+   * `pausada` — ver `ORIGENS_DE_CANCELAMENTO`, no topo, e o porquê de não ser `!ehTerminal`.
+   * **Continua sendo `Error` e continua sendo rede, não decisão** — quem decide é `transicaoPermitida`,
+   * na Aplicação, como nos seis comandos anteriores.
+   *
+   * **Ele NÃO confere quem chamou, e a ausência é a decisão.** O critério 18.3 — *"a partir de
+   * `Em atendimento` só o Gestor cancela"* — é autorização, e ela atravessa a identidade de quem chama:
+   * mora no comando de aplicação (`SomenteOGestorCancelaNesteEstado`, `403`), com a lista de estados do
+   * autor em `MaquinaDeEstados.ts`. O mesmo vale para o motivo escolhido: **qual** dos sete valores cada
+   * papel alcança é `motivosPermitidos`, e a recusa é o `422` da Aplicação. Dar a este método o papel de
+   * quem chamou moveria para dentro do limite uma regra que a `arquitetura.md` §5 põe fora, e o agregado
+   * deixaria de ser testável sem contexto de requisição.
+   *
+   * **`RegistroDeTransicao.avanco` NÃO serve aqui**, e é a metade que faltava do `CHECK`: `cancelada`
+   * exige motivo codificado e observação não vazia, e `avanco` recusa este destino de propósito. A porta
+   * é `cancelamento` — a espelhada de `pausa`.
+   *
+   * **`comTransicao` é chamado sem o terceiro parâmetro, e a omissão é deliberada:** o padrão é *"a
+   * solução aplicada que já havia"*. Cancelar uma ocorrência que já tem solução registrada é alcançável
+   * — `registrar-solucao-aplicada` é admitido em `em_atendimento` e em `pausada`, e dos dois se cancela —
+   * e apagá-la seria destruir o trabalho descrito no ato de encerrar o registro que o descreve. É a mesma
+   * omissão de `pausar` e de `retomar`.
+   */
+  cancelar(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    motivo: MotivoCancelamento;
+    /** **Obrigatória** — invariante 5. Quem apara é o comando de aplicação. */
+    observacao: string;
+  }): Ocorrencia {
+    if (!ORIGENS_DE_CANCELAMENTO.includes(this._status)) {
+      throw new Error(
+        `cancelar exige um estado não terminal ('aberta', 'em_analise', 'em_atendimento' ou 'pausada'); ` +
+          `a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    return this.comTransicao(
+      "cancelada",
+      RegistroDeTransicao.cancelamento({
+        // **Do último registro, não do tamanho da lista** — o mesmo argumento dos cinco anteriores.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao,
+        motivoCancelamento: entrada.motivo,
+      }),
+    );
   }
 
   /**

@@ -57,6 +57,37 @@ const PERMISSAO_DO_COMANDO: Readonly<Record<Comando, readonly string[]>> = {
   cancelar: ["ocorrencia.cancelar_propria", "ocorrencia.cancelar_qualquer"],
 };
 
+/**
+ * **Os estados de onde o Solicitante autor cancela a própria ocorrência** — a metade de ESTADO do
+ * critério 18.3, e a D12.
+ *
+ * **Quatro fontes dizem o mesmo conjunto, e nenhuma delas é esta linha:**
+ *
+ * - `arquitetura.md:148-156` — `Aberta`/`Em análise` → *Solicitante autor · Gestor*; `Em atendimento` →
+ *   **Gestor apenas (D12)**; `Pausada` → **Gestor**;
+ * - `contrato-de-api.md:419` — `cancelar_propria` ✅ *(até `em_analise`, D12)*;
+ * - `openapi.yaml:1964-1971` — *"o Solicitante cancela a própria até `Em análise`; a partir de
+ *   `Em atendimento` só o Gestor. O Solicitante continua podendo **pedir** o cancelamento pelo
+ *   comentário"*;
+ * - `inventario-de-telas.md:1524-1525` — o `SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` é *"defeito, não
+ *   caminho"*, **coberto por `acoesDisponiveis`** — e é esta lista que torna a segunda metade da frase
+ *   verdadeira.
+ *
+ * **Ela NÃO substitui `TRANSICOES.em_atendimento`, que continua listando `cancelar`:** o Gestor cancela
+ * ali. É restrição de **quem**, sobreposta à de estado — e é por isso que mora ao lado da condição de
+ * autoria, em `comandosDisponiveis`, e não na tabela.
+ *
+ * **Exportada, porque tem dois consumidores:** esta função e o comando de aplicação, que lança o `403` a
+ * partir da mesma lista. Duas listas divergiriam, e a divergência seria um botão que responde `403` no
+ * clique.
+ *
+ * **A §8.5 do contrato promete `409` ou `422` para o comando ausente, e aqui a ausência significa
+ * `403`.** Não é novidade desta linha: `avaliar` já é assim — ausente por não ser o autor, recusado com
+ * `403` —, e o `inventario-de-telas.md:1525` trata os dois códigos juntos, na mesma linha, como defeitos
+ * que a lista cobre.
+ */
+export const ESTADOS_DE_CANCELAMENTO_DO_AUTOR: readonly StatusOcorrencia[] = ["aberta", "em_analise"];
+
 /** `true` se o par (status, comando) está na tabela de transições. */
 export function transicaoPermitida(status: StatusOcorrencia, comando: Comando): boolean {
   return TRANSICOES[status].includes(comando);
@@ -158,8 +189,13 @@ export function comandosDisponiveis(pergunta: PerguntaDeAcoes): readonly Comando
       if (!pergunta.ehAutor) return false;
       if (pergunta.jaAvaliada === true) return false;
     }
+    // 3 — relação com o recurso, e **a metade de ESTADO do critério 18.3** (item 18): quem não tem
+    // `cancelar_qualquer` cancela só a própria, e só enquanto ela não saiu da triagem. A partir de
+    // `em_atendimento` o comando some da lista — e o comando de aplicação recusa com `403` a partir da
+    // **mesma** constante.
     if (comando === "cancelar" && !pergunta.permissoes.includes("ocorrencia.cancelar_qualquer")) {
       if (!pergunta.ehAutor) return false;
+      if (!ESTADOS_DE_CANCELAMENTO_DO_AUTOR.includes(pergunta.status)) return false;
     }
 
     return true;
