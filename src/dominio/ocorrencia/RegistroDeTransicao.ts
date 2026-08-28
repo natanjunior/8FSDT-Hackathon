@@ -1,6 +1,28 @@
 import { type MotivoCancelamento, type MotivoPausa } from "./Motivos";
 import { type StatusOcorrencia } from "./StatusOcorrencia";
 
+/** Os oito campos, como o banco os devolve. */
+export type DadosDeRegistroDeTransicao = {
+  sequencia: number;
+  statusAnterior: StatusOcorrencia | null;
+  statusNovo: StatusOcorrencia;
+  ocorreuEm: string;
+  autorPessoaId: string;
+  observacao: string | null;
+  motivoPausa: MotivoPausa | null;
+  motivoCancelamento: MotivoCancelamento | null;
+};
+
+/** Uma transição de avanço rotineiro: sem motivo codificado, e com observação opcional (D23). */
+export type DadosDeAvanco = {
+  sequencia: number;
+  statusAnterior: StatusOcorrencia;
+  statusNovo: StatusOcorrencia;
+  ocorreuEm: string;
+  autorPessoaId: string;
+  observacao: string | null;
+};
+
 /**
  * ============================================================================
  *  O `HistoricoTransicao` da ADR-0001 — objeto de valor **imutável**
@@ -42,6 +64,52 @@ export class RegistroDeTransicao {
       entrada.ocorreuEm,
       entrada.autorPessoaId,
       null,
+      null,
+      null,
+    );
+  }
+
+  /**
+   * **A volta do banco.** Transcreve os oito campos sem julgar: quem os gravou foi um comando, e os
+   * `CHECK` da migração 005 já os conferiram nos dois sentidos. Reconferir aqui seria a terceira cópia
+   * da mesma regra.
+   */
+  static reconstituir(dados: DadosDeRegistroDeTransicao): RegistroDeTransicao {
+    return new RegistroDeTransicao(
+      dados.sequencia,
+      dados.statusAnterior,
+      dados.statusNovo,
+      dados.ocorreuEm,
+      dados.autorPessoaId,
+      dados.observacao,
+      dados.motivoPausa,
+      dados.motivoCancelamento,
+    );
+  }
+
+  /**
+   * **A transição de avanço rotineiro** — `analisar`, e depois `iniciar-atendimento`, `retomar` e
+   * `resolver`. Sem motivo codificado, com observação opcional (D23: *"campo obrigatório em momento
+   * rotineiro é preenchido com 'ok' e o dado morre"*).
+   *
+   * **Ela recusa `pausada` e `cancelada`**, e isso é o `CHECK` `registros_transicao_motivo_ck` expresso
+   * em fábrica: nesses dois destinos o banco exige motivo **e** observação, e um registro construído por
+   * esta porta não os teria. Os itens 18 e 23 ganham as fábricas próprias.
+   */
+  static avanco(dados: DadosDeAvanco): RegistroDeTransicao {
+    if (dados.statusNovo === "pausada" || dados.statusNovo === "cancelada") {
+      throw new Error(
+        `avanco não constrói registro para '${dados.statusNovo}': esse destino exige motivo codificado.`,
+      );
+    }
+
+    return new RegistroDeTransicao(
+      dados.sequencia,
+      dados.statusAnterior,
+      dados.statusNovo,
+      dados.ocorreuEm,
+      dados.autorPessoaId,
+      dados.observacao,
       null,
       null,
     );
