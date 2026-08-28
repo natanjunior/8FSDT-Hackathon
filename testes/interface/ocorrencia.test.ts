@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { COMANDOS_IMPLEMENTADOS, MOTIVOS_DE_PAUSA, STATUS } from "@/dominio/ocorrencia";
+import {
+  COMANDOS_IMPLEMENTADOS,
+  MOTIVOS_DE_PAUSA,
+  STATUS,
+  type Comando,
+} from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
@@ -49,6 +54,7 @@ import {
   pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
+  solucaoAplicadaSchema,
 } from "@/interface/schemas";
 
 /**
@@ -625,6 +631,29 @@ describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeç�
 
     expect(projetado.acoesDisponiveis).toStrictEqual([]);
   });
+
+  it.each(["em_atendimento", "pausada"] as const)(
+    "em %s a projeção anuncia registrar-solucao-aplicada — o critério 25.1 no payload",
+    (status) => {
+      // **É a §8.5 lida ao contrário:** comando presente é comando cujo endpoint existe. É o que faz T-05
+      // desenhar o campo sem precisar de uma segunda regra sobre estados.
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.registrar_solucao"] },
+      );
+
+      expect(projetado.acoesDisponiveis).toContain("registrar-solucao-aplicada");
+    },
+  );
+
+  it("em aberta a projeção NÃO o anuncia — solução aplicada descreve trabalho feito", () => {
+    const projetado = projetarOcorrenciaDetalhe(
+      { ...umaOcorrenciaLidaCom([]), responsavel: RESPONSAVEL },
+      { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.registrar_solucao"] },
+    );
+
+    expect(projetado.acoesDisponiveis).not.toContain("registrar-solucao-aplicada");
+  });
 });
 
 describe("`?variante=`", () => {
@@ -852,12 +881,25 @@ describe("o corpo dos comandos de avanço rotineiro", () => {
 });
 
 describe("os rótulos que descem para a barra de ações", () => {
-  it("todo comando implementado tem rótulo — senão a barra some sem dizer nada", () => {
-    // **É o alarme da tarefa 6 para os itens 17 a 27:** quem acrescentar um comando a
+  /** Os dois cuja FORMA não é botão — `rotulos.ts` os declara desde antes do item 25. */
+  const NAO_SAO_BOTAO: readonly Comando[] = ["alterar-prioridade", "registrar-solucao-aplicada"];
+
+  it("todo comando implementado que é BOTÃO tem rótulo — senão a barra some sem dizer nada", () => {
+    // **É o alarme dos itens 17, 18 e 27:** quem acrescentar um comando de botão a
     // `COMANDOS_IMPLEMENTADOS` e esquecer o rótulo faria a barra renderizar nada, em silêncio.
+    //
+    // **A exceção é asserção, e não filtro silencioso** — ver o caso logo abaixo. O item 25 é o primeiro
+    // em que a premissa *"implementado ⇒ botão"* deixa de valer.
     for (const comando of COMANDOS_IMPLEMENTADOS) {
+      if (NAO_SAO_BOTAO.includes(comando)) continue;
       expect(rotuloDeComando(comando)).not.toBeNull();
     }
+  });
+
+  it("registrar-solucao-aplicada NÃO tem rótulo, e é a FORMA dele — não esquecimento", () => {
+    // **A exceção, escrita.** Ele é campo no corpo de T-05 (`inventario-de-telas.md`), e um rótulo
+    // aqui produziria um botão que compete com *Resolver* na mesma barra.
+    expect(rotuloDeComando("registrar-solucao-aplicada")).toBeNull();
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
@@ -1181,6 +1223,56 @@ describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", 
     expect(conferido.success).toBe(true);
     expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
     expect(conferido.data!.observacao).toBe("Conferido.");
+  });
+});
+
+describe("o corpo de POST …/registrar-solucao-aplicada — o segundo com corpo OBRIGATÓRIO", () => {
+  it("exige o campo: corpo vazio é recusado (required: [solucaoAplicada])", () => {
+    expect(solucaoAplicadaSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("recusa string vazia — o minLength: 1 do openapi.yaml", () => {
+    // **É a assimetria com `/resolver`, e ela é do contrato.** Lá não há `minLength`, aqui há
+    // (`openapi.yaml`). Um comando cujo corpo é obrigatório não tem o caso "não mandou nada".
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "" }).success).toBe(false);
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "   " }).success).toBe(false);
+  });
+
+  it("recusa acima de 4000 e aceita 4000 — o mesmo teto do resolver, num lugar só", () => {
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(
+      false,
+    );
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "a".repeat(4000) }).success).toBe(
+      true,
+    );
+  });
+
+  it("apara, e o que sai é o texto aparado — quem apara é o schema, e o comando não apara de novo", () => {
+    const conferido = solucaoAplicadaSchema.safeParse({ solucaoAplicada: "  Trocada a lâmpada.  " });
+    expect(conferido.success).toBe(true);
+    expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
+  });
+
+  it("descarta campo desconhecido, e NÃO responde 422 — a especificação não declara observacao aqui", () => {
+    // **Sem `recusar:` no `route.ts`, e a razão é do contrato.** `camposSemDestino` é dos comandos que
+    // DECLARAM `observacao` no `openapi.yaml` sem ter onde guardá-la. Este endpoint não a declara
+    // (um campo só) e **não declara `422`** (sete respostas). Responder um status que a especificação
+    // versionada não lista é a divergência do critério 16.7 do avesso.
+    const conferido = solucaoAplicadaSchema.parse({
+      solucaoAplicada: "Feito.",
+      observacao: "não declarada aqui",
+    });
+
+    expect(conferido).toStrictEqual({ solucaoAplicada: "Feito." });
+  });
+
+  it("o resolucaoSchema continua aceitando '' e ausente — a assimetria, lado a lado", () => {
+    // **Os dois schemas do mesmo campo, no mesmo caso**, porque é assim que a assimetria fica conferível
+    // em vez de virar comentário. O teto é o mesmo; o piso, não.
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "" }).success).toBe(true);
+    expect(resolucaoSchema.safeParse({}).success).toBe(true);
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "" }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(false);
   });
 });
 

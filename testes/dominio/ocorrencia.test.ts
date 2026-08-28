@@ -187,12 +187,16 @@ describe("comandosDisponiveis", () => {
     // O sexto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
     // que precisa dele monta a própria lista — ver o último caso deste bloco.
     "ocorrencia.retomar",
+    // **O sétimo comando construído, e ele MUDA duas asserções deste arquivo** — em `em_atendimento` e em
+    // `pausada`. Sem esta linha as duas continuariam verdes e deixariam de descrever a produção: todo
+    // Gestor de verdade tem `ocorrencia.registrar_solucao` (`Permissao.ts`).
+    "ocorrencia.registrar_solucao",
     "ocorrencia.resolver",
     "ocorrencia.alterar_prioridade",
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz SEIS comandos — 16, 19, 22, o resolver do 26, o pausar do 23 e o retomar do 24", () => {
+  it("hoje traz SETE comandos — 16, 19, 22, 26, 23, 24 e o registrar-solucao do 25", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -201,6 +205,7 @@ describe("comandosDisponiveis", () => {
       "iniciar-atendimento",
       "pausar",
       "retomar",
+      "registrar-solucao-aplicada",
       "resolver",
     ]);
   });
@@ -353,6 +358,23 @@ describe("comandosDisponiveis", () => {
     expect(de("resolvida")).toStrictEqual([]);
   });
 
+  it("com o filtro LIGADO, os quatro recusados continuam sem ele — a recusa é da tabela, não do filtro", () => {
+    // **O par do caso acima, e a diferença é o filtro.** Aquele prova a janela com `filtro: null`; este
+    // prova que, com o comando já implementado, a recusa dos quatro estados continua vindo da tabela
+    // companheira. Sem os dois lados, um `[]` por comando-não-implementado passaria por recusa de estado.
+    const de = (status: "aberta" | "em_analise" | "resolvida" | "cancelada") =>
+      comandosDisponiveis({
+        status,
+        permissoes: ["ocorrencia.registrar_solucao"],
+        ehAutor: false,
+        temResponsavel: true,
+      });
+
+    for (const status of ["aberta", "em_analise", "resolvida", "cancelada"] as const) {
+      expect(de(status)).toStrictEqual([]);
+    }
+  });
+
   it("avaliar só em resolvida, só do autor, e some depois de avaliada (invariante 8)", () => {
     const base = { permissoes: ["ocorrencia.avaliar"], temResponsavel: false, filtro: null };
 
@@ -443,7 +465,7 @@ describe("comandosDisponiveis", () => {
     }
   });
 
-  it("em em_atendimento o Gestor vê atribuir e resolver, nessa ordem — a §3.8 da spec", () => {
+  it("em em_atendimento o Gestor vê atribuir, registrar solução e resolver — na ordem do enum", () => {
     // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
     // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
     //
@@ -457,7 +479,7 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "resolver"]);
+    ).toStrictEqual(["atribuir-responsavel", "registrar-solucao-aplicada", "resolver"]);
   });
 
   it("o Solicitante autor em em_atendimento continua com a lista VAZIA — o critério 26.3 na lista", () => {
@@ -522,10 +544,9 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece atribuir-responsavel e retomar — os outros três não existem ainda", () => {
+  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — os outros dois não existem ainda", () => {
     // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
-    // ordenar a barra. Os três que faltam são `registrar-solucao-aplicada` (item 25),
-    // `alterar-prioridade` (17) e `cancelar` (18).
+    // ordenar a barra. Os dois que faltam são `alterar-prioridade` (17) e `cancelar` (18).
     expect(
       comandosDisponiveis({
         status: "pausada",
@@ -533,17 +554,16 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "retomar"]);
+    ).toStrictEqual(["atribuir-responsavel", "retomar", "registrar-solucao-aplicada"]);
   });
 
   it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
-    // **A lista de permissões é montada aqui, e não é `TODAS`** — ela não tem
-    // `ocorrencia.registrar_solucao`, e com ela este caso devolveria quatro. É o mesmo movimento dos
-    // casos de `registrar-solucao-aplicada` e de `avaliar`, que também montam a própria lista.
+    // **`TODAS` já basta desde o item 25**: a permissão `ocorrencia.registrar_solucao` entrou na lista
+    // quando o comando passou a ser oferecido de verdade. A concatenação que morava aqui virou ruído.
     expect(
       comandosDisponiveis({
         status: "pausada",
-        permissoes: [...TODAS, "ocorrencia.registrar_solucao"],
+        permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
         filtro: null,

@@ -50,7 +50,8 @@ export function rotuloDePrioridade(prioridade: Prioridade): string {
  * conjunto que a barra pode renderizar já é decidido por `COMANDOS_IMPLEMENTADOS`, não por este mapa.
  *
  * **O esquecimento é alto, não silencioso:** o teste de interface percorre `COMANDOS_IMPLEMENTADOS` e
- * exige rótulo para cada um.
+ * exige rótulo de todo comando **que a barra renderiza como botão**. Os dois de baixo são exceção
+ * **asserida**, com caso próprio — nunca filtro silencioso.
  *
  * **Dois comandos nunca vão entrar aqui**, e não é esquecimento: `alterar-prioridade` é **seletor no bloco
  * de identidade** e `registrar-solucao-aplicada` é **campo no corpo da tela** (`inventario-de-telas.md`).
