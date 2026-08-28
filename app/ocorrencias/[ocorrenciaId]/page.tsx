@@ -7,6 +7,7 @@ import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
+import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import {
   acaoPrimaria,
@@ -14,6 +15,7 @@ import {
   rotuloDeComando,
   rotuloDePrioridade,
   rotulosDeStatus,
+  vazioDaBarra,
 } from "@/interface/componentes/rotulos";
 import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
@@ -198,6 +200,15 @@ export default async function Ocorrencia({
   );
 
   /**
+   * **Qual frase o vazio da barra mostra — e a moldura que vem com ela.**
+   *
+   * `null` quando há botão: a tela não mostra frase de vazio e barra ao mesmo tempo. **A regra mora em
+   * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
+   * que mantém `app/` sem `import` do Domínio desde o item 11.
+   */
+  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
+
+  /**
    * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
    * nenhum e não ganha um `if` por comando.
    *
@@ -217,6 +228,20 @@ export default async function Ocorrencia({
         rotuloDeConfirmar="Iniciar"
         verboEnviando="Iniciando…"
         variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+      />
+    ),
+    /**
+     * **Entra SEMPRE, como o de `iniciar-atendimento`.** A diferença de custo continua sendo a mesma: o
+     * modal de atribuição precisa da lista de candidatos, que é uma consulta a mais; este não precisa de
+     * nada além do que a página já leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis`.
+     */
+    resolver: (
+      <ModalDeResolucao
+        ocorrenciaId={detalhe.id}
+        // **Hoje sempre `null`** — nada escreve a coluna antes desta fatia. Passa a ter caso no item 25.
+        solucaoAplicadaAtual={detalhe.solucaoAplicada}
+        variante={primario === "resolver" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
       />
     ),
@@ -333,18 +358,23 @@ export default async function Ocorrencia({
         **A barra de ações, e o vazio dela.** A tela renderiza *exatamente* `acoesDisponiveis` — nada
         desabilitado, nada cinza (`inventario-de-telas.md`).
 
-        **Com a lista vazia, a nota tracejada FICA**, e isso é decisão do hub (P1 desta fatia): renderizar
-        nada é o `200` silencioso que a §8.5 do contrato existe para impedir — *"a tela não distingue 'não
-        há o que fazer' de 'algo falhou ao montar a lista'"*. E o vazio não é a borda: depois desta fatia
-        ele é o caso **dominante**, e o Gestor cai nele no instante seguinte a clicar em Analisar.
+        **Com a lista vazia há SEMPRE uma frase**, e desde o item 26 são duas: renderizar nada é o `200`
+        silencioso que a §8.5 do contrato existe para impedir — *"a tela não distingue 'não há o que
+        fazer' de 'algo falhou ao montar a lista'"*.
 
-        **O inciso que nomeava os comandos saiu**, porque mentiria no item que entrega o primeiro deles.
-        A borda tracejada fica: é o que marca andaime declarado, e não UI de produto. **Sai no item 27**,
-        quando o último comando existir.
+        **A moldura é parte da mensagem.** Tracejada marca **andaime declarado** — comandos que ainda vão
+        chegar, e ela sai no item 27. Sólida é **UI de produto**: em `resolvida` e em `cancelada` não há
+        mesmo o que fazer, e nunca haverá. Escrever a frase de produto no vazio de andaime seria mentir
+        sobre o estado da ocorrência; escrever a de andaime no terminal seria prometer comando que nunca
+        vem.
       */}
-      {renderizaveis.length === 0 && (
-        <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-          Os comandos da ocorrência chegam nos próximos itens.
+      {vazio !== null && (
+        <p
+          className={`border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-xs leading-relaxed ${
+            vazio.andaime ? "border-dashed" : ""
+          }`}
+        >
+          {vazio.texto}
         </p>
       )}
 

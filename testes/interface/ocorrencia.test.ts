@@ -32,6 +32,7 @@ import {
   nomesDeStatus,
   rotuloDeComando,
   rotulosDeStatus,
+  vazioDaBarra,
 } from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
@@ -1137,5 +1138,55 @@ describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", 
     expect(conferido.success).toBe(true);
     expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
     expect(conferido.data!.observacao).toBe("Conferido.");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Qual frase o vazio da barra mostra — o critério 26.6
+ * ============================================================================
+ *
+ * **São dois vazios diferentes, e o erro clássico é usar um no lugar do outro** — que é uma decisão, e
+ * por isso mora numa função com teste, e não num `?:` dentro do JSX. É a mesma forma do `vazioDaLista`
+ * do item 14.
+ *
+ * **A função devolve o PAR** (D-P2 do plano): a moldura é metade da decisão. Tracejada marca **andaime
+ * declarado**; sólida é **UI de produto**. Devolver só a frase deixaria a segunda metade no JSX, e a
+ * página passaria a importar `ehTerminal` do Domínio.
+ */
+describe("vazioDaBarra — as duas frases do vazio de T-05", () => {
+  it("nos dois terminais, a frase de produto e a moldura sólida — o critério 26.6", () => {
+    for (const terminal of ["resolvida", "cancelada"] as const) {
+      expect(vazioDaBarra(terminal)).toStrictEqual({
+        texto: "Esta ocorrência está encerrada.",
+        andaime: false,
+      });
+    }
+  });
+
+  it("nos quatro não-terminais, a nota de andaime e a moldura tracejada — o critério 16.6", () => {
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento)).toStrictEqual({
+        texto: "Os comandos da ocorrência chegam nos próximos itens.",
+        andaime: true,
+      });
+    }
+  });
+
+  it("responde para os SEIS status, e as duas frases são mutuamente exclusivas", () => {
+    // **Nunca existe barra vazia sem texto**, que é o `200` silencioso que a §8.5 do contrato existe
+    // para impedir. E nunca existe texto ambíguo: um status cai num ramo só.
+    const textos = new Set(STATUS.map((status) => vazioDaBarra(status).texto));
+    expect(textos.size).toBe(2);
+    for (const status of STATUS) {
+      expect(vazioDaBarra(status).texto.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
+    // **`cancelada` ainda é inalcançável no produto** (item 18), e mesmo assim responde certo: a função
+    // pergunta ao Domínio em vez de listar os terminais pela segunda vez.
+    expect(vazioDaBarra("cancelada").andaime).toBe(false);
+    expect(vazioDaBarra("em_atendimento").andaime).toBe(true);
   });
 });
