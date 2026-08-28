@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   analisarOcorrencia,
   atribuirResponsavel,
+  iniciarAtendimento,
   OcorrenciaNaoEncontrada,
+  ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
   type OcorrenciaCarregada,
@@ -408,5 +410,148 @@ describe("atribuirResponsavel", () => {
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
 
     expect(atribuidos).toHaveLength(0);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `iniciarAtendimento` — a primeira recusa do produto que não olha `status`
+ * ============================================================================
+ *
+ * **Duas recusas de `409` no mesmo comando**, e a ordem entre elas é do contrato: o exemplo
+ * `semResponsavel` do `openapi.yaml` traz `statusAtual: "em_analise"`, quer dizer que para chegar naquele
+ * erro a ocorrência **já passou** pela conferência de estado.
+ */
+describe("iniciarAtendimento", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-28T15:20:00.000Z" };
+
+  it("caminho feliz: o agregado ATRAVESSADO chega ao repositório em em_atendimento — critério 22.1", async () => {
+    const lida = await iniciarAtendimento(
+      repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: true }),
+      ctx,
+      { ocorrenciaId: ID, observacao: "O Zelador começa amanhã." },
+    );
+
+    const gravado = aplicados[0]!;
+    expect(gravado.status).toBe("em_atendimento");
+    expect(gravado.trilha).toHaveLength(2);
+    expect(gravado.ultimaTransicao.statusAnterior).toBe("em_analise");
+    expect(gravado.ultimaTransicao.autorPessoaId).toBe(GESTOR);
+    expect(gravado.ultimaTransicao.ocorreuEm).toBe("2026-08-28T15:20:00.000Z");
+    expect(gravado.ultimaTransicao.observacao).toBe("O Zelador começa amanhã.");
+
+    expect(lida.status).toBe("em_atendimento");
+  });
+
+  it("observação em branco vira null — string vazia não entra numa trilha append-only", async () => {
+    await iniciarAtendimento(
+      repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: true }),
+      ctx,
+      { ocorrenciaId: ID, observacao: "   " },
+    );
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBeNull();
+  });
+
+  it("SEM responsável: 409 RESPONSAVEL_NAO_ATRIBUIDO, e aplicarTransicao NÃO é chamado — critério 22.2", async () => {
+    const erro = await iniciarAtendimento(
+      repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: false }),
+      ctx,
+      { ocorrenciaId: ID },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(ResponsavelNaoAtribuido);
+    const recusa = erro as ResponsavelNaoAtribuido;
+    expect(recusa.codigo).toBe("RESPONSAVEL_NAO_ATRIBUIDO");
+    // **Os textos são os do `openapi.yaml`, literais** — `detail` publicado é contrato.
+    expect(recusa.titulo).toBe("Ninguém atribuído");
+    expect(recusa.detalhe).toBe("Atribua um responsável antes de iniciar o atendimento.");
+    // **As DUAS extensões, como o exemplo mostra.**
+    expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel"]);
+
+    // **Nenhum registro é criado** — e é estrutural: o `insert` só existe dentro de `aplicarTransicao`.
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("fora de em_analise: 409 TRANSICAO_NAO_PERMITIDA, COM as duas extensões — critério 22.4", async () => {
+    for (const status of ["aberta", "em_atendimento", "pausada", "resolvida", "cancelada"] as const) {
+      aplicados = [];
+      const erro = await iniciarAtendimento(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID },
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe(status);
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("status errado E sem responsável dá TRANSICAO_NAO_PERMITIDA — a ordem é a do contrato", async () => {
+    // O exemplo `semResponsavel` do `openapi.yaml` traz `statusAtual: "em_analise"`: para chegar nele, a
+    // ocorrência já passou pela conferência de estado. Conferir o responsável antes contaria, a quem o
+    // comando ia recusar de qualquer jeito, um fato sobre a organização.
+    const erro = await iniciarAtendimento(
+      repositorio({ cargas: [agregadoEm("aberta")], temResponsavel: false }),
+      ctx,
+      { ocorrenciaId: ID },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect(erro).not.toBeInstanceOf(ResponsavelNaoAtribuido);
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      iniciarAtendimento(repositorio({ cargas: [null] }), ctx, { ocorrenciaId: ID }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("quem não alcança a ocorrência recebe o MESMO 404 — §6.3", async () => {
+    const semLerTodas = {
+      pessoaId: GESTOR,
+      permissoes: ["ocorrencia.iniciar_atendimento", "ocorrencia.ler_propria"],
+    };
+
+    await expect(
+      iniciarAtendimento(
+        repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: true }),
+        semLerTodas,
+        { ocorrenciaId: ID },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("a corrida entre dois Gestores: conflito vira 409 com o status que de fato está lá agora", async () => {
+    const erro = await iniciarAtendimento(
+      repositorio({
+        cargas: [agregadoEm("em_analise"), agregadoEm("em_atendimento")],
+        temResponsavel: true,
+        conflito: true,
+      }),
+      ctx,
+      { ocorrenciaId: ID },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("em_atendimento");
+    // Duas leituras: a de entrada e a releitura do conflito.
+    expect(carregados).toHaveLength(2);
+  });
+
+  it("conflito com a ocorrência sumindo na releitura degrada para 404, não para 500", async () => {
+    await expect(
+      iniciarAtendimento(
+        repositorio({ cargas: [agregadoEm("em_analise"), null], temResponsavel: true, conflito: true }),
+        ctx,
+        { ocorrenciaId: ID },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
   });
 });

@@ -1,5 +1,7 @@
 import { comandosDisponiveis, TransicaoNaoPermitida, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
+import { ResponsavelNaoAtribuido } from "./erros";
+
 /**
  * ============================================================================
  *  O que TODO comando de ocorrência precisa — e por que isto saiu do `analisar`
@@ -72,6 +74,32 @@ export function recusaDeTransicao(
       permissoes: ctx.permissoes,
       ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
       temResponsavel: carregada.temResponsavel,
+    }),
+  );
+}
+
+/**
+ * O corpo do **outro** `409` — o da invariante 9 (critério 22.2).
+ *
+ * **Irmão de `recusaDeTransicao`, e mora aqui pela mesma razão que ela**: duas construções do mesmo corpo
+ * em arquivos diferentes seriam a cópia que sempre diverge. As extensões são as **duas** que o exemplo
+ * `semResponsavel` do contrato mostra.
+ *
+ * **Recebe o estado, e não o envelope**, e a assimetria é a informação: `temResponsavel` é **`false` por
+ * construção** — é exatamente por isso que estamos aqui. Passar o envelope daria a quem chama a chance de
+ * informar `true` e produzir um corpo que se contradiz.
+ */
+export function recusaPorFaltaDeResponsavel(
+  ocorrencia: EstadoDaOcorrencia,
+  ctx: ContextoDoComando,
+): ResponsavelNaoAtribuido {
+  return new ResponsavelNaoAtribuido(
+    ocorrencia.status,
+    comandosDisponiveis({
+      status: ocorrencia.status,
+      permissoes: ctx.permissoes,
+      ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
+      temResponsavel: false,
     }),
   );
 }

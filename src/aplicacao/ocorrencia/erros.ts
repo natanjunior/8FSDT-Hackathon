@@ -1,6 +1,6 @@
 import { AreaInvalida } from "@/aplicacao/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
-import { TransicaoNaoPermitida } from "@/dominio/ocorrencia";
+import { TransicaoNaoPermitida, type Comando, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
 /** Reexportadas, nao redefinidas — ver as notas abaixo. */
 export { AreaInvalida, TransicaoNaoPermitida };
@@ -73,6 +73,32 @@ export class ResponsavelSemVinculoAtivo extends ErroDeDominio {
       "RESPONSAVEL_SEM_VINCULO_ATIVO",
       "Pessoa sem vínculo ativo",
       "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+    );
+  }
+}
+
+/**
+ * `409 RESPONSAVEL_NAO_ATRIBUIDO` — a **invariante 9** recusando (critério 22.2).
+ *
+ * **Nasce aqui e não no Domínio, ao contrário de `TransicaoNaoPermitida`.** Aquela mora em
+ * `dominio/ocorrencia/erros.ts` *"porque é recusa da máquina de estados"*. **Esta não é**: é a recusa da
+ * invariante que a `arquitetura.md` §4 classifica como *do comando de aplicação*, *"porque atravessa
+ * outra tabela no momento em que o comando roda"*. O lugar dela é ao lado de `ResponsavelSemVinculoAtivo`,
+ * que nasceu aqui pela mesma razão, no item 19.
+ *
+ * **É a única recusa do produto que não olha `status`** — e mesmo assim carrega `statusAtual`, porque a
+ * tela que monta a frase precisa dele tanto quanto no outro `409`.
+ *
+ * **Os textos são os do `openapi.yaml:1782-1784`, literais**: `detail` publicado é contrato, não frase
+ * nova. E o `codigo` **já está mapeado para 409** em `problema.ts` — nada muda lá.
+ */
+export class ResponsavelNaoAtribuido extends ErroDeDominio {
+  constructor(statusAtual: StatusOcorrencia, acoesDisponiveis: readonly Comando[]) {
+    super(
+      "RESPONSAVEL_NAO_ATRIBUIDO",
+      "Ninguém atribuído",
+      "Atribua um responsável antes de iniciar o atendimento.",
+      { statusAtual, acoesDisponiveis },
     );
   }
 }
