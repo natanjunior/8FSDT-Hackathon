@@ -602,22 +602,49 @@ describe("a transição contra Postgres", () => {
 
   /** O agregado carregado, já analisado — o que a porta de escrita recebe. */
   async function analisado(id: string): Promise<Ocorrencia> {
-    const agregado = await portas().ocorrencias.carregar(id);
-    expect(agregado).not.toBeNull();
-    return agregado!.analisar({ autorPessoaId: pessoaId, ocorreuEm: new Date().toISOString() });
+    const carregada = await portas().ocorrencias.carregar(id);
+    expect(carregada).not.toBeNull();
+    return carregada!.ocorrencia.analisar({
+      autorPessoaId: pessoaId,
+      ocorreuEm: new Date().toISOString(),
+    });
   }
 
   it("carregar reidrata o agregado com a trilha inteira", async () => {
     const id = await registrada("Reidratação");
-    const agregado = await portas().ocorrencias.carregar(id);
+    const carregada = await portas().ocorrencias.carregar(id);
 
-    expect(agregado?.status).toBe("aberta");
-    expect(agregado?.prioridade).toBe("normal");
-    expect(agregado?.autorPessoaId).toBe(pessoaId);
-    expect(agregado?.areaTipo).toBe("comum");
-    expect(agregado?.trilha).toHaveLength(1);
-    expect(agregado?.ultimaTransicao.sequencia).toBe(1);
-    expect(agregado?.ultimaTransicao.statusAnterior).toBeNull();
+    expect(carregada?.ocorrencia.status).toBe("aberta");
+    expect(carregada?.ocorrencia.prioridade).toBe("normal");
+    expect(carregada?.ocorrencia.autorPessoaId).toBe(pessoaId);
+    expect(carregada?.ocorrencia.areaTipo).toBe("comum");
+    expect(carregada?.ocorrencia.trilha).toHaveLength(1);
+    expect(carregada?.ocorrencia.ultimaTransicao.sequencia).toBe(1);
+    expect(carregada?.ocorrencia.ultimaTransicao.statusAnterior).toBeNull();
+  });
+
+  it("carregar apura temResponsavel no MESMO select — sem atribuição é false, com atribuição vigente é true", async () => {
+    const id = await registrada("O exists da invariante 9");
+
+    expect((await portas().ocorrencias.carregar(id))?.temResponsavel).toBe(false);
+
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+       values ($1, $2, $3, $3)`,
+      [organizacaoId, id, pessoaId],
+    );
+
+    expect((await portas().ocorrencias.carregar(id))?.temResponsavel).toBe(true);
+
+    // **Encerrada não conta**, e é o `where encerrada_em is null` do `exists`: o índice único parcial
+    // permite a segunda linha justamente porque a primeira saiu de cena.
+    await consultaCrua(
+      `update atribuicoes set encerrada_em = now(), motivo_encerramento = 'reatribuicao'
+        where ocorrencia_id = $1`,
+      [id],
+    );
+
+    expect((await portas().ocorrencias.carregar(id))?.temResponsavel).toBe(false);
   });
 
   it("carregar devolve null para id que não existe nesta organização", async () => {

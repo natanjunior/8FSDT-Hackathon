@@ -215,6 +215,37 @@ export type ResultadoDaAtribuicao =
   | { desfecho: "responsavel-sem-vinculo-ativo" }
   | { desfecho: "conflito" };
 
+/**
+ * ============================================================================
+ *  O que a porta de ESCRITA devolve — o agregado, **e o fato que ele não tem**
+ * ============================================================================
+ *
+ * `carregar` devolvia `Ocorrencia | null`, e a justificativa continua valendo inteira: *"devolve o
+ * AGREGADO, não `OcorrenciaLida`, e a diferença é a invariante 1"*. **O que a redação não previu é que as
+ * invariantes 9 e 10** — as duas que a `arquitetura.md` §4 pôs na Aplicação — **precisam, junto do
+ * agregado, de fatos de fora dele**, e precisam deles até para montar o corpo de um `409`:
+ * `recusaDeTransicao` deriva `acoesDisponiveis` de quem pergunta, e a partir do item 22 essa derivação
+ * pergunta se há responsável.
+ *
+ * **Por que um envelope e não uma porta nova.** Uma `temResponsavelVigente(id)` seria uma **terceira ida
+ * ao banco** em todo comando que precise montar um `409` — hoje são duas —, e abriria a janela entre as
+ * duas leituras sem comprar nada. Aqui o fato sai do **mesmo `select`** do agregado, num `exists`
+ * correlacionado: nenhuma consulta a mais, nenhum `join`.
+ *
+ * **Por que não dentro do agregado.** `reconstituir` receber `temResponsavel` moveria a invariante 9 para
+ * dentro do limite, contra a `arquitetura.md` §4 e contra a §3.1 da spec do item 19, que pôs a Atribuição
+ * **fora** dele. Mudar o lado do limite é decisão de arquitetura, não de fatia.
+ *
+ * **O lugar já está pronto para o segundo fato do mesmo tipo:** a **invariante 10** — *"`resolver` não
+ * exige solução aplicada; depende da configuração da `Organização`"* — é a próxima a precisar disto, e é
+ * do item 26.
+ */
+export type OcorrenciaCarregada = {
+  ocorrencia: Ocorrencia;
+  /** Há atribuição vigente? A invariante 9, apurada no **mesmo** `select` do agregado. */
+  temResponsavel: boolean;
+};
+
 export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Recebe o agregado, não um DTO — e a diferença é a invariante 1.**
@@ -239,8 +270,11 @@ export interface RepositorioEscopadoDeOcorrencias {
    *
    * **Não traz anexos**, e o agregado diz isso em voz alta em vez de devolver lista vazia:
    * `AnexoDaOcorrencia` carrega `chave`, e `objetoDoAnexo` é a única leitura do produto que a devolve.
+   *
+   * **Devolve um ENVELOPE desde o item 22** — `OcorrenciaCarregada`, com o agregado dentro e o fato da
+   * invariante 9 ao lado. Ver o comentário do tipo, logo acima.
    */
-  carregar(id: string): Promise<Ocorrencia | null>;
+  carregar(id: string): Promise<OcorrenciaCarregada | null>;
 
   /**
    * **Transcreve a transição que o agregado decidiu, num `COMMIT` só** — `update` da raiz mais `insert`

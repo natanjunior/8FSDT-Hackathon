@@ -37,23 +37,41 @@ export type EstadoDaOcorrencia = {
 };
 
 /**
+ * O agregado (ou qualquer objeto de leitura que responda por ele) **mais o fato de fora dele**.
+ *
+ * **Estrutural, como `EstadoDaOcorrencia`:** `OcorrenciaCarregada` — o que a porta devolve — é atribuível
+ * a este tipo sem nenhuma conversão, porque `Ocorrencia` tem os dois getters. Quem chama passa o valor
+ * que já tem na mão, sem desmontar e remontar.
+ */
+export type EstadoCarregado = {
+  ocorrencia: EstadoDaOcorrencia;
+  /** A invariante 9. Ver `PerguntaDeAcoes.temResponsavel`. */
+  temResponsavel: boolean;
+};
+
+/**
  * O corpo do `409`, montado **num lugar só** — as guardas de estado, os conflitos de escrita e as
  * releituras dos dez comandos chegam aqui.
+ *
+ * **Ela recebe o ENVELOPE desde o item 22**, e não o agregado: `acoesDisponiveis` passou a depender de um
+ * fato que o agregado não tem — se há responsável atribuído. Sem ele, o `409` de `analisar` chamado em
+ * `em_analise` listaria `iniciar-atendimento` ou o esconderia, e estaria errado num dos dois sentidos.
  *
  * **`jaAvaliada` não é informado, e a omissão é declarada:** ela só muda a presença de `avaliar`, que é
  * filtrado por `COMANDOS_IMPLEMENTADOS` enquanto o item 27 não existir. É o **item 27** que traz a
  * avaliação para dentro do agregado, porque é ele que precisa dela para o próprio comando.
  */
 export function recusaDeTransicao(
-  ocorrencia: EstadoDaOcorrencia,
+  carregada: EstadoCarregado,
   ctx: ContextoDoComando,
 ): TransicaoNaoPermitida {
   return new TransicaoNaoPermitida(
-    ocorrencia.status,
+    carregada.ocorrencia.status,
     comandosDisponiveis({
-      status: ocorrencia.status,
+      status: carregada.ocorrencia.status,
       permissoes: ctx.permissoes,
-      ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
+      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
+      temResponsavel: carregada.temResponsavel,
     }),
   );
 }

@@ -6,6 +6,7 @@ import {
   OcorrenciaNaoEncontrada,
   ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
+  type OcorrenciaCarregada,
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
@@ -37,6 +38,7 @@ const DO_GESTOR = [
   "ocorrencia.ler_todas",
   "ocorrencia.analisar",
   "ocorrencia.atribuir",
+  "ocorrencia.iniciar_atendimento",
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
 ];
@@ -112,6 +114,11 @@ let atribuidos: { ocorrenciaId: string; dados: unknown }[];
 function repositorio(opcoes: {
   /** O que cada `carregar` devolve, na ordem; o último valor se repete. */
   cargas: readonly (Ocorrencia | null)[];
+  /**
+   * Se há atribuição vigente — o fato que o envelope de `carregar` passou a carregar (item 22).
+   * **Padrão `false`**, que é o mundo do item 19: nenhuma das cargas deste arquivo tem responsável.
+   */
+  temResponsavel?: boolean;
   conflito?: boolean;
   /** O que `atribuirResponsavel` responde. Padrão: atribuída, sem reatribuição. */
   atribuicao?: (agregado: Ocorrencia) => ResultadoDaAtribuicao;
@@ -120,12 +127,15 @@ function repositorio(opcoes: {
   let ultimaCarga: Ocorrencia | null = null;
 
   return {
-    carregar: async (): Promise<Ocorrencia | null> => {
+    carregar: async (): Promise<OcorrenciaCarregada | null> => {
       const carga = opcoes.cargas[Math.min(chamada, opcoes.cargas.length - 1)] ?? null;
       chamada += 1;
       carregados.push(carga);
       ultimaCarga = carga;
-      return carga;
+      // **O duplo transcreve o envelope, como o repositório de verdade transcreve o agregado.**
+      return carga === null
+        ? null
+        : { ocorrencia: carga, temResponsavel: opcoes.temResponsavel ?? false };
     },
     aplicarTransicao: async (_id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao> => {
       aplicados.push(ocorrencia);

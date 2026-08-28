@@ -15,6 +15,7 @@ export {
   type DadosDaAtribuicao,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
+  type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type PessoaReferencia,

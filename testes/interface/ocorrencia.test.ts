@@ -580,6 +580,37 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
   });
 });
 
+describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeção", () => {
+  /** Um Gestor com as permissões dos três comandos construídos. */
+  const GESTOR_LE = {
+    pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    permissoes: ["ocorrencia.ler_todas", "ocorrencia.atribuir", "ocorrencia.iniciar_atendimento"],
+  };
+
+  const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
+
+  function emAnaliseCom(responsavel: { pessoaId: string; nome: string } | null) {
+    return { ...umaOcorrenciaLidaCom([]), status: "em_analise" as const, responsavel };
+  }
+
+  // **Os dois entram `it.todo` e são ligados na tarefa 4**, quando `COMANDOS_IMPLEMENTADOS` ganhar o
+  // comando: a projeção usa o filtro padrão, e antes disso o primeiro caso passaria por acidente — o
+  // comando está ausente da lista por não existir, não por falta de responsável. Verde por motivo errado
+  // é pior que vermelho.
+  it.todo("sem responsável, iniciar-atendimento NÃO é anunciado — critério 22.3", () => {
+    // A projeção não pergunta a `atribuicoes`: ela lê `responsavel`, que o `lateral` do item 19 preenche.
+    expect(projetarOcorrenciaDetalhe(emAnaliseCom(null), GESTOR_LE).acoesDisponiveis).not.toContain(
+      "iniciar-atendimento",
+    );
+  });
+
+  it.todo("com responsável, ele é anunciado — e o campo do payload continua sendo o mesmo", () => {
+    const projetado = projetarOcorrenciaDetalhe(emAnaliseCom(RESPONSAVEL), GESTOR_LE);
+    expect(projetado.acoesDisponiveis).toContain("iniciar-atendimento");
+    expect(projetado.responsavel).toStrictEqual(RESPONSAVEL);
+  });
+});
+
 describe("`?variante=`", () => {
   const url = (consulta: string) => new Request(`http://local/api/x${consulta}`);
 

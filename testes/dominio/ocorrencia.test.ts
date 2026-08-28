@@ -183,6 +183,7 @@ describe("comandosDisponiveis", () => {
   const TODAS = [
     "ocorrencia.analisar",
     "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
     "ocorrencia.alterar_prioridade",
     "ocorrencia.cancelar_qualquer",
   ];
@@ -196,7 +197,14 @@ describe("comandosDisponiveis", () => {
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
     // **Na ordem do enum `Comando`**, que é o que dispensa o cliente de ter uma segunda lista só para
     // ordenar a barra.
-    expect(comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false })).toStrictEqual([
+    expect(
+      comandosDisponiveis({
+        status: "aberta",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: false,
+      }),
+    ).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
     ]);
@@ -205,16 +213,26 @@ describe("comandosDisponiveis", () => {
   it("em em_analise sobra o atribuir — a lista deixa de ser vazia, e o critério 16.6 muda de caso", () => {
     // Era `[]` até o item 19: `analisar` sai da lista assim que a ocorrência é analisada, e não havia
     // outro comando construído. Agora o Gestor tem o que fazer no instante seguinte à triagem.
-    expect(comandosDisponiveis({ status: "em_analise", permissoes: TODAS, ehAutor: false })).toStrictEqual(
-      ["atribuir-responsavel"],
-    );
+    expect(
+      comandosDisponiveis({
+        status: "em_analise",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: false,
+      }),
+    ).toStrictEqual(["atribuir-responsavel"]);
   });
 
   it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
     for (const terminal of ["resolvida", "cancelada"] as const) {
-      expect(comandosDisponiveis({ status: terminal, permissoes: TODAS, ehAutor: false })).toStrictEqual(
-        [],
-      );
+      expect(
+        comandosDisponiveis({
+          status: terminal,
+          permissoes: TODAS,
+          ehAutor: false,
+          temResponsavel: false,
+        }),
+      ).toStrictEqual([]);
     }
   });
 
@@ -224,7 +242,13 @@ describe("comandosDisponiveis", () => {
    * que não havia derivação nenhuma.
    */
   it("com o filtro desligado, deriva de verdade da tabela × permissões", () => {
-    const semFiltro = { status: "aberta" as const, permissoes: TODAS, ehAutor: false, filtro: null };
+    const semFiltro = {
+      status: "aberta" as const,
+      permissoes: TODAS,
+      ehAutor: false,
+      temResponsavel: false,
+      filtro: null,
+    };
 
     expect(comandosDisponiveis(semFiltro)).toStrictEqual([
       "analisar",
@@ -239,6 +263,7 @@ describe("comandosDisponiveis", () => {
       status: "em_atendimento",
       permissoes: ["ocorrencia.pausar", "ocorrencia.resolver", "ocorrencia.cancelar_qualquer"],
       ehAutor: false,
+      temResponsavel: false,
       filtro: null,
     });
 
@@ -251,6 +276,7 @@ describe("comandosDisponiveis", () => {
         status: "aberta",
         permissoes: ["ocorrencia.registrar", "ocorrencia.cancelar_propria"],
         ehAutor: true,
+        temResponsavel: false,
         filtro: null,
       }),
     ).toStrictEqual(["cancelar"]);
@@ -262,6 +288,7 @@ describe("comandosDisponiveis", () => {
         status: "aberta",
         permissoes: ["ocorrencia.registrar", "ocorrencia.cancelar_propria"],
         ehAutor: false,
+        temResponsavel: false,
         filtro: null,
       }),
     ).toStrictEqual([]);
@@ -269,7 +296,13 @@ describe("comandosDisponiveis", () => {
 
   it("em cancelada a lista é vazia para todo mundo, e vazia é resposta legítima", () => {
     expect(
-      comandosDisponiveis({ status: "cancelada", permissoes: TODAS, ehAutor: true, filtro: null }),
+      comandosDisponiveis({
+        status: "cancelada",
+        permissoes: TODAS,
+        ehAutor: true,
+        temResponsavel: false,
+        filtro: null,
+      }),
     ).toStrictEqual([]);
   });
 
@@ -280,6 +313,7 @@ describe("comandosDisponiveis", () => {
           status: terminal,
           permissoes: ["ocorrencia.atribuir"],
           ehAutor: false,
+          temResponsavel: false,
           filtro: null,
         }),
       ).toStrictEqual([]);
@@ -289,7 +323,7 @@ describe("comandosDisponiveis", () => {
   it("registrar-solucao-aplicada só sai de em_atendimento e pausada", () => {
     const permissoes = ["ocorrencia.registrar_solucao"];
     const de = (status: "aberta" | "em_analise" | "em_atendimento" | "pausada" | "resolvida") =>
-      comandosDisponiveis({ status, permissoes, ehAutor: false, filtro: null });
+      comandosDisponiveis({ status, permissoes, ehAutor: false, temResponsavel: false, filtro: null });
 
     expect(de("em_atendimento")).toStrictEqual(["registrar-solucao-aplicada"]);
     expect(de("pausada")).toStrictEqual(["registrar-solucao-aplicada"]);
@@ -299,7 +333,7 @@ describe("comandosDisponiveis", () => {
   });
 
   it("avaliar só em resolvida, só do autor, e some depois de avaliada (invariante 8)", () => {
-    const base = { permissoes: ["ocorrencia.avaliar"], filtro: null };
+    const base = { permissoes: ["ocorrencia.avaliar"], temResponsavel: false, filtro: null };
 
     expect(comandosDisponiveis({ ...base, status: "resolvida", ehAutor: true })).toStrictEqual([
       "avaliar",
@@ -312,11 +346,80 @@ describe("comandosDisponiveis", () => {
   });
 
   it("alterar-prioridade é congelada nos terminais (invariante 7, D6)", () => {
-    const base = { permissoes: ["ocorrencia.alterar_prioridade"], ehAutor: false, filtro: null };
+    const base = {
+      permissoes: ["ocorrencia.alterar_prioridade"],
+      ehAutor: false,
+      temResponsavel: false,
+      filtro: null,
+    };
 
     expect(comandosDisponiveis({ ...base, status: "aberta" })).toStrictEqual(["alterar-prioridade"]);
     expect(comandosDisponiveis({ ...base, status: "resolvida" })).toStrictEqual([]);
     expect(comandosDisponiveis({ ...base, status: "cancelada" })).toStrictEqual([]);
+  });
+
+  /**
+   * **A quarta entrada da derivação — a invariante 9** (contrato §8.5, terceira fonte).
+   *
+   * `filtro: null` de propósito: `iniciar-atendimento` só entra em `COMANDOS_IMPLEMENTADOS` na tarefa 4,
+   * e o que se prova aqui é a **derivação**, não o filtro. É exatamente para isto que `filtro: null`
+   * existe (`MaquinaDeEstados.ts`).
+   */
+  it("sem responsável, iniciar-atendimento SOME de em_analise — critério 22.3", () => {
+    expect(
+      comandosDisponiveis({
+        status: "em_analise",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: false,
+        filtro: null,
+      }),
+    ).toStrictEqual(["atribuir-responsavel", "alterar-prioridade", "cancelar"]);
+  });
+
+  it("com responsável, ele APARECE — e na ordem do enum, depois de atribuir", () => {
+    expect(
+      comandosDisponiveis({
+        status: "em_analise",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: true,
+        filtro: null,
+      }),
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "iniciar-atendimento",
+      "alterar-prioridade",
+      "cancelar",
+    ]);
+  });
+
+  it("temResponsavel NÃO afeta comando nenhum além do iniciar-atendimento", () => {
+    // **A invariante 9 é sobre um comando só.** Se um dia ela vazar para outro, este caso quebra — e é
+    // mais barato do que descobrir pela tela.
+    //
+    // **`STATUS_TODOS`, e não `STATUS` do Domínio**: o arquivo escreve os seis à mão de propósito —
+    // *"um teste que importasse `STATUS` do Domínio provaria a constante contra ela mesma"*.
+    for (const status of STATUS_TODOS) {
+      const sem = comandosDisponiveis({
+        status,
+        permissoes: TODAS,
+        ehAutor: true,
+        temResponsavel: false,
+        filtro: null,
+      });
+      const com = comandosDisponiveis({
+        status,
+        permissoes: TODAS,
+        ehAutor: true,
+        temResponsavel: true,
+        filtro: null,
+      });
+
+      expect(com.filter((comando) => comando !== "iniciar-atendimento")).toStrictEqual(
+        sem.filter((comando) => comando !== "iniciar-atendimento"),
+      );
+    }
   });
 });
 
