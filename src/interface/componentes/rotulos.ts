@@ -42,6 +42,55 @@ export function rotuloDeComando(comando: Comando): string | null {
 }
 
 /**
+ * ============================================================================
+ *  Qual ação ganha ênfase em T-05 — o achado **R-08**, decidido em 28/08/2026
+ * ============================================================================
+ *
+ * O contrato §8.5 declara a ordem de `acoesDisponiveis` e diz, em letra, que *"não é promessa de
+ * destaque: qual ação ganha ênfase é decisão de tela"*. **Esta é a decisão de tela**, e ela mora aqui
+ * porque `rotulos.ts` já é o módulo do que a tela sabe sobre comandos.
+ *
+ * **É uma tabela por status, e não uma derivação por `transicaoPermitida`.** A derivação erraria em dois
+ * estados: em `em_atendimento` daria *Pausar* em vez de *Resolver*, e em `em_analise` **sem** responsável
+ * daria *Pausar* em vez de *Atribuir*, porque `atribuir-responsavel` mora na tabela companheira e a
+ * derivação o pula. Uma regra que acerta por coincidência nos estados de hoje é como o R-08 nasceu.
+ *
+ * **Entrada cujo comando ainda não existe é INERTE**, e é o que permite escrevê-la completa hoje: a
+ * tabela não anuncia botão nenhum — quem decide o que aparece é `COMANDOS_IMPLEMENTADOS`. Ela só diz qual
+ * das ações **já renderizadas** ganha ênfase. **Consequência: os itens 23 a 27 não a editam.**
+ *
+ * **O conserto do documento não é desta fatia** — o inventário de telas não tem esta regra, e isso é o
+ * item 17 da `trabalho/fila-documentacao.md`.
+ */
+const ACAO_PRIMARIA: Readonly<Record<StatusOcorrencia, Comando | null>> = {
+  aberta: "analisar",
+  em_analise: "iniciar-atendimento",
+  em_atendimento: "resolver",
+  pausada: "retomar",
+  resolvida: "avaliar",
+  cancelada: null,
+};
+
+/**
+ * O comando em destaque, dado o status e o que a tela **consegue** renderizar.
+ *
+ * **O desempate:** se o comando nomeado não está entre os renderizáveis, o primário é o **primeiro
+ * renderizável**; se não há nenhum, não há primário.
+ *
+ * **Recebe `readonly string[]` e devolve `string | null`**, e não `Comando`: quem consome é a barra, que
+ * é componente de cliente e não importa tipo do Domínio. A tabela acima é tipada de verdade — é ela que
+ * o compilador cobra quando um status novo nascer.
+ */
+export function acaoPrimaria(
+  status: StatusOcorrencia,
+  renderizaveis: readonly string[],
+): string | null {
+  const nomeada = ACAO_PRIMARIA[status];
+  if (nomeada !== null && renderizaveis.includes(nomeada)) return nomeada;
+  return renderizaveis[0] ?? null;
+}
+
+/**
  * Os rótulos de status **prontos**, para descer por prop até um componente de cliente.
  *
  * **O navegador não monta rótulo** — é a mesma decisão da barra de filtros do item 15. E é mais que

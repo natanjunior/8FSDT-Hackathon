@@ -6,8 +6,10 @@ import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/apl
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
+import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import {
+  acaoPrimaria,
   nomesDeStatus,
   rotuloDeComando,
   rotuloDePrioridade,
@@ -171,35 +173,67 @@ export default async function Ocorrencia({
     : [];
 
   /**
-   * **Comando com formulário se monta sozinho** (spec §3.9). A barra recebe o nó pronto; ela não conhece
-   * `atribuir-responsavel` e não ganha um `if` por comando.
-   *
-   * **`variante` é decidida aqui** porque é a página que sabe qual ação é a primeira — e em `aberta` a
-   * ordem do enum dá `analisar` primeiro, que **é** a ação de volume da triagem.
-   */
-  const formularios = podeAtribuir
-    ? {
-        "atribuir-responsavel": (
-          <ModalDeAtribuicao
-            ocorrenciaId={detalhe.id}
-            candidatos={candidatos}
-            responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
-            rotulosDeStatus={rotulos}
-            variante={acoes[0]?.comando === "atribuir-responsavel" ? "primario" : "secundario"}
-          />
-        ),
-      }
-    : {};
-
-  /**
    * **A barra só renderiza o que ela consegue renderizar.** Sem o modal, `atribuir-responsavel` viraria um
    * botão de disparo direto que faria `POST` sem `responsavelPessoaId` e levaria `400` — hoje inalcançável
    * (quem tem `ocorrencia.atribuir` tem `vinculo.gerir`), e amanhã não. É a mesma natureza do filtro por
-   * rótulo logo acima: não é uma segunda regra, é a **forma** do comando na tela.
+   * rótulo lá em cima: não é uma segunda regra, é a **forma** do comando na tela.
    */
   const renderizaveis = acoes.filter(
     (acao) => acao.comando !== "atribuir-responsavel" || podeAtribuir,
   );
+
+  /**
+   * **Qual ação ganha ênfase — uma fonte só, e é a mudança do item 22.**
+   *
+   * A tela tinha **duas**: `acoes[0]?.comando` decidia a `variante` do modal, e `indice === 0` decidia a
+   * `variant` do botão dentro da barra. Elas concordavam por sorte. Agora as duas leem o mesmo valor, e a
+   * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos.
+   *
+   * **O R-08 morde aqui**: em `em_analise` com responsável, a ordem do enum daria *Atribuir* como
+   * primeiro renderizável, na tela em que o responsável **acabou de ser atribuído**.
+   */
+  const primario = acaoPrimaria(
+    detalhe.status,
+    renderizaveis.map((acao) => acao.comando),
+  );
+
+  /**
+   * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
+   * nenhum e não ganha um `if` por comando.
+   *
+   * **`iniciar-atendimento` entra SEMPRE, e `atribuir-responsavel` não.** A diferença é custo: o de
+   * atribuição precisa da lista de candidatos, que é uma consulta a mais; este não precisa de nada. Quem
+   * decide se algum deles **aparece** continua sendo `acoesDisponiveis`.
+   */
+  const formularios = {
+    "iniciar-atendimento": (
+      <ModalDeObservacao
+        ocorrenciaId={detalhe.id}
+        comando="iniciar-atendimento"
+        titulo="Iniciar atendimento"
+        descricao="O trabalho começa agora."
+        rotuloDoGatilho="Iniciar atendimento"
+        rotuloDoCampo="Observação (opcional)"
+        rotuloDeConfirmar="Iniciar"
+        verboEnviando="Iniciando…"
+        variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+      />
+    ),
+    ...(podeAtribuir
+      ? {
+          "atribuir-responsavel": (
+            <ModalDeAtribuicao
+              ocorrenciaId={detalhe.id}
+              candidatos={candidatos}
+              responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
+              rotulosDeStatus={rotulos}
+              variante={primario === "atribuir-responsavel" ? "primario" : "secundario"}
+            />
+          ),
+        }
+      : {}),
+  };
 
   return (
     <MolduraDeTela titulo={detalhe.titulo}>
@@ -335,6 +369,7 @@ export default async function Ocorrencia({
         acoes={renderizaveis}
         rotulosDeStatus={rotulos}
         formularios={formularios}
+        primario={primario}
       />
     </MolduraDeTela>
   );
