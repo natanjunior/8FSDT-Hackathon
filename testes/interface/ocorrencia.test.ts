@@ -14,7 +14,9 @@ import {
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
 import {
+  CorpoNaoSuportado,
   FormatoInvalido,
+  lerCorpoOpcional,
   lerCursorDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
@@ -698,5 +700,60 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
     expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
       "Só as minhas",
     ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `corpoOpcional` — o critério 16.7, e por que ele é sobre BYTES
+ * ============================================================================
+ *
+ * Cinco endpoints do `openapi.yaml` declaram `requestBody: required: false` — os quatro comandos de
+ * avanço rotineiro e o `/recusar` do item 8 —, e até aqui todos respondiam `415` a quem não mandasse
+ * corpo. O portão do DoD *"a especificação versionada corresponde ao código"* estava aberto.
+ *
+ * **"Corpo ausente" é ZERO BYTE, e não "sem `content-type`"**, e é isso que impede `corpoOpcional` de
+ * virar máquina de descarte silencioso: um cliente que mande `{"observacao": "…"}` esquecendo o
+ * cabeçalho teria a observação aceita e jogada fora sem resposta.
+ */
+describe("lerCorpoOpcional", () => {
+  const URL_QUALQUER = "http://localhost/api/ocorrencias/x/analisar";
+
+  it("requisição SEM corpo chega com zero byte, e vira objeto vazio", async () => {
+    // A afirmação que o plano precisava provar: `Request` sem `body` devolve string vazia em `.text()`.
+    const requisicao = new Request(URL_QUALQUER, { method: "POST" });
+    expect(await requisicao.clone().text()).toBe("");
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({});
+  });
+
+  it("corpo PRESENTE com content-type que não é JSON continua 415 — nada é descartado em silêncio", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(CorpoNaoSuportado);
+  });
+
+  it("corpo presente com JSON inválido continua 400 FORMATO_INVALIDO", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(FormatoInvalido);
+  });
+
+  it("corpo presente e válido chega inteiro", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({ observacao: "Vou ver o estoque." });
   });
 });
