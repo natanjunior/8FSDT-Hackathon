@@ -11,6 +11,7 @@ export { analisarOcorrencia } from "./analisar-ocorrencia";
 export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
 export { type ContextoDoComando } from "./comando";
 export { iniciarAtendimento } from "./iniciar-atendimento";
+export { pausarOcorrencia } from "./pausar-ocorrencia";
 export {
   type AnexoLido,
   type CursorDeListagem,

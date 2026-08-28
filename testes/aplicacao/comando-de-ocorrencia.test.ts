@@ -5,6 +5,7 @@ import {
   atribuirResponsavel,
   iniciarAtendimento,
   OcorrenciaNaoEncontrada,
+  pausarOcorrencia,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
@@ -42,6 +43,7 @@ const DO_GESTOR = [
   "ocorrencia.analisar",
   "ocorrencia.atribuir",
   "ocorrencia.iniciar_atendimento",
+  "ocorrencia.pausar",
   "ocorrencia.resolver",
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
@@ -671,5 +673,107 @@ describe("resolverOcorrencia", () => {
     expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
     expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
     expect(carregados).toHaveLength(2);
+  });
+});
+
+describe("pausarOcorrencia", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-28T15:20:00.000Z" };
+  const ENTRADA = {
+    ocorrenciaId: ID,
+    motivo: "aguardando_peca" as const,
+    observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.",
+  };
+
+  it("caminho feliz a partir de em_analise: o agregado ATRAVESSADO chega ao repositório em pausada", async () => {
+    const lida = await pausarOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: false }),
+      ctx,
+      ENTRADA,
+    );
+
+    const gravado = aplicados[0]!;
+    expect(gravado.status).toBe("pausada");
+    expect(gravado.ultimaTransicao.statusAnterior).toBe("em_analise");
+    expect(gravado.ultimaTransicao.motivoPausa).toBe("aguardando_peca");
+    expect(gravado.ultimaTransicao.motivoCancelamento).toBeNull();
+    expect(gravado.ultimaTransicao.autorPessoaId).toBe(GESTOR);
+    expect(gravado.ultimaTransicao.ocorreuEm).toBe("2026-08-28T15:20:00.000Z");
+
+    expect(lida.status).toBe("pausada");
+  });
+
+  it("caminho feliz a partir de em_atendimento — a SEGUNDA origem, que é o critério 23.2", async () => {
+    await pausarOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")], temResponsavel: true }),
+      ctx,
+      ENTRADA,
+    );
+
+    // **É o dado que o item 24 vai ler para saber para onde voltar.**
+    expect(aplicados[0]!.ultimaTransicao.statusAnterior).toBe("em_atendimento");
+  });
+
+  it("a observação é APARADA, e nunca vira null — aqui o vazio já foi recusado pelo schema", async () => {
+    await pausarOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_analise")], temResponsavel: false }),
+      ctx,
+      { ...ENTRADA, observacao: "  Sem lâmpada no estoque.  " },
+    );
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBe("Sem lâmpada no estoque.");
+  });
+
+  it("fora das duas origens: 409 TRANSICAO_NAO_PERMITIDA nos QUATRO, e aplicarTransicao NÃO é chamado", async () => {
+    for (const status of ["aberta", "pausada", "resolvida", "cancelada"] as const) {
+      aplicados = [];
+      const erro = await pausarOcorrencia(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        ENTRADA,
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      const recusa = erro as TransicaoNaoPermitida;
+      expect(recusa.extensoes["statusAtual"]).toBe(status);
+      expect(recusa.extensoes["acoesDisponiveis"]).toBeDefined();
+      // **Nenhum registro é criado na recusa** — é estrutural: o insert só existe em aplicarTransicao.
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("o corpo do 409 usa o ENVELOPE: em aberta COM responsável ele lista o que dá para fazer", async () => {
+    const erro = await pausarOcorrencia(
+      repositorio({ cargas: [agregadoEm("aberta")], temResponsavel: true }),
+      ctx,
+      ENTRADA,
+    ).catch((causa: unknown) => causa);
+
+    expect((erro as TransicaoNaoPermitida).extensoes["acoesDisponiveis"]).toStrictEqual([
+      "analisar",
+      "atribuir-responsavel",
+    ]);
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      pausarOcorrencia(repositorio({ cargas: [null] }), ctx, ENTRADA),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("a corrida: conflito na escrita relê e responde 409 com o status de AGORA", async () => {
+    const erro = await pausarOcorrencia(
+      repositorio({
+        cargas: [agregadoEm("em_analise"), agregadoEm("resolvida")],
+        temResponsavel: true,
+        conflito: true,
+      }),
+      ctx,
+      ENTRADA,
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
   });
 });
