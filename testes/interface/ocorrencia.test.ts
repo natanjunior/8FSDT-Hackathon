@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { COMANDOS_IMPLEMENTADOS, STATUS } from "@/dominio/ocorrencia";
+import { COMANDOS_IMPLEMENTADOS, MOTIVOS_DE_PAUSA, STATUS } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
@@ -41,6 +41,7 @@ import {
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
+  pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
 } from "@/interface/schemas";
@@ -1188,5 +1189,54 @@ describe("vazioDaBarra — as duas frases do vazio de T-05", () => {
     // pergunta ao Domínio em vez de listar os terminais pela segunda vez.
     expect(vazioDaBarra("cancelada").andaime).toBe(false);
     expect(vazioDaBarra("em_atendimento").andaime).toBe(true);
+  });
+});
+
+describe("o corpo de POST …/pausar — o primeiro comando com campo OBRIGATÓRIO", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = pausaSchema.safeParse({
+      motivo: "aguardando_peca",
+      observacao: "  Sem lâmpada no estoque.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Sem lâmpada no estoque.");
+    expect(analisado.data?.motivo).toBe("aguardando_peca");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — requestBody é required: true", () => {
+    const analisado = pausaSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(pausaSchema.safeParse({ motivo: "aguardando_chuva", observacao: "ok" }).success).toBe(
+      false,
+    );
+  });
+
+  it("aceita os QUATRO motivos, e nenhum a mais", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(pausaSchema.safeParse({ motivo, observacao: "Esperando." }).success).toBe(true);
+    }
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    // O oposto de /analisar e /resolver, onde `minLength` NÃO existe no openapi.yaml e o schema não
+    // pode inventá-lo (critério 16.7). Aqui a especificação versionada manda o mesmo que o critério.
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "" }).success).toBe(false);
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
   });
 });

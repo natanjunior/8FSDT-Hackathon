@@ -43,10 +43,12 @@ export {
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
+  pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
   type EntradaDeAtribuicaoDeResponsavel,
   type EntradaDeComandoComObservacao,
+  type EntradaDePausa,
   type EntradaDeRegistroDeOcorrencia,
   type EntradaDeResolucao,
 } from "./ocorrencia";
