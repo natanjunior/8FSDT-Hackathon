@@ -7,11 +7,15 @@ import {
   decodificarCursor,
   descricaoDoRecorte,
   nomeDaPrioridade,
+  nomeDoMotivoPausa,
   nomeDoStatus,
+  opcoesDeMotivoPausa,
   projetarAnexo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
+  rotuloDeMotivoPausa,
+  segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
   CorpoNaoSuportado,
@@ -1238,5 +1242,56 @@ describe("o corpo de POST …/pausar — o primeiro comando com campo OBRIGATÓR
     expect(
       pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "a".repeat(1001) }).success,
     ).toBe(false);
+  });
+});
+
+describe("nomeDoMotivoPausa — o motivo como OPÇÃO DE ESCOLHA, e não como o que aconteceu", () => {
+  it("dá os quatro textos do protótipo, e nenhum deles é o rótulo de status", () => {
+    expect(nomeDoMotivoPausa("aguardando_informacao_solicitante")).toBe(
+      "Aguardando informação do solicitante",
+    );
+    expect(nomeDoMotivoPausa("aguardando_peca")).toBe("Aguardando peça");
+    expect(nomeDoMotivoPausa("aguardando_autorizacao")).toBe("Aguardando autorização");
+    expect(nomeDoMotivoPausa("aguardando_terceiro")).toBe("Aguardando um terceiro");
+  });
+
+  it("responde outra pergunta que rotuloDeMotivoPausa — os quatro pares diferem", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(nomeDoMotivoPausa(motivo)).not.toBe(rotuloDeMotivoPausa(motivo));
+    }
+  });
+});
+
+describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não importar o Domínio", () => {
+  it("dá os quatro, na ordem de MOTIVOS_DE_PAUSA, com valor e rótulo", () => {
+    expect(opcoesDeMotivoPausa()).toStrictEqual([
+      {
+        valor: "aguardando_informacao_solicitante",
+        rotulo: "Aguardando informação do solicitante",
+      },
+      { valor: "aguardando_peca", rotulo: "Aguardando peça" },
+      { valor: "aguardando_autorizacao", rotulo: "Aguardando autorização" },
+      { valor: "aguardando_terceiro", rotulo: "Aguardando um terceiro" },
+    ]);
+  });
+});
+
+describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
+  it("devolve null nos QUATRO motivos quando o statusRotulo JÁ é o rótulo do motivo — o mundo de hoje", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(segundaLinhaDeMotivo(motivo, rotuloDeMotivoPausa(motivo))).toBeNull();
+    }
+  });
+
+  it("devolve o rótulo quando os dois textos DIVERGEM — e é o que prova que a guarda se apaga sozinha no item 31", () => {
+    // No item 31 o rótulo do Gestor vira "Pausada", os textos divergem, e a segunda linha volta
+    // sozinha — que é o que o critério 14.3 pede. Sem este caso, "volta sozinha" seria prosa.
+    expect(segundaLinhaDeMotivo("aguardando_peca", "Pausada")).toBe(
+      "Parada — esperando material chegar",
+    );
+  });
+
+  it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
+    expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
   });
 });
