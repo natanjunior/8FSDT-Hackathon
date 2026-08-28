@@ -1027,6 +1027,126 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
       expect(comSolucao.pausar(ENTRADA).solucaoAplicada).toBe("Troquei o disjuntor.");
     });
   });
+
+  describe("o comando retomar — o único que LÊ a trilha para saber para onde vai", () => {
+    const PAUSA = {
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+      motivo: "aguardando_peca" as const,
+      observacao: "Sem lâmpada no estoque.",
+    };
+    const RETOMADA = { autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T08:00:00.000Z" };
+
+    /**
+     * **A pausa é construída pelo comando, e não à mão.** Um `reconstituir` com registro de pausa
+     * escrito no teste provaria `retomar` contra um dado que o produto talvez nunca grave; atravessar
+     * `pausar` prova a **ida e a volta** — que é literalmente o que a invariante 6 promete.
+     */
+
+    it("volta a em_analise quando a pausa saiu de em_analise — o critério 24.1", () => {
+      expect(em("em_analise").pausar(PAUSA).retomar(RETOMADA).status).toBe("em_analise");
+    });
+
+    it("volta a em_atendimento quando a pausa saiu de em_atendimento — a OUTRA metade do 24.1", () => {
+      expect(em("em_atendimento").pausar(PAUSA).retomar(RETOMADA).status).toBe("em_atendimento");
+    });
+
+    it("o registro criado tem statusAnterior 'pausada', e a trilha fica com os DOIS — critério 24.4", () => {
+      const pausada = em("em_atendimento").pausar(PAUSA);
+      const retomada = pausada.retomar({ ...RETOMADA, observacao: "Peça chegou." });
+      const registro = retomada.ultimaTransicao;
+
+      expect(retomada.trilha).toHaveLength(pausada.trilha.length + 1);
+      expect(registro.statusAnterior).toBe("pausada");
+      expect(registro.statusNovo).toBe("em_atendimento");
+      expect(registro.sequencia).toBe(pausada.ultimaTransicao.sequencia + 1);
+      expect(registro.ocorreuEm).toBe("2026-08-29T08:00:00.000Z");
+      expect(registro.autorPessoaId).toBe(GESTOR);
+      expect(registro.observacao).toBe("Peça chegou.");
+
+      // **Avanço rotineiro: nenhum motivo codificado.** É o que `RegistroDeTransicao.avanco` garante,
+      // e é o outro lado do `registros_transicao_motivo_ck`.
+      expect(registro.motivoPausa).toBeNull();
+      expect(registro.motivoCancelamento).toBeNull();
+
+      // **A trilha guarda os DOIS**, e é o critério 24.4 em letra: o penúltimo é a pausa.
+      const trilha = retomada.trilha;
+      expect(trilha[trilha.length - 2]!.statusNovo).toBe("pausada");
+      expect(trilha[trilha.length - 2]!.motivoPausa).toBe("aguardando_peca");
+    });
+
+    it("sem observação, o registro guarda null — retomar é avanço rotineiro (D23)", () => {
+      expect(
+        em("em_analise").pausar(PAUSA).retomar(RETOMADA).ultimaTransicao.observacao,
+      ).toBeNull();
+    });
+
+    it("solucaoAplicada SOBREVIVE à retomada — retomar não é apagar trabalho registrado", () => {
+      // **`ABERTA` com dois campos trocados**, como no caso irmão do `pausar`: `em()` fixa
+      // `solucaoAplicada: null` e não serve aqui.
+      const comSolucao = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "Troquei o disjuntor.",
+      });
+
+      expect(comSolucao.pausar(PAUSA).retomar(RETOMADA).solucaoAplicada).toBe(
+        "Troquei o disjuntor.",
+      );
+    });
+
+    it("o agregado ANTES não muda — a trilha é append-only e a cópia é nova", () => {
+      const pausada = em("em_analise").pausar(PAUSA);
+      const tamanho = pausada.trilha.length;
+
+      pausada.retomar(RETOMADA);
+
+      expect(pausada.status).toBe("pausada");
+      expect(pausada.trilha).toHaveLength(tamanho);
+    });
+
+    it("estoura nos CINCO outros status — a rede estrutural da invariante 1", () => {
+      for (const status of [
+        "aberta",
+        "em_analise",
+        "em_atendimento",
+        "resolvida",
+        "cancelada",
+      ] as const) {
+        expect(() => em(status).retomar(RETOMADA)).toThrow(/retomar exige status/u);
+      }
+    });
+
+    it("estoura se o destino lido NÃO for uma das duas origens de pausa — a guarda do critério 24.1", () => {
+      // Uma linha corrompida: `pausada` cujo registro diz ter vindo de `resolvida`. **Sem esta guarda,
+      // `retomar` alcançaria um estado TERMINAL pela porta errada** — contornando o "só o Gestor
+      // resolve" do 26.3 e a própria terminalidade. A trilha é append-only: não teria conserto.
+      const corrompida = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "pausada",
+        trilha: [
+          RegistroDeTransicao.reconstituir({
+            sequencia: 2,
+            statusAnterior: "resolvida",
+            statusNovo: "pausada",
+            ocorreuEm: "2026-08-28T15:20:00.000Z",
+            autorPessoaId: GESTOR,
+            observacao: "Registro impossível.",
+            motivoPausa: "aguardando_peca",
+            motivoCancelamento: null,
+          }),
+        ],
+      });
+
+      expect(() => corrompida.retomar(RETOMADA)).toThrow(/como destino/u);
+    });
+
+    it("estoura também com statusAnterior NULO — o registro de origem não é registro de pausa", () => {
+      // `em("pausada")` traz a trilha de ORIGEM: um registro só, `statusAnterior: null`. É o mesmo
+      // defeito com outra cara, e a mesma guarda o pega — sem um segundo `if`.
+      expect(() => em("pausada").retomar(RETOMADA)).toThrow(/como destino/u);
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {

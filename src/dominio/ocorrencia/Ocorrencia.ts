@@ -61,7 +61,8 @@ export type DadosDeReconstituicao = {
  * *"Somente a lógica do agregado pode alterar o seu estado."* As invariantes que esta classe carrega:
  *
  * 1. **`status` nunca é escrito de fora** — não há setter, o campo é privado, e a única porta são os
- *    comandos. `registrar` é o único desta fatia; os outros dez chegam nos itens 16 a 27.
+ *    comandos. São **seis** hoje — `registrar`, `analisar`, `iniciarAtendimento`, `resolver`,
+ *    `pausar` e `retomar`; os itens 17, 18, 25 e 27 trazem o resto.
  * 2. **Toda transição produz exatamente um registro**, na mesma operação.
  * 3. **O histórico é append-only** — `trilha` devolve cópia congelada.
  * 4. **A criação gera o primeiro registro, com status anterior nulo** — a premissa **P1**.
@@ -356,8 +357,8 @@ export class Ocorrencia {
    *
    * **O agregado não sabe o que é `retomar`, e o critério 23.3 é sobre isso.** Ele grava
    * `statusAnterior` como grava em toda transição; o que faz o campo servir de alvo do retorno é o
-   * item **24** lê-lo. Nada de especial é escrito aqui, e essa ausência **é** o critério: *"não há
-   * campo extra para o alvo do retorno"*.
+   * item **24** lê-lo — e ele o lê, logo abaixo, em `retomar`. Nada de especial é escrito aqui, e essa
+   * ausência **é** o critério: *"não há campo extra para o alvo do retorno"*.
    */
   pausar(entrada: {
     autorPessoaId: string;
@@ -383,6 +384,81 @@ export class Ocorrencia {
         autorPessoaId: entrada.autorPessoaId,
         observacao: entrada.observacao,
         motivoPausa: entrada.motivo,
+      }),
+    );
+  }
+
+  /**
+   * O comando `retomar` — `Pausada` → **o status anterior à pausa** (critérios 24.1 a 24.4), e **o
+   * único comando do produto cujo destino não está escrito em lugar nenhum**.
+   *
+   * Os outros quatro sabem para onde vão antes de rodar; este **descobre**, lendo o `statusAnterior`
+   * do registro que a pausa gravou. É a invariante 6 da `arquitetura.md` §4 — *"`retomar` usa o
+   * `status anterior` do registro de pausa como alvo — **não há campo extra para isso**"* — e é por
+   * isso que `TRANSICOES` não responde "para onde": ela responde *"deste status, quais comandos"*.
+   *
+   * **O alvo é `ultimaTransicao`, e NÃO uma busca para trás procurando o último `statusNovo ===
+   * 'pausada'`.** Enquanto o status é `pausada`, o último registro **é** o da pausa, e três fatos
+   * estruturais fecham isso: de `pausada` só saem `retomar` e `cancelar`; comando que não transiciona
+   * não acrescenta registro; e registro que não muda status é recusado pelo `CHECK`
+   * `registros_transicao_mudanca_ck`. Buscar para trás seria uma segunda regra respondendo a mesma
+   * pergunta — e uma que continuaria certa se a primeira quebrasse, escondendo a quebra.
+   *
+   * **A segunda guarda é do critério 24.1**, que diz *"`Em análise` ou `Em atendimento`, **nunca outro
+   * destino**"*. `RegistroDeTransicao.statusAnterior` é `StatusOcorrencia | null`, porque ele serve à
+   * trilha inteira; sem a guarda, uma linha corrompida apontando `resolvida` faria `retomar` alcançar
+   * um **estado terminal pela porta errada**. Custa um `if`; o que ele impede não tem conserto, porque
+   * a trilha é append-only.
+   *
+   * **As duas guardas são `Error`, não `ErroDeDominio`**, pelo mesmo argumento dos quatro comandos
+   * anteriores: alcançá-las é defeito nosso, não recusa de negócio. A primeira significa que a
+   * Aplicação esqueceu de conferir com `transicaoPermitida`; a segunda, que o banco guarda um registro
+   * que os `CHECK` dele não deveriam ter aceitado.
+   *
+   * **A invariante 9 NÃO vale aqui, e a ausência é decisão** (spec §3.4). A `arquitetura.md` §4 a
+   * atribui a **`iniciarAtendimento`, nominalmente** — não a *"chegar em `em_atendimento`"* —, e o
+   * fato torna a checagem vazia: para estar pausada vinda de `em_atendimento` a ocorrência já passou
+   * pelo `iniciarAtendimento`, que exigiu o responsável, e **não existe comando de desatribuição** em
+   * endpoint nenhum.
+   *
+   * **`RegistroDeTransicao.avanco` serve, e não é acaso:** ela recusa exatamente `pausada` e
+   * `cancelada`, os dois destinos que o banco obriga a ter motivo codificado. O destino de `retomar` é
+   * sempre um dos dois que ela aceita. **`RegistroDeTransicao` não muda.**
+   *
+   * **`comTransicao` é chamado sem o terceiro parâmetro, e a omissão é deliberada:** o padrão é *"a
+   * solução aplicada que já havia"*. Uma ocorrência pausada a partir de `em_atendimento` pode ter
+   * solução registrada (item 25), e retomá-la **não pode apagá-la**. É a mesma omissão do `pausar`.
+   */
+  retomar(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    observacao?: string | null;
+  }): Ocorrencia {
+    if (this._status !== "pausada") {
+      throw new Error(
+        `retomar exige status 'pausada'; a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    const destino = this.ultimaTransicao.statusAnterior;
+    if (destino !== "em_analise" && destino !== "em_atendimento") {
+      throw new Error(
+        `retomar leu '${destino ?? "nulo"}' como destino, e a pausa só sai de 'em_analise' ou ` +
+          `'em_atendimento' — o registro de pausa está corrompido (invariante 6).`,
+      );
+    }
+
+    return this.comTransicao(
+      destino,
+      RegistroDeTransicao.avanco({
+        // **Do último registro, não do tamanho da lista** — o mesmo argumento dos quatro anteriores.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        statusNovo: destino,
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao ?? null,
       }),
     );
   }
