@@ -184,14 +184,15 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.analisar",
     "ocorrencia.atribuir",
     "ocorrencia.iniciar_atendimento",
-    // O quarto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
+    // O sexto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
     // que precisa dele monta a própria lista — ver o último caso deste bloco.
+    "ocorrencia.retomar",
     "ocorrencia.resolver",
     "ocorrencia.alterar_prioridade",
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz CINCO comandos — 16, 19, 22, o resolver do 26 e o pausar do 23", () => {
+  it("hoje traz SEIS comandos — 16, 19, 22, o resolver do 26, o pausar do 23 e o retomar do 24", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -199,6 +200,7 @@ describe("comandosDisponiveis", () => {
       "atribuir-responsavel",
       "iniciar-atendimento",
       "pausar",
+      "retomar",
       "resolver",
     ]);
   });
@@ -520,7 +522,10 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece só atribuir-responsavel — os outros quatro não existem ainda", () => {
+  it("pausada com o filtro ligado oferece atribuir-responsavel e retomar — os outros três não existem ainda", () => {
+    // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
+    // ordenar a barra. Os três que faltam são `registrar-solucao-aplicada` (item 25),
+    // `alterar-prioridade` (17) e `cancelar` (18).
     expect(
       comandosDisponiveis({
         status: "pausada",
@@ -528,17 +533,17 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel"]);
+    ).toStrictEqual(["atribuir-responsavel", "retomar"]);
   });
 
   it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
-    // **A lista de permissões é montada aqui, e não é `TODAS`** — ela não tem `ocorrencia.retomar` nem
-    // `ocorrencia.registrar_solucao`, e com ela este caso devolveria três. É o mesmo movimento dos casos
-    // de `registrar-solucao-aplicada` e de `avaliar`, que também montam a própria lista.
+    // **A lista de permissões é montada aqui, e não é `TODAS`** — ela não tem
+    // `ocorrencia.registrar_solucao`, e com ela este caso devolveria quatro. É o mesmo movimento dos
+    // casos de `registrar-solucao-aplicada` e de `avaliar`, que também montam a própria lista.
     expect(
       comandosDisponiveis({
         status: "pausada",
-        permissoes: [...TODAS, "ocorrencia.retomar", "ocorrencia.registrar_solucao"],
+        permissoes: [...TODAS, "ocorrencia.registrar_solucao"],
         ehAutor: false,
         temResponsavel: true,
         filtro: null,

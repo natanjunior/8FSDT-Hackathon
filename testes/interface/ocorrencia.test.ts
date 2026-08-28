@@ -861,8 +861,13 @@ describe("os rótulos que descem para a barra de ações", () => {
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    // Era `resolver` até o item 26 e `pausar` até o 23. `retomar` é o próximo — item 24.
-    expect(rotuloDeComando("retomar")).toBeNull();
+    // Era `resolver` até o item 26, `pausar` até o 23 e `retomar` até o 24. `cancelar` é o próximo
+    // comando que vira botão — item 18.
+    expect(rotuloDeComando("cancelar")).toBeNull();
+  });
+
+  it("retomar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("retomar")).toBe("Retomar");
   });
 
   it("pausar é palavra, e é o verbo do glossário — compromisso A-5", () => {
@@ -1091,8 +1096,15 @@ describe("acaoPrimaria — a regra do destaque de T-05", () => {
   it("o desempate: comando nomeado que não está renderizável cede ao primeiro que está", () => {
     // `em_analise` sem responsável — `iniciar-atendimento` não é renderizável, e sobra um só.
     expect(acaoPrimaria("em_analise", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
-    // `pausada` — `retomar` é do item 24 e ainda não existe.
+    // `pausada` com `retomar` ainda fora da lista de renderizáveis: o desempate continua valendo.
     expect(acaoPrimaria("pausada", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+  });
+
+  it("em pausada o destaque é retomar, e a tabela estava escrita desde o item 22 esperando este dia", () => {
+    // **A ordem de `COMANDOS` põe `atribuir-responsavel` na frente**, e uma regra por índice daria
+    // *Atribuir* como ação em destaque de uma ocorrência que está parada esperando. A tabela dá
+    // *Retomar* — e `ACAO_PRIMARIA` não precisou de uma linha nova para isso.
+    expect(acaoPrimaria("pausada", ["atribuir-responsavel", "retomar"])).toBe("retomar");
   });
 
   it("em em_atendimento o destaque é resolver, e NÃO o primeiro da lista — a decisão do item 22", () => {
@@ -1333,6 +1345,17 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
   it("com DOIS, os dois viram botão e o menu continua vazio — a decisão dos itens 19 e 22, intacta", () => {
     expect(acoesDaBarra("em_analise", ["atribuir-responsavel", "pausar"])).toStrictEqual({
       destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("pausada com DOIS renderizáveis não tem menu — a conta que fecha o P-1 do item 23", () => {
+    // **É a barra que esta fatia produz.** Os outros três comandos de `pausada` não são renderizáveis:
+    // `registrar-solucao-aplicada` é campo (item 25), `alterar-prioridade` é seletor (17) e `cancelar`
+    // não existe (18). **Quando o 18 chegar, a barra converge para o protótipo sozinha** — três
+    // renderizáveis, e a regra `≥ 3 → menu` desenha *Retomar* + *Mais ações ▾*.
+    expect(acoesDaBarra("pausada", ["atribuir-responsavel", "retomar"])).toStrictEqual({
+      destaque: "retomar",
       emMenu: [],
     });
   });

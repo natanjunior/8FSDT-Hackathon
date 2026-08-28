@@ -46,6 +46,13 @@ import {
  * do `DropdownMenuContent`: filho que não é `menuitem` é ARIA inválida e o menu perde a navegação por
  * setas (A-2 e A-4). Hoje os dois que podem ir ao menu — `atribuir-responsavel` e `pausar` — têm modal.
  *
+ * **O item 24 conferiu e NÃO mudou isso**, e o item 18 muda: `retomar` chegou como o segundo
+ * renderizável de `pausada`, e com dois não há menu. Quando `cancelar` existir serão três, `retomar`
+ * poderá cair em `emMenu`, e a página o renderiza hoje com uma ternária de duas variantes — **um
+ * `<button>` com `DialogTrigger` como filho direto de `role="menu"`**. Nada quebra em vermelho; a
+ * acessibilidade quebra em silêncio. O item 18 herda dois deveres: dar a variante `"menu"` ao
+ * `ModalDeObservacao` e trocar a ternária de `retomar` por `varianteDe("retomar")` em `page.tsx`.
+ *
  * **A geometria é a do protótipo desde o item 22** (`docs/prototipo/telas.html:328-330`): o primário
  * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
  * era a barra que divergia do desenho — não o rótulo.
