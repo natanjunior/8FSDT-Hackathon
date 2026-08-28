@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { STATUS } from "@/dominio/ocorrencia";
+import { COMANDOS_IMPLEMENTADOS, STATUS } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
@@ -23,6 +23,11 @@ import {
   lerVarianteDaUrl,
   type ErroDeCampo,
 } from "@/interface/http";
+import {
+  nomesDeStatus,
+  rotuloDeComando,
+  rotulosDeStatus,
+} from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
@@ -777,5 +782,42 @@ describe("o corpo dos comandos de avanço rotineiro", () => {
     // Um `.min(1)` aqui recusaria mais do que a especificação versionada declara, e é o portão do DoD
     // olhando na direção contrária: o código não pode ser mais estrito que o contrato.
     expect(comandoComObservacaoSchema.safeParse({ observacao: "" }).success).toBe(true);
+  });
+});
+
+describe("os rótulos que descem para a barra de ações", () => {
+  it("todo comando implementado tem rótulo — senão a barra some sem dizer nada", () => {
+    // **É o alarme da tarefa 6 para os itens 17 a 27:** quem acrescentar um comando a
+    // `COMANDOS_IMPLEMENTADOS` e esquecer o rótulo faria a barra renderizar nada, em silêncio.
+    for (const comando of COMANDOS_IMPLEMENTADOS) {
+      expect(rotuloDeComando(comando)).not.toBeNull();
+    }
+  });
+
+  it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
+    expect(rotuloDeComando("resolver")).toBeNull();
+  });
+
+  it("analisar é palavra, não ícone — compromisso A-5", () => {
+    expect(rotuloDeComando("analisar")).toBe("Analisar");
+  });
+
+  it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {
+    const rotulos = rotulosDeStatus();
+    const nomes = nomesDeStatus();
+
+    for (const status of STATUS) {
+      expect(typeof rotulos[status]).toBe("string");
+      expect(typeof nomes[status]).toBe("string");
+    }
+
+    // A frase do `409` usa a coluna do Solicitante — "agora ela está Parada" —, e `pausada` degrada
+    // para a palavra sozinha, porque um erro não carrega motivo de pausa.
+    expect(rotulos.pausada).toBe("Parada");
+    expect(rotulos.em_analise).toBe("Em análise");
+
+    // O bloco Histórico usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
+    expect(nomes.aberta).toBe("Aberta");
+    expect(nomes.em_analise).toBe("Em análise");
   });
 });
