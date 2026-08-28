@@ -197,7 +197,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz SETE comandos — 16, 19, 22, 26, 23, 24 e o registrar-solucao do 25", () => {
+  it("hoje traz OITO comandos — 16, 19, 22, 26, 23, 24, o 25 e o alterar-prioridade do 17", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -208,12 +208,16 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "resolver",
+      "alterar-prioridade",
     ]);
   });
 
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
     // **Na ordem do enum `Comando`**, que é o que dispensa o cliente de ter uma segunda lista só para
     // ordenar a barra.
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "aberta",
@@ -224,6 +228,7 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
+      "alterar-prioridade",
     ]);
   });
 
@@ -244,10 +249,17 @@ describe("comandosDisponiveis", () => {
       temResponsavel: true,
     });
 
-    expect(semResponsavel).toStrictEqual(["atribuir-responsavel"]);
+    expect(semResponsavel).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
     // **Na ordem do enum**: `atribuir-responsavel` vem antes de `iniciar-atendimento`, e é o que faz o
     // R-08 morder — a ordem não é promessa de destaque (contrato §8.5).
-    expect(comResponsavel).toStrictEqual(["atribuir-responsavel", "iniciar-atendimento"]);
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
+    expect(comResponsavel).toStrictEqual([
+      "atribuir-responsavel",
+      "iniciar-atendimento",
+      "alterar-prioridade",
+    ]);
   });
 
   it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
@@ -470,9 +482,12 @@ describe("comandosDisponiveis", () => {
     // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
     // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
     //
-    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar`, `alterar-prioridade` e `cancelar`
+    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar` e `cancelar`
     // saem porque `COMANDOS_IMPLEMENTADOS` ainda não os tem. É por isso que este caso mora aqui e não na
     // tarefa 1 — antes do passo 4 ele devolveria `["atribuir-responsavel"]`.
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "em_atendimento",
@@ -480,7 +495,12 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "registrar-solucao-aplicada", "resolver"]);
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "registrar-solucao-aplicada",
+      "resolver",
+      "alterar-prioridade",
+    ]);
   });
 
   it("o Solicitante autor em em_atendimento continua com a lista VAZIA — o critério 26.3 na lista", () => {
@@ -545,9 +565,12 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — os outros dois não existem ainda", () => {
+  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — o outro não existe ainda", () => {
     // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
-    // ordenar a barra. Os dois que faltam são `alterar-prioridade` (17) e `cancelar` (18).
+    // ordenar a barra. O que falta é `cancelar` (18).
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "pausada",
@@ -555,7 +578,12 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "retomar", "registrar-solucao-aplicada"]);
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "retomar",
+      "registrar-solucao-aplicada",
+      "alterar-prioridade",
+    ]);
   });
 
   it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {

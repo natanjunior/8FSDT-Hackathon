@@ -1,20 +1,7 @@
 import { atribuirResponsavel } from "@/aplicacao/ocorrencia";
-import { CampoNaoSuportado, comContexto } from "@/interface/http";
+import { comContexto, recusarSemDestino } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
-import { atribuicaoDeResponsavelSchema, camposSemDestino } from "@/interface/schemas";
-
-/**
- * A recusa do `observacao`, **antes** da validação de forma — critério 19.6.
- *
- * A ordem importa, e a razão já está escrita em `app/api/vinculos/[pessoaId]/route.ts`: *"quem mandou o
- * campo precisa saber que ele não é aceito, não que faltou preencher algo"*.
- *
- * **O item 17 chama esta mesma `camposSemDestino`** — critério 17.6.
- */
-function recusarSemDestino(corpo: unknown): void {
-  const proibidos = camposSemDestino(corpo);
-  if (proibidos.length > 0) throw new CampoNaoSuportado(proibidos);
-}
+import { atribuicaoDeResponsavelSchema } from "@/interface/schemas";
 
 /**
  * **`POST /ocorrencias/{id}/atribuir-responsavel`** — *"quem está fazendo isto?"*, que é a pergunta que a
@@ -39,6 +26,11 @@ function recusarSemDestino(corpo: unknown): void {
  *
  * *Capacidade: atribuir o responsável · `ENUNCIADO · aberto` (G4) + D21. Permissão: `ocorrencia.atribuir`
  * — Gestor.*
+ *
+ * **A recusa de `observacao` mudou de casa no item 17**, e é o critério 17.6 daquele item: o `if` que
+ * morava aqui virou `recusarSemDestino` em `@/interface/http`, para que os **dois** endpoints com o mesmo
+ * defeito de contrato chamem a mesma função em vez de copiarem o mesmo `throw`. A ordem não mudou: o `422`
+ * continua vindo **antes** da validação de forma.
  */
 export const POST = comContexto(
   {

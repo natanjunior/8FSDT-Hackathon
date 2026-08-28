@@ -39,6 +39,7 @@ export {
 } from "./pedido-de-entrada";
 
 export {
+  alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
   camposEscritosPeloServidor,
   camposSemDestino,
@@ -47,6 +48,7 @@ export {
   registroDeOcorrenciaSchema,
   resolucaoSchema,
   solucaoAplicadaSchema,
+  type EntradaDeAlteracaoDePrioridade,
   type EntradaDeAtribuicaoDeResponsavel,
   type EntradaDeComandoComObservacao,
   type EntradaDePausa,

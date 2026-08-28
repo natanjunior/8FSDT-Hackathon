@@ -59,6 +59,9 @@ const DO_GESTOR = [
   // não é admitido em nenhum dos quatro.
   "ocorrencia.registrar_solucao",
   "ocorrencia.resolver",
+  // O oitavo comando construído — item 17. **Ela JÁ estava nesta lista**, escrita quando ninguém a usava,
+  // e é por isso que a oitava linha de `COMANDOS_IMPLEMENTADOS` muda TRÊS asserções deste arquivo: as que
+  // conferem `acoesDisponiveis` por igualdade em `aberta` e `em_analise`, que são estados que o admitem.
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
 ];
@@ -311,7 +314,11 @@ describe("analisarOcorrencia", () => {
     //
     // **E ganhou `pausar` no item 23**, que é admitido em `em_analise` pela tabela de transições. A
     // asserção continua provando o mesmo: o corpo do `409` nomeia o que ainda dá para fazer.
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
+      "atribuir-responsavel",
+      "pausar",
+      "alterar-prioridade",
+    ]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
     expect(aplicados).toHaveLength(0);
@@ -544,7 +551,11 @@ describe("iniciarAtendimento", () => {
     // **As DUAS extensões, como o exemplo mostra.** A lista ganhou `pausar` no item 23 — em `em_analise`
     // sem responsável, pausar é o que sobra além de atribuir.
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
+      "atribuir-responsavel",
+      "pausar",
+      "alterar-prioridade",
+    ]);
 
     // **Nenhum registro é criado** — e é estrutural: o `insert` só existe dentro de `aplicarTransicao`.
     expect(aplicados).toHaveLength(0);
@@ -817,6 +828,7 @@ describe("pausarOcorrencia", () => {
     expect((erro as TransicaoNaoPermitida).extensoes["acoesDisponiveis"]).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
+      "alterar-prioridade",
     ]);
   });
 

@@ -72,6 +72,14 @@ export type Comando = (typeof COMANDOS)[number];
  * nunca o renderiza. **A linha entrou na tarefa do `route.ts`, e não na da tela** — ao contrário do 23 e
  * do 24: o argumento daqueles era um botão nu fazendo a coisa errada, e aqui não há botão nenhum. A regra
  * geral volta a valer sem exceção: anuncia-se o comando quando o endpoint existe.
+ *
+ * **O item 17 foi o oitavo, e é o segundo cuja FORMA não é botão** — e o primeiro que é **seletor**.
+ * `alterar-prioridade` mora no bloco de identidade de T-05 (`inventario-de-telas.md:811-812`), então ele
+ * nunca entra em `ROTULO_DE_COMANDO` e a barra nunca o renderiza. **A linha entrou na tarefa do `route.ts`,
+ * como a do 25 e ao contrário das do 23 e do 24:** o argumento daqueles era um botão nu fazendo a coisa
+ * errada, e aqui não há botão nenhum.
+ *
+ * **Faltam dois:** `cancelar` (18) e `avaliar` (27).
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
@@ -81,4 +89,5 @@ export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "retomar",
   "registrar-solucao-aplicada",
   "resolver",
+  "alterar-prioridade",
 ];

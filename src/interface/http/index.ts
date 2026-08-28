@@ -37,6 +37,8 @@ export {
   type ErroDeCampo,
 } from "./problema";
 
+export { recusarSemDestino } from "./recusa-de-campos";
+
 export {
   NOME_DO_COOKIE,
   assinarOrganizacao,
