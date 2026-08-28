@@ -7,6 +7,7 @@ import {
   iniciarAtendimento,
   pausarOcorrencia,
   registrarOcorrencia,
+  registrarSolucaoAplicada,
   resolverOcorrencia,
   retomarOcorrencia,
   verOcorrencia,
@@ -2078,5 +2079,90 @@ describe("a solução aplicada contra Postgres — item 25", () => {
     );
     expect(linha?.status).toBe("resolvida");
     expect(linha?.solucao_aplicada).toBe("A que ficou.");
+  });
+
+  it("em resolvida responde 409 E A COLUNA NÃO MUDA — o critério 25.2 no estado que importa", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Recusa no estado terminal");
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "A que ficou, e não há caminho de volta.",
+    });
+
+    const erro = await registrarSolucaoAplicada(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Não deveria entrar.",
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "resolvida",
+    );
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **O custo aceito do contrato, do lado bom:** *"uma ocorrência resolvida com o campo vazio fica sem
+    // solução aplicada para sempre. Não há caminho de volta, e não deve haver."*
+    expect(linha?.solucao_aplicada).toBe("A que ficou, e não há caminho de volta.");
+  });
+
+  it("registrar e DEPOIS resolver deixa UMA transição a mais, não duas — o critério 25.3 do outro lado", async () => {
+    // **A metade que faltava.** O item 26 provou que `solucaoAplicada` no corpo de `/resolver` grava a
+    // coluna com **um** registro. Aqui prova-se o outro caminho: registrar primeiro **não cria registro
+    // nenhum**, e o `resolver` seguinte cria exatamente um. Os dois caminhos chegam ao mesmo lugar.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Dois passos, uma transição");
+    const antes = await registrosDe(id);
+
+    await registrarSolucaoAplicada(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Trocado o rufo e refeita a vedação.",
+    });
+
+    // Nada na trilha, e é o item.
+    expect(await registrosDe(id)).toBe(antes);
+
+    // **`resolver` SEM o campo** — e o agregado preserva a que já havia (`Ocorrencia.ts`), que é a
+    // semântica *"ausente = preserva"* que o item 26 construiu exatamente para isto.
+    const lida = await resolverOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    expect(lida.status).toBe("resolvida");
+    expect(lida.solucaoAplicada).toBe("Trocado o rufo e refeita a vedação.");
+    expect(await registrosDe(id)).toBe(antes + 1);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não grava — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Isolamento da solução");
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho25 ${SUFIXO}`, `V5${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      registrarSolucaoAplicada(deOutra, ctx, { ocorrenciaId: id, solucaoAplicada: "De fora." }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBeNull();
   });
 });

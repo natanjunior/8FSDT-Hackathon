@@ -6,6 +6,7 @@ import {
   iniciarAtendimento,
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
+  registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
@@ -15,6 +16,7 @@ import {
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia, RegistroDeTransicao, type StatusOcorrencia } from "@/dominio/ocorrencia";
@@ -49,6 +51,10 @@ const DO_GESTOR = [
   // existente deste arquivo muda de valor** — as três que conferem `acoesDisponiveis` por igualdade
   // olham `aberta`, `em_analise` e os dois terminais.
   "ocorrencia.retomar",
+  // O sétimo comando construído. **Ela não muda asserção existente**: as quatro que conferem
+  // `acoesDisponiveis` por igualdade olham `aberta`, `em_analise` e os dois terminais, e o comando novo
+  // não é admitido em nenhum dos quatro.
+  "ocorrencia.registrar_solucao",
   "ocorrencia.resolver",
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
@@ -143,6 +149,8 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
 let carregados: (Ocorrencia | null)[];
 let aplicados: Ocorrencia[];
 let atribuidos: { ocorrenciaId: string; dados: unknown }[];
+/** O rastro da porta do item 25. **O agregado ATRAVESSADO chega aqui**, e é o que o teste inspeciona. */
+let gravadas: { id: string; ocorrencia: Ocorrencia; em: string }[];
 
 function repositorio(opcoes: {
   /** O que cada `carregar` devolve, na ordem; o último valor se repete. */
@@ -155,6 +163,9 @@ function repositorio(opcoes: {
   conflito?: boolean;
   /** O que `atribuirResponsavel` responde. Padrão: atribuída, sem reatribuição. */
   atribuicao?: (agregado: Ocorrencia) => ResultadoDaAtribuicao;
+  /** Se a porta do item 25 devolve `conflito`. **Separada de `conflito`**, que é da transição: os dois
+   *  desfechos existem em portas diferentes, e um sinalizador só faria um caso ligar o outro. */
+  solucaoEmConflito?: boolean;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -187,6 +198,16 @@ function repositorio(opcoes: {
         ? { desfecho: "atribuida", reatribuicao: false, ocorrencia: lidaDe(agregado) }
         : opcoes.atribuicao(agregado);
     },
+    registrarSolucaoAplicada: async (
+      id: string,
+      ocorrencia: Ocorrencia,
+      em: string,
+    ): Promise<ResultadoDaSolucaoAplicada> => {
+      gravadas.push({ id, ocorrencia, em });
+      return opcoes.solucaoEmConflito === true
+        ? { desfecho: "conflito" }
+        : { desfecho: "gravada", ocorrencia: lidaDe(ocorrencia) };
+    },
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
@@ -194,6 +215,7 @@ beforeEach(() => {
   carregados = [];
   aplicados = [];
   atribuidos = [];
+  gravadas = [];
 });
 
 describe("analisarOcorrencia", () => {
@@ -954,6 +976,139 @@ describe("retomarOcorrencia", () => {
         repositorio({ cargas: [agregadoPausadoDe("em_analise"), null], conflito: true }),
         ctx,
         ENTRADA,
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+describe("registrarSolucaoAplicada", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-29T11:00:00.000Z" };
+  const TEXTO = "Trocada a lâmpada da vaga 34 e revisado o reator do corredor.";
+
+  it.each(["em_atendimento", "pausada"] as const)(
+    "caminho feliz a partir de %s: o agregado ATRAVESSADO chega à porta com a coluna trocada",
+    async (origem) => {
+      const lida = await registrarSolucaoAplicada(
+        repositorio({ cargas: [agregadoEm(origem)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+      );
+
+      const gravado = gravadas[0]!;
+      expect(gravado.id).toBe(ID);
+      expect(gravado.ocorrencia.solucaoAplicada).toBe(TEXTO);
+      // **O status não mudou e a trilha não cresceu** — é o critério 25.1 conferido no que atravessa.
+      expect(gravado.ocorrencia.status).toBe(origem);
+      expect(gravado.ocorrencia.trilha).toHaveLength(1);
+      // **O relógio é lido UMA vez, pelo comando**, e viaja ao lado porque o agregado não o tem.
+      expect(gravado.em).toBe("2026-08-29T11:00:00.000Z");
+
+      expect(lida.solucaoAplicada).toBe(TEXTO);
+      expect(lida.status).toBe(origem);
+    },
+  );
+
+  it("NENHUMA transição é aplicada — a outra porta não é chamada, nunca", async () => {
+    // **A prova estrutural do 25.1 nesta camada:** `aplicarTransicao` é o único caminho que grava na
+    // trilha, e este comando não o alcança.
+    await registrarSolucaoAplicada(
+      repositorio({ cargas: [agregadoEm("em_atendimento")], temResponsavel: true }),
+      ctx,
+      { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+    );
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it.each(["aberta", "em_analise", "resolvida", "cancelada"] as const)(
+    "%s recusa com 409, COM statusAtual e acoesDisponiveis, e a porta NÃO é chamada — critério 25.2",
+    async (recusado) => {
+      const erro = await registrarSolucaoAplicada(
+        repositorio({ cargas: [agregadoEm(recusado)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      const recusa = erro as TransicaoNaoPermitida;
+      expect(recusa.codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+      expect(recusa.extensoes["statusAtual"]).toBe(recusado);
+      expect(recusa.extensoes["acoesDisponiveis"]).toBeDefined();
+
+      // **A recusa acontece ANTES da porta** — nenhuma escrita foi tentada.
+      expect(gravadas).toHaveLength(0);
+    },
+  );
+
+  it("os QUATRO recusados saem da tabela companheira, e não de `transicaoPermitida`", async () => {
+    // **`comandoPermitido`, nunca `transicaoPermitida`** — a segunda responde `false` nos seis estados
+    // para este comando, e usá-la o recusaria também em `em_atendimento`. Este caso é o par do de cima:
+    // ele prova que os dois admitidos passam, e é o que separa "recusa certa" de "recusa sempre".
+    for (const admitido of ["em_atendimento", "pausada"] as const) {
+      gravadas = [];
+      await registrarSolucaoAplicada(
+        repositorio({ cargas: [agregadoEm(admitido)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+      );
+      expect(gravadas).toHaveLength(1);
+    }
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      registrarSolucaoAplicada(repositorio({ cargas: [null] }), ctx, {
+        ocorrenciaId: ID,
+        solucaoAplicada: TEXTO,
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(gravadas).toHaveLength(0);
+  });
+
+  it("quem não alcança a ocorrência recebe o MESMO 404 — §6.3", async () => {
+    // A conferência é redundante hoje (quem tem `registrar_solucao` tem `ler_todas` no mesmo papel) e roda
+    // mesmo assim: permissão é lista, não papel, e amarrar a leitura ao comando por coincidência de mapa é
+    // o acoplamento que some quando o mapa muda.
+    await expect(
+      registrarSolucaoAplicada(
+        repositorio({ cargas: [agregadoEm("em_atendimento")], temResponsavel: true }),
+        { pessoaId: "outra-pessoa", permissoes: ["ocorrencia.registrar_solucao"] },
+        { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(gravadas).toHaveLength(0);
+  });
+
+  it("conflito vira 409 com o estado RELIDO, e não com o que o comando tinha lido", async () => {
+    // **A corrida da §3.3.** A primeira carga é o que lemos; a segunda é o que de fato está lá agora.
+    // Relemos para dizer onde a ocorrência está *agora* — que é o que `statusAtual` significa para a tela.
+    const erro = await registrarSolucaoAplicada(
+      repositorio({
+        cargas: [agregadoEm("em_atendimento"), agregadoEm("resolvida")],
+        temResponsavel: true,
+        solucaoEmConflito: true,
+      }),
+      ctx,
+      { ocorrenciaId: ID, solucaoAplicada: TEXTO },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
+    expect((erro as TransicaoNaoPermitida).extensoes["acoesDisponiveis"]).toStrictEqual([]);
+  });
+
+  it("conflito com a ocorrência sumida vira 404 — o mesmo caminho do resolver e do atribuir", async () => {
+    await expect(
+      registrarSolucaoAplicada(
+        repositorio({
+          cargas: [agregadoEm("em_atendimento"), null],
+          temResponsavel: true,
+          solucaoEmConflito: true,
+        }),
+        ctx,
+        { ocorrenciaId: ID, solucaoAplicada: TEXTO },
       ),
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
   });
