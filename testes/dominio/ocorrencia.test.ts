@@ -1152,6 +1152,81 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
       expect(() => em("pausada").retomar(RETOMADA)).toThrow(/como destino/u);
     });
   });
+
+  describe("o comando registrarSolucaoAplicada — o primeiro que muda estado sem tocar a trilha", () => {
+    /**
+     * **`em(status)` serve aqui, e para `retomar` não servia.** Aquele lê `ultimaTransicao.statusAnterior`
+     * para descobrir o destino, e por isso exigia uma pausa de verdade na trilha. Este **não lê a trilha**
+     * — é literalmente o que o item entrega —, então o agregado com a trilha de origem basta.
+     */
+    const TEXTO = "Trocada a lâmpada da vaga 34 e revisado o reator do corredor.";
+
+    it("grava a coluna a partir de em_atendimento — o critério 25.1", () => {
+      expect(
+        em("em_atendimento").registrarSolucaoAplicada({ solucaoAplicada: TEXTO }).solucaoAplicada,
+      ).toBe(TEXTO);
+    });
+
+    it("grava a coluna a partir de pausada — a SEGUNDA origem, e ela é do critério 25.2", () => {
+      // **Duas origens, como o `pausar`.** A lista vem da tabela companheira (`MaquinaDeEstados.ts:35`),
+      // e é a mesma que a Aplicação consulta — não há segunda cópia dela em lugar nenhum.
+      expect(
+        em("pausada").registrarSolucaoAplicada({ solucaoAplicada: TEXTO }).solucaoAplicada,
+      ).toBe(TEXTO);
+    });
+
+    it("a trilha NÃO cresce, e a última transição é a MESMA — o critério 25.1 pelo lado do negativo", () => {
+      // **É o item inteiro, numa asserção.** Todos os seis comandos anteriores acrescem um registro; este
+      // é o primeiro do qual isso é falso, e a ausência é o que o contrato declara (§8.4).
+      const antes = em("em_atendimento");
+      const depois = antes.registrarSolucaoAplicada({ solucaoAplicada: TEXTO });
+
+      expect(depois.trilha).toHaveLength(antes.trilha.length);
+      expect(depois.ultimaTransicao).toBe(antes.ultimaTransicao);
+    });
+
+    it("o status NÃO muda — não é transição, e não há para onde ir", () => {
+      for (const origem of ["em_atendimento", "pausada"] as const) {
+        expect(em(origem).registrarSolucaoAplicada({ solucaoAplicada: TEXTO }).status).toBe(origem);
+      }
+    });
+
+    it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+      const antes = em("em_atendimento");
+      antes.registrarSolucaoAplicada({ solucaoAplicada: TEXTO });
+
+      expect(antes.solucaoAplicada).toBeNull();
+      expect(antes.trilha).toHaveLength(1);
+    });
+
+    it("sobrescreve a solução que já havia — a última escrita vence, e é a §7.9 aceita", () => {
+      // **O contrato aceita isto por escrito** (§7.9, uma das duas exposições nomeadas): dois Gestores
+      // gravando no mesmo estado, o segundo vence. **Não construímos defesa contra o que foi decidido.**
+      const comTexto = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "A primeira versão.",
+      });
+
+      expect(comTexto.registrarSolucaoAplicada({ solucaoAplicada: TEXTO }).solucaoAplicada).toBe(
+        TEXTO,
+      );
+    });
+
+    it("estoura nos QUATRO estados recusados — a guarda é rede, não decisão", () => {
+      // **Alcançar isto é defeito NOSSO, não recusa de negócio** — a Aplicação confere antes com
+      // `comandoPermitido`, e é ela quem produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+      //
+      // **A mensagem NÃO termina em "invariante 1 violada"**, e as seis anteriores terminam: a invariante
+      // 1 é sobre `status` nunca ser escrito de fora, e **este comando não escreve `status`**. Citá-la
+      // aqui seria citar a invariante errada no único lugar em que ela não está em jogo.
+      for (const status of ["aberta", "em_analise", "resolvida", "cancelada"] as const) {
+        expect(() => em(status).registrarSolucaoAplicada({ solucaoAplicada: TEXTO })).toThrow(
+          `registrarSolucaoAplicada exige 'em_atendimento' ou 'pausada'; a ocorrência está '${status}'.`,
+        );
+      }
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {

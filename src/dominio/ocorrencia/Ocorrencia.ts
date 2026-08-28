@@ -61,8 +61,11 @@ export type DadosDeReconstituicao = {
  * *"Somente a lógica do agregado pode alterar o seu estado."* As invariantes que esta classe carrega:
  *
  * 1. **`status` nunca é escrito de fora** — não há setter, o campo é privado, e a única porta são os
- *    comandos. São **seis** hoje — `registrar`, `analisar`, `iniciarAtendimento`, `resolver`,
- *    `pausar` e `retomar`; os itens 17, 18, 25 e 27 trazem o resto.
+ *    comandos. São **seis** os que transicionam — `registrar`, `analisar`, `iniciarAtendimento`,
+ *    `resolver`, `pausar` e `retomar`; os itens 17, 18 e 27 trazem o resto.
+ * 1b. **Nem todo comando é transição, e o item 25 é o primeiro.** `registrarSolucaoAplicada` muda um dado
+ *    da raiz — `solucao_aplicada` — **sem tocar `status` e sem tocar a trilha**, e por isso não passa por
+ *    `comTransicao`. A invariante 1 continua intacta: ele não escreve `status`.
  * 2. **Toda transição produz exatamente um registro**, na mesma operação.
  * 3. **O histórico é append-only** — `trilha` devolve cópia congelada.
  * 4. **A criação gera o primeiro registro, com status anterior nulo** — a premissa **P1**.
@@ -464,6 +467,39 @@ export class Ocorrencia {
   }
 
   /**
+   * O comando `registrarSolucaoAplicada` — **o primeiro do agregado que muda estado sem tocar a trilha**
+   * (item 25, critérios 25.1 e 25.2).
+   *
+   * **Ele participa, e não é escolha de conveniência.** `solucao_aplicada` é coluna de `ocorrencias`,
+   * dentro do limite — ver o comentário do campo `_solucaoAplicada`, acima. *"Somente a lógica do agregado
+   * pode alterar o seu estado"* (aula 5, p.9) vale para toda coluna da raiz, transicione ela ou não.
+   *
+   * **A guarda tem DUAS origens**, como a do `pausar`, e a lista sai da tabela companheira
+   * (`MaquinaDeEstados.ts`, `SEM_TRANSICAO`) — não há segunda cópia dela aqui. Continua sendo `Error`:
+   * alcançá-la significa que a Aplicação esqueceu de conferir com `comandoPermitido`.
+   *
+   * **A mensagem NÃO termina em *"invariante 1 violada"*, e as seis anteriores terminam.** A invariante 1
+   * é sobre `status` nunca ser escrito de fora; **este comando não escreve `status`**. Repeti-la seria
+   * citar a invariante errada no único lugar do arquivo em que ela não está em jogo.
+   *
+   * **`solucaoAplicada` é `string`, e não `string | null`.** Vazio aqui não é ausente: o endpoint declara
+   * o campo `required` com `minLength: 1` (`openapi.yaml`), e quem apara é o schema. **Apagar solução
+   * aplicada não é capacidade de endpoint nenhum** — é a mesma frase do `resolver`, do outro lado.
+   *
+   * **Não chama `comTransicao`, e a ausência é o item:** aquele acresce um registro à trilha, e o contrato
+   * declara que este comando *"não gera registro de transição"* (§8.4). A porta é `comSolucaoAplicada`.
+   */
+  registrarSolucaoAplicada(entrada: { solucaoAplicada: string }): Ocorrencia {
+    if (this._status !== "em_atendimento" && this._status !== "pausada") {
+      throw new Error(
+        `registrarSolucaoAplicada exige 'em_atendimento' ou 'pausada'; a ocorrência está '${this._status}'.`,
+      );
+    }
+
+    return this.comSolucaoAplicada(entrada.solucaoAplicada);
+  }
+
+  /**
    * **A cópia com um estado novo e um registro a mais.** É o que todo comando de transição faz, e por
    * isso mora num lugar só: os itens 17 a 27 acrescentam o método público e chamam isto.
    */
@@ -492,6 +528,41 @@ export class Ocorrencia {
       this._prioridade,
       solucaoAplicada,
       [...this._trilha, registro],
+      this._anexos,
+    );
+  }
+
+  /**
+   * **A cópia com uma coluna trocada, e a trilha intacta.** É o irmão de `comTransicao`, e existe para que
+   * o nome diga o que a diferença é: **há dois jeitos de copiar este agregado** — com um estado novo e um
+   * registro a mais, ou com um dado da raiz trocado e nada na trilha.
+   *
+   * *Alternativa recusada — generalizar `comTransicao` num `copia({ status?, solucaoAplicada?, registro? })`:*
+   * indireção nova para **um** chamador, e os seis comandos existentes passariam a montar objeto onde hoje
+   * passam três argumentos. Refatoração de seis caminhos para economizar uma chamada de construtor.
+   *
+   * **O custo aceito, declarado:** o construtor privado passa a ter **três** sítios de chamada. Ele é
+   * privado e posicional, então um campo novo quebra os três **em tempo de compilação** — o esquecimento é
+   * alto, não silencioso, que é o mesmo argumento que fez `solucaoAplicada` nascer obrigatória em
+   * `DadosDeReconstituicao`.
+   */
+  private comSolucaoAplicada(solucaoAplicada: string): Ocorrencia {
+    return new Ocorrencia(
+      this.titulo,
+      this.descricao,
+      this.categoriaId,
+      this.areaId,
+      this.areaTipo,
+      this.localizacaoComplemento,
+      this.autorPessoaId,
+      this.registradaEm,
+      // **`_status` e `_trilha` atravessam intactos**, e é a diferença inteira para `comTransicao`.
+      this._status,
+      this._prioridade,
+      solucaoAplicada,
+      // Cópia, e não a referência: `reconstituir` já copia, e duas instâncias imutáveis compartilhando o
+      // mesmo array é seguro hoje e deixa de ser no dia em que alguém escrever dentro do limite.
+      [...this._trilha],
       this._anexos,
     );
   }
