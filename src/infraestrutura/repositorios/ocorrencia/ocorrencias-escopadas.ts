@@ -6,7 +6,7 @@ import type {
   ResultadoDoRegistro,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
-import type { Ocorrencia } from "@/dominio/ocorrencia";
+import { Ocorrencia, RegistroDeTransicao } from "@/dominio/ocorrencia";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
@@ -198,6 +198,76 @@ function montarOcorrencia(
     registradaEm: linha.registrada_em.toISOString(),
     atualizadaEm: linha.atualizada_em.toISOString(),
   };
+}
+
+/** As colunas do agregado. **Menos que as do detalhe, e a diferença não é economia:** o agregado não
+ *  carrega nome de categoria, de área nem de autor — ele carrega o que a máquina de estados decide. */
+type LinhaDoAgregado = {
+  titulo: string;
+  descricao: string;
+  categoria_id: string;
+  area_id: string;
+  area_tipo: OcorrenciaLida["area"]["tipo"];
+  localizacao_complemento: string | null;
+  autor_pessoa_id: string;
+  status: OcorrenciaLida["status"];
+  prioridade: OcorrenciaLida["prioridade"];
+  registrada_em: Date;
+};
+
+/**
+ * O `select` da **reidratação**.
+ *
+ * **Sem um único `join`, e é o ponto:** o agregado não tem nome de ninguém dentro dele, então não toca
+ * `categorias`, `areas`, `vinculos` nem `pessoas`. Quem precisa de nome é o **modelo de leitura**, e ele
+ * já tem o `SELECT_DA_OCORRENCIA`.
+ */
+const SELECT_DO_AGREGADO = `
+  select o.titulo,
+         o.descricao,
+         o.categoria_id,
+         o.area_id,
+         o.area_tipo,
+         o.localizacao_complemento,
+         o.autor_pessoa_id,
+         o.status,
+         o.prioridade,
+         o.registrada_em
+    from ocorrencias o
+   where o.organizacao_id = $1 and o.id = $2`;
+
+/**
+ * Monta a raiz.
+ *
+ * **A trilha vem do `SELECT_DA_TRILHA`, que já existe e já é pago** — o `join` de autor dele traz um
+ * `autor_nome` que o agregado descarta, e isso é custo declarado: escrever um segundo `select` de trilha
+ * criaria a segunda cópia que diverge no dia em que a tabela ganhar coluna.
+ */
+function montarAgregado(linha: LinhaDoAgregado, trilha: readonly LinhaDeTransicao[]): Ocorrencia {
+  return Ocorrencia.reconstituir({
+    titulo: linha.titulo,
+    descricao: linha.descricao,
+    categoriaId: linha.categoria_id,
+    areaId: linha.area_id,
+    areaTipo: linha.area_tipo,
+    localizacaoComplemento: linha.localizacao_complemento,
+    autorPessoaId: linha.autor_pessoa_id,
+    registradaEm: linha.registrada_em.toISOString(),
+    status: linha.status,
+    prioridade: linha.prioridade,
+    trilha: trilha.map((registro) =>
+      RegistroDeTransicao.reconstituir({
+        sequencia: registro.sequencia,
+        statusAnterior: registro.status_anterior,
+        statusNovo: registro.status_novo,
+        ocorreuEm: registro.ocorreu_em.toISOString(),
+        autorPessoaId: registro.autor_pessoa_id,
+        observacao: registro.observacao,
+        motivoPausa: registro.motivo_pausa,
+        motivoCancelamento: registro.motivo_cancelamento,
+      }),
+    ),
+  });
 }
 
 /** As colunas do resumo. **Menos que as do detalhe, de propósito** — sem `descricao` e sem a trilha. */
@@ -457,6 +527,84 @@ export function repositorioEscopadoDeOcorrencias(
 
         return { desfecho: "anexo-ja-reivindicado", ocorrenciaId: linha.ocorrencia_id };
       }
+    },
+
+    /**
+     * **A reidratação — duas idas, e as duas escopadas.** A linha e a trilha; nada além. Sequencial e não
+     * `Promise.all`, ao contrário de `lerPorId`: sem a linha não há agregado a montar, e disparar a
+     * segunda consulta para descartá-la seria trabalho pago por nada no caminho de `null`.
+     */
+    async carregar(id) {
+      const linhas = await consulta<LinhaDoAgregado>(SELECT_DO_AGREGADO, [id]);
+      const linha = linhas[0];
+      if (linha === undefined) return null;
+
+      const trilha = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]);
+      return montarAgregado(linha, trilha);
+    },
+
+    /**
+     * **A transição — `update` e `insert` num `COMMIT` só** (invariante 2), e o `update` é o controle
+     * otimista.
+     *
+     * **O predicado é a própria transição de origem:** `where status = <statusAnterior do registro>`.
+     * Zero linhas significa que outro Gestor moveu a ocorrência entre a leitura e a escrita — e a resposta
+     * é `desfecho: "conflito"`, sem coluna de versão e sem `ETag` (contrato §7.9). **A rede de trás é o
+     * `unique (ocorrencia_id, sequencia)`**: se um dia o predicado se perder, a trilha não ganha duas
+     * linhas nº 2 em silêncio.
+     *
+     * **Este método transcreve; ele não decide.** Os oito campos do registro saem do objeto de valor.
+     */
+    async aplicarTransicao(id, ocorrencia) {
+      const registro = ocorrencia.ultimaTransicao;
+      const anterior = registro.statusAnterior;
+
+      if (anterior === null) {
+        // A origem da trilha é gravada por `registrar`. Chegar aqui com ela é defeito de chamador.
+        throw new Error("aplicarTransicao recebeu a origem da trilha — só transição se aplica aqui.");
+      }
+
+      return emTransacao(async (executar) => {
+        // Os `::` não são decoração: sem eles o Postgres compara `unknown` com `status_ocorrencia` e a
+        // resolução passa a depender de inferência — a mesma razão dos casts do `listar`, logo abaixo.
+        const movidas = await executar<{ id: string }>(
+          `update ocorrencias
+              set status = $4::status_ocorrencia, atualizada_em = $5
+            where organizacao_id = $1 and id = $2 and status = $3::status_ocorrencia
+          returning id`,
+          // `atualizada_em` recebe o INSTANTE DA TRANSIÇÃO, nunca `now()` (arquitetura.md §5.8).
+          [id, anterior, ocorrencia.status, registro.ocorreuEm],
+        );
+
+        if (movidas[0] === undefined) return { desfecho: "conflito" as const };
+
+        await executar(
+          `insert into registros_transicao
+             (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo,
+              ocorreu_em, autor_pessoa_id, observacao, motivo_pausa, motivo_cancelamento)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            id,
+            registro.sequencia,
+            registro.statusAnterior,
+            registro.statusNovo,
+            registro.ocorreuEm,
+            registro.autorPessoaId,
+            registro.observacao,
+            registro.motivoPausa,
+            registro.motivoCancelamento,
+          ],
+        );
+
+        // **A releitura acontece DENTRO da transação**, como `registrar` já faz: o que volta ao cliente é
+        // o detalhe de verdade, com nome de categoria, de área e de autor — não um payload pela metade
+        // montado a partir do agregado, que é como se produz resposta que diverge da leitura.
+        const relida = await lerPorId(executar, id);
+        if (relida === null) {
+          throw new Error("Ocorrência recém-transicionada não foi relida — transação inconsistente.");
+        }
+        return { desfecho: "aplicada" as const, ocorrencia: relida };
+      });
     },
 
     porId: (id) => lerPorId(consulta, id),

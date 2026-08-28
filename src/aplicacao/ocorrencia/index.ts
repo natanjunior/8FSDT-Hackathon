@@ -10,6 +10,7 @@ export {
   type PessoaReferencia,
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
+  type ResultadoDaTransicao,
   type ResultadoDoRegistro,
   type TransicaoLida,
 } from "./portas";
