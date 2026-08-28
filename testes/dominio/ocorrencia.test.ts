@@ -418,6 +418,17 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
 
   const ANALISE = { autorPessoaId: GESTOR, ocorreuEm: "2026-08-27T09:14:00.000Z" };
 
+  /**
+   * O agregado no estado que o caso pedir. **`ABERTA` com o `status` trocado**, e nada mais: um segundo
+   * objeto de reconstituição neste arquivo seria a cópia que diverge no dia em que `DadosDeReconstituicao`
+   * ganhar campo.
+   *
+   * **A trilha continua sendo a de origem**, com um registro só — é o que torna a contagem dos casos
+   * abaixo legível: dois depois de `analisar`, três depois de `iniciarAtendimento`.
+   */
+  const em = (status: (typeof STATUS_TODOS)[number]) =>
+    Ocorrencia.reconstituir({ ...ABERTA, status });
+
   it("reconstituir devolve o agregado no estado em que ele foi gravado", () => {
     const ocorrencia = Ocorrencia.reconstituir(ABERTA);
 
@@ -506,6 +517,85 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
     });
 
     expect(comBuraco.analisar(ANALISE).ultimaTransicao.sequencia).toBe(8);
+  });
+
+  it("iniciarAtendimento sai de em_analise e chega a em_atendimento — o critério 22.1", () => {
+    const emAnalise = em("em_analise");
+    const iniciada = emAnalise.iniciarAtendimento({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+    });
+
+    expect(iniciada.status).toBe("em_atendimento");
+  });
+
+  it("iniciarAtendimento acrescenta UM registro, com os cinco campos — o critério 22.1", () => {
+    const iniciada = em("em_analise").iniciarAtendimento({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+      observacao: "O Zelador começa amanhã.",
+    });
+
+    const registro = iniciada.ultimaTransicao;
+    expect(registro.statusAnterior).toBe("em_analise");
+    expect(registro.statusNovo).toBe("em_atendimento");
+    expect(registro.ocorreuEm).toBe("2026-08-28T15:20:00.000Z");
+    // **O autor da transição é quem COMANDOU**, nunca o autor da ocorrência.
+    expect(registro.autorPessoaId).toBe(GESTOR);
+    expect(registro.observacao).toBe("O Zelador começa amanhã.");
+    // `avanco` não põe motivo em nenhum dos dois campos — este destino não os exige.
+    expect(registro.motivoPausa).toBeNull();
+    expect(registro.motivoCancelamento).toBeNull();
+  });
+
+  it("a trilha de uma ocorrência atendida tem TRÊS registros — origem, análise e atendimento", () => {
+    // **É a primeira ocorrência do produto com trilha de três**, e a sequência vem do ÚLTIMO registro.
+    const analisada = em("aberta").analisar({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:00:00.000Z",
+    });
+    const iniciada = analisada.iniciarAtendimento({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+    });
+
+    expect(iniciada.trilha).toHaveLength(3);
+    expect(iniciada.trilha.map((registro) => registro.sequencia)).toStrictEqual([1, 2, 3]);
+    expect(iniciada.trilha.map((registro) => registro.statusNovo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+    ]);
+  });
+
+  it("sem observação, o registro de iniciarAtendimento fica com null — nunca string vazia", () => {
+    const iniciada = em("em_analise").iniciarAtendimento({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+    });
+
+    expect(iniciada.ultimaTransicao.observacao).toBeNull();
+  });
+
+  it("o agregado ANTES de iniciarAtendimento não muda — o comando devolve instância nova", () => {
+    const emAnalise = em("em_analise");
+    emAnalise.iniciarAtendimento({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-28T15:20:00.000Z" });
+
+    expect(emAnalise.status).toBe("em_analise");
+    expect(emAnalise.trilha).toHaveLength(1);
+  });
+
+  it("iniciarAtendimento fora de em_analise estoura — a invariante 1 é estrutural", () => {
+    // **Alcançar isto é defeito NOSSO, não recusa de negócio** — a Aplicação confere antes com
+    // `transicaoPermitida`, e é ela quem produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+    for (const status of ["aberta", "em_atendimento", "pausada", "resolvida", "cancelada"] as const) {
+      expect(() =>
+        em(status).iniciarAtendimento({
+          autorPessoaId: GESTOR,
+          ocorreuEm: "2026-08-28T15:20:00.000Z",
+        }),
+      ).toThrow(/iniciarAtendimento exige status 'em_analise'/u);
+    }
   });
 });
 
