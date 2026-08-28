@@ -219,9 +219,12 @@ describe("analisarOcorrencia", () => {
     const recusa = erro as TransicaoNaoPermitida;
     expect(recusa.codigo).toBe("TRANSICAO_NAO_PERMITIDA");
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
-    // **Presente e vazia**: `COMANDOS_IMPLEMENTADOS` ainda filtra os outros nove nesta fatia, e vazia é
-    // verdade sobre o produto de hoje. O que o critério pede é o campo existir.
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+    // **Era `[]` até o item 19, e passou a nomear o que ainda dá para fazer.** `COMANDOS_IMPLEMENTADOS`
+    // ganhou `atribuir-responsavel`, que é admitido em `em_analise` — então a recusa de `analisar` agora
+    // devolve a única ação que sobrou para este Gestor. É a mesma mudança dos três casos de
+    // `testes/dominio/ocorrencia.test.ts`, e o critério 16.3 fica **mais** satisfeito: ele pede que o
+    // campo exista e diga a verdade, não que ele seja vazio.
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel"]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
     expect(aplicados).toHaveLength(0);

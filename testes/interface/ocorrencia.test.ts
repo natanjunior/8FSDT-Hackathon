@@ -31,7 +31,9 @@ import {
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
+  atribuicaoDeResponsavelSchema,
   camposEscritosPeloServidor,
+  camposSemDestino,
   comandoComObservacaoSchema,
   registroDeOcorrenciaSchema,
 } from "@/interface/schemas";
@@ -802,6 +804,10 @@ describe("os rótulos que descem para a barra de ações", () => {
     expect(rotuloDeComando("analisar")).toBe("Analisar");
   });
 
+  it("atribuir é palavra, e cabe ao lado de Analisar em 390 px — compromisso A-5", () => {
+    expect(rotuloDeComando("atribuir-responsavel")).toBe("Atribuir");
+  });
+
   it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {
     const rotulos = rotulosDeStatus();
     const nomes = nomesDeStatus();
@@ -819,5 +825,54 @@ describe("os rótulos que descem para a barra de ações", () => {
     // O bloco Histórico usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
     expect(nomes.aberta).toBe("Aberta");
     expect(nomes.em_analise).toBe("Em análise");
+  });
+});
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/atribuir-responsavel` — o critério 19.6
+ * ============================================================================
+ *
+ * **`observacao` é recusada EM VOZ ALTA**, e é a diferença que a §6.2 do contrato fixa: `400` é *"você
+ * escreveu errado"*, `422 CAMPO_NAO_SUPORTADO` é *"o produto não faz isso"*. Um schema Zod comum descarta
+ * o campo desconhecido de graça — e quem chamou fica convencido de ter gravado uma observação que não
+ * existe em lugar nenhum do esquema.
+ */
+describe("o corpo da atribuição", () => {
+  it("aceita { responsavelPessoaId } e nada mais é exigido — critério 19.1", () => {
+    const conferido = atribuicaoDeResponsavelSchema.safeParse({
+      responsavelPessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f",
+    });
+    expect(conferido.success).toBe(true);
+  });
+
+  it("recusa responsavelPessoaId ausente", () => {
+    expect(atribuicaoDeResponsavelSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("recusa responsavelPessoaId que não é UUID — é identificador, não texto", () => {
+    expect(atribuicaoDeResponsavelSchema.safeParse({ responsavelPessoaId: "o zelador" }).success).toBe(
+      false,
+    );
+  });
+
+  it("camposSemDestino aponta observacao — e o corpo sem ela passa limpo", () => {
+    expect(
+      camposSemDestino({ responsavelPessoaId: "x", observacao: "combinei com o zelador" }),
+    ).toStrictEqual(["observacao"]);
+    expect(camposSemDestino({ responsavelPessoaId: "x" })).toStrictEqual([]);
+  });
+
+  it("camposSemDestino não estoura com corpo que não é objeto", () => {
+    // O `recusar` roda sobre o corpo CRU: `null`, `[]` e `"texto"` chegam aqui antes de o schema opinar.
+    expect(camposSemDestino(null)).toStrictEqual([]);
+    expect(camposSemDestino("observacao")).toStrictEqual([]);
+  });
+
+  it("observacao NULA também é recusada — o campo presente é o que importa", () => {
+    // `"observacao" in corpo` e não `corpo.observacao !== undefined`: quem mandou `{ observacao: null }`
+    // mandou o campo, e precisa saber que ele não é aceito. É a mesma leitura de
+    // `camposEscritosPeloServidor`.
+    expect(camposSemDestino({ observacao: null })).toStrictEqual(["observacao"]);
   });
 });

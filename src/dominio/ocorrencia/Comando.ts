@@ -41,5 +41,8 @@ export type Comando = (typeof COMANDOS)[number];
  * **O item 16 foi o primeiro a fazê-lo**, e o momento importa: a linha entra na tarefa que cria o
  * `route.ts`, nunca antes. Anunciar um comando cujo endpoint ainda não existe produz um botão que
  * responde `404`, status que o contrato não prevê em T-05.
+ *
+ * **O item 19 foi o segundo**, e com ele a barra de T-05 passa a renderizar **dois** botões pela primeira
+ * vez. A linha entra na tarefa que cria o `route.ts`, nunca antes.
  */
-export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = ["analisar"];
+export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = ["analisar", "atribuir-responsavel"];

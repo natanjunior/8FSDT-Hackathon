@@ -187,23 +187,35 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz UM comando — o analisar do item 16", () => {
+  it("hoje traz DOIS comandos — o analisar do item 16 e o atribuir do 19", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
-    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar"]);
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar", "atribuir-responsavel"]);
   });
 
-  it("o Gestor em aberta vê analisar, e mais nada — o filtro ainda corta os outros nove", () => {
+  it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
+    // **Na ordem do enum `Comando`**, que é o que dispensa o cliente de ter uma segunda lista só para
+    // ordenar a barra.
     expect(comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false })).toStrictEqual([
       "analisar",
+      "atribuir-responsavel",
     ]);
   });
 
-  it("em em_analise a lista volta a ser vazia — o caso DOMINANTE depois desta fatia", () => {
-    // É o que o Gestor vê no instante seguinte a clicar em Analisar, e é o que o critério 16.6 cobre.
+  it("em em_analise sobra o atribuir — a lista deixa de ser vazia, e o critério 16.6 muda de caso", () => {
+    // Era `[]` até o item 19: `analisar` sai da lista assim que a ocorrência é analisada, e não havia
+    // outro comando construído. Agora o Gestor tem o que fazer no instante seguinte à triagem.
     expect(comandosDisponiveis({ status: "em_analise", permissoes: TODAS, ehAutor: false })).toStrictEqual(
-      [],
+      ["atribuir-responsavel"],
     );
+  });
+
+  it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
+    for (const terminal of ["resolvida", "cancelada"] as const) {
+      expect(comandosDisponiveis({ status: terminal, permissoes: TODAS, ehAutor: false })).toStrictEqual(
+        [],
+      );
+    }
   });
 
   /**
