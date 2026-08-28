@@ -5,6 +5,7 @@ import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
   analisarOcorrencia,
   iniciarAtendimento,
+  pausarOcorrencia,
   registrarOcorrencia,
   resolverOcorrencia,
   verOcorrencia,
@@ -1493,5 +1494,184 @@ describe("a resolução contra Postgres — item 26", () => {
     // comando nem chegou à escrita.
     expect(linha?.status).toBe("em_atendimento");
     expect(linha?.solucao_aplicada).toBeNull();
+  });
+});
+
+describe("a pausa contra Postgres — item 23", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+  ];
+
+  let zeladorPessoaId: string;
+
+  beforeAll(async () => {
+    const [zelador] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Pausador ${SUFIXO}`],
+    );
+    zeladorPessoaId = zelador!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [zeladorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa esperar.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("analisar → atribuir → iniciar → pausar: QUATRO registros, e motivo_pausa gravado — critérios 23.1 e 23.3", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Pausa depois do atendimento");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const lida = await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.",
+    });
+
+    // **`pausada` existe pela primeira vez em banco.**
+    expect(lida.status).toBe("pausada");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("em_atendimento");
+    expect(lida.ultimaTransicao.motivoPausa).toBe("aguardando_peca");
+
+    const registros = await consultaCrua<{
+      status_novo: string;
+      motivo_pausa: string | null;
+      motivo_cancelamento: string | null;
+      observacao: string | null;
+    }>(
+      `select status_novo, motivo_pausa, motivo_cancelamento, observacao
+         from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+    ]);
+
+    const pausa = registros[3]!;
+    // **Os dois lados do CHECK registros_transicao_motivo_ck, conferidos no banco de verdade.**
+    expect(pausa.motivo_pausa).toBe("aguardando_peca");
+    expect(pausa.motivo_cancelamento).toBeNull();
+    expect(pausa.observacao).toBe("Sem lâmpada no estoque; pedido feito ao fornecedor.");
+  });
+
+  it("pausar DIRETO de em_analise grava status_anterior = 'em_analise' — é o dado que o item 24 vai ler", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Pausa antes de atender");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_autorizacao",
+      observacao: "Esperando o síndico autorizar a compra.",
+    });
+
+    const [pausa] = await consultaCrua<{ status_anterior: string; sequencia: number }>(
+      `select status_anterior, sequencia from registros_transicao
+        where ocorrencia_id = $1 and status_novo = 'pausada'`,
+      [id],
+    );
+
+    // **A trilha tem TRÊS aqui, não quatro — e o statusAnterior é a outra origem.**
+    expect(pausa?.status_anterior).toBe("em_analise");
+    expect(pausa?.sequencia).toBe(3);
+  });
+
+  it("pausar duas vezes dá 409 na segunda, e a trilha continua com três — critério 23.2", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Pausar duas vezes");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_terceiro",
+      observacao: "A empresa de elevadores vem quinta.",
+    });
+
+    const erro = await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "De novo.",
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "pausada",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(3);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não pausa — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Isolamento da pausa");
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho23 ${SUFIXO}`, `V3${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      pausarOcorrencia(deOutra, ctx, {
+        ocorrenciaId: id,
+        motivo: "aguardando_peca",
+        observacao: "Da organização errada.",
+      }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Não escreveu o status, e não gravou registro.** O `organizacao_id = $1` vem do escopo, e o
+    // comando nem chegou à escrita.
+    expect(linha?.status).toBe("em_analise");
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(2);
   });
 });
