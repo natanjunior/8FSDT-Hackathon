@@ -2,7 +2,12 @@
 export { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
 export { COMANDOS, COMANDOS_IMPLEMENTADOS, type Comando } from "./Comando";
 export { TransicaoNaoPermitida } from "./erros";
-export { comandosDisponiveis, transicaoPermitida, type PerguntaDeAcoes } from "./MaquinaDeEstados";
+export {
+  comandoPermitido,
+  comandosDisponiveis,
+  transicaoPermitida,
+  type PerguntaDeAcoes,
+} from "./MaquinaDeEstados";
 export {
   MOTIVOS_DE_CANCELAMENTO,
   MOTIVOS_DE_PAUSA,
