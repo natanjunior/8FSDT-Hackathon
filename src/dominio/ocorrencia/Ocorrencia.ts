@@ -1,4 +1,5 @@
 import { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
+import { type MotivoPausa } from "./Motivos";
 import { PRIORIDADE_INICIAL, type Prioridade } from "./Prioridade";
 import { RegistroDeTransicao } from "./RegistroDeTransicao";
 import { type StatusOcorrencia } from "./StatusOcorrencia";
@@ -334,6 +335,55 @@ export class Ocorrencia {
         observacao: entrada.observacao ?? null,
       }),
       entrada.solucaoAplicada ?? this._solucaoAplicada,
+    );
+  }
+
+  /**
+   * O comando `pausar` — `Em análise` **ou** `Em atendimento` → `Pausada` (critério 23.2), e **o
+   * primeiro comando de transição do produto com DOIS estados de origem**.
+   *
+   * `analisar`, `iniciarAtendimento` e `resolver` têm origem única; esta guarda aceita duas
+   * (`MaquinaDeEstados.ts`, `TRANSICOES`), e `cancelar` terá quatro. **Continua sendo `Error` e
+   * continua sendo rede, não decisão** — quem decide é `transicaoPermitida`, na Aplicação.
+   *
+   * **`RegistroDeTransicao.avanco` NÃO serve aqui**, e é o ponto da fatia: `pausada` exige motivo
+   * codificado e observação não vazia, e `avanco` recusa este destino de propósito. A porta é `pausa`.
+   *
+   * **`comTransicao` é chamado sem o terceiro parâmetro, e a omissão é deliberada:** o padrão é *"a
+   * solução aplicada que já havia"*, e é exatamente o comportamento correto — pausar uma ocorrência
+   * que já tem solução registrada (possível a partir de `em_atendimento`, quando o item 25 existir)
+   * **não pode apagá-la**.
+   *
+   * **O agregado não sabe o que é `retomar`, e o critério 23.3 é sobre isso.** Ele grava
+   * `statusAnterior` como grava em toda transição; o que faz o campo servir de alvo do retorno é o
+   * item **24** lê-lo. Nada de especial é escrito aqui, e essa ausência **é** o critério: *"não há
+   * campo extra para o alvo do retorno"*.
+   */
+  pausar(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    motivo: MotivoPausa;
+    /** **Obrigatória** — invariante 5. Quem apara é o comando de aplicação. */
+    observacao: string;
+  }): Ocorrencia {
+    if (this._status !== "em_analise" && this._status !== "em_atendimento") {
+      throw new Error(
+        `pausar exige status 'em_analise' ou 'em_atendimento'; a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    return this.comTransicao(
+      "pausada",
+      RegistroDeTransicao.pausa({
+        // **Do último registro, não do tamanho da lista** — o mesmo argumento dos três anteriores.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao,
+        motivoPausa: entrada.motivo,
+      }),
     );
   }
 
