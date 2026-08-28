@@ -836,6 +836,19 @@ describe("o corpo dos comandos de avanço rotineiro", () => {
     // olhando na direção contrária: o código não pode ser mais estrito que o contrato.
     expect(comandoComObservacaoSchema.safeParse({ observacao: "" }).success).toBe(true);
   });
+
+  it("campo que não é observacao é DESCARTADO — é o critério 24.2 no schema", () => {
+    // **O cliente não escolhe o destino de `retomar`.** O corpo declara um campo só, e `z.object` sem
+    // `.passthrough()` descarta o resto: mandar `statusDestino` não muda nada, e não vira `400` — o que
+    // seria contar ao cliente que existe uma porta. O destino sai da trilha, dentro do agregado.
+    const analisado = comandoComObservacaoSchema.parse({
+      observacao: "Peça chegou.",
+      statusDestino: "resolvida",
+    });
+
+    expect(analisado).toStrictEqual({ observacao: "Peça chegou." });
+    expect("statusDestino" in analisado).toBe(false);
+  });
 });
 
 describe("os rótulos que descem para a barra de ações", () => {
