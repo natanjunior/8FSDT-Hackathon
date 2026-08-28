@@ -257,6 +257,122 @@ describe("o que o banco recusa", () => {
       ),
     ).rejects.toThrow(/ocorrencias_texto_ck/u);
   });
+
+  /**
+   * ==========================================================================
+   *  As garantias da migração 008 — o critério 19.5, e os dois `CHECK`
+   * ==========================================================================
+   *
+   * **Nenhuma delas tem duplo.** *"Um responsável vigente por ocorrência"* é garantia de **classe B** do
+   * modelo §8 — regra sobre um conjunto de linhas —, e o que a opera é o banco. Provar isso com um duplo
+   * seria provar o duplo.
+   */
+  async function ocorrenciaNua(): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo, autor_pessoa_id)
+       values ($1, 'Portão travado', 'Não abre pelo controle.', $2, $3, 'comum', $4)
+       returning id`,
+      [organizacaoId, categoriaId, areaId, pessoaId],
+    );
+    return linha!.id;
+  }
+
+  it("duas atribuições vigentes na mesma ocorrência violam atribuicoes_vigente_uk — critério 19.5", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+       values ($1, $2, $3, $3)`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+         values ($1, $2, $3, $3)`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ code: "23505", constraint: "atribuicoes_vigente_uk" });
+  });
+
+  it("a SEGUNDA passa quando a primeira foi encerrada — o índice é PARCIAL, e é o que faz a reatribuição existir", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await consultaCrua(
+      `insert into atribuicoes
+         (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id,
+          encerrada_em, motivo_encerramento)
+       values ($1, $2, $3, $3, now(), 'reatribuicao')`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+       values ($1, $2, $3, $3)`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    const linhas = await consultaCrua<{ total: string }>(
+      `select count(*) as total from atribuicoes where ocorrencia_id = $1`,
+      [ocorrenciaId],
+    );
+    expect(linhas[0]!.total).toBe("2");
+  });
+
+  it("encerrar sem motivo — e ter motivo sem encerrar — viola o CHECK do par, nos dois sentidos", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, encerrada_em)
+         values ($1, $2, $3, $3, now())`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_encerramento_ck" });
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, motivo_encerramento)
+         values ($1, $2, $3, $3, 'reatribuicao')`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_encerramento_ck" });
+  });
+
+  it("encerrar ANTES de atribuir viola a ordem temporal — §8.1, classe A", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id,
+            atribuido_em, encerrada_em, motivo_encerramento)
+         values ($1, $2, $3, $3, now(), now() - interval '1 hour', 'reatribuicao')`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_ordem_temporal_ck" });
+  });
+
+  it("atribuir a quem NÃO tem vínculo nesta organização é recusado pela FK composta — a D21 no banco", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    // Pessoa global, sem vínculo nenhum. É o cadastro existir e o vínculo não.
+    const [forasteira] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Forasteira ${SUFIXO}`],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+         values ($1, $2, $3, $4)`,
+        [organizacaoId, ocorrenciaId, forasteira!.id, pessoaId],
+      ),
+    ).rejects.toMatchObject({ code: "23503", constraint: "atribuicoes_responsavel_fk" });
+  });
 });
 
 /**

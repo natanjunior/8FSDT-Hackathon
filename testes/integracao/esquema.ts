@@ -32,14 +32,16 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // Estado limpo em toda execução: o teste não pode depender do que a anterior deixou. `cascade` cobre as
   // FKs entre elas, inclusive a composta que `vinculos` tem para `areas` e a que `pedidos_de_entrada` tem
   // para `vinculos`.
-  // A ordem importa: `anexos` antes de `ocorrencias` (a FK é RESTRICT),
+  // A ordem importa: `atribuicoes` antes de `ocorrencias` E de `vinculos` (as
+  // três FKs são RESTRICT), `anexos` antes de `ocorrencias` (a FK é RESTRICT),
   // `registros_transicao` antes de `ocorrencias`, e as três antes de
   // `categorias`/`areas`. `autorizacoes_de_upload` vem na frente de `pessoas`,
   // que é para onde a FK dela aponta. O `cascade` cobre, mas a ordem explícita
   // documenta a direção das FKs.
   await consulta(
-    `drop table if exists anexos, autorizacoes_de_upload, registros_transicao, ocorrencias, contatos,
-                          pedidos_de_entrada, categorias, areas, vinculos, organizacoes, pessoas cascade`,
+    `drop table if exists atribuicoes, anexos, autorizacoes_de_upload, registros_transicao, ocorrencias,
+                          contatos, pedidos_de_entrada, categorias, areas, vinculos, organizacoes,
+                          pessoas cascade`,
   );
   await consulta(`drop type if exists papel_vinculo`);
   await consulta(`drop type if exists tipo_area`);
@@ -53,6 +55,7 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   await consulta(`drop type if exists vinculo_ocorrencia`);
   await consulta(`drop type if exists tipo_anexo`);
   await consulta(`drop type if exists fonte_anexo`);
+  await consulta(`drop type if exists motivo_encerramento_atribuicao`);
   // **A migração 005 é a primeira do repositório a criar uma FUNÇÃO**, e é por isso que aparece um
   // `drop function` aqui. `drop table ... cascade` derruba o **gatilho**, porque ele depende da tabela —
   // e **não** derruba a função, que não depende de nada. Sem esta linha, o **segundo** arquivo de
