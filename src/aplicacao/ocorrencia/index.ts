@@ -25,6 +25,7 @@ export {
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
   type ResultadoDoRegistro,
   type TransicaoLida,

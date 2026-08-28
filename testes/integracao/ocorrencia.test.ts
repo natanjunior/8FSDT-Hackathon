@@ -1896,3 +1896,187 @@ describe("a retomada contra Postgres — item 24", () => {
     expect(linha?.status).toBe("pausada");
   });
 });
+
+describe("a solução aplicada contra Postgres — item 25", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+    "ocorrencia.registrar_solucao",
+    "ocorrencia.resolver",
+  ];
+
+  let executorPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Solucionador ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa ser descrito depois.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  /** Leva a ocorrência até `em_atendimento` pelo caminho de verdade — analisar, atribuir, iniciar. */
+  async function emAtendimento(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  /** `pausada` pelo caminho mais curto — a pausa sai de `em_analise` também (critério 23.2). */
+  async function pausada(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem lâmpada no estoque.",
+    });
+    return id;
+  }
+
+  /** Quantos registros a trilha tem agora. */
+  async function registrosDe(id: string): Promise<number> {
+    const linhas = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    return linhas.length;
+  }
+
+  it("a coluna é gravada e a TRILHA CONTINUA DO MESMO TAMANHO — o critério 25.1 contra Postgres", async () => {
+    const id = await emAtendimento("Solução sem registro");
+    const antes = await registrosDe(id);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const gravada = carregada!.ocorrencia.registrarSolucaoAplicada({
+      solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+    });
+
+    const resultado = await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      gravada,
+      new Date().toISOString(),
+    );
+
+    expect(resultado.desfecho).toBe("gravada");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBe("Trocada a lâmpada da vaga 34.");
+    // **O status não muda**, e a trilha não cresce. É o único comando construído até aqui do qual os dois
+    // são verdade — e a segunda asserção é a que nenhum outro item pôde fazer.
+    expect(linha?.status).toBe("em_atendimento");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("grava a partir de pausada também — a segunda origem da tabela companheira", async () => {
+    const id = await pausada("Solução durante a espera");
+    const antes = await registrosDe(id);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      carregada!.ocorrencia.registrarSolucaoAplicada({ solucaoAplicada: "Peça pedida e instalada." }),
+      new Date().toISOString(),
+    );
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBe("Peça pedida e instalada.");
+    expect(linha?.status).toBe("pausada");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("atualizada_em AVANÇA, e é o carimbo que o comando leu — nunca now()", async () => {
+    const id = await emAtendimento("Carimbo de atividade");
+
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+
+    // **Um instante escolhido, e não o relógio do banco.** A §7.4 do modelo diz que o campo é escrito
+    // pelo agregado a cada comando; a §5.8 da arquitetura diz que ele significa *"houve atividade"*.
+    const instante = new Date(Date.now() + 60_000).toISOString();
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      carregada!.ocorrencia.registrarSolucaoAplicada({ solucaoAplicada: "Feito." }),
+      instante,
+    );
+
+    const [depois] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(new Date(depois!.atualizada_em).getTime()).toBe(new Date(instante).getTime());
+    expect(new Date(depois!.atualizada_em).getTime()).toBeGreaterThan(
+      new Date(antes!.atualizada_em).getTime(),
+    );
+  });
+
+  it("A CORRIDA: o estado mudou entre o carregar e o update, e o predicado recusa — a §3.3 provada", async () => {
+    // **É o furo F-4 do plano, e o caso que a spec julgou inalcançável.** Ele é alcançável porque o teste
+    // SEGURA o agregado carregado: resolvemos a ocorrência por outro caminho e só então chamamos a porta
+    // com a instância velha. É literalmente a janela entre `carregar` e `update`.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Corrida com o resolver");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const gravada = carregada!.ocorrencia.registrarSolucaoAplicada({
+      solucaoAplicada: "Escrita tarde demais.",
+    });
+
+    // Outro Gestor chega antes e encerra a ocorrência.
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "A que ficou.",
+    });
+
+    const resultado = await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      gravada,
+      new Date().toISOString(),
+    );
+
+    // **`conflito`, e não escrita.** Sem o predicado, o texto de cima teria entrado numa ocorrência
+    // `resolvida`, sem nada na linha do tempo dizendo quando nem por quem.
+    expect(resultado.desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("resolvida");
+    expect(linha?.solucao_aplicada).toBe("A que ficou.");
+  });
+});
