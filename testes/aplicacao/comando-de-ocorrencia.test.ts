@@ -9,6 +9,7 @@ import {
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
+  retomarOcorrencia,
   TransicaoNaoPermitida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
@@ -44,6 +45,10 @@ const DO_GESTOR = [
   "ocorrencia.atribuir",
   "ocorrencia.iniciar_atendimento",
   "ocorrencia.pausar",
+  // O sexto comando construído. `retomar` só é oferecido em `pausada`, então **nenhuma asserção
+  // existente deste arquivo muda de valor** — as três que conferem `acoesDisponiveis` por igualdade
+  // olham `aberta`, `em_analise` e os dois terminais.
+  "ocorrencia.retomar",
   "ocorrencia.resolver",
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
@@ -74,6 +79,22 @@ function agregadoEm(status: StatusOcorrencia): Ocorrencia {
         motivoCancelamento: null,
       }),
     ],
+  });
+}
+
+/**
+ * O agregado **pausado de verdade** — `agregadoEm(origem)` atravessado pelo `pausar` do Domínio.
+ *
+ * **Não é `agregadoEm("pausada")`, e a diferença é a fatia inteira:** aquele traz a trilha de ORIGEM,
+ * com um registro só e `statusAnterior: null`, e `retomar` o recusa de propósito — é a guarda do
+ * critério 24.1. Aqui o registro de pausa existe, e é dele que o destino sai.
+ */
+function agregadoPausadoDe(origem: "em_analise" | "em_atendimento"): Ocorrencia {
+  return agregadoEm(origem).pausar({
+    autorPessoaId: GESTOR,
+    ocorreuEm: "2026-08-28T15:20:00.000Z",
+    motivo: "aguardando_peca",
+    observacao: "Sem lâmpada no estoque.",
   });
 }
 
@@ -779,5 +800,161 @@ describe("pausarOcorrencia", () => {
 
     expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
     expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
+  });
+});
+describe("retomarOcorrencia", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-29T08:00:00.000Z" };
+  const ENTRADA = { ocorrenciaId: ID };
+
+  it("caminho feliz da pausa de em_analise: o agregado ATRAVESSADO chega ao repositório em em_analise", async () => {
+    const lida = await retomarOcorrencia(
+      repositorio({ cargas: [agregadoPausadoDe("em_analise")], temResponsavel: false }),
+      ctx,
+      ENTRADA,
+    );
+
+    const gravado = aplicados[0]!;
+    expect(gravado.status).toBe("em_analise");
+    expect(gravado.ultimaTransicao.statusAnterior).toBe("pausada");
+    expect(gravado.ultimaTransicao.statusNovo).toBe("em_analise");
+    expect(gravado.ultimaTransicao.autorPessoaId).toBe(GESTOR);
+    expect(gravado.ultimaTransicao.ocorreuEm).toBe("2026-08-29T08:00:00.000Z");
+    expect(gravado.ultimaTransicao.motivoPausa).toBeNull();
+
+    // **O critério 24.2 do lado do servidor:** o destino não veio da entrada, e a resposta o revela.
+    expect(lida.status).toBe("em_analise");
+  });
+
+  it("caminho feliz da pausa de em_atendimento — a SEGUNDA origem, e o destino MUDA sozinho", async () => {
+    // **A mesma entrada, o mesmo comando, outro destino.** É o que prova que o alvo sai da trilha, e
+    // não de uma tabela.
+    await retomarOcorrencia(
+      repositorio({ cargas: [agregadoPausadoDe("em_atendimento")], temResponsavel: true }),
+      ctx,
+      ENTRADA,
+    );
+
+    expect(aplicados[0]!.status).toBe("em_atendimento");
+  });
+
+  it("SEM responsável, a retomada para em_atendimento passa mesmo assim — a invariante 9 é do iniciarAtendimento", async () => {
+    // **A ausência é a decisão (spec §3.4).** A `arquitetura.md` §4 atribui a invariante 9 a
+    // `iniciarAtendimento` NOMINALMENTE, não a "chegar em `em_atendimento`" — e o produto não tem
+    // endpoint que desatribua, então a checagem recusaria um caminho que ele não sabe produzir.
+    await retomarOcorrencia(
+      repositorio({ cargas: [agregadoPausadoDe("em_atendimento")], temResponsavel: false }),
+      ctx,
+      ENTRADA,
+    );
+
+    expect(aplicados[0]!.status).toBe("em_atendimento");
+  });
+
+  it("observação em branco vira null — string vazia não entra numa trilha append-only", async () => {
+    await retomarOcorrencia(repositorio({ cargas: [agregadoPausadoDe("em_analise")] }), ctx, {
+      ...ENTRADA,
+      observacao: "   ",
+    });
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBeNull();
+  });
+
+  it("a observação com texto é APARADA, e é o mesmo tratamento dos outros avanços", async () => {
+    await retomarOcorrencia(repositorio({ cargas: [agregadoPausadoDe("em_analise")] }), ctx, {
+      ...ENTRADA,
+      observacao: "  Peça chegou.  ",
+    });
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBe("Peça chegou.");
+  });
+
+  it("fora de pausada: 409 TRANSICAO_NAO_PERMITIDA nos CINCO, e aplicarTransicao NÃO é chamado — critério 24.3", async () => {
+    for (const status of [
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "resolvida",
+      "cancelada",
+    ] as const) {
+      aplicados = [];
+      const erro = await retomarOcorrencia(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        ENTRADA,
+      ).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      const recusa = erro as TransicaoNaoPermitida;
+      expect(recusa.extensoes["statusAtual"]).toBe(status);
+      expect(recusa.extensoes["acoesDisponiveis"]).toBeDefined();
+      // **Nenhum registro é criado na recusa** — estrutural: o insert só existe em aplicarTransicao.
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("a recusa é da APLICAÇÃO, e o Error do Domínio não chega a ser alcançado", async () => {
+    // `agregadoEm("aberta").retomar(...)` também estouraria — mas com `Error`, que viraria `500`. O que
+    // este caso fixa é a ORDEM: quem decide é `transicaoPermitida`, e a guarda do agregado é rede.
+    const erro = await retomarOcorrencia(
+      repositorio({ cargas: [agregadoEm("aberta")] }),
+      ctx,
+      ENTRADA,
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      retomarOcorrencia(repositorio({ cargas: [null] }), ctx, ENTRADA),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("quem não alcança a ocorrência recebe o MESMO 404 — §6.3", async () => {
+    // A conferência de visibilidade continua rodando mesmo sendo hoje redundante: amarrar a leitura ao
+    // comando por coincidência de mapa é o acoplamento que some quando o mapa muda (contrato §4.5).
+    const soPropria = {
+      pessoaId: GESTOR,
+      permissoes: ["ocorrencia.ler_propria", "ocorrencia.retomar"],
+      agora: ctx.agora,
+    };
+
+    await expect(
+      retomarOcorrencia(
+        repositorio({ cargas: [agregadoPausadoDe("em_analise")] }),
+        soPropria,
+        ENTRADA,
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("a corrida: conflito na escrita relê e responde 409 com o status de AGORA — o momento 6 do protótipo", async () => {
+    const erro = await retomarOcorrencia(
+      repositorio({
+        cargas: [agregadoPausadoDe("em_atendimento"), agregadoEm("em_atendimento")],
+        temResponsavel: true,
+        conflito: true,
+      }),
+      ctx,
+      ENTRADA,
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    // **O outro Gestor já tinha retomado**, e a frase da tela dirá onde ela está agora.
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("em_atendimento");
+  });
+
+  it("conflito com a ocorrência sumindo na releitura degrada para 404, não para 500", async () => {
+    await expect(
+      retomarOcorrencia(
+        repositorio({ cargas: [agregadoPausadoDe("em_analise"), null], conflito: true }),
+        ctx,
+        ENTRADA,
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
   });
 });
