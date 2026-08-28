@@ -57,6 +57,7 @@ function agregadoEm(status: StatusOcorrencia): Ocorrencia {
     registradaEm: "2026-08-25T13:02:11.000Z",
     status,
     prioridade: "normal",
+    solucaoAplicada: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,
@@ -90,7 +91,12 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
     anexos: [],
     autor,
     responsavel: null,
-    solucaoAplicada: null,
+    /**
+     * **O duplo TRANSCREVE, como o repositório de verdade transcreve.** Era `null` chumbado, e a partir
+     * do item 26 isso seria mentira: `resolver` grava a coluna, e um duplo que sempre devolvesse `null`
+     * faria o caso *"com solução aplicada"* passar provando o contrário do que promete.
+     */
+    solucaoAplicada: agregado.solucaoAplicada,
     avaliacao: null,
     motivoPausa: null,
     ultimaTransicao: {

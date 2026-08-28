@@ -184,6 +184,9 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.analisar",
     "ocorrencia.atribuir",
     "ocorrencia.iniciar_atendimento",
+    // O quarto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
+    // que precisa dele monta a própria lista — ver o último caso deste bloco.
+    "ocorrencia.resolver",
     "ocorrencia.alterar_prioridade",
     "ocorrencia.cancelar_qualquer",
   ];
@@ -435,6 +438,68 @@ describe("comandosDisponiveis", () => {
       );
     }
   });
+
+  it("o Solicitante autor em em_atendimento continua com a lista VAZIA — o critério 26.3 na lista", () => {
+    // **É a metade do 26.3 que é conferível aqui:** ser autor dá `ler_propria` e `cancelar_propria`,
+    // nunca `resolver`. O botão nunca aparece; o `403` do `comContexto` é a outra metade (D-P3).
+    expect(
+      comandosDisponiveis({
+        status: "em_atendimento",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.cancelar_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it("em resolvida a lista é vazia para o Gestor E para o autor — o critério 26.4", () => {
+    // **Com o filtro LIGADO**, que é o que a produção faz. É o `[]` que a frase do 26.6 explica.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: true,
+      }),
+    ).toStrictEqual([]);
+
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it("com o filtro desligado, resolvida devolve avaliar para o autor — o [] é derivação, não constante", () => {
+    // **A prova de que o vazio do caso acima não é `[]` chumbado.** `SEM_TRANSICAO.avaliar` admite
+    // `resolvida`, e o que o esconde hoje é `COMANDOS_IMPLEMENTADOS` — até o item 27.
+    //
+    // **A lista de permissões é própria e inline**, e não `TODAS`: `TODAS` não tem `ocorrencia.avaliar`,
+    // e escrito com ela este caso devolveria `[]` provando o contrário do que promete (furo F-6).
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
+        filtro: null,
+      }),
+    ).toStrictEqual(["avaliar"]);
+
+    // E para quem **não** é o autor, nem com o filtro desligado — a invariante 8.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_todas", "ocorrencia.avaliar"],
+        ehAutor: false,
+        temResponsavel: true,
+        filtro: null,
+      }),
+    ).toStrictEqual([]);
+  });
 });
 
 describe("o anexo é filho do agregado, não vizinho dele", () => {
@@ -519,6 +584,9 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
     registradaEm: "2026-08-25T13:02:11.000Z",
     status: "aberta" as const,
     prioridade: "normal" as const,
+    /** **Nula até alguém resolver.** A coluna existe desde a migração 005 e, até o item 26, nenhum
+     *  endpoint a escrevia — era coluna lida pela projeção e escrita por ninguém. */
+    solucaoAplicada: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,
@@ -713,6 +781,140 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
         }),
       ).toThrow(/iniciarAtendimento exige status 'em_analise'/u);
     }
+  });
+
+  it("resolver sai de em_atendimento e chega a resolvida — o critério 26.1", () => {
+    const emAtendimento = em("em_atendimento");
+    const resolvida = emAtendimento.resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+    });
+
+    // **O primeiro estado terminal do produto.** Depois dele, `TRANSICOES.resolvida` é vazia.
+    expect(resolvida.status).toBe("resolvida");
+  });
+
+  it("resolver acrescenta UM registro, com os cinco campos — o critério 26.1", () => {
+    const resolvida = em("em_atendimento").resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+      observacao: "Conferido com a moradora.",
+    });
+
+    const registro = resolvida.ultimaTransicao;
+    expect(registro.statusAnterior).toBe("em_atendimento");
+    expect(registro.statusNovo).toBe("resolvida");
+    expect(registro.ocorreuEm).toBe("2026-08-29T10:05:00.000Z");
+    // **O autor da transição é quem COMANDOU**, nunca o autor da ocorrência.
+    expect(registro.autorPessoaId).toBe(GESTOR);
+    expect(registro.observacao).toBe("Conferido com a moradora.");
+    // `avanco` não põe motivo em nenhum dos dois campos — este destino não os exige.
+    expect(registro.motivoPausa).toBeNull();
+    expect(registro.motivoCancelamento).toBeNull();
+  });
+
+  it("a trilha de uma ocorrência resolvida tem QUATRO registros — o ciclo mínimo fechado", () => {
+    // **É a primeira ocorrência do produto que percorre o ciclo inteiro dentro do agregado.**
+    const resolvida = em("aberta")
+      .analisar({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T09:00:00.000Z" })
+      .iniciarAtendimento({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T09:30:00.000Z" })
+      .resolver({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T10:05:00.000Z" });
+
+    expect(resolvida.trilha).toHaveLength(4);
+    expect(resolvida.trilha.map((registro) => registro.sequencia)).toStrictEqual([1, 2, 3, 4]);
+    expect(resolvida.trilha.map((registro) => registro.statusNovo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "resolvida",
+    ]);
+  });
+
+  it("sem observação, o registro de resolver fica com null — nunca string vazia", () => {
+    const resolvida = em("em_atendimento").resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+    });
+
+    expect(resolvida.ultimaTransicao.observacao).toBeNull();
+  });
+
+  it("o agregado ANTES de resolver não muda — o comando devolve instância nova", () => {
+    const emAtendimento = em("em_atendimento");
+    emAtendimento.resolver({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T10:05:00.000Z" });
+
+    expect(emAtendimento.status).toBe("em_atendimento");
+    expect(emAtendimento.trilha).toHaveLength(1);
+  });
+
+  it("resolver fora de em_atendimento estoura — a invariante 1 é estrutural", () => {
+    // **Alcançar isto é defeito NOSSO, não recusa de negócio** — a Aplicação confere antes com
+    // `transicaoPermitida`, e é ela quem produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+    for (const status of ["aberta", "em_analise", "pausada", "resolvida", "cancelada"] as const) {
+      expect(() =>
+        em(status).resolver({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T10:05:00.000Z" }),
+      ).toThrow(/resolver exige status 'em_atendimento'/u);
+    }
+  });
+
+  it("resolver COM solucaoAplicada grava o texto — o corpo de uma requisição só", () => {
+    // **É a §3.2 inteira:** o texto viaja no corpo de `/resolver`, e não numa segunda chamada a
+    // `/registrar-solucao-aplicada`, que ainda não existe e que seria recusado em `resolvida`.
+    const resolvida = em("em_atendimento").resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+      solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+    });
+
+    expect(resolvida.solucaoAplicada).toBe("Trocada a lâmpada da vaga 34.");
+  });
+
+  it("resolver SEM solucaoAplicada preserva a que havia — nunca apaga", () => {
+    // **Apagar solução aplicada não é capacidade de endpoint nenhum.** Quando o item 25 existir, o
+    // Gestor poderá tê-la escrito antes de resolver, e `null` no corpo significa *ausente*, não *limpe*.
+    const comTexto = Ocorrencia.reconstituir({
+      ...ABERTA,
+      status: "em_atendimento",
+      solucaoAplicada: "Escrita antes, pelo item 25.",
+    });
+
+    const semNada = comTexto.resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+    });
+    const comNulo = comTexto.resolver({
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-29T10:05:00.000Z",
+      solucaoAplicada: null,
+    });
+
+    expect(semNada.solucaoAplicada).toBe("Escrita antes, pelo item 25.");
+    expect(comNulo.solucaoAplicada).toBe("Escrita antes, pelo item 25.");
+  });
+
+  it("reconstituir devolve a solução aplicada que estava gravada", () => {
+    expect(
+      Ocorrencia.reconstituir({ ...ABERTA, solucaoAplicada: "Veio do banco." }).solucaoAplicada,
+    ).toBe("Veio do banco.");
+    expect(Ocorrencia.reconstituir(ABERTA).solucaoAplicada).toBeNull();
+  });
+
+  it("analisar e iniciarAtendimento NÃO tocam a solução aplicada — o padrão de comTransicao", () => {
+    // **É o D-P1 conferido:** o terceiro parâmetro tem padrão, e os comandos que não o informam
+    // preservam a coluna. Sem o padrão, toda transição a apagaria em silêncio.
+    const analisada = Ocorrencia.reconstituir({
+      ...ABERTA,
+      solucaoAplicada: "Não me apague.",
+    }).analisar(ANALISE);
+
+    const iniciada = Ocorrencia.reconstituir({
+      ...ABERTA,
+      status: "em_analise",
+      solucaoAplicada: "Não me apague.",
+    }).iniciarAtendimento({ autorPessoaId: GESTOR, ocorreuEm: "2026-08-29T09:30:00.000Z" });
+
+    expect(analisada.solucaoAplicada).toBe("Não me apague.");
+    expect(iniciada.solucaoAplicada).toBe("Não me apague.");
   });
 });
 

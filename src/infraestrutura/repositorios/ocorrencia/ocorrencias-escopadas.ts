@@ -252,6 +252,9 @@ type LinhaDoAgregado = {
   status: OcorrenciaLida["status"];
   prioridade: OcorrenciaLida["prioridade"];
   registrada_em: Date;
+  /** **Coluna de `ocorrencias`, e portanto DENTRO do agregado** — ao contrário de `tem_responsavel`,
+   *  logo abaixo, que viaja ao lado dele no envelope. */
+  solucao_aplicada: string | null;
   /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
    *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
   tem_responsavel: boolean;
@@ -281,6 +284,7 @@ const SELECT_DO_AGREGADO = `
          o.status,
          o.prioridade,
          o.registrada_em,
+         o.solucao_aplicada,
          exists (select 1
                    from atribuicoes at
                   where at.ocorrencia_id = o.id
@@ -308,6 +312,7 @@ function montarAgregado(linha: LinhaDoAgregado, trilha: readonly LinhaDeTransica
     registradaEm: linha.registrada_em.toISOString(),
     status: linha.status,
     prioridade: linha.prioridade,
+    solucaoAplicada: linha.solucao_aplicada,
     trilha: trilha.map((registro) =>
       RegistroDeTransicao.reconstituir({
         sequencia: registro.sequencia,

@@ -39,6 +39,13 @@ export type DadosDeReconstituicao = {
   registradaEm: string;
   status: StatusOcorrencia;
   prioridade: Prioridade;
+  /**
+   * **A solução aplicada, ou `null`.** Obrigatório, e **não** opcional com padrão `null`: o esquecimento
+   * aqui é destrutivo e silencioso. Com padrão, um `montarAgregado` que não a passasse faria **todo**
+   * `aplicarTransicao` — inclusive o do `analisar` — apagar a coluna. Obrigatório, o compilador cobra os
+   * três chamadores que existem. É o mesmo argumento que fez `temResponsavel` nascer obrigatório no 22.
+   */
+  solucaoAplicada: string | null;
   /** **A trilha inteira, da origem à última.** Trilha parcial dentro do agregado é mentira no lugar
    *  onde a invariante 3 mora — e quem lesse cinco registros de um agregado que tem oito não teria
    *  como saber. O tamanho é limitado pela máquina de estados: meia dúzia de linhas por ocorrência. */
@@ -72,6 +79,12 @@ export class Ocorrencia {
     readonly registradaEm: string,
     private readonly _status: StatusOcorrencia,
     private readonly _prioridade: Prioridade,
+    /**
+     * **Coluna de `ocorrencias`, e portanto DENTRO do limite** — ao contrário de `atribuicoes`, que a
+     * spec do item 19 pôs fora de propósito. Quem decide o valor gravado é este objeto; o repositório
+     * transcreve (aula 5, p.9).
+     */
+    private readonly _solucaoAplicada: string | null,
     private readonly _trilha: readonly RegistroDeTransicao[],
     /**
      * **`null` significa "não carregado", e não "sem anexo".** O caminho de **escrita** reidrata o
@@ -101,6 +114,9 @@ export class Ocorrencia {
       dados.ocorreuEm,
       "aberta",
       PRIORIDADE_INICIAL,
+      // **Sempre `null` ao nascer, e `DadosDeRegistro` NÃO ganha o campo** (D-P4): não há o que
+      // descrever antes de o atendimento começar, e nenhum schema de entrada o aceita no registro.
+      null,
       [
         RegistroDeTransicao.origem({
           ocorreuEm: dados.ocorreuEm,
@@ -134,6 +150,7 @@ export class Ocorrencia {
       dados.registradaEm,
       dados.status,
       dados.prioridade,
+      dados.solucaoAplicada,
       [...dados.trilha],
       // Ver o comentário do campo: `null` é "não carregado", e o getter estoura em vez de mentir.
       null,
@@ -146,6 +163,16 @@ export class Ocorrencia {
 
   get prioridade(): Prioridade {
     return this._prioridade;
+  }
+
+  /**
+   * A solução aplicada, ou `null` quando não há.
+   *
+   * **Existe para o repositório transcrever**, e é isso que mantém a ADR-0001 valendo por estrutura nesta
+   * coluna: `aplicarTransicao` lê o que o agregado decidiu, não um valor que viajou por fora dele.
+   */
+  get solucaoAplicada(): string | null {
+    return this._solucaoAplicada;
   }
 
   /** **Congelada**: quem lê não consegue acrescentar registro por fora do comando (invariante 3). */
@@ -259,10 +286,73 @@ export class Ocorrencia {
   }
 
   /**
+   * O comando `resolver` — a seta `Em atendimento → Resolvida` (F2, critério 26.1), e **o primeiro
+   * estado terminal do produto**.
+   *
+   * **Ele NÃO confere permissão, e a ausência é a decisão.** O critério 26.3 — *"só o Gestor"* — é
+   * autorização, e autorização mora no `comContexto`, com `ocorrencia.resolver` dentro de
+   * `SO_DO_GESTOR`. Dar a este método o papel de quem chamou moveria para dentro do limite uma regra que
+   * a `arquitetura.md` §5 põe na Interface, e o agregado deixaria de ser testável sem contexto de
+   * requisição.
+   *
+   * **`solucaoAplicada` entra aqui, e é o corpo de UMA requisição** (contrato §8.4): enviada neste
+   * comando, *"equivale a chamar `/registrar-solucao-aplicada` antes — e o registro de transição é um
+   * só"*. **Ausente ou nula, a que já havia é preservada:** apagar solução aplicada não é capacidade de
+   * endpoint nenhum, e `resolvida` congela a coluna — *"não há caminho de volta, e não deve haver"*
+   * (contrato §8.4).
+   *
+   * **A guarda aqui é `Error`, não `ErroDeDominio`**, pelo mesmo argumento dos dois anteriores:
+   * alcançá-la significa que a Aplicação esqueceu de conferir com `transicaoPermitida`. Ela **não** é o
+   * caminho da corrida entre dois Gestores: esse é o `where status = <anterior>` do repositório.
+   *
+   * **`RegistroDeTransicao.avanco` aceita este destino** porque só recusa `pausada` e `cancelada`, os
+   * dois que exigem motivo codificado. Nada muda lá.
+   */
+  resolver(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    observacao?: string | null;
+    /** **Ausente ou `null` = preserva.** Quem transforma `""` em `null` é o comando de aplicação. */
+    solucaoAplicada?: string | null;
+  }): Ocorrencia {
+    if (this._status !== "em_atendimento") {
+      throw new Error(
+        `resolver exige status 'em_atendimento'; a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    return this.comTransicao(
+      "resolvida",
+      RegistroDeTransicao.avanco({
+        // **Do último registro, não do tamanho da lista** — o mesmo argumento do `analisar`.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        statusNovo: "resolvida",
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao ?? null,
+      }),
+      entrada.solucaoAplicada ?? this._solucaoAplicada,
+    );
+  }
+
+  /**
    * **A cópia com um estado novo e um registro a mais.** É o que todo comando de transição faz, e por
    * isso mora num lugar só: os itens 17 a 27 acrescentam o método público e chamam isto.
    */
-  private comTransicao(status: StatusOcorrencia, registro: RegistroDeTransicao): Ocorrencia {
+  private comTransicao(
+    status: StatusOcorrencia,
+    registro: RegistroDeTransicao,
+    /**
+     * **A solução aplicada da instância nova. Ausente = a que já havia.**
+     *
+     * O padrão é o que mantém `analisar`, `iniciarAtendimento` e os comandos que ainda vão nascer sem uma
+     * linha a mais — e é o que impede o defeito simétrico: sem ele, toda transição zeraria a coluna.
+     * **Só `resolver` informa este parâmetro** nesta fatia.
+     */
+    solucaoAplicada: string | null = this._solucaoAplicada,
+  ): Ocorrencia {
     return new Ocorrencia(
       this.titulo,
       this.descricao,
@@ -274,6 +364,7 @@ export class Ocorrencia {
       this.registradaEm,
       status,
       this._prioridade,
+      solucaoAplicada,
       [...this._trilha, registro],
       this._anexos,
     );
