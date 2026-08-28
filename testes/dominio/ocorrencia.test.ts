@@ -6,6 +6,7 @@ import {
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   Ocorrencia,
+  PrioridadeImutavelEmEstadoTerminal,
   RegistroDeTransicao,
   transicaoPermitida,
 } from "@/dominio/ocorrencia";
@@ -1247,6 +1248,87 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
       }
     });
   });
+
+  describe("o comando alterarPrioridade — o segundo que muda a raiz sem tocar a trilha", () => {
+    /**
+     * **`em(status)` serve aqui, e é o caso mais simples do arquivo:** este comando não lê a trilha, não
+     * lê o relógio e não olha responsável. O agregado com a trilha de origem basta para os seis estados.
+     *
+     * **`ABERTA.prioridade` é `"normal"`**, que é o que `PRIORIDADE_INICIAL` grava no nascimento — então
+     * `"alta"` e `"baixa"` são as duas mudanças de verdade, e `"normal"` é a que testa o valor igual.
+     */
+    it("grava a coluna a partir dos QUATRO estados admitidos — o critério 17.1", () => {
+      // **A lista é o complemento de `TERMINAIS`**, e é a mesma que `SEM_TRANSICAO["alterar-prioridade"]`
+      // traz (`MaquinaDeEstados.ts:31`). Escrita à mão aqui de propósito: um teste que importasse a
+      // tabela provaria a constante contra ela mesma.
+      for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+        expect(em(origem).alterarPrioridade({ prioridade: "alta" }).prioridade).toBe("alta");
+        expect(em(origem).alterarPrioridade({ prioridade: "baixa" }).prioridade).toBe("baixa");
+      }
+    });
+
+    it("a trilha NÃO cresce, e a última transição é a MESMA — o critério 17.3 pelo lado do negativo", () => {
+      // **É metade do item, numa asserção.** É o segundo comando do agregado do qual isso é verdade, e a
+      // ausência é o que o contrato declara (`contrato-de-api.md:1206`).
+      const antes = em("em_atendimento");
+      const depois = antes.alterarPrioridade({ prioridade: "alta" });
+
+      expect(depois.trilha).toHaveLength(antes.trilha.length);
+      expect(depois.ultimaTransicao).toBe(antes.ultimaTransicao);
+    });
+
+    it("o status NÃO muda — não é transição, e não há para onde ir", () => {
+      for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+        expect(em(origem).alterarPrioridade({ prioridade: "alta" }).status).toBe(origem);
+      }
+    });
+
+    it("a solução aplicada ATRAVESSA intacta — alterar prioridade não apaga o que o item 25 gravou", () => {
+      // **O defeito que o `comPrioridade` posicional impediria de nascer em silêncio**, e mesmo assim vale
+      // asserir: uma ocorrência `em_atendimento` pode ter solução registrada, e mudar a prioridade dela
+      // não pode zerar a coluna vizinha.
+      const comTexto = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+      });
+
+      expect(comTexto.alterarPrioridade({ prioridade: "baixa" }).solucaoAplicada).toBe(
+        "Trocada a lâmpada da vaga 34.",
+      );
+    });
+
+    it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+      const antes = em("em_atendimento");
+      antes.alterarPrioridade({ prioridade: "alta" });
+
+      expect(antes.prioridade).toBe("normal");
+    });
+
+    it("trocar para o MESMO valor é legal, e devolve instância nova", () => {
+      // **Não há guarda de igualdade, e a ausência é decisão.** O agregado não sabe se a escrita "vale a
+      // pena"; a tela é que não dispara `change` sem mudança. Inventar a recusa aqui produziria um `409`
+      // — ou um erro — para uma requisição que o contrato aceita.
+      const antes = em("aberta");
+      const depois = antes.alterarPrioridade({ prioridade: "normal" });
+
+      expect(depois.prioridade).toBe("normal");
+      expect(depois).not.toBe(antes);
+    });
+
+    it("estoura nos DOIS terminais, citando a invariante 7 — a guarda é rede, não decisão", () => {
+      // **Alcançar isto é defeito NOSSO** — a Aplicação confere antes com `comandoPermitido`, e é ela quem
+      // produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+      //
+      // **E a mensagem cita a invariante 7**, ao contrário da do item 25, que não cita nenhuma: lá a
+      // invariante 1 não estava em jogo; aqui a 7 é exatamente o que a guarda defende.
+      for (const status of ["resolvida", "cancelada"] as const) {
+        expect(() => em(status).alterarPrioridade({ prioridade: "alta" })).toThrow(
+          `alterarPrioridade não age em estado terminal; a ocorrência está '${status}' — invariante 7 violada.`,
+        );
+      }
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {
@@ -1306,5 +1388,29 @@ describe("RegistroDeTransicao.pausa — a segunda fábrica, e a primeira com cam
   it("estoura com observação em branco — o CHECK do banco distingue '' de texto, e o tipo não", () => {
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "   " })).toThrow(/observação/i);
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "" })).toThrow(/observação/i);
+  });
+});
+
+describe("PrioridadeImutavelEmEstadoTerminal — a segunda recusa de estado do produto", () => {
+  it("carrega o codigo do contrato e os textos publicados, literais", () => {
+    // **O `codigo` é o contrato; `titulo` e `detalhe` são texto para humano — e os dois são LITERAIS do
+    // `openapi.yaml:1664` e `:1666`.** `detail` publicado é contrato, não frase nova.
+    const erro = new PrioridadeImutavelEmEstadoTerminal("resolvida", []);
+
+    expect(erro.codigo).toBe("PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL");
+    expect(erro.titulo).toBe("Prioridade congelada");
+    expect(erro.detalhe).toBe(
+      "A prioridade não muda depois de resolvida ou cancelada, para o dashboard não mudar o passado.",
+    );
+  });
+
+  it("carrega as DUAS extensoes, como a irma — nao ha forma de construi-la incompleta", () => {
+    // **As duas, sempre.** O exemplo do `openapi.yaml:1662-1669` mostra só `statusAtual`, e é o achado
+    // **A-2** da spec: o schema `Problema` (`:2420-2426`) declara as duas como extensões *"em conflitos de
+    // estado"*, e isto é um conflito de estado. Enviar só uma criaria a terceira forma de corpo de `409`.
+    const erro = new PrioridadeImutavelEmEstadoTerminal("cancelada", ["avaliar"]);
+
+    expect(erro.extensoes["statusAtual"]).toBe("cancelada");
+    expect(erro.extensoes["acoesDisponiveis"]).toStrictEqual(["avaliar"]);
   });
 });

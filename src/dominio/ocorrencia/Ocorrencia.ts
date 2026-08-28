@@ -2,7 +2,7 @@ import { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
 import { type MotivoPausa } from "./Motivos";
 import { PRIORIDADE_INICIAL, type Prioridade } from "./Prioridade";
 import { RegistroDeTransicao } from "./RegistroDeTransicao";
-import { type StatusOcorrencia } from "./StatusOcorrencia";
+import { ehTerminal, type StatusOcorrencia } from "./StatusOcorrencia";
 
 /** O tipo da Área, congelado no registro. Repetido aqui e não importado: `dominio/ocorrencia` não
  *  importa `dominio/organizacao` — módulos irmãos não se atravessam (ADR-0006, regra 5). */
@@ -62,10 +62,14 @@ export type DadosDeReconstituicao = {
  *
  * 1. **`status` nunca é escrito de fora** — não há setter, o campo é privado, e a única porta são os
  *    comandos. São **seis** os que transicionam — `registrar`, `analisar`, `iniciarAtendimento`,
- *    `resolver`, `pausar` e `retomar`; os itens 17, 18 e 27 trazem o resto.
+ *    `resolver`, `pausar` e `retomar`; os itens 18 e 27 trazem o resto.
  * 1b. **Nem todo comando é transição, e o item 25 é o primeiro.** `registrarSolucaoAplicada` muda um dado
  *    da raiz — `solucao_aplicada` — **sem tocar `status` e sem tocar a trilha**, e por isso não passa por
  *    `comTransicao`. A invariante 1 continua intacta: ele não escreve `status`.
+ * 1c. **O item 17 é o segundo caso, e o primeiro com recusa de código próprio.** `alterarPrioridade` muda
+ *    `prioridade` — coluna da raiz — **sem tocar `status` e sem tocar a trilha**, e recusa em estado
+ *    terminal com `PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL`, que é a **invariante 7** falando com o próprio
+ *    nome. A invariante 1 continua intacta: ele não escreve `status`.
  * 2. **Toda transição produz exatamente um registro**, na mesma operação.
  * 3. **O histórico é append-only** — `trilha` devolve cópia congelada.
  * 4. **A criação gera o primeiro registro, com status anterior nulo** — a premissa **P1**.
@@ -500,6 +504,45 @@ export class Ocorrencia {
   }
 
   /**
+   * O comando `alterarPrioridade` — **o segundo do agregado que muda a raiz sem tocar a trilha** (item 17,
+   * critérios 17.1 e 17.3), e o **primeiro cuja recusa tem código próprio**.
+   *
+   * **Ele participa pela regra da coluna, não por conveniência.** `prioridade` é coluna de `ocorrencias`,
+   * dentro do limite — ver o comentário de `_solucaoAplicada`, acima, que escreve a regra: *"somente a
+   * lógica do agregado pode alterar o seu estado"* (aula 5, p.9) vale para toda coluna da raiz.
+   *
+   * **A guarda lê `ehTerminal`, e NÃO redigita a lista.** Esta é a primeira guarda do arquivo sem uma
+   * segunda cópia dos estados: `TERMINAIS` é do próprio módulo (`StatusOcorrencia.ts:29`), e a lista dos
+   * quatro estados admitidos é o complemento exato dela. As sete anteriores redigitam; esta não pode
+   * divergir da tabela companheira porque não a repete.
+   *
+   * **A mensagem cita a invariante 7**, que é a que `arquitetura.md:287` numera. A do item 25 não cita
+   * nenhuma, e a diferença é o ponto: lá não havia invariante em jogo; aqui há, e ela tem número.
+   *
+   * **Continua sendo `Error`, e não `ErroDeDominio`.** Alcançá-la significa que a Aplicação esqueceu de
+   * conferir com `comandoPermitido` — defeito nosso, não recusa de negócio. **Ela não é o caminho da
+   * corrida:** esse é o `status <> all(TERMINAIS)` do repositório.
+   *
+   * **Não há guarda de valor igual, e a ausência é decisão.** Trocar `normal` por `normal` devolve
+   * instância nova e a porta grava: o agregado não sabe se a escrita vale a pena, e o `<select>` da tela
+   * não dispara `change` sem mudança. Inventar a recusa aqui criaria um erro para uma requisição que o
+   * contrato aceita.
+   *
+   * **Não chama `comTransicao`, e a ausência é o item:** aquele acresce um registro à trilha, e o contrato
+   * declara que este comando *"não gera registro de transição"* (`contrato-de-api.md:1206`). A porta é
+   * `comPrioridade`.
+   */
+  alterarPrioridade(entrada: { prioridade: Prioridade }): Ocorrencia {
+    if (ehTerminal(this._status)) {
+      throw new Error(
+        `alterarPrioridade não age em estado terminal; a ocorrência está '${this._status}' — invariante 7 violada.`,
+      );
+    }
+
+    return this.comPrioridade(entrada.prioridade);
+  }
+
+  /**
    * **A cópia com um estado novo e um registro a mais.** É o que todo comando de transição faz, e por
    * isso mora num lugar só: os itens 17 a 27 acrescentam o método público e chamam isto.
    */
@@ -562,6 +605,41 @@ export class Ocorrencia {
       solucaoAplicada,
       // Cópia, e não a referência: `reconstituir` já copia, e duas instâncias imutáveis compartilhando o
       // mesmo array é seguro hoje e deixa de ser no dia em que alguém escrever dentro do limite.
+      [...this._trilha],
+      this._anexos,
+    );
+  }
+
+  /**
+   * **A cópia com a prioridade trocada — o TERCEIRO jeito de copiar este agregado.** Irmão de
+   * `comTransicao` e de `comSolucaoAplicada`, e existe pela mesma razão que aquele: **o nome diz qual é a
+   * diferença**.
+   *
+   * *Alternativa recusada — generalizar `comSolucaoAplicada` num `comRaizAlterada({ solucaoAplicada?,
+   * prioridade? })`:* é a mesma alternativa que o item 25 recusou um nível acima, e o argumento sobrevive
+   * com dois chamadores em vez de um. Um objeto de campos opcionais devolve ao chamador a chance de não
+   * passar nenhum, e os dois nomes dizem o que cada escrita é.
+   *
+   * **O custo aceito, declarado:** o construtor privado passa a ter **quatro** sítios de chamada. Ele é
+   * privado e posicional, então um campo novo quebra os quatro **em tempo de compilação** — o esquecimento
+   * é alto, não silencioso, que é o mesmo argumento do item 25.
+   */
+  private comPrioridade(prioridade: Prioridade): Ocorrencia {
+    return new Ocorrencia(
+      this.titulo,
+      this.descricao,
+      this.categoriaId,
+      this.areaId,
+      this.areaTipo,
+      this.localizacaoComplemento,
+      this.autorPessoaId,
+      this.registradaEm,
+      // **`_status`, `_trilha` e `_solucaoAplicada` atravessam intactos.** O primeiro é a invariante 1 não
+      // estando em jogo; o segundo é o critério 17.3; o terceiro é não apagar o que o item 25 gravou.
+      this._status,
+      prioridade,
+      this._solucaoAplicada,
+      // Cópia, e não a referência — o mesmo argumento de `comSolucaoAplicada`.
       [...this._trilha],
       this._anexos,
     );
