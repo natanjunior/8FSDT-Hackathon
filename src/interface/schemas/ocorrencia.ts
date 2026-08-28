@@ -88,3 +88,26 @@ export function camposEscritosPeloServidor(corpo: unknown): readonly string[] {
   if (typeof corpo !== "object" || corpo === null) return [];
   return ESCRITOS_PELO_SERVIDOR.filter((campo) => campo in corpo);
 }
+
+/**
+ * ============================================================================
+ *  O corpo dos comandos de avanço rotineiro — `ComandoComObservacaoOpcional`
+ * ============================================================================
+ *
+ * `analisar`, e depois `iniciar-atendimento`, `retomar` e `resolver`. **`observacao` é opcional de
+ * propósito** (D23): *"exigir texto onde não há decisão a justificar produz 'ok' e destrói o próprio
+ * dado"*.
+ *
+ * **Sem `.min(1)`, e é o portão do DoD olhando na direção contrária:** o `openapi.yaml:3059` declara
+ * `maxLength: 1000` e **nenhum** `minLength`, e um schema mais estrito que a especificação versionada é
+ * a mesma divergência do critério 16.7, do outro lado. Quem transforma `""` em `null` é o **comando de
+ * aplicação**, que é a camada a quem isso pertence.
+ *
+ * **O corpo INTEIRO é opcional**, e quem trata disso é o `corpoOpcional` do `comContexto`: aqui o schema
+ * só precisa aceitar `{}`, que é o que ele faz por não ter campo obrigatório.
+ */
+export const comandoComObservacaoSchema = z.object({
+  observacao: z.string().trim().max(1000, "A observação cabe em 1000 caracteres.").nullish(),
+});
+
+export type EntradaDeComandoComObservacao = z.infer<typeof comandoComObservacaoSchema>;

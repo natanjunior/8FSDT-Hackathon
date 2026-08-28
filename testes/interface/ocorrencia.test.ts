@@ -25,7 +25,11 @@ import {
 } from "@/interface/http";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
-import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
+import {
+  camposEscritosPeloServidor,
+  comandoComObservacaoSchema,
+  registroDeOcorrenciaSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -755,5 +759,23 @@ describe("lerCorpoOpcional", () => {
     });
 
     expect(await lerCorpoOpcional(requisicao)).toStrictEqual({ observacao: "Vou ver o estoque." });
+  });
+});
+
+describe("o corpo dos comandos de avanço rotineiro", () => {
+  it("aceita objeto vazio — o corpo inteiro é opcional (ComandoComObservacaoOpcional)", () => {
+    const conferido = comandoComObservacaoSchema.safeParse({});
+    expect(conferido.success).toBe(true);
+  });
+
+  it("aceita observação até 1000, e recusa acima — o limite é o do openapi.yaml", () => {
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1000) }).success).toBe(true);
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("NÃO tem minLength — o contrato declara maxLength e mais nada", () => {
+    // Um `.min(1)` aqui recusaria mais do que a especificação versionada declara, e é o portão do DoD
+    // olhando na direção contrária: o código não pode ser mais estrito que o contrato.
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "" }).success).toBe(true);
   });
 });

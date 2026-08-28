@@ -122,11 +122,23 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje devolve vazia, porque COMANDOS_IMPLEMENTADOS está vazia", () => {
-    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([]);
-    expect(
-      comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false }),
-    ).toStrictEqual([]);
+  it("hoje traz UM comando — o analisar do item 16", () => {
+    // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
+    // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar"]);
+  });
+
+  it("o Gestor em aberta vê analisar, e mais nada — o filtro ainda corta os outros nove", () => {
+    expect(comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false })).toStrictEqual([
+      "analisar",
+    ]);
+  });
+
+  it("em em_analise a lista volta a ser vazia — o caso DOMINANTE depois desta fatia", () => {
+    // É o que o Gestor vê no instante seguinte a clicar em Analisar, e é o que o critério 16.6 cobre.
+    expect(comandosDisponiveis({ status: "em_analise", permissoes: TODAS, ehAutor: false })).toStrictEqual(
+      [],
+    );
   });
 
   /**

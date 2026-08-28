@@ -40,7 +40,9 @@ export {
 
 export {
   camposEscritosPeloServidor,
+  comandoComObservacaoSchema,
   registroDeOcorrenciaSchema,
+  type EntradaDeComandoComObservacao,
   type EntradaDeRegistroDeOcorrencia,
 } from "./ocorrencia";
 
