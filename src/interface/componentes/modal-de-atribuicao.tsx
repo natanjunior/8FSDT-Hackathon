@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
+import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 
 /**
  * ============================================================================
@@ -64,7 +65,12 @@ export function ModalDeAtribuicao({
    *  linha nova e nada visível mudando na tela. */
   responsavelAtualPessoaId: string | null;
   rotulosDeStatus: Readonly<Record<string, string>>;
-  variante: "primario" | "secundario";
+  /**
+   * **Três variantes desde o item 23:** `"menu"` renderiza o gatilho como `DropdownMenuItem`, porque
+   * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações ▾"*.
+   * Botão nu dentro do `DropdownMenuContent` é ARIA inválida e o menu perde a navegação por setas.
+   */
+  variante: "primario" | "secundario" | "menu";
 }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -186,15 +192,29 @@ export function ModalDeAtribuicao({
   return (
     <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant={variante === "primario" ? "default" : "outline"}
-          /* **A largura vem da variante desde o item 22** — o invólucro do secundário é `flex-none`, e
-             `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
-          className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
-        >
-          Atribuir
-        </Button>
+        {variante === "menu" ? (
+          /* **`onSelect` prevenido:** `DropdownMenuContent` desmonta os filhos ao fechar, e selecionar
+             um item fecha o menu por padrão — o `Dialog` morreria no instante em que deveria abrir.
+             Custo declarado: o menu fica aberto atrás do diálogo. */
+          <DropdownMenuItem
+            className="min-h-11"
+            onSelect={(evento) => {
+              evento.preventDefault();
+            }}
+          >
+            Atribuir
+          </DropdownMenuItem>
+        ) : (
+          <Button
+            type="button"
+            variant={variante === "primario" ? "default" : "outline"}
+            /* **A largura vem da variante desde o item 22** — o invólucro do secundário é `flex-none`,
+               e `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
+            className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
+          >
+            Atribuir
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-h-[85dvh] overflow-y-auto">
