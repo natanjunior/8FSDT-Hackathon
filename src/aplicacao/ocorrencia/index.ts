@@ -9,6 +9,7 @@ export { analisarOcorrencia, type ContextoDoComando } from "./analisar-ocorrenci
 export {
   type AnexoLido,
   type CursorDeListagem,
+  type DadosDaAtribuicao,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
   type OcorrenciaLida,
@@ -16,6 +17,7 @@ export {
   type PessoaReferencia,
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
+  type ResultadoDaAtribuicao,
   type ResultadoDaTransicao,
   type ResultadoDoRegistro,
   type TransicaoLida,

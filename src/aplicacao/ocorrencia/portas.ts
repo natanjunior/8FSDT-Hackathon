@@ -67,7 +67,8 @@ export type OcorrenciaLida = {
   /** Da mais antiga para a mais recente. **Lista vazia quando não há anexo, nunca `null`.** */
   anexos: readonly AnexoLido[];
   autor: PessoaReferencia;
-  /** Sempre `null` nesta fatia: `atribuicoes` é do item 19. */
+  /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
+   *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
   solucaoAplicada: string | null;
   avaliacao: { nota: number; comentario: string | null; avaliadaEm: string } | null;
@@ -99,7 +100,8 @@ export type OcorrenciaResumoLida = {
   /** O `tipo` é o **congelado no registro**, nunca o atual da Área (modelo §7.5). */
   area: { id: string; nome: string; tipo: TipoDeAreaCongelado };
   autor: PessoaReferencia;
-  /** Sempre `null` nesta fatia: `atribuicoes` é o item 19. */
+  /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
+   *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
   /**
    * **Contagem, não lista** (contrato §8.8) — a tela só precisa da marca *"com foto"*. Vem de
@@ -182,6 +184,37 @@ export type ResultadoDaTransicao =
   | { desfecho: "aplicada"; ocorrencia: OcorrenciaLida }
   | { desfecho: "conflito" };
 
+/** O que a atribuição precisa saber. **O instante é UM**, lido pelo comando de aplicação e transcrito
+ *  aqui: ele carimba `atribuido_em`, o `encerrada_em` da anterior e `ocorrencias.atualizada_em`. Dois
+ *  relógios produziriam uma ocorrência atualizada milissegundos antes da atribuição que a atualizou. */
+export type DadosDaAtribuicao = {
+  responsavelPessoaId: string;
+  /** Quem comandou. **Nunca vem do corpo**, e não há campo para ele no schema. */
+  atribuidoPorPessoaId: string;
+  /** ISO 8601. */
+  em: string;
+};
+
+/**
+ * O que a atribuição pode dar. **Desfecho, não exceção**, na fronteira da porta — o idioma que
+ * `ResultadoDoRegistro` e `ResultadoDaTransicao` já usam aqui em cima.
+ *
+ * **`responsavel-sem-vinculo-ativo` nasce do `where exists` do próprio `insert`**, sem leitura prévia: é
+ * a doutrina do item 8, e uma leitura antes perde a corrida. O `422` que ele vira é o critério 19.3, e
+ * **pessoa de outra organização recebe o mesmo desfecho sem um `if` a mais** — o `$1` é a organização
+ * ativa, amarrada pelo escopo, então o vínculo de outra simplesmente não existe para a consulta (§6.3).
+ *
+ * **`conflito` é a corrida entre dois Gestores**, e o repositório a detecta pelo `23505` na constraint
+ * `atribuicoes_vigente_uk`: o segundo `update` de encerramento reavalia o predicado sobre a linha já
+ * encerrada pelo primeiro, atualiza zero linhas, e o `insert` dele bate no índice parcial. Traduzir
+ * estado de banco em erro de domínio é decisão de **Aplicação** — por isso o repositório devolve um
+ * desfecho e não lança, exatamente como em `ResultadoDaTransicao`.
+ */
+export type ResultadoDaAtribuicao =
+  | { desfecho: "atribuida"; reatribuicao: boolean; ocorrencia: OcorrenciaLida }
+  | { desfecho: "responsavel-sem-vinculo-ativo" }
+  | { desfecho: "conflito" };
+
 export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Recebe o agregado, não um DTO — e a diferença é a invariante 1.**
@@ -221,6 +254,22 @@ export interface RepositorioEscopadoDeOcorrencias {
    * é a invariante 3 expressa em tipo.
    */
   aplicarTransicao(id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao>;
+
+  /**
+   * **Atribui — ou reatribui — o responsável, em UM `COMMIT`.**
+   *
+   * Quatro instruções e uma releitura, na ordem: o `update` que encerra a atribuição vigente com motivo
+   * `reatribuicao`; o `insert … where exists (vínculo ativo)`; o `update ocorrencias set atualizada_em`;
+   * e o `lerPorId` de dentro da transação.
+   *
+   * **A ordem não é estilo.** O `update` vem antes do `insert`, e é o que faz `atribuicoes_vigente_uk`
+   * nunca ser violado no caminho normal.
+   *
+   * **Não escreve `status` e não escreve na trilha**, e a ausência é o critério 19.4: a trilha é só de
+   * status. `ocorrencias` recebe uma coluna e uma só — `atualizada_em` —, porque atribuir é **atividade**
+   * na ocorrência (`arquitetura.md` §5.8).
+   */
+  atribuirResponsavel(ocorrenciaId: string, dados: DadosDaAtribuicao): Promise<ResultadoDaAtribuicao>;
 
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;

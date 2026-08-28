@@ -27,7 +27,7 @@ import type {
  * do item 8, e a razão é a mesma: uma leitura antes perde a corrida.
  */
 
-/** A lista de T-08, e a lista de candidatos a responsável que o item 19 vai consumir (D21). */
+/** A lista de T-08, e a lista de candidatos a responsável que o item 19 consome (D21). */
 export function listarVinculos(
   vinculos: RepositorioEscopadoDeVinculos,
 ): Promise<readonly VinculoLido[]> {

@@ -260,7 +260,7 @@ describe("o OcorrenciaResumo projetado", () => {
     expect(pausada.statusRotulo).toBe("Parada — esperando material chegar");
   });
 
-  it("quantidadeDeAnexos vem do repositório; responsavel continua forçado — item 19", () => {
+  it("quantidadeDeAnexos vem do repositório; responsavel é repassado — item 19", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
     expect(resumo.quantidadeDeAnexos).toBe(0);
     expect(resumo.responsavel).toBeNull();
