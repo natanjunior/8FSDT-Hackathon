@@ -1,11 +1,18 @@
 import {
+  AvaliacaoExigeResolvida,
   comandosDisponiveis,
+  JaAvaliada,
   PrioridadeImutavelEmEstadoTerminal,
   TransicaoNaoPermitida,
+  type Comando,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 
-import { ResponsavelNaoAtribuido, SomenteOGestorCancelaNesteEstado } from "./erros";
+import {
+  ResponsavelNaoAtribuido,
+  SomenteOAutorPodeAvaliar,
+  SomenteOGestorCancelaNesteEstado,
+} from "./erros";
 
 /**
  * ============================================================================
@@ -41,6 +48,17 @@ export type ContextoDoComando = {
 export type EstadoDaOcorrencia = {
   status: StatusOcorrencia;
   autorPessoaId: string;
+  /**
+   * **A metade *"uma vez só"* da invariante 8** — o fato que fechava o **P-3** do plano do item 16.
+   *
+   * **Estrutural, como os outros dois campos**: `Ocorrencia` o satisfaz pelo getter que o item 27 criou,
+   * e `OcorrenciaLida` o satisfaria pelo `avaliacao` que já tem (`portas.ts:74`), sem conversão.
+   *
+   * **`{ nota: number } | null` e não `Avaliacao | null`**, porque a Aplicação não precisa da classe do
+   * Domínio para responder *"já foi?"* — e o tipo mais estreito é o que deixa um modelo de leitura
+   * satisfazê-lo.
+   */
+  avaliacao: { nota: number } | null;
 };
 
 /**
@@ -57,6 +75,34 @@ export type EstadoCarregado = {
 };
 
 /**
+ * **A chamada única a `comandosDisponiveis`, e a razão de ela ser única.**
+ *
+ * As quatro funções públicas abaixo repetiam, copiada, a mesma chamada de quatro linhas. A partir do item
+ * 27 são **sete** funções e a chamada tem **cinco** linhas — e a quinta é `jaAvaliada`, que é exatamente
+ * o campo que o **P-3** do plano do item 16 previu que alguém esqueceria em uma das cópias: *"se o 27
+ * esquecer, o Gestor-autor de uma ocorrência já avaliada verá `avaliar` no corpo de um `409`"*.
+ *
+ * **Sete cópias de cinco linhas é a duplicação que sempre diverge; uma função é a que não pode.**
+ *
+ * **`temResponsavel` é o TERCEIRO argumento, e não sai do envelope**, porque é o que permite a
+ * `recusaPorFaltaDeResponsavel` continuar forçando `false` — a assimetria que o comentário dela declara
+ * e que existe para o corpo não se contradizer.
+ */
+function acoesQueRestam(
+  ocorrencia: EstadoDaOcorrencia,
+  ctx: ContextoDoComando,
+  temResponsavel: boolean,
+): readonly Comando[] {
+  return comandosDisponiveis({
+    status: ocorrencia.status,
+    permissoes: ctx.permissoes,
+    ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
+    temResponsavel,
+    jaAvaliada: ocorrencia.avaliacao !== null,
+  });
+}
+
+/**
  * O corpo do `409`, montado **num lugar só** — as guardas de estado, os conflitos de escrita e as
  * releituras dos dez comandos chegam aqui.
  *
@@ -64,9 +110,9 @@ export type EstadoCarregado = {
  * fato que o agregado não tem — se há responsável atribuído. Sem ele, o `409` de `analisar` chamado em
  * `em_analise` listaria `iniciar-atendimento` ou o esconderia, e estaria errado num dos dois sentidos.
  *
- * **`jaAvaliada` não é informado, e a omissão é declarada:** ela só muda a presença de `avaliar`, que é
- * filtrado por `COMANDOS_IMPLEMENTADOS` enquanto o item 27 não existir. É o **item 27** que traz a
- * avaliação para dentro do agregado, porque é ele que precisa dela para o próprio comando.
+ * **`jaAvaliada` é informado desde o item 27**, por `acoesQueRestam`: o fato passou a existir dentro do
+ * agregado, e com ele o Gestor-autor de uma ocorrência já avaliada deixa de ver `avaliar` na lista do
+ * corpo. **É o P-3 do plano do item 16, fechado.**
  */
 export function recusaDeTransicao(
   carregada: EstadoCarregado,
@@ -74,12 +120,7 @@ export function recusaDeTransicao(
 ): TransicaoNaoPermitida {
   return new TransicaoNaoPermitida(
     carregada.ocorrencia.status,
-    comandosDisponiveis({
-      status: carregada.ocorrencia.status,
-      permissoes: ctx.permissoes,
-      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
-      temResponsavel: carregada.temResponsavel,
-    }),
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
   );
 }
 
@@ -98,15 +139,7 @@ export function recusaPorFaltaDeResponsavel(
   ocorrencia: EstadoDaOcorrencia,
   ctx: ContextoDoComando,
 ): ResponsavelNaoAtribuido {
-  return new ResponsavelNaoAtribuido(
-    ocorrencia.status,
-    comandosDisponiveis({
-      status: ocorrencia.status,
-      permissoes: ctx.permissoes,
-      ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
-      temResponsavel: false,
-    }),
-  );
+  return new ResponsavelNaoAtribuido(ocorrencia.status, acoesQueRestam(ocorrencia, ctx, false));
 }
 
 /**
@@ -122,8 +155,7 @@ export function recusaPorFaltaDeResponsavel(
  * construído:** a ocorrência terminal pode ter tido responsável ou não, e o corpo tem de dizer a verdade
  * sobre o que sobrou.
  *
- * **`jaAvaliada` não é informado, e a omissão é declarada** — mesma razão de `recusaDeTransicao`: ela só
- * muda a presença de `avaliar`, que `COMANDOS_IMPLEMENTADOS` filtra até o item 27 existir.
+ * **`jaAvaliada` é informado desde o item 27**, por `acoesQueRestam` — ver `recusaDeTransicao`.
  */
 export function recusaPorPrioridadeImutavel(
   carregada: EstadoCarregado,
@@ -131,12 +163,7 @@ export function recusaPorPrioridadeImutavel(
 ): PrioridadeImutavelEmEstadoTerminal {
   return new PrioridadeImutavelEmEstadoTerminal(
     carregada.ocorrencia.status,
-    comandosDisponiveis({
-      status: carregada.ocorrencia.status,
-      permissoes: ctx.permissoes,
-      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
-      temResponsavel: carregada.temResponsavel,
-    }),
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
   );
 }
 
@@ -157,7 +184,7 @@ export function recusaPorPrioridadeImutavel(
  * há fato construído aqui — a ocorrência em `em_atendimento` **tem** responsável na prática, e o corpo
  * tem de dizer a verdade sobre o que sobrou (que, para o Solicitante autor, é `[]`).
  *
- * **`jaAvaliada` não é informado, e a omissão é declarada** — mesma razão das três irmãs.
+ * **`jaAvaliada` é informado desde o item 27**, por `acoesQueRestam` — ver `recusaDeTransicao`.
  */
 export function recusaPorEstadoDeCancelamento(
   carregada: EstadoCarregado,
@@ -165,11 +192,54 @@ export function recusaPorEstadoDeCancelamento(
 ): SomenteOGestorCancelaNesteEstado {
   return new SomenteOGestorCancelaNesteEstado(
     carregada.ocorrencia.status,
-    comandosDisponiveis({
-      status: carregada.ocorrencia.status,
-      permissoes: ctx.permissoes,
-      ehAutor: carregada.ocorrencia.autorPessoaId === ctx.pessoaId,
-      temResponsavel: carregada.temResponsavel,
-    }),
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+  );
+}
+
+/**
+ * O **quinto** construtor de corpo, e o segundo que não é de `409`: o `403` do critério **27.3**.
+ *
+ * **Mora aqui pela mesma razão das quatro**: duas construções do mesmo corpo em arquivos diferentes
+ * seriam a cópia que sempre diverge.
+ *
+ * **Recebe o ENVELOPE**, como três das quatro: não há fato construído aqui — a ocorrência em `resolvida`
+ * pode ter tido responsável ou não, e o corpo tem de dizer a verdade sobre o que sobrou (que, para o
+ * Gestor não-autor, é `[]`).
+ */
+export function recusaPorNaoSerOAutor(
+  carregada: EstadoCarregado,
+  ctx: ContextoDoComando,
+): SomenteOAutorPodeAvaliar {
+  return new SomenteOAutorPodeAvaliar(
+    carregada.ocorrencia.status,
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+  );
+}
+
+/** O **sexto** — a metade de ESTADO da invariante 8 (critério 27.2). */
+export function recusaPorAvaliacaoExigeResolvida(
+  carregada: EstadoCarregado,
+  ctx: ContextoDoComando,
+): AvaliacaoExigeResolvida {
+  return new AvaliacaoExigeResolvida(
+    carregada.ocorrencia.status,
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+  );
+}
+
+/**
+ * O **sétimo**, e o último — a metade *"uma vez só"* da invariante 8 (critério 27.2).
+ *
+ * **Aqui `acoesQueRestam` responde `[]` por construção**, e é a conferência de que o P-3 fechou: se
+ * `jaAvaliada` não fosse informado, este corpo listaria `avaliar` — o comando que acabou de ser recusado
+ * por já ter acontecido. **O erro que se contradiz é exatamente o que o item 16 previu.**
+ */
+export function recusaPorJaAvaliada(
+  carregada: EstadoCarregado,
+  ctx: ContextoDoComando,
+): JaAvaliada {
+  return new JaAvaliada(
+    carregada.ocorrencia.status,
+    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
   );
 }

@@ -1,12 +1,15 @@
 /** Superfície pública do módulo `aplicacao/ocorrencia` (ADR-0006, regra 3). */
 export {
   AreaInvalida,
+  AvaliacaoExigeResolvida,
   CategoriaInvalida,
+  JaAvaliada,
   MotivoNaoPermitidoParaOPapel,
   OcorrenciaNaoEncontrada,
   PrioridadeImutavelEmEstadoTerminal,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
+  SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
   TransicaoNaoPermitida,
 } from "./erros";
