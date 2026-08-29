@@ -12,6 +12,7 @@ import {
 } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo";
+import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioDeOrganizacoes,
@@ -99,6 +100,9 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
+    // **Só a consulta, e a ausência da transação é o desenho:** o dashboard não escreve, e uma porta que
+    // recebesse `escoparTransacao` daria a ele o poder de gravar sem que nada no tipo dissesse isso.
+    dashboard: repositorioEscopadoDeDashboard(consulta),
   };
 }
 
