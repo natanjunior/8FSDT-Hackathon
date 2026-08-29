@@ -57,6 +57,7 @@ import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-l
 import {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
+  avaliacaoSchema,
   cancelamentoSchema,
   camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
@@ -1744,6 +1745,83 @@ describe("o corpo de POST …/cancelar — o segundo com DOIS campos obrigatóri
     expect(
       cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "a".repeat(1001) }).success,
     ).toBe(false);
+  });
+});
+
+describe("o corpo de POST …/avaliar — o primeiro com campo NUMÉRICO", () => {
+  it("aceita o par válido, e apara o comentário", () => {
+    const analisado = avaliacaoSchema.safeParse({
+      nota: 5,
+      comentario: "  Resolveram no mesmo dia.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.nota).toBe(5);
+    expect(analisado.data?.comentario).toBe("Resolveram no mesmo dia.");
+  });
+
+  it("aceita SEM comentário — ele é opcional, e é o critério 27.1", () => {
+    // **O `openapi.yaml:2054` declara `required: [nota]` e mais nada.** Um corpo com a nota só é o caso
+    // dominante: dar nota tem de custar um toque.
+    expect(avaliacaoSchema.safeParse({ nota: 3 }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 3, comentario: null }).success).toBe(true);
+  });
+
+  it("aceita as cinco notas da escala", () => {
+    for (const nota of [1, 2, 3, 4, 5]) {
+      expect(avaliacaoSchema.safeParse({ nota }).success).toBe(true);
+    }
+  });
+
+  it("recusa 0 e 6 — as bordas de fora da escala", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 0 }).success).toBe(false);
+    expect(avaliacaoSchema.safeParse({ nota: 6 }).success).toBe(false);
+  });
+
+  it("recusa 4.5 — `z.int()` e não `z.number()`, e é o que impede o arredondamento silencioso", () => {
+    // **O `openapi.yaml:2058` declara `type: integer`.** Com `z.number()`, `4.5` chegaria ao `smallint` do
+    // banco e seria truncado — o produto inventaria a nota de alguém.
+    expect(avaliacaoSchema.safeParse({ nota: 4.5 }).success).toBe(false);
+  });
+
+  it("recusa a nota como texto — '5' não é 5", () => {
+    expect(avaliacaoSchema.safeParse({ nota: "5" }).success).toBe(false);
+  });
+
+  it("corpo vazio é 400 com `nota` em erros[] — o critério 27.1", () => {
+    const analisado = avaliacaoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    expect(analisado.error?.issues.map((questao) => questao.path[0])).toContain("nota");
+  });
+
+  it("comentário de 1001 caracteres é recusado; 1000 passa", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1000) }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("comentário de espaços passa, e vira string vazia — quem o transforma em null é o COMANDO", () => {
+    /**
+     * **Sem `.min(1)`, e é o portão do DoD olhando na direção contrária:** o `openapi.yaml:2060` declara
+     * `maxLength: 1000` e **nenhum** `minLength`. Schema mais estrito que a especificação versionada é a
+     * divergência do critério 16.7, do outro lado.
+     *
+     * **A normalização mora no comando de aplicação, num lugar só** — é onde o produto a pôs desde o
+     * `analisar` (item 16).
+     */
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, comentario: "   " });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.comentario).toBe("");
+  });
+
+  it("campo desconhecido é DESCARTADO, sem erro — este endpoint não tem `recusar:`", () => {
+    // **Não há `422` publicado para esta operação** (`openapi.yaml:2065-2087` lista 200/400/401/403/404/
+    // 409/500). Recusar um campo aqui responderia um status que a especificação versionada não lista.
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, observacao: "não vai a lugar nenhum" });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data).not.toHaveProperty("observacao");
   });
 });
 
