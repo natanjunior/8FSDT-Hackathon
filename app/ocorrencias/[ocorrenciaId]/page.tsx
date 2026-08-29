@@ -6,6 +6,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   OcorrenciaNaoEncontrada,
   podeLerOcorrencia,
+  verComentarios,
   verLinhaDoTempo,
   verOcorrencia,
   type EventoLido,
@@ -13,6 +14,7 @@ import {
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import {
   autoria,
   dataHora,
@@ -38,8 +40,10 @@ import {
   ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
   rotuloDePrioridade,
+  rotuloDoCampoDeConversa,
   rotulosDeStatus,
   vazioDaBarra,
+  vazioDaConversa,
 } from "@/interface/componentes/rotulos";
 import {
   lerFiltroDeOcorrenciasDaUrl,
@@ -54,6 +58,7 @@ import {
   projetarContexto,
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
+  projetarPaginaDeComentarios,
 } from "@/interface/projecoes";
 
 /**
@@ -211,6 +216,25 @@ export default async function Ocorrencia({
   const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
   linhaDoTempoPedida.catch(() => undefined);
 
+  /**
+   * **A terceira requisição da tela, e é a que o inventário já contava** — critério 29.5, *"as três
+   * disparam juntas"*. Mesmo idioma do bloco 3: parte **antes** do `await` do detalhe e desce por
+   * propriedade para dentro do `<Suspense>`, com o `catch` de uma linha que a marca como tratada sem
+   * alterar a rejeição.
+   *
+   * **A projeção acontece aqui, no servidor**, porque projeção é da camada de Interface e o que atravessa
+   * a fronteira para o componente de cliente precisa ser serializável.
+   *
+   * **Custo declarado, porque é real:** T-05 passa a abrir com **três `porId` concorrentes** — o do
+   * detalhe, o de `verLinhaDoTempo` e o de `verComentarios`. É exatamente o que o mundo de três
+   * requisições HTTP faria, cada uma se autorizando sozinha, e **não soma latência**, porque as três
+   * partem juntas; soma carga. É o achado **A-3** da spec, e o conserto é maior que esta fatia.
+   */
+  const conversaPedida = verComentarios(escopo.repos.ocorrencias, ocorrenciaId, quem, {}).then(
+    projetarPaginaDeComentarios,
+  );
+  conversaPedida.catch(() => undefined);
+
   let lida;
   try {
     lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
@@ -264,8 +288,10 @@ export default async function Ocorrencia({
     acoes.some((acao) => acao.comando === "atribuir-responsavel") && vinculo.pode("vinculo.gerir");
 
   /**
-   * **Quem gestiona, derivado UMA vez e lido por dois consumidores** — a frase do vazio da barra
-   * (critério 18.6) e o aviso do modal de cancelamento (critério 18.7).
+   * **Quem gestiona, derivado UMA vez e lido por UM consumidor** — o aviso de visibilidade do modal de
+   * cancelamento (critério 18.7). Eram dois até o item 27, que removeu o parâmetro `ehGestor` de
+   * `vazioDaBarra`; o próprio `rotulos.ts` documenta a remoção, e o comentário aqui ficou para trás.
+   * *(Corrigido no item 30, achado A-6 da spec.)*
    *
    * **`vinculo.pode("…")` com string literal é o idioma que esta página já usa** com `"vinculo.gerir"`,
    * logo acima, e com `"ocorrencia.ler_todas"`. É o que mantém `app/` sem `import` do Domínio desde o
@@ -277,9 +303,10 @@ export default async function Ocorrencia({
   const ehGestor = vinculo.pode("ocorrencia.cancelar_qualquer");
 
   /**
-   * **Quem lê é o autor?** — lido por um consumidor só: o título do bloco da avaliação (*"Sua
-   * avaliação"* × *"Avaliação do solicitante"*). **O convite NÃO usa isto:** ele usa
-   * `acoesDisponiveis`, que já cruza autoria com *"ainda não avaliou"*.
+   * **Quem lê é o autor?** — lido por TRÊS consumidores: o título do bloco da avaliação (*"Sua
+   * avaliação"* × *"Avaliação do solicitante"*, item 27) e as **duas** frases da conversa (o vazio e o
+   * rótulo do campo, critério 30.4). **O convite a avaliar NÃO usa isto:** ele usa `acoesDisponiveis`,
+   * que já cruza autoria com *"ainda não avaliou"*.
    */
   const ehAutor = detalhe.autor.pessoaId === escopo.ctx.pessoaId;
 
@@ -768,6 +795,30 @@ export default async function Ocorrencia({
           <LinhaDoTempo eventos={linhaDoTempoPedida} pessoaIdDeQuemLe={escopo.ctx.pessoaId} />
         </Suspense>
       </section>
+
+      {/*
+        **Bloco 4 · A conversa** — o último dos quatro blocos que o inventário desenha, e o único que
+        ainda não existia.
+
+        **A permissão é conferida aqui**, como a página já faz com `vinculo.gerir` antes de montar o modal
+        de atribuição. Hoje é redundante — todo mundo que abre T-05 tem `ocorrencia.comentar` — e amanhã
+        não é; e é uma linha.
+
+        **A tela grande NÃO ganha duas colunas nesta fatia.** O inventário manda a linha do tempo e a
+        conversa ficarem *"ao lado em vez de abaixo"* para o Gestor, e diz na mesma linha que *"isso é
+        layout, e é do passo 5"*. O bloco 3 já foi entregue empilhado pelo item 29; entregar o 4 ao lado
+        partiria o par.
+      */}
+      {vinculo.pode("ocorrencia.comentar") && (
+        <ConversaDaOcorrencia
+          ocorrenciaId={detalhe.id}
+          primeiraPagina={conversaPedida}
+          organizacaoId={organizacaoId}
+          pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+          vazio={vazioDaConversa(ehAutor)}
+          rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
+        />
+      )}
 
       {/*
         **A barra de ações, e o vazio dela.** A tela renderiza *exatamente* `acoesDisponiveis` — nada
