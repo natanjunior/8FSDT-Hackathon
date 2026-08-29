@@ -103,6 +103,7 @@ function agregadoEm(status: StatusOcorrencia): Ocorrencia {
     status,
     prioridade: "normal",
     solucaoAplicada: null,
+    avaliacao: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,

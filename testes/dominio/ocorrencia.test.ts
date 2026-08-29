@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AnexoDaOcorrencia,
+  Avaliacao,
   comandoPermitido,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
@@ -770,6 +771,9 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
     /** **Nula até alguém resolver.** A coluna existe desde a migração 005 e, até o item 26, nenhum
      *  endpoint a escrevia — era coluna lida pela projeção e escrita por ninguém. */
     solucaoAplicada: null,
+    /** **Nula até o autor avaliar.** A coluna existe desde a migração 005 e, até o item 27, nenhum
+     *  endpoint a escrevia — era coluna lida pela projeção e escrita por ninguém. */
+    avaliacao: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,
@@ -1539,6 +1543,105 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
           motivo,
         );
       }
+    });
+  });
+
+  describe("o comando avaliar — o QUARTO que muda a raiz sem tocar a trilha, e o último", () => {
+    /**
+     * **`em(status)` serve aqui**, como serviu para `registrarSolucaoAplicada`: este comando não lê a
+     * trilha — lê `_status`, `_avaliacao` e `autorPessoaId`.
+     *
+     * **O autor de `ABERTA` é `AUTORA`**, e é ele que a terceira guarda compara. `GESTOR` é o não-autor.
+     */
+    const AVALIACAO = {
+      autorPessoaId: ABERTA.autorPessoaId,
+      nota: 5,
+      comentario: "Resolveram no mesmo dia e avisaram quando terminou.",
+      avaliadaEm: "2026-08-29T10:00:00.000Z",
+    };
+
+    it("grava a avaliação em resolvida — o critério 27.1 dentro do agregado", () => {
+      const avaliada = em("resolvida").avaliar(AVALIACAO);
+
+      expect(avaliada.avaliacao?.nota).toBe(5);
+      expect(avaliada.avaliacao?.comentario).toBe(AVALIACAO.comentario);
+      expect(avaliada.avaliacao?.avaliadaEm).toBe(AVALIACAO.avaliadaEm);
+    });
+
+    it("o status NÃO muda — o critério 27.4, e é a D1 em uma asserção", () => {
+      // **Não é um sexto estado.** A ocorrência continua `resolvida` depois de avaliada, e é por isso que
+      // este comando não passa por `comTransicao`.
+      expect(em("resolvida").avaliar(AVALIACAO).status).toBe("resolvida");
+    });
+
+    it("a trilha NÃO cresce, e a última transição é a MESMA — o critério 27.4 pelo negativo", () => {
+      const antes = em("resolvida");
+      const depois = antes.avaliar(AVALIACAO);
+
+      expect(depois.trilha).toHaveLength(antes.trilha.length);
+      expect(depois.ultimaTransicao).toBe(antes.ultimaTransicao);
+    });
+
+    it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+      const antes = em("resolvida");
+      antes.avaliar(AVALIACAO);
+
+      expect(antes.avaliacao).toBeNull();
+    });
+
+    it("a solução aplicada e a prioridade atravessam intactas — comAvaliacao troca UMA coisa", () => {
+      const resolvida = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "resolvida",
+        prioridade: "alta",
+        solucaoAplicada: "Trocado o rufo.",
+      });
+      const avaliada = resolvida.avaliar(AVALIACAO);
+
+      expect(avaliada.solucaoAplicada).toBe("Trocado o rufo.");
+      expect(avaliada.prioridade).toBe("alta");
+    });
+
+    it("estoura nos CINCO estados que não são resolvida — a invariante 8, metade de estado", () => {
+      // **Alcançar isto é defeito NOSSO** — a Aplicação confere antes com `comandoPermitido`, e é ela
+      // quem produz o `409 AVALIACAO_EXIGE_RESOLVIDA`. Por isso é `Error`.
+      for (const status of ["aberta", "em_analise", "em_atendimento", "pausada", "cancelada"] as const) {
+        expect(() => em(status).avaliar(AVALIACAO)).toThrow(/invariante 8 violada/u);
+      }
+    });
+
+    it("estoura na SEGUNDA avaliação — a invariante 8, metade 'uma vez só'", () => {
+      const avaliada = em("resolvida").avaliar(AVALIACAO);
+
+      expect(() => avaliada.avaliar(AVALIACAO)).toThrow(/invariante 8 violada/u);
+    });
+
+    it("estoura quando quem avalia NÃO é o autor — a metade que o agregado responde sozinho", () => {
+      // **É a única guarda do produto assim**, e ela não é permissão de papel: `autorPessoaId` é campo
+      // deste objeto, e a pergunta é sobre o estado dele. A recusa com `403` é da Aplicação.
+      expect(() => em("resolvida").avaliar({ ...AVALIACAO, autorPessoaId: GESTOR })).toThrow(
+        /invariante 8 violada/u,
+      );
+    });
+
+    it("a guarda de VALOR não é daqui — ela é da Avaliacao, e o agregado a deixa estourar", () => {
+      // **O agregado não redigita a escala.** Ele chama `Avaliacao.registrada`, e a mensagem que sobe é
+      // a do objeto de valor. Uma segunda cópia de `1..5` aqui seria a terceira do produto.
+      expect(() => em("resolvida").avaliar({ ...AVALIACAO, nota: 0 })).toThrow(/entre 1 e 5/u);
+    });
+
+    it("reconstituir devolve a avaliação que veio do banco", () => {
+      const doBanco = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "resolvida",
+        avaliacao: Avaliacao.reconstituir({
+          nota: 3,
+          comentario: null,
+          avaliadaEm: "2026-08-29T09:00:00.000Z",
+        }),
+      });
+
+      expect(doBanco.avaliacao?.nota).toBe(3);
     });
   });
 });

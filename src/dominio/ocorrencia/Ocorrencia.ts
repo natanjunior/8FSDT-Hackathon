@@ -1,4 +1,5 @@
 import { AnexoDaOcorrencia, type DadosDeAnexo } from "./AnexoDaOcorrencia";
+import { Avaliacao } from "./Avaliacao";
 import { type MotivoCancelamento, type MotivoPausa } from "./Motivos";
 import { PRIORIDADE_INICIAL, type Prioridade } from "./Prioridade";
 import { RegistroDeTransicao } from "./RegistroDeTransicao";
@@ -71,6 +72,17 @@ export type DadosDeReconstituicao = {
    * três chamadores que existem. É o mesmo argumento que fez `temResponsavel` nascer obrigatório no 22.
    */
   solucaoAplicada: string | null;
+  /**
+   * **A avaliação, ou `null`.** Obrigatório, e **não** opcional com padrão `null`, pelo mesmo argumento
+   * que fez `solucaoAplicada` nascer obrigatória no item 25 e `temResponsavel` no 22: **o esquecimento
+   * aqui é destrutivo e silencioso**.
+   *
+   * Com padrão, um `montarAgregado` que não a passasse faria o agregado nascer sem avaliação, e o
+   * `avaliar` seguinte gravaria por cima de uma avaliação existente **sem que nada acusasse** — a
+   * segunda guarda do comando (*"uma vez só"*) leria `null` e deixaria passar. Obrigatório, o compilador
+   * cobra os **três** chamadores que existem.
+   */
+  avaliacao: Avaliacao | null;
   /** **A trilha inteira, da origem à última.** Trilha parcial dentro do agregado é mentira no lugar
    *  onde a invariante 3 mora — e quem lesse cinco registros de um agregado que tem oito não teria
    *  como saber. O tamanho é limitado pela máquina de estados: meia dúzia de linhas por ocorrência. */
@@ -86,7 +98,8 @@ export type DadosDeReconstituicao = {
  *
  * 1. **`status` nunca é escrito de fora** — não há setter, o campo é privado, e a única porta são os
  *    comandos. São **sete** os que transicionam — `registrar`, `analisar`, `iniciarAtendimento`,
- *    `resolver`, `pausar`, `retomar` e `cancelar`; o item 27 traz o resto.
+ *    `resolver`, `pausar`, `retomar` e `cancelar` —, e **não haverá um oitavo**: as dez setas da
+ *    `arquitetura.md` §4 têm código desde o item 18.
  * 1b. **Nem todo comando é transição, e o item 25 é o primeiro.** `registrarSolucaoAplicada` muda um dado
  *    da raiz — `solucao_aplicada` — **sem tocar `status` e sem tocar a trilha**, e por isso não passa por
  *    `comTransicao`. A invariante 1 continua intacta: ele não escreve `status`.
@@ -94,6 +107,12 @@ export type DadosDeReconstituicao = {
  *    `prioridade` — coluna da raiz — **sem tocar `status` e sem tocar a trilha**, e recusa em estado
  *    terminal com `PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL`, que é a **invariante 7** falando com o próprio
  *    nome. A invariante 1 continua intacta: ele não escreve `status`.
+ * 1d. **O item 27 é o TERCEIRO caso, e o último comando do produto.** `avaliar` grava três colunas da
+ *    raiz — `avaliacao_nota`, `avaliacao_comentario` e `avaliada_em` — **sem tocar `status` e sem tocar a
+ *    trilha**, e é o único que age sobre um estado **terminal** sem tirar a ocorrência de lá (D1). Ele
+ *    tem **três** guardas, e a terceira é a única do agregado que olha **quem chamou** — porque
+ *    `autorPessoaId` é campo dele, e a pergunta é sobre o próprio estado. A invariante 1 continua
+ *    intacta: ele não escreve `status`.
  * 2. **Toda transição produz exatamente um registro**, na mesma operação.
  * 3. **O histórico é append-only** — `trilha` devolve cópia congelada.
  * 4. **A criação gera o primeiro registro, com status anterior nulo** — a premissa **P1**.
@@ -118,6 +137,14 @@ export class Ocorrencia {
      * transcreve (aula 5, p.9).
      */
     private readonly _solucaoAplicada: string | null,
+    /**
+     * **Coluna de `ocorrencias`, e portanto DENTRO do limite** — `modelo-de-dados.md:1246`. Quem decide o
+     * valor gravado é este objeto; o repositório transcreve (aula 5, p.9).
+     *
+     * **`null` significa "não avaliada"**, e não "não carregada" — ao contrário de `_anexos`. O caminho
+     * de escrita a carrega sempre, porque o comando `avaliar` **precisa** dela para recusar a segunda.
+     */
+    private readonly _avaliacao: Avaliacao | null,
     private readonly _trilha: readonly RegistroDeTransicao[],
     /**
      * **`null` significa "não carregado", e não "sem anexo".** O caminho de **escrita** reidrata o
@@ -149,6 +176,9 @@ export class Ocorrencia {
       PRIORIDADE_INICIAL,
       // **Sempre `null` ao nascer, e `DadosDeRegistro` NÃO ganha o campo** (D-P4): não há o que
       // descrever antes de o atendimento começar, e nenhum schema de entrada o aceita no registro.
+      null,
+      // **Nasce sem avaliação**, e `DadosDeRegistro` também não ganha o campo: não há o que avaliar
+      // antes de resolver, e nenhum schema de entrada a aceita no registro.
       null,
       [
         RegistroDeTransicao.origem({
@@ -184,6 +214,7 @@ export class Ocorrencia {
       dados.status,
       dados.prioridade,
       dados.solucaoAplicada,
+      dados.avaliacao,
       [...dados.trilha],
       // Ver o comentário do campo: `null` é "não carregado", e o getter estoura em vez de mentir.
       null,
@@ -206,6 +237,20 @@ export class Ocorrencia {
    */
   get solucaoAplicada(): string | null {
     return this._solucaoAplicada;
+  }
+
+  /**
+   * A avaliação, ou `null` quando não há.
+   *
+   * **Existe para DOIS consumidores**, e é isso que o separa dos outros getters: o repositório, que
+   * transcreve as três colunas; e `EstadoDaOcorrencia`, que é como o fato *"já foi avaliada"* chega ao
+   * corpo dos `409` — o **P-3** do plano do item 16, que fecha nesta fatia.
+   *
+   * **Devolve o objeto, e não uma cópia**, porque `Avaliacao` é congelada no construtor: quem lê não
+   * consegue trocar a nota por fora do comando.
+   */
+  get avaliacao(): Avaliacao | null {
+    return this._avaliacao;
   }
 
   /** **Congelada**: quem lê não consegue acrescentar registro por fora do comando (invariante 3). */
@@ -567,6 +612,64 @@ export class Ocorrencia {
   }
 
   /**
+   * O comando `avaliar` — **o oitavo do agregado, o QUARTO que muda a raiz sem tocar a trilha, e o
+   * último comando do produto** (item 27, critérios 27.1 a 27.4).
+   *
+   * **Ele age sobre um estado TERMINAL sem tirar a ocorrência de lá** (D1: *"não é um sexto estado"*), e
+   * é o único comando do produto do qual isso é verdade. `resolvida` continua `resolvida`; o que muda é
+   * um dado da raiz.
+   *
+   * **As três guardas são as três metades da invariante 8** (`arquitetura.md:288`), e as três são
+   * `Error` pelo argumento das sete anteriores: alcançá-las significa que a Aplicação esqueceu de
+   * conferir, e o produto tem os `ErroDeDominio` correspondentes um nível acima —
+   * `AvaliacaoExigeResolvida`, `JaAvaliada` e `SomenteOAutorPodeAvaliar`.
+   *
+   * **A terceira é a decisão deste método, e ela concilia dois documentos que discordavam.** A
+   * `arquitetura.md:288` põe *"e só do Solicitante autor"* **dentro** da invariante 8, que é do agregado;
+   * a spec do item 26 escreveu que *"o agregado não confere permissão"*. **As duas estão certas:**
+   * `autorPessoaId` é campo deste objeto, então *"quem está avaliando é o autor?"* é pergunta sobre o
+   * **estado do próprio agregado** — o critério da CA aula 3, p.8-9 que a `arquitetura.md:266-275` cita.
+   * **Não é permissão de papel**, que é o que o `comContexto` decide sem ler o recurso.
+   *
+   * **A escala de 1 a 5 NÃO é redigitada aqui** — quem a guarda é `Avaliacao.registrada`, e a exceção
+   * que ela lança sobe por este método sem tradução. Uma segunda cópia de `1..5` seria a terceira do
+   * produto, ao lado do `CHECK` e do schema.
+   *
+   * **Não chama `comTransicao`, e a ausência é o critério 27.4.** A porta é `comAvaliacao`.
+   */
+  avaliar(entrada: {
+    /** Quem está avaliando. Comparado com `this.autorPessoaId` — é a terceira guarda. */
+    autorPessoaId: string;
+    nota: number;
+    /** Já normalizado pelo comando de aplicação: `""` e `"   "` chegam como `null`. */
+    comentario?: string | null;
+    /** ISO 8601. O agregado não lê relógio, e este é o MESMO instante do `atualizada_em`. */
+    avaliadaEm: string;
+  }): Ocorrencia {
+    if (this._status !== "resolvida") {
+      throw new Error(
+        `avaliar exige status 'resolvida'; a ocorrência está '${this._status}' — invariante 8 violada.`,
+      );
+    }
+
+    if (this._avaliacao !== null) {
+      throw new Error("Esta ocorrência já foi avaliada — invariante 8 violada.");
+    }
+
+    if (entrada.autorPessoaId !== this.autorPessoaId) {
+      throw new Error("Só quem registrou a ocorrência pode avaliar — invariante 8 violada.");
+    }
+
+    return this.comAvaliacao(
+      Avaliacao.registrada({
+        nota: entrada.nota,
+        comentario: entrada.comentario ?? null,
+        avaliadaEm: entrada.avaliadaEm,
+      }),
+    );
+  }
+
+  /**
    * O comando `cancelar` — **as QUATRO origens** (`arquitetura.md` §4, critério 18.2), e o **último
    * comando de transição da máquina de estados**: depois dele as dez setas têm código e os seis estados
    * existem em banco.
@@ -652,6 +755,9 @@ export class Ocorrencia {
       status,
       this._prioridade,
       solucaoAplicada,
+      // **Atravessa intacta.** Hoje é sempre `null` — nada sai de `resolvida` —, e passar `null`
+      // chumbado seria escrever uma coincidência onde cabe uma regra.
+      this._avaliacao,
       [...this._trilha, registro],
       this._anexos,
     );
@@ -685,6 +791,8 @@ export class Ocorrencia {
       this._status,
       this._prioridade,
       solucaoAplicada,
+      // Atravessa intacta — ver o comentário de `comTransicao`.
+      this._avaliacao,
       // Cópia, e não a referência: `reconstituir` já copia, e duas instâncias imutáveis compartilhando o
       // mesmo array é seguro hoje e deixa de ser no dia em que alguém escrever dentro do limite.
       [...this._trilha],
@@ -721,6 +829,45 @@ export class Ocorrencia {
       this._status,
       prioridade,
       this._solucaoAplicada,
+      // Atravessa intacta — ver o comentário de `comTransicao`.
+      this._avaliacao,
+      // Cópia, e não a referência — o mesmo argumento de `comSolucaoAplicada`.
+      [...this._trilha],
+      this._anexos,
+    );
+  }
+
+  /**
+   * **A cópia com a avaliação gravada — o QUARTO jeito de copiar este agregado, e o último.** Irmão de
+   * `comTransicao`, `comSolucaoAplicada` e `comPrioridade`, e existe pela mesma razão que os dois
+   * últimos: **o nome diz qual é a diferença**.
+   *
+   * *Alternativa recusada — generalizar os três num `comRaizAlterada({ solucaoAplicada?, prioridade?,
+   * avaliacao? })`:* é a mesma alternativa que os itens 25 e 17 recusaram, e o argumento sobrevive com
+   * **três** chamadores em vez de dois — **um objeto de campos opcionais devolve ao chamador a chance de
+   * não passar nenhum**, e os três nomes dizem o que cada escrita é.
+   *
+   * **O custo aceito, declarado:** o construtor privado passa a ter **seis** sítios de chamada. Ele é
+   * privado e posicional, então um campo novo quebra os seis **em tempo de compilação** — o esquecimento
+   * é alto, não silencioso, que é o mesmo argumento dos itens 25 e 17.
+   */
+  private comAvaliacao(avaliacao: Avaliacao): Ocorrencia {
+    return new Ocorrencia(
+      this.titulo,
+      this.descricao,
+      this.categoriaId,
+      this.areaId,
+      this.areaTipo,
+      this.localizacaoComplemento,
+      this.autorPessoaId,
+      this.registradaEm,
+      // **`_status`, `_trilha`, `_solucaoAplicada` e `_prioridade` atravessam intactos.** O primeiro é o
+      // critério 27.4 e a D24; o segundo é a trilha ser só de status; os outros dois são não apagar o que
+      // os itens 25 e 17 gravaram.
+      this._status,
+      this._prioridade,
+      this._solucaoAplicada,
+      avaliacao,
       // Cópia, e não a referência — o mesmo argumento de `comSolucaoAplicada`.
       [...this._trilha],
       this._anexos,
