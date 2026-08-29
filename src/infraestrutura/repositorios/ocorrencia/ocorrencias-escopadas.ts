@@ -6,7 +6,7 @@ import type {
   ResultadoDoRegistro,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
-import { Ocorrencia, RegistroDeTransicao, TERMINAIS } from "@/dominio/ocorrencia";
+import { Avaliacao, Ocorrencia, RegistroDeTransicao, TERMINAIS } from "@/dominio/ocorrencia";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
@@ -255,6 +255,11 @@ type LinhaDoAgregado = {
   /** **Coluna de `ocorrencias`, e portanto DENTRO do agregado** — ao contrário de `tem_responsavel`,
    *  logo abaixo, que viaja ao lado dele no envelope. */
   solucao_aplicada: string | null;
+  /** **As três colunas do objeto de valor, e elas vêm JUNTAS** — o `CHECK` `ocorrencias_avaliacao_ck`
+   *  garante que ou as três são nulas, ou `nota` e `avaliada_em` não são. */
+  avaliacao_nota: number | null;
+  avaliacao_comentario: string | null;
+  avaliada_em: Date | null;
   /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
    *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
   tem_responsavel: boolean;
@@ -272,6 +277,10 @@ type LinhaDoAgregado = {
  * `vinculos`. O `at.organizacao_id = o.organizacao_id` não é redundante com o `$1`: é o mesmo par
  * composto das FKs da migração 008, e é o que impede o `exists` de enxergar atribuição de outra
  * organização. Custo: uma varredura do índice único parcial `atribuicoes_vigente_uk`.
+ *
+ * **As três colunas da avaliação entram na MESMA linha, sem `join` e sem segunda consulta** (item 27) —
+ * exatamente como a `solucao_aplicada` do item 26 e o `exists` do 22. O agregado precisa delas para
+ * recusar a segunda avaliação, e é por isso que elas estão do lado da **escrita** e não só da leitura.
  */
 const SELECT_DO_AGREGADO = `
   select o.titulo,
@@ -285,6 +294,9 @@ const SELECT_DO_AGREGADO = `
          o.prioridade,
          o.registrada_em,
          o.solucao_aplicada,
+         o.avaliacao_nota,
+         o.avaliacao_comentario,
+         o.avaliada_em,
          exists (select 1
                    from atribuicoes at
                   where at.ocorrencia_id = o.id
@@ -313,6 +325,17 @@ function montarAgregado(linha: LinhaDoAgregado, trilha: readonly LinhaDeTransica
     status: linha.status,
     prioridade: linha.prioridade,
     solucaoAplicada: linha.solucao_aplicada,
+    // **O MESMO predicado que `montarLida` usa** (`:226-232`), e não uma segunda regra: `nota` nula ou
+    // `avaliada_em` nula significa *não avaliada*. O `CHECK` do banco garante que as duas andam juntas;
+    // conferir as duas é o que faz este código não depender disso.
+    avaliacao:
+      linha.avaliacao_nota === null || linha.avaliada_em === null
+        ? null
+        : Avaliacao.reconstituir({
+            nota: linha.avaliacao_nota,
+            comentario: linha.avaliacao_comentario,
+            avaliadaEm: linha.avaliada_em.toISOString(),
+          }),
     trilha: trilha.map((registro) =>
       RegistroDeTransicao.reconstituir({
         sequencia: registro.sequencia,
@@ -831,6 +854,76 @@ export function repositorioEscopadoDeOcorrencias(
           throw new Error("Ocorrência recém-alterada não foi relida — transação inconsistente.");
         }
         return { desfecho: "alterada" as const, ocorrencia: relida };
+      });
+    },
+
+    /**
+     * **A avaliação — um `update`, uma releitura, e NENHUM `insert`** (item 27).
+     *
+     * É a **terceira** porta de escrita do produto que toca a raiz sem tocar a trilha, e a ausência do
+     * `insert` é o critério 27.4 expresso em estrutura: não há como gravar registro daqui.
+     *
+     * **O predicado tem DUAS metades, e é a única porta do produto assim.**
+     *
+     * ```
+     * status = $3::status_ocorrencia    -- o que o agregado leu; transcrição, não decisão
+     * avaliacao_nota is null            -- a invariante 8, metade "uma vez só"
+     * ```
+     *
+     * **A segunda é a que reprova.** `resolvida` é terminal — nada tira a ocorrência de lá —, então a
+     * primeira **nunca** reprova sozinha, e sem a segunda duas abas do mesmo Solicitante gravariam duas
+     * avaliações, a segunda por cima da primeira, em silêncio. O `CHECK` do banco não impede: ele é
+     * verdadeiro nas duas gravações.
+     *
+     * **A primeira NÃO é redundância**: ela é o que este método transcreve do agregado, e é o que impede
+     * a porta de depender de a coluna de avaliação ser a única defesa no dia em que um sétimo estado
+     * admitir o comando.
+     *
+     * *Alternativa recusada — `status <> all(TERMINAIS)`, o predicado do item 17:* recusaria **tudo**, e
+     * a nota do backlog de 28/08/2026 já a nomeia. Cada porta expressa a invariante do **seu** comando;
+     * simetria entre portas não é valor por si só.
+     *
+     * **O que o predicado NÃO defende:** nada. Ao contrário das duas irmãs, aqui **não há exposição
+     * aceita** — a §7.9 nomeia `solucao_aplicada` e `prioridade`, e a avaliação não é nenhuma das duas.
+     *
+     * **Este método transcreve; ele não decide.** Os três valores saem de `ocorrencia.avaliacao`, e o
+     * `atualizada_em` recebe o instante que o comando de aplicação leu — nunca `now()`.
+     */
+    async avaliar(id, ocorrencia, em) {
+      const avaliacao = ocorrencia.avaliacao;
+      if (avaliacao === null) {
+        // **Defeito de chamador, não caso de negócio.** Quem chama esta porta passa a instância que saiu
+        // de `Ocorrencia.avaliar`, e ela tem avaliação por construção. Um `?.` aqui gravaria três nulos
+        // em silêncio — que é a mutação que a ADR-0001 existe para impedir.
+        throw new Error("avaliar recebeu um agregado sem avaliação — o comando não o atravessou.");
+      }
+
+      return emTransacao(async (executar) => {
+        // O `::` do `status` não é decoração: sem ele o Postgres compara `unknown` com
+        // `status_ocorrencia` e a resolução passa a depender de inferência. As atribuições do `set` não
+        // precisam — em contexto de atribuição o tipo vem da coluna.
+        const avaliadas = await executar<{ id: string }>(
+          `update ocorrencias
+              set avaliacao_nota = $4,
+                  avaliacao_comentario = $5,
+                  avaliada_em = $6,
+                  atualizada_em = $7
+            where organizacao_id = $1 and id = $2
+              and status = $3::status_ocorrencia
+              and avaliacao_nota is null
+          returning id`,
+          [id, ocorrencia.status, avaliacao.nota, avaliacao.comentario, avaliacao.avaliadaEm, em],
+        );
+
+        if (avaliadas[0] === undefined) return { desfecho: "conflito" as const };
+
+        // A releitura acontece **dentro** da transação, como as cinco portas de escrita anteriores: o que
+        // volta ao cliente é o detalhe de verdade, com nome de categoria, de área e de responsável.
+        const relida = await lerPorId(executar, id);
+        if (relida === null) {
+          throw new Error("Ocorrência recém-avaliada não foi relida — transação inconsistente.");
+        }
+        return { desfecho: "avaliada" as const, ocorrencia: relida };
       });
     },
 

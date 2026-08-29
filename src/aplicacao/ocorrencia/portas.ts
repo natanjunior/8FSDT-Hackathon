@@ -255,6 +255,21 @@ export type ResultadoDaPrioridade =
   | { desfecho: "conflito" };
 
 /**
+ * O desfecho da porta do item 27 — **e o `conflito` aqui detecta DUAS coisas, não uma.**
+ *
+ * Nas duas portas irmãs (`ResultadoDaSolucaoAplicada` e `ResultadoDaPrioridade`) o `conflito` significa
+ * *"o estado mudou entre a leitura e a escrita"*. **Aqui ele significa isso OU *"alguém já avaliou entre
+ * a leitura e a escrita"***, porque o predicado tem duas metades — e a segunda é a única que reprova de
+ * verdade, já que `resolvida` é terminal.
+ *
+ * **Quem traduz é o comando de aplicação**, relendo: transformar erro do banco em erro de domínio é
+ * decisão de **Aplicação**, e por isso o repositório devolve um desfecho e não lança.
+ */
+export type ResultadoDaAvaliacao =
+  | { desfecho: "avaliada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/**
  * ============================================================================
  *  O que a porta de ESCRITA devolve — o agregado, **e o fato que ele não tem**
  * ============================================================================
@@ -385,6 +400,20 @@ export interface RepositorioEscopadoDeOcorrencias {
    * ocorrência (`arquitetura.md` §5.8).
    */
   alterarPrioridade(id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaPrioridade>;
+
+  /**
+   * **A avaliação — um `update`, uma releitura, e NENHUM `insert`** (item 27, critério 27.4).
+   *
+   * **A assinatura é IDÊNTICA à das duas portas irmãs, e o predicado é diferente das duas.** Aqui ele
+   * tem **duas** metades — `status = <o que o agregado leu>` **e** `avaliacao_nota is null` —, e a segunda
+   * é a que fecha a janela: `resolvida` é terminal, então a primeira nunca reprova sozinha. É a
+   * **invariante 8** no banco, e o `JA_AVALIADA` é código publicado para exatamente este caso.
+   *
+   * **Recebe o agregado JÁ AVALIADO** — a instância que sai de `Ocorrencia.avaliar` —, e transcreve dela
+   * as três colunas. `em` viaja ao lado e é o **mesmo instante** de `avaliadaEm`: `atualizada_em` não é
+   * campo da raiz, e dois relógios violariam o `CHECK (avaliada_em >= registrada_em)`.
+   */
+  avaliar(id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaAvaliacao>;
 
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;
