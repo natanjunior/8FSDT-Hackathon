@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -24,12 +25,36 @@ import { projetarContexto } from "@/interface/projecoes";
  */
 export const dynamic = "force-dynamic";
 
-export default async function TelaSemOrganizacaoAtiva() {
+export default async function TelaSemOrganizacaoAtiva({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const resolucao = await resolverOuMandarParaPorta();
   const contexto = projetarContexto(resolucao);
+  const parametros = await searchParams;
 
-  // Quem tem organização ativa não pertence a esta tela: o shell decide para onde vai.
-  if (contexto.organizacaoAtiva !== null) redirect("/");
+  /**
+   * **A doutrina do `lerBooleanoDaUrl`** (`consulta-de-url.ts:25-34`): valor diferente de `"true"` é
+   * tratado como **ausente**, não como verdadeiro. A diferença declarada é que uma **página** não tem
+   * como devolver `400` — então o que sobra é ignorar, e o ignorar tem de ser o caso seguro.
+   */
+  const querEntrarEmOutra = parametros["entrar-em-outra"] === "true";
+
+  // Quem tem organização ativa não pertence a esta tela — **exceto** para pedir entrada em outra sem
+  // sair desta, que é a face E e é o item 7b inteiro.
+  if (contexto.organizacaoAtiva !== null) {
+    if (querEntrarEmOutra) {
+      return (
+        <FaceE
+          organizacaoAtiva={contexto.organizacaoAtiva}
+          vinculos={contexto.vinculos}
+          pedidos={contexto.pedidosDeEntrada}
+        />
+      );
+    }
+    redirect("/");
+  }
 
   // **Pendente ganha de tudo — para quem não tem vínculo nenhum.** Quem tem pedido em andamento não deve
   // ser convidado a abrir outro, e é por isso que a face B não tem campo de código.
@@ -191,6 +216,91 @@ function FaceD({
       <BotaoDeSair />
     </MolduraDeTela>
   );
+}
+
+/**
+ * ============================================================================
+ *  **Face E · Entrar em outra organização** — o item 7b, e é desenho novo
+ * ============================================================================
+ *
+ * **Não está em documento nenhum, e o critério 7b.5 sabe disso:** *"A forma desse ponto não está escrita
+ * em documento nenhum — o `inventario-de-telas.md` não a tem, e é lá que ela vai morar; este critério
+ * confere que o caminho existe, **o desenho, não**."* É proposta, e vira achado — nunca conserto em
+ * `docs/`.
+ *
+ * **A ordem de leitura é a resposta a três perguntas, nesta ordem:** *eu perco o que tenho?* — não;
+ * *o que eu já pedi?* — isto aqui; *como peço mais um?* — o campo.
+ *
+ * **O bloco de pedidos não é enfeite: é o que torna verdadeira a frase da face B.** *"Você não será avisado
+ * automaticamente — volte aqui para ver"* pressupõe um *aqui*, e **para quem tem organização ativa a face
+ * B é inalcançável** — T-02 redireciona. Sem este bloco, o pedido feito nesta tela sumiria da vista no
+ * instante seguinte.
+ *
+ * **O formulário NÃO some quando há pedido pendente**, e é a diferença explícita para a face A. Lá
+ * *"pendente ganha de tudo"* porque quem não tem vínculo nenhum não deve abrir um segundo pedido. Aqui o
+ * banco permite: o índice único é `(pessoa_id, organizacao_id) where situacao = 'pendente'`, **um por
+ * organização**. A síndica que administra três prédios pede aos três.
+ *
+ * **O *Voltar* vai para `/`, e não para `/ocorrencias`.** `/` é o losango: ele reresolve o contexto e
+ * despacha. Mandar para T-03 trancaria o Encarregado, que tem `permissoes: []` e **não tem T-03**
+ * (`app/page.tsx:44-46`) — e é justamente ele o caso que o menu da T-10 existe para servir.
+ */
+function FaceE({
+  organizacaoAtiva,
+  vinculos,
+  pedidos,
+}: {
+  organizacaoAtiva: { id: string; nome: string; codigoPublico: string };
+  vinculos: ReadonlyArray<{ organizacaoId: string; nome: string; papel: string; codigoPublico: string }>;
+  pedidos: ReadonlyArray<{ id: string; organizacao: { nome: string }; situacao: string; criadoEm: string }>;
+}) {
+  return (
+    <MolduraDeTela titulo="Entrar em outra organização">
+      {/* É a frase que o critério 7b.1 exige em palavras: *"o vínculo em A não é tocado"*. */}
+      <p className="text-tinta-suave text-sm leading-relaxed">
+        Você continua em{" "}
+        <strong className="text-tinta font-semibold">{organizacaoAtiva.nome}</strong>. Pedir entrada em
+        outra não tira você daqui.
+      </p>
+
+      {pedidos.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Seus pedidos</h2>
+          <ul className="border-linha divide-linha-suave bg-superficie divide-y overflow-hidden rounded-md border">
+            {pedidos.map((pedido) => (
+              <li key={pedido.id} className="flex flex-col gap-0.5 px-4 py-3.5">
+                <span className="text-tinta text-base leading-snug font-medium">
+                  {pedido.organizacao.nome}
+                </span>
+                {/* A-5: a situação sempre carrega a palavra, nunca só uma cor. */}
+                <span className="text-tinta-suave text-xs">
+                  {rotuloDaSituacao(pedido.situacao)} · {formatarData(pedido.criadoEm)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <FormularioDePedidoDeEntrada variante="outra-organizacao" vinculos={vinculos} />
+
+      <Link href="/" className="text-marca py-1 text-sm underline underline-offset-4">
+        Voltar
+      </Link>
+    </MolduraDeTela>
+  );
+}
+
+/**
+ * A situação do pedido em palavra.
+ *
+ * **O motivo da recusa não aparece**, e é a mesma decisão da face C: `GET /contexto` devolve `situacao` e
+ * não o motivo, e dizê-lo a quem foi recusado é decisão de produto ainda não tomada (⬜, §6.15 do modelo).
+ */
+function rotuloDaSituacao(situacao: string): string {
+  if (situacao === "aprovado") return "Aprovado";
+  if (situacao === "recusado") return "Não aprovado";
+  return "Aguardando a decisão de um Gestor";
 }
 
 function BotaoDeSair() {
