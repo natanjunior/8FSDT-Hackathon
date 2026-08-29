@@ -259,13 +259,14 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" },
   responsavel: null,
   quantidadeDeAnexos: 0,
+  avaliada: false,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os treze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
 
     expect(resumo.categoria).toStrictEqual({
@@ -275,6 +276,13 @@ describe("o OcorrenciaResumo projetado", () => {
     expect(resumo.categoria).not.toHaveProperty("icone");
     expect(resumo).not.toHaveProperty("descricao");
     expect(resumo).not.toHaveProperty("acoesDisponiveis");
+    // **O décimo quarto, e é do item 27.** Sem ele o convite de T-03 não é computável — e ele é FATO da
+    // ocorrência, como `status` e `motivoPausa`, nunca afazer calculado por leitor (critério 14.5).
+    expect(resumo.avaliada).toBe(false);
+  });
+
+  it("avaliada é `true` quando a nota existe — e é `avaliacao_nota is not null`, nada mais", () => {
+    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, avaliada: true }).avaliada).toBe(true);
   });
 
   it("statusRotulo é o rótulo de gente, nunca o enum cru", () => {
@@ -604,6 +612,31 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
     const projetado = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
     expect(projetado.anexos).toStrictEqual([]);
     expect(projetado.quantidadeDeAnexos).toBe(0);
+  });
+
+  it("o DETALHE também emite avaliada, e ela é coerente com avaliacao — o allOf provado", () => {
+    /**
+     * **`OcorrenciaDetalhe` é `allOf: [OcorrenciaResumo, …]`** (`openapi.yaml:2890-2892`), então o campo
+     * entra no detalhe junto, ao lado do `avaliacao` que já mora lá.
+     *
+     * **Isso não é redundância acidental: é a relação `quantidadeDeAnexos` ↔ `anexos`**, que o detalhe
+     * carrega as duas desde o item 13b — *"a contagem é o comprimento da lista"*. Aqui o booleano é
+     * `avaliacao !== null`, e **provar a coerência é o que impede as duas de divergirem em silêncio.**
+     */
+    const semAvaliacao = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
+    expect(semAvaliacao.avaliada).toBe(false);
+    expect(semAvaliacao.avaliacao).toBeNull();
+
+    const comAvaliacao = projetarOcorrenciaDetalhe(
+      {
+        ...umaOcorrenciaLidaCom([]),
+        status: "resolvida",
+        avaliacao: { nota: 5, comentario: null, avaliadaEm: "2026-08-29T10:00:00.000Z" },
+      },
+      QUEM_LE,
+    );
+    expect(comAvaliacao.avaliada).toBe(true);
+    expect(comAvaliacao.avaliacao?.nota).toBe(5);
   });
 });
 

@@ -110,6 +110,19 @@ export type OcorrenciaResumoLida = {
    * ordenado**, nunca o que é só projetado.
    */
   quantidadeDeAnexos: number;
+  /**
+   * **Se a ocorrência já foi avaliada** — `avaliacao_nota is not null` (item 27, critério 27.5).
+   *
+   * **Booleano, e não a avaliação inteira:** a lista responde *"já foi?"*, não *"quanto foi?"* — a nota e
+   * o comentário são conteúdo do detalhe. **E o precedente que recusou `temAnexo` não alcança este
+   * caso:** lá o `0..1` é *"por escopo — não por schema"*; aqui é **do schema** — invariante 8, com
+   * `CHECK` no banco. Não há segunda avaliação para a qual o booleano quebre.
+   *
+   * **É FATO da ocorrência, como `status` e `motivoPausa`** — não afazer calculado por leitor. O critério
+   * 14.5 não se reabre: `acoesDisponiveis` continua fora do resumo, e quem cruza o fato com quem lê é a
+   * tela.
+   */
+  avaliada: boolean;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;

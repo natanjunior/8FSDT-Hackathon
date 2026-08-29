@@ -368,6 +368,7 @@ type LinhaDeResumo = {
   responsavel_nome: string | null;
   motivo_pausa: OcorrenciaResumoLida["motivoPausa"];
   quantidade_de_anexos: number;
+  avaliada: boolean;
   registrada_em: Date;
   atualizada_em: Date;
 };
@@ -390,6 +391,9 @@ type LinhaDeResumo = {
  *    uma linha por ocorrência, no máximo. É o custo declarado do item 19, ao lado do que já existe para o
  *    `motivoPausa`. **Não** vira coluna desnormalizada em `ocorrencias`: o modelo recusou isso por escrito
  *    (§6.9 e §7.1), e o argumento é duas fontes de verdade para o mesmo fato.
+ * 5. **`avaliada` é EXPRESSÃO, não coluna nem `join`.** `o.avaliacao_nota` já está na linha que este
+ *    `select` lê — o booleano custa zero leitura a mais. É o oposto do `quantidadeDeAnexos`, que é
+ *    subconsulta correlacionada porque `anexos` é outra tabela (item 27).
  */
 const SELECT_DO_RESUMO = `
   select o.id,
@@ -410,6 +414,7 @@ const SELECT_DO_RESUMO = `
             from anexos ax
            where ax.ocorrencia_id = o.id
              and ax.organizacao_id = o.organizacao_id)::int as quantidade_de_anexos,
+         (o.avaliacao_nota is not null) as avaliada,
          o.registrada_em,
          o.atualizada_em
     from ocorrencias o
@@ -448,6 +453,7 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     // .total_anexos` está na lista dos recusados (modelo §7.1): desnormaliza-se o que é **filtrado ou
     // ordenado**, nunca o que é só projetado.
     quantidadeDeAnexos: linha.quantidade_de_anexos,
+    avaliada: linha.avaliada,
     // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
     motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
     registradaEm: linha.registrada_em.toISOString(),
