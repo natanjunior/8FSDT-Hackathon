@@ -24,11 +24,16 @@ export async function pedirEntrada(
   portas: { pedidosDeEntrada: RepositorioDePedidosDeEntrada },
   sessao: { pessoaId: string; nome: string },
   comando: ComandoDePedirEntrada,
+  /**
+   * **Se a Pessoa já tem vínculo ativo em alguma organização** — qualquer uma. O anel externo o tira de
+   * `resolucao.vinculos`, que a resolução de contexto já carregou: **nenhuma consulta nasce daqui**.
+   */
+  temVinculoAtivo: boolean,
 ): Promise<PedidoDeEntradaRegistrado> {
   const resultado = await portas.pedidosDeEntrada.registrar({
     pessoaId: sessao.pessoaId,
     codigoPublico: comando.codigoPublico,
-    nome: correcaoDeNome(sessao.nome, comando.nome),
+    nome: correcaoDeNome(sessao.nome, comando.nome, temVinculoAtivo),
     telefone: comando.telefone,
   });
 
@@ -45,14 +50,21 @@ export async function pedirEntrada(
 }
 
 /**
- * **O último ponto em que o nome da Pessoa é corrigível** (contrato §8.2; critério 5 do item 7a). Depois
- * daqui nenhuma tela o altera: `PATCH /vinculos/{pessoaId}` recusa Pessoa com conta.
+ * **O último ponto em que o nome da Pessoa é corrigível** (contrato §8.2; critério 5 do item 7a) — **para
+ * quem não tem vínculo em lugar nenhum**. Depois daqui nenhuma tela o altera:
+ * `PATCH /vinculos/{pessoaId}` recusa Pessoa com conta.
  *
  * Devolve `null` quando não há correção a fazer. O campo chega **pré-preenchido com o nome atual**, então
  * o caso mais comum é receber de volta exatamente o que se mandou — e isso é o formulário devolvendo o
  * que recebeu, não uma pessoa pedindo para mudar o próprio nome para o mesmo nome.
+ *
+ * **`temVinculoAtivo` fecha o critério 7b.8**, e a razão é a trilha: `pessoas` é tabela **global**, então
+ * corrigir o nome ao pedir entrada em B reescreveria como a pessoa aparece **em A**, inclusive no
+ * histórico imutável de lá. Quem já está em alguma organização não tem mais este ponto — e a face E de
+ * T-02 nem oferece o campo, o que faz da tela a segunda linha de defesa, não a única.
  */
-function correcaoDeNome(atual: string, enviado: string | null): string | null {
+function correcaoDeNome(atual: string, enviado: string | null, temVinculoAtivo: boolean): string | null {
+  if (temVinculoAtivo) return null;
   if (enviado === null) return null;
   const limpo = enviado.trim();
   return limpo === "" || limpo === atual ? null : limpo;
