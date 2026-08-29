@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { NOME_AUSENTE, NaoAutenticado, resolverContexto } from "@/aplicacao/contexto";
+import {
+  NOME_AUSENTE,
+  NaoAutenticado,
+  SemVinculoNaOrganizacao,
+  escolherOrganizacaoAtiva,
+  resolverContexto,
+} from "@/aplicacao/contexto";
 import { projetarContexto } from "@/interface/projecoes";
 
 import { escolhaDaSessao, montarDuplos } from "./duplos";
@@ -330,3 +336,103 @@ describe("a projeção de GET /contexto corresponde ao schema Contexto do openap
     }
   });
 });
+
+describe("escolherOrganizacaoAtiva — o PUT /contexto/organizacao sem consulta nenhuma (item 7b)", () => {
+  /**
+   * **A resolução da síndica: dois vínculos, nenhum ativo.** É exatamente o estado em que o `PUT` existe
+   * para ser chamado — `escolherAtivo` só escolhe sozinho com **um** vínculo (contrato §4.3).
+   */
+  async function resolucaoDaSindica() {
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, CENARIO);
+    return resolverContexto(duplos.portas, escolhaDaSessao());
+  }
+
+  it("troca para uma organização em que há vínculo, e devolve a resolução com ela ativa", async () => {
+    const resolucao = await resolucaoDaSindica();
+    expect(resolucao.ativo).toBeNull();
+
+    const trocada = escolherOrganizacaoAtiva(resolucao, "organizacao-b");
+
+    expect(trocada.ativo?.organizacao.id).toBe("organizacao-b");
+    expect(trocada.ativo?.vinculo.papel).toBe("solicitante");
+  });
+
+  it("não escreve na resolução recebida — devolve outra", async () => {
+    const resolucao = await resolucaoDaSindica();
+
+    escolherOrganizacaoAtiva(resolucao, "organizacao-b");
+
+    // O anel externo grava o cookie com o que a função devolveu; se ela mutasse a entrada, o `GET` e o
+    // `PUT` da mesma requisição passariam a discordar sem que nada tivesse mudado de propósito.
+    expect(resolucao.ativo).toBeNull();
+  });
+
+  it("depois da troca, escolhidaAutomaticamente é false — quem grava o cookie é o handler", async () => {
+    const resolucao = await resolucaoDaSindica();
+
+    const trocada = escolherOrganizacaoAtiva(resolucao, "organizacao-a");
+
+    // `escolhidaAutomaticamente: true` é o sinal que faz `abrirRequisicao` gravar cookie sozinho
+    // (`com-contexto.ts:290-296`). Aqui quem grava é o handler, uma vez, com o valor que o cliente pediu.
+    expect(trocada.escolhidaAutomaticamente).toBe(false);
+  });
+
+  it("a lista de vínculos e os pedidos atravessam intactos", async () => {
+    const resolucao = await resolucaoDaSindica();
+
+    const trocada = escolherOrganizacaoAtiva(resolucao, "organizacao-b");
+
+    expect(trocada.vinculos).toStrictEqual(resolucao.vinculos);
+    expect(trocada.pedidos).toStrictEqual(resolucao.pedidos);
+    expect(trocada.sessao).toStrictEqual(resolucao.sessao);
+  });
+
+  it("organização real onde a Pessoa não tem vínculo — recusa", async () => {
+    // A vizinha tem vínculo só em `organizacao-a`. `organizacao-b` existe no cenário, e ela não está lá.
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    expect(() => escolherOrganizacaoAtiva(resolucao, "organizacao-b")).toThrow(SemVinculoNaOrganizacao);
+  });
+
+  it("organização inexistente — a MESMA recusa, indistinguível (critério 7b.3)", async () => {
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    const semVinculo = capturar(() => escolherOrganizacaoAtiva(resolucao, "organizacao-b"));
+    const inexistente = capturar(() => escolherOrganizacaoAtiva(resolucao, "organizacao-que-nao-existe"));
+
+    // **Não confirma existência** (contrato §4.3). A função nunca soube a diferença: ela só procura na
+    // lista de vínculos, e a organização que não está lá é a mesma coisa nos dois casos.
+    expect(semVinculo.codigo).toBe("SEM_VINCULO_NA_ORGANIZACAO");
+    expect(inexistente.codigo).toBe(semVinculo.codigo);
+    expect(inexistente.titulo).toBe(semVinculo.titulo);
+    expect(inexistente.detalhe).toBe(semVinculo.detalhe);
+  });
+
+  it("vínculo revogado não serve para escolher", async () => {
+    const duplos = montarDuplos(
+      { usuarioId: "usuario-sindica", nomeSugerido: null },
+      {
+        pessoas: PERSONA_1B.pessoas,
+        vinculos: [PERSONA_1B.vinculos[0]!, { ...PERSONA_1B.vinculos[1]!, revogado: true }],
+      },
+    );
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    // Nada de novo a implementar: o vínculo revogado nunca entra em `resolucao.vinculos`, então a busca
+    // não o acha. O caso está aqui porque é o do item 10, e alguém vai perguntar.
+    expect(() => escolherOrganizacaoAtiva(resolucao, "organizacao-b")).toThrow(SemVinculoNaOrganizacao);
+  });
+});
+
+/** O erro de domínio lançado, com os três textos à mão — `expect().toThrow` só compara a classe. */
+function capturar(acao: () => unknown): SemVinculoNaOrganizacao {
+  try {
+    acao();
+  } catch (erro) {
+    if (erro instanceof SemVinculoNaOrganizacao) return erro;
+    throw erro;
+  }
+  throw new Error("esperava SemVinculoNaOrganizacao, e nada foi lançado");
+}

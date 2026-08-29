@@ -8,6 +8,8 @@ export {
   type ResolucaoDeContexto,
 } from "./resolver-contexto";
 
+export { escolherOrganizacaoAtiva } from "./escolher-organizacao-ativa";
+
 export {
   NaoAutenticado,
   SemOrganizacaoAtiva,
