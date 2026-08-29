@@ -134,6 +134,46 @@ export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeRespon
 
 /**
  * ============================================================================
+ *  O campo `solucaoAplicada` — um teto, dois pisos, e a assimetria é do contrato
+ * ============================================================================
+ *
+ * **`const` de módulo, como o `observacao` que o item 26 criou**, e pelo mesmo argumento escrito lá: dois
+ * `.max(4000)` para o mesmo campo divergiriam no dia em que o contrato mudasse um deles.
+ *
+ * **Sem `.min(1)` aqui, de propósito.** O piso não é do campo — é de **um** dos dois endpoints que o
+ * aceitam: `/registrar-solucao-aplicada` declara `minLength: 1` e `/resolver` **não**. Pôr o piso no
+ * `const` tornaria `resolucaoSchema` mais estrito que a especificação versionada, que é a divergência do
+ * critério 16.7 do avesso.
+ *
+ * **`.trim()` primeiro, checagens depois** — a ordem importa na cadeia do zod, e é a que `pausaSchema` já
+ * usa: `"   "` é aparado e então reprovado pelo piso, em vez de passar por ter três caracteres.
+ */
+const solucaoAplicada = z.string().trim().max(4000, "A solução aplicada cabe em 4000 caracteres.");
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/registrar-solucao-aplicada` — item 25
+ * ============================================================================
+ *
+ * **Um campo, obrigatório, com piso.** É o segundo corpo de comando obrigatório do produto — o primeiro
+ * foi `/pausar` —, e o `route.ts` **não** leva `corpoOpcional`: o `openapi.yaml` declara
+ * `requestBody: required: true`. Corpo ausente é `415` pelo caminho normal do `comContexto`; corpo `{}` é
+ * `400` com o campo em `erros[]`.
+ *
+ * **Nada de `recusar:` no `route.ts`, e a razão é do contrato.** `camposSemDestino` é dos comandos que
+ * **declaram** `observacao` sem ter onde guardá-la. **Este endpoint não declara `observacao`** (um campo
+ * só) **e não declara `422`** (sete respostas, nenhuma delas 422). Responder um status que a especificação
+ * versionada não lista para a operação é a divergência do critério 16.7 do avesso — e o portão do DoD olha
+ * nessa direção. Campo desconhecido é **descartado** pelo `z.object`, que é o que o contrato descreve.
+ */
+export const solucaoAplicadaSchema = z.object({
+  solucaoAplicada: solucaoAplicada.min(1, "Escreva o que foi feito."),
+});
+
+export type EntradaDeSolucaoAplicada = z.infer<typeof solucaoAplicadaSchema>;
+
+/**
+ * ============================================================================
  *  O corpo de `POST …/resolver` — o primeiro comando com DOIS campos
  * ============================================================================
  *
@@ -142,7 +182,9 @@ export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeRespon
  * eles passariam a aceitar um campo que o `openapi.yaml` não declara para eles, e o portão do DoD
  * (*"a especificação versionada corresponde ao código"*) olha exatamente nessa direção.
  *
- * **Ele reusa o campo `observacao` do módulo** em vez de redigitar o teto: um número, um lugar.
+ * **Ele reusa os campos `observacao` e `solucaoAplicada` do módulo** em vez de redigitar os tetos: um
+ * número, um lugar. **O de `solucaoAplicada` passou a ser reusado no item 25**, que criou o `const` para
+ * o próprio schema e devolveu a este a mesma cadeia — sem o `.min(1)`, que é de lá e não daqui.
  *
  * **`solucaoAplicada` entra aqui, e não é escopo emprestado do item 25** (spec §3.2): o
  * `openapi.yaml:1936-1944` declara os dois campos **neste** endpoint, o contrato §8.4 explica por quê
@@ -162,11 +204,7 @@ export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeRespon
  */
 export const resolucaoSchema = z.object({
   observacao,
-  solucaoAplicada: z
-    .string()
-    .trim()
-    .max(4000, "A solução aplicada cabe em 4000 caracteres.")
-    .nullish(),
+  solucaoAplicada: solucaoAplicada.nullish(),
 });
 
 export type EntradaDeResolucao = z.infer<typeof resolucaoSchema>;

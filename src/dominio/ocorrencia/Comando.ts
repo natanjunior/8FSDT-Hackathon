@@ -66,6 +66,12 @@ export type Comando = (typeof COMANDOS)[number];
  * da restrição herdada nº 1, e um botão nu gravaria um registro imutável e visível ao Solicitante sem
  * oferecer o campo e sem mostrar o aviso de visibilidade. Custo de decidir assim: zero — mesma fatia,
  * um commit depois.
+ *
+ * **O item 25 foi o sétimo, e é o primeiro cuja FORMA não é botão.** `registrar-solucao-aplicada` é campo
+ * no corpo de T-05 (`inventario-de-telas.md`), então ele nunca entra em `ROTULO_DE_COMANDO` e a barra
+ * nunca o renderiza. **A linha entrou na tarefa do `route.ts`, e não na da tela** — ao contrário do 23 e
+ * do 24: o argumento daqueles era um botão nu fazendo a coisa errada, e aqui não há botão nenhum. A regra
+ * geral volta a valer sem exceção: anuncia-se o comando quando o endpoint existe.
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
@@ -73,5 +79,6 @@ export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "iniciar-atendimento",
   "pausar",
   "retomar",
+  "registrar-solucao-aplicada",
   "resolver",
 ];

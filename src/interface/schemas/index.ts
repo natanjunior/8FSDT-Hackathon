@@ -46,11 +46,13 @@ export {
   pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
+  solucaoAplicadaSchema,
   type EntradaDeAtribuicaoDeResponsavel,
   type EntradaDeComandoComObservacao,
   type EntradaDePausa,
   type EntradaDeRegistroDeOcorrencia,
   type EntradaDeResolucao,
+  type EntradaDeSolucaoAplicada,
 } from "./ocorrencia";
 
 export {

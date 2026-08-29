@@ -93,9 +93,11 @@ export async function resolverOcorrencia(
    * achou linha: alguém moveu a ocorrência entre a nossa leitura e a nossa escrita. **Relemos** para
    * dizer onde ela está *agora*, e não onde estava quando começamos.
    *
-   * **Hoje `/resolver` é o único escritor de `solucao_aplicada`**, então o predicado otimista protege a
-   * coluna junto com o status. **Quando o item 25 criar o segundo escritor, esta frase deixa de valer** —
-   * `/registrar-solucao-aplicada` não muda `status` e por isso o predicado não o vê (achado A-2).
+   * **Desde o item 25 há um segundo escritor de `solucao_aplicada`**, e o predicado otimista daqui **não o
+   * vê**: `/registrar-solucao-aplicada` não muda `status`. O que sobra é a corrida que a §7.9 do contrato
+   * aceita por escrito — última escrita vence, no mesmo estado —, e a metade grande dela foi fechada do
+   * lado do cliente: `ModalDeResolucao` só envia `solucaoAplicada` quando o campo difere do
+   * pré-preenchido (achado A-2 da spec do 26, respondido pela §3.4 da spec do 25).
    */
   const atual = await repositorio.carregar(entrada.ocorrenciaId);
   if (atual === null) throw new OcorrenciaNaoEncontrada();

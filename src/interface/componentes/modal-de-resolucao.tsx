@@ -67,9 +67,9 @@ export function ModalDeResolucao({
   /**
    * A solução já gravada, para o campo abrir pré-preenchido.
    *
-   * **Hoje é sempre `null`, e está escrito para não parecer esquecimento:** nada escreve
-   * `solucao_aplicada` antes desta fatia. Ele passa a ter caso quando o item **25** entregar o campo no
-   * corpo da tela — e custa uma prop.
+   * **Desde o item 25 ela tem valor de verdade:** o campo no corpo de T-05 escreve a coluna, e o modal a
+   * lê. Ela também é a referência de `solucaoMudou`, em `confirmar` — é o que impede o modal de reenviar
+   * texto que ninguém digitou.
    */
   solucaoAplicadaAtual: string | null;
   variante: "primario" | "secundario";
@@ -111,14 +111,31 @@ export function ModalDeResolucao({
     setEnviando(true);
     setAviso(null);
 
+    /**
+     * **O modal só envia `solucaoAplicada` quando o campo DIFERE do que veio pré-preenchido** — item 25,
+     * §3.4, e é a resposta ao achado **A-2** da spec do item 26.
+     *
+     * A janela que isto fecha é do **cliente**, e é a grande: o campo é pré-preenchido com o valor da
+     * **renderização da página**, que pode ter minutos. Sem esta condição, um Gestor que resolvesse **sem**
+     * digitar sobrescreveria, com o valor que carregou, o texto que outro Gestor salvou dois segundos
+     * antes — e o estado é terminal, então **não há conserto**.
+     *
+     * **Campo intocado → o comando não recebe o campo → o agregado PRESERVA o que estiver no banco**
+     * (`Ocorrencia.ts`). A semântica *"ausente = preserva"* foi construída pelo item 26 exatamente para
+     * isto, e estava sem caso de uso. **Nenhum conceito novo, nenhuma coluna, nenhuma linha de servidor.**
+     *
+     * **A janela de milissegundos do servidor fica, e fica declarada:** `/resolver`, `/pausar` e `/retomar`
+     * transcrevem `ocorrencia.solucaoAplicada` no `update` da transição, então um
+     * `/registrar-solucao-aplicada` que caia entre o `carregar` e o `update` deles é sobrescrito. É a mesma
+     * espécie que a §7.9 aceita, ordens de grandeza menor, e defender contra ela exigiria versionar a
+     * linha — que é o que a §7.9 recusou.
+     */
+    const solucaoMudou = solucao !== (solucaoAplicadaAtual ?? "");
+    const corpo = solucaoMudou ? { solucaoAplicada: solucao, observacao } : { observacao };
+
     // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e
     // é ele que decide que vazio vira `null`. Aparar aqui também criaria a segunda regra.
-    const resultado = await executarComando(
-      ocorrenciaId,
-      "resolver",
-      { solucaoAplicada: solucao, observacao },
-      rotulosDeStatus,
-    );
+    const resultado = await executarComando(ocorrenciaId, "resolver", corpo, rotulosDeStatus);
 
     setEnviando(false);
     setPrecisaRepintar(true);

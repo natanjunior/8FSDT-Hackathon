@@ -25,12 +25,14 @@ export {
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
   type ResultadoDoRegistro,
   type TransicaoLida,
 } from "./portas";
 export { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";
 export { registrarOcorrencia, type EntradaDeRegistro } from "./registrar-ocorrencia";
+export { registrarSolucaoAplicada } from "./registrar-solucao-aplicada";
 export { resolverOcorrencia } from "./resolver-ocorrencia";
 export { retomarOcorrencia } from "./retomar-ocorrencia";
 export {

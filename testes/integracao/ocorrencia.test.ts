@@ -7,6 +7,7 @@ import {
   iniciarAtendimento,
   pausarOcorrencia,
   registrarOcorrencia,
+  registrarSolucaoAplicada,
   resolverOcorrencia,
   retomarOcorrencia,
   verOcorrencia,
@@ -1894,5 +1895,274 @@ describe("a retomada contra Postgres — item 24", () => {
       [id],
     );
     expect(linha?.status).toBe("pausada");
+  });
+});
+
+describe("a solução aplicada contra Postgres — item 25", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+    "ocorrencia.registrar_solucao",
+    "ocorrencia.resolver",
+  ];
+
+  let executorPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Solucionador ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa ser descrito depois.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  /** Leva a ocorrência até `em_atendimento` pelo caminho de verdade — analisar, atribuir, iniciar. */
+  async function emAtendimento(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  /** `pausada` pelo caminho mais curto — a pausa sai de `em_analise` também (critério 23.2). */
+  async function pausada(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem lâmpada no estoque.",
+    });
+    return id;
+  }
+
+  /** Quantos registros a trilha tem agora. */
+  async function registrosDe(id: string): Promise<number> {
+    const linhas = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    return linhas.length;
+  }
+
+  it("a coluna é gravada e a TRILHA CONTINUA DO MESMO TAMANHO — o critério 25.1 contra Postgres", async () => {
+    const id = await emAtendimento("Solução sem registro");
+    const antes = await registrosDe(id);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const gravada = carregada!.ocorrencia.registrarSolucaoAplicada({
+      solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+    });
+
+    const resultado = await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      gravada,
+      new Date().toISOString(),
+    );
+
+    expect(resultado.desfecho).toBe("gravada");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBe("Trocada a lâmpada da vaga 34.");
+    // **O status não muda**, e a trilha não cresce. É o único comando construído até aqui do qual os dois
+    // são verdade — e a segunda asserção é a que nenhum outro item pôde fazer.
+    expect(linha?.status).toBe("em_atendimento");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("grava a partir de pausada também — a segunda origem da tabela companheira", async () => {
+    const id = await pausada("Solução durante a espera");
+    const antes = await registrosDe(id);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      carregada!.ocorrencia.registrarSolucaoAplicada({ solucaoAplicada: "Peça pedida e instalada." }),
+      new Date().toISOString(),
+    );
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBe("Peça pedida e instalada.");
+    expect(linha?.status).toBe("pausada");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("atualizada_em AVANÇA, e é o carimbo que o comando leu — nunca now()", async () => {
+    const id = await emAtendimento("Carimbo de atividade");
+
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+
+    // **Um instante escolhido, e não o relógio do banco.** A §7.4 do modelo diz que o campo é escrito
+    // pelo agregado a cada comando; a §5.8 da arquitetura diz que ele significa *"houve atividade"*.
+    const instante = new Date(Date.now() + 60_000).toISOString();
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      carregada!.ocorrencia.registrarSolucaoAplicada({ solucaoAplicada: "Feito." }),
+      instante,
+    );
+
+    const [depois] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(new Date(depois!.atualizada_em).getTime()).toBe(new Date(instante).getTime());
+    expect(new Date(depois!.atualizada_em).getTime()).toBeGreaterThan(
+      new Date(antes!.atualizada_em).getTime(),
+    );
+  });
+
+  it("A CORRIDA: o estado mudou entre o carregar e o update, e o predicado recusa — a §3.3 provada", async () => {
+    // **É o furo F-4 do plano, e o caso que a spec julgou inalcançável.** Ele é alcançável porque o teste
+    // SEGURA o agregado carregado: resolvemos a ocorrência por outro caminho e só então chamamos a porta
+    // com a instância velha. É literalmente a janela entre `carregar` e `update`.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Corrida com o resolver");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const gravada = carregada!.ocorrencia.registrarSolucaoAplicada({
+      solucaoAplicada: "Escrita tarde demais.",
+    });
+
+    // Outro Gestor chega antes e encerra a ocorrência.
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "A que ficou.",
+    });
+
+    const resultado = await portas().ocorrencias.registrarSolucaoAplicada(
+      id,
+      gravada,
+      new Date().toISOString(),
+    );
+
+    // **`conflito`, e não escrita.** Sem o predicado, o texto de cima teria entrado numa ocorrência
+    // `resolvida`, sem nada na linha do tempo dizendo quando nem por quem.
+    expect(resultado.desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("resolvida");
+    expect(linha?.solucao_aplicada).toBe("A que ficou.");
+  });
+
+  it("em resolvida responde 409 E A COLUNA NÃO MUDA — o critério 25.2 no estado que importa", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Recusa no estado terminal");
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "A que ficou, e não há caminho de volta.",
+    });
+
+    const erro = await registrarSolucaoAplicada(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Não deveria entrar.",
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "resolvida",
+    );
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **O custo aceito do contrato, do lado bom:** *"uma ocorrência resolvida com o campo vazio fica sem
+    // solução aplicada para sempre. Não há caminho de volta, e não deve haver."*
+    expect(linha?.solucao_aplicada).toBe("A que ficou, e não há caminho de volta.");
+  });
+
+  it("registrar e DEPOIS resolver deixa UMA transição a mais, não duas — o critério 25.3 do outro lado", async () => {
+    // **A metade que faltava.** O item 26 provou que `solucaoAplicada` no corpo de `/resolver` grava a
+    // coluna com **um** registro. Aqui prova-se o outro caminho: registrar primeiro **não cria registro
+    // nenhum**, e o `resolver` seguinte cria exatamente um. Os dois caminhos chegam ao mesmo lugar.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Dois passos, uma transição");
+    const antes = await registrosDe(id);
+
+    await registrarSolucaoAplicada(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Trocado o rufo e refeita a vedação.",
+    });
+
+    // Nada na trilha, e é o item.
+    expect(await registrosDe(id)).toBe(antes);
+
+    // **`resolver` SEM o campo** — e o agregado preserva a que já havia (`Ocorrencia.ts`), que é a
+    // semântica *"ausente = preserva"* que o item 26 construiu exatamente para isto.
+    const lida = await resolverOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    expect(lida.status).toBe("resolvida");
+    expect(lida.solucaoAplicada).toBe("Trocado o rufo e refeita a vedação.");
+    expect(await registrosDe(id)).toBe(antes + 1);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não grava — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Isolamento da solução");
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho25 ${SUFIXO}`, `V5${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      registrarSolucaoAplicada(deOutra, ctx, { ocorrenciaId: id, solucaoAplicada: "De fora." }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBeNull();
   });
 });

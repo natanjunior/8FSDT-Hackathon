@@ -215,6 +215,21 @@ export type ResultadoDaAtribuicao =
   | { desfecho: "responsavel-sem-vinculo-ativo" }
   | { desfecho: "conflito" };
 
+
+/**
+ * O que a escrita da solução aplicada pode dar. **Desfecho, não exceção**, na fronteira da porta — o
+ * idioma que `ResultadoDoRegistro`, `ResultadoDaTransicao` e `ResultadoDaAtribuicao` já usam aqui em cima.
+ *
+ * **`conflito` NÃO é a corrida de dois textos**, e a distinção é a §7.9 do contrato: dois Gestores
+ * gravando solução no mesmo estado é exposição **aceita**, e o segundo vence. O que este desfecho detecta
+ * é outra coisa — **o estado mudou entre o `carregar` e o `update`** —, e o que ele impede é escrita em
+ * registro fechado: *"mutação silenciosa de registro fechado, que é precisamente o que a ADR-0001 existe
+ * para impedir"* (contrato §8.4). Uma cláusula `where status = <o que o agregado leu>` fecha a janela.
+ */
+export type ResultadoDaSolucaoAplicada =
+  | { desfecho: "gravada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
 /**
  * ============================================================================
  *  O que a porta de ESCRITA devolve — o agregado, **e o fato que ele não tem**
@@ -304,6 +319,27 @@ export interface RepositorioEscopadoDeOcorrencias {
    * na ocorrência (`arquitetura.md` §5.8).
    */
   atribuirResponsavel(ocorrenciaId: string, dados: DadosDaAtribuicao): Promise<ResultadoDaAtribuicao>;
+
+  /**
+   * **Grava a solução aplicada, em UM `COMMIT` — e a ausência de `insert` é a invariante 3 aqui.**
+   *
+   * Uma instrução e uma releitura: o `update` da raiz, seguido do `lerPorId` de dentro da transação. **Não
+   * há como este método gravar na trilha, porque ele não tem a instrução** — é o critério 25.1 na camada
+   * onde ele é estrutural, e não só testado.
+   *
+   * **Recebe o AGREGADO — a instância que o comando devolveu.** O valor gravado sai de
+   * `ocorrencia.solucaoAplicada`; o predicado sai de `ocorrencia.status`, que o comando **preserva**. Uma
+   * instância responde às duas perguntas, e o método continua transcrevendo em vez de decidir.
+   *
+   * **`em` viaja ao lado porque `atualizada_em` não é campo da raiz** — em `aplicarTransicao` ele sai do
+   * registro, e aqui não há registro. O carimbo não é opcional: *"houve atividade nesta ocorrência"*
+   * (`arquitetura.md` §5.8), e escrever a solução aplicada é atividade.
+   */
+  registrarSolucaoAplicada(
+    id: string,
+    ocorrencia: Ocorrencia,
+    em: string,
+  ): Promise<ResultadoDaSolucaoAplicada>;
 
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;

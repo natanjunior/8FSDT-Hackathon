@@ -722,6 +722,54 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
+     * **A solução aplicada — um `update`, uma releitura, e NENHUM `insert`** (item 25).
+     *
+     * É a primeira porta de escrita do produto que toca a raiz sem tocar a trilha, e a ausência do
+     * `insert` é o critério 25.1 expresso em estrutura: não há como gravar registro daqui.
+     *
+     * **O predicado é o status que o agregado leu**, e ele não é controle de texto: é a **mesma máquina de
+     * estados** fazendo o mesmo papel dos outros comandos. Ele não pergunta *"o texto mudou?"*; pergunta
+     * *"o estado ainda admite este comando?"*. Zero linhas significa que outro Gestor moveu a ocorrência
+     * entre a leitura e a escrita — e sem ele esta escrita cairia numa ocorrência já **`resolvida`**, que é
+     * a mutação silenciosa de registro fechado que a ADR-0001 existe para impedir (contrato §8.4).
+     *
+     * *Alternativa recusada — repetir `["em_atendimento", "pausada"]` no SQL:* segunda cópia da tabela
+     * companheira, num lugar onde o compilador não a alcança. O status lido responde à mesma pergunta e é
+     * mais estrito.
+     *
+     * **O que o predicado NÃO defende, e é aceito por documento:** dois Gestores gravando solução no mesmo
+     * estado — o segundo vence, sem aviso. É um dos **dois** pontos que a §7.9 do contrato nomeia como
+     * exposição aceita. **Não construímos defesa contra o que o contrato decidiu aceitar.**
+     *
+     * **Este método transcreve; ele não decide.** O texto sai de `ocorrencia.solucaoAplicada`, e o
+     * `atualizada_em` recebe o instante que o comando de aplicação leu — nunca `now()`.
+     */
+    async registrarSolucaoAplicada(id, ocorrencia, em) {
+      return emTransacao(async (executar) => {
+        // O `::` do `status` não é decoração: sem ele o Postgres compara `unknown` com
+        // `status_ocorrencia` e a resolução passa a depender de inferência. As atribuições do `set` não
+        // precisam — em contexto de atribuição o tipo vem da coluna, como em `aplicarTransicao`.
+        const gravadas = await executar<{ id: string }>(
+          `update ocorrencias
+              set solucao_aplicada = $4, atualizada_em = $5
+            where organizacao_id = $1 and id = $2 and status = $3::status_ocorrencia
+          returning id`,
+          [id, ocorrencia.status, ocorrencia.solucaoAplicada, em],
+        );
+
+        if (gravadas[0] === undefined) return { desfecho: "conflito" as const };
+
+        // A releitura acontece **dentro** da transação, como as três portas de escrita anteriores: o que
+        // volta ao cliente é o detalhe de verdade, com nome de categoria, de área e de responsável.
+        const relida = await lerPorId(executar, id);
+        if (relida === null) {
+          throw new Error("Ocorrência recém-gravada não foi relida — transação inconsistente.");
+        }
+        return { desfecho: "gravada" as const, ocorrencia: relida };
+      });
+    },
+
+    /**
      * **Atribuir e reatribuir são o mesmo caminho** — a distinção é derivada do estado, não da intenção
      * de quem chamou (contrato §3.4). Três escritas e uma releitura, num `COMMIT` só.
      *
