@@ -217,6 +217,10 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
       status: lida.status,
       permissoes: quemLe.permissoes,
       ehAutor: lida.autor.pessoaId === quemLe.pessoaId,
+      // **A invariante 9, respondida sem custo:** `OcorrenciaLida.responsavel` existe desde o item 19, e
+      // o `left join lateral` que o preenche já é pago pelo `SELECT_DA_OCORRENCIA`. Nenhuma consulta a
+      // mais para saber se o botão aparece.
+      temResponsavel: lida.responsavel !== null,
       jaAvaliada: lida.avaliacao !== null,
     }),
   };

@@ -89,6 +89,23 @@ export type PerguntaDeAcoes = {
   permissoes: readonly string[];
   /** Se quem pergunta é o autor da ocorrência. Decide `cancelar_propria` e `avaliar`. */
   ehAutor: boolean;
+  /**
+   * **A invariante 9 — há atribuição vigente?** (item 22, critério 22.3)
+   *
+   * **Obrigatório, e não opcional com padrão**, porque o esquecimento não é simétrico: com padrão
+   * `false`, `iniciar-atendimento` sumiria da lista mesmo havendo responsável — contra a §8.5 lida ao
+   * contrário, *"comando que teria sucesso precisa estar presente"*; com padrão `true`, o botão
+   * apareceria sem responsável e responderia `409` no clique — contra o critério 22.3 e contra o exemplo
+   * `semResponsavel` do contrato. Obrigatório, o compilador cobra todo chamador, hoje e nos itens 23 a 27.
+   *
+   * **`jaAvaliada` continua opcional, e a assimetria é declarada:** ela só muda a presença de `avaliar`,
+   * que `COMANDOS_IMPLEMENTADOS` filtra até o item 27 existir. Este muda a presença de um comando que
+   * passa a existir agora.
+   *
+   * **O fato NÃO vem do agregado**, e não pode vir: ele mora em `atribuicoes`, fora do limite. Quem o
+   * apura é a porta de escrita (`carregar`) ou o modelo de leitura (`OcorrenciaLida.responsavel`).
+   */
+  temResponsavel: boolean;
   /** A metade *"uma vez só"* da invariante 8. */
   jaAvaliada?: boolean;
   /**
@@ -109,8 +126,9 @@ export type PerguntaDeAcoes = {
  * 2. **A tabela companheira** — de onde saem os quatro que não transicionam e têm endpoint.
  * 3. **O que não é status nem permissão** — a metade *"uma vez só"* da invariante 8, e as checagens de
  *    **relação** com o recurso (ser o autor, em `avaliar` e em `cancelar`). *(A invariante 9 —
- *    `iniciarAtendimento` exige responsável atribuído — é do **comando de aplicação** e entra no item 22,
- *    que é quando `atribuicoes` existe.)*
+ *    `iniciarAtendimento` exige responsável atribuído — chegou no item 22: o **fato** é apurado fora do
+ *    agregado, em `atribuicoes`, e viaja até aqui em `temResponsavel`. A **recusa** continua sendo do
+ *    comando de aplicação, e é o `409 RESPONSAVEL_NAO_ATRIBUIDO`.)*
  *
  * Se a lista não aplicasse as três, o cliente ou ofereceria um botão que falha sempre, ou
  * reimplementaria a regra — que é **exatamente a segunda cópia da máquina de estados** que este campo
@@ -128,6 +146,12 @@ export function comandosDisponiveis(pergunta: PerguntaDeAcoes): readonly Comando
 
     // permissão
     if (!PERMISSAO_DO_COMANDO[comando].some((p) => pergunta.permissoes.includes(p))) return false;
+
+    // 3 — a **invariante 9**: sem responsável atribuído, `iniciar-atendimento` não é oferecido
+    // (critério 22.3). É a única regra desta função que não olha `status` nem permissão, e por isso a
+    // `arquitetura.md` §4 a pôs no comando de aplicação — mas **anunciá-la** é daqui, senão a tela
+    // ofereceria um botão que responde `409` na cara de quem clicou.
+    if (comando === "iniciar-atendimento" && !pergunta.temResponsavel) return false;
 
     // 3 — relação com o recurso, e a metade "uma vez só"
     if (comando === "avaliar") {

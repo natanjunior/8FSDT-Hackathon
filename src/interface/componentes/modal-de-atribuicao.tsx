@@ -189,7 +189,9 @@ export function ModalDeAtribuicao({
         <Button
           type="button"
           variant={variante === "primario" ? "default" : "outline"}
-          className="h-12 w-full text-base"
+          /* **A largura vem da variante desde o item 22** — o invólucro do secundário é `flex-none`, e
+             `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
+          className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
         >
           Atribuir
         </Button>

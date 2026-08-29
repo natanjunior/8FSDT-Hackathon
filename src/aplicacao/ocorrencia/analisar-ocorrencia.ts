@@ -26,8 +26,11 @@ export async function analisarOcorrencia(
   ctx: ContextoDoComando,
   entrada: { ocorrenciaId: string; observacao?: string | null },
 ): Promise<OcorrenciaLida> {
-  const agregado = await repositorio.carregar(entrada.ocorrenciaId);
-  if (agregado === null) throw new OcorrenciaNaoEncontrada();
+  const carregada = await repositorio.carregar(entrada.ocorrenciaId);
+  if (carregada === null) throw new OcorrenciaNaoEncontrada();
+  // **O agregado sai do envelope; o fato fica nele.** `analisar` não usa `temResponsavel` para decidir
+  // nada — ele o repassa a `recusaDeTransicao`, que é quem monta `acoesDisponiveis`.
+  const agregado = carregada.ocorrencia;
 
   // **A conferência de visibilidade continua rodando, mesmo sendo hoje redundante** — quem tem
   // `ocorrencia.analisar` tem `ocorrencia.ler_todas` no mesmo papel. Amarrar a leitura à análise por
@@ -40,7 +43,7 @@ export async function analisarOcorrencia(
     throw new OcorrenciaNaoEncontrada();
   }
 
-  if (!transicaoPermitida(agregado.status, "analisar")) throw recusaDeTransicao(agregado, ctx);
+  if (!transicaoPermitida(agregado.status, "analisar")) throw recusaDeTransicao(carregada, ctx);
 
   const observacao = entrada.observacao?.trim();
 

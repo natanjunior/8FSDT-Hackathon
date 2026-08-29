@@ -252,6 +252,9 @@ type LinhaDoAgregado = {
   status: OcorrenciaLida["status"];
   prioridade: OcorrenciaLida["prioridade"];
   registrada_em: Date;
+  /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
+   *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
+  tem_responsavel: boolean;
 };
 
 /**
@@ -260,6 +263,12 @@ type LinhaDoAgregado = {
  * **Sem um único `join`, e é o ponto:** o agregado não tem nome de ninguém dentro dele, então não toca
  * `categorias`, `areas`, `vinculos` nem `pessoas`. Quem precisa de nome é o **modelo de leitura**, e ele
  * já tem o `SELECT_DA_OCORRENCIA`.
+ *
+ * **O `exists` do item 22 não desfaz isso.** Sub-consulta correlacionada não é junção: nenhuma linha de
+ * `atribuicoes` entra no resultado e nenhum nome é lido — é por isso que ele **não** precisa passar por
+ * `vinculos`. O `at.organizacao_id = o.organizacao_id` não é redundante com o `$1`: é o mesmo par
+ * composto das FKs da migração 008, e é o que impede o `exists` de enxergar atribuição de outra
+ * organização. Custo: uma varredura do índice único parcial `atribuicoes_vigente_uk`.
  */
 const SELECT_DO_AGREGADO = `
   select o.titulo,
@@ -271,7 +280,12 @@ const SELECT_DO_AGREGADO = `
          o.autor_pessoa_id,
          o.status,
          o.prioridade,
-         o.registrada_em
+         o.registrada_em,
+         exists (select 1
+                   from atribuicoes at
+                  where at.ocorrencia_id = o.id
+                    and at.organizacao_id = o.organizacao_id
+                    and at.encerrada_em is null) as tem_responsavel
     from ocorrencias o
    where o.organizacao_id = $1 and o.id = $2`;
 
@@ -628,7 +642,9 @@ export function repositorioEscopadoDeOcorrencias(
       if (linha === undefined) return null;
 
       const trilha = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]);
-      return montarAgregado(linha, trilha);
+      // **O fato sai da MESMA linha do agregado**, e morre aqui como coluna: o que sobe é o booleano
+      // do envelope. `LinhaDoAgregado` não deixa este arquivo (item do DoD).
+      return { ocorrencia: montarAgregado(linha, trilha), temResponsavel: linha.tem_responsavel };
     },
 
     /**

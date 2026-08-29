@@ -24,9 +24,23 @@ import { Button } from "@/interface/componentes/ui/button";
  * **Nenhum tipo do Domínio entra aqui.** `comando` é `string`, o rótulo chega pronto, o nó chega pronto e
  * o mapa de status chega pronto.
  *
- * **Dois botões lado a lado, não um menu** (spec §3.9). O protótipo previu *"um primário largo e um Mais
- * ações"* porque *"quatro rótulos legíveis não cabem em 390 px"* — **com dois, cabem**. O menu nasce no
- * primeiro item em que **três** botões renderizáveis coexistirem, que é o **22**.
+ * **Dois botões lado a lado, não um menu** (spec §3.9 do item 19). O protótipo previu *"um primário largo
+ * e um Mais ações"* porque *"quatro rótulos legíveis não cabem em 390 px"* — **com dois, cabem**.
+ *
+ * **Corrigido no item 22, e a frase antiga apontava para o item errado:** ela dizia que o menu *"nasce no
+ * primeiro item em que TRÊS botões renderizáveis coexistirem, que é o 22"*. Depois do 22 o máximo continua
+ * sendo **dois** — `alterar-prioridade` é seletor, `registrar-solucao-aplicada` é campo, e `pausar`,
+ * `resolver` e `cancelar` ainda não existem. **Três só acontece quando `pausar` existir**, em `em_analise`
+ * com responsável: o item **23**.
+ *
+ * **A geometria é a do protótipo desde o item 22** (`docs/prototipo/telas.html:328-330`): o primário
+ * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
+ * era a barra que divergia do desenho — não o rótulo.
+ *
+ * **E o destaque deixa de ser decidido por ÍNDICE.** `acoes[0]` acertava por coincidência: a ordem do enum
+ * põe `atribuir-responsavel` antes de `iniciar-atendimento`, e em `em_analise` com responsável o destaque
+ * seria *Atribuir* — na tela onde o responsável acabou de ser atribuído. Quem decide é a página, com
+ * `acaoPrimaria`, e a barra recebe pronto (achado **R-08**).
  *
  * **Alvo de toque ≥ 44 px** (`h-12`) e **rótulo em palavra** — A-3 e A-5.
  */
@@ -37,6 +51,7 @@ export function BarraDeAcoes({
   acoes,
   rotulosDeStatus,
   formularios = {},
+  primario = null,
 }: {
   ocorrenciaId: string;
   /** Já filtrada pelo servidor: só o que tem rótulo e forma, na ordem de `acoesDisponiveis`. */
@@ -45,6 +60,11 @@ export function BarraDeAcoes({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** Para cada comando com forma própria, o nó pronto. Ausente = botão de disparo direto. */
   formularios?: Readonly<Record<string, ReactNode>>;
+  /**
+   * O comando em destaque, decidido pela página com `acaoPrimaria`. **`null` cai em `acoes[0]`**, que é o
+   * comportamento anterior — e é o que mantém a barra usável por quem não passar o campo.
+   */
+  primario?: string | null;
 }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
@@ -99,13 +119,14 @@ export function BarraDeAcoes({
           )}
           {acoes.length > 0 && (
             <div className="flex gap-2">
-              {acoes.map((acao, indice) => {
+              {acoes.map((acao) => {
+                const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
                 const formulario = formularios[acao.comando];
                 // **O nó já vem com a própria variante**, decidida pela página: ela é quem sabe qual ação
                 // é a primeira, e é ela quem monta o gatilho.
                 if (formulario !== undefined) {
                   return (
-                    <div key={acao.comando} className="flex-1">
+                    <div key={acao.comando} className={ehPrimario ? "flex-1" : "flex-none"}>
                       {formulario}
                     </div>
                   );
@@ -115,10 +136,10 @@ export function BarraDeAcoes({
                   <Button
                     key={acao.comando}
                     type="button"
-                    variant={indice === 0 ? "default" : "outline"}
+                    variant={ehPrimario ? "default" : "outline"}
                     disabled={enviando}
                     onClick={() => void disparar(acao.comando)}
-                    className="h-12 flex-1 text-base"
+                    className={`h-12 text-base ${ehPrimario ? "flex-1" : "flex-none"}`}
                   >
                     {enviando ? "Enviando…" : acao.rotulo}
                   </Button>

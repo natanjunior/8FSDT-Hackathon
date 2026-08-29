@@ -51,8 +51,11 @@ export async function atribuirResponsavel(
   ctx: ContextoDoComando,
   entrada: { ocorrenciaId: string; responsavelPessoaId: string },
 ): Promise<AtribuicaoAplicada> {
-  const agregado = await repositorio.carregar(entrada.ocorrenciaId);
-  if (agregado === null) throw new OcorrenciaNaoEncontrada();
+  const carregada = await repositorio.carregar(entrada.ocorrenciaId);
+  if (carregada === null) throw new OcorrenciaNaoEncontrada();
+  // **O agregado sai do envelope; o fato fica nele.** Atribuir não usa `temResponsavel` para decidir
+  // nada — ele o repassa a `recusaDeTransicao`, que é quem monta `acoesDisponiveis`.
+  const agregado = carregada.ocorrencia;
 
   // **A conferência de visibilidade continua rodando, mesmo sendo hoje redundante** — quem tem
   // `ocorrencia.atribuir` tem `ocorrencia.ler_todas` no mesmo papel. Amarrar a leitura à atribuição por
@@ -74,7 +77,7 @@ export async function atribuirResponsavel(
    * produz é nossa.
    */
   if (!comandoPermitido(agregado.status, "atribuir-responsavel")) {
-    throw recusaDeTransicao(agregado, ctx);
+    throw recusaDeTransicao(carregada, ctx);
   }
 
   const resultado = await repositorio.atribuirResponsavel(entrada.ocorrenciaId, {

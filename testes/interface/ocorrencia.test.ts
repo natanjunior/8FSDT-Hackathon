@@ -28,6 +28,7 @@ import {
   MENSAGEM_GENERICA,
 } from "@/interface/componentes/comando-de-ocorrencia";
 import {
+  acaoPrimaria,
   nomesDeStatus,
   rotuloDeComando,
   rotulosDeStatus,
@@ -580,6 +581,33 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
   });
 });
 
+describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeção", () => {
+  /** Um Gestor com as permissões dos três comandos construídos. */
+  const GESTOR_LE = {
+    pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    permissoes: ["ocorrencia.ler_todas", "ocorrencia.atribuir", "ocorrencia.iniciar_atendimento"],
+  };
+
+  const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
+
+  function emAnaliseCom(responsavel: { pessoaId: string; nome: string } | null) {
+    return { ...umaOcorrenciaLidaCom([]), status: "em_analise" as const, responsavel };
+  }
+
+  it("sem responsável, iniciar-atendimento NÃO é anunciado — critério 22.3", () => {
+    // A projeção não pergunta a `atribuicoes`: ela lê `responsavel`, que o `lateral` do item 19 preenche.
+    expect(projetarOcorrenciaDetalhe(emAnaliseCom(null), GESTOR_LE).acoesDisponiveis).not.toContain(
+      "iniciar-atendimento",
+    );
+  });
+
+  it("com responsável, ele é anunciado — e o campo do payload continua sendo o mesmo", () => {
+    const projetado = projetarOcorrenciaDetalhe(emAnaliseCom(RESPONSAVEL), GESTOR_LE);
+    expect(projetado.acoesDisponiveis).toContain("iniciar-atendimento");
+    expect(projetado.responsavel).toStrictEqual(RESPONSAVEL);
+  });
+});
+
 describe("`?variante=`", () => {
   const url = (consulta: string) => new Request(`http://local/api/x${consulta}`);
 
@@ -812,6 +840,13 @@ describe("os rótulos que descem para a barra de ações", () => {
     expect(rotuloDeComando("atribuir-responsavel")).toBe("Atribuir");
   });
 
+  it("iniciar-atendimento é palavra, e o rótulo fica INTEIRO — compromisso A-5", () => {
+    // **Encurtar para *Atender* trocaria o VERBO** que o glossário §4, o contrato §8.4 e o inventário
+    // usam. Não é o caso de *Atribuir*, que é a cabeça de *Atribuir responsável*: mesmo verbo, objeto
+    // encurtado.
+    expect(rotuloDeComando("iniciar-atendimento")).toBe("Iniciar atendimento");
+  });
+
   it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {
     const rotulos = rotulosDeStatus();
     const nomes = nomesDeStatus();
@@ -982,5 +1017,54 @@ describe("executarComando", () => {
       ok: false,
       aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está hibernada.",
     });
+  });
+});
+
+/**
+ * ============================================================================
+ *  A ação primária de T-05 — o achado R-08, e ele chega em `em_analise`
+ * ============================================================================
+ *
+ * **A regra de hoje é *"o primeiro renderizável, na ordem do enum"***, e a ordem do enum põe
+ * `atribuir-responsavel` **antes** de `iniciar-atendimento`. Resultado, a partir do item 22: o botão em
+ * destaque seria *Atribuir* — numa tela onde o responsável **acabou de ser atribuído**, porque é
+ * exatamente isso que fez o outro botão aparecer.
+ *
+ * **A regra é uma TABELA por status, e não uma derivação por `transicaoPermitida`** (spec §3.9): a
+ * derivação erra em dois estados futuros — em `em_atendimento` daria *Pausar* em vez de *Resolver*, e em
+ * `em_analise` sem responsável daria *Pausar* em vez de *Atribuir*, porque `atribuir-responsavel` está em
+ * `SEM_TRANSICAO` e a derivação o pula.
+ */
+describe("acaoPrimaria — a regra do destaque de T-05", () => {
+  it("em em_analise COM responsável, o destaque é iniciar-atendimento, não o primeiro da lista", () => {
+    // É o R-08 acontecendo: a ordem do enum daria `atribuir-responsavel`.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel", "iniciar-atendimento"])).toBe(
+      "iniciar-atendimento",
+    );
+  });
+
+  it("em aberta o destaque é analisar — a ação de volume da triagem", () => {
+    expect(acaoPrimaria("aberta", ["analisar", "atribuir-responsavel"])).toBe("analisar");
+  });
+
+  it("o desempate: comando nomeado que não está renderizável cede ao primeiro que está", () => {
+    // `em_analise` sem responsável — `iniciar-atendimento` não é renderizável, e sobra um só.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+    // `em_atendimento` — `resolver` é do item 26 e ainda não existe.
+    expect(acaoPrimaria("em_atendimento", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+  });
+
+  it("sem nenhuma ação renderizável, não há primário", () => {
+    expect(acaoPrimaria("resolvida", [])).toBeNull();
+    expect(acaoPrimaria("cancelada", [])).toBeNull();
+  });
+
+  it("a tabela responde para os SEIS status, e nunca estoura", () => {
+    // **Entrada cujo comando ainda não existe é inerte:** a tabela não anuncia botão, ela só diz qual das
+    // ações já renderizadas ganha ênfase. Por isso os itens 23 a 27 não a editam.
+    for (const status of STATUS) {
+      expect(() => acaoPrimaria(status, [])).not.toThrow();
+      expect(acaoPrimaria(status, ["cancelar"])).toBe("cancelar");
+    }
   });
 });

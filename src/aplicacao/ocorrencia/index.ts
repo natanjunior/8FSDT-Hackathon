@@ -3,18 +3,21 @@ export {
   AreaInvalida,
   CategoriaInvalida,
   OcorrenciaNaoEncontrada,
+  ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
 } from "./erros";
 export { analisarOcorrencia } from "./analisar-ocorrencia";
 export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
 export { type ContextoDoComando } from "./comando";
+export { iniciarAtendimento } from "./iniciar-atendimento";
 export {
   type AnexoLido,
   type CursorDeListagem,
   type DadosDaAtribuicao,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
+  type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type PessoaReferencia,

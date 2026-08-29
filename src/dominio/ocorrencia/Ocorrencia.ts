@@ -216,6 +216,49 @@ export class Ocorrencia {
   }
 
   /**
+   * O comando `iniciarAtendimento` — a seta `Em análise → Em atendimento` (F2, critério 22.1).
+   *
+   * **Ele NÃO confere responsável, e a ausência é a decisão.** A invariante 9 — *"`iniciarAtendimento`
+   * exige responsável atribuído"* — está classificada pela `arquitetura.md` §4 como **do comando de
+   * aplicação**, *"porque atravessa outra tabela no momento em que o comando roda"*. Dar o booleano a
+   * este método para que ele pudesse recusar moveria a invariante para dentro do limite por conveniência
+   * de teste, e o agregado deixaria de ser testável sem banco — que é a propriedade que separa as oito
+   * primeiras invariantes das duas últimas.
+   *
+   * **A guarda aqui é `Error`, não `ErroDeDominio`**, pelo mesmo argumento do `analisar`: alcançá-la
+   * significa que a Aplicação esqueceu de conferir com `transicaoPermitida`. Ela **não** é o caminho da
+   * corrida entre dois Gestores: esse é o `where status = <anterior>` do repositório.
+   *
+   * **`RegistroDeTransicao.avanco` aceita este destino** porque só recusa `pausada` e `cancelada`, os
+   * dois que exigem motivo codificado. Nada muda lá.
+   */
+  iniciarAtendimento(entrada: {
+    autorPessoaId: string;
+    /** ISO 8601. O agregado não lê relógio — quem chama informa o instante. */
+    ocorreuEm: string;
+    observacao?: string | null;
+  }): Ocorrencia {
+    if (this._status !== "em_analise") {
+      throw new Error(
+        `iniciarAtendimento exige status 'em_analise'; a ocorrência está '${this._status}' — invariante 1 violada.`,
+      );
+    }
+
+    return this.comTransicao(
+      "em_atendimento",
+      RegistroDeTransicao.avanco({
+        // **Do último registro, não do tamanho da lista** — o mesmo argumento do `analisar`.
+        sequencia: this.ultimaTransicao.sequencia + 1,
+        statusAnterior: this._status,
+        statusNovo: "em_atendimento",
+        ocorreuEm: entrada.ocorreuEm,
+        autorPessoaId: entrada.autorPessoaId,
+        observacao: entrada.observacao ?? null,
+      }),
+    );
+  }
+
+  /**
    * **A cópia com um estado novo e um registro a mais.** É o que todo comando de transição faz, e por
    * isso mora num lugar só: os itens 17 a 27 acrescentam o método público e chamam isto.
    */
