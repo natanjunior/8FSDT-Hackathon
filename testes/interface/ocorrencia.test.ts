@@ -1156,11 +1156,20 @@ describe("executarComando", () => {
       "atribuir-responsavel",
       { responsavelPessoaId: "z" },
       ROTULOS,
+      "organizacao-a",
     );
 
     expect(resultado).toStrictEqual({ ok: true });
     expect(chamadas[0]!.url).toBe("/api/ocorrencias/abc/atribuir-responsavel");
     expect(chamadas[0]!.init.body).toBe(JSON.stringify({ responsavelPessoaId: "z" }));
+
+    // **A afirmação da §4.3 chega ao `fetch`** (item 7b, critério 7b.6), e é aqui que os dez comandos
+    // ficam cobertos de uma vez. O valor é o que a página passou — nunca o cookie na hora do clique,
+    // porque a outra aba já o reescreveu e a afirmação bateria consigo mesma.
+    expect(chamadas[0]!.init.headers).toStrictEqual({
+      "content-type": "application/json",
+      "x-organizacao-id": "organizacao-a",
+    });
   });
 
   it("409 com statusAtual vira a frase do inventário, COM o rótulo e não com o enum", async () => {
@@ -1169,7 +1178,13 @@ describe("executarComando", () => {
       corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "cancelada", detail: "não importa" },
     });
 
-    const resultado = await executarComando("abc", "atribuir-responsavel", {}, ROTULOS);
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      {},
+      ROTULOS,
+      "organizacao-a",
+    );
 
     expect(resultado).toStrictEqual({
       ok: false,
@@ -1186,7 +1201,13 @@ describe("executarComando", () => {
       },
     });
 
-    const resultado = await executarComando("abc", "atribuir-responsavel", {}, ROTULOS);
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      {},
+      ROTULOS,
+      "organizacao-a",
+    );
 
     expect(resultado).toStrictEqual({
       ok: false,
@@ -1196,7 +1217,7 @@ describe("executarComando", () => {
 
   it("problema sem detail cai na frase genérica — nunca em 'undefined'", async () => {
     responderCom({ ok: false, corpo: { codigo: "ERRO_INTERNO" } });
-    expect(await executarComando("abc", "analisar", {}, ROTULOS)).toStrictEqual({
+    expect(await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a")).toStrictEqual({
       ok: false,
       aviso: MENSAGEM_GENERICA,
     });
@@ -1205,7 +1226,7 @@ describe("executarComando", () => {
   it("rede caída não estoura — nuvem sem SLA é o caso esperado, não a borda", async () => {
     // Sem este caminho, a rejeição do `fetch` aciona o Error Boundary em vez de mostrar a linha de aviso.
     vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
-    expect(await executarComando("abc", "analisar", {}, ROTULOS)).toStrictEqual({
+    expect(await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a")).toStrictEqual({
       ok: false,
       aviso: MENSAGEM_GENERICA,
     });
@@ -1213,7 +1234,7 @@ describe("executarComando", () => {
 
   it("status desconhecido no 409 degrada para o próprio valor, sem quebrar a frase", async () => {
     responderCom({ ok: false, corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "hibernada" } });
-    const resultado = await executarComando("abc", "analisar", {}, ROTULOS);
+    const resultado = await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a");
     expect(resultado).toStrictEqual({
       ok: false,
       aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está hibernada.",

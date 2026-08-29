@@ -56,6 +56,7 @@ export function ModalDeAtribuicao({
   candidatos,
   responsavelAtualPessoaId,
   rotulosDeStatus,
+  organizacaoId,
   variante,
 }: {
   ocorrenciaId: string;
@@ -65,6 +66,8 @@ export function ModalDeAtribuicao({
    *  linha nova e nada visível mudando na tela. */
   responsavelAtualPessoaId: string | null;
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
   /**
    * **Três variantes desde o item 23:** `"menu"` renderiza o gatilho como `DropdownMenuItem`, porque
    * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações ▾"*.
@@ -121,6 +124,7 @@ export function ModalDeAtribuicao({
       // 19.6), e não há campo na tela que a produza.
       { responsavelPessoaId: escolhido },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);

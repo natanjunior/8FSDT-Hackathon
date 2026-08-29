@@ -124,6 +124,16 @@ export default async function Ocorrencia({
   // `pessoaId` e `vinculo`. `ResolucaoDeContexto` **nao tem `pessoaId`**: la ele mora em
   // `resolucao.sessao.pessoaId`, e `ativo` e `VinculoNaOrganizacao`, o que ainda exigiria um `!`.
   const vinculo = escopo.ctx.vinculo;
+
+  /**
+   * **A organização com que ESTA renderização aconteceu** — a afirmação da §4.3 (item 7b, critério
+   * 7b.6).
+   *
+   * Desce por propriedade, e não é lida do cookie na hora do clique: numa aba deixada aberta em A
+   * enquanto outra trocou para B, o cookie já diz B e a afirmação bateria consigo mesma. O que se
+   * afirma é o que está **na tela**.
+   */
+  const organizacaoId = vinculo.organizacaoId;
   // **A regra é uma função da Aplicação, chamada por quem tem o `Vinculo`.** Ela estava copiada aqui e
   // em `app/api/ocorrencias/[ocorrenciaId]/route.ts`; o item 13b seria a terceira cópia.
   const quem = {
@@ -262,6 +272,7 @@ export default async function Ocorrencia({
         verboEnviando="Iniciando…"
         variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     /**
@@ -276,6 +287,7 @@ export default async function Ocorrencia({
         solucaoAplicadaAtual={detalhe.solucaoAplicada}
         variante={primario === "resolver" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     /**
@@ -301,6 +313,7 @@ export default async function Ocorrencia({
         avisoDeVisibilidade={AVISO_DE_VISIBILIDADE}
         variante={varianteDe("pausar")}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     /**
@@ -338,6 +351,7 @@ export default async function Ocorrencia({
         verboEnviando="Retomando…"
         variante={primario === "retomar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     /**
@@ -376,6 +390,7 @@ export default async function Ocorrencia({
         avisoDeVisibilidade={ehGestor ? AVISO_DE_VISIBILIDADE : AVISO_PARA_QUEM_NAO_GESTIONA}
         variante={varianteDe("cancelar")}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     ...(podeAtribuir
@@ -386,6 +401,7 @@ export default async function Ocorrencia({
               candidatos={candidatos}
               responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
               rotulosDeStatus={rotulos}
+              organizacaoId={organizacaoId}
               variante={varianteDe("atribuir-responsavel")}
             />
           ),
@@ -422,6 +438,7 @@ export default async function Ocorrencia({
             valorAtual={detalhe.prioridade}
             opcoes={opcoesDePrioridade()}
             rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
           />
         ) : (
           <p className="text-tinta-suave text-sm">
@@ -512,6 +529,7 @@ export default async function Ocorrencia({
           ocorrenciaId={detalhe.id}
           valorAtual={detalhe.solucaoAplicada}
           rotulosDeStatus={rotulos}
+          organizacaoId={organizacaoId}
         />
       ) : (
         detalhe.solucaoAplicada !== null && (
@@ -587,6 +605,7 @@ export default async function Ocorrencia({
         ocorrenciaId={detalhe.id}
         acoes={renderizaveis}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
         formularios={formularios}
         primario={primario}
         emMenu={emMenu}

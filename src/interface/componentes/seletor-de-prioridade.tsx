@@ -78,6 +78,7 @@ export function SeletorDePrioridade({
   valorAtual,
   opcoes,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   /** O que está gravado. Chega novo a cada repinte do servidor. */
@@ -86,6 +87,8 @@ export function SeletorDePrioridade({
   opcoes: readonly { valor: string; rotulo: string }[];
   /** O mapa pronto, para a frase do `409` de transição que o `executarComando` monta. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const campoId = useId();
@@ -118,6 +121,7 @@ export function SeletorDePrioridade({
       "alterar-prioridade",
       { prioridade: destino },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);
