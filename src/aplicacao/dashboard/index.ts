@@ -9,3 +9,23 @@ export {
   type Janela,
   type JanelaPedida,
 } from "./janela";
+
+export type {
+  ContagemPorCategoria,
+  ContagemPorStatus,
+  LinhaDeResolucao,
+  PontoDeArea,
+  PontoDeCategoria,
+  PontoMensal,
+  RepositorioEscopadoDeDashboard,
+} from "./portas";
+
+export {
+  verDashboard,
+  type DashboardLido,
+  type MediaDasAvaliacoes,
+  type MesDeResolucao,
+  type PontoDoMes,
+  type SerieDeArea,
+  type SerieDeCategoria,
+} from "./indicadores";
