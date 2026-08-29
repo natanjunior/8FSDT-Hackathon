@@ -197,6 +197,15 @@ beforeAll(async () => {
       [organizacaoId, lida.id, idSindica, organizacaoId === idRecanto ? ATRIBUIDA_EM_A : ATRIBUIDA_EM_B],
     );
 
+    // **Item 30 — o canal 1 nas duas organizações.** Semeia apenas o próprio agregado: a síndica tem
+    // vínculo nas DUAS, e é ela quem escreve as duas mensagens. É o cenário do critério A4 — *seed* com
+    // pessoas distintas por organização não detectaria o vazamento.
+    await portas.ocorrencias.comentar(lida.id, {
+      autorPessoaId: idSindica,
+      texto: `mensagem de ${organizacaoId}`,
+      em: new Date().toISOString(),
+    });
+
     guardar(lida.id, anexo!.id);
     // O identificador de categoria que a oitava entrada de isolamento pede **dentro de A**. Lido aqui
     // porque é a categoria que a ocorrência de B de fato aponta — o `insert` de `semear()` cria uma por
@@ -683,6 +692,41 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [chaveDoAnexoEmB];
+      },
+    },
+  });
+
+  /**
+   * **A entrada do item 30 — a conversa.** Ela mira o `SELECT_DAS_MENSAGENS`: uma consulta que
+   * **atravessa duas tabelas novas** (`mensagens` → `canais_conversa`) e um par de `join` de pessoa. Se o
+   * `$1` sumisse do `where`, ou se o `join` do canal perdesse o `and c.organizacao_id = m.organizacao_id`,
+   * a conversa de outro condomínio apareceria dentro desta — e é este caso que acende.
+   *
+   * **Pede as DUAS ocorrências com o escopo de UMA**, como a entrada de `GET /ocorrencias/{id}`: a de
+   * fora tem de devolver lista vazia, e não a mensagem dela.
+   *
+   * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
+   * própria suíte: `ComentarioLido` **não expõe `organizacao_id`**, de propósito.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/comentarios",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const paginas = await Promise.all([
+        repo.comentarios(idDaOcorrenciaEmA, { limite: 20, cursor: null }),
+        repo.comentarios(idDaOcorrenciaEmB, { limite: 20, cursor: null }),
+      ]);
+      return paginas.flat();
+    },
+    chaveDaLinha: (comentario) => comentario.texto,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. É a mesma nota que a entrada de `GET /ocorrencias/{id}` já carrega.
+    esperadas: {
+      get emA() {
+        return [`mensagem de ${idRecanto}`];
+      },
+      get emB() {
+        return [`mensagem de ${idAurora}`];
       },
     },
   });
