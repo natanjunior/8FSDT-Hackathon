@@ -530,3 +530,92 @@ describe("decidir o pedido", () => {
     expect(Number(vinculos[0]!.total)).toBe(0);
   });
 });
+
+describe("pedir entrada TENDO organização ativa — a Persona 1B (item 7b)", () => {
+  /**
+   * **A síndica nasce aqui, e não é `helena`.** Quando este `describe` roda, `helena` já tem pedido
+   * **pendente** nas duas organizações — é o que o `describe` da leitura de contexto assere (`:307`) —,
+   * e o índice único parcial `(pessoa_id, organizacao_id) where situacao = 'pendente'` devolveria
+   * `ja-pendente` em vez de `registrado`. O mundo do arquivo é reaproveitado; a Pessoa, não.
+   *
+   * O `SUFIXO` é o do arquivo, então o `afterAll` a apaga junto com as outras.
+   */
+  let sindica = "";
+
+  beforeAll(async () => {
+    const usuarios = await consulta<{ id: string }>(
+      `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+      [`sindica-${SUFIXO}@exemplo.test`],
+    );
+    const pessoas = await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, 'Síndica Profissional') returning id`,
+      [usuarios[0]!.id],
+    );
+    sindica = pessoas[0]!.id;
+
+    // Ela já é Gestora de A — é o "tendo uma ativa" do título do item.
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [sindica, organizacaoA],
+    );
+  });
+
+  it("quem já tem vínculo em A pede entrada em B, e nenhum vínculo é criado", async () => {
+    // O `POST /pedidos-de-entrada` não olha a organização ativa — a §4.4 é explícita —, e é o **único**
+    // caminho para o segundo vínculo (§12, S-A2: `POST /vinculos` sempre cria Pessoa nova, e o `PATCH`
+    // não muda organização).
+    const antes = await consulta<{ total: string }>(
+      `select count(*)::text as total from vinculos where pessoa_id = $1`,
+      [sindica],
+    );
+
+    const resultado = await escrita.registrar({
+      pessoaId: sindica,
+      codigoPublico: "P4NHY9WB",
+      nome: null,
+      telefone: null,
+    });
+
+    expect(resultado.desfecho).toBe("registrado");
+
+    const depois = await consulta<{ total: string }>(
+      `select count(*)::text as total from vinculos where pessoa_id = $1`,
+      [sindica],
+    );
+
+    // **Nenhum vínculo é criado**, e o que garante isso não é uma checagem: é a porta não ter caminho de
+    // escrita em `vinculos`. O vínculo em A também não é tocado — a contagem é a mesma, e é 1.
+    expect(depois[0]!.total).toBe(antes[0]!.total);
+    expect(depois[0]!.total).toBe("1");
+  });
+
+  it("o pedido de B não vira pedido em A (critério 7b.1)", async () => {
+    const pedidos = await leitura.daPessoa(sindica);
+    const emB = pedidos.filter((p) => p.organizacao.nome === "Edifício Aurora");
+    const emA = pedidos.filter((p) => p.organizacao.nome === "Condomínio Recanto Azul");
+
+    expect(emB).toHaveLength(1);
+    expect(emB[0]!.situacao).toBe("pendente");
+    // O caso A4 escrito à mão, do outro lado: código de B não produz pedido em A.
+    expect(emA).toHaveLength(0);
+  });
+
+  it("com dois vínculos e nenhuma escolha, a organização ativa NÃO é decidida pela aprovação (critério 7b.2)", async () => {
+    // Aprovar em B é o que o item 8 faz; aqui basta o vínculo, porque o que está sob teste é a **resolução**.
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [sindica, organizacaoB],
+    );
+
+    const vinculos = await consulta<{ organizacao_id: string }>(
+      `select organizacao_id from vinculos where pessoa_id = $1 and revogado_em is null
+        order by organizacao_id`,
+      [sindica],
+    );
+
+    // **Dois**, e é a Persona 1B existindo no banco. Qual delas fica ativa é decisão da sessão — o
+    // `PUT /contexto/organizacao` —, nunca efeito da aprovação: `escolherAtivo` só escolhe sozinho com
+    // **um** vínculo (`resolver-contexto.ts:163-178`), e essa metade está provada em unidade.
+    expect(vinculos).toHaveLength(2);
+  });
+});
