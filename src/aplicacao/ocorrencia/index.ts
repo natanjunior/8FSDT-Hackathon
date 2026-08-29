@@ -19,6 +19,7 @@ export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-respons
 export { avaliarOcorrencia } from "./avaliar-ocorrencia";
 export { cancelarOcorrencia } from "./cancelar-ocorrencia";
 export { type ContextoDoComando } from "./comando";
+export { enviarComentario, verComentarios, type PaginaDeConversa } from "./conversa";
 export { iniciarAtendimento } from "./iniciar-atendimento";
 export { pausarOcorrencia } from "./pausar-ocorrencia";
 export {
