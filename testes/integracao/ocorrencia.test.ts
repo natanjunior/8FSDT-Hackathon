@@ -5,6 +5,7 @@ import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
   alterarPrioridade,
   analisarOcorrencia,
+  avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
   pausarOcorrencia,
@@ -2722,5 +2723,374 @@ describe("o cancelamento contra Postgres — item 18", () => {
       [id],
     );
     expect(registros).toHaveLength(2);
+  });
+});
+
+describe("a avaliação contra Postgres — item 27", () => {
+  /** As permissões do Gestor que este bloco usa para LEVAR a ocorrência até `resolvida`. */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.resolver",
+  ];
+
+  /**
+   * As permissões do **autor**, e é a lista que o comando novo usa.
+   *
+   * **`ler_todas` NÃO está aqui, e a ausência é teste:** quem tenta avaliar ocorrência de outra pessoa
+   * sem `ler_todas` leva `404`, nunca `403`.
+   */
+  const DO_AUTOR = ["ocorrencia.ler_propria", "ocorrencia.avaliar"];
+
+  /** O Gestor que NÃO é o autor — precisa de `ler_todas` para chegar ao `403` em vez do `404`. */
+  const DO_GESTOR_NAO_AUTOR = ["ocorrencia.ler_todas", "ocorrencia.avaliar"];
+
+  let executorPessoaId: string;
+  let outraPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Executor da avaliação ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Gestor nao autor ${SUFIXO}`],
+    );
+    outraPessoaId = outra!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [outraPessoaId, organizacaoId],
+    );
+  });
+
+  /** Leva a ocorrência até `resolvida` pelo caminho de verdade — o ciclo inteiro do produto. */
+  async function resolvida(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa acabar.", categoriaId, areaId },
+    );
+    const id = lida.id;
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await resolverOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  /**
+   * O mesmo caminho de `resolvida()`, **menos a última linha** — para o caso do `409` de estado.
+   *
+   * **Não reusa o `emAtendimento` do bloco do item 26**: aquele é local àquele `describe` e usa o
+   * `executorPessoaId` dele.
+   */
+  async function emAtendimentoParaAvaliar(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa acabar.", categoriaId, areaId },
+    );
+    const id = lida.id;
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  it("carregar reidrata o agregado COM a avaliação gravada", async () => {
+    const id = await resolvida("Reidratação da avaliação");
+
+    // Escrita por fora, de propósito: aqui o que se prova é a LEITURA do agregado, e o escritor do
+    // produto é exercitado nos casos seguintes.
+    await consultaCrua(
+      `update ocorrencias
+          set avaliacao_nota = 4, avaliacao_comentario = 'Demorou, mas resolveram.',
+              avaliada_em = now()
+        where id = $1`,
+      [id],
+    );
+
+    const carregada = await portas().ocorrencias.carregar(id);
+
+    expect(carregada?.ocorrencia.avaliacao?.nota).toBe(4);
+    expect(carregada?.ocorrencia.avaliacao?.comentario).toBe("Demorou, mas resolveram.");
+    expect(carregada?.ocorrencia.avaliacao?.avaliadaEm).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+  });
+
+  it("sem avaliação, o agregado volta com null — e null é a verdade, não reserva", async () => {
+    const id = await resolvida("Sem avaliação ainda");
+    const carregada = await portas().ocorrencias.carregar(id);
+
+    expect(carregada?.ocorrencia.avaliacao).toBeNull();
+  });
+
+  it("a porta grava as TRÊS colunas e a TRILHA CONTINUA DO MESMO TAMANHO — o critério 27.4 no banco", async () => {
+    const id = await resolvida("A gravação");
+    const carregada = await portas().ocorrencias.carregar(id);
+    // **O relógio é lido UMA vez, e é o mesmo dos dois usos** — como o comando de aplicação faz.
+    const agora = new Date().toISOString();
+    const avaliado = carregada!.ocorrencia.avaliar({
+      autorPessoaId: pessoaId,
+      nota: 5,
+      comentario: "Resolveram no mesmo dia.",
+      avaliadaEm: agora,
+    });
+
+    const antes = await consultaCrua<{ n: string }>(
+      `select count(*) as n from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+
+    const resultado = await portas().ocorrencias.avaliar(id, avaliado, agora);
+
+    expect(resultado.desfecho).toBe("avaliada");
+
+    const [linha] = await consultaCrua<{
+      avaliacao_nota: number;
+      avaliacao_comentario: string | null;
+      avaliada_em: Date;
+      status: string;
+    }>(
+      `select avaliacao_nota, avaliacao_comentario, avaliada_em, status
+         from ocorrencias where id = $1`,
+      [id],
+    );
+
+    expect(linha!.avaliacao_nota).toBe(5);
+    expect(linha!.avaliacao_comentario).toBe("Resolveram no mesmo dia.");
+    expect(linha!.avaliada_em.toISOString()).toBe(agora);
+    // **O critério 27.4 no banco: o status NÃO muda.**
+    expect(linha!.status).toBe("resolvida");
+
+    const depois = await consultaCrua<{ n: string }>(
+      `select count(*) as n from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(depois[0]!.n).toBe(antes[0]!.n);
+  });
+
+  it("atualizada_em AVANÇA, e é o carimbo que o chamador leu — nunca now()", async () => {
+    const id = await resolvida("O carimbo");
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const agora = new Date(Date.now() + 1000).toISOString();
+    const avaliado = carregada!.ocorrencia.avaliar({
+      autorPessoaId: pessoaId,
+      nota: 3,
+      comentario: null,
+      avaliadaEm: agora,
+    });
+
+    await portas().ocorrencias.avaliar(id, avaliado, agora);
+
+    const [depois] = await consultaCrua<{ atualizada_em: Date; avaliada_em: Date }>(
+      `select atualizada_em, avaliada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(depois!.atualizada_em.getTime()).toBeGreaterThan(antes!.atualizada_em.getTime());
+    // **Os dois recebem o MESMO instante**, e é o que o `CHECK` de ordem temporal exige que não divirja.
+    expect(depois!.atualizada_em.toISOString()).toBe(depois!.avaliada_em.toISOString());
+  });
+
+  it("A CORRIDA: a SEGUNDA gravação devolve conflito e NÃO sobrescreve a nota — o predicado provado", async () => {
+    /**
+     * **É o caso que paga o `and avaliacao_nota is null`, e é o único lugar onde ele é observável.** Em
+     * memória o agregado já recusa a segunda avaliação — é a guarda 2 de `Ocorrencia.avaliar`. O que este
+     * caso exercita é a janela **entre duas requisições**: as duas abas carregam o agregado sem
+     * avaliação, as duas atravessam a guarda, e só o banco pode decidir quem chega primeiro.
+     *
+     * **Sem o predicado, a segunda venceria em silêncio** — `status = 'resolvida'` continua verdadeiro, e
+     * o `CHECK` também.
+     */
+    const id = await resolvida("Duas abas");
+    const carregadaA = await portas().ocorrencias.carregar(id);
+    const carregadaB = await portas().ocorrencias.carregar(id);
+
+    const primeiro = new Date().toISOString();
+    await portas().ocorrencias.avaliar(
+      id,
+      carregadaA!.ocorrencia.avaliar({
+        autorPessoaId: pessoaId,
+        nota: 5,
+        comentario: "A primeira.",
+        avaliadaEm: primeiro,
+      }),
+      primeiro,
+    );
+
+    const segundo = new Date(Date.now() + 2000).toISOString();
+    const resultado = await portas().ocorrencias.avaliar(
+      id,
+      carregadaB!.ocorrencia.avaliar({
+        autorPessoaId: pessoaId,
+        nota: 1,
+        comentario: "A segunda.",
+        avaliadaEm: segundo,
+      }),
+      segundo,
+    );
+
+    expect(resultado.desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number; avaliacao_comentario: string }>(
+      `select avaliacao_nota, avaliacao_comentario from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBe(5);
+    expect(linha!.avaliacao_comentario).toBe("A primeira.");
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não avalia — critério A4", async () => {
+    // O molde é o do item 25 (`:2139`), **copiado e não reinventado**: o repositório escopado na
+    // organização B não enxerga a ocorrência de A, então `carregar` devolve `null` e não há agregado para
+    // passar à porta. **A garantia é do código, não do banco.**
+    //
+    // **A metade do COMANDO fica na tarefa 4**, e não aqui: `avaliarOcorrencia` ainda não existe nesta
+    // tarefa, e o plano não intercala. O caso *"o GESTOR não autor leva 403, e o SOLICITANTE não autor
+    // leva 404"* daquela tarefa é o que exercita a recusa pelo comando.
+    const id = await resolvida("Isolamento da avaliação");
+    const [outra] = await consultaCrua<{ id: string }>(
+      // **`codigo_publico` é `not null` e não tem default** (`001_pessoas_organizacoes_vinculos.sql:119`).
+      // Os vinte `insert into organizacoes` do repositório passam o par, e um `insert` só com `nome`
+      // estoura com violação de `not null` em vez de falhar na asserção.
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      // **`V9` e não `V7`**: o `V7` é do bloco do item 17 (`:2427`), e `codigo_publico` tem índice
+      // único — repetir o prefixo estoura com `organizacoes_codigo_publico_uk` antes de qualquer
+      // asserção. O plano trazia `V7`; é o único desvio deste passo.
+      [`Outra org da avaliação ${SUFIXO}`, `V9${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    // A **mesma** Pessoa nas duas organizações — é o cenário que detecta o vazamento de verdade, e é o
+    // que o molde do item 25 faz.
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number | null }>(
+      `select avaliacao_nota from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBeNull();
+  });
+
+  it("O CICLO COMPLETO: registrar → analisar → atribuir → iniciar → resolver → avaliar, com QUATRO registros", async () => {
+    /**
+     * **É o caminho crítico inteiro, dentro do produto** — a pré-condição declarada do item **41b**
+     * (`backlog.md:1289`) e o que o lote 9 precisa para o `mediaDasAvaliacoes` deixar de ser `null`.
+     *
+     * **Quatro registros, e não cinco:** `avaliar` não transiciona e não grava trilha. É o critério 27.4
+     * contra Postgres, e é a asserção que separa este comando dos seis que transicionam.
+     */
+    const id = await resolvida("O ciclo completo");
+
+    const lida = await avaliarOcorrencia(
+      portas().ocorrencias,
+      { pessoaId, permissoes: DO_AUTOR },
+      { ocorrenciaId: id, nota: 5, comentario: "Resolveram no mesmo dia e avisaram." },
+    );
+
+    expect(lida.status).toBe("resolvida");
+    expect(lida.avaliacao?.nota).toBe(5);
+    expect(lida.avaliacao?.comentario).toBe("Resolveram no mesmo dia e avisaram.");
+
+    const registros = await consultaCrua<{ n: string }>(
+      `select count(*) as n from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros[0]!.n).toBe("4");
+  });
+
+  it("o SEGUNDO avaliar responde 409 e a nota NÃO muda — o critério 27.2 ponta a ponta", async () => {
+    const id = await resolvida("Duas avaliações pelo comando");
+    const ctx = { pessoaId, permissoes: DO_AUTOR };
+
+    await avaliarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id, nota: 5 });
+
+    await expect(
+      avaliarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id, nota: 1 }),
+    ).rejects.toMatchObject({ codigo: "JA_AVALIADA" });
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number }>(
+      `select avaliacao_nota from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBe(5);
+  });
+
+  it("em em_atendimento o comando responde 409 AVALIACAO_EXIGE_RESOLVIDA e as colunas não mudam", async () => {
+    // **A transição inválida do item do DoD**, no estado que importa: a ocorrência está viva, e avaliar
+    // agora seria dar nota a um trabalho que ainda não acabou.
+    const id = await emAtendimentoParaAvaliar("Ainda em atendimento");
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId, permissoes: DO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "AVALIACAO_EXIGE_RESOLVIDA" });
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number | null; avaliada_em: Date | null }>(
+      `select avaliacao_nota, avaliada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBeNull();
+    expect(linha!.avaliada_em).toBeNull();
+  });
+
+  it("o GESTOR não autor leva 403, e o SOLICITANTE não autor leva 404 — as duas metades da §6.3", async () => {
+    /**
+     * **É o caso que só a integração prova**, porque ele depende de a ocorrência ter autor de verdade no
+     * banco: as duas pessoas existem, as duas têm vínculo, e o que as separa é `ler_todas`.
+     */
+    const id = await resolvida("Quem pode avaliar");
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId: outraPessoaId, permissoes: DO_GESTOR_NAO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "SOMENTE_O_AUTOR_PODE_AVALIAR" });
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId: outraPessoaId, permissoes: DO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
   });
 });

@@ -1,6 +1,8 @@
 import { AreaInvalida } from "@/aplicacao/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
 import {
+  AvaliacaoExigeResolvida,
+  JaAvaliada,
   PrioridadeImutavelEmEstadoTerminal,
   TransicaoNaoPermitida,
   type Comando,
@@ -8,7 +10,13 @@ import {
 } from "@/dominio/ocorrencia";
 
 /** Reexportadas, nao redefinidas — ver as notas abaixo. */
-export { AreaInvalida, PrioridadeImutavelEmEstadoTerminal, TransicaoNaoPermitida };
+export {
+  AreaInvalida,
+  AvaliacaoExigeResolvida,
+  JaAvaliada,
+  PrioridadeImutavelEmEstadoTerminal,
+  TransicaoNaoPermitida,
+};
 
 /**
  * `422 CATEGORIA_INVALIDA` — inexistente **nesta** organização **ou** desativada.
@@ -50,6 +58,11 @@ export class CategoriaInvalida extends ErroDeDominio {
  * recusa da máquina de estados, e a primeira do produto que não é `TRANSICAO_NAO_PERMITIDA`: a invariante 7
  * é normatizada pela tabela companheira, que mora no Domínio. **Não é o caso de `ResponsavelNaoAtribuido`**,
  * logo abaixo, que nasceu aqui porque a invariante 9 atravessa outra tabela.
+ *
+ * **E `AvaliacaoExigeResolvida` e `JaAvaliada` chegam pelo mesmo caminho, no item 27.** São a terceira e
+ * a quarta recusas da máquina de estados, e as duas metades da **invariante 8** — que a
+ * `arquitetura.md:495` nomeia, em letra, como do **Domínio**. **Não é o caso de
+ * `SomenteOAutorPodeAvaliar`**, logo abaixo, que nasce aqui porque depende de quem chamou.
  */
 
 /**
@@ -174,6 +187,43 @@ export class MotivoNaoPermitidoParaOPapel extends ErroDeDominio {
       "Motivo não disponível",
       "Este motivo não está disponível para você.",
       { erros: [{ campo: "motivo", codigo: "MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL" }] },
+    );
+  }
+}
+
+/**
+ * `403 SOMENTE_O_AUTOR_PODE_AVALIAR` — o critério **27.3**, e a **segunda** recusa do produto que
+ * depende de quem chamou.
+ *
+ * **Nasce aqui e não no Domínio**, ao lado de `SomenteOGestorCancelaNesteEstado`, e pela mesma razão que
+ * ela: **atravessa a identidade de quem chama**. As duas irmãs de `409` moram no Domínio porque são
+ * recusa da máquina de estados — a mesma resposta para todo mundo; esta muda de resposta conforme quem
+ * pergunta.
+ *
+ * **E a tabela do Domínio confirma pela ausência:** a `arquitetura.md:495` nomeia
+ * `AVALIACAO_EXIGE_RESOLVIDA` e `JA_AVALIADA` como do Domínio, e **não nomeia esta**. O
+ * `contrato-de-api.md:435-438` a classifica do outro lado: *"relação com o recurso … responde `403` com
+ * código próprio (`SOMENTE_O_AUTOR_PODE_AVALIAR`)"*.
+ *
+ * > **`avaliar` é o primeiro endpoint do produto em que as DUAS camadas de `403` são observáveis.** O
+ * > Encarregado leva `PERMISSAO_INSUFICIENTE` no `comContexto`, antes de o recurso ser lido; o Gestor
+ * > não-autor leva **este**, depois de ler. É a §4.5 do contrato ganhando um caso.
+ *
+ * **`titulo` é o do `openapi.yaml:2072`, literal. O `detalhe` é TEXTO NOVO** — achado **A-2** da spec,
+ * pelo mesmo argumento das duas irmãs.
+ *
+ * **Carrega `statusAtual` e `acoesDisponiveis`**, como `SomenteOGestorCancelaNesteEstado`: quem levou
+ * este `403` precisa saber o que ainda lhe resta — e, para o Gestor não-autor em `resolvida`, resta `[]`.
+ *
+ * **O `codigo` já está mapeado para 403** em `problema.ts:27`: nada nasce lá.
+ */
+export class SomenteOAutorPodeAvaliar extends ErroDeDominio {
+  constructor(statusAtual: StatusOcorrencia, acoesDisponiveis: readonly Comando[]) {
+    super(
+      "SOMENTE_O_AUTOR_PODE_AVALIAR",
+      "Só quem registrou pode avaliar",
+      "Só quem registrou a ocorrência pode avaliar a resolução.",
+      { statusAtual, acoesDisponiveis },
     );
   }
 }

@@ -378,6 +378,16 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
     autor: lida.autor,
     responsavel: lida.responsavel,
     quantidadeDeAnexos: lida.anexos.length,
+    /**
+     * **Emitido no detalhe TAMBÉM, e é o `allOf`** — `OcorrenciaDetalhe` é
+     * `allOf: [OcorrenciaResumo, …]` (`openapi.yaml:2890-2892`), então o campo entra junto, ao lado do
+     * `avaliacao` que já mora aqui.
+     *
+     * **Não é redundância acidental: é a relação `quantidadeDeAnexos` ↔ `anexos`**, que este mesmo par de
+     * schemas já carrega desde o item 13b. O resumo leva a resposta curta; o detalhe leva as duas porque
+     * já tem o objeto na mão.
+     */
+    avaliada: lida.avaliacao !== null,
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
     descricao: lida.descricao,
@@ -424,6 +434,7 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
     autor: lida.autor,
     responsavel: lida.responsavel,
     quantidadeDeAnexos: lida.quantidadeDeAnexos,
+    avaliada: lida.avaliada,
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
   };

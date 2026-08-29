@@ -57,6 +57,7 @@ import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-l
 import {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
+  avaliacaoSchema,
   cancelamentoSchema,
   camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
@@ -248,6 +249,24 @@ describe("o critério 11.4 — a forma, com erros[] por campo", () => {
  * O SQL tem teste próprio contra Postgres; a visibilidade tem teste próprio na Aplicação.
  */
 
+/**
+ * As nove permissões do Gestor. **Extraída do `it` *"emMenu só contém comandos que TÊM a variante
+ * menu"*, sem mudar o conteúdo** (item 27): o caso novo do `vazioDaBarra` precisa da mesma lista, e
+ * `ocorrencia.cancelar_qualquer` é a permissão de que a asserção *"a barra do Gestor nunca fica vazia"*
+ * depende. Duas cópias divergiriam.
+ */
+const DO_GESTOR = [
+  "ocorrencia.analisar",
+  "ocorrencia.atribuir",
+  "ocorrencia.iniciar_atendimento",
+  "ocorrencia.pausar",
+  "ocorrencia.retomar",
+  "ocorrencia.registrar_solucao",
+  "ocorrencia.resolver",
+  "ocorrencia.alterar_prioridade",
+  "ocorrencia.cancelar_qualquer",
+];
+
 const RESUMO_LIDO: OcorrenciaResumoLida = {
   id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
   titulo: "Lâmpada queimada na garagem",
@@ -258,13 +277,14 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" },
   responsavel: null,
   quantidadeDeAnexos: 0,
+  avaliada: false,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os treze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
 
     expect(resumo.categoria).toStrictEqual({
@@ -274,6 +294,13 @@ describe("o OcorrenciaResumo projetado", () => {
     expect(resumo.categoria).not.toHaveProperty("icone");
     expect(resumo).not.toHaveProperty("descricao");
     expect(resumo).not.toHaveProperty("acoesDisponiveis");
+    // **O décimo quarto, e é do item 27.** Sem ele o convite de T-03 não é computável — e ele é FATO da
+    // ocorrência, como `status` e `motivoPausa`, nunca afazer calculado por leitor (critério 14.5).
+    expect(resumo.avaliada).toBe(false);
+  });
+
+  it("avaliada é `true` quando a nota existe — e é `avaliacao_nota is not null`, nada mais", () => {
+    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, avaliada: true }).avaliada).toBe(true);
   });
 
   it("statusRotulo é o rótulo de gente, nunca o enum cru", () => {
@@ -603,6 +630,31 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
     const projetado = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
     expect(projetado.anexos).toStrictEqual([]);
     expect(projetado.quantidadeDeAnexos).toBe(0);
+  });
+
+  it("o DETALHE também emite avaliada, e ela é coerente com avaliacao — o allOf provado", () => {
+    /**
+     * **`OcorrenciaDetalhe` é `allOf: [OcorrenciaResumo, …]`** (`openapi.yaml:2890-2892`), então o campo
+     * entra no detalhe junto, ao lado do `avaliacao` que já mora lá.
+     *
+     * **Isso não é redundância acidental: é a relação `quantidadeDeAnexos` ↔ `anexos`**, que o detalhe
+     * carrega as duas desde o item 13b — *"a contagem é o comprimento da lista"*. Aqui o booleano é
+     * `avaliacao !== null`, e **provar a coerência é o que impede as duas de divergirem em silêncio.**
+     */
+    const semAvaliacao = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
+    expect(semAvaliacao.avaliada).toBe(false);
+    expect(semAvaliacao.avaliacao).toBeNull();
+
+    const comAvaliacao = projetarOcorrenciaDetalhe(
+      {
+        ...umaOcorrenciaLidaCom([]),
+        status: "resolvida",
+        avaliacao: { nota: 5, comentario: null, avaliadaEm: "2026-08-29T10:00:00.000Z" },
+      },
+      QUEM_LE,
+    );
+    expect(comAvaliacao.avaliada).toBe(true);
+    expect(comAvaliacao.avaliacao?.nota).toBe(5);
   });
 });
 
@@ -960,10 +1012,10 @@ describe("os rótulos que descem para a barra de ações", () => {
     expect(rotuloDeComando("alterar-prioridade")).toBeNull();
   });
 
-  it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    // Era `resolver` até o item 26, `pausar` até o 23, `retomar` até o 24 e `cancelar` até o 18.
-    // **`avaliar` é o único que sobra**, e o item 27 é quem o constrói — depois dele este caso some.
-    expect(rotuloDeComando("avaliar")).toBeNull();
+  it("avaliar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    // **O último rótulo do produto.** Até o item 27 este comando não tinha rótulo, e o caso que guardava
+    // a ausência foi apagado nesta fatia — como o próprio comentário dele mandava.
+    expect(rotuloDeComando("avaliar")).toBe("Avaliar");
   });
 
   it("cancelar é palavra, e é o verbo do glossário — compromisso A-5", () => {
@@ -1402,69 +1454,51 @@ describe("o corpo de POST …/registrar-solucao-aplicada — o segundo com corpo
  * declarado**; sólida é **UI de produto**. Devolver só a frase deixaria a segunda metade no JSX, e a
  * página passaria a importar `ehTerminal` do Domínio.
  */
-describe("vazioDaBarra — as TRÊS frases do vazio de T-05", () => {
-  it("nos dois terminais, a frase de produto e a moldura sólida — o critério 26.6", () => {
-    // **O ramo terminal vem PRIMEIRO, e por isso `ehGestor` não o muda**: numa ocorrência encerrada
-    // ninguém age, e dizer ao Solicitante que *"só os Gestores cancelam a partir daqui"* seria falso.
+describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
+  it("nos dois terminais, a frase de produto — os critérios 26.6 e 27.6", () => {
     for (const terminal of ["resolvida", "cancelada"] as const) {
-      for (const ehGestor of [false, true]) {
-        expect(vazioDaBarra(terminal, ehGestor)).toStrictEqual({
-          texto: "Esta ocorrência está encerrada.",
-          andaime: false,
-        });
-      }
+      expect(vazioDaBarra(terminal)).toBe("Esta ocorrência está encerrada.");
     }
   });
 
-  it("nos quatro não-terminais, para quem NÃO gestiona: a frase sólida do critério 18.6", () => {
-    // **Moldura SÓLIDA, e é o que a distingue da nota de andaime:** este vazio é permanente e é UI de
-    // produto. A partir de `Em atendimento` o Solicitante autor não cancela mais, e a barra dele fica
-    // vazia para sempre num estado que não é terminal.
+  it("nos quatro não-terminais, a frase do critério 18.6", () => {
+    // **Ela vale para todo mundo agora**, e não só para quem não gestiona: o ramo que dependia de
+    // `ehGestor` não tinha população, e o caso seguinte prova isso.
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
-      expect(vazioDaBarra(emAndamento, false)).toStrictEqual({
-        texto: "Só os Gestores podem cancelar a partir daqui.",
-        andaime: false,
-      });
+      expect(vazioDaBarra(emAndamento)).toBe("Só os Gestores podem cancelar a partir daqui.");
     }
   });
 
-  it("nos quatro não-terminais, para o Gestor: a nota de andaime e a moldura tracejada — o critério 16.6", () => {
-    // **Este ramo nasceu inalcançável por navegação no item 18** — com `cancelar` renderizável nos
-    // quatro, o Gestor nunca mais tem barra vazia fora de estado terminal. Ele não é removido aqui: o
-    // 16.6 manda a nota existir, e o **27.6** é o dono da remoção.
-    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
-      expect(vazioDaBarra(emAndamento, true)).toStrictEqual({
-        texto: "Os comandos da ocorrência chegam nos próximos itens.",
-        andaime: true,
-      });
-    }
-  });
-
-  it("responde para os SEIS status, e as TRÊS frases são mutuamente exclusivas", () => {
-    // **Nunca existe barra vazia sem texto**, que é o `200` silencioso que a §8.5 do contrato existe
-    // para impedir. E nunca existe texto ambíguo: um par (status, ehGestor) cai num ramo só.
-    //
-    // **O conjunto é montado sobre `STATUS` × `[false, true]`**, e não sobre `STATUS` só: com um
-    // `ehGestor` fixo ele teria duas frases, e a asserção de três não fecharia.
-    const textos = new Set(
-      STATUS.flatMap((status) => [
-        vazioDaBarra(status, false).texto,
-        vazioDaBarra(status, true).texto,
-      ]),
-    );
-    expect(textos.size).toBe(3);
+  it("responde para os SEIS status, e as DUAS frases são mutuamente exclusivas", () => {
+    const textos = new Set(STATUS.map((status) => vazioDaBarra(status)));
+    expect(textos.size).toBe(2);
     for (const status of STATUS) {
-      expect(vazioDaBarra(status, false).texto.length).toBeGreaterThan(0);
-      expect(vazioDaBarra(status, true).texto.length).toBeGreaterThan(0);
+      expect(vazioDaBarra(status).length).toBeGreaterThan(0);
     }
   });
 
   it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
-    // **`cancelada` É alcançável no produto desde o item 18**, e o que este caso guarda agora é a outra
-    // metade: a frase terminal continua vindo de `ehTerminal`, e não de uma segunda lista de terminais
-    // escrita aqui.
-    expect(vazioDaBarra("cancelada", true).andaime).toBe(false);
-    expect(vazioDaBarra("em_atendimento", true).andaime).toBe(true);
+    expect(vazioDaBarra("cancelada")).toBe("Esta ocorrência está encerrada.");
+    expect(vazioDaBarra("em_atendimento")).toBe("Só os Gestores podem cancelar a partir daqui.");
+  });
+
+  it("a BARRA DO GESTOR nunca fica vazia fora de estado terminal — o que torna a remoção do ehGestor segura", () => {
+    /**
+     * **A tautologia do critério 27.6, virada asserção.** `vazioDaBarra` perdeu o parâmetro `ehGestor`
+     * porque o ramo que ele selecionava não tinha população: quem tem `ocorrencia.cancelar_qualquer` tem
+     * `cancelar` em `acoesDisponiveis` nos quatro estados não terminais, e `cancelar` tem rótulo.
+     *
+     * **No dia em que alguém tirar `cancelar` de um estado ou partir a permissão, este caso cai — antes
+     * de a frase errada aparecer em tela.** É exatamente o alarme que a nota do backlog de 28/08 pede.
+     */
+    for (const status of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      const renderizaveis = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status },
+        { pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f", permissoes: DO_GESTOR },
+      ).acoesDisponiveis.filter((comando) => rotuloDeComando(comando as Comando) !== null);
+
+      expect(renderizaveis.length).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -1621,17 +1655,6 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
    */
   it("emMenu só contém comandos que TÊM a variante menu — os seis status, as duas combinações", () => {
     const COM_VARIANTE_DE_MENU = ["atribuir-responsavel", "pausar", "cancelar"];
-    const DO_GESTOR = [
-      "ocorrencia.analisar",
-      "ocorrencia.atribuir",
-      "ocorrencia.iniciar_atendimento",
-      "ocorrencia.pausar",
-      "ocorrencia.retomar",
-      "ocorrencia.registrar_solucao",
-      "ocorrencia.resolver",
-      "ocorrencia.alterar_prioridade",
-      "ocorrencia.cancelar_qualquer",
-    ];
 
     const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
 
@@ -1744,6 +1767,83 @@ describe("o corpo de POST …/cancelar — o segundo com DOIS campos obrigatóri
     expect(
       cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "a".repeat(1001) }).success,
     ).toBe(false);
+  });
+});
+
+describe("o corpo de POST …/avaliar — o primeiro com campo NUMÉRICO", () => {
+  it("aceita o par válido, e apara o comentário", () => {
+    const analisado = avaliacaoSchema.safeParse({
+      nota: 5,
+      comentario: "  Resolveram no mesmo dia.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.nota).toBe(5);
+    expect(analisado.data?.comentario).toBe("Resolveram no mesmo dia.");
+  });
+
+  it("aceita SEM comentário — ele é opcional, e é o critério 27.1", () => {
+    // **O `openapi.yaml:2054` declara `required: [nota]` e mais nada.** Um corpo com a nota só é o caso
+    // dominante: dar nota tem de custar um toque.
+    expect(avaliacaoSchema.safeParse({ nota: 3 }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 3, comentario: null }).success).toBe(true);
+  });
+
+  it("aceita as cinco notas da escala", () => {
+    for (const nota of [1, 2, 3, 4, 5]) {
+      expect(avaliacaoSchema.safeParse({ nota }).success).toBe(true);
+    }
+  });
+
+  it("recusa 0 e 6 — as bordas de fora da escala", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 0 }).success).toBe(false);
+    expect(avaliacaoSchema.safeParse({ nota: 6 }).success).toBe(false);
+  });
+
+  it("recusa 4.5 — `z.int()` e não `z.number()`, e é o que impede o arredondamento silencioso", () => {
+    // **O `openapi.yaml:2058` declara `type: integer`.** Com `z.number()`, `4.5` chegaria ao `smallint` do
+    // banco e seria truncado — o produto inventaria a nota de alguém.
+    expect(avaliacaoSchema.safeParse({ nota: 4.5 }).success).toBe(false);
+  });
+
+  it("recusa a nota como texto — '5' não é 5", () => {
+    expect(avaliacaoSchema.safeParse({ nota: "5" }).success).toBe(false);
+  });
+
+  it("corpo vazio é 400 com `nota` em erros[] — o critério 27.1", () => {
+    const analisado = avaliacaoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    expect(analisado.error?.issues.map((questao) => questao.path[0])).toContain("nota");
+  });
+
+  it("comentário de 1001 caracteres é recusado; 1000 passa", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1000) }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("comentário de espaços passa, e vira string vazia — quem o transforma em null é o COMANDO", () => {
+    /**
+     * **Sem `.min(1)`, e é o portão do DoD olhando na direção contrária:** o `openapi.yaml:2060` declara
+     * `maxLength: 1000` e **nenhum** `minLength`. Schema mais estrito que a especificação versionada é a
+     * divergência do critério 16.7, do outro lado.
+     *
+     * **A normalização mora no comando de aplicação, num lugar só** — é onde o produto a pôs desde o
+     * `analisar` (item 16).
+     */
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, comentario: "   " });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.comentario).toBe("");
+  });
+
+  it("campo desconhecido é DESCARTADO, sem erro — este endpoint não tem `recusar:`", () => {
+    // **Não há `422` publicado para esta operação** (`openapi.yaml:2065-2087` lista 200/400/401/403/404/
+    // 409/500). Recusar um campo aqui responderia um status que a especificação versionada não lista.
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, observacao: "não vai a lugar nenhum" });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data).not.toHaveProperty("observacao");
   });
 });
 

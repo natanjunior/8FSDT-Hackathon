@@ -86,7 +86,15 @@ export type Comando = (typeof COMANDOS)[number];
  * herdada nº 1 do inventário *(um botão nu gravaria um registro imutável e terminal sem oferecer o campo
  * e sem mostrar o aviso de visibilidade)*. O 23 tinha o primeiro, o 24 tinha o segundo.
  *
- * **Falta um:** `avaliar` (27).
+ * **O item 27 foi o DÉCIMO, e com ele a lista FECHA:** `COMANDOS_IMPLEMENTADOS` e `COMANDOS` passam a ter
+ * o mesmo conteúdo, e o filtro vira a identidade. **A linha entrou na tarefa da TELA**, como as dos itens
+ * 23, 24 e 18 — `avaliar` tem rótulo de botão e `requestBody: required: true`, então anunciá-lo antes do
+ * modal produziria um botão nu que responde `400`.
+ *
+ * **O filtro NÃO é removido, e a razão é a que este arquivo já escreve:** ele existe para que *"comando
+ * presente seja comando cujo endpoint existe"*, e **o próximo comando que nascer começa fora da lista**.
+ * Um caso de teste marca o dia — *os dez, e nenhum a mais* —, e ele cai quando alguém acrescentar a
+ * `COMANDOS` um comando sem endpoint. **Não falta nenhum.**
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
@@ -96,6 +104,7 @@ export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "retomar",
   "registrar-solucao-aplicada",
   "resolver",
+  "avaliar",
   "alterar-prioridade",
   "cancelar",
 ];

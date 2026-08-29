@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   AnexoDaOcorrencia,
+  Avaliacao,
   comandoPermitido,
+  COMANDOS,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   MOTIVOS_DE_CANCELAMENTO,
@@ -188,8 +190,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.analisar",
     "ocorrencia.atribuir",
     "ocorrencia.iniciar_atendimento",
-    // O sexto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
-    // que precisa dele monta a própria lista — ver o último caso deste bloco.
+    // O sexto comando construído.
     "ocorrencia.retomar",
     // **O sétimo comando construído, e ele MUDA duas asserções deste arquivo** — em `em_atendimento` e em
     // `pausada`. Sem esta linha as duas continuariam verdes e deixariam de descrever a produção: todo
@@ -197,12 +198,19 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.registrar_solucao",
     "ocorrencia.resolver",
     "ocorrencia.alterar_prioridade",
+    // O DÉCIMO comando construído — item 27. **Ela vem do Solicitante** (`DO_SOLICITANTE`), e o Gestor
+    // acumula: todo vínculo do produto que não seja Encarregado a tem. **Ela não muda asserção nenhuma
+    // deste arquivo** — `avaliar` só é admitido em `resolvida` E só para `ehAutor: true`, e as asserções
+    // que usam `TODAS` em `resolvida` passam `ehAutor: false`. Entra porque a lista deve descrever a
+    // produção, que é o argumento com que o item 25 acrescentou `registrar_solucao`.
+    "ocorrencia.avaliar",
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz NOVE comandos — 16, 19, 22, 26, 23, 24, 25, o 17 e o cancelar do 18", () => {
-    // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
-    // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
+  it("traz os DEZ, e a lista FECHA — não falta nenhum, e o filtro vira a identidade", () => {
+    // **É o último item a mexer nesta lista.** `COMANDOS_IMPLEMENTADOS` e `COMANDOS` passam a ter o mesmo
+    // conteúdo, e o filtro não esconde mais nada. **Ele não é removido:** o próximo comando que nascer
+    // começa fora da lista, e é este caso que marca o dia em que alguém o acrescentar sem endpoint.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
@@ -211,9 +219,11 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "resolver",
+      "avaliar",
       "alterar-prioridade",
       "cancelar",
     ]);
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([...COMANDOS]);
   });
 
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
@@ -527,8 +537,15 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("em resolvida a lista é vazia para o Gestor E para o autor — o critério 26.4", () => {
-    // **Com o filtro LIGADO**, que é o que a produção faz. É o `[]` que a frase do 26.6 explica.
+  it("em resolvida: vazia para quem NÃO é o autor, e ['avaliar'] para o autor que ainda não avaliou", () => {
+    /**
+     * **O critério 26.4 continua valendo, e ganhou a exceção que ele mesmo previa.** Ele diz que
+     * `acoesDisponiveis` em `resolvida` *"não traz comando de transição"* — e `avaliar` **não** é
+     * transição: é o comando que age sobre o estado terminal sem tirar a ocorrência de lá (D1).
+     *
+     * **Até o item 27 as duas asserções eram `[]`**, porque `COMANDOS_IMPLEMENTADOS` filtrava o comando
+     * inteiro. Agora a diferença entre elas é a **invariante 8**, e é isso que este caso passa a provar.
+     */
     expect(
       comandosDisponiveis({
         status: "resolvida",
@@ -545,15 +562,24 @@ describe("comandosDisponiveis", () => {
         ehAutor: true,
         temResponsavel: true,
       }),
+    ).toStrictEqual(["avaliar"]);
+
+    // **E some de novo quando já foi avaliada** — a metade "uma vez só", que só passou a ser informável
+    // nesta fatia. É o P-3 do plano do item 16, do lado do Domínio.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
+        jaAvaliada: true,
+      }),
     ).toStrictEqual([]);
   });
 
-  it("com o filtro desligado, resolvida devolve avaliar para o autor — o [] é derivação, não constante", () => {
-    // **A prova de que o vazio do caso acima não é `[]` chumbado.** `SEM_TRANSICAO.avaliar` admite
-    // `resolvida`, e o que o esconde hoje é `COMANDOS_IMPLEMENTADOS` — até o item 27.
-    //
-    // **A lista de permissões é própria e inline**, e não `TODAS`: `TODAS` não tem `ocorrencia.avaliar`,
-    // e escrito com ela este caso devolveria `[]` provando o contrário do que promete (furo F-6).
+  it("com o filtro desligado, resolvida devolve avaliar para o autor — e o filtro LIGADO responde igual", () => {
+    // **Até o item 27 o que o escondia era `COMANDOS_IMPLEMENTADOS`; agora não esconde mais nada, e as
+    // duas formas respondem igual** — é a confirmação de que a derivação sempre foi real.
     expect(
       comandosDisponiveis({
         status: "resolvida",
@@ -561,6 +587,16 @@ describe("comandosDisponiveis", () => {
         ehAutor: true,
         temResponsavel: true,
         filtro: null,
+      }),
+    ).toStrictEqual(["avaliar"]);
+
+    // **O filtro ligado devolve o MESMO**, porque a lista fechou nesta fatia.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
       }),
     ).toStrictEqual(["avaliar"]);
 
@@ -770,6 +806,9 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
     /** **Nula até alguém resolver.** A coluna existe desde a migração 005 e, até o item 26, nenhum
      *  endpoint a escrevia — era coluna lida pela projeção e escrita por ninguém. */
     solucaoAplicada: null,
+    /** **Nula até o autor avaliar.** A coluna existe desde a migração 005 e, até o item 27, nenhum
+     *  endpoint a escrevia — era coluna lida pela projeção e escrita por ninguém. */
+    avaliacao: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,
@@ -1539,6 +1578,105 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
           motivo,
         );
       }
+    });
+  });
+
+  describe("o comando avaliar — o QUARTO que muda a raiz sem tocar a trilha, e o último", () => {
+    /**
+     * **`em(status)` serve aqui**, como serviu para `registrarSolucaoAplicada`: este comando não lê a
+     * trilha — lê `_status`, `_avaliacao` e `autorPessoaId`.
+     *
+     * **O autor de `ABERTA` é `AUTORA`**, e é ele que a terceira guarda compara. `GESTOR` é o não-autor.
+     */
+    const AVALIACAO = {
+      autorPessoaId: ABERTA.autorPessoaId,
+      nota: 5,
+      comentario: "Resolveram no mesmo dia e avisaram quando terminou.",
+      avaliadaEm: "2026-08-29T10:00:00.000Z",
+    };
+
+    it("grava a avaliação em resolvida — o critério 27.1 dentro do agregado", () => {
+      const avaliada = em("resolvida").avaliar(AVALIACAO);
+
+      expect(avaliada.avaliacao?.nota).toBe(5);
+      expect(avaliada.avaliacao?.comentario).toBe(AVALIACAO.comentario);
+      expect(avaliada.avaliacao?.avaliadaEm).toBe(AVALIACAO.avaliadaEm);
+    });
+
+    it("o status NÃO muda — o critério 27.4, e é a D1 em uma asserção", () => {
+      // **Não é um sexto estado.** A ocorrência continua `resolvida` depois de avaliada, e é por isso que
+      // este comando não passa por `comTransicao`.
+      expect(em("resolvida").avaliar(AVALIACAO).status).toBe("resolvida");
+    });
+
+    it("a trilha NÃO cresce, e a última transição é a MESMA — o critério 27.4 pelo negativo", () => {
+      const antes = em("resolvida");
+      const depois = antes.avaliar(AVALIACAO);
+
+      expect(depois.trilha).toHaveLength(antes.trilha.length);
+      expect(depois.ultimaTransicao).toBe(antes.ultimaTransicao);
+    });
+
+    it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+      const antes = em("resolvida");
+      antes.avaliar(AVALIACAO);
+
+      expect(antes.avaliacao).toBeNull();
+    });
+
+    it("a solução aplicada e a prioridade atravessam intactas — comAvaliacao troca UMA coisa", () => {
+      const resolvida = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "resolvida",
+        prioridade: "alta",
+        solucaoAplicada: "Trocado o rufo.",
+      });
+      const avaliada = resolvida.avaliar(AVALIACAO);
+
+      expect(avaliada.solucaoAplicada).toBe("Trocado o rufo.");
+      expect(avaliada.prioridade).toBe("alta");
+    });
+
+    it("estoura nos CINCO estados que não são resolvida — a invariante 8, metade de estado", () => {
+      // **Alcançar isto é defeito NOSSO** — a Aplicação confere antes com `comandoPermitido`, e é ela
+      // quem produz o `409 AVALIACAO_EXIGE_RESOLVIDA`. Por isso é `Error`.
+      for (const status of ["aberta", "em_analise", "em_atendimento", "pausada", "cancelada"] as const) {
+        expect(() => em(status).avaliar(AVALIACAO)).toThrow(/invariante 8 violada/u);
+      }
+    });
+
+    it("estoura na SEGUNDA avaliação — a invariante 8, metade 'uma vez só'", () => {
+      const avaliada = em("resolvida").avaliar(AVALIACAO);
+
+      expect(() => avaliada.avaliar(AVALIACAO)).toThrow(/invariante 8 violada/u);
+    });
+
+    it("estoura quando quem avalia NÃO é o autor — a metade que o agregado responde sozinho", () => {
+      // **É a única guarda do produto assim**, e ela não é permissão de papel: `autorPessoaId` é campo
+      // deste objeto, e a pergunta é sobre o estado dele. A recusa com `403` é da Aplicação.
+      expect(() => em("resolvida").avaliar({ ...AVALIACAO, autorPessoaId: GESTOR })).toThrow(
+        /invariante 8 violada/u,
+      );
+    });
+
+    it("a guarda de VALOR não é daqui — ela é da Avaliacao, e o agregado a deixa estourar", () => {
+      // **O agregado não redigita a escala.** Ele chama `Avaliacao.registrada`, e a mensagem que sobe é
+      // a do objeto de valor. Uma segunda cópia de `1..5` aqui seria a terceira do produto.
+      expect(() => em("resolvida").avaliar({ ...AVALIACAO, nota: 0 })).toThrow(/entre 1 e 5/u);
+    });
+
+    it("reconstituir devolve a avaliação que veio do banco", () => {
+      const doBanco = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "resolvida",
+        avaliacao: Avaliacao.reconstituir({
+          nota: 3,
+          comentario: null,
+          avaliadaEm: "2026-08-29T09:00:00.000Z",
+        }),
+      });
+
+      expect(doBanco.avaliacao?.nota).toBe(3);
     });
   });
 });

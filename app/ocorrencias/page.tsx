@@ -168,6 +168,7 @@ export default async function Ocorrencias({
           podeRegistrar={podeRegistrar}
           podeConfigurar={vinculo.pode("organizacao.configurar")}
           mostrarPrioridade={podeAlterarPrioridade}
+          pessoaIdDeQuemLe={ctx.pessoaId}
         />
       </Suspense>
 
@@ -241,6 +242,7 @@ async function Lista({
   podeRegistrar,
   podeConfigurar,
   mostrarPrioridade,
+  pessoaIdDeQuemLe,
 }: {
   pagina: Promise<PaginaDeOcorrencias>;
   categorias: Promise<readonly CategoriaLida[]>;
@@ -254,6 +256,8 @@ async function Lista({
   podeRegistrar: boolean;
   podeConfigurar: boolean;
   mostrarPrioridade: boolean;
+  /** Quem abriu T-03 — para a marca *"Conte como foi"* do critério 27.5. */
+  pessoaIdDeQuemLe: string;
 }) {
   const [resultado, listaDeCategorias] = await Promise.all([pagina, categorias]);
   const projetada = projetarPaginaDeOcorrencias(resultado);
@@ -344,6 +348,7 @@ async function Lista({
         consultaAtual={consultaAtual}
         iconePorCategoria={iconePorCategoria}
         mostrarPrioridade={mostrarPrioridade}
+        pessoaIdDeQuemLe={pessoaIdDeQuemLe}
         agora={instanteDoServidor()}
       />
     </div>

@@ -87,6 +87,8 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
   pausar: "Pausar",
   retomar: "Retomar",
   resolver: "Resolver",
+  /** A palavra do protótipo (`telas.html:2358`), e o último rótulo do produto. */
+  avaliar: "Avaliar",
   cancelar: "Cancelar",
 };
 
@@ -187,63 +189,54 @@ export function acoesDaBarra(
 
 /**
  * ============================================================================
- *  As TRÊS frases do vazio da barra — os critérios 26.6, 16.6 e 18.6
+ *  As DUAS frases do vazio da barra — os critérios 26.6 e 18.6
  * ============================================================================
  *
- * A barra pode ficar vazia por **duas razões diferentes**, e só uma delas é sobre o produto pronto:
+ * A barra pode ficar vazia por **duas razões**, e as duas são sobre o produto pronto:
  *
  * | Por que está vazia | O que a tela mostra |
  * |---|---|
- * | O status é **terminal** — nada mais será possível | *"Esta ocorrência está encerrada."*, em moldura sólida |
- * | Não é terminal, mas quem olha **não é Gestor** — e a partir daqui só o Gestor cancela (18.6) | *"Só os Gestores podem cancelar a partir daqui."*, em moldura sólida |
- * | O status **não** é terminal, e os comandos ainda não foram construídos | a nota de andaime, em moldura tracejada |
+ * | O status é **terminal** — nada mais será possível | *"Esta ocorrência está encerrada."* |
+ * | Não é terminal, e quem olha é o Solicitante autor a partir de `Em atendimento` (18.6) | *"Só os Gestores podem cancelar a partir daqui."* |
  *
  * **Mora numa função com teste, e não num `?:` dentro do JSX**, pela mesma razão que o `vazioDaLista` do
  * item 14: *"o erro clássico não é escrever mal as frases — é usar uma no lugar da outra, que é uma
- * decisão"*. Escrever *"lista vazia → 'Esta ocorrência está encerrada'"* produziria uma mentira, e a
- * `trabalho/fila-documentacao.md` já registrou isso em 27/08/2026.
+ * decisão"*.
  *
- * **Devolve o PAR, e não só a frase.** A moldura é metade da decisão — tracejado marca **andaime
- * declarado**, e sólido marca **UI de produto**. Devolvendo só o texto, a segunda metade voltaria para o
- * JSX e a página precisaria de `ehTerminal`, contra a regra que ela mantém desde o item 11: **a página
- * não importa o Domínio.**
+ * **Eram TRÊS até o item 27.** O terceiro ramo era a nota de andaime — *"os comandos da ocorrência chegam
+ * nos próximos itens"* —, e o **critério 27.6** o remove: com `avaliar` construído,
+ * `COMANDOS_IMPLEMENTADOS` tem os dez e **não há mais comando por chegar**. A frase passou a ser falsa.
  *
- * **Mora aqui** porque `rotulos.ts` é o módulo do que a tela sabe sobre comandos e status, e porque
- * `ehTerminal` já é superfície pública do Domínio — **o texto não deriva de `TERMINAIS` por conta
- * própria**, ele chama a função que já existe.
+ * **Com o ramo, saíram o campo `andaime`, a moldura tracejada do JSX e o parâmetro `ehGestor`** — a
+ * cascata inteira, e cada peça tem razão: um booleano que nunca varia é ruído; o tracejado marcava
+ * andaime declarado, e não há mais andaime; e `ehGestor` fica **sem uso**.
  *
- * **O TERCEIRO ramo nasceu no item 18** — critério **18.6** —, e ele é o do produto pronto: a partir de
- * `Em atendimento` o Solicitante autor não cancela mais, e a barra dele fica vazia **para sempre**,
- * num estado que não é terminal. Sem este ramo ele leria a nota de andaime — *"os comandos chegam nos
- * próximos itens"* — para uma tela que já chegou. Por isso a moldura é **sólida**: é UI de produto, e
- * não dívida declarada.
+ * **Por que remover `ehGestor` é seguro, e a prova é uma tautologia do próprio código.** A página o define
+ * como `vinculo.pode("ocorrencia.cancelar_qualquer")`. Quem tem essa permissão tem `cancelar` em
+ * `acoesDisponiveis` nos **quatro** estados não terminais — `TRANSICOES` lista `cancelar` nos quatro, a
+ * restrição de autoria só se aplica a quem **não** tem `cancelar_qualquer`, e `cancelar` tem rótulo.
+ * **Logo a barra do Gestor nunca fica vazia fora de estado terminal**, e o ramo que `ehGestor`
+ * selecionava não tinha população. **A tautologia virou asserção** em `testes/interface/ocorrencia.test.ts`.
+ *
+ * *Alternativa recusada — manter `ehGestor` e devolver a frase do 18.6 também ao Gestor:* comportamento
+ * idêntico ao de remover, com um argumento morto na assinatura e nos cinco sítios de chamada.
+ * *Alternativa recusada — estourar no caso impossível:* `rotuloDeStatus` já escreveu a regra oposta neste
+ * projeto, e uma exceção durante o render derrubaria T-05 inteira.
  *
  * **A frase do meio é seca de propósito, e a alternativa foi recusada em voz alta.** *"O atendimento já
  * começou"* — a primeira oração do `detail` publicado do `403` — **é falsa** numa ocorrência que chegou
  * a `pausada` vinda de `em_analise`. A frase escolhida é a única verdadeira nos **dois** estados em que
  * o ramo dispara.
  *
- * **O segundo parâmetro é OBRIGATÓRIO, e não opcional com padrão.** Padrão aqui escolheria em silêncio
- * qual das duas frases um chamador esquecido mostra — e esta função é inteira sobre não mostrar a frase
- * errada. Obrigatório, o compilador cobra os cinco locais que a chamam.
+ * **Mora aqui** porque `rotulos.ts` é o módulo do que a tela sabe sobre comandos e status, e porque
+ * `ehTerminal` já é superfície pública do Domínio — **o texto não deriva de `TERMINAIS` por conta
+ * própria**, ele chama a função que já existe.
  *
- * **`ehGestor` chega como booleano PRONTO, e não como a lista de permissões:** `rotulos.ts` é alcançado
- * por componente de cliente, e receber `permissoes` faria ou a página conhecer o nome da permissão dentro
- * de outro módulo, ou este arquivo virar consumidor de `Permissao`.
- *
- * **O terceiro ramo — o de andaime — nasce inalcançável por navegação nesta fatia**, e não é engano: com
- * `cancelar` renderizável nos quatro estados não terminais, o Gestor nunca mais tem barra vazia fora de
- * estado terminal. **Ele NÃO é removido aqui:** o critério 16.6 manda a nota existir, e o **27.6** é o
- * dono da remoção. Quem construir o item 27 fecha com uma deleção e um teste — e **não vai encontrar a
- * nota tracejada em tela para ver sumir**, porque ela já não aparece desde esta fatia.
+ * **Devolve `string`, e não mais o par** — a moldura deixou de ser decisão quando ficou uma só.
  */
-export function vazioDaBarra(
-  status: StatusOcorrencia,
-  ehGestor: boolean,
-): { texto: string; andaime: boolean } {
-  if (ehTerminal(status)) return { texto: "Esta ocorrência está encerrada.", andaime: false };
-  if (!ehGestor) return { texto: "Só os Gestores podem cancelar a partir daqui.", andaime: false };
-  return { texto: "Os comandos da ocorrência chegam nos próximos itens.", andaime: true };
+export function vazioDaBarra(status: StatusOcorrencia): string {
+  if (ehTerminal(status)) return "Esta ocorrência está encerrada.";
+  return "Só os Gestores podem cancelar a partir daqui.";
 }
 
 /**

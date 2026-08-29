@@ -381,3 +381,40 @@ export function camposDeEvolucaoPrevista(corpo: unknown): readonly string[] {
   if (typeof corpo !== "object" || corpo === null) return [];
   return DE_EVOLUCAO_PREVISTA.filter((campo) => campo in corpo);
 }
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/avaliar` — item 27, e o primeiro corpo com campo NUMÉRICO
+ * ============================================================================
+ *
+ * **`z.int()` e não `z.number()`.** O `openapi.yaml:2058` declara `type: integer`, e `4.5` tem de ser
+ * `400` — não arredondamento silencioso no `smallint` do banco, que inventaria a nota de alguém. É a
+ * forma do Zod 4, a mesma de `z.uuid()` que este arquivo já usa.
+ *
+ * **`.nullish()` sem `.min(1)` no comentário** — o `openapi.yaml:2060` declara `maxLength: 1000` e
+ * **nenhum** `minLength`. Schema mais estrito que a especificação versionada é a divergência do critério
+ * 16.7, do outro lado. **Quem transforma `""` em `null` é o comando de aplicação**, num lugar só.
+ *
+ * **NÃO reusa o `const observacao` de módulo, e é a TERCEIRA vez que isso acontece neste arquivo:** o
+ * campo se chama `comentario`, é de outro endpoint e tem outra mensagem. **O gatilho de extração que o
+ * item 18 nomeou — *"o terceiro campo de texto obrigatório, se o item 27 trouxer um"* — NÃO disparou**,
+ * porque este é opcional. Fica escrito que o gatilho passou sem ser puxado, para o próximo não o
+ * procurar.
+ *
+ * **Sem `corpoOpcional` no `route.ts`**, como `/pausar`, `/cancelar`, `/alterar-prioridade` e
+ * `/registrar-solucao-aplicada`: `requestBody: required: true` (`openapi.yaml:2050`). Corpo ausente é
+ * `415` pelo caminho normal do `comContexto`; corpo `{}` é `400` com `nota` em `erros[]` — o critério
+ * **27.1**.
+ *
+ * **Sem `recusar:`**: este endpoint não declara `observacao` no corpo nem `422` nas respostas. Campo
+ * desconhecido é **descartado** pelo `z.object`, que é o que o contrato descreve.
+ */
+export const avaliacaoSchema = z.object({
+  nota: z
+    .int("Escolha uma nota de 1 a 5.")
+    .min(1, "A nota vai de 1 a 5.")
+    .max(5, "A nota vai de 1 a 5."),
+  comentario: z.string().trim().max(1000, "O comentário cabe em 1000 caracteres.").nullish(),
+});
+
+export type EntradaDeAvaliacao = z.infer<typeof avaliacaoSchema>;
