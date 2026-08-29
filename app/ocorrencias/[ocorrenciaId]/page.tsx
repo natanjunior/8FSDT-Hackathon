@@ -1,11 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
+import {
+  OcorrenciaNaoEncontrada,
+  podeLerOcorrencia,
+  verLinhaDoTempo,
+  verOcorrencia,
+  type EventoLido,
+} from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import {
+  autoria,
+  dataHora,
+  fraseDaAtribuicao,
+  fraseDaTransicao,
+} from "@/interface/componentes/linha-do-tempo";
 import {
   MenuDeOrganizacao,
   type VinculoNoMenu,
@@ -21,7 +34,6 @@ import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
-  nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
   rotuloDePrioridade,
@@ -39,6 +51,7 @@ import {
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
   projetarContexto,
+  projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
 } from "@/interface/projecoes";
 
@@ -153,16 +166,6 @@ export default async function Ocorrencia({
     );
   };
 
-  let lida;
-  try {
-    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
-  } catch (erro) {
-    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
-    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
-    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
-    throw erro;
-  }
-
   // **`escopo.ctx`, nao `escopo.resolucao`.** Depois dos dois `if` acima o TypeScript ja estreitou
   // `escopo` para a variante `"pronto"`, que carrega `ctx` — e `ContextoDaRequisicao` e quem tem
   // `pessoaId` e `vinculo`. `ResolucaoDeContexto` **nao tem `pessoaId`**: la ele mora em
@@ -184,6 +187,39 @@ export default async function Ocorrencia({
     pessoaId: escopo.ctx.pessoaId,
     podeLerTodas: vinculo.pode("ocorrencia.ler_todas"),
   };
+
+  /**
+   * **A linha do tempo parte AQUI, antes do `await` do detalhe — e é a segunda metade do critério 29.5.**
+   *
+   * A promessa não é esperada nesta função: ela desce para dentro do `<Suspense>`, e quem a espera é o
+   * filho. É o idioma de T-03 (`app/ocorrencias/page.tsx:118-127`), e é o que faz os blocos 1 e 2
+   * pintarem sem esperar o banco responder a segunda pergunta.
+   *
+   * **Custo declarado, porque é real:** a página passa a fazer **dois `porId` concorrentes** — um do
+   * detalhe, outro dentro de `verLinhaDoTempo`. É exatamente o que o mundo de três requisições HTTP faria
+   * (cada uma se autoriza sozinha), e ele **não soma latência**, porque as duas partem juntas; soma carga
+   * no banco. A alternativa — esperar o detalhe para só então pedir a linha do tempo — é serializar duas
+   * idas sob cold start, que é o que o critério 29.5 existe para impedir.
+   *
+   * **O `catch` de uma linha não é redundante.** Se a ocorrência não existir, ou se `podeLerOcorrencia`
+   * recusar, esta função **retorna** e ninguém mais espera esta promessa — que vai rejeitar com a mesma
+   * `OcorrenciaNaoEncontrada` e derrubaria o processo como rejeição não tratada. Anexar um tratador a
+   * marca como tratada; **a promessa original continua rejeitando para o `<Suspense>`**, porque `catch`
+   * devolve uma promessa nova em vez de alterar esta.
+   */
+  const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
+  linhaDoTempoPedida.catch(() => undefined);
+
+  let lida;
+  try {
+    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
+  } catch (erro) {
+    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
+    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
+    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
+    throw erro;
+  }
+
   if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
@@ -209,7 +245,6 @@ export default async function Ocorrencia({
   // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
   // diferentes — ver `rotulos.ts`.
   const rotulos = rotulosDeStatus();
-  const nomes = nomesDeStatus();
 
   /**
    * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
@@ -481,13 +516,58 @@ export default async function Ocorrencia({
 
   return (
     <MolduraDeTela titulo={detalhe.titulo}>
-      {/* **Bloco 1 · Identidade.** `statusRotulo` sem rolar — é a resposta literal a "o que aconteceu
-          com o meu pedido?". **A-5:** o status e a prioridade carregam a palavra, sempre. */}
+      {/* **Bloco 1a · Identidade que não pode rolar.** `statusRotulo` sem rolar — é a resposta literal a
+          "o que aconteceu com o meu pedido?". **A-5:** o status carrega a palavra, sempre. */}
       <section className="border-linha bg-superficie flex flex-col gap-2 rounded-md border px-4 py-3.5">
         <span className="text-tinta-fraca text-xs tracking-wide uppercase">Situação</span>
         <span className="text-tinta text-base leading-snug font-semibold">
           {detalhe.statusRotulo}
         </span>
+      </section>
+
+      {/*
+        **Bloco 1b · A última mudança, subida do bloco 3.**
+
+        **Não é invenção desta tela:** é a decisão 1 do D-3 do protótipo (`prototipo-low-fi.md:511-521`),
+        tomada sob o achado **P-08**. O inventário pediu que sem rolar aparecessem *"`statusRotulo`,
+        `titulo`, e a última entrada da linha do tempo"* — e listou a linha do tempo como bloco 3. Os dois
+        não podiam valer ao mesmo tempo, e o desenho parte o bloco 1.
+
+        **E é o que faz o topo pintar com UMA requisição:** `ultimaTransicao` vem dentro do
+        `OcorrenciaDetalhe`, então a resposta a *"o que aconteceu com o meu pedido?"* não espera a linha
+        do tempo. É a outra metade do critério 29.5.
+
+        **Sem observação, a frase entre aspas não existe** — e não se repete o `statusRotulo` para
+        preencher: ele está três linhas acima. A primeira transição de toda ocorrência é a da premissa P1,
+        e ela nasce sem texto.
+      */}
+      <section className="flex flex-col gap-1.5">
+        <h2 className="text-tinta text-sm font-semibold">Última mudança</h2>
+        <p className="text-tinta-fraca text-xs">
+          {autoria(
+            detalhe.ultimaTransicao.autor.nome,
+            detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
+            dataHora(detalhe.ultimaTransicao.ocorreuEm),
+          )}
+        </p>
+        {detalhe.ultimaTransicao.observacao !== null && (
+          <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
+            {`“${detalhe.ultimaTransicao.observacao}”`}
+          </p>
+        )}
+        {/* **O link para a trilha de auditoria NÃO entra** — T-06 não existe como tela e não tem dono
+            (achado A-1 da spec do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele.
+            Este entra porque o destino existe: é uma âncora na própria página. **A-3:** alvo de toque. */}
+        <a
+          href="#linha-do-tempo"
+          className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
+        >
+          ver a linha do tempo →
+        </a>
+      </section>
+
+      {/* **Bloco 1c · O resto da identidade**, que desce sem alteração de conteúdo. */}
+      <section className="border-linha bg-superficie flex flex-col gap-2 rounded-md border px-4 py-3.5">
         {/*
           **A prioridade sai do `<dl>` e vira a linha acima dele** — nas duas formas. `<label htmlFor>`
           dentro de `<dt>` é marcação errada, e o protótipo já a desenha fora da lista de pares nos dois
@@ -533,7 +613,11 @@ export default async function Ocorrencia({
           <dt className="font-medium">Responsável</dt>
           <dd>{detalhe.responsavel?.nome ?? "sem responsável"}</dd>
           <dt className="font-medium">Quando</dt>
-          <dd>{new Date(detalhe.registradaEm).toLocaleString("pt-BR")}</dd>
+          {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC (modelo §2.3), e
+              sem `timeZone` esta linha erra a hora sempre. A decisão está escrita em
+              `app/organizacao/page.tsx:166-177`; o que ela não tinha era um lugar em que a divergência
+              aparecesse na MESMA tela — agora tem: as datas do bloco 3, logo abaixo. */}
+          <dd>{dataHora(detalhe.registradaEm)}</dd>
         </dl>
       </section>
 
@@ -665,23 +749,23 @@ export default async function Ocorrencia({
         </section>
       )}
 
-      {/* **A primeira entrada da trilha** — a prova, para quem acabou de reclamar, de que o pedido
-          existe. É o critério 11.2 visível na interface, e não só em teste. */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-tinta text-sm font-semibold">Histórico</h2>
-        {/*
-          **Este ramo nunca foi alcançável** — nenhuma transição existia —, e é o item 16 que o alcança.
-          Sem o conserto, a tela passaria a dizer *"De aberta para em_analise"* na cara de quem acabou de
-          reclamar. É o achado **A-1** da spec, e a coluna usada é a do **Gestor**: ela é substantivo e
-          sobrevive dentro de *"De X para Y"*, enquanto a do Solicitante é uma oração inteira.
-        */}
-        <p className="text-tinta-suave text-sm">
-          {detalhe.ultimaTransicao.statusAnterior === null
-            ? "Registrada"
-            : `De ${nomes[detalhe.ultimaTransicao.statusAnterior]} para ${nomes[detalhe.ultimaTransicao.statusNovo]}`}{" "}
-          por {detalhe.ultimaTransicao.autor.nome} em{" "}
-          {new Date(detalhe.ultimaTransicao.ocorreuEm).toLocaleString("pt-BR")}.
-        </p>
+      {/*
+        **Bloco 3 · A linha do tempo**, e ela SUBSTITUI a seção *"Histórico"*.
+
+        **A palavra sai do produto, e é o glossário quem manda:** *"«Histórico» sozinho não é termo do
+        projeto — não usar"* (`glossario.md:181-182`), porque colide com **Registro de transição**,
+        **Trilha de auditoria** e **Linha do tempo**. Ela estava lá desde o item 11 por falta de bloco 3.
+
+        **A frase *"De {X} para {Y}"* sai junto**, e com ela o último consumidor de `nomesDeStatus()`
+        nesta tela. A forma passa a ser a do protótipo — rótulo, e não par de nomes internos.
+
+        **O `id` mora AQUI e não no filho**, porque a âncora do bloco 1b precisa existir enquanto o
+        esqueleto está na tela.
+      */}
+      <section id="linha-do-tempo" className="flex flex-col gap-2">
+        <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+          <LinhaDoTempo eventos={linhaDoTempoPedida} pessoaIdDeQuemLe={escopo.ctx.pessoaId} />
+        </Suspense>
       </section>
 
       {/*
@@ -794,5 +878,88 @@ function OcorrenciaNaoEncontradaNaTela({
         Código para suporte: <code className="select-all">{traceId}</code>
       </p>
     </MolduraDeTela>
+  );
+}
+
+/**
+ * **Quem espera a promessa é o filho** — o idioma de T-03 (`Lista`, em `app/ocorrencias/page.tsx`). Mora
+ * dentro deste arquivo pela mesma razão que `Lista` mora dentro do dele: é o precedente da casa, e evita
+ * dois arquivos novos que a ADR-0008 conta.
+ *
+ * **A projeção é a MESMA do endpoint**, e isso não é economia: *"existem dois transportes para a mesma
+ * leitura"* (`contrato-de-api.md` §5), e a estrada direta que projetasse por conta própria deixaria as
+ * duas divergirem.
+ */
+async function LinhaDoTempo({
+  eventos,
+  pessoaIdDeQuemLe,
+}: {
+  eventos: Promise<readonly EventoLido[]>;
+  pessoaIdDeQuemLe: string;
+}) {
+  const itens = (await eventos).map(projetarEventoDaLinhaDoTempo);
+
+  return (
+    <>
+      {/* **A contagem ao lado do título**, como o protótipo (`telas.html:2183`). **Não há estado vazio, e
+          é garantia e não sorte:** a premissa P1 faz o registro da criação nascer com a ocorrência, e o
+          repositório trata trilha vazia como invariante violada. Toda linha do tempo tem ao menos um. */}
+      <h2 className="text-tinta text-sm font-semibold">
+        Linha do tempo <span className="text-tinta-fraca font-normal">{itens.length}</span>
+      </h2>
+      <ol className="flex flex-col gap-3">
+        {itens.map((evento, indice) => (
+          <li key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`} className="flex flex-col gap-0.5">
+            {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. */}
+            <span className="text-tinta-fraca text-xs">
+              {autoria(
+                evento.autor.nome,
+                evento.autor.pessoaId === pessoaIdDeQuemLe,
+                dataHora(evento.ocorridoEm),
+              )}
+            </span>
+            <span className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
+              {evento.tipo === "transicao"
+                ? fraseDaTransicao(evento.rotulo, evento.observacao)
+                : fraseDaAtribuicao(
+                    evento.responsavel.nome,
+                    evento.responsavel.pessoaId === pessoaIdDeQuemLe,
+                  )}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
+/**
+ * O estado 7 do protótipo (`telas.html:2824-2838`): cabeçalho **sem a contagem** — não se conta o que
+ * ainda não chegou — e três eventos em barra cinza. `animate-pulse` é a mesma classe de
+ * `EsqueletoDaLista`.
+ */
+function EsqueletoDaLinhaDoTempo() {
+  return (
+    <>
+      <h2 className="text-tinta text-sm font-semibold">Linha do tempo</h2>
+      <div aria-hidden className="flex flex-col gap-3">
+        {[
+          [46, 88],
+          [52, 74],
+          [40, 92],
+        ].map(([autor, frase]) => (
+          <div key={autor} className="flex flex-col gap-1.5">
+            <div
+              className="bg-secondary h-3 animate-pulse rounded"
+              style={{ width: `${String(autor)}%` }}
+            />
+            <div
+              className="bg-secondary h-4 animate-pulse rounded"
+              style={{ width: `${String(frase)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
