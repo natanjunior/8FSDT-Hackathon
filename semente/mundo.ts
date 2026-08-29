@@ -105,7 +105,18 @@ const SEM_ANEXO = {
 } as unknown as ArmazenamentoDeAnexos;
 
 export type ResumoDaSemeadura = {
-  readonly organizacoes: readonly { nome: string; codigoPublico: string; ocorrencias: number }[];
+  readonly organizacoes: readonly {
+    nome: string;
+    codigoPublico: string;
+    ocorrencias: number;
+    /**
+     * **A tabela mensal desta organização** — critério 32.7. Na ordem dos baldes, do mais antigo para o
+     * mês corrente, e **só os meses em que ela escreveu alguma coisa**.
+     */
+    meses: readonly { rotulo: string; registradas: number; resolvidas: number; avaliadas: number }[];
+    /** **A linha de status desta organização** — critério 32.7. */
+    porStatus: Readonly<Record<string, number>>;
+  }[];
   readonly meses: readonly {
     rotulo: string;
     registradas: number;
@@ -303,6 +314,11 @@ export async function semear(
     porMotivoDePausa: {} as Record<string, number>,
     porMes: new Map<string, { registradas: number; resolvidas: number; avaliadas: number }>(),
     porOrganizacao: new Map<ChaveDeOrganizacao, number>(),
+    porMesDaOrganizacao: new Map<
+      string,
+      { registradas: number; resolvidas: number; avaliadas: number }
+    >(),
+    porStatusDaOrganizacao: new Map<ChaveDeOrganizacao, Record<string, number>>(),
     mensagens: 0,
   };
 
@@ -449,6 +465,16 @@ type Contagem = {
   porMotivoDePausa: Record<string, number>;
   porMes: Map<string, { registradas: number; resolvidas: number; avaliadas: number }>;
   porOrganizacao: Map<ChaveDeOrganizacao, number>;
+  /**
+   * A tabela mensal **por organização** — critério 32.7. A chave é `${organizacao}:${balde}`.
+   *
+   * **Acrescenta em vez de trocar a chave de `porMes`**, e a escolha é deliberada: os critérios 43.1 a
+   * 43.5 se conferem no bloco total, que o item 43 fechou. Reaproveitar `porMes` obrigaria a reconstruir
+   * o total por soma, e um total reconstruído é um total que pode divergir do que já foi aceito.
+   */
+  porMesDaOrganizacao: Map<string, { registradas: number; resolvidas: number; avaliadas: number }>;
+  /** A linha de status **por organização** — critério 32.7. A chave é a organização. */
+  porStatusDaOrganizacao: Map<ChaveDeOrganizacao, Record<string, number>>;
   mensagens: number;
 };
 
@@ -483,6 +509,29 @@ function registrarNaContagem(contagem: Contagem, ocorrencia: OcorrenciaDoPlano):
   if (ocorrencia.statusFinal === "resolvida") mes.resolvidas += 1;
   if (ocorrencia.roteiro.some((passo) => passo.comando === "avaliar")) mes.avaliadas += 1;
   contagem.porMes.set(ocorrencia.balde, mes);
+
+  /**
+   * **O mesmo que acima, recortado pela organização** — critério 32.7, e é o que torna o critério 32.6
+   * conferível: o dashboard é sempre de UMA organização, e o resumo somava as duas.
+   *
+   * `ocorrencia.organizacao` já chegava aqui e já era usado em `porOrganizacao`; o que muda é a chave.
+   */
+  const chaveDoMes = `${ocorrencia.organizacao}:${ocorrencia.balde}`;
+  const mesDaOrganizacao = contagem.porMesDaOrganizacao.get(chaveDoMes) ?? {
+    registradas: 0,
+    resolvidas: 0,
+    avaliadas: 0,
+  };
+  mesDaOrganizacao.registradas += 1;
+  if (ocorrencia.statusFinal === "resolvida") mesDaOrganizacao.resolvidas += 1;
+  if (ocorrencia.roteiro.some((passo) => passo.comando === "avaliar")) {
+    mesDaOrganizacao.avaliadas += 1;
+  }
+  contagem.porMesDaOrganizacao.set(chaveDoMes, mesDaOrganizacao);
+
+  const statusDaOrganizacao = contagem.porStatusDaOrganizacao.get(ocorrencia.organizacao) ?? {};
+  statusDaOrganizacao[ocorrencia.statusFinal] = (statusDaOrganizacao[ocorrencia.statusFinal] ?? 0) + 1;
+  contagem.porStatusDaOrganizacao.set(ocorrencia.organizacao, statusDaOrganizacao);
 }
 
 function montarResumo(
@@ -495,6 +544,19 @@ function montarResumo(
       nome: organizacao.nome,
       codigoPublico: organizacao.codigoPublico,
       ocorrencias: contagem.porOrganizacao.get(chave) ?? 0,
+      // **A mesma ordem dos baldes do bloco total**, e o mesmo filtro: mês em que a organização não
+      // escreveu nada não vira linha — é o que faz a tabela dela ter o tamanho da história dela.
+      meses: plano.baldes
+        .filter((balde) => contagem.porMesDaOrganizacao.has(`${chave}:${balde.rotulo}`))
+        .map((balde) => {
+          const mes = contagem.porMesDaOrganizacao.get(`${chave}:${balde.rotulo}`) ?? {
+            registradas: 0,
+            resolvidas: 0,
+            avaliadas: 0,
+          };
+          return { rotulo: balde.rotulo, ...mes };
+        }),
+      porStatus: contagem.porStatusDaOrganizacao.get(chave) ?? {},
     })),
     // Na ordem dos baldes, do mais antigo para o mês corrente — é o que faz a série ser lida como série.
     meses: plano.baldes

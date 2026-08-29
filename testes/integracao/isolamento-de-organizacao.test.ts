@@ -2,9 +2,11 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+import { mesEmSaoPaulo } from "@/aplicacao/dashboard";
 import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioEscopadoDeAreas,
@@ -212,6 +214,41 @@ beforeAll(async () => {
     // organização, e qual delas é a de B só se sabe lendo.
     if (organizacaoId === idAurora) idDaCategoriaDeB = categoria!.id;
   }
+
+  /**
+   * **A resolução da ocorrência de A — e ela existe para a entrada do dashboard morder.**
+   *
+   * A consulta `resolucoesPorMes` filtra `status_novo = 'resolvida'`, e o mundo da suíte tem as duas
+   * ocorrências `aberta`: sem isto, ela devolveria lista vazia nas duas organizações e o caso passaria
+   * sem provar nada (achado **A-32-7** do plano).
+   *
+   * **Muda a ocorrência que já existe, em vez de criar uma segunda**, e a diferença é obrigatória: as
+   * entradas de `GET /ocorrencias/{id}`, `GET /ocorrencias` e `GET /ocorrencias?categoriaId=` declaram
+   * `esperadas` com **exatamente um** identificador por organização, e uma ocorrência a mais em A as
+   * quebraria. Todas as três usam `id` como chave, então a troca de `status` não alcança nenhuma.
+   *
+   * **A trilha recebe `sequencia = 2`, `aberta → resolvida`.** O banco não valida a máquina de estados —
+   * quem valida é o agregado —, e o `registros_transicao_mudanca_ck` só exige que anterior e novo
+   * difiram. É fixture, não caminho de produção.
+   *
+   * **A nota entra na mesma instrução do `status`** porque o `ocorrencias_avaliacao_ck` exige as três
+   * colunas coerentes **e** `status = 'resolvida'` na mesma linha.
+   */
+  await consulta(
+    `update ocorrencias
+        set status = 'resolvida',
+            avaliacao_nota = 5,
+            avaliada_em = now(),
+            atualizada_em = now()
+      where id = $1 and organizacao_id = $2`,
+    [idDaOcorrenciaEmA, idRecanto],
+  );
+  await consulta(
+    `insert into registros_transicao
+       (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id)
+     values ($1, $2, 2, 'aberta', 'resolvida', $3)`,
+    [idRecanto, idDaOcorrenciaEmA, idSindica],
+  );
 });
 
 afterAll(async () => {
@@ -800,6 +837,82 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [ATRIBUIDA_EM_B];
+      },
+    },
+  });
+
+  /**
+   * **A décima entrada, e a primeira do dashboard (itens 32 a 36).** Ela semeia **apenas o próprio
+   * agregado** — as pessoas, as organizações, as categorias, as áreas e as duas ocorrências são da suíte
+   * (§7.1); o que é dela é a resolução de A, semeada no `beforeAll`.
+   *
+   * **É a única entrada que exercita CINCO consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
+   * funcionar: cada linha vira uma frase que carrega **a dimensão, o rótulo e o número**. Um `$1` perdido
+   * em qualquer uma das cinco muda pelo menos um número ou traz um rótulo da outra organização — e nos
+   * dois casos o conjunto deixa de bater.
+   *
+   * **Os rótulos são únicos por organização, de propósito**: a suíte semeia *"Portaria do Recanto"* contra
+   * *"Portaria da Aurora"* e *"Garagem do Recanto"* contra *"Garagem da Aurora"*. É o que faz o vazamento
+   * aparecer como frase estranha, e não como número maior.
+   *
+   * **A janela é explícita e larga**, nunca a padrão: as ocorrências nascem com `registrada_em = now()`, e
+   * uma janela fixa em datas literais deixaria o caso amarelo em janeiro. `de` no começo do mês corrente
+   * seria frágil na virada; `2000-01-01` até `2099-12-31` não é.
+   *
+   * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
+   * própria suíte: **nenhum dos cinco modelos de leitura expõe `organizacao_id`**, e é assim que o
+   * Definition of Done os quer.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /dashboard",
+    consultar: async (organizacaoId) => {
+      const repo = repositorioEscopadoDeDashboard(escoparConsulta(consulta, organizacaoId));
+      const janela = { de: "2000-01-01", ate: "2099-12-31" };
+
+      const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
+        repo.backlogPorStatus(),
+        repo.backlogPorCategoria(),
+        repo.recorrenciaPorCategoria(janela),
+        repo.recorrenciaPorArea(janela),
+        repo.resolucoesPorMes(janela),
+      ]);
+
+      return [
+        ...status.map((l) => `status:${l.status}:${String(l.quantidade)}`),
+        ...categorias.map((l) => `backlog-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
+        ...porCategoria.map(
+          (l) => `recorrencia-categoria:${l.categoria.nome}:${l.mes}:${String(l.quantidade)}`,
+        ),
+        ...porArea.map((l) => `recorrencia-area:${l.area.nome}:${l.mes}:${String(l.quantidade)}`),
+        ...resolucoes.map(
+          (l) => `resolucao:${l.mes}:${String(l.resolvidas)}:${String(l.avaliadas)}`,
+        ),
+      ];
+    },
+    chaveDaLinha: (frase) => frase,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. É a mesma nota que a entrada de `GET /ocorrencias/{id}` já carrega. E o mês é lido no
+    // instante do caso pela MESMA função que o SQL reproduz com `date_trunc`, para que o caso não vire
+    // vermelho na virada do mês.
+    esperadas: {
+      get emA() {
+        const mes = mesEmSaoPaulo(new Date());
+        return [
+          "status:resolvida:1",
+          "backlog-categoria:Portaria do Recanto:1",
+          `recorrencia-categoria:Portaria do Recanto:${mes}:1`,
+          `recorrencia-area:Garagem do Recanto:${mes}:1`,
+          `resolucao:${mes}:1:1`,
+        ];
+      },
+      get emB() {
+        const mes = mesEmSaoPaulo(new Date());
+        return [
+          "status:aberta:1",
+          "backlog-categoria:Portaria da Aurora:1",
+          `recorrencia-categoria:Portaria da Aurora:${mes}:1`,
+          `recorrencia-area:Garagem da Aurora:${mes}:1`,
+        ];
       },
     },
   });

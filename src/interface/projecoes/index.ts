@@ -2,6 +2,12 @@
 export { projetarContexto, type ContextoProjetado } from "./contexto";
 
 export {
+  projetarDashboard,
+  type DashboardProjetado,
+  type PontoDoMesProjetado,
+} from "./dashboard";
+
+export {
   projetarArea,
   projetarAreaAtualizada,
   projetarCategoria,

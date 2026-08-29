@@ -65,6 +65,7 @@ export {
   lerCursorDaUrl,
   lerCursorDeConversaDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
+  lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,
