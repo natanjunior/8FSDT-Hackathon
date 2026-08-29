@@ -6,6 +6,8 @@ import {
   analisarOcorrencia,
   iniciarAtendimento,
   registrarOcorrencia,
+  resolverOcorrencia,
+  verOcorrencia,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
@@ -15,6 +17,7 @@ import {
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
 } from "@/infraestrutura/repositorios/organizacao";
+import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
@@ -1202,5 +1205,293 @@ describe("o atendimento contra Postgres — item 22", () => {
     );
     // **Não escreveu.** O `organizacao_id = $1` vem do escopo, e o comando nem chegou à escrita.
     expect(linha?.status).toBe("em_analise");
+  });
+});
+
+describe("a resolução contra Postgres — item 26", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.resolver",
+  ];
+
+  /** Quem vai ser o responsável — precisa de vínculo ATIVO nesta organização (D21 como FK). */
+  let executorPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Executor ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+  });
+
+  /** Uma ocorrência nova, pelo caminho de verdade. */
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa acabar.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  /** Leva a ocorrência até `em_atendimento` pelo caminho de verdade — analisar, atribuir, iniciar. */
+  async function emAtendimento(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada(titulo);
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  it("carregar reidrata o agregado COM a solução aplicada gravada", async () => {
+    const id = await emAtendimento("Reidratação da solução");
+
+    // Escrita por fora, de propósito: aqui o que se prova é a LEITURA do agregado, e o único escritor
+    // do produto ainda não rodou neste caso.
+    await consultaCrua(`update ocorrencias set solucao_aplicada = $2 where id = $1`, [
+      id,
+      "Gravada por fora, para provar a leitura.",
+    ]);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+
+    expect(carregada!.ocorrencia.solucaoAplicada).toBe("Gravada por fora, para provar a leitura.");
+  });
+
+  it("aplicarTransicao grava a solução aplicada no MESMO update — e a trilha ganha UM registro", async () => {
+    const id = await emAtendimento("Solução no mesmo commit");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const resolvida = carregada!.ocorrencia.resolver({
+      autorPessoaId: pessoaId,
+      ocorreuEm: new Date().toISOString(),
+      observacao: "Conferido com a moradora.",
+      solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+    });
+
+    const resultado = await portas().ocorrencias.aplicarTransicao(id, resolvida);
+
+    expect(resultado.desfecho).toBe("aplicada");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Uma instrução, duas colunas, um `COMMIT`** — é a metade do critério 25.3 que esta fatia entrega.
+    expect(linha?.status).toBe("resolvida");
+    expect(linha?.solucao_aplicada).toBe("Trocada a lâmpada da vaga 34.");
+
+    const registros = await consultaCrua<{ status_novo: string }>(
+      `select status_novo from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "resolvida",
+    ]);
+  });
+
+  it("resolver SEM solução aplicada não apaga a que já estava na coluna", async () => {
+    const id = await emAtendimento("Preservação em banco");
+
+    await consultaCrua(`update ocorrencias set solucao_aplicada = $2 where id = $1`, [
+      id,
+      "Escrita antes de resolver.",
+    ]);
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    await portas().ocorrencias.aplicarTransicao(
+      id,
+      carregada!.ocorrencia.resolver({
+        autorPessoaId: pessoaId,
+        ocorreuEm: new Date().toISOString(),
+      }),
+    );
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **O agregado carregou o valor e o devolveu.** Sem a coluna no `SELECT_DO_AGREGADO`, o `update`
+    // gravaria `null` aqui — e a coluna congela em `resolvida`, então não haveria conserto.
+    expect(linha?.solucao_aplicada).toBe("Escrita antes de resolver.");
+  });
+
+  it("a corrida: a SEGUNDA aplicação devolve conflito e NÃO escreve a solução", async () => {
+    const id = await emAtendimento("Corrida de resolução");
+
+    const carregada = await portas().ocorrencias.carregar(id);
+    const resolvida = carregada!.ocorrencia.resolver({
+      autorPessoaId: pessoaId,
+      ocorreuEm: new Date().toISOString(),
+      solucaoAplicada: "A primeira ganha.",
+    });
+
+    // O mesmo agregado, aplicado duas vezes: o `where status = 'em_atendimento'` da segunda não acha
+    // linha, porque a primeira já moveu para `resolvida`.
+    expect((await portas().ocorrencias.aplicarTransicao(id, resolvida)).desfecho).toBe("aplicada");
+
+    const segunda = await portas().ocorrencias.aplicarTransicao(
+      id,
+      carregada!.ocorrencia.resolver({
+        autorPessoaId: pessoaId,
+        ocorreuEm: new Date().toISOString(),
+        solucaoAplicada: "A segunda NÃO pode gravar.",
+      }),
+    );
+
+    expect(segunda.desfecho).toBe("conflito");
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **O predicado otimista protege a coluna junto com o status**, porque os dois estão no mesmo
+    // `update`. É a frase da §3.3 da spec conferida — e ela deixa de valer quando o item 25 criar o
+    // segundo escritor, que não move `status` e por isso não é visto por este predicado (achado A-2).
+    expect(linha?.solucao_aplicada).toBe("A primeira ganha.");
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(4);
+  });
+
+  it("o ciclo mínimo: registrar → analisar → atribuir → iniciar → resolver, com QUATRO registros", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Ciclo completo");
+
+    const lida = await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      observacao: "Conferido com a moradora.",
+      solucaoAplicada: "Trocada a lâmpada da vaga 34 e revisado o reator do corredor.",
+    });
+
+    // **`resolvida` existe pela primeira vez em banco, pelo caminho de verdade.**
+    expect(lida.status).toBe("resolvida");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("em_atendimento");
+    expect(lida.solucaoAplicada).toBe(
+      "Trocada a lâmpada da vaga 34 e revisado o reator do corredor.",
+    );
+
+    const registros = await consultaCrua<{ status_novo: string }>(
+      `select status_novo from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "resolvida",
+    ]);
+    // **Um registro para a resolução, mesmo tendo gravado a solução junto** — critério 25.3.
+    expect(registros).toHaveLength(4);
+  });
+
+  it("resolver DUAS vezes dá 409 na segunda, e a trilha continua com quatro — critério 26.5", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Idempotência pela máquina");
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "A primeira, e a única.",
+    });
+
+    const erro = await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Esta NÃO pode entrar.",
+    }).catch((causa: unknown) => causa);
+
+    // **A máquina de estados faz o papel da chave de idempotência** (contrato §7.10).
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "resolvida",
+    );
+    expect(
+      (erro as { extensoes?: Record<string, unknown> }).extensoes?.["acoesDisponiveis"],
+    ).toStrictEqual([]);
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(4);
+
+    const [linha] = await consultaCrua<{ solucao_aplicada: string | null }>(
+      `select solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.solucao_aplicada).toBe("A primeira, e a única.");
+  });
+
+  it("o Solicitante autor NÃO recebe resolver em acoesDisponiveis — o critério 26.3 onde ele é decidível", async () => {
+    /**
+     * **O `403` do critério 26.3 é do `comContexto`, e este caminho não passa por ele** (D-P3, furo
+     * F-5): chamar `resolverOcorrencia` com permissões pobres **teria sucesso**, porque o autor enxerga
+     * a própria ocorrência e a transição está permitida. O que é decidível aqui é a metade que a tela
+     * consome — e é a que impede o botão de existir.
+     */
+    const id = await emAtendimento("O autor não resolve");
+
+    const lida = await verOcorrencia(portas().ocorrencias, id);
+    const doAutor = projetarOcorrenciaDetalhe(lida, {
+      pessoaId,
+      permissoes: ["ocorrencia.ler_propria", "ocorrencia.cancelar_propria", "ocorrencia.avaliar"],
+    });
+
+    expect(doAutor.acoesDisponiveis).not.toContain("resolver");
+    expect(doAutor.acoesDisponiveis).toStrictEqual([]);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não resolve — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await emAtendimento("Isolamento da resolução");
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho26 ${SUFIXO}`, `V6${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      resolverOcorrencia(deOutra, ctx, { ocorrenciaId: id, solucaoAplicada: "Da organização errada." }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Não escreveu nem o status nem a coluna nova.** O `organizacao_id = $1` vem do escopo, e o
+    // comando nem chegou à escrita.
+    expect(linha?.status).toBe("em_atendimento");
+    expect(linha?.solucao_aplicada).toBeNull();
   });
 });

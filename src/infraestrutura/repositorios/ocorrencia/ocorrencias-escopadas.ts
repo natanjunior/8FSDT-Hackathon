@@ -252,6 +252,9 @@ type LinhaDoAgregado = {
   status: OcorrenciaLida["status"];
   prioridade: OcorrenciaLida["prioridade"];
   registrada_em: Date;
+  /** **Coluna de `ocorrencias`, e portanto DENTRO do agregado** — ao contrário de `tem_responsavel`,
+   *  logo abaixo, que viaja ao lado dele no envelope. */
+  solucao_aplicada: string | null;
   /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
    *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
   tem_responsavel: boolean;
@@ -281,6 +284,7 @@ const SELECT_DO_AGREGADO = `
          o.status,
          o.prioridade,
          o.registrada_em,
+         o.solucao_aplicada,
          exists (select 1
                    from atribuicoes at
                   where at.ocorrencia_id = o.id
@@ -308,6 +312,7 @@ function montarAgregado(linha: LinhaDoAgregado, trilha: readonly LinhaDeTransica
     registradaEm: linha.registrada_em.toISOString(),
     status: linha.status,
     prioridade: linha.prioridade,
+    solucaoAplicada: linha.solucao_aplicada,
     trilha: trilha.map((registro) =>
       RegistroDeTransicao.reconstituir({
         sequencia: registro.sequencia,
@@ -671,13 +676,18 @@ export function repositorioEscopadoDeOcorrencias(
       return emTransacao(async (executar) => {
         // Os `::` não são decoração: sem eles o Postgres compara `unknown` com `status_ocorrencia` e a
         // resolução passa a depender de inferência — a mesma razão dos casts do `listar`, logo abaixo.
+        //
+        // **`solucao_aplicada` entra AQUI, e não numa segunda instrução** (item 26): a coluna é da raiz
+        // do agregado, o `update` já toca a linha certa, e duas escritas onde uma serve criariam a
+        // pergunta *"qual das duas ganha se a outra falhar"* dentro de um `COMMIT` que já é atômico.
+        // **O valor vem do agregado** — este método transcreve, não decide.
         const movidas = await executar<{ id: string }>(
           `update ocorrencias
-              set status = $4::status_ocorrencia, atualizada_em = $5
+              set status = $4::status_ocorrencia, atualizada_em = $5, solucao_aplicada = $6
             where organizacao_id = $1 and id = $2 and status = $3::status_ocorrencia
           returning id`,
           // `atualizada_em` recebe o INSTANTE DA TRANSIÇÃO, nunca `now()` (arquitetura.md §5.8).
-          [id, anterior, ocorrencia.status, registro.ocorreuEm],
+          [id, anterior, ocorrencia.status, registro.ocorreuEm, ocorrencia.solucaoAplicada],
         );
 
         if (movidas[0] === undefined) return { desfecho: "conflito" as const };

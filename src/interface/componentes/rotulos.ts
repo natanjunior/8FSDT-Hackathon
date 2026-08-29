@@ -1,4 +1,10 @@
-import { STATUS, type Comando, type Prioridade, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import {
+  ehTerminal,
+  STATUS,
+  type Comando,
+  type Prioridade,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 import { nomeDoStatus, rotuloDeStatus } from "@/interface/projecoes";
 
 /**
@@ -33,6 +39,7 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
   analisar: "Analisar",
   "atribuir-responsavel": "Atribuir",
   "iniciar-atendimento": "Iniciar atendimento",
+  resolver: "Resolver",
 };
 
 /** `null` quando o comando não é botão desta barra — ou porque não foi construído, ou porque a forma
@@ -88,6 +95,41 @@ export function acaoPrimaria(
   const nomeada = ACAO_PRIMARIA[status];
   if (nomeada !== null && renderizaveis.includes(nomeada)) return nomeada;
   return renderizaveis[0] ?? null;
+}
+
+/**
+ * ============================================================================
+ *  As duas frases do vazio da barra — o critério 26.6 e o 16.6, irmãos
+ * ============================================================================
+ *
+ * A barra pode ficar vazia por **duas razões diferentes**, e só uma delas é sobre o produto pronto:
+ *
+ * | Por que está vazia | O que a tela mostra |
+ * |---|---|
+ * | O status é **terminal** — nada mais será possível | *"Esta ocorrência está encerrada."*, em moldura sólida |
+ * | O status **não** é terminal, e os comandos ainda não foram construídos | a nota de andaime, em moldura tracejada |
+ *
+ * **Mora numa função com teste, e não num `?:` dentro do JSX**, pela mesma razão que o `vazioDaLista` do
+ * item 14: *"o erro clássico não é escrever mal as frases — é usar uma no lugar da outra, que é uma
+ * decisão"*. Escrever *"lista vazia → 'Esta ocorrência está encerrada'"* produziria uma mentira, e a
+ * `trabalho/fila-documentacao.md` já registrou isso em 27/08/2026.
+ *
+ * **Devolve o PAR, e não só a frase.** A moldura é metade da decisão — tracejado marca **andaime
+ * declarado**, e sólido marca **UI de produto**. Devolvendo só o texto, a segunda metade voltaria para o
+ * JSX e a página precisaria de `ehTerminal`, contra a regra que ela mantém desde o item 11: **a página
+ * não importa o Domínio.**
+ *
+ * **Mora aqui** porque `rotulos.ts` é o módulo do que a tela sabe sobre comandos e status, e porque
+ * `ehTerminal` já é superfície pública do Domínio — **o texto não deriva de `TERMINAIS` por conta
+ * própria**, ele chama a função que já existe.
+ *
+ * **O segundo ramo sai no item 27** (critério 27.6): com `avaliar` construído, `COMANDOS_IMPLEMENTADOS`
+ * terá os dez e a frase de andaime passa a ser falsa. A partir de lá esta função tem um ramo só.
+ */
+export function vazioDaBarra(status: StatusOcorrencia): { texto: string; andaime: boolean } {
+  return ehTerminal(status)
+    ? { texto: "Esta ocorrência está encerrada.", andaime: false }
+    : { texto: "Os comandos da ocorrência chegam nos próximos itens.", andaime: true };
 }
 
 /**

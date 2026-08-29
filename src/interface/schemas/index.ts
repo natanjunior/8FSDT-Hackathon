@@ -44,9 +44,11 @@ export {
   camposSemDestino,
   comandoComObservacaoSchema,
   registroDeOcorrenciaSchema,
+  resolucaoSchema,
   type EntradaDeAtribuicaoDeResponsavel,
   type EntradaDeComandoComObservacao,
   type EntradaDeRegistroDeOcorrencia,
+  type EntradaDeResolucao,
 } from "./ocorrencia";
 
 export {

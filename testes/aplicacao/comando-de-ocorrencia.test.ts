@@ -5,6 +5,7 @@ import {
   atribuirResponsavel,
   iniciarAtendimento,
   OcorrenciaNaoEncontrada,
+  resolverOcorrencia,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
@@ -41,6 +42,7 @@ const DO_GESTOR = [
   "ocorrencia.analisar",
   "ocorrencia.atribuir",
   "ocorrencia.iniciar_atendimento",
+  "ocorrencia.resolver",
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
 ];
@@ -57,6 +59,7 @@ function agregadoEm(status: StatusOcorrencia): Ocorrencia {
     registradaEm: "2026-08-25T13:02:11.000Z",
     status,
     prioridade: "normal",
+    solucaoAplicada: null,
     trilha: [
       RegistroDeTransicao.reconstituir({
         sequencia: 1,
@@ -90,7 +93,12 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
     anexos: [],
     autor,
     responsavel: null,
-    solucaoAplicada: null,
+    /**
+     * **O duplo TRANSCREVE, como o repositório de verdade transcreve.** Era `null` chumbado, e a partir
+     * do item 26 isso seria mentira: `resolver` grava a coluna, e um duplo que sempre devolvesse `null`
+     * faria o caso *"com solução aplicada"* passar provando o contrário do que promete.
+     */
+    solucaoAplicada: agregado.solucaoAplicada,
     avaliacao: null,
     motivoPausa: null,
     ultimaTransicao: {
@@ -553,5 +561,115 @@ describe("iniciarAtendimento", () => {
         { ocorrenciaId: ID },
       ),
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+describe("resolverOcorrencia", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-29T10:05:00.000Z" };
+
+  it("caminho feliz: o agregado ATRAVESSADO chega ao repositório em resolvida, com dois registros", async () => {
+    const lida = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")] }),
+      ctx,
+      { ocorrenciaId: ID, observacao: "Conferido com a moradora." },
+    );
+
+    // **O que o duplo recebeu**, e é o que prova que o comando atravessou o agregado: se ele montasse um
+    // DTO, o `status` do que chega ao repositório sumiria em vez de continuar certo por acidente.
+    expect(aplicados).toHaveLength(1);
+    expect(aplicados[0]!.status).toBe("resolvida");
+    expect(aplicados[0]!.trilha).toHaveLength(2);
+    expect(aplicados[0]!.ultimaTransicao.statusAnterior).toBe("em_atendimento");
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBe("Conferido com a moradora.");
+    // **O instante é o do contexto**, lido uma vez, e não `new Date()` de dentro do comando.
+    expect(aplicados[0]!.ultimaTransicao.ocorreuEm).toBe("2026-08-29T10:05:00.000Z");
+    expect(lida.status).toBe("resolvida");
+  });
+
+  it("com solucaoAplicada, o texto chega ao repositório DENTRO do agregado", async () => {
+    const lida = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")] }),
+      ctx,
+      { ocorrenciaId: ID, solucaoAplicada: "Trocada a lâmpada da vaga 34." },
+    );
+
+    // **Dentro do agregado, e não ao lado dele** — é a §3.3 da spec: `aplicarTransicao` transcreve o que
+    // o agregado decidiu, e não recebe extras por fora.
+    expect(aplicados[0]!.solucaoAplicada).toBe("Trocada a lâmpada da vaga 34.");
+    expect(lida.solucaoAplicada).toBe("Trocada a lâmpada da vaga 34.");
+  });
+
+  it("sem solucaoAplicada, nada é escrito na coluna — e um registro só é criado", async () => {
+    await resolverOcorrencia(repositorio({ cargas: [agregadoEm("em_atendimento")] }), ctx, {
+      ocorrenciaId: ID,
+    });
+
+    expect(aplicados[0]!.solucaoAplicada).toBeNull();
+    // **Um registro de transição, nunca dois** — é a metade do critério 25.3 e a invariante 2.
+    expect(aplicados[0]!.trilha).toHaveLength(2);
+  });
+
+  it("os dois campos em branco viram null — string vazia numa trilha append-only é ruído", async () => {
+    await resolverOcorrencia(repositorio({ cargas: [agregadoEm("em_atendimento")] }), ctx, {
+      ocorrenciaId: ID,
+      observacao: "   ",
+      solucaoAplicada: "   ",
+    });
+
+    expect(aplicados[0]!.ultimaTransicao.observacao).toBeNull();
+    // **Vazio é AUSENTE, não apagamento** — o agregado o trata como *não informado* e preserva.
+    expect(aplicados[0]!.solucaoAplicada).toBeNull();
+  });
+
+  it("fora de em_atendimento dá 409 TRANSICAO_NAO_PERMITIDA, com statusAtual e acoesDisponiveis", async () => {
+    for (const status of ["aberta", "em_analise", "pausada", "resolvida", "cancelada"] as const) {
+      aplicados = [];
+
+      const erro = await resolverOcorrencia(repositorio({ cargas: [agregadoEm(status)] }), ctx, {
+        ocorrenciaId: ID,
+      }).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe(status);
+      expect((erro as TransicaoNaoPermitida).extensoes["acoesDisponiveis"]).toBeDefined();
+      // **Nenhum registro é criado na recusa** — critério 26.2, e é estrutural: o `insert` só existe
+      // dentro de `aplicarTransicao`.
+      expect(aplicados).toHaveLength(0);
+    }
+  });
+
+  it("o segundo resolver na mesma ocorrência é o mesmo 409 — a máquina é a chave de idempotência", async () => {
+    // Critério 26.5, na camada em que ele é decidido: a ocorrência já está `resolvida`, e
+    // `transicaoPermitida` responde `false`. Nunca uma segunda resolução.
+    const erro = await resolverOcorrencia(repositorio({ cargas: [agregadoEm("resolvida")] }), ctx, {
+      ocorrenciaId: ID,
+      solucaoAplicada: "Uma segunda tentativa de escrever.",
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("ocorrência inexistente dá 404, e nada é aplicado", async () => {
+    const erro = await resolverOcorrencia(repositorio({ cargas: [null] }), ctx, {
+      ocorrenciaId: ID,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("o conflito relê e responde com o status de AGORA, não com o da leitura", async () => {
+    // A corrida do contrato §7.9: o `update … where status = 'em_atendimento'` não achou linha. A
+    // releitura é o que faz a frase de T-05 dizer onde a ocorrência está agora.
+    const erro = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento"), agregadoEm("resolvida")], conflito: true }),
+      ctx,
+      { ocorrenciaId: ID },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
+    expect(carregados).toHaveLength(2);
   });
 });
