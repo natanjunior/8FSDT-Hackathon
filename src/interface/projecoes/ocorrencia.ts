@@ -1,9 +1,12 @@
 import type {
+  ComentarioLido,
+  CursorDeConversa,
   CursorDeListagem,
   EventoLido,
   FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
+  PaginaDeConversa,
   PaginaDeOcorrencias,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
@@ -349,7 +352,7 @@ export function projetarTransicao(lida: TransicaoLida) {
 
 /**
  * ============================================================================
- *  Os eventos da linha do tempo — DUAS formas hoje, três no dia do item 30
+ *  Os eventos da linha do tempo — as TRÊS formas, desde o item 30
  * ============================================================================
  *
  * **Por que não reusar `projetarTransicao`.** Os nomes divergem no contrato **de propósito**: a trilha diz
@@ -366,9 +369,10 @@ export function projetarTransicao(lida: TransicaoLida) {
  * **Custo declarado, para ninguém marcar como defeito:** até o 31, o Gestor lê a linha do tempo no
  * vocabulário do Solicitante. É a mesma divergência que T-03 e T-05 carregam desde o item 23.
  *
- * **A terceira forma — `mensagem` — não é produzida nesta fatia**, e não é esquecimento: a tabela
- * `mensagens` não existe em nenhuma das oito migrações, e o canal 1 é o item 30. O `openapi.yaml` já
- * publica o `EventoMensagem`, e o achado A-1 da spec registra que nenhum critério do 30 o reivindica.
+ * **As TRÊS formas existem desde o item 30.** `mensagem` é a última, e ela fecha o `oneOf` que o
+ * `openapi.yaml` publica desde sempre. **O mesmo texto aparece no bloco 4 de T-05**, sem aspas — e a
+ * duplicação é intencional, não defeito a corrigir: a linha do tempo diz *o que aconteceu*, a conversa é
+ * *onde se escreve* (critério 30.8).
  */
 export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
   if (evento.tipo === "atribuicao") {
@@ -381,6 +385,17 @@ export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
       responsavel: evento.atribuicao.responsavel,
       encerradaEm: evento.atribuicao.encerradaEm,
       motivoEncerramento: evento.atribuicao.motivoEncerramento,
+    };
+  }
+
+  if (evento.tipo === "mensagem") {
+    // **O `EventoMensagem` do contrato, e ele tem quatro campos.** Sem `id`: a linha do tempo não é
+    // caminho para alcançar uma mensagem, e o `oneOf` publicado não o traz.
+    return {
+      tipo: "mensagem" as const,
+      ocorridoEm: evento.ocorridoEm,
+      autor: evento.mensagem.autor,
+      texto: evento.mensagem.texto,
     };
   }
 
@@ -550,3 +565,69 @@ export function projetarPaginaDeOcorrencias(pagina: PaginaDeOcorrencias) {
 }
 
 export type PaginaDeOcorrenciasProjetada = ReturnType<typeof projetarPaginaDeOcorrencias>;
+
+/**
+ * O schema `Comentario` do contrato — `{id, texto, autor, criadoEm}` e nada mais.
+ *
+ * **É cópia de campo, e é de propósito.** `ComentarioLido` e o schema publicado têm hoje exatamente os
+ * mesmos quatro campos, e devolver o modelo de leitura cru faria o payload seguir qualquer coluna que a
+ * porta viesse a ganhar — que é como um `canalId` chega ao cliente sem ninguém decidir.
+ */
+export function projetarComentario(lido: ComentarioLido) {
+  return {
+    id: lido.id,
+    texto: lido.texto,
+    autor: lido.autor,
+    criadoEm: lido.criadoEm,
+  };
+}
+
+export type ComentarioProjetado = ReturnType<typeof projetarComentario>;
+
+/**
+ * O cursor da conversa, **reusando o codificador que já existe**.
+ *
+ * `codificarCursor`/`decodificarCursor` codificam `base64url` de `data|uuid` e validam na volta *duas
+ * partes, uma data que o `Date.parse` entende, e um `uuid`*. **A validação é genérica; só o nome do campo
+ * é da listagem.** Dois adaptadores de três linhas custam menos que a segunda cópia dessa validação — e a
+ * cópia da validação é a que sempre diverge.
+ *
+ * *Recusado — reusar `CursorDeListagem` cru:* faria `registradaEm` carregar o `criado_em` de uma
+ * mensagem, e o nome mentiria em `portas.ts`, em `conversa.ts` e no SQL.
+ * *Recusado — generalizar o tipo para `{ instante, id }`:* é o certo a longo prazo, e custa renomear um
+ * campo em seis sítios do código do 14 e do 15, que esta fatia não tem outra razão para abrir. **Fica
+ * declarado como o conserto barato do dia em que houver um terceiro recurso paginado.**
+ */
+export function codificarCursorDeConversa(cursor: { criadoEm: string; id: string }): string {
+  return codificarCursor({ registradaEm: cursor.criadoEm, id: cursor.id });
+}
+
+export function decodificarCursorDeConversa(bruto: string): CursorDeConversa | null {
+  const cursor = decodificarCursor(bruto);
+  return cursor === null ? null : { criadoEm: cursor.registradaEm, id: cursor.id };
+}
+
+/**
+ * O envelope de `GET /ocorrencias/{id}/comentarios` — **e o da estrada direta do bloco 4**, que é a mesma
+ * função.
+ *
+ * **`proximoCursor` é o do último item devolvido, e só existe com `temMais`** — a mesma regra de
+ * `projetarPaginaDeOcorrencias`, e pela mesma razão: um cursor emitido sem haver próxima página produz um
+ * *Carregar mais* que devolve zero itens.
+ *
+ * **Sem `total`, de propósito** (contrato §7.7). É por isso que a tela só mostra a contagem quando
+ * `proximoCursor` é nulo: o número que ela tem é *"quantas foram carregadas"*.
+ */
+export function projetarPaginaDeComentarios(pagina: PaginaDeConversa) {
+  const ultimo = pagina.itens[pagina.itens.length - 1];
+
+  return {
+    itens: pagina.itens.map(projetarComentario),
+    proximoCursor:
+      pagina.temMais && ultimo !== undefined
+        ? codificarCursorDeConversa({ criadoEm: ultimo.criadoEm, id: ultimo.id })
+        : null,
+  };
+}
+
+export type PaginaDeComentariosProjetada = ReturnType<typeof projetarPaginaDeComentarios>;

@@ -174,6 +174,37 @@ export type EntradaDeSolucaoAplicada = z.infer<typeof solucaoAplicadaSchema>;
 
 /**
  * ============================================================================
+ *  O corpo de `POST …/comentarios` — item 30
+ * ============================================================================
+ *
+ * **Um campo, obrigatório, com piso e teto** — `minLength: 1, maxLength: 4000` do `openapi.yaml`.
+ *
+ * **`.trim()` primeiro, checagens depois** — a ordem importa na cadeia do zod, e é a que `pausaSchema` e
+ * `solucaoAplicada` já usam: `"   "` é aparado e então reprovado pelo piso, em vez de passar por ter três
+ * caracteres. **Quem apara é o schema, num lugar só**, e é por isso que a tela manda o que a pessoa
+ * digitou sem aparar.
+ *
+ * **Sem `const` de módulo**, ao contrário de `solucaoAplicada` e de `observacao`: o campo `texto` tem
+ * **um** endpoint, e um `const` com um consumidor é indireção sem ganho. Se a nota interna nascer com o
+ * mesmo corpo, esse é o dia de extrair.
+ *
+ * **Nada de `recusar:` no `route.ts`, e a razão é do contrato.** Este endpoint declara **um** campo e
+ * **não declara `422`** nas respostas — responder um status que a especificação versionada não lista para
+ * a operação é a divergência do critério 16.7 do avesso. Campo desconhecido é **descartado** pelo
+ * `z.object`, que é o que o contrato descreve.
+ */
+export const comentarioSchema = z.object({
+  texto: z
+    .string()
+    .trim()
+    .min(1, "Escreva a mensagem.")
+    .max(4000, "A mensagem cabe em 4000 caracteres."),
+});
+
+export type EntradaDeComentario = z.infer<typeof comentarioSchema>;
+
+/**
+ * ============================================================================
  *  O corpo de `POST …/resolver` — o primeiro comando com DOIS campos
  * ============================================================================
  *

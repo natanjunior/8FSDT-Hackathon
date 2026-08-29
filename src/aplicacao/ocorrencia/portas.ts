@@ -59,6 +59,50 @@ export type AtribuicaoLida = {
 };
 
 /**
+ * Uma mensagem do canal 1, como a leitura a devolve — a **terceira** fonte da linha do tempo (item 30).
+ *
+ * **É o schema `Comentario` do contrato, e é ele inteiro** — `{id, texto, autor{pessoaId,nome},
+ * criadoEm}` (`openapi.yaml`). O `canalId` **não** está aqui: o canal é detalhe de armazenamento, e o
+ * contrato não o publica em lugar nenhum. Expô-lo convidaria um cliente a construir
+ * `/canais/{id}/mensagens`, que é o caminho que a §8.6 recusou por escrito.
+ *
+ * **Não há `editadoEm` nem `excluidoEm`, e a ausência é o critério 30.3.** Não há coluna, não há método
+ * na porta, e não há `export` na rota.
+ */
+export type ComentarioLido = {
+  id: string;
+  texto: string;
+  autor: PessoaReferencia;
+  /** ISO 8601 — a conversão do `timestamptz` acontece no repositório. */
+  criadoEm: string;
+};
+
+/**
+ * O ponto de retomada da conversa: **o par que a ordenação da conversa usa**.
+ *
+ * **É um tipo próprio e não `CursorDeListagem`, e a razão é o nome.** `CursorDeListagem` diz
+ * `registradaEm`, que é campo da ocorrência; carregar nele o `criado_em` de uma mensagem faria o nome
+ * mentir aqui, em `conversa.ts` e no SQL. **Generalizar os dois para `{ instante, id }` é o certo a
+ * longo prazo** e custa renomear um campo em seis sítios do código do 14 e do 15, que esta fatia não tem
+ * outra razão para abrir — fica declarado como o conserto barato do dia em que houver um **terceiro**
+ * recurso paginado.
+ */
+export type CursorDeConversa = { criadoEm: string; id: string };
+
+/** O que a leitura paginada da conversa recebe. Quem chama pede **uma linha a mais** do que devolve. */
+export type PaginaDeMensagens = { limite: number; cursor: CursorDeConversa | null };
+
+/**
+ * O que a escrita da mensagem recebe.
+ *
+ * **`em` viaja ao lado, como nas três portas irmãs** (`registrarSolucaoAplicada`, `alterarPrioridade`,
+ * `avaliar`): `atualizada_em` não é campo da raiz, e aqui não há registro de transição de onde tirá-lo.
+ * **Um relógio, lido uma vez** — o mesmo instante carimba `mensagens.criado_em`,
+ * `canais_conversa.criado_em` (quando o canal nasce) e `ocorrencias.atualizada_em`.
+ */
+export type DadosDaMensagem = { autorPessoaId: string; texto: string; em: string };
+
+/**
  * Um anexo, do jeito que a leitura o devolve — o schema `Anexo` do contrato, menos as URLs.
  *
  * **Repare no que NÃO está aqui: `chave` e `thumbnail_chave`.** *"A chave nunca sai"* (modelo §2.8) deixa
@@ -497,6 +541,56 @@ export interface RepositorioEscopadoDeOcorrencias {
    * `UPDATE` de propósito, e quem o faz é `atribuirResponsavel`. O que esta porta não faz é escrever.
    */
   atribuicoes(ocorrenciaId: string): Promise<readonly AtribuicaoLida[]>;
+  /**
+   * **Uma página da conversa, do mais antigo para o mais recente** — canal 1, pelo índice
+   * `mensagens_do_canal_ix (canal_id, criado_em)` da migração 009.
+   *
+   * **Ordem crescente, e ela é do contrato** (`openapi.yaml`: *"Página de comentários, do mais antigo
+   * para o mais recente"*), não desta porta. A consequência — numa conversa maior que o `limite`, as
+   * mensagens novas estão na **última** página — está declarada no achado **A-2** da spec, com a
+   * volumetria que a torna rara (2,5 mensagens por canal, §12 do modelo).
+   *
+   * Devolve **até** `pagina.limite` linhas. Saber se há mais é de quem chamou — ele pede uma a mais.
+   */
+  comentarios(ocorrenciaId: string, pagina: PaginaDeMensagens): Promise<readonly ComentarioLido[]>;
+  /**
+   * **TODAS as mensagens da ocorrência, sem limite e sem cursor** — a terceira fonte da linha do tempo
+   * (critério 30.7), e a irmã de `trilha` e de `atribuicoes`, que também não paginam.
+   *
+   * **É a única das três fontes sem limite natural**, e o custo está declarado: a trilha é limitada pela
+   * máquina de estados (~10), as atribuições pelas reatribuições, e as mensagens por ninguém —
+   * `POST /comentarios` não tem limite de chamadas nem chave de idempotência (contrato §7.10). **A
+   * aposta é a volumetria da §12 do modelo.** Declarar um teto é mudança de `openapi.yaml`, e é do hub.
+   *
+   * **Método separado de `comentarios`, e não um `limite` opcional.** A linha do tempo nunca pagina, e
+   * um parâmetro que ela nunca usa mentiria sobre a leitura. O SQL é o mesmo; só a cauda muda.
+   */
+  mensagens(ocorrenciaId: string): Promise<readonly ComentarioLido[]>;
+  /**
+   * **Publica no canal 1, em UM `COMMIT` — e o canal nasce aqui, se ainda não existir.**
+   *
+   * Quatro instruções e uma releitura, na ordem: o `insert … on conflict do nothing` do canal; o
+   * `select` que lê o `id` — **a única fonte do identificador**, exista o canal de antes ou de agora; o
+   * `insert` da mensagem; o `update ocorrencias set atualizada_em`; e a releitura da mensagem de dentro
+   * da transação.
+   *
+   * **O caminho da primeira mensagem e o da milésima são o mesmo caminho, sem `if`.** É o que faz a
+   * corrida ser ruído em vez de informação: dois Gestores comentando ao mesmo tempo numa ocorrência sem
+   * canal — um dos dois `insert` perde para `canais_conversa_tipo_uk`, o `on conflict do nothing` o
+   * absorve, e o `select` seguinte devolve o mesmo `id` para os dois. É o oposto de
+   * `atribuicoes_vigente_uk`, onde a corrida é informação e vira `409`.
+   *
+   * **Não escreve `status` e não escreve na trilha**, e a ausência é estrutural: o método não tem a
+   * instrução. `ocorrencias` recebe **uma** coluna, `atualizada_em` — porque o carimbo não quer dizer
+   * *"esta linha mudou"*, e sim *"houve atividade nesta ocorrência"*, o que **inclui mensagem nova, que
+   * é `INSERT` em outra tabela** (`arquitetura.md` §5.8, que cita este caso pelo nome).
+   *
+   * **Não devolve desfecho, e a ausência de `ResultadoDa…` é decisão:** não há predicado de estado a
+   * reprovar. Comentar é admitido nos **seis** estados — o contrato não publica
+   * `409 TRANSICAO_NAO_PERMITIDA` neste endpoint —, e a ocorrência de outra organização já virou `404`
+   * na Aplicação, antes de esta transação começar.
+   */
+  comentar(ocorrenciaId: string, dados: DadosDaMensagem): Promise<ComentarioLido>;
 }
 
 /** O que o comando de aplicação precisa. Nomeado para o teste montar só isto. */

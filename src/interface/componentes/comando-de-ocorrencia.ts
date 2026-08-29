@@ -75,3 +75,60 @@ export async function executarComando(
     return { ok: false, aviso: MENSAGEM_GENERICA };
   }
 }
+
+/** O que o `201` traz — o schema `Comentario` do contrato, projetado. */
+export type ComentarioDoEnvio = {
+  id: string;
+  texto: string;
+  autor: { pessoaId: string; nome: string };
+  criadoEm: string;
+};
+
+export type ResultadoDoEnvio =
+  | { ok: true; comentario: ComentarioDoEnvio }
+  | { ok: false; aviso: string };
+
+/**
+ * `POST /api/ocorrencias/{id}/comentarios` — **a irmã de `executarComando`, e não o décimo primeiro
+ * comando.**
+ *
+ * **Compartilha o corpo do `fetch`**: `cabecalhosDeEscrita(organizacaoId)` — a afirmação de organização
+ * do item 7b —, o `detail` do problema como aviso, a `MENSAGEM_GENERICA` e o `catch` de rede caída.
+ *
+ * **O que ela NÃO tem é o ramo do `409 TRANSICAO_NAO_PERMITIDA`**, e por isso não recebe
+ * `rotulosDeStatus`: comentar não é comando, e o contrato **não publica** aquele erro neste endpoint.
+ * Comenta-se nos seis estados.
+ *
+ * **Devolve o comentário inteiro no sucesso**, ao contrário de `executarComando`, que devolve `{ok:true}`
+ * e deixa o repinte trazer o resto. Aqui o repinte **não bastaria**: a primeira página da conversa é a
+ * **mais antiga**, então numa conversa de 25 mensagens a recém-escrita não estaria nela. O `201` traz o
+ * objeto inteiro — critério 30.1 —, e é ele que a lista local acrescenta.
+ *
+ * *Recusado — passar `"comentarios"` no parâmetro `comando` de `executarComando`:* a URL bateria, e a
+ * função passaria a chamar de comando o que `Comando.ts` declara, em noventa linhas, que não é um.
+ * *Recusado — um módulo novo com o segundo `fetch`:* é a segunda cópia do tratamento de erro.
+ */
+export async function enviarComentario(
+  ocorrenciaId: string,
+  texto: string,
+  organizacaoId: string,
+): Promise<ResultadoDoEnvio> {
+  try {
+    const resposta = await fetch(`/api/ocorrencias/${ocorrenciaId}/comentarios`, {
+      method: "POST",
+      headers: cabecalhosDeEscrita(organizacaoId),
+      body: JSON.stringify({ texto }),
+    });
+
+    if (resposta.ok) {
+      return { ok: true, comentario: (await resposta.json()) as ComentarioDoEnvio };
+    }
+
+    const problema = (await resposta.json().catch(() => ({}))) as { detail?: string };
+    return { ok: false, aviso: problema.detail ?? MENSAGEM_GENERICA };
+  } catch {
+    // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
+    // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
+    return { ok: false, aviso: MENSAGEM_GENERICA };
+  }
+}

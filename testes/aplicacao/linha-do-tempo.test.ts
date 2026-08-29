@@ -4,6 +4,7 @@ import {
   OcorrenciaNaoEncontrada,
   verLinhaDoTempo,
   type AtribuicaoLida,
+  type ComentarioLido,
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
   type TransicaoLida,
@@ -30,6 +31,8 @@ const ID = "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8";
 
 let trilha: TransicaoLida[];
 let atribuicoes: AtribuicaoLida[];
+/** A terceira fonte, do item 30. Zerada no `beforeEach` como as outras duas. */
+let mensagens: ComentarioLido[];
 let ocorrencia: OcorrenciaLida | null;
 
 function transicao(sequencia: number, ocorreuEm: string): TransicaoLida {
@@ -60,11 +63,13 @@ const repositorio = () =>
     porId: async () => ocorrencia,
     trilha: async () => trilha,
     atribuicoes: async () => atribuicoes,
+    mensagens: async () => mensagens,
   }) as unknown as RepositorioEscopadoDeOcorrencias;
 
 beforeEach(() => {
   trilha = [];
   atribuicoes = [];
+  mensagens = [];
   ocorrencia = { autor: AUTORA } as unknown as OcorrenciaLida;
 });
 
@@ -198,5 +203,62 @@ describe("quem pode ler", () => {
       verLinhaDoTempo(repo, ID, { pessoaId: AUTORA.pessoaId, podeLerTodas: true }),
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
     expect(leu).toBe(false);
+  });
+});
+
+describe("o terceiro tipo — critério 30.7", () => {
+  it("mensagens entram intercaladas com transições e atribuições, por instante", async () => {
+    trilha = [transicao(1, "2026-08-15T11:12:00.000Z"), transicao(2, "2026-08-17T10:55:00.000Z")];
+    atribuicoes = [atribuicao("2026-08-15T12:44:00.000Z", null)];
+    mensagens = [
+      { id: "m1", texto: "Continua pingando.", autor: AUTORA, criadoEm: "2026-08-16T19:02:00.000Z" },
+    ];
+
+    const eventos = await verLinhaDoTempo(repositorio(), ID, {
+      pessoaId: AUTORA.pessoaId,
+      podeLerTodas: false,
+    });
+
+    expect(eventos.map((e) => `${e.tipo}@${e.ocorridoEm}`)).toStrictEqual([
+      "transicao@2026-08-15T11:12:00.000Z",
+      "atribuicao@2026-08-15T12:44:00.000Z",
+      "mensagem@2026-08-16T19:02:00.000Z",
+      "transicao@2026-08-17T10:55:00.000Z",
+    ]);
+  });
+
+  it("vêm TODAS as mensagens, e não só as do autor da ocorrência", async () => {
+    trilha = [transicao(1, "2026-08-15T11:12:00.000Z")];
+    mensagens = [
+      { id: "m1", texto: "do solicitante", autor: AUTORA, criadoEm: "2026-08-16T19:02:00.000Z" },
+      { id: "m2", texto: "do gestor", autor: GESTOR, criadoEm: "2026-08-16T21:15:00.000Z" },
+    ];
+
+    const eventos = await verLinhaDoTempo(repositorio(), ID, {
+      pessoaId: AUTORA.pessoaId,
+      podeLerTodas: false,
+    });
+
+    expect(eventos.filter((e) => e.tipo === "mensagem").length).toBe(2);
+  });
+
+  it("no MESMO instante, o desempate é transição, depois atribuição, depois mensagem", async () => {
+    const instante = "2026-08-15T12:00:00.000Z";
+    trilha = [transicao(1, instante)];
+    atribuicoes = [atribuicao(instante, null)];
+    mensagens = [{ id: "m1", texto: "junto", autor: AUTORA, criadoEm: instante }];
+
+    const eventos = await verLinhaDoTempo(repositorio(), ID, {
+      pessoaId: AUTORA.pessoaId,
+      podeLerTodas: false,
+    });
+
+    expect(eventos.map((e) => e.tipo)).toStrictEqual(["transicao", "atribuicao", "mensagem"]);
+  });
+
+  it("quem não pode ler a ocorrência não chega a ler mensagem nenhuma", async () => {
+    await expect(
+      verLinhaDoTempo(repositorio(), ID, { pessoaId: ENCARREGADO.pessoaId, podeLerTodas: false }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
   });
 });

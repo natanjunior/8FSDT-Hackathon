@@ -3,6 +3,7 @@ import { AnexoNaoEncontrado, type ArmazenamentoDeAnexos } from "@/aplicacao/anex
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type {
   AtribuicaoLida,
+  ComentarioLido,
   CursorDeListagem,
   FiltroDeOcorrencias,
   OcorrenciaLida,
@@ -113,14 +114,24 @@ export async function verTrilhaDeAuditoria(
  */
 export type EventoLido =
   | { tipo: "transicao"; ocorridoEm: string; transicao: TransicaoLida }
-  | { tipo: "atribuicao"; ocorridoEm: string; atribuicao: AtribuicaoLida };
+  | { tipo: "atribuicao"; ocorridoEm: string; atribuicao: AtribuicaoLida }
+  | { tipo: "mensagem"; ocorridoEm: string; mensagem: ComentarioLido };
 
 /**
  * O desempate de tipo, **declarado e não emergente**: no mesmo instante, a transição vem antes da
- * atribuição. É a ordem em que os fatos acontecem — `atribuirResponsavel` é atividade *sobre* uma
- * ocorrência que já está no estado que a transição pôs.
+ * atribuição, e as duas antes da mensagem. É a ordem em que os fatos acontecem — `atribuirResponsavel` é
+ * atividade *sobre* uma ocorrência que já está no estado que a transição pôs, e a mensagem é atividade
+ * sobre as duas.
+ *
+ * **O valor 2 é o que NÃO mexe na ordem do par que já existe** (item 30). Os três carimbos vêm de
+ * escritas diferentes e não colidem na prática; o peso existe para a ordenação continuar **total e
+ * determinística**.
  */
-const PESO_DO_TIPO: Readonly<Record<EventoLido["tipo"], number>> = { transicao: 0, atribuicao: 1 };
+const PESO_DO_TIPO: Readonly<Record<EventoLido["tipo"], number>> = {
+  transicao: 0,
+  atribuicao: 1,
+  mensagem: 2,
+};
 
 /**
  * **Ordem crescente por instante** — do mais antigo para o mais recente, como a trilha e como o protótipo
@@ -176,9 +187,10 @@ export async function verLinhaDoTempo(
   if (ocorrencia === null) throw new OcorrenciaNaoEncontrada();
   if (!podeLerOcorrencia(ocorrencia, quem)) throw new OcorrenciaNaoEncontrada();
 
-  const [trilha, atribuicoes] = await Promise.all([
+  const [trilha, atribuicoes, mensagens] = await Promise.all([
     repositorio.trilha(id),
     repositorio.atribuicoes(id),
+    repositorio.mensagens(id),
   ]);
 
   const eventos: EventoLido[] = [
@@ -193,6 +205,22 @@ export async function verLinhaDoTempo(
       tipo: "atribuicao" as const,
       ocorridoEm: atribuicao.atribuidoEm,
       atribuicao,
+    })),
+    /**
+     * **A terceira fonte — critério 30.7, e ela é o `map` a mais que o item 29 previu.**
+     *
+     * **Não pagina e não filtra por autor:** vêm todas as mensagens da ocorrência. O protótipo desenha,
+     * nos quatro quadros de T-05, **uma** das duas mensagens do bloco 4 dentro do bloco 3 — a do
+     * Solicitante, nunca a resposta do Gestor. **Não é regra, é desenho à mão:** o `oneOf` do contrato não
+     * filtra por autor, o glossário diz *"mensagens"* sem qualificador, e um bloco 3 que mostrasse só um
+     * lado da conversa seria mais estranho que o que se quis evitar.
+     *
+     * **É a única das três fontes sem limite natural**, e o custo está declarado na porta `mensagens`.
+     */
+    ...mensagens.map((mensagem) => ({
+      tipo: "mensagem" as const,
+      ocorridoEm: mensagem.criadoEm,
+      mensagem,
     })),
   ];
 

@@ -4,6 +4,7 @@ import {
   autoria,
   dataHora,
   fraseDaAtribuicao,
+  fraseDaMensagem,
   fraseDaTransicao,
 } from "@/interface/componentes/linha-do-tempo";
 
@@ -59,5 +60,18 @@ describe("as frases — transcritas do protótipo, não inventadas", () => {
     expect(autoria("Marina Rocha", false, "15/08/2026, 08h12")).toBe(
       "Marina Rocha · 15/08/2026, 08h12",
     );
+  });
+});
+
+describe("fraseDaMensagem — a convenção das aspas curvas", () => {
+  it("embrulha o texto em aspas CURVAS, como fraseDaTransicao faz com a observação", () => {
+    expect(fraseDaMensagem("Continua pingando.")).toBe("“Continua pingando.”");
+  });
+
+  it("as aspas são as mesmas dos dois lados, e não as retas do teclado", () => {
+    const frase = fraseDaMensagem("x");
+    expect(frase.startsWith("“")).toBe(true);
+    expect(frase.endsWith("”")).toBe(true);
+    expect(frase).not.toContain('"');
   });
 });

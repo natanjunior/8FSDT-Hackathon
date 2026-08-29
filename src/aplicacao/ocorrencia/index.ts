@@ -19,19 +19,24 @@ export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-respons
 export { avaliarOcorrencia } from "./avaliar-ocorrencia";
 export { cancelarOcorrencia } from "./cancelar-ocorrencia";
 export { type ContextoDoComando } from "./comando";
+export { enviarComentario, verComentarios, type PaginaDeConversa } from "./conversa";
 export { iniciarAtendimento } from "./iniciar-atendimento";
 export { pausarOcorrencia } from "./pausar-ocorrencia";
 export {
   type AnexoLido,
   type AtribuicaoLida,
+  type ComentarioLido,
+  type CursorDeConversa,
   type CursorDeListagem,
   type DadosDaAtribuicao,
+  type DadosDaMensagem,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
   type MotivoEncerramentoDeAtribuicao,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
+  type PaginaDeMensagens,
   type PessoaReferencia,
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,

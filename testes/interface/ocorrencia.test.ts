@@ -14,7 +14,9 @@ import {
 } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
+  codificarCursorDeConversa,
   decodificarCursor,
+  decodificarCursorDeConversa,
   descricaoDoRecorte,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
@@ -27,6 +29,7 @@ import {
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
+  projetarPaginaDeComentarios,
   projetarPaginaDeOcorrencias,
   rotuloDeMotivoPausa,
   segundaLinhaDeMotivo,
@@ -47,7 +50,9 @@ import {
   registrarFalha,
   type ErroDeCampo,
 } from "@/interface/http";
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import {
+  enviarComentario,
   executarComando,
   MENSAGEM_GENERICA,
 } from "@/interface/componentes/comando-de-ocorrencia";
@@ -57,8 +62,10 @@ import {
   nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
+  rotuloDoCampoDeConversa,
   rotulosDeStatus,
   vazioDaBarra,
+  vazioDaConversa,
 } from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
@@ -71,6 +78,7 @@ import {
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
+  comentarioSchema,
   pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
@@ -1494,8 +1502,26 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
     // **Ela vale para todo mundo agora**, e não só para quem não gestiona: o ramo que dependia de
     // `ehGestor` não tinha população, e o caso seguinte prova isso.
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
-      expect(vazioDaBarra(emAndamento)).toBe("Só os Gestores podem cancelar a partir daqui.");
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
     }
+  });
+
+  it("fora de estado terminal, a frase convida ao comentário — critério 30.6", () => {
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
+    }
+  });
+
+  it("a segunda oração é a do `detail` publicado, palavra por palavra — e o `detail` NÃO muda", () => {
+    // `openapi.yaml`: o detail do 403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO termina com esta frase.
+    expect(vazioDaBarra("em_atendimento")).toContain("Peça o cancelamento pelo comentário.");
+    // A primeira oração daquele detail — "O atendimento já começou" — continua FORA, e a razão está no
+    // critério 18.6: ela é falsa numa ocorrência que chegou a `pausada` vinda de `em_analise`.
+    expect(vazioDaBarra("pausada")).not.toContain("atendimento já começou");
   });
 
   it("responde para os SEIS status, e as DUAS frases são mutuamente exclusivas", () => {
@@ -1508,7 +1534,9 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
 
   it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
     expect(vazioDaBarra("cancelada")).toBe("Esta ocorrência está encerrada.");
-    expect(vazioDaBarra("em_atendimento")).toBe("Só os Gestores podem cancelar a partir daqui.");
+    expect(vazioDaBarra("em_atendimento")).toBe(
+      "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+    );
   });
 
   it("a BARRA DO GESTOR nunca fica vazia fora de estado terminal — o que torna a remoção do ehGestor segura", () => {
@@ -2238,5 +2266,176 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
 
     expect(projetado.autor).toStrictEqual(GESTOR);
     expect(projetado.tipo === "atribuicao" && projetado.responsavel).toStrictEqual(ENCARREGADO);
+  });
+});
+
+describe("o cursor da conversa — dois adaptadores, e nenhuma cópia da validação", () => {
+  it("ida e volta preserva o par", () => {
+    const cursor = { criadoEm: "2026-08-20T15:00:00.000Z", id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f" };
+    expect(decodificarCursorDeConversa(codificarCursorDeConversa(cursor))).toStrictEqual(cursor);
+  });
+
+  it("lixo devolve null, e não a primeira página", () => {
+    expect(decodificarCursorDeConversa("pagina-2")).toBeNull();
+    expect(decodificarCursorDeConversa("")).toBeNull();
+  });
+
+  it("data inválida e id que não é uuid são recusados", () => {
+    expect(decodificarCursorDeConversa(Buffer.from("ontem|abc", "utf8").toString("base64url"))).toBeNull();
+    expect(
+      decodificarCursorDeConversa(
+        Buffer.from("2026-08-20T15:00:00.000Z|nao-e-uuid", "utf8").toString("base64url"),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("projetarPaginaDeComentarios — o cursor só existe quando há próxima página", () => {
+  const mensagem = (id: string, criadoEm: string) => ({
+    id,
+    texto: "t",
+    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Marina Rocha" },
+    criadoEm,
+  });
+
+  it("com temMais, o cursor é o do ÚLTIMO item devolvido", () => {
+    const ultima = mensagem("c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f", "2026-08-20T15:02:00.000Z");
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z"), ultima],
+      temMais: true,
+    });
+
+    expect(projetada.proximoCursor).toBe(
+      codificarCursorDeConversa({ criadoEm: ultima.criadoEm, id: ultima.id }),
+    );
+  });
+
+  it("sem temMais, proximoCursor é null", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(projetada.proximoCursor).toBeNull();
+  });
+
+  it("página vazia com temMais falso não inventa cursor", () => {
+    expect(projetarPaginaDeComentarios({ itens: [], temMais: false }).proximoCursor).toBeNull();
+  });
+
+  it("o item projetado tem os QUATRO campos do schema Comentario, e nada mais", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(Object.keys(projetada.itens[0] ?? {}).sort()).toStrictEqual([
+      "autor",
+      "criadoEm",
+      "id",
+      "texto",
+    ]);
+  });
+});
+
+describe("comentarioSchema — 1 a 4000, aparado num lugar só", () => {
+  it("apara antes de checar: texto só de espaços é recusado", () => {
+    expect(comentarioSchema.safeParse({ texto: "   " }).success).toBe(false);
+  });
+
+  it("acima de 4000 é recusado, e 4000 passa", () => {
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4001) }).success).toBe(false);
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4000) }).success).toBe(true);
+  });
+
+  it("o valor que sai vem APARADO — quem apara é o schema", () => {
+    const lido = comentarioSchema.parse({ texto: "  a lâmpada foi trocada  " });
+    expect(lido.texto).toBe("a lâmpada foi trocada");
+  });
+});
+
+describe("as duas frases da conversa escolhem por AUTORIA, não por papel — critério 30.4", () => {
+  it("o Solicitante autor lê «falar com os Gestores»", () => {
+    expect(vazioDaConversa(true)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores.",
+    );
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("o Gestor NÃO autor lê «falar com o Solicitante» — a população inteira do risco do 30.4", () => {
+    expect(vazioDaConversa(false)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.",
+    );
+    expect(rotuloDoCampoDeConversa(false)).toBe("Escrever para o Solicitante");
+  });
+
+  it("o Gestor AUTOR — o síndico morador do 28.5 — lê a frase do autor, e é a razão de ser da decisão", () => {
+    // Por permissão ele leria "…falar com o Solicitante", dirigido a ele mesmo: falso nas duas metades,
+    // nomeando quem não está e omitindo quem está. Por autoria ele lê "…os Gestores", e ali isso é FATO —
+    // participantes são Gestores + autor (critério 30.2); se o autor é Gestor, o conjunto SÃO os Gestores.
+    expect(vazioDaConversa(true)).toContain("os Gestores");
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("as duas frases são diferentes, e é a diferença que o critério 30.4 protege", () => {
+    expect(vazioDaConversa(true)).not.toBe(vazioDaConversa(false));
+    expect(rotuloDoCampoDeConversa(true)).not.toBe(rotuloDoCampoDeConversa(false));
+  });
+});
+
+describe("enviarComentario — a irmã sem o ramo do 409", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("no 201, devolve o comentário inteiro — é ele que a lista local acrescenta", async () => {
+    const criado = {
+      id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+      texto: "A lâmpada nova já foi instalada.",
+      autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Roberto Salles" },
+      criadoEm: "2026-08-20T15:00:00.000Z",
+    };
+
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      expect(url).toBe("/api/ocorrencias/abc/comentarios");
+      expect(init.method).toBe("POST");
+      // A afirmação de organização do item 7b cobre a décima primeira escrita de cliente.
+      expect(init.headers).toMatchObject(cabecalhosDeEscrita("organizacao-a"));
+      expect(JSON.parse(String(init.body))).toStrictEqual({ texto: criado.texto });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(criado) });
+    });
+
+    expect(await enviarComentario("abc", criado.texto, "organizacao-a")).toStrictEqual({
+      ok: true,
+      comentario: criado,
+    });
+  });
+
+  it("num problema com detail, o aviso é o detail", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ codigo: "FORMATO_INVALIDO", detail: "Escreva a mensagem." }),
+      }),
+    );
+
+    expect(await enviarComentario("abc", "", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: "Escreva a mensagem.",
+    });
+  });
+
+  it("sem detail, cai na frase genérica", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("rede caída não sobe para o Error Boundary — nuvem sem SLA", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
   });
 });
