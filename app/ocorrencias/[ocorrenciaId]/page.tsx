@@ -52,6 +52,7 @@ import {
   resolverEscopoParaTela,
 } from "@/interface/http";
 import {
+  lenteDeRotulo,
   opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
@@ -59,6 +60,8 @@ import {
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarPaginaDeComentarios,
+  segundaLinhaDeMotivo,
+  type LenteDeRotulo,
 } from "@/interface/projecoes";
 
 /**
@@ -267,9 +270,16 @@ export default async function Ocorrencia({
     }))
     .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
 
+  /**
+   * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
+   * do bloco 1a (que já vem projetado no detalhe, pela derivação de `QuemLe`), o mapa que desce até os
+   * modais, e a linha do tempo do bloco 3.
+   */
+  const lente = lenteDeRotulo(vinculo.permissoes);
+
   // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
   // diferentes — ver `rotulos.ts`.
-  const rotulos = rotulosDeStatus();
+  const rotulos = rotulosDeStatus(lente);
 
   /**
    * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
@@ -551,6 +561,25 @@ export default async function Ocorrencia({
         <span className="text-tinta text-base leading-snug font-semibold">
           {detalhe.statusRotulo}
         </span>
+        {/*
+          **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.**
+
+          Do lado do Gestor o rótulo colapsa em *"Pausada"* desde o item 31, e sem esta linha o motivo
+          **sairia da tela**: até aqui ele estava dentro do rótulo. O `inventario-de-telas.md:744` já
+          descrevia o bloco 1 como *"`statusRotulo` (+ `motivoPausa` para o Gestor, pela mesma razão de
+          T-03)"* — só que até agora o rótulo o carregava, e a linha não tinha trabalho.
+
+          **Auto-silenciadora, e sem argumento novo:** para o Solicitante os dois textos coincidem e a
+          função devolve `null` — o bloco dele não muda em nada.
+
+          **Aqui e não no bloco 1c:** o 1c é o `<dl>` do resto da identidade; o 1a é o que existe para
+          caber **sem rolar**, e a espera nomeada é o que a D8 quer visível.
+        */}
+        {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
+          <span className="text-tinta-suave text-sm leading-snug">
+            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+          </span>
+        )}
       </section>
 
       {/*
@@ -792,7 +821,11 @@ export default async function Ocorrencia({
       */}
       <section id="linha-do-tempo" className="flex flex-col gap-2">
         <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-          <LinhaDoTempo eventos={linhaDoTempoPedida} pessoaIdDeQuemLe={escopo.ctx.pessoaId} />
+          <LinhaDoTempo
+            eventos={linhaDoTempoPedida}
+            pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+            lente={lente}
+          />
         </Suspense>
       </section>
 
@@ -945,11 +978,14 @@ function OcorrenciaNaoEncontradaNaTela({
 async function LinhaDoTempo({
   eventos,
   pessoaIdDeQuemLe,
+  lente,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   pessoaIdDeQuemLe: string;
+  /** A coluna do `glossario.md` §4 desta leitura — item 31, critério 31.7. */
+  lente: LenteDeRotulo;
 }) {
-  const itens = (await eventos).map(projetarEventoDaLinhaDoTempo);
+  const itens = (await eventos).map((evento) => projetarEventoDaLinhaDoTempo(evento, lente));
 
   return (
     <>

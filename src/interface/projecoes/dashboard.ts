@@ -1,6 +1,6 @@
 import type { DashboardLido } from "@/aplicacao/dashboard";
 
-import { nomeDoStatus } from "./ocorrencia";
+import { rotuloDeStatus } from "./ocorrencia";
 import { projetarArea, type AreaProjetada } from "./organizacao";
 
 /**
@@ -12,10 +12,11 @@ import { projetarArea, type AreaProjetada } from "./organizacao";
  * Server Component de T-07 —, e uma projeção escrita dentro do handler não existiria para a tela. Se as
  * duas montassem a resposta por conta própria, elas divergiriam.
  *
- * **O `statusRotulo` sai de `nomeDoStatus`, e este item NÃO espera o item 31.** T-07 é tela de
- * `dashboard.ler`, e o rótulo do dashboard é o do **Gestor** — que já existe no código com outro nome, com
- * exatamente as seis palavras que o `openapi.yaml:2135-2138` exemplifica. Quando o item 31 chegar, ele
- * troca a origem para o `rotuloDeStatus` do Gestor **sem mudar uma única string** (spec §3.5).
+ * **O `statusRotulo` sai de `rotuloDeStatus` na lente do Gestor, desde o item 31** — e a troca **não
+ * mudou uma única string**: `testes/interface/dashboard.test.ts:67-77` fixa as seis palavras uma a uma e
+ * não foi tocado. O campo se chama `statusRotulo`, e a função que produz rótulo de leitor é
+ * `rotuloDeStatus`; `nomeDoStatus` fica com os consumidores cujo nome ele descreve — as opções do filtro
+ * de T-03 e `descricaoDoRecorte`.
  *
  * **A área sai por `projetarArea`, e são cinco campos.** `openapi.yaml:3266` declara `$ref: Area`, e
  * `Area` exige `[id, nome, tipo, ativa, ordem]`; o exemplo do mesmo arquivo mostra três, e é o achado
@@ -45,12 +46,22 @@ export type DashboardProjetado = {
   };
 };
 
+/**
+ * **T-07 é tela de `dashboard.ler`, e essa permissão só o Gestor tem** (`Permissao.ts:60`). A lente
+ * **não pode variar** — e um parâmetro que não varia é o argumento morto que o item 27 removeu de
+ * `vazioDaBarra`. Fica literal, com a razão escrita ao lado.
+ *
+ * **`null` no motivo, e não é perda:** o backlog por status conta linhas agrupadas, não uma ocorrência —
+ * não há motivo de pausa a passar. E do lado do Gestor `pausada` é *"Pausada"* com ou sem ele.
+ */
+const LENTE_DO_DASHBOARD = "gestor" as const;
+
 export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
   return {
     periodo: { de: lido.periodo.de, ate: lido.periodo.ate },
     backlogPorStatus: lido.backlogPorStatus.map((linha) => ({
       status: linha.status,
-      statusRotulo: nomeDoStatus(linha.status),
+      statusRotulo: rotuloDeStatus(linha.status, null, LENTE_DO_DASHBOARD),
       quantidade: linha.quantidade,
     })),
     backlogPorCategoria: lido.backlogPorCategoria.map((linha) => ({

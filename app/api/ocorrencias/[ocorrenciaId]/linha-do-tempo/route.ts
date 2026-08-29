@@ -1,6 +1,6 @@
 import { verLinhaDoTempo } from "@/aplicacao/ocorrencia";
 import { comContexto } from "@/interface/http";
-import { projetarEventoDaLinhaDoTempo } from "@/interface/projecoes";
+import { lenteDeRotulo, projetarEventoDaLinhaDoTempo } from "@/interface/projecoes";
 
 /**
  * **`GET /ocorrencias/{id}/linha-do-tempo`** — transições e atribuições intercaladas por instante, com o
@@ -20,17 +20,24 @@ import { projetarEventoDaLinhaDoTempo } from "@/interface/projecoes";
  *
  * **O `404` de quem não pode ler vem de dentro**, idêntico ao de inexistente (§6.3). A conferência do
  * `X-Organizacao-Id` é do `comContexto` e vale para os trinta e três endpoints escopados (item 7b).
+ *
+ * **O `rotulo` sai na coluna de quem lê** (critério 31.7), pela mesma permissão que decide o recorte —
+ * `ocorrencia.ler_todas`. É a descrição do campo `rotulo` do `EventoTransicao` no `openapi.yaml`.
  */
 export const GET = comContexto(
   { exige: "ocorrencia.ler_propria" },
-  async ({ ctx, repos, parametros }) => ({
-    itens: (
-      await verLinhaDoTempo(repos.ocorrencias, parametros.ocorrenciaId ?? "", {
-        pessoaId: ctx.pessoaId,
-        podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas"),
-      })
-    ).map(projetarEventoDaLinhaDoTempo),
-  }),
+  async ({ ctx, repos, parametros }) => {
+    const eventos = await verLinhaDoTempo(repos.ocorrencias, parametros.ocorrenciaId ?? "", {
+      pessoaId: ctx.pessoaId,
+      podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas"),
+    });
+
+    // **A lente é a MESMA permissão que decide o recorte, e é calculada uma vez** — critério 31.7. O
+    // Gestor lê "Aberta", "Em atendimento" e "Pausada" onde o Solicitante lê as frases dele.
+    const lente = lenteDeRotulo(ctx.vinculo.permissoes);
+
+    return { itens: eventos.map((evento) => projetarEventoDaLinhaDoTempo(evento, lente)) };
+  },
 );
 
 export const dynamic = "force-dynamic";

@@ -11,6 +11,7 @@ import {
   STATUS,
   type Comando,
   type MotivoCancelamento,
+  type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
@@ -18,6 +19,7 @@ import {
   decodificarCursor,
   decodificarCursorDeConversa,
   descricaoDoRecorte,
+  lenteDeRotulo,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
   nomeDoMotivoPausa,
@@ -32,6 +34,7 @@ import {
   projetarPaginaDeComentarios,
   projetarPaginaDeOcorrencias,
   rotuloDeMotivoPausa,
+  rotuloDeStatus,
   segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
@@ -301,7 +304,7 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
 
 describe("o OcorrenciaResumo projetado", () => {
   it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
-    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
 
     expect(resumo.categoria).toStrictEqual({
       id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
@@ -316,44 +319,55 @@ describe("o OcorrenciaResumo projetado", () => {
   });
 
   it("avaliada é `true` quando a nota existe — e é `avaliacao_nota is not null`, nada mais", () => {
-    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, avaliada: true }).avaliada).toBe(true);
+    expect(
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, avaliada: true }, "solicitante").avaliada,
+    ).toBe(true);
   });
 
   it("statusRotulo é o rótulo de gente, nunca o enum cru", () => {
-    expect(projetarOcorrenciaResumo(RESUMO_LIDO).statusRotulo).toBe("Recebida — aguardando análise");
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante").statusRotulo).toBe(
+      "Recebida — aguardando análise",
+    );
   });
 
   it("motivoPausa é nulo fora de pausada, e é o motivo dentro dela", () => {
-    expect(projetarOcorrenciaResumo(RESUMO_LIDO).motivoPausa).toBeNull();
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante").motivoPausa).toBeNull();
 
-    const pausada = projetarOcorrenciaResumo({
-      ...RESUMO_LIDO,
-      status: "pausada",
-      motivoPausa: "aguardando_peca",
-    });
+    const pausada = projetarOcorrenciaResumo(
+      {
+        ...RESUMO_LIDO,
+        status: "pausada",
+        motivoPausa: "aguardando_peca",
+      },
+      "solicitante",
+    );
     expect(pausada.motivoPausa).toBe("aguardando_peca");
     expect(pausada.statusRotulo).toBe("Parada — esperando material chegar");
   });
 
   it("quantidadeDeAnexos vem do repositório; responsavel é repassado — item 19", () => {
-    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
     expect(resumo.quantidadeDeAnexos).toBe(0);
     expect(resumo.responsavel).toBeNull();
     // **A asserção que torna o caso útil.** Com o campo vindo do repositório, provar que ele sai `0`
     // quando entra `0` não prova nada; o que prova é o REPASSE.
-    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 3 }).quantidadeDeAnexos).toBe(
-      3,
-    );
+    expect(
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 3 }, "solicitante")
+        .quantidadeDeAnexos,
+    ).toBe(3);
   });
 });
 
 describe("o envelope da página", () => {
   it("com temMais, proximoCursor é o do ÚLTIMO item devolvido", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: true,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: true,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.visibilidadeAplicada).toBe("todas");
     expect(decodificarCursor(envelope.proximoCursor!)).toStrictEqual({
@@ -363,32 +377,41 @@ describe("o envelope da página", () => {
   });
 
   it("sem temMais, proximoCursor é nulo — e nunca abre uma página vazia", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: false,
-      visibilidadeAplicada: "apenas_minhas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: false,
+        visibilidadeAplicada: "apenas_minhas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.proximoCursor).toBeNull();
   });
 
   it("página vazia com temMais impossível: sem itens, não há cursor", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [],
-      temMais: true,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [],
+        temMais: true,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.itens).toStrictEqual([]);
     expect(envelope.proximoCursor).toBeNull();
   });
 
   it("não há total no envelope — o contrato §7.7 o recusou", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: false,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: false,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope).not.toHaveProperty("total");
   });
@@ -638,7 +661,8 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
 
   it("o resumo devolve a contagem que o repositório apurou", () => {
     expect(
-      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 1 }).quantidadeDeAnexos,
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 1 }, "solicitante")
+        .quantidadeDeAnexos,
     ).toBe(1);
   });
 
@@ -844,6 +868,251 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
 
   it("parâmetro repetido é recusado — o contrato descreve UMA gramática", () => {
     expect(() => ler("status=aberta&status=pausada")).toThrow(FormatoInvalido);
+  });
+});
+
+describe("a lente de rótulo — o critério 31.2, e ela segue PERMISSÃO", () => {
+  it("quem tem ocorrencia.ler_todas lê pela coluna do Gestor", () => {
+    expect(lenteDeRotulo(["ocorrencia.ler_todas"])).toBe("gestor");
+  });
+
+  it("quem NÃO a tem lê pela coluna do Solicitante — inclusive com todas as outras dele", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+    expect(
+      lenteDeRotulo([
+        "ocorrencia.registrar",
+        "ocorrencia.ler_propria",
+        "ocorrencia.comentar",
+        "ocorrencia.cancelar_propria",
+        "ocorrencia.avaliar",
+      ]),
+    ).toBe("solicitante");
+  });
+
+  /**
+   * **O Encarregado é o achado A-5 da spec, virado caso.** O `glossario.md:114` lhe dá a coluna do
+   * Gestor — *"porque operam a máquina"* —, e `Permissao.ts:70-74` lhe dá `[]`. Nenhum predicado de
+   * permissão pode colocá-lo lá, e `arquitetura.md:479` proíbe checar `vinculo.papel`.
+   *
+   * **A população é vazia hoje** — ele leva `403` em todo endpoint de ocorrência —, então não há defeito
+   * observável. O caso existe para que o dia em que ele ganhar permissões seja uma decisão, e não uma
+   * descoberta.
+   */
+  it("o Encarregado, com lista vazia, cai na coluna do Solicitante — achado A-5, declarado", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+  });
+
+  /**
+   * **É `ler_todas` e mais nenhuma.** O produto já usa esse predicado como *"a lente do Gestor"* em três
+   * lugares independentes — `visibilidadeAplicada`, `podeLerTodas` nas funções de aplicação, e a barra de
+   * filtros. Escolher uma quarta criaria um segundo desenho de *quem é Gestor* (spec §3.1).
+   */
+  it("nenhuma outra permissão do Gestor liga a lente sozinha", () => {
+    for (const permissao of [
+      "ocorrencia.analisar",
+      "ocorrencia.resolver",
+      "ocorrencia.pausar",
+      "ocorrencia.atribuir",
+      "dashboard.ler",
+      "vinculo.gerir",
+      "organizacao.configurar",
+    ]) {
+      expect(lenteDeRotulo([permissao])).toBe("solicitante");
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  O critério 31.2 — a tabela do `glossario.md:114-124`, linha a linha
+ * ============================================================================
+ *
+ * **É uma tabela e não seis casos**, e a razão é a mesma de `ACAO_PRIMARIA`: assim o teste falha quando
+ * um status **novo** nascer sem rótulo em uma das colunas, que é o modo pelo qual esta garantia se perde.
+ */
+describe("o critério 31.2 — as duas colunas do glossário, para os seis status", () => {
+  const GLOSSARIO: Readonly<Record<StatusOcorrencia, { solicitante: string; gestor: string }>> = {
+    aberta: { solicitante: "Recebida — aguardando análise", gestor: "Aberta" },
+    em_analise: { solicitante: "Em análise", gestor: "Em análise" },
+    em_atendimento: { solicitante: "Em execução", gestor: "Em atendimento" },
+    pausada: { solicitante: "Parada", gestor: "Pausada" },
+    resolvida: { solicitante: "Resolvida", gestor: "Resolvida" },
+    cancelada: { solicitante: "Cancelada", gestor: "Cancelada" },
+  };
+
+  it.each(STATUS)("%s tem as duas colunas, e elas são as do glossário", (status) => {
+    expect(rotuloDeStatus(status, null, "solicitante")).toBe(GLOSSARIO[status].solicitante);
+    expect(rotuloDeStatus(status, null, "gestor")).toBe(GLOSSARIO[status].gestor);
+  });
+
+  it("a MESMA ocorrência em em_atendimento é 'Em execução' e 'Em atendimento' — a frase do critério", () => {
+    expect(rotuloDeStatus("em_atendimento", null, "solicitante")).toBe("Em execução");
+    expect(rotuloDeStatus("em_atendimento", null, "gestor")).toBe("Em atendimento");
+  });
+
+  /**
+   * **A colapsagem, e é ela que faz o 31.6 acontecer.** Do lado do Solicitante `pausada` tem quatro
+   * rótulos, um por motivo; do lado do Gestor tem **um**, e o motivo viaja no campo `motivoPausa` —
+   * `glossario.md:137-139`: *"como campo próprio ao lado do rótulo, não embutido nele"*.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "em pausada · %s, o Solicitante lê o motivo e o Gestor lê 'Pausada' seca",
+    (motivo) => {
+      expect(rotuloDeStatus("pausada", motivo, "solicitante")).toBe(rotuloDeMotivoPausa(motivo));
+      expect(rotuloDeStatus("pausada", motivo, "gestor")).toBe("Pausada");
+    },
+  );
+
+  it("o resumo lê pela lente que recebeu, e o motivo continua no payload nas duas", () => {
+    const pausada = {
+      ...RESUMO_LIDO,
+      status: "pausada" as const,
+      motivoPausa: "aguardando_peca" as const,
+    };
+
+    expect(projetarOcorrenciaResumo(pausada, "solicitante").statusRotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(projetarOcorrenciaResumo(pausada, "gestor").statusRotulo).toBe("Pausada");
+    // **O motivo continua no payload nas DUAS lentes** — é ele que carrega a diferença que o rótulo do
+    // Gestor colapsa (`openapi.yaml:2845-2851`), e é o que faz a segunda linha de T-03 ser possível.
+    expect(projetarOcorrenciaResumo(pausada, "gestor").motivoPausa).toBe("aguardando_peca");
+    expect(projetarOcorrenciaResumo(pausada, "solicitante").motivoPausa).toBe("aguardando_peca");
+  });
+
+  /**
+   * **O detalhe DERIVA a lente, e é a assimetria deliberada da §3.4 da spec:** onde `QuemLe` já chega, um
+   * terceiro argumento que é função pura do segundo convidaria os dois a discordarem — e são onze rotas
+   * de comando em que isso poderia acontecer. **É por isso que nenhuma delas muda de assinatura.**
+   */
+  it("projetarOcorrenciaDetalhe deriva a lente de quemLe.permissoes — as onze rotas não mudam", () => {
+    const pausada = {
+      ...umaOcorrenciaLidaCom([]),
+      status: "pausada" as const,
+      motivoPausa: "aguardando_peca" as const,
+    };
+
+    expect(projetarOcorrenciaDetalhe(pausada, QUEM_LE).statusRotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(
+      projetarOcorrenciaDetalhe(pausada, {
+        pessoaId: QUEM_LE.pessoaId,
+        permissoes: ["ocorrencia.ler_todas"],
+      }).statusRotulo,
+    ).toBe("Pausada");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os quatro critérios de OBSERVAÇÃO do item 31 — 31.1, 31.3, 31.4 e 31.5
+ * ============================================================================
+ *
+ * **Os quatro já eram verdade antes deste item, e é isso que os torna necessários.** Eles são regras que
+ * valem *"para qualquer rótulo novo"* (`glossario.md:126`): o que o item entrega é transformá-los em
+ * teste, e é assim que o dia em que alguém escrever *"Resolvida — conte como foi"* ou *"o síndico está
+ * avaliando"* deixa de passar em silêncio.
+ *
+ * **Percorrem as TABELAS INTEIRAS, e não um valor cada.** É a única forma de o teste falhar quando um
+ * status **novo** nascer sem rótulo — a mesma disciplina de `ACAO_PRIMARIA`.
+ */
+describe("os critérios de observação do item 31 — as regras do glossário §4, viradas rede", () => {
+  /** Toda string que este produto pode mostrar como rótulo de status ou de espera. */
+  function todosOsRotulos(): readonly string[] {
+    const rotulos: string[] = [];
+    for (const status of STATUS) {
+      rotulos.push(rotuloDeStatus(status, null, "solicitante"));
+      rotulos.push(rotuloDeStatus(status, null, "gestor"));
+      rotulos.push(nomeDoStatus(status));
+    }
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      rotulos.push(rotuloDeStatus("pausada", motivo, "solicitante"));
+      rotulos.push(rotuloDeStatus("pausada", motivo, "gestor"));
+      rotulos.push(rotuloDeMotivoPausa(motivo));
+    }
+    return rotulos;
+  }
+
+  /**
+   * **31.5 — e a razão é a D3, não polidez.** A D19 nasceu de uma entrevista com um síndico, e a redação
+   * original dizia *"o síndico está avaliando"*. Isso trava o produto em condomínio, enquanto a **D3**
+   * admite empresa e bairro como Organização — e o multi-tenant é a adição `NOSSO` mais cara do projeto
+   * para ser desmentida por uma palavra de interface.
+   */
+  it("nenhum rótulo contém a palavra 'síndico', em nenhuma caixa — critério 31.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo.toLowerCase()).not.toContain("síndico");
+      expect(rotulo.toLowerCase()).not.toContain("sindico");
+    }
+  });
+
+  it("nenhum rótulo trava o produto numa das três formas de Organização — regra 1 do glossário", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("zelador");
+      expect(minusculo).not.toContain("porteiro");
+      expect(minusculo).not.toContain("condomínio");
+    }
+  });
+
+  /**
+   * **31.3 — quatro rótulos, não um molde.** *"Frase montada em tempo de execução produz «Parada,
+   * esperando aguardando peça»"* (regra 2 do glossário). A forma literal disso é o identificador do enum
+   * aparecendo dentro de um texto em português.
+   */
+  it("os quatro rótulos de pausa são DISTINTOS entre si — critério 31.3", () => {
+    const rotulos = MOTIVOS_DE_PAUSA.map((motivo) =>
+      rotuloDeStatus("pausada", motivo, "solicitante"),
+    );
+    expect(rotulos).toHaveLength(4);
+    expect(new Set(rotulos).size).toBe(4);
+  });
+
+  it("nenhum rótulo interpola o identificador do enum numa frase — critério 31.3", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo).not.toContain("_");
+      // E nenhum rótulo É o valor cru do enum.
+      expect(STATUS as readonly string[]).not.toContain(rotulo);
+      expect(MOTIVOS_DE_PAUSA as readonly string[]).not.toContain(rotulo);
+    }
+  });
+
+  /**
+   * **31.4 — rótulo é estado, não convite.** *"Resolvida — conte como foi"* mistura o que a ocorrência é
+   * com o que se pede de quem lê. **O convite pertence à tela** — é o `CONVITE_A_AVALIAR` do item 27, que
+   * vive em `rotulos.ts` e é renderizado ao LADO do rótulo, nunca dentro dele.
+   */
+  it("resolvida é 'Resolvida' e nada mais, nas DUAS lentes — critério 31.4", () => {
+    expect(rotuloDeStatus("resolvida", null, "solicitante")).toBe("Resolvida");
+    expect(rotuloDeStatus("resolvida", null, "gestor")).toBe("Resolvida");
+  });
+
+  it("nenhum rótulo carrega convite — nem verbo no imperativo do 27.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("conte");
+      expect(minusculo).not.toContain("avalie");
+      expect(minusculo).not.toContain("clique");
+    }
+  });
+
+  /**
+   * **31.1 — nenhum cliente monta a frase.** As duas projeções que a tela consome emitem `statusRotulo`
+   * como `string` **pronta**, e o que desce ao navegador é texto. É a versão executável do *"calculado no
+   * servidor, nunca no cliente"* do `glossario.md:102`.
+   */
+  it("resumo e detalhe emitem statusRotulo como string pronta — critério 31.1", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "gestor");
+    expect(typeof resumo.statusRotulo).toBe("string");
+    expect(resumo.statusRotulo).toBe("Aberta");
+
+    const detalhe = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), {
+      pessoaId: QUEM_LE.pessoaId,
+      permissoes: ["ocorrencia.ler_todas"],
+    });
+    expect(typeof detalhe.statusRotulo).toBe("string");
+    expect(detalhe.statusRotulo).toBe("Aberta");
   });
 });
 
@@ -1065,21 +1334,29 @@ describe("os rótulos que descem para a barra de ações", () => {
     expect(rotuloDeComando("iniciar-atendimento")).toBe("Iniciar atendimento");
   });
 
-  it("os seis status têm rótulo do Solicitante e nome de Gestor — nenhum buraco", () => {
-    const rotulos = rotulosDeStatus();
+  it("os seis status têm rótulo nas DUAS lentes e nome de Gestor — nenhum buraco", () => {
+    const doSolicitante = rotulosDeStatus("solicitante");
+    const doGestor = rotulosDeStatus("gestor");
     const nomes = nomesDeStatus();
 
     for (const status of STATUS) {
-      expect(typeof rotulos[status]).toBe("string");
+      expect(typeof doSolicitante[status]).toBe("string");
+      expect(typeof doGestor[status]).toBe("string");
       expect(typeof nomes[status]).toBe("string");
     }
 
-    // A frase do `409` usa a coluna do Solicitante — "agora ela está Parada" —, e `pausada` degrada
-    // para a palavra sozinha, porque um erro não carrega motivo de pausa.
-    expect(rotulos.pausada).toBe("Parada");
-    expect(rotulos.em_analise).toBe("Em análise");
+    // A frase do `409` usa a coluna de quem lê — "agora ela está …". Do lado do Solicitante `pausada`
+    // degrada para a palavra sozinha, porque um erro não carrega motivo de pausa.
+    expect(doSolicitante.pausada).toBe("Parada");
+    expect(doSolicitante.em_analise).toBe("Em análise");
 
-    // O bloco Histórico usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
+    // **Do lado do Gestor não há degradação a fazer:** a coluna dele JÁ é uma palavra por status, e
+    // `pausada` é "Pausada" com ou sem motivo. É o que faz o `409` dele ler "agora ela está Pausada."
+    expect(doGestor.pausada).toBe("Pausada");
+    expect(doGestor.aberta).toBe("Aberta");
+    expect(doGestor.em_atendimento).toBe("Em atendimento");
+
+    // O bloco de transição usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
     expect(nomes.aberta).toBe("Aberta");
     expect(nomes.em_analise).toBe("Em análise");
   });
@@ -1639,7 +1916,7 @@ describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não i
   });
 });
 
-describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
+describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () => {
   it("devolve null nos QUATRO motivos quando o statusRotulo JÁ é o rótulo do motivo — o mundo de hoje", () => {
     for (const motivo of MOTIVOS_DE_PAUSA) {
       expect(segundaLinhaDeMotivo(motivo, rotuloDeMotivoPausa(motivo))).toBeNull();
@@ -1656,6 +1933,40 @@ describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
 
   it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
     expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
+  });
+
+  /**
+   * **O critério 31.6 virado asserção, e ele fecha nos QUATRO motivos.** Antes do item 31 os dois textos
+   * coincidiam do lado do Gestor e a guarda devolvia `null`; com o rótulo dele colapsando em *"Pausada"*,
+   * eles divergem e a linha volta — em **todos** os motivos, não só no que o caso acima ilustra.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do GESTOR, a segunda linha volta em %s — e é o motivo em palavras",
+    (motivo) => {
+      const doGestor = rotuloDeStatus("pausada", motivo, "gestor");
+      expect(doGestor).toBe("Pausada");
+      expect(segundaLinhaDeMotivo(motivo, doGestor)).toBe(rotuloDeMotivoPausa(motivo));
+    },
+  );
+
+  /**
+   * **E ela continua muda para o Solicitante, nos quatro** — que é o que faz a mesma chamada servir os
+   * três recortes de T-03 e o bloco 1a de T-05 **sem argumento novo**. O cartão dele fica byte a byte
+   * igual.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do SOLICITANTE, %s não produz segunda linha — a função se auto-silencia",
+    (motivo) => {
+      const doSolicitante = rotuloDeStatus("pausada", motivo, "solicitante");
+      expect(segundaLinhaDeMotivo(motivo, doSolicitante)).toBeNull();
+    },
+  );
+
+  it("fora de pausada não há segunda linha, em nenhuma das duas lentes", () => {
+    for (const lente of ["solicitante", "gestor"] as const) {
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("resolvida", null, lente))).toBeNull();
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("em_atendimento", null, lente))).toBeNull();
+    }
   });
 });
 
@@ -2152,20 +2463,23 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
   const ENCARREGADO = { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Antônio Ferreira" };
 
   it("a transição traz rotulo, e o rotulo é o do glossário — critério 29.2", () => {
-    const projetado = projetarEventoDaLinhaDoTempo({
-      tipo: "transicao",
-      ocorridoEm: "2026-08-15T11:12:00.000Z",
-      transicao: {
-        sequencia: 1,
-        statusAnterior: null,
-        statusNovo: "aberta",
-        ocorreuEm: "2026-08-15T11:12:00.000Z",
-        autor: AUTORA,
-        observacao: null,
-        motivoPausa: null,
-        motivoCancelamento: null,
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "transicao",
+        ocorridoEm: "2026-08-15T11:12:00.000Z",
+        transicao: {
+          sequencia: 1,
+          statusAnterior: null,
+          statusNovo: "aberta",
+          ocorreuEm: "2026-08-15T11:12:00.000Z",
+          autor: AUTORA,
+          observacao: null,
+          motivoPausa: null,
+          motivoCancelamento: null,
+        },
       },
-    });
+      "solicitante",
+    );
 
     expect(projetado).toStrictEqual({
       tipo: "transicao",
@@ -2185,20 +2499,23 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
   });
 
   it("a pausa traz o motivo DENTRO do rotulo, e os três campos sensíveis saem — critério 29.2", () => {
-    const projetado = projetarEventoDaLinhaDoTempo({
-      tipo: "transicao",
-      ocorridoEm: "2026-08-20T19:40:00.000Z",
-      transicao: {
-        sequencia: 4,
-        statusAnterior: "em_atendimento",
-        statusNovo: "pausada",
-        ocorreuEm: "2026-08-20T19:40:00.000Z",
-        autor: GESTOR,
-        observacao: "O material só chega na terça.",
-        motivoPausa: "aguardando_peca",
-        motivoCancelamento: null,
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "transicao",
+        ocorridoEm: "2026-08-20T19:40:00.000Z",
+        transicao: {
+          sequencia: 4,
+          statusAnterior: "em_atendimento",
+          statusNovo: "pausada",
+          ocorreuEm: "2026-08-20T19:40:00.000Z",
+          autor: GESTOR,
+          observacao: "O material só chega na terça.",
+          motivoPausa: "aguardando_peca",
+          motivoCancelamento: null,
+        },
       },
-    });
+      "solicitante",
+    );
 
     expect(projetado.tipo === "transicao" && projetado.rotulo).toBe(
       "Parada — esperando material chegar",
@@ -2209,18 +2526,85 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
     expect(projetado.tipo === "transicao" && projetado.motivoPausa).toBe("aguardando_peca");
   });
 
-  it("a atribuição traz responsavel, encerradaEm e motivoEncerramento — critério 29.3", () => {
-    const projetado = projetarEventoDaLinhaDoTempo({
-      tipo: "atribuicao",
-      ocorridoEm: "2026-08-15T12:44:00.000Z",
-      atribuicao: {
-        responsavel: ENCARREGADO,
+  /**
+   * **O critério 31.7, e ele não é decisão nova — é a descrição do campo.**
+   * `docs/api/openapi.yaml:2994-3006`, schema `EventoTransicao`, campo `rotulo`: *"O status em linguagem
+   * de gente, conforme quem lê. Em `pausada` ele depende também do motivo: o Solicitante lê 'Parada —
+   * esperando material chegar', o Gestor lê 'Pausada'."*
+   *
+   * **E o motivo NÃO entra no rótulo**: ele viaja no campo `motivoPausa` do próprio evento, que esta
+   * projeção já emite. `fraseDaTransicao` continua recebendo o rótulo pronto — nenhuma composição nova.
+   */
+  it("a pausa lida pelo GESTOR é 'Pausada' seca, e o motivo sai no campo próprio — critério 31.7", () => {
+    const evento = {
+      tipo: "transicao" as const,
+      ocorridoEm: "2026-08-20T19:40:00.000Z",
+      transicao: {
+        sequencia: 4,
+        statusAnterior: "em_atendimento" as const,
+        statusNovo: "pausada" as const,
+        ocorreuEm: "2026-08-20T19:40:00.000Z",
         autor: GESTOR,
-        atribuidoEm: "2026-08-15T12:44:00.000Z",
-        encerradaEm: "2026-08-18T09:00:00.000Z",
-        motivoEncerramento: "reatribuicao",
+        observacao: "O material só chega na terça.",
+        motivoPausa: "aguardando_peca" as const,
+        motivoCancelamento: null,
       },
-    });
+    };
+
+    const paraOGestor = projetarEventoDaLinhaDoTempo(evento, "gestor");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).toBe("Pausada");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.motivoPausa).toBe("aguardando_peca");
+    // **A palavra do motivo NÃO está dentro do rótulo** — é o achado A-1 da spec, virado asserção: o
+    // protótipo desenha "Pausada · aguardando peça", e o glossário, o contrato e o YAML dizem o contrário.
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).not.toContain("peça");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).not.toContain("material");
+
+    const paraOSolicitante = projetarEventoDaLinhaDoTempo(evento, "solicitante");
+    expect(paraOSolicitante.tipo === "transicao" && paraOSolicitante.rotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+  });
+
+  it("a criação lida pelo Gestor é 'Aberta', e pelo Solicitante é a frase — critério 31.7", () => {
+    const evento = {
+      tipo: "transicao" as const,
+      ocorridoEm: "2026-08-15T11:12:00.000Z",
+      transicao: {
+        sequencia: 1,
+        statusAnterior: null,
+        statusNovo: "aberta" as const,
+        ocorreuEm: "2026-08-15T11:12:00.000Z",
+        autor: AUTORA,
+        observacao: null,
+        motivoPausa: null,
+        motivoCancelamento: null,
+      },
+    };
+
+    const doGestor = projetarEventoDaLinhaDoTempo(evento, "gestor");
+    expect(doGestor.tipo === "transicao" && doGestor.rotulo).toBe("Aberta");
+
+    const doSolicitante = projetarEventoDaLinhaDoTempo(evento, "solicitante");
+    expect(doSolicitante.tipo === "transicao" && doSolicitante.rotulo).toBe(
+      "Recebida — aguardando análise",
+    );
+  });
+
+  it("a atribuição traz responsavel, encerradaEm e motivoEncerramento — critério 29.3", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-15T12:44:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-15T12:44:00.000Z",
+          encerradaEm: "2026-08-18T09:00:00.000Z",
+          motivoEncerramento: "reatribuicao",
+        },
+      },
+      "solicitante",
+    );
 
     expect(projetado).toStrictEqual({
       tipo: "atribuicao",
@@ -2235,34 +2619,40 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
   });
 
   it("a atribuição vigente sai com os dois nulos, e nunca ausentes", () => {
-    const projetado = projetarEventoDaLinhaDoTempo({
-      tipo: "atribuicao",
-      ocorridoEm: "2026-08-18T09:00:00.000Z",
-      atribuicao: {
-        responsavel: ENCARREGADO,
-        autor: GESTOR,
-        atribuidoEm: "2026-08-18T09:00:00.000Z",
-        encerradaEm: null,
-        motivoEncerramento: null,
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-18T09:00:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-18T09:00:00.000Z",
+          encerradaEm: null,
+          motivoEncerramento: null,
+        },
       },
-    });
+      "solicitante",
+    );
 
     expect(projetado.tipo === "atribuicao" && projetado.encerradaEm).toBeNull();
     expect(projetado.tipo === "atribuicao" && projetado.motivoEncerramento).toBeNull();
   });
 
   it("o AUTOR de uma atribuição é quem atribuiu, nunca o responsável — colisão nº 2 do glossário", () => {
-    const projetado = projetarEventoDaLinhaDoTempo({
-      tipo: "atribuicao",
-      ocorridoEm: "2026-08-15T12:44:00.000Z",
-      atribuicao: {
-        responsavel: ENCARREGADO,
-        autor: GESTOR,
-        atribuidoEm: "2026-08-15T12:44:00.000Z",
-        encerradaEm: null,
-        motivoEncerramento: null,
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-15T12:44:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-15T12:44:00.000Z",
+          encerradaEm: null,
+          motivoEncerramento: null,
+        },
       },
-    });
+      "solicitante",
+    );
 
     expect(projetado.autor).toStrictEqual(GESTOR);
     expect(projetado.tipo === "atribuicao" && projetado.responsavel).toStrictEqual(ENCARREGADO);
