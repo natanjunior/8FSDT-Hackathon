@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import {
+  filtrarPorNome,
   repartirCandidatos,
+  termosDaBusca,
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
@@ -20,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
+import { Input } from "@/interface/componentes/ui/input";
 
 /**
  * ============================================================================
@@ -82,8 +85,10 @@ export function ModalDeAtribuicao({
   variante: "primario" | "secundario" | "menu";
 }) {
   const router = useRouter();
+  const campoDeBuscaId = useId();
   const [aberto, setAberto] = useState(false);
   const [escolhido, setEscolhido] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [precisaRepintar, setPrecisaRepintar] = useState(false);
@@ -108,6 +113,7 @@ export function ModalDeAtribuicao({
       // `precisaRepintar` volta a `false` para que abrir-e-fechar sem agir não custe uma ida ao servidor.
       setAviso(null);
       setEscolhido(null);
+      setBusca("");
       setPrecisaRepintar(false);
       return;
     }
@@ -151,6 +157,23 @@ export function ModalDeAtribuicao({
 
   /** **A-5:** o estado vai em palavra, e o `opacity-60` é reforço — nunca o sinal. */
   const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
+
+  /**
+   * **Reparte PRIMEIRO, filtra depois — e nunca o contrário.** Filtrar antes de repartir apagaria a
+   * fileira *"Atribuir a mim"* sempre que o texto digitado não casasse o nome de quem está olhando, que é
+   * o que a §3.7 da spec proíbe em uma frase.
+   */
+  const executoresVisiveis = filtrarPorNome(executores, busca);
+  const solicitantesVisiveis = filtrarPorNome(solicitantes, busca);
+
+  /**
+   * **A frase do vazio só existe com busca digitada.** Sem esta condição ela apareceria numa organização
+   * cujo único detentor de `vinculo.gerir` é quem chama — os dois blocos vazios **sem ninguém ter
+   * buscado** —, e dizer ali *"Ninguém com esse nome"* é a frase errada no lugar errado.
+   */
+  const buscando = termosDaBusca(busca).length > 0;
+  const nadaEncontrado =
+    buscando && executoresVisiveis.length === 0 && solicitantesVisiveis.length === 0;
 
   function bloco(titulo: string, lista: readonly Candidato[]) {
     // **Bloco vazio não renderiza** — um subtítulo sozinho pergunta o que aconteceu com a lista.
@@ -199,6 +222,27 @@ export function ModalDeAtribuicao({
         })}
       </fieldset>
     );
+  }
+
+  /**
+   * **Seleção que o filtro esconde é APAGADA, não guardada.**
+   *
+   * Sem isto o rodapé ficaria habilitado enviando alguém que a tela não mostra — a forma mais silenciosa
+   * de gravar a pessoa errada.
+   *
+   * **A fileira *"Atribuir a mim"* sobrevive a qualquer texto**, porque ela não é filtrada (§3.7): se o
+   * escolhido for quem chama, não há o que reconferir.
+   */
+  function aoBuscar(texto: string) {
+    setBusca(texto);
+
+    if (escolhido === null || (eu !== null && escolhido === eu.pessoaId)) return;
+
+    const continuaVisivel =
+      filtrarPorNome(executores, texto).some((pessoa) => pessoa.pessoaId === escolhido) ||
+      filtrarPorNome(solicitantes, texto).some((pessoa) => pessoa.pessoaId === escolhido);
+
+    if (!continuaVisivel) setEscolhido(null);
   }
 
   return (
@@ -287,9 +331,52 @@ export function ModalDeAtribuicao({
           </label>
         )}
 
+        {/*
+          **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
+          que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
+
+          **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
+          campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
+          organização, e nenhuma tela do produto pratica isso.
+
+          **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
+          das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
+        */}
+        <div className="flex flex-col gap-1.5">
+          {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
+          <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
+            Buscar pelo nome
+          </label>
+          <Input
+            id={campoDeBuscaId}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
+            maxLength={120}
+            value={busca}
+            onChange={(evento) => aoBuscar(evento.currentTarget.value)}
+            disabled={enviando}
+            /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
+            className="h-11"
+          />
+        </div>
+
         <div className="flex flex-col gap-4">
-          {bloco(NOME_DO_BLOCO.executores, executores)}
-          {bloco(NOME_DO_BLOCO.solicitantes, solicitantes)}
+          {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
+          {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+
+          {/*
+            **Frase própria, diferente de qualquer outra do produto** — é a regra que o
+            `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
+            perdeu dados.
+
+            **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
+            usa leitor de tela, e a lista está imediatamente abaixo do campo.
+
+            **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
+          */}
+          {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
         </div>
 
         <DialogFooter>
