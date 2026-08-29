@@ -60,6 +60,7 @@ import {
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarPaginaDeComentarios,
+  segundaLinhaDeMotivo,
   type LenteDeRotulo,
 } from "@/interface/projecoes";
 
@@ -560,6 +561,25 @@ export default async function Ocorrencia({
         <span className="text-tinta text-base leading-snug font-semibold">
           {detalhe.statusRotulo}
         </span>
+        {/*
+          **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.**
+
+          Do lado do Gestor o rótulo colapsa em *"Pausada"* desde o item 31, e sem esta linha o motivo
+          **sairia da tela**: até aqui ele estava dentro do rótulo. O `inventario-de-telas.md:744` já
+          descrevia o bloco 1 como *"`statusRotulo` (+ `motivoPausa` para o Gestor, pela mesma razão de
+          T-03)"* — só que até agora o rótulo o carregava, e a linha não tinha trabalho.
+
+          **Auto-silenciadora, e sem argumento novo:** para o Solicitante os dois textos coincidem e a
+          função devolve `null` — o bloco dele não muda em nada.
+
+          **Aqui e não no bloco 1c:** o 1c é o `<dl>` do resto da identidade; o 1a é o que existe para
+          caber **sem rolar**, e a espera nomeada é o que a D8 quer visível.
+        */}
+        {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
+          <span className="text-tinta-suave text-sm leading-snug">
+            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+          </span>
+        )}
       </section>
 
       {/*
