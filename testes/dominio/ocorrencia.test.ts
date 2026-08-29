@@ -4,6 +4,7 @@ import {
   AnexoDaOcorrencia,
   Avaliacao,
   comandoPermitido,
+  COMANDOS,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   MOTIVOS_DE_CANCELAMENTO,
@@ -189,8 +190,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.analisar",
     "ocorrencia.atribuir",
     "ocorrencia.iniciar_atendimento",
-    // O sexto comando construído. **Não entra `ocorrencia.avaliar`**: `avaliar` é do item 27, e o caso
-    // que precisa dele monta a própria lista — ver o último caso deste bloco.
+    // O sexto comando construído.
     "ocorrencia.retomar",
     // **O sétimo comando construído, e ele MUDA duas asserções deste arquivo** — em `em_atendimento` e em
     // `pausada`. Sem esta linha as duas continuariam verdes e deixariam de descrever a produção: todo
@@ -198,12 +198,19 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.registrar_solucao",
     "ocorrencia.resolver",
     "ocorrencia.alterar_prioridade",
+    // O DÉCIMO comando construído — item 27. **Ela vem do Solicitante** (`DO_SOLICITANTE`), e o Gestor
+    // acumula: todo vínculo do produto que não seja Encarregado a tem. **Ela não muda asserção nenhuma
+    // deste arquivo** — `avaliar` só é admitido em `resolvida` E só para `ehAutor: true`, e as asserções
+    // que usam `TODAS` em `resolvida` passam `ehAutor: false`. Entra porque a lista deve descrever a
+    // produção, que é o argumento com que o item 25 acrescentou `registrar_solucao`.
+    "ocorrencia.avaliar",
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz NOVE comandos — 16, 19, 22, 26, 23, 24, 25, o 17 e o cancelar do 18", () => {
-    // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
-    // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
+  it("traz os DEZ, e a lista FECHA — não falta nenhum, e o filtro vira a identidade", () => {
+    // **É o último item a mexer nesta lista.** `COMANDOS_IMPLEMENTADOS` e `COMANDOS` passam a ter o mesmo
+    // conteúdo, e o filtro não esconde mais nada. **Ele não é removido:** o próximo comando que nascer
+    // começa fora da lista, e é este caso que marca o dia em que alguém o acrescentar sem endpoint.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
@@ -212,9 +219,11 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "resolver",
+      "avaliar",
       "alterar-prioridade",
       "cancelar",
     ]);
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([...COMANDOS]);
   });
 
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
@@ -528,8 +537,15 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("em resolvida a lista é vazia para o Gestor E para o autor — o critério 26.4", () => {
-    // **Com o filtro LIGADO**, que é o que a produção faz. É o `[]` que a frase do 26.6 explica.
+  it("em resolvida: vazia para quem NÃO é o autor, e ['avaliar'] para o autor que ainda não avaliou", () => {
+    /**
+     * **O critério 26.4 continua valendo, e ganhou a exceção que ele mesmo previa.** Ele diz que
+     * `acoesDisponiveis` em `resolvida` *"não traz comando de transição"* — e `avaliar` **não** é
+     * transição: é o comando que age sobre o estado terminal sem tirar a ocorrência de lá (D1).
+     *
+     * **Até o item 27 as duas asserções eram `[]`**, porque `COMANDOS_IMPLEMENTADOS` filtrava o comando
+     * inteiro. Agora a diferença entre elas é a **invariante 8**, e é isso que este caso passa a provar.
+     */
     expect(
       comandosDisponiveis({
         status: "resolvida",
@@ -546,15 +562,24 @@ describe("comandosDisponiveis", () => {
         ehAutor: true,
         temResponsavel: true,
       }),
+    ).toStrictEqual(["avaliar"]);
+
+    // **E some de novo quando já foi avaliada** — a metade "uma vez só", que só passou a ser informável
+    // nesta fatia. É o P-3 do plano do item 16, do lado do Domínio.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
+        jaAvaliada: true,
+      }),
     ).toStrictEqual([]);
   });
 
-  it("com o filtro desligado, resolvida devolve avaliar para o autor — o [] é derivação, não constante", () => {
-    // **A prova de que o vazio do caso acima não é `[]` chumbado.** `SEM_TRANSICAO.avaliar` admite
-    // `resolvida`, e o que o esconde hoje é `COMANDOS_IMPLEMENTADOS` — até o item 27.
-    //
-    // **A lista de permissões é própria e inline**, e não `TODAS`: `TODAS` não tem `ocorrencia.avaliar`,
-    // e escrito com ela este caso devolveria `[]` provando o contrário do que promete (furo F-6).
+  it("com o filtro desligado, resolvida devolve avaliar para o autor — e o filtro LIGADO responde igual", () => {
+    // **Até o item 27 o que o escondia era `COMANDOS_IMPLEMENTADOS`; agora não esconde mais nada, e as
+    // duas formas respondem igual** — é a confirmação de que a derivação sempre foi real.
     expect(
       comandosDisponiveis({
         status: "resolvida",
@@ -562,6 +587,16 @@ describe("comandosDisponiveis", () => {
         ehAutor: true,
         temResponsavel: true,
         filtro: null,
+      }),
+    ).toStrictEqual(["avaliar"]);
+
+    // **O filtro ligado devolve o MESMO**, porque a lista fechou nesta fatia.
+    expect(
+      comandosDisponiveis({
+        status: "resolvida",
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
+        ehAutor: true,
+        temResponsavel: true,
       }),
     ).toStrictEqual(["avaliar"]);
 

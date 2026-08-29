@@ -7,6 +7,7 @@ import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
+import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
@@ -186,6 +187,13 @@ export default async function Ocorrencia({
    */
   const ehGestor = vinculo.pode("ocorrencia.cancelar_qualquer");
 
+  /**
+   * **Quem lê é o autor?** — lido por um consumidor só: o título do bloco da avaliação (*"Sua
+   * avaliação"* × *"Avaliação do solicitante"*). **O convite NÃO usa isto:** ele usa
+   * `acoesDisponiveis`, que já cruza autoria com *"ainda não avaliou"*.
+   */
+  const ehAutor = detalhe.autor.pessoaId === escopo.ctx.pessoaId;
+
   const candidatos: readonly Candidato[] = podeAtribuir
     ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
         pessoaId: lido.pessoa.pessoaId,
@@ -239,7 +247,7 @@ export default async function Ocorrencia({
    * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
    * que mantém `app/` sem `import` do Domínio desde o item 11.
    */
-  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status, ehGestor) : null;
+  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
 
   /**
    * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
@@ -378,6 +386,24 @@ export default async function Ocorrencia({
         rotulosDeStatus={rotulos}
       />
     ),
+    /**
+     * **O quinto modal, e o último** — não há sexto, porque não há décimo primeiro comando.
+     *
+     * **Entra SEMPRE, como os outros quatro**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e ela já cruza *ser o autor*
+     * com *ainda não avaliou* (`MaquinaDeEstados.ts:188-191`).
+     *
+     * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
+     * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
+     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está em `barra-de-acoes.tsx:69-72`.
+     */
+    avaliar: (
+      <ModalDeAvaliacao
+        ocorrenciaId={detalhe.id}
+        variante={primario === "avaliar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+      />
+    ),
     ...(podeAtribuir
       ? {
           "atribuir-responsavel": (
@@ -449,6 +475,27 @@ export default async function Ocorrencia({
           <dd>{new Date(detalhe.registradaEm).toLocaleString("pt-BR")}</dd>
         </dl>
       </section>
+
+      {/*
+        **O convite a avaliar — o critério 27.5, metade de T-05.**
+
+        **A condição é `acoesDisponiveis`, e não uma segunda regra na tela.** `comandosDisponiveis` já
+        cruza *ser o autor* com *ainda não avaliou*; recalcular isso no JSX seria a segunda cópia da
+        máquina de estados que `acoesDisponiveis` existe para impedir. `status === "resolvida"` é
+        redundante com a lista — `avaliar` só é admitido lá — e fica de fora.
+
+        **O texto é literal do `inventario-de-telas.md:645`, e é a frase INTEIRA** — *"em T-05, onde o
+        convite é chamada e não marca, a frase aparece inteira"* (`prototipo-low-fi.md:490`). Na lista é
+        só *"Conte como foi"*, e é a Q-P8 respondida.
+
+        **O `statusRotulo` não muda** — critério 27.5, e é a regra 3 do glossário §4: rótulo é estado, o
+        convite é da tela.
+      */}
+      {detalhe.acoesDisponiveis.includes("avaliar") && (
+        <p className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm">
+          Resolvida. Conte como foi.
+        </p>
+      )}
 
       {/* **Bloco 2 · Conteúdo.** */}
       <section className="flex flex-col gap-2">
@@ -524,6 +571,38 @@ export default async function Ocorrencia({
         )
       )}
 
+      {/*
+        **A avaliação dada — e ela NÃO é escopo inventado.** O `inventario-de-telas.md:1520` manda a tela
+        *"mostrar a avaliação"* ao lado da frase do `JA_AVALIADA`: uma tela que não sabe mostrá-la não
+        consegue cumprir aquilo.
+
+        **E sem ele a fatia entregaria um `200` silencioso na própria ação principal:** o autor avalia, o
+        modal fecha, o convite some, a barra fica com *"Esta ocorrência está encerrada."* — e **nada** na
+        tela diria que a nota foi registrada. `avaliacao` está no `OcorrenciaDetalhe` desde o item 11 e
+        **ninguém a renderizava**; este é o item que a alcança.
+
+        **Servidor puro, na forma do ramo de texto da solução aplicada** — não há por que embarcar no
+        navegador um parágrafo que não muda.
+
+        **Os dois títulos são texto novo de produto** — achado **A-2** da spec.
+      */}
+      {detalhe.avaliacao !== null && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-tinta text-sm font-semibold">
+            {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
+          </h2>
+          {/* **A-5: a nota carrega a palavra**, e nunca é só um número solto ou uma cor. */}
+          <p className="text-tinta-suave text-sm leading-relaxed">
+            Nota {detalhe.avaliacao.nota} de 5
+          </p>
+          {detalhe.avaliacao.comentario !== null && (
+            <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
+              {detalhe.avaliacao.comentario}
+            </p>
+          )}
+        </section>
+      )}
+
       {/* **A primeira entrada da trilha** — a prova, para quem acabou de reclamar, de que o pedido
           existe. É o critério 11.2 visível na interface, e não só em teste. */}
       <section className="flex flex-col gap-2">
@@ -551,19 +630,13 @@ export default async function Ocorrencia({
         silencioso que a §8.5 do contrato existe para impedir — *"a tela não distingue 'não há o que
         fazer' de 'algo falhou ao montar a lista'"*.
 
-        **A moldura é parte da mensagem.** Tracejada marca **andaime declarado** — comandos que ainda vão
-        chegar, e ela sai no item 27. Sólida é **UI de produto**: em `resolvida` e em `cancelada` não há
-        mesmo o que fazer, e nunca haverá. Escrever a frase de produto no vazio de andaime seria mentir
-        sobre o estado da ocorrência; escrever a de andaime no terminal seria prometer comando que nunca
-        vem.
+        **A moldura é sempre sólida desde o item 27.** Ela era tracejada quando havia **andaime
+        declarado** — comandos que ainda iam chegar —, e o critério 27.6 removeu esse ramo: com os dez
+        comandos construídos, toda lista vazia é verdade sobre o produto pronto.
       */}
       {vazio !== null && (
-        <p
-          className={`border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-xs leading-relaxed ${
-            vazio.andaime ? "border-dashed" : ""
-          }`}
-        >
-          {vazio.texto}
+        <p className="border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-xs leading-relaxed">
+          {vazio}
         </p>
       )}
 
