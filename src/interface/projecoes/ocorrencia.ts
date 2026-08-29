@@ -1,5 +1,6 @@
 import type {
   CursorDeListagem,
+  EventoLido,
   FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
@@ -345,6 +346,60 @@ export function projetarTransicao(lida: TransicaoLida) {
     motivoCancelamento: lida.motivoCancelamento,
   };
 }
+
+/**
+ * ============================================================================
+ *  Os eventos da linha do tempo — DUAS formas hoje, três no dia do item 30
+ * ============================================================================
+ *
+ * **Por que não reusar `projetarTransicao`.** Os nomes divergem no contrato **de propósito**: a trilha diz
+ * `ocorreuEm` e a linha do tempo diz `ocorridoEm`; a trilha não tem `rotulo` e a linha do tempo não tem
+ * `sequencia`. São *"duas leituras sobre os mesmos fatos, com vocabulários diferentes"*
+ * (`contrato-de-api.md` §8.5), e forçar uma função a servir as duas apagaria a distinção que o glossário
+ * existe para manter — chamar a outra e renomear campo é a mesma cópia com um passo a mais.
+ *
+ * **É AQUI que o `rotulo` é calculado, e não na função de aplicação.** `src/aplicacao/` não importa
+ * `@/interface/**` (ADR-0006, regra 3), e é a projeção que o contrato nomeia como dona dos formatos
+ * (§8.8). `rotuloDeStatus` devolve hoje a coluna do Solicitante para todo mundo — o **item 31** troca o
+ * que ela devolve, e esta função não muda uma linha quando ele chegar.
+ *
+ * **Custo declarado, para ninguém marcar como defeito:** até o 31, o Gestor lê a linha do tempo no
+ * vocabulário do Solicitante. É a mesma divergência que T-03 e T-05 carregam desde o item 23.
+ *
+ * **A terceira forma — `mensagem` — não é produzida nesta fatia**, e não é esquecimento: a tabela
+ * `mensagens` não existe em nenhuma das oito migrações, e o canal 1 é o item 30. O `openapi.yaml` já
+ * publica o `EventoMensagem`, e o achado A-1 da spec registra que nenhum critério do 30 o reivindica.
+ */
+export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
+  if (evento.tipo === "atribuicao") {
+    return {
+      tipo: "atribuicao" as const,
+      ocorridoEm: evento.ocorridoEm,
+      // **O autor é quem ATRIBUIU.** O responsável tem campo próprio, e trocá-los seria a colisão nº 2
+      // do glossário virando payload.
+      autor: evento.atribuicao.autor,
+      responsavel: evento.atribuicao.responsavel,
+      encerradaEm: evento.atribuicao.encerradaEm,
+      motivoEncerramento: evento.atribuicao.motivoEncerramento,
+    };
+  }
+
+  const transicao = evento.transicao;
+  return {
+    tipo: "transicao" as const,
+    ocorridoEm: evento.ocorridoEm,
+    autor: transicao.autor,
+    rotulo: rotuloDeStatus(transicao.statusNovo, transicao.motivoPausa),
+    statusAnterior: transicao.statusAnterior,
+    statusNovo: transicao.statusNovo,
+    // Os três são **visíveis ao Solicitante** por decisão do hub (Q-API-3, resposta (a)) — critério 29.2.
+    observacao: transicao.observacao,
+    motivoPausa: transicao.motivoPausa,
+    motivoCancelamento: transicao.motivoCancelamento,
+  };
+}
+
+export type EventoDaLinhaDoTempoProjetado = ReturnType<typeof projetarEventoDaLinhaDoTempo>;
 
 export type QuemLe = {
   pessoaId: string;

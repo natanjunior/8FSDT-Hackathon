@@ -23,10 +23,12 @@ export { iniciarAtendimento } from "./iniciar-atendimento";
 export { pausarOcorrencia } from "./pausar-ocorrencia";
 export {
   type AnexoLido,
+  type AtribuicaoLida,
   type CursorDeListagem,
   type DadosDaAtribuicao,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
+  type MotivoEncerramentoDeAtribuicao,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
@@ -52,8 +54,10 @@ export {
   listarOcorrencias,
   podeLerOcorrencia,
   verAnexoDaOcorrencia,
+  verLinhaDoTempo,
   verOcorrencia,
   verTrilhaDeAuditoria,
+  type EventoLido,
   type PaginaDeOcorrencias,
   type QuemPergunta,
   type VarianteDoAnexo,

@@ -24,6 +24,7 @@ import {
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
   projetarAnexo,
+  projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
@@ -2114,5 +2115,128 @@ describe("o 404 da estrada direta — a frase e a linha de log", () => {
       // **O nome da subclasse sobrevive** — é o que a ordem decidida na tarefa 1 preserva.
       erro: "OcorrenciaNaoEncontrada: OCORRENCIA_NAO_ENCONTRADA: Não há ocorrência com este identificador nesta organização.",
     });
+  });
+});
+
+describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAtribuicao", () => {
+  const AUTORA = { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Marina Rocha" };
+  const GESTOR = { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Roberto Salles" };
+  const ENCARREGADO = { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Antônio Ferreira" };
+
+  it("a transição traz rotulo, e o rotulo é o do glossário — critério 29.2", () => {
+    const projetado = projetarEventoDaLinhaDoTempo({
+      tipo: "transicao",
+      ocorridoEm: "2026-08-15T11:12:00.000Z",
+      transicao: {
+        sequencia: 1,
+        statusAnterior: null,
+        statusNovo: "aberta",
+        ocorreuEm: "2026-08-15T11:12:00.000Z",
+        autor: AUTORA,
+        observacao: null,
+        motivoPausa: null,
+        motivoCancelamento: null,
+      },
+    });
+
+    expect(projetado).toStrictEqual({
+      tipo: "transicao",
+      ocorridoEm: "2026-08-15T11:12:00.000Z",
+      autor: AUTORA,
+      rotulo: "Recebida — aguardando análise",
+      statusAnterior: null,
+      statusNovo: "aberta",
+      observacao: null,
+      motivoPausa: null,
+      motivoCancelamento: null,
+    });
+    // **`sequencia` NÃO sai** — é ordem interna da trilha, e o `EventoTransicao` do contrato não a tem.
+    expect(projetado).not.toHaveProperty("sequencia");
+    // E o nome do campo é `ocorridoEm`, nunca `ocorreuEm`: são dois vocabulários de propósito (§8.5).
+    expect(projetado).not.toHaveProperty("ocorreuEm");
+  });
+
+  it("a pausa traz o motivo DENTRO do rotulo, e os três campos sensíveis saem — critério 29.2", () => {
+    const projetado = projetarEventoDaLinhaDoTempo({
+      tipo: "transicao",
+      ocorridoEm: "2026-08-20T19:40:00.000Z",
+      transicao: {
+        sequencia: 4,
+        statusAnterior: "em_atendimento",
+        statusNovo: "pausada",
+        ocorreuEm: "2026-08-20T19:40:00.000Z",
+        autor: GESTOR,
+        observacao: "O material só chega na terça.",
+        motivoPausa: "aguardando_peca",
+        motivoCancelamento: null,
+      },
+    });
+
+    expect(projetado.tipo === "transicao" && projetado.rotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(projetado.tipo === "transicao" && projetado.observacao).toBe(
+      "O material só chega na terça.",
+    );
+    expect(projetado.tipo === "transicao" && projetado.motivoPausa).toBe("aguardando_peca");
+  });
+
+  it("a atribuição traz responsavel, encerradaEm e motivoEncerramento — critério 29.3", () => {
+    const projetado = projetarEventoDaLinhaDoTempo({
+      tipo: "atribuicao",
+      ocorridoEm: "2026-08-15T12:44:00.000Z",
+      atribuicao: {
+        responsavel: ENCARREGADO,
+        autor: GESTOR,
+        atribuidoEm: "2026-08-15T12:44:00.000Z",
+        encerradaEm: "2026-08-18T09:00:00.000Z",
+        motivoEncerramento: "reatribuicao",
+      },
+    });
+
+    expect(projetado).toStrictEqual({
+      tipo: "atribuicao",
+      ocorridoEm: "2026-08-15T12:44:00.000Z",
+      autor: GESTOR,
+      responsavel: ENCARREGADO,
+      encerradaEm: "2026-08-18T09:00:00.000Z",
+      motivoEncerramento: "reatribuicao",
+    });
+    // **`atribuidoEm` não sai duas vezes**: a chave de ordenação já é `ocorridoEm`.
+    expect(projetado).not.toHaveProperty("atribuidoEm");
+  });
+
+  it("a atribuição vigente sai com os dois nulos, e nunca ausentes", () => {
+    const projetado = projetarEventoDaLinhaDoTempo({
+      tipo: "atribuicao",
+      ocorridoEm: "2026-08-18T09:00:00.000Z",
+      atribuicao: {
+        responsavel: ENCARREGADO,
+        autor: GESTOR,
+        atribuidoEm: "2026-08-18T09:00:00.000Z",
+        encerradaEm: null,
+        motivoEncerramento: null,
+      },
+    });
+
+    expect(projetado.tipo === "atribuicao" && projetado.encerradaEm).toBeNull();
+    expect(projetado.tipo === "atribuicao" && projetado.motivoEncerramento).toBeNull();
+  });
+
+  it("o AUTOR de uma atribuição é quem atribuiu, nunca o responsável — colisão nº 2 do glossário", () => {
+    const projetado = projetarEventoDaLinhaDoTempo({
+      tipo: "atribuicao",
+      ocorridoEm: "2026-08-15T12:44:00.000Z",
+      atribuicao: {
+        responsavel: ENCARREGADO,
+        autor: GESTOR,
+        atribuidoEm: "2026-08-15T12:44:00.000Z",
+        encerradaEm: null,
+        motivoEncerramento: null,
+      },
+    });
+
+    expect(projetado.autor).toStrictEqual(GESTOR);
+    expect(projetado.tipo === "atribuicao" && projetado.responsavel).toStrictEqual(ENCARREGADO);
   });
 });

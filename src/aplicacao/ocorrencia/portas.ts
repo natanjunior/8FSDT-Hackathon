@@ -27,6 +27,38 @@ export type TransicaoLida = {
 };
 
 /**
+ * Por que a atribuição terminou. **Declarado aqui e não no Domínio**, porque a atribuição está FORA do
+ * agregado — decisão da §3.1 da spec do item 19. Os dois valores são os do `ENUM` do banco
+ * (`migrations/…_008_atribuicoes.sql:28`) e os do `openapi.yaml:3038-3041`.
+ *
+ * **`recusa` não tem produtor nesta entrega**, e entra assim mesmo: ele é do **tipo**, não do endpoint.
+ */
+export type MotivoEncerramentoDeAtribuicao = "reatribuicao" | "recusa";
+
+/**
+ * Uma atribuição, como a leitura a devolve — a **segunda fonte** da linha do tempo (item 29).
+ *
+ * **Repare no que NÃO está aqui: `id`.** O identificador da atribuição não sai em payload nenhum — o
+ * `EventoAtribuicao` do contrato não o tem —, e um modelo de leitura que o carregasse convidaria a
+ * inventar `GET /atribuicoes/{id}`, que não existe e não vai existir.
+ *
+ * **`autor` é quem ATRIBUIU**, nunca o responsável: é a colisão nº 2 do glossário (*"responsável"* tem
+ * três significados), e é o campo que o contrato exige em todo evento da linha do tempo.
+ *
+ * **Vínculo revogado continua saindo nomeado**, pela mesma razão da trilha: revogar não apaga a linha de
+ * `vinculos` (modelo §6.4), então o `join` casa igual — quem foi responsável continua nomeado no
+ * histórico.
+ */
+export type AtribuicaoLida = {
+  responsavel: PessoaReferencia;
+  autor: PessoaReferencia;
+  /** ISO 8601 — a conversão do `timestamptz` acontece no repositório. */
+  atribuidoEm: string;
+  encerradaEm: string | null;
+  motivoEncerramento: MotivoEncerramentoDeAtribuicao | null;
+};
+
+/**
  * Um anexo, do jeito que a leitura o devolve — o schema `Anexo` do contrato, menos as URLs.
  *
  * **Repare no que NÃO está aqui: `chave` e `thumbnail_chave`.** *"A chave nunca sai"* (modelo §2.8) deixa
@@ -453,6 +485,18 @@ export interface RepositorioEscopadoDeOcorrencias {
   /** Do mais antigo para o mais recente, por `sequencia`. **Não há `atualizar` nem `apagar`** aqui, e a
    *  ausência é a invariante 3 expressa em tipo. */
   trilha(ocorrenciaId: string): Promise<readonly TransicaoLida[]>;
+  /**
+   * **Todas as atribuições da ocorrência, da mais antiga para a mais recente** — a segunda fonte da linha
+   * do tempo (item 29), pelo índice `atribuicoes_linha_do_tempo_ix`, que o item 19 criou nomeando este.
+   *
+   * **Sem `limit` e sem filtrar `encerrada_em`, e as duas ausências são o critério 29.3:** *n*
+   * atribuições, *n* eventos. O `LATERAL` que preenche `OcorrenciaLida.responsavel` responde outra
+   * pergunta — *"quem cuida AGORA"* — e continua respondendo só ela.
+   *
+   * **Não há `atualizar` nem `apagar` aqui**, e a ausência não é a invariante 3: `atribuicoes` recebe
+   * `UPDATE` de propósito, e quem o faz é `atribuirResponsavel`. O que esta porta não faz é escrever.
+   */
+  atribuicoes(ocorrenciaId: string): Promise<readonly AtribuicaoLida[]>;
 }
 
 /** O que o comando de aplicação precisa. Nomeado para o teste montar só isto. */
