@@ -13,6 +13,7 @@ import {
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
+import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import {
@@ -26,7 +27,7 @@ import {
   MenuDeOrganizacao,
   type VinculoNoMenu,
 } from "@/interface/componentes/menu-de-organizacao";
-import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
+import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
@@ -542,6 +543,7 @@ export default async function Ocorrencia({
             <ModalDeAtribuicao
               ocorrenciaId={detalhe.id}
               candidatos={candidatos}
+              euPessoaId={escopo.ctx.pessoaId}
               responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
               rotulosDeStatus={rotulos}
               organizacaoId={organizacaoId}

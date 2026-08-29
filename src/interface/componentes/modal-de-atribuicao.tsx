@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  repartirCandidatos,
+  type Candidato,
+} from "@/interface/componentes/busca-de-candidatos";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { Button } from "@/interface/componentes/ui/button";
 import {
@@ -34,17 +38,12 @@ import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
  * **Dois blocos, e a razão é a escala declarada.** O RNF3 mede **200 pessoas por organização** e a Persona
  * 1A tem *"cerca de 10 apartamentos"* — a lista real vai de ~13 a 200. Num condomínio grande o Encarregado
  * é um ou dois entre ~197 moradores; com dois blocos, o caso comum fica no topo nos **dois** extremos,
- * porque o primeiro bloco tem tamanho de dígito único em ambos. **O campo de busca é o item 20**,
- * critério 20.6. **A linha *"Atribuir a mim"* também é o 20**, critério 20.5.
+ * porque o primeiro bloco tem tamanho de dígito único em ambos.
+ *
+ * **A fileira *"Atribuir a mim"* é o critério 20.5**, e ela vem antes dos dois blocos: quem chama sai
+ * deles (`repartirCandidatos`) para que não haja dois controles enviando o mesmo `pessoaId`. **O campo de
+ * busca é o critério 20.6.**
  */
-export type Candidato = {
-  pessoaId: string;
-  nome: string;
-  /** Em palavra, montado no servidor — o navegador não monta rótulo (A-5). */
-  papel: string;
-  /** A unidade, quando houver. É o que desempata homônimos. */
-  area: string | null;
-};
 
 const NOME_DO_BLOCO = {
   executores: "Gestores e Encarregados",
@@ -54,6 +53,7 @@ const NOME_DO_BLOCO = {
 export function ModalDeAtribuicao({
   ocorrenciaId,
   candidatos,
+  euPessoaId,
   responsavelAtualPessoaId,
   rotulosDeStatus,
   organizacaoId,
@@ -62,6 +62,12 @@ export function ModalDeAtribuicao({
   ocorrenciaId: string;
   /** Já ordenados por nome pelo repositório — `order by p.nome`, a mesma ordem de T-08. */
   candidatos: readonly Candidato[];
+  /**
+   * **Quem está olhando.** É o `escopo.ctx.pessoaId` da página, e serve à fileira *"Atribuir a mim"*
+   * (critério 20.5): ela mostra o próprio nome, e quem chama **sai dos dois blocos** para que não existam
+   * dois controles enviando o mesmo `pessoaId`.
+   */
+  euPessoaId: string;
   /** Marcado *"Responsável atual"* e **não selecionável** — reatribuir para a mesma pessoa produziria uma
    *  linha nova e nada visível mudando na tela. */
   responsavelAtualPessoaId: string | null;
@@ -141,8 +147,10 @@ export function ModalDeAtribuicao({
     setAviso(resultado.aviso);
   }
 
-  const executores = candidatos.filter((pessoa) => pessoa.papel !== "Solicitante");
-  const solicitantes = candidatos.filter((pessoa) => pessoa.papel === "Solicitante");
+  const { eu, executores, solicitantes } = repartirCandidatos(candidatos, euPessoaId);
+
+  /** **A-5:** o estado vai em palavra, e o `opacity-60` é reforço — nunca o sinal. */
+  const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
 
   function bloco(titulo: string, lista: readonly Candidato[]) {
     // **Bloco vazio não renderiza** — um subtítulo sozinho pergunta o que aconteceu com a lista.
@@ -234,6 +242,49 @@ export function ModalDeAtribuicao({
           >
             {aviso}
           </p>
+        )}
+
+        {/*
+          **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
+          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo *Atribuir* do rodapé.
+          **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
+          FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
+
+          **Fora dos dois `fieldset`, e isso não separa o grupo:** rádio agrupa por `name`, não por
+          `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
+
+          **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
+          dispensar da busca voltaria a depender dela.
+        */}
+        {eu !== null && (
+          <label
+            htmlFor={`candidato-${eu.pessoaId}`}
+            className={`border-linha flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              euSouOResponsavel ? "opacity-60" : "cursor-pointer"
+            }`}
+          >
+            <input
+              type="radio"
+              id={`candidato-${eu.pessoaId}`}
+              name="responsavel"
+              value={eu.pessoaId}
+              disabled={euSouOResponsavel || enviando}
+              checked={escolhido === eu.pessoaId}
+              onChange={() => setEscolhido(eu.pessoaId)}
+              className="size-4"
+            />
+            <span className="flex flex-col">
+              {/* Verbo no imperativo — é como se escreve botão. */}
+              <span className="text-tinta font-medium">Atribuir a mim</span>
+              {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
+                  qual identidade ele está prestes a se atribuir. */}
+              <span className="text-tinta-suave text-xs">
+                {eu.nome} · {eu.papel}
+                {eu.area !== null && ` · ${eu.area}`}
+                {euSouOResponsavel && " · Responsável atual"}
+              </span>
+            </span>
+          </label>
         )}
 
         <div className="flex flex-col gap-4">
