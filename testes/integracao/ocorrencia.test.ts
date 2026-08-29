@@ -5,6 +5,7 @@ import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
   alterarPrioridade,
   analisarOcorrencia,
+  avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
   pausarOcorrencia,
@@ -2735,7 +2736,19 @@ describe("a avaliação contra Postgres — item 27", () => {
     "ocorrencia.resolver",
   ];
 
+  /**
+   * As permissões do **autor**, e é a lista que o comando novo usa.
+   *
+   * **`ler_todas` NÃO está aqui, e a ausência é teste:** quem tenta avaliar ocorrência de outra pessoa
+   * sem `ler_todas` leva `404`, nunca `403`.
+   */
+  const DO_AUTOR = ["ocorrencia.ler_propria", "ocorrencia.avaliar"];
+
+  /** O Gestor que NÃO é o autor — precisa de `ler_todas` para chegar ao `403` em vez do `404`. */
+  const DO_GESTOR_NAO_AUTOR = ["ocorrencia.ler_todas", "ocorrencia.avaliar"];
+
   let executorPessoaId: string;
+  let outraPessoaId: string;
 
   beforeAll(async () => {
     const [executor] = await consultaCrua<{ id: string }>(
@@ -2746,6 +2759,16 @@ describe("a avaliação contra Postgres — item 27", () => {
     await consultaCrua(
       `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
       [executorPessoaId, organizacaoId],
+    );
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Gestor nao autor ${SUFIXO}`],
+    );
+    outraPessoaId = outra!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [outraPessoaId, organizacaoId],
     );
   });
 
@@ -2767,6 +2790,31 @@ describe("a avaliação contra Postgres — item 27", () => {
     });
     await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
     await resolverOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  /**
+   * O mesmo caminho de `resolvida()`, **menos a última linha** — para o caso do `409` de estado.
+   *
+   * **Não reusa o `emAtendimento` do bloco do item 26**: aquele é local àquele `describe` e usa o
+   * `executorPessoaId` dele.
+   */
+  async function emAtendimentoParaAvaliar(titulo: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa acabar.", categoriaId, areaId },
+    );
+    const id = lida.id;
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
     return id;
   }
 
@@ -2955,5 +3003,94 @@ describe("a avaliação contra Postgres — item 27", () => {
       [id],
     );
     expect(linha!.avaliacao_nota).toBeNull();
+  });
+
+  it("O CICLO COMPLETO: registrar → analisar → atribuir → iniciar → resolver → avaliar, com QUATRO registros", async () => {
+    /**
+     * **É o caminho crítico inteiro, dentro do produto** — a pré-condição declarada do item **41b**
+     * (`backlog.md:1289`) e o que o lote 9 precisa para o `mediaDasAvaliacoes` deixar de ser `null`.
+     *
+     * **Quatro registros, e não cinco:** `avaliar` não transiciona e não grava trilha. É o critério 27.4
+     * contra Postgres, e é a asserção que separa este comando dos seis que transicionam.
+     */
+    const id = await resolvida("O ciclo completo");
+
+    const lida = await avaliarOcorrencia(
+      portas().ocorrencias,
+      { pessoaId, permissoes: DO_AUTOR },
+      { ocorrenciaId: id, nota: 5, comentario: "Resolveram no mesmo dia e avisaram." },
+    );
+
+    expect(lida.status).toBe("resolvida");
+    expect(lida.avaliacao?.nota).toBe(5);
+    expect(lida.avaliacao?.comentario).toBe("Resolveram no mesmo dia e avisaram.");
+
+    const registros = await consultaCrua<{ n: string }>(
+      `select count(*) as n from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros[0]!.n).toBe("4");
+  });
+
+  it("o SEGUNDO avaliar responde 409 e a nota NÃO muda — o critério 27.2 ponta a ponta", async () => {
+    const id = await resolvida("Duas avaliações pelo comando");
+    const ctx = { pessoaId, permissoes: DO_AUTOR };
+
+    await avaliarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id, nota: 5 });
+
+    await expect(
+      avaliarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id, nota: 1 }),
+    ).rejects.toMatchObject({ codigo: "JA_AVALIADA" });
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number }>(
+      `select avaliacao_nota from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBe(5);
+  });
+
+  it("em em_atendimento o comando responde 409 AVALIACAO_EXIGE_RESOLVIDA e as colunas não mudam", async () => {
+    // **A transição inválida do item do DoD**, no estado que importa: a ocorrência está viva, e avaliar
+    // agora seria dar nota a um trabalho que ainda não acabou.
+    const id = await emAtendimentoParaAvaliar("Ainda em atendimento");
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId, permissoes: DO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "AVALIACAO_EXIGE_RESOLVIDA" });
+
+    const [linha] = await consultaCrua<{ avaliacao_nota: number | null; avaliada_em: Date | null }>(
+      `select avaliacao_nota, avaliada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha!.avaliacao_nota).toBeNull();
+    expect(linha!.avaliada_em).toBeNull();
+  });
+
+  it("o GESTOR não autor leva 403, e o SOLICITANTE não autor leva 404 — as duas metades da §6.3", async () => {
+    /**
+     * **É o caso que só a integração prova**, porque ele depende de a ocorrência ter autor de verdade no
+     * banco: as duas pessoas existem, as duas têm vínculo, e o que as separa é `ler_todas`.
+     */
+    const id = await resolvida("Quem pode avaliar");
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId: outraPessoaId, permissoes: DO_GESTOR_NAO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "SOMENTE_O_AUTOR_PODE_AVALIAR" });
+
+    await expect(
+      avaliarOcorrencia(
+        portas().ocorrencias,
+        { pessoaId: outraPessoaId, permissoes: DO_AUTOR },
+        { ocorrenciaId: id, nota: 5 },
+      ),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
   });
 });

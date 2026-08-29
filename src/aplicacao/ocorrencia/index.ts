@@ -16,6 +16,7 @@ export {
 export { alterarPrioridade } from "./alterar-prioridade";
 export { analisarOcorrencia } from "./analisar-ocorrencia";
 export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
+export { avaliarOcorrencia } from "./avaliar-ocorrencia";
 export { cancelarOcorrencia } from "./cancelar-ocorrencia";
 export { type ContextoDoComando } from "./comando";
 export { iniciarAtendimento } from "./iniciar-atendimento";

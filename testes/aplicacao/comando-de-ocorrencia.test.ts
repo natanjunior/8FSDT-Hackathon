@@ -4,8 +4,11 @@ import {
   alterarPrioridade,
   analisarOcorrencia,
   atribuirResponsavel,
+  AvaliacaoExigeResolvida,
+  avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
+  JaAvaliada,
   MotivoNaoPermitidoParaOPapel,
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
@@ -15,12 +18,14 @@ import {
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   retomarOcorrencia,
+  SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
   TransicaoNaoPermitida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaAvaliacao,
   type ResultadoDaPrioridade,
   type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
@@ -73,6 +78,10 @@ const DO_GESTOR = [
   // do Solicitante (`Permissao.ts:71-72`), e uma lista que omite o que a produção dá esconde o caso em
   // que a acumulação é o que decide.
   "ocorrencia.cancelar_propria",
+  // O DÉCIMO comando construído — item 27. **Ela JÁ vem do Solicitante** (`DO_SOLICITANTE`, em
+  // `Permissao.ts`), e o Gestor acumula: uma lista que a omitisse esconderia o caso em que a acumulação é
+  // o que decide — o Gestor-autor que avalia a própria ocorrência.
+  "ocorrencia.avaliar",
 ];
 
 /**
@@ -159,7 +168,19 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
      * faria o caso *"com solução aplicada"* passar provando o contrário do que promete.
      */
     solucaoAplicada: agregado.solucaoAplicada,
-    avaliacao: null,
+    /**
+     * **O duplo TRANSCREVE, como o repositório de verdade transcreve.** Era `null` chumbado, e a partir
+     * do item 27 isso seria mentira: `avaliar` grava as três colunas, e um duplo que sempre devolvesse
+     * `null` faria o caso do caminho feliz passar provando o contrário do que promete.
+     */
+    avaliacao:
+      agregado.avaliacao === null
+        ? null
+        : {
+            nota: agregado.avaliacao.nota,
+            comentario: agregado.avaliacao.comentario,
+            avaliadaEm: agregado.avaliacao.avaliadaEm,
+          },
     motivoPausa: null,
     ultimaTransicao: {
       sequencia: ultima.sequencia,
@@ -184,6 +205,8 @@ let atribuidos: { ocorrenciaId: string; dados: unknown }[];
 let gravadas: { id: string; ocorrencia: Ocorrencia; em: string }[];
 /** O rastro da porta do item 17. **O agregado ATRAVESSADO chega aqui**, e é o que o teste inspeciona. */
 let alteradas: { id: string; ocorrencia: Ocorrencia; em: string }[];
+/** O rastro da porta do item 27. **O agregado ATRAVESSADO chega aqui**, e é o que o teste inspeciona. */
+let avaliadas: { id: string; ocorrencia: Ocorrencia; em: string }[];
 
 function repositorio(opcoes: {
   /** O que cada `carregar` devolve, na ordem; o último valor se repete. */
@@ -202,6 +225,9 @@ function repositorio(opcoes: {
   /** Se a porta do item 17 devolve `conflito`. **Separada das outras duas**, pela mesma razão: um
    *  sinalizador só faria um caso ligar o outro. */
   prioridadeEmConflito?: boolean;
+  /** Se a porta do item 27 devolve `conflito`. **Separada das outras três**, pela mesma razão: um
+   *  sinalizador só faria um caso ligar o outro. */
+  avaliacaoEmConflito?: boolean;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -254,6 +280,12 @@ function repositorio(opcoes: {
         ? { desfecho: "conflito" }
         : { desfecho: "alterada", ocorrencia: lidaDe(ocorrencia) };
     },
+    avaliar: async (id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaAvaliacao> => {
+      avaliadas.push({ id, ocorrencia, em });
+      return opcoes.avaliacaoEmConflito === true
+        ? { desfecho: "conflito" }
+        : { desfecho: "avaliada", ocorrencia: lidaDe(ocorrencia) };
+    },
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
@@ -263,6 +295,7 @@ beforeEach(() => {
   atribuidos = [];
   gravadas = [];
   alteradas = [];
+  avaliadas = [];
 });
 
 describe("analisarOcorrencia", () => {
@@ -1533,5 +1566,201 @@ describe("cancelarOcorrencia", () => {
     expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("resolvida");
     // Duas leituras: a de entrada e a releitura do conflito.
     expect(carregados).toHaveLength(2);
+  });
+});
+
+describe("avaliarOcorrencia", () => {
+  const ctxAutor = {
+    pessoaId: MORADORA,
+    permissoes: DO_SOLICITANTE,
+    agora: "2026-08-29T10:00:00.000Z",
+  };
+
+  /** O agregado em `resolvida`, sem avaliação — o único estado em que o comando é aceito. */
+  const resolvida = () => agregadoEm("resolvida");
+
+  /** A mesma ocorrência, já avaliada — o mundo depois da primeira nota. */
+  const jaAvaliadaEm = () =>
+    resolvida().avaliar({
+      autorPessoaId: MORADORA,
+      nota: 3,
+      comentario: null,
+      avaliadaEm: "2026-08-28T10:00:00.000Z",
+    });
+
+  it("caminho feliz: o agregado ATRAVESSADO chega ao repositório com a avaliação, e a trilha NÃO cresce", async () => {
+    const lida = await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 5,
+      comentario: "Resolveram no mesmo dia.",
+    });
+
+    const gravado = avaliadas[0]!;
+    expect(gravado.ocorrencia.avaliacao?.nota).toBe(5);
+    expect(gravado.ocorrencia.avaliacao?.comentario).toBe("Resolveram no mesmo dia.");
+    // **O relógio é lido UMA vez, e vai para os DOIS usos.**
+    expect(gravado.ocorrencia.avaliacao?.avaliadaEm).toBe("2026-08-29T10:00:00.000Z");
+    expect(gravado.em).toBe("2026-08-29T10:00:00.000Z");
+    // O critério 27.4, nas duas metades.
+    expect(gravado.ocorrencia.status).toBe("resolvida");
+    expect(gravado.ocorrencia.trilha).toHaveLength(1);
+
+    expect(lida.avaliacao?.nota).toBe(5);
+  });
+
+  it("comentário em branco vira null — o que apara é o comando, num lugar só", async () => {
+    // **O schema NÃO tem `.min(1)`** (o `openapi.yaml:2060` não declara `minLength`), então `"   "`
+    // chega até aqui. É a mesma regra do `analisar` desde o item 16.
+    await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 4,
+      comentario: "   ",
+    });
+
+    expect(avaliadas[0]!.ocorrencia.avaliacao?.comentario).toBeNull();
+  });
+
+  it("comentário ausente também vira null", async () => {
+    await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 4,
+    });
+
+    expect(avaliadas[0]!.ocorrencia.avaliacao?.comentario).toBeNull();
+  });
+
+  it("o comentário que sobrevive vai APARADO — o `.trim()` é do comando, não só do schema", async () => {
+    await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 4,
+      comentario: "  Resolveram rápido.  ",
+    });
+
+    expect(avaliadas[0]!.ocorrencia.avaliacao?.comentario).toBe("Resolveram rápido.");
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    const erro = await avaliarOcorrencia(repositorio({ cargas: [null] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 5,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
+    expect(avaliadas).toHaveLength(0);
+  });
+
+  it("o Solicitante NÃO autor leva 404, nunca 403 — a §6.3, e é o degrau antes do próximo", async () => {
+    // **Sem `ler_todas`, `podeLerOcorrencia` recusa antes da autoria** — e é o certo: confirmar que a
+    // ocorrência existe seria o vazamento que o `404` genérico impede.
+    const ctxOutro = { pessoaId: GESTOR, permissoes: DO_SOLICITANTE, agora: ctxAutor.agora };
+
+    const erro = await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxOutro, {
+      ocorrenciaId: ID,
+      nota: 5,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
+    expect(avaliadas).toHaveLength(0);
+  });
+
+  it("o GESTOR não autor leva 403 SOMENTE_O_AUTOR_PODE_AVALIAR, com statusAtual e acoesDisponiveis — o critério 27.3", async () => {
+    /**
+     * **É o caso que separa as duas camadas de `403` do contrato §4.5**, e `avaliar` é o primeiro
+     * endpoint do produto em que as duas são observáveis: o Encarregado cai no `comContexto` com
+     * `PERMISSAO_INSUFICIENTE`; o Gestor **lê** a ocorrência (tem `ler_todas`) e cai aqui.
+     */
+    const ctxGestor = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: ctxAutor.agora };
+
+    const erro = await avaliarOcorrencia(repositorio({ cargas: [resolvida()] }), ctxGestor, {
+      ocorrenciaId: ID,
+      nota: 5,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(SomenteOAutorPodeAvaliar);
+    const recusa = erro as SomenteOAutorPodeAvaliar;
+    expect(recusa.codigo).toBe("SOMENTE_O_AUTOR_PODE_AVALIAR");
+    // **Os dois, sempre** — quem levou este `403` precisa saber o que ainda lhe resta, e para o Gestor
+    // não-autor em `resolvida` resta `[]`.
+    expect(recusa.extensoes["statusAtual"]).toBe("resolvida");
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+    expect(avaliadas).toHaveLength(0);
+  });
+
+  it("nos CINCO estados que não são resolvida, 409 AVALIACAO_EXIGE_RESOLVIDA — o critério 27.2", async () => {
+    for (const status of ["aberta", "em_analise", "em_atendimento", "pausada", "cancelada"] as const) {
+      const erro = await avaliarOcorrencia(repositorio({ cargas: [agregadoEm(status)] }), ctxAutor, {
+        ocorrenciaId: ID,
+        nota: 5,
+      }).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(AvaliacaoExigeResolvida);
+      const recusa = erro as AvaliacaoExigeResolvida;
+      expect(recusa.codigo).toBe("AVALIACAO_EXIGE_RESOLVIDA");
+      expect(recusa.extensoes["statusAtual"]).toBe(status);
+    }
+    expect(avaliadas).toHaveLength(0);
+  });
+
+  it("a SEGUNDA avaliação leva 409 JA_AVALIADA — a metade 'uma vez só' da invariante 8", async () => {
+    const erro = await avaliarOcorrencia(repositorio({ cargas: [jaAvaliadaEm()] }), ctxAutor, {
+      ocorrenciaId: ID,
+      nota: 5,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(JaAvaliada);
+    const recusa = erro as JaAvaliada;
+    expect(recusa.codigo).toBe("JA_AVALIADA");
+    expect(recusa.detalhe).toBe("Esta ocorrência já foi avaliada.");
+    expect(avaliadas).toHaveLength(0);
+  });
+
+  it("o corpo do JA_AVALIADA NÃO lista avaliar — o P-3 do plano do item 16, fechado", async () => {
+    /**
+     * **É o caso que o item 16 pediu com nome e sobrenome:** *"se o 27 esquecer, o Gestor-autor de uma
+     * ocorrência já avaliada verá `avaliar` no corpo de um `409`"*.
+     *
+     * **O Gestor-autor é o cenário exato**, porque ele é quem tem as duas coisas: a permissão do comando
+     * **e** a autoria. Se `jaAvaliada` não chegasse a `comandosDisponiveis`, `avaliar` estaria na lista —
+     * o erro se contradizendo dentro do próprio corpo.
+     */
+    const ctxGestorAutor = { pessoaId: MORADORA, permissoes: DO_GESTOR, agora: ctxAutor.agora };
+
+    const erro = await avaliarOcorrencia(repositorio({ cargas: [jaAvaliadaEm()] }), ctxGestorAutor, {
+      ocorrenciaId: ID,
+      nota: 5,
+    }).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(JaAvaliada);
+    const recusa = erro as JaAvaliada;
+    expect(recusa.extensoes["statusAtual"]).toBe("resolvida");
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+  });
+
+  it("o conflito da porta é RELIDO e traduzido — e hoje só o ramo do JA_AVALIADA é alcançável", async () => {
+    /**
+     * **A releitura diz onde a ocorrência está AGORA**, e não onde estava quando começamos — mesmo
+     * tratamento que `registrarSolucaoAplicada` dá. A segunda carga é a ocorrência **já avaliada**, que é
+     * o que a corrida de duas abas produz.
+     */
+    const erro = await avaliarOcorrencia(
+      repositorio({ cargas: [resolvida(), jaAvaliadaEm()], avaliacaoEmConflito: true }),
+      ctxAutor,
+      { ocorrenciaId: ID, nota: 5 },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(JaAvaliada);
+
+    // A porta FOI chamada — o conflito é dela, não das guardas.
+    expect(avaliadas).toHaveLength(1);
+  });
+
+  it("conflito com a ocorrência sumida entre a escrita e a releitura vira 404", async () => {
+    const erro = await avaliarOcorrencia(
+      repositorio({ cargas: [resolvida(), null], avaliacaoEmConflito: true }),
+      ctxAutor,
+      { ocorrenciaId: ID, nota: 5 },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
   });
 });
