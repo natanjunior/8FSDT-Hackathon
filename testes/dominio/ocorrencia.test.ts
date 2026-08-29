@@ -200,7 +200,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz OITO comandos — 16, 19, 22, 26, 23, 24, o 25 e o alterar-prioridade do 17", () => {
+  it("hoje traz NOVE comandos — 16, 19, 22, 26, 23, 24, 25, o 17 e o cancelar do 18", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -212,6 +212,7 @@ describe("comandosDisponiveis", () => {
       "registrar-solucao-aplicada",
       "resolver",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -232,6 +233,7 @@ describe("comandosDisponiveis", () => {
       "analisar",
       "atribuir-responsavel",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -252,7 +254,11 @@ describe("comandosDisponiveis", () => {
       temResponsavel: true,
     });
 
-    expect(semResponsavel).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
+    expect(semResponsavel).toStrictEqual([
+      "atribuir-responsavel",
+      "alterar-prioridade",
+      "cancelar",
+    ]);
     // **Na ordem do enum**: `atribuir-responsavel` vem antes de `iniciar-atendimento`, e é o que faz o
     // R-08 morder — a ordem não é promessa de destaque (contrato §8.5).
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
@@ -262,6 +268,7 @@ describe("comandosDisponiveis", () => {
       "atribuir-responsavel",
       "iniciar-atendimento",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -481,13 +488,13 @@ describe("comandosDisponiveis", () => {
     }
   });
 
-  it("em em_atendimento o Gestor vê atribuir, registrar solução e resolver — na ordem do enum", () => {
+  it("em em_atendimento o Gestor vê os CINCO — na ordem do enum, com cancelar por último", () => {
     // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
     // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
     //
-    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar` e `cancelar`
-    // saem porque `COMANDOS_IMPLEMENTADOS` ainda não os tem. É por isso que este caso mora aqui e não na
-    // tarefa 1 — antes do passo 4 ele devolveria `["atribuir-responsavel"]`.
+    // **Com o filtro PADRÃO**, que é o que a produção faz. `pausar` sai porque este Gestor não tem
+    // `ocorrencia.pausar` em `TODAS`; **`cancelar` entrou no item 18** e é o décimo do enum, por isso
+    // fecha a lista.
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
     // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
     // `COMANDOS_IMPLEMENTADOS`.
@@ -503,6 +510,7 @@ describe("comandosDisponiveis", () => {
       "registrar-solucao-aplicada",
       "resolver",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -568,9 +576,11 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — o outro não existe ainda", () => {
+  it("pausada com o filtro ligado oferece os CINCO — o item 18 fechou a lista deste estado", () => {
     // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
-    // ordenar a barra. O que falta é `cancelar` (18).
+    // ordenar a barra. **`cancelar` entrou no item 18**, e com ele `pausada` passa a ter CINCO — os
+    // mesmos do caso de `filtro: null`, logo abaixo, que deixa de ser o par de contraste e passa a ser
+    // a confirmação de que o filtro não esconde mais nada aqui.
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
     // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
     // `COMANDOS_IMPLEMENTADOS`.
@@ -586,10 +596,11 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
-  it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
+  it("pausada com filtro null devolve os MESMOS cinco — depois do 18 o filtro não esconde nada aqui", () => {
     // **`TODAS` já basta desde o item 25**: a permissão `ocorrencia.registrar_solucao` entrou na lista
     // quando o comando passou a ser oferecido de verdade. A concatenação que morava aqui virou ruído.
     expect(

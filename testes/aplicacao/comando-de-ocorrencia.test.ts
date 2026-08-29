@@ -338,10 +338,13 @@ describe("analisarOcorrencia", () => {
     //
     // **E ganhou `pausar` no item 23**, que é admitido em `em_analise` pela tabela de transições. A
     // asserção continua provando o mesmo: o corpo do `409` nomeia o que ainda dá para fazer.
+    //
+    // **E `cancelar` no item 18**, que é o décimo do enum e por isso fecha a lista.
     expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
       "atribuir-responsavel",
       "pausar",
       "alterar-prioridade",
+      "cancelar",
     ]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
@@ -573,12 +576,13 @@ describe("iniciarAtendimento", () => {
     expect(recusa.titulo).toBe("Ninguém atribuído");
     expect(recusa.detalhe).toBe("Atribua um responsável antes de iniciar o atendimento.");
     // **As DUAS extensões, como o exemplo mostra.** A lista ganhou `pausar` no item 23 — em `em_analise`
-    // sem responsável, pausar é o que sobra além de atribuir.
+    // sem responsável, pausar é o que sobra além de atribuir — e `cancelar` no item 18.
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
     expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
       "atribuir-responsavel",
       "pausar",
       "alterar-prioridade",
+      "cancelar",
     ]);
 
     // **Nenhum registro é criado** — e é estrutural: o `insert` só existe dentro de `aplicarTransicao`.
@@ -853,6 +857,7 @@ describe("pausarOcorrencia", () => {
       "analisar",
       "atribuir-responsavel",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 

@@ -79,7 +79,14 @@ export type Comando = (typeof COMANDOS)[number];
  * como a do 25 e ao contrário das do 23 e do 24:** o argumento daqueles era um botão nu fazendo a coisa
  * errada, e aqui não há botão nenhum.
  *
- * **Faltam dois:** `cancelar` (18) e `avaliar` (27).
+ * **O item 18 foi o NONO, e com ele a máquina de estados fecha:** as dez setas da `arquitetura.md` §4
+ * têm código, e os **seis** estados passam a existir em banco. **A linha entrou na tarefa da TELA**, como
+ * as do 23 e do 24 — e este é o caso mais forte dos quatro, porque tem **os dois** argumentos: `cancelar`
+ * tem `requestBody: required: true` *(um botão nu levaria `400`)* **e** é um dos cinco modais da restrição
+ * herdada nº 1 do inventário *(um botão nu gravaria um registro imutável e terminal sem oferecer o campo
+ * e sem mostrar o aviso de visibilidade)*. O 23 tinha o primeiro, o 24 tinha o segundo.
+ *
+ * **Falta um:** `avaliar` (27).
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
@@ -90,4 +97,5 @@ export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "registrar-solucao-aplicada",
   "resolver",
   "alterar-prioridade",
+  "cancelar",
 ];
