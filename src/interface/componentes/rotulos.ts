@@ -61,6 +61,7 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
   "atribuir-responsavel": "Atribuir",
   "iniciar-atendimento": "Iniciar atendimento",
   pausar: "Pausar",
+  retomar: "Retomar",
   resolver: "Resolver",
 };
 

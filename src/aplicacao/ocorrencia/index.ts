@@ -32,6 +32,7 @@ export {
 export { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";
 export { registrarOcorrencia, type EntradaDeRegistro } from "./registrar-ocorrencia";
 export { resolverOcorrencia } from "./resolver-ocorrencia";
+export { retomarOcorrencia } from "./retomar-ocorrencia";
 export {
   LIMITE_MAXIMO,
   LIMITE_PADRAO,

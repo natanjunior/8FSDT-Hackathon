@@ -280,6 +280,38 @@ export default async function Ocorrencia({
         rotulosDeStatus={rotulos}
       />
     ),
+    /**
+     * **O quinto modal, e ele é o `ModalDeObservacao` reusado INTEIRO** — zero componente novo, zero
+     * variante nova, zero linha alterada nele. O componente foi escrito parametrizado exatamente para
+     * isto: *"o modal de `iniciar-atendimento` (item 22) e o de `retomar` (item 24) diferem em três
+     * strings"* (`modal-de-observacao.tsx:25-28`).
+     *
+     * **A descrição NÃO nomeia o destino, e é o critério 24.2 na tela.** *"Volta para Em atendimento"*
+     * seria informar antes o que o critério manda descobrir depois — e seria uma frase que esta tela
+     * não tem como saber se é verdade, porque ela não lê a trilha.
+     *
+     * **A ternária, e não `varianteDe`:** `ModalDeObservacao` aceita `"primario" | "secundario"`, e
+     * `varianteDe` devolve as três — passá-lo não compila. É o mesmo que `iniciar-atendimento` e
+     * `resolver` já fazem, logo acima. **Quem reabre isto é o item 18**, que torna `pausada` um estado
+     * com três renderizáveis e leva `retomar` para dentro do menu.
+     *
+     * **Entra SEMPRE, como os três de cima**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis`.
+     */
+    retomar: (
+      <ModalDeObservacao
+        ocorrenciaId={detalhe.id}
+        comando="retomar"
+        titulo="Retomar"
+        descricao="A ocorrência volta ao ponto em que estava antes da pausa."
+        rotuloDoGatilho="Retomar"
+        rotuloDoCampo="Observação (opcional)"
+        rotuloDeConfirmar="Retomar"
+        verboEnviando="Retomando…"
+        variante={primario === "retomar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+      />
+    ),
     ...(podeAtribuir
       ? {
           "atribuir-responsavel": (

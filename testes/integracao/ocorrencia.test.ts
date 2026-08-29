@@ -8,6 +8,7 @@ import {
   pausarOcorrencia,
   registrarOcorrencia,
   resolverOcorrencia,
+  retomarOcorrencia,
   verOcorrencia,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
@@ -1673,5 +1674,225 @@ describe("a pausa contra Postgres — item 23", () => {
       [id],
     );
     expect(registros).toHaveLength(2);
+  });
+});
+describe("a retomada contra Postgres — item 24", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+    "ocorrencia.retomar",
+  ];
+
+  let zeladorPessoaId: string;
+
+  beforeAll(async () => {
+    const [zelador] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Retomador ${SUFIXO}`],
+    );
+    zeladorPessoaId = zelador!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [zeladorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa esperar e voltar.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("analisar → atribuir → iniciar → pausar → retomar volta a em_atendimento, com CINCO registros — critérios 24.1 e 24.4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Retomada depois do atendimento");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.",
+    });
+
+    const lida = await retomarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      observacao: "Peça chegou hoje de manhã.",
+    });
+
+    // **O destino saiu da trilha, e ninguém o informou.**
+    expect(lida.status).toBe("em_atendimento");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("pausada");
+    // **O motivo da pausa some sozinho na resposta**, por construção e não por código: `montarOcorrencia`
+    // o deriva do último registro, e o último registro já não é de pausa.
+    expect(lida.motivoPausa).toBeNull();
+
+    const registros = await consultaCrua<{
+      status_anterior: string | null;
+      status_novo: string;
+      motivo_pausa: string | null;
+      observacao: string | null;
+    }>(
+      `select status_anterior, status_novo, motivo_pausa, observacao
+         from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "em_atendimento",
+    ]);
+
+    const retomada = registros[4]!;
+    expect(retomada.status_anterior).toBe("pausada");
+    // **Os dois lados do `registros_transicao_motivo_ck`:** destino que não é `pausada` nem `cancelada`
+    // NÃO pode ter motivo, e o banco confere.
+    expect(retomada.motivo_pausa).toBeNull();
+    expect(retomada.observacao).toBe("Peça chegou hoje de manhã.");
+
+    // **A pausa continua na trilha, intacta.** É o que "auditável" quer dizer.
+    expect(registros[3]!.motivo_pausa).toBe("aguardando_peca");
+  });
+
+  it("pausada DIRETO de em_analise volta a em_analise — é o caso que prova o critério 24.1", async () => {
+    // **O item 23 já deixou este dado gravado**, e o caso dele diz isso em letra. Aqui a outra ponta:
+    // a MESMA chamada de `retomar` produz outro destino, porque a trilha é outra.
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Retomada antes de atender");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_autorizacao",
+      observacao: "Esperando o síndico autorizar a compra.",
+    });
+
+    const lida = await retomarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    expect(lida.status).toBe("em_analise");
+
+    const [retomada] = await consultaCrua<{ status_novo: string; sequencia: number }>(
+      `select status_novo, sequencia from registros_transicao
+        where ocorrencia_id = $1 and status_anterior = 'pausada'`,
+      [id],
+    );
+
+    // **QUATRO registros aqui, não cinco** — e o destino é a outra origem.
+    expect(retomada?.status_novo).toBe("em_analise");
+    expect(retomada?.sequencia).toBe(4);
+  });
+
+  it("retomar SEM responsável atribuído passa, e volta a em_atendimento — a invariante 9 não é desta porta", async () => {
+    // O caminho não é produzível pela API hoje (não há desatribuição), mas o banco o admite: o que
+    // este caso fixa é que `retomar` **não** consulta `atribuicoes` para decidir (spec §3.4).
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Retomada sem responsavel");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_terceiro",
+      observacao: "A empresa de elevadores vem quinta.",
+    });
+
+    // **Encerra a atribuição por SQL cru** — é a única forma de produzir o estado, e dizê-lo é o ponto.
+    await consultaCrua(
+      `update atribuicoes set encerrada_em = now(), motivo_encerramento = 'reatribuicao'
+        where ocorrencia_id = $1 and encerrada_em is null`,
+      [id],
+    );
+
+    const lida = await retomarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    expect(lida.status).toBe("em_atendimento");
+    expect(lida.responsavel).toBeNull();
+  });
+
+  it("retomar duas vezes dá 409 na segunda, e a trilha continua com quatro — critério 24.3", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Retomar duas vezes");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem peça.",
+    });
+    await retomarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const erro = await retomarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "em_analise",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(4);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não retoma — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Isolamento da retomada");
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem peça.",
+    });
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho24 ${SUFIXO}`, `V4${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(retomarOcorrencia(deOutra, ctx, { ocorrenciaId: id })).rejects.toMatchObject({
+      codigo: "OCORRENCIA_NAO_ENCONTRADA",
+    });
+
+    // E a ocorrência continua **pausada** na organização dona dela.
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("pausada");
   });
 });

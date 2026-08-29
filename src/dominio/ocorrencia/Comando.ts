@@ -58,11 +58,20 @@ export type Comando = (typeof COMANDOS)[number];
  * `requestBody: required: true`, então um botão sem formulário responderia `400` em vez de funcionar.
  * A regra continua sendo *"nunca antes de o comando existir"* — o que mudou é que, para ele, existir é
  * ter endpoint **e** forma.
+ *
+ * **O item 24 foi o sexto**, e com ele `pausada` deixa de ser um beco: o par `pausar → retomar` fecha,
+ * e a barra daquele estado passa a desenhar **dois** botões. **A linha entrou na tarefa da TELA**, como
+ * a do 23, mas por outra razão — o argumento do 23 era o corpo obrigatório, e aqui o corpo é opcional,
+ * então um botão nu responderia `200`. O que decide é o inventário: `retomar` é um dos **cinco modais**
+ * da restrição herdada nº 1, e um botão nu gravaria um registro imutável e visível ao Solicitante sem
+ * oferecer o campo e sem mostrar o aviso de visibilidade. Custo de decidir assim: zero — mesma fatia,
+ * um commit depois.
  */
 export const COMANDOS_IMPLEMENTADOS: readonly Comando[] = [
   "analisar",
   "atribuir-responsavel",
   "iniciar-atendimento",
   "pausar",
+  "retomar",
   "resolver",
 ];

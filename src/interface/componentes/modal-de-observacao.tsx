@@ -19,11 +19,12 @@ import {
 
 /**
  * ============================================================================
- *  O segundo modal do produto — e o primeiro com `observacao`
+ *  O modal parametrizado de `observacao` — e os DOIS comandos que ele serve
  * ============================================================================
  *
- * **Um componente parametrizado, não um por comando.** O modal de `iniciar-atendimento` (item 22) e o de
- * `retomar` (item 24) diferem em **três strings**: título, descrição e rótulo do gatilho. Escrever dois
+ * **Um componente parametrizado, não um por comando.** O modal de `iniciar-atendimento` (item 22) e o
+ * de `retomar` (item 24) diferem em **três strings**: título, descrição e rótulo do gatilho — e a
+ * partir do item 24 os dois existem, montados pela página com as mesmas **dez** props. Escrever dois
  * arquivos iguais seria a cópia de sempre — e a estrutura de `formularios` que o item 19 criou já aceita
  * qualquer nó pronto, sem a barra ganhar um `if`.
  *
