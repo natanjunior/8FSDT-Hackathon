@@ -44,14 +44,38 @@ import {
  *
  * **Comando que vai para o menu PRECISA ter nó de formulário.** A barra não renderiza botão nu dentro
  * do `DropdownMenuContent`: filho que não é `menuitem` é ARIA inválida e o menu perde a navegação por
- * setas (A-2 e A-4). Hoje os dois que podem ir ao menu — `atribuir-responsavel` e `pausar` — têm modal.
+ * setas (A-2 e A-4). Os TRÊS que chegam ao menu — `atribuir-responsavel`, `pausar` e, desde o item 18,
+ * `cancelar` — têm modal com a variante `"menu"`.
  *
- * **O item 24 conferiu e NÃO mudou isso**, e o item 18 muda: `retomar` chegou como o segundo
- * renderizável de `pausada`, e com dois não há menu. Quando `cancelar` existir serão três, `retomar`
- * poderá cair em `emMenu`, e a página o renderiza hoje com uma ternária de duas variantes — **um
- * `<button>` com `DialogTrigger` como filho direto de `role="menu"`**. Nada quebra em vermelho; a
- * acessibilidade quebra em silêncio. O item 18 herda dois deveres: dar a variante `"menu"` ao
- * `ModalDeObservacao` e trocar a ternária de `retomar` por `varianteDe("retomar")` em `page.tsx`.
+ * ---------------------------------------------------------------------------
+ *  Corrigido no item 18: o perigo que esta nota anunciava NÃO EXISTE
+ * ---------------------------------------------------------------------------
+ *
+ * **A frase antiga dizia** que, com `cancelar` construído, `pausada` teria três renderizáveis e
+ * `retomar` *"poderá cair em `emMenu`"* — produzindo um `<button>` com `DialogTrigger` como filho
+ * direto de `role="menu"` —, e endereçava ao item 18 o dever de dar a variante `"menu"` ao
+ * `ModalDeObservacao`. **Ela estava errada, e a prova é de duas linhas que já existiam quando ela foi
+ * escrita:**
+ *
+ * ```
+ * acaoPrimaria:  if (nomeada !== null && renderizaveis.includes(nomeada)) return nomeada;
+ * acoesDaBarra:  emMenu: renderizaveis.filter((comando) => comando !== destaque)
+ * ```
+ *
+ * **`emMenu` exclui o destaque POR CONSTRUÇÃO.** Um comando `X` só chega ao menu se é renderizável
+ * **e** `X ≠ destaque`. `retomar` só é renderizável em `pausada` — é a única entrada dele em
+ * `TRANSICOES` — e `ACAO_PRIMARIA.pausada === "retomar"`: sempre que ele é renderizável, ele **é** o
+ * destaque, e o `filter` o remove.
+ *
+ * **O mesmo argumento vale para `analisar` (`aberta`), `iniciar-atendimento` (`em_analise`) e
+ * `resolver` (`em_atendimento`)** — cada um é o `ACAO_PRIMARIA` do único estado em que é renderizável.
+ * E vale para `avaliar` no item 27: `ACAO_PRIMARIA.resolvida === "avaliar"`.
+ *
+ * **Os três que chegam ao menu não são `ACAO_PRIMARIA` de estado nenhum**, e é exatamente por isso que
+ * caem lá. **A coincidência virou invariante guardada:** um caso de `testes/interface/ocorrencia.test.ts`
+ * percorre os seis status com as permissões do Gestor e assere que `emMenu` só contém comandos que têm
+ * a variante `"menu"`. No dia em que alguém mexer em `ACAO_PRIMARIA`, ele cai — que é o alarme que esta
+ * nota queria ser.
  *
  * **A geometria é a do protótipo desde o item 22** (`docs/prototipo/telas.html:328-330`): o primário
  * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e

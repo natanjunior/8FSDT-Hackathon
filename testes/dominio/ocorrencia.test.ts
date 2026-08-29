@@ -5,6 +5,9 @@ import {
   comandoPermitido,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
+  MOTIVOS_DE_CANCELAMENTO,
+  MOTIVOS_DO_AUTOR,
+  motivosPermitidos,
   Ocorrencia,
   PrioridadeImutavelEmEstadoTerminal,
   RegistroDeTransicao,
@@ -197,7 +200,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz OITO comandos — 16, 19, 22, 26, 23, 24, o 25 e o alterar-prioridade do 17", () => {
+  it("hoje traz NOVE comandos — 16, 19, 22, 26, 23, 24, 25, o 17 e o cancelar do 18", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -209,6 +212,7 @@ describe("comandosDisponiveis", () => {
       "registrar-solucao-aplicada",
       "resolver",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -229,6 +233,7 @@ describe("comandosDisponiveis", () => {
       "analisar",
       "atribuir-responsavel",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -249,7 +254,11 @@ describe("comandosDisponiveis", () => {
       temResponsavel: true,
     });
 
-    expect(semResponsavel).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
+    expect(semResponsavel).toStrictEqual([
+      "atribuir-responsavel",
+      "alterar-prioridade",
+      "cancelar",
+    ]);
     // **Na ordem do enum**: `atribuir-responsavel` vem antes de `iniciar-atendimento`, e é o que faz o
     // R-08 morder — a ordem não é promessa de destaque (contrato §8.5).
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
@@ -259,6 +268,7 @@ describe("comandosDisponiveis", () => {
       "atribuir-responsavel",
       "iniciar-atendimento",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -478,13 +488,13 @@ describe("comandosDisponiveis", () => {
     }
   });
 
-  it("em em_atendimento o Gestor vê atribuir, registrar solução e resolver — na ordem do enum", () => {
+  it("em em_atendimento o Gestor vê os CINCO — na ordem do enum, com cancelar por último", () => {
     // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
     // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
     //
-    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar` e `cancelar`
-    // saem porque `COMANDOS_IMPLEMENTADOS` ainda não os tem. É por isso que este caso mora aqui e não na
-    // tarefa 1 — antes do passo 4 ele devolveria `["atribuir-responsavel"]`.
+    // **Com o filtro PADRÃO**, que é o que a produção faz. `pausar` sai porque este Gestor não tem
+    // `ocorrencia.pausar` em `TODAS`; **`cancelar` entrou no item 18** e é o décimo do enum, por isso
+    // fecha a lista.
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
     // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
     // `COMANDOS_IMPLEMENTADOS`.
@@ -500,6 +510,7 @@ describe("comandosDisponiveis", () => {
       "registrar-solucao-aplicada",
       "resolver",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
@@ -565,9 +576,11 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — o outro não existe ainda", () => {
+  it("pausada com o filtro ligado oferece os CINCO — o item 18 fechou a lista deste estado", () => {
     // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
-    // ordenar a barra. O que falta é `cancelar` (18).
+    // ordenar a barra. **`cancelar` entrou no item 18**, e com ele `pausada` passa a ter CINCO — os
+    // mesmos do caso de `filtro: null`, logo abaixo, que deixa de ser o par de contraste e passa a ser
+    // a confirmação de que o filtro não esconde mais nada aqui.
     // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
     // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
     // `COMANDOS_IMPLEMENTADOS`.
@@ -583,10 +596,11 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "alterar-prioridade",
+      "cancelar",
     ]);
   });
 
-  it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
+  it("pausada com filtro null devolve os MESMOS cinco — depois do 18 o filtro não esconde nada aqui", () => {
     // **`TODAS` já basta desde o item 25**: a permissão `ocorrencia.registrar_solucao` entrou na lista
     // quando o comando passou a ser oferecido de verdade. A concatenação que morava aqui virou ruído.
     expect(
@@ -604,6 +618,70 @@ describe("comandosDisponiveis", () => {
       "alterar-prioridade",
       "cancelar",
     ]);
+  });
+
+  /**
+   * ==========================================================================
+   *  A metade de ESTADO do critério 18.3 — item 18
+   * ==========================================================================
+   *
+   * A condição de **autoria** existe desde antes; o que nasce aqui é a de **estado**: o Solicitante autor
+   * cancela a própria até `em_analise`, e a partir de `em_atendimento` só o Gestor.
+   *
+   * **Os quatro casos usam `filtro: null` de propósito** — o que se prova é a **derivação**, e não o
+   * filtro. Um `[]` por comando-não-implementado passaria por recusa de papel sem que nada avisasse.
+   */
+  const DO_AUTOR = [
+    "ocorrencia.registrar",
+    "ocorrencia.ler_propria",
+    "ocorrencia.cancelar_propria",
+    "ocorrencia.comentar",
+    "ocorrencia.avaliar",
+  ];
+
+  it("o autor recebe cancelar em aberta e em em_analise — a metade que ele alcança", () => {
+    for (const status of ["aberta", "em_analise"] as const) {
+      expect(
+        comandosDisponiveis({
+          status,
+          permissoes: DO_AUTOR,
+          ehAutor: true,
+          temResponsavel: true,
+          filtro: null,
+        }),
+      ).toStrictEqual(["cancelar"]);
+    }
+  });
+
+  it("o autor NÃO recebe cancelar em em_atendimento nem em pausada — o critério 18.3", () => {
+    // **É a metade que o `403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` cobre no servidor**, e a lista é a
+    // mesma constante: `ESTADOS_DE_CANCELAMENTO_DO_AUTOR`. Duas listas divergiriam, e a divergência
+    // seria um botão que responde `403` no clique.
+    for (const status of ["em_atendimento", "pausada"] as const) {
+      expect(
+        comandosDisponiveis({
+          status,
+          permissoes: DO_AUTOR,
+          ehAutor: true,
+          temResponsavel: true,
+          filtro: null,
+        }),
+      ).toStrictEqual([]);
+    }
+  });
+
+  it("o Gestor recebe cancelar nos QUATRO, mesmo não sendo autor — cancelar_qualquer pula a condição", () => {
+    for (const status of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(
+        comandosDisponiveis({
+          status,
+          permissoes: ["ocorrencia.cancelar_qualquer"],
+          ehAutor: false,
+          temResponsavel: true,
+          filtro: null,
+        }),
+      ).toStrictEqual(["cancelar"]);
+    }
   });
 });
 
@@ -1357,6 +1435,112 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
       }
     });
   });
+
+  describe("o comando cancelar — o das QUATRO origens, e o último da máquina de estados", () => {
+    const ENTRADA = {
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T18:40:00.000Z",
+      motivo: "improcedente" as const,
+      observacao: "Vistoriado no local: não há vazamento.",
+    };
+
+    /** As quatro setas que chegam a `Cancelada` (`arquitetura.md` §4). Escritas à mão, como as do
+     *  `alterarPrioridade`: um teste que importasse a lista provaria a constante contra ela mesma. */
+    const ORIGENS = ["aberta", "em_analise", "em_atendimento", "pausada"] as const;
+
+    it("sai das QUATRO origens para cancelada — o critério 18.2", () => {
+      for (const origem of ORIGENS) {
+        expect(em(origem).cancelar(ENTRADA).status).toBe("cancelada");
+      }
+    });
+
+    it("acrescenta UM registro, com os cinco campos do F5 mais o motivo — a invariante 2", () => {
+      for (const origem of ORIGENS) {
+        const antes = em(origem);
+        const depois = antes.cancelar(ENTRADA);
+        const registro = depois.ultimaTransicao;
+
+        expect(depois.trilha).toHaveLength(antes.trilha.length + 1);
+        expect(registro.sequencia).toBe(antes.ultimaTransicao.sequencia + 1);
+        expect(registro.statusAnterior).toBe(origem);
+        expect(registro.statusNovo).toBe("cancelada");
+        expect(registro.ocorreuEm).toBe("2026-08-28T18:40:00.000Z");
+        expect(registro.autorPessoaId).toBe(GESTOR);
+        expect(registro.observacao).toBe("Vistoriado no local: não há vazamento.");
+        expect(registro.motivoCancelamento).toBe("improcedente");
+        // **O outro lado do `registros_transicao_motivo_ck`**: destino `cancelada` exige
+        // `motivo_cancelamento` e proíbe... nada, mas `motivoPausa` só pode existir em `pausada`.
+        expect(registro.motivoPausa).toBeNull();
+      }
+    });
+
+    it("estoura nos DOIS terminais, citando a invariante 1 — a rede estrutural", () => {
+      // **Alcançar isto é defeito NOSSO** — quem decide é `transicaoPermitida`, na Aplicação, e é ela
+      // quem produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+      for (const status of ["resolvida", "cancelada"] as const) {
+        expect(() => em(status).cancelar(ENTRADA)).toThrow(/cancelar exige um estado não terminal/u);
+        expect(() => em(status).cancelar(ENTRADA)).toThrow(/invariante 1 violada/u);
+      }
+    });
+
+    it("a guarda concorda com TRANSICOES nos seis status — a quarta lista, fechada por comportamento", () => {
+      // **O achado P-3 do plano, virado teste.** `ORIGENS_DE_CANCELAMENTO` é uma quarta lista de estados
+      // no Domínio, e `transicaoPermitida(status, "cancelar")` responde exatamente a mesma pergunta. A
+      // cópia ficou por simetria do arquivo; o que a impede de divergir é isto: se um sétimo estado
+      // entrar numa das duas listas e não na outra, este caso cai.
+      for (const status of STATUS_TODOS) {
+        const permitido = transicaoPermitida(status, "cancelar");
+        let estourou = false;
+        try {
+          em(status).cancelar(ENTRADA);
+        } catch {
+          estourou = true;
+        }
+
+        expect(estourou).toBe(!permitido);
+      }
+    });
+
+    it("o agregado ANTES não muda — a trilha é append-only e a cópia é nova", () => {
+      const antes = em("em_analise");
+      const tamanho = antes.trilha.length;
+
+      antes.cancelar(ENTRADA);
+
+      expect(antes.status).toBe("em_analise");
+      expect(antes.trilha).toHaveLength(tamanho);
+    });
+
+    it("solucaoAplicada SOBREVIVE ao cancelamento — encerrar não é apagar o trabalho descrito", () => {
+      // **`comTransicao` sem o terceiro parâmetro**, como em `pausar` e `retomar`. O caminho é real:
+      // `registrar-solucao-aplicada` é admitido em `em_atendimento` e em `pausada`, e dos dois se
+      // cancela.
+      const comSolucao = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "Troquei o disjuntor.",
+      });
+
+      expect(comSolucao.cancelar(ENTRADA).solucaoAplicada).toBe("Troquei o disjuntor.");
+
+      // E pelo caminho de verdade, atravessando o agregado: registrar a solução e cancelar depois.
+      const atravessada = Ocorrencia.reconstituir({ ...ABERTA, status: "em_atendimento" })
+        .registrarSolucaoAplicada({ solucaoAplicada: "Trocada a lâmpada da vaga 34." })
+        .cancelar(ENTRADA);
+
+      expect(atravessada.status).toBe("cancelada");
+      expect(atravessada.solucaoAplicada).toBe("Trocada a lâmpada da vaga 34.");
+    });
+
+    it("os QUATRO motivos do autor e os TRÊS do Gestor chegam ao registro — o domínio de valor é um só", () => {
+      // A divisão por papel é **autorização**, e ela mora na Aplicação. O agregado grava o que recebe.
+      for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+        expect(em("aberta").cancelar({ ...ENTRADA, motivo }).ultimaTransicao.motivoCancelamento).toBe(
+          motivo,
+        );
+      }
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {
@@ -1378,8 +1562,10 @@ describe("RegistroDeTransicao.avanco", () => {
   });
 
   it("recusa pausada e cancelada — é o CHECK do banco expresso em fábrica", () => {
-    // `registros_transicao_motivo_ck` exige motivo E observação nesses dois destinos. Os itens 18 e 23
-    // ganham as fábricas próprias; esta porta não os deixa nascer sem motivo.
+    // `registros_transicao_motivo_ck` exige motivo E observação nesses dois destinos. Os itens 23 e 18
+    // **ganharam** as fábricas próprias — `pausa` e `cancelamento` —, e esta porta continua não deixando
+    // nenhum dos dois destinos nascer sem motivo. Com as duas construídas, o caso deixa de guardar uma
+    // dívida e passa a guardar a fronteira: `avanco` não as dispensa.
     for (const destino of ["pausada", "cancelada"] as const) {
       expect(() => RegistroDeTransicao.avanco({ ...BASE, statusNovo: destino })).toThrow(/motivo/u);
     }
@@ -1416,6 +1602,74 @@ describe("RegistroDeTransicao.pausa — a segunda fábrica, e a primeira com cam
   it("estoura com observação em branco — o CHECK do banco distingue '' de texto, e o tipo não", () => {
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "   " })).toThrow(/observação/i);
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "" })).toThrow(/observação/i);
+  });
+});
+
+describe("RegistroDeTransicao.cancelamento — a terceira fábrica, e a espelhada da pausa", () => {
+  const BASE = {
+    sequencia: 4,
+    statusAnterior: "em_atendimento" as const,
+    ocorreuEm: "2026-08-28T18:40:00.000Z",
+    autorPessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    observacao: "Vistoriado no local: não há vazamento.",
+    motivoCancelamento: "improcedente" as const,
+  };
+
+  it("grava motivoCancelamento e NÃO grava motivoPausa — o outro lado do mesmo CHECK", () => {
+    const registro = RegistroDeTransicao.cancelamento(BASE);
+
+    expect(registro.statusNovo).toBe("cancelada");
+    expect(registro.statusAnterior).toBe("em_atendimento");
+    expect(registro.motivoCancelamento).toBe("improcedente");
+    expect(registro.motivoPausa).toBeNull();
+    expect(registro.observacao).toBe("Vistoriado no local: não há vazamento.");
+    expect(Object.isFrozen(registro)).toBe(true);
+  });
+
+  it("não recebe statusNovo: o destino é sempre cancelada — as QUATRO origens chegam ao mesmo lugar", () => {
+    // A prova é de tipo, e é o compilador que a faz. Em tempo de execução resta conferir o destino.
+    for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(RegistroDeTransicao.cancelamento({ ...BASE, statusAnterior: origem }).statusNovo).toBe(
+        "cancelada",
+      );
+    }
+  });
+
+  it("estoura com observação em branco — a invariante 5 cobrada onde o tipo não alcança", () => {
+    expect(() => RegistroDeTransicao.cancelamento({ ...BASE, observacao: "   " })).toThrow(
+      /observação/i,
+    );
+    expect(() => RegistroDeTransicao.cancelamento({ ...BASE, observacao: "" })).toThrow(
+      /observação/i,
+    );
+  });
+});
+
+describe("motivosPermitidos — o conjunto é do Domínio, a checagem é da Aplicação", () => {
+  it("sem cancelar_qualquer devolve os QUATRO do autor; com ela, os SETE", () => {
+    expect(motivosPermitidos(["ocorrencia.cancelar_propria"])).toStrictEqual([
+      "desistencia",
+      "resolvido_por_conta_propria",
+      "aberta_por_engano",
+      "duplicada",
+    ]);
+
+    expect(
+      motivosPermitidos(["ocorrencia.cancelar_propria", "ocorrencia.cancelar_qualquer"]),
+    ).toHaveLength(7);
+  });
+
+  it("lista vazia de permissões cai no conjunto do autor — o padrão é o menor", () => {
+    expect(motivosPermitidos([])).toStrictEqual(MOTIVOS_DO_AUTOR);
+  });
+
+  it("MOTIVOS_DO_AUTOR é subconjunto de MOTIVOS_DE_CANCELAMENTO — o que o slice daria de graça", () => {
+    // **O preço da lista literal, e vale pagá-lo.** `MOTIVOS_DE_CANCELAMENTO.slice(0, 4)` garantiria a
+    // inclusão por construção e mentiria no dia em que alguém inserisse o oitavo motivo no meio do enum.
+    // A lista literal escreve a intenção; este caso compra de volta a garantia que o `slice` dava.
+    for (const motivo of MOTIVOS_DO_AUTOR) {
+      expect(MOTIVOS_DE_CANCELAMENTO).toContain(motivo);
+    }
   });
 });
 

@@ -14,6 +14,8 @@ import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
 import {
   acoesDaBarra,
+  AVISO_DE_VISIBILIDADE,
+  AVISO_PARA_QUEM_NAO_GESTIONA,
   nomesDeStatus,
   rotuloDeComando,
   rotuloDePrioridade,
@@ -22,6 +24,7 @@ import {
 } from "@/interface/componentes/rotulos";
 import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
 import {
+  opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
   projetarOcorrenciaDetalhe,
@@ -170,6 +173,19 @@ export default async function Ocorrencia({
   const podeAtribuir =
     acoes.some((acao) => acao.comando === "atribuir-responsavel") && vinculo.pode("vinculo.gerir");
 
+  /**
+   * **Quem gestiona, derivado UMA vez e lido por dois consumidores** — a frase do vazio da barra
+   * (critério 18.6) e o aviso do modal de cancelamento (critério 18.7).
+   *
+   * **`vinculo.pode("…")` com string literal é o idioma que esta página já usa** com `"vinculo.gerir"`,
+   * logo acima, e com `"ocorrencia.ler_todas"`. É o que mantém `app/` sem `import` do Domínio desde o
+   * item 11.
+   *
+   * **É `cancelar_qualquer`, e não um papel:** permissão é lista, nunca papel (contrato §4.5). O
+   * Encarregado tem lista vazia e cai no mesmo ramo do Solicitante — e nem chega a abrir T-05.
+   */
+  const ehGestor = vinculo.pode("ocorrencia.cancelar_qualquer");
+
   const candidatos: readonly Candidato[] = podeAtribuir
     ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
         pessoaId: lido.pessoa.pessoaId,
@@ -223,7 +239,7 @@ export default async function Ocorrencia({
    * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
    * que mantém `app/` sem `import` do Domínio desde o item 11.
    */
-  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
+  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status, ehGestor) : null;
 
   /**
    * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
@@ -282,6 +298,7 @@ export default async function Ocorrencia({
         rotuloDoGatilho="Pausar"
         rotuloDeConfirmar="Pausar"
         verboEnviando="Pausando…"
+        avisoDeVisibilidade={AVISO_DE_VISIBILIDADE}
         variante={varianteDe("pausar")}
         rotulosDeStatus={rotulos}
       />
@@ -298,8 +315,13 @@ export default async function Ocorrencia({
      *
      * **A ternária, e não `varianteDe`:** `ModalDeObservacao` aceita `"primario" | "secundario"`, e
      * `varianteDe` devolve as três — passá-lo não compila. É o mesmo que `iniciar-atendimento` e
-     * `resolver` já fazem, logo acima. **Quem reabre isto é o item 18**, que torna `pausada` um estado
-     * com três renderizáveis e leva `retomar` para dentro do menu.
+     * `resolver` já fazem, logo acima.
+     *
+     * **O item 18 conferiu e NÃO há o que reabrir**, ao contrário do que este comentário prometia.
+     * `pausada` passou mesmo a ter três renderizáveis — `atribuir`, `retomar` e `cancelar` —, e ainda
+     * assim `retomar` **não pode** cair no menu: `ACAO_PRIMARIA.pausada === "retomar"`, e `acoesDaBarra`
+     * remove o destaque de `emMenu` por construção. Sempre que `retomar` é renderizável, ele é o
+     * destaque. A prova completa está no cabeçalho de `barra-de-acoes.tsx`, e virou teste.
      *
      * **Entra SEMPRE, como os três de cima**: não precisa de consulta nenhuma além do que a página já
      * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis`.
@@ -315,6 +337,44 @@ export default async function Ocorrencia({
         rotuloDeConfirmar="Retomar"
         verboEnviando="Retomando…"
         variante={primario === "retomar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+      />
+    ),
+    /**
+     * **O quinto modal, e ele é o `ModalDeMotivo` reusado INTEIRO** — o mesmo componente do `pausar`,
+     * com **uma** propriedade opcional a mais na opção (`descricao`) e **uma** propriedade a mais no
+     * componente (`avisoDeVisibilidade`). Zero componente novo.
+     *
+     * **A lista é filtrada por PERMISSÃO, e não por `ehGestor`:** `opcoesDeMotivoCancelamento` recebe
+     * `vinculo.permissoes` e consulta `motivosPermitidos` — a **mesma** função que o comando de
+     * aplicação usa para lançar o `422`. Duas regras sobre quais motivos são de quem divergiriam, e a
+     * divergência seria um motivo oferecido em tela que o servidor recusa no clique.
+     *
+     * **O aviso muda de sujeito — critério 18.7**, e esta é a primeira vez no produto em que um texto de
+     * tela depende de quem está olhando. O predicado é **ser Gestor, não ser autor**: um Gestor que
+     * criou a própria ocorrência lê a frase do Gestor, porque quem lê a observação dele são os Gestores.
+     *
+     * **`varianteDe` serve aqui**, ao contrário do `retomar`: `ModalDeMotivo` aceita as três variantes
+     * desde o item 23, e `cancelar` **cai no menu nos quatro estados** — ele não é `ACAO_PRIMARIA` de
+     * nenhum, e isso é correto: cancelar nunca é a ação em destaque.
+     *
+     * **Entra SEMPRE, como os quatro de cima**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e é ela que esconde o
+     * botão do Solicitante autor a partir de `Em atendimento` (critério 18.3).
+     */
+    cancelar: (
+      <ModalDeMotivo
+        ocorrenciaId={detalhe.id}
+        comando="cancelar"
+        titulo="Cancelar a ocorrência"
+        descricao="A ocorrência será encerrada sem resolução. Não há como reabrir."
+        rotuloDoGrupo="Motivo"
+        motivos={opcoesDeMotivoCancelamento(vinculo.permissoes)}
+        rotuloDoGatilho="Cancelar"
+        rotuloDeConfirmar="Cancelar a ocorrência"
+        verboEnviando="Cancelando…"
+        avisoDeVisibilidade={ehGestor ? AVISO_DE_VISIBILIDADE : AVISO_PARA_QUEM_NAO_GESTIONA}
+        variante={varianteDe("cancelar")}
         rotulosDeStatus={rotulos}
       />
     ),

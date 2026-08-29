@@ -3,17 +3,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
 import {
   COMANDOS_IMPLEMENTADOS,
+  MOTIVOS_DE_CANCELAMENTO,
   MOTIVOS_DE_PAUSA,
   STATUS,
   type Comando,
+  type MotivoCancelamento,
 } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
   descricaoDoRecorte,
   nomeDaPrioridade,
+  nomeDoMotivoCancelamento,
   nomeDoMotivoPausa,
   nomeDoStatus,
+  opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
   projetarAnexo,
@@ -32,6 +36,7 @@ import {
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
+  recusarEvolucaoPrevista,
   recusarSemDestino,
   type ErroDeCampo,
 } from "@/interface/http";
@@ -52,6 +57,8 @@ import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-l
 import {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
+  cancelamentoSchema,
+  camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
@@ -954,9 +961,13 @@ describe("os rótulos que descem para a barra de ações", () => {
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    // Era `resolver` até o item 26, `pausar` até o 23 e `retomar` até o 24. `cancelar` é o próximo
-    // comando que vira botão — item 18.
-    expect(rotuloDeComando("cancelar")).toBeNull();
+    // Era `resolver` até o item 26, `pausar` até o 23, `retomar` até o 24 e `cancelar` até o 18.
+    // **`avaliar` é o único que sobra**, e o item 27 é quem o constrói — depois dele este caso some.
+    expect(rotuloDeComando("avaliar")).toBeNull();
+  });
+
+  it("cancelar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("cancelar")).toBe("Cancelar");
   });
 
   it("retomar é palavra, e é o verbo do glossário — compromisso A-5", () => {
@@ -1391,40 +1402,69 @@ describe("o corpo de POST …/registrar-solucao-aplicada — o segundo com corpo
  * declarado**; sólida é **UI de produto**. Devolver só a frase deixaria a segunda metade no JSX, e a
  * página passaria a importar `ehTerminal` do Domínio.
  */
-describe("vazioDaBarra — as duas frases do vazio de T-05", () => {
+describe("vazioDaBarra — as TRÊS frases do vazio de T-05", () => {
   it("nos dois terminais, a frase de produto e a moldura sólida — o critério 26.6", () => {
+    // **O ramo terminal vem PRIMEIRO, e por isso `ehGestor` não o muda**: numa ocorrência encerrada
+    // ninguém age, e dizer ao Solicitante que *"só os Gestores cancelam a partir daqui"* seria falso.
     for (const terminal of ["resolvida", "cancelada"] as const) {
-      expect(vazioDaBarra(terminal)).toStrictEqual({
-        texto: "Esta ocorrência está encerrada.",
+      for (const ehGestor of [false, true]) {
+        expect(vazioDaBarra(terminal, ehGestor)).toStrictEqual({
+          texto: "Esta ocorrência está encerrada.",
+          andaime: false,
+        });
+      }
+    }
+  });
+
+  it("nos quatro não-terminais, para quem NÃO gestiona: a frase sólida do critério 18.6", () => {
+    // **Moldura SÓLIDA, e é o que a distingue da nota de andaime:** este vazio é permanente e é UI de
+    // produto. A partir de `Em atendimento` o Solicitante autor não cancela mais, e a barra dele fica
+    // vazia para sempre num estado que não é terminal.
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento, false)).toStrictEqual({
+        texto: "Só os Gestores podem cancelar a partir daqui.",
         andaime: false,
       });
     }
   });
 
-  it("nos quatro não-terminais, a nota de andaime e a moldura tracejada — o critério 16.6", () => {
+  it("nos quatro não-terminais, para o Gestor: a nota de andaime e a moldura tracejada — o critério 16.6", () => {
+    // **Este ramo nasceu inalcançável por navegação no item 18** — com `cancelar` renderizável nos
+    // quatro, o Gestor nunca mais tem barra vazia fora de estado terminal. Ele não é removido aqui: o
+    // 16.6 manda a nota existir, e o **27.6** é o dono da remoção.
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
-      expect(vazioDaBarra(emAndamento)).toStrictEqual({
+      expect(vazioDaBarra(emAndamento, true)).toStrictEqual({
         texto: "Os comandos da ocorrência chegam nos próximos itens.",
         andaime: true,
       });
     }
   });
 
-  it("responde para os SEIS status, e as duas frases são mutuamente exclusivas", () => {
+  it("responde para os SEIS status, e as TRÊS frases são mutuamente exclusivas", () => {
     // **Nunca existe barra vazia sem texto**, que é o `200` silencioso que a §8.5 do contrato existe
-    // para impedir. E nunca existe texto ambíguo: um status cai num ramo só.
-    const textos = new Set(STATUS.map((status) => vazioDaBarra(status).texto));
-    expect(textos.size).toBe(2);
+    // para impedir. E nunca existe texto ambíguo: um par (status, ehGestor) cai num ramo só.
+    //
+    // **O conjunto é montado sobre `STATUS` × `[false, true]`**, e não sobre `STATUS` só: com um
+    // `ehGestor` fixo ele teria duas frases, e a asserção de três não fecharia.
+    const textos = new Set(
+      STATUS.flatMap((status) => [
+        vazioDaBarra(status, false).texto,
+        vazioDaBarra(status, true).texto,
+      ]),
+    );
+    expect(textos.size).toBe(3);
     for (const status of STATUS) {
-      expect(vazioDaBarra(status).texto.length).toBeGreaterThan(0);
+      expect(vazioDaBarra(status, false).texto.length).toBeGreaterThan(0);
+      expect(vazioDaBarra(status, true).texto.length).toBeGreaterThan(0);
     }
   });
 
   it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
-    // **`cancelada` ainda é inalcançável no produto** (item 18), e mesmo assim responde certo: a função
-    // pergunta ao Domínio em vez de listar os terminais pela segunda vez.
-    expect(vazioDaBarra("cancelada").andaime).toBe(false);
-    expect(vazioDaBarra("em_atendimento").andaime).toBe(true);
+    // **`cancelada` É alcançável no produto desde o item 18**, e o que este caso guarda agora é a outra
+    // metade: a frase terminal continua vindo de `ehTerminal`, e não de uma segunda lista de terminais
+    // escrita aqui.
+    expect(vazioDaBarra("cancelada", true).andaime).toBe(false);
+    expect(vazioDaBarra("em_atendimento", true).andaime).toBe(true);
   });
 });
 
@@ -1544,14 +1584,76 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
   });
 
   it("pausada com DOIS renderizáveis não tem menu — a conta que fecha o P-1 do item 23", () => {
-    // **É a barra que esta fatia produz.** Os outros três comandos de `pausada` não são renderizáveis:
-    // `registrar-solucao-aplicada` é campo (item 25), `alterar-prioridade` é seletor (17) e `cancelar`
-    // não existe (18). **Quando o 18 chegar, a barra converge para o protótipo sozinha** — três
-    // renderizáveis, e a regra `≥ 3 → menu` desenha *Retomar* + *Mais ações ▾*.
+    // **A lista de dois é passada à mão, e continua sendo o caso de dois.** Ela não descreve mais a
+    // barra que a produção desenha: com o item 18 `cancelar` virou renderizável e `pausada` passou a
+    // ter três. O caso segue guardando a regra `≤ 2 → sem menu`, e o caso de três está logo abaixo.
     expect(acoesDaBarra("pausada", ["atribuir-responsavel", "retomar"])).toStrictEqual({
       destaque: "retomar",
       emMenu: [],
     });
+  });
+
+  it("pausada com TRÊS converge para o protótipo — Retomar em destaque, os outros dois no menu", () => {
+    // **É a barra que o item 18 produz**, e é a conferência da §3.13 contra o protótipo
+    // (`telas.html:2236-2237` e `:2639-2641`): *Retomar* + *Mais ações ▾* no celular, e
+    // *Retomar · Reatribuir · Cancelar* na tela grande.
+    expect(
+      acoesDaBarra("pausada", ["atribuir-responsavel", "retomar", "cancelar"]),
+    ).toStrictEqual({
+      destaque: "retomar",
+      emMenu: ["atribuir-responsavel", "cancelar"],
+    });
+  });
+
+  /**
+   * ==========================================================================
+   *  O alarme que o comentário de `barra-de-acoes.tsx` queria ser — item 18
+   * ==========================================================================
+   *
+   * **Comando que vai para `emMenu` PRECISA ter a variante `"menu"`**, senão a barra renderiza um
+   * `<button>` com `DialogTrigger` como filho direto de `role="menu"` — ARIA inválida, e o menu perde a
+   * navegação por setas (A-2 e A-4). Nada quebra em vermelho; a acessibilidade quebra em silêncio.
+   *
+   * **Hoje isso é verdade por construção**, e a prova é de duas linhas: `emMenu` exclui o destaque, e
+   * cada um dos quatro comandos sem a variante — `analisar`, `iniciar-atendimento`, `resolver` e
+   * `retomar` — é o `ACAO_PRIMARIA` do único estado em que é renderizável. **Este caso é o que torna a
+   * coincidência uma invariante guardada:** no dia em que alguém mexer em `ACAO_PRIMARIA`, ele cai.
+   */
+  it("emMenu só contém comandos que TÊM a variante menu — os seis status, as duas combinações", () => {
+    const COM_VARIANTE_DE_MENU = ["atribuir-responsavel", "pausar", "cancelar"];
+    const DO_GESTOR = [
+      "ocorrencia.analisar",
+      "ocorrencia.atribuir",
+      "ocorrencia.iniciar_atendimento",
+      "ocorrencia.pausar",
+      "ocorrencia.retomar",
+      "ocorrencia.registrar_solucao",
+      "ocorrencia.resolver",
+      "ocorrencia.alterar_prioridade",
+      "ocorrencia.cancelar_qualquer",
+    ];
+
+    const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
+
+    for (const status of STATUS) {
+      for (const temResponsavel of [false, true]) {
+        // **Os renderizáveis são os que TÊM rótulo de botão** — é o mesmo recorte que `page.tsx` faz
+        // antes de chamar `acoesDaBarra`, e é o que exclui `alterar-prioridade` (seletor) e
+        // `registrar-solucao-aplicada` (campo).
+        const renderizaveis = projetarOcorrenciaDetalhe(
+          {
+            ...umaOcorrenciaLidaCom([]),
+            status,
+            responsavel: temResponsavel ? RESPONSAVEL : null,
+          },
+          { pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f", permissoes: DO_GESTOR },
+        ).acoesDisponiveis.filter((comando) => rotuloDeComando(comando as Comando) !== null);
+
+        for (const comando of acoesDaBarra(status, renderizaveis).emMenu) {
+          expect(COM_VARIANTE_DE_MENU).toContain(comando);
+        }
+      }
+    }
   });
 
   it("com TRÊS, o destaque sai da tabela e os outros DOIS vão para o menu, na ordem recebida", () => {
@@ -1581,5 +1683,204 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
     expect(acoesDaBarra("em_analise", renderizaveis).destaque).toBe(
       acaoPrimaria("em_analise", renderizaveis),
     );
+  });
+});
+
+describe("o corpo de POST …/cancelar — o segundo com DOIS campos obrigatórios", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = cancelamentoSchema.safeParse({
+      motivo: "improcedente",
+      observacao: "  Vistoriado no local: não há vazamento.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Vistoriado no local: não há vazamento.");
+    expect(analisado.data?.motivo).toBe("improcedente");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — o critério 18.1", () => {
+    const analisado = cancelamentoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("aceita os SETE motivos — o enum é o conjunto inteiro, e a filtragem por papel NÃO é aqui", () => {
+    // **É a §3.8 em asserção, e ela decide qual ERRO a pessoa recebe.** Um enum estreito devolveria
+    // `400 FORMATO_INVALIDO` — *"você escreveu errado"* — onde a verdade é *"isso não é seu"*, e o
+    // `422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` do critério 18.4 se perderia.
+    for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+      expect(cancelamentoSchema.safeParse({ motivo, observacao: "Encerrando." }).success).toBe(true);
+    }
+  });
+
+  it("aceita improcedente — o motivo que o Solicitante NÃO alcança passa pelo schema", () => {
+    // O par do caso acima, escrito sozinho porque é a diferença que importa: quem recusa `improcedente`
+    // para o Solicitante é o comando de aplicação, com `422`, e não este schema com `400`.
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "improcedente", observacao: "Sem procedência." })
+        .success,
+    ).toBe(true);
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "mudei_de_ideia", observacao: "ok" }).success,
+    ).toBe(false);
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "" }).success).toBe(
+      false,
+    );
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("camposDeEvolucaoPrevista — a SEGUNDA lista de recusa, e por que não é a primeira", () => {
+  it("aponta ocorrenciaOrigemId, e o corpo sem ele passa limpo — o critério 18.5", () => {
+    expect(
+      camposDeEvolucaoPrevista({
+        motivo: "duplicada",
+        observacao: "É a mesma da vaga 34.",
+        ocorrenciaOrigemId: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      }),
+    ).toStrictEqual(["ocorrenciaOrigemId"]);
+
+    expect(
+      camposDeEvolucaoPrevista({ motivo: "duplicada", observacao: "É a mesma da vaga 34." }),
+    ).toStrictEqual([]);
+  });
+
+  it("ocorrenciaOrigemId NULO também é recusado — o campo presente é o que importa", () => {
+    // `"campo" in corpo`, e não `corpo.campo !== undefined`: quem mandou o campo tentou usar a
+    // capacidade, e o silêncio o faria acreditar que o vínculo entre as duas ocorrências foi gravado.
+    expect(camposDeEvolucaoPrevista({ ocorrenciaOrigemId: null })).toStrictEqual([
+      "ocorrenciaOrigemId",
+    ]);
+  });
+
+  it("não estoura com corpo que não é objeto", () => {
+    expect(camposDeEvolucaoPrevista(null)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista(undefined)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista("ocorrenciaOrigemId")).toStrictEqual([]);
+  });
+
+  it("as DUAS listas são por endpoint, e este par é o que impede alguém de fundi-las", () => {
+    // **Se elas fossem uma só, `/cancelar` recusaria com `422` o próprio campo obrigatório dele.** É a
+    // razão fatal da §3.9, virada asserção — e do outro lado, `/atribuir-responsavel` e
+    // `/alterar-prioridade` passariam a recusar um campo que o `openapi.yaml` nem declara para eles.
+    expect(camposDeEvolucaoPrevista({ observacao: "Conte por quê." })).toStrictEqual([]);
+    expect(camposSemDestino({ ocorrenciaOrigemId: "x" })).toStrictEqual([]);
+  });
+
+  it("recusarEvolucaoPrevista estoura com o campo, e passa limpo sem ele", () => {
+    expect(() =>
+      recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x", ocorrenciaOrigemId: "y" }),
+    ).toThrow(CampoNaoSuportado);
+
+    expect(() => recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x" })).not.toThrow();
+  });
+
+  it("recusarEvolucaoPrevista nomeia o campo em erros[], que é o que o cliente lê", () => {
+    const erro = (() => {
+      try {
+        recusarEvolucaoPrevista({ ocorrenciaOrigemId: "x" });
+        return null;
+      } catch (causa) {
+        return causa as CampoNaoSuportado;
+      }
+    })();
+
+    expect(erro?.extensoes["erros"]).toStrictEqual([
+      { campo: "ocorrenciaOrigemId", codigo: "CAMPO_NAO_SUPORTADO" },
+    ]);
+  });
+});
+
+describe("nomeDoMotivoCancelamento — os sete textos, e o do meio foi trocado de propósito", () => {
+  it("dá os QUATRO do protótipo, literais", () => {
+    expect(nomeDoMotivoCancelamento("desistencia")).toBe("Desistência");
+    expect(nomeDoMotivoCancelamento("resolvido_por_conta_propria")).toBe(
+      "Resolvido por conta própria",
+    );
+    expect(nomeDoMotivoCancelamento("aberta_por_engano")).toBe("Aberta por engano");
+    expect(nomeDoMotivoCancelamento("duplicada")).toBe("Duplicada");
+  });
+
+  it("dá os TRÊS do Gestor, e nenhum deles diz 'condomínio'", () => {
+    // **O rótulo de `fora_de_escopo` foi trocado na resposta do hub:** *"Fora do escopo **da
+    // organização**"*, e não *"do condomínio"*. A palavra travaria o produto numa das três formas de
+    // Organização, que é o que o `glossario.md:127-130` proíbe em rótulo novo.
+    expect(nomeDoMotivoCancelamento("improcedente")).toBe("Improcedente");
+    expect(nomeDoMotivoCancelamento("fora_de_escopo")).toBe("Fora do escopo da organização");
+    expect(nomeDoMotivoCancelamento("sem_informacao_suficiente")).toBe("Sem informação suficiente");
+
+    for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+      expect(nomeDoMotivoCancelamento(motivo).toLowerCase()).not.toContain("condomínio");
+    }
+  });
+});
+
+describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor consulta", () => {
+  const DO_AUTOR = ["ocorrencia.registrar", "ocorrencia.cancelar_propria"];
+  const DO_GESTOR = ["ocorrencia.cancelar_propria", "ocorrencia.cancelar_qualquer"];
+
+  it("sem cancelar_qualquer dá QUATRO, na ordem do enum — o critério 18.4 na tela", () => {
+    expect(opcoesDeMotivoCancelamento(DO_AUTOR).map((opcao) => opcao.valor)).toStrictEqual([
+      "desistencia",
+      "resolvido_por_conta_propria",
+      "aberta_por_engano",
+      "duplicada",
+    ]);
+  });
+
+  it("com cancelar_qualquer dá SETE, na ordem do enum", () => {
+    expect(opcoesDeMotivoCancelamento(DO_GESTOR).map((opcao) => opcao.valor)).toStrictEqual([
+      ...MOTIVOS_DE_CANCELAMENTO,
+    ]);
+  });
+
+  it("os rótulos batem com nomeDoMotivoCancelamento — uma fonte, não duas", () => {
+    for (const opcao of opcoesDeMotivoCancelamento(DO_GESTOR)) {
+      expect(opcao.rotulo).toBe(nomeDoMotivoCancelamento(opcao.valor as MotivoCancelamento));
+    }
+  });
+
+  it("só Duplicada tem descrição, e ela é a do protótipo", () => {
+    // **A condição é POR OPÇÃO, não por modal** — é o que faz a tela do item 23 não mudar um pixel.
+    const comDescricao = opcoesDeMotivoCancelamento(DO_GESTOR).filter(
+      (opcao) => opcao.descricao !== undefined,
+    );
+
+    expect(comDescricao).toHaveLength(1);
+    expect(comDescricao[0]?.valor).toBe("duplicada");
+    expect(comDescricao[0]?.descricao).toBe(
+      "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.",
+    );
+  });
+
+  it("a opção Duplicada do SOLICITANTE também traz a descrição — ela é dele antes de ser do Gestor", () => {
+    const duplicada = opcoesDeMotivoCancelamento(DO_AUTOR).find(
+      (opcao) => opcao.valor === "duplicada",
+    );
+
+    expect(duplicada?.descricao).toBeDefined();
+  });
+
+  it("opcoesDeMotivoPausa continua SEM descrição em nenhuma das quatro — a prova de que o 23 não mudou", () => {
+    for (const opcao of opcoesDeMotivoPausa()) {
+      expect("descricao" in opcao).toBe(false);
+    }
   });
 });

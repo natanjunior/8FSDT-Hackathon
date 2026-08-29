@@ -5,12 +5,15 @@ export { PrioridadeImutavelEmEstadoTerminal, TransicaoNaoPermitida } from "./err
 export {
   comandoPermitido,
   comandosDisponiveis,
+  ESTADOS_DE_CANCELAMENTO_DO_AUTOR,
   transicaoPermitida,
   type PerguntaDeAcoes,
 } from "./MaquinaDeEstados";
 export {
   MOTIVOS_DE_CANCELAMENTO,
   MOTIVOS_DE_PAUSA,
+  MOTIVOS_DO_AUTOR,
+  motivosPermitidos,
   type MotivoCancelamento,
   type MotivoPausa,
 } from "./Motivos";
@@ -24,6 +27,7 @@ export { ehPrioridade, PRIORIDADE_INICIAL, PRIORIDADES, type Prioridade } from "
 export {
   RegistroDeTransicao,
   type DadosDeAvanco,
+  type DadosDeCancelamento,
   type DadosDePausa,
   type DadosDeRegistroDeTransicao,
 } from "./RegistroDeTransicao";

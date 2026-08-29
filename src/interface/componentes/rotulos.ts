@@ -29,6 +29,29 @@ export const AVISO_DE_VISIBILIDADE =
   "O Solicitante vê esta observação. Não há como editá-la depois.";
 
 /**
+ * **A MESMA frase, com o sujeito trocado** — critério **18.7**, e a primeira vez no produto em que um
+ * texto de tela muda em função de quem está olhando.
+ *
+ * `cancelar` é o único comando que **duas pessoas diferentes** chamam, e o aviso da irmã acima diria ao
+ * Solicitante que *"o Solicitante vê esta observação"* — verdade inútil, dita a ele sobre ele mesmo,
+ * exatamente onde a frase precisa avisar **quem lê o que você está escrevendo**. Para ele, quem lê é o
+ * outro lado.
+ *
+ * **Construída por deleção:** troca só o sujeito da primeira oração e mantém a segunda palavra por
+ * palavra, porque **as duas frases importam** — quem lê, e que é final.
+ *
+ * **A restrição herdada nº 1 do `inventario-de-telas.md` passa a ter UMA exceção**, e ela tem dono: item
+ * 19 da `trabalho/fila-documentacao.md`. A restrição manda a frase única nos cinco modais; a partir daqui
+ * o modal de `cancelar` escolhe entre duas, **por permissão e não por autoria** — um Gestor que seja
+ * autor da própria ocorrência lê a frase do Gestor, porque quem lê a observação dele são os Gestores.
+ *
+ * **Os outros quatro modais continuam com a frase única**, e não por esquecimento: `pausar`,
+ * `iniciar-atendimento`, `retomar` e `resolver` só são alcançáveis por quem é Gestor.
+ */
+export const AVISO_PARA_QUEM_NAO_GESTIONA =
+  "Os Gestores veem esta observação. Não há como editá-la depois.";
+
+/**
  * A prioridade **em palavra**, que é o compromisso **A-5**: *"`prioridade`, `status` e `motivoPausa`
  * sempre carregam a palavra. Marcador colorido sem texto é defeito, em qualquer tela."*
  *
@@ -64,6 +87,7 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
   pausar: "Pausar",
   retomar: "Retomar",
   resolver: "Resolver",
+  cancelar: "Cancelar",
 };
 
 /** `null` quando o comando não é botão desta barra — ou porque não foi construído, ou porque a forma
@@ -163,7 +187,7 @@ export function acoesDaBarra(
 
 /**
  * ============================================================================
- *  As duas frases do vazio da barra — o critério 26.6 e o 16.6, irmãos
+ *  As TRÊS frases do vazio da barra — os critérios 26.6, 16.6 e 18.6
  * ============================================================================
  *
  * A barra pode ficar vazia por **duas razões diferentes**, e só uma delas é sobre o produto pronto:
@@ -171,6 +195,7 @@ export function acoesDaBarra(
  * | Por que está vazia | O que a tela mostra |
  * |---|---|
  * | O status é **terminal** — nada mais será possível | *"Esta ocorrência está encerrada."*, em moldura sólida |
+ * | Não é terminal, mas quem olha **não é Gestor** — e a partir daqui só o Gestor cancela (18.6) | *"Só os Gestores podem cancelar a partir daqui."*, em moldura sólida |
  * | O status **não** é terminal, e os comandos ainda não foram construídos | a nota de andaime, em moldura tracejada |
  *
  * **Mora numa função com teste, e não num `?:` dentro do JSX**, pela mesma razão que o `vazioDaLista` do
@@ -187,13 +212,38 @@ export function acoesDaBarra(
  * `ehTerminal` já é superfície pública do Domínio — **o texto não deriva de `TERMINAIS` por conta
  * própria**, ele chama a função que já existe.
  *
- * **O segundo ramo sai no item 27** (critério 27.6): com `avaliar` construído, `COMANDOS_IMPLEMENTADOS`
- * terá os dez e a frase de andaime passa a ser falsa. A partir de lá esta função tem um ramo só.
+ * **O TERCEIRO ramo nasceu no item 18** — critério **18.6** —, e ele é o do produto pronto: a partir de
+ * `Em atendimento` o Solicitante autor não cancela mais, e a barra dele fica vazia **para sempre**,
+ * num estado que não é terminal. Sem este ramo ele leria a nota de andaime — *"os comandos chegam nos
+ * próximos itens"* — para uma tela que já chegou. Por isso a moldura é **sólida**: é UI de produto, e
+ * não dívida declarada.
+ *
+ * **A frase do meio é seca de propósito, e a alternativa foi recusada em voz alta.** *"O atendimento já
+ * começou"* — a primeira oração do `detail` publicado do `403` — **é falsa** numa ocorrência que chegou
+ * a `pausada` vinda de `em_analise`. A frase escolhida é a única verdadeira nos **dois** estados em que
+ * o ramo dispara.
+ *
+ * **O segundo parâmetro é OBRIGATÓRIO, e não opcional com padrão.** Padrão aqui escolheria em silêncio
+ * qual das duas frases um chamador esquecido mostra — e esta função é inteira sobre não mostrar a frase
+ * errada. Obrigatório, o compilador cobra os cinco locais que a chamam.
+ *
+ * **`ehGestor` chega como booleano PRONTO, e não como a lista de permissões:** `rotulos.ts` é alcançado
+ * por componente de cliente, e receber `permissoes` faria ou a página conhecer o nome da permissão dentro
+ * de outro módulo, ou este arquivo virar consumidor de `Permissao`.
+ *
+ * **O terceiro ramo — o de andaime — nasce inalcançável por navegação nesta fatia**, e não é engano: com
+ * `cancelar` renderizável nos quatro estados não terminais, o Gestor nunca mais tem barra vazia fora de
+ * estado terminal. **Ele NÃO é removido aqui:** o critério 16.6 manda a nota existir, e o **27.6** é o
+ * dono da remoção. Quem construir o item 27 fecha com uma deleção e um teste — e **não vai encontrar a
+ * nota tracejada em tela para ver sumir**, porque ela já não aparece desde esta fatia.
  */
-export function vazioDaBarra(status: StatusOcorrencia): { texto: string; andaime: boolean } {
-  return ehTerminal(status)
-    ? { texto: "Esta ocorrência está encerrada.", andaime: false }
-    : { texto: "Os comandos da ocorrência chegam nos próximos itens.", andaime: true };
+export function vazioDaBarra(
+  status: StatusOcorrencia,
+  ehGestor: boolean,
+): { texto: string; andaime: boolean } {
+  if (ehTerminal(status)) return { texto: "Esta ocorrência está encerrada.", andaime: false };
+  if (!ehGestor) return { texto: "Só os Gestores podem cancelar a partir daqui.", andaime: false };
+  return { texto: "Os comandos da ocorrência chegam nos próximos itens.", andaime: true };
 }
 
 /**

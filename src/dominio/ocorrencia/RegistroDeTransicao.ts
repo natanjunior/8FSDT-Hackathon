@@ -46,6 +46,27 @@ export type DadosDePausa = {
 };
 
 /**
+ * Uma transição para `cancelada` — **a espelhada de `DadosDePausa`**, e a outra metade do
+ * `registros_transicao_motivo_ck` (item 18).
+ *
+ * **Também não tem `statusNovo`, e pela mesma razão:** o destino é sempre `cancelada`, e recebê-lo
+ * abriria a porta para construir um registro de cancelamento apontando para outro lugar.
+ *
+ * **`observacao` é `string`, não `string | null`** — invariante 5 (`arquitetura.md` §4): ela é
+ * obrigatória em `pausar` **e** em `cancelar`. Quem a cobra é o compilador, não a disciplina de quem
+ * chama.
+ */
+export type DadosDeCancelamento = {
+  sequencia: number;
+  /** **Não é anulável:** só a origem (P1) tem status anterior nulo, e a origem não é um cancelamento. */
+  statusAnterior: StatusOcorrencia;
+  ocorreuEm: string;
+  autorPessoaId: string;
+  observacao: string;
+  motivoCancelamento: MotivoCancelamento;
+};
+
+/**
  * ============================================================================
  *  O `HistoricoTransicao` da ADR-0001 — objeto de valor **imutável**
  * ============================================================================
@@ -117,7 +138,8 @@ export class RegistroDeTransicao {
    * **Ela recusa `pausada` e `cancelada`**, e isso é o `CHECK` `registros_transicao_motivo_ck` expresso
    * em fábrica: nesses dois destinos o banco exige motivo **e** observação, e um registro construído por
    * esta porta não os teria. **A de `pausada` existe desde o item 23** — `pausa`, logo abaixo; a de
-   * `cancelada` é do item 18.
+   * `cancelada` é do item 18 — `cancelamento`, ao fim do arquivo. **As duas recusas continuam aqui, e
+   * nenhuma fábrica nova as relaxa.**
    */
   static avanco(dados: DadosDeAvanco): RegistroDeTransicao {
     if (dados.statusNovo === "pausada" || dados.statusNovo === "cancelada") {
@@ -142,8 +164,8 @@ export class RegistroDeTransicao {
    * **A transição para `pausada`** — a segunda fábrica, e a que `avanco` recusa em nome de (item 23).
    *
    * `motivoCancelamento` continua nulo aqui, e é o outro lado do mesmo `CHECK`:
-   * `(status_novo = 'cancelada') = (motivo_cancelamento is not null)`. A fábrica do item **18** é a
-   * espelhada desta.
+   * `(status_novo = 'cancelada') = (motivo_cancelamento is not null)`. A fábrica espelhada — a do item
+   * **18** — existe desde então, logo abaixo: `cancelamento`.
    *
    * **A guarda é `Error`, não `ErroDeDominio`**, pelo mesmo argumento que `avanco` já usa: quem chega
    * aqui passou pelo schema, que recusa `""` com `400`. Alcançá-la é defeito nosso, não caminho de
@@ -167,6 +189,40 @@ export class RegistroDeTransicao {
       dados.observacao,
       dados.motivoPausa,
       null,
+    );
+  }
+
+  /**
+   * **A transição para `cancelada`** — a terceira fábrica, e a segunda que `avanco` recusa em nome de
+   * (item 18). É a **espelhada** de `pausa`, campo a campo.
+   *
+   * `motivoPausa` é nulo aqui, e `motivoCancelamento` é preenchido: é a outra metade do mesmo `CHECK`,
+   * `(status_novo = 'cancelada') = (motivo_cancelamento is not null)`. **Com esta fábrica as duas
+   * cláusulas do `registros_transicao_motivo_ck` passam a ter porta em código** — e a terceira, a que
+   * proíbe motivo em destino rotineiro, continua sendo `avanco`.
+   *
+   * **A guarda é `Error`, não `ErroDeDominio`**, pelo mesmo argumento de `avanco` e de `pausa`: quem
+   * chega aqui passou pelo `cancelamentoSchema`, que recusa `""` com `400`. Alcançá-la é defeito nosso,
+   * não caminho de quem usa a API — e sem ela o caminho para a violação seria uma `500` vinda do
+   * Postgres em vez de um defeito nomeado.
+   */
+  static cancelamento(dados: DadosDeCancelamento): RegistroDeTransicao {
+    if (dados.observacao.trim() === "") {
+      throw new Error(
+        "cancelamento exige observação não vazia: o CHECK registros_transicao_motivo_ck a cobra, e o " +
+          "tipo não distingue '' de texto.",
+      );
+    }
+
+    return new RegistroDeTransicao(
+      dados.sequencia,
+      dados.statusAnterior,
+      "cancelada",
+      dados.ocorreuEm,
+      dados.autorPessoaId,
+      dados.observacao,
+      null,
+      dados.motivoCancelamento,
     );
   }
 }

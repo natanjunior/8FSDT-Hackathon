@@ -9,7 +9,9 @@ import type {
 import {
   comandosDisponiveis,
   MOTIVOS_DE_PAUSA,
+  motivosPermitidos,
   PRIORIDADES,
+  type MotivoCancelamento,
   type MotivoPausa,
   type Prioridade,
   type StatusOcorrencia,
@@ -117,6 +119,75 @@ export function nomeDoMotivoPausa(motivo: MotivoPausa): string {
 export function opcoesDeMotivoPausa(): readonly { valor: string; rotulo: string }[] {
   return MOTIVOS_DE_PAUSA.map((motivo) => ({ valor: motivo, rotulo: nomeDoMotivoPausa(motivo) }));
 }
+
+/**
+ * ============================================================================
+ *  O motivo de CANCELAMENTO como opção de escolha — item 18
+ * ============================================================================
+ *
+ * **O par de `NOME_DO_MOTIVO_PAUSA`, e ele nasce sozinho.** Aqui **não** nasce a segunda coluna que o
+ * motivo de pausa tem (`NOME_DO_MOTIVO_PAUSA` × `ROTULO_DE_PAUSA`), e a ausência é decisão: aquela
+ * responde *"o que aconteceu com a sua ocorrência"* e é lida pelo Solicitante na lista e na linha do
+ * tempo. **O rótulo do Solicitante para o cancelamento é do item 29** — a linha do tempo —, e nesta
+ * fatia ninguém o lê: T-03 mostra *"Cancelada"* nas duas colunas (`glossario.md:124`).
+ *
+ * **Os quatro primeiros textos são transcrição do protótipo** (`telas.html:2489-2504`). Os três do
+ * Gestor foram confirmados pelo hub, e o do meio foi **trocado**: *"Fora do escopo **da organização**"*,
+ * e não *"do condomínio"* — a palavra travaria o produto numa das três formas de Organização, que é o
+ * que o `glossario.md:127-130` proíbe em rótulo novo.
+ */
+const NOME_DO_MOTIVO_CANCELAMENTO: Readonly<Record<MotivoCancelamento, string>> = {
+  desistencia: "Desistência",
+  resolvido_por_conta_propria: "Resolvido por conta própria",
+  aberta_por_engano: "Aberta por engano",
+  duplicada: "Duplicada",
+  improcedente: "Improcedente",
+  fora_de_escopo: "Fora do escopo da organização",
+  sem_informacao_suficiente: "Sem informação suficiente",
+};
+
+export function nomeDoMotivoCancelamento(motivo: MotivoCancelamento): string {
+  return NOME_DO_MOTIVO_CANCELAMENTO[motivo];
+}
+
+/**
+ * A descrição da opção **Duplicada**, e ela é a única que tem uma.
+ *
+ * **Transcrição literal do protótipo** (`telas.html:2502-2503`), e é o texto que impede o defeito de
+ * expectativa: quem escolhe *Duplicada* espera que o produto ligue as duas ocorrências, e o vínculo é
+ * **evolução prevista** — é o mesmo campo que o `422 CAMPO_NAO_SUPORTADO` do critério 18.5 recusa em voz
+ * alta do lado do servidor. Aqui a tela diz antes, para ninguém chegar lá.
+ */
+const DESCRICAO_DE_DUPLICADA =
+  "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.";
+
+/**
+ * Os pares **prontos e já filtrados por permissão**, para descer por prop até o modal de cancelamento.
+ *
+ * **Uma fonte, dois consumidores:** `motivosPermitidos` é a mesma função que o comando de aplicação
+ * consulta para lançar o `422`. Duas listas divergiriam, e a divergência seria um motivo oferecido em
+ * tela que o servidor recusa no clique.
+ *
+ * **Recebe `permissoes`, e não um booleano `ehGestor`** — a página tem a lista na mão, e derivar de
+ * `ehGestor` faria a tela ter uma segunda regra sobre qual permissão importa.
+ *
+ * **`valor` é `string`, e não `MotivoCancelamento`** — quem consome é componente de cliente, e tipo do
+ * Domínio não atravessa essa fronteira. Mesma regra de `opcoesDeMotivoPausa`.
+ */
+export function opcoesDeMotivoCancelamento(
+  permissoes: readonly string[],
+): readonly { valor: string; rotulo: string; descricao?: string }[] {
+  return motivosPermitidos(permissoes).map((motivo) =>
+    motivo === "duplicada"
+      ? {
+          valor: motivo,
+          rotulo: nomeDoMotivoCancelamento(motivo),
+          descricao: DESCRICAO_DE_DUPLICADA,
+        }
+      : { valor: motivo, rotulo: nomeDoMotivoCancelamento(motivo) },
+  );
+}
+
 
 /**
  * ============================================================================

@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
-import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Dialog,
@@ -18,8 +17,15 @@ import {
 } from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 
-/** Uma opção do grupo. **O rótulo chega PRONTO** — o navegador não monta rótulo (R4). */
-export type OpcaoDeMotivo = { valor: string; rotulo: string };
+/**
+ * Uma opção do grupo. **O rótulo chega PRONTO** — o navegador não monta rótulo (R4).
+ *
+ * **A `descricao` é opcional e nasceu no item 18**, para a opção *Duplicada*: quem a escolhe espera que
+ * o produto ligue as duas ocorrências, e o vínculo é evolução prevista. **A condição é POR OPÇÃO, não
+ * por modal** — `pausar` não passa descrição em nenhuma das quatro, e a tela do item 23 não muda um
+ * pixel.
+ */
+export type OpcaoDeMotivo = { valor: string; rotulo: string; descricao?: string };
 
 /**
  * ============================================================================
@@ -66,6 +72,7 @@ export function ModalDeMotivo({
   rotuloDoGatilho,
   rotuloDeConfirmar,
   verboEnviando,
+  avisoDeVisibilidade,
   variante,
   rotulosDeStatus,
 }: {
@@ -82,6 +89,24 @@ export function ModalDeMotivo({
   rotuloDeConfirmar: string;
   /** O rótulo do botão enquanto envia — *"Pausando…"*, *"Cancelando…"*. */
   verboEnviando: string;
+  /**
+   * A frase sob *Observação* — a **restrição herdada nº 1** do inventário de telas.
+   *
+   * **Chega por prop, e é OBRIGATÓRIA.** Ela morava importada direto de `rotulos.ts`, e o item 18 a
+   * tirou daqui porque `cancelar` tem **duas**: `AVISO_DE_VISIBILIDADE` para quem gestiona,
+   * `AVISO_PARA_QUEM_NAO_GESTIONA` para o Solicitante autor (critério 18.7).
+   *
+   * **Obrigatória, e não opcional com padrão**, e o argumento é o mesmo do segundo parâmetro de
+   * `vazioDaBarra`: esta é a frase que diz **quem lê o que você está escrevendo, sem volta**. Padrão
+   * silencioso faria o chamador que esquecesse mostrar a frase do Gestor a um Solicitante — que é
+   * exatamente o defeito que o 18.7 existe para fechar. Obrigatória, o compilador cobra os dois
+   * chamadores.
+   *
+   * > **O nome não é `aviso`, e a diferença não é estética:** `aviso` já é o estado local que carrega a
+   * > frase do `409`. Duas coisas com o mesmo nome no mesmo escopo é o defeito que o compilador pegaria
+   * > hoje e que o leitor pagaria para sempre.
+   */
+  avisoDeVisibilidade: string;
   /**
    * **Três variantes, e a terceira é do item 23:** `"menu"` renderiza o gatilho como
    * `DropdownMenuItem`, para o modal poder viver dentro do *"Mais ações ▾"*.
@@ -213,7 +238,12 @@ export function ModalDeMotivo({
               <label
                 key={motivo.valor}
                 htmlFor={id}
-                className="border-linha flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
+                /* **`items-start` só quando há descrição**, para o rádio alinhar com a PRIMEIRA linha em
+                   vez de centralizar num bloco de duas. `min-h-11` continua nos dois casos, e o alvo de
+                   toque cresce em vez de encolher (A-3). */
+                className={`border-linha flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 text-sm ${
+                  motivo.descricao === undefined ? "items-center py-2" : "items-start py-2.5"
+                }`}
               >
                 {/* **A-1:** rótulo associado ao controle — clicar no texto seleciona. */}
                 <input
@@ -224,9 +254,19 @@ export function ModalDeMotivo({
                   disabled={enviando}
                   checked={escolhido === motivo.valor}
                   onChange={() => setEscolhido(motivo.valor)}
-                  className="size-4"
+                  className="mt-0.5 size-4"
                 />
-                <span className="text-tinta">{motivo.rotulo}</span>
+                {/* **A descrição vai DENTRO do `<label>`, e não em `aria-describedby`**: o nome
+                    acessível da opção já a inclui, e uma descrição ancorada separadamente a leria duas
+                    vezes (A-1). */}
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-tinta">{motivo.rotulo}</span>
+                  {motivo.descricao !== undefined && (
+                    <span className="text-tinta-suave text-xs leading-relaxed">
+                      {motivo.descricao}
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}
@@ -239,7 +279,7 @@ export function ModalDeMotivo({
             Observação
           </label>
           <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
-            {AVISO_DE_VISIBILIDADE}
+            {avisoDeVisibilidade}
           </p>
           <textarea
             id={campoId}
