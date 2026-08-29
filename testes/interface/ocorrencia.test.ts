@@ -18,6 +18,7 @@ import {
   decodificarCursor,
   decodificarCursorDeConversa,
   descricaoDoRecorte,
+  lenteDeRotulo,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
   nomeDoMotivoPausa,
@@ -844,6 +845,57 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
 
   it("parâmetro repetido é recusado — o contrato descreve UMA gramática", () => {
     expect(() => ler("status=aberta&status=pausada")).toThrow(FormatoInvalido);
+  });
+});
+
+describe("a lente de rótulo — o critério 31.2, e ela segue PERMISSÃO", () => {
+  it("quem tem ocorrencia.ler_todas lê pela coluna do Gestor", () => {
+    expect(lenteDeRotulo(["ocorrencia.ler_todas"])).toBe("gestor");
+  });
+
+  it("quem NÃO a tem lê pela coluna do Solicitante — inclusive com todas as outras dele", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+    expect(
+      lenteDeRotulo([
+        "ocorrencia.registrar",
+        "ocorrencia.ler_propria",
+        "ocorrencia.comentar",
+        "ocorrencia.cancelar_propria",
+        "ocorrencia.avaliar",
+      ]),
+    ).toBe("solicitante");
+  });
+
+  /**
+   * **O Encarregado é o achado A-5 da spec, virado caso.** O `glossario.md:114` lhe dá a coluna do
+   * Gestor — *"porque operam a máquina"* —, e `Permissao.ts:70-74` lhe dá `[]`. Nenhum predicado de
+   * permissão pode colocá-lo lá, e `arquitetura.md:479` proíbe checar `vinculo.papel`.
+   *
+   * **A população é vazia hoje** — ele leva `403` em todo endpoint de ocorrência —, então não há defeito
+   * observável. O caso existe para que o dia em que ele ganhar permissões seja uma decisão, e não uma
+   * descoberta.
+   */
+  it("o Encarregado, com lista vazia, cai na coluna do Solicitante — achado A-5, declarado", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+  });
+
+  /**
+   * **É `ler_todas` e mais nenhuma.** O produto já usa esse predicado como *"a lente do Gestor"* em três
+   * lugares independentes — `visibilidadeAplicada`, `podeLerTodas` nas funções de aplicação, e a barra de
+   * filtros. Escolher uma quarta criaria um segundo desenho de *quem é Gestor* (spec §3.1).
+   */
+  it("nenhuma outra permissão do Gestor liga a lente sozinha", () => {
+    for (const permissao of [
+      "ocorrencia.analisar",
+      "ocorrencia.resolver",
+      "ocorrencia.pausar",
+      "ocorrencia.atribuir",
+      "dashboard.ler",
+      "vinculo.gerir",
+      "organizacao.configurar",
+    ]) {
+      expect(lenteDeRotulo([permissao])).toBe("solicitante");
+    }
   });
 });
 

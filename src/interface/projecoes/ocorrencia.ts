@@ -55,6 +55,43 @@ const ROTULO_DE_STATUS: Readonly<Record<Exclude<StatusOcorrencia, "pausada">, st
   cancelada: "Cancelada",
 };
 
+/**
+ * ============================================================================
+ *  A LENTE — qual coluna do `glossario.md` §4 cada leitor recebe
+ * ============================================================================
+ *
+ * **Uma decisão, um lugar.** A tabela do glossário tem duas colunas, e até o item 31 o produto inteiro
+ * falava com o Solicitante. Esta função é a única que escolhe entre elas.
+ *
+ * **Segue PERMISSÃO — nunca autoria, nunca recorte.** *"A checagem pergunta `vinculo.pode(X)`, nunca
+ * `vinculo.papel == GESTOR`"* (`arquitetura.md`, Parte II tópico 5; contrato §4.5). É a mesma regra que
+ * torna possível a `PRIMARY KEY (pessoa_id, organizacao_id)`: se a checagem fosse por papel, o síndico
+ * morador precisaria de um segundo vínculo.
+ *
+ * **É `ocorrencia.ler_todas`, e não outra.** É o predicado que este produto **já** usa como *"a lente do
+ * Gestor"* em três lugares independentes: `visibilidadeAplicada` (`consultas.ts`), `podeLerTodas` nas
+ * funções de aplicação, e a barra de filtros de T-03. Escolher uma quarta criaria um segundo desenho de
+ * *quem é Gestor* que teria de concordar com o primeiro por disciplina.
+ *
+ * **A consequência tem nome, e é decisão e não bug:** o síndico morador do **28.5** lê *"Aberta"* na
+ * própria ocorrência, e lê *"Aberta"* também com *"Só as minhas"* ligado. Um rótulo que mudasse com o
+ * alternador reintroduziria o de-para que o `inventario-de-telas.md:117-125` removeu — e é a mesma forma
+ * que o critério **28.6** já decidiu para a prioridade: *"permissão, nunca recorte"*.
+ *
+ * **É um tipo nomeado e não um booleano** porque `"solicitante" | "gestor"` são as palavras que o
+ * `glossario.md:114` dá às duas colunas. Um `podeLerTodas: boolean` atravessando quatro assinaturas
+ * levaria o *porquê* para dentro do *quê*.
+ *
+ * **`readonly string[]`, e não `readonly Permissao[]`** — mesma assinatura de `motivosPermitidos`
+ * (`Motivos.ts:69`) e de `opcoesDeMotivoCancelamento` logo acima: a projeção não obriga quem chama a
+ * carregar o tipo do Domínio, e `Vinculo.permissoes` é atribuível sem conversão.
+ */
+export type LenteDeRotulo = "solicitante" | "gestor";
+
+export function lenteDeRotulo(permissoes: readonly string[]): LenteDeRotulo {
+  return permissoes.includes("ocorrencia.ler_todas") ? "gestor" : "solicitante";
+}
+
 export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPausa | null): string {
   if (status !== "pausada") return ROTULO_DE_STATUS[status];
   // Sem motivo não deveria acontecer — o `CHECK` do banco garante o par —, mas o rótulo não é o lugar
