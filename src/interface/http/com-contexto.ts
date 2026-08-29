@@ -26,6 +26,7 @@ import {
   NOME_DO_COOKIE,
 } from "./cookie-de-organizacao";
 import {
+  comOrganizacaoAtiva,
   CorpoNaoSuportado,
   FormatoInvalido,
   OrganizacaoDivergente,
@@ -182,10 +183,26 @@ export function comContexto<C = undefined>(
 ): RotaDoNext {
   return async (requisicao, contextoDaRota) => {
     const traceId = novoTraceId();
+
+    /**
+     * **Fora do `try` porque quem precisa dela é o `catch`.** `resolucao` é `const` dentro do bloco e o
+     * `catch` não a enxerga; esta é a única variável que atravessa a fronteira, e ela atravessa com o
+     * mínimo — id e nome, que é o par que o `openapi.yaml` publica.
+     *
+     * **Fica `null` de propósito** quando o erro acontece antes da resolução — `NaoAutenticado`,
+     * `SemOrganizacaoAtiva` —, e aí não há nome que dizer.
+     */
+    let organizacaoAtiva: { id: string; nome: string } | null = null;
+
     try {
       const { resolucao } = await abrirRequisicao();
 
       if (resolucao.ativo === null) throw new SemOrganizacaoAtiva();
+      organizacaoAtiva = {
+        id: resolucao.ativo.organizacao.id,
+        nome: resolucao.ativo.organizacao.nome,
+      };
+
       await conferirAfirmacaoDeOrganizacao(resolucao.ativo.organizacao.id);
 
       const ctx = contextoDaRequisicao(resolucao, resolucao.ativo);
@@ -207,7 +224,7 @@ export function comContexto<C = undefined>(
 
       return montarResposta(resultado);
     } catch (erro) {
-      return registrarEResponder(erro, requisicao, traceId);
+      return registrarEResponder(erro, requisicao, traceId, organizacaoAtiva);
     }
   };
 }
@@ -253,7 +270,9 @@ export function semOrganizacao<C>(
 
       return montarResposta(resultado);
     } catch (erro) {
-      return registrarEResponder(erro, requisicao, traceId);
+      // **As quatro operações da §4.4 rodam antes de existir organização ativa**, então não há nome que
+      // pôr no corpo. O `null` é escrito, e não herdado de um valor padrão: quem lê o `catch` vê a razão.
+      return registrarEResponder(erro, requisicao, traceId, null);
     }
   };
 }
@@ -472,21 +491,50 @@ function montarResposta(resultado: unknown): Response {
   });
 }
 
-function registrarEResponder(erro: unknown, requisicao: Request, traceId: string): Response {
-  const caminho = new URL(requisicao.url).pathname;
-
-  // A linha de log é o que o `traceId` do corpo aponta (contrato §6.1 e §6.3): a informação que a resposta
-  // não dá não é destruída, é movida para onde só o operador chega. Nada de dado pessoal aqui.
+/**
+ * A linha de log de uma falha — o que o `traceId` do corpo (ou da tela) aponta.
+ *
+ * **Exportada porque as DUAS estradas do contrato §5 escrevem a mesma linha.** A estrada da API passa
+ * pelo `comContexto`, que tem `Request` e gera o `traceId`; a **estrada direta** do Server Component não
+ * passa por lugar nenhum — T-05 lê chamando `verOcorrencia` e recebe um `ErroDeDominio`, sem HTTP no meio.
+ * Um `traceId` mostrado na tela que não aparecesse em log nenhum seria pior que não mostrar identificador:
+ * mandaria o operador procurar o que não existe.
+ *
+ * **`caminho` e `metodo` vêm por parâmetro, e não de um `Request`**, exatamente porque a segunda estrada
+ * não tem um. Nada de dado pessoal aqui, como na versão anterior.
+ */
+export function registrarFalha(
+  erro: unknown,
+  caminho: string,
+  metodo: string,
+  traceId: string,
+): void {
   console.error(
     JSON.stringify({
       traceId,
       caminho,
-      metodo: requisicao.method,
+      metodo,
       erro: erro instanceof Error ? `${erro.name}: ${erro.message}` : String(erro),
     }),
   );
+}
 
-  return respostaDeProblema(erro, caminho, traceId);
+function registrarEResponder(
+  erro: unknown,
+  requisicao: Request,
+  traceId: string,
+  organizacaoAtiva: { id: string; nome: string } | null,
+): Response {
+  const caminho = new URL(requisicao.url).pathname;
+
+  // A linha de log é o que o `traceId` do corpo aponta (contrato §6.1 e §6.3): a informação que a resposta
+  // não dá não é destruída, é movida para onde só o operador chega. Nada de dado pessoal aqui.
+  registrarFalha(erro, caminho, requisicao.method, traceId);
+
+  // **O log vê o original; a resposta vê a cópia.** A ordem importa: a cópia é um `ErroDeDominio` cru, e
+  // logá-la trocaria `OcorrenciaNaoEncontrada: …` por `ErroDeDominio: …` em toda a API — apagando do log
+  // justamente o nome que o `traceId` existe para ajudar a encontrar.
+  return respostaDeProblema(comOrganizacaoAtiva(erro, organizacaoAtiva), caminho, traceId);
 }
 
 /**

@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { OcorrenciaNaoEncontrada, podeLerOcorrencia, verOcorrencia } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import {
+  MenuDeOrganizacao,
+  type VinculoNoMenu,
+} from "@/interface/componentes/menu-de-organizacao";
 import { ModalDeAtribuicao, type Candidato } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
@@ -18,16 +22,23 @@ import {
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
   nomesDeStatus,
+  ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
   rotuloDePrioridade,
   rotulosDeStatus,
   vazioDaBarra,
 } from "@/interface/componentes/rotulos";
-import { lerFiltroDeOcorrenciasDaUrl, resolverEscopoParaTela } from "@/interface/http";
+import {
+  lerFiltroDeOcorrenciasDaUrl,
+  novoTraceId,
+  registrarFalha,
+  resolverEscopoParaTela,
+} from "@/interface/http";
 import {
   opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
+  projetarContexto,
   projetarOcorrenciaDetalhe,
 } from "@/interface/projecoes";
 
@@ -111,12 +122,44 @@ export default async function Ocorrencia({
   const parametros = await searchParams;
   const voltarPara = destinoDeVolta(typeof parametros.de === "string" ? parametros.de : undefined);
 
+  /**
+   * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
+   * a recusa do `podeLerOcorrencia`. As duas causas dão a mesma resposta, de propósito (§6.3).
+   *
+   * **`resolucao` sai de `escopo` para um `const`** porque a estreiteza de um `let` não sobrevive dentro
+   * de uma função aninhada — e é ela que a arrow abaixo captura.
+   *
+   * **`projetarContexto` roda só quando o erro acontece:** ela está dentro da arrow, não fora. É um `map`
+   * em memória sobre vínculos já lidos, mas o caminho feliz não paga nem isso.
+   */
+  const resolucao = escopo.resolucao;
+  const naoEncontrada = () => {
+    const traceId = novoTraceId();
+
+    // A estrada direta não passa pelo `comContexto`, então o `traceId` nasce aqui — e a linha de log é a
+    // MESMA que `registrarEResponder` escreve, pela mesma função. Nunca uma segunda cópia do formato.
+    registrarFalha(new OcorrenciaNaoEncontrada(), `/ocorrencias/${ocorrenciaId}`, "GET", traceId);
+
+    return (
+      <OcorrenciaNaoEncontradaNaTela
+        organizacaoAtiva={
+          resolucao.ativo === null
+            ? null
+            : { id: resolucao.ativo.organizacao.id, nome: resolucao.ativo.organizacao.nome }
+        }
+        vinculos={projetarContexto(resolucao).vinculos}
+        traceId={traceId}
+      />
+    );
+  };
+
   let lida;
   try {
     lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
   } catch (erro) {
-    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência.
-    if (erro instanceof OcorrenciaNaoEncontrada) notFound();
+    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
+    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
+    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
     throw erro;
   }
 
@@ -141,7 +184,7 @@ export default async function Ocorrencia({
     pessoaId: escopo.ctx.pessoaId,
     podeLerTodas: vinculo.pode("ocorrencia.ler_todas"),
   };
-  if (!podeLerOcorrencia(lida, quem)) notFound();
+  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
     pessoaId: escopo.ctx.pessoaId,
@@ -417,6 +460,7 @@ export default async function Ocorrencia({
         ocorrenciaId={detalhe.id}
         variante={primario === "avaliar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     ...(podeAtribuir
@@ -683,6 +727,72 @@ export default async function Ocorrencia({
         primario={primario}
         emMenu={emMenu}
       />
+    </MolduraDeTela>
+  );
+}
+
+/**
+ * **O `404` de ocorrência, desenhado pela própria tela** — critério 28.3, metade de T-05.
+ *
+ * A §7 do `inventario-de-telas.md` (`:1504`) especifica **três coisas**, e o bloco tem exatamente três:
+ * a frase, **trocar de organização** e o **`traceId`**. Mais uma quarta que o inventário dá de graça em
+ * toda tela de erro deste produto — uma saída que não seja o botão *voltar* do navegador.
+ *
+ * **Nada além disso.** Um parágrafo explicando que *"ela pode ter sido registrada em outra organização"*
+ * seria texto de produto sem critério escrito, e o rótulo *"Você está em"* acima do menu já diz o mesmo
+ * sem virar frase nova.
+ *
+ * **A `MolduraDeTela` é a mesma do caminho feliz**, e a frase é o `titulo` — isto é, o `<h1>`, que é como
+ * o inventário a escreve. Zero componente novo.
+ *
+ * **O menu só aparece havendo organização ativa**, como em T-03: ele exige `id` e `nome` não-nulos, e
+ * resolve sozinho o caso de **não haver outra** organização — mostra a atual e *"Entrar em outra
+ * organização"* (`menu-de-organizacao.tsx:76-102`).
+ *
+ * **O documento volta com `200`, e não com `404`** — está declarado. Nada no projeto depende disso: o
+ * produto inteiro está atrás de sessão, não há rastreador, e o `404` que o contrato governa é o da
+ * **API**, que continua sendo `404`.
+ */
+function OcorrenciaNaoEncontradaNaTela({
+  organizacaoAtiva,
+  vinculos,
+  traceId,
+}: {
+  organizacaoAtiva: { id: string; nome: string } | null;
+  vinculos: readonly VinculoNoMenu[];
+  traceId: string;
+}) {
+  return (
+    <MolduraDeTela titulo={ocorrenciaNaoEncontradaEm(organizacaoAtiva?.nome ?? null)}>
+      {organizacaoAtiva !== null && (
+        <div className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3">
+          <span className="text-tinta-fraca text-xs tracking-wide uppercase">Você está em</span>
+          <MenuDeOrganizacao
+            vinculos={vinculos}
+            organizacaoAtivaId={organizacaoAtiva.id}
+            nomeDaOrganizacaoAtiva={organizacaoAtiva.nome}
+          />
+        </div>
+      )}
+
+      {/*
+        **Sem o `?de=`, e é decisão.** O filtro que trouxe até aqui pode ser de outra organização, e
+        reconstruí-lo seria carregar um recorte que não vale mais. **A-3:** `min-h-11`.
+      */}
+      <Link
+        href="/ocorrencias"
+        className="border-linha text-tinta inline-flex min-h-11 w-full items-center justify-center rounded-md border px-4 text-sm font-medium"
+      >
+        Voltar à lista
+      </Link>
+
+      {/*
+        **O `traceId` carrega a palavra (A-5) e é copiável.** Ele existe porque a §6.3 do contrato diz
+        para que serve — *"liga à linha de log"* — e porque `registrarFalha` acabou de escrever essa linha.
+      */}
+      <p className="text-tinta-fraca text-xs">
+        Código para suporte: <code className="select-all">{traceId}</code>
+      </p>
     </MolduraDeTela>
   );
 }

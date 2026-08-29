@@ -52,6 +52,35 @@ export const AVISO_PARA_QUEM_NAO_GESTIONA =
   "Os Gestores veem esta observação. Não há como editá-la depois.";
 
 /**
+ * ============================================================================
+ *  O `404` de ocorrência, em frase — a §7 do inventário de telas
+ * ============================================================================
+ *
+ * *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* (`inventario-de-telas.md:1504`), literal.
+ *
+ * **Uma frase para as duas causas, e é a §6.3 do contrato.** Ela cobre *"não existe"* e *"existe em outra
+ * organização"* sem escolher entre as duas — porque a resposta é indistinguível de propósito, e uma frase
+ * que escolhesse desfaria a decisão inteira.
+ *
+ * **Mora aqui, e não dentro de T-05**, porque o inventário nomeia **T-06** como segundo consumidor, com a
+ * mesma frase (`:952`). T-06 ainda não existe como tela; quando existir, ela já está escrita uma vez. A
+ * terceira cópia é sempre a que diverge — é a mesma razão de `rotuloDePrioridade` morar aqui.
+ *
+ * **A tela NÃO lê o corpo do erro para montar esta frase**, e é a única escolha possível: T-05 vai pela
+ * estrada direta e não faz requisição HTTP nenhuma. O nome vem de `resolucao.ativo.organizacao.nome`, que
+ * a página já tem em mãos.
+ *
+ * **Sem nome, a frase degrada em vez de mentir.** É a disciplina que o vazio de filtro do item 15 já
+ * declarou: *"`nomeDaOrganizacao` pode ser nulo, e a frase sem o nome continua verdadeira; inventá-lo
+ * seria pior"*.
+ */
+export function ocorrenciaNaoEncontradaEm(nomeDaOrganizacao: string | null): string {
+  return nomeDaOrganizacao === null
+    ? "Esta ocorrência não existe nesta organização."
+    : `Esta ocorrência não existe em ${nomeDaOrganizacao}.`;
+}
+
+/**
  * A prioridade **em palavra**, que é o compromisso **A-5**: *"`prioridade`, `status` e `motivoPausa`
  * sempre carregam a palavra. Marcador colorido sem texto é defeito, em qualquer tela."*
  *

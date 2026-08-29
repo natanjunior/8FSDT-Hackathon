@@ -79,11 +79,14 @@ export function ModalDeAvaliacao({
   ocorrenciaId,
   variante,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   variante: "primario" | "secundario";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const grupoId = useId();
@@ -127,6 +130,7 @@ export function ModalDeAvaliacao({
       "avaliar",
       { nota, comentario },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);
