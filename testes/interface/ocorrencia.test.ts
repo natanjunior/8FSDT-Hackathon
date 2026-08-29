@@ -1,17 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { COMANDOS_IMPLEMENTADOS, STATUS } from "@/dominio/ocorrencia";
+import { COMANDOS_IMPLEMENTADOS, MOTIVOS_DE_PAUSA, STATUS } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
   decodificarCursor,
   descricaoDoRecorte,
   nomeDaPrioridade,
+  nomeDoMotivoPausa,
   nomeDoStatus,
+  opcoesDeMotivoPausa,
   projetarAnexo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
   projetarPaginaDeOcorrencias,
+  rotuloDeMotivoPausa,
+  segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
   CorpoNaoSuportado,
@@ -29,6 +33,7 @@ import {
 } from "@/interface/componentes/comando-de-ocorrencia";
 import {
   acaoPrimaria,
+  acoesDaBarra,
   nomesDeStatus,
   rotuloDeComando,
   rotulosDeStatus,
@@ -41,6 +46,7 @@ import {
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
+  pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
 } from "@/interface/schemas";
@@ -842,8 +848,12 @@ describe("os rótulos que descem para a barra de ações", () => {
   });
 
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
-    // Era `resolver`, até o item 26. `pausar` é o próximo — item 23.
-    expect(rotuloDeComando("pausar")).toBeNull();
+    // Era `resolver` até o item 26 e `pausar` até o 23. `retomar` é o próximo — item 24.
+    expect(rotuloDeComando("retomar")).toBeNull();
+  });
+
+  it("pausar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("pausar")).toBe("Pausar");
   });
 
   it("resolver é palavra, e é o verbo do glossário — compromisso A-5", () => {
@@ -1092,6 +1102,14 @@ describe("acaoPrimaria — a regra do destaque de T-05", () => {
       expect(acaoPrimaria(status, ["cancelar"])).toBe("cancelar");
     }
   });
+
+  it("em_analise SEM responsável dá Atribuir, e não Pausar — o caso que a derivação erraria", () => {
+    // `pausar` é permitido pela máquina de estados aqui. A derivação por `transicaoPermitida`, que o
+    // item 22 recusou, daria **Pausar** como ação em destaque numa ocorrência que ninguém pegou ainda.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel", "pausar"])).toBe(
+      "atribuir-responsavel",
+    );
+  });
 });
 
 describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", () => {
@@ -1188,5 +1206,150 @@ describe("vazioDaBarra — as duas frases do vazio de T-05", () => {
     // pergunta ao Domínio em vez de listar os terminais pela segunda vez.
     expect(vazioDaBarra("cancelada").andaime).toBe(false);
     expect(vazioDaBarra("em_atendimento").andaime).toBe(true);
+  });
+});
+
+describe("o corpo de POST …/pausar — o primeiro comando com campo OBRIGATÓRIO", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = pausaSchema.safeParse({
+      motivo: "aguardando_peca",
+      observacao: "  Sem lâmpada no estoque.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Sem lâmpada no estoque.");
+    expect(analisado.data?.motivo).toBe("aguardando_peca");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — requestBody é required: true", () => {
+    const analisado = pausaSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(pausaSchema.safeParse({ motivo: "aguardando_chuva", observacao: "ok" }).success).toBe(
+      false,
+    );
+  });
+
+  it("aceita os QUATRO motivos, e nenhum a mais", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(pausaSchema.safeParse({ motivo, observacao: "Esperando." }).success).toBe(true);
+    }
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    // O oposto de /analisar e /resolver, onde `minLength` NÃO existe no openapi.yaml e o schema não
+    // pode inventá-lo (critério 16.7). Aqui a especificação versionada manda o mesmo que o critério.
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "" }).success).toBe(false);
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("nomeDoMotivoPausa — o motivo como OPÇÃO DE ESCOLHA, e não como o que aconteceu", () => {
+  it("dá os quatro textos do protótipo, e nenhum deles é o rótulo de status", () => {
+    expect(nomeDoMotivoPausa("aguardando_informacao_solicitante")).toBe(
+      "Aguardando informação do solicitante",
+    );
+    expect(nomeDoMotivoPausa("aguardando_peca")).toBe("Aguardando peça");
+    expect(nomeDoMotivoPausa("aguardando_autorizacao")).toBe("Aguardando autorização");
+    expect(nomeDoMotivoPausa("aguardando_terceiro")).toBe("Aguardando um terceiro");
+  });
+
+  it("responde outra pergunta que rotuloDeMotivoPausa — os quatro pares diferem", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(nomeDoMotivoPausa(motivo)).not.toBe(rotuloDeMotivoPausa(motivo));
+    }
+  });
+});
+
+describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não importar o Domínio", () => {
+  it("dá os quatro, na ordem de MOTIVOS_DE_PAUSA, com valor e rótulo", () => {
+    expect(opcoesDeMotivoPausa()).toStrictEqual([
+      {
+        valor: "aguardando_informacao_solicitante",
+        rotulo: "Aguardando informação do solicitante",
+      },
+      { valor: "aguardando_peca", rotulo: "Aguardando peça" },
+      { valor: "aguardando_autorizacao", rotulo: "Aguardando autorização" },
+      { valor: "aguardando_terceiro", rotulo: "Aguardando um terceiro" },
+    ]);
+  });
+});
+
+describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
+  it("devolve null nos QUATRO motivos quando o statusRotulo JÁ é o rótulo do motivo — o mundo de hoje", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(segundaLinhaDeMotivo(motivo, rotuloDeMotivoPausa(motivo))).toBeNull();
+    }
+  });
+
+  it("devolve o rótulo quando os dois textos DIVERGEM — e é o que prova que a guarda se apaga sozinha no item 31", () => {
+    // No item 31 o rótulo do Gestor vira "Pausada", os textos divergem, e a segunda linha volta
+    // sozinha — que é o que o critério 14.3 pede. Sem este caso, "volta sozinha" seria prosa.
+    expect(segundaLinhaDeMotivo("aguardando_peca", "Pausada")).toBe(
+      "Parada — esperando material chegar",
+    );
+  });
+
+  it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
+    expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
+  });
+});
+
+describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é de largura", () => {
+  it("com UM, ele é o destaque e o menu fica vazio", () => {
+    expect(acoesDaBarra("pausada", ["atribuir-responsavel"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("com DOIS, os dois viram botão e o menu continua vazio — a decisão dos itens 19 e 22, intacta", () => {
+    expect(acoesDaBarra("em_analise", ["atribuir-responsavel", "pausar"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("com TRÊS, o destaque sai da tabela e os outros DOIS vão para o menu, na ordem recebida", () => {
+    expect(
+      acoesDaBarra("em_analise", ["atribuir-responsavel", "iniciar-atendimento", "pausar"]),
+    ).toStrictEqual({
+      destaque: "iniciar-atendimento",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("em em_atendimento com três, o destaque é resolver — e pausar vai para o menu", () => {
+    expect(
+      acoesDaBarra("em_atendimento", ["atribuir-responsavel", "pausar", "resolver"]),
+    ).toStrictEqual({
+      destaque: "resolver",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("com NENHUM, não há destaque nem menu", () => {
+    expect(acoesDaBarra("resolvida", [])).toStrictEqual({ destaque: null, emMenu: [] });
+  });
+
+  it("o destaque é sempre o de acaoPrimaria — acoesDaBarra não tem tabela própria", () => {
+    const renderizaveis = ["atribuir-responsavel", "iniciar-atendimento", "pausar"];
+    expect(acoesDaBarra("em_analise", renderizaveis).destaque).toBe(
+      acaoPrimaria("em_analise", renderizaveis),
+    );
   });
 });

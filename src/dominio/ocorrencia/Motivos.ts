@@ -1,8 +1,10 @@
 /**
  * Os motivos estruturados de `pausar` e `cancelar` — a invariante 5 (D8, D12, D23).
  *
- * **Nenhum dos dois é exercido nesta fatia**, e os tipos entram porque o registro de transição os carrega
- * como campos e a projeção tem de emiti-los (nulos). Os comandos que os produzem são os itens 18 e 23.
+ * **`MOTIVOS_DE_PAUSA` passou a ser exercido no item 23**, que é o comando `pausar`: ele é o domínio de
+ * valor do `pausaSchema` e o campo obrigatório de `RegistroDeTransicao.pausa`.
+ * **`MOTIVOS_DE_CANCELAMENTO` ainda não é** — o comando que o produz é o item 18, e até lá o tipo entra
+ * porque o registro de transição o carrega como campo e a projeção tem de emiti-lo nulo.
  */
 export const MOTIVOS_DE_PAUSA = [
   "aguardando_informacao_solicitante",

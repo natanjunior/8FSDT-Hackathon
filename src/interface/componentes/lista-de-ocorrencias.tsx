@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { rotuloDeMotivoPausa } from "@/interface/projecoes";
+import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
 import { IconeDeCategoria } from "./icone-de-categoria";
@@ -219,6 +219,10 @@ function CartaoDoSolicitante({ item, destinoDoItem, iconePorCategoria, agora }: 
  * nos recortes que exibem o nome — *"ao lado do nome, nunca no lugar dele"* é regra que se autolimita.
  */
 function CartaoDeTriagem({ item, destinoDoItem, mostrarPrioridade, agora }: PropsDoItem) {
+  /** **A segunda metade só sai quando acrescenta informação** — critério 23.6. Até o item 31 o
+   *  `statusRotulo` já É o rótulo do motivo, e imprimir os dois repetiria a mesma frase. */
+  const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
+
   return (
     <li>
       <Link
@@ -228,7 +232,7 @@ function CartaoDeTriagem({ item, destinoDoItem, mostrarPrioridade, agora }: Prop
         <span className="flex items-baseline justify-between gap-3">
           <span className="text-tinta text-sm font-semibold">
             {item.statusRotulo}
-            {item.motivoPausa !== null && ` · ${rotuloDeMotivoPausa(item.motivoPausa)}`}
+            {segundaLinha !== null && ` · ${segundaLinha}`}
           </span>
           {/* A-5: a prioridade carrega a palavra. Nunca só a cor. */}
           {mostrarPrioridade && (
@@ -304,9 +308,11 @@ function TabelaDeTriagem({
             <tr key={item.id} className="border-linha border-b align-top">
               <td className="py-3 pr-3">
                 <span className="text-tinta block">{item.statusRotulo}</span>
-                {item.motivoPausa !== null && (
+                {/* **A MESMA função do cartão** — critério 23.6. Duas condições que precisam concordar
+                    em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */}
+                {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo) !== null && (
                   <span className="text-tinta-suave block text-xs">
-                    {rotuloDeMotivoPausa(item.motivoPausa)}
+                    {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo)}
                   </span>
                 )}
               </td>

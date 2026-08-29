@@ -191,13 +191,14 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz QUATRO comandos — 16, 19, 22 e o resolver do 26", () => {
+  it("hoje traz CINCO comandos — 16, 19, 22, o resolver do 26 e o pausar do 23", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
       "iniciar-atendimento",
+      "pausar",
       "resolver",
     ]);
   });
@@ -517,6 +518,38 @@ describe("comandosDisponiveis", () => {
         filtro: null,
       }),
     ).toStrictEqual([]);
+  });
+
+  it("pausada com o filtro ligado oferece só atribuir-responsavel — os outros quatro não existem ainda", () => {
+    expect(
+      comandosDisponiveis({
+        status: "pausada",
+        permissoes: TODAS,
+        ehAutor: false,
+        temResponsavel: true,
+      }),
+    ).toStrictEqual(["atribuir-responsavel"]);
+  });
+
+  it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
+    // **A lista de permissões é montada aqui, e não é `TODAS`** — ela não tem `ocorrencia.retomar` nem
+    // `ocorrencia.registrar_solucao`, e com ela este caso devolveria três. É o mesmo movimento dos casos
+    // de `registrar-solucao-aplicada` e de `avaliar`, que também montam a própria lista.
+    expect(
+      comandosDisponiveis({
+        status: "pausada",
+        permissoes: [...TODAS, "ocorrencia.retomar", "ocorrencia.registrar_solucao"],
+        ehAutor: false,
+        temResponsavel: true,
+        filtro: null,
+      }),
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "retomar",
+      "registrar-solucao-aplicada",
+      "alterar-prioridade",
+      "cancelar",
+    ]);
   });
 });
 
@@ -934,6 +967,66 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
     expect(analisada.solucaoAplicada).toBe("Não me apague.");
     expect(iniciada.solucaoAplicada).toBe("Não me apague.");
   });
+
+  describe("o comando pausar — o primeiro com DOIS estados de origem", () => {
+    const ENTRADA = {
+      autorPessoaId: GESTOR,
+      ocorreuEm: "2026-08-28T15:20:00.000Z",
+      motivo: "aguardando_peca" as const,
+      observacao: "Sem lâmpada no estoque.",
+    };
+
+    it("sai de em_analise para pausada, com UM registro a mais e os cinco campos do F5 mais o motivo", () => {
+      const antes = em("em_analise");
+      const depois = antes.pausar(ENTRADA);
+
+      expect(depois.status).toBe("pausada");
+      expect(depois.trilha).toHaveLength(antes.trilha.length + 1);
+
+      const registro = depois.ultimaTransicao;
+      expect(registro.statusAnterior).toBe("em_analise");
+      expect(registro.statusNovo).toBe("pausada");
+      expect(registro.ocorreuEm).toBe("2026-08-28T15:20:00.000Z");
+      expect(registro.autorPessoaId).toBe(ENTRADA.autorPessoaId);
+      expect(registro.observacao).toBe("Sem lâmpada no estoque.");
+      expect(registro.motivoPausa).toBe("aguardando_peca");
+      expect(registro.sequencia).toBe(antes.ultimaTransicao.sequencia + 1);
+    });
+
+    it("sai TAMBÉM de em_atendimento — e o statusAnterior gravado é o de onde saiu, que é o contrato do item 24", () => {
+      expect(em("em_atendimento").pausar(ENTRADA).ultimaTransicao.statusAnterior).toBe(
+        "em_atendimento",
+      );
+    });
+
+    it("o agregado ANTES não muda — a trilha é append-only e a cópia é nova", () => {
+      const antes = em("em_analise");
+      const tamanho = antes.trilha.length;
+
+      antes.pausar(ENTRADA);
+
+      expect(antes.status).toBe("em_analise");
+      expect(antes.trilha).toHaveLength(tamanho);
+    });
+
+    it("estoura nos QUATRO outros status — a rede estrutural da invariante 1", () => {
+      for (const status of ["aberta", "pausada", "resolvida", "cancelada"] as const) {
+        expect(() => em(status).pausar(ENTRADA)).toThrow(/pausar exige status/u);
+      }
+    });
+
+    it("solucaoAplicada SOBREVIVE à pausa — pausar não é apagar trabalho registrado", () => {
+      // **`ABERTA` com dois campos trocados** — é a mesma forma do caso *"resolver SEM solucaoAplicada
+      // preserva a que havia"*, logo acima. `em()` não serve aqui porque ele fixa `solucaoAplicada: null`.
+      const comSolucao = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "Troquei o disjuntor.",
+      });
+
+      expect(comSolucao.pausar(ENTRADA).solucaoAplicada).toBe("Troquei o disjuntor.");
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {
@@ -960,5 +1053,38 @@ describe("RegistroDeTransicao.avanco", () => {
     for (const destino of ["pausada", "cancelada"] as const) {
       expect(() => RegistroDeTransicao.avanco({ ...BASE, statusNovo: destino })).toThrow(/motivo/u);
     }
+  });
+});
+
+describe("RegistroDeTransicao.pausa — a segunda fábrica, e a primeira com campo obrigatório", () => {
+  const BASE = {
+    sequencia: 3,
+    statusAnterior: "em_atendimento" as const,
+    ocorreuEm: "2026-08-28T15:20:00.000Z",
+    autorPessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    observacao: "Sem lâmpada no estoque; pedido feito ao fornecedor.",
+    motivoPausa: "aguardando_peca" as const,
+  };
+
+  it("grava motivoPausa e NÃO grava motivoCancelamento — os dois lados do CHECK", () => {
+    const registro = RegistroDeTransicao.pausa(BASE);
+
+    expect(registro.statusNovo).toBe("pausada");
+    expect(registro.statusAnterior).toBe("em_atendimento");
+    expect(registro.motivoPausa).toBe("aguardando_peca");
+    expect(registro.motivoCancelamento).toBeNull();
+    expect(registro.observacao).toBe("Sem lâmpada no estoque; pedido feito ao fornecedor.");
+  });
+
+  it("não recebe statusNovo: o destino é sempre pausada, e não há como apontá-lo para outro lugar", () => {
+    // A prova é de tipo, e é o compilador que a faz. Em tempo de execução resta conferir o destino.
+    expect(RegistroDeTransicao.pausa({ ...BASE, statusAnterior: "em_analise" }).statusNovo).toBe(
+      "pausada",
+    );
+  });
+
+  it("estoura com observação em branco — o CHECK do banco distingue '' de texto, e o tipo não", () => {
+    expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "   " })).toThrow(/observação/i);
+    expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "" })).toThrow(/observação/i);
   });
 });

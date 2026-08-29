@@ -24,6 +24,7 @@ export { ehPrioridade, PRIORIDADE_INICIAL, PRIORIDADES, type Prioridade } from "
 export {
   RegistroDeTransicao,
   type DadosDeAvanco,
+  type DadosDePausa,
   type DadosDeRegistroDeTransicao,
 } from "./RegistroDeTransicao";
 export {

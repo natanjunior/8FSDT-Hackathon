@@ -24,6 +24,28 @@ export type DadosDeAvanco = {
 };
 
 /**
+ * Uma transição para `pausada` — **o par de `DadosDeAvanco`**, e a primeira estrutura do Domínio com
+ * campo de texto obrigatório.
+ *
+ * **Não tem `statusNovo`, e a ausência é a decisão.** O destino é sempre `pausada`; recebê-lo abriria
+ * a porta para construir um registro de pausa apontando para outro lugar — que é exatamente o que
+ * `avanco` **não** consegue fazer para `pausada`, e esta fábrica não deve desfazer.
+ *
+ * **`observacao` é `string`, não `string | null`** — a **invariante 5** (`arquitetura.md` §4) diz que
+ * ela é obrigatória em `pausar` e `cancelar`. Tipo que aceita `null` faria a invariante depender da
+ * disciplina de quem chama; assim quem a cobra é o compilador.
+ */
+export type DadosDePausa = {
+  sequencia: number;
+  /** **Não é anulável:** só a origem (P1) tem status anterior nulo, e a origem não é uma pausa. */
+  statusAnterior: StatusOcorrencia;
+  ocorreuEm: string;
+  autorPessoaId: string;
+  observacao: string;
+  motivoPausa: MotivoPausa;
+};
+
+/**
  * ============================================================================
  *  O `HistoricoTransicao` da ADR-0001 — objeto de valor **imutável**
  * ============================================================================
@@ -94,7 +116,8 @@ export class RegistroDeTransicao {
    *
    * **Ela recusa `pausada` e `cancelada`**, e isso é o `CHECK` `registros_transicao_motivo_ck` expresso
    * em fábrica: nesses dois destinos o banco exige motivo **e** observação, e um registro construído por
-   * esta porta não os teria. Os itens 18 e 23 ganham as fábricas próprias.
+   * esta porta não os teria. **A de `pausada` existe desde o item 23** — `pausa`, logo abaixo; a de
+   * `cancelada` é do item 18.
    */
   static avanco(dados: DadosDeAvanco): RegistroDeTransicao {
     if (dados.statusNovo === "pausada" || dados.statusNovo === "cancelada") {
@@ -111,6 +134,38 @@ export class RegistroDeTransicao {
       dados.autorPessoaId,
       dados.observacao,
       null,
+      null,
+    );
+  }
+
+  /**
+   * **A transição para `pausada`** — a segunda fábrica, e a que `avanco` recusa em nome de (item 23).
+   *
+   * `motivoCancelamento` continua nulo aqui, e é o outro lado do mesmo `CHECK`:
+   * `(status_novo = 'cancelada') = (motivo_cancelamento is not null)`. A fábrica do item **18** é a
+   * espelhada desta.
+   *
+   * **A guarda é `Error`, não `ErroDeDominio`**, pelo mesmo argumento que `avanco` já usa: quem chega
+   * aqui passou pelo schema, que recusa `""` com `400`. Alcançá-la é defeito nosso, não caminho de
+   * quem usa a API — e sem ela o caminho para a violação seria uma `500` vinda do Postgres em vez de
+   * um defeito nomeado.
+   */
+  static pausa(dados: DadosDePausa): RegistroDeTransicao {
+    if (dados.observacao.trim() === "") {
+      throw new Error(
+        "pausa exige observação não vazia: o CHECK registros_transicao_motivo_ck a cobra, e o tipo " +
+          "não distingue '' de texto.",
+      );
+    }
+
+    return new RegistroDeTransicao(
+      dados.sequencia,
+      dados.statusAnterior,
+      "pausada",
+      dados.ocorreuEm,
+      dados.autorPessoaId,
+      dados.observacao,
+      dados.motivoPausa,
       null,
     );
   }

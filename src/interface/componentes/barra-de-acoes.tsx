@@ -2,10 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { Button } from "@/interface/componentes/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/interface/componentes/ui/dropdown-menu";
 
 /**
  * ============================================================================
@@ -30,8 +35,16 @@ import { Button } from "@/interface/componentes/ui/button";
  * **Corrigido no item 22, e a frase antiga apontava para o item errado:** ela dizia que o menu *"nasce no
  * primeiro item em que TRÊS botões renderizáveis coexistirem, que é o 22"*. Depois do 22 o máximo continua
  * sendo **dois** — `alterar-prioridade` é seletor, `registrar-solucao-aplicada` é campo, e `pausar`,
- * `resolver` e `cancelar` ainda não existem. **Três só acontece quando `pausar` existir**, em `em_analise`
- * com responsável: o item **23**.
+ * `resolver` e `cancelar` ainda não existem.
+ *
+ * **Três aconteceu no item 23**, e são dois estados: `em_analise` com responsável — `atribuir`,
+ * `iniciar-atendimento`, `pausar` — e `em_atendimento` — `atribuir`, `pausar`, `resolver`. **A regra de
+ * quando o menu aparece NÃO mora aqui** — mora em `acoesDaBarra`, em `rotulos.ts`, pela mesma razão que
+ * `acaoPrimaria`: a página e a barra contando por conta própria seriam duas fontes para o mesmo fato.
+ *
+ * **Comando que vai para o menu PRECISA ter nó de formulário.** A barra não renderiza botão nu dentro
+ * do `DropdownMenuContent`: filho que não é `menuitem` é ARIA inválida e o menu perde a navegação por
+ * setas (A-2 e A-4). Hoje os dois que podem ir ao menu — `atribuir-responsavel` e `pausar` — têm modal.
  *
  * **A geometria é a do protótipo desde o item 22** (`docs/prototipo/telas.html:328-330`): o primário
  * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
@@ -52,6 +65,7 @@ export function BarraDeAcoes({
   rotulosDeStatus,
   formularios = {},
   primario = null,
+  emMenu = [],
 }: {
   ocorrenciaId: string;
   /** Já filtrada pelo servidor: só o que tem rótulo e forma, na ordem de `acoesDisponiveis`. */
@@ -65,6 +79,11 @@ export function BarraDeAcoes({
    * comportamento anterior — e é o que mantém a barra usável por quem não passar o campo.
    */
   primario?: string | null;
+  /**
+   * Os comandos que vão **dentro** do menu *"Mais ações ▾"*, decididos pela página com `acoesDaBarra`.
+   * Vazio é o caso de um ou dois renderizáveis, e é o comportamento anterior — dois botões lado a lado.
+   */
+  emMenu?: readonly string[];
 }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
@@ -119,32 +138,62 @@ export function BarraDeAcoes({
           )}
           {acoes.length > 0 && (
             <div className="flex gap-2">
-              {acoes.map((acao) => {
-                const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
-                const formulario = formularios[acao.comando];
-                // **O nó já vem com a própria variante**, decidida pela página: ela é quem sabe qual ação
-                // é a primeira, e é ela quem monta o gatilho.
-                if (formulario !== undefined) {
-                  return (
-                    <div key={acao.comando} className={ehPrimario ? "flex-1" : "flex-none"}>
-                      {formulario}
-                    </div>
-                  );
-                }
+              {acoes
+                .filter((acao) => !emMenu.includes(acao.comando))
+                .map((acao) => {
+                  const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
+                  const formulario = formularios[acao.comando];
+                  // **O nó já vem com a própria variante**, decidida pela página: ela é quem sabe qual
+                  // ação é a primeira, e é ela quem monta o gatilho.
+                  if (formulario !== undefined) {
+                    return (
+                      <div key={acao.comando} className={ehPrimario ? "flex-1" : "flex-none"}>
+                        {formulario}
+                      </div>
+                    );
+                  }
 
-                return (
-                  <Button
-                    key={acao.comando}
-                    type="button"
-                    variant={ehPrimario ? "default" : "outline"}
-                    disabled={enviando}
-                    onClick={() => void disparar(acao.comando)}
-                    className={`h-12 text-base ${ehPrimario ? "flex-1" : "flex-none"}`}
-                  >
-                    {enviando ? "Enviando…" : acao.rotulo}
-                  </Button>
-                );
-              })}
+                  return (
+                    <Button
+                      key={acao.comando}
+                      type="button"
+                      variant={ehPrimario ? "default" : "outline"}
+                      disabled={enviando}
+                      onClick={() => void disparar(acao.comando)}
+                      className={`h-12 text-base ${ehPrimario ? "flex-1" : "flex-none"}`}
+                    >
+                      {enviando ? "Enviando…" : acao.rotulo}
+                    </Button>
+                  );
+                })}
+
+              {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`: o `⋯` dos
+                  filtros no celular já está declarado como dívida contra o compromisso A-5, e este item
+                  não cria a segunda. A geometria é a mesma do item 22: o primário cresce (`flex-1`), o
+                  gatilho do menu encolhe até o texto (`flex-none`).
+
+                  **`modal={false}` é o par do `onSelect` prevenido dos itens do menu:** com `modal`
+                  ligado, o menu prende o foco e trava a rolagem, e o diálogo que abre por cima disputa
+                  as duas coisas com ele. */}
+              {emMenu.length > 0 && (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" className="h-12 flex-none text-base">
+                      Mais ações ▾
+                    </Button>
+                  </DropdownMenuTrigger>
+                  {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica
+                      `role="menu"`, e um `div` intermediário deixaria de novo um filho que não é
+                      `menuitem` — exatamente o que a variante `"menu"` dos modais existe para evitar. O
+                      `Dialog` do Radix não emite DOM próprio, então o filho direto do menu passa a ser o
+                      `DropdownMenuItem` de dentro do modal. */}
+                  <DropdownMenuContent align="end">
+                    {emMenu.map((comando) => (
+                      <Fragment key={comando}>{formularios[comando]}</Fragment>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ import type {
 } from "@/aplicacao/ocorrencia";
 import {
   comandosDisponiveis,
+  MOTIVOS_DE_PAUSA,
   type MotivoPausa,
   type Prioridade,
   type StatusOcorrencia,
@@ -61,13 +62,91 @@ export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPaus
  * montada em tempo de execução, e inventar uma forma curta aqui criaria exatamente o segundo texto que a
  * tabela existe para impedir.
  *
- * **Hoje isto é inalcançável:** nada pode estar `pausada` antes do item 23. E entre o 23 e o 31 o rótulo
- * do Solicitante — que é o de todo mundo até lá — já traz o motivo dentro dele, então a segunda linha vai
- * repeti-lo. A janela é curta e está declarada na §3.4 da spec; quem a fecha é o **31**, trocando o rótulo
- * do Gestor para *"Pausada"*.
+ * **Alcançável desde o item 23**, que é quem torna `pausada` um estado real. Entre o 23 e o 31 o rótulo
+ * do Solicitante — que é o de todo mundo até lá — **já traz o motivo dentro dele**, e por isso a segunda
+ * linha de T-03 não sai: quem decide é `segundaLinhaDeMotivo`, logo abaixo, e ela volta sozinha quando o
+ * **31** trocar o rótulo do Gestor para *"Pausada"*. É o critério **23.6**.
  */
 export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
   return ROTULO_DE_PAUSA[motivo];
+}
+
+/**
+ * ============================================================================
+ *  O motivo como OPÇÃO DE ESCOLHA — o segundo vocabulário, e ele nasce no item 23
+ * ============================================================================
+ *
+ * `ROTULO_DE_PAUSA` traz a coluna do Solicitante do glossário §4 — *"Parada — esperando material
+ * chegar"*. Isso é **o que aconteceu com a ocorrência**, e não serve como opção de um seletor:
+ * *"Parada — esperando material chegar"* dentro de um formulário chamado **Motivo** é uma frase
+ * respondendo a outra pergunta.
+ *
+ * **A forma é exatamente a de `nomeDoStatus` × `rotuloDeStatus`**, e o argumento já está escrito neste
+ * arquivo: uma responde *"qual conjunto você quer"*, a outra *"o que está acontecendo com a sua
+ * ocorrência"*. Aqui a pergunta é ainda mais direta — *o que ela está esperando?*
+ *
+ * **Isso NÃO é a segunda cópia que o glossário proíbe.** A regra 2 proíbe **frase montada em tempo de
+ * execução** (*"Parada, esperando aguardando peça"*), não um segundo vocabulário declarado. É a mesma
+ * coisa que a coluna do Gestor já é.
+ *
+ * **Os quatro textos são transcrição, não texto novo de produto:** saem de
+ * `docs/prototipo/telas.html:2405-2423`, e batem com a definição de `Pausada` no glossário §4.
+ */
+const NOME_DO_MOTIVO_PAUSA: Readonly<Record<MotivoPausa, string>> = {
+  aguardando_informacao_solicitante: "Aguardando informação do solicitante",
+  aguardando_peca: "Aguardando peça",
+  aguardando_autorizacao: "Aguardando autorização",
+  aguardando_terceiro: "Aguardando um terceiro",
+};
+
+export function nomeDoMotivoPausa(motivo: MotivoPausa): string {
+  return NOME_DO_MOTIVO_PAUSA[motivo];
+}
+
+/**
+ * Os quatro pares **prontos**, para descer por prop até o modal de pausa.
+ *
+ * **Existe para que `app/` não importe o Domínio**, que é a disciplina que a página mantém desde o
+ * item 11. É a mesma forma de `rotulosDeStatus()` e `nomesDeStatus()` em `rotulos.ts`: o navegador não
+ * monta rótulo, e a página não conhece `MOTIVOS_DE_PAUSA`.
+ *
+ * **`valor` é `string`, e não `MotivoPausa`** — quem consome é componente de cliente, e tipo do Domínio
+ * não atravessa essa fronteira.
+ */
+export function opcoesDeMotivoPausa(): readonly { valor: string; rotulo: string }[] {
+  return MOTIVOS_DE_PAUSA.map((motivo) => ({ valor: motivo, rotulo: nomeDoMotivoPausa(motivo) }));
+}
+
+/**
+ * ============================================================================
+ *  A segunda linha do item de T-03 — o critério 23.6, e é conserto que se remove sozinho
+ * ============================================================================
+ *
+ * **A segunda linha só sai quando acrescenta informação.** Até o item **31**, o `statusRotulo` de todo
+ * mundo é a coluna do Solicitante — e nela `pausada` **já traz o motivo dentro do rótulo**. Imprimir a
+ * segunda linha ali produziria, no mesmo item:
+ *
+ * > Parada — esperando material chegar · Parada — esperando material chegar
+ *
+ * **A precondição está escrita, e hoje é falsa.** O `glossario.md` condiciona a segunda linha ao
+ * rótulo colapsar em *"Pausada"*: *"o motivo precisa viajar como campo próprio ao lado do rótulo —
+ * não embutido nele"*. Enquanto não colapsa, o motivo **está** dentro do rótulo e a segunda linha não
+ * tem trabalho.
+ *
+ * **No dia em que o item 31 fizer o rótulo do Gestor virar "Pausada", os textos divergem, a linha
+ * volta sozinha, e é o que o critério 14.3 pede.** Esta guarda **não é removida lá** — ela vira
+ * verdadeira sozinha.
+ *
+ * **É uma função, e não duas condições `&&` repetidas nos dois recortes do Gestor.** Duas condições
+ * que precisam concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`.
+ */
+export function segundaLinhaDeMotivo(
+  motivo: MotivoPausa | null,
+  statusRotulo: string,
+): string | null {
+  if (motivo === null) return null;
+  const rotulo = rotuloDeMotivoPausa(motivo);
+  return rotulo === statusRotulo ? null : rotulo;
 }
 
 /**

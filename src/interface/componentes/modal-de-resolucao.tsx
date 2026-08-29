@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
-import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/modal-de-observacao";
+import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Dialog,

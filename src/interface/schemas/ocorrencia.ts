@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MOTIVOS_DE_PAUSA } from "@/dominio/ocorrencia";
+
 /**
  * O corpo de `POST /ocorrencias` — o schema `RegistroDeOcorrencia` do contrato.
  *
@@ -168,6 +170,40 @@ export const resolucaoSchema = z.object({
 });
 
 export type EntradaDeResolucao = z.infer<typeof resolucaoSchema>;
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/pausar` — o primeiro corpo de comando OBRIGATÓRIO
+ * ============================================================================
+ *
+ * **`z.enum(MOTIVOS_DE_PAUSA)`, importado do Domínio**, que é o padrão que `configuracao.ts`
+ * (`z.enum(TIPOS_DE_AREA)`) e `vinculo.ts` (`PAPEIS`) já usam. **A lista dos quatro valores não é
+ * redigitada** — uma segunda cópia divergiria no dia em que o quinto motivo nascer.
+ *
+ * **O `.min(1)` da observação ESTÁ no contrato publicado**, e é o único endpoint de comando em que a
+ * especificação versionada e o critério coincidem nessa direção: o `openapi.yaml:1828` declara
+ * `observacao: { type: string, minLength: 1, maxLength: 1000 }` e `required: [motivo, observacao]`.
+ * É o **oposto** de `/analisar` e `/resolver`, onde `minLength` não existe e o schema não pode
+ * inventá-lo (critério 16.7).
+ *
+ * **Não reusa a `observacao` de módulo deste arquivo**, e a diferença é o ponto: aquela é
+ * `.nullish()`, para os comandos de avanço rotineiro. Estendê-la com `.min(1)` mudaria o campo dos
+ * outros três.
+ *
+ * **Nada de `recusar:` no `route.ts`.** `camposSemDestino` é dos comandos que declaram `observacao`
+ * sem ter onde guardá-la; **aqui os dois campos têm destino** — as duas colunas do registro de
+ * transição. E **nada de `corpoOpcional`**: `requestBody: required: true` (`openapi.yaml:1820`).
+ */
+export const pausaSchema = z.object({
+  motivo: z.enum(MOTIVOS_DE_PAUSA, { error: "Escolha o motivo da pausa." }),
+  observacao: z
+    .string()
+    .trim()
+    .min(1, "Conte o que a ocorrência está esperando.")
+    .max(1000, "A observação cabe em 1000 caracteres."),
+});
+
+export type EntradaDePausa = z.infer<typeof pausaSchema>;
 
 /**
  * ============================================================================

@@ -38,6 +38,25 @@ function DialogOverlay({
   )
 }
 
+/**
+ * **Gaveta abaixo de `md`, caixa centrada a partir de `md`** — decidido na spec do item 23 (§3.10), e
+ * vale para os quatro modais de T-05, não só para `pausar`.
+ *
+ * A razão não é o comando: a §7.1 do `prototipo-low-fi.md` já manda *"comando com texto"* para gaveta
+ * no celular e caixa em tela grande, e o `telas.html` confirma nas duas pontas — `.drawer` só em
+ * moldura de celular, `.modal` só em moldura larga, em treze telas. *"Uma caixa centrada põe os botões
+ * no meio da tela, onde a mão que segura o aparelho chega mal."*
+ *
+ * **O limiar é `md` (768 px), não `sm`**: é o que o produto já pratica para *celular contra tela
+ * grande* (`lista-de-ocorrencias.tsx`, `lista-de-vinculos.tsx`). Adotar `sm` abriria uma faixa de
+ * 128 px em que T-03 mostra cartões de celular e o modal abre como caixa de tela grande.
+ *
+ * **O componente `Drawer` do catálogo NÃO é adotado** — traria `vaul`, estado de largura no cliente e
+ * uma segunda árvore de JSX por modal. `tw-animate-css`, já instalado, dá as animações. **Custo
+ * declarado: não há arrastar-para-fechar**, e a alça (`.grab`) do protótipo não é replicada, porque
+ * sinalizaria um gesto que esta gaveta não tem. A gaveta fecha pelos quatro caminhos que o `Dialog` já
+ * dá — botão, `X`, `Esc` e clique fora.
+ */
 function DialogContent({
   className,
   children,
@@ -49,7 +68,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 sm:max-w-lg data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "fixed inset-x-0 bottom-0 z-50 grid w-full gap-4 rounded-t-lg border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom md:inset-x-auto md:top-1/2 md:bottom-auto md:left-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=closed]:zoom-out-95 md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=open]:zoom-in-95",
           className
         )}
         {...props}
