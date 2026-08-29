@@ -262,10 +262,57 @@ export function acoesDaBarra(
  * própria**, ele chama a função que já existe.
  *
  * **Devolve `string`, e não mais o par** — a moldura deixou de ser decisão quando ficou uma só.
+ *
+ * **A segunda oração entrou no item 30, e antes dele ela não podia existir** — apontaria para um campo
+ * que a tela não tem. É o critério **30.6**, e é a segunda oração do `detail` publicado do
+ * `403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO`, palavra por palavra. **O `detail` do erro não muda.**
+ *
+ * **E o ramo não terminal é exatamente a população que o critério nomeia**, sem que seja preciso
+ * perguntar quem lê: quem tem `ocorrencia.cancelar_qualquer` tem `cancelar` em `acoesDisponiveis` nos
+ * quatro estados não terminais, logo a barra do Gestor nunca fica vazia fora de estado terminal; o
+ * Encarregado não abre T-05; e o Solicitante não autor recebe `404`. Sobra o **Solicitante autor em
+ * `em_atendimento` e em `pausada`** — os dois estados do critério 18.6 e os dois do 30.6.
  */
 export function vazioDaBarra(status: StatusOcorrencia): string {
   if (ehTerminal(status)) return "Esta ocorrência está encerrada.";
-  return "Só os Gestores podem cancelar a partir daqui.";
+  return "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.";
+}
+
+/**
+ * ============================================================================
+ *  As duas frases da conversa — e o predicado é a AUTORIA, não o papel
+ * ============================================================================
+ *
+ * **As frases são as do inventário, literais**, e não há terceira redação. O que a spec decidiu (P2) é
+ * **qual das duas cada pessoa lê**:
+ *
+ * | Quem lê | Frase | É verdade porque |
+ * |---|---|---|
+ * | Solicitante autor | *"…falar com os Gestores."* | o outro lado do canal são os Gestores |
+ * | Gestor **não** autor | *"…falar com o Solicitante."* | é a frase literal do inventário, e é a população inteira do risco que o 30.4 descreve |
+ * | **Gestor autor** — o síndico morador do 28.5 | *"…falar com os Gestores."* | participantes são *Gestores + autor* (critério 30.2); se o autor é Gestor, o conjunto **são** os Gestores |
+ *
+ * **São as três combinações vivas, e não há quarta:** um Solicitante que não seja o autor recebe `404`, e
+ * o Encarregado não abre T-05 — a página exige `ocorrencia.ler_propria` e a lista dele é vazia.
+ *
+ * **O precedente é o item 27, na mesma página:** `{ehAutor ? "Sua avaliação" : "Avaliação do
+ * solicitante"}`. A regra que os dois idiomas da página desenham juntos — **texto que avisa a
+ * consequência de escrever segue permissão** (o aviso de visibilidade do 18.7); **texto que nomeia a
+ * relação de quem lê com o conteúdo segue autoria**. A frase da conversa é do segundo tipo.
+ *
+ * **O rótulo do campo é o portador permanente do aviso.** A frase do vazio some assim que existe uma
+ * mensagem; o rótulo fica — e é ele que *"impede um Gestor de escrever ali achando que é interno"* depois
+ * da primeira linha da conversa, que é a razão que o critério 30.4 dá para as frases serem diferentes.
+ */
+export function vazioDaConversa(ehAutor: boolean): string {
+  return ehAutor
+    ? "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores."
+    : "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.";
+}
+
+/** O par do vazio, com o mesmo predicado — e este fica na tela para sempre. Ver `vazioDaConversa`. */
+export function rotuloDoCampoDeConversa(ehAutor: boolean): string {
+  return ehAutor ? "Escrever para os Gestores" : "Escrever para o Solicitante";
 }
 
 /**

@@ -60,8 +60,10 @@ import {
   nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
+  rotuloDoCampoDeConversa,
   rotulosDeStatus,
   vazioDaBarra,
+  vazioDaConversa,
 } from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
@@ -1498,8 +1500,26 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
     // **Ela vale para todo mundo agora**, e não só para quem não gestiona: o ramo que dependia de
     // `ehGestor` não tinha população, e o caso seguinte prova isso.
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
-      expect(vazioDaBarra(emAndamento)).toBe("Só os Gestores podem cancelar a partir daqui.");
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
     }
+  });
+
+  it("fora de estado terminal, a frase convida ao comentário — critério 30.6", () => {
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
+    }
+  });
+
+  it("a segunda oração é a do `detail` publicado, palavra por palavra — e o `detail` NÃO muda", () => {
+    // `openapi.yaml`: o detail do 403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO termina com esta frase.
+    expect(vazioDaBarra("em_atendimento")).toContain("Peça o cancelamento pelo comentário.");
+    // A primeira oração daquele detail — "O atendimento já começou" — continua FORA, e a razão está no
+    // critério 18.6: ela é falsa numa ocorrência que chegou a `pausada` vinda de `em_analise`.
+    expect(vazioDaBarra("pausada")).not.toContain("atendimento já começou");
   });
 
   it("responde para os SEIS status, e as DUAS frases são mutuamente exclusivas", () => {
@@ -1512,7 +1532,9 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
 
   it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
     expect(vazioDaBarra("cancelada")).toBe("Esta ocorrência está encerrada.");
-    expect(vazioDaBarra("em_atendimento")).toBe("Só os Gestores podem cancelar a partir daqui.");
+    expect(vazioDaBarra("em_atendimento")).toBe(
+      "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+    );
   });
 
   it("a BARRA DO GESTOR nunca fica vazia fora de estado terminal — o que torna a remoção do ehGestor segura", () => {
@@ -2325,5 +2347,34 @@ describe("comentarioSchema — 1 a 4000, aparado num lugar só", () => {
   it("o valor que sai vem APARADO — quem apara é o schema", () => {
     const lido = comentarioSchema.parse({ texto: "  a lâmpada foi trocada  " });
     expect(lido.texto).toBe("a lâmpada foi trocada");
+  });
+});
+
+describe("as duas frases da conversa escolhem por AUTORIA, não por papel — critério 30.4", () => {
+  it("o Solicitante autor lê «falar com os Gestores»", () => {
+    expect(vazioDaConversa(true)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores.",
+    );
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("o Gestor NÃO autor lê «falar com o Solicitante» — a população inteira do risco do 30.4", () => {
+    expect(vazioDaConversa(false)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.",
+    );
+    expect(rotuloDoCampoDeConversa(false)).toBe("Escrever para o Solicitante");
+  });
+
+  it("o Gestor AUTOR — o síndico morador do 28.5 — lê a frase do autor, e é a razão de ser da decisão", () => {
+    // Por permissão ele leria "…falar com o Solicitante", dirigido a ele mesmo: falso nas duas metades,
+    // nomeando quem não está e omitindo quem está. Por autoria ele lê "…os Gestores", e ali isso é FATO —
+    // participantes são Gestores + autor (critério 30.2); se o autor é Gestor, o conjunto SÃO os Gestores.
+    expect(vazioDaConversa(true)).toContain("os Gestores");
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("as duas frases são diferentes, e é a diferença que o critério 30.4 protege", () => {
+    expect(vazioDaConversa(true)).not.toBe(vazioDaConversa(false));
+    expect(rotuloDoCampoDeConversa(true)).not.toBe(rotuloDoCampoDeConversa(false));
   });
 });
