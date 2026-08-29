@@ -188,6 +188,15 @@ export default async function Ocorrencias({
 
       <nav className="border-linha flex flex-col gap-2 border-t pt-4">
         <h2 className="text-tinta-fraca text-xs tracking-wide uppercase">Nesta organização</h2>
+        {vinculo.pode("dashboard.ler") && (
+          <Link
+            href="/dashboard"
+            className="border-linha bg-superficie text-tinta flex min-h-11 items-center justify-between rounded-md border px-4 py-3 text-sm"
+          >
+            <span>Dashboard</span>
+            <span className="text-tinta-suave text-xs">o que muda no mês</span>
+          </Link>
+        )}
         {pendentes !== null && (
           <Link
             href="/vinculos"
