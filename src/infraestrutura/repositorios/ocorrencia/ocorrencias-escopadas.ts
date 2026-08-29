@@ -1,6 +1,7 @@
 import type {
   AnexoLido,
   AtribuicaoLida,
+  ComentarioLido,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
@@ -72,6 +73,14 @@ type LinhaDeAtribuicao = {
   responsavel_nome: string;
   atribuido_por_pessoa_id: string;
   atribuido_por_nome: string;
+};
+
+type LinhaDeMensagem = {
+  id: string;
+  texto: string;
+  criado_em: Date;
+  autor_pessoa_id: string;
+  autor_nome: string;
 };
 
 type LinhaDeAnexo = {
@@ -196,6 +205,46 @@ const SELECT_DAS_ATRIBUICOES = `
     join pessoas  pq on pq.id = vq.pessoa_id
    where at.organizacao_id = $1 and at.ocorrencia_id = $2
    order by at.atribuido_em`;
+
+/**
+ * As mensagens do canal 1 de uma ocorrência — **escrito UMA vez, com TRÊS chamadores**: a página do
+ * `GET`, a releitura de dentro da transação do `POST`, e a linha do tempo (critério 30.7). Cada um
+ * acrescenta a sua cauda, que é a forma que `SELECT_DA_OCORRENCIA` já usa com `and o.id = $2`.
+ *
+ * **O `join` de autor parte de `vinculos`** — item do DoD que o lint não alcança, porque a consulta
+ * partindo de `pessoas` seria legítima: ela só enxergaria o cadastro do sistema inteiro. É a mesma forma
+ * dos quatro `join` de autor deste arquivo.
+ *
+ * **`c.tipo = 'comentario'` está no `where`, e não é redundante.** Os canais 2 e 3 não têm produtor
+ * nesta entrega, mas o `tipo_canal` já tem os três valores — e o dia em que a nota interna nascer é o dia
+ * em que esta consulta, sem o predicado, passaria a devolvê-la ao Solicitante. É o filtro que impede uma
+ * entrega futura de vazar por esta.
+ *
+ * **Chaveado pela OCORRÊNCIA e não pelo canal**, porque é o que os três chamadores têm na mão. O caminho
+ * `canais_conversa (ocorrencia_id)` → `mensagens (canal_id)` são duas buscas indexadas sobre no máximo
+ * três canais — a desnormalização de `ocorrencia_id` em `mensagens` foi recusada por escrito no modelo
+ * (§6.11), e é o contraste deliberado com a §7.3.
+ */
+const SELECT_DAS_MENSAGENS = `
+  select m.id,
+         m.texto,
+         m.criado_em,
+         m.autor_pessoa_id,
+         pm.nome as autor_nome
+    from mensagens m
+    join canais_conversa c on c.id = m.canal_id and c.organizacao_id = m.organizacao_id
+    join vinculos vm on vm.pessoa_id = m.autor_pessoa_id and vm.organizacao_id = m.organizacao_id
+    join pessoas  pm on pm.id = vm.pessoa_id
+   where m.organizacao_id = $1 and c.ocorrencia_id = $2 and c.tipo = 'comentario'`;
+
+function montarComentario(linha: LinhaDeMensagem): ComentarioLido {
+  return {
+    id: linha.id,
+    texto: linha.texto,
+    autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
+    criadoEm: linha.criado_em.toISOString(),
+  };
+}
 
 /**
  * Os anexos de uma ocorrência, pelo índice `(organizacao_id, ocorrencia_id)`.
@@ -1181,6 +1230,134 @@ export function repositorioEscopadoDeOcorrencias(
     async atribuicoes(ocorrenciaId) {
       const linhas = await consulta<LinhaDeAtribuicao>(SELECT_DAS_ATRIBUICOES, [ocorrenciaId]);
       return linhas.map(montarAtribuicao);
+    },
+
+    /**
+     * **A página da conversa** — ordem crescente, cursor sobre `(criado_em, id)`.
+     *
+     * **Os `::` não são decoração.** Numa comparação de linha `(a, b) > ($3, $4)` o Postgres não infere o
+     * tipo dos parâmetros, e sem a marcação ele recusa a consulta. É a mesma nota do `listar`.
+     *
+     * **O `id` no `order by` não é enfeite — é o desempate.** Sem ele, duas mensagens com o mesmo
+     * `criado_em` deixam a ordem indefinida, e é exatamente aí que um item aparece em duas páginas. É a
+     * mesma razão pela qual `CursorDeListagem` carrega o `id`.
+     */
+    async comentarios(ocorrenciaId, pagina) {
+      const valores: unknown[] = [ocorrenciaId];
+      let corte = "";
+
+      if (pagina.cursor !== null) {
+        corte = ` and (m.criado_em, m.id) > ($3::timestamptz, $4::uuid)`;
+        valores.push(pagina.cursor.criadoEm, pagina.cursor.id);
+      }
+
+      const limite = `$${String(valores.length + 2)}`;
+      valores.push(pagina.limite);
+
+      const linhas = await consulta<LinhaDeMensagem>(
+        `${SELECT_DAS_MENSAGENS}${corte}
+         order by m.criado_em, m.id
+         limit ${limite}::int`,
+        valores,
+      );
+
+      return linhas.map(montarComentario);
+    },
+
+    /**
+     * **Todas as mensagens, sem cauda nenhuma** — a terceira fonte da linha do tempo.
+     *
+     * **`[ocorrenciaId]` e não `[organizacaoId, ocorrenciaId]`.** `escoparConsulta` injeta a organização
+     * como `$1` — este arquivo **não recebe** o identificador (ADR-0003). É a mesma chamada de `trilha` e
+     * de `atribuicoes`.
+     */
+    async mensagens(ocorrenciaId) {
+      const linhas = await consulta<LinhaDeMensagem>(
+        `${SELECT_DAS_MENSAGENS} order by m.criado_em, m.id`,
+        [ocorrenciaId],
+      );
+      return linhas.map(montarComentario);
+    },
+
+    /**
+     * **A mensagem — o canal preguiçoso, o `insert`, o carimbo e a releitura, num `COMMIT` só.**
+     *
+     * **Duas instruções para o canal, sempre, e a segunda é a única fonte do `id`.** O
+     * `on conflict … where tipo <> 'atribuicao' do nothing` repete o predicado do índice **porque tem de
+     * repetir**: a inferência sobre índice único PARCIAL exige o `index_predicate`. Sem ele o Postgres
+     * recusa a instrução — e não silenciosamente.
+     *
+     * **Não há `where exists` como em `atribuirResponsavel`.** Lá ele traduz *"vínculo **ativo**"*, que é
+     * um fato que a FK não vê. Aqui a FK composta `(ocorrencia_id, organizacao_id) → ocorrencias` já é a
+     * defesa do escopo, e o `insert` nem chega com valor de outra organização, porque a Aplicação leu a
+     * ocorrência pelo repositório escopado e já devolveu `404`.
+     *
+     * **A releitura acontece DENTRO da transação**, como as seis portas de escrita anteriores: o que
+     * volta ao cliente é o payload de verdade, com o nome que sai do `join vinculos → pessoas` — não um
+     * objeto montado a partir do que se acabou de escrever, que é como se produz resposta que diverge da
+     * leitura seguinte.
+     */
+    async comentar(ocorrenciaId, dados) {
+      return emTransacao(async (executar) => {
+        // 1 · O canal, se ainda não houver. Zero linhas afetadas = já existia.
+        await executar(
+          `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo, criado_em)
+           values ($1, $2::uuid, 'comentario', $3::timestamptz)
+           on conflict (ocorrencia_id, tipo) where tipo <> 'atribuicao' do nothing`,
+          [ocorrenciaId, dados.em],
+        );
+
+        // 2 · O `id`, de antes ou de agora — o caminho é um só.
+        const canais = await executar<{ id: string }>(
+          `select id from canais_conversa
+            where organizacao_id = $1 and ocorrencia_id = $2::uuid and tipo = 'comentario'`,
+          [ocorrenciaId],
+        );
+        const canalId = canais[0]?.id;
+        if (canalId === undefined) {
+          // Inalcançável pelo caminho normal: o `insert` acima acabou de garantir a linha. Se acontecer,
+          // a FK da ocorrência recusou em silêncio — e continuar escreveria mensagem órfã.
+          throw new Error(
+            `Canal do comentário da ocorrência ${ocorrenciaId} não foi lido após o insert.`,
+          );
+        }
+
+        // 3 · A mensagem.
+        const criadas = await executar<{ id: string }>(
+          `insert into mensagens (organizacao_id, canal_id, autor_pessoa_id, texto, criado_em)
+           values ($1, $2::uuid, $3::uuid, $4, $5::timestamptz)
+           returning id`,
+          [canalId, dados.autorPessoaId, dados.texto, dados.em],
+        );
+        const mensagemId = criadas[0]?.id;
+        if (mensagemId === undefined) {
+          throw new Error("Mensagem não foi inserida — transação inconsistente.");
+        }
+
+        /**
+         * 4 · **`atualizada_em` é escrito, mesmo sem transição.** O campo não quer dizer *"esta linha
+         * mudou"* — quer dizer *"houve atividade nesta ocorrência"*, o que inclui `INSERT` em outra
+         * tabela (`arquitetura.md` §5.8, que nomeia **esta** fatia). **O mesmo instante** que
+         * `mensagens.criado_em`, nunca `now()`.
+         */
+        await executar(
+          `update ocorrencias set atualizada_em = $3::timestamptz
+            where organizacao_id = $1 and id = $2::uuid`,
+          [ocorrenciaId, dados.em],
+        );
+
+        // 5 · A releitura, com a cauda que estreita para a linha recém-escrita.
+        const linhas = await executar<LinhaDeMensagem>(
+          `${SELECT_DAS_MENSAGENS} and m.id = $3::uuid`,
+          [ocorrenciaId, mensagemId],
+        );
+        const linha = linhas[0];
+        if (linha === undefined) {
+          throw new Error("Mensagem recém-criada não foi relida — transação inconsistente.");
+        }
+
+        return montarComentario(linha);
+      });
     },
   };
 }

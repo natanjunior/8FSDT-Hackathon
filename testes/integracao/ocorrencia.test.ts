@@ -3233,3 +3233,163 @@ describe("o canal e a mensagem no banco — o que a migração 009 recusa", () =
     ).rejects.toThrow(/mensagens_autor_fk|violates foreign key/u);
   });
 });
+
+/**
+ * ============================================================================
+ *  A conversa contra Postgres — item 30
+ * ============================================================================
+ *
+ * **O que só o Postgres prova aqui:** que o canal nasce **uma** vez e a segunda mensagem o reusa (o
+ * `on conflict do nothing` sobre um índice **parcial**); que `atualizada_em` recebe o **mesmo** instante
+ * da mensagem, num `COMMIT` só; que a trilha **não** cresce; e que a página em ordem crescente continua
+ * de onde o cursor parou.
+ */
+describe("a conversa contra Postgres — item 30", () => {
+  /** Um segundo Gestor nesta organização, para a conversa ter dois lados. */
+  let gestorPessoaId: string;
+
+  beforeAll(async () => {
+    const [gestor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Roberto ${SUFIXO}`],
+    );
+    gestorPessoaId = gestor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [gestorPessoaId, organizacaoId],
+    );
+  });
+
+  /** A mesma forma de `ocorrenciaNua()`: o que se mede é a conversa, não o registro. */
+  async function ocorrenciaParaConversa(titulo: string): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo, autor_pessoa_id)
+       values ($1, $2, 'Descrição de apoio.', $3, $4, 'comum', $5)
+       returning id`,
+      [organizacaoId, titulo, categoriaId, areaId, pessoaId],
+    );
+    return linha!.id;
+  }
+
+  it("o canal nasce UMA vez, e a segunda mensagem o reusa", async () => {
+    const id = await ocorrenciaParaConversa("Infiltração na garagem");
+    const repo = portas().ocorrencias;
+
+    await repo.comentar(id, {
+      autorPessoaId: pessoaId,
+      texto: "Continua pingando.",
+      em: "2026-08-20T15:00:00.000Z",
+    });
+    await repo.comentar(id, {
+      autorPessoaId: gestorPessoaId,
+      texto: "Vi sim, o material foi pedido.",
+      em: "2026-08-20T15:10:00.000Z",
+    });
+
+    const canais = await consultaCrua<{ n: string }>(
+      `select count(*)::text as n from canais_conversa where organizacao_id = $1 and ocorrencia_id = $2`,
+      [organizacaoId, id],
+    );
+    expect(canais[0]?.n).toBe("1");
+
+    const lidas = await repo.comentarios(id, { limite: 20, cursor: null });
+    expect(lidas.map((m) => m.texto)).toStrictEqual([
+      "Continua pingando.",
+      "Vi sim, o material foi pedido.",
+    ]);
+    // O nome sai do `join vinculos → pessoas`, e não de `pessoas` direto.
+    expect(lidas[0]?.autor.nome).not.toBe("");
+  });
+
+  it("comentar carimba ocorrencias.atualizada_em com o MESMO instante da mensagem", async () => {
+    const id = await ocorrenciaParaConversa("Carimbo da atividade");
+    const repo = portas().ocorrencias;
+
+    const em = "2026-08-21T09:30:00.000Z";
+    const criada = await repo.comentar(id, { autorPessoaId: pessoaId, texto: "oi", em });
+
+    const [linha] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where organizacao_id = $1 and id = $2`,
+      [organizacaoId, id],
+    );
+    expect(linha?.atualizada_em.toISOString()).toBe(em);
+    expect(criada.criadoEm).toBe(em);
+  });
+
+  it("comentar NÃO acrescenta linha na trilha — a forma dos critérios 19.4 e 25.1", async () => {
+    const id = await ocorrenciaParaConversa("Trilha intocada");
+    const repo = portas().ocorrencias;
+
+    const contar = async () =>
+      (
+        await consultaCrua<{ n: string }>(
+          `select count(*)::text as n from registros_transicao
+            where organizacao_id = $1 and ocorrencia_id = $2`,
+          [organizacaoId, id],
+        )
+      )[0]?.n;
+
+    const antes = await contar();
+    await repo.comentar(id, {
+      autorPessoaId: pessoaId,
+      texto: "nada disto vira transição",
+      em: "2026-08-21T10:00:00.000Z",
+    });
+    expect(await contar()).toBe(antes);
+  });
+
+  it("dois comentários idênticos criam DUAS mensagens — critério 30.3, sem chave de idempotência", async () => {
+    const id = await ocorrenciaParaConversa("Toque duplo");
+    const repo = portas().ocorrencias;
+
+    const dados = {
+      autorPessoaId: pessoaId,
+      texto: "toque duplo",
+      em: "2026-08-21T11:00:00.000Z",
+    };
+    const primeira = await repo.comentar(id, dados);
+    const segunda = await repo.comentar(id, dados);
+
+    expect(primeira.id).not.toBe(segunda.id);
+    expect((await repo.comentarios(id, { limite: 20, cursor: null })).length).toBe(2);
+  });
+
+  it("a página vem do mais antigo para o mais recente, e o cursor continua de onde parou", async () => {
+    const id = await ocorrenciaParaConversa("Página e cursor");
+    const repo = portas().ocorrencias;
+
+    for (const minuto of [1, 2, 3]) {
+      await repo.comentar(id, {
+        autorPessoaId: pessoaId,
+        texto: `mensagem ${String(minuto)}`,
+        em: `2026-08-22T08:0${String(minuto)}:00.000Z`,
+      });
+    }
+
+    const primeira = await repo.comentarios(id, { limite: 2, cursor: null });
+    expect(primeira.map((m) => m.texto)).toStrictEqual(["mensagem 1", "mensagem 2"]);
+
+    const ultima = primeira[primeira.length - 1];
+    const segunda = await repo.comentarios(id, {
+      limite: 2,
+      cursor: { criadoEm: ultima?.criadoEm ?? "", id: ultima?.id ?? "" },
+    });
+    expect(segunda.map((m) => m.texto)).toStrictEqual(["mensagem 3"]);
+  });
+
+  it("mensagens() traz TODAS, sem limite e sem cursor — a fonte da linha do tempo", async () => {
+    const id = await ocorrenciaParaConversa("Fonte da linha do tempo");
+    const repo = portas().ocorrencias;
+
+    for (const minuto of [1, 2, 3]) {
+      await repo.comentar(id, {
+        autorPessoaId: pessoaId,
+        texto: `m${String(minuto)}`,
+        em: `2026-08-23T08:0${String(minuto)}:00.000Z`,
+      });
+    }
+
+    expect((await repo.mensagens(id)).map((m) => m.texto)).toStrictEqual(["m1", "m2", "m3"]);
+  });
+});
