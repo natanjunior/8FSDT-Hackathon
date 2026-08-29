@@ -17,6 +17,7 @@ import {
   autoria,
   dataHora,
   fraseDaAtribuicao,
+  fraseDaMensagem,
   fraseDaTransicao,
 } from "@/interface/componentes/linha-do-tempo";
 import {
@@ -921,10 +922,12 @@ async function LinhaDoTempo({
             <span className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
               {evento.tipo === "transicao"
                 ? fraseDaTransicao(evento.rotulo, evento.observacao)
-                : fraseDaAtribuicao(
-                    evento.responsavel.nome,
-                    evento.responsavel.pessoaId === pessoaIdDeQuemLe,
-                  )}
+                : evento.tipo === "mensagem"
+                  ? fraseDaMensagem(evento.texto)
+                  : fraseDaAtribuicao(
+                      evento.responsavel.nome,
+                      evento.responsavel.pessoaId === pessoaIdDeQuemLe,
+                    )}
             </span>
           </li>
         ))}

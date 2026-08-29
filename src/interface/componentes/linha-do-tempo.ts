@@ -88,6 +88,23 @@ export function fraseDaAtribuicao(nomeDoResponsavel: string, ehQuemLe: boolean):
 }
 
 /**
+ * `“Continua pingando, e agora molha a vaga inteira quando chove.”`
+ *
+ * **As aspas são curvas**, e são a convenção que o item 29 fixou: é o que distingue, sem etiqueta, *o que
+ * o sistema registrou* de *o que uma pessoa escreveu*. `fraseDaTransicao` usa as mesmas para a
+ * `observacao`.
+ *
+ * **No bloco 4 o mesmo texto aparece SEM aspas** — porque ali tudo é texto de pessoa, e aspar tudo é
+ * ruído. **Duas formas, as duas transcritas do protótipo** (critério 30.8).
+ *
+ * **Não há prefixo de rótulo**, ao contrário de `fraseDaTransicao`: a mensagem não tem estado a nomear, e
+ * a autoria já vem na linha de cima, pelo `autoria()`.
+ */
+export function fraseDaMensagem(texto: string): string {
+  return `“${texto}”`;
+}
+
+/**
  * `Marina Rocha · 15/08/2026, 09h40` — ou `Você · …` quando o autor é quem lê.
  *
  * **`ehQuemLe` é comparação de `pessoaId`, nunca papel** (§3.11 da spec), e por isso serve também ao

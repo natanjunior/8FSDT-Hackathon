@@ -352,7 +352,7 @@ export function projetarTransicao(lida: TransicaoLida) {
 
 /**
  * ============================================================================
- *  Os eventos da linha do tempo — DUAS formas hoje, três no dia do item 30
+ *  Os eventos da linha do tempo — as TRÊS formas, desde o item 30
  * ============================================================================
  *
  * **Por que não reusar `projetarTransicao`.** Os nomes divergem no contrato **de propósito**: a trilha diz
@@ -369,9 +369,10 @@ export function projetarTransicao(lida: TransicaoLida) {
  * **Custo declarado, para ninguém marcar como defeito:** até o 31, o Gestor lê a linha do tempo no
  * vocabulário do Solicitante. É a mesma divergência que T-03 e T-05 carregam desde o item 23.
  *
- * **A terceira forma — `mensagem` — não é produzida nesta fatia**, e não é esquecimento: a tabela
- * `mensagens` não existe em nenhuma das oito migrações, e o canal 1 é o item 30. O `openapi.yaml` já
- * publica o `EventoMensagem`, e o achado A-1 da spec registra que nenhum critério do 30 o reivindica.
+ * **As TRÊS formas existem desde o item 30.** `mensagem` é a última, e ela fecha o `oneOf` que o
+ * `openapi.yaml` publica desde sempre. **O mesmo texto aparece no bloco 4 de T-05**, sem aspas — e a
+ * duplicação é intencional, não defeito a corrigir: a linha do tempo diz *o que aconteceu*, a conversa é
+ * *onde se escreve* (critério 30.8).
  */
 export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
   if (evento.tipo === "atribuicao") {
@@ -384,6 +385,17 @@ export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
       responsavel: evento.atribuicao.responsavel,
       encerradaEm: evento.atribuicao.encerradaEm,
       motivoEncerramento: evento.atribuicao.motivoEncerramento,
+    };
+  }
+
+  if (evento.tipo === "mensagem") {
+    // **O `EventoMensagem` do contrato, e ele tem quatro campos.** Sem `id`: a linha do tempo não é
+    // caminho para alcançar uma mensagem, e o `oneOf` publicado não o traz.
+    return {
+      tipo: "mensagem" as const,
+      ocorridoEm: evento.ocorridoEm,
+      autor: evento.mensagem.autor,
+      texto: evento.mensagem.texto,
     };
   }
 
