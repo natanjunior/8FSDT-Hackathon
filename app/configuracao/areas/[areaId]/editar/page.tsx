@@ -48,6 +48,7 @@ export default async function CorrigirArea({ params }: { params: Promise<{ areaI
           ativa: area.ativa,
           ehUltimaAtiva: area.ativa && ativas === 1,
         }}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
     </main>
   );

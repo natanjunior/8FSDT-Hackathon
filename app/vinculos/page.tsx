@@ -84,6 +84,7 @@ export default async function QuemEstaNaOrganizacao({
               key={pedido.id}
               pedido={projetarPedidoDeEntradaDetalhe(pedido)}
               areas={areas.map(projetarArea)}
+              organizacaoId={escopo.ctx.vinculo.organizacaoId}
             />
           ))
         )}
