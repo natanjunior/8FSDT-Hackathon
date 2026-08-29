@@ -5,6 +5,7 @@ import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
   alterarPrioridade,
   analisarOcorrencia,
+  cancelarOcorrencia,
   iniciarAtendimento,
   pausarOcorrencia,
   registrarOcorrencia,
@@ -2445,5 +2446,281 @@ describe("a prioridade contra Postgres — item 17", () => {
       [id],
     );
     expect(linha?.prioridade).toBe("normal");
+  });
+});
+
+describe("o cancelamento contra Postgres — item 18", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+    "ocorrencia.registrar_solucao",
+    "ocorrencia.cancelar_propria",
+    "ocorrencia.cancelar_qualquer",
+  ];
+
+  let zeladorPessoaId: string;
+
+  beforeAll(async () => {
+    const [zelador] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Cancelador ${SUFIXO}`],
+    );
+    zeladorPessoaId = zelador!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [zeladorPessoaId, organizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Vai ser cancelada.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("analisar → cancelar: TRÊS registros, e motivo_cancelamento gravado — critérios 18.1 e 18.2", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Cancelada depois da análise");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const lida = await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "improcedente",
+      observacao: "Vistoriado no local: não há vazamento.",
+    });
+
+    // **`cancelada` existe pela primeira vez em banco, e com ela os SEIS estados existem.**
+    expect(lida.status).toBe("cancelada");
+    expect(lida.ultimaTransicao.statusAnterior).toBe("em_analise");
+    expect(lida.ultimaTransicao.motivoCancelamento).toBe("improcedente");
+
+    const registros = await consultaCrua<{
+      status_novo: string;
+      motivo_pausa: string | null;
+      motivo_cancelamento: string | null;
+      observacao: string | null;
+    }>(
+      `select status_novo, motivo_pausa, motivo_cancelamento, observacao
+         from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "cancelada",
+    ]);
+
+    const cancelamento = registros[2]!;
+    // **A SEGUNDA metade do `registros_transicao_motivo_ck`, exercitada pela primeira vez.** A do
+    // `pausada` chegou no item 23; esta é a irmã, e com ela o `CHECK` fecha nos dois lados.
+    expect(cancelamento.motivo_cancelamento).toBe("improcedente");
+    expect(cancelamento.motivo_pausa).toBeNull();
+    expect(cancelamento.observacao).toBe("Vistoriado no local: não há vazamento.");
+  });
+
+  it("cancelar DIRETO de aberta grava status_anterior = 'aberta' — a primeira das quatro origens", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Cancelada sem análise");
+
+    await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aberta_por_engano",
+      observacao: "Abri sem querer.",
+    });
+
+    const [cancelamento] = await consultaCrua<{ status_anterior: string; sequencia: number }>(
+      `select status_anterior, sequencia from registros_transicao
+        where ocorrencia_id = $1 and status_novo = 'cancelada'`,
+      [id],
+    );
+
+    expect(cancelamento?.status_anterior).toBe("aberta");
+    expect(cancelamento?.sequencia).toBe(2);
+  });
+
+  it("cancelar a partir de PAUSADA: o motivo_pausa do registro anterior continua lá — a trilha é append-only", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Cancelada durante a pausa");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_peca",
+      observacao: "Sem lâmpada no estoque.",
+    });
+
+    await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "fora_de_escopo",
+      observacao: "A peça é da concessionária, não da organização.",
+    });
+
+    const registros = await consultaCrua<{
+      status_novo: string;
+      motivo_pausa: string | null;
+      motivo_cancelamento: string | null;
+    }>(
+      `select status_novo, motivo_pausa, motivo_cancelamento
+         from registros_transicao where ocorrencia_id = $1 order by sequencia`,
+      [id],
+    );
+
+    expect(registros.map((registro) => registro.status_novo)).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "cancelada",
+    ]);
+
+    // **O registro da pausa não é tocado** — a trilha é *append-only*, e o gatilho do banco a defende.
+    expect(registros[3]?.motivo_pausa).toBe("aguardando_peca");
+    expect(registros[3]?.motivo_cancelamento).toBeNull();
+    expect(registros[4]?.motivo_pausa).toBeNull();
+    expect(registros[4]?.motivo_cancelamento).toBe("fora_de_escopo");
+  });
+
+  it("o CHECK recusa em voz alta os DOIS lados — e é o que só o banco prova", async () => {
+    const id = await registrada("O CHECK do cancelamento");
+
+    // 1 · destino `cancelada` **sem** motivo de cancelamento.
+    await expect(
+      consultaCrua(
+        `insert into registros_transicao
+           (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id, observacao)
+         values ($1, $2, 2, 'aberta', 'cancelada', $3, 'sem motivo')`,
+        [organizacaoId, id, pessoaId],
+      ),
+    ).rejects.toThrow(/registros_transicao_motivo_ck/u);
+
+    // 2 · destino rotineiro **com** motivo de cancelamento.
+    await expect(
+      consultaCrua(
+        `insert into registros_transicao
+           (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id,
+            observacao, motivo_cancelamento)
+         values ($1, $2, 2, 'aberta', 'em_analise', $3, 'motivo a mais', 'duplicada')`,
+        [organizacaoId, id, pessoaId],
+      ),
+    ).rejects.toThrow(/registros_transicao_motivo_ck/u);
+  });
+
+  it("solucao_aplicada SOBREVIVE ao cancelamento — encerrar não é apagar o trabalho descrito", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Cancelada com solução registrada");
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: zeladorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await registrarSolucaoAplicada(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+    });
+
+    await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "sem_informacao_suficiente",
+      observacao: "O solicitante não respondeu.",
+    });
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+
+    expect(linha?.status).toBe("cancelada");
+    expect(linha?.solucao_aplicada).toBe("Trocada a lâmpada da vaga 34.");
+  });
+
+  it("cancelar duas vezes dá 409 na segunda, e a trilha NÃO cresce", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Cancelar duas vezes");
+
+    await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "desistencia",
+      observacao: "Desisti.",
+    });
+
+    const erro = await cancelarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "duplicada",
+      observacao: "De novo.",
+    }).catch((causa: unknown) => causa);
+
+    expect((erro as { codigo?: string }).codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+    expect((erro as { extensoes?: Record<string, unknown> }).extensoes?.["statusAtual"]).toBe(
+      "cancelada",
+    );
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(2);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: outra organização não carrega e não cancela — critério A4", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Isolamento do cancelamento");
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    // Uma segunda organização, com o **mesmo** Postgres e a mesma Pessoa — o cenário que detecta o
+    // vazamento de verdade. A suíte de isolamento não sabe expressar o lado de ESCRITA.
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Vizinho18 ${SUFIXO}`, `V8${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaId, outra!.id],
+    );
+
+    const deOutra = repositorioEscopadoDeOcorrencias(
+      escoparConsulta(criarConsulta(), outra!.id),
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    expect(await deOutra.carregar(id)).toBeNull();
+    await expect(
+      cancelarOcorrencia(deOutra, ctx, {
+        ocorrenciaId: id,
+        motivo: "improcedente",
+        observacao: "Da organização errada.",
+      }),
+    ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
+
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    // **Não escreveu o status, e não gravou registro.** O `organizacao_id = $1` vem do escopo, e o
+    // comando nem chegou à escrita.
+    expect(linha?.status).toBe("em_analise");
+
+    const registros = await consultaCrua(
+      `select sequencia from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    expect(registros).toHaveLength(2);
   });
 });
