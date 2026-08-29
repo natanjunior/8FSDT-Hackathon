@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
+import { MenuDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
@@ -48,12 +49,19 @@ export default async function Despachante() {
 
   return (
     <MolduraDeTela titulo={`Olá, ${contexto.pessoa.nome}.`}>
-      <section className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
-        <span className="text-tinta-fraca text-xs tracking-wide uppercase">Organização ativa</span>
-        <span className="text-tinta text-base leading-snug font-semibold">
-          {contexto.organizacaoAtiva?.nome ?? "—"}
-        </span>
-      </section>
+      {/* **É o caso que mais importa do item 7b:** o Encarregado com `permissoes: []` em A e Gestor em B
+          **não tem outra tela**. Sem o menu aqui, ele fica trancado numa organização em que não pode fazer
+          nada, com a outra a um `PUT` de distância e nenhum jeito de chamá-lo. */}
+      {contexto.organizacaoAtiva !== null && (
+        <section className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
+          <span className="text-tinta-fraca text-xs tracking-wide uppercase">Organização ativa</span>
+          <MenuDeOrganizacao
+            vinculos={contexto.vinculos}
+            organizacaoAtivaId={contexto.organizacaoAtiva.id}
+            nomeDaOrganizacaoAtiva={contexto.organizacaoAtiva.nome}
+          />
+        </section>
+      )}
 
       {/* Vínculo `encarregado` recebe `permissoes: []` — declarado, não esquecido (contrato §4.5). */}
       <p className="text-tinta-suave text-sm leading-relaxed">
