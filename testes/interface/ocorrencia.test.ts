@@ -14,7 +14,9 @@ import {
 } from "@/dominio/ocorrencia";
 import {
   codificarCursor,
+  codificarCursorDeConversa,
   decodificarCursor,
+  decodificarCursorDeConversa,
   descricaoDoRecorte,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
@@ -27,6 +29,7 @@ import {
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
+  projetarPaginaDeComentarios,
   projetarPaginaDeOcorrencias,
   rotuloDeMotivoPausa,
   segundaLinhaDeMotivo,
@@ -71,6 +74,7 @@ import {
   camposEscritosPeloServidor,
   camposSemDestino,
   comandoComObservacaoSchema,
+  comentarioSchema,
   pausaSchema,
   registroDeOcorrenciaSchema,
   resolucaoSchema,
@@ -2238,5 +2242,88 @@ describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAt
 
     expect(projetado.autor).toStrictEqual(GESTOR);
     expect(projetado.tipo === "atribuicao" && projetado.responsavel).toStrictEqual(ENCARREGADO);
+  });
+});
+
+describe("o cursor da conversa — dois adaptadores, e nenhuma cópia da validação", () => {
+  it("ida e volta preserva o par", () => {
+    const cursor = { criadoEm: "2026-08-20T15:00:00.000Z", id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f" };
+    expect(decodificarCursorDeConversa(codificarCursorDeConversa(cursor))).toStrictEqual(cursor);
+  });
+
+  it("lixo devolve null, e não a primeira página", () => {
+    expect(decodificarCursorDeConversa("pagina-2")).toBeNull();
+    expect(decodificarCursorDeConversa("")).toBeNull();
+  });
+
+  it("data inválida e id que não é uuid são recusados", () => {
+    expect(decodificarCursorDeConversa(Buffer.from("ontem|abc", "utf8").toString("base64url"))).toBeNull();
+    expect(
+      decodificarCursorDeConversa(
+        Buffer.from("2026-08-20T15:00:00.000Z|nao-e-uuid", "utf8").toString("base64url"),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("projetarPaginaDeComentarios — o cursor só existe quando há próxima página", () => {
+  const mensagem = (id: string, criadoEm: string) => ({
+    id,
+    texto: "t",
+    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Marina Rocha" },
+    criadoEm,
+  });
+
+  it("com temMais, o cursor é o do ÚLTIMO item devolvido", () => {
+    const ultima = mensagem("c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f", "2026-08-20T15:02:00.000Z");
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z"), ultima],
+      temMais: true,
+    });
+
+    expect(projetada.proximoCursor).toBe(
+      codificarCursorDeConversa({ criadoEm: ultima.criadoEm, id: ultima.id }),
+    );
+  });
+
+  it("sem temMais, proximoCursor é null", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(projetada.proximoCursor).toBeNull();
+  });
+
+  it("página vazia com temMais falso não inventa cursor", () => {
+    expect(projetarPaginaDeComentarios({ itens: [], temMais: false }).proximoCursor).toBeNull();
+  });
+
+  it("o item projetado tem os QUATRO campos do schema Comentario, e nada mais", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(Object.keys(projetada.itens[0] ?? {}).sort()).toStrictEqual([
+      "autor",
+      "criadoEm",
+      "id",
+      "texto",
+    ]);
+  });
+});
+
+describe("comentarioSchema — 1 a 4000, aparado num lugar só", () => {
+  it("apara antes de checar: texto só de espaços é recusado", () => {
+    expect(comentarioSchema.safeParse({ texto: "   " }).success).toBe(false);
+  });
+
+  it("acima de 4000 é recusado, e 4000 passa", () => {
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4001) }).success).toBe(false);
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4000) }).success).toBe(true);
+  });
+
+  it("o valor que sai vem APARADO — quem apara é o schema", () => {
+    const lido = comentarioSchema.parse({ texto: "  a lâmpada foi trocada  " });
+    expect(lido.texto).toBe("a lâmpada foi trocada");
   });
 });

@@ -2,13 +2,14 @@ import { z } from "zod";
 
 import {
   LIMITE_MAXIMO,
+  type CursorDeConversa,
   type CursorDeListagem,
   type FiltroDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
-import { decodificarCursor } from "@/interface/projecoes";
+import { decodificarCursor, decodificarCursorDeConversa } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -100,6 +101,35 @@ export function lerCursorDaUrl(requisicao: Request): CursorDeListagem | null {
   if (bruto === null || bruto === "") return null;
 
   const cursor = decodificarCursor(bruto);
+  if (cursor === null) {
+    throw new FormatoInvalido([
+      {
+        campo: "cursor",
+        codigo: "VALOR_INVALIDO",
+        mensagem: "Cursor inválido — use o proximoCursor devolvido pela página anterior.",
+      },
+    ]);
+  }
+
+  return cursor;
+}
+
+/**
+ * Lê `?cursor=` da conversa — `null` quando ausente.
+ *
+ * **A irmã de `lerCursorDaUrl`, com a mesma recusa:** *"cursor ilegível é `400`, nunca a primeira
+ * página"* — porque num *Carregar mais* isso vira a lista repetindo os mesmos vinte itens para sempre,
+ * sem nenhum sinal de erro.
+ *
+ * **Duas funções e não um parâmetro**, pela mesma razão pela qual os cursores são dois tipos: o que volta
+ * daqui é `CursorDeConversa`, e um parâmetro de *"qual formato"* faria o tipo de retorno depender de um
+ * booleano.
+ */
+export function lerCursorDeConversaDaUrl(requisicao: Request): CursorDeConversa | null {
+  const bruto = new URL(requisicao.url).searchParams.get("cursor");
+  if (bruto === null || bruto === "") return null;
+
+  const cursor = decodificarCursorDeConversa(bruto);
   if (cursor === null) {
     throw new FormatoInvalido([
       {

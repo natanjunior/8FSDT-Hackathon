@@ -63,6 +63,7 @@ export {
   consultaDe,
   lerBooleanoDaUrl,
   lerCursorDaUrl,
+  lerCursorDeConversaDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerSituacoesDaUrl,
