@@ -41,12 +41,15 @@ export function CampoDeSolucaoAplicada({
   ocorrenciaId,
   valorAtual,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   /** O que está gravado. **O campo abre pré-preenchido**, e não vazio: é registro, não rascunho. */
   valorAtual: string | null;
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const campoId = useId();
@@ -77,6 +80,7 @@ export function CampoDeSolucaoAplicada({
       "registrar-solucao-aplicada",
       { solucaoAplicada: texto },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);

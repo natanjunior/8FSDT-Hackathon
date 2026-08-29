@@ -38,7 +38,10 @@ export default async function CriarArea() {
         organização.
       </p>
 
-      <FormularioDeArea modo={{ tipo: "cadastro", proximaOrdem: Math.min(maiorOrdem + 1, 999) }} />
+      <FormularioDeArea
+        modo={{ tipo: "cadastro", proximaOrdem: Math.min(maiorOrdem + 1, 999) }}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+      />
     </main>
   );
 }

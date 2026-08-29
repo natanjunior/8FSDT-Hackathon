@@ -62,6 +62,7 @@ export function ModalDeResolucao({
   solucaoAplicadaAtual,
   variante,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   /**
@@ -75,6 +76,8 @@ export function ModalDeResolucao({
   variante: "primario" | "secundario";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const campoSolucaoId = useId();
@@ -135,7 +138,13 @@ export function ModalDeResolucao({
 
     // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e
     // é ele que decide que vazio vira `null`. Aparar aqui também criaria a segunda regra.
-    const resultado = await executarComando(ocorrenciaId, "resolver", corpo, rotulosDeStatus);
+    const resultado = await executarComando(
+      ocorrenciaId,
+      "resolver",
+      corpo,
+      rotulosDeStatus,
+      organizacaoId,
+    );
 
     setEnviando(false);
     setPrecisaRepintar(true);

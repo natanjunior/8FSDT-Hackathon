@@ -13,6 +13,7 @@ import { STATUS } from "@/dominio/ocorrencia";
 import { acaoDeSair } from "@/interface/acoes";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
+import { MenuDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
 import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
@@ -26,6 +27,7 @@ import {
   descricaoDoRecorte,
   nomeDoStatus,
   opcoesDePrioridade,
+  projetarContexto,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
 
@@ -88,6 +90,9 @@ export default async function Ocorrencias({
   const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");
   const organizacao = resolucao.ativo?.organizacao ?? null;
 
+  /** O insumo do menu de troca — a mesma projeção do `GET /contexto`, sem consulta nova (item 7b). */
+  const vinculosDaPessoa = projetarContexto(resolucao).vinculos;
+
   /**
    * **O recorte em palavras, derivado — não esperado.**
    *
@@ -141,8 +146,17 @@ export default async function Ocorrencias({
         </h1>
         {/* A organização ativa, permanentemente visível: *"num produto em que a organização vem da sessão
             e não da URL, o endereço não diz onde você está, então a tela tem de dizer"* (inventário §3,
-            decisão 3). **Sem o `▾` de trocar** — isso é `PUT /contexto/organizacao`, o item 7b. */}
-        {organizacao !== null && <p className="text-tinta-suave text-sm">{organizacao.nome}</p>}
+            decisão 3). **E agora com o `▾` de trocar** — é o `PUT /contexto/organizacao`, o item 7b.
+            T-03 é o eixo: toda tela de dentro se alcança dela, então o menu está a um toque de qualquer
+            lugar, e trocar de organização no meio de um formulário — que é onde a troca é armadilha —
+            continua não sendo oferecido. */}
+        {organizacao !== null && (
+          <MenuDeOrganizacao
+            vinculos={vinculosDaPessoa}
+            organizacaoAtivaId={organizacao.id}
+            nomeDaOrganizacaoAtiva={organizacao.nome}
+          />
+        )}
       </header>
 
       {podeRegistrar && (

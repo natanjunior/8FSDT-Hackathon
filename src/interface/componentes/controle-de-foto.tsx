@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { Button } from "@/interface/componentes/ui/button";
 
 import {
@@ -77,11 +78,14 @@ export type EstadoDoAnexo =
 export function ControleDeFoto({
   aoMudar,
   erro,
+  organizacaoId,
 }: {
   /** O formulário é quem guarda o estado do anexo — o controle apenas o anuncia. */
   aoMudar: (estado: EstadoDoAnexo) => void;
   /** O erro que veio do `POST /ocorrencias` sobre a foto. Vai **abaixo do campo** (achado P-02). */
   erro?: string;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const [situacao, setSituacao] = useState<Situacao>({ nome: "vazio" });
   const entrada = useRef<HTMLInputElement>(null);
@@ -147,18 +151,26 @@ export function ControleDeFoto({
 
     const resposta = await fetch("/api/anexos/autorizacoes", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: cabecalhosDeEscrita(organizacaoId),
       body: JSON.stringify({ tipoConteudo: "image/jpeg", tamanhoBytes: comprimida.arquivo.size }),
     });
 
     if (!resposta.ok) {
-      const problema: { codigo?: string } = await resposta.json().catch(() => ({}));
+      const problema = (await resposta.json().catch(() => ({}))) as {
+        codigo?: string;
+        detail?: string;
+      };
       setSituacao({
         nome: "erro",
         mensagem:
           problema.codigo === "LIMITE_DE_AUTORIZACOES_DE_UPLOAD"
             ? "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."
-            : "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
+            : // **O `detail` antes do genérico** (item 7b): esta linha chamava *qualquer* erro
+              // inesperado de *"a foto ficou grande demais"*, e desde o critério 7b.6 há um erro que
+              // ela alcança e que não tem nada a ver com tamanho — o `409 ORGANIZACAO_DIVERGENTE` da
+              // aba esquecida.
+              (problema.detail ??
+                "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."),
       });
       aoMudar({ nome: "falhou" });
       return;

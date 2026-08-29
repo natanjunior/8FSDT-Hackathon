@@ -75,6 +75,7 @@ export function ModalDeMotivo({
   avisoDeVisibilidade,
   variante,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   /** O caminho do endpoint. **`string`, nunca `Comando`** — o Domínio não entra no navegador. */
@@ -114,6 +115,8 @@ export function ModalDeMotivo({
   variante: "primario" | "secundario" | "menu";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const grupoId = useId();
@@ -158,6 +161,7 @@ export function ModalDeMotivo({
       comando,
       { motivo: escolhido, observacao: texto },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);

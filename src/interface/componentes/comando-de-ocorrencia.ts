@@ -1,3 +1,5 @@
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+
 /**
  * ============================================================================
  *  A chamada de comando de T-05 — um `fetch`, três frases, um lugar
@@ -37,11 +39,16 @@ export async function executarComando(
   comando: string,
   corpo: unknown,
   rotulosDeStatus: Readonly<Record<string, string>>,
+  /**
+   * A organização **com que a página renderizou** — a afirmação da §4.3, e é aqui que ela cobre os
+   * **dez** comandos de uma vez. Nunca lida do cookie: a outra aba já o reescreveu.
+   */
+  organizacaoId: string,
 ): Promise<ResultadoDoComando> {
   try {
     const resposta = await fetch(`/api/ocorrencias/${ocorrenciaId}/${comando}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: cabecalhosDeEscrita(organizacaoId),
       body: JSON.stringify(corpo),
     });
 

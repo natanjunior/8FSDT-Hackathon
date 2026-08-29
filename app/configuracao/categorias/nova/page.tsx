@@ -41,7 +41,10 @@ export default async function CriarCategoria() {
         recorrência. Dois nomes iguais não são aceitos nesta organização.
       </p>
 
-      <FormularioDeCategoria modo={{ tipo: "cadastro", proximaOrdem: Math.min(maiorOrdem + 1, 999) }} />
+      <FormularioDeCategoria
+        modo={{ tipo: "cadastro", proximaOrdem: Math.min(maiorOrdem + 1, 999) }}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+      />
     </main>
   );
 }

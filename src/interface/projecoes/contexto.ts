@@ -20,7 +20,12 @@ export type ContextoProjetado = {
   organizacaoAtiva: { id: string; nome: string; codigoPublico: string } | null;
   papel: string | null;
   permissoes: readonly string[];
-  vinculos: ReadonlyArray<{ organizacaoId: string; nome: string; papel: string }>;
+  vinculos: ReadonlyArray<{
+    organizacaoId: string;
+    nome: string;
+    papel: string;
+    codigoPublico: string;
+  }>;
   pedidosDeEntrada: readonly PedidoDeEntradaProjetado[];
 };
 
@@ -48,13 +53,21 @@ export function projetarContexto(resolucao: ResolucaoDeContexto): ContextoProjet
     // papel → permissões é do domínio, e a projeção só o expõe (contrato §4.5).
     permissoes: ativo === null ? [] : ativo.vinculo.permissoes,
 
-    // Todas as organizações em que a Pessoa tem vínculo ativo — o insumo do seletor (face D de T-02).
-    // **Nada além de nome e papel:** não há contagem de ocorrências por organização, porque não há
-    // endpoint que a dê sem organização ativa (contrato §4.4).
+    // Todas as organizações em que a Pessoa tem vínculo ativo — o insumo do seletor (face D de T-02) e do
+    // menu de troca (item 7b).
+    //
+    // **`codigoPublico` entra pelo item 7b**, e paga um uso só: a face E de T-02 compara o código digitado
+    // com esta lista **antes de enviar**, e assim oferece *"entrar nela"* em vez de arrancar um
+    // `409 JA_VINCULADO` cujo corpo não carrega identidade nenhuma (`openapi.yaml:311-312`). O dado já
+    // vinha em `VinculoNaOrganizacao` — **nenhuma consulta muda**.
+    //
+    // **Nada além dos quatro:** não há contagem de ocorrências por organização, porque não há endpoint que
+    // a dê sem organização ativa (contrato §4.4).
     vinculos: resolucao.vinculos.map((v) => ({
       organizacaoId: v.organizacao.id,
       nome: v.organizacao.nome,
       papel: v.vinculo.papel,
+      codigoPublico: v.organizacao.codigoPublico,
     })),
 
     /**

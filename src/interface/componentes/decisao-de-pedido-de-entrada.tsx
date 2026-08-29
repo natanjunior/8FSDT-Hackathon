@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { Button } from "@/interface/componentes/ui/button";
 
 /**
@@ -69,7 +70,16 @@ const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
 
 const MENSAGEM_GENERICA = "Não foi possível decidir agora. Tente de novo.";
 
-export function DecisaoDePedidoDeEntrada({ pedido, areas }: { pedido: Pedido; areas: readonly Area[] }) {
+export function DecisaoDePedidoDeEntrada({
+  pedido,
+  areas,
+  organizacaoId,
+}: {
+  pedido: Pedido;
+  areas: readonly Area[];
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
+}) {
   const router = useRouter();
   const [papel, setPapel] = useState<Papel | null>(null);
   const [areaId, setAreaId] = useState<string>("");
@@ -91,7 +101,7 @@ export function DecisaoDePedidoDeEntrada({ pedido, areas }: { pedido: Pedido; ar
     try {
       const resposta = await fetch(`/api/pedidos-de-entrada/${pedido.id}/${caminho}`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: cabecalhosDeEscrita(organizacaoId),
         body: JSON.stringify(corpo),
       });
 
