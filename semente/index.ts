@@ -66,6 +66,23 @@ function imprimirResumo(resumo: ResumoDaSemeadura): void {
         `${`código ${organizacao.codigoPublico}`.padEnd(LARGURA_DO_CODIGO)}` +
         `${String(organizacao.ocorrencias)} ocorrências`,
     );
+
+    /**
+     * **O recorte que o critério 32.6 confere, e o 32.7 exige** — o dashboard é sempre de UMA
+     * organização, e o bloco total abaixo soma as duas. Sem estas linhas, a conferência ponta a ponta da
+     * agregação não tem contra o que conferir.
+     */
+    console.log("  mês       registradas   resolvidas   avaliadas");
+    for (const mes of organizacao.meses) {
+      console.log(
+        `  ${mes.rotulo.padEnd(10)}` +
+          `${String(mes.registradas).padStart(11)}` +
+          `${String(mes.resolvidas).padStart(13)}` +
+          `${String(mes.avaliadas).padStart(12)}`,
+      );
+    }
+    console.log(`  status    ${emLinha(organizacao.porStatus)}`);
+    console.log("");
   }
 
   console.log("");
