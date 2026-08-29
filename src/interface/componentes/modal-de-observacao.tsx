@@ -59,6 +59,7 @@ export function ModalDeObservacao({
   verboEnviando,
   variante,
   rotulosDeStatus,
+  organizacaoId,
 }: {
   ocorrenciaId: string;
   /** O caminho do endpoint. **`string`, nunca `Comando`** — o Domínio não entra no navegador. */
@@ -73,6 +74,8 @@ export function ModalDeObservacao({
   variante: "primario" | "secundario";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const campoId = useId();
@@ -113,6 +116,7 @@ export function ModalDeObservacao({
       comando,
       { observacao: texto },
       rotulosDeStatus,
+      organizacaoId,
     );
 
     setEnviando(false);

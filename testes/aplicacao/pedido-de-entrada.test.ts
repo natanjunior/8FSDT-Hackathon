@@ -39,11 +39,12 @@ describe("pedirEntrada", () => {
   it("devolve o pedido registrado no caminho feliz", async () => {
     const { porta } = duplo({ desfecho: "registrado", pedido: PEDIDO });
 
-    const pedido = await pedirEntrada({ pedidosDeEntrada: porta }, SESSAO, {
-      codigoPublico: "RECANTO7",
-      nome: null,
-      telefone: null,
-    });
+    const pedido = await pedirEntrada(
+      { pedidosDeEntrada: porta },
+      SESSAO,
+      { codigoPublico: "RECANTO7", nome: null, telefone: null },
+      false,
+    );
 
     expect(pedido).toStrictEqual(PEDIDO);
   });
@@ -57,11 +58,12 @@ describe("pedirEntrada", () => {
 
     for (const caso of casos) {
       const { porta } = duplo({ desfecho: caso.desfecho });
-      const chamada = pedirEntrada({ pedidosDeEntrada: porta }, SESSAO, {
-        codigoPublico: "RECANTO7",
-        nome: null,
-        telefone: null,
-      });
+      const chamada = pedirEntrada(
+        { pedidosDeEntrada: porta },
+        SESSAO,
+        { codigoPublico: "RECANTO7", nome: null, telefone: null },
+        false,
+      );
 
       await expect(chamada).rejects.toBeInstanceOf(caso.erro);
       await expect(chamada).rejects.toMatchObject({ codigo: caso.codigo });
@@ -74,38 +76,42 @@ describe("pedirEntrada", () => {
    */
   it("só manda corrigir o nome quando ele mudou de verdade", async () => {
     const iguais = duplo({ desfecho: "registrado", pedido: PEDIDO });
-    await pedirEntrada({ pedidosDeEntrada: iguais.porta }, SESSAO, {
-      codigoPublico: "RECANTO7",
-      nome: "Helena Rocha",
-      telefone: null,
-    });
+    await pedirEntrada(
+      { pedidosDeEntrada: iguais.porta },
+      SESSAO,
+      { codigoPublico: "RECANTO7", nome: "Helena Rocha", telefone: null },
+      false,
+    );
     expect(iguais.recebidos[0]?.nome).toBeNull();
 
     const vazio = duplo({ desfecho: "registrado", pedido: PEDIDO });
-    await pedirEntrada({ pedidosDeEntrada: vazio.porta }, SESSAO, {
-      codigoPublico: "RECANTO7",
-      nome: "   ",
-      telefone: null,
-    });
+    await pedirEntrada(
+      { pedidosDeEntrada: vazio.porta },
+      SESSAO,
+      { codigoPublico: "RECANTO7", nome: "   ", telefone: null },
+      false,
+    );
     expect(vazio.recebidos[0]?.nome).toBeNull();
 
     const mudou = duplo({ desfecho: "registrado", pedido: PEDIDO });
-    await pedirEntrada({ pedidosDeEntrada: mudou.porta }, SESSAO, {
-      codigoPublico: "RECANTO7",
-      nome: "  Helena R. Rocha  ",
-      telefone: null,
-    });
+    await pedirEntrada(
+      { pedidosDeEntrada: mudou.porta },
+      SESSAO,
+      { codigoPublico: "RECANTO7", nome: "  Helena R. Rocha  ", telefone: null },
+      false,
+    );
     expect(mudou.recebidos[0]?.nome).toBe("Helena R. Rocha");
   });
 
   it("repassa o telefone e o código sem tocá-los — quem normaliza é a tela, quem confere é o schema", async () => {
     const { porta, recebidos } = duplo({ desfecho: "registrado", pedido: PEDIDO });
 
-    await pedirEntrada({ pedidosDeEntrada: porta }, SESSAO, {
-      codigoPublico: "AURORA22",
-      nome: null,
-      telefone: "+5511999990000",
-    });
+    await pedirEntrada(
+      { pedidosDeEntrada: porta },
+      SESSAO,
+      { codigoPublico: "AURORA22", nome: null, telefone: "+5511999990000" },
+      false,
+    );
 
     expect(recebidos[0]).toStrictEqual({
       pessoaId: "p-1",
@@ -113,5 +119,36 @@ describe("pedirEntrada", () => {
       nome: null,
       telefone: "+5511999990000",
     });
+  });
+
+  it("quem já tem vínculo em alguma organização não reescreve o próprio nome (critério 7b.8)", async () => {
+    const { porta, recebidos } = duplo({ desfecho: "registrado", pedido: PEDIDO });
+
+    await pedirEntrada(
+      { pedidosDeEntrada: porta },
+      SESSAO,
+      { codigoPublico: "ALVORADA2", nome: "Helena R. da Silva", telefone: null },
+      true,
+    );
+
+    /**
+     * **`pessoas` é tabela global.** Corrigir o nome aqui renomearia a Pessoa **dentro de A também** — e o
+     * nome dela já está na trilha imutável de A. A correção do critério **7a.5** é *"o último ponto em que
+     * o nome é corrigível"* para quem **não tem vínculo nenhum**; para quem tem, não há ponto nenhum.
+     */
+    expect(recebidos[0]?.nome).toBeNull();
+  });
+
+  it("quem não tem vínculo nenhum continua podendo corrigir — o 7a.5 não muda", async () => {
+    const { porta, recebidos } = duplo({ desfecho: "registrado", pedido: PEDIDO });
+
+    await pedirEntrada(
+      { pedidosDeEntrada: porta },
+      SESSAO,
+      { codigoPublico: "RECANTO7", nome: "Helena R. da Silva", telefone: null },
+      false,
+    );
+
+    expect(recebidos[0]?.nome).toBe("Helena R. da Silva");
   });
 });

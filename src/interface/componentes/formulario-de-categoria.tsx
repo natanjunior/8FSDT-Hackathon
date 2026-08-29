@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { ICONE_PADRAO } from "@/dominio/organizacao";
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { SeletorDeIcone } from "@/interface/componentes/icone-de-categoria";
 import { Campo } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
@@ -47,7 +48,14 @@ const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
 
 const MENSAGEM_GENERICA = "Não foi possível salvar agora. Tente de novo.";
 
-export function FormularioDeCategoria({ modo }: { modo: ModoDeCategoria }) {
+export function FormularioDeCategoria({
+  modo,
+  organizacaoId,
+}: {
+  modo: ModoDeCategoria;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
+}) {
   const router = useRouter();
   const [nome, setNome] = useState(modo.tipo === "edicao" ? modo.nome : "");
   const [icone, setIcone] = useState<NomeDeIcone>(() => {
@@ -81,13 +89,20 @@ export function FormularioDeCategoria({ modo }: { modo: ModoDeCategoria }) {
     try {
       const resposta = await fetch(alvo, {
         method: modo.tipo === "cadastro" ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: cabecalhosDeEscrita(organizacaoId),
         body: JSON.stringify(corpo),
       });
 
       if (!resposta.ok) {
-        const problema = (await resposta.json().catch(() => ({}))) as { codigo?: string };
-        setErro(TEXTO_DA_RECUSA[problema.codigo ?? ""] ?? MENSAGEM_GENERICA);
+        const problema = (await resposta.json().catch(() => ({}))) as {
+          codigo?: string;
+          detail?: string;
+        };
+        // **O `detail` antes do genérico** (item 7b): o texto que nós escrevemos ganha, porque é
+        // redigido para a tela; o do servidor entra quando não temos texto próprio (contrato §6.1).
+        // Sem esta linha, o `409 ORGANIZACAO_DIVERGENTE` — alcançável desde o critério 7b.6 — vira
+        // *"Não foi possível salvar agora"*, que é a única frase que **não** diz o que aconteceu.
+        setErro(TEXTO_DA_RECUSA[problema.codigo ?? ""] ?? problema.detail ?? MENSAGEM_GENERICA);
         setEnviando(false);
         return;
       }

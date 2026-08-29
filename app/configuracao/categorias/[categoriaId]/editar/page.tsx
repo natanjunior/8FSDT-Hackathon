@@ -57,6 +57,7 @@ export default async function CorrigirCategoria({
           ativa: categoria.ativa,
           ehUltimaAtiva: categoria.ativa && ativas === 1,
         }}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
     </main>
   );

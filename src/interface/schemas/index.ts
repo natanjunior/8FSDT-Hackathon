@@ -23,7 +23,9 @@ export {
 export {
   criacaoDeOrganizacaoSchema,
   nomeDeOrganizacao,
+  trocaDeOrganizacaoSchema,
   type EntradaDeCriacaoDeOrganizacao,
+  type EntradaDeTrocaDeOrganizacao,
 } from "./organizacao";
 
 export {

@@ -94,6 +94,7 @@ export function BarraDeAcoes({
   ocorrenciaId,
   acoes,
   rotulosDeStatus,
+  organizacaoId,
   formularios = {},
   primario = null,
   emMenu = [],
@@ -103,6 +104,8 @@ export function BarraDeAcoes({
   acoes: readonly AcaoDisponivel[];
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
   rotulosDeStatus: Readonly<Record<string, string>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
   /** Para cada comando com forma própria, o nó pronto. Ausente = botão de disparo direto. */
   formularios?: Readonly<Record<string, ReactNode>>;
   /**
@@ -136,7 +139,13 @@ export function BarraDeAcoes({
 
     // **A tela envia `{}`** — este caminho é só dos comandos sem formulário, que é o botão nu (D23). O
     // `corpoOpcional` do servidor existe para o cliente que NÃO é esta tela.
-    const resultado = await executarComando(ocorrenciaId, comando, {}, rotulosDeStatus);
+    const resultado = await executarComando(
+      ocorrenciaId,
+      comando,
+      {},
+      rotulosDeStatus,
+      organizacaoId,
+    );
     if (!resultado.ok) setAviso(resultado.aviso);
     setEnviando(false);
 

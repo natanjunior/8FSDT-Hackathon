@@ -7,6 +7,7 @@ import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/t
 import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 
 /**
  * **T-02 face A · o caminho de entrar.** *"Onde eu trabalho?"* — e quem chega aqui quase sempre está
@@ -24,9 +25,18 @@ import { Input } from "@/interface/componentes/ui/input";
  * que é o item 7b.
  */
 
+/** Um vínculo que a Pessoa já tem — o insumo do reconhecimento do código (item 7b, §2.6). */
+export type VinculoConhecido = {
+  organizacaoId: string;
+  nome: string;
+  codigoPublico: string;
+};
+
 type EstadoDoPedido = {
   erros?: Record<string, string>;
   recusa?: { codigo: string; detalhe: string };
+  /** O código digitado casou com um vínculo que já existe: a tela oferece **entrar nela** (critério 7b.4). */
+  reconhecido?: { organizacaoId: string; nome: string };
 };
 
 type ProblemaDaApi = {
@@ -45,8 +55,20 @@ const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
 // rejeição do próprio `fetch` (rede caiu, DNS falhou) — ver o `catch` abaixo.
 const MENSAGEM_DE_RECUSA_GENERICA = "Não foi possível enviar o pedido agora. Tente de novo.";
 
-export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
+export function FormularioDePedidoDeEntrada({
+  nome,
+  variante = "primeira-entrada",
+  vinculos = [],
+}: {
+  /** Pré-preenche o campo `nome`. **Só existe na variante `primeira-entrada`** — na outra o campo não é
+   *  renderizado, porque a razão dele não existe (spec §2.5) e a Aplicação o ignora (critério 7b.8). */
+  nome?: string;
+  variante?: "primeira-entrada" | "outra-organizacao";
+  /** Os vínculos que a Pessoa já tem. Vazio na primeira entrada, por construção. */
+  vinculos?: readonly VinculoConhecido[];
+}) {
   const router = useRouter();
+  const primeiraEntrada = variante === "primeira-entrada";
 
   const [estado, agir, aguardando] = useActionState(
     async (_anterior: EstadoDoPedido, dados: FormData): Promise<EstadoDoPedido> => {
@@ -54,11 +76,29 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
       const nomeInformado = String(dados.get("nome") ?? "").trim();
       const telefoneDigitado = String(dados.get("telefone") ?? "").trim();
 
+      /**
+       * **O código é reconhecido antes de virar erro** (critério 7b.4, spec §2.6).
+       *
+       * O `problem+json` do `JA_VINCULADO` traz `title` e `detail` e **nenhuma identidade de organização**
+       * (`openapi.yaml:311-312`), então a frase do `inventario-de-telas.md:1513` — *"Você já está em
+       * {nome}."* + **entrar nela** — não podia ser escrita com o que o servidor devolve. Com
+       * `codigoPublico` em `vinculos[]` (item 7b, §3.7) ela pode: o cliente casa o que foi digitado com o
+       * que ele já tem, **sem gastar uma ida ao servidor para receber um erro**.
+       *
+       * O `409` continua tratado abaixo, e volta a ser só o que é: corrida entre abas — alguém foi
+       * aprovado entre o `GET /contexto` e o envio.
+       */
+      const jaVinculada = vinculos.find((v) => v.codigoPublico === codigo);
+      if (jaVinculada !== undefined) {
+        return { reconhecido: { organizacaoId: jaVinculada.organizacaoId, nome: jaVinculada.nome } };
+      }
+
       // A conversão acontece aqui, e o campo é o único lugar onde ela pode falhar de forma explicável:
       // quem digitou nove dígitos merece a frase, não um `400` genérico do servidor. Não é rede, então
       // fica fora do `try` abaixo. **A regra saiu para `componentes/telefone.ts` em 24/08/2026**, para
-      // T-08 usar a mesma — ver a decisão 2.2 da spec do 9b.
-      const convertido = converterTelefoneDigitado(telefoneDigitado);
+      // T-08 usar a mesma — ver a decisão 2.2 da spec do 9b. **Na variante `outra-organizacao` não há
+      // campo de telefone**, então não há o que converter.
+      const convertido = converterTelefoneDigitado(primeiraEntrada ? telefoneDigitado : "");
       if (convertido.situacao === "recusado") {
         return { erros: { telefone: convertido.mensagem } };
       }
@@ -75,11 +115,18 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
         const resposta = await fetch("/api/pedidos-de-entrada", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            codigoPublico: codigo,
-            ...(nomeInformado === "" ? {} : { nome: nomeInformado }),
-            ...(telefone === undefined ? {} : { telefone }),
-          }),
+          body: JSON.stringify(
+            primeiraEntrada
+              ? {
+                  codigoPublico: codigo,
+                  ...(nomeInformado === "" ? {} : { nome: nomeInformado }),
+                  ...(telefone === undefined ? {} : { telefone }),
+                }
+              : // **Só o código** (spec §2.5): o `nome` porque corrigi-lo aqui renomearia a Pessoa dentro
+                // da organização em que ela já está — e a trilha de lá é imutável; o `telefone` porque quem
+                // tem vínculo já tem o caminho do item 9b em T-08, e `contatos` recusaria o repetido.
+                { codigoPublico: codigo },
+          ),
         });
 
         if (resposta.ok) {
@@ -132,8 +179,39 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
     estado.recusa?.codigo === "PEDIDO_DE_ENTRADA_PENDENTE" ||
     estado.recusa?.codigo === "JA_VINCULADO";
 
+  // **Um `const`, e não `estado.reconhecido!` dentro do `onClick`**: o estreitamento de
+  // `estado.reconhecido !== undefined` não sobrevive ao fecho do callback, e a asserção `!` seria a
+  // forma de calar o compilador em vez de responder a ele.
+  const reconhecido = estado.reconhecido;
+
+  /** O `PUT /contexto/organizacao` daquele `organizacaoId` — a mesma troca do menu, e o mesmo destino. */
+  async function entrarNela(organizacaoId: string) {
+    const resultado = await trocarOrganizacao(organizacaoId);
+    if (!resultado.ok) return;
+
+    router.refresh();
+    router.replace("/");
+  }
+
   return (
     <>
+      {reconhecido !== undefined && (
+        <Aviso>
+          Você já está em{" "}
+          <strong className="text-tinta font-semibold">{reconhecido.nome}</strong>.{" "}
+          <button
+            type="button"
+            disabled={aguardando}
+            onClick={() => {
+              void entrarNela(reconhecido.organizacaoId);
+            }}
+            className="text-marca underline underline-offset-4"
+          >
+            Entrar nela
+          </button>
+        </Aviso>
+      )}
+
       {estado.recusa !== undefined && (
         <Aviso>
           {estado.recusa.detalhe}
@@ -172,44 +250,48 @@ export function FormularioDePedidoDeEntrada({ nome }: { nome: string }) {
           />
         </Campo>
 
-        <Campo
-          id="nome"
-          rotulo="Seu nome"
-          ajuda={
-            <>
-              É como você vai aparecer para os Gestores e no histórico das ocorrências.{" "}
-              <strong className="text-tinta font-semibold">Depois daqui não há como mudar.</strong>
-            </>
-          }
-          erro={estado.erros?.["nome"]}
-        >
-          <Input
-            id="nome"
-            name="nome"
-            type="text"
-            maxLength={120}
-            defaultValue={nome}
-            aria-invalid={estado.erros?.["nome"] !== undefined}
-            className="h-12 text-base"
-          />
-        </Campo>
+        {primeiraEntrada && (
+          <>
+            <Campo
+              id="nome"
+              rotulo="Seu nome"
+              ajuda={
+                <>
+                  É como você vai aparecer para os Gestores e no histórico das ocorrências.{" "}
+                  <strong className="text-tinta font-semibold">Depois daqui não há como mudar.</strong>
+                </>
+              }
+              erro={estado.erros?.["nome"]}
+            >
+              <Input
+                id="nome"
+                name="nome"
+                type="text"
+                maxLength={120}
+                defaultValue={nome}
+                aria-invalid={estado.erros?.["nome"] !== undefined}
+                className="h-12 text-base"
+              />
+            </Campo>
 
-        <Campo
-          id="telefone"
-          rotulo="Telefone (opcional)"
-          ajuda="Vai virar o seu primeiro contato na organização."
-          erro={estado.erros?.["telefone"]}
-        >
-          <Input
-            id="telefone"
-            name="telefone"
-            type="tel"
-            inputMode="tel"
-            defaultValue={PREFIXO_BR}
-            aria-invalid={estado.erros?.["telefone"] !== undefined}
-            className="h-12 text-base"
-          />
-        </Campo>
+            <Campo
+              id="telefone"
+              rotulo="Telefone (opcional)"
+              ajuda="Vai virar o seu primeiro contato na organização."
+              erro={estado.erros?.["telefone"]}
+            >
+              <Input
+                id="telefone"
+                name="telefone"
+                type="tel"
+                inputMode="tel"
+                defaultValue={PREFIXO_BR}
+                aria-invalid={estado.erros?.["telefone"] !== undefined}
+                className="h-12 text-base"
+              />
+            </Campo>
+          </>
+        )}
 
         <Button type="submit" disabled={aguardando} className="h-12 w-full text-base">
           {aguardando ? "Enviando…" : "Pedir entrada"}

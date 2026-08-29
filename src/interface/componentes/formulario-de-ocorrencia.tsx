@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { ControleDeFoto, type EstadoDoAnexo } from "./controle-de-foto";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { Campo } from "./moldura-de-tela";
@@ -54,9 +55,12 @@ type AreaEscolhivel = { id: string; nome: string; tipo: "comum" | "privativa" };
 export function FormularioDeOcorrencia({
   categorias,
   areas,
+  organizacaoId,
 }: {
   categorias: readonly CategoriaEscolhivel[];
   areas: readonly AreaEscolhivel[];
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
 }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
@@ -93,7 +97,7 @@ export function FormularioDeOcorrencia({
     try {
       const resposta = await fetch("/api/ocorrencias", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: cabecalhosDeEscrita(organizacaoId),
         body: JSON.stringify({
           titulo: String(dados.get("titulo") ?? ""),
           descricao: String(dados.get("descricao") ?? ""),
@@ -198,7 +202,12 @@ export function FormularioDeOcorrencia({
     <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
       {/* **A foto é o primeiro alvo da tela** — protótipo §2.3 e desenho D-1. O item 11 deixou este
           lugar reservado de propósito, e o 13a o preenche sem reordenar mais nada. */}
-      <ControleDeFoto key={chaveDoControle} aoMudar={setAnexo} erro={erros.foto} />
+      <ControleDeFoto
+        key={chaveDoControle}
+        aoMudar={setAnexo}
+        erro={erros.foto}
+        organizacaoId={organizacaoId}
+      />
 
       <Campo id="titulo" rotulo="Título" erro={erros.titulo}>
         <input
