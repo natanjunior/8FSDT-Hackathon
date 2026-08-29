@@ -320,19 +320,45 @@ describe("a projeção de GET /contexto corresponde ao schema Contexto do openap
     expect(contexto.permissoes).toContain("ocorrencia.registrar");
   });
 
-  it("é o exemplo doisVinculos do openapi.yaml: nome e papel por organização, e nada mais", async () => {
+  it("cada vínculo traz organizacaoId, nome, papel e codigoPublico — e nada além", async () => {
     const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, PERSONA_1B);
     const contexto = projetarContexto(await resolverContexto(duplos.portas, escolhaDaSessao()));
 
     expect(contexto.vinculos).toStrictEqual([
-      { organizacaoId: "organizacao-a", nome: "Condomínio Recanto Azul", papel: "gestor" },
-      { organizacaoId: "organizacao-b", nome: "Edifício Alvorada", papel: "solicitante" },
+      {
+        organizacaoId: "organizacao-a",
+        nome: "Condomínio Recanto Azul",
+        papel: "gestor",
+        codigoPublico: "RECANTO7",
+      },
+      {
+        organizacaoId: "organizacao-b",
+        nome: "Edifício Alvorada",
+        papel: "solicitante",
+        codigoPublico: "ALVORADA2",
+      },
     ]);
 
-    // Nenhuma chave a mais: a face D mostra nome e papel porque é o que existe sem organização ativa
-    // (contrato §4.4) — não há contagem de ocorrências por organização.
+    /**
+     * **O `codigoPublico` é do item 7b, e existe por um motivo de tela:** sem ele a face E de T-02 não
+     * consegue casar o código digitado com um vínculo que a pessoa já tem, e o critério 7b.4 —
+     * *"a tela oferece **entrar nela** em vez de repetir o pedido"* — fica sem dado
+     * (`inventario-de-telas.md:1513`). Não é vazamento: é o código do cartaz do elevador das organizações
+     * **dela**, mostrado **a ela**.
+     *
+     * **O `openapi.yaml:2628-2637` ainda descreve três campos**, e isso é sabido: é o item **22** da
+     * `trabalho/fila-documentacao.md`, da frente de documentação. Este teste é o lado do código.
+     *
+     * **Nenhuma chave além das quatro:** continua não havendo contagem de ocorrências por organização,
+     * porque não há endpoint que a dê sem organização ativa (contrato §4.4).
+     */
     for (const vinculo of contexto.vinculos) {
-      expect(Object.keys(vinculo).sort()).toStrictEqual(["nome", "organizacaoId", "papel"]);
+      expect(Object.keys(vinculo).sort()).toStrictEqual([
+        "codigoPublico",
+        "nome",
+        "organizacaoId",
+        "papel",
+      ]);
     }
   });
 });
