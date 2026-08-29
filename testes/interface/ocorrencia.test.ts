@@ -50,7 +50,9 @@ import {
   registrarFalha,
   type ErroDeCampo,
 } from "@/interface/http";
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import {
+  enviarComentario,
   executarComando,
   MENSAGEM_GENERICA,
 } from "@/interface/componentes/comando-de-ocorrencia";
@@ -2376,5 +2378,64 @@ describe("as duas frases da conversa escolhem por AUTORIA, não por papel — cr
   it("as duas frases são diferentes, e é a diferença que o critério 30.4 protege", () => {
     expect(vazioDaConversa(true)).not.toBe(vazioDaConversa(false));
     expect(rotuloDoCampoDeConversa(true)).not.toBe(rotuloDoCampoDeConversa(false));
+  });
+});
+
+describe("enviarComentario — a irmã sem o ramo do 409", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("no 201, devolve o comentário inteiro — é ele que a lista local acrescenta", async () => {
+    const criado = {
+      id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+      texto: "A lâmpada nova já foi instalada.",
+      autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Roberto Salles" },
+      criadoEm: "2026-08-20T15:00:00.000Z",
+    };
+
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      expect(url).toBe("/api/ocorrencias/abc/comentarios");
+      expect(init.method).toBe("POST");
+      // A afirmação de organização do item 7b cobre a décima primeira escrita de cliente.
+      expect(init.headers).toMatchObject(cabecalhosDeEscrita("organizacao-a"));
+      expect(JSON.parse(String(init.body))).toStrictEqual({ texto: criado.texto });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(criado) });
+    });
+
+    expect(await enviarComentario("abc", criado.texto, "organizacao-a")).toStrictEqual({
+      ok: true,
+      comentario: criado,
+    });
+  });
+
+  it("num problema com detail, o aviso é o detail", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ codigo: "FORMATO_INVALIDO", detail: "Escreva a mensagem." }),
+      }),
+    );
+
+    expect(await enviarComentario("abc", "", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: "Escreva a mensagem.",
+    });
+  });
+
+  it("sem detail, cai na frase genérica", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("rede caída não sobe para o Error Boundary — nuvem sem SLA", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
   });
 });
