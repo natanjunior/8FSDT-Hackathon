@@ -18,6 +18,7 @@ export {
   armazenamentoDeCookies,
   comContexto,
   lerCorpoOpcional,
+  registrarFalha,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,
@@ -29,6 +30,7 @@ export {
 
 export {
   CampoNaoSuportado,
+  comOrganizacaoAtiva,
   CorpoNaoSuportado,
   FormatoInvalido,
   OrganizacaoDivergente,

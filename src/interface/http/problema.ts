@@ -85,6 +85,59 @@ function tipoDoErro(codigo: string): string {
  */
 const EXTENSAO_DE_CABECALHO = "segundosAteLiberar";
 
+/**
+ * ============================================================================
+ *  `organizacaoAtiva` — a primeira das três compensações da §6.3
+ * ============================================================================
+ *
+ * O contrato decidiu responder `404` — e não `403` — a recurso de outra organização, sabendo que perde a
+ * distinção entre *"digitei o id errado"* e *"estou na organização errada"*. Comprou a decisão com três
+ * compensações escritas (`contrato-de-api.md:594-601`), e a primeira é esta: *"o corpo do `404` traz
+ * `organizacaoAtiva` (id e nome). Metade das vezes a resposta é «ah, estou na organização errada», e a
+ * resposta já diz em qual você está."*
+ *
+ * **Uma lista de códigos, e não `if (status === 404)`.** São sete códigos `404` na escada acima, e **seis
+ * são de recurso escopado**: o sétimo, `CODIGO_PUBLICO_NAO_ENCONTRADO`, é lançado por `pedir-entrada.ts`,
+ * uma das quatro operações da §4.4 — ali não existe organização ativa, e a extensão seria sempre nula.
+ * A prosa do contrato promete a extensão para toda essa família — mas o `openapi.yaml` publica o
+ * `example` em **um** responsável só, `OcorrenciaNaoEncontrada` (`:2341`). O DoD cobra que *"a
+ * especificação versionada corresponde ao código"*: emitir a extensão em respostas cujo exemplo não a
+ * traz é o código publicando um contrato diferente do versionado. **A ampliação para os outros cinco
+ * — pedido, categoria, área, vínculo e anexo — passa pelo `openapi.yaml` primeiro**, e está registrada
+ * como achado, não como código.
+ *
+ * A lista com um elemento é exatamente o lugar onde o sexto entra no dia em que o contrato o publicar.
+ */
+const CODIGOS_COM_ORGANIZACAO_ATIVA: ReadonlySet<string> = new Set(["OCORRENCIA_NAO_ENCONTRADA"]);
+
+/**
+ * Devolve **uma cópia** do erro com `organizacaoAtiva` nas extensões, quando o código está na lista
+ * fechada acima. Fora dela — e quando não há organização resolvida — devolve **o mesmo erro**.
+ *
+ * **Cópia, nunca mutação.** `ErroDeDominio` tem todos os campos `readonly`, e um erro que se altera a
+ * caminho da resposta é o tipo de coisa que some numa revisão. O preço da cópia está declarado: ela é
+ * construída com `new ErroDeDominio(...)`, então **`name` deixa de ser o da subclasse**. É por isso que
+ * quem chama loga o **original** antes de responder a cópia — ver `registrarEResponder`.
+ *
+ * **A `organizacaoAtiva` vem do anel externo, e não podia vir de outro lugar.** A Aplicação recebe o
+ * repositório escopado e por desenho **não tem** o `organizacaoId` (`aplicacao/contexto/portas.ts:148-151`);
+ * levar o *nome* até lá seria abrir, na assinatura de todo comando, um parâmetro que só serve para
+ * redigir erro.
+ */
+export function comOrganizacaoAtiva(
+  erro: unknown,
+  organizacaoAtiva: { id: string; nome: string } | null,
+): unknown {
+  if (organizacaoAtiva === null) return erro;
+  if (!(erro instanceof ErroDeDominio)) return erro;
+  if (!CODIGOS_COM_ORGANIZACAO_ATIVA.has(erro.codigo)) return erro;
+
+  return new ErroDeDominio(erro.codigo, erro.titulo, erro.detalhe, {
+    ...erro.extensoes,
+    organizacaoAtiva,
+  });
+}
+
 /** Uma violação de campo — em `400 FORMATO_INVALIDO` e em `422 CAMPO_NAO_SUPORTADO` (contrato §6.1). */
 export type ErroDeCampo = {
   campo: string;

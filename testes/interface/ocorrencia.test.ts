@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
+import { CategoriaNaoEncontrada } from "@/aplicacao/organizacao";
+import { ErroDeDominio } from "@/dominio/erros";
 import {
   COMANDOS_IMPLEMENTADOS,
   MOTIVOS_DE_CANCELAMENTO,
@@ -29,6 +32,7 @@ import {
 } from "@/interface/projecoes";
 import {
   CampoNaoSuportado,
+  comOrganizacaoAtiva,
   CorpoNaoSuportado,
   FormatoInvalido,
   lerCorpoOpcional,
@@ -36,8 +40,10 @@ import {
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
+  problemaDe,
   recusarEvolucaoPrevista,
   recusarSemDestino,
+  registrarFalha,
   type ErroDeCampo,
 } from "@/interface/http";
 import {
@@ -48,6 +54,7 @@ import {
   acaoPrimaria,
   acoesDaBarra,
   nomesDeStatus,
+  ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
   rotulosDeStatus,
   vazioDaBarra,
@@ -2003,5 +2010,109 @@ describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor con
     for (const opcao of opcoesDeMotivoPausa()) {
       expect("descricao" in opcao).toBe(false);
     }
+  });
+});
+
+/**
+ * ============================================================================
+ *  O `404` que diz em qual organização você está — critério 28.3
+ * ============================================================================
+ */
+describe("o critério 28.3 — o corpo do 404 diz em qual organização você está", () => {
+  const RECANTO = { id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul" };
+
+  it("OCORRENCIA_NAO_ENCONTRADA sai com organizacaoAtiva, ao lado de codigo e traceId", () => {
+    const { status, corpo } = problemaDe(
+      comOrganizacaoAtiva(new OcorrenciaNaoEncontrada(), RECANTO),
+      "/api/ocorrencias/abc",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    expect(status).toBe(404);
+    expect(corpo.codigo).toBe("OCORRENCIA_NAO_ENCONTRADA");
+    expect(corpo.traceId).toBe("01JB8Z6K9T2M4N7Q");
+    // O par exato do `example` do openapi.yaml:2341 — id e nome, e nada de `codigoPublico`.
+    expect(corpo.organizacaoAtiva).toStrictEqual(RECANTO);
+  });
+
+  it("CATEGORIA_NAO_ENCONTRADA NÃO ganha a extensão — a lista de códigos é fechada", () => {
+    const { corpo } = problemaDe(
+      comOrganizacaoAtiva(new CategoriaNaoEncontrada(), RECANTO),
+      "/api/categorias/abc",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    // O `openapi.yaml` publica o exemplo em UM responsável só. Emitir nos outros cinco seria o código
+    // publicando um contrato diferente do versionado — que é o portão do DoD, não um detalhe.
+    expect("organizacaoAtiva" in corpo).toBe(false);
+  });
+
+  it("sem organização resolvida, nada muda — e é o caso de NaoAutenticado", () => {
+    const erro = new OcorrenciaNaoEncontrada();
+
+    expect(comOrganizacaoAtiva(erro, null)).toBe(erro);
+  });
+
+  it("o erro original NÃO é mutado: é uma cópia, e ela preserva as extensões que já existiam", () => {
+    const original = new OcorrenciaNaoEncontrada();
+    const enriquecido = comOrganizacaoAtiva(original, RECANTO);
+
+    expect(original.extensoes).toStrictEqual({});
+    expect(enriquecido).not.toBe(original);
+
+    // **O espalhamento `...erro.extensoes`, exercitado de verdade.** `OcorrenciaNaoEncontrada` nasce sem
+    // extensão nenhuma e é o único código da lista — então o único jeito de provar que a cópia preserva
+    // o que já havia é construir o erro com uma.
+    const comErros = comOrganizacaoAtiva(
+      new ErroDeDominio("OCORRENCIA_NAO_ENCONTRADA", "Ocorrência não encontrada", "…", {
+        erros: [{ campo: "observacao" }],
+      }),
+      RECANTO,
+    ) as ErroDeDominio;
+
+    expect(comErros.extensoes.erros).toBeDefined();
+    expect(comErros.extensoes.organizacaoAtiva).toStrictEqual(RECANTO);
+
+    // E o outro lado, de graça: `CampoNaoSuportado` é `422`, está fora da lista, e volta o MESMO objeto.
+    const foraDaLista = new CampoNaoSuportado(["observacao"]);
+    expect(comOrganizacaoAtiva(foraDaLista, RECANTO)).toBe(foraDaLista);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os dois insumos da estrada direta — a frase e a linha de log
+ * ============================================================================
+ */
+describe("o 404 da estrada direta — a frase e a linha de log", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("com nome, a frase é a do inventário, literal", () => {
+    expect(ocorrenciaNaoEncontradaEm("Condomínio Recanto Azul")).toBe(
+      "Esta ocorrência não existe em Condomínio Recanto Azul.",
+    );
+  });
+
+  it("sem nome, a frase degrada em vez de mentir — e continua verdadeira", () => {
+    // Mesma disciplina do vazio de filtro do item 15: `nomeDaOrganizacao` pode ser nulo, e inventá-lo
+    // seria pior. Na prática a página já redirecionou antes; a função não conta com isso.
+    expect(ocorrenciaNaoEncontradaEm(null)).toBe("Esta ocorrência não existe nesta organização.");
+  });
+
+  it("registrarFalha escreve UMA linha JSON com os quatro campos, e o nome da subclasse", () => {
+    const espia = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    registrarFalha(new OcorrenciaNaoEncontrada(), "/ocorrencias/abc", "GET", "01JB8Z6K9T2M4N7Q");
+
+    expect(espia).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(espia.mock.calls[0]?.[0]))).toStrictEqual({
+      traceId: "01JB8Z6K9T2M4N7Q",
+      caminho: "/ocorrencias/abc",
+      metodo: "GET",
+      // **O nome da subclasse sobrevive** — é o que a ordem decidida na tarefa 1 preserva.
+      erro: "OcorrenciaNaoEncontrada: OCORRENCIA_NAO_ENCONTRADA: Não há ocorrência com este identificador nesta organização.",
+    });
   });
 });
