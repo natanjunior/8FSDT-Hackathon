@@ -13,15 +13,21 @@ import { projetarContexto } from "@/interface/projecoes";
 /**
  * **T-02 · Sem organização ativa** — *"Onde eu trabalho?"*
  *
- * Uma tela, **quatro faces**, e a face é escolhida por `GET /contexto` — o único endpoint que uma Pessoa
+ * Uma tela, **cinco faces**, e a face é escolhida por `GET /contexto` — o único endpoint que uma Pessoa
  * sem vínculo consegue usar (contrato §8.0). Aqui a leitura vai pela **estrada direta** da §5, com a mesma
  * projeção do route handler.
  *
- * **Nesta fatia existem as quatro faces.** A face **C** (pedido recusado) passou a ser alcançável com o
- * item 8, que é quem produz `situacao: "recusado"` — até ele, ela era inalcançável por construção.
+ * **As quatro primeiras são para quem não tem organização ativa.** A face **C** (pedido recusado) passou a
+ * ser alcançável com o item 8, que é quem produz `situacao: "recusado"` — até ele, ela era inalcançável
+ * por construção.
  *
- * **O que continua fora é escolher organização na face D**, que é o item 7b, e é o único botão que ainda
- * diz na tela que não faz.
+ * **A quinta é a face E, e é o avesso das outras: ela só existe COM organização ativa** (item 7b). É
+ * desenho novo, autorizado pelo critério 7b.5 — *"a forma desse ponto não está escrita em documento
+ * nenhum"* —, e o que ela entrega é o caminho que faltava para a Persona 1B: pedir entrada em outra
+ * organização **sem sair da que se está**.
+ *
+ * **Desde o item 7b nenhum botão desta tela diz na tela que não faz.** A face D passou a chamar o
+ * `PUT /contexto/organizacao`, e com ela saiu o **último `AvisoDeFatia` do produto**.
  */
 export const dynamic = "force-dynamic";
 
