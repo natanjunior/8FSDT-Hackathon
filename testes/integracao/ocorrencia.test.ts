@@ -3140,3 +3140,96 @@ describe("a avaliação contra Postgres — item 27", () => {
     ).rejects.toMatchObject({ codigo: "OCORRENCIA_NAO_ENCONTRADA" });
   });
 });
+
+/**
+ * ============================================================================
+ *  O canal e a mensagem no banco — o que a migração 009 recusa (item 30)
+ * ============================================================================
+ *
+ * **Nenhuma destas garantias tem duplo.** As quatro são do banco: um `CHECK` que vale nos dois sentidos,
+ * um índice único **parcial**, um `CHECK` de texto aparado e uma FK **composta** que parte de `vinculos`.
+ * Provar qualquer uma delas com um duplo seria provar o duplo.
+ */
+describe("o canal e a mensagem no banco — o que a migração 009 recusa", () => {
+  /** A mesma forma de `ocorrenciaNua()`: a linha crua, sem trilha, porque o que se mede é a 009. */
+  async function ocorrenciaParaConversa(titulo: string): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo, autor_pessoa_id)
+       values ($1, $2, 'Descrição de apoio.', $3, $4, 'comum', $5)
+       returning id`,
+      [organizacaoId, titulo, categoriaId, areaId, pessoaId],
+    );
+    return linha!.id;
+  }
+
+  it("canal `comentario` COM atribuicao_id é recusado, e canal `atribuicao` SEM ele também", async () => {
+    const id = await ocorrenciaParaConversa("Canal com atribuição indevida");
+
+    await expect(
+      consultaCrua(
+        `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo, atribuicao_id)
+         values ($1, $2, 'comentario', gen_random_uuid())`,
+        [organizacaoId, id],
+      ),
+    ).rejects.toThrow(/canais_conversa_atribuicao_ck|violates foreign key/u);
+
+    await expect(
+      consultaCrua(
+        `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo)
+         values ($1, $2, 'atribuicao')`,
+        [organizacaoId, id],
+      ),
+    ).rejects.toThrow(/canais_conversa_atribuicao_ck/u);
+  });
+
+  it("dois canais `comentario` na mesma ocorrência violam o índice único PARCIAL", async () => {
+    const id = await ocorrenciaParaConversa("Dois canais de comentário");
+
+    await consultaCrua(
+      `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo) values ($1, $2, 'comentario')`,
+      [organizacaoId, id],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo) values ($1, $2, 'comentario')`,
+        [organizacaoId, id],
+      ),
+    ).rejects.toThrow(/canais_conversa_tipo_uk/u);
+  });
+
+  it("mensagem só de espaços é recusada pelo CHECK, não só pelo NOT NULL", async () => {
+    const id = await ocorrenciaParaConversa("Mensagem em branco");
+    const [canal] = await consultaCrua<{ id: string }>(
+      `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo)
+       values ($1, $2, 'comentario') returning id`,
+      [organizacaoId, id],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into mensagens (organizacao_id, canal_id, autor_pessoa_id, texto)
+         values ($1, $2, $3, '   ')`,
+        [organizacaoId, canal!.id, pessoaId],
+      ),
+    ).rejects.toThrow(/mensagens_texto_ck/u);
+  });
+
+  it("mensagem de quem NÃO tem vínculo nesta organização é recusada pela FK composta", async () => {
+    const id = await ocorrenciaParaConversa("Autora sem vínculo");
+    const [canal] = await consultaCrua<{ id: string }>(
+      `insert into canais_conversa (organizacao_id, ocorrencia_id, tipo)
+       values ($1, $2, 'comentario') returning id`,
+      [organizacaoId, id],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into mensagens (organizacao_id, canal_id, autor_pessoa_id, texto)
+         values ($1, $2, gen_random_uuid(), 'olá')`,
+        [organizacaoId, canal!.id],
+      ),
+    ).rejects.toThrow(/mensagens_autor_fk|violates foreign key/u);
+  });
+});
