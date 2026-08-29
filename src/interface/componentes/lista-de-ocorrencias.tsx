@@ -246,6 +246,20 @@ function CartaoDoSolicitante({
   pessoaIdDeQuemLe,
   agora,
 }: PropsDoItem) {
+  /**
+   * **A MESMA função dos recortes B e C — critério 31.6, e permissão nunca recorte.**
+   *
+   * O `CartaoDoSolicitante` é o recorte **A**, e ele não é só do Solicitante: é também o do **Gestor que
+   * tocou *"Só as minhas"*** — o síndico morador do 28.5. Sem esta linha ele leria *"Pausada"* pelado, no
+   * mesmo gesto em que a barra continua lhe oferecendo o chip `Status ▾`. É o defeito que o **28.6**
+   * fechou para a prioridade, reaberto com outro campo — e o critério **14.3** já diz *"quem lê é
+   * Gestor"*, não *"o recorte é de Gestor"*.
+   *
+   * **Custa uma chamada e nenhum argumento novo.** Para o Solicitante de verdade os dois textos
+   * coincidem, a função devolve `null`, e **o cartão dele fica byte a byte igual**.
+   */
+  const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
+
   return (
     <li>
       <Link
@@ -253,7 +267,15 @@ function CartaoDoSolicitante({
         className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
       >
         <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className="text-tinta text-sm font-semibold">{item.statusRotulo}</span>
+          <span className="text-tinta flex flex-col text-sm font-semibold">
+            {item.statusRotulo}
+            {/* **A-5: a espera carrega a palavra, nunca só a cor.** Segunda LINHA e não sufixo com `·`,
+                porque aqui o rótulo já divide a primeira linha com a marca do 27 e a etiqueta de
+                prioridade — o `·` do `CartaoDeTriagem` não cabe. */}
+            {segundaLinha !== null && (
+              <span className="text-tinta-suave text-xs font-normal">{segundaLinha}</span>
+            )}
+          </span>
           {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
               vez de espalhar três filhos pela linha. */}
           <span className="flex items-baseline gap-2">

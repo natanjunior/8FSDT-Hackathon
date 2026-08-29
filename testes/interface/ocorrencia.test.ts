@@ -1804,7 +1804,7 @@ describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não i
   });
 });
 
-describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
+describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () => {
   it("devolve null nos QUATRO motivos quando o statusRotulo JÁ é o rótulo do motivo — o mundo de hoje", () => {
     for (const motivo of MOTIVOS_DE_PAUSA) {
       expect(segundaLinhaDeMotivo(motivo, rotuloDeMotivoPausa(motivo))).toBeNull();
@@ -1821,6 +1821,40 @@ describe("a guarda da segunda linha de T-03 — o critério 23.6", () => {
 
   it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
     expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
+  });
+
+  /**
+   * **O critério 31.6 virado asserção, e ele fecha nos QUATRO motivos.** Antes do item 31 os dois textos
+   * coincidiam do lado do Gestor e a guarda devolvia `null`; com o rótulo dele colapsando em *"Pausada"*,
+   * eles divergem e a linha volta — em **todos** os motivos, não só no que o caso acima ilustra.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do GESTOR, a segunda linha volta em %s — e é o motivo em palavras",
+    (motivo) => {
+      const doGestor = rotuloDeStatus("pausada", motivo, "gestor");
+      expect(doGestor).toBe("Pausada");
+      expect(segundaLinhaDeMotivo(motivo, doGestor)).toBe(rotuloDeMotivoPausa(motivo));
+    },
+  );
+
+  /**
+   * **E ela continua muda para o Solicitante, nos quatro** — que é o que faz a mesma chamada servir os
+   * três recortes de T-03 e o bloco 1a de T-05 **sem argumento novo**. O cartão dele fica byte a byte
+   * igual.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do SOLICITANTE, %s não produz segunda linha — a função se auto-silencia",
+    (motivo) => {
+      const doSolicitante = rotuloDeStatus("pausada", motivo, "solicitante");
+      expect(segundaLinhaDeMotivo(motivo, doSolicitante)).toBeNull();
+    },
+  );
+
+  it("fora de pausada não há segunda linha, em nenhuma das duas lentes", () => {
+    for (const lente of ["solicitante", "gestor"] as const) {
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("resolvida", null, lente))).toBeNull();
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("em_atendimento", null, lente))).toBeNull();
+    }
   });
 });
 
