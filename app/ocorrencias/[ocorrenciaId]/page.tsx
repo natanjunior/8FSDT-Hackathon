@@ -417,6 +417,7 @@ export default async function Ocorrencia({
         ocorrenciaId={detalhe.id}
         variante={primario === "avaliar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
       />
     ),
     ...(podeAtribuir
