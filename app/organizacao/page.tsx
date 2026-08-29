@@ -4,6 +4,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
 import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
 import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
+import { EscolhaDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { resolverParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
@@ -30,10 +31,16 @@ export default async function TelaSemOrganizacaoAtiva() {
   // Quem tem organização ativa não pertence a esta tela: o shell decide para onde vai.
   if (contexto.organizacaoAtiva !== null) redirect("/");
 
-  // **Pendente ganha de tudo.** Quem tem pedido em andamento não deve ser convidado a abrir outro — e é
-  // por isso que a face B não tem campo de código.
+  // **Pendente ganha de tudo — para quem não tem vínculo nenhum.** Quem tem pedido em andamento não deve
+  // ser convidado a abrir outro, e é por isso que a face B não tem campo de código.
+  //
+  // **A condição `vinculos.length === 0` é o critério 7b.7**, e a face C já a tinha (`:42`). Sem ela, quem
+  // tem **dois vínculos, nenhum ativo e um pedido pendente** cai aqui e só recebe *"Sair"* — trancado fora
+  // das duas organizações em que já foi aceito. É alcançável desde o item 7b, porque é ele que produz o
+  // segundo vínculo e o pedido feito de dentro; `escolherAtivo` devolve `null` com dois ou mais vínculos
+  // sem cookie válido (`resolver-contexto.ts:170-177`), que é celular novo, aba anônima ou cookie expirado.
   const pendente = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "pendente");
-  if (pendente !== undefined) return <FaceB pedido={pendente} />;
+  if (pendente !== undefined && contexto.vinculos.length === 0) return <FaceB pedido={pendente} />;
 
   // **Face C — recusado.** A lista vem em `criadoEm` decrescente (spec §2.6 do 7a), então o primeiro
   // recusado é o mais recente. Só aparece para quem não tem vínculo nenhum: quem foi recusado em B e
@@ -43,7 +50,9 @@ export default async function TelaSemOrganizacaoAtiva() {
     return <FaceC nome={contexto.pessoa.nome} organizacao={recusado.organizacao.nome} />;
   }
 
-  if (contexto.vinculos.length >= 2) return <FaceD vinculos={contexto.vinculos} />;
+  if (contexto.vinculos.length >= 2) {
+    return <FaceD vinculos={contexto.vinculos} pendente={pendente ?? null} />;
+  }
   return <FaceA nome={contexto.pessoa.nome} />;
 }
 
@@ -150,39 +159,37 @@ function formatarData(iso: string): string {
  *
  * **Nome e papel, nada mais:** não há contagem de ocorrências por organização, porque não há endpoint que a
  * dê sem organização ativa (contrato §4.4).
+ *
+ * **O botão passou a fazer no item 7b**, e com isso **o último `AvisoDeFatia` do produto saiu**. A lista
+ * virou `EscolhaDeOrganizacao` — componente de cliente, porque escolher é gravar um cookie, e Server
+ * Component em renderização não grava cookie (`com-contexto.ts:506-515`).
+ *
+ * **O pedido pendente aparece aqui e não some**, e é a outra metade do critério 7b.7: quem tem dois
+ * vínculos e um pedido pendente deixou de cair na face B, então esta é a única tela em que ele ainda pode
+ * ser visto antes de entrar em alguma organização.
  */
 function FaceD({
   vinculos,
+  pendente,
 }: {
   vinculos: ReadonlyArray<{ organizacaoId: string; nome: string; papel: string }>;
+  pendente: { organizacao: { nome: string }; criadoEm: string } | null;
 }) {
   return (
     <MolduraDeTela titulo="Em qual organização você quer trabalhar?">
-      <AvisoDeFatia>
-        Escolher a organização chega na próxima tarefa — é o <code>PUT /contexto/organizacao</code>, que está
-        fora desta fatia.
-      </AvisoDeFatia>
+      <EscolhaDeOrganizacao vinculos={vinculos} />
 
-      <ul className="border-linha divide-linha-suave bg-superficie divide-y overflow-hidden rounded-md border">
-        {vinculos.map((vinculo) => (
-          <li key={vinculo.organizacaoId} className="flex flex-col gap-0.5 px-4 py-3.5">
-            <span className="text-tinta text-base leading-snug font-medium">{vinculo.nome}</span>
-            {/* A-5: nada é comunicado só por cor — o papel sempre carrega a palavra. */}
-            <span className="text-tinta-suave text-xs">{rotuloDoPapel(vinculo.papel)}</span>
-          </li>
-        ))}
-      </ul>
+      {pendente !== null && (
+        <p className="text-tinta-suave text-sm leading-relaxed">
+          Você também pediu entrada em{" "}
+          <strong className="text-tinta font-semibold">{pendente.organizacao.nome}</strong>, em{" "}
+          {formatarData(pendente.criadoEm)}. Ainda aguarda a decisão de um Gestor, e você não será avisado
+          automaticamente.
+        </p>
+      )}
 
       <BotaoDeSair />
     </MolduraDeTela>
-  );
-}
-
-function AvisoDeFatia({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="border-linha bg-superficie text-tinta-suave rounded-md border border-dashed px-3 py-2.5 text-xs leading-relaxed">
-      {children}
-    </p>
   );
 }
 
@@ -194,12 +201,6 @@ function BotaoDeSair() {
       </button>
     </form>
   );
-}
-
-function rotuloDoPapel(papel: string): string {
-  if (papel === "gestor") return "Gestor";
-  if (papel === "encarregado") return "Encarregado";
-  return "Solicitante";
 }
 
 async function resolverOuMandarParaPorta() {
