@@ -6,7 +6,7 @@ import type {
   ResultadoDoRegistro,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
-import { Ocorrencia, RegistroDeTransicao } from "@/dominio/ocorrencia";
+import { Ocorrencia, RegistroDeTransicao, TERMINAIS } from "@/dominio/ocorrencia";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
@@ -766,6 +766,71 @@ export function repositorioEscopadoDeOcorrencias(
           throw new Error("Ocorrência recém-gravada não foi relida — transação inconsistente.");
         }
         return { desfecho: "gravada" as const, ocorrencia: relida };
+      });
+    },
+
+    /**
+     * **A prioridade — um `update`, uma releitura, e NENHUM `insert`** (item 17).
+     *
+     * É a segunda porta do produto que toca a raiz sem tocar a trilha, e a ausência do `insert` é o
+     * critério 17.3 expresso em estrutura: não há como gravar registro daqui.
+     *
+     * **O predicado é a invariante 7, dita com a lista que a nomeia** — e é a única porta de escrita da
+     * ocorrência cujo predicado **não** é `status = <algo>`:
+     *
+     * ```
+     * status <> all($5::status_ocorrencia[])   -- $5 = TERMINAIS
+     * ```
+     *
+     * **Por que `TERMINAIS` e não os quatro estados admitidos.** As duas listas são o mesmo conjunto
+     * **hoje** — os quatro de `SEM_TRANSICAO["alterar-prioridade"]` são o complemento exato dos dois de
+     * `TERMINAIS`. A diferença é o que cada uma promete: `TERMINAIS` **é** a invariante 7, que é o que o
+     * nome do erro afirma (`PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL`) e o que o `detail` publicado diz
+     * (`openapi.yaml:1666`). Derivar de `SEM_TRANSICAO` faria o predicado e o erro coincidirem **por
+     * acidente**, e o acidente termina no dia em que nascer um sétimo estado não terminal que não admita o
+     * comando — aí o `409` volta a ser frase falsa, em silêncio.
+     *
+     * **E é a mesma lista que a guarda do agregado lê** (`Ocorrencia.alterarPrioridade`), então a fatia
+     * inteira tem **uma** lista para o mesmo fato.
+     *
+     * *Alternativa recusada — `status = $n::status_ocorrencia` com o status lido, como o item 25:* mais
+     * estrito do que precisa, e o custo não é teórico. Um movimento **legal** entre a leitura e a escrita
+     * — `aberta → em_analise` — responderia `conflito`, e a tela mostraria o `detail` publicado
+     * (*"a prioridade não muda depois de resolvida ou cancelada"*) sobre uma ocorrência `em_analise`.
+     * Frase falsa, e sem compensatória: o `inventario-de-telas.md:1532-1536` decidiu que este código
+     * **não tem frase de tela própria**. Ver o achado A-5 da spec do item 17.
+     *
+     * **O que o predicado NÃO defende, e é aceito por documento:** dois Gestores alterando a prioridade no
+     * mesmo estado — o segundo vence, sem aviso. É um dos **dois** pontos que a §7.9 do contrato nomeia
+     * como exposição aceita. **Não construímos defesa contra o que o contrato decidiu aceitar** — o que o
+     * produto passa a ter contra o toque errado é a janela de conserto do critério 17.7, na tela.
+     *
+     * **Este método transcreve; ele não decide.** O valor sai de `ocorrencia.prioridade`, e o
+     * `atualizada_em` recebe o instante que o comando de aplicação leu — nunca `now()`.
+     */
+    async alterarPrioridade(id, ocorrencia, em) {
+      return emTransacao(async (executar) => {
+        // O `::status_ocorrencia[]` não é decoração: sem ele o Postgres compara `unknown` com o tipo do
+        // enum e a resolução passa a depender de inferência. A atribuição do `set` não precisa — em
+        // contexto de atribuição o tipo vem da coluna, como em `aplicarTransicao`.
+        const alteradas = await executar<{ id: string }>(
+          `update ocorrencias
+              set prioridade = $3, atualizada_em = $4
+            where organizacao_id = $1 and id = $2
+              and status <> all($5::status_ocorrencia[])
+          returning id`,
+          [id, ocorrencia.prioridade, em, [...TERMINAIS]],
+        );
+
+        if (alteradas[0] === undefined) return { desfecho: "conflito" as const };
+
+        // A releitura acontece **dentro** da transação, como as quatro portas de escrita anteriores: o que
+        // volta ao cliente é o detalhe de verdade, com nome de categoria, de área e de responsável.
+        const relida = await lerPorId(executar, id);
+        if (relida === null) {
+          throw new Error("Ocorrência recém-alterada não foi relida — transação inconsistente.");
+        }
+        return { desfecho: "alterada" as const, ocorrencia: relida };
       });
     },
 

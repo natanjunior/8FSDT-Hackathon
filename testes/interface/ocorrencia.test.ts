@@ -15,6 +15,7 @@ import {
   nomeDoMotivoPausa,
   nomeDoStatus,
   opcoesDeMotivoPausa,
+  opcoesDePrioridade,
   projetarAnexo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
@@ -23,6 +24,7 @@ import {
   segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
+  CampoNaoSuportado,
   CorpoNaoSuportado,
   FormatoInvalido,
   lerCorpoOpcional,
@@ -30,6 +32,7 @@ import {
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
+  recusarSemDestino,
   type ErroDeCampo,
 } from "@/interface/http";
 import {
@@ -47,6 +50,7 @@ import {
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
+  alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
   camposEscritosPeloServidor,
   camposSemDestino,
@@ -654,6 +658,32 @@ describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeç�
 
     expect(projetado.acoesDisponiveis).not.toContain("registrar-solucao-aplicada");
   });
+
+  it.each(["aberta", "em_analise", "em_atendimento", "pausada"] as const)(
+    "em %s a projeção anuncia alterar-prioridade — o critério 17.1 no payload",
+    (status) => {
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.alterar_prioridade"] },
+      );
+
+      expect(projetado.acoesDisponiveis).toContain("alterar-prioridade");
+    },
+  );
+
+  it.each(["resolvida", "cancelada"] as const)(
+    "em %s a projeção NÃO o anuncia — a invariante 7, e é a segunda metade do critério 17.2",
+    (status) => {
+      // **É o que faz T-05 mostrar TEXTO em vez de seletor**, sem uma segunda regra sobre estados: a tela
+      // pergunta a `acoesDisponiveis`, e a resposta já carrega a D6.
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.alterar_prioridade"] },
+      );
+
+      expect(projetado.acoesDisponiveis).not.toContain("alterar-prioridade");
+    },
+  );
 });
 
 describe("`?variante=`", () => {
@@ -759,6 +789,18 @@ describe("o critério 15.5 — os nomes das opções de filtro", () => {
     expect(nomeDaPrioridade("baixa")).toBe("Baixa");
     expect(nomeDaPrioridade("normal")).toBe("Normal");
     expect(nomeDaPrioridade("alta")).toBe("Alta");
+  });
+
+  it("opcoesDePrioridade devolve os TRÊS pares, na ordem de PRIORIDADES e com a palavra", () => {
+    // **A ordem é a do Domínio**, e ela é significativa no seletor: `baixa · normal · alta` é a escala,
+    // e reordenar aqui produziria um controle que lê ao contrário do resto do produto.
+    //
+    // **A palavra sempre** — compromisso A-5. Marcador colorido sem texto é defeito, em qualquer tela.
+    expect(opcoesDePrioridade()).toStrictEqual([
+      { valor: "baixa", rotulo: "Baixa" },
+      { valor: "normal", rotulo: "Normal" },
+      { valor: "alta", rotulo: "Alta" },
+    ]);
   });
 });
 
@@ -902,6 +944,15 @@ describe("os rótulos que descem para a barra de ações", () => {
     expect(rotuloDeComando("registrar-solucao-aplicada")).toBeNull();
   });
 
+  it("alterar-prioridade NÃO tem rótulo, e é a FORMA dele — não esquecimento", () => {
+    // **A exceção, escrita.** Ele é **seletor no bloco de identidade** (`inventario-de-telas.md:811-812`),
+    // e um rótulo aqui produziria um botão na barra para um comando que a tela já oferece em outro lugar.
+    //
+    // **Sem este caso a ausência ficaria silenciosa** a partir desta fatia: `NAO_SAO_BOTAO` faz o laço
+    // pular os dois, e a regra do arquivo é que exceção é asserção, nunca filtro silencioso.
+    expect(rotuloDeComando("alterar-prioridade")).toBeNull();
+  });
+
   it("comando ainda não construído não tem rótulo, e é assim que a barra o ignora", () => {
     // Era `resolver` até o item 26, `pausar` até o 23 e `retomar` até o 24. `cancelar` é o próximo
     // comando que vira botão — item 18.
@@ -1001,6 +1052,57 @@ describe("o corpo da atribuição", () => {
     // mandou o campo, e precisa saber que ele não é aceito. É a mesma leitura de
     // `camposEscritosPeloServidor`.
     expect(camposSemDestino({ observacao: null })).toStrictEqual(["observacao"]);
+  });
+
+  it("recusarSemDestino estoura com observacao, e passa limpo sem ela — o critério 17.6", () => {
+    // **O envelope que os DOIS endpoints chamam.** Ele era função local do `route.ts` do item 19, e o
+    // comentário de lá já anunciava este dia: *"o item 17 chama esta mesma `camposSemDestino`"*. Uma cópia
+    // do `if` no segundo `route.ts` seria a segunda construção do mesmo `throw`.
+    expect(() => recusarSemDestino({ prioridade: "alta", observacao: "combinei com o zelador" })).toThrow(
+      CampoNaoSuportado,
+    );
+    expect(() => recusarSemDestino({ prioridade: "alta" })).not.toThrow();
+  });
+
+  it("recusarSemDestino nomeia o campo em erros[], que é o que o cliente lê", () => {
+    // O corpo do `422` é `erros: [{ campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" }]` — critério 17.6.
+    const erro = (() => {
+      try {
+        recusarSemDestino({ observacao: "x" });
+        return null;
+      } catch (causa) {
+        return causa as CampoNaoSuportado;
+      }
+    })();
+
+    expect(erro?.extensoes["erros"]).toStrictEqual([
+      { campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" },
+    ]);
+  });
+});
+
+describe("o corpo de POST …/alterar-prioridade — item 17", () => {
+  it("aceita os TRÊS valores, e são os do Domínio", () => {
+    for (const prioridade of ["baixa", "normal", "alta"] as const) {
+      expect(alteracaoDePrioridadeSchema.safeParse({ prioridade }).success).toBe(true);
+    }
+  });
+
+  it("recusa valor fora da lista, vazio e ausente — critério 17.1", () => {
+    // **A lista dos três é importada do Domínio** (`PRIORIDADES`), como `pausaSchema` faz com
+    // `MOTIVOS_DE_PAUSA`. Uma segunda cópia divergiria no dia em que a D6 mudar.
+    expect(alteracaoDePrioridadeSchema.safeParse({ prioridade: "urgente" }).success).toBe(false);
+    expect(alteracaoDePrioridadeSchema.safeParse({ prioridade: "" }).success).toBe(false);
+    expect(alteracaoDePrioridadeSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("campo desconhecido FORA da lista sem destino é descartado, não vira 400", () => {
+    // O recorte estreito de sempre: tornar o schema estrito trocaria *"o produto não faz isso"* por
+    // *"você escreveu errado"* em todo o resto. Quem é recusado em voz alta é `observacao`, e é o
+    // `recusarSemDestino` que faz isso — **antes** deste schema rodar.
+    const analisado = alteracaoDePrioridadeSchema.parse({ prioridade: "alta", corDoPortao: "azul" });
+
+    expect(analisado).toStrictEqual({ prioridade: "alta" });
   });
 });
 

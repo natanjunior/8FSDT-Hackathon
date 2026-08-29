@@ -6,6 +6,7 @@ import {
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   Ocorrencia,
+  PrioridadeImutavelEmEstadoTerminal,
   RegistroDeTransicao,
   transicaoPermitida,
 } from "@/dominio/ocorrencia";
@@ -196,7 +197,7 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz SETE comandos — 16, 19, 22, 26, 23, 24 e o registrar-solucao do 25", () => {
+  it("hoje traz OITO comandos — 16, 19, 22, 26, 23, 24, o 25 e o alterar-prioridade do 17", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
     expect(COMANDOS_IMPLEMENTADOS).toStrictEqual([
@@ -207,12 +208,16 @@ describe("comandosDisponiveis", () => {
       "retomar",
       "registrar-solucao-aplicada",
       "resolver",
+      "alterar-prioridade",
     ]);
   });
 
   it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
     // **Na ordem do enum `Comando`**, que é o que dispensa o cliente de ter uma segunda lista só para
     // ordenar a barra.
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "aberta",
@@ -223,6 +228,7 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
+      "alterar-prioridade",
     ]);
   });
 
@@ -243,10 +249,17 @@ describe("comandosDisponiveis", () => {
       temResponsavel: true,
     });
 
-    expect(semResponsavel).toStrictEqual(["atribuir-responsavel"]);
+    expect(semResponsavel).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
     // **Na ordem do enum**: `atribuir-responsavel` vem antes de `iniciar-atendimento`, e é o que faz o
     // R-08 morder — a ordem não é promessa de destaque (contrato §8.5).
-    expect(comResponsavel).toStrictEqual(["atribuir-responsavel", "iniciar-atendimento"]);
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
+    expect(comResponsavel).toStrictEqual([
+      "atribuir-responsavel",
+      "iniciar-atendimento",
+      "alterar-prioridade",
+    ]);
   });
 
   it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
@@ -469,9 +482,12 @@ describe("comandosDisponiveis", () => {
     // **Na ordem do enum `Comando`**: `atribuir-responsavel` vem antes de `resolver`. Que a ênfase seja
     // do `resolver` é decisão de TELA — `ACAO_PRIMARIA`, item 22 —, e não desta lista.
     //
-    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar`, `alterar-prioridade` e `cancelar`
+    // **Com o filtro PADRÃO**, que é o que a produção faz: `pausar` e `cancelar`
     // saem porque `COMANDOS_IMPLEMENTADOS` ainda não os tem. É por isso que este caso mora aqui e não na
     // tarefa 1 — antes do passo 4 ele devolveria `["atribuir-responsavel"]`.
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "em_atendimento",
@@ -479,7 +495,12 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "registrar-solucao-aplicada", "resolver"]);
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "registrar-solucao-aplicada",
+      "resolver",
+      "alterar-prioridade",
+    ]);
   });
 
   it("o Solicitante autor em em_atendimento continua com a lista VAZIA — o critério 26.3 na lista", () => {
@@ -544,9 +565,12 @@ describe("comandosDisponiveis", () => {
     ).toStrictEqual([]);
   });
 
-  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — os outros dois não existem ainda", () => {
+  it("pausada com o filtro ligado oferece atribuir, retomar e registrar solução — o outro não existe ainda", () => {
     // **Na ordem de `COMANDOS`**, que é o que dispensa o cliente de ter uma segunda lista só para
-    // ordenar a barra. Os dois que faltam são `alterar-prioridade` (17) e `cancelar` (18).
+    // ordenar a barra. O que falta é `cancelar` (18).
+    // **E ganhou `alterar-prioridade` no item 17**, que é admitido nos quatro estados não terminais e é o
+    // **nono** do enum — por isso entra no fim. A saída sai na ordem de `COMANDOS`, não na de
+    // `COMANDOS_IMPLEMENTADOS`.
     expect(
       comandosDisponiveis({
         status: "pausada",
@@ -554,7 +578,12 @@ describe("comandosDisponiveis", () => {
         ehAutor: false,
         temResponsavel: true,
       }),
-    ).toStrictEqual(["atribuir-responsavel", "retomar", "registrar-solucao-aplicada"]);
+    ).toStrictEqual([
+      "atribuir-responsavel",
+      "retomar",
+      "registrar-solucao-aplicada",
+      "alterar-prioridade",
+    ]);
   });
 
   it("pausada com filtro null devolve os CINCO, na ordem de COMANDOS — a prova de que o recorte é derivação", () => {
@@ -1247,6 +1276,87 @@ describe("Ocorrencia.reconstituir e o comando analisar", () => {
       }
     });
   });
+
+  describe("o comando alterarPrioridade — o segundo que muda a raiz sem tocar a trilha", () => {
+    /**
+     * **`em(status)` serve aqui, e é o caso mais simples do arquivo:** este comando não lê a trilha, não
+     * lê o relógio e não olha responsável. O agregado com a trilha de origem basta para os seis estados.
+     *
+     * **`ABERTA.prioridade` é `"normal"`**, que é o que `PRIORIDADE_INICIAL` grava no nascimento — então
+     * `"alta"` e `"baixa"` são as duas mudanças de verdade, e `"normal"` é a que testa o valor igual.
+     */
+    it("grava a coluna a partir dos QUATRO estados admitidos — o critério 17.1", () => {
+      // **A lista é o complemento de `TERMINAIS`**, e é a mesma que `SEM_TRANSICAO["alterar-prioridade"]`
+      // traz (`MaquinaDeEstados.ts:31`). Escrita à mão aqui de propósito: um teste que importasse a
+      // tabela provaria a constante contra ela mesma.
+      for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+        expect(em(origem).alterarPrioridade({ prioridade: "alta" }).prioridade).toBe("alta");
+        expect(em(origem).alterarPrioridade({ prioridade: "baixa" }).prioridade).toBe("baixa");
+      }
+    });
+
+    it("a trilha NÃO cresce, e a última transição é a MESMA — o critério 17.3 pelo lado do negativo", () => {
+      // **É metade do item, numa asserção.** É o segundo comando do agregado do qual isso é verdade, e a
+      // ausência é o que o contrato declara (`contrato-de-api.md:1206`).
+      const antes = em("em_atendimento");
+      const depois = antes.alterarPrioridade({ prioridade: "alta" });
+
+      expect(depois.trilha).toHaveLength(antes.trilha.length);
+      expect(depois.ultimaTransicao).toBe(antes.ultimaTransicao);
+    });
+
+    it("o status NÃO muda — não é transição, e não há para onde ir", () => {
+      for (const origem of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+        expect(em(origem).alterarPrioridade({ prioridade: "alta" }).status).toBe(origem);
+      }
+    });
+
+    it("a solução aplicada ATRAVESSA intacta — alterar prioridade não apaga o que o item 25 gravou", () => {
+      // **O defeito que o `comPrioridade` posicional impediria de nascer em silêncio**, e mesmo assim vale
+      // asserir: uma ocorrência `em_atendimento` pode ter solução registrada, e mudar a prioridade dela
+      // não pode zerar a coluna vizinha.
+      const comTexto = Ocorrencia.reconstituir({
+        ...ABERTA,
+        status: "em_atendimento",
+        solucaoAplicada: "Trocada a lâmpada da vaga 34.",
+      });
+
+      expect(comTexto.alterarPrioridade({ prioridade: "baixa" }).solucaoAplicada).toBe(
+        "Trocada a lâmpada da vaga 34.",
+      );
+    });
+
+    it("o agregado ANTES não muda — o comando devolve instância nova", () => {
+      const antes = em("em_atendimento");
+      antes.alterarPrioridade({ prioridade: "alta" });
+
+      expect(antes.prioridade).toBe("normal");
+    });
+
+    it("trocar para o MESMO valor é legal, e devolve instância nova", () => {
+      // **Não há guarda de igualdade, e a ausência é decisão.** O agregado não sabe se a escrita "vale a
+      // pena"; a tela é que não dispara `change` sem mudança. Inventar a recusa aqui produziria um `409`
+      // — ou um erro — para uma requisição que o contrato aceita.
+      const antes = em("aberta");
+      const depois = antes.alterarPrioridade({ prioridade: "normal" });
+
+      expect(depois.prioridade).toBe("normal");
+      expect(depois).not.toBe(antes);
+    });
+
+    it("estoura nos DOIS terminais, citando a invariante 7 — a guarda é rede, não decisão", () => {
+      // **Alcançar isto é defeito NOSSO** — a Aplicação confere antes com `comandoPermitido`, e é ela quem
+      // produz o `409`. Por isso é `Error`, e não `ErroDeDominio`.
+      //
+      // **E a mensagem cita a invariante 7**, ao contrário da do item 25, que não cita nenhuma: lá a
+      // invariante 1 não estava em jogo; aqui a 7 é exatamente o que a guarda defende.
+      for (const status of ["resolvida", "cancelada"] as const) {
+        expect(() => em(status).alterarPrioridade({ prioridade: "alta" })).toThrow(
+          `alterarPrioridade não age em estado terminal; a ocorrência está '${status}' — invariante 7 violada.`,
+        );
+      }
+    });
+  });
 });
 
 describe("RegistroDeTransicao.avanco", () => {
@@ -1306,5 +1416,29 @@ describe("RegistroDeTransicao.pausa — a segunda fábrica, e a primeira com cam
   it("estoura com observação em branco — o CHECK do banco distingue '' de texto, e o tipo não", () => {
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "   " })).toThrow(/observação/i);
     expect(() => RegistroDeTransicao.pausa({ ...BASE, observacao: "" })).toThrow(/observação/i);
+  });
+});
+
+describe("PrioridadeImutavelEmEstadoTerminal — a segunda recusa de estado do produto", () => {
+  it("carrega o codigo do contrato e os textos publicados, literais", () => {
+    // **O `codigo` é o contrato; `titulo` e `detalhe` são texto para humano — e os dois são LITERAIS do
+    // `openapi.yaml:1664` e `:1666`.** `detail` publicado é contrato, não frase nova.
+    const erro = new PrioridadeImutavelEmEstadoTerminal("resolvida", []);
+
+    expect(erro.codigo).toBe("PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL");
+    expect(erro.titulo).toBe("Prioridade congelada");
+    expect(erro.detalhe).toBe(
+      "A prioridade não muda depois de resolvida ou cancelada, para o dashboard não mudar o passado.",
+    );
+  });
+
+  it("carrega as DUAS extensoes, como a irma — nao ha forma de construi-la incompleta", () => {
+    // **As duas, sempre.** O exemplo do `openapi.yaml:1662-1669` mostra só `statusAtual`, e é o achado
+    // **A-2** da spec: o schema `Problema` (`:2420-2426`) declara as duas como extensões *"em conflitos de
+    // estado"*, e isto é um conflito de estado. Enviar só uma criaria a terceira forma de corpo de `409`.
+    const erro = new PrioridadeImutavelEmEstadoTerminal("cancelada", ["avaliar"]);
+
+    expect(erro.extensoes["statusAtual"]).toBe("cancelada");
+    expect(erro.extensoes["acoesDisponiveis"]).toStrictEqual(["avaliar"]);
   });
 });

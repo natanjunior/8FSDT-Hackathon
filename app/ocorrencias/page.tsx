@@ -9,7 +9,7 @@ import {
   type PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { listarCategorias, listarPedidosDeEntrada, type CategoriaLida } from "@/aplicacao/organizacao";
-import { PRIORIDADES, STATUS } from "@/dominio/ocorrencia";
+import { STATUS } from "@/dominio/ocorrencia";
 import { acaoDeSair } from "@/interface/acoes";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
@@ -24,8 +24,8 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
-  nomeDaPrioridade,
   nomeDoStatus,
+  opcoesDePrioridade,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
 
@@ -106,10 +106,10 @@ export default async function Ocorrencias({
     valor: status,
     rotulo: nomeDoStatus(status),
   }));
-  const opcoesDePrioridade: readonly OpcaoDeFiltro[] = PRIORIDADES.map((prioridade) => ({
-    valor: prioridade,
-    rotulo: nomeDaPrioridade(prioridade),
-  }));
+  // **A mesma lista, de um lugar só.** Ela era montada aqui em linha; a partir do item 17 a projeção a
+  // devolve pronta, porque o seletor de T-05 precisa exatamente dos mesmos três pares. Deixar a cópia aqui
+  // ao lado da função nova seria a segunda cópia que o critério 17.6 daquele item combate.
+  const opcoesDeFiltroPorPrioridade: readonly OpcaoDeFiltro[] = opcoesDePrioridade();
 
   /**
    * **As duas leituras da lista partem agora e não são esperadas aqui.** Elas são passadas como promessa
@@ -164,7 +164,7 @@ export default async function Ocorrencias({
           podeLerTodas={podeLerTodas}
           podeAlterarPrioridade={podeAlterarPrioridade}
           opcoesDeStatus={opcoesDeStatus}
-          opcoesDePrioridade={opcoesDePrioridade}
+          opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
           podeRegistrar={podeRegistrar}
           podeConfigurar={vinculo.pode("organizacao.configurar")}
           mostrarPrioridade={podeAlterarPrioridade}

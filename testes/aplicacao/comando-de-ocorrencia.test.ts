@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  alterarPrioridade,
   analisarOcorrencia,
   atribuirResponsavel,
   iniciarAtendimento,
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
+  PrioridadeImutavelEmEstadoTerminal,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -16,6 +18,7 @@ import {
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaPrioridade,
   type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
 } from "@/aplicacao/ocorrencia";
@@ -56,6 +59,9 @@ const DO_GESTOR = [
   // não é admitido em nenhum dos quatro.
   "ocorrencia.registrar_solucao",
   "ocorrencia.resolver",
+  // O oitavo comando construído — item 17. **Ela JÁ estava nesta lista**, escrita quando ninguém a usava,
+  // e é por isso que a oitava linha de `COMANDOS_IMPLEMENTADOS` muda TRÊS asserções deste arquivo: as que
+  // conferem `acoesDisponiveis` por igualdade em `aberta` e `em_analise`, que são estados que o admitem.
   "ocorrencia.alterar_prioridade",
   "ocorrencia.cancelar_qualquer",
 ];
@@ -151,6 +157,8 @@ let aplicados: Ocorrencia[];
 let atribuidos: { ocorrenciaId: string; dados: unknown }[];
 /** O rastro da porta do item 25. **O agregado ATRAVESSADO chega aqui**, e é o que o teste inspeciona. */
 let gravadas: { id: string; ocorrencia: Ocorrencia; em: string }[];
+/** O rastro da porta do item 17. **O agregado ATRAVESSADO chega aqui**, e é o que o teste inspeciona. */
+let alteradas: { id: string; ocorrencia: Ocorrencia; em: string }[];
 
 function repositorio(opcoes: {
   /** O que cada `carregar` devolve, na ordem; o último valor se repete. */
@@ -166,6 +174,9 @@ function repositorio(opcoes: {
   /** Se a porta do item 25 devolve `conflito`. **Separada de `conflito`**, que é da transição: os dois
    *  desfechos existem em portas diferentes, e um sinalizador só faria um caso ligar o outro. */
   solucaoEmConflito?: boolean;
+  /** Se a porta do item 17 devolve `conflito`. **Separada das outras duas**, pela mesma razão: um
+   *  sinalizador só faria um caso ligar o outro. */
+  prioridadeEmConflito?: boolean;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -208,6 +219,16 @@ function repositorio(opcoes: {
         ? { desfecho: "conflito" }
         : { desfecho: "gravada", ocorrencia: lidaDe(ocorrencia) };
     },
+    alterarPrioridade: async (
+      id: string,
+      ocorrencia: Ocorrencia,
+      em: string,
+    ): Promise<ResultadoDaPrioridade> => {
+      alteradas.push({ id, ocorrencia, em });
+      return opcoes.prioridadeEmConflito === true
+        ? { desfecho: "conflito" }
+        : { desfecho: "alterada", ocorrencia: lidaDe(ocorrencia) };
+    },
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
@@ -216,6 +237,7 @@ beforeEach(() => {
   aplicados = [];
   atribuidos = [];
   gravadas = [];
+  alteradas = [];
 });
 
 describe("analisarOcorrencia", () => {
@@ -292,7 +314,11 @@ describe("analisarOcorrencia", () => {
     //
     // **E ganhou `pausar` no item 23**, que é admitido em `em_analise` pela tabela de transições. A
     // asserção continua provando o mesmo: o corpo do `409` nomeia o que ainda dá para fazer.
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
+      "atribuir-responsavel",
+      "pausar",
+      "alterar-prioridade",
+    ]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
     expect(aplicados).toHaveLength(0);
@@ -525,7 +551,11 @@ describe("iniciarAtendimento", () => {
     // **As DUAS extensões, como o exemplo mostra.** A lista ganhou `pausar` no item 23 — em `em_analise`
     // sem responsável, pausar é o que sobra além de atribuir.
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel", "pausar"]);
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([
+      "atribuir-responsavel",
+      "pausar",
+      "alterar-prioridade",
+    ]);
 
     // **Nenhum registro é criado** — e é estrutural: o `insert` só existe dentro de `aplicarTransicao`.
     expect(aplicados).toHaveLength(0);
@@ -798,6 +828,7 @@ describe("pausarOcorrencia", () => {
     expect((erro as TransicaoNaoPermitida).extensoes["acoesDisponiveis"]).toStrictEqual([
       "analisar",
       "atribuir-responsavel",
+      "alterar-prioridade",
     ]);
   });
 
@@ -1111,5 +1142,141 @@ describe("registrarSolucaoAplicada", () => {
         { ocorrenciaId: ID, solucaoAplicada: TEXTO },
       ),
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+describe("alterarPrioridade", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-28T11:20:00.000Z" };
+
+  it.each(["aberta", "em_analise", "em_atendimento", "pausada"] as const)(
+    "caminho feliz em %s: o agregado ATRAVESSADO chega à porta com a prioridade nova — critério 17.1",
+    async (status) => {
+      const lida = await alterarPrioridade(
+        repositorio({ cargas: [agregadoEm(status)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID, prioridade: "alta" },
+      );
+
+      const enviado = alteradas[0]!;
+      expect(enviado.id).toBe(ID);
+      expect(enviado.ocorrencia.prioridade).toBe("alta");
+      // **O status atravessa intacto, e a trilha não cresce** — os dois são o critério 17.3.
+      expect(enviado.ocorrencia.status).toBe(status);
+      expect(enviado.ocorrencia.trilha).toHaveLength(1);
+      // **O relógio é lido UMA vez**, e é o do contexto.
+      expect(enviado.em).toBe("2026-08-28T11:20:00.000Z");
+
+      expect(lida.prioridade).toBe("alta");
+    },
+  );
+
+  it.each(["resolvida", "cancelada"] as const)(
+    "%s recusa com 409 PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL, e a porta NÃO é chamada — critério 17.2",
+    async (terminal) => {
+      const erro = await alterarPrioridade(
+        repositorio({ cargas: [agregadoEm(terminal)], temResponsavel: true }),
+        ctx,
+        { ocorrenciaId: ID, prioridade: "alta" },
+      ).catch((causa: unknown) => causa);
+
+      // **NÃO é `TransicaoNaoPermitida`, e é a primeira vez que isso é verdade no produto.**
+      expect(erro).toBeInstanceOf(PrioridadeImutavelEmEstadoTerminal);
+      const recusa = erro as PrioridadeImutavelEmEstadoTerminal;
+      expect(recusa.codigo).toBe("PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL");
+      // **Os textos são os do `openapi.yaml`, literais.**
+      expect(recusa.titulo).toBe("Prioridade congelada");
+      expect(recusa.detalhe).toBe(
+        "A prioridade não muda depois de resolvida ou cancelada, para o dashboard não mudar o passado.",
+      );
+      // **As DUAS extensões**, mesmo o exemplo publicado trazendo só a primeira (achado A-2).
+      expect(recusa.extensoes["statusAtual"]).toBe(terminal);
+      expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+
+      // **A recusa acontece ANTES da porta** — nenhuma escrita foi tentada.
+      expect(alteradas).toHaveLength(0);
+    },
+  );
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é gravado", async () => {
+    await expect(
+      alterarPrioridade(repositorio({ cargas: [null] }), ctx, {
+        ocorrenciaId: ID,
+        prioridade: "alta",
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(alteradas).toHaveLength(0);
+  });
+
+  it("quem não alcança a ocorrência recebe o MESMO 404 — §6.3", async () => {
+    // **A conferência de visibilidade roda mesmo sendo hoje redundante** — quem tem
+    // `ocorrencia.alterar_prioridade` tem `ocorrencia.ler_todas` no mesmo papel. Amarrar a leitura ao
+    // comando por coincidência de mapa é o acoplamento que some quando o mapa muda (contrato §4.5).
+    //
+    // **`pessoaId` é o GESTOR, e NÃO `MORADORA`.** `agregadoEm` grava `autorPessoaId: MORADORA`
+    // (`:70`), então um contexto com `MORADORA` passa por `podeLerOcorrencia` **pelo ramo do autor** e
+    // o comando teria sucesso — o caso provaria o contrário do que promete. É a mesma escolha dos cinco
+    // irmãos deste arquivo (`:260-275`, `:452`, `:571`, `:937`, `:1069`).
+    const semLerTodas = {
+      pessoaId: GESTOR,
+      permissoes: ["ocorrencia.alterar_prioridade", "ocorrencia.ler_propria"],
+    };
+
+    await expect(
+      alterarPrioridade(repositorio({ cargas: [agregadoEm("aberta")] }), semLerTodas, {
+        ocorrenciaId: ID,
+        prioridade: "alta",
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(alteradas).toHaveLength(0);
+  });
+
+  it("o conflito RELÊ e responde 409 com o estado de AGORA, sem if de escolha — a §3.4", async () => {
+    // A primeira carga é o que lemos; a segunda é o que de fato está lá agora. **O predicado só falha por
+    // terminalidade**, então não há segundo caso a distinguir — a releitura existe pelo corpo do erro.
+    const erro = await alterarPrioridade(
+      repositorio({
+        cargas: [agregadoEm("em_atendimento"), agregadoEm("resolvida")],
+        temResponsavel: true,
+        prioridadeEmConflito: true,
+      }),
+      ctx,
+      { ocorrenciaId: ID, prioridade: "alta" },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(PrioridadeImutavelEmEstadoTerminal);
+    expect((erro as PrioridadeImutavelEmEstadoTerminal).extensoes["statusAtual"]).toBe("resolvida");
+    expect(
+      (erro as PrioridadeImutavelEmEstadoTerminal).extensoes["acoesDisponiveis"],
+    ).toStrictEqual([]);
+  });
+
+  it("conflito com a ocorrência sumida vira 404 — o mesmo caminho dos outros cinco comandos", async () => {
+    await expect(
+      alterarPrioridade(
+        repositorio({
+          cargas: [agregadoEm("em_atendimento"), null],
+          temResponsavel: true,
+          prioridadeEmConflito: true,
+        }),
+        ctx,
+        { ocorrenciaId: ID, prioridade: "alta" },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("o corpo do 409 usa o ENVELOPE: em resolvida COM responsável a lista continua vazia", async () => {
+    // **A prova de que o envelope chega à recusa.** Em estado terminal a lista é vazia de qualquer forma —
+    // é o que faz este caso valer: ele mostra que `temResponsavel` **não** inventa ação onde não há.
+    const erro = await alterarPrioridade(
+      repositorio({ cargas: [agregadoEm("resolvida")], temResponsavel: true }),
+      ctx,
+      { ocorrenciaId: ID, prioridade: "baixa" },
+    ).catch((causa: unknown) => causa);
+
+    expect(
+      (erro as PrioridadeImutavelEmEstadoTerminal).extensoes["acoesDisponiveis"],
+    ).toStrictEqual([]);
   });
 });

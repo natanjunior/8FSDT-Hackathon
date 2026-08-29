@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MOTIVOS_DE_PAUSA } from "@/dominio/ocorrencia";
+import { MOTIVOS_DE_PAUSA, PRIORIDADES } from "@/dominio/ocorrencia";
 
 /**
  * O corpo de `POST /ocorrencias` — o schema `RegistroDeOcorrencia` do contrato.
@@ -245,6 +245,34 @@ export type EntradaDePausa = z.infer<typeof pausaSchema>;
 
 /**
  * ============================================================================
+ *  O corpo de `POST …/alterar-prioridade` — item 17
+ * ============================================================================
+ *
+ * **Um campo, obrigatório, e a lista dos três vem do DOMÍNIO** — `z.enum(PRIORIDADES)`, que é o padrão que
+ * `pausaSchema` já usa com `MOTIVOS_DE_PAUSA` e que `configuracao.ts` e `vinculo.ts` usam com os deles. Uma
+ * segunda cópia de `["baixa","normal","alta"]` divergiria no dia em que a D6 mudar.
+ *
+ * **Sem `corpoOpcional` no `route.ts`**, como `/pausar` e `/registrar-solucao-aplicada`: o
+ * `openapi.yaml:1639` declara `requestBody: required: true`. Corpo ausente é `415` pelo caminho normal do
+ * `comContexto`; corpo `{}` é `400` com `prioridade` em `erros[]`.
+ *
+ * **COM `recusar:` no `route.ts`, e é o segundo endpoint do produto a ter um** — critério **17.6**. O
+ * `openapi.yaml:1649` declara `observacao` aqui e **não existe destino para ela**: este comando não gera
+ * registro de transição, `ocorrencias` não tem coluna para ela, e a alteração nem aparece na linha do
+ * tempo. A função é `recusarSemDestino`, de `@/interface/http` — **reusar, não copiar**.
+ *
+ * **Nenhum `PRIORIDADE_INICIAL` aqui, e a ausência é o critério 11.3 do outro lado:** a prioridade nasce
+ * `normal` e o cliente **não** a envia no registro; enviá-la lá é `422 CAMPO_NAO_SUPORTADO` por
+ * `camposEscritosPeloServidor`. Este é o **único** schema de entrada do produto em que `prioridade` é campo.
+ */
+export const alteracaoDePrioridadeSchema = z.object({
+  prioridade: z.enum(PRIORIDADES, { error: "Escolha a prioridade." }),
+});
+
+export type EntradaDeAlteracaoDePrioridade = z.infer<typeof alteracaoDePrioridadeSchema>;
+
+/**
+ * ============================================================================
  *  O campo que o esquema não tem onde guardar — `422 CAMPO_NAO_SUPORTADO`
  * ============================================================================
  *
@@ -258,9 +286,11 @@ export type EntradaDePausa = z.infer<typeof pausaSchema>;
  * (contrato §6.2). E recusar em voz alta não é novidade no produto: `PATCH /vinculos/{pessoaId}` já
  * responde `422` a `papel`, *"em vez de fingir que o campo nunca chegou"*.
  *
- * **O nome é genérico de propósito.** O item **17** reusa esta função para `/alterar-prioridade` — é o
- * critério 17.6, e a palavra que ele usa é **reusar, não copiar**. Um nome que citasse *atribuição*
- * obrigaria o 17 a renomear ou a duplicar.
+ * **O nome é genérico de propósito, e o item 17 o provou.** Ele reusa esta lista para
+ * `/alterar-prioridade` — é o critério 17.6, e a palavra que ele usa é **reusar, não copiar**. Um nome que
+ * citasse *atribuição* obrigaria o 17 a renomear ou a duplicar. **O envelope que lança o `422` mora em
+ * `@/interface/http` (`recusa-de-campos.ts`)**, e não aqui, para que esta lista continue alcançável por
+ * componente de cliente sem arrastar `next/headers` junto.
  *
  * **Campo desconhecido FORA desta lista continua sendo descartado pelo schema**, sem erro — o mesmo
  * recorte estreito de `camposEscritosPeloServidor`, e pela mesma razão: tornar o schema estrito trocaria

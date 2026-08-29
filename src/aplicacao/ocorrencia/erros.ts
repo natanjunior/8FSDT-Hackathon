@@ -1,9 +1,14 @@
 import { AreaInvalida } from "@/aplicacao/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
-import { TransicaoNaoPermitida, type Comando, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import {
+  PrioridadeImutavelEmEstadoTerminal,
+  TransicaoNaoPermitida,
+  type Comando,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 
 /** Reexportadas, nao redefinidas — ver as notas abaixo. */
-export { AreaInvalida, TransicaoNaoPermitida };
+export { AreaInvalida, PrioridadeImutavelEmEstadoTerminal, TransicaoNaoPermitida };
 
 /**
  * `422 CATEGORIA_INVALIDA` — inexistente **nesta** organização **ou** desativada.
@@ -40,6 +45,11 @@ export class CategoriaInvalida extends ErroDeDominio {
  * Redefini-la aqui criaria duas classes com o mesmo `codigo` de contrato e textos divergentes, e é o
  * `codigo` que o cliente compara. Este módulo a reexporta e o `index.ts` a repassa: mesmo caminho de
  * `AreaInvalida`, na direção oposta.
+ *
+ * **E `PrioridadeImutavelEmEstadoTerminal` chega pelo mesmo caminho, no item 17.** Ela é a **segunda**
+ * recusa da máquina de estados, e a primeira do produto que não é `TRANSICAO_NAO_PERMITIDA`: a invariante 7
+ * é normatizada pela tabela companheira, que mora no Domínio. **Não é o caso de `ResponsavelNaoAtribuido`**,
+ * logo abaixo, que nasceu aqui porque a invariante 9 atravessa outra tabela.
  */
 
 /**

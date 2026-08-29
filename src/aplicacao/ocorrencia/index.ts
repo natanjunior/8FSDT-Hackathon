@@ -3,10 +3,12 @@ export {
   AreaInvalida,
   CategoriaInvalida,
   OcorrenciaNaoEncontrada,
+  PrioridadeImutavelEmEstadoTerminal,
   ResponsavelNaoAtribuido,
   ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
 } from "./erros";
+export { alterarPrioridade } from "./alterar-prioridade";
 export { analisarOcorrencia } from "./analisar-ocorrencia";
 export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
 export { type ContextoDoComando } from "./comando";
@@ -25,6 +27,7 @@ export {
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
+  type ResultadoDaPrioridade,
   type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
   type ResultadoDoRegistro,
