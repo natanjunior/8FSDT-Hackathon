@@ -19,3 +19,20 @@ export const nomeDeOrganizacao = z
 export const criacaoDeOrganizacaoSchema = z.object({ nome: nomeDeOrganizacao });
 
 export type EntradaDeCriacaoDeOrganizacao = z.infer<typeof criacaoDeOrganizacaoSchema>;
+
+/**
+ * O corpo de `PUT /contexto/organizacao` — **um campo, e é o contrato inteiro** (`openapi.yaml:152-163`:
+ * `required: [organizacaoId]`).
+ *
+ * **É o único lugar do contrato onde o cliente nomeia uma organização** (§4.2), e é por isso que a
+ * validação de forma não basta: quem confere que aquela organização é dela é `escolherOrganizacaoAtiva`,
+ * na camada de Aplicação. O schema só recusa o que nem UUID é.
+ *
+ * `z.object` e não `strictObject`, pela mesma razão escrita em `criacaoDeOrganizacaoSchema`: recusar
+ * chave desconhecida com `400` seria inventar comportamento que o contrato não declara.
+ */
+export const trocaDeOrganizacaoSchema = z.object({
+  organizacaoId: z.uuid("Informe a organização."),
+});
+
+export type EntradaDeTrocaDeOrganizacao = z.infer<typeof trocaDeOrganizacaoSchema>;
