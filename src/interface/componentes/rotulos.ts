@@ -5,7 +5,7 @@ import {
   type Prioridade,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
-import { nomeDoStatus, rotuloDeStatus } from "@/interface/projecoes";
+import { nomeDoStatus, rotuloDeStatus, type LenteDeRotulo } from "@/interface/projecoes";
 
 /**
  * ============================================================================
@@ -316,21 +316,29 @@ export function rotuloDoCampoDeConversa(ehAutor: boolean): string {
 }
 
 /**
- * Os rótulos de status **prontos**, para descer por prop até um componente de cliente.
+ * Os rótulos de status **prontos e na coluna de quem lê**, para descer por prop até um componente de
+ * cliente.
  *
  * **O navegador não monta rótulo** — é a mesma decisão da barra de filtros do item 15. E é mais que
  * estilo: importar `rotuloDeStatus` de dentro do componente de cliente arrastaria `@/interface/projecoes`
  * e, com ele, `comandosDisponiveis` — a máquina de estados inteira para dentro do pacote do navegador,
  * que é literalmente a **segunda cópia** que `acoesDisponiveis` existe para impedir.
  *
- * **A coluna do Solicitante**, e `pausada` degrada para *"Parada"*: quem consome isto é a frase do `409`,
- * que tem `statusAtual` e não tem motivo de pausa.
+ * **Quem consome é a frase do `409`** (`comando-de-ocorrencia.ts`), que tem `statusAtual` e **não** tem
+ * motivo de pausa. Daí o `null` no segundo argumento, e daí as duas leituras de `pausada`:
+ *
+ * | Lente | A frase |
+ * |---|---|
+ * | `"gestor"` | *"…agora ela está **Pausada**."* — a coluna dele é uma palavra por status |
+ * | `"solicitante"` | *"…agora ela está **Parada**."* — a degradação de `rotuloDeStatus` sem motivo |
+ *
+ * **A lente é obrigatória** pela mesma razão que em `rotuloDeStatus`: um padrão faria a próxima tela
+ * escolher a coluna errada em silêncio.
  */
-export function rotulosDeStatus(): Record<StatusOcorrencia, string> {
-  return Object.fromEntries(STATUS.map((status) => [status, rotuloDeStatus(status, null)])) as Record<
-    StatusOcorrencia,
-    string
-  >;
+export function rotulosDeStatus(lente: LenteDeRotulo): Record<StatusOcorrencia, string> {
+  return Object.fromEntries(
+    STATUS.map((status) => [status, rotuloDeStatus(status, null, lente)]),
+  ) as Record<StatusOcorrencia, string>;
 }
 
 /**

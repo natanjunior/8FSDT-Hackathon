@@ -52,6 +52,7 @@ import {
   resolverEscopoParaTela,
 } from "@/interface/http";
 import {
+  lenteDeRotulo,
   opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
@@ -59,6 +60,7 @@ import {
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarPaginaDeComentarios,
+  type LenteDeRotulo,
 } from "@/interface/projecoes";
 
 /**
@@ -267,9 +269,16 @@ export default async function Ocorrencia({
     }))
     .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
 
+  /**
+   * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
+   * do bloco 1a (que já vem projetado no detalhe, pela derivação de `QuemLe`), o mapa que desce até os
+   * modais, e a linha do tempo do bloco 3.
+   */
+  const lente = lenteDeRotulo(vinculo.permissoes);
+
   // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
   // diferentes — ver `rotulos.ts`.
-  const rotulos = rotulosDeStatus();
+  const rotulos = rotulosDeStatus(lente);
 
   /**
    * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
@@ -792,7 +801,11 @@ export default async function Ocorrencia({
       */}
       <section id="linha-do-tempo" className="flex flex-col gap-2">
         <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-          <LinhaDoTempo eventos={linhaDoTempoPedida} pessoaIdDeQuemLe={escopo.ctx.pessoaId} />
+          <LinhaDoTempo
+            eventos={linhaDoTempoPedida}
+            pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+            lente={lente}
+          />
         </Suspense>
       </section>
 
@@ -945,11 +958,14 @@ function OcorrenciaNaoEncontradaNaTela({
 async function LinhaDoTempo({
   eventos,
   pessoaIdDeQuemLe,
+  lente,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   pessoaIdDeQuemLe: string;
+  /** A coluna do `glossario.md` §4 desta leitura — item 31, critério 31.7. */
+  lente: LenteDeRotulo;
 }) {
-  const itens = (await eventos).map(projetarEventoDaLinhaDoTempo);
+  const itens = (await eventos).map((evento) => projetarEventoDaLinhaDoTempo(evento, lente));
 
   return (
     <>

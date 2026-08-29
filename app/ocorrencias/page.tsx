@@ -25,10 +25,12 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
+  lenteDeRotulo,
   nomeDoStatus,
   opcoesDePrioridade,
   projetarContexto,
   projetarPaginaDeOcorrencias,
+  type LenteDeRotulo,
 } from "@/interface/projecoes";
 
 /**
@@ -86,6 +88,17 @@ export default async function Ocorrencias({
   const { ctx, repos, resolucao } = escopo;
   const vinculo = ctx.vinculo;
   const podeLerTodas = vinculo.pode("ocorrencia.ler_todas");
+
+  /**
+   * **A coluna do rótulo, e ela NÃO é o `podeLerTodas` acima com outro nome.**
+   *
+   * Os dois saem da mesma permissão hoje, e continuam sendo coisas diferentes: `visibilidade`, mais
+   * abaixo, é `podeLerTodas` **cruzado com o filtro**; a lente **não pode depender do filtro**. O Gestor
+   * que toca *"Só as minhas"* continua lendo *"Aberta"* — permissão, nunca recorte (critério 28.6, e
+   * §3.2 da spec do 31).
+   */
+  const lente = lenteDeRotulo(vinculo.permissoes);
+
   const podeRegistrar = vinculo.pode("ocorrencia.registrar");
   const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");
   const organizacao = resolucao.ativo?.organizacao ?? null;
@@ -176,6 +189,7 @@ export default async function Ocorrencias({
           consultaAtual={consultaAtual}
           nomeDaOrganizacao={organizacao?.nome ?? null}
           podeLerTodas={podeLerTodas}
+          lente={lente}
           podeAlterarPrioridade={podeAlterarPrioridade}
           opcoesDeStatus={opcoesDeStatus}
           opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
@@ -259,6 +273,7 @@ async function Lista({
   consultaAtual,
   nomeDaOrganizacao,
   podeLerTodas,
+  lente,
   podeAlterarPrioridade,
   opcoesDeStatus,
   opcoesDePrioridade,
@@ -273,6 +288,8 @@ async function Lista({
   consultaAtual: string;
   nomeDaOrganizacao: string | null;
   podeLerTodas: boolean;
+  /** Qual coluna do `glossario.md` §4 os itens da lista mostram — item 31. */
+  lente: LenteDeRotulo;
   podeAlterarPrioridade: boolean;
   opcoesDeStatus: readonly OpcaoDeFiltro[];
   opcoesDePrioridade: readonly OpcaoDeFiltro[];
@@ -283,7 +300,7 @@ async function Lista({
   pessoaIdDeQuemLe: string;
 }) {
   const [resultado, listaDeCategorias] = await Promise.all([pagina, categorias]);
-  const projetada = projetarPaginaDeOcorrencias(resultado);
+  const projetada = projetarPaginaDeOcorrencias(resultado, lente);
 
   /**
    * §3.8 — o **menu** oferece só as ativas, por coerência com T-04, que *"nunca oferece categoria

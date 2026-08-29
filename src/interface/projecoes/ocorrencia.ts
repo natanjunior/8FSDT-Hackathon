@@ -30,12 +30,11 @@ import { projetarAnexo } from "./anexo";
  *
  * A tabela do glossário é **a fonte**: *"o contrato de API a consome, e nenhum rótulo nasce fora daqui"*.
  *
- * **Esta é a coluna do Solicitante, e a escolha é decisão da spec do item 11 (§3.3).** A tabela tem duas
- * colunas e depende de quem lê; a **dependência de papel é do item 31**, que é o que ele tem de próprio.
- * Até lá, a coluna do Solicitante é o padrão — porque a do Gestor para `aberta` é *"Aberta"*, que é o
- * enum com maiúscula, exatamente o que este campo existe para não ser.
+ * **Estas são as duas metades da coluna do Solicitante.** A coluna do Gestor é `NOME_DO_STATUS`, mais
+ * abaixo neste arquivo, e quem escolhe entre as duas é `lenteDeRotulo`.
  *
- * **Custo declarado:** até o item 31, um Gestor que registre lê *"Recebida — aguardando análise"*.
+ * **O custo que a spec do item 11 declarou — um Gestor lendo *"Recebida — aguardando análise"* — deixou
+ * de existir no item 31.**
  *
  * **`Pausada` tem quatro rótulos, não um molde com o motivo interpolado** (regra 2 do glossário): frase
  * montada em tempo de execução produz *"Parada, esperando aguardando peça"*.
@@ -92,7 +91,34 @@ export function lenteDeRotulo(permissoes: readonly string[]): LenteDeRotulo {
   return permissoes.includes("ocorrencia.ler_todas") ? "gestor" : "solicitante";
 }
 
-export function rotuloDeStatus(status: StatusOcorrencia, motivoPausa: MotivoPausa | null): string {
+/**
+ * O rótulo de um status **na coluna de quem lê** — `glossario.md` §4.
+ *
+ * - `"solicitante"` → a coluna de linguagem de gente, e em `pausada` o motivo **está dentro do rótulo**:
+ *   são quatro frases, uma por motivo (regra 2 do glossário).
+ * - `"gestor"` → `NOME_DO_STATUS` (declarada mais abaixo neste arquivo), o nome interno, **inclusive em
+ *   `pausada`, que colapsa em *"Pausada"* e ignora o motivo**. São as quatro linhas de `pausada` da
+ *   tabela — `glossario.md:119-122` —, e é ela que faz a segunda linha de T-03 voltar sozinha
+ *   (critério 31.6).
+ *
+ * **A lente é obrigatória, e isso é o mecanismo do item 31.** Um valor padrão faria toda chamada futura
+ * escolher a coluna errada em silêncio; obrigatória, o compilador obriga cada sítio novo a decidir.
+ *
+ * **Uma tabela, duas perguntas, zero segunda cópia.** `NOME_DO_STATUS` passa a ter dois leitores —
+ * `nomeDoStatus` (*"qual conjunto você quer"*: as opções do filtro, `descricaoDoRecorte`) e o ramo Gestor
+ * daqui (*"o que está acontecendo com esta ocorrência"*). As duas funções continuam existindo porque
+ * respondem perguntas diferentes, **e as strings continuam sendo escritas uma vez só**.
+ *
+ * **`NOME_DO_STATUS` é declarada ~190 linhas ABAIXO desta função, e isso funciona:** `const` em escopo de
+ * módulo é inicializada quando o módulo carrega, e esta função só é **chamada** depois disso. Ela mora ao
+ * lado de `nomeDoStatus`, que é o outro leitor dela.
+ */
+export function rotuloDeStatus(
+  status: StatusOcorrencia,
+  motivoPausa: MotivoPausa | null,
+  lente: LenteDeRotulo,
+): string {
+  if (lente === "gestor") return NOME_DO_STATUS[status];
   if (status !== "pausada") return ROTULO_DE_STATUS[status];
   // Sem motivo não deveria acontecer — o `CHECK` do banco garante o par —, mas o rótulo não é o lugar
   // de estourar: degrada para a palavra, que continua sendo texto e não cor (A-5).
@@ -400,18 +426,23 @@ export function projetarTransicao(lida: TransicaoLida) {
  *
  * **É AQUI que o `rotulo` é calculado, e não na função de aplicação.** `src/aplicacao/` não importa
  * `@/interface/**` (ADR-0006, regra 3), e é a projeção que o contrato nomeia como dona dos formatos
- * (§8.8). `rotuloDeStatus` devolve hoje a coluna do Solicitante para todo mundo — o **item 31** troca o
- * que ela devolve, e esta função não muda uma linha quando ele chegar.
+ * (§8.8).
  *
- * **Custo declarado, para ninguém marcar como defeito:** até o 31, o Gestor lê a linha do tempo no
- * vocabulário do Solicitante. É a mesma divergência que T-03 e T-05 carregam desde o item 23.
+ * **A lente entra por PARÂMETRO, e não é derivada aqui.** Diferente de `projetarOcorrenciaDetalhe`, esta
+ * função não recebe `QuemLe` — um evento não tem leitor embutido —, então quem a chama decide. São duas
+ * estradas, e as duas têm a lente na mão de graça: `ctx.vinculo` na rota e `vinculo` no Server Component
+ * de T-05.
+ *
+ * **Em `pausada` o Gestor lê *"Pausada"* seca** — critério 31.7, e é a descrição do campo `rotulo` no
+ * `openapi.yaml:2994-3006`, não decisão desta função. O motivo viaja no campo `motivoPausa` logo abaixo,
+ * *"como campo próprio ao lado do rótulo — não embutido nele"* (`glossario.md:137-139`).
  *
  * **As TRÊS formas existem desde o item 30.** `mensagem` é a última, e ela fecha o `oneOf` que o
  * `openapi.yaml` publica desde sempre. **O mesmo texto aparece no bloco 4 de T-05**, sem aspas — e a
  * duplicação é intencional, não defeito a corrigir: a linha do tempo diz *o que aconteceu*, a conversa é
  * *onde se escreve* (critério 30.8).
  */
-export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
+export function projetarEventoDaLinhaDoTempo(evento: EventoLido, lente: LenteDeRotulo) {
   if (evento.tipo === "atribuicao") {
     return {
       tipo: "atribuicao" as const,
@@ -441,7 +472,7 @@ export function projetarEventoDaLinhaDoTempo(evento: EventoLido) {
     tipo: "transicao" as const,
     ocorridoEm: evento.ocorridoEm,
     autor: transicao.autor,
-    rotulo: rotuloDeStatus(transicao.statusNovo, transicao.motivoPausa),
+    rotulo: rotuloDeStatus(transicao.statusNovo, transicao.motivoPausa, lente),
     statusAnterior: transicao.statusAnterior,
     statusNovo: transicao.statusNovo,
     // Os três são **visíveis ao Solicitante** por decisão do hub (Q-API-3, resposta (a)) — critério 29.2.
@@ -471,13 +502,18 @@ export type QuemLe = {
  * renderiza exatamente esta lista precisa distinguir *"não há o que fazer"* de *"a lista não veio"*.
  * Hoje ela sai vazia porque `COMANDOS_IMPLEMENTADOS` está vazia, e vazia é **verdade sobre o produto de
  * hoje**: nenhum dos onze endpoints de comando foi construído.
+ *
+ * **A lente do rótulo é DERIVADA de `quemLe.permissoes`, e não passada.** É a assimetria deliberada do
+ * item 31: onde `QuemLe` já chega, um terceiro argumento que é função pura do segundo convidaria os dois
+ * a discordarem — e são **onze rotas de comando** mais `GET /ocorrencias/{id}`, `POST /ocorrencias` e
+ * T-05 em que isso poderia acontecer. **Nenhuma delas mudou de assinatura por causa do 31.**
  */
 export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) {
   return {
     id: lida.id,
     titulo: lida.titulo,
     status: lida.status,
-    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa),
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lenteDeRotulo(quemLe.permissoes)),
     motivoPausa: lida.motivoPausa,
     prioridade: lida.prioridade,
     categoria: { id: lida.categoria.id, nome: lida.categoria.nome, icone: lida.categoria.icone },
@@ -527,13 +563,16 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
  * materializada. **`responsavel` vem preenchido desde o item 19**, quando há atribuição vigente — a
  * projeção só repassa o que `OcorrenciaResumoLida` traz, e quem garante *uma no máximo* é
  * `atribuicoes_vigente_uk`, não este arquivo.
+ *
+ * **A lente entra por PARÂMETRO, e não derivada:** o resumo não recebe `QuemLe` e não precisa de
+ * `pessoaId` — pedir o objeto inteiro para usar um campo seria alargar a assinatura sem razão.
  */
-export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
+export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida, lente: LenteDeRotulo) {
   return {
     id: lida.id,
     titulo: lida.titulo,
     status: lida.status,
-    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa),
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente),
     motivoPausa: lida.status === "pausada" ? lida.motivoPausa : null,
     prioridade: lida.prioridade,
     categoria: { id: lida.categoria.id, nome: lida.categoria.nome },
@@ -591,11 +630,11 @@ export function decodificarCursor(bruto: string): CursorDeListagem | null {
  * próxima página produziria um *"Carregar mais"* que devolve zero itens — o vazio que é defeito chegando
  * como `200`, que é a classe do achado R-15 do protótipo.
  */
-export function projetarPaginaDeOcorrencias(pagina: PaginaDeOcorrencias) {
+export function projetarPaginaDeOcorrencias(pagina: PaginaDeOcorrencias, lente: LenteDeRotulo) {
   const ultimo = pagina.itens[pagina.itens.length - 1];
 
   return {
-    itens: pagina.itens.map(projetarOcorrenciaResumo),
+    itens: pagina.itens.map((item) => projetarOcorrenciaResumo(item, lente)),
     proximoCursor: pagina.temMais && ultimo !== undefined ? codificarCursor(ultimo) : null,
     visibilidadeAplicada: pagina.visibilidadeAplicada,
   };
