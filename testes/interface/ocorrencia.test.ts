@@ -1004,6 +1004,118 @@ describe("o critério 31.2 — as duas colunas do glossário, para os seis statu
   });
 });
 
+/**
+ * ============================================================================
+ *  Os quatro critérios de OBSERVAÇÃO do item 31 — 31.1, 31.3, 31.4 e 31.5
+ * ============================================================================
+ *
+ * **Os quatro já eram verdade antes deste item, e é isso que os torna necessários.** Eles são regras que
+ * valem *"para qualquer rótulo novo"* (`glossario.md:126`): o que o item entrega é transformá-los em
+ * teste, e é assim que o dia em que alguém escrever *"Resolvida — conte como foi"* ou *"o síndico está
+ * avaliando"* deixa de passar em silêncio.
+ *
+ * **Percorrem as TABELAS INTEIRAS, e não um valor cada.** É a única forma de o teste falhar quando um
+ * status **novo** nascer sem rótulo — a mesma disciplina de `ACAO_PRIMARIA`.
+ */
+describe("os critérios de observação do item 31 — as regras do glossário §4, viradas rede", () => {
+  /** Toda string que este produto pode mostrar como rótulo de status ou de espera. */
+  function todosOsRotulos(): readonly string[] {
+    const rotulos: string[] = [];
+    for (const status of STATUS) {
+      rotulos.push(rotuloDeStatus(status, null, "solicitante"));
+      rotulos.push(rotuloDeStatus(status, null, "gestor"));
+      rotulos.push(nomeDoStatus(status));
+    }
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      rotulos.push(rotuloDeStatus("pausada", motivo, "solicitante"));
+      rotulos.push(rotuloDeStatus("pausada", motivo, "gestor"));
+      rotulos.push(rotuloDeMotivoPausa(motivo));
+    }
+    return rotulos;
+  }
+
+  /**
+   * **31.5 — e a razão é a D3, não polidez.** A D19 nasceu de uma entrevista com um síndico, e a redação
+   * original dizia *"o síndico está avaliando"*. Isso trava o produto em condomínio, enquanto a **D3**
+   * admite empresa e bairro como Organização — e o multi-tenant é a adição `NOSSO` mais cara do projeto
+   * para ser desmentida por uma palavra de interface.
+   */
+  it("nenhum rótulo contém a palavra 'síndico', em nenhuma caixa — critério 31.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo.toLowerCase()).not.toContain("síndico");
+      expect(rotulo.toLowerCase()).not.toContain("sindico");
+    }
+  });
+
+  it("nenhum rótulo trava o produto numa das três formas de Organização — regra 1 do glossário", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("zelador");
+      expect(minusculo).not.toContain("porteiro");
+      expect(minusculo).not.toContain("condomínio");
+    }
+  });
+
+  /**
+   * **31.3 — quatro rótulos, não um molde.** *"Frase montada em tempo de execução produz «Parada,
+   * esperando aguardando peça»"* (regra 2 do glossário). A forma literal disso é o identificador do enum
+   * aparecendo dentro de um texto em português.
+   */
+  it("os quatro rótulos de pausa são DISTINTOS entre si — critério 31.3", () => {
+    const rotulos = MOTIVOS_DE_PAUSA.map((motivo) =>
+      rotuloDeStatus("pausada", motivo, "solicitante"),
+    );
+    expect(rotulos).toHaveLength(4);
+    expect(new Set(rotulos).size).toBe(4);
+  });
+
+  it("nenhum rótulo interpola o identificador do enum numa frase — critério 31.3", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo).not.toContain("_");
+      // E nenhum rótulo É o valor cru do enum.
+      expect(STATUS as readonly string[]).not.toContain(rotulo);
+      expect(MOTIVOS_DE_PAUSA as readonly string[]).not.toContain(rotulo);
+    }
+  });
+
+  /**
+   * **31.4 — rótulo é estado, não convite.** *"Resolvida — conte como foi"* mistura o que a ocorrência é
+   * com o que se pede de quem lê. **O convite pertence à tela** — é o `CONVITE_A_AVALIAR` do item 27, que
+   * vive em `rotulos.ts` e é renderizado ao LADO do rótulo, nunca dentro dele.
+   */
+  it("resolvida é 'Resolvida' e nada mais, nas DUAS lentes — critério 31.4", () => {
+    expect(rotuloDeStatus("resolvida", null, "solicitante")).toBe("Resolvida");
+    expect(rotuloDeStatus("resolvida", null, "gestor")).toBe("Resolvida");
+  });
+
+  it("nenhum rótulo carrega convite — nem verbo no imperativo do 27.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("conte");
+      expect(minusculo).not.toContain("avalie");
+      expect(minusculo).not.toContain("clique");
+    }
+  });
+
+  /**
+   * **31.1 — nenhum cliente monta a frase.** As duas projeções que a tela consome emitem `statusRotulo`
+   * como `string` **pronta**, e o que desce ao navegador é texto. É a versão executável do *"calculado no
+   * servidor, nunca no cliente"* do `glossario.md:102`.
+   */
+  it("resumo e detalhe emitem statusRotulo como string pronta — critério 31.1", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "gestor");
+    expect(typeof resumo.statusRotulo).toBe("string");
+    expect(resumo.statusRotulo).toBe("Aberta");
+
+    const detalhe = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), {
+      pessoaId: QUEM_LE.pessoaId,
+      permissoes: ["ocorrencia.ler_todas"],
+    });
+    expect(typeof detalhe.statusRotulo).toBe("string");
+    expect(detalhe.statusRotulo).toBe("Aberta");
+  });
+});
+
 describe("o critério 15.5 — os nomes das opções de filtro", () => {
   it("os seis status têm nome, e nenhum é o enum cru", () => {
     for (const status of STATUS) {
