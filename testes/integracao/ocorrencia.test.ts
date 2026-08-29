@@ -917,6 +917,52 @@ describe("a atribuição contra Postgres — item 19", () => {
     expect(linhas[1]!.encerrada_em).toBeNull();
   });
 
+  it("atribuicoes() devolve UMA linha por atribuição, em ordem, com o encerramento da primeira — critério 29.3", async () => {
+    const repo = portas().ocorrencias;
+    const id = await registrada("Reatribuição para a linha do tempo");
+
+    await repo.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: "2026-08-20T13:00:00.000Z",
+    });
+    await repo.atribuirResponsavel(id, {
+      responsavelPessoaId: pessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: "2026-08-21T09:30:00.000Z",
+    });
+
+    const lidas = await repo.atribuicoes(id);
+
+    // **n atribuições, n linhas** — o `select` não filtra `encerrada_em`, e é o que faz a reatribuição
+    // "aparecer duas vezes" na linha do tempo.
+    expect(lidas).toHaveLength(2);
+    // **Ordem crescente por `atribuido_em`** — é o `order by` que casa com o índice do item 19.
+    expect(lidas.map((a) => a.atribuidoEm)).toStrictEqual([
+      "2026-08-20T13:00:00.000Z",
+      "2026-08-21T09:30:00.000Z",
+    ]);
+
+    // A primeira ficou encerrada, com motivo, no MESMO instante em que a segunda começou.
+    expect(lidas[0]?.encerradaEm).toBe("2026-08-21T09:30:00.000Z");
+    expect(lidas[0]?.motivoEncerramento).toBe("reatribuicao");
+    expect(lidas[0]?.responsavel).toStrictEqual({
+      pessoaId: segundoPessoaId,
+      nome: `Zelador ${SUFIXO}`,
+    });
+
+    // A vigente não tem encerramento — e é o par do CHECK: sem `encerrada_em`, sem motivo.
+    expect(lidas[1]?.encerradaEm).toBeNull();
+    expect(lidas[1]?.motivoEncerramento).toBeNull();
+    expect(lidas[1]?.responsavel.pessoaId).toBe(pessoaId);
+
+    // **O autor é quem ATRIBUIU**, nunca o responsável — é a colisão nº 2 do glossário, e é o campo
+    // `autor` que o `EventoAtribuicao` do contrato exige. Na primeira linha os dois são pessoas
+    // DIFERENTES, que é o único jeito de o caso provar que não foram trocados.
+    expect(lidas[0]?.autor.pessoaId).toBe(pessoaId);
+    expect(lidas[0]?.autor.pessoaId).not.toBe(lidas[0]?.responsavel.pessoaId);
+  });
+
   it("vínculo REVOGADO devolve o desfecho de 422 — a FK sozinha o aceitaria", async () => {
     const id = await registrada("Corrimão solto");
     const resultado = await portas().ocorrencias.atribuirResponsavel(id, {

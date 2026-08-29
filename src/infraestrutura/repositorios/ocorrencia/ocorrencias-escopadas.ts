@@ -1,5 +1,6 @@
 import type {
   AnexoLido,
+  AtribuicaoLida,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
@@ -61,6 +62,16 @@ type LinhaDeTransicao = {
   observacao: string | null;
   motivo_pausa: TransicaoLida["motivoPausa"];
   motivo_cancelamento: TransicaoLida["motivoCancelamento"];
+};
+
+type LinhaDeAtribuicao = {
+  atribuido_em: Date;
+  encerrada_em: Date | null;
+  motivo_encerramento: AtribuicaoLida["motivoEncerramento"];
+  responsavel_pessoa_id: string;
+  responsavel_nome: string;
+  atribuido_por_pessoa_id: string;
+  atribuido_por_nome: string;
 };
 
 type LinhaDeAnexo = {
@@ -156,6 +167,37 @@ const SELECT_DA_TRILHA = `
    order by r.sequencia`;
 
 /**
+ * As atribuições de uma ocorrência — a segunda fonte da linha do tempo (item 29).
+ *
+ * **DOIS pares de `join`, e os dois partem de `vinculos`** — o do responsável e o de quem atribuiu. É o
+ * item do DoD que o lint não alcança, porque a consulta partindo de `pessoas` seria legítima: ela só
+ * enxergaria o cadastro do sistema inteiro. É a mesma forma dos três `join` de autor deste arquivo.
+ *
+ * **Sem `limit` e sem `where encerrada_em is null`**, ao contrário do `LATERAL_DO_RESPONSAVEL`: aqui a
+ * pergunta é *"o que aconteceu"*, e a reatribuição precisa aparecer duas vezes (critério 29.3).
+ *
+ * **`order by at.atribuido_em`** é exatamente o índice `atribuicoes_linha_do_tempo_ix
+ * (ocorrencia_id, atribuido_em)`, criado pela migração 008 nomeando este item.
+ */
+const SELECT_DAS_ATRIBUICOES = `
+  select at.atribuido_em,
+         at.encerrada_em,
+         at.motivo_encerramento,
+         at.responsavel_pessoa_id,
+         pr.nome as responsavel_nome,
+         at.atribuido_por_pessoa_id,
+         pq.nome as atribuido_por_nome
+    from atribuicoes at
+    join vinculos vr on vr.pessoa_id = at.responsavel_pessoa_id
+                    and vr.organizacao_id = at.organizacao_id
+    join pessoas  pr on pr.id = vr.pessoa_id
+    join vinculos vq on vq.pessoa_id = at.atribuido_por_pessoa_id
+                    and vq.organizacao_id = at.organizacao_id
+    join pessoas  pq on pq.id = vq.pessoa_id
+   where at.organizacao_id = $1 and at.ocorrencia_id = $2
+   order by at.atribuido_em`;
+
+/**
  * Os anexos de uma ocorrência, pelo índice `(organizacao_id, ocorrencia_id)`.
  *
  * **`thumbnail_chave` não sai — sai se ela existe.** A projeção monta as duas URLs a partir do `id`, que
@@ -197,6 +239,16 @@ function montarTransicao(linha: LinhaDeTransicao): TransicaoLida {
     observacao: linha.observacao,
     motivoPausa: linha.motivo_pausa,
     motivoCancelamento: linha.motivo_cancelamento,
+  };
+}
+
+function montarAtribuicao(linha: LinhaDeAtribuicao): AtribuicaoLida {
+  return {
+    responsavel: { pessoaId: linha.responsavel_pessoa_id, nome: linha.responsavel_nome },
+    autor: { pessoaId: linha.atribuido_por_pessoa_id, nome: linha.atribuido_por_nome },
+    atribuidoEm: linha.atribuido_em.toISOString(),
+    encerradaEm: linha.encerrada_em === null ? null : linha.encerrada_em.toISOString(),
+    motivoEncerramento: linha.motivo_encerramento,
   };
 }
 
@@ -1120,6 +1172,15 @@ export function repositorioEscopadoDeOcorrencias(
     async trilha(ocorrenciaId) {
       const linhas = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [ocorrenciaId]);
       return linhas.map(montarTransicao);
+    },
+    /**
+     * **`[ocorrenciaId]` e não `[organizacaoId, ocorrenciaId]`.** `escoparConsulta` injeta a organização
+     * como `$1` — este arquivo **não recebe** o identificador (ADR-0003). É a mesma chamada de `trilha`,
+     * logo acima.
+     */
+    async atribuicoes(ocorrenciaId) {
+      const linhas = await consulta<LinhaDeAtribuicao>(SELECT_DAS_ATRIBUICOES, [ocorrenciaId]);
+      return linhas.map(montarAtribuicao);
     },
   };
 }

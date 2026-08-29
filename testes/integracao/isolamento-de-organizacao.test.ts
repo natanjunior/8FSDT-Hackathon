@@ -74,6 +74,12 @@ let idDoAnexoEmB: string;
  *  entre execuções — que é o que o `UNIQUE (chave)` GLOBAL de `anexos` exige. */
 const chaveDoAnexoEmA = `anx_iso_a_${SUFIXO}`;
 const chaveDoAnexoEmB = `anx_iso_b_${SUFIXO}`;
+/** **Instantes literais e distintos**, e é a `chaveDaLinha` da nona entrada: `AtribuicaoLida` não tem
+ *  `id` — modelo de leitura correto não expõe chave interna —, e `responsavel.pessoaId` não serve porque
+ *  só `idSindica` tem vínculo nas DUAS organizações, o que faria a chave ser legitimamente compartilhada
+ *  e enfraqueceria o caso. */
+const ATRIBUIDA_EM_A = "2026-08-01T10:00:00.000Z";
+const ATRIBUIDA_EM_B = "2026-08-02T11:00:00.000Z";
 /** A categoria da ocorrência de B — o identificador de FORA que o filtro do item 15 aceita do cliente. */
 let idDaCategoriaDeB: string;
 
@@ -179,6 +185,16 @@ beforeAll(async () => {
        values ($1, $2, 'imagem', $3, 'image/jpeg', 391244, $4)
        returning id`,
       [organizacaoId, lida.id, chaveDoAnexo, idSindica],
+    );
+
+    // **A entrada de isolamento semeia só o seu agregado** (§7.1): a Pessoa e a organização são da suíte.
+    // A FK `atribuicoes_responsavel_fk` aponta para `vinculos (pessoa_id, organizacao_id)`, e `idSindica`
+    // tem vínculo nas duas — é a mesma razão que faz a ocorrência caber nas duas.
+    await consulta(
+      `insert into atribuicoes
+         (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, atribuido_em)
+       values ($1, $2, $3, $3, $4::timestamptz)`,
+      [organizacaoId, lida.id, idSindica, organizacaoId === idRecanto ? ATRIBUIDA_EM_A : ATRIBUIDA_EM_B],
     );
 
     guardar(lida.id, anexo!.id);
@@ -703,6 +719,43 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [idDaOcorrenciaEmB];
+      },
+    },
+  });
+
+  /**
+   * **A nona entrada, e a primeira da linha do tempo (item 29).** Ela semeia **apenas o próprio
+   * agregado** — as pessoas e as organizações são da suíte (§7.1).
+   *
+   * O que ela mira é o `SELECT_DAS_ATRIBUICOES`: uma consulta com **dois pares de `join` que partem de
+   * `vinculos`** e alcançam `pessoas`, que é global. Se qualquer um dos quatro perdesse o
+   * `and v.organizacao_id = at.organizacao_id`, ou se o `$1` sumisse do `where`, a linha do tempo de uma
+   * ocorrência de Recanto passaria a nomear quem é da Aurora — **e nenhuma das oito entradas anteriores
+   * acenderia**, porque nenhuma delas lê `atribuicoes` por ocorrência.
+   *
+   * **A consulta pede as DUAS ocorrências com o escopo de UMA**, como a entrada de `GET /ocorrencias/{id}`
+   * faz: é o que prova que a de fora devolve lista vazia em vez de linha alheia.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/linha-do-tempo",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const lidas = await Promise.all([
+        repo.atribuicoes(idDaOcorrenciaEmA),
+        repo.atribuicoes(idDaOcorrenciaEmB),
+      ]);
+      return lidas.flat();
+    },
+    chaveDaLinha: (atribuicao) => atribuicao.atribuidoEm,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. Aqui as chaves são literais e escapariam por acaso; o getter fica pela mesma razão
+    // que a entrada de `GET /ocorrencias/{id}` a carrega: a forma é a mesma para quem lê depois.
+    esperadas: {
+      get emA() {
+        return [ATRIBUIDA_EM_A];
+      },
+      get emB() {
+        return [ATRIBUIDA_EM_B];
       },
     },
   });
