@@ -22,7 +22,7 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  *
  * | Recorte | Onde | Forma |
  * |---|---|---|
- * | **A** · `apenas_minhas` | qualquer largura | cartão alto, rótulo em destaque, **sem prioridade** |
+ * | **A** · `apenas_minhas` | qualquer largura | cartão alto, rótulo em destaque, **prioridade por permissão** |
  * | **B** · `todas`, ≥ `md` | tabela | seis colunas de comparação |
  * | **C** · `todas`, celular | cartão de 3 linhas | **sem categoria** — achado P-04, aprovado pelo hub |
  *
@@ -220,13 +220,29 @@ const CONVITE_A_AVALIAR = "Conte como foi";
 
 /**
  * **Recorte A.** O `statusRotulo` é a primeira linha e é o que fica em destaque — é a resposta literal a
- * *"o que aconteceu com o meu pedido?"*. Sem prioridade: é decisão do Gestor, e não há nada que o
- * Solicitante faça com ela.
+ * *"o que aconteceu com o meu pedido?"*.
+ *
+ * **A prioridade aparece por PERMISSÃO, nunca por recorte** — critério **28.6**, e é a correção **P-03**
+ * do protótipo. As duas metades da regra:
+ *
+ * - **O Solicitante continua sem ver**, e o critério **28.4** fica literal e intacto: ele não tem
+ *   `ocorrencia.alterar_prioridade` em nenhum dos dois desenhos de papel (`Permissao.ts:38-44`). *"É
+ *   decisão do Gestor, e não há nada que o Solicitante faça com ela."*
+ * - **Quem ganha é o síndico morador** — o Gestor que toca *"Ver as minhas"*. Até aqui ele perdia a
+ *   coluna de um campo que ele mesmo altera, **no mesmo gesto** em que a barra continuava lhe oferecendo
+ *   o chip `Prioridade ▾`: o produto oferecia filtrar por um campo que se recusava a exibir.
+ *
+ * **A ordem na primeira linha, e por que a linha embrulha:** a marca do item 27 vem primeiro, a etiqueta
+ * de prioridade depois. A marca é **convite e tem prazo**; a prioridade é **fato e não tem**. Quando as
+ * duas coexistem — Gestor-autor numa `resolvida` ainda não avaliada — a linha **embrulha** (`flex-wrap`)
+ * em vez de encolher qualquer uma: encolher é o caminho de virar cor, que é o que o compromisso **A-5**
+ * proíbe.
  */
 function CartaoDoSolicitante({
   item,
   destinoDoItem,
   iconePorCategoria,
+  mostrarPrioridade,
   pessoaIdDeQuemLe,
   agora,
 }: PropsDoItem) {
@@ -236,14 +252,25 @@ function CartaoDoSolicitante({
         href={destinoDoItem(item.id)}
         className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
       >
-        <span className="flex items-baseline justify-between gap-3">
+        <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-tinta text-sm font-semibold">{item.statusRotulo}</span>
-          {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-            /* **Marca, não botão.** O item inteiro já é um `<Link>`; um segundo alvo aqui dentro é
-               conteúdo interativo aninhado e alvo pequeno dentro de alvo grande (A-3), e seria a primeira
-               ação no item da lista, que o critério 14.5 proíbe. **A-5:** carrega a palavra. */
-            <span className="text-marca shrink-0 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
-          )}
+          {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
+              vez de espalhar três filhos pela linha. */}
+          <span className="flex items-baseline gap-2">
+            {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
+              /* **Marca, não botão.** O item inteiro já é um `<Link>`; um segundo alvo aqui dentro é
+                 conteúdo interativo aninhado e alvo pequeno dentro de alvo grande (A-3), e seria a
+                 primeira ação no item da lista, que o critério 14.5 proíbe. **A-5:** carrega a palavra. */
+              <span className="text-marca shrink-0 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
+            )}
+            {/* A-5: a prioridade carrega a palavra. Nunca só a cor. **A mesma forma do `CartaoDeTriagem`**
+                — a segunda etiqueta de prioridade do arquivo não pode ser um desenho diferente. */}
+            {mostrarPrioridade && (
+              <span className="text-tinta-suave border-linha shrink-0 rounded border px-1.5 py-0.5 text-xs">
+                {rotuloDePrioridade(item.prioridade)}
+              </span>
+            )}
+          </span>
         </span>
         <span className="text-tinta text-base leading-snug">{item.titulo}</span>
         <span className="text-tinta-suave flex items-center gap-1.5 text-xs">
