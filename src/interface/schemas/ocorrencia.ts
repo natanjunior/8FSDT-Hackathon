@@ -111,3 +111,47 @@ export const comandoComObservacaoSchema = z.object({
 });
 
 export type EntradaDeComandoComObservacao = z.infer<typeof comandoComObservacaoSchema>;
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/atribuir-responsavel` — item 19
+ * ============================================================================
+ *
+ * **Um campo, e é literalmente o corpo do critério 19.1.** `atribuidoPor` não existe aqui e não pode
+ * existir: quem atribuiu é quem chamou, e vem do contexto da sessão.
+ */
+export const atribuicaoDeResponsavelSchema = z.object({
+  responsavelPessoaId: identificador,
+});
+
+export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeResponsavelSchema>;
+
+/**
+ * ============================================================================
+ *  O campo que o esquema não tem onde guardar — `422 CAMPO_NAO_SUPORTADO`
+ * ============================================================================
+ *
+ * **`observacao` é declarada no `openapi.yaml` para dois comandos que não a guardam em lugar nenhum:**
+ * `/atribuir-responsavel` e `/alterar-prioridade`. Nenhum dos dois gera registro de transição (contrato
+ * §3.4), `atribuicoes` **não tem coluna de observação** (modelo §6.9), e o `EventoAtribuicao` da linha do
+ * tempo também não tem campo para ela. O lugar dela é a conversa da atribuição — o **canal 3**, que é
+ * evolução prevista (D9).
+ *
+ * **Campo cuja capacidade é evolução prevista é a definição literal de `CAMPO_NAO_SUPORTADO`**
+ * (contrato §6.2). E recusar em voz alta não é novidade no produto: `PATCH /vinculos/{pessoaId}` já
+ * responde `422` a `papel`, *"em vez de fingir que o campo nunca chegou"*.
+ *
+ * **O nome é genérico de propósito.** O item **17** reusa esta função para `/alterar-prioridade` — é o
+ * critério 17.6, e a palavra que ele usa é **reusar, não copiar**. Um nome que citasse *atribuição*
+ * obrigaria o 17 a renomear ou a duplicar.
+ *
+ * **Campo desconhecido FORA desta lista continua sendo descartado pelo schema**, sem erro — o mesmo
+ * recorte estreito de `camposEscritosPeloServidor`, e pela mesma razão: tornar o schema estrito trocaria
+ * *"o produto não faz isso"* por *"você escreveu errado"* em todo o resto.
+ */
+const SEM_DESTINO = ["observacao"] as const;
+
+export function camposSemDestino(corpo: unknown): readonly string[] {
+  if (typeof corpo !== "object" || corpo === null) return [];
+  return SEM_DESTINO.filter((campo) => campo in corpo);
+}

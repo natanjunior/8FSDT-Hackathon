@@ -41,6 +41,8 @@ type LinhaDeOcorrencia = {
   localizacao_complemento: string | null;
   autor_pessoa_id: string;
   autor_nome: string;
+  responsavel_pessoa_id: string | null;
+  responsavel_nome: string | null;
   solucao_aplicada: string | null;
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
@@ -73,6 +75,36 @@ type LinhaDeAnexo = {
 };
 
 /**
+ * ============================================================================
+ *  O responsável vigente — o mesmo `LATERAL` nas DUAS leituras
+ * ============================================================================
+ *
+ * **O `join` de pessoa parte de `vinculos`, nunca de `pessoas`** — item do DoD que o lint não alcança,
+ * porque a consulta seria legítima: ela apenas partiria da tabela global. É a mesma forma dos três `join`
+ * de autor deste arquivo.
+ *
+ * **Sem `limit 1`, e é de propósito.** `atribuicoes_vigente_uk` é único e parcial: há no máximo uma linha
+ * vigente por ocorrência, e o banco a garante. Escrever `limit 1` seria defender-se de um estado que a
+ * constraint torna impossível — e esconderia o defeito se um dia a constraint caísse.
+ *
+ * **O vínculo do responsável pode estar REVOGADO, e o nome continua saindo.** Revogar não apaga a linha
+ * de `vinculos` (modelo §6.4), então o `join` casa igual: quem foi responsável continua nomeado no
+ * histórico. É o mesmo motivo pelo qual as FKs compostas de toda a trilha continuam válidas.
+ */
+const LATERAL_DO_RESPONSAVEL = `
+    left join lateral (
+      select at.responsavel_pessoa_id,
+             pr.nome as responsavel_nome
+        from atribuicoes at
+        join vinculos vr on vr.pessoa_id = at.responsavel_pessoa_id
+                        and vr.organizacao_id = at.organizacao_id
+        join pessoas  pr on pr.id = vr.pessoa_id
+       where at.ocorrencia_id = o.id
+         and at.organizacao_id = o.organizacao_id
+         and at.encerrada_em is null
+    ) resp on true`;
+
+/**
  * O `select` da ocorrência. **O `join` de autor começa em `vinculos`** e só então alcança `pessoas` —
  * é o que impede a consulta de enxergar o cadastro do sistema inteiro.
  */
@@ -91,6 +123,8 @@ const SELECT_DA_OCORRENCIA = `
          o.localizacao_complemento,
          o.autor_pessoa_id,
          pa.nome as autor_nome,
+         resp.responsavel_pessoa_id,
+         resp.responsavel_nome,
          o.solucao_aplicada,
          o.avaliacao_nota,
          o.avaliacao_comentario,
@@ -102,6 +136,7 @@ const SELECT_DA_OCORRENCIA = `
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
     join vinculos  va on va.pessoa_id = o.autor_pessoa_id and va.organizacao_id = o.organizacao_id
     join pessoas   pa on pa.id = va.pessoa_id
+${LATERAL_DO_RESPONSAVEL}
    where o.organizacao_id = $1`;
 
 const SELECT_DA_TRILHA = `
@@ -181,8 +216,12 @@ function montarOcorrencia(
     localizacaoComplemento: linha.localizacao_complemento,
     anexos,
     autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
-    // `atribuicoes` é do item 19: hoje não há quem preencha, e `null` é a verdade.
-    responsavel: null,
+    // **A atribuição vigente**, do `LATERAL` — ou `null` quando não há. Uma no máximo, e quem garante é
+    // `atribuicoes_vigente_uk`, não este código (item 19).
+    responsavel:
+      linha.responsavel_pessoa_id === null || linha.responsavel_nome === null
+        ? null
+        : { pessoaId: linha.responsavel_pessoa_id, nome: linha.responsavel_nome },
     solucaoAplicada: linha.solucao_aplicada,
     avaliacao:
       linha.avaliacao_nota === null || linha.avaliada_em === null
@@ -283,6 +322,8 @@ type LinhaDeResumo = {
   area_tipo: OcorrenciaResumoLida["area"]["tipo"];
   autor_pessoa_id: string;
   autor_nome: string;
+  responsavel_pessoa_id: string | null;
+  responsavel_nome: string | null;
   motivo_pausa: OcorrenciaResumoLida["motivoPausa"];
   quantidade_de_anexos: number;
   registrada_em: Date;
@@ -303,6 +344,10 @@ type LinhaDeResumo = {
  *    precisar da trilha (modelo §7.2); o **motivo** não é. Uma linha por ocorrência, pelo índice único
  *    `(ocorrencia_id, sequencia)`. Hoje devolve `null` sempre, porque nada pode estar `pausada` antes do
  *    item 23 — e entra assim mesmo, para o 23 não herdar uma dívida que nenhum critério dele nomeia.
+ * 4. **O `LATERAL` do responsável.** Um por página, pelo índice único parcial `atribuicoes_vigente_uk` —
+ *    uma linha por ocorrência, no máximo. É o custo declarado do item 19, ao lado do que já existe para o
+ *    `motivoPausa`. **Não** vira coluna desnormalizada em `ocorrencias`: o modelo recusou isso por escrito
+ *    (§6.9 e §7.1), e o argumento é duas fontes de verdade para o mesmo fato.
  */
 const SELECT_DO_RESUMO = `
   select o.id,
@@ -316,6 +361,8 @@ const SELECT_DO_RESUMO = `
          o.area_tipo,
          o.autor_pessoa_id,
          pa.nome as autor_nome,
+         resp.responsavel_pessoa_id,
+         resp.responsavel_nome,
          ult.motivo_pausa,
          (select count(*)
             from anexos ax
@@ -336,6 +383,7 @@ const SELECT_DO_RESUMO = `
        order by r.sequencia desc
        limit 1
     ) ult on true
+${LATERAL_DO_RESPONSAVEL}
    where o.organizacao_id = $1`;
 
 function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
@@ -347,8 +395,12 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     categoria: { id: linha.categoria_id, nome: linha.categoria_nome },
     area: { id: linha.area_id, nome: linha.area_nome, tipo: linha.area_tipo },
     autor: { pessoaId: linha.autor_pessoa_id, nome: linha.autor_nome },
-    // `atribuicoes` é do item 19: hoje não há quem preencha, e `null` é a verdade.
-    responsavel: null,
+    // **A atribuição vigente**, do `LATERAL` — ou `null` quando não há. Uma no máximo, e quem garante é
+    // `atribuicoes_vigente_uk`, não este código (item 19).
+    responsavel:
+      linha.responsavel_pessoa_id === null || linha.responsavel_nome === null
+        ? null
+        : { pessoaId: linha.responsavel_pessoa_id, nome: linha.responsavel_nome },
     // **Subconsulta correlacionada e não coluna materializada.** O índice `(organizacao_id,
     // ocorrencia_id)` existe exatamente para as duas leituras deste arquivo, e `ocorrencias
     // .total_anexos` está na lista dos recusados (modelo §7.1): desnormaliza-se o que é **filtrado ou
@@ -378,6 +430,42 @@ function ehAnexoJaReivindicado(erro: unknown): boolean {
     (comCodigo.constraint === "anexos_chave_uk" ||
       comCodigo.constraint === "anexos_thumbnail_chave_uk")
   );
+}
+
+/**
+ * ============================================================================
+ *  O sentinela do `422` — e por que ele não pode ser um `return`
+ * ============================================================================
+ *
+ * `criarTransacao` dá `commit` quando o trabalho **retorna normalmente** e `rollback` **só quando ele
+ * lança** (`clientes/banco.ts`). Devolver `{ desfecho: "responsavel-sem-vinculo-ativo" }` de dentro do
+ * `emTransacao` **comitaria o `update` que já encerrou a atribuição anterior** — e a ocorrência ficaria
+ * **sem responsável nenhum**, com um `422` na tela dizendo que nada mudou.
+ *
+ * **Classe `Error` e não `Symbol`**: a pilha diz de onde veio no dia em que o `catch` errar, e `throw` de
+ * não-`Error` é o tipo de coisa que uma regra futura do lint pega. **Não é exportada e não escapa deste
+ * arquivo** — o que sai é desfecho.
+ *
+ * **E nada de ler o vínculo ANTES para evitar o `throw`:** a doutrina do item 8 continua valendo, e o
+ * `where exists` do `insert` segue sendo a única fonte do desfecho. O sentinela é sobre **transação**,
+ * não sobre corrida.
+ */
+class SemVinculoAtivo extends Error {
+  constructor() {
+    super("responsável sem vínculo ativo nesta organização");
+    this.name = "SemVinculoAtivo";
+  }
+}
+
+/**
+ * A corrida entre dois Gestores atribuindo ao mesmo tempo.
+ *
+ * **Confere `code` E `constraint`**, como `ehAnexoJaReivindicado` já faz: `23505` sozinho pegaria qualquer
+ * unicidade da transação — inclusive a `atribuicoes_id_organizacao_uk`, que é outro assunto.
+ */
+function ehAtribuicaoVigenteDuplicada(erro: unknown): boolean {
+  const comCodigo = erro as { code?: unknown; constraint?: unknown };
+  return comCodigo.code === "23505" && comCodigo.constraint === "atribuicoes_vigente_uk";
 }
 
 export function repositorioEscopadoDeOcorrencias(
@@ -605,6 +693,93 @@ export function repositorioEscopadoDeOcorrencias(
         }
         return { desfecho: "aplicada" as const, ocorrencia: relida };
       });
+    },
+
+    /**
+     * **Atribuir e reatribuir são o mesmo caminho** — a distinção é derivada do estado, não da intenção
+     * de quem chamou (contrato §3.4). Três escritas e uma releitura, num `COMMIT` só.
+     *
+     * **A ordem é o que faz o índice único parcial nunca ser violado no caminho normal:** o `update` de
+     * encerramento tira a linha vigente do índice **antes** de o `insert` entrar nele.
+     *
+     * *Alternativa recusada — `update` e `insert` como CTEs irmãs numa instrução só.* CTEs de escrita
+     * veem o **mesmo snapshot** e não têm ordem garantida entre si, então o `insert` poderia ser conferido
+     * contra `atribuicoes_vigente_uk` antes de o `update` ter agido. Correção que depende de ordem não
+     * especificada é a pior espécie de correção.
+     *
+     * **Os `::` não são decoração**, e aqui menos ainda: num `insert … select`, o Postgres resolve os
+     * tipos da sub-consulta **primeiro** — parâmetro sem tipo vira `text` — e não há coerção de atribuição
+     * de `text` para `uuid`. Sem os *casts*, a instrução nem chega a rodar.
+     */
+    async atribuirResponsavel(ocorrenciaId, dados) {
+      try {
+        return await emTransacao(async (executar) => {
+          // 1 · Encerra a vigente, se houver. Zero linhas = primeira atribuição.
+          const encerradas = await executar<{ id: string }>(
+            `update atribuicoes
+                set encerrada_em = $3::timestamptz, motivo_encerramento = 'reatribuicao'
+              where organizacao_id = $1 and ocorrencia_id = $2::uuid and encerrada_em is null
+            returning id`,
+            [ocorrenciaId, dados.em],
+          );
+          const reatribuicao = encerradas.length > 0;
+
+          /**
+           * 2 · **O `422` nasce do próprio `insert`, sem leitura prévia.** A FK aponta para
+           * `vinculos (pessoa_id, organizacao_id)` **sem olhar `revogado_em`** — vínculo revogado passa
+           * nela. O `where exists` é o que traduz *"vínculo **ativo**"*, que é a palavra do critério 19.3.
+           *
+           * E *"pessoa de outra organização recebe a mesma resposta"* sai de graça: `$1` é a organização
+           * ativa, amarrada pelo escopo, então o vínculo de outra não existe para esta consulta. **Mesmo
+           * `422`, sem um `if` a mais** — a §6.3 se aplicando por construção.
+           */
+          const criadas = await executar<{ id: string }>(
+            `insert into atribuicoes
+               (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, atribuido_em)
+             select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::timestamptz
+              where exists (select 1
+                              from vinculos v
+                             where v.pessoa_id = $3::uuid
+                               and v.organizacao_id = $1
+                               and v.revogado_em is null)
+             returning id`,
+            [ocorrenciaId, dados.responsavelPessoaId, dados.atribuidoPorPessoaId, dados.em],
+          );
+
+          if (criadas[0] === undefined) throw new SemVinculoAtivo();
+
+          /**
+           * 3 · **`atualizada_em` é escrito, mesmo sem transição.** O campo não quer dizer *"esta linha
+           * mudou"* — quer dizer *"houve atividade nesta ocorrência"*, o que inclui `INSERT` em outra
+           * tabela (`arquitetura.md` §5.8). Atribuir é atividade. **O mesmo instante** que `atribuido_em`,
+           * nunca `now()`.
+           */
+          await executar(
+            `update ocorrencias
+                set atualizada_em = $3::timestamptz
+              where organizacao_id = $1 and id = $2::uuid`,
+            [ocorrenciaId, dados.em],
+          );
+
+          // 4 · A releitura acontece **dentro** da transação, como `registrar` e `aplicarTransicao` já
+          // fazem: o que volta ao cliente é o detalhe de verdade, com nome de responsável, de categoria e
+          // de área — não um payload pela metade.
+          const relida = await lerPorId(executar, ocorrenciaId);
+          if (relida === null) {
+            // A ocorrência não é desta organização: o `update` da raiz não achou linha e o `insert` só
+            // passou porque o vínculo existe. Abortar é o certo — nada pode ter sido escrito.
+            throw new SemVinculoAtivo();
+          }
+
+          return { desfecho: "atribuida" as const, reatribuicao, ocorrencia: relida };
+        });
+      } catch (erro) {
+        if (erro instanceof SemVinculoAtivo) {
+          return { desfecho: "responsavel-sem-vinculo-ativo" as const };
+        }
+        if (ehAtribuicaoVigenteDuplicada(erro)) return { desfecho: "conflito" as const };
+        throw erro;
+      }
     },
 
     porId: (id) => lerPorId(consulta, id),

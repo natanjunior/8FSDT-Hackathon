@@ -62,6 +62,27 @@ export function transicaoPermitida(status: StatusOcorrencia, comando: Comando): 
   return TRANSICOES[status].includes(comando);
 }
 
+/**
+ * ============================================================================
+ *  `comandoPermitido` — a pergunta dos DEZ comandos, e não a dos que transicionam
+ * ============================================================================
+ *
+ * **A união das duas tabelas acima.** `transicaoPermitida` consulta só `TRANSICOES`, e para os quatro
+ * comandos sem transição — `atribuir-responsavel`, `alterar-prioridade`, `registrar-solucao-aplicada` e
+ * `avaliar` — ela responde `false` nos seis estados. Quem os admitisse por ela os recusaria sempre.
+ *
+ * **Ela não é substituída, e não deve ser.** Quem vai **mover** o status precisa saber se há transição —
+ * é a pergunta do `analisar` (item 16) e a dos itens 22, 23, 24 e 26. Quem vai apenas **executar um
+ * comando** precisa saber se o estado o admite. Duas perguntas, dois nomes; fazer `transicaoPermitida`
+ * consultar as duas tabelas faria o nome mentir no lugar onde a máquina de estados mora.
+ *
+ * **É o chamador único da regra de estado dos quatro comandos que não transicionam**, e o item 19 é o
+ * primeiro a usá-lo.
+ */
+export function comandoPermitido(status: StatusOcorrencia, comando: Comando): boolean {
+  return TRANSICOES[status].includes(comando) || SEM_TRANSICAO[comando].includes(status);
+}
+
 export type PerguntaDeAcoes = {
   status: StatusOcorrencia;
   /** As permissões de quem pergunta — `Vinculo.permissoes`. */
@@ -100,11 +121,10 @@ export type PerguntaDeAcoes = {
  */
 export function comandosDisponiveis(pergunta: PerguntaDeAcoes): readonly Comando[] {
   const permitidos = COMANDOS.filter((comando) => {
-    // 1 e 2 — status
-    const porEstado = TRANSICOES[pergunta.status].includes(comando)
-      ? true
-      : SEM_TRANSICAO[comando].includes(pergunta.status);
-    if (!porEstado) return false;
+    // 1 e 2 — status. **As duas tabelas, por `comandoPermitido`**: a união estava escrita aqui em linha,
+    // e a partir do item 19 ela tem um segundo chamador. Duas cópias da mesma união divergiriam no dia em
+    // que uma terceira tabela aparecesse.
+    if (!comandoPermitido(pergunta.status, comando)) return false;
 
     // permissão
     if (!PERMISSAO_DO_COMANDO[comando].some((p) => pergunta.permissoes.includes(p))) return false;

@@ -39,9 +39,12 @@ export {
 } from "./pedido-de-entrada";
 
 export {
+  atribuicaoDeResponsavelSchema,
   camposEscritosPeloServidor,
+  camposSemDestino,
   comandoComObservacaoSchema,
   registroDeOcorrenciaSchema,
+  type EntradaDeAtribuicaoDeResponsavel,
   type EntradaDeComandoComObservacao,
   type EntradaDeRegistroDeOcorrencia,
 } from "./ocorrencia";

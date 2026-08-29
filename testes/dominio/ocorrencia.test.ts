@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AnexoDaOcorrencia,
+  comandoPermitido,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
   Ocorrencia,
@@ -28,6 +29,17 @@ const REGISTRO = {
   autorPessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d",
   ocorreuEm: "2026-08-25T13:02:11.000Z",
 };
+
+/** Os seis, escritos à mão: um teste que importasse `STATUS` do Domínio provaria a constante contra ela
+ *  mesma. */
+const STATUS_TODOS = [
+  "aberta",
+  "em_analise",
+  "em_atendimento",
+  "pausada",
+  "resolvida",
+  "cancelada",
+] as const;
 
 describe("Ocorrencia.registrar", () => {
   it("nasce aberta e normal — os dois escritos pelo agregado, nunca pelo cliente", () => {
@@ -114,6 +126,59 @@ describe("a máquina de estados — a tabela da arquitetura.md §4", () => {
   });
 });
 
+/**
+ * ============================================================================
+ *  `comandoPermitido` — a união das DUAS tabelas, e o item 19
+ * ============================================================================
+ *
+ * **`transicaoPermitida` responde `false` para os quatro comandos que não transicionam, em todos os seis
+ * estados** — ela consulta só a tabela com coluna `Para`. Usá-la para admitir `atribuir-responsavel`
+ * recusaria o comando sempre, e é exatamente o defeito que este predicado existe para impedir.
+ *
+ * **Os dois convivem, e não é redundância:** quem vai **mover** o status pergunta `transicaoPermitida`;
+ * quem vai **executar um comando** pergunta `comandoPermitido`. O item 22 precisa dos dois.
+ */
+describe("comandoPermitido", () => {
+  it.each([
+    ["aberta", "atribuir-responsavel"],
+    ["em_analise", "atribuir-responsavel"],
+    ["em_atendimento", "atribuir-responsavel"],
+    ["pausada", "atribuir-responsavel"],
+  ] as const)("%s admite %s — critério 19.2", (status, comando) => {
+    expect(comandoPermitido(status, comando)).toBe(true);
+  });
+
+  it.each([
+    ["resolvida", "atribuir-responsavel"],
+    ["cancelada", "atribuir-responsavel"],
+  ] as const)("%s RECUSA %s — os dois terminais, e é o 409 do critério 19.2", (status, comando) => {
+    expect(comandoPermitido(status, comando)).toBe(false);
+  });
+
+  it("transicaoPermitida continua respondendo false para atribuir-responsavel nos SEIS estados", () => {
+    // **É o que torna o predicado novo necessário**, e o que impede alguém de "simplificar" um no outro.
+    for (const status of STATUS_TODOS) {
+      expect(transicaoPermitida(status, "atribuir-responsavel")).toBe(false);
+    }
+  });
+
+  it("para quem transiciona, os dois predicados concordam — analisar em aberta", () => {
+    expect(transicaoPermitida("aberta", "analisar")).toBe(true);
+    expect(comandoPermitido("aberta", "analisar")).toBe(true);
+    expect(comandoPermitido("em_analise", "analisar")).toBe(false);
+  });
+
+  it("os quatro comandos sem transição têm cada um a própria janela — a tabela companheira inteira", () => {
+    // `alterar-prioridade` fora dos terminais (invariante 7), `registrar-solucao-aplicada` só depois de
+    // haver trabalho a descrever, `avaliar` só em `resolvida` (invariante 8).
+    expect(comandoPermitido("resolvida", "alterar-prioridade")).toBe(false);
+    expect(comandoPermitido("aberta", "registrar-solucao-aplicada")).toBe(false);
+    expect(comandoPermitido("em_atendimento", "registrar-solucao-aplicada")).toBe(true);
+    expect(comandoPermitido("resolvida", "avaliar")).toBe(true);
+    expect(comandoPermitido("em_atendimento", "avaliar")).toBe(false);
+  });
+});
+
 describe("comandosDisponiveis", () => {
   const TODAS = [
     "ocorrencia.analisar",
@@ -122,23 +187,35 @@ describe("comandosDisponiveis", () => {
     "ocorrencia.cancelar_qualquer",
   ];
 
-  it("hoje traz UM comando — o analisar do item 16", () => {
+  it("hoje traz DOIS comandos — o analisar do item 16 e o atribuir do 19", () => {
     // **A lista cresce um item por vez, e cada item é o que constrói o próprio endpoint.** A §8.5 do
     // contrato lida ao contrário: comando presente é comando cujo endpoint existe.
-    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar"]);
+    expect(COMANDOS_IMPLEMENTADOS).toStrictEqual(["analisar", "atribuir-responsavel"]);
   });
 
-  it("o Gestor em aberta vê analisar, e mais nada — o filtro ainda corta os outros nove", () => {
+  it("o Gestor em aberta vê DOIS botões — o primeiro caso do produto", () => {
+    // **Na ordem do enum `Comando`**, que é o que dispensa o cliente de ter uma segunda lista só para
+    // ordenar a barra.
     expect(comandosDisponiveis({ status: "aberta", permissoes: TODAS, ehAutor: false })).toStrictEqual([
       "analisar",
+      "atribuir-responsavel",
     ]);
   });
 
-  it("em em_analise a lista volta a ser vazia — o caso DOMINANTE depois desta fatia", () => {
-    // É o que o Gestor vê no instante seguinte a clicar em Analisar, e é o que o critério 16.6 cobre.
+  it("em em_analise sobra o atribuir — a lista deixa de ser vazia, e o critério 16.6 muda de caso", () => {
+    // Era `[]` até o item 19: `analisar` sai da lista assim que a ocorrência é analisada, e não havia
+    // outro comando construído. Agora o Gestor tem o que fazer no instante seguinte à triagem.
     expect(comandosDisponiveis({ status: "em_analise", permissoes: TODAS, ehAutor: false })).toStrictEqual(
-      [],
+      ["atribuir-responsavel"],
     );
+  });
+
+  it("nos dois terminais a lista continua vazia — critério 19.2, a metade da tela", () => {
+    for (const terminal of ["resolvida", "cancelada"] as const) {
+      expect(comandosDisponiveis({ status: terminal, permissoes: TODAS, ehAutor: false })).toStrictEqual(
+        [],
+      );
+    }
   });
 
   /**

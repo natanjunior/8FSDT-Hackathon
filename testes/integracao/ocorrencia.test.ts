@@ -257,6 +257,122 @@ describe("o que o banco recusa", () => {
       ),
     ).rejects.toThrow(/ocorrencias_texto_ck/u);
   });
+
+  /**
+   * ==========================================================================
+   *  As garantias da migração 008 — o critério 19.5, e os dois `CHECK`
+   * ==========================================================================
+   *
+   * **Nenhuma delas tem duplo.** *"Um responsável vigente por ocorrência"* é garantia de **classe B** do
+   * modelo §8 — regra sobre um conjunto de linhas —, e o que a opera é o banco. Provar isso com um duplo
+   * seria provar o duplo.
+   */
+  async function ocorrenciaNua(): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, titulo, descricao, categoria_id, area_id, area_tipo, autor_pessoa_id)
+       values ($1, 'Portão travado', 'Não abre pelo controle.', $2, $3, 'comum', $4)
+       returning id`,
+      [organizacaoId, categoriaId, areaId, pessoaId],
+    );
+    return linha!.id;
+  }
+
+  it("duas atribuições vigentes na mesma ocorrência violam atribuicoes_vigente_uk — critério 19.5", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+       values ($1, $2, $3, $3)`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+         values ($1, $2, $3, $3)`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ code: "23505", constraint: "atribuicoes_vigente_uk" });
+  });
+
+  it("a SEGUNDA passa quando a primeira foi encerrada — o índice é PARCIAL, e é o que faz a reatribuição existir", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await consultaCrua(
+      `insert into atribuicoes
+         (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id,
+          encerrada_em, motivo_encerramento)
+       values ($1, $2, $3, $3, now(), 'reatribuicao')`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+       values ($1, $2, $3, $3)`,
+      [organizacaoId, ocorrenciaId, pessoaId],
+    );
+
+    const linhas = await consultaCrua<{ total: string }>(
+      `select count(*) as total from atribuicoes where ocorrencia_id = $1`,
+      [ocorrenciaId],
+    );
+    expect(linhas[0]!.total).toBe("2");
+  });
+
+  it("encerrar sem motivo — e ter motivo sem encerrar — viola o CHECK do par, nos dois sentidos", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, encerrada_em)
+         values ($1, $2, $3, $3, now())`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_encerramento_ck" });
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, motivo_encerramento)
+         values ($1, $2, $3, $3, 'reatribuicao')`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_encerramento_ck" });
+  });
+
+  it("encerrar ANTES de atribuir viola a ordem temporal — §8.1, classe A", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id,
+            atribuido_em, encerrada_em, motivo_encerramento)
+         values ($1, $2, $3, $3, now(), now() - interval '1 hour', 'reatribuicao')`,
+        [organizacaoId, ocorrenciaId, pessoaId],
+      ),
+    ).rejects.toMatchObject({ constraint: "atribuicoes_ordem_temporal_ck" });
+  });
+
+  it("atribuir a quem NÃO tem vínculo nesta organização é recusado pela FK composta — a D21 no banco", async () => {
+    const ocorrenciaId = await ocorrenciaNua();
+
+    // Pessoa global, sem vínculo nenhum. É o cadastro existir e o vínculo não.
+    const [forasteira] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Forasteira ${SUFIXO}`],
+    );
+
+    await expect(
+      consultaCrua(
+        `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id)
+         values ($1, $2, $3, $4)`,
+        [organizacaoId, ocorrenciaId, forasteira!.id, pessoaId],
+      ),
+    ).rejects.toMatchObject({ code: "23503", constraint: "atribuicoes_responsavel_fk" });
+  });
 });
 
 /**
@@ -614,5 +730,266 @@ describe("a transição contra Postgres", () => {
       [id],
     );
     expect(registros).toHaveLength(2);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A atribuição contra Postgres — o item 19
+ * ============================================================================
+ *
+ * **Cinco coisas aqui não têm duplo**, e é por isso que este bloco existe:
+ *
+ * 1. **O `COMMIT` de três escritas.** `update` da vigente, `insert` da nova e `atualizada_em`, ou nenhum.
+ * 2. **O `rollback` do `422`.** É o único caso que prova que o sentinela existe — sem ele, a atribuição
+ *    anterior sairia encerrada e a ocorrência ficaria **sem responsável nenhum**.
+ * 3. **O `where exists` contra `vinculos`**, que é o que traduz *"vínculo **ativo**"* — a FK não olha
+ *    `revogado_em`.
+ * 4. **A trilha NÃO cresce**, que é a metade conferível do critério 19.4.
+ * 5. **O isolamento de escrita:** outra organização não encontra e não escreve.
+ */
+describe("a atribuição contra Postgres — item 19", () => {
+  const EM = "2026-08-28T14:05:00.000Z";
+
+  /** Um segundo Gestor nesta organização, para a reatribuição ter para quem ir. */
+  let segundoPessoaId: string;
+  /** Um vínculo que será revogado no meio do caminho. */
+  let revogadoPessoaId: string;
+
+  beforeAll(async () => {
+    const [segunda] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Zelador ${SUFIXO}`],
+    );
+    segundoPessoaId = segunda!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [segundoPessoaId, organizacaoId],
+    );
+
+    const [revogada] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Ex-zelador ${SUFIXO}`],
+    );
+    revogadoPessoaId = revogada!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel, revogado_em)
+       values ($1, $2, 'encarregado', now())`,
+      [revogadoPessoaId, organizacaoId],
+    );
+  });
+
+  /**
+   * Registra uma ocorrência pelo caminho de verdade — com trilha, como o produto a cria.
+   *
+   * **Os três argumentos são os de `registrarOcorrencia`**: as portas, o contexto
+   * (`{ pessoaId, organizacaoId }`) e a entrada. É a mesma chamada que os outros `describe` deste arquivo
+   * já fazem.
+   */
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa de alguém.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("atribui: UMA linha em atribuicoes, responsavel preenchido, e reatribuicao false — critério 19.1", async () => {
+    const id = await registrada("Lâmpada da escada");
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    expect(resultado.desfecho).toBe("atribuida");
+    if (resultado.desfecho !== "atribuida") return;
+
+    expect(resultado.reatribuicao).toBe(false);
+    expect(resultado.ocorrencia.responsavel).toStrictEqual({
+      pessoaId: segundoPessoaId,
+      nome: `Zelador ${SUFIXO}`,
+    });
+
+    const linhas = await consultaCrua<{ total: string }>(
+      `select count(*) as total from atribuicoes where ocorrencia_id = $1 and encerrada_em is null`,
+      [id],
+    );
+    expect(linhas[0]!.total).toBe("1");
+  });
+
+  it("NÃO transiciona e NÃO grava registro — a trilha continua com exatamente um — critérios 19.1 e 19.4", async () => {
+    const id = await registrada("Portão do estacionamento");
+    const antes = await portas().ocorrencias.trilha(id);
+
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    const depois = await portas().ocorrencias.trilha(id);
+    expect(depois).toStrictEqual(antes);
+    expect(depois).toHaveLength(1);
+
+    if (resultado.desfecho !== "atribuida") throw new Error("esperava atribuida");
+    expect(resultado.ocorrencia.status).toBe("aberta");
+    expect(resultado.ocorrencia.ultimaTransicao.statusNovo).toBe("aberta");
+    // **`atualizada_em` avança para o INSTANTE da atribuição**, e não para `now()`.
+    expect(resultado.ocorrencia.atualizadaEm).toBe(EM);
+  });
+
+  it("atribuir DUAS vezes encerra a primeira com motivo reatribuicao, e sobra uma vigente — 19.5 e 21.2", async () => {
+    const id = await registrada("Infiltração na garagem");
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    const segunda = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: pessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: "2026-08-28T15:00:00.000Z",
+    });
+
+    expect(segunda.desfecho).toBe("atribuida");
+    if (segunda.desfecho !== "atribuida") return;
+    expect(segunda.reatribuicao).toBe(true);
+    expect(segunda.ocorrencia.responsavel?.pessoaId).toBe(pessoaId);
+
+    const linhas = await consultaCrua<{
+      responsavel_pessoa_id: string;
+      encerrada_em: Date | null;
+      motivo_encerramento: string | null;
+    }>(
+      `select responsavel_pessoa_id, encerrada_em, motivo_encerramento
+         from atribuicoes where ocorrencia_id = $1 order by atribuido_em`,
+      [id],
+    );
+
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0]!.responsavel_pessoa_id).toBe(segundoPessoaId);
+    expect(linhas[0]!.encerrada_em).not.toBeNull();
+    expect(linhas[0]!.motivo_encerramento).toBe("reatribuicao");
+    // **Nunca apagada** — critério 21.2.
+    expect(linhas[1]!.encerrada_em).toBeNull();
+  });
+
+  it("vínculo REVOGADO devolve o desfecho de 422 — a FK sozinha o aceitaria", async () => {
+    const id = await registrada("Corrimão solto");
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: revogadoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    expect(resultado).toStrictEqual({ desfecho: "responsavel-sem-vinculo-ativo" });
+  });
+
+  it("O ROLLBACK: reatribuir para vínculo revogado deixa a atribuição vigente INTACTA", async () => {
+    // **É o único caso que prova que o sentinela existe.** Sem ele, o `update` de encerramento comitaria
+    // e a ocorrência ficaria sem responsável nenhum, com um `422` na tela dizendo que nada mudou.
+    const id = await registrada("Bomba do reservatório");
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: revogadoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: "2026-08-28T15:30:00.000Z",
+    });
+    expect(resultado).toStrictEqual({ desfecho: "responsavel-sem-vinculo-ativo" });
+
+    const linhas = await consultaCrua<{ responsavel_pessoa_id: string }>(
+      `select responsavel_pessoa_id from atribuicoes
+        where ocorrencia_id = $1 and encerrada_em is null`,
+      [id],
+    );
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]!.responsavel_pessoa_id).toBe(segundoPessoaId);
+
+    const lida = await portas().ocorrencias.porId(id);
+    expect(lida?.responsavel?.pessoaId).toBe(segundoPessoaId);
+  });
+
+  it("pessoa de OUTRA organização recebe o mesmo desfecho, e nada é escrito — §6.3", async () => {
+    const id = await registrada("Grelha do ralo");
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Aurora ${SUFIXO}`, `AU${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    const [forasteira] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Forasteira A ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [forasteira!.id, outra!.id],
+    );
+
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: forasteira!.id,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    expect(resultado).toStrictEqual({ desfecho: "responsavel-sem-vinculo-ativo" });
+    const linhas = await consultaCrua(`select 1 from atribuicoes where ocorrencia_id = $1`, [id]);
+    expect(linhas).toHaveLength(0);
+  });
+
+  it("ISOLAMENTO DE ESCRITA: a ocorrência de outra organização não é encontrada e nada é escrito — A4", async () => {
+    const id = await registrada("Fechadura do salão");
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      [`Bosque ${SUFIXO}`, `BO${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    const consultaDeB = escoparConsulta(criarConsulta(), outra!.id);
+    const deB = repositorioEscopadoDeOcorrencias(
+      consultaDeB,
+      escoparTransacao(criarTransacao(), outra!.id),
+    );
+
+    // O `update` não acha a ocorrência, o `insert` não acha o vínculo — e é o `where exists` que decide.
+    const resultado = await deB.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: segundoPessoaId,
+      em: EM,
+    });
+
+    expect(resultado).toStrictEqual({ desfecho: "responsavel-sem-vinculo-ativo" });
+    const linhas = await consultaCrua(`select 1 from atribuicoes where ocorrencia_id = $1`, [id]);
+    expect(linhas).toHaveLength(0);
+  });
+
+  it("a LISTAGEM também traz o responsável — o LATERAL entra nas duas leituras", async () => {
+    const id = await registrada("Luz do hall");
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: segundoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: EM,
+    });
+
+    const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
+    const item = pagina.find((linha) => linha.id === id);
+    expect(item?.responsavel).toStrictEqual({
+      pessoaId: segundoPessoaId,
+      nome: `Zelador ${SUFIXO}`,
+    });
+  });
+
+  it("sem atribuição, responsavel continua null nas duas leituras — e null é a verdade, não reserva", async () => {
+    const id = await registrada("Campainha do bloco B");
+    expect((await portas().ocorrencias.porId(id))?.responsavel).toBeNull();
+
+    const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
+    expect(pagina.find((linha) => linha.id === id)?.responsavel).toBeNull();
   });
 });

@@ -230,8 +230,9 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
  * visibilidade —, e ícone não carrega nenhum. T-03 cruza contra `GET /categorias`, que já o traz.
  *
  * **`quantidadeDeAnexos` vem do repositório desde o item 13b** — subconsulta correlacionada, não coluna
- * materializada. **`responsavel: null` continua forçado**, pelo item 19: `null` é a **verdade sobre o
- * produto de hoje**, não um valor de reserva.
+ * materializada. **`responsavel` vem preenchido desde o item 19**, quando há atribuição vigente — a
+ * projeção só repassa o que `OcorrenciaResumoLida` traz, e quem garante *uma no máximo* é
+ * `atribuicoes_vigente_uk`, não este arquivo.
  */
 export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida) {
   return {

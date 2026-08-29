@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   analisarOcorrencia,
+  atribuirResponsavel,
   OcorrenciaNaoEncontrada,
+  ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
+  type ResultadoDaAtribuicao,
   type ResultadoDaTransicao,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia, RegistroDeTransicao, type StatusOcorrencia } from "@/dominio/ocorrencia";
@@ -104,19 +107,24 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
 /** O rastro que o duplo deixa, e é o que o teste inspeciona depois. */
 let carregados: (Ocorrencia | null)[];
 let aplicados: Ocorrencia[];
+let atribuidos: { ocorrenciaId: string; dados: unknown }[];
 
 function repositorio(opcoes: {
   /** O que cada `carregar` devolve, na ordem; o último valor se repete. */
   cargas: readonly (Ocorrencia | null)[];
   conflito?: boolean;
+  /** O que `atribuirResponsavel` responde. Padrão: atribuída, sem reatribuição. */
+  atribuicao?: (agregado: Ocorrencia) => ResultadoDaAtribuicao;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
+  let ultimaCarga: Ocorrencia | null = null;
 
   return {
     carregar: async (): Promise<Ocorrencia | null> => {
       const carga = opcoes.cargas[Math.min(chamada, opcoes.cargas.length - 1)] ?? null;
       chamada += 1;
       carregados.push(carga);
+      ultimaCarga = carga;
       return carga;
     },
     aplicarTransicao: async (_id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao> => {
@@ -125,12 +133,24 @@ function repositorio(opcoes: {
         ? { desfecho: "conflito" }
         : { desfecho: "aplicada", ocorrencia: lidaDe(ocorrencia) };
     },
+    atribuirResponsavel: async (
+      ocorrenciaId: string,
+      dados: unknown,
+    ): Promise<ResultadoDaAtribuicao> => {
+      atribuidos.push({ ocorrenciaId, dados });
+      const agregado = ultimaCarga;
+      if (agregado === null) throw new Error("o duplo foi chamado sem carga — teste mal montado");
+      return opcoes.atribuicao === undefined
+        ? { desfecho: "atribuida", reatribuicao: false, ocorrencia: lidaDe(agregado) }
+        : opcoes.atribuicao(agregado);
+    },
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
 beforeEach(() => {
   carregados = [];
   aplicados = [];
+  atribuidos = [];
 });
 
 describe("analisarOcorrencia", () => {
@@ -199,9 +219,12 @@ describe("analisarOcorrencia", () => {
     const recusa = erro as TransicaoNaoPermitida;
     expect(recusa.codigo).toBe("TRANSICAO_NAO_PERMITIDA");
     expect(recusa.extensoes["statusAtual"]).toBe("em_analise");
-    // **Presente e vazia**: `COMANDOS_IMPLEMENTADOS` ainda filtra os outros nove nesta fatia, e vazia é
-    // verdade sobre o produto de hoje. O que o critério pede é o campo existir.
-    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+    // **Era `[]` até o item 19, e passou a nomear o que ainda dá para fazer.** `COMANDOS_IMPLEMENTADOS`
+    // ganhou `atribuir-responsavel`, que é admitido em `em_analise` — então a recusa de `analisar` agora
+    // devolve a única ação que sobrou para este Gestor. É a mesma mudança dos três casos de
+    // `testes/dominio/ocorrencia.test.ts`, e o critério 16.3 fica **mais** satisfeito: ele pede que o
+    // campo exista e diga a verdade, não que ele seja vazio.
+    expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual(["atribuir-responsavel"]);
 
     // **E nada é gravado** — a segunda metade do critério 16.3.
     expect(aplicados).toHaveLength(0);
@@ -228,5 +251,152 @@ describe("analisarOcorrencia", () => {
         ocorrenciaId: ID,
       }),
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `atribuirResponsavel` — o primeiro comando que NÃO transiciona
+ * ============================================================================
+ *
+ * **Nada aqui atravessa o agregado, e é decisão** (spec §3.1): `Ocorrencia` não ganha método `atribuir`.
+ * A invariante 9 está classificada como *"do comando de aplicação, porque atravessa outra tabela"*, e
+ * *"um responsável ativo por ocorrência"* é garantia de **classe B** — o banco a opera, o domínio não a
+ * garante. O agregado é lido só para responder duas perguntas: *existe e eu alcanço?* e *este estado
+ * admite este comando?*
+ */
+describe("atribuirResponsavel", () => {
+  const ctx = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-08-28T14:05:00.000Z" };
+  const ZELADOR = "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f";
+
+  it("caminho feliz: delega com o instante lido UMA vez, e devolve reatribuicao false — critério 19.1", async () => {
+    const resultado = await atribuirResponsavel(repositorio({ cargas: [agregadoEm("aberta")] }), ctx, {
+      ocorrenciaId: ID,
+      responsavelPessoaId: ZELADOR,
+    });
+
+    expect(atribuidos).toHaveLength(1);
+    expect(atribuidos[0]!.ocorrenciaId).toBe(ID);
+    expect(atribuidos[0]!.dados).toStrictEqual({
+      responsavelPessoaId: ZELADOR,
+      // **Quem atribuiu é quem CHAMOU**, nunca o autor da ocorrência e nunca um campo do corpo.
+      atribuidoPorPessoaId: GESTOR,
+      em: "2026-08-28T14:05:00.000Z",
+    });
+
+    expect(resultado.reatribuicao).toBe(false);
+    // **Nada foi aplicado no agregado** — é a metade negativa do critério 19.4, no nível da aplicação.
+    expect(aplicados).toHaveLength(0);
+  });
+
+  it("reatribuição devolve true, e é o mesmo caminho — critério 21.1", async () => {
+    const resultado = await atribuirResponsavel(
+      repositorio({
+        cargas: [agregadoEm("em_analise")],
+        atribuicao: (agregado) => ({
+          desfecho: "atribuida",
+          reatribuicao: true,
+          ocorrencia: lidaDe(agregado),
+        }),
+      }),
+      ctx,
+      { ocorrenciaId: ID, responsavelPessoaId: ZELADOR },
+    );
+
+    expect(resultado.reatribuicao).toBe(true);
+  });
+
+  it.each(["resolvida", "cancelada"] as const)(
+    "%s recusa com 409, COM statusAtual e acoesDisponiveis, e nada é escrito — critério 19.2",
+    async (terminal) => {
+      const erro = await atribuirResponsavel(repositorio({ cargas: [agregadoEm(terminal)] }), ctx, {
+        ocorrenciaId: ID,
+        responsavelPessoaId: ZELADOR,
+      }).catch((causa: unknown) => causa);
+
+      expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+      const recusa = erro as TransicaoNaoPermitida;
+      expect(recusa.codigo).toBe("TRANSICAO_NAO_PERMITIDA");
+      // **Acesso por índice**, como os casos de `analisarOcorrencia` deste mesmo arquivo já fazem:
+      // `extensoes` é `Readonly<Record<string, unknown>>`, e o `tsconfig` deste projeto exige o colchete.
+      expect(recusa.extensoes["statusAtual"]).toBe(terminal);
+      expect(recusa.extensoes["acoesDisponiveis"]).toStrictEqual([]);
+
+      // **A recusa acontece ANTES da porta** — nenhuma escrita foi tentada.
+      expect(atribuidos).toHaveLength(0);
+    },
+  );
+
+  it.each(["aberta", "em_analise", "em_atendimento", "pausada"] as const)(
+    "%s admite o comando — os quatro estados do critério 19.2",
+    async (status) => {
+      await atribuirResponsavel(repositorio({ cargas: [agregadoEm(status)] }), ctx, {
+        ocorrenciaId: ID,
+        responsavelPessoaId: ZELADOR,
+      });
+
+      expect(atribuidos).toHaveLength(1);
+    },
+  );
+
+  it("desfecho de vínculo inativo vira ResponsavelSemVinculoAtivo — critério 19.3", async () => {
+    const erro = await atribuirResponsavel(
+      repositorio({
+        cargas: [agregadoEm("aberta")],
+        atribuicao: () => ({ desfecho: "responsavel-sem-vinculo-ativo" }),
+      }),
+      ctx,
+      { ocorrenciaId: ID, responsavelPessoaId: ZELADOR },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(ResponsavelSemVinculoAtivo);
+    expect((erro as ResponsavelSemVinculoAtivo).codigo).toBe("RESPONSAVEL_SEM_VINCULO_ATIVO");
+  });
+
+  it("conflito relê o estado e vira 409 — a corrida entre dois Gestores", async () => {
+    // **O `23505` na constraint `atribuicoes_vigente_uk`**: dois Gestores atribuindo ao mesmo tempo. A
+    // segunda leitura é o que faz `statusAtual` dizer onde a ocorrência está AGORA.
+    const erro = await atribuirResponsavel(
+      repositorio({
+        cargas: [agregadoEm("aberta"), agregadoEm("cancelada")],
+        atribuicao: () => ({ desfecho: "conflito" }),
+      }),
+      ctx,
+      { ocorrenciaId: ID, responsavelPessoaId: ZELADOR },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(TransicaoNaoPermitida);
+    expect((erro as TransicaoNaoPermitida).extensoes["statusAtual"]).toBe("cancelada");
+    expect(carregados).toHaveLength(2);
+  });
+
+  it("ocorrência inexistente nesta organização vira 404, e nada é escrito", async () => {
+    await expect(
+      atribuirResponsavel(repositorio({ cargas: [null] }), ctx, {
+        ocorrenciaId: ID,
+        responsavelPessoaId: ZELADOR,
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(atribuidos).toHaveLength(0);
+  });
+
+  it("quem não alcança a ocorrência recebe o MESMO 404 — §6.3", async () => {
+    // Redundante hoje: quem tem `ocorrencia.atribuir` tem `ocorrencia.ler_todas` no mesmo papel. Roda
+    // mesmo assim, porque amarrar uma à outra por coincidência de mapa é o acoplamento que some quando o
+    // mapa muda (contrato §4.5).
+    const semLerTodas = {
+      pessoaId: GESTOR,
+      permissoes: ["ocorrencia.atribuir", "ocorrencia.ler_propria"],
+    };
+
+    await expect(
+      atribuirResponsavel(repositorio({ cargas: [agregadoEm("aberta")] }), semLerTodas, {
+        ocorrenciaId: ID,
+        responsavelPessoaId: ZELADOR,
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+
+    expect(atribuidos).toHaveLength(0);
   });
 });

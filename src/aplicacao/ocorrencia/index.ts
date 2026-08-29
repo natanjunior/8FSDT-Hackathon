@@ -3,12 +3,16 @@ export {
   AreaInvalida,
   CategoriaInvalida,
   OcorrenciaNaoEncontrada,
+  ResponsavelSemVinculoAtivo,
   TransicaoNaoPermitida,
 } from "./erros";
-export { analisarOcorrencia, type ContextoDoComando } from "./analisar-ocorrencia";
+export { analisarOcorrencia } from "./analisar-ocorrencia";
+export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
+export { type ContextoDoComando } from "./comando";
 export {
   type AnexoLido,
   type CursorDeListagem,
+  type DadosDaAtribuicao,
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
   type OcorrenciaLida,
@@ -16,6 +20,7 @@ export {
   type PessoaReferencia,
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
+  type ResultadoDaAtribuicao,
   type ResultadoDaTransicao,
   type ResultadoDoRegistro,
   type TransicaoLida,
