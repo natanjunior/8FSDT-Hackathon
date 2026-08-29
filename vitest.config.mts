@@ -43,6 +43,12 @@ export default defineConfig({
             // que ele prova é **puro**, e tem de rodar no laço curto — por isso entra aqui, e sai do
             // projeto `integracao` logo abaixo.
             "testes/integracao/banco.test.ts",
+            // **O segundo arquivo avulso, e pela mesma razão que o primeiro.** `semente/` não é camada
+            // de `src/` e não tem apelido `@/` próprio, então módulo e teste ficam lado a lado — e o que
+            // ele prova é **puro**: a forma do plano, sem banco nenhum. Estar aqui significa estar dentro
+            // do `npm run teste`, logo dentro do `npm run verificar`: **plano quebrado trava merge de
+            // qualquer item**, não só deste.
+            "semente/plano.test.ts",
           ],
           environment: "node",
         },

@@ -146,6 +146,42 @@ escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 **Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
 
+### A demonstração
+
+O produto sem dado não se demonstra: *recorrência por categoria* e *tempo médio de resolução, mês a mês*
+são séries mensais, e cinco semanas de uso real cabem em um mês e meio. A semente escreve **cinco meses**
+de ocorrências pelas mesmas portas que o produto usa — nenhum `INSERT` administrativo, nenhuma data
+corrigida depois do fato.
+
+```bash
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo
+```
+
+Ela cria **duas organizações** — `Condomínio Recanto Azul (demonstração)` e
+`Edifício Aurora (demonstração)` — e nunca escreve numa organização existente. Ao terminar, imprime os
+dois códigos públicos, a série mensal e a contagem por status: **é a conferência**.
+
+**Rodar duas vezes não duplica nada:** a semente recusa quando a demonstração já existe, e diz o que
+fazer. Para recomeçar:
+
+```bash
+npm run semear:demo -- --apagar   # apaga as duas organizações inteiras
+npm run semear:demo               # e semeia de novo
+```
+
+**As duas contas de demonstração**, para o ambiente publicado em
+<https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:
+
+| E-mail | Senha | O que ela é |
+|---|---|---|
+| `helena.demo@example.com` | `ResolveAi!2026` | **Gestora** no Recanto Azul e **Solicitante** no Aurora — é a pessoa em duas organizações, que é o argumento inteiro do multi-tenant |
+| `marcos.demo@example.com` | `ResolveAi!2026` | **Gestor** no Aurora |
+
+> **São credenciais de demonstração, publicadas de propósito.** Elas não estão no código nem na imagem —
+> a senha chega por `SENHA_DA_DEMONSTRACAO`, em tempo de execução. O cadastro do produto já é público e
+> aberto, então o que elas acrescentam é escrever **dentro das duas organizações de demonstração**, e nada
+> além. Trocá-las é uma variável de ambiente e uma linha desta tabela.
+
 ### O mapa das pastas de código
 
 | Pasta | Camada | Regra |

@@ -492,6 +492,67 @@ const configuracao = [
       ),
     },
   },
+
+  // -------------------------------------------------------------------------
+  // `semente/` — o programa de demonstração (item 43).
+  //
+  // **Ele NÃO está na linha de base** (`app/`, `src/`, `testes/`), então sem
+  // este bloco nasceria sem restrição de fronteira nenhuma — que é o oposto do
+  // que se quer de um diretório novo que atravessa o domínio inteiro.
+  //
+  // O que ele dispensa é `COMPOSICAO`, e é o que o define: a semente monta o
+  // MESMO grafo que a produção monta, e é o TERCEIRO consumidor do ponto de
+  // composição, ao lado de `interface/http` e de `interface/acoes`. Isso não
+  // afrouxa a regra 2b — o que ela protege é `app/` não alcançar porta sem
+  // passar pelo `comContexto`, e `app/` continua sem alcançar `@/composicao`.
+  //
+  // `SUPERFICIE_PUBLICA` continua valendo, e é ela que obriga o import a ser
+  // `@/composicao` e nunca `@/composicao/index`.
+  // -------------------------------------------------------------------------
+  {
+    files: ["semente/**/*.ts"],
+    rules: {
+      "no-restricted-imports": proibir(
+        SDKS,
+        INFRAESTRUTURA,
+        SUPERFICIE_PUBLICA,
+        RELATIVO_PARA_FORA,
+        SEM_ORGANIZACAO,
+        PORTAS_DE_ANEXO,
+        ARMAZENAMENTO_DE_ANEXOS,
+      ),
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // ... e `remocao.ts` é o ÚNICO arquivo fora de `src/composicao/` que alcança
+  // `infraestrutura/`.
+  //
+  // **Precisa alcançar, e a razão é que não há capacidade a chamar:** o produto
+  // não tem "apagar organização", e não vai ter — apagar dados de negócio não é
+  // capacidade de produto. O `--apagar` é DELETE administrativo, e fica num
+  // arquivo só para que a exceção seja legível em vez de espalhada.
+  //
+  // **`SDKS` continua proibido**, e é o que separa esta autorização de uma
+  // porta aberta: ela usa `criarConsulta`/`criarTransacao`, nunca o `pg`.
+  //
+  // **Vem DEPOIS do bloco acima de propósito:** os dois casam este arquivo, e
+  // para a mesma regra o último `files` vence. Invertê-los apagaria esta
+  // autorização em silêncio.
+  // -------------------------------------------------------------------------
+  {
+    files: ["semente/remocao.ts"],
+    rules: {
+      "no-restricted-imports": proibir(
+        SDKS,
+        SUPERFICIE_PUBLICA,
+        RELATIVO_PARA_FORA,
+        SEM_ORGANIZACAO,
+        PORTAS_DE_ANEXO,
+        ARMAZENAMENTO_DE_ANEXOS,
+      ),
+    },
+  },
 ];
 
 export default configuracao;
