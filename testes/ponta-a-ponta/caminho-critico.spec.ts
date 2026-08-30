@@ -1,0 +1,355 @@
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+/**
+ * ============================================================================
+ *  O caminho crítico do enunciado, de fora para dentro — o item 41b
+ * ============================================================================
+ *
+ * **É o único teste de ponta a ponta do projeto, e é para sempre** (ADR-0008). O que ele prova é
+ * **binário**: ou as camadas se falam — navegador, rota do Next, camada de aplicação, agregado,
+ * repositório escopado, Postgres, provedor de autenticação —, ou não se falam. **Nenhum outro teste deste
+ * repositório toca a autenticação real, e nenhum toca `app/`.**
+ *
+ * **Ele não é uma suíte, e não cresce.** Ganha asserção quando uma garantia nova precisar de prova de
+ * fora; **nunca ganha arquivo**. Um segundo só entra se provar **outro transporte** — e o único candidato
+ * nomeado pela ADR-0008 é a leitura offline do RNF7.
+ *
+ * ---------------------------------------------------------------------------
+ *  Os dois pré-requisitos, e eles NÃO são automatizados de propósito
+ * ---------------------------------------------------------------------------
+ *
+ * 1. **A pilha de pé** — `npm run local` (README). Não há `webServer` no `playwright.config.ts`: a pilha
+ *    não é um processo, e duplicá-la ali seria uma segunda cópia do procedimento do README que diverge no
+ *    primeiro ajuste.
+ * 2. **A semente de demonstração aplicada** — `SENHA_DA_DEMONSTRACAO=… npm run semear:demo`. Um
+ *    `globalSetup` que a rodasse acrescentaria minutos e **falharia por desenho** quando a demonstração
+ *    já existisse (*"a semente recusa quando a demonstração já existe"*, README `:164`).
+ *
+ * ---------------------------------------------------------------------------
+ *  O mundo é o da semente, e este teste só ACRESCENTA
+ * ---------------------------------------------------------------------------
+ *
+ * A regra é a da `arquitetura.md` §7.2: **um teste pode acrescentar ao mundo; nunca alterá-lo.** Ele
+ * acrescenta **uma** ocorrência ao Edifício Aurora e não toca em nada semeado. O título carrega a marca
+ * do instante da execução, para que toda asserção de lista encontre exatamente a linha dela e nunca uma
+ * das 36 da demonstração. Rodar duas vezes cria duas ocorrências marcadas e nada quebra;
+ * `npm run semear:demo -- --apagar` limpa tudo.
+ *
+ * **As contas são de verdade** — criadas por `criarConta`, pelos mesmos caminhos do produto
+ * (`semente/mundo.ts:146-160`). É o único lugar do repositório onde existe credencial real com senha
+ * conhecida, e é o que faz este teste provar a autenticação em vez de simulá-la (critério 41b.4).
+ *
+ * ---------------------------------------------------------------------------
+ *  Localizadores: só o que o usuário vê
+ * ---------------------------------------------------------------------------
+ *
+ * **Nenhum `data-testid`** — não existe um único no repositório, e criá-los faria um item de *teste*
+ * editar arquivos de *produto*. O teste usa `getByRole`, `getByLabel` e `getByText`, que é o que o
+ * shadcn/ui torna confiável (os controles nascem com nome acessível) e é o mesmo alvo que o compromisso
+ * **A-1** do DoD cobra. **Efeito colateral bem-vindo:** um teste que só enxerga o que o usuário enxerga
+ * falha quando a acessibilidade regride.
+ *
+ * **Onde há índice de posição, o índice É a asserção** — as linhas da trilha são conferidas por posição
+ * porque a ordem *do mais antigo para o mais recente* é justamente o que se está provando. Em nenhum
+ * outro lugar há índice de posição.
+ */
+
+/**
+ * **Falha na carga do arquivo, com o comando exato.** Sem isto, a senha ausente apareceria como
+ * *"E-mail ou senha incorretos."* na tela de login — indistinguível de defeito de produto.
+ */
+const SENHA = process.env["SENHA_DA_DEMONSTRACAO"];
+if (SENHA === undefined || SENHA === "") {
+  throw new Error(
+    "SENHA_DA_DEMONSTRACAO não está no ambiente. Rode:\n" +
+      "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta\n" +
+      "É a mesma senha com que a semente de demonstração criou as duas contas (README, «A demonstração»).",
+  );
+}
+
+const HELENA = "helena.demo@example.com";
+const MARCOS = "marcos.demo@example.com";
+const AURORA = "Edifício Aurora (demonstração)";
+const RECANTO = "Condomínio Recanto Azul (demonstração)";
+const ENCARREGADA_DO_AURORA = "Sônia Prado";
+
+/** A marca do instante — é ela que separa esta ocorrência das 36 da demonstração. */
+const MARCA = new Date().toISOString().replace(/[:.]/gu, "-");
+const TITULO = `Ponta a ponta ${MARCA} — vazamento na garagem`;
+
+const OBSERVACAO_DO_ATENDIMENTO = "A equipe sobe hoje à tarde para ver de onde vem a água.";
+const SOLUCAO_APLICADA = "Trecho da manta refeito na junta de dilatação e ralo desobstruído.";
+const OBSERVACAO_DA_RESOLUCAO = "Duas horas de teste com mangueira, sem gotejamento.";
+const COMENTARIO_DA_AVALIACAO = "Resolveram rápido e me avisaram do começo ao fim.";
+
+test("o caminho crítico do enunciado, com autenticação real e a trilha conferida na interface", async ({
+  browser,
+}) => {
+  const contextoDeHelena = await browser.newContext();
+  const contextoDeMarcos = await browser.newContext();
+  const helena = await contextoDeHelena.newPage();
+  const marcos = await contextoDeMarcos.newPage();
+
+  // -------------------------------------------------------------------------
+  // 1 · Helena entra e escolhe o Edifício Aurora
+  //
+  // **Cair em T-02 é comportamento correto, não obstáculo.** Com dois vínculos e sem escolha na sessão,
+  // `organizacaoAtiva` vem `null` e a tela pede a escolha (`resolver-contexto.ts:166-175`). O passo 1 é,
+  // portanto, uma prova a mais — de graça.
+  // -------------------------------------------------------------------------
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await expect(
+    helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
+  ).toBeVisible();
+  await helena.getByRole("button", { name: AURORA }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  // -------------------------------------------------------------------------
+  // 2 · Helena registra a ocorrência marcada — T-04
+  // -------------------------------------------------------------------------
+  await helena.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  await helena.waitForURL(/\/ocorrencias\/nova$/u);
+  await helena.getByLabel("Título").fill(TITULO);
+  await helena
+    .getByLabel("Descrição")
+    .fill("Água pingando do teto da garagem, perto da vaga 12. Piora quando chove.");
+  // **Índice 1 porque o índice 0 é a opção «Escolha», desabilitada.** Qual categoria e qual área não muda
+  // nada do que este teste prova, e fixar um nome amarraria o teste ao conteúdo da semente.
+  await helena.getByLabel("Categoria").selectOption({ index: 1 });
+  await helena.getByLabel("Área").selectOption({ index: 1 });
+  await helena.getByRole("button", { name: "Registrar ocorrência" }).click();
+
+  // Depois do `201`, T-05 da ocorrência criada (critério 11.5). O identificador sai da URL.
+  await helena.waitForURL(
+    /\/ocorrencias\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+  );
+  const ocorrenciaId = helena.url().split("/").pop() ?? "";
+  expect(ocorrenciaId).not.toBe("");
+
+  // -------------------------------------------------------------------------
+  // 3 · A troca de organização, no meio do percurso — o critério 41b.3
+  //
+  // **A asserção é de DOIS lados, e é isso que a torna prova:** em Aurora a lista contém a ocorrência
+  // recém-registrada; no Recanto Azul ela **não** a contém, **e a lista mostra linhas do Recanto** — isto
+  // é, não está apenas vazia. Um lado só não provaria nada: lista vazia depois da troca é indistinguível
+  // de consulta quebrada.
+  //
+  // **Um efeito colateral que é vantagem, e fica declarado:** a troca muda a organização **e** o papel de
+  // Helena — Solicitante no Aurora, Gestora no Recanto. As duas listas diferem por dois motivos ao mesmo
+  // tempo, e isso **fortalece** a segunda asserção: a ocorrência do Aurora não aparece nem para quem tem
+  // `ocorrencia.ler_todas` do outro lado.
+  //
+  // **É a única prova ponta a ponta que a decisão do PA-19 vai ter, e custa dois cliques.**
+  // -------------------------------------------------------------------------
+  await helena.goto("/ocorrencias");
+  await expect(helena.getByRole("heading", { name: "Minhas ocorrências" })).toBeVisible();
+  await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
+
+  await trocarDeOrganizacao(helena, RECANTO);
+  await expect(helena.getByRole("heading", { name: "Todas as ocorrências" })).toBeVisible();
+  await expect(helena.getByRole("link", { name: TITULO })).toHaveCount(0);
+  // A lista do Recanto **tem** linhas — a semente escreve nas duas organizações. Sem isto, uma consulta
+  // quebrada passaria no teste.
+  await expect(helena.getByRole("table").getByRole("row")).not.toHaveCount(0);
+
+  await trocarDeOrganizacao(helena, AURORA);
+  await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
+
+  // -------------------------------------------------------------------------
+  // 4 · Marcos entra — vínculo único, organização escolhida pelo servidor
+  //
+  // Com exatamente um vínculo ativo, o servidor escolhe e grava o cookie na própria resposta
+  // (contrato §4.3). Ele não passa por T-02.
+  // -------------------------------------------------------------------------
+  await entrar(marcos, MARCOS);
+  await marcos.waitForURL(/\/ocorrencias$/u);
+  await expect(marcos.getByRole("heading", { name: "Todas as ocorrências" })).toBeVisible();
+  await marcos.getByRole("link", { name: TITULO }).click();
+  await marcos.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
+
+  // -------------------------------------------------------------------------
+  // 5 · Analisar — `aberta` → `em_analise`
+  //
+  // **Sem observação, e não é esquecimento:** `analisar` é botão nu em T-05 — não tem entrada no mapa
+  // `formularios` da página —, então pela interface ele grava `observacao: null`. Os dois registros com
+  // texto vêm dos passos 7 e 8.
+  //
+  // Os rótulos são os do Gestor (`lenteDeRotulo` → `NOME_DO_STATUS`): «Aberta», «Em análise»,
+  // «Em atendimento», «Resolvida».
+  // -------------------------------------------------------------------------
+  await esperarSituacao(marcos, "Aberta");
+  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await esperarSituacao(marcos, "Em análise");
+
+  // -------------------------------------------------------------------------
+  // 6 · Atribuir a Sônia Prado — a Encarregada do Aurora
+  //
+  // **Não é «Atribuir a mim».** O botão de auto-atribuição existe e é um clique; atribuir à Encarregada
+  // custa dois, percorre a lista de candidatos — a superfície larga do modal — e mantém separadas as duas
+  // figuras que o glossário separa: **quem tria** e **quem executa**.
+  //
+  // `iniciar-atendimento` não exige que quem chama seja o responsável, só que exista um
+  // (`iniciar-atendimento.ts:71-72`), então Marcos segue conduzindo.
+  //
+  // **O escopo `getByRole("dialog")` não é enfeite:** o gatilho e o botão que grava têm o mesmo rótulo,
+  // «Atribuir», e um localizador solto pegaria os dois.
+  // -------------------------------------------------------------------------
+  await marcos.getByRole("button", { name: "Atribuir" }).click();
+  const modalDeAtribuicao = marcos.getByRole("dialog");
+  await expect(
+    modalDeAtribuicao.getByRole("heading", { name: "Atribuir responsável" }),
+  ).toBeVisible();
+  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeAtribuicao.getByRole("button", { name: "Atribuir" }).click();
+  await expect(marcos.getByText(ENCARREGADA_DO_AURORA).first()).toBeVisible();
+
+  // -------------------------------------------------------------------------
+  // 7 · Iniciar atendimento, com observação — `em_analise` → `em_atendimento`
+  // -------------------------------------------------------------------------
+  await marcos.getByRole("button", { name: "Iniciar atendimento" }).click();
+  const modalDeAtendimento = marcos.getByRole("dialog");
+  await modalDeAtendimento.getByLabel("Observação (opcional)").fill(OBSERVACAO_DO_ATENDIMENTO);
+  await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
+  await esperarSituacao(marcos, "Em atendimento");
+
+  // -------------------------------------------------------------------------
+  // 8 · Resolver, com a solução aplicada no mesmo modal — `em_atendimento` → `resolvida`
+  //
+  // **A solução aplicada NÃO é um passo a mais do percurso:** ela viaja no corpo do `resolver`, e o
+  // contrato §8.4 diz que enviá-la ali *"equivale a chamar `/registrar-solucao-aplicada` antes"*.
+  // -------------------------------------------------------------------------
+  await marcos.getByRole("button", { name: "Resolver" }).click();
+  const modalDeResolucao = marcos.getByRole("dialog");
+  await modalDeResolucao.getByLabel("O que foi feito (opcional)").fill(SOLUCAO_APLICADA);
+  await modalDeResolucao.getByLabel("Observação (opcional)").fill(OBSERVACAO_DA_RESOLUCAO);
+  await modalDeResolucao.getByRole("button", { name: "Resolver" }).click();
+  await esperarSituacao(marcos, "Resolvida");
+
+  // -------------------------------------------------------------------------
+  // 9 · Helena avalia — nota e comentário
+  //
+  // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
+  // -------------------------------------------------------------------------
+  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
+  await esperarSituacao(helena, "Resolvida");
+  await helena.getByRole("button", { name: "Avaliar" }).click();
+  const modalDeAvaliacao = helena.getByRole("dialog");
+  await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
+  await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
+  await modalDeAvaliacao.getByRole("button", { name: "Enviar avaliação" }).click();
+  await expect(helena.getByRole("heading", { name: "Sua avaliação" })).toBeVisible();
+  await expect(helena.getByText("Nota 5 de 5")).toBeVisible();
+
+  // -------------------------------------------------------------------------
+  // 10 · A trilha, conferida NA INTERFACE — o critério 41b.2
+  //
+  // **Clicando, não digitando a URL** — é o critério 41b.7.
+  //
+  // **Quatro registros, e não seis:** `atribuir-responsavel` e `avaliar` não transicionam (estão em
+  // `SEM_TRANSICAO`, `MaquinaDeEstados.ts:29-43`), então não geram registro de trilha.
+  //
+  // **`statusAnterior` vazio SÓ no primeiro** — é a premissa P1, e é o campo que faz uma trilha ser
+  // trilha. **Nomes de status crus**, porque auditoria que traduz não é auditoria.
+  // -------------------------------------------------------------------------
+  await helena.getByRole("link", { name: "ver a trilha de auditoria" }).click();
+  await helena.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}/auditoria$`, "u"));
+  await expect(helena.getByRole("heading", { name: "Trilha de auditoria" })).toBeVisible();
+  await expect(helena.getByText(TITULO)).toBeVisible();
+
+  const corpo = helena.getByRole("table").locator("tbody");
+  // Quatro registros, cada um com a sua linha de continuação.
+  await expect(corpo.getByRole("row")).toHaveCount(8);
+
+  const esperado = [
+    { de: "—", para: "aberta", autor: "Helena Rocha", observacao: "observação: —" },
+    { de: "aberta", para: "em_analise", autor: "Marcos Vieira", observacao: "observação: —" },
+    {
+      de: "em_analise",
+      para: "em_atendimento",
+      autor: "Marcos Vieira",
+      observacao: `observação: ${OBSERVACAO_DO_ATENDIMENTO}`,
+    },
+    {
+      de: "em_atendimento",
+      para: "resolvida",
+      autor: "Marcos Vieira",
+      observacao: `observação: ${OBSERVACAO_DA_RESOLUCAO}`,
+    },
+  ];
+
+  for (const [indice, registro] of esperado.entries()) {
+    const linha = corpo.getByRole("row").nth(indice * 2);
+    const continuacao = corpo.getByRole("row").nth(indice * 2 + 1);
+
+    await expect(linha.getByRole("cell").nth(0)).toHaveText(registro.de);
+    await expect(linha.getByRole("cell").nth(1)).toHaveText(registro.para);
+    // O carimbo com segundos, no formato do protótipo. **É um dos cinco campos do F5**, e a asserção é de
+    // forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
+    await expect(linha.getByRole("cell").nth(2)).toHaveText(
+      /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/u,
+    );
+    await expect(linha.getByRole("cell").nth(3)).toHaveText(registro.autor);
+    await expect(continuacao).toContainText(registro.observacao);
+  }
+
+  // -------------------------------------------------------------------------
+  // 11 · A asserção de recusa — o critério 41b.8
+  //
+  // **É asserção, não percurso** — a ADR-0008 proíbe arquivo e permite asserção —, e é a **primeira vez
+  // que um teste deste repositório chama um `route.ts`**.
+  //
+  // Helena é Solicitante no Aurora e **autora** da ocorrência: ela tem `ocorrencia.ler_propria` e não tem
+  // `ocorrencia.analisar`. A permissão é conferida **antes** de o recurso ser lido e antes de o corpo ser
+  // interpretado (`com-contexto.ts:206-210`), que é o critério **16.4** literal — por isso a requisição
+  // vai sem corpo e sem cabeçalho, e ainda assim responde `403`.
+  //
+  // `helena.request` compartilha os cookies do contexto: é a **própria sessão**, não uma requisição
+  // anônima.
+  // -------------------------------------------------------------------------
+  const recusa = await helena.request.post(`/api/ocorrencias/${ocorrenciaId}/analisar`);
+  expect(recusa.status()).toBe(403);
+  expect(((await recusa.json()) as { codigo?: string }).codigo).toBe("PERMISSAO_INSUFICIENTE");
+
+  await contextoDeHelena.close();
+  await contextoDeMarcos.close();
+});
+
+/**
+ * T-01 · Entrar. **Autenticação real, sem porta falsa e sem variável que finja sessão** — critério 41b.4,
+ * e é a razão de a ADR-0004 e a ADR-0008 recusarem a alternativa: a imagem publicada é pública.
+ */
+async function entrar(pagina: Page, email: string): Promise<void> {
+  await pagina.goto("/entrar");
+  await pagina.getByLabel("E-mail").fill(email);
+  await pagina.getByLabel("Senha").fill(SENHA as string);
+  await pagina.getByRole("button", { name: "Entrar" }).click();
+}
+
+/**
+ * O menu de organização de T-03 — o gatilho com o nome da organização ativa e o `▾`
+ * (`menu-de-organizacao.tsx:60-88`). O `▾` é `aria-hidden`, então o nome acessível do gatilho é só o nome
+ * da organização.
+ *
+ * **Depois da troca o destino é `/`**, que é o losango e redespacha para T-03 — por isso a espera é pela
+ * URL da lista, e não pela raiz.
+ */
+async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void> {
+  await pagina.getByRole("button", { name: /demonstração/u }).click();
+  await pagina.getByRole("menuitem", { name: destino }).click();
+  await pagina.waitForURL(/\/ocorrencias$/u);
+}
+
+/**
+ * O bloco 1a de T-05 — *Situação*, o `statusRotulo` que não pode rolar.
+ *
+ * **Escopado pela seção, e nunca por índice de posição** (§3.7 da spec): a mesma palavra aparece na linha
+ * do tempo, dentro de uma frase, e um localizador solto pegaria as duas.
+ */
+function situacao(pagina: Page): Locator {
+  return pagina.locator("section").filter({ hasText: "Situação" }).first();
+}
+
+async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {
+  await expect(situacao(pagina)).toContainText(rotulo);
+}

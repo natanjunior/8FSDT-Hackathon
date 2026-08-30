@@ -18,6 +18,11 @@ import { configDefaults, defineConfig } from "vitest/config";
  * `interface/` confere schema, `infraestrutura/` confere o ACL com o SDK do provedor **simulado**. Pasta de
  * teste que não estiver nesta lista **não é executada e não falha** — que é a pior forma de um portão ser
  * marcado sem ser cumprido.
+ *
+ * **E há UMA pasta de teste fora desta lista de propósito, desde o item 41b: `testes/ponta-a-ponta/`.**
+ * Ela tem outro runner — Playwright, `playwright.config.ts` na raiz, `npm run teste:ponta-a-ponta` — e
+ * exige a pilha de pé, então não pode entrar no laço curto. O sufixo dela é `.spec.ts`, e não `.test.ts`,
+ * para que um glob amplo acrescentado um dia continue não a alcançando.
  */
 const apelido = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
 

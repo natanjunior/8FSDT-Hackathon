@@ -32,3 +32,7 @@ node_modules/
 out/
 next-env.d.ts
 *.tsbuildinfo
+
+# Saída do Playwright (item 41b): rastro, imagem e vídeo da falha, e o relatório HTML.
+test-results/
+playwright-report/

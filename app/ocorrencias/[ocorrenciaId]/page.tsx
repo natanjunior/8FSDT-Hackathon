@@ -23,22 +23,18 @@ import {
   fraseDaMensagem,
   fraseDaTransicao,
 } from "@/interface/componentes/linha-do-tempo";
-import {
-  MenuDeOrganizacao,
-  type VinculoNoMenu,
-} from "@/interface/componentes/menu-de-organizacao";
 import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
 import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
-  ocorrenciaNaoEncontradaEm,
   rotuloDeComando,
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
@@ -614,9 +610,14 @@ export default async function Ocorrencia({
             {`“${detalhe.ultimaTransicao.observacao}”`}
           </p>
         )}
-        {/* **O link para a trilha de auditoria NÃO entra** — T-06 não existe como tela e não tem dono
-            (achado A-1 da spec do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele.
-            Este entra porque o destino existe: é uma âncora na própria página. **A-3:** alvo de toque. */}
+        {/* **A âncora da linha do tempo — e ela é uma âncora na própria página.** **A-3:** alvo de toque.
+
+            **O que este comentário dizia até o item 41b, e por que deixou de valer:** *"o link para a
+            trilha de auditoria NÃO entra — T-06 não existe como tela e não tem dono (achado A-1 da spec
+            do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele."* **T-06 passou a
+            existir** (critério 41b.6), e o link para ela entra — **ao fim do bloco 3**, que é onde o
+            protótipo o desenha nos cinco quadros (`telas.html:2210`, `:2333`, `:2613`, `:2733`,
+            `:2970`), e não aqui. */}
         <a
           href="#linha-do-tempo"
           className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
@@ -829,6 +830,32 @@ export default async function Ocorrencia({
             lente={lente}
           />
         </Suspense>
+        {/*
+          **O link para T-06 — critério 41b.7**, e é por ele que se chega à trilha: clicando, não
+          digitando a URL.
+
+          **Ao fim do bloco 3**, que é onde o protótipo o desenha nos cinco quadros (`telas.html:2210`,
+          `:2333`, `:2613`, `:2733`, `:2970`) — e faz sentido ali: a linha do tempo responde *"o que está
+          acontecendo"*, e quem quer *"prove"* segue daqui.
+
+          **FORA do `<Suspense>`, de propósito.** Ele não depende de a linha do tempo ter chegado; dentro
+          do `fallback` sumiria justamente durante a espera, que é quando alguém desiste da tela.
+
+          **Sem o `?de=`**, pela mesma razão do *Voltar à lista* do bloco de `404`: o recorte que trouxe
+          até aqui não é da trilha, e T-06 volta para T-05, não para a lista.
+
+          **`<a>` e não `next/link`, e é o mesmo elemento da âncora do bloco 1b.** T-06 é
+          `force-dynamic`: o *prefetch* do `Link` a renderizaria no servidor a cada aparição de T-05 na
+          viewport — uma consulta a mais por abertura, para um link que a maioria não clica.
+
+          **A-3:** alvo de toque de 44 px.
+        */}
+        <a
+          href={`/ocorrencias/${detalhe.id}/auditoria`}
+          className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
+        >
+          ver a trilha de auditoria →
+        </a>
       </section>
 
       {/*
@@ -898,72 +925,6 @@ export default async function Ocorrencia({
         primario={primario}
         emMenu={emMenu}
       />
-    </MolduraDeTela>
-  );
-}
-
-/**
- * **O `404` de ocorrência, desenhado pela própria tela** — critério 28.3, metade de T-05.
- *
- * A §7 do `inventario-de-telas.md` (`:1504`) especifica **três coisas**, e o bloco tem exatamente três:
- * a frase, **trocar de organização** e o **`traceId`**. Mais uma quarta que o inventário dá de graça em
- * toda tela de erro deste produto — uma saída que não seja o botão *voltar* do navegador.
- *
- * **Nada além disso.** Um parágrafo explicando que *"ela pode ter sido registrada em outra organização"*
- * seria texto de produto sem critério escrito, e o rótulo *"Você está em"* acima do menu já diz o mesmo
- * sem virar frase nova.
- *
- * **A `MolduraDeTela` é a mesma do caminho feliz**, e a frase é o `titulo` — isto é, o `<h1>`, que é como
- * o inventário a escreve. Zero componente novo.
- *
- * **O menu só aparece havendo organização ativa**, como em T-03: ele exige `id` e `nome` não-nulos, e
- * resolve sozinho o caso de **não haver outra** organização — mostra a atual e *"Entrar em outra
- * organização"* (`menu-de-organizacao.tsx:76-102`).
- *
- * **O documento volta com `200`, e não com `404`** — está declarado. Nada no projeto depende disso: o
- * produto inteiro está atrás de sessão, não há rastreador, e o `404` que o contrato governa é o da
- * **API**, que continua sendo `404`.
- */
-function OcorrenciaNaoEncontradaNaTela({
-  organizacaoAtiva,
-  vinculos,
-  traceId,
-}: {
-  organizacaoAtiva: { id: string; nome: string } | null;
-  vinculos: readonly VinculoNoMenu[];
-  traceId: string;
-}) {
-  return (
-    <MolduraDeTela titulo={ocorrenciaNaoEncontradaEm(organizacaoAtiva?.nome ?? null)}>
-      {organizacaoAtiva !== null && (
-        <div className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3">
-          <span className="text-tinta-fraca text-xs tracking-wide uppercase">Você está em</span>
-          <MenuDeOrganizacao
-            vinculos={vinculos}
-            organizacaoAtivaId={organizacaoAtiva.id}
-            nomeDaOrganizacaoAtiva={organizacaoAtiva.nome}
-          />
-        </div>
-      )}
-
-      {/*
-        **Sem o `?de=`, e é decisão.** O filtro que trouxe até aqui pode ser de outra organização, e
-        reconstruí-lo seria carregar um recorte que não vale mais. **A-3:** `min-h-11`.
-      */}
-      <Link
-        href="/ocorrencias"
-        className="border-linha text-tinta inline-flex min-h-11 w-full items-center justify-center rounded-md border px-4 text-sm font-medium"
-      >
-        Voltar à lista
-      </Link>
-
-      {/*
-        **O `traceId` carrega a palavra (A-5) e é copiável.** Ele existe porque a §6.3 do contrato diz
-        para que serve — *"liga à linha de log"* — e porque `registrarFalha` acabou de escrever essa linha.
-      */}
-      <p className="text-tinta-fraca text-xs">
-        Código para suporte: <code className="select-all">{traceId}</code>
-      </p>
     </MolduraDeTela>
   );
 }

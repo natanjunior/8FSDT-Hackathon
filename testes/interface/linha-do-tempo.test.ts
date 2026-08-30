@@ -32,6 +32,13 @@ describe("dataHora — o fuso é escrito, não herdado", () => {
   it("meia-noite sai como 00h, nunca como 24h", () => {
     expect(dataHora("2026-08-15T03:00:00.000Z")).toBe("15/08/2026, 00h00");
   });
+
+  it("a linha do tempo NÃO tem segundos, e a trilha tem — são duas formas, de propósito", () => {
+    // `dataHoraComSegundos` mora em `trilha-de-auditoria.ts` e é de T-06: a pergunta dela é "prove", e
+    // duas transições no mesmo minuto precisam continuar distinguíveis. Esta aqui responde "o que está
+    // acontecendo", e segundos seriam ruído em oito eventos seguidos.
+    expect(dataHora("2026-08-03T12:14:02.000Z")).toBe("03/08/2026, 09h14");
+  });
 });
 
 describe("as frases — transcritas do protótipo, não inventadas", () => {
