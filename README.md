@@ -115,6 +115,7 @@ nome de host só**.
 ```bash
 npm run verificar                   # lint + tipos + teste unitário + os três verificadores de docs
 npm run teste:integracao            # exige Postgres — é o critério A4 (organização A não vê dado de B)
+npm run teste:ponta-a-ponta         # exige a pilha de pé E a semente de demonstração — ver abaixo
 ```
 
 Cada peça, separada:
@@ -125,6 +126,7 @@ Cada peça, separada:
 | `npm run tipos` | `tsc --noEmit`, em modo estrito |
 | `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
+| `npm run teste:ponta-a-ponta` | **O caminho crítico do enunciado, de fora para dentro** — um navegador contra a pilha real, com autenticação de verdade: registrar → analisar → atribuir → atender → resolver → avaliar, mais a trilha conferida na tela e a troca de organização no meio do percurso. **É um só, e para sempre** ([ADR-0008](docs/adr/0008-a-suite-de-testes-segue-a-garantia.md)); **não é portão de pipeline por push** |
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As três regras mecânicas da §15 do contrato, mais `$ref` e `operationId` |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
@@ -133,6 +135,24 @@ Cada peça, separada:
 **O teste de integração roda num database só dele, `resolveai_teste`**, criado pelo `npm run local`. Sem
 `BANCO_URL_TESTE`, ele deriva do `BANCO_URL` trocando o database — e **recusa rodar** se o destino for o
 mesmo banco onde você trabalha, porque a suíte derruba e recria as tabelas a cada execução.
+
+**O teste de ponta a ponta tem dois pré-requisitos, e eles não são automatizados de propósito.** Ele não
+sobe a pilha (o `playwright.config.ts` não tem `webServer`: a pilha não é um processo, e duplicar o
+procedimento desta página seria uma segunda cópia que diverge) e não semeia (a semente **recusa** quando a
+demonstração já existe). Antes da primeira execução:
+
+```bash
+npx playwright install chromium                              # uma vez por máquina
+npm run local                                                # a pilha, em outro terminal
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo     # o mundo
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
+```
+
+Ele **acrescenta** uma ocorrência ao `Edifício Aurora (demonstração)`, com a marca do instante no título,
+e não altera nada do que a semente escreveu. Rodar duas vezes cria duas ocorrências marcadas e nada
+quebra; `npm run semear:demo -- --apagar` limpa tudo. Numa falha, o rastro, a imagem e o vídeo ficam em
+`test-results/` e o relatório em `playwright-report/` — os dois fora do git, e o rastro se abre com
+`npx playwright show-trace <caminho>`.
 
 ### Publicar
 
