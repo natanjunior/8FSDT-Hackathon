@@ -8,7 +8,15 @@ import type {
   ResultadoDoRegistro,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
-import { Avaliacao, Ocorrencia, RegistroDeTransicao, TERMINAIS } from "@/dominio/ocorrencia";
+import {
+  Avaliacao,
+  comandoPermitido,
+  Ocorrencia,
+  RegistroDeTransicao,
+  STATUS,
+  TERMINAIS,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
@@ -611,11 +619,43 @@ class SemVinculoAtivo extends Error {
  *
  * **Confere `code` E `constraint`**, como `ehAnexoJaReivindicado` já faz: `23505` sozinho pegaria qualquer
  * unicidade da transação — inclusive a `atribuicoes_id_organizacao_uk`, que é outro assunto.
+ *
+ * **Desde o item 21 este caminho é rede, não o caso comum.** O guarda de estado é a primeira instrução da
+ * transação, e o bloqueio de linha que ele toma na raiz **serializa** duas atribuições concorrentes à mesma
+ * ocorrência: a segunda espera, reavalia o predicado e segue, encerrando a atribuição da primeira em vez de
+ * bater no índice. O `23505` continua conferido porque a serialização é do caminho de hoje, e não uma
+ * promessa do esquema.
  */
 function ehAtribuicaoVigenteDuplicada(erro: unknown): boolean {
   const comCodigo = erro as { code?: unknown; constraint?: unknown };
   return comCodigo.code === "23505" && comCodigo.constraint === "atribuicoes_vigente_uk";
 }
+
+/**
+ * ============================================================================
+ *  Os estados que admitem `atribuir-responsavel` — o predicado do item 21
+ * ============================================================================
+ *
+ * **Derivada, nunca copiada.** `comandoPermitido` é a mesma função que a guarda do agregado usa
+ * (`atribuir-responsavel.ts:79`), então a porta e o comando leem **a mesma** tabela do Domínio. Uma
+ * segunda lista escrita à mão aqui divergiria no dia em que a tabela companheira mudasse, e divergiria
+ * **em silêncio** — o compilador não alcança string dentro de SQL.
+ *
+ * **Por que a lista do comando, e não `TERMINAIS`.** É a decisão da `respostas.md` P1 do item 21, e a
+ * razão é a nota do `backlog.md` sob o item 27: *"cada porta expressa a invariante do **seu** comando, e
+ * simetria entre portas não é valor por si só"*. O item 17 usa `TERMINAIS` porque o erro dele **se chama**
+ * terminalidade (`PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL`); aqui o erro é o genérico
+ * `TRANSICAO_NAO_PERMITIDA`, e o que ele expressa é a lista de estados admitidos do critério **19.2**.
+ * As duas listas são o mesmo conjunto **hoje**; `TERMINAIS` deixaria passar em silêncio um sétimo estado
+ * não terminal que não admitisse o comando.
+ *
+ * **E por que não `status = <o que o agregado leu>`**, que é a forma dos itens 25 e 27: um movimento
+ * **legal** entre a leitura e a escrita responderia `conflito`, e o `409` sairia com
+ * `statusAtual: "em_analise"` ao lado de um `acoesDisponiveis` **contendo `atribuir-responsavel`**.
+ */
+const ESTADOS_QUE_ADMITEM_ATRIBUICAO: readonly StatusOcorrencia[] = STATUS.filter((status) =>
+  comandoPermitido(status, "atribuir-responsavel"),
+);
 
 export function repositorioEscopadoDeOcorrencias(
   consulta: ConsultaEscopada,
@@ -1038,8 +1078,13 @@ export function repositorioEscopadoDeOcorrencias(
      * **Atribuir e reatribuir são o mesmo caminho** — a distinção é derivada do estado, não da intenção
      * de quem chamou (contrato §3.4). Três escritas e uma releitura, num `COMMIT` só.
      *
-     * **A ordem é o que faz o índice único parcial nunca ser violado no caminho normal:** o `update` de
-     * encerramento tira a linha vigente do índice **antes** de o `insert` entrar nele.
+     * **A primeira escrita é o guarda (item 21).** O `update` da raiz subiu para o topo porque é ele que
+     * carrega o predicado de `status`, e recusar de lá é o único jeito de a recusa não comitar as
+     * escritas em `atribuicoes` — ver o comentário do passo 1 e o docblock de `SemVinculoAtivo`.
+     *
+     * **A ordem entre as duas escritas em `atribuicoes` é o que faz o índice único parcial nunca ser
+     * violado no caminho normal:** o `update` de encerramento tira a linha vigente do índice **antes** de
+     * o `insert` entrar nele.
      *
      * *Alternativa recusada — `update` e `insert` como CTEs irmãs numa instrução só.* CTEs de escrita
      * veem o **mesmo snapshot** e não têm ordem garantida entre si, então o `insert` poderia ser conferido
@@ -1053,7 +1098,40 @@ export function repositorioEscopadoDeOcorrencias(
     async atribuirResponsavel(ocorrenciaId, dados) {
       try {
         return await emTransacao(async (executar) => {
-          // 1 · Encerra a vigente, se houver. Zero linhas = primeira atribuição.
+          /**
+           * 1 · **O guarda de estado, e ele vem PRIMEIRO — item 21, critério 21.4.**
+           *
+           * Ele responde *"o estado ainda admite este comando?"*, com a lista que o Domínio deriva
+           * (`ESTADOS_QUE_ADMITEM_ATRIBUICAO`), e é o que impede a atribuição de entrar numa ocorrência
+           * que virou `resolvida` ou `cancelada` entre o `carregar` do comando e este `COMMIT` — a
+           * mutação silenciosa de registro fechado que a ADR-0001 existe para impedir (contrato §8.4).
+           *
+           * **Primeiro, e não terceiro, por causa da transação.** `criarTransacao` dá `commit` quando o
+           * trabalho **retorna normalmente** (ver o docblock de `SemVinculoAtivo`): um `return
+           * { desfecho: "conflito" }` depois das duas escritas em `atribuicoes` comitaria justamente o
+           * encerramento da atribuição vigente, que é o dano que este guarda existe para impedir. Aqui em
+           * cima não há nada escrito, e o `return` é o mesmo das três portas irmãs.
+           *
+           * **`atualizada_em` é escrito mesmo sem transição.** O campo não quer dizer *"esta linha
+           * mudou"* — quer dizer *"houve atividade nesta ocorrência"*, o que inclui `INSERT` em outra
+           * tabela (`arquitetura.md` §5.8). Atribuir é atividade. **O mesmo instante** que `atribuido_em`,
+           * nunca `now()`.
+           *
+           * O `::status_ocorrencia[]` não é decoração: sem ele o Postgres compara `unknown` com o tipo do
+           * enum e a resolução passa a depender de inferência.
+           */
+          const tocadas = await executar<{ id: string }>(
+            `update ocorrencias
+                set atualizada_em = $3::timestamptz
+              where organizacao_id = $1 and id = $2::uuid
+                and status = any($4::status_ocorrencia[])
+            returning id`,
+            [ocorrenciaId, dados.em, [...ESTADOS_QUE_ADMITEM_ATRIBUICAO]],
+          );
+
+          if (tocadas[0] === undefined) return { desfecho: "conflito" as const };
+
+          // 2 · Encerra a vigente, se houver. Zero linhas = primeira atribuição.
           const encerradas = await executar<{ id: string }>(
             `update atribuicoes
                 set encerrada_em = $3::timestamptz, motivo_encerramento = 'reatribuicao'
@@ -1064,7 +1142,7 @@ export function repositorioEscopadoDeOcorrencias(
           const reatribuicao = encerradas.length > 0;
 
           /**
-           * 2 · **O `422` nasce do próprio `insert`, sem leitura prévia.** A FK aponta para
+           * 3 · **O `422` nasce do próprio `insert`, sem leitura prévia.** A FK aponta para
            * `vinculos (pessoa_id, organizacao_id)` **sem olhar `revogado_em`** — vínculo revogado passa
            * nela. O `where exists` é o que traduz *"vínculo **ativo**"*, que é a palavra do critério 19.3.
            *
@@ -1087,27 +1165,15 @@ export function repositorioEscopadoDeOcorrencias(
 
           if (criadas[0] === undefined) throw new SemVinculoAtivo();
 
-          /**
-           * 3 · **`atualizada_em` é escrito, mesmo sem transição.** O campo não quer dizer *"esta linha
-           * mudou"* — quer dizer *"houve atividade nesta ocorrência"*, o que inclui `INSERT` em outra
-           * tabela (`arquitetura.md` §5.8). Atribuir é atividade. **O mesmo instante** que `atribuido_em`,
-           * nunca `now()`.
-           */
-          await executar(
-            `update ocorrencias
-                set atualizada_em = $3::timestamptz
-              where organizacao_id = $1 and id = $2::uuid`,
-            [ocorrenciaId, dados.em],
-          );
-
           // 4 · A releitura acontece **dentro** da transação, como `registrar` e `aplicarTransicao` já
           // fazem: o que volta ao cliente é o detalhe de verdade, com nome de responsável, de categoria e
           // de área — não um payload pela metade.
           const relida = await lerPorId(executar, ocorrenciaId);
           if (relida === null) {
-            // A ocorrência não é desta organização: o `update` da raiz não achou linha e o `insert` só
-            // passou porque o vínculo existe. Abortar é o certo — nada pode ter sido escrito.
-            throw new SemVinculoAtivo();
+            // **Desde o item 21 este ramo é defeito, não caso de negócio.** O `update` da raiz já
+            // devolveu linha, então a ocorrência existe nesta organização e `lerPorId` não pode falhar
+            // — mesmo tratamento das quatro portas irmãs.
+            throw new Error("Ocorrência recém-atribuída não foi relida — transação inconsistente.");
           }
 
           return { desfecho: "atribuida" as const, reatribuicao, ocorrencia: relida };

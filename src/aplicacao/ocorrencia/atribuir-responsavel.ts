@@ -98,10 +98,12 @@ export async function atribuirResponsavel(
   }
 
   /**
-   * **A corrida entre dois Gestores.** O `23505` em `atribuicoes_vigente_uk` diz que alguém atribuiu entre
-   * a nossa leitura e a nossa escrita. **Relemos** para dizer onde a ocorrência está *agora* — que é o que
-   * `statusAtual` significa para a tela que vai montar a frase. Mesmo tratamento que `analisarOcorrencia`
-   * dá ao `desfecho: "conflito"`.
+   * **O `conflito` da porta, e ele tem duas causas.** Desde o item 21 a mais comum é o **estado**: a
+   * ocorrência virou `resolvida` ou `cancelada` entre o `carregar` acima e o `COMMIT` da porta, e o guarda
+   * de estado recusou antes de escrever — é o critério **21.4** sob corrida. A outra é o `23505` em
+   * `atribuicoes_vigente_uk`. **Relemos** nos dois casos, para dizer onde a ocorrência está *agora* — que é
+   * o que `statusAtual` significa para a tela que vai montar a frase. Mesmo tratamento que
+   * `analisarOcorrencia` dá ao `desfecho: "conflito"`.
    */
   const atual = await repositorio.carregar(entrada.ocorrenciaId);
   if (atual === null) throw new OcorrenciaNaoEncontrada();

@@ -1043,14 +1043,18 @@ describe("a atribuição contra Postgres — item 19", () => {
       escoparTransacao(criarTransacao(), outra!.id),
     );
 
-    // O `update` não acha a ocorrência, o `insert` não acha o vínculo — e é o `where exists` que decide.
+    // **Desde o item 21 quem decide é o guarda de estado da PRÓPRIA ocorrência**, e não mais o
+    // `where exists` do `insert`: o `update` da raiz, escopado em B, não acha a linha de A e a porta
+    // recusa antes de escrever qualquer coisa. **A garantia A4 fica menos acidental** — ela deixa de
+    // depender de o responsável por acaso não ter vínculo em B. E na borda HTTP o comando relê, não acha
+    // e responde `404`, que é a verdade sobre uma ocorrência de outra organização.
     const resultado = await deB.atribuirResponsavel(id, {
       responsavelPessoaId: segundoPessoaId,
       atribuidoPorPessoaId: segundoPessoaId,
       em: EM,
     });
 
-    expect(resultado).toStrictEqual({ desfecho: "responsavel-sem-vinculo-ativo" });
+    expect(resultado).toStrictEqual({ desfecho: "conflito" });
     const linhas = await consultaCrua(`select 1 from atribuicoes where ocorrencia_id = $1`, [id]);
     expect(linhas).toHaveLength(0);
   });
@@ -1077,6 +1081,156 @@ describe("a atribuição contra Postgres — item 19", () => {
 
     const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
     expect(pagina.find((linha) => linha.id === id)?.responsavel).toBeNull();
+  });
+});
+
+/**
+ * ============================================================================
+ *  A corrida da atribuição — o item 21, e o predicado da porta
+ * ============================================================================
+ *
+ * **Duas coisas aqui não têm duplo**, e as duas são sobre a janela entre o `carregar` do comando e o
+ * `COMMIT` da porta:
+ *
+ * 1. **A corrida terminal.** A ocorrência fecha no meio, e a porta recusa **sem** encerrar a atribuição
+ *    vigente e **sem** gravar linha nova. Sem o predicado, a atribuição entrava num registro fechado —
+ *    a mutação silenciosa que a ADR-0001 existe para impedir (contrato §8.4).
+ * 2. **A corrida legal.** O movimento do meio foi para outro estado que **continua admitindo** o comando,
+ *    e a porta **grava**. É este caso que prova QUAL predicado foi escrito: com
+ *    `status = <o que o agregado leu>` — a forma dos itens 25 e 27 — ele responderia `conflito`, e o
+ *    `409` sairia com `statusAtual: "em_analise"` ao lado de um `acoesDisponiveis` **contendo
+ *    `atribuir-responsavel`**. Corpo que se contradiz em dois campos vizinhos (`respostas.md` P1).
+ *
+ * **A corrida é construída segurando o agregado carregado**, como os dois casos do item 17
+ * (`:2350` e `:2387`) já fazem. Não há duas sessões simultâneas: há uma leitura, uma transição por outro
+ * caminho, e só então a chamada à porta.
+ */
+describe("a corrida da atribuição contra Postgres — item 21", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.resolver",
+  ];
+
+  /** O primeiro responsável — o que a corrida terminal NÃO pode perder. */
+  let executorPessoaId: string;
+  /** Para quem a reatribuição recusada iria. */
+  let substitutoPessoaId: string;
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Executor da corrida ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [executorPessoaId, organizacaoId],
+    );
+
+    const [substituto] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Substituto da corrida ${SUFIXO}`],
+    );
+    substitutoPessoaId = substituto!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [substitutoPessoaId, organizacaoId],
+    );
+  });
+
+  /** Uma ocorrência nova, pelo caminho de verdade — com trilha, como o produto a cria. */
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Precisa de alguém, e o estado vai mudar no meio.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  it("A CORRIDA TERMINAL: a ocorrência foi resolvida no meio — recusa, sem gravar e sem encerrar a vigente", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Corrida terminal da atribuicao");
+
+    // A atribuição vigente que a recusa tem de PRESERVAR. Sem ela, o caso provaria metade do critério.
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: "2026-08-29T09:00:00.000Z",
+    });
+
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    // **A janela abre aqui**: é o que o comando faz antes de chamar a porta.
+    const carregada = await portas().ocorrencias.carregar(id);
+    expect(carregada!.ocorrencia.status).toBe("em_atendimento");
+
+    // Outro Gestor chega antes e FECHA a ocorrência.
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Fechada antes de a reatribuição gravar.",
+    });
+
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: substitutoPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+
+    expect(resultado).toStrictEqual({ desfecho: "conflito" });
+
+    // **As três asserções juntas são o critério 21.4 sob corrida.** Uma linha só, dela, ainda vigente.
+    const linhas = await consultaCrua<{
+      responsavel_pessoa_id: string;
+      encerrada_em: Date | null;
+    }>(
+      `select responsavel_pessoa_id, encerrada_em
+         from atribuicoes where ocorrencia_id = $1 order by atribuido_em`,
+      [id],
+    );
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]!.responsavel_pessoa_id).toBe(executorPessoaId);
+    expect(linhas[0]!.encerrada_em).toBeNull();
+  });
+
+  it("A CORRIDA LEGAL: o estado mudou para outro que ADMITE o comando, e a porta GRAVA", async () => {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    const id = await registrada("Corrida legal da atribuicao");
+
+    // **A janela abre aqui, com a ocorrência em `aberta`.** É o valor que quem trocasse o predicado por
+    // `status = <o que o agregado leu>` passaria ao SQL — e é por isso que este caso o reprova.
+    const carregada = await portas().ocorrencias.carregar(id);
+    expect(carregada!.ocorrencia.status).toBe("aberta");
+
+    // Outro Gestor move a ocorrência — para um estado que **continua admitindo** o comando.
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+
+    const resultado = await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+
+    expect(resultado.desfecho).toBe("atribuida");
+
+    // **Os dois juntos são a asserção.** A atribuição entrou, e o status é o que o outro Gestor deixou —
+    // o `update` da raiz não toca a coluna de status.
+    const [linha] = await consultaCrua<{ status: string }>(
+      `select status from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha?.status).toBe("em_analise");
+
+    const vigentes = await consultaCrua(
+      `select 1 from atribuicoes where ocorrencia_id = $1 and encerrada_em is null`,
+      [id],
+    );
+    expect(vigentes).toHaveLength(1);
   });
 });
 

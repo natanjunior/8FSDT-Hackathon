@@ -293,11 +293,13 @@ export type DadosDaAtribuicao = {
  * **pessoa de outra organização recebe o mesmo desfecho sem um `if` a mais** — o `$1` é a organização
  * ativa, amarrada pelo escopo, então o vínculo de outra simplesmente não existe para a consulta (§6.3).
  *
- * **`conflito` é a corrida entre dois Gestores**, e o repositório a detecta pelo `23505` na constraint
- * `atribuicoes_vigente_uk`: o segundo `update` de encerramento reavalia o predicado sobre a linha já
- * encerrada pelo primeiro, atualiza zero linhas, e o `insert` dele bate no índice parcial. Traduzir
- * estado de banco em erro de domínio é decisão de **Aplicação** — por isso o repositório devolve um
- * desfecho e não lança, exatamente como em `ResultadoDaTransicao`.
+ * **`conflito` tem DUAS causas, e a primeira é a que o item 21 acrescentou.** (1) O **estado não admite
+ * mais o comando** — a ocorrência virou `resolvida` ou `cancelada` entre o `carregar` e o `COMMIT`, e o
+ * guarda de estado da porta atualiza zero linhas; é o critério **21.4** sob corrida. (2) O `23505` em
+ * `atribuicoes_vigente_uk`, que desde o item 21 é rede e não caso comum, porque o guarda serializa duas
+ * atribuições concorrentes à mesma ocorrência. **As duas viram o mesmo `409`**: o comando relê e responde
+ * com o estado de agora. Traduzir estado de banco em erro de domínio é decisão de **Aplicação** — por isso
+ * o repositório devolve um desfecho e não lança, exatamente como em `ResultadoDaTransicao`.
  */
 export type ResultadoDaAtribuicao =
   | { desfecho: "atribuida"; reatribuicao: boolean; ocorrencia: OcorrenciaLida }
@@ -435,12 +437,13 @@ export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Atribui — ou reatribui — o responsável, em UM `COMMIT`.**
    *
-   * Quatro instruções e uma releitura, na ordem: o `update` que encerra a atribuição vigente com motivo
-   * `reatribuicao`; o `insert … where exists (vínculo ativo)`; o `update ocorrencias set atualizada_em`;
-   * e o `lerPorId` de dentro da transação.
+   * Três escritas e uma releitura, na ordem: o `update ocorrencias` que **guarda o estado** e carimba
+   * `atualizada_em`; o `update` que encerra a atribuição vigente com motivo `reatribuicao`; o
+   * `insert … where exists (vínculo ativo)`; e o `lerPorId` de dentro da transação.
    *
-   * **A ordem não é estilo.** O `update` vem antes do `insert`, e é o que faz `atribuicoes_vigente_uk`
-   * nunca ser violado no caminho normal.
+   * **A ordem não é estilo.** O guarda vem primeiro porque recusar depois de escrever comitaria o
+   * encerramento da atribuição anterior (item 21). E o `update` de encerramento vem antes do `insert`,
+   * que é o que faz `atribuicoes_vigente_uk` nunca ser violado no caminho normal.
    *
    * **Não escreve `status` e não escreve na trilha**, e a ausência é o critério 19.4: a trilha é só de
    * status. `ocorrencias` recebe uma coluna e uma só — `atualizada_em` —, porque atribuir é **atividade**
