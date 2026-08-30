@@ -669,9 +669,18 @@ mantida. Desenhar isso expôs uma assimetria:
 > §8.4) e **não aparece na linha do tempo** (PA-21). Um toque errado reescreve um valor sem deixar
 > vestígio, e nem a trilha nem a linha do tempo podem contar o que aconteceu.
 
-**Decisão:** a mudança de prioridade é a **única** ação do produto que produz uma notificação flutuante, e
-ela traz **desfazer** — *"Prioridade alterada para Alta. (Desfazer)"*. Desfazer é o mesmo endpoint com o
-valor anterior; como nada foi gravado na trilha, não há nada de inconsistente em voltar atrás.
+**Decisão:** a mudança de prioridade é a **única** ação do produto que traz **desfazer** —
+*"Prioridade alterada para Alta. (Desfazer)"*. Desfazer é o mesmo endpoint com o valor anterior; como
+nada foi gravado na trilha, não há nada de inconsistente em voltar atrás.
+
+> **Correção — 30/08/2026 · o desfazer sobreviveu, a notificação flutuante não.** A redação anterior
+> desta decisão era, literal: *"a mudança de prioridade é a **única** ação do produto que produz uma
+> notificação flutuante, e ela traz **desfazer**"*. **A metade que importa continua valendo** — a
+> assimetria acima é real, e é dela que o desfazer nasce. **O que caiu foi a forma.** Ao responder a P2 da
+> spec do item **17**, em 28/08/2026, o hub pôs o desfazer **no bloco de tela**: uma linha `role="status"`
+> com botão de texto, sob o seletor, sem temporizador — critério **17.7**. **O produto não tem
+> notificação flutuante nenhuma**, e o segundo uso que o P-13 previa também foi decidido fora da
+> sobreposição. A conta inteira está na **§16.6**. *(Item 13 da fila da frente de documentação.)*
 
 **Custo:** uma requisição a mais, e só quando alguém desfaz. **O que compra:** o único ponto do produto
 onde a última escrita vence sem aviso e sem registro (achado **F7** do inventário) passa a ter uma janela
@@ -1001,7 +1010,7 @@ produto cujo usuário *"não vai aprender nada"*, a diferença é entre esperar 
 | `PEDIDO_JA_DECIDIDO` · `JA_AVALIADA` (409) | **bloco na página** + recarrega | idem |
 | `ERRO_INTERNO` (500) | **bloco na página**, com o `traceId` **visível e copiável** | é a única coisa que liga a tela à linha de log, e é o que compensa a decisão do `404` da §6.3 do contrato |
 | `PERMISSAO_INSUFICIENTE` (403) por link recebido | **bloco na página inteira** + volta a T-03 | não é erro de campo nem some sozinho |
-| `ORGANIZACAO_DIVERGENTE` (409) | **notificação flutuante** | *"Esta aba estava em outra organização. Recarregando…"* — a tela **se conserta sozinha** e o usuário não tem nada a fazer. **É o único erro do produto em que a flutuante é a resposta certa** |
+| `ORGANIZACAO_DIVERGENTE` (409) | **na faixa de aviso do próprio componente** *(era "notificação flutuante" até 30/08/2026 — ver a nota abaixo da tabela)* | *"Esta aba está em outra organização. Recarregue a página antes de continuar."* — a frase é do `problema.ts`, e ela **pede a recarga** em vez de prometer que a tela se conserta sozinha |
 | `VINCULO_COM_HISTORICO` · `ULTIMO_GESTOR` (409) · T-08 | **não aparecem como erro**: a razão substitui o botão | a tela não mostra o botão quando o vínculo não pode sair — o erro só existiria se a tela tivesse falhado antes |
 | `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` (429) | **no campo da foto** | tem campo, e a ação é esperar |
 | `SEM_ORGANIZACAO_ATIVA` (403) · `NAO_AUTENTICADO` (401) | **não têm frase** — levam a T-02 e a T-01, guardando o destino | são navegação, não erro |
@@ -1009,9 +1018,21 @@ produto cujo usuário *"não vai aprender nada"*, a diferença é entre esperar 
 > **A notificação flutuante quase não tem uso neste produto, e descobrir isso é resultado do desenho.**
 > Todo comando devolve `OcorrenciaDetalhe` **com o estado novo**, e a tela o pinta — então uma
 > notificação dizendo *"pausada com sucesso"* ao lado de uma tela que já diz *"Pausada"* é ruído puro.
-> **Regra: não há confirmação flutuante de sucesso onde a tela já mostra o resultado.** Sobram exatamente
-> dois usos: o `ORGANIZACAO_DIVERGENTE` acima e o **desfazer da prioridade** (D-3), que é justamente o
-> único comando cujo resultado a tela mostra mas cujo **registro** não existe. Achado **P-13**.
+> **Regra: não há confirmação flutuante de sucesso onde a tela já mostra o resultado.** Sobravam
+> exatamente dois usos: o `ORGANIZACAO_DIVERGENTE` acima e o **desfazer da prioridade** (D-3), que é
+> justamente o único comando cujo resultado a tela mostra mas cujo **registro** não existe. Achado
+> **P-13**.
+>
+> **Correção — 30/08/2026 · sobraram zero, e a regra ficou mais forte do que era.** O desenho concluiu
+> *"quase não tem uso"*; a implementação foi até o fim e **não tem nenhum**. Os dois usos previstos foram
+> decididos **fora da sobreposição**, em itens e datas diferentes: o desfazer no bloco de tela (critério
+> **17.7**, 28/08/2026) e o `ORGANIZACAO_DIVERGENTE` na faixa de aviso que cada componente já tem
+> (critério **7b.6**, 29/08/2026). **A frase acima dizia *"é o único erro do produto em que a flutuante é
+> a resposta certa"*, e a linha da tabela dizia *"a tela se conserta sozinha e o usuário não tem nada a
+> fazer"*: nenhuma das duas sobreviveu** — a frase publicada pede a recarga, e quem a exibe é a `<Aviso>`
+> do componente. **O P-13 não foi derrubado, foi levado ao limite:** a terceira linha da regra da §6.2
+> — *"erro que a tela conserta sozinha → notificação flutuante"* — ficou **sem nenhum caso**, e é isso
+> que a §16.6 registra. *(Item 13 da fila da frente de documentação.)*
 
 ### 6.3 A rede caindo no meio do registro — o cenário que o RNF6 garante
 
@@ -1048,44 +1069,69 @@ e `Chart` foram lidas individualmente. **O que não consegui confirmar está mar
 
 ### 7.1 Componente por interação
 
-| Interação decidida | Componente | Verificado |
-|---|---|---|
-| Rótulo associado ao controle, ajuda e erro por campo | **`Field`** (`FieldLabel` · `FieldDescription` · `FieldError`) | ✅ — a doc confirma `htmlFor` ↔ `id` e `aria-invalid` |
-| Agrupar Área + Referência sob "Onde" (D-1) | **`FieldSet` + `FieldLegend`** | ✅ |
-| Texto de uma linha — título, referência, código da organização | **`Input`** | ✅ |
-| Texto longo — descrição, observação, solução aplicada, comentário | **`Textarea`** | ✅ |
-| Escolher categoria — 7 a 15 itens, ordem do Gestor | **`Select`** | ✅ |
-| **Escolher área — ~30 itens, o campo caro do RNF6** | **`Combobox`** (`Popover` + `Command`) | ✅ — os três estão no catálogo |
-| **Escolher a unidade do vínculo — a mesma lista de Áreas, em T-08** | **`Combobox`**, o mesmo de T-04 | ✅ · e é reuso de propósito: duas listas de Área com comportamentos diferentes seriam duas coisas para manter |
-| **Sub-formulário repetível de contatos (T-08)** | **`FieldSet` + `FieldLegend`** por contato, dentro de uma lista que o cliente gerencia | ⚠️ **não há componente de lista repetível no catálogo** — ver §7.2, item 5 |
-| Tipo e finalidade do contato, 2 e 3 valores | **`Select`** | ✅ |
-| `temWhatsapp` — indicação sobre um número | **`Checkbox`**, **sempre com a palavra ao lado** | ✅ · A-5 |
-| **Telefone em E.164, com país padrão BR** | **`Input`** + prefixo de país em **`Select`**, e normalização no cliente | ⚠️ **não há componente de telefone**, e a normalização exige biblioteca — ver §7.2, item 6 |
-| Reordenar contatos — subir e descer | **`Button`** com rótulo textual, **não** arrastar | ✅ · arrastar é hostil no celular e invisível em low-fi |
-| Motivo de pausa (4) e de cancelamento (4 ou 7), nenhum pré-selecionado | **`RadioGroup`** | ✅ |
-| Papel na aprovação (3), com consequência por linha (D-6) | **`RadioGroup`** + `FieldDescription` por opção | ✅ |
-| Comando com texto — **celular** | **`Drawer`** | ✅ |
-| Comando com texto — **tela grande** | **`Dialog`** | ✅ |
-| O mesmo comando nas duas larguras | **padrão "responsive dialog"**: `Dialog` em tela grande, `Drawer` no celular | ✅ — **documentado pelo próprio shadcn/ui**, na página de `Drawer` |
-| Confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria | **`AlertDialog`** | ✅ |
-| "Mais ações" no celular (D-3) | **`DropdownMenu`** | ✅ |
-| Ações lado a lado em tela grande | **`ButtonGroup`** | ✅ |
-| Espera com a forma da tela (§6.1) | **`Skeleton`** | ✅ |
-| Progresso do upload da foto, sem bloquear o formulário | **`Progress`** | ✅ |
-| Estado vazio — organização nova, filtro sem resultado, conversa sem mensagem, nenhum pedido | **`Empty`** (`EmptyTitle` · `EmptyDescription` · `EmptyContent`) | ✅ — a doc confirma as partes |
-| Bloco de erro na página (§6.2) | **`Alert`** | ✅ |
-| Faixa persistente de "sem conexão" | **`Alert`** fixado no topo — não há componente de faixa | ⚠️ improvisado |
-| Notificação flutuante — os dois únicos usos (P-13) | **`Toast`** | ✅ no catálogo · **`Sonner` não aparece na lista atual** ⚠️ |
-| Trilha de auditoria em tela grande (D-4) | **`Table`** | ✅ |
-| Lista de ocorrências em tela grande (D-2) | **`Table`** — **não `DataTable`** | ✅ · ver a nota abaixo |
-| Gráfico da recorrência por categoria (D-5) | **`Chart`** | ✅ — **e é dependência a mais**: envolve **Recharts** |
-| Rótulo de status, prioridade e motivo de pausa | **`Badge`**, **sempre com a palavra dentro** | ✅ · ver A-5 |
-| Menu de troca de organização ativa, no cabeçalho | **`DropdownMenu`** | ✅ |
-| Navegação do Gestor em tela grande | **`Sidebar`** | ✅ |
-| Contagem de pedidos pendentes no item de menu (F10 do inventário) | **`Badge`** dentro do item | ✅ |
-| Ver a foto em tamanho grande | **`Dialog`** | ✅ |
-| Régua entre grupos — o separador antes do papel Encarregado (D-6) | **`Separator`** | ✅ |
-| Agrupamento dos blocos do dashboard | **`Card`** | ✅ |
+> #### Correção — 30/08/2026 · a coluna dizia uma coisa e era lida como outra
+>
+> **Até esta data a tabela tinha TRÊS colunas, e a terceira se chamava só *"Verificado"*.** Ela sempre
+> quis dizer *"conferi na documentação oficial de `ui.shadcn.com/docs/components`, em 20/08/2026, que
+> este componente existe e faz o que a linha promete"* — e é isso que continua escrito, célula por
+> célula, agora sob o nome **No catálogo de origem**. **Nenhuma célula antiga foi apagada nem reescrita.**
+>
+> **O que ela era lida como dizendo:** *"este repositório já tem isto pronto"*. E aí o ✅ vira orçamento:
+> a §3.4 da spec do item 15 chamou o `DropdownMenu` dos chips de escolha *"entre os componentes
+> existentes"* quando ele era **o primeiro componente de sobreposição do produto**. **Estimar reuso onde
+> há construção é o dano**, e é por isso que a quarta coluna existe.
+>
+> **A regra que produz a quarta coluna cabe numa linha, e é conferível em dois segundos:**
+> `src/interface/componentes/ui/` tem **quatro** arquivos — `button.tsx`, `dialog.tsx`,
+> `dropdown-menu.tsx` e `input.tsx`. **Só esses quatro componentes do catálogo foram adotados.** Toda
+> outra linha da tabela ou usa **HTML nativo**, ou um **componente próprio**, ou **não foi construída**.
+> A coluna diz qual dos três, e onde.
+>
+> **A tabela não estava errada sobre a decisão de interação** — estava muda sobre o estado de adoção. As
+> duas coisas moravam na mesma coluna e só uma delas mudou. **Onde a decisão de interação também divergiu
+> — e são três casos, `Drawer`, `Toast` e `AlertDialog` — a divergência está registrada na §16.6**, com
+> data e item de origem, porque decisão de tela não mora numa célula de tabela.
+>
+> *(Itens **13** e **33** da `trabalho/fila-documentacao.md`.)*
+
+| Interação decidida | Componente | No catálogo de origem (conferido em 20/08/2026) | **Adotado neste repositório** (conferido em 30/08/2026) |
+|---|---|---|---|
+| Rótulo associado ao controle, ajuda e erro por campo | **`Field`** (`FieldLabel` · `FieldDescription` · `FieldError`) | ✅ — a doc confirma `htmlFor` ↔ `id` e `aria-invalid` | **não** — `Campo` próprio (`moldura-de-tela.tsx`), sobre `<label>` e `<input>` nativos |
+| Agrupar Área + Referência sob "Onde" (D-1) | **`FieldSet` + `FieldLegend`** | ✅ | **não** — `<fieldset>` e `<legend>` nativos |
+| Texto de uma linha — título, referência, código da organização | **`Input`** | ✅ | **sim** — `ui/input.tsx` |
+| Texto longo — descrição, observação, solução aplicada, comentário | **`Textarea`** | ✅ | **não** — `<textarea>` nativo |
+| Escolher categoria — 7 a 15 itens, ordem do Gestor | **`Select`** | ✅ | **não** — `<select>` nativo (`formulario-de-ocorrencia.tsx:247`) |
+| **Escolher área — ~30 itens, o campo caro do RNF6** | **`Combobox`** (`Popover` + `Command`) | ✅ — os três estão no catálogo | **não** — `<select>` nativo (`formulario-de-ocorrencia.tsx:279`) |
+| **Escolher a unidade do vínculo — a mesma lista de Áreas, em T-08** | **`Combobox`**, o mesmo de T-04 | ✅ · e é reuso de propósito: duas listas de Área com comportamentos diferentes seriam duas coisas para manter | **não** — `<select>` nativo (`formulario-de-vinculo.tsx:265`) |
+| **Sub-formulário repetível de contatos (T-08)** | **`FieldSet` + `FieldLegend`** por contato, dentro de uma lista que o cliente gerencia | ⚠️ **não há componente de lista repetível no catálogo** — ver §7.2, item 5 | **não** — `<fieldset>` nativo por contato (`sub-formulario-de-contatos.tsx`) |
+| Tipo e finalidade do contato, 2 e 3 valores | **`Select`** | ✅ | **não** — `<select>` nativo (`sub-formulario-de-contatos.tsx:333`) |
+| `temWhatsapp` — indicação sobre um número | **`Checkbox`**, **sempre com a palavra ao lado** | ✅ · A-5 | **não** — `<input type="checkbox">` nativo (`sub-formulario-de-contatos.tsx:356`) |
+| **Telefone em E.164, com país padrão BR** | **`Input`** + prefixo de país em **`Select`**, e normalização no cliente | ⚠️ **não há componente de telefone**, e a normalização exige biblioteca — ver §7.2, item 6 | **parcial** — o `Input` sim; **a normalização não foi construída** (R-25) |
+| Reordenar contatos — subir e descer | **`Button`** com rótulo textual, **não** arrastar | ✅ · arrastar é hostil no celular e invisível em low-fi | **sim** — `ui/button.tsx` |
+| Motivo de pausa (4) e de cancelamento (4 ou 7), nenhum pré-selecionado | **`RadioGroup`** | ✅ | **não** — `<input type="radio">` nativo (`modal-de-motivo.tsx:254`) |
+| Papel na aprovação (3), com consequência por linha (D-6) | **`RadioGroup`** + `FieldDescription` por opção | ✅ | **não** — `<input type="radio">` nativo (`decisao-de-pedido-de-entrada.tsx:289`) |
+| Comando com texto — **celular** | **`Drawer`** | ✅ | **não** — gaveta em **CSS sobre o `Dialog`** (item 23) — ver §16.6 |
+| Comando com texto — **tela grande** | **`Dialog`** | ✅ | **sim** — `ui/dialog.tsx` |
+| O mesmo comando nas duas larguras | **padrão "responsive dialog"**: `Dialog` em tela grande, `Drawer` no celular | ✅ — **documentado pelo próprio shadcn/ui**, na página de `Drawer` | **não** — o mesmo `Dialog`, com a gaveta em CSS abaixo de `md` — ver §16.6 |
+| Confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria | **`AlertDialog`** | ✅ | **não** — `<dialog>` nativo, em T-08 e em T-09 — ver §16.6 |
+| "Mais ações" no celular (D-3) | **`DropdownMenu`** | ✅ | **sim** — `ui/dropdown-menu.tsx` |
+| Ações lado a lado em tela grande | **`ButtonGroup`** | ✅ | **não** — `flex` + `ui/button.tsx` (`barra-de-acoes.tsx`) |
+| Espera com a forma da tela (§6.1) | **`Skeleton`** | ✅ | **não** — `loading.tsx` próprio por rota |
+| Progresso do upload da foto, sem bloquear o formulário | **`Progress`** | ✅ | **⬜ recusado** — não há progresso de envio, e a razão está escrita em `controle-de-foto.tsx:39-42` |
+| Estado vazio — organização nova, filtro sem resultado, conversa sem mensagem, nenhum pedido | **`Empty`** (`EmptyTitle` · `EmptyDescription` · `EmptyContent`) | ✅ — a doc confirma as partes | **não** — `vazio-da-lista.ts` próprio |
+| Bloco de erro na página (§6.2) | **`Alert`** | ✅ | **não** — `Aviso` próprio (`moldura-de-tela.tsx`), com `role="alert"` |
+| Faixa persistente de "sem conexão" | **`Alert`** fixado no topo — não há componente de faixa | ⚠️ improvisado | **⬜ não construída** |
+| Notificação flutuante — os dois únicos usos (P-13) | **`Toast`** | ✅ no catálogo · **`Sonner` não aparece na lista atual** ⚠️ | **não** — e aqui a **forma** foi recusada, duas vezes — ver §16.6 |
+| Trilha de auditoria em tela grande (D-4) | **`Table`** | ✅ | **não** — `<table>` nativo |
+| Lista de ocorrências em tela grande (D-2) | **`Table`** — **não `DataTable`** | ✅ · ver a nota abaixo | **não** — `<table>` nativo |
+| Gráfico da recorrência por categoria (D-5) | **`Chart`** | ✅ — **e é dependência a mais**: envolve **Recharts** | **não** — saiu da entrega em 22/08 (R-04); `Medidor` e `ColunasMensais` próprios |
+| Rótulo de status, prioridade e motivo de pausa | **`Badge`**, **sempre com a palavra dentro** | ✅ · ver A-5 | **não** — `<span>` com a palavra (A-5), em `lista-de-ocorrencias.tsx` |
+| Menu de troca de organização ativa, no cabeçalho | **`DropdownMenu`** | ✅ | **sim** — `ui/dropdown-menu.tsx` (`menu-de-organizacao.tsx`) |
+| Navegação do Gestor em tela grande | **`Sidebar`** | ✅ | **não** — `<nav>` simples (`app/ocorrencias/page.tsx:203`) |
+| Contagem de pedidos pendentes no item de menu (F10 do inventário) | **`Badge`** dentro do item | ✅ | **não** — texto no próprio item de menu, com a palavra (A-5) |
+| Ver a foto em tamanho grande | **`Dialog`** | ✅ | **⬜ não construída** |
+| Régua entre grupos — o separador antes do papel Encarregado (D-6) | **`Separator`** | ✅ | **não** — `border-t-2` no terceiro papel (`decisao-de-pedido-de-entrada.tsx:178`) |
+| Agrupamento dos blocos do dashboard | **`Card`** | ✅ | **não** — `Cartao` próprio (`blocos-do-dashboard.tsx:72`) |
 
 **Sobre `Table` e não `DataTable`.** `DataTable` existe no catálogo, e traz **TanStack Table**: ordenação
 por coluna, seleção múltipla e paginação por página numerada. **Os três são coisas que este produto não
@@ -1263,7 +1309,7 @@ deles tocam decisões que são do hub.
 | **P-10** | **Nenhum endpoint devolve o rótulo do outro lado**: a tela do Gestor não pode mostrar exatamente o que o Solicitante lê | `contrato-de-api.md` §8.8 | média |
 | **P-11** | `recorrenciaPorArea` tem a **forma de série mensal** e **~30 itens** — não é gráfico, é lista | `api/openapi.yaml`, `Dashboard` | média |
 | **P-12** | A regra de cold start *"primeira requisição da sessão"* **não cobre a ociosidade dentro da sessão** | `inventario-de-telas.md` §6, *Cold start* | média |
-| **P-13** | A **notificação flutuante quase não tem uso** neste produto, e o único uso que se paga é o desfazer da prioridade | — | decisão deste passo |
+| **P-13** | A **notificação flutuante quase não tem uso** neste produto, e o único uso que se paga é o desfazer da prioridade | — | decisão deste passo · **levado ao limite em 30/08/2026: o produto não tem nenhuma.** Os dois usos previstos foram decididos fora da sobreposição — o desfazer no bloco (17.7) e o `ORGANIZACAO_DIVERGENTE` na faixa de aviso (7b.6). Ver a **§16.6** e a nota da §6.2 |
 | **P-14** | **RNF5 e RNF6 se contradizem**: o cold start acontece **dentro** do minuto cronometrado, e nenhum documento reconciliou os dois | `documentacao-da-demanda.md` §5.2 | **alta** |
 | **P-15** | **O RNF6 não é verificável como está escrito** — não declara o cenário, e o cenário move o resultado em 49 s | idem | **alta** |
 | **P-16** | `PessoaReferencia.nome` **não tem `maxLength`** no schema, ao contrário dos campos de nome em `POST /vinculos` | `api/openapi.yaml:2318-2326` | baixa |
@@ -1702,7 +1748,7 @@ escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do en
 |---|---|---|
 | **R-09** | **A afirmação *"o formulário de T-04 cabe sem rolar"* é falsa nos tamanhos reais.** Com alvo de toque de 48 px, o conteúdo passa dos 844 px do aparelho e passa muito dos ~745 que sobram dentro do navegador. A página mede e imprime o número | **alta** |
 | **R-10** | **`visibilidadeAplicada` chega na resposta**, então durante a primeira carga T-03 não sabe qual das duas caras desenhar — nem se há barra de filtros, nem se o título é *Minhas* ou *Todas*. O esqueleto é obrigatoriamente neutro. **Não está em documento nenhum** | média |
-| ~~**R-11**~~ | **Não existe texto exibível para `motivoPausa` do lado do Gestor.** As molduras escrevem *"esperando peça"* e *"Aguardando peça"* — duas redações diferentes para o mesmo motivo, na mesma tela — e **o glossário §4 não tem nenhuma das duas**. Montar a frase no cliente é a segunda cópia da tabela de rótulos, que o contrato §8.8 recusa | ✅ **fechado em 30/08/2026** — o glossário §4 ganhou *"Os motivos, na íntegra"*, com os quatro de pausa e os sete de cancelamento. **As duas redações não eram duas: são duas tabelas**, uma para *o que aconteceu* e outra para *o que você está escolhendo*. A forma curta *"esperando peça"* continua sem autorização |
+| ~~**R-11**~~ | **Não existe texto exibível para `motivoPausa` do lado do Gestor.** As molduras escrevem *"esperando peça"* e *"Aguardando peça"* — duas redações diferentes para o mesmo motivo, na mesma tela — e **o glossário §4 não tem nenhuma das duas**. Montar a frase no cliente é a segunda cópia da tabela de rótulos, que o contrato §8.8 recusa | ✅ **fechado em 30/08/2026** — o glossário §4 ganhou *"Os motivos, na íntegra"*, com os quatro de pausa e os sete de cancelamento. **As duas redações não eram duas: são duas tabelas**, uma para *o que aconteceu* e outra para *o que você está escolhendo*. A forma curta *"esperando peça"* continua sem autorização — e **desde 30/08/2026 as molduras já não a escrevem**: o `telas.html` passou a *"Aguardando peça"* e a *"Aguardando um terceiro"* nos **oito** lugares onde a forma curta ainda aparecia, e nos **quatro** eventos da linha do tempo o motivo saiu do rótulo por inteiro. Junto com o conserto do item 29 da fila |
 | **R-12** | **Abreviar nome de pessoa não está autorizado em lugar nenhum.** As molduras escrevem *"Antônio F."* e *"Roberto S."* ao lado de *"Antônio Ferreira"* por extenso, na mesma lista. E `responsavel` nulo tem **dois textos** — *"—"* e *"sem responsável"* | média |
 | ~~**R-13**~~ | **O aviso de visibilidade é obrigatório em todo modal com `observacao` — inclusive no `cancelar` do próprio Solicitante**, onde a frase *"O Solicitante vê esta observação"* fica sem sentido, porque quem escreve é ele | ✅ **fechado pelo item 18, em 30/08/2026** — ver abaixo |
 | **R-14** | Em T-05, uma `observacao` de **1.000 caracteres** empurra tudo para fora da primeira tela, quebrando a decisão 1 de D-3 — *"sem rolar: rótulo, título e a última entrada"* | média |
@@ -1781,3 +1827,110 @@ renderização os herdou. **Fica declarado como dívida, não como decisão.**
 > *"ao lado do nome da categoria, nunca no lugar dele"*, e **onde há símbolo há palavra**. É exatamente o
 > que separa este caso dos três acima. O próprio critério cita esta subseção em letra, para que a distinção
 > não se perca. *(Item 4 da fila da frente de documentação.)*
+
+### 16.6 · O catálogo que a §7 mapeou, e o que a implementação de fato adotou
+
+*(Acrescentada em 30/08/2026. **Nenhuma destas decisões estava escrita em lugar nenhum** — cada uma foi
+tomada dentro de um item, na hora de construir, e a §7.1 continuou dizendo ✅ para componentes que este
+repositório não instalou. Itens **13** e **33** da `trabalho/fila-documentacao.md`.)*
+
+**A quarta coluna da §7.1 já diz *o quê*. Esta subseção diz *quando*, *por quem* e *a que custo* — porque
+quatro delas não são "não instalamos": são **decisões de tela**, e três chegaram a divergir da própria
+interação que a §7 tinha decidido.**
+
+#### O estado do catálogo local, com a data
+
+| Quando | Item | O que entrou em `src/interface/componentes/ui/` |
+|---|---|---|
+| 21/08/2026 | o esqueleto de deploy | `button.tsx` · `input.tsx` |
+| 27/08/2026 | **15** | `dropdown-menu.tsx` — *"o primeiro componente de sobreposição do produto"*, e a mensagem do commit diz isso |
+| 28/08/2026 | **19** | `dialog.tsx`, com o primeiro modal de T-05 |
+| **30/08/2026** | — | **`button` · `dialog` · `dropdown-menu` · `input` — quatro, e mais nada** |
+
+**Esta tabela existe porque a contagem foi citada errada mais de uma vez**, e sempre por leitura de prosa
+em vez de leitura do diretório. Quem for orçar reuso conta os arquivos. *(A própria fila da frente de
+documentação atribuía o `dropdown-menu` ao **item 14**; a data de adição diz **15**. Conferido no
+histórico em 30/08/2026, e é a mesma classe de erro que esta subseção existe para fechar.)*
+
+#### 1 · Os controles de escolha — `<select>` nativo, e a decisão foi tomada **seis** vezes sem nunca ser escrita
+
+A §7.1 mapeia `Select` para três interações e `Combobox` para duas. **Nenhuma delas foi construída com o
+catálogo.** Os seis controles de escolha do produto usam `<select>` nativo:
+
+| Onde | Arquivo |
+|---|---|
+| Categoria da ocorrência (T-04) | `formulario-de-ocorrencia.tsx:247` |
+| Área da ocorrência (T-04) — *o campo caro do RNF6* | `formulario-de-ocorrencia.tsx:279` |
+| Unidade do vínculo (T-08) | `formulario-de-vinculo.tsx:265` |
+| Papel na aprovação (T-08) | `decisao-de-pedido-de-entrada.tsx:206` |
+| Tipo e finalidade do contato (T-08) | `sub-formulario-de-contatos.tsx:333` |
+| **Prioridade (T-05)** — chegou com o item **17** | `seletor-de-prioridade.tsx:149` |
+
+**O que se perde, declarado:** a busca com filtro por digitação que o `Combobox` daria à lista de ~30
+Áreas — que é exatamente a interação que a §3 deste documento pesou e a §2.4 precificou. **O que se
+ganha:** nenhuma dependência de sobreposição para cinco campos de formulário, e o seletor nativo do
+sistema operacional no celular, que é o alvo primário do RNF6.
+
+> **Custo de estar errado:** se o campo de Área estourar o orçamento do RNF6 em uso real, a saída é o
+> `Combobox` — e ela volta a custar o que a §7.2 já descreve. **O orçamento da §2.4 foi medido com a
+> lista, não com a busca**, então a conta não muda por esta decisão; muda a margem que ela tinha.
+
+#### 2 · O `Drawer` — a interação foi adotada inteira, o componente não
+
+A §7.1 tem três linhas sobre a forma do modal: `Drawer` no celular, `Dialog` em tela grande, e o padrão
+*"responsive dialog"* para o mesmo comando nas duas larguras. **A decisão de interação vale, e é o que o
+produto faz.** Ao responder a P1 da spec do item **23**, em 28/08/2026, o hub decidiu que
+`DialogContent` é **gaveta ancorada embaixo abaixo de `md`** e caixa centrada a partir de `md`, nos
+quatro modais de T-05 — **em CSS sobre o `Dialog` que já existe**.
+
+**Por que não o `Drawer`:** ele é o **`vaul`** — dependência nova, largura medida em JavaScript e uma
+segunda árvore de JSX por modal.
+
+**Custo declarado:** **não há arrastar-para-fechar.** A gaveta fecha pelos quatro caminhos que o `Dialog`
+já dá — botão, `X`, `Esc` e clique no overlay. E a alça (`.grab`) que o `telas.html` desenha **não é
+replicada**, porque sinalizaria um gesto que não existe.
+
+#### 3 · O `Toast` — aqui a **forma** foi recusada, e por duas decisões independentes
+
+Este é o único dos três em que não foi só o componente que caiu. **O produto não tem notificação
+flutuante nenhuma**, e os dois usos que o **P-13** previa foram decididos fora da sobreposição, em datas e
+itens diferentes:
+
+| O uso previsto pelo P-13 | Onde ele foi parar | Quando |
+|---|---|---|
+| **O desfazer da prioridade** (§D-3) | **no bloco de tela** — uma linha `role="status"` com botão de texto, o idioma que `campo-de-solucao-aplicada.tsx` já usa no mesmo T-05 | critério **17.7**, 28/08/2026 |
+| **`ORGANIZACAO_DIVERGENTE`** (§6.2) | **na faixa de aviso que cada componente já tem** — `executarComando` a exibe sem linha nova, e os formulários mostram o `detail` na mesma `<Aviso>` dos outros erros | critério **7b.6**, 29/08/2026 |
+
+**A §7.2 previu o desfecho ao contrário.** A leitura de 28/08 dizia que *"o dia em que o
+`ORGANIZACAO_DIVERGENTE` precisar da flutuante de verdade, ela nasce com dois donos"* — o dia chegou no
+item **7b**, que tornou o `409` alcançável na tela pela primeira vez, **e o segundo dono também não a
+quis**.
+
+**Custo declarado:** não há temporizador, não há posicionamento, e a linha do desfazer **ocupa altura
+real** no bloco 1 de T-05 em vez de flutuar sobre o conteúdo. **O que se ganha:** nenhum componente de
+sobreposição não-modal nasce com um consumidor só.
+
+#### 4 · O `AlertDialog` — `<dialog>` nativo, em duas telas
+
+A linha *"confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria"* mapeia
+para `AlertDialog`, que **nunca foi instalado**. As três confirmações existem, e as três são `<dialog>`
+nativo:
+
+| Ato | Tela | Arquivo |
+|---|---|---|
+| Aprovar pedido de entrada | T-08 | `decisao-de-pedido-de-entrada.tsx:251` |
+| Remover vínculo | T-08 | `remocao-de-vinculo.tsx:128` |
+| Desativar categoria e desativar área | T-09 | `formulario-de-categoria.tsx:184` · `formulario-de-area.tsx:229` |
+
+**A razão está escrita no código, e é de escopo:** *"um padrão por tela, e nenhuma dependência nova na
+última sprint"* (`remocao-de-vinculo.tsx:22-27`). A confirmação de **aprovar** já usava `<dialog>` nativo
+desde o item 8, e a de **remover** seguiu o precedente da casa em vez de abrir um segundo idioma de
+confirmação dentro de T-08.
+
+**Custo declarado:** o `<dialog>` nativo não traz o foco preso nem o `aria-describedby` de graça — cada
+uso os monta à mão, e um esquecimento não aparece em teste de tipo. **O que se ganha:** zero dependência,
+e o mesmo elemento nas duas telas.
+
+> **A regra que vale para as quatro, e é a lição desta subseção:** *"o catálogo tem X"* **nunca** é
+> orçamento de implementação. Onde a §7.1 diz ✅ na coluna do catálogo e **não** na coluna de adoção, a
+> spec que planejar a interação está planejando **construção**.
