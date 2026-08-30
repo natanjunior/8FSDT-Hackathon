@@ -916,6 +916,54 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
     },
   });
+
+  /**
+   * **A décima primeira entrada — o item 10.** Ela semeia **apenas o seu próprio agregado**, e neste caso
+   * o agregado é *nada*: as pessoas, as organizações, as ocorrências, os anexos, as atribuições e as
+   * mensagens são da suíte (§7.1), e o que a consulta faz é **derivar** delas.
+   *
+   * **A `chaveDaLinha` carrega a RAZÃO, e não só o `pessoaId` — sem isso o caso passaria sem provar
+   * nada.** No mundo da suíte a síndica está nas duas organizações e tem rastro nas duas, e a moradora,
+   * que só existe em Recanto, **não tem impedimento nenhum**: `organizacoes.criada_por_pessoa_id` é nulo
+   * no `semear()`, e categorias e áreas entram sem autoria. Com `chaveDaLinha = pessoaId`, `emA` e `emB`
+   * seriam o **mesmo** conjunto, e o segundo caso da suíte passaria por vacuidade.
+   *
+   * Com a razão junto, os conjuntos ficam **disjuntos** — e a diferença é exatamente o que a consulta
+   * calcula:
+   *
+   * | | Papel da síndica | Impedimento |
+   * |---|---|---|
+   * | **Recanto (A)** | `gestor`, e o único da organização | `ultimo-gestor` — a precedência da spec §3.4 |
+   * | **Aurora (B)** | `solicitante`; Aurora não tem Gestor nenhum | `historico` |
+   *
+   * Um `$1` perdido em qualquer um dos dez `exists` muda a frase de pelo menos uma das duas.
+   *
+   * O terceiro caso da suíte fica de fora pela decisão dela própria: **o modelo de leitura não expõe
+   * `organizacao_id`**, e é assim que o Definition of Done o quer.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "impedimentosDeRemocao",
+    consultar: async (organizacaoId) => {
+      const repo = repositorioEscopadoDeVinculos(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      );
+      return [...(await repo.impedimentosDeRemocao())].map(
+        ([pessoaId, razao]) => `${pessoaId}:${razao}`,
+      );
+    },
+    chaveDaLinha: (frase) => frase,
+    esperadas: {
+      get emA() {
+        // A moradora **não aparece**, e é o terceiro fato que esta entrada prova: sem rastro, sem
+        // impedimento, sem entrada no mapa.
+        return [`${idSindica}:ultimo-gestor`];
+      },
+      get emB() {
+        return [`${idSindica}:historico`];
+      },
+    },
+  });
 });
 
 /**

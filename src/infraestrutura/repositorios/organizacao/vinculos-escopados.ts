@@ -2,8 +2,10 @@ import type {
   ContatoParaEscrita,
   DadosDaCorrecao,
   DadosDoCadastro,
+  ImpedimentoDeRemocao,
   RepositorioEscopadoDeVinculos,
   ResultadoDaCorrecao,
+  ResultadoDaRemocao,
   ResultadoDoCadastro,
   VinculoLido,
 } from "@/aplicacao/organizacao";
@@ -154,6 +156,136 @@ export function repositorioEscopadoDeVinculos(
         if (vinculo === undefined) return { desfecho: "nao-encontrado" };
         return { desfecho: "corrigido", vinculo };
       });
+    },
+
+    async remover(pessoaId: string): Promise<ResultadoDaRemocao> {
+      try {
+        return await emTransacao<ResultadoDaRemocao>(async (dentro) => {
+          // **A trava, e ela é tomada SEMPRE — não só quando o alvo é Gestor.**
+          //
+          // Com dois Gestores e `read committed`, os dois se removendo no mesmo instante veem um ao outro
+          // — nenhuma exclusão está visível para a outra transação — e as duas passam, deixando a
+          // organização com zero Gestores. É o **PA-24 entrando pela porta da frente**, pela guarda que
+          // existe justamente para fechá-la. A segunda sessão bloqueia aqui, e ao desbloquear reavalia o
+          // `exists` de baixo sobre o estado já comitado.
+          //
+          // Descobrir o papel antes custaria a leitura prévia que a doutrina deste arquivo recusa, e são
+          // poucas linhas numa tela de trabalho de escritório.
+          await dentro(
+            `select 1 from vinculos
+              where organizacao_id = $1 and papel = 'gestor' and revogado_em is null
+                for update`,
+          );
+
+          // **A guarda do último Gestor mora no `where`** — a doutrina de `corrigir` (`:100-121`). Assim a
+          // instrução nunca chega a violar chave nenhuma quando o alvo é o último Gestor, e o critério
+          // 10.3 lê verdadeiro no cenário que ele nomeia: o Gestor inicial TEM dependente
+          // (`organizacoes.criada_por_pessoa_id`), e traduzir a recusa do banco primeiro responderia
+          // `VINCULO_COM_HISTORICO` onde o contrato promete `ULTIMO_GESTOR`.
+          //
+          // **A guarda do histórico continua sendo do banco**, como o critério 10.2 exige: nenhum `select`
+          // a antecipa. O `23503` sobe e é traduzido no `catch` lá embaixo.
+          const removidos = await dentro<{ pessoa_id: string }>(
+            `delete from vinculos v
+              where v.organizacao_id = $1
+                and v.pessoa_id = $2
+                and v.revogado_em is null
+                and (v.papel <> 'gestor'
+                     or exists (select 1 from vinculos g
+                                 where g.organizacao_id = $1
+                                   and g.pessoa_id     <> $2
+                                   and g.papel          = 'gestor'
+                                   and g.revogado_em is null))
+            returning v.pessoa_id`,
+            [pessoaId],
+          );
+
+          if (removidos.length > 0) return { desfecho: "removido" };
+
+          // Zero linhas tem exatamente duas causas, e o contrato as distingue: ou não há vínculo ativo com
+          // esta Pessoa nesta organização (`404`), ou ele é o último Gestor (`409`). É o mesmo movimento
+          // de `distinguirRecusa`, com a pergunta desta operação.
+          const restantes = await dentro<{ papel: string }>(
+            `select papel from vinculos
+              where organizacao_id = $1 and pessoa_id = $2 and revogado_em is null`,
+            [pessoaId],
+          );
+
+          return restantes.length === 0
+            ? { desfecho: "nao-encontrado" }
+            : { desfecho: "ultimo-gestor" };
+        });
+      } catch (erro) {
+        // **O `catch` fica AQUI, em volta da chamada a `emTransacao`, e não dentro dela** — a forma de
+        // `organizacoes.criar`. `organizacoes_criada_por_vinculo_fk` é `deferrable initially deferred`
+        // (migração `001:246-250`), então essa violação aparece no **`COMMIT`**, depois de a função de
+        // trabalho já ter devolvido "removido". Só um `catch` externo pega as duas origens.
+        //
+        // **`set constraints … immediate` não é opção:** toda consulta escopada é obrigada a referenciar
+        // `$1` (`escopo.ts:50`), e aquele comando não tem onde pôr um parâmetro.
+        if (ehViolacaoDeDependencia(erro)) return { desfecho: "com-historico" };
+        throw erro;
+      }
+    },
+
+    async impedimentosDeRemocao(): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>> {
+      // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
+      // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
+      //
+      // **Os dez `exists` cobrem as NOVE tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`
+      // — quatro delas com duas colunas. A lista não sai da prosa do contrato, que nomeia quatro: sai do
+      // esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia em que uma tabela
+      // nova entrar sem passar por aqui.
+      const linhas = await consulta<{
+        pessoa_id: string;
+        ultimo_gestor: boolean;
+        tem_historico: boolean;
+      }>(
+        `select v.pessoa_id,
+                (v.papel = 'gestor'
+                 and not exists (select 1 from vinculos g
+                                  where g.organizacao_id = $1
+                                    and g.pessoa_id     <> v.pessoa_id
+                                    and g.papel          = 'gestor'
+                                    and g.revogado_em is null)) as ultimo_gestor,
+                (exists (select 1 from ocorrencias t
+                          where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from registros_transicao t
+                             where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from mensagens t
+                             where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from atribuicoes t
+                             where t.organizacao_id = $1
+                               and (t.responsavel_pessoa_id = v.pessoa_id
+                                    or t.atribuido_por_pessoa_id = v.pessoa_id))
+                 or exists (select 1 from anexos t
+                             where t.organizacao_id = $1 and t.anexado_por_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from pedidos_de_entrada t
+                             where t.organizacao_id = $1 and t.decidido_por_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from categorias t
+                             where t.organizacao_id = $1
+                               and (t.criado_por_pessoa_id = v.pessoa_id
+                                    or t.atualizado_por_pessoa_id = v.pessoa_id))
+                 or exists (select 1 from areas t
+                             where t.organizacao_id = $1
+                               and (t.criado_por_pessoa_id = v.pessoa_id
+                                    or t.atualizado_por_pessoa_id = v.pessoa_id))
+                 or exists (select 1 from organizacoes t
+                             where t.id = $1 and t.criada_por_pessoa_id = v.pessoa_id)) as tem_historico
+           from vinculos v
+          where v.organizacao_id = $1
+            and v.revogado_em is null`,
+      );
+
+      const mapa = new Map<string, ImpedimentoDeRemocao>();
+      for (const linha of linhas) {
+        // **`ultimo-gestor` ganha quando os dois valem** (spec §3.4) — a mesma precedência do `remover`,
+        // para que a razão da tela e a razão do `409` nunca discordem.
+        if (linha.ultimo_gestor) mapa.set(linha.pessoa_id, "ultimo-gestor");
+        else if (linha.tem_historico) mapa.set(linha.pessoa_id, "historico");
+        // Ausente é *pode sair*. Não há valor nulo neste mapa.
+      }
+      return mapa;
     },
   };
 }
@@ -399,4 +531,18 @@ async function pessoaEditavel(consulta: ConsultaEscopada, pessoaId: string): Pro
 function ehContatoDuplicado(erro: unknown): boolean {
   const comCodigo = erro as { code?: unknown; constraint?: unknown };
   return comCodigo.code === "23505" && comCodigo.constraint === "contatos_par_uk";
+}
+
+/**
+ * **A única tradução deste arquivo que NÃO casa nome de restrição, e a razão está escrita para ninguém a
+ * "consertar" depois copiando o padrão vizinho.**
+ *
+ * A transação de `remover` faz exatamente duas instruções — um `select … for update` e um `delete` —,
+ * então uma violação de chave estrangeira ali só pode ser uma linha dependente do vínculo. São **nove**
+ * tabelas e **doze** restrições candidatas; enumerá-las pelo nome criaria uma lista que envelhece em
+ * silêncio, e é justamente o que o teste de deriva existe para não deixar acontecer do outro lado.
+ */
+function ehViolacaoDeDependencia(erro: unknown): boolean {
+  if (typeof erro !== "object" || erro === null) return false;
+  return (erro as { code?: unknown }).code === "23503";
 }

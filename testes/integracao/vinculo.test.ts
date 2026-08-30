@@ -3,7 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
-import { repositorioEscopadoDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import {
+  repositorioDePedidosDeEntrada,
+  repositorioEscopadoDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
 
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
@@ -472,5 +475,280 @@ describe("contatos — a guarda de quem tem conta, e o vazamento de escrita", ()
       [idSoDaOutra],
     );
     expect(restaram.map((c) => c.valor)).toStrictEqual(["+5511900000001"]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A remoção — item 10, o único `DELETE` do contrato
+ * ============================================================================
+ *
+ * **É aqui que este item é provado**, e por uma razão mais forte que a de costume: quase tudo que ele
+ * promete é garantia do **esquema**. As nove chaves estrangeiras `on delete restrict` recusam sozinhas, e
+ * uma delas — a de `organizacoes` — é `deferrable initially deferred` e só erra no `COMMIT`. Contra um
+ * duplo, nada disso existiria.
+ */
+describe("remover — o único DELETE, e quem decide o que pode sair é o esquema", () => {
+  /** Cria um Encarregado sem rastro nenhum, e devolve o `pessoaId`. */
+  async function encarregadoLimpo(nome: string): Promise<string> {
+    const criado = await repositorio().cadastrar({
+      nome,
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error(`cadastro falhou: ${criado.desfecho}`);
+    return criado.vinculo.pessoa.pessoaId;
+  }
+
+  /**
+   * **O critério 10.1 inteiro, e a segunda metade dele é a razão de o endpoint existir.** Provar que a
+   * linha some não prova que o PA-25 foi consertado — o que prova é o pedido de entrada que passa a ser
+   * aceito, no lugar do `409 JA_VINCULADO` que o beco produzia.
+   */
+  it("remove o vínculo sem rastro, a Pessoa permanece, e um novo pedido passa a ser aceito", async () => {
+    const pessoaId = await encarregadoLimpo("Sebastião Sem Rastro");
+    const pedidos = repositorioDePedidosDeEntrada(criarTransacao());
+    const codigo = `A${SUFIXO.slice(-7).toUpperCase()}`;
+
+    // Antes: o beco. É o `409 JA_VINCULADO` do contrato.
+    const antes = await pedidos.registrar({
+      pessoaId,
+      codigoPublico: codigo,
+      nome: null,
+      telefone: null,
+    });
+    expect(antes.desfecho).toBe("ja-vinculado");
+
+    expect((await repositorio().remover(pessoaId)).desfecho).toBe("removido");
+
+    // A Pessoa **permanece** — é global, e nunca se apaga por aqui.
+    const pessoas = await consulta<{ id: string }>(`select id from pessoas where id = $1`, [
+      pessoaId,
+    ]);
+    expect(pessoas).toHaveLength(1);
+
+    // O vínculo, não.
+    expect(await repositorio().porPessoa(pessoaId)).toBeNull();
+
+    // Depois: o conserto.
+    const depois = await pedidos.registrar({
+      pessoaId,
+      codigoPublico: codigo,
+      nome: null,
+      telefone: null,
+    });
+    expect(depois.desfecho).toBe("registrado");
+  });
+
+  /**
+   * **O `VINCULO_COM_HISTORICO` provocado de verdade**, e não simulado: uma ocorrência apontando para o
+   * vínculo faz `ocorrencias_autor_fk` — `on delete restrict` — recusar o `delete`. O que o teste prova é
+   * que a recusa é **traduzida**, não antecipada.
+   */
+  it("vínculo com ocorrência é recusado pelo ON DELETE RESTRICT, traduzido em com-historico", async () => {
+    const pessoaId = await encarregadoLimpo("Quem Registrou Algo");
+    const categorias = await consulta<{ id: string }>(
+      `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'wrench', 50) returning id`,
+      [idOrganizacao, `Categoria do 10 ${SUFIXO}`],
+    );
+
+    await consulta(
+      `insert into ocorrencias
+         (organizacao_id, autor_pessoa_id, categoria_id, area_id, area_tipo, titulo, descricao)
+       values ($1, $2, $3, $4, 'privativa', 'Lâmpada queimada', 'Queimada faz três dias.')`,
+      [idOrganizacao, pessoaId, categorias[0]!.id, AREA_ATIVA],
+    );
+
+    expect((await repositorio().remover(pessoaId)).desfecho).toBe("com-historico");
+    expect(await repositorio().porPessoa(pessoaId)).not.toBeNull();
+  });
+
+  /**
+   * **O caso do critério 10.3, e o que ele prova é a ORDEM dos dois `409`.**
+   *
+   * **O `update` da primeira linha não é enfeite: sem ele o caso não discrimina nada.** O critério nomeia
+   * *"o Gestor inicial"*, e Gestor inicial é o da **POL-01** — aquele para quem
+   * `organizacoes.criada_por_pessoa_id` aponta. O `beforeAll` deste arquivo cria a organização **sem**
+   * criadora, então `idGestora` não tem dependente nenhum nas nove tabelas, e o caso passaria com a
+   * ordem invertida. Com o `update`, ela passa a ter — e a resposta só pode ser `ultimo-gestor` se a
+   * guarda estiver **dentro do `where` do `delete`**. Traduzir a recusa do banco primeiro responderia
+   * `com-historico`, que é o critério 10.3 lendo **falso** no cenário que ele nomeia.
+   *
+   * `criada_por_pessoa_id` fica apontando para `idGestora` daqui em diante, de propósito: é o estado de
+   * uma organização real, e nenhum caso adiante depende de ela não ter criadora.
+   */
+  it("o Gestor inicial da POL-01 recebe ultimo-gestor, e NUNCA com-historico", async () => {
+    await consulta(`update organizacoes set criada_por_pessoa_id = $1 where id = $2`, [
+      idGestora,
+      idOrganizacao,
+    ]);
+
+    expect((await repositorio().remover(idGestora)).desfecho).toBe("ultimo-gestor");
+  });
+
+  /** A guarda não é *"Gestor não sai"*: é *"o último não sai"*. Com dois, o segundo sai. */
+  it("com dois Gestores, remover um deles funciona", async () => {
+    const segundo = await encarregadoLimpo("Gestor de Reserva");
+    await consulta(
+      `update vinculos set papel = 'gestor' where pessoa_id = $1 and organizacao_id = $2`,
+      [segundo, idOrganizacao],
+    );
+
+    expect((await repositorio().remover(segundo)).desfecho).toBe("removido");
+    // E a Gestora original volta a ser a última.
+    expect((await repositorio().remover(idGestora)).desfecho).toBe("ultimo-gestor");
+  });
+
+  /**
+   * ==========================================================================
+   *  A CHAVE DIFERIDA — a armadilha do item, e o único caso que a exercita
+   * ==========================================================================
+   *
+   * **É o caso que faltava, e ele é a razão de o `try/catch` ficar em volta da chamada a `emTransacao`**
+   * (spec §3.3, decisão **D-P5**). `organizacoes_criada_por_vinculo_fk` é
+   * `deferrable initially deferred` (migração `001`), então a violação dela **não aparece no `delete`**:
+   * aparece no **`COMMIT`**, depois de a função de trabalho já ter devolvido `"removido"`. Um `catch`
+   * dentro da transação — a outra leitura possível da §3.3 — deixaria o `23503` subir cru até a
+   * Aplicação, e o endpoint responderia `500` onde o contrato promete `409`.
+   *
+   * **O alvo é um Encarregado, não um Gestor, e é de propósito:** a guarda do último Gestor mora no
+   * `where`, e um Gestor a faria parar antes de chegar ao `COMMIT`. Com um Encarregado sem nenhum outro
+   * rastro, **as oito chaves `RESTRICT` não têm o que recusar** — a única violação possível é a diferida,
+   * e é isso que torna este caso uma prova e não uma coincidência.
+   *
+   * A remoção volta atrás inteira, então o vínculo continua lá; `criada_por_pessoa_id` é devolvida a
+   * `idGestora` para que os casos de `impedimentosDeRemocao` leiam o mesmo mundo que o `describe` de cima
+   * deixou.
+   */
+  it("a violação DIFERIDA de organizacoes, que só erra no COMMIT, também vira com-historico", async () => {
+    const criador = await encarregadoLimpo("Fundador Sem Outro Rastro");
+    await consulta(`update organizacoes set criada_por_pessoa_id = $1 where id = $2`, [
+      criador,
+      idOrganizacao,
+    ]);
+
+    expect((await repositorio().remover(criador)).desfecho).toBe("com-historico");
+    expect(await repositorio().porPessoa(criador)).not.toBeNull();
+
+    await consulta(`update organizacoes set criada_por_pessoa_id = $1 where id = $2`, [
+      idGestora,
+      idOrganizacao,
+    ]);
+  });
+
+  it("pessoaId que não existe é nao-encontrado", async () => {
+    const inventado = (await consulta<{ id: string }>(`select gen_random_uuid() as id`))[0]!.id;
+
+    expect((await repositorio().remover(inventado)).desfecho).toBe("nao-encontrado");
+  });
+
+  /** Vínculo de outra organização é **inalcançável**, não escondido — o `404` idêntico da §6.3. */
+  it("vínculo de outra organização é nao-encontrado, e continua lá do lado de lá", async () => {
+    expect((await repositorio().remover(idSoDaOutra)).desfecho).toBe("nao-encontrado");
+
+    const restou = await consulta<{ pessoa_id: string }>(
+      `select pessoa_id from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [idSoDaOutra, idOutraOrganizacao],
+    );
+    expect(restou).toHaveLength(1);
+  });
+});
+
+describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", () => {
+  it("quem não tem rastro NÃO aparece no mapa — ausência é 'pode sair'", async () => {
+    const criado = await repositorio().cadastrar({
+      nome: "Zelador Recém-Chegado",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error("cadastro falhou");
+    const pessoaId = criado.vinculo.pessoa.pessoaId;
+
+    const mapa = await repositorio().impedimentosDeRemocao();
+
+    expect(mapa.has(pessoaId)).toBe(false);
+    // E a Gestora aparece, porque é a última com poder de gestão.
+    expect(mapa.get(idGestora)).toBe("ultimo-gestor");
+  });
+
+  /**
+   * **A precedência da §3.4, e ela existe para que a tela e o `409` nunca discordem.** A Gestora tem
+   * rastro **e** é a última: se a consulta respondesse `historico`, a tela mostraria uma razão e o
+   * endpoint responderia a outra.
+   */
+  it("quando os dois impedimentos valem, ultimo-gestor ganha", async () => {
+    await consulta(
+      `insert into categorias (organizacao_id, nome, icone, ordem, criado_por_pessoa_id)
+       values ($1, $2, 'wrench', 60, $3)`,
+      [idOrganizacao, `Categoria com autoria ${SUFIXO}`, idGestora],
+    );
+
+    const mapa = await repositorio().impedimentosDeRemocao();
+
+    expect(mapa.get(idGestora)).toBe("ultimo-gestor");
+  });
+
+  /** Quem tem rastro e **não** é o último Gestor recebe `historico` — e é o caso comum da tela. */
+  it("quem tem rastro sem ser o último Gestor recebe historico", async () => {
+    const criado = await repositorio().cadastrar({
+      nome: "Encarregado Com Anexo",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error("cadastro falhou");
+    const pessoaId = criado.vinculo.pessoa.pessoaId;
+
+    // `pedidos_de_entrada.decidido_por_pessoa_id` é um dos CINCO destinos que a prosa do contrato não
+    // nomeia — e é o caso comum de um Gestor bloqueado (achado A-1 da spec).
+    await consulta(
+      `insert into pedidos_de_entrada
+         (organizacao_id, pessoa_id, situacao, decidido_em, decidido_por_pessoa_id)
+       values ($1, $2, 'recusado', now(), $3)`,
+      [idOrganizacao, idSoDaOutra, pessoaId],
+    );
+
+    const mapa = await repositorio().impedimentosDeRemocao();
+
+    expect(mapa.get(pessoaId)).toBe("historico");
+  });
+
+  /**
+   * **A guarda contra deriva (spec §3.5), e ela é um teste porque o risco é envelhecer em silêncio.**
+   *
+   * Uma tabela nova com chave estrangeira para `vinculos` — revogação, notificação, leitura — não entraria
+   * na consulta de `impedimentosDeRemocao`, e a tela passaria a mostrar um botão que leva a `409`. **Botão
+   * que promete e falha é pior que a razão no lugar dele.**
+   *
+   * `pg_constraint` e não `information_schema`: a pergunta é *"quem aponta para `vinculos`"*, e
+   * `confrelid` a responde em uma linha, sem os três `join` que o `information_schema` exige.
+   *
+   * **`autorizacoes_de_upload` NÃO está na lista, e é o falso positivo que este caso precisa não pegar:**
+   * ela tem `pessoa_id`, mas a FK aponta para `pessoas (id)` — não bloqueia remoção de vínculo nenhum.
+   */
+  it("as tabelas que apontam para vinculos são exatamente as nove que a consulta cobre", async () => {
+    const COBERTAS = [
+      "anexos",
+      "areas",
+      "atribuicoes",
+      "categorias",
+      "mensagens",
+      "ocorrencias",
+      "organizacoes",
+      "pedidos_de_entrada",
+      "registros_transicao",
+    ];
+
+    const linhas = await consulta<{ tabela: string }>(
+      `select distinct c.conrelid::regclass::text as tabela
+         from pg_constraint c
+        where c.contype = 'f'
+          and c.confrelid = 'public.vinculos'::regclass
+        order by 1`,
+    );
+
+    expect(linhas.map((l) => l.tabela)).toStrictEqual(COBERTAS);
   });
 });
