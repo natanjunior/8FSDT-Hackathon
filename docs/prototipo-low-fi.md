@@ -1573,9 +1573,9 @@ escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do en
 |---|---|---|
 | **R-09** | **A afirmação *"o formulário de T-04 cabe sem rolar"* é falsa nos tamanhos reais.** Com alvo de toque de 48 px, o conteúdo passa dos 844 px do aparelho e passa muito dos ~745 que sobram dentro do navegador. A página mede e imprime o número | **alta** |
 | **R-10** | **`visibilidadeAplicada` chega na resposta**, então durante a primeira carga T-03 não sabe qual das duas caras desenhar — nem se há barra de filtros, nem se o título é *Minhas* ou *Todas*. O esqueleto é obrigatoriamente neutro. **Não está em documento nenhum** | média |
-| **R-11** | **Não existe texto exibível para `motivoPausa` do lado do Gestor.** As molduras escrevem *"esperando peça"* e *"Aguardando peça"* — duas redações diferentes para o mesmo motivo, na mesma tela — e **o glossário §4 não tem nenhuma das duas**. Montar a frase no cliente é a segunda cópia da tabela de rótulos, que o contrato §8.8 recusa | **alta** |
+| ~~**R-11**~~ | **Não existe texto exibível para `motivoPausa` do lado do Gestor.** As molduras escrevem *"esperando peça"* e *"Aguardando peça"* — duas redações diferentes para o mesmo motivo, na mesma tela — e **o glossário §4 não tem nenhuma das duas**. Montar a frase no cliente é a segunda cópia da tabela de rótulos, que o contrato §8.8 recusa | ✅ **fechado em 30/08/2026** — o glossário §4 ganhou *"Os motivos, na íntegra"*, com os quatro de pausa e os sete de cancelamento. **As duas redações não eram duas: são duas tabelas**, uma para *o que aconteceu* e outra para *o que você está escolhendo*. A forma curta *"esperando peça"* continua sem autorização |
 | **R-12** | **Abreviar nome de pessoa não está autorizado em lugar nenhum.** As molduras escrevem *"Antônio F."* e *"Roberto S."* ao lado de *"Antônio Ferreira"* por extenso, na mesma lista. E `responsavel` nulo tem **dois textos** — *"—"* e *"sem responsável"* | média |
-| **R-13** | **O aviso de visibilidade é obrigatório em todo modal com `observacao` — inclusive no `cancelar` do próprio Solicitante**, onde a frase *"O Solicitante vê esta observação"* fica sem sentido, porque quem escreve é ele | média |
+| ~~**R-13**~~ | **O aviso de visibilidade é obrigatório em todo modal com `observacao` — inclusive no `cancelar` do próprio Solicitante**, onde a frase *"O Solicitante vê esta observação"* fica sem sentido, porque quem escreve é ele | ✅ **fechado pelo item 18, em 30/08/2026** — ver abaixo |
 | **R-14** | Em T-05, uma `observacao` de **1.000 caracteres** empurra tudo para fora da primeira tela, quebrando a decisão 1 de D-3 — *"sem rolar: rótulo, título e a última entrada"* | média |
 | **R-15** | Em T-06, o **vazio que é defeito** chega como **`200` com lista vazia**: o defeito mais grave daquela tela é o único que a API não sinaliza como erro, e quem conta zero é o cliente. Sem `traceId`, sem código | média |
 | **R-16** | **O gráfico de recorrência só comporta duas séries** sem cor — e a justificativa do celular na D-5 pressupõe sete. Renderizar as duas mais frequentes é uma **regra de top-N que nenhum documento define** | média |
@@ -1595,6 +1595,35 @@ escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do en
 | **R-30** | **Os exemplos do `openapi.yaml` ainda embutem a unidade no nome** — *"Morador do 302"*, *"Zelador — Bloco B"* —, que é exatamente o que `vinculos.area_id` existe para acabar. Exemplo é a primeira coisa que alguém copia | baixa |
 | **R-31** | **O contrato §4.3 e o `openapi.yaml` ainda citam `email_contato`**, que deixou de existir. O argumento em volta continua correto; o nome do campo não | baixa |
 | **R-32** | A §8.2 do contrato lista `422 AREA_INVALIDA` para `POST /vinculos`, e **o `openapi.yaml` não declara esse `422`** naquele endpoint. A tela precisa saber se o erro existe para dar-lhe frase | baixa |
+
+> ### O R-13, fechado — 30/08/2026
+>
+> **O que o achado dizia:** o aviso de visibilidade é obrigatório em todo modal com `observacao`, e no
+> `cancelar` do próprio Solicitante a frase *"O Solicitante vê esta observação"* fala do leitor para o
+> próprio leitor. **Aberto desde 24/08/2026, e sem dono até o item 18.**
+>
+> **Como fechou:** o critério **18.7** deu ao modal de `cancelar` **duas** frases, e a escolha é por
+> permissão — `ocorrencia.cancelar_qualquer`, nunca autoria:
+>
+> | Quem está escrevendo | O que o modal mostra |
+> |---|---|
+> | Tem a permissão — e é o caso dos **cinco** modais | *"O Solicitante vê esta observação. Não há como editá-la depois."* — intacta |
+> | **Não** tem — e só o `cancelar` o alcança | *"Os Gestores veem esta observação. Não há como editá-la depois."* |
+>
+> **`cancelar` é o único dos cinco que duas pessoas diferentes chamam**, então é o único que precisava das
+> duas. **Ser Gestor, e não ser o autor:** o síndico morador que cancela a própria ocorrência continua
+> lendo o aviso original, porque o aviso existe contra o Gestor que escreve nota interna onde não há canal
+> interno.
+>
+> **A pré-visualização da mesma gaveta trocou junto**, e ela era o R-13 numa terceira superfície:
+> `telas.html` rotulava a caixa como *"Assim **ele** vai ler"* na gaveta do Solicitante — *"ele"* era o
+> Solicitante, que é quem está escrevendo. Passou a *"Assim os Gestores vão ler"*. **A gaveta de `pausar`
+> mantém as duas frases originais**, porque lá quem escreve é o Gestor.
+>
+> **Onde a redação mora:** `inventario-de-telas.md`, restrição herdada nº 1 — que passou a descrever as
+> duas frases com o predicado de cada uma, e a responder as duas perguntas que vinham junto
+> (`solucaoAplicada` e o `comentario` da avaliação: **não alcança** nos dois casos, com o motivo escrito).
+> *(Item 19 da fila da frente de documentação.)*
 
 ### 16.4 · Três bugs que a renderização achou no próprio protótipo
 

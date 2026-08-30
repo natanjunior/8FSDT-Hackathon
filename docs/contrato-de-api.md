@@ -770,12 +770,43 @@ existe:** a máquina de estados já é o controle otimista. Se dois chamam `anal
 `409 TRANSICAO_NAO_PERMITIDA` — porque `analisar` não sai de `em_analise` — com uma mensagem de domínio, que
 é melhor do que um `412` de `ETag` desencontrado.
 
+**Os comandos que NÃO transicionam também têm controle otimista — e é do estado, não do valor.** São
+quatro: `alterar-prioridade`, `atribuir-responsavel`, `registrar-solucao-aplicada` e `avaliar`. *Não
+transicionar* não é *poder ser chamado de qualquer estado*: cada um tem a lista de estados que o admite na
+**tabela companheira** da máquina (§8.4), e **essa lista é o predicado da própria porta de escrita**. Uma
+ocorrência que vira `resolvida` ou `cancelada` entre a leitura do agregado e o `COMMIT` faz o `update`
+tocar zero linhas, e o comando responde `409` em vez de gravar em registro fechado — que é a mutação
+silenciosa que a **ADR-0001** existe para impedir. **Cada porta expressa a invariante do seu próprio
+comando**, e não uma regra comum: `alterar-prioridade` recusa pelos dois estados terminais, porque o nome
+do erro dele é `PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL` e a frase publicada precisa continuar verdadeira;
+`atribuir-responsavel` recusa pelos quatro estados que o admitem, com o `409 TRANSICAO_NAO_PERMITIDA`
+genérico. As duas listas são o mesmo conjunto **hoje**, e não por desenho.
+
 Sobra exposição real em **dois** pontos: `alterar-prioridade` e `registrar-solucao-aplicada`, onde a última
 escrita sobrescreve a anterior sem aviso — e a alteração de prioridade **não entra na trilha** (só transições
 entram; é o PA-21). Aceitamos, por três razões: o cenário da primeira entrega é o do **síndico único**
 (`escopo.md` §3.3 — o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
 `If-Unmodified-Since` for necessário depois; e toda resposta de comando devolve `atualizadaEm`, então um
 cliente atento detecta a corrida sem que o contrato mude.
+
+> **Correção — 30/08/2026.** Esta seção organizava a concorrência em **duas** caixas — *"nos comandos de
+> transição o problema não existe"* e *"sobra exposição real em dois pontos"* — e **`atribuir-responsavel`
+> não cabia em nenhuma das duas**: ele não transiciona, então a primeira não o cobria; e ele não é
+> exposição aceita, então a segunda também não. O parágrafo *"os comandos que não transicionam"* acima é a
+> **terceira categoria** que faltava, e ela é o que torna a enumeração completa — o que importa porque é
+> esta seção que autoriza o produto a não ter `ETag`, e o argumento depende de a lista fechar.
+>
+> **A enumeração dos dois pontos não mudou, e não deve mudar:** ela sempre esteve certa sobre os dois que
+> nomeia, e continua sendo a exposição que este documento aceita, pelas três razões escritas acima. **A
+> distinção entre as duas coisas é o que a correção acrescenta:** o predicado da porta defende o
+> **estado** — ninguém escreve em registro fechado; o que fica exposto é o **valor** — dois Gestores
+> alterando a prioridade no mesmo estado, e o segundo vence. **A exposição continua sendo dois pontos, não
+> três.**
+>
+> *(Item 18 da fila da frente de documentação, metade (a). A metade de código era a porta de
+> `atribuir-responsavel`, que gravava com `where organizacao_id = $1 and id = $2` e nenhum predicado de
+> `status`; ela ganhou a lista do próprio comando no item 21, e só por isso esta correção pôde ser escrita
+> — antes dele, o texto descreveria um produto que ainda não existia.)*
 
 **7.10 · Idempotência: não há chave de idempotência, e o domínio já tem o desfazer.**
 

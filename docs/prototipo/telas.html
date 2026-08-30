@@ -2450,7 +2450,14 @@
         <span class="n">4</span><span class="t">A gaveta de <code>cancelar</code>, vista pelo Solicitante</span>
         <span class="c">quatro motivos, não sete: a lista é filtrada <b>pelo papel</b> na própria tela, e é
           o único lugar do inventário onde isso acontece. Se o
-          <code>422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL</code> aparecer, é defeito desta tela</span>
+          <code>422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL</code> aparecer, é defeito desta tela.
+          <b>Corrigido em 30/08/2026 — achado R-13:</b> esta gaveta trazia
+          <i>“O Solicitante vê esta observação”</i> e <i>“Assim ele vai ler”</i>, falando do leitor para o
+          próprio leitor, porque quem escreve aqui <b>é</b> o Solicitante. Passou a trazer
+          <i>“Os Gestores veem esta observação. Não há como editá-la depois.”</i> — critério <b>18.7</b>,
+          escolhido por <code>ocorrencia.cancelar_qualquer</code> e não por autoria — e
+          <i>“Assim os Gestores vão ler”</i> na pré-visualização, que é a mesma troca de sujeito. A gaveta
+          de <code>pausar</code>, acima, mantém as duas frases originais: lá quem escreve é o Gestor</span>
       </div>
       <div class="phone">
         <div class="vp">
@@ -2508,11 +2515,11 @@
           <div class="field">
             <label for="t05-obs-cancelar">Observação</label>
             <textarea class="ctrl" id="t05-obs-cancelar" maxlength="1000">Chamei um encanador por conta própria no sábado e ele já vedou.</textarea>
-            <span class="help">O Solicitante vê esta observação. Não há como editá-la depois.</span>
+            <span class="help">Os Gestores veem esta observação. Não há como editá-la depois.</span>
           </div>
 
           <div class="preview">
-            <span class="lb">Assim ele vai ler</span>
+            <span class="lb">Assim os Gestores vão ler</span>
             <p class="kv"><b>Marina Rocha</b> · agora</p>
             <p class="kv" style="color:var(--ink)">“Chamei um encanador por conta própria no sábado e ele já vedou.”</p>
           </div>

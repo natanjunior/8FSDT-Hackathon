@@ -782,7 +782,7 @@ mora:
 | **Cancelar** | modal | `POST …/cancelar` | `motivo` **e** `observacao`, ambos obrigatórios. A lista de motivos é **filtrada pelo papel** na própria tela (ver abaixo) |
 | **Resolver** | modal | `POST …/resolver` | `observacao?` **e** `solucaoAplicada?` — em foco, pré-preenchido se já houver |
 | **Registrar solução aplicada** | **campo no corpo da tela**, não modal | `POST …/registrar-solucao-aplicada` | `solucaoAplicada` |
-| **Alterar prioridade** | **seletor no bloco 1**, salva na mudança | `POST …/alterar-prioridade` | `prioridade` |
+| **Alterar prioridade** | **seletor no bloco 1**, salva na mudança — e, depois de gravar, **uma linha de desfazer logo abaixo dele, no mesmo bloco** | `POST …/alterar-prioridade` | `prioridade`. A linha diz *"Prioridade alterada de X para Y."* com o botão **Desfazer**, que reenvia o mesmo endpoint com o valor anterior — **um passo, e não há desfazer do desfazer** (17.7). Sem temporizador: sai por ação. *(A coluna dizia só "seletor" até 30/08/2026 — item 18 da fila da frente de documentação.)* |
 | **Atribuir / Reatribuir** | modal | `POST …/atribuir-responsavel` | lista de `GET /vinculos`, com **"Atribuir a mim"** como primeira linha |
 | **Avaliar** | modal | `POST …/avaliar` | `nota` 1–5 **e** `comentario?` |
 | **Comentar** | campo no bloco 4 | `POST …/comentarios` | `texto` |
@@ -901,6 +901,72 @@ Sobrevive à autenticação (§3, decisão 2). Os modais são fragmentos, não e
 > lugar nenhum** para texto interno entre Gestores. O campo de observação é o único campo de texto livre
 > que um Gestor tem, e ele é público ao Solicitante. Sem o aviso, o engano não é improvável: é a leitura
 > natural de um campo chamado "observação".
+>
+> ---
+>
+> #### Emenda de 30/08/2026 — a frase passou a ser DUAS, e a escolha é por permissão
+>
+> **A restrição acima mandava uma frase, literal, nos cinco modais.** A partir do item **18** o produto
+> mostra **duas**, e quem escolhe é o critério **18.7**:
+>
+> | Quem está escrevendo | O que o modal mostra |
+> |---|---|
+> | Tem `ocorrencia.cancelar_qualquer` — e é o caso dos **cinco** modais | *"O Solicitante vê esta observação. Não há como editá-la depois."* — **intacta, sem uma vírgula de mudança** |
+> | **Não** tem — e só o modal de `cancelar` o alcança | *"Os Gestores veem esta observação. Não há como editá-la depois."* |
+>
+> **Por que só o `cancelar`:** ele é o único dos cinco que **duas pessoas diferentes** chamam. `pausar`,
+> `iniciar-atendimento`, `retomar` e `resolver` só são alcançáveis por quem gestiona, e por isso os quatro
+> continuam com a frase única — **não por esquecimento**.
+>
+> **O predicado é ser Gestor, não ser o autor.** O Gestor que cancela a ocorrência que ele mesmo abriu — o
+> síndico morador — **continua lendo o aviso original**, porque o aviso existe para ele: é o agravante
+> escrito logo acima. Escolher por autoria inverteria a frase exatamente no caso em que o risco é maior.
+>
+> **A frase nova é literalmente o que acontece, e a premissa foi conferida antes de decidir.** O Gestor lê
+> mesmo a observação de um cancelamento feito pelo Solicitante: as duas são *"legíveis pelo autor e pelos
+> Gestores"* (`contrato-de-api.md` §8.5); a rota da trilha só barra quem não tem `ocorrencia.ler_todas` e
+> não é o autor; e o `ultimaTransicao` do `OcorrenciaDetalhe` põe essa observação no bloco *"Última
+> mudança"* desta mesma tela.
+>
+> **É construída por deleção:** troca só o sujeito da primeira oração e mantém a segunda palavra por
+> palavra — porque **as duas frases importam**, e a segunda não depende de quem lê.
+>
+> **Isto fecha o achado R-13 do `prototipo-low-fi.md`**, aberto desde a renderização de 24/08/2026: no
+> modal de `cancelar` do próprio Solicitante, a frase original falava do leitor para o próprio leitor.
+> *(Item 19 da fila da frente de documentação.)*
+>
+> #### As duas perguntas que vinham com a emenda, e as duas respostas
+>
+> A restrição enumera *"os cinco modais que têm campo `observacao`"*. **Dois campos do produto satisfazem
+> os dois fatos do aviso — são lidos pelo outro lado e não têm segunda chance — e nenhum dos dois se chama
+> `observacao`.** As perguntas estavam sem resposta escrita desde 27/08; ficam respondidas aqui, e nos dois
+> casos a resposta é **não alcança**, por razões diferentes.
+>
+> **1 · `solucaoAplicada` — não alcança, e o motivo decisivo é que a segunda oração seria FALSA.** O campo
+> é lido pelo Solicitante e em `resolvida` congela, então os dois fatos parecem valer. Mas *"não há como
+> editá-la depois"* **é falso enquanto a ocorrência não está resolvida**: `registrar-solucao-aplicada` é um
+> dos **dois** pontos de sobrescrita que a §7.9 do contrato aceita por escrito, e o campo abre
+> pré-preenchido e grava de novo quantas vezes o Gestor quiser. **Estender a frase intacta escreveria uma
+> mentira no lugar exato onde o aviso existe para dizer a verdade.** E no modal de `resolver`, que tem os
+> **dois** campos, repetir o aviso em ambos é o *"aviso que vira paisagem"* que a seção **D-3** do
+> `prototipo-low-fi.md` nomeia. **O que sobra é verdadeiro e continua sem texto:** que o Solicitante lê a
+> solução aplicada,
+> e que em `resolvida` ela congela sem que nenhuma frase de tela diga isso. **Fica declarado como lacuna;
+> o texto novo, se vier, é frase de produto e portanto decisão de hub.** *(É o achado **A-3** da spec do
+> item 26 e o **A-2** da spec do item 25, agora com resposta.)* **Custo de estar errado:** um Gestor pode
+> escrever ali achando que é campo interno. O que reduz o risco é o nome — *solução aplicada* não admite a
+> leitura de *nota*, ao contrário de *observação*.
+>
+> **2 · O `comentario` da avaliação — não alcança, e o motivo é que o dano que o aviso previne não existe
+> ali.** Os dois fatos valem: o comentário é escrito pelo Solicitante autor, **lido pelo Gestor** — viaja
+> em `avaliacao{nota, comentario, avaliadaEm}` no `OcorrenciaDetalhe` — e não tem segunda chance
+> (`409 JA_AVALIADA`). Mas o aviso existe contra um engano **nomeado** no agravante acima: o Gestor
+> confundindo o único campo de texto livre que ele tem com a nota interna que o produto não tem. **Quem
+> escreve a avaliação é o Solicitante, que não tem canal interno nenhum com que confundi-la** — e o modal
+> inteiro é o convite *"Conte como foi"*, cuja premissa é ser lido. **Custo de estar errado:** um
+> Solicitante que use o comentário como desabafo privado descobre depois que o Gestor o lê, e não há como
+> editar. Se isso aparecer, o conserto é uma frase própria naquele modal, e o segundo consumidor de *"Os
+> Gestores veem…"* nasce lá — **não nesta restrição**, que continua sendo sobre `observacao`.
 
 ---
 
@@ -1685,7 +1751,7 @@ se resolve em silêncio** (aula 6, p.7–8), e cinco deles tocam decisões que s
 | **F4** | Três contagens desatualizadas em dois documentos | `contrato-de-api.md:643` · `fluxos-e-diagramas.md:8,10` | baixa |
 | **F5** | O Gestor não tem como listar o que atribuiu a si mesmo | `escopo.md` cap. 20 vs. `contrato-de-api.md:1276` | média |
 | **F6** | O nome de uma Pessoa recém-criada não tem origem declarada | `contrato-de-api.md:236-238` · `api/openapi.yaml`, `PessoaReferencia` | ✅ **fechado 21/08** — T-11 pede o `nome` |
-| **F7** | O `409` de transição inválida é a única defesa contra dois Gestores triando junto | `contrato-de-api.md:610-622` | declarado, sem conserto |
+| **F7** | O `409` de transição inválida é a única defesa contra dois Gestores triando junto | `contrato-de-api.md:610-622` · §7.9 | **mitigado em metade em 30/08** — a prioridade ganhou desfazer (item 17); a solução aplicada continua declarada |
 | **F8** | O PA-16 não tem mitigação possível nesta entrega | `premissas-e-questoes-abertas.md:131` | média |
 | **F9** | Nada avisa o Gestor de que chegou um pedido de entrada | `escopo.md` §3.2 | média |
 | **F10** | A contagem de pedidos pendentes custa uma requisição a mais no shell do Gestor | — | decisão desta tela |
@@ -1818,6 +1884,38 @@ nenhum**.
 detecta que o dado mudou desde a leitura e recarrega. **O que a tela não pode fazer:** dizer o que foi
 sobrescrito, porque não há registro. Fica declarado, coerente com a razão do contrato — o cenário é o do
 síndico único.
+
+> **Correção — 30/08/2026. A frase *"e é tudo"* deixou de ser verdade, e a metade da prioridade tem
+> conserto.**
+>
+> **O que este achado dizia:** *"o que a tela pode fazer, **e é tudo**: … recarrega"*, e a linha da tabela
+> acima o classificava como ***"declarado, sem conserto"***. **O que passou a ser verdade:** o item 17
+> entregou uma **janela de conserto** para a metade da prioridade — critério **17.7**.
+>
+> **A forma, exatamente como o produto a tem:** depois de uma gravação bem-sucedida, **uma linha sob o
+> seletor, dentro do bloco 1**, diz *"Prioridade alterada de Normal para Alta."* com um botão de texto
+> **Desfazer** ao lado. O desfazer reenvia o mesmo endpoint com o valor anterior — como nada foi gravado
+> na trilha, não há nada de inconsistente em voltar atrás. **Um passo, nunca uma pilha:** uma pilha seria
+> histórico, e histórico deste comando não existe (17.3). **Não há desfazer do desfazer.**
+>
+> **É linha no bloco, e não notificação flutuante** — a decisão de interação do protótipo foi adotada e o
+> componente, recusado; o produto não tem sobreposição não-modal nenhuma. O idioma é o que o bloco de
+> solução aplicada já usa no mesmo T-05: contêiner com `role="status"`, a frase e o botão juntos, porque
+> a novidade é a *disponibilidade* do desfazer e não só a frase. **Sem temporizador:** a linha sai por
+> ação — nova troca, desfazer, erro, recarregar ou navegar.
+>
+> **O que continua declarado sem conserto, e é metade do achado:** `registrar-solucao-aplicada`. A última
+> escrita continua vencendo sem aviso e sem rastro ali, e o campo **não** tem desfazer — mas ele tem
+> *Salvar* próprio, então a escrita sem intenção que o seletor admite (seta do teclado num `<select>` com
+> foco) não existe nesse campo. **O achado não fecha; ele encolhe.**
+>
+> **Onde os dois documentos discordavam, e por que este bloco existe:** a seção **D-3** do `prototipo-low-fi.md`
+> decidiu o desfazer em seção própria, citando este mesmo F7 pelo nome — e este achado, escrito antes,
+> nunca soube dele. Nenhum dos dois conhecia o outro até 28/08/2026. *(Item 18 da fila da frente de
+> documentação, metade (b). A §7.9 do contrato foi corrigida na mesma passada, pela metade (a): ela ganhou
+> a **terceira categoria** — os comandos que não transicionam também recusam por estado, cada um pelo
+> predicado do seu próprio comando na porta de escrita. **A exposição aceita continua sendo dois pontos**,
+> e é sobre o valor, não sobre o estado.)*
 
 ### F8 · O PA-16 não tem mitigação possível nesta entrega
 
