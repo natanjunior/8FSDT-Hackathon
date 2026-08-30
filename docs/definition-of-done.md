@@ -105,7 +105,7 @@ cinco famílias da definição da p.5.
       container. A imagem publicada é **pública** ([ADR-0004](adr/0004-execucao-em-container-no-azure.md)),
       e o que entra numa camada permanece legível **mesmo que um `RUN rm` apague o arquivo depois**. Em
       Next.js, apenas variáveis `NEXT_PUBLIC_*` podem ser embutidas em tempo de build.
-- [ ] **As três verificações mecânicas do contrato de API passam**, se a tarefa toca um endpoint. São
+- [ ] **As quatro verificações mecânicas do contrato de API passam**, se a tarefa toca um endpoint. São
       automáticas, rodam sobre `docs/api/openapi.yaml`, e cada uma protege uma decisão que se perde em
       silêncio (§15 de [contrato-de-api.md](contrato-de-api.md)):
 
@@ -114,6 +114,15 @@ cinco famílias da definição da p.5.
 | `status` não aparece em **nenhum** schema de entrada | Que a `Ocorrência` ganhe um `PATCH` e a ADR-0001 caia junto |
 | Nenhum caminho contém `pessoas` | O vazamento entre organizações mais provável do produto, subindo da consulta para a superfície pública |
 | `organizacao` só nos dois caminhos permitidos | Que a organização volte a ser informada pelo cliente, contra a ADR-0003 |
+| `requestBody.required: false` ⇔ `corpoOpcional` na rota | Que a especificação publique um corpo dispensável e a rota responda `415` a quem confiar nela — e o contrário |
+
+> **Corrigido em 30/08/2026 — eram três.** A caixa dizia *"As **três** verificações mecânicas do contrato
+> de API passam"* e a tabela tinha três linhas. A quarta é a primeira que compara o YAML com os
+> `route.ts`, e ela existe porque a caixa seguinte — *"a especificação versionada corresponde ao código"* —
+> **esteve aberta do item 8 até 27/08/2026 sem que nada acusasse**: `POST …/recusar` declarava
+> `requestBody: required: false` e a rota respondia `415` a quem não mandasse corpo. Detalhe e o que a
+> regra **não** alcança na §15 do [contrato-de-api.md](contrato-de-api.md). *(Item 15 da fila da frente de
+> documentação.)*
 
 - [ ] **A especificação versionada corresponde ao código.** Enquanto não há código, `openapi.yaml` é
       escrito à mão. Quando houver, o pipeline regenera a especificação a partir dos schemas de validação

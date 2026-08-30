@@ -299,6 +299,14 @@
   .item .st { font-size: 14px; font-weight: 600; line-height: 1.3; }
   .item .ti { font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .item .me { font-size: 13px; color: var(--ink-soft); line-height: 1.4; }
+
+  /* ---------- motivo da pausa: campo PRÓPRIO, nunca dentro do rótulo ----------
+     Acrescentada em 30/08/2026 (item 29 da fila da frente de documentação). O glossário §4 é literal:
+     "os quatro motivos de pausa colapsam num único rótulo, 'Pausada'… o motivo precisa viajar como campo
+     próprio ao lado do rótulo — NÃO embutido nele". Até esta data nove lugares deste arquivo desenhavam
+     "Pausada · esperando peça" num texto só, e a tabela de T-03 em tela grande já desenhava certo, com
+     linha de continuação. Esta regra dá ao resto do arquivo a mesma geometria. */
+  .motivo { font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
   .callout { padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--sunken); font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
 
   /* ---------- tabela ---------- */
@@ -328,6 +336,16 @@
   .actionbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; display: flex; gap: 10px; padding: 11px 16px; background: var(--surface); border-top: 1px solid var(--line); }
   .actionbar .btn { flex: 1 1 auto; }
   .actionbar .btn.ghost { flex: 0 0 auto; width: auto; padding: 0 16px; }
+
+  /* ---------- o menu "Mais ações", desenhado ABERTO ----------
+     Acrescentado em 30/08/2026 (item 31 da fila da frente de documentação). Até esta data a palavra
+     "Reatribuir" era desenhada uma única vez no arquivo inteiro, e como TERCEIRO BOTÃO de uma barra —
+     geometria que o produto não faz. A regra da barra é "um primário largo e um Mais ações" a partir do
+     terceiro renderizável, e ela não depende de largura. Esta regra existe para o arquivo poder mostrar
+     onde a palavra de fato mora, em vez de só deixar de mostrá-la. */
+  .moremenu { position: absolute; right: 16px; bottom: 68px; z-index: 9; min-width: 210px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.16); display: flex; flex-direction: column; padding: 5px 0; }
+  .moremenu button { min-height: 44px; padding: 0 14px; border: 0; background: transparent; color: var(--ink); font-family: var(--sans); font-size: 15px; text-align: left; cursor: pointer; }
+  .moremenu button:hover, .moremenu button:focus-visible { background: var(--sunken); outline: none; }
 
   /* ---------- gaveta ---------- */
   .scrim { position: absolute; inset: 0; z-index: 12; background: rgba(0,0,0,.34); }
@@ -1200,10 +1218,19 @@
             <span class="org"><b>Recanto Azul</b><span aria-hidden="true">▾</span></span>
           </div>
 
-          <div class="callout">
-            <span>Você tem 2 resolvidas para avaliar.</span>
-            <span aria-hidden="true">→</span>
-          </div>
+          <!-- Removido em 30/08/2026 — a chamada do topo ficou ⬜ por DECISÃO, não por pendência.
+               O desenho anterior era, literal:
+                 <div class="callout">
+                   <span>Você tem 2 resolvidas para avaliar.</span>
+                   <span aria-hidden="true">→</span>
+                 </div>
+               O toque nela aplicaria ?status=resolvida, que devolve as avaliadas junto — o destino não
+               corresponde à promessa da linha —, e o filtro que corresponderia ("resolvida e não
+               avaliada") é ⬜ pela D15. Volta no dia em que GET /ocorrencias souber respondê-lo.
+               Decidido pelo hub em 29/08/2026 (P1 da spec do item 28); item 21 da fila da frente de
+               documentação. A regra .callout continua definida no CSS, e desde esta remoção ela não tem
+               nenhum uso no arquivo — fica de propósito, porque é o desenho que volta quando o filtro
+               existir, e porque a nota do T-05 (quadro 4) já a nomeia como candidata. -->
 
           <div class="list">
 
@@ -1217,7 +1244,14 @@
             <div class="item">
               <div class="top">
                 <span class="st">Resolvida</span>
-                <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                <!-- MARCA, não botão — trocado em 30/08/2026. O desenho anterior era, literal:
+                     <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                     Recusado: nos recortes A e C o item inteiro é um <Link>, e um botão dentro dele é
+                     conteúdo interativo aninhado — alvo pequeno dentro de alvo grande, contra o
+                     compromisso A-3 — e seria a primeira ação no item da lista, que o critério 14.5
+                     proíbe. O texto sobreviveu (Q-P8, saída (a)); a forma, não. Decidido pelo hub em
+                     29/08/2026 (P1 da spec do item 27); item 21 da fila da frente de documentação. -->
+                <span class="badge attn" style="flex:0 0 auto">Conte como foi</span>
               </div>
               <div class="ti">Lâmpada queimada na garagem</div>
               <div class="me">Iluminação · Garagem · 1 foto</div>
@@ -1299,8 +1333,16 @@
                   <td style="border-bottom:0">Antônio F.</td>
                   <td class="num" style="border-bottom:0">6 d</td>
                 </tr>
+                <!-- A GEOMETRIA DAQUI é a certa, e o arquivo inteiro passou a segui-la em 30/08/2026:
+                     "Pausada" na célula de status e o motivo numa linha de continuação — campo próprio,
+                     nunca dentro do rótulo (glossario.md §4). O que mudou nesta linha foi só a PALAVRA:
+                     o desenho anterior era, literal, <td>esperando peça</td>. A forma curta "esperando
+                     peça" nunca esteve autorizada — foi o que ficou escrito ao fechar o R-11 em
+                     30/08/2026 —, e o único rótulo declarado para este motivo é "Aguardando peça"
+                     (glossario.md §4, "Os motivos, na íntegra"). Item 29 da fila da frente de
+                     documentação. -->
                 <tr class="cont">
-                  <td>esperando peça</td>
+                  <td>Aguardando peça</td>
                   <td>Vazamento · 1 foto</td>
                   <td></td>
                   <td></td>
@@ -1350,8 +1392,11 @@
                   <td style="border-bottom:0">Antônio F.</td>
                   <td class="num" style="border-bottom:0">21 d</td>
                 </tr>
+                <!-- A geometria daqui já era a certa; a PALAVRA mudou em 30/08/2026. O desenho anterior
+                     era, literal, <td>esperando um terceiro</td>. O único rótulo declarado para este
+                     motivo é "Aguardando um terceiro" (glossario.md §4). Item 29 da fila. -->
                 <tr class="cont">
-                  <td>esperando um terceiro</td>
+                  <td>Aguardando um terceiro</td>
                   <td>Equipamento quebrado</td>
                   <td></td>
                   <td></td>
@@ -1397,11 +1442,21 @@
 
           <div class="list">
 
+            <!-- Trocado em 30/08/2026 — o motivo saiu de dentro do rótulo. O desenho anterior era,
+                 literal:
+                   <span class="st">Pausada · esperando peça</span>
+                 O glossário §4 diz o contrário em letra: ao Gestor os quatro motivos colapsam num único
+                 rótulo, "Pausada", e "o motivo precisa viajar como campo próprio ao lado do rótulo — não
+                 embutido nele". A geometria agora é a mesma da tabela de tela grande, que já a usava. A
+                 palavra também mudou: "Aguardando peça" é o único rótulo declarado para este motivo
+                 (glossario.md §4), e a forma curta "esperando peça" continua sem autorização — ficou
+                 escrito ao fechar o R-11. Item 29 da fila da frente de documentação. -->
             <div class="item">
               <div class="top">
-                <span class="st">Pausada · esperando peça</span>
+                <span class="st">Pausada</span>
                 <span class="badge attn">Alta</span>
               </div>
+              <div class="motivo">Aguardando peça</div>
               <div class="ti">Vazamento no teto da garagem</div>
               <div class="me">Garagem · Antônio Ferreira · 6 d ↻1 d</div>
             </div>
@@ -1424,11 +1479,19 @@
               <div class="me">Hall de entrada · Roberto S. · 3 d ↻4 h</div>
             </div>
 
+            <!-- Trocado em 30/08/2026, pela mesma razão do primeiro item desta lista — e esta é a DÉCIMA
+                 ocorrência do defeito, não uma das nove que o item 29 da fila enumerou. O desenho anterior
+                 era, literal:
+                   <span class="st">Pausada · esperando um terceiro</span>
+                 Ela escapou da varredura porque a busca do item procurou pelo motivo "peça"; o defeito é o
+                 mesmo, e num item da MESMA lista que o primeiro. O rótulo declarado para este motivo é
+                 "Aguardando um terceiro" (glossario.md §4, "Os motivos, na íntegra"). -->
             <div class="item">
               <div class="top">
-                <span class="st">Pausada · esperando um terceiro</span>
+                <span class="st">Pausada</span>
                 <span class="badge">Normal</span>
               </div>
+              <div class="motivo">Aguardando um terceiro</div>
               <div class="ti">Interfone do bloco B mudo</div>
               <div class="me">Bloco B · Antônio Ferreira · 21 d ↻9 d</div>
             </div>
@@ -1605,10 +1668,19 @@
             <span class="org"><b>Condomínio Residencial Recanto Azul — Torres A, B e C — Rua das Acácias, 1200, Jardim Paulista, São Paulo, CEP 01415-000</b><span aria-hidden="true">▾</span></span>
           </div>
 
-          <div class="callout">
-            <span>Você tem 2 resolvidas para avaliar.</span>
-            <span aria-hidden="true">→</span>
-          </div>
+          <!-- Removido em 30/08/2026 — a chamada do topo ficou ⬜ por DECISÃO, não por pendência.
+               O desenho anterior era, literal:
+                 <div class="callout">
+                   <span>Você tem 2 resolvidas para avaliar.</span>
+                   <span aria-hidden="true">→</span>
+                 </div>
+               O toque nela aplicaria ?status=resolvida, que devolve as avaliadas junto — o destino não
+               corresponde à promessa da linha —, e o filtro que corresponderia ("resolvida e não
+               avaliada") é ⬜ pela D15. Volta no dia em que GET /ocorrencias souber respondê-lo.
+               Decidido pelo hub em 29/08/2026 (P1 da spec do item 28); item 21 da fila da frente de
+               documentação. A regra .callout continua definida no CSS, e desde esta remoção ela não tem
+               nenhum uso no arquivo — fica de propósito, porque é o desenho que volta quando o filtro
+               existir, e porque a nota do T-05 (quadro 4) já a nomeia como candidata. -->
 
           <div class="list">
 
@@ -1622,7 +1694,14 @@
             <div class="item">
               <div class="top">
                 <span class="st">Resolvida</span>
-                <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                <!-- MARCA, não botão — trocado em 30/08/2026. O desenho anterior era, literal:
+                     <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                     Recusado: nos recortes A e C o item inteiro é um <Link>, e um botão dentro dele é
+                     conteúdo interativo aninhado — alvo pequeno dentro de alvo grande, contra o
+                     compromisso A-3 — e seria a primeira ação no item da lista, que o critério 14.5
+                     proíbe. O texto sobreviveu (Q-P8, saída (a)); a forma, não. Decidido pelo hub em
+                     29/08/2026 (P1 da spec do item 27); item 21 da fila da frente de documentação. -->
+                <span class="badge attn" style="flex:0 0 auto">Conte como foi</span>
               </div>
               <div class="ti">Infiltração na parede do hall de entrada, ao lado das caixas de correio, piorou depois da chuva de sábado e já começou a descascar a pintura do rodapé</div>
               <div class="me">Vazamento, infiltração e problema hidráulico em áreas comuns · Estacionamento de visitantes ao lado da guarita, entre os blocos A e B do prédio</div>
@@ -2137,8 +2216,19 @@
           </div>
 
           <!-- bloco 1a · identidade que não pode rolar -->
+          <!-- Trocado em 30/08/2026 — o motivo saiu de dentro do rótulo, nos quatro blocos 1a deste T-05.
+               O desenho anterior era, literal:
+                 <span class="badge attn">Pausada · esperando peça</span>
+               Três fontes diziam o contrário e uma delas descreve o próprio campo: glossario.md §4 ("o
+               motivo precisa viajar como campo próprio ao lado do rótulo — não embutido nele"),
+               contrato-de-api.md §8.8 ("do lado do Gestor o rótulo é sempre 'Pausada'") e a descrição do
+               campo `rotulo` do schema EventoTransicao no openapi.yaml ("o Gestor lê 'Pausada'"). O
+               critério 23.4 já pratica a mesma frase desde 28/08/2026. A palavra do motivo é a declarada
+               em glossario.md §4, "Os motivos, na íntegra": "Aguardando peça". Item 29 da fila da frente
+               de documentação. -->
           <div class="block">
-            <span class="badge attn">Pausada · esperando peça</span>
+            <span class="badge attn">Pausada</span>
+            <p class="motivo">Aguardando peça</p>
             <p class="kv" style="font-size:18px;font-weight:600;line-height:1.3;color:var(--ink)">Vazamento no teto da garagem</p>
           </div>
 
@@ -2204,7 +2294,15 @@
               </div>
               <div class="ev">
                 <span class="who">Roberto Salles · ontem, 16h40</span>
-                <span class="what">Pausada · aguardando peça. “O material só chega na terça. Assim que chegar, o Antônio sobe.”</span>
+                <!-- Trocado em 30/08/2026 — o motivo saiu do rótulo do evento, nos quatro eventos de
+                     pausa da linha do tempo. O desenho anterior era, literal:
+                       Pausada · aguardando peça. “O material só chega na terça…”
+                     `EventoTransicao` tem `rotulo` e `motivoPausa` como CAMPOS SEPARADOS
+                     (openapi.yaml), e a descrição do `rotulo` é explícita: "o Gestor lê 'Pausada'". O
+                     motivo é campo do evento, não texto do rótulo — quem quiser exibi-lo aqui exibe o
+                     campo, e o rótulo continua sendo uma palavra só. Item 29 da fila da frente de
+                     documentação. -->
+                <span class="what">Pausada. “O material só chega na terça. Assim que chegar, o Antônio sobe.”</span>
               </div>
             </div>
             <a class="link" href="#t06">ver a trilha de auditoria →</a>
@@ -2450,7 +2548,14 @@
         <span class="n">4</span><span class="t">A gaveta de <code>cancelar</code>, vista pelo Solicitante</span>
         <span class="c">quatro motivos, não sete: a lista é filtrada <b>pelo papel</b> na própria tela, e é
           o único lugar do inventário onde isso acontece. Se o
-          <code>422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL</code> aparecer, é defeito desta tela</span>
+          <code>422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL</code> aparecer, é defeito desta tela.
+          <b>Corrigido em 30/08/2026 — achado R-13:</b> esta gaveta trazia
+          <i>“O Solicitante vê esta observação”</i> e <i>“Assim ele vai ler”</i>, falando do leitor para o
+          próprio leitor, porque quem escreve aqui <b>é</b> o Solicitante. Passou a trazer
+          <i>“Os Gestores veem esta observação. Não há como editá-la depois.”</i> — critério <b>18.7</b>,
+          escolhido por <code>ocorrencia.cancelar_qualquer</code> e não por autoria — e
+          <i>“Assim os Gestores vão ler”</i> na pré-visualização, que é a mesma troca de sujeito. A gaveta
+          de <code>pausar</code>, acima, mantém as duas frases originais: lá quem escreve é o Gestor</span>
       </div>
       <div class="phone">
         <div class="vp">
@@ -2508,11 +2613,11 @@
           <div class="field">
             <label for="t05-obs-cancelar">Observação</label>
             <textarea class="ctrl" id="t05-obs-cancelar" maxlength="1000">Chamei um encanador por conta própria no sábado e ele já vedou.</textarea>
-            <span class="help">O Solicitante vê esta observação. Não há como editá-la depois.</span>
+            <span class="help">Os Gestores veem esta observação. Não há como editá-la depois.</span>
           </div>
 
           <div class="preview">
-            <span class="lb">Assim ele vai ler</span>
+            <span class="lb">Assim os Gestores vão ler</span>
             <p class="kv"><b>Marina Rocha</b> · agora</p>
             <p class="kv" style="color:var(--ink)">“Chamei um encanador por conta própria no sábado e ele já vedou.”</p>
           </div>
@@ -2531,7 +2636,11 @@
         <span class="n">5</span><span class="t">Tela grande · a mesma ocorrência do estado 1</span>
         <span class="c">a linha do tempo e a conversa ficam <b>ao lado</b> em vez de abaixo — é a única
           diferença que o inventário pede, e é layout, não conteúdo. A barra de ações continua no rodapé,
-          com os quatro comandos abertos porque agora os rótulos cabem</span>
+          com o mesmo par do celular — <b>um primário largo e um <i>Mais ações</i></b> —, porque a regra
+          da barra conta renderizáveis e <b>não mede largura</b>. <i>(Corrigido em 30/08/2026, item 31 da
+          fila da frente de documentação: a legenda dizia “com os quatro comandos abertos porque agora os
+          rótulos cabem”, e a barra logo abaixo desenhava três botões. Nem a contagem nem a geometria
+          correspondiam ao produto.)</i></span>
       </div>
       <div class="desk">
         <div class="vp">
@@ -2545,8 +2654,12 @@
 
             <!-- coluna esquerda: identidade e conteúdo -->
             <div style="flex:1 1 0;min-width:0;overflow-y:auto">
+              <!-- Trocado em 30/08/2026 — o motivo saiu de dentro do rótulo. O desenho anterior era,
+                   literal: <span class="badge attn">Pausada · esperando peça</span>. Ver o bloco 1a do
+                   estado 1 para a razão inteira. Item 29 da fila da frente de documentação. -->
               <div class="block">
-                <span class="badge attn">Pausada · esperando peça</span>
+                <span class="badge attn">Pausada</span>
+                <p class="motivo">Aguardando peça</p>
                 <p class="kv" style="font-size:20px;font-weight:600;line-height:1.3;color:var(--ink)">Vazamento no teto da garagem</p>
               </div>
               <div class="block">
@@ -2606,7 +2719,10 @@
                   </div>
                   <div class="ev">
                     <span class="who">Roberto Salles · ontem, 16h40</span>
-                    <span class="what">Pausada · aguardando peça. “O material só chega na terça. Assim que
+                    <!-- Trocado em 30/08/2026 — o motivo saiu do rótulo do evento. O desenho anterior
+                         era, literal: Pausada · aguardando peça. “O material só chega…”. Ver o evento
+                         de pausa do estado 1. Item 29 da fila da frente de documentação. -->
+                    <span class="what">Pausada. “O material só chega na terça. Assim que
                       chegar, o Antônio sobe.”</span>
                   </div>
                 </div>
@@ -2635,10 +2751,29 @@
 
           </div>
         </div>
+        <!-- Trocado em 30/08/2026 — esta era a única .actionbar do arquivo com TRÊS botões, e a única
+             geometria de `pausada` que divergia das outras três. O desenho anterior era, literal:
+               <button class="btn" type="button" style="flex:0 0 auto;width:auto;padding:0 28px">Retomar</button>
+               <button class="btn ghost" type="button">Reatribuir</button>
+               <button class="btn ghost" type="button">Cancelar</button>
+             A regra está em prosa na §D-3 do prototipo-low-fi.md e no achado P-09 — "um primário largo e
+             um menu Mais ações" —, e o produto a segue desde o item 23: a partir do terceiro renderizável
+             o não-destaque vai para o menu, e `atribuir-responsavel` nunca é a ação primária, em nenhum
+             dos quatro estados em que existe. A regra NÃO depende de largura, e é por isso que a tela
+             grande também recebe o par.
+             O menu vem desenhado ABERTO de propósito: `:2638` era o único lugar em todo o material onde a
+             palavra "Reatribuir" aparecia, e é a fonte [C]/[P] mais próxima que o critério 21.1 tem —
+             apagá-la sem mostrar onde ela mora produziria o falso negativo ao contrário. A ordem dos dois
+             itens é a de `acoesDisponiveis` menos o destaque: `atribuir-responsavel` precede `cancelar`
+             no enum `Comando`. O gatilho diz "Reatribuir", e não "Atribuir", porque esta ocorrência já
+             tem responsável. Item 31 da fila da frente de documentação. -->
+        <div class="moremenu" role="menu" aria-label="Mais ações">
+          <button type="button" role="menuitem">Reatribuir</button>
+          <button type="button" role="menuitem">Cancelar</button>
+        </div>
         <div class="actionbar">
-          <button class="btn" type="button" style="flex:0 0 auto;width:auto;padding:0 28px">Retomar</button>
-          <button class="btn ghost" type="button">Reatribuir</button>
-          <button class="btn ghost" type="button">Cancelar</button>
+          <button class="btn" type="button">Retomar</button>
+          <button class="btn ghost" type="button" aria-expanded="true">Mais ações ▾</button>
         </div>
       </div>
     </div>
@@ -2722,7 +2857,10 @@
               </div>
               <div class="ev">
                 <span class="who">Roberto Salles · ontem, 16h40</span>
-                <span class="what">Pausada · aguardando peça. “O material só chega na terça. Assim que
+                <!-- Trocado em 30/08/2026 — o motivo saiu do rótulo do evento. O desenho anterior era,
+                     literal: Pausada · aguardando peça. “O material só chega…”. Ver o evento de pausa do
+                     estado 1. Item 29 da fila da frente de documentação. -->
+                <span class="what">Pausada. “O material só chega na terça. Assim que
                   chegar, o Antônio sobe.”</span>
               </div>
               <div class="ev">
@@ -2784,8 +2922,12 @@
             <span class="org"><b>Recanto Azul</b><span aria-hidden="true">▾</span></span>
           </div>
 
+          <!-- Trocado em 30/08/2026 — o motivo saiu de dentro do rótulo. O desenho anterior era,
+               literal: <span class="badge attn">Pausada · esperando peça</span>. Ver o bloco 1a do
+               estado 1 para a razão inteira. Item 29 da fila da frente de documentação. -->
           <div class="block">
-            <span class="badge attn">Pausada · esperando peça</span>
+            <span class="badge attn">Pausada</span>
+            <p class="motivo">Aguardando peça</p>
             <p class="kv" style="font-size:18px;font-weight:600;line-height:1.3;color:var(--ink)">Vazamento no teto da garagem</p>
           </div>
 
@@ -2880,8 +3022,12 @@
             <span class="org"><b>Condomínio Residencial Recanto Azul — Associação dos Moradores dos Blocos A, B, C e D da Rua das Acácias 1240, Vila Nova</b><span aria-hidden="true">▾</span></span>
           </div>
 
+          <!-- Trocado em 30/08/2026 — o motivo saiu de dentro do rótulo. O desenho anterior era,
+               literal: <span class="badge attn">Pausada · esperando peça</span>. Ver o bloco 1a do
+               estado 1 para a razão inteira. Item 29 da fila da frente de documentação. -->
           <div class="block">
-            <span class="badge attn">Pausada · esperando peça</span>
+            <span class="badge attn">Pausada</span>
+            <p class="motivo">Aguardando peça</p>
             <p class="kv" style="font-size:18px;font-weight:600;line-height:1.3;color:var(--ink)">Infiltração
               no teto da garagem do subsolo, entre as vagas 34 e 36, que piora muito a cada chuva forte e já
               molhou o carro de dois moradores do bloco C</p>
@@ -2953,7 +3099,10 @@
               <div class="ev">
                 <span class="who">Maria Aparecida Gonçalves de Albuquerque Vasconcelos Tavares do Nascimento
                   Pereira Gomes dos Santos Silva Monteiro Filha · ontem, 16h40</span>
-                <span class="what">Pausada · aguardando peça. “A peça que falta é o rufo metálico da laje, e
+                <!-- Trocado em 30/08/2026 — o motivo saiu do rótulo do evento. O desenho anterior era,
+                     literal: Pausada · aguardando peça. “A peça que falta…”. Ver o evento de pausa do
+                     estado 1. Item 29 da fila da frente de documentação. -->
+                <span class="what">Pausada. “A peça que falta é o rufo metálico da laje, e
                   o fornecedor confirmou por telefone que ele só chega na terça-feira, dia 25, porque o lote
                   anterior saiu com a dobra errada e voltou para a fábrica. Enquanto isso o Antônio já isolou
                   a área em volta da vaga 34 com fita e colocou um balde embaixo do ponto que pinga, e passa

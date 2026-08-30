@@ -27,6 +27,38 @@ cinco delas. O professor diz onde o assunto mora: *"a gente vai falar mais sobre
 Qualidade de Software"*, que é outra disciplina e não a temos. **Esta ADR é [FONTE EXTERNA] quase inteira**,
 na mesma situação da multi-tenancy: sustenta-se por mérito próprio ou não se sustenta.
 
+> ### Emenda de 30/08/2026 — duas descrições do repositório que nunca foram verdade
+>
+> **A decisão não muda em nada.** O que muda é a descrição do repositório em volta dela, em duas frases:
+> uma no *Contexto* acima, outra na consequência **2** da *Decisão* abaixo. Origem: o achado **A-3** da
+> spec do item **41b** e a premissa derrubada ao responder a **P2** daquele item.
+>
+> **(a) O Playwright não estava na stack — estava escolhido.** O *Contexto* dizia *"o **Playwright na
+> stack sem uma linha o usando**"*. Conferido em 30/08/2026: **não havia `@playwright/test` no
+> `package.json`** nem em `node_modules/`, e a única menção no `package-lock.json` era como dependência
+> **opcional de par** do `@vitest/browser-playwright`, que também não era usado. O que existia era a
+> **escolha** — a [`arquitetura.md`](../arquitetura.md) nomeia Playwright nos tópicos **2** e **7** da
+> Parte II —, nunca a instalação. **Passa a valer:** *"o Playwright escolhido na `arquitetura.md` e
+> ausente do `package.json`"*. E o item **41b** fechou os dois lados: instalou a dependência — Chromium
+> só, sem repetição e fora do pipeline — **e** escreveu o teste que a usa, em `testes/ponta-a-ponta/`.
+>
+> **(b) O item de DoD que a consequência 2 invoca já não era feito à mão.** Ela dizia que o E2E fora do
+> pipeline *"é **automação de um item de DoD que hoje é feito à mão**"*, nomeando *"Sobe no `docker
+> compose`, do zero"*. **Aquele item é automático desde o item 40:** o emprego `compose` do
+> `.github/workflows/entrega.yml` sobe a pilha num runner limpo e bate na aplicação por HTTP **a cada push
+> e a cada pull request** — e o próprio [`definition-of-done.md`](../definition-of-done.md) já diz isso em
+> voz alta: *"a outra máquina é o runner da esteira… reverifica a cada push"*.
+>
+> **O que o E2E de fato acrescenta é mais forte que o argumento errado**, e é por isso que a emenda
+> conserta em vez de apagar: ele cobre a classe de defeito que as próprias *Negativas* desta ADR nomeiam
+> — *"a camada de Interface fica praticamente sem cobertura"* —, e **nenhum outro teste do repositório a
+> alcança**. **Passa a valer:** *"não é infraestrutura nova, acrescenta zero segundo ao pipeline por push,
+> e é a única cobertura que a camada de Interface tem"*. As duas afirmações que a consequência 2 fazia e
+> que continuam verdadeiras — a pilha é a mesma do E7, e o custo por push é zero — **não foram tocadas**.
+>
+> **Por que isto valeu uma emenda, sendo prosa de contexto:** (b) é um **argumento de custo**, e argumento
+> de custo errado é reusado — a P2 da spec do 41b o reusou, e foi preciso derrubá-lo para responder.
+
 ## Decisão
 
 **A quantidade de teste segue a natureza da garantia que ele protege, não o nível de uma pirâmide.** São

@@ -25,10 +25,11 @@ disciplina, a citação vem como `aula N, p.X`.
 - **Emenda é permitida, e tem forma.** Quando a decisão continua a mesma e o que estava errado é o texto —
   uma palavra que aponta para a camada errada, uma lacuna que o desenho expôs depois —, a correção entra
   **no próprio arquivo**, em bloco datado, dizendo o que estava escrito antes e por que mudou. O que a
-  emenda não pode fazer é mudar o que foi decidido sem que se veja. Quatro ADRs já têm emendas assim — a
+  emenda não pode fazer é mudar o que foi decidido sem que se veja. **Cinco** ADRs já têm emendas assim — a
   [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md), a [0004](0004-execucao-em-container-no-azure.md),
-  a [0006](0006-organizacao-de-modulos.md) e a [0007](0007-camada-de-interface-com-shadcn-ui.md) —, e todas
-  dizem qual era a redação anterior.
+  a [0006](0006-organizacao-de-modulos.md), a [0007](0007-camada-de-interface-com-shadcn-ui.md) e a
+  [0008](0008-a-suite-de-testes-segue-a-garantia.md) —, e todas dizem qual era a redação anterior.
+  *(Eram quatro até 30/08/2026, quando a 0006 ganhou a segunda emenda dela e a 0008 ganhou a primeira.)*
 - Status possíveis: `Proposta` · `Aceita` · `Substituída por ADR-NNNN` · `Descartada`.
 
 ## Índice

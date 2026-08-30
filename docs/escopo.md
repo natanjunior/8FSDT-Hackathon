@@ -199,12 +199,12 @@ Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega; o
 
 ## 2 · O recorte da primeira entrega
 
-**63 itens de escopo mapeados. 42 entram na primeira entrega; 21 são evolução prevista.**
+**66 itens de escopo mapeados. 44 entram na primeira entrega; 22 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
-| 0 · Configurar a organização | **5** | 2 |
-| 1 · Entrar na organização | **5** | 4 |
+| 0 · Configurar a organização | **6** | 3 |
+| 1 · Entrar na organização | **6** | 4 |
 | 2 · Registrar a ocorrência | **3** | 1 |
 | 3 · Triar | **5** | 2 |
 | 4 · Atribuir | **3** | 2 |
@@ -213,7 +213,7 @@ Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega; o
 | 7 · Acompanhar | **4** | 4 |
 | 8 · Gerir | **5** | 2 |
 | Fundação técnica | **6** | — |
-| **Total** | **42** | **21** |
+| **Total** | **44** | **22** |
 
 E a proporção que importa para o critério de corte:
 
@@ -221,8 +221,8 @@ E a proporção que importa para o critério de corte:
 |---|---|---|---|
 | `ENUNCIADO · literal` | **8** | 0 | 8 |
 | `ENUNCIADO · aberto` | **16** | 0 | 16 |
-| `NOSSO` | **18** | **21** | 39 |
-| **Total** | **42** | **21** | **63** |
+| `NOSSO` | **20** | **22** | 42 |
+| **Total** | **44** | **22** | **66** |
 
 > **Correção de inventário — 20/08/2026.** Este documento fechou originalmente em **61 itens, 40 na
 > primeira entrega**. A revisão do contrato de API encontrou um item descrito na seção 1 — *tempo médio
@@ -235,10 +235,30 @@ E a proporção que importa para o critério de corte:
 > formulário de rotina. Entrou *remover vínculo sem histórico*, e a contagem fecha em **63 e 42**. A
 > justificativa está na atividade 1.
 
-**Os 24 itens `ENUNCIADO` estão inteiros na primeira entrega.** Todo o corte recaiu sobre adições do
-projeto: dos 39 itens `NOSSO`, 18 entraram e 21 ficaram para depois.
+> **Terceira correção — 30/08/2026.** A contagem ficou parada em **63 e 42** enquanto o backlog andava, e
+> três documentos a repetiam. Quatro itens nasceram depois dela; **dois contam e dois não**:
+>
+> | Item | Conta? | Por quê |
+> |---|---|---|
+> | **4b** — escolher o ícone da categoria | **sim** | Entrega comportamento que não existia. É o mesmo critério que fez *"remover vínculo sem histórico"* virar capacidade em 20/08/2026 |
+> | **7b** — entrar em outra organização tendo uma ativa | **sim** | Sem ele a **Persona 1B não consegue** entrar numa segunda organização. A capacidade é nova **mesmo com o endpoint sendo o mesmo** — como já acontece com *auto-atribuição* e *reatribuir*, que dividem endpoint com *atribuir o responsável* |
+> | **43** — semente de demonstração | **não** | É **instrumento** para tornar as capacidades de dashboard conferíveis, não coisa que o produto faz. Mesmo precedente da tela **T-10** e da tabela `anexos`: o pacote já declara o que existe e não entra na contagem |
+> | **44** — tema visual | **não** | Identidade visual, não capacidade |
+>
+> **E nasce junto uma linha ⬜**, na atividade 0, que é decisão de escopo e não de contagem: *"fundar uma
+> segunda organização tendo uma ativa"*. Ela **não** entra no numerador; o denominador sobe em um.
+>
+> **A conta fecha em 66 e 44:** o 4b e o 7b somam no ✅ **e** no total; a linha ⬜ soma só no total. Os
+> mesmos números passam a valer no `contrato-de-api.md` §14 e no `inventario-de-telas.md` §8, que fecham a
+> mesma contagem. **As duas capacidades novas entram numeradas como `4b` e `7b`** naquelas tabelas, ao
+> lado das capacidades 4 e 7 de que derivam — **nada é renumerado**, porque os números são citados por
+> outros documentos (*"capacidade nº 20"*, *"nº 38"*) e renumerar transformaria uma correção de contagem
+> numa caçada a referências.
 
-Os 18 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
+**Os 24 itens `ENUNCIADO` estão inteiros na primeira entrega.** Todo o corte recaiu sobre adições do
+projeto: dos 42 itens `NOSSO`, 20 entraram e 22 ficaram para depois.
+
+Os 20 `NOSSO` que entraram não estão lá por gosto — cada um é a cola sem a qual um requisito do desafio
 não funciona. Sem Organização não há onde registrar; sem categorias e áreas semeadas, a Organização
 nasce vazia e nada pode ser registrado; sem pedido de entrada e aprovação, ninguém além de quem criou
 consegue entrar; sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o Solicitante
@@ -259,8 +279,18 @@ resolve o problema que o produto veio resolver.
 | Áreas-semente, com os tipos *comum* e *privativa* | `NOSSO` (D10, D18) | ✅ |
 | Editar categorias | `ENUNCIADO · aberto` | ✅ |
 | Editar áreas | `NOSSO` (D18) | ✅ |
+| **Escolher o ícone da categoria**, sobre uma lista fechada de 25 nomes | `NOSSO` (RNF6) | ✅ |
 | Identidade da organização na página de cadastro — logo e nome | `NOSSO` (D25) | ⬜ |
 | Interruptor *"exigir descrição da solução ao resolver"* | `NOSSO` (D22) | ⬜ |
+| **Fundar uma segunda organização tendo uma ativa** | `NOSSO` (D25, D26) | ⬜ |
+
+> **A última linha é ⬜ por escopo, não por limitação técnica — e isso precisa estar dito para ninguém a
+> reabrir por engano.** O `POST /organizacoes` **aceita** a chamada, e o `Set-Cookie` já ativaria a
+> organização nova (`contrato-de-api.md` §8.1). O que falta é **tela**: nenhuma oferece o caminho, e
+> nenhum critério do item 7b o menciona. O contorno existe e é usado — criar outra conta —, e é o que o
+> roteiro de validação do grupo faz. **Decidido em 29/08/2026**, ao responder as perguntas da spec do 7b;
+> o buraco estava registrado três vezes sem dono desde 23/08/2026, e esta linha é o que o transforma em
+> escopo declarado. *(Acrescentada em 30/08/2026, junto com a terceira correção de contagem.)*
 
 ### 1 · Entrar na organização
 
@@ -271,6 +301,7 @@ resolve o problema que o produto veio resolver.
 | Gestor aprova ou recusa o pedido de entrada | `NOSSO` (D25) | ✅ |
 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | ✅ |
 | **Remover vínculo sem histórico**, desfazendo papel aprovado por engano | `NOSSO` (D25, PA-25) | ✅ |
+| **Entrar em outra organização tendo uma ativa** — pedir entrada numa segunda e trocar qual está ativa | `NOSSO` (D25, B-01) | ✅ |
 | Página pública da organização, com o código embutido na URL | `NOSSO` (D25) | ⬜ |
 | Convite por link de uso único, com dados pré-preenchidos e editáveis | `NOSSO` (D25) | ⬜ |
 | Importar pessoas em lote | `NOSSO` (D25) | ⬜ |
@@ -344,6 +375,14 @@ escopo: são o alvo de qualidade sobre os itens acima.
 | Reatribuir | `NOSSO` | ✅ |
 | Conversa privada da atribuição, entre Gestores e responsável | `NOSSO` (D9) | ⬜ |
 | Encarregado recusa a atribuição | `NOSSO` | ⬜ |
+
+> **O que *"em um clique"* conta, e onde a ação vive — 30/08/2026.** Conta **comando**, não toque de
+> tela: sem ela, um Gestor que queira assumir uma ocorrência `Aberta` precisaria de `analisar` **e**
+> `atribuir` — dois comandos. **A ação acontece no detalhe da ocorrência (T-05), não na lista**, e medida
+> lá dentro custa quatro toques. O nome da capacidade **fica**, porque é como ela é citada no backlog, no
+> contrato e na arquitetura; o que faltava era dizer o que ele conta. *(A `arquitetura.md` e o
+> `contrato-de-api.md` afirmavam que a capacidade acontecia "na lista de triagem"; os dois foram
+> corrigidos na mesma data. Levar a ação para a lista é evolução declarada, não esquecimento.)*
 
 ### 5 · Executar
 

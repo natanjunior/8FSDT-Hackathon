@@ -112,6 +112,36 @@ alcança arquivo interno de outro módulo. É o que faz *"componentes podem faze
 > com `files` por diretório — sem plugin de fronteira novo. A escolha da ferramenta, e sobretudo **o que
 > ela não alcança**, estão documentados naquele arquivo.
 
+> ### Emenda de 30/08/2026 — a regra 2b tem uma **lista**, e ela já tinha três caminhos
+>
+> **A decisão não muda, e a regra não afrouxa.** O que estava errado é o texto: a emenda de 22/08/2026
+> acima enunciou a regra no singular, e o bloco que a aplica já listava mais de um caminho.
+>
+> **A redação anterior era:** *"**2b · `src/composicao/` é importada apenas por `src/interface/http/`.**"*
+>
+> **Por que deixou de ser verdade, e quando.** `src/interface/acoes/` entrou com o item **6b** —
+> `src/interface/acoes/index.ts` importa `montarCredenciais` de `@/composicao` —, e `semente/` com o item
+> **43**, que monta o **mesmo** grafo que a produção monta. São **três** consumidores declarados, cada um
+> escrito de propósito em `eslint.config.mjs`.
+>
+> **A redação que passa a valer:**
+>
+> > **2b · `src/composicao/` é importada apenas pelos caminhos declarados no `eslint.config.mjs`** — hoje
+> > `src/interface/http/`, `src/interface/acoes/` e `semente/`. É mais estrita que a letra da
+> > [ADR-0005](0005-regra-de-dependencia-por-inversao.md) e serve ao propósito dela: **`app/` não tem como
+> > obter porta sem passar pelo `comContexto`**, e portanto não tem como esquecer de resolver o contexto.
+> > Acrescentar um consumidor é uma linha escrita de propósito naquele arquivo.
+>
+> **O que a lista protege continua idêntico:** `app/` não alcança `@/composicao` — nem antes, nem agora.
+> Ampliar o conjunto de quem **compõe** não abre caminho nenhum para quem **roteia**.
+>
+> **Por que a redação virou lista em vez do número três:** o quarto consumidor não deve exigir emenda
+> nova. A fonte da verdade passa a ser o arquivo que o lint lê, e o documento aponta para ele.
+>
+> **O que esta emenda não alcança, e precisa estar dito:** a mensagem da constante `COMPOSICAO` em
+> `eslint.config.mjs` ainda enuncia o singular. É **código**, e a frente de documentação não o edita —
+> fica registrado aqui para quem tocar naquele arquivo.
+
 ### Quando criar um módulo novo
 
 Os dois testes da aula 6 (p.5), aplicados na revisão:

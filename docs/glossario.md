@@ -123,7 +123,8 @@ Esta tabela é a fonte: o contrato de API a consome, e nenhum rótulo nasce fora
 | `resolvida` | Resolvida | Resolvida |
 | `cancelada` | Cancelada | Cancelada |
 
-Três regras que a tabela carrega e que valem para qualquer rótulo novo:
+Quatro regras que a tabela carrega e que valem para qualquer rótulo novo — **a quarta nasceu em
+30/08/2026**, junto com a tabela de motivos logo abaixo, e eram três até ali:
 
 1. **Nenhum rótulo nomeia o Gestor por profissão.** A D19 nasceu de uma entrevista com um síndico, e a
    redação original dizia *"o síndico está avaliando"*. Isso trava o produto em condomínio, enquanto a
@@ -133,10 +134,77 @@ Três regras que a tabela carrega e que valem para qualquer rótulo novo:
    execução produz *"Parada, esperando aguardando peça"*. O motivo é enumerado; a frase é escrita.
 3. **Rótulo é estado, não convite.** *"Resolvida — conte como foi"* mistura o que a ocorrência é com o
    que se pede de quem lê. O convite a avaliar pertence à tela.
+4. **Nenhum rótulo trava o produto numa das três formas de Organização.** É a regra 1 aplicada ao
+   **lugar** em vez de à **pessoa**, e ela já mordeu: o rótulo de `fora_de_escopo` foi proposto como
+   *"Fora do escopo **do condomínio**"*, citando um exemplo de observação livre da especificação.
+   **Observação livre é texto de um Gestor sobre o próprio lugar, e ali a palavra é dele; rótulo de enum
+   é a mesma string para condomínio, empresa e bairro.** Por isso ficou *"Fora do escopo **da
+   organização**"*. A D3 admite as três formas e a D2 é a adição `NOSSO` mais cara do projeto — nenhuma
+   das duas sobrevive a uma palavra de interface que as desminta.
 
 > **Consequência para quem exibe uma lista ao Gestor:** os quatro motivos de pausa colapsam num único
 > rótulo, "Pausada". Como *nomear a espera é o que permite vigiá-la* (D8), o motivo precisa viajar como
 > campo próprio ao lado do rótulo — não embutido nele.
+
+### Os motivos, na íntegra — o segundo vocabulário
+
+*(Acrescentado em 30/08/2026. Os onze rótulos existiam em tela e em código e **em nenhum entregável**;
+quatro deles saíam do protótipo, e os três do Gestor não estavam escritos em lugar nenhum.)*
+
+**Esta tabela é irmã da de cima e responde outra pergunta.** A de cima diz *o que aconteceu com a
+ocorrência*; esta diz *o que você está escolhendo*, dentro de um formulário chamado **Motivo**:
+
+| A pergunta | Qual tabela responde | Exemplo |
+|---|---|---|
+| *O que está acontecendo com esta ocorrência?* | os rótulos exibidos, acima | *"Parada — esperando material chegar"* |
+| *O que ela está esperando?* — no seletor do modal | **esta** | *"Aguardando peça"* |
+
+**Isto não é a segunda cópia que a regra 2 proíbe.** A regra 2 proíbe **frase montada em tempo de
+execução** (*"Parada, esperando aguardando peça"*); um segundo vocabulário **declarado** é o que a coluna
+do Gestor da tabela de cima já é. *"Parada — esperando material chegar"* dentro de um seletor chamado
+*Motivo* é uma frase respondendo a outra pergunta.
+
+**Os quatro motivos de `pausar`** — invariante 5, `NOSSO` (D8, D23):
+
+| Valor | Rótulo de escolha |
+|---|---|
+| `aguardando_informacao_solicitante` | **Aguardando informação do solicitante** |
+| `aguardando_peca` | **Aguardando peça** |
+| `aguardando_autorizacao` | **Aguardando autorização** |
+| `aguardando_terceiro` | **Aguardando um terceiro** |
+
+**Os sete motivos de `cancelar`** — e são **um conjunto só, não dois**: a divisão da D5 é por
+**autorização**, não por domínio de valor. `duplicada` está nas duas listas, e modelar dois enums
+duplicaria o valor comum.
+
+| Valor | Rótulo de escolha | Quem pode escolher |
+|---|---|---|
+| `desistencia` | **Desistência** | o Solicitante autor **e** quem tem `ocorrencia.cancelar_qualquer` |
+| `resolvido_por_conta_propria` | **Resolvido por conta própria** | idem |
+| `aberta_por_engano` | **Aberta por engano** | idem |
+| `duplicada` | **Duplicada** | idem |
+| `improcedente` | **Improcedente** | só quem tem `ocorrencia.cancelar_qualquer` |
+| `fora_de_escopo` | **Fora do escopo da organização** | idem |
+| `sem_informacao_suficiente` | **Sem informação suficiente** | idem |
+
+**Origem dos onze.** As duas listas de motivo de cancelamento são da **D5** (`ENUNCIADO · aberto` — o
+enunciado impõe que `Cancelada` exista e de onde ela sai; não diz quem aciona nem por quê), refinadas pela
+**D12**; os motivos de pausa são `NOSSO` (D8). **Os rótulos são todos `NOSSO`:** os quatro de pausa e os
+quatro do Solicitante são transcrição literal do protótipo renderizado; **os três de Gestor foram
+decididos em 28/08/2026**, e o do meio teve a palavra trocada — *organização*, não *condomínio*, pela
+regra 4 acima.
+
+**Quem pode escolher é checagem da camada de aplicação, não domínio de valor** — a mesma disciplina que
+faz toda autorização perguntar `vinculo.pode(X)` e nunca `vinculo.papel == GESTOR`. A tela oferece a lista
+já filtrada; se um `422` de motivo não permitido chegar ao Solicitante, é defeito de tela.
+
+> **Isto fecha o achado R-11 do `prototipo-low-fi.md`** — *"não existe texto exibível para `motivoPausa`
+> do lado do Gestor"*, aberto desde 24/08/2026. **E fecha explicando as duas redações que o achado
+> flagrou como contradição:** *"esperando peça"* e *"Aguardando peça"* na mesma tela não eram duas
+> redações do mesmo texto — são **duas tabelas**, e cada uma responde uma pergunta. O que o achado
+> acertou é que **nenhuma das duas estava aqui**, e montar qualquer uma no cliente seria a segunda cópia
+> que este glossário proíbe. **Nota para quem redesenhar:** a forma curta *"esperando peça"*, sem o
+> *"Parada — "*, não está autorizada por nenhuma das duas tabelas.
 
 ---
 
