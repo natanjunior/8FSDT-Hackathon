@@ -247,6 +247,33 @@ não foi testada com ninguém.
 > número acima é a razão.
 
 **O total continua: 53 s no cenário do RNF6, contra 60. Sete segundos de folga, e nenhum foi gasto.**
+
+### 2.7 A conta depois do item 4b — zero segundo, e a folga não foi creditada
+
+**O item 4b pôs o ícone da categoria ao lado do nome no seletor de T-04** (critério **11.6**), e o orçamento
+acima foi medido **sem ele**. A conta, no mesmo formato da §2.6:
+
+| O que mudou em T-04 | Custo em segundos | Por quê |
+|---|---:|---|
+| O seletor de categoria passa a exibir o ícone ao lado do nome | **0** | Não é passo novo nem toque novo: é o mesmo **passo 6**, com o mesmo número de opções, na mesma ordem do Gestor. O ícone **acompanha** a palavra e nunca a substitui (critério **4b.4**) |
+| `icone` chega em `GET /categorias` | **0** | O campo já viaja no schema `Categoria`, obrigatório, dentro da requisição que a tela já faz. Nenhuma requisição a mais, nenhum caminho de rede novo — e por isso a janela de cold start da §2.5 não muda |
+| Categoria sem ícone escolhido | **0** | O servidor grava o padrão `tag`; a coluna é `NOT NULL` e a tela não tem caminho para ausência |
+
+> **A folga de 7 segundos NÃO é creditada ao ícone, e isto é decisão declarada.** É plausível que reconhecer
+> um desenho seja mais rápido que ler uma palavra — foi o argumento que comprou o item 4b —, **mas ninguém
+> mediu**, e a premissa 2 da §2.1 já é o número mais frágil deste documento. **Creditar um ganho não medido
+> ao passo 6 tornaria o orçamento menos verificável**, que é exatamente o defeito que o **P-15** aponta no
+> próprio RNF6.
+>
+> **Custo de estar errado, nos dois sentidos.** Se o ícone de fato acelerar, o orçamento fica conservador —
+> e esse é o erro barato. Se ele **atrasar** — grade de 25 células em T-09 é outra tela, mas em T-04 o
+> ícone divide a linha com o nome e pode empurrar categoria longa para duas linhas —, **o passo 6 precisa
+> ser remedido**, e o instrumento é o artefato clicável da §9, que continua sendo a única forma de medir
+> qualquer coisa aqui.
+
+**O total continua: 53 s no cenário do RNF6, contra 60.** *(Acrescentado em 30/08/2026 — item 4 da fila da
+frente de documentação, que pedia a remedição se a margem fosse creditada ao ícone. Ela não foi.)*
+
 ---
 
 ## 3. A lista de Áreas — o que o orçamento fez com ela
@@ -455,6 +482,20 @@ não a que ele compara; e a marca de anexo — hoje `quantidadeDeAnexos > 0` —
 abrir. Três linhas por item,
 cinco itens por tela. Achado **P-04**: **a lista do Gestor no celular perde a categoria, e essa decisão
 não estava em lugar nenhum.**
+
+> **✅ Aprovado pelo hub em 26/08/2026 — e um dos dois motivos caiu.** *(Corrigido em 30/08/2026, item 4 da
+> fila da frente de documentação. A decisão saiu da P3 da spec do item 14.)*
+>
+> | Motivo escrito acima | O que acontece com ele |
+> |---|---|
+> | *"é a dimensão pela qual o Gestor recorta, não a que ele compara"* | **Fica.** Sustenta a decisão sozinho |
+> | *"está na barra de filtros"* | **Sai.** A barra oferece filtrar **por** categoria; ela **nunca mostra a categoria daquele item**. O Gestor no celular não vê a categoria de uma ocorrência **nem depois do item 15** |
+>
+> **Uma consequência que chegou depois:** o item **4b** pôs o **ícone da categoria ao lado do nome** nos
+> recortes **A** e **B**. **No recorte C não há ícone**, porque *"ao lado do nome, nunca no lugar dele"*
+> (critério **4b.4**) é regra que se autolimita: onde não há nome, não há lado. **Este recorte não recusou o
+> ícone — ele é anterior à pergunta**, e os quadros de T-03 do `telas.html` não têm uma única ocorrência da
+> palavra *"ícone"*.
 
 > #### O convite a avaliar, o PA-16, e o que dá para fazer dentro do que existe
 >
@@ -757,6 +798,29 @@ já sabiam e a tela não dizia.
 **O remover, que é o conserto, também é difícil de errar:** o botão só aparece quando o vínculo pode sair;
 quando não pode, **a razão substitui o botão** (§6.2). E a confirmação diz o que sobra: *"Remover o vínculo
 de Camila Duarte. O cadastro da pessoa não é apagado, e ela pode pedir entrada de novo."*
+
+> **Correção — 30/08/2026: a confirmação tem DOIS ramos, e o desenho conhecia um.** A frase acima continua
+> literal **para `temConta: true`**. Para `temConta: false` — o Encarregado cadastrado por `POST /vinculos`
+> — ela é outra:
+>
+> > *"Remover o vínculo de {nome}. O cadastro da pessoa não é apagado, mas ela não tem conta e não pode
+> > pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos."*
+>
+> **Por quê:** pedir entrada exige **sessão**, e a Pessoa criada por `POST /vinculos` nasce sem conta e
+> **nunca passa a ter**. A frase única prometia, a metade das vezes, um caminho que não existe — e o
+> Encarregado é **metade da razão declarada** do endpoint (`contrato-de-api.md` §8.2). A oração *"com os
+> contatos"* é consequência da suposição **S-A2** mais a ausência de listagem por Pessoa: o Gestor
+> redigita, e é o único custo real do clique. **Não cortar ao encurtar.**
+>
+> **A razão do `409 VINCULO_COM_HISTORICO` mudou na mesma passada** — deixou de enumerar três rastros e
+> passa a dizer *"já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada
+> ou configuração"*, porque o esquema tem **nove** tabelas dependentes. O texto está no
+> `inventario-de-telas.md` §7, com a conta.
+>
+> **O desenho renderizado ainda não acompanhou:** o `telas.html` mostra a frase única na confirmação, a
+> razão antiga do `409` e a tabela de vínculos **sem o campo de busca** que o critério 10.6 pede — três
+> consertos de desenho, registrados e sem dono nesta rodada. *(Item 32 da fila da frente de documentação;
+> critérios **10.4** e **10.6**.)*
 
 ---
 
@@ -1168,7 +1232,7 @@ deles tocam decisões que são do hub.
 | **P-01** | A ordem dos campos de T-04 e o *"o que aparece sem rolar"* do inventário **não podem valer ao mesmo tempo** | `inventario-de-telas.md`, T-04, *Alvo primário* | **alta** |
 | **P-02** | O *"o que aparece sem rolar"* foi raciocinado com o **teclado fechado**; com ele aberto sobra metade da tela | idem, todas as telas de celular | média |
 | **P-03** | A exibição de `prioridade` está condicionada ao **recorte** e a justificativa é sobre o **papel** — o Gestor que filtra pelas próprias perde a coluna | `inventario-de-telas.md`, T-03, item 5 | média |
-| **P-04** | A lista `todas` **no celular** não tinha decisão de o que cai — e é a tela da Persona 1A | idem, *Alvo primário* de T-03 | média |
+| ~~**P-04**~~ | A lista `todas` **no celular** não tinha decisão de o que cai — e é a tela da Persona 1A | idem, *Alvo primário* de T-03 | ✅ **decidido pelo hub em 26/08/2026** — a categoria cai, e com ela o ícone que o item 4b acrescentou aos outros dois recortes. **O motivo *"está na barra de filtros"* foi derrubado**; o outro sustenta a decisão sozinho. Ver a §D-2. *Marcado em 30/08/2026* |
 | **P-05** | A mitigação possível do **PA-16** é limitada pela **paginação por cursor**, não pela tela | `contrato-de-api.md` §7.7 · `premissas-e-questoes-abertas.md`, PA-16 | média |
 | **P-06** | Os tamanhos máximos do schema **não cabem em nenhuma linha de celular**, e três deles em nenhuma linha de tela grande | `api/openapi.yaml` | média |
 | **P-07** | Os **cinco campos do F5 não são cinco colunas**: quatro são valores curtos e o quinto é um parágrafo de 1.000 caracteres | `api/openapi.yaml`, `RegistroDeTransicao.observacao` | média |
@@ -1384,6 +1448,14 @@ reaberto.**
 **O que ficou pendente, e é do hub:** o achado **F13** do inventário — `vinculos.area_id` não tem escritor
 para quem tem conta —, a **Q-T10** que ele abre, e a dependência de normalização de telefone (proposta 20 da
 §13).
+
+> **✅ O F13 e a Q-T10 saíram da pendência — e a resposta é do mesmo 22/08/2026.** O hub escolheu a saída
+> **(a)**: `POST /pedidos-de-entrada/{id}/aprovar` aceita **`areaId?`**, e a guarda
+> `PESSOA_COM_CONTA_NAO_EDITAVEL` do `PATCH /vinculos` passou a nomear **campos**, não o endpoint — o que
+> deixa `areaId` editável também para quem tem conta. **Onde não havia escritor nenhum, passou a haver
+> dois.** O **R-23** da §16.3 está marcado como fechado pela mesma razão. **A normalização de telefone
+> continua pendente.** *(Corrigido em 30/08/2026 — item 3 da fila da frente de documentação; a lacuna estava
+> fechada no `openapi.yaml` desde o dia em que foi escrita, e aberta na prosa por três rodadas.)*
 ---
 
 ### 21/08 · As treze telas renderizadas — o HTML substitui o ASCII
@@ -1620,7 +1692,7 @@ escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do en
 | **R-20** | **A ancoragem vertical das quatro telas de credencial não está decidida em lugar nenhum.** As quatro usam menos de um terço da altura, e nada diz se o formulário é topo ou centro | baixa |
 | **R-21** | **A regra de força da senha não existe em documento nenhum** — nem no inventário, nem no contrato, nem na arquitetura. É configuração do provedor, e é irmã da Q-T9 | média |
 | **R-22** | **As sete categorias-semente são citadas em quatro documentos e enumeradas em nenhum** — nem no enunciado, nem no `openapi.yaml`, nem na POL-01. Quem implementar vai precisar saber quais sete | média |
-| **R-23** | **`vinculos.area_id` não tem escritor para quem tem conta.** A unidade existe para descrever o morador, e só é registrável para quem **não** é morador. Detalhado no achado **F13** do inventário, com três saídas e uma recomendação | **alta** |
+| ~~**R-23**~~ | **`vinculos.area_id` não tem escritor para quem tem conta.** A unidade existe para descrever o morador, e só é registrável para quem **não** é morador. Detalhado no achado **F13** do inventário, com três saídas e uma recomendação | ✅ **fechado em 22/08/2026, e a prosa só acompanhou em 30/08** — o hub respondeu a **Q-T10** pela saída (a): `POST /pedidos-de-entrada/{id}/aprovar` aceita `areaId?`, e a guarda do `PATCH /vinculos` passou a nomear campos em vez do endpoint, deixando `areaId` editável também para quem tem conta. **Dois escritores onde não havia nenhum.** Ver o quadro de fechamento do **F13** no inventário |
 | **R-24** | **A guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` protege `pessoas`, que é global — mas está aplicada ao endpoint inteiro**, inclusive a `areaId`, que é do vínculo e escopado por organização. O alcance da regra ficou maior que a razão dela | média |
 | **R-25** | **Normalizar telefone para E.164 exige biblioteca de terceiro.** É a segunda dependência que este protótipo encosta, e a primeira sem saída barata: sem ela, o `CHECK` do banco recusa o que o formulário produzir | média |
 | **R-26** | **A miniatura é gratuita na escrita e paga na leitura.** O upload já está pago — mesma autorização, mesmo slot do limite. Mas exibi-la numa **listagem** custa uma requisição por item, numa plataforma medida em vCPU-segundos e com cold start. Por isso ela entra só em T-05, e como o que pinta primeiro | decisão desta rodada |
@@ -1681,3 +1753,9 @@ abra do sistema de arquivos com dois cliques. Sem `charset`, acento vira lixo em
 dos filtros no celular e o `↻` da coluna de tempo. Todos têm rótulo acessível, mas **nenhum tem palavra
 visível** — e A-5 diz que nada é comunicado só por forma ou cor. As molduras originais os introduziram e a
 renderização os herdou. **Fica declarado como dívida, não como decisão.**
+
+> **Continuam três — o ícone da categoria não entra nesta lista, 30/08/2026.** O item **4b** pôs um símbolo
+> em T-09, em T-03 e em T-04, e ele **não** é uma quarta tensão: o critério **4b.4** manda o ícone aparecer
+> *"ao lado do nome da categoria, nunca no lugar dele"*, e **onde há símbolo há palavra**. É exatamente o
+> que separa este caso dos três acima. O próprio critério cita esta subseção em letra, para que a distinção
+> não se perca. *(Item 4 da fila da frente de documentação.)*
