@@ -355,3 +355,84 @@ export function nomesDeStatus(): Record<StatusOcorrencia, string> {
     string
   >;
 }
+
+/**
+ * ============================================================================
+ *  As palavras da atribuição — o item 21, e as CINCO superfícies que nomeiam a ação
+ * ============================================================================
+ *
+ * **`atribuir-responsavel` é o único endpoint do produto que realiza dois comandos do domínio**
+ * (`contrato-de-api.md:218-219`), e a distinção é **derivada do estado**, nunca pedida ao cliente
+ * (critério 21.1). O modal é o mesmo; o que troca é a palavra, e ela troca em **três superfícies** —
+ * o gatilho, o título e o botão que grava —, mais o verbo de envio e a descrição.
+ *
+ * **Por que as três, e não só o gatilho.** O `inventario-de-telas.md:786` nomeia a linha
+ * *"Atribuir / Reatribuir"* e a coluna *Forma* dela diz **modal**: o que tem dois nomes é o **comando**, e
+ * o modal é a forma dele. Um modal cujo gatilho diz *Reatribuir* e cujo título diz *Atribuir responsável*
+ * desfaz a nomeação no primeiro pixel depois do toque. E **o botão do rodapé é o que grava** — é a última
+ * palavra lida antes de a atribuição de outra pessoa terminar.
+ *
+ * **Os dois títulos são literais do contrato.** *Atribuir responsável* e *Reatribuir*: um com objeto,
+ * outro sem. A assimetria é dele, e não é anomalia de tela — quatro dos sete títulos de modal do produto
+ * já são verbo nu (*Avaliar*, *Resolver*, *Pausar*, *Retomar*).
+ *
+ * **A segunda oração da descrição é onde o critério 21.3 fica visível.** *"Depois da reatribuição
+ * continua havendo um só responsável ativo"* é garantia de índice único parcial, invisível na tela — e
+ * sem essa oração nada em T-05 diz que escolher outra pessoa **encerra** a atribuição atual em vez de
+ * acrescentar uma segunda. Ela é o `contrato-de-api.md:220-221` em voz de tela, não invenção.
+ *
+ * **Mora aqui, e não num módulo novo.** Este arquivo se declara *"o módulo do que a tela sabe sobre
+ * comandos"* e já guarda **frase de produto**, não só rótulo — `AVISO_DE_VISIBILIDADE`,
+ * `ocorrenciaNaoEncontradaEm`, `vazioDaBarra`. Um sexto arquivo de texto para dois objetos seria a pasta
+ * vazia por simetria que o DoD reprova. E não custa nada ao pacote do navegador: `rotulos.ts` já é
+ * importado por `modal-de-observacao.tsx` e `modal-de-resolucao.tsx`.
+ *
+ * **`ROTULO_DE_COMANDO["atribuir-responsavel"]` continua *"Atribuir"* e NÃO vira função** (§3.6 da spec):
+ * aquele mapa responde outra pergunta — *este comando tem forma de botão nesta barra?* — e o valor **nunca
+ * é renderizado** para este comando, porque a barra só imprime `acao.rotulo` quando não há formulário
+ * montado, e a página sempre monta o modal.
+ */
+export type PalavrasDaAtribuicao = {
+  /** O `DropdownMenuItem` ou o `Button` que abre o modal. */
+  gatilho: string;
+  /** O `DialogTitle` — o nome do comando no contrato, literal. */
+  titulo: string;
+  /** O `DialogDescription`. */
+  descricao: string;
+  /** O botão do rodapé — o que grava. */
+  confirmar: string;
+  /** O mesmo botão enquanto a requisição corre. */
+  enviando: string;
+};
+
+const PRIMEIRA_ATRIBUICAO: PalavrasDaAtribuicao = {
+  gatilho: "Atribuir",
+  titulo: "Atribuir responsável",
+  descricao: "Quem vai cuidar desta ocorrência.",
+  confirmar: "Atribuir",
+  enviando: "Atribuindo…",
+};
+
+const NOVA_ATRIBUICAO: PalavrasDaAtribuicao = {
+  gatilho: "Reatribuir",
+  titulo: "Reatribuir",
+  descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
+  confirmar: "Reatribuir",
+  enviando: "Reatribuindo…",
+};
+
+export const PALAVRAS_DA_ATRIBUICAO: Readonly<Record<"primeira" | "nova", PalavrasDaAtribuicao>> = {
+  primeira: PRIMEIRA_ATRIBUICAO,
+  nova: NOVA_ATRIBUICAO,
+};
+
+/**
+ * **O predicado é *"há responsável"*, e não *"o responsável está na lista"*** — §3.5 da spec, e a
+ * diferença é alcançável: o vínculo do responsável pode estar **revogado**, e nesse estado ele continua
+ * sendo `detalhe.responsavel` (o `LATERAL` de `lerPorId` não filtra `revogado_em`) mas **some dos
+ * candidatos** (`listarVinculos` devolve `vinculos.ativos()`). Derivar a palavra da lista faria o modal
+ * dizer *Atribuir* sobre uma ocorrência que tem responsável.
+ */
+export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribuicao {
+  return temResponsavel ? NOVA_ATRIBUICAO : PRIMEIRA_ATRIBUICAO;
+}

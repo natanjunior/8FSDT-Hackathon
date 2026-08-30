@@ -10,6 +10,7 @@ import {
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { palavrasDaAtribuicao } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Dialog,
@@ -159,6 +160,16 @@ export function ModalDeAtribuicao({
   const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
 
   /**
+   * **A palavra sai do ESTADO, e é o critério 21.1 na tela** — *"a distinção é derivada do estado, não da
+   * intenção do cliente"*. Quem decide é o modal, e não a página: ele já recebe
+   * `responsavelAtualPessoaId`, e mandar cinco strings por prop moveria para o servidor um fato que o
+   * cliente tem em mãos.
+   *
+   * **É `!== null`, não *"está na lista"*** — ver o docblock de `palavrasDaAtribuicao`.
+   */
+  const palavras = palavrasDaAtribuicao(responsavelAtualPessoaId !== null);
+
+  /**
    * **Reparte PRIMEIRO, filtra depois — e nunca o contrário.** Filtrar antes de repartir apagaria a
    * fileira *"Atribuir a mim"* sempre que o texto digitado não casasse o nome de quem está olhando, que é
    * o que a §3.7 da spec proíbe em uma frase.
@@ -258,7 +269,7 @@ export function ModalDeAtribuicao({
               evento.preventDefault();
             }}
           >
-            Atribuir
+            {palavras.gatilho}
           </DropdownMenuItem>
         ) : (
           <Button
@@ -268,15 +279,15 @@ export function ModalDeAtribuicao({
                e `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
             className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
           >
-            Atribuir
+            {palavras.gatilho}
           </Button>
         )}
       </DialogTrigger>
 
       <DialogContent className="max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Atribuir responsável</DialogTitle>
-          <DialogDescription>Quem vai cuidar desta ocorrência.</DialogDescription>
+          <DialogTitle>{palavras.titulo}</DialogTitle>
+          <DialogDescription>{palavras.descricao}</DialogDescription>
         </DialogHeader>
 
         {aviso !== null && (
@@ -290,7 +301,7 @@ export function ModalDeAtribuicao({
 
         {/*
           **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
-          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo *Atribuir* do rodapé.
+          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo botão do rodapé.
           **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
           FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
 
@@ -391,7 +402,7 @@ export function ModalDeAtribuicao({
             disabled={escolhido === null || enviando}
             onClick={() => void confirmar()}
           >
-            {enviando ? "Atribuindo…" : "Atribuir"}
+            {enviando ? palavras.enviando : palavras.confirmar}
           </Button>
         </DialogFooter>
       </DialogContent>

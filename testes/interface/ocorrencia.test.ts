@@ -72,6 +72,8 @@ import {
   acoesDaBarra,
   nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
+  PALAVRAS_DA_ATRIBUICAO,
+  palavrasDaAtribuicao,
   rotuloDeComando,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
@@ -1442,6 +1444,82 @@ describe("o corpo da atribuição", () => {
     expect(erro?.extensoes["erros"]).toStrictEqual([
       { campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" },
     ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  As palavras da atribuição — o item 21, e a única superfície testável dele
+ * ============================================================================
+ *
+ * **O produto não tem biblioteca de teste de componente React** — `jsdom` está instalado, não há
+ * `@testing-library`, e os quatro projetos de camada rodam em `environment: "node"`. Cinco ternários
+ * dentro do JSX seriam cinco decisões de texto de produto sem um teste, e a §3.12 da spec do item 20 já
+ * fechou essa porta: *"uma decisão … mora numa função com teste, e não num `?:` dentro do JSX"*.
+ *
+ * **Os dois títulos são os nomes dos comandos no `contrato-de-api.md:218-219`, literais** — o endpoint
+ * *"realiza dois (`Atribuir responsável` e `Reatribuir`)"*. A assimetria (um com objeto, outro sem) é do
+ * contrato, não nossa, e copiá-la é mais defensável que inventar *"Reatribuir responsável"*, que
+ * documento nenhum tem.
+ */
+describe("as palavras da atribuição — o par do item 21", () => {
+  const PARES = [PALAVRAS_DA_ATRIBUICAO.primeira, PALAVRAS_DA_ATRIBUICAO.nova];
+
+  it("sem responsável é o par que começa por Atribuir — e é o texto de hoje, intacto", () => {
+    const palavras = palavrasDaAtribuicao(false);
+    expect(palavras).toStrictEqual({
+      gatilho: "Atribuir",
+      titulo: "Atribuir responsável",
+      descricao: "Quem vai cuidar desta ocorrência.",
+      confirmar: "Atribuir",
+      enviando: "Atribuindo…",
+    });
+  });
+
+  it("com responsável é o par que começa por Reatribuir — o critério 21.1 em palavra", () => {
+    const palavras = palavrasDaAtribuicao(true);
+    expect(palavras).toStrictEqual({
+      gatilho: "Reatribuir",
+      titulo: "Reatribuir",
+      descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
+      confirmar: "Reatribuir",
+      enviando: "Reatribuindo…",
+    });
+  });
+
+  it("o verbo do título atravessa as OUTRAS QUATRO superfícies, nos dois pares", () => {
+    // **É a asserção que impede um dos cinco textos ficar para trás numa edição futura.** O gatilho e o
+    // botão que grava carregam o verbo nu; o verbo de envio é o mesmo verbo no gerúndio.
+    for (const par of PARES) {
+      const verbo = par.titulo.split(" ")[0]!;
+      expect(par.gatilho).toBe(verbo);
+      expect(par.confirmar).toBe(verbo);
+      expect(par.enviando).toBe(`${verbo.replace(/ir$/, "indo")}…`);
+    }
+  });
+
+  it("a descrição do par de reatribuição diz que a atual será ENCERRADA — o 21.3 virando texto", () => {
+    // **O critério 21.3 é `[M]`** — garantia de índice único parcial, invisível na tela. Sem esta oração,
+    // nada em T-05 diz que escolher outra pessoa SUBSTITUI em vez de acrescentar uma segunda, que é a
+    // única leitura errada que o modal permite.
+    expect(PALAVRAS_DA_ATRIBUICAO.nova.descricao).toContain("A atribuição atual será encerrada.");
+    expect(PALAVRAS_DA_ATRIBUICAO.primeira.descricao).not.toContain("encerrada");
+  });
+
+  it("nenhum dos DEZ textos é vazio", () => {
+    for (const par of PARES) {
+      for (const texto of Object.values(par)) {
+        expect(texto.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("a função escolhe pelo BOOLEANO, e devolve exatamente um dos dois pares declarados", () => {
+    // **O predicado é `responsavelAtualPessoaId !== null`, não "o responsável está na lista"** (§3.5 da
+    // spec): vínculo revogado continua sendo `detalhe.responsavel` e SOME dos candidatos. Derivar da
+    // lista faria o modal dizer *Atribuir* sobre uma ocorrência que tem responsável.
+    expect(palavrasDaAtribuicao(false)).toBe(PALAVRAS_DA_ATRIBUICAO.primeira);
+    expect(palavrasDaAtribuicao(true)).toBe(PALAVRAS_DA_ATRIBUICAO.nova);
   });
 });
 
