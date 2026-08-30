@@ -610,9 +610,14 @@ export default async function Ocorrencia({
             {`“${detalhe.ultimaTransicao.observacao}”`}
           </p>
         )}
-        {/* **O link para a trilha de auditoria NÃO entra** — T-06 não existe como tela e não tem dono
-            (achado A-1 da spec do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele.
-            Este entra porque o destino existe: é uma âncora na própria página. **A-3:** alvo de toque. */}
+        {/* **A âncora da linha do tempo — e ela é uma âncora na própria página.** **A-3:** alvo de toque.
+
+            **O que este comentário dizia até o item 41b, e por que deixou de valer:** *"o link para a
+            trilha de auditoria NÃO entra — T-06 não existe como tela e não tem dono (achado A-1 da spec
+            do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele."* **T-06 passou a
+            existir** (critério 41b.6), e o link para ela entra — **ao fim do bloco 3**, que é onde o
+            protótipo o desenha nos cinco quadros (`telas.html:2210`, `:2333`, `:2613`, `:2733`,
+            `:2970`), e não aqui. */}
         <a
           href="#linha-do-tempo"
           className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
@@ -825,6 +830,32 @@ export default async function Ocorrencia({
             lente={lente}
           />
         </Suspense>
+        {/*
+          **O link para T-06 — critério 41b.7**, e é por ele que se chega à trilha: clicando, não
+          digitando a URL.
+
+          **Ao fim do bloco 3**, que é onde o protótipo o desenha nos cinco quadros (`telas.html:2210`,
+          `:2333`, `:2613`, `:2733`, `:2970`) — e faz sentido ali: a linha do tempo responde *"o que está
+          acontecendo"*, e quem quer *"prove"* segue daqui.
+
+          **FORA do `<Suspense>`, de propósito.** Ele não depende de a linha do tempo ter chegado; dentro
+          do `fallback` sumiria justamente durante a espera, que é quando alguém desiste da tela.
+
+          **Sem o `?de=`**, pela mesma razão do *Voltar à lista* do bloco de `404`: o recorte que trouxe
+          até aqui não é da trilha, e T-06 volta para T-05, não para a lista.
+
+          **`<a>` e não `next/link`, e é o mesmo elemento da âncora do bloco 1b.** T-06 é
+          `force-dynamic`: o *prefetch* do `Link` a renderizaria no servidor a cada aparição de T-05 na
+          viewport — uma consulta a mais por abertura, para um link que a maioria não clica.
+
+          **A-3:** alvo de toque de 44 px.
+        */}
+        <a
+          href={`/ocorrencias/${detalhe.id}/auditoria`}
+          className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
+        >
+          ver a trilha de auditoria →
+        </a>
       </section>
 
       {/*
