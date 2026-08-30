@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
+import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
 import type { VinculoProjetado } from "@/interface/projecoes";
 
 /**
@@ -25,9 +27,24 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  * `409 ULTIMO_GESTOR` garante que ele não pode se remover. Lista vazia aqui é defeito, e uma frase
  * simpática ensinaria que o caso é normal.
  *
- * **A coluna `Remover` é o item 10** e entra à direita de `Corrigir`.
+ * **A coluna `Remover` fica à direita de `Corrigir`, e ela é botão-ou-razão** (item 10): quando o
+ * vínculo não pode sair, **a razão ocupa o lugar do botão** — nunca uma mensagem de erro depois do
+ * clique. Quem decide é `impedimentosDeRemocao`, que a página lê pela estrada direta.
  */
-export function ListaDeVinculos({ vinculos }: { vinculos: readonly VinculoProjetado[] }) {
+export function ListaDeVinculos({
+  vinculos,
+  impedimentos,
+  organizacaoId,
+  euPessoaId,
+}: {
+  vinculos: readonly VinculoProjetado[];
+  /** Por `pessoaId`. **Chave ausente é *pode sair*** — e é a única forma de dizer isso. */
+  impedimentos: Readonly<Record<string, ImpedimentoNaTela>>;
+  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  organizacaoId: string;
+  /** Quem está olhando. O aviso de auto-remoção da spec §3.8 depende disto. */
+  euPessoaId: string;
+}) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">
@@ -52,6 +69,14 @@ export function ListaDeVinculos({ vinculos }: { vinculos: readonly VinculoProjet
             </Campo>
             <Campo rotulo="Desde">{emData(vinculo.criadoEm)}</Campo>
             <Corrigir vinculo={vinculo} />
+            <RemocaoDeVinculo
+              pessoaId={vinculo.pessoa.pessoaId}
+              nome={vinculo.pessoa.nome}
+              temConta={vinculo.temConta}
+              impedimento={impedimentos[vinculo.pessoa.pessoaId] ?? null}
+              organizacaoId={organizacaoId}
+              ehMeuProprioVinculo={vinculo.pessoa.pessoaId === euPessoaId}
+            />
           </li>
         ))}
       </ul>
@@ -78,8 +103,11 @@ export function ListaDeVinculos({ vinculos }: { vinculos: readonly VinculoProjet
               <th scope="col" className="py-2 pr-3 font-medium">
                 Desde
               </th>
-              <th scope="col" className="py-2 font-medium">
+              <th scope="col" className="py-2 pr-3 font-medium">
                 Corrigir
+              </th>
+              <th scope="col" className="py-2 font-medium">
+                Remover
               </th>
             </tr>
           </thead>
@@ -94,8 +122,18 @@ export function ListaDeVinculos({ vinculos }: { vinculos: readonly VinculoProjet
                   <Contatos vinculo={vinculo} />
                 </td>
                 <td className="py-3 pr-3 whitespace-nowrap">{emData(vinculo.criadoEm)}</td>
-                <td className="py-3">
+                <td className="py-3 pr-3">
                   <Corrigir vinculo={vinculo} />
+                </td>
+                <td className="py-3">
+                  <RemocaoDeVinculo
+                    pessoaId={vinculo.pessoa.pessoaId}
+                    nome={vinculo.pessoa.nome}
+                    temConta={vinculo.temConta}
+                    impedimento={impedimentos[vinculo.pessoa.pessoaId] ?? null}
+                    organizacaoId={organizacaoId}
+                    ehMeuProprioVinculo={vinculo.pessoa.pessoaId === euPessoaId}
+                  />
                 </td>
               </tr>
             ))}

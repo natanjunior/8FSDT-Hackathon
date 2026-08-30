@@ -2,8 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarAreas, listarPedidosDeEntrada, listarVinculos } from "@/aplicacao/organizacao";
+import {
+  listarAreas,
+  listarImpedimentosDeRemocao,
+  listarPedidosDeEntrada,
+  listarVinculos,
+} from "@/aplicacao/organizacao";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
+import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import { ListaDeVinculos } from "@/interface/componentes/lista-de-vinculos";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@/interface/projecoes";
@@ -49,11 +55,19 @@ export default async function QuemEstaNaOrganizacao({
     );
   }
 
-  const [pedidos, areas, vinculos] = await Promise.all([
+  const [pedidos, areas, vinculos, mapaDeImpedimentos] = await Promise.all([
     listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {}),
     listarAreas(escopo.repos.areas),
     listarVinculos(escopo.repos.vinculos),
+    listarImpedimentosDeRemocao(escopo.repos.vinculos),
   ]);
+
+  // **`Map` → objeto simples na fronteira Server/Client.** O `Map` é a forma certa dentro do servidor —
+  // `O(1)` por linha na renderização —, e um objeto é o que atravessa sem depender de capacidade de
+  // serialização que nenhuma outra propriedade deste repositório exercita.
+  const impedimentos = Object.fromEntries(mapaDeImpedimentos) as Readonly<
+    Record<string, ImpedimentoNaTela>
+  >;
 
   const parametros = await searchParams;
 
@@ -90,7 +104,12 @@ export default async function QuemEstaNaOrganizacao({
         )}
       </section>
 
-      <ListaDeVinculos vinculos={vinculos.map(projetarVinculo)} />
+      <ListaDeVinculos
+        vinculos={vinculos.map(projetarVinculo)}
+        impedimentos={impedimentos}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+        euPessoaId={escopo.ctx.pessoaId}
+      />
 
       <Link
         href="/vinculos/nova"
@@ -138,6 +157,18 @@ function FaixaDoDesfecho({ parametros }: { parametros: Record<string, string | s
         className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
       >
         Os dados de {corrigido} foram corrigidos.
+      </p>
+    );
+  }
+
+  const removido = texto("removido");
+  if (removido !== "") {
+    return (
+      <p
+        role="status"
+        className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
+      >
+        O vínculo de {removido} foi removido. O cadastro da pessoa não é apagado.
       </p>
     );
   }
