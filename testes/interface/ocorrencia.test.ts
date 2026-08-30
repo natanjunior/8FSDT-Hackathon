@@ -55,6 +55,14 @@ import {
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import {
+  casaPeloNome,
+  filtrarPorNome,
+  normalizarParaBusca,
+  repartirCandidatos,
+  termosDaBusca,
+  type Candidato,
+} from "@/interface/componentes/busca-de-candidatos";
+import {
   enviarComentario,
   executarComando,
   MENSAGEM_GENERICA,
@@ -2827,5 +2835,112 @@ describe("enviarComentario — a irmã sem o ramo do 409", () => {
       ok: false,
       aviso: MENSAGEM_GENERICA,
     });
+  });
+});
+
+/**
+ * ============================================================================
+ *  O critério 20.6 — a busca por nome do modal de atribuição
+ * ============================================================================
+ *
+ * **É a única metade desta fatia que tem teste**, e a razão está na §3.12 da spec: o produto não tem
+ * biblioteca de teste de componente React, então o que ficasse dentro do `.tsx` não seria conferível por
+ * máquina nenhuma. O que está aqui é a decisão; o JSX que a consome vai para o roteiro de validação.
+ */
+describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repartir", () => {
+  const candidato = (pessoaId: string, nome: string, papel: string): Candidato => ({
+    pessoaId,
+    nome,
+    papel,
+    area: null,
+  });
+
+  const HELENA = candidato("p-1", "Helena Prado", "Gestor");
+  const MARIA = candidato("p-2", "Maria Silva", "Encarregado");
+  const MARIANA = candidato("p-3", "Mariana Costa", "Solicitante");
+  const ANA_SILVA = candidato("p-4", "Ana Silva", "Solicitante");
+  const ANA_RIBEIRO = candidato("p-5", "Ana Ribeiro", "Solicitante");
+  const JOAO = candidato("p-6", "João Pedro", "Solicitante");
+
+  const TODOS = [HELENA, MARIA, MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO] as const;
+
+  it("normalizarParaBusca tira acento, caixa, borda e espaço repetido", () => {
+    expect(normalizarParaBusca("JOSÉ")).toBe("jose");
+    expect(normalizarParaBusca("  Conceição  ")).toBe("conceicao");
+    expect(normalizarParaBusca("Ana   Maria")).toBe("ana maria");
+  });
+
+  it("termosDaBusca devolve lista vazia para branco e para só-espaços", () => {
+    expect(termosDaBusca("")).toStrictEqual([]);
+    // O caso que a guarda `normalizada === ""` existe para acertar: sem ela isto seria `[""]`, um termo
+    // que casaria tudo por acidente em vez de por regra.
+    expect(termosDaBusca("   ")).toStrictEqual([]);
+    expect(termosDaBusca("  ana   s ")).toStrictEqual(["ana", "s"]);
+  });
+
+  it("casa por prefixo de PALAVRA, e não do nome inteiro — sobrenome é como se procura gente", () => {
+    expect(casaPeloNome("Maria Silva", termosDaBusca("silva"))).toBe(true);
+  });
+
+  it("casa por PREFIXO, e não por pedaço — `ana` não acha `Mariana`", () => {
+    expect(casaPeloNome("Mariana Costa", termosDaBusca("ana"))).toBe(false);
+    expect(casaPeloNome("Ana Silva", termosDaBusca("ana"))).toBe(true);
+  });
+
+  it("acento não separa os dois lados — nem quem digita, nem quem é digitado", () => {
+    expect(casaPeloNome("João Pedro", termosDaBusca("joao"))).toBe(true);
+    expect(casaPeloNome("Joao Pedro", termosDaBusca("joão"))).toBe(true);
+    expect(casaPeloNome("Maria Silva", termosDaBusca("SILVA"))).toBe(true);
+  });
+
+  it("com vários termos, TODOS precisam casar", () => {
+    expect(casaPeloNome("Ana Silva", termosDaBusca("ana s"))).toBe(true);
+    expect(casaPeloNome("Ana Ribeiro", termosDaBusca("ana s"))).toBe(false);
+  });
+
+  it("filtrarPorNome com busca em branco devolve a lista inteira, NA MESMA ORDEM", () => {
+    // A ordem é a de `order by p.nome` do repositório, e é a mesma de T-08. Filtrar não reordena.
+    expect(filtrarPorNome(TODOS, "")).toStrictEqual(TODOS);
+    expect(filtrarPorNome(TODOS, "   ")).toStrictEqual(TODOS);
+  });
+
+  it("filtrarPorNome preserva a ordem do que sobra", () => {
+    expect(filtrarPorNome(TODOS, "ana")).toStrictEqual([ANA_SILVA, ANA_RIBEIRO]);
+  });
+
+  it("repartirCandidatos tira quem chama dos DOIS blocos e o devolve em `eu`", () => {
+    const { eu, executores, solicitantes } = repartirCandidatos(TODOS, "p-1");
+
+    expect(eu).toStrictEqual(HELENA);
+    // Dois controles enviando o mesmo `pessoaId` é o que a §3.3 existe para impedir.
+    expect(executores).toStrictEqual([MARIA]);
+    expect(solicitantes).toStrictEqual([MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO]);
+  });
+
+  it("quem chama ausente da lista: `eu` é null e os dois blocos ficam íntegros", () => {
+    // Hoje inalcançável — `podeAtribuir` exige `vinculo.gerir` e a lista é a dos vínculos ativos —, e é o
+    // caso de borda da §3.4: sem `eu`, a fileira não renderiza e o modal continua sendo o do item 19.
+    const { eu, executores, solicitantes } = repartirCandidatos(TODOS, "p-ausente");
+
+    expect(eu).toBeNull();
+    expect(executores).toStrictEqual([HELENA, MARIA]);
+    expect(solicitantes).toStrictEqual([MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO]);
+  });
+
+  it("a repartição preserva a ordem DENTRO de cada bloco", () => {
+    const invertidos = [ANA_RIBEIRO, ANA_SILVA, MARIA, HELENA] as const;
+    const { executores, solicitantes } = repartirCandidatos(invertidos, "p-ausente");
+
+    expect(executores).toStrictEqual([MARIA, HELENA]);
+    expect(solicitantes).toStrictEqual([ANA_RIBEIRO, ANA_SILVA]);
+  });
+
+  it("a palavra que separa os blocos é `Solicitante`, e ela vem do PAPEL_EM_PALAVRA de T-05", () => {
+    // O acoplamento existe desde o item 19 (`modal-de-atribuicao.tsx:144-145`) e nada aqui o conserta.
+    // O que muda é que ele passa a ter teste: se `PAPEL_EM_PALAVRA` mudar a palavra, este caso cai.
+    const so = [candidato("p-9", "Quem Quer", "Solicitante")] as const;
+
+    expect(repartirCandidatos(so, "p-ausente").solicitantes).toHaveLength(1);
+    expect(repartirCandidatos(so, "p-ausente").executores).toHaveLength(0);
   });
 });

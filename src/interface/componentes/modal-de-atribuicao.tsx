@@ -1,8 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 
+import {
+  filtrarPorNome,
+  repartirCandidatos,
+  termosDaBusca,
+  type Candidato,
+} from "@/interface/componentes/busca-de-candidatos";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { Button } from "@/interface/componentes/ui/button";
 import {
@@ -16,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
+import { Input } from "@/interface/componentes/ui/input";
 
 /**
  * ============================================================================
@@ -34,17 +41,12 @@ import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
  * **Dois blocos, e a razão é a escala declarada.** O RNF3 mede **200 pessoas por organização** e a Persona
  * 1A tem *"cerca de 10 apartamentos"* — a lista real vai de ~13 a 200. Num condomínio grande o Encarregado
  * é um ou dois entre ~197 moradores; com dois blocos, o caso comum fica no topo nos **dois** extremos,
- * porque o primeiro bloco tem tamanho de dígito único em ambos. **O campo de busca é o item 20**,
- * critério 20.6. **A linha *"Atribuir a mim"* também é o 20**, critério 20.5.
+ * porque o primeiro bloco tem tamanho de dígito único em ambos.
+ *
+ * **A fileira *"Atribuir a mim"* é o critério 20.5**, e ela vem antes dos dois blocos: quem chama sai
+ * deles (`repartirCandidatos`) para que não haja dois controles enviando o mesmo `pessoaId`. **O campo de
+ * busca é o critério 20.6.**
  */
-export type Candidato = {
-  pessoaId: string;
-  nome: string;
-  /** Em palavra, montado no servidor — o navegador não monta rótulo (A-5). */
-  papel: string;
-  /** A unidade, quando houver. É o que desempata homônimos. */
-  area: string | null;
-};
 
 const NOME_DO_BLOCO = {
   executores: "Gestores e Encarregados",
@@ -54,6 +56,7 @@ const NOME_DO_BLOCO = {
 export function ModalDeAtribuicao({
   ocorrenciaId,
   candidatos,
+  euPessoaId,
   responsavelAtualPessoaId,
   rotulosDeStatus,
   organizacaoId,
@@ -62,6 +65,12 @@ export function ModalDeAtribuicao({
   ocorrenciaId: string;
   /** Já ordenados por nome pelo repositório — `order by p.nome`, a mesma ordem de T-08. */
   candidatos: readonly Candidato[];
+  /**
+   * **Quem está olhando.** É o `escopo.ctx.pessoaId` da página, e serve à fileira *"Atribuir a mim"*
+   * (critério 20.5): ela mostra o próprio nome, e quem chama **sai dos dois blocos** para que não existam
+   * dois controles enviando o mesmo `pessoaId`.
+   */
+  euPessoaId: string;
   /** Marcado *"Responsável atual"* e **não selecionável** — reatribuir para a mesma pessoa produziria uma
    *  linha nova e nada visível mudando na tela. */
   responsavelAtualPessoaId: string | null;
@@ -76,8 +85,10 @@ export function ModalDeAtribuicao({
   variante: "primario" | "secundario" | "menu";
 }) {
   const router = useRouter();
+  const campoDeBuscaId = useId();
   const [aberto, setAberto] = useState(false);
   const [escolhido, setEscolhido] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [precisaRepintar, setPrecisaRepintar] = useState(false);
@@ -102,6 +113,7 @@ export function ModalDeAtribuicao({
       // `precisaRepintar` volta a `false` para que abrir-e-fechar sem agir não custe uma ida ao servidor.
       setAviso(null);
       setEscolhido(null);
+      setBusca("");
       setPrecisaRepintar(false);
       return;
     }
@@ -141,8 +153,27 @@ export function ModalDeAtribuicao({
     setAviso(resultado.aviso);
   }
 
-  const executores = candidatos.filter((pessoa) => pessoa.papel !== "Solicitante");
-  const solicitantes = candidatos.filter((pessoa) => pessoa.papel === "Solicitante");
+  const { eu, executores, solicitantes } = repartirCandidatos(candidatos, euPessoaId);
+
+  /** **A-5:** o estado vai em palavra, e o `opacity-60` é reforço — nunca o sinal. */
+  const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
+
+  /**
+   * **Reparte PRIMEIRO, filtra depois — e nunca o contrário.** Filtrar antes de repartir apagaria a
+   * fileira *"Atribuir a mim"* sempre que o texto digitado não casasse o nome de quem está olhando, que é
+   * o que a §3.7 da spec proíbe em uma frase.
+   */
+  const executoresVisiveis = filtrarPorNome(executores, busca);
+  const solicitantesVisiveis = filtrarPorNome(solicitantes, busca);
+
+  /**
+   * **A frase do vazio só existe com busca digitada.** Sem esta condição ela apareceria numa organização
+   * cujo único detentor de `vinculo.gerir` é quem chama — os dois blocos vazios **sem ninguém ter
+   * buscado** —, e dizer ali *"Ninguém com esse nome"* é a frase errada no lugar errado.
+   */
+  const buscando = termosDaBusca(busca).length > 0;
+  const nadaEncontrado =
+    buscando && executoresVisiveis.length === 0 && solicitantesVisiveis.length === 0;
 
   function bloco(titulo: string, lista: readonly Candidato[]) {
     // **Bloco vazio não renderiza** — um subtítulo sozinho pergunta o que aconteceu com a lista.
@@ -193,6 +224,27 @@ export function ModalDeAtribuicao({
     );
   }
 
+  /**
+   * **Seleção que o filtro esconde é APAGADA, não guardada.**
+   *
+   * Sem isto o rodapé ficaria habilitado enviando alguém que a tela não mostra — a forma mais silenciosa
+   * de gravar a pessoa errada.
+   *
+   * **A fileira *"Atribuir a mim"* sobrevive a qualquer texto**, porque ela não é filtrada (§3.7): se o
+   * escolhido for quem chama, não há o que reconferir.
+   */
+  function aoBuscar(texto: string) {
+    setBusca(texto);
+
+    if (escolhido === null || (eu !== null && escolhido === eu.pessoaId)) return;
+
+    const continuaVisivel =
+      filtrarPorNome(executores, texto).some((pessoa) => pessoa.pessoaId === escolhido) ||
+      filtrarPorNome(solicitantes, texto).some((pessoa) => pessoa.pessoaId === escolhido);
+
+    if (!continuaVisivel) setEscolhido(null);
+  }
+
   return (
     <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
       <DialogTrigger asChild>
@@ -236,9 +288,95 @@ export function ModalDeAtribuicao({
           </p>
         )}
 
+        {/*
+          **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
+          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo *Atribuir* do rodapé.
+          **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
+          FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
+
+          **Fora dos dois `fieldset`, e isso não separa o grupo:** rádio agrupa por `name`, não por
+          `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
+
+          **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
+          dispensar da busca voltaria a depender dela.
+        */}
+        {eu !== null && (
+          <label
+            htmlFor={`candidato-${eu.pessoaId}`}
+            className={`border-linha flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              euSouOResponsavel ? "opacity-60" : "cursor-pointer"
+            }`}
+          >
+            <input
+              type="radio"
+              id={`candidato-${eu.pessoaId}`}
+              name="responsavel"
+              value={eu.pessoaId}
+              disabled={euSouOResponsavel || enviando}
+              checked={escolhido === eu.pessoaId}
+              onChange={() => setEscolhido(eu.pessoaId)}
+              className="size-4"
+            />
+            <span className="flex flex-col">
+              {/* Verbo no imperativo — é como se escreve botão. */}
+              <span className="text-tinta font-medium">Atribuir a mim</span>
+              {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
+                  qual identidade ele está prestes a se atribuir. */}
+              <span className="text-tinta-suave text-xs">
+                {eu.nome} · {eu.papel}
+                {eu.area !== null && ` · ${eu.area}`}
+                {euSouOResponsavel && " · Responsável atual"}
+              </span>
+            </span>
+          </label>
+        )}
+
+        {/*
+          **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
+          que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
+
+          **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
+          campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
+          organização, e nenhuma tela do produto pratica isso.
+
+          **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
+          das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
+        */}
+        <div className="flex flex-col gap-1.5">
+          {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
+          <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
+            Buscar pelo nome
+          </label>
+          <Input
+            id={campoDeBuscaId}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
+            maxLength={120}
+            value={busca}
+            onChange={(evento) => aoBuscar(evento.currentTarget.value)}
+            disabled={enviando}
+            /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
+            className="h-11"
+          />
+        </div>
+
         <div className="flex flex-col gap-4">
-          {bloco(NOME_DO_BLOCO.executores, executores)}
-          {bloco(NOME_DO_BLOCO.solicitantes, solicitantes)}
+          {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
+          {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+
+          {/*
+            **Frase própria, diferente de qualquer outra do produto** — é a regra que o
+            `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
+            perdeu dados.
+
+            **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
+            usa leitor de tela, e a lista está imediatamente abaixo do campo.
+
+            **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
+          */}
+          {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
         </div>
 
         <DialogFooter>
