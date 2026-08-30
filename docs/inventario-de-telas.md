@@ -274,7 +274,7 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 
 | Onde | O que "voltar" faz |
 |---|---|
-| T-05, T-06, T-07, T-08, T-09 | volta a **T-03 com os filtros preservados** — é por isso que os filtros vivem na *query string* |
+| T-05, T-06, T-07, T-08, T-09 | volta a **T-03** — a lista, sem consulta. *(A linha prometia "com os filtros preservados" até 30/08/2026; ver a correção no fim desta seção.)* |
 | T-04 | volta a T-03 e **descarta o formulário**, com confirmação se algo foi digitado |
 | T-05 recém-chegado de um `201` de T-04 | volta a **T-03**, nunca ao formulário — a ocorrência já existe, e reabrir o formulário convida ao toque duplo que o `contrato-de-api.md` §7.10 declarou não proteger |
 | **modal aberto** | **fecha o modal e permanece na tela** |
@@ -291,6 +291,29 @@ A última linha da tabela do meio exige um mecanismo, e ele é decisão declarad
 
 A alternativa — modal sem histórico — foi recusada porque em Android o botão voltar **é** o gesto de
 fechar, e ele levaria o usuário fora da ocorrência no meio de um cancelamento. [FONTE EXTERNA]
+
+> #### Correção — 30/08/2026 — a preservação de filtro nunca existiu, e a razão dos filtros na *query string* é outra
+>
+> **O que a primeira linha da tabela dizia:** que sair de T-05, T-06, T-07, T-08 ou T-09 devolvia
+> "T-03 com os filtros preservados", e que era por isso que os filtros viviam na *query string*.
+> **Nenhuma das telas entregues preserva coisa alguma:** a de vínculos e a de configuração voltam para
+> `/ocorrencias` sem consulta nenhuma, e as duas já estão implementadas; a tela de detalhe da ocorrência
+> faz o mesmo.
+>
+> **Não é achado de código, e não vira crítico novo.** A metade que importava foi cumprida no item 14 — os
+> onze *Voltar* passaram a apontar para `/ocorrencias` em vez de depender de redirecionamento. A
+> **preservação de filtro nunca foi implementada nem cobrada por critério nenhum, em item nenhum**: a
+> promessa nasceu neste documento e só aqui.
+>
+> **A razão que sobrevive, e é a verdadeira:** os filtros vivem na *query string* porque **o endereço da
+> lista filtrada é compartilhável** e sobrevive ao botão voltar — é o que a linha *"Endereço próprio"* de
+> T-03 já afirmava, e é o que o item 15 entregou. A mesma frase estava repetida em T-03, e foi corrigida
+> na mesma passada.
+>
+> **O que isto custa, declarado:** quem sai de T-05 volta para a lista **sem filtro**, e refiltra. **Se o
+> hub quiser a preservação, ela não é conserto de documento** — é critério novo em T-05, T-08, T-09 e
+> T-07, e volta para o backlog. *(Item 28 da fila da frente de documentação; é o achado **A-32-3** da spec
+> do item 32, e a divergência é anterior a ele.)*
 
 ---
 
@@ -576,8 +599,11 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
    redundância.
 3. `titulo`
 4. `categoria.nome` · `area.nome` — o `tipo` da área é o **congelado no registro**, não o atual.
-5. `prioridade` — só quando `visibilidadeAplicada == "todas"`. Prioridade é decisão do Gestor (`glossario.md`
-   §3) e não há nada que o Solicitante faça com ela.
+5. `prioridade` — **só quando quem lê tem `ocorrencia.alterar_prioridade`.** Prioridade é decisão do
+   Gestor (`glossario.md` §3) e não há nada que o Solicitante faça com ela — mas o predicado é **de quem
+   decide, não de quem recorta**. No recorte em cartão o campo é uma **etiqueta com a palavra**, nunca uma
+   coluna e nunca só a cor (compromisso **A-5**). *(A condição era `visibilidadeAplicada == "todas"` até
+   30/08/2026 — ver a correção adiante nesta seção.)*
 6. `responsavel.nome` quando não nulo — *"quem está cuidando"*. Visível ao Solicitante de propósito
    (*"mostrar constrói confiança"*, `openapi.yaml`), e sem canal direto entre os dois.
 7. **`quantidadeDeAnexos`** como marca — *"com foto"* é `quantidadeDeAnexos > 0`. O campo deixou de ser booleano em 22/08/2026, quando o anexo virou tabela: **é contagem**, e o número já é a forma final para o dia em que existir o segundo anexo. Mais `registradaEm` e `atualizadaEm`.
@@ -588,8 +614,8 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
 
 | Ação | Endpoint / destino |
 |---|---|
-| Filtrar por `status`, `categoriaId`, `prioridade` — todos múltiplos | `GET /ocorrencias?status=&categoriaId=&prioridade=` |
-| *"Ver as minhas"* — só aparece com `ler_todas` | `GET /ocorrencias?autor=eu` |
+| Filtrar por `status`, `categoriaId`, `prioridade` — todos múltiplos. **A barra inteira só aparece com `ocorrencia.ler_todas`**, e o chip de `prioridade` tem um **segundo portão**: `ocorrencia.alterar_prioridade` | `GET /ocorrencias?status=&categoriaId=&prioridade=` |
+| *"Ver as minhas"* — só aparece com `ler_todas`. **A ressalva continua necessária depois do portão da barra, e não é redundância:** o nome do controle aponta para o público errado — soa Solicitante, e é o oposto | `GET /ocorrencias?autor=eu` |
 | Carregar mais | `GET /ocorrencias?cursor=<proximoCursor>` |
 | Registrar ocorrência — só com `ocorrencia.registrar` | **navegação** → T-04 |
 | Abrir um item | **navegação** → T-05 |
@@ -600,8 +626,44 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
 oferecer na tela um filtro que a API não tem é o começo da divergência. Os **filtros rápidos** — não
 triadas, pausadas esperando o Gestor, sem atualização — são ⬜ (D15), e a §5 registra o que isso custa.
 
-Os valores dos filtros ficam na *query string*, e é o que faz *"voltar"* de T-05 devolver a lista que o
-Gestor estava lendo, e não a lista do zero.
+Os valores dos filtros ficam na *query string*, e é o que faz **o endereço da lista filtrada ser
+compartilhável** — uma visão filtrada se manda por link e sobrevive ao botão voltar do navegador.
+*(Até 30/08/2026 esta frase dizia que era o que fazia "voltar" de T-05 devolver a lista que o Gestor
+estava lendo. **O produto não preserva filtro em volta nenhuma** — ver a correção no fim da §3; item 28
+da fila da frente de documentação.)*
+
+> #### Correção — 30/08/2026 — os dois portões da barra de filtros, e a prioridade que não é recorte
+>
+> **Três linhas desta seção mudaram na mesma passada**, e mudar uma sem as outras deixava T-03 mais
+> incoerente do que estava. São os itens **14** e **23** da fila da frente de documentação, e os dois se
+> fecham juntos por construção.
+>
+> **1 · A barra de filtros inteira é de quem tem `ocorrencia.ler_todas`.** Isto não era contradição: era
+> **silêncio**. A tabela *"O que oferece"* já punha portão de permissão em três das seis linhas e deixava
+> a do filtro sem nenhum — quem lesse só o inventário construiria a barra para todo mundo. O protótipo
+> renderizado já desenhava assim: os chips aparecem nos quatro estados `todas` de T-03 e **em nenhum dos
+> dois `apenas_minhas`**. *(Decidido em 26/08/2026, ao responder a P1 da spec do item 15. A convenção 6
+> do `CLAUDE.md` manda registrar em vez de deixar em branco.)*
+>
+> **2 · O chip de `prioridade` tem um segundo portão** — `ocorrencia.alterar_prioridade`, **a mesma
+> permissão que o campo na lista**, e pela mesma razão.
+>
+> **3 · E o campo `prioridade` passou a ter essa permissão como condição.** O item 5 da lista de campos
+> condicionava a exibição ao recorte `todas`. **A razão daquela linha era sobre o Solicitante e a regra
+> dela era sobre o recorte** — é o achado **P-03** do `prototipo-low-fi.md`, cuja **Q-P7** já estava
+> respondida **(a)**. O defeito que ela causava, numa frase: **o Gestor que toca *"Ver as minhas"*
+> continua com o chip de prioridade, filtra por prioridade — e recebe uma lista onde nenhum item diz qual
+> é.** Filtrar por um campo que a tela se recusa a exibir.
+>
+> **O produto já contradizia a linha antes da decisão, em dois lugares:** o chip de filtro de prioridade
+> é liberado por permissão no código da lista, e a legenda do estado 2 de T-03 em
+> [`prototipo/telas.html`](prototipo/telas.html#t03) afirma a regra em letra — *"a coluna de prioridade
+> não some com `?autor=eu` — achado P-03"*.
+>
+> **O que não muda:** o Solicitante continua sem ver `prioridade`, porque ele não tem a permissão, e o
+> resultado para ele é idêntico ao da regra antiga. **O que muda é de quem a regra fala** — de quem
+> decide, não de quem recorta. *(Decidido em 29/08/2026, ao responder a P2 da spec do item 28; virou o
+> critério **28.6**. É a **proposta 4** da §13 do `prototipo-low-fi.md`, agora aplicada.)*
 
 **Como reage ao status.** A tela em si não age sobre ocorrência nenhuma — **não há ação de lista, não há
 seleção múltipla, não há triagem em lote**. Toda ação sobre uma ocorrência acontece em T-05, porque
@@ -761,10 +823,45 @@ e é a resposta direta ao *"tenho dificuldade de deixar os condôminos a par do 
 Cada item traz `ocorridoEm`, `autor.nome` e, nas transições, `observacao`, `motivoPausa` e
 `motivoCancelamento` — **os três visíveis ao Solicitante**, por decisão do hub (Q-API-3, resposta (a)).
 
-Cinco tipos de evento **não** aparecem na linha do tempo, e isso é limitação conhecida, não bug de tela:
-comentário fora do canal 1, nota interna, **alteração de prioridade**, reatribuição e mensagem da
-atribuição (**PA-21**). A alteração de prioridade em particular *"não entra na trilha"* (`contrato-de-api.md` §8.4),
-então mudá-la não deixa rastro em lugar nenhum que a tela possa mostrar.
+**São três formas, e o endpoint publica as três.** `EventoDaLinhaDoTempo` é um `oneOf` de
+`EventoTransicao`, `EventoMensagem` e `EventoAtribuicao`, distinguidas por `tipo`
+([`api/openapi.yaml`](api/openapi.yaml)). **Reatribuir aparece, e aparece duas vezes:** a atribuição
+anterior passa a trazer `encerradaEm` e `motivoEncerramento: "reatribuicao"`, e uma nova entra com
+`encerradaEm: null` — é **um evento por atribuição**. E a **mensagem do canal 1** aparece a partir do
+item 30, que é onde a tabela de mensagens nasce (critérios **30.7** e **30.8**).
+
+**O que não aparece, e cada um por razão própria:**
+
+| O que não aparece | Por quê |
+|---|---|
+| A **nota interna** | é o **canal 2**, e ele é ⬜ (D9). Não há o que mostrar |
+| A **mensagem da conversa da atribuição** | é o **canal 3**, e ele é ⬜ (D9). A POL-04 arquiva um canal que ainda não existe (`contrato-de-api.md` §3.4) |
+| A **alteração de prioridade** | ela *"não entra na trilha"* (`contrato-de-api.md` §8.4) — **não gera registro**, então não há evento a intercalar. **Essa razão basta sozinha**, e é o critério 17.3 |
+
+> #### Correção — 30/08/2026 — este parágrafo prometia uma linha do tempo mais pobre que o contrato
+>
+> **O que ele dizia:** que *"cinco tipos de evento não aparecem na linha do tempo"* — comentário fora do
+> canal 1, nota interna, alteração de prioridade, reatribuição e mensagem da atribuição — **citando o
+> PA-21**.
+>
+> **Dois erros, e o segundo explica o primeiro.**
+>
+> **1 · O PA-21 é sobre o Event Storming, não sobre o endpoint.** Ele registra que *"cinco eventos não
+> couberam na linha do tempo … o método do curso não trata de evento transversal"* — é limitação de um
+> **artefato de modelagem**. **Duas coisas com o mesmo nome**, e a lista de uma foi importada inteira para
+> a outra.
+>
+> **2 · O `openapi.yaml` desmente, e é específico.** `EventoAtribuicao` traz `encerradaEm` e
+> `motivoEncerramento: [reatribuicao, recusa, null]`: **um schema que gasta um enum de dois valores para
+> nomear a reatribuição não a esconde.** E `EventoMensagem` é uma das três formas do `oneOf`.
+>
+> **Por que o erro sobreviveu a três rodadas:** o parágrafo distinguia *"comentário **fora** do canal 1"*
+> — ou seja, ele **refinou** um item da lista importada em vez de perguntar se a lista servia.
+>
+> **O que não mudou:** a alteração de prioridade continua não aparecendo, **mas pela razão certa** — não
+> gerar registro —, e essa razão nunca precisou de PA nenhum. *(Item 2 da fila da frente de documentação;
+> é o achado **B-07**. O mesmo defeito no `contrato-de-api.md` §8.8 é o item 24 daquela fila, e continua
+> aberto.)*
 
 **4 · A conversa.** `GET /ocorrencias/{id}/comentarios` — o **canal 1**, Gestores + Solicitante autor.
 Cada `Comentario` traz `texto`, `autor.nome`, `criadoEm`. **Sem edição e sem exclusão** (P6 do
@@ -783,16 +880,19 @@ mora:
 | **Resolver** | modal | `POST …/resolver` | `observacao?` **e** `solucaoAplicada?` — em foco, pré-preenchido se já houver |
 | **Registrar solução aplicada** | **campo no corpo da tela**, não modal | `POST …/registrar-solucao-aplicada` | `solucaoAplicada` |
 | **Alterar prioridade** | **seletor no bloco 1**, salva na mudança — e, depois de gravar, **uma linha de desfazer logo abaixo dele, no mesmo bloco** | `POST …/alterar-prioridade` | `prioridade`. A linha diz *"Prioridade alterada de X para Y."* com o botão **Desfazer**, que reenvia o mesmo endpoint com o valor anterior — **um passo, e não há desfazer do desfazer** (17.7). Sem temporizador: sai por ação. *(A coluna dizia só "seletor" até 30/08/2026 — item 18 da fila da frente de documentação.)* |
-| **Atribuir / Reatribuir** | modal | `POST …/atribuir-responsavel` | lista de `GET /vinculos`, com **"Atribuir a mim"** como primeira linha |
+| **Atribuir / Reatribuir** | modal — **um só**, e os textos dele derivam de haver ou não responsável (regra 3 do quadro adiante) | `POST …/atribuir-responsavel` | lista de `GET /vinculos`, com **"Atribuir a mim"** como primeira linha. Mais um **campo de busca por nome, sempre visível**, com rótulo visível *Buscar pelo nome*: ele casa **prefixo de palavra, sem acento e sem caixa**, e filtra **apenas os dois blocos da lista** — *"Atribuir a mim"* nunca é filtrada, porque ela é o caso que a busca existe para dispensar da busca. Sem resultado: *"Ninguém com esse nome."* — e essa frase **só existe com texto digitado**, nunca numa lista que veio vazia sem ninguém ter buscado. *(A busca é o critério **20.6**, e entrou aqui em 30/08/2026)* |
 | **Avaliar** | modal | `POST …/avaliar` | `nota` 1–5 **e** `comentario?` |
 | **Comentar** | campo no bloco 4 | `POST …/comentarios` | `texto` |
 | Ver a trilha crua | **navegação** → T-06 | — | — |
 
 **A regra que separa os grupos, escrita para ser aplicada a comandos futuros:**
 
-> **Comando que precisa de texto digitado abre modal. Comando que não precisa é botão direto. Campo que
+> **Comando que precisa de texto digitado abre modal — e o modal é *gaveta ancorada na borda inferior*
+> abaixo de `md`, *caixa centrada* a partir de `md`. Comando que não precisa é botão direto. Campo que
 > não é um comando de fato — prioridade, solução aplicada — mora no corpo da tela, no bloco a que
 > pertence. Nenhum comando tem tela própria.**
+
+*(A regra não dizia **qual** modal até 30/08/2026 — ver a regra 2 do quadro adiante.)*
 
 Três casos merecem a justificativa individual, porque parecem exceções:
 
@@ -810,6 +910,76 @@ Três casos merecem a justificativa individual, porque parecem exceções:
   inventar um botão que compete com "Resolver".
 - **`alterar-prioridade` é um seletor, não um modal.** Não há texto a escrever, e a D6 já o congela em
   estado terminal — quando isso acontece, o seletor simplesmente não está em `acoesDisponiveis`.
+
+#### As três regras que a tabela não carregava — o destaque, a geometria do modal e o par de palavras
+
+*(Acrescentadas em 30/08/2026 — itens 17 e 23 da fila da frente de documentação. As três chegam pelo mesmo
+caminho: **silêncio**, não contradição. Nenhuma frase anterior desta seção afirmava o contrário, e a
+convenção 6 do `CLAUDE.md` manda registrar em vez de deixar em branco. **O inventário não decidiu contra
+nenhuma delas: ele é anterior à pergunta.**)*
+
+**1 · Cada status tem uma ação primária nomeada.** A barra de ações do celular comporta **dois** rótulos
+legíveis em 390 px: com **três ações ou mais** ela vira **um primário largo mais o menu *Mais ações ▾***
+(a seção **D-3** do `prototipo-low-fi.md`); **com duas, são dois botões**. Nos dois casos alguém tem de
+ser o primário — e a tabela acima lista **forma** por comando, não tem coluna de destaque, e nenhuma outra
+seção deste documento tinha a regra:
+
+> | Status | Ação primária |
+> |---|---|
+> | `aberta` | **Analisar** |
+> | `em_analise` | **Iniciar atendimento** |
+> | `em_atendimento` | **Resolver** |
+> | `pausada` | **Retomar** |
+> | `resolvida` | **Avaliar** |
+> | `cancelada` | nenhuma |
+>
+> **O desempate, e é ele que torna a tabela escrevível hoje:** se a ação nomeada **não estiver** entre as
+> disponíveis, o destaque vai para a **primeira da lista**; se não houver nenhuma, **não há destaque**.
+
+**Por que a regra tinha de morar aqui.** O contrato declara a **ordem** de `acoesDisponiveis` e nega que
+ela seja promessa de ênfase — *"em `em_atendimento`, `pausar` vem antes de `resolver`. Qual ação ganha
+ênfase é decisão de tela."* (`contrato-de-api.md` §8.5). Até 28/08/2026 ninguém tropeçou porque a ordem
+do enum acertava por coincidência; **o item 22 é onde ela passa a errar** — em `em_analise` **com**
+responsável o primeiro da ordem é `atribuir-responsavel`, e a ação do momento é `iniciar-atendimento`.
+Em `em_analise` **sem** responsável a coincidência erra de novo, pondo *Pausar* em destaque numa
+ocorrência que não tem a quem atribuir. *(Decidida em 28/08/2026, na resposta P1 da spec do item 22. É a
+lacuna que o achado **R-08** do `prototipo-low-fi.md` registrou — e é ela que fecha o R-08.)*
+
+**2 · Todo modal de T-05 é gaveta abaixo de `md`, e caixa centrada a partir de `md`.** A coluna *Forma*
+diz "modal" em sete linhas e **não distinguia gaveta de caixa centrada em lugar nenhum**: a palavra
+*gaveta* tinha zero ocorrências neste documento até esta data, e a distinção vivia só no
+`prototipo-low-fi.md` e no [`prototipo/telas.html`](prototipo/telas.html).
+
+> **A gaveta é ancorada na borda inferior abaixo de `md`; a partir de `md` é caixa centrada. Não é
+> escolha por comando.**
+
+É a §7.1 do protótipo aplicada a *"comando com texto"*, que é o que todos os modais desta tela são — e o
+limiar `md` é **o mesmo que T-03 e T-08 já usam** para separar celular de tela grande, não um segundo
+número com o mesmo significado. Sem a regra escrita aqui, quem construir os outros comandos lendo só o
+inventário constrói caixa centrada e o produto fica com duas geometrias: o critério **23.5** é o único do
+backlog que fala de geometria de modal, e ele nomeia **um** comando. *(Decidida em 28/08/2026, na resposta
+P1 da spec do item 23.)*
+
+**3 · O modal de atribuir é um só, e cinco textos dele trocam conforme haja responsável.** A coluna *Ação*
+nomeia **dois** comandos — *Atribuir* e *Reatribuir* — e a coluna do formulário descrevia **um** modal, sem
+título, sem botão e sem a troca de palavra:
+
+> | Onde | Sem responsável | Com responsável |
+> |---|---|---|
+> | Gatilho — o item de *Mais ações ▾*, ou o segundo botão quando só há duas ações | *Atribuir* | ***Reatribuir*** |
+> | Título do modal | *Atribuir responsável* | ***Reatribuir*** |
+> | Descrição | *Quem vai cuidar desta ocorrência.* | ***Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.*** |
+> | Botão que grava | *Atribuir* | ***Reatribuir*** |
+> | Verbo de envio | *Atribuindo…* | ***Reatribuindo…*** |
+
+**A distinção é derivada do estado, nunca pedida ao cliente** (critério **21.1**) — é a mesma regra que o
+contrato aplica ao endpoint: um caminho, dois comandos, e a resposta diz qual dos dois aconteceu
+(`contrato-de-api.md` §3.4). **Os dois títulos são os nomes de comando daquela tabela, literais.** A
+segunda oração da descrição existe porque o critério **21.3** — a garantia de que só há uma atribuição
+vigente — **não tem nenhuma outra superfície de tela**. E **a primeira linha da lista continua se chamando
+*"Atribuir a mim"***, mesmo sob um título que diz *Reatribuir*: o critério **20.5** fixa esse texto em
+letra, e é por ela estar descrita como **item do formulário** que ela é enviada pelo botão do rodapé, e não
+uma fileira que grava no toque. *(Decidida em 29/08/2026, na resposta P2 da spec do item 21.)*
 
 **Sobre a lista de motivos de cancelamento.** A tela mostra **só os motivos permitidos ao papel de quem
 está olhando**: ao Solicitante, `desistencia` · `resolvido_por_conta_propria` · `aberta_por_engano` ·
@@ -845,7 +1015,8 @@ erro**; e T-06 mostra o caminho que aquela ocorrência de fato percorreu. **É s
 **Vazio · carregando · erro.**
 - *Vazio:* a ocorrência nunca é vazia. A **conversa** pode ser: *"Nenhuma mensagem ainda. Escreva aqui
   para falar com os Gestores."* (ao Solicitante) / *"…com o Solicitante."* (ao Gestor) — e a diferença
-  entre as duas frases é o que impede um Gestor de escrever ali achando que é interno.
+  entre as duas frases é o que impede um Gestor de escrever ali achando que é interno. **E a barra de
+  ações pode vir vazia** — são três casos, com três textos: ver o quadro logo abaixo desta lista.
 - *Carregando:* o bloco 1 e o 2 vêm de `GET /ocorrencias/{id}`; a linha do tempo e a conversa são duas
   requisições a mais. **As três disparam juntas**, e os blocos 3 e 4 mostram estrutura de espera sem
   bloquear os dois primeiros — sob cold start (RNF5), esperar as três para pintar qualquer coisa é
@@ -853,6 +1024,38 @@ erro**; e T-06 mostra o caminho que aquela ocorrência de fato percorreu. **É s
 - *Erro:* `404 OCORRENCIA_NAO_ENCONTRADA` (que **é indistinguível** de "de outra organização"),
   `409 TRANSICAO_NAO_PERMITIDA`, `409 RESPONSAVEL_NAO_ATRIBUIDO`, `409 JA_AVALIADA`,
   `409 AVALIACAO_EXIGE_RESOLVIDA`, `422 RESPONSAVEL_SEM_VINCULO_ATIVO` — todos na §7.
+
+> #### A barra de ações vazia — hoje são dois vazios, e já foram três
+>
+> *(Acrescentado em 30/08/2026 — item 5 da fila da frente de documentação, com as duas emendas de 27 e de
+> 28/08/2026, e conferido contra o código na mesma data.)*
+>
+> **`acoesDisponiveis` é `required` e nunca vem nula: ela vem `[]`.** É de propósito — a tela precisa
+> distinguir *"não há o que fazer"* de *"a lista não veio"*. **E vazio não é um caso só.**
+>
+> | Por que está vazia | O que aparece no lugar da barra | Moldura | Dono |
+> |---|---|---|---|
+> | O status é **terminal** — `resolvida` ou `cancelada`, e nada mais será possível | *"Esta ocorrência está encerrada."* | sólida | critério **26.6** |
+> | **Não** é terminal, e quem lê é o **Solicitante autor** em `Em atendimento` ou `Pausada` — ele não tem, e nunca terá, ação nenhuma ali | *"Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário."* | sólida | critérios **18.6** e **30.6** — e **não sai nunca** |
+>
+> **A frase de encerramento vale para o vazio terminal, e só para ele.** Escrever *"lista vazia → 'Esta
+> ocorrência está encerrada'"* descreveria uma mentira: **quem escolhe entre as duas é o status, não o
+> tamanho da lista.**
+>
+> **A segunda oração da segunda frase é do item 30, e não podia existir antes dele:** *"Peça o cancelamento
+> pelo comentário."* é o que o `detail` do `403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` publica desde
+> sempre — mas, sem o bloco 4 na tela, o convite apontaria para um campo que ela não tinha. **E a frase não
+> cita o atendimento de propósito:** *"O atendimento já começou"* seria falso numa ocorrência que chegou a
+> `Pausada` vinda de `Em análise`, que é uma das dez transições.
+>
+> **Havia um terceiro vazio, e ele era andaime — está registrado porque foi visível.** Do item 16 ao item
+> 27, o Gestor com os comandos ainda por construir lia, em moldura **tracejada**, *"Os comandos da
+> ocorrência chegam nos próximos itens."* (critério **16.6**). Ele **deixou de ser alcançável já no item
+> 18** — com `cancelar` renderizável nos quatro estados não-terminais, o Gestor nunca mais viu barra
+> vazia fora de estado terminal — e **o critério 27.6 o apagou do código**, junto com a moldura tracejada,
+> quando `avaliar` completou os dez comandos e a frase virou falsa. *(A emenda de 28/08 desta fila pedia
+> que o inventário dissesse **de quem** o terceiro vazio era e **até quando** era visível; entre a emenda e
+> esta escrita o item 27 entrou, então o que o inventário registra é o ciclo inteiro, com começo e fim.)*
 
 **Alvo primário.** **Celular.** Sem rolar: `statusRotulo`, `titulo`, e a última entrada da linha do
 tempo — que é a resposta literal a *"o que aconteceu com o meu pedido?"*. As ações vêm em seguida; a
@@ -1877,8 +2080,10 @@ que é mudança de schema, e não é deste inventário.
 Não há `ETag`/`If-Match` (`contrato-de-api.md` §7.9), por decisão consciente: *"nos comandos de transição o problema não
 existe — a máquina de estados já é o controle otimista"*. Correto. Mas restam **dois** pontos onde a
 última escrita vence sem aviso: `alterar-prioridade` e `registrar-solucao-aplicada`. E a alteração de
-prioridade **não entra na trilha** (PA-21), então ela é sobrescrita **sem deixar rastro em lugar
-nenhum**.
+prioridade **não entra na trilha** (`contrato-de-api.md` §8.4, e o critério **17.3**), então ela é
+sobrescrita **sem deixar rastro em lugar nenhum**. *(A citação era **PA-21** até 30/08/2026: aquele ponto
+de atenção é sobre o Event Storming, não sobre o endpoint — ver a correção no bloco 3 de T-05, item 2 da
+fila da frente de documentação.)*
 
 **O que a tela pode fazer, e é tudo:** toda resposta de comando devolve `atualizadaEm`, então T-05
 detecta que o dado mudou desde a leitura e recarrega. **O que a tela não pode fazer:** dizer o que foi

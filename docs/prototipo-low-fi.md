@@ -1285,14 +1285,16 @@ abaixo são as que mudam o desenho se estiverem erradas.
 
 ## 13. Propostas de mudança em outros documentos
 
-**Nenhuma foi aplicada.** Cada uma cita o arquivo, o que muda e por quê.
+**Nenhuma foi aplicada — exceto a nº 4, aplicada em 30/08/2026.** Cada uma cita o arquivo, o que muda e
+por quê. *(A frase dizia "nenhuma foi aplicada", sem exceção, até 30/08/2026 — item 23 da fila da frente
+de documentação.)*
 
 | # | Arquivo | Mudança proposta | Origem |
 |---|---|---|---|
 | 1 | `documentacao-da-demanda.md` §5.2, linha do **RNF6** | Acrescentar o **cenário de medição** e a **exclusão do cold start**: *"medido em requisição morna, com título de até 30 caracteres, descrição de até 40, uma foto, e categoria e área escolhidas de listas já carregadas. O cold start do RNF5 fica fora do relógio."* | **P-14, P-15** · Q-P2 |
 | 2 | `documentacao-da-demanda.md` §5.2, linha do **RNF5** | Uma frase reconhecendo a colisão: *"o cold start acontece dentro da janela do RNF6, e por isso está excluído da medição dele."* Hoje os dois requisitos se contradizem em silêncio | **P-14** |
 | 3 | `contrato-de-api.md` §8.5 e `api/openapi.yaml` (`acoesDisponiveis`) | Declarar que **a ordem do array é a do enum `Comando`**, e que o primeiro elemento renderizável é o primário da tela | **P-09** · Q-P3 |
-| 4 | `inventario-de-telas.md`, T-03, item 5 da lista de campos | Trocar a condição de exibição de `prioridade`: de `visibilidadeAplicada == "todas"` para `contexto.permissoes` incluir `ocorrencia.alterar_prioridade` | **P-03** · Q-P7 |
+| 4 | `inventario-de-telas.md`, T-03, item 5 da lista de campos | Trocar a condição de exibição de `prioridade`: de `visibilidadeAplicada == "todas"` para `contexto.permissoes` incluir `ocorrencia.alterar_prioridade` | **P-03** · Q-P7 · ✅ **aplicada em 30/08/2026** — decidida na P2 da spec do item 28, virou o critério **28.6**, e o inventário registrou a troca com data |
 | 5 | `inventario-de-telas.md`, T-04, *Alvo primário* | Trocar *"sem rolar: `titulo`, `categoria` e o botão de foto"* por *"sem rolar: a foto, `titulo` e `descricao`; `categoria` e o bloco **Onde** vêm abaixo"*, com a razão de tempo | **P-01** |
 | 6 | `inventario-de-telas.md` §6, *Cold start* | Trocar a regra de **ordem** (*"primeira requisição da sessão"*) pela regra de **tempo** (*"qualquer requisição acima de ~2 s"*), e remover a exceção de T-07, que deixa de ser exceção | **P-12** · Q-P4 |
 | 7 | `inventario-de-telas.md`, T-03, quadro do convite a avaliar | Registrar os **dois textos**: a frase inteira em T-05, e o botão *"Conte como foi"* no item da lista, ao lado do `statusRotulo` | **Q-P8** |
@@ -1556,16 +1558,49 @@ encarar**, porque não dá para desenhar um campo sem decidir qual é o nome del
 > **Ninguém escolhe a ação primária de T-05, e os dois documentos apontam um para o outro.**
 
 O contrato declarou a ordem de `acoesDisponiveis`, como o **P-09** pedia. Mas declarou **negando** a
-segunda metade do pedido, e com razão: *"não é promessa de que o primeiro item seja a ação em destaque —
-em `em_atendimento`, por exemplo, `pausar` precede `resolver`. Escolher o destaque é decisão de tela, **e
-a regra está no inventário de telas**."*
+segunda metade do pedido, e com razão. A frase — **e ela mora na descrição do enum `Comando` do
+[`api/openapi.yaml`](api/openapi.yaml)**, não na prosa do `contrato-de-api.md`:
 
-**O inventário não tem essa regra.** A barra de ações de T-05 tem um primário largo e um menu *Mais
-ações* — e nada, em documento nenhum, diz qual comando vai no primário. Ao renderizar, foi preciso
+> *"Não é promessa de que o primeiro item seja a ação em destaque — em `em_atendimento`, por exemplo,
+> `pausar` precede `resolver`. Escolher o destaque é decisão de tela, **e a regra está no inventário de
+> telas**."*
+
+*(**Correção — 30/08/2026.** Até esta data o achado atribuía a frase inteira ao `contrato-de-api.md`
+§8.5, entre as aspas de uma citação única. **A frase existe, literal — mas no `openapi.yaml`.** A prosa
+do contrato termina em "Qual ação ganha ênfase é decisão de tela." e **não continua**: os dois entregáveis
+divergem entre si, e é a especificação publicada que carrega o ponteiro. Ou seja: **o ponteiro é real**, e
+a moldura do achado — *"os dois documentos apontam um para o outro"* — está certa; o que estava errado era
+**qual** dos dois arquivos apontava. Item 17 da fila da frente de documentação.)*
+
+**O inventário não tinha essa regra.** A barra de ações de T-05 tem um primário largo e um menu *Mais
+ações* — e nada, em documento nenhum, dizia qual comando ia no primário. Ao renderizar, foi preciso
 escolher à mão: em `em_atendimento`, o primeiro renderizável pela ordem do enum seria **Reatribuir**, que
 é obviamente errado.
 
-**É achado de gravidade alta, e é o único desta lista que impede alguém de implementar a tela.**
+**Era achado de gravidade alta, e o único desta lista que impedia alguém de implementar a tela.**
+
+> #### O R-08, fechado — 30/08/2026
+>
+> **Como bloqueio ele já estava fechado desde o item 22**, que pôs a tabela de ação primária em código
+> junto com o desempate. O que continuava faltando era **o documento para onde o `openapi.yaml` aponta**.
+>
+> **O inventário passou a ter a regra**, em quadro próprio na seção de T-05 — *"As três regras que a
+> tabela não carregava"*:
+>
+> > `aberta` → **Analisar** · `em_analise` → **Iniciar atendimento** · `em_atendimento` →
+> > **Resolver** · `pausada` → **Retomar** · `resolvida` → **Avaliar** · `cancelada` → nenhuma. **Se a
+> > ação nomeada não estiver entre as disponíveis, o destaque vai para a primeira da lista**; se não houver
+> > nenhuma, não há destaque.
+>
+> **A conclusão do achado estava certa e não foi apagada:** a regra faltava mesmo, e a lacuna era real. O
+> que mudou foi a **atribuição** — em vez de *"o contrato mandou para o inventário e ele não cumpriu"*, o
+> correto é *"o ponteiro está no `openapi.yaml`, a prosa do contrato não o repete, e nenhum dos dois
+> documentos escolhia"*.
+>
+> **E o ponteiro passou a ser verdadeiro:** o `openapi.yaml` diz que *"a regra está no inventário de
+> telas"* — e a partir desta data ela está. **O que fica em aberto, e não é desta frente:** a prosa do
+> `contrato-de-api.md` §8.5 continua sem o ponteiro que a especificação publica.
+> *(Item 17 da fila da frente de documentação, as duas metades.)*
 
 ### 16.3 · Achados novos, da renderização
 
