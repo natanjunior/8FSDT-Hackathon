@@ -1,4 +1,4 @@
-import { corrigirVinculo } from "@/aplicacao/organizacao";
+import { corrigirVinculo, removerVinculo } from "@/aplicacao/organizacao";
 import { CampoNaoSuportado, FormatoInvalido, comContexto } from "@/interface/http";
 import { projetarVinculo } from "@/interface/projecoes";
 import { correcaoDeVinculoSchema } from "@/interface/schemas";
@@ -18,7 +18,7 @@ import { correcaoDeVinculoSchema } from "@/interface/schemas";
  * **E `{ "contatos": [] }` é corpo válido, não vazio:** ele diz *remova todos*. Quem colapsar vazio com
  * ausente aqui apaga o contato de quem só queria corrigir a unidade.
  *
- * O `DELETE` deste mesmo caminho é o item 10.
+ * O `DELETE` deste mesmo caminho é o item 10, e está logo abaixo.
  */
 export const PATCH = comContexto(
   { exige: "vinculo.gerir", corpo: correcaoDeVinculoSchema },
@@ -48,6 +48,25 @@ export const PATCH = comContexto(
     return projetarVinculo(vinculo);
   },
 );
+
+/**
+ * **`DELETE /vinculos/{pessoaId}` — o único `DELETE` do contrato** (§8.2, P6), e o conserto do **PA-25**.
+ *
+ * **Não declara `corpo`, e isso tem três consequências que valem escrever.** `lerCorpo` devolve
+ * `undefined` sem sequer olhar o `content-type` (`com-contexto.ts:364`), então o cabeçalho que
+ * `cabecalhosDeEscrita` manda é inofensivo; não há `415`; e não há `400` — que é exatamente a lista de
+ * respostas que o `openapi.yaml:706-731` publica.
+ *
+ * **O `204` sai de graça:** o handler não devolve nada, e `montarResposta` transforma corpo ausente com
+ * status 200 em `204` sem `content-type` (`com-contexto.ts:478-490`). Escrever `resposta(null, { status:
+ * 204 })` daria o mesmo resultado por um caminho mais longo.
+ *
+ * **A ordem das recusas é a de sempre:** `401` → `403 PERMISSAO_INSUFICIENTE` (no `comContexto`, antes de
+ * o recurso ser tocado) → `409 ORGANIZACAO_DIVERGENTE` (a afirmação da §4.3) → `404` / `409` da Aplicação.
+ */
+export const DELETE = comContexto({ exige: "vinculo.gerir" }, async ({ repos, parametros }) => {
+  await removerVinculo(repos.vinculos, parametros["pessoaId"] ?? "");
+});
 
 /** Escala a zero e cookie de sessão: nada aqui é cacheável (RNF5). */
 export const dynamic = "force-dynamic";

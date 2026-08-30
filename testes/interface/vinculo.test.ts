@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import { cadastroDeVinculoSchema, correcaoDeVinculoSchema } from "@/interface/schemas";
@@ -145,5 +148,31 @@ describe("correcaoDeVinculoSchema — ausente e vazio são instruções diferent
 
     expect(conferido.success).toBe(true);
     expect(conferido.data?.contatos).toBeUndefined();
+  });
+});
+
+/**
+ * ============================================================================
+ *  O critério 10.5 — é o ÚNICO `DELETE` do contrato
+ * ============================================================================
+ *
+ * **Um critério de aceitação sem nada que o confira é um critério que ninguém confere.** O 10.5 afirma
+ * que não há caminho que apague ocorrência, mensagem, categoria nem área — e o custo de conferir isso é
+ * uma varredura de doze linhas.
+ *
+ * **Não é o mesmo que o portão do contrato:** aquele roda sobre o `openapi.yaml`, e este roda sobre o
+ * **código**. O dia em que os dois discordarem é o dia em que alguém escreveu endpoint sem publicar.
+ */
+describe("o único DELETE do produto", () => {
+  it("existe exatamente um export const DELETE em app/api/, e é o de vínculos", () => {
+    const raiz = fileURLToPath(new URL("../../app/api/", import.meta.url));
+
+    const rotas = readdirSync(raiz, { recursive: true, encoding: "utf8" })
+      .filter((caminho) => caminho.endsWith("route.ts"))
+      .filter((caminho) => /^export const DELETE\b/mu.test(readFileSync(`${raiz}${caminho}`, "utf8")))
+      // O `readdirSync` recursivo devolve separador do sistema; a asserção é sobre o caminho lógico.
+      .map((caminho) => caminho.replace(/\\/gu, "/"));
+
+    expect(rotas).toStrictEqual(["vinculos/[pessoaId]/route.ts"]);
   });
 });
