@@ -8,7 +8,14 @@ export {
   type DecisaoDeAprovacao,
   type DecisaoDeRecusa,
 } from "./decidir-pedido-de-entrada";
-export { cadastrarVinculo, corrigirVinculo, listarVinculos, verVinculo } from "./vinculos";
+export {
+  cadastrarVinculo,
+  corrigirVinculo,
+  listarImpedimentosDeRemocao,
+  listarVinculos,
+  removerVinculo,
+  verVinculo,
+} from "./vinculos";
 export {
   corrigirArea,
   corrigirCategoria,
@@ -33,6 +40,8 @@ export {
   PedidoJaDecidido,
   PedidoNaoEncontrado,
   PessoaComContaNaoEditavel,
+  UltimoGestor,
+  VinculoComHistorico,
   VinculoNaoEncontrado,
 } from "./erros";
 export type {
@@ -45,6 +54,7 @@ export type {
   CorrecaoDeCategoria,
   DadosDaCorrecao,
   DadosDoCadastro,
+  ImpedimentoDeRemocao,
   NovaArea,
   NovaCategoria,
   NovaOrganizacao,
@@ -62,6 +72,7 @@ export type {
   ResultadoDaAprovacao,
   ResultadoDaCorrecao,
   ResultadoDaRecusa,
+  ResultadoDaRemocao,
   ResultadoDeCorrecaoDeArea,
   ResultadoDeCorrecaoDeCategoria,
   ResultadoDeCriacaoDeArea,
