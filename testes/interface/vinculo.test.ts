@@ -8,6 +8,8 @@ import {
   textoDaConfirmacao,
   textoDaRecusa,
 } from "@/interface/componentes/frases-da-remocao";
+import { filtrarVinculosPorNome } from "@/interface/componentes/lista-de-vinculos";
+import type { VinculoProjetado } from "@/interface/projecoes";
 import { cadastroDeVinculoSchema, correcaoDeVinculoSchema } from "@/interface/schemas";
 
 /**
@@ -293,5 +295,63 @@ describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar (spe
     expect(textoDaRecusa(undefined, "Helena Rocha")).toBe(
       "Não foi possível remover agora. Tente de novo.",
     );
+  });
+});
+
+/**
+ * ============================================================================
+ *  A busca de T-08 — critério 10.6, o reuso literal do item 20
+ * ============================================================================
+ *
+ * **Nenhuma linha de normalização é reescrita.** `termosDaBusca` e `casaPeloNome` recebem `string`, e é
+ * exatamente o que o módulo do item 20 foi escrito para permitir (`busca-de-candidatos.ts:13`).
+ *
+ * **Filtra no navegador, não por `?busca=` na URL.** O do item 20 filtra em memória; um `round trip` por
+ * tecla contra uma nuvem que escala a zero seria o oposto. E ir para o cliente **não vaza nada de novo**:
+ * tudo que a propriedade carrega já está desenhado na tela.
+ */
+describe("filtrarVinculosPorNome — o mesmo casamento do modal do item 20", () => {
+  const VINCULO = (pessoaId: string, nome: string): VinculoProjetado => ({
+    pessoa: { pessoaId, nome, contatos: [] },
+    papel: "solicitante",
+    area: null,
+    temConta: true,
+    criadoEm: "2026-08-30T12:00:00.000Z",
+  });
+
+  const LISTA = [
+    VINCULO("p1", "Ana Paula Souza"),
+    VINCULO("p2", "Mariana Silva"),
+    VINCULO("p3", "Sebastião Álvares"),
+  ] as const;
+
+  it("busca em branco devolve a lista inteira, na mesma ordem — filtrar nunca reordena", () => {
+    expect(filtrarVinculosPorNome(LISTA, "   ")).toStrictEqual(LISTA);
+  });
+
+  it("casa por PREFIXO de palavra, não por pedaço — 'ana' não acha Mariana", () => {
+    expect(filtrarVinculosPorNome(LISTA, "ana").map((v) => v.pessoa.pessoaId)).toStrictEqual(["p1"]);
+  });
+
+  it("o sobrenome acha, porque é como se procura gente", () => {
+    expect(filtrarVinculosPorNome(LISTA, "silva").map((v) => v.pessoa.pessoaId)).toStrictEqual([
+      "p2",
+    ]);
+  });
+
+  it("sem acento e sem caixa — quem digita no celular não põe acento", () => {
+    expect(filtrarVinculosPorNome(LISTA, "SEBASTIAO").map((v) => v.pessoa.pessoaId)).toStrictEqual([
+      "p3",
+    ]);
+  });
+
+  it("todos os termos precisam casar — 'mari sil' acha Mariana Silva e mais ninguém", () => {
+    expect(filtrarVinculosPorNome(LISTA, "mari sil").map((v) => v.pessoa.pessoaId)).toStrictEqual([
+      "p2",
+    ]);
+  });
+
+  it("não casa papel nem unidade — o critério diz pelo NOME", () => {
+    expect(filtrarVinculosPorNome(LISTA, "solicitante")).toStrictEqual([]);
   });
 });
