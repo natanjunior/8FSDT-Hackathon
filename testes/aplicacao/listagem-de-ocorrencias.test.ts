@@ -40,6 +40,7 @@ function resumo(n: number): OcorrenciaResumoLida {
     autor: { pessoaId: ID_PESSOA, nome: "Helena Rocha" },
     responsavel: null,
     quantidadeDeAnexos: 0,
+    avaliada: false,
     motivoPausa: null,
     registradaEm: `2026-08-2${n}T13:02:11.000Z`,
     atualizadaEm: `2026-08-2${n}T13:02:11.000Z`,

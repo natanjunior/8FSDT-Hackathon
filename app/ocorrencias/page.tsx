@@ -9,10 +9,11 @@ import {
   type PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { listarCategorias, listarPedidosDeEntrada, type CategoriaLida } from "@/aplicacao/organizacao";
-import { PRIORIDADES, STATUS } from "@/dominio/ocorrencia";
+import { STATUS } from "@/dominio/ocorrencia";
 import { acaoDeSair } from "@/interface/acoes";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
+import { MenuDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
 import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
@@ -24,9 +25,12 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
-  nomeDaPrioridade,
+  lenteDeRotulo,
   nomeDoStatus,
+  opcoesDePrioridade,
+  projetarContexto,
   projetarPaginaDeOcorrencias,
+  type LenteDeRotulo,
 } from "@/interface/projecoes";
 
 /**
@@ -84,9 +88,23 @@ export default async function Ocorrencias({
   const { ctx, repos, resolucao } = escopo;
   const vinculo = ctx.vinculo;
   const podeLerTodas = vinculo.pode("ocorrencia.ler_todas");
+
+  /**
+   * **A coluna do rótulo, e ela NÃO é o `podeLerTodas` acima com outro nome.**
+   *
+   * Os dois saem da mesma permissão hoje, e continuam sendo coisas diferentes: `visibilidade`, mais
+   * abaixo, é `podeLerTodas` **cruzado com o filtro**; a lente **não pode depender do filtro**. O Gestor
+   * que toca *"Só as minhas"* continua lendo *"Aberta"* — permissão, nunca recorte (critério 28.6, e
+   * §3.2 da spec do 31).
+   */
+  const lente = lenteDeRotulo(vinculo.permissoes);
+
   const podeRegistrar = vinculo.pode("ocorrencia.registrar");
   const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");
   const organizacao = resolucao.ativo?.organizacao ?? null;
+
+  /** O insumo do menu de troca — a mesma projeção do `GET /contexto`, sem consulta nova (item 7b). */
+  const vinculosDaPessoa = projetarContexto(resolucao).vinculos;
 
   /**
    * **O recorte em palavras, derivado — não esperado.**
@@ -106,10 +124,10 @@ export default async function Ocorrencias({
     valor: status,
     rotulo: nomeDoStatus(status),
   }));
-  const opcoesDePrioridade: readonly OpcaoDeFiltro[] = PRIORIDADES.map((prioridade) => ({
-    valor: prioridade,
-    rotulo: nomeDaPrioridade(prioridade),
-  }));
+  // **A mesma lista, de um lugar só.** Ela era montada aqui em linha; a partir do item 17 a projeção a
+  // devolve pronta, porque o seletor de T-05 precisa exatamente dos mesmos três pares. Deixar a cópia aqui
+  // ao lado da função nova seria a segunda cópia que o critério 17.6 daquele item combate.
+  const opcoesDeFiltroPorPrioridade: readonly OpcaoDeFiltro[] = opcoesDePrioridade();
 
   /**
    * **As duas leituras da lista partem agora e não são esperadas aqui.** Elas são passadas como promessa
@@ -141,8 +159,17 @@ export default async function Ocorrencias({
         </h1>
         {/* A organização ativa, permanentemente visível: *"num produto em que a organização vem da sessão
             e não da URL, o endereço não diz onde você está, então a tela tem de dizer"* (inventário §3,
-            decisão 3). **Sem o `▾` de trocar** — isso é `PUT /contexto/organizacao`, o item 7b. */}
-        {organizacao !== null && <p className="text-tinta-suave text-sm">{organizacao.nome}</p>}
+            decisão 3). **E agora com o `▾` de trocar** — é o `PUT /contexto/organizacao`, o item 7b.
+            T-03 é o eixo: toda tela de dentro se alcança dela, então o menu está a um toque de qualquer
+            lugar, e trocar de organização no meio de um formulário — que é onde a troca é armadilha —
+            continua não sendo oferecido. */}
+        {organizacao !== null && (
+          <MenuDeOrganizacao
+            vinculos={vinculosDaPessoa}
+            organizacaoAtivaId={organizacao.id}
+            nomeDaOrganizacaoAtiva={organizacao.nome}
+          />
+        )}
       </header>
 
       {podeRegistrar && (
@@ -162,17 +189,28 @@ export default async function Ocorrencias({
           consultaAtual={consultaAtual}
           nomeDaOrganizacao={organizacao?.nome ?? null}
           podeLerTodas={podeLerTodas}
+          lente={lente}
           podeAlterarPrioridade={podeAlterarPrioridade}
           opcoesDeStatus={opcoesDeStatus}
-          opcoesDePrioridade={opcoesDePrioridade}
+          opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
           podeRegistrar={podeRegistrar}
           podeConfigurar={vinculo.pode("organizacao.configurar")}
           mostrarPrioridade={podeAlterarPrioridade}
+          pessoaIdDeQuemLe={ctx.pessoaId}
         />
       </Suspense>
 
       <nav className="border-linha flex flex-col gap-2 border-t pt-4">
         <h2 className="text-tinta-fraca text-xs tracking-wide uppercase">Nesta organização</h2>
+        {vinculo.pode("dashboard.ler") && (
+          <Link
+            href="/dashboard"
+            className="border-linha bg-superficie text-tinta flex min-h-11 items-center justify-between rounded-md border px-4 py-3 text-sm"
+          >
+            <span>Dashboard</span>
+            <span className="text-tinta-suave text-xs">o que muda no mês</span>
+          </Link>
+        )}
         {pendentes !== null && (
           <Link
             href="/vinculos"
@@ -235,12 +273,14 @@ async function Lista({
   consultaAtual,
   nomeDaOrganizacao,
   podeLerTodas,
+  lente,
   podeAlterarPrioridade,
   opcoesDeStatus,
   opcoesDePrioridade,
   podeRegistrar,
   podeConfigurar,
   mostrarPrioridade,
+  pessoaIdDeQuemLe,
 }: {
   pagina: Promise<PaginaDeOcorrencias>;
   categorias: Promise<readonly CategoriaLida[]>;
@@ -248,15 +288,19 @@ async function Lista({
   consultaAtual: string;
   nomeDaOrganizacao: string | null;
   podeLerTodas: boolean;
+  /** Qual coluna do `glossario.md` §4 os itens da lista mostram — item 31. */
+  lente: LenteDeRotulo;
   podeAlterarPrioridade: boolean;
   opcoesDeStatus: readonly OpcaoDeFiltro[];
   opcoesDePrioridade: readonly OpcaoDeFiltro[];
   podeRegistrar: boolean;
   podeConfigurar: boolean;
   mostrarPrioridade: boolean;
+  /** Quem abriu T-03 — para a marca *"Conte como foi"* do critério 27.5. */
+  pessoaIdDeQuemLe: string;
 }) {
   const [resultado, listaDeCategorias] = await Promise.all([pagina, categorias]);
-  const projetada = projetarPaginaDeOcorrencias(resultado);
+  const projetada = projetarPaginaDeOcorrencias(resultado, lente);
 
   /**
    * §3.8 — o **menu** oferece só as ativas, por coerência com T-04, que *"nunca oferece categoria
@@ -344,6 +388,7 @@ async function Lista({
         consultaAtual={consultaAtual}
         iconePorCategoria={iconePorCategoria}
         mostrarPrioridade={mostrarPrioridade}
+        pessoaIdDeQuemLe={pessoaIdDeQuemLe}
         agora={instanteDoServidor()}
       />
     </div>

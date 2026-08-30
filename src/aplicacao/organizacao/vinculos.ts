@@ -2,11 +2,14 @@ import {
   AreaInvalida,
   ContatoDuplicado,
   PessoaComContaNaoEditavel,
+  UltimoGestor,
+  VinculoComHistorico,
   VinculoNaoEncontrado,
 } from "./erros";
 import type {
   DadosDaCorrecao,
   DadosDoCadastro,
+  ImpedimentoDeRemocao,
   RepositorioEscopadoDeVinculos,
   VinculoLido,
 } from "./portas";
@@ -27,7 +30,7 @@ import type {
  * do item 8, e a razão é a mesma: uma leitura antes perde a corrida.
  */
 
-/** A lista de T-08, e a lista de candidatos a responsável que o item 19 vai consumir (D21). */
+/** A lista de T-08, e a lista de candidatos a responsável que o item 19 consome (D21). */
 export function listarVinculos(
   vinculos: RepositorioEscopadoDeVinculos,
 ): Promise<readonly VinculoLido[]> {
@@ -104,4 +107,59 @@ export async function corrigirVinculo(
     case "corrigido":
       return resultado.vinculo;
   }
+}
+
+/**
+ * A remoção do vínculo — o conserto do **PA-25**.
+ *
+ * **Não devolve nada, e é o `204` do contrato.** A `Pessoa` permanece: ela é global e nunca se apaga por
+ * aqui (critério 10.1).
+ *
+ * **Nenhum desfecho vem de leitura prévia**, e nesta função isso é literal — ela não faz consulta nenhuma.
+ * Os três de recusa são traduções: `nao-encontrado` é o `where organizacao_id = $1` do escopo,
+ * `ultimo-gestor` é a guarda dentro do `where` do `delete`, e `com-historico` é o `ON DELETE RESTRICT`.
+ *
+ * **A permissão não é conferida aqui.** `vinculo.gerir` é exigida na porta de entrada, por
+ * `comContexto({ exige })`, que não compila sem a permissão declarada (contrato §4.5).
+ */
+export async function removerVinculo(
+  vinculos: RepositorioEscopadoDeVinculos,
+  pessoaId: string,
+): Promise<void> {
+  const resultado = await vinculos.remover(pessoaId);
+
+  switch (resultado.desfecho) {
+    case "nao-encontrado":
+      throw new VinculoNaoEncontrado();
+    case "ultimo-gestor":
+      throw new UltimoGestor();
+    case "com-historico":
+      throw new VinculoComHistorico();
+    case "removido":
+      return;
+  }
+}
+
+/**
+ * O que impede a remoção, por vínculo ativo — **a leitura que T-08 faz pela estrada direta** (contrato
+ * §5).
+ *
+ * **Existe por uma razão de camada, não de conveniência:** nenhuma página deste repositório chama método
+ * de porta direto — as doze chamadas de `app/` passam por função de aplicação, e `resolverEscopoParaTela`
+ * entrega `repos` justamente para que elas o façam. Uma página que chamasse
+ * `repos.vinculos.impedimentosDeRemocao()` seria a primeira exceção, e a estrada direta deixaria de ser
+ * *"a mesma função de aplicação, chamada por dois transportes"*.
+ *
+ * **Delega e nada mais** — o mesmo desenho de `listarVinculos` e de `verVinculo`. A precedência entre os
+ * dois impedimentos é da consulta (spec §3.4), e reproduzi-la aqui criaria duas fontes para a mesma
+ * regra.
+ *
+ * > **O `GET` correspondente não existe, e isso é achado registrado, não descuido** — o contrato §5.2
+ * > pede endpoint para todo objeto de consulta usado por Server Component. Ver o achado **P-8** do plano
+ * > do item 10. Com a leitura já morando aqui, publicá-la é acrescentar um handler que chama esta função.
+ */
+export function listarImpedimentosDeRemocao(
+  vinculos: RepositorioEscopadoDeVinculos,
+): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>> {
+  return vinculos.impedimentosDeRemocao();
 }

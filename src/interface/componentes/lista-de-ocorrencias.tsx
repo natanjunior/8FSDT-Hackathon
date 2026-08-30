@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { rotuloDeMotivoPausa } from "@/interface/projecoes";
+import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
 import { IconeDeCategoria } from "./icone-de-categoria";
@@ -22,7 +22,7 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  *
  * | Recorte | Onde | Forma |
  * |---|---|---|
- * | **A** · `apenas_minhas` | qualquer largura | cartão alto, rótulo em destaque, **sem prioridade** |
+ * | **A** · `apenas_minhas` | qualquer largura | cartão alto, rótulo em destaque, **prioridade por permissão** |
  * | **B** · `todas`, ≥ `md` | tabela | seis colunas de comparação |
  * | **C** · `todas`, celular | cartão de 3 linhas | **sem categoria** — achado P-04, aprovado pelo hub |
  *
@@ -52,6 +52,18 @@ type Props = {
    * campo que ele mesmo altera. Está como achado A-3 na spec.
    */
   mostrarPrioridade: boolean;
+  /**
+   * **Quem está lendo a lista** — o `pessoaId` de quem abriu T-03, para a marca *"Conte como foi"* do
+   * critério 27.5.
+   *
+   * **Texto, e por isso atravessa a fronteira do servidor sem problema** — ao contrário do
+   * `destinoDoItem`, que é função e teve de ser montado aqui dentro (ver o bloco dele).
+   *
+   * **Obrigatória de propósito**, como `consultaAtual`: opcional, um esquecimento em quem monta a lista
+   * faz o convite sumir em silêncio, e o compilador deixa de ser a garantia. O objetivo **O4** depende
+   * dele existir.
+   */
+  pessoaIdDeQuemLe: string;
   /** O instante da renderização no servidor. */
   agora: number;
 };
@@ -61,6 +73,7 @@ export function ListaDeOcorrencias({
   consultaAtual,
   iconePorCategoria,
   mostrarPrioridade,
+  pessoaIdDeQuemLe,
   agora,
 }: Props) {
   const [itens, setItens] = useState<readonly OcorrenciaResumoProjetada[]>(primeiraPagina.itens);
@@ -129,7 +142,7 @@ export function ListaDeOcorrencias({
       ? `/ocorrencias/${id}`
       : `/ocorrencias/${id}?de=${encodeURIComponent(consultaAtual)}`;
 
-  const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora };
+  const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora, pessoaIdDeQuemLe };
 
   return (
     <div className="flex flex-col gap-4">
@@ -176,22 +189,111 @@ type PropsDoItem = {
   destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
+  pessoaIdDeQuemLe: string;
   agora: number;
 };
 
 /**
- * **Recorte A.** O `statusRotulo` é a primeira linha e é o que fica em destaque — é a resposta literal a
- * *"o que aconteceu com o meu pedido?"*. Sem prioridade: é decisão do Gestor, e não há nada que o
- * Solicitante faça com ela.
+ * **O convite a avaliar, no item da lista** — critério 27.5, metade de T-03.
+ *
+ * **Três fatos, e nenhum deles é `acoesDisponiveis`:** o status, o campo `avaliada` que o item 27 pôs no
+ * payload, e a autoria. **A quarta dimensão da máquina de estados — a permissão — é CONSTANTE nesta
+ * tela**, porque `ocorrencia.avaliar` e `ocorrencia.ler_propria` estão as duas em `DO_SOLICITANTE`, o
+ * Gestor acumula, e o Encarregado tem lista vazia e nem alcança T-03. **Os três fatos são equivalentes à
+ * resposta da máquina, não uma aproximação dela** — e é por isso que isto não é a segunda cópia que o
+ * critério 14.5 existe para impedir.
+ *
+ * **Numa função, e não num `?:` dentro de três JSX** — é a mesma razão do `segundaLinhaDeMotivo` e do
+ * `vazioDaLista`: três condições que precisam concordar em três lugares é o defeito que o item 22
+ * consertou ao criar `acaoPrimaria`.
  */
-function CartaoDoSolicitante({ item, destinoDoItem, iconePorCategoria, agora }: PropsDoItem) {
+function convidaAAvaliar(item: OcorrenciaResumoProjetada, pessoaIdDeQuemLe: string): boolean {
+  return item.status === "resolvida" && !item.avaliada && item.autor.pessoaId === pessoaIdDeQuemLe;
+}
+
+/**
+ * O texto da marca. **"Conte como foi", e não a frase inteira** — é a Q-P8 do protótipo, já respondida
+ * **(a)** (`prototipo-low-fi.md:1282`): na lista a frase inteira duplicaria o `statusRotulo` que o
+ * servidor mandou, e a segunda cópia seria montada no cliente, que é o que o contrato §8.8 não quer.
+ */
+const CONVITE_A_AVALIAR = "Conte como foi";
+
+/**
+ * **Recorte A.** O `statusRotulo` é a primeira linha e é o que fica em destaque — é a resposta literal a
+ * *"o que aconteceu com o meu pedido?"*.
+ *
+ * **A prioridade aparece por PERMISSÃO, nunca por recorte** — critério **28.6**, e é a correção **P-03**
+ * do protótipo. As duas metades da regra:
+ *
+ * - **O Solicitante continua sem ver**, e o critério **28.4** fica literal e intacto: ele não tem
+ *   `ocorrencia.alterar_prioridade` em nenhum dos dois desenhos de papel (`Permissao.ts:38-44`). *"É
+ *   decisão do Gestor, e não há nada que o Solicitante faça com ela."*
+ * - **Quem ganha é o síndico morador** — o Gestor que toca *"Ver as minhas"*. Até aqui ele perdia a
+ *   coluna de um campo que ele mesmo altera, **no mesmo gesto** em que a barra continuava lhe oferecendo
+ *   o chip `Prioridade ▾`: o produto oferecia filtrar por um campo que se recusava a exibir.
+ *
+ * **A ordem na primeira linha, e por que a linha embrulha:** a marca do item 27 vem primeiro, a etiqueta
+ * de prioridade depois. A marca é **convite e tem prazo**; a prioridade é **fato e não tem**. Quando as
+ * duas coexistem — Gestor-autor numa `resolvida` ainda não avaliada — a linha **embrulha** (`flex-wrap`)
+ * em vez de encolher qualquer uma: encolher é o caminho de virar cor, que é o que o compromisso **A-5**
+ * proíbe.
+ */
+function CartaoDoSolicitante({
+  item,
+  destinoDoItem,
+  iconePorCategoria,
+  mostrarPrioridade,
+  pessoaIdDeQuemLe,
+  agora,
+}: PropsDoItem) {
+  /**
+   * **A MESMA função dos recortes B e C — critério 31.6, e permissão nunca recorte.**
+   *
+   * O `CartaoDoSolicitante` é o recorte **A**, e ele não é só do Solicitante: é também o do **Gestor que
+   * tocou *"Só as minhas"*** — o síndico morador do 28.5. Sem esta linha ele leria *"Pausada"* pelado, no
+   * mesmo gesto em que a barra continua lhe oferecendo o chip `Status ▾`. É o defeito que o **28.6**
+   * fechou para a prioridade, reaberto com outro campo — e o critério **14.3** já diz *"quem lê é
+   * Gestor"*, não *"o recorte é de Gestor"*.
+   *
+   * **Custa uma chamada e nenhum argumento novo.** Para o Solicitante de verdade os dois textos
+   * coincidem, a função devolve `null`, e **o cartão dele fica byte a byte igual**.
+   */
+  const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
+
   return (
     <li>
       <Link
         href={destinoDoItem(item.id)}
         className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
       >
-        <span className="text-tinta text-sm font-semibold">{item.statusRotulo}</span>
+        <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="text-tinta flex flex-col text-sm font-semibold">
+            {item.statusRotulo}
+            {/* **A-5: a espera carrega a palavra, nunca só a cor.** Segunda LINHA e não sufixo com `·`,
+                porque aqui o rótulo já divide a primeira linha com a marca do 27 e a etiqueta de
+                prioridade — o `·` do `CartaoDeTriagem` não cabe. */}
+            {segundaLinha !== null && (
+              <span className="text-tinta-suave text-xs font-normal">{segundaLinha}</span>
+            )}
+          </span>
+          {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
+              vez de espalhar três filhos pela linha. */}
+          <span className="flex items-baseline gap-2">
+            {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
+              /* **Marca, não botão.** O item inteiro já é um `<Link>`; um segundo alvo aqui dentro é
+                 conteúdo interativo aninhado e alvo pequeno dentro de alvo grande (A-3), e seria a
+                 primeira ação no item da lista, que o critério 14.5 proíbe. **A-5:** carrega a palavra. */
+              <span className="text-marca shrink-0 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
+            )}
+            {/* A-5: a prioridade carrega a palavra. Nunca só a cor. **A mesma forma do `CartaoDeTriagem`**
+                — a segunda etiqueta de prioridade do arquivo não pode ser um desenho diferente. */}
+            {mostrarPrioridade && (
+              <span className="text-tinta-suave border-linha shrink-0 rounded border px-1.5 py-0.5 text-xs">
+                {rotuloDePrioridade(item.prioridade)}
+              </span>
+            )}
+          </span>
+        </span>
         <span className="text-tinta text-base leading-snug">{item.titulo}</span>
         <span className="text-tinta-suave flex items-center gap-1.5 text-xs">
           <IconeDeCategoria
@@ -218,7 +320,17 @@ function CartaoDoSolicitante({ item, destinoDoItem, iconePorCategoria, agora }: 
  * categoria é a dimensão pela qual o Gestor **recorta**, não a que ele **compara**. O critério 14.6 vale
  * nos recortes que exibem o nome — *"ao lado do nome, nunca no lugar dele"* é regra que se autolimita.
  */
-function CartaoDeTriagem({ item, destinoDoItem, mostrarPrioridade, agora }: PropsDoItem) {
+function CartaoDeTriagem({
+  item,
+  destinoDoItem,
+  mostrarPrioridade,
+  pessoaIdDeQuemLe,
+  agora,
+}: PropsDoItem) {
+  /** **A segunda metade só sai quando acrescenta informação** — critério 23.6. Até o item 31 o
+   *  `statusRotulo` já É o rótulo do motivo, e imprimir os dois repetiria a mesma frase. */
+  const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
+
   return (
     <li>
       <Link
@@ -228,7 +340,12 @@ function CartaoDeTriagem({ item, destinoDoItem, mostrarPrioridade, agora }: Prop
         <span className="flex items-baseline justify-between gap-3">
           <span className="text-tinta text-sm font-semibold">
             {item.statusRotulo}
-            {item.motivoPausa !== null && ` · ${rotuloDeMotivoPausa(item.motivoPausa)}`}
+            {segundaLinha !== null && ` · ${segundaLinha}`}
+            {/* **Em `resolvida` a segunda linha do motivo é sempre nula** — `segundaLinhaDeMotivo` só
+                devolve texto em `pausada` —, então os dois nunca aparecem juntos. */}
+            {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
+              <span className="text-marca ml-2 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
+            )}
           </span>
           {/* A-5: a prioridade carrega a palavra. Nunca só a cor. */}
           {mostrarPrioridade && (
@@ -264,12 +381,14 @@ function TabelaDeTriagem({
   destinoDoItem,
   iconePorCategoria,
   mostrarPrioridade,
+  pessoaIdDeQuemLe,
   agora,
 }: {
   itens: readonly OcorrenciaResumoProjetada[];
   destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
+  pessoaIdDeQuemLe: string;
   agora: number;
 }) {
   return (
@@ -304,10 +423,18 @@ function TabelaDeTriagem({
             <tr key={item.id} className="border-linha border-b align-top">
               <td className="py-3 pr-3">
                 <span className="text-tinta block">{item.statusRotulo}</span>
-                {item.motivoPausa !== null && (
+                {/* **A MESMA função do cartão** — critério 23.6. Duas condições que precisam concordar
+                    em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */}
+                {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo) !== null && (
                   <span className="text-tinta-suave block text-xs">
-                    {rotuloDeMotivoPausa(item.motivoPausa)}
+                    {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo)}
                   </span>
+                )}
+                {/* **A marca vale nos TRÊS recortes**, e não só no do Solicitante: a condição do critério
+                    27.5 é POR ITEM, e limitá-la ao recorte A deixaria o **Gestor-autor** — o síndico
+                    morador — sem convite até o item 28 trazer o `?autor=eu`. */}
+                {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
+                  <span className="text-marca block text-xs font-medium">{CONVITE_A_AVALIAR}</span>
                 )}
               </td>
               <td className="py-3 pr-3">

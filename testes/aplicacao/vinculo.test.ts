@@ -4,12 +4,16 @@ import {
   AreaInvalida,
   ContatoDuplicado,
   PessoaComContaNaoEditavel,
+  UltimoGestor,
+  VinculoComHistorico,
   VinculoNaoEncontrado,
   cadastrarVinculo,
   corrigirVinculo,
   listarVinculos,
+  removerVinculo,
   type RepositorioEscopadoDeVinculos,
   type ResultadoDaCorrecao,
+  type ResultadoDaRemocao,
   type ResultadoDoCadastro,
   type VinculoLido,
 } from "@/aplicacao/organizacao";
@@ -37,11 +41,12 @@ const ENCARREGADO: VinculoLido = {
 function portaFalsa(
   cadastro: ResultadoDoCadastro = { desfecho: "cadastrado", vinculo: ENCARREGADO },
   correcao: ResultadoDaCorrecao = { desfecho: "corrigido", vinculo: ENCARREGADO },
+  remocao: ResultadoDaRemocao = { desfecho: "removido" },
 ): {
   porta: RepositorioEscopadoDeVinculos;
-  recebido: { cadastrar?: unknown; corrigir?: unknown };
+  recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown };
 } {
-  const recebido: { cadastrar?: unknown; corrigir?: unknown } = {};
+  const recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown } = {};
   return {
     recebido,
     porta: {
@@ -54,6 +59,15 @@ function portaFalsa(
       corrigir(dados) {
         recebido.corrigir = dados;
         return Promise.resolve(correcao);
+      },
+      remover(pessoaId) {
+        recebido.remover = pessoaId;
+        return Promise.resolve(remocao);
+      },
+      // **Nunca chamada pelo caso de uso**, e é o ponto: `impedimentosDeRemocao` existe para a TELA
+      // (spec §3.4). Se algum dia `removerVinculo` a chamar, o desfecho deixou de vir do banco.
+      impedimentosDeRemocao: () => {
+        throw new Error("removerVinculo não lê impedimentos — o desfecho vem do banco.");
       },
     },
   };
@@ -196,5 +210,38 @@ describe("contatos — a tradução do desfecho e o que não pode ser inventado"
     await corrigirVinculo(porta, { pessoaId: "pessoa-1", areaId: null });
 
     expect(Object.hasOwn(recebido.corrigir as object, "contatos")).toBe(false);
+  });
+});
+
+/**
+ * **Os três desfechos de recusa, e o que está sob teste é a TRADUÇÃO** — desfecho da porta → recusa
+ * nomeada do contrato. As garantias que produzem os desfechos são do banco: as nove chaves estrangeiras
+ * `on delete restrict` e a guarda do último Gestor dentro do `where`. Prová-las contra um duplo provaria
+ * que o duplo simula. Elas são da tarefa 2, contra Postgres de verdade.
+ */
+describe("removerVinculo", () => {
+  it("no caminho feliz não devolve nada, e entrega à porta o pessoaId cru", async () => {
+    const { porta, recebido } = portaFalsa();
+
+    await expect(removerVinculo(porta, "pessoa-1")).resolves.toBeUndefined();
+    expect(recebido.remover).toBe("pessoa-1");
+  });
+
+  it("traduz nao-encontrado em VINCULO_NAO_ENCONTRADO", async () => {
+    const { porta } = portaFalsa(undefined, undefined, { desfecho: "nao-encontrado" });
+
+    await expect(removerVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(VinculoNaoEncontrado);
+  });
+
+  it("traduz com-historico em VINCULO_COM_HISTORICO", async () => {
+    const { porta } = portaFalsa(undefined, undefined, { desfecho: "com-historico" });
+
+    await expect(removerVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(VinculoComHistorico);
+  });
+
+  it("traduz ultimo-gestor em ULTIMO_GESTOR", async () => {
+    const { porta } = portaFalsa(undefined, undefined, { desfecho: "ultimo-gestor" });
+
+    await expect(removerVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(UltimoGestor);
   });
 });

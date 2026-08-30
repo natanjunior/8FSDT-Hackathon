@@ -18,6 +18,11 @@ import { configDefaults, defineConfig } from "vitest/config";
  * `interface/` confere schema, `infraestrutura/` confere o ACL com o SDK do provedor **simulado**. Pasta de
  * teste que não estiver nesta lista **não é executada e não falha** — que é a pior forma de um portão ser
  * marcado sem ser cumprido.
+ *
+ * **E há UMA pasta de teste fora desta lista de propósito, desde o item 41b: `testes/ponta-a-ponta/`.**
+ * Ela tem outro runner — Playwright, `playwright.config.ts` na raiz, `npm run teste:ponta-a-ponta` — e
+ * exige a pilha de pé, então não pode entrar no laço curto. O sufixo dela é `.spec.ts`, e não `.test.ts`,
+ * para que um glob amplo acrescentado um dia continue não a alcançando.
  */
 const apelido = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
 
@@ -43,6 +48,12 @@ export default defineConfig({
             // que ele prova é **puro**, e tem de rodar no laço curto — por isso entra aqui, e sai do
             // projeto `integracao` logo abaixo.
             "testes/integracao/banco.test.ts",
+            // **O segundo arquivo avulso, e pela mesma razão que o primeiro.** `semente/` não é camada
+            // de `src/` e não tem apelido `@/` próprio, então módulo e teste ficam lado a lado — e o que
+            // ele prova é **puro**: a forma do plano, sem banco nenhum. Estar aqui significa estar dentro
+            // do `npm run teste`, logo dentro do `npm run verificar`: **plano quebrado trava merge de
+            // qualquer item**, não só deste.
+            "semente/plano.test.ts",
           ],
           environment: "node",
         },

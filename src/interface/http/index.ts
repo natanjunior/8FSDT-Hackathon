@@ -17,6 +17,8 @@ export { armazenamentoDeAnexos } from "./armazenamento-de-anexos";
 export {
   armazenamentoDeCookies,
   comContexto,
+  lerCorpoOpcional,
+  registrarFalha,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,
@@ -28,6 +30,7 @@ export {
 
 export {
   CampoNaoSuportado,
+  comOrganizacaoAtiva,
   CorpoNaoSuportado,
   FormatoInvalido,
   OrganizacaoDivergente,
@@ -35,6 +38,8 @@ export {
   respostaDeProblema,
   type ErroDeCampo,
 } from "./problema";
+
+export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 
 export {
   NOME_DO_COOKIE,
@@ -58,7 +63,9 @@ export {
   consultaDe,
   lerBooleanoDaUrl,
   lerCursorDaUrl,
+  lerCursorDeConversaDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
+  lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,

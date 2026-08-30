@@ -2,6 +2,12 @@
 export { projetarContexto, type ContextoProjetado } from "./contexto";
 
 export {
+  projetarDashboard,
+  type DashboardProjetado,
+  type PontoDoMesProjetado,
+} from "./dashboard";
+
+export {
   projetarArea,
   projetarAreaAtualizada,
   projetarCategoria,
@@ -14,17 +20,33 @@ export {
 
 export {
   codificarCursor,
+  codificarCursorDeConversa,
   decodificarCursor,
+  decodificarCursorDeConversa,
   descricaoDoRecorte,
+  lenteDeRotulo,
   nomeDaPrioridade,
+  nomeDoMotivoCancelamento,
+  nomeDoMotivoPausa,
   nomeDoStatus,
+  opcoesDeMotivoCancelamento,
+  opcoesDeMotivoPausa,
+  opcoesDePrioridade,
+  projetarComentario,
+  projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
+  projetarPaginaDeComentarios,
   projetarPaginaDeOcorrencias,
   projetarTransicao,
   rotuloDeMotivoPausa,
   rotuloDeStatus,
+  segundaLinhaDeMotivo,
+  type ComentarioProjetado,
+  type EventoDaLinhaDoTempoProjetado,
+  type LenteDeRotulo,
   type OcorrenciaResumoProjetada,
+  type PaginaDeComentariosProjetada,
   type PaginaDeOcorrenciasProjetada,
   type QuemLe,
 } from "./ocorrencia";

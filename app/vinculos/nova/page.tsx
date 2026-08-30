@@ -39,7 +39,11 @@ export default async function CadastrarPessoaSemConta() {
         conta. É o zelador que não usa o aplicativo — e o Gestor age em nome dele.
       </p>
 
-      <FormularioDeVinculo modo={{ tipo: "cadastro" }} areas={areas.map(projetarArea)} />
+      <FormularioDeVinculo
+        modo={{ tipo: "cadastro" }}
+        areas={areas.map(projetarArea)}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+      />
     </main>
   );
 }

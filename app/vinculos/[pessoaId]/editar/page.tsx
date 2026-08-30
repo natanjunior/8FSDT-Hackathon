@@ -61,6 +61,7 @@ export default async function CorrigirVinculo({
           contatosAtuais: vinculo.pessoa.contatos,
         }}
         areas={areas.map(projetarArea)}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
     </main>
   );

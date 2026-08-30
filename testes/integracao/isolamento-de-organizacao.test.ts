@@ -2,9 +2,11 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+import { mesEmSaoPaulo } from "@/aplicacao/dashboard";
 import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioEscopadoDeAreas,
@@ -74,6 +76,12 @@ let idDoAnexoEmB: string;
  *  entre execuções — que é o que o `UNIQUE (chave)` GLOBAL de `anexos` exige. */
 const chaveDoAnexoEmA = `anx_iso_a_${SUFIXO}`;
 const chaveDoAnexoEmB = `anx_iso_b_${SUFIXO}`;
+/** **Instantes literais e distintos**, e é a `chaveDaLinha` da nona entrada: `AtribuicaoLida` não tem
+ *  `id` — modelo de leitura correto não expõe chave interna —, e `responsavel.pessoaId` não serve porque
+ *  só `idSindica` tem vínculo nas DUAS organizações, o que faria a chave ser legitimamente compartilhada
+ *  e enfraqueceria o caso. */
+const ATRIBUIDA_EM_A = "2026-08-01T10:00:00.000Z";
+const ATRIBUIDA_EM_B = "2026-08-02T11:00:00.000Z";
 /** A categoria da ocorrência de B — o identificador de FORA que o filtro do item 15 aceita do cliente. */
 let idDaCategoriaDeB: string;
 
@@ -181,12 +189,66 @@ beforeAll(async () => {
       [organizacaoId, lida.id, chaveDoAnexo, idSindica],
     );
 
+    // **A entrada de isolamento semeia só o seu agregado** (§7.1): a Pessoa e a organização são da suíte.
+    // A FK `atribuicoes_responsavel_fk` aponta para `vinculos (pessoa_id, organizacao_id)`, e `idSindica`
+    // tem vínculo nas duas — é a mesma razão que faz a ocorrência caber nas duas.
+    await consulta(
+      `insert into atribuicoes
+         (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, atribuido_em)
+       values ($1, $2, $3, $3, $4::timestamptz)`,
+      [organizacaoId, lida.id, idSindica, organizacaoId === idRecanto ? ATRIBUIDA_EM_A : ATRIBUIDA_EM_B],
+    );
+
+    // **Item 30 — o canal 1 nas duas organizações.** Semeia apenas o próprio agregado: a síndica tem
+    // vínculo nas DUAS, e é ela quem escreve as duas mensagens. É o cenário do critério A4 — *seed* com
+    // pessoas distintas por organização não detectaria o vazamento.
+    await portas.ocorrencias.comentar(lida.id, {
+      autorPessoaId: idSindica,
+      texto: `mensagem de ${organizacaoId}`,
+      em: new Date().toISOString(),
+    });
+
     guardar(lida.id, anexo!.id);
     // O identificador de categoria que a oitava entrada de isolamento pede **dentro de A**. Lido aqui
     // porque é a categoria que a ocorrência de B de fato aponta — o `insert` de `semear()` cria uma por
     // organização, e qual delas é a de B só se sabe lendo.
     if (organizacaoId === idAurora) idDaCategoriaDeB = categoria!.id;
   }
+
+  /**
+   * **A resolução da ocorrência de A — e ela existe para a entrada do dashboard morder.**
+   *
+   * A consulta `resolucoesPorMes` filtra `status_novo = 'resolvida'`, e o mundo da suíte tem as duas
+   * ocorrências `aberta`: sem isto, ela devolveria lista vazia nas duas organizações e o caso passaria
+   * sem provar nada (achado **A-32-7** do plano).
+   *
+   * **Muda a ocorrência que já existe, em vez de criar uma segunda**, e a diferença é obrigatória: as
+   * entradas de `GET /ocorrencias/{id}`, `GET /ocorrencias` e `GET /ocorrencias?categoriaId=` declaram
+   * `esperadas` com **exatamente um** identificador por organização, e uma ocorrência a mais em A as
+   * quebraria. Todas as três usam `id` como chave, então a troca de `status` não alcança nenhuma.
+   *
+   * **A trilha recebe `sequencia = 2`, `aberta → resolvida`.** O banco não valida a máquina de estados —
+   * quem valida é o agregado —, e o `registros_transicao_mudanca_ck` só exige que anterior e novo
+   * difiram. É fixture, não caminho de produção.
+   *
+   * **A nota entra na mesma instrução do `status`** porque o `ocorrencias_avaliacao_ck` exige as três
+   * colunas coerentes **e** `status = 'resolvida'` na mesma linha.
+   */
+  await consulta(
+    `update ocorrencias
+        set status = 'resolvida',
+            avaliacao_nota = 5,
+            avaliada_em = now(),
+            atualizada_em = now()
+      where id = $1 and organizacao_id = $2`,
+    [idDaOcorrenciaEmA, idRecanto],
+  );
+  await consulta(
+    `insert into registros_transicao
+       (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id)
+     values ($1, $2, 2, 'aberta', 'resolvida', $3)`,
+    [idRecanto, idDaOcorrenciaEmA, idSindica],
+  );
 });
 
 afterAll(async () => {
@@ -672,6 +734,41 @@ describe("as consultas de configuração não atravessam organizações", () => 
   });
 
   /**
+   * **A entrada do item 30 — a conversa.** Ela mira o `SELECT_DAS_MENSAGENS`: uma consulta que
+   * **atravessa duas tabelas novas** (`mensagens` → `canais_conversa`) e um par de `join` de pessoa. Se o
+   * `$1` sumisse do `where`, ou se o `join` do canal perdesse o `and c.organizacao_id = m.organizacao_id`,
+   * a conversa de outro condomínio apareceria dentro desta — e é este caso que acende.
+   *
+   * **Pede as DUAS ocorrências com o escopo de UMA**, como a entrada de `GET /ocorrencias/{id}`: a de
+   * fora tem de devolver lista vazia, e não a mensagem dela.
+   *
+   * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
+   * própria suíte: `ComentarioLido` **não expõe `organizacao_id`**, de propósito.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/comentarios",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const paginas = await Promise.all([
+        repo.comentarios(idDaOcorrenciaEmA, { limite: 20, cursor: null }),
+        repo.comentarios(idDaOcorrenciaEmB, { limite: 20, cursor: null }),
+      ]);
+      return paginas.flat();
+    },
+    chaveDaLinha: (comentario) => comentario.texto,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. É a mesma nota que a entrada de `GET /ocorrencias/{id}` já carrega.
+    esperadas: {
+      get emA() {
+        return [`mensagem de ${idRecanto}`];
+      },
+      get emB() {
+        return [`mensagem de ${idAurora}`];
+      },
+    },
+  });
+
+  /**
    * **A oitava entrada, e a primeira em que um identificador de FORA entra na consulta vindo do cliente.**
    *
    * A entrada de `GET /ocorrencias` acima prova que a listagem **sem filtro** não atravessa organizações.
@@ -703,6 +800,167 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [idDaOcorrenciaEmB];
+      },
+    },
+  });
+
+  /**
+   * **A nona entrada, e a primeira da linha do tempo (item 29).** Ela semeia **apenas o próprio
+   * agregado** — as pessoas e as organizações são da suíte (§7.1).
+   *
+   * O que ela mira é o `SELECT_DAS_ATRIBUICOES`: uma consulta com **dois pares de `join` que partem de
+   * `vinculos`** e alcançam `pessoas`, que é global. Se qualquer um dos quatro perdesse o
+   * `and v.organizacao_id = at.organizacao_id`, ou se o `$1` sumisse do `where`, a linha do tempo de uma
+   * ocorrência de Recanto passaria a nomear quem é da Aurora — **e nenhuma das oito entradas anteriores
+   * acenderia**, porque nenhuma delas lê `atribuicoes` por ocorrência.
+   *
+   * **A consulta pede as DUAS ocorrências com o escopo de UMA**, como a entrada de `GET /ocorrencias/{id}`
+   * faz: é o que prova que a de fora devolve lista vazia em vez de linha alheia.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/linha-do-tempo",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const lidas = await Promise.all([
+        repo.atribuicoes(idDaOcorrenciaEmA),
+        repo.atribuicoes(idDaOcorrenciaEmB),
+      ]);
+      return lidas.flat();
+    },
+    chaveDaLinha: (atribuicao) => atribuicao.atribuidoEm,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. Aqui as chaves são literais e escapariam por acaso; o getter fica pela mesma razão
+    // que a entrada de `GET /ocorrencias/{id}` a carrega: a forma é a mesma para quem lê depois.
+    esperadas: {
+      get emA() {
+        return [ATRIBUIDA_EM_A];
+      },
+      get emB() {
+        return [ATRIBUIDA_EM_B];
+      },
+    },
+  });
+
+  /**
+   * **A décima entrada, e a primeira do dashboard (itens 32 a 36).** Ela semeia **apenas o próprio
+   * agregado** — as pessoas, as organizações, as categorias, as áreas e as duas ocorrências são da suíte
+   * (§7.1); o que é dela é a resolução de A, semeada no `beforeAll`.
+   *
+   * **É a única entrada que exercita CINCO consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
+   * funcionar: cada linha vira uma frase que carrega **a dimensão, o rótulo e o número**. Um `$1` perdido
+   * em qualquer uma das cinco muda pelo menos um número ou traz um rótulo da outra organização — e nos
+   * dois casos o conjunto deixa de bater.
+   *
+   * **Os rótulos são únicos por organização, de propósito**: a suíte semeia *"Portaria do Recanto"* contra
+   * *"Portaria da Aurora"* e *"Garagem do Recanto"* contra *"Garagem da Aurora"*. É o que faz o vazamento
+   * aparecer como frase estranha, e não como número maior.
+   *
+   * **A janela é explícita e larga**, nunca a padrão: as ocorrências nascem com `registrada_em = now()`, e
+   * uma janela fixa em datas literais deixaria o caso amarelo em janeiro. `de` no começo do mês corrente
+   * seria frágil na virada; `2000-01-01` até `2099-12-31` não é.
+   *
+   * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
+   * própria suíte: **nenhum dos cinco modelos de leitura expõe `organizacao_id`**, e é assim que o
+   * Definition of Done os quer.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /dashboard",
+    consultar: async (organizacaoId) => {
+      const repo = repositorioEscopadoDeDashboard(escoparConsulta(consulta, organizacaoId));
+      const janela = { de: "2000-01-01", ate: "2099-12-31" };
+
+      const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
+        repo.backlogPorStatus(),
+        repo.backlogPorCategoria(),
+        repo.recorrenciaPorCategoria(janela),
+        repo.recorrenciaPorArea(janela),
+        repo.resolucoesPorMes(janela),
+      ]);
+
+      return [
+        ...status.map((l) => `status:${l.status}:${String(l.quantidade)}`),
+        ...categorias.map((l) => `backlog-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
+        ...porCategoria.map(
+          (l) => `recorrencia-categoria:${l.categoria.nome}:${l.mes}:${String(l.quantidade)}`,
+        ),
+        ...porArea.map((l) => `recorrencia-area:${l.area.nome}:${l.mes}:${String(l.quantidade)}`),
+        ...resolucoes.map(
+          (l) => `resolucao:${l.mes}:${String(l.resolvidas)}:${String(l.avaliadas)}`,
+        ),
+      ];
+    },
+    chaveDaLinha: (frase) => frase,
+    // **Em getter, e é obrigatório** — o corpo do `describe` roda na coleta, antes de qualquer
+    // `beforeAll`. É a mesma nota que a entrada de `GET /ocorrencias/{id}` já carrega. E o mês é lido no
+    // instante do caso pela MESMA função que o SQL reproduz com `date_trunc`, para que o caso não vire
+    // vermelho na virada do mês.
+    esperadas: {
+      get emA() {
+        const mes = mesEmSaoPaulo(new Date());
+        return [
+          "status:resolvida:1",
+          "backlog-categoria:Portaria do Recanto:1",
+          `recorrencia-categoria:Portaria do Recanto:${mes}:1`,
+          `recorrencia-area:Garagem do Recanto:${mes}:1`,
+          `resolucao:${mes}:1:1`,
+        ];
+      },
+      get emB() {
+        const mes = mesEmSaoPaulo(new Date());
+        return [
+          "status:aberta:1",
+          "backlog-categoria:Portaria da Aurora:1",
+          `recorrencia-categoria:Portaria da Aurora:${mes}:1`,
+          `recorrencia-area:Garagem da Aurora:${mes}:1`,
+        ];
+      },
+    },
+  });
+
+  /**
+   * **A décima primeira entrada — o item 10.** Ela semeia **apenas o seu próprio agregado**, e neste caso
+   * o agregado é *nada*: as pessoas, as organizações, as ocorrências, os anexos, as atribuições e as
+   * mensagens são da suíte (§7.1), e o que a consulta faz é **derivar** delas.
+   *
+   * **A `chaveDaLinha` carrega a RAZÃO, e não só o `pessoaId` — sem isso o caso passaria sem provar
+   * nada.** No mundo da suíte a síndica está nas duas organizações e tem rastro nas duas, e a moradora,
+   * que só existe em Recanto, **não tem impedimento nenhum**: `organizacoes.criada_por_pessoa_id` é nulo
+   * no `semear()`, e categorias e áreas entram sem autoria. Com `chaveDaLinha = pessoaId`, `emA` e `emB`
+   * seriam o **mesmo** conjunto, e o segundo caso da suíte passaria por vacuidade.
+   *
+   * Com a razão junto, os conjuntos ficam **disjuntos** — e a diferença é exatamente o que a consulta
+   * calcula:
+   *
+   * | | Papel da síndica | Impedimento |
+   * |---|---|---|
+   * | **Recanto (A)** | `gestor`, e o único da organização | `ultimo-gestor` — a precedência da spec §3.4 |
+   * | **Aurora (B)** | `solicitante`; Aurora não tem Gestor nenhum | `historico` |
+   *
+   * Um `$1` perdido em qualquer um dos dez `exists` muda a frase de pelo menos uma das duas.
+   *
+   * O terceiro caso da suíte fica de fora pela decisão dela própria: **o modelo de leitura não expõe
+   * `organizacao_id`**, e é assim que o Definition of Done o quer.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "impedimentosDeRemocao",
+    consultar: async (organizacaoId) => {
+      const repo = repositorioEscopadoDeVinculos(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      );
+      return [...(await repo.impedimentosDeRemocao())].map(
+        ([pessoaId, razao]) => `${pessoaId}:${razao}`,
+      );
+    },
+    chaveDaLinha: (frase) => frase,
+    esperadas: {
+      get emA() {
+        // A moradora **não aparece**, e é o terceiro fato que esta entrada prova: sem rastro, sem
+        // impedimento, sem entrada no mapa.
+        return [`${idSindica}:ultimo-gestor`];
+      },
+      get emB() {
+        return [`${idSindica}:historico`];
       },
     },
   });

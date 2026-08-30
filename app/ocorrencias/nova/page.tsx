@@ -82,6 +82,7 @@ export default async function RegistrarOcorrencia() {
       <FormularioDeOcorrencia
         categorias={categorias.map((c) => ({ id: c.id, nome: c.nome, icone: c.icone }))}
         areas={areas.map((a) => ({ id: a.id, nome: a.nome, tipo: a.tipo }))}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
     </MolduraDeTela>
   );

@@ -112,8 +112,8 @@ nome de tabela, de endpoint e de classe"*. Acento em identificador exigiria aspa
 `users`, `posts`), colunas no singular.
 
 **2.2 · Chave primária: UUID onde a linha tem identidade própria; chave natural composta onde a linha
-*é* a relação.** A aula 2 fixa `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`, e é o padrão em catorze
-das dezesseis tabelas. As duas exceções são `vinculos` (PK `pessoa_id, organizacao_id`) e `adesoes` (PK
+*é* a relação.** A aula 2 fixa `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`, e é o padrão em quinze
+das dezessete tabelas *(eram catorze de dezesseis até 30/08/2026, quando a §6.18 entrou)*. As duas exceções são `vinculos` (PK `pessoa_id, organizacao_id`) e `adesoes` (PK
 `ocorrencia_id, pessoa_id`): nenhuma das duas tem identidade fora do par que a define, e **todas as
 referências a elas no esquema são pelo par**, não por um surrogate. Um `id` ali seria uma coluna e um
 índice único que ninguém usa.
@@ -250,6 +250,7 @@ erDiagram
     PESSOAS   ||--o{ VINCULOS : "tem"
     PESSOAS   ||--o{ CONVITES : "destinado a"
     PESSOAS   ||--o{ PEDIDOS_DE_ENTRADA : "solicita"
+    PESSOAS   ||--o{ AUTORIZACOES_DE_UPLOAD : "recebeu - livro-caixa global"
 
     ORGANIZACOES ||--o{ VINCULOS : "concede"
     ORGANIZACOES ||--o{ CATEGORIAS : "configura"
@@ -477,6 +478,12 @@ erDiagram
         timestamptz decidido_em "CHECK nao anterior a criado_em"
         uuid decidido_por_pessoa_id FK
     }
+
+    AUTORIZACOES_DE_UPLOAD {
+        uuid id PK
+        uuid pessoa_id FK "FK pessoas - GLOBAL, sem organizacao_id"
+        timestamptz emitida_em "janela de 1 hora - teto de 30 por Pessoa"
+    }
 ```
 
 ---
@@ -494,6 +501,7 @@ aplicação**, num repositório base. O modelo de dados não é dispensado disso
 | `auth.users` | **Não** | Externa. Uma credencial atende todas as organizações da Pessoa |
 | `pessoas` | **Não** | Global por D4: a mesma Pessoa é Gestora numa organização e Solicitante em outra, com **um login só** |
 | `contatos` | **Não** | Global **porque `pessoas` é** — o contato é da Pessoa, não do vínculo. É a segunda tabela sem escopo estrutural, e a mais sensível das duas (§6.17) |
+| `autorizacoes_de_upload` | **Não** | Global **de propósito**, e a **terceira** sem escopo estrutural. O limite conta *"a mesma Pessoa"*, e `pessoas` é global; e o que ele protege é **armazenamento**, que é uma conta só para todas as organizações (§6.18) |
 | `organizacoes` | — | **É** o escopo. O filtro é a própria PK |
 | `vinculos` | Sim (`organizacao_id` na PK) | É a ponte entre o global e o escopado |
 | `categorias` · `areas` | Sim | |
@@ -2038,6 +2046,68 @@ exatamente o que se quer de uma consulta que não deveria existir.
 **Volume:** ~1,5 contatos por pessoa × 10.000 pessoas ≈ **15.000 linhas**, ~130 bytes cada ≈ 2,0 MB com
 índices. A conta completa está na §11.1.
 
+### 6.18 `autorizacoes_de_upload` — o livro-caixa de emissão · **global** · MVP
+
+> **Fora da ordem de agregado pela mesma razão da §6.16**, e mais uma: ela não pertence a agregado nenhum.
+> É um **contador**, e o lugar dela é o fim da lista. *(Acrescentada em 30/08/2026, com o item 13a; a
+> migração `006_autorizacoes_de_upload.sql` já existia e o modelo estava atrás — item 11 da fila da frente
+> de documentação.)*
+
+**Propósito:** contar quantas autorizações de upload uma Pessoa recebeu na última hora, para sustentar o
+teto de **30 por Pessoa por hora** do `contrato-de-api.md` §10.3 — e o critério **13a.3**, *"a 31ª
+autorização da mesma Pessoa na mesma hora responde `429`"*. Uma linha por autorização concedida, e nada
+mais.
+
+| Coluna | Tipo | Nulo | Padrão |
+|---|---|---|---|
+| `id` | `uuid` | não | `gen_random_uuid()` |
+| `pessoa_id` | `uuid` | não | — |
+| `emitida_em` | `timestamptz` | não | `now()` |
+
+**Chaves e constraints**
+
+- `PRIMARY KEY (id)`
+- `FOREIGN KEY (pessoa_id) → pessoas (id)` — **direto, não pelo par da §4.2**, porque a tabela não é
+  escopada. **Sem `ON DELETE`:** `pessoas` nunca é apagada — o único `DELETE` do contrato é o de vínculo, e
+  ele preserva a Pessoa (capacidade nº 10). A FK existe pela integridade, não por um caminho de exclusão
+  que não há.
+- **Nenhum `CHECK`.** Não há forma de dado a defender: são duas colunas, e as duas são obrigatórias.
+
+**Um índice, e só um:** `(pessoa_id, emitida_em DESC)`. Ele serve a **única** leitura que existe — contar
+as emissões de uma Pessoa dentro da janela. A limpeza oportunista (`emitida_em < now() - interval '1
+hour'`) **varre a tabela, e é o certo**: ela nunca passa de *(pessoas ativas na última hora × 30)* linhas,
+e um índice para ela seria um índice que nenhuma consulta usa — mesmo critério com que a §6.16 recusou
+índices em `anexos`.
+
+**Três coisas precisam estar ditas, e a segunda é a mais fácil de errar.**
+
+**1 · Ela é GLOBAL — a terceira, depois de `pessoas` (§4.1) e `contatos` (§6.17).** O critério fala da
+*"mesma Pessoa"*, e `pessoas` é global. E a razão é substantiva, não herdada: **o limite protege
+armazenamento**, e a conta de armazenamento é **uma só** para todas as organizações. Escopar por
+organização daria 60/h a quem tem dois vínculos, e transformaria *"entrar em outra organização"* num jeito
+de dobrar a franquia.
+
+**2 · Ela fica FORA do repositório escopado**, pela mesma razão — como os quatro endpoints da §4.4 do
+`contrato-de-api.md`. **Isto está escrito para a próxima revisão não a encontrar e chamar de furo de
+isolamento:** a consulta do livro-caixa não passa pelo repositório base, é a exceção, e o teste de
+integração do item 13a a prova em vez de deixá-la parecer esquecimento.
+
+**3 · Ela NÃO reabre a suposição S-A13**, e o teste que separa as duas coisas é literal: **nada no caminho
+de reivindicação lê esta tabela.** O `ticket` continua sendo token assinado; a reivindicação (item 13b)
+confere a assinatura e faz `HEAD` no objeto, e nunca consulta daqui. Este é um livro-caixa de **emissão**,
+com um único leitor — `POST /anexos/autorizacoes`. Ele não guarda `chave`, não guarda estado de objeto, e
+nenhuma consulta o liga a um anexo. Uma tabela de *uploads pendentes* precisaria existir **antes** do
+upload e ser limpa depois; esta existe **depois** da emissão e é limpa por janela de tempo.
+
+**Por que uma tabela, e não um contador em memória de processo.** O Container App roda com
+`--min-replicas 0 --max-replicas 2`. Com duas réplicas, um contador em processo concede **60 por hora**, e
+a segunda réplica sobe exatamente sob carga — que é quando o limite existe para agir. **Não é limitação
+declarável: é um controle que erra por 2× no único cenário que o justifica.**
+
+**Volume:** desprezível e autolimitado — no pior caso *(pessoas ativas na última hora × 30)* linhas de ~40
+bytes, apagadas pela própria janela. **A conta da §11.1 não a inclui**, e a omissão fica registrada em vez
+de a conta ser refeita: ela não muda a ordem de grandeza de nenhuma linha daquela tabela.
+
 ## 7. Decisões de modelagem
 
 ### 7.1 Normalização — 3FN, com quatro exceções nomeadas
@@ -2438,6 +2508,7 @@ afirmação anterior:
 | **A troca da etiqueta do objeto acontece antes do `commit`** | O storage não participa da transação do PostgreSQL. A ordem é escolha do comando `registrar`, e o caso residual que ela deixa está declarado na §10.3 do contrato de API |
 | **`sequencia` é o último `sequencia` da ocorrência mais um** | O banco garante que **não há dois iguais** (`UNIQUE`); *qual* é o próximo é leitura dentro da transação, feita pelo agregado. Duas transições concorrentes na mesma ocorrência colidem — **e devem**: a segunda recebe violação de unicidade, que é o comportamento correto quando dois Gestores agem no mesmo instante |
 | **O telefone chega em E.164** | O banco **recusa** o que não está no formato; **normalizar** o que a pessoa digitou depende de país padrão e regra de discagem nacional, e é trabalho de biblioteca (`libphonenumber`). Divisão: o banco garante a forma, a aplicação produz a forma |
+| **O teto de 30 autorizações de upload por Pessoa por hora** (contrato §10.3, critério 13a.3) | Depende de **contar várias linhas dentro de uma janela de tempo** e de responder `429` antes de escrever — é decisão de comando, não forma de linha. O banco contribui com a **tabela e o índice** da §6.18, que é o que torna a contagem correta com mais de uma réplica; **um contador em memória de processo concederia o dobro**, e erraria exatamente sob carga. A limpeza da janela é oportunista, no mesmo comando |
 | **`atualizado_por_pessoa_id` é quem realmente fez a última escrita** | Nada impede a aplicação de escrever outro valor. É carimbo, não invariante — e a alternativa (gatilho lendo o usuário da sessão) exigiria que o contexto de organização da ADR-0003 chegasse ao banco, que é o oposto da decisão daquela ADR |
 
 > ### ⚠️ Limitação declarada — uma regra de negócio mora no montador de consulta

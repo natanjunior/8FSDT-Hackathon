@@ -1,7 +1,7 @@
 # Contrato de API — Resolve Aí
 
-Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
-[modelo-de-dados.md](modelo-de-dados.md) (as 16 tabelas e a regra do vínculo), [arquitetura.md](arquitetura.md)
+Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
+[modelo-de-dados.md](modelo-de-dados.md) (as 17 tabelas e a regra do vínculo), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
 **Event Storming** do projeto (comandos do passo 5, modelos de leitura do passo 7) — que é material de
 processo e não acompanha esta pasta.
@@ -770,12 +770,43 @@ existe:** a máquina de estados já é o controle otimista. Se dois chamam `anal
 `409 TRANSICAO_NAO_PERMITIDA` — porque `analisar` não sai de `em_analise` — com uma mensagem de domínio, que
 é melhor do que um `412` de `ETag` desencontrado.
 
+**Os comandos que NÃO transicionam também têm controle otimista — e é do estado, não do valor.** São
+quatro: `alterar-prioridade`, `atribuir-responsavel`, `registrar-solucao-aplicada` e `avaliar`. *Não
+transicionar* não é *poder ser chamado de qualquer estado*: cada um tem a lista de estados que o admite na
+**tabela companheira** da máquina (§8.4), e **essa lista é o predicado da própria porta de escrita**. Uma
+ocorrência que vira `resolvida` ou `cancelada` entre a leitura do agregado e o `COMMIT` faz o `update`
+tocar zero linhas, e o comando responde `409` em vez de gravar em registro fechado — que é a mutação
+silenciosa que a **ADR-0001** existe para impedir. **Cada porta expressa a invariante do seu próprio
+comando**, e não uma regra comum: `alterar-prioridade` recusa pelos dois estados terminais, porque o nome
+do erro dele é `PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL` e a frase publicada precisa continuar verdadeira;
+`atribuir-responsavel` recusa pelos quatro estados que o admitem, com o `409 TRANSICAO_NAO_PERMITIDA`
+genérico. As duas listas são o mesmo conjunto **hoje**, e não por desenho.
+
 Sobra exposição real em **dois** pontos: `alterar-prioridade` e `registrar-solucao-aplicada`, onde a última
 escrita sobrescreve a anterior sem aviso — e a alteração de prioridade **não entra na trilha** (só transições
 entram; é o PA-21). Aceitamos, por três razões: o cenário da primeira entrega é o do **síndico único**
 (`escopo.md` §3.3 — o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
 `If-Unmodified-Since` for necessário depois; e toda resposta de comando devolve `atualizadaEm`, então um
 cliente atento detecta a corrida sem que o contrato mude.
+
+> **Correção — 30/08/2026.** Esta seção organizava a concorrência em **duas** caixas — *"nos comandos de
+> transição o problema não existe"* e *"sobra exposição real em dois pontos"* — e **`atribuir-responsavel`
+> não cabia em nenhuma das duas**: ele não transiciona, então a primeira não o cobria; e ele não é
+> exposição aceita, então a segunda também não. O parágrafo *"os comandos que não transicionam"* acima é a
+> **terceira categoria** que faltava, e ela é o que torna a enumeração completa — o que importa porque é
+> esta seção que autoriza o produto a não ter `ETag`, e o argumento depende de a lista fechar.
+>
+> **A enumeração dos dois pontos não mudou, e não deve mudar:** ela sempre esteve certa sobre os dois que
+> nomeia, e continua sendo a exposição que este documento aceita, pelas três razões escritas acima. **A
+> distinção entre as duas coisas é o que a correção acrescenta:** o predicado da porta defende o
+> **estado** — ninguém escreve em registro fechado; o que fica exposto é o **valor** — dois Gestores
+> alterando a prioridade no mesmo estado, e o segundo vence. **A exposição continua sendo dois pontos, não
+> três.**
+>
+> *(Item 18 da fila da frente de documentação, metade (a). A metade de código era a porta de
+> `atribuir-responsavel`, que gravava com `where organizacao_id = $1 and id = $2` e nenhum predicado de
+> `status`; ela ganhou a lista do próprio comando no item 21, e só por isso esta correção pôde ser escrita
+> — antes dele, o texto descreveria um produto que ainda não existia.)*
 
 **7.10 · Idempotência: não há chave de idempotência, e o domínio já tem o desfazer.**
 
@@ -816,6 +847,27 @@ ponto único"*. Não é capacidade de usuário: é o mecanismo que torna todas a
 
 `Contexto` = `{ pessoa{pessoaId,nome}, organizacaoAtiva{id,nome,codigoPublico}|null, papel|null,
 permissoes[], vinculos[], pedidosDeEntrada[] }`.
+
+**Cada item de `vinculos[]` tem QUATRO campos:** `{ organizacaoId, nome, papel, codigoPublico }`.
+
+- **Para que serve o `codigoPublico`:** casar o código digitado na tela de entrar numa organização com um
+  vínculo que a Pessoa **já tem**, *antes de enviar*. Sem ele o cliente só descobria o encontro pelo
+  `409 JA_VINCULADO`, cujo corpo traz `title` e `detail` e **nenhuma identidade de organização** — e a tela
+  não conseguia oferecer *"entrar nela"* nomeando o lugar. Com o campo, o `409` volta a ser só o que é:
+  corrida entre abas.
+- **Não é vazamento** (§4.6): o que se publica é o código público **das organizações da própria Pessoa,
+  para ela mesma**, e ele já é *"público por natureza"* — quem o usa abre um pedido de entrada, não um
+  acesso. O dado já vinha do servidor; a projeção o descartava por escolha, e **nenhuma consulta muda**.
+- **É propriedade solta, e não um `$ref` para `OrganizacaoResumo`.** As duas formas foram consideradas:
+  referenciar o resumo é mais limpo e **quebra a forma** (`organizacaoId` viraria `organizacao.id`, em
+  todos os clientes); a propriedade solta é a mudança mínima e não renomeia nada. **Ficou a segunda**, que
+  é a que o produto implementa.
+
+*(Acrescentado em 30/08/2026: até esta data o contrato descrevia `vinculos[]` sem dizer o que cada item
+carrega, e o `openapi.yaml` declarava três campos — o produto projeta o quarto desde o item 7b, por
+decisão do hub de 29/08/2026. **A fila da frente de documentação endereçava este conserto à §12**, que é
+*Suposições declaradas* e não descreve schema nenhum; o lugar certo é esta §8.0, e a §8.8 continua sendo
+a tabela dos formatos de ocorrência. Item 22 da fila.)*
 
 - **Erro do `PUT`:** `403 SEM_VINCULO_NA_ORGANIZACAO` — resposta **idêntica** para organização inexistente e
   para organização real onde a Pessoa não tem vínculo ativo (§4.2).
@@ -898,10 +950,17 @@ organização, §6.3) · `409 CATEGORIA_NOME_DUPLICADO` — `UNIQUE (organizacao
 categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do
 dashboard.
 
-**`PATCH /areas/{id}`** — `{ nome?, tipo?, ativa? }`. **Mudar `tipo` é permitido e não é retroativo:** as
-ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
+**`PATCH /areas/{id}`** — `{ nome?, tipo?, ativa?, ordem? }`. **Mudar `tipo` é permitido e não é retroativo:**
+as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
 `ocorrenciasComTipoAnterior` — uma contagem — para que a interface possa dizer ao Gestor, em português, que
-o passado não muda. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o que sustenta a reordenação em
+T-09. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+
+*(Corrigido em 30/08/2026: até esta data a linha dizia `{ nome?, tipo?, ativa? }`, sem `ordem`. O campo
+entrou em `Area` em **21/08/2026** — decisão **Q-P5 (a)** do `prototipo-low-fi.md` —, o `openapi.yaml`
+acompanhou no mesmo dia, o critério **5.4** o exige e a implementação do 4a · 5 o entregou; **só a prosa
+ficou para trás, aqui e no `inventario-de-telas.md`**. A mesma omissão em dois arquivos é sinal de prosa
+escrita a partir de prosa, e não do `openapi.yaml`. Item 10 da fila da frente de documentação.)*
 
 **Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
 (evolução prevista). Na primeira entrega **a organização é imutável depois de criada** — consequência do corte, não
@@ -1172,10 +1231,21 @@ atual, comando) fora da tabela da `arquitetura.md` (Parte I, §4) — o corpo do
 > | `atribuirResponsavel` | `aberta` · `em_analise` · `em_atendimento` · `pausada` | `resolvida` · `cancelada` |
 > | `registrarSolucaoAplicada` | `em_atendimento` · `pausada` | `aberta` · `em_analise` · `resolvida` · `cancelada` |
 >
-> **Por que `atribuir` já em `aberta`:** a auto-atribuição em um clique é capacidade ✅ e acontece na
-> triagem, onde a ocorrência normalmente está `aberta`. Proibir ali transformaria um clique em dois — e
-> atribuir não é triar, é dizer de quem é. *(O exemplo de `aberta` do `openapi.yaml` foi corrigido junto:
-> ele omitia `atribuir-responsavel`.)*
+> **Por que `atribuir` já em `aberta`:** a auto-atribuição é capacidade ✅ e acontece na triagem, **a
+> partir do detalhe da ocorrência**, onde ela normalmente está `aberta`. Proibir ali transformaria um
+> clique em dois — e atribuir não é triar, é dizer de quem é. *(O exemplo de `aberta` do `openapi.yaml`
+> foi corrigido junto: ele omitia `atribuir-responsavel`.)*
+>
+> > **Correção — 30/08/2026 — o argumento fica, o lugar muda.** A frase dizia *"a auto-atribuição **em um
+> > clique** é capacidade ✅ e acontece **na triagem**"*, e *"na triagem"* se lê como *"na lista de
+> > triagem"*. **A lista de triagem é T-03, e T-03 não oferece ação de ocorrência nenhuma** — a capacidade
+> > nº 20 vive no **modal de atribuir de T-05**, que é o que a coluna *Telas* do item 20 do backlog diz e
+> > o que o produto entregue faz. **A justificativa continua inteira:** *"um clique em dois"* conta
+> > **comandos** — `analisar` e depois `atribuir` —, não toques de tela; medido dentro de T-05, o Gestor
+> > em `aberta` dá **quatro** toques até atribuir a si mesmo. Foi por isso que *"em um clique"* saiu desta
+> > frase e ficou só onde é **nome de capacidade** (§14, nº 20), agora com o que ela conta escrito ao
+> > lado. **Levar a ação para a lista é evolução declarada, não esquecimento:** contradiria a coluna
+> > *Telas* e o critério 20.5.
 >
 > **Por que solução aplicada só a partir de `em_atendimento`:** solução aplicada descreve trabalho feito, e
 > antes de o atendimento começar não há trabalho a descrever.
@@ -1207,8 +1277,9 @@ O que cada um tem de específico:
   status —, e é a razão de a alteração de prioridade não aparecer na linha do tempo (PA-21).
 - **`/atribuir-responsavel`** — `422 RESPONSAVEL_SEM_VINCULO_ATIVO` se a pessoa indicada não tem vínculo
   ativo aqui, e `409 TRANSICAO_NAO_PERMITIDA` em `resolvida` e `cancelada` (quadro acima). **A
-  auto-atribuição em um clique não é endpoint:** o cliente envia o próprio `pessoaId`, que
-  `GET /contexto` já lhe deu. **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
+  auto-atribuição não é endpoint:** o cliente envia o próprio `pessoaId`, que
+  `GET /contexto` já lhe deu — e *"em um clique"*, o nome da capacidade, conta **comando** e não toque de
+  tela (quadro acima). **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
   com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3 — **que não existe na primeira entrega**,
   ver §3.4) e devolve `reatribuicao: true`.
 - **`/iniciar-atendimento`** — `409 RESPONSAVEL_NAO_ATRIBUIDO` (invariante 9, D21: *"quem está fazendo"* é
@@ -1393,7 +1464,7 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
 ```json
 {
   "periodo": { "de": "2026-05-23", "ate": "2026-08-20" },
-  "backlogPorStatus":   [{ "status": "aberta", "quantidade": 12 }],
+  "backlogPorStatus":   [{ "status": "aberta", "statusRotulo": "Aberta", "quantidade": 12 }],
   "backlogPorCategoria":[{ "categoria": { "id": "…", "nome": "Vazamentos" }, "quantidade": 8 }],
   "mediaDasAvaliacoes": { "media": 4.3, "avaliadas": 31, "resolvidas": 47 },
   "recorrenciaPorCategoria": [{ "categoria": {…}, "porMes": [{ "mes": "2026-07", "quantidade": 5 }] }],
@@ -1404,6 +1475,18 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
 
 - **`backlog` é instantâneo** (fotografia de agora, ignora `de`/`ate`); **recorrência é série mensal** dentro
   da janela. São perguntas diferentes e a resposta diz qual é qual.
+- **`mediaDasAvaliacoes` respeita a janela, ancorada no instante da RESOLUÇÃO** — é o terceiro caso, e não
+  o primeiro nem o segundo: não é fotografia de agora e não é série mensal, é **um número só, sobre um
+  recorte de período**. `resolvidas` conta as ocorrências resolvidas dentro de `de`/`ate`; `avaliadas` conta
+  quantas **dessas** foram avaliadas; `media` é a média **dessas** notas. É o que mantém
+  `avaliadas ≤ resolvidas` verdadeiro por construção — sem o que a frase de tela *"X de Y resolvidas
+  avaliadas"* e o objetivo **O4** deixam de fazer sentido — e o que faz `mediaDasAvaliacoes.resolvidas`
+  fechar com a soma de `tempoMedioDeResolucao.porMes[].resolvidas` na mesma janela (critério **34.5**).
+  A âncora é a resolução e **nunca `avaliada_em`**: avaliação que chega depois do fim da janela conta na
+  janela em que a ocorrência foi resolvida.
+  *(Acrescentado em 30/08/2026: até esta data a lista classificava dois dos três casos e calava sobre a
+  média — quem decidia era um `<em>` no protótipo, o bloco 5 rotulado "no período". Decisão do hub de
+  29/08/2026, ao responder a P3 da spec do item 32. Item 27 da fila da frente de documentação.)*
 - `mediaDasAvaliacoes` traz `avaliadas` e `resolvidas` juntas de propósito: sem o denominador, a média mente
   quando poucos avaliam — que é o **PA-16**, ainda aberto.
 - **`tempoMedioDeResolucao` é série mensal e vem com o denominador**, como a média das avaliações: `horas`
@@ -1425,9 +1508,10 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
 
 | Schema | Onde aparece | Campos |
 |---|---|---|
-| `OcorrenciaResumo` | `GET /ocorrencias` | `id` · `titulo` · `status` · `statusRotulo` · `motivoPausa\|null` · `prioridade` · `categoria{id,nome}` · `area{id,nome,tipo}` · `autor{pessoaId,nome}` · `responsavel{pessoaId,nome}\|null` · `quantidadeDeAnexos` · `registradaEm` · `atualizadaEm` |
+| `OcorrenciaResumo` | `GET /ocorrencias` | `id` · `titulo` · `status` · `statusRotulo` · `motivoPausa\|null` · `prioridade` · `categoria{id,nome}` · `area{id,nome,tipo}` · `autor{pessoaId,nome}` · `responsavel{pessoaId,nome}\|null` · `quantidadeDeAnexos` · `avaliada` · `registradaEm` · `atualizadaEm` |
 | `OcorrenciaDetalhe` | `GET /ocorrencias/{id}` e **resposta de todo comando** | tudo do resumo **+** `descricao` · `localizacaoComplemento` · `anexos[]` · `solucaoAplicada\|null` · `avaliacao{nota,comentario,avaliadaEm}\|null` · `ultimaTransicao` · `acoesDisponiveis[]` |
-| `RegistroDeTransicao` | trilha, linha do tempo e `ultimaTransicao` | `statusAnterior\|null` · `statusNovo` · `ocorreuEm` · `autor{pessoaId,nome}` · `observacao\|null` · `motivoPausa\|null` · `motivoCancelamento\|null` |
+| `RegistroDeTransicao` | trilha e `ultimaTransicao` | `statusAnterior\|null` · `statusNovo` · `ocorreuEm` · `autor{pessoaId,nome}` · `observacao\|null` · `motivoPausa\|null` · `motivoCancelamento\|null` |
+| `EventoDaLinhaDoTempo` | `GET /ocorrencias/{id}/linha-do-tempo` | **três formas**, distinguidas por `tipo`, com `tipo` · `ocorridoEm` · `autor{pessoaId,nome}` em todas: `transicao` (+ `rotulo` · `statusAnterior\|null` · `statusNovo` · `observacao\|null` · `motivoPausa\|null` · `motivoCancelamento\|null`) · `mensagem` (+ `texto`) · `atribuicao` (+ `responsavel` · `encerradaEm\|null` · `motivoEncerramento` de `reatribuicao\|recusa\|null`) |
 
 > **A listagem leva a contagem; o detalhe leva a lista.** Uma lista de um elemento em cada item de página é
 > verbosidade na leitura mais chamada do produto, e a tela só precisa da marca *"com foto"*, que é
@@ -1436,6 +1520,38 @@ Parâmetros: `de` e `ate` (`date`, em America/Sao_Paulo — §7.5), com padrão 
 >
 > E o `RegistroDeTransicao` **não muda**, o que vale dizer em voz alta: **a trilha não conhece anexo**, e é
 > bom que continue assim.
+
+> ### Correção — 30/08/2026 — a linha do tempo NÃO devolve `RegistroDeTransicao`, e o resumo tem quatorze campos
+>
+> **Duas correções na mesma tabela, e as duas são de prosa contra o `openapi.yaml`, que é quem tem
+> verificador mecânico.**
+>
+> **(a) A linha do `RegistroDeTransicao` dizia *"trilha, linha do tempo e `ultimaTransicao`"*.** A linha do
+> tempo devolve `EventoDaLinhaDoTempo`, que é um `oneOf` de **três** formas com `tipo` e `ocorridoEm`; o
+> `RegistroDeTransicao` tem `ocorreuEm`, **sem** `tipo` e **sem** `rotulo`. A **§8.5 deste mesmo documento
+> já descrevia o formato certo** — as duas seções discordavam entre si, e o código do item 29 emite o que o
+> YAML publica. A linha passou a dizer *"trilha e `ultimaTransicao`"*, e a tabela ganhou a quarta linha.
+> **São três formas e não duas:** os critérios **30.7** e **30.8** dão dono ao `EventoMensagem`, e a partir
+> do item 30 as três têm produtor. *(Item 24 da fila da frente de documentação; achado **P-1** do plano do
+> item 29, cuja redação dependia da P1 da spec do item 30, respondida em 29/08/2026.)*
+>
+> **(b) A linha do `OcorrenciaResumo` listava treze campos.** O décimo quarto é **`avaliada`** — booleano,
+> obrigatório, `avaliacao_nota is not null` —, e sem ele a lista não consegue oferecer *"Conte como foi"*:
+> ela sabe o status e sabe quem é o autor, e não teria como saber se a avaliação já aconteceu (critério
+> **27.5**). **É booleano e não contagem**, e o precedente de `quantidadeDeAnexos` não se aplica: ali o
+> `0..1` é por escopo, aqui é **do schema** — a invariante 8, com `CHECK` no banco.
+> **`OcorrenciaDetalhe` herda o campo pelo `allOf` e passa a carregar `avaliada` e `avaliacao`** — é a
+> mesma relação `quantidadeDeAnexos` ↔ `anexos` que a nota acima descreve, e não duplicação acidental.
+> **`acoesDisponiveis` continua fora do resumo** (critério 14.5): aqui entra **fato da ocorrência**, nunca
+> afazer calculado por leitor. *(Item 21 da fila; decisão do hub de 29/08/2026, P1 da spec do item 27. A
+> fila endereçava este conserto à §12, que é* Suposições declaradas *e não descreve schema nenhum — o lugar
+> é esta §8.8.)*
+>
+> **O título da seção continua dizendo *"os três formatos de ocorrência"* e a tabela tem quatro linhas, de
+> propósito.** Os três formatos **da ocorrência** são o resumo, o detalhe e o registro de transição — é o
+> que a `arquitetura.md` §5.5 conta ao dizer *"quem monta estes três formatos"*, e essa contagem não mudou.
+> `EventoDaLinhaDoTempo` **não é formato de ocorrência**: é o envelope dos eventos, e está nesta tabela
+> porque a primeira metade do título — *"o que o cliente recebe"* — é onde se procura por ele.
 
 **`statusRotulo` é calculado no servidor e depende de quem pergunta.** O Solicitante lê *"Em execução"*
 onde o Gestor lê *"Em atendimento"* — o rótulo é função de (`status`, `motivoPausa`, papel de quem lê).
@@ -1641,6 +1757,15 @@ Se passa, o servidor **marca o objeto como confirmado** — é o que a §10.3 ex
 > **reivindicado**, não o pendente. Ela nasce no `COMMIT` e nunca existe antes dele — que é exatamente o
 > oposto de uma tabela de uploads pendentes, que precisaria existir *antes* do upload e ser limpa depois.
 > A suposição **S-A13** continua de pé, sem emenda.
+>
+> **Precisão de 30/08/2026 — e agora há uma segunda tabela que também não é essa.** O item 13a trouxe
+> `autorizacoes_de_upload` (§6.18 do `modelo-de-dados.md`), e ela **nasce na emissão**, que é justamente
+> quando a tabela recusada existiria. **O que a separa não é o momento, é o leitor:** ela é **livro-caixa
+> de emissão**, com um único leitor — `POST /anexos/autorizacoes`, para contar a última hora —, e **nada
+> no caminho de reivindicação a lê**. O `ticket` continua sendo token assinado que expira sozinho; o
+> `commit` confere assinatura e objeto, nunca a tabela. Ela não guarda `chave`, não guarda estado de
+> objeto, e nenhuma consulta a liga a um anexo. **A S-A13 continua de pé pela segunda vez, e o teste que a
+> sustenta passou a ser escrito em voz alta** — porque *"a tabela nasce depois"* já não bastaria.
 
 ### 10.3 O objeto abandonado — o terceiro caminho
 
@@ -1659,12 +1784,29 @@ chamada quantas vezes quiser, e nada apaga o que ela deixou.
 > Uma regra de ciclo de vida do contêiner apaga o que continuar `pendente`.**
 >
 > **2 · `POST /anexos/autorizacoes` é o único endpoint com limite de chamadas: 30 por Pessoa por hora,
-> `429` acima disso.**
+> `429` acima disso.** **Quem conta é uma tabela**, não a memória do processo — `autorizacoes_de_upload`,
+> §6.18 do `modelo-de-dados.md`: com `--max-replicas 2`, um contador em processo concederia 60 por hora, e
+> a segunda réplica sobe exatamente sob carga. *(A menção à tabela entrou em 30/08/2026; o número não
+> mudou.)*
 
-A marca é uma **etiqueta de índice do próprio objeto** (*blob index tag*) **[FONTE EXTERNA]**, escrita pelo
-servidor na emissão e trocada na reivindicação. Trocar a etiqueta é **uma chamada de metadado** — não move
-bytes, não passa nada pelo contêiner da aplicação, e portanto **não desfaz a razão de a §10.1 ter escolhido
-SAS**. A regra de ciclo de vida filtra por essa etiqueta e apaga o que ficar para trás.
+A marca é uma **etiqueta de índice do próprio objeto** (*blob index tag*) **[FONTE EXTERNA]**. **Quem a
+escreve é o CLIENTE, no `PUT`** — a SAS é emitida com permissão de etiqueta, e o cabeçalho `x-ms-tags:
+estado=pendente` já vai entregue em `upload.cabecalhos`, que é campo obrigatório do destino. **Trocá-la
+para `confirmado` é do servidor, na reivindicação**, e é **uma chamada de metadado** — não move bytes, não
+passa nada pelo contêiner da aplicação, e portanto **não desfaz a razão de a §10.1 ter escolhido SAS**. A
+regra de ciclo de vida filtra por essa etiqueta e apaga o que ficar para trás.
+
+> **Corrigido em 30/08/2026 — a redação anterior descrevia algo impossível.** Ela dizia que a etiqueta era
+> *"escrita pelo servidor **na emissão** e trocada na reivindicação"*. **Na emissão o objeto não existe:**
+> o servidor só assina a SAS, e quem cria o blob é o `PUT` do cliente, depois. Não há o que etiquetar no
+> instante que a frase descrevia.
+>
+> **A forma do contrato NÃO muda** — `cabecalhos` já era campo obrigatório do destino, e a lista de
+> cabeçalhos é aberta. Muda o **autor** da etiqueta, e só. **Isto não é gatilho da variante de prefixo**,
+> que esta seção reservou para outro caso: conta de storage sem suporte a etiqueta de índice.
+>
+> *(Emenda decidida pelo hub em 25/08/2026, ao especificar o item 13a; item 12 da fila da frente de
+> documentação.)*
 
 **Por que a etiqueta, e não mover de prefixo.** A alternativa — subir em `pendentes/`, **copiar** para o
 prefixo definitivo ao reivindicar e apagar o original — dá o mesmo resultado e é o desenho mais comum. Foi
@@ -1710,6 +1852,20 @@ O que falta é isto estar escrito ao lado dos outros dois caminhos, e não é. O
 falha de transação **entre** duas operações que distam milissegundos —, mas *"desprezível"* precisa ser
 afirmado, não presumido. Levantado ao desenhar o DG-5 de
 [`fluxos-e-diagramas.md`](fluxos-e-diagramas.md).
+
+**E há um quarto residual, irmão deste, que nasce de a etiqueta ser escrita pelo cliente.** Se o cliente
+**omitir** o cabeçalho `x-ms-tags`, o objeto sobe **sem etiqueta nenhuma** — e aí ele não casa com a regra
+*"apaga `pendente`"* nem com *"mantém `confirmado`"*, porque regra de ciclo de vida filtra por **tag igual
+a valor**, nunca por ausência. **Esse objeto não é recolhido nunca.**
+
+O que o torna inofensivo é o **critério 13b.6**: a reivindicação **recusa objeto sem `estado=pendente`**.
+Com ele, omitir a etiqueta não compra nada — não vira anexo, não vira ocorrência — e só queima a própria
+franquia de 30 por hora de quem omitiu, que é o limite da peça 2 acima. **Custo de estar errado:** se um
+dia a reivindicação passar a aceitar objeto sem etiqueta, este residual deixa de ser inofensivo e vira
+armazenamento acumulado sem teto — a defesa é o 13b.6, não a faxina.
+
+*(Acrescentado em 30/08/2026, junto com a correção sobre quem escreve a etiqueta. Item 12 da fila da frente
+de documentação.)*
 
 > ### Reconferido em 21/08/2026, com a tabela no lugar da coluna — a forma **não** muda, e a janela cresce
 > ### uma inserção
@@ -1905,7 +2061,7 @@ delas foi resolvida dentro do YAML.
 | **S-A10** | **`statusRotulo` é calculado no servidor e depende do papel de quem lê** | Se for do cliente, o campo sai da resposta e a tabela de rótulos vira responsabilidade de cada cliente |
 | **S-A11** | **`GET /ocorrencias` só ordena por `registradaEm DESC`** | Ordenar por outra coluna exige índice novo (§6.7 do `modelo-de-dados.md`) — é decisão de banco, não de contrato |
 | **S-A12** | **Pedido de entrada recusado pode ser refeito** — herdada da suposição S4 do modelo de dados | Índice único absoluto em vez de parcial, e `409` no segundo pedido |
-| **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* |
+| **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* *(E `autorizacoes_de_upload`, em 30/08/2026, também **não** é: ela nasce na emissão, mas **nada no caminho de reivindicação a lê** — é livro-caixa de emissão, lido só pelo `POST /anexos/autorizacoes` para contar as 30/h. §6.18 do `modelo-de-dados.md`.)* |
 | **S-A14** | **`POST /organizacoes` gera o `codigoPublico`**; o cliente não escolhe | Se o Gestor puder escolher, precisa de checagem de unicidade global e de proteção contra códigos ofensivos ou adivinháveis |
 | **S-A15** | **Organização com um só Gestor que perde o acesso fica inacessível para sempre** — ver abaixo | Sair disso exige uma capacidade nova: promover a Gestor, transferir a organização, ou um segundo Gestor obrigatório na criação |
 
@@ -2112,7 +2268,7 @@ quebra**, que é o que separa decisão de omissão.
 
 ---
 
-## 14. Rastreabilidade — as 42 capacidades ✅
+## 14. Rastreabilidade — as 44 capacidades ✅
 
 Critério: **toda capacidade ✅ tem de ser alcançável pelo contrato**, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
@@ -2122,6 +2278,16 @@ A verificação nos dois sentidos.
 > resolver o **PA-25**, o beco em que aprovar com o papel errado era irreversível. O `escopo.md` passa a
 > **42 ✅ de 63**.
 
+> **E são 44 desde 30/08/2026**, quando a contagem, parada em 42 enquanto o backlog andava, foi reaberta:
+> entram a **4b** (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma
+> ativa) — as duas entregam comportamento que não existia. **Ficam de fora** o item 43 (semente de
+> demonstração: instrumento para tornar o dashboard conferível, não coisa que o produto faz) e o 44 (tema
+> visual). O `escopo.md` passa a **44 ✅ de 66**; o denominador sobe **três** porque uma linha ⬜ nasceu
+> junto — *"fundar uma segunda organização tendo uma ativa"*, que a API aceita e nenhuma tela oferece.
+> **As duas capacidades novas são numeradas `4b` e `7b`, ao lado das que derivam, e nada foi
+> renumerado** — os números desta tabela são citados por outros documentos (*"capacidade nº 20"*,
+> *"nº 38"*), e renumerar trocaria uma correção de contagem por uma caçada a referências.
+
 | # | Capacidade (escopo) | Origem | Endpoint(s) |
 |---|---|---|---|
 | **0 · Configurar a organização** |
@@ -2129,10 +2295,12 @@ A verificação nos dois sentidos.
 | 2 | Categorias-semente | `NOSSO` (D18) | *(efeito da POL-01 em `POST /organizacoes`; verificável em `GET /categorias`)* |
 | 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; verificável em `GET /areas`)* |
 | 4 | Editar categorias | `ENUNCIADO · aberto` | `GET/POST /categorias` · `PATCH /categorias/{id}` |
+| **4b** | **Escolher o ícone da categoria**, sobre a lista fechada de 25 nomes | `NOSSO` (RNF6) | campo `icone` em `POST /categorias` e `PATCH /categorias/{id}`; lido em `GET /categorias` |
 | 5 | Editar áreas | `NOSSO` (D18) | `GET/POST /areas` · `PATCH /areas/{id}` |
 | **1 · Entrar na organização** |
 | 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1,S2) | **fora do contrato** — Supabase Auth (§4.1); consumida por `GET /contexto` |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | `POST /pedidos-de-entrada` |
+| **7b** | **Entrar em outra organização tendo uma ativa** | `NOSSO` (D25, B-01) | `POST /pedidos-de-entrada` · `PUT /contexto/organizacao` — os mesmos de nº 7 e do menu de troca, e é por isso que a capacidade é nova sem endpoint novo |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | `GET /pedidos-de-entrada` · `POST …/aprovar` · `POST …/recusar` |
 | 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | `GET/POST /vinculos` · `PATCH /vinculos/{pessoaId}` — desde 22/08/2026 com `contatos[]` e `areaId` no corpo |
 | 10 | **Remover vínculo sem histórico, desfazendo papel errado** | `NOSSO` (D25, PA-25) | `DELETE /vinculos/{pessoaId}` |
@@ -2148,7 +2316,7 @@ A verificação nos dois sentidos.
 | 18 | Cancelar com motivo estruturado | `ENUNCIADO · literal` (F3) + D12 | `POST /ocorrencias/{id}/cancelar` |
 | **4 · Atribuir** |
 | 19 | Atribuir o responsável | `ENUNCIADO · aberto` (G4) + D21 | `POST /ocorrencias/{id}/atribuir-responsavel` + `GET /vinculos` |
-| 20 | Auto-atribuição em um clique | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
+| 20 | Auto-atribuição em um clique — **um clique conta comando, não toque de tela** (§8.4, correção de 30/08/2026); a ação vive no modal de atribuir de **T-05** | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
 | 21 | Reatribuir | `NOSSO` | mesmo endpoint, com atribuição vigente |
 | **5 · Executar** |
 | 22 | Iniciar o atendimento | `ENUNCIADO · literal` (F2) + D21 | `POST /ocorrencias/{id}/iniciar-atendimento` |
@@ -2179,9 +2347,12 @@ A verificação nos dois sentidos.
 
 **Fechamento da contagem:**
 
-- **36 capacidades de usuário.** Todas alcançáveis: **33 com endpoint dedicado**, 3 sem endpoint próprio e
-  com motivo declarado — nº 6 (autenticação, realizada pelo provedor) e nº 2 e 3 (sementes, efeito de
-  política).
+- **38 capacidades de usuário.** Todas alcançáveis: **35 por endpoint** — 31 com endpoint próprio e
+  **quatro dividindo endpoint com outra capacidade** (nº 20 e nº 21 com a nº 19; a **4b** com a nº 4; a
+  **7b** com a nº 7) —, e 3 sem endpoint próprio e com motivo declarado: nº 6 (autenticação, realizada
+  pelo provedor) e nº 2 e 3 (sementes, efeito de política). *(Eram 36 e 33 até 30/08/2026; a linha dizia
+  "33 com endpoint dedicado", e **dedicado já era impreciso** — a nº 20 e a nº 21 sempre dividiram
+  endpoint com a nº 19.)*
 - **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
   não são de API — e a nº 42 é, em parte, este par de arquivos.
 - **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 37 endpoints existe sem
@@ -2230,7 +2401,7 @@ ferramenta reclama. Quem cobre isso é o teste — e o **Definition of Done já 
 e de ao menos uma transição inválida"* por funcionalidade. Essa transição inválida **é** o teste de contrato
 do `409`: já está pedida, e agora tem uma segunda razão de existir.
 
-**Três verificações mecânicas para o Definition of Done**, todas derivadas deste documento:
+**Quatro verificações mecânicas para o Definition of Done**, todas derivadas deste documento:
 
 1. **`status` não aparece em nenhum schema de entrada do `openapi.yaml`** (§3.5, P1). **Não é uma linha de
    `grep`, e a diferença importa.** A palavra aparece mais de cem vezes no arquivo, e quase todas são
@@ -2242,9 +2413,43 @@ do `409`: já está pedida, e agora tem uma segunda razão de existir.
 2. **Nenhum caminho do `openapi.yaml` contém `organizacao`**, exceto `POST /organizacoes` e
    `PUT /contexto/organizacao` (§4.4, P2).
 3. **Nenhum caminho contém `pessoas`** (§4.6, P3).
+4. **Toda operação com `requestBody.required: false` tem, na rota correspondente, `corpoOpcional` — e
+   nenhuma outra o tem.** É a única das quatro que **não** lê só o YAML: ela abre
+   `app/api/…/route.ts` pelo caminho da operação (`{param}` vira `[param]`), isola o trecho do método,
+   **remove os comentários** e procura a declaração. Remover comentário não é detalhe de implementação —
+   cinco `route.ts` escrevem *"SEM `corpoOpcional`"* na própria prosa para dizer que a ausência é
+   decidida, e uma busca ingênua leria a explicação como se fosse a declaração.
 
-As três falham no dia em que alguém desfizer uma das três decisões estruturais deste contrato — que é
+As quatro falham no dia em que alguém desfizer uma das decisões estruturais deste contrato — que é
 exatamente quando se quer saber.
+
+> ### Correção de 30/08/2026 — a quarta verificação, e por que ela faltava
+>
+> **A redação anterior era *"**Três** verificações mecânicas para o Definition of Done"***, e a lista
+> terminava no item 3; a frase de fecho dizia *"As três falham no dia em que alguém desfizer uma das
+> **três** decisões estruturais deste contrato"*.
+>
+> **O que a mudou.** As três primeiras conferem **o que o YAML diz**; nenhuma delas conferia **se o que o
+> YAML diz é o que a rota faz**. `POST /pedidos-de-entrada/{pedidoId}/recusar` declarou
+> `requestBody: required: false` desde o item 8 e a rota respondia `415 CORPO_NAO_SUPORTADO` a quem não
+> mandasse corpo: o portão *"a especificação versionada corresponde ao código"* do
+> [`definition-of-done.md`](definition-of-done.md) esteve aberto do item 8 até **27/08/2026**, e nada
+> acusou. Hoje são **cinco** as operações com `requestBody.required: false` — `/recusar`, `/analisar`,
+> `/iniciar-atendimento`, `/retomar` e `/resolver` —, e as cinco passam.
+>
+> **A regra é simétrica, e isso é escolha declarada.** O item da fila pedia só um lado — *"para toda
+> operação com `required: false`, a rota declara `corpoOpcional`"*. O outro lado custa a mesma leitura e
+> descreve o mesmo desencontro: uma rota que aceita corpo ausente sob uma especificação que o declara
+> obrigatório. **Custo de estar errado:** se algum dia uma rota precisar aceitar corpo ausente *sem* que
+> o contrato o dispense, a regra fica vermelha e obriga a decisão a passar por este documento — que é o
+> efeito pretendido, não um efeito colateral.
+>
+> **O que ela não alcança, declarado:** a comparação é textual sobre o trecho do método. Uma rota que
+> ganhasse `corpoOpcional` por variável, por espalhamento de objeto ou por um ajudante intermediário
+> passaria sem ser vista. É a mesma limitação que a geração de schema resolveria de vez — ver *A decisão,
+> em dois tempos*, acima.
+>
+> *(Item 15 da fila da frente de documentação, achado em 27/08/2026 ao responder a P2 da spec do item 16.)*
 
 ---
 

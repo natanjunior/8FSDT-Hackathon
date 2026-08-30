@@ -10,17 +10,58 @@ Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP. En
 
 ## Estado do projeto
 
-**A documentação está entregue, e o código começou pelo esqueleto de deploy.**
+**O produto está de pé e publicado, e o pacote de documentação está entregue.**
 
-O que existe hoje: a esteira inteira de entrega — `docker compose` local, imagem publicada no `ghcr.io`,
-revisão no Azure Container Apps —, com **um** endpoint (`GET /contexto`), as duas telas que ele sustenta
-(entrar e "onde eu trabalho?"), as três tabelas de que ele depende, e as regras de fronteira da arquitetura
-convertidas em configuração de `lint`. Ver **[Como rodar](#como-rodar)**.
+O ciclo de vida da ocorrência roda inteiro — registrar, analisar, atribuir, atender, pausar, retomar,
+resolver, avaliar, cancelar —, cada transição deixando registro na trilha, e o isolamento entre
+organizações passa por um ponto único. Ver **[O que está entregue](#o-que-está-entregue)** e
+**[Como rodar](#como-rodar)**.
 
-O que ainda não existe: a `Ocorrência` e tudo que gira em volta dela — que são as próximas tarefas, e são
-oito dos nove entregáveis do enunciado.
+**O ambiente publicado:**
+<https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io> — as contas para entrar
+nele estão em **[A demonstração](#a-demonstração)**.
+
+**O que ainda não existe é o que o [Escopo](docs/escopo.md) corta em letra, com o motivo de cada corte:**
+o acesso próprio do Encarregado e as capacidades que caem junto com ele, o convite por link, a nota interna
+e a conversa privada da atribuição, as notificações, a leitura sem rede. **Nenhum item `ENUNCIADO` ficou de
+fora** — todo o corte recaiu sobre adições nossas.
+
+> ### Corrigido em 30/08/2026 — este bloco descrevia o repositório de três sprints atrás
+>
+> **A redação anterior era:** *"A documentação está entregue, e o código começou pelo esqueleto de deploy.
+> O que existe hoje: a esteira inteira de entrega … com **um** endpoint (`GET /contexto`), as duas telas
+> que ele sustenta (entrar e 'onde eu trabalho?'), as três tabelas de que ele depende … O que ainda não
+> existe: a `Ocorrência` e tudo que gira em volta dela — que são as próximas tarefas, e são **oito dos nove
+> entregáveis** do enunciado."*
+>
+> **Nenhuma dessas afirmações vale mais**, e nenhuma delas errava por pouco: são **37 operações HTTP em
+> 30 caminhos**, **treze telas**, **catorze tabelas** e a `Ocorrência` com o agregado, a máquina de estados
+> e a trilha imutável. Os seis itens de fundação técnica do [Escopo](docs/escopo.md) — o agregado, o
+> isolamento, o contêiner, a publicação em nuvem, os testes e a documentação — estão **todos** marcados
+> como entregues.
+>
+> **Por que ficou assim tanto tempo:** o parágrafo foi escrito quando era verdade e ninguém o reabriu.
+> **Nenhum número de capacidades entrou aqui de propósito** — essa contagem é do
+> [`escopo.md`](docs/escopo.md), que é quem a fecha, e duplicá-la neste arquivo criaria uma segunda fonte
+> para envelhecer sozinha.
 
 ## O que está entregue
+
+### O produto
+
+Cada linha se confere no próprio repositório — é o que a coluna da direita diz.
+
+| O que | Quanto | Onde se confere |
+|---|---|---|
+| **A `Ocorrência`, com o ciclo de vida inteiro** | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
+| **A superfície HTTP** | **37 operações em 30 caminhos** | `docs/api/openapi.yaml`, conferido contra o código por `npm run verificar:openapi` |
+| **As telas** | **T-01 a T-13**, as treze do [Inventário de Telas](docs/inventario-de-telas.md) — a T-10 como estado da rota `/`, que é como o inventário a descreve | `app/` |
+| **O esquema** | **14 tabelas**, em nove migrações | `supabase/migrations/` |
+| **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
+| **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada **antes** do deploy, revisão nova no Azure Container Apps | `.github/workflows/entrega.yml` |
+| **Os testes** | domínio e aplicação sem banco · isolamento contra Postgres · **um** de ponta a ponta, num navegador, contra a pilha real | `testes/` |
+
+### A documentação
 
 | Documento | O que responde |
 |---|---|
@@ -69,9 +110,16 @@ corte recaiu sobre adições nossas.
 
 ## Como rodar
 
-**O que já roda: o esqueleto de deploy.** Criar conta, entrar, e ver em qual organização você está — ou
-que não está em nenhuma. Um endpoint (`GET /contexto`), duas telas (T-01 e T-02), três tabelas, e a
-esteira inteira de `push` a container publicado. O resto do produto vem nas tarefas seguintes.
+**O que já roda: o produto.** Criar conta, entrar numa organização pelo código público, registrar uma
+ocorrência com foto e localização, triar, atribuir, atender, pausar, resolver, avaliar — e ler a trilha de
+auditoria de tudo isso. Mais o dashboard, o cadastro de categorias, áreas e pessoas, e a troca de
+organização sem sair da sessão.
+
+> **Corrigido em 30/08/2026, pela mesma razão do bloco *Estado do projeto*.** Este parágrafo dizia:
+> *"O que já roda: **o esqueleto de deploy**. Criar conta, entrar, e ver em qual organização você está — ou
+> que não está em nenhuma. Um endpoint (`GET /contexto`), duas telas (T-01 e T-02), três tabelas, e a
+> esteira inteira de `push` a container publicado. **O resto do produto vem nas tarefas seguintes.**"* Era
+> a mesma afirmação escrita duas vezes no mesmo arquivo, e as duas envelheceram juntas.
 
 ### O que precisa estar instalado
 
@@ -115,24 +163,44 @@ nome de host só**.
 ```bash
 npm run verificar                   # lint + tipos + teste unitário + os três verificadores de docs
 npm run teste:integracao            # exige Postgres — é o critério A4 (organização A não vê dado de B)
+npm run teste:ponta-a-ponta         # exige a pilha de pé E a semente de demonstração — ver abaixo
 ```
 
 Cada peça, separada:
 
 | Comando | O que confere |
 |---|---|
-| `npm run lint` | **As três regras de fronteira da ADR-0006**, como configuração e não como parágrafo: nada fora de `infraestrutura/clientes/` importa um SDK; `infraestrutura/` só é importada por `composicao/`; importação só para dentro e só pela superfície pública do módulo |
+| `npm run lint` | **As cinco regras de fronteira da ADR-0006**, como configuração e não como parágrafo: importação só para dentro e só pela superfície pública do módulo; nada fora de `infraestrutura/clientes/` importa um SDK; `infraestrutura/` só é importada por `composicao/`; `composicao/` só pelos caminhos declarados no `eslint.config.mjs`; e `semOrganizacao` só nos quatro `route.ts` da lista fechada do contrato *(esta linha dizia **três** — a própria ADR-0006 já as contava como cinco desde a emenda de 22/08/2026; corrigido em 30/08/2026)* |
 | `npm run tipos` | `tsc --noEmit`, em modo estrito |
 | `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
+| `npm run teste:ponta-a-ponta` | **O caminho crítico do enunciado, de fora para dentro** — um navegador contra a pilha real, com autenticação de verdade: registrar → analisar → atribuir → atender → resolver → avaliar, mais a trilha conferida na tela e a troca de organização no meio do percurso. **É um só, e para sempre** ([ADR-0008](docs/adr/0008-a-suite-de-testes-segue-a-garantia.md)); **não é portão de pipeline por push** |
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
-| `npm run verificar:openapi` | As três regras mecânicas da §15 do contrato, mais `$ref` e `operationId` |
+| `npm run verificar:openapi` | As **quatro** regras mecânicas da §15 do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver *(eram três até 30/08/2026)* |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso **não** está no `npm run verificar`; no pipeline ele roda **antes** do `push`, porque imagem publicada com segredo dentro não se desfaz |
 
 **O teste de integração roda num database só dele, `resolveai_teste`**, criado pelo `npm run local`. Sem
 `BANCO_URL_TESTE`, ele deriva do `BANCO_URL` trocando o database — e **recusa rodar** se o destino for o
 mesmo banco onde você trabalha, porque a suíte derruba e recria as tabelas a cada execução.
+
+**O teste de ponta a ponta tem dois pré-requisitos, e eles não são automatizados de propósito.** Ele não
+sobe a pilha (o `playwright.config.ts` não tem `webServer`: a pilha não é um processo, e duplicar o
+procedimento desta página seria uma segunda cópia que diverge) e não semeia (a semente **recusa** quando a
+demonstração já existe). Antes da primeira execução:
+
+```bash
+npx playwright install chromium                              # uma vez por máquina
+npm run local                                                # a pilha, em outro terminal
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo     # o mundo
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
+```
+
+Ele **acrescenta** uma ocorrência ao `Edifício Aurora (demonstração)`, com a marca do instante no título,
+e não altera nada do que a semente escreveu. Rodar duas vezes cria duas ocorrências marcadas e nada
+quebra; `npm run semear:demo -- --apagar` limpa tudo. Numa falha, o rastro, a imagem e o vídeo ficam em
+`test-results/` e o relatório em `playwright-report/` — os dois fora do git, e o rastro se abre com
+`npx playwright show-trace <caminho>`.
 
 ### Publicar
 
@@ -146,6 +214,42 @@ escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 **Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
 
+### A demonstração
+
+O produto sem dado não se demonstra: *recorrência por categoria* e *tempo médio de resolução, mês a mês*
+são séries mensais, e cinco semanas de uso real cabem em um mês e meio. A semente escreve **cinco meses**
+de ocorrências pelas mesmas portas que o produto usa — nenhum `INSERT` administrativo, nenhuma data
+corrigida depois do fato.
+
+```bash
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo
+```
+
+Ela cria **duas organizações** — `Condomínio Recanto Azul (demonstração)` e
+`Edifício Aurora (demonstração)` — e nunca escreve numa organização existente. Ao terminar, imprime os
+dois códigos públicos, a série mensal e a contagem por status: **é a conferência**.
+
+**Rodar duas vezes não duplica nada:** a semente recusa quando a demonstração já existe, e diz o que
+fazer. Para recomeçar:
+
+```bash
+npm run semear:demo -- --apagar   # apaga as duas organizações inteiras
+npm run semear:demo               # e semeia de novo
+```
+
+**As duas contas de demonstração**, para o ambiente publicado em
+<https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:
+
+| E-mail | Senha | O que ela é |
+|---|---|---|
+| `helena.demo@example.com` | `ResolveAi!2026` | **Gestora** no Recanto Azul e **Solicitante** no Aurora — é a pessoa em duas organizações, que é o argumento inteiro do multi-tenant |
+| `marcos.demo@example.com` | `ResolveAi!2026` | **Gestor** no Aurora |
+
+> **São credenciais de demonstração, publicadas de propósito.** Elas não estão no código nem na imagem —
+> a senha chega por `SENHA_DA_DEMONSTRACAO`, em tempo de execução. O cadastro do produto já é público e
+> aberto, então o que elas acrescentam é escrever **dentro das duas organizações de demonstração**, e nada
+> além. Trocá-las é uma variável de ambiente e uma linha desta tabela.
+
 ### O mapa das pastas de código
 
 | Pasta | Camada | Regra |
@@ -156,12 +260,13 @@ Migração destrutiva de esquema exige script de volta escrito à mão.
 | `src/dominio/` | Domínio | as regras. Não persiste, não conhece HTTP |
 | `src/infraestrutura/` | Infraestrutura | `clientes/` (o único lugar com SDK), `repositorios/`, `contexto/` (o ponto único de escopo) |
 | `src/composicao/` | — | monta o grafo de objetos; não decide regra |
-| `ferramentas/verificadores/` | — | os três verificadores de documentação |
+| `ferramentas/verificadores/` | — | **quatro** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker e roda no pipeline |
 | `supabase/migrations/` | — | o esquema, versionado |
 | `testes/` | — | `dominio/` e `aplicacao/` sem banco; `integracao/` com |
 
-A decisão está na [ADR-0006](docs/adr/0006-organizacao-de-modulos.md); as três regras de importação viram
-configuração em `eslint.config.mjs`, com o comentário de cada uma no arquivo.
+A decisão está na [ADR-0006](docs/adr/0006-organizacao-de-modulos.md); as **cinco** regras de importação
+viram configuração em `eslint.config.mjs`, com o comentário de cada uma no arquivo. *(Esta frase dizia
+"as três regras"; a ADR já registrava cinco desde a emenda de 22/08/2026. Corrigido em 30/08/2026.)*
 
 ## Como este repositório está organizado
 

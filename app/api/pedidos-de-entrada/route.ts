@@ -39,7 +39,7 @@ export const GET = comContexto({ exige: "vinculo.gerir" }, async ({ repos, requi
  */
 export const POST = semOrganizacao(
   { corpo: pedidoDeEntradaSchema },
-  async ({ ctx, corpo, portasGlobais }) => {
+  async ({ ctx, corpo, portasGlobais, resolucao }) => {
     const pedido = await pedirEntrada(
       { pedidosDeEntrada: portasGlobais.escritaDePedidosDeEntrada },
       ctx,
@@ -48,6 +48,10 @@ export const POST = semOrganizacao(
         nome: corpo.nome ?? null,
         telefone: corpo.telefone ?? null,
       },
+      // **Critério 7b.8**, e sem consulta nenhuma: a resolução de contexto já trouxe todos os vínculos
+      // ativos da Pessoa. Com vínculo em qualquer organização, o `nome` do corpo é ignorado — `pessoas` é
+      // global, e reescrevê-lo aqui mudaria a trilha imutável da organização em que ela já está.
+      resolucao.vinculos.length > 0,
     );
 
     // Sem `Location`: o `201` deste endpoint não o declara no `openapi.yaml`, porque não há

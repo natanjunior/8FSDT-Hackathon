@@ -1,29 +1,103 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
 import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
-import { STATUS } from "@/dominio/ocorrencia";
+import { CategoriaNaoEncontrada } from "@/aplicacao/organizacao";
+import { ErroDeDominio } from "@/dominio/erros";
+import {
+  COMANDOS_IMPLEMENTADOS,
+  MOTIVOS_DE_CANCELAMENTO,
+  MOTIVOS_DE_PAUSA,
+  STATUS,
+  type Comando,
+  type MotivoCancelamento,
+  type StatusOcorrencia,
+} from "@/dominio/ocorrencia";
 import {
   codificarCursor,
+  codificarCursorDeConversa,
   decodificarCursor,
+  decodificarCursorDeConversa,
   descricaoDoRecorte,
+  lenteDeRotulo,
   nomeDaPrioridade,
+  nomeDoMotivoCancelamento,
+  nomeDoMotivoPausa,
   nomeDoStatus,
+  opcoesDeMotivoCancelamento,
+  opcoesDeMotivoPausa,
+  opcoesDePrioridade,
   projetarAnexo,
+  projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,
+  projetarPaginaDeComentarios,
   projetarPaginaDeOcorrencias,
+  rotuloDeMotivoPausa,
+  rotuloDeStatus,
+  segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
+  CampoNaoSuportado,
+  comOrganizacaoAtiva,
+  CorpoNaoSuportado,
   FormatoInvalido,
+  lerCorpoOpcional,
   lerCursorDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerVarianteDaUrl,
+  problemaDe,
+  recusarEvolucaoPrevista,
+  recusarSemDestino,
+  registrarFalha,
   type ErroDeCampo,
 } from "@/interface/http";
+import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import {
+  casaPeloNome,
+  filtrarPorNome,
+  normalizarParaBusca,
+  repartirCandidatos,
+  termosDaBusca,
+  type Candidato,
+} from "@/interface/componentes/busca-de-candidatos";
+import {
+  enviarComentario,
+  executarComando,
+  MENSAGEM_GENERICA,
+} from "@/interface/componentes/comando-de-ocorrencia";
+import {
+  acaoPrimaria,
+  acoesDaBarra,
+  nomesDeStatus,
+  ocorrenciaNaoEncontradaEm,
+  PALAVRAS_DA_ATRIBUICAO,
+  palavrasDaAtribuicao,
+  rotuloDeComando,
+  rotuloDoCampoDeConversa,
+  rotulosDeStatus,
+  vazioDaBarra,
+  vazioDaConversa,
+} from "@/interface/componentes/rotulos";
 import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
+import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
-import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
+import {
+  alteracaoDePrioridadeSchema,
+  atribuicaoDeResponsavelSchema,
+  avaliacaoSchema,
+  cancelamentoSchema,
+  camposDeEvolucaoPrevista,
+  camposEscritosPeloServidor,
+  camposSemDestino,
+  comandoComObservacaoSchema,
+  comentarioSchema,
+  pausaSchema,
+  registroDeOcorrenciaSchema,
+  resolucaoSchema,
+  solucaoAplicadaSchema,
+} from "@/interface/schemas";
 
 /**
  * ============================================================================
@@ -205,6 +279,24 @@ describe("o critério 11.4 — a forma, com erros[] por campo", () => {
  * O SQL tem teste próprio contra Postgres; a visibilidade tem teste próprio na Aplicação.
  */
 
+/**
+ * As nove permissões do Gestor. **Extraída do `it` *"emMenu só contém comandos que TÊM a variante
+ * menu"*, sem mudar o conteúdo** (item 27): o caso novo do `vazioDaBarra` precisa da mesma lista, e
+ * `ocorrencia.cancelar_qualquer` é a permissão de que a asserção *"a barra do Gestor nunca fica vazia"*
+ * depende. Duas cópias divergiriam.
+ */
+const DO_GESTOR = [
+  "ocorrencia.analisar",
+  "ocorrencia.atribuir",
+  "ocorrencia.iniciar_atendimento",
+  "ocorrencia.pausar",
+  "ocorrencia.retomar",
+  "ocorrencia.registrar_solucao",
+  "ocorrencia.resolver",
+  "ocorrencia.alterar_prioridade",
+  "ocorrencia.cancelar_qualquer",
+];
+
 const RESUMO_LIDO: OcorrenciaResumoLida = {
   id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
   titulo: "Lâmpada queimada na garagem",
@@ -215,14 +307,15 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" },
   responsavel: null,
   quantidadeDeAnexos: 0,
+  avaliada: false,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os treze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
-    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
 
     expect(resumo.categoria).toStrictEqual({
       id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d",
@@ -231,43 +324,61 @@ describe("o OcorrenciaResumo projetado", () => {
     expect(resumo.categoria).not.toHaveProperty("icone");
     expect(resumo).not.toHaveProperty("descricao");
     expect(resumo).not.toHaveProperty("acoesDisponiveis");
+    // **O décimo quarto, e é do item 27.** Sem ele o convite de T-03 não é computável — e ele é FATO da
+    // ocorrência, como `status` e `motivoPausa`, nunca afazer calculado por leitor (critério 14.5).
+    expect(resumo.avaliada).toBe(false);
+  });
+
+  it("avaliada é `true` quando a nota existe — e é `avaliacao_nota is not null`, nada mais", () => {
+    expect(
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, avaliada: true }, "solicitante").avaliada,
+    ).toBe(true);
   });
 
   it("statusRotulo é o rótulo de gente, nunca o enum cru", () => {
-    expect(projetarOcorrenciaResumo(RESUMO_LIDO).statusRotulo).toBe("Recebida — aguardando análise");
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante").statusRotulo).toBe(
+      "Recebida — aguardando análise",
+    );
   });
 
   it("motivoPausa é nulo fora de pausada, e é o motivo dentro dela", () => {
-    expect(projetarOcorrenciaResumo(RESUMO_LIDO).motivoPausa).toBeNull();
+    expect(projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante").motivoPausa).toBeNull();
 
-    const pausada = projetarOcorrenciaResumo({
-      ...RESUMO_LIDO,
-      status: "pausada",
-      motivoPausa: "aguardando_peca",
-    });
+    const pausada = projetarOcorrenciaResumo(
+      {
+        ...RESUMO_LIDO,
+        status: "pausada",
+        motivoPausa: "aguardando_peca",
+      },
+      "solicitante",
+    );
     expect(pausada.motivoPausa).toBe("aguardando_peca");
     expect(pausada.statusRotulo).toBe("Parada — esperando material chegar");
   });
 
-  it("quantidadeDeAnexos vem do repositório; responsavel continua forçado — item 19", () => {
-    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO);
+  it("quantidadeDeAnexos vem do repositório; responsavel é repassado — item 19", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
     expect(resumo.quantidadeDeAnexos).toBe(0);
     expect(resumo.responsavel).toBeNull();
     // **A asserção que torna o caso útil.** Com o campo vindo do repositório, provar que ele sai `0`
     // quando entra `0` não prova nada; o que prova é o REPASSE.
-    expect(projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 3 }).quantidadeDeAnexos).toBe(
-      3,
-    );
+    expect(
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 3 }, "solicitante")
+        .quantidadeDeAnexos,
+    ).toBe(3);
   });
 });
 
 describe("o envelope da página", () => {
   it("com temMais, proximoCursor é o do ÚLTIMO item devolvido", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: true,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: true,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.visibilidadeAplicada).toBe("todas");
     expect(decodificarCursor(envelope.proximoCursor!)).toStrictEqual({
@@ -277,32 +388,41 @@ describe("o envelope da página", () => {
   });
 
   it("sem temMais, proximoCursor é nulo — e nunca abre uma página vazia", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: false,
-      visibilidadeAplicada: "apenas_minhas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: false,
+        visibilidadeAplicada: "apenas_minhas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.proximoCursor).toBeNull();
   });
 
   it("página vazia com temMais impossível: sem itens, não há cursor", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [],
-      temMais: true,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [],
+        temMais: true,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope.itens).toStrictEqual([]);
     expect(envelope.proximoCursor).toBeNull();
   });
 
   it("não há total no envelope — o contrato §7.7 o recusou", () => {
-    const envelope = projetarPaginaDeOcorrencias({
-      itens: [RESUMO_LIDO],
-      temMais: false,
-      visibilidadeAplicada: "todas",
-    });
+    const envelope = projetarPaginaDeOcorrencias(
+      {
+        itens: [RESUMO_LIDO],
+        temMais: false,
+        visibilidadeAplicada: "todas",
+      },
+      "solicitante",
+    );
 
     expect(envelope).not.toHaveProperty("total");
   });
@@ -552,7 +672,8 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
 
   it("o resumo devolve a contagem que o repositório apurou", () => {
     expect(
-      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 1 }).quantidadeDeAnexos,
+      projetarOcorrenciaResumo({ ...RESUMO_LIDO, quantidadeDeAnexos: 1 }, "solicitante")
+        .quantidadeDeAnexos,
     ).toBe(1);
   });
 
@@ -561,6 +682,118 @@ describe("os dois zeros forçados viram contagem de verdade", () => {
     expect(projetado.anexos).toStrictEqual([]);
     expect(projetado.quantidadeDeAnexos).toBe(0);
   });
+
+  it("o DETALHE também emite avaliada, e ela é coerente com avaliacao — o allOf provado", () => {
+    /**
+     * **`OcorrenciaDetalhe` é `allOf: [OcorrenciaResumo, …]`** (`openapi.yaml:2890-2892`), então o campo
+     * entra no detalhe junto, ao lado do `avaliacao` que já mora lá.
+     *
+     * **Isso não é redundância acidental: é a relação `quantidadeDeAnexos` ↔ `anexos`**, que o detalhe
+     * carrega as duas desde o item 13b — *"a contagem é o comprimento da lista"*. Aqui o booleano é
+     * `avaliacao !== null`, e **provar a coerência é o que impede as duas de divergirem em silêncio.**
+     */
+    const semAvaliacao = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), QUEM_LE);
+    expect(semAvaliacao.avaliada).toBe(false);
+    expect(semAvaliacao.avaliacao).toBeNull();
+
+    const comAvaliacao = projetarOcorrenciaDetalhe(
+      {
+        ...umaOcorrenciaLidaCom([]),
+        status: "resolvida",
+        avaliacao: { nota: 5, comentario: null, avaliadaEm: "2026-08-29T10:00:00.000Z" },
+      },
+      QUEM_LE,
+    );
+    expect(comAvaliacao.avaliada).toBe(true);
+    expect(comAvaliacao.avaliacao?.nota).toBe(5);
+  });
+});
+
+describe("acoesDisponiveis conhece o responsável — a invariante 9 na projeção", () => {
+  /** Um Gestor com as permissões dos três comandos construídos. */
+  const GESTOR_LE = {
+    pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f",
+    permissoes: ["ocorrencia.ler_todas", "ocorrencia.atribuir", "ocorrencia.iniciar_atendimento"],
+  };
+
+  const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
+
+  function emAnaliseCom(responsavel: { pessoaId: string; nome: string } | null) {
+    return { ...umaOcorrenciaLidaCom([]), status: "em_analise" as const, responsavel };
+  }
+
+  it("sem responsável, iniciar-atendimento NÃO é anunciado — critério 22.3", () => {
+    // A projeção não pergunta a `atribuicoes`: ela lê `responsavel`, que o `lateral` do item 19 preenche.
+    expect(projetarOcorrenciaDetalhe(emAnaliseCom(null), GESTOR_LE).acoesDisponiveis).not.toContain(
+      "iniciar-atendimento",
+    );
+  });
+
+  it("com responsável, ele é anunciado — e o campo do payload continua sendo o mesmo", () => {
+    const projetado = projetarOcorrenciaDetalhe(emAnaliseCom(RESPONSAVEL), GESTOR_LE);
+    expect(projetado.acoesDisponiveis).toContain("iniciar-atendimento");
+    expect(projetado.responsavel).toStrictEqual(RESPONSAVEL);
+  });
+
+  it("em resolvida a projeção devolve lista VAZIA — o critério 26.4, e é derivação", () => {
+    // **Nem para o Gestor com todas as permissões.** `TRANSICOES.resolvida` é vazia; `avaliar` é o único
+    // admitido ali e está fora de `COMANDOS_IMPLEMENTADOS` até o item 27.
+    const projetado = projetarOcorrenciaDetalhe(
+      { ...umaOcorrenciaLidaCom([]), status: "resolvida" as const, responsavel: RESPONSAVEL },
+      { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.resolver"] },
+    );
+
+    expect(projetado.acoesDisponiveis).toStrictEqual([]);
+  });
+
+  it.each(["em_atendimento", "pausada"] as const)(
+    "em %s a projeção anuncia registrar-solucao-aplicada — o critério 25.1 no payload",
+    (status) => {
+      // **É a §8.5 lida ao contrário:** comando presente é comando cujo endpoint existe. É o que faz T-05
+      // desenhar o campo sem precisar de uma segunda regra sobre estados.
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.registrar_solucao"] },
+      );
+
+      expect(projetado.acoesDisponiveis).toContain("registrar-solucao-aplicada");
+    },
+  );
+
+  it("em aberta a projeção NÃO o anuncia — solução aplicada descreve trabalho feito", () => {
+    const projetado = projetarOcorrenciaDetalhe(
+      { ...umaOcorrenciaLidaCom([]), responsavel: RESPONSAVEL },
+      { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.registrar_solucao"] },
+    );
+
+    expect(projetado.acoesDisponiveis).not.toContain("registrar-solucao-aplicada");
+  });
+
+  it.each(["aberta", "em_analise", "em_atendimento", "pausada"] as const)(
+    "em %s a projeção anuncia alterar-prioridade — o critério 17.1 no payload",
+    (status) => {
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.alterar_prioridade"] },
+      );
+
+      expect(projetado.acoesDisponiveis).toContain("alterar-prioridade");
+    },
+  );
+
+  it.each(["resolvida", "cancelada"] as const)(
+    "em %s a projeção NÃO o anuncia — a invariante 7, e é a segunda metade do critério 17.2",
+    (status) => {
+      // **É o que faz T-05 mostrar TEXTO em vez de seletor**, sem uma segunda regra sobre estados: a tela
+      // pergunta a `acoesDisponiveis`, e a resposta já carrega a D6.
+      const projetado = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status, responsavel: RESPONSAVEL },
+        { ...GESTOR_LE, permissoes: [...GESTOR_LE.permissoes, "ocorrencia.alterar_prioridade"] },
+      );
+
+      expect(projetado.acoesDisponiveis).not.toContain("alterar-prioridade");
+    },
+  );
 });
 
 describe("`?variante=`", () => {
@@ -649,6 +882,251 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
   });
 });
 
+describe("a lente de rótulo — o critério 31.2, e ela segue PERMISSÃO", () => {
+  it("quem tem ocorrencia.ler_todas lê pela coluna do Gestor", () => {
+    expect(lenteDeRotulo(["ocorrencia.ler_todas"])).toBe("gestor");
+  });
+
+  it("quem NÃO a tem lê pela coluna do Solicitante — inclusive com todas as outras dele", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+    expect(
+      lenteDeRotulo([
+        "ocorrencia.registrar",
+        "ocorrencia.ler_propria",
+        "ocorrencia.comentar",
+        "ocorrencia.cancelar_propria",
+        "ocorrencia.avaliar",
+      ]),
+    ).toBe("solicitante");
+  });
+
+  /**
+   * **O Encarregado é o achado A-5 da spec, virado caso.** O `glossario.md:114` lhe dá a coluna do
+   * Gestor — *"porque operam a máquina"* —, e `Permissao.ts:70-74` lhe dá `[]`. Nenhum predicado de
+   * permissão pode colocá-lo lá, e `arquitetura.md:479` proíbe checar `vinculo.papel`.
+   *
+   * **A população é vazia hoje** — ele leva `403` em todo endpoint de ocorrência —, então não há defeito
+   * observável. O caso existe para que o dia em que ele ganhar permissões seja uma decisão, e não uma
+   * descoberta.
+   */
+  it("o Encarregado, com lista vazia, cai na coluna do Solicitante — achado A-5, declarado", () => {
+    expect(lenteDeRotulo([])).toBe("solicitante");
+  });
+
+  /**
+   * **É `ler_todas` e mais nenhuma.** O produto já usa esse predicado como *"a lente do Gestor"* em três
+   * lugares independentes — `visibilidadeAplicada`, `podeLerTodas` nas funções de aplicação, e a barra de
+   * filtros. Escolher uma quarta criaria um segundo desenho de *quem é Gestor* (spec §3.1).
+   */
+  it("nenhuma outra permissão do Gestor liga a lente sozinha", () => {
+    for (const permissao of [
+      "ocorrencia.analisar",
+      "ocorrencia.resolver",
+      "ocorrencia.pausar",
+      "ocorrencia.atribuir",
+      "dashboard.ler",
+      "vinculo.gerir",
+      "organizacao.configurar",
+    ]) {
+      expect(lenteDeRotulo([permissao])).toBe("solicitante");
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  O critério 31.2 — a tabela do `glossario.md:114-124`, linha a linha
+ * ============================================================================
+ *
+ * **É uma tabela e não seis casos**, e a razão é a mesma de `ACAO_PRIMARIA`: assim o teste falha quando
+ * um status **novo** nascer sem rótulo em uma das colunas, que é o modo pelo qual esta garantia se perde.
+ */
+describe("o critério 31.2 — as duas colunas do glossário, para os seis status", () => {
+  const GLOSSARIO: Readonly<Record<StatusOcorrencia, { solicitante: string; gestor: string }>> = {
+    aberta: { solicitante: "Recebida — aguardando análise", gestor: "Aberta" },
+    em_analise: { solicitante: "Em análise", gestor: "Em análise" },
+    em_atendimento: { solicitante: "Em execução", gestor: "Em atendimento" },
+    pausada: { solicitante: "Parada", gestor: "Pausada" },
+    resolvida: { solicitante: "Resolvida", gestor: "Resolvida" },
+    cancelada: { solicitante: "Cancelada", gestor: "Cancelada" },
+  };
+
+  it.each(STATUS)("%s tem as duas colunas, e elas são as do glossário", (status) => {
+    expect(rotuloDeStatus(status, null, "solicitante")).toBe(GLOSSARIO[status].solicitante);
+    expect(rotuloDeStatus(status, null, "gestor")).toBe(GLOSSARIO[status].gestor);
+  });
+
+  it("a MESMA ocorrência em em_atendimento é 'Em execução' e 'Em atendimento' — a frase do critério", () => {
+    expect(rotuloDeStatus("em_atendimento", null, "solicitante")).toBe("Em execução");
+    expect(rotuloDeStatus("em_atendimento", null, "gestor")).toBe("Em atendimento");
+  });
+
+  /**
+   * **A colapsagem, e é ela que faz o 31.6 acontecer.** Do lado do Solicitante `pausada` tem quatro
+   * rótulos, um por motivo; do lado do Gestor tem **um**, e o motivo viaja no campo `motivoPausa` —
+   * `glossario.md:137-139`: *"como campo próprio ao lado do rótulo, não embutido nele"*.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "em pausada · %s, o Solicitante lê o motivo e o Gestor lê 'Pausada' seca",
+    (motivo) => {
+      expect(rotuloDeStatus("pausada", motivo, "solicitante")).toBe(rotuloDeMotivoPausa(motivo));
+      expect(rotuloDeStatus("pausada", motivo, "gestor")).toBe("Pausada");
+    },
+  );
+
+  it("o resumo lê pela lente que recebeu, e o motivo continua no payload nas duas", () => {
+    const pausada = {
+      ...RESUMO_LIDO,
+      status: "pausada" as const,
+      motivoPausa: "aguardando_peca" as const,
+    };
+
+    expect(projetarOcorrenciaResumo(pausada, "solicitante").statusRotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(projetarOcorrenciaResumo(pausada, "gestor").statusRotulo).toBe("Pausada");
+    // **O motivo continua no payload nas DUAS lentes** — é ele que carrega a diferença que o rótulo do
+    // Gestor colapsa (`openapi.yaml:2845-2851`), e é o que faz a segunda linha de T-03 ser possível.
+    expect(projetarOcorrenciaResumo(pausada, "gestor").motivoPausa).toBe("aguardando_peca");
+    expect(projetarOcorrenciaResumo(pausada, "solicitante").motivoPausa).toBe("aguardando_peca");
+  });
+
+  /**
+   * **O detalhe DERIVA a lente, e é a assimetria deliberada da §3.4 da spec:** onde `QuemLe` já chega, um
+   * terceiro argumento que é função pura do segundo convidaria os dois a discordarem — e são onze rotas
+   * de comando em que isso poderia acontecer. **É por isso que nenhuma delas muda de assinatura.**
+   */
+  it("projetarOcorrenciaDetalhe deriva a lente de quemLe.permissoes — as onze rotas não mudam", () => {
+    const pausada = {
+      ...umaOcorrenciaLidaCom([]),
+      status: "pausada" as const,
+      motivoPausa: "aguardando_peca" as const,
+    };
+
+    expect(projetarOcorrenciaDetalhe(pausada, QUEM_LE).statusRotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(
+      projetarOcorrenciaDetalhe(pausada, {
+        pessoaId: QUEM_LE.pessoaId,
+        permissoes: ["ocorrencia.ler_todas"],
+      }).statusRotulo,
+    ).toBe("Pausada");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os quatro critérios de OBSERVAÇÃO do item 31 — 31.1, 31.3, 31.4 e 31.5
+ * ============================================================================
+ *
+ * **Os quatro já eram verdade antes deste item, e é isso que os torna necessários.** Eles são regras que
+ * valem *"para qualquer rótulo novo"* (`glossario.md:126`): o que o item entrega é transformá-los em
+ * teste, e é assim que o dia em que alguém escrever *"Resolvida — conte como foi"* ou *"o síndico está
+ * avaliando"* deixa de passar em silêncio.
+ *
+ * **Percorrem as TABELAS INTEIRAS, e não um valor cada.** É a única forma de o teste falhar quando um
+ * status **novo** nascer sem rótulo — a mesma disciplina de `ACAO_PRIMARIA`.
+ */
+describe("os critérios de observação do item 31 — as regras do glossário §4, viradas rede", () => {
+  /** Toda string que este produto pode mostrar como rótulo de status ou de espera. */
+  function todosOsRotulos(): readonly string[] {
+    const rotulos: string[] = [];
+    for (const status of STATUS) {
+      rotulos.push(rotuloDeStatus(status, null, "solicitante"));
+      rotulos.push(rotuloDeStatus(status, null, "gestor"));
+      rotulos.push(nomeDoStatus(status));
+    }
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      rotulos.push(rotuloDeStatus("pausada", motivo, "solicitante"));
+      rotulos.push(rotuloDeStatus("pausada", motivo, "gestor"));
+      rotulos.push(rotuloDeMotivoPausa(motivo));
+    }
+    return rotulos;
+  }
+
+  /**
+   * **31.5 — e a razão é a D3, não polidez.** A D19 nasceu de uma entrevista com um síndico, e a redação
+   * original dizia *"o síndico está avaliando"*. Isso trava o produto em condomínio, enquanto a **D3**
+   * admite empresa e bairro como Organização — e o multi-tenant é a adição `NOSSO` mais cara do projeto
+   * para ser desmentida por uma palavra de interface.
+   */
+  it("nenhum rótulo contém a palavra 'síndico', em nenhuma caixa — critério 31.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo.toLowerCase()).not.toContain("síndico");
+      expect(rotulo.toLowerCase()).not.toContain("sindico");
+    }
+  });
+
+  it("nenhum rótulo trava o produto numa das três formas de Organização — regra 1 do glossário", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("zelador");
+      expect(minusculo).not.toContain("porteiro");
+      expect(minusculo).not.toContain("condomínio");
+    }
+  });
+
+  /**
+   * **31.3 — quatro rótulos, não um molde.** *"Frase montada em tempo de execução produz «Parada,
+   * esperando aguardando peça»"* (regra 2 do glossário). A forma literal disso é o identificador do enum
+   * aparecendo dentro de um texto em português.
+   */
+  it("os quatro rótulos de pausa são DISTINTOS entre si — critério 31.3", () => {
+    const rotulos = MOTIVOS_DE_PAUSA.map((motivo) =>
+      rotuloDeStatus("pausada", motivo, "solicitante"),
+    );
+    expect(rotulos).toHaveLength(4);
+    expect(new Set(rotulos).size).toBe(4);
+  });
+
+  it("nenhum rótulo interpola o identificador do enum numa frase — critério 31.3", () => {
+    for (const rotulo of todosOsRotulos()) {
+      expect(rotulo).not.toContain("_");
+      // E nenhum rótulo É o valor cru do enum.
+      expect(STATUS as readonly string[]).not.toContain(rotulo);
+      expect(MOTIVOS_DE_PAUSA as readonly string[]).not.toContain(rotulo);
+    }
+  });
+
+  /**
+   * **31.4 — rótulo é estado, não convite.** *"Resolvida — conte como foi"* mistura o que a ocorrência é
+   * com o que se pede de quem lê. **O convite pertence à tela** — é o `CONVITE_A_AVALIAR` do item 27, que
+   * vive em `rotulos.ts` e é renderizado ao LADO do rótulo, nunca dentro dele.
+   */
+  it("resolvida é 'Resolvida' e nada mais, nas DUAS lentes — critério 31.4", () => {
+    expect(rotuloDeStatus("resolvida", null, "solicitante")).toBe("Resolvida");
+    expect(rotuloDeStatus("resolvida", null, "gestor")).toBe("Resolvida");
+  });
+
+  it("nenhum rótulo carrega convite — nem verbo no imperativo do 27.5", () => {
+    for (const rotulo of todosOsRotulos()) {
+      const minusculo = rotulo.toLowerCase();
+      expect(minusculo).not.toContain("conte");
+      expect(minusculo).not.toContain("avalie");
+      expect(minusculo).not.toContain("clique");
+    }
+  });
+
+  /**
+   * **31.1 — nenhum cliente monta a frase.** As duas projeções que a tela consome emitem `statusRotulo`
+   * como `string` **pronta**, e o que desce ao navegador é texto. É a versão executável do *"calculado no
+   * servidor, nunca no cliente"* do `glossario.md:102`.
+   */
+  it("resumo e detalhe emitem statusRotulo como string pronta — critério 31.1", () => {
+    const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "gestor");
+    expect(typeof resumo.statusRotulo).toBe("string");
+    expect(resumo.statusRotulo).toBe("Aberta");
+
+    const detalhe = projetarOcorrenciaDetalhe(umaOcorrenciaLidaCom([]), {
+      pessoaId: QUEM_LE.pessoaId,
+      permissoes: ["ocorrencia.ler_todas"],
+    });
+    expect(typeof detalhe.statusRotulo).toBe("string");
+    expect(detalhe.statusRotulo).toBe("Aberta");
+  });
+});
+
 describe("o critério 15.5 — os nomes das opções de filtro", () => {
   it("os seis status têm nome, e nenhum é o enum cru", () => {
     for (const status of STATUS) {
@@ -666,6 +1144,18 @@ describe("o critério 15.5 — os nomes das opções de filtro", () => {
     expect(nomeDaPrioridade("baixa")).toBe("Baixa");
     expect(nomeDaPrioridade("normal")).toBe("Normal");
     expect(nomeDaPrioridade("alta")).toBe("Alta");
+  });
+
+  it("opcoesDePrioridade devolve os TRÊS pares, na ordem de PRIORIDADES e com a palavra", () => {
+    // **A ordem é a do Domínio**, e ela é significativa no seletor: `baixa · normal · alta` é a escala,
+    // e reordenar aqui produziria um controle que lê ao contrário do resto do produto.
+    //
+    // **A palavra sempre** — compromisso A-5. Marcador colorido sem texto é defeito, em qualquer tela.
+    expect(opcoesDePrioridade()).toStrictEqual([
+      { valor: "baixa", rotulo: "Baixa" },
+      { valor: "normal", rotulo: "Normal" },
+      { valor: "alta", rotulo: "Alta" },
+    ]);
   });
 });
 
@@ -698,5 +1188,1859 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
     expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
       "Só as minhas",
     ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  `corpoOpcional` — o critério 16.7, e por que ele é sobre BYTES
+ * ============================================================================
+ *
+ * Cinco endpoints do `openapi.yaml` declaram `requestBody: required: false` — os quatro comandos de
+ * avanço rotineiro e o `/recusar` do item 8 —, e até aqui todos respondiam `415` a quem não mandasse
+ * corpo. O portão do DoD *"a especificação versionada corresponde ao código"* estava aberto.
+ *
+ * **"Corpo ausente" é ZERO BYTE, e não "sem `content-type`"**, e é isso que impede `corpoOpcional` de
+ * virar máquina de descarte silencioso: um cliente que mande `{"observacao": "…"}` esquecendo o
+ * cabeçalho teria a observação aceita e jogada fora sem resposta.
+ */
+describe("lerCorpoOpcional", () => {
+  const URL_QUALQUER = "http://localhost/api/ocorrencias/x/analisar";
+
+  it("requisição SEM corpo chega com zero byte, e vira objeto vazio", async () => {
+    // A afirmação que o plano precisava provar: `Request` sem `body` devolve string vazia em `.text()`.
+    const requisicao = new Request(URL_QUALQUER, { method: "POST" });
+    expect(await requisicao.clone().text()).toBe("");
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({});
+  });
+
+  it("corpo PRESENTE com content-type que não é JSON continua 415 — nada é descartado em silêncio", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(CorpoNaoSuportado);
+  });
+
+  it("corpo presente com JSON inválido continua 400 FORMATO_INVALIDO", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+
+    await expect(lerCorpoOpcional(requisicao)).rejects.toBeInstanceOf(FormatoInvalido);
+  });
+
+  it("corpo presente e válido chega inteiro", async () => {
+    const requisicao = new Request(URL_QUALQUER, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ observacao: "Vou ver o estoque." }),
+    });
+
+    expect(await lerCorpoOpcional(requisicao)).toStrictEqual({ observacao: "Vou ver o estoque." });
+  });
+});
+
+describe("o corpo dos comandos de avanço rotineiro", () => {
+  it("aceita objeto vazio — o corpo inteiro é opcional (ComandoComObservacaoOpcional)", () => {
+    const conferido = comandoComObservacaoSchema.safeParse({});
+    expect(conferido.success).toBe(true);
+  });
+
+  it("aceita observação até 1000, e recusa acima — o limite é o do openapi.yaml", () => {
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1000) }).success).toBe(true);
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("NÃO tem minLength — o contrato declara maxLength e mais nada", () => {
+    // Um `.min(1)` aqui recusaria mais do que a especificação versionada declara, e é o portão do DoD
+    // olhando na direção contrária: o código não pode ser mais estrito que o contrato.
+    expect(comandoComObservacaoSchema.safeParse({ observacao: "" }).success).toBe(true);
+  });
+
+  it("campo que não é observacao é DESCARTADO — é o critério 24.2 no schema", () => {
+    // **O cliente não escolhe o destino de `retomar`.** O corpo declara um campo só, e `z.object` sem
+    // `.passthrough()` descarta o resto: mandar `statusDestino` não muda nada, e não vira `400` — o que
+    // seria contar ao cliente que existe uma porta. O destino sai da trilha, dentro do agregado.
+    const analisado = comandoComObservacaoSchema.parse({
+      observacao: "Peça chegou.",
+      statusDestino: "resolvida",
+    });
+
+    expect(analisado).toStrictEqual({ observacao: "Peça chegou." });
+    expect("statusDestino" in analisado).toBe(false);
+  });
+});
+
+describe("os rótulos que descem para a barra de ações", () => {
+  /** Os dois cuja FORMA não é botão — `rotulos.ts` os declara desde antes do item 25. */
+  const NAO_SAO_BOTAO: readonly Comando[] = ["alterar-prioridade", "registrar-solucao-aplicada"];
+
+  it("todo comando implementado que é BOTÃO tem rótulo — senão a barra some sem dizer nada", () => {
+    // **É o alarme dos itens 17, 18 e 27:** quem acrescentar um comando de botão a
+    // `COMANDOS_IMPLEMENTADOS` e esquecer o rótulo faria a barra renderizar nada, em silêncio.
+    //
+    // **A exceção é asserção, e não filtro silencioso** — ver o caso logo abaixo. O item 25 é o primeiro
+    // em que a premissa *"implementado ⇒ botão"* deixa de valer.
+    for (const comando of COMANDOS_IMPLEMENTADOS) {
+      if (NAO_SAO_BOTAO.includes(comando)) continue;
+      expect(rotuloDeComando(comando)).not.toBeNull();
+    }
+  });
+
+  it("registrar-solucao-aplicada NÃO tem rótulo, e é a FORMA dele — não esquecimento", () => {
+    // **A exceção, escrita.** Ele é campo no corpo de T-05 (`inventario-de-telas.md`), e um rótulo
+    // aqui produziria um botão que compete com *Resolver* na mesma barra.
+    expect(rotuloDeComando("registrar-solucao-aplicada")).toBeNull();
+  });
+
+  it("alterar-prioridade NÃO tem rótulo, e é a FORMA dele — não esquecimento", () => {
+    // **A exceção, escrita.** Ele é **seletor no bloco de identidade** (`inventario-de-telas.md:811-812`),
+    // e um rótulo aqui produziria um botão na barra para um comando que a tela já oferece em outro lugar.
+    //
+    // **Sem este caso a ausência ficaria silenciosa** a partir desta fatia: `NAO_SAO_BOTAO` faz o laço
+    // pular os dois, e a regra do arquivo é que exceção é asserção, nunca filtro silencioso.
+    expect(rotuloDeComando("alterar-prioridade")).toBeNull();
+  });
+
+  it("avaliar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    // **O último rótulo do produto.** Até o item 27 este comando não tinha rótulo, e o caso que guardava
+    // a ausência foi apagado nesta fatia — como o próprio comentário dele mandava.
+    expect(rotuloDeComando("avaliar")).toBe("Avaliar");
+  });
+
+  it("cancelar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("cancelar")).toBe("Cancelar");
+  });
+
+  it("retomar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("retomar")).toBe("Retomar");
+  });
+
+  it("pausar é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("pausar")).toBe("Pausar");
+  });
+
+  it("resolver é palavra, e é o verbo do glossário — compromisso A-5", () => {
+    expect(rotuloDeComando("resolver")).toBe("Resolver");
+  });
+
+  it("analisar é palavra, não ícone — compromisso A-5", () => {
+    expect(rotuloDeComando("analisar")).toBe("Analisar");
+  });
+
+  it("atribuir é palavra, e cabe ao lado de Analisar em 390 px — compromisso A-5", () => {
+    expect(rotuloDeComando("atribuir-responsavel")).toBe("Atribuir");
+  });
+
+  it("iniciar-atendimento é palavra, e o rótulo fica INTEIRO — compromisso A-5", () => {
+    // **Encurtar para *Atender* trocaria o VERBO** que o glossário §4, o contrato §8.4 e o inventário
+    // usam. Não é o caso de *Atribuir*, que é a cabeça de *Atribuir responsável*: mesmo verbo, objeto
+    // encurtado.
+    expect(rotuloDeComando("iniciar-atendimento")).toBe("Iniciar atendimento");
+  });
+
+  it("os seis status têm rótulo nas DUAS lentes e nome de Gestor — nenhum buraco", () => {
+    const doSolicitante = rotulosDeStatus("solicitante");
+    const doGestor = rotulosDeStatus("gestor");
+    const nomes = nomesDeStatus();
+
+    for (const status of STATUS) {
+      expect(typeof doSolicitante[status]).toBe("string");
+      expect(typeof doGestor[status]).toBe("string");
+      expect(typeof nomes[status]).toBe("string");
+    }
+
+    // A frase do `409` usa a coluna de quem lê — "agora ela está …". Do lado do Solicitante `pausada`
+    // degrada para a palavra sozinha, porque um erro não carrega motivo de pausa.
+    expect(doSolicitante.pausada).toBe("Parada");
+    expect(doSolicitante.em_analise).toBe("Em análise");
+
+    // **Do lado do Gestor não há degradação a fazer:** a coluna dele JÁ é uma palavra por status, e
+    // `pausada` é "Pausada" com ou sem motivo. É o que faz o `409` dele ler "agora ela está Pausada."
+    expect(doGestor.pausada).toBe("Pausada");
+    expect(doGestor.aberta).toBe("Aberta");
+    expect(doGestor.em_atendimento).toBe("Em atendimento");
+
+    // O bloco de transição usa a coluna do Gestor: ela é SUBSTANTIVO, e sobrevive dentro de "De X para Y".
+    expect(nomes.aberta).toBe("Aberta");
+    expect(nomes.em_analise).toBe("Em análise");
+  });
+});
+
+/**
+ * ============================================================================
+ *  O corpo de `POST …/atribuir-responsavel` — o critério 19.6
+ * ============================================================================
+ *
+ * **`observacao` é recusada EM VOZ ALTA**, e é a diferença que a §6.2 do contrato fixa: `400` é *"você
+ * escreveu errado"*, `422 CAMPO_NAO_SUPORTADO` é *"o produto não faz isso"*. Um schema Zod comum descarta
+ * o campo desconhecido de graça — e quem chamou fica convencido de ter gravado uma observação que não
+ * existe em lugar nenhum do esquema.
+ */
+describe("o corpo da atribuição", () => {
+  it("aceita { responsavelPessoaId } e nada mais é exigido — critério 19.1", () => {
+    const conferido = atribuicaoDeResponsavelSchema.safeParse({
+      responsavelPessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f",
+    });
+    expect(conferido.success).toBe(true);
+  });
+
+  it("recusa responsavelPessoaId ausente", () => {
+    expect(atribuicaoDeResponsavelSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("recusa responsavelPessoaId que não é UUID — é identificador, não texto", () => {
+    expect(atribuicaoDeResponsavelSchema.safeParse({ responsavelPessoaId: "o zelador" }).success).toBe(
+      false,
+    );
+  });
+
+  it("camposSemDestino aponta observacao — e o corpo sem ela passa limpo", () => {
+    expect(
+      camposSemDestino({ responsavelPessoaId: "x", observacao: "combinei com o zelador" }),
+    ).toStrictEqual(["observacao"]);
+    expect(camposSemDestino({ responsavelPessoaId: "x" })).toStrictEqual([]);
+  });
+
+  it("camposSemDestino não estoura com corpo que não é objeto", () => {
+    // O `recusar` roda sobre o corpo CRU: `null`, `[]` e `"texto"` chegam aqui antes de o schema opinar.
+    expect(camposSemDestino(null)).toStrictEqual([]);
+    expect(camposSemDestino("observacao")).toStrictEqual([]);
+  });
+
+  it("observacao NULA também é recusada — o campo presente é o que importa", () => {
+    // `"observacao" in corpo` e não `corpo.observacao !== undefined`: quem mandou `{ observacao: null }`
+    // mandou o campo, e precisa saber que ele não é aceito. É a mesma leitura de
+    // `camposEscritosPeloServidor`.
+    expect(camposSemDestino({ observacao: null })).toStrictEqual(["observacao"]);
+  });
+
+  it("recusarSemDestino estoura com observacao, e passa limpo sem ela — o critério 17.6", () => {
+    // **O envelope que os DOIS endpoints chamam.** Ele era função local do `route.ts` do item 19, e o
+    // comentário de lá já anunciava este dia: *"o item 17 chama esta mesma `camposSemDestino`"*. Uma cópia
+    // do `if` no segundo `route.ts` seria a segunda construção do mesmo `throw`.
+    expect(() => recusarSemDestino({ prioridade: "alta", observacao: "combinei com o zelador" })).toThrow(
+      CampoNaoSuportado,
+    );
+    expect(() => recusarSemDestino({ prioridade: "alta" })).not.toThrow();
+  });
+
+  it("recusarSemDestino nomeia o campo em erros[], que é o que o cliente lê", () => {
+    // O corpo do `422` é `erros: [{ campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" }]` — critério 17.6.
+    const erro = (() => {
+      try {
+        recusarSemDestino({ observacao: "x" });
+        return null;
+      } catch (causa) {
+        return causa as CampoNaoSuportado;
+      }
+    })();
+
+    expect(erro?.extensoes["erros"]).toStrictEqual([
+      { campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" },
+    ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  As palavras da atribuição — o item 21, e a única superfície testável dele
+ * ============================================================================
+ *
+ * **O produto não tem biblioteca de teste de componente React** — `jsdom` está instalado, não há
+ * `@testing-library`, e os quatro projetos de camada rodam em `environment: "node"`. Cinco ternários
+ * dentro do JSX seriam cinco decisões de texto de produto sem um teste, e a §3.12 da spec do item 20 já
+ * fechou essa porta: *"uma decisão … mora numa função com teste, e não num `?:` dentro do JSX"*.
+ *
+ * **Os dois títulos são os nomes dos comandos no `contrato-de-api.md:218-219`, literais** — o endpoint
+ * *"realiza dois (`Atribuir responsável` e `Reatribuir`)"*. A assimetria (um com objeto, outro sem) é do
+ * contrato, não nossa, e copiá-la é mais defensável que inventar *"Reatribuir responsável"*, que
+ * documento nenhum tem.
+ */
+describe("as palavras da atribuição — o par do item 21", () => {
+  const PARES = [PALAVRAS_DA_ATRIBUICAO.primeira, PALAVRAS_DA_ATRIBUICAO.nova];
+
+  it("sem responsável é o par que começa por Atribuir — e é o texto de hoje, intacto", () => {
+    const palavras = palavrasDaAtribuicao(false);
+    expect(palavras).toStrictEqual({
+      gatilho: "Atribuir",
+      titulo: "Atribuir responsável",
+      descricao: "Quem vai cuidar desta ocorrência.",
+      confirmar: "Atribuir",
+      enviando: "Atribuindo…",
+    });
+  });
+
+  it("com responsável é o par que começa por Reatribuir — o critério 21.1 em palavra", () => {
+    const palavras = palavrasDaAtribuicao(true);
+    expect(palavras).toStrictEqual({
+      gatilho: "Reatribuir",
+      titulo: "Reatribuir",
+      descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
+      confirmar: "Reatribuir",
+      enviando: "Reatribuindo…",
+    });
+  });
+
+  it("o verbo do título atravessa as OUTRAS QUATRO superfícies, nos dois pares", () => {
+    // **É a asserção que impede um dos cinco textos ficar para trás numa edição futura.** O gatilho e o
+    // botão que grava carregam o verbo nu; o verbo de envio é o mesmo verbo no gerúndio.
+    for (const par of PARES) {
+      const verbo = par.titulo.split(" ")[0]!;
+      expect(par.gatilho).toBe(verbo);
+      expect(par.confirmar).toBe(verbo);
+      expect(par.enviando).toBe(`${verbo.replace(/ir$/, "indo")}…`);
+    }
+  });
+
+  it("a descrição do par de reatribuição diz que a atual será ENCERRADA — o 21.3 virando texto", () => {
+    // **O critério 21.3 é `[M]`** — garantia de índice único parcial, invisível na tela. Sem esta oração,
+    // nada em T-05 diz que escolher outra pessoa SUBSTITUI em vez de acrescentar uma segunda, que é a
+    // única leitura errada que o modal permite.
+    expect(PALAVRAS_DA_ATRIBUICAO.nova.descricao).toContain("A atribuição atual será encerrada.");
+    expect(PALAVRAS_DA_ATRIBUICAO.primeira.descricao).not.toContain("encerrada");
+  });
+
+  it("nenhum dos DEZ textos é vazio", () => {
+    for (const par of PARES) {
+      for (const texto of Object.values(par)) {
+        expect(texto.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("a função escolhe pelo BOOLEANO, e devolve exatamente um dos dois pares declarados", () => {
+    // **O predicado é `responsavelAtualPessoaId !== null`, não "o responsável está na lista"** (§3.5 da
+    // spec): vínculo revogado continua sendo `detalhe.responsavel` e SOME dos candidatos. Derivar da
+    // lista faria o modal dizer *Atribuir* sobre uma ocorrência que tem responsável.
+    expect(palavrasDaAtribuicao(false)).toBe(PALAVRAS_DA_ATRIBUICAO.primeira);
+    expect(palavrasDaAtribuicao(true)).toBe(PALAVRAS_DA_ATRIBUICAO.nova);
+  });
+});
+
+describe("o corpo de POST …/alterar-prioridade — item 17", () => {
+  it("aceita os TRÊS valores, e são os do Domínio", () => {
+    for (const prioridade of ["baixa", "normal", "alta"] as const) {
+      expect(alteracaoDePrioridadeSchema.safeParse({ prioridade }).success).toBe(true);
+    }
+  });
+
+  it("recusa valor fora da lista, vazio e ausente — critério 17.1", () => {
+    // **A lista dos três é importada do Domínio** (`PRIORIDADES`), como `pausaSchema` faz com
+    // `MOTIVOS_DE_PAUSA`. Uma segunda cópia divergiria no dia em que a D6 mudar.
+    expect(alteracaoDePrioridadeSchema.safeParse({ prioridade: "urgente" }).success).toBe(false);
+    expect(alteracaoDePrioridadeSchema.safeParse({ prioridade: "" }).success).toBe(false);
+    expect(alteracaoDePrioridadeSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("campo desconhecido FORA da lista sem destino é descartado, não vira 400", () => {
+    // O recorte estreito de sempre: tornar o schema estrito trocaria *"o produto não faz isso"* por
+    // *"você escreveu errado"* em todo o resto. Quem é recusado em voz alta é `observacao`, e é o
+    // `recusarSemDestino` que faz isso — **antes** deste schema rodar.
+    const analisado = alteracaoDePrioridadeSchema.parse({ prioridade: "alta", corDoPortao: "azul" });
+
+    expect(analisado).toStrictEqual({ prioridade: "alta" });
+  });
+});
+
+/**
+ * ============================================================================
+ *  `executarComando` — a chamada e as três frases, num lugar só
+ * ============================================================================
+ *
+ * **A barra montava a frase do `409` dentro dela; o modal precisa da mesma.** Duas construções do mesmo
+ * texto é a segunda cópia de sempre — e esta seria a que aparece quando o Gestor está com pressa.
+ *
+ * **`rotulosDeStatus` entra por parâmetro, e não por `import`.** Se a função importasse
+ * `@/interface/projecoes`, arrastaria `comandosDisponiveis` — a máquina de estados inteira — para dentro
+ * do pacote do navegador, que é literalmente a *segunda cópia* que `acoesDisponiveis` existe para impedir.
+ */
+describe("executarComando", () => {
+  const ROTULOS = { em_analise: "Em análise", cancelada: "Cancelada" };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function responderCom(estado: { ok: boolean; corpo?: unknown }) {
+    const chamadas: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      chamadas.push({ url, init });
+      return Promise.resolve({
+        ok: estado.ok,
+        json: () => Promise.resolve(estado.corpo ?? {}),
+      });
+    });
+    return chamadas;
+  }
+
+  it("sucesso: POSTa no caminho do comando, com o corpo em JSON, e devolve ok", async () => {
+    const chamadas = responderCom({ ok: true });
+
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      { responsavelPessoaId: "z" },
+      ROTULOS,
+      "organizacao-a",
+    );
+
+    expect(resultado).toStrictEqual({ ok: true });
+    expect(chamadas[0]!.url).toBe("/api/ocorrencias/abc/atribuir-responsavel");
+    expect(chamadas[0]!.init.body).toBe(JSON.stringify({ responsavelPessoaId: "z" }));
+
+    // **A afirmação da §4.3 chega ao `fetch`** (item 7b, critério 7b.6), e é aqui que os dez comandos
+    // ficam cobertos de uma vez. O valor é o que a página passou — nunca o cookie na hora do clique,
+    // porque a outra aba já o reescreveu e a afirmação bateria consigo mesma.
+    expect(chamadas[0]!.init.headers).toStrictEqual({
+      "content-type": "application/json",
+      "x-organizacao-id": "organizacao-a",
+    });
+  });
+
+  it("409 com statusAtual vira a frase do inventário, COM o rótulo e não com o enum", async () => {
+    responderCom({
+      ok: false,
+      corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "cancelada", detail: "não importa" },
+    });
+
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      {},
+      ROTULOS,
+      "organizacao-a",
+    );
+
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está Cancelada.",
+    });
+  });
+
+  it("422 usa o detail do problema — é o texto que o contrato publica", async () => {
+    responderCom({
+      ok: false,
+      corpo: {
+        codigo: "RESPONSAVEL_SEM_VINCULO_ATIVO",
+        detail: "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+      },
+    });
+
+    const resultado = await executarComando(
+      "abc",
+      "atribuir-responsavel",
+      {},
+      ROTULOS,
+      "organizacao-a",
+    );
+
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+    });
+  });
+
+  it("problema sem detail cai na frase genérica — nunca em 'undefined'", async () => {
+    responderCom({ ok: false, corpo: { codigo: "ERRO_INTERNO" } });
+    expect(await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("rede caída não estoura — nuvem sem SLA é o caso esperado, não a borda", async () => {
+    // Sem este caminho, a rejeição do `fetch` aciona o Error Boundary em vez de mostrar a linha de aviso.
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
+    expect(await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("status desconhecido no 409 degrada para o próprio valor, sem quebrar a frase", async () => {
+    responderCom({ ok: false, corpo: { codigo: "TRANSICAO_NAO_PERMITIDA", statusAtual: "hibernada" } });
+    const resultado = await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a");
+    expect(resultado).toStrictEqual({
+      ok: false,
+      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está hibernada.",
+    });
+  });
+});
+
+/**
+ * ============================================================================
+ *  A ação primária de T-05 — o achado R-08, e ele chega em `em_analise`
+ * ============================================================================
+ *
+ * **A regra de hoje é *"o primeiro renderizável, na ordem do enum"***, e a ordem do enum põe
+ * `atribuir-responsavel` **antes** de `iniciar-atendimento`. Resultado, a partir do item 22: o botão em
+ * destaque seria *Atribuir* — numa tela onde o responsável **acabou de ser atribuído**, porque é
+ * exatamente isso que fez o outro botão aparecer.
+ *
+ * **A regra é uma TABELA por status, e não uma derivação por `transicaoPermitida`** (spec §3.9): a
+ * derivação erra em dois estados futuros — em `em_atendimento` daria *Pausar* em vez de *Resolver*, e em
+ * `em_analise` sem responsável daria *Pausar* em vez de *Atribuir*, porque `atribuir-responsavel` está em
+ * `SEM_TRANSICAO` e a derivação o pula.
+ */
+describe("acaoPrimaria — a regra do destaque de T-05", () => {
+  it("em em_analise COM responsável, o destaque é iniciar-atendimento, não o primeiro da lista", () => {
+    // É o R-08 acontecendo: a ordem do enum daria `atribuir-responsavel`.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel", "iniciar-atendimento"])).toBe(
+      "iniciar-atendimento",
+    );
+  });
+
+  it("em aberta o destaque é analisar — a ação de volume da triagem", () => {
+    expect(acaoPrimaria("aberta", ["analisar", "atribuir-responsavel"])).toBe("analisar");
+  });
+
+  it("o desempate: comando nomeado que não está renderizável cede ao primeiro que está", () => {
+    // `em_analise` sem responsável — `iniciar-atendimento` não é renderizável, e sobra um só.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+    // `pausada` com `retomar` ainda fora da lista de renderizáveis: o desempate continua valendo.
+    expect(acaoPrimaria("pausada", ["atribuir-responsavel"])).toBe("atribuir-responsavel");
+  });
+
+  it("em pausada o destaque é retomar, e a tabela estava escrita desde o item 22 esperando este dia", () => {
+    // **A ordem de `COMANDOS` põe `atribuir-responsavel` na frente**, e uma regra por índice daria
+    // *Atribuir* como ação em destaque de uma ocorrência que está parada esperando. A tabela dá
+    // *Retomar* — e `ACAO_PRIMARIA` não precisou de uma linha nova para isso.
+    expect(acaoPrimaria("pausada", ["atribuir-responsavel", "retomar"])).toBe("retomar");
+  });
+
+  it("em em_atendimento o destaque é resolver, e NÃO o primeiro da lista — a decisão do item 22", () => {
+    // **É a primeira vez que a tabela `ACAO_PRIMARIA` é conferível neste estado.** A ordem do enum põe
+    // `atribuir-responsavel` na frente; a derivação por `transicaoPermitida` daria *Pausar*. A tabela
+    // acerta os dois — e é por isso que ela é tabela, e por isso os itens 23 a 27 não a editam.
+    expect(acaoPrimaria("em_atendimento", ["atribuir-responsavel", "resolver"])).toBe("resolver");
+  });
+
+  it("sem nenhuma ação renderizável, não há primário", () => {
+    expect(acaoPrimaria("resolvida", [])).toBeNull();
+    expect(acaoPrimaria("cancelada", [])).toBeNull();
+  });
+
+  it("a tabela responde para os SEIS status, e nunca estoura", () => {
+    // **Entrada cujo comando ainda não existe é inerte:** a tabela não anuncia botão, ela só diz qual das
+    // ações já renderizadas ganha ênfase. Por isso os itens 23 a 27 não a editam.
+    for (const status of STATUS) {
+      expect(() => acaoPrimaria(status, [])).not.toThrow();
+      expect(acaoPrimaria(status, ["cancelar"])).toBe("cancelar");
+    }
+  });
+
+  it("em_analise SEM responsável dá Atribuir, e não Pausar — o caso que a derivação erraria", () => {
+    // `pausar` é permitido pela máquina de estados aqui. A derivação por `transicaoPermitida`, que o
+    // item 22 recusou, daria **Pausar** como ação em destaque numa ocorrência que ninguém pegou ainda.
+    expect(acaoPrimaria("em_analise", ["atribuir-responsavel", "pausar"])).toBe(
+      "atribuir-responsavel",
+    );
+  });
+});
+
+describe("o corpo de POST …/resolver — o primeiro comando com DOIS campos", () => {
+  it("aceita o corpo vazio: os dois campos são opcionais (requestBody: required: false)", () => {
+    expect(resolucaoSchema.safeParse({}).success).toBe(true);
+  });
+
+  it("aceita os dois, e aceita cada um sozinho", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "Trocada a lâmpada." }).success).toBe(true);
+    expect(resolucaoSchema.safeParse({ observacao: "Conferido." }).success).toBe(true);
+    expect(
+      resolucaoSchema.safeParse({ solucaoAplicada: "Trocada.", observacao: "Conferido." }).success,
+    ).toBe(true);
+  });
+
+  it("aceita null nos dois — `nullish`, como o resto dos comandos", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: null, observacao: null }).success).toBe(true);
+  });
+
+  it("recusa solucaoAplicada acima de 4000 — o maxLength do openapi.yaml", () => {
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4000) }).success).toBe(true);
+  });
+
+  it("recusa observacao acima de 1000 — o MESMO teto do comandoComObservacaoSchema", () => {
+    // **Um número só, num lugar só** (D-P5): o campo é reusado, não redigitado. Dois `.max()` para o
+    // mesmo campo divergiriam no dia em que o contrato mudasse um deles.
+    expect(resolucaoSchema.safeParse({ observacao: "a".repeat(1001) }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ observacao: "a".repeat(1000) }).success).toBe(true);
+  });
+
+  it("aceita string VAZIA nos dois — não há minLength no contrato, e quem apara é a Aplicação", () => {
+    // **É o critério 16.7 do avesso, aplicado ao quarto endpoint:** schema mais estrito que a
+    // especificação versionada é a mesma divergência, do outro lado. `/registrar-solucao-aplicada`
+    // declara `minLength: 1`; `/resolver` **não** declara, e o produto obedece ao que está publicado.
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "", observacao: "" }).success).toBe(true);
+  });
+
+  it("apara os dois — o `.trim()` do schema, como em todo campo de texto do produto", () => {
+    const conferido = resolucaoSchema.safeParse({
+      solucaoAplicada: "  Trocada a lâmpada.  ",
+      observacao: "  Conferido.  ",
+    });
+    expect(conferido.success).toBe(true);
+    expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
+    expect(conferido.data!.observacao).toBe("Conferido.");
+  });
+});
+
+describe("o corpo de POST …/registrar-solucao-aplicada — o segundo com corpo OBRIGATÓRIO", () => {
+  it("exige o campo: corpo vazio é recusado (required: [solucaoAplicada])", () => {
+    expect(solucaoAplicadaSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("recusa string vazia — o minLength: 1 do openapi.yaml", () => {
+    // **É a assimetria com `/resolver`, e ela é do contrato.** Lá não há `minLength`, aqui há
+    // (`openapi.yaml`). Um comando cujo corpo é obrigatório não tem o caso "não mandou nada".
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "" }).success).toBe(false);
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "   " }).success).toBe(false);
+  });
+
+  it("recusa acima de 4000 e aceita 4000 — o mesmo teto do resolver, num lugar só", () => {
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(
+      false,
+    );
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "a".repeat(4000) }).success).toBe(
+      true,
+    );
+  });
+
+  it("apara, e o que sai é o texto aparado — quem apara é o schema, e o comando não apara de novo", () => {
+    const conferido = solucaoAplicadaSchema.safeParse({ solucaoAplicada: "  Trocada a lâmpada.  " });
+    expect(conferido.success).toBe(true);
+    expect(conferido.data!.solucaoAplicada).toBe("Trocada a lâmpada.");
+  });
+
+  it("descarta campo desconhecido, e NÃO responde 422 — a especificação não declara observacao aqui", () => {
+    // **Sem `recusar:` no `route.ts`, e a razão é do contrato.** `camposSemDestino` é dos comandos que
+    // DECLARAM `observacao` no `openapi.yaml` sem ter onde guardá-la. Este endpoint não a declara
+    // (um campo só) e **não declara `422`** (sete respostas). Responder um status que a especificação
+    // versionada não lista é a divergência do critério 16.7 do avesso.
+    const conferido = solucaoAplicadaSchema.parse({
+      solucaoAplicada: "Feito.",
+      observacao: "não declarada aqui",
+    });
+
+    expect(conferido).toStrictEqual({ solucaoAplicada: "Feito." });
+  });
+
+  it("o resolucaoSchema continua aceitando '' e ausente — a assimetria, lado a lado", () => {
+    // **Os dois schemas do mesmo campo, no mesmo caso**, porque é assim que a assimetria fica conferível
+    // em vez de virar comentário. O teto é o mesmo; o piso, não.
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "" }).success).toBe(true);
+    expect(resolucaoSchema.safeParse({}).success).toBe(true);
+    expect(solucaoAplicadaSchema.safeParse({ solucaoAplicada: "" }).success).toBe(false);
+    expect(resolucaoSchema.safeParse({ solucaoAplicada: "a".repeat(4001) }).success).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Qual frase o vazio da barra mostra — o critério 26.6
+ * ============================================================================
+ *
+ * **São dois vazios diferentes, e o erro clássico é usar um no lugar do outro** — que é uma decisão, e
+ * por isso mora numa função com teste, e não num `?:` dentro do JSX. É a mesma forma do `vazioDaLista`
+ * do item 14.
+ *
+ * **A função devolve o PAR** (D-P2 do plano): a moldura é metade da decisão. Tracejada marca **andaime
+ * declarado**; sólida é **UI de produto**. Devolver só a frase deixaria a segunda metade no JSX, e a
+ * página passaria a importar `ehTerminal` do Domínio.
+ */
+describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
+  it("nos dois terminais, a frase de produto — os critérios 26.6 e 27.6", () => {
+    for (const terminal of ["resolvida", "cancelada"] as const) {
+      expect(vazioDaBarra(terminal)).toBe("Esta ocorrência está encerrada.");
+    }
+  });
+
+  it("nos quatro não-terminais, a frase do critério 18.6", () => {
+    // **Ela vale para todo mundo agora**, e não só para quem não gestiona: o ramo que dependia de
+    // `ehGestor` não tinha população, e o caso seguinte prova isso.
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
+    }
+  });
+
+  it("fora de estado terminal, a frase convida ao comentário — critério 30.6", () => {
+    for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      expect(vazioDaBarra(emAndamento)).toBe(
+        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      );
+    }
+  });
+
+  it("a segunda oração é a do `detail` publicado, palavra por palavra — e o `detail` NÃO muda", () => {
+    // `openapi.yaml`: o detail do 403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO termina com esta frase.
+    expect(vazioDaBarra("em_atendimento")).toContain("Peça o cancelamento pelo comentário.");
+    // A primeira oração daquele detail — "O atendimento já começou" — continua FORA, e a razão está no
+    // critério 18.6: ela é falsa numa ocorrência que chegou a `pausada` vinda de `em_analise`.
+    expect(vazioDaBarra("pausada")).not.toContain("atendimento já começou");
+  });
+
+  it("responde para os SEIS status, e as DUAS frases são mutuamente exclusivas", () => {
+    const textos = new Set(STATUS.map((status) => vazioDaBarra(status)));
+    expect(textos.size).toBe(2);
+    for (const status of STATUS) {
+      expect(vazioDaBarra(status).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
+    expect(vazioDaBarra("cancelada")).toBe("Esta ocorrência está encerrada.");
+    expect(vazioDaBarra("em_atendimento")).toBe(
+      "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+    );
+  });
+
+  it("a BARRA DO GESTOR nunca fica vazia fora de estado terminal — o que torna a remoção do ehGestor segura", () => {
+    /**
+     * **A tautologia do critério 27.6, virada asserção.** `vazioDaBarra` perdeu o parâmetro `ehGestor`
+     * porque o ramo que ele selecionava não tinha população: quem tem `ocorrencia.cancelar_qualquer` tem
+     * `cancelar` em `acoesDisponiveis` nos quatro estados não terminais, e `cancelar` tem rótulo.
+     *
+     * **No dia em que alguém tirar `cancelar` de um estado ou partir a permissão, este caso cai — antes
+     * de a frase errada aparecer em tela.** É exatamente o alarme que a nota do backlog de 28/08 pede.
+     */
+    for (const status of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
+      const renderizaveis = projetarOcorrenciaDetalhe(
+        { ...umaOcorrenciaLidaCom([]), status },
+        { pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f", permissoes: DO_GESTOR },
+      ).acoesDisponiveis.filter((comando) => rotuloDeComando(comando as Comando) !== null);
+
+      expect(renderizaveis.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("o corpo de POST …/pausar — o primeiro comando com campo OBRIGATÓRIO", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = pausaSchema.safeParse({
+      motivo: "aguardando_peca",
+      observacao: "  Sem lâmpada no estoque.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Sem lâmpada no estoque.");
+    expect(analisado.data?.motivo).toBe("aguardando_peca");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — requestBody é required: true", () => {
+    const analisado = pausaSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(pausaSchema.safeParse({ motivo: "aguardando_chuva", observacao: "ok" }).success).toBe(
+      false,
+    );
+  });
+
+  it("aceita os QUATRO motivos, e nenhum a mais", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(pausaSchema.safeParse({ motivo, observacao: "Esperando." }).success).toBe(true);
+    }
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    // O oposto de /analisar e /resolver, onde `minLength` NÃO existe no openapi.yaml e o schema não
+    // pode inventá-lo (critério 16.7). Aqui a especificação versionada manda o mesmo que o critério.
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "" }).success).toBe(false);
+    expect(pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      pausaSchema.safeParse({ motivo: "aguardando_peca", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("nomeDoMotivoPausa — o motivo como OPÇÃO DE ESCOLHA, e não como o que aconteceu", () => {
+  it("dá os quatro textos do protótipo, e nenhum deles é o rótulo de status", () => {
+    expect(nomeDoMotivoPausa("aguardando_informacao_solicitante")).toBe(
+      "Aguardando informação do solicitante",
+    );
+    expect(nomeDoMotivoPausa("aguardando_peca")).toBe("Aguardando peça");
+    expect(nomeDoMotivoPausa("aguardando_autorizacao")).toBe("Aguardando autorização");
+    expect(nomeDoMotivoPausa("aguardando_terceiro")).toBe("Aguardando um terceiro");
+  });
+
+  it("responde outra pergunta que rotuloDeMotivoPausa — os quatro pares diferem", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(nomeDoMotivoPausa(motivo)).not.toBe(rotuloDeMotivoPausa(motivo));
+    }
+  });
+});
+
+describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não importar o Domínio", () => {
+  it("dá os quatro, na ordem de MOTIVOS_DE_PAUSA, com valor e rótulo", () => {
+    expect(opcoesDeMotivoPausa()).toStrictEqual([
+      {
+        valor: "aguardando_informacao_solicitante",
+        rotulo: "Aguardando informação do solicitante",
+      },
+      { valor: "aguardando_peca", rotulo: "Aguardando peça" },
+      { valor: "aguardando_autorizacao", rotulo: "Aguardando autorização" },
+      { valor: "aguardando_terceiro", rotulo: "Aguardando um terceiro" },
+    ]);
+  });
+});
+
+describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () => {
+  it("devolve null nos QUATRO motivos quando o statusRotulo JÁ é o rótulo do motivo — o mundo de hoje", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(segundaLinhaDeMotivo(motivo, rotuloDeMotivoPausa(motivo))).toBeNull();
+    }
+  });
+
+  it("devolve o rótulo quando os dois textos DIVERGEM — e é o que prova que a guarda se apaga sozinha no item 31", () => {
+    // No item 31 o rótulo do Gestor vira "Pausada", os textos divergem, e a segunda linha volta
+    // sozinha — que é o que o critério 14.3 pede. Sem este caso, "volta sozinha" seria prosa.
+    expect(segundaLinhaDeMotivo("aguardando_peca", "Pausada")).toBe(
+      "Parada — esperando material chegar",
+    );
+  });
+
+  it("devolve null quando não há motivo — fora de pausada não há segunda linha", () => {
+    expect(segundaLinhaDeMotivo(null, "Em análise")).toBeNull();
+  });
+
+  /**
+   * **O critério 31.6 virado asserção, e ele fecha nos QUATRO motivos.** Antes do item 31 os dois textos
+   * coincidiam do lado do Gestor e a guarda devolvia `null`; com o rótulo dele colapsando em *"Pausada"*,
+   * eles divergem e a linha volta — em **todos** os motivos, não só no que o caso acima ilustra.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do GESTOR, a segunda linha volta em %s — e é o motivo em palavras",
+    (motivo) => {
+      const doGestor = rotuloDeStatus("pausada", motivo, "gestor");
+      expect(doGestor).toBe("Pausada");
+      expect(segundaLinhaDeMotivo(motivo, doGestor)).toBe(rotuloDeMotivoPausa(motivo));
+    },
+  );
+
+  /**
+   * **E ela continua muda para o Solicitante, nos quatro** — que é o que faz a mesma chamada servir os
+   * três recortes de T-03 e o bloco 1a de T-05 **sem argumento novo**. O cartão dele fica byte a byte
+   * igual.
+   */
+  it.each(MOTIVOS_DE_PAUSA)(
+    "no rótulo do SOLICITANTE, %s não produz segunda linha — a função se auto-silencia",
+    (motivo) => {
+      const doSolicitante = rotuloDeStatus("pausada", motivo, "solicitante");
+      expect(segundaLinhaDeMotivo(motivo, doSolicitante)).toBeNull();
+    },
+  );
+
+  it("fora de pausada não há segunda linha, em nenhuma das duas lentes", () => {
+    for (const lente of ["solicitante", "gestor"] as const) {
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("resolvida", null, lente))).toBeNull();
+      expect(segundaLinhaDeMotivo(null, rotuloDeStatus("em_atendimento", null, lente))).toBeNull();
+    }
+  });
+});
+
+describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é de largura", () => {
+  it("com UM, ele é o destaque e o menu fica vazio", () => {
+    expect(acoesDaBarra("pausada", ["atribuir-responsavel"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("com DOIS, os dois viram botão e o menu continua vazio — a decisão dos itens 19 e 22, intacta", () => {
+    expect(acoesDaBarra("em_analise", ["atribuir-responsavel", "pausar"])).toStrictEqual({
+      destaque: "atribuir-responsavel",
+      emMenu: [],
+    });
+  });
+
+  it("pausada com DOIS renderizáveis não tem menu — a conta que fecha o P-1 do item 23", () => {
+    // **A lista de dois é passada à mão, e continua sendo o caso de dois.** Ela não descreve mais a
+    // barra que a produção desenha: com o item 18 `cancelar` virou renderizável e `pausada` passou a
+    // ter três. O caso segue guardando a regra `≤ 2 → sem menu`, e o caso de três está logo abaixo.
+    expect(acoesDaBarra("pausada", ["atribuir-responsavel", "retomar"])).toStrictEqual({
+      destaque: "retomar",
+      emMenu: [],
+    });
+  });
+
+  it("pausada com TRÊS converge para o protótipo — Retomar em destaque, os outros dois no menu", () => {
+    // **É a barra que o item 18 produz**, e é a conferência da §3.13 contra o protótipo
+    // (`telas.html:2236-2237` e `:2639-2641`): *Retomar* + *Mais ações ▾* no celular, e
+    // *Retomar · Reatribuir · Cancelar* na tela grande.
+    expect(
+      acoesDaBarra("pausada", ["atribuir-responsavel", "retomar", "cancelar"]),
+    ).toStrictEqual({
+      destaque: "retomar",
+      emMenu: ["atribuir-responsavel", "cancelar"],
+    });
+  });
+
+  /**
+   * ==========================================================================
+   *  O alarme que o comentário de `barra-de-acoes.tsx` queria ser — item 18
+   * ==========================================================================
+   *
+   * **Comando que vai para `emMenu` PRECISA ter a variante `"menu"`**, senão a barra renderiza um
+   * `<button>` com `DialogTrigger` como filho direto de `role="menu"` — ARIA inválida, e o menu perde a
+   * navegação por setas (A-2 e A-4). Nada quebra em vermelho; a acessibilidade quebra em silêncio.
+   *
+   * **Hoje isso é verdade por construção**, e a prova é de duas linhas: `emMenu` exclui o destaque, e
+   * cada um dos quatro comandos sem a variante — `analisar`, `iniciar-atendimento`, `resolver` e
+   * `retomar` — é o `ACAO_PRIMARIA` do único estado em que é renderizável. **Este caso é o que torna a
+   * coincidência uma invariante guardada:** no dia em que alguém mexer em `ACAO_PRIMARIA`, ele cai.
+   */
+  it("emMenu só contém comandos que TÊM a variante menu — os seis status, as duas combinações", () => {
+    const COM_VARIANTE_DE_MENU = ["atribuir-responsavel", "pausar", "cancelar"];
+
+    const RESPONSAVEL = { pessoaId: "3d7c1e92-8a4b-4f5c-9d6e-1a2b3c4d5e6f", nome: "Zelador" };
+
+    for (const status of STATUS) {
+      for (const temResponsavel of [false, true]) {
+        // **Os renderizáveis são os que TÊM rótulo de botão** — é o mesmo recorte que `page.tsx` faz
+        // antes de chamar `acoesDaBarra`, e é o que exclui `alterar-prioridade` (seletor) e
+        // `registrar-solucao-aplicada` (campo).
+        const renderizaveis = projetarOcorrenciaDetalhe(
+          {
+            ...umaOcorrenciaLidaCom([]),
+            status,
+            responsavel: temResponsavel ? RESPONSAVEL : null,
+          },
+          { pessoaId: "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f", permissoes: DO_GESTOR },
+        ).acoesDisponiveis.filter((comando) => rotuloDeComando(comando as Comando) !== null);
+
+        for (const comando of acoesDaBarra(status, renderizaveis).emMenu) {
+          expect(COM_VARIANTE_DE_MENU).toContain(comando);
+        }
+      }
+    }
+  });
+
+  it("com TRÊS, o destaque sai da tabela e os outros DOIS vão para o menu, na ordem recebida", () => {
+    expect(
+      acoesDaBarra("em_analise", ["atribuir-responsavel", "iniciar-atendimento", "pausar"]),
+    ).toStrictEqual({
+      destaque: "iniciar-atendimento",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("em em_atendimento com três, o destaque é resolver — e pausar vai para o menu", () => {
+    expect(
+      acoesDaBarra("em_atendimento", ["atribuir-responsavel", "pausar", "resolver"]),
+    ).toStrictEqual({
+      destaque: "resolver",
+      emMenu: ["atribuir-responsavel", "pausar"],
+    });
+  });
+
+  it("com NENHUM, não há destaque nem menu", () => {
+    expect(acoesDaBarra("resolvida", [])).toStrictEqual({ destaque: null, emMenu: [] });
+  });
+
+  it("o destaque é sempre o de acaoPrimaria — acoesDaBarra não tem tabela própria", () => {
+    const renderizaveis = ["atribuir-responsavel", "iniciar-atendimento", "pausar"];
+    expect(acoesDaBarra("em_analise", renderizaveis).destaque).toBe(
+      acaoPrimaria("em_analise", renderizaveis),
+    );
+  });
+});
+
+describe("o corpo de POST …/cancelar — o segundo com DOIS campos obrigatórios", () => {
+  it("aceita o par válido, e apara a observação", () => {
+    const analisado = cancelamentoSchema.safeParse({
+      motivo: "improcedente",
+      observacao: "  Vistoriado no local: não há vazamento.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.observacao).toBe("Vistoriado no local: não há vazamento.");
+    expect(analisado.data?.motivo).toBe("improcedente");
+  });
+
+  it("recusa corpo VAZIO com os DOIS campos em erros[] — o critério 18.1", () => {
+    const analisado = cancelamentoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    const campos = analisado.error?.issues.map((problema) => problema.path.join("."));
+    expect(campos).toContain("motivo");
+    expect(campos).toContain("observacao");
+  });
+
+  it("aceita os SETE motivos — o enum é o conjunto inteiro, e a filtragem por papel NÃO é aqui", () => {
+    // **É a §3.8 em asserção, e ela decide qual ERRO a pessoa recebe.** Um enum estreito devolveria
+    // `400 FORMATO_INVALIDO` — *"você escreveu errado"* — onde a verdade é *"isso não é seu"*, e o
+    // `422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` do critério 18.4 se perderia.
+    for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+      expect(cancelamentoSchema.safeParse({ motivo, observacao: "Encerrando." }).success).toBe(true);
+    }
+  });
+
+  it("aceita improcedente — o motivo que o Solicitante NÃO alcança passa pelo schema", () => {
+    // O par do caso acima, escrito sozinho porque é a diferença que importa: quem recusa `improcedente`
+    // para o Solicitante é o comando de aplicação, com `422`, e não este schema com `400`.
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "improcedente", observacao: "Sem procedência." })
+        .success,
+    ).toBe(true);
+  });
+
+  it("recusa motivo fora da lista — o enum vem do Domínio, e não é redigitado aqui", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "mudei_de_ideia", observacao: "ok" }).success,
+    ).toBe(false);
+  });
+
+  it("recusa observação em branco — e aqui o minLength ESTÁ no contrato publicado", () => {
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "" }).success).toBe(
+      false,
+    );
+    expect(cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("recusa observação acima de 1000 caracteres", () => {
+    expect(
+      cancelamentoSchema.safeParse({ motivo: "duplicada", observacao: "a".repeat(1001) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("o corpo de POST …/avaliar — o primeiro com campo NUMÉRICO", () => {
+  it("aceita o par válido, e apara o comentário", () => {
+    const analisado = avaliacaoSchema.safeParse({
+      nota: 5,
+      comentario: "  Resolveram no mesmo dia.  ",
+    });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.nota).toBe(5);
+    expect(analisado.data?.comentario).toBe("Resolveram no mesmo dia.");
+  });
+
+  it("aceita SEM comentário — ele é opcional, e é o critério 27.1", () => {
+    // **O `openapi.yaml:2054` declara `required: [nota]` e mais nada.** Um corpo com a nota só é o caso
+    // dominante: dar nota tem de custar um toque.
+    expect(avaliacaoSchema.safeParse({ nota: 3 }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 3, comentario: null }).success).toBe(true);
+  });
+
+  it("aceita as cinco notas da escala", () => {
+    for (const nota of [1, 2, 3, 4, 5]) {
+      expect(avaliacaoSchema.safeParse({ nota }).success).toBe(true);
+    }
+  });
+
+  it("recusa 0 e 6 — as bordas de fora da escala", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 0 }).success).toBe(false);
+    expect(avaliacaoSchema.safeParse({ nota: 6 }).success).toBe(false);
+  });
+
+  it("recusa 4.5 — `z.int()` e não `z.number()`, e é o que impede o arredondamento silencioso", () => {
+    // **O `openapi.yaml:2058` declara `type: integer`.** Com `z.number()`, `4.5` chegaria ao `smallint` do
+    // banco e seria truncado — o produto inventaria a nota de alguém.
+    expect(avaliacaoSchema.safeParse({ nota: 4.5 }).success).toBe(false);
+  });
+
+  it("recusa a nota como texto — '5' não é 5", () => {
+    expect(avaliacaoSchema.safeParse({ nota: "5" }).success).toBe(false);
+  });
+
+  it("corpo vazio é 400 com `nota` em erros[] — o critério 27.1", () => {
+    const analisado = avaliacaoSchema.safeParse({});
+
+    expect(analisado.success).toBe(false);
+    expect(analisado.error?.issues.map((questao) => questao.path[0])).toContain("nota");
+  });
+
+  it("comentário de 1001 caracteres é recusado; 1000 passa", () => {
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1000) }).success).toBe(true);
+    expect(avaliacaoSchema.safeParse({ nota: 5, comentario: "x".repeat(1001) }).success).toBe(false);
+  });
+
+  it("comentário de espaços passa, e vira string vazia — quem o transforma em null é o COMANDO", () => {
+    /**
+     * **Sem `.min(1)`, e é o portão do DoD olhando na direção contrária:** o `openapi.yaml:2060` declara
+     * `maxLength: 1000` e **nenhum** `minLength`. Schema mais estrito que a especificação versionada é a
+     * divergência do critério 16.7, do outro lado.
+     *
+     * **A normalização mora no comando de aplicação, num lugar só** — é onde o produto a pôs desde o
+     * `analisar` (item 16).
+     */
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, comentario: "   " });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data?.comentario).toBe("");
+  });
+
+  it("campo desconhecido é DESCARTADO, sem erro — este endpoint não tem `recusar:`", () => {
+    // **Não há `422` publicado para esta operação** (`openapi.yaml:2065-2087` lista 200/400/401/403/404/
+    // 409/500). Recusar um campo aqui responderia um status que a especificação versionada não lista.
+    const analisado = avaliacaoSchema.safeParse({ nota: 5, observacao: "não vai a lugar nenhum" });
+
+    expect(analisado.success).toBe(true);
+    expect(analisado.data).not.toHaveProperty("observacao");
+  });
+});
+
+describe("camposDeEvolucaoPrevista — a SEGUNDA lista de recusa, e por que não é a primeira", () => {
+  it("aponta ocorrenciaOrigemId, e o corpo sem ele passa limpo — o critério 18.5", () => {
+    expect(
+      camposDeEvolucaoPrevista({
+        motivo: "duplicada",
+        observacao: "É a mesma da vaga 34.",
+        ocorrenciaOrigemId: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
+      }),
+    ).toStrictEqual(["ocorrenciaOrigemId"]);
+
+    expect(
+      camposDeEvolucaoPrevista({ motivo: "duplicada", observacao: "É a mesma da vaga 34." }),
+    ).toStrictEqual([]);
+  });
+
+  it("ocorrenciaOrigemId NULO também é recusado — o campo presente é o que importa", () => {
+    // `"campo" in corpo`, e não `corpo.campo !== undefined`: quem mandou o campo tentou usar a
+    // capacidade, e o silêncio o faria acreditar que o vínculo entre as duas ocorrências foi gravado.
+    expect(camposDeEvolucaoPrevista({ ocorrenciaOrigemId: null })).toStrictEqual([
+      "ocorrenciaOrigemId",
+    ]);
+  });
+
+  it("não estoura com corpo que não é objeto", () => {
+    expect(camposDeEvolucaoPrevista(null)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista(undefined)).toStrictEqual([]);
+    expect(camposDeEvolucaoPrevista("ocorrenciaOrigemId")).toStrictEqual([]);
+  });
+
+  it("as DUAS listas são por endpoint, e este par é o que impede alguém de fundi-las", () => {
+    // **Se elas fossem uma só, `/cancelar` recusaria com `422` o próprio campo obrigatório dele.** É a
+    // razão fatal da §3.9, virada asserção — e do outro lado, `/atribuir-responsavel` e
+    // `/alterar-prioridade` passariam a recusar um campo que o `openapi.yaml` nem declara para eles.
+    expect(camposDeEvolucaoPrevista({ observacao: "Conte por quê." })).toStrictEqual([]);
+    expect(camposSemDestino({ ocorrenciaOrigemId: "x" })).toStrictEqual([]);
+  });
+
+  it("recusarEvolucaoPrevista estoura com o campo, e passa limpo sem ele", () => {
+    expect(() =>
+      recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x", ocorrenciaOrigemId: "y" }),
+    ).toThrow(CampoNaoSuportado);
+
+    expect(() => recusarEvolucaoPrevista({ motivo: "duplicada", observacao: "x" })).not.toThrow();
+  });
+
+  it("recusarEvolucaoPrevista nomeia o campo em erros[], que é o que o cliente lê", () => {
+    const erro = (() => {
+      try {
+        recusarEvolucaoPrevista({ ocorrenciaOrigemId: "x" });
+        return null;
+      } catch (causa) {
+        return causa as CampoNaoSuportado;
+      }
+    })();
+
+    expect(erro?.extensoes["erros"]).toStrictEqual([
+      { campo: "ocorrenciaOrigemId", codigo: "CAMPO_NAO_SUPORTADO" },
+    ]);
+  });
+});
+
+describe("nomeDoMotivoCancelamento — os sete textos, e o do meio foi trocado de propósito", () => {
+  it("dá os QUATRO do protótipo, literais", () => {
+    expect(nomeDoMotivoCancelamento("desistencia")).toBe("Desistência");
+    expect(nomeDoMotivoCancelamento("resolvido_por_conta_propria")).toBe(
+      "Resolvido por conta própria",
+    );
+    expect(nomeDoMotivoCancelamento("aberta_por_engano")).toBe("Aberta por engano");
+    expect(nomeDoMotivoCancelamento("duplicada")).toBe("Duplicada");
+  });
+
+  it("dá os TRÊS do Gestor, e nenhum deles diz 'condomínio'", () => {
+    // **O rótulo de `fora_de_escopo` foi trocado na resposta do hub:** *"Fora do escopo **da
+    // organização**"*, e não *"do condomínio"*. A palavra travaria o produto numa das três formas de
+    // Organização, que é o que o `glossario.md:127-130` proíbe em rótulo novo.
+    expect(nomeDoMotivoCancelamento("improcedente")).toBe("Improcedente");
+    expect(nomeDoMotivoCancelamento("fora_de_escopo")).toBe("Fora do escopo da organização");
+    expect(nomeDoMotivoCancelamento("sem_informacao_suficiente")).toBe("Sem informação suficiente");
+
+    for (const motivo of MOTIVOS_DE_CANCELAMENTO) {
+      expect(nomeDoMotivoCancelamento(motivo).toLowerCase()).not.toContain("condomínio");
+    }
+  });
+});
+
+describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor consulta", () => {
+  const DO_AUTOR = ["ocorrencia.registrar", "ocorrencia.cancelar_propria"];
+  const DO_GESTOR = ["ocorrencia.cancelar_propria", "ocorrencia.cancelar_qualquer"];
+
+  it("sem cancelar_qualquer dá QUATRO, na ordem do enum — o critério 18.4 na tela", () => {
+    expect(opcoesDeMotivoCancelamento(DO_AUTOR).map((opcao) => opcao.valor)).toStrictEqual([
+      "desistencia",
+      "resolvido_por_conta_propria",
+      "aberta_por_engano",
+      "duplicada",
+    ]);
+  });
+
+  it("com cancelar_qualquer dá SETE, na ordem do enum", () => {
+    expect(opcoesDeMotivoCancelamento(DO_GESTOR).map((opcao) => opcao.valor)).toStrictEqual([
+      ...MOTIVOS_DE_CANCELAMENTO,
+    ]);
+  });
+
+  it("os rótulos batem com nomeDoMotivoCancelamento — uma fonte, não duas", () => {
+    for (const opcao of opcoesDeMotivoCancelamento(DO_GESTOR)) {
+      expect(opcao.rotulo).toBe(nomeDoMotivoCancelamento(opcao.valor as MotivoCancelamento));
+    }
+  });
+
+  it("só Duplicada tem descrição, e ela é a do protótipo", () => {
+    // **A condição é POR OPÇÃO, não por modal** — é o que faz a tela do item 23 não mudar um pixel.
+    const comDescricao = opcoesDeMotivoCancelamento(DO_GESTOR).filter(
+      (opcao) => opcao.descricao !== undefined,
+    );
+
+    expect(comDescricao).toHaveLength(1);
+    expect(comDescricao[0]?.valor).toBe("duplicada");
+    expect(comDescricao[0]?.descricao).toBe(
+      "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.",
+    );
+  });
+
+  it("a opção Duplicada do SOLICITANTE também traz a descrição — ela é dele antes de ser do Gestor", () => {
+    const duplicada = opcoesDeMotivoCancelamento(DO_AUTOR).find(
+      (opcao) => opcao.valor === "duplicada",
+    );
+
+    expect(duplicada?.descricao).toBeDefined();
+  });
+
+  it("opcoesDeMotivoPausa continua SEM descrição em nenhuma das quatro — a prova de que o 23 não mudou", () => {
+    for (const opcao of opcoesDeMotivoPausa()) {
+      expect("descricao" in opcao).toBe(false);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  O `404` que diz em qual organização você está — critério 28.3
+ * ============================================================================
+ */
+describe("o critério 28.3 — o corpo do 404 diz em qual organização você está", () => {
+  const RECANTO = { id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul" };
+
+  it("OCORRENCIA_NAO_ENCONTRADA sai com organizacaoAtiva, ao lado de codigo e traceId", () => {
+    const { status, corpo } = problemaDe(
+      comOrganizacaoAtiva(new OcorrenciaNaoEncontrada(), RECANTO),
+      "/api/ocorrencias/abc",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    expect(status).toBe(404);
+    expect(corpo.codigo).toBe("OCORRENCIA_NAO_ENCONTRADA");
+    expect(corpo.traceId).toBe("01JB8Z6K9T2M4N7Q");
+    // O par exato do `example` do openapi.yaml:2341 — id e nome, e nada de `codigoPublico`.
+    expect(corpo.organizacaoAtiva).toStrictEqual(RECANTO);
+  });
+
+  it("CATEGORIA_NAO_ENCONTRADA NÃO ganha a extensão — a lista de códigos é fechada", () => {
+    const { corpo } = problemaDe(
+      comOrganizacaoAtiva(new CategoriaNaoEncontrada(), RECANTO),
+      "/api/categorias/abc",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    // O `openapi.yaml` publica o exemplo em UM responsável só. Emitir nos outros cinco seria o código
+    // publicando um contrato diferente do versionado — que é o portão do DoD, não um detalhe.
+    expect("organizacaoAtiva" in corpo).toBe(false);
+  });
+
+  it("sem organização resolvida, nada muda — e é o caso de NaoAutenticado", () => {
+    const erro = new OcorrenciaNaoEncontrada();
+
+    expect(comOrganizacaoAtiva(erro, null)).toBe(erro);
+  });
+
+  it("o erro original NÃO é mutado: é uma cópia, e ela preserva as extensões que já existiam", () => {
+    const original = new OcorrenciaNaoEncontrada();
+    const enriquecido = comOrganizacaoAtiva(original, RECANTO);
+
+    expect(original.extensoes).toStrictEqual({});
+    expect(enriquecido).not.toBe(original);
+
+    // **O espalhamento `...erro.extensoes`, exercitado de verdade.** `OcorrenciaNaoEncontrada` nasce sem
+    // extensão nenhuma e é o único código da lista — então o único jeito de provar que a cópia preserva
+    // o que já havia é construir o erro com uma.
+    const comErros = comOrganizacaoAtiva(
+      new ErroDeDominio("OCORRENCIA_NAO_ENCONTRADA", "Ocorrência não encontrada", "…", {
+        erros: [{ campo: "observacao" }],
+      }),
+      RECANTO,
+    ) as ErroDeDominio;
+
+    expect(comErros.extensoes.erros).toBeDefined();
+    expect(comErros.extensoes.organizacaoAtiva).toStrictEqual(RECANTO);
+
+    // E o outro lado, de graça: `CampoNaoSuportado` é `422`, está fora da lista, e volta o MESMO objeto.
+    const foraDaLista = new CampoNaoSuportado(["observacao"]);
+    expect(comOrganizacaoAtiva(foraDaLista, RECANTO)).toBe(foraDaLista);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os dois insumos da estrada direta — a frase e a linha de log
+ * ============================================================================
+ */
+describe("o 404 da estrada direta — a frase e a linha de log", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("com nome, a frase é a do inventário, literal", () => {
+    expect(ocorrenciaNaoEncontradaEm("Condomínio Recanto Azul")).toBe(
+      "Esta ocorrência não existe em Condomínio Recanto Azul.",
+    );
+  });
+
+  it("sem nome, a frase degrada em vez de mentir — e continua verdadeira", () => {
+    // Mesma disciplina do vazio de filtro do item 15: `nomeDaOrganizacao` pode ser nulo, e inventá-lo
+    // seria pior. Na prática a página já redirecionou antes; a função não conta com isso.
+    expect(ocorrenciaNaoEncontradaEm(null)).toBe("Esta ocorrência não existe nesta organização.");
+  });
+
+  it("registrarFalha escreve UMA linha JSON com os quatro campos, e o nome da subclasse", () => {
+    const espia = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    registrarFalha(new OcorrenciaNaoEncontrada(), "/ocorrencias/abc", "GET", "01JB8Z6K9T2M4N7Q");
+
+    expect(espia).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(espia.mock.calls[0]?.[0]))).toStrictEqual({
+      traceId: "01JB8Z6K9T2M4N7Q",
+      caminho: "/ocorrencias/abc",
+      metodo: "GET",
+      // **O nome da subclasse sobrevive** — é o que a ordem decidida na tarefa 1 preserva.
+      erro: "OcorrenciaNaoEncontrada: OCORRENCIA_NAO_ENCONTRADA: Não há ocorrência com este identificador nesta organização.",
+    });
+  });
+});
+
+describe("projetarEventoDaLinhaDoTempo — os schemas EventoTransicao e EventoAtribuicao", () => {
+  const AUTORA = { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Marina Rocha" };
+  const GESTOR = { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Roberto Salles" };
+  const ENCARREGADO = { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f", nome: "Antônio Ferreira" };
+
+  it("a transição traz rotulo, e o rotulo é o do glossário — critério 29.2", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "transicao",
+        ocorridoEm: "2026-08-15T11:12:00.000Z",
+        transicao: {
+          sequencia: 1,
+          statusAnterior: null,
+          statusNovo: "aberta",
+          ocorreuEm: "2026-08-15T11:12:00.000Z",
+          autor: AUTORA,
+          observacao: null,
+          motivoPausa: null,
+          motivoCancelamento: null,
+        },
+      },
+      "solicitante",
+    );
+
+    expect(projetado).toStrictEqual({
+      tipo: "transicao",
+      ocorridoEm: "2026-08-15T11:12:00.000Z",
+      autor: AUTORA,
+      rotulo: "Recebida — aguardando análise",
+      statusAnterior: null,
+      statusNovo: "aberta",
+      observacao: null,
+      motivoPausa: null,
+      motivoCancelamento: null,
+    });
+    // **`sequencia` NÃO sai** — é ordem interna da trilha, e o `EventoTransicao` do contrato não a tem.
+    expect(projetado).not.toHaveProperty("sequencia");
+    // E o nome do campo é `ocorridoEm`, nunca `ocorreuEm`: são dois vocabulários de propósito (§8.5).
+    expect(projetado).not.toHaveProperty("ocorreuEm");
+  });
+
+  it("a pausa traz o motivo DENTRO do rotulo, e os três campos sensíveis saem — critério 29.2", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "transicao",
+        ocorridoEm: "2026-08-20T19:40:00.000Z",
+        transicao: {
+          sequencia: 4,
+          statusAnterior: "em_atendimento",
+          statusNovo: "pausada",
+          ocorreuEm: "2026-08-20T19:40:00.000Z",
+          autor: GESTOR,
+          observacao: "O material só chega na terça.",
+          motivoPausa: "aguardando_peca",
+          motivoCancelamento: null,
+        },
+      },
+      "solicitante",
+    );
+
+    expect(projetado.tipo === "transicao" && projetado.rotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+    expect(projetado.tipo === "transicao" && projetado.observacao).toBe(
+      "O material só chega na terça.",
+    );
+    expect(projetado.tipo === "transicao" && projetado.motivoPausa).toBe("aguardando_peca");
+  });
+
+  /**
+   * **O critério 31.7, e ele não é decisão nova — é a descrição do campo.**
+   * `docs/api/openapi.yaml:2994-3006`, schema `EventoTransicao`, campo `rotulo`: *"O status em linguagem
+   * de gente, conforme quem lê. Em `pausada` ele depende também do motivo: o Solicitante lê 'Parada —
+   * esperando material chegar', o Gestor lê 'Pausada'."*
+   *
+   * **E o motivo NÃO entra no rótulo**: ele viaja no campo `motivoPausa` do próprio evento, que esta
+   * projeção já emite. `fraseDaTransicao` continua recebendo o rótulo pronto — nenhuma composição nova.
+   */
+  it("a pausa lida pelo GESTOR é 'Pausada' seca, e o motivo sai no campo próprio — critério 31.7", () => {
+    const evento = {
+      tipo: "transicao" as const,
+      ocorridoEm: "2026-08-20T19:40:00.000Z",
+      transicao: {
+        sequencia: 4,
+        statusAnterior: "em_atendimento" as const,
+        statusNovo: "pausada" as const,
+        ocorreuEm: "2026-08-20T19:40:00.000Z",
+        autor: GESTOR,
+        observacao: "O material só chega na terça.",
+        motivoPausa: "aguardando_peca" as const,
+        motivoCancelamento: null,
+      },
+    };
+
+    const paraOGestor = projetarEventoDaLinhaDoTempo(evento, "gestor");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).toBe("Pausada");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.motivoPausa).toBe("aguardando_peca");
+    // **A palavra do motivo NÃO está dentro do rótulo** — é o achado A-1 da spec, virado asserção: o
+    // protótipo desenha "Pausada · aguardando peça", e o glossário, o contrato e o YAML dizem o contrário.
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).not.toContain("peça");
+    expect(paraOGestor.tipo === "transicao" && paraOGestor.rotulo).not.toContain("material");
+
+    const paraOSolicitante = projetarEventoDaLinhaDoTempo(evento, "solicitante");
+    expect(paraOSolicitante.tipo === "transicao" && paraOSolicitante.rotulo).toBe(
+      "Parada — esperando material chegar",
+    );
+  });
+
+  it("a criação lida pelo Gestor é 'Aberta', e pelo Solicitante é a frase — critério 31.7", () => {
+    const evento = {
+      tipo: "transicao" as const,
+      ocorridoEm: "2026-08-15T11:12:00.000Z",
+      transicao: {
+        sequencia: 1,
+        statusAnterior: null,
+        statusNovo: "aberta" as const,
+        ocorreuEm: "2026-08-15T11:12:00.000Z",
+        autor: AUTORA,
+        observacao: null,
+        motivoPausa: null,
+        motivoCancelamento: null,
+      },
+    };
+
+    const doGestor = projetarEventoDaLinhaDoTempo(evento, "gestor");
+    expect(doGestor.tipo === "transicao" && doGestor.rotulo).toBe("Aberta");
+
+    const doSolicitante = projetarEventoDaLinhaDoTempo(evento, "solicitante");
+    expect(doSolicitante.tipo === "transicao" && doSolicitante.rotulo).toBe(
+      "Recebida — aguardando análise",
+    );
+  });
+
+  it("a atribuição traz responsavel, encerradaEm e motivoEncerramento — critério 29.3", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-15T12:44:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-15T12:44:00.000Z",
+          encerradaEm: "2026-08-18T09:00:00.000Z",
+          motivoEncerramento: "reatribuicao",
+        },
+      },
+      "solicitante",
+    );
+
+    expect(projetado).toStrictEqual({
+      tipo: "atribuicao",
+      ocorridoEm: "2026-08-15T12:44:00.000Z",
+      autor: GESTOR,
+      responsavel: ENCARREGADO,
+      encerradaEm: "2026-08-18T09:00:00.000Z",
+      motivoEncerramento: "reatribuicao",
+    });
+    // **`atribuidoEm` não sai duas vezes**: a chave de ordenação já é `ocorridoEm`.
+    expect(projetado).not.toHaveProperty("atribuidoEm");
+  });
+
+  it("a atribuição vigente sai com os dois nulos, e nunca ausentes", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-18T09:00:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-18T09:00:00.000Z",
+          encerradaEm: null,
+          motivoEncerramento: null,
+        },
+      },
+      "solicitante",
+    );
+
+    expect(projetado.tipo === "atribuicao" && projetado.encerradaEm).toBeNull();
+    expect(projetado.tipo === "atribuicao" && projetado.motivoEncerramento).toBeNull();
+  });
+
+  it("o AUTOR de uma atribuição é quem atribuiu, nunca o responsável — colisão nº 2 do glossário", () => {
+    const projetado = projetarEventoDaLinhaDoTempo(
+      {
+        tipo: "atribuicao",
+        ocorridoEm: "2026-08-15T12:44:00.000Z",
+        atribuicao: {
+          responsavel: ENCARREGADO,
+          autor: GESTOR,
+          atribuidoEm: "2026-08-15T12:44:00.000Z",
+          encerradaEm: null,
+          motivoEncerramento: null,
+        },
+      },
+      "solicitante",
+    );
+
+    expect(projetado.autor).toStrictEqual(GESTOR);
+    expect(projetado.tipo === "atribuicao" && projetado.responsavel).toStrictEqual(ENCARREGADO);
+  });
+});
+
+describe("o cursor da conversa — dois adaptadores, e nenhuma cópia da validação", () => {
+  it("ida e volta preserva o par", () => {
+    const cursor = { criadoEm: "2026-08-20T15:00:00.000Z", id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f" };
+    expect(decodificarCursorDeConversa(codificarCursorDeConversa(cursor))).toStrictEqual(cursor);
+  });
+
+  it("lixo devolve null, e não a primeira página", () => {
+    expect(decodificarCursorDeConversa("pagina-2")).toBeNull();
+    expect(decodificarCursorDeConversa("")).toBeNull();
+  });
+
+  it("data inválida e id que não é uuid são recusados", () => {
+    expect(decodificarCursorDeConversa(Buffer.from("ontem|abc", "utf8").toString("base64url"))).toBeNull();
+    expect(
+      decodificarCursorDeConversa(
+        Buffer.from("2026-08-20T15:00:00.000Z|nao-e-uuid", "utf8").toString("base64url"),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("projetarPaginaDeComentarios — o cursor só existe quando há próxima página", () => {
+  const mensagem = (id: string, criadoEm: string) => ({
+    id,
+    texto: "t",
+    autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Marina Rocha" },
+    criadoEm,
+  });
+
+  it("com temMais, o cursor é o do ÚLTIMO item devolvido", () => {
+    const ultima = mensagem("c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f", "2026-08-20T15:02:00.000Z");
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z"), ultima],
+      temMais: true,
+    });
+
+    expect(projetada.proximoCursor).toBe(
+      codificarCursorDeConversa({ criadoEm: ultima.criadoEm, id: ultima.id }),
+    );
+  });
+
+  it("sem temMais, proximoCursor é null", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(projetada.proximoCursor).toBeNull();
+  });
+
+  it("página vazia com temMais falso não inventa cursor", () => {
+    expect(projetarPaginaDeComentarios({ itens: [], temMais: false }).proximoCursor).toBeNull();
+  });
+
+  it("o item projetado tem os QUATRO campos do schema Comentario, e nada mais", () => {
+    const projetada = projetarPaginaDeComentarios({
+      itens: [mensagem("a1b2c3d4-e5f6-4718-8293-a4b5c6d7e8f9", "2026-08-20T15:00:00.000Z")],
+      temMais: false,
+    });
+    expect(Object.keys(projetada.itens[0] ?? {}).sort()).toStrictEqual([
+      "autor",
+      "criadoEm",
+      "id",
+      "texto",
+    ]);
+  });
+});
+
+describe("comentarioSchema — 1 a 4000, aparado num lugar só", () => {
+  it("apara antes de checar: texto só de espaços é recusado", () => {
+    expect(comentarioSchema.safeParse({ texto: "   " }).success).toBe(false);
+  });
+
+  it("acima de 4000 é recusado, e 4000 passa", () => {
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4001) }).success).toBe(false);
+    expect(comentarioSchema.safeParse({ texto: "a".repeat(4000) }).success).toBe(true);
+  });
+
+  it("o valor que sai vem APARADO — quem apara é o schema", () => {
+    const lido = comentarioSchema.parse({ texto: "  a lâmpada foi trocada  " });
+    expect(lido.texto).toBe("a lâmpada foi trocada");
+  });
+});
+
+describe("as duas frases da conversa escolhem por AUTORIA, não por papel — critério 30.4", () => {
+  it("o Solicitante autor lê «falar com os Gestores»", () => {
+    expect(vazioDaConversa(true)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores.",
+    );
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("o Gestor NÃO autor lê «falar com o Solicitante» — a população inteira do risco do 30.4", () => {
+    expect(vazioDaConversa(false)).toBe(
+      "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.",
+    );
+    expect(rotuloDoCampoDeConversa(false)).toBe("Escrever para o Solicitante");
+  });
+
+  it("o Gestor AUTOR — o síndico morador do 28.5 — lê a frase do autor, e é a razão de ser da decisão", () => {
+    // Por permissão ele leria "…falar com o Solicitante", dirigido a ele mesmo: falso nas duas metades,
+    // nomeando quem não está e omitindo quem está. Por autoria ele lê "…os Gestores", e ali isso é FATO —
+    // participantes são Gestores + autor (critério 30.2); se o autor é Gestor, o conjunto SÃO os Gestores.
+    expect(vazioDaConversa(true)).toContain("os Gestores");
+    expect(rotuloDoCampoDeConversa(true)).toBe("Escrever para os Gestores");
+  });
+
+  it("as duas frases são diferentes, e é a diferença que o critério 30.4 protege", () => {
+    expect(vazioDaConversa(true)).not.toBe(vazioDaConversa(false));
+    expect(rotuloDoCampoDeConversa(true)).not.toBe(rotuloDoCampoDeConversa(false));
+  });
+});
+
+describe("enviarComentario — a irmã sem o ramo do 409", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("no 201, devolve o comentário inteiro — é ele que a lista local acrescenta", async () => {
+    const criado = {
+      id: "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+      texto: "A lâmpada nova já foi instalada.",
+      autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Roberto Salles" },
+      criadoEm: "2026-08-20T15:00:00.000Z",
+    };
+
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      expect(url).toBe("/api/ocorrencias/abc/comentarios");
+      expect(init.method).toBe("POST");
+      // A afirmação de organização do item 7b cobre a décima primeira escrita de cliente.
+      expect(init.headers).toMatchObject(cabecalhosDeEscrita("organizacao-a"));
+      expect(JSON.parse(String(init.body))).toStrictEqual({ texto: criado.texto });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(criado) });
+    });
+
+    expect(await enviarComentario("abc", criado.texto, "organizacao-a")).toStrictEqual({
+      ok: true,
+      comentario: criado,
+    });
+  });
+
+  it("num problema com detail, o aviso é o detail", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ codigo: "FORMATO_INVALIDO", detail: "Escreva a mensagem." }),
+      }),
+    );
+
+    expect(await enviarComentario("abc", "", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: "Escreva a mensagem.",
+    });
+  });
+
+  it("sem detail, cai na frase genérica", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+
+  it("rede caída não sobe para o Error Boundary — nuvem sem SLA", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
+    expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
+      ok: false,
+      aviso: MENSAGEM_GENERICA,
+    });
+  });
+});
+
+/**
+ * ============================================================================
+ *  O critério 20.6 — a busca por nome do modal de atribuição
+ * ============================================================================
+ *
+ * **É a única metade desta fatia que tem teste**, e a razão está na §3.12 da spec: o produto não tem
+ * biblioteca de teste de componente React, então o que ficasse dentro do `.tsx` não seria conferível por
+ * máquina nenhuma. O que está aqui é a decisão; o JSX que a consome vai para o roteiro de validação.
+ */
+describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repartir", () => {
+  const candidato = (pessoaId: string, nome: string, papel: string): Candidato => ({
+    pessoaId,
+    nome,
+    papel,
+    area: null,
+  });
+
+  const HELENA = candidato("p-1", "Helena Prado", "Gestor");
+  const MARIA = candidato("p-2", "Maria Silva", "Encarregado");
+  const MARIANA = candidato("p-3", "Mariana Costa", "Solicitante");
+  const ANA_SILVA = candidato("p-4", "Ana Silva", "Solicitante");
+  const ANA_RIBEIRO = candidato("p-5", "Ana Ribeiro", "Solicitante");
+  const JOAO = candidato("p-6", "João Pedro", "Solicitante");
+
+  const TODOS = [HELENA, MARIA, MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO] as const;
+
+  it("normalizarParaBusca tira acento, caixa, borda e espaço repetido", () => {
+    expect(normalizarParaBusca("JOSÉ")).toBe("jose");
+    expect(normalizarParaBusca("  Conceição  ")).toBe("conceicao");
+    expect(normalizarParaBusca("Ana   Maria")).toBe("ana maria");
+  });
+
+  it("termosDaBusca devolve lista vazia para branco e para só-espaços", () => {
+    expect(termosDaBusca("")).toStrictEqual([]);
+    // O caso que a guarda `normalizada === ""` existe para acertar: sem ela isto seria `[""]`, um termo
+    // que casaria tudo por acidente em vez de por regra.
+    expect(termosDaBusca("   ")).toStrictEqual([]);
+    expect(termosDaBusca("  ana   s ")).toStrictEqual(["ana", "s"]);
+  });
+
+  it("casa por prefixo de PALAVRA, e não do nome inteiro — sobrenome é como se procura gente", () => {
+    expect(casaPeloNome("Maria Silva", termosDaBusca("silva"))).toBe(true);
+  });
+
+  it("casa por PREFIXO, e não por pedaço — `ana` não acha `Mariana`", () => {
+    expect(casaPeloNome("Mariana Costa", termosDaBusca("ana"))).toBe(false);
+    expect(casaPeloNome("Ana Silva", termosDaBusca("ana"))).toBe(true);
+  });
+
+  it("acento não separa os dois lados — nem quem digita, nem quem é digitado", () => {
+    expect(casaPeloNome("João Pedro", termosDaBusca("joao"))).toBe(true);
+    expect(casaPeloNome("Joao Pedro", termosDaBusca("joão"))).toBe(true);
+    expect(casaPeloNome("Maria Silva", termosDaBusca("SILVA"))).toBe(true);
+  });
+
+  it("com vários termos, TODOS precisam casar", () => {
+    expect(casaPeloNome("Ana Silva", termosDaBusca("ana s"))).toBe(true);
+    expect(casaPeloNome("Ana Ribeiro", termosDaBusca("ana s"))).toBe(false);
+  });
+
+  it("filtrarPorNome com busca em branco devolve a lista inteira, NA MESMA ORDEM", () => {
+    // A ordem é a de `order by p.nome` do repositório, e é a mesma de T-08. Filtrar não reordena.
+    expect(filtrarPorNome(TODOS, "")).toStrictEqual(TODOS);
+    expect(filtrarPorNome(TODOS, "   ")).toStrictEqual(TODOS);
+  });
+
+  it("filtrarPorNome preserva a ordem do que sobra", () => {
+    expect(filtrarPorNome(TODOS, "ana")).toStrictEqual([ANA_SILVA, ANA_RIBEIRO]);
+  });
+
+  it("repartirCandidatos tira quem chama dos DOIS blocos e o devolve em `eu`", () => {
+    const { eu, executores, solicitantes } = repartirCandidatos(TODOS, "p-1");
+
+    expect(eu).toStrictEqual(HELENA);
+    // Dois controles enviando o mesmo `pessoaId` é o que a §3.3 existe para impedir.
+    expect(executores).toStrictEqual([MARIA]);
+    expect(solicitantes).toStrictEqual([MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO]);
+  });
+
+  it("quem chama ausente da lista: `eu` é null e os dois blocos ficam íntegros", () => {
+    // Hoje inalcançável — `podeAtribuir` exige `vinculo.gerir` e a lista é a dos vínculos ativos —, e é o
+    // caso de borda da §3.4: sem `eu`, a fileira não renderiza e o modal continua sendo o do item 19.
+    const { eu, executores, solicitantes } = repartirCandidatos(TODOS, "p-ausente");
+
+    expect(eu).toBeNull();
+    expect(executores).toStrictEqual([HELENA, MARIA]);
+    expect(solicitantes).toStrictEqual([MARIANA, ANA_SILVA, ANA_RIBEIRO, JOAO]);
+  });
+
+  it("a repartição preserva a ordem DENTRO de cada bloco", () => {
+    const invertidos = [ANA_RIBEIRO, ANA_SILVA, MARIA, HELENA] as const;
+    const { executores, solicitantes } = repartirCandidatos(invertidos, "p-ausente");
+
+    expect(executores).toStrictEqual([MARIA, HELENA]);
+    expect(solicitantes).toStrictEqual([ANA_RIBEIRO, ANA_SILVA]);
+  });
+
+  it("a palavra que separa os blocos é `Solicitante`, e ela vem do PAPEL_EM_PALAVRA de T-05", () => {
+    // O acoplamento existe desde o item 19 (`modal-de-atribuicao.tsx:144-145`) e nada aqui o conserta.
+    // O que muda é que ele passa a ter teste: se `PAPEL_EM_PALAVRA` mudar a palavra, este caso cai.
+    const so = [candidato("p-9", "Quem Quer", "Solicitante")] as const;
+
+    expect(repartirCandidatos(so, "p-ausente").solicitantes).toHaveLength(1);
+    expect(repartirCandidatos(so, "p-ausente").executores).toHaveLength(0);
+  });
+});
+
+describe("o carimbo da trilha de auditoria — com segundos, e no fuso escrito", () => {
+  it("mostra dia, mês, ano e hora com segundos, em America/Sao_Paulo", () => {
+    // 12h14:02 UTC em agosto é 09h14:02 em São Paulo (UTC-3, sem horário de verão desde 2019).
+    expect(dataHoraComSegundos("2026-08-03T12:14:02.000Z")).toBe("03/08/2026 09:14:02");
+  });
+
+  it("meia-noite é 00, nunca 24 — é o `hourCycle: h23`", () => {
+    expect(dataHoraComSegundos("2026-08-04T03:00:00.000Z")).toBe("04/08/2026 00:00:00");
+  });
+
+  it("vira o dia com o fuso, e não com o UTC", () => {
+    // 02h30 UTC de 05/08 ainda é 23h30 de 04/08 em São Paulo. Uma trilha que erra o dia prova o
+    // contrário do que aconteceu.
+    expect(dataHoraComSegundos("2026-08-05T02:30:00.000Z")).toBe("04/08/2026 23:30:00");
+  });
+
+  it("o campo vazio é o travessão do protótipo, escrito uma vez", () => {
+    expect(CAMPO_VAZIO).toBe("—");
   });
 });

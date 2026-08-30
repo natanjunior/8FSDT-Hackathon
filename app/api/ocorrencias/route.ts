@@ -8,7 +8,11 @@ import {
   lerLimiteDaUrl,
   resposta,
 } from "@/interface/http";
-import { projetarOcorrenciaDetalhe, projetarPaginaDeOcorrencias } from "@/interface/projecoes";
+import {
+  lenteDeRotulo,
+  projetarOcorrenciaDetalhe,
+  projetarPaginaDeOcorrencias,
+} from "@/interface/projecoes";
 import { camposEscritosPeloServidor, registroDeOcorrenciaSchema } from "@/interface/schemas";
 
 /**
@@ -89,7 +93,9 @@ export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx
     { limite: lerLimiteDaUrl(requisicao), cursor: lerCursorDaUrl(requisicao), filtro },
   );
 
-  return projetarPaginaDeOcorrencias(pagina);
+  // **A mesma permissão que decidiu o CONJUNTO decide a COLUNA** — `ocorrencia.ler_todas`, e é o
+  // predicado único do item 31. Nenhuma consulta a mais: `ctx.vinculo` já está na mão.
+  return projetarPaginaDeOcorrencias(pagina, lenteDeRotulo(ctx.vinculo.permissoes));
 });
 
 export const dynamic = "force-dynamic";

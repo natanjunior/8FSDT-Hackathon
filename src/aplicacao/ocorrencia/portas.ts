@@ -27,6 +27,82 @@ export type TransicaoLida = {
 };
 
 /**
+ * Por que a atribuição terminou. **Declarado aqui e não no Domínio**, porque a atribuição está FORA do
+ * agregado — decisão da §3.1 da spec do item 19. Os dois valores são os do `ENUM` do banco
+ * (`migrations/…_008_atribuicoes.sql:28`) e os do `openapi.yaml:3038-3041`.
+ *
+ * **`recusa` não tem produtor nesta entrega**, e entra assim mesmo: ele é do **tipo**, não do endpoint.
+ */
+export type MotivoEncerramentoDeAtribuicao = "reatribuicao" | "recusa";
+
+/**
+ * Uma atribuição, como a leitura a devolve — a **segunda fonte** da linha do tempo (item 29).
+ *
+ * **Repare no que NÃO está aqui: `id`.** O identificador da atribuição não sai em payload nenhum — o
+ * `EventoAtribuicao` do contrato não o tem —, e um modelo de leitura que o carregasse convidaria a
+ * inventar `GET /atribuicoes/{id}`, que não existe e não vai existir.
+ *
+ * **`autor` é quem ATRIBUIU**, nunca o responsável: é a colisão nº 2 do glossário (*"responsável"* tem
+ * três significados), e é o campo que o contrato exige em todo evento da linha do tempo.
+ *
+ * **Vínculo revogado continua saindo nomeado**, pela mesma razão da trilha: revogar não apaga a linha de
+ * `vinculos` (modelo §6.4), então o `join` casa igual — quem foi responsável continua nomeado no
+ * histórico.
+ */
+export type AtribuicaoLida = {
+  responsavel: PessoaReferencia;
+  autor: PessoaReferencia;
+  /** ISO 8601 — a conversão do `timestamptz` acontece no repositório. */
+  atribuidoEm: string;
+  encerradaEm: string | null;
+  motivoEncerramento: MotivoEncerramentoDeAtribuicao | null;
+};
+
+/**
+ * Uma mensagem do canal 1, como a leitura a devolve — a **terceira** fonte da linha do tempo (item 30).
+ *
+ * **É o schema `Comentario` do contrato, e é ele inteiro** — `{id, texto, autor{pessoaId,nome},
+ * criadoEm}` (`openapi.yaml`). O `canalId` **não** está aqui: o canal é detalhe de armazenamento, e o
+ * contrato não o publica em lugar nenhum. Expô-lo convidaria um cliente a construir
+ * `/canais/{id}/mensagens`, que é o caminho que a §8.6 recusou por escrito.
+ *
+ * **Não há `editadoEm` nem `excluidoEm`, e a ausência é o critério 30.3.** Não há coluna, não há método
+ * na porta, e não há `export` na rota.
+ */
+export type ComentarioLido = {
+  id: string;
+  texto: string;
+  autor: PessoaReferencia;
+  /** ISO 8601 — a conversão do `timestamptz` acontece no repositório. */
+  criadoEm: string;
+};
+
+/**
+ * O ponto de retomada da conversa: **o par que a ordenação da conversa usa**.
+ *
+ * **É um tipo próprio e não `CursorDeListagem`, e a razão é o nome.** `CursorDeListagem` diz
+ * `registradaEm`, que é campo da ocorrência; carregar nele o `criado_em` de uma mensagem faria o nome
+ * mentir aqui, em `conversa.ts` e no SQL. **Generalizar os dois para `{ instante, id }` é o certo a
+ * longo prazo** e custa renomear um campo em seis sítios do código do 14 e do 15, que esta fatia não tem
+ * outra razão para abrir — fica declarado como o conserto barato do dia em que houver um **terceiro**
+ * recurso paginado.
+ */
+export type CursorDeConversa = { criadoEm: string; id: string };
+
+/** O que a leitura paginada da conversa recebe. Quem chama pede **uma linha a mais** do que devolve. */
+export type PaginaDeMensagens = { limite: number; cursor: CursorDeConversa | null };
+
+/**
+ * O que a escrita da mensagem recebe.
+ *
+ * **`em` viaja ao lado, como nas três portas irmãs** (`registrarSolucaoAplicada`, `alterarPrioridade`,
+ * `avaliar`): `atualizada_em` não é campo da raiz, e aqui não há registro de transição de onde tirá-lo.
+ * **Um relógio, lido uma vez** — o mesmo instante carimba `mensagens.criado_em`,
+ * `canais_conversa.criado_em` (quando o canal nasce) e `ocorrencias.atualizada_em`.
+ */
+export type DadosDaMensagem = { autorPessoaId: string; texto: string; em: string };
+
+/**
  * Um anexo, do jeito que a leitura o devolve — o schema `Anexo` do contrato, menos as URLs.
  *
  * **Repare no que NÃO está aqui: `chave` e `thumbnail_chave`.** *"A chave nunca sai"* (modelo §2.8) deixa
@@ -67,7 +143,8 @@ export type OcorrenciaLida = {
   /** Da mais antiga para a mais recente. **Lista vazia quando não há anexo, nunca `null`.** */
   anexos: readonly AnexoLido[];
   autor: PessoaReferencia;
-  /** Sempre `null` nesta fatia: `atribuicoes` é do item 19. */
+  /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
+   *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
   solucaoAplicada: string | null;
   avaliacao: { nota: number; comentario: string | null; avaliadaEm: string } | null;
@@ -99,7 +176,8 @@ export type OcorrenciaResumoLida = {
   /** O `tipo` é o **congelado no registro**, nunca o atual da Área (modelo §7.5). */
   area: { id: string; nome: string; tipo: TipoDeAreaCongelado };
   autor: PessoaReferencia;
-  /** Sempre `null` nesta fatia: `atribuicoes` é o item 19. */
+  /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
+   *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
   /**
    * **Contagem, não lista** (contrato §8.8) — a tela só precisa da marca *"com foto"*. Vem de
@@ -108,6 +186,19 @@ export type OcorrenciaResumoLida = {
    * ordenado**, nunca o que é só projetado.
    */
   quantidadeDeAnexos: number;
+  /**
+   * **Se a ocorrência já foi avaliada** — `avaliacao_nota is not null` (item 27, critério 27.5).
+   *
+   * **Booleano, e não a avaliação inteira:** a lista responde *"já foi?"*, não *"quanto foi?"* — a nota e
+   * o comentário são conteúdo do detalhe. **E o precedente que recusou `temAnexo` não alcança este
+   * caso:** lá o `0..1` é *"por escopo — não por schema"*; aqui é **do schema** — invariante 8, com
+   * `CHECK` no banco. Não há segunda avaliação para a qual o booleano quebre.
+   *
+   * **É FATO da ocorrência, como `status` e `motivoPausa`** — não afazer calculado por leitor. O critério
+   * 14.5 não se reabre: `acoesDisponiveis` continua fora do resumo, e quem cruza o fato com quem lê é a
+   * tela.
+   */
+  avaliada: boolean;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;
@@ -169,6 +260,137 @@ export type ResultadoDoRegistro =
   | { desfecho: "registrada"; ocorrencia: OcorrenciaLida }
   | { desfecho: "anexo-ja-reivindicado"; ocorrenciaId: string };
 
+/**
+ * O que a escrita de uma transição pode dar. **Desfecho, não exceção**, na fronteira da porta — é o
+ * idioma que `ResultadoDoRegistro` já usa aqui em cima para o anexo já reivindicado.
+ *
+ * **`conflito` é a corrida entre dois Gestores**, e o repositório a detecta sem coluna de versão: o
+ * `update … where status = <anterior>` devolve zero linhas quando alguém chegou antes. Traduzir estado de
+ * banco em erro de domínio é decisão de **Aplicação** — por isso o repositório devolve um desfecho, e
+ * não lança.
+ */
+export type ResultadoDaTransicao =
+  | { desfecho: "aplicada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/** O que a atribuição precisa saber. **O instante é UM**, lido pelo comando de aplicação e transcrito
+ *  aqui: ele carimba `atribuido_em`, o `encerrada_em` da anterior e `ocorrencias.atualizada_em`. Dois
+ *  relógios produziriam uma ocorrência atualizada milissegundos antes da atribuição que a atualizou. */
+export type DadosDaAtribuicao = {
+  responsavelPessoaId: string;
+  /** Quem comandou. **Nunca vem do corpo**, e não há campo para ele no schema. */
+  atribuidoPorPessoaId: string;
+  /** ISO 8601. */
+  em: string;
+};
+
+/**
+ * O que a atribuição pode dar. **Desfecho, não exceção**, na fronteira da porta — o idioma que
+ * `ResultadoDoRegistro` e `ResultadoDaTransicao` já usam aqui em cima.
+ *
+ * **`responsavel-sem-vinculo-ativo` nasce do `where exists` do próprio `insert`**, sem leitura prévia: é
+ * a doutrina do item 8, e uma leitura antes perde a corrida. O `422` que ele vira é o critério 19.3, e
+ * **pessoa de outra organização recebe o mesmo desfecho sem um `if` a mais** — o `$1` é a organização
+ * ativa, amarrada pelo escopo, então o vínculo de outra simplesmente não existe para a consulta (§6.3).
+ *
+ * **`conflito` tem DUAS causas, e a primeira é a que o item 21 acrescentou.** (1) O **estado não admite
+ * mais o comando** — a ocorrência virou `resolvida` ou `cancelada` entre o `carregar` e o `COMMIT`, e o
+ * guarda de estado da porta atualiza zero linhas; é o critério **21.4** sob corrida. (2) O `23505` em
+ * `atribuicoes_vigente_uk`, que desde o item 21 é rede e não caso comum, porque o guarda serializa duas
+ * atribuições concorrentes à mesma ocorrência. **As duas viram o mesmo `409`**: o comando relê e responde
+ * com o estado de agora. Traduzir estado de banco em erro de domínio é decisão de **Aplicação** — por isso
+ * o repositório devolve um desfecho e não lança, exatamente como em `ResultadoDaTransicao`.
+ */
+export type ResultadoDaAtribuicao =
+  | { desfecho: "atribuida"; reatribuicao: boolean; ocorrencia: OcorrenciaLida }
+  | { desfecho: "responsavel-sem-vinculo-ativo" }
+  | { desfecho: "conflito" };
+
+
+/**
+ * O que a escrita da solução aplicada pode dar. **Desfecho, não exceção**, na fronteira da porta — o
+ * idioma que `ResultadoDoRegistro`, `ResultadoDaTransicao` e `ResultadoDaAtribuicao` já usam aqui em cima.
+ *
+ * **`conflito` NÃO é a corrida de dois textos**, e a distinção é a §7.9 do contrato: dois Gestores
+ * gravando solução no mesmo estado é exposição **aceita**, e o segundo vence. O que este desfecho detecta
+ * é outra coisa — **o estado mudou entre o `carregar` e o `update`** —, e o que ele impede é escrita em
+ * registro fechado: *"mutação silenciosa de registro fechado, que é precisamente o que a ADR-0001 existe
+ * para impedir"* (contrato §8.4). Uma cláusula `where status = <o que o agregado leu>` fecha a janela.
+ */
+export type ResultadoDaSolucaoAplicada =
+  | { desfecho: "gravada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/**
+ * O que a alteração de prioridade pode dar. **Desfecho, não exceção**, na fronteira da porta — o idioma que
+ * `ResultadoDoRegistro`, `ResultadoDaTransicao`, `ResultadoDaAtribuicao` e `ResultadoDaSolucaoAplicada` já
+ * usam aqui em cima.
+ *
+ * **`conflito` significa UMA coisa e só uma: *"virou terminal entre a leitura e a escrita"***. Não há
+ * segundo caso — `carregar` já provou que a linha existe nesta organização, e não existe `DELETE` de
+ * ocorrência em endpoint nenhum. É a diferença para `ResultadoDaSolucaoAplicada`, cujo `conflito` significa
+ * *"o estado mudou"* e por isso alcança estados que ainda admitem o comando (achado A-5 da spec do 17).
+ *
+ * **Movimento LEGAL entre a leitura e a escrita não é conflito:** `aberta → em_analise` grava, porque a
+ * prioridade continua alterável nos quatro estados. Quem quiser ver por quê, o predicado está no
+ * repositório e a razão está na §3.4 da spec — o `409` deste comando nomeia um fato, e o
+ * `inventario-de-telas.md:1532-1536` decidiu que ele **não tem frase de tela própria**, então ele não pode
+ * aparecer sobre um caso em que a frase publicada mente.
+ *
+ * **E o que ele NÃO detecta, por decisão de contrato:** dois Gestores alterando a prioridade no mesmo
+ * estado — o segundo vence, sem aviso. É um dos **dois** pontos que a §7.9 nomeia como exposição aceita.
+ * O que o produto passa a ter contra o toque errado é a **janela de conserto** do critério 17.7, na tela.
+ */
+export type ResultadoDaPrioridade =
+  | { desfecho: "alterada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/**
+ * O desfecho da porta do item 27 — **e o `conflito` aqui detecta DUAS coisas, não uma.**
+ *
+ * Nas duas portas irmãs (`ResultadoDaSolucaoAplicada` e `ResultadoDaPrioridade`) o `conflito` significa
+ * *"o estado mudou entre a leitura e a escrita"*. **Aqui ele significa isso OU *"alguém já avaliou entre
+ * a leitura e a escrita"***, porque o predicado tem duas metades — e a segunda é a única que reprova de
+ * verdade, já que `resolvida` é terminal.
+ *
+ * **Quem traduz é o comando de aplicação**, relendo: transformar erro do banco em erro de domínio é
+ * decisão de **Aplicação**, e por isso o repositório devolve um desfecho e não lança.
+ */
+export type ResultadoDaAvaliacao =
+  | { desfecho: "avaliada"; ocorrencia: OcorrenciaLida }
+  | { desfecho: "conflito" };
+
+/**
+ * ============================================================================
+ *  O que a porta de ESCRITA devolve — o agregado, **e o fato que ele não tem**
+ * ============================================================================
+ *
+ * `carregar` devolvia `Ocorrencia | null`, e a justificativa continua valendo inteira: *"devolve o
+ * AGREGADO, não `OcorrenciaLida`, e a diferença é a invariante 1"*. **O que a redação não previu é que as
+ * invariantes 9 e 10** — as duas que a `arquitetura.md` §4 pôs na Aplicação — **precisam, junto do
+ * agregado, de fatos de fora dele**, e precisam deles até para montar o corpo de um `409`:
+ * `recusaDeTransicao` deriva `acoesDisponiveis` de quem pergunta, e a partir do item 22 essa derivação
+ * pergunta se há responsável.
+ *
+ * **Por que um envelope e não uma porta nova.** Uma `temResponsavelVigente(id)` seria uma **terceira ida
+ * ao banco** em todo comando que precise montar um `409` — hoje são duas —, e abriria a janela entre as
+ * duas leituras sem comprar nada. Aqui o fato sai do **mesmo `select`** do agregado, num `exists`
+ * correlacionado: nenhuma consulta a mais, nenhum `join`.
+ *
+ * **Por que não dentro do agregado.** `reconstituir` receber `temResponsavel` moveria a invariante 9 para
+ * dentro do limite, contra a `arquitetura.md` §4 e contra a §3.1 da spec do item 19, que pôs a Atribuição
+ * **fora** dele. Mudar o lado do limite é decisão de arquitetura, não de fatia.
+ *
+ * **O lugar já está pronto para o segundo fato do mesmo tipo:** a **invariante 10** — *"`resolver` não
+ * exige solução aplicada; depende da configuração da `Organização`"* — é a próxima a precisar disto, e é
+ * do item 26.
+ */
+export type OcorrenciaCarregada = {
+  ocorrencia: Ocorrencia;
+  /** Há atribuição vigente? A invariante 9, apurada no **mesmo** `select` do agregado. */
+  temResponsavel: boolean;
+};
+
 export interface RepositorioEscopadoDeOcorrencias {
   /**
    * **Recebe o agregado, não um DTO — e a diferença é a invariante 1.**
@@ -183,6 +405,108 @@ export interface RepositorioEscopadoDeOcorrencias {
    * transação escopada e não só a consulta.
    */
   registrar(ocorrencia: Ocorrencia): Promise<ResultadoDoRegistro>;
+
+  /**
+   * **Devolve o AGREGADO, não `OcorrenciaLida` — e a diferença é a invariante 1.**
+   *
+   * É o item do DoD que o lint não alcança (*"o repositório devolve agregado ou objeto de leitura
+   * declarado"*): para **escrever**, o que volta tem de ser o agregado, senão a invariante 1 vira
+   * disciplina. `null` quando não existe **nesta organização** — o repositório escopado não vê as outras.
+   *
+   * **Não traz anexos**, e o agregado diz isso em voz alta em vez de devolver lista vazia:
+   * `AnexoDaOcorrencia` carrega `chave`, e `objetoDoAnexo` é a única leitura do produto que a devolve.
+   *
+   * **Devolve um ENVELOPE desde o item 22** — `OcorrenciaCarregada`, com o agregado dentro e o fato da
+   * invariante 9 ao lado. Ver o comentário do tipo, logo acima.
+   */
+  carregar(id: string): Promise<OcorrenciaCarregada | null>;
+
+  /**
+   * **Transcreve a transição que o agregado decidiu, num `COMMIT` só** — `update` da raiz mais `insert`
+   * do registro, que é a invariante 2.
+   *
+   * **Este método não decide nada.** `status`, `atualizada_em` e os oito campos do registro saem de
+   * `ocorrencia` e de `ocorrencia.ultimaTransicao`. O predicado do `update` é o `statusAnterior` do
+   * próprio registro — nada foi inventado, e é o controle otimista que o contrato §7.9 afirma existir.
+   *
+   * **Não há `atualizar` nem `apagar` para `registros_transicao`**, aqui nem em lugar nenhum: a ausência
+   * é a invariante 3 expressa em tipo.
+   */
+  aplicarTransicao(id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao>;
+
+  /**
+   * **Atribui — ou reatribui — o responsável, em UM `COMMIT`.**
+   *
+   * Três escritas e uma releitura, na ordem: o `update ocorrencias` que **guarda o estado** e carimba
+   * `atualizada_em`; o `update` que encerra a atribuição vigente com motivo `reatribuicao`; o
+   * `insert … where exists (vínculo ativo)`; e o `lerPorId` de dentro da transação.
+   *
+   * **A ordem não é estilo.** O guarda vem primeiro porque recusar depois de escrever comitaria o
+   * encerramento da atribuição anterior (item 21). E o `update` de encerramento vem antes do `insert`,
+   * que é o que faz `atribuicoes_vigente_uk` nunca ser violado no caminho normal.
+   *
+   * **Não escreve `status` e não escreve na trilha**, e a ausência é o critério 19.4: a trilha é só de
+   * status. `ocorrencias` recebe uma coluna e uma só — `atualizada_em` —, porque atribuir é **atividade**
+   * na ocorrência (`arquitetura.md` §5.8).
+   */
+  atribuirResponsavel(ocorrenciaId: string, dados: DadosDaAtribuicao): Promise<ResultadoDaAtribuicao>;
+
+  /**
+   * **Grava a solução aplicada, em UM `COMMIT` — e a ausência de `insert` é a invariante 3 aqui.**
+   *
+   * Uma instrução e uma releitura: o `update` da raiz, seguido do `lerPorId` de dentro da transação. **Não
+   * há como este método gravar na trilha, porque ele não tem a instrução** — é o critério 25.1 na camada
+   * onde ele é estrutural, e não só testado.
+   *
+   * **Recebe o AGREGADO — a instância que o comando devolveu.** O valor gravado sai de
+   * `ocorrencia.solucaoAplicada`; o predicado sai de `ocorrencia.status`, que o comando **preserva**. Uma
+   * instância responde às duas perguntas, e o método continua transcrevendo em vez de decidir.
+   *
+   * **`em` viaja ao lado porque `atualizada_em` não é campo da raiz** — em `aplicarTransicao` ele sai do
+   * registro, e aqui não há registro. O carimbo não é opcional: *"houve atividade nesta ocorrência"*
+   * (`arquitetura.md` §5.8), e escrever a solução aplicada é atividade.
+   */
+  registrarSolucaoAplicada(
+    id: string,
+    ocorrencia: Ocorrencia,
+    em: string,
+  ): Promise<ResultadoDaSolucaoAplicada>;
+
+  /**
+   * **Altera a prioridade, em UM `COMMIT` — e a ausência de `insert` é o critério 17.3 em estrutura.**
+   *
+   * Uma instrução e uma releitura: o `update` da raiz, seguido do `lerPorId` de dentro da transação. **Não
+   * há como este método gravar na trilha, porque ele não tem a instrução** — e não há como a alteração
+   * aparecer na linha do tempo, porque ela também sai da trilha (PA-21).
+   *
+   * **A assinatura é IDÊNTICA à de `registrarSolucaoAplicada`, e o predicado é diferente.** Aqui ele é
+   * `status <> all(TERMINAIS)`: a lista **não sobe pela assinatura** porque é a **invariante 7**, e a
+   * invariante mora no Domínio — o repositório a importa de `@/dominio/ocorrencia`, que ele já importa.
+   *
+   * **Recebe o AGREGADO — a instância que o comando devolveu.** O valor gravado sai de
+   * `ocorrencia.prioridade`. **O `status` dela NÃO é o predicado** (é a diferença para a porta vizinha): a
+   * instância viaja porque é ela que carrega o valor, e o método continua transcrevendo em vez de decidir.
+   *
+   * **`em` viaja ao lado porque `atualizada_em` não é campo da raiz** — em `aplicarTransicao` ele sai do
+   * registro, e aqui não há registro. O carimbo não é opcional: alterar prioridade é **atividade** na
+   * ocorrência (`arquitetura.md` §5.8).
+   */
+  alterarPrioridade(id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaPrioridade>;
+
+  /**
+   * **A avaliação — um `update`, uma releitura, e NENHUM `insert`** (item 27, critério 27.4).
+   *
+   * **A assinatura é IDÊNTICA à das duas portas irmãs, e o predicado é diferente das duas.** Aqui ele
+   * tem **duas** metades — `status = <o que o agregado leu>` **e** `avaliacao_nota is null` —, e a segunda
+   * é a que fecha a janela: `resolvida` é terminal, então a primeira nunca reprova sozinha. É a
+   * **invariante 8** no banco, e o `JA_AVALIADA` é código publicado para exatamente este caso.
+   *
+   * **Recebe o agregado JÁ AVALIADO** — a instância que sai de `Ocorrencia.avaliar` —, e transcreve dela
+   * as três colunas. `em` viaja ao lado e é o **mesmo instante** de `avaliadaEm`: `atualizada_em` não é
+   * campo da raiz, e dois relógios violariam o `CHECK (avaliada_em >= registrada_em)`.
+   */
+  avaliar(id: string, ocorrencia: Ocorrencia, em: string): Promise<ResultadoDaAvaliacao>;
+
   /** `null` quando não existe **nesta organização** — o repositório escopado não vê as outras. */
   porId(id: string): Promise<OcorrenciaLida | null>;
 
@@ -208,6 +532,68 @@ export interface RepositorioEscopadoDeOcorrencias {
   /** Do mais antigo para o mais recente, por `sequencia`. **Não há `atualizar` nem `apagar`** aqui, e a
    *  ausência é a invariante 3 expressa em tipo. */
   trilha(ocorrenciaId: string): Promise<readonly TransicaoLida[]>;
+  /**
+   * **Todas as atribuições da ocorrência, da mais antiga para a mais recente** — a segunda fonte da linha
+   * do tempo (item 29), pelo índice `atribuicoes_linha_do_tempo_ix`, que o item 19 criou nomeando este.
+   *
+   * **Sem `limit` e sem filtrar `encerrada_em`, e as duas ausências são o critério 29.3:** *n*
+   * atribuições, *n* eventos. O `LATERAL` que preenche `OcorrenciaLida.responsavel` responde outra
+   * pergunta — *"quem cuida AGORA"* — e continua respondendo só ela.
+   *
+   * **Não há `atualizar` nem `apagar` aqui**, e a ausência não é a invariante 3: `atribuicoes` recebe
+   * `UPDATE` de propósito, e quem o faz é `atribuirResponsavel`. O que esta porta não faz é escrever.
+   */
+  atribuicoes(ocorrenciaId: string): Promise<readonly AtribuicaoLida[]>;
+  /**
+   * **Uma página da conversa, do mais antigo para o mais recente** — canal 1, pelo índice
+   * `mensagens_do_canal_ix (canal_id, criado_em)` da migração 009.
+   *
+   * **Ordem crescente, e ela é do contrato** (`openapi.yaml`: *"Página de comentários, do mais antigo
+   * para o mais recente"*), não desta porta. A consequência — numa conversa maior que o `limite`, as
+   * mensagens novas estão na **última** página — está declarada no achado **A-2** da spec, com a
+   * volumetria que a torna rara (2,5 mensagens por canal, §12 do modelo).
+   *
+   * Devolve **até** `pagina.limite` linhas. Saber se há mais é de quem chamou — ele pede uma a mais.
+   */
+  comentarios(ocorrenciaId: string, pagina: PaginaDeMensagens): Promise<readonly ComentarioLido[]>;
+  /**
+   * **TODAS as mensagens da ocorrência, sem limite e sem cursor** — a terceira fonte da linha do tempo
+   * (critério 30.7), e a irmã de `trilha` e de `atribuicoes`, que também não paginam.
+   *
+   * **É a única das três fontes sem limite natural**, e o custo está declarado: a trilha é limitada pela
+   * máquina de estados (~10), as atribuições pelas reatribuições, e as mensagens por ninguém —
+   * `POST /comentarios` não tem limite de chamadas nem chave de idempotência (contrato §7.10). **A
+   * aposta é a volumetria da §12 do modelo.** Declarar um teto é mudança de `openapi.yaml`, e é do hub.
+   *
+   * **Método separado de `comentarios`, e não um `limite` opcional.** A linha do tempo nunca pagina, e
+   * um parâmetro que ela nunca usa mentiria sobre a leitura. O SQL é o mesmo; só a cauda muda.
+   */
+  mensagens(ocorrenciaId: string): Promise<readonly ComentarioLido[]>;
+  /**
+   * **Publica no canal 1, em UM `COMMIT` — e o canal nasce aqui, se ainda não existir.**
+   *
+   * Quatro instruções e uma releitura, na ordem: o `insert … on conflict do nothing` do canal; o
+   * `select` que lê o `id` — **a única fonte do identificador**, exista o canal de antes ou de agora; o
+   * `insert` da mensagem; o `update ocorrencias set atualizada_em`; e a releitura da mensagem de dentro
+   * da transação.
+   *
+   * **O caminho da primeira mensagem e o da milésima são o mesmo caminho, sem `if`.** É o que faz a
+   * corrida ser ruído em vez de informação: dois Gestores comentando ao mesmo tempo numa ocorrência sem
+   * canal — um dos dois `insert` perde para `canais_conversa_tipo_uk`, o `on conflict do nothing` o
+   * absorve, e o `select` seguinte devolve o mesmo `id` para os dois. É o oposto de
+   * `atribuicoes_vigente_uk`, onde a corrida é informação e vira `409`.
+   *
+   * **Não escreve `status` e não escreve na trilha**, e a ausência é estrutural: o método não tem a
+   * instrução. `ocorrencias` recebe **uma** coluna, `atualizada_em` — porque o carimbo não quer dizer
+   * *"esta linha mudou"*, e sim *"houve atividade nesta ocorrência"*, o que **inclui mensagem nova, que
+   * é `INSERT` em outra tabela** (`arquitetura.md` §5.8, que cita este caso pelo nome).
+   *
+   * **Não devolve desfecho, e a ausência de `ResultadoDa…` é decisão:** não há predicado de estado a
+   * reprovar. Comentar é admitido nos **seis** estados — o contrato não publica
+   * `409 TRANSICAO_NAO_PERMITIDA` neste endpoint —, e a ocorrência de outra organização já virou `404`
+   * na Aplicação, antes de esta transação começar.
+   */
+  comentar(ocorrenciaId: string, dados: DadosDaMensagem): Promise<ComentarioLido>;
 }
 
 /** O que o comando de aplicação precisa. Nomeado para o teste montar só isto. */

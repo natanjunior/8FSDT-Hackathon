@@ -187,3 +187,53 @@ export class NomeDeAreaDuplicado extends ErroDeDominio {
     super("AREA_NOME_DUPLICADO", "Nome já usado", "Já existe uma área com este nome.");
   }
 }
+
+/**
+ * `409 VINCULO_COM_HISTORICO` — o vínculo tem linha dependente, e o histórico não se apaga.
+ *
+ * **É tradução do `ON DELETE RESTRICT`**, não de checagem prévia — a mesma doutrina de
+ * `PedidoDeEntradaPendente` e de `ContatoDuplicado`. São **nove** as tabelas que apontam para
+ * `vinculos (pessoa_id, organizacao_id)`, e a recusa é do banco em todas.
+ *
+ * **O texto é cópia literal do `openapi.yaml:715-717`**, e não da frase de tela. São coisas diferentes:
+ * o corpo `problem+json` pertence à especificação versionada — que o Definition of Done manda o código
+ * corresponder —, e a tela **nunca o mostra**: nos dois `409` a razão substitui o botão, e a linha de
+ * recusa da spec §3.10 reusa a frase da razão, que vive em `frases-da-remocao.ts`.
+ *
+ * **O `detail` publicado nomeia só um dos nove rastros**, e isso é o achado **A-1** da spec do item 10 —
+ * item **32** de `trabalho/fila-documentacao.md`. Consertá-lo aqui faria o código publicar um contrato
+ * que o arquivo versionado não tem.
+ */
+export class VinculoComHistorico extends ErroDeDominio {
+  constructor() {
+    super(
+      "VINCULO_COM_HISTORICO",
+      "Este vínculo já tem histórico",
+      "A pessoa já registrou ocorrências nesta organização. Remover apagaria o rastro dela; o caminho é revogar o acesso.",
+    );
+  }
+}
+
+/**
+ * `409 ULTIMO_GESTOR` — **a única regra deste endpoint que o banco não garante** (contrato §8.2).
+ *
+ * Sem ela o `DELETE` abriria um caminho **novo** para o **PA-24**: numa organização recém-criada o Gestor
+ * inicial não tem histórico e poderia remover a si mesmo, deixando a organização sem ninguém que possa
+ * aprovar entrada nenhuma.
+ *
+ * **Vem antes do `VINCULO_COM_HISTORICO`, e a ordem não é gosto** (spec §3.2): o Gestor inicial **tem**
+ * dependente — `organizacoes.criada_por_pessoa_id` aponta para o vínculo dele desde a POL-01 —, então
+ * traduzir a recusa do banco primeiro faria o critério 10.3 ler falso no cenário que ele nomeia. Por isso
+ * a guarda mora no `where` do próprio `delete`.
+ *
+ * Texto literal de `openapi.yaml:726-729`.
+ */
+export class UltimoGestor extends ErroDeDominio {
+  constructor() {
+    super(
+      "ULTIMO_GESTOR",
+      "Esta organização ficaria sem Gestor",
+      "Aprove outra pessoa como Gestor antes de remover este vínculo.",
+    );
+  }
+}

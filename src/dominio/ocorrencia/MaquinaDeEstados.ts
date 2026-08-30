@@ -57,9 +57,61 @@ const PERMISSAO_DO_COMANDO: Readonly<Record<Comando, readonly string[]>> = {
   cancelar: ["ocorrencia.cancelar_propria", "ocorrencia.cancelar_qualquer"],
 };
 
+/**
+ * **Os estados de onde o Solicitante autor cancela a própria ocorrência** — a metade de ESTADO do
+ * critério 18.3, e a D12.
+ *
+ * **Quatro fontes dizem o mesmo conjunto, e nenhuma delas é esta linha:**
+ *
+ * - `arquitetura.md:148-156` — `Aberta`/`Em análise` → *Solicitante autor · Gestor*; `Em atendimento` →
+ *   **Gestor apenas (D12)**; `Pausada` → **Gestor**;
+ * - `contrato-de-api.md:419` — `cancelar_propria` ✅ *(até `em_analise`, D12)*;
+ * - `openapi.yaml:1964-1971` — *"o Solicitante cancela a própria até `Em análise`; a partir de
+ *   `Em atendimento` só o Gestor. O Solicitante continua podendo **pedir** o cancelamento pelo
+ *   comentário"*;
+ * - `inventario-de-telas.md:1524-1525` — o `SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` é *"defeito, não
+ *   caminho"*, **coberto por `acoesDisponiveis`** — e é esta lista que torna a segunda metade da frase
+ *   verdadeira.
+ *
+ * **Ela NÃO substitui `TRANSICOES.em_atendimento`, que continua listando `cancelar`:** o Gestor cancela
+ * ali. É restrição de **quem**, sobreposta à de estado — e é por isso que mora ao lado da condição de
+ * autoria, em `comandosDisponiveis`, e não na tabela.
+ *
+ * **Exportada, porque tem dois consumidores:** esta função e o comando de aplicação, que lança o `403` a
+ * partir da mesma lista. Duas listas divergiriam, e a divergência seria um botão que responde `403` no
+ * clique.
+ *
+ * **A §8.5 do contrato promete `409` ou `422` para o comando ausente, e aqui a ausência significa
+ * `403`.** Não é novidade desta linha: `avaliar` já é assim — ausente por não ser o autor, recusado com
+ * `403` —, e o `inventario-de-telas.md:1525` trata os dois códigos juntos, na mesma linha, como defeitos
+ * que a lista cobre.
+ */
+export const ESTADOS_DE_CANCELAMENTO_DO_AUTOR: readonly StatusOcorrencia[] = ["aberta", "em_analise"];
+
 /** `true` se o par (status, comando) está na tabela de transições. */
 export function transicaoPermitida(status: StatusOcorrencia, comando: Comando): boolean {
   return TRANSICOES[status].includes(comando);
+}
+
+/**
+ * ============================================================================
+ *  `comandoPermitido` — a pergunta dos DEZ comandos, e não a dos que transicionam
+ * ============================================================================
+ *
+ * **A união das duas tabelas acima.** `transicaoPermitida` consulta só `TRANSICOES`, e para os quatro
+ * comandos sem transição — `atribuir-responsavel`, `alterar-prioridade`, `registrar-solucao-aplicada` e
+ * `avaliar` — ela responde `false` nos seis estados. Quem os admitisse por ela os recusaria sempre.
+ *
+ * **Ela não é substituída, e não deve ser.** Quem vai **mover** o status precisa saber se há transição —
+ * é a pergunta do `analisar` (item 16) e a dos itens 22, 23, 24 e 26. Quem vai apenas **executar um
+ * comando** precisa saber se o estado o admite. Duas perguntas, dois nomes; fazer `transicaoPermitida`
+ * consultar as duas tabelas faria o nome mentir no lugar onde a máquina de estados mora.
+ *
+ * **É o chamador único da regra de estado dos quatro comandos que não transicionam**, e o item 19 é o
+ * primeiro a usá-lo.
+ */
+export function comandoPermitido(status: StatusOcorrencia, comando: Comando): boolean {
+  return TRANSICOES[status].includes(comando) || SEM_TRANSICAO[comando].includes(status);
 }
 
 export type PerguntaDeAcoes = {
@@ -68,6 +120,23 @@ export type PerguntaDeAcoes = {
   permissoes: readonly string[];
   /** Se quem pergunta é o autor da ocorrência. Decide `cancelar_propria` e `avaliar`. */
   ehAutor: boolean;
+  /**
+   * **A invariante 9 — há atribuição vigente?** (item 22, critério 22.3)
+   *
+   * **Obrigatório, e não opcional com padrão**, porque o esquecimento não é simétrico: com padrão
+   * `false`, `iniciar-atendimento` sumiria da lista mesmo havendo responsável — contra a §8.5 lida ao
+   * contrário, *"comando que teria sucesso precisa estar presente"*; com padrão `true`, o botão
+   * apareceria sem responsável e responderia `409` no clique — contra o critério 22.3 e contra o exemplo
+   * `semResponsavel` do contrato. Obrigatório, o compilador cobra todo chamador, hoje e nos itens 23 a 27.
+   *
+   * **`jaAvaliada` continua opcional, e a assimetria é declarada:** ela só muda a presença de `avaliar`,
+   * que `COMANDOS_IMPLEMENTADOS` filtra até o item 27 existir. Este muda a presença de um comando que
+   * passa a existir agora.
+   *
+   * **O fato NÃO vem do agregado**, e não pode vir: ele mora em `atribuicoes`, fora do limite. Quem o
+   * apura é a porta de escrita (`carregar`) ou o modelo de leitura (`OcorrenciaLida.responsavel`).
+   */
+  temResponsavel: boolean;
   /** A metade *"uma vez só"* da invariante 8. */
   jaAvaliada?: boolean;
   /**
@@ -88,8 +157,9 @@ export type PerguntaDeAcoes = {
  * 2. **A tabela companheira** — de onde saem os quatro que não transicionam e têm endpoint.
  * 3. **O que não é status nem permissão** — a metade *"uma vez só"* da invariante 8, e as checagens de
  *    **relação** com o recurso (ser o autor, em `avaliar` e em `cancelar`). *(A invariante 9 —
- *    `iniciarAtendimento` exige responsável atribuído — é do **comando de aplicação** e entra no item 22,
- *    que é quando `atribuicoes` existe.)*
+ *    `iniciarAtendimento` exige responsável atribuído — chegou no item 22: o **fato** é apurado fora do
+ *    agregado, em `atribuicoes`, e viaja até aqui em `temResponsavel`. A **recusa** continua sendo do
+ *    comando de aplicação, e é o `409 RESPONSAVEL_NAO_ATRIBUIDO`.)*
  *
  * Se a lista não aplicasse as três, o cliente ou ofereceria um botão que falha sempre, ou
  * reimplementaria a regra — que é **exatamente a segunda cópia da máquina de estados** que este campo
@@ -100,22 +170,32 @@ export type PerguntaDeAcoes = {
  */
 export function comandosDisponiveis(pergunta: PerguntaDeAcoes): readonly Comando[] {
   const permitidos = COMANDOS.filter((comando) => {
-    // 1 e 2 — status
-    const porEstado = TRANSICOES[pergunta.status].includes(comando)
-      ? true
-      : SEM_TRANSICAO[comando].includes(pergunta.status);
-    if (!porEstado) return false;
+    // 1 e 2 — status. **As duas tabelas, por `comandoPermitido`**: a união estava escrita aqui em linha,
+    // e a partir do item 19 ela tem um segundo chamador. Duas cópias da mesma união divergiriam no dia em
+    // que uma terceira tabela aparecesse.
+    if (!comandoPermitido(pergunta.status, comando)) return false;
 
     // permissão
     if (!PERMISSAO_DO_COMANDO[comando].some((p) => pergunta.permissoes.includes(p))) return false;
+
+    // 3 — a **invariante 9**: sem responsável atribuído, `iniciar-atendimento` não é oferecido
+    // (critério 22.3). É a única regra desta função que não olha `status` nem permissão, e por isso a
+    // `arquitetura.md` §4 a pôs no comando de aplicação — mas **anunciá-la** é daqui, senão a tela
+    // ofereceria um botão que responde `409` na cara de quem clicou.
+    if (comando === "iniciar-atendimento" && !pergunta.temResponsavel) return false;
 
     // 3 — relação com o recurso, e a metade "uma vez só"
     if (comando === "avaliar") {
       if (!pergunta.ehAutor) return false;
       if (pergunta.jaAvaliada === true) return false;
     }
+    // 3 — relação com o recurso, e **a metade de ESTADO do critério 18.3** (item 18): quem não tem
+    // `cancelar_qualquer` cancela só a própria, e só enquanto ela não saiu da triagem. A partir de
+    // `em_atendimento` o comando some da lista — e o comando de aplicação recusa com `403` a partir da
+    // **mesma** constante.
     if (comando === "cancelar" && !pergunta.permissoes.includes("ocorrencia.cancelar_qualquer")) {
       if (!pergunta.ehAutor) return false;
+      if (!ESTADOS_DE_CANCELAMENTO_DO_AUTOR.includes(pergunta.status)) return false;
     }
 
     return true;

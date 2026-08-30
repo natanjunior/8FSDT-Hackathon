@@ -355,6 +355,29 @@ export type ResultadoDaCorrecao =
   | { desfecho: "contato-duplicado" };
 
 /**
+ * Por que um vínculo **não pode** sair.
+ *
+ * **Um valor só para o histórico, e nomear qual dos nove dependentes bloqueou foi recusado** com
+ * argumento (`respostas.md` P2): nomear transforma uma constante de tela em nove, obriga a décima quando
+ * alguém acrescentar tabela, e põe nome de tabela do esquema num modelo de leitura. O que o Gestor precisa
+ * saber é que não pode e que revogar ainda não existe.
+ */
+export type ImpedimentoDeRemocao = "historico" | "ultimo-gestor";
+
+/**
+ * Os quatro desfechos da remoção. **Etiqueta, não exceção** — a mesma doutrina dos itens 7a, 8 e 9a.
+ *
+ * `com-historico` é a tradução do `23503`, e chega de **duas** origens: as oito chaves `on delete
+ * restrict`, que erram no `delete`, e `organizacoes_criada_por_vinculo_fk`, que é
+ * `deferrable initially deferred` e erra no `COMMIT`.
+ */
+export type ResultadoDaRemocao =
+  | { desfecho: "removido" }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ultimo-gestor" }
+  | { desfecho: "com-historico" };
+
+/**
  * **A porta escopada dos vínculos.**
  *
  * Mudou de módulo em 23/08/2026, e a razão é dependência: os casos de uso que a consomem são capacidades
@@ -377,6 +400,30 @@ export interface RepositorioEscopadoDeVinculos {
 
   /** Corrige nome e unidade. **A guarda de quem tem conta nomeia campos, não o endpoint** (contrato §8.2). */
   corrigir(dados: DadosDaCorrecao): Promise<ResultadoDaCorrecao>;
+
+  /**
+   * Remove o vínculo — **o único `DELETE` do contrato** (§8.2, P6).
+   *
+   * **A guarda do último Gestor mora no `where` do próprio `delete`, e a do histórico é do banco.** A
+   * primeira é a única regra deste endpoint que nenhuma constraint alcança; a segunda são as nove chaves
+   * estrangeiras `on delete restrict`, e o repositório **traduz** a recusa em vez de antecipá-la — uma
+   * leitura prévia perderia a corrida que o `409` existe para cobrir.
+   */
+  remover(pessoaId: string): Promise<ResultadoDaRemocao>;
+
+  /**
+   * Por vínculo ativo desta organização, o que impede a remoção. **Ausência do `pessoaId` no mapa
+   * significa *pode sair*** — não há valor nulo aqui.
+   *
+   * **Existe só para a tela** (spec §3.4): o critério 10.4 exige que o botão não apareça quando o vínculo
+   * não pode sair, e o payload de `GET /vinculos` não tem esse dado **e não vai passar a ter** —
+   * acrescentar campo ali mudaria a especificação versionada. T-08 é Server Component e lê pela estrada
+   * direta do contrato §5.
+   *
+   * **Quando os dois impedimentos valem, devolve `ultimo-gestor`** — a mesma precedência do endpoint,
+   * para que a razão na tela e a razão do `409` nunca discordem.
+   */
+  impedimentosDeRemocao(): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>>;
 }
 
 /**

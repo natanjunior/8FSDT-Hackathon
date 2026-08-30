@@ -2,6 +2,8 @@ import { AnexoNaoEncontrado, type ArmazenamentoDeAnexos } from "@/aplicacao/anex
 
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type {
+  AtribuicaoLida,
+  ComentarioLido,
   CursorDeListagem,
   FiltroDeOcorrencias,
   OcorrenciaLida,
@@ -96,6 +98,133 @@ export async function verTrilhaDeAuditoria(
 ): Promise<readonly TransicaoLida[]> {
   if ((await repositorio.porId(id)) === null) throw new OcorrenciaNaoEncontrada();
   return repositorio.trilha(id);
+}
+
+/**
+ * ============================================================================
+ *  `GET /ocorrencias/{id}/linha-do-tempo` — a intercalação (item 29)
+ * ============================================================================
+ *
+ * **Um evento é o par (instante, fato).** `ocorridoEm` sobe para o topo do tipo porque é a **chave de
+ * ordenação**, e o fato fica embrulhado no modelo de leitura de origem — inteiro, sem cópia de campo.
+ *
+ * **É o que faz a terceira fonte custar uma linha.** No dia do item 30, `mensagens` entra como mais um
+ * `map` no arranjo abaixo; a ordenação não muda, e o projetor ganha uma forma. Achatar os campos aqui
+ * obrigaria a copiar oito propriedades da transição e a lê-las renomeadas na projeção.
+ */
+export type EventoLido =
+  | { tipo: "transicao"; ocorridoEm: string; transicao: TransicaoLida }
+  | { tipo: "atribuicao"; ocorridoEm: string; atribuicao: AtribuicaoLida }
+  | { tipo: "mensagem"; ocorridoEm: string; mensagem: ComentarioLido };
+
+/**
+ * O desempate de tipo, **declarado e não emergente**: no mesmo instante, a transição vem antes da
+ * atribuição, e as duas antes da mensagem. É a ordem em que os fatos acontecem — `atribuirResponsavel` é
+ * atividade *sobre* uma ocorrência que já está no estado que a transição pôs, e a mensagem é atividade
+ * sobre as duas.
+ *
+ * **O valor 2 é o que NÃO mexe na ordem do par que já existe** (item 30). Os três carimbos vêm de
+ * escritas diferentes e não colidem na prática; o peso existe para a ordenação continuar **total e
+ * determinística**.
+ */
+const PESO_DO_TIPO: Readonly<Record<EventoLido["tipo"], number>> = {
+  transicao: 0,
+  atribuicao: 1,
+  mensagem: 2,
+};
+
+/**
+ * **Ordem crescente por instante** — do mais antigo para o mais recente, como a trilha e como o protótipo
+ * desenha.
+ *
+ * **Comparação por `Date.parse`, não por string:** os dois ISO vêm de `toISOString()` e comparariam bem
+ * como texto hoje, mas a igualdade textual é frágil (um `+00:00` no lugar do `Z` bastaria), e a ordenação
+ * é o que a tela inteira significa.
+ *
+ * **O segundo desempate é `sequencia`, e não é preciosismo:** o `UNIQUE (ocorrencia_id, sequencia)` da
+ * migração 005 existe precisamente para que *"a ordenação passe a ser determinística"*
+ * (`modelo-de-dados.md:1430`). Reordenar por data e jogar fora a sequência seria desfazer no código o que
+ * o banco garante.
+ */
+function porInstante(a: EventoLido, b: EventoLido): number {
+  const instante = Date.parse(a.ocorridoEm) - Date.parse(b.ocorridoEm);
+  if (instante !== 0) return instante;
+
+  const tipo = PESO_DO_TIPO[a.tipo] - PESO_DO_TIPO[b.tipo];
+  if (tipo !== 0) return tipo;
+
+  if (a.tipo === "transicao" && b.tipo === "transicao") {
+    return a.transicao.sequencia - b.transicao.sequencia;
+  }
+  return 0;
+}
+
+/**
+ * `GET /ocorrencias/{id}/linha-do-tempo` — **e a estrada direta do bloco 3 de T-05**, que é a mesma
+ * função.
+ *
+ * **Recebe `quem`, ao contrário do endpoint irmão, e a diferença é medida.** `verTrilhaDeAuditoria`
+ * confere só a existência e deixa a visibilidade no handler — que por isso chama `verOcorrencia` antes e
+ * paga um `porId` inteiro, e a função paga outro. Como `porId` lê trilha e anexos em paralelo, aquele
+ * endpoint custa **duas ocorrências e três trilhas** para devolver uma trilha (achado A-2 da spec). Aqui
+ * há **um `porId` só**, e a rota fica em três linhas.
+ *
+ * **`null` e `podeLerOcorrencia` falso dão o MESMO `404`** — é a §6.3 do contrato, *"não confirmar a
+ * existência do que você não pode alcançar"*, e é o critério 29.4.
+ *
+ * **As duas fontes vão em paralelo:** é uma ida e volta ao banco, não duas.
+ *
+ * **Recusado — deduzir o autor do registro `sequencia = 1`** (premissa P1) para economizar o `porId`.
+ * Funcionaria, e amarraria a regra de **visibilidade** a uma premissa de **escrita**; e usaria *"trilha
+ * vazia"* como sinal de `404`, que é o que o comentário de `verTrilhaDeAuditoria` proíbe em voz alta.
+ */
+export async function verLinhaDoTempo(
+  repositorio: RepositorioEscopadoDeOcorrencias,
+  id: string,
+  quem: QuemPergunta,
+): Promise<readonly EventoLido[]> {
+  const ocorrencia = await repositorio.porId(id);
+  if (ocorrencia === null) throw new OcorrenciaNaoEncontrada();
+  if (!podeLerOcorrencia(ocorrencia, quem)) throw new OcorrenciaNaoEncontrada();
+
+  const [trilha, atribuicoes, mensagens] = await Promise.all([
+    repositorio.trilha(id),
+    repositorio.atribuicoes(id),
+    repositorio.mensagens(id),
+  ]);
+
+  const eventos: EventoLido[] = [
+    ...trilha.map((transicao) => ({
+      tipo: "transicao" as const,
+      ocorridoEm: transicao.ocorreuEm,
+      transicao,
+    })),
+    // **`ocorridoEm` é `atribuidoEm`, nunca `encerradaEm`.** A atribuição encerrada fica no lugar em que
+    // começou — é o *"aparece duas vezes"* do critério 29.3 lido literalmente.
+    ...atribuicoes.map((atribuicao) => ({
+      tipo: "atribuicao" as const,
+      ocorridoEm: atribuicao.atribuidoEm,
+      atribuicao,
+    })),
+    /**
+     * **A terceira fonte — critério 30.7, e ela é o `map` a mais que o item 29 previu.**
+     *
+     * **Não pagina e não filtra por autor:** vêm todas as mensagens da ocorrência. O protótipo desenha,
+     * nos quatro quadros de T-05, **uma** das duas mensagens do bloco 4 dentro do bloco 3 — a do
+     * Solicitante, nunca a resposta do Gestor. **Não é regra, é desenho à mão:** o `oneOf` do contrato não
+     * filtra por autor, o glossário diz *"mensagens"* sem qualificador, e um bloco 3 que mostrasse só um
+     * lado da conversa seria mais estranho que o que se quis evitar.
+     *
+     * **É a única das três fontes sem limite natural**, e o custo está declarado na porta `mensagens`.
+     */
+    ...mensagens.map((mensagem) => ({
+      tipo: "mensagem" as const,
+      ocorridoEm: mensagem.criadoEm,
+      mensagem,
+    })),
+  ];
+
+  return eventos.sort(porInstante);
 }
 
 /** O padrão do contrato (`openapi.yaml`, parâmetro `Limite`). */

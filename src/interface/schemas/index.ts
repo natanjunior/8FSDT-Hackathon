@@ -23,7 +23,9 @@ export {
 export {
   criacaoDeOrganizacaoSchema,
   nomeDeOrganizacao,
+  trocaDeOrganizacaoSchema,
   type EntradaDeCriacaoDeOrganizacao,
+  type EntradaDeTrocaDeOrganizacao,
 } from "./organizacao";
 
 export {
@@ -39,9 +41,29 @@ export {
 } from "./pedido-de-entrada";
 
 export {
+  alteracaoDePrioridadeSchema,
+  atribuicaoDeResponsavelSchema,
+  avaliacaoSchema,
+  cancelamentoSchema,
+  camposDeEvolucaoPrevista,
   camposEscritosPeloServidor,
+  camposSemDestino,
+  comandoComObservacaoSchema,
+  comentarioSchema,
+  pausaSchema,
   registroDeOcorrenciaSchema,
+  resolucaoSchema,
+  solucaoAplicadaSchema,
+  type EntradaDeAlteracaoDePrioridade,
+  type EntradaDeAtribuicaoDeResponsavel,
+  type EntradaDeAvaliacao,
+  type EntradaDeCancelamento,
+  type EntradaDeComandoComObservacao,
+  type EntradaDeComentario,
+  type EntradaDePausa,
   type EntradaDeRegistroDeOcorrencia,
+  type EntradaDeResolucao,
+  type EntradaDeSolucaoAplicada,
 } from "./ocorrencia";
 
 export {

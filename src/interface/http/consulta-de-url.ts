@@ -2,13 +2,14 @@ import { z } from "zod";
 
 import {
   LIMITE_MAXIMO,
+  type CursorDeConversa,
   type CursorDeListagem,
   type FiltroDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
-import { decodificarCursor } from "@/interface/projecoes";
+import { decodificarCursor, decodificarCursorDeConversa } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -100,6 +101,35 @@ export function lerCursorDaUrl(requisicao: Request): CursorDeListagem | null {
   if (bruto === null || bruto === "") return null;
 
   const cursor = decodificarCursor(bruto);
+  if (cursor === null) {
+    throw new FormatoInvalido([
+      {
+        campo: "cursor",
+        codigo: "VALOR_INVALIDO",
+        mensagem: "Cursor inválido — use o proximoCursor devolvido pela página anterior.",
+      },
+    ]);
+  }
+
+  return cursor;
+}
+
+/**
+ * Lê `?cursor=` da conversa — `null` quando ausente.
+ *
+ * **A irmã de `lerCursorDaUrl`, com a mesma recusa:** *"cursor ilegível é `400`, nunca a primeira
+ * página"* — porque num *Carregar mais* isso vira a lista repetindo os mesmos vinte itens para sempre,
+ * sem nenhum sinal de erro.
+ *
+ * **Duas funções e não um parâmetro**, pela mesma razão pela qual os cursores são dois tipos: o que volta
+ * daqui é `CursorDeConversa`, e um parâmetro de *"qual formato"* faria o tipo de retorno depender de um
+ * booleano.
+ */
+export function lerCursorDeConversaDaUrl(requisicao: Request): CursorDeConversa | null {
+  const bruto = new URL(requisicao.url).searchParams.get("cursor");
+  if (bruto === null || bruto === "") return null;
+
+  const cursor = decodificarCursorDeConversa(bruto);
   if (cursor === null) {
     throw new FormatoInvalido([
       {
@@ -267,4 +297,74 @@ export function consultaDe(
     else consulta.append(nome, valor);
   }
   return consulta;
+}
+
+/**
+ * ============================================================================
+ *  Os dois parâmetros de `GET /dashboard` — e as três recusas
+ * ============================================================================
+ *
+ * **Assina sobre `URLSearchParams` e não sobre `Request`**, pela mesma razão de
+ * `lerFiltroDeOcorrenciasDaUrl`: tem dois chamadores de formas diferentes — o `route.ts` tem a requisição,
+ * e a página tem os `searchParams` do App Router. Uma função só é o que faz a tela **validar antes de
+ * consultar**, em vez de descobrir o período inválido por um `400` que ela mesma provocou.
+ *
+ * **Campo ausente é `undefined`, e o padrão de 90 dias NÃO mora aqui** — é a mesma disciplina do
+ * `?limite=` e do `?situacao=`: *"quem decide o que acontece quando ninguém pede nada é a camada de
+ * Aplicação"*. Esta camada traduz e recusa.
+ *
+ * **Três recusas, e as três são `400 FORMATO_INVALIDO`** — que é a resposta que o `openapi.yaml:2160` já
+ * declara para este caminho:
+ *
+ * 1. **fora de formato** — `?de=01/06/2026`;
+ * 2. **dia que não existe** — `?ate=2026-02-30`. Sem o teste de ida e volta, o `Date` do JavaScript o
+ *    aceitaria como 2 de março, e a janela seria outra sem ninguém saber;
+ * 3. **janela invertida** — `de > ate`. Uma janela que termina antes de começar não é uma janela, e
+ *    devolver zeros diria *"não há dado"* onde o certo é *"a consulta não correu"* — a confusão que o item
+ *    14 já nomeou (classe do achado R-15).
+ */
+const DIA_ISO = /^\d{4}-\d{2}-\d{2}$/u;
+
+function lerDia(parametros: URLSearchParams, nome: "de" | "ate"): string | undefined {
+  const bruto = lerUnico(parametros, nome);
+  if (bruto === undefined) return undefined;
+
+  // **A ida e volta é o que separa `2026-02-30` de uma data**: o `Date` a aceita e devolve `2026-03-02`,
+  // e comparar o resultado com o que se escreveu é o que revela a troca.
+  const instante = new Date(`${bruto}T00:00:00Z`);
+  const valido =
+    DIA_ISO.test(bruto) &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString().slice(0, 10) === bruto;
+
+  if (!valido) {
+    throw new FormatoInvalido([
+      { campo: nome, codigo: "VALOR_INVALIDO", mensagem: "Use uma data no formato AAAA-MM-DD." },
+    ]);
+  }
+
+  return bruto;
+}
+
+export function lerJanelaDoDashboardDaUrl(parametros: URLSearchParams): {
+  de?: string;
+  ate?: string;
+} {
+  const de = lerDia(parametros, "de");
+  const ate = lerDia(parametros, "ate");
+
+  // Comparação de texto, e ela é correta: `YYYY-MM-DD` ordena como data porque é de comprimento fixo e do
+  // mais significativo para o menos.
+  if (de !== undefined && ate !== undefined && de > ate) {
+    throw new FormatoInvalido([
+      {
+        campo: "de",
+        codigo: "VALOR_INVALIDO",
+        mensagem: "O início do período não pode ser depois do fim.",
+      },
+    ]);
+  }
+
+  // Campo ausente é "decida por mim" — por isso o espalhamento condicional, e não `de: undefined`.
+  return { ...(de === undefined ? {} : { de }), ...(ate === undefined ? {} : { ate }) };
 }
