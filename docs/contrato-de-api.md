@@ -2401,7 +2401,7 @@ ferramenta reclama. Quem cobre isso é o teste — e o **Definition of Done já 
 e de ao menos uma transição inválida"* por funcionalidade. Essa transição inválida **é** o teste de contrato
 do `409`: já está pedida, e agora tem uma segunda razão de existir.
 
-**Três verificações mecânicas para o Definition of Done**, todas derivadas deste documento:
+**Quatro verificações mecânicas para o Definition of Done**, todas derivadas deste documento:
 
 1. **`status` não aparece em nenhum schema de entrada do `openapi.yaml`** (§3.5, P1). **Não é uma linha de
    `grep`, e a diferença importa.** A palavra aparece mais de cem vezes no arquivo, e quase todas são
@@ -2413,9 +2413,43 @@ do `409`: já está pedida, e agora tem uma segunda razão de existir.
 2. **Nenhum caminho do `openapi.yaml` contém `organizacao`**, exceto `POST /organizacoes` e
    `PUT /contexto/organizacao` (§4.4, P2).
 3. **Nenhum caminho contém `pessoas`** (§4.6, P3).
+4. **Toda operação com `requestBody.required: false` tem, na rota correspondente, `corpoOpcional` — e
+   nenhuma outra o tem.** É a única das quatro que **não** lê só o YAML: ela abre
+   `app/api/…/route.ts` pelo caminho da operação (`{param}` vira `[param]`), isola o trecho do método,
+   **remove os comentários** e procura a declaração. Remover comentário não é detalhe de implementação —
+   cinco `route.ts` escrevem *"SEM `corpoOpcional`"* na própria prosa para dizer que a ausência é
+   decidida, e uma busca ingênua leria a explicação como se fosse a declaração.
 
-As três falham no dia em que alguém desfizer uma das três decisões estruturais deste contrato — que é
+As quatro falham no dia em que alguém desfizer uma das decisões estruturais deste contrato — que é
 exatamente quando se quer saber.
+
+> ### Correção de 30/08/2026 — a quarta verificação, e por que ela faltava
+>
+> **A redação anterior era *"**Três** verificações mecânicas para o Definition of Done"***, e a lista
+> terminava no item 3; a frase de fecho dizia *"As três falham no dia em que alguém desfizer uma das
+> **três** decisões estruturais deste contrato"*.
+>
+> **O que a mudou.** As três primeiras conferem **o que o YAML diz**; nenhuma delas conferia **se o que o
+> YAML diz é o que a rota faz**. `POST /pedidos-de-entrada/{pedidoId}/recusar` declarou
+> `requestBody: required: false` desde o item 8 e a rota respondia `415 CORPO_NAO_SUPORTADO` a quem não
+> mandasse corpo: o portão *"a especificação versionada corresponde ao código"* do
+> [`definition-of-done.md`](definition-of-done.md) esteve aberto do item 8 até **27/08/2026**, e nada
+> acusou. Hoje são **cinco** as operações com `requestBody.required: false` — `/recusar`, `/analisar`,
+> `/iniciar-atendimento`, `/retomar` e `/resolver` —, e as cinco passam.
+>
+> **A regra é simétrica, e isso é escolha declarada.** O item da fila pedia só um lado — *"para toda
+> operação com `required: false`, a rota declara `corpoOpcional`"*. O outro lado custa a mesma leitura e
+> descreve o mesmo desencontro: uma rota que aceita corpo ausente sob uma especificação que o declara
+> obrigatório. **Custo de estar errado:** se algum dia uma rota precisar aceitar corpo ausente *sem* que
+> o contrato o dispense, a regra fica vermelha e obriga a decisão a passar por este documento — que é o
+> efeito pretendido, não um efeito colateral.
+>
+> **O que ela não alcança, declarado:** a comparação é textual sobre o trecho do método. Uma rota que
+> ganhasse `corpoOpcional` por variável, por espalhamento de objeto ou por um ajudante intermediário
+> passaria sem ser vista. É a mesma limitação que a geração de schema resolveria de vez — ver *A decisão,
+> em dois tempos*, acima.
+>
+> *(Item 15 da fila da frente de documentação, achado em 27/08/2026 ao responder a P2 da spec do item 16.)*
 
 ---
 

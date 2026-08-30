@@ -1,16 +1,17 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { parse } from "yaml";
 
-import { ler, relatar, RAIZ } from "./comum.mjs";
+import { curto, ler, relatar, RAIZ } from "./comum.mjs";
 
 /**
  * ============================================================================
  *  Verificador de contrato
  * ============================================================================
  *
- * As **três verificações mecânicas** que a §15 do contrato de API derivou, e que o Definition of Done cobra
- * por funcionalidade que toque um endpoint. Cada uma protege uma decisão estrutural que **se perde em
+ * As **quatro verificações mecânicas** que a §15 do contrato de API derivou, e que o Definition of Done
+ * cobra por funcionalidade que toque um endpoint. Cada uma protege uma decisão estrutural que **se perde em
  * silêncio**:
  *
  * | Verificação | O que ela impede |
@@ -18,8 +19,13 @@ import { ler, relatar, RAIZ } from "./comum.mjs";
  * | `status` fora de **todo** schema de entrada | Que a `Ocorrência` ganhe um `PATCH` e a ADR-0001 caia junto |
  * | Nenhum caminho contém `pessoas` | O vazamento entre organizações mais provável do produto, subindo da consulta para a superfície |
  * | `organizacao` só nos dois caminhos permitidos | Que a organização volte a ser informada pelo cliente, contra a ADR-0003 |
+ * | `requestBody.required: false` ⇔ `corpoOpcional` na rota | Que a especificação publique um corpo dispensável e a rota responda `415` a quem confiar nela — e o contrário |
  *
- * Mais duas de sanidade, sem as quais as três acima podem passar por acidente: o YAML **carrega**, e todo
+ * > **Acrescentada em 30/08/2026** (item 15 da fila da frente de documentação). Este cabeçalho dizia
+ * > *"as **três** verificações mecânicas"* e a tabela tinha três linhas. As três primeiras leem **só** o
+ * > YAML; a quarta é a primeira que compara o YAML com os `route.ts` de `app/api/`.
+ *
+ * Mais duas de sanidade, sem as quais as quatro acima podem passar por acidente: o YAML **carrega**, e todo
  * `$ref` **resolve**. Um `$ref` quebrado esconde um schema inteiro da verificação de `status`.
  *
  * > **Sobre a primeira, e a §15 é explícita:** *"não é uma linha de `grep`, e a diferença importa. A palavra
@@ -263,6 +269,139 @@ for (const permitido of CAMINHOS_COM_ORGANIZACAO) {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// 6 · `requestBody.required: false` no YAML ⇔ `corpoOpcional` no `route.ts`
+//
+// A quarta regra, e ela é de natureza diferente das três primeiras: aquelas leem
+// só o YAML; esta compara o YAML com `app/api/**/route.ts`.
+//
+// **Por que ela existe.** `POST /pedidos-de-entrada/{pedidoId}/recusar` declarou
+// `requestBody: required: false` desde o item 8 e a rota respondia
+// `415 CORPO_NAO_SUPORTADO` a quem não mandasse corpo. O portão do Definition of
+// Done *"a especificação versionada corresponde ao código"* ficou aberto do item
+// 8 até 27/08/2026 — e nenhuma das três regras acima olha `required`.
+//
+// **A regra é simétrica de propósito.** `corpoOpcional` no `route.ts` e
+// `requestBody.required: false` no YAML são a **mesma** afirmação escrita em dois
+// lugares; qualquer um dos dois sozinho é uma promessa que o outro desmente. O
+// lado que faltava ao item 15 da fila era o primeiro; o segundo custa a mesma
+// leitura e fecha a porta dos dois lados.
+// ---------------------------------------------------------------------------
+
+/** `/ocorrencias/{ocorrenciaId}/analisar` → `app/api/ocorrencias/[ocorrenciaId]/analisar/route.ts`. */
+function rotaDe(caminho) {
+  const segmentos = caminho
+    .split("/")
+    .filter((parte) => parte !== "")
+    .map((parte) =>
+      parte.startsWith("{") && parte.endsWith("}") ? `[${parte.slice(1, -1)}]` : parte,
+    );
+  return join(RAIZ, "app", "api", ...segmentos, "route.ts");
+}
+
+/**
+ * `[ =(]` no fim, e não `\b`: os três formatos que este repositório pode escrever são
+ * `export const POST = …`, `export const POST=…` e `export async function POST(…`. A classe explícita
+ * também impede que `POSTAR` case por engano.
+ */
+const ABERTURA = (metodo) =>
+  new RegExp(`^export (?:const |async function |function )${metodo}[ =(]`, "mu");
+const PROXIMA_ABERTURA = /^export (?:const |async function |function )[A-Z]+\b/mu;
+
+/**
+ * O trecho de um `route.ts` que pertence a um método, **sem os comentários**.
+ *
+ * Remover comentário não é elegância: cinco `route.ts` deste repositório escrevem **"SEM
+ * `corpoOpcional`"** na prosa do próprio arquivo, justamente para dizer que a ausência é decidida. Uma
+ * busca textual ingênua leria a explicação como se fosse a declaração — e a regra passaria a aprovar
+ * exatamente o arquivo que ela existe para reprovar.
+ */
+function manipulador(fonte, metodo) {
+  const abertura = ABERTURA(metodo).exec(fonte);
+  if (abertura === null) return undefined;
+
+  const resto = fonte.slice((abertura.index ?? 0) + 1);
+  const proxima = PROXIMA_ABERTURA.exec(resto);
+  const trecho = proxima === null ? resto : resto.slice(0, proxima.index);
+
+  return trecho.replaceAll(/\/\*[\s\S]*?\*\//gu, " ").replaceAll(/^[ \t]*\/\/.*$/gmu, " ");
+}
+
+let rotasConferidas = 0;
+let semRota = 0;
+
+for (const { caminho, metodo, operacao } of operacoes) {
+  const METODO = metodo.toUpperCase();
+
+  let corpoDaOperacao = operacao.requestBody;
+  if (
+    typeof corpoDaOperacao === "object" &&
+    corpoDaOperacao !== null &&
+    typeof corpoDaOperacao.$ref === "string"
+  ) {
+    corpoDaOperacao = resolver(corpoDaOperacao.$ref);
+  }
+  const opcionalNoYaml =
+    typeof corpoDaOperacao === "object" &&
+    corpoDaOperacao !== null &&
+    corpoDaOperacao.required === false;
+
+  const arquivo = rotaDe(caminho);
+
+  // **Rota ausente não é falha por si.** O regime declarado na §15 é *spec-first*: o YAML é a fonte da
+  // verdade e o código conforma a ele, então a especificação pode nascer antes da rota. O que não pode
+  // nascer sozinho é `required: false`, que é promessa de **comportamento** — sem rota, não há quem a
+  // cumpra.
+  if (!existsSync(arquivo)) {
+    semRota += 1;
+    if (opcionalNoYaml) {
+      falhas.push(
+        `REGRA 4 VIOLADA — ${METODO} ${caminho} declara \`requestBody.required: false\` e não existe ` +
+          `\`${curto(arquivo)}\`. Corpo opcional é comportamento, e comportamento sem rota é promessa ` +
+          "sem dono.",
+      );
+    }
+    continue;
+  }
+
+  const trecho = manipulador(ler(arquivo), METODO);
+  if (trecho === undefined) {
+    if (opcionalNoYaml) {
+      falhas.push(
+        `REGRA 4 VIOLADA — ${METODO} ${caminho} declara \`requestBody.required: false\` e ` +
+          `\`${curto(arquivo)}\` não exporta \`${METODO}\`.`,
+      );
+    }
+    continue;
+  }
+
+  rotasConferidas += 1;
+
+  const declaracao = /\bcorpoOpcional\b(?:\s*:\s*(true|false))?/u.exec(trecho);
+  const opcionalNaRota = declaracao !== null && declaracao[1] !== "false";
+
+  if (opcionalNoYaml && !opcionalNaRota) {
+    falhas.push(
+      `REGRA 4 VIOLADA — ${METODO} ${caminho} declara \`requestBody.required: false\`, e ` +
+        `\`${curto(arquivo)}\` não passa \`corpoOpcional\` ao \`comContexto\`. A especificação publica um ` +
+        "corpo dispensável e a rota responde `415 CORPO_NAO_SUPORTADO` a quem confiar nela.",
+    );
+  }
+
+  if (!opcionalNoYaml && opcionalNaRota) {
+    falhas.push(
+      `REGRA 4 VIOLADA — \`${curto(arquivo)}\` passa \`corpoOpcional\` em ${METODO} ${caminho}, e o YAML ` +
+        "**não** declara `requestBody.required: false`. A rota aceita corpo ausente e a especificação diz " +
+        "que ele é obrigatório — o mesmo desencontro, do outro lado.",
+    );
+  }
+}
+
+notas.push(
+  `${rotasConferidas} operações conferidas contra app/api/**/route.ts` +
+    (semRota > 0 ? ` · ${semRota} sem rota (spec-first, §15)` : ""),
+);
 
 // ---------------------------------------------------------------------------
 
