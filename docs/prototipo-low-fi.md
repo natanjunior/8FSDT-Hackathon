@@ -510,16 +510,38 @@ não estava em lugar nenhum.**
 > discreta. Um item que oferece uma ação tem forma diferente de um item que só informa, e essa diferença
 > é visível ao rolar.
 >
+> > **❌ Recusada em 29/08/2026 — o convite é MARCA, e não botão.** Nos recortes **A** e **C** o item
+> > inteiro é um `<Link>`, e um botão dentro dele é **conteúdo interativo aninhado**: alvo pequeno dentro
+> > de alvo grande, contra o compromisso **A-3**. Seria também **a primeira ação no item da lista**, que o
+> > critério **14.5** proíbe — T-03 não age sobre ocorrência nenhuma. **O que sobreviveu desta proposta
+> > foi o texto**: *"Conte como foi"* na lista, a frase inteira em T-05, que é a **Q-P8** respondida
+> > **(a)**. O `inventario-de-telas.md` já dizia *"como marca no item em T-03"*, e **é ele que está
+> > certo**. *(Decisão do hub ao responder a P1 da spec do item 27; item 21 da fila da frente de
+> > documentação.)*
+>
 > **2 · Uma linha de chamada no topo da lista**, quando `visibilidadeAplicada == "apenas_minhas"` e houver
 > ao menos uma resolvida não avaliada: *"Você tem 2 resolvidas para avaliar."*, e o toque aplica
 > `?status=resolvida`. **Isto não é filtro rápido** — `status` é filtro de G2, `ENUNCIADO · literal`, e
 > `resolvida` é um valor dele. É a forma do controle, não capacidade nova. **Custo: zero requisição a
 > mais**, porque a contagem sai do que já chegou.
 >
+> > **⬜ Decidido fora da entrega em 29/08/2026 — e é decisão, não pendência.** A razão principal ninguém
+> > tinha escrito: **o toque aplica `?status=resolvida`, que devolve as avaliadas junto** — o destino não
+> > corresponde à promessa da linha. O filtro que corresponderia (*"resolvida e não avaliada"*) é ⬜ pela
+> > **D15**, junto dos outros filtros rápidos. **A condição que a desbloqueia, escrita para ninguém a
+> > reabrir por engano:** o dia em que `GET /ocorrencias` souber responder *"resolvida e não avaliada"*.
+> > Até lá, o instrumento que o produto tem para o **O4** é a **marca no item**, e só ela.
+> > *(Decisão do hub ao responder a P1 da spec do item 28; item 21 da fila da frente de documentação.)*
+>
 > **E a limitação, que é a parte honesta:** a contagem é **da página carregada**, não do total.
 > `GET /ocorrencias` não devolve `total` (§7.7) e pagina por cursor — então uma resolvida não avaliada na
-> terceira página **não é contada**, e a linha pode dizer *"nenhuma"* quando há. **A mitigação possível é
-> limitada pela paginação, não pela tela.** Achado **P-05**.
+> terceira página **não é contada**: a linha **subconta e some**, nunca conta a mais. **A mitigação
+> possível é limitada pela paginação, não pela tela.** Achado **P-05**.
+> *(Corrigido em 30/08/2026: a redação anterior dizia que* "a linha pode dizer «nenhuma» quando há" *. Ela
+> **não tem estado zero** — o próprio desenho a condiciona a "houver ao menos uma" —, então ela nunca diz*
+> "nenhuma"*: ela subconta e some. O limite continua sendo real e continua sendo da paginação; o que
+> estava errado era como ele foi descrito. A mesma correção foi feita no **PA-16** do
+> `premissas-e-questoes-abertas.md`. Item 21 da fila da frente de documentação.)*
 >
 > **Quanto isso ajuda:** pouco, e é preciso dizer. Alcança quem abre o aplicativo; não alcança quem parou
 > de abrir. Os dois instrumentos que resolveriam continuam ⬜, e o PA-16 continua aberto.
@@ -1233,7 +1255,7 @@ deles tocam decisões que são do hub.
 | **P-02** | O *"o que aparece sem rolar"* foi raciocinado com o **teclado fechado**; com ele aberto sobra metade da tela | idem, todas as telas de celular | média |
 | **P-03** | A exibição de `prioridade` está condicionada ao **recorte** e a justificativa é sobre o **papel** — o Gestor que filtra pelas próprias perde a coluna | `inventario-de-telas.md`, T-03, item 5 | média |
 | ~~**P-04**~~ | A lista `todas` **no celular** não tinha decisão de o que cai — e é a tela da Persona 1A | idem, *Alvo primário* de T-03 | ✅ **decidido pelo hub em 26/08/2026** — a categoria cai, e com ela o ícone que o item 4b acrescentou aos outros dois recortes. **O motivo *"está na barra de filtros"* foi derrubado**; o outro sustenta a decisão sozinho. Ver a §D-2. *Marcado em 30/08/2026* |
-| **P-05** | A mitigação possível do **PA-16** é limitada pela **paginação por cursor**, não pela tela | `contrato-de-api.md` §7.7 · `premissas-e-questoes-abertas.md`, PA-16 | média |
+| **P-05** | A mitigação possível do **PA-16** é limitada pela **paginação por cursor**, não pela tela — a contagem **subconta e some**, nunca conta a mais *(a redação anterior dizia "diria «nenhuma» quando há"; corrigida em 30/08/2026, item 21 da fila)* | `contrato-de-api.md` §7.7 · `premissas-e-questoes-abertas.md`, PA-16 | média |
 | **P-06** | Os tamanhos máximos do schema **não cabem em nenhuma linha de celular**, e três deles em nenhuma linha de tela grande | `api/openapi.yaml` | média |
 | **P-07** | Os **cinco campos do F5 não são cinco colunas**: quatro são valores curtos e o quinto é um parágrafo de 1.000 caracteres | `api/openapi.yaml`, `RegistroDeTransicao.observacao` | média |
 | **P-08** | `ultimaTransicao` já vem no `OcorrenciaDetalhe` — **o topo de T-05 pinta com uma requisição só** | `contrato-de-api.md` §8.8 | decisão desta tela |
@@ -1361,7 +1383,7 @@ de documentação.)*
 | 4 | `inventario-de-telas.md`, T-03, item 5 da lista de campos | Trocar a condição de exibição de `prioridade`: de `visibilidadeAplicada == "todas"` para `contexto.permissoes` incluir `ocorrencia.alterar_prioridade` | **P-03** · Q-P7 · ✅ **aplicada em 30/08/2026** — decidida na P2 da spec do item 28, virou o critério **28.6**, e o inventário registrou a troca com data |
 | 5 | `inventario-de-telas.md`, T-04, *Alvo primário* | Trocar *"sem rolar: `titulo`, `categoria` e o botão de foto"* por *"sem rolar: a foto, `titulo` e `descricao`; `categoria` e o bloco **Onde** vêm abaixo"*, com a razão de tempo | **P-01** |
 | 6 | `inventario-de-telas.md` §6, *Cold start* | Trocar a regra de **ordem** (*"primeira requisição da sessão"*) pela regra de **tempo** (*"qualquer requisição acima de ~2 s"*), e remover a exceção de T-07, que deixa de ser exceção | **P-12** · Q-P4 |
-| 7 | `inventario-de-telas.md`, T-03, quadro do convite a avaliar | Registrar os **dois textos**: a frase inteira em T-05, e o botão *"Conte como foi"* no item da lista, ao lado do `statusRotulo` | **Q-P8** |
+| 7 | `inventario-de-telas.md`, T-03, quadro do convite a avaliar | Registrar os **dois textos**: a frase inteira em T-05, e a **marca** *"Conte como foi"* no item da lista, ao lado do `statusRotulo` | **Q-P8** · *(Corrigido em 30/08/2026: a proposta dizia* "o **botão** «Conte como foi»" *. **O botão foi recusado em 29/08/2026** — item interativo aninhado, contra o A-3, e primeira ação no item da lista, contra o 14.5 —, e aplicá-la como estava gravaria no inventário algo que o produto não faz. **O texto não mudou**; mudou a forma. Item 21 da fila)* |
 | 8 | `inventario-de-telas.md`, T-05, ordem dos quatro blocos | Registrar que o **bloco 1 é partido** e que a `ultimaTransicao` sobe para o topo, com a razão: o topo pinta com uma requisição só | **P-08** |
 | 9 | `api/openapi.yaml`, schema `Area` | Acrescentar `ordem`, simétrico a `Categoria`, e aceitá-lo em `PATCH /areas` | **§3** · Q-P5 · reforça o **F12** do inventário |
 | 10 | `api/openapi.yaml`, schema `PessoaReferencia` | Declarar `maxLength` em `nome` — hoje é `string` sem limite, e a tela não consegue calcular o pior caso de nenhuma linha em que um nome apareça | **P-16** |

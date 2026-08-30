@@ -1200,10 +1200,19 @@
             <span class="org"><b>Recanto Azul</b><span aria-hidden="true">▾</span></span>
           </div>
 
-          <div class="callout">
-            <span>Você tem 2 resolvidas para avaliar.</span>
-            <span aria-hidden="true">→</span>
-          </div>
+          <!-- Removido em 30/08/2026 — a chamada do topo ficou ⬜ por DECISÃO, não por pendência.
+               O desenho anterior era, literal:
+                 <div class="callout">
+                   <span>Você tem 2 resolvidas para avaliar.</span>
+                   <span aria-hidden="true">→</span>
+                 </div>
+               O toque nela aplicaria ?status=resolvida, que devolve as avaliadas junto — o destino não
+               corresponde à promessa da linha —, e o filtro que corresponderia ("resolvida e não
+               avaliada") é ⬜ pela D15. Volta no dia em que GET /ocorrencias souber respondê-lo.
+               Decidido pelo hub em 29/08/2026 (P1 da spec do item 28); item 21 da fila da frente de
+               documentação. A regra .callout continua definida no CSS, e desde esta remoção ela não tem
+               nenhum uso no arquivo — fica de propósito, porque é o desenho que volta quando o filtro
+               existir, e porque a nota do T-05 (quadro 4) já a nomeia como candidata. -->
 
           <div class="list">
 
@@ -1217,7 +1226,14 @@
             <div class="item">
               <div class="top">
                 <span class="st">Resolvida</span>
-                <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                <!-- MARCA, não botão — trocado em 30/08/2026. O desenho anterior era, literal:
+                     <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                     Recusado: nos recortes A e C o item inteiro é um <Link>, e um botão dentro dele é
+                     conteúdo interativo aninhado — alvo pequeno dentro de alvo grande, contra o
+                     compromisso A-3 — e seria a primeira ação no item da lista, que o critério 14.5
+                     proíbe. O texto sobreviveu (Q-P8, saída (a)); a forma, não. Decidido pelo hub em
+                     29/08/2026 (P1 da spec do item 27); item 21 da fila da frente de documentação. -->
+                <span class="badge attn" style="flex:0 0 auto">Conte como foi</span>
               </div>
               <div class="ti">Lâmpada queimada na garagem</div>
               <div class="me">Iluminação · Garagem · 1 foto</div>
@@ -1605,10 +1621,19 @@
             <span class="org"><b>Condomínio Residencial Recanto Azul — Torres A, B e C — Rua das Acácias, 1200, Jardim Paulista, São Paulo, CEP 01415-000</b><span aria-hidden="true">▾</span></span>
           </div>
 
-          <div class="callout">
-            <span>Você tem 2 resolvidas para avaliar.</span>
-            <span aria-hidden="true">→</span>
-          </div>
+          <!-- Removido em 30/08/2026 — a chamada do topo ficou ⬜ por DECISÃO, não por pendência.
+               O desenho anterior era, literal:
+                 <div class="callout">
+                   <span>Você tem 2 resolvidas para avaliar.</span>
+                   <span aria-hidden="true">→</span>
+                 </div>
+               O toque nela aplicaria ?status=resolvida, que devolve as avaliadas junto — o destino não
+               corresponde à promessa da linha —, e o filtro que corresponderia ("resolvida e não
+               avaliada") é ⬜ pela D15. Volta no dia em que GET /ocorrencias souber respondê-lo.
+               Decidido pelo hub em 29/08/2026 (P1 da spec do item 28); item 21 da fila da frente de
+               documentação. A regra .callout continua definida no CSS, e desde esta remoção ela não tem
+               nenhum uso no arquivo — fica de propósito, porque é o desenho que volta quando o filtro
+               existir, e porque a nota do T-05 (quadro 4) já a nomeia como candidata. -->
 
           <div class="list">
 
@@ -1622,7 +1647,14 @@
             <div class="item">
               <div class="top">
                 <span class="st">Resolvida</span>
-                <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                <!-- MARCA, não botão — trocado em 30/08/2026. O desenho anterior era, literal:
+                     <button class="btn ghost" type="button" style="flex:0 0 auto;width:auto;height:36px;padding:0 12px;font-size:14px">Conte como foi</button>
+                     Recusado: nos recortes A e C o item inteiro é um <Link>, e um botão dentro dele é
+                     conteúdo interativo aninhado — alvo pequeno dentro de alvo grande, contra o
+                     compromisso A-3 — e seria a primeira ação no item da lista, que o critério 14.5
+                     proíbe. O texto sobreviveu (Q-P8, saída (a)); a forma, não. Decidido pelo hub em
+                     29/08/2026 (P1 da spec do item 27); item 21 da fila da frente de documentação. -->
+                <span class="badge attn" style="flex:0 0 auto">Conte como foi</span>
               </div>
               <div class="ti">Infiltração na parede do hall de entrada, ao lado das caixas de correio, piorou depois da chuva de sábado e já começou a descascar a pintura do rodapé</div>
               <div class="me">Vazamento, infiltração e problema hidráulico em áreas comuns · Estacionamento de visitantes ao lado da guarita, entre os blocos A e B do prédio</div>

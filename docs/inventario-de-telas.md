@@ -611,8 +611,17 @@ não há parâmetro de ordenação, e não há `total`). Por item, na ordem de l
 6. `responsavel.nome` quando não nulo — *"quem está cuidando"*. Visível ao Solicitante de propósito
    (*"mostrar constrói confiança"*, `openapi.yaml`), e sem canal direto entre os dois.
 7. **`quantidadeDeAnexos`** como marca — *"com foto"* é `quantidadeDeAnexos > 0`. O campo deixou de ser booleano em 22/08/2026, quando o anexo virou tabela: **é contagem**, e o número já é a forma final para o dia em que existir o segundo anexo. Mais `registradaEm` e `atualizadaEm`.
-8. **O convite a avaliar**, quando `status == "resolvida"`, quem lê é o autor, e ainda não avaliou. É a
-   restrição herdada nº 2, e ela aparece **aqui e em T-05** — ver o quadro no fim desta seção.
+8. **O convite a avaliar** — e é **marca**, nunca botão. Condicionada a **três fatos, todos do
+   `OcorrenciaResumo`**: `status == "resolvida"` · `autor.pessoaId` é quem lê · **`avaliada == false`**.
+   O terceiro é o campo que o item 27 acrescentou ao resumo: sem ele a lista sabia o status e sabia quem é
+   o autor, e **não tinha como saber se a avaliação já aconteceu** (critério **27.5**). **Vale nos TRÊS
+   recortes** — `apenas_minhas` em qualquer largura e `todas` em tela grande e no celular —, ao contrário
+   da categoria e do ícone do ponto 4: quem vê a marca é o **autor**, e o recorte não muda quem ele é.
+   É a restrição herdada nº 2, e ela aparece **aqui e em T-05** — ver o quadro no fim desta seção.
+   *(Acrescentado em 30/08/2026: a redação anterior era* "O convite a avaliar, quando `status ==
+   "resolvida"`, quem lê é o autor, e ainda não avaliou" *— os três fatos já estavam certos, e faltavam o
+   nome do campo que sustenta o terceiro, a palavra* marca *e o alcance nos três recortes. Item 21 da fila
+   da frente de documentação.)*
 
 > #### Correção — 30/08/2026 — a categoria no celular do Gestor, e o ícone que a acompanha
 >
@@ -1289,9 +1298,18 @@ cinco números não são iguais em valor, e a tela declara isso pela ordem em qu
 
 **Duas coisas que a tela é obrigada a dizer em palavras**, e que não são enfeite:
 
-- **`backlog` é fotografia de agora; `recorrencia` e `tempoMedioDeResolucao` são séries dentro da
-  janela.** São perguntas diferentes, o contrato as devolve juntas, e a tela precisa dizer qual é qual —
-  senão o Gestor lê o backlog como se respeitasse o período que ele escolheu.
+- **`backlog` é fotografia de agora; `recorrencia` e `tempoMedioDeResolucao` são séries dentro da janela;
+  e `mediaDasAvaliacoes` é um número só, também dentro da janela.** São perguntas diferentes, o contrato
+  as devolve juntas, e a tela precisa dizer qual é qual — senão o Gestor lê o backlog como se respeitasse
+  o período que ele escolheu.
+  **A média está no terceiro caso, e ele não existia por escrito:** ela respeita `de`/`ate` **ancorada no
+  instante da resolução** — `resolvidas` são as resolvidas na janela, `avaliadas` são quantas *dessas*
+  foram avaliadas. É o que faz o *"no período"* do bloco 5 ser verdade, e o que faz `resolvidas` do bloco
+  5 fechar com a soma de `resolvidas` do bloco 4 (critério **34.5**).
+  *(Corrigido em 30/08/2026: até esta data a frase nomeava só `recorrencia` e `tempoMedioDeResolucao` como
+  presos à janela e calava sobre a média — quem decidia era o rótulo "no período" desenhado no protótipo.
+  Decisão do hub de 29/08/2026, P3 da spec do item 32; a mesma correção foi feita na §8.7 do
+  `contrato-de-api.md`. Item 27 da fila da frente de documentação.)*
 - **`avaliadas` e `resolvidas` aparecem sempre ao lado da média.** *"Sem o denominador, a média mente
   quando poucos avaliam"* — que é o **PA-16**, ainda aberto. O mesmo vale para `resolvidas` ao lado de
   `horas`: um mês com duas resoluções e um com trinta não podem parecer iguais.
@@ -1591,10 +1609,16 @@ categoria aparece antes é escolha do Gestor"* (D18). Nascem com **as sete do de
 diz isso: *"Sete categorias foram criadas junto com a organização."* — sem essa frase, o Gestor não sabe
 se as encontrou ou se alguém as digitou.
 
-**2 · Áreas** — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`. **O `tipo` precisa de
-uma linha de explicação na tela**, porque a palavra não se explica: *"Área comum — garagem, hall, salão.
-Unidade privativa — apartamento, sala, loja."* E ordenadas por `nome`, por ausência de alternativa: o
-schema de `Area` **não tem `ordem`**, ao contrário de `Categoria` — ver §9, achado F12.
+**2 · Áreas** — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`, **`ordem`**. **O `tipo`
+precisa de uma linha de explicação na tela**, porque a palavra não se explica: *"Área comum — garagem,
+hall, salão. Unidade privativa — apartamento, sala, loja."* E ordenadas por `ordem`, **simetricamente a
+`Categoria` e pela mesma razão** (D18) — ver §9, achado **F12**, fechado.
+
+*(Corrigido em 30/08/2026: a redação anterior era* "`Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`),
+`ativa`. … E ordenadas por `nome`, por ausência de alternativa: o schema de `Area` **não tem `ordem`**, ao
+contrário de `Categoria`" *— deixou de ser verdade em 21/08/2026, quando a Q-P5 foi decidida em (a) e o
+`openapi.yaml` ganhou `ordem` em `Area.required`. Item 10 da fila da frente de documentação, achado por
+ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este.)*
 
 **O que oferece.**
 
@@ -1602,8 +1626,8 @@ schema de `Area` **não tem `ordem`**, ao contrário de `Categoria` — ver §9,
 |---|---|
 | Criar categoria, **escolhendo o ícone** | `POST /categorias` `{ nome, ordem?, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo |
 | Renomear, **trocar o ícone**, reordenar, desativar e reativar categoria | `PATCH /categorias/{id}` `{ nome?, ordem?, ativa?, icone? }` — os **quatro** campos, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — ver a correção adiante)* |
-| Criar área | `POST /areas` |
-| Renomear, mudar o tipo, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa? }` |
+| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e o padrão é `0` |
+| Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
 
 > ### Correção — 30/08/2026 — o ícone ganhou tela, e este quadro dizia o contrário
 >
@@ -2141,7 +2165,7 @@ documentação.)*
 | **F9** | Nada avisa o Gestor de que chegou um pedido de entrada | `escopo.md` §3.2 | média |
 | **F10** | A contagem de pedidos pendentes custa uma requisição a mais no shell do Gestor | — | decisão desta tela |
 | **F11** | Quem tem conta não consegue editar os próprios dados em lugar nenhum | `contrato-de-api.md:750` | **alta** |
-| **F12** | `Categoria` tem `ordem`; `Area` não | `api/openapi.yaml:2434-2452` | baixa |
+| **F12** | `Categoria` tem `ordem`; `Area` não | `api/openapi.yaml`, schema `Area` | ✅ **fechado 21/08** — `Area` ganhou `ordem` (Q-P5, saída (a)); `POST` e `PATCH /areas` o aceitam. *Marcado em 30/08/2026* |
 | **F13** | **`vinculos.area_id` não tem escritor para quem tem conta** — a unidade do morador é inalcançável | `api/openapi.yaml`, `POST /pedidos-de-entrada` e `/aprovar` | ✅ **fechado 22/08** — `/aprovar` aceita `areaId?` (Q-T10, saída (a)), e a guarda do `PATCH` passou a nomear campos. *Marcado em 30/08/2026* |
 
 ### F1 · `acoesDisponiveis` não diz se considera as precondições que não são status nem permissão
@@ -2414,6 +2438,23 @@ mudança de schema, que não é deste artefato. **Proposta ao hub:** ou `Area` g
 à `Categoria` e pela mesma razão, ou a ordenação por `nome` é declarada no contrato para que a tela não a
 escolha em silêncio.
 
+> **✅ Fechado em 21/08/2026 — e este bloco só foi marcado em 30/08/2026.**
+>
+> **O hub escolheu a primeira das duas saídas propostas acima:** `Area` ganhou `ordem`, simetricamente à
+> `Categoria`. É a **Q-P5, saída (a)** do `prototipo-low-fi.md`, decidida *"agora com evidência de tempo:
+> é o único conserto que serve **no primeiro registro**, que é o que decide se existe um segundo"*.
+>
+> **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita com
+> padrão `0`, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-09
+> tem o campo. **A ordenação da lista de Áreas passou a ser por `ordem`**, como a de Categorias.
+>
+> **Consequência para a S-T10:** ela previa exatamente isto — *"se `Area` ganhar `ordem`, T-04 e T-09
+> passam a respeitá-la"* — e por isso **deixou de ser suposição**. Está marcada lá.
+>
+> *(Encontrado ao despachar o item 10 da fila da frente de documentação, cuja nota de método mandava
+> procurar um terceiro lugar com a mesma omissão. O item nomeava duas linhas; esta é a terceira, a quarta
+> e a quinta.)*
+
 ### F13 · `vinculos.area_id` não tem escritor para quem tem conta
 
 **A modelagem de 22/08/2026 tirou a unidade do morador de dentro do nome e a transformou em referência a
@@ -2504,7 +2545,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **S-T7** | **`chave` + `ticket` sobrevivem à queda de rede por 15 minutos**, e o `POST /ocorrencias` é refeito sem novo upload. **Relida em 22/08/2026 — ver o quadro abaixo** | Se o ticket for de uso único no instante da emissão, a foto sobe duas vezes e o RNF6 sofre na segunda tentativa, que é justamente a que acontece com rede ruim |
 | **S-T8** | **A tela inicial de todo papel que age é T-03**, e o aplicativo instalado abre nela | Se o Gestor precisar do Dashboard primeiro, a tela inicial passa a depender de permissão, e o mapa da §3 ganha um ramo |
 | **S-T9** | **`analisar` é o único comando sem modal** | Se a `observacao` da análise se revelar valiosa, ele ganha modal e a triagem passa a ter um clique a mais por item — multiplicado pelos trinta de uma segunda-feira |
-| **S-T10** | **A lista de Áreas é ordenada por `nome`** (**F12**) | Se `Area` ganhar `ordem`, T-04 e T-09 passam a respeitá-la, como já fazem com `Categoria` |
+| ~~**S-T10**~~ | ~~**A lista de Áreas é ordenada por `nome`** (**F12**)~~ | **Deixou de ser suposição em 21/08/2026.** `Area` ganhou `ordem` (Q-P5, saída (a)), e T-04 e T-09 a respeitam, como já faziam com `Categoria` — que era exatamente o que esta linha previa. Ver o quadro do **F12**. *Marcado em 30/08/2026, ao despachar o item 10 da fila* |
 | **S-T11** | **Não há convite de instalação próprio do PWA** | Se a instalação virar meta, é uma tela-estado a projetar — e vale mais quando houver leitura offline para justificar instalar |
 | ~~**S-T12**~~ | ~~**O nome da Pessoa no primeiro login vem dos metadados do provedor** (**F6**)~~ | **Deixou de ser suposição em 21/08/2026.** T-11 pede o `nome` e o grava no metadado no `signUp` — o metadado existe porque nós o escrevemos. Ver o quadro do F6 |
 | **S-T13** | **Modal empurra histórico por fragmento**, então "voltar" fecha o modal | Se a plataforma não sustentar isso, "voltar" com modal aberto leva o usuário fora da ocorrência no meio de um cancelamento |

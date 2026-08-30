@@ -120,8 +120,8 @@ paths:
                     papel: "gestor"
                     permissoes: ["ocorrencia.registrar", "ocorrencia.ler_todas", "ocorrencia.analisar", "ocorrencia.resolver", "vinculo.gerir", "dashboard.ler", "organizacao.configurar"]
                     vinculos:
-                      - { organizacaoId: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul", papel: "gestor" }
-                      - { organizacaoId: "3c7f2a10-11aa-4c3e-8f2b-77e9b0c1d2e3", nome: "Edifício Alvorada", papel: "solicitante" }
+                      - { organizacaoId: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", nome: "Condomínio Recanto Azul", papel: "gestor", codigoPublico: "RECANTO7" }
+                      - { organizacaoId: "3c7f2a10-11aa-4c3e-8f2b-77e9b0c1d2e3", nome: "Edifício Alvorada", papel: "solicitante", codigoPublico: "ALVRADA2" }
                     pedidosDeEntrada: []
                 semVinculo:
                   summary: Conta recém-criada, ainda sem organização
@@ -1298,6 +1298,7 @@ paths:
                     autor: { pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d", nome: "Helena Rocha" }
                     responsavel: null
                     quantidadeDeAnexos: 1
+                    avaliada: false
                     registradaEm: "2026-08-20T13:02:11Z"
                     atualizadaEm: "2026-08-20T14:10:00Z"
         "400": { $ref: "#/components/responses/FormatoInvalido" }
@@ -1632,6 +1633,15 @@ paths:
         Nada sobe de prioridade sozinho: **nenhuma política altera prioridade** (D16); o envelhecimento
         apenas sinaliza.
 
+        **`observacao` não é aceita nesta operação:** como este comando não gera registro de transição, o
+        texto não teria onde ser guardado — `atribuicoes` não tem coluna de observação, e a alteração de
+        prioridade nem aparece na linha do tempo. Enviar o campo devolve `422 CAMPO_NAO_SUPORTADO`, na
+        mesma forma com que `/cancelar` recusa `ocorrenciaOrigemId`. O destino dele, quando existir, é a
+        **conversa da atribuição — o canal 3** (D9), que é evolução prevista.
+        *(Corrigido em 30/08/2026: até esta data o `requestBody` declarava
+        `observacao: { type: string, maxLength: 1000 }` e o exemplo a trazia preenchida; o produto a recusa
+        com `422` desde o item 17, critério 17.6. Item 16 da fila da frente de documentação.)*
+
         *Capacidade: alterar a prioridade · `ENUNCIADO · aberto` (G3) + D6. Comando: `Alterar prioridade`.
         Permissão: `ocorrencia.alterar_prioridade` — Gestor.*
       parameters:
@@ -1646,8 +1656,7 @@ paths:
               required: [prioridade]
               properties:
                 prioridade: { $ref: "#/components/schemas/PrioridadeOcorrencia" }
-                observacao: { type: string, maxLength: 1000 }
-            example: { prioridade: "alta", observacao: "Garagem sem iluminação é risco de segurança." }
+            example: { prioridade: "alta" }
       responses:
         "200": { $ref: "#/components/responses/ComandoExecutado" }
         "400": { $ref: "#/components/responses/FormatoInvalido" }
@@ -1667,6 +1676,21 @@ paths:
                 codigo: "PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL"
                 traceId: "01JB8Z6K9T2M4N7Q"
                 statusAtual: "resolvida"
+        "422":
+          description: |
+            Campo cuja capacidade é evolução prevista (`observacao`) — recusado em voz alta, e não
+            descartado em silêncio.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/campo-nao-suportado"
+                title: "Campo não suportado"
+                status: 422
+                detail: "Um ou mais campos enviados não são aceitos por esta operação."
+                codigo: "CAMPO_NAO_SUPORTADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+                erros: [{ campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" }]
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /ocorrencias/{ocorrenciaId}/atribuir-responsavel:
@@ -1680,8 +1704,26 @@ paths:
         sem precisar de um segundo vínculo. **Não há endpoint separado de auto-atribuição.**
 
         **Este endpoint realiza dois comandos do domínio.** Se já houver responsável, ele *reatribui*: a
-        atribuição vigente é encerrada com motivo `reatribuicao` e a conversa daquela atribuição é
-        **arquivada, nunca apagada**. A resposta diz qual dos dois aconteceu, em `reatribuicao`.
+        atribuição vigente é encerrada com motivo `reatribuicao`, e a POL-04 arquiva a conversa daquela
+        atribuição — **arquivada, nunca apagada**. A resposta diz qual dos dois aconteceu, em
+        `reatribuicao`.
+
+        > **Na primeira entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
+        > atribuição — é evolução prevista (D9). A política fica declarada porque o encadeamento é do
+        > desenho e volta inteiro quando o canal existir; **hoje reatribuir encerra a atribuição anterior e
+        > para aí.** *(Acrescentado em 30/08/2026: a redação anterior prometia, sem ressalva, que "a
+        > conversa daquela atribuição é arquivada, nunca apagada" — o `contrato-de-api.md` §3.4 já
+        > carregava a ressalva e a especificação publicada não a repetia. Item 16 da fila da frente de
+        > documentação, emenda de 29/08/2026.)*
+
+        **`observacao` não é aceita nesta operação:** o texto não tem destino em lugar nenhum — as colunas
+        de `atribuicoes` não incluem observação, o comando não gera registro de transição, e o
+        `EventoAtribuicao` da linha do tempo não tem campo para ela. Enviar o campo devolve
+        `422 CAMPO_NAO_SUPORTADO`, na mesma forma com que `/cancelar` recusa `ocorrenciaOrigemId`. O
+        destino dele, quando existir, é a **conversa da atribuição — o canal 3** (D9).
+        *(Corrigido em 30/08/2026: até esta data o `requestBody` declarava
+        `observacao: { type: string, maxLength: 1000 }`; o produto a recusa com `422` desde o item 19,
+        critério 19.6. Item 16 da fila da frente de documentação.)*
 
         **Não transiciona status** — mas é pré-condição de `iniciar-atendimento`.
 
@@ -1708,7 +1750,6 @@ paths:
                   type: string
                   format: uuid
                   description: Uma Pessoa da lista de `GET /vinculos`. Para auto-atribuição, o `pessoaId` do próprio chamador.
-                observacao: { type: string, maxLength: 1000 }
             example: { responsavelPessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f" }
       responses:
         "200":
@@ -1722,24 +1763,32 @@ paths:
                     properties:
                       reatribuicao:
                         type: boolean
-                        description: "`true` quando havia responsável anterior — a atribuição dele foi encerrada e a conversa, arquivada."
+                        description: |
+                          `true` quando havia responsável anterior — a atribuição dele foi encerrada com
+                          motivo `reatribuicao`. O arquivamento da conversa daquela atribuição é a POL-04,
+                          e **na primeira entrega ela não tem canal para arquivar**: o canal 3 é evolução
+                          prevista (D9). *(Corrigido em 30/08/2026: a redação anterior era "`true` quando
+                          havia responsável anterior — a atribuição dele foi encerrada e a conversa,
+                          arquivada", que prometia o arquivamento como fato desta entrega. Item 16 da fila
+                          da frente de documentação.)*
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
         "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
         "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
         "422":
-          description: A pessoa indicada não tem vínculo ativo nesta organização.
+          description: |
+            A pessoa indicada não tem vínculo ativo nesta organização; ou campo cuja capacidade é evolução
+            prevista (`observacao`).
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problema" }
-              example:
-                type: "https://resolveai.app/erros/responsavel-sem-vinculo-ativo"
-                title: "Pessoa sem vínculo ativo"
-                status: 422
-                detail: "Só é possível atribuir a quem tem vínculo ativo nesta organização."
-                codigo: "RESPONSAVEL_SEM_VINCULO_ATIVO"
-                traceId: "01JB8Z6K9T2M4N7Q"
+              examples:
+                semVinculoAtivo:
+                  value: { type: "https://resolveai.app/erros/responsavel-sem-vinculo-ativo", title: "Pessoa sem vínculo ativo", status: 422, detail: "Só é possível atribuir a quem tem vínculo ativo nesta organização.", codigo: "RESPONSAVEL_SEM_VINCULO_ATIVO", traceId: "01JB8Z6K9T2M4N7Q" }
+                campoDeEvolucaoPrevista:
+                  summary: Campo cuja capacidade ainda não existe
+                  value: { type: "https://resolveai.app/erros/campo-nao-suportado", title: "Campo não suportado", status: 422, detail: "Um ou mais campos enviados não são aceitos por esta operação.", codigo: "CAMPO_NAO_SUPORTADO", traceId: "01JB8Z6K9T2M4N7Q", erros: [{ campo: "observacao", codigo: "CAMPO_NAO_SUPORTADO" }] }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /ocorrencias/{ocorrenciaId}/iniciar-atendimento:
@@ -2630,11 +2679,32 @@ components:
           description: Todas as organizações em que a Pessoa tem vínculo ativo — o insumo do seletor de organização.
           items:
             type: object
-            required: [organizacaoId, nome, papel]
+            required: [organizacaoId, nome, papel, codigoPublico]
             properties:
               organizacaoId: { type: string, format: uuid }
               nome: { type: string }
               papel: { $ref: "#/components/schemas/PapelVinculo" }
+              codigoPublico:
+                type: string
+                description: |
+                  O código do cartaz do elevador da organização deste vínculo — **o mesmo campo do
+                  `OrganizacaoResumo`**, aqui como propriedade solta e não por `$ref`, porque este item usa
+                  `organizacaoId` e não `organizacao.id`.
+
+                  **Para que serve:** casar o código digitado na tela de entrar numa organização com um
+                  vínculo que a Pessoa já tem, **antes de enviar**. Sem ele o cliente só descobria o
+                  encontro pelo `409 JA_VINCULADO`, cujo corpo não carrega identidade nenhuma — e a tela
+                  não conseguia oferecer *"entrar nela"* nomeando a organização (critério **7b.4**). Com o
+                  campo, o `409` volta a ser só o que é: corrida entre abas.
+
+                  **Não é vazamento:** o que se publica é o código público **das organizações da própria
+                  Pessoa, para ela mesma**, e ele já é *"público por natureza"* — quem o usa abre um pedido
+                  de entrada, não um acesso. O dado já vinha do servidor em `VinculoNaOrganizacao`; a
+                  projeção o descartava por escolha, e **nenhuma consulta muda**.
+
+                  *(Acrescentado em 30/08/2026: até esta data o item declarava três propriedades, e o
+                  produto já projetava a quarta desde o item 7b. Item 22 da fila da frente de
+                  documentação.)*
         pedidosDeEntrada:
           type: array
           description: Pedidos da própria Pessoa, para a tela de quem ainda está esperando aprovação.
@@ -2825,7 +2895,7 @@ components:
     OcorrenciaResumo:
       type: object
       description: Como a ocorrência aparece na listagem.
-      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, quantidadeDeAnexos, registradaEm, atualizadaEm]
+      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, quantidadeDeAnexos, avaliada, registradaEm, atualizadaEm]
       properties:
         id: { type: string, format: uuid }
         titulo: { type: string }
@@ -2881,6 +2951,28 @@ components:
 
             Hoje o valor é sempre `0` ou `1`, por escopo — não por schema.
           examples: [0, 1]
+        avaliada:
+          type: boolean
+          description: |
+            Se a resolução já foi avaliada — `avaliacao_nota is not null`. **Sem ele a lista não consegue
+            oferecer *"Conte como foi"***: ela sabe o status e sabe quem é o autor, e não teria como saber
+            se a avaliação já aconteceu (critério **27.5**).
+
+            **É booleano e não contagem**, e o precedente de `quantidadeDeAnexos` não se aplica: ali o
+            `0..1` é *"por escopo — não por schema"*; aqui o `0..1` é **do schema** — a invariante 8, com
+            `CHECK` no banco. Não há segundo valor para o qual o booleano quebre.
+
+            **`OcorrenciaDetalhe` herda o campo pelo `allOf` e passa a carregar `avaliada` e `avaliacao`.**
+            É deliberado, e é a mesma relação que este par de schemas já tem em `quantidadeDeAnexos` ↔
+            `anexos`: o resumo leva a resposta curta, o detalhe leva as duas porque já tem o objeto na mão.
+
+            **Não confundir com `acoesDisponiveis`**, que continua fora do resumo (critério 14.5): o que
+            entra aqui é **fato da ocorrência**, como `status` e `motivoPausa`, nunca afazer calculado por
+            leitor.
+
+            *(Acrescentado em 30/08/2026: até esta data o schema declarava treze propriedades, e o produto
+            já projetava a décima quarta desde o item 27. Item 21 da fila da frente de documentação.)*
+          examples: [false, true]
         registradaEm: { type: string, format: date-time }
         atualizadaEm:
           type: string
@@ -3238,6 +3330,16 @@ components:
           description: |
             A única medida de qualidade do produto. `avaliadas` e `resolvidas` vêm junto porque sem o
             denominador a média mente quando poucos avaliam.
+
+            **Respeita a janela `de`/`ate`, ancorada no instante da RESOLUÇÃO** — não é fotografia de agora
+            como o `backlog`, e não é série mensal como a recorrência: é um número só, sobre um recorte de
+            período. `resolvidas` conta as ocorrências resolvidas dentro da janela; `avaliadas` conta
+            quantas **dessas** foram avaliadas; `media` é a média **dessas** notas. É o que mantém
+            `avaliadas ≤ resolvidas` por construção, e o que faz `resolvidas` fechar com a soma de
+            `tempoMedioDeResolucao.porMes[].resolvidas` na mesma janela. **Nunca ancorada em `avaliada_em`:**
+            avaliação que chega depois do fim da janela conta na janela em que a ocorrência foi resolvida.
+            *(Acrescentado em 30/08/2026 — decisão do hub de 29/08/2026; nenhuma mudança de forma. Item 27
+            da fila da frente de documentação.)*
           properties:
             media: { type: [number, "null"] }
             avaliadas: { type: integer }
