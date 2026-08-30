@@ -1,6 +1,6 @@
 # Inventário de Telas — Resolve Aí
 
-**Treze telas.** É o número que este documento defende, contra as 42 capacidades ✅ do
+**Treze telas.** É o número que este documento defende, contra as 44 capacidades ✅ do
 [escopo](escopo.md) e os 37 endpoints do [contrato de API](contrato-de-api.md).
 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
@@ -56,7 +56,7 @@ E o corolário, que é o que mais recusou:
 > acontecem de dentro da tela onde a pessoa já está vendo a ocorrência. Uma tela por comando produz um
 > aplicativo em que o usuário **navega em vez de trabalhar**.
 
-Aplicado às 42 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
+Aplicado às 44 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
 telas: a atividade 0 é uma, as atividades 3 a 6 — dezesseis capacidades, os onze comandos inteiros —
 são **uma**, e as atividades 2 e 7 se dividem entre registrar e acompanhar. O que sobra:
 
@@ -836,7 +836,7 @@ na cabeça ao abrir o aplicativo.
 | **Quem vê** | Quem pode ler aquela ocorrência — o autor, ou quem tem `ocorrencia.ler_todas` |
 | **A pergunta** | Solicitante: *"O que está acontecendo com a minha?"* · Gestor: *"O que está acontecendo com esta, e o que eu faço com ela?"* |
 
-**É a tela que carrega dezesseis das 42 capacidades**, e é onde os **onze comandos** moram. Consome
+**É a tela que carrega dezesseis das 44 capacidades**, e é onde os **onze comandos** moram. Consome
 quatro `GET` e pode chamar onze `POST`.
 
 **O que mostra.** `OcorrenciaDetalhe` — tudo de `OcorrenciaResumo` mais `descricao`,
@@ -2008,7 +2008,15 @@ estado terminal. Se aparecerem, são defeito, e o `detail` do contrato basta.
 
 ## 8. Rastreabilidade — o triângulo, nos três sentidos
 
-Três conjuntos: **42 capacidades ✅**, **37 endpoints**, **10 telas**.
+Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
+
+> **Eram 42 até 30/08/2026.** A contagem ficou parada enquanto o backlog andava, e entraram a **4b**
+> (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) — as duas
+> entregam comportamento que não existia. **O item 43 (semente de demonstração) e o 44 (tema visual) não
+> contam**: o primeiro é instrumento de verificação, o segundo é identidade visual. O `escopo.md` fecha
+> em **44 ✅ de 66**, e o `contrato-de-api.md` §14 no mesmo número. **As duas entram numeradas `4b` e
+> `7b`, ao lado das capacidades de que derivam, e nada foi renumerado** — os números desta tabela são
+> citados fora dela.
 
 ### 8.1 · Toda capacidade ✅ é alcançável a partir de alguma tela
 
@@ -2019,10 +2027,12 @@ Três conjuntos: **42 capacidades ✅**, **37 endpoints**, **10 telas**.
 | 2 | Categorias-semente | `NOSSO` (D18) | *(efeito da POL-01; **visível** em T-09 e T-04)* |
 | 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; **visível** em T-09 e T-04)* |
 | 4 | Editar categorias | `ENUNCIADO · aberto` | T-09 |
+| **4b** | **Escolher o ícone da categoria** | `NOSSO` (RNF6) | T-09 (a grade de 25 células, no criar e no editar) · **exibido** em T-03 e T-04, ao lado do nome |
 | 5 | Editar áreas | `NOSSO` (D18) | T-09 |
 | **1 · Entrar na organização** ||||
 | 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1, S2) | **T-01 · T-11 · T-12 · T-13** — realizada pelo provedor, **sem endpoint do contrato**. Uma capacidade em quatro telas: *autenticar-se* inclui recuperar o acesso |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | T-02 |
+| **7b** | **Entrar em outra organização tendo uma ativa** | `NOSSO` (D25, B-01) | T-02 (face de escolher a organização) · **menu de organização** do shell |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | T-08 |
 | 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | T-08 |
 | 10 | Remover vínculo sem histórico | `NOSSO` (D25, PA-25) | T-08 |
@@ -2067,11 +2077,19 @@ Três conjuntos: **42 capacidades ✅**, **37 endpoints**, **10 telas**.
 | 41 | Testes de domínio, aplicação, isolamento e ponta a ponta | `ENUNCIADO · aberto` (E6) | **não é de interface** |
 | 42 | Documentação e README | `ENUNCIADO · aberto` (E9) | **não é de interface** — este documento é parte dela |
 
-**Fechamento.** Das **36 capacidades de usuário**, todas alcançáveis: **31 com ação direta numa tela**,
+**Fechamento.** Das **38 capacidades de usuário**, todas alcançáveis: **33 com ação direta numa tela**,
 **2 realizadas como efeito de política** e visíveis em duas telas (nº 2 e 3), **1 realizada como campo
 exibido** (nº 31), **1 sem endpoint do contrato** por ser do provedor (nº 6), e nº 13 e 19 repartidas
 entre duas telas. Das **6 de fundação técnica**, **1 tem tela** (nº 37 → T-06), **1 tem consequência de
 interface sem tela** (nº 38) e **4 não são de interface**.
+
+> **Precisão de 30/08/2026 — o detalhamento acima não fecha com o total, e isso fica registrado em vez de
+> corrigido às cegas.** Somados, os grupos dão **37** de 38 — e davam **35 de 36** antes desta rodada, com
+> o mesmo desvio de um, que portanto **não veio das capacidades novas**. O **total** está conferido contra
+> o `escopo.md` §2 e a §14 do `contrato-de-api.md`; é o **detalhamento** que está a um item de fechar, e o
+> candidato provável é a **nº 6**, que ganha grupo próprio (*"sem endpoint do contrato"*) sendo também
+> ação direta em quatro telas. **Não foi reescrito porque recontar os grupos é conferência tela a tela, e
+> contagem que muda sem conferência é exatamente o defeito que esta seção existe para evitar.**
 
 **Nenhuma capacidade ✅ ficou sem tela.**
 
@@ -2619,6 +2637,7 @@ de T-04 e o paralelismo do upload são o que este inventário faz por ele. **Se 
 disponível para o segundo risco mais alto do projeto.
 
 **5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 37 saíram de
-`grep` sobre o `openapi.yaml`. As 42 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
+`grep` sobre o `openapi.yaml`. As 44 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
 contra as tabelas por atividade do `escopo.md` — mas o somatório por atividade da §2 do `escopo.md`
-(5+5+3+5+3+3+3+4+5+6 = 42) fecha, e é o que dá confiança na contagem.
+(6+6+3+5+3+3+3+4+5+6 = 44) fecha, e é o que dá confiança na contagem. *(Eram 42, e o somatório era
+5+5+3+5+3+3+3+4+5+6; a contagem foi reaberta em 30/08/2026 para as capacidades 4b e 7b.)*

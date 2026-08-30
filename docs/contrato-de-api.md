@@ -1,7 +1,7 @@
 # Contrato de API — Resolve Aí
 
-Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 42 capacidades ✅),
-[modelo-de-dados.md](modelo-de-dados.md) (as 16 tabelas e a regra do vínculo), [arquitetura.md](arquitetura.md)
+Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
+[modelo-de-dados.md](modelo-de-dados.md) (as 17 tabelas e a regra do vínculo), [arquitetura.md](arquitetura.md)
 (o agregado `Ocorrência` e as quatro camadas), [glossario.md](glossario.md) (os nomes) e do
 **Event Storming** do projeto (comandos do passo 5, modelos de leitura do passo 7) — que é material de
 processo e não acompanha esta pasta.
@@ -1231,10 +1231,21 @@ atual, comando) fora da tabela da `arquitetura.md` (Parte I, §4) — o corpo do
 > | `atribuirResponsavel` | `aberta` · `em_analise` · `em_atendimento` · `pausada` | `resolvida` · `cancelada` |
 > | `registrarSolucaoAplicada` | `em_atendimento` · `pausada` | `aberta` · `em_analise` · `resolvida` · `cancelada` |
 >
-> **Por que `atribuir` já em `aberta`:** a auto-atribuição em um clique é capacidade ✅ e acontece na
-> triagem, onde a ocorrência normalmente está `aberta`. Proibir ali transformaria um clique em dois — e
-> atribuir não é triar, é dizer de quem é. *(O exemplo de `aberta` do `openapi.yaml` foi corrigido junto:
-> ele omitia `atribuir-responsavel`.)*
+> **Por que `atribuir` já em `aberta`:** a auto-atribuição é capacidade ✅ e acontece na triagem, **a
+> partir do detalhe da ocorrência**, onde ela normalmente está `aberta`. Proibir ali transformaria um
+> clique em dois — e atribuir não é triar, é dizer de quem é. *(O exemplo de `aberta` do `openapi.yaml`
+> foi corrigido junto: ele omitia `atribuir-responsavel`.)*
+>
+> > **Correção — 30/08/2026 — o argumento fica, o lugar muda.** A frase dizia *"a auto-atribuição **em um
+> > clique** é capacidade ✅ e acontece **na triagem**"*, e *"na triagem"* se lê como *"na lista de
+> > triagem"*. **A lista de triagem é T-03, e T-03 não oferece ação de ocorrência nenhuma** — a capacidade
+> > nº 20 vive no **modal de atribuir de T-05**, que é o que a coluna *Telas* do item 20 do backlog diz e
+> > o que o produto entregue faz. **A justificativa continua inteira:** *"um clique em dois"* conta
+> > **comandos** — `analisar` e depois `atribuir` —, não toques de tela; medido dentro de T-05, o Gestor
+> > em `aberta` dá **quatro** toques até atribuir a si mesmo. Foi por isso que *"em um clique"* saiu desta
+> > frase e ficou só onde é **nome de capacidade** (§14, nº 20), agora com o que ela conta escrito ao
+> > lado. **Levar a ação para a lista é evolução declarada, não esquecimento:** contradiria a coluna
+> > *Telas* e o critério 20.5.
 >
 > **Por que solução aplicada só a partir de `em_atendimento`:** solução aplicada descreve trabalho feito, e
 > antes de o atendimento começar não há trabalho a descrever.
@@ -1266,8 +1277,9 @@ O que cada um tem de específico:
   status —, e é a razão de a alteração de prioridade não aparecer na linha do tempo (PA-21).
 - **`/atribuir-responsavel`** — `422 RESPONSAVEL_SEM_VINCULO_ATIVO` se a pessoa indicada não tem vínculo
   ativo aqui, e `409 TRANSICAO_NAO_PERMITIDA` em `resolvida` e `cancelada` (quadro acima). **A
-  auto-atribuição em um clique não é endpoint:** o cliente envia o próprio `pessoaId`, que
-  `GET /contexto` já lhe deu. **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
+  auto-atribuição não é endpoint:** o cliente envia o próprio `pessoaId`, que
+  `GET /contexto` já lhe deu — e *"em um clique"*, o nome da capacidade, conta **comando** e não toque de
+  tela (quadro acima). **Reatribuir é o mesmo endpoint** com atribuição vigente: encerra a anterior
   com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3 — **que não existe na primeira entrega**,
   ver §3.4) e devolve `reatribuicao: true`.
 - **`/iniciar-atendimento`** — `409 RESPONSAVEL_NAO_ATRIBUIDO` (invariante 9, D21: *"quem está fazendo"* é
@@ -1745,6 +1757,15 @@ Se passa, o servidor **marca o objeto como confirmado** — é o que a §10.3 ex
 > **reivindicado**, não o pendente. Ela nasce no `COMMIT` e nunca existe antes dele — que é exatamente o
 > oposto de uma tabela de uploads pendentes, que precisaria existir *antes* do upload e ser limpa depois.
 > A suposição **S-A13** continua de pé, sem emenda.
+>
+> **Precisão de 30/08/2026 — e agora há uma segunda tabela que também não é essa.** O item 13a trouxe
+> `autorizacoes_de_upload` (§6.18 do `modelo-de-dados.md`), e ela **nasce na emissão**, que é justamente
+> quando a tabela recusada existiria. **O que a separa não é o momento, é o leitor:** ela é **livro-caixa
+> de emissão**, com um único leitor — `POST /anexos/autorizacoes`, para contar a última hora —, e **nada
+> no caminho de reivindicação a lê**. O `ticket` continua sendo token assinado que expira sozinho; o
+> `commit` confere assinatura e objeto, nunca a tabela. Ela não guarda `chave`, não guarda estado de
+> objeto, e nenhuma consulta a liga a um anexo. **A S-A13 continua de pé pela segunda vez, e o teste que a
+> sustenta passou a ser escrito em voz alta** — porque *"a tabela nasce depois"* já não bastaria.
 
 ### 10.3 O objeto abandonado — o terceiro caminho
 
@@ -1763,7 +1784,10 @@ chamada quantas vezes quiser, e nada apaga o que ela deixou.
 > Uma regra de ciclo de vida do contêiner apaga o que continuar `pendente`.**
 >
 > **2 · `POST /anexos/autorizacoes` é o único endpoint com limite de chamadas: 30 por Pessoa por hora,
-> `429` acima disso.**
+> `429` acima disso.** **Quem conta é uma tabela**, não a memória do processo — `autorizacoes_de_upload`,
+> §6.18 do `modelo-de-dados.md`: com `--max-replicas 2`, um contador em processo concederia 60 por hora, e
+> a segunda réplica sobe exatamente sob carga. *(A menção à tabela entrou em 30/08/2026; o número não
+> mudou.)*
 
 A marca é uma **etiqueta de índice do próprio objeto** (*blob index tag*) **[FONTE EXTERNA]**. **Quem a
 escreve é o CLIENTE, no `PUT`** — a SAS é emitida com permissão de etiqueta, e o cabeçalho `x-ms-tags:
@@ -2037,7 +2061,7 @@ delas foi resolvida dentro do YAML.
 | **S-A10** | **`statusRotulo` é calculado no servidor e depende do papel de quem lê** | Se for do cliente, o campo sai da resposta e a tabela de rótulos vira responsabilidade de cada cliente |
 | **S-A11** | **`GET /ocorrencias` só ordena por `registradaEm DESC`** | Ordenar por outra coluna exige índice novo (§6.7 do `modelo-de-dados.md`) — é decisão de banco, não de contrato |
 | **S-A12** | **Pedido de entrada recusado pode ser refeito** — herdada da suposição S4 do modelo de dados | Índice único absoluto em vez de parcial, e `409` no segundo pedido |
-| **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* |
+| **S-A13** | **O ticket do anexo é token assinado, não linha em tabela** | Uma tabela `uploads_pendentes` — **mudança no modelo de dados**, que exige decisão de produto. *(A entrada de `anexos` em 21/08/2026 **não** é essa tabela: ela guarda o objeto reivindicado, que nasce no `commit`, e nunca o pendente. §10.2.)* *(E `autorizacoes_de_upload`, em 30/08/2026, também **não** é: ela nasce na emissão, mas **nada no caminho de reivindicação a lê** — é livro-caixa de emissão, lido só pelo `POST /anexos/autorizacoes` para contar as 30/h. §6.18 do `modelo-de-dados.md`.)* |
 | **S-A14** | **`POST /organizacoes` gera o `codigoPublico`**; o cliente não escolhe | Se o Gestor puder escolher, precisa de checagem de unicidade global e de proteção contra códigos ofensivos ou adivinháveis |
 | **S-A15** | **Organização com um só Gestor que perde o acesso fica inacessível para sempre** — ver abaixo | Sair disso exige uma capacidade nova: promover a Gestor, transferir a organização, ou um segundo Gestor obrigatório na criação |
 
@@ -2244,7 +2268,7 @@ quebra**, que é o que separa decisão de omissão.
 
 ---
 
-## 14. Rastreabilidade — as 42 capacidades ✅
+## 14. Rastreabilidade — as 44 capacidades ✅
 
 Critério: **toda capacidade ✅ tem de ser alcançável pelo contrato**, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
@@ -2254,6 +2278,16 @@ A verificação nos dois sentidos.
 > resolver o **PA-25**, o beco em que aprovar com o papel errado era irreversível. O `escopo.md` passa a
 > **42 ✅ de 63**.
 
+> **E são 44 desde 30/08/2026**, quando a contagem, parada em 42 enquanto o backlog andava, foi reaberta:
+> entram a **4b** (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma
+> ativa) — as duas entregam comportamento que não existia. **Ficam de fora** o item 43 (semente de
+> demonstração: instrumento para tornar o dashboard conferível, não coisa que o produto faz) e o 44 (tema
+> visual). O `escopo.md` passa a **44 ✅ de 66**; o denominador sobe **três** porque uma linha ⬜ nasceu
+> junto — *"fundar uma segunda organização tendo uma ativa"*, que a API aceita e nenhuma tela oferece.
+> **As duas capacidades novas são numeradas `4b` e `7b`, ao lado das que derivam, e nada foi
+> renumerado** — os números desta tabela são citados por outros documentos (*"capacidade nº 20"*,
+> *"nº 38"*), e renumerar trocaria uma correção de contagem por uma caçada a referências.
+
 | # | Capacidade (escopo) | Origem | Endpoint(s) |
 |---|---|---|---|
 | **0 · Configurar a organização** |
@@ -2261,10 +2295,12 @@ A verificação nos dois sentidos.
 | 2 | Categorias-semente | `NOSSO` (D18) | *(efeito da POL-01 em `POST /organizacoes`; verificável em `GET /categorias`)* |
 | 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; verificável em `GET /areas`)* |
 | 4 | Editar categorias | `ENUNCIADO · aberto` | `GET/POST /categorias` · `PATCH /categorias/{id}` |
+| **4b** | **Escolher o ícone da categoria**, sobre a lista fechada de 25 nomes | `NOSSO` (RNF6) | campo `icone` em `POST /categorias` e `PATCH /categorias/{id}`; lido em `GET /categorias` |
 | 5 | Editar áreas | `NOSSO` (D18) | `GET/POST /areas` · `PATCH /areas/{id}` |
 | **1 · Entrar na organização** |
 | 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1,S2) | **fora do contrato** — Supabase Auth (§4.1); consumida por `GET /contexto` |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | `POST /pedidos-de-entrada` |
+| **7b** | **Entrar em outra organização tendo uma ativa** | `NOSSO` (D25, B-01) | `POST /pedidos-de-entrada` · `PUT /contexto/organizacao` — os mesmos de nº 7 e do menu de troca, e é por isso que a capacidade é nova sem endpoint novo |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | `GET /pedidos-de-entrada` · `POST …/aprovar` · `POST …/recusar` |
 | 9 | Cadastro de Encarregados, sem conta | `NOSSO` (D27) | `GET/POST /vinculos` · `PATCH /vinculos/{pessoaId}` — desde 22/08/2026 com `contatos[]` e `areaId` no corpo |
 | 10 | **Remover vínculo sem histórico, desfazendo papel errado** | `NOSSO` (D25, PA-25) | `DELETE /vinculos/{pessoaId}` |
@@ -2280,7 +2316,7 @@ A verificação nos dois sentidos.
 | 18 | Cancelar com motivo estruturado | `ENUNCIADO · literal` (F3) + D12 | `POST /ocorrencias/{id}/cancelar` |
 | **4 · Atribuir** |
 | 19 | Atribuir o responsável | `ENUNCIADO · aberto` (G4) + D21 | `POST /ocorrencias/{id}/atribuir-responsavel` + `GET /vinculos` |
-| 20 | Auto-atribuição em um clique | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
+| 20 | Auto-atribuição em um clique — **um clique conta comando, não toque de tela** (§8.4, correção de 30/08/2026); a ação vive no modal de atribuir de **T-05** | `NOSSO` (D21) | mesmo endpoint, com o próprio `pessoaId` |
 | 21 | Reatribuir | `NOSSO` | mesmo endpoint, com atribuição vigente |
 | **5 · Executar** |
 | 22 | Iniciar o atendimento | `ENUNCIADO · literal` (F2) + D21 | `POST /ocorrencias/{id}/iniciar-atendimento` |
@@ -2311,9 +2347,12 @@ A verificação nos dois sentidos.
 
 **Fechamento da contagem:**
 
-- **36 capacidades de usuário.** Todas alcançáveis: **33 com endpoint dedicado**, 3 sem endpoint próprio e
-  com motivo declarado — nº 6 (autenticação, realizada pelo provedor) e nº 2 e 3 (sementes, efeito de
-  política).
+- **38 capacidades de usuário.** Todas alcançáveis: **35 por endpoint** — 31 com endpoint próprio e
+  **quatro dividindo endpoint com outra capacidade** (nº 20 e nº 21 com a nº 19; a **4b** com a nº 4; a
+  **7b** com a nº 7) —, e 3 sem endpoint próprio e com motivo declarado: nº 6 (autenticação, realizada
+  pelo provedor) e nº 2 e 3 (sementes, efeito de política). *(Eram 36 e 33 até 30/08/2026; a linha dizia
+  "33 com endpoint dedicado", e **dedicado já era impreciso** — a nº 20 e a nº 21 sempre dividiram
+  endpoint com a nº 19.)*
 - **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
   não são de API — e a nº 42 é, em parte, este par de arquivos.
 - **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 37 endpoints existe sem

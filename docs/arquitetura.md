@@ -242,9 +242,21 @@ existia, ela é invariante; onde não existia, foi **decidida em 22/08/2026**:
 **A linha de `atribuirResponsavel` cobre a reatribuição**: é um endpoint só, e qual dos dois comandos
 aconteceu é **derivado do estado** — existe atribuição vigente? —, não da intenção do cliente (§5.4).
 
-**Por que `atribuir` já em `Aberta`.** A auto-atribuição do Gestor em um clique acontece na lista de
-triagem, onde a ocorrência normalmente está `Aberta`; proibir ali transformaria um clique em dois.
+**Por que `atribuir` já em `Aberta`.** A auto-atribuição do Gestor acontece na triagem, **a partir do
+detalhe da ocorrência**, onde ela normalmente está `Aberta`; proibir ali transformaria um clique em dois.
 **Atribuir não é triar — é dizer de quem é.**
+
+> **Correção — 30/08/2026 — o argumento fica inteiro, o lugar muda, e *"em um clique"* passa a dizer o que
+> conta.** A redação anterior era *"A auto-atribuição do Gestor **em um clique** acontece **na lista de
+> triagem**, onde a ocorrência normalmente está `Aberta`"*. **A lista de triagem é T-03, e T-03 não tem
+> ação nenhuma de ocorrência** — a coluna *Telas* do item 20 do backlog diz **T-05**, e o produto entregue
+> exige abrir a ocorrência primeiro. **O que sustenta a regra continua de pé:** *"proibir ali
+> transformaria um clique em dois"* conta **comandos** — `analisar` e depois `atribuir` —, não toques de
+> tela. Medido dentro de T-05, o fluxo real do Gestor em `Aberta` é de **quatro toques** (*Mais ações ▾ →
+> Atribuir → a linha "Atribuir a mim" → Atribuir*), porque em `Aberta` há três comandos renderizáveis e o
+> destaque é `analisar`. É por isso que a expressão *"em um clique"* saiu **daqui**: ela é o nome da
+> capacidade no [`escopo.md`](escopo.md) e, sem dizer o que conta, promete o que a tela não faz. **Pôr a
+> ação na lista é evolução declarada, não esquecimento** — o inverso contradiria o critério 20.5.
 
 **Os outros três** — `recusarAtribuicao`, `reportarExecucaoConcluida` e `aderir` — **não têm endpoint na
 primeira entrega**, e por isso não têm linha aqui: a regra deles nasce junto com o endpoint. A tabela está
@@ -289,8 +301,10 @@ coisa em todos os documentos que a citam.
 
 **Do comando de aplicação** — atravessam outra tabela, e por isso não cabem no agregado:
 
-9. **`iniciarAtendimento` exige responsável atribuído** (D21), com auto-atribuição em um clique — "quem
-   está fazendo" é exatamente o que o Gestor não sabe hoje. Depende de `atribuicoes`.
+9. **`iniciarAtendimento` exige responsável atribuído** (D21), com auto-atribuição em um clique — que
+   conta **comandos**, não toques de tela, e acontece no detalhe da ocorrência (correção de 30/08/2026,
+   acima) —, porque "quem está fazendo" é exatamente o que o Gestor não sabe hoje. Depende de
+   `atribuicoes`.
 10. **`resolver` não exige solução aplicada por regra do sistema** (D22): ela é induzida por UX, com um
     interruptor por organização para quem precisar exigir. Depende da configuração da `Organização`.
 
@@ -412,11 +426,22 @@ emenda de 22/08/2026. Todas vivem em `eslint.config.mjs`.
 - **1 · Só para dentro** — `app/` e `src/interface/` → `aplicacao/` → `dominio/`. Nunca ao contrário.
 - **2 · `infraestrutura/` é importada apenas por `composicao/`.** Nem a Aplicação a importa: ela declara a
   porta e recebe a implementação.
-- **2b · `composicao/` é importada apenas por `src/interface/http/`.** Somada à 2, é o que fecha o caminho:
+- **2b · `composicao/` é importada apenas pelos caminhos declarados no `eslint.config.mjs`** — hoje
+  `src/interface/http/`, `src/interface/acoes/` e `semente/`. Somada à 2, é o que fecha o caminho:
   **`app/` não alcança infraestrutura nem composição**, então um `route.ts` que não passe pelo ajudante
   `comContexto` não tem porta, não tem consulta e não tem cliente — não tem *como* falar com o banco. É a
   defesa estrutural do risco nº 1 da [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md):
-  deixa de depender de o desenvolvedor lembrar.
+  deixa de depender de o desenvolvedor lembrar. **Acrescentar um consumidor é uma linha escrita de
+  propósito naquele arquivo** — é isso que mantém a regra verificada em vez de declarada.
+
+  > **Correção — 30/08/2026.** Esta regra dizia *"`composicao/` é importada apenas por
+  > `src/interface/http/`"*, no singular, e o bloco que a aplica já listava mais de um caminho. São
+  > **três** desde o item 43, e eram **dois** desde o item 6b: `src/interface/acoes/index.ts` importa
+  > `montarCredenciais` de `@/composicao`, e `semente/` monta o **mesmo** grafo que a produção monta. **A
+  > regra não foi afrouxada:** o que ela protege é `app/` não obter porta sem passar pelo `comContexto`, e
+  > `app/` continua sem alcançar `@/composicao`. A mesma correção entrou na
+  > [ADR-0006](adr/0006-organizacao-de-modulos.md) e no tópico 7 da Parte II. **A mensagem da constante em
+  > `eslint.config.mjs` ainda traz o singular** — é código, não documento, e por isso não foi tocada aqui.
 - **3 · Entre módulos da mesma camada, só pela superfície pública** (`index.ts`).
 - **A lista fechada, que não é regra de camada** — `semOrganizacao` só é importável nos **quatro `route.ts`
   do `contrato-de-api.md` §4.4**. O quinto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a ser
@@ -557,15 +582,26 @@ resolve o contexto da requisição — usuário, pessoa, organização, papel �
 emite o registro de histórico na mesma operação; persiste; e as **políticas** in-process reagem ao evento
 — **sem nunca escrever no agregado `Ocorrência`**.
 
-> **Quais políticas de fato rodam na primeira entrega.** Das dez do passo 6 do Event Storming, **três**:
-> a POL-01 (semear categorias e áreas ao registrar a Organização), a POL-02 (estabelecer vínculo ao
-> aceitar convite) e a **POL-11**, acrescentada em 20/08/2026 (estabelecer vínculo ao aprovar pedido de
-> entrada). As sete restantes dependem de notificação, dos canais 2 e 3 ou de alarme por tempo, que são
-> evolução prevista.
+> **Quais políticas de fato rodam na primeira entrega.** São **onze** políticas — as dez do passo 6 do
+> Event Storming mais a **POL-11**, acrescentada em 20/08/2026 (estabelecer vínculo ao aprovar pedido de
+> entrada), que não chegou à tabela daquele passo. Dessas onze, **duas** rodam: a **POL-01** (semear
+> categorias e áreas ao registrar a Organização) e a própria **POL-11**. As nove restantes dependem de
+> convite, dos canais 2 e 3, de notificação, de plano pago ou de alarme por tempo, todos evolução
+> prevista — e a POL-08 não escreve nada, por desenho.
 >
 > A consequência é contraintuitiva e vale dizer: **nenhuma política reage a uma transição de status na
-> primeira entrega.** As três que rodam reagem a eventos de cadastro, não do ciclo de vida. A frase acima
+> primeira entrega.** As duas que rodam reagem a eventos de cadastro, não do ciclo de vida. A frase acima
 > descreve o desenho completo; na primeira entrega a operação termina em *"persiste"*.
+>
+> > **Correção — 30/08/2026 — o parágrafo errava nos dois números.** Ele dizia *"Das **dez** do passo 6 do
+> > Event Storming, **três**: a POL-01 …, a POL-02 (estabelecer vínculo ao aceitar convite) e a
+> > **POL-11** … As **sete** restantes …"*. São **onze** e rodam **duas**. O total é onze porque a POL-11
+> > é acréscimo ao passo 6 e o passo 6 nunca foi atualizado — a **L-3** de
+> > [`fluxos-e-diagramas.md`](fluxos-e-diagramas.md) já registrava isso. E rodam duas porque a **POL-02
+> > reage a _convite aceito_**, e o convite por link de uso único é evolução prevista (`escopo.md`,
+> > atividade 1) — a tabela da L-3 já dizia, na mesma data, *"Não — convite é ⬜"*. **Eram duas fontes
+> > contra uma, e a divergente era esta.** A conclusão do parágrafo não muda: ela fica mais forte com um
+> > caso a menos.
 >
 > Duas notas de precisão que decorrem disso. A ressalva *"sem nunca escrever no agregado"* vale para o
 > agregado **`Ocorrência`** — a POL-01 escreve `Categoria` e `Área`, que o passo 9 põe dentro do agregado
@@ -710,7 +746,7 @@ Plano organizado pelo que cada tipo **protege**, e não por meta de cobertura.
 | **Unitário de aplicação** | Autorização por comando: quem pode cancelar em cada estado (D12), quem pode resolver. E as **invariantes 9 e 10** (Parte I, §4), que atravessam outra tabela e por isso não cabem no teste de domínio | Vitest | Sim (repositório em memória, substituído **pela porta** — [ADR-0005](adr/0005-regra-de-dependencia-por-inversao.md), não por *mock* de módulo) |
 | **Integração de repositório** | **O ponto único de isolamento (RNF1)**: consulta em nome da organização A **nunca** retorna dado de B. É uma **suíte compartilhada aplicada a cada consulta escopada** — não um teste escrito do zero por consulta (§7.1) | Vitest + Postgres do Supabase CLI | Não |
 | **Ponta a ponta** | Caminho crítico: registrar → analisar → atribuir → atender → resolver → avaliar, com histórico conferido na interface, mais a **troca de organização** no meio do percurso. **É um só, para sempre** ([ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)); roda contra o `docker compose` e **não é portão por push** | Playwright | Não |
-| **Verificação de fronteira** | A regra de dependência (Parte I, §5.2): **nada fora de `infraestrutura/clientes/` importa um SDK** — banco, storage ou autenticação —, `infraestrutura/` só é importada por `composicao/`, e `composicao/` só por `interface/http/` (as cinco regras da §5.3). É o **alarme** onde a garantia é estrutural (ADR-0005), e é a **própria** garantia da lista fechada do `contrato-de-api.md` §4.4, que estrutura nenhuma alcança | ESLint | — |
+| **Verificação de fronteira** | A regra de dependência (Parte I, §5.2): **nada fora de `infraestrutura/clientes/` importa um SDK** — banco, storage ou autenticação —, `infraestrutura/` só é importada por `composicao/`, e `composicao/` só pelos caminhos declarados no `eslint.config.mjs` — hoje `interface/http/`, `interface/acoes/` e `semente/` (as cinco regras da §5.3, com a correção de 30/08/2026). É o **alarme** onde a garantia é estrutural (ADR-0005), e é a **própria** garantia da lista fechada do `contrato-de-api.md` §4.4, que estrutura nenhuma alcança | ESLint | — |
 | **Verificação de contrato** | Que `docs/api/openapi.yaml` corresponda aos schemas de validação, e que as três regras mecânicas da §15 do `contrato-de-api.md` passem | Passo do pipeline | — |
 | **Verificação de diagrama** | Que todo bloco Mermaid do repositório tenha sintaxe válida — diagrama que não renderiza é documentação que não existe | `mermaid.parse()` sobre os blocos, em Node | — |
 | **Verificação de referências** | Que todo link relativo de `docs/` resolva e que todo `§N` aponte para uma seção que existe. **A referência que aponta para o lugar errado é idêntica à que aponta para o certo** até alguém clicar — e a banca clica | `ferramentas/verificadores/referencias.mjs`, em Node | — |
@@ -778,16 +814,29 @@ verificados manualmente no primeiro deploy.
 | Documento | Onde | Público |
 |---|---|---|
 | Este documento | `docs/arquitetura.md` | Banca, e o próprio implementador |
+| Índice da documentação, na ordem em que foi produzida | `docs/README.md` | Quem abre a pasta |
 | Glossário da linguagem ubíqua | `docs/glossario.md` | Todo o grupo — é o contrato de vocabulário |
 | Documentação da Demanda | `docs/documentacao-da-demanda.md` | Banca |
 | Escopo — o produto e o recorte da entrega | `docs/escopo.md` | Banca, e quem prioriza |
 | Modelo de dados | `docs/modelo-de-dados.md` | Quem for implementar |
+| Contrato das APIs | `docs/contrato-de-api.md` e `docs/api/openapi.yaml` | Consumidor da API |
+| Fluxos e diagramas | `docs/fluxos-e-diagramas.md` | Quem for implementar, e a banca |
+| Inventário de telas | `docs/inventario-de-telas.md` | Quem for implementar a interface |
+| Protótipo low-fi | `docs/prototipo-low-fi.md` e `docs/prototipo/telas.html` | Quem for implementar a interface |
 | Registros de decisão (ADR) | `docs/adr/` | Banca, e quem mantiver o código depois |
 | Definition of Done e Definition of Ready | `docs/definition-of-done.md` | O grupo |
 | Premissas e questões abertas | `docs/premissas-e-questoes-abertas.md` | Banca |
-| Event Storming curado | `docs/event-storming.md` | Banca |
 | README com como rodar local | raiz | Quem clonar |
-| Contrato das APIs | `docs/contrato-de-api.md` e `docs/api/openapi.yaml` | Consumidor da API |
+
+> **Correção — 30/08/2026 — esta tabela listava um documento que não existe e omitia quatro que
+> existem.** A linha *"Event Storming curado · `docs/event-storming.md` · Banca"* **saiu**: o arquivo
+> nunca foi criado, e o Event Storming vive em `trabalho/produto/event-storming.md`, que é material de
+> **processo** e não acompanha esta pasta — o `glossario.md` e o `premissas-e-questoes-abertas.md` já o
+> citam assim. **Entraram** o `fluxos-e-diagramas.md`, o `inventario-de-telas.md`, o `prototipo-low-fi.md`
+> (com o `prototipo/telas.html`) e o `docs/README.md`, todos posteriores à redação original. **A lista
+> completa, numerada e na ordem de produção é a do [`README.md`](README.md) da pasta**; esta tabela é o
+> de-para de **público**, e passa a apontar para lá em vez de tentar ser uma segunda fonte que envelhece
+> sozinha.
 
 **Como o contrato de API deixa de ser verdade, e o que impede isso.** Route handlers do Next.js **não
 geram OpenAPI sozinhos** — não há decorator nem reflexão, como haveria em NestJS ou Spring. Enquanto não
@@ -796,10 +845,18 @@ especificação passa a ser **gerada a partir dos schemas de validação** que a
 precisa ter — validar formato é a única coisa que a §5 permite a ela fazer —, e um passo do pipeline
 regenera e falha se o resultado divergir do arquivo versionado.
 
+> **Correção — 30/08/2026 — o parágrafo acima foi escrito quando não havia código, e a segunda metade
+> ainda não aconteceu.** **O código chegou e a geração não.** O `openapi.yaml` continua **escrito à mão**,
+> e o que impede a divergência hoje é `npm run verificar:openapi`: ele lê o YAML, lê os
+> `app/api/**/route.ts` e **compara**, aplicando as regras mecânicas da §15 do `contrato-de-api.md`. **A
+> decisão de gerar não foi revogada** — continua sendo o destino descrito naquela §15, e o verificador é o
+> que segura a promessa até lá. O que muda é o tempo verbal: deixou de ser *"quando o código chegar"* e
+> passou a ser **dívida declarada, com o portão que a cobre nomeado**.
+
 Não deixar isso por conta da disciplina de quem implementa segue o mesmo princípio das ADR-0001 e 0003:
 as duas recusaram depender de boa vontade e puseram a garantia numa invariante e numa regra de lint. Um
 contrato mantido à mão é exatamente o que essas decisões recusaram em outro lugar. O que a geração
-**não** cobre está declarado na §15 do contrato: ela garante forma, não semântica — se o handler
+**não** cobre está declarado na §15 do `contrato-de-api.md`: ela garante forma, não semântica — se o handler
 devolver `200` onde a especificação diz `409`, nenhuma ferramenta reclama, e quem cobre é o teste de
 transição inválida que o DoD já exige por funcionalidade.
 
