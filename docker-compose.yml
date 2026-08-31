@@ -16,15 +16,31 @@
 #   Como subir, do zero
 #  ---------------------------------------------------------------------------
 #
-#    supabase start                      # Postgres + Auth + API do provedor
-#    supabase db reset                   # aplica as migrações
-#    cp .env.example .env.local          # e preencha com o que o start imprimiu
-#    docker compose up --build           # a aplicação, no MESMO Dockerfile
+#    npm run local                       # faz tudo: provedor, .env.local,
+#                                        # migrações, storage e a aplicação
 #
-#  Depois: http://localhost:3000
+#  Depois: http://host.docker.internal:3000 — e o host **importa**, não é
+#  preferência: o `@supabase/ssr` deriva o nome do cookie de sessão do host,
+#  então abrir por `localhost` produz uma sessão que a aplicação não relê.
+#
+#  Os quatro comandos que este arquivo listava aqui até 30/08/2026 (`supabase
+#  start`, `db reset`, `cp .env.example .env.local`, `docker compose up`) saíram:
+#  eles descreviam o caminho de antes do `ferramentas/ambiente-local.mjs`, e o
+#  `db reset` **apaga o banco local** — instrução errada para uma segunda subida.
 #
 #  O procedimento completo, com o que conferir a cada passo, está no README.
 # =============================================================================
+
+# **Nome de projeto explícito, e não o derivado da pasta.** Sem esta linha o
+# Compose nomeia o projeto pelo diretório — aqui, `8fsdt-hackathon` —, o que
+# produzia dois grupos de significado obscuro no Docker Desktop: este, e o
+# `resolve-ai` que a **CLI do Supabase** cria com o `project_id` do
+# `supabase/config.toml`. São ferramentas diferentes, e agora dizem qual é qual.
+#
+# O nome **não** pode ser `resolve-ai`: colidiria com o do Supabase, e um
+# `docker compose down --remove-orphans` passaria a considerar Postgres e Auth
+# containers órfãos deste arquivo — e os removeria.
+name: resolve-ai-local
 
 services:
   aplicacao:
@@ -36,7 +52,12 @@ services:
       dockerfile: Dockerfile
     image: resolve-ai:local
     container_name: resolve-ai
-    restart: unless-stopped
+
+    # **`no`, e não `unless-stopped`.** Ver o bloco do `azurite` abaixo: a
+    # política de reinício ressuscita o container pelo daemon, fora do Compose,
+    # e o mapeamento de porta pode não voltar com ele. Este é um arquivo de
+    # ambiente **local** — quem quer o ambiente de pé roda `npm run local`.
+    restart: "no"
 
     ports:
       - "3000:3000"
@@ -102,12 +123,36 @@ services:
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:3.35.0
     container_name: resolve-ai-azurite
-    restart: unless-stopped
+
+    # ---------------------------------------------------------------------
+    #  **`no`, e a razão custou uma manhã (30/08/2026).**
+    #
+    #  Com `unless-stopped`, o container é reiniciado **pelo daemon**, fora do
+    #  Compose. Numa dessas voltas ele subiu SEM o mapeamento de porta, e o
+    #  estado ficou assim:
+    #
+    #      HostConfig.PortBindings   {"10000/tcp":[{"HostPort":"10000"}]}   ← pedido
+    #      NetworkSettings.Ports     {"10000/tcp":[]}                       ← entregue
+    #
+    #  O `docker compose ps` mostrava `Healthy`, o `docker port` devolvia
+    #  vazio, e `npm run local` morria com `ECONNREFUSED` dez quadros abaixo,
+    #  dentro do SDK do Azure. Recriar o container resolveu; a política some
+    #  para que o estado não possa ser reencontrado em silêncio.
+    # ---------------------------------------------------------------------
+    restart: "no"
+
     command: azurite-blob --blobHost 0.0.0.0 --location /dados --skipApiVersionCheck
     ports:
       - "10000:10000"
     volumes:
       - azurite-dados:/dados
+
+    # **Este healthcheck prova pouco, e é bom saber o quê.** O Compose roda o
+    # teste DENTRO do container, então ele responde "o Azurite subiu?" — nunca
+    # "o host alcança o Azurite?". No incidente acima ele ficou verde com a
+    # porta sem binding. Quem responde a segunda pergunta é o `ambiente-local.mjs`,
+    # que sonda `127.0.0.1:10000` **do host** depois do `up`. Um não substitui
+    # o outro: este pega Azurite que não iniciou, aquele pega porta que não saiu.
     healthcheck:
       test:
         - CMD

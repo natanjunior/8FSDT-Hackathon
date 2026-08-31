@@ -136,10 +136,12 @@ npm ci                              # dependências
 npm run local                       # tudo o resto
 ```
 
-`npm run local` faz, nesta ordem: `supabase start` (Postgres e Auth locais, em containers) → escreve o
-`.env.local` a partir do `supabase status`, **se ele não existir** → cria o database `resolveai_teste`, da
-suíte de integração, se ele não existir → `supabase migration up` → `docker compose up --build`, no **mesmo
-`Dockerfile` que vai a produção**.
+`npm run local` faz, nesta ordem: **pré-voo** (Docker de pé, CLI do Supabase de pé, e as portas `3000` e
+`10000` livres ou já nossas) → `supabase start` (Postgres e Auth locais, em containers) → escreve o
+`.env.local` a partir do `supabase status` **se ele não existir**, e se existir **compara e avisa** o que
+divergiu, sem sobrescrever → cria o database `resolveai_teste`, da suíte de integração, se ele não existir →
+`supabase migration up` → sobe o Azurite e **confere do host** que ele responde → `docker compose up --build`,
+no **mesmo `Dockerfile` que vai a produção**.
 
 Depois: **<http://host.docker.internal:3000>**.
 
@@ -156,7 +158,42 @@ Depois: **<http://host.docker.internal:3000>**.
 
 Sem Docker, para o laço curto de quem implementa: `npm run dev` — mas aí a URL do provedor é
 `http://127.0.0.1:54391` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
-nome de host só**.
+nome de host só**. E ele ocupa a `3000`: **deixe-o rodando e o `npm run local` não sobe.** O pré-voo diz isso
+com todas as letras, em vez de deixar o Docker reclamar de `bind` quatro minutos depois.
+
+### Por que aparecem dois grupos no Docker Desktop
+
+Porque são **duas ferramentas**, e cada uma faz o seu projeto — não é duplicação:
+
+| Grupo | Quem cria | O que tem dentro |
+|---|---|---|
+| `resolve-ai-local` | o nosso `docker-compose.yml` | `resolve-ai` (a aplicação) e `resolve-ai-azurite` (o storage) |
+| `resolve-ai` | a **CLI do Supabase**, pelo `project_id` do `supabase/config.toml` | `supabase_db_…`, `supabase_auth_…`, `supabase_kong_…` e os demais |
+
+O nome `resolve-ai-local` é **explícito** no compose desde 30/08/2026. Sem ele, o Compose nomeava o projeto
+pela pasta — `8fsdt-hackathon` —, o que não dizia nada a ninguém e mudava se a pasta fosse renomeada. E ele
+não pode ser `resolve-ai`: colidiria com o do Supabase, e um `docker compose down --remove-orphans` passaria
+a tratar Postgres e Auth como órfãos deste arquivo — removendo-os.
+
+### Quando não subir
+
+O `npm run local` falha **dizendo a causa**; esta tabela é o que fazer com cada uma.
+
+| O que aparece | O que é | O que fazer |
+|---|---|---|
+| `A porta 3000 está ocupada por outra coisa` | um `npm run dev` esquecido, ou outro projeto | o próprio erro imprime o `taskkill`/`kill` com o PID |
+| `A porta 10000 está ocupada por outra coisa` | a `10000` é a porta padrão do Azurite **e** a do Thrift do Spark | pare o container ou processo que o erro nomear |
+| `o container subiu saudável, mas o host não o alcança` | o container voltou de um restart sem publicar a porta | **o script se cura sozinho** (recria e refaz a sonda); se insistir, reinicie o Docker Desktop |
+| `.env.local … diverge do que o ambiente local diz agora` | o `supabase status` mudou e o arquivo ficou para trás | apague o `.env.local` e rode de novo — só as sessões abertas caem |
+| `Docker não respondeu` | o daemon não está de pé | abra o Docker Desktop e espere o ícone verde |
+| `Falta o @azure/storage-blob` | `node_modules` incompleto | `npm ci` |
+
+> **Por que o `Healthy` do `docker compose ps` não é prova de nada aqui.** O healthcheck roda **dentro** do
+> container: ele responde *"o Azurite iniciou?"*, nunca *"o host alcança o Azurite?"*. Em 30/08/2026 o
+> container ficou verde com `NetworkSettings.Ports` vazio — `docker port` devolvia nada, e a subida morria
+> com `ECONNREFUSED` dez quadros dentro do SDK do Azure. Quem responde a segunda pergunta é o
+> `ferramentas/ambiente-local.mjs`, que sonda `127.0.0.1:10000` **do host** depois do `up`. Os dois
+> healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que não saiu.
 
 ### Verificar
 
@@ -195,6 +232,20 @@ npm run local                                                # a pilha, em outro
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo     # o mundo
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
 ```
+
+**No PowerShell, as duas últimas linhas não parseiam** — `VAR=valor comando` é sintaxe do shell POSIX, e o
+PowerShell lê `SENHA_DA_DEMONSTRACAO=ResolveAi!2026` como nome de comando. Lá é assim:
+
+```powershell
+npx playwright install chromium
+npm run local
+$env:SENHA_DA_DEMONSTRACAO = 'ResolveAi!2026'   # vale para a sessão inteira do terminal
+npm run semear:demo
+npm run teste:ponta-a-ponta
+```
+
+*(Acrescentado em 30/08/2026: o bloco `bash` estava sozinho, e a máquina onde este projeto é desenvolvido é
+Windows com PowerShell. O mesmo vale para o `BANCO_URL_TESTE` citado acima.)*
 
 Ele **acrescenta** uma ocorrência ao `Edifício Aurora (demonstração)`, com a marca do instante no título,
 e não altera nada do que a semente escreveu. Rodar duas vezes cria duas ocorrências marcadas e nada
