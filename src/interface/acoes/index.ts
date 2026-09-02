@@ -12,7 +12,11 @@ import {
 } from "@/aplicacao/credenciais";
 import { montarCredenciais } from "@/composicao";
 
-import { armazenamentoDeCookies, armazenamentoDeRedefinicao } from "@/interface/http";
+import {
+  armazenamentoDeCookies,
+  armazenamentoDeRedefinicao,
+  destinoDeConfirmacao,
+} from "@/interface/http";
 import {
   criarContaSchema,
   definirSenhaSchema,
@@ -80,11 +84,16 @@ export async function acaoDeCriarConta(
   });
   if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
 
+  // **Antes de qualquer ida ao provedor.** Se a origem não der para descobrir, isto lança aqui — e não
+  // depois de a conta existir com um link que aterrissa na raiz (item 6c).
+  const destino = await destinoDeConfirmacao();
+
   const resultado = await criarConta(
     montarCredenciais(await armazenamentoDeCookies()),
     conferido.data.nome,
     conferido.data.email,
     conferido.data.senha,
+    destino,
   );
 
   if (!resultado.ok) return { recusa: resultado.recusa };

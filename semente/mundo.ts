@@ -132,6 +132,27 @@ export type ResumoDaSemeadura = {
 type Conta = { readonly pessoaId: string; readonly cookies: ArmazenamentoDeCookies };
 
 /**
+ * O destino do link de confirmação para a semeadura — e aqui **constante é a resposta certa**.
+ *
+ * A semeadura **não é uma requisição**: não há `Origin`, não há `Host`, e não há aplicação publicada de
+ * onde tirar origem. O valor é **inerte** nos dois ambientes, porque a confirmação de e-mail está
+ * desligada (Q-T9, 22/08/2026) — e num mundo em que ela fosse ligada **a semeadura já quebraria antes de
+ * este valor importar**: `criarConta` devolveria `precisaConfirmarEmail` sem sessão, e o
+ * `resolverContexto` logo abaixo não teria de onde sair.
+ *
+ * **Não confundir com o critério 1 do item 6c**, que é sobre o caminho do produto: lá o destino sai da
+ * **origem do pedido**, e nunca de constante. Ver `src/interface/http/confirmacao-de-conta.ts`.
+ *
+ * **Por que não importar `montarDestinoDeConfirmacao`.** Ele mora em `@/interface/http`, cujo `index.ts`
+ * reexporta `com-contexto.ts`, que **começa** com `import { cookies, headers } from "next/headers"` — e
+ * este programa roda no `tsx`, fora de qualquer requisição. É o mesmo grafo que
+ * `testes/interface/credencial.test.ts` precisa simular para não derrubar o arquivo inteiro, e o mesmo
+ * que `interface/http/recusa-de-campos.ts` argumenta em voz alta. A regra `SUPERFICIE_PUBLICA` do lint
+ * fecha o desvio por `@/interface/http/confirmacao-de-conta`.
+ */
+const DESTINO_DE_CONFIRMACAO_INERTE = "http://host.docker.internal:3000/confirmar-conta";
+
+/**
  * Cria a conta — ou entra nela, quando a semeadura anterior a deixou.
  *
  * **`criarConta` é o caminho do produto**, o mesmo de T-11, e ele funciona nos dois ambientes porque a
@@ -147,7 +168,7 @@ async function garantirConta(nome: string, email: string, senha: string): Promis
   const cookies = armazenamentoEmMemoria();
   const credenciais = montarCredenciais(cookies);
 
-  const criada = await criarConta(credenciais, nome, email, senha);
+  const criada = await criarConta(credenciais, nome, email, senha, DESTINO_DE_CONFIRMACAO_INERTE);
   if (!criada.ok) {
     if (criada.recusa !== "CONTA_JA_EXISTE") {
       throw new Error(`Não foi possível criar a conta ${email}: ${criada.recusa}.`);

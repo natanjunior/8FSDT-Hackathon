@@ -113,6 +113,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "CONTA_JA_EXISTE" });
@@ -128,6 +129,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "CONTA_JA_EXISTE" });
@@ -143,6 +145,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "curta",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "SENHA_RECUSADA_PELO_PROVEDOR" });
@@ -160,12 +163,57 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(signUp).toHaveBeenCalledWith({
       email: "helena@exemplo.test",
       password: "segredo",
-      options: { data: { nome: "Helena Rocha" } },
+      options: {
+        data: { nome: "Helena Rocha" },
+        emailRedirectTo: "https://exemplo.test/confirmar-conta",
+      },
+    });
+  });
+
+  it("outro destino chega como outro `emailRedirectTo` — o valor não é constante deste ACL (item 6c)", async () => {
+    // **Sem `emailRedirectTo` o provedor manda o link para a Site URL CRUA** — a raiz, que não troca
+    // código por sessão. Foi o sintoma de 31/08/2026: `/?code=…` em vez de `/confirmar-conta?code=…`.
+    // Duas chamadas com destinos diferentes é o que separa "repassa" de "tem um host escrito aqui".
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "fingido" }, user: { id: "usuario-novo" } },
+      error: null,
+    });
+    const credenciais = criarCredenciais(cookiesVazios);
+
+    await credenciais.criarConta(
+      "Helena",
+      "helena@exemplo.test",
+      "segredo",
+      "http://host.docker.internal:3000/confirmar-conta",
+    );
+    await credenciais.criarConta(
+      "Helena",
+      "helena@exemplo.test",
+      "segredo",
+      "https://publicado.test/confirmar-conta",
+    );
+
+    expect(signUp).toHaveBeenNthCalledWith(1, {
+      email: "helena@exemplo.test",
+      password: "segredo",
+      options: {
+        data: { nome: "Helena" },
+        emailRedirectTo: "http://host.docker.internal:3000/confirmar-conta",
+      },
+    });
+    expect(signUp).toHaveBeenNthCalledWith(2, {
+      email: "helena@exemplo.test",
+      password: "segredo",
+      options: {
+        data: { nome: "Helena" },
+        emailRedirectTo: "https://publicado.test/confirmar-conta",
+      },
     });
   });
 
@@ -179,6 +227,7 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false });
