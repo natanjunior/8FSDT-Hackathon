@@ -198,11 +198,72 @@ jobs:
         run: docker compose logs --no-color --tail 200
 
   # ---------------------------------------------------------------------------
+  # 1c · O Auth publicado. **A esteira publica migração e imagem; a
+  #      configuração de Auth do projeto hospedado não é publicada por nada
+  #      disto, e nunca foi.** O bloco `[auth]` de `supabase/config.toml`
+  #      governa só a pilha local — quem o lê é a CLI. Em 31/08/2026 isso
+  #      apareceu como `http://localhost:3000/?code=…` no navegador de quem
+  #      tentou usar o produto em produção: a *Site URL* da nuvem seguia no
+  #      padrão de fábrica.
+  #
+  #      **Por que é emprego e não passo dentro do `migrar`.** O portão precisa
+  #      de um X vermelho com **nome próprio**. Enterrado no "Migrar o banco", a
+  #      falha lê-se como problema de migração e a causa aparente é a errada —
+  #      o mesmo modo de falha que este arquivo já combate por escrito em outros
+  #      três lugares.
+  #
+  #      **Ele apenas LÊ.** `supabase config push` publicaria o `config.toml`
+  #      inteiro, e este arquivo declara portas locais, `major_version`,
+  #      `[storage]`, `[inbucket]`, `[studio]` — vinte e tantas afirmações sobre
+  #      a máquina de quem desenvolve. Além disso `site_url` e
+  #      `additional_redirect_urls` **têm** de divergir entre os ambientes. E
+  #      `config push` não falha na divergência: ele a **apaga**. Vermelho é
+  #      informação.
+  #
+  #      **Num fork, sem os segredos, ele falha em `exit 2`** — e leva a entrega
+  #      junto, porque `migrar` depende dele. O repositório tem um implementador
+  #      e os PRs saem dele mesmo; o custo está aceito, e está escrito aqui para
+  #      não ser redescoberto.
+  # ---------------------------------------------------------------------------
+  auth:
+    name: Conferir o Auth publicado
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # **Sem `npm ci`, de propósito:** o verificador só usa builtins do Node.
+      # **Sem `needs`:** ele não depende de `verificar` nem de `compose`, e
+      # correndo em paralelo dá o vermelho mais cedo. **Sem
+      # `if: github.event_name != 'pull_request'`:** pegar a divergência no PR é
+      # estritamente melhor que pegá-la depois do merge.
+      - name: a configuração publicada bate com a declarada
+        env:
+          URL_PUBLICA: ${{ vars.URL_PUBLICA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: npm run verificar:auth
+
+  # ---------------------------------------------------------------------------
   # 2 · Migrar. **Antes do deploy, e antes até de construir a imagem.**
+  #
+  #     **`auth` no `needs` barra a entrega INTEIRA, e é deliberado.** Como
+  #     `publicar` depende de `migrar` e `implantar` de `publicar`, um Auth
+  #     divergente para também as mudanças que não têm nada a ver com
+  #     autenticação. Portão que não barra é portão que ninguém olha, e foi
+  #     exatamente isso que produziu o lote 10. A saída de emergência não é
+  #     apagar o portão: é a válvula `DIVERGENCIAS` do
+  #     `ferramentas/verificadores/auth-publicado.mjs`, que exige razão escrita,
+  #     aparece no diff e imprime em toda execução.
   # ---------------------------------------------------------------------------
   migrar:
     name: Migrar o banco
-    needs: [verificar, compose]
+    needs: [verificar, compose, auth]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10

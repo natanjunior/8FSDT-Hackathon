@@ -20,6 +20,7 @@
     "verificar:openapi": "node ferramentas/verificadores/openapi.mjs",
     "verificar:referencias": "node ferramentas/verificadores/referencias.mjs",
     "verificar:imagem": "node ferramentas/verificadores/imagem.mjs",
+    "verificar:auth": "node --env-file-if-exists=.env.local ferramentas/verificadores/auth-publicado.mjs",
     "verificar:docs": "npm run verificar:mermaid && npm run verificar:openapi && npm run verificar:referencias",
     "verificar": "npm run lint && npm run tipos && npm run teste && npm run verificar:docs",
     "migrar": "supabase db push",
