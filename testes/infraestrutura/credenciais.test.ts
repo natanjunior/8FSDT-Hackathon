@@ -233,6 +233,31 @@ describe("pedirRedefinicaoDeSenha — a doutrina do não-confirmar (critério 1)
   });
 });
 
+describe("pedirRedefinicaoDeSenha — o pedido não carrega destino (item 6d)", () => {
+  it("chama o provedor com o e-mail e MAIS NADA — é isso que faz o link valer em outro aparelho", async () => {
+    // **A ausência do segundo argumento é a garantia, e é por isso que ela tem teste.**
+    //
+    // `redirectTo` alimentaria `{{ .ConfirmationURL }}`, que o nosso template NÃO usa: ele monta o
+    // endereço com `{{ .SiteURL }}` e `{{ .TokenHash }}` (`supabase/templates/recuperacao.html:6`),
+    // apontando direto para `/redefinir-senha/link`. O token viaja no e-mail e é trocado por
+    // `verifyOtp` **no servidor** — sem verificador PKCE, sem cookie do navegador que pediu. É o
+    // contrário exato do `criarConta`, que desde o 6c passa `emailRedirectTo` e por isso só funciona
+    // na mesma janela.
+    //
+    // **Sem esta afirmação, a decisão vivia só num comentário** (`autenticacao.ts:145-148`), e
+    // comentário não reprova esteira. Um segundo argumento aqui quebra este teste, de propósito.
+    resetPasswordForEmail.mockResolvedValue({ error: null });
+
+    await criarCredenciais(cookiesVazios).pedirRedefinicaoDeSenha("helena@exemplo.test");
+
+    // **A aridade vem primeiro de propósito.** No Vitest, o primeiro `expect` que falha aborta o `it` —
+    // então a ordem das duas linhas decide qual mensagem a esteira mostra. A aridade é a coisa sob teste,
+    // e `to have a length of 1 but got 2` diz o defeito; a outra ordem diria só "não foi chamado assim".
+    expect(resetPasswordForEmail.mock.calls[0]).toHaveLength(1);
+    expect(resetPasswordForEmail).toHaveBeenCalledWith("helena@exemplo.test");
+  });
+});
+
 describe("iniciarRedefinicao — a aterrissagem do link (critério 3)", () => {
   it("troca o token como recovery, e não como confirmação de conta", async () => {
     verifyOtp.mockResolvedValue({ error: null });
