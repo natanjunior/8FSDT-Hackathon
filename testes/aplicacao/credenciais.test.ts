@@ -33,8 +33,8 @@ function portaQueRegistra(): PortaDeCredenciais & { recebido: unknown[] } {
       recebido.push({ operacao: "entrar", email, senha });
       return aceita();
     },
-    criarConta(nome, email, senha) {
-      recebido.push({ operacao: "criarConta", nome, email, senha });
+    criarConta(nome, email, senha, destino) {
+      recebido.push({ operacao: "criarConta", nome, email, senha, destino });
       return aceita();
     },
     pedirRedefinicaoDeSenha(email) {
@@ -63,7 +63,13 @@ describe("criarConta — o que chega ao provedor", () => {
     // A senha é literal: aparar espaço de senha mudaria silenciosamente o segredo que a pessoa escolheu.
     const porta = portaQueRegistra();
 
-    await criarConta(porta, "  Helena Rocha  ", "  helena@exemplo.test  ", "  com espaco  ");
+    await criarConta(
+      porta,
+      "  Helena Rocha  ",
+      "  helena@exemplo.test  ",
+      "  com espaco  ",
+      "https://exemplo.test/confirmar-conta",
+    );
 
     expect(porta.recebido).toStrictEqual([
       {
@@ -71,6 +77,7 @@ describe("criarConta — o que chega ao provedor", () => {
         nome: "Helena Rocha",
         email: "helena@exemplo.test",
         senha: "  com espaco  ",
+        destino: "https://exemplo.test/confirmar-conta",
       },
     ]);
   });
@@ -78,9 +85,28 @@ describe("criarConta — o que chega ao provedor", () => {
   it("devolve o resultado da porta sem reinterpretá-lo", async () => {
     const porta = portaQueRegistra();
 
-    await expect(criarConta(porta, "Helena", "helena@exemplo.test", "segredo")).resolves.toStrictEqual({
-      ok: true,
-    });
+    await expect(
+      criarConta(porta, "Helena", "helena@exemplo.test", "segredo", "https://exemplo.test/confirmar-conta"),
+    ).resolves.toStrictEqual({ ok: true });
+  });
+
+  it("repassa o destino sem aparar — quem o montou foi a Interface, e ela é quem tem a requisição", async () => {
+    // O nome e o e-mail são aparados aqui de propósito; o destino **não é**. Aparar um endereço montado
+    // por outra camada seria esta camada opinando sobre transporte, que é o que a tabela de camadas
+    // separa. O espaço abaixo é intencional, e a asserção é que ele CHEGA.
+    const porta = portaQueRegistra();
+
+    await criarConta(porta, "Helena", "helena@exemplo.test", "segredo", " https://exemplo.test/confirmar-conta ");
+
+    expect(porta.recebido).toStrictEqual([
+      {
+        operacao: "criarConta",
+        nome: "Helena",
+        email: "helena@exemplo.test",
+        senha: "segredo",
+        destino: " https://exemplo.test/confirmar-conta ",
+      },
+    ]);
   });
 });
 

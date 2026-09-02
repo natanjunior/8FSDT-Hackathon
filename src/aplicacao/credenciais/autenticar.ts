@@ -22,8 +22,12 @@ export function criarConta(
   nome: string,
   email: string,
   senha: string,
+  destino: string,
 ): Promise<ResultadoDeCredencial> {
-  return credenciais.criarConta(nome.trim(), email.trim(), senha);
+  // **O destino não é aparado e não é validado aqui.** Esta camada orquestra; quem o montou foi a
+  // Interface, que é a única com a requisição na mão. Aparar endereço montado por outra camada seria
+  // esta opinando sobre transporte (item 6c).
+  return credenciais.criarConta(nome.trim(), email.trim(), senha, destino);
 }
 
 /** T-01, estados 5 e 6: a aterrissagem do link de confirmação de conta. */

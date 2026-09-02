@@ -47,7 +47,13 @@ export {
   lerOrganizacaoAssinada,
 } from "./cookie-de-organizacao";
 
-export { aterrissarConfirmacaoDeConta } from "./confirmacao-de-conta";
+export {
+  CAMINHO_DA_CONFIRMACAO,
+  aterrissarConfirmacaoDeConta,
+  destinoDeConfirmacao,
+  montarDestinoDeConfirmacao,
+  origemDoPedido,
+} from "./confirmacao-de-conta";
 
 export {
   PREFIXO_DE_REDEFINICAO,

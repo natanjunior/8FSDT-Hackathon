@@ -12,7 +12,13 @@ vi.mock("next/headers", () => ({
   },
 }));
 
-import { PREFIXO_DE_REDEFINICAO, somenteDeRedefinicao } from "@/interface/http";
+import {
+  CAMINHO_DA_CONFIRMACAO,
+  PREFIXO_DE_REDEFINICAO,
+  montarDestinoDeConfirmacao,
+  origemDoPedido,
+  somenteDeRedefinicao,
+} from "@/interface/http";
 import {
   criarContaSchema,
   definirSenhaSchema,
@@ -155,5 +161,101 @@ describe("somenteDeRedefinicao — a sessão de recuperação não é a sessão 
     const pote = [{ name: "sb-projeto-auth-token", value: "sessao-normal" }];
 
     expect(somenteDeRedefinicao(pote)).toStrictEqual([]);
+  });
+});
+
+describe("montarDestinoDeConfirmacao — o destino do link de confirmação (item 6c, critério 4)", () => {
+  it("monta o destino a partir da origem recebida", () => {
+    expect(montarDestinoDeConfirmacao("https://exemplo.test")).toBe(
+      "https://exemplo.test/confirmar-conta",
+    );
+  });
+
+  it("outra origem dá outro destino — é isto que prova que o host NÃO está no código", () => {
+    // O par abaixo é o de verdade: a máquina de quem desenvolve e o Container App publicado. Uma
+    // constante de host passaria no caso de cima e falharia neste.
+    expect(montarDestinoDeConfirmacao("http://host.docker.internal:3000")).toBe(
+      "http://host.docker.internal:3000/confirmar-conta",
+    );
+    expect(montarDestinoDeConfirmacao("https://ca-resolve-ai.exemplo.test")).toBe(
+      "https://ca-resolve-ai.exemplo.test/confirmar-conta",
+    );
+  });
+
+  it("origem com barra final não produz barra dobrada", () => {
+    expect(montarDestinoDeConfirmacao("https://exemplo.test/")).toBe(
+      "https://exemplo.test/confirmar-conta",
+    );
+  });
+
+  it("o caminho é o MESMO literal que o verificador do Auth publicado declara em ROTAS", () => {
+    // `ferramentas/verificadores/auth-publicado.mjs` declara `const ROTAS = ["/confirmar-conta"]` e é ele
+    // quem confere a lista de permissão do provedor PUBLICADO. Se este literal mudar e aquele não, o
+    // portão fica verde conferindo uma rota que a aplicação não usa mais. Nenhum verificador compara os
+    // dois arquivos — esta linha é o que existe no lugar dele.
+    //
+    // **Aquele arquivo não existe nesta base** (`develop`, 82693ca): ele chegou com o item 40b. O
+    // comentário recíproco lá é achado para o hub, e não deste item.
+    const declaradoNoVerificadorDoAuthPublicado = "/confirmar-conta";
+
+    expect(CAMINHO_DA_CONFIRMACAO).toBe(declaradoNoVerificadorDoAuthPublicado);
+    expect(montarDestinoDeConfirmacao("https://exemplo.test")).toBe(
+      `https://exemplo.test${declaradoNoVerificadorDoAuthPublicado}`,
+    );
+  });
+});
+
+describe("origemDoPedido — a precedência dos cabeçalhos (item 6c)", () => {
+  it("prefere o `Origin`, que numa Server Action o framework já conferiu contra o Host", () => {
+    const cabecalhos = new Headers({
+      origin: "https://publicado.test",
+      host: "interno-do-container:3000",
+    });
+
+    expect(origemDoPedido(cabecalhos)).toBe("https://publicado.test");
+  });
+
+  it("sem `Origin`, usa o par x-forwarded — e o PRIMEIRO valor da lista de saltos", () => {
+    // Atrás do ingress do Container Apps o esquema que chega ao container é `http`, porque o TLS termina
+    // antes dele. Só `x-forwarded-proto` sabe que a pessoa está em `https`.
+    const umSalto = new Headers({
+      "x-forwarded-proto": "https",
+      "x-forwarded-host": "publicado.test",
+      host: "interno-do-container:3000",
+    });
+    const doisSaltos = new Headers({
+      "x-forwarded-proto": "https,http",
+      "x-forwarded-host": "publicado.test",
+    });
+
+    expect(origemDoPedido(umSalto)).toBe("https://publicado.test");
+    expect(origemDoPedido(doisSaltos)).toBe("https://publicado.test");
+  });
+
+  it("sem `Origin` e sem x-forwarded, cai no `host` — e o esquema é http", () => {
+    expect(origemDoPedido(new Headers({ host: "host.docker.internal:3000" }))).toBe(
+      "http://host.docker.internal:3000",
+    );
+  });
+
+  it("`Origin: null` — a origem opaca — não é aceita, e o par x-forwarded resolve", () => {
+    // `new URL("null")` lança. Um `origin ?? host` ingênuo devolveria a cadeia "null" como origem, e o
+    // `emailRedirectTo` sairia inválido — que o provedor descartaria, voltando para a Site URL crua: o
+    // defeito deste item, de volta por uma linha de conveniência.
+    const cabecalhos = new Headers({
+      origin: "null",
+      "x-forwarded-proto": "https",
+      "x-forwarded-host": "publicado.test",
+    });
+
+    expect(origemDoPedido(cabecalhos)).toBe("https://publicado.test");
+  });
+
+  it("sem cabeçalho nenhum, LANÇA — e a mensagem nomeia os três que faltaram", () => {
+    // **Lança, e não omite.** Omitir o `emailRedirectTo` é literalmente o defeito deste item; um `?? ""`
+    // aqui o reintroduziria no dia em que um cabeçalho mudasse de nome. Mesma doutrina do `escalar()` do
+    // `auth-publicado.mjs`: campo que sumiu é falha, nunca omissão.
+    expect(() => origemDoPedido(new Headers())).toThrow(/Origin/u);
+    expect(() => origemDoPedido(new Headers())).toThrow(/Host/u);
   });
 });
