@@ -157,7 +157,9 @@ const DESTINO_DE_CONFIRMACAO_INERTE = "http://host.docker.internal:3000/confirma
  *
  * **`criarConta` é o caminho do produto**, o mesmo de T-11, e ele funciona nos dois ambientes porque a
  * **Q-T9 está fechada** desde 22/08/2026: confirmação de e-mail não é obrigatória
- * (`supabase/config.toml:240` no local; o interruptor desligado no painel, no publicado). A alternativa —
+ * (`supabase/config.toml:244` — o `enable_confirmations` da seção `[auth.email]`, e é pelo NOME que se
+ * confere, porque o número já andou uma vez — no local; o interruptor desligado no painel, no
+ * publicado). A alternativa —
  * chave de serviço e `auth.admin.createUser` — foi recusada na spec: exigiria uma quarta variável de
  * ambiente, e essa é a chave que ignora toda a política do provedor.
  *
