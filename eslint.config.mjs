@@ -282,6 +282,19 @@ const configuracao = [
       ".next/**",
       "node_modules/**",
       "next-env.d.ts",
+      // **Saída do Playwright, e a falta destas duas linhas era um defeito com gatilho retardado.**
+      //
+      // As duas estão no `.gitignore` (`:37-38`) — mas **`.gitignore` não é `eslintignore`**, e o flat
+      // config do ESLint 9 só ignora o que está declarado aqui. Então a árvore ficava limpa no git e o
+      // `npm run lint` passava a ler o **bundle minificado do relatório de rastro** do Playwright: 257
+      // erros de `react-hooks/rules-of-hooks` em colunas de quatro dígitos, sobre uma função chamada `be`.
+      //
+      // O gatilho é o que tornava isto difícil: só aparece **depois** de alguém rodar
+      // `npm run teste:ponta-a-ponta` — que é exatamente o que o README manda fazer. Num clone limpo, e
+      // no runner da esteira, os diretórios não existem e o portão fica verde. *(Achado em 02/09/2026,
+      // mesclando o Lote 10.)*
+      "playwright-report/**",
+      "test-results/**",
       // Verificadores de documentação: Node puro, sem TypeScript e sem apelido de módulo.
       "ferramentas/**",
       // Código copiado pelo CLI do shadcn/ui (ADR-0007) — a manutenção é nossa, o estilo é do projeto
