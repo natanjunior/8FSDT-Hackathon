@@ -119,12 +119,22 @@ export async function destinoDeConfirmacao(): Promise<string> {
  * com a linha certa acima do formulário (protótipo, T-01, quadros 5 e 6).
  *
  * ---------------------------------------------------------------------------
- *  DORMENTE — existe, e nada a alcança nesta entrega
+ *  DORMENTE — existe, e o que a mantém dormente é UM interruptor de painel
  * ---------------------------------------------------------------------------
  *
- * **O hub fechou a Q-T9 em 22/08/2026: a confirmação de e-mail NÃO é obrigatória antes do primeiro login.**
- * T-11 termina em sessão válida, o provedor não envia e-mail de confirmação, e **nenhum link aterrissa
- * aqui**. O que desliga esta rota é o interruptor *Confirm email* no painel do provedor — não o código.
+ * **O hub fechou a Q-T9 em 22/08/2026: a confirmação de e-mail NÃO é obrigatória antes do primeiro
+ * login.** Em regime, o interruptor *Confirm email* fica **desligado nos dois ambientes por decisão** —
+ * não por esquecimento —, o provedor não envia e-mail de confirmação, e nada aterrissa aqui.
+ *
+ * **O que mudou com o item 6c, e é o motivo desta redação:** não é mais a **ausência de destino** que a
+ * mantém dormente. Desde aquele item o `signUp` manda `emailRedirectTo` para cá
+ * (`interface/acoes` → `aplicacao/credenciais` → `infraestrutura/clientes/autenticacao.ts`), então o
+ * endereço existe e está certo. **Sobrou só o interruptor.**
+ *
+ * **E dormente aqui NÃO quer dizer inalcançável por construção:** um clique no painel a alcança em
+ * minutos, e é exatamente para isso que a validação do 6c abre uma janela curta, de propósito. O que este
+ * comentário não afirma — e não pode — é que o caminho já foi exercido em produção: isso é a coluna
+ * `Val`, e é do humano, e **na hora em que esta linha foi escrita não havia acontecido**.
  *
  * **Por que ela fica.** Virar o interruptor é decisão de painel, e apagar a rota cobraria reescrevê-la no
  * mesmo dia. O item 6b precisa da mesma mecânica de aterrissagem para T-13.
@@ -139,6 +149,14 @@ export async function destinoDeConfirmacao(): Promise<string> {
 export async function aterrissarConfirmacaoDeConta(requisicao: Request): Promise<Response> {
   const codigo = new URL(requisicao.url).searchParams.get("code");
 
+  // **A ausência de `code` cobre DOIS casos, e o segundo não é óbvio.** O primeiro é o link truncado. O
+  // segundo é o retorno de erro do próprio provedor: quando o link vence, o `/auth/v1/verify` redireciona
+  // para o destino autorizado com `?error=access_denied&error_code=otp_expired&…` **e sem `code`** — foi a
+  // segunda URL de 31/08/2026. Os dois caem na mesma face de recusa de T-01, que é o que o critério 3 do
+  // item 6c manda reusar: *"não é tela nova"*.
+  //
+  // **Não "conserte" este `if` distinguindo os casos** sem reler aquele critério: separá-los é criar a
+  // tela que ele proíbe.
   if (codigo === null || codigo === "") {
     return redirecionarParaEntrar(requisicao, "expirada");
   }

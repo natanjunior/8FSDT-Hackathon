@@ -75,7 +75,9 @@ export interface PortaDeCredenciais {
   ): Promise<ResultadoDeCredencial>;
 
   /**
-   * **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026).
+   * **DORMENTE** — em regime nenhum e-mail de confirmação é enviado (Q-T9, 22/08/2026), e o que a mantém
+   * assim é **só o interruptor *Confirm email* do painel**, não a ausência de destino: desde o item 6c o
+   * `signUp` manda o link para a rota que esta operação serve.
    *
    * Troca o código que o link de confirmação de e-mail carrega por uma sessão.
    *
