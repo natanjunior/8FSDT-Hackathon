@@ -98,8 +98,9 @@ export function FormularioDeCadastro() {
           rotulo="Senha"
           // **Seis caracteres, comprimento e nada mais** — decidido em 22/08/2026, item 6a. Antes disso o
           // valor era herança do padrão do provedor, sem origem em documento nenhum: era o risco **R-21**
-          // do `prototipo-low-fi.md`. O mesmo número está em `supabase/config.toml:196`, e os dois têm de
-          // continuar batendo.
+          // do `prototipo-low-fi.md`. O mesmo número está no `minimum_password_length` de
+          // `supabase/config.toml` (hoje `:200`), e os dois têm de continuar batendo. *(Citava `:196`; o
+          // item 6c moveu a linha. Citação por nome de chave envelhece menos que por número.)*
           //
           // É dita **antes** de digitar, não como erro depois (T-11). E é por a regra ser de comprimento
           // que o texto da recusa — *"Escolha uma senha mais longa."* — continua verdadeiro: regra de
