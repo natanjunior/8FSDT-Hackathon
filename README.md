@@ -216,6 +216,7 @@ Cada peça, separada:
 | `npm run verificar:openapi` | As **quatro** regras mecânicas da §15 do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver *(eram três até 30/08/2026)* |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso **não** está no `npm run verificar`; no pipeline ele roda **antes** do `push`, porque imagem publicada com segredo dentro não se desfaz |
+| `npm run verificar:auth` | **A configuração de Auth publicada bate com a que este repositório declara** — Site URL, lista de redirecionamento, confirmação de e-mail, assunto e corpo do e-mail de recuperação. Exige credencial e rede, e por isso **não** está no `npm run verificar`; é o mesmo tratamento do `verificar:imagem`. Ver *[Publicar](#publicar)* |
 
 **O teste de integração roda num database só dele, `resolveai_teste`**, criado pelo `npm run local`. Sem
 `BANCO_URL_TESTE`, ele deriva do `BANCO_URL` trocando o database — e **recusa rodar** se o destino for o
@@ -265,6 +266,59 @@ escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 **Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
 
+#### O que vive só no painel do Supabase
+
+**A esteira publica migração e imagem — nunca a configuração de Auth.** O bloco `[auth]` de
+`supabase/config.toml` governa **só a pilha local**: quem o lê é a CLI, que monta a máquina de quem rodou
+`supabase start`. O projeto hospedado nunca o leu, e nada aqui o publica — não existe `supabase config
+push` em lugar nenhum deste repositório, de propósito. Ele empurraria o `config.toml` **inteiro**, portas
+locais incluídas, e `site_url` e `additional_redirect_urls` **têm** de divergir entre os ambientes.
+
+Consequência: **estes quatro campos são digitados à mão, uma vez, no painel do projeto hospedado.**
+Enquanto ninguém os digitou, a nuvem fica no padrão de fábrica — que é literalmente
+`http://localhost:3000`, e foi o que quebrou a confirmação de conta e a redefinição de senha em produção
+até 31/08/2026.
+
+| # | Onde, no painel | O que digitar |
+|---|---|---|
+| 1 | *Authentication* → *URL Configuration* → **Site URL** | a URL pública da aplicação, **sem barra final** |
+| 2 | *Authentication* → *URL Configuration* → **Redirect URLs** | `<pública>/confirmar-conta` — e **remover** toda entrada com `localhost` ou `127.0.0.1` |
+| 3 | *Authentication* → *Sign In / Providers* → *Email* → **Confirm email** | **desligado**, que é o mesmo valor de `enable_confirmations` no `config.toml` |
+| 4 | *Authentication* → *Emails* → *Templates* → **Reset Password** | o assunto e o corpo de `supabase/templates/recuperacao.html` |
+
+**O 4 não precisa da lista de permissão.** O link daquele template aponta direto para a nossa rota, com
+`{{ .TokenHash }}`, e `pedirRedefinicaoDeSenha` chama `resetPasswordForEmail` **sem `redirectTo`**, de
+propósito — é o que faz o link funcionar em outro aparelho. Não há redirecionamento do provedor a
+autorizar, e acrescentar a rota de redefinição à lista é ruído numa lista que é superfície de ataque.
+
+**Como se confere — e a conferência é mecânica:**
+
+```bash
+npm run verificar:auth
+```
+
+Ele lê a configuração publicada (`GET /v1/projects/{ref}/config/auth`, só leitura) e compara com o que
+este repositório declara. Precisa de três variáveis, no `.env.local` ou no ambiente — ver o
+`.env.example`: `URL_PUBLICA`, `SUPABASE_ACCESS_TOKEN` (Account → Access Tokens, escopo `auth:read`) e
+`SUPABASE_PROJECT_REF`. **A saída diz qual é o problema:**
+
+| Código | O que aconteceu |
+|---|---|
+| **0** | os cinco campos batem |
+| **1** | a configuração publicada **diverge** da declarada — ou os controles embutidos do verificador falharam |
+| **2** | falta credencial: ele não olhou para nada |
+| **3** | não deu para falar com a API de management |
+
+**E ele roda sozinho em dois lugares.** No `entrega.yml`, como emprego próprio de que `migrar` depende —
+um Auth divergente **barra a entrega inteira**, inclusive mudanças que não tocam autenticação, e a saída
+de emergência é a válvula `DIVERGENCIAS` do verificador, que exige razão escrita e aparece no diff. E no
+cron de sexta, que é a metade que importa: **deriva de configuração não nasce de commit** — alguém clica
+no painel numa terça e nada no repositório muda.
+
+Na esteira, `URL_PUBLICA` é *variable* do repositório (não *secret*: FQDN público por desenho não é
+credencial, e como segredo ele sai mascarado do resumo da execução); as outras duas já são *secret*, as
+mesmas que o `migrar` usa.
+
 ### A demonstração
 
 O produto sem dado não se demonstra: *recorrência por categoria* e *tempo médio de resolução, mês a mês*
@@ -311,7 +365,7 @@ npm run semear:demo               # e semeia de novo
 | `src/dominio/` | Domínio | as regras. Não persiste, não conhece HTTP |
 | `src/infraestrutura/` | Infraestrutura | `clientes/` (o único lugar com SDK), `repositorios/`, `contexto/` (o ponto único de escopo) |
 | `src/composicao/` | — | monta o grafo de objetos; não decide regra |
-| `ferramentas/verificadores/` | — | **quatro** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker e roda no pipeline |
+| `ferramentas/verificadores/` | — | **cinco** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker, e o do Auth publicado, que exige credencial e rede — os dois últimos rodam no pipeline |
 | `supabase/migrations/` | — | o esquema, versionado |
 | `testes/` | — | `dominio/` e `aplicacao/` sem banco; `integracao/` com |
 
