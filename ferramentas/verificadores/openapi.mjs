@@ -405,4 +405,4 @@ notas.push(
 
 // ---------------------------------------------------------------------------
 
-process.exit(relatar("OpenAPI", { conferidos: operacoes.length, unidade: "operação", falhas, notas }));
+process.exit(relatar("OpenAPI", { conferidos: operacoes.length, unidade: "operação", plural: "operações", genero: "f", falhas, notas }));
