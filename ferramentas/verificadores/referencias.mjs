@@ -147,6 +147,7 @@ process.exit(
   relatar("Links e referências", {
     conferidos: linksConferidos + secoesConferidas,
     unidade: "referência",
+    genero: "f",
     falhas,
     notas: [
       `${linksConferidos} links relativos`,

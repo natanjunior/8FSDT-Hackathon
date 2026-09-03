@@ -77,17 +77,35 @@ export const ler = (caminho) => readFileSync(caminho, "utf8");
  * Um verificador que imprime "ok" e sai com zero não prova nada — imprimir **quanto** foi conferido é o que
  * distingue "passou" de "não rodou". É o mesmo princípio do `passWithNoTests: false`.
  */
-export function relatar(nome, { conferidos, unidade, falhas, notas = [] }) {
+/**
+ * **O plural, e por que ele deixou de ser `(s)`** *(02/09/2026)*
+ *
+ * O idioma deste pacote era o sufixo `(s)` — `conferido(s)`, `falha(s)` — para não escrever lógica de
+ * plural. Só que a `unidade` ficava de fora dele, e a saída dizia *"5 falha(s) em 5 **campo**"* e
+ * *"9 **bloco** conferido(s)"*. Pôr `(s)` nela também consertaria `bloco` e `campo` e **estragaria**
+ * `operação`: `operação(s)` não é português — o plural é *operações*.
+ *
+ * Então a contagem passa a decidir a palavra, e quem tem plural irregular ou gênero feminino o
+ * **declara**. É a única forma que não obriga um pluralizador de pt-BR dentro de um verificador de
+ * documentação — e concordância pela metade (*"operações conferidos"*) é pior que o `(s)` que havia antes.
+ */
+export function relatar(nome, { conferidos, unidade, plural, genero = "m", falhas, notas = [] }) {
   const linhas = [];
   for (const nota of notas) linhas.push(`   · ${nota}`);
 
+  /** Sem `plural` declarado, o padrão é `+s` — certo para `bloco`, `campo`, `aspecto` e `referência`. */
+  const aUnidade = conferidos === 1 ? unidade : (plural ?? `${unidade}s`);
+  const raiz = genero === "f" ? "conferida" : "conferido";
+  const conferido = conferidos === 1 ? raiz : `${raiz}s`;
+
   if (falhas.length === 0) {
-    console.log(`✓ ${nome}: ${conferidos} ${unidade} conferido(s), nenhuma falha.`);
+    console.log(`✓ ${nome}: ${conferidos} ${aUnidade} ${conferido}, nenhuma falha.`);
     for (const linha of linhas) console.log(linha);
     return 0;
   }
 
-  console.error(`✗ ${nome}: ${falhas.length} falha(s) em ${conferidos} ${unidade}.\n`);
+  const quantas = falhas.length === 1 ? "1 falha" : `${falhas.length} falhas`;
+  console.error(`✗ ${nome}: ${quantas} em ${conferidos} ${aUnidade}.\n`);
   for (const falha of falhas) console.error(`   ${falha}`);
   console.error("");
   for (const linha of linhas) console.error(linha);
