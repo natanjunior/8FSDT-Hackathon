@@ -12,6 +12,20 @@
 #
 #  Roda de sexta, porque a entrega e as revisões funcionais acontecem no fim de
 #  semana: o banco chega acordado ao dia em que alguém vai olhar.
+#
+#  -----------------------------------------------------------------------------
+#  **Este arquivo carrega DUAS vigias de sexta, e o nome dele só cobre a
+#  primeira.** A segunda confere o Auth publicado, e mora aqui por um motivo que
+#  o `entrega.yml` não consegue cobrir: **deriva de configuração não nasce de
+#  commit**. Alguém clica no painel do Supabase numa terça e nada no repositório
+#  muda — não há push, o emprego do `entrega.yml` não roda, e a divergência fica
+#  invisível até alguém tentar entrar na conta. A execução semanal é a metade
+#  que faz do portão uma vigia de verdade, e a sexta é o instante certo pela
+#  mesma razão do banco: é quando alguém vai olhar.
+#
+#  **A imprecisão do nome fica aceita, não consertada.** Renomear o arquivo
+#  quebra o histórico de execuções e a citação na `arquitetura.md` §9 — custa
+#  mais do que a imprecisão vale.
 # =============================================================================
 
 name: manter o banco acordado
@@ -23,6 +37,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # A vigia do banco — a mitigação que a arquitetura.md §9 declarou.
+  # ---------------------------------------------------------------------------
   acordar:
     name: Acordar o Postgres
     runs-on: ubuntu-latest
@@ -39,3 +56,37 @@ jobs:
             exit 1
           fi
           psql "$BANCO_URL" -Atc "select 'acordado em ' || now();"
+
+  # ---------------------------------------------------------------------------
+  # A vigia do Auth — **irmã do `acordar`, e independente dele**.
+  #
+  # Emprego, e não passo do `acordar`, e as duas alternativas são piores:
+  #
+  #   · **passo DEPOIS do `psql`** — o X vermelho lê-se "manter o banco acordado
+  #     falhou", e a causa aparente é a errada;
+  #   · **passo ANTES do `psql`** — pior: um Auth divergente impediria o banco de
+  #     ser acordado, sabotando a única coisa que este arquivo existe para fazer.
+  #
+  # Dois empregos independentes, cada um com o seu nome na lista de execuções.
+  # Não os junte de novo.
+  # ---------------------------------------------------------------------------
+  auth:
+    name: Conferir o Auth publicado
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Sem `npm ci`: o verificador só usa builtins do Node — e este emprego não
+      # vai passar a instalar dependências por causa disto.
+      - name: a configuração publicada bate com a declarada
+        env:
+          URL_PUBLICA: ${{ vars.URL_PUBLICA }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: npm run verificar:auth

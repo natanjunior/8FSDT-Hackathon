@@ -53,11 +53,31 @@ export interface PortaDeCredenciais {
   /**
    * @param nome  **obrigatório** — é o metadado de onde o ACL semeia `pessoas.nome` (contrato §4.1). É o
    *              conserto do F6: o metadado passa a existir porque nós o escrevemos.
+   * @param destino  para onde o link do e-mail de confirmação deve apontar — **item 6c, critério 1**.
+   *
+   * **Vem pronto, e esta porta não o monta.** Descobrir onde a aplicação está publicada é ler a
+   * requisição, e **ler a URL é traduzir HTTP**: é a camada de Interface quem o faz — a mesma forma de
+   * `confirmarPorCodigo` e de `iniciarRedefinicao`, logo abaixo.
+   *
+   * **É obrigatório de propósito.** Sem ele o provedor manda o link para a *Site URL* **crua** — a raiz,
+   * que não troca código por sessão —, e foi o defeito de 31/08/2026 (`/?code=…` em vez de
+   * `/confirmar-conta?code=…`). Opcional, o compilador deixaria de acusar quem esquecesse: é justamente
+   * a cegueira que este item existe para tirar.
+   *
+   * **Quatro parâmetros é o limite desta porta. O quinto vira objeto** — o gatilho fica escrito aqui para
+   * que a decisão não se perca.
    */
-  criarConta(nome: string, email: string, senha: string): Promise<ResultadoDeCredencial>;
+  criarConta(
+    nome: string,
+    email: string,
+    senha: string,
+    destino: string,
+  ): Promise<ResultadoDeCredencial>;
 
   /**
-   * **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026).
+   * **DORMENTE** — em regime nenhum e-mail de confirmação é enviado (Q-T9, 22/08/2026), e o que a mantém
+   * assim é **só o interruptor *Confirm email* do painel**, não a ausência de destino: desde o item 6c o
+   * `signUp` manda o link para a rota que esta operação serve.
    *
    * Troca o código que o link de confirmação de e-mail carrega por uma sessão.
    *

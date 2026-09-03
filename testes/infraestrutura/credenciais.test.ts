@@ -113,6 +113,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "CONTA_JA_EXISTE" });
@@ -128,6 +129,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "CONTA_JA_EXISTE" });
@@ -143,6 +145,7 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
       "Helena Rocha",
       "helena@exemplo.test",
       "curta",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "SENHA_RECUSADA_PELO_PROVEDOR" });
@@ -160,12 +163,57 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(signUp).toHaveBeenCalledWith({
       email: "helena@exemplo.test",
       password: "segredo",
-      options: { data: { nome: "Helena Rocha" } },
+      options: {
+        data: { nome: "Helena Rocha" },
+        emailRedirectTo: "https://exemplo.test/confirmar-conta",
+      },
+    });
+  });
+
+  it("outro destino chega como outro `emailRedirectTo` — o valor não é constante deste ACL (item 6c)", async () => {
+    // **Sem `emailRedirectTo` o provedor manda o link para a Site URL CRUA** — a raiz, que não troca
+    // código por sessão. Foi o sintoma de 31/08/2026: `/?code=…` em vez de `/confirmar-conta?code=…`.
+    // Duas chamadas com destinos diferentes é o que separa "repassa" de "tem um host escrito aqui".
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "fingido" }, user: { id: "usuario-novo" } },
+      error: null,
+    });
+    const credenciais = criarCredenciais(cookiesVazios);
+
+    await credenciais.criarConta(
+      "Helena",
+      "helena@exemplo.test",
+      "segredo",
+      "http://host.docker.internal:3000/confirmar-conta",
+    );
+    await credenciais.criarConta(
+      "Helena",
+      "helena@exemplo.test",
+      "segredo",
+      "https://publicado.test/confirmar-conta",
+    );
+
+    expect(signUp).toHaveBeenNthCalledWith(1, {
+      email: "helena@exemplo.test",
+      password: "segredo",
+      options: {
+        data: { nome: "Helena" },
+        emailRedirectTo: "http://host.docker.internal:3000/confirmar-conta",
+      },
+    });
+    expect(signUp).toHaveBeenNthCalledWith(2, {
+      email: "helena@exemplo.test",
+      password: "segredo",
+      options: {
+        data: { nome: "Helena" },
+        emailRedirectTo: "https://publicado.test/confirmar-conta",
+      },
     });
   });
 
@@ -179,6 +227,7 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
       "Helena Rocha",
       "helena@exemplo.test",
       "segredo",
+      "https://exemplo.test/confirmar-conta",
     );
 
     expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false });
@@ -230,6 +279,31 @@ describe("pedirRedefinicaoDeSenha — a doutrina do não-confirmar (critério 1)
     );
 
     expect(resultado).toStrictEqual({ ok: false, recusa: "FALHA_DO_PROVEDOR" });
+  });
+});
+
+describe("pedirRedefinicaoDeSenha — o pedido não carrega destino (item 6d)", () => {
+  it("chama o provedor com o e-mail e MAIS NADA — é isso que faz o link valer em outro aparelho", async () => {
+    // **A ausência do segundo argumento é a garantia, e é por isso que ela tem teste.**
+    //
+    // `redirectTo` alimentaria `{{ .ConfirmationURL }}`, que o nosso template NÃO usa: ele monta o
+    // endereço com `{{ .SiteURL }}` e `{{ .TokenHash }}` (`supabase/templates/recuperacao.html:6`),
+    // apontando direto para `/redefinir-senha/link`. O token viaja no e-mail e é trocado por
+    // `verifyOtp` **no servidor** — sem verificador PKCE, sem cookie do navegador que pediu. É o
+    // contrário exato do `criarConta`, que desde o 6c passa `emailRedirectTo` e por isso só funciona
+    // na mesma janela.
+    //
+    // **Sem esta afirmação, a decisão vivia só num comentário** (`autenticacao.ts:145-148`), e
+    // comentário não reprova esteira. Um segundo argumento aqui quebra este teste, de propósito.
+    resetPasswordForEmail.mockResolvedValue({ error: null });
+
+    await criarCredenciais(cookiesVazios).pedirRedefinicaoDeSenha("helena@exemplo.test");
+
+    // **A aridade vem primeiro de propósito.** No Vitest, o primeiro `expect` que falha aborta o `it` —
+    // então a ordem das duas linhas decide qual mensagem a esteira mostra. A aridade é a coisa sob teste,
+    // e `to have a length of 1 but got 2` diz o defeito; a outra ordem diria só "não foi chamado assim".
+    expect(resetPasswordForEmail.mock.calls[0]).toHaveLength(1);
+    expect(resetPasswordForEmail).toHaveBeenCalledWith("helena@exemplo.test");
   });
 });
 

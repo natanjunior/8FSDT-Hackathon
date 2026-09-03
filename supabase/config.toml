@@ -174,7 +174,11 @@ site_url = "http://127.0.0.1:3000"
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # `/confirmar-conta` é a aterrissagem do link do e-mail (protótipo, T-01, quadros 5 e 6).
-additional_redirect_urls = ["http://127.0.0.1:3000/confirmar-conta", "http://localhost:3000/confirmar-conta"]
+# `host.docker.internal` é o nome pelo qual a aplicação é aberta no ambiente local (`.env.example`), e
+# desde o item 6c é ele que chega como origem do pedido — logo é ele que o `emailRedirectTo` carrega.
+# Sem esta entrada, o provedor LOCAL ignora o destino e volta para a `site_url` crua: o sintoma do lote 10
+# reproduzido na máquina de quem desenvolve.
+additional_redirect_urls = ["http://127.0.0.1:3000/confirmar-conta", "http://localhost:3000/confirmar-conta", "http://host.docker.internal:3000/confirmar-conta"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -266,6 +270,11 @@ otp_expiry = 3600
 # no servidor (ADR-0006), a documentação do provedor diz que o link padrão devolve a sessão em fragmento de
 # URL — que o servidor não lê. Com `{{ .TokenHash }}` o link aponta direto para a nossa rota, e passa a
 # funcionar **em outro aparelho**, que é o que o inventário afirma sobre T-13.
+#
+# **Declarar o template aqui NÃO o publica.** Quem lê este bloco é a CLI, e ela monta só a pilha local; o
+# projeto hospedado nunca o leu, e nada neste repositório o empurra. Em produção o assunto e o corpo são
+# digitados à mão no painel — README, `#### O que vive só no painel do Supabase`, campo 4 — e quem prova
+# que os dois concordam é `npm run verificar:auth`, conferência **E**. Ambos nascem no item **40b**.
 [auth.email.template.recovery]
 subject = "Redefinir a sua senha no Resolve Aí"
 content_path = "./supabase/templates/recuperacao.html"

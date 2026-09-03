@@ -12,7 +12,11 @@ import {
 } from "@/aplicacao/credenciais";
 import { montarCredenciais } from "@/composicao";
 
-import { armazenamentoDeCookies, armazenamentoDeRedefinicao } from "@/interface/http";
+import {
+  armazenamentoDeCookies,
+  armazenamentoDeRedefinicao,
+  destinoDeConfirmacao,
+} from "@/interface/http";
 import {
   criarContaSchema,
   definirSenhaSchema,
@@ -37,7 +41,10 @@ import {
 export type EstadoDoFormulario = {
   readonly recusa?: RecusaDeCredencial;
   readonly erros?: Readonly<Record<string, string>>;
-  /** **DORMENTE** — nenhum e-mail de confirmação é enviado nesta entrega (Q-T9, 22/08/2026). */
+  /**
+   * **DORMENTE** — em regime nenhum e-mail de confirmação é enviado (Q-T9, 22/08/2026). O que a mantém
+   * assim é o interruptor do painel; o destino do link existe desde o item 6c.
+   */
   readonly aviso?: "confirme-o-email";
   /** T-12: o pedido foi aceito. **Não diz se a conta existe** — nem poderia (critério 1). */
   readonly enviado?: boolean;
@@ -80,21 +87,29 @@ export async function acaoDeCriarConta(
   });
   if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
 
+  // **Antes de qualquer ida ao provedor.** Se a origem não der para descobrir, isto lança aqui — e não
+  // depois de a conta existir com um link que aterrissa na raiz (item 6c).
+  const destino = await destinoDeConfirmacao();
+
   const resultado = await criarConta(
     montarCredenciais(await armazenamentoDeCookies()),
     conferido.data.nome,
     conferido.data.email,
     conferido.data.senha,
+    destino,
   );
 
   if (!resultado.ok) return { recusa: resultado.recusa };
 
-  // **DORMENTE.** A Q-T9 foi **fechada** em 22/08/2026: a confirmação de e-mail não é obrigatória, o
-  // provedor devolve sessão no `signUp`, e `precisaConfirmarEmail` é sempre `false` — este ramo não é
-  // alcançado. T-11 termina no `redirect("/")` abaixo, direto.
+  // **DORMENTE.** A Q-T9 foi **fechada** em 22/08/2026: em regime a confirmação de e-mail não é
+  // obrigatória, o provedor devolve sessão no `signUp`, e `precisaConfirmarEmail` é `false` — este ramo
+  // não é alcançado, e T-11 termina no `redirect("/")` abaixo.
   //
-  // A tela continua escrita para as duas configurações de propósito: o que decide é o interruptor
-  // *Confirm email* do painel do provedor, não o código. O ramo fica pelo dia em que ele virar.
+  // **O que decide é o interruptor *Confirm email* do painel do provedor, não o código** — e desde o item
+  // 6c o link que ele passaria a enviar já aponta para `/confirmar-conta`, montado a partir da origem
+  // deste pedido. O ramo fica pelo dia em que o interruptor virar — e a validação daquele item **abre uma
+  // janela de minutos para exatamente isso**. Quem a abre é o humano; nada aqui afirma que ela já foi
+  // aberta.
   if ("precisaConfirmarEmail" in resultado && resultado.precisaConfirmarEmail) {
     return { aviso: "confirme-o-email" };
   }

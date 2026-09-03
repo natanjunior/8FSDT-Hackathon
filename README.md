@@ -136,10 +136,12 @@ npm ci                              # dependências
 npm run local                       # tudo o resto
 ```
 
-`npm run local` faz, nesta ordem: `supabase start` (Postgres e Auth locais, em containers) → escreve o
-`.env.local` a partir do `supabase status`, **se ele não existir** → cria o database `resolveai_teste`, da
-suíte de integração, se ele não existir → `supabase migration up` → `docker compose up --build`, no **mesmo
-`Dockerfile` que vai a produção**.
+`npm run local` faz, nesta ordem: **pré-voo** (Docker de pé, CLI do Supabase de pé, e as portas `3000` e
+`10000` livres ou já nossas) → `supabase start` (Postgres e Auth locais, em containers) → escreve o
+`.env.local` a partir do `supabase status` **se ele não existir**, e se existir **compara e avisa** o que
+divergiu, sem sobrescrever → cria o database `resolveai_teste`, da suíte de integração, se ele não existir →
+`supabase migration up` → sobe o Azurite e **confere do host** que ele responde → `docker compose up --build`,
+no **mesmo `Dockerfile` que vai a produção**.
 
 Depois: **<http://host.docker.internal:3000>**.
 
@@ -156,7 +158,42 @@ Depois: **<http://host.docker.internal:3000>**.
 
 Sem Docker, para o laço curto de quem implementa: `npm run dev` — mas aí a URL do provedor é
 `http://127.0.0.1:54391` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
-nome de host só**.
+nome de host só**. E ele ocupa a `3000`: **deixe-o rodando e o `npm run local` não sobe.** O pré-voo diz isso
+com todas as letras, em vez de deixar o Docker reclamar de `bind` quatro minutos depois.
+
+### Por que aparecem dois grupos no Docker Desktop
+
+Porque são **duas ferramentas**, e cada uma faz o seu projeto — não é duplicação:
+
+| Grupo | Quem cria | O que tem dentro |
+|---|---|---|
+| `resolve-ai-local` | o nosso `docker-compose.yml` | `resolve-ai` (a aplicação) e `resolve-ai-azurite` (o storage) |
+| `resolve-ai` | a **CLI do Supabase**, pelo `project_id` do `supabase/config.toml` | `supabase_db_…`, `supabase_auth_…`, `supabase_kong_…` e os demais |
+
+O nome `resolve-ai-local` é **explícito** no compose desde 30/08/2026. Sem ele, o Compose nomeava o projeto
+pela pasta — `8fsdt-hackathon` —, o que não dizia nada a ninguém e mudava se a pasta fosse renomeada. E ele
+não pode ser `resolve-ai`: colidiria com o do Supabase, e um `docker compose down --remove-orphans` passaria
+a tratar Postgres e Auth como órfãos deste arquivo — removendo-os.
+
+### Quando não subir
+
+O `npm run local` falha **dizendo a causa**; esta tabela é o que fazer com cada uma.
+
+| O que aparece | O que é | O que fazer |
+|---|---|---|
+| `A porta 3000 está ocupada por outra coisa` | um `npm run dev` esquecido, ou outro projeto | o próprio erro imprime o `taskkill`/`kill` com o PID |
+| `A porta 10000 está ocupada por outra coisa` | a `10000` é a porta padrão do Azurite **e** a do Thrift do Spark | pare o container ou processo que o erro nomear |
+| `o container subiu saudável, mas o host não o alcança` | o container voltou de um restart sem publicar a porta | **o script se cura sozinho** (recria e refaz a sonda); se insistir, reinicie o Docker Desktop |
+| `.env.local … diverge do que o ambiente local diz agora` | o `supabase status` mudou e o arquivo ficou para trás | apague o `.env.local` e rode de novo — só as sessões abertas caem |
+| `Docker não respondeu` | o daemon não está de pé | abra o Docker Desktop e espere o ícone verde |
+| `Falta o @azure/storage-blob` | `node_modules` incompleto | `npm ci` |
+
+> **Por que o `Healthy` do `docker compose ps` não é prova de nada aqui.** O healthcheck roda **dentro** do
+> container: ele responde *"o Azurite iniciou?"*, nunca *"o host alcança o Azurite?"*. Em 30/08/2026 o
+> container ficou verde com `NetworkSettings.Ports` vazio — `docker port` devolvia nada, e a subida morria
+> com `ECONNREFUSED` dez quadros dentro do SDK do Azure. Quem responde a segunda pergunta é o
+> `ferramentas/ambiente-local.mjs`, que sonda `127.0.0.1:10000` **do host** depois do `up`. Os dois
+> healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que não saiu.
 
 ### Verificar
 
@@ -179,6 +216,7 @@ Cada peça, separada:
 | `npm run verificar:openapi` | As **quatro** regras mecânicas da §15 do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver *(eram três até 30/08/2026)* |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso **não** está no `npm run verificar`; no pipeline ele roda **antes** do `push`, porque imagem publicada com segredo dentro não se desfaz |
+| `npm run verificar:auth` | **A configuração de Auth publicada bate com a que este repositório declara** — Site URL, lista de redirecionamento, confirmação de e-mail, assunto e corpo do e-mail de recuperação. Exige credencial e rede, e por isso **não** está no `npm run verificar`; é o mesmo tratamento do `verificar:imagem`. Ver *[Publicar](#publicar)* |
 
 **O teste de integração roda num database só dele, `resolveai_teste`**, criado pelo `npm run local`. Sem
 `BANCO_URL_TESTE`, ele deriva do `BANCO_URL` trocando o database — e **recusa rodar** se o destino for o
@@ -195,6 +233,20 @@ npm run local                                                # a pilha, em outro
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo     # o mundo
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
 ```
+
+**No PowerShell, as duas últimas linhas não parseiam** — `VAR=valor comando` é sintaxe do shell POSIX, e o
+PowerShell lê `SENHA_DA_DEMONSTRACAO=ResolveAi!2026` como nome de comando. Lá é assim:
+
+```powershell
+npx playwright install chromium
+npm run local
+$env:SENHA_DA_DEMONSTRACAO = 'ResolveAi!2026'   # vale para a sessão inteira do terminal
+npm run semear:demo
+npm run teste:ponta-a-ponta
+```
+
+*(Acrescentado em 30/08/2026: o bloco `bash` estava sozinho, e a máquina onde este projeto é desenvolvido é
+Windows com PowerShell. O mesmo vale para o `BANCO_URL_TESTE` citado acima.)*
 
 Ele **acrescenta** uma ocorrência ao `Edifício Aurora (demonstração)`, com a marca do instante no título,
 e não altera nada do que a semente escreveu. Rodar duas vezes cria duas ocorrências marcadas e nada
@@ -213,6 +265,59 @@ escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 
 **Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
+
+#### O que vive só no painel do Supabase
+
+**A esteira publica migração e imagem — nunca a configuração de Auth.** O bloco `[auth]` de
+`supabase/config.toml` governa **só a pilha local**: quem o lê é a CLI, que monta a máquina de quem rodou
+`supabase start`. O projeto hospedado nunca o leu, e nada aqui o publica — não existe `supabase config
+push` em lugar nenhum deste repositório, de propósito. Ele empurraria o `config.toml` **inteiro**, portas
+locais incluídas, e `site_url` e `additional_redirect_urls` **têm** de divergir entre os ambientes.
+
+Consequência: **estes quatro campos são digitados à mão, uma vez, no painel do projeto hospedado.**
+Enquanto ninguém os digitou, a nuvem fica no padrão de fábrica — que é literalmente
+`http://localhost:3000`, e foi o que quebrou a confirmação de conta e a redefinição de senha em produção
+até 31/08/2026.
+
+| # | Onde, no painel | O que digitar |
+|---|---|---|
+| 1 | *Authentication* → *URL Configuration* → **Site URL** | a URL pública da aplicação, **sem barra final** |
+| 2 | *Authentication* → *URL Configuration* → **Redirect URLs** | `<pública>/confirmar-conta` — e **remover** toda entrada com `localhost` ou `127.0.0.1` |
+| 3 | *Authentication* → *Sign In / Providers* → *Email* → **Confirm email** | **desligado**, que é o mesmo valor de `enable_confirmations` no `config.toml` |
+| 4 | *Authentication* → *Emails* → *Templates* → **Reset Password** | o assunto e o corpo de `supabase/templates/recuperacao.html` |
+
+**O 4 não precisa da lista de permissão.** O link daquele template aponta direto para a nossa rota, com
+`{{ .TokenHash }}`, e `pedirRedefinicaoDeSenha` chama `resetPasswordForEmail` **sem `redirectTo`**, de
+propósito — é o que faz o link funcionar em outro aparelho. Não há redirecionamento do provedor a
+autorizar, e acrescentar a rota de redefinição à lista é ruído numa lista que é superfície de ataque.
+
+**Como se confere — e a conferência é mecânica:**
+
+```bash
+npm run verificar:auth
+```
+
+Ele lê a configuração publicada (`GET /v1/projects/{ref}/config/auth`, só leitura) e compara com o que
+este repositório declara. Precisa de três variáveis, no `.env.local` ou no ambiente — ver o
+`.env.example`: `URL_PUBLICA`, `SUPABASE_ACCESS_TOKEN` (Account → Access Tokens, escopo `auth:read`) e
+`SUPABASE_PROJECT_REF`. **A saída diz qual é o problema:**
+
+| Código | O que aconteceu |
+|---|---|
+| **0** | os cinco campos batem |
+| **1** | a configuração publicada **diverge** da declarada — ou os controles embutidos do verificador falharam |
+| **2** | falta credencial: ele não olhou para nada |
+| **3** | não deu para falar com a API de management |
+
+**E ele roda sozinho em dois lugares.** No `entrega.yml`, como emprego próprio de que `migrar` depende —
+um Auth divergente **barra a entrega inteira**, inclusive mudanças que não tocam autenticação, e a saída
+de emergência é a válvula `DIVERGENCIAS` do verificador, que exige razão escrita e aparece no diff. E no
+cron de sexta, que é a metade que importa: **deriva de configuração não nasce de commit** — alguém clica
+no painel numa terça e nada no repositório muda.
+
+Na esteira, `URL_PUBLICA` é *variable* do repositório (não *secret*: FQDN público por desenho não é
+credencial, e como segredo ele sai mascarado do resumo da execução); as outras duas já são *secret*, as
+mesmas que o `migrar` usa.
 
 ### A demonstração
 
@@ -260,7 +365,7 @@ npm run semear:demo               # e semeia de novo
 | `src/dominio/` | Domínio | as regras. Não persiste, não conhece HTTP |
 | `src/infraestrutura/` | Infraestrutura | `clientes/` (o único lugar com SDK), `repositorios/`, `contexto/` (o ponto único de escopo) |
 | `src/composicao/` | — | monta o grafo de objetos; não decide regra |
-| `ferramentas/verificadores/` | — | **quatro** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker e roda no pipeline |
+| `ferramentas/verificadores/` | — | **cinco** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker, e o do Auth publicado, que exige credencial e rede — os dois últimos rodam no pipeline |
 | `supabase/migrations/` | — | o esquema, versionado |
 | `testes/` | — | `dominio/` e `aplicacao/` sem banco; `integracao/` com |
 

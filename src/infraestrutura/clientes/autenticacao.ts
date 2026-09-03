@@ -118,12 +118,19 @@ export function criarCredenciais(cookies: ArmazenamentoDeCookies): PortaDeCreden
       return { ok: false, recusa: traduzirEntrada(error.code, error.message) };
     },
 
-    async criarConta(nome, email, senha): Promise<ResultadoDeCredencial> {
+    async criarConta(nome, email, senha, destino): Promise<ResultadoDeCredencial> {
       const { data, error } = await cliente(cookies).auth.signUp({
         email,
         password: senha,
-        // É daqui que o ACL semeia `pessoas.nome` (contrato §4.1).
-        options: { data: { nome } },
+        options: {
+          // É daqui que o ACL semeia `pessoas.nome` (contrato §4.1).
+          data: { nome },
+          // **Item 6c, critério 1.** Sem isto o provedor manda o link para a *Site URL* crua — a raiz,
+          // que não troca código por sessão; quem troca é `confirmarPorCodigo`, logo abaixo, servido por
+          // `app/confirmar-conta/`. O valor vem montado da camada de Interface, e este adaptador **não
+          // sabe** onde a aplicação está publicada — nem deve.
+          emailRedirectTo: destino,
+        },
       });
 
       if (error !== null) {

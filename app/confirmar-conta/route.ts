@@ -7,10 +7,14 @@ import { aterrissarConfirmacaoDeConta } from "@/interface/http";
  * este caminho não existe no `openapi.yaml` e não deve existir. Ele precisa estar cadastrado como *Redirect
  * URL* no projeto do provedor — está na lista de provisionamento.
  *
- * **DORMENTE** — a Q-T9 foi fechada em 22/08/2026 e **nenhum e-mail de confirmação é enviado**, então nada
- * chega a este caminho. Ver `interface/http/confirmacao-de-conta.ts` para o porquê de ele ficar. O cadastro
- * como *Redirect URL* no provedor **continua na lista de provisionamento**: cadastrar a URL não liga coisa
- * nenhuma, e tirá-la seria trabalho a refazer no dia do interruptor (spec §3.2).
+ * **DORMENTE** — a Q-T9 foi fechada em 22/08/2026 e, em regime, **nenhum e-mail de confirmação é
+ * enviado**, então nada chega a este caminho. **O que a mantém assim é só o interruptor *Confirm email*
+ * do painel do provedor** — desligado nos dois ambientes por decisão. Desde o item 6c **não** é mais a
+ * ausência de destino: o `signUp` manda o link para cá. Ver `interface/http/confirmacao-de-conta.ts`.
+ *
+ * O cadastro como *Redirect URL* no provedor **continua na lista de provisionamento**, e agora ele é
+ * necessário de fato: `emailRedirectTo` fora da lista de permissão é **ignorado** pelo provedor, que
+ * volta para a *Site URL* — degradação silenciosa, e é o sintoma de 31/08/2026.
  */
 export const GET = aterrissarConfirmacaoDeConta;
 
