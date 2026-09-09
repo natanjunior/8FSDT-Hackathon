@@ -529,10 +529,15 @@ escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem v
   **A máscara é a mesma de T-08** — prefixo de país padrão `+55` mais o número no formato nacional —,
   porque ninguém digita `+55` de propósito e o `CHECK` do banco recusa qualquer outra forma.
 - **B:** `pedidosDeEntrada[].organizacao.nome` e `criadoEm`. Texto: *"Seu pedido para entrar em
-  {nome} está aguardando a decisão de um Gestor."* **E a frase que a ausência de notificação obriga:**
-  *"Você não será avisado automaticamente — volte aqui para ver."* Mentir por omissão aqui é pior do que
-  a limitação: o aviso automático é ⬜ (Q10), e uma tela que diz *"aguarde"* sem dizer *"e nada vai te
-  chamar"* produz uma pessoa que espera para sempre.
+  {nome} está aguardando a decisão de um Gestor."* **E a frase que diz onde a resposta aparece:**
+  *"Volte aqui para ver a resposta."* O aviso automático é ⬜ (Q10), e uma tela que diz *"aguarde"* sem
+  dizer **onde olhar** produz uma pessoa que fecha a aba esperando um e-mail que nunca vem.
+
+  > **(Corrigido em 08/09/2026.)** A frase era *"Você não será avisado automaticamente — volte aqui para
+  > ver."*, e este parágrafo a justificava com *"mentir por omissão aqui é pior do que a limitação"*. O
+  > objetivo continua valendo; a redação não. Ela **anunciava uma lacuna** em vez de orientar — *"o sistema
+  > está jogando contra si mesmo"*, na leitura do dono do produto. A nova faz o mesmo trabalho por
+  > implicação: quem precisa voltar já entendeu que nada o procura.
 - **C:** *"Seu pedido para entrar em {nome} não foi aprovado."* + o campo de código de novo, porque
   pedido recusado **pode ser refeito**. Sem o campo, a face C é um beco que o modelo de dados não quis
   criar.
