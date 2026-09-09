@@ -1225,9 +1225,16 @@ paths:
         O Gestor que também mora no prédio usa `autor=eu` para ver as próprias — é o síndico morador,
         resolvido por parâmetro e não por um segundo vínculo.
 
-        **Ordenação fixa em `registradaEm` decrescente** e **paginação por cursor**: a lista recebe
-        inserções o tempo todo, e com deslocamento numérico um item registrado entre duas páginas
-        apareceria duas vezes.
+        **Ordenação fixa em `registradaEm` decrescente** e **paginação numerada sobre um instante de
+        corte** (`pagina`, `limite`, `ate`). A ordenação não é parametrizável.
+
+        O corte imobiliza a fronteira superior do conjunto — `registradaEm` nunca muda —, então uma
+        ocorrência registrada entre duas páginas **não aparece duas vezes**; ela é contada à parte, em
+        `novasDesdeOCorte`. O corte **não** imobiliza a pertinência de cada item: quem sai do recorte
+        (uma triagem entre páginas, por exemplo) encolhe o conjunto, e é a **compensação de deslocamento**
+        — via `totalNoCorte` — que impede o pulo. Ver §7.7 do contrato, e a premissa **P6** para o resíduo.
+
+        **O envelope traz contagens**, todas sob a mesma visibilidade que a listagem aplica.
 
         *Capacidades: listar todas as ocorrências · `ENUNCIADO · aberto` (G1); filtrar por categoria,
         status e prioridade · `ENUNCIADO · literal` (G2); ver as minhas ocorrências · `ENUNCIADO · aberto` (S7).*
@@ -1262,7 +1269,9 @@ paths:
             Solicitante sem um segundo vínculo.
           schema: { type: string, enum: [eu] }
         - $ref: "#/components/parameters/Limite"
-        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/Ate"
+        - $ref: "#/components/parameters/TotalNoCorte"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       responses:
         "200":
@@ -1271,21 +1280,72 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [itens, proximoCursor, visibilidadeAplicada]
+                required:
+                  [
+                    itens,
+                    total,
+                    pagina,
+                    limite,
+                    ate,
+                    totalNoCorte,
+                    saidasDesdeOCorte,
+                    novasDesdeOCorte,
+                    contagens,
+                    visibilidadeAplicada,
+                  ]
                 properties:
                   itens:
                     type: array
                     items: { $ref: "#/components/schemas/OcorrenciaResumo" }
-                  proximoCursor:
-                    type: [string, "null"]
-                    description: Cursor da próxima página; `null` quando acabou.
+                  total:
+                    type: integer
+                    description: Tamanho do conjunto **filtrado**, no corte.
+                  pagina: { type: integer }
+                  limite: { type: integer }
+                  ate:
+                    type: string
+                    format: date-time
+                    description: O corte aplicado. A primeira página o fixa; repasse-o nas seguintes.
+                  totalNoCorte:
+                    type: integer
+                    description: |
+                      O `total` da primeira página, ecoado. **É este o campo a repassar** — não o `total`.
+                  saidasDesdeOCorte:
+                    type: integer
+                    description: Quantas saíram do recorte desde o corte. Não custa consulta.
+                  novasDesdeOCorte:
+                    type: integer
+                    description: |
+                      Quantas foram registradas **depois** do corte e casam com o recorte aplicado.
+                  contagens:
+                    type: object
+                    required: [minhas, emAberto, semResponsavel]
+                    description: |
+                      O painel. **Calculado sem os filtros de status, categoria e prioridade**: estes
+                      números existem para o leitor decidir qual recorte pedir, e recalculá-los dentro do
+                      recorte já pedido seria um espelho de frente para outro.
+                    properties:
+                      minhas: { type: integer }
+                      emAberto:
+                        type: integer
+                        description: Status não terminal.
+                      semResponsavel:
+                        type: integer
+                        description: Sem responsável vigente **e** não terminal.
                   visibilidadeAplicada:
                     type: string
                     enum: [todas, apenas_minhas]
                     description: O recorte que o servidor aplicou, para a interface poder dizê-lo ao usuário.
               example:
                 visibilidadeAplicada: "todas"
-                proximoCursor: "MjAyNi0wOC0yMFQxMzowMjoxMVp8OWExZg"
+                total: 137
+                pagina: 2
+                limite: 20
+                ate: "2026-09-09T08:00:00Z"
+                totalNoCorte: 140
+                saidasDesdeOCorte: 3
+                novasDesdeOCorte: 5
+                contagens: { minhas: 2, emAberto: 41, semResponsavel: 12 }
                 itens:
                   - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
                     titulo: "Lâmpada queimada na garagem"
@@ -2286,13 +2346,56 @@ components:
       in: query
       description: Tamanho da página.
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Pagina:
+      name: pagina
+      in: query
+      description: |
+        Número da página, começando em 1. A navegação é numerada **sobre um instante de corte** — ver
+        `Ate`. Acima de 1000 é `400`: deslocamento fundo é varredura, e nenhuma tela do produto oferece o
+        milésimo clique.
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 1 }
+    Ate:
+      name: ate
+      in: query
+      description: |
+        O **instante de corte** da navegação, ISO 8601 com fuso. A primeira página o fixa em *agora* e o
+        devolve; as seguintes o repassam, e a consulta filtra `registradaEm <= ate`. Ocorrência registrada
+        depois **não entra no conjunto** e portanto não desloca nada — é o que substitui a imunidade que o
+        cursor dava.
+
+        Valor no futuro é **limitado a agora**, não recusado: relógio de aparelho adiantado por segundos é
+        rotina. Valor ilegível é `400`, nunca *agora*.
+
+        **Não confundir com o `ate` de `GET /dashboard`**, que é um **dia** (`AAAA-MM-DD`) e delimita a
+        janela do indicador. Mesma palavra, dois endpoints, duas gramáticas — registrado em vez de
+        renomeado, porque o critério 14b.2 nomeia este parâmetro.
+      schema: { type: string, format: date-time }
+      example: "2026-09-09T08:00:00Z"
+    TotalNoCorte:
+      name: totalNoCorte
+      in: query
+      description: |
+        O `total` que a **primeira** página devolveu, repassado. O servidor mede quanto o conjunto encolheu
+        desde o corte (`totalNoCorte − total`) e **recua o deslocamento na mesma medida** — é o que impede
+        que uma ocorrência triada entre duas páginas faça outra ser **pulada**.
+
+        **É dica, não autoridade.** Valor alto demais limita o deslocamento em zero e repete a primeira
+        página; valor baixo demais devolve o deslocamento cru. Nenhum valor produz salto além do que um
+        deslocamento sem compensação já produziria.
+
+        **Copie o campo `totalNoCorte` da resposta**, nunca o `total`: o `total` é recalculado a cada
+        página e usá-lo desliga a compensação sem nenhum sintoma visível.
+      schema: { type: integer, minimum: 0 }
     Cursor:
       name: cursor
       in: query
       description: |
-        Cursor opaco devolvido em `proximoCursor`. Codifica o par (data de registro, id) — o mesmo par do
-        índice de listagem. Não é deslocamento numérico, e por isso a lista não duplica itens quando algo
-        novo é registrado entre uma página e outra.
+        Cursor opaco devolvido em `proximoCursor`. Codifica o par (instante, id) — o mesmo par do índice
+        de ordenação. Não é deslocamento numérico, e por isso a lista não duplica itens quando algo novo é
+        registrado entre uma página e outra.
+
+        **Usado apenas na conversa.** A listagem de ocorrências passou a paginação numerada em 09/09/2026
+        — ver §7.7 do contrato.
       schema: { type: string }
 
   responses:

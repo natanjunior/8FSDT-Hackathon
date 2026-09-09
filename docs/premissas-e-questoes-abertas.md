@@ -76,6 +76,38 @@ boa parte do que é `NOSSO` perde justificativa.
 feita.** É a única premissa deste documento que se resolveria com uma conversa curta, e a que mais
 escopo destrava — por isso segue registrada como pendência, e não como resolvida.
 
+### P6 — Em filtro cujo valor pode voltar, a compensação de deslocamento reduz o pulo mas não o elimina
+
+A compensação de deslocamento ([contrato §7.7](contrato-de-api.md)) é **exata** quando nada **reentra** no
+conjunto filtrado dentro do corte. Na fila de triagem — `?status=aberta` — isso é garantido pela máquina de
+estados: **nenhuma transição leva a `aberta`**, e nascimento novo está fora do corte. Se, entre duas
+páginas, reentrarem mais itens do que saíram depois da posição do leitor, um item pode ser pulado.
+
+**Onde há reentrada, e é mais de um recorte** — a lista é fechada e sai da máquina de estados e das dez
+setas:
+
+| Recorte | Por onde reentra |
+|---|---|
+| `?status=pausada` | `retomar` tira, `pausar` devolve |
+| `?status=em_analise` · `?status=em_atendimento` | `pausar` tira, **`retomar` devolve** — o retorno é ao status anterior à pausa, e os dois únicos anteriores possíveis são estes |
+| `?prioridade=` (qualquer valor) | `alterarPrioridade` é livre nos dois sentidos, sem trilha e sem terminal — é a dimensão com **mais** reentrada das três |
+| `?status=aberta` · `?status=resolvida` · `?status=cancelada` · `?categoriaId=` | **Nenhuma.** `aberta` é estado de nascimento, os dois terminais não têm saída (D24), e a categoria não muda depois do registro |
+
+*(A redação de 09/09/2026 nomeava só `?status=pausada`. Corrigida na revisão do plano, no mesmo dia:
+declarar menos resíduo do que existe é o defeito que esta premissa foi escrita para não cometer.)*
+
+**Por que assumimos.** A alternativa que elimina o resíduo é o cursor, e ele não sustenta salto para página
+arbitrária — que é exatamente o que a decisão do dono do produto, de 09/09/2026, pediu. **E o recorte que o
+§7.7 existia para proteger — a fila de triagem, `?status=aberta` — é justamente o que fica exato.** Os
+recortes com reentrada são listas curtas (pausadas, em análise, em atendimento) ou dimensão que ninguém
+pagina de cima esperando ter visto tudo (`?prioridade=`); e a reentrada exige que **alguém aja no sentido
+inverso**, no mesmo minuto, na mesma organização.
+
+**Se estiver errada:** uma ocorrência some da navegação de quem estava paginando naquele instante. Ela
+continua alcançável por qualquer outra leitura — sem filtro, por outra página, pelo detalhe, pelo painel de
+contagens. O conserto, se o caso aparecer, é a **navegação por cursor sob rótulo numérico** para os
+recortes com reentrada; o desenho já existe, no que o §7.7 recusou.
+
 ---
 
 ## 2. Questões abertas
@@ -128,7 +160,7 @@ Levantados no passo 3 e acrescidos nos passos 4 a 6. Fonte: `trabalho/produto/ev
 | PA-11 | **Quanto tempo é "muito tempo" sem primeira resposta?** Precisa de número para a política POL-09 existir. O objetivo O3 propõe 2 dias úteis, ainda não confirmado |
 | PA-12 | **Pausada por muito tempo — o alarme funciona?** Metade resolvida pela D14 e pela D15. **Mas é o modo de falha confirmado por pesquisa independente:** *"ON HOLD ou PARKED podem ser status úteis, mas também podem ser lugares onde itens acumulam e são ignorados"*. Se falhar aqui, o produto reproduz a dor que veio consertar |
 | PA-13 | **Quem são "os Gestores da organização" no canal 1?** Todos, sempre? Um condomínio com síndico e subsíndico teria os dois em toda conversa? |
-| PA-16 | **O que acontece se o Solicitante nunca avaliar?** Por D1 nada trava — mas o indicador de satisfação fica cego, e ele é a **única métrica de qualidade do produto**. **Agravado na primeira entrega, e agora se sabe quanto:** o convite a avaliar aparece no detalhe e na lista, mas a lista ordena só por data de registro e não filtra *resolvida e não avaliada* — então a resolução envelhece, afunda, e o convite afunda com ela. O que traria de volta são o **sino** e os **filtros rápidos**, os dois ⬜. **O objetivo O4 (≥60% avaliadas) fica sem instrumento**, e este é um custo do corte do aviso automático que a §3.2 do `escopo.md` não previu. **E o limite não é da tela, é da paginação:** como a listagem é por cursor e não devolve total, nem contar *"resolvidas esperando avaliação"* é possível — a contagem valeria só para a página carregada, e portanto **subcontaria e sumiria**, nunca contaria a mais. *(Corrigido em 30/08/2026: esta frase dizia que a contagem* "diria «nenhuma» havendo" *. A linha de chamada que a produziria **não tem estado zero** — o desenho a condiciona a "houver ao menos uma" —, então ela nunca diz* "nenhuma"*: ela subconta e some. O limite continua real e continua sendo da paginação. A mesma correção foi feita no achado **P-05** do `prototipo-low-fi.md`; item 21 da fila da frente de documentação.)* **E a própria linha de chamada ficou ⬜ em 29/08/2026**, por uma razão a mais: o toque nela aplicaria `?status=resolvida`, que devolve as avaliadas junto — o destino não corresponde à promessa. **O instrumento que sobra para o O4 é a marca no item da lista.** Levantado no inventário de telas em 20/08/2026, e delimitado pelo protótipo em 21/08 |
+| PA-16 | **O que acontece se o Solicitante nunca avaliar?** Por D1 nada trava — mas o indicador de satisfação fica cego, e ele é a **única métrica de qualidade do produto**. **Agravado na primeira entrega, e agora se sabe quanto:** o convite a avaliar aparece no detalhe e na lista, mas a lista ordena só por data de registro e não filtra *resolvida e não avaliada* — então a resolução envelhece, afunda, e o convite afunda com ela. O que traria de volta são o **sino** e os **filtros rápidos**, os dois ⬜. **O objetivo O4 (≥60% avaliadas) fica sem instrumento**, e este é um custo do corte do aviso automático que a §3.2 do `escopo.md` não previu. **E o limite não é da tela, é da paginação:** como a listagem é por cursor e não devolve total, nem contar *"resolvidas esperando avaliação"* é possível — a contagem valeria só para a página carregada, e portanto **subcontaria e sumiria**, nunca contaria a mais. *(Corrigido em 30/08/2026: esta frase dizia que a contagem* "diria «nenhuma» havendo" *. A linha de chamada que a produziria **não tem estado zero** — o desenho a condiciona a "houver ao menos uma" —, então ela nunca diz* "nenhuma"*: ela subconta e some. O limite continua real e continua sendo da paginação. A mesma correção foi feita no achado **P-05** do `prototipo-low-fi.md`; item 21 da fila da frente de documentação.)* **E a própria linha de chamada ficou ⬜ em 29/08/2026**, por uma razão a mais: o toque nela aplicaria `?status=resolvida`, que devolve as avaliadas junto — o destino não corresponde à promessa. **O instrumento que sobra para o O4 é a marca no item da lista.** Levantado no inventário de telas em 20/08/2026, e delimitado pelo protótipo em 21/08 **Correção de 09/09/2026, pelo item 14b:** a frase *"como a listagem é por cursor e não devolve total, nem contar «resolvidas esperando avaliação» é possível"* **deixou de ser verdade pela metade**. `GET /ocorrencias` passou a devolver `total` **sob os filtros aplicados** (contrato §7.7 revisto), então `?status=resolvida` responde quantas resolvidas existem. **O que continua faltando é a outra metade** — *"e não avaliada"* não tem filtro próprio, e esta fatia **não** o acrescenta. **O ⬜ da chamada continua ⬜**, e riscá-lo por causa disto seria erro: o que mudou foi a **razão**, não a condição. A condição que a desbloqueia continua sendo *"o dia em que `GET /ocorrencias` souber responder «resolvida e não avaliada»"*, e ela é do item 27. O achado gêmeo **P-05** do `prototipo-low-fi.md` continua com a redação antiga — é da frente de documentação, item 21 da fila. |
 | PA-17 | **A avaliação é visível ao Encarregado?** Ele executou o serviço; a nota é sobre o trabalho dele |
 | PA-21 | **Cinco eventos não couberam na linha do tempo** (comentário, nota interna, alteração de prioridade, reatribuição, mensagem na atribuição). O método do curso não trata de evento transversal — **limitação registrada em vez de forçá-los** |
 | PA-22 | **Pausar para melhorar o número.** O material de ITSM alerta que a classe *on-hold* *"não deve ser mal utilizada para atingir o SLA intencionalmente"*. Na Persona 1B o Gestor presta contas à imobiliária — o incentivo existe |

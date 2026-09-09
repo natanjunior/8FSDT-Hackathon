@@ -589,8 +589,12 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida, lente: Lent
 export type OcorrenciaResumoProjetada = ReturnType<typeof projetarOcorrenciaResumo>;
 
 /**
- * O cursor opaco: `base64url` do par `(registradaEm, id)` — *"exatamente o índice já existente"*
- * (`contrato-de-api.md` §7.7).
+ * O cursor opaco: `base64url` do par `(instante, id)`.
+ *
+ * **Quem o usa hoje é a CONVERSA, e só ela** — `codificarCursorDeConversa` logo abaixo. A listagem de
+ * ocorrências passou a paginação numerada sobre um instante de corte em 09/09/2026 (item 14b, §7.7 do
+ * contrato revista), e o cursor **ficou** em `GET /ocorrencias/{id}/comentarios`: *append-only*, sem
+ * filtro e sem navegação numerada, ele é imune de graça ali.
  *
  * **Opaco de propósito.** O cliente não deve montar cursor: no dia em que a ordenação ganhar uma segunda
  * coluna, um cliente que tenha aprendido a forma quebra. O que ele guarda é o que veio.
@@ -626,16 +630,30 @@ export function decodificarCursor(bruto: string): CursorDeListagem | null {
 /**
  * O envelope de `GET /ocorrencias` — **e o da estrada direta de T-03**, que é a mesma função.
  *
- * **`proximoCursor` é o do último item devolvido, e só existe com `temMais`.** Um cursor emitido sem haver
- * próxima página produziria um *"Carregar mais"* que devolve zero itens — o vazio que é defeito chegando
- * como `200`, que é a classe do achado R-15 do protótipo.
+ * **A projeção não recalcula nada.** Os nove números chegam prontos de `listarOcorrencias`, e é assim que
+ * a estrada direta e o `GET` não podem divergir: se a compensação morasse aqui, a tela e a API a
+ * aplicariam duas vezes ou nenhuma.
+ *
+ * **`totalNoCorte` volta, e é a razão de o cliente conseguir acertar** (item 14b): na primeira página ele
+ * é o próprio `total`; nas seguintes é o que o cliente mandou. O controle de navegação copia **um** campo
+ * em todo link — sempre o mesmo — em vez de escolher entre dois números parecidos, e é isso que impede o
+ * erro que desligaria a compensação **sem nenhum sintoma**.
+ *
+ * **Não há mais `proximoCursor`.** A decisão é do critério `14b.8`: o cursor sai da listagem e **fica** em
+ * `GET /ocorrencias/{id}/comentarios`, que é *append-only*, sem filtro e sem navegação numerada — imune
+ * de graça.
  */
 export function projetarPaginaDeOcorrencias(pagina: PaginaDeOcorrencias, lente: LenteDeRotulo) {
-  const ultimo = pagina.itens[pagina.itens.length - 1];
-
   return {
     itens: pagina.itens.map((item) => projetarOcorrenciaResumo(item, lente)),
-    proximoCursor: pagina.temMais && ultimo !== undefined ? codificarCursor(ultimo) : null,
+    total: pagina.total,
+    pagina: pagina.pagina,
+    limite: pagina.limite,
+    ate: pagina.ate,
+    totalNoCorte: pagina.totalNoCorte,
+    saidasDesdeOCorte: pagina.saidasDesdeOCorte,
+    novasDesdeOCorte: pagina.novasDesdeOCorte,
+    contagens: pagina.contagens,
     visibilidadeAplicada: pagina.visibilidadeAplicada,
   };
 }

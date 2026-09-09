@@ -21,7 +21,9 @@ import {
   consultaDe,
   FormatoInvalido,
   lerFiltroDeOcorrenciasDaUrl,
+  lerPaginacaoDaUrl,
   resolverEscopoParaTela,
+  type PaginacaoDaUrl,
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
@@ -59,8 +61,13 @@ export default async function Ocorrencias({
   const consulta = consultaDe(await searchParams);
 
   let filtro: FiltroDeOcorrencias;
+  let paginacao: PaginacaoDaUrl;
   try {
     filtro = lerFiltroDeOcorrenciasDaUrl(consulta);
+    // **Na mesma guarda, e é de propósito.** `?pagina=0` é a mesma classe de engano que `?status=xpto`:
+    // a consulta **não correu**. Deixá-lo cair no `throw` de fora produziria uma tela de erro onde o
+    // resto do produto mostra a frase do §3.9.
+    paginacao = lerPaginacaoDaUrl(consulta);
   } catch (erro) {
     // §3.9 — **isto não é o quarto vazio.** Os três vazios do critério 14.4 respondem "a consulta correu e
     // não achou nada"; este responde "a consulta não correu". Confundi-los é o erro que o 14.4 existe para
@@ -136,7 +143,11 @@ export default async function Ocorrencias({
   const paginaPedida = listarOcorrencias(
     repos.ocorrencias,
     { pessoaId: ctx.pessoaId, podeLerTodas },
-    { filtro },
+    // **`pagina`, `ate` e `totalNoCorte` vêm dos `searchParams`, e é o único canal que existe** — item
+    // 14b: quem renderiza a página pedida é este Server Component, e ele não vê nada além da URL. Sem
+    // `ate` o corte se refaria a cada clique; sem `totalNoCorte` a compensação de deslocamento nunca
+    // executaria.
+    { filtro, ...paginacao },
   );
   const categoriasPedidas = listarCategorias(repos.categorias, { incluirInativas: true });
 
@@ -377,10 +388,18 @@ async function Lista({
     <div className="flex flex-col gap-4">
       {barra}
       {/*
-        **A `key` e a propriedade fazem coisas diferentes, e as duas são obrigatórias.** A `key` remonta o
-        componente quando o recorte muda — sem ela o `useState` semeado por `primeiraPagina` guarda a lista
-        antiga para sempre, e o filtro não muda um pixel. `consultaAtual` faz a **página seguinte** vir com
-        o mesmo recorte. Uma sem a outra deixa metade do item 15 quebrada.
+        **A `key` e a propriedade fazem coisas diferentes, e as duas continuam obrigatórias.** A `key`
+        remonta o componente quando o recorte muda; `consultaAtual` é o que faz o *Voltar* de T-05 devolver
+        a lista filtrada (critério 15.3).
+
+        **E a `key` continua certa com a paginação numerada:** trocar de página muda `consultaAtual` e
+        remonta o componente, que desde o item 14b é **só desenho** — não há estado acumulado para
+        preservar. **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da
+        página**, e ela não é: é o critério 14.7, e sem ele o 15.4 cai junto.
+
+        **`projetada` já É o envelope novo** — `total`, `pagina`, `limite`, `ate`, `totalNoCorte`,
+        `saidasDesdeOCorte`, `novasDesdeOCorte` e `contagens` —, então a navegação numerada que a frente
+        de design vai desenhar não precisa de nenhuma propriedade nova.
       */}
       <ListaDeOcorrencias
         key={consultaAtual}

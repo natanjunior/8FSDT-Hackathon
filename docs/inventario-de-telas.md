@@ -593,7 +593,9 @@ permissão de quem pergunta, e a resposta **declara o recorte** em `visibilidade
 usuário o que está vendo"* (`contrato-de-api.md` §8.5).
 
 **O que mostra.** Uma lista de `OcorrenciaResumo`, em **ordem fixa `registradaEm` decrescente** (S-A11 —
-não há parâmetro de ordenação, e não há `total`). Por item, na ordem de leitura:
+não há parâmetro de ordenação), com **paginação numerada sobre um instante de corte** e `total` no
+envelope. *(A segunda metade — "não há `total`" — caiu em 09/09/2026, com a reversão do §7.7 pelo item
+14b. A primeira continua valendo: a ordenação não é parametrizável.)* Por item, na ordem de leitura:
 
 1. `statusRotulo` — o rótulo em linguagem de gente calculado no servidor conforme quem lê (D19). O
    Solicitante lê *"Em execução"*; o Gestor lê *"Em atendimento"*.

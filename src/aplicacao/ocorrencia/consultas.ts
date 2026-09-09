@@ -4,7 +4,6 @@ import { OcorrenciaNaoEncontrada } from "./erros";
 import type {
   AtribuicaoLida,
   ComentarioLido,
-  CursorDeListagem,
   FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
@@ -239,10 +238,43 @@ export type QuemPergunta = { pessoaId: string; podeLerTodas: boolean };
  *  vendo"* (`contrato-de-api.md` §8.5). */
 export type VisibilidadeAplicada = "todas" | "apenas_minhas";
 
+/** O teto de página do contrato. Deslocamento fundo é varredura, e nenhuma tela pede o milésimo clique. */
+export const PAGINA_MAXIMA = 1000;
+
+/** As três contagens de painel — as que respondem *"o que existe para você escolher"*. */
+export type ContagensDoPainel = {
+  minhas: number;
+  emAberto: number;
+  semResponsavel: number;
+};
+
+/**
+ * A página de `GET /ocorrencias` — item 14b, 09/09/2026.
+ *
+ * **`total`, `pagina` e `limite` montam a navegação; `contagens` escolhe o recorte.** É por isso que
+ * `total` está solto e não dentro de `contagens`: são duas funções diferentes, e um controle de paginação
+ * que precisasse ler dentro do painel para saber quantas páginas existem estaria acoplado ao painel.
+ *
+ * **`totalNoCorte` é eco.** Ele volta para que o cliente copie **um** campo em todo link, sempre o mesmo.
+ * Sem o eco, o controle teria dois números parecidos na mão — `total` (recalculado, menor a cada saída) e
+ * o da primeira página — e escolher o errado **desliga a compensação sem nenhum sintoma**: a lista
+ * continua respondendo `200` com vinte itens, pulando os que saíram.
+ */
 export type PaginaDeOcorrencias = {
   itens: readonly OcorrenciaResumoLida[];
-  /** Há pelo menos mais uma linha depois desta página. Quem projeta transforma isto em `proximoCursor`. */
-  temMais: boolean;
+  /** O tamanho do conjunto **filtrado**, no corte, agora. */
+  total: number;
+  pagina: number;
+  limite: number;
+  /** O corte, ISO 8601 com fuso. A primeira página o fixa; as seguintes o repassam. */
+  ate: string;
+  /** O `total` da PRIMEIRA página, ecoado. Na primeira, é o próprio `total`. */
+  totalNoCorte: number;
+  /** `max(0, totalNoCorte − total)` — quanto o conjunto encolheu. Não custa consulta. */
+  saidasDesdeOCorte: number;
+  /** Quantas nasceram depois do corte **e casam com o recorte**. */
+  novasDesdeOCorte: number;
+  contagens: ContagensDoPainel;
   visibilidadeAplicada: VisibilidadeAplicada;
 };
 
@@ -255,21 +287,47 @@ export type PaginaDeOcorrencias = {
  * `podeLerTodas` — calculado por `vinculo.pode("ocorrencia.ler_todas")`, nunca pelo papel (contrato §4.5)
  * — e sai como `autorPessoaId` no filtro.
  *
- * **Pede uma linha a mais do que devolve.** É como se sabe que há próxima página sem um `count`, que o
- * contrato recusou (§7.7): a linha excedente é lida, contada e descartada. E é o que garante que
- * `proximoCursor` só existe quando há mesmo o que carregar — um cursor que abre página vazia é pior que
- * nenhum.
+ * **Duas consultas, e a segunda depende da primeira** (item 14b, 09/09/2026). O painel vem antes porque
+ * é dele que sai o `total`, e é do `total` que sai o deslocamento compensado. A alternativa — as duas em
+ * paralelo — obrigaria a listar duas vezes.
+ *
+ * **A compensação de deslocamento é o que esta função tem de mais importante** (§3.3 da spec do 14b). O
+ * corte imobiliza a fronteira superior do conjunto — `registrada_em` nunca muda — mas **não** imobiliza a
+ * pertinência de cada item: o Gestor que tria enquanto navega faz o conjunto `?status=aberta` encolher, e
+ * um deslocamento cru pularia exatamente os itens que ele ainda não viu. **Pular é pior que duplicar:**
+ * duplicata se percebe e se ignora; ocorrência pulada numa fila de triagem não é atendida e ninguém
+ * descobre.
+ *
+ * A garantia, enunciada: **se nada REENTRAR no conjunto filtrado dentro do corte, nenhum item é pulado** —
+ * o deslocamento compensado é sempre menor ou igual à posição do primeiro item ainda não visto, e o preço
+ * é rever, no máximo, os itens que saíram depois de onde o leitor parou. **Vale em qualquer
+ * profundidade**, não só entre a página 1 e a 2: as saídas contadas desde o corte incluem as de dentro do
+ * trecho já lido e as de depois dele, e o recuo nunca ultrapassa a fronteira do não visto.
+ *
+ * Para `?status=aberta` a garantia é **exata**, por construção da máquina de estados: nenhuma transição
+ * leva a `aberta`, e nascimento novo está fora do corte. Onde ela afrouxa — filtros com reentrada, como
+ * `?status=pausada` — é a premissa **P6**.
  */
 export async function listarOcorrencias(
   repositorio: RepositorioEscopadoDeOcorrencias,
   quem: QuemPergunta,
   pagina: {
     limite?: number;
-    cursor?: CursorDeListagem | null;
+    pagina?: number;
+    ate?: string;
+    totalNoCorte?: number;
     filtro?: FiltroDeOcorrencias;
+    /** Só o teste passa. **Um relógio, lido uma vez** — o mesmo instante corta as duas consultas. */
+    agora?: string;
   } = {},
 ): Promise<PaginaDeOcorrencias> {
   const limite = pagina.limite ?? LIMITE_PADRAO;
+  const numeroDaPagina = pagina.pagina ?? 1;
+
+  // **A primeira página FIXA o corte; as seguintes o repassam.** É a única linha da listagem em que o
+  // relógio entra, e ela é lida **uma vez**: as duas consultas recebem o mesmo texto, e é isso que
+  // garante que o `total` descreva exatamente o conjunto de onde a página saiu.
+  const ate = pagina.ate ?? pagina.agora ?? new Date().toISOString();
 
   /**
    * **Duas coisas produzem `apenas_minhas`, e só uma delas é permissão.**
@@ -282,18 +340,73 @@ export async function listarOcorrencias(
   const autorPessoaId =
     quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true ? undefined : quem.pessoaId;
 
-  const lidas = await repositorio.listar({
+  /**
+   * **O painel recorta por PERMISSÃO e não pelo pedido** — §3.6 da spec do 14b, e a diferença é a razão
+   * de o número existir. Se o painel obedecesse a `?autor=eu`, `contagens.minhas` seria igual a `total`
+   * sempre que o recorte estivesse ligado: o número que serve para **ligar** o recorte deixaria de
+   * existir assim que ele fosse ligado.
+   *
+   * **Para o Solicitante os dois coincidem** — `podeLerTodas` é falso, e os dois viram `quem.pessoaId`.
+   * É essa coincidência que o teste do 14b.6 fixa.
+   */
+  const visibilidadeDoPainel = quem.podeLerTodas ? undefined : quem.pessoaId;
+
+  /**
+   * **E o `total` viaja com o recorte DA PÁGINA, não com o do painel.**
+   *
+   * O `total` saiu da consulta da página e virou o quinto `FILTER` da do painel, e com a mudança ele
+   * herdaria o recorte errado: o painel ignora `?autor=eu` de propósito, e o `total` **não pode**, porque
+   * ele descreve a lista que está na tela e é o insumo da compensação. Um Gestor com `?autor=eu`
+   * receberia o `total` da organização inteira ao lado das próprias — a navegação ofereceria páginas que
+   * não existem, e `saidas` mediria a organização em vez do recorte.
+   */
+  const contagens = await repositorio.contar({
+    ...(visibilidadeDoPainel === undefined ? {} : { autorPessoaId: visibilidadeDoPainel }),
+    ...(autorPessoaId === undefined ? {} : { autorPessoaIdDaPagina: autorPessoaId }),
+    pessoaIdDeQuemPergunta: quem.pessoaId,
+    ate,
+    ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
+  });
+
+  const total = contagens.totalFiltrado;
+  // Ausente é o caso da primeira página — e o do link colado à mão, que degrada para o deslocamento cru.
+  const totalNoCorte = pagina.totalNoCorte ?? total;
+
+  /**
+   * **Duas linhas de aritmética, e nenhuma consulta.** É por isso que esta saída foi a escolhida e não
+   * uma das caras (§3.3 da spec): ela troca um pulo garantido por, no máximo, uma repetição.
+   *
+   * **Os dois `Math.max` são a guarda contra `totalNoCorte` hostil**, que vem do cliente e é **dica, não
+   * autoridade**: valor absurdamente alto limita o deslocamento em zero e repete a primeira página — feio
+   * e inofensivo; valor menor que o total atual zera as saídas e devolve o deslocamento cru. **Nenhum
+   * valor produz salto além do que um deslocamento sem compensação já produziria**, e é isso que torna o
+   * parâmetro aceitável como público.
+   */
+  const saidasDesdeOCorte = Math.max(0, totalNoCorte - total);
+  const deslocamento = Math.max(0, (numeroDaPagina - 1) * limite - saidasDesdeOCorte);
+
+  const linhas = await repositorio.listar({
     ...(autorPessoaId === undefined ? {} : { autorPessoaId }),
-    // **Uma linha a mais do que se devolve** — é como se sabe que há próxima página sem `count` (§7.7).
-    // Quem editar esta função não pode perder isto: sem o `+ 1`, `temMais` fica falso para sempre.
-    limite: limite + 1,
-    cursor: pagina.cursor ?? null,
+    limite,
+    deslocamento,
+    ate,
     ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
   });
 
   return {
-    itens: lidas.slice(0, limite),
-    temMais: lidas.length > limite,
+    itens: linhas,
+    total,
+    pagina: numeroDaPagina,
+    limite,
+    ate,
+    totalNoCorte,
+    saidasDesdeOCorte,
+    novasDesdeOCorte: contagens.novas,
+    contagens: {
+      minhas: contagens.minhas,
+      emAberto: contagens.emAberto,
+      semResponsavel: contagens.semResponsavel,
+    },
     visibilidadeAplicada: autorPessoaId === undefined ? "todas" : "apenas_minhas",
   };
 }
