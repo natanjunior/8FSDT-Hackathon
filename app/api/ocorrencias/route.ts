@@ -3,7 +3,7 @@ import {
   CampoNaoSuportado,
   armazenamentoDeAnexos,
   comContexto,
-  lerCursorDaUrl,
+  lerPaginacaoDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   resposta,
@@ -85,12 +85,17 @@ export const POST = comContexto(
  * *Capacidades: listar todas da organização · `ENUNCIADO · aberto` (G1).*
  */
 export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx, repos, requisicao }) => {
-  const filtro = lerFiltroDeOcorrenciasDaUrl(new URL(requisicao.url).searchParams);
+  const consulta = new URL(requisicao.url).searchParams;
+  const filtro = lerFiltroDeOcorrenciasDaUrl(consulta);
+  // **A paginação é numerada sobre um instante de corte** desde o item 14b (09/09/2026): `pagina`, `ate`
+  // e `totalNoCorte` no lugar do `cursor`. Os três são de paginação e **não** entram no filtro — é o
+  // critério `14b.9`, e é o que faz o *Voltar* de T-05 devolver a lista filtrada na página 1.
+  const paginacao = lerPaginacaoDaUrl(consulta);
 
   const pagina = await listarOcorrencias(
     repos.ocorrencias,
     { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") },
-    { limite: lerLimiteDaUrl(requisicao), cursor: lerCursorDaUrl(requisicao), filtro },
+    { limite: lerLimiteDaUrl(requisicao), ...paginacao, filtro },
   );
 
   // **A mesma permissão que decidiu o CONJUNTO decide a COLUNA** — `ocorrencia.ler_todas`, e é o

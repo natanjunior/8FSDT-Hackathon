@@ -68,11 +68,12 @@ export {
   algumFiltroAplicado,
   consultaDe,
   lerBooleanoDaUrl,
-  lerCursorDaUrl,
   lerCursorDeConversaDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,
+  lerPaginacaoDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,
+  type PaginacaoDaUrl,
 } from "./consulta-de-url";
