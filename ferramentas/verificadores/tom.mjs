@@ -28,7 +28,17 @@ import { RAIZ, curto, documentos, ler, relatar } from "./comum.mjs";
  */
 
 /** Arquivos já reescritos. Uma linha por tarefa concluída da reescrita. */
-const APROVADOS = new Set([]);
+const APROVADOS = new Set([
+  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
+  "docs/adr/0002-stack-e-plataforma.md",
+  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
+  "docs/adr/0004-execucao-em-container-no-azure.md",
+  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
+  "docs/adr/0006-organizacao-de-modulos.md",
+  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
+  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
+  "docs/adr/README.md",
+]);
 
 // ---------------------------------------------------------------------------
 // As seis regras
@@ -67,7 +77,18 @@ const PERFORMATICO = [
   ],
 ];
 
-/** Regra 4 — fonte que o leitor da entrega não tem. */
+/**
+ * Regra 4 — fonte que o leitor da entrega não tem.
+ *
+ * **`disciplina` dispara em português comum, e isso é deliberado.** *"Depender da disciplina de quem
+ * programa"* nada tem a ver com a disciplina do curso, e mesmo assim é apontado. A alternativa seria um
+ * padrão que exigisse contexto de curso em volta, e aí ele deixaria passar *"a disciplina de DevOps"* de
+ * quem escrevesse a frase de outro jeito.
+ *
+ * **Um padrão estreito que às vezes força um sinônimo custa menos que um largo que deixa passar a
+ * citação real.** Quando isto apontar um falso positivo, troque a palavra no texto: `cuidado`, `rigor` e
+ * `hábito` servem, e o documento não fica pior por isso.
+ */
 const APARATO = [
   ["marcador de origem", /`?\b(?:ENUNCIADO|NOSSO)\b/gu],
   ["citação de aula", /aula\s+\d+[,\s]+p\.\s*\d+/giu],
