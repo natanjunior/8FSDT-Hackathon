@@ -702,19 +702,78 @@ importa aqui: **id sequencial em URL vaza o volume de uma organização para out
 natural composta, e o contrato as endereça pelo par que as define: o vínculo é `/vinculos/{pessoaId}` dentro
 da organização ativa — nunca um id sintético que o modelo recusou criar.
 
-**7.7 · Paginação: cursor, não offset.** Vale para `GET /ocorrencias` e `GET /ocorrencias/{id}/comentarios`.
+**7.7 · Paginação: numerada sobre um instante de corte em `GET /ocorrencias`; cursor na conversa.**
 
-- **Por quê.** A triagem ordena por `registradaEm DESC` e a lista recebe inserções o tempo todo: com
-  `offset`, uma ocorrência registrada entre a página 1 e a 2 **empurra um item para trás, e ele aparece duas
-  vezes** — e quem lê a lista de cima é justamente o Gestor que ainda não triou. Cursor é imune a isso.
-- **Como.** `?limite=20&cursor=<opaco>`; a resposta traz `{ itens, proximoCursor }`. O cursor codifica o par
-  `(registradaEm, id)`, que é exatamente o índice `(organizacao_id, registrada_em DESC)` já existente
-  (§6.7 do `modelo-de-dados.md`). Nenhum índice novo.
-- **Sem `total`.** Contar exigiria uma segunda varredura da partição a cada página, e o número que o Gestor
-  precisa — quantas em cada status — é do `GET /dashboard`, que já o calcula.
-- **Coleções pequenas não paginam:** categorias, áreas e vínculos devolvem tudo em `{ itens }`. São ~15, ~30
-  e ≤ 200 linhas (RNF3). Se uma organização passar disso, o envelope já é o mesmo e ganha `proximoCursor`
-  sem quebrar cliente nenhum.
+> **Revisto em 09/09/2026, por decisão do dono do produto.** A redação anterior — reproduzida logo abaixo,
+> íntegra — vigorou de 20/08 a 09/09/2026 e recusava `offset` para os dois endpoints. **O pedido chegou à
+> equipe atribuído ao hub; o hub não havia decidido, e foi a confirmação do dono do produto que autorizou
+> a reversão.** A atribuição está escrita porque este pacote inteiro se sustenta em saber de onde cada
+> coisa veio: uma reversão registrada com o autor errado é pior que uma reversão não registrada, porque a
+> próxima pessoa iria buscar no hub um raciocínio que nunca existiu lá.
+
+**A redação anterior, preservada — os quatro marcadores, íntegros:**
+
+> **7.7 · Paginação: cursor, não offset.** Vale para `GET /ocorrencias` e `GET /ocorrencias/{id}/comentarios`.
+>
+> - **Por quê.** A triagem ordena por `registradaEm DESC` e a lista recebe inserções o tempo todo: com
+>   `offset`, uma ocorrência registrada entre a página 1 e a 2 **empurra um item para trás, e ele aparece duas
+>   vezes** — e quem lê a lista de cima é justamente o Gestor que ainda não triou. Cursor é imune a isso.
+> - **Como.** `?limite=20&cursor=<opaco>`; a resposta traz `{ itens, proximoCursor }`. O cursor codifica o par
+>   `(registradaEm, id)`, que é exatamente o índice `(organizacao_id, registrada_em DESC)` já existente
+>   (§6.7 do `modelo-de-dados.md`). Nenhum índice novo.
+> - **Sem `total`.** Contar exigiria uma segunda varredura da partição a cada página, e o número que o Gestor
+>   precisa — quantas em cada status — é do `GET /dashboard`, que já o calcula.
+> - **Coleções pequenas não paginam:** categorias, áreas e vínculos devolvem tudo em `{ itens }`. São ~15, ~30
+>   e ≤ 200 linhas (RNF3). Se uma organização passar disso, o envelope já é o mesmo e ganha `proximoCursor`
+>   sem quebrar cliente nenhum.
+
+**O que vale a partir de 09/09/2026.**
+
+- **`GET /ocorrencias` pagina por número, sobre um instante de corte.**
+  `?limite=20&pagina=2&ate=<instante>&totalNoCorte=137`. A primeira página fixa `ate = agora` e o devolve;
+  as seguintes o repassam, e a consulta filtra `registradaEm <= ate`.
+- **A objeção de duplicação continua correta, e o corte a responde.** `registradaEm` **nunca muda**, então
+  a fronteira superior do conjunto é imóvel: ocorrência registrada depois não entra e não empurra ninguém.
+  Ela não é descartada — volta contada em `novasDesdeOCorte`, que é informação que o cursor nunca deu.
+- **O que o corte protege, e o que ele NÃO protege.** Ele imobiliza a **fronteira** do conjunto; não
+  imobiliza a **pertinência** de cada item. `status` é mutável e é dimensão de filtro: o Gestor que lê
+  `?status=aberta` e tria enquanto navega faz o conjunto encolher, e um deslocamento cru **pularia** os
+  itens que ele ainda não viu. **Pular é pior que duplicar** — duplicata se percebe e se ignora; ocorrência
+  pulada numa fila de triagem não é atendida, e ninguém descobre.
+- **A resposta ao pulo é a compensação de deslocamento.** O cliente repassa `totalNoCorte`; o servidor mede
+  `saidas = max(0, totalNoCorte − total)` e usa `deslocamento = max(0, (pagina − 1) × limite − saidas)`.
+  **Duas linhas de aritmética sobre números que já estão na mão** — nenhuma consulta a mais, nenhum índice
+  novo. **A garantia:** se nada **reentrar** no conjunto filtrado dentro do corte, nenhum item é pulado, e o
+  preço é rever no máximo os que saíram depois de onde o leitor parou. Para `?status=aberta` a garantia é
+  exata, porque nenhuma transição leva a `aberta`. O resíduo — filtros com reentrada, como `?status=pausada`
+  — é a premissa **P6** de `premissas-e-questoes-abertas.md`.
+- **`totalNoCorte` é dica, não autoridade.** Valor alto demais repete a primeira página; baixo demais
+  devolve o deslocamento cru. Nenhum valor produz salto maior do que um deslocamento sem compensação. **É o
+  campo `totalNoCorte` da resposta que se repassa, nunca o `total`:** o `total` é recalculado a cada página,
+  e usá-lo desliga a compensação sem produzir sintoma nenhum.
+- **Com `total`, e o custo está dito.** A objeção anterior era *"uma segunda varredura da partição a cada
+  página"*. Não há uma segunda: o `total` sai de um `count(*) FILTER` da consulta que já calcula o painel de
+  contagens, e a consulta da página continua sendo `limit/offset` sobre o índice de ordenação. **O que
+  existe é uma varredura da partição por requisição**, para o painel — que o cursor não fazia. É uma compra,
+  não um almoço grátis, e o número que a torna aceitável é o RNF3.
+- **O envelope traz contagens**, e **todas respeitam a visibilidade do vínculo** — a mesma que a listagem
+  aplica. `total` descreve a lista que está na tela; `contagens.minhas`, `contagens.emAberto` e
+  `contagens.semResponsavel` descrevem o que existe para o leitor escolher, e por isso ignoram os filtros de
+  status, categoria e prioridade. Um `COUNT` sem o recorte de autor vazaria a **existência** de ocorrências
+  que o Solicitante não pode ler.
+- **`ate` no futuro é limitado a agora**, não recusado; **`ate` ilegível é `400`**, nunca *agora*. Página
+  além do fim é `200` com `itens: []`, não `404`: a lista existe, a página é que não.
+- **A conversa continua por cursor.** `GET /ocorrencias/{id}/comentarios` é *append-only*, ordenada
+  crescente, **sem filtro nenhum** e sem navegação numerada — não há dimensão mutável, então o cursor ali é
+  imune de graça, e trocá-lo seria mexer no que funciona para piorar.
+- **Coleções pequenas não paginam — inalterado, e repetido aqui de propósito**, para que a lista do que vale
+  se leia sozinha: categorias, áreas e vínculos devolvem tudo em `{ itens }`. São ~15, ~30 e ≤ 200 linhas
+  (RNF3).
+
+> **Uma colisão de nome, registrada em vez de resolvida.** `?ate=` existe também em `GET /dashboard`, onde
+> é um **dia** (`AAAA-MM-DD`) que delimita a janela do indicador. Aqui é um **instante** ISO 8601 com fuso.
+> Mesma palavra, dois endpoints, duas gramáticas. Fica como está porque o critério 14b.2 nomeia este
+> parâmetro; se um dia as duas se encontrarem numa tela só, quem renomear renomeia **este**.
 
 **7.11 · Telefone entra e sai em E.164. [FONTE EXTERNA]**
 
@@ -1333,7 +1392,12 @@ do síndico morador (§6.4 do `modelo-de-dados.md`), resolvido por parâmetro e 
   `NOSSO` sem justificativa de valor, e não há índice que o sirva (§6.7 do `modelo-de-dados.md`).
 - **Ordenação fixa:** `registradaEm DESC`. Não há parâmetro de ordenação, porque só existe um índice de
   listagem e ordenar por outra coluna seria varredura da partição inteira a cada página.
-- **Paginação:** cursor (§7.7). Devolve `{ itens: OcorrenciaResumo[], proximoCursor, visibilidadeAplicada }`.
+- **Paginação:** **numerada sobre um instante de corte** (§7.7) — `?limite=20&pagina=2&ate=<instante>&totalNoCorte=137`.
+  Devolve `{ itens: OcorrenciaResumo[], total, pagina, limite, ate, totalNoCorte, saidasDesdeOCorte,
+  novasDesdeOCorte, contagens, visibilidadeAplicada }`. **`total` e as três `contagens` respeitam a mesma
+  visibilidade da listagem**, e `totalNoCorte` é o campo a repassar na página seguinte — nunca o `total`.
+  *(Reescrito em 09/09/2026 pelo item 14b, com a reversão do §7.7. A redação anterior era "cursor (§7.7).
+  Devolve `{ itens, proximoCursor, visibilidadeAplicada }`".)*
 
 **`GET /ocorrencias/{id}`** devolve `OcorrenciaDetalhe`, que inclui **`acoesDisponiveis`** — a lista dos
 comandos que **este** chamador pode executar **agora**. Ex.:
