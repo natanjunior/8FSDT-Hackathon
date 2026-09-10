@@ -38,9 +38,12 @@ const APROVADOS = new Set([
   "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
   "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
   "docs/adr/README.md",
+  "docs/arquitetura.md",
+  "docs/definition-of-done.md",
   "docs/documentacao-da-demanda.md",
   "docs/escopo.md",
   "docs/event-storming.md",
+  "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
   "docs/premissas-e-questoes-abertas.md",
 ]);
