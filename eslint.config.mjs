@@ -305,6 +305,17 @@ const configuracao = [
       // que é exatamente o que duas regras nossas proíbem — e proíbem com razão, para **código escrito**.
       // Pela mesma lógica do `ferramentas/**` acima: o que não escrevemos não seguimos formatando.
       ".source/**",
+      // **Ferramenta de quem desenvolve, e o mesmo gatilho retardado do `playwright-report/` acima.**
+      //
+      // `.claude/` está no `.gitignore` (`:19`), e por isso a árvore fica limpa no git. Mas o flat config
+      // só ignora o que está declarado aqui — e um `git worktree` criado em `.claude/worktrees/` traz um
+      // `.next/` inteiro junto. Medido em 10/09/2026: **81.264 problemas**, quase todos sobre bundles
+      // minificados de uma cópia de trabalho, num clone onde `npm run lint` passava até a véspera.
+      //
+      // O gatilho é o mesmo de lá: só aparece **depois** de alguém criar uma worktree, e some quando ela
+      // é removida. No runner da esteira o diretório não existe, e o portão fica verde sem que nada disto
+      // tenha sido conferido.
+      ".claude/**",
     ],
   },
 
