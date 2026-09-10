@@ -1,0 +1,15 @@
+{
+  "title": "Registros de Decisão",
+  "pages": [
+    "README",
+    "0001-historico-de-transicoes-como-conceito-de-dominio",
+    "0002-stack-e-plataforma",
+    "0003-isolamento-de-tenant-na-camada-de-aplicacao",
+    "0004-execucao-em-container-no-azure",
+    "0005-regra-de-dependencia-por-inversao",
+    "0006-organizacao-de-modulos",
+    "0007-camada-de-interface-com-shadcn-ui",
+    "0008-a-suite-de-testes-segue-a-garantia",
+    "0009-documentacao-como-paginas-do-produto"
+  ]
+}

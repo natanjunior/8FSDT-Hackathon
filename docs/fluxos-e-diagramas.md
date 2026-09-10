@@ -1,3 +1,8 @@
+---
+title: "Fluxos e Diagramas"
+description: "Os seis diagramas do projeto, os doze candidatos recusados, e os nove achados que desenhar produziu."
+---
+
 # Fluxos e Diagramas — Resolve Aí
 
 Este documento tem **seis diagramas** e a lista dos doze candidatos que foram pesados para chegar a eles.

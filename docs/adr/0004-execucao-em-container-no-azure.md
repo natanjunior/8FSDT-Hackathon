@@ -1,3 +1,8 @@
+---
+title: "ADR-0004 · Execução em container no Azure"
+description: "Azure Container Apps com registro no GitHub Container Registry, e a credencial federada no lugar do segredo de longa vida."
+---
+
 # ADR-0004 — Execução em container no Azure Container Apps, com registro no GitHub Container Registry
 
 **Status:** Aceita · 20/08/2026 · Substitui parcialmente a [ADR-0002](0002-stack-e-plataforma.md)

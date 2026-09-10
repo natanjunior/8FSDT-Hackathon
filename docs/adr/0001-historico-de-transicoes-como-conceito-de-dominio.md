@@ -1,3 +1,8 @@
+---
+title: "ADR-0001 · Histórico de transições é domínio"
+description: "Por que a auditabilidade é invariante do agregado, e não auditoria genérica de infraestrutura."
+---
+
 # ADR-0001 — O histórico de transições é conceito de domínio, não auditoria de infraestrutura
 
 **Status:** Aceita · 16/08/2026

@@ -36,3 +36,6 @@ next-env.d.ts
 # Saída do Playwright (item 41b): rastro, imagem e vídeo da falha, e o relatório HTML.
 test-results/
 playwright-report/
+
+# Saída do fumadocs-mdx: os .md de docs/ compilados em componentes. Gerado pelo postinstall.
+.source/

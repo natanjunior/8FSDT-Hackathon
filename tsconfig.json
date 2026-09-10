@@ -27,6 +27,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@fonte/documentacao": [
+        "./.source/server.ts"
       ]
     }
   },

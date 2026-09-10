@@ -1,3 +1,8 @@
+---
+title: "ADR-0003 · Isolamento entre organizações"
+description: "O escopo aplicado num ponto único da camada de aplicação, e RLS como defesa em profundidade."
+---
+
 # ADR-0003 — Isolamento entre organizações na camada de aplicação; RLS como defesa em profundidade
 
 **Status:** Aceita · 18/08/2026

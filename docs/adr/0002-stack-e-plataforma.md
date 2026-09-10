@@ -1,3 +1,8 @@
+---
+title: "ADR-0002 · Stack e plataforma"
+description: "Next.js com PWA, APIs próprias e Supabase, com as alternativas rejeitadas e o que a ADR-0004 substituiu."
+---
+
 # ADR-0002 — Next.js com PWA, APIs próprias, Vercel e Supabase
 
 **Status:** Parcialmente substituída pela [ADR-0004](0004-execucao-em-container-no-azure.md) · 20/08/2026

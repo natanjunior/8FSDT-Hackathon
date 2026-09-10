@@ -1,3 +1,8 @@
+---
+title: "Arquitetura"
+description: "O design estratégico, o agregado Ocorrência com a máquina de estados, as quatro camadas, e o requisito técnico da solução."
+---
+
 # Arquitetura da Solução — Resolve Aí
 
 Este documento tem duas partes. A **Parte I** é o design estratégico: subdomínios, contextos delimitados,

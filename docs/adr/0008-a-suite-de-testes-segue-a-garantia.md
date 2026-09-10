@@ -1,3 +1,8 @@
+---
+title: "ADR-0008 · A suíte segue a garantia"
+description: "A quantidade de teste segue a natureza do que ele protege, e não o nível de uma pirâmide."
+---
+
 # ADR-0008 — A suíte de testes segue onde mora a garantia, não a pirâmide
 
 **Status:** Aceita · 22/08/2026 · Complementa a [ADR-0005](0005-regra-de-dependencia-por-inversao.md),

@@ -1,3 +1,8 @@
+---
+title: "Definition of Done e Ready"
+description: "Os dois portões de qualidade, cada um justificado pelo defeito que previne e pelo comando que o confere."
+---
+
 # Definition of Ready e Definition of Done
 
 Dois checklists com funções opostas. O **Definition of Ready** é o conjunto de condições que precisam

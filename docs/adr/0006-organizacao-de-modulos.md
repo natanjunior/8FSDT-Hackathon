@@ -1,3 +1,8 @@
+---
+title: "ADR-0006 · Organização de módulos"
+description: "Camada no primeiro nível e agregado no segundo, com as regras de fronteira vivendo no eslint.config.mjs."
+---
+
 # ADR-0006 — Organização de módulos: camada no primeiro nível, agregado no segundo
 
 **Status:** Aceita · 21/08/2026 · Complementa a

@@ -1,0 +1,38 @@
+/* ============================================================================
+   O CSS do Fumadocs vive aqui, e só aqui
+
+   Este arquivo é uma ENTRADA de Tailwind separada da do produto. Ele é
+   importado apenas pelo `app/documentacao/layout.tsx`, e nunca pelo layout
+   raiz. A separação não é organização: é o que impede três vazamentos
+   concretos para dentro do produto.
+
+   1 · A VARIANTE `dark` É REDEFINIDA PELO FUMADOCS.
+       O `app/globals.css` declara `@custom-variant dark (&:is(.dark *))`.
+       O preset do Fumadocs declara `@variant dark (&:where(.dark, .dark *))`.
+       São diferentes em duas coisas: a dele alcança o próprio elemento `.dark`
+       além dos descendentes, e usa `:where`, que tem especificidade zero.
+       Num build único de Tailwind, a última declaração venceria e TODA
+       utilidade `dark:` do produto passaria a resolver por outra regra, com
+       outra especificidade. Como `@variant` é construção de tempo de build,
+       manter duas entradas separadas mantém cada definição na sua.
+
+   2 · O PRESET APLICA RESET GLOBAL EM `body` E EM `*`.
+       Ele define `background-color` e `color` no `body`, e `border-color` em
+       todo elemento. Numa entrada só, isso valeria em qualquer tela. Aqui,
+       vale nas páginas que carregam este arquivo, que são as de documentação.
+
+   3 · O QUE NÃO É PROBLEMA, e vale registrar para ninguém procurar de novo:
+       as cores do Fumadocs são todas prefixadas `--color-fd-*`. Elas NÃO
+       colidem com os onze nomes do tema Meridian. A colisão de variáveis que
+       se temia não existe nesta versão.
+
+   O custo desta separação é uma segunda passada do Tailwind, e portanto CSS
+   duplicado entre as duas entradas. É o preço de trazer um segundo sistema de
+   design, e é pago só por quem abre a documentação.
+   ============================================================================ */
+
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+@source "../../node_modules/fumadocs-ui/dist/**/*.js";
