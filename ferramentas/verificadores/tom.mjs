@@ -40,6 +40,7 @@ const APROVADOS = new Set([
   "docs/adr/README.md",
   "docs/documentacao-da-demanda.md",
   "docs/escopo.md",
+  "docs/event-storming.md",
   "docs/glossario.md",
   "docs/premissas-e-questoes-abertas.md",
 ]);
