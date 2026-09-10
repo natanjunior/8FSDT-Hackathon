@@ -1,3 +1,8 @@
+---
+title: "Event Storming"
+description: "O workshop de descoberta do domínio: eventos, comandos, políticas, modelos de leitura, agregados e contextos."
+---
+
 # Event Storming — Resolve Aí
 
 Este documento é o resultado do workshop de descoberta do domínio: os eventos que acontecem no produto,

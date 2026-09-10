@@ -300,6 +300,11 @@ const configuracao = [
       // Código copiado pelo CLI do shadcn/ui (ADR-0007) — a manutenção é nossa, o estilo é do projeto
       // de origem, e reformatá-lo a cada `add` seria trabalho perpétuo sem retorno.
       "src/interface/componentes/ui/**",
+      // Saída do `fumadocs-mdx`: os `.md` de `docs/` transformados em módulos, gerados pelo `postinstall`
+      // e regerados a cada build. São três arquivos com `@ts-nocheck` no topo e um `{}` na assinatura,
+      // que é exatamente o que duas regras nossas proíbem — e proíbem com razão, para **código escrito**.
+      // Pela mesma lógica do `ferramentas/**` acima: o que não escrevemos não seguimos formatando.
+      ".source/**",
     ],
   },
 

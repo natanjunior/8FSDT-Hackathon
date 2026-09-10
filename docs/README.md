@@ -1,3 +1,8 @@
+---
+title: "Documentação do Resolve Aí"
+description: "O índice da documentação da solução, com o que cada documento contém e por onde começar."
+---
+
 # Resolve Aí — Documentação
 
 Plataforma de Gestão de Ocorrências. Permite que moradores, funcionários ou membros de uma organização

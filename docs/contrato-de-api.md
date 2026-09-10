@@ -1,3 +1,8 @@
+---
+title: "Contrato de API"
+description: "A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, o modelo de erros, e a rastreabilidade de cada rota."
+---
+
 # Contrato de API — Resolve Aí
 
 Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),

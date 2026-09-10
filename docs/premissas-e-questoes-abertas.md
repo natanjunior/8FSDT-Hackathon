@@ -1,3 +1,8 @@
+---
+title: "Premissas e Questões Abertas"
+description: "As premissas assumidas sem confirmação, com o que muda se estiverem erradas, e os pontos de atenção em aberto."
+---
+
 # Premissas e Questões Abertas
 
 Este documento existe por uma característica estrutural do projeto: **ninguém de fora do time validou o

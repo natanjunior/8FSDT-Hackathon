@@ -1,3 +1,8 @@
+---
+title: "ADR-0005 · Dependência por inversão"
+description: "A porta declarada pela camada que a consome, e o lint rebaixado de garantia a alarme."
+---
+
 # ADR-0005 — A regra de dependência é garantida por inversão; o lint é a verificação
 
 **Status:** Aceita · 21/08/2026 · Complementa a

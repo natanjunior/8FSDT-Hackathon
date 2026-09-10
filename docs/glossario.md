@@ -1,3 +1,8 @@
+---
+title: "Glossário"
+description: "A linguagem ubíqua do projeto: uma definição por termo, o que não confundir com o quê, e as cinco colisões que ele resolve."
+---
+
 # Glossário — Linguagem Ubíqua do Resolve Aí
 
 Este documento fixa uma definição por termo. Onde um termo carrega dois significados, ele é quebrado em

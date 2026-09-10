@@ -12,7 +12,10 @@ node_modules
 npm-debug.log*
 
 # --- Não servem à execução --------------------------------------------------
-docs
+# `docs` SAIU desta lista, e a razão é o que a documentação virou: os `.md` de `docs/` são compilados em
+# páginas pelo `next build` (ADR-0009, e o `source.config.ts` na raiz), então o build precisa deles dentro
+# da imagem. Só o build: nada é lido em tempo de execução, e as 22 páginas entram pré-renderizadas no
+# `.next/standalone`.
 refs
 trabalho
 ferramentas

@@ -1,3 +1,8 @@
+---
+title: "Registros de Decisão"
+description: "O índice das decisões de arquitetura, com o status de cada uma e as regras do formato."
+---
+
 # Registros de Decisão de Arquitetura (ADR)
 
 Cada arquivo aqui registra **uma** decisão de arquitetura: o contexto em que foi tomada, o que foi
@@ -34,6 +39,7 @@ opções não foram escolhidas.
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
 | [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Aceita |
 | [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, não a pirâmide | Aceita |
+| [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
 
 As duas decisões de estrutura interna do código são a 0005 e a 0006, escritas em 21/08/2026. Elas se
 leem melhor em par: a primeira decide como a dependência é invertida, e a segunda decide onde os arquivos

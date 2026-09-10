@@ -1,3 +1,8 @@
+---
+title: "Inventário de Telas"
+description: "As telas da primeira entrega: o que cada uma responde, os estados vazio, carregando e erro, e o mapa de navegação."
+---
+
 # Inventário de Telas — Resolve Aí
 
 **Treze telas.** É o número que este documento defende, contra as 44 capacidades ✅ do

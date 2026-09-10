@@ -1,3 +1,8 @@
+---
+title: "Protótipo Low-Fi"
+description: "A forma das telas em baixa fidelidade, o orçamento de tempo do registro em menos de um minuto, e o que desenhar descobriu."
+---
+
 # Protótipo Low-Fi — Resolve Aí
 
 **A forma das dez telas que o [inventário](inventario-de-telas.md) definiu — e as dezesseis coisas que

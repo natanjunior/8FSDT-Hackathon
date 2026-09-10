@@ -1,3 +1,8 @@
+---
+title: "Escopo"
+description: "O que o produto é quando completo, o que entra na primeira entrega, e o que está projetado para depois."
+---
+
 # Escopo — Resolve Aí
 
 ## A primeira entrega, em uma passada

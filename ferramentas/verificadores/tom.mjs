@@ -37,6 +37,7 @@ const APROVADOS = new Set([
   "docs/adr/0006-organizacao-de-modulos.md",
   "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
   "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
+  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
   "docs/adr/README.md",
   "docs/arquitetura.md",
   "docs/definition-of-done.md",

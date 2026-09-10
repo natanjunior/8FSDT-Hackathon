@@ -1,3 +1,8 @@
+---
+title: "ADR-0007 · Interface com shadcn/ui"
+description: "O código dos componentes mora no repositório, e o schema que valida o campo é o mesmo que gera a especificação."
+---
+
 # ADR-0007 — Camada de interface com shadcn/ui sobre Tailwind
 
 **Status:** Aceita · 21/08/2026 · Complementa a [ADR-0002](0002-stack-e-plataforma.md)
