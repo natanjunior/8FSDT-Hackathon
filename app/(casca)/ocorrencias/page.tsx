@@ -337,21 +337,15 @@ async function Lista({
     <div className="flex flex-col gap-4">
       {barra}
       {/*
-        **A `key` e a propriedade fazem coisas diferentes, e as duas continuam obrigatórias.** A `key`
-        remonta o componente quando o recorte muda; `consultaAtual` é o que faz o *Voltar* de T-05 devolver
-        a lista filtrada (critério 15.3).
+        **A `key` saiu no item 44c, e a propriedade ficou.** Ela foi escrita quando o componente acumulava
+        páginas; desde o item 14b ele é **só desenho**, sem estado a descartar, e remontá-lo a cada
+        navegação é o piscar que o critério 44c.4 existe para impedir. `consultaAtual` continua descendo
+        como propriedade, que é o que faz o *Voltar* de T-05 devolver a lista filtrada (critério 15.3).
 
-        **E a `key` continua certa com a paginação numerada:** trocar de página muda `consultaAtual` e
-        remonta o componente, que desde o item 14b é **só desenho** — não há estado acumulado para
-        preservar. **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da
-        página**, e ela não é: é o critério 14.7, e sem ele o 15.4 cai junto.
-
-        **`projetada` já É o envelope novo** — `total`, `pagina`, `limite`, `ate`, `totalNoCorte`,
-        `saidasDesdeOCorte`, `novasDesdeOCorte` e `contagens` —, então a navegação numerada que a frente
-        de design vai desenhar não precisa de nenhuma propriedade nova.
+        **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da página**, e ela
+        não é: é o critério 14.7, e sem ele o 15.4 cai junto.
       */}
       <ListaDeOcorrencias
-        key={consultaAtual}
         primeiraPagina={projetada}
         consultaAtual={consultaAtual}
         iconePorCategoria={iconePorCategoria}
