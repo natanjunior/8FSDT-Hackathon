@@ -341,6 +341,14 @@
     outline-offset: 2px;
   }
 
+  /* Compromisso de acessibilidade: nenhuma informação vive só em passagem do ponteiro. O que o cartão
+     mostra existe em outro lugar — a referência do lugar em T-05, o contato em T-08. */
+  @media not all and (hover: hover) and (pointer: fine) {
+    [data-cartao-de-ponteiro] {
+      display: none !important;
+    }
+  }
+
   /* Guia §6: sob movimento reduzido, **a opacidade permanece e o deslocamento sai**. Tratado uma vez,
      aqui, em vez de em cada componente — que é onde a regra se perde.
 
