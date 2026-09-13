@@ -53,6 +53,9 @@ let pessoaId: string;
 let categoriaId: string;
 let areaId: string;
 
+/** Um corte que inclui tudo — estes casos não são sobre paginação, e um corte real os tornaria frágeis. */
+const NO_FUTURO = "2099-01-01T00:00:00.000Z";
+
 /** **Nunca chamada aqui**: nenhum caso deste arquivo registra com anexo, e a porta só é tocada dentro
  *  do laço de `entrada.anexos`. Estourar é o ponto — ver o comentário do passo. */
 const SEM_ANEXO = {
@@ -390,15 +393,18 @@ describe("o que o banco recusa", () => {
 
 /**
  * ============================================================================
- *  A paginação por cursor — o critério 14.2, e ele não tem duplo
+ *  A paginação numerada sobre um instante de corte — os critérios 14.2 e 14b
  * ============================================================================
  *
- * **O que só o banco prova:** que o *keyset* `(registrada_em, id) < (…, …)` devolve exatamente a
+ * **O que só o banco prova:** que `registrada_em <= $ate` com `limit/offset` devolve exatamente a
  * continuação, e que **uma ocorrência registrada entre a página 1 e a página 2 não empurra ninguém para
- * trás**. Com deslocamento numérico este caso falharia — e é literalmente o cenário do Gestor que tria a
- * lista de cima enquanto alguém registra.
+ * trás** — ela fica **fora do corte**, e volta contada em `novas`.
+ *
+ * *(Reescrito pelo item 14b, 09/09/2026. Antes era o keyset `(registrada_em, id) < (…, …)`; o que o
+ * substitui é o corte, e a afirmação que os casos guardam — "nada se repete entre as duas páginas" — é a
+ * mesma.)*
  */
-describe("a listagem paginada por cursor", () => {
+describe("a listagem numerada sobre um instante de corte — item 14b", () => {
   /** Três ocorrências, registradas em instantes distintos e conhecidos. */
   async function semearTres(): Promise<string[]> {
     const ids: string[] = [];
@@ -419,34 +425,32 @@ describe("a listagem paginada por cursor", () => {
     return ids;
   }
 
-  it("devolve em registrada_em DESC, e o cursor continua de onde parou", async () => {
+  it("devolve em registrada_em DESC, e a página 2 continua de onde a 1 parou", async () => {
     const ids = await semearTres();
+    const corte = new Date().toISOString();
 
-    const primeira = await portas().ocorrencias.listar({ limite: 2, cursor: null });
+    const primeira = await portas().ocorrencias.listar({ limite: 2, deslocamento: 0, ate: corte });
     expect(primeira).toHaveLength(2);
     // A mais recente primeiro: a terceira semeada.
     expect(primeira[0]!.id).toBe(ids[2]);
     expect(primeira[1]!.id).toBe(ids[1]);
 
-    const ultimo = primeira[1]!;
-    const segunda = await portas().ocorrencias.listar({
-      limite: 2,
-      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
-    });
+    const segunda = await portas().ocorrencias.listar({ limite: 2, deslocamento: 2, ate: corte });
 
     expect(segunda.map((o) => o.id)).toContain(ids[0]);
-    // **Nada se repete entre as duas páginas** — é a metade do 14.2 que o cursor existe para garantir.
+    // **Nada se repete entre as duas páginas** — é a metade do 14.2 que o corte existe para garantir.
     expect(segunda.map((o) => o.id)).not.toContain(ids[1]);
     expect(segunda.map((o) => o.id)).not.toContain(ids[2]);
   });
 
-  it("uma ocorrência registrada ENTRE as páginas não faz nenhum item aparecer duas vezes", async () => {
+  it("14b.3 · uma registrada ENTRE as páginas fica FORA do corte, e nada duplica", async () => {
     const ids = await semearTres();
+    const corte = new Date().toISOString();
 
-    const primeira = await portas().ocorrencias.listar({ limite: 2, cursor: null });
-    const ultimo = primeira[1]!;
+    const primeira = await portas().ocorrencias.listar({ limite: 2, deslocamento: 0, ate: corte });
 
-    // A intrusa entra no topo da lista, depois de a página 1 já ter sido lida.
+    // A intrusa entra no topo da lista, depois de a página 1 já ter sido lida. É o caso que o §7.7 do
+    // contrato usou para recusar offset — e num offset cru ela empurraria tudo para trás.
     const intrusa = await registrarOcorrencia(
       portas(),
       { pessoaId, organizacaoId },
@@ -459,16 +463,43 @@ describe("a listagem paginada por cursor", () => {
       },
     );
 
-    const segunda = await portas().ocorrencias.listar({
-      limite: 2,
-      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
-    });
+    const segunda = await portas().ocorrencias.listar({ limite: 2, deslocamento: 2, ate: corte });
 
     const lidos = [...primeira, ...segunda].map((o) => o.id);
     expect(new Set(lidos).size).toBe(lidos.length);
-    // A intrusa é mais nova que o cursor: ela **não** entra na página seguinte, e não empurra ninguém.
+    // A intrusa nasceu depois do corte: ela **não** entra na página seguinte, e não empurra ninguém.
     expect(segunda.map((o) => o.id)).not.toContain(intrusa.id);
     expect(segunda.map((o) => o.id)).toContain(ids[0]);
+  });
+
+  it("14b.3 · e a nova é contada à parte, em `novas` — informação, não descarte", async () => {
+    await semearTres();
+    const corte = new Date().toISOString();
+
+    const antes = await portas().ocorrencias.contar({
+      pessoaIdDeQuemPergunta: pessoaId,
+      ate: corte,
+    });
+
+    await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      {
+        titulo: `Contada como nova ${SUFIXO}`,
+        descricao: "Fora do corte, e visível como número.",
+        categoriaId,
+        areaId,
+        localizacaoComplemento: null,
+      },
+    );
+
+    const depois = await portas().ocorrencias.contar({
+      pessoaIdDeQuemPergunta: pessoaId,
+      ate: corte,
+    });
+
+    expect(depois.totalFiltrado).toBe(antes.totalFiltrado);
+    expect(depois.novas).toBe(antes.novas + 1);
   });
 
   it("o filtro de autor devolve só as de quem pediu — e o resumo não traz descrição", async () => {
@@ -477,7 +508,8 @@ describe("a listagem paginada por cursor", () => {
     const minhas = await portas().ocorrencias.listar({
       autorPessoaId: pessoaId,
       limite: 50,
-      cursor: null,
+      deslocamento: 0,
+      ate: NO_FUTURO,
     });
     expect(minhas.length).toBeGreaterThan(0);
     for (const item of minhas) expect(item.autor.pessoaId).toBe(pessoaId);
@@ -485,12 +517,179 @@ describe("a listagem paginada por cursor", () => {
     const nenhuma = await portas().ocorrencias.listar({
       autorPessoaId: "00000000-0000-4000-8000-000000000000",
       limite: 50,
-      cursor: null,
+      deslocamento: 0,
+      ate: NO_FUTURO,
     });
     expect(nenhuma).toStrictEqual([]);
 
     // O modelo de leitura do resumo **não tem** `descricao` — e é o que faz a lista não pagar por ela.
     expect(minhas[0]).not.toHaveProperty("descricao");
+  });
+});
+
+/**
+ * ============================================================================
+ *  14b.4 · O item que SAI do conjunto — e por que este é o teste da fatia
+ * ============================================================================
+ *
+ * O corte protege contra **inserção**. Não protege contra o item que sai do **recorte**: `registrada_em`
+ * é imutável, `status` não é. O Gestor que lê `?status=aberta` e tria enquanto navega faz o conjunto
+ * encolher, e um `offset` cru pularia exatamente os itens que ele ainda não viu.
+ *
+ * **E pular é pior que duplicar** — duplicata se percebe e se ignora; ocorrência pulada numa fila de
+ * triagem não é atendida e ninguém descobre.
+ *
+ * **A afirmação é sobre o CONJUNTO, não sobre a contagem:** o que se prova é que a união das três
+ * leituras contém **todos** os identificadores das quinze primeiras posições do conjunto no corte — que
+ * é exatamente o trecho que um leitor de três páginas de cinco atravessa. Contar o conjunto inteiro seria
+ * frágil: os `describe` deste arquivo semeiam por cima uns dos outros, e a lista de `aberta` no corte é
+ * maior do que o que três páginas alcançam.
+ */
+describe("14b.4 · triar entre as páginas não faz nenhum item ser pulado", () => {
+  const LIMITE = 5;
+  const FILTRO = { status: ["aberta"] } as const;
+  /** As quinze primeiras posições no corte — o trecho que três páginas de cinco atravessam. */
+  let idsAbertas: string[];
+  let corte: string;
+
+  const ctxDoGestor = () => ({
+    pessoaId,
+    permissoes: ["ocorrencia.ler_todas", "ocorrencia.analisar"],
+  });
+
+  beforeAll(async () => {
+    // Doze ocorrências `aberta` a mais, para o conjunto ter folga sobre as três páginas.
+    for (let n = 0; n < 12; n += 1) {
+      await registrarOcorrencia(
+        portas(),
+        { pessoaId, organizacaoId },
+        {
+          titulo: `Fila de triagem ${n} ${SUFIXO}`,
+          descricao: "Semeada para o caso do item que sai do recorte.",
+          categoriaId,
+          areaId,
+          localizacaoComplemento: null,
+        },
+      );
+    }
+
+    corte = new Date().toISOString();
+    const todas = await portas().ocorrencias.listar({
+      limite: 100,
+      deslocamento: 0,
+      ate: corte,
+      filtro: FILTRO,
+    });
+    idsAbertas = todas.slice(0, LIMITE * 3).map((uma) => uma.id);
+  });
+
+  it("a união das três páginas cobre o trecho inteiro — nenhum item é pulado", async () => {
+    expect(idsAbertas).toHaveLength(LIMITE * 3);
+
+    const contarAgora = async () =>
+      (await portas().ocorrencias.contar({ pessoaIdDeQuemPergunta: pessoaId, ate: corte, filtro: FILTRO }))
+        .totalFiltrado;
+
+    const totalNoCorte = await contarAgora();
+    const vistos: string[] = [];
+
+    // Página 1.
+    const p1 = await portas().ocorrencias.listar({
+      limite: LIMITE,
+      deslocamento: 0,
+      ate: corte,
+      filtro: FILTRO,
+    });
+    vistos.push(...p1.map((uma) => uma.id));
+
+    // O Gestor tria TRÊS itens da página 1 — eles deixam de casar com `?status=aberta`.
+    for (const id of vistos.slice(0, 3)) {
+      await analisarOcorrencia(portas().ocorrencias, ctxDoGestor(), { ocorrenciaId: id });
+    }
+
+    // Página 2, com o `ate` e o `totalNoCorte` da primeira — e a compensação executando.
+    const saidas = Math.max(0, totalNoCorte - (await contarAgora()));
+    expect(saidas).toBe(3);
+
+    const p2 = await portas().ocorrencias.listar({
+      limite: LIMITE,
+      deslocamento: Math.max(0, 1 * LIMITE - saidas),
+      ate: corte,
+      filtro: FILTRO,
+    });
+    vistos.push(...p2.map((uma) => uma.id));
+
+    // Página 3, mesma aritmética, mais fundo — a garantia vale em qualquer profundidade.
+    const p3 = await portas().ocorrencias.listar({
+      limite: LIMITE,
+      deslocamento: Math.max(0, 2 * LIMITE - saidas),
+      ate: corte,
+      filtro: FILTRO,
+    });
+    vistos.push(...p3.map((uma) => uma.id));
+
+    // **A afirmação:** nenhum item do trecho atravessado ficou sem ser visto.
+    const conjuntoVisto = new Set(vistos);
+    for (const id of idsAbertas) expect(conjuntoVisto.has(id)).toBe(true);
+  });
+
+  /**
+   * **O preço é repetição, e ela é visível.** A garantia da §3.3 é *"nenhum PULO"*, não *"nenhuma
+   * repetição"*: quando quem sai está **atrás** do leitor, o deslocamento recua sobre um trecho que ele
+   * já leu, e ele revê. Quando quem sai está **à frente** — o caso acima —, a compensação cancela o
+   * encolhimento e a página 2 emenda na 1 sem repetir nada.
+   *
+   * **Este caso existe porque a distinção precisa estar em teste, e não só em prosa:** um conserto que
+   * eliminasse a repetição às custas do pulo passaria no caso acima e falharia aqui, que é exatamente a
+   * troca que a §3.3 recusou.
+   */
+  it("o item que sai ATRÁS do leitor faz a página 2 repetir — e é o preço, não o defeito", async () => {
+    const corteProprio = new Date().toISOString();
+    const contarAgora = async () =>
+      (
+        await portas().ocorrencias.contar({
+          pessoaIdDeQuemPergunta: pessoaId,
+          ate: corteProprio,
+          filtro: FILTRO,
+        })
+      ).totalFiltrado;
+
+    const totalNoCorte = await contarAgora();
+    expect(totalNoCorte).toBeGreaterThanOrEqual(LIMITE * 2 + 2);
+
+    const p1 = await portas().ocorrencias.listar({
+      limite: LIMITE,
+      deslocamento: 0,
+      ate: corteProprio,
+      filtro: FILTRO,
+    });
+
+    // As duas que saem estão nas posições da **página 2**, atrás de onde o leitor parou.
+    const daSegunda = await portas().ocorrencias.listar({
+      limite: 2,
+      deslocamento: LIMITE,
+      ate: corteProprio,
+      filtro: FILTRO,
+    });
+    for (const uma of daSegunda) {
+      await analisarOcorrencia(portas().ocorrencias, ctxDoGestor(), { ocorrenciaId: uma.id });
+    }
+
+    const saidas = Math.max(0, totalNoCorte - (await contarAgora()));
+    expect(saidas).toBe(2);
+
+    const p2 = await portas().ocorrencias.listar({
+      limite: LIMITE,
+      deslocamento: Math.max(0, LIMITE - saidas),
+      ate: corteProprio,
+      filtro: FILTRO,
+    });
+
+    const idsDaPrimeira = new Set(p1.map((uma) => uma.id));
+    // Duas repetidas — exatamente as `saidas`, e nunca mais que isso.
+    expect(p2.filter((uma) => idsDaPrimeira.has(uma.id))).toHaveLength(saidas);
+    // E o resto da página é continuação de verdade: nada foi pulado para caber a repetição.
+    expect(p2.filter((uma) => !idsDaPrimeira.has(uma.id))).toHaveLength(LIMITE - saidas);
   });
 });
 
@@ -526,7 +725,8 @@ describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensõ
 
     const linhas = await portas().ocorrencias.listar({
       limite: 50,
-      cursor: null,
+      deslocamento: 0,
+      ate: NO_FUTURO,
       filtro: { status: ["aberta", "cancelada"] },
     });
 
@@ -539,7 +739,8 @@ describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensõ
 
     const linhas = await portas().ocorrencias.listar({
       limite: 50,
-      cursor: null,
+      deslocamento: 0,
+      ate: NO_FUTURO,
       filtro: { status: ["aberta"], prioridade: ["alta"] },
     });
 
@@ -555,28 +756,34 @@ describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensõ
 
     const linhas = await portas().ocorrencias.listar({
       limite: 50,
-      cursor: null,
+      deslocamento: 0,
+      ate: NO_FUTURO,
       filtro: { categoriaId: ["00000000-0000-4000-8000-000000000000"] },
     });
 
     expect(linhas).toStrictEqual([]);
   });
 
-  it("o cursor continua valendo COM o filtro — a segunda página não repete nem perde", async () => {
+  it("a página 2 continua valendo COM o filtro — não repete nem perde", async () => {
     await semearParaFiltro();
     const recorte = { status: ["aberta"] } as const;
+    // **O mesmo corte nas duas leituras** — é ele que torna a segunda página a continuação da primeira,
+    // e não uma segunda foto de um conjunto que andou. *(Era um cursor até 09/09/2026; a afirmação que
+    // este caso guarda é a mesma.)*
+    const corte = new Date().toISOString();
 
     const primeira = await portas().ocorrencias.listar({
       limite: 2,
-      cursor: null,
+      deslocamento: 0,
+      ate: corte,
       filtro: recorte,
     });
     expect(primeira).toHaveLength(2);
 
-    const ultimo = primeira[1]!;
     const segunda = await portas().ocorrencias.listar({
       limite: 2,
-      cursor: { registradaEm: ultimo.registradaEm, id: ultimo.id },
+      deslocamento: 2,
+      ate: corte,
       filtro: recorte,
     });
 
@@ -1067,7 +1274,7 @@ describe("a atribuição contra Postgres — item 19", () => {
       em: EM,
     });
 
-    const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
+    const pagina = await portas().ocorrencias.listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO });
     const item = pagina.find((linha) => linha.id === id);
     expect(item?.responsavel).toStrictEqual({
       pessoaId: segundoPessoaId,
@@ -1079,7 +1286,7 @@ describe("a atribuição contra Postgres — item 19", () => {
     const id = await registrada("Campainha do bloco B");
     expect((await portas().ocorrencias.porId(id))?.responsavel).toBeNull();
 
-    const pagina = await portas().ocorrencias.listar({ limite: 50, cursor: null });
+    const pagina = await portas().ocorrencias.listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO });
     expect(pagina.find((linha) => linha.id === id)?.responsavel).toBeNull();
   });
 });

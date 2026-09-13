@@ -82,6 +82,8 @@ const chaveDoAnexoEmB = `anx_iso_b_${SUFIXO}`;
  *  e enfraqueceria o caso. */
 const ATRIBUIDA_EM_A = "2026-08-01T10:00:00.000Z";
 const ATRIBUIDA_EM_B = "2026-08-02T11:00:00.000Z";
+/** Um corte que inclui tudo — estes casos não são sobre paginação, e um corte real os tornaria frágeis. */
+const NO_FUTURO = "2099-01-01T00:00:00.000Z";
 /** A categoria da ocorrência de B — o identificador de FORA que o filtro do item 15 aceita do cliente. */
 let idDaCategoriaDeB: string;
 
@@ -690,7 +692,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
   casosDeIsolamento(mundo, {
     nome: "GET /ocorrencias",
     consultar: (organizacaoId) =>
-      portasDe(organizacaoId).ocorrencias.listar({ limite: 50, cursor: null }),
+      portasDe(organizacaoId).ocorrencias.listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO }),
     chaveDaLinha: (ocorrencia) => ocorrencia.id,
     esperadas: {
       get emA() {
@@ -788,7 +790,8 @@ describe("as consultas de configuração não atravessam organizações", () => 
     consultar: (organizacaoId) =>
       portasDe(organizacaoId).ocorrencias.listar({
         limite: 50,
-        cursor: null,
+        deslocamento: 0,
+        ate: NO_FUTURO,
         filtro: { categoriaId: [idDaCategoriaDeB] },
       }),
     chaveDaLinha: (ocorrencia) => ocorrencia.id,
@@ -963,6 +966,118 @@ describe("as consultas de configuração não atravessam organizações", () => 
         return [`${idSindica}:historico`];
       },
     },
+  });
+
+  /**
+   * ==========================================================================
+   *  14b.6 · As contagens sob a visibilidade — o COUNT ingênuo é o vazamento
+   * ==========================================================================
+   *
+   * **Não entra por `casosDeIsolamento`, e a razão é a assinatura.** A suíte pergunta *"quais linhas
+   * voltam"* — `(organizacaoId) => Promise<readonly L[]>` com `chaveDaLinha` — e uma contagem é um
+   * escalar. Embrulhá-la numa lista de uma linha provaria menos e leria pior. **A entrada da suíte
+   * continua sendo a de `GET /ocorrencias`, acima**; estes casos são a metade que a suíte não sabe fazer.
+   *
+   * **O risco é de outra natureza que o das listagens.** Uma listagem que vaza mostra títulos, e alguém
+   * vê. Uma contagem que vaza mostra **um número**, e o número parece inofensivo: ele revela apenas
+   * *quantas existem*. Só que *quantas existem* é justamente o que o Solicitante não pode saber — é a
+   * existência de ocorrências alheias, que é o que o multi-tenant deste projeto compra.
+   *
+   * **E ela é a ÚLTIMA do bloco de propósito, e não a sétima como o plano previa.** Ela é a única
+   * entrada deste arquivo que **acrescenta linhas ao mundo compartilhado** — duas ocorrências —, e o
+   * mundo é lido por conjunto exato: o `GET /dashboard` afirma `status:resolvida:1` e o
+   * `impedimentosDeRemocao` afirma que *"a moradora não aparece, sem rastro, sem impedimento"*. Semeadas
+   * antes, as duas ocorrências **quebram as duas entradas** — e quebram por estarem certas, o que é a
+   * pior forma de um caso falhar. Semeadas no fim, nenhuma outra entrada as vê.
+   *
+   * **A entrada semeia só o seu próprio agregado** (§7.1): as duas ocorrências da moradora em Recanto.
+   * As pessoas, as organizações, a categoria e a área continuam sendo do mundo compartilhado — e é
+   * `idMoradora` quem serve, porque é a única Pessoa cujo recorte de autor é **estritamente menor** que
+   * a organização: `solicitante` em Recanto, sem vínculo na Aurora. A ocorrência que a suíte já semeou em
+   * Recanto é da **síndica**, então sem estas duas a moradora seria autora de zero e as asserções não
+   * teriam o que comparar.
+   */
+  describe("14b.6 · as contagens respeitam a visibilidade do vínculo", () => {
+    beforeAll(async () => {
+      const [categoria] = await consulta<{ id: string }>(
+        `select id from categorias where organizacao_id = $1 limit 1`,
+        [idRecanto],
+      );
+      const [area] = await consulta<{ id: string }>(
+        `select id from areas where organizacao_id = $1 limit 1`,
+        [idRecanto],
+      );
+
+      for (const titulo of ["Portão da moradora", "Interfone da moradora"]) {
+        await consulta(
+          `insert into ocorrencias
+             (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id)
+           values ($1, $2, $3, 'comum', $4, $5, $6)`,
+          [
+            idRecanto,
+            categoria!.id,
+            area!.id,
+            `${titulo} ${SUFIXO}`,
+            "Semeada para o critério 14b.6 — duas, e só duas.",
+            idMoradora,
+          ],
+        );
+      }
+    });
+
+    it("a Solicitante autora de 2 numa organização de mais recebe contagens ≤ 2", async () => {
+      const repo = portasDe(idRecanto).ocorrencias;
+
+      const semRecorte = await repo.contar({
+        pessoaIdDeQuemPergunta: idMoradora,
+        ate: NO_FUTURO,
+      });
+      const comVisibilidade = await repo.contar({
+        autorPessoaId: idMoradora,
+        autorPessoaIdDaPagina: idMoradora,
+        pessoaIdDeQuemPergunta: idMoradora,
+        ate: NO_FUTURO,
+      });
+
+      // Sem o recorte de autor, a organização inteira é contada — é o COUNT ingênuo, e ele existe.
+      expect(semRecorte.totalFiltrado).toBeGreaterThan(comVisibilidade.totalFiltrado);
+
+      // **Com ele, nenhum dos cinco números passa de 2** — nem `emAberto`, nem `semResponsavel`.
+      expect(comVisibilidade.totalFiltrado).toBe(2);
+      expect(comVisibilidade.minhas).toBe(2);
+      expect(comVisibilidade.emAberto).toBe(2);
+      expect(comVisibilidade.semResponsavel).toBe(2);
+      expect(comVisibilidade.novas).toBe(0);
+    });
+
+    it("as contagens de A não enxergam B — nem por um número", async () => {
+      const emA = await portasDe(idRecanto).ocorrencias.contar({
+        pessoaIdDeQuemPergunta: idSindica,
+        ate: NO_FUTURO,
+      });
+      const emB = await portasDe(idAurora).ocorrencias.contar({
+        pessoaIdDeQuemPergunta: idSindica,
+        ate: NO_FUTURO,
+      });
+
+      const listadasEmA = await portasDe(idRecanto).ocorrencias.listar({
+        limite: 100,
+        deslocamento: 0,
+        ate: NO_FUTURO,
+      });
+      const listadasEmB = await portasDe(idAurora).ocorrencias.listar({
+        limite: 100,
+        deslocamento: 0,
+        ate: NO_FUTURO,
+      });
+
+      // **O número bate com o que a listagem escopada devolve, nas duas.** É a afirmação forte: se a
+      // contagem esquecesse o `organizacao_id`, ela daria a soma das duas nos dois lados.
+      expect(emA.totalFiltrado).toBe(listadasEmA.length);
+      expect(emB.totalFiltrado).toBe(listadasEmB.length);
+      // E os dois lados não são o mesmo conjunto — sem isto o caso passaria por vacuidade.
+      expect(emA.totalFiltrado).toBeGreaterThan(emB.totalFiltrado);
+    });
   });
 });
 

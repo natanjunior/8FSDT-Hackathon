@@ -114,9 +114,15 @@ function FaceA({ nome }: { nome: string }) {
 /**
  * **Face B · Esperando aprovação.** `vinculos: []` e um pedido `pendente`.
  *
- * **A segunda frase não é enfeite.** O aviso automático de aprovação é ⬜ (Q10), e uma tela que diz
- * *"aguarde"* sem dizer *"e nada vai te chamar"* produz uma pessoa que espera para sempre. Mentir por
- * omissão aqui é pior do que a limitação.
+ * **A segunda frase não é enfeite, e a redação dela importa.** O aviso automático de aprovação é ⬜ (Q10),
+ * e uma tela que diz *"aguarde"* sem dizer **onde a resposta aparece** produz uma pessoa que fecha a aba
+ * esperando um e-mail que nunca vem.
+ *
+ * *(Corrigido em 08/09/2026. A frase era "Você não será avisado automaticamente — volte aqui para ver.",
+ * e este comentário a defendia dizendo que "mentir por omissão é pior do que a limitação". O objetivo
+ * estava certo e continua; a **redação** estava errada, e a objeção do dono do produto é exata:
+ * ela **anuncia uma lacuna** em vez de orientar. `Volte aqui para ver a resposta.` faz o mesmo trabalho —
+ * quem precisa voltar já entendeu que nada o procura — sem transformar a tela em confissão.)*
  *
  * **Não há campo de código:** quem tem pedido em andamento não abre outro. O caminho de volta é a decisão
  * do Gestor, que é o item 8.
@@ -125,7 +131,7 @@ function FaceB({ pedido }: { pedido: { organizacao: { nome: string }; criadoEm: 
   return (
     <MolduraDeTela titulo={`Seu pedido para entrar em ${pedido.organizacao.nome} está aguardando a decisão de um Gestor.`}>
       <p className="text-tinta-suave text-sm leading-relaxed">
-        Você não será avisado automaticamente — volte aqui para ver.
+        Volte aqui para ver a resposta.
       </p>
 
       <dl className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
@@ -198,6 +204,13 @@ function formatarData(iso: string): string {
  * **O pedido pendente aparece aqui e não some**, e é a outra metade do critério 7b.7: quem tem dois
  * vínculos e um pedido pendente deixou de cair na face B, então esta é a única tela em que ele ainda pode
  * ser visto antes de entrar em alguma organização.
+ *
+ * *(Corrigido em 08/09/2026, junto com a face B — achado V-03.* O fim da frase era *"…e você não será
+ * avisado automaticamente."*, a mesma redação que a face B tinha e pelo mesmo defeito: **anunciava a
+ * lacuna** em vez de dizer onde olhar. E como este comentário registra que esta é a **única** tela em que
+ * o pedido pendente ainda aparece, *"a resposta aparece aqui"* é literalmente verdade. Ao contrário da
+ * face B, nenhum critério nem documento fixava esta redação — o `7b.5` diz que *"a forma desse ponto não
+ * está escrita em documento nenhum"*.)*
  */
 function FaceD({
   vinculos,
@@ -214,8 +227,8 @@ function FaceD({
         <p className="text-tinta-suave text-sm leading-relaxed">
           Você também pediu entrada em{" "}
           <strong className="text-tinta font-semibold">{pendente.organizacao.nome}</strong>, em{" "}
-          {formatarData(pendente.criadoEm)}. Ainda aguarda a decisão de um Gestor, e você não será avisado
-          automaticamente.
+          {formatarData(pendente.criadoEm)}. Ainda aguarda a decisão de um Gestor — a resposta aparece
+          aqui.
         </p>
       )}
 

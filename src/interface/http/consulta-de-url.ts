@@ -2,14 +2,14 @@ import { z } from "zod";
 
 import {
   LIMITE_MAXIMO,
+  PAGINA_MAXIMA,
   type CursorDeConversa,
-  type CursorDeListagem,
   type FiltroDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
-import { decodificarCursor, decodificarCursorDeConversa } from "@/interface/projecoes";
+import { decodificarCursorDeConversa } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -90,34 +90,121 @@ export function lerLimiteDaUrl(requisicao: Request): number | undefined {
 }
 
 /**
- * Lê `?cursor=` — `null` quando ausente.
+ * ============================================================================
+ *  Os três parâmetros de paginação de `GET /ocorrencias` — item 14b
+ * ============================================================================
  *
- * **Cursor ilegível é `400`, nunca a primeira página.** Responder o começo da lista a quem pediu a
- * terceira página é o cliente pedindo uma coisa e recebendo outra em silêncio — e num *"Carregar mais"*
- * isso vira a lista repetindo os mesmos vinte itens para sempre, sem nenhum sinal de erro.
+ * **Assina sobre `URLSearchParams` e não sobre `Request`**, pela mesma razão de
+ * `lerFiltroDeOcorrenciasDaUrl`: tem dois chamadores de formas diferentes — o `route.ts` tem a requisição,
+ * e T-03 tem os `searchParams` do App Router. Uma função só é o que faz a tela **validar antes de
+ * consultar**, em vez de descobrir o parâmetro inválido por um `400` que ela mesma provocou.
+ *
+ * **Campo ausente é `undefined`, e os padrões NÃO moram aqui** — é a disciplina do arquivo inteiro:
+ * *"quem decide o que acontece quando ninguém pede nada é a camada de Aplicação"*. Esta camada traduz e
+ * recusa. É por isso que `ate` ausente não vira *"agora"* aqui: quem lê o relógio é `listarOcorrencias`,
+ * e uma segunda leitura produziria dois cortes na mesma requisição.
+ *
+ * **`ate` ilegível é `400`, nunca "agora"** — é a regra que o `lerCursorDaUrl` aplicava e que morre com
+ * ele: responder outra coisa em silêncio é o cliente pedir uma página e receber outra.
+ *
+ * **`ate` no futuro é LIMITADO a agora, e não recusado.** Relógio de celular adiantado por segundos é
+ * rotina, e recusar quebraria o produto em aparelho torto. Limitar é seguro: o corte só pode estreitar.
+ *
+ * **`totalNoCorte` é dica, não autoridade** (§7.7 do contrato). Ele vem do cliente e precisa ser
+ * inofensivo em qualquer valor: alto demais limita o deslocamento em zero e repete a página 1; baixo
+ * demais desliga a compensação e devolve o deslocamento cru. **Nenhum valor produz salto além do que o
+ * deslocamento cru já produziria** — e é isso que o torna aceitável como parâmetro público. O que se
+ * recusa aqui é só o que não é um inteiro não negativo.
+ *
+ * **Os três NÃO entram em `FiltroDeOcorrencias`** — critério `14b.9`. Eles são paginação, não recorte, e
+ * é por ficarem fora que o filtro branco de `destinoDeVolta` os descarta e o *Voltar* de T-05 devolve a
+ * lista filtrada na página 1, com corte novo. Voltar para o corte anterior mostraria a ocorrência que a
+ * pessoa acabou de triar ainda como *Aberta*.
+ *
+ * **E `ate` aqui NÃO é o `ate` de `GET /dashboard`.** Lá é um **dia** (`AAAA-MM-DD`) que delimita a
+ * janela do indicador; aqui é um **instante** ISO 8601 com fuso. Mesma palavra, dois endpoints, duas
+ * gramáticas — registrado na §7.7 do contrato em vez de renomeado, porque o critério 14b.2 nomeia este
+ * parâmetro.
  */
-export function lerCursorDaUrl(requisicao: Request): CursorDeListagem | null {
-  const bruto = new URL(requisicao.url).searchParams.get("cursor");
-  if (bruto === null || bruto === "") return null;
+export type PaginacaoDaUrl = { pagina?: number; ate?: string; totalNoCorte?: number };
 
-  const cursor = decodificarCursor(bruto);
-  if (cursor === null) {
-    throw new FormatoInvalido([
-      {
-        campo: "cursor",
-        codigo: "VALOR_INVALIDO",
-        mensagem: "Cursor inválido — use o proximoCursor devolvido pela página anterior.",
-      },
-    ]);
+/** Um instante ISO 8601 **com fuso** — a §7.5 do contrato. `2026-09-09` sozinho seria meia-noite de qual
+ *  lugar? */
+const COM_FUSO = /[Zz]$|[+-]\d{2}:?\d{2}$/u;
+
+export function lerPaginacaoDaUrl(parametros: URLSearchParams): PaginacaoDaUrl {
+  const pagina = lerInteiroDaUrl(
+    parametros,
+    "pagina",
+    1,
+    PAGINA_MAXIMA,
+    `Use um inteiro de 1 a ${String(PAGINA_MAXIMA)}.`,
+  );
+  const totalNoCorte = lerInteiroDaUrl(
+    parametros,
+    "totalNoCorte",
+    0,
+    Number.MAX_SAFE_INTEGER,
+    "Use o total devolvido pela primeira página.",
+  );
+
+  const bruto = lerUnico(parametros, "ate");
+  let ate: string | undefined;
+  if (bruto !== undefined) {
+    const instante = Date.parse(bruto);
+    // **A ida e volta é o que separa uma data de algo que o `Date` aceita por acidente** — é a mesma
+    // guarda de `lerDia`, mais acima neste arquivo.
+    if (Number.isNaN(instante) || !COM_FUSO.test(bruto)) {
+      throw new FormatoInvalido([
+        {
+          campo: "ate",
+          codigo: "VALOR_INVALIDO",
+          mensagem: "Use um instante ISO 8601 com fuso — o `ate` devolvido pela primeira página.",
+        },
+      ]);
+    }
+    ate = new Date(Math.min(instante, Date.now())).toISOString();
   }
 
-  return cursor;
+  // Campo ausente é "decida por mim" — por isso o espalhamento condicional, e não `pagina: undefined`.
+  return {
+    ...(pagina === undefined ? {} : { pagina }),
+    ...(ate === undefined ? {} : { ate }),
+    ...(totalNoCorte === undefined ? {} : { totalNoCorte }),
+  };
+}
+
+/**
+ * Um inteiro de faixa, recusado em voz alta. Extraído porque `pagina` e `totalNoCorte` o querem igual.
+ *
+ * **`lerLimiteDaUrl` continua com o corpo próprio, e não passa por aqui:** ele assina sobre `Request`, a
+ * faixa dele vem do contrato por outro caminho (`LIMITE_MAXIMO`) e a mensagem de recusa é dele. Unificar
+ * os dois mudaria a mensagem de erro de um endpoint estável, e é refatoração de outro dia.
+ */
+function lerInteiroDaUrl(
+  parametros: URLSearchParams,
+  nome: string,
+  minimo: number,
+  maximo: number,
+  mensagem: string,
+): number | undefined {
+  const bruto = lerUnico(parametros, nome);
+  if (bruto === undefined) return undefined;
+
+  const numero = Number(bruto);
+  // `Number("2.5")` é 2.5 e `Number("1e2")` é 100 — os dois passam num `Number.isFinite`, e nenhum é o
+  // que a pessoa escreveu. `/^\d+$/` é o que separa "o inteiro 2" de "algo que vira 2".
+  if (!/^\d+$/u.test(bruto) || !Number.isInteger(numero) || numero < minimo || numero > maximo) {
+    throw new FormatoInvalido([{ campo: nome, codigo: "VALOR_INVALIDO", mensagem }]);
+  }
+
+  return numero;
 }
 
 /**
  * Lê `?cursor=` da conversa — `null` quando ausente.
  *
- * **A irmã de `lerCursorDaUrl`, com a mesma recusa:** *"cursor ilegível é `400`, nunca a primeira
+ * **A recusa é a mesma que a listagem aplicava até o item 14b:** *"cursor ilegível é `400`, nunca a primeira
  * página"* — porque num *Carregar mais* isso vira a lista repetindo os mesmos vinte itens para sempre,
  * sem nenhum sinal de erro.
  *

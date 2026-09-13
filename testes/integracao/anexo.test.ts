@@ -22,6 +22,9 @@ import { aplicarEsquema } from "./esquema";
 const URL_DO_BANCO = urlDoBancoDeTeste();
 const SUFIXO = `${Date.now()}`;
 
+/** Um corte que inclui tudo — este caso não é sobre paginação, e um corte real o tornaria frágil. */
+const NO_FUTURO = "2099-01-01T00:00:00.000Z";
+
 let pool: Pool;
 let consultaCrua: <L extends object>(sql: string, valores?: readonly unknown[]) => Promise<L[]>;
 let organizacaoId: string;
@@ -302,7 +305,7 @@ describe("as leituras do anexo", () => {
     const criada = await repositorio().registrar(agregadoComAnexo(chave, null));
     const id = criada.desfecho === "registrada" ? criada.ocorrencia.id : "";
 
-    const pagina = await repositorio().listar({ limite: 50, cursor: null });
+    const pagina = await repositorio().listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO });
     const item = pagina.find((linha) => linha.id === id);
 
     expect(item!.quantidadeDeAnexos).toBe(1);

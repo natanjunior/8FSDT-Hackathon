@@ -2,6 +2,8 @@ import type {
   AnexoLido,
   AtribuicaoLida,
   ComentarioLido,
+  ContagensLidas,
+  FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   RepositorioEscopadoDeOcorrencias,
@@ -34,6 +36,14 @@ import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/conte
  * **A leitura de pessoa parte de `vinculos`, nunca de `pessoas`** — item do DoD que o lint não alcança,
  * porque a consulta seria legítima: ela apenas partiria da tabela errada, e `pessoas` é global.
  */
+
+type LinhaDeContagens = {
+  total_filtrado: number;
+  minhas: number;
+  em_aberto: number;
+  sem_responsavel: number;
+  novas: number;
+};
 
 /** As colunas da ocorrência mais o que o `join` traz. Fica junto do SQL, que é quem a produz. */
 type LinhaDeOcorrencia = {
@@ -504,6 +514,45 @@ type LinhaDeResumo = {
  *    `select` lê — o booleano custa zero leitura a mais. É o oposto do `quantidadeDeAnexos`, que é
  *    subconsulta correlacionada porque `anexos` é outra tabela (item 27).
  */
+/**
+ * As três condições do recorte de G2, montadas **uma vez** — item 14b.
+ *
+ * **`and` entre dimensões e `or` dentro de cada uma:** é o que `= any(lista)` já significa, e é a leitura
+ * literal de *"aceitam múltiplos valores e combinam entre si"* (critério 15.1).
+ *
+ * **Os `::` não são decoração:** sem o *cast* o Postgres recusa comparar `text[]` com
+ * `status_ocorrencia`. O `pg` converte `readonly string[]` em array de Postgres sozinho; o *cast* é o que
+ * lhe dá o tipo do enum.
+ *
+ * **A ordem importa:** `proximo()` numera pela ordem de inserção em `valores`, então quem chama tem de
+ * acrescentar estas condições antes de reservar os parâmetros que vêm depois.
+ *
+ * **Existe como função porque tem DOIS chamadores** — a página e o painel —, e o dia em que as duas
+ * cópias divergirem é o dia em que o `total` deixa de descrever a lista que está na tela.
+ */
+function condicoesDoRecorte(
+  recorte: FiltroDeOcorrencias | undefined,
+  proximo: () => string,
+  valores: unknown[],
+): string[] {
+  const condicoes: string[] = [];
+
+  if (recorte?.status !== undefined) {
+    condicoes.push(`o.status = any(${proximo()}::status_ocorrencia[])`);
+    valores.push(recorte.status);
+  }
+  if (recorte?.categoriaId !== undefined) {
+    condicoes.push(`o.categoria_id = any(${proximo()}::uuid[])`);
+    valores.push(recorte.categoriaId);
+  }
+  if (recorte?.prioridade !== undefined) {
+    condicoes.push(`o.prioridade = any(${proximo()}::prioridade_ocorrencia[])`);
+    valores.push(recorte.prioridade);
+  }
+
+  return condicoes;
+}
+
 const SELECT_DO_RESUMO = `
   select o.id,
          o.titulo,
@@ -1208,14 +1257,28 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * A página da listagem.
+     * A página da listagem — **numerada sobre um instante de corte** (item 14b, 09/09/2026).
      *
-     * **`$1` é a organização, e os parâmetros de quem chama começam em `$2`** — por isso o contador
-     * começa em 2. O SQL é montado por partes porque as duas condições são opcionais, e **não há
-     * interpolação de valor em lugar nenhum**: o que entra no texto é sempre `$n`.
+     * **`$1` é a organização, e os parâmetros de quem chama começam em `$2`** — por isso o contador começa
+     * em 2. O SQL é montado por partes porque as condições são opcionais, e **não há interpolação de valor
+     * em lugar nenhum**: o que entra no texto é sempre `$n`.
      *
-     * **Os `::` não são decoração.** Numa comparação de linha `(a, b) < ($2, $3)` o Postgres não infere
-     * o tipo dos parâmetros, e sem a marcação ele recusa a consulta.
+     * **`registrada_em <= $ate` é a fronteira superior imóvel.** `registrada_em` nunca muda, então uma
+     * ocorrência registrada depois de o leitor abrir a lista não entra no conjunto e não empurra ninguém —
+     * é o que substitui a imunidade que o cursor dava, e é a metade da §7.7 do contrato que esta fatia
+     * conserta de vez.
+     *
+     * **O `offset` chega COMPENSADO** e este arquivo não sabe disso — para ele é um deslocamento. Quem
+     * compensa é `listarOcorrencias`, e a razão está na §3.3 da spec do 14b.
+     *
+     * **Sem `count(*) over ()`, e a ausência é decisão.** Uma função de janela obrigaria a consumir o
+     * conjunto filtrado inteiro antes de emitir a primeira linha — o `limit` para a saída, não a entrada.
+     * O `total` vem do `contar`, logo abaixo, num `count(*) FILTER` da consulta que já contava. **Assim a
+     * página continua sendo um `limit/offset` sobre o índice `(organizacao_id, registrada_em desc)`.**
+     *
+     * **O índice que serve esta consulta é `(organizacao_id, registrada_em DESC)`**, o da ordenação — não
+     * o `(organizacao_id, status)`. O `EXPLAIN` que o confirmaria continua sem ser rodado (passo manual
+     * **M.2**).
      */
     async listar(filtro) {
       const valores: unknown[] = [];
@@ -1227,61 +1290,121 @@ export function repositorioEscopadoDeOcorrencias(
         valores.push(filtro.autorPessoaId);
       }
 
-      if (filtro.cursor !== null) {
-        const data = proximo();
-        valores.push(filtro.cursor.registradaEm);
-        const id = proximo();
-        valores.push(filtro.cursor.id);
-        condicoes.push(`(o.registrada_em, o.id) < (${data}::timestamptz, ${id}::uuid)`);
-      }
+      condicoes.push(`o.registrada_em <= ${proximo()}::timestamptz`);
+      valores.push(filtro.ate);
 
-      /**
-       * **O recorte de G2 — três `= any(...)`, e nenhum deles é opcional por acaso.**
-       *
-       * `and` entre dimensões e `or` dentro de cada uma: é o que `= any(lista)` já significa, e é a
-       * leitura literal de *"aceitam múltiplos valores e combinam entre si"* (critério 15.1).
-       *
-       * **Os `::` não são decoração**, pela mesma razão da comparação de linha logo acima: sem o *cast*
-       * o Postgres recusa comparar `text[]` com `status_ocorrencia`. `pg` converte `readonly string[]` em
-       * array de Postgres sozinho; o *cast* é o que lhe dá o tipo do enum.
-       *
-       * **Condição só entra quando o filtro existe** — a mesma disciplina do `autorPessoaId` acima. Não
-       * há guarda de nulo porque não há parâmetro sem valor. E a **ordem importa**: `proximo()` numera
-       * pela ordem de inserção em `valores`, então as três entram antes do `limite`.
-       *
-       * **O índice que serve esta consulta é `(organizacao_id, registrada_em DESC)`**, o da ordenação —
-       * não o `(organizacao_id, status)`. É o achado **A-2** da spec, e o `EXPLAIN` que o confirmaria
-       * continua sem ser rodado (passo manual **M.2**).
-       */
-      const recorte = filtro.filtro;
-
-      if (recorte?.status !== undefined) {
-        condicoes.push(`o.status = any(${proximo()}::status_ocorrencia[])`);
-        valores.push(recorte.status);
-      }
-
-      if (recorte?.categoriaId !== undefined) {
-        condicoes.push(`o.categoria_id = any(${proximo()}::uuid[])`);
-        valores.push(recorte.categoriaId);
-      }
-
-      if (recorte?.prioridade !== undefined) {
-        condicoes.push(`o.prioridade = any(${proximo()}::prioridade_ocorrencia[])`);
-        valores.push(recorte.prioridade);
-      }
+      condicoes.push(...condicoesDoRecorte(filtro.filtro, proximo, valores));
 
       const limite = proximo();
       valores.push(filtro.limite);
+      const deslocamento = proximo();
+      valores.push(filtro.deslocamento);
 
       const linhas = await consulta<LinhaDeResumo>(
         `${SELECT_DO_RESUMO}
            ${condicoes.map((condicao) => `and ${condicao}`).join("\n           ")}
          order by o.registrada_em desc, o.id desc
-         limit ${limite}::int`,
+         limit ${limite}::int offset ${deslocamento}::int`,
         valores,
       );
 
       return linhas.map(montarResumo);
+    },
+
+    /**
+     * As cinco contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
+     * listagem aplica**.
+     *
+     * **Este é o ponto onde um erro vira furo de multi-tenant.** Um `COUNT` sem `autor_pessoa_id` vaza a
+     * **existência** de ocorrências que o Solicitante não pode ler: ele não veria os títulos, mas leria o
+     * número. É por isso que o `GET /dashboard` **não** foi reusado — o `SELECT_DO_BACKLOG_POR_STATUS`
+     * conta a organização inteira, o que está correto lá (só o Gestor o alcança) e seria vazamento aqui.
+     *
+     * **UMA consulta, cinco números, uma varredura da partição.** O `where` carrega só a organização e a
+     * visibilidade; o corte e o recorte moram dentro de cada `FILTER`, porque `novas` olha para o outro
+     * lado do corte e não caberia num `where` compartilhado.
+     *
+     * **A assimetria do recorte é deliberada, e não é descuido.** `totalFiltrado` e `novas` aplicam os
+     * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `minhas`, `emAberto` e
+     * `semResponsavel` **não** aplicam nenhum dos quatro. A razão é de uso: os três do painel existem para
+     * o leitor **decidir qual recorte pedir**, e recalculá-los dentro do recorte que ele já pediu seria um
+     * espelho de frente para outro — `emAberto` sob `?status=resolvida` daria zero, sempre, e não
+     * informaria nada. `novas` é o oposto: ela responde *"apertar Atualizar vai mudar a lista que você
+     * está lendo"*, e essa lista é a filtrada.
+     *
+     * **`semResponsavel` conta só entre as não terminais**, e é escolha: *"sem responsável"* é uma fila de
+     * trabalho, e ocorrência resolvida sem responsável não é trabalho parado — é história.
+     *
+     * **Os `::int` não são decoração:** `count(*)` é `bigint`, e o `pg` o devolve como **string** para não
+     * perder precisão. Sem o *cast*, `total` chegaria como `"137"` e a aritmética da compensação
+     * concatenaria em vez de subtrair. É a mesma nota do `dashboard-escopado.ts`.
+     */
+    async contar(filtro): Promise<ContagensLidas> {
+      const valores: unknown[] = [];
+      const condicoes: string[] = [];
+      const proximo = () => `$${valores.length + 2}`;
+
+      if (filtro.autorPessoaId !== undefined) {
+        condicoes.push(`o.autor_pessoa_id = ${proximo()}::uuid`);
+        valores.push(filtro.autorPessoaId);
+      }
+
+      const ate = proximo();
+      valores.push(filtro.ate);
+      const quem = proximo();
+      valores.push(filtro.pessoaIdDeQuemPergunta);
+      const terminais = proximo();
+      valores.push([...TERMINAIS]);
+
+      const recorte = condicoesDoRecorte(filtro.filtro, proximo, valores);
+
+      // **O recorte de autor DA PÁGINA entra aqui, e só aqui.** Ele acompanha os três de G2 em
+      // `totalFiltrado` e em `novas`, e **não** entra no `where` de fora: o `where` carrega a
+      // visibilidade do painel, que é só permissão. Para o Solicitante os dois coincidem e a condição é
+      // redundante; para o Gestor com `?autor=eu` ela é a diferença entre o `total` da lista e o da
+      // organização.
+      if (filtro.autorPessoaIdDaPagina !== undefined) {
+        recorte.push(`o.autor_pessoa_id = ${proximo()}::uuid`);
+        valores.push(filtro.autorPessoaIdDaPagina);
+      }
+
+      const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;
+
+      const corte = `o.registrada_em <= ${ate}::timestamptz`;
+      const naoTerminal = `o.status <> all(${terminais}::status_ocorrencia[])`;
+      const semResponsavelVigente = `not exists (
+             select 1 from atribuicoes at
+              where at.ocorrencia_id = o.id
+                and at.organizacao_id = o.organizacao_id
+                and at.encerrada_em is null)`;
+
+      const linhas = await consulta<LinhaDeContagens>(
+        `select count(*) filter (where ${corte}${eRecorte})::int                             as total_filtrado,
+                count(*) filter (where ${corte} and o.autor_pessoa_id = ${quem}::uuid)::int  as minhas,
+                count(*) filter (where ${corte} and ${naoTerminal})::int                     as em_aberto,
+                count(*) filter (where ${corte} and ${naoTerminal}
+                                   and ${semResponsavelVigente})::int                        as sem_responsavel,
+                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas
+           from ocorrencias o
+          where o.organizacao_id = $1
+          ${condicoes.map((condicao) => `and ${condicao}`).join("\n          ")}`,
+        valores,
+      );
+
+      const linha = linhas[0];
+      // `count(*)` sem `group by` sempre devolve uma linha, inclusive com zero linhas na tabela. O ramo
+      // existe para o compilador, não para o banco.
+      if (linha === undefined) {
+        return { totalFiltrado: 0, minhas: 0, emAberto: 0, semResponsavel: 0, novas: 0 };
+      }
+
+      return {
+        totalFiltrado: linha.total_filtrado,
+        minhas: linha.minhas,
+        emAberto: linha.em_aberto,
+        semResponsavel: linha.sem_responsavel,
+        novas: linha.novas,
+      };
     },
 
     async trilha(ocorrenciaId) {

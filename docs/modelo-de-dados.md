@@ -1,3 +1,8 @@
+---
+title: "Modelo de Dados"
+description: "O esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com os índices justificados, e como cada invariante é garantida."
+---
+
 # Modelo de Dados — Resolve Aí
 
 Modelo físico para **PostgreSQL 15+ no Supabase**, derivado dos seis agregados de

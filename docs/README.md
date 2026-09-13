@@ -1,3 +1,8 @@
+---
+title: "Documentação do Resolve Aí"
+description: "O índice da documentação da solução, com o que cada documento contém e por onde começar."
+---
+
 # Resolve Aí — Documentação
 
 Plataforma de Gestão de Ocorrências. Permite que moradores, funcionários ou membros de uma organização
@@ -30,6 +35,7 @@ identificador, não posição de leitura: quem entra agora encontra as duas tril
 | 10 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
 | 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
 | 12 | **[Protótipo Low-Fi](prototipo-low-fi.md)** | A forma das telas: o orçamento de tempo do registro em menos de um minuto — o único requisito cronometrado do projeto —, os desenhos em baixa fidelidade, e o que desenhar descobriu |
+| 13 | **[Event Storming](event-storming.md)** | O workshop de descoberta do domínio: os eventos, os comandos e quem os dispara, as onze políticas, os modelos de leitura por ator, e os seis agregados e dois contextos que saíram dali |
 
 > **O 12 é identificador, não fim de fila.** O protótipo foi produzido depois do inventário de telas e
 > lê-se logo em seguida a ele — mas renumerar 09, 10 e 11 quebraria referências que outros documentos já

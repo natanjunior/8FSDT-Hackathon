@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
-import type { AnexoLido, OcorrenciaLida, OcorrenciaResumoLida } from "@/aplicacao/ocorrencia";
+import type {
+  AnexoLido,
+  OcorrenciaLida,
+  OcorrenciaResumoLida,
+  PaginaDeOcorrencias,
+} from "@/aplicacao/ocorrencia";
 import { CategoriaNaoEncontrada } from "@/aplicacao/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
 import {
@@ -43,9 +48,9 @@ import {
   CorpoNaoSuportado,
   FormatoInvalido,
   lerCorpoOpcional,
-  lerCursorDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
+  lerPaginacaoDaUrl,
   lerVarianteDaUrl,
   problemaDe,
   recusarEvolucaoPrevista,
@@ -369,62 +374,69 @@ describe("o OcorrenciaResumo projetado", () => {
   });
 });
 
-describe("o envelope da página", () => {
-  it("com temMais, proximoCursor é o do ÚLTIMO item devolvido", () => {
-    const envelope = projetarPaginaDeOcorrencias(
-      {
-        itens: [RESUMO_LIDO],
-        temMais: true,
-        visibilidadeAplicada: "todas",
-      },
-      "solicitante",
-    );
-
-    expect(envelope.visibilidadeAplicada).toBe("todas");
-    expect(decodificarCursor(envelope.proximoCursor!)).toStrictEqual({
-      registradaEm: RESUMO_LIDO.registradaEm,
-      id: RESUMO_LIDO.id,
-    });
+describe("o envelope da página — item 14b", () => {
+  const paginaLida = (extra: Partial<PaginaDeOcorrencias> = {}): PaginaDeOcorrencias => ({
+    itens: [RESUMO_LIDO],
+    total: 137,
+    pagina: 1,
+    limite: 20,
+    ate: "2026-09-09T08:00:00.000Z",
+    totalNoCorte: 137,
+    saidasDesdeOCorte: 0,
+    novasDesdeOCorte: 0,
+    contagens: { minhas: 2, emAberto: 7, semResponsavel: 3 },
+    visibilidadeAplicada: "todas",
+    ...extra,
   });
 
-  it("sem temMais, proximoCursor é nulo — e nunca abre uma página vazia", () => {
-    const envelope = projetarPaginaDeOcorrencias(
-      {
-        itens: [RESUMO_LIDO],
-        temMais: false,
-        visibilidadeAplicada: "apenas_minhas",
-      },
-      "solicitante",
-    );
+  it("traz os dez campos, e NENHUM deles é proximoCursor", () => {
+    const envelope = projetarPaginaDeOcorrencias(paginaLida(), "gestor");
 
-    expect(envelope.proximoCursor).toBeNull();
+    expect(Object.keys(envelope).sort()).toStrictEqual(
+      [
+        "ate",
+        "contagens",
+        "itens",
+        "limite",
+        "novasDesdeOCorte",
+        "pagina",
+        "saidasDesdeOCorte",
+        "total",
+        "totalNoCorte",
+        "visibilidadeAplicada",
+      ].sort(),
+    );
+    expect(envelope).not.toHaveProperty("proximoCursor");
   });
 
-  it("página vazia com temMais impossível: sem itens, não há cursor", () => {
+  it("os números atravessam intactos — a projeção não recalcula nada", () => {
     const envelope = projetarPaginaDeOcorrencias(
-      {
-        itens: [],
-        temMais: true,
-        visibilidadeAplicada: "todas",
-      },
-      "solicitante",
+      paginaLida({
+        total: 134,
+        pagina: 2,
+        totalNoCorte: 137,
+        saidasDesdeOCorte: 3,
+        novasDesdeOCorte: 5,
+      }),
+      "gestor",
+    );
+
+    expect(envelope.total).toBe(134);
+    expect(envelope.totalNoCorte).toBe(137);
+    expect(envelope.saidasDesdeOCorte).toBe(3);
+    expect(envelope.novasDesdeOCorte).toBe(5);
+    expect(envelope.contagens).toStrictEqual({ minhas: 2, emAberto: 7, semResponsavel: 3 });
+  });
+
+  it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {
+    const envelope = projetarPaginaDeOcorrencias(
+      paginaLida({ itens: [], pagina: 9, total: 3 }),
+      "gestor",
     );
 
     expect(envelope.itens).toStrictEqual([]);
-    expect(envelope.proximoCursor).toBeNull();
-  });
-
-  it("não há total no envelope — o contrato §7.7 o recusou", () => {
-    const envelope = projetarPaginaDeOcorrencias(
-      {
-        itens: [RESUMO_LIDO],
-        temMais: false,
-        visibilidadeAplicada: "todas",
-      },
-      "solicitante",
-    );
-
-    expect(envelope).not.toHaveProperty("total");
+    expect(envelope.total).toBe(3);
+    expect(envelope.visibilidadeAplicada).toBe("todas");
   });
 });
 
@@ -458,7 +470,9 @@ describe("o codec do cursor", () => {
  */
 const pedido = (consulta: string) => new Request(`https://resolveai.app/api/ocorrencias${consulta}`);
 
-describe("os dois parâmetros de GET /ocorrencias", () => {
+describe("os parâmetros de paginação de GET /ocorrencias — item 14b", () => {
+  const consulta = (texto: string) => new URLSearchParams(texto);
+
   it("limite ausente é undefined — o padrão é da Aplicação, não daqui", () => {
     expect(lerLimiteDaUrl(pedido(""))).toBeUndefined();
     expect(lerLimiteDaUrl(pedido("?limite="))).toBeUndefined();
@@ -472,28 +486,76 @@ describe("os dois parâmetros de GET /ocorrencias", () => {
   it.each(["0", "101", "-3", "20.5", "vinte", "1e2"])(
     "limite=%s é recusado em voz alta, nunca corrigido em silêncio",
     (valor) => {
-      expect(() => lerLimiteDaUrl(pedido(`?limite=${valor}`))).toThrowError(/FORMATO_INVALIDO|inválid/iu);
+      expect(() => lerLimiteDaUrl(pedido(`?limite=${valor}`))).toThrowError(
+        /FORMATO_INVALIDO|inválid/iu,
+      );
     },
   );
 
-  it("cursor ausente é null", () => {
-    expect(lerCursorDaUrl(pedido(""))).toBeNull();
+  it("todos ausentes: primeira página, corte a decidir pela Aplicação", () => {
+    expect(lerPaginacaoDaUrl(consulta(""))).toStrictEqual({});
   });
 
-  it("cursor legível volta como par", () => {
-    const codificado = codificarCursor({
-      registradaEm: "2026-08-20T13:02:11.000Z",
-      id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
-    });
-
-    expect(lerCursorDaUrl(pedido(`?cursor=${encodeURIComponent(codificado)}`))).toStrictEqual({
-      registradaEm: "2026-08-20T13:02:11.000Z",
-      id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8",
-    });
+  it("pagina aceita a faixa 1..1000", () => {
+    expect(lerPaginacaoDaUrl(consulta("pagina=1")).pagina).toBe(1);
+    expect(lerPaginacaoDaUrl(consulta("pagina=1000")).pagina).toBe(1000);
   });
 
-  it("cursor ilegível é 400, não a primeira página", () => {
-    expect(() => lerCursorDaUrl(pedido("?cursor=pagina-2"))).toThrowError(/FORMATO_INVALIDO|inválid/iu);
+  it.each(["0", "1001", "-1", "2.5", "1e2", "dois", " "])(
+    "pagina=%s é 400 — nunca ajustada em silêncio",
+    (valor) => {
+      expect(() => lerPaginacaoDaUrl(consulta(`pagina=${valor}`))).toThrowError(
+        /FORMATO_INVALIDO|inválid/iu,
+      );
+    },
+  );
+
+  // **O instante do caso é do PASSADO de propósito.** Um `ate` do dia corrente vira futuro assim que o
+  // relógio ainda não o alcançou, e a limitação a "agora" — que é o caso logo abaixo — o normalizaria
+  // para outra coisa. Teste que depende da hora em que roda é vermelho intermitente, não prova.
+  it("ate legível volta em ISO com fuso, normalizado para UTC", () => {
+    expect(lerPaginacaoDaUrl(consulta("ate=2026-08-20T08:00:00Z")).ate).toBe(
+      "2026-08-20T08:00:00.000Z",
+    );
+    expect(lerPaginacaoDaUrl(consulta("ate=2026-08-20T05:00:00-03:00")).ate).toBe(
+      "2026-08-20T08:00:00.000Z",
+    );
+  });
+
+  it.each(["ontem", "2026-13-45T00:00:00Z", "2026-09-09"])(
+    "ate=%s é 400, nunca 'agora' — responder outra coisa em silêncio é o defeito",
+    (valor) => {
+      expect(() => lerPaginacaoDaUrl(consulta(`ate=${valor}`))).toThrowError(
+        /FORMATO_INVALIDO|inválid/iu,
+      );
+    },
+  );
+
+  it("ate no FUTURO é limitado a agora, e não recusado — relógio adiantado é rotina", () => {
+    const futuro = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const lido = lerPaginacaoDaUrl(consulta(`ate=${futuro}`)).ate!;
+    expect(Date.parse(lido)).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+
+  it("totalNoCorte aceita inteiro ≥ 0, e recusa o resto", () => {
+    expect(lerPaginacaoDaUrl(consulta("totalNoCorte=0")).totalNoCorte).toBe(0);
+    expect(lerPaginacaoDaUrl(consulta("totalNoCorte=137")).totalNoCorte).toBe(137);
+    for (const valor of ["-1", "1.5", "muitas"]) {
+      expect(() => lerPaginacaoDaUrl(consulta(`totalNoCorte=${valor}`))).toThrowError(
+        /FORMATO_INVALIDO|inválid/iu,
+      );
+    }
+  });
+
+  it("14b.9 · os três NÃO entram em FiltroDeOcorrencias — e é o que traz o Voltar de T-05 limpo", () => {
+    const filtro = lerFiltroDeOcorrenciasDaUrl(
+      consulta("status=aberta&pagina=3&ate=2026-08-20T08:00:00Z&totalNoCorte=137"),
+    );
+
+    expect(filtro).toStrictEqual({ status: ["aberta"] });
+    expect(Object.keys(filtro)).not.toContain("pagina");
+    expect(Object.keys(filtro)).not.toContain("ate");
+    expect(Object.keys(filtro)).not.toContain("totalNoCorte");
   });
 });
 

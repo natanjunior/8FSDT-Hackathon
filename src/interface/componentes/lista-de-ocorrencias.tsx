@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
@@ -32,14 +31,31 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  *
  * **`agora` vem do servidor** e não de `Date.now()` aqui: a primeira renderização acontece no servidor e a
  * hidratação no navegador, e dois relógios produziriam dois textos.
+ *
+ * **Sem *Carregar mais*, desde o item 14b (09/09/2026).** A paginação é numerada e mora nos
+ * `searchParams`: quem renderiza a página pedida é o Server Component, e este componente passou a ser
+ * **só desenho** — recebe uma página inteira e a pinta, sem estado e sem `fetch`. **A navegação em si
+ * ainda não existe na tela** — ela é da frente de design, junto com a linha de deriva
+ * (`saidasDesdeOCorte` / `novasDesdeOCorte`) e o estado de *página além do fim*. Até lá, a página se
+ * troca pela URL: `?pagina=2`.
  */
 type Props = {
+  /**
+   * A página que o servidor renderizou — **uma página inteira, não a primeira de várias**.
+   *
+   * O nome sobreviveu ao item 14b, quando a paginação deixou de acumular no cliente. Renomeá-lo aqui
+   * colidiria com a reescrita da frente de design, que é quem monta a navegação numerada.
+   *
+   * **Ela já traz tudo o que essa navegação vai precisar** — `total`, `pagina`, `limite`, `ate`,
+   * `totalNoCorte`, `saidasDesdeOCorte`, `novasDesdeOCorte` e as `contagens` —, e é por isso que a
+   * propriedade continua sendo **uma só**: quando o controle nascer, a assinatura não muda de novo.
+   */
   primeiraPagina: PaginaDeOcorrenciasProjetada;
   /**
    * A *query string* de T-03, crua — o recorte que definiu esta lista. Vazia quando não há filtro.
    *
-   * **Obrigatória de propósito** (item 15): opcional, um esquecimento em quem monta a lista faz o
-   * *Carregar mais* voltar a perder o filtro em silêncio, e o compilador deixa de ser a garantia.
+   * **Obrigatória de propósito** (item 15): opcional, um esquecimento em quem monta a lista faz o *Voltar*
+   * de T-05 perder o filtro em silêncio, e o compilador deixa de ser a garantia.
    */
   consultaAtual: string;
   /** `categoriaId → nome do ícone`, cruzado **no cliente** contra `GET /categorias` (critério 14.6). */
@@ -76,51 +92,9 @@ export function ListaDeOcorrencias({
   pessoaIdDeQuemLe,
   agora,
 }: Props) {
-  const [itens, setItens] = useState<readonly OcorrenciaResumoProjetada[]>(primeiraPagina.itens);
-  const [cursor, setCursor] = useState(primeiraPagina.proximoCursor);
-  const [carregando, setCarregando] = useState(false);
-  const [falha, setFalha] = useState<string | null>(null);
-
-  /**
-   * **Anexa, nunca substitui** — critério 14.7. E a falha **não** limpa o que já está na tela: a lista que
-   * a pessoa já lê é dela, e esvaziá-la para mostrar um erro é perder o lugar por causa de uma requisição.
-   */
-  async function carregarMais() {
-    if (cursor === null || carregando) return;
-
-    setCarregando(true);
-    setFalha(null);
-
-    try {
-      /**
-       * **A consulta atual MAIS o cursor, nunca o cursor sozinho** — §3.7 da spec do item 15.
-       *
-       * O `proximoCursor` é uma posição **dentro de um conjunto**; pedi-lo sem o recorte que definiu esse
-       * conjunto devolve a página seguinte de *outra* lista. Anexada à que já está na tela, ela mistura
-       * dois conjuntos sem nenhum aviso — e a pessoa lê como dado, não como defeito.
-       *
-       * `consultaAtual` já vem sem `cursor`: quem a monta é a página, a partir dos `searchParams`, e toda
-       * mudança de filtro apaga o cursor antes de navegar. Se ainda vier um — link colado com cursor na
-       * URL —, o `set` abaixo o sobrescreve, que é o comportamento certo.
-       */
-      const destino = new URLSearchParams(consultaAtual);
-      destino.set("cursor", cursor);
-      const resposta = await fetch(`/api/ocorrencias?${destino.toString()}`);
-
-      if (!resposta.ok) {
-        setFalha("Não foi possível carregar mais agora. Tente de novo.");
-        return;
-      }
-
-      const pagina = (await resposta.json()) as PaginaDeOcorrenciasProjetada;
-      setItens((anteriores) => [...anteriores, ...pagina.itens]);
-      setCursor(pagina.proximoCursor);
-    } catch {
-      setFalha("Sem conexão. A lista que você já tem continua aqui.");
-    } finally {
-      setCarregando(false);
-    }
-  }
+  // **Uma página inteira, lida direto** — item 14b. O componente deixou de acumular: cada página vem
+  // do servidor, e não há estado a preservar entre elas.
+  const itens = primeiraPagina.itens;
 
   /**
    * **O recorte viaja com o link, e só quando existe** — a metade do critério 15.3 que fala do *Voltar*.
@@ -161,23 +135,6 @@ export function ListaDeOcorrencias({
           </ul>
           <TabelaDeTriagem itens={itens} {...comum} />
         </>
-      )}
-
-      {falha !== null && (
-        <p role="alert" className="text-destructive text-sm">
-          {falha}
-        </p>
-      )}
-
-      {cursor !== null && (
-        <button
-          type="button"
-          onClick={carregarMais}
-          disabled={carregando}
-          className="border-linha text-tinta min-h-11 w-full rounded-md border text-sm font-medium disabled:opacity-60"
-        >
-          {carregando ? "Carregando…" : "Carregar mais"}
-        </button>
       )}
     </div>
   );

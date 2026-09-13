@@ -218,12 +218,24 @@ export type CursorDeListagem = { registradaEm: string; id: string };
  * **`autorPessoaId` presente = só as daquela Pessoa.** O repositório **não conhece permissão**: quem
  * traduz *"tem `ocorrencia.ler_todas`"* em *"sem filtro de autor"* é a camada de Aplicação, e é a única
  * que pode — o repositório não vê o `Vinculo`.
+ *
+ * **`deslocamento`, e não `cursor`** — item 14b, 09/09/2026. A posição da página é numérica sobre um
+ * **instante de corte**, e o corte é o que devolve a imunidade que o cursor dava de graça: `registrada_em`
+ * nunca muda, então `registrada_em <= ate` é uma fronteira superior imóvel. Ocorrência registrada depois
+ * de o leitor abrir a lista **não entra no conjunto** e não empurra ninguém.
+ *
+ * **O `deslocamento` chega COMPENSADO.** Quem o calcula é `listarOcorrencias`, e o repositório não sabe
+ * que houve compensação — para ele é um `offset`. A razão está na §3.3 da spec: o corte protege contra
+ * inserção e **não** protege contra o item que sai do recorte.
  */
 export type FiltroDeListagem = {
   autorPessoaId?: string;
-  /** Quantas linhas ler. **Quem chama pede uma a mais do que vai devolver** (`consultas.ts`). */
+  /** Quantas linhas devolver. **Já não se pede uma a mais**: o `total` diz se há próxima. */
   limite: number;
-  cursor: CursorDeListagem | null;
+  /** Quantas pular. Já compensado (§3.3). Nunca negativo. */
+  deslocamento: number;
+  /** ISO 8601 com fuso — a fronteira superior imóvel do conjunto. */
+  ate: string;
   /**
    * **O recorte de G2 — o item 15, e ele mora aqui e não numa consulta separada:** filtrar depois de
    * paginar devolveria páginas de tamanho aleatório e uma última página falsamente vazia. O recorte
@@ -233,6 +245,56 @@ export type FiltroDeListagem = {
    * e melhor que renomear um tipo que três arquivos já usam.
    */
   filtro?: FiltroDeOcorrencias;
+};
+
+/**
+ * O que a consulta do painel recebe — e **os três identificadores não são o mesmo**.
+ *
+ * É a sutileza da §3.6 da spec virada tipo. `autorPessoaId` é a **visibilidade do painel**: vem só da
+ * permissão, e ausente significa *"quem chamou tem `ler_todas`"*. `pessoaIdDeQuemPergunta` é **quem está
+ * lendo**, e serve a um `FILTER` só — o de `minhas`.
+ *
+ * **Se os dois fossem um, `minhas` seria igual a `total` sempre que `?autor=eu` estivesse ligado** — o
+ * número que serve para *ligar* o recorte deixaria de existir assim que ele fosse ligado.
+ *
+ * **`autorPessoaIdDaPagina` é o terceiro, e ele existe porque o `total` mora aqui.** A §3.6 da spec
+ * divide a página do painel: a página recorta por permissão **e** por `?autor=eu`; o painel, só por
+ * permissão. Como o `total` saiu da consulta da página e virou o quinto `FILTER` desta, ele tem de trazer
+ * o recorte da página junto — senão um Gestor com `?autor=eu` recebe o `total` da organização inteira ao
+ * lado de uma lista com as próprias, e a navegação numerada passa a oferecer páginas que não existem.
+ * **É o mesmo valor que `listar` recebe em `autorPessoaId`**, calculado uma vez só, no mesmo lugar de
+ * sempre.
+ */
+export type FiltroDeContagem = {
+  autorPessoaId?: string;
+  autorPessoaIdDaPagina?: string;
+  pessoaIdDeQuemPergunta: string;
+  ate: string;
+  /**
+   * **Aplicado a `totalFiltrado` e a `novas`; NÃO aos três do painel.** A assimetria é deliberada: os três
+   * do painel respondem *"o que existe para você escolher"* e por isso ignoram o recorte; `totalFiltrado`
+   * descreve a lista que está na tela, e `novas` responde *"apertar Atualizar vai mudar essa lista"*. Ver
+   * o comentário do SQL.
+   */
+  filtro?: FiltroDeOcorrencias;
+};
+
+/** As cinco contagens, como o repositório as devolve. */
+export type ContagensLidas = {
+  /**
+   * O tamanho do conjunto **filtrado**, no corte — o `total` do envelope e o insumo da compensação.
+   *
+   * **Mora aqui e não num `count(*) over ()` da consulta da página**, e a razão é de custo: a função de
+   * janela obriga a consumir o conjunto filtrado inteiro antes de emitir a primeira linha, porque o
+   * `limit` para a saída e não a entrada. Contando aqui, a página continua sendo `limit/offset` sobre o
+   * índice, e o número sai da consulta que já ia varrer a partição para o painel.
+   */
+  totalFiltrado: number;
+  minhas: number;
+  emAberto: number;
+  semResponsavel: number;
+  /** As que ficaram **fora** do corte — `registrada_em > ate`, sob o recorte da página. */
+  novas: number;
 };
 
 /**
@@ -526,9 +588,21 @@ export interface RepositorioEscopadoDeOcorrencias {
    * **Ordenação fixa, e não há parâmetro para mudá-la** (S-A11): só existe um índice de listagem, e
    * ordenar por outra coluna seria varredura da partição inteira a cada página.
    *
-   * Devolve **até** `filtro.limite` linhas. Saber se há mais é de quem chamou — ele pede uma a mais.
+   * Devolve **até** `filtro.limite` linhas, a partir de `filtro.deslocamento`, dentro do corte
+   * `registrada_em <= filtro.ate`. **Saber se há mais é do `contar`** — desde o item 14b não se pede
+   * uma linha a mais: o `total` responde.
    */
   listar(filtro: FiltroDeListagem): Promise<readonly OcorrenciaResumoLida[]>;
+  /**
+   * As cinco contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
+   * (item 14b, critério 14b.6).
+   *
+   * Um `COUNT` sem `autor_pessoa_id` vaza a **existência** de ocorrências que o Solicitante não pode
+   * ler: ele não veria os títulos, mas leria o número. É por isso que o `GET /dashboard` **não** foi
+   * reusado — o `backlogPorStatus` conta a organização inteira, o que está correto lá, porque só o
+   * Gestor o alcança, e seria vazamento aqui.
+   */
+  contar(filtro: FiltroDeContagem): Promise<ContagensLidas>;
   /** Do mais antigo para o mais recente, por `sequencia`. **Não há `atualizar` nem `apagar`** aqui, e a
    *  ausência é a invariante 3 expressa em tipo. */
   trilha(ocorrenciaId: string): Promise<readonly TransicaoLida[]>;

@@ -169,8 +169,21 @@ export async function aterrissarConfirmacaoDeConta(requisicao: Request): Promise
   return redirecionarParaEntrar(requisicao, resultado.ok ? "confirmada" : "expirada");
 }
 
+/**
+ * **A origem sai dos cabeçalhos, nunca de `requisicao.url`** — e a diferença é a que separa um
+ * redirecionamento que funciona de um que morre em endereço não navegável.
+ *
+ * Dentro do container, o servidor do Next escuta em `HOSTNAME=0.0.0.0`, e é isso que `requisicao.url`
+ * carrega: `http://0.0.0.0:3000/…`. Como `0.0.0.0` significa *"todas as interfaces"* e não é endereço de
+ * destino, o navegador recebe o `Location` e não tem para onde ir. **Não adianta trocar o host na barra de
+ * endereços** — o valor não vem do que a pessoa digitou, vem de onde o processo escuta.
+ *
+ * *(Corrigido em 09/09/2026, achado V-06 da validação do Passo 3. Este arquivo já tinha
+ * `origemDoPedido` — o item 6c a construiu justamente para o `emailRedirectTo` —, e esta função aqui
+ * embaixo continuou usando `requisicao.url`. O mecanismo certo existia e não tinha sido aplicado.)*
+ */
 function redirecionarParaEntrar(requisicao: Request, estado: "confirmada" | "expirada"): Response {
-  const destino = new URL("/entrar", requisicao.url);
+  const destino = new URL("/entrar", origemDoPedido(requisicao.headers));
   destino.searchParams.set("confirmacao", estado);
   return Response.redirect(destino, 303);
 }

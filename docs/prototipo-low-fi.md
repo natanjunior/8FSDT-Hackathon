@@ -1,3 +1,8 @@
+---
+title: "Protótipo Low-Fi"
+description: "A forma das telas em baixa fidelidade, o orçamento de tempo do registro em menos de um minuto, e o que desenhar descobriu."
+---
+
 # Protótipo Low-Fi — Resolve Aí
 
 **A forma das dez telas que o [inventário](inventario-de-telas.md) definiu — e as dezesseis coisas que
@@ -905,7 +910,7 @@ parágrafo, e no máximo um campo.**
 | Face | Quando | Título | O que fica abaixo | Ênfase |
 |---|---|---|---|---|
 | **A · Entrar em uma organização** | `vinculos: []` e `pedidosDeEntrada: []` | *"Você ainda não está em nenhuma organização."* | campo do **Código da Organização** e, **separado por uma régua**, o caminho de criar uma organização | o campo do código é o primário; criar é o secundário, porque **quem chega aqui quase sempre está entrando, não fundando** |
-| **B · Esperando aprovação** | pedido `pendente` | *"Seu pedido para entrar em Recanto Azul está aguardando a decisão de um Gestor."* | **e a frase que a ausência de notificação obriga:** *"Você não será avisado automaticamente — volte aqui para ver."* | a segunda frase tem o **mesmo peso** da primeira; enterrá-la produz uma pessoa que espera para sempre |
+| **B · Esperando aprovação** | pedido `pendente` | *"Seu pedido para entrar em Recanto Azul está aguardando a decisão de um Gestor."* | **e a frase que diz onde a resposta aparece:** *"Volte aqui para ver a resposta."* *(Corrigido em 08/09/2026: era "Você não será avisado automaticamente — volte aqui para ver.", que anunciava a lacuna em vez de orientar.)* | a segunda frase tem o **mesmo peso** da primeira; enterrá-la produz uma pessoa que fecha a aba esperando um e-mail que nunca vem |
 | **C · Pedido recusado** | pedido `recusado` | *"Seu pedido para entrar em Recanto Azul não foi aprovado."* | o campo do código **de novo** — pedido recusado pode ser refeito (S-A12) | sem o campo, a face C é um beco |
 | **D · Escolher a organização** | dois ou mais vínculos, nenhum ativo | *"Em qual organização você quer trabalhar?"* | a lista de `contexto.vinculos`: `nome` e `papel`, um por linha | é a Persona 1B; nada mais, porque **não há endpoint que dê contagem sem organização ativa** |
 

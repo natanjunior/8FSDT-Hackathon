@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { iniciarRedefinicao } from "@/aplicacao/credenciais";
 import { montarCredenciais, type ArmazenamentoDeCookies } from "@/composicao";
 
+import { origemDoPedido } from "./confirmacao-de-conta";
+
 /**
  * ============================================================================
  *  A sessão de recuperação — e por que ela não é a sessão do produto
@@ -119,9 +121,19 @@ export async function aterrissarRedefinicaoDeSenha(requisicao: Request): Promise
 /**
  * O redirecionamento é o que tira a credencial da barra de endereços: o formulário vive num endereço
  * limpo, e é isso que faz o critério 4 ser verdade sem depender de disciplina de ninguém.
+ *
+ * **A origem sai dos cabeçalhos, nunca de `requisicao.url`.** Dentro do container o servidor do Next
+ * escuta em `HOSTNAME=0.0.0.0`, e era isso que `requisicao.url` carregava — o `Location` saía como
+ * `http://0.0.0.0:3000/definir-senha`, endereço que significa *"todas as interfaces"* e para o qual
+ * navegador nenhum consegue ir. **Trocar o host na barra de endereços não resolvia**, porque o valor nunca
+ * veio de lá: veio de onde o processo escuta.
+ *
+ * *(Corrigido em 09/09/2026 — achado V-06, e foi ele que travou a validação do Passo 3: o link do e-mail
+ * de recuperação aterrissava em "página inacessível". O mecanismo certo já existia desde o item 6c,
+ * `origemDoPedido`, e nunca tinha sido aplicado aqui — este arquivo é do item 6b, anterior a ele.)*
  */
 function paraDefinirSenha(requisicao: Request, estado: "expirado" | null): Response {
-  const destino = new URL("/definir-senha", requisicao.url);
+  const destino = new URL("/definir-senha", origemDoPedido(requisicao.headers));
   if (estado !== null) destino.searchParams.set("estado", estado);
   return Response.redirect(destino, 303);
 }
