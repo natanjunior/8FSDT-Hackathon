@@ -13,6 +13,8 @@ import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
 import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
+import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
+import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
 import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
@@ -99,8 +101,8 @@ export default async function Ocorrencias({
    *
    * Os dois saem da mesma permissão hoje, e continuam sendo coisas diferentes: `visibilidade`, mais
    * abaixo, é `podeLerTodas` **cruzado com o filtro**; a lente **não pode depender do filtro**. O Gestor
-   * que toca *"Só as minhas"* continua lendo *"Aberta"* — permissão, nunca recorte (critério 28.6, e
-   * §3.2 da spec do 31).
+   * que troca o recorte para *"Minhas ocorrências"* continua lendo *"Aberta"* — permissão, nunca recorte
+   * (critério 28.6, e §3.2 da spec do 31).
    */
   const lente = lenteDeRotulo(vinculo.permissoes);
 
@@ -148,24 +150,38 @@ export default async function Ocorrencias({
 
   return (
     <NavegacaoDaLista>
-      <div className="flex flex-col gap-6">
+      {/* **O respiro da barra fixa do celular.** Ela tem `py-3` mais um alvo de 44 px, e sem isto encobre
+          o pé do cartão, onde a paginação mora. É o mesmo defeito que o critério 44d.1 conserta em T-05. */}
+      <div className="flex flex-col gap-6 pb-20 md:pb-0">
         {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
             casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
-            visível — só que uma vez, e não copiado em cada tela. */}
-        <header className="flex flex-col gap-1">
-          <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">
-            {visibilidade === "todas" ? "Todas as ocorrências" : "Minhas ocorrências"}
-          </h1>
-        </header>
+            visível — só que uma vez, e não copiado em cada tela.
 
-        {podeRegistrar && (
-          <Link
-            href="/ocorrencias/nova"
-            className="border-marca bg-accent text-tinta hidden min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium md:inline-flex"
-          >
-            + Registrar ocorrência
-          </Link>
-        )}
+            **O título é fixo e o recorte é controle** — critério 44c.2. As palavras do recorte não saíram
+            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3. */}
+        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Ocorrências</h1>
+
+          <div className="flex items-center gap-3">
+            {podeLerTodas ? (
+              <SeletorDeRecorte consultaAtual={consultaAtual} visibilidadeAplicada={visibilidade} />
+            ) : (
+              /* Critério 44c.9 — as mesmas palavras, no mesmo lugar, sem controle. Parágrafo e não
+                 `role="status"`: o texto só muda com a página, e região viva que nunca se atualiza é
+                 ruído para quem usa leitor de tela. */
+              <p className="text-interface text-tinta-suave">{RECORTE_MINHAS}</p>
+            )}
+
+            {podeRegistrar && (
+              <Link
+                href="/ocorrencias/nova"
+                className="border-marca bg-accent text-tinta hidden min-h-11 w-fit shrink-0 items-center rounded-sm border px-4 text-sm font-medium md:inline-flex"
+              >
+                + Registrar ocorrência
+              </Link>
+            )}
+          </div>
+        </header>
 
         <Suspense fallback={<EsqueletoDaLista />}>
           <Lista
@@ -276,7 +292,6 @@ async function Lista({
         status={opcoesDeStatus}
         categorias={opcoesDeCategoria}
         prioridades={podeAlterarPrioridade ? opcoesDePrioridade : null}
-        mostrarSoAsMinhas
       />
     ) : (
       algumFiltroAplicado(filtro) && (

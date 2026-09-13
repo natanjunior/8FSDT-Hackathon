@@ -36,8 +36,11 @@ export type OpcaoDeFiltro = { valor: string; rotulo: string };
  * que sair da tela num toque. **O preço, dito:** quatro marcas são quatro entradas de histórico.
  *
  * **A-5 — nada é comunicado só por cor.** O estado ligado **sempre carrega a palavra**, no próprio rótulo
- * do chip: `Status: Pausada`, `Status: 2 selecionados`, `Só as minhas`. Borda, peso e `aria-pressed`
- * acompanham; sozinhos, não valeriam.
+ * do chip: `Status: Pausada`, `Status: 2 selecionados`. Borda, peso e `aria-pressed` acompanham;
+ * sozinhos, não valeriam.
+ *
+ * **O recorte não mora mais aqui.** Desde o item 44c ele é o `toggle-group` do cabeçalho da página — a
+ * barra é a das três dimensões do item 15, e recorte nunca foi uma delas.
  *
  * **Não há `⋯`.** O protótipo desenha um no celular e a **§16.5 dele o declara dívida** contra o A-5 —
  * símbolo sem palavra visível. A barra quebra linha em vez de esconder controle atrás de um caractere.
@@ -47,7 +50,6 @@ export function BarraDeFiltros({
   status,
   categorias,
   prioridades,
-  mostrarSoAsMinhas,
 }: {
   /** A *query string* atual, crua, como a página a recebeu. */
   consultaAtual: string;
@@ -55,8 +57,6 @@ export function BarraDeFiltros({
   categorias: readonly OpcaoDeFiltro[];
   /** `null` quando quem lê não tem `ocorrencia.alterar_prioridade` — o mesmo portão da coluna (P-03). */
   prioridades: readonly OpcaoDeFiltro[] | null;
-  /** Só com `ler_todas`: quem já vê apenas as próprias não tem o que alternar. */
-  mostrarSoAsMinhas: boolean;
 }) {
   const caminho = usePathname();
   const { navegar, pendente } = useNavegacaoDaLista();
@@ -79,19 +79,16 @@ export function BarraDeFiltros({
     navegar(semPaginacao(proximos));
   }
 
-  function alternarSoAsMinhas(): void {
-    const proximos = new URLSearchParams(atual.toString());
-    if (atual.get("autor") === "eu") proximos.delete("autor");
-    else proximos.set("autor", "eu");
-    navegar(semPaginacao(proximos));
-  }
-
-  const soAsMinhas = atual.get("autor") === "eu";
+  /**
+   * **`autor=eu` continua contando como filtro ligado**, e não é descuido: é ele que faz *"Limpar
+   * filtros"* aparecer quando só o recorte está ligado, e é a mesma condição que `algumFiltroAplicado`
+   * usa do lado do servidor.
+   */
   const algumLigado =
     marcados("status").length > 0 ||
     marcados("categoriaId").length > 0 ||
     marcados("prioridade").length > 0 ||
-    soAsMinhas;
+    atual.get("autor") === "eu";
 
   return (
     <div
@@ -120,18 +117,6 @@ export function BarraDeFiltros({
           marcados={marcados("prioridade")}
           aoAlternar={alternarValor}
         />
-      )}
-
-      {mostrarSoAsMinhas && (
-        <button
-          type="button"
-          aria-pressed={soAsMinhas}
-          onClick={alternarSoAsMinhas}
-          className={chip(soAsMinhas)}
-        >
-          {/* Dois rótulos, não um rótulo com marca: é a palavra que diz o estado (A-5). */}
-          {soAsMinhas ? "Só as minhas" : "Ver as minhas"}
-        </button>
       )}
 
       {algumLigado && (
