@@ -35,6 +35,30 @@
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --radius: 0.625rem;
 
+  /* A segunda família. Ela é tipografia, então vive só aqui: cor muda entre temas, letra não.
+     O valor nomeia a família porque a variável do next/font é declarada no <body> — esta é o piso,
+     e vale se a fonte não carregar. */
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- A escala, sete papéis (guia §3). Não há tamanho fora destes. ---- */
+  --texto-titulo-pagina: 1.625rem;   /* 26 px · 31 · 600 · -0.021em */
+  --texto-titulo-bloco: 1.1875rem;   /* 19 px · 25 · 600 · -0.012em */
+  --texto-titulo-linha: 0.9375rem;   /* 15 px · 21 · 500 */
+  --texto-corpo: 0.90625rem;         /* 14.5 px · 22 · 400 */
+  --texto-interface: 0.84375rem;     /* 13.5 px · 19 · 400 ou 500 */
+  --texto-meta: 0.78125rem;          /* 12.5 px · 17 · 400 */
+  --texto-rotulo-coluna: 0.625rem;   /* 10 px · 500 · versal · 0.11em · monoespaçada */
+
+  /* ---- Movimento (guia §6). Só `transform` e `opacity` animam. ---- */
+  --curva-pressao: cubic-bezier(0.23, 1, 0.32, 1);
+  --curva-ponteiro: ease;
+  --curva-sobreposicao: cubic-bezier(0.23, 1, 0.32, 1);
+  --curva-gaveta: cubic-bezier(0.32, 0.72, 0, 1);
+  --tempo-pressao: 160ms;
+  --tempo-ponteiro: 150ms;
+  --tempo-sobreposicao: 200ms;
+  --tempo-gaveta: 300ms;
+
   /* ---- Vocabulário -------------------------------------------------------
      Os onze nomes do produto. O contrato do shadcn os consome por var().
      Três não têm origem no Meridian, e estão marcados. */
@@ -267,6 +291,15 @@
   --shadow-2xl: var(--shadow-2xl);
 
   --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --text-titulo-pagina: var(--texto-titulo-pagina);
+  --text-titulo-bloco: var(--texto-titulo-bloco);
+  --text-titulo-linha: var(--texto-titulo-linha);
+  --text-corpo: var(--texto-corpo);
+  --text-interface: var(--texto-interface);
+  --text-meta: var(--texto-meta);
+  --text-rotulo-coluna: var(--texto-rotulo-coluna);
 
   --color-marca: var(--accent);
   --color-superficie: var(--surface);
@@ -291,5 +324,22 @@
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+
+  /* Guia §6: sob movimento reduzido, **a opacidade permanece e o deslocamento sai**. Tratado uma vez,
+     aqui, em vez de em cada componente — que é onde a regra se perde.
+
+     A regra é seletiva de propósito. Zerar toda transição e toda animação é a receita comum, e ela
+     descumpre o guia: apagaria também o esmaecer, que não desloca nada e é o que mantém a troca de estado
+     legível para quem pediu menos movimento. O que sai é o que move — `transform` — e o que rola. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-property: opacity, color, background-color, border-color, box-shadow !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
