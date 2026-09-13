@@ -100,7 +100,18 @@ const PERFORMATICO = [
  */
 const APARATO = [
   ["marcador de origem", /`?\b(?:ENUNCIADO|NOSSO)\b/gu],
-  ["citação de aula", /aula\s+\d+[,\s]+p\.\s*\d+/giu],
+  /**
+   * **O padrão era `aula N, p.X` e passou a ser `aula N`, e a razão é uma medição.**
+   *
+   * A forma com página pegava as citações do material de DDD, que sempre traziam página. O material de
+   * Banco de Dados era citado só pelo número — *"a aula 1 lista cinco situações"* —, e 45 dessas
+   * atravessavam o portão em quatro documentos, sendo 34 só no modelo de dados.
+   *
+   * Alargar custou zero: conferido em 13/09/2026, os documentos já aprovados têm **nenhuma** ocorrência
+   * da forma curta. Eles foram limpos à mão, porque a convenção sempre foi mais larga que o padrão. O que
+   * muda é que agora o portão cobra o que a convenção sempre disse.
+   */
+  ["citação de aula", /\baulas?\s+\d+\b/giu],
   ["[FONTE EXTERNA]", /\[FONTE EXTERNA\]/gu],
   [
     "fonte inacessível",
