@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   listarOcorrencias,
+  PAGINA_MAXIMA,
   type FiltroDeOcorrencias,
   type PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
@@ -12,12 +13,14 @@ import { listarCategorias, type CategoriaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
+import { DerivaDaLista } from "@/interface/componentes/deriva-da-lista";
 import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
 import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
+import { PaginacaoDaLista } from "@/interface/componentes/paginacao-da-lista";
 import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
 import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
-import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
+import { horaDoCorte, instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import {
   Empty,
   EmptyContent,
@@ -332,6 +335,12 @@ async function Lista({
   );
 
   /**
+   * O teto de página é do contrato (`PAGINA_MAXIMA`), e o cálculo fica aqui porque importar a constante
+   * dentro de um componente de cliente arrastaria a Aplicação inteira para o pacote do navegador.
+   */
+  const totalDePaginas = Math.min(Math.ceil(projetada.total / projetada.limite), PAGINA_MAXIMA);
+
+  /**
    * **Qual dos CINCO desfechos a lista mostra** — critério 44c.3, e a escolha é função pura com teste.
    * *Página além do fim* é decidida **antes** dos três vazios, e por isso não encosta neles.
    */
@@ -347,6 +356,17 @@ async function Lista({
       {/* A barra some no vazio de organização — guia §8: filtrar um conjunto vazio não é uma oferta.
           Nos outros desfechos ela fica, e é o que impede o vazio de filtro de virar beco. */}
       {estado !== "organizacao" && barra}
+
+      {/* **A deriva fica FORA do cartão**, e é o mesmo lugar e a mesma razão da barra: ela não recua
+          durante a espera, e o *Atualizar* dela continua clicável enquanto a lista anterior está
+          pintada. */}
+      <DerivaDaLista
+        consultaAtual={consultaAtual}
+        ate={projetada.ate}
+        hora={horaDoCorte(projetada.ate)}
+        saidas={projetada.saidasDesdeOCorte}
+        novas={projetada.novasDesdeOCorte}
+      />
 
       <CartaoDaLista>
         {/*
@@ -382,6 +402,20 @@ async function Lista({
             nomeDaCategoria={nomeDaCategoria}
             podeRegistrar={podeRegistrar}
             podeConfigurar={podeConfigurar}
+          />
+        )}
+
+        {/* **A paginação permanece no quarto estado**, e é o guia §8 em letra: *"filtros e paginação
+            permanecem"*. Ela some nos vazios de organização e de Solicitante, onde não há conjunto para
+            paginar. */}
+        {estado !== "organizacao" && estado !== "solicitante" && (
+          <PaginacaoDaLista
+            consultaAtual={consultaAtual}
+            pagina={projetada.pagina}
+            totalDePaginas={totalDePaginas}
+            totalNoCorte={projetada.totalNoCorte}
+            ate={projetada.ate}
+            total={projetada.total}
           />
         )}
       </CartaoDaLista>
