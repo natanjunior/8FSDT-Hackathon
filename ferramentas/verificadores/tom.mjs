@@ -46,6 +46,7 @@ const APROVADOS = new Set([
   "docs/event-storming.md",
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
+  "docs/modelo-de-dados.md",
   "docs/premissas-e-questoes-abertas.md",
 ]);
 
