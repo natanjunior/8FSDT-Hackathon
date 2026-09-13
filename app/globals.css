@@ -323,6 +323,8 @@
   --color-tinta-fraca: var(--ink-faint);
   --color-linha: var(--line);
   --color-linha-suave: var(--line-soft);
+
+  --animate-barra-de-progresso: barra-de-progresso 1.1s linear infinite;
 }
 
 @layer base {
@@ -364,5 +366,17 @@
       animation-iteration-count: 1 !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* Guia §6 — a barra de espera do cartão de T-03. **Só `transform` anima**, nunca `width`: as duas
+   propriedades produzem a mesma imagem e só uma roda fora da linha principal. O trecho ocupa um terço da
+   trilha e atravessa; sob `prefers-reduced-motion` o `@layer base` já a interrompe. */
+@keyframes barra-de-progresso {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
   }
 }
