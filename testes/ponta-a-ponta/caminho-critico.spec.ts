@@ -327,16 +327,17 @@ async function entrar(pagina: Page, email: string): Promise<void> {
 }
 
 /**
- * O menu de organização de T-03 — o gatilho com o nome da organização ativa e o `▾`
- * (`menu-de-organizacao.tsx:60-88`). O `▾` é `aria-hidden`, então o nome acessível do gatilho é só o nome
- * da organização.
+ * O seletor de organização da barra superior da casca (`casca/seletor-de-organizacao.tsx`). **Ele era
+ * `dropdown-menu` e virou `select` no item 44b**, então o papel do gatilho passou de `button` para
+ * `combobox` e o das opções de `menuitem` para `option`. O nome acessível do gatilho é o `aria-label`
+ * *Organização*, e não mais o nome da organização ativa.
  *
  * **Depois da troca o destino é `/`**, que é o losango e redespacha para T-03 — por isso a espera é pela
  * URL da lista, e não pela raiz.
  */
 async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void> {
-  await pagina.getByRole("button", { name: /demonstração/u }).click();
-  await pagina.getByRole("menuitem", { name: destino }).click();
+  await pagina.getByRole("combobox", { name: /organização/iu }).click();
+  await pagina.getByRole("option", { name: destino }).click();
   await pagina.waitForURL(/\/ocorrencias$/u);
 }
 

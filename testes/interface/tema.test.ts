@@ -106,12 +106,20 @@ describe("app/globals.css — a estrutura de três estados", () => {
     }
   });
 
-  it("não declara as famílias de fonte que o produto não carrega", () => {
-    // O Meridian traz três. Serifada não tem consumidor, e monoespaçada cai na pilha do sistema —
-    // declarar qualquer uma das duas aqui convida a carregá-la, e cada família pesa no build.
+  it("não declara a família serifada, que o produto não carrega", () => {
+    // O Meridian traz três. A serifada não tem consumidor nenhum, e declará-la aqui convida a
+    // carregá-la — cada família pesa no build.
     for (const mapa of [claro, sistema, escolhido]) {
       expect(mapa.has("--font-serif")).toBe(false);
-      expect(mapa.has("--font-mono")).toBe(false);
     }
+  });
+
+  it("a monoespaçada é declarada uma vez, fora dos blocos escuros", () => {
+    // A `Geist Mono` passou a ser carregada em 13/09/2026 (resposta P1 do item 44b): a trilha de
+    // auditoria tem oito usos de `font-mono`, e o guia dá à monoespaçada o sétimo papel da escala.
+    // Ela é tipografia, então segue a regra de `--font-sans`: só cor muda entre claro e escuro.
+    expect(claro.has("--font-mono")).toBe(true);
+    expect(sistema.has("--font-mono")).toBe(false);
+    expect(escolhido.has("--font-mono")).toBe(false);
   });
 });
