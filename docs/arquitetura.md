@@ -808,7 +808,7 @@ flowchart LR
     MIG -->|"migração compatível primeiro"| SUPA
     GA -->|"docker push"| GHCR
     GHCR -->|"pull, sem segredo"| ACA
-    GA -.->|"cron semanal, só para o banco não pausar"| SUPA
+    GA -.->|"cron diário, só para o banco não pausar"| SUPA
 
     USR --> ACA
     ACA --> SUPA
@@ -895,7 +895,12 @@ A revisão funcional passa a acontecer no ambiente único, com o que isso implic
 ao mesmo lugar que a demonstração. A mitigação é o portão do Definition of Done, e não a infraestrutura.
 
 **Risco de calendário:** o projeto Supabase free pausa após sete dias de inatividade. Se houver demonstração
-ao vivo, o banco precisa ser acordado antes. Mitigação: cron semanal no GitHub Actions.
+ao vivo, o banco precisa ser acordado antes. Mitigação: cron diário no GitHub Actions, que faz uma consulta
+trivial ao banco.
+
+A mitigação era semanal até 13/09/2026, e falhou: o banco pausou e derrubou a migração da esteira. Sete dias
+de janela contra sete dias de intervalo dão margem zero, e o agendador do GitHub é de melhor esforço —
+execuções atrasam sob carga. O intervalo diário dá sete tentativas dentro de cada janela.
 
 ## 10. Critérios de Aceitação e Validação
 
