@@ -135,12 +135,31 @@ const API = "https://api.supabase.com/v1/projects";
  * nomeada. É também o único jeito de destravar o portão sem apagá-lo: a razão aparece no diff, num PR, e
  * não numa tela de painel que ninguém revisa.
  *
- * **Hoje está vazio de propósito**, e essa é a decisão (a) do achado A-40b-2: os dois ambientes concordam
- * em `enable_confirmations = false`, que é a Q-T9. Se o hub inverter, é aqui que a razão entra — cinco
- * linhas, e nada mais do arquivo muda.
+ * **Duas entradas desde 13/09/2026**, as duas pela mesma causa: o item `40c`. Elas saem quando ele fechar,
+ * e o portão volta a ser duro nos cinco campos. Enquanto estiverem aqui, a esteira imprime as duas razões
+ * em toda execução.
+ *
+ * **O que NÃO se declara aqui.** A válvula é para divergência que não pode ser resolvida hoje e tem dono
+ * escrito. Campo que diverge por descuido se conserta no painel; campo que diverge por decisão vira
+ * entrada com a decisão na razão. Uma entrada sem item nem decisão é o portão sendo desligado devagar.
  */
 const DIVERGENCIAS = {
-  // mailer_autoconfirm: { razao: "…", data: "AAAA-MM-DD" },
+  mailer_subjects_recovery: {
+    razao:
+      "Bloqueado pelo item 40c, não por escolha. O Supabase recusa editar assunto e corpo de template " +
+      "para quem envia pelo SMTP compartilhado dele, e o projeto está nesse SMTP. Os campos 1 a 3 do " +
+      "painel foram publicados em 03/09/2026; o quarto espera o SMTP próprio. Saem daqui quando o 40c " +
+      "fechar, e o portão volta a ser duro nos cinco campos.",
+    data: "2026-09-13",
+  },
+  mailer_templates_recovery_content: {
+    razao:
+      "Mesma causa do campo acima, e o custo desta é maior: enquanto a nuvem servir o template de " +
+      "fábrica, o link de recuperação usa `{{ .ConfirmationURL }}`, que consome o token no servidor do " +
+      "provedor e redireciona para a Site URL. É a assinatura do `?error=…otp_expired` de 31/08/2026, e " +
+      "significa que a recuperação de senha em produção continua quebrada. O item 6d depende deste.",
+    data: "2026-09-13",
+  },
 };
 
 /**
@@ -238,13 +257,20 @@ const vazio = (valor) => typeof valor !== "string" || valor.trim() === "";
  * mas tampouco some — ela sai como nota em toda execução. Passar o acumulador mantém a função
  * determinística (as mesmas entradas dão as mesmas falhas) sem perder a linha que a válvula tem de
  * imprimir.
+ *
+ * `divergencias` é parâmetro, e não a constante lida de dentro, por causa dos controles. Eles provam que
+ * a **comparação** discrimina; declarar uma divergência é decisão de **política**, e uma coisa não pode
+ * calar a outra. Com a leitura de dentro, declarar `D` e `E` fazia as duas pararem de disparar contra o
+ * controle negativo, e o verificador se acusava de estar quebrado — que foi o que aconteceu em
+ * 13/09/2026, na primeira vez que a válvula saiu do vazio. Os controles passam `{}`; a execução real
+ * passa o que está declarado.
  */
-export function comparar(publicado, esperado, notas = []) {
+export function comparar(publicado, esperado, notas = [], divergencias = DIVERGENCIAS) {
   const falhas = [];
 
-  /** A válvula: campo declarado em `DIVERGENCIAS` vira nota, não falha. Ver o bloco lá em cima. */
+  /** A válvula: campo declarado vira nota, não falha. Ver o bloco lá em cima. */
   const acusar = (campo, falha) => {
-    const declarada = DIVERGENCIAS[campo];
+    const declarada = divergencias[campo];
     if (declarada === undefined) falhas.push(falha);
     else notas.push(`DIVERGÊNCIA DECLARADA · ${campo} · ${declarada.razao} · ${declarada.data}`);
   };
@@ -408,7 +434,7 @@ const ESTRAGOS = [
 function conferirOsControles() {
   const falhas = [];
 
-  const doPositivo = comparar(PUBLICADO_QUE_CASA, ESPERADO_DO_CONTROLE);
+  const doPositivo = comparar(PUBLICADO_QUE_CASA, ESPERADO_DO_CONTROLE, [], {});
   if (doPositivo.length > 0) {
     // Um verificador que recusa tudo é tão inútil quanto um que aceita tudo, com o agravante de ensinar a
     // ignorá-lo.
@@ -420,7 +446,7 @@ function conferirOsControles() {
 
   const dispararam = new Set();
   for (const [letra, estrago] of ESTRAGOS) {
-    const doNegativo = comparar({ ...PUBLICADO_QUE_CASA, ...estrago }, ESPERADO_DO_CONTROLE);
+    const doNegativo = comparar({ ...PUBLICADO_QUE_CASA, ...estrago }, ESPERADO_DO_CONTROLE, [], {});
     if (doNegativo.some((falha) => falha.startsWith(`${letra} ·`))) dispararam.add(letra);
   }
 
