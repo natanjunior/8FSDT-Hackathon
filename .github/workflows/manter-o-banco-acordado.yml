@@ -32,8 +32,23 @@ name: manter o banco acordado
 
 on:
   schedule:
-    # Sexta, 12:00 UTC — 09:00 em São Paulo.
-    - cron: "0 12 * * 5"
+    # ---------------------------------------------------------------------
+    #  Diário, 12:00 UTC — 09:00 em São Paulo.
+    #
+    #  **Era semanal, de sexta, e o banco pausou mesmo assim** (13/09/2026),
+    #  derrubando o emprego `migrar` do `entrega.yml` com `project is paused`.
+    #  A causa é aritmética: a pausa acontece após SETE dias de inatividade, e
+    #  um cron semanal deixa exatamente sete dias entre uma consulta e a
+    #  seguinte. A margem era zero.
+    #
+    #  E zero não basta, porque o agendador do GitHub é declaradamente de
+    #  melhor esforço: execuções atrasam sob carga e podem ser descartadas.
+    #  Basta um atraso para a janela fechar.
+    #
+    #  Diário custa o mesmo — um `psql` trivial e uma leitura da API — e dá
+    #  sete tentativas dentro de cada janela em vez de uma.
+    # ---------------------------------------------------------------------
+    - cron: "0 12 * * *"
   workflow_dispatch:
 
 jobs:
