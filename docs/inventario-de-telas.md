@@ -1662,7 +1662,7 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 >
 > | Onde | O quê |
 > |---|---|
-> | **T-09**, aqui | O seletor: uma **grade de 25 células**, no criar **e** no editar, sobre a lista fechada da §14.5 do `modelo-de-dados.md`. Nome fora dela → `400 FORMATO_INVALIDO`, porque é forma e não domínio (critério **4b.1**) |
+> | **T-09**, aqui | O seletor: uma **grade de 25 células**, no criar **e** no editar, sobre a lista fechada da §13.5 do `modelo-de-dados.md`. Nome fora dela → `400 FORMATO_INVALIDO`, porque é forma e não domínio (critério **4b.1**) |
 > | **T-04** | O ícone **ao lado do nome** no seletor de categoria — critério **11.6**, metade do **4b.3** |
 > | **T-03** | O ícone **ao lado do nome** nos recortes que exibem o nome da categoria — a outra metade do **4b.3**, e ela é **por recorte**: ver a correção na seção T-03 |
 >
@@ -1670,7 +1670,7 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 > ícone escolhido não fica sem ícone**: o servidor grava o padrão **`tag`**, que é neutro de propósito e
 > tem de **parecer neutro, não quebrado** — nenhuma moldura tracejada, nenhum ponto de interrogação, nenhum
 > buraco onde os vizinhos têm desenho. A coluna é `NOT NULL` e o campo **nunca vem nulo**, então a tela não
-> precisa de caminho para ausência (critério **4b.2**; `modelo-de-dados.md` §14.5).
+> precisa de caminho para ausência (critério **4b.2**; `modelo-de-dados.md` §13.5).
 >
 > **O precedente que caiu, e o que sobrou dele.** A redação antiga terminava em *"o mesmo regime do `titulo`
 > do anexo em T-04: a coluna espera, a tela não"*, e essa frase é citada como precedente. **O regime

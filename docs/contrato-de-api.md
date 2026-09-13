@@ -956,7 +956,7 @@ sessão**. Duas capacidades ✅ acontecem aqui sem endpoint próprio — **categ
 —, porque são efeito da **POL-01**, não chamada do cliente. Ficam verificáveis com um `GET /categorias` logo
 depois, e é assim que a §14 as contabiliza.
 
-> **O conteúdo da semente é do `modelo-de-dados.md`, §14** — as sete categorias enumeradas, uma por
+> **O conteúdo da semente é do `modelo-de-dados.md`, §13** — as sete categorias enumeradas, uma por
 > marcador do enunciado, e a metade das áreas que segue **não decidida**. Este contrato descreve o efeito
 > e as duas contagens que a resposta devolve; a lista é dado, e dado mora lá.
 
@@ -997,7 +997,7 @@ aparece antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso
 > lista de triagem em texto corrido custa leitura, e ícone é o que faz a mesma lista se ler de relance no
 > celular.
 >
-> **A lista de valores é fechada, e a fonte normativa é a §14.5 do `modelo-de-dados.md`** — 25 nomes do
+> **A lista de valores é fechada, e a fonte normativa é a §13.5 do `modelo-de-dados.md`** — 25 nomes do
 > conjunto `lucide`, sete deles fixados nas categorias-semente. O contrato a declara como `enum` no schema
 > de entrada, e nome fora dela responde `400 FORMATO_INVALIDO`, que é forma e não domínio.
 >
@@ -1009,7 +1009,7 @@ aparece antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso
 > **Por que a lista não é `ENUM` de banco**, que seria o gosto da casa: o cliente **não consegue
 > renderizar uma string** — `lucide-react` exporta componentes, então já existe obrigatoriamente um mapa
 > nome → componente na Interface. Com a lista no banco seriam três cópias da mesma decisão de produto. A
-> §14.5 do `modelo-de-dados.md` pesa isso contra a classificação da §8 de lá, e declara o que se perde. Erros: `404 CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra
+> §13.5 do `modelo-de-dados.md` pesa isso contra a classificação da §8 de lá, e declara o que se perde. Erros: `404 CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra
 organização, §6.3) · `409 CATEGORIA_NOME_DUPLICADO` — `UNIQUE (organizacao_id, nome)`, porque duas
 categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do
 dashboard.
@@ -1364,7 +1364,7 @@ O que cada um tem de específico:
   filtrado por papel (`422 MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL`) — Solicitante: `desistencia` ·
   `resolvido_por_conta_propria` · `aberta_por_engano` · `duplicada`; Gestor: os sete. **`ocorrenciaOrigemId`
   não é aceito** (`422 CAMPO_NAO_SUPORTADO`): o motivo `duplicada` existe, o vínculo com a original é ⬜.
-- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado — `modelo-de-dados.md`, §13).
+- **`/avaliar`** — `nota` inteira de 1 a 5, `comentario` opcional (confirmado — `modelo-de-dados.md`, §12).
   `403 SOMENTE_O_AUTOR_PODE_AVALIAR` · `409 AVALIACAO_EXIGE_RESOLVIDA` · `409 JA_AVALIADA`. **Não é um sexto
   estado** (D1): a ocorrência continua `resolvida` depois de avaliada.
 

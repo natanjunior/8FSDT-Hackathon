@@ -7,14 +7,18 @@
    concretos para dentro do produto.
 
    1 · A VARIANTE `dark` É REDEFINIDA PELO FUMADOCS.
-       O `app/globals.css` declara `@custom-variant dark (&:is(.dark *))`.
-       O preset do Fumadocs declara `@variant dark (&:where(.dark, .dark *))`.
-       São diferentes em duas coisas: a dele alcança o próprio elemento `.dark`
-       além dos descendentes, e usa `:where`, que tem especificidade zero.
-       Num build único de Tailwind, a última declaração venceria e TODA
-       utilidade `dark:` do produto passaria a resolver por outra regra, com
+       O preset dele declara `@variant dark (&:where(.dark, .dark *))`. Num
+       build único de Tailwind essa declaração venceria a do produto, e TODA
+       utilidade `dark:` das telas passaria a resolver por outra regra, com
        outra especificidade. Como `@variant` é construção de tempo de build,
        manter duas entradas separadas mantém cada definição na sua.
+
+       O QUE ESTA SEPARAÇÃO NÃO ALCANÇA, e está na ADR-0009: o `RootProvider`
+       usa `next-themes` com `attribute: "class"` e escreve `class="dark"` no
+       `<html>`, que é do layout raiz e pertence às duas superfícies. Isso não
+       é CSS, é atributo no DOM, e atravessa. A saída foi o produto deixar de
+       depender daquela classe: a variante `dark` do `app/globals.css` aponta
+       para `[data-theme="dark"]` e para a consulta de mídia.
 
    2 · O PRESET APLICA RESET GLOBAL EM `body` E EM `*`.
        Ele define `background-color` e `color` no `body`, e `border-color` em
