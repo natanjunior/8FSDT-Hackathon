@@ -1,7 +1,22 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* A variante escura aponta para os estados que este produto usa — `data-theme` e a consulta de mídia —,
+   e não para a classe `.dark` do catálogo, que aqui só existe nas páginas de documentação, postas pelo
+   `next-themes` do Fumadocs no elemento raiz que as duas superfícies dividem.
+   Escrita com `html` em vez de `:root` de propósito: o `tema.test.ts` acha os blocos por `indexOf` do
+   seletor, e repetir aqui o literal `:root:not([data-theme="light"])` faria o guarda ler este bloco no
+   lugar do bloco de tokens, dezessete linhas adiante. */
+@custom-variant dark {
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(html:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 /* ============================================================================
    Vocabulário visual do Resolve Aí
