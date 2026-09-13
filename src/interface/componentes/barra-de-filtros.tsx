@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   DropdownMenu,
@@ -11,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/interface/componentes/ui/dropdown-menu";
 import { cn } from "@/interface/componentes/utilitarios";
+
+import { semPaginacao, useNavegacaoDaLista } from "./navegacao-da-lista";
 
 /** Um valor que o menu oferece: o que vai na URL, e a palavra que a pessoa lê. */
 export type OpcaoDeFiltro = { valor: string; rotulo: string };
@@ -57,18 +58,10 @@ export function BarraDeFiltros({
   /** Só com `ler_todas`: quem já vê apenas as próprias não tem o que alternar. */
   mostrarSoAsMinhas: boolean;
 }) {
-  const router = useRouter();
   const caminho = usePathname();
-  const [aplicando, comecarAAplicar] = useTransition();
+  const { navegar, pendente } = useNavegacaoDaLista();
 
   const atual = new URLSearchParams(consultaAtual);
-
-  function navegar(proximos: URLSearchParams): void {
-    // §3.7 — cursor é posição dentro de um conjunto. Conjunto novo, posição nova.
-    proximos.delete("cursor");
-    const consulta = proximos.toString();
-    comecarAAplicar(() => router.push(consulta === "" ? caminho : `${caminho}?${consulta}`));
-  }
 
   function marcados(nome: string): readonly string[] {
     const bruto = atual.get(nome);
@@ -83,14 +76,14 @@ export function BarraDeFiltros({
     if (novos.length === 0) proximos.delete(nome);
     else proximos.set(nome, novos.join(","));
 
-    navegar(proximos);
+    navegar(semPaginacao(proximos));
   }
 
   function alternarSoAsMinhas(): void {
     const proximos = new URLSearchParams(atual.toString());
     if (atual.get("autor") === "eu") proximos.delete("autor");
     else proximos.set("autor", "eu");
-    navegar(proximos);
+    navegar(semPaginacao(proximos));
   }
 
   const soAsMinhas = atual.get("autor") === "eu";
@@ -102,7 +95,7 @@ export function BarraDeFiltros({
 
   return (
     <div
-      aria-busy={aplicando}
+      aria-busy={pendente}
       className="border-linha flex flex-wrap items-center gap-2 border-b px-4 py-3"
     >
       <MenuDeFiltro
@@ -154,8 +147,8 @@ export function BarraDeFiltros({
         A espera carrega palavra, não só opacidade. `role="status"` para quem usa leitor de tela saber que
         a lista abaixo está sendo trocada — sem isso, a mudança é silenciosa.
       */}
-      {aplicando && (
-        <p role="status" className="text-tinta-suave w-full text-xs">
+      {pendente && (
+        <p role="status" className="text-meta text-tinta-suave w-full">
           Atualizando a lista…
         </p>
       )}

@@ -12,6 +12,7 @@ import { listarCategorias, type CategoriaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
+import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
 import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
@@ -146,59 +147,61 @@ export default async function Ocorrencias({
   const categoriasPedidas = listarCategorias(repos.categorias, { incluirInativas: true });
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
-          casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
-          visível — só que uma vez, e não copiado em cada tela. */}
-      <header className="flex flex-col gap-1">
-        <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">
-          {visibilidade === "todas" ? "Todas as ocorrências" : "Minhas ocorrências"}
-        </h1>
-      </header>
+    <NavegacaoDaLista>
+      <div className="flex flex-col gap-6">
+        {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
+            casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
+            visível — só que uma vez, e não copiado em cada tela. */}
+        <header className="flex flex-col gap-1">
+          <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">
+            {visibilidade === "todas" ? "Todas as ocorrências" : "Minhas ocorrências"}
+          </h1>
+        </header>
 
-      {podeRegistrar && (
-        <Link
-          href="/ocorrencias/nova"
-          className="border-marca bg-accent text-tinta hidden min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium md:inline-flex"
-        >
-          + Registrar ocorrência
-        </Link>
-      )}
-
-      <Suspense fallback={<EsqueletoDaLista />}>
-        <Lista
-          pagina={paginaPedida}
-          categorias={categoriasPedidas}
-          filtro={filtro}
-          consultaAtual={consultaAtual}
-          nomeDaOrganizacao={organizacao?.nome ?? null}
-          podeLerTodas={podeLerTodas}
-          lente={lente}
-          podeAlterarPrioridade={podeAlterarPrioridade}
-          opcoesDeStatus={opcoesDeStatus}
-          opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
-          podeRegistrar={podeRegistrar}
-          podeConfigurar={vinculo.pode("organizacao.configurar")}
-          mostrarPrioridade={podeAlterarPrioridade}
-          pessoaIdDeQuemLe={ctx.pessoaId}
-        />
-      </Suspense>
-
-
-      {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
-          some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
-          reaproveitar quando a barra de filtros nascer. */}
-      {podeRegistrar && (
-        <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
+        {podeRegistrar && (
           <Link
             href="/ocorrencias/nova"
-            className="border-marca bg-accent text-tinta flex min-h-11 items-center justify-center rounded-md border text-sm font-medium"
+            className="border-marca bg-accent text-tinta hidden min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium md:inline-flex"
           >
             + Registrar ocorrência
           </Link>
-        </div>
-      )}
-    </div>
+        )}
+
+        <Suspense fallback={<EsqueletoDaLista />}>
+          <Lista
+            pagina={paginaPedida}
+            categorias={categoriasPedidas}
+            filtro={filtro}
+            consultaAtual={consultaAtual}
+            nomeDaOrganizacao={organizacao?.nome ?? null}
+            podeLerTodas={podeLerTodas}
+            lente={lente}
+            podeAlterarPrioridade={podeAlterarPrioridade}
+            opcoesDeStatus={opcoesDeStatus}
+            opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
+            podeRegistrar={podeRegistrar}
+            podeConfigurar={vinculo.pode("organizacao.configurar")}
+            mostrarPrioridade={podeAlterarPrioridade}
+            pessoaIdDeQuemLe={ctx.pessoaId}
+          />
+        </Suspense>
+
+
+        {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
+            some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
+            reaproveitar quando a barra de filtros nascer. */}
+        {podeRegistrar && (
+          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
+            <Link
+              href="/ocorrencias/nova"
+              className="border-marca bg-accent text-tinta flex min-h-11 items-center justify-center rounded-md border text-sm font-medium"
+            >
+              + Registrar ocorrência
+            </Link>
+          </div>
+        )}
+      </div>
+    </NavegacaoDaLista>
   );
 }
 
