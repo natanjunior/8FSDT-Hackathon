@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { cn } from "@/interface/componentes/utilitarios";
+
 /**
  * **O guarda estrutural do tema.**
  *
@@ -130,5 +132,20 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(claro.has("--marca-foreground")).toBe(true);
     expect(sistema.has("--marca-foreground")).toBe(false);
     expect(escolhido.has("--marca-foreground")).toBe(false);
+  });
+});
+
+describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
+  it("não deixa um papel da escala apagar a cor da tinta", () => {
+    // Sem `extendTailwindMerge`, `text-interface` era lido como COR e derrubava
+    // `text-marca-foreground`, deixando o botão principal sem a tinta pensada para o laranja — e com o
+    // `text-sm` do catálogo, que está fora da escala. Os dois avessos do que se queria.
+    expect(cn("bg-marca text-marca-foreground text-sm", "text-interface")).toBe(
+      "bg-marca text-marca-foreground text-interface",
+    );
+  });
+
+  it("um papel da escala ainda substitui outro", () => {
+    expect(cn("text-corpo", "text-meta")).toBe("text-meta");
   });
 });
