@@ -15,7 +15,10 @@ import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
+import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
+import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
   autoria,
   dataHora,
@@ -28,9 +31,10 @@ import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
 import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
+import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
 import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
+import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
@@ -42,6 +46,7 @@ import {
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
+import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import {
   lerFiltroDeOcorrenciasDaUrl,
   novoTraceId,
@@ -273,6 +278,19 @@ export default async function Ocorrencia({
   // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
   // diferentes — ver `rotulos.ts`.
   const rotulos = rotulosDeStatus(lente);
+
+  /**
+   * **O mesmo mapa, com a chave larga.** A régua e o selo recebem `status: string`, porque `app/` não
+   * importa o Domínio (ADR-0006) — e `rotulos` é `Record<StatusOcorrencia, string>`, que **não se indexa
+   * com `string`** sob `strict`. A atribuição anotada é o que alarga o tipo sem um `as`, usando a
+   * assinatura de índice implícita que o TypeScript dá a tipos mapeados.
+   *
+   * **O `?? status` não é defensivo por gosto:** com `noUncheckedIndexedAccess` a leitura devolve
+   * `string | undefined`, e o padrão tem de ser algo — o próprio nome interno, que é pior que o rótulo e
+   * melhor que a palavra `undefined` na tela.
+   */
+  const rotuloLargo: Readonly<Record<string, string>> = rotulos;
+  const nomeDoStatus = (status: string): string => rotuloLargo[status] ?? status;
 
   /**
    * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
@@ -547,381 +565,323 @@ export default async function Ocorrencia({
   };
 
   return (
-    <MolduraDeTela titulo={detalhe.titulo}>
-      {/* **Bloco 1a · Identidade que não pode rolar.** `statusRotulo` sem rolar — é a resposta literal a
-          "o que aconteceu com o meu pedido?". **A-5:** o status carrega a palavra, sempre. */}
-      <section className="border-linha bg-superficie flex flex-col gap-2 rounded-md border px-4 py-3.5">
-        <span className="text-tinta-fraca text-xs tracking-wide uppercase">Situação</span>
-        <span className="text-tinta text-base leading-snug font-semibold">
-          {detalhe.statusRotulo}
-        </span>
-        {/*
-          **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.**
+    /* **O respiro inferior é do tamanho da barra fixa**, e só existe abaixo de `lg`, onde ela flutua.
+       É a mesma saída que o 44c deu a T-03 — reservar a altura em vez de espaçador no fim do documento —,
+       e ela funciona independente de onde a barra esteja na árvore.
 
-          Do lado do Gestor o rótulo colapsa em *"Pausada"* desde o item 31, e sem esta linha o motivo
-          **sairia da tela**: até aqui ele estava dentro do rótulo. O `inventario-de-telas.md:744` já
-          descrevia o bloco 1 como *"`statusRotulo` (+ `motivoPausa` para o Gestor, pela mesma razão de
-          T-03)"* — só que até agora o rótulo o carregava, e a linha não tinha trabalho.
+       **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
+       VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
+       olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
+       deixaria a barra cobrir o *Voltar* exatamente no caso em que há algo a ler. **O custo é 96 px de
+       branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
+       qualquer forma. */
+    <div className="flex flex-col gap-6 pb-24 lg:pb-0">
+      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">{detalhe.titulo}</h1>
 
-          **Auto-silenciadora, e sem argumento novo:** para o Solicitante os dois textos coincidem e a
-          função devolve `null` — o bloco dele não muda em nada.
+      {/* **Duas colunas a partir de `lg`, e a de apoio tem 280 px por conta.** Em 1024 px a casca já
+          gasta 214 na lateral e 48 no respiro do `<main>`; com 24 de calha, a narrativa fica com 458 —
+          mais que os 448 da coluna única de hoje. Com 320 ela ficaria com 418, e a tela estreitaria ao
+          ganhar largura.
 
-          **Aqui e não no bloco 1c:** o 1c é o `<dl>` do resto da identidade; o 1a é o que existe para
-          caber **sem rolar**, e a espera nomeada é o que a D8 quer visível.
-        */}
-        {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
-          <span className="text-tinta-suave text-sm leading-snug">
-            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-          </span>
-        )}
-      </section>
+          **A coluna de apoio vem PRIMEIRO no documento**, porque é o que o inventário exige sem rolar no
+          celular — `statusRotulo`, `titulo` e a última entrada da linha do tempo. A partir de `lg` ela é
+          **colocada** na segunda coluna da grade. Quem lê por teclado ou por leitor de tela recebe a
+          mesma sequência nas duas larguras; o que muda é onde ela é pintada.
 
-      {/*
-        **Bloco 1b · A última mudança, subida do bloco 3.**
+          **Os dois invólucros são `<div>`, nunca `<section>`:** o teste de ponta a ponta localiza o bloco
+          de situação por `locator("section").filter({ hasText: "Situação" })`, e um `<section>` de layout
+          envolvendo a coluna casaria primeiro. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+        <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1">
+          {/* **Bloco 1a · Identidade que não pode rolar.** O status vira selo — guia §2, a mesma peça de
+              T-03 —, e **a palavra *Situação* fica**: é o que dá nome ao que o selo diz, e é o que o
+              teste de ponta a ponta localiza. */}
+          <section className="border-linha bg-superficie flex flex-col gap-2 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            <span className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+              Situação
+            </span>
+            <span className="w-fit">
+              <SeloDeStatus status={detalhe.status} rotulo={detalhe.statusRotulo} />
+            </span>
+            {/* **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.** Para o
+                Solicitante os dois textos coincidem e ela devolve `null`: o bloco dele não muda. */}
+            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
+              <span className="text-tinta-suave text-meta leading-snug">
+                {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+              </span>
+            )}
+          </section>
 
-        **Não é invenção desta tela:** é a decisão 1 do D-3 do protótipo (`prototipo-low-fi.md:511-521`),
-        tomada sob o achado **P-08**. O inventário pediu que sem rolar aparecessem *"`statusRotulo`,
-        `titulo`, e a última entrada da linha do tempo"* — e listou a linha do tempo como bloco 3. Os dois
-        não podiam valer ao mesmo tempo, e o desenho parte o bloco 1.
+          {/* **A régua do ciclo, em bloco IRMÃO e nunca dentro da seção acima.** A razão é mecânica: o
+              teste afirma o estado atual quatro vezes escopado à seção que contém a palavra *Situação*,
+              e a régua nomeia os quatro estados do ciclo. Dentro dela, `toContainText("Aberta")`
+              passaria em qualquer estado — o teste ficaria verde e deixaria de afirmar o que existe
+              para afirmar. */}
+          <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+              O ciclo
+            </h2>
+            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
+              <ReguaComDatas
+                eventos={linhaDoTempoPedida}
+                statusAtual={detalhe.status}
+                nomeDoStatus={nomeDoStatus}
+                notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                rotuloDaSaida={detalhe.statusRotulo}
+              />
+            </Suspense>
+          </section>
 
-        **E é o que faz o topo pintar com UMA requisição:** `ultimaTransicao` vem dentro do
-        `OcorrenciaDetalhe`, então a resposta a *"o que aconteceu com o meu pedido?"* não espera a linha
-        do tempo. É a outra metade do critério 29.5.
-
-        **Sem observação, a frase entre aspas não existe** — e não se repete o `statusRotulo` para
-        preencher: ele está três linhas acima. A primeira transição de toda ocorrência é a da premissa P1,
-        e ela nasce sem texto.
-      */}
-      <section className="flex flex-col gap-1.5">
-        <h2 className="text-tinta text-sm font-semibold">Última mudança</h2>
-        <p className="text-tinta-fraca text-xs">
-          {autoria(
-            detalhe.ultimaTransicao.autor.nome,
-            detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
-            dataHora(detalhe.ultimaTransicao.ocorreuEm),
-          )}
-        </p>
-        {detalhe.ultimaTransicao.observacao !== null && (
-          <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-            {`“${detalhe.ultimaTransicao.observacao}”`}
-          </p>
-        )}
-        {/* **A âncora da linha do tempo — e ela é uma âncora na própria página.** **A-3:** alvo de toque.
-
-            **O que este comentário dizia até o item 41b, e por que deixou de valer:** *"o link para a
-            trilha de auditoria NÃO entra — T-06 não existe como tela e não tem dono (achado A-1 da spec
-            do item 11, aberto). Um link para lugar nenhum é pior que a ausência dele."* **T-06 passou a
-            existir** (critério 41b.6), e o link para ela entra — **ao fim do bloco 3**, que é onde o
-            protótipo o desenha nos cinco quadros (`telas.html:2210`, `:2333`, `:2613`, `:2733`,
-            `:2970`), e não aqui. */}
-        <a
-          href="#linha-do-tempo"
-          className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
-        >
-          ver a linha do tempo →
-        </a>
-      </section>
-
-      {/* **Bloco 1c · O resto da identidade**, que desce sem alteração de conteúdo. */}
-      <section className="border-linha bg-superficie flex flex-col gap-2 rounded-md border px-4 py-3.5">
-        {/*
-          **A prioridade sai do `<dl>` e vira a linha acima dele** — nas duas formas. `<label htmlFor>`
-          dentro de `<dt>` é marcação errada, e o protótipo já a desenha fora da lista de pares nos dois
-          recortes (`telas.html:2154-2158` para o Gestor, `:2276` e `:2473` para o Solicitante e para o
-          estado terminal).
-
-          **A presença do CONTROLE depende de `acoesDisponiveis`, não do dado** — a mesma forma que o item
-          25 estabeleceu para o campo de solução aplicada. **A prioridade nunca some da tela:** ela é dado
-          do bloco 1 desde o item 11, e o que muda é a forma.
-
-          **O ramo de texto é servidor puro** — não há por que embarcar no navegador uma linha que não muda
-          —, e `app/` continua sem `import` do Domínio: o que desce ao componente é `string`, uma lista de
-          pares e um mapa de rótulos, nunca um tipo de comando.
-        */}
-        {detalhe.acoesDisponiveis.includes("alterar-prioridade") ? (
-          <SeletorDePrioridade
+          {/* **A barra de ações, e o vazio dela.** Montada SEMPRE: o `router.refresh()` que o `409`
+              dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
+              olhando"* sumiria no mesmo repinte que a exibiu. */}
+          <BarraDeAcoes
             ocorrenciaId={detalhe.id}
-            valorAtual={detalhe.prioridade}
-            opcoes={opcoesDePrioridade()}
+            acoes={renderizaveis}
             rotulosDeStatus={rotulos}
             organizacaoId={organizacaoId}
+            formularios={formularios}
+            primario={primario}
+            emMenu={emMenu}
           />
-        ) : (
-          <p className="text-tinta-suave text-sm">
-            <span className="font-medium">Prioridade:</span>{" "}
-            {rotuloDePrioridade(detalhe.prioridade)}
-          </p>
-        )}
-        <dl className="text-tinta-suave grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="font-medium">Categoria</dt>
-          <dd>{detalhe.categoria.nome}</dd>
-          <dt className="font-medium">Onde</dt>
-          <dd>
-            {detalhe.area.nome} · {detalhe.area.tipo === "comum" ? "área comum" : "unidade privativa"}
-            {detalhe.localizacaoComplemento !== null && ` — ${detalhe.localizacaoComplemento}`}
-          </dd>
-          <dt className="font-medium">Registrada por</dt>
-          <dd>{detalhe.autor.nome}</dd>
-          {/* **Nulo escreve *"sem responsável"***, que é a palavra que `lista-de-ocorrencias.tsx` já
-              usa. **Não se inventa um terceiro texto:** o achado R-12 registra que `responsavel` nulo já
-              tem dois — *"—"* na tabela larga e *"sem responsável"* no cartão —, e escolher o que já
-              existe mantém o achado do tamanho que ele tem em vez de aumentá-lo. */}
-          <dt className="font-medium">Responsável</dt>
-          <dd>{detalhe.responsavel?.nome ?? "sem responsável"}</dd>
-          <dt className="font-medium">Quando</dt>
-          {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC (modelo §2.3), e
-              sem `timeZone` esta linha erra a hora sempre. A decisão está escrita em
-              `app/organizacao/page.tsx:166-177`; o que ela não tinha era um lugar em que a divergência
-              aparecesse na MESMA tela — agora tem: as datas do bloco 3, logo abaixo. */}
-          <dd>{dataHora(detalhe.registradaEm)}</dd>
-        </dl>
-      </section>
 
-      {/*
-        **O convite a avaliar — o critério 27.5, metade de T-05.**
-
-        **A condição é `acoesDisponiveis`, e não uma segunda regra na tela.** `comandosDisponiveis` já
-        cruza *ser o autor* com *ainda não avaliou*; recalcular isso no JSX seria a segunda cópia da
-        máquina de estados que `acoesDisponiveis` existe para impedir. `status === "resolvida"` é
-        redundante com a lista — `avaliar` só é admitido lá — e fica de fora.
-
-        **O texto é literal do `inventario-de-telas.md:645`, e é a frase INTEIRA** — *"em T-05, onde o
-        convite é chamada e não marca, a frase aparece inteira"* (`prototipo-low-fi.md:490`). Na lista é
-        só *"Conte como foi"*, e é a Q-P8 respondida.
-
-        **O `statusRotulo` não muda** — critério 27.5, e é a regra 3 do glossário §4: rótulo é estado, o
-        convite é da tela.
-      */}
-      {detalhe.acoesDisponiveis.includes("avaliar") && (
-        <p className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm">
-          Resolvida. Conte como foi.
-        </p>
-      )}
-
-      {/* **Bloco 2 · Conteúdo.** */}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-tinta text-sm font-semibold">O que foi relatado</h2>
-        <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-          {detalhe.descricao}
-        </p>
-
-        {/*
-          **A foto, e ela é `div` com `background-image` — não `<img>` e não `next/image`.**
-
-          `<img>` dispara `@next/next/no-img-element`, e desativá-lo gastaria o **primeiro
-          `eslint-disable` do repositório**, que o DoD lista como um dos instrumentos que substituem o
-          revisor humano. `next/image` é pior: ele otimizaria no servidor, o que significa **os bytes do
-          anexo atravessando o contêiner da aplicação** — o que a §10.1 do contrato proíbe na única frase
-          em que ela é absoluta.
-
-          **A miniatura é a SEGUNDA camada da mesma propriedade, e isso é CSS, não JavaScript.** A
-          primeira camada cobre a segunda quando termina de carregar; até lá aparece a de ~15 KB. Sem uma
-          linha de script, e sem tornar T-05 uma ilha de cliente. Com `miniaturaUrl` nula, a declaração
-          tem uma camada só.
-
-          **`role="img"` + `aria-label` dão ao leitor de tela o que o `alt` daria** (A-5).
-
-          **Ampliar é um `<a>` em volta**, e não uma tela: *"ampliar uma foto é um gesto, não um
-          destino"* (inventário). Custa um elemento e dá o gesto.
-        */}
-        {detalhe.anexos.map((anexo) => (
-          <a key={anexo.id} href={anexo.url} target="_blank" rel="noreferrer" className="mt-1 block">
-            <div
-              role="img"
-              aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
-              className="bg-superficie border-linha h-56 w-full rounded-md border bg-cover bg-center bg-no-repeat"
-              style={{
-                backgroundImage:
-                  anexo.miniaturaUrl === null
-                    ? `url(${anexo.url})`
-                    : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
-              }}
-            />
-          </a>
-        ))}
-      </section>
-
-      {/*
-        **Bloco de solução aplicada — o primeiro bloco de T-05 cuja PRESENÇA depende de `acoesDisponiveis`.**
-        Os anteriores dependem só do dado.
-
-        **As três formas são do protótipo, e não desta tela** (`prototipo-low-fi.md`): *"o campo só
-        existe quando o comando existe. Ele aparece quando `registrar-solucao-aplicada` está em
-        `acoesDisponiveis`, **ou quando `solucaoAplicada` já tem conteúdo — e nesse caso como texto, não
-        como campo**"*. A terceira forma é a que o **Solicitante** vê numa ocorrência resolvida, e é a
-        única em que ele alcança esse dado na tela.
-
-        **O ramo de texto é servidor puro** — não há por que embarcar no navegador um parágrafo que não
-        muda —, e `app/` continua sem `import` do Domínio: o que desce ao componente é `string | null` e um
-        mapa de rótulos, nunca um tipo de comando.
-      */}
-      {detalhe.acoesDisponiveis.includes("registrar-solucao-aplicada") ? (
-        <CampoDeSolucaoAplicada
-          ocorrenciaId={detalhe.id}
-          valorAtual={detalhe.solucaoAplicada}
-          rotulosDeStatus={rotulos}
-          organizacaoId={organizacaoId}
-        />
-      ) : (
-        detalhe.solucaoAplicada !== null && (
-          <section className="flex flex-col gap-2">
-            <h2 className="text-tinta text-sm font-semibold">Solução aplicada</h2>
-            <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-              {detalhe.solucaoAplicada}
-            </p>
-          </section>
-        )
-      )}
-
-      {/*
-        **A avaliação dada — e ela NÃO é escopo inventado.** O `inventario-de-telas.md:1520` manda a tela
-        *"mostrar a avaliação"* ao lado da frase do `JA_AVALIADA`: uma tela que não sabe mostrá-la não
-        consegue cumprir aquilo.
-
-        **E sem ele a fatia entregaria um `200` silencioso na própria ação principal:** o autor avalia, o
-        modal fecha, o convite some, a barra fica com *"Esta ocorrência está encerrada."* — e **nada** na
-        tela diria que a nota foi registrada. `avaliacao` está no `OcorrenciaDetalhe` desde o item 11 e
-        **ninguém a renderizava**; este é o item que a alcança.
-
-        **Servidor puro, na forma do ramo de texto da solução aplicada** — não há por que embarcar no
-        navegador um parágrafo que não muda.
-
-        **Os dois títulos são texto novo de produto** — achado **A-2** da spec.
-      */}
-      {detalhe.avaliacao !== null && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-tinta text-sm font-semibold">
-            {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
-          </h2>
-          {/* **A-5: a nota carrega a palavra**, e nunca é só um número solto ou uma cor. */}
-          <p className="text-tinta-suave text-sm leading-relaxed">
-            Nota {detalhe.avaliacao.nota} de 5
-          </p>
-          {detalhe.avaliacao.comentario !== null && (
-            <p className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-              {detalhe.avaliacao.comentario}
+          {vazio !== null && (
+            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px] leading-relaxed">
+              {vazio}
             </p>
           )}
-        </section>
-      )}
 
-      {/*
-        **Bloco 3 · A linha do tempo**, e ela SUBSTITUI a seção *"Histórico"*.
+          {/* **Bloco 1b · A última mudança, subida do bloco 3.** É a decisão 1 do D-3 do protótipo, e é o
+              que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
+              `OcorrenciaDetalhe`. */}
+          <section className="flex flex-col gap-1.5">
+            <h2 className="text-tinta text-titulo-linha font-medium">Última mudança</h2>
+            <p className="text-tinta-fraca text-meta">
+              {autoria(
+                detalhe.ultimaTransicao.autor.nome,
+                detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
+                dataHora(detalhe.ultimaTransicao.ocorreuEm),
+              )}
+            </p>
+            {detalhe.ultimaTransicao.observacao !== null && (
+              <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                {`“${detalhe.ultimaTransicao.observacao}”`}
+              </p>
+            )}
+            <a
+              href="#linha-do-tempo"
+              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
+            >
+              ver a linha do tempo →
+            </a>
+          </section>
 
-        **A palavra sai do produto, e é o glossário quem manda:** *"«Histórico» sozinho não é termo do
-        projeto — não usar"* (`glossario.md:181-182`), porque colide com **Registro de transição**,
-        **Trilha de auditoria** e **Linha do tempo**. Ela estava lá desde o item 11 por falta de bloco 3.
+          {/* **Bloco 1c · O resto da identidade.** */}
+          <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            {/* **A presença do CONTROLE depende de `acoesDisponiveis`, não do dado** — a prioridade
+                nunca some da tela, e o que muda é a forma. */}
+            {detalhe.acoesDisponiveis.includes("alterar-prioridade") ? (
+              <SeletorDePrioridade
+                ocorrenciaId={detalhe.id}
+                valorAtual={detalhe.prioridade}
+                opcoes={opcoesDePrioridade()}
+                rotulosDeStatus={rotulos}
+                organizacaoId={organizacaoId}
+              />
+            ) : (
+              /* **A prioridade em PALAVRA na linha de apoio** — guia §2. `alta` recebe `--destructive`;
+                 `normal` e `baixa` não recebem cor. */
+              <p className="text-tinta-suave text-interface">
+                <span className="font-medium">Prioridade:</span>{" "}
+                <span className={detalhe.prioridade === "alta" ? "text-destructive font-medium" : ""}>
+                  {rotuloDePrioridade(detalhe.prioridade)}
+                </span>
+              </p>
+            )}
 
-        **A frase *"De {X} para {Y}"* sai junto**, e com ela o último consumidor de `nomesDeStatus()`
-        nesta tela. A forma passa a ser a do protótipo — rótulo, e não par de nomes internos.
+            <dl className="text-tinta-suave grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-2 text-interface">
+              <dt className="font-medium">Categoria</dt>
+              <dd>{detalhe.categoria.nome}</dd>
 
-        **O `id` mora AQUI e não no filho**, porque a âncora do bloco 1b precisa existir enquanto o
-        esqueleto está na tela.
-      */}
-      <section id="linha-do-tempo" className="flex flex-col gap-2">
-        <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-          <LinhaDoTempo
-            eventos={linhaDoTempoPedida}
-            pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-            lente={lente}
-          />
-        </Suspense>
-        {/*
-          **O link para T-06 — critério 41b.7**, e é por ele que se chega à trilha: clicando, não
-          digitando a URL.
+              {/* **A ficha de local entra SEM cartão de ponteiro, e por decisão.** O próprio componente
+                  declara que a referência do lugar *"vive no cartão de ponteiro, e também em T-05"* — e
+                  T-05 é o outro lugar. Mostrá-la nos dois seria o mesmo texto duas vezes na mesma tela. */}
+              <dt className="font-medium">Onde</dt>
+              <dd className="flex flex-col gap-0.5">
+                <FichaDeLocal nomeDaArea={detalhe.area.nome} />
+                <span className="text-tinta-fraca text-meta">
+                  {detalhe.area.tipo === "comum" ? "área comum" : "unidade privativa"}
+                  {detalhe.localizacaoComplemento !== null &&
+                    ` — ${detalhe.localizacaoComplemento}`}
+                </span>
+              </dd>
 
-          **Ao fim do bloco 3**, que é onde o protótipo o desenha nos cinco quadros (`telas.html:2210`,
-          `:2333`, `:2613`, `:2733`, `:2970`) — e faz sentido ali: a linha do tempo responde *"o que está
-          acontecendo"*, e quem quer *"prove"* segue daqui.
+              {/* **As fichas de pessoa entram sem cartão por falta de dado**, e não por decisão:
+                  `autor` e `responsavel` são `PessoaReferencia`, com `pessoaId` e `nome` e nada mais.
+                  É o achado A-06 da spec, e o mesmo do 44c em T-03. */}
+              <dt className="font-medium">Registrada por</dt>
+              <dd>
+                <FichaDePessoa nome={detalhe.autor.nome} />
+              </dd>
 
-          **FORA do `<Suspense>`, de propósito.** Ele não depende de a linha do tempo ter chegado; dentro
-          do `fallback` sumiria justamente durante a espera, que é quando alguém desiste da tela.
+              <dt className="font-medium">Responsável</dt>
+              <dd>
+                {detalhe.responsavel === null ? (
+                  /* **Nulo escreve *"sem responsável"***, que é a palavra que a lista já usa. Não se
+                     inventa um terceiro texto. */
+                  <span className="text-tinta-fraca">sem responsável</span>
+                ) : (
+                  <FichaDePessoa nome={detalhe.responsavel.nome} />
+                )}
+              </dd>
 
-          **Sem o `?de=`**, pela mesma razão do *Voltar à lista* do bloco de `404`: o recorte que trouxe
-          até aqui não é da trilha, e T-06 volta para T-05, não para a lista.
+              <dt className="font-medium">Quando</dt>
+              {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC. */}
+              <dd className="font-mono">{dataHora(detalhe.registradaEm)}</dd>
+            </dl>
+          </section>
+        </div>
 
-          **`<a>` e não `next/link`, e é o mesmo elemento da âncora do bloco 1b.** T-06 é
-          `force-dynamic`: o *prefetch* do `Link` a renderizaria no servidor a cada aparição de T-05 na
-          viewport — uma consulta a mais por abertura, para um link que a maioria não clica.
+        <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
+          {/* **O convite a avaliar — o critério 27.5.** A condição é `acoesDisponiveis`, e não uma
+              segunda regra na tela. O texto é literal do inventário. */}
+          {detalhe.acoesDisponiveis.includes("avaliar") && (
+            <p className="border-marca/40 bg-accent text-tinta rounded-lg border px-4 py-3 text-corpo">
+              Resolvida. Conte como foi.
+            </p>
+          )}
 
-          **A-3:** alvo de toque de 44 px.
-        */}
-        <a
-          href={`/ocorrencias/${detalhe.id}/auditoria`}
-          className="text-marca inline-flex min-h-11 items-center self-end text-sm font-medium"
-        >
-          ver a trilha de auditoria →
-        </a>
-      </section>
+          {/* **Bloco 2 · Conteúdo.** */}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-tinta text-titulo-bloco font-semibold">O que foi relatado</h2>
+            <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+              {detalhe.descricao}
+            </p>
 
-      {/*
-        **Bloco 4 · A conversa** — o último dos quatro blocos que o inventário desenha, e o único que
-        ainda não existia.
+            {/* **A foto, e ela continua `div` com duas camadas de `background-image`** — critério 6.
+                `<img>` dispararia `@next/next/no-img-element` e gastaria o primeiro `eslint-disable` do
+                repositório; `next/image` faria os bytes do anexo atravessarem o contêiner, que a §10.1
+                do contrato proíbe.
 
-        **A permissão é conferida aqui**, como a página já faz com `vinculo.gerir` antes de montar o modal
-        de atribuição. Hoje é redundante — todo mundo que abre T-05 tem `ocorrencia.comentar` — e amanhã
-        não é; e é uma linha.
+                **A etiqueta é persistente e não vive em passagem do ponteiro** — é a segunda metade do
+                critério 6. Pôr o convite no ponteiro esconderia de quem usa toque a única pista de que a
+                foto abre. **O verbo é *abrir*, e não *ampliar*:** o `href` leva a outra aba.
 
-        **A tela grande NÃO ganha duas colunas nesta fatia.** O inventário manda a linha do tempo e a
-        conversa ficarem *"ao lado em vez de abaixo"* para o Gestor, e diz na mesma linha que *"isso é
-        layout, e é do passo 5"*. O bloco 3 já foi entregue empilhado pelo item 29; entregar o 4 ao lado
-        partiria o par.
-      */}
-      {vinculo.pode("ocorrencia.comentar") && (
-        <ConversaDaOcorrencia
-          ocorrenciaId={detalhe.id}
-          primeiraPagina={conversaPedida}
-          organizacaoId={organizacaoId}
-          pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-          vazio={vazioDaConversa(ehAutor)}
-          rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
-        />
-      )}
+                **`min-h-11`** dá o alvo de toque do compromisso A-3, e a etiqueta entra no nome
+                acessível do link — *"Foto anexada à ocorrência, Abrir a foto"* —, que descreve o que é e
+                o que acontece. */}
+            {detalhe.anexos.map((anexo) => (
+              <a
+                key={anexo.id}
+                href={anexo.url}
+                target="_blank"
+                rel="noreferrer"
+                className="relative mt-1 block"
+              >
+                <div
+                  role="img"
+                  aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
+                  className="bg-superficie border-linha h-56 w-full rounded-lg border bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage:
+                      anexo.miniaturaUrl === null
+                        ? `url(${anexo.url})`
+                        : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
+                  }}
+                />
+                <span className="bg-superficie text-tinta border-linha text-meta absolute right-3 bottom-3 inline-flex min-h-11 items-center rounded-sm border px-3 font-medium">
+                  Abrir a foto ↗
+                </span>
+              </a>
+            ))}
+          </section>
 
-      {/*
-        **A barra de ações, e o vazio dela.** A tela renderiza *exatamente* `acoesDisponiveis` — nada
-        desabilitado, nada cinza (`inventario-de-telas.md`).
+          {/* **Bloco de solução aplicada.** As três formas são do protótipo: campo quando o comando
+              existe, texto quando só há o dado, nada quando não há nem um nem outro. */}
+          {detalhe.acoesDisponiveis.includes("registrar-solucao-aplicada") ? (
+            <CampoDeSolucaoAplicada
+              ocorrenciaId={detalhe.id}
+              valorAtual={detalhe.solucaoAplicada}
+              rotulosDeStatus={rotulos}
+              organizacaoId={organizacaoId}
+            />
+          ) : (
+            detalhe.solucaoAplicada !== null && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-tinta text-titulo-bloco font-semibold">Solução aplicada</h2>
+                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                  {detalhe.solucaoAplicada}
+                </p>
+              </section>
+            )
+          )}
 
-        **Com a lista vazia há SEMPRE uma frase**, e desde o item 26 são duas: renderizar nada é o `200`
-        silencioso que a §8.5 do contrato existe para impedir — *"a tela não distingue 'não há o que
-        fazer' de 'algo falhou ao montar a lista'"*.
+          {/* **A avaliação dada.** Sem ela, o autor avalia, o modal fecha, o convite some e nada na tela
+              diria que a nota foi registrada. */}
+          {detalhe.avaliacao !== null && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-tinta text-titulo-bloco font-semibold">
+                {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
+              </h2>
+              {/* **A-5: a nota carrega a palavra**, e nunca é só um número solto ou uma cor. */}
+              <p className="text-tinta-suave text-corpo leading-relaxed">
+                Nota {detalhe.avaliacao.nota} de 5
+              </p>
+              {detalhe.avaliacao.comentario !== null && (
+                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                  {detalhe.avaliacao.comentario}
+                </p>
+              )}
+            </section>
+          )}
 
-        **A moldura é sempre sólida desde o item 27.** Ela era tracejada quando havia **andaime
-        declarado** — comandos que ainda iam chegar —, e o critério 27.6 removeu esse ramo: com os dez
-        comandos construídos, toda lista vazia é verdade sobre o produto pronto.
-      */}
-      {vazio !== null && (
-        <p className="border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-xs leading-relaxed">
-          {vazio}
-        </p>
-      )}
+          {/* **Bloco 3 · A linha do tempo.** O `id` mora AQUI e não no filho, porque a âncora do bloco
+              1b precisa existir enquanto o esqueleto está na tela. */}
+          <section id="linha-do-tempo" className="flex flex-col gap-3">
+            <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+              <LinhaDoTempo
+                eventos={linhaDoTempoPedida}
+                pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+                lente={lente}
+              />
+            </Suspense>
+            {/* **FORA do `<Suspense>`, de propósito:** dentro do `fallback` o link sumiria justamente
+                durante a espera, que é quando alguém desiste da tela. **`<a>` e não `next/link`** porque
+                T-06 é `force-dynamic` e o *prefetch* a renderizaria a cada aparição na viewport. */}
+            <a
+              href={`/ocorrencias/${detalhe.id}/auditoria`}
+              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
+            >
+              ver a trilha de auditoria →
+            </a>
+          </section>
 
-      <Link href={voltarPara} className="text-marca py-1 text-sm underline underline-offset-4">
-        Voltar
-      </Link>
+          {/* **Bloco 4 · A conversa.** A permissão é conferida aqui, como a página já faz com
+              `vinculo.gerir` antes de montar o modal de atribuição. */}
+          {vinculo.pode("ocorrencia.comentar") && (
+            <ConversaDaOcorrencia
+              ocorrenciaId={detalhe.id}
+              primeiraPagina={conversaPedida}
+              organizacaoId={organizacaoId}
+              pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+              vazio={vazioDaConversa(ehAutor)}
+              rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
+            />
+          )}
 
-      {/*
-        **Montada SEMPRE, e é a correção que a revisão trouxe.** Ela some sozinha quando não há botão nem
-        aviso — mas quem decide isso é ela, não a tela.
-
-        **Se a tela a montasse só com `acoes.length > 0`**, o `router.refresh()` que o `409` dispara
-        trocaria o ramo do JSX, o componente perderia o `useState` e a frase *"Esta ocorrência mudou
-        enquanto você estava olhando"* sumiria no mesmo repinte que a exibiu. **Nesta fatia isso seria
-        100% dos `409`**: `analisar` é o único comando renderizável, então todo conflito zera a lista.
-
-        **E ela vem depois do `Voltar`** porque leva o próprio espaçador: a barra é `fixed`, e folga
-        colocada *acima* do `Voltar` não impede a barra de cobri-lo no fim da rolagem.
-      */}
-      <BarraDeAcoes
-        ocorrenciaId={detalhe.id}
-        acoes={renderizaveis}
-        rotulosDeStatus={rotulos}
-        organizacaoId={organizacaoId}
-        formularios={formularios}
-        primario={primario}
-        emMenu={emMenu}
-      />
-    </MolduraDeTela>
+          {/* **O *Voltar* FICA, e o argumento do 44e.8 não se aplica aqui.** Em T-07 ele é navegação; em
+              T-05 ele é a devolução do recorte — reconstrói o endereço da lista a partir do `?de=`,
+              pelo critério 15.3 —, e a barra lateral da casca leva a `/ocorrencias` sem consulta
+              nenhuma. Tirá-lo apagaria uma capacidade entregue. */}
+          <Link
+            href={voltarPara}
+            className="text-marca inline-flex min-h-11 items-center self-start text-interface underline underline-offset-4"
+          >
+            Voltar
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -948,32 +908,60 @@ async function LinhaDoTempo({
 
   return (
     <>
-      {/* **A contagem ao lado do título**, como o protótipo (`telas.html:2183`). **Não há estado vazio, e
-          é garantia e não sorte:** a premissa P1 faz o registro da criação nascer com a ocorrência, e o
-          repositório trata trilha vazia como invariante violada. Toda linha do tempo tem ao menos um. */}
-      <h2 className="text-tinta text-sm font-semibold">
+      {/* **A contagem ao lado do título.** **Não há estado vazio, e é garantia e não sorte:** a premissa
+          P1 faz o registro da criação nascer com a ocorrência, e o repositório trata trilha vazia como
+          invariante violada. Toda linha do tempo tem ao menos um. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">
         Linha do tempo <span className="text-tinta-fraca font-normal">{itens.length}</span>
       </h2>
-      <ol className="flex flex-col gap-3">
+
+      <ol className="flex flex-col">
         {itens.map((evento, indice) => (
-          <li key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`} className="flex flex-col gap-0.5">
-            {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. */}
-            <span className="text-tinta-fraca text-xs">
-              {autoria(
-                evento.autor.nome,
-                evento.autor.pessoaId === pessoaIdDeQuemLe,
-                dataHora(evento.ocorridoEm),
-              )}
-            </span>
-            <span className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-              {evento.tipo === "transicao"
-                ? fraseDaTransicao(evento.rotulo, evento.observacao)
-                : evento.tipo === "mensagem"
-                  ? fraseDaMensagem(evento.texto)
-                  : fraseDaAtribuicao(
-                      evento.responsavel.nome,
-                      evento.responsavel.pessoaId === pessoaIdDeQuemLe,
-                    )}
+          <li
+            key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`}
+            className="relative flex gap-3 pb-4 last:pb-0"
+          >
+            {/* **O trilho, e ele não desce do último.** Mesmo desenho da régua do ciclo: um produto, um
+                jeito de desenhar uma sequência no tempo. `aria-hidden` porque a relação já está na
+                ordem do `<ol>`. */}
+            {indice < itens.length - 1 && (
+              <span aria-hidden className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+
+            {/* **Três formas de marcador, e nenhuma delas carrega informação sozinha** — a frase abaixo
+                diz o que aconteceu, em palavras. Transição é cheio, atribuição é contorno, mensagem é
+                contorno menor. */}
+            <span
+              aria-hidden
+              className={
+                evento.tipo === "transicao"
+                  ? "bg-tinta-suave border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border"
+                  : evento.tipo === "atribuicao"
+                    ? "border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent"
+                    : "border-linha mt-2 size-[7px] shrink-0 rounded-full border bg-transparent"
+              }
+            />
+
+            <span className="flex min-w-0 flex-col gap-0.5">
+              {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. O
+                  instante vai em monoespaçada, pelo guia §3 — dado temporal. */}
+              <span className="text-tinta-fraca text-meta">
+                {autoria(
+                  evento.autor.nome,
+                  evento.autor.pessoaId === pessoaIdDeQuemLe,
+                  dataHora(evento.ocorridoEm),
+                )}
+              </span>
+              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                {evento.tipo === "transicao"
+                  ? fraseDaTransicao(evento.rotulo, evento.observacao)
+                  : evento.tipo === "mensagem"
+                    ? fraseDaMensagem(evento.texto)
+                    : fraseDaAtribuicao(
+                        evento.responsavel.nome,
+                        evento.responsavel.pessoaId === pessoaIdDeQuemLe,
+                      )}
+              </span>
             </span>
           </li>
         ))}
@@ -990,25 +978,105 @@ async function LinhaDoTempo({
 function EsqueletoDaLinhaDoTempo() {
   return (
     <>
-      <h2 className="text-tinta text-sm font-semibold">Linha do tempo</h2>
-      <div aria-hidden className="flex flex-col gap-3">
-        {[
-          [46, 88],
-          [52, 74],
-          [40, 92],
-        ].map(([autor, frase]) => (
-          <div key={autor} className="flex flex-col gap-1.5">
-            <div
-              className="bg-secondary h-3 animate-pulse rounded"
-              style={{ width: `${String(autor)}%` }}
-            />
-            <div
-              className="bg-secondary h-4 animate-pulse rounded"
-              style={{ width: `${String(frase)}%` }}
-            />
+      {/* Cabeçalho **sem a contagem** — não se conta o que ainda não chegou. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">Linha do tempo</h2>
+      <div aria-hidden className="flex flex-col">
+        {(
+          [
+            [46, 88],
+            [52, 74],
+            [40, 92],
+          ] as const
+        ).map(([autor, frase], indice) => (
+          <div key={autor} className="relative flex gap-3 pb-4">
+            {indice < 2 && (
+              <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+            <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border" />
+            <div className="flex w-full flex-col gap-1.5">
+              <Skeleton className="bg-secondary h-3" style={{ width: `${autor}%` }} />
+              <Skeleton className="bg-secondary h-4" style={{ width: `${frase}%` }} />
+            </div>
           </div>
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * **A régua espera a linha do tempo, porque é ela quem sabe as datas.**
+ *
+ * `OcorrenciaDetalhe` traz `registradaEm`, `ultimaTransicao` e o `status` atual — e **não** a data de
+ * cada passo alcançado. Elas só existem na trilha. A promessa já parte antes do `await` do detalhe
+ * (critério 29.5), então esta fronteira de espera **não acrescenta requisição nenhuma**: ela reaproveita
+ * a mesma promessa que o bloco 3 espera.
+ *
+ * **Custo declarado:** sob o cold start do RNF5 a régua pinta sem datas por um instante — é o achado
+ * **A-05** da spec, e a alternativa seria mudar o contrato.
+ */
+async function ReguaComDatas({
+  eventos,
+  statusAtual,
+  nomeDoStatus,
+  notaDaSaida,
+  rotuloDaSaida,
+}: {
+  eventos: Promise<readonly EventoLido[]>;
+  statusAtual: string;
+  nomeDoStatus: (status: string) => string;
+  notaDaSaida: string | null;
+  rotuloDaSaida: string;
+}) {
+  /**
+   * **Só transições entram**, já ordenadas da mais antiga para a mais recente, que é como a linha do
+   * tempo chega. Atribuição e mensagem não movem o ciclo.
+   *
+   * **`flatMap` com ternária, e não `filter` seguido de `map`.** `EventoLido` é união discriminada por
+   * `tipo`, e `filter` com predicado booleano **não estreita** o tipo do elemento: o `map` seguinte não
+   * enxergaria `evento.transicao` e o `tsc` recusaria. Dentro da ternária a narrowing acontece.
+   */
+  const transicoes = (await eventos).flatMap((evento) =>
+    evento.tipo === "transicao"
+      ? [{ status: evento.transicao.statusNovo, em: dataHora(evento.ocorridoEm) }]
+      : [],
+  );
+
+  return (
+    <ReguaDoCiclo
+      transicoes={transicoes}
+      statusAtual={statusAtual}
+      nomeDoStatus={nomeDoStatus}
+      notaDaSaida={notaDaSaida}
+      rotuloDaSaida={rotuloDaSaida}
+    />
+  );
+}
+
+/**
+ * **O trilho sem datas, enquanto a linha do tempo não chega. O ciclo é visível no primeiro pixel.**
+ *
+ * **Não é `ReguaDoCiclo` com `transicoes={[]}`.** Sem data nenhuma, `lerOCiclo` marca como *por
+ * alcançar* todo passo que não seja o atual — numa ocorrência em `em_atendimento` isso pintaria
+ * *Aberta* e *Em análise* como pendentes, e numa `cancelada` riscaria os quatro e poria a marca de
+ * saída **acima** de *Aberta*. Um ciclo falso, ainda que por um instante.
+ *
+ * **O esqueleto desenha o próprio trilho**, `aria-hidden` e sem distinção de estado entre os quatro
+ * passos — nenhum alcançado, nenhum atual, nenhum riscado — e sem a marca de saída, que é exatamente o
+ * dado que ainda não chegou. Só os nomes, na mesma geometria da régua de verdade.
+ */
+function EsqueletoDaRegua({ nomeDoStatus }: { nomeDoStatus: (status: string) => string }) {
+  return (
+    <div aria-hidden className="flex flex-col">
+      {CICLO.map((status, indice) => (
+        <div key={status} className="relative flex gap-3 pb-4 last:pb-0">
+          {indice < CICLO.length - 1 && (
+            <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+          )}
+          <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent" />
+          <span className="text-interface text-tinta-fraca">{nomeDoStatus(status)}</span>
+        </div>
+      ))}
+    </div>
   );
 }

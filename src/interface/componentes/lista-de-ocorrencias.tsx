@@ -1,9 +1,6 @@
 "use client";
 
 import Link from "next/link";
-
-import type { StatusOcorrencia } from "@/dominio/ocorrencia";
-import { Badge } from "@/interface/componentes/ui/badge";
 import {
   Table,
   TableBody,
@@ -19,50 +16,8 @@ import { FichaDeLocal } from "./ficha-de-local";
 import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { rotuloDePrioridade } from "./rotulos";
+import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto, tempoRelativo } from "./tempo-relativo";
-
-/**
- * ============================================================================
- *  As três formas de selo do guia §2 — e a forma diz se a ocorrência espera alguém
- * ============================================================================
- *
- * | Forma | Status | Por quê |
- * |---|---|---|
- * | Sólido | `aberta`, `pausada` | as duas esperam alguém, e é o que quem tria procura |
- * | Contorno | `em_analise`, `em_atendimento` | andando, e ninguém precisa agir agora |
- * | Apagado | `resolvida`, `cancelada` | encerradas, e recuam |
- *
- * **O sólido usa `bg-accent`, que neste repositório resolve para `--accent-bg`** — o par de fundo do
- * vocabulário —, com `--accent-foreground` por cima. O item 44 fez essa fiação de propósito:
- * `--color-accent: var(--accent-bg)` (`globals.css:277`), justamente porque o nome colide com o do
- * catálogo. **A cor da marca não entra aqui:** ela é `--color-marca`, e só a ação principal a veste.
- *
- * **E o sólido não pode usar `--chrome` nem `--sunken`, que são o mesmo valor nos dois temas**
- * (`globals.css:81` e `:83`, `:171` e `:173`): o sólido e o apagado ficariam com o mesmo fundo,
- * separados só pela cor do texto, e as três formas virariam duas e meia.
- *
- * **O raio é o de selo, 6 px.** O `ui/badge` chega do catálogo com `rounded-full`, que o guia §4 não
- * concede a selo nenhum.
- *
- * **Nada é comunicado só por forma:** o selo sempre imprime o `statusRotulo`, que vem pronto do servidor
- * na coluna de quem lê (item 31).
- */
-const FORMA_DO_SELO: Readonly<Record<StatusOcorrencia, string>> = {
-  aberta: "bg-accent text-accent-foreground border-transparent",
-  pausada: "bg-accent text-accent-foreground border-transparent",
-  em_analise: "border-linha text-tinta bg-transparent",
-  em_atendimento: "border-linha text-tinta bg-transparent",
-  resolvida: "bg-muted text-tinta-suave border-transparent",
-  cancelada: "bg-muted text-tinta-suave border-transparent",
-};
-
-function SeloDeStatus({ status, rotulo }: { status: StatusOcorrencia; rotulo: string }) {
-  return (
-    <Badge variant="outline" className={`text-meta rounded-sm ${FORMA_DO_SELO[status]}`}>
-      {rotulo}
-    </Badge>
-  );
-}
 
 /**
  * A prioridade **em palavra, na linha de apoio** — guia §2. `alta` recebe `--destructive`; `normal` e

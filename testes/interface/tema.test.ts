@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { cn } from "@/interface/componentes/utilitarios";
+
 /**
  * **O guarda estrutural do tema.**
  *
@@ -121,5 +123,29 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(claro.has("--font-mono")).toBe(true);
     expect(sistema.has("--font-mono")).toBe(false);
     expect(escolhido.has("--font-mono")).toBe(false);
+  });
+
+  it("a tinta da marca é declarada uma vez, fora dos blocos escuros", () => {
+    // `--accent` é laranja de meia-luz nos DOIS temas — 0.6031 no claro, 0.6940 no escuro —, então os
+    // dois querem tinta escura por cima. Um token que invertesse daria branco sobre laranja no claro,
+    // que mede 4,07:1. Este mede 4,61:1 no claro e 6,64:1 no escuro. Item 44d, critério 8.
+    expect(claro.has("--marca-foreground")).toBe(true);
+    expect(sistema.has("--marca-foreground")).toBe(false);
+    expect(escolhido.has("--marca-foreground")).toBe(false);
+  });
+});
+
+describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
+  it("não deixa um papel da escala apagar a cor da tinta", () => {
+    // Sem `extendTailwindMerge`, `text-interface` era lido como COR e derrubava
+    // `text-marca-foreground`, deixando o botão principal sem a tinta pensada para o laranja — e com o
+    // `text-sm` do catálogo, que está fora da escala. Os dois avessos do que se queria.
+    expect(cn("bg-marca text-marca-foreground text-sm", "text-interface")).toBe(
+      "bg-marca text-marca-foreground text-interface",
+    );
+  });
+
+  it("um papel da escala ainda substitui outro", () => {
+    expect(cn("text-corpo", "text-meta")).toBe("text-meta");
   });
 });

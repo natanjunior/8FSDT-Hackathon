@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { Button } from "@/interface/componentes/ui/button";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /**
  * ============================================================================
@@ -102,7 +103,7 @@ export function CampoDeSolucaoAplicada({
         Solução aplicada
       </label>
 
-      <textarea
+      <Textarea
         id={campoId}
         value={texto}
         onChange={(evento) => {
@@ -117,7 +118,6 @@ export function CampoDeSolucaoAplicada({
         /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
         maxLength={4000}
         placeholder="O que foi feito"
-        className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
       />
 
       {aviso !== null && (
