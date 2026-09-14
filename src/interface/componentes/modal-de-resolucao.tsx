@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /**
  * ============================================================================
@@ -196,7 +197,7 @@ export function ModalDeResolucao({
           <label htmlFor={campoSolucaoId} className="text-tinta text-sm font-medium">
             O que foi feito (opcional)
           </label>
-          <textarea
+          <Textarea
             id={campoSolucaoId}
             autoFocus
             value={solucao}
@@ -205,7 +206,6 @@ export function ModalDeResolucao({
             rows={4}
             /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */
             maxLength={4000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 
@@ -218,7 +218,7 @@ export function ModalDeResolucao({
           <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
             {AVISO_DE_VISIBILIDADE}
           </p>
-          <textarea
+          <Textarea
             id={campoObservacaoId}
             aria-describedby={avisoId}
             value={observacao}
@@ -227,7 +227,6 @@ export function ModalDeResolucao({
             rows={3}
             /* **O mesmo teto do campo `observacao` do módulo de schemas** — 1000. */
             maxLength={1000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 

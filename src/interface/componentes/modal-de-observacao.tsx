@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /**
  * ============================================================================
@@ -171,7 +172,7 @@ export function ModalDeObservacao({
           <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
             {AVISO_DE_VISIBILIDADE}
           </p>
-          <textarea
+          <Textarea
             id={campoId}
             aria-describedby={avisoId}
             value={texto}
@@ -180,7 +181,6 @@ export function ModalDeObservacao({
             rows={3}
             /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
             maxLength={1000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 

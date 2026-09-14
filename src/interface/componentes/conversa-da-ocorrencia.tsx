@@ -9,6 +9,7 @@ import {
 } from "@/interface/componentes/comando-de-ocorrencia";
 import { autoria, dataHora } from "@/interface/componentes/linha-do-tempo";
 import { Button } from "@/interface/componentes/ui/button";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 import type { PaginaDeComentariosProjetada } from "@/interface/projecoes";
 
 /**
@@ -112,7 +113,7 @@ export function ConversaDaOcorrencia({
         {rotuloDoCampo}
       </label>
 
-      <textarea
+      <Textarea
         id={campoId}
         value={texto}
         onChange={(evento) => {
@@ -125,7 +126,6 @@ export function ConversaDaOcorrencia({
         /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
            não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
         maxLength={4000}
-        className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
       />
 
       {aviso !== null && (

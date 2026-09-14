@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /** As cinco opções da escala. **Legenda só nas pontas** — é o desenho do protótipo §7.2, literal. */
 const NOTAS = [
@@ -219,7 +220,7 @@ export function ModalDeAvaliacao({
           <label htmlFor={campoComentarioId} className="text-tinta text-sm font-medium">
             Comentário (opcional)
           </label>
-          <textarea
+          <Textarea
             id={campoComentarioId}
             value={comentario}
             onChange={(evento) => {
@@ -229,7 +230,6 @@ export function ModalDeAvaliacao({
             rows={3}
             /* **O mesmo teto do `avaliacaoSchema`** — 1000. Dois números divergiriam. */
             maxLength={1000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 
