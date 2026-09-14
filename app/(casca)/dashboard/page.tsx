@@ -5,13 +5,16 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { verDashboard } from "@/aplicacao/dashboard";
 import {
   Cartao,
-  ColunasMensais,
   Medidor,
   rotulosDosMeses,
   totalDaSerie,
   type ItemDoMedidor,
   type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
+import { GraficoDaRecorrencia } from "@/interface/componentes/grafico-da-recorrencia";
+import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
+import { Button } from "@/interface/componentes/ui/button";
+import { Input } from "@/interface/componentes/ui/input";
 import {
   consultaDe,
   FormatoInvalido,
@@ -34,9 +37,10 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * do tempo de quem abre a tela. O `GET /api/dashboard` existe para o mesmo contrato ser verdade nas duas
  * estradas, e as duas passam pela **mesma** função e pela **mesma** projeção.
  *
- * **Nada aqui é clicável além de voltar** — critério 32.5. O atalho para a lista filtrada exigiria filtro
- * por área ou por data, e `GET /ocorrencias` não tem nenhum dos dois. *"É o exemplo mais claro de tela que
- * se contém para não divergir da API."*
+ * **Nada aqui é clicável** — critério 32.5. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da
+ * casca leva ao mesmo lugar; os dois links das telas de erro ficam, que são saída de erro e não navegação
+ * duplicada. O atalho para a lista filtrada continua recusado, e a premissa dele envelheceu pela metade:
+ * `?status=` e `?categoriaId=` existem desde o item 15, mas reverter o 32.5 é decisão do hub.
  *
  * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão. No
  * celular os cinco empilham na ordem numerada, e a recorrência é a que fica visível sem rolar.
@@ -78,15 +82,13 @@ export default async function Dashboard({
   }
 
   const dashboard = projetarDashboard(await verDashboard(escopo.repos.dashboard, janela));
-  const organizacao = escopo.resolucao.ativo?.organizacao.nome ?? "";
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
-        <h1 className="text-tinta text-xl leading-snug font-semibold">Dashboard</h1>
-        <p className="text-tinta-suave text-sm">{organizacao}</p>
-      </header>
+      {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
+          uma e já carrega o seletor da outra, e repeti-las aqui era a tela dizendo duas vezes o que a
+          casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
+      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Dashboard</h1>
 
       <Periodo periodo={dashboard.periodo} />
 
@@ -98,13 +100,6 @@ export default async function Dashboard({
         <TempoMedio dashboard={dashboard} />
         <MediaDasAvaliacoes dashboard={dashboard} />
       </div>
-
-      <Link
-        href="/ocorrencias"
-        className="text-marca inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-      >
-        Voltar
-      </Link>
     </div>
   );
 }
@@ -113,53 +108,54 @@ export default async function Dashboard({
  * **`<form method="get">`, e é a tela inteira de interação de T-07.**
  *
  * Sem `"use client"`, sem `useRouter`, sem `useState`: o navegador monta `/dashboard?de=…&ate=…` sozinho,
- * que é justamente o endereço compartilhável que o inventário pede — *"um dashboard de um trimestre é a
- * coisa que se manda para a imobiliária"*.
+ * que é o endereço compartilhável que o inventário pede — *"um dashboard de um trimestre é a coisa que se
+ * manda para a imobiliária"*.
  *
- * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos e no botão.
+ * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos e no
+ * botão, que nem o `Input` nem o `Button` do catálogo trazem sozinhos.
+ *
+ * **O `Aplicar` não veste a marca.** A regra do guia é uma ação na cor da marca por tela, e T-07 é tela de
+ * leitura: a ação de escrever não existe aqui.
  */
 function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
   return (
     <form
       method="get"
-      className="border-linha bg-superficie flex flex-wrap items-end gap-3 rounded-md border p-4"
+      className="border-linha bg-superficie flex flex-wrap items-end gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor="de" className="text-tinta-suave text-xs">
+        <label htmlFor="de" className="text-tinta-suave text-meta">
           De
         </label>
-        <input
+        <Input
           id="de"
           name="de"
           type="date"
           defaultValue={periodo.de}
-          className="border-linha text-tinta min-h-11 rounded-md border px-3 text-sm"
+          className="border-linha text-tinta text-interface min-h-11 w-auto"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="ate" className="text-tinta-suave text-xs">
+        <label htmlFor="ate" className="text-tinta-suave text-meta">
           Até
         </label>
-        <input
+        <Input
           id="ate"
           name="ate"
           type="date"
           defaultValue={periodo.ate}
-          className="border-linha text-tinta min-h-11 rounded-md border px-3 text-sm"
+          className="border-linha text-tinta text-interface min-h-11 w-auto"
         />
       </div>
 
-      <button
-        type="submit"
-        className="border-marca bg-accent text-tinta min-h-11 rounded-md border px-4 text-sm font-medium"
-      >
+      <Button type="submit" variant="outline" className="border-linha text-tinta text-interface min-h-11 px-4">
         Aplicar
-      </button>
+      </Button>
 
       <Link
         href="/dashboard"
-        className="text-marca inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         últimos 90 dias
       </Link>
@@ -171,9 +167,13 @@ function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
  * O bloco 1 — **o único que carrega uma frase explicando por que existe**, e é o que faz a hierarquia da
  * tela sem usar cor.
  *
- * **Duas formas do mesmo dado:** na tela grande, colunas mensais das duas categorias de maior total mais a
- * lista de áreas; no celular, as duas viram lista. É o desenho do protótipo, e a razão da lista de áreas é
- * o achado **P-11**: ~30 séries não têm legenda possível.
+ * **O gráfico é da tela grande, e a lista fica sempre.** Até o item 44e a lista sumia a partir de `lg`,
+ * substituída pelas colunas mensais. Com o balão sendo o único lugar onde o número por série apareceria,
+ * a informação passaria a existir só em passagem do ponteiro — que é o compromisso A-5 quebrado. A lista
+ * fica nos dois tamanhos; o gráfico entra onde há largura para ler tendência.
+ *
+ * **As áreas continuam lista**, à direita: são cerca de trinta séries, e o achado **P-11** já decidiu que
+ * trinta séries não têm legenda possível.
  *
  * **O corte é "as cinco primeiras", e ele nunca mente.** A frase do protótipo é literal — *"mais N áreas
  * com 1 ocorrência ou nenhuma"* —, e ela é uma afirmação sobre os dados, não só uma contagem. Por isso o
@@ -194,35 +194,34 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
   }));
 
   const meses = dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes);
+  const { linhas, nomes } = linhasDaRecorrencia(categorias, rotulosDosMeses(meses));
 
   return (
     <Cartao numero={1} titulo="Recorrência" quando="no período">
-      <p className="text-tinta-suave text-sm">
+      <p className="text-tinta-suave text-corpo">
         Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.
       </p>
 
       {categorias.length === 0 && areas.length === 0 ? (
-        <p role="status" className="text-tinta text-sm">
+        <p role="status" className="text-tinta text-corpo">
           A recorrência aparece a partir do segundo mês de uso.
         </p>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-xs font-semibold tracking-wide uppercase">
+            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
               Por categoria
             </h3>
-            {/* Tela grande: colunas das duas de maior total. */}
+            {/* Tela grande: as três de maior total mais `Outras`, empilhadas. */}
             <div className="hidden lg:block">
-              <ColunasMensais series={duasPrimeiras(categorias)} meses={meses} />
+              <GraficoDaRecorrencia linhas={linhas} nomes={nomes} />
             </div>
-            {/* Celular: a mesma informação como lista. */}
-            <div className="lg:hidden">
-              <ListaComResto series={categorias} substantivo="categorias" />
-            </div>
+            {/* O número por categoria, em texto, nos dois tamanhos — A-5. */}
+            <ListaComResto series={categorias} substantivo="categorias" />
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-xs font-semibold tracking-wide uppercase">
+            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
               Por área
             </h3>
             <ListaComResto series={areas} substantivo="áreas" />
@@ -234,10 +233,6 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
 }
 
 type SerieComTotal = SerieMensal & { total: number };
-
-function duasPrimeiras(series: readonly SerieComTotal[]): readonly SerieMensal[] {
-  return series.slice(0, 2).map((serie) => ({ rotulo: serie.rotulo, porMes: serie.porMes }));
-}
 
 /** As cinco primeiras — ou mais, até que o resto tenha 1 ocorrência ou nenhuma. Ver `Recorrencia`. */
 function ListaComResto({
@@ -257,7 +252,7 @@ function ListaComResto({
         itens={mostradas.map((serie) => ({ rotulo: serie.rotulo, quantidade: serie.total }))}
       />
       {restantes > 0 && (
-        <p className="text-tinta-fraca text-xs">
+        <p className="text-tinta-fraca text-meta">
           mais {restantes} {substantivo} com 1 ocorrência ou nenhuma
         </p>
       )}
@@ -327,7 +322,7 @@ function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
     <Cartao numero={4} titulo="Tempo médio de resolução" quando="no período">
       <Medidor itens={itens} />
-      <p className="text-tinta-suave text-sm">Tempo de calendário, com as pausas.</p>
+      <p className="text-tinta-suave text-corpo">Tempo de calendário, com as pausas.</p>
     </Cartao>
   );
 }
@@ -338,6 +333,10 @@ function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
  *
  * **Sem nenhuma avaliação, o número é `—` e a frase é literal** (critério 34.2), nunca `0` — um zero diria
  * que as pessoas avaliaram mal.
+ *
+ * **O número desceu de 36 px para 26 px no item 44e.** A escala do guia tem sete papéis e para no
+ * `text-titulo-pagina`; um oitavo papel para o indicador seria mudança do guia, que não é decisão de um
+ * item de tela. O custo é presença: a média perde um terço do tamanho.
  */
 function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
   const { media, avaliadas, resolvidas } = dashboard.mediaDasAvaliacoes;
@@ -345,11 +344,11 @@ function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
     <Cartao numero={5} titulo="Média das avaliações" quando="no período">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-tinta text-4xl font-semibold tabular-nums">
+        <span className="text-tinta text-titulo-pagina font-semibold tabular-nums">
           {media === null ? "—" : media.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
         </span>
-        <span className="text-tinta-suave text-sm">de 1 a 5</span>
-        <span className="text-tinta-suave ml-auto text-right text-sm">
+        <span className="text-tinta-suave text-corpo">de 1 a 5</span>
+        <span className="text-tinta-suave text-corpo ml-auto text-right">
           {media === null
             ? "Nenhuma ocorrência avaliada ainda — 0 de 0 resolvidas."
             : `${String(avaliadas)} de ${String(resolvidas)} resolvidas avaliadas`}
@@ -363,14 +362,14 @@ function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
 function PeriodoInvalido() {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Dashboard</h1>
-      <p role="alert" className="text-tinta text-sm">
+      <h1 className="text-tinta text-titulo-pagina leading-snug font-semibold">Dashboard</h1>
+      <p role="alert" className="text-tinta text-corpo">
         O período pedido não é válido, e por isso a consulta não correu — os números abaixo não existem, e
         não são zeros.
       </p>
       <Link
         href="/dashboard"
-        className="text-marca inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         Ver os últimos 90 dias
       </Link>
@@ -382,13 +381,13 @@ function PeriodoInvalido() {
 function SemPermissao() {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Dashboard</h1>
-      <p role="alert" className="text-tinta-suave text-sm">
+      <h1 className="text-tinta text-titulo-pagina leading-snug font-semibold">Dashboard</h1>
+      <p role="alert" className="text-tinta-suave text-corpo">
         Seu papel nesta organização não dá acesso a esta página.
       </p>
       <Link
         href="/ocorrencias"
-        className="text-marca inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         Voltar
       </Link>

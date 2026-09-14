@@ -10,6 +10,7 @@
     "0006-organizacao-de-modulos",
     "0007-camada-de-interface-com-shadcn-ui",
     "0008-a-suite-de-testes-segue-a-garantia",
-    "0009-documentacao-como-paginas-do-produto"
+    "0009-documentacao-como-paginas-do-produto",
+    "0010-o-componente-de-grafico-entra-com-o-recharts"
   ]
 }
