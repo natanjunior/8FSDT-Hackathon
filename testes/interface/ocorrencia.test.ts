@@ -3252,13 +3252,27 @@ describe("a leitura do ciclo — critérios 44d.2 e 44d.7", () => {
     );
 
     // A segunda passagem por `em_atendimento` não reescreve a data: o ciclo conta quando se chegou,
-    // não quando se voltou. E `pausada` não vira passo.
+    // não quando se voltou. E `pausada` não vira passo — o que se prova pelo ESTADO dos quatro, e não
+    // pela lista de nomes, que é sempre `CICLO` qualquer que seja a lógica.
     expect(leitura.passos[2]?.em).toBe("16/08, 08h00");
-    expect(leitura.passos.map((passo) => passo.status)).toEqual([
-      "aberta",
-      "em_analise",
-      "em_atendimento",
-      "resolvida",
+    expect(leitura.passos.map((passo) => passo.estado)).toEqual([
+      "alcancado",
+      "alcancado",
+      "atual",
+      "por-alcancar",
     ]);
+    expect(leitura.foraDaLinha).toBeNull();
+  });
+
+  it("o status atual sem transição registrada é ATUAL, e nunca pendente", () => {
+    // A premissa P1 faz o registro da criação nascer com a ocorrência, então isto não deve acontecer.
+    // O ramo existe por honestidade: se acontecer, a régua marca onde a ocorrência está em vez de dizer
+    // que o passo em que ela está ainda não veio.
+    const leitura = lerOCiclo([{ status: "aberta", em: "15/08, 09h40" }], "em_atendimento");
+
+    expect(leitura.passos[2]?.estado).toBe("atual");
+    expect(leitura.passos[2]?.em).toBeNull();
+    expect(leitura.passos[1]?.estado).toBe("por-alcancar");
+    expect(leitura.foraDaLinha).toBeNull();
   });
 });
