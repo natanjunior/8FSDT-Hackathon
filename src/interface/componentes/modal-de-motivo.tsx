@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /**
  * Uma opção do grupo. **O rótulo chega PRONTO** — o navegador não monta rótulo (R4).
@@ -201,11 +202,13 @@ export function ModalDeMotivo({
     ) : (
       <Button
         type="button"
-        variant={variante === "primario" ? "default" : "outline"}
+        variant={variante === "primario" ? "marca" : "outline"}
         /* **A largura vem da variante, não do *shrink-to-fit*** — é `.actionbar .btn.ghost
            { width: auto }` do protótipo, e dispensa apostar em como o navegador resolve `w-full`
            dentro de um invólucro `flex-none`. */
-        className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
+        className={
+          variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+        }
       >
         {rotuloDoGatilho}
       </Button>
@@ -285,7 +288,7 @@ export function ModalDeMotivo({
           <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
             {avisoDeVisibilidade}
           </p>
-          <textarea
+          <Textarea
             id={campoId}
             aria-describedby={avisoId}
             value={texto}
@@ -294,7 +297,6 @@ export function ModalDeMotivo({
             rows={3}
             /* **O mesmo teto do `pausaSchema`** — 1000. Dois números divergiriam. */
             maxLength={1000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 

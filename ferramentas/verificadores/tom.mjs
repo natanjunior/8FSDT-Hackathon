@@ -38,6 +38,7 @@ const APROVADOS = new Set([
   "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
   "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
   "docs/adr/0009-documentacao-como-paginas-do-produto.md",
+  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
   "docs/adr/README.md",
   "docs/arquitetura.md",
   "docs/definition-of-done.md",
@@ -46,6 +47,7 @@ const APROVADOS = new Set([
   "docs/event-storming.md",
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
+  "docs/modelo-de-dados.md",
   "docs/premissas-e-questoes-abertas.md",
 ]);
 
@@ -100,7 +102,18 @@ const PERFORMATICO = [
  */
 const APARATO = [
   ["marcador de origem", /`?\b(?:ENUNCIADO|NOSSO)\b/gu],
-  ["citação de aula", /aula\s+\d+[,\s]+p\.\s*\d+/giu],
+  /**
+   * **O padrão era `aula N, p.X` e passou a ser `aula N`, e a razão é uma medição.**
+   *
+   * A forma com página pegava as citações do material de DDD, que sempre traziam página. O material de
+   * Banco de Dados era citado só pelo número — *"a aula 1 lista cinco situações"* —, e 45 dessas
+   * atravessavam o portão em quatro documentos, sendo 34 só no modelo de dados.
+   *
+   * Alargar custou zero: conferido em 13/09/2026, os documentos já aprovados têm **nenhuma** ocorrência
+   * da forma curta. Eles foram limpos à mão, porque a convenção sempre foi mais larga que o padrão. O que
+   * muda é que agora o portão cobra o que a convenção sempre disse.
+   */
+  ["citação de aula", /\baulas?\s+\d+\b/giu],
   ["[FONTE EXTERNA]", /\[FONTE EXTERNA\]/gu],
   [
     "fonte inacessível",

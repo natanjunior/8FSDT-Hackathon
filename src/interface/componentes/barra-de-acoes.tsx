@@ -81,6 +81,11 @@ import {
  * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
  * era a barra que divergia do desenho — não o rótulo.
  *
+ * **`lg:flex-none` no primário, e não só `flex-1`:** a partir de `lg` o contêiner vira coluna
+ * (`lg:flex-col`), e `flex: 1 1 0%` passa a governar o eixo vertical do botão em vez do horizontal — o
+ * botão em destaque cresceria em altura, sozinho, dentro da pilha. `lg:w-full` já cuida da largura; o que
+ * falta é o `lg:flex-none` que devolve ao primário o mesmo comportamento dos outros dois nessa largura.
+ *
  * **E o destaque deixa de ser decidido por ÍNDICE.** `acoes[0]` acertava por coincidência: a ordem do enum
  * põe `atribuir-responsavel` antes de `iniciar-atendimento`, e em `em_analise` com responsável o destaque
  * seria *Atribuir* — na tela onde o responsável acabou de ser atribuído. Quem decide é a página, com
@@ -160,84 +165,84 @@ export function BarraDeAcoes({
   }
 
   return (
-    <>
-      {/* A barra é `fixed`; sem este espaçador o *Voltar* fica embaixo dela. **Ele vem antes da barra e
-          DEPOIS do resto do documento** — `page.tsx` monta este componente como último filho —, porque
-          espaçador colocado acima do *Voltar* não cria folga abaixo dele. E ele aparece e some junto com a
-          barra, inclusive no caso em que só há aviso. */}
-      <div aria-hidden className="h-24" />
-      <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
-          {aviso !== null && (
-            <p
-              role="alert"
-              className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
-            >
-              {aviso}
-            </p>
-          )}
-          {acoes.length > 0 && (
-            <div className="flex gap-2">
-              {acoes
-                .filter((acao) => !emMenu.includes(acao.comando))
-                .map((acao) => {
-                  const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
-                  const formulario = formularios[acao.comando];
-                  // **O nó já vem com a própria variante**, decidida pela página: ela é quem sabe qual
-                  // ação é a primeira, e é ela quem monta o gatilho.
-                  if (formulario !== undefined) {
-                    return (
-                      <div key={acao.comando} className={ehPrimario ? "flex-1" : "flex-none"}>
-                        {formulario}
-                      </div>
-                    );
-                  }
+    /* **O espaçador saiu daqui.** Ele era `h-24` dentro do componente, e com a barra na coluna de apoio
+       ele passaria a abrir um buraco no meio da coluna em vez de reservar o rodapé. Quem reserva agora é
+       o `pb-24 lg:pb-0` do invólucro da página — a mesma saída que o 44c deu a T-03.
 
+       **Abaixo de `lg` a barra flutua; a partir de `lg` ela é um bloco da coluna.** Em tela grande ela
+       atravessava a tela inteira com miolo de 672 px sobre uma coluna de 448, e cortava ao meio o link
+       *ver a trilha de auditoria* — é o defeito V-1, e é a metade de dentro do critério 44d.1. */
+    <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 lg:max-w-none">
+        {aviso !== null && (
+          <p
+            role="alert"
+            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-corpo"
+          >
+            {aviso}
+          </p>
+        )}
+        {acoes.length > 0 && (
+          /* **Empilhados na coluna, lado a lado no celular.** A conta de largura que decidiu o menu é
+             a do celular, e ela não se refaz aqui: a partir de `lg` os mesmos botões e o mesmo menu
+             viram uma pilha. O custo está declarado na §3.3 da spec. */
+          <div className="flex gap-2 lg:flex-col">
+            {acoes
+              .filter((acao) => !emMenu.includes(acao.comando))
+              .map((acao) => {
+                const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
+                const formulario = formularios[acao.comando];
+                if (formulario !== undefined) {
                   return (
-                    <Button
+                    <div
                       key={acao.comando}
-                      type="button"
-                      variant={ehPrimario ? "default" : "outline"}
-                      disabled={enviando}
-                      onClick={() => void disparar(acao.comando)}
-                      className={`h-12 text-base ${ehPrimario ? "flex-1" : "flex-none"}`}
+                      className={`lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
                     >
-                      {enviando ? "Enviando…" : acao.rotulo}
-                    </Button>
+                      {formulario}
+                    </div>
                   );
-                })}
+                }
 
-              {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`: o `⋯` dos
-                  filtros no celular já está declarado como dívida contra o compromisso A-5, e este item
-                  não cria a segunda. A geometria é a mesma do item 22: o primário cresce (`flex-1`), o
-                  gatilho do menu encolhe até o texto (`flex-none`).
+                return (
+                  <Button
+                    key={acao.comando}
+                    type="button"
+                    variant={ehPrimario ? "marca" : "outline"}
+                    disabled={enviando}
+                    onClick={() => void disparar(acao.comando)}
+                    className={`h-12 text-base lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
+                  >
+                    {enviando ? "Enviando…" : acao.rotulo}
+                  </Button>
+                );
+              })}
 
-                  **`modal={false}` é o par do `onSelect` prevenido dos itens do menu:** com `modal`
-                  ligado, o menu prende o foco e trava a rolagem, e o diálogo que abre por cima disputa
-                  as duas coisas com ele. */}
-              {emMenu.length > 0 && (
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" className="h-12 flex-none text-base">
-                      Mais ações ▾
-                    </Button>
-                  </DropdownMenuTrigger>
-                  {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica
-                      `role="menu"`, e um `div` intermediário deixaria de novo um filho que não é
-                      `menuitem` — exatamente o que a variante `"menu"` dos modais existe para evitar. O
-                      `Dialog` do Radix não emite DOM próprio, então o filho direto do menu passa a ser o
-                      `DropdownMenuItem` de dentro do modal. */}
-                  <DropdownMenuContent align="end">
-                    {emMenu.map((comando) => (
-                      <Fragment key={comando}>{formularios[comando]}</Fragment>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          )}
-        </div>
+            {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`.
+                **`modal={false}` é o par do `onSelect` prevenido dos itens:** com `modal` ligado, o menu
+                prende o foco e trava a rolagem, e o diálogo que abre por cima disputa as duas coisas. */}
+            {emMenu.length > 0 && (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-12 flex-none text-base lg:w-full"
+                  >
+                    Mais ações ▾
+                  </Button>
+                </DropdownMenuTrigger>
+                {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica
+                    `role="menu"`, e um `div` intermediário deixaria um filho que não é `menuitem`. */}
+                <DropdownMenuContent align="end">
+                  {emMenu.map((comando) => (
+                    <Fragment key={comando}>{formularios[comando]}</Fragment>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

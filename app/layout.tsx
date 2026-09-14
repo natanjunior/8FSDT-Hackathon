@@ -1,14 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
 
 /**
- * **A única família do tema Meridian que entra.**
+ * **As duas famílias que entram.**
  *
- * O tema traz três — `Geist`, `Instrument Serif` e `Geist Mono`. Serifada não tem consumidor nenhum no
- * produto, e monoespaçada tem dois (`font-mono` em `app/page.tsx`) que caem na pilha do sistema sem custo.
- * `next/font/google` traz a família em **tempo de construção**: cada uma pesa no build e na imagem.
+ * A `Geist` é o texto. A `Geist Mono` é dado: horário, contagem, identificador e rótulo de coluna — o
+ * sétimo papel da escala do guia. Ela passou a ser carregada em 13/09/2026, revertendo metade do critério
+ * 44.4: a razão daquele critério era que `font-mono` tinha dois consumidores em `app/page.tsx`, que hoje
+ * tem zero, enquanto a trilha de auditoria tem oito.
+ *
+ * `Instrument Serif` continua fora, e continua sem consumidor. `next/font/google` traz a família em
+ * **tempo de construção**: cada uma pesa no build e na imagem.
  *
  * **A variável vai no `<body>`, não no `<html>`.** O `globals.css` declara `--font-sans` no `:root`, que
  * *é* o `<html>` — as duas declarações disputariam por ordem de origem, que não é garantida. No `<body>`
@@ -17,6 +21,12 @@ import "./globals.css";
 const fonteDeTexto = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+const fonteDeDado = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -46,7 +56,9 @@ export const viewport: Viewport = {
 export default function CascoDaAplicacao({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className={`${fonteDeTexto.variable} min-h-dvh antialiased`}>{children}</body>
+      <body className={`${fonteDeTexto.variable} ${fonteDeDado.variable} min-h-dvh antialiased`}>
+        {children}
+      </body>
     </html>
   );
 }

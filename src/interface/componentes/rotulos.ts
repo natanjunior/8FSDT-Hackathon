@@ -436,3 +436,19 @@ export const PALAVRAS_DA_ATRIBUICAO: Readonly<Record<"primeira" | "nova", Palavr
 export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribuicao {
   return temResponsavel ? NOVA_ATRIBUICAO : PRIMEIRA_ATRIBUICAO;
 }
+
+/**
+ * ============================================================================
+ *  As duas frases do recorte de T-03 — o critério 14.3, literal
+ * ============================================================================
+ *
+ * **Elas não encolhem, e a razão é dupla.** O critério 14.3 as nomeia palavra por palavra, e dois passos
+ * do roteiro de validação mandam procurá-las em tela. Rótulo curto — *"Todas"*, *"Só as minhas"* — diria
+ * a mesma coisa e faria os dois passos descreverem uma tela que não existe.
+ *
+ * **Moram aqui porque têm dois consumidores com naturezas diferentes:** o `toggle-group` de quem pode
+ * trocar de recorte, e o parágrafo de quem não pode (critério 44c.9). A terceira cópia é sempre a que
+ * diverge.
+ */
+export const RECORTE_TODAS = "Todas as ocorrências";
+export const RECORTE_MINHAS = "Minhas ocorrências";

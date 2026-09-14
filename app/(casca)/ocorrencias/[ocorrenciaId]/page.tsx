@@ -1,0 +1,1082 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { NaoAutenticado } from "@/aplicacao/contexto";
+import {
+  OcorrenciaNaoEncontrada,
+  podeLerOcorrencia,
+  verComentarios,
+  verLinhaDoTempo,
+  verOcorrencia,
+  type EventoLido,
+} from "@/aplicacao/ocorrencia";
+import { listarVinculos } from "@/aplicacao/organizacao";
+import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
+import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
+import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { CICLO } from "@/interface/componentes/ciclo";
+import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
+import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
+import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import {
+  autoria,
+  dataHora,
+  fraseDaAtribuicao,
+  fraseDaMensagem,
+  fraseDaTransicao,
+} from "@/interface/componentes/linha-do-tempo";
+import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
+import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
+import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
+import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
+import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
+import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
+import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
+import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
+import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
+import {
+  acoesDaBarra,
+  AVISO_DE_VISIBILIDADE,
+  AVISO_PARA_QUEM_NAO_GESTIONA,
+  rotuloDeComando,
+  rotuloDePrioridade,
+  rotuloDoCampoDeConversa,
+  rotulosDeStatus,
+  vazioDaBarra,
+  vazioDaConversa,
+} from "@/interface/componentes/rotulos";
+import { Skeleton } from "@/interface/componentes/ui/skeleton";
+import {
+  lerFiltroDeOcorrenciasDaUrl,
+  novoTraceId,
+  registrarFalha,
+  resolverEscopoParaTela,
+} from "@/interface/http";
+import {
+  lenteDeRotulo,
+  opcoesDeMotivoCancelamento,
+  opcoesDeMotivoPausa,
+  opcoesDePrioridade,
+  projetarEventoDaLinhaDoTempo,
+  projetarOcorrenciaDetalhe,
+  projetarPaginaDeComentarios,
+  segundaLinhaDeMotivo,
+  type LenteDeRotulo,
+} from "@/interface/projecoes";
+
+/**
+ * **T-05 · Ocorrência**, na forma mínima que o critério 11.7 encomenda: os **blocos 1 e 2** do
+ * inventário — identidade e conteúdo. A linha do tempo (bloco 3) é o item 29, a conversa (bloco 4) é o
+ * 30, e os onze comandos são os itens 16 a 27.
+ *
+ * **Endereço próprio, e é o mais importante do produto** (inventário): `/ocorrencias/{id}` é *"o link
+ * que substitui descrever a ocorrência por WhatsApp — o comportamento exato que o produto veio
+ * substituir"*. Por isso ele resolve de verdade e sobrevive a um recarregar, em vez de ser pintado com o
+ * payload do `201` e quebrar na segunda visita.
+ *
+ * **A leitura vai pela estrada direta**, como T-09 e o shell: `app/` não monta repositório, e um `fetch`
+ * interno custaria o salto HTTP que a §5 do contrato recusou.
+ */
+export const dynamic = "force-dynamic";
+
+/**
+ * O papel **em palavra**, para descer por prop ao modal.
+ *
+ * **Mora aqui e não em `rotulos.ts`** porque tem um consumidor só, e porque a lista de papéis é do módulo
+ * de organização, não do de ocorrência. Se o segundo consumidor aparecer — T-08 já mostra papel, com o
+ * próprio `rotuloDoPapel` em `lista-de-vinculos.tsx` —, o lugar dos dois é um módulo, e **isso é achado,
+ * não conserto**: são duas cópias hoje, e a segunda nasceu aqui.
+ */
+const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
+  gestor: "Gestor",
+  encarregado: "Encarregado",
+  solicitante: "Solicitante",
+};
+
+/**
+ * **O `de=` é reconstruído, nunca repassado cru** — item 15, critério 15.3.
+ *
+ * Ele vem de uma URL que qualquer pessoa pode ter editado. Passar a *query string* adiante sem olhar seria
+ * confiar em texto de fora; em vez disso ela atravessa a **mesma** leitura que a lista usa, e só os quatro
+ * parâmetros conhecidos voltam para o endereço. Filtro estragado no `de=` degrada para o *Voltar* limpo —
+ * a lista sem recorte —, que é o pior caso aceitável.
+ *
+ * **`catch {}` sem tipo é o único caminho honesto aqui**, e não é engolir erro: qualquer coisa que a
+ * leitura recuse é lixo vindo de fora, e a resposta certa é a lista inteira — não uma tela de erro em
+ * T-05, que é a tela que precisa abrir para quem recebeu o link por mensagem.
+ */
+function destinoDeVolta(de: string | undefined): string {
+  if (de === undefined || de === "") return "/ocorrencias";
+  try {
+    const filtro = lerFiltroDeOcorrenciasDaUrl(new URLSearchParams(de));
+    const consulta = new URLSearchParams();
+    if (filtro.status !== undefined) consulta.set("status", filtro.status.join(","));
+    if (filtro.categoriaId !== undefined) consulta.set("categoriaId", filtro.categoriaId.join(","));
+    if (filtro.prioridade !== undefined) consulta.set("prioridade", filtro.prioridade.join(","));
+    if (filtro.apenasDoAutor === true) consulta.set("autor", "eu");
+    const texto = consulta.toString();
+    return texto === "" ? "/ocorrencias" : `/ocorrencias?${texto}`;
+  } catch {
+    return "/ocorrencias";
+  }
+}
+
+export default async function Ocorrencia({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ ocorrenciaId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  let escopo;
+  try {
+    escopo = await resolverEscopoParaTela("ocorrencia.ler_propria");
+  } catch (erro) {
+    if (erro instanceof NaoAutenticado) redirect("/entrar");
+    throw erro;
+  }
+
+  if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
+  if (escopo.situacao === "sem-permissao") redirect("/");
+
+  const { ocorrenciaId } = await params;
+
+  const parametros = await searchParams;
+  const voltarPara = destinoDeVolta(typeof parametros.de === "string" ? parametros.de : undefined);
+
+  /**
+   * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
+   * a recusa do `podeLerOcorrencia`. As duas causas dão a mesma resposta, de propósito (§6.3).
+   *
+   * **`resolucao` sai de `escopo` para um `const`** porque a estreiteza de um `let` não sobrevive dentro
+   * de uma função aninhada — e é ela que a arrow abaixo captura.
+   *
+   * **`projetarContexto` roda só quando o erro acontece:** ela está dentro da arrow, não fora. É um `map`
+   * em memória sobre vínculos já lidos, mas o caminho feliz não paga nem isso.
+   */
+  const resolucao = escopo.resolucao;
+  const naoEncontrada = () => {
+    const traceId = novoTraceId();
+
+    // A estrada direta não passa pelo `comContexto`, então o `traceId` nasce aqui — e a linha de log é a
+    // MESMA que `registrarEResponder` escreve, pela mesma função. Nunca uma segunda cópia do formato.
+    registrarFalha(new OcorrenciaNaoEncontrada(), `/ocorrencias/${ocorrenciaId}`, "GET", traceId);
+
+    return (
+      <OcorrenciaNaoEncontradaNaTela
+        organizacaoAtiva={
+          resolucao.ativo === null ? null : { nome: resolucao.ativo.organizacao.nome }
+        }
+        traceId={traceId}
+      />
+    );
+  };
+
+  // **`escopo.ctx`, nao `escopo.resolucao`.** Depois dos dois `if` acima o TypeScript ja estreitou
+  // `escopo` para a variante `"pronto"`, que carrega `ctx` — e `ContextoDaRequisicao` e quem tem
+  // `pessoaId` e `vinculo`. `ResolucaoDeContexto` **nao tem `pessoaId`**: la ele mora em
+  // `resolucao.sessao.pessoaId`, e `ativo` e `VinculoNaOrganizacao`, o que ainda exigiria um `!`.
+  const vinculo = escopo.ctx.vinculo;
+
+  /**
+   * **A organização com que ESTA renderização aconteceu** — a afirmação da §4.3 (item 7b, critério
+   * 7b.6).
+   *
+   * Desce por propriedade, e não é lida do cookie na hora do clique: numa aba deixada aberta em A
+   * enquanto outra trocou para B, o cookie já diz B e a afirmação bateria consigo mesma. O que se
+   * afirma é o que está **na tela**.
+   */
+  const organizacaoId = vinculo.organizacaoId;
+  // **A regra é uma função da Aplicação, chamada por quem tem o `Vinculo`.** Ela estava copiada aqui e
+  // em `app/api/ocorrencias/[ocorrenciaId]/route.ts`; o item 13b seria a terceira cópia.
+  const quem = {
+    pessoaId: escopo.ctx.pessoaId,
+    podeLerTodas: vinculo.pode("ocorrencia.ler_todas"),
+  };
+
+  /**
+   * **A linha do tempo parte AQUI, antes do `await` do detalhe — e é a segunda metade do critério 29.5.**
+   *
+   * A promessa não é esperada nesta função: ela desce para dentro do `<Suspense>`, e quem a espera é o
+   * filho. É o idioma de T-03 (`app/ocorrencias/page.tsx:118-127`), e é o que faz os blocos 1 e 2
+   * pintarem sem esperar o banco responder a segunda pergunta.
+   *
+   * **Custo declarado, porque é real:** a página passa a fazer **dois `porId` concorrentes** — um do
+   * detalhe, outro dentro de `verLinhaDoTempo`. É exatamente o que o mundo de três requisições HTTP faria
+   * (cada uma se autoriza sozinha), e ele **não soma latência**, porque as duas partem juntas; soma carga
+   * no banco. A alternativa — esperar o detalhe para só então pedir a linha do tempo — é serializar duas
+   * idas sob cold start, que é o que o critério 29.5 existe para impedir.
+   *
+   * **O `catch` de uma linha não é redundante.** Se a ocorrência não existir, ou se `podeLerOcorrencia`
+   * recusar, esta função **retorna** e ninguém mais espera esta promessa — que vai rejeitar com a mesma
+   * `OcorrenciaNaoEncontrada` e derrubaria o processo como rejeição não tratada. Anexar um tratador a
+   * marca como tratada; **a promessa original continua rejeitando para o `<Suspense>`**, porque `catch`
+   * devolve uma promessa nova em vez de alterar esta.
+   */
+  const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
+  linhaDoTempoPedida.catch(() => undefined);
+
+  /**
+   * **A terceira requisição da tela, e é a que o inventário já contava** — critério 29.5, *"as três
+   * disparam juntas"*. Mesmo idioma do bloco 3: parte **antes** do `await` do detalhe e desce por
+   * propriedade para dentro do `<Suspense>`, com o `catch` de uma linha que a marca como tratada sem
+   * alterar a rejeição.
+   *
+   * **A projeção acontece aqui, no servidor**, porque projeção é da camada de Interface e o que atravessa
+   * a fronteira para o componente de cliente precisa ser serializável.
+   *
+   * **Custo declarado, porque é real:** T-05 passa a abrir com **três `porId` concorrentes** — o do
+   * detalhe, o de `verLinhaDoTempo` e o de `verComentarios`. É exatamente o que o mundo de três
+   * requisições HTTP faria, cada uma se autorizando sozinha, e **não soma latência**, porque as três
+   * partem juntas; soma carga. É o achado **A-3** da spec, e o conserto é maior que esta fatia.
+   */
+  const conversaPedida = verComentarios(escopo.repos.ocorrencias, ocorrenciaId, quem, {}).then(
+    projetarPaginaDeComentarios,
+  );
+  conversaPedida.catch(() => undefined);
+
+  let lida;
+  try {
+    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
+  } catch (erro) {
+    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
+    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
+    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
+    throw erro;
+  }
+
+  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
+
+  const detalhe = projetarOcorrenciaDetalhe(lida, {
+    pessoaId: escopo.ctx.pessoaId,
+    permissoes: vinculo.permissoes,
+  });
+
+  /**
+   * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
+   * é a forma do comando na tela. Dois deles nunca serão botão (`alterar-prioridade` é seletor,
+   * `registrar-solucao-aplicada` é campo), e os que ainda não existem não têm rótulo porque não existem.
+   */
+  const acoes = detalhe.acoesDisponiveis
+    // **O retorno é anotado como `string`, e não é enfeite:** sem a anotação o `map` infere `comando` como
+    // o literal `Comando`, e aí o guarda de tipo abaixo — que promete `{ comando: string }` — deixa de ser
+    // atribuível ao próprio parâmetro (`TS2677`). Anotar aqui mantém o Domínio fora do `import` de `app/`.
+    .map((comando): { comando: string; rotulo: string | null } => ({
+      comando,
+      rotulo: rotuloDeComando(comando),
+    }))
+    .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
+
+  /**
+   * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
+   * do bloco 1a (que já vem projetado no detalhe, pela derivação de `QuemLe`), o mapa que desce até os
+   * modais, e a linha do tempo do bloco 3.
+   */
+  const lente = lenteDeRotulo(vinculo.permissoes);
+
+  // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
+  // diferentes — ver `rotulos.ts`.
+  const rotulos = rotulosDeStatus(lente);
+
+  /**
+   * **O mesmo mapa, com a chave larga.** A régua e o selo recebem `status: string`, porque `app/` não
+   * importa o Domínio (ADR-0006) — e `rotulos` é `Record<StatusOcorrencia, string>`, que **não se indexa
+   * com `string`** sob `strict`. A atribuição anotada é o que alarga o tipo sem um `as`, usando a
+   * assinatura de índice implícita que o TypeScript dá a tipos mapeados.
+   *
+   * **O `?? status` não é defensivo por gosto:** com `noUncheckedIndexedAccess` a leitura devolve
+   * `string | undefined`, e o padrão tem de ser algo — o próprio nome interno, que é pior que o rótulo e
+   * melhor que a palavra `undefined` na tela.
+   */
+  const rotuloLargo: Readonly<Record<string, string>> = rotulos;
+  const nomeDoStatus = (status: string): string => rotuloLargo[status] ?? status;
+
+  /**
+   * **A lista de candidatos vem pela estrada direta**, como o resto de `app/`: a página chama
+   * `listarVinculos`, não um `fetch` interno — *"`app/` não monta repositório, e um `fetch` interno
+   * custaria o salto HTTP que a §5 do contrato recusou"*. O critério 19.3 diz *"a lista de candidatos é
+   * `GET /vinculos`"*, e é a **mesma leitura**: aquele `route.ts` chama esta função.
+   *
+   * **Só quando `atribuir-responsavel` está em `acoesDisponiveis`.** É uma consulta a mais por abertura de
+   * T-05, e ela não roda para o Solicitante nem em estado terminal — que é o caso dominante da tela.
+   *
+   * **A permissão que guarda a leitura é `vinculo.gerir`**, a mesma do endpoint. Hoje ela anda junto com
+   * `ocorrencia.atribuir` (as duas são do Gestor, no mesmo `SO_DO_GESTOR`), e **o dia em que se separarem
+   * é o dia em que `acoesDisponiveis` precisará de uma quarta fonte**. Fica declarado como suposição.
+   */
+  const podeAtribuir =
+    acoes.some((acao) => acao.comando === "atribuir-responsavel") && vinculo.pode("vinculo.gerir");
+
+  /**
+   * **Quem gestiona, derivado UMA vez e lido por UM consumidor** — o aviso de visibilidade do modal de
+   * cancelamento (critério 18.7). Eram dois até o item 27, que removeu o parâmetro `ehGestor` de
+   * `vazioDaBarra`; o próprio `rotulos.ts` documenta a remoção, e o comentário aqui ficou para trás.
+   * *(Corrigido no item 30, achado A-6 da spec.)*
+   *
+   * **`vinculo.pode("…")` com string literal é o idioma que esta página já usa** com `"vinculo.gerir"`,
+   * logo acima, e com `"ocorrencia.ler_todas"`. É o que mantém `app/` sem `import` do Domínio desde o
+   * item 11.
+   *
+   * **É `cancelar_qualquer`, e não um papel:** permissão é lista, nunca papel (contrato §4.5). O
+   * Encarregado tem lista vazia e cai no mesmo ramo do Solicitante — e nem chega a abrir T-05.
+   */
+  const ehGestor = vinculo.pode("ocorrencia.cancelar_qualquer");
+
+  /**
+   * **Quem lê é o autor?** — lido por TRÊS consumidores: o título do bloco da avaliação (*"Sua
+   * avaliação"* × *"Avaliação do solicitante"*, item 27) e as **duas** frases da conversa (o vazio e o
+   * rótulo do campo, critério 30.4). **O convite a avaliar NÃO usa isto:** ele usa `acoesDisponiveis`,
+   * que já cruza autoria com *"ainda não avaliou"*.
+   */
+  const ehAutor = detalhe.autor.pessoaId === escopo.ctx.pessoaId;
+
+  const candidatos: readonly Candidato[] = podeAtribuir
+    ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
+        pessoaId: lido.pessoa.pessoaId,
+        nome: lido.pessoa.nome,
+        // **A palavra, montada aqui.** O navegador não monta rótulo, e `contatos[]` não desce: é dado
+        // pessoal sob o RNF10, e a projeção estreita é o que impede o telefone de todo mundo de viajar.
+        papel: PAPEL_EM_PALAVRA[lido.papel] ?? lido.papel,
+        area: lido.area?.nome ?? null,
+      }))
+    : [];
+
+  /**
+   * **A barra só renderiza o que ela consegue renderizar.** Sem o modal, `atribuir-responsavel` viraria um
+   * botão de disparo direto que faria `POST` sem `responsavelPessoaId` e levaria `400` — hoje inalcançável
+   * (quem tem `ocorrencia.atribuir` tem `vinculo.gerir`), e amanhã não. É a mesma natureza do filtro por
+   * rótulo lá em cima: não é uma segunda regra, é a **forma** do comando na tela.
+   */
+  const renderizaveis = acoes.filter(
+    (acao) => acao.comando !== "atribuir-responsavel" || podeAtribuir,
+  );
+
+  /**
+   * **Qual ação ganha ênfase, e o que vai para o menu — uma fonte só.**
+   *
+   * A tela tinha **duas**: `acoes[0]?.comando` decidia a `variante` do modal, e `indice === 0` decidia a
+   * `variant` do botão dentro da barra. Elas concordavam por sorte. Agora as duas leem o mesmo valor, e a
+   * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos. `acaoPrimaria`
+   * continua sendo a dona da tabela `ACAO_PRIMARIA`; `acoesDaBarra` a chama e acrescenta a conta de
+   * largura — **três renderizáveis ou mais → primário + *"Mais ações ▾"*** (item 23).
+   *
+   * **O R-08 morde aqui, e agora tem estado real que o prova:** em `em_analise` **sem** responsável,
+   * `pausar` é permitido pela máquina de estados, e a derivação por `transicaoPermitida` — que o item
+   * 22 recusou — daria ***Pausar*** como ação em destaque numa ocorrência que ninguém pegou ainda. A
+   * tabela dá ***Atribuir***.
+   */
+  const { destaque: primario, emMenu } = acoesDaBarra(
+    detalhe.status,
+    renderizaveis.map((acao) => acao.comando),
+  );
+
+  /** A variante do gatilho de cada comando: no menu, é `DropdownMenuItem`; fora dele, botão. */
+  function varianteDe(comando: string): "primario" | "secundario" | "menu" {
+    if (emMenu.includes(comando)) return "menu";
+    return primario === comando ? "primario" : "secundario";
+  }
+
+  /**
+   * **Qual frase o vazio da barra mostra — e a moldura que vem com ela.**
+   *
+   * `null` quando há botão: a tela não mostra frase de vazio e barra ao mesmo tempo. **A regra mora em
+   * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
+   * que mantém `app/` sem `import` do Domínio desde o item 11.
+   */
+  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
+
+  /**
+   * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
+   * nenhum e não ganha um `if` por comando.
+   *
+   * **`iniciar-atendimento` entra SEMPRE, e `atribuir-responsavel` não.** A diferença é custo: o de
+   * atribuição precisa da lista de candidatos, que é uma consulta a mais; este não precisa de nada. Quem
+   * decide se algum deles **aparece** continua sendo `acoesDisponiveis`.
+   */
+  const formularios = {
+    "iniciar-atendimento": (
+      <ModalDeObservacao
+        ocorrenciaId={detalhe.id}
+        comando="iniciar-atendimento"
+        titulo="Iniciar atendimento"
+        descricao="O trabalho começa agora."
+        rotuloDoGatilho="Iniciar atendimento"
+        rotuloDoCampo="Observação (opcional)"
+        rotuloDeConfirmar="Iniciar"
+        verboEnviando="Iniciando…"
+        variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    /**
+     * **Entra SEMPRE, como o de `iniciar-atendimento`.** A diferença de custo continua sendo a mesma: o
+     * modal de atribuição precisa da lista de candidatos, que é uma consulta a mais; este não precisa de
+     * nada além do que a página já leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis`.
+     */
+    resolver: (
+      <ModalDeResolucao
+        ocorrenciaId={detalhe.id}
+        // **Hoje sempre `null`** — nada escreve a coluna antes desta fatia. Passa a ter caso no item 25.
+        solucaoAplicadaAtual={detalhe.solucaoAplicada}
+        variante={primario === "resolver" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    /**
+     * **Entra SEMPRE, como os dois de cima.** Ele não precisa de consulta nenhuma além do que a página
+     * já leu; quem decide se **aparece** continua sendo `acoesDisponiveis`.
+     *
+     * **Os quatro rótulos descem PRONTOS** — `nomeDoMotivoPausa`, e não `rotuloDeMotivoPausa`: o
+     * primeiro responde *"o que ela está esperando?"*, que é a pergunta de um seletor; o segundo
+     * responde *"o que aconteceu com a sua ocorrência"*, e dentro de um formulário chamado **Motivo**
+     * seria uma frase respondendo a outra pergunta.
+     */
+    pausar: (
+      <ModalDeMotivo
+        ocorrenciaId={detalhe.id}
+        comando="pausar"
+        titulo="Pausar"
+        descricao="O que a ocorrência está esperando."
+        rotuloDoGrupo="Motivo"
+        motivos={opcoesDeMotivoPausa()}
+        rotuloDoGatilho="Pausar"
+        rotuloDeConfirmar="Pausar"
+        verboEnviando="Pausando…"
+        avisoDeVisibilidade={AVISO_DE_VISIBILIDADE}
+        variante={varianteDe("pausar")}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    /**
+     * **O quinto modal, e ele é o `ModalDeObservacao` reusado INTEIRO** — zero componente novo, zero
+     * variante nova, zero linha alterada nele. O componente foi escrito parametrizado exatamente para
+     * isto: *"o modal de `iniciar-atendimento` (item 22) e o de `retomar` (item 24) diferem em três
+     * strings"* (`modal-de-observacao.tsx:25-28`).
+     *
+     * **A descrição NÃO nomeia o destino, e é o critério 24.2 na tela.** *"Volta para Em atendimento"*
+     * seria informar antes o que o critério manda descobrir depois — e seria uma frase que esta tela
+     * não tem como saber se é verdade, porque ela não lê a trilha.
+     *
+     * **A ternária, e não `varianteDe`:** `ModalDeObservacao` aceita `"primario" | "secundario"`, e
+     * `varianteDe` devolve as três — passá-lo não compila. É o mesmo que `iniciar-atendimento` e
+     * `resolver` já fazem, logo acima.
+     *
+     * **O item 18 conferiu e NÃO há o que reabrir**, ao contrário do que este comentário prometia.
+     * `pausada` passou mesmo a ter três renderizáveis — `atribuir`, `retomar` e `cancelar` —, e ainda
+     * assim `retomar` **não pode** cair no menu: `ACAO_PRIMARIA.pausada === "retomar"`, e `acoesDaBarra`
+     * remove o destaque de `emMenu` por construção. Sempre que `retomar` é renderizável, ele é o
+     * destaque. A prova completa está no cabeçalho de `barra-de-acoes.tsx`, e virou teste.
+     *
+     * **Entra SEMPRE, como os três de cima**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis`.
+     */
+    retomar: (
+      <ModalDeObservacao
+        ocorrenciaId={detalhe.id}
+        comando="retomar"
+        titulo="Retomar"
+        descricao="A ocorrência volta ao ponto em que estava antes da pausa."
+        rotuloDoGatilho="Retomar"
+        rotuloDoCampo="Observação (opcional)"
+        rotuloDeConfirmar="Retomar"
+        verboEnviando="Retomando…"
+        variante={primario === "retomar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    /**
+     * **O quinto modal, e ele é o `ModalDeMotivo` reusado INTEIRO** — o mesmo componente do `pausar`,
+     * com **uma** propriedade opcional a mais na opção (`descricao`) e **uma** propriedade a mais no
+     * componente (`avisoDeVisibilidade`). Zero componente novo.
+     *
+     * **A lista é filtrada por PERMISSÃO, e não por `ehGestor`:** `opcoesDeMotivoCancelamento` recebe
+     * `vinculo.permissoes` e consulta `motivosPermitidos` — a **mesma** função que o comando de
+     * aplicação usa para lançar o `422`. Duas regras sobre quais motivos são de quem divergiriam, e a
+     * divergência seria um motivo oferecido em tela que o servidor recusa no clique.
+     *
+     * **O aviso muda de sujeito — critério 18.7**, e esta é a primeira vez no produto em que um texto de
+     * tela depende de quem está olhando. O predicado é **ser Gestor, não ser autor**: um Gestor que
+     * criou a própria ocorrência lê a frase do Gestor, porque quem lê a observação dele são os Gestores.
+     *
+     * **`varianteDe` serve aqui**, ao contrário do `retomar`: `ModalDeMotivo` aceita as três variantes
+     * desde o item 23, e `cancelar` **cai no menu nos quatro estados** — ele não é `ACAO_PRIMARIA` de
+     * nenhum, e isso é correto: cancelar nunca é a ação em destaque.
+     *
+     * **Entra SEMPRE, como os quatro de cima**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e é ela que esconde o
+     * botão do Solicitante autor a partir de `Em atendimento` (critério 18.3).
+     */
+    cancelar: (
+      <ModalDeMotivo
+        ocorrenciaId={detalhe.id}
+        comando="cancelar"
+        titulo="Cancelar a ocorrência"
+        descricao="A ocorrência será encerrada sem resolução. Não há como reabrir."
+        rotuloDoGrupo="Motivo"
+        motivos={opcoesDeMotivoCancelamento(vinculo.permissoes)}
+        rotuloDoGatilho="Cancelar"
+        rotuloDeConfirmar="Cancelar a ocorrência"
+        verboEnviando="Cancelando…"
+        avisoDeVisibilidade={ehGestor ? AVISO_DE_VISIBILIDADE : AVISO_PARA_QUEM_NAO_GESTIONA}
+        variante={varianteDe("cancelar")}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    /**
+     * **O quinto modal, e o último** — não há sexto, porque não há décimo primeiro comando.
+     *
+     * **Entra SEMPRE, como os outros quatro**: não precisa de consulta nenhuma além do que a página já
+     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e ela já cruza *ser o autor*
+     * com *ainda não avaliou* (`MaquinaDeEstados.ts:188-191`).
+     *
+     * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
+     * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
+     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está em `barra-de-acoes.tsx:69-72`.
+     */
+    avaliar: (
+      <ModalDeAvaliacao
+        ocorrenciaId={detalhe.id}
+        variante={primario === "avaliar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+      />
+    ),
+    ...(podeAtribuir
+      ? {
+          "atribuir-responsavel": (
+            <ModalDeAtribuicao
+              ocorrenciaId={detalhe.id}
+              candidatos={candidatos}
+              euPessoaId={escopo.ctx.pessoaId}
+              responsavelAtualPessoaId={detalhe.responsavel?.pessoaId ?? null}
+              rotulosDeStatus={rotulos}
+              organizacaoId={organizacaoId}
+              variante={varianteDe("atribuir-responsavel")}
+            />
+          ),
+        }
+      : {}),
+  };
+
+  return (
+    /* **O respiro inferior é do tamanho da barra fixa**, e só existe abaixo de `lg`, onde ela flutua.
+       É a mesma saída que o 44c deu a T-03 — reservar a altura em vez de espaçador no fim do documento —,
+       e ela funciona independente de onde a barra esteja na árvore.
+
+       **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
+       VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
+       olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
+       deixaria a barra cobrir o *Voltar* exatamente no caso em que há algo a ler. **O custo é 96 px de
+       branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
+       qualquer forma. */
+    <div className="flex flex-col gap-6 pb-24 lg:pb-0">
+      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">{detalhe.titulo}</h1>
+
+      {/* **Duas colunas a partir de `lg`, e a de apoio tem 280 px por conta.** Em 1024 px a casca já
+          gasta 214 na lateral e 48 no respiro do `<main>`; com 24 de calha, a narrativa fica com 458 —
+          mais que os 448 da coluna única de hoje. Com 320 ela ficaria com 418, e a tela estreitaria ao
+          ganhar largura.
+
+          **A coluna de apoio vem PRIMEIRO no documento**, porque é o que o inventário exige sem rolar no
+          celular — `statusRotulo`, `titulo` e a última entrada da linha do tempo. A partir de `lg` ela é
+          **colocada** na segunda coluna da grade. Quem lê por teclado ou por leitor de tela recebe a
+          mesma sequência nas duas larguras; o que muda é onde ela é pintada.
+
+          **Os dois invólucros são `<div>`, nunca `<section>`:** o teste de ponta a ponta localiza o bloco
+          de situação por `locator("section").filter({ hasText: "Situação" })`, e um `<section>` de layout
+          envolvendo a coluna casaria primeiro. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+        <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1">
+          {/* **Bloco 1a · Identidade que não pode rolar.** O status vira selo — guia §2, a mesma peça de
+              T-03 —, e **a palavra *Situação* fica**: é o que dá nome ao que o selo diz, e é o que o
+              teste de ponta a ponta localiza. */}
+          <section className="border-linha bg-superficie flex flex-col gap-2 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            <span className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+              Situação
+            </span>
+            <span className="w-fit">
+              <SeloDeStatus status={detalhe.status} rotulo={detalhe.statusRotulo} />
+            </span>
+            {/* **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.** Para o
+                Solicitante os dois textos coincidem e ela devolve `null`: o bloco dele não muda. */}
+            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
+              <span className="text-tinta-suave text-meta leading-snug">
+                {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+              </span>
+            )}
+          </section>
+
+          {/* **A régua do ciclo, em bloco IRMÃO e nunca dentro da seção acima.** A razão é mecânica: o
+              teste afirma o estado atual quatro vezes escopado à seção que contém a palavra *Situação*,
+              e a régua nomeia os quatro estados do ciclo. Dentro dela, `toContainText("Aberta")`
+              passaria em qualquer estado — o teste ficaria verde e deixaria de afirmar o que existe
+              para afirmar. */}
+          <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+              O ciclo
+            </h2>
+            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
+              <ReguaComDatas
+                eventos={linhaDoTempoPedida}
+                statusAtual={detalhe.status}
+                nomeDoStatus={nomeDoStatus}
+                notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                rotuloDaSaida={detalhe.statusRotulo}
+              />
+            </Suspense>
+          </section>
+
+          {/* **A barra de ações, e o vazio dela.** Montada SEMPRE: o `router.refresh()` que o `409`
+              dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
+              olhando"* sumiria no mesmo repinte que a exibiu. */}
+          <BarraDeAcoes
+            ocorrenciaId={detalhe.id}
+            acoes={renderizaveis}
+            rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
+            formularios={formularios}
+            primario={primario}
+            emMenu={emMenu}
+          />
+
+          {vazio !== null && (
+            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px] leading-relaxed">
+              {vazio}
+            </p>
+          )}
+
+          {/* **Bloco 1b · A última mudança, subida do bloco 3.** É a decisão 1 do D-3 do protótipo, e é o
+              que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
+              `OcorrenciaDetalhe`. */}
+          <section className="flex flex-col gap-1.5">
+            <h2 className="text-tinta text-titulo-linha font-medium">Última mudança</h2>
+            <p className="text-tinta-fraca text-meta">
+              {autoria(
+                detalhe.ultimaTransicao.autor.nome,
+                detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
+                dataHora(detalhe.ultimaTransicao.ocorreuEm),
+              )}
+            </p>
+            {detalhe.ultimaTransicao.observacao !== null && (
+              <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                {`“${detalhe.ultimaTransicao.observacao}”`}
+              </p>
+            )}
+            <a
+              href="#linha-do-tempo"
+              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
+            >
+              ver a linha do tempo →
+            </a>
+          </section>
+
+          {/* **Bloco 1c · O resto da identidade.** */}
+          <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+            {/* **A presença do CONTROLE depende de `acoesDisponiveis`, não do dado** — a prioridade
+                nunca some da tela, e o que muda é a forma. */}
+            {detalhe.acoesDisponiveis.includes("alterar-prioridade") ? (
+              <SeletorDePrioridade
+                ocorrenciaId={detalhe.id}
+                valorAtual={detalhe.prioridade}
+                opcoes={opcoesDePrioridade()}
+                rotulosDeStatus={rotulos}
+                organizacaoId={organizacaoId}
+              />
+            ) : (
+              /* **A prioridade em PALAVRA na linha de apoio** — guia §2. `alta` recebe `--destructive`;
+                 `normal` e `baixa` não recebem cor. */
+              <p className="text-tinta-suave text-interface">
+                <span className="font-medium">Prioridade:</span>{" "}
+                <span className={detalhe.prioridade === "alta" ? "text-destructive font-medium" : ""}>
+                  {rotuloDePrioridade(detalhe.prioridade)}
+                </span>
+              </p>
+            )}
+
+            <dl className="text-tinta-suave grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-2 text-interface">
+              <dt className="font-medium">Categoria</dt>
+              <dd>{detalhe.categoria.nome}</dd>
+
+              {/* **A ficha de local entra SEM cartão de ponteiro, e por decisão.** O próprio componente
+                  declara que a referência do lugar *"vive no cartão de ponteiro, e também em T-05"* — e
+                  T-05 é o outro lugar. Mostrá-la nos dois seria o mesmo texto duas vezes na mesma tela. */}
+              <dt className="font-medium">Onde</dt>
+              <dd className="flex flex-col gap-0.5">
+                <FichaDeLocal nomeDaArea={detalhe.area.nome} />
+                <span className="text-tinta-fraca text-meta">
+                  {detalhe.area.tipo === "comum" ? "área comum" : "unidade privativa"}
+                  {detalhe.localizacaoComplemento !== null &&
+                    ` — ${detalhe.localizacaoComplemento}`}
+                </span>
+              </dd>
+
+              {/* **As fichas de pessoa entram sem cartão por falta de dado**, e não por decisão:
+                  `autor` e `responsavel` são `PessoaReferencia`, com `pessoaId` e `nome` e nada mais.
+                  É o achado A-06 da spec, e o mesmo do 44c em T-03. */}
+              <dt className="font-medium">Registrada por</dt>
+              <dd>
+                <FichaDePessoa nome={detalhe.autor.nome} />
+              </dd>
+
+              <dt className="font-medium">Responsável</dt>
+              <dd>
+                {detalhe.responsavel === null ? (
+                  /* **Nulo escreve *"sem responsável"***, que é a palavra que a lista já usa. Não se
+                     inventa um terceiro texto. */
+                  <span className="text-tinta-fraca">sem responsável</span>
+                ) : (
+                  <FichaDePessoa nome={detalhe.responsavel.nome} />
+                )}
+              </dd>
+
+              <dt className="font-medium">Quando</dt>
+              {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC. */}
+              <dd className="font-mono">{dataHora(detalhe.registradaEm)}</dd>
+            </dl>
+          </section>
+        </div>
+
+        <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
+          {/* **O convite a avaliar — o critério 27.5.** A condição é `acoesDisponiveis`, e não uma
+              segunda regra na tela. O texto é literal do inventário. */}
+          {detalhe.acoesDisponiveis.includes("avaliar") && (
+            <p className="border-marca/40 bg-accent text-tinta rounded-lg border px-4 py-3 text-corpo">
+              Resolvida. Conte como foi.
+            </p>
+          )}
+
+          {/* **Bloco 2 · Conteúdo.** */}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-tinta text-titulo-bloco font-semibold">O que foi relatado</h2>
+            <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+              {detalhe.descricao}
+            </p>
+
+            {/* **A foto, e ela continua `div` com duas camadas de `background-image`** — critério 6.
+                `<img>` dispararia `@next/next/no-img-element` e gastaria o primeiro `eslint-disable` do
+                repositório; `next/image` faria os bytes do anexo atravessarem o contêiner, que a §10.1
+                do contrato proíbe.
+
+                **A etiqueta é persistente e não vive em passagem do ponteiro** — é a segunda metade do
+                critério 6. Pôr o convite no ponteiro esconderia de quem usa toque a única pista de que a
+                foto abre. **O verbo é *abrir*, e não *ampliar*:** o `href` leva a outra aba.
+
+                **`min-h-11`** dá o alvo de toque do compromisso A-3, e a etiqueta entra no nome
+                acessível do link — *"Foto anexada à ocorrência, Abrir a foto"* —, que descreve o que é e
+                o que acontece. */}
+            {detalhe.anexos.map((anexo) => (
+              <a
+                key={anexo.id}
+                href={anexo.url}
+                target="_blank"
+                rel="noreferrer"
+                className="relative mt-1 block"
+              >
+                <div
+                  role="img"
+                  aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
+                  className="bg-superficie border-linha h-56 w-full rounded-lg border bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage:
+                      anexo.miniaturaUrl === null
+                        ? `url(${anexo.url})`
+                        : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
+                  }}
+                />
+                <span className="bg-superficie text-tinta border-linha text-meta absolute right-3 bottom-3 inline-flex min-h-11 items-center rounded-sm border px-3 font-medium">
+                  Abrir a foto ↗
+                </span>
+              </a>
+            ))}
+          </section>
+
+          {/* **Bloco de solução aplicada.** As três formas são do protótipo: campo quando o comando
+              existe, texto quando só há o dado, nada quando não há nem um nem outro. */}
+          {detalhe.acoesDisponiveis.includes("registrar-solucao-aplicada") ? (
+            <CampoDeSolucaoAplicada
+              ocorrenciaId={detalhe.id}
+              valorAtual={detalhe.solucaoAplicada}
+              rotulosDeStatus={rotulos}
+              organizacaoId={organizacaoId}
+            />
+          ) : (
+            detalhe.solucaoAplicada !== null && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-tinta text-titulo-bloco font-semibold">Solução aplicada</h2>
+                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                  {detalhe.solucaoAplicada}
+                </p>
+              </section>
+            )
+          )}
+
+          {/* **A avaliação dada.** Sem ela, o autor avalia, o modal fecha, o convite some e nada na tela
+              diria que a nota foi registrada. */}
+          {detalhe.avaliacao !== null && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-tinta text-titulo-bloco font-semibold">
+                {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
+              </h2>
+              {/* **A-5: a nota carrega a palavra**, e nunca é só um número solto ou uma cor. */}
+              <p className="text-tinta-suave text-corpo leading-relaxed">
+                Nota {detalhe.avaliacao.nota} de 5
+              </p>
+              {detalhe.avaliacao.comentario !== null && (
+                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                  {detalhe.avaliacao.comentario}
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* **Bloco 3 · A linha do tempo.** O `id` mora AQUI e não no filho, porque a âncora do bloco
+              1b precisa existir enquanto o esqueleto está na tela. */}
+          <section id="linha-do-tempo" className="flex flex-col gap-3">
+            <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+              <LinhaDoTempo
+                eventos={linhaDoTempoPedida}
+                pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+                lente={lente}
+              />
+            </Suspense>
+            {/* **FORA do `<Suspense>`, de propósito:** dentro do `fallback` o link sumiria justamente
+                durante a espera, que é quando alguém desiste da tela. **`<a>` e não `next/link`** porque
+                T-06 é `force-dynamic` e o *prefetch* a renderizaria a cada aparição na viewport. */}
+            <a
+              href={`/ocorrencias/${detalhe.id}/auditoria`}
+              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
+            >
+              ver a trilha de auditoria →
+            </a>
+          </section>
+
+          {/* **Bloco 4 · A conversa.** A permissão é conferida aqui, como a página já faz com
+              `vinculo.gerir` antes de montar o modal de atribuição. */}
+          {vinculo.pode("ocorrencia.comentar") && (
+            <ConversaDaOcorrencia
+              ocorrenciaId={detalhe.id}
+              primeiraPagina={conversaPedida}
+              organizacaoId={organizacaoId}
+              pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+              vazio={vazioDaConversa(ehAutor)}
+              rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
+            />
+          )}
+
+          {/* **O *Voltar* FICA, e o argumento do 44e.8 não se aplica aqui.** Em T-07 ele é navegação; em
+              T-05 ele é a devolução do recorte — reconstrói o endereço da lista a partir do `?de=`,
+              pelo critério 15.3 —, e a barra lateral da casca leva a `/ocorrencias` sem consulta
+              nenhuma. Tirá-lo apagaria uma capacidade entregue. */}
+          <Link
+            href={voltarPara}
+            className="text-marca inline-flex min-h-11 items-center self-start text-interface underline underline-offset-4"
+          >
+            Voltar
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * **Quem espera a promessa é o filho** — o idioma de T-03 (`Lista`, em `app/ocorrencias/page.tsx`). Mora
+ * dentro deste arquivo pela mesma razão que `Lista` mora dentro do dele: é o precedente da casa, e evita
+ * dois arquivos novos que a ADR-0008 conta.
+ *
+ * **A projeção é a MESMA do endpoint**, e isso não é economia: *"existem dois transportes para a mesma
+ * leitura"* (`contrato-de-api.md` §5), e a estrada direta que projetasse por conta própria deixaria as
+ * duas divergirem.
+ */
+async function LinhaDoTempo({
+  eventos,
+  pessoaIdDeQuemLe,
+  lente,
+}: {
+  eventos: Promise<readonly EventoLido[]>;
+  pessoaIdDeQuemLe: string;
+  /** A coluna do `glossario.md` §4 desta leitura — item 31, critério 31.7. */
+  lente: LenteDeRotulo;
+}) {
+  const itens = (await eventos).map((evento) => projetarEventoDaLinhaDoTempo(evento, lente));
+
+  return (
+    <>
+      {/* **A contagem ao lado do título.** **Não há estado vazio, e é garantia e não sorte:** a premissa
+          P1 faz o registro da criação nascer com a ocorrência, e o repositório trata trilha vazia como
+          invariante violada. Toda linha do tempo tem ao menos um. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">
+        Linha do tempo <span className="text-tinta-fraca font-normal">{itens.length}</span>
+      </h2>
+
+      <ol className="flex flex-col">
+        {itens.map((evento, indice) => (
+          <li
+            key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`}
+            className="relative flex gap-3 pb-4 last:pb-0"
+          >
+            {/* **O trilho, e ele não desce do último.** Mesmo desenho da régua do ciclo: um produto, um
+                jeito de desenhar uma sequência no tempo. `aria-hidden` porque a relação já está na
+                ordem do `<ol>`. */}
+            {indice < itens.length - 1 && (
+              <span aria-hidden className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+
+            {/* **Três formas de marcador, e nenhuma delas carrega informação sozinha** — a frase abaixo
+                diz o que aconteceu, em palavras. Transição é cheio, atribuição é contorno, mensagem é
+                contorno menor. */}
+            <span
+              aria-hidden
+              className={
+                evento.tipo === "transicao"
+                  ? "bg-tinta-suave border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border"
+                  : evento.tipo === "atribuicao"
+                    ? "border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent"
+                    : "border-linha mt-2 size-[7px] shrink-0 rounded-full border bg-transparent"
+              }
+            />
+
+            <span className="flex min-w-0 flex-col gap-0.5">
+              {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. O
+                  instante vai em monoespaçada, pelo guia §3 — dado temporal. */}
+              <span className="text-tinta-fraca text-meta">
+                {autoria(
+                  evento.autor.nome,
+                  evento.autor.pessoaId === pessoaIdDeQuemLe,
+                  dataHora(evento.ocorridoEm),
+                )}
+              </span>
+              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                {evento.tipo === "transicao"
+                  ? fraseDaTransicao(evento.rotulo, evento.observacao)
+                  : evento.tipo === "mensagem"
+                    ? fraseDaMensagem(evento.texto)
+                    : fraseDaAtribuicao(
+                        evento.responsavel.nome,
+                        evento.responsavel.pessoaId === pessoaIdDeQuemLe,
+                      )}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
+/**
+ * O estado 7 do protótipo (`telas.html:2824-2838`): cabeçalho **sem a contagem** — não se conta o que
+ * ainda não chegou — e três eventos em barra cinza. `animate-pulse` é a mesma classe de
+ * `EsqueletoDaLista`.
+ */
+function EsqueletoDaLinhaDoTempo() {
+  return (
+    <>
+      {/* Cabeçalho **sem a contagem** — não se conta o que ainda não chegou. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">Linha do tempo</h2>
+      <div aria-hidden className="flex flex-col">
+        {(
+          [
+            [46, 88],
+            [52, 74],
+            [40, 92],
+          ] as const
+        ).map(([autor, frase], indice) => (
+          <div key={autor} className="relative flex gap-3 pb-4">
+            {indice < 2 && (
+              <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+            <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border" />
+            <div className="flex w-full flex-col gap-1.5">
+              <Skeleton className="bg-secondary h-3" style={{ width: `${autor}%` }} />
+              <Skeleton className="bg-secondary h-4" style={{ width: `${frase}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/**
+ * **A régua espera a linha do tempo, porque é ela quem sabe as datas.**
+ *
+ * `OcorrenciaDetalhe` traz `registradaEm`, `ultimaTransicao` e o `status` atual — e **não** a data de
+ * cada passo alcançado. Elas só existem na trilha. A promessa já parte antes do `await` do detalhe
+ * (critério 29.5), então esta fronteira de espera **não acrescenta requisição nenhuma**: ela reaproveita
+ * a mesma promessa que o bloco 3 espera.
+ *
+ * **Custo declarado:** sob o cold start do RNF5 a régua pinta sem datas por um instante — é o achado
+ * **A-05** da spec, e a alternativa seria mudar o contrato.
+ */
+async function ReguaComDatas({
+  eventos,
+  statusAtual,
+  nomeDoStatus,
+  notaDaSaida,
+  rotuloDaSaida,
+}: {
+  eventos: Promise<readonly EventoLido[]>;
+  statusAtual: string;
+  nomeDoStatus: (status: string) => string;
+  notaDaSaida: string | null;
+  rotuloDaSaida: string;
+}) {
+  /**
+   * **Só transições entram**, já ordenadas da mais antiga para a mais recente, que é como a linha do
+   * tempo chega. Atribuição e mensagem não movem o ciclo.
+   *
+   * **`flatMap` com ternária, e não `filter` seguido de `map`.** `EventoLido` é união discriminada por
+   * `tipo`, e `filter` com predicado booleano **não estreita** o tipo do elemento: o `map` seguinte não
+   * enxergaria `evento.transicao` e o `tsc` recusaria. Dentro da ternária a narrowing acontece.
+   */
+  const transicoes = (await eventos).flatMap((evento) =>
+    evento.tipo === "transicao"
+      ? [{ status: evento.transicao.statusNovo, em: dataHora(evento.ocorridoEm) }]
+      : [],
+  );
+
+  return (
+    <ReguaDoCiclo
+      transicoes={transicoes}
+      statusAtual={statusAtual}
+      nomeDoStatus={nomeDoStatus}
+      notaDaSaida={notaDaSaida}
+      rotuloDaSaida={rotuloDaSaida}
+    />
+  );
+}
+
+/**
+ * **O trilho sem datas, enquanto a linha do tempo não chega. O ciclo é visível no primeiro pixel.**
+ *
+ * **Não é `ReguaDoCiclo` com `transicoes={[]}`.** Sem data nenhuma, `lerOCiclo` marca como *por
+ * alcançar* todo passo que não seja o atual — numa ocorrência em `em_atendimento` isso pintaria
+ * *Aberta* e *Em análise* como pendentes, e numa `cancelada` riscaria os quatro e poria a marca de
+ * saída **acima** de *Aberta*. Um ciclo falso, ainda que por um instante.
+ *
+ * **O esqueleto desenha o próprio trilho**, `aria-hidden` e sem distinção de estado entre os quatro
+ * passos — nenhum alcançado, nenhum atual, nenhum riscado — e sem a marca de saída, que é exatamente o
+ * dado que ainda não chegou. Só os nomes, na mesma geometria da régua de verdade.
+ */
+function EsqueletoDaRegua({ nomeDoStatus }: { nomeDoStatus: (status: string) => string }) {
+  return (
+    <div aria-hidden className="flex flex-col">
+      {CICLO.map((status, indice) => (
+        <div key={status} className="relative flex gap-3 pb-4 last:pb-0">
+          {indice < CICLO.length - 1 && (
+            <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+          )}
+          <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent" />
+          <span className="text-interface text-tinta-fraca">{nomeDoStatus(status)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { cn } from "@/interface/componentes/utilitarios";
+
 /**
  * **O guarda estrutural do tema.**
  *
@@ -106,12 +108,210 @@ describe("app/globals.css — a estrutura de três estados", () => {
     }
   });
 
-  it("não declara as famílias de fonte que o produto não carrega", () => {
-    // O Meridian traz três. Serifada não tem consumidor, e monoespaçada cai na pilha do sistema —
-    // declarar qualquer uma das duas aqui convida a carregá-la, e cada família pesa no build.
+  it("não declara a família serifada, que o produto não carrega", () => {
+    // O Meridian traz três. A serifada não tem consumidor nenhum, e declará-la aqui convida a
+    // carregá-la — cada família pesa no build.
     for (const mapa of [claro, sistema, escolhido]) {
       expect(mapa.has("--font-serif")).toBe(false);
-      expect(mapa.has("--font-mono")).toBe(false);
     }
   });
+
+  it("a monoespaçada é declarada uma vez, fora dos blocos escuros", () => {
+    // A `Geist Mono` passou a ser carregada em 13/09/2026 (resposta P1 do item 44b): a trilha de
+    // auditoria tem oito usos de `font-mono`, e o guia dá à monoespaçada o sétimo papel da escala.
+    // Ela é tipografia, então segue a regra de `--font-sans`: só cor muda entre claro e escuro.
+    expect(claro.has("--font-mono")).toBe(true);
+    expect(sistema.has("--font-mono")).toBe(false);
+    expect(escolhido.has("--font-mono")).toBe(false);
+  });
+
+  it("a tinta da marca é declarada uma vez, fora dos blocos escuros", () => {
+    // `--accent` é laranja de meia-luz nos DOIS temas — 0.6031 no claro, 0.6940 no escuro —, então os
+    // dois querem tinta escura por cima. Um token que invertesse daria branco sobre laranja no claro,
+    // que mede 4,07:1. Este mede 4,61:1 no claro e 6,64:1 no escuro. Item 44d, critério 8.
+    expect(claro.has("--marca-foreground")).toBe(true);
+    expect(sistema.has("--marca-foreground")).toBe(false);
+    expect(escolhido.has("--marca-foreground")).toBe(false);
+  });
+});
+
+describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
+  it("não deixa um papel da escala apagar a cor da tinta", () => {
+    // Sem `extendTailwindMerge`, `text-interface` era lido como COR e derrubava
+    // `text-marca-foreground`, deixando o botão principal sem a tinta pensada para o laranja — e com o
+    // `text-sm` do catálogo, que está fora da escala. Os dois avessos do que se queria.
+    expect(cn("bg-marca text-marca-foreground text-sm", "text-interface")).toBe(
+      "bg-marca text-marca-foreground text-interface",
+    );
+  });
+
+  it("um papel da escala ainda substitui outro", () => {
+    expect(cn("text-corpo", "text-meta")).toBe("text-meta");
+  });
+});
+
+/**
+ * **A paleta categórica, medida — item 44e, critérios 3 e 4.**
+ *
+ * O gráfico de área empilhada de T-07 se liga a `var(--chart-1)` até `var(--chart-4)`, e quatro faixas
+ * empilhadas só informam se o olho as separa. Os valores que o autor do tema escolheu não separavam:
+ * `--chart-3` tinha croma 0,0599 no escuro, abaixo do piso categórico, e ficava a 5,17° de matiz de
+ * `--chart-1` — a mesma cor em duas luminosidades.
+ *
+ * **O piso, nunca o dígito.** As asserções afirmam o que o item promete — croma acima do piso, separação
+ * perceptual, contraste com a superfície —, e não o número medido: `toBe(9.21)` reprovaria por
+ * arredondamento na próxima vez que alguém trocasse a ordem das conversões. Os números medidos saem
+ * impressos, para o relatório do item copiar deles.
+ *
+ * Na forma da ADR-0008 é **grupo 2**: não cresce com funcionalidade, cresce com token novo.
+ */
+type Lab = { L: number; a: number; b: number };
+
+/** `oklch(L C H)` como o CSS o escreve, em OKLab. Fora disso o teste não sabe ler, e diz. */
+function oklabDe(valor: string): Lab {
+  const encontrado = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/.exec(valor);
+  if (encontrado === null) throw new Error(`Não é um oklch legível: ${valor}`);
+
+  const L = Number(encontrado[1]);
+  const C = Number(encontrado[2]);
+  const H = (Number(encontrado[3]) * Math.PI) / 180;
+  return { L, a: C * Math.cos(H), b: C * Math.sin(H) };
+}
+
+/** O croma é o raio do par (a, b) — a distância do eixo acromático. */
+function croma({ a, b }: Lab): number {
+  return Math.hypot(a, b);
+}
+
+/** Distância euclidiana em OKLab: é para isso que o espaço foi construído. */
+function deltaEok(um: Lab, outro: Lab): number {
+  return Math.hypot(um.L - outro.L, um.a - outro.a, um.b - outro.b);
+}
+
+/** OKLab → LMS → sRGB linear. O recorte em [0, 1] é o gamut, e é o que a tela mostraria. */
+function sRGBLinearDe({ L, a, b }: Lab): [number, number, number] {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+
+  const recortar = (canal: number): number => Math.min(1, Math.max(0, canal));
+  return [
+    recortar(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    recortar(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    recortar(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+  ];
+}
+
+/** O hex que o navegador pintaria, para a tabela do relatório. */
+function hexDe(cor: Lab): string {
+  const gama = (canal: number): number =>
+    canal <= 0.0031308 ? 12.92 * canal : 1.055 * canal ** (1 / 2.4) - 0.055;
+
+  return `#${sRGBLinearDe(cor)
+    .map((canal) => Math.round(gama(canal) * 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+/** Luminância relativa da WCAG, que já pede sRGB linear — o mesmo que a conversão acima devolve. */
+function luminancia(cor: Lab): number {
+  const [r, g, b] = sRGBLinearDe(cor);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Contraste da WCAG entre duas cores, na ordem que der: a fórmula ordena sozinha. */
+function contraste(uma: Lab, outra: Lab): number {
+  const [clara, escura] = [luminancia(uma), luminancia(outra)].sort((x, y) => y - x) as [
+    number,
+    number,
+  ];
+  return (clara + 0.05) / (escura + 0.05);
+}
+
+describe("app/globals.css — a paleta categórica de T-07, medida", () => {
+  const SERIES = ["--chart-1", "--chart-2", "--chart-3", "--chart-4"] as const;
+
+  /** Lê os quatro tokens de série e a superfície do mesmo bloco — do CSS, nunca escritos à mão. */
+  function paletaDe(cabecalho: string): { series: Lab[]; superficie: Lab } {
+    const tokens = tokensDe(corpoDoBloco(cabecalho));
+    const valorDe = (token: string): string => {
+      const valor = tokens.get(token);
+      if (valor === undefined) throw new Error(`${token} não está declarado em ${cabecalho}`);
+      return valor;
+    };
+
+    return {
+      series: SERIES.map((token) => oklabDe(valorDe(token))),
+      // A superfície do cartão é `--surface`. O nome em português mora no `@theme inline`, fora dos
+      // blocos que o `corpoDoBloco` lê, e vale `var(--surface)` — sem `oklch` para converter.
+      superficie: oklabDe(valorDe("--surface")),
+    };
+  }
+
+  const MODOS = [
+    { nome: "claro", cabecalho: ":root {" },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+  ] as const;
+
+  it("imprime a medição, que é o que o relatório do item copia", () => {
+    for (const { nome, cabecalho } of MODOS) {
+      const { series, superficie } = paletaDe(cabecalho);
+
+      console.info(`\n[44e] paleta categórica — modo ${nome}, superfície ${hexDe(superficie)}`);
+      series.forEach((cor, indice) => {
+        console.info(
+          `  ${SERIES[indice]}  ${hexDe(cor)}  croma ${croma(cor).toFixed(4)}  ` +
+            `contraste ${contraste(cor, superficie).toFixed(2)}:1`,
+        );
+      });
+
+      for (let i = 0; i < series.length; i += 1) {
+        for (let j = i + 1; j < series.length; j += 1) {
+          const um = series[i] as Lab;
+          const outro = series[j] as Lab;
+          console.info(`  ΔEok ${i + 1} × ${j + 1}  ${deltaEok(um, outro).toFixed(3)}`);
+        }
+      }
+    }
+
+    expect(SERIES).toHaveLength(4);
+  });
+
+  for (const { nome, cabecalho } of MODOS) {
+    describe(`modo ${nome}`, () => {
+      it("as três séries nomeadas têm croma de categoria, e não leem como cinza", () => {
+        const { series } = paletaDe(cabecalho);
+        for (const cor of series.slice(0, 3)) {
+          expect(croma(cor)).toBeGreaterThanOrEqual(0.1);
+        }
+      });
+
+      it("a quarta série lê como cinza, que é o que `Outras` precisa ser", () => {
+        const { series } = paletaDe(cabecalho);
+        const cinza = series[3] as Lab;
+        expect(croma(cinza)).toBeLessThanOrEqual(0.02);
+      });
+
+      it("os seis pares se separam perceptualmente", () => {
+        // Croma baixo sozinho não resolve o cinza: na mesma faixa de luminosidade das três coloridas
+        // ele fica a ΔEok 0,117 do azul no escuro. O que o separa é a luminosidade, na direção da
+        // tinta do modo — mais claro que as três no escuro, mais escuro no claro.
+        const { series } = paletaDe(cabecalho);
+        for (let i = 0; i < series.length; i += 1) {
+          for (let j = i + 1; j < series.length; j += 1) {
+            const um = series[i] as Lab;
+            const outro = series[j] as Lab;
+            expect(deltaEok(um, outro)).toBeGreaterThanOrEqual(0.15);
+          }
+        }
+      });
+
+      it("cada série contrasta com a superfície do próprio modo", () => {
+        // 3:1 é o piso de objeto gráfico da WCAG 1.4.11 — faixa de área é objeto, não texto.
+        const { series, superficie } = paletaDe(cabecalho);
+        for (const cor of series) {
+          expect(contraste(cor, superficie)).toBeGreaterThanOrEqual(3);
+        }
+      });
+    });
+  }
 });

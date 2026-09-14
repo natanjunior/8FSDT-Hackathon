@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
+import { Textarea } from "@/interface/componentes/ui/textarea";
 
 /**
  * ============================================================================
@@ -137,11 +138,13 @@ export function ModalDeObservacao({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant={variante === "primario" ? "default" : "outline"}
+          variant={variante === "primario" ? "marca" : "outline"}
           /* **A largura vem da variante, não do *shrink-to-fit*** (D-P4). É `.actionbar .btn.ghost
              { width: auto }` do protótipo, e dispensa apostar em como o navegador resolve `w-full`
              dentro de um invólucro `flex-none`. */
-          className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
+          className={
+            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+          }
         >
           {rotuloDoGatilho}
         </Button>
@@ -171,7 +174,7 @@ export function ModalDeObservacao({
           <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
             {AVISO_DE_VISIBILIDADE}
           </p>
-          <textarea
+          <Textarea
             id={campoId}
             aria-describedby={avisoId}
             value={texto}
@@ -180,7 +183,6 @@ export function ModalDeObservacao({
             rows={3}
             /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
             maxLength={1000}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
           />
         </div>
 

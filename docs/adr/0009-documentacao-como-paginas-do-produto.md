@@ -103,21 +103,36 @@ o do projeto.
 Fumadocs redefinir os onze nomes do tema do produto. Ele não redefine: todas as cores dele são prefixadas
 `--color-fd-`, e não encostam nos nossos nomes.
 
-**O vazamento real é outro, e é mais perigoso.** O preset declara `@variant dark (&:where(.dark, .dark *))`,
-e o `app/globals.css` declara `@custom-variant dark (&:is(.dark *))`. São diferentes em duas coisas: a do
-Fumadocs alcança o próprio elemento `.dark` além dos descendentes, e usa `:where`, que tem especificidade
-zero. Numa entrada única de Tailwind, a última declaração venceria e **toda utilidade `dark:` do produto
-passaria a resolver por outra regra, com outra especificidade** — e a falha apareceria nas telas do
-produto, que é onde ninguém olha depois de aprovar a documentação.
+**O vazamento real são dois, e o segundo a separação de CSS não alcança.**
+
+**O primeiro é de tempo de build: a variante `dark` do Tailwind.** O preset do Fumadocs declara
+`@variant dark (&:where(.dark, .dark *))`. Numa entrada única de Tailwind, essa declaração venceria a do
+produto, e **toda utilidade `dark:` das telas passaria a resolver por outra regra, com outra
+especificidade** — com a falha aparecendo no produto, que é onde ninguém olha depois de aprovar a
+documentação.
 
 Como `@variant` é construção de tempo de build, duas entradas separadas mantêm cada definição na sua. A
-prova está no resultado do build: o pacote de CSS do produto tem `:is(.dark *)` e nenhuma regra do
-Fumadocs; o da documentação tem `:where(.dark,.dark *)` e nenhum token do tema do produto. Uma tela do
-produto carrega só o primeiro.
+prova está no resultado do build: o pacote de CSS do produto não tem nenhuma regra do Fumadocs, e o da
+documentação não tem nenhum token do tema do produto. Uma tela do produto carrega só o primeiro.
+
+**O segundo é de tempo de execução, e a separação de CSS não o contém.** O `RootProvider` do Fumadocs usa
+`next-themes` com `attribute: "class"`, o que escreve `class="dark"` **no elemento `<html>`** — e esse
+elemento é do layout raiz, compartilhado pelas duas superfícies. Quem visita a documentação no modo escuro
+e depois navega para o produto leva a classe junto.
+
+Separar os pacotes de CSS não resolve isso, porque o que atravessa não é CSS: é um atributo no DOM. **A
+saída foi o produto deixar de depender daquela classe.** A variante `dark` do `app/globals.css` passou a
+apontar para os estados que o produto de fato usa, `[data-theme="dark"]` e a consulta de mídia, e não mais
+para a classe do catálogo. O produto e a documentação passam a responder a chaves diferentes, e a classe
+que o Fumadocs escreve deixa de significar alguma coisa fora das páginas dele.
+
+Vale registrar como método: este segundo vazamento **não foi encontrado por esta decisão**. Ele apareceu
+depois, na frente de código, ao montar a casca visual das telas. A separação de CSS foi desenhada contra o
+que se via em tempo de build, e o que atravessa em tempo de execução é outra categoria de problema.
 
 **O preset também aplica reset global em `body` e em `*`**, definindo cor de fundo, cor de texto e cor de
-borda. A mesma separação o contém: essas regras chegam ao documento apenas nas páginas que carregam o
-arquivo da rota.
+borda. Esse é de tempo de build, e a mesma separação o contém: essas regras chegam ao documento apenas nas
+páginas que carregam o arquivo da rota.
 
 **A especificação OpenAPI entrou na coleção sem ser convidada.** A coleção de metadados do Fumadocs casa
 `.json` e `.yaml` por padrão, e `docs/api/openapi.yaml` foi lido como se fosse a configuração de uma pasta

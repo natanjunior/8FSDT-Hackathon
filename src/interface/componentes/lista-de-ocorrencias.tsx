@@ -1,13 +1,45 @@
 "use client";
 
 import Link from "next/link";
-
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/interface/componentes/ui/table";
 import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
+import { FichaDeLocal } from "./ficha-de-local";
+import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { rotuloDePrioridade } from "./rotulos";
+import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto, tempoRelativo } from "./tempo-relativo";
+
+/**
+ * A prioridade **em palavra, na linha de apoio** — guia §2. `alta` recebe `--destructive`; `normal` e
+ * `baixa` não recebem cor. Deixa de ser a pílula com borda dos dois cartões, porque o guia §1 tira a
+ * caixa de rótulo de estado.
+ */
+function PalavraDePrioridade({ prioridade }: { prioridade: OcorrenciaResumoProjetada["prioridade"] }) {
+  return (
+    <span className={prioridade === "alta" ? "text-destructive font-medium" : "text-tinta-suave"}>
+      {rotuloDePrioridade(prioridade)}
+    </span>
+  );
+}
+
+/**
+ * A régua e a faixa, escritas uma vez — critério 44c.1.
+ *
+ * **A faixa é `--ground` (`bg-background`), e não `--sunken`.** No tema escuro `--sunken` e `--line-soft`
+ * têm o mesmo valor, e a régua desapareceria em cima dela. Com o chão da página, os dois ficam visíveis
+ * nos dois temas. Decidido em `respostas.md` P2.
+ */
+const LINHA_DA_LISTA = "border-linha-suave border-b even:bg-background last:border-b-0";
 
 /**
  * ============================================================================
@@ -34,10 +66,13 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  *
  * **Sem *Carregar mais*, desde o item 14b (09/09/2026).** A paginação é numerada e mora nos
  * `searchParams`: quem renderiza a página pedida é o Server Component, e este componente passou a ser
- * **só desenho** — recebe uma página inteira e a pinta, sem estado e sem `fetch`. **A navegação em si
- * ainda não existe na tela** — ela é da frente de design, junto com a linha de deriva
- * (`saidasDesdeOCorte` / `novasDesdeOCorte`) e o estado de *página além do fim*. Até lá, a página se
- * troca pela URL: `?pagina=2`.
+ * **só desenho** — recebe uma página inteira e a pinta, sem estado e sem `fetch`. O controle numerado, a
+ * linha de deriva e o estado de *página além do fim* nasceram no item 44c, em peças próprias: aqui ficam
+ * só as linhas.
+ *
+ * **A ocorrência deixou de ser caixa e virou linha** — item 44c, guia §1: *"onde a tentação for pôr uma
+ * caixa, ponha uma pauta"*. Quem desenha a borda, o raio e a sombra é o `CartaoDaLista`, que envolve
+ * isto; aqui não há moldura nenhuma.
  */
 type Props = {
   /**
@@ -118,25 +153,28 @@ export function ListaDeOcorrencias({
 
   const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora, pessoaIdDeQuemLe };
 
+  // **Um cartão, e a ocorrência é linha dele.** Guia §1: *"onde a tentação for pôr uma caixa, ponha uma
+  // pauta"*, e linha de lista está na lista do que não é caixa. O cartão em si é `CartaoDaLista`, que
+  // envolve isto e é quem desenha a borda, o raio e a sombra.
+  if (primeiraPagina.visibilidadeAplicada === "apenas_minhas") {
+    return (
+      <ul>
+        {itens.map((item) => (
+          <LinhaDoSolicitante key={item.id} item={item} {...comum} />
+        ))}
+      </ul>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {primeiraPagina.visibilidadeAplicada === "apenas_minhas" ? (
-        <ul className="flex flex-col gap-3">
-          {itens.map((item) => (
-            <CartaoDoSolicitante key={item.id} item={item} {...comum} />
-          ))}
-        </ul>
-      ) : (
-        <>
-          <ul className="flex flex-col gap-3 md:hidden">
-            {itens.map((item) => (
-              <CartaoDeTriagem key={item.id} item={item} {...comum} />
-            ))}
-          </ul>
-          <TabelaDeTriagem itens={itens} {...comum} />
-        </>
-      )}
-    </div>
+    <>
+      <ul className="md:hidden">
+        {itens.map((item) => (
+          <LinhaDeTriagemNoCelular key={item.id} item={item} {...comum} />
+        ))}
+      </ul>
+      <TabelaDeTriagem itens={itens} {...comum} />
+    </>
   );
 }
 
@@ -185,9 +223,10 @@ const CONVITE_A_AVALIAR = "Conte como foi";
  * - **O Solicitante continua sem ver**, e o critério **28.4** fica literal e intacto: ele não tem
  *   `ocorrencia.alterar_prioridade` em nenhum dos dois desenhos de papel (`Permissao.ts:38-44`). *"É
  *   decisão do Gestor, e não há nada que o Solicitante faça com ela."*
- * - **Quem ganha é o síndico morador** — o Gestor que toca *"Ver as minhas"*. Até aqui ele perdia a
- *   coluna de um campo que ele mesmo altera, **no mesmo gesto** em que a barra continuava lhe oferecendo
- *   o chip `Prioridade ▾`: o produto oferecia filtrar por um campo que se recusava a exibir.
+ * - **Quem ganha é o síndico morador** — o Gestor que troca o recorte para *"Minhas ocorrências"*. Até
+ *   aqui ele perdia a coluna de um campo que ele mesmo altera, **no mesmo gesto** em que a barra
+ *   continuava lhe oferecendo o chip `Prioridade ▾`: o produto oferecia filtrar por um campo que se
+ *   recusava a exibir.
  *
  * **A ordem na primeira linha, e por que a linha embrulha:** a marca do item 27 vem primeiro, a etiqueta
  * de prioridade depois. A marca é **convite e tem prazo**; a prioridade é **fato e não tem**. Quando as
@@ -195,7 +234,7 @@ const CONVITE_A_AVALIAR = "Conte como foi";
  * em vez de encolher qualquer uma: encolher é o caminho de virar cor, que é o que o compromisso **A-5**
  * proíbe.
  */
-function CartaoDoSolicitante({
+function LinhaDoSolicitante({
   item,
   destinoDoItem,
   iconePorCategoria,
@@ -206,63 +245,65 @@ function CartaoDoSolicitante({
   /**
    * **A MESMA função dos recortes B e C — critério 31.6, e permissão nunca recorte.**
    *
-   * O `CartaoDoSolicitante` é o recorte **A**, e ele não é só do Solicitante: é também o do **Gestor que
-   * tocou *"Só as minhas"*** — o síndico morador do 28.5. Sem esta linha ele leria *"Pausada"* pelado, no
-   * mesmo gesto em que a barra continua lhe oferecendo o chip `Status ▾`. É o defeito que o **28.6**
+   * A `LinhaDoSolicitante` é o recorte **A**, e ele não é só do Solicitante: é também o do **Gestor que
+   * escolheu *"Minhas ocorrências"*** — o síndico morador do 28.5. Sem esta linha ele leria *"Pausada"*
+   * pelado, no mesmo gesto em que a barra continua lhe oferecendo o chip `Status ▾`. É o defeito que o **28.6**
    * fechou para a prioridade, reaberto com outro campo — e o critério **14.3** já diz *"quem lê é
    * Gestor"*, não *"o recorte é de Gestor"*.
    *
    * **Custa uma chamada e nenhum argumento novo.** Para o Solicitante de verdade os dois textos
-   * coincidem, a função devolve `null`, e **o cartão dele fica byte a byte igual**.
+   * coincidem, a função devolve `null`, e **a linha dele não ganha nada**.
    */
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li>
+    <li className={LINHA_DA_LISTA}>
       <Link
         href={destinoDoItem(item.id)}
-        className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
+        className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
       >
-        <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className="text-tinta flex flex-col text-sm font-semibold">
-            {item.statusRotulo}
-            {/* **A-5: a espera carrega a palavra, nunca só a cor.** Segunda LINHA e não sufixo com `·`,
-                porque aqui o rótulo já divide a primeira linha com a marca do 27 e a etiqueta de
-                prioridade — o `·` do `CartaoDeTriagem` não cabe. */}
+        <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="flex flex-col gap-0.5">
+            {/* **A-5: a espera carrega a palavra, nunca só a cor.** O selo sempre imprime o
+                `statusRotulo`; a forma dele diz se a ocorrência espera alguém, e nunca sozinha. */}
+            <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
             {segundaLinha !== null && (
-              <span className="text-tinta-suave text-xs font-normal">{segundaLinha}</span>
+              <span className="text-meta text-tinta-suave">{segundaLinha}</span>
             )}
           </span>
           {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
               vez de espalhar três filhos pela linha. */}
-          <span className="flex items-baseline gap-2">
+          <span className="flex items-center gap-2">
             {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
               /* **Marca, não botão.** O item inteiro já é um `<Link>`; um segundo alvo aqui dentro é
                  conteúdo interativo aninhado e alvo pequeno dentro de alvo grande (A-3), e seria a
                  primeira ação no item da lista, que o critério 14.5 proíbe. **A-5:** carrega a palavra. */
-              <span className="text-marca shrink-0 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
+              <span className="text-marca text-meta shrink-0 font-medium">{CONVITE_A_AVALIAR}</span>
             )}
-            {/* A-5: a prioridade carrega a palavra. Nunca só a cor. **A mesma forma do `CartaoDeTriagem`**
-                — a segunda etiqueta de prioridade do arquivo não pode ser um desenho diferente. */}
             {mostrarPrioridade && (
-              <span className="text-tinta-suave border-linha shrink-0 rounded border px-1.5 py-0.5 text-xs">
-                {rotuloDePrioridade(item.prioridade)}
+              <span className="text-meta shrink-0">
+                <PalavraDePrioridade prioridade={item.prioridade} />
               </span>
             )}
           </span>
         </span>
-        <span className="text-tinta text-base leading-snug">{item.titulo}</span>
-        <span className="text-tinta-suave flex items-center gap-1.5 text-xs">
+        <span className="text-titulo-linha text-tinta leading-snug font-medium">{item.titulo}</span>
+        <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <IconeDeCategoria
             nome={iconePorCategoria[item.categoria.id] ?? "tag"}
             className="size-3.5 shrink-0"
           />
-          {item.categoria.nome} · {item.area.nome}
-          {item.quantidadeDeAnexos > 0 && ` · ${item.quantidadeDeAnexos} foto`}
+          {item.categoria.nome} ·
+          <FichaDeLocal nomeDaArea={item.area.nome} />
+          {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
         </span>
-        <span className="text-tinta-fraca text-xs">
-          {item.responsavel !== null && `${item.responsavel.nome} está cuidando · `}
-          {tempoRelativo(item.registradaEm, agora)}
+        <span className="text-tinta-fraca text-meta flex flex-wrap items-center gap-1.5">
+          {item.responsavel !== null && (
+            <>
+              <FichaDePessoa nome={item.responsavel.nome} /> está cuidando ·
+            </>
+          )}
+          <span className="font-mono tabular-nums">{tempoRelativo(item.registradaEm, agora)}</span>
         </span>
       </Link>
     </li>
@@ -277,7 +318,7 @@ function CartaoDoSolicitante({
  * categoria é a dimensão pela qual o Gestor **recorta**, não a que ele **compara**. O critério 14.6 vale
  * nos recortes que exibem o nome — *"ao lado do nome, nunca no lugar dele"* é regra que se autolimita.
  */
-function CartaoDeTriagem({
+function LinhaDeTriagemNoCelular({
   item,
   destinoDoItem,
   mostrarPrioridade,
@@ -289,32 +330,42 @@ function CartaoDeTriagem({
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li>
+    <li className={LINHA_DA_LISTA}>
       <Link
         href={destinoDoItem(item.id)}
-        className="border-linha bg-superficie flex min-h-11 flex-col gap-1 rounded-md border px-4 py-3"
+        className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
       >
-        <span className="flex items-baseline justify-between gap-3">
-          <span className="text-tinta text-sm font-semibold">
-            {item.statusRotulo}
-            {segundaLinha !== null && ` · ${segundaLinha}`}
+        <span className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
             {/* **Em `resolvida` a segunda linha do motivo é sempre nula** — `segundaLinhaDeMotivo` só
                 devolve texto em `pausada` —, então os dois nunca aparecem juntos. */}
+            {segundaLinha !== null && (
+              <span className="text-meta text-tinta-suave">{segundaLinha}</span>
+            )}
             {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-              <span className="text-marca ml-2 text-xs font-medium">{CONVITE_A_AVALIAR}</span>
+              <span className="text-marca text-meta font-medium">{CONVITE_A_AVALIAR}</span>
             )}
           </span>
           {/* A-5: a prioridade carrega a palavra. Nunca só a cor. */}
           {mostrarPrioridade && (
-            <span className="text-tinta-suave border-linha shrink-0 rounded border px-1.5 py-0.5 text-xs">
-              {rotuloDePrioridade(item.prioridade)}
+            <span className="text-meta shrink-0">
+              <PalavraDePrioridade prioridade={item.prioridade} />
             </span>
           )}
         </span>
-        <span className="text-tinta text-base leading-snug">{item.titulo}</span>
-        <span className="text-tinta-suave text-xs">
-          {item.area.nome} · {item.responsavel?.nome ?? "sem responsável"} ·{" "}
-          {tempoCurto(item.registradaEm, agora)} ↻ {tempoCurto(item.atualizadaEm, agora)}
+        <span className="text-titulo-linha text-tinta leading-snug font-medium">{item.titulo}</span>
+        <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-1.5">
+          <FichaDeLocal nomeDaArea={item.area.nome} />·
+          {item.responsavel === null ? (
+            "sem responsável"
+          ) : (
+            <FichaDePessoa nome={item.responsavel.nome} />
+          )}
+          ·
+          <span className="font-mono tabular-nums">
+            {tempoCurto(item.registradaEm, agora)} ↻ {tempoCurto(item.atualizadaEm, agora)}
+          </span>
         </span>
       </Link>
     </li>
@@ -333,6 +384,10 @@ function CartaoDeTriagem({
  * *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém faz de
  * relance"*.
  */
+/** O sétimo papel da escala: 10 px, monoespaçada, versal, entreletra de 0,11em. */
+const ROTULO_DE_COLUNA =
+  "text-rotulo-coluna text-tinta-fraca h-auto px-4 py-2 font-mono font-medium tracking-[0.11em] uppercase";
+
 function TabelaDeTriagem({
   itens,
   destinoDoItem,
@@ -350,79 +405,82 @@ function TabelaDeTriagem({
 }) {
   return (
     <div className="hidden md:block">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="text-tinta-suave border-linha border-b">
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Status
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Título
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Onde
-            </th>
-            {mostrarPrioridade && (
-              <th scope="col" className="py-2 pr-3 font-medium">
-                Prioridade
-              </th>
-            )}
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Responsável
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              Tempo
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {itens.map((item) => (
-            <tr key={item.id} className="border-linha border-b align-top">
-              <td className="py-3 pr-3">
-                <span className="text-tinta block">{item.statusRotulo}</span>
-                {/* **A MESMA função do cartão** — critério 23.6. Duas condições que precisam concordar
-                    em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */}
-                {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo) !== null && (
-                  <span className="text-tinta-suave block text-xs">
-                    {segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo)}
+      <Table>
+        <TableHeader>
+          <TableRow className="border-linha-suave hover:bg-transparent">
+            <TableHead className={ROTULO_DE_COLUNA}>Status</TableHead>
+            <TableHead className={ROTULO_DE_COLUNA}>Título</TableHead>
+            <TableHead className={ROTULO_DE_COLUNA}>Onde</TableHead>
+            {mostrarPrioridade && <TableHead className={ROTULO_DE_COLUNA}>Prioridade</TableHead>}
+            <TableHead className={ROTULO_DE_COLUNA}>Responsável</TableHead>
+            <TableHead className={ROTULO_DE_COLUNA}>Tempo</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {itens.map((item) => {
+            /* **A MESMA função dos outros dois recortes** — critério 23.6. Duas condições que precisam
+               concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */
+            const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
+
+            return (
+              <TableRow key={item.id} className={`${LINHA_DA_LISTA} align-top`}>
+                <TableCell className="px-4 py-3">
+                  <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+                  {segundaLinha !== null && (
+                    <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
+                  )}
+                  {/* **A marca vale nos TRÊS recortes**, e não só no do Solicitante: a condição do
+                      critério 27.5 é POR ITEM, e limitá-la ao recorte A deixaria o **Gestor-autor** — o
+                      síndico morador — sem convite. */}
+                  {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
+                    <span className="text-marca text-meta mt-1 block font-medium">
+                      {CONVITE_A_AVALIAR}
+                    </span>
+                  )}
+                </TableCell>
+                {/* **O `whitespace-normal` desfaz o `whitespace-nowrap` que o `TableCell` do catálogo
+                    traz.** O título é texto livre de até 120 caracteres; sem isto a tabela rolaria na
+                    horizontal em vez de embrulhar, que é a leitura que o recorte B existe para dar. */}
+                <TableCell className="px-4 py-3 whitespace-normal">
+                  <Link
+                    href={destinoDoItem(item.id)}
+                    className="text-titulo-linha text-tinta font-medium underline-offset-4 hover:underline"
+                  >
+                    {item.titulo}
+                  </Link>
+                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
+                    <IconeDeCategoria
+                      nome={iconePorCategoria[item.categoria.id] ?? "tag"}
+                      className="size-3.5 shrink-0"
+                    />
+                    {item.categoria.nome}
+                    {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
                   </span>
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  <FichaDeLocal nomeDaArea={item.area.nome} />
+                </TableCell>
+                {mostrarPrioridade && (
+                  <TableCell className="text-interface px-4 py-3">
+                    <PalavraDePrioridade prioridade={item.prioridade} />
+                  </TableCell>
                 )}
-                {/* **A marca vale nos TRÊS recortes**, e não só no do Solicitante: a condição do critério
-                    27.5 é POR ITEM, e limitá-la ao recorte A deixaria o **Gestor-autor** — o síndico
-                    morador — sem convite até o item 28 trazer o `?autor=eu`. */}
-                {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-                  <span className="text-marca block text-xs font-medium">{CONVITE_A_AVALIAR}</span>
-                )}
-              </td>
-              <td className="py-3 pr-3">
-                <Link
-                  href={destinoDoItem(item.id)}
-                  className="text-tinta font-medium underline-offset-4 hover:underline"
-                >
-                  {item.titulo}
-                </Link>
-                <span className="text-tinta-suave mt-0.5 flex items-center gap-1.5 text-xs">
-                  <IconeDeCategoria
-                    nome={iconePorCategoria[item.categoria.id] ?? "tag"}
-                    className="size-3.5 shrink-0"
-                  />
-                  {item.categoria.nome}
-                  {item.quantidadeDeAnexos > 0 && ` · ${item.quantidadeDeAnexos} foto`}
-                </span>
-              </td>
-              <td className="text-tinta-suave py-3 pr-3">{item.area.nome}</td>
-              {mostrarPrioridade && (
-                <td className="text-tinta-suave py-3 pr-3">{rotuloDePrioridade(item.prioridade)}</td>
-              )}
-              <td className="text-tinta-suave py-3 pr-3">{item.responsavel?.nome ?? "—"}</td>
-              <td className="text-tinta-suave py-3 whitespace-nowrap">
-                <span className="block">{tempoCurto(item.registradaEm, agora)}</span>
-                <span className="block text-xs">↻ {tempoCurto(item.atualizadaEm, agora)}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <TableCell className="px-4 py-3">
+                  {item.responsavel === null ? (
+                    <span className="text-tinta-fraca">—</span>
+                  ) : (
+                    <FichaDePessoa nome={item.responsavel.nome} />
+                  )}
+                </TableCell>
+                <TableCell className="text-tinta-suave text-meta px-4 py-3 font-mono whitespace-nowrap tabular-nums">
+                  <span className="block">{tempoCurto(item.registradaEm, agora)}</span>
+                  <span className="block">↻ {tempoCurto(item.atualizadaEm, agora)}</span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }

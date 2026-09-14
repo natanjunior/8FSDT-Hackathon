@@ -57,3 +57,35 @@ export function tempoCurto(iso: string, agora: number): string {
 
   return `${Math.floor(horas / 24)} d`;
 }
+
+/**
+ * A hora do corte da listagem — `09h14`.
+ *
+ * **O fuso é escrito, e não herdado do contêiner.** É o mesmo argumento de `dataHoraComSegundos` e de
+ * `linha-do-tempo.ts`: o servidor roda em UTC, e um produto de condomínio brasileiro tem um fuso.
+ * Herdá-lo do contêiner faria a linha de deriva nomear a hora errada.
+ *
+ * **`hourCycle: "h23"`** é o que garante `00h00` em vez de `24h00`.
+ *
+ * **O separador é `h`, e não `:`** — aqui a hora aparece no meio de uma frase, e não como carimbo. É a
+ * mesma escolha que `linha-do-tempo.ts` fez pela mesma razão, e a oposta da trilha de auditoria, que
+ * responde *"prove"*.
+ */
+const CORTE = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "America/Sao_Paulo",
+});
+
+export function horaDoCorte(iso: string): string {
+  const instante = Date.parse(iso);
+  if (Number.isNaN(instante)) return "—";
+
+  // Montado a partir das partes nomeadas, e não de um `replace` sobre o `format`: o separador que a ICU
+  // escolhe é aposta, inclusive sobre espaços estreitos que não se veem no diff.
+  const partes = new Map(
+    CORTE.formatToParts(new Date(instante)).map((parte) => [parte.type, parte.value]),
+  );
+  return `${partes.get("hour")}h${partes.get("minute")}`;
+}

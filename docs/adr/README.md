@@ -37,9 +37,10 @@ opções não foram escolhidas.
 | [0004](0004-execucao-em-container-no-azure.md) | Execução em container no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
 | [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão; o lint é a verificação | Aceita |
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
-| [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Aceita |
+| [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind: o código dos componentes mora no repositório | Parcialmente substituída pela 0010 |
 | [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, não a pirâmide | Aceita |
 | [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
+| [0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) | O componente de gráfico do catálogo entra, e com ele o Recharts como dependência instalada | Aceita |
 
 As duas decisões de estrutura interna do código são a 0005 e a 0006, escritas em 21/08/2026. Elas se
 leem melhor em par: a primeira decide como a dependência é invertida, e a segunda decide onde os arquivos

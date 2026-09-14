@@ -1,7 +1,22 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* A variante escura aponta para os estados que este produto usa — `data-theme` e a consulta de mídia —,
+   e não para a classe `.dark` do catálogo, que aqui só existe nas páginas de documentação, postas pelo
+   `next-themes` do Fumadocs no elemento raiz que as duas superfícies dividem.
+   Escrita com `html` em vez de `:root` de propósito: o `tema.test.ts` acha os blocos por `indexOf` do
+   seletor, e repetir aqui o literal `:root:not([data-theme="light"])` faria o guarda ler este bloco no
+   lugar do bloco de tokens, dezessete linhas adiante. */
+@custom-variant dark {
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(html:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 /* ============================================================================
    Vocabulário visual do Resolve Aí
@@ -34,6 +49,30 @@
      esta linha é o piso, e é o que faz a regra do :root puro valer. */
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --radius: 0.625rem;
+
+  /* A segunda família. Ela é tipografia, então vive só aqui: cor muda entre temas, letra não.
+     O valor nomeia a família porque a variável do next/font é declarada no <body> — esta é o piso,
+     e vale se a fonte não carregar. */
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- A escala, sete papéis (guia §3). Não há tamanho fora destes. ---- */
+  --texto-titulo-pagina: 1.625rem;   /* 26 px · 31 · 600 · -0.021em */
+  --texto-titulo-bloco: 1.1875rem;   /* 19 px · 25 · 600 · -0.012em */
+  --texto-titulo-linha: 0.9375rem;   /* 15 px · 21 · 500 */
+  --texto-corpo: 0.90625rem;         /* 14.5 px · 22 · 400 */
+  --texto-interface: 0.84375rem;     /* 13.5 px · 19 · 400 ou 500 */
+  --texto-meta: 0.78125rem;          /* 12.5 px · 17 · 400 */
+  --texto-rotulo-coluna: 0.625rem;   /* 10 px · 500 · versal · 0.11em · monoespaçada */
+
+  /* ---- Movimento (guia §6). Só `transform` e `opacity` animam. ---- */
+  --curva-pressao: cubic-bezier(0.23, 1, 0.32, 1);
+  --curva-ponteiro: ease;
+  --curva-sobreposicao: cubic-bezier(0.23, 1, 0.32, 1);
+  --curva-gaveta: cubic-bezier(0.32, 0.72, 0, 1);
+  --tempo-pressao: 160ms;
+  --tempo-ponteiro: 150ms;
+  --tempo-sobreposicao: 200ms;
+  --tempo-gaveta: 300ms;
 
   /* ---- Vocabulário -------------------------------------------------------
      Os onze nomes do produto. O contrato do shadcn os consome por var().
@@ -86,16 +125,30 @@
   --destructive: oklch(0.5237 0.1707 27.0455);
   --destructive-foreground: oklch(1.0000 0 0);
 
-  /* ---- Inventário, sem consumidor hoje -----------------------------------
-     Não há barra lateral, e a ADR-0007 recusou o componente de gráfico "para
-     a primeira entrega", dizendo que ele é aditivo. Ficam no valor que o autor
-     do tema escolheu, para o dia em que houver consumidor.
+  /* A tinta da ação principal, sobre o laranja da marca. **Não inverte entre temas**, e é por isso
+     que não pode ser `var(--ink)` nem `var(--primary-foreground)`: os dois invertem, e no claro
+     dariam 4,23:1 e 4,07:1. Este mede **4,61:1 no claro e 6,64:1 no escuro**, convertendo o `oklch`
+     para luminância relativa. Um consumidor só — a variante `marca` do botão. Item 44d, critério 8. */
+  --marca-foreground: oklch(0.1808 0.0095 255.6419);
+
+  /* ---- A paleta categórica, e o que sobrou do inventário ------------------
+     Os quatro primeiros têm consumidor desde o item 44e: o gráfico de área
+     empilhada de T-07 se liga a var(--chart-1) até var(--chart-4). Os valores
+     do autor do tema não serviam como paleta categórica — --chart-3 tinha
+     croma 0,06 e lia como cinza, e --chart-1 e --chart-3 ficavam a cinco graus
+     de matiz um do outro. Estes foram medidos: croma acima de 0,10 nos três
+     coloridos, ΔEok de pelo menos 0,15 entre cada par, e 3:1 contra a
+     superfície do próprio modo. Quem os segura é o testes/interface/tema.test.ts.
+     O --chart-4 é o cinza de "Outras": croma 0,015, e a luminosidade dele vai
+     na direção da tinta do modo, para ler como chão da pilha.
+     O --chart-5 continua sem consumidor e fica no valor do autor do tema.
+     Não há barra lateral; os tokens --sidebar-* seguem no mesmo regime.
      As sombras são diferentes: shadow-xs JÁ tem consumidor — o input.tsx e a
-     variante outline do button.tsx. */
-  --chart-1: oklch(0.4833 0.0873 255.0550);
-  --chart-2: oklch(0.6031 0.1107 41.8526);
-  --chart-3: oklch(0.6191 0.0750 240.6139);
-  --chart-4: oklch(0.5406 0.0773 152.7118);
+     variante outline do button.tsx. A entrada do Recharts está na ADR-0010. */
+  --chart-1: oklch(0.5624 0.1283 47.8902);
+  --chart-2: oklch(0.5277 0.1111 248.4752);
+  --chart-3: oklch(0.5207 0.1259 152.1651);
+  --chart-4: oklch(0.4000 0.0150 264.2756);
   --chart-5: oklch(0.7288 0.1150 84.3842);
 
   --sidebar: oklch(0.9210 0.0075 260.7315);
@@ -146,10 +199,10 @@
     --destructive: oklch(0.6097 0.1654 25.8411);
     --destructive-foreground: oklch(0.1562 0.0257 25.5104);
 
-    --chart-1: oklch(0.6347 0.0756 254.6243);
-    --chart-2: oklch(0.6940 0.1017 45.5865);
-    --chart-3: oklch(0.7194 0.0599 249.4577);
-    --chart-4: oklch(0.6451 0.0736 152.4322);
+    --chart-1: oklch(0.6203 0.1399 45.6654);
+    --chart-2: oklch(0.5793 0.1297 249.3037);
+    --chart-3: oklch(0.5990 0.1193 152.4834);
+    --chart-4: oklch(0.7200 0.0150 264.2756);
     --chart-5: oklch(0.7959 0.1048 86.4619);
 
     --sidebar: oklch(0.1808 0.0095 255.6419);
@@ -191,10 +244,10 @@
   --destructive: oklch(0.6097 0.1654 25.8411);
   --destructive-foreground: oklch(0.1562 0.0257 25.5104);
 
-  --chart-1: oklch(0.6347 0.0756 254.6243);
-  --chart-2: oklch(0.6940 0.1017 45.5865);
-  --chart-3: oklch(0.7194 0.0599 249.4577);
-  --chart-4: oklch(0.6451 0.0736 152.4322);
+  --chart-1: oklch(0.6203 0.1399 45.6654);
+  --chart-2: oklch(0.5793 0.1297 249.3037);
+  --chart-3: oklch(0.5990 0.1193 152.4834);
+  --chart-4: oklch(0.7200 0.0150 264.2756);
   --chart-5: oklch(0.7959 0.1048 86.4619);
 
   --sidebar: oklch(0.1808 0.0095 255.6419);
@@ -267,14 +320,26 @@
   --shadow-2xl: var(--shadow-2xl);
 
   --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --text-titulo-pagina: var(--texto-titulo-pagina);
+  --text-titulo-bloco: var(--texto-titulo-bloco);
+  --text-titulo-linha: var(--texto-titulo-linha);
+  --text-corpo: var(--texto-corpo);
+  --text-interface: var(--texto-interface);
+  --text-meta: var(--texto-meta);
+  --text-rotulo-coluna: var(--texto-rotulo-coluna);
 
   --color-marca: var(--accent);
+  --color-marca-foreground: var(--marca-foreground);
   --color-superficie: var(--surface);
   --color-tinta: var(--ink);
   --color-tinta-suave: var(--ink-soft);
   --color-tinta-fraca: var(--ink-faint);
   --color-linha: var(--line);
   --color-linha-suave: var(--line-soft);
+
+  --animate-barra-de-progresso: barra-de-progresso 1.1s linear infinite;
 }
 
 @layer base {
@@ -291,5 +356,42 @@
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+
+  /* Compromisso de acessibilidade: nenhuma informação vive só em passagem do ponteiro. O que o cartão
+     mostra existe em outro lugar — a referência do lugar em T-05, o contato em T-08. */
+  @media not all and (hover: hover) and (pointer: fine) {
+    [data-cartao-de-ponteiro] {
+      display: none !important;
+    }
+  }
+
+  /* Guia §6: sob movimento reduzido, **a opacidade permanece e o deslocamento sai**. Tratado uma vez,
+     aqui, em vez de em cada componente — que é onde a regra se perde.
+
+     A regra é seletiva de propósito. Zerar toda transição e toda animação é a receita comum, e ela
+     descumpre o guia: apagaria também o esmaecer, que não desloca nada e é o que mantém a troca de estado
+     legível para quem pediu menos movimento. O que sai é o que move — `transform` — e o que rola. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-property: opacity, color, background-color, border-color, box-shadow !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Guia §6 — a barra de espera do cartão de T-03. **Só `transform` anima**, nunca `width`: as duas
+   propriedades produzem a mesma imagem e só uma roda fora da linha principal. O trecho ocupa um terço da
+   trilha e atravessa; sob `prefers-reduced-motion` o `@layer base` já a interrompe. */
+@keyframes barra-de-progresso {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
   }
 }

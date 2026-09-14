@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import type { ZodType } from "zod";
 
 import {
@@ -287,8 +288,16 @@ export function semOrganizacao<C>(
  *
  * **É aqui que os dois caminhos convergem**, e é por isso que não há duas resoluções a manter em
  * sincronia. O que a §4.4 enumera é o que acontece *depois* desta linha, não uma segunda máquina.
+ *
+ * **A resolução é memoizada por renderização**, e isto passou a importar quando a casca do item 44b
+ * nasceu: layout e página resolvem contexto cada um, e sem o `cache` seriam duas leituras de cookie e
+ * duas resoluções por navegação, em treze rotas.
+ *
+ * O alcance do `cache` do React é a passagem de renderização — requisições diferentes não se enxergam.
+ * **A escrita de cookie da §4.3 continua correta:** ela passa a acontecer uma vez em vez de duas, que é o
+ * que já se pretendia.
  */
-async function abrirRequisicao(): Promise<{
+const abrirRequisicao = cache(async function abrirRequisicao(): Promise<{
   resolucao: ResolucaoDeContexto;
   portas: PortasGlobais;
   armazenamento: Awaited<ReturnType<typeof armazenamentoDeCookies>>;
@@ -315,7 +324,7 @@ async function abrirRequisicao(): Promise<{
   }
 
   return { resolucao, portas, armazenamento };
-}
+});
 
 /**
  * O `access_token` do cabeçalho `Authorization`, quando houver.
