@@ -38,6 +38,7 @@ const APROVADOS = new Set([
   "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
   "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
   "docs/adr/0009-documentacao-como-paginas-do-produto.md",
+  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
   "docs/adr/README.md",
   "docs/arquitetura.md",
   "docs/definition-of-done.md",

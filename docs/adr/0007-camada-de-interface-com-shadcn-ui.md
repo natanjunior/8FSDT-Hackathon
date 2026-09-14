@@ -5,7 +5,9 @@ description: "O código dos componentes mora no repositório, e o schema que val
 
 # ADR-0007 — Camada de interface com shadcn/ui sobre Tailwind
 
-**Status:** Aceita · 21/08/2026 · Complementa a [ADR-0002](0002-stack-e-plataforma.md)
+**Status:** Parcialmente substituída pela
+[ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) · 21/08/2026 · Complementa a
+[ADR-0002](0002-stack-e-plataforma.md)
 
 A ADR-0002 escolheu Next.js com PWA e decidiu construir APIs próprias, e não disse nada sobre como a
 interface seria construída: nem biblioteca de componentes, nem abordagem de CSS. As duas escolhas
@@ -44,9 +46,10 @@ se atualiza: o CLI copia o código-fonte para dentro do projeto. Trocamos depend
 código que se mantém, então nada quebra numa atualização que não pedimos, e em contrapartida a manutenção
 é nossa.
 
-A frase tem **duas exceções conhecidas, e é honesto nomeá-las**: os primitivos e os ícones chegam como
-pacote instalado, e não como código copiado. A regra continua verdadeira no que importa, que é o código
-dos componentes ser nosso; o que vem instalado é a base sobre a qual ele roda.
+A frase tem **três exceções conhecidas, e é honesto nomeá-las**: os primitivos, os ícones e a biblioteca
+de gráfico chegam como pacote instalado, e não como código copiado. A terceira entrou depois desta ADR,
+pela [ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md). A regra continua verdadeira no que
+importa, que é o código dos componentes ser nosso; o que vem instalado é a base sobre a qual ele roda.
 
 **2 · A base de primitivos é escolha explícita, e a predominante é o meta-pacote `radix-ui`.** O projeto
 de origem oferece mais de uma base, e herdar o padrão sem decidir produziria uma interface com bases
