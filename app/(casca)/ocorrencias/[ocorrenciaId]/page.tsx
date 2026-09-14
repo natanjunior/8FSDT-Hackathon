@@ -15,6 +15,7 @@ import { listarVinculos } from "@/aplicacao/organizacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
@@ -620,16 +621,13 @@ export default async function Ocorrencia({
             <h2 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
               O ciclo
             </h2>
-            <Suspense
-              fallback={
-                <EsqueletoDaRegua statusAtual={detalhe.status} nomeDoStatus={nomeDoStatus} />
-              }
-            >
+            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
               <ReguaComDatas
                 eventos={linhaDoTempoPedida}
                 statusAtual={detalhe.status}
                 nomeDoStatus={nomeDoStatus}
                 notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                rotuloDaSaida={detalhe.statusRotulo}
               />
             </Suspense>
           </section>
@@ -877,7 +875,7 @@ export default async function Ocorrencia({
               nenhuma. Tirá-lo apagaria uma capacidade entregue. */}
           <Link
             href={voltarPara}
-            className="text-marca self-start py-1 text-interface underline underline-offset-4"
+            className="text-marca inline-flex min-h-11 items-center self-start text-interface underline underline-offset-4"
           >
             Voltar
           </Link>
@@ -983,19 +981,21 @@ function EsqueletoDaLinhaDoTempo() {
       {/* Cabeçalho **sem a contagem** — não se conta o que ainda não chegou. */}
       <h2 className="text-titulo-bloco text-tinta font-semibold">Linha do tempo</h2>
       <div aria-hidden className="flex flex-col">
-        {[
-          [46, 88],
-          [52, 74],
-          [40, 92],
-        ].map(([autor, frase], indice) => (
+        {(
+          [
+            [46, 88],
+            [52, 74],
+            [40, 92],
+          ] as const
+        ).map(([autor, frase], indice) => (
           <div key={autor} className="relative flex gap-3 pb-4">
             {indice < 2 && (
               <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
             )}
             <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border" />
             <div className="flex w-full flex-col gap-1.5">
-              <Skeleton className="bg-secondary h-3" style={{ width: `${String(autor)}%` }} />
-              <Skeleton className="bg-secondary h-4" style={{ width: `${String(frase)}%` }} />
+              <Skeleton className="bg-secondary h-3" style={{ width: `${autor}%` }} />
+              <Skeleton className="bg-secondary h-4" style={{ width: `${frase}%` }} />
             </div>
           </div>
         ))}
@@ -1020,11 +1020,13 @@ async function ReguaComDatas({
   statusAtual,
   nomeDoStatus,
   notaDaSaida,
+  rotuloDaSaida,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   statusAtual: string;
   nomeDoStatus: (status: string) => string;
   notaDaSaida: string | null;
+  rotuloDaSaida: string;
 }) {
   /**
    * **Só transições entram**, já ordenadas da mais antiga para a mais recente, que é como a linha do
@@ -1046,17 +1048,35 @@ async function ReguaComDatas({
       statusAtual={statusAtual}
       nomeDoStatus={nomeDoStatus}
       notaDaSaida={notaDaSaida}
+      rotuloDaSaida={rotuloDaSaida}
     />
   );
 }
 
-/** O trilho sem datas, enquanto a linha do tempo não chega. O ciclo é visível no primeiro pixel. */
-function EsqueletoDaRegua({
-  statusAtual,
-  nomeDoStatus,
-}: {
-  statusAtual: string;
-  nomeDoStatus: (status: string) => string;
-}) {
-  return <ReguaDoCiclo transicoes={[]} statusAtual={statusAtual} nomeDoStatus={nomeDoStatus} />;
+/**
+ * **O trilho sem datas, enquanto a linha do tempo não chega. O ciclo é visível no primeiro pixel.**
+ *
+ * **Não é `ReguaDoCiclo` com `transicoes={[]}`.** Sem data nenhuma, `lerOCiclo` marca como *por
+ * alcançar* todo passo que não seja o atual — numa ocorrência em `em_atendimento` isso pintaria
+ * *Aberta* e *Em análise* como pendentes, e numa `cancelada` riscaria os quatro e poria a marca de
+ * saída **acima** de *Aberta*. Um ciclo falso, ainda que por um instante.
+ *
+ * **O esqueleto desenha o próprio trilho**, `aria-hidden` e sem distinção de estado entre os quatro
+ * passos — nenhum alcançado, nenhum atual, nenhum riscado — e sem a marca de saída, que é exatamente o
+ * dado que ainda não chegou. Só os nomes, na mesma geometria da régua de verdade.
+ */
+function EsqueletoDaRegua({ nomeDoStatus }: { nomeDoStatus: (status: string) => string }) {
+  return (
+    <div aria-hidden className="flex flex-col">
+      {CICLO.map((status, indice) => (
+        <div key={status} className="relative flex gap-3 pb-4 last:pb-0">
+          {indice < CICLO.length - 1 && (
+            <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+          )}
+          <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent" />
+          <span className="text-interface text-tinta-fraca">{nomeDoStatus(status)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }

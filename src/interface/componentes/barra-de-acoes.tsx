@@ -81,6 +81,11 @@ import {
  * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
  * era a barra que divergia do desenho — não o rótulo.
  *
+ * **`lg:flex-none` no primário, e não só `flex-1`:** a partir de `lg` o contêiner vira coluna
+ * (`lg:flex-col`), e `flex: 1 1 0%` passa a governar o eixo vertical do botão em vez do horizontal — o
+ * botão em destaque cresceria em altura, sozinho, dentro da pilha. `lg:w-full` já cuida da largura; o que
+ * falta é o `lg:flex-none` que devolve ao primário o mesmo comportamento dos outros dois nessa largura.
+ *
  * **E o destaque deixa de ser decidido por ÍNDICE.** `acoes[0]` acertava por coincidência: a ordem do enum
  * põe `atribuir-responsavel` antes de `iniciar-atendimento`, e em `em_analise` com responsável o destaque
  * seria *Atribuir* — na tela onde o responsável acabou de ser atribuído. Quem decide é a página, com
@@ -191,7 +196,7 @@ export function BarraDeAcoes({
                   return (
                     <div
                       key={acao.comando}
-                      className={`lg:w-full ${ehPrimario ? "flex-1" : "flex-none"}`}
+                      className={`lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
                     >
                       {formulario}
                     </div>
@@ -205,7 +210,7 @@ export function BarraDeAcoes({
                     variant={ehPrimario ? "marca" : "outline"}
                     disabled={enviando}
                     onClick={() => void disparar(acao.comando)}
-                    className={`h-12 text-base lg:w-full ${ehPrimario ? "flex-1" : "flex-none"}`}
+                    className={`h-12 text-base lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
                   >
                     {enviando ? "Enviando…" : acao.rotulo}
                   </Button>

@@ -10,7 +10,8 @@ import { lerOCiclo, type PassoDoCiclo, type TransicaoDoCiclo } from "@/interface
  *
  * **A cor da marca NÃO entra**, nem no marcador do passo atual: o guia §2 a reserva para a ação
  * principal da tela, e a ação principal de T-05 é o comando do momento. O passo atual se distingue por
- * **peso, preenchimento e a data ao lado** — três coisas, nenhuma delas só cor.
+ * **peso, preenchimento e a data ao lado** — três coisas, nenhuma delas só cor —, e para quem lê por
+ * leitor de tela o estado atual é publicado também por `aria-current="step"`.
  *
  * **Os nomes são os de quem lê.** Quem chama passa `nomeDoStatus` já com a lente aplicada (item 31):
  * para o Gestor o terceiro passo é *"Em atendimento"*, para o Solicitante é *"Em execução"*. Passar a
@@ -35,6 +36,7 @@ export function ReguaDoCiclo({
   statusAtual,
   nomeDoStatus,
   notaDaSaida = null,
+  rotuloDaSaida,
 }: {
   /** Da mais antiga para a mais recente, com o instante já em palavra. */
   transicoes: readonly TransicaoDoCiclo[];
@@ -42,6 +44,18 @@ export function ReguaDoCiclo({
   nomeDoStatus: (status: string) => string;
   /** O motivo da pausa, quando há — a mesma frase que o bloco 1a mostra. */
   notaDaSaida?: string | null;
+  /**
+   * **O rótulo do selo do bloco 1a, e não `nomeDoStatus(foraDaLinha.status)`.** Para o Solicitante em
+   * `pausada`, `nomeDoStatus` devolve um rótulo seco — *"Parada"* — porque `rotulosDeStatus` chama
+   * `rotuloDeStatus(status, null, lente)`; o selo imprime um dos quatro rótulos por motivo, como *"Parada
+   * — esperando material chegar"*. Sem esta prop a régua e o selo diriam duas coisas diferentes do mesmo
+   * estado, dois blocos de distância.
+   *
+   * **É sempre o rótulo certo**, e a razão é de tipo: `foraDaLinha` só é não nulo quando `statusAtual` é
+   * `pausada` ou `cancelada` (`lerOCiclo`), e `foraDaLinha.status` **é** o `statusAtual` — nunca outro
+   * status. O rótulo da saída é sempre o rótulo do status atual, que é exatamente o que o selo já mostra.
+   */
+  rotuloDaSaida: string;
 }) {
   const { passos, foraDaLinha } = lerOCiclo(transicoes, statusAtual);
 
@@ -62,9 +76,7 @@ export function ReguaDoCiclo({
           className="border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-[2px] border border-dashed"
         />
         <span className="flex min-w-0 flex-col">
-          <span className="text-interface text-tinta font-medium">
-            {nomeDoStatus(foraDaLinha.status)}
-          </span>
+          <span className="text-interface text-tinta font-medium">{rotuloDaSaida}</span>
           <span className="text-tinta-suave text-meta">
             {foraDaLinha.status === "pausada"
               ? (notaDaSaida ?? "O atendimento está parado; o ciclo não recua.")
@@ -82,7 +94,10 @@ export function ReguaDoCiclo({
 
       {passos.map((passo, indice) => (
         <Fragment key={passo.status}>
-          <li className="relative flex gap-3 pb-4 last:pb-0">
+          <li
+            className="relative flex gap-3 pb-4 last:pb-0"
+            aria-current={passo.estado === "atual" ? "step" : undefined}
+          >
             {/* **O trilho, e ele não desce do último.** `aria-hidden` porque é o desenho da relação que
                 a ordem do `<ol>` já publica para quem lê por leitor de tela. */}
             {indice < passos.length - 1 && (
@@ -97,6 +112,10 @@ export function ReguaDoCiclo({
             <span className="flex min-w-0 flex-col">
               <span className={`text-interface ${PALAVRA[passo.estado]}`}>
                 {nomeDoStatus(passo.status)}
+                {/* **O quarto estado, publicado em palavra.** `alcancado`, `atual` e `por-alcancar` já
+                    têm pista textual própria — a data ao lado, ou `aria-current` — e `inalcancavel` não
+                    tinha nenhuma fora do `line-through` visual. */}
+                {passo.estado === "inalcancavel" && <span className="sr-only"> (não alcançada)</span>}
               </span>
               {/* **A data em monoespaçada** — guia §3: a mono é para dado temporal, contagem e
                   identificador. O formato é o de `dataHora`, e não uma segunda forma de escrever hora. */}
