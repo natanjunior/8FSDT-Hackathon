@@ -67,6 +67,7 @@ import {
   termosDaBusca,
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
+import { lerOCiclo } from "@/interface/componentes/ciclo";
 import {
   enviarComentario,
   executarComando,
@@ -3167,5 +3168,97 @@ describe("o carimbo da trilha de auditoria — com segundos, e no fuso escrito",
 
   it("o campo vazio é o travessão do protótipo, escrito uma vez", () => {
     expect(CAMPO_VAZIO).toBe("—");
+  });
+});
+
+describe("a leitura do ciclo — critérios 44d.2 e 44d.7", () => {
+  it("recém-criada: o primeiro passo é o atual, e os três seguintes esperam", () => {
+    const leitura = lerOCiclo([{ status: "aberta", em: "15/08/2026, 09h40" }], "aberta");
+
+    expect(leitura.passos.map((passo) => passo.estado)).toEqual([
+      "atual",
+      "por-alcancar",
+      "por-alcancar",
+      "por-alcancar",
+    ]);
+    expect(leitura.passos[0]?.em).toBe("15/08/2026, 09h40");
+    expect(leitura.passos[1]?.em).toBeNull();
+    expect(leitura.foraDaLinha).toBeNull();
+  });
+
+  it("resolvida: os quatro têm data, e o último é o atual", () => {
+    const leitura = lerOCiclo(
+      [
+        { status: "aberta", em: "15/08, 09h40" },
+        { status: "em_analise", em: "15/08, 10h10" },
+        { status: "em_atendimento", em: "16/08, 08h00" },
+        { status: "resolvida", em: "17/08, 17h30" },
+      ],
+      "resolvida",
+    );
+
+    expect(leitura.passos.map((passo) => passo.estado)).toEqual([
+      "alcancado",
+      "alcancado",
+      "alcancado",
+      "atual",
+    ]);
+    expect(leitura.foraDaLinha).toBeNull();
+  });
+
+  it("pausada NÃO consome etapa: o ciclo não anda e não recua", () => {
+    const leitura = lerOCiclo(
+      [
+        { status: "aberta", em: "15/08, 09h40" },
+        { status: "em_analise", em: "15/08, 10h10" },
+      ],
+      "pausada",
+    );
+
+    // Nenhum passo é `atual`: `pausada` não está no ciclo, e o que foi alcançado continua alcançado.
+    expect(leitura.passos.map((passo) => passo.estado)).toEqual([
+      "alcancado",
+      "alcancado",
+      "por-alcancar",
+      "por-alcancar",
+    ]);
+    expect(leitura.foraDaLinha).toEqual({ status: "pausada", depoisDe: "em_analise" });
+  });
+
+  it("cancelada é saída: o que não foi alcançado vira INALCANÇÁVEL, não pendente", () => {
+    const leitura = lerOCiclo([{ status: "aberta", em: "15/08, 09h40" }], "cancelada");
+
+    // A diferença com o caso da pausa é o ponto do critério 7: prometer "por alcançar" a quem não vai
+    // alcançar é a tela mentindo.
+    expect(leitura.passos.map((passo) => passo.estado)).toEqual([
+      "alcancado",
+      "inalcancavel",
+      "inalcancavel",
+      "inalcancavel",
+    ]);
+    expect(leitura.foraDaLinha).toEqual({ status: "cancelada", depoisDe: "aberta" });
+  });
+
+  it("retomada: o passo guarda a PRIMEIRA vez em que foi alcançado", () => {
+    const leitura = lerOCiclo(
+      [
+        { status: "aberta", em: "15/08, 09h40" },
+        { status: "em_analise", em: "15/08, 10h10" },
+        { status: "em_atendimento", em: "16/08, 08h00" },
+        { status: "pausada", em: "16/08, 11h00" },
+        { status: "em_atendimento", em: "18/08, 09h00" },
+      ],
+      "em_atendimento",
+    );
+
+    // A segunda passagem por `em_atendimento` não reescreve a data: o ciclo conta quando se chegou,
+    // não quando se voltou. E `pausada` não vira passo.
+    expect(leitura.passos[2]?.em).toBe("16/08, 08h00");
+    expect(leitura.passos.map((passo) => passo.status)).toEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "resolvida",
+    ]);
   });
 });
