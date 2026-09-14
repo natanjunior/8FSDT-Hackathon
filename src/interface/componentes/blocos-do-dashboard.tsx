@@ -1,19 +1,12 @@
 /**
  * ============================================================================
- *  Os três desenhos de T-07 — e nenhuma biblioteca de gráfico
+ *  Os dois desenhos de T-07 — o cartão e a lista com barra
  * ============================================================================
  *
- * **O componente de gráfico já saiu da primeira entrega** — `backlog.md:1258-1260`, no B-05: *"a Q-P6 (…)
- * estabeleceu o critério para este caso com todas as letras — 'a decisão é do hub porque é dependência,
- * não desenho'. **Foi assim que o componente de gráfico saiu da primeira entrega**"*. As barras são blocos
- * de HTML com largura em `%`, exatamente como o protótipo desenha (`telas.html:3423-3425`). **Nenhuma
- * dependência nova entra no `package.json` por este item.**
- *
- * *(Revisão de 29/08/2026: a citação era `backlog.md:1246-1248`, que é o B-03 — outro achado. E "a Q-P6
- * foi fechada" é forte demais: `prototipo-low-fi.md:1280` recomenda **(b)** e diz que a decisão é do hub,
- * e o R-04 da mesma página — `:1549` — ainda a lista como **aberta**. O que está fechado é o **fato**: a
- * dependência não entrou. O plano não a introduz, então a diferença não muda uma linha de código — mas a
- * frase, sim, e é achado do hub.)*
+ * **As colunas mensais saíram no item 44e**, e com elas o desenho feito de `<span>` com largura em `%`
+ * para o bloco 1. Quem desenha a recorrência agora é o componente de gráfico do catálogo, numa ilha
+ * cliente, sobre a paleta categórica re-escalonada — a decisão está na ADR-0010, e a recusa que a
+ * ADR-0007 tinha escrito continua onde estava, válida para a data em que foi tomada.
  *
  * **Compromisso A-5 do Definition of Done, e aqui ele é literal:** *nada é comunicado só por cor*. Toda
  * barra é `aria-hidden` e vem **sempre** acompanhada do número em texto — a barra é enfeite de leitura, e o
@@ -68,6 +61,9 @@ function largura(quantidade: number, maior: number): number {
  *
  * **A palavra vai DENTRO do bloco, não num rodapé** — decisão 3 do protótipo
  * (`prototipo-low-fi.md:687-691`): *"quem lê um número não desce até o rodapé antes"*.
+ *
+ * O raio, o respiro e a sombra são os do guia, e são o mesmo literal que T-05 usa em três seções: escrever
+ * o mesmo desenho de duas formas é como as telas divergem.
  */
 export function Cartao({
   numero,
@@ -81,12 +77,12 @@ export function Cartao({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-linha bg-superficie flex flex-col gap-3 rounded-md border p-4">
+    <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
       <h2 className="flex flex-wrap items-baseline gap-2">
-        <span className="text-tinta-fraca text-xs font-semibold tracking-wide uppercase">
+        <span className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
           {numero} · {titulo}
         </span>
-        <span className="text-tinta-suave text-xs">{quando}</span>
+        <span className="text-tinta-suave text-meta">{quando}</span>
       </h2>
       {children}
     </section>
@@ -108,6 +104,10 @@ export type ItemDoMedidor = {
  * **A barra é proporcional ao MAIOR item da própria lista**, não a um teto absoluto: o que a tela compara
  * é o item contra os irmãos dele. Com todos a zero, todas as barras têm largura zero — que é o estado da
  * organização recém-criada (critério 32.3), e continua mostrando a estrutura.
+ *
+ * **A barra ancora no zero, e é redonda só na ponta do dado.** Com as duas pontas redondas, um valor baixo
+ * vira uma pílula flutuando e a marca da origem se descola da linha de base. O trilho continua redondo dos
+ * dois lados, porque ele é a régua e não o dado.
  */
 export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
   const maior = itens.reduce((maximo, item) => Math.max(maximo, item.quantidade), 0);
@@ -117,7 +117,7 @@ export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
       {itens.map((item) => (
         <li
           key={item.rotulo}
-          className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[10rem_1fr_auto]"
+          className="text-corpo grid grid-cols-[7rem_1fr_auto] items-center gap-3 sm:grid-cols-[10rem_1fr_auto]"
         >
           <span className="text-tinta truncate">{item.rotulo}</span>
 
@@ -125,15 +125,15 @@ export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
             /* `aria-hidden` porque o número ao lado JÁ diz tudo — A-5. */
             <span aria-hidden className="bg-linha-suave h-2 w-full rounded">
               <span
-                className="bg-marca block h-2 rounded"
+                className="bg-marca block h-2 rounded-r"
                 style={{ width: `${String(largura(item.quantidade, maior))}%` }}
               />
             </span>
           ) : (
-            <span className="text-tinta-fraca text-xs">{item.vazio}</span>
+            <span className="text-tinta-fraca text-meta">{item.vazio}</span>
           )}
 
-          <span className="text-tinta-suave text-xs tabular-nums">
+          <span className="text-tinta-suave text-meta tabular-nums">
             {item.texto ?? String(item.quantidade)}
           </span>
         </li>
@@ -146,78 +146,3 @@ export type SerieMensal = {
   rotulo: string;
   porMes: readonly { mes: string; quantidade: number }[];
 };
-
-const ALTURA_MAXIMA = 64;
-
-/**
- * As colunas mensais do bloco 1, **só na tela grande** — no celular o mesmo dado vira `Medidor`.
- *
- * **Duas séries, e é decisão da tela**: com ~7 categorias e ~30 áreas, mais que duas cores não têm legenda
- * possível (achado **P-11**). Quem corta para duas é a página; a API não corta nada.
- *
- * **Cada coluna carrega o número acima dela** — A-5 de novo. E a legenda nomeia as duas séries em texto,
- * nunca só pela cor do bloco.
- */
-export function ColunasMensais({
-  series,
-  meses,
-}: {
-  series: readonly SerieMensal[];
-  meses: readonly string[];
-}) {
-  const rotulos = rotulosDosMeses(meses);
-  const maior = series.reduce(
-    (maximo, serie) =>
-      serie.porMes.reduce((interno, ponto) => Math.max(interno, ponto.quantidade), maximo),
-    0,
-  );
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-end gap-6">
-        {meses.map((mes, indice) => (
-          <div key={mes} className="flex flex-col items-center gap-1">
-            <div className="flex items-end gap-1">
-              {series.map((serie, ordem) => {
-                const ponto = serie.porMes.find((p) => p.mes === mes);
-                const quantidade = ponto?.quantidade ?? 0;
-                const altura =
-                  maior === 0 ? 2 : Math.max(2, Math.round((quantidade / maior) * ALTURA_MAXIMA));
-                return (
-                  <span key={serie.rotulo} className="flex flex-col items-center gap-1">
-                    <span className="text-tinta-suave text-xs tabular-nums">
-                      {String(quantidade)}
-                    </span>
-                    <span
-                      aria-hidden
-                      className={ordem === 0 ? "bg-marca w-5 rounded-sm" : "bg-linha w-5 rounded-sm"}
-                      style={{ height: `${String(altura)}px` }}
-                    />
-                  </span>
-                );
-              })}
-            </div>
-            <span className="text-tinta-suave text-xs">{rotulos[indice]}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-tinta-suave flex flex-wrap items-center gap-4 text-xs">
-        {series.map((serie, ordem) => (
-          <span key={serie.rotulo} className="inline-flex items-center gap-2">
-            <span
-              aria-hidden
-              className={
-                ordem === 0
-                  ? "bg-marca inline-block h-2 w-4 rounded-sm"
-                  : "bg-linha inline-block h-2 w-4 rounded-sm"
-              }
-            />
-            {serie.rotulo}
-          </span>
-        ))}
-        <span className="text-tinta-fraca">as duas categorias com mais ocorrências no período</span>
-      </p>
-    </div>
-  );
-}
