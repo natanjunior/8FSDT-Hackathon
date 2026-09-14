@@ -42,6 +42,7 @@ import {
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
+import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import {
   lerFiltroDeOcorrenciasDaUrl,
   novoTraceId,
@@ -948,32 +949,60 @@ async function LinhaDoTempo({
 
   return (
     <>
-      {/* **A contagem ao lado do título**, como o protótipo (`telas.html:2183`). **Não há estado vazio, e
-          é garantia e não sorte:** a premissa P1 faz o registro da criação nascer com a ocorrência, e o
-          repositório trata trilha vazia como invariante violada. Toda linha do tempo tem ao menos um. */}
-      <h2 className="text-tinta text-sm font-semibold">
+      {/* **A contagem ao lado do título.** **Não há estado vazio, e é garantia e não sorte:** a premissa
+          P1 faz o registro da criação nascer com a ocorrência, e o repositório trata trilha vazia como
+          invariante violada. Toda linha do tempo tem ao menos um. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">
         Linha do tempo <span className="text-tinta-fraca font-normal">{itens.length}</span>
       </h2>
-      <ol className="flex flex-col gap-3">
+
+      <ol className="flex flex-col">
         {itens.map((evento, indice) => (
-          <li key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`} className="flex flex-col gap-0.5">
-            {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. */}
-            <span className="text-tinta-fraca text-xs">
-              {autoria(
-                evento.autor.nome,
-                evento.autor.pessoaId === pessoaIdDeQuemLe,
-                dataHora(evento.ocorridoEm),
-              )}
-            </span>
-            <span className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
-              {evento.tipo === "transicao"
-                ? fraseDaTransicao(evento.rotulo, evento.observacao)
-                : evento.tipo === "mensagem"
-                  ? fraseDaMensagem(evento.texto)
-                  : fraseDaAtribuicao(
-                      evento.responsavel.nome,
-                      evento.responsavel.pessoaId === pessoaIdDeQuemLe,
-                    )}
+          <li
+            key={`${evento.tipo}-${evento.ocorridoEm}-${indice}`}
+            className="relative flex gap-3 pb-4 last:pb-0"
+          >
+            {/* **O trilho, e ele não desce do último.** Mesmo desenho da régua do ciclo: um produto, um
+                jeito de desenhar uma sequência no tempo. `aria-hidden` porque a relação já está na
+                ordem do `<ol>`. */}
+            {indice < itens.length - 1 && (
+              <span aria-hidden className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+
+            {/* **Três formas de marcador, e nenhuma delas carrega informação sozinha** — a frase abaixo
+                diz o que aconteceu, em palavras. Transição é cheio, atribuição é contorno, mensagem é
+                contorno menor. */}
+            <span
+              aria-hidden
+              className={
+                evento.tipo === "transicao"
+                  ? "bg-tinta-suave border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border"
+                  : evento.tipo === "atribuicao"
+                    ? "border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent"
+                    : "border-linha mt-2 size-[7px] shrink-0 rounded-full border bg-transparent"
+              }
+            />
+
+            <span className="flex min-w-0 flex-col gap-0.5">
+              {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. O
+                  instante vai em monoespaçada, pelo guia §3 — dado temporal. */}
+              <span className="text-tinta-fraca text-meta">
+                {autoria(
+                  evento.autor.nome,
+                  evento.autor.pessoaId === pessoaIdDeQuemLe,
+                  dataHora(evento.ocorridoEm),
+                )}
+              </span>
+              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                {evento.tipo === "transicao"
+                  ? fraseDaTransicao(evento.rotulo, evento.observacao)
+                  : evento.tipo === "mensagem"
+                    ? fraseDaMensagem(evento.texto)
+                    : fraseDaAtribuicao(
+                        evento.responsavel.nome,
+                        evento.responsavel.pessoaId === pessoaIdDeQuemLe,
+                      )}
+              </span>
             </span>
           </li>
         ))}
@@ -990,22 +1019,23 @@ async function LinhaDoTempo({
 function EsqueletoDaLinhaDoTempo() {
   return (
     <>
-      <h2 className="text-tinta text-sm font-semibold">Linha do tempo</h2>
-      <div aria-hidden className="flex flex-col gap-3">
+      {/* Cabeçalho **sem a contagem** — não se conta o que ainda não chegou. */}
+      <h2 className="text-titulo-bloco text-tinta font-semibold">Linha do tempo</h2>
+      <div aria-hidden className="flex flex-col">
         {[
           [46, 88],
           [52, 74],
           [40, 92],
-        ].map(([autor, frase]) => (
-          <div key={autor} className="flex flex-col gap-1.5">
-            <div
-              className="bg-secondary h-3 animate-pulse rounded"
-              style={{ width: `${String(autor)}%` }}
-            />
-            <div
-              className="bg-secondary h-4 animate-pulse rounded"
-              style={{ width: `${String(frase)}%` }}
-            />
+        ].map(([autor, frase], indice) => (
+          <div key={autor} className="relative flex gap-3 pb-4">
+            {indice < 2 && (
+              <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
+            )}
+            <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border" />
+            <div className="flex w-full flex-col gap-1.5">
+              <Skeleton className="bg-secondary h-3" style={{ width: `${String(autor)}%` }} />
+              <Skeleton className="bg-secondary h-4" style={{ width: `${String(frase)}%` }} />
+            </div>
           </div>
         ))}
       </div>
