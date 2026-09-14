@@ -37,10 +37,14 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * do tempo de quem abre a tela. O `GET /api/dashboard` existe para o mesmo contrato ser verdade nas duas
  * estradas, e as duas passam pela **mesma** função e pela **mesma** projeção.
  *
- * **Nada aqui é clicável** — critério 32.5. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da
- * casca leva ao mesmo lugar; os dois links das telas de erro ficam, que são saída de erro e não navegação
- * duplicada. O atalho para a lista filtrada continua recusado, e a premissa dele envelheceu pela metade:
- * `?status=` e `?categoriaId=` existem desde o item 15, mas reverter o 32.5 é decisão do hub.
+ * **Nada aqui é clicável ainda**, e isso deixou de ser regra em 14/09/2026 — passou a ser só o estado de
+ * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar; os dois
+ * links das telas de erro ficam, que são saída de erro e não navegação duplicada.
+ *
+ * **O atalho para a lista filtrada é trabalho de outro item.** Os blocos 2 e 3 já têm para onde ir —
+ * `?status=` e `?categoriaId=` existem desde o item 15. Os blocos 1 e 4 dependem de um filtro por área e
+ * de um por data que o `GET /ocorrencias` ainda não tem, e enquanto não tiverem, uma tela com dois números
+ * clicáveis e dois não precisa dizer qual é qual sem que ninguém tenha de descobrir clicando.
  *
  * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão. No
  * celular os cinco empilham na ordem numerada, e a recorrência é a que fica visível sem rolar.
