@@ -122,4 +122,13 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(sistema.has("--font-mono")).toBe(false);
     expect(escolhido.has("--font-mono")).toBe(false);
   });
+
+  it("a tinta da marca é declarada uma vez, fora dos blocos escuros", () => {
+    // `--accent` é laranja de meia-luz nos DOIS temas — 0.6031 no claro, 0.6940 no escuro —, então os
+    // dois querem tinta escura por cima. Um token que invertesse daria branco sobre laranja no claro,
+    // que mede 4,07:1. Este mede 4,61:1 no claro e 6,64:1 no escuro. Item 44d, critério 8.
+    expect(claro.has("--marca-foreground")).toBe(true);
+    expect(sistema.has("--marca-foreground")).toBe(false);
+    expect(escolhido.has("--marca-foreground")).toBe(false);
+  });
 });

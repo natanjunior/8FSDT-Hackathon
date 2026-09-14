@@ -125,6 +125,12 @@
   --destructive: oklch(0.5237 0.1707 27.0455);
   --destructive-foreground: oklch(1.0000 0 0);
 
+  /* A tinta da ação principal, sobre o laranja da marca. **Não inverte entre temas**, e é por isso
+     que não pode ser `var(--ink)` nem `var(--primary-foreground)`: os dois invertem, e no claro
+     dariam 4,23:1 e 4,07:1. Este mede **4,61:1 no claro e 6,64:1 no escuro**, convertendo o `oklch`
+     para luminância relativa. Um consumidor só — a variante `marca` do botão. Item 44d, critério 8. */
+  --marca-foreground: oklch(0.1808 0.0095 255.6419);
+
   /* ---- Inventário, sem consumidor hoje -----------------------------------
      Não há barra lateral, e a ADR-0007 recusou o componente de gráfico "para
      a primeira entrega", dizendo que ele é aditivo. Ficam no valor que o autor
@@ -317,6 +323,7 @@
   --text-rotulo-coluna: var(--texto-rotulo-coluna);
 
   --color-marca: var(--accent);
+  --color-marca-foreground: var(--marca-foreground);
   --color-superficie: var(--surface);
   --color-tinta: var(--ink);
   --color-tinta-suave: var(--ink-soft);
