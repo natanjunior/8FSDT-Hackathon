@@ -140,10 +140,18 @@ export function ConversaDaOcorrencia({
       {/* **Sem frase de confirmação, e a ausência é decisão:** ao contrário do campo de solução aplicada,
           aqui o sucesso **se vê** — a mensagem aparece na lista logo acima e o campo esvazia. Uma frase
           dizendo "mensagem enviada" ao lado da própria mensagem é ruído. É a pergunta Q-6 ao hub. */}
+      {/* **Continua contorno**, porque o guia §2 é explícito: *"toda outra ação fica em contorno sobre
+          fundo neutro"*, e a ação na cor da marca desta tela é o comando do momento. **O que muda é a
+          distância entre os dois estados:** com `disabled:opacity-50` do catálogo sobre um contorno
+          neutro, habilitado e desabilitado liam quase igual — é o *"Enviar é cinza e lê como
+          desativado"* do critério 44d.4. O habilitado ganha peso e borda de tinta; o desabilitado perde
+          a borda além da opacidade. */}
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-auto self-start"
+        className={`h-11 w-auto self-start ${
+          podeEnviar ? "border-tinta-suave font-medium" : "border-linha-suave"
+        }`}
         disabled={!podeEnviar}
         onClick={() => void enviar()}
       >

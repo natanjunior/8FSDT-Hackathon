@@ -21,6 +21,8 @@ import { PaginacaoDaLista } from "@/interface/componentes/paginacao-da-lista";
 import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
 import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
 import { horaDoCorte, instanteDoServidor } from "@/interface/componentes/tempo-relativo";
+import { cn } from "@/interface/componentes/utilitarios";
+import { buttonVariants } from "@/interface/componentes/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -192,7 +194,10 @@ export default async function Ocorrencias({
             {podeRegistrar && (
               <Link
                 href="/ocorrencias/nova"
-                className="border-marca bg-accent text-tinta hidden min-h-11 w-fit shrink-0 items-center rounded-sm border px-4 text-sm font-medium md:inline-flex"
+                className={cn(
+                  buttonVariants({ variant: "marca" }),
+                  "hidden min-h-11 w-fit shrink-0 items-center rounded-sm px-4 text-interface md:inline-flex",
+                )}
               >
                 + Registrar ocorrência
               </Link>
@@ -227,7 +232,10 @@ export default async function Ocorrencias({
           <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
             <Link
               href="/ocorrencias/nova"
-              className="border-marca bg-accent text-tinta flex min-h-11 items-center justify-center rounded-md border text-sm font-medium"
+              className={cn(
+                buttonVariants({ variant: "marca" }),
+                "flex min-h-11 w-full items-center justify-center text-interface",
+              )}
             >
               + Registrar ocorrência
             </Link>

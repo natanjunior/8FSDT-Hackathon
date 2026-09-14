@@ -152,8 +152,10 @@ export function ModalDeAvaliacao({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant={variante === "primario" ? "default" : "outline"}
-          className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
+          variant={variante === "primario" ? "marca" : "outline"}
+          className={
+            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+          }
         >
           Avaliar
         </Button>

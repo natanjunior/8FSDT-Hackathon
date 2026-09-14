@@ -202,11 +202,13 @@ export function ModalDeMotivo({
     ) : (
       <Button
         type="button"
-        variant={variante === "primario" ? "default" : "outline"}
+        variant={variante === "primario" ? "marca" : "outline"}
         /* **A largura vem da variante, não do *shrink-to-fit*** — é `.actionbar .btn.ghost
            { width: auto }` do protótipo, e dispensa apostar em como o navegador resolve `w-full`
            dentro de um invólucro `flex-none`. */
-        className={variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base"}
+        className={
+          variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+        }
       >
         {rotuloDoGatilho}
       </Button>
