@@ -49,3 +49,38 @@ export const TEXTO_DO_VAZIO: Readonly<Record<TipoDeVazio, { titulo: string; corp
     corpo: null,
   },
 };
+
+/**
+ * ============================================================================
+ *  Qual dos CINCO desfechos a lista mostra — o critério 44c.3
+ * ============================================================================
+ *
+ * **O quarto estado é decidido ANTES dos três vazios**, e é a razão de esta função existir em vez de um
+ * `?:` no JSX. *"Página além do fim"* responde *"a consulta correu e você pediu depois do fim"*; os três
+ * vazios respondem *"a consulta correu e não achou nada"*. Trocar um pelo outro é o defeito que o
+ * critério 14.4 já existia para impedir, com uma quarta frase a mais para trocar.
+ *
+ * **`vazioDaLista` não muda e não é copiada** — esta função a chama. A precedência *filtro ganha da
+ * visibilidade* continua sendo dela, e continua com o teste dela.
+ */
+export type EstadoDaLista = "lista" | "alem-do-fim" | TipoDeVazio;
+
+export function estadoDaLista(entrada: {
+  quantidade: number;
+  total: number;
+  visibilidadeAplicada: VisibilidadeAplicada;
+  algumFiltroAplicado: boolean;
+}): EstadoDaLista {
+  if (entrada.quantidade > 0) return "lista";
+  // **`total` é o do recorte da página**, então esta comparação responde sobre a lista que está na tela,
+  // e não sobre a organização.
+  if (entrada.total > 0) return "alem-do-fim";
+  return vazioDaLista(entrada.visibilidadeAplicada, entrada.algumFiltroAplicado);
+}
+
+/** O texto do quarto estado. Os outros três continuam em `TEXTO_DO_VAZIO`, que é do item 14. */
+export const TEXTO_ALEM_DO_FIM = {
+  titulo: "Esta página não existe mais.",
+  /** O corpo é montado com o `total` do corte, que só a tela tem. */
+  acao: "Ir para a primeira página",
+} as const;

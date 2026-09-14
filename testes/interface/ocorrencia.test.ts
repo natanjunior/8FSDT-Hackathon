@@ -85,9 +85,9 @@ import {
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
-import { tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
+import { horaDoCorte, tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
-import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
+import { estadoDaLista, TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
   alteracaoDePrioridadeSchema,
   atribuicaoDeResponsavelSchema,
@@ -583,6 +583,69 @@ describe("qual dos três vazios a tela mostra", () => {
   it("as três frases são diferentes entre si", () => {
     const titulos = Object.values(TEXTO_DO_VAZIO).map((texto) => texto.titulo);
     expect(new Set(titulos).size).toBe(3);
+  });
+});
+
+describe("qual dos CINCO desfechos a lista mostra — critério 44c.3", () => {
+  const todas = { visibilidadeAplicada: "todas", algumFiltroAplicado: false } as const;
+
+  it("havendo item, é a lista, e nada mais é perguntado", () => {
+    expect(estadoDaLista({ quantidade: 20, total: 137, ...todas })).toBe("lista");
+  });
+
+  it("sem item e com total, é página além do fim", () => {
+    expect(estadoDaLista({ quantidade: 0, total: 137, ...todas })).toBe("alem-do-fim");
+  });
+
+  /**
+   * **O caso que o critério 44c.3 existe para fixar.** Com filtro aplicado e zero itens, a resposta
+   * ainda é "alem-do-fim" quando há total: o quarto estado ganha dos três vazios, porque ele responde
+   * "a consulta correu e você pediu depois do fim", e não "a consulta correu e não achou nada".
+   */
+  it("o quarto estado ganha do vazio de filtro", () => {
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 12,
+        visibilidadeAplicada: "todas",
+        algumFiltroAplicado: true,
+      }),
+    ).toBe("alem-do-fim");
+  });
+
+  it("sem item e sem total, delega aos três vazios já decididos", () => {
+    expect(estadoDaLista({ quantidade: 0, total: 0, ...todas })).toBe("organizacao");
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 0,
+        visibilidadeAplicada: "apenas_minhas",
+        algumFiltroAplicado: false,
+      }),
+    ).toBe("solicitante");
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 0,
+        visibilidadeAplicada: "todas",
+        algumFiltroAplicado: true,
+      }),
+    ).toBe("filtro");
+  });
+});
+
+describe("a hora do corte — critério 44c.6", () => {
+  it("nomeia o instante no fuso escrito, nunca no do contêiner", () => {
+    // 12:14 UTC é 09h14 em São Paulo, o ano inteiro: o país não tem horário de verão desde 2019.
+    expect(horaDoCorte("2026-09-13T12:14:02.000Z")).toBe("09h14");
+  });
+
+  it("meia-noite é 00h00, e não 24h00", () => {
+    expect(horaDoCorte("2026-09-13T03:00:00.000Z")).toBe("00h00");
+  });
+
+  it("instante ilegível degrada no mesmo travessão do resto do módulo", () => {
+    expect(horaDoCorte("ontem")).toBe("—");
   });
 });
 

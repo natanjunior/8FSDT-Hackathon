@@ -5,15 +5,35 @@ import { Suspense } from "react";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   listarOcorrencias,
+  PAGINA_MAXIMA,
   type FiltroDeOcorrencias,
   type PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { listarCategorias, type CategoriaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
+import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
+import { DerivaDaLista } from "@/interface/componentes/deriva-da-lista";
+import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
-import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
-import { TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
+import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
+import { PaginacaoDaLista } from "@/interface/componentes/paginacao-da-lista";
+import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
+import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
+import { horaDoCorte, instanteDoServidor } from "@/interface/componentes/tempo-relativo";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
+import {
+  estadoDaLista,
+  TEXTO_ALEM_DO_FIM,
+  TEXTO_DO_VAZIO,
+  type TipoDeVazio,
+} from "@/interface/componentes/vazio-da-lista";
 import {
   algumFiltroAplicado,
   consultaDe,
@@ -98,8 +118,8 @@ export default async function Ocorrencias({
    *
    * Os dois saem da mesma permissão hoje, e continuam sendo coisas diferentes: `visibilidade`, mais
    * abaixo, é `podeLerTodas` **cruzado com o filtro**; a lente **não pode depender do filtro**. O Gestor
-   * que toca *"Só as minhas"* continua lendo *"Aberta"* — permissão, nunca recorte (critério 28.6, e
-   * §3.2 da spec do 31).
+   * que troca o recorte para *"Minhas ocorrências"* continua lendo *"Aberta"* — permissão, nunca recorte
+   * (critério 28.6, e §3.2 da spec do 31).
    */
   const lente = lenteDeRotulo(vinculo.permissoes);
 
@@ -146,59 +166,75 @@ export default async function Ocorrencias({
   const categoriasPedidas = listarCategorias(repos.categorias, { incluirInativas: true });
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
-          casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
-          visível — só que uma vez, e não copiado em cada tela. */}
-      <header className="flex flex-col gap-1">
-        <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">
-          {visibilidade === "todas" ? "Todas as ocorrências" : "Minhas ocorrências"}
-        </h1>
-      </header>
+    <NavegacaoDaLista>
+      {/* **O respiro da barra fixa do celular.** Ela tem `py-3` mais um alvo de 44 px, e sem isto encobre
+          o pé do cartão, onde a paginação mora. É o mesmo defeito que o critério 44d.1 conserta em T-05. */}
+      <div className="flex flex-col gap-6 pb-20 md:pb-0">
+        {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
+            casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
+            visível — só que uma vez, e não copiado em cada tela.
 
-      {podeRegistrar && (
-        <Link
-          href="/ocorrencias/nova"
-          className="border-marca bg-accent text-tinta hidden min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium md:inline-flex"
-        >
-          + Registrar ocorrência
-        </Link>
-      )}
+            **O título é fixo e o recorte é controle** — critério 44c.2. As palavras do recorte não saíram
+            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3. */}
+        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Ocorrências</h1>
 
-      <Suspense fallback={<EsqueletoDaLista />}>
-        <Lista
-          pagina={paginaPedida}
-          categorias={categoriasPedidas}
-          filtro={filtro}
-          consultaAtual={consultaAtual}
-          nomeDaOrganizacao={organizacao?.nome ?? null}
-          podeLerTodas={podeLerTodas}
-          lente={lente}
-          podeAlterarPrioridade={podeAlterarPrioridade}
-          opcoesDeStatus={opcoesDeStatus}
-          opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
-          podeRegistrar={podeRegistrar}
-          podeConfigurar={vinculo.pode("organizacao.configurar")}
-          mostrarPrioridade={podeAlterarPrioridade}
-          pessoaIdDeQuemLe={ctx.pessoaId}
-        />
-      </Suspense>
+          <div className="flex items-center gap-3">
+            {podeLerTodas ? (
+              <SeletorDeRecorte consultaAtual={consultaAtual} visibilidadeAplicada={visibilidade} />
+            ) : (
+              /* Critério 44c.9 — as mesmas palavras, no mesmo lugar, sem controle. Parágrafo e não
+                 `role="status"`: o texto só muda com a página, e região viva que nunca se atualiza é
+                 ruído para quem usa leitor de tela. */
+              <p className="text-interface text-tinta-suave">{RECORTE_MINHAS}</p>
+            )}
+
+            {podeRegistrar && (
+              <Link
+                href="/ocorrencias/nova"
+                className="border-marca bg-accent text-tinta hidden min-h-11 w-fit shrink-0 items-center rounded-sm border px-4 text-sm font-medium md:inline-flex"
+              >
+                + Registrar ocorrência
+              </Link>
+            )}
+          </div>
+        </header>
+
+        <Suspense fallback={<EsqueletoDaLista />}>
+          <Lista
+            pagina={paginaPedida}
+            categorias={categoriasPedidas}
+            filtro={filtro}
+            consultaAtual={consultaAtual}
+            nomeDaOrganizacao={organizacao?.nome ?? null}
+            podeLerTodas={podeLerTodas}
+            lente={lente}
+            podeAlterarPrioridade={podeAlterarPrioridade}
+            opcoesDeStatus={opcoesDeStatus}
+            opcoesDePrioridade={opcoesDeFiltroPorPrioridade}
+            podeRegistrar={podeRegistrar}
+            podeConfigurar={vinculo.pode("organizacao.configurar")}
+            mostrarPrioridade={podeAlterarPrioridade}
+            pessoaIdDeQuemLe={ctx.pessoaId}
+          />
+        </Suspense>
 
 
-      {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
-          some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
-          reaproveitar quando a barra de filtros nascer. */}
-      {podeRegistrar && (
-        <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
-          <Link
-            href="/ocorrencias/nova"
-            className="border-marca bg-accent text-tinta flex min-h-11 items-center justify-center rounded-md border text-sm font-medium"
-          >
-            + Registrar ocorrência
-          </Link>
-        </div>
-      )}
-    </div>
+        {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
+            some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
+            reaproveitar quando a barra de filtros nascer. */}
+        {podeRegistrar && (
+          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
+            <Link
+              href="/ocorrencias/nova"
+              className="border-marca bg-accent text-tinta flex min-h-11 items-center justify-center rounded-md border text-sm font-medium"
+            >
+              + Registrar ocorrência
+            </Link>
+          </div>
+        )}
+      </div>
+    </NavegacaoDaLista>
   );
 }
 
@@ -273,7 +309,6 @@ async function Lista({
         status={opcoesDeStatus}
         categorias={opcoesDeCategoria}
         prioridades={podeAlterarPrioridade ? opcoesDePrioridade : null}
-        mostrarSoAsMinhas
       />
     ) : (
       algumFiltroAplicado(filtro) && (
@@ -290,22 +325,6 @@ async function Lista({
       )
     );
 
-  if (projetada.itens.length === 0) {
-    return (
-      <div className="flex flex-col gap-4">
-        {barra}
-        <Vazio
-          visibilidade={projetada.visibilidadeAplicada}
-          filtro={filtro}
-          nomeDaOrganizacao={nomeDaOrganizacao}
-          nomeDaCategoria={nomeDaCategoria}
-          podeRegistrar={podeRegistrar}
-          podeConfigurar={podeConfigurar}
-        />
-      </div>
-    );
-  }
-
   /**
    * **O cruzamento do ícone, e ele é do cliente — não do payload** (critério 14.6).
    * `incluirInativas: true`: uma ocorrência antiga pode apontar para categoria desativada, e o ícone dela
@@ -315,32 +334,91 @@ async function Lista({
     listaDeCategorias.map((categoria) => [categoria.id, categoria.icone]),
   );
 
+  /**
+   * O teto de página é do contrato (`PAGINA_MAXIMA`), e o cálculo fica aqui porque importar a constante
+   * dentro de um componente de cliente arrastaria a Aplicação inteira para o pacote do navegador.
+   */
+  const totalDePaginas = Math.min(Math.ceil(projetada.total / projetada.limite), PAGINA_MAXIMA);
+
+  /**
+   * **Qual dos CINCO desfechos a lista mostra** — critério 44c.3, e a escolha é função pura com teste.
+   * *Página além do fim* é decidida **antes** dos três vazios, e por isso não encosta neles.
+   */
+  const estado = estadoDaLista({
+    quantidade: projetada.itens.length,
+    total: projetada.total,
+    visibilidadeAplicada: projetada.visibilidadeAplicada,
+    algumFiltroAplicado: algumFiltroAplicado(filtro),
+  });
+
   return (
     <div className="flex flex-col gap-4">
-      {barra}
-      {/*
-        **A `key` e a propriedade fazem coisas diferentes, e as duas continuam obrigatórias.** A `key`
-        remonta o componente quando o recorte muda; `consultaAtual` é o que faz o *Voltar* de T-05 devolver
-        a lista filtrada (critério 15.3).
+      {/* A barra some no vazio de organização — guia §8: filtrar um conjunto vazio não é uma oferta.
+          Nos outros desfechos ela fica, e é o que impede o vazio de filtro de virar beco. */}
+      {estado !== "organizacao" && barra}
 
-        **E a `key` continua certa com a paginação numerada:** trocar de página muda `consultaAtual` e
-        remonta o componente, que desde o item 14b é **só desenho** — não há estado acumulado para
-        preservar. **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da
-        página**, e ela não é: é o critério 14.7, e sem ele o 15.4 cai junto.
-
-        **`projetada` já É o envelope novo** — `total`, `pagina`, `limite`, `ate`, `totalNoCorte`,
-        `saidasDesdeOCorte`, `novasDesdeOCorte` e `contagens` —, então a navegação numerada que a frente
-        de design vai desenhar não precisa de nenhuma propriedade nova.
-      */}
-      <ListaDeOcorrencias
-        key={consultaAtual}
-        primeiraPagina={projetada}
+      {/* **A deriva fica FORA do cartão**, e é o mesmo lugar e a mesma razão da barra: ela não recua
+          durante a espera, e o *Atualizar* dela continua clicável enquanto a lista anterior está
+          pintada. */}
+      <DerivaDaLista
         consultaAtual={consultaAtual}
-        iconePorCategoria={iconePorCategoria}
-        mostrarPrioridade={mostrarPrioridade}
-        pessoaIdDeQuemLe={pessoaIdDeQuemLe}
-        agora={instanteDoServidor()}
+        ate={projetada.ate}
+        hora={horaDoCorte(projetada.ate)}
+        saidas={projetada.saidasDesdeOCorte}
+        novas={projetada.novasDesdeOCorte}
       />
+
+      <CartaoDaLista>
+        {/*
+          **A `key` saiu no item 44c, e a propriedade ficou.** Ela foi escrita quando o componente
+          acumulava páginas; desde o item 14b ele é **só desenho**, sem estado a descartar, e remontá-lo a
+          cada navegação é o piscar que o critério 44c.4 existe para impedir. `consultaAtual` continua
+          descendo como propriedade, que é o que faz o *Voltar* de T-05 devolver a lista filtrada
+          (critério 15.3).
+
+          **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da página**, e
+          ela não é: é o critério 14.7, e sem ele o 15.4 cai junto.
+        */}
+        {estado === "lista" && (
+          <ListaDeOcorrencias
+            primeiraPagina={projetada}
+            consultaAtual={consultaAtual}
+            iconePorCategoria={iconePorCategoria}
+            mostrarPrioridade={mostrarPrioridade}
+            pessoaIdDeQuemLe={pessoaIdDeQuemLe}
+            agora={instanteDoServidor()}
+          />
+        )}
+
+        {estado === "alem-do-fim" && (
+          <AlemDoFim total={projetada.total} consultaAtual={consultaAtual} />
+        )}
+
+        {estado !== "lista" && estado !== "alem-do-fim" && (
+          <Vazio
+            tipo={estado}
+            filtro={filtro}
+            nomeDaOrganizacao={nomeDaOrganizacao}
+            nomeDaCategoria={nomeDaCategoria}
+            podeRegistrar={podeRegistrar}
+            podeConfigurar={podeConfigurar}
+          />
+        )}
+
+        {/* **A paginação permanece no quarto estado**, e é o guia §8 em letra: *"filtros e paginação
+            permanecem"*. Ela some nos vazios de organização e de Solicitante, onde não há conjunto para
+            paginar. */}
+        {estado !== "organizacao" && estado !== "solicitante" && (
+          <PaginacaoDaLista
+            consultaAtual={consultaAtual}
+            pagina={projetada.pagina}
+            totalDePaginas={totalDePaginas}
+            totalNoCorte={projetada.totalNoCorte}
+            ate={projetada.ate}
+            total={projetada.total}
+          />
+        )}
+      </CartaoDaLista>
     </div>
   );
 }
@@ -353,7 +431,7 @@ async function Lista({
  */
 function FiltroInvalido() {
   return (
-    <div className="border-linha bg-superficie m-4 rounded-md border px-4 py-6 text-center">
+    <div className="border-linha bg-superficie rounded-lg border px-4 py-10 text-center shadow-sm">
       <h2 className="text-tinta text-base font-medium">Este link tem um filtro que não existe.</h2>
       <p className="text-tinta-suave mt-1 text-sm">
         Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
@@ -371,65 +449,66 @@ function FiltroInvalido() {
 /**
  * Os vazios — critério 14.4.
  *
- * **Qual dos três é decisão de `vazioDaLista`**, que tem teste próprio. Aqui só se desenha o que ela
- * escolheu. **O terceiro ramo passou a ser alcançável com o item 15**, que é quem tem os valores do
- * recorte: o `false` fixo virou `algumFiltroAplicado(filtro)`, e o subtítulo e o *"Limpar filtros"*
- * entraram (critério 15.6). **A função de escolha é reusada, não reescrita** — a precedência *filtro ganha
- * da visibilidade* já vinha decidida do 14.
+ * **Qual dos três é decisão de `vazioDaLista`**, que tem teste próprio — e desde o item 44c quem a chama
+ * é `estadoDaLista`, que decide entre cinco. Aqui só se desenha o que ela escolheu. **O terceiro ramo
+ * passou a ser alcançável com o item 15**, que é quem tem os valores do recorte: o `false` fixo virou
+ * `algumFiltroAplicado(filtro)`, e o subtítulo e o *"Limpar filtros"* entraram (critério 15.6). **A função
+ * de escolha é reusada, não reescrita** — a precedência *filtro ganha da visibilidade* já vinha decidida
+ * do 14.
  */
 function Vazio({
-  visibilidade,
+  tipo,
   filtro,
   nomeDaOrganizacao,
   nomeDaCategoria,
   podeRegistrar,
   podeConfigurar,
 }: {
-  visibilidade: "todas" | "apenas_minhas";
+  tipo: TipoDeVazio;
   filtro: FiltroDeOcorrencias;
   nomeDaOrganizacao: string | null;
   nomeDaCategoria: (id: string) => string | undefined;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
 }) {
-  const tipo = vazioDaLista(visibilidade, algumFiltroAplicado(filtro));
   const texto = TEXTO_DO_VAZIO[tipo];
 
   return (
-    <section className="border-linha flex flex-col items-start gap-3 rounded-md border border-dashed px-4 py-6">
-      <h2 className="text-tinta text-base font-semibold">{texto.titulo}</h2>
-      {texto.corpo !== null && (
-        <p className="text-tinta-suave text-sm leading-relaxed">{texto.corpo}</p>
-      )}
-
-      {/*
-        O subtítulo do **terceiro vazio** — critério 15.6. `corpo` é `null` para este tipo de propósito,
-        esperando exatamente isto: o recorte em palavras, com os mesmos rótulos dos chips. **`nomeDaOrganizacao`
-        pode ser nulo**, e a frase sem o nome continua verdadeira; inventá-lo seria pior.
-      */}
-      {tipo === "filtro" && (
-        <>
-          <p className="text-tinta-suave text-sm leading-relaxed">
+    <Empty className="md:p-10">
+      <EmptyHeader>
+        <EmptyTitle className="text-titulo-bloco text-tinta">{texto.titulo}</EmptyTitle>
+        {texto.corpo !== null && (
+          <EmptyDescription className="text-corpo text-tinta-suave">{texto.corpo}</EmptyDescription>
+        )}
+        {/*
+          O subtítulo do **terceiro vazio** — critério 15.6. `corpo` é `null` para este tipo de propósito,
+          esperando exatamente isto: o recorte em palavras, com os mesmos rótulos dos chips.
+          **`nomeDaOrganizacao` pode ser nulo**, e a frase sem o nome continua verdadeira; inventá-lo
+          seria pior.
+        */}
+        {tipo === "filtro" && (
+          <EmptyDescription className="text-corpo text-tinta-suave">
             {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
             {descricaoDoRecorte(filtro, nomeDaCategoria).join(" · ")}.
-          </p>
+          </EmptyDescription>
+        )}
+      </EmptyHeader>
+      <EmptyContent className="flex flex-row flex-wrap justify-center gap-2">
+        {tipo === "filtro" && (
           <Link
             href="/ocorrencias"
-            className="text-marca inline-block text-sm underline underline-offset-4"
+            className="text-marca text-interface underline underline-offset-4"
           >
             Limpar filtros
           </Link>
-        </>
-      )}
-
-      <div className="flex flex-wrap gap-2">
+        )}
         {/* O primeiro convite é o que importa: a organização nasce com áreas-semente genéricas, e **a
             primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve o
             prédio**. */}
         {tipo === "organizacao" && podeConfigurar && (
           <Link
             href="/configuracao"
-            className="border-marca bg-accent text-tinta inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-medium"
+            className="border-marca bg-accent text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
           >
             Conferir as áreas
           </Link>
@@ -437,46 +516,49 @@ function Vazio({
         {podeRegistrar && (
           <Link
             href="/ocorrencias/nova"
-            className="border-linha text-tinta inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-medium"
+            className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
           >
             {tipo === "organizacao" ? "+ Registrar a primeira" : "+ Registrar ocorrência"}
           </Link>
         )}
-      </div>
-    </section>
+      </EmptyContent>
+    </Empty>
   );
 }
 
 /**
- * A espera — **e ela é da lista, não da tela inteira**.
+ * **O quarto estado — e ele NÃO é um dos três vazios do critério 14.4.**
  *
- * *"A primeira requisição de uma sessão tem espera nomeada"* (inventário §6, RNF5). A frase **não promete
- * prazo** e aparece depois de ~2 s, com a mesma classe de `app/vinculos/loading.tsx`. O esqueleto tem a
- * forma **desta** lista: cinco itens de quatro linhas.
+ * Aqueles respondem *"a consulta correu e não achou nada"*; este responde *"a consulta correu e você
+ * pediu depois do fim"*. Quem decide entre eles é `estadoDaLista`, que tem teste.
  *
- * **Neutro de propósito.** O achado **R-10** do protótipo dizia que T-03 não sabe qual das duas caras
- * desenhar durante a primeira carga; **nesta composição isso não acontece** — o recorte vem da permissão,
- * que já está resolvida quando o esqueleto é renderizado, e o título verdadeiro já está no cabeçalho,
- * fora da fronteira.
+ * **A ação leva à PRIMEIRA página**, e é o guia §8. A spec do item 14b escreveu *"oferece a última"*, e
+ * o guia tem precedência desde 13/09/2026 — está no achado A-03.
+ *
+ * **Os filtros e a paginação permanecem**, porque a lista existe: o que não existe é esta página.
  */
-function EsqueletoDaLista() {
+function AlemDoFim({ total, consultaAtual }: { total: number; consultaAtual: string }) {
+  const daPrimeira = new URLSearchParams(consultaAtual);
+  for (const nome of ["pagina", "ate", "totalNoCorte"]) daPrimeira.delete(nome);
+  const consulta = daPrimeira.toString();
+
   return (
-    <div className="flex flex-col gap-4">
-      <div aria-hidden className="flex flex-col gap-3">
-        {[58, 34, 64, 44, 61].map((largura) => (
-          <div key={largura} className="border-linha flex flex-col gap-2 rounded-md border px-4 py-3">
-            <div className="bg-secondary h-4 animate-pulse rounded" style={{ width: `${largura}%` }} />
-            <div className="bg-secondary h-4 w-[86%] animate-pulse rounded" />
-            <div className="bg-secondary h-3 w-[46%] animate-pulse rounded" />
-          </div>
-        ))}
-      </div>
-      <p
-        role="status"
-        className="text-tinta-suave animate-in fade-in text-sm opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
-      >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
-      </p>
-    </div>
+    <Empty className="md:p-10">
+      <EmptyHeader>
+        <EmptyTitle className="text-titulo-bloco text-tinta">{TEXTO_ALEM_DO_FIM.titulo}</EmptyTitle>
+        <EmptyDescription className="text-corpo text-tinta-suave">
+          Este corte tem {total} {total === 1 ? "ocorrência" : "ocorrências"}, e nenhuma delas cai nesta
+          página.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Link
+          href={consulta === "" ? "/ocorrencias" : `/ocorrencias?${consulta}`}
+          className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+        >
+          {TEXTO_ALEM_DO_FIM.acao}
+        </Link>
+      </EmptyContent>
+    </Empty>
   );
 }

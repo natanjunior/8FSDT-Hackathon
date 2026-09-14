@@ -141,13 +141,22 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // `ocorrencia.ler_todas` do outro lado.
   //
   // **É a única prova ponta a ponta que a decisão do PA-19 vai ter, e custa dois cliques.**
+  //
+  // **O recorte de T-03 mudou de forma no item 44c**, e é daí que vêm os três localizadores abaixo — os
+  // dois desta seção e o de Marcos, na seguinte. O título da página passa a ser *"Ocorrências"*, fixo, e
+  // as duas frases do critério 14.3 viram os rótulos de um `toggle-group` de escolha única — daí
+  // `role="radio"` e `toBeChecked()`. Quem não tem `ocorrencia.ler_todas` não recebe controle (critério
+  // 28.5) e lê a mesma frase como texto, que é o critério 44c.9.
   // -------------------------------------------------------------------------
   await helena.goto("/ocorrencias");
-  await expect(helena.getByRole("heading", { name: "Minhas ocorrências" })).toBeVisible();
+  // Critério 44c.9 — sem `ler_todas` o recorte é texto, e não controle. As palavras são as mesmas.
+  await expect(helena.getByText("Minhas ocorrências")).toBeVisible();
   await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
 
   await trocarDeOrganizacao(helena, RECANTO);
-  await expect(helena.getByRole("heading", { name: "Todas as ocorrências" })).toBeVisible();
+  // Critério 44c.2 — o recorte virou `toggle-group` de escolha única, então a palavra do 14.3 mora
+  // numa opção marcada, e não mais num cabeçalho.
+  await expect(helena.getByRole("radio", { name: "Todas as ocorrências" })).toBeChecked();
   await expect(helena.getByRole("link", { name: TITULO })).toHaveCount(0);
   // A lista do Recanto **tem** linhas — a semente escreve nas duas organizações. Sem isto, uma consulta
   // quebrada passaria no teste.
@@ -164,7 +173,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   await entrar(marcos, MARCOS);
   await marcos.waitForURL(/\/ocorrencias$/u);
-  await expect(marcos.getByRole("heading", { name: "Todas as ocorrências" })).toBeVisible();
+  await expect(marcos.getByRole("radio", { name: "Todas as ocorrências" })).toBeChecked();
   await marcos.getByRole("link", { name: TITULO }).click();
   await marcos.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
 
