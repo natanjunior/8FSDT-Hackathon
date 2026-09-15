@@ -11,7 +11,7 @@ description: "As telas da primeira entrega: o que cada uma responde, os estados 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
 > tiveram campos escritos, e o link do e-mail de redefinição não tinha onde aterrissar. Ver a §4 e o
-> registro na §13 do [`prototipo-low-fi.md`](prototipo-low-fi.md).
+> registro na §11 do [`prototipo-low-fi.md`](prototipo-low-fi.md).
 >
 > As três novas receberam **identificadores no fim da lista** — T-11, T-12, T-13 — em vez de renumerar
 > as dez existentes. `escopo.md` cita **T-10** pelo nome, e renumerar quebraria uma referência num
@@ -715,7 +715,7 @@ da fila da frente de documentação.)*
 > **O que não muda:** o Solicitante continua sem ver `prioridade`, porque ele não tem a permissão, e o
 > resultado para ele é idêntico ao da regra antiga. **O que muda é de quem a regra fala** — de quem
 > decide, não de quem recorta. *(Decidido em 29/08/2026, ao responder a P2 da spec do item 28; virou o
-> critério **28.6**. É a **proposta 4** da §13 do `prototipo-low-fi.md`, agora aplicada.)*
+> critério **28.6**. É a **proposta 4** da §11 do `prototipo-low-fi.md`, agora aplicada.)*
 
 **Como reage ao status.** A tela em si não age sobre ocorrência nenhuma — **não há ação de lista, não há
 seleção múltipla, não há triagem em lote**. Toda ação sobre uma ocorrência acontece em T-05, porque

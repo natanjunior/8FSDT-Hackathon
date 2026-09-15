@@ -50,7 +50,21 @@ const APROVADOS = new Set([
   "docs/glossario.md",
   "docs/modelo-de-dados.md",
   "docs/premissas-e-questoes-abertas.md",
+  "docs/prototipo-low-fi.md",
 ]);
+
+/**
+ * Arquivo aprovado com regras dispensadas, e a dispensa tem dono.
+ *
+ * O protótipo entrou no site sem a reescrita de voz (D6 de documentação, e a resposta do hub de
+ * 09/09/2026): ele é citado 70 vezes em 11 documentos, e como página os 70 links resolvem sozinhos.
+ * Recebeu as regras 4, 5 e 6, que são as que se aplicam com busca. As regras 1, 2 e 3 exigem reescrever
+ * prosa, e essa hora não estava no orçamento desta entrega.
+ *
+ * Sai desta lista quando a voz dele for reescrita. Enquanto estiver aqui, a exceção é visível e tem dono,
+ * que é o que distingue exceção de esquecimento.
+ */
+const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
 
 // ---------------------------------------------------------------------------
 // As seis regras
@@ -234,7 +248,14 @@ for (const caminho of documentos([".md"])) {
   const violacoes = violacoesDe(ler(caminho));
 
   if (APROVADOS.has(eu)) {
-    for (const violacao of violacoes) falhas.push(`${eu} — ${violacao}`);
+    const dispensadas = PARCIAIS.get(eu) ?? [];
+    const exigidas = violacoes.filter(
+      (v) => !dispensadas.includes(Number(/^regra (\d)/u.exec(v)?.[1])),
+    );
+    for (const violacao of exigidas) falhas.push(`${eu} — ${violacao}`);
+    if (dispensadas.length > 0) {
+      notas.push(`${eu}: regras ${dispensadas.join(", ")} dispensadas por decisão registrada neste arquivo`);
+    }
   } else if (violacoes.length > 0) {
     pendentes += 1;
     notas.push(`${eu}: ${violacoes.join(" · ")}`);
