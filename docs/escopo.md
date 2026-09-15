@@ -1,11 +1,11 @@
 ---
 title: "Escopo"
-description: "O que o produto é quando completo, o que entra na primeira entrega, e o que está projetado para depois."
+description: "O que o produto é quando completo, o que entra nesta entrega, e o que está projetado para depois."
 ---
 
 # Escopo — Resolve Aí
 
-## A primeira entrega, em uma passada
+## O produto, em uma passada
 
 Antes das tabelas, o produto contado como quem o usa o encontra. Esta parte é a porta; o resto do
 documento é a versão verificável dela.
@@ -54,7 +54,7 @@ parada, nem entrega por e-mail, push ou WhatsApp. Quem quiser saber, abre o sist
 o desafio exige continua inteiro, porque o Solicitante vê a lista das próprias ocorrências e a linha do
 tempo de cada uma; o que muda é que o sistema não vai até ele. **É o corte que mais pesa sobre os
 objetivos do produto:** o aviso automático era metade da resposta ao problema de a ocorrência sumir quando
-trava, e o alarme de ocorrência parada era a outra metade. A primeira entrega entrega `Pausada` sem a
+trava, e o alarme de ocorrência parada era a outra metade. Esta entrega entrega `Pausada` sem a
 camada que a vigia. O e-mail transacional de acesso permanece, porque é infraestrutura da conta e sem ele
 ninguém entra.
 
@@ -64,7 +64,7 @@ todo dia; **adesão** a uma ocorrência parecida em vez de abrir outra igual; **
 Gestores**, o que significa que nesta entrega não há lugar nenhum para texto que o morador não deva ler;
 **ver as ocorrências de área comum do vizinho**; e **editar uma ocorrência** depois de registrada.
 
-**Tudo que o desafio exige está na primeira entrega.** Todo o corte recaiu sobre adições do projeto, e a
+**Tudo que o desafio exige está nesta entrega.** Todo o corte recaiu sobre adições do projeto, e a
 parte 2 mostra item a item onde cada uma delas caiu.
 
 ### Por que este problema vale um produto
@@ -79,7 +79,7 @@ problema, e quem coordena para de transcrever.
 ---
 
 Este documento responde a três perguntas, nesta ordem: **o que o Resolve Aí é** quando estiver completo,
-**o que entra na primeira entrega**, e **o que está projetado para depois**.
+**o que entra nesta entrega**, e **o que está projetado para depois**.
 
 A parte 1 é autossuficiente: dá para entender o produto sem ter lido nenhum outro documento. As partes 2 e
 3 dependem do vocabulário fixado no [Glossário](glossario.md) e citam as decisões de produto pelo
@@ -202,14 +202,14 @@ diretamente, que é como o Encarregado sem conta entra; ou convida por um link d
 pedido de entrada feito com o código público da Organização, aquele que vive no cartaz do elevador. Código
 vazado não vira acesso: vira um pedido aguardando aprovação.
 
-Dos três, o cadastro direto e o pedido de entrada estão na primeira entrega, e o convite é evolução
+Dos três, o cadastro direto e o pedido de entrada estão nesta entrega, e o convite é evolução
 prevista.
 
 ---
 
-## 2 · O recorte da primeira entrega
+## 2 · O recorte desta entrega
 
-**66 itens de escopo mapeados. 44 entram na primeira entrega; 22 são evolução prevista.**
+**66 itens de escopo mapeados. 44 entram nesta entrega; 22 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
@@ -225,7 +225,7 @@ prevista.
 | Fundação técnica | 6 | — |
 | **Total** | **44** | **22** |
 
-**Os 24 itens exigidos pelo desafio estão inteiros na primeira entrega.** Todo o corte recaiu sobre as 42
+**Os 24 itens exigidos pelo desafio estão inteiros nesta entrega.** Todo o corte recaiu sobre as 42
 adições do projeto: 20 entraram e 22 ficaram para depois.
 
 Os 20 que entraram não estão lá por gosto: cada um é a cola sem a qual um requisito do desafio não
@@ -235,10 +235,10 @@ sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o S
 não sabe se aquilo é bom ou ruim; e sem a recorrência o dashboard exigido pelo desafio responderia o que a
 lista já responde. **A única escolha de verdade no corte foi `Pausada`:** ela não é exigida pelo desafio e
 poderia sair, e é a resposta direta à dor mais forte das duas personas, *"acabo me perdendo e a ocorrência
-some dentre outras"*. Sem ela, a primeira entrega cumpre o desafio e não resolve o problema que o produto
+some dentre outras"*. Sem ela, esta entrega cumpre o desafio e não resolve o problema que o produto
 veio resolver.
 
-Nas tabelas abaixo, ✅ entra na primeira entrega e ⬜ é evolução prevista. A coluna do meio diz onde a
+Nas tabelas abaixo, ✅ entra nesta entrega e ⬜ é evolução prevista. A coluna do meio diz onde a
 capacidade foi decidida.
 
 ### 0 · Configurar a organização
@@ -275,7 +275,7 @@ existe e é usado, que é criar outra conta, e é o que o roteiro de validação
 | Revogar vínculo | D4 | ⬜ |
 
 > **Um estado sem capacidade, que ainda assim precisa aparecer na interface.** Como o acesso próprio do
-> Encarregado ficou de fora, o vínculo com esse papel tem nenhuma permissão na primeira entrega. Se uma
+> Encarregado ficou de fora, o vínculo com esse papel tem nenhuma permissão nesta entrega. Se uma
 > pessoa com conta for aprovada assim, ela autentica, tem organização ativa e não pode fazer nada, nem
 > registrar ocorrência. Isso não é capacidade nova e não entra na contagem, porque não há nada a construir
 > além de texto. Mas a tela tem de existir e dizer o que houve, porque tela vazia sem explicação é defeito,
@@ -291,7 +291,7 @@ existe e é usado, que é criar outra conta, e é o que o roteiro de validação
 | Anexar uma imagem, comprimida no próprio celular | Desafio, RNF8 | ✅ |
 | Ver ocorrências semelhantes no mesmo local e aderir | D11 | ⬜ |
 
-Duas restrições de qualidade atravessam esta atividade e valem desde a primeira entrega: o registro
+Duas restrições de qualidade atravessam esta atividade e valem desde esta entrega: o registro
 completo cabe em **menos de um minuto pelo celular**, com foto (RNF6), e a imagem é comprimida no próprio
 aparelho antes de subir (RNF8), que é o que faz o anexo caber nesse tempo. Não são itens de escopo: são o
 alvo de qualidade sobre os itens acima.
@@ -300,7 +300,7 @@ alvo de qualidade sobre os itens acima.
 > uma imagem, e continua sendo. O que mudou foi o modelo de dados: a imagem deixou de ser uma coluna da
 > ocorrência e passou a ser a tabela `anexos`, porque o conceito do domínio é evidência — foto hoje,
 > possivelmente vídeo, orçamento em PDF ou áudio depois — e uma coluna modelava o exemplo do desafio em vez
-> do conceito. A tabela suporta muitos anexos e mais de um tipo; a primeira entrega grava um, de um tipo, e
+> do conceito. A tabela suporta muitos anexos e mais de um tipo; esta entrega grava um, de um tipo, e
 > o limite mora no contrato de API e na aplicação, nunca no banco. Isso não é capacidade nova e não entra
 > na contagem. Fica registrado porque quem ler esta tabela e depois o esquema encontraria um banco que
 > aceita o que a capacidade não promete. O dia da ampliação é decisão de produto com preço: o
@@ -392,7 +392,7 @@ manteria o custo e descartaria o retorno.
 
 Ele mede tempo de calendário, com as pausas incluídas. Separar calendário de tempo ativo continua sendo ⬜,
 e é essa separação que o objetivo O5 da Documentação da Demanda espera, o que significa que **O5 segue não
-medido na primeira entrega**.
+medido nesta entrega**.
 
 ### Fundação técnica
 

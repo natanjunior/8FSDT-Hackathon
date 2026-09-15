@@ -66,7 +66,7 @@ Cada linha se confere no próprio repositório — é o que a coluna da direita 
 | Documento | O que responde |
 |---|---|
 | [Documentação da Demanda](docs/documentacao-da-demanda.md) | Quem são as pessoas, qual é o problema, o objetivo com métrica, e os requisitos — funcionais e não funcionais quantificados |
-| [Escopo](docs/escopo.md) | O que o produto é, o que entra na primeira entrega, e o que ficou de fora com o motivo de cada corte |
+| [Escopo](docs/escopo.md) | O que o produto é, o que entra nesta entrega, e o que ficou de fora com o motivo de cada corte |
 | [Glossário](docs/glossario.md) | A linguagem ubíqua: uma definição por termo, e as colisões de vocabulário que ela resolve |
 | [Arquitetura](docs/arquitetura.md) | Design estratégico de DDD e o Documento de Requisito Técnico da Solução |
 | [Modelo de Dados](docs/modelo-de-dados.md) | O esquema em PostgreSQL, com cada índice justificado por uma consulta |
@@ -82,8 +82,8 @@ O índice comentado, com a ordem de leitura, está em **[docs/README.md](docs/RE
 
 ## Por onde começar
 
-**Caminho curto** — a [narrativa da primeira entrega](docs/escopo.md#a-primeira-entrega-em-uma-passada),
-na abertura do Escopo: o produto inteiro de ponta a ponta, e o que ele não faz. De lá, a
+**Caminho curto** — [o produto em uma passada](docs/escopo.md#o-produto-em-uma-passada), na abertura do
+Escopo: do cadastro ao dashboard, contado como quem usa o encontra. De lá, a
 [Arquitetura](docs/arquitetura.md) e a [ADR-0001](docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md),
 que é a decisão que sustenta o resto.
 

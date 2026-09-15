@@ -58,7 +58,7 @@ flowchart LR
 
 **O caminho ideal tem dois segmentos que só existem quando o Encarregado tem conta:** *Encarregado
 notificado* e *Execução reportada como concluída*. Removidos os dois, sobra o cenário em que o Gestor
-registra, analisa, prioriza, atribui, confere e fecha. É esse o cenário da primeira entrega, e o acesso
+registra, analisa, prioriza, atribui, confere e fecha. É esse o cenário desta entrega, e o acesso
 próprio do Encarregado é a evolução prevista.
 
 **A pausa é o único laço que volta para trás** dentro do caminho normal. É também a maior dor relatada nas
@@ -185,7 +185,7 @@ condiciona.
 | POL-10 | Sinalizar envelhecimento | Ocorrência registrada | Destacar na lista e no dashboard | Se passou da faixa de envelhecimento, e nunca altera prioridade |
 | POL-11 | Estabelecer vínculo | Pedido de entrada aprovado | Estabelecer vínculo, com o papel escolhido na aprovação | — |
 
-**Duas rodam na primeira entrega**, a POL-01 e a POL-11. A POL-02 não roda, porque reage a *convite
+**Duas rodam nesta entrega**, a POL-01 e a POL-11. A POL-02 não roda, porque reage a *convite
 aceito* e o convite é evolução prevista. Nenhuma das duas reage a transição de status.
 
 ### O que esta seção revelou
@@ -322,7 +322,7 @@ de contexto com caixas que não são contexto.
 
 **Um futuro registrado:** receber ocorrência por WhatsApp, como entrada, seria um sistema externo novo. É
 o caminho de adoção mais óbvio para o condomínio cuja rotina de hoje já é o grupo de WhatsApp, e está fora
-da primeira entrega.
+desta entrega.
 
 ---
 
@@ -389,4 +389,4 @@ ao contexto ①, e não fronteiras. Evento que troca de fase é indicador de con
 | Os seis agregados, os dois contextos e os padrões de integração | [arquitetura.md](arquitetura.md) |
 | Os pontos de atenção e as premissas | [premissas-e-questoes-abertas.md](premissas-e-questoes-abertas.md) |
 | Personas, jornada atual e princípio de produto | [documentacao-da-demanda.md](documentacao-da-demanda.md) |
-| Modelos de leitura por ator | insumo do protótipo e do recorte da primeira entrega |
+| Modelos de leitura por ator | insumo do protótipo e do recorte desta entrega |

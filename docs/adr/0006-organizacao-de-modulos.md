@@ -107,7 +107,7 @@ feito pela metade. E o aviso que impede simetria vazia: criar componente não é
 em três distribuindo o código.
 
 **Consequência prática:** dos seis agregados, só os que têm comportamento ganham pasta em `dominio/` e
-`aplicacao/` na primeira entrega. `Notificação` não ganha, porque é evolução prevista, e uma pasta vazia
+`aplicacao/` nesta entrega. `Notificação` não ganha, porque é evolução prevista, e uma pasta vazia
 por simetria falha os dois testes.
 
 ## Justificativa
@@ -127,7 +127,7 @@ Storage e Supabase Auth, que a redação anterior não alcançava por falar só 
 acúmulo. É uma das poucas vezes em que a restrição do framework empurra na direção certa.
 
 **4 · O tamanho do projeto favorece a estrutura menor.** São seis agregados de peso muito desigual:
-`Ocorrência` é quase tudo, `Notificação` é vazio na primeira entrega. Camada no topo produz quatro
+`Ocorrência` é quase tudo, `Notificação` é vazio nesta entrega. Camada no topo produz quatro
 diretórios estáveis; agregado no topo produziria seis diretórios com quatro subdiretórios cada, a maioria
 vazia.
 

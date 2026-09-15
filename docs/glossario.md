@@ -211,8 +211,8 @@ por nenhuma das duas tabelas.
 | Recorrência | Volume de ocorrências por Categoria e por Área ao longo do tempo. É o indicador que distingue oito ordens de serviço de uma obra | Duplicidade: recorrência é padrão no tempo, duplicidade é o mesmo problema relatado duas vezes | D19 |
 | Plano gratuito e plano pago | Os planos comerciais do produto. No gratuito, notificação só dentro do app; no pago, também e-mail, push e WhatsApp | ⚠️ Free tier de infraestrutura, que é a restrição de custo zero do projeto. Duas coisas diferentes. Ver a colisão 4 | D13 |
 | Free tier de infraestrutura | O limite gratuito do provedor de nuvem onde o Resolve Aí é publicado. Restrição do trabalho, invisível ao cliente | Plano gratuito do produto | Restrição do projeto |
-| Primeira entrega | O recorte que é construído agora: as capacidades marcadas como entregues no [escopo](escopo.md) | Evolução prevista | Nossa |
-| Evolução prevista | O que está projetado e não implementado: as capacidades adiadas do escopo, cada uma com decisão registrada, alternativa rejeitada e custo assumido. Não implementar não é o mesmo que não ter pensado | ⚠️ "fatia 2", nome retirado (ver a §8). E primeira entrega | Nossa |
+| Entrega | O recorte que é construído: as capacidades marcadas como entregues no [escopo](escopo.md). É uma só, e o que ficou de fora é evolução prevista | Evolução prevista | Nossa |
+| Evolução prevista | O que está projetado e não implementado: as capacidades adiadas do escopo, cada uma com decisão registrada, alternativa rejeitada e custo assumido. Não implementar não é o mesmo que não ter pensado | ⚠️ "fatia 2", nome retirado (ver a §8). E Entrega | Nossa |
 
 ---
 
@@ -281,7 +281,7 @@ Registrar o que não é vocabulário do projeto evita que ele volte por descuido
 **Duas operações parecidas com um efeito diferente merecem dois termos.** *Remover* e *revogar* um vínculo
 fazem, de longe, a mesma coisa: a pessoa deixa de ter acesso. A distinção que os separa é o que sobra
 depois, porque remover apaga um vínculo que não deixou rastro, e revogar encerra um que deixou e preserva
-o registro. Chamar os dois de "revogar" não seria simplificação: faria a operação da primeira entrega
+o registro. Chamar os dois de "revogar" não seria simplificação: faria a operação desta entrega
 parecer a operação inteira, e a decisão de adiar a segunda ficaria invisível. **O nome carrega a
 fronteira.**
 

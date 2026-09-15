@@ -762,7 +762,7 @@ denominador, a média mente quando poucos avaliam"*. O mesmo vale para `resolvid
 é explícito: *"buraco na série é informação, e omitir o mês faria a linha do gráfico mentir"*.
 
 **O que a tela não mostra, com o motivo escrito:** **tempo de calendário × tempo ativo** é ⬜ (D19), o
-objetivo **O5 não é medido na primeira entrega**, e **não há espaço reservado prometendo**. A única menção
+objetivo **O5 não é medido nesta entrega**, e **não há espaço reservado prometendo**. A única menção
 é a linha *"Tempo de calendário, com as pausas."*, que diz o que o número **é** sem insinuar o que ele não
 é.
 
@@ -1394,9 +1394,9 @@ de documentação.)*
 | 12 | `arquitetura.md` §2, linha do **shadcn/ui** | Registrar a **exceção do `Chart`**: ele é o único componente do catálogo que traz dependência de terceiro (Recharts) para o `package.json`, contra a afirmação de que *"o CLI copia o código para o repositório"* | **§7.3** · Q-P6 |
 | 13 | `definition-of-done.md`, seção **Testes** | Uma linha: *"o caminho de registro foi percorrido num celular real, por alguém que não é o implementador, e o tempo foi anotado."* É a verificação mínima do RNF6, e custa 20 minutos | **§9** · Q-P1 |
 | 14 | `definition-of-done.md`, seção **Qualidade do código** | Uma linha para os sete compromissos de acessibilidade da §8, com foco em A-1 (rótulo associado), A-3 (alvo de toque) e A-5 (nada só por cor) — os três verificáveis a olho | **§8** |
-| 15 | `premissas-e-questoes-abertas.md`, **PA-16** | Acrescentar que a mitigação possível na primeira entrega é **limitada pela paginação por cursor**: a contagem de *"resolvidas para avaliar"* é da página carregada, não do total, porque `GET /ocorrencias` não devolve `total` | **P-05** |
+| 15 | `premissas-e-questoes-abertas.md`, **PA-16** | Acrescentar que a mitigação possível nesta entrega é **limitada pela paginação por cursor**: a contagem de *"resolvidas para avaliar"* é da página carregada, não do total, porque `GET /ocorrencias` não devolve `total` | **P-05** |
 | 16 | `premissas-e-questoes-abertas.md`, §3 | **PA novo:** *"A tela do Gestor não pode mostrar o rótulo que o Solicitante lê — `statusRotulo` é calculado no servidor em função de quem lê, e nenhum endpoint devolve o rótulo do outro lado."* | **P-10** |
-| 17 | **`docs/README.md`**, linha 28 | *"As **dez** telas da primeira entrega"* → *"As **treze**"*. O inventário passou a treze em 21/08/2026. **Não é o `README.md` da raiz** | **§12**, revisão de T-01 |
+| 17 | **`docs/README.md`**, linha 28 | *"As **dez** telas desta entrega"* → *"As **treze**"*. O inventário passou a treze em 21/08/2026. **Não é o `README.md` da raiz** | **§12**, revisão de T-01 |
 | 18 | `contrato-de-api.md` §9.5 | Qualificar *"Criar conta, entrar, sair, redefinir senha: Supabase Auth"*. A frase é verdadeira sobre **endpoints** e foi lida como verdadeira sobre **telas** — e foi essa leitura que deixou três formulários sem especificação por dois passos. Proposta: *"…são do provedor. **As telas que os consomem são nossas** — o SDK não traz interface."* | **§12**, revisão de T-01 |
 | 19 | `contrato-de-api.md` §8.2 · `escopo.md` atividade 1 | **Só se o hub aprovar a Q-T6 como (b):** `PATCH /contexto/pessoa` no contrato, e a capacidade *"Editar os próprios dados pessoais"* no escopo. **Não proponho o texto** — é capacidade nova, e capacidade nova não nasce numa revisão de tela | **F11**, recomendação trocada |
 | 20 | `arquitetura.md` §2, tabela de tecnologias | **Dependência de terceiro nº 2, e esta não tem saída barata:** normalizar telefone para **E.164** exige biblioteca (`libphonenumber` ou equivalente), porque país padrão, regra de discagem nacional e validade de número não caem em expressão regular — o próprio `modelo-de-dados.md` §6.17 diz isso e nomeia a referência. Diferente do gráfico, que era conveniência e saiu: **sem isto, o `CHECK` do banco recusa o que o formulário produzir** | **§7.2, item 6** |
@@ -1613,7 +1613,7 @@ encarar**, porque não dá para desenhar um campo sem decidir qual é o nome del
 | ~~**R-01**~~ | ~~`temImagem` → `quantidadeDeAnexos`~~ | — | ✅ **corrigido em 22/08** |
 | **R-02** | `Area` **ganhou `ordem`** no contrato, mas a §3 deste documento ainda trata isso como proposta e a §2.4 ainda precifica o campo pela busca com recentes | `prototipo-low-fi.md` §3 e §2.4 · `api/openapi.yaml`, `Area` | **meu**, e mexe no orçamento |
 | **R-03** | `PessoaReferencia.nome` **ganhou `maxLength: 120`**; o achado P-16 afirma que ele não tem limite | `prototipo-low-fi.md` §10, P-16 | **meu** |
-| **R-04** | O componente de gráfico **saiu da primeira entrega**; a §7.1 ainda o lista ✅ e a Q-P6 ainda está aberta | `prototipo-low-fi.md` §7.1 · `arquitetura.md` §2 | **meu** |
+| **R-04** | O componente de gráfico **saiu desta entrega**; a §7.1 ainda o lista ✅ e a Q-P6 ainda está aberta | `prototipo-low-fi.md` §7.1 · `arquitetura.md` §2 | **meu** |
 | **R-05** | O glossário **aposentou o termo *fatia 2*** em favor de *evolução prevista*; ele aparece **5 vezes** no inventário | `inventario-de-telas.md` · `glossario.md` §6 e §8 | **meu** |
 | **R-06** | O glossário corrigiu a lista de comandos que transicionam: são **seis**, e `avaliar`, `atribuirResponsavel` e `registrarSolucaoAplicada` **não** estão entre eles | `glossario.md` §4 | já corrigido lá |
 | **R-07** | A ordem de `acoesDisponiveis` **foi declarada** — e numa ordem **diferente** da que o P-09 propôs | `api/openapi.yaml`, `Comando` | já corrigido lá |

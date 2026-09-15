@@ -24,13 +24,13 @@ identificador, não posição de leitura: quem entra agora encontra as duas tril
 | # | Documento | O que contém |
 |---|---|---|
 | 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
-| 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra na primeira entrega, o que ficou para depois e por quê, e a evolução prevista |
+| 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra nesta entrega, o que ficou para depois e por quê, e a evolução prevista |
 | 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: **uma definição por termo**, o que não confundir com o quê, as cinco colisões de vocabulário que ele resolve, e os termos deliberadamente não usados |
 | 04 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
 | 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
 | 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em **[api/openapi.yaml](api/openapi.yaml)**, em OpenAPI 3.1 |
 | 07 | **[Fluxos e Diagramas](fluxos-e-diagramas.md)** | Os fluxos que o texto explica pior: o comando de transição de ponta a ponta, a resolução de contexto, a entrada na organização, o registro com imagem — mais a relação de cada um com os três fluxogramas do enunciado, e a lista do que foi deliberadamente **não** desenhado |
-| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As telas da primeira entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
+| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As telas desta entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
 | 09 | **[Registros de Decisão de Arquitetura](adr/)** | Uma decisão por arquivo, no formato Nygard, cada uma com o contexto, as alternativas rejeitadas e as consequências — inclusive as ruins. O índice, com o status de cada uma, está em **[adr/README.md](adr/README.md)** |
 | 10 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
 | 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
@@ -45,8 +45,9 @@ identificador, não posição de leitura: quem entra agora encontra as duas tril
 
 ## Por onde começar
 
-**Caminho curto.** A [narrativa da primeira entrega](escopo.md#a-primeira-entrega-em-uma-passada), na
-abertura do Escopo, conta o produto de ponta a ponta e termina com o que ele **não** faz. De lá:
+**Caminho curto.** [O produto em uma passada](escopo.md#o-produto-em-uma-passada), na abertura do Escopo,
+conta do cadastro ao dashboard como quem usa o encontra: registrar uma ocorrência, triar, atribuir,
+resolver, avaliar, e a trilha que grava cada passo. De lá:
 [Arquitetura](arquitetura.md) para o mecanismo, e a
 [ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md) para a decisão que sustenta o
 resto — a auditabilidade como invariante do agregado, e não como convenção do time.

@@ -5,7 +5,7 @@ description: "A superfície HTTP: como comando de domínio vira endpoint sem tor
 
 # Contrato de API — Resolve Aí
 
-Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
+Superfície HTTP desta entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
 [modelo-de-dados.md](modelo-de-dados.md) (as **catorze tabelas migradas, de dezessete modeladas**, e a regra
 do vínculo), [arquitetura.md](arquitetura.md) (o agregado `Ocorrência` e as quatro camadas),
 [glossario.md](glossario.md) (os nomes) e do [event-storming.md](event-storming.md) (comandos do passo 5,
@@ -178,7 +178,7 @@ São dez caminhos para onze comandos: **`/atribuir-responsavel` realiza dois** (
 a resposta diz qual dos dois aconteceu, no campo `reatribuicao`. Reatribuir encerra a atribuição anterior
 com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 
-Na primeira entrega a POL-04 não tem canal para arquivar. O canal 3, a conversa privada da
+Nesta entrega a POL-04 não tem canal para arquivar. O canal 3, a conversa privada da
 atribuição, é evolução prevista. A política fica declarada porque o encadeamento é do desenho e volta
 inteiro quando o canal existir; hoje reatribuir encerra a atribuição anterior e para aí.
 
@@ -196,7 +196,7 @@ sub-recursos singulares, este é o primeiro candidato.
 
 | Campo de `ocorrencias` | Como muda |
 |---|---|
-| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. Não há endpoint de edição na primeira entrega — editar ocorrência não é capacidade ✅ do escopo (suposição S-A7) |
+| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. Não há endpoint de edição nesta entrega — editar ocorrência não é capacidade ✅ do escopo (suposição S-A7) |
 | `status` | **Só por comando.** Não aparece em nenhum schema de entrada do contrato |
 | `prioridade` | Só por `POST /ocorrencias/{id}/alterar-prioridade` — que recusa em estado terminal (D6) |
 | `solucaoAplicada` | Por `POST /ocorrencias/{id}/registrar-solucao-aplicada` **ou no corpo de `POST /ocorrencias/{id}/resolver`** — os dois, e é de propósito (§8.4) |
@@ -380,7 +380,7 @@ constante em código.
 concede*. É o que dispensa o segundo vínculo do síndico que mora no prédio, e, no contrato, é o que faz
 `POST /ocorrencias` e `POST /ocorrencias/{id}/avaliar` aceitarem um Gestor sem nenhuma exceção escrita.
 
-O Encarregado não tem permissão nenhuma na primeira entrega. Não é esquecimento: as cinco capacidades do
+O Encarregado não tem permissão nenhuma nesta entrega. Não é esquecimento: as cinco capacidades do
 acesso próprio dele são ⬜ (`escopo.md` §3.1). Um vínculo `encarregado` que tenha conta autentica normalmente,
 recebe `permissoes: []` em `GET /contexto` e leva `403 PERMISSAO_INSUFICIENTE` em qualquer endpoint de
 negócio. O contrato **declara** esse estado em vez de deixá-lo acontecer por acidente.
@@ -773,7 +773,7 @@ genérico. As duas listas são o mesmo conjunto **hoje**, e não por desenho.
 
 Sobra exposição real em dois pontos: `alterar-prioridade` e `registrar-solucao-aplicada`, onde a última
 escrita sobrescreve a anterior sem aviso, e a alteração de prioridade não entra na trilha (só transições
-entram; é o PA-21). Aceitamos, por três razões: o cenário da primeira entrega é o do **síndico único**
+entram; é o PA-21). Aceitamos, por três razões: o cenário desta entrega é o do **síndico único**
 (`escopo.md` §3.3, o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
 `If-Unmodified-Since` for necessário depois; e toda resposta de comando devolve `atualizadaEm`, então um
 cliente atento detecta a corrida sem que o contrato mude.
@@ -931,7 +931,7 @@ o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o q
 T-09. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
 **Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
-(evolução prevista). Na primeira entrega a organização é imutável depois de criada, consequência do corte, não
+(evolução prevista). Nesta entrega a organização é imutável depois de criada, consequência do corte, não
 descuido, e registrada na §11.
 
 ### 8.2 Atividade 1 — Entrar na organização
@@ -1040,7 +1040,7 @@ este `PATCH` recusa justamente quem tem conta, não há `PATCH /contexto/pessoa`
 nem deve existir (§4.6). Encontrado ao montar o inventário de telas, pela pergunta *"o que uma tela de
 perfil salvaria?"*.
 
-Como fica na primeira entrega: o nome nasce do **cadastro da conta** e é **corrigível no momento em que
+Como fica nesta entrega: o nome nasce do **cadastro da conta** e é **corrigível no momento em que
 a pessoa entra numa Organização**, o campo `nome` de `POST /pedidos-de-entrada`, que já existe e é
 opcional, e cuja tela pré-preenche com o nome atual. Depois disso, não há como alterá-lo.
 
@@ -1049,7 +1049,7 @@ nome vigente no momento de cada transição fica na trilha de auditoria para sem
 já agiu no sistema carrega o erro no histórico. É limitação aceita, não descuido, está registrada como
 ponto de atenção em `premissas-e-questoes-abertas.md`.
 
-**Não existe tela de perfil** na primeira entrega, e a razão é esta: ela não teria o que salvar.
+**Não existe tela de perfil** nesta entrega, e a razão é esta: ela não teria o que salvar.
 
 `DELETE /vinculos/{pessoaId}`, o único `DELETE` do contrato, e por que ele existe.
 
@@ -1105,7 +1105,7 @@ de domínio nenhum**. O fluxo inteiro, incluindo o que acontece com o objeto que
 na §10.
 
 O caminho fala em anexo; o corpo aceita imagem, e a diferença é deliberada. O `tipoConteudo` aceito
-é `image/jpeg` ou `image/png`, e nada mais: é o escopo da primeira entrega (RNF8). O nome do recurso é o
+é `image/jpeg` ou `image/png`, e nada mais: é o escopo desta entrega (RNF8). O nome do recurso é o
 conceito, evidência, e o corpo é o **recorte**. Admitir outro tipo é acrescentar um valor àquela
 lista; o caminho, o schema e o cliente não mudam, porque o cliente nunca envia o tipo do anexo: o
 servidor o deriva do `tipoConteudo` que autorizou. É o mesmo raciocínio da §7.8 do `modelo-de-dados.md` —
@@ -1230,7 +1230,7 @@ O que cada um tem de específico:
   auto-atribuição não é endpoint:** o cliente envia o próprio `pessoaId`, que
   `GET /contexto` já lhe deu, e *"em um clique"*, o nome da capacidade, conta **comando** e não toque de
   tela (quadro acima). Reatribuir é o mesmo endpoint com atribuição vigente: encerra a anterior
-  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3, que não existe na primeira entrega,
+  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3, que não existe nesta entrega,
   ver §3.4) e devolve `reatribuicao: true`.
 - **`/iniciar-atendimento`**, `409 RESPONSAVEL_NAO_ATRIBUIDO` (invariante 9, D21: *"quem está fazendo"* é
   o que se perde hoje). É a única precondição de estado que não é sobre `status`.
@@ -1272,8 +1272,8 @@ determinado pela permissão de quem pergunta:
 | `ocorrencia.ler_todas` (Gestor) | Todas as ocorrências da organização ativa |
 | só `ocorrencia.ler_propria` (Solicitante) | Só aquelas de que ele é **autor** |
 
-Isto não é um filtro implícito escondido: é a regra de visibilidade da primeira entrega, e ela está
-declarada no `escopo.md` (§3.3): *"na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
+Isto não é um filtro implícito escondido: é a regra de visibilidade desta entrega, e ela está
+declarada no `escopo.md` (§3.3): *"nesta entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
 A resposta devolve `visibilidadeAplicada: "todas" | "apenas_minhas"` para que o cliente possa dizer ao
 usuário o que está vendo. O Gestor que também mora no prédio usa `?autor=eu` para ver as próprias, é o caso
 do síndico morador (§6.4 do `modelo-de-dados.md`), resolvido por parâmetro e não por segundo vínculo.
@@ -1369,7 +1369,7 @@ registro de transição é imutável (§9.1): não há `PATCH`, não há `DELETE
 Não é decisão de contrato, o contrato não desenha tela. É consequência desta decisão de contrato, e
 por isso fica escrita aqui: o inventário de telas e o protótipo precisam carregá-la. O lugar do texto que
 o Solicitante não deve ler é a **nota interna** (canal 2), que é evolução prevista, o que significa que,
-na primeira entrega, não existe lugar nenhum para texto interno entre Gestores. Isso é agravante, não
+nesta entrega, não existe lugar nenhum para texto interno entre Gestores. Isso é agravante, não
 atenuante, e é a razão de o aviso na interface não ser opcional.
 
 **`GET /ocorrencias/{id}/anexos/{anexoId}`** devolve **`302`** para uma URL assinada de leitura, válida por
@@ -1933,12 +1933,12 @@ nenhum contrato detecta e nenhum teste de schema pega. Duas consequências prát
 recuperação de uma organização cujo único Gestor perdeu o acesso (§12), a segunda **não é evolução
 de conveniência, é buraco declarado no desenho**.
 
-**Fora desta lista:** `tempoMedioDeResolucao` faz parte da primeira entrega, pela razão que a §8.7 dá.
+**Fora desta lista:** `tempoMedioDeResolucao` faz parte desta entrega, pela razão que a §8.7 dá.
 
 ### 11.1 Ampliar o anexo — fora dos 21, e o motivo de estar aqui
 
 Mais de um anexo por ocorrência, e anexo de outro tipo, não são itens de escopo, não estão entre os 21
-e não entram na contagem: o `escopo.md` segue com 66 itens, 44 na primeira entrega. Estão nesta seção
+e não entram na contagem: o `escopo.md` segue com 66 itens, 44 nesta entrega. Estão nesta seção
 porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do `modelo-de-dados.md`)
 foi desenhada exatamente para que estes dois dias custassem pouco. Se o custo não estiver escrito, a
 decisão de modelagem que o barateou vira folclore.
@@ -2196,7 +2196,7 @@ em dois tempos*, acima.
 | 17 | Idempotência | Não há chave; o desfazer é `aberta_por_engano` | `Idempotency-Key` — exige tabela nova |
 | 18 | Rótulo de status | `statusRotulo` calculado no servidor, por papel | Mapa no cliente — divergiria entre clientes e tiraria o texto do glossário |
 | 19 | Dashboard | Um endpoint, cinco indicadores | Cinco endpoints — cinco cold starts para uma tela |
-| 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis na primeira entrega |
+| 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis nesta entrega |
 | 21 | Sincronia contrato ↔ código | Spec-first agora; `zod` + geração com portão no CI depois | Spec-first para sempre (depende de disciplina) · JSDoc (comentário mente igual) |
 | 22 | **Contato na superfície** | `pessoa.contatos[]` embutido em `GET /vinculos`; escrita por **substituição** no corpo do vínculo | `emailContato` + `telefone` soltos — removê-los depois seria quebra (§11) · três endpoints próprios de contato — URL de recurso que a §4.6 nega a `Pessoa` · mesclagem por `id` — três casos de borda em vez de um |
 | 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |

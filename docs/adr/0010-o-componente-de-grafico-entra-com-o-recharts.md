@@ -10,7 +10,7 @@ description: "O painel pediu o gráfico que a ADR-0007 tinha adiado, e a depend�
 ## Contexto
 
 A [ADR-0007](0007-camada-de-interface-com-shadcn-ui.md) recusou o componente de gráfico do catálogo para a
-primeira entrega e escreveu, na mesma linha, a condição da volta: *"Se o painel se provar ilegível, entra
+esta entrega e escreveu, na mesma linha, a condição da volta: *"Se o painel se provar ilegível, entra
 depois, porque é aditivo"*. A condição se cumpriu, e este registro é o que ela previa.
 
 O painel é a tela de indicadores, e o primeiro bloco dela responde se o problema está melhorando ou

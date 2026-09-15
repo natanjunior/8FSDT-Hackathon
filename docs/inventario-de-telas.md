@@ -1,6 +1,6 @@
 ---
 title: "Inventário de Telas"
-description: "As telas da primeira entrega: o que cada uma responde, os estados vazio, carregando e erro, e o mapa de navegação."
+description: "As telas desta entrega: o que cada uma responde, os estados vazio, carregando e erro, e o mapa de navegação."
 ---
 
 # Inventário de Telas — Resolve Aí
@@ -1152,7 +1152,7 @@ Sobrevive à autenticação (§3, decisão 2). Os modais são fragmentos, não e
 > pode haver. Um Gestor que escreva nota interna ali por engano **não tem volta**.
 >
 > **O agravante que torna o aviso obrigatório e não recomendável:** a **nota interna** é o canal 2, e
-> ela é ⬜ (D9, cortada porque o cenário é o do síndico único). Então **na primeira entrega não existe
+> ela é ⬜ (D9, cortada porque o cenário é o do síndico único). Então **nesta entrega não existe
 > lugar nenhum** para texto interno entre Gestores. O campo de observação é o único campo de texto livre
 > que um Gestor tem, e ele é público ao Solicitante. Sem o aviso, o engano não é improvável: é a leitura
 > natural de um campo chamado "observação".
@@ -1327,7 +1327,7 @@ cinco números não são iguais em valor, e a tela declara isso pela ordem em qu
   `horas`: um mês com duas resoluções e um com trinta não podem parecer iguais.
 
 E uma que a tela **não** mostra, com o motivo: **tempo de calendário × tempo ativo** é ⬜ (D19). O
-objetivo **O5** é justamente essa separação, e ele **não é medido na primeira entrega** — está declarado
+objetivo **O5** é justamente essa separação, e ele **não é medido nesta entrega** — está declarado
 assim na Documentação da Demanda. A tela não insinua o contrário, e não há espaço reservado prometendo.
 
 **O que oferece.**
@@ -1730,14 +1730,14 @@ Gestores vai chegar aqui.
 
 | Campo | Conteúdo |
 |---|---|
-| **Quem vê** | Qualquer vínculo com `contexto.permissoes == []`. Na primeira entrega, isso é **exatamente** o papel `encarregado` (S-A6) |
+| **Quem vê** | Qualquer vínculo com `contexto.permissoes == []`. Nesta entrega, isso é **exatamente** o papel `encarregado` (S-A6) |
 | **A pergunta** | *"Entrei. Por que não consigo fazer nada?"* |
 
 ### Primeiro, o fato que surpreende: o `Encarregado` não tem tela nenhuma
 
 **Conferido nas fontes, e é para ser dito em voz alta:**
 
-- O acesso próprio do Encarregado **foi cortado da primeira entrega** — Q11, cinco capacidades ⬜ de
+- O acesso próprio do Encarregado **foi cortado desta entrega** — Q11, cinco capacidades ⬜ de
   uma vez: entrar e ver a própria lista, leitura sem rede, reportar execução concluída, recusar
   atribuição, e a conversa da atribuição (`escopo.md` §3.1).
 - O contrato registra a consequência: **`permissoes: []`** para o vínculo `encarregado`, e
@@ -1848,15 +1848,15 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 | O que poderia ter sido tela | Por que não |
 |---|---|
 | **Perfil / minha conta** | **Não existe, e em 22/08/2026 isso passou de lacuna a decisão declarada** (`contrato-de-api.md` §8.2, e ver §9, **F11**). Os *dados de acesso* — e-mail de login e senha — são do provedor, via SDK, e vivem em T-01, T-12 e T-13. Os *dados pessoais* da `Pessoa`, que é tabela **global**, **não têm endpoint**: `PATCH /vinculos/{pessoaId}` recusa justamente quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3), não há `PATCH /contexto/pessoa` e não há `/pessoas` (`contrato-de-api.md` §4.6, e não deve haver). **O `nome` é corrigível uma última vez** no campo de `POST /pedidos-de-entrada`, em T-02 face A; **`contatos[]` só por quem gere vínculos**, em T-08. Depois disso, nada muda — e o nome fica na trilha imutável |
-| **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático na primeira entrega, em nenhum canal |
+| **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático nesta entrega, em nenhum canal |
 | **Filtros rápidos** | ⬜ — D15. É *"o corte de maior custo operacional: são o que o Gestor faz todo dia"* (`escopo.md` §3.3), e o que sobra são os três filtros de G2 em T-03 |
-| **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Na primeira entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
+| **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Nesta entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
 | **Ver semelhantes e aderir** | ⬜ — D11 |
 | **Lista do Encarregado** | ⬜ — Q11. E `?responsavel=eu` é fatia 2 (`contrato-de-api.md` §11, item 13) |
 | **Nota interna** | ⬜ — D9. E é justamente essa ausência que torna o aviso de visibilidade em T-05 obrigatório |
 | **Busca por texto** | Não existe `?q=` (`contrato-de-api.md` §9.8), e o índice GIN foi deliberadamente não criado |
 | **Editar ocorrência** | Não existe `PATCH /ocorrencias` (S-A7). Título, descrição, categoria, área e imagem são escritos **uma vez** |
-| **Página pública da organização** | ⬜ — D25. A primeira entrega usa o código digitado à mão em T-02 |
+| **Página pública da organização** | ⬜ — D25. Esta entrega usa o código digitado à mão em T-02 |
 | **Onboarding, tour ou ajuda** | Não é capacidade, e contradiz o RNF6: o Solicitante *"não vai aprender nada"*, então o produto tem de funcionar sem ensinar |
 | **Tela de erro genérica / 500** | Não é tela: é um estado de cada tela, com o `traceId` visível para quem tiver de procurar no log. Ver §7 |
 
@@ -2238,7 +2238,7 @@ mostra a face D de T-02.
 ### F3 · Nada na documentação cobre o que o vínculo sem permissão vê
 
 O estado está **declarado três vezes** — S-A6 (`permissoes: []`), `contrato-de-api.md` §4.5 (*"o Encarregado não tem
-permissão nenhuma na primeira entrega"*), e o DG-3 (*"um caminho que termina em nada"*). Mas não há
+permissão nenhuma nesta entrega"*), e o DG-3 (*"um caminho que termina em nada"*). Mas não há
 **capacidade**, não há **endpoint** e não há **fluxo** para o que a pessoa vê ao chegar lá.
 
 T-10 é a resposta, e é **a única tela deste inventário que não realiza nenhuma capacidade** — o que,
@@ -2256,7 +2256,7 @@ sem volta: **estado sem saída que ninguém documentou é o que vira suporte às
 - A **`contrato-de-api.md` §8** abria com *"**36 operações**"*; a **`contrato-de-api.md` §14** dizia
   *"nenhum dos **37** endpoints existe sem capacidade correspondente"*.
 - O **`fluxos-e-diagramas.md`**, na lista de origens do cabeçalho, citava *"[contrato-de-api.md] (os **36**
-  endpoints)"* e *"[escopo.md] (as **41** capacidades da primeira entrega)"* — e o escopo fechou em **42**.
+  endpoints)"* e *"[escopo.md] (as **41** capacidades desta entrega)"* — e o escopo fechou em **42**.
 
 **Verificado no YAML:** 30 caminhos, **37 operações**
 (`grep -cE '^    (get|post|put|patch|delete):' docs/api/openapi.yaml` → 37; 12 `get`, 20 `post`, 3
@@ -2277,7 +2277,7 @@ percorrendo a lista inteira. **A capacidade entra sem a leitura que a torna úti
 
 Não é defeito do contrato — o filtro é ⬜ por decisão consciente, junto com o acesso do Encarregado.
 Duas atenuações reais: `responsavel` está no `OcorrenciaResumo`, então a informação está na lista; e o
-cenário da primeira entrega é o do **síndico único**, onde *"atribuído a mim"* e *"atribuído a alguém"*
+cenário desta entrega é o do **síndico único**, onde *"atribuído a mim"* e *"atribuído a alguém"*
 quase coincidem. Fica **declarado, não consertado** — mas é o tipo de coisa que fica óbvia na primeira
 demonstração ao vivo.
 
@@ -2368,7 +2368,7 @@ Este inventário fez o que pode: o convite aparece em T-05 **e** em T-03 (não s
 avaliada" — então uma ocorrência resolvida de dois meses atrás **afunda**, e o convite afunda com ela.
 Os dois instrumentos que resolveriam — o **sino** e os **filtros rápidos** — são ⬜.
 
-Fica declarado: **a interface da primeira entrega não tem mecanismo que traga de volta uma resolução não
+Fica declarado: **a interface desta entrega não tem mecanismo que traga de volta uma resolução não
 avaliada.** O Solicitante consegue chegar lá filtrando por `status=resolvida`, e o Solicitante não vai
 filtrar. É o custo do corte do aviso automático (§3.2 do `escopo.md`) aparecendo num lugar que aquela seção
 não previu.

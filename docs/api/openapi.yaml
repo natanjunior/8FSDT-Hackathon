@@ -5,7 +5,7 @@ info:
   version: "1.0.0"
   summary: Gestão de ocorrências com trilha de auditoria imutável, multi-organização.
   description: |
-    Superfície HTTP da **primeira entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
+    Superfície HTTP **desta entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
     suposições declaradas e a rastreabilidade das 42 capacidades estão em `docs/contrato-de-api.md`.
 
     ## As cinco regras que explicam a forma desta API
@@ -82,7 +82,7 @@ tags:
   - name: Anexo
     description: |
       A **evidência** anexada a uma ocorrência: autorização de upload direto para o storage, e leitura por
-      URL assinada de vida curta. **Na primeira entrega o anexo é exatamente um, do tipo `imagem`** — a
+      URL assinada de vida curta. **Nesta entrega o anexo é exatamente um, do tipo `imagem`** — a
       forma é de anexo, o escopo é de imagem, e os dois são coisas diferentes de propósito.
   - name: Dashboard
     description: Os indicadores de gestão — o que a listagem não responde.
@@ -609,7 +609,7 @@ paths:
         alteraria o cadastro daquela pessoa **em todas as outras organizações**, inclusive naquela em que
         ela é Gestora. Quem tem conta edita os próprios dados.
 
-        **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade da primeira entrega.
+        **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade desta entrega.
 
         *Capacidade: cadastro de Encarregados (o **U** do CRUD) · `NOSSO` (D27). Permissão: `vinculo.gerir`.*
       parameters:
@@ -686,7 +686,7 @@ paths:
         de entrada é aceito, agora com o papel certo.
 
         Para encerrar o acesso de quem **tem** histórico a operação é outra — *revogar* —, e ela preserva
-        o registro. Não está na primeira entrega.
+        o registro. Não está nesta entrega.
 
         *Capacidade: remover vínculo sem histórico · `NOSSO` (D25, PA-25). Permissão: `vinculo.gerir`.*
       parameters:
@@ -995,7 +995,7 @@ paths:
 
         ## O que esta operação aceita hoje, e por que o nome é `anexos`
 
-        **O corpo aceita `image/jpeg` e `image/png`, e nada mais** — é o escopo da primeira entrega
+        **O corpo aceita `image/jpeg` e `image/png`, e nada mais** — é o escopo desta entrega
         (RNF8, e a capacidade *"anexar uma imagem"* do escopo). O caminho fala em anexo porque o conceito
         do domínio é **evidência**, e imagem é um tipo dela; o dia em que outro tipo entrar, o que muda é a
         lista de `tipoConteudo` aceitos, **não o caminho, não o schema e não o cliente**.
@@ -1038,7 +1038,7 @@ paths:
                   type: string
                   enum: [image/jpeg, image/png]
                   description: |
-                    **Os dois tipos da primeira entrega** (RNF8). O servidor deriva daqui o `tipo` do anexo
+                    **Os dois tipos desta entrega** (RNF8). O servidor deriva daqui o `tipo` do anexo
                     — hoje sempre `imagem`. Aceitar um tipo novo é acrescentar um valor a esta lista, e é a
                     única mudança de entrada que a ampliação do anexo exigiria.
                 tamanhoBytes:
@@ -1218,7 +1218,7 @@ paths:
         - quem tem `ocorrencia.ler_todas` (Gestor) recebe **todas** as da organização ativa;
         - quem tem só `ocorrencia.ler_propria` (Solicitante) recebe **apenas as de que é autor**.
 
-        Na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores — a visibilidade
+        Nesta entrega toda ocorrência é visível apenas ao autor e aos Gestores — a visibilidade
         comunitária das áreas comuns é evolução prevista. A resposta declara o recorte aplicado em
         `visibilidadeAplicada`.
 
@@ -1768,7 +1768,7 @@ paths:
         atribuição — **arquivada, nunca apagada**. A resposta diz qual dos dois aconteceu, em
         `reatribuicao`.
 
-        > **Na primeira entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
+        > **Nesta entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
         > atribuição — é evolução prevista (D9). A política fica declarada porque o encadeamento é do
         > desenho e volta inteiro quando o canal existir; **hoje reatribuir encerra a atribuição anterior e
         > para aí.** *(Acrescentado em 30/08/2026: a redação anterior prometia, sem ressalva, que "a
@@ -1826,7 +1826,7 @@ paths:
                         description: |
                           `true` quando havia responsável anterior — a atribuição dele foi encerrada com
                           motivo `reatribuicao`. O arquivamento da conversa daquela atribuição é a POL-04,
-                          e **na primeira entrega ela não tem canal para arquivar**: o canal 3 é evolução
+                          e **nesta entrega ela não tem canal para arquivar**: o canal 3 é evolução
                           prevista (D9). *(Corrigido em 30/08/2026: a redação anterior era "`true` quando
                           havia responsável anterior — a atribuição dele foi encerrada e a conversa,
                           arquivada", que prometia o arquivamento como fato desta entrega. Item 16 da fila
@@ -2201,7 +2201,7 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os cinco indicadores da primeira entrega, em **uma requisição** — o dashboard é uma tela, e a
+        Os cinco indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
         aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
@@ -2616,7 +2616,7 @@ components:
         **não retira capacidade que o desafio concede**: o Gestor acumula as do Solicitante, e é por isso
         que o síndico que mora no prédio não precisa de um segundo vínculo.
 
-        Na primeira entrega, `encarregado` **não tem permissão nenhuma**: ele existe como cadastro e
+        Nesta entrega, `encarregado` **não tem permissão nenhuma**: ele existe como cadastro e
         recebe atribuições, mas o acesso próprio dele é evolução prevista.
       enum: [gestor, solicitante, encarregado]
 
@@ -2988,7 +2988,7 @@ components:
           description: |
             As evidências **já enviadas ao storage**, por referência. Nunca bytes.
 
-            **`maxItems: 1` é o escopo da primeira entrega, e é aqui que ele mora.** A tabela `anexos` do
+            **`maxItems: 1` é o escopo desta entrega, e é aqui que ele mora.** A tabela `anexos` do
             banco não tem restrição nenhuma de quantidade, de propósito: se o banco proibisse o segundo
             anexo, permiti-lo depois seria migração — e evitar migração é a razão inteira de o anexo ser
             tabela. Ampliar é trocar este número, o que **aceita mais e nunca menos**, e portanto não quebra
@@ -3096,7 +3096,7 @@ components:
                 As evidências da ocorrência, da mais antiga para a mais recente. **Lista vazia quando não
                 há anexo** — nunca `null`, para o cliente não precisar de dois caminhos de leitura.
 
-                Na primeira entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
+                Nesta entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
                 schema: nem o banco nem esta resposta limitam a quantidade.
               items: { $ref: "#/components/schemas/Anexo" }
               examples:
@@ -3259,7 +3259,7 @@ components:
         O **tipo de evidência**. Enum de **saída apenas** — o cliente nunca o envia: o servidor o deriva do
         `tipoConteudo` declarado na autorização de upload.
 
-        **Um valor hoje, e isso é deliberado.** O escopo da primeira entrega é *"anexar uma imagem"*
+        **Um valor hoje, e isso é deliberado.** O escopo desta entrega é *"anexar uma imagem"*
         (`escopo.md`, atividade 2) com RNF8 fixando JPEG ou PNG; declarar `video`, `documento` e `audio`
         aqui seria publicar três caminhos de renderização para dado que nunca chega. Acrescentar um valor
         depois é `ALTER TYPE tipo_anexo ADD VALUE` no banco e **valor novo em enum de saída** no contrato —
