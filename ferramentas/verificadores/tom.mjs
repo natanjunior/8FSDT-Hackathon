@@ -41,6 +41,7 @@ const APROVADOS = new Set([
   "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
   "docs/adr/README.md",
   "docs/arquitetura.md",
+  "docs/contrato-de-api.md",
   "docs/definition-of-done.md",
   "docs/documentacao-da-demanda.md",
   "docs/escopo.md",
