@@ -199,6 +199,10 @@ usuário está em linguagem de gente, escrito na seção de cada uma. Dois nomes
   contradiria a regra na primeira palavra. **Se o hub quiser um nome curto, ele é proposta ao
   glossário — não é invenção deste inventário** (`glossario.md` §9).
 
+  **O nome curto chegou em 16/09/2026, e veio pelo caminho que esta linha previu:** a navegação chama a
+  tela de `Participantes`, o termo está definido no [glossário](glossario.md) §1, e o título da tela não
+  muda. A divergência é deliberada — o título diz onde você está, o rótulo diz para onde você vai.
+
 ### A navegação
 
 ```mermaid
@@ -671,7 +675,7 @@ envelope. *(A segunda metade — "não há `total`" — caiu em 09/09/2026, com 
 | Carregar mais | `GET /ocorrencias?cursor=<proximoCursor>` |
 | Registrar ocorrência — só com `ocorrencia.registrar` | **navegação** → T-04 |
 | Abrir um item | **navegação** → T-05 |
-| Dashboard · Quem está na organização · Categorias e áreas | **navegação** → T-07, T-08, T-09, cada uma só com a permissão respectiva |
+| Dashboard · Participantes · Categorias e áreas | **navegação** → T-07, T-08, T-09, cada uma só com a permissão respectiva |
 
 **Sobre os filtros.** São **exatamente os três de G2** (`ENUNCIADO · literal`), mais `autor=eu`.
 `areaId` **não existe** e não deve ser acrescentado: o contrato o excluiu deliberadamente (`contrato-de-api.md` §8.5), e
@@ -2615,7 +2619,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **Q-T4** | **T-10 vira capacidade no `escopo.md`?** (F3) | (a) não — nota na atividade 1, ao lado da nº 10; (b) sim — capacidade nova, `NOSSO` | **(a).** Não há nada a construir além de texto, e a nota é o instrumento que a S-A15 já usou para o mesmo tipo de estado |
 | ~~**Q-T5**~~ | ~~**De onde vem o nome de uma Pessoa recém-criada?** (F6)~~ | — | ✅ **Respondida por construção em 21/08/2026, e por um caminho que não estava nas opções:** as duas supunham que o formulário de cadastro não era nosso. **T-11 pede o `nome`**, sem mudança de schema. Ver o quadro do F6 |
 | ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026, e por uma terceira via.** Nem (a) nem (b): o `contrato-de-api.md` §8.2 declarou que o nome nasce do cadastro da conta, é **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com o nome atual** —, e **depois disso não há como alterá-lo**. Continua **não havendo tela de perfil**, e a consequência permanente está declarada: o nome vigente em cada transição fica na trilha para sempre. É limitação aceita, e é o que faz o campo `nome` de T-11 e o de T-02 face A serem os dois pontos que mais importam do produto inteiro |
-| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(a)** por ora. *"Pessoas"* contradiria a regra do vínculo primeiro na primeira palavra, e **nome novo é proposta ao glossário, não invenção deste inventário** (`glossario.md` §9) |
+| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(b)**, em 16/09/2026. O rótulo da navegação é `Participantes`, com entrada no [glossário](glossario.md) §1 e o *"não confundir com"* que o separa dos participantes de um canal de conversa. O título da tela continua sendo *"Quem está na organização"* |
 | **Q-T8** | **A contagem de pedidos pendentes no menu do Gestor vale uma requisição a mais no shell?** (F10) | (a) sim; (b) não — o Gestor descobre abrindo T-08 | **(a).** Com a notificação ⬜, é a única coisa que separa "entra hoje" de "entra quando alguém lembrar" |
 | ~~**Q-T10**~~ | ~~**Onde a unidade de quem tem conta é registrada?** (F13)~~ | — | ✅ **Respondida pelo hub em 22/08/2026 — pela (a), e a (c) veio junto.** `/aprovar` passou a aceitar `areaId?`: o Gestor escolhe a unidade **no mesmo momento em que escolhe o papel**, que é quando ele está olhando o pedido e sabe quem é a pessoa. A **(b)** foi recusada — faria a própria pessoa declarar onde mora antes de ser admitida, sem ninguém conferir. **E a (c) aconteceu no mesmo movimento**, sem ser escolhida como saída: a guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` passou a nomear **campos**, não o endpoint, então `areaId` continua editável no `PATCH` para quem tem conta (`contrato-de-api.md` §8.2). **O que sobrou aberto é a especificação publicada**, que ainda descreve a recusa como sendo do endpoint — achado **R-24** do `prototipo-low-fi.md`. *Marcado em 30/08/2026, item 3 da fila da frente de documentação* |
 
