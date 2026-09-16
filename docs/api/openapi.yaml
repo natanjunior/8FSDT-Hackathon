@@ -240,6 +240,58 @@ paths:
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+    patch:
+      tags: [Organização]
+      operationId: corrigirOrganizacao
+      summary: Corrigir a organização ativa
+      description: |
+        Corrige os dados da organização **da sessão**. Não há `{id}` no caminho: a organização vem da
+        sessão, nunca da URL (§4.2), e é essa ausência que torna impossível editar organização alheia.
+
+        **Só `nome` é editável.** O `codigoPublico` é gerado pelo servidor, não é aceito no corpo e **não
+        é rotacionável nesta entrega**: código vazado produz um pedido de entrada aguardando aprovação,
+        não acesso (D25). `logoCaminho` não tem mecanismo de storage e vira uma linha em `anexos` quando
+        entrar. O interruptor *exigir solução ao resolver* muda a máquina de estados e pede um `409` novo
+        em `/resolver` — é item ⬜.
+
+        **Sem `404`:** a organização é a da sessão e ela existe. **Sem `409` de nome duplicado:**
+        `organizacoes` tem `UNIQUE (codigo_publico)` e nada sobre `nome` — duas organizações podem ter o
+        mesmo nome, e é o código que as distingue.
+
+        A alteração deixa rastro na forma **última escrita** — `atualizado_em` e
+        `atualizado_por_pessoa_id` —, a mesma de `categorias` e `areas`. Não há tabela de histórico de
+        configuração.
+
+        *Capacidade: corrigir o nome da organização · `NOSSO` (D25). Permissão: `organizacao.configurar`.*
+        *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+            example: { nome: "Residencial Aurora" }
+      responses:
+        "200":
+          description: Organização corrigida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizacaoResumo" }
+              example:
+                id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+                nome: "Residencial Aurora"
+                codigoPublico: "AURORA42"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /pedidos-de-entrada:
     post:
       tags: [Entrada na organização]

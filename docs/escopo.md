@@ -209,11 +209,11 @@ prevista.
 
 ## 2 · O recorte desta entrega
 
-**66 itens de escopo mapeados. 44 entram nesta entrega; 22 são evolução prevista.**
+**67 itens de escopo mapeados. 45 entram nesta entrega; 22 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
-| 0 · Configurar a organização | 6 | 3 |
+| 0 · Configurar a organização | 7 | 3 |
 | 1 · Entrar na organização | 6 | 4 |
 | 2 · Registrar a ocorrência | 3 | 1 |
 | 3 · Triar | 5 | 2 |
@@ -223,12 +223,12 @@ prevista.
 | 7 · Acompanhar | 4 | 4 |
 | 8 · Gerir | 5 | 2 |
 | Fundação técnica | 6 | — |
-| **Total** | **44** | **22** |
+| **Total** | **45** | **22** |
 
-**Os 24 itens exigidos pelo desafio estão inteiros nesta entrega.** Todo o corte recaiu sobre as 42
-adições do projeto: 20 entraram e 22 ficaram para depois.
+**Os 24 itens exigidos pelo desafio estão inteiros nesta entrega.** Todo o corte recaiu sobre as 43
+adições do projeto: 21 entraram e 22 ficaram para depois.
 
-Os 20 que entraram não estão lá por gosto: cada um é a cola sem a qual um requisito do desafio não
+Os 21 que entraram não estão lá por gosto: cada um é a cola sem a qual um requisito do desafio não
 funciona. Sem Organização não há onde registrar; sem categorias e áreas semeadas, a Organização nasce vazia
 e nada pode ser registrado; sem pedido de entrada e aprovação, ninguém além de quem criou consegue entrar;
 sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o Solicitante lê *"Em análise"* e
@@ -250,6 +250,7 @@ capacidade foi decidida.
 | Áreas-semente, com os tipos *comum* e *privativa* | D10, D18 | ✅ |
 | Editar categorias | Desafio | ✅ |
 | Editar áreas | D18 | ✅ |
+| Corrigir o nome da organização | D25 | ✅ |
 | Escolher o ícone da categoria, sobre uma lista fechada de 25 nomes | RNF6 | ✅ |
 | Identidade da organização na página de cadastro, com logo e nome | D25 | ⬜ |
 | Interruptor *"exigir descrição da solução ao resolver"* | D22 | ⬜ |

@@ -10,13 +10,15 @@ import type {
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  OrganizacaoLida,
+  RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
 } from "./portas";
 
 /**
  * ============================================================================
- *  A configuração da organização — itens 4a e 5 (T-09 e T-14)
+ *  A configuração da organização — itens 4a, 5 e 46 · 47 (T-09, T-14 e T-15)
  * ============================================================================
  *
  * **Os dois padrões de produto moram aqui, e não no schema de entrada.** É a mesma doutrina que
@@ -25,7 +27,7 @@ import type {
  * modelo; `ordem` com `default: 0`). A Interface traduz o corpo; **quem sabe o que acontece quando
  * ninguém manda nada é esta camada.**
  *
- * **Nenhuma das quatro funções abre transação, e nenhuma precisa:** cada uma é uma instrução só. É o que
+ * **Nenhuma das cinco funções abre transação, e nenhuma precisa:** cada uma é uma instrução só. É o que
  * separa esta fatia do cadastro de vínculo, que escreve Pessoa e Vínculo juntos.
  */
 
@@ -132,4 +134,35 @@ export async function corrigirArea(
   if (resultado.desfecho === "nao-encontrada") throw new AreaNaoEncontrada();
   if (resultado.desfecho === "nome-duplicado") throw new NomeDeAreaDuplicado();
   return resultado.area;
+}
+
+export type ComandoDeCorrecaoDeOrganizacao = {
+  nome?: string;
+  /** Quem está corrigindo — `ctx.pessoaId`. Vai para a coluna de auditoria (modelo §6.5). */
+  porPessoaId: string;
+};
+
+/**
+ * **Corrigir a organização ativa — item 46 · 47.**
+ *
+ * **O quinto caso de uso deste arquivo, e o único sem recusa a traduzir.** Os outros quatro convertem
+ * desfecho da porta em erro nomeado do contrato; aqui não há desfecho: a organização é a da sessão, ela
+ * existe, e não há unicidade de nome a violar (spec §3.3).
+ *
+ * **Ele existe mesmo assim porque a fronteira é a mesma:** `app/` não monta repositório (ADR-0006, regra
+ * 2b), e o handler chama **uma** função desta camada. O que se traduz é o vocabulário — o comando fala
+ * `porPessoaId`, a porta fala `atualizadaPorPessoaId`.
+ *
+ * **O spread e não `nome: comando.nome`:** a chave ausente é o que diz *"não altere"*. Quem monta o
+ * `update` decide pela ausência, e uma chave presente valendo `undefined` é uma terceira coisa que
+ * ninguém precisa que exista.
+ */
+export async function corrigirOrganizacao(
+  organizacao: RepositorioEscopadoDaOrganizacao,
+  comando: ComandoDeCorrecaoDeOrganizacao,
+): Promise<OrganizacaoLida> {
+  return organizacao.corrigir({
+    ...(comando.nome === undefined ? {} : { nome: comando.nome }),
+    atualizadaPorPessoaId: comando.porPessoaId,
+  });
 }

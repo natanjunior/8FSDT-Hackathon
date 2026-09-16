@@ -17,7 +17,8 @@ import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas"
  * **São TRÊS recusas, e não quatro: `resolver` não tem precondição fora do `status`.** A invariante 9 é do
  * `iniciarAtendimento`; a invariante 10 diz o contrário de uma precondição — *"`resolver` **não** exige
  * solução aplicada; depende da configuração da `Organização`"* —, e o interruptor por organização é
- * evolução prevista, sem coluna e sem `PATCH /organizacao` (critério 25.4).
+ * evolução prevista: a coluna existe desde a migração `001` e o `PATCH /organizacoes` existe desde o item
+ * 46 · 47, mas **o campo não entra no corpo dele**, e é isso que sustenta o critério 25.4.
  *
  * ```
  * 403 (no comContexto, antes de ler o recurso)

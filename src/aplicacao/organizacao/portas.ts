@@ -59,6 +59,49 @@ export interface RepositorioDeOrganizacoes {
   criar(nova: NovaOrganizacao): Promise<OrganizacaoCriada>;
 }
 
+/**
+ * O que a organização ativa devolve quando é lida por T-15 — o schema `OrganizacaoResumo` do contrato.
+ *
+ * **Não é `OrganizacaoCriada` menos campos.** Aquele carrega `criadoEm` e as duas contagens de semente, e
+ * **semente não acontece num `PATCH`**: devolvê-las com `0` diria que nada foi semeado.
+ */
+export type OrganizacaoLida = {
+  id: string;
+  nome: string;
+  codigoPublico: string;
+};
+
+/**
+ * O que muda na organização ativa. **`nome` opcional, e é o que deixa o segundo campo ser aditivo**
+ * (contrato §11) — com um campo só, obrigatório daria o mesmo resultado hoje e o dia da logo custaria
+ * uma mudança de assinatura.
+ *
+ * **`codigoPublico` não está aqui, e a ausência é a decisão** (spec §3.4): gerado pelo servidor, não
+ * aceito no corpo, e não rotacionável nesta entrega — código vazado produz pedido, não acesso (D25).
+ */
+export type CorrecaoDeOrganizacao = {
+  nome?: string;
+  /** Quem alterou — a coluna de auditoria de configuração, na mesma forma de `categorias` e `areas`. */
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * **A porta escopada da própria organização.**
+ *
+ * Note o que ela **não** recebe: o identificador da organização. Ele entra em `$1` pelo ponto único
+ * (`infraestrutura/contexto/escopo.ts`), e sem valor a passar **não existe** chamada que edite
+ * organização alheia — a mesma assimetria da ADR-0005, estrutura garante e mecanismo avisa.
+ *
+ * **Sem desfecho etiquetado, ao contrário das irmãs de `categorias` e `areas`.** Aquelas têm
+ * `nao-encontrada` porque recebem um `{id}` que pode apontar para outra organização, e `nome-duplicado`
+ * porque têm `UNIQUE (organizacao_id, nome)`. Aqui não há `{id}` e `organizacoes` não tem unicidade sobre
+ * `nome` (modelo §6.3): duas organizações podem se chamar *Residencial Aurora*, e é o código que as
+ * distingue. Zero linhas seria o banco em outro estado, não um desfecho de domínio.
+ */
+export interface RepositorioEscopadoDaOrganizacao {
+  corrigir(correcao: CorrecaoDeOrganizacao): Promise<OrganizacaoLida>;
+}
+
 /** O schema `Categoria` do contrato. `icone` **nunca vem nulo** — a coluna é `NOT NULL`. */
 export type CategoriaLida = {
   id: string;
@@ -367,7 +410,7 @@ export type ImpedimentoDeRemocao = "historico" | "ultimo-gestor";
 /**
  * Os quatro desfechos da remoção. **Etiqueta, não exceção** — a mesma doutrina dos itens 7a, 8 e 9a.
  *
- * `com-historico` é a tradução do `23503`, e chega de **duas** origens: as oito chaves `on delete
+ * `com-historico` é a tradução do `23503`, e chega de **duas** origens: as nove chaves `on delete
  * restrict`, que erram no `delete`, e `organizacoes_criada_por_vinculo_fk`, que é
  * `deferrable initially deferred` e erra no `COMMIT`.
  */

@@ -809,6 +809,7 @@ produto, das quais só uma tem faxina.
 | `logo_caminho` | `text` | sim | — |
 | `exigir_solucao_ao_resolver` | `boolean` | não | `false` |
 | `criada_por_pessoa_id` | `uuid` | sim | — |
+| `atualizado_por_pessoa_id` | `uuid` | sim | — |
 | `criado_em` | `timestamptz` | não | `now()` |
 | `atualizado_em` | `timestamptz` | não | `now()` |
 
@@ -821,10 +822,33 @@ produto, das quais só uma tem faxina.
   vive em cartaz de elevador e é digitado à mão.
 - `FOREIGN KEY (criada_por_pessoa_id, id) REFERENCES vinculos (pessoa_id, organizacao_id)`
   **`DEFERRABLE INITIALLY DEFERRED`**, abaixo
+- `FOREIGN KEY (atualizado_por_pessoa_id, id) REFERENCES vinculos (pessoa_id, organizacao_id)`
+  `ON DELETE RESTRICT`, migração `010`, abaixo
 
 `nome` + `logo_caminho` são o whitelabel da D25, não há tabela separada para dois campos.
-`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Ambos são **evolução prevista**, mas
-custam duas colunas e evitam migração depois.
+`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Desde 16/09/2026 o `nome` é escrito
+por `PATCH /organizacoes`; a logo e o interruptor seguem **evolução prevista**, e custam duas colunas que
+evitam migração depois.
+
+### `atualizado_por_pessoa_id`, o rastro da correção — 16/09/2026
+
+Quem escreveu por último nesta linha. A coluna entra com a migração `010`, junto do
+`PATCH /organizacoes`, que é o primeiro escritor de `atualizado_em`: até ali a coluna do relógio existia
+sem ninguém para preenchê-la, porque **não há gatilho** (migração `001`).
+
+O rastro é **última escrita**, a mesma forma de `categorias` e `areas` (§7.7). Não há tabela de histórico
+de configuração: o RNF9 é sobre a trilha da ocorrência, e renomear não é transição de status. Gravar
+*quando* sem gravar *quem* responderia metade da pergunta num ato cujo efeito é externo — o nome aparece
+para quem ainda não entrou, no `201` de `POST /pedidos-de-entrada`, no seletor de organização e no título
+do pedido pendente.
+
+**A chave não é diferida, ao contrário da irmã de `criada_por_pessoa_id`.** Aquela precisa do adiamento
+porque a organização entra antes do vínculo, na mesma transação da POL-01. Aqui o vínculo já existe: quem
+corrige tem `organizacao.configurar`, e essa permissão só vive sobre vínculo ativo.
+
+**Consequência declarada:** com ela, `organizacoes` passa a ser a **nona tabela** cuja chave para
+`vinculos` erra no próprio `delete`, e não só no `COMMIT`. O Gestor que corrigiu o nome deixa de poder
+ser removido por `DELETE /vinculos/{pessoaId}`, no mesmo regime de quem renomeia uma categoria.
 
 ### `criada_por_pessoa_id`, e o ovo-e-galinha que ela cria — 22/08/2026
 
@@ -856,10 +880,10 @@ reivindicada e não é recolhida pela faxina**, ou seja, não tem nenhuma das ga
 §10.3 do contrato de API construíram para o anexo. É o **mesmo defeito** que `ocorrencias.imagem_caminho`
 tinha antes da §7.8.
 
-**Por que fica assim:** a identidade da organização é **⬜ evolução prevista**, não existe
-`PATCH /organizacao` nesta entrega, então nada escreve nesta coluna hoje. Consertar agora seria
-construir mecanismo para um campo sem produtor; e criar uma tabela `logos` seria modelar duas vezes o que
-ninguém constrói.
+**Por que fica assim:** a logo é **⬜ evolução prevista**. O `PATCH /organizacoes` existe desde
+16/09/2026 e **não aceita `logoCaminho` no corpo**, então nada escreve nesta coluna hoje. Consertar agora
+seria construir mecanismo para um campo sem produtor; e criar uma tabela `logos` seria modelar duas vezes
+o que ninguém constrói.
 
 O caminho quando a logo entrar, decidido antes para não ser improvisado: ela vira **uma linha em
 `anexos`, com `ocorrencia_id` passando a anulável. Custa uma migração de nulabilidade e zero
@@ -2171,7 +2195,7 @@ a regra de evitar índice de baixa seletividade continua valendo.
 | Número sequencial visível da ocorrência (`#12`) | Não é decisão de modelagem. Acrescentaria um identificador ao produto, com regra de geração por organização. Se o time quiser, é decisão de produto e volta como coluna |
 | `ocorrencias.total_anexos` | Contador materializado, avaliado em 21/08/2026. **Recusado pelo critério da §7.1:** desnormaliza-se o que é filtrado ou ordenado por consulta frequente, nunca o que é apenas projetado. `quantidadeDeAnexos` só aparece na resposta, nenhum filtro do G2 o menciona, e a página tem no máximo 20 itens contra um índice |
 | `contatos.principal` (booleano) | Avaliado em 22/08/2026 e **substituído por `ordem`** (§6.17). Booleano exigiria índice único parcial e não diria o que fazer com o segundo contato; `ordem` dá a cadeia de tentativa de graça. É a lição do `rank` do FHIR |
-| Tabela `organizacao_configuracoes` (1:1) | Avaliada em 22/08/2026 e **recusada.** Hoje há uma coluna de configuração, e ela é ⬜ — não existe `PATCH /organizacao` nesta entrega. Separar 1:1 se justifica por padrão de acesso, segurança ou ciclo de vida diferentes; **nenhum se aplica a 50 linhas**, e a tabela criaria um problema novo: *a linha de configuração existe sempre? quem a cria? o que acontece se faltar?* |
+| Tabela `organizacao_configuracoes` (1:1) | Avaliada em 22/08/2026 e **recusada.** Há **uma** coluna de configuração, `exigir_solucao_ao_resolver`, e ela segue ⬜. Separar 1:1 se justifica por padrão de acesso, segurança ou ciclo de vida diferentes; **nenhum se aplica a 50 linhas**, e a tabela criaria um problema novo: *a linha de configuração existe sempre? quem a cria? o que acontece se faltar?* |
 | Configuração em **chave-valor** (EAV) | Avaliada e recusada com mais força que a tabela 1:1. Perde tipo, `NOT NULL`, `CHECK` e `DEFAULT` garantido pelo banco, e toda leitura vira pivô. E contradiz a §2.4, que já decidiu este eixo: conjunto fechado definido pelo código → coluna ou enum; configurável pelo usuário → tabela escopada. Chave de configuração é conjunto fechado definido pelo código. Gatilho para revisar, para a decisão não virar sensação: quando passar de ~10 colunas de configuração e elas forem lidas separadamente |
 
 ### 7.7 Índice das demais decisões
@@ -2199,7 +2223,7 @@ a regra de evitar índice de baixa seletividade continua valendo.
 | 17 | **Ordem da trilha** | Coluna `sequencia`, com `UNIQUE (ocorrencia_id, sequencia)` | `ORDER BY ocorreu_em` sozinho — empata quando dois registros nascem na mesma transação, e `now()` é o instante da transação · `ORDER BY ocorreu_em, id` — desempate **estável mas arbitrário**, porque UUID v4 não tem ordem temporal | §6.8 |
 | 18 | **Unidade do morador** | `vinculos.area_id`, anulável, FK composta | Texto livre em `pessoas` — duas verdades sobre o mesmo fato · coluna em `pessoas` — a unidade é da relação, não do ser humano · nada, e continuar guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia | §6.4, §6.2.1 |
 | 19 | **Proveniência do objeto de storage** | `anexos.fonte`, `NOT NULL DEFAULT` | Conhecimento global num arquivo de configuração — funciona com um provedor e fica ambíguo com dois, e este projeto já trocou de provedor uma vez | §5, §6.16 |
-| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas` — última escrita | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede | §6.5, §6.6 |
+| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas`, e `atualizado_por` em `organizacoes` — última escrita nas três tabelas de configuração; quem criou a organização já está em `criada_por_pessoa_id` | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede | §6.5, §6.6 |
 | 21 | **Ordenação alfabética** | `COLLATE "pt-BR-x-icu"` na coluna | `COLLATE` no `ORDER BY` — funciona e precisa ser lembrado em toda consulta · `collation` padrão do banco — ordena `Área` depois de `Zona` | §2.10 |
 
 ### 7.8 Reversão declarada — a imagem deixa de ser coluna e vira a tabela `anexos`
