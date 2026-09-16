@@ -4,6 +4,7 @@ import {
   NOME_AUSENTE,
   NaoAutenticado,
   SemVinculoNaOrganizacao,
+  corrigirPessoa,
   escolherOrganizacaoAtiva,
   resolverContexto,
 } from "@/aplicacao/contexto";
@@ -75,7 +76,7 @@ const CENARIO = {
 
 describe("resolverContexto — o contexto é o da sessão", () => {
   it("resolve para a Pessoa da sessão, e não para outra do mesmo banco", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, CENARIO);
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -88,7 +89,7 @@ describe("resolverContexto — o contexto é o da sessão", () => {
   });
 
   it("a Pessoa da sessão só vê os próprios vínculos — nunca os da vizinha", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, CENARIO);
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -108,7 +109,7 @@ describe("resolverContexto — o contexto é o da sessão", () => {
     // É o caso que a decisão da §4.2 do contrato existe para eliminar: a organização nunca é entrada livre
     // do cliente. Aqui o cookie pede uma organização em que a Pessoa não tem vínculo — e a resolução cai na
     // regra do estado inicial como se o cookie não existisse.
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, CENARIO);
 
     const resolucao = await resolverContexto(
       duplos.portas,
@@ -122,7 +123,7 @@ describe("resolverContexto — o contexto é o da sessão", () => {
   it("a escolha de um usuário não vale para outro", async () => {
     // O cookie é assinado e amarrado ao `usuarioId` (contrato §4.3). O duplo reproduz a amarração: a
     // escolha registrada para a síndica não alcança a sessão da vizinha.
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, CENARIO);
 
     const resolucao = await resolverContexto(
       duplos.portas,
@@ -164,7 +165,7 @@ describe("resolverContexto — o contexto é o da sessão", () => {
       },
     ];
 
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, {
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, {
       ...CENARIO,
       pedidos,
     });
@@ -180,7 +181,7 @@ describe("resolverContexto — o contexto é o da sessão", () => {
 describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () => {
   it("com exatamente um vínculo, o servidor escolhe e sinaliza a gravação do cookie", async () => {
     const duplos = montarDuplos(
-      { usuarioId: "usuario-vizinha", nomeSugerido: null },
+      { usuarioId: "usuario-vizinha", nomeSugerido: null, email: null },
       { pessoas: [VIZINHA], vinculos: [VINCULO_DA_VIZINHA] },
     );
 
@@ -192,7 +193,7 @@ describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () =
   });
 
   it("com dois ou mais, não escolhe: a organização ativa vem nula — é a face D de T-02", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, PERSONA_1B);
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, PERSONA_1B);
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -202,7 +203,7 @@ describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () =
   });
 
   it("com dois ou mais e escolha válida, obedece — e não regrava o cookie", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, PERSONA_1B);
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, PERSONA_1B);
 
     const resolucao = await resolverContexto(
       duplos.portas,
@@ -215,7 +216,7 @@ describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () =
   });
 
   it("com zero vínculos, não há o que escolher — é a face A de T-02", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha" });
+    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha", email: null });
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -226,7 +227,7 @@ describe("resolverContexto — a regra do estado inicial (contrato §4.3)", () =
 
   it("vínculo revogado não conta — nem para a lista, nem para a escolha automática", async () => {
     const duplos = montarDuplos(
-      { usuarioId: "usuario-sindica", nomeSugerido: null },
+      { usuarioId: "usuario-sindica", nomeSugerido: null, email: null },
       {
         pessoas: PERSONA_1B.pessoas,
         vinculos: [PERSONA_1B.vinculos[0]!, { ...PERSONA_1B.vinculos[1]!, revogado: true }],
@@ -245,7 +246,7 @@ describe("resolverContexto — o ACL que garante a Pessoa (modelo §9.2)", () =>
   it("cria a Pessoa no primeiro acesso, com o nome vindo dos metadados da conta", async () => {
     // Contrato §4.1: `pessoas.nome` vem dos metadados da conta, preenchidos no cadastro — e é por isso que
     // T-11 pede o nome.
-    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "  Helena Rocha  " });
+    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "  Helena Rocha  ", email: null });
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -255,7 +256,7 @@ describe("resolverContexto — o ACL que garante a Pessoa (modelo §9.2)", () =>
   });
 
   it("é idempotente: o segundo acesso não cria uma segunda Pessoa", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha" });
+    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha", email: null });
 
     const primeira = await resolverContexto(duplos.portas, escolhaDaSessao());
     const segunda = await resolverContexto(duplos.portas, escolhaDaSessao());
@@ -267,7 +268,7 @@ describe("resolverContexto — o ACL que garante a Pessoa (modelo §9.2)", () =>
 
   it("não recria a Pessoa que já existe, nem sobrescreve o nome dela", async () => {
     const duplos = montarDuplos(
-      { usuarioId: "usuario-sindica", nomeSugerido: "Outro Nome Qualquer" },
+      { usuarioId: "usuario-sindica", nomeSugerido: "Outro Nome Qualquer", email: null },
       PERSONA_1B,
     );
 
@@ -280,7 +281,7 @@ describe("resolverContexto — o ACL que garante a Pessoa (modelo §9.2)", () =>
   it("conta sem nome nos metadados cai no literal declarado, e não em credencial", async () => {
     // `pessoas.nome` é `NOT NULL`, então é preciso um valor. Cair no trecho local do e-mail poria
     // credencial na trilha imutável, contra o RNF10 — o achado está registrado em `resolver-contexto.ts`.
-    const duplos = montarDuplos({ usuarioId: "usuario-sem-nome", nomeSugerido: "   " });
+    const duplos = montarDuplos({ usuarioId: "usuario-sem-nome", nomeSugerido: "   ", email: null });
 
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
@@ -290,7 +291,7 @@ describe("resolverContexto — o ACL que garante a Pessoa (modelo §9.2)", () =>
 
 describe("a projeção de GET /contexto corresponde ao schema Contexto do openapi.yaml", () => {
   it("sem vínculo nenhum, é o exemplo semVinculo do openapi.yaml — e sustenta a face A de T-02", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha" });
+    const duplos = montarDuplos({ usuarioId: "usuario-novo", nomeSugerido: "Helena Rocha", email: null });
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
     expect(projetarContexto(resolucao)).toStrictEqual({
@@ -305,7 +306,7 @@ describe("a projeção de GET /contexto corresponde ao schema Contexto do openap
 
   it("com organização ativa, papel e permissões vêm do vínculo — e o Gestor acumula", async () => {
     const duplos = montarDuplos(
-      { usuarioId: "usuario-sindica", nomeSugerido: null },
+      { usuarioId: "usuario-sindica", nomeSugerido: null, email: null },
       { pessoas: PERSONA_1B.pessoas, vinculos: [PERSONA_1B.vinculos[0]!] },
     );
     const contexto = projetarContexto(await resolverContexto(duplos.portas, escolhaDaSessao()));
@@ -321,7 +322,7 @@ describe("a projeção de GET /contexto corresponde ao schema Contexto do openap
   });
 
   it("cada vínculo traz organizacaoId, nome, papel e codigoPublico — e nada além", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, PERSONA_1B);
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, PERSONA_1B);
     const contexto = projetarContexto(await resolverContexto(duplos.portas, escolhaDaSessao()));
 
     expect(contexto.vinculos).toStrictEqual([
@@ -361,6 +362,62 @@ describe("a projeção de GET /contexto corresponde ao schema Contexto do openap
       ]);
     }
   });
+
+  it("o e-mail da conta NÃO entra no payload publicado", async () => {
+    const duplos = montarDuplos(
+      { usuarioId: "usuario-sindica", nomeSugerido: null, email: "helena@exemplo.com" },
+      PERSONA_1B,
+    );
+    const projetado = projetarContexto(await resolverContexto(duplos.portas, escolhaDaSessao()));
+
+    // O schema `Contexto` do `openapi.yaml` não declara e-mail em lugar nenhum, e a §3.4 da spec decidiu
+    // que ele fica fora: publicá-lo poria a credencial numa resposta que hoje não a tem.
+    expect(JSON.stringify(projetado)).not.toContain("helena@exemplo.com");
+    expect(projetado.pessoa).toEqual({
+      pessoaId: projetado.pessoa.pessoaId,
+      nome: projetado.pessoa.nome,
+    });
+  });
+});
+
+describe("corrigirPessoa — a Pessoa da sessão corrige o próprio nome (item 49)", () => {
+  it("renomeia a Pessoa da sessão e devolve a referência corrigida", async () => {
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, CENARIO);
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    const corrigida = await corrigirPessoa(duplos.portas.pessoas, {
+      pessoaId: resolucao.sessao.pessoaId,
+      nome: "Helena Rocha",
+    });
+
+    expect(corrigida.nome).toBe("Helena Rocha");
+    expect(corrigida.pessoaId).toBe(resolucao.sessao.pessoaId);
+  });
+
+  it("uma resolução depois da correção já traz o nome novo, e é a mesma Pessoa", async () => {
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, CENARIO);
+    const antes = await resolverContexto(duplos.portas, escolhaDaSessao());
+
+    await corrigirPessoa(duplos.portas.pessoas, {
+      pessoaId: antes.sessao.pessoaId,
+      nome: "Helena Rocha",
+    });
+
+    const depois = await resolverContexto(duplos.portas, escolhaDaSessao());
+    expect(depois.sessao.pessoaId).toBe(antes.sessao.pessoaId);
+    expect(depois.sessao.nome).toBe("Helena Rocha");
+    // **Nenhuma Pessoa nova.** A correção é `update`, e o ACL não recria quem já existe.
+    expect(duplos.rastro.pessoasCriadas).toBe(0);
+  });
+
+  it("o e-mail da conta atravessa a resolução e chega à sessão (T-16, seção Acesso)", async () => {
+    const duplos = montarDuplos(
+      { usuarioId: "usuario-sindica", nomeSugerido: null, email: "helena@exemplo.com" },
+      CENARIO,
+    );
+    const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
+    expect(resolucao.sessao.email).toBe("helena@exemplo.com");
+  });
 });
 
 describe("escolherOrganizacaoAtiva — o PUT /contexto/organizacao sem consulta nenhuma (item 7b)", () => {
@@ -369,7 +426,7 @@ describe("escolherOrganizacaoAtiva — o PUT /contexto/organizacao sem consulta 
    * para ser chamado — `escolherAtivo` só escolhe sozinho com **um** vínculo (contrato §4.3).
    */
   async function resolucaoDaSindica() {
-    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-sindica", nomeSugerido: null, email: null }, CENARIO);
     return resolverContexto(duplos.portas, escolhaDaSessao());
   }
 
@@ -415,14 +472,14 @@ describe("escolherOrganizacaoAtiva — o PUT /contexto/organizacao sem consulta 
 
   it("organização real onde a Pessoa não tem vínculo — recusa", async () => {
     // A vizinha tem vínculo só em `organizacao-a`. `organizacao-b` existe no cenário, e ela não está lá.
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, CENARIO);
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
     expect(() => escolherOrganizacaoAtiva(resolucao, "organizacao-b")).toThrow(SemVinculoNaOrganizacao);
   });
 
   it("organização inexistente — a MESMA recusa, indistinguível (critério 7b.3)", async () => {
-    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null }, CENARIO);
+    const duplos = montarDuplos({ usuarioId: "usuario-vizinha", nomeSugerido: null, email: null }, CENARIO);
     const resolucao = await resolverContexto(duplos.portas, escolhaDaSessao());
 
     const semVinculo = capturar(() => escolherOrganizacaoAtiva(resolucao, "organizacao-b"));
@@ -438,7 +495,7 @@ describe("escolherOrganizacaoAtiva — o PUT /contexto/organizacao sem consulta 
 
   it("vínculo revogado não serve para escolher", async () => {
     const duplos = montarDuplos(
-      { usuarioId: "usuario-sindica", nomeSugerido: null },
+      { usuarioId: "usuario-sindica", nomeSugerido: null, email: null },
       {
         pessoas: PERSONA_1B.pessoas,
         vinculos: [PERSONA_1B.vinculos[0]!, { ...PERSONA_1B.vinculos[1]!, revogado: true }],

@@ -145,6 +145,20 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
       rastro.pessoasCriadas += 1;
       return Promise.resolve(referencia(nova));
     },
+
+    /**
+     * O `update pessoas set nome = $2 where id = $1` do repositório real, em memória. **Escreve na
+     * lista compartilhada**, que é o que faz o teste do efeito global ver o nome novo pelas duas
+     * organizações sem que nada mais mude.
+     */
+    renomear(pessoaId, nome) {
+      const alvo = pessoas.find((p) => p.pessoaId === pessoaId);
+      if (alvo === undefined) {
+        return Promise.reject(new Error(`o duplo não tem Pessoa ${pessoaId}`));
+      }
+      alvo.nome = nome;
+      return Promise.resolve(referencia(alvo));
+    },
   };
 
   const repositorioGlobalDeVinculos: RepositorioGlobalDeVinculos = {
