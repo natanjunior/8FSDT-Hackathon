@@ -200,8 +200,8 @@ const RELATIVO_PARA_FORA = {
 /**
  * **A lista fechada da ADR-0003, virada mecanismo.**
  *
- * *"Exatamente quatro operações não passam pelo repositório escopado"* (contrato §4.4), e *"qualquer
- * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o quinto
+ * *"Exatamente cinco operações não passam pelo repositório escopado"* (contrato §4.4), e *"qualquer
+ * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o sexto
  * `route.ts` que tentar importar `semOrganizacao` **não passa no lint** — a revisão explícita passa a ser
  * uma linha neste arquivo, com o caminho do endpoint escrita nela.
  */
@@ -209,14 +209,16 @@ const SEM_ORGANIZACAO = {
   group: ["@/interface/http"],
   importNames: ["semOrganizacao"],
   message:
-    "semOrganizacao é para as QUATRO operações da lista fechada do contrato §4.4 e mais nenhuma: " +
-    "GET /contexto, PUT /contexto/organizacao, POST /organizacoes, POST /pedidos-de-entrada. " +
-    "Acrescentar um quinto é emenda à ADR-0003, e passa por acrescentar o caminho em eslint.config.mjs.",
+    "semOrganizacao é para as CINCO operações da lista fechada do contrato §4.4 e mais nenhuma: " +
+    "GET /contexto, PATCH /contexto/pessoa, PUT /contexto/organizacao, POST /organizacoes, " +
+    "POST /pedidos-de-entrada. Acrescentar um sexto é emenda à ADR-0003, e passa por acrescentar o " +
+    "caminho em eslint.config.mjs.",
 };
 
-/** Os quatro `route.ts` da lista fechada. Três deles ainda não existem — e o caminho já está reservado. */
+/** Os cinco `route.ts` da lista fechada. Os cinco existem. */
 const ROTAS_SEM_ORGANIZACAO = [
   "app/api/contexto/route.ts",
+  "app/api/contexto/pessoa/route.ts",
   "app/api/contexto/organizacao/route.ts",
   "app/api/organizacoes/route.ts",
   "app/api/pedidos-de-entrada/route.ts",
@@ -435,7 +437,7 @@ const configuracao = [
   },
 
   // -------------------------------------------------------------------------
-  // Os quatro `route.ts` da lista fechada do contrato §4.4.
+  // Os cinco `route.ts` da lista fechada do contrato §4.4.
   // -------------------------------------------------------------------------
   {
     files: ROTAS_SEM_ORGANIZACAO,
@@ -446,17 +448,17 @@ const configuracao = [
         COMPOSICAO,
         SUPERFICIE_PUBLICA,
         RELATIVO_PARA_FORA,
-        // Estes quatro dispensam `SEM_ORGANIZACAO` — é o que os define. Não
+        // Estes cinco dispensam `SEM_ORGANIZACAO` — é o que os define. Não
         // dispensam `PORTAS_DE_ANEXO`: são listas fechadas DIFERENTES, e
         // nenhum deles emite credencial de upload.
         //
         // **Sem esta linha a segunda lista não fecharia**, e o furo seria
         // silencioso: cada bloco de `files` SUBSTITUI a regra da linha de base
         // para aqueles arquivos em vez de somar-se a ela, então omiti-la aqui
-        // daria a estes quatro `route.ts` acesso livre a `portasDeAnexo` — uma
-        // lista de cinco arquivos, não de um.
+        // daria a estes cinco `route.ts` acesso livre a `portasDeAnexo` — uma
+        // lista de seis arquivos, não de um.
         PORTAS_DE_ANEXO,
-        // Pela mesma razão, e é a terceira lista: nenhum destes quatro
+        // Pela mesma razão, e é a terceira lista: nenhum destes cinco
         // reivindica nem lê anexo.
         ARMAZENAMENTO_DE_ANEXOS,
       ),
@@ -504,7 +506,7 @@ const configuracao = [
         // contrato — os dois são escopados —, e `PORTAS_DE_ANEXO` porque
         // nenhum dos dois emite credencial de upload. Omitir qualquer uma
         // delas aqui abriria aquela lista em silêncio, que é exatamente o
-        // defeito que o bloco dos quatro foi escrito para impedir.
+        // defeito que o bloco dos cinco foi escrito para impedir.
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
       ),

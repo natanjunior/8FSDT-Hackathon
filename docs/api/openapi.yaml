@@ -136,6 +136,60 @@ paths:
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /contexto/pessoa:
+    patch:
+      tags: [Contexto]
+      operationId: corrigirPessoa
+      summary: Corrigir os próprios dados
+      description: |
+        Corrige os dados da Pessoa **da sessão**. Não há `{pessoaId}` no caminho, e essa ausência é o
+        mecanismo: sem identificador a passar, alterar os dados de outra pessoa não é improvável, é
+        impossível. O caminho é `/contexto/pessoa` e não `/pessoas/{id}` porque todo endereço de gente é
+        `/vinculos/{pessoaId}` (§4.6) — este é endereço da **sessão**, como os outros dois de `/contexto`.
+
+        **Só `nome` é editável.** O **e-mail** é a credencial de acesso e o único canal de recuperação de
+        senha: trocá-lo envolve o provedor, dois e-mails de confirmação por troca e um intervalo em que a
+        conta tem dois endereços. Fica de fora desta entrega, e a tela o mostra em leitura com a razão.
+        **`contatos[]`** fica de fora por outro motivo: a escrita é substituição da lista inteira, com
+        `ordem`, `409 CONTATO_DUPLICADO` e normalização para E.164 — é superfície de um item, não de um
+        campo. A **senha** já tem caminho próprio, e a tela aponta para ele.
+
+        **O efeito é global e declarado:** `pessoas` é tabela única, então o nome novo passa a valer em
+        **todas** as organizações da Pessoa. A trilha de auditoria guarda `autor_pessoa_id` e resolve o
+        nome na leitura, então transições antigas passam a ser lidas com o nome de agora — quem lê a
+        trilha vê **quem** agiu, não como essa pessoa se chamava na época. É a mesma propriedade em que a
+        anonimização do RNF10 se apoia, e congelar o nome a quebraria.
+
+        **Sem `403`:** permissão é atributo do Vínculo, e este endpoint roda sem vínculo. **Sem `404`:** a
+        Pessoa é a da sessão. **Sem `409`:** não há unicidade sobre `nome`.
+
+        *Capacidade: corrigir os próprios dados · `NOSSO` (PA-26). Não exige organização ativa — é um dos
+        cinco endpoints fora do escopo (contrato, §4.4), e o único deles que uma tela de dentro da
+        organização consome.*
+        *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+            example: { nome: "Helena Rocha" }
+      responses:
+        "200":
+          description: Pessoa corrigida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PessoaReferencia" }
+              example:
+                pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d"
+                nome: "Helena Rocha"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /contexto/organizacao:
     put:
       tags: [Contexto]
@@ -206,7 +260,7 @@ paths:
         deixar o cliente escolher permitiria adivinhação dirigida.
 
         *Capacidade: criar a organização por auto-serviço · `NOSSO` (D26). Comando: `Registrar organização`.*
-        *Não exige organização ativa — é um dos quatro endpoints fora do escopo (contrato, §4.4). E também
+        *Não exige organização ativa — é um dos cinco endpoints fora do escopo (contrato, §4.4). E também
         não a recusa: um Gestor de uma organização pode fundar outra, e a nova fica ativa pelo `Set-Cookie`
         da própria resposta.*
       requestBody:
