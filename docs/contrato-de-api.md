@@ -928,7 +928,7 @@ recorrência, que é o número mais importante do dashboard.
 as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
 `ocorrenciasComTipoAnterior`, uma contagem, para que a interface possa dizer ao Gestor, em português, que
 o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o que sustenta a reordenação em
-T-09. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+T-14. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
 **Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
 (evolução prevista). Nesta entrega a organização é imutável depois de criada, consequência do corte, não

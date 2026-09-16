@@ -3042,7 +3042,7 @@ justifica, e nós também não; é ponto de partida, e o Gestor reordena.
 | `escopo.md`, atividade 0 | *"Áreas-semente, **com os tipos comum e privativa**"* — a única exigência de conteúdo |
 | `openapi.yaml`, exemplo de `POST /organizacoes` | `areasSemeadas: 4` — **exemplo, não especificação** |
 | §6.6 deste documento | `tipo` não tem valor padrão: toda Área nasce com um dos dois, de propósito |
-| `inventario-de-telas.md`, T-09 | *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* — texto **explicativo de tela**, não lista de semente |
+| `inventario-de-telas.md`, T-14 | *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* — texto **explicativo de tela**, não lista de semente |
 
 **Não escolhi as áreas, e o motivo não é falta de material: a escolha certa depende de uma decisão de produto
 que não é deste documento.** O argumento está na **D3: o tenant é condomínio ou** empresa **ou** bairro.
@@ -3055,7 +3055,7 @@ Duas saídas, e a segunda é a recomendada:
 | | O que é | Custo |
 |---|---|---|
 | **(a) Semente rica, de condomínio** | Quatro a seis áreas com nome de prédio, como o `areasSemeadas: 4` sugere | A organização nasce usável se for um condomínio. Um bairro nasce com vocabulário errado, e apagar dá mais trabalho que criar |
-| **(b) Semente mínima e neutra** | Duas áreas, uma de cada tipo, com nome genérico — bastante para o formulário de T-04 não nascer insubmissível, e pouco para não parecer resposta | A organização nasce vazia de significado e precisa da visita a T-09, que é para onde o estado vazio de T-03 já manda o Gestor |
+| **(b) Semente mínima e neutra** | Duas áreas, uma de cada tipo, com nome genérico — bastante para o formulário de T-04 não nascer insubmissível, e pouco para não parecer resposta | A organização nasce vazia de significado e precisa da visita a T-14, que é para onde o estado vazio de T-03 já manda o Gestor |
 
 **Recomendada a (b)**, pelo mesmo motivo da nota de abertura desta seção: a semente é ponto de partida. O
 único requisito real é que **nada fique insubmissível**, sem categoria e sem área ativas ninguém registra
