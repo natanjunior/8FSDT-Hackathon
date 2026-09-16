@@ -358,6 +358,24 @@
     outline-offset: 2px;
   }
 
+  /* **O ponteiro de mão, uma vez, para o produto inteiro** — item 44f, critério 2.
+
+     O Tailwind 4 não dá `cursor: pointer` a `<button>` e nenhum dos `cva` do catálogo o declara, então
+     todo botão do produto mostrava a seta: os quatro modais, a paginação, o seletor de prioridade e as
+     abas de T-03. O que parecia certo era o que é `<a>`, porque âncora tem ponteiro do navegador.
+
+     **Declarar por componente regride por construção:** o próximo `shadcn add` escreve um `cva` novo sem a
+     classe. Por isso a regra é uma, e alcança o elemento mais os três papéis que o Radix desenha em `div`
+     — `menuitem` no menu de pessoa, `option` no `select`, `button` onde houver. O que está desabilitado
+     fica de fora: ponteiro em alvo inerte promete uma ação que não acontece. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
   /* Compromisso de acessibilidade: nenhuma informação vive só em passagem do ponteiro. O que o cartão
      mostra existe em outro lugar — a referência do lugar em T-05, o contato em T-08. */
   @media not all and (hover: hover) and (pointer: fine) {

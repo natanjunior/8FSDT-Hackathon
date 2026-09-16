@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -314,4 +314,62 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
       });
     });
   }
+});
+
+/**
+ * **O ponteiro dos elementos pressionáveis — item 44f, critério 2.**
+ *
+ * O Tailwind 4 não dá `cursor: pointer` a `<button>` e nenhum `cva` do catálogo o declara, então até
+ * 14/09/2026 todo botão do produto mostrava a seta. **A correção não pode ser por componente:** o próximo
+ * `shadcn add` escreve um `cva` novo sem a classe, e o defeito volta sem que nada reprove. A regra vive no
+ * `@layer base`, uma vez, e este guarda é o que a mantém lá.
+ */
+describe("app/globals.css — o ponteiro dos elementos pressionáveis", () => {
+  const base = corpoDoBloco("@layer base");
+  const PASTA_UI = fileURLToPath(new URL("../../src/interface/componentes/ui/", import.meta.url));
+
+  /**
+   * Os arquivos do catálogo **sem comentário de bloco**, e a poda é a mesma de `CSS` acima, pela mesma
+   * razão: a pergunta é *"algum componente declara a classe?"*, e comentário não declara nada. O
+   * cabeçalho de divergência que `dropdown-menu.tsx` e `select.tsx` passaram a ter **cita a classe pelo
+   * nome** — é o que torna o cabeçalho útil ao próximo `shadcn add` —, e sem a poda ele se acusaria.
+   */
+  function componentesQueDeclaram(classe: string): string[] {
+    return readdirSync(PASTA_UI)
+      .filter((arquivo) => arquivo.endsWith(".tsx"))
+      .filter((arquivo) =>
+        readFileSync(PASTA_UI + arquivo, "utf8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .includes(classe),
+      )
+      .sort();
+  }
+
+  it("declara `cursor: pointer` uma vez só, e no @layer base", () => {
+    expect(base.match(/cursor:\s*pointer/gu) ?? []).toHaveLength(1);
+    expect(CSS.match(/cursor:\s*pointer/gu) ?? []).toHaveLength(1);
+  });
+
+  it("a regra alcança o elemento e os três papéis que o Radix desenha em `div`", () => {
+    // `DropdownMenuItem` é `<div role="menuitem">` quando não recebe `asChild`, e `SelectItem` é sempre
+    // `<div role="option">`: sem estes dois seletores, toda opção de `select` e todo item de menu que não
+    // envolva um botão continuariam com a seta.
+    const regra = /([^{}]*)\{[^{}]*cursor:\s*pointer[^{}]*\}/u.exec(base)?.[1] ?? "";
+    for (const alvo of ["button", '[role="button"]', '[role="menuitem"]', '[role="option"]']) {
+      expect(regra).toContain(alvo);
+    }
+  });
+
+  it("nenhum componente do catálogo declara o ponteiro por conta própria", () => {
+    expect(componentesQueDeclaram("cursor-pointer")).toEqual([]);
+  });
+
+  it("nenhum componente do catálogo declara `cursor-default`, que venceria a regra pela camada", () => {
+    // **A regra vive no `@layer base` e `cursor-default` é utilitário**, que o Tailwind emite no
+    // `@layer utilities` — camada declarada depois, e camada posterior vence sem olhar especificidade.
+    // `dropdown-menu.tsx` e `select.tsx` declaravam a classe em sete lugares, entre eles os dois alvos
+    // que a regra existe para alcançar: o item do menu de pessoa e a opção do seletor de organização.
+    // A classe também não descrevia nada — `default` é o valor inicial de `cursor` nesses elementos.
+    expect(componentesQueDeclaram("cursor-default")).toEqual([]);
+  });
 });
