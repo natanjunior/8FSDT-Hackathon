@@ -667,7 +667,7 @@ Catorze tipos. Todos vêm de decisão fechada; nenhum é editável pela Organiza
 
 **`motivo_cancelamento` é um conjunto só, não dois.** As listas da D5 são por papel — Solicitante
 (*desisti · resolvi por conta própria · abri por engano · é duplicada*) e Gestor (*improcedente ·
-duplicada · fora de escopo · sem informação suficiente*) —, mas `duplicada` está nas duas e a divisão é
+duplicada · fora de escopo · sem informação suficiente*), mas `duplicada` está nas duas e a divisão é
 **autorização, não domínio de valor**. Modelar dois tipos duplicaria o valor comum e obrigaria duas colunas
 mutuamente exclusivas. **Rejeitado:** um enum por papel. Quem pode escolher qual valor é checagem da
 camada de aplicação, como toda autorização.
@@ -759,8 +759,7 @@ indistinguível de esquecimento**, e cada uma destas tem motivo.
 1. **Quem consome?** Uma tela, um indicador, uma regra, uma política. Não *"talvez um dia"*: quem, hoje ou
    num item ⬜ já registrado.
 2. A assimetria de custo aponta para qual lado? Se acrescentar depois for **caro**, migração, quebra
-   de contrato, retrabalho de tela —, decide-se agora. Se for **barato**, uma coluna anulável e nada mais
-   —, espera-se, porque **ter também custa**.
+   de contrato, retrabalho de tela, decide-se agora. Se for **barato**, uma coluna anulável e nada mais, espera-se, porque **ter também custa**.
 
 O segundo teste é o mesmo que fez o **anexo virar tabela** (§7.8) e o **contato virar tabela** (§7.9). Ele
 não é viés contra acrescentar: nesses dois casos ele **mandou acrescentar**, e nos de baixo manda esperar.
@@ -1037,7 +1036,7 @@ enunciado, **enumeradas na §13.1**.
 > Duas consequências no esquema, e as duas são desta seção:
 >
 > 1. **`icone` passa a ser `NOT NULL`.** A razão de ser anulável era não haver escritor; agora há dois, a
->    POL-01 e o Gestor —, e o servidor grava o padrão `tag` quando o cliente não manda (§13.5). **Custa
+>    POL-01 e o Gestor, e o servidor grava o padrão `tag` quando o cliente não manda (§13.5). **Custa
 >    zero**: `categorias` ainda não tem migração escrita, então isto é uma palavra no `CREATE TABLE` que
 >    ainda não existe, não um `ALTER`.
 > 2. **Ganha um `CHECK` de forma**, e só de forma: `CHECK (icone ~ '^[a-z0-9-]{1,40}$')`. A **lista** de
@@ -1078,7 +1077,7 @@ vinda de `ocorrencias`.
 
 ### 6.6 `areas` — a `Área` · MVP
 
-**Propósito:** a subdivisão configurada da Organização, bloco B, garagem, apartamento 302 —, cujo
+**Propósito:** a subdivisão configurada da Organização, bloco B, garagem, apartamento 302, cujo
 **tipo deriva a visibilidade** de toda ocorrência ali registrada (D10). A **semente** desta tabela é a
 metade do dado-semente que ainda não foi decidida — §13.2.
 
@@ -1116,7 +1115,7 @@ A pergunta que o esquema não conseguia responder: *"as ocorrências deste bloco
 quem tornou esta Área comum, e quando?"* Numa discussão de privacidade real, essa é **a** pergunta, e a
 resposta era um encolher de ombros.
 
-Duas colunas e um `atualizado_em` resolvem. **Não é histórico**, é a última escrita —, e a limitação
+Duas colunas e um `atualizado_em` resolvem. **Não é histórico**, é a última escrita, e a limitação
 está dita na §6.5: histórico de configuração seria tabela própria, e não entra.
 
 **Consequência para o contrato:** `PATCH /areas/{id}` já devolve `ocorrenciasComTipoAnterior` para
@@ -1980,7 +1979,7 @@ mecanismo:** o erro de partir de `pessoas` em vez de `vinculos` deixou de vazar 
 telefone e e-mail de todas as pessoas de todas as organizações. Mesma probabilidade de erro, prêmio
 muito maior.
 
-**Quem pode ler contato:** só `vinculo.gerir` — Gestor —, e só de pessoas com vínculo **na organização
+**Quem pode ler contato:** só `vinculo.gerir` — Gestor, e só de pessoas com vínculo **na organização
 dele** (suposição S-A5 do contrato de API). Não existe endpoint que devolva contato fora disso, e não
 existe endpoint anônimo no produto.
 
@@ -2091,7 +2090,7 @@ buscar a última linha da trilha, um `LATERAL` por linha, que nenhum índice tor
 paginação salva.
 
 **O custo:** uma escrita a mais por comando, na mesma transação que grava o registro. E uma invariante
-nova, `ocorrencias.status` = `status_novo` do último registro —, que é garantida pelo mesmo agregado que já
+nova, `ocorrencias.status` = `status_novo` do último registro, que é garantida pelo mesmo agregado que já
 garante a invariante 2 da ADR-0001. Não há caminho de escrita que atualize um sem o outro, porque não há
 caminho de escrita nenhum fora do comando.
 
@@ -2616,7 +2615,7 @@ e é por isso que a tabela nasceu sem `nome_original`, que teria sido a única c
 
 c · O conteúdo pode mostrar um rosto, e a anonimização por autor apagaria o conjunto errado. É a parte
 que decide. O PA-05 registra exatamente este risco, *"LGPD: foto e localização de pessoas"*, sem
-revisão jurídica —, mas o rosto numa foto de ocorrência é, quase sempre, o de **um terceiro**, não o de
+revisão jurídica, mas o rosto numa foto de ocorrência é, quase sempre, o de **um terceiro**, não o de
 quem registrou. Apagar os anexos *das ocorrências que ela registrou* apagaria fotos cujo retratado é outra
 pessoa, e deixaria intactas as fotos dela que outra pessoa registrou. A anonimização por autor erra
 nos dois sentidos: apaga demais e de menos. Não é o instrumento.
@@ -2969,7 +2968,7 @@ mais fácil de sustentar (§9.3). O critério foi aplicado de novo na mesma roda
 
 Esta seção existe porque a semente era citada em quatro documentos e enumerada em nenhum. O achado é o
 `R-22` do `prototipo-low-fi.md`, *"as sete categorias-semente são citadas em quatro documentos e
-enumeradas em nenhum: nem no enunciado, nem no `openapi.yaml`, nem na POL-01"* —, e ao escrever os critérios
+enumeradas em nenhum: nem no enunciado, nem no `openapi.yaml`, nem na POL-01"*, e ao escrever os critérios
 de aceitação das capacidades **2** e **3** ficou claro que a metade das áreas estava igualmente em branco.
 
 Sem esta seção, os critérios daquelas duas capacidades só conseguem conferir **contagem**; com ela, conferem
@@ -3060,7 +3059,7 @@ Duas saídas, e a segunda é a recomendada:
 
 **Recomendada a (b)**, pelo mesmo motivo da nota de abertura desta seção: a semente é ponto de partida. O
 único requisito real é que **nada fique insubmissível**, sem categoria e sem área ativas ninguém registra
-ocorrência (§6.5 e §6.6) —, e duas áreas o cumprem.
+ocorrência (§6.5 e §6.6), e duas áreas o cumprem.
 
 Enquanto a decisão não for tomada, o critério de aceitação da capacidade 3 confere o que está fixado:
 pelo menos uma área `comum`, pelo menos uma `privativa`, todas ativas, todas com `ordem`, e a contagem
