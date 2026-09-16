@@ -11,7 +11,7 @@ import { projetarContexto } from "@/interface/projecoes";
  * vínculos partindo de `vinculos` e gravou o cookie quando havia exatamente um. O que resta ao handler é o
  * que a tabela de camadas lhe permite — **traduzir**.
  *
- * `semOrganizacao` porque este é o primeiro dos quatro endpoints da lista fechada da §4.4: ele precisa
+ * `semOrganizacao` porque este é o primeiro dos cinco endpoints da lista fechada da §4.4: ele precisa
  * listar os vínculos de **todas** as organizações da Pessoa, então não há escopo a aplicar.
  */
 export const GET = semOrganizacao(({ resolucao }) => projetarContexto(resolucao));

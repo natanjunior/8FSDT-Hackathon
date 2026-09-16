@@ -110,7 +110,7 @@ export function repositorioDePedidosDeEntrada(
 }
 
 /**
- * A leitura de `GET /contexto`. **Atravessa organizações de propósito** — é uma das quatro operações da
+ * A leitura de `GET /contexto`. **Atravessa organizações de propósito** — é uma das cinco operações da
  * §4.4 —, e **parte de `pedidos_de_entrada` filtrando por `pessoa_id`**, nunca de `pessoas`.
  *
  * Devolve as **três** situações, em `criadoEm` decrescente (spec §2.6).

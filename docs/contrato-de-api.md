@@ -5,7 +5,7 @@ description: "A superfície HTTP: como comando de domínio vira endpoint sem tor
 
 # Contrato de API — Resolve Aí
 
-Superfície HTTP da primeira entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
+Superfície HTTP desta entrega. Deriva de [escopo.md](escopo.md) (as 46 capacidades ✅),
 [modelo-de-dados.md](modelo-de-dados.md) (as **catorze tabelas migradas, de dezessete modeladas**, e a regra
 do vínculo), [arquitetura.md](arquitetura.md) (o agregado `Ocorrência` e as quatro camadas),
 [glossario.md](glossario.md) (os nomes) e do [event-storming.md](event-storming.md) (comandos do passo 5,
@@ -178,7 +178,7 @@ São dez caminhos para onze comandos: **`/atribuir-responsavel` realiza dois** (
 a resposta diz qual dos dois aconteceu, no campo `reatribuicao`. Reatribuir encerra a atribuição anterior
 com motivo `reatribuicao` e dispara a POL-04, que arquiva o canal 3.
 
-Na primeira entrega a POL-04 não tem canal para arquivar. O canal 3, a conversa privada da
+Nesta entrega a POL-04 não tem canal para arquivar. O canal 3, a conversa privada da
 atribuição, é evolução prevista. A política fica declarada porque o encadeamento é do desenho e volta
 inteiro quando o canal existir; hoje reatribuir encerra a atribuição anterior e para aí.
 
@@ -196,7 +196,7 @@ sub-recursos singulares, este é o primeiro candidato.
 
 | Campo de `ocorrencias` | Como muda |
 |---|---|
-| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. Não há endpoint de edição na primeira entrega — editar ocorrência não é capacidade ✅ do escopo (suposição S-A7) |
+| `titulo` · `descricao` · `categoriaId` · `areaId` · `localizacaoComplemento` · `anexos` | Escritos **uma vez**, em `POST /ocorrencias`. Não há endpoint de edição nesta entrega — editar ocorrência não é capacidade ✅ do escopo (suposição S-A7) |
 | `status` | **Só por comando.** Não aparece em nenhum schema de entrada do contrato |
 | `prioridade` | Só por `POST /ocorrencias/{id}/alterar-prioridade` — que recusa em estado terminal (D6) |
 | `solucaoAplicada` | Por `POST /ocorrencias/{id}/registrar-solucao-aplicada` **ou no corpo de `POST /ocorrencias/{id}/resolver`** — os dois, e é de propósito (§8.4) |
@@ -250,9 +250,10 @@ existindo e **opcional**, mas com outro papel: é o ponto de **correção**, nã
 **E quando os metadados não trazem nome.** Conta criada por outro fluxo do provedor, ou semeada, não
 passa pelo nosso formulário, e a coluna é `NOT NULL`: o ACL precisa de um valor de qualquer forma.
 
-**O valor é o literal `"Sem nome"`.** É corrigível **uma última vez** em T-02, face A, o mesmo campo
-`nome` do pedido de entrada que a §8.2 já descreve como ponto de correção. Depois disso, quem tem conta
-não edita mais o próprio cadastro: `409 PESSOA_COM_CONTA_NAO_EDITAVEL`.
+**O valor é o literal `"Sem nome"`.** É corrigível em T-02, face A, o mesmo campo `nome` do pedido de
+entrada que a §8.2 já descreve como ponto de correção — e, depois de entrar, em **T-16 · Meus dados**,
+por `PATCH /contexto/pessoa`. O `409 PESSOA_COM_CONTA_NAO_EDITAVEL` continua valendo para o **Gestor**,
+que não edita o cadastro de quem tem conta.
 
 **As duas alternativas foram recusadas com motivo.** Cair no **trecho local do e-mail** poria credencial
 dentro de uma trilha que é imutável por invariante (§9.1), e o RNF10 pede exatamente o contrário.
@@ -320,9 +321,9 @@ executado.
 servidor recusa quando a sessão discorda. Custa um cabeçalho e fecha uma classe inteira de erro operacional
 que o isolamento por sessão, sozinho, introduz.
 
-### 4.4 Os quatro endpoints que rodam sem organização
+### 4.4 Os cinco endpoints que rodam sem organização
 
-Decorre da P2 uma lista curta e auditável, **exatamente quatro operações não passam pelo repositório
+Decorre da P2 uma lista curta e auditável, **exatamente cinco operações não passam pelo repositório
 escopado**, e nenhuma delas lê dado de ocorrência:
 
 | Endpoint | Por que fica fora do escopo |
@@ -331,9 +332,12 @@ escopado**, e nenhuma delas lê dado de ocorrência:
 | `PUT /contexto/organizacao` | É o ato de **escolher** o escopo |
 | `POST /organizacoes` | Cria o escopo. É o bootstrap da D26: o primeiro Gestor não tem quem o aprove |
 | `POST /pedidos-de-entrada` | Acontece antes de existir vínculo (D25). Recebe o código público, não o identificador da organização |
+| `PATCH /contexto/pessoa` | `pessoas` é tabela global e não há escopo a aplicar. A escrita é da própria Pessoa sobre si mesma, e o identificador vem da sessão |
 
 Qualquer endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita. É a versão de
-superfície do compromisso da ADR-0003.
+superfície do compromisso da ADR-0003. Esta lista cresceu uma vez, em 16/09/2026, com o
+`PATCH /contexto/pessoa`: a revisão explícita foi feita, e o que qualifica uma operação para entrar é
+escrever ou ler **tabela global pela chave da sessão**.
 
 ### ⚠️ *"Não exige organização ativa"* ≠ *"exige não ter organização ativa"*
 
@@ -380,7 +384,7 @@ constante em código.
 concede*. É o que dispensa o segundo vínculo do síndico que mora no prédio, e, no contrato, é o que faz
 `POST /ocorrencias` e `POST /ocorrencias/{id}/avaliar` aceitarem um Gestor sem nenhuma exceção escrita.
 
-O Encarregado não tem permissão nenhuma na primeira entrega. Não é esquecimento: as cinco capacidades do
+O Encarregado não tem permissão nenhuma nesta entrega. Não é esquecimento: as cinco capacidades do
 acesso próprio dele são ⬜ (`escopo.md` §3.1). Um vínculo `encarregado` que tenha conta autentica normalmente,
 recebe `permissoes: []` em `GET /contexto` e leva `403 PERMISSAO_INSUFICIENTE` em qualquer endpoint de
 negócio. O contrato **declara** esse estado em vez de deixá-lo acontecer por acidente.
@@ -598,9 +602,9 @@ Nenhum código de erro expõe nome de tabela, coluna, SQL ou identificador de ou
 de contrato, e é o que impede que a mensagem de erro faça o que o status foi projetado para não fazer.
 
 O que este catálogo não tem, e a ausência é decisão. Não existe código para *"você já
-tem organização ativa"*, e não vai existir: os quatro endpoints da §4.4 **ignoram** a organização ativa
+tem organização ativa"*, e não vai existir: os cinco endpoints da §4.4 **ignoram** a organização ativa
 em vez de recusá-la. Consequência direta para quem lê a tabela acima: **`SEM_ORGANIZACAO_ATIVA` nunca é
-resposta de nenhum dos quatro**, ele é a resposta dos outros trinta e três, e é o que leva a T-02.
+resposta de nenhum dos cinco**, ele é a resposta dos outros trinta e quatro, e é o que leva a T-02.
 
 A ausência está escrita porque um catálogo é lido como exaustivo, e um leitor que não achasse o código
 concluiria que ele foi esquecido.
@@ -773,7 +777,7 @@ genérico. As duas listas são o mesmo conjunto **hoje**, e não por desenho.
 
 Sobra exposição real em dois pontos: `alterar-prioridade` e `registrar-solucao-aplicada`, onde a última
 escrita sobrescreve a anterior sem aviso, e a alteração de prioridade não entra na trilha (só transições
-entram; é o PA-21). Aceitamos, por três razões: o cenário da primeira entrega é o do **síndico único**
+entram; é o PA-21). Aceitamos, por três razões: o cenário desta entrega é o do **síndico único**
 (`escopo.md` §3.3, o mesmo argumento que cortou a nota interna); a coluna `atualizada_em` já está lá se
 `If-Unmodified-Since` for necessário depois; e toda resposta de comando devolve `atualizadaEm`, então um
 cliente atento detecta a corrida sem que o contrato mude.
@@ -810,7 +814,7 @@ comentários, e não há exclusão de mensagem (P6).
 
 ## 8. Os endpoints
 
-**37 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
+**39 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
 (§4.5); *Capacidade* é a linha do `escopo.md` com o marcador de origem; *Comando/Leitura* é a origem no
 Event Storming.
 
@@ -823,6 +827,7 @@ Omito, em todos, as respostas que valem para todo endpoint autenticado: `401 NAO
 | Endpoint | Quem | Recebe | Devolve |
 |---|---|---|---|
 | `GET /contexto` | qualquer sessão válida | — | `200` `Contexto` |
+| `PATCH /contexto/pessoa` | qualquer sessão válida | `{ nome? }` | `200` `PessoaReferencia` |
 | `PUT /contexto/organizacao` | qualquer sessão válida | `{ organizacaoId }` | `200` `Contexto` + `Set-Cookie` |
 
 **De onde vem:** D2, D3 e a [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md). Realiza
@@ -849,14 +854,23 @@ permissoes[], vinculos[], pedidosDeEntrada[] }`.
 
 - **Erro do `PUT`:** `403 SEM_VINCULO_NA_ORGANIZACAO`, resposta **idêntica** para organização inexistente e
   para organização real onde a Pessoa não tem vínculo ativo (§4.2).
-- Os dois rodam sem organização ativa (§4.4). `GET /contexto` é o único endpoint que uma Pessoa sem
-  nenhum vínculo consegue usar, é ele que sustenta a tela *"você ainda não está em nenhuma organização"*.
+- Os três rodam sem organização ativa (§4.4). `GET /contexto` é o endpoint que **sustenta** a tela
+  *"você ainda não está em nenhuma organização"* — é dele que vem tudo o que ela mostra. Os outros quatro
+  da §4.4 também rodam sem vínculo; o que muda é que nenhum deles **lê** a situação da Pessoa.
+
+**`PATCH /contexto/pessoa`** recebe `{ nome? }` e devolve `200` `PessoaReferencia`. Corpo sem campo é
+`400 FORMATO_INVALIDO`. **Não há `{pessoaId}` no caminho**, e é essa ausência que torna impossível
+alterar os dados de outra pessoa. Só `nome` é editável; a §8.2 diz o que fica de fora e por quê.
+O efeito é global: `pessoas` é tabela única, então o nome novo vale em todas as organizações da Pessoa,
+e a trilha de auditoria passa a ser lida com ele. A trilha guarda `autor_pessoa_id` — quem lê vê quem
+agiu, não como essa pessoa se chamava na época.
 
 ### 8.1 Atividade 0 — Configurar a organização
 
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
 | `POST /organizacoes` | qualquer sessão válida — **não exige** organização ativa | Criar a organização por auto-serviço; quem cria vira Gestor inicial · D26 | `Registrar organização` |
+| `PATCH /organizacoes` | `organizacao.configurar` | Corrigir o nome da organização · D25 | sem comando no Event Storming — ver a §13 |
 | `GET /categorias` | qualquer vínculo ativo | Editar categorias | leitura do formulário de registro |
 | `POST /categorias` | `organizacao.configurar` | idem | `Criar categoria` |
 | `PATCH /categorias/{id}` | `organizacao.configurar` | idem | `Criar` / `Desativar categoria` |
@@ -876,7 +890,7 @@ depois, e é assim que a §13 as contabiliza.
 - O `codigoPublico` é gerado pelo servidor no formato `^[A-Z0-9]{6,12}$` (§6.3 do `modelo-de-dados.md`, ele vive em
   cartaz de elevador e é digitado à mão). Não é aceito no corpo: deixar o cliente escolher abriria
   disputa por códigos bonitos e permitiria adivinhação dirigida.
-- É um dos quatro endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
+- É um dos cinco endpoints fora do escopo de organização (§4.4): ele **cria** o escopo. É o bootstrap da
   D26, o primeiro Gestor não tem quem o aprove.
 - Não exige organização ativa, e também não a recusa. Chamá-lo com uma organização já ativa na sessão
   funciona e **troca a ativa pela recém-criada**, pelo `Set-Cookie` da própria resposta. Não há código de
@@ -928,17 +942,34 @@ recorrência, que é o número mais importante do dashboard.
 as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
 `ocorrenciasComTipoAnterior`, uma contagem, para que a interface possa dizer ao Gestor, em português, que
 o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o que sustenta a reordenação em
-T-09. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+T-14. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
-**Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
-(evolução prevista). Na primeira entrega a organização é imutável depois de criada, consequência do corte, não
-descuido, e registrada na §11.
+**`PATCH /organizacoes`**, recebe `{ nome? }`, devolve `200` com `OrganizacaoResumo`. O corpo vazio é
+recusado com `400 FORMATO_INVALIDO`, na mesma forma de `PATCH /areas/{id}`. Não há `{id}` no caminho: a
+organização é a da sessão (§4.2), e sem identificador não existe chamada que alcance outra. Sem `404`,
+porque a organização da sessão existe; sem `409` de nome duplicado, porque `organizacoes` não tem
+unicidade sobre `nome`. Erros: `400` · `401` · `403 PERMISSAO_INSUFICIENTE` · `409 ORGANIZACAO_DIVERGENTE`.
+
+Três campos **não** são editáveis, e cada um por uma razão diferente:
+
+- **`codigoPublico`** — gerado pelo servidor, não aceito no corpo, e **não rotacionável nesta entrega**.
+  Código vazado não vira acesso: quem o digita abre um pedido de entrada que o Gestor decide (D25).
+  Trocá-lo invalidaria o cartaz impresso que ninguém recolhe, e o produto não tem canal para avisar.
+- **`logoCaminho`** — não há mecanismo de storage para ele, e o caminho quando a logo entrar já está
+  decidido: vira uma linha em `anexos` (`modelo-de-dados.md` §6.3).
+- **`exigirSolucaoAoResolver`** — ligá-lo muda a máquina de estados e exige um
+  `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` novo em `/resolver`. Continua ⬜ (D22).
+
+A alteração deixa rastro na forma última escrita — `atualizado_em` e `atualizado_por_pessoa_id` —, a
+mesma de `categorias` e `areas` (`modelo-de-dados.md` §7.7). Não há tabela de histórico de configuração:
+o RNF9 é sobre a trilha da ocorrência.
 
 ### 8.2 Atividade 1 — Entrar na organização
 
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
 | — | — | Criar conta e autenticar-se | **fora do contrato** — Supabase Auth (§4.1) |
+| `PATCH /contexto/pessoa` | qualquer sessão válida — não exige organização ativa | Corrigir os próprios dados · PA-26 | sem comando no Event Storming — ver a §13 |
 | `POST /pedidos-de-entrada` | qualquer sessão válida — não exige organização ativa | Pedir entrada com o código, aguardando aprovação · D25 | `Pedir entrada` |
 | `GET /pedidos-de-entrada` | `vinculo.gerir` | Gestor aprova ou recusa o pedido · D25 | leitura: pedidos pendentes |
 | `POST /pedidos-de-entrada/{id}/aprovar` | `vinculo.gerir` | idem | `Aprovar pedido de entrada` |
@@ -1003,7 +1034,7 @@ Por que embutidos e não em recurso próprio. Endpoints de contato
 cabe num campo, e criariam a pergunta *"contato é recurso do domínio?"*, cuja resposta é não: é
 atributo de uma Pessoa que só é alcançável através de um vínculo (§4.6). Recurso próprio precisaria
 de URL própria, e URL própria é o que a regra do vínculo primeiro nega a `Pessoa`.
-**Consequência boa:** continuam 37 operações.
+**Consequência boa:** aquela decisão não acrescentou operação nenhuma ao contrato.
 
 **Por que substituição e não mesclagem.** `PATCH` com `contatos[]` **troca a lista inteira**; `[]`
 remove todos; omitir o campo não mexe em nada. A alternativa, mesclar por `id`, exigiria que o
@@ -1034,22 +1065,29 @@ cadastro daquela pessoa em todas as outras organizações**, inclusive naquela e
 não tem conta existe apenas como cadastro de quem o criou. `papel` não é alterável por aqui: promover
 alguém a Gestor não é capacidade ✅ do `escopo.md`.
 
-Onde quem tem conta corrige o próprio nome, e a limitação declarada. A primeira redação desta seção
-dizia *"quem tem conta edita os próprios dados"*, e essa frase prometia um caminho que não existe:
-este `PATCH` recusa justamente quem tem conta, não há `PATCH /contexto/pessoa`, e `/pessoas` não existe
-nem deve existir (§4.6). Encontrado ao montar o inventário de telas, pela pergunta *"o que uma tela de
-perfil salvaria?"*.
+Onde quem tem conta corrige o próprio nome. A primeira redação desta seção dizia *"quem tem conta edita
+os próprios dados"*, e essa frase prometia um caminho que não existia: este `PATCH` recusa justamente
+quem tem conta. O caminho passou a existir em 16/09/2026.
 
-Como fica na primeira entrega: o nome nasce do **cadastro da conta** e é **corrigível no momento em que
-a pessoa entra numa Organização**, o campo `nome` de `POST /pedidos-de-entrada`, que já existe e é
-opcional, e cuja tela pré-preenche com o nome atual. Depois disso, não há como alterá-lo.
+O nome nasce do **cadastro da conta** e tem dois pontos de correção. Antes de entrar, o campo `nome` de
+`POST /pedidos-de-entrada`, pré-preenchido com o nome atual, que é o que faz o Gestor ler o nome certo
+ao decidir o pedido. Depois de entrar, `PATCH /contexto/pessoa`, em **T-16 · Meus dados**.
 
-A consequência precisa ser dita porque é permanente: o registro de transição é imutável, então o
-nome vigente no momento de cada transição fica na trilha de auditoria para sempre. Quem digitou errado e
-já agiu no sistema carrega o erro no histórico. É limitação aceita, não descuido, está registrada como
-ponto de atenção em `premissas-e-questoes-abertas.md`.
+O que continua sem caminho, e é limitação declarada: o **e-mail**, que é a credencial de acesso e o
+único canal de recuperação, porque trocá-lo envolve o provedor, dois e-mails de confirmação por troca e
+um intervalo em que a conta tem dois endereços; e os **contatos** de quem tem conta, que nascem do campo
+opcional do pedido de entrada e não são editáveis nem pela pessoa nem pelo Gestor. Os dois são aditivos:
+o corpo do `PATCH` é `{ nome? }`, com o campo opcional exatamente para isso.
 
-**Não existe tela de perfil** na primeira entrega, e a razão é esta: ela não teria o que salvar.
+A consequência de renomear é global, e é decisão. `pessoas` é tabela única, então o nome novo vale em
+todas as organizações da Pessoa. O registro de transição guarda `autor_pessoa_id` e o nome é resolvido
+na leitura, então transições antigas passam a ser lidas com o nome de agora. Quem lê a trilha vê **quem**
+agiu, sempre. Congelar o nome na transição quebraria a anonimização do RNF10, que funciona justamente
+porque toda leitura acompanha `pessoas.nome`, e acrescentaria um sexto campo a um registro que o
+enunciado fixa em cinco.
+
+A tela existe, e é a T-16. A razão de ela não ter existido antes — *"não teria o que salvar"* — deixou de
+valer no dia em que passou a haver o que salvar.
 
 `DELETE /vinculos/{pessoaId}`, o único `DELETE` do contrato, e por que ele existe.
 
@@ -1105,7 +1143,7 @@ de domínio nenhum**. O fluxo inteiro, incluindo o que acontece com o objeto que
 na §10.
 
 O caminho fala em anexo; o corpo aceita imagem, e a diferença é deliberada. O `tipoConteudo` aceito
-é `image/jpeg` ou `image/png`, e nada mais: é o escopo da primeira entrega (RNF8). O nome do recurso é o
+é `image/jpeg` ou `image/png`, e nada mais: é o escopo desta entrega (RNF8). O nome do recurso é o
 conceito, evidência, e o corpo é o **recorte**. Admitir outro tipo é acrescentar um valor àquela
 lista; o caminho, o schema e o cliente não mudam, porque o cliente nunca envia o tipo do anexo: o
 servidor o deriva do `tipoConteudo` que autorizou. É o mesmo raciocínio da §7.8 do `modelo-de-dados.md` —
@@ -1230,7 +1268,7 @@ O que cada um tem de específico:
   auto-atribuição não é endpoint:** o cliente envia o próprio `pessoaId`, que
   `GET /contexto` já lhe deu, e *"em um clique"*, o nome da capacidade, conta **comando** e não toque de
   tela (quadro acima). Reatribuir é o mesmo endpoint com atribuição vigente: encerra a anterior
-  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3, que não existe na primeira entrega,
+  com motivo `reatribuicao`, dispara a POL-04 (arquiva o canal 3, que não existe nesta entrega,
   ver §3.4) e devolve `reatribuicao: true`.
 - **`/iniciar-atendimento`**, `409 RESPONSAVEL_NAO_ATRIBUIDO` (invariante 9, D21: *"quem está fazendo"* é
   o que se perde hoje). É a única precondição de estado que não é sobre `status`.
@@ -1272,8 +1310,8 @@ determinado pela permissão de quem pergunta:
 | `ocorrencia.ler_todas` (Gestor) | Todas as ocorrências da organização ativa |
 | só `ocorrencia.ler_propria` (Solicitante) | Só aquelas de que ele é **autor** |
 
-Isto não é um filtro implícito escondido: é a regra de visibilidade da primeira entrega, e ela está
-declarada no `escopo.md` (§3.3): *"na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
+Isto não é um filtro implícito escondido: é a regra de visibilidade desta entrega, e ela está
+declarada no `escopo.md` (§3.3): *"nesta entrega toda ocorrência é visível apenas ao autor e aos Gestores"*.
 A resposta devolve `visibilidadeAplicada: "todas" | "apenas_minhas"` para que o cliente possa dizer ao
 usuário o que está vendo. O Gestor que também mora no prédio usa `?autor=eu` para ver as próprias, é o caso
 do síndico morador (§6.4 do `modelo-de-dados.md`), resolvido por parâmetro e não por segundo vínculo.
@@ -1369,7 +1407,7 @@ registro de transição é imutável (§9.1): não há `PATCH`, não há `DELETE
 Não é decisão de contrato, o contrato não desenha tela. É consequência desta decisão de contrato, e
 por isso fica escrita aqui: o inventário de telas e o protótipo precisam carregá-la. O lugar do texto que
 o Solicitante não deve ler é a **nota interna** (canal 2), que é evolução prevista, o que significa que,
-na primeira entrega, não existe lugar nenhum para texto interno entre Gestores. Isso é agravante, não
+nesta entrega, não existe lugar nenhum para texto interno entre Gestores. Isso é agravante, não
 atenuante, e é a razão de o aviso na interface não ser opcional.
 
 **`GET /ocorrencias/{id}/anexos/{anexoId}`** devolve **`302`** para uma URL assinada de leitura, válida por
@@ -1898,8 +1936,8 @@ de *entrada* que o cliente antigo não saiba produzir.**
 
 | # | Item da evolução prevista (`escopo.md` §4) | O que muda no contrato | Aditivo? |
 |---|---|---|---|
-| 1 | Identidade da organização — logo e nome (D25) | `PATCH /organizacao` (novo) + campos em `Contexto` | ✅ |
-| 2 | Interruptor *exigir solução ao resolver* (D22) | `PATCH /organizacao` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
+| 1 | Identidade da organização — logo e página pública (D25). **O nome saiu do ⬜ em 16/09/2026** e é servido por `PATCH /organizacoes` | `logoCaminho` em `PATCH /organizacoes` + campos em `Contexto` | ✅ |
+| 2 | Interruptor *exigir solução ao resolver* (D22) | `exigirSolucaoAoResolver` em `PATCH /organizacoes` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
 | 3 | Página pública da organização com código na URL (D25) | `GET /organizacoes/publica?codigo=` — **o único endpoint anônimo do produto**, devolvendo só nome e logo | ✅ |
 | 4 | Convite por link de uso único (D25) | `POST /convites` · `GET /convites/{token}` (anônimo) · `POST /convites/{token}/aceitar` | ✅ |
 | 5 | Importar pessoas em lote (D25) | `POST /vinculos/importacoes` | ✅ |
@@ -1933,12 +1971,12 @@ nenhum contrato detecta e nenhum teste de schema pega. Duas consequências prát
 recuperação de uma organização cujo único Gestor perdeu o acesso (§12), a segunda **não é evolução
 de conveniência, é buraco declarado no desenho**.
 
-**Fora desta lista:** `tempoMedioDeResolucao` faz parte da primeira entrega, pela razão que a §8.7 dá.
+**Fora desta lista:** `tempoMedioDeResolucao` faz parte desta entrega, pela razão que a §8.7 dá.
 
 ### 11.1 Ampliar o anexo — fora dos 21, e o motivo de estar aqui
 
 Mais de um anexo por ocorrência, e anexo de outro tipo, não são itens de escopo, não estão entre os 21
-e não entram na contagem: o `escopo.md` segue com 66 itens, 44 na primeira entrega. Estão nesta seção
+e não entram na contagem: o `escopo.md` segue com 68 itens, 46 nesta entrega. Estão nesta seção
 porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do `modelo-de-dados.md`)
 foi desenhada exatamente para que estes dois dias custassem pouco. Se o custo não estiver escrito, a
 decisão de modelagem que o barateou vira folclore.
@@ -2000,17 +2038,17 @@ deste documento cita.
 
 ---
 
-## 13. Rastreabilidade — as 44 capacidades ✅
+## 13. Rastreabilidade — as 46 capacidades ✅
 
 Critério: toda capacidade ✅ tem de ser alcançável pelo contrato, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
 
-**São 44 ✅ de 66 no `escopo.md`**, e o critério de quem entra é entregar comportamento que não existia.
-A **4b** (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) entram
-por ele. **Ficam de fora** o item 43, a semente de demonstração, que é instrumento para tornar o dashboard
+**São 46 ✅ de 68**, e o critério de quem entra é entregar comportamento que não existia.
+A **4b** (escolher o ícone da categoria), a **7b** (entrar em outra organização tendo uma ativa), a
+**1b** (corrigir o nome da organização) e a **6b** (corrigir os próprios dados) entram por ele. **Ficam de fora** o item 43, a semente de demonstração, que é instrumento para tornar o dashboard
 conferível e não coisa que o produto faz, e o 44, o tema visual. O denominador carrega uma linha ⬜ que
 nenhuma tela oferece e a API aceita: *"fundar uma segunda organização tendo uma ativa"*.
-**As duas capacidades novas são numeradas `4b` e `7b`, ao lado das que derivam, e nada foi
+**As quatro capacidades novas são numeradas ao lado das que derivam, e nada foi
 renumerado**, os números desta tabela são citados por outros documentos (*"capacidade nº 20"*,
 *"nº 38"*), e renumerar trocaria uma correção de contagem por uma caçada a referências.
 
@@ -2018,6 +2056,7 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 |---|---|---|---|
 | **0 · Configurar a organização** |
 | 1 | Criar a organização por auto-serviço | D26 | `POST /organizacoes` |
+| **1b** | **Corrigir o nome da organização** | D25 | `PATCH /organizacoes` |
 | 2 | Categorias-semente | D18 | *(efeito da POL-01 em `POST /organizacoes`; verificável em `GET /categorias`)* |
 | 3 | Áreas-semente, com os dois tipos | D10, D18 | *(efeito da POL-01; verificável em `GET /areas`)* |
 | 4 | Editar categorias | Enunciado | `GET/POST /categorias` · `PATCH /categorias/{id}` |
@@ -2025,6 +2064,7 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 | 5 | Editar áreas | D18 | `GET/POST /areas` · `PATCH /areas/{id}` |
 | **1 · Entrar na organização** |
 | 6 | Criar conta e autenticar-se | Enunciado | fora do contrato — Supabase Auth (§4.1); consumida por `GET /contexto` |
+| **6b** | **Corrigir os próprios dados** | PA-26 | `PATCH /contexto/pessoa` |
 | 7 | Pedir entrada com o código | D25 | `POST /pedidos-de-entrada` |
 | 7b | Entrar em outra organização tendo uma ativa | D25, B-01 | `POST /pedidos-de-entrada` · `PUT /contexto/organizacao` — os mesmos de nº 7 e do menu de troca, e é por isso que a capacidade é nova sem endpoint novo |
 | 8 | Gestor aprova ou recusa | D25 | `GET /pedidos-de-entrada` · `POST …/aprovar` · `POST …/recusar` |
@@ -2065,7 +2105,7 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 | 36 | Tempo médio de resolução, mês a mês | D19 | `GET /dashboard` → `tempoMedioDeResolucao` |
 | **Fundação técnica** |
 | 37 | Agregado com máquina de estados e trilha imutável | Enunciado | **molda o contrato inteiro**: §3 (comando, não campo), §9.1 (trilha só de leitura), `GET …/trilha-de-auditoria` |
-| 38 | Isolamento por organização em ponto único | D2,D3,RNF1 | molda o contrato inteiro: §4.2 (organização vem da sessão), §4.4 (os quatro endpoints fora do escopo), §6.3 (`404`) |
+| 38 | Isolamento por organização em ponto único | D2,D3,RNF1 | molda o contrato inteiro: §4.2 (organização vem da sessão), §4.4 (os cinco endpoints fora do escopo), §6.3 (`404`) |
 | 39 | Ambiente executável em contêiner | Enunciado | não é API |
 | 40 | Publicação em nuvem, com pipeline | Enunciado | não é API |
 | 41 | Testes de domínio, aplicação, isolamento e ponta a ponta | Enunciado | não é API — mas §14 acopla o contrato a eles |
@@ -2073,16 +2113,18 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 
 **Fechamento da contagem:**
 
-- **38 capacidades de usuário.** Todas alcançáveis: **35 por endpoint** — 31 com endpoint próprio e
+- **40 capacidades de usuário.** Todas alcançáveis: **37 por endpoint** — 33 com endpoint próprio e
   **quatro dividindo endpoint com outra capacidade** (nº 20 e nº 21 com a nº 19; a 4b com a nº 4; a
   7b com a nº 7), e 3 sem endpoint próprio e com motivo declarado: nº 6 (autenticação, realizada
   pelo provedor) e nº 2 e 3 (sementes, efeito de política). Endpoint próprio não é endpoint dedicado:
   quatro capacidades dividem endpoint com outra, e é por isso que os dois números diferem.
 - **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
   não são de API, e a nº 42 é, em parte, este par de arquivos.
-- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 37 endpoints existe sem
-  capacidade correspondente, os três de pedido de entrada têm capacidade (nº 8) e não têm comando no
-  Event Storming**, o que está registrado como lacuna C-5, não como invenção.
+- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 39 endpoints existe sem
+  capacidade correspondente, e cinco não têm comando no Event Storming**: os três de pedido de entrada
+  têm capacidade (nº 8) e caem na lacuna C-5, o `PATCH /organizacoes` (nº 1b) nasceu depois do
+  workshop, que não se emenda para trás, e o `PATCH /contexto/pessoa` (nº 6b) pela mesma razão. Lacuna
+  registrada, não invenção.
 
 ---
 
@@ -2196,7 +2238,7 @@ em dois tempos*, acima.
 | 17 | Idempotência | Não há chave; o desfazer é `aberta_por_engano` | `Idempotency-Key` — exige tabela nova |
 | 18 | Rótulo de status | `statusRotulo` calculado no servidor, por papel | Mapa no cliente — divergiria entre clientes e tiraria o texto do glossário |
 | 19 | Dashboard | Um endpoint, cinco indicadores | Cinco endpoints — cinco cold starts para uma tela |
-| 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis na primeira entrega |
+| 20 | Canal de conversa | Recurso `comentarios` (canal 1) | `/canais/{tipo}/mensagens` — dois dos três tipos são inalcançáveis nesta entrega |
 | 21 | Sincronia contrato ↔ código | Spec-first agora; `zod` + geração com portão no CI depois | Spec-first para sempre (depende de disciplina) · JSDoc (comentário mente igual) |
 | 22 | **Contato na superfície** | `pessoa.contatos[]` embutido em `GET /vinculos`; escrita por **substituição** no corpo do vínculo | `emailContato` + `telefone` soltos — removê-los depois seria quebra (§11) · três endpoints próprios de contato — URL de recurso que a §4.6 nega a `Pessoa` · mesclagem por `id` — três casos de borda em vez de um |
 | 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |

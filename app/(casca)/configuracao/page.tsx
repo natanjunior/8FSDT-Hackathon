@@ -3,28 +3,35 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, listarCategorias } from "@/aplicacao/organizacao";
-import { IconeDeCategoria } from "@/interface/componentes/icone-de-categoria";
+import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
+import { FormularioDeOrganizacao } from "@/interface/componentes/formulario-de-organizacao";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
- * **T-09 · Categorias e áreas** — *"As opções que o Solicitante vê estão certas?"*
+ * **T-15 · Configuração da organização** — *"O que desta organização eu posso ajustar?"*
  *
- * **Uma tela, não duas.** Categorias e Áreas são as duas listas que **alimentam o mesmo formulário**
- * (T-04) e são o único conteúdo configurável da organização. Separá-las produziria duas telas de uma
- * lista cada.
+ * **Duas telas, e antes era uma.** Este arquivo argumentava o contrário, com estas palavras:
+ * *"Uma tela, não duas. Categorias e Áreas são as duas listas que alimentam o mesmo formulário"*.
+ * O argumento era verdadeiro sobre T-04 e **errado sobre quem configura**: quem está aqui não está
+ * registrando ocorrência. Decisão do dono do produto em 15/09/2026, item 48 do backlog. As listas foram
+ * para `configuracao/categorias` (T-09) e `configuracao/areas` (T-14), e aqui ficou a configuração da
+ * organização.
  *
- * **Alvo primário: tela grande.** É trabalho de escritório, feito sentado, uma vez — o RNF6 cronometra
- * T-04, não esta. No celular as duas listas empilham.
+ * **Ela nasceu sem campo próprio, e ganhou um em 16/09/2026.** O nome editável e o código público da
+ * organização eram o item **46 · 47**, e chegaram: a seção *Identidade* abre a tela, com o nome servido
+ * por `PATCH /organizacoes` e o código do cartaz do elevador com o gesto de copiar. Até ali esta página
+ * era um índice com duas contagens — e a contagem continua aqui, porque responde *"está configurado?"* de
+ * um relance, que é a pergunta que a tela fundida respondia ao abrir.
  *
- * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório, e um `fetch`
- * interno custaria o salto HTTP que a §5 recusou.
+ * **As duas leituras são as mesmas que a tela fundida já disparava em paralelo** — nenhuma consulta nova
+ * entrou no produto com a separação. Elas vêm com as inativas porque a contagem diz *"7 ativas de 7"*, e
+ * o denominador é o total.
  *
- * **As duas listas vêm com as inativas** — `incluirInativas: true` —, porque é aqui que se reativa o que
- * foi desativado. O padrão *"só as ativas"* é de T-04.
+ * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório.
  */
 export const dynamic = "force-dynamic";
 
-export default async function CategoriasEAreas({
+export default async function ConfiguracaoDaOrganizacao({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -40,172 +47,54 @@ export default async function CategoriasEAreas({
   ]);
 
   const parametros = await searchParams;
+  const ativo = escopo.resolucao.ativo;
   const ativas = (itens: readonly { ativa: boolean }[]) => itens.filter((i) => i.ativa).length;
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
-        <h1 className="text-tinta text-xl leading-snug font-semibold">Categorias e áreas</h1>
-        <p className="text-tinta-suave text-sm">{escopo.resolucao.ativo?.organizacao.nome}</p>
+        <h1 className="text-tinta text-xl leading-snug font-semibold">Configuração</h1>
+        {/* **Sem o subtítulo com o nome, e só nesta tela.** Aqui o nome é conteúdo, não contexto: ele
+            está no campo abaixo. A `BarraSuperior` continua anunciando a organização ativa. */}
       </header>
 
       <FaixaDoDesfecho parametros={parametros} />
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <section className="flex flex-col gap-3">
-          <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">
-            Categorias ({ativas(categorias)} ativas de {categorias.length})
-          </h2>
+      {/* **Identidade primeiro, listas depois.** A pergunta da tela é *"o que desta organização eu posso
+          ajustar?"*, e o que é **desta** organização vem antes do que está **dentro** dela — a mesma
+          regra do geral para o particular que ordena a barra lateral. */}
+      <section className="flex flex-col gap-5">
+        <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Identidade</h2>
 
-          {/* A frase da semente, sempre visível (spec §2.5) — critério 2.3 do item 2. */}
-          <p className="text-tinta-suave text-sm leading-relaxed">
-            Sete categorias foram criadas junto com a organização.
-          </p>
+        {ativo !== null && (
+          <>
+            <FormularioDeOrganizacao
+              nome={ativo.organizacao.nome}
+              organizacaoId={ativo.organizacao.id}
+            />
+            <CodigoDaOrganizacao codigo={ativo.organizacao.codigoPublico} />
+          </>
+        )}
+      </section>
 
-          {/* **Critério 4a.4, a metade que vive em T-09** — acrescentada na revisão de 24/08/2026.
-              A confirmação do formulário avisa **antes** de desativar; esta frase é o **estado**, e é o
-              que a tela diz a quem chega depois — inclusive a quem desativou uma a uma, sem nunca ver a
-              confirmação da última. O inventário pede as duas leituras: *"ao desativar todas"*. */}
-          {ativas(categorias) === 0 && (
-            <p
-              role="alert"
-              className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm font-medium"
-            >
-              Sem nenhuma categoria ativa, ninguém consegue registrar ocorrência.
-            </p>
-          )}
-
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-linha text-tinta-fraca border-b text-left text-xs uppercase">
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Ordem
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Nome
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Situação
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Ações</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {categorias.map((categoria) => (
-                <tr key={categoria.id} className="border-linha-suave border-b">
-                  <td className="text-tinta-suave py-2.5 pr-3 tabular-nums">{categoria.ordem}</td>
-                  {/* **Critério 4b.4 · o ícone ao lado do nome, nunca no lugar dele.** Não há coluna
-                      `Ícone`: uma coluna inteira de desenho seria exatamente o marcador sem palavra que o
-                      compromisso A-5 proíbe, com um cabeçalho que não descreve o conteúdo. O desenho vai
-                      `aria-hidden` — quem lê por leitor de tela recebe o nome, que é a informação. */}
-                  <td className="text-tinta py-2.5 pr-3">
-                    <span className="flex items-center gap-2">
-                      <IconeDeCategoria
-                        nome={categoria.icone}
-                        className="text-tinta-suave size-4 shrink-0"
-                      />
-                      {categoria.nome}
-                    </span>
-                  </td>
-                  {/* A-5: a situação carrega a palavra, nunca só a cor. */}
-                  <td className="text-tinta-suave py-2.5 pr-3">
-                    {categoria.ativa ? "Ativa" : "Inativa"}
-                  </td>
-                  <td className="py-2.5">
-                    <Link
-                      href={`/configuracao/categorias/${categoria.id}/editar`}
-                      className="border-linha text-tinta inline-flex min-h-11 items-center rounded-md border px-3 text-sm"
-                    >
-                      Editar
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <Link
-            href="/configuracao/categorias/nova"
-            className="border-linha text-tinta inline-flex min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium"
-          >
-            Criar categoria
-          </Link>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">
-            Áreas ({ativas(areas)} ativas de {areas.length})
-          </h2>
-
-          {/* Sempre visível, **nunca num tooltip** — compromisso A-6 do protótipo. */}
-          <p className="text-tinta-suave text-sm leading-relaxed">
-            Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja.
-          </p>
-
-          {/* A mesma frase, para a outra lista: o inventário escreve `{categoria | área}` nas duas, e o
-              4a.4 só nomeia categoria porque é o critério do 4a. Sem área ativa também não se registra. */}
-          {ativas(areas) === 0 && (
-            <p
-              role="alert"
-              className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm font-medium"
-            >
-              Sem nenhuma área ativa, ninguém consegue registrar ocorrência.
-            </p>
-          )}
-
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-linha text-tinta-fraca border-b text-left text-xs uppercase">
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Ordem
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Nome
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Tipo
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Situação
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Ações</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {areas.map((area) => (
-                <tr key={area.id} className="border-linha-suave border-b">
-                  <td className="text-tinta-suave py-2.5 pr-3 tabular-nums">{area.ordem}</td>
-                  <td className="text-tinta py-2.5 pr-3">{area.nome}</td>
-                  <td className="text-tinta-suave py-2.5 pr-3">{rotuloDoTipo(area.tipo)}</td>
-                  <td className="text-tinta-suave py-2.5 pr-3">{area.ativa ? "Ativa" : "Inativa"}</td>
-                  <td className="py-2.5">
-                    <Link
-                      href={`/configuracao/areas/${area.id}/editar`}
-                      className="border-linha text-tinta inline-flex min-h-11 items-center rounded-md border px-3 text-sm"
-                    >
-                      Editar
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <Link
-            href="/configuracao/areas/nova"
-            className="border-linha text-tinta inline-flex min-h-11 w-fit items-center rounded-md border px-4 text-sm font-medium"
-          >
-            Criar área
-          </Link>
-        </section>
+      <div className="flex flex-col gap-3">
+        <Destino
+          href="/configuracao/categorias"
+          titulo="Categorias"
+          contagem={`${ativas(categorias)} ativas de ${categorias.length}`}
+          descricao="A natureza da ocorrência — o que o Solicitante escolhe ao registrar."
+        />
+        <Destino
+          href="/configuracao/areas"
+          titulo="Áreas"
+          contagem={`${ativas(areas)} ativas de ${areas.length}`}
+          descricao="Onde dentro desta organização a ocorrência aconteceu."
+        />
       </div>
 
-      {/* **Não há apagar, e é a ausência do botão que diz isso** — não uma mensagem depois do clique. */}
+      {/* **Não há apagar, e é a ausência do botão que diz isso.** A frase fica aqui além de ficar nas
+          duas listas: quem chega pelo menu vê o regime antes de abrir qualquer uma delas. */}
       <p className="text-tinta-suave text-sm leading-relaxed">
         Não há como apagar. Desativar tira do formulário de registro e preserva o que já foi registrado.
       </p>
@@ -218,70 +107,63 @@ export default async function CategoriasEAreas({
 }
 
 /**
- * **Local, e sem `export`.** Um arquivo `page.tsx` do App Router é um módulo com exportações reservadas —
- * exportar um ajudante daqui é convidar o framework a interpretá-lo. `FaixaDoDesfecho` está no mesmo
- * arquivo e o alcança sem isso.
- */
-function rotuloDoTipo(tipo: string): string {
-  return tipo === "comum" ? "Área comum" : "Unidade privativa";
-}
-
-/**
- * A faixa de desfecho. **Vem da URL e não do estado do componente** porque a escrita recarrega a página:
- * o que aconteceu tem de sobreviver ao recarregamento. Mesma forma de T-08.
- *
- * **A frase do tipo é a mais importante da tela** (`prototipo-low-fi.md`, T-09), e tem duas formas — com e
- * sem contagem. Enquanto a tabela `ocorrencias` não existir, `mantem` é sempre `0` e a frase sai na forma
- * curta (spec §2.1).
+ * **O desfecho sobrevive ao recarregamento porque vem na URL**, e não num estado que o `router.refresh()`
+ * apagaria. Mesma forma de T-09, T-14 e T-08.
  */
 function FaixaDoDesfecho({
   parametros,
 }: {
   parametros: Record<string, string | string[] | undefined>;
 }) {
-  const texto = (chave: string) => {
-    const valor = parametros[chave];
-    return typeof valor === "string" ? valor : "";
-  };
-
-  const oQue = texto("lista") === "area" ? "área" : "categoria";
-
-  const criada = texto("criada");
-  if (criada !== "") {
-    return (
-      <p
-        role="status"
-        className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
-      >
-        A {oQue} <strong className="font-semibold">{criada}</strong> foi criada e já aparece no formulário
-        de registro.
-      </p>
-    );
-  }
-
-  const alterada = texto("alterada");
-  if (alterada === "") return null;
-
-  const tipo = texto("tipo");
-  const mantem = Number.parseInt(texto("mantem"), 10);
+  const valor = parametros["renomeada"];
+  const renomeada = typeof valor === "string" ? valor : "";
+  if (renomeada === "") return null;
 
   return (
     <p
       role="status"
-      className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm leading-relaxed"
+      className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
     >
-      <strong className="font-semibold">{alterada}</strong> foi alterada.
-      {tipo !== "" && (
-        <>
-          {" "}
-          Passou a ser {rotuloDoTipo(tipo)}.
-          {Number.isFinite(mantem) && mantem > 0
-            ? ` ${String(mantem)} ocorrências já registradas mantêm o tipo anterior.`
-            : ""}{" "}
-          Mudar o tipo vale de agora em diante — o passado não muda.
-        </>
-      )}
+      A organização passou a se chamar <strong className="font-semibold">{renomeada}</strong>.
     </p>
+  );
+}
+
+/**
+ * Um destino do índice.
+ *
+ * **A contagem carrega a palavra, nunca só o número** (compromisso A-5): *"7 ativas de 7"*, e nunca um
+ * selo numérico ao lado do título.
+ *
+ * **A seta vai `aria-hidden`** — é o mesmo desenho que o rótulo já diz, e quem lê por leitor de tela
+ * recebe o título do link, que é a informação.
+ */
+function Destino({
+  href,
+  titulo,
+  contagem,
+  descricao,
+}: {
+  href: string;
+  titulo: string;
+  contagem: string;
+  descricao: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="border-linha bg-superficie flex min-h-11 items-center justify-between gap-4 rounded-md border px-4 py-3"
+    >
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-tinta text-sm font-semibold">
+          {titulo} · {contagem}
+        </span>
+        <span className="text-tinta-suave text-sm leading-relaxed">{descricao}</span>
+      </span>
+      <span aria-hidden="true" className="text-tinta-fraca shrink-0 text-sm">
+        →
+      </span>
+    </Link>
   );
 }
 
@@ -289,7 +171,7 @@ function FaixaDoDesfecho({
 function SemAcesso() {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Categorias e áreas</h1>
+      <h1 className="text-tinta text-xl font-semibold">Configuração</h1>
       <p role="alert" className="text-tinta-suave text-sm">
         Seu papel nesta organização não dá acesso a esta página.
       </p>

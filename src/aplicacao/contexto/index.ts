@@ -8,6 +8,8 @@ export {
   type ResolucaoDeContexto,
 } from "./resolver-contexto";
 
+export { corrigirPessoa, type ComandoDeCorrecaoDePessoa } from "./corrigir-pessoa";
+
 export { escolherOrganizacaoAtiva } from "./escolher-organizacao-ativa";
 
 export {

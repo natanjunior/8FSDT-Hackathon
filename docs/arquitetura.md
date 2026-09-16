@@ -232,7 +232,7 @@ de comandos, e não de toques de tela; medido dentro do detalhe, o fluxo real em
 toques, porque ali há três comandos renderizáveis e o destaque é `analisar`.
 
 **Os outros três** — `recusarAtribuicao`, `reportarExecucaoConcluida` e `aderir` — não têm endpoint na
-primeira entrega, e por isso não têm linha aqui: a regra deles nasce junto com o endpoint. A tabela está
+esta entrega, e por isso não têm linha aqui: a regra deles nasce junto com o endpoint. A tabela está
 completa de propósito, e não por esquecimento.
 
 **`registrarSolucaoAplicada` recusado em `Resolvida` é uma porta de mão única, e é deliberada.** O caminho
@@ -388,13 +388,13 @@ vezes.
   [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), porque deixa de depender de o
   desenvolvedor lembrar. Acrescentar um consumidor é uma linha escrita de propósito naquele arquivo.
 - **3 · Entre módulos da mesma camada, só pela superfície pública**, pelo `index.ts`.
-- **A lista fechada, que não é regra de camada:** `semOrganizacao` só é importável nos quatro `route.ts` do
-  `contrato-de-api.md` §4.4. O quinto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a
+- **A lista fechada, que não é regra de camada:** `semOrganizacao` só é importável nos cinco `route.ts` do
+  `contrato-de-api.md` §4.4. O sexto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a
   ser alteração da ADR-0003 com o caminho do endpoint escrito na configuração.
 
 **Módulo novo passa por dois testes:** é **útil**, com limites e responsabilidade definidos, e é
 **competente**, fazendo inteiro o que faz. Pasta vazia por simetria falha os dois, e por isso, dos seis
-agregados, só os que têm comportamento na primeira entrega ganham diretório.
+agregados, só os que têm comportamento nesta entrega ganham diretório.
 
 ### 5.4 A camada de Aplicação: funções, não objetos de caso de uso
 
@@ -516,14 +516,14 @@ repositório já escopado à organização; executa um comando de domínio, que 
 registro de histórico na mesma operação; persiste; e as políticas in-process reagem ao evento, sem nunca
 escrever no agregado `Ocorrência`.
 
-**Quais políticas de fato rodam na primeira entrega.** São onze políticas, e **duas rodam**: a POL-01, que
+**Quais políticas de fato rodam nesta entrega.** São onze políticas, e **duas rodam**: a POL-01, que
 semeia categorias e áreas ao registrar a Organização, e a POL-11, que estabelece o vínculo ao aprovar o
 pedido de entrada. As nove restantes dependem de convite, dos canais 2 e 3, de notificação, de plano pago
 ou de alarme por tempo, todos evolução prevista, e a POL-08 não escreve nada por desenho.
 
-A consequência é contraintuitiva: **nenhuma política reage a uma transição de status na primeira entrega.**
+A consequência é contraintuitiva: **nenhuma política reage a uma transição de status nesta entrega.**
 As duas que rodam reagem a eventos de cadastro, e não do ciclo de vida. O parágrafo acima descreve o
-desenho completo; na primeira entrega a operação termina em "persiste".
+desenho completo; nesta entrega a operação termina em "persiste".
 
 Duas notas de precisão que decorrem disso. A ressalva de que nenhuma política escreve no agregado vale para
 o agregado `Ocorrência`, porque a POL-01 escreve `Categoria` e `Área`, que estão dentro do agregado
@@ -579,9 +579,9 @@ requisito:
 | Supabase Auth | entra | Conformista: aceitamos o contrato dele. A camada anticorrupção no ponto de resolução de contexto traduz sessão em usuário, pessoa, organização e papel. O domínio nunca vê token |
 | Azure Blob Storage | sai e entra | O cliente sobe direto para o Blob, com credencial de escrita temporária e restrita emitida pelo servidor. A chave da conta nunca sai do servidor, e os bytes nunca passam pelo contêiner, o que preserva a franquia de vCPU-s. O objeto só vale depois de reivindicado no registro da ocorrência, e o abandonado é recolhido por regra de ciclo de vida |
 | `ghcr.io` | sai | O GitHub Actions publica a imagem, e o Container Apps a consome. Imagem pública, sem credencial de leitura |
-| E-mail, push e WhatsApp | sai | Fora da primeira entrega. A POL-07 é o único ponto que consulta o plano, e a entrega é plugável por trás dela. A API do WhatsApp é cobrada por mensagem, e é o canal que mais pressiona o modelo comercial |
+| E-mail, push e WhatsApp | sai | Fora desta entrega. A POL-07 é o único ponto que consulta o plano, e a entrega é plugável por trás dela. A API do WhatsApp é cobrada por mensagem, e é o canal que mais pressiona o modelo comercial |
 | Fonte da carga de pessoas | entra | Importação de arquivo, validada e transformada na camada de aplicação |
-| Meio de pagamento | sai | Fora da primeira entrega |
+| Meio de pagamento | sai | Fora desta entrega |
 
 **Dependência de plataforma, declarada:** a solução depende de três provedores, com GitHub para código e
 esteira, Azure para execução e storage, e Supabase para banco e autenticação. É uma superfície de
@@ -615,7 +615,7 @@ forçando todo tráfego pelo servidor.
 
 **Autorização orientada a permissão, e não a papel.** As checagens perguntam `vinculo.pode(X)`, e não
 `vinculo.papel == GESTOR`. O mapa de papel para permissões é constante em código, e não há RBAC
-configurável na primeira entrega. A migração para permissões em banco, se um dia necessária, não toca
+configurável nesta entrega. A migração para permissões em banco, se um dia necessária, não toca
 nenhum ponto de checagem.
 
 **Autenticação** delegada, com camada anticorrupção impedindo que formato de token vaze para o domínio.
@@ -922,9 +922,9 @@ par de olhos continua existindo, fora do portão, no `definition-of-done.md`.
 | A6 | Sobe com `docker compose`, do zero | A esteira sobe o compose num runner limpo e bate na aplicação por HTTP. É o que a linha sempre quis provar, que não há estado local escondido, e prova melhor: não pode ser esquecido, reverifica a cada push, e falha onde o defeito nasceu |
 | A7 | Publicado em cloud, acessível por URL | Medido em 23/08/2026, na primeira publicação real: URL no ar, esteira verde nos cinco estágios. Escala do zero em 20,7 s, que é o número do RNF5, contra 0,30 s com a aplicação quente, na mesma revisão. O método é o que torna o número repetível: esperar o `cooldownPeriod` de 300 s e a contagem de réplicas cair a zero antes de cronometrar |
 | A8 | Registro de ocorrência pelo celular em menos de 1 minuto (RNF6) | Cronometrado em rede móvel, por quem implementa, em três medições, registrando a mediana e as três. **Aqui não há mecânica possível**, porque celular real em rede móvel não se automatiza, então o viés fica declarado em vez de embutido: quem construiu a tela sabe onde tocar sem procurar e mede um tempo melhor que o de um morador. As três medições e a mediana são o instrumento que sobra contra ele. Procedimento no [`definition-of-done.md`](definition-of-done.md) |
-| A9 | Lista de atribuições do Encarregado abre sem rede (RNF7) | **Evolução prevista, e não vale para a primeira entrega.** O critério volta a valer quando o RNF7 entrar, e é verificado com o modo offline do navegador |
+| A9 | Lista de atribuições do Encarregado abre sem rede (RNF7) | **Evolução prevista, e não vale para esta entrega.** O critério volta a valer quando o RNF7 entrar, e é verificado com o modo offline do navegador |
 
-**A primeira entrega é validada por A1 a A8.** O A9 está na lista para não se perder, e não para ser
+**Esta entrega é validada por A1 a A8.** O A9 está na lista para não se perder, e não para ser
 cobrado agora. É dele que vem a ressalva: **critério que valida capacidade fora do escopo é linha morta no
 meio de uma lista viva.**
 

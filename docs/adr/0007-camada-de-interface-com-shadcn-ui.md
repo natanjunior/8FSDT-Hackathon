@@ -16,7 +16,7 @@ ADR fecha.
 
 ## Contexto
 
-O produto tem as telas da primeira entrega e trinta interações mapeadas no inventário de telas. Três
+O produto tem as telas desta entrega e trinta interações mapeadas no inventário de telas. Três
 restrições moldam a decisão.
 
 **O risco mais alto do projeto é usabilidade.** A análise de riscos da Documentação da Demanda o
@@ -101,7 +101,7 @@ mais provável de CSS mantido por uma pessoa só.
 | Biblioteca de componentes convencional, instalada como dependência | Entrega o mesmo piso de acessibilidade, e custa o oposto na manutenção: o código não é nosso, o tema é o dela, e customizar significa lutar contra ela. A troca que fizemos, código nosso e atualização nenhuma, é a que cabe num projeto que termina em seis semanas e cuja manutenção depois é incerta |
 | Construir os componentes do zero | Recusada pelo risco, e não pelo prazo. Sem teste de acessibilidade no projeto, um controle feito à mão parece pronto e não é, e o defeito só aparece com quem depende de teclado ou leitor de tela, que é quem não vai estar na demonstração |
 | CSS sem framework de utilitários | Defensável com mais de uma pessoa e um sistema de design. Com uma pessoa e sem revisão de código por pares, a folha global vira o lugar onde regras colidem sem ninguém perceber |
-| Componente de gráfico da própria biblioteca | Recusado para a primeira entrega. Ele traz uma biblioteca de terceiro de porte, e só para o painel. O painel entrega os cinco indicadores sem ele: a recorrência por área tem cerca de trinta itens e é lista ordenada, não gráfico. Se o painel se provar ilegível, entra depois, porque é aditivo |
+| Componente de gráfico da própria biblioteca | Recusado para esta entrega. Ele traz uma biblioteca de terceiro de porte, e só para o painel. O painel entrega os cinco indicadores sem ele: a recorrência por área tem cerca de trinta itens e é lista ordenada, não gráfico. Se o painel se provar ilegível, entra depois, porque é aditivo |
 
 ## Consequências
 

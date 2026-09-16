@@ -17,6 +17,7 @@ import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/
 import {
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
+  repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
   repositorioEscopadoDePedidosDeEntrada,
@@ -50,7 +51,7 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 export type { ArmazenamentoDeCookies };
 
 /**
- * As portas que as quatro operações sem organização consomem (contrato §4.4), mais a porta que o ponto
+ * As portas que as cinco operações sem organização consomem (contrato §4.4), mais a porta que o ponto
  * único de contexto usa em **toda** requisição.
  */
 export function montarPortasGlobais(
@@ -88,6 +89,9 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     ),
     categorias: repositorioEscopadoDeCategorias(consulta),
     areas: repositorioEscopadoDeAreas(consulta),
+    // **Só a consulta, e a ausência da transação é o desenho:** a correção do nome é uma instrução só, e
+    // uma porta que recebesse `escoparTransacao` daria a ela atomicidade que ninguém pediu.
+    organizacao: repositorioEscopadoDaOrganizacao(consulta),
     // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
     // aprovação, que faz duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
     pedidosDeEntrada: repositorioEscopadoDePedidosDeEntrada(

@@ -1,12 +1,12 @@
-import { criarOrganizacao } from "@/aplicacao/organizacao";
-import { resposta, semOrganizacao } from "@/interface/http";
-import { projetarOrganizacao } from "@/interface/projecoes";
-import { criacaoDeOrganizacaoSchema } from "@/interface/schemas";
+import { corrigirOrganizacao, criarOrganizacao } from "@/aplicacao/organizacao";
+import { FormatoInvalido, comContexto, resposta, semOrganizacao } from "@/interface/http";
+import { projetarOrganizacao, projetarOrganizacaoResumo } from "@/interface/projecoes";
+import { correcaoDeOrganizacaoSchema, criacaoDeOrganizacaoSchema } from "@/interface/schemas";
 
 /**
  * `POST /organizacoes` — *criar a organização por auto-serviço* (contrato §8.1).
  *
- * **`semOrganizacao` porque este é o terceiro dos quatro endpoints da lista fechada da §4.4:** ele não
+ * **`semOrganizacao` porque este é o terceiro dos cinco endpoints da lista fechada da §4.4:** ele não
  * roda **sem** escopo por conveniência — ele **cria** o escopo. É o bootstrap da D26, e o `eslint.config.mjs`
  * já autoriza este caminho pelo nome.
  *
@@ -32,6 +32,42 @@ export const POST = semOrganizacao(
     // **Sem `Location`**: o contrato não declara o cabeçalho para esta operação, e não há
     // `GET /organizacoes/{id}` para onde ele apontaria.
     return resposta(projetarOrganizacao(criada), { status: 201 });
+  },
+);
+
+/**
+ * `PATCH /organizacoes` — *corrigir a organização ativa* (contrato §8.1), item 46 · 47.
+ *
+ * **`comContexto`, e não `semOrganizacao`.** O `POST` cria o escopo e por isso está na lista fechada da
+ * §4.4; este escreve **dentro** dele. Ele é o endpoint mais comum do repositório, e não uma exceção.
+ *
+ * **Plural, e sem `{id}`** (spec §3.2). O caminho de coleção lê-se como operação em lote para quem olha
+ * só a URL, e é o custo aceito: **não há identificador para pôr**, porque a organização vem da sessão
+ * (ADR-0003, contrato §4.2). A ausência é o mecanismo — sem valor a passar, editar organização alheia não
+ * é improvável, é impossível.
+ *
+ * **O corpo vazio é recusado aqui**, e não no schema: *"informe ao menos um campo"* é regra do endpoint.
+ * É a mesma forma de `PATCH /areas/{areaId}` e `PATCH /categorias/{id}`.
+ */
+export const PATCH = comContexto(
+  { exige: "organizacao.configurar", corpo: correcaoDeOrganizacaoSchema },
+  async ({ ctx, repos, corpo }) => {
+    if (corpo.nome === undefined) {
+      throw new FormatoInvalido([
+        {
+          campo: "corpo",
+          codigo: "OBRIGATORIO",
+          mensagem: "Informe ao menos um campo para alterar.",
+        },
+      ]);
+    }
+
+    const corrigida = await corrigirOrganizacao(repos.organizacao, {
+      nome: corpo.nome,
+      porPessoaId: ctx.pessoaId,
+    });
+
+    return projetarOrganizacaoResumo(corrigida);
   },
 );
 

@@ -39,7 +39,7 @@ Uma tarefa só entra em desenvolvimento quando os cinco forem verdadeiros.
 | 2 | **Abordagem técnica clara.** Qual camada muda, qual agregado é afetado, se toca fronteira de contexto. Se a resposta exigir investigação, isso vira uma tarefa de investigação própria, com resultado escrito | Descobrir no meio da implementação que a tarefa era outra, e decidir arquitetura sob pressão de prazo, que é quando a lógica de domínio vaza para o handler |
 | 3 | **Quebrada em item implementável.** Cabe numa sessão de trabalho; se não cabe, quebra de novo | Item que atravessa semanas sem entregar nada, e cujo progresso ninguém consegue afirmar |
 | 4 | **Priorizada no board, e alocada a uma sprint** | Trabalho que existe só na cabeça de quem o faz, e some quando a semana aperta |
-| 5 | **Nenhum ponto de atenção em aberto que mude o comportamento desta tarefa.** Consulta a [premissas-e-questoes-abertas.md](premissas-e-questoes-abertas.md). Se houver, ou a questão se resolve, ou a tarefa espera, ou a premissa é assumida por escrito | Implementar sobre uma ambiguidade não resolvida. Há 28 pontos de atenção registrados, 18 deles ainda abertos, e nenhum foi resolvido em silêncio |
+| 5 | **Nenhum ponto de atenção em aberto que mude o comportamento desta tarefa.** Consulta a [premissas-e-questoes-abertas.md](premissas-e-questoes-abertas.md). Se houver, ou a questão se resolve, ou a tarefa espera, ou a premissa é assumida por escrito | Implementar sobre uma ambiguidade não resolvida. Há 28 pontos de atenção registrados, 17 deles ainda abertos, e nenhum foi resolvido em silêncio |
 
 O portão 5 não tem equivalente num checklist genérico, e existe porque este projeto não teve validação de
 domínio com ninguém de fora do time: toda decisão de domínio é suposição.

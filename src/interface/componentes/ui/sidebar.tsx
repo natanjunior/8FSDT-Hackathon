@@ -3,7 +3,7 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/interface/componentes/utilitarios"
-import { PanelLeftIcon } from "lucide-react"
+import { MenuIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 
 import { useIsMobile } from "@/interface/ganchos/use-mobile"
@@ -25,12 +25,26 @@ import {
   TooltipTrigger,
 } from "@/interface/componentes/ui/tooltip"
 
+/**
+ * **Quatro divergências deliberadas do catálogo — item 44f, 16/09/2026.** Um `shadcn add sidebar` reverte
+ * as quatro em silêncio; este bloco existe para que o diff tenha o que contradizer.
+ *
+ * 1. **`SIDEBAR_WIDTH` e `SIDEBAR_WIDTH_MOBILE` valem `214px`**, e não `16rem` e `18rem`. É a medida do
+ *    guia §4, e era já a da gaveta escrita à mão que este item substituiu.
+ * 2. **O atalho `Ctrl+B` saiu.** A tela grande não recolhe (spec §3.9), então o atalho escondia a
+ *    navegação sem controle visível que a trouxesse de volta.
+ * 3. **Os textos da gaveta, do gatilho e da régua estão em pt-BR**, como já estão os de `pagination.tsx` e
+ *    o de `dialog.tsx`. Sem isto, o nome acessível da gaveta regrediria de "Nesta organização" para o
+ *    "Sidebar" do catálogo.
+ * 4. **O gatilho desenha o ícone de menu**, e não o de painel que o catálogo traz: o produto não recolhe
+ *    barra na tela grande, e painel é o vocabulário de quem recolhe.
+ */
+
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
+const SIDEBAR_WIDTH = "214px"
+const SIDEBAR_WIDTH_MOBILE = "214px"
 const SIDEBAR_WIDTH_ICON = "3rem"
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -93,21 +107,10 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen, setOpenMobile])
 
-  // Adds a keyboard shortcut to toggle the sidebar.
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
-      ) {
-        event.preventDefault()
-        toggleSidebar()
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [toggleSidebar])
+  // **Sem atalho de teclado** — item 44f, e a razão é a §3.9 da spec: a tela grande não ganha recolher, e
+  // o `SidebarTrigger` fica `md:hidden`. Com o atalho de pé, `Ctrl+B` recolheria a barra e nenhum controle
+  // visível a traria de volta na sessão. Ele também engolia o atalho do navegador, com `preventDefault`
+  // incondicional.
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
@@ -196,8 +199,8 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>Nesta organização</SheetTitle>
+            <SheetDescription>A navegação das telas desta organização.</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -273,8 +276,8 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <MenuIcon />
+      <span className="sr-only">Abrir navegação</span>
     </Button>
   )
 }
@@ -286,10 +289,10 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label="Recolher ou abrir a navegação"
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title="Recolher ou abrir a navegação"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",

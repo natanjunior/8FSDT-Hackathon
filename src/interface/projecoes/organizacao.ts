@@ -3,6 +3,7 @@ import type {
   AreaLida,
   CategoriaLida,
   OrganizacaoCriada,
+  OrganizacaoLida,
 } from "@/aplicacao/organizacao";
 
 /**
@@ -23,6 +24,13 @@ export type OrganizacaoProjetada = {
   criadoEm: string;
   categoriasSemeadas: number;
   areasSemeadas: number;
+};
+
+/** O schema `OrganizacaoResumo` do contrato — o que `PATCH /organizacoes` devolve. */
+export type OrganizacaoResumoProjetada = {
+  id: string;
+  nome: string;
+  codigoPublico: string;
 };
 
 export type CategoriaProjetada = {
@@ -50,6 +58,15 @@ export function projetarOrganizacao(criada: OrganizacaoCriada): OrganizacaoProje
     categoriasSemeadas: criada.categoriasSemeadas,
     areasSemeadas: criada.areasSemeadas,
   };
+}
+
+/**
+ * **`OrganizacaoResumo`, e não `Organizacao`** (spec §3.11): aquele carrega `criadoEm` e as duas
+ * contagens de semente, e **semente não acontece num `PATCH`**. Devolvê-las com `0` seria dizer que nada
+ * foi semeado; devolvê-las com o número real custaria duas consultas para responder a pergunta errada.
+ */
+export function projetarOrganizacaoResumo(lida: OrganizacaoLida): OrganizacaoResumoProjetada {
+  return { id: lida.id, nome: lida.nome, codigoPublico: lida.codigoPublico };
 }
 
 export function projetarCategoria(categoria: CategoriaLida): CategoriaProjetada {

@@ -10,7 +10,7 @@
  * **Sem `"use client"`, e não é esquecimento:** este arquivo não usa hook nenhum. A diretiva mora no
  * componente que tem estado.
  *
- * **Sem `X-Organizacao-Id`:** `PUT /contexto/organizacao` é uma das quatro operações da §4.4, e o servidor
+ * **Sem `X-Organizacao-Id`:** `PUT /contexto/organizacao` é uma das cinco operações da §4.4, e o servidor
  * não confere a afirmação nelas (`com-contexto.ts:321-324`). Mandá-la aqui seria ruído que o item 7b.6
  * não pediu.
  *

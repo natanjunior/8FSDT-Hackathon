@@ -85,7 +85,7 @@ que o lint aponta.
 ninguém alcança arquivo interno de outro módulo.
 
 **Há ainda regras que não falam de camada**, e por isso não recebem número: `semOrganizacao` só é
-importável nos quatro `route.ts` da lista fechada do `contrato-de-api.md` §4.4; `portasDeAnexo` só no
+importável nos cinco `route.ts` da lista fechada do `contrato-de-api.md` §4.4; `portasDeAnexo` só no
 único `route.ts` que emite credencial de upload; `armazenamentoDeAnexos` só nos dois que reivindicam ou
 leem anexo. A primeira é a lista fechada da ADR-0003 virada mecanismo: o que aquela ADR exige de uma
 exceção nova, revisão explícita, passa a ser uma linha de configuração com o caminho do endpoint escrito
@@ -107,7 +107,7 @@ feito pela metade. E o aviso que impede simetria vazia: criar componente não é
 em três distribuindo o código.
 
 **Consequência prática:** dos seis agregados, só os que têm comportamento ganham pasta em `dominio/` e
-`aplicacao/` na primeira entrega. `Notificação` não ganha, porque é evolução prevista, e uma pasta vazia
+`aplicacao/` nesta entrega. `Notificação` não ganha, porque é evolução prevista, e uma pasta vazia
 por simetria falha os dois testes.
 
 ## Justificativa
@@ -127,7 +127,7 @@ Storage e Supabase Auth, que a redação anterior não alcançava por falar só 
 acúmulo. É uma das poucas vezes em que a restrição do framework empurra na direção certa.
 
 **4 · O tamanho do projeto favorece a estrutura menor.** São seis agregados de peso muito desigual:
-`Ocorrência` é quase tudo, `Notificação` é vazio na primeira entrega. Camada no topo produz quatro
+`Ocorrência` é quase tudo, `Notificação` é vazio nesta entrega. Camada no topo produz quatro
 diretórios estáveis; agregado no topo produziria seis diretórios com quatro subdiretórios cada, a maioria
 vazia.
 

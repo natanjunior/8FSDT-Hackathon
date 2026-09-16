@@ -7,11 +7,15 @@ import {
   NomeDeCategoriaDuplicado,
   corrigirArea,
   corrigirCategoria,
+  corrigirOrganizacao,
   criarArea,
   criarCategoria,
   type AreaAtualizada,
   type AreaLida,
   type CategoriaLida,
+  type CorrecaoDeOrganizacao,
+  type OrganizacaoLida,
+  type RepositorioEscopadoDaOrganizacao,
   type RepositorioEscopadoDeAreas,
   type RepositorioEscopadoDeCategorias,
   type ResultadoDeCorrecaoDeArea,
@@ -22,7 +26,7 @@ import {
 
 /**
  * ============================================================================
- *  Os quatro casos de uso da configuração — itens 4a e 5
+ *  Os cinco casos de uso da configuração — itens 4a, 5 e 46 · 47
  * ============================================================================
  *
  * **O que está sob teste é a tradução, e só ela:** desfecho da porta → recusa nomeada do contrato, mais
@@ -194,7 +198,7 @@ describe("criarArea", () => {
 });
 
 describe("corrigirArea", () => {
-  it("devolve a contagem que a frase de T-09 consome", async () => {
+  it("devolve a contagem que a frase de T-14 consome", async () => {
     const { porta } = portaDeAreas();
 
     const area = await corrigirArea(porta, {
@@ -211,5 +215,69 @@ describe("corrigirArea", () => {
     await expect(
       corrigirArea(porta, { areaId: "de-outra", porPessoaId: "p" }),
     ).rejects.toBeInstanceOf(AreaNaoEncontrada);
+  });
+});
+
+const AURORA: OrganizacaoLida = {
+  id: "organizacao-1",
+  nome: "Residencial Aurora",
+  codigoPublico: "AURORA42",
+};
+
+/**
+ * ============================================================================
+ *  O quinto caso de uso da configuração — item 46 · 47
+ * ============================================================================
+ *
+ * **O que está sob teste é a tradução, e ela é o vocabulário:** o comando fala `porPessoaId`, que é
+ * `ctx.pessoaId`; a porta fala `atualizadaPorPessoaId`, que é a coluna de auditoria de configuração
+ * (modelo §6.5). E o campo ausente **não chega à porta como chave** — quem monta o `update` decide pela
+ * ausência da chave, não por `undefined`.
+ *
+ * **Não há recusa a traduzir, e é por isso que há dois casos e não cinco.** Sem `{id}` no caminho e sem
+ * `UNIQUE` sobre `nome`, a porta não tem desfecho de domínio: a organização é a da sessão e ela existe.
+ */
+describe("corrigirOrganizacao — o nome da organização ativa", () => {
+  function porta(): {
+    repositorio: RepositorioEscopadoDaOrganizacao;
+    recebidas: CorrecaoDeOrganizacao[];
+  } {
+    const recebidas: CorrecaoDeOrganizacao[] = [];
+    return {
+      recebidas,
+      repositorio: {
+        corrigir(correcao) {
+          recebidas.push(correcao);
+          return Promise.resolve({ ...AURORA, nome: correcao.nome ?? AURORA.nome });
+        },
+      },
+    };
+  }
+
+  it("leva o nome e o autor para a porta, e devolve a organização lida", async () => {
+    const { repositorio, recebidas } = porta();
+
+    const lida = await corrigirOrganizacao(repositorio, {
+      nome: "Residencial Aurora II",
+      porPessoaId: "pessoa-1",
+    });
+
+    expect(recebidas).toStrictEqual([
+      { nome: "Residencial Aurora II", atualizadaPorPessoaId: "pessoa-1" },
+    ]);
+    expect(lida).toStrictEqual({
+      id: "organizacao-1",
+      nome: "Residencial Aurora II",
+      codigoPublico: "AURORA42",
+    });
+  });
+
+  it("sem nome no comando, `nome` NÃO chega à porta como chave", async () => {
+    const { repositorio, recebidas } = porta();
+
+    await corrigirOrganizacao(repositorio, { porPessoaId: "pessoa-1" });
+
+    expect(recebidas).toStrictEqual([{ atualizadaPorPessoaId: "pessoa-1" }]);
+    expect(recebidas[0]).not.toHaveProperty("nome");
   });
 });

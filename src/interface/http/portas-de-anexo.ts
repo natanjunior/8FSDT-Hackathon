@@ -4,7 +4,7 @@ import { montarPortasDeAnexo } from "@/composicao";
 /**
  * **A única ponte entre `app/` e as duas portas do anexo**, e ela é de uso restrito.
  *
- * `comContexto` entrega `RepositoriosEscopados`, e só; `PortasGlobais` chega apenas pelas quatro operações
+ * `comContexto` entrega `RepositoriosEscopados`, e só; `PortasGlobais` chega apenas pelas cinco operações
  * da §4.4, cuja lista o lint fecha. As portas do anexo não cabem em nenhum dos dois conjuntos: o emissor
  * não tem escopo a ter, e o livro-caixa é **global de propósito**.
  *

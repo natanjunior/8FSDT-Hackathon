@@ -162,7 +162,7 @@ sequenceDiagram
     end
 
     Note over CLI,BD: nenhuma seta escreve status vindo de fora do Domínio,<br/>e nenhuma seta pede grave um registro
-    Note over APP: na primeira entrega NENHUMA política reage a uma transição:<br/>POL-05 e POL-06, que notificam, são evolução prevista — ver L-3
+    Note over APP: nesta entrega NENHUMA política reage a uma transição:<br/>POL-05 e POL-06, que notificam, são evolução prevista — ver L-3
 ```
 
 **O que este diagrama afirma:** não existe caminho em que o status muda sem que o registro de transição
@@ -186,7 +186,7 @@ campos, vem do enunciado. Todo o resto do desenho é mecanismo nosso: as quatro 
 
 **Uma consequência que o desenho torna visível.** A última nota não é decoração: na
 [arquitetura](arquitetura.md) o fluxo de ponta a ponta termina com as políticas reagindo ao evento, e **na
-primeira entrega esse último passo é vazio para todo comando de transição**, porque as políticas que
+esta entrega esse último passo é vazio para todo comando de transição**, porque as políticas que
 reagiriam são todas evolução prevista. Ver o achado L-3.
 
 ---
@@ -225,7 +225,7 @@ verificação automatizada do RNF1 tem de cobrir.
 organizações na mesma instância. O funil é a
 [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md); a camada anticorrupção é o par de
 padrões descrito na [arquitetura](arquitetura.md) §3; a regra de que a consulta parte de `vinculos` é a
-§4.3 do [modelo de dados](modelo-de-dados.md); a lista dos quatro endpoints e o papel do
+§4.3 do [modelo de dados](modelo-de-dados.md); a lista dos cinco endpoints e o papel do
 `X-Organizacao-Id` são as §4.2 e §4.4 do [contrato](contrato-de-api.md); e a autorização por permissão e
 não por papel, a §4.5.
 
@@ -251,7 +251,7 @@ flowchart TD
 
     P --> A1["POST /organizacoes — auto-serviço<br/>decisão D26"]
     P --> B1["POST /pedidos-de-entrada, com o código público<br/>decisão D25"]
-    P -.-> C1["Aceitar convite de uso único — decisão D25<br/>EVOLUÇÃO PREVISTA, não existe na primeira entrega"]
+    P -.-> C1["Aceitar convite de uso único — decisão D25<br/>EVOLUÇÃO PREVISTA, não existe nesta entrega"]
     G --> D1["POST /vinculos — cadastra Encarregado sem conta<br/>decisão D27"]
 
     A1 --> V0["Vínculo de Gestor inicial. O ÚNICO que nasce<br/>sem aprovação de ninguém: o primeiro Gestor<br/>não tem quem o aprove"]
@@ -393,7 +393,7 @@ Doze recusas. Cada uma tem o motivo, porque **recusa sem motivo é indistinguív
 | Ciclo de vida do objeto no storage | Três estados e duas setas, e as duas já são passos do DG-5. Um diagrama de três nós é uma frase escrita de forma cara |
 | Anonimização de uma Pessoa | Os cinco passos já estão numerados no modelo de dados, em ordem, com a camada de cada um. O que interessa ali é o que não é alcançado, e isso é prosa, e não seta |
 | Trilha de auditoria contra linha do tempo | A diferença é de recorte e vocabulário, e está numa tabela de quatro linhas no contrato. Não há topologia nem ordem |
-| Os três canais de conversa | Dois dos três são evolução prevista. Desenhar uma máquina de canais na primeira entrega mostraria dois nós inalcançáveis |
+| Os três canais de conversa | Dois dos três são evolução prevista. Desenhar uma máquina de canais nesta entrega mostraria dois nós inalcançáveis |
 | Modelo de leitura do dashboard | Cinco indicadores num endpoint. É um schema de resposta, e ele já está escrito |
 | Mapa de navegação de telas | Não é nosso: é do [inventário de telas](inventario-de-telas.md). Desenhá-lo aqui criaria a duplicata |
 
@@ -428,10 +428,10 @@ deles existiam havia semanas em documentos já revisados.
 |---|---|---|
 | L-1 | A ADR-0003 punha a resolução de contexto no handler; a arquitetura proíbe a Interface de tocar o banco | Corrigida a redação da ADR-0003. A decisão não mudou; a palavra apontava para a camada errada |
 | L-2 | Duas escritas em tabela escopada rodam fora do repositório escopado, sem que nada dissesse de onde vinha o `organizacao_id` | Regra fechada na ADR-0003: o `organizacao_id` entra por dois caminhos e não existe um terceiro, e as duas operações com licença estão enumeradas. Caso próprio no critério A4 |
-| L-3 | Nenhuma política reage a transição na primeira entrega, e três documentos sugeriam que sim | Declarado na arquitetura: das onze políticas, duas rodam, e nenhuma reage a transição. Criada a POL-11, que faltava |
+| L-3 | Nenhuma política reage a transição nesta entrega, e três documentos sugeriam que sim | Declarado na arquitetura: das onze políticas, duas rodam, e nenhuma reage a transição. Criada a POL-11, que faltava |
 | L-4 | A migração de banco não tinha dono na cadeia de implantação | Passo do próprio workflow, antes do deploy. Recusado o comando manual, pelo motivo das ADR-0001 e 0003: com ele, a ordem segura depende de alguém lembrar |
 | L-5 | O objeto de imagem pode ficar confirmado e órfão se a transação falhar | Declarado como terceiro caso residual na §10.3 do contrato, com o argumento de por que a ordem atual é a mais segura das duas |
-| L-6 | Aprovar pedido de entrada com o papel errado é irreversível | Virou o ponto de atenção PA-25, e o conserto entrou na primeira entrega: remover vínculo sem histórico, que é um desfazer estreito, e não a revogação completa |
+| L-6 | Aprovar pedido de entrada com o papel errado é irreversível | Virou o ponto de atenção PA-25, e o conserto entrou nesta entrega: remover vínculo sem histórico, que é um desfazer estreito, e não a revogação completa |
 | L-7 | O modelo de dados classificava a recorrência como adiada | Justificativa corrigida. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo |
 | L-8 | A citação atribuía o nó de avaliação a duas imagens do PDF | Corrigida para uma só, nas premissas. O erro enfraquecia a própria premissa, ao transformar três contra um em dois contra dois |
 | L-9 | Dois textos enumeravam caminhos de entrada e deixavam um de fora | O escopo passou a listar os três caminhos, e a arquitetura passou a qualificar de qual agregado ela fala |
@@ -449,20 +449,21 @@ leitura da arquitetura. É redação, e não decisão, e é redação sobre a fr
 
 ### L-2 · Duas escritas em tabela escopada acontecem fora do repositório escopado
 
-O [contrato](contrato-de-api.md) §4.4 lista quatro endpoints que não passam pelo repositório escopado, e
-dois deles escrevem: `POST /pedidos-de-entrada` insere em tabela escopada, e `POST /organizacoes` cria a
-organização, o vínculo de Gestor e, pela POL-01, as categorias e as áreas semente.
+O [contrato](contrato-de-api.md) §4.4 lista cinco endpoints que não passam pelo repositório escopado, e
+três deles escrevem: `POST /pedidos-de-entrada` insere em tabela escopada, `POST /organizacoes` cria a
+organização, o vínculo de Gestor e, pela POL-01, as categorias e as áreas semente, e
+`PATCH /contexto/pessoa` escreve em `pessoas`, que é global e não tem `organizacao_id` a preencher.
 
 Nenhum documento dizia qual componente preenche o `organizacao_id` nessas escritas, nem como o código
 público vira `organizacao_id` sem passar pelo funil. Não era defeito: era passo sem dono declarado, e
 estava exatamente no mecanismo que existe para tornar o vazamento impossível por engano.
 
-### L-3 · Na primeira entrega, nenhuma política reage a uma transição de status
+### L-3 · Nesta entrega, nenhuma política reage a uma transição de status
 
 A [arquitetura](arquitetura.md) descrevia o fluxo de ponta a ponta terminando com as políticas reagindo ao
 evento. Cruzando as políticas com o recorte do [escopo](escopo.md):
 
-| Política | Roda na primeira entrega? |
+| Política | Roda nesta entrega? |
 |---|---|
 | POL-01, semear categorias e áreas | Sim |
 | POL-02, estabelecer vínculo ao aceitar convite | Não, porque o convite é evolução prevista |
@@ -515,14 +516,14 @@ recebe a lista de permissões vazia e não consegue nem registrar uma ocorrênci
 engano é o oposto e pior: privilégio permanente. É mais provável que o beco do Gestor único, porque é erro
 de clique num formulário de rotina.
 
-**Foi resolvido trazendo para a primeira entrega um desfazer estreito:** remover o vínculo enquanto ele não
+**Foi resolvido trazendo para esta entrega um desfazer estreito:** remover o vínculo enquanto ele não
 tiver histórico. Não é a revogação completa, que continua sendo evolução prevista, e é o suficiente para
 desfazer o engano.
 
 ### L-7 · O modelo de dados classificava a recorrência como adiada
 
 O [modelo de dados](modelo-de-dados.md) justificava não criar dois índices com dois argumentos, e o
-primeiro deles dizia que a recorrência ainda não estava na primeira entrega. Mas o [escopo](escopo.md) a
+primeiro deles dizia que a recorrência ainda não estava nesta entrega. Mas o [escopo](escopo.md) a
 lista como entregue, e o contrato a devolve no dashboard.
 
 **A decisão de não criar os índices pode continuar certa**, porque o segundo argumento da mesma linha é que

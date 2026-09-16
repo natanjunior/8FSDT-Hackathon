@@ -1,12 +1,12 @@
 ---
 title: "Inventário de Telas"
-description: "As telas da primeira entrega: o que cada uma responde, os estados vazio, carregando e erro, e o mapa de navegação."
+description: "As telas desta entrega: o que cada uma responde, os estados vazio, carregando e erro, e o mapa de navegação."
 ---
 
 # Inventário de Telas — Resolve Aí
 
-**Treze telas.** É o número que este documento defende, contra as 44 capacidades ✅ do
-[escopo](escopo.md) e os 37 endpoints do [contrato de API](contrato-de-api.md).
+**Dezesseis telas.** É o número que este documento defende, contra as 46 capacidades ✅ do
+[escopo](escopo.md) e os 39 endpoints do [contrato de API](contrato-de-api.md).
 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
@@ -61,7 +61,7 @@ E o corolário, que é o que mais recusou:
 > acontecem de dentro da tela onde a pessoa já está vendo a ocorrência. Uma tela por comando produz um
 > aplicativo em que o usuário **navega em vez de trabalhar**.
 
-Aplicado às 44 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
+Aplicado às 46 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
 telas: a atividade 0 é uma, as atividades 3 a 6 — dezesseis capacidades, os onze comandos inteiros —
 são **uma**, e as atividades 2 e 7 se dividem entre registrar e acompanhar. O que sobra:
 
@@ -70,7 +70,7 @@ são **uma**, e as atividades 2 e 7 se dividem entre registrar e acompanhar. O q
 | A credencial — entrar, criar, recuperar | 4 (T-01, T-11, T-12, T-13) |
 | Estar autenticado e não pertencer a lugar nenhum | 1 (T-02) |
 | A ocorrência — listar, registrar, operar, auditar | 4 (T-03 a T-06) |
-| A gestão da organização | 3 (T-07 a T-09) |
+| A gestão da organização | 5 (T-07, T-08, T-09, T-14, T-15) |
 | Um estado declarado que não é capacidade nenhuma | 1 (T-10) |
 
 ### O critério que separa tela de estado
@@ -135,8 +135,9 @@ mapa de permissões da `contrato-de-api.md` §4.5 dá `ocorrencia.registrar` ao 
 cada estado vazio, com **um implementador** e ~6 semanas. É o risco técnico que a análise de Cagan
 classifica como **dominante** (`documentacao-da-demanda.md` §0).
 
-**O que a decisão custa, declarado.** As três telas de gestão (T-07, T-08, T-09) só existem para quem
-tem a permissão, e um Solicitante que receba o link de uma delas leva `403 PERMISSAO_INSUFICIENTE`. Numa
+**O que a decisão custa, declarado.** As cinco telas de gestão (T-07, T-08, T-09, T-14, T-15) só existem
+para quem tem a permissão, e um Solicitante que receba o link de uma delas leva
+`403 PERMISSAO_INSUFICIENTE`. Numa
 área separada isso seria óbvio pelo endereço; aqui é um erro. A mitigação é a §7: esse `403` tem frase
 própria. E a tela do Gestor fica mais densa do que ficaria se fosse só dele, porque carrega os elementos
 que o Solicitante também precisa — é o preço de não ter duas.
@@ -164,9 +165,9 @@ está em curso e já diz.** [FONTE EXTERNA]
 
 ## 3. O mapa
 
-### As treze telas
+### As dezesseis telas
 
-Em ordem de leitura, não de identificador — as quatro da credencial vêm juntas, e três delas têm número
+Em ordem de leitura, não de identificador — as quatro da credencial vêm juntas, e seis delas têm número
 alto porque foram descobertas depois (ver o quadro do topo).
 
 | # | Tela | Quem vê | A pergunta | Alvo primário | Endereço próprio |
@@ -182,8 +183,11 @@ alto porque foram descobertas depois (ver o quadro do topo).
 | **T-06** | Trilha de auditoria | quem pode ler aquela ocorrência | *"Prove o que aconteceu, campo por campo."* | tela grande | sim |
 | **T-07** | Dashboard | `dashboard.ler` | *"Está melhorando ou piorando?"* | tela grande | sim |
 | **T-08** | Quem está na organização | `vinculo.gerir` | *"Quem está aqui, e quem quer entrar?"* | tela grande | sim |
-| **T-09** | Categorias e áreas | `organizacao.configurar` | *"As opções que o Solicitante vê estão certas?"* | tela grande | sim |
+| **T-15** | Configuração da organização | `organizacao.configurar` | *"O que desta organização eu posso ajustar?"* | tela grande | sim |
+| **T-09** | Categorias | `organizacao.configurar` | *"As categorias que o Solicitante escolhe estão certas?"* | tela grande | sim |
+| **T-14** | Áreas | `organizacao.configurar` | *"As áreas descrevem este lugar?"* | tela grande | sim |
 | **T-10** | Vínculo sem permissões | vínculo com `permissoes: []` | *"Entrei. Por que não consigo fazer nada?"* | celular | não |
+| **T-16** | Meus dados | qualquer vínculo ativo — **não há permissão** | *"O que é meu, e como eu entro?"* | celular | sim |
 
 **Sobre os nomes.** Cada nome é o identificador da tela **neste inventário** e usa vocabulário do
 [glossário](glossario.md). **Não é necessariamente o texto que aparece na tela** — em T-02 e T-10 o
@@ -198,6 +202,10 @@ usuário está em linguagem de gente, escrito na seção de cada uma. Dois nomes
   (`contrato-de-api.md` §4.6) diz que toda listagem de gente é listagem de `Vínculo`. Nomear a tela "Pessoas"
   contradiria a regra na primeira palavra. **Se o hub quiser um nome curto, ele é proposta ao
   glossário — não é invenção deste inventário** (`glossario.md` §9).
+
+  **O nome curto chegou em 16/09/2026, e veio pelo caminho que esta linha previu:** a navegação chama a
+  tela de `Participantes`, o termo está definido no [glossário](glossario.md) §1, e o título da tela não
+  muda. A divergência é deliberada — o título diz onde você está, o rótulo diz para onde você vai.
 
 ### A navegação
 
@@ -218,8 +226,12 @@ flowchart TD
     T06["T-06 · Trilha de auditoria"]
     T07["T-07 · Dashboard"]
     T08["T-08 · Quem está na organização"]
-    T09["T-09 · Categorias e áreas"]
+    T15["T-15 · Configuração da organização"]
+    T09["T-09 · Categorias"]
+    T14["T-14 · Áreas"]
+    T16["T-16 · Meus dados<br/>dado pessoal, fora do escopo da organização"]
     MENU["Menu da organização ativa<br/>PUT /contexto/organizacao"]
+    MENU_PESSOA["Menu de pessoa<br/>o avatar da barra superior"]
 
     T01 -->|"não tenho conta"| T11
     T11 -->|"conta criada e confirmada"| T01
@@ -241,18 +253,31 @@ flowchart TD
     T05 -->|"ver os cinco campos crus"| T06
     T03 -->|"dashboard.ler"| T07
     T03 -->|"vinculo.gerir"| T08
+    T03 -->|"organizacao.configurar"| T15
     T03 -->|"organizacao.configurar"| T09
+    T03 -->|"organizacao.configurar"| T14
 
     T03 --> MENU
     T10 --> MENU
     MENU --> CTX
+
+    T03 --> MENU_PESSOA
+    T10 --> MENU_PESSOA
+    MENU_PESSOA --> T16
+    T16 --> T12
 ```
 
-> **O que este mapa afirma:** **T-03 é o eixo.** Toda tela de dentro da organização se alcança dela, e
-> nenhuma tela de dentro se alcança de outra sem passar por ela. É consequência de uma decisão, não de
+> **O que este mapa afirma:** **T-03 continua sendo o eixo do que é da organização.** Toda tela de dentro
+> se alcança dela, e nenhuma se alcança de outra sem passar por ela. É consequência de uma decisão, não de
 > conveniência de desenho: a tela inicial de **todos** os papéis é a mesma, e o que os separa é o que
 > ela oferece. O único ramo que não desemboca em T-03 é o do vínculo sem permissão — e ele termina em
 > T-10, que é um beco por construção.
+>
+> **A exceção é T-16, e ela é o contorno da regra em vez de um furo nela:** dado pessoal é global, não
+> pertence à barra lateral cujo rótulo é *"Nesta organização"*, e por isso se alcança pelo menu de
+> pessoa — que existe em toda tela da casca, inclusive em T-10. **T-16 é também a única tela de dentro
+> que leva a uma de fora**, T-12, e é de propósito: a senha tem uma porta só, e duplicá-la seria a
+> segunda cópia que diverge.
 
 **Três decisões de navegação que o mapa carrega:**
 
@@ -279,12 +304,13 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 
 | Onde | O que "voltar" faz |
 |---|---|
-| T-05, T-06, T-07, T-08, T-09 | volta a **T-03** — a lista, sem consulta. *(A linha prometia "com os filtros preservados" até 30/08/2026; ver a correção no fim desta seção.)* |
+| T-05, T-06, T-07, T-08, T-09, T-14, T-15 | volta a **T-03** — a lista, sem consulta. *(A linha prometia "com os filtros preservados" até 30/08/2026; ver a correção no fim desta seção.)* |
 | T-04 | volta a T-03 e **descarta o formulário**, com confirmação se algo foi digitado |
 | T-05 recém-chegado de um `201` de T-04 | volta a **T-03**, nunca ao formulário — a ocorrência já existe, e reabrir o formulário convida ao toque duplo que o `contrato-de-api.md` §7.10 declarou não proteger |
 | **modal aberto** | **fecha o modal e permanece na tela** |
 | T-11, T-12 | volta a **T-01** — é de lá que as duas são alcançadas |
 | **T-13** | **nunca volta ao formulário.** O endereço carrega o token de redefinição; consumido ele, voltar leva a T-01 |
+| **T-16** | volta a **T-03**, como as outras de dentro — e o link *Voltar* do rodapé aponta para lá |
 | T-02, T-10 | não há para onde voltar; o botão é inerte |
 
 A última linha da tabela do meio exige um mecanismo, e ele é decisão declarada:
@@ -527,9 +553,9 @@ escolhida por `GET /contexto`, que é o **único** endpoint que uma Pessoa sem v
   chega aqui quase sempre está **entrando**, não fundando.
 
   **E dois campos que 22/08/2026 acrescentou ao pedido**, os dois opcionais:
-  **`nome`, pré-preenchido com o nome atual da Pessoa** — o `contrato-de-api.md` §8.2 declarou que este é o **último
-  momento em que o nome é corrigível**, porque depois dele não há como alterá-lo e ele vai para a trilha
-  imutável; e **`telefone`, em E.164**, que *"vira o primeiro contato da Pessoa, com `finalidade: pessoal`"*
+  **`nome`, pré-preenchido com o nome atual da Pessoa** — o `contrato-de-api.md` §8.2 o descreve como **o
+  ponto de correção antes de entrar**, que é o que faz o Gestor ler o nome certo ao decidir o pedido;
+  depois de entrar, a correção mora em **T-16 · Meus dados**; e **`telefone`, em E.164**, que *"vira o primeiro contato da Pessoa, com `finalidade: pessoal`"*
   e é o único ponto do contrato em que um contato entra fora de `/vinculos`.
   **A máscara é a mesma de T-08** — prefixo de país padrão `+55` mais o número no formato nacional —,
   porque ninguém digita `+55` de propósito e o `CHECK` do banco recusa qualquer outra forma.
@@ -671,7 +697,7 @@ envelope. *(A segunda metade — "não há `total`" — caiu em 09/09/2026, com 
 | Carregar mais | `GET /ocorrencias?cursor=<proximoCursor>` |
 | Registrar ocorrência — só com `ocorrencia.registrar` | **navegação** → T-04 |
 | Abrir um item | **navegação** → T-05 |
-| Dashboard · Quem está na organização · Categorias e áreas | **navegação** → T-07, T-08, T-09, cada uma só com a permissão respectiva |
+| Dashboard · Configuração · Participantes · Categorias · Áreas | **navegação** → T-07, T-15, T-08, T-09, T-14, cada uma só com a permissão respectiva |
 
 **Sobre os filtros.** São **exatamente os três de G2** (`ENUNCIADO · literal`), mais `autor=eu`.
 `areaId` **não existe** e não deve ser acrescentado: o contrato o excluiu deliberadamente (`contrato-de-api.md` §8.5), e
@@ -728,7 +754,7 @@ cliente a adivinhar quais itens aceitam o comando — a segunda cópia da máqui
 
 | Situação | Texto e o que oferece |
 |---|---|
-| Organização recém-criada, `todas`, zero ocorrências | *"Nenhuma ocorrência ainda."* + **dois convites**: conferir as Áreas semeadas (→ T-09) e registrar a primeira (→ T-04). O primeiro é o que importa: a organização nasce com áreas-semente genéricas, e **a primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve o prédio** |
+| Organização recém-criada, `todas`, zero ocorrências | *"Nenhuma ocorrência ainda."* + **dois convites**: conferir as Áreas semeadas (→ T-14) e registrar a primeira (→ T-04). O primeiro é o que importa: a organização nasce com áreas-semente genéricas, e **a primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve o prédio** |
 | Solicitante, zero ocorrências | *"Você ainda não registrou nenhuma ocorrência."* + o botão de registrar |
 | Filtro sem resultado | *"Nenhuma ocorrência com estes filtros."* + limpar filtros. **Nunca a mesma frase dos dois de cima** — organização vazia e busca vazia são fatos diferentes, e trocar uma pela outra faz o Gestor pensar que perdeu dados |
 
@@ -818,8 +844,9 @@ visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
   `GET /categorias` ou `GET /areas` devolver zero itens ativos, **não há como registrar nada**. A
   organização nasce com sementes (POL-01), então isso só acontece se o Gestor desativar tudo. Texto:
   *"Esta organização não tem {categorias | áreas} ativas. Fale com um Gestor."* — e para o próprio
-  Gestor, o mesmo texto com o caminho para T-09. Sem essa frase, o formulário fica com um campo
-  obrigatório vazio e insubmissível, sem dizer por quê.
+  Gestor, o mesmo texto com o caminho para a lista que está faltando — T-09, T-14, ou T-15 quando faltam
+  as duas. Sem essa frase, o formulário fica com um campo obrigatório vazio e insubmissível, sem dizer
+  por quê.
 - *Carregando:* as duas listas carregam junto com a tela. A foto tem indicação de progresso própria,
   **e ela não bloqueia o formulário** — bloquear é perder o RNF6.
 - *Erro:* `422 CATEGORIA_INVALIDA`, `422 AREA_INVALIDA`, `422 ANEXO_NAO_RECONHECIDO`,
@@ -848,7 +875,7 @@ na cabeça ao abrir o aplicativo.
 | **Quem vê** | Quem pode ler aquela ocorrência — o autor, ou quem tem `ocorrencia.ler_todas` |
 | **A pergunta** | Solicitante: *"O que está acontecendo com a minha?"* · Gestor: *"O que está acontecendo com esta, e o que eu faço com ela?"* |
 
-**É a tela que carrega dezesseis das 44 capacidades**, e é onde os **onze comandos** moram. Consome
+**É a tela que carrega dezesseis das 46 capacidades**, e é onde os **onze comandos** moram. Consome
 quatro `GET` e pode chamar onze `POST`.
 
 **O que mostra.** `OcorrenciaDetalhe` — tudo de `OcorrenciaResumo` mais `descricao`,
@@ -1152,7 +1179,7 @@ Sobrevive à autenticação (§3, decisão 2). Os modais são fragmentos, não e
 > pode haver. Um Gestor que escreva nota interna ali por engano **não tem volta**.
 >
 > **O agravante que torna o aviso obrigatório e não recomendável:** a **nota interna** é o canal 2, e
-> ela é ⬜ (D9, cortada porque o cenário é o do síndico único). Então **na primeira entrega não existe
+> ela é ⬜ (D9, cortada porque o cenário é o do síndico único). Então **nesta entrega não existe
 > lugar nenhum** para texto interno entre Gestores. O campo de observação é o único campo de texto livre
 > que um Gestor tem, e ele é público ao Solicitante. Sem o aviso, o engano não é improvável: é a leitura
 > natural de um campo chamado "observação".
@@ -1327,7 +1354,7 @@ cinco números não são iguais em valor, e a tela declara isso pela ordem em qu
   `horas`: um mês com duas resoluções e um com trinta não podem parecer iguais.
 
 E uma que a tela **não** mostra, com o motivo: **tempo de calendário × tempo ativo** é ⬜ (D19). O
-objetivo **O5** é justamente essa separação, e ele **não é medido na primeira entrega** — está declarado
+objetivo **O5** é justamente essa separação, e ele **não é medido nesta entrega** — está declarado
 assim na Documentação da Demanda. A tela não insinua o contrário, e não há espaço reservado prometendo.
 
 **O que oferece.**
@@ -1602,35 +1629,83 @@ vínculos. É trabalho de escritório, feito uma vez por semana.
 
 ---
 
-### T-09 · Categorias e áreas
+### T-15 · Configuração da organização
 
 | Campo | Conteúdo |
 |---|---|
-| **Quem vê** | `organizacao.configurar` — Gestor. `GET /categorias` e `GET /areas` são de **qualquer vínculo ativo**, porque T-04 os consome |
-| **A pergunta** | *"As opções que o Solicitante vê estão certas?"* |
+| **Quem vê** | `organizacao.configurar` — Gestor |
+| **A pergunta** | *"O que desta organização eu posso ajustar?"* |
 
-**Uma tela, não duas.** Categorias e Áreas são as duas listas que **alimentam o mesmo formulário** (T-04)
-e são o único conteúdo configurável da organização. Configurá-las é uma sessão de trabalho, feita uma
-vez, quando a organização nasce — e a pergunta é uma só. Separá-las produziria duas telas de uma lista
-cada.
+**Duas telas, e antes era uma.** Esta seção abria com *"Uma tela, não duas: Categorias e Áreas são as duas
+listas que alimentam o mesmo formulário (T-04) e são o único conteúdo configurável da organização"*. O
+argumento era verdadeiro sobre T-04 e errado sobre quem configura, e a decisão virou em **16/09/2026**,
+por decisão do dono do produto: quem está aqui não está registrando ocorrência, e para quem administra são
+dois assuntos. As listas viraram **T-09 · Categorias** e **T-14 · Áreas**.
 
-**O que mostra.** Duas listas.
+**O que mostra.** A seção **Identidade** primeiro, e os dois destinos depois. A identidade tem o **nome
+da organização num campo editável** e o **código da organização** em fonte mono, grande o bastante para
+ser lido do outro lado da mesa, com o botão *Copiar* ao lado. Os dois destinos trazem a contagem de cada
+um — *"Categorias · 7 ativas de 7"* e *"Áreas · 11 ativas de 12"*. **A contagem é o que faz o índice valer
+a visita**: sem ela a página repete a barra lateral; com ela responde *"está configurado?"* de um relance.
+As duas contagens saem das mesmas duas chamadas que a tela fundida já disparava em paralelo, e o nome e o
+código vêm do contexto que a página já resolveu — nenhuma consulta nova entrou.
 
-**1 · Categorias** — `Categoria`: `nome` (≤ 60), **`icone`**, `ativa`, `ordem`. Ordenadas por `ordem`, porque *"qual
-categoria aparece antes é escolha do Gestor"* (D18). Nascem com **as sete do desafio** (POL-01), e a tela
-diz isso: *"Sete categorias foram criadas junto com a organização."* — sem essa frase, o Gestor não sabe
-se as encontrou ou se alguém as digitou.
+**O subtítulo com o nome saiu do cabeçalho, e só desta tela.** Em T-08, T-09 e T-14 o nome da organização
+é contexto, e responde *"estas categorias são de onde?"*. Aqui ele é conteúdo: está no campo. Imprimi-lo
+duas vezes, uma delas dentro de um campo, convida à pergunta de qual dos dois é o de verdade. O contexto
+não se perde — a barra superior carrega a organização ativa em toda tela da casca.
 
-**2 · Áreas** — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`, **`ordem`**. **O `tipo`
-precisa de uma linha de explicação na tela**, porque a palavra não se explica: *"Área comum — garagem,
-hall, salão. Unidade privativa — apartamento, sala, loja."* E ordenadas por `ordem`, **simetricamente a
-`Categoria` e pela mesma razão** (D18) — ver §9, achado **F12**, fechado.
+**Identidade antes das listas**, porque o que é **desta** organização vem antes do que está **dentro**
+dela — a mesma regra do geral para o particular que ordena a barra lateral.
 
-*(Corrigido em 30/08/2026: a redação anterior era* "`Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`),
-`ativa`. … E ordenadas por `nome`, por ausência de alternativa: o schema de `Area` **não tem `ordem`**, ao
-contrário de `Categoria`" *— deixou de ser verdade em 21/08/2026, quando a Q-P5 foi decidida em (a) e o
-`openapi.yaml` ganhou `ordem` em `Area.required`. Item 10 da fila da frente de documentação, achado por
-ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este.)*
+**O que oferece.**
+
+| Ação | Endpoint |
+|---|---|
+| Corrigir o nome da organização | `PATCH /organizacoes` `{ nome? }` |
+| Copiar o código da organização | nenhum — o dado vem de `GET /contexto` |
+| Navegar para Categorias e para Áreas | — |
+
+**Quem vê o código, e por quê.** Só quem tem `organizacao.configurar`, que é o portão da tela inteira.
+Não é sigilo: o `codigoPublico` já chega no payload de **toda** sessão, porque a face E de T-02 o usa para
+comparar o código digitado antes de enviar. O que a tela decide é não oferecer ao Solicitante uma
+ferramenta que ele não consegue terminar de usar — quem espalha o código gera pedidos de entrada, e
+decidir pedido é `vinculo.gerir`.
+
+**Como reage ao status.** Não reage.
+
+**Vazio · carregando · erro.**
+- *Vazio:* não existe — as sementes garantem as duas listas, e as contagens sempre têm número.
+- *Carregando:* duas requisições, disparadas juntas.
+- *Erro:* `400 FORMATO_INVALIDO` no campo do nome, com a frase junto dele; `403 PERMISSAO_INSUFICIENTE`
+  para quem chega por link recebido, que recebe a tela de sem acesso; `409 ORGANIZACAO_DIVERGENTE` quando
+  outra aba trocou de organização, com o texto do servidor.
+- *Sem área de transferência:* **não é erro.** Fora de contexto seguro `navigator.clipboard` não existe, o
+  botão seleciona o texto do código e a frase de apoio vira *"Selecione o código e copie"*. O botão nunca
+  diz *Copiado* sem ter copiado.
+
+**Alvo primário.** Tela grande, pela mesma razão das duas listas.
+
+**Endereço próprio.** Sim — `/configuracao`. O desfecho da correção volta em `?renomeada=`, para
+sobreviver ao recarregamento.
+
+**Capacidades que realiza.** **`1b · Corrigir o nome da organização`**. Ela nasceu sem nenhuma, como a
+segunda exceção da §8.2, e **a exceção fechou em 16/09/2026** com o item **46 · 47**, que lhe deu campo
+próprio.
+
+---
+
+### T-09 · Categorias
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | `organizacao.configurar` — Gestor. `GET /categorias` é de **qualquer vínculo ativo**, porque T-04 o consome |
+| **A pergunta** | *"As categorias que o Solicitante escolhe estão certas?"* |
+
+**O que mostra.** A lista de categorias — `Categoria`: `nome` (≤ 60), **`icone`**, `ativa`, `ordem`.
+Ordenadas por `ordem`, porque *"qual categoria aparece antes é escolha do Gestor"* (D18). Nascem com **as
+sete do desafio** (POL-01), e a tela diz isso: *"Sete categorias foram criadas junto com a organização."*
+— sem essa frase, o Gestor não sabe se as encontrou ou se alguém as digitou.
 
 **O que oferece.**
 
@@ -1638,8 +1713,6 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 |---|---|
 | Criar categoria, **escolhendo o ícone** | `POST /categorias` `{ nome, ordem?, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo |
 | Renomear, **trocar o ícone**, reordenar, desativar e reativar categoria | `PATCH /categorias/{id}` `{ nome?, ordem?, ativa?, icone? }` — os **quatro** campos, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — ver a correção adiante)* |
-| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e o padrão é `0` |
-| Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
 
 > ### Correção — 30/08/2026 — o ícone ganhou tela, e este quadro dizia o contrário
 >
@@ -1684,15 +1757,71 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma categoria sai de uso — não há
 `DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar:
-*"Desativar não apaga. As ocorrências já registradas continuam apontando para esta {categoria | área}, e
-ela deixa de aparecer no formulário de registro."*
+*"Desativar não apaga. As ocorrências já registradas continuam apontando para esta categoria, e ela
+deixa de aparecer no formulário de registro."*
+
+**A frase que a tela é obrigada a produzir.** **Ao renomear a última categoria ativa, ou ao desativar
+todas:** *"Sem nenhuma categoria ativa, ninguém consegue registrar ocorrência."* É a única configuração
+desta tela que **quebra outra tela** (ver o estado vazio de T-04). A de área é a mesma, em T-14 — o
+inventário a escreve como `{categoria | área}` porque as duas a produzem.
+
+**Como reage ao status.** Não reage.
+
+**Vazio · carregando · erro.**
+- *Vazio:* **não existe na prática** — as sementes garantem sete categorias. Se a lista vier vazia, a
+  POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem categorias ativas."*
+- *Carregando:* uma requisição. Coleção pequena — ~15 —, **sem paginação** (`contrato-de-api.md` §7.7).
+- *Erro:* `409 CATEGORIA_NOME_DUPLICADO` — ver §7.
+
+**Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
+sentado, uma vez.
+
+**Endereço próprio.** Sim — `/configuracao/categorias`.
+
+**Capacidades que realiza.**
+- nº 2 — *Categorias-semente — as sete do desafio* · `NOSSO` (D18) — **realizada como efeito** da POL-01
+  em `POST /organizacoes`, e **verificável** aqui e em T-04
+- nº 4 — *Editar categorias* · `ENUNCIADO · aberto`
+- nº 4b — *Escolher o ícone da categoria* · `NOSSO` (RNF6) — a grade de 25 células, no criar e no editar
+
+---
+
+### T-14 · Áreas
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | `organizacao.configurar` — Gestor. `GET /areas` é de **qualquer vínculo ativo**, porque T-04 o consome |
+| **A pergunta** | *"As áreas descrevem este lugar?"* |
+
+**O que mostra.** A lista de áreas — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`,
+**`ordem`**. **O `tipo` precisa de uma linha de explicação na tela**, porque a palavra não se explica:
+*"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* E ordenadas por
+`ordem`, **simetricamente a `Categoria` e pela mesma razão** (D18) — ver §9, achado **F12**, fechado.
+
+*(Corrigido em 30/08/2026: a redação anterior era* "`Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`),
+`ativa`. … E ordenadas por `nome`, por ausência de alternativa: o schema de `Area` **não tem `ordem`**, ao
+contrário de `Categoria`" *— deixou de ser verdade em 21/08/2026, quando a Q-P5 foi decidida em (a) e o
+`openapi.yaml` ganhou `ordem` em `Area.required`. Item 10 da fila da frente de documentação, achado por
+ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este.)*
+
+**O que oferece.**
+
+| Ação | Endpoint |
+|---|---|
+| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e o padrão é `0` |
+| Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
+
+**Não há apagar, e a tela diz por quê.** `ativa: false` é como uma área sai de uso — não há `DELETE`
+(P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar: *"Desativar não apaga. As
+ocorrências já registradas continuam apontando para esta área, e ela deixa de aparecer no formulário de
+registro."*
 
 **Duas frases que a tela é obrigada a produzir, e a segunda é a mais importante do inventário depois do
 aviso de visibilidade:**
 
-- **Ao renomear a última categoria ativa, ou ao desativar todas:** *"Sem nenhuma {categoria | área}
-  ativa, ninguém consegue registrar ocorrência."* É a única configuração desta tela que **quebra outra
-  tela** (ver o estado vazio de T-04).
+- **Ao renomear a última área ativa, ou ao desativar todas:** *"Sem nenhuma área ativa, ninguém consegue
+  registrar ocorrência."* É a única configuração desta tela que **quebra outra tela** (ver o estado vazio
+  de T-04).
 - **Ao mudar o `tipo` de uma Área**, a resposta do `PATCH` traz `ocorrenciasComTipoAnterior` — uma
   contagem que existe *"para que a interface possa dizer ao Gestor, em português, que o passado não
   muda"* (`contrato-de-api.md` §8.1). A frase: *"{N} ocorrências já registradas mantêm o tipo anterior. Mudar o
@@ -1704,24 +1833,20 @@ aviso de visibilidade:**
 **Como reage ao status.** Não reage.
 
 **Vazio · carregando · erro.**
-- *Vazio:* **não existe na prática** — as sementes garantem sete categorias e as áreas iniciais. Se as
-  duas listas vierem vazias, a POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem
-  {categorias | áreas} ativas."*
-- *Carregando:* duas requisições, disparadas juntas. Coleções pequenas — ~15 e ~30 —, **sem paginação**
-  (`contrato-de-api.md` §7.7).
-- *Erro:* `409 CATEGORIA_NOME_DUPLICADO`, `409 AREA_NOME_DUPLICADO` — ver §7.
+- *Vazio:* **não existe na prática** — as sementes garantem as áreas iniciais. Se a lista vier vazia, a
+  POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem áreas ativas."*
+- *Carregando:* uma requisição. Coleção pequena — ~30 —, **sem paginação** (`contrato-de-api.md` §7.7).
+- *Erro:* `409 AREA_NOME_DUPLICADO` — ver §7.
 
-**Alvo primário.** Tela grande. Duas listas editáveis lado a lado, com reordenação — trabalho de
-configuração, feito sentado, uma vez.
+**Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
+sentado, uma vez.
 
-**Endereço próprio.** Sim. E é o destino do convite no estado vazio de T-03, que é como a maioria dos
-Gestores vai chegar aqui.
+**Endereço próprio.** Sim — `/configuracao/areas`. E é o destino do convite no estado vazio de T-03, que
+é como a maioria dos Gestores vai chegar aqui.
 
 **Capacidades que realiza.**
-- nº 2 — *Categorias-semente — as sete do desafio* · `NOSSO` (D18) — **realizada como efeito** da POL-01
-  em `POST /organizacoes`, e **verificável** aqui e em T-04
-- nº 3 — *Áreas-semente, com os tipos comum e privativa* · `NOSSO` (D10, D18) — idem
-- nº 4 — *Editar categorias* · `ENUNCIADO · aberto`
+- nº 3 — *Áreas-semente, com os tipos comum e privativa* · `NOSSO` (D10, D18) — **realizada como efeito**
+  da POL-01 em `POST /organizacoes`, e **verificável** aqui e em T-04
 - nº 5 — *Editar áreas* · `NOSSO` (D18)
 
 ---
@@ -1730,14 +1855,14 @@ Gestores vai chegar aqui.
 
 | Campo | Conteúdo |
 |---|---|
-| **Quem vê** | Qualquer vínculo com `contexto.permissoes == []`. Na primeira entrega, isso é **exatamente** o papel `encarregado` (S-A6) |
+| **Quem vê** | Qualquer vínculo com `contexto.permissoes == []`. Nesta entrega, isso é **exatamente** o papel `encarregado` (S-A6) |
 | **A pergunta** | *"Entrei. Por que não consigo fazer nada?"* |
 
 ### Primeiro, o fato que surpreende: o `Encarregado` não tem tela nenhuma
 
 **Conferido nas fontes, e é para ser dito em voz alta:**
 
-- O acesso próprio do Encarregado **foi cortado da primeira entrega** — Q11, cinco capacidades ⬜ de
+- O acesso próprio do Encarregado **foi cortado desta entrega** — Q11, cinco capacidades ⬜ de
   uma vez: entrar e ver a própria lista, leitura sem rede, reportar execução concluída, recusar
   atribuição, e a conversa da atribuição (`escopo.md` §3.1).
 - O contrato registra a consequência: **`permissoes: []`** para o vínculo `encarregado`, e
@@ -1813,6 +1938,72 @@ renderiza no lugar do destino pretendido.
 
 ---
 
+### T-16 · Meus dados
+
+| Campo | Conteúdo |
+|---|---|
+| **Quem vê** | qualquer Pessoa com vínculo ativo em alguma organização. **Não há permissão** — dado pessoal não é atributo do Vínculo |
+| **A pergunta** | *"O que é meu, e como eu entro?"* |
+
+**Ela nasceu em 16/09/2026, com o item 49, e desfez uma decisão de agosto.** Até ali este inventário
+listava *Perfil / minha conta* entre as telas que não existem, com a razão de que ela não teria o que
+salvar. A razão era verdadeira e deixou de ser: o `PATCH /contexto/pessoa` deu o que salvar. A `Q-T6` foi
+redecidida, e o quadro do **F11** na §9 guarda as duas decisões.
+
+**Chega-se por ela pelo menu de pessoa** da barra superior, onde o nome já era impresso como item
+desabilitado. **Não** pela barra lateral, cujo `aria-label` é *"Nesta organização"*: dado pessoal é
+global e não pertence a um grupo de navegação que promete o contrário. É por isso também que ela não é
+subrota de `/configuracao` — configuração é **da organização**, e quem administra a organização não
+está administrando a si mesmo.
+
+**O que mostra.** Duas seções, identidade antes de mecanismo. **Identidade** tem o campo `nome`, com o
+texto de ajuda que diz onde aquele nome aparece: na lista de participantes, nos pedidos de entrada e em
+**cada transição já registrada**. A última parte é a que importa, e a segunda frase do texto diz que o
+nome vale em **todas** as organizações da pessoa — é a Persona 1B descobrindo, antes de salvar, que está
+se renomeando nos dois prédios. **Acesso** tem o e-mail de entrada em leitura, com a razão de ele não
+mudar nesta entrega, o link para **T-12 · Redefinir senha**, e a frase sobre os contatos.
+
+**É a única tela do produto que não dispara requisição ao abrir.** O nome e o e-mail vêm da resolução de
+contexto que a casca já fez.
+
+**O que oferece.**
+
+| Ação | Endpoint |
+|---|---|
+| Corrigir o próprio nome | `PATCH /contexto/pessoa` `{ nome? }` |
+| Ir para redefinir a senha | nenhum — navega para T-12, que chama o provedor |
+
+**O que ela não oferece, e a ausência é escrita na própria tela.** O e-mail não é editável: ele é a
+credencial de acesso e o único canal de recuperação, e a troca envolve o provedor, dois e-mails de
+confirmação e um intervalo em que a conta tem dois endereços. Os contatos de quem tem conta não são
+editáveis nem por ela nem pelo Gestor, porque `PATCH /vinculos/{pessoaId}` responde
+`409 PESSOA_COM_CONTA_NAO_EDITAVEL`. A tela diz as duas coisas em vez de omiti-las.
+
+**Como reage ao status.** Não reage.
+
+**Vazio · carregando · erro.**
+- *Vazio:* não existe — sempre há nome, nem que seja o literal *"Sem nome"*, e é justamente quem caiu
+  nele que mais precisa desta tela.
+- *Carregando:* nenhuma requisição na abertura.
+- *Erro:* `400 FORMATO_INVALIDO` como frase no campo, nunca tela do framework. O `Salvar` fica
+  desabilitado enquanto o campo não mudou, e o `maxLength` corta em 120.
+
+**O desfecho vem na URL** (`?renomeado=`), como em T-15, T-14, T-09 e T-08, e sobrevive ao
+recarregamento. Ele diz o alcance: *"você passou a aparecer como … em todas as suas organizações"*.
+
+**Alvo primário.** **Celular**, ao contrário de T-15, que é trabalho de escritório. Esta é a tela que
+alguém abre no minuto em que percebe que o próprio nome está errado na lista.
+
+**Endereço próprio.** Sim — `/meus-dados`.
+
+**Quem não tem vínculo nenhum não a alcança**, porque a casca exige vínculo ativo e T-02 não tem barra
+superior. Para essa pessoa o ponto de correção continua sendo o campo `nome` de
+`POST /pedidos-de-entrada`, em T-02 face A, que já chega pré-preenchido.
+
+**Capacidades que realiza.** **`6b · Corrigir os próprios dados`**.
+
+---
+
 ## 5. O que **não** virou tela
 
 Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguível de esquecimento**.
@@ -1847,16 +2038,16 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 
 | O que poderia ter sido tela | Por que não |
 |---|---|
-| **Perfil / minha conta** | **Não existe, e em 22/08/2026 isso passou de lacuna a decisão declarada** (`contrato-de-api.md` §8.2, e ver §9, **F11**). Os *dados de acesso* — e-mail de login e senha — são do provedor, via SDK, e vivem em T-01, T-12 e T-13. Os *dados pessoais* da `Pessoa`, que é tabela **global**, **não têm endpoint**: `PATCH /vinculos/{pessoaId}` recusa justamente quem tem conta (`409 PESSOA_COM_CONTA_NAO_EDITAVEL`, S-A3), não há `PATCH /contexto/pessoa` e não há `/pessoas` (`contrato-de-api.md` §4.6, e não deve haver). **O `nome` é corrigível uma última vez** no campo de `POST /pedidos-de-entrada`, em T-02 face A; **`contatos[]` só por quem gere vínculos**, em T-08. Depois disso, nada muda — e o nome fica na trilha imutável |
-| **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático na primeira entrega, em nenhum canal |
+| **Trocar o e-mail de entrada** | Não existe endpoint, e a §8.2 do `contrato-de-api.md` diz por quê: ele é a credencial **e** o único canal de recuperação, então a troca envolve o provedor, dois e-mails de confirmação e um intervalo em que a conta tem dois endereços. **T-16 o mostra em leitura**, com a razão escrita. Os *dados de acesso* — e-mail e senha — continuam sendo do provedor, via SDK, e vivem em T-01, T-12 e T-13 |
+| **Sino / notificações** | ⬜ — Q10. Nenhum aviso automático nesta entrega, em nenhum canal |
 | **Filtros rápidos** | ⬜ — D15. É *"o corte de maior custo operacional: são o que o Gestor faz todo dia"* (`escopo.md` §3.3), e o que sobra são os três filtros de G2 em T-03 |
-| **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Na primeira entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
+| **Ocorrências de área comum do meu local** | ⬜ — D10. O dado entra; o comportamento não é exercido. Nesta entrega **toda ocorrência é visível apenas ao autor e aos Gestores** |
 | **Ver semelhantes e aderir** | ⬜ — D11 |
 | **Lista do Encarregado** | ⬜ — Q11. E `?responsavel=eu` é fatia 2 (`contrato-de-api.md` §11, item 13) |
 | **Nota interna** | ⬜ — D9. E é justamente essa ausência que torna o aviso de visibilidade em T-05 obrigatório |
 | **Busca por texto** | Não existe `?q=` (`contrato-de-api.md` §9.8), e o índice GIN foi deliberadamente não criado |
 | **Editar ocorrência** | Não existe `PATCH /ocorrencias` (S-A7). Título, descrição, categoria, área e imagem são escritos **uma vez** |
-| **Página pública da organização** | ⬜ — D25. A primeira entrega usa o código digitado à mão em T-02 |
+| **Página pública da organização** | ⬜ — D25. Esta entrega usa o código digitado à mão em T-02 |
 | **Onboarding, tour ou ajuda** | Não é capacidade, e contradiz o RNF6: o Solicitante *"não vai aprender nada"*, então o produto tem de funcionar sem ensinar |
 | **Tela de erro genérica / 500** | Não é tela: é um estado de cada tela, com o `traceId` visível para quem tiver de procurar no log. Ver §7 |
 
@@ -1866,10 +2057,11 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 
 ### Sem organização ativa
 
-O contrato tem **quatro** endpoints que rodam sem organização (`contrato-de-api.md` §4.4), e é essa lista curta que define
+O contrato tem **cinco** endpoints que rodam sem organização (`contrato-de-api.md` §4.4), e é essa lista curta que define
 onde a aplicação existe antes de a pessoa pertencer a algum lugar: `GET /contexto`,
-`PUT /contexto/organizacao`, `POST /organizacoes`, `POST /pedidos-de-entrada`. **Os quatro são
-consumidos por T-02 e pelo shell, e por mais ninguém.**
+`PATCH /contexto/pessoa`, `PUT /contexto/organizacao`, `POST /organizacoes`, `POST /pedidos-de-entrada`.
+**Quatro deles são consumidos por T-02 e pelo shell**; o quinto, `PATCH /contexto/pessoa`, é o único
+consumido por uma tela de **dentro** da organização — T-16, que edita dado global de dentro da casca.
 
 A regra do shell: **qualquer `403 SEM_ORGANIZACAO_ATIVA` leva a T-02**, guardando o destino pretendido.
 Isso cobre o link profundo recebido antes de a pessoa entrar em qualquer organização.
@@ -1878,8 +2070,8 @@ Isso cobre o link profundo recebido antes de a pessoa entrar em qualquer organiz
 
 **T-10** cobre o caso de `permissoes: []`. O caso diferente — permissão que existe mas não cobre
 *aquela* tela — é um `403 PERMISSAO_INSUFICIENTE`, e **na navegação normal ele não acontece**, porque os
-itens de menu de T-07, T-08 e T-09 só existem com a permissão respectiva. Ele acontece por **link
-recebido**, e por isso tem frase própria na §7.
+itens de menu de T-07, T-08, T-09, T-14 e T-15 só existem com a permissão respectiva. Ele acontece por
+**link recebido**, e por isso tem frase própria na §7.
 
 ### Cold start
 
@@ -1963,7 +2155,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | T-02 | *"Seu pedido já foi enviado e está aguardando a decisão de um Gestor."* + leva para a **face B** da própria tela |
 | `SEM_VINCULO_NA_ORGANIZACAO` | 403 | menu de troca, T-02 face D | *"Você não tem acesso a esta organização."* Resposta **idêntica** para organização inexistente, de propósito. Na prática só aparece se um vínculo foi removido entre o `GET /contexto` e o `PUT` |
 | `ORGANIZACAO_DIVERGENTE` | 409 | qualquer tela | **A aba esquecida.** *"Esta aba estava em outra organização. Recarregando…"* — e a tela **refaz `GET /contexto` e a leitura, sem pedir nada ao usuário**. É o erro que o cabeçalho opcional `X-Organizacao-Id` existe para produzir, e ele não é um problema do usuário: é o mecanismo funcionando |
-| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09 por link | *"Seu papel nesta organização não dá acesso a esta página."* + volta a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
+| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09, T-14, T-15 por link | *"Seu papel nesta organização não dá acesso a esta página."* + volta a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
 | `SEM_ORGANIZACAO_ATIVA` | 403 | qualquer tela | Não tem frase: **leva a T-02**, guardando o destino |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | T-08 | *"{nome} tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela."* **A tela mostra os campos como leitura**, então o erro só aparece se algo escapar. E a segunda frase é a única explicação disponível — ver **F11** |
 | `JA_AVALIADA` | 409 | T-05 | *"Esta ocorrência já foi avaliada."* + mostra a avaliação. Não acontece pela tela (o convite desaparece com `avaliacao != null`), acontece com duas abas |
@@ -1972,7 +2164,8 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `RESPONSAVEL_SEM_VINCULO_ATIVO` | 422 | T-05 | *"Esta pessoa não faz mais parte da organização."* + recarrega a lista de candidatos |
 | `MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` | 422 | T-05 | ⚠️ **defeito, não caminho:** o modal de cancelar já filtra os motivos pelo papel |
 | `SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` · `SOMENTE_O_AUTOR_PODE_AVALIAR` | 403 | T-05 | ⚠️ **defeito, não caminho:** os dois estão cobertos por `acoesDisponiveis` |
-| `CATEGORIA_NOME_DUPLICADO` · `AREA_NOME_DUPLICADO` | 409 | T-09 | *"Já existe uma {categoria \| área} com este nome."* O nome é único por organização porque *"duas categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do dashboard"* |
+| `CATEGORIA_NOME_DUPLICADO` | 409 | T-09 | *"Já existe uma categoria com este nome."* O nome é único por organização porque *"duas categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do dashboard"* |
+| `AREA_NOME_DUPLICADO` | 409 | T-14 | *"Já existe uma área com este nome."* O nome é único por organização pela mesma razão, aplicada ao recorte por área |
 | `PEDIDO_JA_DECIDIDO` | 409 | T-08 | *"Este pedido já foi decidido por outro Gestor."* + recarrega a lista |
 | `NAO_AUTENTICADO` | 401 | qualquer tela | Não tem frase: leva a T-01, guardando o destino |
 | `ERRO_INTERNO` | 500 | qualquer tela | *"Algo deu errado do nosso lado."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
@@ -2020,7 +2213,7 @@ estado terminal. Se aparecerem, são defeito, e o `detail` do contrato basta.
 
 ## 8. Rastreabilidade — o triângulo, nos três sentidos
 
-Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
+Três conjuntos: **46 capacidades ✅**, **39 endpoints**, **16 telas**.
 
 > **Eram 42 até 30/08/2026.** A contagem ficou parada enquanto o backlog andava, e entraram a **4b**
 > (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) — as duas
@@ -2030,19 +2223,29 @@ Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
 > `7b`, ao lado das capacidades de que derivam, e nada foi renumerado** — os números desta tabela são
 > citados fora dela.
 
+> **E em 16/09/2026 entrou a `1b`** (corrigir o nome da organização), com o `PATCH /organizacoes` que o
+> item **46 · 47** acrescentou. O total passou a **45 ✅ de 67**, e os endpoints a **38**. Também sem
+> renumerar nada, pela mesma razão.
+
+> **E em 16/09/2026, na mesma data e depois dela, entrou a `6b`** (corrigir os próprios dados), com o
+> `PATCH /contexto/pessoa` que o item **49** acrescentou. O total passou a **46 ✅ de 68**, os endpoints
+> a **39** e as telas a **dezesseis**, com a **T-16 · Meus dados**. Também sem renumerar nada.
+
 ### 8.1 · Toda capacidade ✅ é alcançável a partir de alguma tela
 
 | # | Capacidade | Origem | Tela |
 |---|---|---|---|
 | **0 · Configurar a organização** ||||
 | 1 | Criar a organização por auto-serviço | `NOSSO` (D26) | T-02 |
+| **1b** | **Corrigir o nome da organização** | `NOSSO` (D25) | T-15 |
 | 2 | Categorias-semente | `NOSSO` (D18) | *(efeito da POL-01; **visível** em T-09 e T-04)* |
-| 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; **visível** em T-09 e T-04)* |
+| 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; **visível** em T-14 e T-04)* |
 | 4 | Editar categorias | `ENUNCIADO · aberto` | T-09 |
 | **4b** | **Escolher o ícone da categoria** | `NOSSO` (RNF6) | T-09 (a grade de 25 células, no criar e no editar) · **exibido** em T-03 e T-04, ao lado do nome |
-| 5 | Editar áreas | `NOSSO` (D18) | T-09 |
+| 5 | Editar áreas | `NOSSO` (D18) | T-14 |
 | **1 · Entrar na organização** ||||
 | 6 | Criar conta e autenticar-se | `ENUNCIADO · aberto` (S1, S2) | **T-01 · T-11 · T-12 · T-13** — realizada pelo provedor, **sem endpoint do contrato**. Uma capacidade em quatro telas: *autenticar-se* inclui recuperar o acesso |
+| **6b** | **Corrigir os próprios dados** | `NOSSO` (PA-26) | **T-16** |
 | 7 | Pedir entrada com o código | `NOSSO` (D25) | T-02 |
 | **7b** | **Entrar em outra organização tendo uma ativa** | `NOSSO` (D25, B-01) | T-02 (face de escolher a organização) · **menu de organização** do shell |
 | 8 | Gestor aprova ou recusa | `NOSSO` (D25) | T-08 |
@@ -2089,14 +2292,14 @@ Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
 | 41 | Testes de domínio, aplicação, isolamento e ponta a ponta | `ENUNCIADO · aberto` (E6) | **não é de interface** |
 | 42 | Documentação e README | `ENUNCIADO · aberto` (E9) | **não é de interface** — este documento é parte dela |
 
-**Fechamento.** Das **38 capacidades de usuário**, todas alcançáveis: **33 com ação direta numa tela**,
+**Fechamento.** Das **40 capacidades de usuário**, todas alcançáveis: **35 com ação direta numa tela**,
 **2 realizadas como efeito de política** e visíveis em duas telas (nº 2 e 3), **1 realizada como campo
 exibido** (nº 31), **1 sem endpoint do contrato** por ser do provedor (nº 6), e nº 13 e 19 repartidas
 entre duas telas. Das **6 de fundação técnica**, **1 tem tela** (nº 37 → T-06), **1 tem consequência de
 interface sem tela** (nº 38) e **4 não são de interface**.
 
 > **Precisão de 30/08/2026 — o detalhamento acima não fecha com o total, e isso fica registrado em vez de
-> corrigido às cegas.** Somados, os grupos dão **37** de 38 — e davam **35 de 36** antes desta rodada, com
+> corrigido às cegas.** Somados, os grupos dão **39** de 40 — e davam **35 de 36** antes daquela rodada, com
 > o mesmo desvio de um, que portanto **não veio das capacidades novas**. O **total** está conferido contra
 > o `escopo.md` §2 e a §14 do `contrato-de-api.md`; é o **detalhamento** que está a um item de fechar, e o
 > candidato provável é a **nº 6**, que ganha grupo próprio (*"sem endpoint do contrato"*) sendo também
@@ -2107,9 +2310,21 @@ interface sem tela** (nº 38) e **4 não são de interface**.
 
 ### 8.2 · Toda tela realiza ao menos uma capacidade
 
-Doze das treze, sim. **A exceção é T-10**, e é achado — F3 da §9. As quatro da credencial realizam
-**uma** capacidade entre si (nº 6), o que é o inverso de T-05 e não é problema: a razão de serem quatro
-é o critério da §1, não a contagem de capacidades.
+**Quinze das dezesseis**, sim. **A exceção é uma, e ela tem registro.**
+
+| Tela | Por que não realiza capacidade | Fecha quando |
+|---|---|---|
+| **T-10** | é um estado declarado, não uma capacidade — é o achado F3 da §9 | não fecha: é a resposta a um vínculo sem permissão nenhuma |
+
+**A segunda exceção existiu por um dia, e fechou.** T-15 nasceu em 16/09/2026 com o item 48, sem campo
+próprio, contra o critério da §1 — *"uma tela tem conjunto de campos próprio e fim próprio; sem campo
+próprio, é estado"*. Ela foi numerada mesmo assim porque a alternativa era a entrada de menu apontar para
+uma tela que não existe, e menu que aponta para o vazio é pior que invariante com exceção declarada. O
+item **46 · 47**, no mesmo 16/09/2026, lhe deu o campo do nome e o código da organização, e com eles a
+capacidade **1b**.
+
+As quatro da credencial realizam **uma** capacidade entre si (nº 6), o que é o inverso de T-05 e não é
+problema: a razão de serem quatro é o critério da §1, não a contagem de capacidades.
 
 ### 8.3 · Todo endpoint é chamado por alguma tela
 
@@ -2119,14 +2334,16 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | Endpoint | Tela(s) que chamam |
 |---|---|
 | `GET /contexto` | **o shell** — todas as telas depois de T-01; e T-02 e T-10 diretamente |
+| `PATCH /contexto/pessoa` | **T-16** |
 | `PUT /contexto/organizacao` | menu de troca (shell) · T-02 face D · T-10 |
 | `POST /organizacoes` | T-02 |
-| `GET /categorias` | T-04 · T-09 |
+| `PATCH /organizacoes` | T-15 |
+| `GET /categorias` | T-04 · T-09 · T-15 (a contagem) |
 | `POST /categorias` | T-09 |
 | `PATCH /categorias/{id}` | T-09 |
-| `GET /areas` | T-04 · T-09 |
-| `POST /areas` | T-09 |
-| `PATCH /areas/{id}` | T-09 |
+| `GET /areas` | T-04 · T-14 · T-15 (a contagem) |
+| `POST /areas` | T-14 |
+| `PATCH /areas/{id}` | T-14 |
 | `POST /pedidos-de-entrada` | T-02 |
 | `GET /pedidos-de-entrada` | T-08 (+ a contagem no menu do Gestor — ver F10) |
 | `POST /pedidos-de-entrada/{id}/aprovar` | T-08 |
@@ -2156,7 +2373,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
 
-**Trinta e sete endpoints, trinta e sete chamados. Zero órfãos.** Mas dois merecem nota:
+**Trinta e oito endpoints, trinta e oito chamados. Zero órfãos.** Mas dois merecem nota:
 
 - **`GET /ocorrencias/{id}/trilha-de-auditoria` só não é órfão porque T-06 existe.** Se a trilha fosse
   uma aba dentro de T-05, o endpoint seguiria chamado — mas a tela teria sido decidida por conveniência
@@ -2238,7 +2455,7 @@ mostra a face D de T-02.
 ### F3 · Nada na documentação cobre o que o vínculo sem permissão vê
 
 O estado está **declarado três vezes** — S-A6 (`permissoes: []`), `contrato-de-api.md` §4.5 (*"o Encarregado não tem
-permissão nenhuma na primeira entrega"*), e o DG-3 (*"um caminho que termina em nada"*). Mas não há
+permissão nenhuma nesta entrega"*), e o DG-3 (*"um caminho que termina em nada"*). Mas não há
 **capacidade**, não há **endpoint** e não há **fluxo** para o que a pessoa vê ao chegar lá.
 
 T-10 é a resposta, e é **a única tela deste inventário que não realiza nenhuma capacidade** — o que,
@@ -2256,7 +2473,7 @@ sem volta: **estado sem saída que ninguém documentou é o que vira suporte às
 - A **`contrato-de-api.md` §8** abria com *"**36 operações**"*; a **`contrato-de-api.md` §14** dizia
   *"nenhum dos **37** endpoints existe sem capacidade correspondente"*.
 - O **`fluxos-e-diagramas.md`**, na lista de origens do cabeçalho, citava *"[contrato-de-api.md] (os **36**
-  endpoints)"* e *"[escopo.md] (as **41** capacidades da primeira entrega)"* — e o escopo fechou em **42**.
+  endpoints)"* e *"[escopo.md] (as **41** capacidades desta entrega)"* — e o escopo fechou em **42**.
 
 **Verificado no YAML:** 30 caminhos, **37 operações**
 (`grep -cE '^    (get|post|put|patch|delete):' docs/api/openapi.yaml` → 37; 12 `get`, 20 `post`, 3
@@ -2277,7 +2494,7 @@ percorrendo a lista inteira. **A capacidade entra sem a leitura que a torna úti
 
 Não é defeito do contrato — o filtro é ⬜ por decisão consciente, junto com o acesso do Encarregado.
 Duas atenuações reais: `responsavel` está no `OcorrenciaResumo`, então a informação está na lista; e o
-cenário da primeira entrega é o do **síndico único**, onde *"atribuído a mim"* e *"atribuído a alguém"*
+cenário desta entrega é o do **síndico único**, onde *"atribuído a mim"* e *"atribuído a alguém"*
 quase coincidem. Fica **declarado, não consertado** — mas é o tipo de coisa que fica óbvia na primeira
 demonstração ao vivo.
 
@@ -2368,7 +2585,7 @@ Este inventário fez o que pode: o convite aparece em T-05 **e** em T-03 (não s
 avaliada" — então uma ocorrência resolvida de dois meses atrás **afunda**, e o convite afunda com ela.
 Os dois instrumentos que resolveriam — o **sino** e os **filtros rápidos** — são ⬜.
 
-Fica declarado: **a interface da primeira entrega não tem mecanismo que traga de volta uma resolução não
+Fica declarado: **a interface desta entrega não tem mecanismo que traga de volta uma resolução não
 avaliada.** O Solicitante consegue chegar lá filtrando por `status=resolvida`, e o Solicitante não vai
 filtrar. É o custo do corte do aviso automático (§3.2 do `escopo.md`) aparecendo num lugar que aquela seção
 não previu.
@@ -2404,16 +2621,16 @@ não existe**:
 
 > *"Quem tem conta edita os próprios dados; quem não tem existe apenas como cadastro de quem o criou."*
 
-**Não há endpoint onde isso aconteça.** Percorrendo os 37: `PATCH /vinculos/{pessoaId}` é recusado
-justamente para quem tem conta; não há `PATCH /contexto/pessoa`; não há recurso `/pessoas` (`contrato-de-api.md` §4.6, e não
-deve haver). O único momento em que uma pessoa com conta informa o próprio nome é o campo opcional
+**Não há endpoint onde isso aconteça.** Percorrendo os 37 endpoints de então: `PATCH /vinculos/{pessoaId}`
+é recusado justamente para quem tem conta; **não havia** `PATCH /contexto/pessoa`; não há recurso
+`/pessoas` (`contrato-de-api.md` §4.6, e não deve haver). O único momento em que uma pessoa com conta informa o próprio nome é o campo opcional
 `nome` de `POST /pedidos-de-entrada` — **uma vez, ao entrar, e nunca mais.**
 
 A razão da recusa continua **certa**: `pessoas` é global, e um Gestor editando quem tem conta alteraria
 o cadastro daquela pessoa em todas as organizações. O problema não é a regra, é a frase — e o buraco que
 ela esconde.
 
-**É o achado que decidiu não haver tela de perfil neste inventário**, e ele apareceu exatamente por
+**Foi o achado que decidiu não haver tela de perfil neste inventário**, e ele apareceu exatamente por
 perguntar *"o que uma tela de perfil salvaria?"*. **Duas saídas, e a escolha é do hub:**
 (a) qualificar a frase — quem tem conta edita no provedor, e o ACL ressincroniza `pessoas.nome`; ou
 (b) `PATCH /contexto/pessoa`, que é endpoint novo e capacidade nova.
@@ -2455,6 +2672,22 @@ perguntar *"o que uma tela de perfil salvaria?"*. **Duas saídas, e a escolha é
 > **Isso eleva o campo `nome` de T-11 e o de T-02 face A** de campo de formulário a **último ponto de
 > conserto de um dado permanente** — e é por isso que os dois trazem a frase que explica onde aquele nome
 > vai aparecer. Ver **Q-T6**, fechada.
+>
+> ### ✅ Redecidido em 16/09/2026 — pela opção (b)
+>
+> **A terceira via durou até o dia em que o custo apareceu inteiro.** O nome digitado errado uma vez
+> aparece assim para sempre, em todas as organizações da pessoa e em toda a trilha que ela já escreveu —
+> e o produto não tinha operação nenhuma que o corrigisse. O item **49** entrega a opção **(b)**:
+> `PATCH /contexto/pessoa`, restrito ao próprio chamador, sem tocar `papel` nem `Vinculo`, e sem abrir
+> `/pessoas`. A tela é **T-16 · Meus dados**.
+>
+> **O que a redecisão não resolve, e fica escrito:** o e-mail continua sem caminho, porque é a credencial
+> e o único canal de recuperação; e os contatos de quem tem conta continuam sem editor, nem a pessoa nem
+> o Gestor. Os dois são aditivos.
+>
+> **A consequência que a decisão de 22/08 declarou permanente deixou de ser**, e a nova está declarada no
+> lugar dela: a trilha guarda `autor_pessoa_id`, então transições antigas passam a ser lidas com o nome de
+> agora. Quem lê a trilha vê quem agiu; não vê como essa pessoa se chamava na época.
 
 ### F12 · `Categoria` tem `ordem`; `Area` não
 
@@ -2475,11 +2708,11 @@ escolha em silêncio.
 > é o único conserto que serve **no primeiro registro**, que é o que decide se existe um segundo"*.
 >
 > **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita com
-> padrão `0`, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-09
+> padrão `0`, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-14
 > tem o campo. **A ordenação da lista de Áreas passou a ser por `ordem`**, como a de Categorias.
 >
-> **Consequência para a S-T10:** ela previa exatamente isto — *"se `Area` ganhar `ordem`, T-04 e T-09
-> passam a respeitá-la"* — e por isso **deixou de ser suposição**. Está marcada lá.
+> **Consequência para a S-T10:** ela previa exatamente isto — *"se `Area` ganhar `ordem`, T-04 e a tela de
+> Áreas passam a respeitá-la"* — e por isso **deixou de ser suposição**. Está marcada lá.
 >
 > *(Encontrado ao despachar o item 10 da fila da frente de documentação, cuja nota de método mandava
 > procurar um terceiro lugar com a mesma omissão. O item nomeava duas linhas; esta é a terceira, a quarta
@@ -2575,7 +2808,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **S-T7** | **`chave` + `ticket` sobrevivem à queda de rede por 15 minutos**, e o `POST /ocorrencias` é refeito sem novo upload. **Relida em 22/08/2026 — ver o quadro abaixo** | Se o ticket for de uso único no instante da emissão, a foto sobe duas vezes e o RNF6 sofre na segunda tentativa, que é justamente a que acontece com rede ruim |
 | **S-T8** | **A tela inicial de todo papel que age é T-03**, e o aplicativo instalado abre nela | Se o Gestor precisar do Dashboard primeiro, a tela inicial passa a depender de permissão, e o mapa da §3 ganha um ramo |
 | **S-T9** | **`analisar` é o único comando sem modal** | Se a `observacao` da análise se revelar valiosa, ele ganha modal e a triagem passa a ter um clique a mais por item — multiplicado pelos trinta de uma segunda-feira |
-| ~~**S-T10**~~ | ~~**A lista de Áreas é ordenada por `nome`** (**F12**)~~ | **Deixou de ser suposição em 21/08/2026.** `Area` ganhou `ordem` (Q-P5, saída (a)), e T-04 e T-09 a respeitam, como já faziam com `Categoria` — que era exatamente o que esta linha previa. Ver o quadro do **F12**. *Marcado em 30/08/2026, ao despachar o item 10 da fila* |
+| ~~**S-T10**~~ | ~~**A lista de Áreas é ordenada por `nome`** (**F12**)~~ | **Deixou de ser suposição em 21/08/2026.** `Area` ganhou `ordem` (Q-P5, saída (a)), e T-04 e T-14 a respeitam, como já faziam com `Categoria` — que era exatamente o que esta linha previa. Ver o quadro do **F12**. *Marcado em 30/08/2026, ao despachar o item 10 da fila* |
 | **S-T11** | **Não há convite de instalação próprio do PWA** | Se a instalação virar meta, é uma tela-estado a projetar — e vale mais quando houver leitura offline para justificar instalar |
 | ~~**S-T12**~~ | ~~**O nome da Pessoa no primeiro login vem dos metadados do provedor** (**F6**)~~ | **Deixou de ser suposição em 21/08/2026.** T-11 pede o `nome` e o grava no metadado no `signUp` — o metadado existe porque nós o escrevemos. Ver o quadro do F6 |
 | **S-T13** | **Modal empurra histórico por fragmento**, então "voltar" fecha o modal | Se a plataforma não sustentar isso, "voltar" com modal aberto leva o usuário fora da ocorrência no meio de um cancelamento |
@@ -2614,8 +2847,8 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **Q-T3** | **Ação indisponível: escondida ou desabilitada?** (S-T2) | (a) escondida; (b) desabilitada com o motivo | **(a)**, com uma ressalva honesta: **(b) ensina o produto**, e sem teste de usabilidade não temos evidência de qual vence. Se o hub escolher (b), a lista completa de comandos vira constante no cliente — e isso precisa estar declarado como exceção à §8.5 do `contrato-de-api.md` |
 | **Q-T4** | **T-10 vira capacidade no `escopo.md`?** (F3) | (a) não — nota na atividade 1, ao lado da nº 10; (b) sim — capacidade nova, `NOSSO` | **(a).** Não há nada a construir além de texto, e a nota é o instrumento que a S-A15 já usou para o mesmo tipo de estado |
 | ~~**Q-T5**~~ | ~~**De onde vem o nome de uma Pessoa recém-criada?** (F6)~~ | — | ✅ **Respondida por construção em 21/08/2026, e por um caminho que não estava nas opções:** as duas supunham que o formulário de cadastro não era nosso. **T-11 pede o `nome`**, sem mudança de schema. Ver o quadro do F6 |
-| ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026, e por uma terceira via.** Nem (a) nem (b): o `contrato-de-api.md` §8.2 declarou que o nome nasce do cadastro da conta, é **corrigível uma última vez** no campo `nome` de `POST /pedidos-de-entrada` — cuja tela **pré-preenche com o nome atual** —, e **depois disso não há como alterá-lo**. Continua **não havendo tela de perfil**, e a consequência permanente está declarada: o nome vigente em cada transição fica na trilha para sempre. É limitação aceita, e é o que faz o campo `nome` de T-11 e o de T-02 face A serem os dois pontos que mais importam do produto inteiro |
-| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(a)** por ora. *"Pessoas"* contradiria a regra do vínculo primeiro na primeira palavra, e **nome novo é proposta ao glossário, não invenção deste inventário** (`glossario.md` §9) |
+| ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026 pela terceira via, e redecidida em 16/09/2026 pela (b), com o item 49.** Em 22/08 o `contrato-de-api.md` §8.2 fechou que o nome nasce do cadastro da conta, é corrigível no campo `nome` de `POST /pedidos-de-entrada` e depois disso não muda. **A razão de reabrir é o custo, e ele é permanente e atravessa organizações:** `pessoas` é tabela global, então um nome errado aparece assim em toda organização da pessoa e em toda a trilha que ela escreveu. Agora há `PATCH /contexto/pessoa` e **T-16 · Meus dados**. **Fica de fora, com razão escrita:** o e-mail, que é a credencial e o único canal de recuperação, e os contatos de quem tem conta |
+| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(b)**, em 16/09/2026. O rótulo da navegação é `Participantes`, com entrada no [glossário](glossario.md) §1 e o *"não confundir com"* que o separa dos participantes de um canal de conversa. O título da tela continua sendo *"Quem está na organização"* |
 | **Q-T8** | **A contagem de pedidos pendentes no menu do Gestor vale uma requisição a mais no shell?** (F10) | (a) sim; (b) não — o Gestor descobre abrindo T-08 | **(a).** Com a notificação ⬜, é a única coisa que separa "entra hoje" de "entra quando alguém lembrar" |
 | ~~**Q-T10**~~ | ~~**Onde a unidade de quem tem conta é registrada?** (F13)~~ | — | ✅ **Respondida pelo hub em 22/08/2026 — pela (a), e a (c) veio junto.** `/aprovar` passou a aceitar `areaId?`: o Gestor escolhe a unidade **no mesmo momento em que escolhe o papel**, que é quando ele está olhando o pedido e sabe quem é a pessoa. A **(b)** foi recusada — faria a própria pessoa declarar onde mora antes de ser admitida, sem ninguém conferir. **E a (c) aconteceu no mesmo movimento**, sem ser escolhida como saída: a guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` passou a nomear **campos**, não o endpoint, então `areaId` continua editável no `PATCH` para quem tem conta (`contrato-de-api.md` §8.2). **O que sobrou aberto é a especificação publicada**, que ainda descreve a recusa como sendo do endpoint — achado **R-24** do `prototipo-low-fi.md`. *Marcado em 30/08/2026, item 3 da fila da frente de documentação* |
 
@@ -2648,8 +2881,8 @@ de T-04 e o paralelismo do upload são o que este inventário faz por ele. **Se 
 é o passo 5, com o protótipo, a primeira oportunidade real de descobrir. É também a única mitigação
 disponível para o segundo risco mais alto do projeto.
 
-**5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 37 saíram de
-`grep` sobre o `openapi.yaml`. As 44 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
+**5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 38 saíram de
+`grep` sobre o `openapi.yaml`. As 46 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
 contra as tabelas por atividade do `escopo.md` — mas o somatório por atividade da §2 do `escopo.md`
-(6+6+3+5+3+3+3+4+5+6 = 44) fecha, e é o que dá confiança na contagem. *(Eram 42, e o somatório era
+(7+7+3+5+3+3+3+4+5+6 = 46) fecha, e é o que dá confiança na contagem. *(Eram 42, e o somatório era
 5+5+3+5+3+3+3+4+5+6; a contagem foi reaberta em 30/08/2026 para as capacidades 4b e 7b.)*

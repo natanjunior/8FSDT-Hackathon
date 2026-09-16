@@ -3,7 +3,7 @@ import { Vinculo, ehPapel } from "@/dominio/organizacao";
 import type { Consulta } from "@/infraestrutura/clientes";
 
 /**
- * Implementa a porta que roda **fora** do escopo de organização — uma das quatro exceções enumeradas
+ * Implementa a porta que roda **fora** do escopo de organização — uma das cinco exceções enumeradas
  * (contrato §4.4 · ADR-0003).
  *
  * Duas coisas a conferir na revisão, e as duas estão no Definition of Done:

@@ -104,6 +104,9 @@ export function criarAutenticacao(
       return {
         usuarioId: data.user.id,
         nomeSugerido: typeof nome === "string" && nome.trim() !== "" ? nome.trim() : null,
+        // **O dado já estava na mão e era descartado.** Serve a seção *Acesso* de T-16 (item 49), em
+        // leitura. `??` e não `?? ""`: ausência é `null`, e a tela diz outra coisa quando não há.
+        email: data.user.email ?? null,
       };
     },
   };

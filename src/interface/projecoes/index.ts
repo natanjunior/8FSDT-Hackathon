@@ -12,10 +12,12 @@ export {
   projetarAreaAtualizada,
   projetarCategoria,
   projetarOrganizacao,
+  projetarOrganizacaoResumo,
   type AreaAtualizadaProjetada,
   type AreaProjetada,
   type CategoriaProjetada,
   type OrganizacaoProjetada,
+  type OrganizacaoResumoProjetada,
 } from "./organizacao";
 
 export {

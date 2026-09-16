@@ -5,7 +5,7 @@ info:
   version: "1.0.0"
   summary: Gestão de ocorrências com trilha de auditoria imutável, multi-organização.
   description: |
-    Superfície HTTP da **primeira entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
+    Superfície HTTP **desta entrega** do Resolve Aí. O raciocínio, as alternativas rejeitadas, as
     suposições declaradas e a rastreabilidade das 42 capacidades estão em `docs/contrato-de-api.md`.
 
     ## As cinco regras que explicam a forma desta API
@@ -82,7 +82,7 @@ tags:
   - name: Anexo
     description: |
       A **evidência** anexada a uma ocorrência: autorização de upload direto para o storage, e leitura por
-      URL assinada de vida curta. **Na primeira entrega o anexo é exatamente um, do tipo `imagem`** — a
+      URL assinada de vida curta. **Nesta entrega o anexo é exatamente um, do tipo `imagem`** — a
       forma é de anexo, o escopo é de imagem, e os dois são coisas diferentes de propósito.
   - name: Dashboard
     description: Os indicadores de gestão — o que a listagem não responde.
@@ -133,6 +133,60 @@ paths:
                     vinculos: []
                     pedidosDeEntrada:
                       - { id: "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9", organizacao: { nome: "Condomínio Recanto Azul" }, situacao: "pendente", criadoEm: "2026-08-20T13:02:11Z" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /contexto/pessoa:
+    patch:
+      tags: [Contexto]
+      operationId: corrigirPessoa
+      summary: Corrigir os próprios dados
+      description: |
+        Corrige os dados da Pessoa **da sessão**. Não há `{pessoaId}` no caminho, e essa ausência é o
+        mecanismo: sem identificador a passar, alterar os dados de outra pessoa não é improvável, é
+        impossível. O caminho é `/contexto/pessoa` e não `/pessoas/{id}` porque todo endereço de gente é
+        `/vinculos/{pessoaId}` (§4.6) — este é endereço da **sessão**, como os outros dois de `/contexto`.
+
+        **Só `nome` é editável.** O **e-mail** é a credencial de acesso e o único canal de recuperação de
+        senha: trocá-lo envolve o provedor, dois e-mails de confirmação por troca e um intervalo em que a
+        conta tem dois endereços. Fica de fora desta entrega, e a tela o mostra em leitura com a razão.
+        **`contatos[]`** fica de fora por outro motivo: a escrita é substituição da lista inteira, com
+        `ordem`, `409 CONTATO_DUPLICADO` e normalização para E.164 — é superfície de um item, não de um
+        campo. A **senha** já tem caminho próprio, e a tela aponta para ele.
+
+        **O efeito é global e declarado:** `pessoas` é tabela única, então o nome novo passa a valer em
+        **todas** as organizações da Pessoa. A trilha de auditoria guarda `autor_pessoa_id` e resolve o
+        nome na leitura, então transições antigas passam a ser lidas com o nome de agora — quem lê a
+        trilha vê **quem** agiu, não como essa pessoa se chamava na época. É a mesma propriedade em que a
+        anonimização do RNF10 se apoia, e congelar o nome a quebraria.
+
+        **Sem `403`:** permissão é atributo do Vínculo, e este endpoint roda sem vínculo. **Sem `404`:** a
+        Pessoa é a da sessão. **Sem `409`:** não há unicidade sobre `nome`.
+
+        *Capacidade: corrigir os próprios dados · `NOSSO` (PA-26). Não exige organização ativa — é um dos
+        cinco endpoints fora do escopo (contrato, §4.4), e o único deles que uma tela de dentro da
+        organização consome.*
+        *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+            example: { nome: "Helena Rocha" }
+      responses:
+        "200":
+          description: Pessoa corrigida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PessoaReferencia" }
+              example:
+                pessoaId: "2c9a1f30-4d5e-4a6b-8c7d-9e0f1a2b3c4d"
+                nome: "Helena Rocha"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
@@ -206,7 +260,7 @@ paths:
         deixar o cliente escolher permitiria adivinhação dirigida.
 
         *Capacidade: criar a organização por auto-serviço · `NOSSO` (D26). Comando: `Registrar organização`.*
-        *Não exige organização ativa — é um dos quatro endpoints fora do escopo (contrato, §4.4). E também
+        *Não exige organização ativa — é um dos cinco endpoints fora do escopo (contrato, §4.4). E também
         não a recusa: um Gestor de uma organização pode fundar outra, e a nova fica ativa pelo `Set-Cookie`
         da própria resposta.*
       requestBody:
@@ -238,6 +292,58 @@ paths:
                 areasSemeadas: 4
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    patch:
+      tags: [Organização]
+      operationId: corrigirOrganizacao
+      summary: Corrigir a organização ativa
+      description: |
+        Corrige os dados da organização **da sessão**. Não há `{id}` no caminho: a organização vem da
+        sessão, nunca da URL (§4.2), e é essa ausência que torna impossível editar organização alheia.
+
+        **Só `nome` é editável.** O `codigoPublico` é gerado pelo servidor, não é aceito no corpo e **não
+        é rotacionável nesta entrega**: código vazado produz um pedido de entrada aguardando aprovação,
+        não acesso (D25). `logoCaminho` não tem mecanismo de storage e vira uma linha em `anexos` quando
+        entrar. O interruptor *exigir solução ao resolver* muda a máquina de estados e pede um `409` novo
+        em `/resolver` — é item ⬜.
+
+        **Sem `404`:** a organização é a da sessão e ela existe. **Sem `409` de nome duplicado:**
+        `organizacoes` tem `UNIQUE (codigo_publico)` e nada sobre `nome` — duas organizações podem ter o
+        mesmo nome, e é o código que as distingue.
+
+        A alteração deixa rastro na forma **última escrita** — `atualizado_em` e
+        `atualizado_por_pessoa_id` —, a mesma de `categorias` e `areas`. Não há tabela de histórico de
+        configuração.
+
+        *Capacidade: corrigir o nome da organização · `NOSSO` (D25). Permissão: `organizacao.configurar`.*
+        *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 120 }
+            example: { nome: "Residencial Aurora" }
+      responses:
+        "200":
+          description: Organização corrigida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizacaoResumo" }
+              example:
+                id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+                nome: "Residencial Aurora"
+                codigoPublico: "AURORA42"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /pedidos-de-entrada:
@@ -609,7 +715,7 @@ paths:
         alteraria o cadastro daquela pessoa **em todas as outras organizações**, inclusive naquela em que
         ela é Gestora. Quem tem conta edita os próprios dados.
 
-        **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade da primeira entrega.
+        **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade desta entrega.
 
         *Capacidade: cadastro de Encarregados (o **U** do CRUD) · `NOSSO` (D27). Permissão: `vinculo.gerir`.*
       parameters:
@@ -686,7 +792,7 @@ paths:
         de entrada é aceito, agora com o papel certo.
 
         Para encerrar o acesso de quem **tem** histórico a operação é outra — *revogar* —, e ela preserva
-        o registro. Não está na primeira entrega.
+        o registro. Não está nesta entrega.
 
         *Capacidade: remover vínculo sem histórico · `NOSSO` (D25, PA-25). Permissão: `vinculo.gerir`.*
       parameters:
@@ -995,7 +1101,7 @@ paths:
 
         ## O que esta operação aceita hoje, e por que o nome é `anexos`
 
-        **O corpo aceita `image/jpeg` e `image/png`, e nada mais** — é o escopo da primeira entrega
+        **O corpo aceita `image/jpeg` e `image/png`, e nada mais** — é o escopo desta entrega
         (RNF8, e a capacidade *"anexar uma imagem"* do escopo). O caminho fala em anexo porque o conceito
         do domínio é **evidência**, e imagem é um tipo dela; o dia em que outro tipo entrar, o que muda é a
         lista de `tipoConteudo` aceitos, **não o caminho, não o schema e não o cliente**.
@@ -1038,7 +1144,7 @@ paths:
                   type: string
                   enum: [image/jpeg, image/png]
                   description: |
-                    **Os dois tipos da primeira entrega** (RNF8). O servidor deriva daqui o `tipo` do anexo
+                    **Os dois tipos desta entrega** (RNF8). O servidor deriva daqui o `tipo` do anexo
                     — hoje sempre `imagem`. Aceitar um tipo novo é acrescentar um valor a esta lista, e é a
                     única mudança de entrada que a ampliação do anexo exigiria.
                 tamanhoBytes:
@@ -1218,7 +1324,7 @@ paths:
         - quem tem `ocorrencia.ler_todas` (Gestor) recebe **todas** as da organização ativa;
         - quem tem só `ocorrencia.ler_propria` (Solicitante) recebe **apenas as de que é autor**.
 
-        Na primeira entrega toda ocorrência é visível apenas ao autor e aos Gestores — a visibilidade
+        Nesta entrega toda ocorrência é visível apenas ao autor e aos Gestores — a visibilidade
         comunitária das áreas comuns é evolução prevista. A resposta declara o recorte aplicado em
         `visibilidadeAplicada`.
 
@@ -1768,7 +1874,7 @@ paths:
         atribuição — **arquivada, nunca apagada**. A resposta diz qual dos dois aconteceu, em
         `reatribuicao`.
 
-        > **Na primeira entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
+        > **Nesta entrega a POL-04 não tem canal para arquivar.** O canal 3 — a conversa privada da
         > atribuição — é evolução prevista (D9). A política fica declarada porque o encadeamento é do
         > desenho e volta inteiro quando o canal existir; **hoje reatribuir encerra a atribuição anterior e
         > para aí.** *(Acrescentado em 30/08/2026: a redação anterior prometia, sem ressalva, que "a
@@ -1826,7 +1932,7 @@ paths:
                         description: |
                           `true` quando havia responsável anterior — a atribuição dele foi encerrada com
                           motivo `reatribuicao`. O arquivamento da conversa daquela atribuição é a POL-04,
-                          e **na primeira entrega ela não tem canal para arquivar**: o canal 3 é evolução
+                          e **nesta entrega ela não tem canal para arquivar**: o canal 3 é evolução
                           prevista (D9). *(Corrigido em 30/08/2026: a redação anterior era "`true` quando
                           havia responsável anterior — a atribuição dele foi encerrada e a conversa,
                           arquivada", que prometia o arquivamento como fato desta entrega. Item 16 da fila
@@ -2201,7 +2307,7 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os cinco indicadores da primeira entrega, em **uma requisição** — o dashboard é uma tela, e a
+        Os cinco indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
         aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
@@ -2616,7 +2722,7 @@ components:
         **não retira capacidade que o desafio concede**: o Gestor acumula as do Solicitante, e é por isso
         que o síndico que mora no prédio não precisa de um segundo vínculo.
 
-        Na primeira entrega, `encarregado` **não tem permissão nenhuma**: ele existe como cadastro e
+        Nesta entrega, `encarregado` **não tem permissão nenhuma**: ele existe como cadastro e
         recebe atribuições, mas o acesso próprio dele é evolução prevista.
       enum: [gestor, solicitante, encarregado]
 
@@ -2988,7 +3094,7 @@ components:
           description: |
             As evidências **já enviadas ao storage**, por referência. Nunca bytes.
 
-            **`maxItems: 1` é o escopo da primeira entrega, e é aqui que ele mora.** A tabela `anexos` do
+            **`maxItems: 1` é o escopo desta entrega, e é aqui que ele mora.** A tabela `anexos` do
             banco não tem restrição nenhuma de quantidade, de propósito: se o banco proibisse o segundo
             anexo, permiti-lo depois seria migração — e evitar migração é a razão inteira de o anexo ser
             tabela. Ampliar é trocar este número, o que **aceita mais e nunca menos**, e portanto não quebra
@@ -3096,7 +3202,7 @@ components:
                 As evidências da ocorrência, da mais antiga para a mais recente. **Lista vazia quando não
                 há anexo** — nunca `null`, para o cliente não precisar de dois caminhos de leitura.
 
-                Na primeira entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
+                Nesta entrega a lista tem no máximo um item, do tipo `imagem`. Isso é **escopo**, não
                 schema: nem o banco nem esta resposta limitam a quantidade.
               items: { $ref: "#/components/schemas/Anexo" }
               examples:
@@ -3259,7 +3365,7 @@ components:
         O **tipo de evidência**. Enum de **saída apenas** — o cliente nunca o envia: o servidor o deriva do
         `tipoConteudo` declarado na autorização de upload.
 
-        **Um valor hoje, e isso é deliberado.** O escopo da primeira entrega é *"anexar uma imagem"*
+        **Um valor hoje, e isso é deliberado.** O escopo desta entrega é *"anexar uma imagem"*
         (`escopo.md`, atividade 2) com RNF8 fixando JPEG ou PNG; declarar `video`, `documento` e `audio`
         aqui seria publicar três caminhos de renderização para dado que nunca chega. Acrescentar um valor
         depois é `ALTER TYPE tipo_anexo ADD VALUE` no banco e **valor novo em enum de saída** no contrato —

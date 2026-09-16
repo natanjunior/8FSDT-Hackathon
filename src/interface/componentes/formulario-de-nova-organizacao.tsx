@@ -88,7 +88,7 @@ export function FormularioDeNovaOrganizacao() {
         <Campo
           id="nome-da-organizacao"
           rotulo="Nome da organização"
-          ajuda="É o nome que aparece para todo mundo que entrar. Depois de criada, não há como mudar."
+          ajuda="É o nome que aparece para todo mundo que entrar. Dá para corrigir depois, em Configuração."
         >
           <Input
             id="nome-da-organizacao"

@@ -21,12 +21,16 @@ export {
 } from "./credencial";
 
 export {
+  correcaoDeOrganizacaoSchema,
   criacaoDeOrganizacaoSchema,
   nomeDeOrganizacao,
   trocaDeOrganizacaoSchema,
+  type EntradaDeCorrecaoDeOrganizacao,
   type EntradaDeCriacaoDeOrganizacao,
   type EntradaDeTrocaDeOrganizacao,
 } from "./organizacao";
+
+export { correcaoDePessoaSchema, type EntradaDeCorrecaoDePessoa } from "./pessoa";
 
 export {
   MENSAGEM_DE_TELEFONE,

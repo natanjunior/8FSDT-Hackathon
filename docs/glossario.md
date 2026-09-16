@@ -31,6 +31,7 @@ atenção; e "Enunciado" marca o que vem do desafio e não é escolha nossa.
 | Usuário | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um Usuário | Pessoa; Vínculo; e o e-mail de contato, que é da Pessoa e não daqui | Enunciado |
 | Pedido de entrada | A solicitação de uma Pessoa para se vincular a uma Organização, feita com o código público, e que aguarda decisão do Gestor. Só depois da aprovação o Vínculo passa a existir | ⚠️ "fila de aprovação", descrição usada antes de o termo existir, e "fila" é termo retirado. E Convite, que dispensa aprovação | D25 |
 | Vínculo | A ligação entre uma Pessoa, um Papel e uma Organização. Uma Pessoa pode ter vários vínculos, em organizações diferentes e com papéis diferentes | Papel: o vínculo carrega um papel, e não é o papel | D4 |
+| Participante | Toda Pessoa com Vínculo ativo numa Organização, em qualquer papel. É o rótulo com que a navegação nomeia a tela que lista quem está na organização, e não é um papel nem um estado novo | ⚠️ Os participantes de um canal de conversa, que são outro conjunto: derivados, Gestores mais o autor da ocorrência, e nunca listados. E Vínculo, que é a ligação e não a pessoa | Q-T7 |
 | Papel | O que a Pessoa é dentro de uma Organização: `Solicitante`, `Gestor` ou `Encarregado` | Permissão: papel é do vínculo, e permissão é o que o papel autoriza | D4 |
 | Remover vínculo | Apagar um vínculo que não deixou rastro, sem nenhuma ocorrência, atribuição, mensagem ou transição. Existe para desfazer um papel dado por engano: o vínculo não deveria ter existido | ⚠️ Revogar vínculo, abaixo. E não apaga a Pessoa, que é global | D25, PA-25 |
 | Revogar vínculo | Encerrar o acesso de quem tem histórico na Organização. O vínculo existiu e terminou, e o registro permanece, que é o que o RNF9 exige | ⚠️ Remover vínculo. Os dois não são a mesma operação com nomes diferentes: um apaga o que não aconteceu, o outro encerra o que aconteceu | D4 |
@@ -211,8 +212,8 @@ por nenhuma das duas tabelas.
 | Recorrência | Volume de ocorrências por Categoria e por Área ao longo do tempo. É o indicador que distingue oito ordens de serviço de uma obra | Duplicidade: recorrência é padrão no tempo, duplicidade é o mesmo problema relatado duas vezes | D19 |
 | Plano gratuito e plano pago | Os planos comerciais do produto. No gratuito, notificação só dentro do app; no pago, também e-mail, push e WhatsApp | ⚠️ Free tier de infraestrutura, que é a restrição de custo zero do projeto. Duas coisas diferentes. Ver a colisão 4 | D13 |
 | Free tier de infraestrutura | O limite gratuito do provedor de nuvem onde o Resolve Aí é publicado. Restrição do trabalho, invisível ao cliente | Plano gratuito do produto | Restrição do projeto |
-| Primeira entrega | O recorte que é construído agora: as capacidades marcadas como entregues no [escopo](escopo.md) | Evolução prevista | Nossa |
-| Evolução prevista | O que está projetado e não implementado: as capacidades adiadas do escopo, cada uma com decisão registrada, alternativa rejeitada e custo assumido. Não implementar não é o mesmo que não ter pensado | ⚠️ "fatia 2", nome retirado (ver a §8). E primeira entrega | Nossa |
+| Entrega | O recorte que é construído: as capacidades marcadas como entregues no [escopo](escopo.md). É uma só, e o que ficou de fora é evolução prevista | Evolução prevista | Nossa |
+| Evolução prevista | O que está projetado e não implementado: as capacidades adiadas do escopo, cada uma com decisão registrada, alternativa rejeitada e custo assumido. Não implementar não é o mesmo que não ter pensado | ⚠️ "fatia 2", nome retirado (ver a §8). E Entrega | Nossa |
 
 ---
 
@@ -281,7 +282,7 @@ Registrar o que não é vocabulário do projeto evita que ele volte por descuido
 **Duas operações parecidas com um efeito diferente merecem dois termos.** *Remover* e *revogar* um vínculo
 fazem, de longe, a mesma coisa: a pessoa deixa de ter acesso. A distinção que os separa é o que sobra
 depois, porque remover apaga um vínculo que não deixou rastro, e revogar encerra um que deixou e preserva
-o registro. Chamar os dois de "revogar" não seria simplificação: faria a operação da primeira entrega
+o registro. Chamar os dois de "revogar" não seria simplificação: faria a operação desta entrega
 parecer a operação inteira, e a decisão de adiar a segunda ficaria invisível. **O nome carrega a
 fronteira.**
 
@@ -294,6 +295,12 @@ O caso que fixou o critério: `email_contato` é nome de coluna e não virou ter
 carrega, a de que o e-mail de contato da Pessoa não é a credencial e os dois podem divergir, entrou na
 definição de Pessoa, que é onde faz falta. Já `Pedido de entrada` virou termo, porque é conceito: é uma
 coisa que existe no domínio, aguardando decisão de alguém.
+
+**Uma palavra que já circulava na prosa vira termo quando ganha um rótulo na tela.** *Participante* era
+usado em três documentos e em três comentários de código para nomear quem escreve num canal de conversa,
+sem nunca ter sido definido. Quando a navegação passou a chamar T-08 assim, a palavra deixou de ser prosa e
+passou a ser vocabulário, e os dois sentidos precisaram ser separados por escrito. O mecanismo é a coluna
+*Não confundir com*, criada para este caso.
 
 **Duas definições deste glossário nasceram de análise, e não de coleta**, e por isso são as mais frágeis:
 a separação entre Área e Localização, e a distinção entre Trilha de auditoria e Linha do tempo. As duas

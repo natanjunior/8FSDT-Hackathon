@@ -44,7 +44,9 @@ export const pedidoDeEntradaSchema = z.object({
   codigoPublico,
   /**
    * **Opcional, e é o ponto de correção — não o de origem** (contrato §4.1). O nome nasce dos metadados da
-   * conta, em T-11; aqui ele é corrigível uma última vez.
+   * conta, em T-11; aqui ele é corrigido **antes de entrar**, para que o Gestor leia o nome certo ao
+   * decidir o pedido. Depois de entrar, a correção mora em **T-16 · Meus dados**
+   * (`PATCH /contexto/pessoa`, item 49).
    */
   nome: nomeCorrigido.optional(),
   telefone: telefoneE164.optional(),

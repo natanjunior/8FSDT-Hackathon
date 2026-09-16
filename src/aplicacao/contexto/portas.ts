@@ -2,6 +2,7 @@ import type { RepositorioEscopadoDeDashboard } from "@/aplicacao/dashboard";
 import type {
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
+  RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDePedidosDeEntrada,
@@ -30,10 +31,17 @@ import type { Vinculo } from "@/dominio/organizacao";
 /**
  * A sessão, já traduzida. **O domínio nunca vê token** (arquitetura.md, Parte I §3): o que atravessa é
  * isto, e mais nada. `nomeSugerido` vem dos metadados da conta, preenchidos no cadastro (contrato §4.1).
+ *
+ * **`email` entra no item 49, e serve UMA leitura:** a seção *Acesso* de T-16, que o imprime para dizer
+ * com o que a pessoa entra e para onde vai o link de recuperação. Ele **não** entra no
+ * `ContextoProjetado` nem no schema `Contexto` do `openapi.yaml` — publicar a credencial numa resposta
+ * que hoje não a tem é o que a spec §3.4 recusou. Quem o acrescentar a uma projeção está desfazendo a
+ * decisão, não estendendo-a.
  */
 export type SessaoDoProvedor = {
   usuarioId: string;
   nomeSugerido: string | null;
+  email: string | null;
 };
 
 export interface PortaDeAutenticacao {
@@ -66,6 +74,19 @@ export interface RepositorioDePessoas {
    * `AFTER INSERT ON auth.users` ter sido rejeitado: a regra vive no código, o banco guarda o dado.
    */
   garantirParaUsuario(usuarioId: string, nome: string): Promise<PessoaReferencia>;
+
+  /**
+   * **A única escrita de `pessoas` fora do pedido de entrada** — `PATCH /contexto/pessoa`, item 49.
+   *
+   * `pessoaId` vem da sessão resolvida, nunca do corpo nem da URL: é por isso que a porta recebe o
+   * identificador e o endpoint não o tem. Devolve a Pessoa já corrigida, que é o corpo do `200`.
+   *
+   * **O efeito é global, e a decisão é escrita** (spec §3.6): `pessoas` é tabela única, então o nome novo
+   * passa a valer em todas as organizações da Pessoa **e** em toda a trilha que ela já escreveu — a
+   * trilha guarda `autor_pessoa_id` e resolve o nome na leitura. É a mesma propriedade em que a
+   * anonimização do RNF10 se apoia (`modelo` §10.1), e é por isso que congelar o nome não é opção.
+   */
+  renomear(pessoaId: string, nome: string): Promise<PessoaReferencia>;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +104,7 @@ export type VinculoNaOrganizacao = {
 };
 
 /**
- * **A porta que roda fora do escopo de organização.** É uma das quatro exceções enumeradas
+ * **A porta que roda fora do escopo de organização.** É uma das cinco exceções enumeradas
  * (contrato §4.4 · ADR-0003): `GET /contexto` precisa listar os vínculos de **todas** as organizações da
  * Pessoa, então não há escopo a aplicar.
  *
@@ -111,7 +132,7 @@ export interface EscolhaDaSessao {
   organizacaoEscolhida(usuarioId: string): string | null;
 }
 
-/** O que as quatro operações da §4.4 recebem. O nome grita que **não** é escopado. */
+/** O que as cinco operações da §4.4 recebem. O nome grita que **não** é escopado. */
 export type PortasGlobais = {
   autenticacao: PortaDeAutenticacao;
   pessoas: RepositorioDePessoas;
@@ -128,17 +149,23 @@ export type PortasGlobais = {
   pedidosDeEntrada: RepositorioGlobalDePedidosDeEntrada;
   /**
    * A escrita de `POST /pedidos-de-entrada`. **Está aqui pelo mesmo motivo que `organizacoes` está**: é a
-   * porta de uma das quatro operações da §4.4, e no instante em que ela roda ainda não há organização a
+   * porta de uma das cinco operações da §4.4, e no instante em que ela roda ainda não há organização a
    * que escapar. `resolverContexto` a recebe e **não a usa** — exatamente como já não usa `organizacoes`.
    */
   escritaDePedidosDeEntrada: RepositorioDePedidosDeEntrada;
 };
 
-/** O que os outros 33 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
+/** O que os outros 34 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
+  /**
+   * A **própria** organização ativa, para a escrita de T-15 (item 46 · 47). Escopado como todos: o
+   * `where` é `id = $1`, e `$1` é injetado pelo ponto único — este membro não dá acesso a organização
+   * nenhuma além da que já está ativa.
+   */
+  organizacao: RepositorioEscopadoDaOrganizacao;
   /**
    * Os pedidos **desta** organização, e as duas decisões. Escopado, ao contrário da escrita de
    * `POST /pedidos-de-entrada`: aquela roda antes de existir vínculo, esta acontece dentro de uma

@@ -7,7 +7,7 @@ import { FormularioDeArea } from "@/interface/componentes/formulario-de-area";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
- * **T-09 · criar área.**
+ * **T-14 · criar área.**
  *
  * A `ordem` chega pré-preenchida com a última + 1 (spec §2.6) — o `default: 0` do contrato fica intocado
  * para quem chama a API direto.
@@ -25,7 +25,7 @@ export default async function CriarArea() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
+        <Link href="/configuracao/areas" className="text-marca text-sm underline underline-offset-4">
           Voltar
         </Link>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Criar área</h1>

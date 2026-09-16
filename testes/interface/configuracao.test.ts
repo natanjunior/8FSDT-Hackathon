@@ -7,6 +7,7 @@ import {
   ICONES_DE_CATEGORIA,
   correcaoDeAreaSchema,
   correcaoDeCategoriaSchema,
+  correcaoDeOrganizacaoSchema,
   criacaoDeAreaSchema,
   criacaoDeCategoriaSchema,
   iconeDeCategoria,
@@ -16,7 +17,7 @@ import {
 
 /**
  * ============================================================================
- *  Unitário de INTERFACE — os schemas de configuração (T-09, itens 4a e 5)
+ *  Unitário de INTERFACE — os schemas de configuração (T-09 e T-14, itens 4a e 5)
  * ============================================================================
  *
  * **A lista de 25 nomes mora aqui por decisão declarada** (modelo §14.5): o banco guarda a *forma*
@@ -182,5 +183,38 @@ describe("os 25 nomes resolvem a componentes do lucide-react", () => {
       expect(DESENHO_DO_ICONE[nome], `o mapa não tem entrada para ${nome}`).toBeDefined();
     }
     expect(Object.keys(DESENHO_DO_ICONE)).toHaveLength(25);
+  });
+});
+
+/**
+ * **O corpo de `PATCH /organizacoes` — item 46 · 47.**
+ *
+ * **O corpo vazio passa aqui e é recusado na rota**, e a divisão é a mesma de `PATCH /areas/{id}`: o
+ * schema diz o que **cada campo** aceita; *"informe ao menos um campo"* é regra do endpoint, não da
+ * forma do campo. Provar aqui que `{}` passa é provar onde a recusa mora.
+ */
+describe("correcaoDeOrganizacaoSchema — o corpo de PATCH /organizacoes", () => {
+  it("apara o espaço em volta do nome", () => {
+    const saida = correcaoDeOrganizacaoSchema.parse({ nome: "  Residencial Aurora  " });
+    expect(saida.nome).toBe("Residencial Aurora");
+  });
+
+  it("recusa nome que é só espaço", () => {
+    expect(correcaoDeOrganizacaoSchema.safeParse({ nome: "   " }).success).toBe(false);
+  });
+
+  it("recusa nome com 121 caracteres, e aceita com 120", () => {
+    expect(correcaoDeOrganizacaoSchema.safeParse({ nome: "a".repeat(121) }).success).toBe(false);
+    expect(correcaoDeOrganizacaoSchema.safeParse({ nome: "a".repeat(120) }).success).toBe(true);
+  });
+
+  it("aceita o corpo vazio — a recusa de `nada para alterar` é da rota, não da forma", () => {
+    const saida = correcaoDeOrganizacaoSchema.parse({});
+    expect(saida.nome).toBeUndefined();
+  });
+
+  it("descarta `codigoPublico` no corpo em vez de recusar, como o criacaoDeOrganizacaoSchema", () => {
+    const saida = correcaoDeOrganizacaoSchema.parse({ nome: "Aurora", codigoPublico: "ESCOLHIDO" });
+    expect(saida).toStrictEqual({ nome: "Aurora" });
   });
 });

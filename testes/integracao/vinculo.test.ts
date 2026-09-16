@@ -485,7 +485,8 @@ describe("contatos — a guarda de quem tem conta, e o vazamento de escrita", ()
  *
  * **É aqui que este item é provado**, e por uma razão mais forte que a de costume: quase tudo que ele
  * promete é garantia do **esquema**. As nove chaves estrangeiras `on delete restrict` recusam sozinhas, e
- * uma delas — a de `organizacoes` — é `deferrable initially deferred` e só erra no `COMMIT`. Contra um
+ * `organizacoes` erra das duas formas: `atualizado_por_pessoa_id` é `restrict` e erra no próprio
+ * `delete`, e `criada_por_pessoa_id` é `deferrable initially deferred` e só erra no `COMMIT`. Contra um
  * duplo, nada disso existiria.
  */
 describe("remover — o único DELETE, e quem decide o que pode sair é o esquema", () => {
@@ -614,8 +615,9 @@ describe("remover — o único DELETE, e quem decide o que pode sair é o esquem
    *
    * **O alvo é um Encarregado, não um Gestor, e é de propósito:** a guarda do último Gestor mora no
    * `where`, e um Gestor a faria parar antes de chegar ao `COMMIT`. Com um Encarregado sem nenhum outro
-   * rastro, **as oito chaves `RESTRICT` não têm o que recusar** — a única violação possível é a diferida,
-   * e é isso que torna este caso uma prova e não uma coincidência.
+   * rastro, **as nove chaves `RESTRICT` não têm o que recusar** — inclusive a nova de
+   * `organizacoes.atualizado_por_pessoa_id`, que está nula neste cenário. A única violação possível é a
+   * diferida, e é isso que torna este caso uma prova e não uma coincidência.
    *
    * A remoção volta atrás inteira, então o vínculo continua lá; `criada_por_pessoa_id` é devolvida a
    * `idGestora` para que os casos de `impedimentosDeRemocao` leiam o mesmo mundo que o `describe` de cima

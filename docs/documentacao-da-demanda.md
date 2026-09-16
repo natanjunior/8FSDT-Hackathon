@@ -7,7 +7,7 @@ description: "Personas, o problema e a jornada atual, objetivos com métrica, re
 
 Persona, problema e jornada atual, objetivo com métrica, jornada da solução, e requisitos funcionais e
 não funcionais. Antes de tudo isso, os riscos do produto, porque são eles que explicam por que o recorte
-da primeira entrega é o que é.
+desta entrega é o que é.
 
 As personas e a jornada atual vêm do relato de um integrante do time, que é síndico do condomínio onde
 mora. Onde há aspas, a citação é literal desse relato. O que não foi validado com pessoas de fora está
@@ -120,8 +120,8 @@ atual não mede nada, em nenhuma das duas personas. Os números são para calibr
 semanas de uso, e **produzir a linha de base é, ele próprio, o primeiro resultado do produto**. O O6 é
 diferente: não é meta, e sim consequência estrutural do desenho.
 
-**Estes são objetivos do produto, e não da primeira entrega.** O recorte em [escopo.md](escopo.md)
-instrumenta O3, O4 e O6 desde o início. O O5 não é medido na primeira entrega, porque a comparação entre
+**Estes são objetivos do produto, e não desta entrega.** O recorte em [escopo.md](escopo.md)
+instrumenta O3, O4 e O6 desde o início. O O5 não é medido nesta entrega, porque a comparação entre
 tempo de calendário e tempo ativo depende de indicadores adiados; e O1 e O2 são mensuráveis mas não
 assistidos, porque o alarme de ocorrência parada e o aviso automático ficaram para depois. A distinção
 está declarada para que a ausência não seja lida como esquecimento.

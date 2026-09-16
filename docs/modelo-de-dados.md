@@ -15,7 +15,7 @@ declarada e devolvida a quem decide, e a §12 registra as cinco perguntas que vo
 DDL completo nem migrações, e sim SQL onde a constraint é sutil e o texto não bastaria. Não decide camadas,
 ORM nem organização de pastas.
 
-Cada tabela indica se pertence à primeira entrega ou à evolução prevista, conforme o recorte do
+Cada tabela indica se pertence à esta entrega ou à evolução prevista, conforme o recorte do
 [escopo](escopo.md). As tabelas de evolução prevista estão modeladas de propósito: o esquema completo evita
 migração destrutiva depois, e o custo de declarar uma tabela que ninguém preenche é zero.
 
@@ -809,6 +809,7 @@ produto, das quais só uma tem faxina.
 | `logo_caminho` | `text` | sim | — |
 | `exigir_solucao_ao_resolver` | `boolean` | não | `false` |
 | `criada_por_pessoa_id` | `uuid` | sim | — |
+| `atualizado_por_pessoa_id` | `uuid` | sim | — |
 | `criado_em` | `timestamptz` | não | `now()` |
 | `atualizado_em` | `timestamptz` | não | `now()` |
 
@@ -821,10 +822,33 @@ produto, das quais só uma tem faxina.
   vive em cartaz de elevador e é digitado à mão.
 - `FOREIGN KEY (criada_por_pessoa_id, id) REFERENCES vinculos (pessoa_id, organizacao_id)`
   **`DEFERRABLE INITIALLY DEFERRED`**, abaixo
+- `FOREIGN KEY (atualizado_por_pessoa_id, id) REFERENCES vinculos (pessoa_id, organizacao_id)`
+  `ON DELETE RESTRICT`, migração `010`, abaixo
 
 `nome` + `logo_caminho` são o whitelabel da D25, não há tabela separada para dois campos.
-`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Ambos são **evolução prevista**, mas
-custam duas colunas e evitam migração depois.
+`exigir_solucao_ao_resolver` é o interruptor por organização da D22. Desde 16/09/2026 o `nome` é escrito
+por `PATCH /organizacoes`; a logo e o interruptor seguem **evolução prevista**, e custam duas colunas que
+evitam migração depois.
+
+### `atualizado_por_pessoa_id`, o rastro da correção — 16/09/2026
+
+Quem escreveu por último nesta linha. A coluna entra com a migração `010`, junto do
+`PATCH /organizacoes`, que é o primeiro escritor de `atualizado_em`: até ali a coluna do relógio existia
+sem ninguém para preenchê-la, porque **não há gatilho** (migração `001`).
+
+O rastro é **última escrita**, a mesma forma de `categorias` e `areas` (§7.7). Não há tabela de histórico
+de configuração: o RNF9 é sobre a trilha da ocorrência, e renomear não é transição de status. Gravar
+*quando* sem gravar *quem* responderia metade da pergunta num ato cujo efeito é externo — o nome aparece
+para quem ainda não entrou, no `201` de `POST /pedidos-de-entrada`, no seletor de organização e no título
+do pedido pendente.
+
+**A chave não é diferida, ao contrário da irmã de `criada_por_pessoa_id`.** Aquela precisa do adiamento
+porque a organização entra antes do vínculo, na mesma transação da POL-01. Aqui o vínculo já existe: quem
+corrige tem `organizacao.configurar`, e essa permissão só vive sobre vínculo ativo.
+
+**Consequência declarada:** com ela, `organizacoes` passa a ser a **nona tabela** cuja chave para
+`vinculos` erra no próprio `delete`, e não só no `COMMIT`. O Gestor que corrigiu o nome deixa de poder
+ser removido por `DELETE /vinculos/{pessoaId}`, no mesmo regime de quem renomeia uma categoria.
 
 ### `criada_por_pessoa_id`, e o ovo-e-galinha que ela cria — 22/08/2026
 
@@ -856,10 +880,10 @@ reivindicada e não é recolhida pela faxina**, ou seja, não tem nenhuma das ga
 §10.3 do contrato de API construíram para o anexo. É o **mesmo defeito** que `ocorrencias.imagem_caminho`
 tinha antes da §7.8.
 
-**Por que fica assim:** a identidade da organização é **⬜ evolução prevista**, não existe
-`PATCH /organizacao` na primeira entrega, então nada escreve nesta coluna hoje. Consertar agora seria
-construir mecanismo para um campo sem produtor; e criar uma tabela `logos` seria modelar duas vezes o que
-ninguém constrói.
+**Por que fica assim:** a logo é **⬜ evolução prevista**. O `PATCH /organizacoes` existe desde
+16/09/2026 e **não aceita `logoCaminho` no corpo**, então nada escreve nesta coluna hoje. Consertar agora
+seria construir mecanismo para um campo sem produtor; e criar uma tabela `logos` seria modelar duas vezes
+o que ninguém constrói.
 
 O caminho quando a logo entrar, decidido antes para não ser improvisado: ela vira **uma linha em
 `anexos`, com `ocorrencia_id` passando a anulável. Custa uma migração de nulabilidade e zero
@@ -1027,7 +1051,7 @@ enunciado, **enumeradas na §13.1**.
 >
 > ### ⚠️ A coluna deixou de ser morta, e deixou de ser anulável — 22/08/2026
 >
-> Até hoje esta nota dizia *"anulável, e na primeira entrega é só de semente: não há seletor de ícone na
+> Até hoje esta nota dizia *"anulável, e nesta entrega é só de semente: não há seletor de ícone na
 > tela do Gestor"*. **Passou a haver.** O Gestor escolhe o ícone ao criar e ao editar a categoria, e as
 > telas de lista e de registro renderizam. É o item **4b** do backlog, acrescentado por nós, e o
 > que o justifica é o **RNF6**: lista de triagem em texto corrido custa leitura, e ícone é o que faz a
@@ -1250,7 +1274,7 @@ prejudicam INSERT/UPDATE/DELETE"* e em não fazer otimização prematura:
 | Não criado | Por quê |
 |---|---|
 | `(organizacao_id, prioridade)` | **Baixa seletividade**, que é o caso clássico do índice a evitar. A prioridade nasce `normal` (D6), então a esmagadora maioria das linhas tem o mesmo valor |
-| `(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` | Servem à recorrência (D19), que é uma **agregação sobre o conjunto inteiro** da organização — o plano correto para `GROUP BY` sobre toda a partição é varredura, não índice. *(A primeira redação também dizia que a recorrência era evolução prevista. Ela **está na primeira entrega** — o escopo a marca ✅ e o contrato a devolve no dashboard. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo.)* |
+| `(organizacao_id, categoria_id)` e `(organizacao_id, area_id)` | Servem à recorrência (D19), que é uma **agregação sobre o conjunto inteiro** da organização — o plano correto para `GROUP BY` sobre toda a partição é varredura, não índice. *(A primeira redação também dizia que a recorrência era evolução prevista. Ela **está nesta entrega** — o escopo a marca ✅ e o contrato a devolve no dashboard. A decisão de não indexar continua valendo pelo argumento da agregação, que não dependia do prazo.)* |
 | GIN + `to_tsvector('portuguese', ...)` em `titulo`/`descricao` | O padrão de busca textual em PostgreSQL. Nenhuma história do mapa pede busca por texto — *"ver ocorrências semelhantes"* (D11) é semelhança por **Área e status**, não por palavra. Fica registrado como o índice a criar no dia em que a busca existir |
 | `(autor_pessoa_id)` e demais colunas de FK isoladas | A recomendação corrente é índice em toda chave estrangeira. Aqui as FKs de pessoa já entram como **segunda coluna** de índices compostos que começam por `organizacao_id`, e o pai (`vinculos`, `pessoas`) **nunca é apagado** (§2.5) — então não há verificação de `RESTRICT` a acelerar |
 
@@ -1784,7 +1808,7 @@ organizações não podem reivindicar a mesma chave, e um único por organizaç�
 
 ### ⚠️ Não há restrição de quantidade no banco — e isso é a decisão, não um esquecimento
 
-O escopo da primeira entrega é um anexo por ocorrência. O banco não o impõe: não existe
+O escopo desta entrega é um anexo por ocorrência. O banco não o impõe: não existe
 `CREATE UNIQUE INDEX anexos_um_por_ocorrencia ON anexos (ocorrencia_id)`, não existe `CHECK`, não existe
 gatilho.
 
@@ -1859,7 +1883,7 @@ alguém escolheu aquelas palavras para descrever aquela evidência. É LGPD-mais
 (quem escreveu escolheu o que escrever), e é o que uma lista de anexos deve exibir quando houver mais de
 um.
 
-Na primeira entrega ele é aceito pelo contrato e digitado na tela. Decisão do dono do produto em
+Nesta entrega ele é aceito pelo contrato e digitado na tela. Decisão do dono do produto em
 22/08/2026, contra a recomendação deste documento, que era coluna e contrato sem campo na tela.
 O custo está declarado e é medido: o orçamento do RNF6 fecha em **53 s de 60**, e o campo é
 **opcional**, quem pula não paga nada além da varredura visual; quem preenche gasta o tempo de digitar
@@ -1914,13 +1938,13 @@ indicação de que um número aceita WhatsApp.
   recusa marcá-la num e-mail
 - `CHECK (tipo <> 'telefone' OR valor ~ '^\+[1-9][0-9]{7,14}$')`, **E.164**, abaixo
 
-Como o E.164 é produzido na primeira entrega, sem biblioteca. O `CHECK` aceita qualquer país, mas
+Como o E.164 é produzido nesta entrega, sem biblioteca. O `CHECK` aceita qualquer país, mas
 quem escreve só produz números brasileiros: a aplicação remove tudo que não é dígito, exige 10 ou 11
 deles, e prefixa `+55`. São cerca de dez linhas.
 
 A alternativa era `libphonenumber`, e ela foi recusada, seria a única dependência de terceiro do
 produto sem saída barata, num projeto que já recusou o componente de gráfico pelo mesmo critério. O que
-se perde está declarado: número estrangeiro não é registrável na primeira entrega, o que num
+se perde está declarado: número estrangeiro não é registrável nesta entrega, o que num
 condomínio brasileiro é caso de borda. A coluna aceita; o formulário não produz. No dia em que precisar,
 a biblioteca entra sem tocar o esquema, que é a razão de o `CHECK` ser E.164 completo e não `^\+55`.
 - `CHECK (tipo <> 'email' OR valor LIKE '%_@_%.__%')`, forma mínima. Validação de e-mail de verdade é da
@@ -2040,7 +2064,7 @@ armazenamento, e a conta de armazenamento é uma só** para todas as organizaç�
 organização daria 60/h a quem tem dois vínculos, e transformaria *"entrar em outra organização"* num jeito
 de dobrar a franquia.
 
-2 · Ela fica FORA do repositório escopado, pela mesma razão, como os quatro endpoints da §4.4 do
+2 · Ela fica FORA do repositório escopado, pela mesma razão, como os cinco endpoints da §4.4 do
 `contrato-de-api.md`. **Isto está escrito para a próxima revisão não a encontrar e chamar de furo de
 isolamento:** a consulta do livro-caixa não passa pelo repositório base, é a exceção, e o teste de
 integração do item 13a a prova em vez de deixá-la parecer esquecimento.
@@ -2171,7 +2195,7 @@ a regra de evitar índice de baixa seletividade continua valendo.
 | Número sequencial visível da ocorrência (`#12`) | Não é decisão de modelagem. Acrescentaria um identificador ao produto, com regra de geração por organização. Se o time quiser, é decisão de produto e volta como coluna |
 | `ocorrencias.total_anexos` | Contador materializado, avaliado em 21/08/2026. **Recusado pelo critério da §7.1:** desnormaliza-se o que é filtrado ou ordenado por consulta frequente, nunca o que é apenas projetado. `quantidadeDeAnexos` só aparece na resposta, nenhum filtro do G2 o menciona, e a página tem no máximo 20 itens contra um índice |
 | `contatos.principal` (booleano) | Avaliado em 22/08/2026 e **substituído por `ordem`** (§6.17). Booleano exigiria índice único parcial e não diria o que fazer com o segundo contato; `ordem` dá a cadeia de tentativa de graça. É a lição do `rank` do FHIR |
-| Tabela `organizacao_configuracoes` (1:1) | Avaliada em 22/08/2026 e **recusada.** Hoje há uma coluna de configuração, e ela é ⬜ — não existe `PATCH /organizacao` na primeira entrega. Separar 1:1 se justifica por padrão de acesso, segurança ou ciclo de vida diferentes; **nenhum se aplica a 50 linhas**, e a tabela criaria um problema novo: *a linha de configuração existe sempre? quem a cria? o que acontece se faltar?* |
+| Tabela `organizacao_configuracoes` (1:1) | Avaliada em 22/08/2026 e **recusada.** Há **uma** coluna de configuração, `exigir_solucao_ao_resolver`, e ela segue ⬜. Separar 1:1 se justifica por padrão de acesso, segurança ou ciclo de vida diferentes; **nenhum se aplica a 50 linhas**, e a tabela criaria um problema novo: *a linha de configuração existe sempre? quem a cria? o que acontece se faltar?* |
 | Configuração em **chave-valor** (EAV) | Avaliada e recusada com mais força que a tabela 1:1. Perde tipo, `NOT NULL`, `CHECK` e `DEFAULT` garantido pelo banco, e toda leitura vira pivô. E contradiz a §2.4, que já decidiu este eixo: conjunto fechado definido pelo código → coluna ou enum; configurável pelo usuário → tabela escopada. Chave de configuração é conjunto fechado definido pelo código. Gatilho para revisar, para a decisão não virar sensação: quando passar de ~10 colunas de configuração e elas forem lidas separadamente |
 
 ### 7.7 Índice das demais decisões
@@ -2199,7 +2223,7 @@ a regra de evitar índice de baixa seletividade continua valendo.
 | 17 | **Ordem da trilha** | Coluna `sequencia`, com `UNIQUE (ocorrencia_id, sequencia)` | `ORDER BY ocorreu_em` sozinho — empata quando dois registros nascem na mesma transação, e `now()` é o instante da transação · `ORDER BY ocorreu_em, id` — desempate **estável mas arbitrário**, porque UUID v4 não tem ordem temporal | §6.8 |
 | 18 | **Unidade do morador** | `vinculos.area_id`, anulável, FK composta | Texto livre em `pessoas` — duas verdades sobre o mesmo fato · coluna em `pessoas` — a unidade é da relação, não do ser humano · nada, e continuar guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia | §6.4, §6.2.1 |
 | 19 | **Proveniência do objeto de storage** | `anexos.fonte`, `NOT NULL DEFAULT` | Conhecimento global num arquivo de configuração — funciona com um provedor e fica ambíguo com dois, e este projeto já trocou de provedor uma vez | §5, §6.16 |
-| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas` — última escrita | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede | §6.5, §6.6 |
+| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas`, e `atualizado_por` em `organizacoes` — última escrita nas três tabelas de configuração; quem criou a organização já está em `criada_por_pessoa_id` | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede | §6.5, §6.6 |
 | 21 | **Ordenação alfabética** | `COLLATE "pt-BR-x-icu"` na coluna | `COLLATE` no `ORDER BY` — funciona e precisa ser lembrado em toda consulta · `collation` padrão do banco — ordena `Área` depois de `Zona` | §2.10 |
 
 ### 7.8 Reversão declarada — a imagem deixa de ser coluna e vira a tabela `anexos`
@@ -2214,7 +2238,7 @@ requisito como escrito, e, vista de perto, modelando o exemplo em vez do conceit
 **O conceito é evidência, e não imagem.** O que a pessoa anexa é a prova do que ela está relatando: a foto
 da lâmpada queimada, mas também o vídeo do vazamento que só se entende em movimento, o orçamento em PDF
 que o Gestor recebeu do fornecedor, o áudio de quem não digita bem. *Imagem* é **um tipo** de evidência —
-o único que a primeira entrega produz, e o único que o enunciado nomeia. **Uma coluna consegue guardar um
+o único que esta entrega produz, e o único que o enunciado nomeia. **Uma coluna consegue guardar um
 exemplo; só uma tabela consegue guardar o conceito com o tipo dele.**
 
 A assimetria de custo é o que decide o momento, e ela é grande. Não é uma escolha entre duas coisas
@@ -2229,7 +2253,7 @@ que custam o mesmo:
 | Tela | Nenhuma | O que consome os campos removidos |
 
 Do lado esquerdo, o custo é uma tabela em vez de uma coluna. Do lado direito, cinco custos, e o quarto
-é o que fecha o caso: depois da primeira entrega, `imagemUrl` e `temImagem` são campos publicados, e
+é o que fecha o caso: depois desta entrega, `imagemUrl` e `temImagem` são campos publicados, e
 trocá-los é o tipo de mudança que a §11 do contrato de API define como não-aditiva. A hora de
 pagar é agora, e o preço agora é quase zero.
 
@@ -2249,7 +2273,7 @@ em `anexos (ocorrencia_id)` custaria. Por isso o primeiro existe e o segundo nã
 - **A chave continua opaca** (§2.8), nunca URL, nunca contêiner embutido. Só mudou de endereço.
 - **Os bytes continuam fora do banco** (§11.3) e **fora do contêiner da aplicação** (§10 do contrato).
 - **O escopo continua o mesmo:** um anexo, tipo imagem, comprimido no aparelho (RNF8). Nenhuma capacidade
-  entrou ou saiu do `escopo.md`, a contagem segue **63 itens, 42 na primeira entrega**.
+  entrou ou saiu do `escopo.md`, a contagem segue **63 itens, 42 nesta entrega**.
 - **A `Ocorrência` continua a raiz do agregado.** `anexos` é filha dentro do mesmo limite, como
   `registros_transicao`, não é agregado novo, e não tem porta de escrita própria.
 
@@ -2313,7 +2337,7 @@ O que esta reversão custa, e não é zero:
 - **Um sub-formulário repetível** numa tela já especificada e prototipada, a cinco semanas da entrega.
 
 **O que ela **não custa, para a conta ficar honesta: nenhuma capacidade entrou ou saiu do
-escopo (segue 63 itens, 42 na primeira entrega), nenhum endpoint novo (os contatos viajam embutidos no
+escopo (segue 63 itens, 42 nesta entrega), nenhum endpoint novo (os contatos viajam embutidos no
 vínculo, continuam **37 operações**), e nenhum índice novo além do `UNIQUE` que a própria tabela precisa.
 
 Alternativas consideradas e recusadas:
@@ -2593,7 +2617,7 @@ ainda carregue e-mail, telefone ou conta.
 **A anonimização não alcança texto livre.** `registros_transicao.observacao`, `ocorrencias.descricao`,
 `ocorrencias.solucao_aplicada` e `mensagens.texto` são escritos por pessoas e podem conter nome, telefone ou
 número de unidade de terceiros. Apagá-los destruiria a trilha; varrê-los exigiria detecção de dado pessoal
-em texto, que está muito além da primeira entrega. Segue sem revisão jurídica, e é o PA-05, que segue
+em texto, que está muito além desta entrega. Segue sem revisão jurídica, e é o PA-05, que segue
 aberto.
 
 O anexo não é tocado pelos cinco passos, e isso é resposta e não omissão.
@@ -3042,7 +3066,7 @@ justifica, e nós também não; é ponto de partida, e o Gestor reordena.
 | `escopo.md`, atividade 0 | *"Áreas-semente, **com os tipos comum e privativa**"* — a única exigência de conteúdo |
 | `openapi.yaml`, exemplo de `POST /organizacoes` | `areasSemeadas: 4` — **exemplo, não especificação** |
 | §6.6 deste documento | `tipo` não tem valor padrão: toda Área nasce com um dos dois, de propósito |
-| `inventario-de-telas.md`, T-09 | *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* — texto **explicativo de tela**, não lista de semente |
+| `inventario-de-telas.md`, T-14 | *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* — texto **explicativo de tela**, não lista de semente |
 
 **Não escolhi as áreas, e o motivo não é falta de material: a escolha certa depende de uma decisão de produto
 que não é deste documento.** O argumento está na **D3: o tenant é condomínio ou** empresa **ou** bairro.
@@ -3055,7 +3079,7 @@ Duas saídas, e a segunda é a recomendada:
 | | O que é | Custo |
 |---|---|---|
 | **(a) Semente rica, de condomínio** | Quatro a seis áreas com nome de prédio, como o `areasSemeadas: 4` sugere | A organização nasce usável se for um condomínio. Um bairro nasce com vocabulário errado, e apagar dá mais trabalho que criar |
-| **(b) Semente mínima e neutra** | Duas áreas, uma de cada tipo, com nome genérico — bastante para o formulário de T-04 não nascer insubmissível, e pouco para não parecer resposta | A organização nasce vazia de significado e precisa da visita a T-09, que é para onde o estado vazio de T-03 já manda o Gestor |
+| **(b) Semente mínima e neutra** | Duas áreas, uma de cada tipo, com nome genérico — bastante para o formulário de T-04 não nascer insubmissível, e pouco para não parecer resposta | A organização nasce vazia de significado e precisa da visita a T-14, que é para onde o estado vazio de T-03 já manda o Gestor |
 
 **Recomendada a (b)**, pelo mesmo motivo da nota de abertura desta seção: a semente é ponto de partida. O
 único requisito real é que **nada fique insubmissível**, sem categoria e sem área ativas ninguém registra

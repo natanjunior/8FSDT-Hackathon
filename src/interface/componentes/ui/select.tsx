@@ -5,6 +5,16 @@ import { cn } from "@/interface/componentes/utilitarios"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Select as SelectPrimitive } from "radix-ui"
 
+/**
+ * **Uma divergência deliberada do catálogo — item 44f, 16/09/2026.** As `cursor-default` saíram.
+ *
+ * O ponteiro de mão é declarado uma vez, em `@layer base` no `app/globals.css`, e `cursor-default` é
+ * utilitário: o Tailwind o emite em `@layer utilities`, que vence a camada base sem olhar especificidade.
+ * Com a classe de pé, o item deste menu continuava com a seta — e ele é um dos dois alvos que a regra
+ * existe para alcançar. A classe também não descrevia nada: `default` já é o valor inicial de `cursor`
+ * aqui. Quem segura isto é `testes/interface/tema.test.ts`.
+ */
+
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -108,7 +118,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex w-full items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}
@@ -147,7 +157,7 @@ function SelectScrollUpButton({
     <SelectPrimitive.ScrollUpButton
       data-slot="select-scroll-up-button"
       className={cn(
-        "flex cursor-default items-center justify-center py-1",
+        "flex items-center justify-center py-1",
         className
       )}
       {...props}
@@ -165,7 +175,7 @@ function SelectScrollDownButton({
     <SelectPrimitive.ScrollDownButton
       data-slot="select-scroll-down-button"
       className={cn(
-        "flex cursor-default items-center justify-center py-1",
+        "flex items-center justify-center py-1",
         className
       )}
       {...props}
