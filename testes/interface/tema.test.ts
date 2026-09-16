@@ -133,6 +133,37 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(sistema.has("--marca-foreground")).toBe(false);
     expect(escolhido.has("--marca-foreground")).toBe(false);
   });
+
+  it("os oito tokens da barra lateral seguem o vocabulário, e por isso não se repetem no escuro", () => {
+    // Item 44f, critério 7. Eles vieram do autor do tema Meridian e nunca foram escolhidos por nós:
+    // `--sidebar` era mais escuro que `--ground` nos dois temas, e `--sidebar-primary` era azul (matiz
+    // 255) num produto de marca laranja. Como fiação — `var(…)` — eles herdam o escuro de graça, que é o
+    // mesmo regime de `--background` e `--border`.
+    const OITO = [
+      "--sidebar",
+      "--sidebar-foreground",
+      "--sidebar-primary",
+      "--sidebar-primary-foreground",
+      "--sidebar-accent",
+      "--sidebar-accent-foreground",
+      "--sidebar-border",
+      "--sidebar-ring",
+    ] as const;
+
+    for (const token of OITO) {
+      expect(claro.get(token)).toMatch(/^var\(--[\w-]+\)$/u);
+      expect(sistema.has(token)).toBe(false);
+      expect(escolhido.has(token)).toBe(false);
+    }
+  });
+
+  it("a barra lateral é o chão da página, e o realce dela é a marca", () => {
+    // Guia §1: "onde a tentação for pôr uma caixa, ponha uma pauta". Um trilho com preenchimento próprio
+    // é a primeira caixa da tela, e a lateral já foi validada sem ele em 14/09/2026.
+    expect(claro.get("--sidebar")).toBe("var(--ground)");
+    expect(claro.get("--sidebar-border")).toBe("var(--line)");
+    expect(claro.get("--sidebar-primary")).toBe("var(--accent)");
+  });
 });
 
 describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
