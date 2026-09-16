@@ -5,8 +5,8 @@ description: "As telas desta entrega: o que cada uma responde, os estados vazio,
 
 # Inventário de Telas — Resolve Aí
 
-**Treze telas.** É o número que este documento defende, contra as 44 capacidades ✅ do
-[escopo](escopo.md) e os 37 endpoints do [contrato de API](contrato-de-api.md).
+**Treze telas.** É o número que este documento defende, contra as 45 capacidades ✅ do
+[escopo](escopo.md) e os 38 endpoints do [contrato de API](contrato-de-api.md).
 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
@@ -61,7 +61,7 @@ E o corolário, que é o que mais recusou:
 > acontecem de dentro da tela onde a pessoa já está vendo a ocorrência. Uma tela por comando produz um
 > aplicativo em que o usuário **navega em vez de trabalhar**.
 
-Aplicado às 44 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
+Aplicado às 45 capacidades ✅, o critério colapsa quase tudo. As nove atividades do escopo não são nove
 telas: a atividade 0 é uma, as atividades 3 a 6 — dezesseis capacidades, os onze comandos inteiros —
 são **uma**, e as atividades 2 e 7 se dividem entre registrar e acompanhar. O que sobra:
 
@@ -860,7 +860,7 @@ na cabeça ao abrir o aplicativo.
 | **Quem vê** | Quem pode ler aquela ocorrência — o autor, ou quem tem `ocorrencia.ler_todas` |
 | **A pergunta** | Solicitante: *"O que está acontecendo com a minha?"* · Gestor: *"O que está acontecendo com esta, e o que eu faço com ela?"* |
 
-**É a tela que carrega dezesseis das 44 capacidades**, e é onde os **onze comandos** moram. Consome
+**É a tela que carrega dezesseis das 45 capacidades**, e é onde os **onze comandos** moram. Consome
 quatro `GET` e pode chamar onze `POST`.
 
 **O que mostra.** `OcorrenciaDetalhe` — tudo de `OcorrenciaResumo` mais `descricao`,
@@ -1627,28 +1627,56 @@ argumento era verdadeiro sobre T-04 e errado sobre quem configura, e a decisão 
 por decisão do dono do produto: quem está aqui não está registrando ocorrência, e para quem administra são
 dois assuntos. As listas viraram **T-09 · Categorias** e **T-14 · Áreas**.
 
-**O que mostra.** O nome da organização, e dois destinos com a contagem de cada um — *"Categorias · 7
-ativas de 7"* e *"Áreas · 11 ativas de 12"*. **A contagem é o que faz a tela valer a visita**: sem ela a
-página repete a barra lateral; com ela responde *"está configurado?"* de um relance, que é a pergunta que
-a tela fundida respondia ao abrir. As duas contagens saem das mesmas duas chamadas que a tela fundida já
-disparava em paralelo.
+**O que mostra.** A seção **Identidade** primeiro, e os dois destinos depois. A identidade tem o **nome
+da organização num campo editável** e o **código da organização** em fonte mono, grande o bastante para
+ser lido do outro lado da mesa, com o botão *Copiar* ao lado. Os dois destinos trazem a contagem de cada
+um — *"Categorias · 7 ativas de 7"* e *"Áreas · 11 ativas de 12"*. **A contagem é o que faz o índice valer
+a visita**: sem ela a página repete a barra lateral; com ela responde *"está configurado?"* de um relance.
+As duas contagens saem das mesmas duas chamadas que a tela fundida já disparava em paralelo, e o nome e o
+código vêm do contexto que a página já resolveu — nenhuma consulta nova entrou.
 
-**O que oferece.** Navegação para T-09 e para T-14, e nada além disso nesta entrega.
+**O subtítulo com o nome saiu do cabeçalho, e só desta tela.** Em T-08, T-09 e T-14 o nome da organização
+é contexto, e responde *"estas categorias são de onde?"*. Aqui ele é conteúdo: está no campo. Imprimi-lo
+duas vezes, uma delas dentro de um campo, convida à pergunta de qual dos dois é o de verdade. O contexto
+não se perde — a barra superior carrega a organização ativa em toda tela da casca.
+
+**Identidade antes das listas**, porque o que é **desta** organização vem antes do que está **dentro**
+dela — a mesma regra do geral para o particular que ordena a barra lateral.
+
+**O que oferece.**
+
+| Ação | Endpoint |
+|---|---|
+| Corrigir o nome da organização | `PATCH /organizacoes` `{ nome? }` |
+| Copiar o código da organização | nenhum — o dado vem de `GET /contexto` |
+| Navegar para Categorias e para Áreas | — |
+
+**Quem vê o código, e por quê.** Só quem tem `organizacao.configurar`, que é o portão da tela inteira.
+Não é sigilo: o `codigoPublico` já chega no payload de **toda** sessão, porque a face E de T-02 o usa para
+comparar o código digitado antes de enviar. O que a tela decide é não oferecer ao Solicitante uma
+ferramenta que ele não consegue terminar de usar — quem espalha o código gera pedidos de entrada, e
+decidir pedido é `vinculo.gerir`.
 
 **Como reage ao status.** Não reage.
 
 **Vazio · carregando · erro.**
 - *Vazio:* não existe — as sementes garantem as duas listas, e as contagens sempre têm número.
 - *Carregando:* duas requisições, disparadas juntas.
-- *Erro:* nenhum próprio; os de escrita moram em T-09 e T-14.
+- *Erro:* `400 FORMATO_INVALIDO` no campo do nome, com a frase junto dele; `403 PERMISSAO_INSUFICIENTE`
+  para quem chega por link recebido, que recebe a tela de sem acesso; `409 ORGANIZACAO_DIVERGENTE` quando
+  outra aba trocou de organização, com o texto do servidor.
+- *Sem área de transferência:* **não é erro.** Fora de contexto seguro `navigator.clipboard` não existe, o
+  botão seleciona o texto do código e a frase de apoio vira *"Selecione o código e copie"*. O botão nunca
+  diz *Copiado* sem ter copiado.
 
 **Alvo primário.** Tela grande, pela mesma razão das duas listas.
 
-**Endereço próprio.** Sim — `/configuracao`.
+**Endereço próprio.** Sim — `/configuracao`. O desfecho da correção volta em `?renomeada=`, para
+sobreviver ao recarregamento.
 
-**Capacidades que realiza.** **Nenhuma, e é a segunda exceção registrada** — ver §8.2. **A exceção tem
-dono e prazo:** ela fecha com o item **46 · 47**, que põe aqui o nome editável e o código público da
-organização. Até lá esta tela é o lugar que a navegação precisa ter, e não o conteúdo que ele vai receber.
+**Capacidades que realiza.** **`1b · Corrigir o nome da organização`**. Ela nasceu sem nenhuma, como a
+segunda exceção da §8.2, e **a exceção fechou em 16/09/2026** com o item **46 · 47**, que lhe deu campo
+próprio.
 
 ---
 
@@ -2103,7 +2131,7 @@ estado terminal. Se aparecerem, são defeito, e o `detail` do contrato basta.
 
 ## 8. Rastreabilidade — o triângulo, nos três sentidos
 
-Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
+Três conjuntos: **45 capacidades ✅**, **38 endpoints**, **10 telas**.
 
 > **Eram 42 até 30/08/2026.** A contagem ficou parada enquanto o backlog andava, e entraram a **4b**
 > (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) — as duas
@@ -2113,12 +2141,17 @@ Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
 > `7b`, ao lado das capacidades de que derivam, e nada foi renumerado** — os números desta tabela são
 > citados fora dela.
 
+> **E em 16/09/2026 entrou a `1b`** (corrigir o nome da organização), com o `PATCH /organizacoes` que o
+> item **46 · 47** acrescentou. O total passou a **45 ✅ de 67**, e os endpoints a **38**. Também sem
+> renumerar nada, pela mesma razão.
+
 ### 8.1 · Toda capacidade ✅ é alcançável a partir de alguma tela
 
 | # | Capacidade | Origem | Tela |
 |---|---|---|---|
 | **0 · Configurar a organização** ||||
 | 1 | Criar a organização por auto-serviço | `NOSSO` (D26) | T-02 |
+| **1b** | **Corrigir o nome da organização** | `NOSSO` (D25) | T-15 |
 | 2 | Categorias-semente | `NOSSO` (D18) | *(efeito da POL-01; **visível** em T-09 e T-04)* |
 | 3 | Áreas-semente, com os dois tipos | `NOSSO` (D10, D18) | *(efeito da POL-01; **visível** em T-14 e T-04)* |
 | 4 | Editar categorias | `ENUNCIADO · aberto` | T-09 |
@@ -2172,14 +2205,14 @@ Três conjuntos: **44 capacidades ✅**, **37 endpoints**, **10 telas**.
 | 41 | Testes de domínio, aplicação, isolamento e ponta a ponta | `ENUNCIADO · aberto` (E6) | **não é de interface** |
 | 42 | Documentação e README | `ENUNCIADO · aberto` (E9) | **não é de interface** — este documento é parte dela |
 
-**Fechamento.** Das **38 capacidades de usuário**, todas alcançáveis: **33 com ação direta numa tela**,
+**Fechamento.** Das **39 capacidades de usuário**, todas alcançáveis: **34 com ação direta numa tela**,
 **2 realizadas como efeito de política** e visíveis em duas telas (nº 2 e 3), **1 realizada como campo
 exibido** (nº 31), **1 sem endpoint do contrato** por ser do provedor (nº 6), e nº 13 e 19 repartidas
 entre duas telas. Das **6 de fundação técnica**, **1 tem tela** (nº 37 → T-06), **1 tem consequência de
 interface sem tela** (nº 38) e **4 não são de interface**.
 
 > **Precisão de 30/08/2026 — o detalhamento acima não fecha com o total, e isso fica registrado em vez de
-> corrigido às cegas.** Somados, os grupos dão **37** de 38 — e davam **35 de 36** antes desta rodada, com
+> corrigido às cegas.** Somados, os grupos dão **38** de 39 — e davam **35 de 36** antes daquela rodada, com
 > o mesmo desvio de um, que portanto **não veio das capacidades novas**. O **total** está conferido contra
 > o `escopo.md` §2 e a §14 do `contrato-de-api.md`; é o **detalhamento** que está a um item de fechar, e o
 > candidato provável é a **nº 6**, que ganha grupo próprio (*"sem endpoint do contrato"*) sendo também
@@ -2190,18 +2223,18 @@ interface sem tela** (nº 38) e **4 não são de interface**.
 
 ### 8.2 · Toda tela realiza ao menos uma capacidade
 
-**Treze das quinze**, sim. **As exceções são duas, e as duas têm registro.**
+**Quatorze das quinze**, sim. **A exceção é uma, e ela tem registro.**
 
 | Tela | Por que não realiza capacidade | Fecha quando |
 |---|---|---|
 | **T-10** | é um estado declarado, não uma capacidade — é o achado F3 da §9 | não fecha: é a resposta a um vínculo sem permissão nenhuma |
-| **T-15** | nasceu como o lugar do item **46 · 47**, e ele ainda não chegou. Até lá ela navega para T-09 e T-14 e mostra as contagens delas | com o **46 · 47**, que lhe dá o nome editável e o código público da organização |
 
-**A segunda exceção é deliberada e datada — 16/09/2026, item 48.** O critério da §1 é mais duro que este:
-*"uma tela tem conjunto de campos próprio e fim próprio; sem campo próprio, é estado"*, e T-15 não tem
-campo próprio até o 46 · 47 chegar. Ela está numerada mesmo assim porque a alternativa era a entrada de
-menu apontar para uma tela que não existe, e menu que aponta para o vazio é pior que invariante com
-exceção declarada.
+**A segunda exceção existiu por um dia, e fechou.** T-15 nasceu em 16/09/2026 com o item 48, sem campo
+próprio, contra o critério da §1 — *"uma tela tem conjunto de campos próprio e fim próprio; sem campo
+próprio, é estado"*. Ela foi numerada mesmo assim porque a alternativa era a entrada de menu apontar para
+uma tela que não existe, e menu que aponta para o vazio é pior que invariante com exceção declarada. O
+item **46 · 47**, no mesmo 16/09/2026, lhe deu o campo do nome e o código da organização, e com eles a
+capacidade **1b**.
 
 As quatro da credencial realizam **uma** capacidade entre si (nº 6), o que é o inverso de T-05 e não é
 problema: a razão de serem quatro é o critério da §1, não a contagem de capacidades.
@@ -2216,6 +2249,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `GET /contexto` | **o shell** — todas as telas depois de T-01; e T-02 e T-10 diretamente |
 | `PUT /contexto/organizacao` | menu de troca (shell) · T-02 face D · T-10 |
 | `POST /organizacoes` | T-02 |
+| `PATCH /organizacoes` | T-15 |
 | `GET /categorias` | T-04 · T-09 · T-15 (a contagem) |
 | `POST /categorias` | T-09 |
 | `PATCH /categorias/{id}` | T-09 |
@@ -2251,7 +2285,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
 
-**Trinta e sete endpoints, trinta e sete chamados. Zero órfãos.** Mas dois merecem nota:
+**Trinta e oito endpoints, trinta e oito chamados. Zero órfãos.** Mas dois merecem nota:
 
 - **`GET /ocorrencias/{id}/trilha-de-auditoria` só não é órfão porque T-06 existe.** Se a trilha fosse
   uma aba dentro de T-05, o endpoint seguiria chamado — mas a tela teria sido decidida por conveniência
@@ -2743,8 +2777,8 @@ de T-04 e o paralelismo do upload são o que este inventário faz por ele. **Se 
 é o passo 5, com o protótipo, a primeira oportunidade real de descobrir. É também a única mitigação
 disponível para o segundo risco mais alto do projeto.
 
-**5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 37 saíram de
-`grep` sobre o `openapi.yaml`. As 44 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
+**5 · A contagem de endpoints foi verificada; a de capacidades não, inteira.** Os 38 saíram de
+`grep` sobre o `openapi.yaml`. As 45 capacidades foram lidas da tabela da §14 do `contrato-de-api.md` e conferidas
 contra as tabelas por atividade do `escopo.md` — mas o somatório por atividade da §2 do `escopo.md`
-(6+6+3+5+3+3+3+4+5+6 = 44) fecha, e é o que dá confiança na contagem. *(Eram 42, e o somatório era
+(7+6+3+5+3+3+3+4+5+6 = 45) fecha, e é o que dá confiança na contagem. *(Eram 42, e o somatório era
 5+5+3+5+3+3+3+4+5+6; a contagem foi reaberta em 30/08/2026 para as capacidades 4b e 7b.)*
