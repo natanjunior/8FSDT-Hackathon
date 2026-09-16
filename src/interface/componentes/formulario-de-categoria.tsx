@@ -108,7 +108,7 @@ export function FormularioDeCategoria({
       }
 
       const chave = modo.tipo === "cadastro" ? "criada" : "alterada";
-      router.replace(`/configuracao?${chave}=${encodeURIComponent(nome.trim())}&lista=categoria`);
+      router.replace(`/configuracao/categorias?${chave}=${encodeURIComponent(nome.trim())}`);
       router.refresh();
     } catch {
       // `fetch` rejeitou antes de haver resposta — a rede caiu. Sem este `catch` a rejeição sobe pela

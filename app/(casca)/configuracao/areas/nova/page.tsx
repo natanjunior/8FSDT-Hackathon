@@ -25,7 +25,7 @@ export default async function CriarArea() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
+        <Link href="/configuracao/areas" className="text-marca text-sm underline underline-offset-4">
           Voltar
         </Link>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Criar área</h1>

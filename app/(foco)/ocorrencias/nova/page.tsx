@@ -16,8 +16,8 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório, e um `fetch`
  * interno custaria o salto HTTP — que na tela cronometrada é o salto que não cabe.
  *
- * **As duas listas vêm só com as ativas**, que é o padrão desta tela — ao contrário de T-09, que traz as
- * inativas porque é lá que se reativa.
+ * **As duas listas vêm só com as ativas**, que é o padrão desta tela — ao contrário de T-09 e T-14, que
+ * trazem as inativas porque é lá que se reativa.
  *
  * **A foto não está aqui, e é decisão da spec (§3.6):** ela é o *primeiro alvo da tela* por decisão do
  * protótipo, e o item 13a a insere no topo sem reordenar nada. Um botão que não faz nada custaria o alvo
@@ -56,6 +56,7 @@ export default async function RegistrarOcorrencia() {
   if (faltando.length > 0) {
     // `escopo.ctx` — `escopo` ja esta estreitado para `"pronto"` pelos dois `if` acima.
     const podeConfigurar = escopo.ctx.vinculo.pode("organizacao.configurar");
+    const convite = convitePara(faltando);
 
     return (
       <MolduraDeTela titulo="Registrar ocorrência">
@@ -69,8 +70,8 @@ export default async function RegistrarOcorrencia() {
             : "Fale com um Gestor."}
         </p>
         {podeConfigurar && (
-          <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
-            Ir para categorias e áreas
+          <Link href={convite.href} className="text-marca text-sm underline underline-offset-4">
+            {convite.rotulo}
           </Link>
         )}
       </MolduraDeTela>
@@ -86,4 +87,26 @@ export default async function RegistrarOcorrencia() {
       />
     </MolduraDeTela>
   );
+}
+
+/**
+ * **O convite aponta para a lista que está faltando.** Com uma das duas vazias, o caminho mais curto é a
+ * lista dela; com as duas, não há lista privilegiada e o destino é o índice de configuração (T-15).
+ *
+ * `faltando` chega com os rótulos em português — *"categorias"* e *"áreas"* —, que é a forma que a frase
+ * do alerta já consome. **O endereço de área não leva acento**, então a comparação é pelo rótulo e a rota
+ * é escrita à mão: um `encodeURIComponent` aqui produziria `%C3%A1reas`, que não é rota nenhuma.
+ *
+ * **O `unica` existe por causa do `noUncheckedIndexedAccess`**, que está ligado no `tsconfig.json:12`:
+ * `faltando[0]` tem tipo `string | undefined`, e interpolá-lo direto no rótulo é um `"Ir para undefined"`
+ * que o compilador aceita calado. O estreitamento fecha isso sem asserção.
+ */
+function convitePara(faltando: readonly string[]): { href: string; rotulo: string } {
+  const unica = faltando.length === 1 ? faltando[0] : undefined;
+  if (unica === undefined) return { href: "/configuracao", rotulo: "Ir para a configuração" };
+
+  return {
+    href: unica === "categorias" ? "/configuracao/categorias" : "/configuracao/areas",
+    rotulo: `Ir para ${unica}`,
+  };
 }

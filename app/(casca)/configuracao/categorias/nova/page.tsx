@@ -29,7 +29,7 @@ export default async function CriarCategoria() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
+        <Link href="/configuracao/categorias" className="text-marca text-sm underline underline-offset-4">
           Voltar
         </Link>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Criar categoria</h1>
