@@ -65,7 +65,7 @@ export const CATEGORIAS_SEMENTE: readonly CategoriaSemente[] = Object.freeze([
  * contradiz na primeira tela que o Gestor abre.
  *
  * O único requisito real é que **nada nasça insubmissível**: sem categoria e sem área ativas ninguém
- * registra ocorrência (§6.5 e §6.6). Duas áreas o cumprem, e o resto é trabalho de T-09 — que é para onde
+ * registra ocorrência (§6.5 e §6.6). Duas áreas o cumprem, e o resto é trabalho de T-14 — que é para onde
  * o estado vazio de T-03 já manda o Gestor.
  */
 export const AREAS_SEMENTE: readonly AreaSemente[] = Object.freeze([

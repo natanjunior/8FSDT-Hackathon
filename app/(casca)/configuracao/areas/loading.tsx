@@ -1,22 +1,18 @@
 /**
- * O cold start de T-15 (RNF5, escala a zero) — mesma regra e mesmo texto das outras telas: *"qualquer
+ * O cold start de T-14 (RNF5, escala a zero) — mesma regra e mesmo texto das outras telas: *"qualquer
  * requisição que passe de ~2 s ganha o texto"*, e o texto **não promete prazo**.
  *
- * **O esqueleto tem a forma desta tela: título e dois destinos.** Até 16/09/2026 ele desenhava duas
- * colunas de lista e valia para a subárvore inteira, então `/configuracao/categorias/nova` mostrava duas
- * listas antes de um formulário. Cada lista tem o seu esqueleto agora, e este vale só para esta página.
+ * **Este esqueleto vale para a subárvore de áreas**, e é o que `nova` e `[areaId]/editar` passam a
+ * mostrar ao acordar o servidor.
  */
-export default function EsperandoAConfiguracao() {
+export default function EsperandoAsAreas() {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
 
       <div aria-hidden className="flex flex-col gap-5">
         <div className="bg-secondary h-6 w-[38%] animate-pulse rounded" />
-        <div className="flex flex-col gap-3">
-          <div className="bg-secondary h-16 animate-pulse rounded" />
-          <div className="bg-secondary h-16 animate-pulse rounded" />
-        </div>
+        <div className="bg-secondary h-72 animate-pulse rounded" />
       </div>
 
       <p

@@ -515,7 +515,7 @@ function Vazio({
             prédio**. */}
         {tipo === "organizacao" && podeConfigurar && (
           <Link
-            href="/configuracao"
+            href="/configuracao/areas"
             className="border-marca bg-accent text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
           >
             Conferir as áreas

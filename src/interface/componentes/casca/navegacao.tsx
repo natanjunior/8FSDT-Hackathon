@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Building2, ChartColumn, ClipboardList, Tags, Users, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  ChartColumn,
+  ClipboardList,
+  LayoutGrid,
+  Settings,
+  Tags,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   SidebarGroup,
@@ -25,6 +34,16 @@ import {
  * de 44 px que não navega para lugar nenhum; se ele expandisse e recolhesse, seria um controle
  * administrando duas linhas. Por isso `SidebarGroupLabel`, no sétimo papel da escala — o mesmo que a barra
  * superior usa para a marca.
+ *
+ * **Quatro filhos sob `Organização`, desde o item 48.** `Configuração` é a tela da organização inteira,
+ * `Participantes` é quem está nela, e `Categorias` e `Áreas` são as duas listas que ela configura — a
+ * ordem vai do geral para o particular, que é a mesma regra que põe `Dashboard` por último. **O modo de
+ * ícones do catálogo continua fora**, pela razão medida no 44f: `SidebarMenuSub` carrega
+ * `group-data-[collapsible=icon]:hidden`.
+ *
+ * **O ícone de `Áreas` não é `MapPin`, e a recusa é do glossário.** A entrada *Localização* diz *"não é
+ * geolocalização: não há mapa nem coordenada"*, e um alfinete de mapa contradiria a definição no primeiro
+ * pixel. `LayoutGrid` é o lugar dividido em partes.
  *
  * **O ícone nunca substitui o rótulo** (compromisso A-5): ele vai `aria-hidden` e a palavra fica ao lado
  * em todas as larguras.
@@ -64,6 +83,9 @@ export function Navegacao({
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                {podeConfigurar && (
+                  <ItemDeNavegacao href="/configuracao" rotulo="Configuração" Icone={Settings} />
+                )}
                 {pendentes !== null && (
                   <ItemDeNavegacao
                     href="/vinculos"
@@ -73,7 +95,14 @@ export function Navegacao({
                   />
                 )}
                 {podeConfigurar && (
-                  <ItemDeNavegacao href="/configuracao" rotulo="Categorias e áreas" Icone={Tags} />
+                  <>
+                    <ItemDeNavegacao
+                      href="/configuracao/categorias"
+                      rotulo="Categorias"
+                      Icone={Tags}
+                    />
+                    <ItemDeNavegacao href="/configuracao/areas" rotulo="Áreas" Icone={LayoutGrid} />
+                  </>
                 )}
               </SidebarMenu>
             </SidebarGroupContent>

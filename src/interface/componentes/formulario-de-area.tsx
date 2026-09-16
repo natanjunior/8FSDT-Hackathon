@@ -9,7 +9,7 @@ import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 
 /**
- * **T-09 · o formulário de área.**
+ * **T-14 · o formulário de área.**
  *
  * **Nenhum tipo vem marcado na criação, e o botão fica indisponível até que um seja escolhido.** É a D10
  * levada à tela — *"a visibilidade é derivação, não configuração"* —, e é literalmente o mecanismo do
@@ -104,7 +104,7 @@ export function FormularioDeArea({
       }
 
       if (modo.tipo === "cadastro") {
-        router.replace(`/configuracao?criada=${encodeURIComponent(nome.trim())}&lista=area`);
+        router.replace(`/configuracao/areas?criada=${encodeURIComponent(nome.trim())}`);
         router.refresh();
         return;
       }
@@ -117,11 +117,10 @@ export function FormularioDeArea({
 
       const parametros = new URLSearchParams({
         alterada: nome.trim(),
-        lista: "area",
         ...(mudouOTipo ? { tipo, mantem: String(corrigida.ocorrenciasComTipoAnterior ?? 0) } : {}),
       });
 
-      router.replace(`/configuracao?${parametros.toString()}`);
+      router.replace(`/configuracao/areas?${parametros.toString()}`);
       router.refresh();
     } catch {
       setErro(MENSAGEM_GENERICA);

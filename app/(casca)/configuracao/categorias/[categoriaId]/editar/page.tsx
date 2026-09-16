@@ -40,7 +40,7 @@ export default async function CorrigirCategoria({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
+        <Link href="/configuracao/categorias" className="text-marca text-sm underline underline-offset-4">
           Voltar
         </Link>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Corrigir categoria</h1>
@@ -81,7 +81,7 @@ async function resolverOuMandarParaPorta() {
   try {
     return await resolverEscopoParaTela("organizacao.configurar");
   } catch (erro) {
-    if (erro instanceof NaoAutenticado) redirect("/entrar?destino=%2Fconfiguracao");
+    if (erro instanceof NaoAutenticado) redirect("/entrar?destino=%2Fconfiguracao%2Fcategorias");
     throw erro;
   }
 }

@@ -13,8 +13,9 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * padrão fica intocado para quem chama a API direto — mas uma categoria nova com `ordem = 0` apareceria
  * **antes** das sete sementes, que têm 1 a 7. A decisão é de tela, não de endpoint.
  *
- * A moldura é copiada de `app/configuracao/page.tsx`, e não importada: `resolverOuMandarParaPorta` é
- * função local lá. É a mesma escolha que `app/vinculos/nova/page.tsx` registrou.
+ * A moldura é copiada de `app/(casca)/configuracao/categorias/page.tsx`, e não importada:
+ * `resolverOuMandarParaPorta` é função local lá. É a mesma escolha que `app/vinculos/nova/page.tsx`
+ * registrou.
  */
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function CriarCategoria() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <Link href="/configuracao" className="text-marca text-sm underline underline-offset-4">
+        <Link href="/configuracao/categorias" className="text-marca text-sm underline underline-offset-4">
           Voltar
         </Link>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Criar categoria</h1>

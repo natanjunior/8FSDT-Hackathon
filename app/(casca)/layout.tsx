@@ -21,7 +21,7 @@ import { projetarContexto } from "@/interface/projecoes";
  *  A casca das telas de dentro da organização
  * ============================================================================
  *
- * **Doze rotas herdam esta moldura, e nenhuma URL muda:** `(casca)` é grupo entre parênteses, que não
+ * **Catorze rotas herdam esta moldura, e nenhuma URL muda:** `(casca)` é grupo entre parênteses, que não
  * entra no endereço. Antes deste layout, dezesseis arquivos declaravam a própria moldura de página à mão,
  * com três larguras escolhidas por arquivo sem regra — que é o que produzia tela sem parecença com a
  * vizinha.

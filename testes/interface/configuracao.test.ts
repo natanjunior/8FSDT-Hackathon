@@ -16,7 +16,7 @@ import {
 
 /**
  * ============================================================================
- *  Unitário de INTERFACE — os schemas de configuração (T-09, itens 4a e 5)
+ *  Unitário de INTERFACE — os schemas de configuração (T-09 e T-14, itens 4a e 5)
  * ============================================================================
  *
  * **A lista de 25 nomes mora aqui por decisão declarada** (modelo §14.5): o banco guarda a *forma*
