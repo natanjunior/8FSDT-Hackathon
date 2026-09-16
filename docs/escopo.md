@@ -209,12 +209,12 @@ prevista.
 
 ## 2 · O recorte desta entrega
 
-**67 itens de escopo mapeados. 45 entram nesta entrega; 22 são evolução prevista.**
+**68 itens de escopo mapeados. 46 entram nesta entrega; 22 são evolução prevista.**
 
 | Atividade | Entra | Evolução prevista |
 |---|---|---|
 | 0 · Configurar a organização | 7 | 3 |
-| 1 · Entrar na organização | 6 | 4 |
+| 1 · Entrar na organização | 7 | 4 |
 | 2 · Registrar a ocorrência | 3 | 1 |
 | 3 · Triar | 5 | 2 |
 | 4 · Atribuir | 3 | 2 |
@@ -223,17 +223,19 @@ prevista.
 | 7 · Acompanhar | 4 | 4 |
 | 8 · Gerir | 5 | 2 |
 | Fundação técnica | 6 | — |
-| **Total** | **45** | **22** |
+| **Total** | **46** | **22** |
 
-**Os 24 itens exigidos pelo desafio estão inteiros nesta entrega.** Todo o corte recaiu sobre as 43
-adições do projeto: 21 entraram e 22 ficaram para depois.
+**Os 24 itens exigidos pelo desafio estão inteiros nesta entrega.** Todo o corte recaiu sobre as 44
+adições do projeto: 22 entraram e 22 ficaram para depois.
 
-Os 21 que entraram não estão lá por gosto: cada um é a cola sem a qual um requisito do desafio não
+Os 22 que entraram não estão lá por gosto: cada um é a cola sem a qual um requisito do desafio não
 funciona. Sem Organização não há onde registrar; sem categorias e áreas semeadas, a Organização nasce vazia
 e nada pode ser registrado; sem pedido de entrada e aprovação, ninguém além de quem criou consegue entrar;
 sem cadastro de Encarregados não há a quem atribuir; sem rótulo amigável o Solicitante lê *"Em análise"* e
 não sabe se aquilo é bom ou ruim; e sem a recorrência o dashboard exigido pelo desafio responderia o que a
-lista já responde. **A única escolha de verdade no corte foi `Pausada`:** ela não é exigida pelo desafio e
+lista já responde; e sem corrigir os próprios dados, o nome digitado errado uma vez aparece assim para
+sempre, em todas as organizações e em toda a trilha. **A única escolha de verdade no corte foi
+`Pausada`:** ela não é exigida pelo desafio e
 poderia sair, e é a resposta direta à dor mais forte das duas personas, *"acabo me perdendo e a ocorrência
 some dentre outras"*. Sem ela, esta entrega cumpre o desafio e não resolve o problema que o produto
 veio resolver.
@@ -265,6 +267,7 @@ existe e é usado, que é criar outra conta, e é o que o roteiro de validação
 | Capacidade | Decidido em | 1ª entrega |
 |---|---|---|
 | Criar conta e autenticar-se | Desafio | ✅ |
+| Corrigir os próprios dados, depois de entrar | PA-26 | ✅ |
 | Pedir entrada com o código da organização, aguardando aprovação | D25 | ✅ |
 | Gestor aprova ou recusa o pedido de entrada | D25 | ✅ |
 | Cadastro de Encarregados, sem conta | D27 | ✅ |
