@@ -98,7 +98,7 @@ const EXTENSAO_DE_CABECALHO = "segundosAteLiberar";
  *
  * **Uma lista de códigos, e não `if (status === 404)`.** São sete códigos `404` na escada acima, e **seis
  * são de recurso escopado**: o sétimo, `CODIGO_PUBLICO_NAO_ENCONTRADO`, é lançado por `pedir-entrada.ts`,
- * uma das quatro operações da §4.4 — ali não existe organização ativa, e a extensão seria sempre nula.
+ * uma das cinco operações da §4.4 — ali não existe organização ativa, e a extensão seria sempre nula.
  * A prosa do contrato promete a extensão para toda essa família — mas o `openapi.yaml` publica o
  * `example` em **um** responsável só, `OcorrenciaNaoEncontrada` (`:2341`). O DoD cobra que *"a
  * especificação versionada corresponde ao código"*: emitir a extensão em respostas cujo exemplo não a

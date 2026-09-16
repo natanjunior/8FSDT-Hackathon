@@ -19,7 +19,7 @@ import { lenteDeRotulo, projetarEventoDaLinhaDoTempo } from "@/interface/projeco
  * da trilha faz dois, e é o achado A-2 da spec do item 29, que esta rota não repete.
  *
  * **O `404` de quem não pode ler vem de dentro**, idêntico ao de inexistente (§6.3). A conferência do
- * `X-Organizacao-Id` é do `comContexto` e vale para os trinta e três endpoints escopados (item 7b).
+ * `X-Organizacao-Id` é do `comContexto` e vale para os trinta e quatro endpoints escopados (item 7b).
  *
  * **O `rotulo` sai na coluna de quem lê** (critério 31.7), pela mesma permissão que decide o recorte —
  * `ocorrencia.ler_todas`. É a descrição do campo `rotulo` do `EventoTransicao` no `openapi.yaml`.

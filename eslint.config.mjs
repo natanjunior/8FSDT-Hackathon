@@ -42,7 +42,7 @@ import nextTypescript from "eslint-config-next/typescript";
  * | 2 · `infraestrutura/` só é importada por `composicao/` | **sim** — `INFRAESTRUTURA` |
  * | 2b · `composicao/` só é importada por `interface/http/` | **sim** — `COMPOSICAO` |
  * | 3 · só pela superfície pública do módulo | **sim** — `SUPERFICIE_PUBLICA` |
- * | *(sem número — não fala de camada)* `semOrganizacao` só nos quatro caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
+ * | *(sem número — não fala de camada)* `semOrganizacao` só nos cinco caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
  * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
  *

@@ -6,7 +6,7 @@ import { trocaDeOrganizacaoSchema } from "@/interface/schemas";
 /**
  * **`PUT /contexto/organizacao`** — escolher a organização ativa da sessão (contrato §8.0).
  *
- * **A segunda das quatro operações da lista fechada da §4.4**, e o caminho deste arquivo estava reservado
+ * **A segunda das cinco operações da lista fechada da §4.4**, e o caminho deste arquivo estava reservado
  * em `eslint.config.mjs` desde o esqueleto: nenhuma linha de lint muda aqui.
  *
  * **Quatro coisas e nada mais**: a regra, o cookie, a projeção, o `200`. **Nenhum agregado é tocado** e

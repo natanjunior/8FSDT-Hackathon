@@ -18,7 +18,7 @@
  * usa.
  *
  * **Onde NÃO entra**, e cada um por uma razão própria: na **leitura** (falha sozinha, sem gravar nada); nas
- * **quatro operações da §4.4** (não há organização ativa a confirmar, e `comContexto` nem confere ali —
+ * **cinco operações da §4.4** (não há organização ativa a confirmar, e `comContexto` nem confere ali —
  * `com-contexto.ts:321-324`); e no **envio ao Storage** (é outro domínio, não a nossa API).
  */
 

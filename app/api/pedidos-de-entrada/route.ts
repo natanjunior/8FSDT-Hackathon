@@ -7,7 +7,7 @@ import { pedidoDeEntradaSchema } from "@/interface/schemas";
  * **`GET /pedidos-de-entrada`** — a fila que o Gestor abre para decidir (T-08).
  *
  * **Escopado, ao contrário do `POST` logo abaixo — e as duas portas no mesmo arquivo são corretas.** A
- * escrita acontece antes de existir vínculo, e por isso é uma das quatro da §4.4; a leitura acontece
+ * escrita acontece antes de existir vínculo, e por isso é uma das cinco da §4.4; a leitura acontece
  * dentro de uma organização ativa, e por isso passa pelo funil. Nenhuma linha de `eslint.config.mjs` muda:
  * a lista fechada nomeia quem pode importar `semOrganizacao`, e `comContexto` é livre.
  *
@@ -24,7 +24,7 @@ export const GET = comContexto({ exige: "vinculo.gerir" }, async ({ repos, requi
  * **`POST /pedidos-de-entrada`** — pedir entrada com o Código da Organização (D25).
  *
  * **A quarta operação da lista fechada da §4.4**, e o caminho deste arquivo já estava reservado em
- * `eslint.config.mjs` desde o esqueleto: um quinto endpoint que tente importar `semOrganizacao` não passa
+ * `eslint.config.mjs` desde o esqueleto: um sexto endpoint que tente importar `semOrganizacao` não passa
  * no lint.
  *
  * **Não exige organização ativa — e também não a recusa** (§4.4, correção de 22/08/2026): quem já está em

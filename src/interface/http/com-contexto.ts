@@ -61,8 +61,8 @@ import { novoTraceId } from "./traco";
  * `eslint.config.mjs`. Então um `route.ts` que não passe por aqui não tem função de consulta, não tem porta
  * e não tem cliente: não tem como falar com o banco.
  *
- * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente quatro operações rodam
- * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos quatro `route.ts` daquela
+ * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente cinco operações rodam
+ * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos cinco `route.ts` daquela
  * lista. Um quinto endpoint não é caso a resolver no código: é emenda à ADR.
  */
 
@@ -103,7 +103,7 @@ function ehResposta(valor: unknown): valor is RespostaDoManipulador {
 // As duas entradas
 // ---------------------------------------------------------------------------
 
-/** O que os 33 endpoints escopados recebem. */
+/** O que os 34 endpoints escopados recebem. */
 export type EntradaEscopada<C> = {
   /** `{ usuarioId, pessoaId, nome, vinculo }` — e `vinculo.pode(x)` é a única pergunta de autorização. */
   ctx: ContextoDaRequisicao;
@@ -120,7 +120,7 @@ export type EntradaSemOrganizacao<C> = {
   ctx: ContextoDaSessao;
   /** A resolução inteira — é ela que `GET /contexto` projeta, sem refazer consulta nenhuma. */
   resolucao: ResolucaoDeContexto;
-  /** O nome grita que **não** é escopado. Só as quatro operações da lista fechada o recebem. */
+  /** O nome grita que **não** é escopado. Só as cinco operações da lista fechada o recebem. */
   portasGlobais: PortasGlobais;
   corpo: C;
   parametros: Readonly<Record<string, string>>;
@@ -175,7 +175,7 @@ type OpcoesEscopadas<C> = {
 type OpcoesSemOrganizacao<C> = { corpo?: ZodType<C> };
 
 // ---------------------------------------------------------------------------
-// comContexto — os 33
+// comContexto — os 34
 // ---------------------------------------------------------------------------
 
 export function comContexto<C = undefined>(
@@ -231,7 +231,7 @@ export function comContexto<C = undefined>(
 }
 
 // ---------------------------------------------------------------------------
-// semOrganizacao — os quatro da lista fechada (contrato §4.4)
+// semOrganizacao — os cinco da lista fechada (contrato §4.4)
 // ---------------------------------------------------------------------------
 
 export function semOrganizacao<C = undefined>(
@@ -271,7 +271,7 @@ export function semOrganizacao<C>(
 
       return montarResposta(resultado);
     } catch (erro) {
-      // **As quatro operações da §4.4 rodam antes de existir organização ativa**, então não há nome que
+      // **As cinco operações da §4.4 rodam antes de existir organização ativa**, então não há nome que
       // pôr no corpo. O `null` é escrito, e não herdado de um valor padrão: quem lê o `catch` vê a razão.
       return registrarEResponder(erro, requisicao, traceId, null);
     }
@@ -347,7 +347,7 @@ async function tokenPortador(): Promise<string | null> {
  * > `X-Organizacao-Id` **nunca escolhe** a organização — apenas confirma a que a sessão já escolheu.
  * > Ausente, não há verificação. Presente e diferente: `409`, e nada é executado.
  *
- * Confere-se **só no caminho escopado**. Nas quatro operações da §4.4 não há organização ativa a
+ * Confere-se **só no caminho escopado**. Nas cinco operações da §4.4 não há organização ativa a
  * confirmar — e em `GET /contexto`, que é justamente o pedido com que a aba desatualizada descobre a
  * divergência, um `409` a deixaria sem caminho de volta.
  */

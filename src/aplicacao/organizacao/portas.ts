@@ -262,7 +262,7 @@ export interface RepositorioDePedidosDeEntrada {
 
 /**
  * A porta de leitura que **atravessa organizações**, no molde de `RepositorioGlobalDeVinculos`: uma das
- * quatro exceções da §4.4, porque `GET /contexto` precisa dos pedidos da Pessoa em toda parte.
+ * cinco exceções da §4.4, porque `GET /contexto` precisa dos pedidos da Pessoa em toda parte.
  *
  * **Parte de `pedidos_de_entrada`, filtrando por `pessoa_id`** — nunca de `pessoas` (DoD · contrato §4.6).
  */
