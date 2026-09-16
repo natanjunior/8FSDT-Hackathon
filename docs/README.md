@@ -15,31 +15,31 @@ Trabalho da Fase 5 da pós-graduação em Full Stack Development (FIAP).
 
 ## Conteúdo desta pasta
 
-Esta pasta contém a documentação da solução. Material de terceiros — o enunciado do desafio e as
-apostilas das aulas — e o material de processo interno ficam fora do repositório.
+Esta pasta contém a documentação da solução. O material de terceiros e o de processo interno ficam fora
+do repositório.
 
-Os documentos abaixo estão na **ordem em que foram produzidos** — cada um usa o anterior. O número é
+Os documentos abaixo estão na **ordem em que foram produzidos**, e cada um usa o anterior. O número é
 identificador, não posição de leitura: quem entra agora encontra as duas trilhas logo depois da tabela.
 
 | # | Documento | O que contém |
 |---|---|---|
 | 01 | **[Documentação da Demanda](documentacao-da-demanda.md)** | Personas, o problema e a jornada atual, objetivos com métrica, jornada da solução em 11 etapas, requisitos funcionais e não funcionais quantificados, e análise de riscos |
 | 02 | **[Escopo](escopo.md)** | O que o produto é quando completo, o que entra nesta entrega, o que ficou para depois e por quê, e a evolução prevista |
-| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: **uma definição por termo**, o que não confundir com o quê, as cinco colisões de vocabulário que ele resolve, e os termos deliberadamente não usados |
-| 04 | **[Arquitetura](arquitetura.md)** | Design estratégico — subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas — e o Documento de Requisito Técnico da Solução |
+| 03 | **[Glossário](glossario.md)** | A linguagem ubíqua do projeto: uma definição por termo, o que não confundir com o quê, as cinco colisões de vocabulário que ele resolve, e os termos deliberadamente não usados |
+| 04 | **[Arquitetura](arquitetura.md)** | Design estratégico, com subdomínios, contextos delimitados, mapa de contexto, o agregado `Ocorrência` com a tabela de transições e as camadas, mais o Documento de Requisito Técnico da Solução |
 | 05 | **[Modelo de Dados](modelo-de-dados.md)** | Esquema físico em PostgreSQL: diagrama ER, uma seção por tabela com índices justificados, decisões de modelagem, e como cada invariante do domínio é garantida |
-| 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em **[api/openapi.yaml](api/openapi.yaml)**, em OpenAPI 3.1 |
-| 07 | **[Fluxos e Diagramas](fluxos-e-diagramas.md)** | Os fluxos que o texto explica pior: o comando de transição de ponta a ponta, a resolução de contexto, a entrada na organização, o registro com imagem — mais a relação de cada um com os três fluxogramas do enunciado, e a lista do que foi deliberadamente **não** desenhado |
-| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As telas desta entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que **não** virou tela |
+| 06 | **[Contrato de API](contrato-de-api.md)** | A superfície HTTP: como comando de domínio vira endpoint sem tornar o status escrevível, onde vive a organização, o modelo de erros, e a rastreabilidade de cada endpoint até a capacidade que ele realiza. A especificação executável está em [api/openapi.yaml](api/openapi.yaml), em OpenAPI 3.1 |
+| 07 | **[Fluxos e Diagramas](fluxos-e-diagramas.md)** | Os fluxos que o texto explica pior: o comando de transição de ponta a ponta, a resolução de contexto, a entrada na organização, o registro com imagem — mais a relação de cada um com os três fluxogramas do enunciado, e a lista do que foi deliberadamente não desenhado |
+| 08 | **[Inventário de Telas](inventario-de-telas.md)** | As telas desta entrega: o que cada uma responde, o que oferece e qual endpoint chama; os estados vazio, carregando e erro; o mapa de navegação; e a lista do que não virou tela |
 | 09 | **[Registros de Decisão de Arquitetura](adr/)** | Uma decisão por arquivo, no formato Nygard, cada uma com o contexto, as alternativas rejeitadas e as consequências — inclusive as ruins. O índice, com o status de cada uma, está em **[adr/README.md](adr/README.md)** |
 | 10 | **[Premissas e Questões Abertas](premissas-e-questoes-abertas.md)** | As premissas assumidas sem confirmação, com o que muda em cada caso se estiverem erradas; os pontos de atenção em aberto; as divergências encontradas nas fontes do enunciado |
-| 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, com as reduções em relação ao material do curso justificadas item a item |
-| 12 | **[Protótipo Low-Fi](prototipo-low-fi.md)** | A forma das telas: o orçamento de tempo do registro em menos de um minuto — o único requisito cronometrado do projeto —, os desenhos em baixa fidelidade, e o que desenhar descobriu |
+| 11 | **[Definition of Done e Definition of Ready](definition-of-done.md)** | Os dois portões de qualidade do projeto, cada critério justificado pelo defeito que ele previne, e cada redução em relação ao portão completo justificada item a item |
+| 12 | **[Protótipo Low-Fi](prototipo-low-fi.md)** | A forma das telas: o orçamento de tempo do registro em menos de um minuto, que é o único requisito cronometrado do projeto, os desenhos em baixa fidelidade, e o que desenhar descobriu |
 | 13 | **[Event Storming](event-storming.md)** | O workshop de descoberta do domínio: os eventos, os comandos e quem os dispara, as onze políticas, os modelos de leitura por ator, e os seis agregados e dois contextos que saíram dali |
 
-> **O 12 é identificador, não fim de fila.** O protótipo foi produzido depois do inventário de telas e
-> lê-se logo em seguida a ele — mas renumerar 09, 10 e 11 quebraria referências que outros documentos já
-> fazem por número. Identificador serve para ser estável.
+**O número é identificador, e não fim de fila.** O protótipo é o 12 e lê-se logo depois do inventário de
+telas, que é o 08, porque foi produzido ali. Renumerar 09, 10 e 11 para encostar os dois quebraria
+referências que outros documentos já fazem por número, e identificador serve para ser estável.
 
 ---
 
@@ -52,9 +52,9 @@ resolver, avaliar, e a trilha que grava cada passo. De lá:
 [ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md) para a decisão que sustenta o
 resto — a auditabilidade como invariante do agregado, e não como convenção do time.
 
-**Caminho completo.** A ordem 01 a 12 da tabela acima.
+**Caminho completo.** A ordem 01 a 13 da tabela acima.
 
-**Se a pergunta for específica**, o atalho é outro:
+Se a pergunta for específica, o atalho é outro:
 
 | A pergunta | Onde ela é respondida |
 |---|---|
@@ -69,34 +69,31 @@ resto — a auditabilidade como invariante do agregado, e não como convenção 
 
 ## Como o modelo foi construído
 
-Três fontes, nesta ordem de autoridade:
+Duas fontes, nesta ordem de autoridade.
 
-1. **O enunciado do desafio.** Todo requisito dele é obrigatório e está inventariado item a item na
-   Documentação da Demanda. Onde o enunciado define o quê *e* o como, ele é seguido literalmente; onde
-   apenas exige que algo exista, a forma foi decidida no projeto.
-2. **O material da disciplina de DDD da Fase 1** — nove aulas. Cada prática adotada é citada como
-   `aula N, p.X`. O que veio de fora da disciplina está marcado **[FONTE EXTERNA]**.
-3. **Descoberta própria** — Event Storming pelos dez passos da aula 6; a experiência vivida de um
-   integrante do time, que é síndico do condomínio onde mora; e benchmark de mercado sobre sistemas de
-   gestão de condomínio, softwares de manutenção, service desk e plataformas cívicas de relato.
-   **Não houve entrevista com pessoas de fora do time** — é a limitação declarada na premissa **P5**, e a
-   que mais escopo destravaria se fosse resolvida.
+**O enunciado do desafio.** Todo requisito dele é obrigatório, e está inventariado item a item na
+Documentação da Demanda. Onde o enunciado define o quê *e* o como, ele é seguido literalmente; onde apenas
+exige que algo exista, a forma foi decidida aqui, e a decisão está escrita com o que foi rejeitado.
+
+**Descoberta própria.** Um Event Storming, que produziu os eventos, os comandos, as políticas e os modelos
+de leitura; a experiência de um integrante do time, que é síndico do condomínio onde mora; e um benchmark
+de sistemas de gestão de condomínio, de softwares de manutenção, de service desk e de plataformas cívicas
+de relato. Não houve entrevista com pessoas de fora do time, que é a limitação declarada na premissa
+`P5`, e a que mais escopo destravaria se fosse resolvida.
+
+O vocabulário de modelagem é o de Domain-Driven Design: agregado, contexto delimitado, linguagem ubíqua,
+Event Storming. Cada lugar onde ele é aplicado traz o motivo ao lado, porque uma prática que precisa de
+citação para se sustentar não está sustentada.
+
+**O corte de escopo separa obrigação de escolha.** Nenhum requisito do enunciado ficou de fora: tudo o que
+foi cortado é adição nossa, e o [Escopo](escopo.md) diz qual, por quê, e o que custaria trazer de volta.
 
 ---
 
-## Marcadores de origem
+## Os identificadores
 
-Todo requisito e toda decisão nos documentos carregam a origem. A distinção define o que é obrigação e o
-que é escolha:
-
-| Marcador | Significado | Pode ser cortado? |
-|---|---|---|
-| `ENUNCIADO · literal` | O enunciado define o quê **e** o como | **Não** |
-| `ENUNCIADO · aberto` | A existência é imposta; a forma é decisão do projeto | **Não** (a existência) |
-| `NOSSO` | Adição do projeto — justificada em valor contra custo | **Sim** |
-
-Decisões de produto são referenciadas por identificador (`D1` a `D27`), premissas por `P1` a `P5`, e
-pontos de atenção por `PA-nn`. Os identificadores são estáveis e usados em todos os documentos.
+Decisões de produto são citadas por identificador, `D1` a `D27`; premissas por `P1` a `P5`; pontos de
+atenção por `PA-nn`. Eles são estáveis, e atravessam todos os documentos.
 
 ---
 
