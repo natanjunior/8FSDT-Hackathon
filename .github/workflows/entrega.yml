@@ -110,6 +110,25 @@ jobs:
       - name: build
         run: npm run build
 
+      # --- A documentação como o leitor a recebe ------------------------
+      # Os verificadores acima leem os arquivos; este lê as páginas montadas.
+      # Os arquivos já passaram em tudo enquanto o site tinha link quebrado e
+      # diagrama como código, então a conferência tem de ser das páginas.
+      #
+      # As duas variáveis são fictícias: só a raiz do produto as lê, e sem
+      # sessão ela redireciona para `/entrar` sem chamar o provedor.
+      - name: verificador do site — as páginas montadas, antes da imagem
+        env:
+          SUPABASE_URL: http://127.0.0.1:9
+          SUPABASE_CHAVE_ANONIMA: ficticia
+        run: |
+          npx next start -p 3000 &
+          for tentativa in $(seq 1 30); do
+            curl -s -o /dev/null "http://127.0.0.1:3000/documentacao/README" && break
+            sleep 2
+          done
+          npm run verificar:site -- http://127.0.0.1:3000
+
   # ---------------------------------------------------------------------------
   # 1b · O compose num runner limpo. **Critério 5 do item 39, e é o verificador
   #      do A6.** O que ele prova não é que a imagem sobe: é que ela sobe **do
@@ -467,3 +486,15 @@ jobs:
           done
           echo "A URL pública não respondeu 200 em /entrar. Reaponte o tráfego para a revisão anterior."
           exit 1
+
+      # A mesma conferência do emprego `verificar`, agora contra o que está no
+      # ar. Ela só lê: vermelho aqui não desfaz nada, e avisa que a revisão
+      # nova publicou uma documentação quebrada.
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: verificador do site — a documentação publicada
+        run: node ferramentas/verificadores/site.mjs "${{ steps.endereco.outputs.url }}"

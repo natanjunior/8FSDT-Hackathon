@@ -40,3 +40,18 @@
 @import "fumadocs-ui/css/preset.css";
 
 @source "../../node_modules/fumadocs-ui/dist/**/*.js";
+
+/* ----------------------------------------------------------------------------
+   Tabelas no celular
+
+   O Fumadocs já envolve cada tabela num contêiner com rolagem. O que falta é a
+   tabela usar essa rolagem: com largura de 100%, ela encolhe até caber, e as
+   células de texto viram colunas de uma palavra. Com largura mínima, ela passa
+   a transbordar para o lado, e o contêiner rola.
+   ---------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  .prose table {
+    min-width: 40rem;
+  }
+}

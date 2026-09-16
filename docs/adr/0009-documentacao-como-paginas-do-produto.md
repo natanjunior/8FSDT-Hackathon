@@ -144,4 +144,5 @@ da barra lateral. Restringir o padrão ao nome `meta.json` resolve, e de quebra 
   quebra depende de resolver as referências de seção entre páginas irmãs. É trabalho próprio.
 - **Não decide o tema visual da documentação.** Ela usa o preset neutro do Fumadocs, e ter cara própria é
   consequência aceita: a documentação é coisa à parte do produto, ainda que integrada.
-- **Não decide a busca.** Ela vem com o motor e ainda não foi ligada.
+- **Não decide o motor da busca.** A busca usa o índice em memória que vem com o Fumadocs, servido em
+  `/documentacao/api/busca`, fora do prefixo `/api/` da superfície do produto.
