@@ -43,7 +43,15 @@ export function Diagrama({ texto }: { texto: string }) {
 
   // O `verificar:mermaid` roda no portão e não deixa diagrama quebrado chegar aqui. Se chegar, o texto
   // do diagrama é mais útil que uma caixa vazia.
-  if (falhou) return <pre>{texto}</pre>;
+  if (falhou) return <pre data-diagrama="falhou">{texto}</pre>;
 
-  return <div className="overflow-x-auto" dangerouslySetInnerHTML={{ __html: svg }} />;
+  // O `data-diagrama` é o que o `verificar:site` conta na página publicada: um por bloco `mermaid` dos
+  // arquivos, e nenhum diagrama sobrando como código.
+  return (
+    <div
+      data-diagrama=""
+      className="my-6 overflow-x-auto"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
 }
