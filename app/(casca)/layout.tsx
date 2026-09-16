@@ -6,7 +6,13 @@ import { listarPedidosDeEntrada } from "@/aplicacao/organizacao";
 import type { Permissao } from "@/dominio/organizacao";
 import { BarraSuperior } from "@/interface/componentes/casca/barra-superior";
 import { Navegacao } from "@/interface/componentes/casca/navegacao";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/interface/componentes/ui/sheet";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/interface/componentes/ui/sidebar";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
@@ -53,31 +59,32 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
   );
 
   return (
-    <div className="min-h-dvh">
+    <SidebarProvider open className="min-h-dvh flex-col">
       <BarraSuperior
         vinculos={projetado.vinculos}
         organizacaoAtivaId={organizacaoAtiva.id}
         nomeDaPessoa={projetado.pessoa.nome}
       >
-        <Sheet>
-          <SheetTrigger aria-label="Abrir navegação" className="min-h-11 min-w-11 md:hidden">
-            ☰
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[214px] p-4">
-            <SheetTitle className="sr-only">Nesta organização</SheetTitle>
-            {navegacao}
-          </SheetContent>
-        </Sheet>
+        <SidebarTrigger aria-label="Abrir navegação" className="size-11 md:hidden" />
       </BarraSuperior>
 
-      <div className="flex">
-        <aside className="border-linha hidden w-[214px] shrink-0 border-r p-4 md:block">
-          {navegacao}
-        </aside>
+      <div className="flex w-full flex-1">
+        {/* **A barra começa abaixo do cabeçalho, e é a única briga entre o componente e o desenho.** O
+            `Sidebar` do catálogo é `fixed inset-y-0` com `h-svh`, porque o arranjo canônico dele põe a
+            marca dentro da lateral e o cabeçalho só sobre o conteúdo. Este produto tem a barra superior
+            atravessando, e foi assim que o dono validou. O `!` é o que torna o deslocamento determinístico:
+            sem ele, `top-14` e o `inset-y-0` do componente dependeriam da ordem em que o Tailwind emite as
+            duas propriedades. */}
+        <Sidebar
+          collapsible="offcanvas"
+          className="top-14! h-[calc(100svh-3.5rem)]! md:top-[60px]! md:h-[calc(100svh-60px)]!"
+        >
+          <SidebarContent className="gap-0 px-2 py-4">{navegacao}</SidebarContent>
+        </Sidebar>
 
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+        <SidebarInset className="min-w-0 px-4 py-6 md:px-6">{children}</SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
