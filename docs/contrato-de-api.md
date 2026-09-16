@@ -5,7 +5,7 @@ description: "A superfície HTTP: como comando de domínio vira endpoint sem tor
 
 # Contrato de API — Resolve Aí
 
-Superfície HTTP desta entrega. Deriva de [escopo.md](escopo.md) (as 44 capacidades ✅),
+Superfície HTTP desta entrega. Deriva de [escopo.md](escopo.md) (as 45 capacidades ✅),
 [modelo-de-dados.md](modelo-de-dados.md) (as **catorze tabelas migradas, de dezessete modeladas**, e a regra
 do vínculo), [arquitetura.md](arquitetura.md) (o agregado `Ocorrência` e as quatro camadas),
 [glossario.md](glossario.md) (os nomes) e do [event-storming.md](event-storming.md) (comandos do passo 5,
@@ -810,7 +810,7 @@ comentários, e não há exclusão de mensagem (P6).
 
 ## 8. Os endpoints
 
-**37 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
+**38 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
 (§4.5); *Capacidade* é a linha do `escopo.md` com o marcador de origem; *Comando/Leitura* é a origem no
 Event Storming.
 
@@ -857,6 +857,7 @@ permissoes[], vinculos[], pedidosDeEntrada[] }`.
 | Endpoint | Quem | Capacidade · origem | Comando/Leitura |
 |---|---|---|---|
 | `POST /organizacoes` | qualquer sessão válida — **não exige** organização ativa | Criar a organização por auto-serviço; quem cria vira Gestor inicial · D26 | `Registrar organização` |
+| `PATCH /organizacoes` | `organizacao.configurar` | Corrigir o nome da organização · D25 | sem comando no Event Storming — ver a §13 |
 | `GET /categorias` | qualquer vínculo ativo | Editar categorias | leitura do formulário de registro |
 | `POST /categorias` | `organizacao.configurar` | idem | `Criar categoria` |
 | `PATCH /categorias/{id}` | `organizacao.configurar` | idem | `Criar` / `Desativar categoria` |
@@ -930,9 +931,25 @@ as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à
 o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o que sustenta a reordenação em
 T-14. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
-**Não existe `PATCH /organizacao`.** Renomear, logo e o interruptor *"exigir solução ao resolver"* são ⬜
-(evolução prevista). Nesta entrega a organização é imutável depois de criada, consequência do corte, não
-descuido, e registrada na §11.
+**`PATCH /organizacoes`**, recebe `{ nome? }`, devolve `200` com `OrganizacaoResumo`. O corpo vazio é
+recusado com `400 FORMATO_INVALIDO`, na mesma forma de `PATCH /areas/{id}`. Não há `{id}` no caminho: a
+organização é a da sessão (§4.2), e sem identificador não existe chamada que alcance outra. Sem `404`,
+porque a organização da sessão existe; sem `409` de nome duplicado, porque `organizacoes` não tem
+unicidade sobre `nome`. Erros: `400` · `401` · `403 PERMISSAO_INSUFICIENTE` · `409 ORGANIZACAO_DIVERGENTE`.
+
+Três campos **não** são editáveis, e cada um por uma razão diferente:
+
+- **`codigoPublico`** — gerado pelo servidor, não aceito no corpo, e **não rotacionável nesta entrega**.
+  Código vazado não vira acesso: quem o digita abre um pedido de entrada que o Gestor decide (D25).
+  Trocá-lo invalidaria o cartaz impresso que ninguém recolhe, e o produto não tem canal para avisar.
+- **`logoCaminho`** — não há mecanismo de storage para ele, e o caminho quando a logo entrar já está
+  decidido: vira uma linha em `anexos` (`modelo-de-dados.md` §6.3).
+- **`exigirSolucaoAoResolver`** — ligá-lo muda a máquina de estados e exige um
+  `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` novo em `/resolver`. Continua ⬜ (D22).
+
+A alteração deixa rastro na forma última escrita — `atualizado_em` e `atualizado_por_pessoa_id` —, a
+mesma de `categorias` e `areas` (`modelo-de-dados.md` §7.7). Não há tabela de histórico de configuração:
+o RNF9 é sobre a trilha da ocorrência.
 
 ### 8.2 Atividade 1 — Entrar na organização
 
@@ -1003,7 +1020,7 @@ Por que embutidos e não em recurso próprio. Endpoints de contato
 cabe num campo, e criariam a pergunta *"contato é recurso do domínio?"*, cuja resposta é não: é
 atributo de uma Pessoa que só é alcançável através de um vínculo (§4.6). Recurso próprio precisaria
 de URL própria, e URL própria é o que a regra do vínculo primeiro nega a `Pessoa`.
-**Consequência boa:** continuam 37 operações.
+**Consequência boa:** aquela decisão não acrescentou operação nenhuma ao contrato.
 
 **Por que substituição e não mesclagem.** `PATCH` com `contatos[]` **troca a lista inteira**; `[]`
 remove todos; omitir o campo não mexe em nada. A alternativa, mesclar por `id`, exigiria que o
@@ -1898,8 +1915,8 @@ de *entrada* que o cliente antigo não saiba produzir.**
 
 | # | Item da evolução prevista (`escopo.md` §4) | O que muda no contrato | Aditivo? |
 |---|---|---|---|
-| 1 | Identidade da organização — logo e nome (D25) | `PATCH /organizacao` (novo) + campos em `Contexto` | ✅ |
-| 2 | Interruptor *exigir solução ao resolver* (D22) | `PATCH /organizacao` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
+| 1 | Identidade da organização — logo e página pública (D25). **O nome saiu do ⬜ em 16/09/2026** e é servido por `PATCH /organizacoes` | `logoCaminho` em `PATCH /organizacoes` + campos em `Contexto` | ✅ |
+| 2 | Interruptor *exigir solução ao resolver* (D22) | `exigirSolucaoAoResolver` em `PATCH /organizacoes` + novo `409 SOLUCAO_EXIGIDA_PELA_ORGANIZACAO` em `/resolver` | ✅ |
 | 3 | Página pública da organização com código na URL (D25) | `GET /organizacoes/publica?codigo=` — **o único endpoint anônimo do produto**, devolvendo só nome e logo | ✅ |
 | 4 | Convite por link de uso único (D25) | `POST /convites` · `GET /convites/{token}` (anônimo) · `POST /convites/{token}/aceitar` | ✅ |
 | 5 | Importar pessoas em lote (D25) | `POST /vinculos/importacoes` | ✅ |
@@ -1938,7 +1955,7 @@ de conveniência, é buraco declarado no desenho**.
 ### 11.1 Ampliar o anexo — fora dos 21, e o motivo de estar aqui
 
 Mais de um anexo por ocorrência, e anexo de outro tipo, não são itens de escopo, não estão entre os 21
-e não entram na contagem: o `escopo.md` segue com 66 itens, 44 nesta entrega. Estão nesta seção
+e não entram na contagem: o `escopo.md` segue com 67 itens, 45 nesta entrega. Estão nesta seção
 porque é aqui que este contrato mede aditividade, e porque a tabela `anexos` (§7.8 do `modelo-de-dados.md`)
 foi desenhada exatamente para que estes dois dias custassem pouco. Se o custo não estiver escrito, a
 decisão de modelagem que o barateou vira folclore.
@@ -2000,12 +2017,12 @@ deste documento cita.
 
 ---
 
-## 13. Rastreabilidade — as 44 capacidades ✅
+## 13. Rastreabilidade — as 45 capacidades ✅
 
 Critério: toda capacidade ✅ tem de ser alcançável pelo contrato, e todo endpoint tem de derivar de uma.
 A verificação nos dois sentidos.
 
-**São 44 ✅ de 66 no `escopo.md`**, e o critério de quem entra é entregar comportamento que não existia.
+**São 45 ✅ de 67 no `escopo.md`**, e o critério de quem entra é entregar comportamento que não existia.
 A **4b** (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) entram
 por ele. **Ficam de fora** o item 43, a semente de demonstração, que é instrumento para tornar o dashboard
 conferível e não coisa que o produto faz, e o 44, o tema visual. O denominador carrega uma linha ⬜ que
@@ -2018,6 +2035,7 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 |---|---|---|---|
 | **0 · Configurar a organização** |
 | 1 | Criar a organização por auto-serviço | D26 | `POST /organizacoes` |
+| **1b** | **Corrigir o nome da organização** | D25 | `PATCH /organizacoes` |
 | 2 | Categorias-semente | D18 | *(efeito da POL-01 em `POST /organizacoes`; verificável em `GET /categorias`)* |
 | 3 | Áreas-semente, com os dois tipos | D10, D18 | *(efeito da POL-01; verificável em `GET /areas`)* |
 | 4 | Editar categorias | Enunciado | `GET/POST /categorias` · `PATCH /categorias/{id}` |
@@ -2073,16 +2091,17 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 
 **Fechamento da contagem:**
 
-- **38 capacidades de usuário.** Todas alcançáveis: **35 por endpoint** — 31 com endpoint próprio e
+- **39 capacidades de usuário.** Todas alcançáveis: **36 por endpoint** — 32 com endpoint próprio e
   **quatro dividindo endpoint com outra capacidade** (nº 20 e nº 21 com a nº 19; a 4b com a nº 4; a
   7b com a nº 7), e 3 sem endpoint próprio e com motivo declarado: nº 6 (autenticação, realizada
   pelo provedor) e nº 2 e 3 (sementes, efeito de política). Endpoint próprio não é endpoint dedicado:
   quatro capacidades dividem endpoint com outra, e é por isso que os dois números diferem.
 - **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
   não são de API, e a nº 42 é, em parte, este par de arquivos.
-- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 37 endpoints existe sem
-  capacidade correspondente, os três de pedido de entrada têm capacidade (nº 8) e não têm comando no
-  Event Storming**, o que está registrado como lacuna C-5, não como invenção.
+- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 38 endpoints existe sem
+  capacidade correspondente, e quatro não têm comando no Event Storming**: os três de pedido de entrada
+  têm capacidade (nº 8) e caem na lacuna C-5, e o `PATCH /organizacoes` (nº 1b) nasceu depois do
+  workshop, que não se emenda para trás. Lacuna registrada, não invenção.
 
 ---
 
