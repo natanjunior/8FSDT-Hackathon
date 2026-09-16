@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, listarCategorias } from "@/aplicacao/organizacao";
+import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
+import { FormularioDeOrganizacao } from "@/interface/componentes/formulario-de-organizacao";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
@@ -15,10 +17,11 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * para `configuracao/categorias` (T-09) e `configuracao/areas` (T-14), e aqui ficou a configuração da
  * organização.
  *
- * **O que ainda não está aqui, e tem dono:** o nome editável e o código público da organização são o item
- * **46 · 47**, e é nesta tela que eles moram quando chegarem. Até lá esta página é um índice com duas
- * contagens — e é a contagem que a faz valer a visita, porque responde *"está configurado?"* de um
- * relance, que é a pergunta que a tela fundida respondia ao abrir.
+ * **Ela nasceu sem campo próprio, e ganhou um em 16/09/2026.** O nome editável e o código público da
+ * organização eram o item **46 · 47**, e chegaram: a seção *Identidade* abre a tela, com o nome servido
+ * por `PATCH /organizacoes` e o código do cartaz do elevador com o gesto de copiar. Até ali esta página
+ * era um índice com duas contagens — e a contagem continua aqui, porque responde *"está configurado?"* de
+ * um relance, que é a pergunta que a tela fundida respondia ao abrir.
  *
  * **As duas leituras são as mesmas que a tela fundida já disparava em paralelo** — nenhuma consulta nova
  * entrou no produto com a separação. Elas vêm com as inativas porque a contagem diz *"7 ativas de 7"*, e
@@ -28,7 +31,11 @@ import { resolverEscopoParaTela } from "@/interface/http";
  */
 export const dynamic = "force-dynamic";
 
-export default async function ConfiguracaoDaOrganizacao() {
+export default async function ConfiguracaoDaOrganizacao({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const escopo = await resolverOuMandarParaPorta();
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
@@ -39,6 +46,8 @@ export default async function ConfiguracaoDaOrganizacao() {
     listarAreas(escopo.repos.areas, { incluirInativas: true }),
   ]);
 
+  const parametros = await searchParams;
+  const ativo = escopo.resolucao.ativo;
   const ativas = (itens: readonly { ativa: boolean }[]) => itens.filter((i) => i.ativa).length;
 
   return (
@@ -46,8 +55,28 @@ export default async function ConfiguracaoDaOrganizacao() {
       <header className="flex flex-col gap-1">
         <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
         <h1 className="text-tinta text-xl leading-snug font-semibold">Configuração</h1>
-        <p className="text-tinta-suave text-sm">{escopo.resolucao.ativo?.organizacao.nome}</p>
+        {/* **Sem o subtítulo com o nome, e só nesta tela.** Aqui o nome é conteúdo, não contexto: ele
+            está no campo abaixo. A `BarraSuperior` continua anunciando a organização ativa. */}
       </header>
+
+      <FaixaDoDesfecho parametros={parametros} />
+
+      {/* **Identidade primeiro, listas depois.** A pergunta da tela é *"o que desta organização eu posso
+          ajustar?"*, e o que é **desta** organização vem antes do que está **dentro** dela — a mesma
+          regra do geral para o particular que ordena a barra lateral. */}
+      <section className="flex flex-col gap-5">
+        <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Identidade</h2>
+
+        {ativo !== null && (
+          <>
+            <FormularioDeOrganizacao
+              nome={ativo.organizacao.nome}
+              organizacaoId={ativo.organizacao.id}
+            />
+            <CodigoDaOrganizacao codigo={ativo.organizacao.codigoPublico} />
+          </>
+        )}
+      </section>
 
       <div className="flex flex-col gap-3">
         <Destino
@@ -74,6 +103,29 @@ export default async function ConfiguracaoDaOrganizacao() {
         Voltar
       </Link>
     </div>
+  );
+}
+
+/**
+ * **O desfecho sobrevive ao recarregamento porque vem na URL**, e não num estado que o `router.refresh()`
+ * apagaria. Mesma forma de T-09, T-14 e T-08.
+ */
+function FaixaDoDesfecho({
+  parametros,
+}: {
+  parametros: Record<string, string | string[] | undefined>;
+}) {
+  const valor = parametros["renomeada"];
+  const renomeada = typeof valor === "string" ? valor : "";
+  if (renomeada === "") return null;
+
+  return (
+    <p
+      role="status"
+      className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
+    >
+      A organização passou a se chamar <strong className="font-semibold">{renomeada}</strong>.
+    </p>
   );
 }
 
