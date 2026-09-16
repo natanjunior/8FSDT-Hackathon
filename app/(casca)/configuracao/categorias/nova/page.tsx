@@ -13,8 +13,9 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * padrão fica intocado para quem chama a API direto — mas uma categoria nova com `ordem = 0` apareceria
  * **antes** das sete sementes, que têm 1 a 7. A decisão é de tela, não de endpoint.
  *
- * A moldura é copiada de `app/configuracao/page.tsx`, e não importada: `resolverOuMandarParaPorta` é
- * função local lá. É a mesma escolha que `app/vinculos/nova/page.tsx` registrou.
+ * A moldura é copiada de `app/(casca)/configuracao/categorias/page.tsx`, e não importada:
+ * `resolverOuMandarParaPorta` é função local lá. É a mesma escolha que `app/vinculos/nova/page.tsx`
+ * registrou.
  */
 export const dynamic = "force-dynamic";
 

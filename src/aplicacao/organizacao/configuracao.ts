@@ -16,7 +16,7 @@ import type {
 
 /**
  * ============================================================================
- *  A configuração da organização — itens 4a e 5 (T-09)
+ *  A configuração da organização — itens 4a e 5 (T-09 e T-14)
  * ============================================================================
  *
  * **Os dois padrões de produto moram aqui, e não no schema de entrada.** É a mesma doutrina que

@@ -5,7 +5,7 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 /**
  * `GET /areas` — a segunda leitura que precede o registro. *Localização* é uma Área mais um complemento
  * em texto (D10), e é da Área que a visibilidade deriva. **E, do lote 3 em diante, as duas escritas de
- * T-09** — `POST /areas` e `PATCH /areas/{id}`.
+ * T-14** — `POST /areas` e `PATCH /areas/{id}`.
  *
  * **`ordem` existe por medição:** o campo de Área custa ~12 s do orçamento de 60 do RNF6, e é o único
  * conserto que atua no **primeiro** registro de cada pessoa — busca e *"usadas recentemente"* só ajudam do
@@ -102,7 +102,7 @@ export function repositorioEscopadoDeAreas(consulta: ConsultaEscopada): Reposito
  *  where organizacao_id = $1 and area_id = $2 and area_tipo <> $3::tipo_area
  * ```
  *
- * Deixar de trocá-la faz a frase de T-09 mentir a partir do primeiro registro.
+ * Deixar de trocá-la faz a frase de T-14 mentir a partir do primeiro registro.
  */
 const OCORRENCIAS_COM_TIPO_ANTERIOR = 0;
 

@@ -194,7 +194,7 @@ describe("criarArea", () => {
 });
 
 describe("corrigirArea", () => {
-  it("devolve a contagem que a frase de T-09 consome", async () => {
+  it("devolve a contagem que a frase de T-14 consome", async () => {
     const { porta } = portaDeAreas();
 
     const area = await corrigirArea(porta, {

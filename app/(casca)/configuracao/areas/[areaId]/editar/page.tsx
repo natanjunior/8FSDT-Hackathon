@@ -7,7 +7,7 @@ import { FormularioDeArea } from "@/interface/componentes/formulario-de-area";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
- * **T-09 · corrigir área** — renomear, reclassificar, reordenar, desativar e reativar.
+ * **T-14 · corrigir área** — renomear, reclassificar, reordenar, desativar e reativar.
  *
  * **A área é procurada na lista escopada**, pela mesma razão da categoria: não existe
  * `GET /areas/{id}`, são ~30 linhas, e a lista mantém o `$1` como única porta. Área de outra organização

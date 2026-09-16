@@ -7,7 +7,7 @@ import { FormularioDeArea } from "@/interface/componentes/formulario-de-area";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
- * **T-09 · criar área.**
+ * **T-14 · criar área.**
  *
  * A `ordem` chega pré-preenchida com a última + 1 (spec §2.6) — o `default: 0` do contrato fica intocado
  * para quem chama a API direto.
