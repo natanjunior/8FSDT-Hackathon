@@ -410,7 +410,7 @@ export type ImpedimentoDeRemocao = "historico" | "ultimo-gestor";
 /**
  * Os quatro desfechos da remoção. **Etiqueta, não exceção** — a mesma doutrina dos itens 7a, 8 e 9a.
  *
- * `com-historico` é a tradução do `23503`, e chega de **duas** origens: as oito chaves `on delete
+ * `com-historico` é a tradução do `23503`, e chega de **duas** origens: as nove chaves `on delete
  * restrict`, que erram no `delete`, e `organizacoes_criada_por_vinculo_fk`, que é
  * `deferrable initially deferred` e erra no `COMMIT`.
  */

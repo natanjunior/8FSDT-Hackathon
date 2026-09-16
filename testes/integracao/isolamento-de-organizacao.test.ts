@@ -9,6 +9,7 @@ import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraest
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
   repositorioEscopadoDePedidosDeEntrada,
@@ -1237,5 +1238,64 @@ describe("as escritas de configuração não atravessam organizações", () => {
       [criada.categoria.id],
     );
     expect(depois?.atualizado_por_pessoa_id).toBe(idSindica);
+  });
+
+  /**
+   * **O `C5` do item 46 · 47, e o que ele prova não é o que o critério parece pedir.**
+   *
+   * *"Ninguém edita organização em que não tem vínculo de Gestor"* é garantido **por construção**: o
+   * caminho não tem `{id}`, o repositório escopado não recebe o identificador, e o `update` sai com
+   * `where id = $1`. **Não existe valor a passar**, então não há chamada errada a escrever.
+   *
+   * O que a estrutura não prova sozinha é o efeito: que escrever em A não toca B. É isto.
+   *
+   * **E a segunda metade do critério — *"a recusa não confirma se ela existe"* — fecha sem código:** não
+   * há recusa por organização inexistente, porque não há como nomear uma. Quem não tem
+   * `organizacao.configurar` recebe `403` sobre a **própria** organização.
+   */
+  it("corrigir o nome em Aurora não muda o nome de Recanto", async () => {
+    const emAurora = repositorioEscopadoDaOrganizacao(escoparConsulta(consulta, idAurora));
+    const emRecanto = repositorioEscopadoDaOrganizacao(escoparConsulta(consulta, idRecanto));
+
+    const antesEmRecanto = await consulta<{ nome: string }>(
+      `select nome from organizacoes where id = $1`,
+      [idRecanto],
+    );
+
+    const corrigida = await emAurora.corrigir({
+      nome: "Residencial Aurora — corrigido",
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    expect(corrigida.nome).toBe("Residencial Aurora — corrigido");
+    expect(corrigida.id).toBe(idAurora);
+
+    const depoisEmRecanto = await consulta<{ nome: string }>(
+      `select nome from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(depoisEmRecanto[0]?.nome).toBe(antesEmRecanto[0]?.nome);
+
+    // O rastro é da organização certa, e é a última escrita — não uma segunda trilha.
+    const rastro = await consulta<{ atualizado_por_pessoa_id: string | null }>(
+      `select atualizado_por_pessoa_id from organizacoes where id = $1`,
+      [idAurora],
+    );
+    expect(rastro[0]?.atualizado_por_pessoa_id).toBe(idSindica);
+
+    const semRastro = await consulta<{ atualizado_por_pessoa_id: string | null }>(
+      `select atualizado_por_pessoa_id from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(semRastro[0]?.atualizado_por_pessoa_id).toBeNull();
+
+    // Escrever em Recanto por engano seria impossível sem um repositório escopado nele — e este, sim,
+    // escreve só em Recanto. Prova o outro lado da mesma moeda.
+    const outra = await emRecanto.corrigir({
+      nome: "Condomínio Recanto Azul — corrigido",
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(outra.id).toBe(idRecanto);
+    expect(outra.nome).toBe("Condomínio Recanto Azul — corrigido");
   });
 });
