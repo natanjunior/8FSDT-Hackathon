@@ -6,7 +6,7 @@ import { correcaoDeOrganizacaoSchema, criacaoDeOrganizacaoSchema } from "@/inter
 /**
  * `POST /organizacoes` — *criar a organização por auto-serviço* (contrato §8.1).
  *
- * **`semOrganizacao` porque este é o terceiro dos quatro endpoints da lista fechada da §4.4:** ele não
+ * **`semOrganizacao` porque este é o terceiro dos cinco endpoints da lista fechada da §4.4:** ele não
  * roda **sem** escopo por conveniência — ele **cria** o escopo. É o bootstrap da D26, e o `eslint.config.mjs`
  * já autoriza este caminho pelo nome.
  *

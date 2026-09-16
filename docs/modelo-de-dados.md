@@ -2064,7 +2064,7 @@ armazenamento, e a conta de armazenamento é uma só** para todas as organizaç�
 organização daria 60/h a quem tem dois vínculos, e transformaria *"entrar em outra organização"* num jeito
 de dobrar a franquia.
 
-2 · Ela fica FORA do repositório escopado, pela mesma razão, como os quatro endpoints da §4.4 do
+2 · Ela fica FORA do repositório escopado, pela mesma razão, como os cinco endpoints da §4.4 do
 `contrato-de-api.md`. **Isto está escrito para a próxima revisão não a encontrar e chamar de furo de
 isolamento:** a consulta do livro-caixa não passa pelo repositório base, é a exceção, e o teste de
 integração do item 13a a prova em vez de deixá-la parecer esquecimento.

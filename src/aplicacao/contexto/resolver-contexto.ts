@@ -37,6 +37,11 @@ export type ContextoDaSessao = {
   usuarioId: string;
   pessoaId: string;
   nome: string;
+  /**
+   * **O e-mail da conta, e ele existe para uma tela só** (T-16, item 49). `null` quando o provedor não o
+   * devolve. **Nenhuma projeção o publica** — ver `SessaoDoProvedor`.
+   */
+  email: string | null;
 };
 
 /**
@@ -81,7 +86,8 @@ export type ResolucaoDeContexto = {
  * > acontece quando o metadado não existe** — conta criada por outro fluxo do provedor, ou semeada. A
  * > coluna é `NOT NULL`, então é preciso um valor. Cair no trecho local do e-mail poria credencial na
  * > trilha imutável, contra o RNF10; recusar o login inutiliza a conta e não há código para isso na §6.4.
- * > Fica este literal, e o nome é corrigível uma última vez em T-02 face A (contrato §8.2).
+ * > Fica este literal, e quem cair nele conserta o nome em **T-16 · Meus dados**, sem prazo
+ * > (`PATCH /contexto/pessoa`, item 49).
  */
 export const NOME_AUSENTE = "Sem nome";
 
@@ -107,6 +113,7 @@ export async function resolverContexto(
     usuarioId: sessaoDoProvedor.usuarioId,
     pessoaId: pessoa.pessoaId,
     nome: pessoa.nome,
+    email: sessaoDoProvedor.email,
   };
 
   // **Em paralelo, e é o que torna a leitura nova barata:** duas consultas independentes numa ida só. Em
@@ -124,8 +131,8 @@ export async function resolverContexto(
 /**
  * Constrói o contexto completo a partir de uma resolução que **tem** organização ativa.
  *
- * Separado de `resolverContexto` porque as quatro operações da §4.4 rodam com a resolução sem organização,
- * e os outros 33 exigem esta. É o anel externo que escolhe qual das duas exige.
+ * Separado de `resolverContexto` porque as cinco operações da §4.4 rodam com a resolução sem organização,
+ * e os outros 34 exigem esta. É o anel externo que escolhe qual das duas exige.
  */
 export function contextoDaRequisicao(
   resolucao: ResolucaoDeContexto,

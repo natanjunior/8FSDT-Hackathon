@@ -9,7 +9,7 @@ import type { OrganizacaoCriada, RepositorioDeOrganizacoes } from "./portas";
  * ============================================================================
  *
  * É o **bootstrap da D26**: quem cria vira o Gestor inicial, porque o primeiro Gestor não tem quem o
- * aprove. Roda **sem organização ativa** — é uma das quatro operações da lista fechada (contrato §4.4) —,
+ * aprove. Roda **sem organização ativa** — é uma das cinco operações da lista fechada (contrato §4.4) —,
  * e **também não a recusa**: um Gestor de A pode fundar B, e a nova fica ativa pelo `Set-Cookie` da
  * própria resposta.
  *

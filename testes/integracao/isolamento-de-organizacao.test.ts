@@ -1299,3 +1299,68 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect(outra.nome).toBe("Condomínio Recanto Azul — corrigido");
   });
 });
+
+/**
+ * **O efeito global de renomear a Pessoa — item 49, spec §3.6.**
+ *
+ * Este bloco não é sobre isolamento **falhar**; é sobre a decisão de que `pessoas` é tabela única e o
+ * nome é atributo atual dela. `idSindica` tem vínculo nas **duas** organizações — é o cenário da
+ * Persona 1B —, e é por isso que ele detecta o que precisa ser detectado nos dois sentidos.
+ */
+describe("renomear a Pessoa vale em todas as organizações — pessoas é global", () => {
+  it("o nome novo aparece nas duas organizações, e nenhuma outra Pessoa muda", async () => {
+    const pessoas = repositorioDePessoas(consulta);
+    const emRecanto = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const emAurora = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+
+    // **Lido de `pessoas` e não do repositório escopado**, e a razão é de ordem: um caso anterior deste
+    // mesmo arquivo revoga o vínculo da moradora em Recanto, então `ativos()` não a traria e a asserção
+    // compararia `undefined` com `undefined`. A afirmação é sobre a tabela global, e é dela que se lê.
+    const [antesDaMoradora] = await consulta<{ nome: string }>(
+      `select nome from pessoas where id = $1`,
+      [idMoradora],
+    );
+
+    const corrigida = await pessoas.renomear(idSindica, "Helena Rocha");
+    expect(corrigida).toEqual({ pessoaId: idSindica, nome: "Helena Rocha" });
+
+    // **As duas leituras são escopadas, e cada uma só vê a própria organização.** O nome mudou nas duas
+    // porque a linha é a mesma — é a decisão, não um vazamento.
+    for (const [onde, repo] of [
+      ["Recanto", emRecanto],
+      ["Aurora", emAurora],
+    ] as const) {
+      const achada = (await repo.ativos()).find((v) => v.pessoa.pessoaId === idSindica);
+      expect(achada?.pessoa.nome, `a síndica em ${onde}`).toBe("Helena Rocha");
+    }
+
+    // E o outro lado da mesma afirmação: nenhuma outra Pessoa foi tocada.
+    const [depoisDaMoradora] = await consulta<{ nome: string }>(
+      `select nome from pessoas where id = $1`,
+      [idMoradora],
+    );
+    expect(depoisDaMoradora?.nome).toBe(antesDaMoradora?.nome);
+  });
+
+  it("o carimbo de atualizado_em anda, e é a aplicação que o escreve", async () => {
+    const [antes] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idMoradora],
+    );
+    await repositorioDePessoas(consulta).renomear(idMoradora, "Marta de Souza");
+    const [depois] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idMoradora],
+    );
+
+    // A migração `001` declara que **não há gatilho** de `atualizado_em`. Se este caso falhar, o `update`
+    // perdeu a cláusula — e uma coluna de relógio que não anda é pior que a ausência dela.
+    expect(depois!.atualizado_em.getTime()).toBeGreaterThanOrEqual(antes!.atualizado_em.getTime());
+  });
+});

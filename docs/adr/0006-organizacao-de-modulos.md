@@ -85,7 +85,7 @@ que o lint aponta.
 ninguém alcança arquivo interno de outro módulo.
 
 **Há ainda regras que não falam de camada**, e por isso não recebem número: `semOrganizacao` só é
-importável nos quatro `route.ts` da lista fechada do `contrato-de-api.md` §4.4; `portasDeAnexo` só no
+importável nos cinco `route.ts` da lista fechada do `contrato-de-api.md` §4.4; `portasDeAnexo` só no
 único `route.ts` que emite credencial de upload; `armazenamentoDeAnexos` só nos dois que reivindicam ou
 leem anexo. A primeira é a lista fechada da ADR-0003 virada mecanismo: o que aquela ADR exige de uma
 exceção nova, revisão explícita, passa a ser uma linha de configuração com o caminho do endpoint escrito

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { acaoDeSair } from "@/interface/acoes";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import {
@@ -22,6 +24,11 @@ function iniciaisDe(nome: string): string {
  *
  * Sair permanece `<form>` com `<button>`, e não vira link: é ação que muda estado no servidor, e o
  * critério 44b.4 a manteve de propósito na forma que já tinha.
+ *
+ * **O nome deixou de ser texto morto em 16/09/2026** (item 49). Um item desabilitado que imprime
+ * exatamente o dado que a tela nova edita é o lugar óbvio para o caminho até ela. **A segunda linha diz
+ * o destino**, porque o nome sozinho não anuncia que dali se chega a algum lugar (compromisso A-5: a
+ * palavra, nunca só o desenho). O `min-h-11` do compromisso **A-3** fica.
  */
 export function MenuDePessoa({ nomeDaPessoa }: { nomeDaPessoa: string }) {
   return (
@@ -36,8 +43,11 @@ export function MenuDePessoa({ nomeDaPessoa }: { nomeDaPessoa: string }) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
-        <DropdownMenuItem disabled className="flex-col items-start gap-0">
-          <span className="text-tinta font-medium">{nomeDaPessoa}</span>
+        <DropdownMenuItem asChild className="min-h-11">
+          <Link href="/meus-dados" className="flex-col items-start gap-0">
+            <span className="text-tinta font-medium">{nomeDaPessoa}</span>
+            <span className="text-tinta-suave text-meta">Meus dados</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {/* **O formulário envolve o item, e não o contrário.** O `asChild` do Radix funde as props do

@@ -30,6 +30,8 @@ export {
   type EntradaDeTrocaDeOrganizacao,
 } from "./organizacao";
 
+export { correcaoDePessoaSchema, type EntradaDeCorrecaoDePessoa } from "./pessoa";
+
 export {
   MENSAGEM_DE_TELEFONE,
   aprovacaoDePedidoSchema,

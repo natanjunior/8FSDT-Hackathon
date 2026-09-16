@@ -51,7 +51,7 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 export type { ArmazenamentoDeCookies };
 
 /**
- * As portas que as quatro operações sem organização consomem (contrato §4.4), mais a porta que o ponto
+ * As portas que as cinco operações sem organização consomem (contrato §4.4), mais a porta que o ponto
  * único de contexto usa em **toda** requisição.
  */
 export function montarPortasGlobais(

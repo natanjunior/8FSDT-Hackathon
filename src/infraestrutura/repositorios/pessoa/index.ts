@@ -10,8 +10,10 @@ import type { Consulta } from "@/infraestrutura/clientes";
  *
  * `pessoas` é **tabela global** (modelo §4.1): não tem `organizacao_id`, e portanto não há escopo a
  * aplicar. É por isso que este repositório não é escopado — e é exatamente por isso que **nenhuma
- * listagem parte daqui** (contrato §4.6): as duas consultas abaixo são pontuais, por `usuario_id`, que é
- * a chave que a sessão traz.
+ * listagem parte daqui** (contrato §4.6): as três operações abaixo são pontuais, duas por `usuario_id`,
+ * que é a chave que a sessão traz, e a terceira por `id`, que é a Pessoa que a resolução de contexto
+ * acabou de devolver. Nenhuma listagem parte daqui, e é isso que o DoD cobra — a regra é sobre listar
+ * gente, e o defeito que ela previne é uma consulta que devolve o cadastro do sistema inteiro.
  */
 export function repositorioDePessoas(consulta: Consulta): RepositorioDePessoas {
   return {
@@ -44,6 +46,33 @@ export function repositorioDePessoas(consulta: Consulta): RepositorioDePessoas {
       const linha = linhas[0];
       if (linha === undefined) {
         throw new Error("insert ... on conflict ... returning não devolveu linha — invariante violada");
+      }
+      return projetar(linha);
+    },
+
+    /**
+     * `PATCH /contexto/pessoa` — item 49. **Cópia literal do `update` que `pedidos-de-entrada.ts` já
+     * faz**, que é o único outro escritor de `pessoas.nome`: a migração `001` declara que não há gatilho
+     * de `atualizado_em`, e quem a mantém é a aplicação.
+     *
+     * **`where id = $1`, e o `$1` vem da sessão resolvida.** Não há filtro de organização a aplicar —
+     * `pessoas` é global (modelo §6.2) — e não há identificador que quem chama possa escolher: o
+     * endpoint não tem `{pessoaId}` no caminho.
+     */
+    async renomear(pessoaId, nome) {
+      const linhas = await consulta<{ id: string; nome: string }>(
+        `update pessoas
+            set nome = $2, atualizado_em = now()
+          where id = $1
+      returning id, nome`,
+        [pessoaId, nome],
+      );
+
+      const linha = linhas[0];
+      // **Zero linhas não é desfecho de domínio**, e é a mesma leitura de `organizacao-escopada.ts`: a
+      // Pessoa é a da sessão, e a sessão só existe porque o ACL acabou de garanti-la.
+      if (linha === undefined) {
+        throw new Error("o update de pessoa não devolveu linha — invariante violada");
       }
       return projetar(linha);
     },
