@@ -2,6 +2,7 @@ import type { RepositorioEscopadoDeDashboard } from "@/aplicacao/dashboard";
 import type {
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
+  RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDePedidosDeEntrada,
@@ -134,11 +135,17 @@ export type PortasGlobais = {
   escritaDePedidosDeEntrada: RepositorioDePedidosDeEntrada;
 };
 
-/** O que os outros 33 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
+/** O que os outros 34 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
+  /**
+   * A **própria** organização ativa, para a escrita de T-15 (item 46 · 47). Escopado como todos: o
+   * `where` é `id = $1`, e `$1` é injetado pelo ponto único — este membro não dá acesso a organização
+   * nenhuma além da que já está ativa.
+   */
+  organizacao: RepositorioEscopadoDaOrganizacao;
   /**
    * Os pedidos **desta** organização, e as duas decisões. Escopado, ao contrário da escrita de
    * `POST /pedidos-de-entrada`: aquela roda antes de existir vínculo, esta acontece dentro de uma
