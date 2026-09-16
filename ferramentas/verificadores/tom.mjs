@@ -4,7 +4,7 @@ import { RAIZ, curto, documentos, ler, relatar } from "./comum.mjs";
 
 /**
  * ============================================================================
- *  Verificador de tom — as seis regras contáveis
+ *  Verificador de tom — as sete regras de voz
  * ============================================================================
  *
  * Os outros cinco verificadores conferem FATO: o diagrama compila, o link resolve, a especificação bate
@@ -16,15 +16,14 @@ import { RAIZ, curto, documentos, ler, relatar } from "./comum.mjs";
  *  Por que há uma lista de aprovados, em vez de o portão valer para tudo
  * ---------------------------------------------------------------------------
  *
- * A reescrita é de 22 arquivos — 23 depois que o Event Storming atravessar — e leva semanas. Um portão
- * que exigisse todos de uma vez ficaria vermelho o tempo todo, e portão sempre vermelho ensina a ignorar
- * portão. Então:
+ * A reescrita é de 25 arquivos e leva semanas. Um portão que exigisse todos de uma vez ficaria vermelho o
+ * tempo todo, e portão sempre vermelho ensina a ignorar portão. Então:
  *
  *   · arquivo em APROVADOS  -> violação é FALHA, e o build cai;
  *   · arquivo fora da lista -> violação é NOTA, e o build passa.
  *
- * Cada tarefa da reescrita acrescenta uma linha à lista. Quando ela tiver os 23, o `if` deixa de ter
- * função e sai — e nesse dia o portão vale para o pacote inteiro.
+ * Cada tarefa da reescrita acrescenta uma linha à lista. Quando ela tiver os 25, o `if` deixa de ter
+ * função e sai, e nesse dia o portão vale para o pacote inteiro.
  */
 
 /** Arquivos já reescritos. Uma linha por tarefa concluída da reescrita. */
@@ -49,6 +48,8 @@ const APROVADOS = new Set([
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
   "docs/modelo-de-dados.md",
+  "README.md",
+  "docs/README.md",
   "docs/premissas-e-questoes-abertas.md",
   "docs/prototipo-low-fi.md",
 ]);
@@ -67,7 +68,7 @@ const APROVADOS = new Set([
 const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
 
 // ---------------------------------------------------------------------------
-// As seis regras
+// As sete regras
 // ---------------------------------------------------------------------------
 
 /** Regras 1 e 2 — densidade. Uma a cada N palavras, no máximo. */
@@ -136,6 +137,9 @@ const APARATO = [
   ],
 ];
 
+/** Regra 7 — a seção que o README da raiz tem de ter. */
+const SECAO_DO_QUE_DEU_ERRADO = /^#{1,6}\s+O que deu errado\s*$/mu;
+
 /** Regra 5 — seção que explica o documento em vez de dizer o que ele tem a dizer. */
 const CABECALHO_PROIBIDO =
   /^#{1,6}\s+.*\b(?:Como ler|Suposições declaradas|Questões ao hub|Limitações)\b/iu;
@@ -176,10 +180,22 @@ function blocosDeCitacao(linhas) {
  * quais regras dispararam. Mudar o prefixo quebra o controle, e o controle é o que prova que este
  * arquivo verifica alguma coisa.
  */
-export function violacoesDe(conteudo) {
+export function violacoesDe(conteudo, eu = "") {
   const linhas = conteudo.split(/\r?\n/u);
+
   const palavras = conteudo.split(/\s+/u).filter(Boolean).length;
   const violacoes = [];
+
+  /**
+   * Regra 7 — a única que não é cota, e a única que vale para um arquivo só.
+   *
+   * O `README.md` da raiz é a porta do repositório, e documentação que só mostra acerto não dá a ninguém
+   * como julgar o resto dela. A seção existe ou não existe; o que ela diz é de quem escreve, e o que esta
+   * regra impede é ela sumir numa reescrita distraída.
+   */
+  if (eu === "README.md" && !SECAO_DO_QUE_DEU_ERRADO.test(conteudo)) {
+    violacoes.push(`regra 7 — o README da raiz não tem a seção "O que deu errado"`);
+  }
 
   const negrito = (conteudo.match(NEGRITO) ?? []).length;
   const tetoNegrito = Math.floor(palavras / PALAVRAS_POR_NEGRITO);
@@ -245,7 +261,7 @@ let pendentes = 0;
 for (const caminho of documentos([".md"])) {
   const eu = curto(caminho);
   conferidos += 1;
-  const violacoes = violacoesDe(ler(caminho));
+  const violacoes = violacoesDe(ler(caminho), eu);
 
   if (APROVADOS.has(eu)) {
     const dispensadas = PARCIAIS.get(eu) ?? [];
@@ -297,6 +313,27 @@ if (doPositivo.length > 0) {
   notas.push(
     "controle positivo aprovado como deve — o verificador está discriminando, não recusando tudo.",
   );
+}
+
+/**
+ * A regra 7 tem controle próprio, porque ela não é cota e as fixtures não a alcançam.
+ *
+ * Ela vale para um arquivo só, e o teste é o mesmo em espírito: tirar a seção do conteúdo tem de produzir
+ * a violação, e pôr o nome de outro arquivo tem de não produzir. Sem isto, uma regra que nunca dispara
+ * passaria por regra cumprida.
+ */
+const daRaiz = ler(join(RAIZ, "README.md"));
+const semASecao = violacoesDe(daRaiz.replace(/^(#{1,6}\s+)O que deu errado\s*$/mu, "$1Outro título"), "README.md");
+const deOutroArquivo = violacoesDe("# qualquer coisa\n\ntexto.\n", "docs/escopo.md");
+const pegouRegra7 = (lista) => lista.some((v) => v.startsWith("regra 7"));
+
+if (!pegouRegra7(semASecao) || pegouRegra7(deOutroArquivo)) {
+  falhas.push(
+    "CONTROLE DA REGRA 7 FALHOU — tirar a seção do README da raiz tem de acusar, e um documento " +
+      "qualquer sem ela não tem de acusar. Um dos dois não aconteceu.",
+  );
+} else {
+  notas.push("regra 7 conferida: acusa quando a seção sai do README da raiz, e só nele.");
 }
 
 notas.push(
