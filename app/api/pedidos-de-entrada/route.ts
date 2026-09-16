@@ -49,8 +49,9 @@ export const POST = semOrganizacao(
         telefone: corpo.telefone ?? null,
       },
       // **Critério 7b.8**, e sem consulta nenhuma: a resolução de contexto já trouxe todos os vínculos
-      // ativos da Pessoa. Com vínculo em qualquer organização, o `nome` do corpo é ignorado — `pessoas` é
-      // global, e reescrevê-lo aqui mudaria a trilha imutável da organização em que ela já está.
+      // ativos da Pessoa. Com vínculo em qualquer organização, o `nome` do corpo é ignorado: aqui ele
+      // seria **efeito colateral** de um formulário cujo fim é outro. O lugar de se renomear é T-16,
+      // onde renomear é o ato em si (item 49).
       resolucao.vinculos.length > 0,
     );
 

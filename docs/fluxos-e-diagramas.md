@@ -225,7 +225,7 @@ verificação automatizada do RNF1 tem de cobrir.
 organizações na mesma instância. O funil é a
 [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md); a camada anticorrupção é o par de
 padrões descrito na [arquitetura](arquitetura.md) §3; a regra de que a consulta parte de `vinculos` é a
-§4.3 do [modelo de dados](modelo-de-dados.md); a lista dos quatro endpoints e o papel do
+§4.3 do [modelo de dados](modelo-de-dados.md); a lista dos cinco endpoints e o papel do
 `X-Organizacao-Id` são as §4.2 e §4.4 do [contrato](contrato-de-api.md); e a autorização por permissão e
 não por papel, a §4.5.
 
@@ -449,9 +449,10 @@ leitura da arquitetura. É redação, e não decisão, e é redação sobre a fr
 
 ### L-2 · Duas escritas em tabela escopada acontecem fora do repositório escopado
 
-O [contrato](contrato-de-api.md) §4.4 lista quatro endpoints que não passam pelo repositório escopado, e
-dois deles escrevem: `POST /pedidos-de-entrada` insere em tabela escopada, e `POST /organizacoes` cria a
-organização, o vínculo de Gestor e, pela POL-01, as categorias e as áreas semente.
+O [contrato](contrato-de-api.md) §4.4 lista cinco endpoints que não passam pelo repositório escopado, e
+três deles escrevem: `POST /pedidos-de-entrada` insere em tabela escopada, `POST /organizacoes` cria a
+organização, o vínculo de Gestor e, pela POL-01, as categorias e as áreas semente, e
+`PATCH /contexto/pessoa` escreve em `pessoas`, que é global e não tem `organizacao_id` a preencher.
 
 Nenhum documento dizia qual componente preenche o `organizacao_id` nessas escritas, nem como o código
 público vira `organizacao_id` sem passar pelo funil. Não era defeito: era passo sem dono declarado, e

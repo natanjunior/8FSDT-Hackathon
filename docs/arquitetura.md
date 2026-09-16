@@ -388,8 +388,8 @@ vezes.
   [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md), porque deixa de depender de o
   desenvolvedor lembrar. Acrescentar um consumidor é uma linha escrita de propósito naquele arquivo.
 - **3 · Entre módulos da mesma camada, só pela superfície pública**, pelo `index.ts`.
-- **A lista fechada, que não é regra de camada:** `semOrganizacao` só é importável nos quatro `route.ts` do
-  `contrato-de-api.md` §4.4. O quinto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a
+- **A lista fechada, que não é regra de camada:** `semOrganizacao` só é importável nos cinco `route.ts` do
+  `contrato-de-api.md` §4.4. O sexto endpoint que tentar não passa no lint, e acrescentá-lo à lista passa a
   ser alteração da ADR-0003 com o caminho do endpoint escrito na configuração.
 
 **Módulo novo passa por dois testes:** é **útil**, com limites e responsabilidade definidos, e é

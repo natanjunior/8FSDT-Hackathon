@@ -50,18 +50,22 @@ export async function pedirEntrada(
 }
 
 /**
- * **O último ponto em que o nome da Pessoa é corrigível** (contrato §8.2; critério 5 do item 7a) — **para
- * quem não tem vínculo em lugar nenhum**. Depois daqui nenhuma tela o altera:
- * `PATCH /vinculos/{pessoaId}` recusa Pessoa com conta.
+ * **O ponto de correção antes de entrar** (contrato §8.2; critério 5 do item 7a) — **para quem não tem
+ * vínculo em lugar nenhum**. É o que faz o Gestor ler o nome certo ao decidir o pedido. Depois de entrar,
+ * a correção mora em **T-16 · Meus dados** (`PATCH /contexto/pessoa`, item 49); o
+ * `PATCH /vinculos/{pessoaId}` continua recusando Pessoa com conta, porque ele é do **Gestor**.
  *
  * Devolve `null` quando não há correção a fazer. O campo chega **pré-preenchido com o nome atual**, então
  * o caso mais comum é receber de volta exatamente o que se mandou — e isso é o formulário devolvendo o
  * que recebeu, não uma pessoa pedindo para mudar o próprio nome para o mesmo nome.
  *
- * **`temVinculoAtivo` fecha o critério 7b.8**, e a razão é a trilha: `pessoas` é tabela **global**, então
- * corrigir o nome ao pedir entrada em B reescreveria como a pessoa aparece **em A**, inclusive no
- * histórico imutável de lá. Quem já está em alguma organização não tem mais este ponto — e a face E de
- * T-02 nem oferece o campo, o que faz da tela a segunda linha de defesa, não a única.
+ * **`temVinculoAtivo` fecha o critério 7b.8**, e desde o item 49 a razão é outra. Reescrever o nome em A
+ * ao pedir entrada em B deixou de ser proibido — é exatamente o que `PATCH /contexto/pessoa` faz, de
+ * propósito. O que a regra impede é o **efeito colateral**: o campo chega pré-preenchido, dentro de um
+ * formulário cujo fim é outro, e uma edição descuidada ali renomearia a pessoa em toda parte sem que ela
+ * tivesse pedido isso. Agora existe o lugar onde renomear é o ato em si, com a frase que diz o alcance
+ * antes de salvar — e é lá que a mudança acontece. A face E de T-02 nem oferece o campo, o que faz da
+ * tela a segunda linha de defesa, não a única.
  */
 function correcaoDeNome(atual: string, enviado: string | null, temVinculoAtivo: boolean): string | null {
   if (temVinculoAtivo) return null;

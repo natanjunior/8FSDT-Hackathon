@@ -1374,7 +1374,7 @@ que precisa de cenário, não o campo que precisa de corte.**
 
 ## 11. Propostas de mudança em outros documentos
 
-**Nenhuma foi aplicada — exceto a nº 4, aplicada em 30/08/2026.** Cada uma cita o arquivo, o que muda e
+**Nenhuma foi aplicada — exceto a nº 4, em 30/08/2026, e a nº 19, em 16/09/2026.** Cada uma cita o arquivo, o que muda e
 por quê. *(A frase dizia "nenhuma foi aplicada", sem exceção, até 30/08/2026 — item 23 da fila da frente
 de documentação.)*
 
@@ -1398,7 +1398,7 @@ de documentação.)*
 | 16 | `premissas-e-questoes-abertas.md`, §3 | **PA novo:** *"A tela do Gestor não pode mostrar o rótulo que o Solicitante lê — `statusRotulo` é calculado no servidor em função de quem lê, e nenhum endpoint devolve o rótulo do outro lado."* | **P-10** |
 | 17 | **`docs/README.md`**, linha 28 | *"As **dez** telas desta entrega"* → *"As **treze**"*. O inventário passou a treze em 21/08/2026. **Não é o `README.md` da raiz** | **§12**, revisão de T-01 |
 | 18 | `contrato-de-api.md` §9.5 | Qualificar *"Criar conta, entrar, sair, redefinir senha: Supabase Auth"*. A frase é verdadeira sobre **endpoints** e foi lida como verdadeira sobre **telas** — e foi essa leitura que deixou três formulários sem especificação por dois passos. Proposta: *"…são do provedor. **As telas que os consomem são nossas** — o SDK não traz interface."* | **§12**, revisão de T-01 |
-| 19 | `contrato-de-api.md` §8.2 · `escopo.md` atividade 1 | **Só se o hub aprovar a Q-T6 como (b):** `PATCH /contexto/pessoa` no contrato, e a capacidade *"Editar os próprios dados pessoais"* no escopo. **Não proponho o texto** — é capacidade nova, e capacidade nova não nasce numa revisão de tela | **F11**, recomendação trocada |
+| 19 | `contrato-de-api.md` §8.2 · `escopo.md` atividade 1 | **Só se o hub aprovar a Q-T6 como (b):** `PATCH /contexto/pessoa` no contrato, e a capacidade *"Editar os próprios dados pessoais"* no escopo. **Não proponho o texto** — é capacidade nova, e capacidade nova não nasce numa revisão de tela | **F11**, recomendação trocada · ✅ **aplicada em 16/09/2026** — a Q-T6 foi redecidida pela (b) com o item 49: `PATCH /contexto/pessoa` no contrato §8.2 e a capacidade *Corrigir os próprios dados* na atividade 1 do escopo |
 | 20 | `arquitetura.md` §2, tabela de tecnologias | **Dependência de terceiro nº 2, e esta não tem saída barata:** normalizar telefone para **E.164** exige biblioteca (`libphonenumber` ou equivalente), porque país padrão, regra de discagem nacional e validade de número não caem em expressão regular — o próprio `modelo-de-dados.md` §6.17 diz isso e nomeia a referência. Diferente do gráfico, que era conveniência e saiu: **sem isto, o `CHECK` do banco recusa o que o formulário produzir** | **§7.2, item 6** |
 
 ---
