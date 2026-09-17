@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Building2,
   ChartColumn,
@@ -10,6 +13,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { estaMarcado, type DestinoDaBarra } from "@/interface/componentes/casca/destino-atual";
+import { fraseDePedidosPendentes } from "@/interface/componentes/rotulos";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -18,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/interface/componentes/ui/sidebar";
 
 /**
@@ -51,24 +57,64 @@ import {
  * **A contagem carrega a palavra, nunca só o número.** O catálogo oferece `SidebarMenuBadge`, que mostra o
  * número sozinho — e sob o rótulo `Participantes` um "3" não diz três do quê. A linha de apoio fica, no
  * `size="lg"`, que é o tamanho de duas linhas.
+ *
+ * ---------------------------------------------------------------------------
+ *  Item 44h — a barra marca onde você está
+ * ---------------------------------------------------------------------------
+ *
+ * **A barra inteira é de cliente**, porque o caminho vem de `usePathname()`, e o layout não re-renderiza
+ * entre telas: o servidor não tem como decidir a marca. Os ícones são importados deste lado, então nenhum
+ * componente atravessa a fronteira; o layout passa só booleanos e número. A regra mora em
+ * `destino-atual.ts`, com teste, e cada item recebe um `DestinoDaBarra`.
+ *
+ * **O item marcado** tem o fundo `--sidebar-accent`, peso 500 e `aria-current="page"` no link. **O ícone
+ * dele vai em tinta, e o dos outros em tinta suave**, como a prancheta desenha: a passagem do ponteiro usa
+ * o mesmo fundo da marca, e sem o ícone o item sob o ponteiro e o item atual só se distinguiriam pelo
+ * peso. A marca não depende só de cor: `aria-current` e o peso a carregam.
+ *
+ * **Participantes existe durante a espera.** `podeGerirVinculos` diz se o item aparece; `pendentes` diz
+ * só se o número já chegou. Antes, um `null` dizia as duas coisas, e o item entrava depois, empurrando os
+ * de baixo e deixando `/vinculos` sem marca na primeira carga.
+ *
+ * **Os grupos não têm recuo próprio** (`p-0`), que é a geometria da prancheta: ícones, rótulo de seção e
+ * réguas a 16 px da borda, e 157 px de coluna para o texto do item. Com o `p-2` do catálogo eram 141, e a
+ * forma de zero da contagem, com 145, era cortada.
+ *
+ * **No celular, tocar num item fecha a gaveta**, no próprio toque. A gaveta é modal e cobre a página,
+ * então tocar num item dela é a única mudança de tela que o produto oferece enquanto ela está aberta; e
+ * tocar no item da tela atual também fecha, porque um toque que não faz nada parece defeito. Um efeito
+ * sobre o caminho fecharia só quando o roteador trocasse o caminho, o que espera o servidor, e numa
+ * partida a frio a primeira resposta passa de 20 s.
  */
 export function Navegacao({
   podeVerDashboard,
+  podeGerirVinculos,
   pendentes,
   podeConfigurar,
 }: {
   podeVerDashboard: boolean;
+  podeGerirVinculos: boolean;
+  /** `null` enquanto a contagem não chegou. Só é lida quando `podeGerirVinculos`. */
   pendentes: number | null;
   podeConfigurar: boolean;
 }) {
-  const temOrganizacao = pendentes !== null || podeConfigurar;
+  const caminho = usePathname();
+  const { setOpenMobile } = useSidebar();
+  const aoTocar = () => setOpenMobile(false);
+  const temOrganizacao = podeGerirVinculos || podeConfigurar;
 
   return (
     <nav aria-label="Nesta organização" className="flex flex-col">
-      <SidebarGroup className="py-0">
+      <SidebarGroup className="p-0">
         <SidebarGroupContent>
           <SidebarMenu>
-            <ItemDeNavegacao href="/ocorrencias" rotulo="Ocorrências" Icone={ClipboardList} />
+            <ItemDeNavegacao
+              destino="/ocorrencias"
+              rotulo="Ocorrências"
+              Icone={ClipboardList}
+              caminho={caminho}
+              aoTocar={aoTocar}
+            />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -76,7 +122,7 @@ export function Navegacao({
       {temOrganizacao && (
         <>
           <SidebarSeparator className="mx-2 my-3" />
-          <SidebarGroup className="py-0">
+          <SidebarGroup className="p-0">
             <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono tracking-[0.11em] uppercase">
               <Building2 aria-hidden="true" />
               Organização
@@ -84,24 +130,40 @@ export function Navegacao({
             <SidebarGroupContent>
               <SidebarMenu>
                 {podeConfigurar && (
-                  <ItemDeNavegacao href="/configuracao" rotulo="Configuração" Icone={Settings} />
-                )}
-                {pendentes !== null && (
                   <ItemDeNavegacao
-                    href="/vinculos"
+                    destino="/configuracao"
+                    rotulo="Configuração"
+                    Icone={Settings}
+                    caminho={caminho}
+                    aoTocar={aoTocar}
+                  />
+                )}
+                {podeGerirVinculos && (
+                  <ItemDeNavegacao
+                    destino="/vinculos"
                     rotulo="Participantes"
                     Icone={Users}
-                    apoio={fraseDaContagem(pendentes)}
+                    apoio={pendentes === null ? null : fraseDePedidosPendentes(pendentes)}
+                    caminho={caminho}
+                    aoTocar={aoTocar}
                   />
                 )}
                 {podeConfigurar && (
                   <>
                     <ItemDeNavegacao
-                      href="/configuracao/categorias"
+                      destino="/configuracao/categorias"
                       rotulo="Categorias"
                       Icone={Tags}
+                      caminho={caminho}
+                      aoTocar={aoTocar}
                     />
-                    <ItemDeNavegacao href="/configuracao/areas" rotulo="Áreas" Icone={LayoutGrid} />
+                    <ItemDeNavegacao
+                      destino="/configuracao/areas"
+                      rotulo="Áreas"
+                      Icone={LayoutGrid}
+                      caminho={caminho}
+                      aoTocar={aoTocar}
+                    />
                   </>
                 )}
               </SidebarMenu>
@@ -113,10 +175,16 @@ export function Navegacao({
       {podeVerDashboard && (
         <>
           <SidebarSeparator className="mx-2 my-3" />
-          <SidebarGroup className="py-0">
+          <SidebarGroup className="p-0">
             <SidebarGroupContent>
               <SidebarMenu>
-                <ItemDeNavegacao href="/dashboard" rotulo="Dashboard" Icone={ChartColumn} />
+                <ItemDeNavegacao
+                  destino="/dashboard"
+                  rotulo="Dashboard"
+                  Icone={ChartColumn}
+                  caminho={caminho}
+                  aoTocar={aoTocar}
+                />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -126,15 +194,9 @@ export function Navegacao({
   );
 }
 
-/** As três formas da contagem, e a de zero é informação: a fila foi olhada e está vazia. */
-function fraseDaContagem(pendentes: number): string {
-  if (pendentes === 0) return "nenhum pedido aguardando";
-  if (pendentes === 1) return "1 pedido aguardando";
-  return `${pendentes} pedidos aguardando`;
-}
-
 /**
- * **`asChild` com `<Link>`**, e não `<button>`: navegação é âncora, e é o que preserva abrir em outra aba.
+ * **`asChild` com `<Link>`**, e não um botão nativo: navegação é âncora, e é o que preserva abrir em outra
+ * aba. Por isso `aria-current` vai no `<Link>`, que é o elemento que o `asChild` desenha.
  *
  * **`h-auto` mais `min-h-11`**, e não a altura do `cva`: `h-8` e `h-12` são grupo `h` no `tailwind-merge`,
  * então `h-auto` os substitui e o piso de 44 px do guia §4 passa a ser `min-h-11`. **Medido:** no
@@ -145,39 +207,58 @@ function fraseDaContagem(pendentes: number): string {
  * **`text-interface` vence o `text-sm`** do `cva` pelo `cn` estendido, que declara os sete papéis da
  * escala como `font-size`.
  *
- * **O movimento usa a forma de parêntese**, `duration-(--tempo-ponteiro)`, e não `duration-[--…]`:
+ * **O movimento usa a forma de parêntese**, `duration-(--tempo-ponteiro)`, e não a de colchete:
  * conferido compilando o Tailwind 4.3.3 deste repositório, a forma de colchete emite
  * `transition-duration: --tempo-ponteiro`, sem `var()`, que é valor inválido e cai fora. A forma antiga
- * está em `button.tsx:8` e no `navegacao.tsx` de hoje, e é o achado A-11.
+ * continua no `cva` de `ui/button.tsx`, e é o achado A-11 do 44f.
  *
  * **O rótulo e o apoio vão num `div`, e não num `span`.** O `cva` do `SidebarMenuButton` traz
  * `[&>span:last-child]:truncate`, que num contêiner de duas linhas aplicaria `white-space: nowrap` na
  * pilha inteira.
+ *
+ * **`apoio` tem três estados.** Sem ele, o item tem uma linha. Com `null`, tem duas, e a segunda fica
+ * reservada por um espaço não separável (` `, escrito como escape porque um espaço comum colapsa e a
+ * linha some) `aria-hidden` no mesmo papel da escala, para o número chegar sem mudar a altura. Com texto,
+ * a segunda linha é a contagem, e ela leva `font-normal` porque o `data-[active=true]:font-medium` do
+ * `cva` vale para o link inteiro.
  */
 function ItemDeNavegacao({
-  href,
+  destino,
   rotulo,
   Icone,
   apoio,
+  caminho,
+  aoTocar,
 }: {
-  href: string;
+  destino: DestinoDaBarra;
   rotulo: string;
   Icone: LucideIcon;
-  apoio?: string;
+  apoio?: string | null;
+  caminho: string;
+  aoTocar: () => void;
 }) {
+  const marcado = estaMarcado(destino, caminho);
+  const duasLinhas = apoio !== undefined;
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        size={apoio === undefined ? "default" : "lg"}
+        isActive={marcado}
+        size={duasLinhas ? "lg" : "default"}
         className="text-interface h-auto min-h-11 transition-[background-color,color,transform] duration-(--tempo-ponteiro) ease-(--curva-ponteiro) active:scale-[0.97]"
       >
-        <Link href={href}>
-          <Icone aria-hidden="true" />
+        <Link href={destino} aria-current={marcado ? "page" : undefined} onClick={aoTocar}>
+          <Icone aria-hidden="true" className={marcado ? "text-tinta" : "text-tinta-suave"} />
           <div className="grid min-w-0 flex-1 leading-tight">
             <span className="truncate">{rotulo}</span>
-            {apoio !== undefined && (
-              <span className="text-tinta-suave text-meta truncate">{apoio}</span>
+            {duasLinhas && apoio === null && (
+              <span aria-hidden="true" className="text-meta font-normal">
+                {" "}
+              </span>
+            )}
+            {duasLinhas && apoio !== null && (
+              <span className="text-tinta-suave text-meta truncate font-normal">{apoio}</span>
             )}
           </div>
         </Link>

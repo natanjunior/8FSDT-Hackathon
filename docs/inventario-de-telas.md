@@ -2074,6 +2074,15 @@ Isso cobre o link profundo recebido antes de a pessoa entrar em qualquer organiz
 itens de menu de T-07, T-08, T-09, T-14 e T-15 só existem com a permissão respectiva. Ele acontece por
 **link recebido**, e por isso tem frase própria na §7.
 
+**A forma é uma só** em T-07, T-08, T-09, T-14 e T-15, e nas páginas próprias de criar e corrigir delas:
+o título da tela e, num cartão, um cadeado, a frase que diz de quem é aquela tela, a recusa da §7 e o
+botão *Ir para Ocorrências*, que leva a T-03. A frase muda com a permissão que faltou: *"Esta página é de
+quem configura a organização."*, *"Esta página é de quem decide quem participa da organização."* ou
+*"Esta página é de quem acompanha os indicadores da organização."*
+
+A tela tem saída no conteúdo porque é beco: a barra lateral de quem chega ali não tem o item dela, e
+nenhum outro item fica marcado.
+
 ### Cold start
 
 O **RNF5** é explícito: *"o serviço usa escala a zero para caber na franquia gratuita, então cold start
@@ -2156,7 +2165,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | T-02 | *"Seu pedido já foi enviado e está aguardando a decisão de um Gestor."* + leva para a **face B** da própria tela |
 | `SEM_VINCULO_NA_ORGANIZACAO` | 403 | menu de troca, T-02 face D | *"Você não tem acesso a esta organização."* Resposta **idêntica** para organização inexistente, de propósito. Na prática só aparece se um vínculo foi removido entre o `GET /contexto` e o `PUT` |
 | `ORGANIZACAO_DIVERGENTE` | 409 | qualquer tela | **A aba esquecida.** *"Esta aba estava em outra organização. Recarregando…"* — e a tela **refaz `GET /contexto` e a leitura, sem pedir nada ao usuário**. É o erro que o cabeçalho opcional `X-Organizacao-Id` existe para produzir, e ele não é um problema do usuário: é o mecanismo funcionando |
-| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09, T-14, T-15 por link | *"Seu papel nesta organização não dá acesso a esta página."* + volta a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
+| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09, T-14, T-15 por link | *"Seu papel nesta organização não dá acesso a esta página."* + **Ir para Ocorrências**, que leva a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
 | `SEM_ORGANIZACAO_ATIVA` | 403 | qualquer tela | Não tem frase: **leva a T-02**, guardando o destino |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | T-08 | *"{nome} tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela."* **A tela mostra os campos como leitura**, então o erro só aparece se algo escapar. E a segunda frase é a única explicação disponível — ver **F11** |
 | `JA_AVALIADA` | 409 | T-05 | *"Esta ocorrência já foi avaliada."* + mostra a avaliação. Não acontece pela tela (o convite desaparece com `avaliacao != null`), acontece com duas abas |

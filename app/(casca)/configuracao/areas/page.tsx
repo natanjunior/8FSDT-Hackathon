@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas } from "@/aplicacao/organizacao";
+import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
@@ -24,7 +25,9 @@ export default async function Areas({
   const escopo = await resolverOuMandarParaPorta();
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
-  if (escopo.situacao === "sem-permissao") return <SemAcesso />;
+  if (escopo.situacao === "sem-permissao") {
+    return <SemAcesso titulo="Áreas" permissao="organizacao.configurar" />;
+  }
 
   const areas = await listarAreas(escopo.repos.areas, { incluirInativas: true });
   const parametros = await searchParams;
@@ -181,21 +184,6 @@ function FaixaDoDesfecho({
         </>
       )}
     </p>
-  );
-}
-
-/** O ramo de quem chega por link recebido — o texto é do inventário §7. */
-function SemAcesso() {
-  return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Áreas</h1>
-      <p role="alert" className="text-tinta-suave text-sm">
-        Seu papel nesta organização não dá acesso a esta página.
-      </p>
-      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
-        Voltar
-      </Link>
-    </div>
   );
 }
 

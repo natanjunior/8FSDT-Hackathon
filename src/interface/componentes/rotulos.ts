@@ -5,6 +5,7 @@ import {
   type Prioridade,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
+import type { Permissao } from "@/dominio/organizacao";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { nomeDoStatus, rotuloDeStatus, type LenteDeRotulo } from "@/interface/projecoes";
 
@@ -511,3 +512,60 @@ export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribui
  */
 export const RECORTE_TODAS = "Todas as ocorrências";
 export const RECORTE_MINHAS = "Minhas ocorrências";
+
+/**
+ * ============================================================================
+ *  O estado sem acesso — item 44h
+ * ============================================================================
+ *
+ * **Três permissões guardam uma tela que recusa quem chega por link:** configurar a organização (T-15,
+ * T-09, T-14 e as páginas de criar e corrigir delas), gerir vínculos (T-08 e as duas páginas próprias) e
+ * ler o dashboard (T-07). `ocorrencia.ler_propria` também guarda tela, mas quem não a tem vai para T-10 e
+ * nunca vê este estado.
+ *
+ * **`satisfies` é o que impede o nome errado:** uma permissão que não existe no domínio não compila. E o
+ * mapa de frases, tipado pela união, não compila sem a frase de uma permissão de tela nova.
+ */
+export const PERMISSOES_DE_TELA = [
+  "organizacao.configurar",
+  "vinculo.gerir",
+  "dashboard.ler",
+] as const satisfies readonly Permissao[];
+
+export type PermissaoDeTela = (typeof PERMISSOES_DE_TELA)[number];
+
+/**
+ * **A frase de quem usa a tela é por permissão, e não por página.** A prancheta escreve a de
+ * configuração; as outras duas seguem a mesma construção, com a palavra de *Participante* (*participa*)
+ * e a dos cinco blocos do dashboard (*indicadores*).
+ */
+export const QUEM_USA_A_TELA: Readonly<Record<PermissaoDeTela, string>> = {
+  "organizacao.configurar": "Esta página é de quem configura a organização.",
+  "vinculo.gerir": "Esta página é de quem decide quem participa da organização.",
+  "dashboard.ler": "Esta página é de quem acompanha os indicadores da organização.",
+};
+
+/**
+ * **A recusa, escrita uma vez.** É a frase da §7 do inventário de telas para `PERMISSAO_INSUFICIENTE`, e
+ * morava em onze páginas até o item 44h. Este comentário não a repete de propósito: a conferência do item
+ * conta a frase em `app/` e `src/` por `grep`, com comentário e tudo.
+ */
+export const RECUSA_DE_ACESSO = "Seu papel nesta organização não dá acesso a esta página.";
+
+/** **A saída do estado sem acesso**, que leva a T-03, o eixo das telas de dentro. */
+export const SAIDA_DO_SEM_ACESSO = "Ir para Ocorrências";
+
+/**
+ * ============================================================================
+ *  A contagem de pedidos da barra lateral — item 44h, critério 2
+ * ============================================================================
+ *
+ * **Três formas, e a de zero é informação:** a fila foi olhada e está vazia. A palavra é decisão do dono
+ * em 16/09/2026, porque a anterior não cabia nos 214 px da barra. A geometria que faz a forma de zero
+ * caber está em `casca/navegacao.tsx`.
+ */
+export function fraseDePedidosPendentes(pendentes: number): string {
+  if (pendentes === 0) return "nenhum pedido pendente";
+  if (pendentes === 1) return "1 pedido pendente";
+  return `${pendentes} pedidos pendentes`;
+}

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarCategorias } from "@/aplicacao/organizacao";
 import { FormularioDeCategoria } from "@/interface/componentes/formulario-de-categoria";
+import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
@@ -25,7 +26,9 @@ export default async function CorrigirCategoria({
 }) {
   const escopo = await resolverOuMandarParaPorta();
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
-  if (escopo.situacao === "sem-permissao") return <SemAcesso />;
+  if (escopo.situacao === "sem-permissao") {
+    return <SemAcesso titulo="Corrigir categoria" permissao="organizacao.configurar" />;
+  }
 
   const { categoriaId } = await params;
   const categorias = await listarCategorias(escopo.repos.categorias, { incluirInativas: true });
@@ -59,20 +62,6 @@ export default async function CorrigirCategoria({
         }}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
-    </div>
-  );
-}
-
-function SemAcesso() {
-  return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Corrigir categoria</h1>
-      <p role="alert" className="text-tinta-suave text-sm">
-        Seu papel nesta organização não dá acesso a esta página.
-      </p>
-      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
-        Voltar
-      </Link>
     </div>
   );
 }
