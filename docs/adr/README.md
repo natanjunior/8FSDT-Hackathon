@@ -41,6 +41,7 @@ opções não foram escolhidas.
 | [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, não a pirâmide | Aceita |
 | [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
 | [0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) | O componente de gráfico do catálogo entra, e com ele o Recharts como dependência instalada | Aceita |
+| [0011](0011-sonner-e-cmdk-entram-como-pacotes.md) | O aviso de retorno de ação e a busca em lista entram como pacotes, com o `sonner` e o `cmdk` | Aceita |
 
 As duas decisões de estrutura interna do código são a 0005 e a 0006, escritas em 21/08/2026. Elas se
 leem melhor em par: a primeira decide como a dependência é invertida, e a segunda decide onde os arquivos

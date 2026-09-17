@@ -1598,12 +1598,12 @@ vínculos. É trabalho de escritório, feito uma vez por semana.
 > - **Solicitante** — *"Registra e acompanha as próprias ocorrências."*
 > - **Gestor** — *"Analisa, atribui, resolve e cancela qualquer ocorrência. Configura a organização e
 >   aprova quem entra."*
-> - **Encarregado** — *"Aparece como responsável pela ocorrência. **Nesta versão, não consegue fazer
->   nada dentro do sistema.**"*
+> - **Encarregado** — *"Aparece como responsável pela ocorrência. **Não consegue fazer nada dentro do
+>   sistema.**"*
 >
 > **A terceira linha é a que teria evitado o PA-25**, e é por isso que ela está em negrito no produto e
-> não só aqui. Ela também é a única frase de interface do inventário que declara uma limitação de versão
-> — e vale, porque a alternativa é uma pessoa presa em T-10 sem saber por quê.
+> não só aqui. Ela diz o que o papel não faz, sem falar de versão, e fica, porque a alternativa é uma
+> pessoa presa em T-10 sem saber por quê.
 >
 > **E o remover, que é o conserto, também é difícil de errar:** o botão só aparece quando o vínculo pode
 > sair, e quando não pode, a razão substitui o botão (§7). A confirmação diz o que sobra — e ela tem **dois
@@ -1960,8 +1960,8 @@ está administrando a si mesmo.
 texto de ajuda que diz onde aquele nome aparece: na lista de participantes, nos pedidos de entrada e em
 **cada transição já registrada**. A última parte é a que importa, e a segunda frase do texto diz que o
 nome vale em **todas** as organizações da pessoa — é a Persona 1B descobrindo, antes de salvar, que está
-se renomeando nos dois prédios. **Acesso** tem o e-mail de entrada em leitura, com a razão de ele não
-mudar nesta entrega, o link para **T-12 · Redefinir senha**, e a frase sobre os contatos.
+se renomeando nos dois prédios. **Acesso** tem o e-mail de entrada em leitura, com o que ele serve
+para fazer, e o link para **T-12 · Redefinir senha**.
 
 **É a única tela do produto que não dispara requisição ao abrir.** O nome e o e-mail vêm da resolução de
 contexto que a casca já fez.
@@ -1973,11 +1973,12 @@ contexto que a casca já fez.
 | Corrigir o próprio nome | `PATCH /contexto/pessoa` `{ nome? }` |
 | Ir para redefinir a senha | nenhum — navega para T-12, que chama o provedor |
 
-**O que ela não oferece, e a ausência é escrita na própria tela.** O e-mail não é editável: ele é a
+**O que ela não oferece, e a tela não o anuncia.** O e-mail não é editável: ele é a
 credencial de acesso e o único canal de recuperação, e a troca envolve o provedor, dois e-mails de
 confirmação e um intervalo em que a conta tem dois endereços. Os contatos de quem tem conta não são
 editáveis nem por ela nem pelo Gestor, porque `PATCH /vinculos/{pessoaId}` responde
-`409 PESSOA_COM_CONTA_NAO_EDITAVEL`. A tela diz as duas coisas em vez de omiti-las.
+`409 PESSOA_COM_CONTA_NAO_EDITAVEL`. A tela não oferece nenhuma das duas edições e não explica a
+ausência: o que não se edita simplesmente não oferece edição.
 
 **Como reage ao status.** Não reage.
 
@@ -2168,7 +2169,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `AREA_NOME_DUPLICADO` | 409 | T-14 | *"Já existe uma área com este nome."* O nome é único por organização pela mesma razão, aplicada ao recorte por área |
 | `PEDIDO_JA_DECIDIDO` | 409 | T-08 | *"Este pedido já foi decidido por outro Gestor."* + recarrega a lista |
 | `NAO_AUTENTICADO` | 401 | qualquer tela | Não tem frase: leva a T-01, guardando o destino |
-| `ERRO_INTERNO` | 500 | qualquer tela | *"Algo deu errado do nosso lado."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
+| `ERRO_INTERNO` | 500 | qualquer tela | *"Não foi possível realizar a ação."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
 | `FORMATO_INVALIDO` | 400 | formulários | Não vira faixa de erro: vira mensagem **por campo**, de `erros[]` (`{ campo, codigo, mensagem }`) |
 
 > ### Correção — 30/08/2026 — a razão do `VINCULO_COM_HISTORICO` nomeava três rastros, e o esquema tem nove tabelas
@@ -2561,11 +2562,10 @@ síndico único.
 > na trilha, não há nada de inconsistente em voltar atrás. **Um passo, nunca uma pilha:** uma pilha seria
 > histórico, e histórico deste comando não existe (17.3). **Não há desfazer do desfazer.**
 >
-> **É linha no bloco, e não notificação flutuante** — a decisão de interação do protótipo foi adotada e o
-> componente, recusado; o produto não tem sobreposição não-modal nenhuma. O idioma é o que o bloco de
-> solução aplicada já usa no mesmo T-05: contêiner com `role="status"`, a frase e o botão juntos, porque
-> a novidade é a *disponibilidade* do desfazer e não só a frase. **Sem temporizador:** a linha sai por
-> ação — nova troca, desfazer, erro, recarregar ou navegar.
+> **É linha no bloco, e não notificação flutuante.** O produto passou a ter aviso flutuante para o
+> retorno de ação (item 44g, ADR-0011), e o desfazer continua no bloco pelo critério 17.7: contêiner com
+> `role="status"`, a frase e o botão juntos, porque a novidade é a *disponibilidade* do desfazer e não só
+> a frase. **Sem temporizador:** a linha sai por ação — nova troca, desfazer, erro, recarregar ou navegar.
 >
 > **O que continua declarado sem conserto, e é metade do achado:** `registrar-solucao-aplicada`. A última
 > escrita continua vencendo sem aviso e sem rastro ali, e o campo **não** tem desfazer — mas ele tem
