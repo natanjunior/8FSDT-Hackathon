@@ -5,6 +5,13 @@ import {
   destinoAtual,
   estaMarcado,
 } from "@/interface/componentes/casca/destino-atual";
+import {
+  fraseDePedidosPendentes,
+  PERMISSOES_DE_TELA,
+  QUEM_USA_A_TELA,
+  RECUSA_DE_ACESSO,
+  SAIDA_DO_SEM_ACESSO,
+} from "@/interface/componentes/rotulos";
 
 /**
  * ============================================================================
@@ -61,5 +68,40 @@ describe("a marca da barra lateral — critério 1", () => {
       "/ocorrencias",
       "/vinculos",
     ]);
+  });
+});
+
+describe("a contagem de pedidos — critério 2", () => {
+  it.each([
+    [0, "nenhum pedido pendente"],
+    [1, "1 pedido pendente"],
+    [2, "2 pedidos pendentes"],
+    [12, "12 pedidos pendentes"],
+    [200, "200 pedidos pendentes"],
+  ])("%i vira '%s'", (pendentes, frase) => {
+    expect(fraseDePedidosPendentes(pendentes)).toBe(frase);
+  });
+});
+
+describe("as frases do estado sem acesso — critério 3", () => {
+  it("as três permissões de tela têm a frase de quem usa a tela", () => {
+    expect(QUEM_USA_A_TELA).toStrictEqual({
+      "organizacao.configurar": "Esta página é de quem configura a organização.",
+      "vinculo.gerir": "Esta página é de quem decide quem participa da organização.",
+      "dashboard.ler": "Esta página é de quem acompanha os indicadores da organização.",
+    });
+    expect(Object.keys(QUEM_USA_A_TELA).sort()).toStrictEqual([...PERMISSOES_DE_TELA].sort());
+  });
+
+  it("a recusa e a saída são as do critério", () => {
+    expect(RECUSA_DE_ACESSO).toBe("Seu papel nesta organização não dá acesso a esta página.");
+    expect(SAIDA_DO_SEM_ACESSO).toBe("Ir para Ocorrências");
+  });
+
+  it("nenhuma frase do estado usa palavra do projeto", () => {
+    const frases = [...Object.values(QUEM_USA_A_TELA), RECUSA_DE_ACESSO, SAIDA_DO_SEM_ACESSO];
+    for (const frase of frases) {
+      expect(frase).not.toMatch(/entrega|vers[aã]o|etapa/iu);
+    }
   });
 });
