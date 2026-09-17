@@ -1725,17 +1725,25 @@ próprio.
 | **Quem vê** | `organizacao.configurar` — Gestor. `GET /categorias` é de **qualquer vínculo ativo**, porque T-04 o consome |
 | **A pergunta** | *"As categorias que o Solicitante escolhe estão certas?"* |
 
-**O que mostra.** A lista de categorias — `Categoria`: `nome` (≤ 60), **`icone`**, `ativa`, `ordem`.
-Ordenadas por `ordem`, porque *"qual categoria aparece antes é escolha do Gestor"* (D18). Nascem com **as
+**O que mostra.** Uma tabela com a lista de categorias — `Categoria`: `nome` (≤ 60), **`icone`**,
+`ativa` —, na ordem que o Gestor escolheu, porque *"qual categoria aparece antes é escolha do Gestor"*
+(D18). A coluna de posição mostra o **lugar na lista**, de 1 a n, e não o valor gravado. Nascem com **as
 sete do desafio** (POL-01), e a tela diz isso: *"Sete categorias foram criadas junto com a organização."*
 — sem essa frase, o Gestor não sabe se as encontrou ou se alguém as digitou.
+
+A tela tem **filtro rápido** — *Todas*, *Ativas*, *Inativas*, cada um com a contagem do conjunto inteiro —
+e **busca pelo nome**, as duas no navegador. **A posição se muda arrastando a linha pela alça**, onde há
+ponteiro, **ou pelas setas de subir e descer**, que servem ao toque e ao teclado; ninguém digita o número.
+Com filtro ou busca ativos, alça e setas ficam inertes, e a tela escreve por quê: a ordem se grava com a
+lista inteira.
 
 **O que oferece.**
 
 | Ação | Endpoint |
 |---|---|
-| Criar categoria, **escolhendo o ícone** | `POST /categorias` `{ nome, ordem?, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo |
-| Renomear, **trocar o ícone**, reordenar, desativar e reativar categoria | `PATCH /categorias/{id}` `{ nome?, ordem?, ativa?, icone? }` — os **quatro** campos, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — ver a correção adiante)* |
+| Criar categoria, **escolhendo o ícone**, num modal | `POST /categorias` `{ nome, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo. A posição é do servidor, que grava no fim da lista |
+| Renomear e **trocar o ícone**, no modal de editar; desativar e reativar, na confirmação própria | `PATCH /categorias/{id}` `{ nome?, ativa?, icone? }` |
+| Reordenar | `PUT /categorias/ordem` `{ ids }` — a lista inteira, ativas e inativas, na ordem nova, numa transação só |
 
 > ### Correção — 30/08/2026 — o ícone ganhou tela, e este quadro dizia o contrário
 >
@@ -1779,9 +1787,9 @@ sete do desafio** (POL-01), e a tela diz isso: *"Sete categorias foram criadas j
 > nota, alcançada por dois caminhos.)*
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma categoria sai de uso — não há
-`DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar:
-*"Desativar não apaga. As ocorrências já registradas continuam apontando para esta categoria, e ela
-deixa de aparecer no formulário de registro."*
+`DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. **A explicação mora na
+confirmação de desativar**, que é onde a pessoa decide: *"Ela deixa de aparecer no formulário de registro.
+As ocorrências já registradas continuam com esta categoria, e você pode reativá-la quando quiser."*
 
 **A frase que a tela é obrigada a produzir.** **Ao renomear a última categoria ativa, ou ao desativar
 todas:** *"Sem nenhuma categoria ativa, ninguém consegue registrar ocorrência."* É a única configuração
@@ -1793,8 +1801,10 @@ inventário a escreve como `{categoria | área}` porque as duas a produzem.
 **Vazio · carregando · erro.**
 - *Vazio:* **não existe na prática** — as sementes garantem sete categorias. Se a lista vier vazia, a
   POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem categorias ativas."*
-- *Carregando:* uma requisição. Coleção pequena — ~15 —, **sem paginação** (`contrato-de-api.md` §7.7).
-- *Erro:* `409 CATEGORIA_NOME_DUPLICADO` — ver §7.
+- *Carregando:* uma requisição. Coleção pequena — ~15 —, **sem paginação** (`contrato-de-api.md` §7.7), e
+  sem paginação também na tela, porque paginar quebraria o arrastar.
+- *Erro:* `409 CATEGORIA_NOME_DUPLICADO` — ver §7. E `409 LISTA_DESATUALIZADA` na reordenação: a linha
+  volta ao lugar, sai o aviso com o texto do servidor, e a tela recarrega a lista.
 
 **Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
 sentado, uma vez.
@@ -1816,10 +1826,15 @@ sentado, uma vez.
 | **Quem vê** | `organizacao.configurar` — Gestor. `GET /areas` é de **qualquer vínculo ativo**, porque T-04 o consome |
 | **A pergunta** | *"As áreas descrevem este lugar?"* |
 
-**O que mostra.** A lista de áreas — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`,
-**`ordem`**. **O `tipo` precisa de uma linha de explicação na tela**, porque a palavra não se explica:
-*"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* E ordenadas por
-`ordem`, **simetricamente a `Categoria` e pela mesma razão** (D18) — ver §9, achado **F12**, fechado.
+**O que mostra.** Uma tabela com a lista de áreas — `Area`: `nome` (≤ 80), `tipo` (`comum` |
+`privativa`), `ativa` —, na ordem do Gestor, **simetricamente a `Categoria` e pela mesma razão** (D18) —
+ver §9, achado **F12**, fechado. A coluna de posição mostra o lugar na lista, de 1 a n. **O `tipo` precisa
+de uma linha de explicação fixa na tela**, porque a palavra não se explica, e ela **nunca** vive em dica de
+ponteiro (compromisso A-6): *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala,
+loja."*
+
+O filtro rápido, a busca pelo nome e a ordem que se muda arrastando ou pelas setas são os mesmos de T-09,
+e pelas mesmas razões.
 
 *(Corrigido em 30/08/2026: a redação anterior era* "`Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`),
 `ativa`. … E ordenadas por `nome`, por ausência de alternativa: o schema de `Area` **não tem `ordem`**, ao
@@ -1831,13 +1846,14 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 
 | Ação | Endpoint |
 |---|---|
-| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e, sem ela, a área entra no fim da lista |
-| Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
+| Criar área, num modal | `POST /areas` `{ nome, tipo }` — `tipo` é obrigatório e vem num grupo de escolha, sem nenhum marcado; a posição é do servidor, que grava no fim da lista |
+| Renomear e mudar o tipo, no modal de editar; desativar e reativar, na confirmação própria | `PATCH /areas/{id}` `{ nome?, tipo?, ativa? }` |
+| Reordenar | `PUT /areas/ordem` `{ ids }` — a lista inteira, ativas e inativas, na ordem nova, numa transação só |
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma área sai de uso — não há `DELETE`
-(P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar: *"Desativar não apaga. As
-ocorrências já registradas continuam apontando para esta área, e ela deixa de aparecer no formulário de
-registro."*
+(P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. **A explicação mora na confirmação de
+desativar**: *"Ela deixa de aparecer no formulário de registro. As ocorrências já registradas continuam
+com esta área, e você pode reativá-la quando quiser."*
 
 **Duas frases que a tela é obrigada a produzir, e a segunda é a mais importante do inventário depois do
 aviso de visibilidade:**
@@ -1847,19 +1863,24 @@ aviso de visibilidade:**
   de T-04).
 - **Ao mudar o `tipo` de uma Área**, a resposta do `PATCH` traz `ocorrenciasComTipoAnterior` — uma
   contagem que existe *"para que a interface possa dizer ao Gestor, em português, que o passado não
-  muda"* (`contrato-de-api.md` §8.1). A frase: *"{N} ocorrências já registradas mantêm o tipo anterior. Mudar o
-  tipo vale de agora em diante — o passado não muda."* Sem ela, um Gestor que reclassifique uma área
-  espera que a visibilidade das ocorrências antigas mude, e ela não muda (emenda à D10). **É um campo
-  de resposta que só existe para produzir uma frase de tela; deixar de produzi-la desperdiça a decisão
-  inteira.**
+  muda"* (`contrato-de-api.md` §8.1). **São duas frases, e em dois momentos.** Dentro do modal, assim que
+  o tipo escolhido difere do atual e **sem número**: *"Mudar o tipo vale de agora em diante — o passado
+  não muda. As ocorrências já registradas mantêm o tipo que a área tinha quando foram criadas."* Depois de
+  salvar, com a contagem e **ficando na tela até ser fechado**: *"{N} ocorrências já registradas mantêm o
+  tipo anterior. O passado não muda."* — e com contagem zero o aviso é de sucesso, porque prender um aviso
+  para dizer *"0 ocorrências"* cobraria um clique por uma informação vazia. Sem elas, um Gestor que
+  reclassifique uma área espera que a visibilidade das ocorrências antigas mude, e ela não muda (emenda à
+  D10). **É um campo de resposta que só existe para produzir uma frase de tela; deixar de produzi-la
+  desperdiça a decisão inteira.**
 
 **Como reage ao status.** Não reage.
 
 **Vazio · carregando · erro.**
 - *Vazio:* **não existe na prática** — as sementes garantem as áreas iniciais. Se a lista vier vazia, a
   POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem áreas ativas."*
-- *Carregando:* uma requisição. Coleção pequena — ~30 —, **sem paginação** (`contrato-de-api.md` §7.7).
-- *Erro:* `409 AREA_NOME_DUPLICADO` — ver §7.
+- *Carregando:* uma requisição. Coleção pequena — ~30 —, **sem paginação** (`contrato-de-api.md` §7.7), e
+  sem paginação também na tela, porque paginar quebraria o arrastar.
+- *Erro:* `409 AREA_NOME_DUPLICADO` — ver §7, e `409 LISTA_DESATUALIZADA` na reordenação, como em T-09.
 
 **Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
 sentado, uma vez.
@@ -2102,7 +2123,9 @@ Isso cobre o link profundo recebido antes de a pessoa entrar em qualquer organiz
 itens de menu de T-07, T-08, T-09, T-14 e T-15 só existem com a permissão respectiva. Ele acontece por
 **link recebido**, e por isso tem frase própria na §7.
 
-**A forma é uma só** em T-07, T-08, T-09, T-14 e T-15, e nas páginas próprias de criar e corrigir delas:
+**A forma é uma só** em T-07, T-08, T-09, T-14 e T-15, e nas páginas próprias de criar e corrigir que
+ainda existem. **T-09 e T-14 não têm mais nenhuma**, desde que criar e editar viraram modal: nelas o
+estado sem acesso é a única saída de conteúdo da casca.
 o título da tela e, num cartão, um cadeado, a frase que diz de quem é aquela tela, a recusa da §7 e o
 botão *Ir para Ocorrências*, que leva a T-03. A frase muda com a permissão que faltou: *"Esta página é de
 quem configura a organização."*, *"Esta página é de quem decide quem participa da organização."* ou
@@ -2379,11 +2402,11 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `GET /categorias` | T-04 · T-09 · T-15 (a contagem) |
 | `POST /categorias` | T-09 |
 | `PATCH /categorias/{id}` | T-09 |
-| `PUT /categorias/ordem` | *sem chamada de tela ainda*, ver a nota abaixo da tabela |
+| `PUT /categorias/ordem` | T-09 |
 | `GET /areas` | T-04 · T-14 · T-15 (a contagem) |
 | `POST /areas` | T-14 |
 | `PATCH /areas/{id}` | T-14 |
-| `PUT /areas/ordem` | *sem chamada de tela ainda*, ver a nota abaixo da tabela |
+| `PUT /areas/ordem` | T-14 |
 | `POST /pedidos-de-entrada` | T-02 |
 | `GET /pedidos-de-entrada` | T-08 (+ a contagem no menu do Gestor — ver F10) |
 | `POST /pedidos-de-entrada/{id}/aprovar` | T-08 |
@@ -2413,10 +2436,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
 
-**Quarenta e um endpoints, trinta e nove chamados.** Os dois sem chamada são as reordenações,
-`PUT /categorias/ordem` e `PUT /areas/ordem`: o contrato já as tem, e T-09 e T-14 passam a chamá-las
-quando trocarem o campo *Ordem* pelo arrastar e pelas setas. Até lá, as duas telas reordenam pelo `PATCH`
-de cada item, com o campo que o contrato declara obsoleto. Dos chamados, dois merecem nota:
+**Quarenta e um endpoints, todos chamados.** Dois deles merecem nota:
 
 - **`GET /ocorrencias/{id}/trilha-de-auditoria` só não é órfão porque T-06 existe.** Se a trilha fosse
   uma aba dentro de T-05, o endpoint seguiria chamado — mas a tela teria sido decidida por conveniência
