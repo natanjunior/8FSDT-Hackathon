@@ -70,9 +70,11 @@ describe("o Toaster — critério 1", () => {
     expect(pacote.dependencies["cn"]).toBeUndefined();
   });
 
-  it("o toque no aviso não fecha o modal que ficou aberto depois de um erro (R-1 da revisão)", () => {
-    // Um novo `shadcn add dialog` desfaria a linha em silêncio; este caso é o alarme.
-    expect(ler("src/interface/componentes/ui/dialog.tsx")).toContain("manterAbertoAoTocarNoAviso(evento)");
+  it("o toque no aviso não fecha o modal que ficou aberto depois de um erro (R-1 do 44g; o sheet no 44i)", () => {
+    // Um novo `shadcn add dialog` ou `shadcn add sheet` desfaria a linha em silêncio; este caso é o alarme.
+    for (const arquivo of ["src/interface/componentes/ui/dialog.tsx", "src/interface/componentes/ui/sheet.tsx"]) {
+      expect(ler(arquivo), arquivo).toContain("manterAbertoAoTocarNoAviso(evento)");
+    }
   });
 });
 
@@ -368,5 +370,18 @@ describe("o alcance do 44g — critérios 6 e 9", () => {
       ler(caminho).includes('"Não foi possível realizar a ação."'),
     );
     expect(comAFrase).toStrictEqual(["src/interface/componentes/retorno-de-acao.ts"]);
+  });
+});
+
+describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
+  it("o modal é uma raiz com as duas peças do catálogo, a gaveta vem de baixo, e sem pacote novo", () => {
+    const fonte = ler("src/interface/componentes/modal.tsx");
+    expect(fonte).toContain("useIsMobile()");
+    expect(fonte).toContain("<DialogContent");
+    expect(fonte).toContain('<SheetContent side="bottom"');
+    expect(fonte).toContain("duration-(--tempo-gaveta)");
+    expect(fonte).toContain("ease-(--curva-gaveta)");
+    expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
+    expect(fonte).toContain('variant="marca"');
   });
 });

@@ -4,6 +4,7 @@ import * as React from "react"
 import { cn } from "@/interface/componentes/utilitarios"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
+import { manterAbertoAoTocarNoAviso } from "@/interface/componentes/ui/sonner"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -43,11 +44,19 @@ function SheetOverlay({
   )
 }
 
+/**
+ * **Divergência do catálogo (item 44i): o toque no aviso não fecha a gaveta.** É a mesma linha do
+ * `dialog.tsx` (item 44g). O aviso mora fora da gaveta, e o `radix-ui` trata o toque nele como toque
+ * fora; sem a linha, no celular, fechar o aviso de erro fecharia junto o modal que o guia manda manter
+ * aberto. A gaveta da barra lateral herda a guarda. Um novo `shadcn add sheet` desfaz a linha, e o caso
+ * do `formulario.test.ts` acusa.
+ */
 function SheetContent({
   className,
   children,
   side = "right",
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -70,6 +79,10 @@ function SheetContent({
             "inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
           className
         )}
+        onInteractOutside={(evento) => {
+          onInteractOutside?.(evento)
+          manterAbertoAoTocarNoAviso(evento)
+        }}
         {...props}
       >
         {children}
