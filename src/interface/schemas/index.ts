@@ -99,3 +99,5 @@ export {
   pedidoDeAutorizacaoSchema,
   type EntradaDePedidoDeAutorizacao,
 } from "./anexo";
+
+export { errosDoSchema, mensagensPorCampo } from "./violacoes";

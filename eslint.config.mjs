@@ -302,12 +302,16 @@ const configuracao = [
       // Código copiado pelo CLI do shadcn/ui (ADR-0007) — a manutenção é nossa, o estilo é do projeto
       // de origem, e reformatá-lo a cada `add` seria trabalho perpétuo sem retorno.
       "src/interface/componentes/ui/**",
-      // **A pasta dos ganchos do mesmo CLI**, e pelo mesmo motivo. O `components.json` mapeia o apelido
-      // `hooks` para cá, então tudo que nasce aqui nasce copiado — o `use-mobile.ts` veio junto com o
-      // `sidebar` em 13/09/2026, e ele chama `setState` no corpo de um efeito, que a regra
-      // `react-hooks/set-state-in-effect` reprova com razão para **código escrito**. Reescrevê-lo seria
-      // desfeito no próximo `shadcn add sidebar`. *(Item 44b.)*
-      "src/interface/ganchos/**",
+      // **O gancho que o CLI do shadcn copiou, e só ele.** O `components.json` mapeia o apelido `hooks`
+      // para `src/interface/ganchos/`, e o `use-mobile.ts` veio junto com o `sidebar` em 13/09/2026:
+      // ele chama `setState` no corpo de um efeito, que a regra `react-hooks/set-state-in-effect` reprova
+      // com razão para **código escrito**, e reescrevê-lo seria desfeito no próximo `shadcn add sidebar`.
+      //
+      // **A pasta deixou de ser só de código copiado no item 44g**, que pôs lá os dois ganchos escritos
+      // do produto. Ignorar a pasta inteira os deixaria sem regra de fronteira e sem `react-hooks`, que é
+      // uma exceção de lint por endereço. Então a exceção nomeia o arquivo, e o próximo gancho que o CLI
+      // copiar para cá aparece no lint e entra nesta lista por nome.
+      "src/interface/ganchos/use-mobile.ts",
       // Saída do `fumadocs-mdx`: os `.md` de `docs/` transformados em módulos, gerados pelo `postinstall`
       // e regerados a cada build. São três arquivos com `@ts-nocheck` no topo e um `{}` na assinatura,
       // que é exatamente o que duas regras nossas proíbem — e proíbem com razão, para **código escrito**.

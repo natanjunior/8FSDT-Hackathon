@@ -12,6 +12,15 @@ import {
   MENSAGEM_GENERICA,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
+import {
+  erroVisivel,
+  interagir,
+  primeiroComProblema,
+  SEM_INTERACAO,
+  type EstadoDeInteracao,
+  type EventoDeInteracao,
+} from "@/interface/ganchos/use-formulario-tocado";
+import { entrarSchema, errosDoSchema, mensagensPorCampo } from "@/interface/schemas";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -123,5 +132,94 @@ describe("as três formas do aviso — guia §7", () => {
       description: "2 ocorrências mantêm o anterior.",
       duration: Number.POSITIVE_INFINITY,
     });
+  });
+});
+
+describe("o formulário tocado — critério 2", () => {
+  const CAMPOS = ["email", "senha"];
+  const ERROS = { email: "Informe o seu e-mail.", senha: "Informe a senha." };
+
+  function depois(...eventos: EventoDeInteracao[]): EstadoDeInteracao {
+    return eventos.reduce((estado, evento) => interagir(estado, evento, CAMPOS), SEM_INTERACAO);
+  }
+
+  it("antes da primeira interação, nenhum campo mostra erro", () => {
+    expect(erroVisivel(SEM_INTERACAO, "formulario", "email", ERROS)).toBeUndefined();
+    expect(erroVisivel(SEM_INTERACAO, "formulario", "senha", ERROS)).toBeUndefined();
+  });
+
+  it("mudar um campo revela todos os campos com problema, no modo formulario", () => {
+    const estado = depois({ tipo: "mudou", campo: "email" });
+    expect(erroVisivel(estado, "formulario", "email", ERROS)).toBe("Informe o seu e-mail.");
+    expect(erroVisivel(estado, "formulario", "senha", ERROS)).toBe("Informe a senha.");
+  });
+
+  it("passar o foco por um campo sem mudar nada não conta como interação", () => {
+    const estado = depois({ tipo: "saiu", campo: "email" });
+    expect(estado.interagiu).toBe(false);
+    expect(erroVisivel(estado, "formulario", "email", ERROS)).toBeUndefined();
+  });
+
+  it("mudar um controle que não é campo do formulário não conta (a busca do modal de atribuição)", () => {
+    const estado = depois({ tipo: "mudou", campo: "busca" });
+    expect(estado).toStrictEqual(SEM_INTERACAO);
+  });
+
+  it("no modo campo, só o campo que perdeu o foco mostra o erro (a exceção de T-04)", () => {
+    const estado = depois({ tipo: "mudou", campo: "email" }, { tipo: "saiu", campo: "email" });
+    expect(erroVisivel(estado, "campo", "email", ERROS)).toBe("Informe o seu e-mail.");
+    expect(erroVisivel(estado, "campo", "senha", ERROS)).toBeUndefined();
+  });
+
+  it("tentar enviar revela todos, nos dois modos", () => {
+    const estado = depois({ tipo: "tentou-enviar" });
+    for (const modo of ["formulario", "campo"] as const) {
+      expect(erroVisivel(estado, modo, "email", ERROS)).toBe("Informe o seu e-mail.");
+      expect(erroVisivel(estado, modo, "senha", ERROS)).toBe("Informe a senha.");
+    }
+  });
+
+  it("recomeçar volta ao estado sem interação", () => {
+    const estado = depois({ tipo: "mudou", campo: "email" }, { tipo: "tentou-enviar" }, { tipo: "recomecou" });
+    expect(estado).toStrictEqual(SEM_INTERACAO);
+  });
+
+  it("o erro do servidor aparece sem interação, e some quando aquele campo muda", () => {
+    const doServidor = { email: "Confira o e-mail." };
+    expect(erroVisivel(SEM_INTERACAO, "formulario", "email", {}, doServidor)).toBe("Confira o e-mail.");
+    const estado = depois({ tipo: "mudou", campo: "email" });
+    expect(erroVisivel(estado, "formulario", "email", {}, doServidor)).toBeUndefined();
+  });
+
+  it("o erro do cliente, quando visível, ganha do erro do servidor", () => {
+    const estado = depois({ tipo: "tentou-enviar" });
+    expect(erroVisivel(estado, "formulario", "email", ERROS, { email: "Confira o e-mail." })).toBe(
+      "Informe o seu e-mail.",
+    );
+  });
+
+  it("o primeiro campo com problema segue a ordem dos campos, que é a do documento", () => {
+    expect(primeiroComProblema(CAMPOS, { senha: "Informe a senha." })).toBe("senha");
+    expect(primeiroComProblema(CAMPOS, ERROS)).toBe("email");
+    expect(primeiroComProblema(CAMPOS, { email: undefined })).toBeNull();
+  });
+});
+
+describe("a tradução de violação em mensagem por campo existe uma vez só", () => {
+  it("errosDoSchema usa o mesmo schema que a ação, e fica com a primeira mensagem de cada campo", () => {
+    expect(errosDoSchema(entrarSchema, { email: "", senha: "" })).toStrictEqual({
+      email: "Informe o seu e-mail.",
+      senha: "Informe a senha.",
+    });
+    expect(errosDoSchema(entrarSchema, { email: "helena@example.com", senha: "x" })).toStrictEqual({});
+  });
+
+  it("mensagensPorCampo junta o caminho com ponto", () => {
+    expect(
+      mensagensPorCampo([
+        { path: ["contatos", 0, "valor"], message: "Confira o número." },
+        { path: ["contatos", 0, "valor"], message: "Outra." },
+      ]),
+    ).toStrictEqual({ "contatos.0.valor": "Confira o número." });
   });
 });

@@ -21,6 +21,7 @@ import {
   criarContaSchema,
   definirSenhaSchema,
   entrarSchema,
+  mensagensPorCampo,
   pedirRedefinicaoSchema,
 } from "@/interface/schemas";
 
@@ -59,7 +60,7 @@ export async function acaoDeEntrar(
     email: formulario.get("email"),
     senha: formulario.get("senha"),
   });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const resultado = await entrar(
     montarCredenciais(await armazenamentoDeCookies()),
@@ -85,7 +86,7 @@ export async function acaoDeCriarConta(
     email: formulario.get("email"),
     senha: formulario.get("senha"),
   });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   // **Antes de qualquer ida ao provedor.** Se a origem não der para descobrir, isto lança aqui — e não
   // depois de a conta existir com um link que aterrissa na raiz (item 6c).
@@ -128,7 +129,7 @@ export async function acaoDePedirRedefinicao(
   formulario: FormData,
 ): Promise<EstadoDoFormulario> {
   const conferido = pedirRedefinicaoSchema.safeParse({ email: formulario.get("email") });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const resultado = await pedirRedefinicaoDeSenha(
     montarCredenciais(await armazenamentoDeCookies()),
@@ -150,7 +151,7 @@ export async function acaoDeDefinirSenha(
   formulario: FormData,
 ): Promise<EstadoDoFormulario> {
   const conferido = definirSenhaSchema.safeParse({ senha: formulario.get("senha") });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const armazenamento = await armazenamentoDeRedefinicao();
   const resultado = await definirSenha(montarCredenciais(armazenamento), conferido.data.senha);
@@ -173,15 +174,4 @@ export async function acaoDeDefinirSenha(
 export async function acaoDeSair(): Promise<void> {
   await sair(montarCredenciais(await armazenamentoDeCookies()));
   redirect("/entrar");
-}
-
-function porCampo(
-  violacoes: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
-): Record<string, string> {
-  const saida: Record<string, string> = {};
-  for (const violacao of violacoes) {
-    const campo = violacao.path.map(String).join(".");
-    if (saida[campo] === undefined) saida[campo] = violacao.message;
-  }
-  return saida;
 }
