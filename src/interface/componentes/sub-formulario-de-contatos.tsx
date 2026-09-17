@@ -4,7 +4,13 @@ import { useId, useSyncExternalStore } from "react";
 
 import { FINALIDADES_DE_CONTATO } from "@/dominio/pessoa";
 import { Campo } from "@/interface/componentes/campo";
-import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
+import {
+  ROTULO_DE_FINALIDADE,
+  contatoNovo,
+  indicesDuplicados,
+  type ContatoEmEdicao,
+} from "@/interface/componentes/regras-do-vinculo";
+import { converterTelefoneDigitado } from "@/interface/componentes/telefone";
 import { Input } from "@/interface/componentes/ui/input";
 
 /**
@@ -23,136 +29,6 @@ import { Input } from "@/interface/componentes/ui/input";
  * lista: um par repetido só pode vir de dentro dela. O `409 CONTATO_DUPLICADO` do servidor é a rede que
  * esta tela não provoca.
  */
-
-export type ContatoEmEdicao = {
-  /** Chave estável de React. Não é o `id` do banco — a substituição descarta os antigos. */
-  chave: string;
-  tipo: "telefone" | "email";
-  /** O que a pessoa digitou. Telefone só vira E.164 na hora de montar o corpo. */
-  valor: string;
-  finalidade: (typeof FINALIDADES_DE_CONTATO)[number];
-  temWhatsapp: boolean;
-  observacao: string;
-};
-
-/** O que `GET /vinculos` devolveu, virando linha editável. */
-export function contatoVindoDaApi(contato: {
-  id: string;
-  tipo: string;
-  valor: string;
-  finalidade: string;
-  temWhatsapp: boolean;
-  observacao: string | null;
-}): ContatoEmEdicao {
-  return {
-    chave: contato.id,
-    tipo: contato.tipo === "email" ? "email" : "telefone",
-    valor: contato.valor,
-    finalidade:
-      contato.finalidade === "trabalho"
-        ? "trabalho"
-        : contato.finalidade === "recado"
-          ? "recado"
-          : "pessoal",
-    temWhatsapp: contato.temWhatsapp,
-    observacao: contato.observacao ?? "",
-  };
-}
-
-/** O contato acrescentado entra **no fim** da lista, como o último a ser tentado (quadro 7). */
-export function contatoNovo(chave: string): ContatoEmEdicao {
-  return {
-    chave,
-    tipo: "telefone",
-    valor: PREFIXO_BR,
-    finalidade: "pessoal",
-    temWhatsapp: false,
-    observacao: "",
-  };
-}
-
-export type ContatoNoCorpo = {
-  tipo: "telefone" | "email";
-  valor: string;
-  finalidade: (typeof FINALIDADES_DE_CONTATO)[number];
-  temWhatsapp: boolean;
-  observacao: string | null;
-};
-
-/**
- * A lista virando corpo. **Sem `ordem`:** quem a grava é o servidor, pela posição (decisão 2.1).
- *
- * Devolve `null` quando algum telefone não converte — quem chama não envia, e mostra o erro no campo.
- */
-export function paraCorpo(contatos: readonly ContatoEmEdicao[]): ContatoNoCorpo[] | null {
-  const corpo: ContatoNoCorpo[] = [];
-
-  for (const contato of contatos) {
-    const valor = valorNormalizado(contato);
-    if (valor === null) return null;
-
-    corpo.push({
-      tipo: contato.tipo,
-      valor,
-      finalidade: contato.finalidade,
-      temWhatsapp: contato.tipo === "telefone" && contato.temWhatsapp,
-      observacao: contato.observacao.trim() === "" ? null : contato.observacao.trim(),
-    });
-  }
-
-  return corpo;
-}
-
-/**
- * O valor como ele vai ser **guardado**, ou `null` se não converte.
- *
- * **A comparação de duplicata acontece sobre isto, não sobre o digitado**: `(11) 95521-7788` e
- * `+5511955217788` são o mesmo contato para o `UNIQUE (pessoa_id, tipo, valor)`, e comparar o texto cru
- * deixaria a tela mandar um par que o banco recusa.
- */
-function valorNormalizado(contato: ContatoEmEdicao): string | null {
-  if (contato.tipo === "email") {
-    const email = contato.valor.trim();
-    return email === "" ? null : email;
-  }
-
-  const convertido = converterTelefoneDigitado(contato.valor);
-  return convertido.situacao === "convertido" ? convertido.valor : null;
-}
-
-/** Os índices que repetem um par (`tipo`, `valor`) anterior. O primeiro de cada par não é culpado. */
-export function indicesDuplicados(contatos: readonly ContatoEmEdicao[]): ReadonlySet<number> {
-  const vistos = new Set<string>();
-  const duplicados = new Set<number>();
-
-  contatos.forEach((contato, indice) => {
-    const valor = valorNormalizado(contato);
-    if (valor === null) return;
-
-    const par = `${contato.tipo} ${valor.toLowerCase()}`;
-    if (vistos.has(par)) duplicados.add(indice);
-    else vistos.add(par);
-  });
-
-  return duplicados;
-}
-
-/**
- * A lista mudou em relação ao que foi lido?
- *
- * **Compara conteúdo E ordem** — Subir/Descer sem editar nada **é** alteração, e é a única que um
- * comparador de conjunto não vê. Comparar o corpo montado, e não os objetos em edição, é o que faz
- * `(11) 95521-7788` e `+5511955217788` contarem como iguais.
- *
- * Serve à decisão 2.3: quando nada mudou, o `PATCH` **omite** `contatos`, e os `id` e `criadoEm` das
- * linhas sobrevivem a uma correção de unidade.
- */
-export function listaMudou(
-  atual: readonly ContatoEmEdicao[],
-  original: readonly ContatoEmEdicao[],
-): boolean {
-  return JSON.stringify(paraCorpo(atual)) !== JSON.stringify(paraCorpo(original));
-}
 
 /**
  * `true` abaixo de `md` (768 px), o mesmo ponto de corte da lista de vínculos.
@@ -173,12 +49,6 @@ function useEhCelular(): boolean {
     () => false,
   );
 }
-
-const ROTULO_DE_FINALIDADE: Readonly<Record<string, string>> = {
-  pessoal: "Pessoal",
-  trabalho: "Trabalho",
-  recado: "Recado",
-};
 
 const CLASSE_DE_CHIP =
   "border-linha text-tinta inline-flex min-h-11 items-center rounded-md border px-3 text-sm disabled:opacity-40";

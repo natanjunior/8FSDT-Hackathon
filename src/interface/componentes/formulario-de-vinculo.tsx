@@ -5,13 +5,13 @@ import { useState } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import {
-  SubFormularioDeContatos,
   contatoVindoDaApi,
   indicesDuplicados,
   listaMudou,
   paraCorpo,
   type ContatoEmEdicao,
-} from "@/interface/componentes/sub-formulario-de-contatos";
+} from "@/interface/componentes/regras-do-vinculo";
+import { SubFormularioDeContatos } from "@/interface/componentes/sub-formulario-de-contatos";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 
