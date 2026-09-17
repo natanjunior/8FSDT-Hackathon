@@ -34,6 +34,9 @@ Para quem vai **manter, avaliar ou estender** a solução.
 | [Atendimento ao enunciado](atendimento-ao-enunciado.md) | Cada exigência do desafio, onde ela está descrita, o endereço que a realiza e a tela onde acontece |
 | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | O sistema no contexto, os blocos, a stack contra cada requisito, e a regra de dependência |
 | [Domínio e regras](dominio.md) | O agregado `Ocorrência`, a máquina de estados, o histórico e as invariantes |
+| [Segurança](seguranca.md) | O isolamento entre organizações, quem entra, o que cada um pode, e o que acontece com foto, localização e conta excluída |
+| [Infraestrutura](infraestrutura.md) | Onde cada peça roda, o que a imagem contém, a ordem da esteira e como subir a pilha na própria máquina |
+| [Testes](testes.md) | O que cada tipo de teste protege, os verificadores e o portão que bloqueia a entrega |
 | [Modelo de dados](modelo-de-dados.md) | O esquema em PostgreSQL, com cada índice justificado por uma consulta |
 | [Contrato de API](contrato-de-api.md) | As convenções da superfície HTTP: sessão, organização, erros e upload |
 | [Telas](inventario-de-telas.md) | O que cada tela responde, o que oferece e qual endereço chama |
@@ -46,7 +49,8 @@ Para quem vai **manter, avaliar ou estender** a solução.
 |---|---|
 | *O desafio foi atendido?* | [Atendimento ao enunciado](atendimento-ao-enunciado.md), exigência por exigência |
 | *Como a auditabilidade é garantida?* | [Domínio e regras](dominio.md), na máquina de estados e nas invariantes |
-| *Como um condomínio não vê o dado do outro?* | [Visão geral da arquitetura](visao-geral-da-arquitetura.md), e o ponto único de escopo |
+| *Como um condomínio não vê o dado do outro?* | [Segurança](seguranca.md), no ponto único por onde toda requisição passa |
+| *Como isso é publicado, e como se volta atrás?* | [Infraestrutura](infraestrutura.md), na ordem da esteira |
 | *O que a API expõe?* | A [referência da API](/documentacao/api/referencia), com as operações navegáveis |
 | *Como rodo o projeto?* | O [README do repositório](https://github.com/natanjunior/8FSDT-Hackathon#como-rodar) |
 

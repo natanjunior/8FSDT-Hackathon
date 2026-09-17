@@ -60,14 +60,14 @@ mecanismo está em [Domínio e regras](dominio.md), e a decisão que o fixou, na
 | APIs | [referência da API](/documentacao/api/referencia) | 41 operações, conferidas contra as rotas a cada publicação |
 | Banco de dados | [Modelo de dados](modelo-de-dados.md) | catorze tabelas em `supabase/migrations/` |
 | Frontend | [Telas](inventario-de-telas.md) | as telas da aplicação, em `app/` |
-| Testes | [Definition of Done](definition-of-done.md) | domínio e aplicação sem banco, isolamento contra Postgres, e um de ponta a ponta num navegador |
-| Docker | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | o mesmo `Dockerfile` sobe o ambiente local e a produção |
-| Deploy em cloud | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | a aplicação publicada, com uma revisão nova por entrega |
+| Testes | [Testes](testes.md) | domínio e aplicação sem banco, isolamento contra Postgres, e um de ponta a ponta num navegador |
+| Docker | [Infraestrutura](infraestrutura.md) | o mesmo `Dockerfile` sobe o ambiente local e a produção |
+| Deploy em cloud | [Infraestrutura](infraestrutura.md) | a aplicação publicada, com uma revisão nova por entrega |
 | Documentação | esta documentação | os verificadores do portão de entrega, um deles contra o site publicado |
 
 ## O que o enunciado não fixou
 
-O desafio deixa seis pontos em aberto. Cada um virou regra escrita, e não escolha invisível:
+O desafio deixa seis pontos em aberto, e cada um virou regra escrita:
 
 | Em aberto no enunciado | Onde está a regra |
 |---|---|

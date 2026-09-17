@@ -40,32 +40,33 @@ organização sem sair da sessão. Uma organização nunca vê o dado da outra.
 | Cria conta e entra numa organização pelo código | Cria a organização e vira o primeiro Gestor |
 | Registra a ocorrência com título, descrição, categoria, área e foto | Vê todas as ocorrências e filtra por categoria, estado e prioridade |
 | Acompanha as próprias ocorrências e a linha do tempo de cada uma | Analisa, define prioridade e atribui um responsável |
-| Conversa com quem gere, dentro da ocorrência | Inicia o atendimento, pausa com motivo e retoma |
+| Conversa com o Gestor, dentro da ocorrência | Inicia o atendimento, pausa com motivo e retoma |
 | Avalia a resolução, com nota e comentário | Registra a solução aplicada e resolve |
 | | Cancela com motivo, e aprova quem pede para entrar |
 | | Lê os indicadores no painel |
 
 ## O ciclo de vida da ocorrência
 
-A ocorrência nasce quando alguém a registra, passa por análise, ganha um responsável, entra em atendimento
-e termina resolvida. Pode esperar no meio do caminho, e pode ser encerrada sem solução enquanto o trabalho
-não terminou.
+O Solicitante registra a ocorrência, que nasce `Aberta`. O Gestor a coloca `Em análise`, atribui um
+responsável e inicia o atendimento; ao terminar, registra a solução aplicada e a marca como `Resolvida`. A
+ocorrência pode ficar `Pausada` enquanto se espera por alguém, e pode terminar `Cancelada` enquanto o
+trabalho não acabou.
 
-O que governa esse caminho, em linguagem de negócio:
+O que governa esse caminho:
 
-- **Só quem gere move a ocorrência adiante.** Quem abriu acompanha, comenta, avalia, e desiste da própria
-  enquanto ninguém começou a atendê-la. Depois que o atendimento começa, encerrar sem solução é decisão de
-  quem gere.
-- **Esperar exige dizer por quê**, escolhido numa lista curta: esperando resposta de quem abriu, esperando
-  material, esperando autorização, esperando um terceiro. Ao voltar, a ocorrência retoma de onde parou.
-- **Encerrar sem solução exige motivo escrito**, e fica registrado como coisa diferente de resolver.
-- **A avaliação é uma ação de quem abriu**, sobre uma ocorrência já resolvida, com nota de 1 a 5 e
+- **Só o Gestor move a ocorrência adiante.** O Solicitante acompanha, comenta, avalia e cancela a própria
+  enquanto ninguém começou a atendê-la. Depois que o atendimento começa, cancelar é decisão do Gestor.
+- **Pausar exige motivo**, escolhido numa lista curta: esperando resposta do Solicitante, esperando
+  material, esperando autorização, esperando um terceiro. Retomar devolve a ocorrência ao estado em que ela
+  estava antes da pausa.
+- **Cancelar exige observação escrita**, e fica registrado como coisa diferente de resolver.
+- **A avaliação é uma ação do Solicitante** sobre uma ocorrência já resolvida, com nota de 1 a 5 e
   comentário opcional. Ela não é uma etapa do caminho.
-- **Toda mudança grava um registro** com o que era, o que passou a ser, a data e a hora, quem fez e a
+- **Toda mudança de estado grava um registro** com o estado anterior, o novo, a data e a hora, quem fez e a
   observação. O registro não se altera nem se apaga.
 - **Não existe reabrir.** Problema que volta é ocorrência nova, ligada à original.
 
-Os nomes exatos dos estados, o desenho da máquina e quem pode executar cada transição estão em
+O desenho da máquina, a tabela de transições permitidas e quem pode executar cada uma estão em
 [Domínio e regras](dominio.md), que é onde essa regra mora.
 
 ## O que o Gestor vê no painel

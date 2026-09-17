@@ -94,6 +94,16 @@ história em linguagem de gente, e a trilha mostra os campos crus, para conferê
 | Reabrir existe? | Não. `Resolvida` e `Cancelada` são terminais, e problema que volta é ocorrência nova ligada à original |
 | Quais categorias existem? | As sete do desafio nascem com a organização, e o Gestor as edita. Categoria é configuração, não código |
 
+## Quem lê uma ocorrência
+
+Duas regras, e são estas: **o autor lê as próprias**, e **quem tem permissão de ler todas lê todas as da
+organização**, que nesta versão é o Gestor. Não há terceira porta, e a listagem aplica a mesma regra que
+o detalhe.
+
+Um Solicitante não alcança a ocorrência de outro, nem numa área comum. A consequência é que o nome de
+quem abriu nunca chega a um vizinho: quem o vê é o Gestor. O tipo congelado da área está gravado para o
+dia em que a regra se abrir, e abrir exige decisão, e não configuração.
+
 ## As invariantes
 
 O que o sistema garante, e onde cada garantia mora. As oito primeiras dependem apenas do estado da própria
@@ -143,7 +153,8 @@ O produto, o código, a API e a interface usam as mesmas palavras. Os termos com
 
 - **Organização** é o lugar em si: o condomínio, a empresa, o bairro. A palavra não designa um cliente do
   sistema.
-- **Área** é a subdivisão do lugar: o bloco B, a garagem, o apartamento 302. Ela é comum ou privativa, e a
-  visibilidade da ocorrência deriva do tipo da área no momento em que a ocorrência foi registrada.
+- **Área** é a subdivisão do lugar: o bloco B, a garagem, o apartamento 302. Ela é comum ou privativa, e
+  cada ocorrência guarda uma cópia congelada desse tipo, lida no momento do registro. Reclassificar uma
+  área muda o que acontece daqui para a frente sem mexer no passado.
 - **Vínculo** é a ligação entre uma pessoa e uma organização, com um papel. Quem tem papel é o vínculo, e
   não a pessoa: a mesma pessoa pode ser Gestora num lugar e Solicitante em outro.
