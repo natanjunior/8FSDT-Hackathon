@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { acaoDePedirRedefinicao } from "@/interface/acoes";
-import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
+import { Campo } from "@/interface/componentes/campo";
+import { Aviso } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 

@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
 import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
-import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
+import { Campo } from "@/interface/componentes/campo";
+import { Aviso } from "@/interface/componentes/moldura-de-tela";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";

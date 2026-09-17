@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { ICONE_PADRAO } from "@/dominio/organizacao";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { SeletorDeIcone } from "@/interface/componentes/icone-de-categoria";
-import { Campo } from "@/interface/componentes/moldura-de-tela";
+import { Campo } from "@/interface/componentes/campo";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import { ICONES_DE_CATEGORIA, type NomeDeIcone } from "@/interface/schemas";

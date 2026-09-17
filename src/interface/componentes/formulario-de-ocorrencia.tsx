@@ -7,7 +7,7 @@ import { useState } from "react";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { ControleDeFoto, type EstadoDoAnexo } from "./controle-de-foto";
 import { IconeDeCategoria } from "./icone-de-categoria";
-import { Campo } from "./moldura-de-tela";
+import { Campo } from "./campo";
 
 /**
  * ============================================================================
