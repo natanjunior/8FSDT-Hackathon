@@ -68,11 +68,8 @@ import {
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
 import { lerOCiclo } from "@/interface/componentes/ciclo";
-import {
-  enviarComentario,
-  executarComando,
-  MENSAGEM_GENERICA,
-} from "@/interface/componentes/comando-de-ocorrencia";
+import { enviarComentario, executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import {
   acaoPrimaria,
   acoesDaBarra,
@@ -80,6 +77,9 @@ import {
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
   palavrasDaAtribuicao,
+  RETORNO_DA_MENSAGEM,
+  RETORNO_DO_COMANDO,
+  retornoDoComando,
   rotuloDeComando,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
@@ -1600,6 +1600,8 @@ describe("as palavras da atribuição — o par do item 21", () => {
       descricao: "Quem vai cuidar desta ocorrência.",
       confirmar: "Atribuir",
       enviando: "Atribuindo…",
+      sucesso: "Responsável atribuído",
+      falha: "Não foi possível atribuir o responsável",
     });
   });
 
@@ -1611,6 +1613,8 @@ describe("as palavras da atribuição — o par do item 21", () => {
       descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
       confirmar: "Reatribuir",
       enviando: "Reatribuindo…",
+      sucesso: "Ocorrência reatribuída",
+      falha: "Não foi possível reatribuir a ocorrência",
     });
   });
 
@@ -1633,7 +1637,7 @@ describe("as palavras da atribuição — o par do item 21", () => {
     expect(PALAVRAS_DA_ATRIBUICAO.primeira.descricao).not.toContain("encerrada");
   });
 
-  it("nenhum dos DEZ textos é vazio", () => {
+  it("nenhum dos CATORZE textos é vazio", () => {
     for (const par of PARES) {
       for (const texto of Object.values(par)) {
         expect(texto.trim().length).toBeGreaterThan(0);
@@ -1647,6 +1651,49 @@ describe("as palavras da atribuição — o par do item 21", () => {
     // lista faria o modal dizer *Atribuir* sobre uma ocorrência que tem responsável.
     expect(palavrasDaAtribuicao(false)).toBe(PALAVRAS_DA_ATRIBUICAO.primeira);
     expect(palavrasDaAtribuicao(true)).toBe(PALAVRAS_DA_ATRIBUICAO.nova);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O retorno dos comandos de T-05 — item 44g, critério 6
+ * ============================================================================
+ *
+ * **Os títulos do aviso moram em `rotulos.ts`**, ao lado das palavras da atribuição, porque é lá que
+ * moram os textos de T-05 que dependem do comando. **E nenhum título pode conter o que o teste de ponta
+ * a ponta procura sem escopo** (spec do 44g, §4.13): o aviso desenha uma `<section>` em toda página, e um
+ * título com *Situação*, *Nota* ou *Sua avaliação* faria uma asserção passar pela razão errada.
+ */
+describe("o retorno dos comandos — item 44g", () => {
+  const TITULOS = [
+    ...Object.values(RETORNO_DO_COMANDO),
+    RETORNO_DA_MENSAGEM,
+    PALAVRAS_DA_ATRIBUICAO.primeira,
+    PALAVRAS_DA_ATRIBUICAO.nova,
+  ].flatMap((textos) => [textos.sucesso, textos.falha]);
+
+  it("todo comando que a tela envia tem o par, e as duas exceções são asseridas", () => {
+    // `atribuir-responsavel` tem o par em `palavrasDaAtribuicao`, porque a palavra muda com o estado;
+    // `alterar-prioridade` responde pela linha de desfazer do bloco (critério 17.7, achado A-04).
+    const semPar = COMANDOS_IMPLEMENTADOS.filter((comando) => retornoDoComando(comando) === null);
+    expect(semPar).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
+  });
+
+  it("a falha diz o verbo da ação, e nunca é a frase genérica", () => {
+    const falhas = TITULOS.filter((_, indice) => indice % 2 === 1);
+    for (const falha of falhas) {
+      expect(falha.startsWith("Não foi possível ")).toBe(true);
+      expect(falha).not.toBe(MENSAGEM_GENERICA);
+      expect(falha).not.toContain("agora");
+    }
+  });
+
+  it("nenhum título contém o que o teste de ponta a ponta procura sem escopo", () => {
+    for (const titulo of TITULOS) {
+      for (const proibida of ["Situação", "Nota", "Sua avaliação", "Avaliar", "Atribuir"]) {
+        expect(titulo).not.toContain(proibida);
+      }
+    }
   });
 });
 

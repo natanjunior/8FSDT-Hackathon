@@ -5,6 +5,7 @@ import {
   type Prioridade,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { nomeDoStatus, rotuloDeStatus, type LenteDeRotulo } from "@/interface/projecoes";
 
 /**
@@ -126,6 +127,56 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
 export function rotuloDeComando(comando: Comando): string | null {
   return ROTULO_DE_COMANDO[comando] ?? null;
 }
+
+/**
+ * ============================================================================
+ *  Os títulos do aviso de cada comando — item 44g, critério 6
+ * ============================================================================
+ *
+ * **O título diz o que foi tentado** (guia §7): o de sucesso diz o que aconteceu, o de falha começa por
+ * *"Não foi possível"* e o verbo. A razão da falha fica dentro do modal.
+ *
+ * **Nenhum título leva nome de pessoa, título de ocorrência, *Situação* nem nota**, e um teste confere: o
+ * teste de ponta a ponta procura esses textos sem escopo (spec do 44g, §4.13).
+ *
+ * **Dois comandos não estão aqui, e o teste os nomeia.** `atribuir-responsavel` tem o par em
+ * `palavrasDaAtribuicao`, porque a palavra muda com o estado (critério 21.1). `alterar-prioridade`
+ * responde pela linha de desfazer do bloco, que o critério 17.7 decidiu (achado A-04 da spec do 44g).
+ *
+ * **O objeto é literal, e não `Partial<Record<…>>`**, para que a página leia
+ * `RETORNO_DO_COMANDO.pausar` sem `!`. A busca por um `Comando` qualquer passa pela cópia larga.
+ */
+export const RETORNO_DO_COMANDO = {
+  analisar: {
+    sucesso: "Ocorrência em análise",
+    falha: "Não foi possível analisar a ocorrência",
+  },
+  "iniciar-atendimento": {
+    sucesso: "Atendimento iniciado",
+    falha: "Não foi possível iniciar o atendimento",
+  },
+  pausar: { sucesso: "Ocorrência pausada", falha: "Não foi possível pausar a ocorrência" },
+  retomar: { sucesso: "Ocorrência retomada", falha: "Não foi possível retomar a ocorrência" },
+  resolver: { sucesso: "Ocorrência resolvida", falha: "Não foi possível resolver a ocorrência" },
+  cancelar: { sucesso: "Ocorrência cancelada", falha: "Não foi possível cancelar a ocorrência" },
+  avaliar: { sucesso: "Avaliação enviada", falha: "Não foi possível enviar a avaliação" },
+  "registrar-solucao-aplicada": {
+    sucesso: "Solução aplicada salva",
+    falha: "Não foi possível salvar a solução aplicada",
+  },
+} as const satisfies Partial<Record<Comando, TextosDoRetorno>>;
+
+const RETORNO_LARGO: Partial<Record<Comando, TextosDoRetorno>> = RETORNO_DO_COMANDO;
+
+export function retornoDoComando(comando: Comando): TextosDoRetorno | null {
+  return RETORNO_LARGO[comando] ?? null;
+}
+
+/** A conversa não é comando (`Comando.ts`), e tem o próprio par. */
+export const RETORNO_DA_MENSAGEM: TextosDoRetorno = {
+  sucesso: "Mensagem enviada",
+  falha: "Não foi possível enviar a mensagem",
+};
 
 /**
  * ============================================================================
@@ -403,6 +454,10 @@ export type PalavrasDaAtribuicao = {
   confirmar: string;
   /** O mesmo botão enquanto a requisição corre. */
   enviando: string;
+  /** O título do aviso quando a atribuição foi gravada. */
+  sucesso: string;
+  /** O título do aviso quando não foi. */
+  falha: string;
 };
 
 const PRIMEIRA_ATRIBUICAO: PalavrasDaAtribuicao = {
@@ -411,6 +466,8 @@ const PRIMEIRA_ATRIBUICAO: PalavrasDaAtribuicao = {
   descricao: "Quem vai cuidar desta ocorrência.",
   confirmar: "Atribuir",
   enviando: "Atribuindo…",
+  sucesso: "Responsável atribuído",
+  falha: "Não foi possível atribuir o responsável",
 };
 
 const NOVA_ATRIBUICAO: PalavrasDaAtribuicao = {
@@ -419,6 +476,8 @@ const NOVA_ATRIBUICAO: PalavrasDaAtribuicao = {
   descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
   confirmar: "Reatribuir",
   enviando: "Reatribuindo…",
+  sucesso: "Ocorrência reatribuída",
+  falha: "Não foi possível reatribuir a ocorrência",
 };
 
 export const PALAVRAS_DA_ATRIBUICAO: Readonly<Record<"primeira" | "nova", PalavrasDaAtribuicao>> = {

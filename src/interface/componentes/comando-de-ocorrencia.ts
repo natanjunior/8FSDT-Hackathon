@@ -1,8 +1,9 @@
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 
 /**
  * ============================================================================
- *  A chamada de comando de T-05 — um `fetch`, três frases, um lugar
+ *  A chamada de comando de T-05 — um `fetch`, a frase do `409`, um lugar
  * ============================================================================
  *
  * **Módulo sem componente**, e é o ponto: a barra fazia isto dentro dela, e a partir do item 19 há um
@@ -17,10 +18,6 @@ import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organi
  * **Sem `"use client"`, e não é esquecimento:** quem tem estado é quem chama. Este arquivo não usa hook
  * nenhum, e a diretiva mora no componente.
  */
-
-/** O que a tela mostra quando não há frase melhor — a resposta mais completa que o inventário dá a um
- *  erro sem código conhecido. */
-export const MENSAGEM_GENERICA = "Não foi possível executar agora. Tente de novo.";
 
 export type ResultadoDoComando = { ok: true } | { ok: false; aviso: string };
 
@@ -54,26 +51,32 @@ export async function executarComando(
 
     if (resposta.ok) return { ok: true };
 
-    const problema = (await resposta.json().catch(() => ({}))) as {
-      codigo?: string;
-      statusAtual?: string;
-      detail?: string;
-    };
-
-    if (problema.codigo === "TRANSICAO_NAO_PERMITIDA" && problema.statusAtual !== undefined) {
-      const rotulo = rotulosDeStatus[problema.statusAtual] ?? problema.statusAtual;
-      return {
-        ok: false,
-        aviso: `Esta ocorrência mudou enquanto você estava olhando: agora ela está ${rotulo}.`,
-      };
-    }
-
-    return { ok: false, aviso: problema.detail ?? MENSAGEM_GENERICA };
+    const problema = (await resposta.json().catch(() => null)) as unknown;
+    return { ok: false, aviso: mensagemDoProblema(problema, frasesDoComando(problema, rotulosDeStatus)) };
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
     return { ok: false, aviso: MENSAGEM_GENERICA };
   }
+}
+
+/**
+ * **A frase do `409` é a do inventário**, montada com o `statusAtual` que o contrato pôs no corpo do erro
+ * para isto: *"Esta ocorrência mudou enquanto você estava olhando: agora ela está …"*. Ela é a frase da
+ * tela para `TRANSICAO_NAO_PERMITIDA`, e por isso entra em `mensagemDoProblema` pelo mapa. Sem
+ * `statusAtual`, o mapa fica vazio e vale o `detail`.
+ */
+function frasesDoComando(
+  problema: unknown,
+  rotulosDeStatus: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> {
+  if (typeof problema !== "object" || problema === null) return {};
+  const { statusAtual } = problema as { statusAtual?: unknown };
+  if (typeof statusAtual !== "string") return {};
+  const rotulo = rotulosDeStatus[statusAtual] ?? statusAtual;
+  return {
+    TRANSICAO_NAO_PERMITIDA: `Esta ocorrência mudou enquanto você estava olhando: agora ela está ${rotulo}.`,
+  };
 }
 
 /** O que o `201` traz — o schema `Comentario` do contrato, projetado. */
@@ -93,7 +96,7 @@ export type ResultadoDoEnvio =
  * comando.**
  *
  * **Compartilha o corpo do `fetch`**: `cabecalhosDeEscrita(organizacaoId)` — a afirmação de organização
- * do item 7b —, o `detail` do problema como aviso, a `MENSAGEM_GENERICA` e o `catch` de rede caída.
+ * do item 7b —, o `detail` do problema como aviso, a frase genérica e o `catch` de rede caída.
  *
  * **O que ela NÃO tem é o ramo do `409 TRANSICAO_NAO_PERMITIDA`**, e por isso não recebe
  * `rotulosDeStatus`: comentar não é comando, e o contrato **não publica** aquele erro neste endpoint.
@@ -124,8 +127,8 @@ export async function enviarComentario(
       return { ok: true, comentario: (await resposta.json()) as ComentarioDoEnvio };
     }
 
-    const problema = (await resposta.json().catch(() => ({}))) as { detail?: string };
-    return { ok: false, aviso: problema.detail ?? MENSAGEM_GENERICA };
+    const problema = (await resposta.json().catch(() => null)) as unknown;
+    return { ok: false, aviso: mensagemDoProblema(problema) };
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
