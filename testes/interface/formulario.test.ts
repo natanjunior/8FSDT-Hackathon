@@ -399,7 +399,9 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
     expect(fonte).toContain("duration-(--tempo-gaveta)");
     expect(fonte).toContain("ease-(--curva-gaveta)");
     expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
-    expect(fonte).toContain('variant="marca"');
+    // O principal veste a marca por padrão; a variante destrutiva entrou no 44j, para *Recusar pedido*.
+    expect(fonte).toContain('variante = "marca"');
+    expect(fonte).toContain('variant={variante === "destrutiva" ? "destructive" : "marca"}');
   });
 
   it("T-16 edita o nome no modal do nome, e o formulário de campo aberto da pessoa saiu", () => {
@@ -454,5 +456,27 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
     expect(fonte).not.toContain("searchParams");
     expect(fonte).not.toContain("Não há como apagar");
     expect(fonte).not.toContain("function Destino(");
+  });
+});
+
+describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
+  it("os quatro componentes do catálogo entraram (critério 44j.11)", () => {
+    for (const peca of ["alert-dialog", "breadcrumb", "radio-group", "switch"]) {
+      expect(existsSync(`${RAIZ}src/interface/componentes/ui/${peca}.tsx`), peca).toBe(true);
+    }
+  });
+
+  it("o arrastar é o nativo do HTML, sem pacote novo (critério 44j.9)", () => {
+    const fonte = ler("src/interface/ganchos/use-arrasto-de-linha.ts");
+    expect(fonte).toContain("dataTransfer");
+    expect(fonte).toContain("setDragImage");
+    const importados = [...fonte.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    expect(importados.filter((modulo) => modulo !== "react" && !modulo.startsWith("@/"))).toStrictEqual([]);
+  });
+
+  it("a alça só existe onde há ponteiro fino, e sem tocar a folha de estilo global", () => {
+    expect(ler("src/interface/componentes/controles-de-ordem.tsx")).toContain(
+      "[@media(hover:hover)_and_(pointer:fine)]:",
+    );
   });
 });

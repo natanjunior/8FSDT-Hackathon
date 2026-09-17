@@ -68,6 +68,7 @@ export function Modal({
   descricao,
   obrigatorios,
   aoEnviar,
+  aoFecharFoco,
   rodape,
   children,
 }: {
@@ -81,6 +82,11 @@ export function Modal({
   /** Quantos campos obrigatórios o corpo tem; com zero, o rodapé não escreve a nota. */
   obrigatorios: number;
   aoEnviar: (evento: FormEvent<HTMLFormElement>) => void;
+  /**
+   * Opcional: para onde o foco vai quando o modal fecha (item 44j). Sem ela, o foco volta ao gatilho —
+   * que é o certo, menos quando a linha do gatilho sai da tabela com a escrita que acabou de acontecer.
+   */
+  aoFecharFoco?: (evento: Event) => void;
   /** Os botões do rodapé, na ordem de leitura: `BotaoDeCancelar` e `BotaoDeConfirmar`. */
   rodape: ReactNode;
   children: ReactNode;
@@ -104,7 +110,7 @@ export function Modal({
     <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
       <DialogTrigger asChild>{gatilho}</DialogTrigger>
       {celular ? (
-        <SheetContent side="bottom" showCloseButton={false} className={CONTEUDO_DO_SHEET}>
+        <SheetContent side="bottom" showCloseButton={false} onCloseAutoFocus={aoFecharFoco} className={CONTEUDO_DO_SHEET}>
           {formulario}
           <DialogClose asChild>
             <Button
@@ -120,7 +126,7 @@ export function Modal({
           </DialogClose>
         </SheetContent>
       ) : (
-        <DialogContent className={CONTEUDO_DO_DIALOG}>{formulario}</DialogContent>
+        <DialogContent onCloseAutoFocus={aoFecharFoco} className={CONTEUDO_DO_DIALOG}>{formulario}</DialogContent>
       )}
     </Dialog>
   );
@@ -145,21 +151,24 @@ export function BotaoDeCancelar({ enviando }: { enviando: boolean }) {
 /**
  * O principal do rodapé, na cor da marca (guia §2: com o modal aberto, é a ação principal da tela).
  * **Nunca desabilitado por campo inválido** (guia §7): só fica inerte durante o envio, com o indicador e
- * o verbo no gerúndio.
+ * o verbo no gerúndio. **A variante destrutiva** é a do guia para ação que recusa ou desativa, e chegou
+ * com *Recusar pedido* (item 44j).
  */
 export function BotaoDeConfirmar({
   enviando,
   rotulo,
   rotuloEnviando,
+  variante = "marca",
 }: {
   enviando: boolean;
   rotulo: string;
   rotuloEnviando: string;
+  variante?: "marca" | "destrutiva";
 }) {
   return (
     <Button
       type="submit"
-      variant="marca"
+      variant={variante === "destrutiva" ? "destructive" : "marca"}
       disabled={enviando}
       className="text-interface min-h-11 rounded-sm px-4 font-semibold"
     >
