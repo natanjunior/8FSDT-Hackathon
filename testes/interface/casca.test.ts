@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -23,6 +26,20 @@ import {
  * regra de forma vira guarda sobre o código-fonte**, no precedente de `formulario.test.ts`: onze páginas
  * devolvem o mesmo componente, e nenhuma escreve a recusa por conta própria.
  */
+
+const RAIZ = fileURLToPath(new URL("../../", import.meta.url));
+
+function ler(relativo: string): string {
+  return readFileSync(RAIZ + relativo, "utf8");
+}
+
+/** Os `.ts` e `.tsx` de uma pasta, com o caminho lógico a partir da raiz e separador `/`. */
+function arquivosDe(pasta: string): string[] {
+  return readdirSync(RAIZ + pasta, { recursive: true, encoding: "utf8" })
+    .map((caminho) => `${pasta}/${caminho.replace(/\\/gu, "/")}`)
+    .filter((caminho) => /\.tsx?$/u.test(caminho))
+    .sort();
+}
 
 describe("a marca da barra lateral — critério 1", () => {
   it.each([
@@ -103,5 +120,38 @@ describe("as frases do estado sem acesso — critério 3", () => {
     for (const frase of frases) {
       expect(frase).not.toMatch(/entrega|vers[aã]o|etapa/iu);
     }
+  });
+});
+
+describe("a barra lateral — critérios 1 e 2 no componente", () => {
+  const NAVEGACAO = "src/interface/componentes/casca/navegacao.tsx";
+
+  it("desenha cada destino da lista uma vez, e só eles", () => {
+    const desenhados = [...ler(NAVEGACAO).matchAll(/destino="([^"]+)"/gu)]
+      .map((achado) => achado[1])
+      .sort();
+    expect(desenhados).toStrictEqual([...DESTINOS_DA_BARRA].sort());
+  });
+
+  it("lê o caminho, e o item marcado leva isActive e aria-current no link", () => {
+    const fonte = ler(NAVEGACAO);
+    expect(fonte.startsWith('"use client";')).toBe(true);
+    expect(fonte).toContain("usePathname()");
+    expect(fonte).toContain("isActive={marcado}");
+    expect(fonte).toContain('aria-current={marcado ? "page" : undefined}');
+  });
+
+  it("a palavra anterior da contagem não sobra na casca", () => {
+    const comAPalavra = arquivosDe("src/interface/componentes/casca").filter((caminho) =>
+      ler(caminho).includes("aguardando"),
+    );
+    expect(comAPalavra).toStrictEqual([]);
+  });
+
+  it("os grupos da barra não têm recuo próprio, que é o que faz a contagem caber", () => {
+    const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
+      (achado) => achado[1],
+    );
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0"]);
   });
 });
