@@ -12,15 +12,15 @@ servida por ele.
 ## O sistema no contexto
 
 ```mermaid
-flowchart LR
+flowchart TB
     SOL["Solicitante<br/>morador, funcionário"]
     GES["Gestor<br/>síndico, administrador"]
 
-    APP["Resolve Aí<br/>aplicação web instalável"]
+    APP["Resolve Aí<br/>Next.js em contêiner<br/>no Azure Container Apps"]
 
-    AUTH["Provedor de autenticação<br/>contas e sessões"]
-    BD[("PostgreSQL<br/>ocorrências e trilha")]
-    BLOB["Armazenamento de objetos<br/>as imagens anexadas"]
+    AUTH["Supabase Auth<br/>contas e sessões"]
+    BD[("Supabase PostgreSQL<br/>ocorrências e trilha")]
+    BLOB["Azure Blob Storage<br/>as imagens anexadas"]
 
     SOL -->|registra e acompanha| APP
     GES -->|tria, atribui e fecha| APP
@@ -47,7 +47,7 @@ flowchart TB
         APLIC["Aplicação<br/>contexto da requisição, orquestração, transação"]
         DOM["Domínio<br/>o agregado Ocorrência e as regras"]
         INFRA["Infraestrutura<br/>repositórios, clientes e o ponto único de escopo"]
-        DOCS["Documentação<br/>as páginas desta pasta"]
+        DOCS["Documentação<br/>as páginas que você está lendo"]
     end
 
     PWA -->|HTTP| TELAS
@@ -70,35 +70,37 @@ Infraestrutura depende do Domínio porque implementa portas que o Domínio decla
 **A regra é conferida por máquina.** Cinco regras de importação no `eslint.config.mjs` recusam o que a
 tabela proíbe: importação só para dentro e só pela superfície pública do módulo, nenhum pacote de terceiro
 fora da pasta de clientes, e o escopo por organização alcançável apenas pelos quatro endereços de uma
-lista fechada. Um desenho que depende de disciplina se desfaz na primeira semana apertada; este falha o
-build.
+lista fechada. Uma importação que desrespeite a tabela falha o build.
 
 ## Os dois contextos do domínio
 
 | Contexto | O que abriga | Por que é separado |
 |---|---|---|
-| **Ocorrências** | a `Ocorrência` com o ciclo de vida e a trilha, a conversa, a notificação | é o coração do produto, e onde toda a modelagem foi gasta |
+| **Ocorrências** | a `Ocorrência` com o ciclo de vida e a trilha, e a conversa dentro dela | é o coração do produto, e onde toda a modelagem foi gasta |
 | **Organização e acesso** | a `Organização`, a `Pessoa`, o vínculo entre as duas, e o usuário do provedor | resolve quem é quem e o que cada um pode, sem valor próprio |
 
 A fronteira entre os dois é o momento em que a ocorrência é registrada. Antes dele a pergunta é *quem é
-você e onde você está*; depois, *o que acontece com este problema*.
+você e onde você está*; depois, *o que acontece com este problema*. É uma fronteira do domínio, e não de
+organização de código: os dois lados falam línguas diferentes, e a mesma palavra muda de sentido ao
+atravessá-la. "Responsável" em um deles é o papel de quem executa; no outro, a pessoa a quem esta
+ocorrência foi atribuída.
 
-São dois, e não seis, porque um contexto é trabalhado por um time, e aqui há um implementador. Fatiar mais
-seria desenho de enfeite. O detalhe do modelo está em [Domínio e regras](dominio.md).
+O detalhe do modelo está em [Domínio e regras](dominio.md).
 
 ## A stack, contra o requisito que a escolheu
 
 | Tecnologia | O requisito que a justifica |
 |---|---|
-| Next.js com TypeScript | uma entrega só, sem CORS nem tipos duplicados, para um implementador em seis semanas |
-| Aplicação instalável, com service worker | leitura sem rede, e registro rápido em rede ruim |
-| Rotas de API próprias | as APIs são entregável, e o mesmo servidor as serve à interface |
-| PostgreSQL | a auditabilidade exige gravar a transição e o registro na mesma transação |
-| Autenticação gerenciada | problema resolvido por terceiros, comprado em vez de construído |
-| Armazenamento de objetos | a imagem por ocorrência, sem teto de arquivo e sem custo relevante |
-| Contêiner, e a mesma imagem em produção | a conteinerização que o desafio exige, sem ambiente de desenvolvimento diferente do publicado |
-| Nuvem com escala a zero | publicação em nuvem dentro de uma franquia gratuita permanente |
-| Tailwind e biblioteca de componentes | o risco de usabilidade: foco, teclado e leitores de tela corretos sem construí-los |
+| Next.js com TypeScript | interface e API na mesma entrega, sem CORS nem tipos duplicados entre as duas |
+| Aplicação instalável, com service worker | o registro em menos de um minuto pelo celular, que depende de a aplicação abrir do atalho e resistir a rede ruim |
+| Rotas de API próprias, em Next.js | as APIs são entregável, e o mesmo servidor as serve à interface |
+| Supabase PostgreSQL | a auditabilidade exige gravar a transição e o registro na mesma transação |
+| Supabase Auth | contas e sessões são problema resolvido por terceiros, comprado em vez de construído |
+| Azure Blob Storage | a imagem por ocorrência, sem teto de arquivo e sem custo relevante |
+| Docker, com a mesma imagem em produção | a conteinerização que o desafio exige, sem ambiente de desenvolvimento diferente do publicado |
+| Azure Container Apps | publicação em nuvem dentro de uma franquia gratuita permanente |
+| GitHub Actions e GitHub Container Registry | a esteira e o registro da imagem, no mesmo lugar onde o código mora |
+| Tailwind CSS com shadcn/ui | o risco de usabilidade: foco, teclado e leitores de tela corretos sem construí-los |
 | Vitest e Playwright | a máquina de estados testável em milissegundos, e o caminho crítico exercido num navegador |
 
 Cada escolha tem alternativa rejeitada registrada nas
@@ -107,17 +109,15 @@ Cada escolha tem alternativa rejeitada registrada nas
 ## Da máquina ao ar
 
 ```mermaid
-flowchart LR
+flowchart TB
     DEV["Máquina de quem implementa<br/>o mesmo Dockerfile"]
-    CI["Esteira de entrega<br/>verificações, migração, imagem"]
-    REG["Registro de imagens"]
-    ACA["Nuvem<br/>uma revisão nova por entrega"]
+    CI["GitHub Actions<br/>verificações e migrações"]
+    REG["GitHub Container Registry<br/>a imagem publicada"]
+    ACA["Azure Container Apps<br/>uma revisão nova por entrega"]
 
-    DEV -->|push| CI
-    CI -->|aplica as migrações antes| REG
+    DEV --> CI
     CI --> REG
-    REG -->|imagem| ACA
-    ACA -->|tráfego na revisão nova| ACA
+    REG --> ACA
 ```
 
 **Publicar é mesclar.** A esteira verifica, aplica as migrações do banco, constrói a imagem, publica e cria

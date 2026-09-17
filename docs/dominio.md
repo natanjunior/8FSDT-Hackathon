@@ -26,7 +26,7 @@ Fora dele ficam a `Organização`, a `Pessoa` e o vínculo entre elas, que respo
 
 ```mermaid
 stateDiagram-v2
-    direction LR
+    direction TB
     [*] --> Aberta: registrar
     Aberta --> EmAnalise: analisar
     EmAnalise --> EmAtendimento: iniciarAtendimento
@@ -66,8 +66,7 @@ responsável, registrar a solução aplicada e avaliar. Cada um tem a sua própr
 
 **O cliente não guarda uma cópia desta tabela.** Toda resposta que traz uma ocorrência traz também a lista
 de ações disponíveis para quem está lendo, já cruzada com o estado e com as permissões. A interface desenha
-botões a partir do que o domínio respondeu, e uma segunda cópia da máquina de estados nunca chega a
-existir.
+botões a partir do que o domínio respondeu, sem manter uma segunda cópia da máquina de estados.
 
 ## O histórico
 
@@ -78,8 +77,7 @@ quem fez, e a observação.**
 - A **criação da ocorrência também gera registro**, com o estado anterior vazio. Quem lê a trilha vê de
   onde a ocorrência veio, e não só o que aconteceu depois.
 - **Pausar e cancelar exigem observação**, porque são os dois momentos em que há uma decisão a justificar.
-  Nas demais transições ela é opcional. Exigir texto num avanço rotineiro produz "ok" no campo, e o dado
-  morre.
+  Nas demais transições ela é opcional.
 - **Retomar devolve a ocorrência ao estado anterior à pausa**, lido do próprio registro da pausa.
 
 A trilha tem tela própria, separada da linha do tempo que o Solicitante lê: a linha do tempo conta a
@@ -104,14 +102,14 @@ ocorrência, e por isso são testáveis sem banco.
 1. O estado nunca é escrito de fora: a única porta são os comandos.
 2. Toda transição produz exatamente um registro, na mesma operação. Não existe transição sem registro nem
    registro sem transição.
-3. O histórico só recebe linhas novas. Registro de auditoria que se edita não é auditoria.
+3. O histórico só recebe linhas novas: não há caminho que altere ou apague um registro.
 4. A criação gera o primeiro registro, com o estado anterior vazio.
 5. Pausar e cancelar exigem motivo escolhido numa lista e observação escrita.
 6. Retomar usa o estado anterior à pausa, lido do registro, e não um campo à parte.
 7. A prioridade não muda depois que a ocorrência é resolvida ou cancelada, para que o painel seja
    reproduzível.
 8. Avaliar só é aceito em `Resolvida`, e só do autor.
-9. Iniciar o atendimento exige um responsável atribuído, porque *quem está fazendo* é o que falta hoje.
+9. Iniciar o atendimento exige um responsável atribuído.
 10. Resolver não exige a solução aplicada por regra do sistema: ela é induzida pela interface, com um
     interruptor por organização para quem precisar exigi-la.
 
@@ -135,14 +133,13 @@ tria; *em que pé está a minha*, para quem abriu; *onde é, exatamente*, para q
 aconteceu com esta ocorrência*, para quem audita. Cada um deles virou um endereço da API, e a
 [referência da API](/documentacao/api/referencia) mostra qual.
 
-**Os agregados** que saíram dali são seis: `Ocorrência`, `Organização`, `Pessoa`, `Usuário`, `Canal de
-conversa` e `Notificação`. Os dois últimos existem modelados e entram em uso parcial nesta versão.
+**Os agregados** que saíram dali e que esta versão usa são cinco: `Ocorrência`, `Organização`, `Pessoa`,
+`Usuário` e `Canal de conversa`, este último no canal que liga quem abriu a quem gere.
 
 ## O vocabulário
 
-O produto, o código, a API e a interface usam as mesmas palavras. Uma divergência de termo entre o
-documento e o código é defeito, não estilo. Os termos com definição estão no [glossário](glossario.md), e
-três valem a pena aqui:
+O produto, o código, a API e a interface usam as mesmas palavras. Os termos com definição estão no
+[glossário](glossario.md), e três valem a pena aqui:
 
 - **Organização** é o lugar em si: o condomínio, a empresa, o bairro. A palavra não designa um cliente do
   sistema.

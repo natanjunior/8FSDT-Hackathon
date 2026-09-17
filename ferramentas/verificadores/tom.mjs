@@ -200,6 +200,22 @@ const DATA_NO_CORPO = /^(?!\s*(?:\*\*)?(?:Status|Data)\b).*?\b(\d{2}\/\d{2}\/\d{
  */
 const ARQUIVO_SEM_LINK = /(.|^)`[^`\n]*\.(?:md|ya?ml|html)`(.{0,2})/gu;
 
+/**
+ * A máquina de estados mora num lugar só.
+ *
+ * O ciclo de vida aparecia desenhado em mais de uma página e enumerado em várias outras. Cada cópia
+ * envelhece sozinha, e quem lê não sabe qual é a boa. Uma página nova que não seja a do domínio não
+ * desenha a máquina nem lista os estados: aponta para lá.
+ *
+ * O teto é dois nomes. Citar um estado para dizer o que acontece nele é leitura normal; citar três é
+ * copiar a máquina.
+ */
+const DONO_DA_MAQUINA_DE_ESTADOS = "docs/dominio.md";
+const DIAGRAMA_DE_ESTADOS = /stateDiagram(?:-v2)?/gu;
+const NOME_DE_ESTADO =
+  /(?<![\w-])(?:Aberta|Em\s+an[áa]lise|Em\s+atendimento|Resolvida|Cancelada|Pausada)(?![\w-])/giu;
+const TETO_DE_ESTADOS_CITADOS = 2;
+
 /** Regra 5 — seção que explica o documento em vez de dizer o que ele tem a dizer. */
 const CABECALHO_PROIBIDO =
   /^#{1,6}\s+.*\b(?:Como ler|Suposições declaradas|Questões ao hub|Limitações)\b/iu;
@@ -256,6 +272,27 @@ export function violacoesDe(conteudo, eu = "", nova = false) {
 
     const datas = conteudo.match(DATA_NO_CORPO) ?? [];
     if (datas.length > 0) violacoes.push(`estrutura — ${datas.length} datas no corpo`);
+
+    if (eu !== DONO_DA_MAQUINA_DE_ESTADOS) {
+      const diagramas = (conteudo.match(DIAGRAMA_DE_ESTADOS) ?? []).length;
+      if (diagramas > 0) {
+        violacoes.push(
+          `estrutura — ${diagramas} diagrama de estados fora de ${DONO_DA_MAQUINA_DE_ESTADOS}`,
+        );
+      }
+
+      const citados = new Set(
+        (conteudo.match(NOME_DE_ESTADO) ?? []).map((nome) =>
+          nome.toLocaleLowerCase("pt-BR").replace(/\s+/gu, " "),
+        ),
+      );
+      if (citados.size > TETO_DE_ESTADOS_CITADOS) {
+        violacoes.push(
+          `estrutura — ${citados.size} estados enumerados (${[...citados].join(", ")}); ` +
+            `o teto é ${TETO_DE_ESTADOS_CITADOS} fora de ${DONO_DA_MAQUINA_DE_ESTADOS}`,
+        );
+      }
+    }
 
     const semLink = [...conteudo.matchAll(ARQUIVO_SEM_LINK)].filter(
       ([, antes, depois]) => antes !== "[" && !depois.startsWith("]("),
@@ -400,7 +437,7 @@ const comoAntiga = violacoesDe(ler(fixture("tom-negativo.md")), "", false).filte
 );
 const positivoComoNova = violacoesDe(ler(fixture("tom-positivo.md")), "", true);
 
-if (comoNova.length < DA_ESTRUTURA_NOVA.length + 2 || comoAntiga.length > 0) {
+if (comoNova.length < DA_ESTRUTURA_NOVA.length + 4 || comoAntiga.length > 0) {
   falhas.push(
     `CONTROLE DA ESTRUTURA FALHOU — o controle negativo deu ${comoNova.length} violações de estrutura ` +
       `como página nova, e ${comoAntiga.length} como página antiga, que tem de ser zero.`,
@@ -410,6 +447,33 @@ if (comoNova.length < DA_ESTRUTURA_NOVA.length + 2 || comoAntiga.length > 0) {
 } else {
   notas.push(
     `estrutura conferida: ${comoNova.length} regras acusam no controle negativo, e só nas páginas novas.`,
+  );
+}
+
+/**
+ * A regra da máquina de estados tem controle próprio, porque é a única que depende de QUAL arquivo é.
+ *
+ * O mesmo conteúdo, lido como a página do domínio, não pode acusar nada; lido como qualquer outra
+ * página nova, tem de acusar as duas: o diagrama e a enumeração. Uma regra que valesse para todo mundo
+ * apagaria a máquina de estados do lugar onde ela deve estar.
+ */
+const soEstados = (lista) => lista.filter((v) => /diagrama de estados|estados enumerados/u.test(v));
+const comoOutra = soEstados(
+  violacoesDe(ler(fixture("tom-negativo.md")), "docs/outra-pagina.md", true),
+);
+const comoDono = soEstados(
+  violacoesDe(ler(fixture("tom-negativo.md")), DONO_DA_MAQUINA_DE_ESTADOS, true),
+);
+
+if (comoOutra.length !== 2 || comoDono.length > 0) {
+  falhas.push(
+    "CONTROLE DA MÁQUINA DE ESTADOS FALHOU — o controle negativo deu " +
+      `${comoOutra.length} violações numa página qualquer (tem de ser 2: o diagrama e a enumeração) ` +
+      `e ${comoDono.length} em ${DONO_DA_MAQUINA_DE_ESTADOS}, que tem de ser zero.`,
+  );
+} else {
+  notas.push(
+    `máquina de estados conferida: o diagrama e a lista de estados só passam em ${DONO_DA_MAQUINA_DE_ESTADOS}.`,
   );
 }
 
