@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { ListaDesatualizada } from "@/aplicacao/organizacao";
 import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
+import { gruposDoCodigo } from "@/interface/componentes/grupos-do-codigo";
+import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import { problemaDe } from "@/interface/http";
 import {
   ICONES_DE_CATEGORIA,
@@ -284,5 +286,56 @@ describe("reordenacaoSchema — a lista inteira, de uma vez", () => {
     });
     // Sem extensão: o cliente recarrega pelo `GET` (spec §4.1).
     expect("erros" in corpo).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  T-15 · o código em grupos e o erro do nome — item 44i
+ * ============================================================================
+ *
+ * **Funções puras**, porque o projeto não tem biblioteca de teste de componente: o componente só as
+ * desenha. Os grupos contam a partir do começo, e unidos devolvem o código.
+ */
+describe("gruposDoCodigo — o código do cartaz em grupos de quatro (critério 44i.3)", () => {
+  it.each([
+    ["K7RQ4MZP", ["K7RQ", "4MZP"]],
+    ["K7RQ4M", ["K7RQ", "4M"]],
+    ["K7RQ4MZPAB", ["K7RQ", "4MZP", "AB"]],
+    ["K7RQ4MZPAB23", ["K7RQ", "4MZP", "AB23"]],
+  ])("%s vira %j", (codigo, grupos) => {
+    expect(gruposDoCodigo(codigo)).toStrictEqual(grupos);
+  });
+
+  it("os grupos unidos devolvem o código, e nenhum grupo é vazio nem passa de quatro", () => {
+    for (const codigo of ["K7RQ4M", "K7RQ4MZ", "K7RQ4MZP", "K7RQ4MZPA", "K7RQ4MZPAB23"]) {
+      const grupos = gruposDoCodigo(codigo);
+      expect(grupos.join("")).toBe(codigo);
+      expect(grupos.every((grupo) => grupo.length > 0 && grupo.length <= 4)).toBe(true);
+    }
+    expect(gruposDoCodigo("")).toStrictEqual([]);
+  });
+});
+
+describe("erroDoNome — o campo do modal Editar organização (critérios 44i.2 e 44i.8)", () => {
+  const ATUAL = "Condomínio Recanto Azul";
+
+  it("vazio e só espaços pedem o nome, com a frase do schema da rota", () => {
+    expect(erroDoNome("organizacao", "", ATUAL)).toBe("Informe o nome da organização.");
+    expect(erroDoNome("organizacao", "   ", ATUAL)).toBe("Informe o nome da organização.");
+  });
+
+  it("igual ao atual, mesmo com espaços em volta, pede para alterar", () => {
+    expect(erroDoNome("organizacao", ATUAL, ATUAL)).toBe(NOME_SEM_MUDANCA);
+    expect(erroDoNome("organizacao", `  ${ATUAL}  `, ATUAL)).toBe("Altere o nome antes de salvar.");
+  });
+
+  it("acima de 120 depois de aparado é a frase do schema; 120 com espaços em volta passa", () => {
+    expect(erroDoNome("organizacao", "a".repeat(121), ATUAL)).toBe("O nome cabe em 120 caracteres.");
+    expect(erroDoNome("organizacao", ` ${"a".repeat(120)} `, ATUAL)).toBeUndefined();
+  });
+
+  it("outro nome não tem erro", () => {
+    expect(erroDoNome("organizacao", "Condomínio Residencial Recanto Azul", ATUAL)).toBeUndefined();
   });
 });
