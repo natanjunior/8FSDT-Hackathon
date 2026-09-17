@@ -21,3 +21,17 @@ Nenhuma.
 
 A decisão **D12** e o ponto de atenção **PA-05** foram levados ao hub, e o hub respondeu em 13/09/2026.
 A regra está no `contrato-de-api.md` §8.5 e no `modelo-de-dados.md` §6.4.
+
+## A máquina de estados, copiada de novo
+
+```mermaid
+stateDiagram-v2
+    [*] --> Aberta
+    Aberta --> EmAnalise
+    EmAnalise --> EmAtendimento
+    EmAtendimento --> Resolvida
+    Aberta --> Cancelada
+```
+
+A ocorrência vai de Aberta a Em análise, de Em análise a Em atendimento, e termina Resolvida ou
+Cancelada, podendo ficar Pausada no meio do caminho.
