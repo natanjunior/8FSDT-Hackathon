@@ -85,10 +85,12 @@ export {
   criacaoDeAreaSchema,
   criacaoDeCategoriaSchema,
   iconeDeCategoria,
+  reordenacaoSchema,
   type EntradaDeCorrecaoDeArea,
   type EntradaDeCorrecaoDeCategoria,
   type EntradaDeCriacaoDeArea,
   type EntradaDeCriacaoDeCategoria,
+  type EntradaDeReordenacao,
   type NomeDeIcone,
 } from "./configuracao";
 
