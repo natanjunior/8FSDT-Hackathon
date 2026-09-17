@@ -1298,6 +1298,65 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect(outra.id).toBe(idRecanto);
     expect(outra.nome).toBe("Condomínio Recanto Azul — corrigido");
   });
+
+  /**
+   * **O par da reclassificação — item 50, spec §4.2 (P2).**
+   *
+   * A pergunta *"quem tornou esta Área comum, e quando?"* sai da coluna de última escrita, que troca de
+   * dono em qualquer campo, e ganha colunas próprias. Elas só andam quando o **valor** de `tipo` muda.
+   *
+   * **`idMoradora` reclassifica, e a permissão não importa aqui:** ela é da rota. A moradora é a outra
+   * Pessoa com vínculo em Recanto, e é isso que distingue *quem reclassificou* de *quem escreveu por
+   * último*.
+   */
+  it("o par de reclassificação só anda quando o tipo muda de valor", async () => {
+    const areas = repositorioEscopadoDeAreas(escoparConsulta(consulta, idRecanto));
+    const criada = await areas.criar({
+      nome: "Bicicletário do Recanto",
+      tipo: "privativa",
+      ordem: 50,
+      criadaPorPessoaId: idSindica,
+    });
+    if (criada.desfecho !== "criada") throw new Error("a criação do Bicicletário falhou");
+    const areaId = criada.area.id;
+
+    const par = async () => {
+      const [linha] = await consulta<{
+        tipo_alterado_em: Date | null;
+        tipo_alterado_por_pessoa_id: string | null;
+        atualizado_por_pessoa_id: string | null;
+      }>(
+        `select tipo_alterado_em, tipo_alterado_por_pessoa_id, atualizado_por_pessoa_id
+           from areas where id = $1`,
+        [areaId],
+      );
+      return linha;
+    };
+    const SEM_PAR = { tipo_alterado_em: null, tipo_alterado_por_pessoa_id: null };
+
+    expect(await par()).toMatchObject(SEM_PAR);
+
+    // Renomear não é reclassificar.
+    await areas.corrigir({ areaId, nome: "Bicicletário coberto", atualizadaPorPessoaId: idSindica });
+    expect(await par()).toMatchObject(SEM_PAR);
+
+    // O mesmo tipo de novo também não.
+    await areas.corrigir({ areaId, tipo: "privativa", atualizadaPorPessoaId: idSindica });
+    expect(await par()).toMatchObject(SEM_PAR);
+
+    // Tipo diferente carimba, com quem reclassificou.
+    await areas.corrigir({ areaId, tipo: "comum", atualizadaPorPessoaId: idMoradora });
+    const reclassificada = await par();
+    expect(reclassificada?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
+    expect(reclassificada?.tipo_alterado_em).toBeInstanceOf(Date);
+
+    // Renomear depois troca a última escrita e NÃO troca a resposta da pergunta de privacidade.
+    await areas.corrigir({ areaId, nome: "Bicicletário do Recanto", atualizadaPorPessoaId: idSindica });
+    const renomeada = await par();
+    expect(renomeada?.atualizado_por_pessoa_id).toBe(idSindica);
+    expect(renomeada?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
+    expect(renomeada?.tipo_alterado_em).toStrictEqual(reclassificada?.tipo_alterado_em);
+  });
 });
 
 /**

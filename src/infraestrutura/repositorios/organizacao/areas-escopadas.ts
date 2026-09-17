@@ -51,15 +51,31 @@ export function repositorioEscopadoDeAreas(consulta: ConsultaEscopada): Reposito
         return `$${String(valores.length + 1)}`;
       };
 
+      // **Quem escreve, reservado antes**, porque aparece em dois lugares: na última escrita, sempre, e
+      // no par da reclassificação, quando o tipo muda.
+      const autor = marcador(correcao.atualizadaPorPessoaId);
+
       const atribuicoes: string[] = [];
       if (correcao.nome !== undefined) atribuicoes.push(`nome = ${marcador(correcao.nome)}`);
-      // O `::tipo_area` é necessário: o driver manda texto, e a coluna é o `ENUM` da migração 002.
-      if (correcao.tipo !== undefined) atribuicoes.push(`tipo = ${marcador(correcao.tipo)}::tipo_area`);
+      if (correcao.tipo !== undefined) {
+        // O `::tipo_area` é necessário: o driver manda texto, e a coluna é o `ENUM` da migração 002.
+        const tipo = `${marcador(correcao.tipo)}::tipo_area`;
+        atribuicoes.push(`tipo = ${tipo}`);
+        // **O par da reclassificação (item 50, migração 011) só anda quando o VALOR muda.** No `set` de
+        // um `update`, o `tipo` do lado direito é o valor antigo da linha, então a comparação é contra o
+        // vigente. Mandar o mesmo tipo de novo não é reclassificar (spec §4.2).
+        atribuicoes.push(
+          `tipo_alterado_em = case when tipo is distinct from ${tipo} then now() else tipo_alterado_em end`,
+        );
+        atribuicoes.push(
+          `tipo_alterado_por_pessoa_id = case when tipo is distinct from ${tipo} then ${autor}::uuid else tipo_alterado_por_pessoa_id end`,
+        );
+      }
       if (correcao.ordem !== undefined) atribuicoes.push(`ordem = ${marcador(correcao.ordem)}`);
       if (correcao.ativa !== undefined) atribuicoes.push(`ativa = ${marcador(correcao.ativa)}`);
 
       atribuicoes.push("atualizado_em = now()");
-      atribuicoes.push(`atualizado_por_pessoa_id = ${marcador(correcao.atualizadaPorPessoaId)}`);
+      atribuicoes.push(`atualizado_por_pessoa_id = ${autor}`);
 
       const idDaArea = marcador(correcao.areaId);
 
