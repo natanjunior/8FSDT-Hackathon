@@ -50,8 +50,12 @@ const APROVADOS = new Set([
   "docs/modelo-de-dados.md",
   "README.md",
   "docs/README.md",
+  "docs/atendimento-ao-enunciado.md",
+  "docs/dominio.md",
   "docs/premissas-e-questoes-abertas.md",
+  "docs/produto.md",
   "docs/prototipo-low-fi.md",
+  "docs/visao-geral-da-arquitetura.md",
 ]);
 
 /**
@@ -77,7 +81,13 @@ const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
  * Cada página nova acrescenta uma linha aqui. Quando a estrutura antiga tiver saído inteira, esta lista e
  * a `APROVADOS` passam a ser a mesma coisa, e uma das duas sai.
  */
-const NOVAS = new Set([]);
+const NOVAS = new Set([
+  "docs/README.md",
+  "docs/atendimento-ao-enunciado.md",
+  "docs/dominio.md",
+  "docs/produto.md",
+  "docs/visao-geral-da-arquitetura.md",
+]);
 
 // ---------------------------------------------------------------------------
 // As sete regras
