@@ -4,6 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import { mesEmSaoPaulo } from "@/aplicacao/dashboard";
 import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import {
+  ListaDesatualizada,
+  criarArea,
+  criarCategoria,
+  reordenarAreas,
+  reordenarCategorias,
+  type Reordenacao,
+} from "@/aplicacao/organizacao";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
@@ -113,6 +121,40 @@ const SEM_ANEXO = {
   },
 } as unknown as ArmazenamentoDeAnexos;
 
+/**
+ * **As duas portas de configuração, como a produção as monta desde o item 50:** a consulta para a
+ * leitura e para as escritas de uma instrução só, e a transação escopada para a reordenação.
+ */
+function categoriasEm(organizacaoId: string) {
+  return repositorioEscopadoDeCategorias(
+    escoparConsulta(consulta, organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
+function areasEm(organizacaoId: string) {
+  return repositorioEscopadoDeAreas(
+    escoparConsulta(consulta, organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
+/** O retrato de uma lista, lido direto da tabela: é o que a atomicidade e o isolamento comparam. */
+async function retratoDe(tabela: "categorias" | "areas", organizacaoId: string) {
+  return consulta<{
+    id: string;
+    ordem: number;
+    atualizado_por_pessoa_id: string | null;
+    atualizado_em: Date;
+  }>(
+    `select id, ordem, atualizado_por_pessoa_id, atualizado_em
+       from ${tabela}
+      where organizacao_id = $1
+      order by id`,
+    [organizacaoId],
+  );
+}
+
 function portasDe(organizacaoId: string) {
   const escopada = escoparConsulta(consulta, organizacaoId);
   return {
@@ -120,8 +162,8 @@ function portasDe(organizacaoId: string) {
       escopada,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
-    categorias: repositorioEscopadoDeCategorias(escopada),
-    areas: repositorioEscopadoDeAreas(escopada),
+    categorias: categoriasEm(organizacaoId),
+    areas: areasEm(organizacaoId),
     armazenamento: SEM_ANEXO,
   };
 }
@@ -574,7 +616,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
   casosDeIsolamento(mundo, {
     nome: "GET /categorias",
     consultar: (organizacaoId) =>
-      repositorioEscopadoDeCategorias(escoparConsulta(consulta, organizacaoId)).listar({
+      categoriasEm(organizacaoId).listar({
         apenasAtivas: true,
       }),
     chaveDaLinha: (categoria) => categoria.nome,
@@ -584,7 +626,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
   casosDeIsolamento(mundo, {
     nome: "GET /areas",
     consultar: (organizacaoId) =>
-      repositorioEscopadoDeAreas(escoparConsulta(consulta, organizacaoId)).listar({
+      areasEm(organizacaoId).listar({
         apenasAtivas: true,
       }),
     chaveDaLinha: (area) => area.nome,
@@ -1095,8 +1137,8 @@ describe("as consultas de configuração não atravessam organizações", () => 
  */
 describe("as escritas de configuração não atravessam organizações", () => {
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
-    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
-    const emAurora = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idAurora));
+    const emRecanto = categoriasEm(idRecanto);
+    const emAurora = categoriasEm(idAurora);
 
     const daAurora = (await emAurora.listar({ apenasAtivas: false }))[0];
     if (daAurora === undefined) throw new Error("a semente de Aurora não criou categoria");
@@ -1115,8 +1157,8 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   it("PATCH de área de outra organização não encontra a linha", async () => {
-    const emRecanto = repositorioEscopadoDeAreas(escoparConsulta(consulta, idRecanto));
-    const emAurora = repositorioEscopadoDeAreas(escoparConsulta(consulta, idAurora));
+    const emRecanto = areasEm(idRecanto);
+    const emAurora = areasEm(idAurora);
 
     const daAurora = (await emAurora.listar({ apenasAtivas: false }))[0];
     if (daAurora === undefined) throw new Error("a semente de Aurora não criou área");
@@ -1131,8 +1173,8 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   it("o mesmo nome pode existir nas duas organizações — a unicidade é por organização", async () => {
-    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
-    const emAurora = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idAurora));
+    const emRecanto = categoriasEm(idRecanto);
+    const emAurora = categoriasEm(idAurora);
 
     const aqui = await emRecanto.criar({
       nome: "Jardinagem",
@@ -1156,7 +1198,7 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   it("o mesmo nome duas vezes na mesma organização é recusado", async () => {
-    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+    const emRecanto = categoriasEm(idRecanto);
 
     await emRecanto.criar({
       nome: "Paisagismo",
@@ -1181,7 +1223,7 @@ describe("as escritas de configuração não atravessam organizações", () => {
    * que é a diferença entre desativar e apagar.
    */
   it("desativar não apaga: sai da leitura padrão e continua na completa", async () => {
-    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+    const emRecanto = categoriasEm(idRecanto);
 
     const criada = await emRecanto.criar({
       nome: "Sauna",
@@ -1206,7 +1248,7 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   it("a criação grava quem criou, e a correção grava quem alterou", async () => {
-    const emRecanto = repositorioEscopadoDeCategorias(escoparConsulta(consulta, idRecanto));
+    const emRecanto = categoriasEm(idRecanto);
 
     const criada = await emRecanto.criar({
       nome: "Piscina",
@@ -1310,7 +1352,7 @@ describe("as escritas de configuração não atravessam organizações", () => {
    * último*.
    */
   it("o par de reclassificação só anda quando o tipo muda de valor", async () => {
-    const areas = repositorioEscopadoDeAreas(escoparConsulta(consulta, idRecanto));
+    const areas = areasEm(idRecanto);
     const criada = await areas.criar({
       nome: "Bicicletário do Recanto",
       tipo: "privativa",
@@ -1356,6 +1398,291 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect(renomeada?.atualizado_por_pessoa_id).toBe(idSindica);
     expect(renomeada?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
     expect(renomeada?.tipo_alterado_em).toStrictEqual(reclassificada?.tipo_alterado_em);
+  });
+
+  /**
+   * ==========================================================================
+   *  As reordenações — item 50
+   * ==========================================================================
+   *
+   * **Critério 7, o isolamento.** O Gestor de Recanto manda ids de Aurora, pelas duas portas de entrada:
+   * pelo caso de uso, que recusa antes de gravar, e direto pela porta, onde quem recusa é o predicado da
+   * transação. Nas duas, **nenhuma das duas listas muda**. Três formas do pedido: só os de B, os de A mais
+   * um de B, e os de A com um trocado por um de B (mesmo tamanho, que é o que só o conjunto pega).
+   */
+  async function provarQueNaoAtravessa(
+    tabela: "categorias" | "areas",
+    caso: {
+      peloCasoDeUso: (ids: readonly string[]) => Promise<unknown>;
+      pelaPorta: (reordenacao: Reordenacao) => Promise<{ desfecho: string }>;
+      deA: readonly string[];
+      deB: readonly string[];
+    },
+  ): Promise<void> {
+    const intrusa = caso.deB[0];
+    if (intrusa === undefined) throw new Error(`Aurora precisa de ao menos um item em ${tabela}`);
+
+    const antesEmA = await retratoDe(tabela, idRecanto);
+    const antesEmB = await retratoDe(tabela, idAurora);
+
+    const pedidos: (readonly string[])[] = [
+      [...caso.deB].reverse(),
+      [...caso.deA, intrusa],
+      [...caso.deA.slice(1), intrusa],
+    ];
+
+    for (const ids of pedidos) {
+      await expect(caso.peloCasoDeUso(ids)).rejects.toBeInstanceOf(ListaDesatualizada);
+
+      const pelaPorta = await caso.pelaPorta({
+        posicoes: ids.map((id, indice) => ({ id, ordem: indice + 1 })),
+        atualizadaPorPessoaId: idSindica,
+      });
+      expect(pelaPorta.desfecho).toBe("lista-desatualizada");
+    }
+
+    expect(await retratoDe(tabela, idRecanto)).toStrictEqual(antesEmA);
+    expect(await retratoDe(tabela, idAurora)).toStrictEqual(antesEmB);
+  }
+
+  it("reordenar categorias com ids de outra organização é recusado, e nenhuma lista muda", async () => {
+    const emRecanto = categoriasEm(idRecanto);
+    const deA = (await emRecanto.listar({ apenasAtivas: false })).map((c) => c.id);
+    const deB = (await categoriasEm(idAurora).listar({ apenasAtivas: false })).map((c) => c.id);
+
+    await provarQueNaoAtravessa("categorias", {
+      peloCasoDeUso: (ids) => reordenarCategorias(emRecanto, { ids, porPessoaId: idSindica }),
+      pelaPorta: (reordenacao) => emRecanto.reordenar(reordenacao),
+      deA,
+      deB,
+    });
+  });
+
+  it("reordenar áreas com ids de outra organização é recusado, e nenhuma lista muda", async () => {
+    const emRecanto = areasEm(idRecanto);
+    const deA = (await emRecanto.listar({ apenasAtivas: false })).map((a) => a.id);
+    const deB = (await areasEm(idAurora).listar({ apenasAtivas: false })).map((a) => a.id);
+
+    await provarQueNaoAtravessa("areas", {
+      peloCasoDeUso: (ids) => reordenarAreas(emRecanto, { ids, porPessoaId: idSindica }),
+      pelaPorta: (reordenacao) => emRecanto.reordenar(reordenacao),
+      deA,
+      deB,
+    });
+  });
+
+  /** **Critérios 1 e 4.** A lista inteira, inativas incluídas, sai 1 a n e volta na resposta. */
+  it("reordenar categorias grava 1 a n na ordem pedida, inativas incluídas, e devolve a lista inteira", async () => {
+    const categorias = categoriasEm(idRecanto);
+    const inativa = await categorias.criar({
+      nome: "Quadra coberta",
+      icone: "trees",
+      ordem: 95,
+      criadaPorPessoaId: idSindica,
+    });
+    if (inativa.desfecho !== "criada") throw new Error("a criação de Quadra coberta falhou");
+    await categorias.corrigir({
+      categoriaId: inativa.categoria.id,
+      ativa: false,
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    const pedidas = [...(await categorias.listar({ apenasAtivas: false }))].reverse().map((c) => c.id);
+    const devolvidas = await reordenarCategorias(categorias, { ids: pedidas, porPessoaId: idSindica });
+
+    expect(devolvidas.map((c) => c.id)).toStrictEqual(pedidas);
+    expect(devolvidas.map((c) => c.ordem)).toStrictEqual(pedidas.map((_, indice) => indice + 1));
+    expect(devolvidas.find((c) => c.id === inativa.categoria.id)?.ativa).toBe(false);
+
+    const relidas = await categorias.listar({ apenasAtivas: false });
+    expect(relidas.map((c) => c.id)).toStrictEqual(pedidas);
+  });
+
+  it("reordenar áreas grava 1 a n na ordem pedida, inativas incluídas", async () => {
+    const areas = areasEm(idRecanto);
+    const piscina = await areas.criar({
+      nome: "Piscina do Recanto",
+      tipo: "comum",
+      ordem: 5,
+      criadaPorPessoaId: idSindica,
+    });
+    const sala = await areas.criar({
+      nome: "Sala 12 do Recanto",
+      tipo: "privativa",
+      ordem: 5,
+      criadaPorPessoaId: idSindica,
+    });
+    if (piscina.desfecho !== "criada" || sala.desfecho !== "criada") {
+      throw new Error("a criação das áreas de Recanto falhou");
+    }
+    await areas.corrigir({ areaId: sala.area.id, ativa: false, atualizadaPorPessoaId: idSindica });
+
+    const pedidas = [...(await areas.listar({ apenasAtivas: false }))].reverse().map((a) => a.id);
+    const devolvidas = await reordenarAreas(areas, { ids: pedidas, porPessoaId: idSindica });
+
+    expect(devolvidas.map((a) => a.id)).toStrictEqual(pedidas);
+    expect(devolvidas.map((a) => a.ordem)).toStrictEqual(pedidas.map((_, indice) => indice + 1));
+    expect(devolvidas.find((a) => a.id === sala.area.id)?.ativa).toBe(false);
+  });
+
+  /**
+   * **Critério 5, o alcance do carimbo** (spec §4.2): só as linhas cuja `ordem` mudou trocam
+   * `atualizado_por_pessoa_id`, e a reordenação idêntica não grava linha nenhuma.
+   *
+   * A primeira chamada normaliza a lista para 1 a n, para que só a troca das duas primeiras mude posição.
+   * **`idMoradora` reordena a segunda vez** porque é a outra Pessoa com vínculo em Recanto; a permissão é
+   * da rota, e o que se mede aqui é o carimbo.
+   */
+  it("a reordenação carimba só as linhas que mudaram de posição, e a idêntica não grava nada", async () => {
+    const categorias = categoriasEm(idRecanto);
+    const atuais = (await categorias.listar({ apenasAtivas: false })).map((c) => c.id);
+    await reordenarCategorias(categorias, { ids: atuais, porPessoaId: idSindica });
+    const antes = await retratoDe("categorias", idRecanto);
+
+    const [primeira, segunda, ...resto] = atuais;
+    if (primeira === undefined || segunda === undefined) {
+      throw new Error("Recanto precisa de duas categorias");
+    }
+    const trocadas = [segunda, primeira, ...resto];
+    await reordenarCategorias(categorias, { ids: trocadas, porPessoaId: idMoradora });
+    const depois = await retratoDe("categorias", idRecanto);
+
+    for (const linha of depois) {
+      const anterior = antes.find((a) => a.id === linha.id);
+      if (linha.id === primeira || linha.id === segunda) {
+        expect(linha.atualizado_por_pessoa_id).toBe(idMoradora);
+      } else {
+        expect(linha).toStrictEqual(anterior);
+      }
+    }
+
+    // A idêntica, por outra pessoa: nenhuma linha muda, nem o relógio.
+    await reordenarCategorias(categorias, { ids: trocadas, porPessoaId: idSindica });
+    expect(await retratoDe("categorias", idRecanto)).toStrictEqual(depois);
+  });
+
+  /**
+   * **Critério 8, a atomicidade** (spec §4.10). A falha vem **de dentro do banco**: um gatilho de
+   * instrução, `after update`, com tabela de transição, que recusa quando a instrução alcançou linha de
+   * Recanto. Quando ele dispara, o `update` já escreveu todas as linhas, então a recusa desfaz escrita
+   * real, e a lista tem de voltar exatamente ao retrato de antes, carimbo e relógio incluídos.
+   *
+   * **O teste cria e apaga o gatilho e a função** em `finally`. `aplicarEsquema` derruba a tabela e com
+   * ela o gatilho, mas não a função (`esquema.ts`). O nome leva o `SUFIXO` da execução, e os arquivos de
+   * integração correm em série, então nada vaza para outro caso.
+   */
+  it("uma falha no meio da escrita deixa a ordem exatamente como estava", async () => {
+    const categorias = categoriasEm(idRecanto);
+    const antes = await retratoDe("categorias", idRecanto);
+    const pedidas = [...(await categorias.listar({ apenasAtivas: false }))].reverse().map((c) => c.id);
+    const recusa = `recusa_reordenacao_${SUFIXO}`;
+
+    try {
+      await consulta(
+        `create function ${recusa}() returns trigger language plpgsql as $corpo$
+         begin
+           if exists (select 1 from linhas_novas where organizacao_id = '${idRecanto}') then
+             raise exception 'falha provocada pelo teste de atomicidade';
+           end if;
+           return null;
+         end
+         $corpo$`,
+      );
+      await consulta(
+        `create trigger ${recusa} after update on categorias
+           referencing new table as linhas_novas
+           for each statement execute function ${recusa}()`,
+      );
+
+      await expect(
+        reordenarCategorias(categorias, { ids: pedidas, porPessoaId: idMoradora }),
+      ).rejects.toThrow(/falha provocada pelo teste de atomicidade/u);
+    } finally {
+      await consulta(`drop trigger if exists ${recusa} on categorias`);
+      await consulta(`drop function if exists ${recusa}()`);
+    }
+
+    expect(await retratoDe("categorias", idRecanto)).toStrictEqual(antes);
+  });
+
+  /**
+   * **P3, o fim da lista** (spec §4.3): quem nasce sem `ordem` recebe a maior `ordem` da organização mais
+   * um, **contando as inativas**, por isso o maior valor de cada lista é posto numa linha desativada.
+   * `ordem` enviada continua valendo enquanto o campo existir (P4).
+   *
+   * A lista vazia (`1`) não tem caso: nenhuma organização a tem, porque a POL-01 semeia as duas listas e
+   * não há `DELETE`. Montar uma terceira organização só para isso mudaria o mundo compartilhado.
+   */
+  it("criar sem ordem põe o item depois do maior, inativas incluídas", async () => {
+    const categorias = categoriasEm(idRecanto);
+    const guardada = await categorias.criar({
+      nome: "Bicicletário",
+      icone: "package",
+      ordem: 500,
+      criadaPorPessoaId: idSindica,
+    });
+    if (guardada.desfecho !== "criada") throw new Error("a criação de Bicicletário falhou");
+    await categorias.corrigir({
+      categoriaId: guardada.categoria.id,
+      ativa: false,
+      atualizadaPorPessoaId: idSindica,
+    });
+
+    const lavanderia = await criarCategoria(categorias, { nome: "Lavanderia", porPessoaId: idSindica });
+    expect(lavanderia.ordem).toBe(501);
+
+    const explicita = await criarCategoria(categorias, {
+      nome: "Brinquedoteca",
+      ordem: 3,
+      porPessoaId: idSindica,
+    });
+    expect(explicita.ordem).toBe(3);
+
+    const areas = areasEm(idRecanto);
+    const deposito = await areas.criar({
+      nome: "Depósito do Recanto",
+      tipo: "comum",
+      ordem: 400,
+      criadaPorPessoaId: idSindica,
+    });
+    if (deposito.desfecho !== "criada") throw new Error("a criação do Depósito falhou");
+    await areas.corrigir({ areaId: deposito.area.id, ativa: false, atualizadaPorPessoaId: idSindica });
+
+    const terraco = await criarArea(areas, {
+      nome: "Terraço do Recanto",
+      tipo: "comum",
+      porPessoaId: idSindica,
+    });
+    expect(terraco.ordem).toBe(401);
+  });
+
+  /** **P2, do outro lado:** a reordenação é escrita de última escrita, e não toca o par. */
+  it("a reordenação não toca o par de reclassificação", async () => {
+    const areas = areasEm(idRecanto);
+    const criada = await areas.criar({
+      nome: "Brinquedoteca do Recanto",
+      tipo: "privativa",
+      ordem: "no-fim",
+      criadaPorPessoaId: idSindica,
+    });
+    if (criada.desfecho !== "criada") throw new Error("a criação da Brinquedoteca falhou");
+    await areas.corrigir({ areaId: criada.area.id, tipo: "comum", atualizadaPorPessoaId: idMoradora });
+
+    const lerPar = async () =>
+      (
+        await consulta<{ tipo_alterado_em: Date | null; tipo_alterado_por_pessoa_id: string | null }>(
+          `select tipo_alterado_em, tipo_alterado_por_pessoa_id from areas where id = $1`,
+          [criada.area.id],
+        )
+      )[0];
+    const antes = await lerPar();
+
+    // A área criada está no fim; invertida, ela vai para o topo, então a linha dela muda de fato.
+    const pedidas = [...(await areas.listar({ apenasAtivas: false }))].reverse().map((a) => a.id);
+    await reordenarAreas(areas, { ids: pedidas, porPessoaId: idSindica });
+
+    expect(antes?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
+    expect(await lerPar()).toStrictEqual(antes);
   });
 });
 

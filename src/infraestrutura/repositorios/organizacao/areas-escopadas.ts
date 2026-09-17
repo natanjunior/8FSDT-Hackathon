@@ -1,38 +1,41 @@
 import type { AreaLida, RepositorioEscopadoDeAreas } from "@/aplicacao/organizacao";
 import { ehTipoDeArea } from "@/dominio/organizacao";
-import type { ConsultaEscopada } from "@/infraestrutura/contexto";
+import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
+
+import { reordenarNaTransacao } from "./reordenacao";
 
 /**
  * `GET /areas` — a segunda leitura que precede o registro. *Localização* é uma Área mais um complemento
  * em texto (D10), e é da Área que a visibilidade deriva. **E, do lote 3 em diante, as duas escritas de
- * T-14** — `POST /areas` e `PATCH /areas/{id}`.
+ * T-14** — `POST /areas` e `PATCH /areas/{id}`. E, do item 50 em diante, `PUT /areas/ordem`.
  *
  * **`ordem` existe por medição:** o campo de Área custa ~12 s do orçamento de 60 do RNF6, e é o único
  * conserto que atua no **primeiro** registro de cada pessoa — busca e *"usadas recentemente"* só ajudam do
  * segundo em diante.
  */
-export function repositorioEscopadoDeAreas(consulta: ConsultaEscopada): RepositorioEscopadoDeAreas {
+export function repositorioEscopadoDeAreas(
+  consulta: ConsultaEscopada,
+  emTransacao: TransacaoEscopada,
+): RepositorioEscopadoDeAreas {
   return {
-    async listar({ apenasAtivas }) {
-      const linhas = await consulta<LinhaDeArea>(
-        `select id, nome, tipo, ativa, ordem
-           from areas
-          where organizacao_id = $1
-            and (ativa or not $2::boolean)
-          order by ordem, nome`,
-        [apenasAtivas],
-      );
-
-      return linhas.map(paraArea);
+    listar({ apenasAtivas }) {
+      return lerAreas(consulta, apenasAtivas);
     },
 
     async criar(nova) {
       try {
+        // **`$4` nulo é a intenção *no fim*** (item 50, spec §4.3), calculada na própria instrução. Ver o
+        // comentário irmão em `categorias-escopadas.ts`.
         const linhas = await consulta<LinhaDeArea>(
           `insert into areas (organizacao_id, nome, tipo, ordem, criado_por_pessoa_id)
-                values ($1, $2, $3::tipo_area, $4, $5)
+                values ($1, $2, $3::tipo_area,
+                        coalesce($4::smallint,
+                                 (select coalesce(max(a.ordem), 0) + 1
+                                    from areas a
+                                   where a.organizacao_id = $1)),
+                        $5)
              returning id, nome, tipo, ativa, ordem`,
-          [nova.nome, nova.tipo, nova.ordem, nova.criadaPorPessoaId],
+          [nova.nome, nova.tipo, nova.ordem === "no-fim" ? null : nova.ordem, nova.criadaPorPessoaId],
         );
 
         const linha = linhas[0];
@@ -101,6 +104,10 @@ export function repositorioEscopadoDeAreas(consulta: ConsultaEscopada): Reposito
         throw erro;
       }
     },
+
+    reordenar(reordenacao) {
+      return reordenarNaTransacao(emTransacao, "areas", reordenacao, (dentro) => lerAreas(dentro, false));
+    },
   };
 }
 
@@ -121,6 +128,20 @@ export function repositorioEscopadoDeAreas(consulta: ConsultaEscopada): Reposito
  * Deixar de trocá-la faz a frase de T-14 mentir a partir do primeiro registro.
  */
 const OCORRENCIAS_COM_TIPO_ANTERIOR = 0;
+
+/** A leitura da lista, servida a `listar` e à releitura de dentro da transação da reordenação. */
+async function lerAreas(consulta: ConsultaEscopada, apenasAtivas: boolean): Promise<AreaLida[]> {
+  const linhas = await consulta<LinhaDeArea>(
+    `select id, nome, tipo, ativa, ordem
+       from areas
+      where organizacao_id = $1
+        and (ativa or not $2::boolean)
+      order by ordem, nome`,
+    [apenasAtivas],
+  );
+
+  return linhas.map(paraArea);
+}
 
 type LinhaDeArea = {
   id: string;
