@@ -155,7 +155,7 @@ export type PortasGlobais = {
   escritaDePedidosDeEntrada: RepositorioDePedidosDeEntrada;
 };
 
-/** O que os outros 34 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
+/** O que os outros 36 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
   categorias: RepositorioEscopadoDeCategorias;

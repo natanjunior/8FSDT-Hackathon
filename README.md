@@ -34,9 +34,9 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 | O que | Quanto | Onde se confere |
 |---|---|---|
 | A `Ocorrência`, com o ciclo de vida inteiro | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
-| **A superfície HTTP** | **39 operações em 31 caminhos** | `docs/api/openapi.yaml`, conferido contra o código por `npm run verificar:openapi` |
+| **A superfície HTTP** | **41 operações em 33 caminhos** | `docs/api/openapi.yaml`, conferido contra o código por `npm run verificar:openapi` |
 | **As telas** | **T-01 a T-16**, as dezesseis do [Inventário de Telas](docs/inventario-de-telas.md) — a T-10 como estado da rota `/`, que é como o inventário a descreve | `app/` |
-| **O esquema** | **14 tabelas**, em dez migrações | `supabase/migrations/` |
+| **O esquema** | **14 tabelas**, em onze migrações | `supabase/migrations/` |
 | **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
 | **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | `.github/workflows/entrega.yml` |
 | **Os testes** | domínio e aplicação sem banco · isolamento contra Postgres · um de ponta a ponta, num navegador, contra a pilha real | `testes/` |

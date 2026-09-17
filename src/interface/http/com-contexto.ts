@@ -103,7 +103,7 @@ function ehResposta(valor: unknown): valor is RespostaDoManipulador {
 // As duas entradas
 // ---------------------------------------------------------------------------
 
-/** O que os 34 endpoints escopados recebem. */
+/** O que os 36 endpoints escopados recebem. */
 export type EntradaEscopada<C> = {
   /** `{ usuarioId, pessoaId, nome, vinculo }` — e `vinculo.pode(x)` é a única pergunta de autorização. */
   ctx: ContextoDaRequisicao;
@@ -175,7 +175,7 @@ type OpcoesEscopadas<C> = {
 type OpcoesSemOrganizacao<C> = { corpo?: ZodType<C> };
 
 // ---------------------------------------------------------------------------
-// comContexto — os 34
+// comContexto — os 36
 // ---------------------------------------------------------------------------
 
 export function comContexto<C = undefined>(
