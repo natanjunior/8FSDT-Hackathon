@@ -3,7 +3,7 @@
 import { useId, useSyncExternalStore } from "react";
 
 import { FINALIDADES_DE_CONTATO } from "@/dominio/pessoa";
-import { Campo } from "@/interface/componentes/moldura-de-tela";
+import { Campo } from "@/interface/componentes/campo";
 import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
 import { Input } from "@/interface/componentes/ui/input";
 

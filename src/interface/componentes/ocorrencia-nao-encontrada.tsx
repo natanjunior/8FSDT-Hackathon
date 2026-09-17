@@ -46,8 +46,8 @@ export function OcorrenciaNaoEncontradaNaTela({
       </h1>
 
       {/*
-        **Sem o `?de=`, e é decisão.** O filtro que trouxe até aqui pode ser de outra organização, e
-        reconstruí-lo seria carregar um recorte que não vale mais. **A-3:** `min-h-11`.
+        **A lista inteira, sem recorte, e é decisão.** O filtro que trouxe até aqui pode ser de outra
+        organização, e reconstruí-lo seria carregar um recorte que não vale mais. **A-3:** `min-h-11`.
       */}
       <Link
         href="/ocorrencias"

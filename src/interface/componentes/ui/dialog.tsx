@@ -3,6 +3,7 @@
 import * as React from "react"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
+import { manterAbertoAoTocarNoAviso } from "@/interface/componentes/ui/sonner"
 
 import { cn } from "@/interface/componentes/utilitarios"
 
@@ -56,10 +57,15 @@ function DialogOverlay({
  * declarado: não há arrastar-para-fechar**, e a alça (`.grab`) do protótipo não é replicada, porque
  * sinalizaria um gesto que esta gaveta não tem. A gaveta fecha pelos quatro caminhos que o `Dialog` já
  * dá — botão, `X`, `Esc` e clique fora.
+ *
+ * **Divergência do catálogo (item 44g): o toque no aviso não fecha o modal.** O aviso mora fora do modal,
+ * e o `radix-ui` trata o toque nele como toque fora. `manterAbertoAoTocarNoAviso` recusa esse fechamento;
+ * um novo `shadcn add dialog` desfaz a linha, e o caso do `formulario.test.ts` acusa.
  */
 function DialogContent({
   className,
   children,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -71,6 +77,10 @@ function DialogContent({
           "fixed inset-x-0 bottom-0 z-50 grid w-full gap-4 rounded-t-lg border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom md:inset-x-auto md:top-1/2 md:bottom-auto md:left-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=closed]:zoom-out-95 md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=open]:zoom-in-95",
           className
         )}
+        onInteractOutside={(evento) => {
+          onInteractOutside?.(evento)
+          manterAbertoAoTocarNoAviso(evento)
+        }}
         {...props}
       >
         {children}

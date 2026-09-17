@@ -1,3 +1,7 @@
+import type { ReactNode } from "react";
+
+import { ErroDoFormulario } from "@/interface/componentes/campo";
+
 /**
  * A moldura das telas de celular.
  *
@@ -10,7 +14,7 @@ export function MolduraDeTela({
   children,
 }: {
   titulo: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-6 pt-10 pb-12">
@@ -22,75 +26,18 @@ export function MolduraDeTela({
 }
 
 /**
- * Um campo: rótulo associado ao controle, e o texto de ajuda ou de erro embaixo dele.
+ * A linha de aviso acima do formulário das telas de credencial e de T-02.
  *
- * **Compromisso de acessibilidade A-1** do protótipo (§8): *"todo campo tem rótulo associado ao controle.
- * `placeholder` não é rótulo — se o texto some ao digitar, está errado."* Por isso o `htmlFor` é obrigatório
- * aqui, e não opcional: um campo sem rótulo não compila.
- *
- * E **A-5**: nada é comunicado só por cor. O erro leva `role="alert"`, e a mensagem é texto.
- *
- * **A cor do erro é `destructive`, não a marca.** Até o tema Meridian entrar, `--destructive` era
- * `var(--accent)` — marca e erro eram a mesma cor, e usar uma pela outra não tinha consequência. Agora a
- * marca é laranja e o destructive é vermelho: `text-marca` aqui pintaria o erro com a cor da identidade.
+ * **`tom="recusa"` desenha o mesmo erro que o resto do produto** (`ErroDoFormulario`, item 44g). Até ali
+ * ele pintava o erro com a cor da identidade, e o produto tinha dois desenhos para a mesma coisa.
+ * `tom="nota"` é o aviso que não é erro: *"Conta confirmada."*, *"Você já está em …"*. A diferença entre
+ * os dois é de forma e de ícone, não de cor sozinha (A-5).
  */
-export function Campo({
-  id,
-  rotulo,
-  ajuda,
-  erro,
-  children,
-}: {
-  id: string;
-  rotulo: string;
-  ajuda?: React.ReactNode;
-  erro?: string;
-  children: React.ReactNode;
-}) {
-  const idDaAjuda = ajuda === undefined ? undefined : `${id}-ajuda`;
-  const idDoErro = erro === undefined ? undefined : `${id}-erro`;
+export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; children: ReactNode }) {
+  if (tom === "recusa") return <ErroDoFormulario>{children}</ErroDoFormulario>;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-tinta text-sm font-medium">
-        {rotulo}
-      </label>
-      {children}
-      {ajuda !== undefined && (
-        <span id={idDaAjuda} className="text-tinta-suave text-xs leading-relaxed">
-          {ajuda}
-        </span>
-      )}
-      {erro !== undefined && (
-        <span id={idDoErro} role="alert" className="text-destructive text-xs font-medium">
-          {erro}
-        </span>
-      )}
-    </div>
-  );
-}
-
-/**
- * A linha de aviso acima do formulário.
- *
- * `tom="recusa"` para credencial recusada; `tom="nota"` para *"Conta confirmada. Entre para continuar."* —
- * são os dois estados que o protótipo desenha para T-01, e a diferença entre eles é de peso visual, não de
- * cor sozinha (A-5).
- */
-export function Aviso({
-  tom = "recusa",
-  children,
-}: {
-  tom?: "recusa" | "nota";
-  children: React.ReactNode;
-}) {
-  const estilo =
-    tom === "recusa"
-      ? "border-marca/40 bg-accent text-tinta"
-      : "border-linha bg-superficie text-tinta-suave";
-
-  return (
-    <p role="alert" className={`rounded-md border px-3 py-2.5 text-sm ${estilo}`}>
+    <p role="alert" className="border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-sm">
       {children}
     </p>
   );

@@ -1,21 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import {
+  Campo,
+  ErroDoFormulario,
+  GrupoDeEscolha,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /** As cinco opções da escala. **Legenda só nas pontas** — é o desenho do protótipo §7.2, literal. */
 const NOTAS = [
@@ -32,8 +40,7 @@ const NOTAS = [
  * ============================================================================
  *
  * **Componente próprio, e não o `ModalDeMotivo` parametrizado.** Ele é *quase* a mesma forma — escolha
- * única obrigatória + campo de texto + confirmar desabilitado —, e as três diferenças são todas de
- * **contrato**, não de estilo:
+ * única obrigatória + campo de texto —, e as três diferenças são todas de **contrato**, não de estilo:
  *
  * | | `ModalDeMotivo` | aqui |
  * |---|---|---|
@@ -41,10 +48,10 @@ const NOTAS = [
  * | Aviso de visibilidade | **obrigatório** | **não existe** — a restrição herdada nº 1 do inventário enumera *"modais que têm campo `observacao`"*, e este tem `comentario` |
  * | Valor da opção | `string` (o enum do motivo) | **`number`** (a nota) |
  *
- * Reusá-lo exigiria tornar opcionais **duas** props que o item 18 tornou obrigatórias com argumento
- * escrito (`modal-de-motivo.tsx:95-106`: *"padrão silencioso faria o chamador que esquecesse mostrar a
- * frase do Gestor a um Solicitante"*) — desfazer decisão de outro item para economizar um arquivo.
- * **Recusado.**
+ * Reusá-lo exigiria tornar opcionais **duas** props que o item 18 tornou obrigatórias com argumento escrito
+ * (o docblock de `avisoDeVisibilidade`, em `modal-de-motivo.tsx`: *"padrão silencioso faria o chamador que
+ * esquecesse mostrar a frase do Gestor a um Solicitante"*) — desfazer decisão de outro item para economizar
+ * um arquivo. **Recusado.**
  *
  * **A nota é `RadioGroup` e não estrelas, e o protótipo já decidiu com o custo escrito:** *"Não há
  * componente de nota no catálogo … Ganha-se acessibilidade de graça e **perde-se reconhecimento**: as
@@ -56,31 +63,31 @@ const NOTAS = [
  * primeira e da última opção, **dentro do `<label>`** — a mesma marcação que o item 18 usou para
  * *Duplicada*, e pelo mesmo motivo: descrição ancorada separadamente seria lida duas vezes.
  *
- * **Confirmar é desabilitado enquanto `nota === null`, e é a decisão do `ModalDeMotivo` pela mesma
- * razão exata:** `nota` é `required` no schema, então habilitar produziria um `400` que a tela podia
- * evitar — e `400` que a navegação normal alcança é defeito de tela. **O comentário vazio não desabilita
- * nada**, porque é opcional.
+ * **O envio segue a sequência de modal do guia §7**, pelo `useEnvioDoModal` (item 44g): carregando no
+ * modal, que não fecha durante o envio; sucesso com aviso, modal fechado e página atualizada; erro com
+ * aviso e mensagem no modal aberto, e o fechamento depois de um erro atualiza a página. **O botão
+ * principal só fica inerte durante o envio**: clicado com campo obrigatório vazio, ele mostra os erros e
+ * leva o foco ao primeiro (guia §7, decidido em 16/09/2026).
  *
- * **O ciclo de repinte é herdado, não redescoberto:** `aberto · enviando · aviso · precisaRepintar`, com
- * o repinte **no fechamento** e nunca no erro (furo F-2, fechado na revisão do item 19). **É a quinta
- * cópia, e a última** — não há sexto modal, porque não há décimo primeiro comando. **A extração do
- * `useComandoDeModal` continua não sendo feita, e agora a decisão é do hub**: se ela vale, vale agora ou
- * nunca (achado **A-3** da spec).
+ * **Sem nota, o clique não envia**: `nota` é `required` no schema, e a tela mostra *"Escolha uma nota."*
+ * em vez de produzir um `400` que ela podia evitar. **O comentário vazio não impede nada**, porque é
+ * opcional.
  *
- * **A variante nunca é `"menu"`, e a prova está em `barra-de-acoes.tsx:69-72`**, escrita com o nome deste
- * item: `ACAO_PRIMARIA.resolvida === "avaliar"`, e `emMenu` exclui o destaque por construção. Sempre que
- * `avaliar` é renderizável, ele **é** o destaque.
+ * **A variante nunca é `"menu"`, e a prova está no parágrafo *"Corrigido no item 18"* do cabeçalho de
+ * `barra-de-acoes.tsx`**, escrita com o nome deste item: `ACAO_PRIMARIA.resolvida === "avaliar"`, e `emMenu`
+ * exclui o destaque por construção. Sempre que `avaliar` é renderizável, ele **é** o destaque.
  *
- * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco
- * opções e no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), erro em
- * `role="alert"` e tudo em palavra (A-5). Foco preso, `Esc` e foco devolvido ao gatilho vêm do `Dialog`
- * do `radix-ui` (A-2 e A-4).
+ * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco opções e
+ * no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), o erro do servidor em
+ * `role="alert"` e tudo em palavra (A-5). Foco preso, `Esc` e foco devolvido ao gatilho vêm do `Dialog` do
+ * `radix-ui` (A-2 e A-4).
  */
 export function ModalDeAvaliacao({
   ocorrenciaId,
   variante,
   rotulosDeStatus,
   organizacaoId,
+  retorno,
 }: {
   ocorrenciaId: string;
   variante: "primario" | "secundario";
@@ -88,67 +95,39 @@ export function ModalDeAvaliacao({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /** Os títulos do aviso de sucesso e de falha, prontos (`RETORNO_DO_COMANDO`). */
+  retorno: TextosDoRetorno;
 }) {
-  const router = useRouter();
   const grupoId = useId();
   const campoComentarioId = useId();
-  const [aberto, setAberto] = useState(false);
   const [nota, setNota] = useState<number | null>(null);
   const [comentario, setComentario] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [precisaRepintar, setPrecisaRepintar] = useState(false);
 
-  /** **O repinte acontece AO FECHAR, e nunca ao falhar.** Ver o bloco acima. */
-  function aoMudarAbertura(proximo: boolean) {
-    setAberto(proximo);
+  const formulario = useFormularioTocado({
+    campos: { nota: grupoId },
+    erros: { nota: nota === null ? "Escolha uma nota." : undefined },
+  });
 
-    if (proximo) {
-      // Reabrir começa limpo — aviso velho ao lado de nota nova é a pior combinação possível.
-      setAviso(null);
-      setNota(null);
-      setComentario("");
-      setPrecisaRepintar(false);
-      return;
-    }
-
-    if (precisaRepintar) {
-      setPrecisaRepintar(false);
-      router.refresh();
-    }
-  }
-
-  async function confirmar() {
-    if (nota === null) return;
-
-    setEnviando(true);
-    setAviso(null);
-
+  const envio = useEnvioDoModal({
     // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e é
     // ele que decide que vazio vira `null`. Aparar aqui criaria a segunda regra.
-    const resultado = await executarComando(
-      ocorrenciaId,
-      "avaliar",
-      { nota, comentario },
-      rotulosDeStatus,
-      organizacaoId,
-    );
+    enviar: () =>
+      executarComando(ocorrenciaId, "avaliar", { nota, comentario }, rotulosDeStatus, organizacaoId),
+    aoConcluir: () => ({ titulo: retorno.sucesso }),
+    tituloDaFalha: retorno.falha,
+    aoAbrir: () => {
+      setNota(null);
+      setComentario("");
+      formulario.recomecar();
+    },
+  });
 
-    setEnviando(false);
-    setPrecisaRepintar(true);
-
-    if (resultado.ok) {
-      aoMudarAbertura(false);
-      // `precisaRepintar` ainda não valia quando `aoMudarAbertura` leu o estado — o React agenda.
-      router.refresh();
-      return;
-    }
-
-    setAviso(resultado.aviso);
+  function confirmar() {
+    if (formulario.tentarEnviar()) void envio.confirmar();
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
+    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -169,36 +148,26 @@ export function ModalDeAvaliacao({
           <DialogDescription>Como foi a resolução?</DialogDescription>
         </DialogHeader>
 
-        {aviso !== null && (
-          <p
-            role="alert"
-            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
-          >
-            {aviso}
-          </p>
-        )}
-
-        <fieldset className="flex flex-col gap-1">
-          <legend className="text-tinta-fraca px-0 pb-1 text-xs tracking-wide uppercase">
-            Nota
-          </legend>
+        <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
           {NOTAS.map((opcao) => {
             const id = `${grupoId}-${String(opcao.valor)}`;
             return (
               <label
                 key={opcao.valor}
                 htmlFor={id}
-                className="border-linha flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
+                className="border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
               >
                 <input
                   type="radio"
                   id={id}
                   name={grupoId}
                   value={opcao.valor}
-                  disabled={enviando}
+                  required
+                  disabled={envio.enviando}
                   checked={nota === opcao.valor}
                   onChange={() => {
                     setNota(opcao.valor);
+                    formulario.mudou("nota");
                   }}
                   className="size-4"
                 />
@@ -213,45 +182,40 @@ export function ModalDeAvaliacao({
               </label>
             );
           })}
-        </fieldset>
+        </GrupoDeEscolha>
 
-        <div className="flex flex-col gap-1.5">
-          {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
-              enumera *"modais que têm campo `observacao`"*, e este tem `comentario`. Inventar a frase aqui
-              seria escrever texto de produto num componente. */}
-          <label htmlFor={campoComentarioId} className="text-tinta text-sm font-medium">
-            Comentário (opcional)
-          </label>
-          <Textarea
-            id={campoComentarioId}
-            value={comentario}
-            onChange={(evento) => {
-              setComentario(evento.target.value);
-            }}
-            disabled={enviando}
-            rows={3}
-            /* **O mesmo teto do `avaliacaoSchema`** — 1000. Dois números divergiriam. */
-            maxLength={1000}
-          />
-        </div>
+        {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
+            enumera *"modais que têm campo `observacao`"*, e este tem `comentario`. Inventar a frase aqui
+            seria escrever texto de produto num componente. */}
+        <Campo id={campoComentarioId} rotulo="Comentário (opcional)">
+          {(controle) => (
+            <Textarea
+              {...controle}
+              value={comentario}
+              onChange={(evento) => {
+                setComentario(evento.target.value);
+              }}
+              disabled={envio.enviando}
+              rows={3}
+              /* **O mesmo teto do `avaliacaoSchema`** — 1000. Dois números divergiriam. */
+              maxLength={1000}
+            />
+          )}
+        </Campo>
 
-        <DialogFooter>
+        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+
+        <RodapeDoFormulario obrigatorios={1}>
           <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11">
+            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
               Fechar
             </Button>
           </DialogClose>
-          {/* **Desabilitado enquanto não há nota** — `nota` é `required` no schema, e habilitar produziria
-              um `400` que a tela podia evitar. O comentário vazio não desabilita nada. */}
-          <Button
-            type="button"
-            className="h-11"
-            disabled={enviando || nota === null}
-            onClick={() => void confirmar()}
-          >
-            {enviando ? "Enviando…" : "Enviar avaliação"}
+          <Button type="button" className="h-11" disabled={envio.enviando} onClick={confirmar}>
+            <IndicadorDeEnvio ativo={envio.enviando} />
+            {envio.enviando ? "Enviando…" : "Enviar avaliação"}
           </Button>
-        </DialogFooter>
+        </RodapeDoFormulario>
       </DialogContent>
     </Dialog>
   );

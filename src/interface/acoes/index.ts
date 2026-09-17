@@ -21,12 +21,13 @@ import {
   criarContaSchema,
   definirSenhaSchema,
   entrarSchema,
+  mensagensPorCampo,
   pedirRedefinicaoSchema,
 } from "@/interface/schemas";
 
 /**
  * ============================================================================
- *  As ações de credencial — T-01 e T-11
+ *  As ações de credencial — T-01, T-11, T-12 e T-13
  * ============================================================================
  *
  * **Não são endpoints deste contrato** (§4.1): são o subdomínio Genérico comprado no provedor. Por isso são
@@ -48,6 +49,11 @@ export type EstadoDoFormulario = {
   readonly aviso?: "confirme-o-email";
   /** T-12: o pedido foi aceito. **Não diz se a conta existe** — nem poderia (critério 1). */
   readonly enviado?: boolean;
+  /**
+   * T-11 e T-13: a escrita terminou. **Quem navega é a tela**, porque o aviso de sucesso só sai do
+   * navegador, e um `redirect()` aqui encerraria a ação antes de a tela saber que deu certo (item 44g).
+   */
+  readonly concluido?: true;
 };
 
 /** T-01 · Entrar. Ao final, navegação para o shell, que faz `GET /contexto` (inventário, T-01). */
@@ -59,7 +65,7 @@ export async function acaoDeEntrar(
     email: formulario.get("email"),
     senha: formulario.get("senha"),
   });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const resultado = await entrar(
     montarCredenciais(await armazenamentoDeCookies()),
@@ -85,7 +91,7 @@ export async function acaoDeCriarConta(
     email: formulario.get("email"),
     senha: formulario.get("senha"),
   });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   // **Antes de qualquer ida ao provedor.** Se a origem não der para descobrir, isto lança aqui — e não
   // depois de a conta existir com um link que aterrissa na raiz (item 6c).
@@ -103,7 +109,7 @@ export async function acaoDeCriarConta(
 
   // **DORMENTE.** A Q-T9 foi **fechada** em 22/08/2026: em regime a confirmação de e-mail não é
   // obrigatória, o provedor devolve sessão no `signUp`, e `precisaConfirmarEmail` é `false` — este ramo
-  // não é alcançado, e T-11 termina no `redirect("/")` abaixo.
+  // não é alcançado, e T-11 termina devolvendo `concluido`, e a tela segue para `/`.
   //
   // **O que decide é o interruptor *Confirm email* do painel do provedor, não o código** — e desde o item
   // 6c o link que ele passaria a enviar já aponta para `/confirmar-conta`, montado a partir da origem
@@ -114,7 +120,7 @@ export async function acaoDeCriarConta(
     return { aviso: "confirme-o-email" };
   }
 
-  redirect("/");
+  return { concluido: true };
 }
 
 /**
@@ -128,7 +134,7 @@ export async function acaoDePedirRedefinicao(
   formulario: FormData,
 ): Promise<EstadoDoFormulario> {
   const conferido = pedirRedefinicaoSchema.safeParse({ email: formulario.get("email") });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const resultado = await pedirRedefinicaoDeSenha(
     montarCredenciais(await armazenamentoDeCookies()),
@@ -140,17 +146,18 @@ export async function acaoDePedirRedefinicao(
 }
 
 /**
- * T-13 · gravar a senha nova, e devolver a pessoa a T-01.
+ * T-13 · gravar a senha nova. A tela dá o aviso e segue para T-01.
  *
- * **`limpar()` antes do redirecionamento**, e não depois: é o que faz o botão voltar não reencontrar o
- * formulário (critério 4). Sem o cookie, a tela redireciona para T-01 sozinha.
+ * **`limpar()` antes de devolver**, como antes era antes do redirecionamento: sem o cookie de recuperação,
+ * `/definir-senha` manda para T-01 sozinha, e é isso que faz o botão voltar não reencontrar o formulário
+ * (critério 6b.4). **O link vencido continua sendo `redirect`**: é troca de face, não sucesso.
  */
 export async function acaoDeDefinirSenha(
   _anterior: EstadoDoFormulario,
   formulario: FormData,
 ): Promise<EstadoDoFormulario> {
   const conferido = definirSenhaSchema.safeParse({ senha: formulario.get("senha") });
-  if (!conferido.success) return { erros: porCampo(conferido.error.issues) };
+  if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
   const armazenamento = await armazenamentoDeRedefinicao();
   const resultado = await definirSenha(montarCredenciais(armazenamento), conferido.data.senha);
@@ -166,22 +173,11 @@ export async function acaoDeDefinirSenha(
   }
 
   armazenamento.limpar();
-  redirect("/entrar?senha=alterada");
+  return { concluido: true };
 }
 
 /** O link "Sair" de T-02 e do shell. */
 export async function acaoDeSair(): Promise<void> {
   await sair(montarCredenciais(await armazenamentoDeCookies()));
   redirect("/entrar");
-}
-
-function porCampo(
-  violacoes: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
-): Record<string, string> {
-  const saida: Record<string, string> = {};
-  for (const violacao of violacoes) {
-    const campo = violacao.path.map(String).join(".");
-    if (saida[campo] === undefined) saida[campo] = violacao.message;
-  }
-  return saida;
 }

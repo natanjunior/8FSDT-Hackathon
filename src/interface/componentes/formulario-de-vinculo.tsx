@@ -69,7 +69,7 @@ const PAPEIS: ReadonlyArray<{ papel: string; rotulo: string; texto: string; aler
     papel: "encarregado",
     rotulo: "Encarregado",
     texto: "Aparece como responsável pela ocorrência.",
-    alerta: "Nesta versão, não consegue fazer nada dentro do sistema.",
+    alerta: "Não consegue fazer nada dentro do sistema.",
   },
 ];
 
