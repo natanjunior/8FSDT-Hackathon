@@ -50,8 +50,12 @@ const APROVADOS = new Set([
   "docs/modelo-de-dados.md",
   "README.md",
   "docs/README.md",
+  "docs/atendimento-ao-enunciado.md",
+  "docs/dominio.md",
   "docs/premissas-e-questoes-abertas.md",
+  "docs/produto.md",
   "docs/prototipo-low-fi.md",
+  "docs/visao-geral-da-arquitetura.md",
 ]);
 
 /**
@@ -66,6 +70,24 @@ const APROVADOS = new Set([
  * que é o que distingue exceção de esquecimento.
  */
 const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
+
+/**
+ * As páginas da estrutura nova, que respondem também pelas regras de estrutura.
+ *
+ * A troca é página a página: a nova entra na navegação quando fica pronta, e a antiga sai no mesmo
+ * momento. Enquanto uma antiga estiver no ar, ela responde só pelas seis regras de tom — cobrar dela o
+ * resto deixaria o portão vermelho sem que ninguém pudesse consertá-lo antes da hora.
+ *
+ * Cada página nova acrescenta uma linha aqui. Quando a estrutura antiga tiver saído inteira, esta lista e
+ * a `APROVADOS` passam a ser a mesma coisa, e uma das duas sai.
+ */
+const NOVAS = new Set([
+  "docs/README.md",
+  "docs/atendimento-ao-enunciado.md",
+  "docs/dominio.md",
+  "docs/produto.md",
+  "docs/visao-geral-da-arquitetura.md",
+]);
 
 // ---------------------------------------------------------------------------
 // As sete regras
@@ -137,8 +159,46 @@ const APARATO = [
   ],
 ];
 
-/** Regra 7 — a seção que o README da raiz tem de ter. */
-const SECAO_DO_QUE_DEU_ERRADO = /^#{1,6}\s+O que deu errado\s*$/mu;
+/**
+ * ---------------------------------------------------------------------------
+ *  As regras da estrutura nova, que valem só para as páginas da lista `NOVAS`
+ * ---------------------------------------------------------------------------
+ *
+ * As seis acima cuidam do tom. Estas cuidam do **leitor**: a documentação deixou de ser o diário de quem
+ * a produziu e passou a ser a documentação de um produto, lida por quem compra e por quem mantém. Tudo o
+ * que só serve a quem escreveu — identificador de processo, vocabulário interno, data de quando a frase
+ * mudou, seção sobre a própria descoberta — para de entrar.
+ *
+ * Elas não valem para as páginas antigas de propósito. Cada uma sai quando for substituída, e cobrar
+ * delas agora deixaria o portão vermelho sem que ninguém pudesse consertá-lo.
+ */
+const DA_ESTRUTURA_NOVA = [
+  /**
+   * Identificador de processo. Os do próprio sistema ficam: nome de tabela, de endpoint, de código de
+   * erro, de comando e de tela. `RNFn` fica também, porque requisito não funcional medido é requisito.
+   */
+  [
+    "identificador de processo",
+    /\b(?:D(?:[1-9]|1\d|2[0-7])|P[1-6]|PA-\d{1,2}|S-[APT]\d{1,2}|Q-(?:API-\d|[PT]-?\d{1,2})|DG-\d|POL-\d{1,2}|[RL]-\d{1,2}|[EFGS]\d{1,2})\b/gu,
+  ],
+  ["vocabulário de processo", /\bhub\b/giu],
+  ["título de correção ou de revisão", /^#{1,6}.*\b(?:corre[çc][ãa]o|corrigid|revisto|emenda|nota de revis[ãa]o)\b.*$/gimu],
+  [
+    "seção de processo ou de descoberta",
+    /^#{1,6}.*\b(?:o que .{0,30}descobriu|o que .{0,30}revelou|decis[õo]es da revis[ãa]o|propostas de mudan[çc]a|como este documento é mantido|quest[õo]es ao hub|suposi[çc][õo]es declaradas|o que deu errado|limita[çc][õo]es)\b.*$/gimu,
+  ],
+];
+
+/** Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção. */
+const DATA_NO_CORPO = /^(?!\s*(?:\*\*)?(?:Status|Data)\b).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
+
+/**
+ * Referência a arquivo escrita como código, sem link.
+ *
+ * `` `contrato-de-api.md` §8.5 `` não é clicável em superfície nenhuma: no GitHub é texto, e na página é
+ * texto. Referência a documento vira link, e o leitor chega lá.
+ */
+const ARQUIVO_SEM_LINK = /(.|^)`[^`\n]*\.(?:md|ya?ml|html)`(.{0,2})/gu;
 
 /** Regra 5 — seção que explica o documento em vez de dizer o que ele tem a dizer. */
 const CABECALHO_PROIBIDO =
@@ -180,21 +240,32 @@ function blocosDeCitacao(linhas) {
  * quais regras dispararam. Mudar o prefixo quebra o controle, e o controle é o que prova que este
  * arquivo verifica alguma coisa.
  */
-export function violacoesDe(conteudo, eu = "") {
+export function violacoesDe(conteudo, eu = "", nova = false) {
   const linhas = conteudo.split(/\r?\n/u);
 
   const palavras = conteudo.split(/\s+/u).filter(Boolean).length;
   const violacoes = [];
 
-  /**
-   * Regra 7 — a única que não é cota, e a única que vale para um arquivo só.
-   *
-   * O `README.md` da raiz é a porta do repositório, e documentação que só mostra acerto não dá a ninguém
-   * como julgar o resto dela. A seção existe ou não existe; o que ela diz é de quem escreve, e o que esta
-   * regra impede é ela sumir numa reescrita distraída.
-   */
-  if (eu === "README.md" && !SECAO_DO_QUE_DEU_ERRADO.test(conteudo)) {
-    violacoes.push(`regra 7 — o README da raiz não tem a seção "O que deu errado"`);
+  if (nova) {
+    for (const [nome, padrao] of DA_ESTRUTURA_NOVA) {
+      const achados = conteudo.match(padrao) ?? [];
+      if (achados.length > 0) {
+        violacoes.push(`estrutura — ${achados.length} de ${nome}: ${achados[0].trim().slice(0, 50)}`);
+      }
+    }
+
+    const datas = conteudo.match(DATA_NO_CORPO) ?? [];
+    if (datas.length > 0) violacoes.push(`estrutura — ${datas.length} datas no corpo`);
+
+    const semLink = [...conteudo.matchAll(ARQUIVO_SEM_LINK)].filter(
+      ([, antes, depois]) => antes !== "[" && !depois.startsWith("]("),
+    );
+    if (semLink.length > 0) {
+      violacoes.push(
+        `estrutura — ${semLink.length} referências a arquivo em código, sem link: ` +
+          semLink[0][0].trim().slice(0, 40),
+      );
+    }
   }
 
   const negrito = (conteudo.match(NEGRITO) ?? []).length;
@@ -261,7 +332,7 @@ let pendentes = 0;
 for (const caminho of documentos([".md"])) {
   const eu = curto(caminho);
   conferidos += 1;
-  const violacoes = violacoesDe(ler(caminho), eu);
+  const violacoes = violacoesDe(ler(caminho), eu, NOVAS.has(eu));
 
   if (APROVADOS.has(eu)) {
     const dispensadas = PARCIAIS.get(eu) ?? [];
@@ -316,24 +387,30 @@ if (doPositivo.length > 0) {
 }
 
 /**
- * A regra 7 tem controle próprio, porque ela não é cota e as fixtures não a alcançam.
+ * As regras da estrutura nova têm controle próprio, porque valem só para uma lista de arquivos.
  *
- * Ela vale para um arquivo só, e o teste é o mesmo em espírito: tirar a seção do conteúdo tem de produzir
- * a violação, e pôr o nome de outro arquivo tem de não produzir. Sem isto, uma regra que nunca dispara
- * passaria por regra cumprida.
+ * O mesmo controle negativo serve: lido como página nova, ele tem de violar todas; lido como página
+ * antiga, nenhuma. Uma regra que vale para todo mundo, ou para ninguém, falha aqui.
  */
-const daRaiz = ler(join(RAIZ, "README.md"));
-const semASecao = violacoesDe(daRaiz.replace(/^(#{1,6}\s+)O que deu errado\s*$/mu, "$1Outro título"), "README.md");
-const deOutroArquivo = violacoesDe("# qualquer coisa\n\ntexto.\n", "docs/escopo.md");
-const pegouRegra7 = (lista) => lista.some((v) => v.startsWith("regra 7"));
+const comoNova = violacoesDe(ler(fixture("tom-negativo.md")), "", true).filter((v) =>
+  v.startsWith("estrutura"),
+);
+const comoAntiga = violacoesDe(ler(fixture("tom-negativo.md")), "", false).filter((v) =>
+  v.startsWith("estrutura"),
+);
+const positivoComoNova = violacoesDe(ler(fixture("tom-positivo.md")), "", true);
 
-if (!pegouRegra7(semASecao) || pegouRegra7(deOutroArquivo)) {
+if (comoNova.length < DA_ESTRUTURA_NOVA.length + 2 || comoAntiga.length > 0) {
   falhas.push(
-    "CONTROLE DA REGRA 7 FALHOU — tirar a seção do README da raiz tem de acusar, e um documento " +
-      "qualquer sem ela não tem de acusar. Um dos dois não aconteceu.",
+    `CONTROLE DA ESTRUTURA FALHOU — o controle negativo deu ${comoNova.length} violações de estrutura ` +
+      `como página nova, e ${comoAntiga.length} como página antiga, que tem de ser zero.`,
   );
+} else if (positivoComoNova.length > 0) {
+  falhas.push(`CONTROLE POSITIVO REPROVADO como página nova: ${positivoComoNova.join(" · ")}`);
 } else {
-  notas.push("regra 7 conferida: acusa quando a seção sai do README da raiz, e só nele.");
+  notas.push(
+    `estrutura conferida: ${comoNova.length} regras acusam no controle negativo, e só nas páginas novas.`,
+  );
 }
 
 notas.push(

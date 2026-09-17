@@ -104,6 +104,15 @@ for (const caminho of documentos([".md"])) {
     const alvo = achado[1];
     if (alvo === undefined || /^(?:https?:|mailto:|tel:|#)/iu.test(alvo)) continue;
 
+    /**
+     * Endereço do site, e não caminho de arquivo.
+     *
+     * `/documentacao/api/referencia` é servido por rota, não existe em `docs/`, e quem o confere é o
+     * `verificar:site`, que pede a página de verdade e olha o que voltou. Aqui ele não teria como ser
+     * resolvido, e reprová-lo seria acusar um link que funciona.
+     */
+    if (alvo.startsWith("/")) continue;
+
     linksConferidos += 1;
 
     const arquivo = alvo.split("#")[0];
