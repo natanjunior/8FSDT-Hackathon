@@ -333,6 +333,19 @@ topo, e **o primeiro registro de todo mundo fica rápido**, não só o do reinci
 `ordem` em `areas`, um campo opcional em `PATCH /areas`, e reordenação em T-09 — que **já existe**, para
 `Categoria`. É a simetria que o F12 pediu, agora com uma razão de tempo medido por trás.
 
+**Construída em 17/09/2026**, no item que refez T-04. O que mudou da decisão de agosto, e por quê:
+
+| O que a §3 decidiu | O que foi construído | Por quê |
+|---|---|---|
+| busca por prefixo do nome | **prefixo de palavra** | é a regra que o produto já tem escrita num lugar só, em `busca-de-candidatos.ts`, e duas buscas com regras diferentes na mesma aplicação é defeito |
+| *"usadas recentemente"* no topo | **até três**, guardadas seis, gravadas no `201` | gravar na escolha encheria a lista com as tentativas abandonadas no cancelar; guardar três encolheria o bloco assim que uma área fosse desativada |
+| a lista alfabética inteira embaixo | **a ordem do Gestor** | **(d) já aconteceu**: `Area` ganhou `ordem`, a S-T10 caiu, e a lista chega ordenada por quem conhece o prédio — que era o que faltava para o primeiro registro também ser rápido |
+
+**A conta não muda, e isso é o ponto.** Os *"~4 s"* e *"~2 s"* da tabela acima são **estimativa**, e o
+total continua **53 s contra 60**. É o mesmo precedente da §2.7: creditar ganho não medido ao passo 7
+tornaria o orçamento menos verificável, que é o defeito que o P-15 aponta no próprio RNF6. **O
+instrumento continua sendo o da §9**, e a linha datada da cronometragem vai aqui quando houver.
+
 ---
 
 ## 4. Os desenhos
