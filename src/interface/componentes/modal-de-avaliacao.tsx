@@ -48,10 +48,10 @@ const NOTAS = [
  * | Aviso de visibilidade | **obrigatório** | **não existe** — a restrição herdada nº 1 do inventário enumera *"modais que têm campo `observacao`"*, e este tem `comentario` |
  * | Valor da opção | `string` (o enum do motivo) | **`number`** (a nota) |
  *
- * Reusá-lo exigiria tornar opcionais **duas** props que o item 18 tornou obrigatórias com argumento
- * escrito (`modal-de-motivo.tsx:95-106`: *"padrão silencioso faria o chamador que esquecesse mostrar a
- * frase do Gestor a um Solicitante"*) — desfazer decisão de outro item para economizar um arquivo.
- * **Recusado.**
+ * Reusá-lo exigiria tornar opcionais **duas** props que o item 18 tornou obrigatórias com argumento escrito
+ * (o docblock de `avisoDeVisibilidade`, em `modal-de-motivo.tsx`: *"padrão silencioso faria o chamador que
+ * esquecesse mostrar a frase do Gestor a um Solicitante"*) — desfazer decisão de outro item para economizar
+ * um arquivo. **Recusado.**
  *
  * **A nota é `RadioGroup` e não estrelas, e o protótipo já decidiu com o custo escrito:** *"Não há
  * componente de nota no catálogo … Ganha-se acessibilidade de graça e **perde-se reconhecimento**: as
@@ -73,14 +73,14 @@ const NOTAS = [
  * em vez de produzir um `400` que ela podia evitar. **O comentário vazio não impede nada**, porque é
  * opcional.
  *
- * **A variante nunca é `"menu"`, e a prova está em `barra-de-acoes.tsx:69-72`**, escrita com o nome deste
- * item: `ACAO_PRIMARIA.resolvida === "avaliar"`, e `emMenu` exclui o destaque por construção. Sempre que
- * `avaliar` é renderizável, ele **é** o destaque.
+ * **A variante nunca é `"menu"`, e a prova está no parágrafo *"Corrigido no item 18"* do cabeçalho de
+ * `barra-de-acoes.tsx`**, escrita com o nome deste item: `ACAO_PRIMARIA.resolvida === "avaliar"`, e `emMenu`
+ * exclui o destaque por construção. Sempre que `avaliar` é renderizável, ele **é** o destaque.
  *
- * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco
- * opções e no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), o erro do
- * servidor em `role="alert"` e tudo em palavra (A-5). Foco preso, `Esc` e foco devolvido ao gatilho vêm do `Dialog`
- * do `radix-ui` (A-2 e A-4).
+ * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco opções e
+ * no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), o erro do servidor em
+ * `role="alert"` e tudo em palavra (A-5). Foco preso, `Esc` e foco devolvido ao gatilho vêm do `Dialog` do
+ * `radix-ui` (A-2 e A-4).
  */
 export function ModalDeAvaliacao({
   ocorrenciaId,

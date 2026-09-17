@@ -437,7 +437,7 @@ export default async function Ocorrencia({
      * **O quinto modal, e ele é o `ModalDeObservacao` reusado INTEIRO** — zero componente novo, zero
      * variante nova, zero linha alterada nele. O componente foi escrito parametrizado exatamente para
      * isto: *"o modal de `iniciar-atendimento` (item 22) e o de `retomar` (item 24) diferem em três
-     * strings"* (`modal-de-observacao.tsx:25-28`).
+     * strings"* (o parágrafo *"Um componente parametrizado"* do cabeçalho de `modal-de-observacao.tsx`).
      *
      * **A descrição NÃO nomeia o destino, e é o critério 24.2 na tela.** *"Volta para Em atendimento"*
      * seria informar antes o que o critério manda descobrir depois — e seria uma frase que esta tela
@@ -524,7 +524,8 @@ export default async function Ocorrencia({
      *
      * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
      * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
-     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está em `barra-de-acoes.tsx:69-72`.
+     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está no parágrafo *"Corrigido no item
+     * 18"* do cabeçalho de `barra-de-acoes.tsx`.
      */
     avaliar: (
       <ModalDeAvaliacao

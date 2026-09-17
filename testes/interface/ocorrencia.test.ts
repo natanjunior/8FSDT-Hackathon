@@ -3186,7 +3186,8 @@ describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repart
   });
 
   it("a palavra que separa os blocos é `Solicitante`, e ela vem do PAPEL_EM_PALAVRA de T-05", () => {
-    // O acoplamento existe desde o item 19 (`modal-de-atribuicao.tsx:144-145`) e nada aqui o conserta.
+    // O acoplamento existe desde o item 19 (a constante `PAPEL_SOLICITANTE` de `busca-de-candidatos.ts`,
+    // que o `ModalDeAtribuicao` usa para repartir os blocos) e nada aqui o conserta.
     // O que muda é que ele passa a ter teste: se `PAPEL_EM_PALAVRA` mudar a palavra, este caso cai.
     const so = [candidato("p-9", "Quem Quer", "Solicitante")] as const;
 

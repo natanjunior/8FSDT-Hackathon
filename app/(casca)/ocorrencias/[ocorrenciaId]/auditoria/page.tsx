@@ -161,12 +161,12 @@ type RegistroProjetado = ReturnType<typeof projetarTransicao>;
  * caracteres), e o parágrafo da observação mora numa célula que ocupa a largura toda, de modo que ele
  * **só pode crescer para baixo**.
  *
- * **A linha de continuação carrega o NOME de cada campo**, e é o que a torna legítima. A objeção contra
- * duas `<tr>` por registro está escrita em `lista-de-ocorrencias.tsx:373-376` — *"numa tabela, uma linha
- * é um registro, e duas `<tr>` por ocorrência mentem para quem navega por leitor de tela"* —, e ela vale
- * lá porque a segunda linha repetiria dados sob colunas erradas. **Aqui a célula se auto-rotula**, que é
- * a mesma escolha que o protótipo faz no celular: *"é verboso de propósito: quem lê esta tela está
- * provando algo, e prova sem rótulo de campo é afirmação"*.
+ * **A linha de continuação carrega o NOME de cada campo**, e é o que a torna legítima. A objeção contra duas
+ * `<tr>` por registro está escrita no docblock do *Recorte B*, em `lista-de-ocorrencias.tsx` — *"numa tabela,
+ * uma linha é um registro, e duas `<tr>` por ocorrência mentem para quem navega por leitor de tela"* —, e ela
+ * vale lá porque a segunda linha repetiria dados sob colunas erradas. **Aqui a célula se auto-rotula**, que é
+ * a mesma escolha que o protótipo faz no celular: *"é verboso de propósito: quem lê esta tela está provando
+ * algo, e prova sem rótulo de campo é afirmação"*.
  *
  * **O `<caption>` não é enfeite:** a ordem *do mais antigo para o mais recente* é regra do inventário e
  * não estaria visível em lugar nenhum sem ele — *"uma trilha lida na ordem errada prova o contrário do
