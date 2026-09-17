@@ -790,3 +790,161 @@ describe("o alcance do 44k — as duas listas de ordem manual", () => {
     expect(crus).toStrictEqual(["src/interface/componentes/icone-de-categoria.tsx"]);
   });
 });
+
+const ALCANCE_DO_44L = [
+  "app/(foco)/ocorrencias/nova/page.tsx",
+  "src/interface/componentes/formulario-de-ocorrencia.tsx",
+  "src/interface/componentes/controle-de-foto.tsx",
+  "src/interface/componentes/seletor-de-area.tsx",
+  "src/interface/componentes/depois-de-registrar.tsx",
+  "src/interface/componentes/registro-de-ocorrencia.ts",
+  "src/interface/componentes/areas-usadas.ts",
+];
+
+describe("o alcance do 44l — T-04 com a área que se busca", () => {
+  it("as duas peças do catálogo entraram, e o cmdk é o único pacote novo (critério 44l.3)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/command.tsx")).toBe(true);
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/popover.tsx")).toBe(true);
+    const pacote = JSON.parse(ler("package.json")) as { dependencies: Record<string, string> };
+    // Fixado, sem acento circunflexo: a ADR-0011 faz da atualização uma decisão.
+    expect(pacote.dependencies.cmdk).toBe("1.1.1");
+    // O `popover` usa o guarda-chuva que já está instalado; nenhum `@radix-ui/*` avulso entrou com ele.
+    const avulsos = Object.keys(pacote.dependencies).filter((nome) => nome.startsWith("@radix-ui/"));
+    expect(avulsos).toStrictEqual([]);
+  });
+
+  it("nenhum controle cru em T-04, fora o de arquivo (critério 44l.6, e o G7 do guia)", () => {
+    const achados = ALCANCE_DO_44L.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+    // A exceção declarada: o catálogo não tem peça para entrada de arquivo, e o G7 não conta entrada.
+    const crus = ALCANCE_DO_44L.filter((caminho) => /<input/u.test(ler(caminho)));
+    expect(crus).toStrictEqual(["src/interface/componentes/controle-de-foto.tsx"]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44l.14)", () => {
+    const achados = ALCANCE_DO_44L.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("T-04 saiu da moldura das telas de credencial (critério 44l.14)", () => {
+    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("MolduraDeTela"),
+    );
+    // **T-10 (`app/page.tsx`) está aqui de propósito**: ela não é tela de credencial nem T-02, e usa a
+    // moldura desde antes deste item. O que esta guarda protege é T-04 ter saído — nada mais.
+    expect(comMoldura).toStrictEqual([
+      "app/criar-conta/page.tsx",
+      "app/definir-senha/page.tsx",
+      "app/entrar/page.tsx",
+      "app/organizacao/page.tsx",
+      "app/page.tsx",
+      "app/redefinir-senha/page.tsx",
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/moldura-de-tela.tsx",
+    ]);
+  });
+
+  it("a busca do cmdk fica desligada, e o casamento é o mesmo do 44j (critério 44l.3)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-area.tsx");
+    // Sem isto, o filtro de fábrica do `cmdk` — pontuação aproximada — acharia *Garagem* digitando "gm",
+    // e o produto teria duas buscas com regras diferentes.
+    expect(fonte).toContain("shouldFilter={false}");
+    expect(fonte).toContain("filtrarPeloNome");
+  });
+
+  it("o confirm() do navegador saiu, e o descarte é o alert-dialog do catálogo (critério 44l.9)", () => {
+    const fonte = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    expect(fonte).not.toMatch(/\bconfirm\(/u);
+    expect(fonte).toContain("<AlertDialog");
+    // Nenhum `confirm(` sobra em app e src: era o único do produto.
+    const sobras = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      /(?:^|[^.\w])confirm\(/u.test(ler(caminho)),
+    );
+    expect(sobras).toStrictEqual([]);
+  });
+
+  it("o erro de campo de T-04 usa o modo campo, e o resto do produto não (critério 44l.7)", () => {
+    const comModoCampo = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes('modo: "campo"'),
+    );
+    expect(comModoCampo).toStrictEqual(["src/interface/componentes/formulario-de-ocorrencia.tsx"]);
+  });
+
+  it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
+    const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(fonte).toContain('role="status"');
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain(
+      "Você pode continuar escrevendo.",
+    );
+    // A barra é decoração: quem carrega o estado para o leitor de tela é a frase.
+    expect(fonte).toContain('aria-hidden="true"');
+    // E ela para sob preferência por movimento reduzido (guia §6).
+    expect(fonte).toContain("motion-safe:animate-pulse");
+  });
+
+  it("o botão de ícone fora da casca monta o próprio TooltipProvider (C-6)", () => {
+    // O `BotaoDeIcone` envolve o botão numa dica do Radix, e o Radix **lança** sem provedor acima — o
+    // contexto dele não tem valor padrão. Nas telas da casca o provedor vem do `SidebarProvider`; T-04
+    // está na moldura focada, que não tem barra lateral. Sem esta linha a tela quebra ao escolher a
+    // primeira foto, e **nenhum outro verificador pega**: não há teste de componente (ADR-0008).
+    expect(ler("src/interface/componentes/controle-de-foto.tsx")).toContain("<TooltipProvider>");
+  });
+
+  it("a área lê o armazenamento no manipulador, e não num efeito (C-8)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-area.tsx");
+    expect(fonte).toContain("lerAreasUsadas");
+    // `react-hooks/set-state-in-effect` reprova `setState` no corpo de um efeito, e este projeto não tem
+    // `eslint-disable` para gastar. Abrir é um evento; ler a preferência do aparelho é a resposta a ele.
+    expect(fonte).not.toContain("useEffect");
+  });
+
+  it("a ordem dos campos é foto → título → descrição → categoria → área → referência", () => {
+    // **É a guarda mais importante deste bloco**, porque a ordem é o que faz o RNF6 caber e nada mais a
+    // protege: ela economiza duas trocas de teclado, cobre o cold start com os dois campos de rede por
+    // último, e põe a foto primeiro para o envio correr em paralelo (protótipo §2.3 e §2.5, DG-5).
+    const fonte = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    const posicoes = [
+      "<ControleDeFoto",
+      'id="titulo"',
+      'id="descricao"',
+      'id="categoriaId"',
+      'id="areaId"',
+      'id="localizacaoComplemento"',
+    ].map((marca) => fonte.indexOf(marca));
+    expect(posicoes.every((posicao) => posicao !== -1)).toBe(true);
+    expect([...posicoes].sort((a, b) => a - b)).toStrictEqual(posicoes);
+  });
+
+  it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
+    for (const caminho of ALCANCE_DO_44L) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("Resolve Aí");
+    }
+    // A D10 diz isso de área comum, mas a capacidade está ⬜ no escopo: hoje o Solicitante vê só as
+    // próprias. E o "do condomínio" da prancheta sai — pela D3, a organização pode ser empresa ou bairro.
+    const painel = ler("src/interface/componentes/registro-de-ocorrencia.ts");
+    expect(painel).toContain("Quem acompanha: você e os Gestores.");
+    expect(painel).not.toContain("do condomínio");
+    expect(painel).not.toContain("moradores");
+  });
+
+  it("as usadas por você são preferência no aparelho, e não cache de resposta (critério 44l.4)", () => {
+    const fonte = ler("src/interface/componentes/areas-usadas.ts");
+    // A S-T6 do inventário proíbe guardar o corpo de uma resposta. O que se guarda é uma lista de `areaId`.
+    expect(fonte).toContain("resolve-ai.areas-usadas.");
+    expect(fonte).not.toContain("fetch(");
+    // A chave é por organização: uma só misturaria os locais de quem tem dois vínculos.
+    expect(fonte).toContain("PREFIXO + organizacaoId");
+    // Falha de leitura ou escrita é engolida: `localStorage` lança em janela privada, e uma lista de
+    // conveniência nunca pode impedir o registro na tela que o RNF6 cronometra.
+    expect([...fonte.matchAll(/catch\s*\{/gu)]).toHaveLength(2);
+  });
+});

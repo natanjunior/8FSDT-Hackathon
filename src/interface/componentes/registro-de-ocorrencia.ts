@@ -198,7 +198,15 @@ export const JA_REGISTRADA = {
   acao: "Ver a ocorrência",
 } as const;
 
-/** O painel da tela grande (critérios 11 e 12). O *"do condomínio"* sai: pela D3, a organização É o local. */
+/**
+ * O painel da tela grande (critérios 11 e 12). A prancheta termina a frase de quem acompanha nomeando um
+ * tipo de local, e **esse pedaço sai**: pela D3 a organização **é** o local, e ela pode ser empresa ou
+ * bairro. A razão de a frase não citar o tipo está inteira em `depois-de-registrar.tsx`.
+ *
+ * *(O pedaço que saiu não é escrito aqui por extenso de propósito: a guarda do critério 12 casa
+ * texto-fonte e não distingue código de prosa — citar a frase recusada faria o arquivo reprovar por
+ * explicar a própria decisão.)*
+ */
 export const DEPOIS_DE_REGISTRAR = {
   titulo: "Depois de registrar",
   nasce: "nasce assim",

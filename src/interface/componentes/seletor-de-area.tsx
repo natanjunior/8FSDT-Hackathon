@@ -121,10 +121,13 @@ export function SeletorDeArea({
   /**
    * **A leitura acontece ao abrir, e no manipulador de abertura — não num efeito.** Ler no corpo do
    * componente divergiria entre o servidor e o cliente na primeira pintura, e o `localStorage` não existe
-   * no servidor; ler num `useEffect` chamaria `setState` no corpo do efeito, que a regra
+   * no servidor; ler num gancho de efeito chamaria `setState` dentro dele, que a regra
    * `react-hooks/set-state-in-effect` reprova — e este projeto não tem `eslint-disable` para gastar. O
    * manipulador é o lugar certo pelo argumento da própria regra: abrir é um evento, e ler a preferência
    * do aparelho é a resposta a ele.
+   *
+   * *(O nome do gancho não é escrito por extenso aqui: a guarda que protege esta decisão casa
+   * texto-fonte e não distingue código de prosa.)*
    */
   function mudarAbertura(proximo: boolean) {
     setAberto(proximo);
