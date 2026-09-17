@@ -4,13 +4,15 @@ import { notFound, redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, verVinculo } from "@/aplicacao/organizacao";
 import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vinculo";
+import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea } from "@/interface/projecoes";
 
 /**
  * **T-08 · corrigir os dados de um vínculo.**
  *
- * A moldura é a de `app/vinculos/page.tsx`, copiada e não importada — mesma razão da página de cadastro.
+ * A resolução do escopo é a de `app/(casca)/vinculos/page.tsx`, copiada e não importada, pela mesma razão
+ * da página de cadastro. O estado sem acesso é o `SemAcesso` da casca.
  */
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,9 @@ export default async function CorrigirVinculo({
 
   const escopo = await resolverOuMandarParaPorta(pessoaId);
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
-  if (escopo.situacao === "sem-permissao") return <SemAcesso />;
+  if (escopo.situacao === "sem-permissao") {
+    return <SemAcesso titulo="Corrigir os dados" permissao="vinculo.gerir" />;
+  }
 
   // Leitura pela estrada direta (contrato §5) — **sem salto HTTP, e pela camada de Aplicação**, como
   // toda outra página. Com o repositório já escopado, um vínculo de outra organização é **inalcançável**,
@@ -63,21 +67,6 @@ export default async function CorrigirVinculo({
         areas={areas.map(projetarArea)}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
       />
-    </div>
-  );
-}
-
-/** O ramo em linha de `app/vinculos/page.tsx`, com o título desta página. */
-function SemAcesso() {
-  return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-xl font-semibold">Corrigir os dados</h1>
-      <p role="alert" className="text-tinta-suave text-sm">
-        Seu papel nesta organização não dá acesso a esta página.
-      </p>
-      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
-        Voltar
-      </Link>
     </div>
   );
 }

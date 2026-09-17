@@ -11,6 +11,7 @@ import {
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import { ListaDeVinculos } from "@/interface/componentes/lista-de-vinculos";
+import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@/interface/projecoes";
 
@@ -39,20 +40,9 @@ export default async function QuemEstaNaOrganizacao({
   // O mapa de navegação do inventário (§3): sem organização ativa, T-02.
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
 
+  // Não acontece pela navegação: o item de menu só existe com a permissão. Acontece por link recebido.
   if (escopo.situacao === "sem-permissao") {
-    // *"Seu papel nesta organização não dá acesso a esta página."* + volta a T-03 — que ainda não existe,
-    // então o shell. Não acontece pela navegação: o item de menu só existe com a permissão.
-    return (
-      <div className="flex flex-col gap-5">
-        <h1 className="text-tinta text-xl font-semibold">Quem está na organização</h1>
-        <p role="alert" className="text-tinta-suave text-sm">
-          Seu papel nesta organização não dá acesso a esta página.
-        </p>
-        <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
-          Voltar
-        </Link>
-      </div>
-    );
+    return <SemAcesso titulo="Quem está na organização" permissao="vinculo.gerir" />;
   }
 
   const [pedidos, areas, vinculos, mapaDeImpedimentos] = await Promise.all([

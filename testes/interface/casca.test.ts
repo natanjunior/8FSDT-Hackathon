@@ -41,6 +41,16 @@ function arquivosDe(pasta: string): string[] {
     .sort();
 }
 
+/** Linha de comentário: `*`, `//`, `/*` ou `{/*` no começo. A mesma poda de `formulario.test.ts`. */
+const COMENTARIO = /^\s*(?:\*|\/\/|\/\*|\{\/\*)/u;
+
+/** As linhas de código, fora de comentário, que contêm o trecho. */
+function linhasDeCodigoCom(caminho: string, trecho: string): string[] {
+  return ler(caminho)
+    .split(/\r?\n/u)
+    .filter((linha) => linha.includes(trecho) && !COMENTARIO.test(linha));
+}
+
 describe("a marca da barra lateral — critério 1", () => {
   it.each([
     ["/ocorrencias", "/ocorrencias"],
@@ -153,5 +163,71 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
       (achado) => achado[1],
     );
     expect(grupos).toStrictEqual(["p-0", "p-0", "p-0"]);
+  });
+});
+
+/** As onze páginas que recusam sem redirecionar, com o título da face normal e a permissão. */
+const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
+  "app/(casca)/configuracao/page.tsx": ["Configuração", "organizacao.configurar"],
+  "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
+  "app/(casca)/configuracao/categorias/nova/page.tsx": ["Criar categoria", "organizacao.configurar"],
+  "app/(casca)/configuracao/categorias/[categoriaId]/editar/page.tsx": [
+    "Corrigir categoria",
+    "organizacao.configurar",
+  ],
+  "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
+  "app/(casca)/configuracao/areas/nova/page.tsx": ["Criar área", "organizacao.configurar"],
+  "app/(casca)/configuracao/areas/[areaId]/editar/page.tsx": ["Corrigir área", "organizacao.configurar"],
+  "app/(casca)/dashboard/page.tsx": ["Dashboard", "dashboard.ler"],
+  "app/(casca)/vinculos/page.tsx": ["Quem está na organização", "vinculo.gerir"],
+  "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
+  "app/(casca)/vinculos/[pessoaId]/editar/page.tsx": ["Corrigir os dados", "vinculo.gerir"],
+};
+
+describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
+  it("as páginas da casca que recusam sem redirecionar são as onze", () => {
+    const recusam = arquivosDe("app/(casca)")
+      .filter((caminho) => caminho.endsWith("/page.tsx"))
+      .filter((caminho) =>
+        linhasDeCodigoCom(caminho, '=== "sem-permissao"').some((linha) => !linha.includes("redirect(")),
+      );
+    expect(recusam).toStrictEqual(Object.keys(PAGINAS_QUE_RECUSAM).sort());
+  });
+
+  it.each(Object.entries(PAGINAS_QUE_RECUSAM))(
+    "%s devolve o SemAcesso do lugar único, com o título e a permissão dela",
+    (caminho, [titulo, permissao]) => {
+      const fonte = ler(caminho);
+      expect(fonte).toContain('import { SemAcesso } from "@/interface/componentes/sem-acesso";');
+      expect(fonte).toContain(`return <SemAcesso titulo="${titulo}" permissao="${permissao}" />;`);
+    },
+  );
+
+  it("nenhuma página declara a própria recusa", () => {
+    const declaram = arquivosDe("app").filter((caminho) =>
+      /function (?:SemAcesso|SemPermissao)\b/u.test(ler(caminho)),
+    );
+    expect(declaram).toStrictEqual([]);
+  });
+
+  it("a recusa e a saída existem uma vez só no produto, fora de comentário", () => {
+    const codigo = [...arquivosDe("app"), ...arquivosDe("src")];
+    for (const trecho of ["não dá acesso a esta página", "Ir para Ocorrências"]) {
+      const ocorrencias = codigo.flatMap((caminho) =>
+        linhasDeCodigoCom(caminho, trecho).map(() => caminho),
+      );
+      expect(ocorrencias, trecho).toStrictEqual(["src/interface/componentes/rotulos.ts"]);
+    }
+  });
+
+  it("o componente usa o vazio do catálogo, o cadeado, a saída como link e nenhuma região viva", () => {
+    const fonte = ler("src/interface/componentes/sem-acesso.tsx");
+    expect(fonte).toContain('from "@/interface/componentes/ui/empty"');
+    expect(fonte).toContain("<LockKeyhole");
+    expect(fonte).toContain("<Link");
+    expect(fonte).toContain('href="/ocorrencias"');
+    expect(fonte).toContain("min-h-11");
+    expect(fonte).not.toContain("role=");
+    expect(fonte).not.toContain("use client");
   });
 });
