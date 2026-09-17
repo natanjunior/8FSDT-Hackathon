@@ -12,6 +12,9 @@ import { correcaoDeCategoriaSchema } from "@/interface/schemas";
  * ela e a FK vinda de `ocorrencias` é `RESTRICT`. **Não existe `DELETE` neste caminho, e não deve
  * existir.**
  *
+ * **`ordem` aqui é obsoleto desde o item 50:** a posição muda por `PUT /categorias/ordem`, que grava a
+ * lista inteira numa transação. O campo continua aceito enquanto o formulário o enviar, e sai com o 44k.
+ *
  * **Duas recusas acontecem aqui, antes da Aplicação:**
  *
  * 1. **Identificador que não é `uuid` → `404`**, não `500`. Sem esta linha, o `where id = $n` recebe texto

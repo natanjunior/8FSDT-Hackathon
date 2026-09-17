@@ -892,7 +892,12 @@ paths:
               required: [nome]
               properties:
                 nome: { type: string, minLength: 1, maxLength: 60 }
-                ordem: { type: integer, minimum: 0, maximum: 999, default: 0 }
+                ordem:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                  deprecated: true
+                  description: Obsoleto. A posição muda por `PUT /categorias/ordem`. Sem este campo, a categoria entra no fim da lista.
                 icone: { $ref: "#/components/schemas/IconeCategoria" }
             example: { nome: "Jardinagem", ordem: 8, icone: "trees" }
       responses:
@@ -933,7 +938,12 @@ paths:
               minProperties: 1
               properties:
                 nome: { type: string, minLength: 1, maxLength: 60 }
-                ordem: { type: integer, minimum: 0, maximum: 999 }
+                ordem:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                  deprecated: true
+                  description: Obsoleto. Use `PUT /categorias/ordem`, que grava a lista inteira de uma vez.
                 ativa: { type: boolean }
                 icone: { $ref: "#/components/schemas/IconeCategoria" }
             example: { icone: "droplets" }
@@ -948,6 +958,61 @@ paths:
         "403": { $ref: "#/components/responses/SemPermissao" }
         "404": { $ref: "#/components/responses/CategoriaNaoEncontrada" }
         "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /categorias/ordem:
+    put:
+      tags: [Configuração]
+      operationId: reordenarCategorias
+      summary: Reordenar as categorias, a lista inteira de uma vez
+      description: |
+        Recebe **a lista inteira** das categorias da organização, ativas e inativas, na ordem nova. Numa
+        transação só, a categoria na posição *i* recebe `ordem = i`, de 1 a *n*; se qualquer passo falhar,
+        nada muda. Só as linhas que mudaram de posição recebem `atualizado_em` e o autor da alteração, e
+        uma reordenação que não muda nada não grava linha.
+
+        **O conjunto tem de ser o atual.** Faltando item, sobrando item, ou com id de outra organização ou
+        inexistente, a resposta é `409 LISTA_DESATUALIZADA`, igual nos quatro casos. O caso comum é outro
+        Gestor ter criado uma categoria depois da leitura, e o cliente recarrega a lista com
+        `GET /categorias?ativa=false`. Lista vazia, mais de 999 itens e id repetido são forma, e respondem
+        `400`.
+
+        Duas reordenações simultâneas não se misturam: a segunda espera a primeira e vence inteira.
+
+        *Capacidade: editar categorias. Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Reordenacao" }
+            example:
+              ids:
+                - "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d"
+                - "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d"
+                - "6b1c8f2e-3333-4a2b-8c3d-4e5f6a7b8c9d"
+      responses:
+        "200":
+          description: A lista inteira, na ordem nova, na forma de `GET /categorias?ativa=false`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Categoria" }
+              example:
+                itens:
+                  - { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos", ativa: true, ordem: 1, icone: "droplets" }
+                  - { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Problemas de iluminação", ativa: true, ordem: 2, icone: "lightbulb" }
+                  - { id: "6b1c8f2e-3333-4a2b-8c3d-4e5f6a7b8c9d", nome: "Limpeza", ativa: false, ordem: 3, icone: "tag" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /areas:
@@ -1009,7 +1074,12 @@ paths:
               properties:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
-                ordem: { type: integer, minimum: 0, maximum: 999, default: 0 }
+                ordem:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                  deprecated: true
+                  description: Obsoleto. A posição muda por `PUT /areas/ordem`. Sem este campo, a área entra no fim da lista.
             example: { nome: "Playground", tipo: "comum", ordem: 4 }
       responses:
         "201":
@@ -1051,7 +1121,12 @@ paths:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
                 ativa: { type: boolean }
-                ordem: { type: integer, minimum: 0, maximum: 999 }
+                ordem:
+                  type: integer
+                  minimum: 0
+                  maximum: 999
+                  deprecated: true
+                  description: Obsoleto. Use `PUT /areas/ordem`, que grava a lista inteira de uma vez.
             example: { tipo: "privativa" }
       responses:
         "200":
@@ -1072,6 +1147,61 @@ paths:
         "403": { $ref: "#/components/responses/SemPermissao" }
         "404": { $ref: "#/components/responses/AreaNaoEncontrada" }
         "409": { $ref: "#/components/responses/NomeDuplicado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /areas/ordem:
+    put:
+      tags: [Configuração]
+      operationId: reordenarAreas
+      summary: Reordenar as áreas, a lista inteira de uma vez
+      description: |
+        Recebe **a lista inteira** das áreas da organização, ativas e inativas, na ordem nova. Numa
+        transação só, a área na posição *i* recebe `ordem = i`, de 1 a *n*; se qualquer passo falhar, nada
+        muda. É a ordem em que o formulário de registro oferece as áreas, e por isso a que mais pesa no
+        tempo do registro.
+
+        Só as linhas que mudaram de posição recebem `atualizado_em` e o autor da alteração. **A
+        reordenação não toca o registro de reclassificação**, que só muda quando `tipo` muda em
+        `PATCH /areas/{areaId}`.
+
+        Conjunto diferente do atual responde `409 LISTA_DESATUALIZADA`, igual nos quatro casos (faltando,
+        sobrando, de outra organização, inexistente), e o cliente recarrega a lista com
+        `GET /areas?ativa=false`. Lista vazia, mais de 999 itens e id repetido respondem `400`.
+
+        *Capacidade: editar áreas. Comando: `Definir áreas do local`. Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Reordenacao" }
+            example:
+              ids:
+                - "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e"
+                - "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e"
+                - "0f9a4d71-2222-4b2c-9d3e-4f5a6b7c8d9e"
+      responses:
+        "200":
+          description: A lista inteira, na ordem nova, na forma de `GET /areas?ativa=false`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Area" }
+              example:
+                itens:
+                  - { id: "0f9a4d71-3333-4b2c-9d3e-4f5a6b7c8d9e", nome: "Apartamento 302", tipo: "privativa", ativa: true, ordem: 1 }
+                  - { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true, ordem: 2 }
+                  - { id: "0f9a4d71-2222-4b2c-9d3e-4f5a6b7c8d9e", nome: "Salão de festas", tipo: "comum", ativa: true, ordem: 3 }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /anexos/autorizacoes:
@@ -2623,6 +2753,33 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problema" }
           example: { type: "https://resolveai.app/erros/categoria-nome-duplicado", title: "Nome já usado", status: 409, codigo: "CATEGORIA_NOME_DUPLICADO", traceId: "01JB8Z6K9T2M4N7Q" }
+    ListaDesatualizada:
+      description: |
+        **Nada foi gravado.** O conjunto de `ids` não é o conjunto atual da lista
+        (`LISTA_DESATUALIZADA`), e o cliente recarrega a lista antes de tentar de novo; ou o cabeçalho
+        `X-Organizacao-Id` afirma outra organização (`ORGANIZACAO_DIVERGENTE`).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problema" }
+          examples:
+            listaDesatualizada:
+              summary: A lista mudou desde que foi lida
+              value:
+                type: "https://resolveai.app/erros/lista-desatualizada"
+                title: "Lista desatualizada"
+                status: 409
+                detail: "A lista mudou desde que você a abriu."
+                codigo: "LISTA_DESATUALIZADA"
+                traceId: "01JB8Z6K9T2M4N7Q"
+            organizacaoDivergente:
+              summary: A aba está em outra organização
+              value:
+                type: "https://resolveai.app/erros/organizacao-divergente"
+                title: "Organização divergente"
+                status: 409
+                detail: "Esta aba está em outra organização. Recarregue a página antes de continuar."
+                codigo: "ORGANIZACAO_DIVERGENTE"
+                traceId: "01JB8Z6K9T2M4N7Q"
     TransicaoNaoPermitida:
       description: |
         O par (status atual, comando) não está na tabela de transições do agregado. **Toda transição fora
@@ -3067,6 +3224,21 @@ components:
             do RNF6 — em ordem alfabética ela custa cerca de 12 segundos de um orçamento de 60. Busca e
             "usadas recentemente" resolvem a partir do segundo registro; **`ordem` é o que resolve o
             primeiro**, e é o primeiro que decide se existe um segundo.
+
+    Reordenacao:
+      type: object
+      description: |
+        O corpo das duas reordenações. `ids` é a lista inteira, ativas e inativas, na ordem desejada: o
+        primeiro recebe `ordem = 1`. Identificadores em maiúsculas são aceitos e comparados sem caixa, e o
+        mesmo identificador em duas caixas conta como repetido.
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 999
+          uniqueItems: true
+          items: { type: string, format: uuid }
 
     RegistroDeOcorrencia:
       type: object
