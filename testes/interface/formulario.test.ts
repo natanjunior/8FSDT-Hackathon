@@ -304,3 +304,19 @@ describe("chamarAcaoDeCredencial — a ação que não chega ao servidor", () =>
     });
   });
 });
+
+describe("texto de tela — critério 7", () => {
+  /** Linha de comentário: `*`, `//`, `/*` ou `{/*` no começo. É a mesma poda do `grep` da spec §3.3. */
+  const COMENTARIO = /^\s*(?:\*|\/\/|\/\*|\{\/\*)/u;
+
+  it("nenhuma palavra do projeto em texto de tela, em app e src", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ caminho, numero: indice + 1, linha }))
+        .filter(({ linha }) => /[Nn]esta (?:entrega|versão)/u.test(linha) && !COMENTARIO.test(linha))
+        .map(({ caminho, numero }) => `${caminho}:${numero}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+});

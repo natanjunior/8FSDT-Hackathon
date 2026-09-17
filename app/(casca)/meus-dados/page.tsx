@@ -60,8 +60,7 @@ export default async function MeusDados({
           <p className="text-tinta text-sm font-medium">E-mail de entrada</p>
           <p className="text-tinta text-sm break-all">{email ?? "Não informado pelo provedor"}</p>
           <p className="text-tinta-suave text-xs leading-relaxed">
-            É com ele que você entra, e é para ele que vai o link de recuperação de senha. Nesta entrega
-            ele não muda.
+            É com ele que você entra, e é para ele que vai o link de recuperação de senha.
           </p>
         </div>
 
@@ -76,14 +75,6 @@ export default async function MeusDados({
             Redefinir senha
           </Link>
         </div>
-
-        {/* **A frase honesta, e ela é o achado A-02 virando linha na tela.** O
-            `409 PESSOA_COM_CONTA_NAO_EDITAVEL` recusa o Gestor, e esta entrega recusa a própria pessoa:
-            dizer "peça a um Gestor" seria meia verdade, que é pior que nenhuma. */}
-        <p className="text-tinta-suave text-sm leading-relaxed">
-          Nesta entrega os seus telefones e e-mails de contato não são editáveis, nem por você nem pelo
-          Gestor.
-        </p>
       </section>
 
       <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">

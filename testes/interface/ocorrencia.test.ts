@@ -2538,7 +2538,7 @@ describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor con
     }
   });
 
-  it("só Duplicada tem descrição, e ela é a do protótipo", () => {
+  it("só Duplicada tem descrição, e ela pede a outra ocorrência na observação", () => {
     // **A condição é POR OPÇÃO, não por modal** — é o que faz a tela do item 23 não mudar um pixel.
     const comDescricao = opcoesDeMotivoCancelamento(DO_GESTOR).filter(
       (opcao) => opcao.descricao !== undefined,
@@ -2546,9 +2546,7 @@ describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor con
 
     expect(comDescricao).toHaveLength(1);
     expect(comDescricao[0]?.valor).toBe("duplicada");
-    expect(comDescricao[0]?.descricao).toBe(
-      "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.",
-    );
+    expect(comDescricao[0]?.descricao).toBe("Diga na observação qual é a outra ocorrência.");
   });
 
   it("a opção Duplicada do SOLICITANTE também traz a descrição — ela é dele antes de ser do Gestor", () => {

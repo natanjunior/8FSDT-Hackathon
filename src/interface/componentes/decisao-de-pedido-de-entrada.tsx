@@ -57,7 +57,7 @@ const CONSEQUENCIA: ReadonlyArray<{ papel: Papel; rotulo: string; texto: string;
     papel: "encarregado",
     rotulo: "Encarregado",
     texto: "Aparece como responsável pela ocorrência.",
-    alerta: "Nesta versão, não consegue fazer nada dentro do sistema.",
+    alerta: "Não consegue fazer nada dentro do sistema.",
   },
 ];
 
