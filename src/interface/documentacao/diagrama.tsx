@@ -27,7 +27,24 @@ export function Diagrama({ texto }: { texto: string }) {
 
   useEffect(() => {
     let cancelado = false;
-    mermaid.initialize({ startOnLoad: false, theme: temaAtual(), securityLevel: "strict" });
+    /**
+     * **`useMaxWidth: false` é o que torna o diagrama legível.**
+     *
+     * Por padrão o Mermaid encolhe o desenho até caber na largura do texto. Num diagrama de sequência
+     * com seis participantes isso comprime as linhas de vida a ponto de o rótulo não caber, e o desenho
+     * passa a valer menos que o parágrafo que ele ilustra. Sem o encolhimento, ele sai no tamanho natural
+     * e o contêiner rola para o lado.
+     */
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: temaAtual(),
+      securityLevel: "strict",
+      flowchart: { useMaxWidth: false },
+      sequence: { useMaxWidth: false },
+      er: { useMaxWidth: false },
+      state: { useMaxWidth: false },
+      gantt: { useMaxWidth: false },
+    });
     mermaid
       .render(`diagrama-${id}`, texto)
       .then(({ svg: desenhado }) => {

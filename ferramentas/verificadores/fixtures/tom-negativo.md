@@ -2,7 +2,7 @@
 
 ## Como ler
 
-Este arquivo viola **todas** as seis regras de propósito, e existe para provar que o verificador
+Este arquivo viola **todas** as regras de propósito, e existe para provar que o verificador
 **discrimina**. Um verificador que aceita tudo passa por bom até o dia em que precisa pegar alguma coisa.
 **Cada frase** aqui é **densa** de **negrito** — **muito** — e de travessões — assim — e mais — assim.
 
@@ -16,3 +16,8 @@ consistência forçada, e o professor insiste nisso. O requisito é `ENUNCIADO �
 ## Suposições declaradas
 
 Nenhuma.
+
+## Correção de 12/09/2026 — o que o desenho descobriu
+
+A decisão **D12** e o ponto de atenção **PA-05** foram levados ao hub, e o hub respondeu em 13/09/2026.
+A regra está no `contrato-de-api.md` §8.5 e no `modelo-de-dados.md` §6.4.
