@@ -49,6 +49,7 @@ const APROVADOS = new Set([
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
   "docs/modelo-de-dados.md",
+  "CONTRIBUTING.md",
   "README.md",
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
@@ -103,6 +104,7 @@ const NOVAS = new Set([
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
   "docs/dominio.md",
+  "docs/glossario.md",
   "docs/infraestrutura.md",
   "docs/produto.md",
   "docs/seguranca.md",
@@ -241,8 +243,13 @@ const ARQUIVO_SEM_LINK = /(.|^)`[^`\n]*\.(?:md|ya?ml|html)`(.{0,2})/gu;
  */
 const DONO_DA_MAQUINA_DE_ESTADOS = "docs/dominio.md";
 
-/** Páginas autorizadas a nomear estados sem teto. A proibição de desenhar e de enumerar continua. */
-const PODEM_NOMEAR_ESTADOS = new Set(["docs/produto.md"]);
+/**
+ * Páginas autorizadas a nomear estados sem teto. A proibição de desenhar e de enumerar continua.
+ *
+ * O produto fala a língua do sistema por decisão editorial, e o glossário é onde os nomes são definidos:
+ * uma lista de termos que não pudesse citar três deles não seria um glossário.
+ */
+const PODEM_NOMEAR_ESTADOS = new Set(["docs/glossario.md", "docs/produto.md"]);
 
 const DIAGRAMA_DE_ESTADOS = /stateDiagram(?:-v2)?/gu;
 const ESTADO = "(?:Aberta|Em\\s*an[áa]lise|EmAnalise|Em\\s*atendimento|EmAtendimento|Resolvida|Cancelada|Pausada)";

@@ -84,11 +84,15 @@ passaria a resolver por outra regra — com a falha aparecendo no produto, que �
 aprovar a documentação. Duas entradas separadas mantêm cada definição na sua.
 
 O segundo é de tempo de execução. O provedor de tema da documentação escreve uma classe no elemento raiz
-do documento, que é compartilhado pelas duas superfícies: quem visita a documentação no modo escuro e
-depois navega para o produto leva a classe junto. Separar o CSS não resolve, porque o que atravessa é um
-atributo no DOM. A saída foi o produto deixar de depender daquela classe e passar a responder a uma chave
-própria. Esse vazamento não foi encontrado por esta decisão: apareceu depois, ao montar a casca visual das
-telas, porque a separação de CSS foi desenhada contra o que se via em tempo de construção.
+do documento, que é compartilhado pelas duas superfícies, e separar o CSS não resolve, porque o que
+atravessa é um atributo no DOM. A saída foi o produto deixar de depender daquela classe e passar a
+responder a uma chave própria.
+
+**A navegação deixou de ser o diretório.** Quem decide quais páginas a barra lateral mostra é um arquivo
+de índice, e não a listagem da pasta. Oito arquivos continuam compilados e alcançáveis por link direto
+sem aparecer nela, porque as páginas que os citam ainda existem e os links precisam resolver. A busca
+segue a navegação, e não o diretório: o que saiu da barra lateral saiu do índice de busca, para que ela
+não devolva ao leitor um endereço que a navegação não oferece mais.
 
 Esta decisão não quebra os documentos grandes em subpáginas nem escolhe tema visual para a documentação,
 que usa o preset neutro.

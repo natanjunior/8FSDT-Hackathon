@@ -80,6 +80,9 @@ abriu ficou satisfeito.**
 A média das avaliações vem vazia enquanto ninguém tiver avaliado. Ao lado dela o painel mostra quantas
 ocorrências foram resolvidas e quantas dessas receberam nota, que é o que diz se a média tem base.
 
+**O tempo médio de resolução é de calendário**: conta do registro até a resolução e inclui o período em
+que a ocorrência ficou pausada. Pausar não melhora o número.
+
 ## O escopo desta versão
 
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
@@ -97,7 +100,9 @@ isoladas na mesma instalação.
 - filtros rápidos salvos;
 - aderir a uma ocorrência parecida em vez de abrir outra igual;
 - nota interna entre Gestores;
-- editar uma ocorrência depois de registrada.
+- editar uma ocorrência depois de registrada, ou anexar uma foto depois do registro;
+- uma visão única do Gestor atravessando as organizações em que ele atua: o produto opera sempre no
+  escopo de uma, e trocar de organização é como se vê a outra.
 
 **Nenhuma exigência do desafio ficou de fora.** O
 [Atendimento ao enunciado](atendimento-ao-enunciado.md) mostra exigência por exigência onde cada uma é

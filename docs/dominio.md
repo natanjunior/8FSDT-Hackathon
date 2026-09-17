@@ -123,8 +123,9 @@ ocorrência, e por isso são testáveis sem banco.
    reproduzível.
 8. Avaliar só é aceito em `Resolvida`, e só do autor.
 9. Iniciar o atendimento exige um responsável atribuído.
-10. Resolver não exige a solução aplicada por regra do sistema: ela é induzida pela interface, com um
-    interruptor por organização para quem precisar exigi-la.
+10. Resolver não exige a solução aplicada por regra do sistema: ela é campo da própria ocorrência,
+    escrito pelo Gestor, induzido pela interface, com um interruptor por organização para quem precisar
+    exigi-lo.
 
 As duas últimas atravessam outra tabela no momento em que o comando roda, e por isso são garantidas pelo
 comando de aplicação, e não pela entidade.

@@ -26,7 +26,7 @@ export const RAIZ = resolve(fileURLToPath(new URL("../../", import.meta.url)));
  * nada. O `CLAUDE.md` saiu em 22/08/2026, quando passou a ser ignorado; enquanto esteve aqui, as seis
  * seções dele entravam no universo conferido e o número era diferente na máquina e no clone.
  */
-const RAIZES_DE_DOCUMENTO = ["docs", "README.md"];
+const RAIZES_DE_DOCUMENTO = ["docs", "README.md", "CONTRIBUTING.md"];
 
 const IGNORADOS = new Set([
   "node_modules",
