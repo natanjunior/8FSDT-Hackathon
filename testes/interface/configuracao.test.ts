@@ -1,8 +1,10 @@
 import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
+import { ListaDesatualizada } from "@/aplicacao/organizacao";
 import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
+import { problemaDe } from "@/interface/http";
 import {
   ICONES_DE_CATEGORIA,
   correcaoDeAreaSchema,
@@ -264,5 +266,23 @@ describe("reordenacaoSchema — a lista inteira, de uma vez", () => {
     expect(outraCaixa.success).toBe(false);
     if (outraCaixa.success) return;
     expect(outraCaixa.error.issues.map((violacao) => violacao.path.join("."))).toStrictEqual(["ids"]);
+  });
+
+  it("LISTA_DESATUALIZADA vira 409, com o detail que a tela mostra", () => {
+    const { status, corpo } = problemaDe(
+      new ListaDesatualizada(),
+      "/api/categorias/ordem",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    expect(status).toBe(409);
+    expect(corpo).toMatchObject({
+      type: "https://resolveai.app/erros/lista-desatualizada",
+      title: "Lista desatualizada",
+      detail: "A lista mudou desde que você a abriu.",
+      codigo: "LISTA_DESATUALIZADA",
+    });
+    // Sem extensão: o cliente recarrega pelo `GET` (spec §4.1).
+    expect("erros" in corpo).toBe(false);
   });
 });

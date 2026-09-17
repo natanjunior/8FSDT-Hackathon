@@ -189,6 +189,24 @@ export class NomeDeAreaDuplicado extends ErroDeDominio {
 }
 
 /**
+ * `409 LISTA_DESATUALIZADA` — o conjunto de `ids` de uma reordenação não é o conjunto atual da lista
+ * (item 50, spec §4.1).
+ *
+ * **A mesma resposta para os quatro casos**: faltando item, sobrando item, id de outra organização e id
+ * inexistente. O repositório escopado não enxerga outra organização (ADR-0003), então os dois últimos são
+ * o mesmo fato para ele, e a doutrina do `404` idêntico (contrato §6.3) continua de pé dentro do `409`.
+ *
+ * **`409` e não `400`:** o caso comum é outro Gestor ter criado um item entre a leitura e a escrita. O
+ * pedido estava certo quando foi montado; o que mudou foi o estado. O `detail` é a frase que o toast do
+ * 44k mostra, e o cliente recarrega a lista ao ver o código.
+ */
+export class ListaDesatualizada extends ErroDeDominio {
+  constructor() {
+    super("LISTA_DESATUALIZADA", "Lista desatualizada", "A lista mudou desde que você a abriu.");
+  }
+}
+
+/**
  * `409 VINCULO_COM_HISTORICO` — o vínculo tem linha dependente, e o histórico não se apaga.
  *
  * **É tradução do `ON DELETE RESTRICT`**, não de checagem prévia — a mesma doutrina de
