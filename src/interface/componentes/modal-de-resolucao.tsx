@@ -1,9 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import {
+  Campo,
+  ErroDoFormulario,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
@@ -11,12 +17,12 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 
 /**
  * ============================================================================
@@ -46,10 +52,11 @@ import { Textarea } from "@/interface/componentes/ui/textarea";
  * **A constante é IMPORTADA do `modal-de-observacao.tsx`**, e não copiada: o terceiro modal não cria a
  * terceira string. **O lugar canônico definitivo é decisão do item 23** (achado A-5 da spec do 22).
  *
- * **O ciclo de repinte é o do `ModalDeObservacao`, herdado e não redescoberto:** repintar no erro
- * desmontaria o componente no exato caso em que a frase do `409` existe para ser lida; **é o fechamento
- * que repinta**, e o sucesso passa pelo mesmo caminho. *(Furo F-2, fechado na revisão do item 19.)*
- * **É a terceira cópia desse ciclo, e está declarada** — a extração é do item 23, com cinco casos na mão.
+ * **O envio segue a sequência de modal do guia §7**, pelo `useEnvioDoModal` (item 44g): carregando no
+ * modal, que não fecha durante o envio; sucesso com aviso, modal fechado e página atualizada; erro com
+ * aviso e mensagem no modal aberto, e o fechamento depois de um erro atualiza a página. **O botão
+ * principal só fica inerte durante o envio**: clicado com campo obrigatório vazio, ele mostra os erros e
+ * leva o foco ao primeiro (guia §7, decidido em 16/09/2026).
  *
  * **A pré-visualização da observação NÃO está aqui**, e o dono é o critério **29.6**.
  *
@@ -64,13 +71,14 @@ export function ModalDeResolucao({
   variante,
   rotulosDeStatus,
   organizacaoId,
+  retorno,
 }: {
   ocorrenciaId: string;
   /**
    * A solução já gravada, para o campo abrir pré-preenchido.
    *
    * **Desde o item 25 ela tem valor de verdade:** o campo no corpo de T-05 escreve a coluna, e o modal a
-   * lê. Ela também é a referência de `solucaoMudou`, em `confirmar` — é o que impede o modal de reenviar
+   * lê. Ela também é a referência de `solucaoMudou`, em `enviar` — é o que impede o modal de reenviar
    * texto que ninguém digitou.
    */
   solucaoAplicadaAtual: string | null;
@@ -79,89 +87,53 @@ export function ModalDeResolucao({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /** Os títulos do aviso de sucesso e de falha, prontos (`RETORNO_DO_COMANDO`). */
+  retorno: TextosDoRetorno;
 }) {
-  const router = useRouter();
   const campoSolucaoId = useId();
   const campoObservacaoId = useId();
-  const avisoId = useId();
-  const [aberto, setAberto] = useState(false);
   const [solucao, setSolucao] = useState(solucaoAplicadaAtual ?? "");
   const [observacao, setObservacao] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [precisaRepintar, setPrecisaRepintar] = useState(false);
 
-  /** **O repinte acontece AO FECHAR, e nunca ao falhar.** Ver o bloco acima. */
-  function aoMudarAbertura(proximo: boolean) {
-    setAberto(proximo);
+  const envio = useEnvioDoModal({
+    enviar: () => {
+      /**
+       * **O modal só envia `solucaoAplicada` quando o campo DIFERE do que veio pré-preenchido** — item 25,
+       * §3.4, e é a resposta ao achado **A-2** da spec do item 26.
+       *
+       * A janela que isto fecha é do **cliente**, e é a grande: o campo é pré-preenchido com o valor da
+       * **renderização da página**, que pode ter minutos. Sem esta condição, um Gestor que resolvesse **sem**
+       * digitar sobrescreveria, com o valor que carregou, o texto que outro Gestor salvou dois segundos
+       * antes — e o estado é terminal, então **não há conserto**.
+       *
+       * **Campo intocado → o comando não recebe o campo → o agregado PRESERVA o que estiver no banco**
+       * (`Ocorrencia.ts`). A semântica *"ausente = preserva"* foi construída pelo item 26 exatamente para
+       * isto, e estava sem caso de uso. **Nenhum conceito novo, nenhuma coluna, nenhuma linha de servidor.**
+       *
+       * **A janela de milissegundos do servidor fica, e fica declarada:** `/resolver`, `/pausar` e `/retomar`
+       * transcrevem `ocorrencia.solucaoAplicada` no `update` da transição, então um
+       * `/registrar-solucao-aplicada` que caia entre o `carregar` e o `update` deles é sobrescrito. É a mesma
+       * espécie que a §7.9 aceita, ordens de grandeza menor, e defender contra ela exigiria versionar a
+       * linha — que é o que a §7.9 recusou.
+       */
+      const solucaoMudou = solucao !== (solucaoAplicadaAtual ?? "");
+      const corpo = solucaoMudou ? { solucaoAplicada: solucao, observacao } : { observacao };
 
-    if (proximo) {
-      // Reabrir começa limpo — aviso velho ao lado de texto novo é a pior combinação possível. **Mas a
-      // solução volta ao que está GRAVADO**, e não a vazio: o campo é pré-preenchido, não rascunho.
-      setAviso(null);
+      // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e
+      // é ele que decide que vazio vira `null`. Aparar aqui também criaria a segunda regra.
+      return executarComando(ocorrenciaId, "resolver", corpo, rotulosDeStatus, organizacaoId);
+    },
+    aoConcluir: () => ({ titulo: retorno.sucesso }),
+    tituloDaFalha: retorno.falha,
+    // **A solução volta ao que está GRAVADO**, e não a vazio: o campo é pré-preenchido, não rascunho.
+    aoAbrir: () => {
       setSolucao(solucaoAplicadaAtual ?? "");
       setObservacao("");
-      setPrecisaRepintar(false);
-      return;
-    }
-
-    if (precisaRepintar) {
-      setPrecisaRepintar(false);
-      router.refresh();
-    }
-  }
-
-  async function confirmar() {
-    setEnviando(true);
-    setAviso(null);
-
-    /**
-     * **O modal só envia `solucaoAplicada` quando o campo DIFERE do que veio pré-preenchido** — item 25,
-     * §3.4, e é a resposta ao achado **A-2** da spec do item 26.
-     *
-     * A janela que isto fecha é do **cliente**, e é a grande: o campo é pré-preenchido com o valor da
-     * **renderização da página**, que pode ter minutos. Sem esta condição, um Gestor que resolvesse **sem**
-     * digitar sobrescreveria, com o valor que carregou, o texto que outro Gestor salvou dois segundos
-     * antes — e o estado é terminal, então **não há conserto**.
-     *
-     * **Campo intocado → o comando não recebe o campo → o agregado PRESERVA o que estiver no banco**
-     * (`Ocorrencia.ts`). A semântica *"ausente = preserva"* foi construída pelo item 26 exatamente para
-     * isto, e estava sem caso de uso. **Nenhum conceito novo, nenhuma coluna, nenhuma linha de servidor.**
-     *
-     * **A janela de milissegundos do servidor fica, e fica declarada:** `/resolver`, `/pausar` e `/retomar`
-     * transcrevem `ocorrencia.solucaoAplicada` no `update` da transição, então um
-     * `/registrar-solucao-aplicada` que caia entre o `carregar` e o `update` deles é sobrescrito. É a mesma
-     * espécie que a §7.9 aceita, ordens de grandeza menor, e defender contra ela exigiria versionar a
-     * linha — que é o que a §7.9 recusou.
-     */
-    const solucaoMudou = solucao !== (solucaoAplicadaAtual ?? "");
-    const corpo = solucaoMudou ? { solucaoAplicada: solucao, observacao } : { observacao };
-
-    // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e
-    // é ele que decide que vazio vira `null`. Aparar aqui também criaria a segunda regra.
-    const resultado = await executarComando(
-      ocorrenciaId,
-      "resolver",
-      corpo,
-      rotulosDeStatus,
-      organizacaoId,
-    );
-
-    setEnviando(false);
-    setPrecisaRepintar(true);
-
-    if (resultado.ok) {
-      aoMudarAbertura(false);
-      // `precisaRepintar` ainda não valia quando `aoMudarAbertura` leu o estado — o React agenda.
-      router.refresh();
-      return;
-    }
-
-    setAviso(resultado.aviso);
-  }
+    },
+  });
 
   return (
-    <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
+    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -184,71 +156,63 @@ export function ModalDeResolucao({
           <DialogDescription>A ocorrência será encerrada. Não há como reabrir.</DialogDescription>
         </DialogHeader>
 
-        {aviso !== null && (
-          <p
-            role="alert"
-            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
-          >
-            {aviso}
-          </p>
-        )}
-
         {/* **PRIMEIRO campo, em foco.** É a indução da D22, e é o único mecanismo que existe até o
             interruptor por organização nascer. */}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={campoSolucaoId} className="text-tinta text-sm font-medium">
-            O que foi feito (opcional)
-          </label>
-          <Textarea
-            id={campoSolucaoId}
-            autoFocus
-            value={solucao}
-            onChange={(evento) => setSolucao(evento.target.value)}
-            disabled={enviando}
-            rows={4}
-            /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */
-            maxLength={4000}
-          />
-        </div>
+        <Campo id={campoSolucaoId} rotulo="O que foi feito (opcional)">
+          {(controle) => (
+            <Textarea
+              {...controle}
+              autoFocus
+              value={solucao}
+              onChange={(evento) => setSolucao(evento.target.value)}
+              disabled={envio.enviando}
+              rows={4}
+              /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */
+              maxLength={4000}
+            />
+          )}
+        </Campo>
 
-        {/* **SEGUNDO campo**, com o aviso ANTES dele — a restrição herdada nº 1. A marcação é própria e
-            NÃO reusa `Campo`: ele renderiza a ajuda DEPOIS do children. */}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={campoObservacaoId} className="text-tinta text-sm font-medium">
-            Observação (opcional)
-          </label>
-          <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
-            {AVISO_DE_VISIBILIDADE}
-          </p>
-          <Textarea
-            id={campoObservacaoId}
-            aria-describedby={avisoId}
-            value={observacao}
-            onChange={(evento) => setObservacao(evento.target.value)}
-            disabled={enviando}
-            rows={3}
-            /* **O mesmo teto do campo `observacao` do módulo de schemas** — 1000. */
-            maxLength={1000}
-          />
-        </div>
+        {/* **SEGUNDO campo**, com o aviso ANTES dele: a restrição herdada nº 1. */}
+        <Campo
+          id={campoObservacaoId}
+          rotulo="Observação (opcional)"
+          ajuda={AVISO_DE_VISIBILIDADE}
+          ajudaAntes
+        >
+          {(controle) => (
+            <Textarea
+              {...controle}
+              value={observacao}
+              onChange={(evento) => setObservacao(evento.target.value)}
+              disabled={envio.enviando}
+              rows={3}
+              /* **O mesmo teto do campo `observacao` do módulo de schemas** — 1000. */
+              maxLength={1000}
+            />
+          )}
+        </Campo>
 
-        <DialogFooter>
+        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+
+        {/* **Sem nota de obrigatório:** os dois campos são opcionais (D23, e o critério 25.4: resolver sem
+            solução responde `200`). A indução é o foco, nunca a trava. */}
+        <RodapeDoFormulario obrigatorios={0}>
           <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11">
+            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
               Fechar
             </Button>
           </DialogClose>
-          {/* **Confirmar NÃO é desabilitado por campo vazio** — os dois são opcionais (D23, e o critério
-              25.4: resolver sem solução responde `200`). A indução é o foco, nunca a trava. */}
           <Button
             type="button"
             className="h-11"
-            disabled={enviando}
-            onClick={() => void confirmar()}
+            disabled={envio.enviando}
+            onClick={() => void envio.confirmar()}
           >
-            {enviando ? "Resolvendo…" : "Resolver"}
+            <IndicadorDeEnvio ativo={envio.enviando} />
+            {envio.enviando ? "Resolvendo…" : "Resolver"}
           </Button>
-        </DialogFooter>
+        </RodapeDoFormulario>
       </DialogContent>
     </Dialog>
   );

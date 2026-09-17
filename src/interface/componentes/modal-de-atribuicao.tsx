@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import {
@@ -9,6 +8,12 @@ import {
   termosDaBusca,
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
+import {
+  ErroDoFormulario,
+  GrupoDeEscolha,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { palavrasDaAtribuicao } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
@@ -17,13 +22,14 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 import { Input } from "@/interface/componentes/ui/input";
+import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -47,6 +53,12 @@ import { Input } from "@/interface/componentes/ui/input";
  * **A fileira *"Atribuir a mim"* é o critério 20.5**, e ela vem antes dos dois blocos: quem chama sai
  * deles (`repartirCandidatos`) para que não haja dois controles enviando o mesmo `pessoaId`. **O campo de
  * busca é o critério 20.6.**
+ *
+ * **O envio segue a sequência de modal do guia §7**, pelo `useEnvioDoModal` (item 44g): carregando no
+ * modal, que não fecha durante o envio; sucesso com aviso, modal fechado e página atualizada; erro com
+ * aviso e mensagem no modal aberto, e o fechamento depois de um erro atualiza a página. **O botão
+ * principal só fica inerte durante o envio**: clicado com campo obrigatório vazio, ele mostra os erros e
+ * leva o foco ao primeiro (guia §7, decidido em 16/09/2026).
  */
 
 const NOME_DO_BLOCO = {
@@ -85,79 +97,10 @@ export function ModalDeAtribuicao({
    */
   variante: "primario" | "secundario" | "menu";
 }) {
-  const router = useRouter();
+  const grupoId = useId();
   const campoDeBuscaId = useId();
-  const [aberto, setAberto] = useState(false);
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [precisaRepintar, setPrecisaRepintar] = useState(false);
-
-  /**
-   * **O repinte acontece AO FECHAR, e nunca ao falhar.**
-   *
-   * Repintar no erro desmontaria este componente no exato caso em que a frase existe para ser lida: depois
-   * de um `409`, `atribuir-responsavel` saiu de `acoesDisponiveis`, a página deixa de passar este nó, e o
-   * `useState` do aviso vai junto. **É o mesmo defeito que a revisão do item 16 encontrou na barra** — lá
-   * a correção foi manter o componente montado; aqui não dá, porque a existência dele *é* o que muda.
-   *
-   * Então: a frase fica visível enquanto o modal está aberto, sem repinte nenhum; quem lê fecha — pelo
-   * *Fechar*, por `Esc` ou por clique fora, e os três passam por aqui —, e é o fechamento que repinta.
-   * O sucesso é o mesmo caminho.
-   */
-  function aoMudarAbertura(proximo: boolean) {
-    setAberto(proximo);
-
-    if (proximo) {
-      // Reabrir começa limpo: aviso velho ao lado de escolha nova é a pior combinação possível — e
-      // `precisaRepintar` volta a `false` para que abrir-e-fechar sem agir não custe uma ida ao servidor.
-      setAviso(null);
-      setEscolhido(null);
-      setBusca("");
-      setPrecisaRepintar(false);
-      return;
-    }
-
-    if (precisaRepintar) {
-      setPrecisaRepintar(false);
-      router.refresh();
-    }
-  }
-
-  async function confirmar() {
-    if (escolhido === null) return;
-    setEnviando(true);
-    setAviso(null);
-
-    const resultado = await executarComando(
-      ocorrenciaId,
-      "atribuir-responsavel",
-      // **`observacao` NUNCA é enviada** — o servidor a recusa com `422 CAMPO_NAO_SUPORTADO` (critério
-      // 19.6), e não há campo na tela que a produza.
-      { responsavelPessoaId: escolhido },
-      rotulosDeStatus,
-      organizacaoId,
-    );
-
-    setEnviando(false);
-    setPrecisaRepintar(true);
-
-    if (resultado.ok) {
-      aoMudarAbertura(false);
-      // `precisaRepintar` ainda não valia quando `aoMudarAbertura` leu o estado — o React agenda. Repinta
-      // aqui, explicitamente, no caminho de sucesso.
-      router.refresh();
-      return;
-    }
-
-    setAviso(resultado.aviso);
-  }
-
-  const { eu, executores, solicitantes } = repartirCandidatos(candidatos, euPessoaId);
-
-  /** **A-5:** o estado vai em palavra, e o `opacity-60` é reforço — nunca o sinal. */
-  const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
 
   /**
    * **A palavra sai do ESTADO, e é o critério 21.1 na tela** — *"a distinção é derivada do estado, não da
@@ -168,6 +111,45 @@ export function ModalDeAtribuicao({
    * **É `!== null`, não *"está na lista"*** — ver o docblock de `palavrasDaAtribuicao`.
    */
   const palavras = palavrasDaAtribuicao(responsavelAtualPessoaId !== null);
+
+  const formulario = useFormularioTocado({
+    campos: { responsavel: grupoId },
+    erros: { responsavel: escolhido === null ? "Escolha o responsável." : undefined },
+  });
+
+  const envio = useEnvioDoModal({
+    enviar: () =>
+      executarComando(
+        ocorrenciaId,
+        "atribuir-responsavel",
+        // **`observacao` NUNCA é enviada** — o servidor a recusa com `422 CAMPO_NAO_SUPORTADO`
+        // (critério 19.6), e não há campo na tela que a produza.
+        { responsavelPessoaId: escolhido },
+        rotulosDeStatus,
+        organizacaoId,
+      ),
+    aoConcluir: () => ({ titulo: palavras.sucesso }),
+    tituloDaFalha: palavras.falha,
+    aoAbrir: () => {
+      setEscolhido(null);
+      setBusca("");
+      formulario.recomecar();
+    },
+  });
+
+  function confirmar() {
+    if (formulario.tentarEnviar()) void envio.confirmar();
+  }
+
+  function escolher(pessoaId: string) {
+    setEscolhido(pessoaId);
+    formulario.mudou("responsavel");
+  }
+
+  const { eu, executores, solicitantes } = repartirCandidatos(candidatos, euPessoaId);
+
+  /** **A-5:** o estado vai em palavra, e o `opacity-60` é reforço — nunca o sinal. */
+  const euSouOResponsavel = eu !== null && eu.pessoaId === responsavelAtualPessoaId;
 
   /**
    * **Reparte PRIMEIRO, filtra depois — e nunca o contrário.** Filtrar antes de repartir apagaria a
@@ -203,7 +185,7 @@ export function ModalDeAtribuicao({
             <label
               key={pessoa.pessoaId}
               htmlFor={id}
-              className={`border-linha flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
                 atual ? "opacity-60" : "cursor-pointer"
               }`}
             >
@@ -213,9 +195,10 @@ export function ModalDeAtribuicao({
                 id={id}
                 name="responsavel"
                 value={pessoa.pessoaId}
-                disabled={atual || enviando}
+                required
+                disabled={atual || envio.enviando}
                 checked={escolhido === pessoa.pessoaId}
-                onChange={() => setEscolhido(pessoa.pessoaId)}
+                onChange={() => escolher(pessoa.pessoaId)}
                 className="size-4"
               />
               <span className="flex flex-col">
@@ -238,8 +221,8 @@ export function ModalDeAtribuicao({
   /**
    * **Seleção que o filtro esconde é APAGADA, não guardada.**
    *
-   * Sem isto o rodapé ficaria habilitado enviando alguém que a tela não mostra — a forma mais silenciosa
-   * de gravar a pessoa errada.
+   * Sem isto o rodapé enviaria alguém que a tela não mostra — a forma mais silenciosa de gravar a pessoa
+   * errada.
    *
    * **A fileira *"Atribuir a mim"* sobrevive a qualquer texto**, porque ela não é filtrada (§3.7): se o
    * escolhido for quem chama, não há o que reconferir.
@@ -257,7 +240,7 @@ export function ModalDeAtribuicao({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
+    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
       <DialogTrigger asChild>
         {variante === "menu" ? (
           /* **`onSelect` prevenido:** `DropdownMenuContent` desmonta os filhos ao fechar, e selecionar
@@ -292,121 +275,118 @@ export function ModalDeAtribuicao({
           <DialogDescription>{palavras.descricao}</DialogDescription>
         </DialogHeader>
 
-        {aviso !== null && (
-          <p
-            role="alert"
-            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
-          >
-            {aviso}
-          </p>
-        )}
+        <GrupoDeEscolha
+          id={grupoId}
+          legenda="Responsável"
+          obrigatorio
+          erro={formulario.erroDe("responsavel")}
+        >
+          {/*
+            **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
+            `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo botão do rodapé.
+            **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
+            FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
 
-        {/*
-          **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
-          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo botão do rodapé.
-          **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
-          FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
+            **Fora dos dois `fieldset` dos blocos, e isso não separa o grupo:** rádio agrupa por `name`, não
+            por `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
 
-          **Fora dos dois `fieldset`, e isso não separa o grupo:** rádio agrupa por `name`, não por
-          `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
-
-          **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
-          dispensar da busca voltaria a depender dela.
-        */}
-        {eu !== null && (
-          <label
-            htmlFor={`candidato-${eu.pessoaId}`}
-            className={`border-linha flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
-              euSouOResponsavel ? "opacity-60" : "cursor-pointer"
-            }`}
-          >
-            <input
-              type="radio"
-              id={`candidato-${eu.pessoaId}`}
-              name="responsavel"
-              value={eu.pessoaId}
-              disabled={euSouOResponsavel || enviando}
-              checked={escolhido === eu.pessoaId}
-              onChange={() => setEscolhido(eu.pessoaId)}
-              className="size-4"
-            />
-            <span className="flex flex-col">
-              {/* Verbo no imperativo — é como se escreve botão. */}
-              <span className="text-tinta font-medium">Atribuir a mim</span>
-              {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
-                  qual identidade ele está prestes a se atribuir. */}
-              <span className="text-tinta-suave text-xs">
-                {eu.nome} · {eu.papel}
-                {eu.area !== null && ` · ${eu.area}`}
-                {euSouOResponsavel && " · Responsável atual"}
+            **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
+            dispensar da busca voltaria a depender dela.
+          */}
+          {eu !== null && (
+            <label
+              htmlFor={`candidato-${eu.pessoaId}`}
+              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+                euSouOResponsavel ? "opacity-60" : "cursor-pointer"
+              }`}
+            >
+              <input
+                type="radio"
+                id={`candidato-${eu.pessoaId}`}
+                name="responsavel"
+                value={eu.pessoaId}
+                required
+                disabled={euSouOResponsavel || envio.enviando}
+                checked={escolhido === eu.pessoaId}
+                onChange={() => escolher(eu.pessoaId)}
+                className="size-4"
+              />
+              <span className="flex flex-col">
+                {/* Verbo no imperativo — é como se escreve botão. */}
+                <span className="text-tinta font-medium">Atribuir a mim</span>
+                {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
+                    qual identidade ele está prestes a se atribuir. */}
+                <span className="text-tinta-suave text-xs">
+                  {eu.nome} · {eu.papel}
+                  {eu.area !== null && ` · ${eu.area}`}
+                  {euSouOResponsavel && " · Responsável atual"}
+                </span>
               </span>
-            </span>
-          </label>
-        )}
-
-        {/*
-          **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
-          que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
-
-          **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
-          campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
-          organização, e nenhuma tela do produto pratica isso.
-
-          **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
-          das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
-        */}
-        <div className="flex flex-col gap-1.5">
-          {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
-          <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
-            Buscar pelo nome
-          </label>
-          <Input
-            id={campoDeBuscaId}
-            type="search"
-            inputMode="search"
-            autoComplete="off"
-            /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
-            maxLength={120}
-            value={busca}
-            onChange={(evento) => aoBuscar(evento.currentTarget.value)}
-            disabled={enviando}
-            /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
-            className="h-11"
-          />
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
-          {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+            </label>
+          )}
 
           {/*
-            **Frase própria, diferente de qualquer outra do produto** — é a regra que o
-            `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
-            perdeu dados.
+            **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
+            que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
 
-            **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
-            usa leitor de tela, e a lista está imediatamente abaixo do campo.
+            **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
+            campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
+            organização, e nenhuma tela do produto pratica isso.
 
-            **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
+            **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
+            das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
           */}
-          {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
-        </div>
+          <div className="flex flex-col gap-1.5">
+            {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
+            <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
+              Buscar pelo nome
+            </label>
+            <Input
+              id={campoDeBuscaId}
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
+              maxLength={120}
+              value={busca}
+              onChange={(evento) => aoBuscar(evento.currentTarget.value)}
+              disabled={envio.enviando}
+              /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
+              className="h-11"
+            />
+          </div>
 
-        <DialogFooter>
+          <div className="flex flex-col gap-4">
+            {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
+            {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+
+            {/*
+              **Frase própria, diferente de qualquer outra do produto** — é a regra que o
+              `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
+              perdeu dados.
+
+              **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
+              usa leitor de tela, e a lista está imediatamente abaixo do campo.
+
+              **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
+            */}
+            {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
+          </div>
+        </GrupoDeEscolha>
+
+        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+
+        <RodapeDoFormulario obrigatorios={1}>
           <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11">
+            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
               Fechar
             </Button>
           </DialogClose>
-          <Button
-            type="button"
-            className="h-11"
-            disabled={escolhido === null || enviando}
-            onClick={() => void confirmar()}
-          >
-            {enviando ? palavras.enviando : palavras.confirmar}
+          <Button type="button" className="h-11" disabled={envio.enviando} onClick={confirmar}>
+            <IndicadorDeEnvio ativo={envio.enviando} />
+            {envio.enviando ? palavras.enviando : palavras.confirmar}
           </Button>
-        </DialogFooter>
+        </RodapeDoFormulario>
       </DialogContent>
     </Dialog>
   );

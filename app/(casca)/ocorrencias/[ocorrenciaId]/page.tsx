@@ -39,6 +39,7 @@ import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
+  RETORNO_DO_COMANDO,
   rotuloDeComando,
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
@@ -408,6 +409,7 @@ export default async function Ocorrencia({
         variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO["iniciar-atendimento"]}
       />
     ),
     /**
@@ -423,6 +425,7 @@ export default async function Ocorrencia({
         variante={primario === "resolver" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.resolver}
       />
     ),
     /**
@@ -449,6 +452,7 @@ export default async function Ocorrencia({
         variante={varianteDe("pausar")}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.pausar}
       />
     ),
     /**
@@ -487,6 +491,7 @@ export default async function Ocorrencia({
         variante={primario === "retomar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.retomar}
       />
     ),
     /**
@@ -510,6 +515,8 @@ export default async function Ocorrencia({
      * **Entra SEMPRE, como os quatro de cima**: não precisa de consulta nenhuma além do que a página já
      * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e é ela que esconde o
      * botão do Solicitante autor a partir de `Em atendimento` (critério 18.3).
+     *
+     * **O botão que confirma é `destructive`** (critério 44g.5): é a ação que cancela.
      */
     cancelar: (
       <ModalDeMotivo
@@ -526,6 +533,8 @@ export default async function Ocorrencia({
         variante={varianteDe("cancelar")}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.cancelar}
+        destrutivo
       />
     ),
     /**
@@ -545,6 +554,7 @@ export default async function Ocorrencia({
         variante={primario === "avaliar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.avaliar}
       />
     ),
     ...(podeAtribuir
