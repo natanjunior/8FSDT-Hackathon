@@ -489,4 +489,15 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(fonte).not.toContain("<dialog");
     expect(fonte).not.toContain("showModal");
   });
+
+  it("responder é um modal de duas faces, e o botão diz o papel (critérios 44j.6 e 44j.7)", () => {
+    const fonte = ler("src/interface/componentes/decisao-de-pedido-de-entrada.tsx");
+    expect(fonte).toContain("<Modal");
+    expect(fonte).toContain("rotuloDeAprovar(papel)");
+    expect(fonte).toContain('variante="destrutiva"');
+    expect(fonte).not.toContain("<dialog");
+    expect(fonte).not.toContain("showModal");
+    // O botão nunca fica indisponível por falta de papel (critério 44g.9).
+    expect(fonte).not.toMatch(/disabled=\{[^}]*papel[^}]*\}/u);
+  });
 });
