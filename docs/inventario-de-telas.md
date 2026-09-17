@@ -310,7 +310,7 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 | **modal aberto** | **fecha o modal e permanece na tela** |
 | T-11, T-12 | volta a **T-01** — é de lá que as duas são alcançadas |
 | **T-13** | **nunca volta ao formulário.** O endereço carrega o token de redefinição; consumido ele, voltar leva a T-01 |
-| **T-16** | volta a **T-03**, como as outras de dentro — e o link *Voltar* do rodapé aponta para lá |
+| **T-16** | volta a **T-03**, como as outras de dentro |
 | T-02, T-10 | não há para onde voltar; o botão é inerte |
 
 A última linha da tabela do meio exige um mecanismo, e ele é decisão declarada:
@@ -1642,18 +1642,21 @@ argumento era verdadeiro sobre T-04 e errado sobre quem configura, e a decisão 
 por decisão do dono do produto: quem está aqui não está registrando ocorrência, e para quem administra são
 dois assuntos. As listas viraram **T-09 · Categorias** e **T-14 · Áreas**.
 
-**O que mostra.** A seção **Identidade** primeiro, e os dois destinos depois. A identidade tem o **nome
-da organização num campo editável** e o **código da organização** em fonte mono, grande o bastante para
-ser lido do outro lado da mesa, com o botão *Copiar* ao lado. Os dois destinos trazem a contagem de cada
-um — *"Categorias · 7 ativas de 7"* e *"Áreas · 11 ativas de 12"*. **A contagem é o que faz o índice valer
-a visita**: sem ela a página repete a barra lateral; com ela responde *"está configurado?"* de um relance.
-As duas contagens saem das mesmas duas chamadas que a tela fundida já disparava em paralelo, e o nome e o
-código vêm do contexto que a página já resolveu — nenhuma consulta nova entrou.
+**O que mostra.** Dois cartões de leitura. O cartão *Identidade* vem primeiro, com o nome da organização
+e o código da organização lado a lado na tela grande. O código aparece em fonte mono, em dois grupos de
+quatro, grande o bastante para ser lido do outro lado da mesa, com o botão *Copiar* ao lado; o que se
+copia é o código sem espaço. O cartão *Listas do formulário de registro* é uma pauta de índice com duas
+linhas, Categorias e Áreas, cada uma com ícone, descrição e a contagem *"7 ativas de 8"*. As duas linhas
+têm o mesmo fundo. **A contagem é o que faz o índice valer a visita**: sem ela a página repete a barra
+lateral, e com ela responde *"está configurado?"* de um relance. As duas contagens saem das mesmas duas
+chamadas que a tela fundida já disparava em paralelo, e o nome e o código vêm do contexto que a página
+já resolveu. Nenhuma consulta nova entrou.
 
-**O subtítulo com o nome saiu do cabeçalho, e só desta tela.** Em T-08, T-09 e T-14 o nome da organização
-é contexto, e responde *"estas categorias são de onde?"*. Aqui ele é conteúdo: está no campo. Imprimi-lo
-duas vezes, uma delas dentro de um campo, convida à pergunta de qual dos dois é o de verdade. O contexto
-não se perde — a barra superior carrega a organização ativa em toda tela da casca.
+**O cabeçalho não repete o nome da organização.** Ele tem o título e uma linha com um fato: *"A
+identidade desta organização e as duas listas do formulário de registro."* Aqui o nome é conteúdo e está
+no cartão *Identidade*, e imprimi-lo também no cabeçalho convidaria à pergunta de qual dos dois é o de
+verdade. O contexto não se perde, porque a barra superior carrega a organização ativa em toda tela da
+casca.
 
 **Identidade antes das listas**, porque o que é **desta** organização vem antes do que está **dentro**
 dela — a mesma regra do geral para o particular que ordena a barra lateral.
@@ -1662,9 +1665,14 @@ dela — a mesma regra do geral para o particular que ordena a barra lateral.
 
 | Ação | Endpoint |
 |---|---|
-| Corrigir o nome da organização | `PATCH /organizacoes` `{ nome? }` |
+| Corrigir o nome da organização, no modal *Editar organização* | `PATCH /organizacoes` `{ nome? }` |
 | Copiar o código da organização | nenhum — o dado vem de `GET /contexto` |
 | Navegar para Categorias e para Áreas | — |
+
+**O cartão mostra e o modal edita.** *Editar*, na cabeça do cartão *Identidade*, abre o modal *Editar
+organização*: `dialog` na tela grande, e `sheet` que sobe de baixo no celular. O modal tem só o campo do
+nome, obrigatório, com o contador até 120. O código fica fora dele, porque não se edita. O botão *Salvar*
+nunca fica desabilitado: sem mudança, a mensagem do campo pede para alterar o nome.
 
 **Quem vê o código, e por quê.** Só quem tem `organizacao.configurar`, que é o portão da tela inteira.
 Não é sigilo: o `codigoPublico` já chega no payload de **toda** sessão, porque a face E de T-02 o usa para
@@ -1677,17 +1685,19 @@ decidir pedido é `vinculo.gerir`.
 **Vazio · carregando · erro.**
 - *Vazio:* não existe — as sementes garantem as duas listas, e as contagens sempre têm número.
 - *Carregando:* duas requisições, disparadas juntas.
-- *Erro:* `400 FORMATO_INVALIDO` no campo do nome, com a frase junto dele; `403 PERMISSAO_INSUFICIENTE`
-  para quem chega por link recebido, que recebe a tela de sem acesso; `409 ORGANIZACAO_DIVERGENTE` quando
-  outra aba trocou de organização, com o texto do servidor.
+- *Erro:* as falhas de salvar ficam dentro do modal, que continua aberto, e saem também num aviso de
+  erro. `400 FORMATO_INVALIDO` põe a frase embaixo do campo do nome; `409 ORGANIZACAO_DIVERGENTE`, quando
+  outra aba trocou de organização, mostra o texto do servidor, e fechar o modal atualiza a página. Quem
+  chega por link recebido sem a permissão recebe `403 PERMISSAO_INSUFICIENTE` e vê o estado sem acesso,
+  com o título da tela.
 - *Sem área de transferência:* **não é erro.** Fora de contexto seguro `navigator.clipboard` não existe, o
   botão seleciona o texto do código e a frase de apoio vira *"Selecione o código e copie"*. O botão nunca
   diz *Copiado* sem ter copiado.
 
 **Alvo primário.** Tela grande, pela mesma razão das duas listas.
 
-**Endereço próprio.** Sim — `/configuracao`. O desfecho da correção volta em `?renomeada=`, para
-sobreviver ao recarregamento.
+**Endereço próprio.** Sim, `/configuracao`. O desfecho da correção é um aviso de sucesso que diz o nome
+novo, e não entra no endereço.
 
 **Capacidades que realiza.** **`1b · Corrigir o nome da organização`**. Ela nasceu sem nenhuma, como a
 segunda exceção da §8.2, e **a exceção fechou em 16/09/2026** com o item **46 · 47**, que lhe deu campo
@@ -1950,18 +1960,20 @@ listava *Perfil / minha conta* entre as telas que não existem, com a razão de 
 salvar. A razão era verdadeira e deixou de ser: o `PATCH /contexto/pessoa` deu o que salvar. A `Q-T6` foi
 redecidida, e o quadro do **F11** na §9 guarda as duas decisões.
 
-**Chega-se por ela pelo menu de pessoa** da barra superior, onde o nome já era impresso como item
-desabilitado. **Não** pela barra lateral, cujo `aria-label` é *"Nesta organização"*: dado pessoal é
-global e não pertence a um grupo de navegação que promete o contrário. É por isso também que ela não é
-subrota de `/configuracao` — configuração é **da organização**, e quem administra a organização não
-está administrando a si mesmo.
+**Chega-se por ela pelo menu de pessoa** da barra superior, que abre com um cabeçalho de quem é a conta,
+com o nome e o e-mail, e tem *Meus dados* como primeiro item. **Não** pela barra lateral, cujo
+`aria-label` é *"Nesta organização"*: dado pessoal é global e não pertence a um grupo de navegação que
+promete o contrário. É por isso também que ela não é subrota de `/configuracao` — configuração é **da
+organização**, e quem administra a organização não está administrando a si mesmo.
 
-**O que mostra.** Duas seções, identidade antes de mecanismo. **Identidade** tem o campo `nome`, com o
-texto de ajuda que diz onde aquele nome aparece: na lista de participantes, nos pedidos de entrada e em
-**cada transição já registrada**. A última parte é a que importa, e a segunda frase do texto diz que o
-nome vale em **todas** as organizações da pessoa — é a Persona 1B descobrindo, antes de salvar, que está
-se renomeando nos dois prédios. **Acesso** tem o e-mail de entrada em leitura, com o que ele serve
-para fazer, e o link para **T-12 · Redefinir senha**.
+**O que mostra.** Dois cartões de leitura, identidade antes de mecanismo, como em T-15. O cartão
+*Identidade* mostra o nome, com a frase que diz que é assim que os Gestores veem a pessoa, inclusive nas
+transições que ela já registrou. *Editar* abre o modal *Editar nome*, o mesmo componente de T-15, que diz
+logo abaixo do título que o nome vale em todas as organizações da pessoa. A ajuda do campo diz onde o
+nome aparece: na lista de participantes, nos pedidos de entrada e em **cada transição já registrada**. É
+a Persona 1B descobrindo, antes de salvar, que está se renomeando nos dois prédios. O cartão *Acesso* é
+uma lista de definição, em duas metades na tela grande: o e-mail de entrada com a razão dele, e a senha
+oculta com *Redefinir senha*, que leva a T-12 · Redefinir senha.
 
 **É a única tela do produto que não dispara requisição ao abrir.** O nome e o e-mail vêm da resolução de
 contexto que a casca já fez.
@@ -1970,7 +1982,7 @@ contexto que a casca já fez.
 
 | Ação | Endpoint |
 |---|---|
-| Corrigir o próprio nome | `PATCH /contexto/pessoa` `{ nome? }` |
+| Corrigir o próprio nome, no modal *Editar nome* | `PATCH /contexto/pessoa` `{ nome? }` |
 | Ir para redefinir a senha | nenhum — navega para T-12, que chama o provedor |
 
 **O que ela não oferece, e a tela não o anuncia.** O e-mail não é editável: ele é a
@@ -1986,11 +1998,14 @@ ausência: o que não se edita simplesmente não oferece edição.
 - *Vazio:* não existe — sempre há nome, nem que seja o literal *"Sem nome"*, e é justamente quem caiu
   nele que mais precisa desta tela.
 - *Carregando:* nenhuma requisição na abertura.
-- *Erro:* `400 FORMATO_INVALIDO` como frase no campo, nunca tela do framework. O `Salvar` fica
-  desabilitado enquanto o campo não mudou, e o `maxLength` corta em 120.
+- *Erro:* as falhas de salvar ficam dentro do modal, que continua aberto, e saem também num aviso de
+  erro; `400 FORMATO_INVALIDO` põe a frase embaixo do campo. O *Salvar* nunca fica desabilitado: sem
+  mudança, a mensagem do campo pede para alterar o nome. O contador mostra o teto de 120, e o
+  `maxLength` corta ali.
 
-**O desfecho vem na URL** (`?renomeado=`), como em T-15, T-14, T-09 e T-08, e sobrevive ao
-recarregamento. Ele diz o alcance: *"você passou a aparecer como … em todas as suas organizações"*.
+**O desfecho é um aviso de sucesso**, como em T-15, e diz o alcance: *"Você passou a aparecer como …
+em todas as suas organizações."* O aviso mora no layout raiz e sobrevive à atualização da página que o
+salvamento dispara.
 
 **Alvo primário.** **Celular**, ao contrário de T-15, que é trabalho de escritório. Esta é a tela que
 alguém abre no minuto em que percebe que o próprio nome está errado na lista.
