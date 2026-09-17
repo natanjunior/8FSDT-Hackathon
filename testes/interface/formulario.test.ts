@@ -459,6 +459,35 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
   });
 });
 
+/** Os arquivos em que o 44j aplica o guia: as guardas de forma leem estes. */
+const ALCANCE_DO_44J = [
+  "app/(casca)/vinculos/page.tsx",
+  "app/(casca)/vinculos/loading.tsx",
+  "app/(casca)/vinculos/nova/page.tsx",
+  "app/(casca)/vinculos/nova/loading.tsx",
+  "app/(casca)/vinculos/[pessoaId]/editar/page.tsx",
+  "app/(casca)/vinculos/[pessoaId]/editar/loading.tsx",
+  "src/interface/componentes/tabela-de-participantes.tsx",
+  "src/interface/componentes/linhas-de-participantes.ts",
+  "src/interface/componentes/frases-de-participantes.ts",
+  "src/interface/componentes/regras-do-vinculo.ts",
+  "src/interface/componentes/escolhas-do-vinculo.tsx",
+  "src/interface/componentes/decisao-de-pedido-de-entrada.tsx",
+  "src/interface/componentes/remocao-de-vinculo.tsx",
+  "src/interface/componentes/frases-da-remocao.ts",
+  "src/interface/componentes/formulario-de-vinculo.tsx",
+  "src/interface/componentes/sub-formulario-de-contatos.tsx",
+  "src/interface/componentes/ordem-manual.ts",
+  "src/interface/componentes/controles-de-ordem.tsx",
+  "src/interface/componentes/botao-de-icone.tsx",
+  "src/interface/componentes/caminho-da-pagina.tsx",
+  "src/interface/componentes/ficha-de-pessoa.tsx",
+  "src/interface/ganchos/use-arrasto-de-linha.ts",
+];
+
+/** As quatro páginas e os dois esqueletos: as que o critério 44j.12 limpa. */
+const PAGINAS_DO_44J = ALCANCE_DO_44J.filter((caminho) => caminho.startsWith("app/"));
+
 describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
   it("os quatro componentes do catálogo entraram (critério 44j.11)", () => {
     for (const peca of ["alert-dialog", "breadcrumb", "radio-group", "switch"]) {
@@ -512,5 +541,58 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(tabela).toContain("useSearchParams()");
     expect(tabela).toContain("window.history.pushState");
     expect(tabela).toContain("window.history.replaceState");
+  });
+
+  it("nenhum botão fica desabilitado por campo inválido (critério 44g.9, no alcance do 44j)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/disabled=\{[^}]*(?:=== null|!pode|!valido)[^}]*\}/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44j.12)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as páginas não repetem a marca e não têm Voltar no conteúdo (critério 44j.12)", () => {
+    for (const caminho of PAGINAS_DO_44J) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("Resolve Aí");
+      expect(fonte, caminho).not.toMatch(/^\s*Voltar\s*$/mu);
+    }
+  });
+
+  it("nenhum diálogo nativo sobra em T-08 (critério 44j.11)", () => {
+    for (const caminho of ALCANCE_DO_44J) {
+      expect(ler(caminho), caminho).not.toContain("<dialog");
+      expect(ler(caminho), caminho).not.toContain("showModal");
+    }
+  });
+
+  it("os quatro desfechos por endereço saíram do produto (critério 44j.10)", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ linha, numero: indice + 1 }))
+        .filter(({ linha }) => /(?:cadastrado|corrigido|removido|decidido)=/u.test(linha))
+        .map(({ numero }) => `${caminho}:${String(numero)}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhuma frase genérica própria em T-08 (critério 44g.6)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"Não foi possível [^"]*agora[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
   });
 });
