@@ -70,8 +70,10 @@ const APROVADOS = new Set([
  * Recebeu as regras 4, 5 e 6, que são as que se aplicam com busca. As regras 1, 2 e 3 exigem reescrever
  * prosa, e essa hora não estava no orçamento desta entrega.
  *
- * Sai desta lista quando a voz dele for reescrita. Enquanto estiver aqui, a exceção é visível e tem dono,
- * que é o que distingue exceção de esquecimento.
+ * **O arquivo está congelado.** Ele sai da documentação entregue, então a voz dele não será reescrita e
+ * ele não recebe atualização nova. Continua compilando, porque as páginas ainda não trocadas apontam
+ * para ele às centenas, e sai da lista no dia em que o último desses ponteiros sumir. Até lá a dispensa
+ * é visível e tem dono, que é o que distingue exceção de esquecimento.
  */
 const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
 

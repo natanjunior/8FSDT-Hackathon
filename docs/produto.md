@@ -77,6 +77,9 @@ recorrência por categoria e por área, e o tempo médio de resolução mês a m
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, e se quem
 abriu ficou satisfeito.**
 
+A média das avaliações vem vazia enquanto ninguém tiver avaliado. Ao lado dela o painel mostra quantas
+ocorrências foram resolvidas e quantas dessas receberam nota, que é o que diz se a média tem base.
+
 ## O escopo desta versão
 
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a

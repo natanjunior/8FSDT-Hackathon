@@ -53,13 +53,14 @@ fechada que [Segurança](seguranca.md) descreve.
 ## O cenário de teste tem dono
 
 Há dois mundos de teste em duas linguagens: linhas de SQL na integração, e objetos em memória na camada de
-aplicação. **Um mundo declarado, dois desenhistas**: duas organizações, a mesma pessoa vinculada às duas
-com papéis diferentes, e uma pessoa em só uma delas. É o cenário do síndico profissional, e é o único que
-detecta o vazamento.
+aplicação. **O mundo é declarado uma vez e escrito nas duas**: duas organizações, a mesma pessoa vinculada
+às duas com papéis diferentes, e uma pessoa em só uma delas. É o cenário do síndico profissional, e é o
+único que detecta o vazamento.
 
 A regra que impede a divergência: um teste pode acrescentar ao mundo, e nunca alterá-lo. Precisa de uma
 área a mais, acrescenta; precisa de uma terceira organização, monta o seu mundo à parte e diz por quê.
-Alterar o mundo compartilhado é como o ajuste de um teste desarma em silêncio a armadilha de outro.
+Alterar o mundo compartilhado é o caminho pelo qual o ajuste de um teste desarma, sem ninguém perceber, a
+armadilha que outro teste existe para acionar.
 
 ## Os verificadores
 
@@ -67,7 +68,7 @@ Seis programas conferem o que teste de código não alcança, e todos rodam na e
 
 | Verificador | O que recusa |
 |---|---|
-| Diagramas | bloco Mermaid que não compila, porque diagrama que não renderiza é documentação que não existe |
+| Diagramas | bloco Mermaid que não compila em nenhum arquivo do repositório |
 | Contrato | divergência entre a especificação executável e as rotas que a realizam, operação por operação |
 | Links e referências | link relativo que não resolve e referência a seção que não existe |
 | Tom | os padrões de densidade, de aparato e de estrutura que a reescrita removeu, nos arquivos já reescritos |
@@ -83,24 +84,44 @@ o dia em que precisasse pegar alguma coisa, e o controle negativo é o que imped
 site, por exemplo, exige que uma página inexistente responda `404`, porque sem isso um link quebrado seria
 invisível para ele.
 
+## Como rodar
+
+```
+npm run verificar             lint, tipos, testes unitários e verificadores de documentação
+npm run teste                 só os unitários, que é o laço curto de quem implementa
+npm run teste:integracao      a suíte de isolamento; exige um PostgreSQL
+npm run teste:ponta-a-ponta   o caminho crítico num navegador; exige a pilha de pé
+npm run local                 sobe a pilha inteira em contêiner, para os dois de cima
+```
+
+Os dois últimos precisam do ambiente local, que [Infraestrutura](infraestrutura.md) descreve. O teste de
+integração derruba e recria o esquema a cada execução, e por isso ele usa um banco separado do de
+desenvolvimento, criado pelo próprio `npm run local`.
+
 ## O portão
 
-```
-npm run verificar     lint · tipos · testes unitários · verificadores de documentação
-```
-
-É o comando que quem implementa roda antes de abrir um pull request, e é o mesmo conjunto que a esteira
-roda a cada envio. Falha bloqueia a mesclagem.
+`npm run verificar` é o que quem implementa roda antes de abrir um pull request, e é o mesmo conjunto que
+a esteira roda a cada envio. Falha bloqueia a mesclagem.
 
 Além dele, a esteira sobe a pilha inteira do zero num servidor limpo, roda o teste de integração contra um
 PostgreSQL de verdade, constrói a imagem, confere que ela não carrega segredo e, depois de publicar,
-executa o verificador de site contra a URL que está no ar. O que roda na máquina de quem desenvolve é o
-que roda em produção, e a esteira é quem prova isso a cada entrega.
+executa o verificador de site contra a URL que está no ar.
 
-O detalhe de quais portões cobram o quê está em
-[Definition of Done](definition-of-done.md).
+Cada tarefa, para fechar, atravessa estes portões:
 
-## O que não é verificado por máquina
+| Portão | O defeito que ele previne |
+|---|---|
+| teste do caminho feliz | funcionalidade que nunca foi executada inteira |
+| teste de ao menos uma transição inválida, quando a tarefa toca a máquina de estados | transição proibida que passa sem erro visível |
+| transição gerando registro, conferido em teste | transição sem registro, que é a defesa processual da auditabilidade |
+| uma entrada na suíte de isolamento, quando a tarefa toca consulta | o vazamento entre organizações |
+| custo de teste de um arquivo curto, ou nenhum | a suíte crescer por arquivo, que é o sinal de que a forma foi abandonada |
 
-Desempenho e segurança não têm teste automatizado nesta versão: os dois números são medidos à mão no
-ambiente publicado. Fica nomeado para que a ausência seja escolha visível.
+O registro de ocorrência tem portão próprio: ele é cronometrado três vezes num celular real, em rede
+móvel, contra a URL publicada, e o que se anota é a mediana junto do aparelho e da rede. É o único
+requisito cronometrado do produto, e medir é o que o separa de um número declarado.
+
+## Fora desta versão
+
+Teste automatizado de desempenho e de segurança. Os dois números são medidos à mão no ambiente
+publicado.
