@@ -320,3 +320,53 @@ describe("texto de tela — critério 7", () => {
     expect(achados).toStrictEqual([]);
   });
 });
+
+/** Os arquivos em que este item aplica o guia (spec §1.1). */
+const ALCANCE = [
+  "src/interface/componentes/formulario-de-entrada.tsx",
+  "src/interface/componentes/formulario-de-cadastro.tsx",
+  "src/interface/componentes/formulario-de-redefinicao.tsx",
+  "src/interface/componentes/formulario-de-nova-senha.tsx",
+  "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
+  "src/interface/componentes/formulario-de-nova-organizacao.tsx",
+  "src/interface/componentes/troca-de-organizacao.ts",
+  "src/interface/componentes/modal-de-observacao.tsx",
+  "src/interface/componentes/modal-de-resolucao.tsx",
+  "src/interface/componentes/modal-de-motivo.tsx",
+  "src/interface/componentes/modal-de-atribuicao.tsx",
+  "src/interface/componentes/modal-de-avaliacao.tsx",
+  "src/interface/componentes/barra-de-acoes.tsx",
+  "src/interface/componentes/campo-de-solucao-aplicada.tsx",
+  "src/interface/componentes/conversa-da-ocorrencia.tsx",
+  "src/interface/componentes/comando-de-ocorrencia.ts",
+];
+
+describe("o alcance do 44g — critérios 6 e 9", () => {
+  it("nenhum botão fica desabilitado por campo inválido (o grep do critério, ampliado)", () => {
+    const achados = ALCANCE.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/disabled=\{[^}]*(?:=== null|!pode|!valido)[^}]*\}/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhuma frase genérica própria: a única que sobra é a da leitura da conversa", () => {
+    // "Carregar mais" é leitura, e a regra do guia é de envio (spec §3.2).
+    const achados = ALCANCE.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"Não foi possível [^"]*agora[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([
+      'src/interface/componentes/conversa-da-ocorrencia.tsx: "Não foi possível carregar mais agora. Tente de novo."',
+    ]);
+  });
+
+  it("a frase genérica existe uma vez só no produto", () => {
+    const comAFrase = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes('"Não foi possível realizar a ação."'),
+    );
+    expect(comAFrase).toStrictEqual(["src/interface/componentes/retorno-de-acao.ts"]);
+  });
+});

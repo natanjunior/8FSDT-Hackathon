@@ -36,10 +36,10 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * o mesmo endpoint com o valor anterior. **As duas frases foram escritas pelo hub** (`respostas.md` P2),
  * não por este componente.
  *
- * **É NO BLOCO, e a forma flutuante foi recusada.** `prototipo-low-fi.md:981` marca a notificação flutuante
- * como `Toast`, *"✅ no catálogo"* — e o catálogo não foi adotado. O hub já fez o mesmo movimento com o
- * `Drawer` no item 23: **adota a decisão de interação, recusa o componente**. O idioma usado aqui é o que
- * `campo-de-solucao-aplicada.tsx:119-135` já usa no mesmo T-05.
+ * **É NO BLOCO, e não no aviso flutuante.** O produto tem aviso flutuante para o retorno de ação desde o
+ * item 44g, e o desfazer continua aqui pelo critério 17.7, que decidiu *"no bloco, não flutuante"*: a
+ * novidade é a disponibilidade do desfazer, e ela precisa ficar ao lado do seletor. Levar o desfazer para
+ * o aviso é decisão do hub (achado A-04 da spec do 44g).
  *
  * **Sem temporizador.** A linha sai por ação — troca, desfazer, erro, recarregar ou navegar.
  *
@@ -60,7 +60,7 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * escrito em um parâmetro em vez de num `if`.
  *
  * **O repinte não desmonta este componente** — é bloco de tela, não modal —, então `valorAtual` chega novo
- * e o estado local sobrevive. É o mecanismo descrito em `campo-de-solucao-aplicada.tsx:25-28`.
+ * e o estado local sobrevive. É o mecanismo descrito no cabeçalho de `campo-de-solucao-aplicada.tsx`.
  *
  * **O que isso expõe, declarado:** enquanto `escolhido` não é `null`, um repinte que traga `valorAtual`
  * **diferente** — outro Gestor mudou — fica mascarado até a próxima navegação. É a exposição que a **§7.9 do

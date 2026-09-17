@@ -33,13 +33,16 @@ import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
+  RETORNO_DA_MENSAGEM,
   RETORNO_DO_COMANDO,
+  retornoDoComando,
   rotuloDeComando,
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
@@ -263,11 +266,17 @@ export default async function Ocorrencia({
     // **O retorno é anotado como `string`, e não é enfeite:** sem a anotação o `map` infere `comando` como
     // o literal `Comando`, e aí o guarda de tipo abaixo — que promete `{ comando: string }` — deixa de ser
     // atribuível ao próprio parâmetro (`TS2677`). Anotar aqui mantém o Domínio fora do `import` de `app/`.
-    .map((comando): { comando: string; rotulo: string | null } => ({
-      comando,
-      rotulo: rotuloDeComando(comando),
-    }))
-    .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
+    .map(
+      (comando): { comando: string; rotulo: string | null; retorno: TextosDoRetorno | null } => ({
+        comando,
+        rotulo: rotuloDeComando(comando),
+        retorno: retornoDoComando(comando),
+      }),
+    )
+    .filter(
+      (acao): acao is { comando: string; rotulo: string; retorno: TextosDoRetorno | null } =>
+        acao.rotulo !== null,
+    );
 
   /**
    * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
@@ -814,6 +823,7 @@ export default async function Ocorrencia({
               valorAtual={detalhe.solucaoAplicada}
               rotulosDeStatus={rotulos}
               organizacaoId={organizacaoId}
+              retorno={RETORNO_DO_COMANDO["registrar-solucao-aplicada"]}
             />
           ) : (
             detalhe.solucaoAplicada !== null && (
@@ -876,6 +886,7 @@ export default async function Ocorrencia({
               pessoaIdDeQuemLe={escopo.ctx.pessoaId}
               vazio={vazioDaConversa(ehAutor)}
               rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
+              retorno={RETORNO_DA_MENSAGEM}
             />
           )}
 
