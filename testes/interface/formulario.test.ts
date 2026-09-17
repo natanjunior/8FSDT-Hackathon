@@ -513,8 +513,10 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     const fonte = ler("src/interface/componentes/remocao-de-vinculo.tsx");
     expect(fonte).toContain("<AlertDialog");
     expect(fonte).toContain("useEnvioDoModal");
-    // `AlertDialogAction` fecha no clique, e o envio precisa do modal aberto até a resposta chegar.
-    expect(fonte).not.toContain("AlertDialogAction");
+    // `AlertDialogAction` fecha no clique, e o envio precisa do modal aberto até a resposta chegar. A
+    // guarda olha o `import` e o uso, porque o docblock escreve o nome para explicar a ausência.
+    expect(fonte).not.toMatch(/^\s*AlertDialogAction,$/mu);
+    expect(fonte).not.toMatch(/<AlertDialogAction\b/u);
     expect(fonte).not.toContain("<dialog");
     expect(fonte).not.toContain("showModal");
   });
@@ -594,5 +596,197 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
       ),
     );
     expect(achados).toStrictEqual([]);
+  });
+});
+
+/**
+ * Os arquivos vivos do alcance do 44k: as duas páginas, os dois esqueletos, os seis componentes novos, o
+ * gancho, as duas regras puras e o seletor de ícone. **São quatorze, e não os onze que a spec mediu** —
+ * onze era o número dos arquivos de **antes**, seis dos quais morreram.
+ */
+const ALCANCE_DO_44K = [
+  "app/(casca)/configuracao/categorias/page.tsx",
+  "app/(casca)/configuracao/categorias/loading.tsx",
+  "app/(casca)/configuracao/areas/page.tsx",
+  "app/(casca)/configuracao/areas/loading.tsx",
+  "src/interface/componentes/lista-de-ordem-manual.tsx",
+  "src/interface/componentes/tabela-de-categorias.tsx",
+  "src/interface/componentes/tabela-de-areas.tsx",
+  "src/interface/componentes/modal-de-categoria.tsx",
+  "src/interface/componentes/modal-de-area.tsx",
+  "src/interface/componentes/situacao-do-item.tsx",
+  "src/interface/componentes/ordem-da-lista.ts",
+  "src/interface/componentes/frases-da-configuracao.ts",
+  "src/interface/componentes/icone-de-categoria.tsx",
+  "src/interface/ganchos/use-ordem-gravada.ts",
+];
+
+/** As duas páginas e os dois esqueletos: as que o critério 44k.10 limpa. */
+const PAGINAS_DO_44K = ALCANCE_DO_44K.filter((caminho) => caminho.startsWith("app/"));
+
+/** As seis rotas e componentes que o critério 44k.6 remove. */
+const MORREU_NO_44K = [
+  "app/(casca)/configuracao/categorias/nova/page.tsx",
+  "app/(casca)/configuracao/categorias/[categoriaId]/editar/page.tsx",
+  "app/(casca)/configuracao/areas/nova/page.tsx",
+  "app/(casca)/configuracao/areas/[areaId]/editar/page.tsx",
+  "src/interface/componentes/formulario-de-categoria.tsx",
+  "src/interface/componentes/formulario-de-area.tsx",
+];
+
+describe("o alcance do 44k — as duas listas de ordem manual", () => {
+  it("as quatro rotas de criar e editar e os dois formulários não existem (critério 44k.6)", () => {
+    for (const caminho of MORREU_NO_44K) {
+      expect(existsSync(RAIZ + caminho), caminho).toBe(false);
+    }
+  });
+
+  /**
+   * **A guarda é ancorada em `configuracao/`, e o `/editar"` da spec não serviria:** os dois links de
+   * editar de antes eram literais de gabarito (`` `${…}/editar` ``), então `grep '/editar"'` já devolvia
+   * vazio antes deste item. Abrir para `/editar` sozinho pegaria `/vinculos/{pessoaId}/editar`, que fica.
+   */
+  it("nenhum link para as quatro rotas sobrou no produto (critério 44k.6)", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ linha, numero: indice + 1 }))
+        .filter(({ linha }) => !/^\s*(?:\*|\/\/)/u.test(linha))
+        .filter(({ linha }) =>
+          /configuracao\/(?:categorias|areas)\/(?:nova|[^"'`]*\/editar)/u.test(linha),
+        )
+        .map(({ numero }) => `${caminho}:${String(numero)}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum diálogo nativo sobra no produto inteiro (critério 44k.5)", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes("<dialog") || fonte.includes("showModal");
+    });
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum botão fica desabilitado por campo inválido (critério 44g.9, no alcance do 44k)", () => {
+    const achados = ALCANCE_DO_44K.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/disabled=\{[^}]*(?:=== null|!pode|!valido)[^}]*\}/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44k.10)", () => {
+    const achados = ALCANCE_DO_44K.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhuma frase genérica própria (critério 44g.6)", () => {
+    const achados = ALCANCE_DO_44K.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"Não foi possível [^"]*agora[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as páginas não repetem a marca e não têm Voltar no conteúdo (critério 44k.10)", () => {
+    for (const caminho of PAGINAS_DO_44K) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("Resolve Aí");
+      expect(fonte, caminho).not.toMatch(/^\s*Voltar\s*$/mu);
+    }
+  });
+
+  it("os desfechos por endereço de T-09 e T-14 saíram do produto (critério 44k.10)", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ linha, numero: indice + 1 }))
+        .filter(({ linha }) => /(?:criada|alterada|mantem)=/u.test(linha))
+        .map(({ numero }) => `${caminho}:${String(numero)}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as duas páginas não leem o endereço e não têm faixa de desfecho (critérios 44k.1 e 44k.10)", () => {
+    for (const caminho of PAGINAS_DO_44K.filter((arquivo) => arquivo.endsWith("/page.tsx"))) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("searchParams");
+      expect(fonte, caminho).not.toContain("FaixaDoDesfecho");
+      expect(fonte, caminho).not.toContain("Não há como apagar");
+    }
+  });
+
+  it("criar e editar são modal, e o corpo não manda ordem nem ativa (critério 44k.5)", () => {
+    for (const caminho of [
+      "src/interface/componentes/modal-de-categoria.tsx",
+      "src/interface/componentes/modal-de-area.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("<Modal");
+      // **A guarda olha codigo, e nao a palavra:** o docblock destes arquivos explica por que `ordem`
+      // e `ativa` nao estao aqui, e uma guarda de substring falharia no proprio comentario.
+      expect(fonte, caminho).not.toMatch(/\bordem:/u);
+      expect(fonte, caminho).not.toMatch(/\bativa:/u);
+    }
+  });
+
+  it("a confirmação de situação usa o alert-dialog, e quem fecha é o ciclo (critério 44k.7)", () => {
+    const fonte = ler("src/interface/componentes/situacao-do-item.tsx");
+    expect(fonte).toContain("<AlertDialog");
+    expect(fonte).toContain("useEnvioDoModal");
+    // `AlertDialogAction` fecha no clique, e o envio precisa do modal aberto até a resposta chegar. A
+    // guarda olha o `import` e o uso, porque o docblock escreve o nome para explicar a ausência.
+    expect(fonte).not.toMatch(/^\s*AlertDialogAction,$/mu);
+    expect(fonte).not.toMatch(/<AlertDialogAction\b/u);
+    expect(fonte).toContain('variant={textos.destrutiva ? "destructive" : "marca"}');
+  });
+
+  it("a vaga da tabela é uma linha, e reusa a classe do 44j (achado A-05 da spec)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+    expect(fonte).toContain("CLASSE_DA_VAGA");
+    expect(fonte).toContain("<td colSpan=");
+    // `VagaDeArrasto` desenha uma `<div>`, e dentro de `<tbody>` só cabe `<tr>`. A guarda olha o
+    // `import` e o uso: o docblock escreve o nome para explicar por que ele não serve aqui.
+    expect(fonte).not.toMatch(/^\s*VagaDeArrasto,$/mu);
+    expect(fonte).not.toMatch(/<VagaDeArrasto\b/u);
+  });
+
+  it("a ordem manual não trouxe dependência nova (critério 44k.2)", () => {
+    for (const caminho of [
+      "src/interface/componentes/lista-de-ordem-manual.tsx",
+      "src/interface/ganchos/use-ordem-gravada.ts",
+    ]) {
+      const importados = [...ler(caminho).matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+      const externos = importados.filter(
+        (modulo) => !modulo.startsWith("@/") && modulo !== "react" && !modulo.startsWith("next/"),
+      );
+      expect(externos, caminho).toStrictEqual(caminho.endsWith(".tsx") ? ["lucide-react"] : []);
+    }
+  });
+
+  it("a legenda dos dois tipos fica no cartão, nunca em dica de ponteiro (critério 44k.9)", () => {
+    const fonte = ler("src/interface/componentes/tabela-de-areas.tsx");
+    expect(fonte).toContain("LEGENDA_DOS_TIPOS");
+    expect(fonte).not.toContain("Tooltip");
+    expect(fonte).not.toContain("HoverCard");
+  });
+
+  it("nenhum controle cru fora de ui/, fora o rádio da grade de ícones (G7 do guia)", () => {
+    const achados = ALCANCE_DO_44K.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+    // A exceção declarada: o catálogo não tem peça para escolher entre 25 desenhos.
+    const crus = ALCANCE_DO_44K.filter((caminho) => /<input/u.test(ler(caminho)));
+    expect(crus).toStrictEqual(["src/interface/componentes/icone-de-categoria.tsx"]);
   });
 });
