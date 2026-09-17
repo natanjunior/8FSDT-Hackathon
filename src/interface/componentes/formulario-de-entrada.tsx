@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { acaoDeEntrar } from "@/interface/acoes";
-import { Campo } from "@/interface/componentes/campo";
+import { acaoDeEntrar, type EstadoDoFormulario } from "@/interface/acoes";
+import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
+import { entrarSchema, errosDoSchema } from "@/interface/schemas";
 
 /**
  * **T-01 · Entrar.** *"A porta. Dois campos e um botão — e é a única tela que qualquer pessoa alcança sem
@@ -19,74 +23,96 @@ import { Input } from "@/interface/componentes/ui/input";
  * de *"senha errada"*. Distinguir transformaria a tela de login num verificador de quem tem conta no
  * produto (inventário, T-01).
  *
- * **Dois estados dormentes, e um vivo.** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa`
- * só acontecem com a confirmação de e-mail ligada, e ela **não** está: a Q-T9 foi fechada em 22/08/2026.
- * `senhaAlterada` é o terceiro, e é o **primeiro aviso vivo desta tela**: quem acabou de trocar a senha em
- * T-13 chega aqui, e sem a linha não saberia por que saiu de lá.
+ * **O retorno (guia §7, item 44g).** Entrar não grava nada, e a chegada à tela seguinte é a resposta: não
+ * há aviso de sucesso, e o servidor continua redirecionando. A falha dá o aviso *"Não foi possível
+ * entrar"*, e a razão fica na linha acima do formulário. Os campos seguem a regra de formulário tocado,
+ * com o mesmo schema que a ação confere.
+ *
+ * **Um estado dormente:** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa` só acontecem
+ * com a confirmação de e-mail ligada, e ela **não** está (Q-T9, fechada em 22/08/2026).
  */
 export function FormularioDeEntrada({
   destino,
   confirmacao,
-  senhaAlterada = false,
 }: {
   destino?: string;
   confirmacao?: "confirmada" | "expirada";
-  senhaAlterada?: boolean;
 }) {
-  const [estado, agir, aguardando] = useActionState(acaoDeEntrar, {});
+  const formulario = useFormularioTocado({
+    campos: { email: "email", senha: "senha" },
+    validar: (dados) =>
+      errosDoSchema(entrarSchema, { email: dados.get("email"), senha: dados.get("senha") }),
+  });
+
+  const [estado, agir, aguardando] = useActionState(
+    async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
+      const proximo = await chamarAcaoDeCredencial(acaoDeEntrar, anterior, dados);
+      formulario.recomecar();
+      if (proximo.recusa !== undefined || proximo.erros !== undefined) avisarErro("Não foi possível entrar");
+      return proximo;
+    },
+    {},
+  );
 
   return (
     <>
-      {senhaAlterada && <Aviso tom="nota">Senha alterada. Entre com ela.</Aviso>}
       {confirmacao === "confirmada" && <Aviso tom="nota">Conta confirmada. Entre para continuar.</Aviso>}
       {confirmacao === "expirada" && (
         <Aviso>Este link expirou. Crie a conta de novo ou peça outro e-mail de confirmação.</Aviso>
       )}
       {estado.recusa !== undefined && <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>}
 
-      <form action={agir} className="flex flex-col gap-5" noValidate>
+      <form
+        action={agir}
+        onChange={formulario.aoMudarNoFormulario}
+        onSubmit={formulario.aoEnviarFormulario}
+        className="flex flex-col gap-5"
+        noValidate
+      >
         {destino !== undefined && <input type="hidden" name="destino" value={destino} />}
 
-        <Campo id="email" rotulo="E-mail" erro={estado.erros?.["email"]}>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            autoCapitalize="none"
-            required
-            aria-invalid={estado.erros?.["email"] !== undefined}
-            className="h-12 text-base"
-          />
+        <Campo id="email" rotulo="E-mail" obrigatorio erro={formulario.erroDe("email", estado.erros)}>
+          {(controle) => (
+            <Input
+              {...controle}
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              required
+              className="h-12 text-base"
+            />
+          )}
         </Campo>
 
-        <Campo id="senha" rotulo="Senha" erro={estado.erros?.["senha"]}>
-          <Input
-            id="senha"
-            name="senha"
-            type="password"
-            autoComplete="current-password"
-            required
-            aria-invalid={estado.erros?.["senha"] !== undefined}
-            className="h-12 text-base"
-          />
+        <Campo id="senha" rotulo="Senha" obrigatorio erro={formulario.erroDe("senha", estado.erros)}>
+          {(controle) => (
+            <Input
+              {...controle}
+              name="senha"
+              type="password"
+              autoComplete="current-password"
+              required
+              className="h-12 text-base"
+            />
+          )}
         </Campo>
 
-        {/* A-3: alvo de toque de 48 px. É a pessoa com uma mão no corrimão — o cenário literal do RNF6. */}
-        <Button type="submit" disabled={aguardando} className="h-12 w-full text-base">
-          {aguardando ? "Entrando…" : "Entrar"}
-        </Button>
+        <RodapeDoFormulario obrigatorios={2}>
+          {/* A-3: alvo de toque de 48 px. É a pessoa com uma mão no corrimão, o cenário literal do RNF6. */}
+          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+            <IndicadorDeEnvio ativo={aguardando} />
+            {aguardando ? "Entrando…" : "Entrar"}
+          </Button>
+        </RodapeDoFormulario>
       </form>
 
       <div className="flex flex-col gap-3 pt-1">
         <Link href="/criar-conta" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
           Criar conta
         </Link>
-        <Link
-          href="/redefinir-senha"
-          className="text-marca w-fit py-1 text-sm underline underline-offset-4"
-        >
+        <Link href="/redefinir-senha" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
           Esqueci a senha
         </Link>
       </div>
@@ -100,5 +126,5 @@ function textoDaRecusa(recusa: string): string {
     return "Confirme a conta pelo link que enviamos por e-mail e tente de novo.";
   }
   if (recusa === "CREDENCIAL_INVALIDA") return "E-mail ou senha incorretos.";
-  return "Não foi possível entrar agora. Tente de novo em instantes.";
+  return MENSAGEM_GENERICA;
 }

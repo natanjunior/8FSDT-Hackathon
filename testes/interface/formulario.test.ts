@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { redirect } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
+import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import {
   avisarAtencao,
   avisarConclusao,
@@ -275,5 +277,30 @@ describe("cicloDoModal — a sequência de modal do guia §7", () => {
 
   it("abrir e fechar sem enviar não custa ida ao servidor", () => {
     expect(cicloDoModal(aberto, { tipo: "pediu-fechar" })).toStrictEqual({ estado: MODAL_FECHADO, efeitos: [] });
+  });
+});
+
+describe("chamarAcaoDeCredencial — a ação que não chega ao servidor", () => {
+  it("devolve o estado que a ação devolveu", async () => {
+    const recusada = async () => ({ recusa: "CREDENCIAL_INVALIDA" as const });
+    expect(await chamarAcaoDeCredencial(recusada, {}, new FormData())).toStrictEqual({
+      recusa: "CREDENCIAL_INVALIDA",
+    });
+  });
+
+  it("sem rede, vira a falha que a tela escreve com a frase genérica, em vez de derrubar a tela", async () => {
+    const semRede = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    expect(await chamarAcaoDeCredencial(semRede, {}, new FormData())).toStrictEqual({
+      recusa: "FALHA_DO_PROVEDOR",
+    });
+  });
+
+  it("o redirecionamento do servidor atravessa: engoli-lo prenderia a pessoa em T-01", async () => {
+    const entrou = async () => redirect("/");
+    await expect(chamarAcaoDeCredencial(entrou, {}, new FormData())).rejects.toMatchObject({
+      digest: expect.stringContaining("NEXT_REDIRECT") as unknown,
+    });
   });
 });

@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { acaoDePedirRedefinicao } from "@/interface/acoes";
-import { Campo } from "@/interface/componentes/campo";
+import { acaoDePedirRedefinicao, type EstadoDoFormulario } from "@/interface/acoes";
+import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
+import { errosDoSchema, pedirRedefinicaoSchema } from "@/interface/schemas";
 
 /**
  * **T-12 · Redefinir senha.** Um campo, um botão, e o caminho de volta.
@@ -31,7 +35,22 @@ import { Input } from "@/interface/componentes/ui/input";
  *    devolve esse instante — desabilitar sem saber por quanto tempo é pior que deixar tentar.
  */
 export function FormularioDeRedefinicao() {
-  const [estado, agir, aguardando] = useActionState(acaoDePedirRedefinicao, {});
+  const formulario = useFormularioTocado({
+    campos: { email: "email" },
+    validar: (dados) => errosDoSchema(pedirRedefinicaoSchema, { email: dados.get("email") }),
+  });
+
+  const [estado, agir, aguardando] = useActionState(
+    async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
+      const proximo = await chamarAcaoDeCredencial(acaoDePedirRedefinicao, anterior, dados);
+      formulario.recomecar();
+      // **Sem aviso de sucesso:** a face "Confira o seu e-mail" é a resposta, e um aviso de "enviado"
+      // confirmaria que a conta existe, contra a doutrina da tela (spec do 44g, §4.8).
+      if (proximo.enviado !== true) avisarErro("Não foi possível enviar o link");
+      return proximo;
+    },
+    {},
+  );
 
   // A face de sucesso **substitui** o formulário (protótipo, T-12, quadro 4). Deixá-lo na tela convidaria
   // a um segundo pedido, e o teto do provedor é de dois por hora.
@@ -57,25 +76,35 @@ export function FormularioDeRedefinicao() {
         Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova.
       </p>
 
-      <form action={agir} className="flex flex-col gap-5" noValidate>
-        <Campo id="email" rotulo="E-mail" erro={estado.erros?.["email"]}>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            autoCapitalize="none"
-            required
-            aria-invalid={estado.erros?.["email"] !== undefined}
-            className="h-12 text-base"
-          />
+      <form
+        action={agir}
+        onChange={formulario.aoMudarNoFormulario}
+        onSubmit={formulario.aoEnviarFormulario}
+        className="flex flex-col gap-5"
+        noValidate
+      >
+        <Campo id="email" rotulo="E-mail" obrigatorio erro={formulario.erroDe("email", estado.erros)}>
+          {(controle) => (
+            <Input
+              {...controle}
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              required
+              className="h-12 text-base"
+            />
+          )}
         </Campo>
 
-        {/* A-3: alvo de toque de 48 px, como nas outras três telas de credencial. */}
-        <Button type="submit" disabled={aguardando} className="h-12 w-full text-base">
-          {aguardando ? "Enviando…" : "Enviar o link"}
-        </Button>
+        <RodapeDoFormulario obrigatorios={1}>
+          {/* A-3: alvo de toque de 48 px, como nas outras três telas de credencial. */}
+          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+            <IndicadorDeEnvio ativo={aguardando} />
+            {aguardando ? "Enviando…" : "Enviar o link"}
+          </Button>
+        </RodapeDoFormulario>
       </form>
 
       <Link href="/entrar" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
@@ -87,5 +116,5 @@ export function FormularioDeRedefinicao() {
 
 function textoDaRecusa(recusa: string): string {
   if (recusa === "LIMITE_DE_ENVIOS") return "Muitos pedidos seguidos. Espere um pouco.";
-  return "Não foi possível pedir o link agora. Tente de novo em instantes.";
+  return MENSAGEM_GENERICA;
 }
