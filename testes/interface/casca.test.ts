@@ -168,7 +168,7 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
 
 /** As onze páginas que recusam sem redirecionar, com o título da face normal e a permissão. */
 const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
-  "app/(casca)/configuracao/page.tsx": ["Configuração", "organizacao.configurar"],
+  "app/(casca)/configuracao/page.tsx": ["Configuração da organização", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/nova/page.tsx": ["Criar categoria", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/[categoriaId]/editar/page.tsx": [
