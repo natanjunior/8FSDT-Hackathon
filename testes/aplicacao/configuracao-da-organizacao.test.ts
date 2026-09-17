@@ -35,8 +35,9 @@ import {
  *
  * **O que está sob teste é a tradução, e só ela:** desfecho da porta → recusa nomeada do contrato, mais
  * os **dois padrões de produto** que esta camada é dona de aplicar — `icone` ausente vira `tag`, `ordem`
- * ausente vira a intenção `"no-fim"`, que o repositório resolve no `insert`. As garantias que produzem os desfechos são do banco (`UNIQUE (organizacao_id, nome)`
- * e o `$1` do ponto único), e prová-las contra um duplo provaria que o duplo simula.
+ * ausente vira a intenção `"no-fim"`, que o repositório resolve no `insert`. As garantias que produzem os
+ * desfechos são do banco (`UNIQUE (organizacao_id, nome)` e o `$1` do ponto único), e prová-las contra um
+ * duplo provaria que o duplo simula.
  */
 
 const JARDINAGEM: CategoriaLida = {

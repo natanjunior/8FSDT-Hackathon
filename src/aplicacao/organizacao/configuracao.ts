@@ -26,8 +26,8 @@ import type {
  * **Os dois padrões de produto moram aqui, e não no schema de entrada.** É a mesma doutrina que
  * `consultas.ts` escreveu para o *"só as ativas"*: o padrão não é convenção de HTTP — é a regra que o
  * `openapi.yaml` escreve por extenso (*"o servidor grava `tag` quando o cliente não manda"*, §14.5 do
- * modelo; `ordem` ausente é *no fim*, desde o item 50). A Interface traduz o corpo; **quem sabe o que acontece quando
- * ninguém manda nada é esta camada.**
+ * modelo; `ordem` ausente é *no fim*, desde o item 50). A Interface traduz o corpo; **quem sabe o que
+ * acontece quando ninguém manda nada é esta camada.**
  *
  * **Nenhuma das sete funções abre transação.** As cinco primeiras são uma instrução só. As duas
  * reordenações precisam de uma, e quem a abre é a porta, que recebe a transação escopada (ADR-0003):
