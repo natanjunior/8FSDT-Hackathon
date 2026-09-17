@@ -96,7 +96,11 @@ export function repositorioEscopadoDeAreas(
 
         return {
           desfecho: "corrigida",
-          area: { ...paraArea(linha), ocorrenciasComTipoAnterior: OCORRENCIAS_COM_TIPO_ANTERIOR },
+          area: {
+            ...paraArea(linha),
+            ocorrenciasComTipoAnterior:
+              correcao.tipo === undefined ? 0 : await contarComTipoAnterior(consulta, linha.id, linha.tipo),
+          },
         };
       } catch (erro) {
         if (ehNomeDuplicado(erro)) return { desfecho: "nome-duplicado" };
@@ -111,22 +115,37 @@ export function repositorioEscopadoDeAreas(
 }
 
 /**
- * ⚠️ **DÍVIDA NOMEADA — achado A-4a-1 da spec dos itens 4a e 5, e ela é do item 11.**
+ * **Quantas ocorrências já registradas mantêm um tipo diferente do que a área tem agora** — o campo que
+ * só existe para produzir uma frase de tela (contrato §8.1, e T-14 no item 44k).
  *
- * `ocorrenciasComTipoAnterior` é *"quantas ocorrências já registradas mantêm o tipo antigo"*. **A tabela
- * `ocorrencias` não existe** — é do item 11 —, então não há de onde contar, e **zero é verdade**: não há
- * ocorrência nenhuma no sistema.
+ * **Era a constante `0` até 17/09/2026**, com um docblock que dizia que a tabela `ocorrencias` não
+ * existia; ela existe desde a migração `005`, e a coluna `area_tipo` congelada é o que faz a contagem
+ * significar *"registradas sob o tipo antigo"* (modelo §7.5). Com a constante, o aviso de atenção de T-14
+ * nunca saía, e a prancheta descrevia um caminho que nenhuma leitura humana alcançava.
  *
- * **No item 11 esta constante vira a consulta**, e a forma é:
+ * **O tipo comparado é o da linha devolvida pelo `update`**, e não o do comando: a pergunta é *quantas
+ * mantêm um tipo diferente do que a área tem agora*, que é a frase da tela. Mandar o mesmo tipo de novo
+ * não reclassifica nada, e a contagem sai `0` por si.
  *
- * ```sql
- * select count(*)::int as total from ocorrencias
- *  where organizacao_id = $1 and area_id = $2 and area_tipo <> $3::tipo_area
- * ```
- *
- * Deixar de trocá-la faz a frase de T-14 mentir a partir do primeiro registro.
+ * **A consulta é escopada** — `ConsultaEscopada` amarra `organizacao_id = $1` (ADR-0003) —, e o par
+ * `(area_id, organizacao_id)` da chave estrangeira de `ocorrencias` torna o vazamento inalcançável por
+ * construção. **Ela só roda quando o tipo veio no comando:** sem `tipo`, a contagem é `0` sem ir ao banco.
  */
-const OCORRENCIAS_COM_TIPO_ANTERIOR = 0;
+async function contarComTipoAnterior(
+  consulta: ConsultaEscopada,
+  areaId: string,
+  tipoDeAgora: string,
+): Promise<number> {
+  const linhas = await consulta<{ total: number }>(
+    `select count(*)::int as total
+       from ocorrencias
+      where organizacao_id = $1
+        and area_id = $2
+        and area_tipo is distinct from $3::tipo_area`,
+    [areaId, tipoDeAgora],
+  );
+  return linhas[0]?.total ?? 0;
+}
 
 /** A leitura da lista, servida a `listar` e à releitura de dentro da transação da reordenação. */
 async function lerAreas(consulta: ConsultaEscopada, apenasAtivas: boolean): Promise<AreaLida[]> {

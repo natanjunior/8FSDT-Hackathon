@@ -1401,6 +1401,95 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   /**
+   * **A contagem do tipo anterior — item 44k, Tarefa 8.**
+   *
+   * `ocorrenciasComTipoAnterior` era a constante `0`, com um docblock que dizia que a tabela
+   * `ocorrencias` não existia; ela existe desde a migração `005`. Com a constante, o aviso de atenção de
+   * T-14 nunca saía.
+   *
+   * **Consulta nova, uma entrada na suíte** (arquitetura §7.1). O que ela prova: que a contagem conta as
+   * da organização, que ela só existe quando o tipo veio no comando, e que a ocorrência da Aurora — na
+   * área homônima de lá — não entra na contagem de Recanto.
+   */
+  it("a contagem do tipo anterior conta só a organização, e só quando o tipo muda", async () => {
+    const semear = async (organizacaoId: string, nomeDaArea: string, autor: string, quantas: number) => {
+      const [categoria] = await consulta<{ id: string }>(
+        `select id from categorias where organizacao_id = $1 limit 1`,
+        [organizacaoId],
+      );
+      const [area] = await consulta<{ id: string }>(
+        `insert into areas (organizacao_id, nome, tipo, ordem) values ($1, $2, 'comum', 90)
+         returning id`,
+        [organizacaoId, `${nomeDaArea} ${SUFIXO}`],
+      );
+      for (let indice = 0; indice < quantas; indice += 1) {
+        await consulta(
+          `insert into ocorrencias
+             (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id)
+           values ($1, $2, $3, 'comum', $4, $5, $6)`,
+          [
+            organizacaoId,
+            categoria!.id,
+            area!.id,
+            `Sob o tipo antigo ${String(indice)} ${SUFIXO}`,
+            "Semeada para a contagem do tipo anterior.",
+            autor,
+          ],
+        );
+      }
+      return area!.id;
+    };
+
+    const idEmRecanto = await semear(idRecanto, "Depósito com ocorrências", idMoradora, 2);
+    await semear(idAurora, "Depósito com ocorrências", idSindica, 1);
+
+    const areas = areasEm(idRecanto);
+
+    // Duas em Recanto sob `comum`; a da Aurora, na área homônima de lá, não entra.
+    const reclassificada = await areas.corrigir({
+      areaId: idEmRecanto,
+      tipo: "privativa",
+      atualizadaPorPessoaId: idSindica,
+    });
+    if (reclassificada.desfecho !== "corrigida") throw new Error("a reclassificação falhou");
+    expect(reclassificada.area.ocorrenciasComTipoAnterior).toBe(2);
+
+    // Sem `tipo` no comando, a contagem é zero e não vai ao banco: o campo é da mudança de tipo.
+    const renomeada = await areas.corrigir({
+      areaId: idEmRecanto,
+      nome: `Depósito renomeado ${SUFIXO}`,
+      atualizadaPorPessoaId: idSindica,
+    });
+    if (renomeada.desfecho !== "corrigida") throw new Error("a renomeação falhou");
+    expect(renomeada.area.ocorrenciasComTipoAnterior).toBe(0);
+
+    // Uma área sem ocorrência nenhuma conta zero, e o tipo de volta ao original também: a pergunta é
+    // *quantas mantêm um tipo diferente do que a área tem agora*.
+    const vazia = await areas.criar({
+      nome: `Terraço sem ocorrência ${SUFIXO}`,
+      tipo: "comum",
+      ordem: "no-fim",
+      criadaPorPessoaId: idSindica,
+    });
+    if (vazia.desfecho !== "criada") throw new Error("a criação do Terraço falhou");
+    const semNada = await areas.corrigir({
+      areaId: vazia.area.id,
+      tipo: "privativa",
+      atualizadaPorPessoaId: idSindica,
+    });
+    if (semNada.desfecho !== "corrigida") throw new Error("a correção do Terraço falhou");
+    expect(semNada.area.ocorrenciasComTipoAnterior).toBe(0);
+
+    const devolta = await areas.corrigir({
+      areaId: idEmRecanto,
+      tipo: "comum",
+      atualizadaPorPessoaId: idSindica,
+    });
+    if (devolta.desfecho !== "corrigida") throw new Error("a volta ao tipo original falhou");
+    expect(devolta.area.ocorrenciasComTipoAnterior).toBe(0);
+  });
+
+  /**
    * ==========================================================================
    *  As reordenações — item 50
    * ==========================================================================
