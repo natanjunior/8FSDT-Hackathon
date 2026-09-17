@@ -12,6 +12,7 @@ import {
   MENSAGEM_GENERICA,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
+import { cicloDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
 import {
   erroVisivel,
   interagir,
@@ -221,5 +222,58 @@ describe("a tradução de violação em mensagem por campo existe uma vez só", 
         { path: ["contatos", 0, "valor"], message: "Outra." },
       ]),
     ).toStrictEqual({ "contatos.0.valor": "Confira o número." });
+  });
+});
+
+describe("cicloDoModal — a sequência de modal do guia §7", () => {
+  const aberto = cicloDoModal(MODAL_FECHADO, { tipo: "abriu" }).estado;
+  const enviando = cicloDoModal(aberto, { tipo: "enviou" }).estado;
+
+  it("abrir começa limpo, e pede para limpar os campos", () => {
+    expect(cicloDoModal(MODAL_FECHADO, { tipo: "abriu" })).toStrictEqual({
+      estado: { aberto: true, enviando: false, aviso: null, precisaAtualizar: false },
+      efeitos: ["limpar-campos"],
+    });
+  });
+
+  it("enviar trava o modal e apaga a mensagem anterior", () => {
+    const comMensagem = { ...aberto, aviso: "Algo" };
+    expect(cicloDoModal(comMensagem, { tipo: "enviou" }).estado).toStrictEqual({
+      aberto: true,
+      enviando: true,
+      aviso: null,
+      precisaAtualizar: false,
+    });
+  });
+
+  it("durante o envio, pedir para fechar não fecha (Esc, clique fora, X ou Fechar)", () => {
+    expect(cicloDoModal(enviando, { tipo: "pediu-fechar" })).toStrictEqual({ estado: enviando, efeitos: [] });
+  });
+
+  it("um segundo envio durante o envio é ignorado", () => {
+    expect(cicloDoModal(enviando, { tipo: "enviou" })).toStrictEqual({ estado: enviando, efeitos: [] });
+  });
+
+  it("sucesso: o aviso sai, o modal fecha e a página se atualiza", () => {
+    expect(cicloDoModal(enviando, { tipo: "deu-certo" })).toStrictEqual({
+      estado: MODAL_FECHADO,
+      efeitos: ["avisar-sucesso", "atualizar-pagina"],
+    });
+  });
+
+  it("falha: o aviso sai, a mensagem fica no modal aberto, e só o fechamento atualiza a página", () => {
+    const falhou = cicloDoModal(enviando, { tipo: "falhou", aviso: "Este pedido já foi decidido." });
+    expect(falhou).toStrictEqual({
+      estado: { aberto: true, enviando: false, aviso: "Este pedido já foi decidido.", precisaAtualizar: true },
+      efeitos: ["avisar-falha"],
+    });
+    expect(cicloDoModal(falhou.estado, { tipo: "pediu-fechar" })).toStrictEqual({
+      estado: MODAL_FECHADO,
+      efeitos: ["atualizar-pagina"],
+    });
+  });
+
+  it("abrir e fechar sem enviar não custa ida ao servidor", () => {
+    expect(cicloDoModal(aberto, { tipo: "pediu-fechar" })).toStrictEqual({ estado: MODAL_FECHADO, efeitos: [] });
   });
 });
