@@ -1,8 +1,10 @@
 import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
+import { ListaDesatualizada } from "@/aplicacao/organizacao";
 import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
+import { problemaDe } from "@/interface/http";
 import {
   ICONES_DE_CATEGORIA,
   correcaoDeAreaSchema,
@@ -11,6 +13,7 @@ import {
   criacaoDeAreaSchema,
   criacaoDeCategoriaSchema,
   iconeDeCategoria,
+  reordenacaoSchema,
   type EntradaDeCriacaoDeCategoria,
   type NomeDeIcone,
 } from "@/interface/schemas";
@@ -216,5 +219,70 @@ describe("correcaoDeOrganizacaoSchema — o corpo de PATCH /organizacoes", () =>
   it("descarta `codigoPublico` no corpo em vez de recusar, como o criacaoDeOrganizacaoSchema", () => {
     const saida = correcaoDeOrganizacaoSchema.parse({ nome: "Aurora", codigoPublico: "ESCOLHIDO" });
     expect(saida).toStrictEqual({ nome: "Aurora" });
+  });
+});
+
+/**
+ * ============================================================================
+ *  O corpo de `PUT /categorias/ordem` e `PUT /areas/ordem` — item 50
+ * ============================================================================
+ *
+ * **Forma, e só forma** (spec §4.1): o conjunto que diverge do atual é `409`, da Aplicação. Aqui mora o
+ * que recarregar não conserta: lista vazia, acima do teto, elemento que não é UUID, e id repetido.
+ */
+describe("reordenacaoSchema — a lista inteira, de uma vez", () => {
+  const A = "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d";
+  const B = "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d";
+  const listaDe = (tamanho: number): string[] =>
+    Array.from({ length: tamanho }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+
+  it("aceita a lista e a devolve na mesma ordem", () => {
+    expect(reordenacaoSchema.parse({ ids: [B, A] })).toStrictEqual({ ids: [B, A] });
+  });
+
+  it("devolve os identificadores em minúsculas (spec §4.9)", () => {
+    expect(reordenacaoSchema.parse({ ids: [A.toUpperCase(), B] })).toStrictEqual({ ids: [A, B] });
+  });
+
+  it("recusa corpo sem ids, ids que não é lista, e lista vazia", () => {
+    expect(reordenacaoSchema.safeParse({}).success).toBe(false);
+    expect(reordenacaoSchema.safeParse({ ids: A }).success).toBe(false);
+    expect(reordenacaoSchema.safeParse({ ids: [] }).success).toBe(false);
+  });
+
+  it("aceita 999 itens e recusa 1.000 (spec §4.5)", () => {
+    expect(reordenacaoSchema.safeParse({ ids: listaDe(999) }).success).toBe(true);
+    expect(reordenacaoSchema.safeParse({ ids: listaDe(1000) }).success).toBe(false);
+  });
+
+  it("recusa elemento que não é UUID", () => {
+    expect(reordenacaoSchema.safeParse({ ids: [A, "ordem"] }).success).toBe(false);
+  });
+
+  it("recusa id repetido, inclusive na outra caixa, e a recusa aponta o campo ids", () => {
+    expect(reordenacaoSchema.safeParse({ ids: [A, A] }).success).toBe(false);
+
+    const outraCaixa = reordenacaoSchema.safeParse({ ids: [A, A.toUpperCase()] });
+    expect(outraCaixa.success).toBe(false);
+    if (outraCaixa.success) return;
+    expect(outraCaixa.error.issues.map((violacao) => violacao.path.join("."))).toStrictEqual(["ids"]);
+  });
+
+  it("LISTA_DESATUALIZADA vira 409, com o detail que a tela mostra", () => {
+    const { status, corpo } = problemaDe(
+      new ListaDesatualizada(),
+      "/api/categorias/ordem",
+      "01JB8Z6K9T2M4N7Q",
+    );
+
+    expect(status).toBe(409);
+    expect(corpo).toMatchObject({
+      type: "https://resolveai.app/erros/lista-desatualizada",
+      title: "Lista desatualizada",
+      detail: "A lista mudou desde que você a abriu.",
+      codigo: "LISTA_DESATUALIZADA",
+    });
+    // Sem extensão: o cliente recarrega pelo `GET` (spec §4.1).
+    expect("erros" in corpo).toBe(false);
   });
 });

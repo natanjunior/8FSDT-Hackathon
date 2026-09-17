@@ -232,14 +232,18 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os dez `exists` cobrem as NOVE tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`
-      // — cinco delas com duas colunas. A lista não sai da prosa do contrato, que nomeia quatro: sai do
+      // **Os dez `exists` cobrem as NOVE tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`,
+      // por catorze colunas: `atribuicoes`, `categorias` e `organizacoes` com duas, e `areas` com três. O
+      // décimo `exists` é o do último Gestor. A lista não sai da prosa do contrato, que nomeia quatro: sai do
       // esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia em que uma tabela
       // nova entrar sem passar por aqui.
       //
       // **`organizacoes` passou a ter duas colunas em 16/09/2026** (item 46 · 47): quem corrige o nome da
       // organização deixa rastro em `atualizado_por_pessoa_id`, com FK `on delete restrict`. Sem esta
       // coluna na consulta, T-08 mostraria o botão de remover e o `DELETE` responderia `409`.
+      //
+      // **`areas` passou a ter três colunas em 17/09/2026** (item 50, migração 011): quem reclassifica uma
+      // Área deixa rastro em `tipo_alterado_por_pessoa_id`, com a mesma chave `on delete restrict`.
       const linhas = await consulta<{
         pessoa_id: string;
         ultimo_gestor: boolean;
@@ -273,7 +277,8 @@ export function repositorioEscopadoDeVinculos(
                  or exists (select 1 from areas t
                              where t.organizacao_id = $1
                                and (t.criado_por_pessoa_id = v.pessoa_id
-                                    or t.atualizado_por_pessoa_id = v.pessoa_id))
+                                    or t.atualizado_por_pessoa_id = v.pessoa_id
+                                    or t.tipo_alterado_por_pessoa_id = v.pessoa_id))
                  or exists (select 1 from organizacoes t
                              where t.id = $1
                                and (t.criada_por_pessoa_id = v.pessoa_id
@@ -545,7 +550,7 @@ function ehContatoDuplicado(erro: unknown): boolean {
  *
  * A transação de `remover` faz exatamente duas instruções — um `select … for update` e um `delete` —,
  * então uma violação de chave estrangeira ali só pode ser uma linha dependente do vínculo. São **nove**
- * tabelas e **doze** restrições candidatas; enumerá-las pelo nome criaria uma lista que envelhece em
+ * tabelas e **catorze** restrições candidatas; enumerá-las pelo nome criaria uma lista que envelhece em
  * silêncio, e é justamente o que o teste de deriva existe para não deixar acontecer do outro lado.
  */
 function ehViolacaoDeDependencia(erro: unknown): boolean {

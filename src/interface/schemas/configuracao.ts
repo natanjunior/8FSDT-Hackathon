@@ -3,8 +3,8 @@ import { z } from "zod";
 import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
 
 /**
- * Os quatro corpos de escrita da configuração — `POST`/`PATCH` de `categorias` e de `areas`
- * (contrato §8.1).
+ * Os cinco corpos de escrita da configuração — `POST`/`PATCH` de `categorias` e de `areas`, e o `PUT`
+ * das duas reordenações (contrato §8.1).
  *
  * **A lista de ícones mora aqui, e a decisão é da §14.5 do `modelo-de-dados.md`:** o banco guarda a
  * *forma* — `CHECK (icone ~ '^[a-z0-9-]{1,40}$')` —, a *lista* mora no schema de validação da Interface.
@@ -96,7 +96,14 @@ const nomeDeArea = z
   .min(1, "Informe o nome da área.")
   .max(80, "O nome cabe em 80 caracteres.");
 
-/** `smallint` com o teto do contrato. Quem escolhe a ordem é o Gestor (D18). */
+/**
+ * `smallint` com o teto do contrato. Quem escolhe a ordem é o Gestor (D18).
+ *
+ * **Obsoleto nos quatro corpos desde o item 50** (spec §4.4): a posição muda por `PUT /categorias/ordem`
+ * e `PUT /areas/ordem`, e quem cria sem `ordem` entra no fim. O campo continua aceito porque os
+ * formulários de hoje ainda o enviam, e tirá-lo de um `z.object` sem `strict` faria o `PATCH` descartar a
+ * ordem digitada em silêncio. **Sai com o 44k**, no commit que apaga esses formulários.
+ */
 const ordem = z.int().min(0, "A ordem começa em 0.").max(999, "A ordem vai até 999.");
 
 /**
@@ -132,7 +139,36 @@ export const correcaoDeAreaSchema = z.object({
   ativa: z.boolean().optional(),
 });
 
+/**
+ * **O teto da reordenação — item 50, spec §4.5.** O mesmo de `ordem`: as posições 1 a n precisam caber
+ * no intervalo que o contrato declara. O esperado é ~15 categorias e ~30 áreas (contrato §7.7).
+ */
+const TETO_DA_REORDENACAO = 999;
+
+/**
+ * **O corpo de `PUT /categorias/ordem` e `PUT /areas/ordem` — item 50.**
+ *
+ * `ids` é a lista inteira da organização, ativas e inativas, na ordem desejada.
+ *
+ * **O que é forma recusa aqui, com `400`** (spec §4.1): lista vazia, acima do teto, elemento que não é
+ * UUID, e **id repetido**. Recarregar a lista não conserta um cliente que repete id, então o repetido não
+ * é *"a lista mudou"*. O conjunto que diverge do atual é `409`, e quem o recusa é a Aplicação.
+ *
+ * **Os ids saem em minúsculas** (spec §4.9): o `z.uuid()` aceita maiúsculas e o Postgres devolve
+ * minúsculas. A conferência de repetição roda **depois** da normalização, então o mesmo id em duas
+ * caixas é repetido.
+ */
+export const reordenacaoSchema = z.object({
+  ids: z
+    .array(z.uuid("Cada item da lista precisa ser um identificador válido."))
+    .min(1, "Envie a lista inteira, com ao menos um item.")
+    .max(TETO_DA_REORDENACAO, "A lista vai até 999 itens.")
+    .transform((ids) => ids.map((id) => id.toLowerCase()))
+    .refine((ids) => new Set(ids).size === ids.length, "A lista não pode repetir um item."),
+});
+
 export type EntradaDeCriacaoDeCategoria = z.infer<typeof criacaoDeCategoriaSchema>;
 export type EntradaDeCorrecaoDeCategoria = z.infer<typeof correcaoDeCategoriaSchema>;
 export type EntradaDeCriacaoDeArea = z.infer<typeof criacaoDeAreaSchema>;
 export type EntradaDeCorrecaoDeArea = z.infer<typeof correcaoDeAreaSchema>;
+export type EntradaDeReordenacao = z.infer<typeof reordenacaoSchema>;

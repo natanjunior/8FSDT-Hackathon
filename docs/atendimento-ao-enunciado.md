@@ -57,7 +57,7 @@ mecanismo está em [Domínio e regras](dominio.md), e a decisão que o fixou, na
 | Descoberta do domínio | [Domínio e regras](dominio.md) | os eventos, comandos e agregados que saíram do workshop |
 | Arquitetura | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | os diagramas de contexto e de blocos, e as decisões registradas |
 | Backend | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | `src/dominio/`, `src/aplicacao/`, `src/infraestrutura/` |
-| APIs | [referência da API](/documentacao/api/referencia) | 39 operações, conferidas contra as rotas a cada publicação |
+| APIs | [referência da API](/documentacao/api/referencia) | 41 operações, conferidas contra as rotas a cada publicação |
 | Banco de dados | [Modelo de dados](modelo-de-dados.md) | catorze tabelas em `supabase/migrations/` |
 | Frontend | [Telas](inventario-de-telas.md) | as telas da aplicação, em `app/` |
 | Testes | [Definition of Done](definition-of-done.md) | domínio e aplicação sem banco, isolamento contra Postgres, e um de ponta a ponta num navegador |

@@ -1,9 +1,12 @@
 import type { CategoriaLida, RepositorioEscopadoDeCategorias } from "@/aplicacao/organizacao";
-import type { ConsultaEscopada } from "@/infraestrutura/contexto";
+import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
+
+import { reordenarNaTransacao } from "./reordenacao";
 
 /**
  * `GET /categorias` — a leitura que precede o registro, e onde se confirma que a semente nasceu. **E, do
- * lote 3 em diante, as duas escritas de T-09** — `POST /categorias` e `PATCH /categorias/{id}`.
+ * lote 3 em diante, as duas escritas de T-09** — `POST /categorias` e `PATCH /categorias/{id}`. E, do
+ * item 50 em diante, `PUT /categorias/ordem`, que é a única escrita desta porta que precisa de transação.
  *
  * Note o que este arquivo **não** contém: um valor de organização. `$1` é injetado pelo ponto de
  * estrangulamento, e este repositório **não tem como saber** qual organização é (ADR-0003). Os parâmetros
@@ -14,30 +17,37 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
  */
 export function repositorioEscopadoDeCategorias(
   consulta: ConsultaEscopada,
+  emTransacao: TransacaoEscopada,
 ): RepositorioEscopadoDeCategorias {
   return {
-    async listar({ apenasAtivas }) {
-      const linhas = await consulta<LinhaDeCategoria>(
-        `select id, nome, icone, ativa, ordem
-           from categorias
-          where organizacao_id = $1
-            and (ativa or not $2::boolean)
-          order by ordem, nome`,
-        [apenasAtivas],
-      );
-
-      return linhas.map(paraCategoria);
+    listar({ apenasAtivas }) {
+      return lerCategorias(consulta, apenasAtivas);
     },
 
     async criar(nova) {
       try {
         // `atualizado_por_pessoa_id` fica **nulo na criação**, de propósito: a coluna é *"o último a
         // escrever"*, e na criação ninguém alterou nada ainda. Quem criou está em `criado_por`.
+        //
+        // **`$4` nulo é a intenção *no fim*** (item 50, spec §4.3): a maior `ordem` da organização mais
+        // um, contando as inativas, e 1 na lista vazia. Calculada na própria instrução: ler o máximo antes
+        // seria uma segunda ida ao banco e uma corrida a mais. Duas criações simultâneas podem empatar; a
+        // leitura desempata pelo nome, e a próxima reordenação desfaz.
         const linhas = await consulta<LinhaDeCategoria>(
           `insert into categorias (organizacao_id, nome, icone, ordem, criado_por_pessoa_id)
-                values ($1, $2, $3, $4, $5)
+                values ($1, $2, $3,
+                        coalesce($4::smallint,
+                                 (select coalesce(max(c.ordem), 0) + 1
+                                    from categorias c
+                                   where c.organizacao_id = $1)),
+                        $5)
              returning id, nome, icone, ativa, ordem`,
-          [nova.nome, nova.icone, nova.ordem, nova.criadaPorPessoaId],
+          [
+            nova.nome,
+            nova.icone,
+            nova.ordem === "no-fim" ? null : nova.ordem,
+            nova.criadaPorPessoaId,
+          ],
         );
 
         const linha = linhas[0];
@@ -91,7 +101,27 @@ export function repositorioEscopadoDeCategorias(
         throw erro;
       }
     },
+
+    reordenar(reordenacao) {
+      return reordenarNaTransacao(emTransacao, "categorias", reordenacao, (dentro) =>
+        lerCategorias(dentro, false),
+      );
+    },
   };
+}
+
+/** A leitura da lista, servida a `listar` e à releitura de dentro da transação da reordenação. */
+async function lerCategorias(consulta: ConsultaEscopada, apenasAtivas: boolean): Promise<CategoriaLida[]> {
+  const linhas = await consulta<LinhaDeCategoria>(
+    `select id, nome, icone, ativa, ordem
+       from categorias
+      where organizacao_id = $1
+        and (ativa or not $2::boolean)
+      order by ordem, nome`,
+    [apenasAtivas],
+  );
+
+  return linhas.map(paraCategoria);
 }
 
 type LinhaDeCategoria = {

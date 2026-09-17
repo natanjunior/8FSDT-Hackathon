@@ -6,7 +6,7 @@ description: "As telas desta entrega: o que cada uma responde, os estados vazio,
 # Inventário de Telas — Resolve Aí
 
 **Dezesseis telas.** É o número que este documento defende, contra as 46 capacidades ✅ do
-[escopo](escopo.md) e os 39 endpoints do [contrato de API](contrato-de-api.md).
+[escopo](escopo.md) e os 41 endpoints do [contrato de API](contrato-de-api.md).
 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
@@ -1808,7 +1808,7 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 
 | Ação | Endpoint |
 |---|---|
-| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e o padrão é `0` |
+| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e, sem ela, a área entra no fim da lista |
 | Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma área sai de uso — não há `DELETE`
@@ -2213,7 +2213,7 @@ estado terminal. Se aparecerem, são defeito, e o `detail` do contrato basta.
 
 ## 8. Rastreabilidade — o triângulo, nos três sentidos
 
-Três conjuntos: **46 capacidades ✅**, **39 endpoints**, **16 telas**.
+Três conjuntos: **46 capacidades ✅**, **41 endpoints**, **16 telas**.
 
 > **Eram 42 até 30/08/2026.** A contagem ficou parada enquanto o backlog andava, e entraram a **4b**
 > (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) — as duas
@@ -2341,9 +2341,11 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `GET /categorias` | T-04 · T-09 · T-15 (a contagem) |
 | `POST /categorias` | T-09 |
 | `PATCH /categorias/{id}` | T-09 |
+| `PUT /categorias/ordem` | *sem chamada de tela ainda*, ver a nota abaixo da tabela |
 | `GET /areas` | T-04 · T-14 · T-15 (a contagem) |
 | `POST /areas` | T-14 |
 | `PATCH /areas/{id}` | T-14 |
+| `PUT /areas/ordem` | *sem chamada de tela ainda*, ver a nota abaixo da tabela |
 | `POST /pedidos-de-entrada` | T-02 |
 | `GET /pedidos-de-entrada` | T-08 (+ a contagem no menu do Gestor — ver F10) |
 | `POST /pedidos-de-entrada/{id}/aprovar` | T-08 |
@@ -2373,7 +2375,10 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
 
-**Trinta e oito endpoints, trinta e oito chamados. Zero órfãos.** Mas dois merecem nota:
+**Quarenta e um endpoints, trinta e nove chamados.** Os dois sem chamada são as reordenações,
+`PUT /categorias/ordem` e `PUT /areas/ordem`: o contrato já as tem, e T-09 e T-14 passam a chamá-las
+quando trocarem o campo *Ordem* pelo arrastar e pelas setas. Até lá, as duas telas reordenam pelo `PATCH`
+de cada item, com o campo que o contrato declara obsoleto. Dos chamados, dois merecem nota:
 
 - **`GET /ocorrencias/{id}/trilha-de-auditoria` só não é órfão porque T-06 existe.** Se a trilha fosse
   uma aba dentro de T-05, o endpoint seguiria chamado — mas a tela teria sido decidida por conveniência
@@ -2707,8 +2712,8 @@ escolha em silêncio.
 > `Categoria`. É a **Q-P5, saída (a)** do `prototipo-low-fi.md`, decidida *"agora com evidência de tempo:
 > é o único conserto que serve **no primeiro registro**, que é o que decide se existe um segundo"*.
 >
-> **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita com
-> padrão `0`, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-14
+> **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita e,
+> sem ele, põe a área no fim da lista, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-14
 > tem o campo. **A ordenação da lista de Áreas passou a ser por `ordem`**, como a de Categorias.
 >
 > **Consequência para a S-T10:** ela previa exatamente isto — *"se `Area` ganhar `ordem`, T-04 e a tela de

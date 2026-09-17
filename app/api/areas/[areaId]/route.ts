@@ -12,6 +12,9 @@ import { correcaoDeAreaSchema } from "@/interface/schemas";
  * do tipo da Área no momento do registro (emenda à D10): reclassificar de *privativa* para *comum* **não**
  * expõe retroativamente ocorrências registradas sob expectativa de privacidade.
  *
+ * **`ordem` aqui é obsoleto desde o item 50:** a posição muda por `PUT /areas/ordem`, que grava a lista
+ * inteira numa transação. O campo continua aceito enquanto o formulário o enviar, e sai com o 44k.
+ *
  * A resposta traz `ocorrenciasComTipoAnterior` — **um campo que só existe para produzir uma frase de
  * tela** —, e enquanto o item 11 não criar a tabela `ocorrencias` ele vale `0`, que é verdade (spec §2.1).
  */

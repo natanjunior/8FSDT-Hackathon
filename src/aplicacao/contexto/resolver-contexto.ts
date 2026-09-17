@@ -132,7 +132,7 @@ export async function resolverContexto(
  * Constrói o contexto completo a partir de uma resolução que **tem** organização ativa.
  *
  * Separado de `resolverContexto` porque as cinco operações da §4.4 rodam com a resolução sem organização,
- * e os outros 34 exigem esta. É o anel externo que escolhe qual das duas exige.
+ * e os outros 36 exigem esta. É o anel externo que escolhe qual das duas exige.
  */
 export function contextoDaRequisicao(
   resolucao: ResolucaoDeContexto,

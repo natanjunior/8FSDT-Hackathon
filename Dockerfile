@@ -81,7 +81,7 @@ EXPOSE 3000
 # `SUPABASE_URL` e `SUPABASE_CHAVE_ANONIMA`, então container mal configurado
 # responde 500 e aparece como doente. Que é o comportamento desejado.
 #
-# Não há endpoint de saúde inventado: o contrato de API tem 37 operações e
+# Não há endpoint de saúde inventado: o contrato de API tem 41 operações e
 # nenhuma delas é `/health`. Acrescentar uma seria API que ninguém pediu.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/entrar').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

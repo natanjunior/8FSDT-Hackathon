@@ -28,7 +28,7 @@ import { cancelamentoSchema } from "@/interface/schemas";
  * > **A alternativa recusada, escrita porque `exige: "…_propria"` num endpoint que o Gestor usa o tempo
  * > todo lê como engano à primeira vista:** dar a `exige` a forma `Permissao | readonly Permissao[]`
  * > resolveria um caso que não existe — nenhum outro comando tem duas — e alargaria o contrato do
- * > ajudante por onde passam os 34 endpoints do produto.
+ * > ajudante por onde passam os 36 endpoints do produto.
  *
  * **SEM `corpoOpcional`**, como `/pausar`: `requestBody: required: true` (`openapi.yaml:1985`). Corpo
  * ausente é `415` pelo caminho normal do `comContexto`; corpo `{}` é `400` com os **dois** campos em
