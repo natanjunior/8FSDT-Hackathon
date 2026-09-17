@@ -380,9 +380,9 @@ async function Lista({
         {/*
           **A `key` saiu no item 44c, e a propriedade ficou.** Ela foi escrita quando o componente
           acumulava páginas; desde o item 14b ele é **só desenho**, sem estado a descartar, e remontá-lo a
-          cada navegação é o piscar que o critério 44c.4 existe para impedir. `consultaAtual` continua
-          descendo como propriedade, que é o que faz o *Voltar* de T-05 devolver a lista filtrada
-          (critério 15.3).
+          cada navegação é o piscar que o critério 44c.4 existe para impedir. O recorte vive no
+          endereço desta página, e é o botão voltar do navegador que o devolve a quem sai de T-05
+          (critério 44g.10).
 
           **O que NÃO pode ser chaveado por `searchParams` é a fronteira de `<Suspense>` da página**, e
           ela não é: é o critério 14.7, e sem ele o 15.4 cai junto.
@@ -390,7 +390,6 @@ async function Lista({
         {estado === "lista" && (
           <ListaDeOcorrencias
             primeiraPagina={projetada}
-            consultaAtual={consultaAtual}
             iconePorCategoria={iconePorCategoria}
             mostrarPrioridade={mostrarPrioridade}
             pessoaIdDeQuemLe={pessoaIdDeQuemLe}

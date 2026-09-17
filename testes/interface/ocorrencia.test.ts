@@ -548,7 +548,7 @@ describe("os parâmetros de paginação de GET /ocorrencias — item 14b", () =>
     }
   });
 
-  it("14b.9 · os três NÃO entram em FiltroDeOcorrencias — e é o que traz o Voltar de T-05 limpo", () => {
+  it("14b.9 · os três NÃO entram em FiltroDeOcorrencias — paginação não é recorte", () => {
     const filtro = lerFiltroDeOcorrenciasDaUrl(
       consulta("status=aberta&pagina=3&ate=2026-08-20T08:00:00Z&totalNoCorte=137"),
     );

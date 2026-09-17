@@ -116,10 +116,10 @@ export function lerLimiteDaUrl(requisicao: Request): number | undefined {
  * deslocamento cru já produziria** — e é isso que o torna aceitável como parâmetro público. O que se
  * recusa aqui é só o que não é um inteiro não negativo.
  *
- * **Os três NÃO entram em `FiltroDeOcorrencias`** — critério `14b.9`. Eles são paginação, não recorte, e
- * é por ficarem fora que o filtro branco de `destinoDeVolta` os descarta e o *Voltar* de T-05 devolve a
- * lista filtrada na página 1, com corte novo. Voltar para o corte anterior mostraria a ocorrência que a
- * pessoa acabou de triar ainda como *Aberta*.
+ * **Os três NÃO entram em `FiltroDeOcorrencias`** — critério `14b.9`. Eles são paginação, não recorte:
+ * quem lê o filtro de um endereço recebe só o recorte, e a página e o corte ficam com quem pagina. Até o
+ * item 44g era isso que fazia a saída de T-05 devolver a lista filtrada na página 1, com corte novo; a
+ * saída deixou de existir no conteúdo pelo critério 44g.10.
  *
  * **E `ate` aqui NÃO é o `ate` de `GET /dashboard`.** Lá é um **dia** (`AAAA-MM-DD`) que delimita a
  * janela do indicador; aqui é um **instante** ISO 8601 com fuso. Mesma palavra, dois endpoints, duas

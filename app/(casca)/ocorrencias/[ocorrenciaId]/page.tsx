@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -52,7 +51,6 @@ import {
 } from "@/interface/componentes/rotulos";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import {
-  lerFiltroDeOcorrenciasDaUrl,
   novoTraceId,
   registrarFalha,
   resolverEscopoParaTela,
@@ -81,6 +79,10 @@ import {
  *
  * **A leitura vai pela estrada direta**, como T-09 e o shell: `app/` não monta repositório, e um `fetch`
  * interno custaria o salto HTTP que a §5 do contrato recusou.
+ *
+ * **Sem saída de retorno no conteúdo** (guia §7, decidido em 16/09/2026, critério 44g.10): dentro da casca,
+ * quem navega é a barra lateral, e o botão voltar do navegador devolve a lista com o filtro que ela tinha,
+ * porque o filtro mora no endereço da lista.
  */
 export const dynamic = "force-dynamic";
 
@@ -98,40 +100,10 @@ const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
   solicitante: "Solicitante",
 };
 
-/**
- * **O `de=` é reconstruído, nunca repassado cru** — item 15, critério 15.3.
- *
- * Ele vem de uma URL que qualquer pessoa pode ter editado. Passar a *query string* adiante sem olhar seria
- * confiar em texto de fora; em vez disso ela atravessa a **mesma** leitura que a lista usa, e só os quatro
- * parâmetros conhecidos voltam para o endereço. Filtro estragado no `de=` degrada para o *Voltar* limpo —
- * a lista sem recorte —, que é o pior caso aceitável.
- *
- * **`catch {}` sem tipo é o único caminho honesto aqui**, e não é engolir erro: qualquer coisa que a
- * leitura recuse é lixo vindo de fora, e a resposta certa é a lista inteira — não uma tela de erro em
- * T-05, que é a tela que precisa abrir para quem recebeu o link por mensagem.
- */
-function destinoDeVolta(de: string | undefined): string {
-  if (de === undefined || de === "") return "/ocorrencias";
-  try {
-    const filtro = lerFiltroDeOcorrenciasDaUrl(new URLSearchParams(de));
-    const consulta = new URLSearchParams();
-    if (filtro.status !== undefined) consulta.set("status", filtro.status.join(","));
-    if (filtro.categoriaId !== undefined) consulta.set("categoriaId", filtro.categoriaId.join(","));
-    if (filtro.prioridade !== undefined) consulta.set("prioridade", filtro.prioridade.join(","));
-    if (filtro.apenasDoAutor === true) consulta.set("autor", "eu");
-    const texto = consulta.toString();
-    return texto === "" ? "/ocorrencias" : `/ocorrencias?${texto}`;
-  } catch {
-    return "/ocorrencias";
-  }
-}
-
 export default async function Ocorrencia({
   params,
-  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -145,9 +117,6 @@ export default async function Ocorrencia({
   if (escopo.situacao === "sem-permissao") redirect("/");
 
   const { ocorrenciaId } = await params;
-
-  const parametros = await searchParams;
-  const voltarPara = destinoDeVolta(typeof parametros.de === "string" ? parametros.de : undefined);
 
   /**
    * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
@@ -591,7 +560,7 @@ export default async function Ocorrencia({
        **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
        VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
        olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
-       deixaria a barra cobrir o *Voltar* exatamente no caso em que há algo a ler. **O custo é 96 px de
+       deixaria a barra cobrir o fim da conversa exatamente no caso em que há algo a ler. **O custo é 96 px de
        branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
        qualquer forma. */
     <div className="flex flex-col gap-6 pb-24 lg:pb-0">
@@ -889,17 +858,6 @@ export default async function Ocorrencia({
               retorno={RETORNO_DA_MENSAGEM}
             />
           )}
-
-          {/* **O *Voltar* FICA, e o argumento do 44e.8 não se aplica aqui.** Em T-07 ele é navegação; em
-              T-05 ele é a devolução do recorte — reconstrói o endereço da lista a partir do `?de=`,
-              pelo critério 15.3 —, e a barra lateral da casca leva a `/ocorrencias` sem consulta
-              nenhuma. Tirá-lo apagaria uma capacidade entregue. */}
-          <Link
-            href={voltarPara}
-            className="text-marca inline-flex min-h-11 items-center self-start text-interface underline underline-offset-4"
-          >
-            Voltar
-          </Link>
         </div>
       </div>
     </div>
