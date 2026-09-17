@@ -60,10 +60,13 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
 
   return (
     <SidebarProvider open className="min-h-dvh flex-col">
+      {/* **O e-mail vem da resolução, e não da projeção** (item 44i): ele serve ao cabeçalho do menu de
+          pessoa, sempre para a própria pessoa, e continua fora de `ContextoProjetado`. */}
       <BarraSuperior
         vinculos={projetado.vinculos}
         organizacaoAtivaId={organizacaoAtiva.id}
         nomeDaPessoa={projetado.pessoa.nome}
+        emailDaPessoa={resolucao.sessao.email}
       >
         <SidebarTrigger aria-label="Abrir navegação" className="size-11 md:hidden" />
       </BarraSuperior>

@@ -12,11 +12,14 @@ export function BarraSuperior({
   vinculos,
   organizacaoAtivaId,
   nomeDaPessoa,
+  emailDaPessoa,
   children,
 }: {
   vinculos: readonly VinculoNoMenu[];
   organizacaoAtivaId: string;
   nomeDaPessoa: string;
+  /** O e-mail de entrada, para o cabeçalho do menu de pessoa (item 44i); `null` sem e-mail do provedor. */
+  emailDaPessoa: string | null;
   children?: React.ReactNode;
 }) {
   return (
@@ -27,7 +30,7 @@ export function BarraSuperior({
       </span>
       <div className="ml-auto flex items-center gap-2">
         <SeletorDeOrganizacao vinculos={vinculos} organizacaoAtivaId={organizacaoAtivaId} />
-        <MenuDePessoa nomeDaPessoa={nomeDaPessoa} />
+        <MenuDePessoa nomeDaPessoa={nomeDaPessoa} emailDaPessoa={emailDaPessoa} />
       </div>
     </header>
   );

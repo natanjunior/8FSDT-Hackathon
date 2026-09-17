@@ -38,8 +38,9 @@ export type ContextoDaSessao = {
   pessoaId: string;
   nome: string;
   /**
-   * **O e-mail da conta, e ele existe para uma tela só** (T-16, item 49). `null` quando o provedor não o
-   * devolve. **Nenhuma projeção o publica** — ver `SessaoDoProvedor`.
+   * **O e-mail da conta, e ele existe para duas leituras da própria pessoa**: T-16 (item 49) e o menu de
+   * pessoa da casca (item 44i). `null` quando o provedor não o devolve. **Nenhuma projeção o publica** —
+   * ver `SessaoDoProvedor`.
    */
   email: string | null;
 };
