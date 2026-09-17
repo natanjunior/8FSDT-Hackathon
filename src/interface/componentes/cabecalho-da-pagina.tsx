@@ -9,6 +9,10 @@ import type { ReactNode } from "react";
  * título, uma linha com um fato e a ação principal à direita; sem a marca repetida no conteúdo e sem o
  * nome da organização como subtítulo. A barra superior já carrega a marca e a organização ativa.
  *
+ * **T-04 é a exceção, e ela está escrita** (item 44l, 17/09/2026): lá o `fato` é *"Em {organização}."*,
+ * porque **no celular o seletor da barra superior corta o nome**, e registrar na organização errada é o
+ * erro que aquela barra existe para evitar. É a única tela que repete a organização no conteúdo.
+ *
  * **O fato não é região viva**: ele não se atualiza, e região viva que nunca muda é ruído para quem usa
  * leitor de tela (o argumento do critério 44c.9). **A ação**, quando houver, fica à direita a partir de
  * `md` e embaixo no celular; T-15 e T-16 não têm.

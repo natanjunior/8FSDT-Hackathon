@@ -59,6 +59,7 @@ import {
   type ErroDeCampo,
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { areasUsadas, comAreaUsada } from "@/interface/componentes/areas-usadas";
 import {
   casaPeloNome,
   filtrarPorNome,
@@ -69,6 +70,14 @@ import {
 } from "@/interface/componentes/busca-de-candidatos";
 import { lerOCiclo } from "@/interface/componentes/ciclo";
 import { enviarComentario, executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import {
+  errosDoRegistro,
+  rotuloDoTipoDeArea,
+  temAlgoEscrito,
+  VALORES_VAZIOS,
+  vazioDoRegistro,
+  type ValoresDoRegistro,
+} from "@/interface/componentes/registro-de-ocorrencia";
 import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import {
   acaoPrimaria,
@@ -3320,5 +3329,156 @@ describe("a leitura do ciclo — critérios 44d.2 e 44d.7", () => {
     expect(leitura.passos[2]?.em).toBeNull();
     expect(leitura.passos[1]?.estado).toBe("por-alcancar");
     expect(leitura.foraDaLinha).toBeNull();
+  });
+});
+
+describe("errosDoRegistro — os quatro obrigatórios de T-04 (critério 44l.7)", () => {
+  const cheio: ValoresDoRegistro = {
+    titulo: "Infiltração no teto da garagem",
+    descricao: "Água pingando perto da vaga 12 quando chove.",
+    categoriaId: "cat-1",
+    areaId: "area-1",
+    localizacaoComplemento: "",
+  };
+
+  it("com tudo preenchido, nenhum erro", () => {
+    expect(errosDoRegistro(cheio)).toStrictEqual({});
+  });
+
+  it("cada obrigatório vazio tem a sua frase, e ela diz o que fazer", () => {
+    expect(errosDoRegistro(VALORES_VAZIOS)).toStrictEqual({
+      titulo: "Dê um título à ocorrência.",
+      descricao: "Descreva o que aconteceu, em uma frase.",
+      categoriaId: "Escolha uma categoria.",
+      areaId: "Escolha onde aconteceu.",
+    });
+  });
+
+  it("só espaço não vale, nos dois campos de texto", () => {
+    const erros = errosDoRegistro({ ...cheio, titulo: "   ", descricao: "\n \t" });
+    expect(erros.titulo).toBe("Dê um título à ocorrência.");
+    expect(erros.descricao).toBe("Descreva o que aconteceu, em uma frase.");
+  });
+
+  it("a referência do lugar vazia nunca é erro — ela não é obrigatória", () => {
+    expect(errosDoRegistro({ ...cheio, localizacaoComplemento: "" }).localizacaoComplemento).toBeUndefined();
+  });
+});
+
+describe("temAlgoEscrito — o que faz o cancelar perguntar (critério 44l.9)", () => {
+  it("nada escrito e sem foto: não pergunta", () => {
+    expect(temAlgoEscrito(VALORES_VAZIOS, false)).toBe(false);
+  });
+
+  it("só espaço em branco não conta como escrito", () => {
+    expect(temAlgoEscrito({ ...VALORES_VAZIOS, titulo: "   " }, false)).toBe(false);
+  });
+
+  it("qualquer um dos cinco campos conta", () => {
+    for (const campo of [
+      "titulo",
+      "descricao",
+      "categoriaId",
+      "areaId",
+      "localizacaoComplemento",
+    ] as const) {
+      expect(temAlgoEscrito({ ...VALORES_VAZIOS, [campo]: "x" }, false), campo).toBe(true);
+    }
+  });
+
+  it("a foto conta sozinha — escolher, esperar subir e cancelar descartava sem perguntar", () => {
+    expect(temAlgoEscrito(VALORES_VAZIOS, true)).toBe(true);
+  });
+});
+
+describe("vazioDoRegistro — as três faltas, e o botão só para quem configura (critério 44l.13)", () => {
+  it("sem áreas, quem configura vê o caminho para a lista que falta", () => {
+    const vazio = vazioDoRegistro(["areas"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem áreas ativas.");
+    expect(vazio.corpo).toContain("Reative ao menos uma");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao/areas", rotulo: "Ir para Áreas" });
+  });
+
+  it("sem categorias, o mesmo, apontando para a outra lista", () => {
+    const vazio = vazioDoRegistro(["categorias"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem categorias ativas.");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao/categorias", rotulo: "Ir para Categorias" });
+  });
+
+  it("faltando as duas, não há lista privilegiada e o destino é o índice", () => {
+    const vazio = vazioDoRegistro(["categorias", "areas"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem categorias nem áreas ativas.");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao", rotulo: "Ir para a configuração" });
+  });
+
+  it("quem NÃO configura lê a mesma primeira frase, 'Fale com um Gestor.' e nenhum botão", () => {
+    for (const faltando of [["areas"], ["categorias"], ["categorias", "areas"]] as const) {
+      const com = vazioDoRegistro(faltando, true);
+      const sem = vazioDoRegistro(faltando, false);
+      expect(sem.titulo).toBe(com.titulo);
+      expect(sem.corpo).toBe("Fale com um Gestor.");
+      // O botão e a segunda frase andam juntos: oferecer o caminho a quem não pode percorrê-lo é o
+      // beco que o item 44h passou inteiro tirando do produto.
+      expect(sem.acao).toBeNull();
+    }
+  });
+});
+
+describe("rotuloDoTipoDeArea — a palavra que vai ao lado de cada área", () => {
+  it("os dois tipos, em palavra, nunca só por cor (compromisso A-5)", () => {
+    expect(rotuloDoTipoDeArea("comum")).toBe("área comum");
+    expect(rotuloDoTipoDeArea("privativa")).toBe("unidade privativa");
+  });
+});
+
+describe("as áreas usadas no aparelho — critério 44l.4", () => {
+  const ativas = [
+    { id: "a1", nome: "Garagem" },
+    { id: "a2", nome: "Hall de entrada" },
+    { id: "a3", nome: "Salão de festas" },
+    { id: "a4", nome: "Elevador social" },
+  ];
+
+  it("a lista guardada é reordenada SOBRE as ativas que acabaram de chegar", () => {
+    expect(areasUsadas(["a3", "a1"], ativas).map((a) => a.id)).toStrictEqual(["a3", "a1"]);
+  });
+
+  it("guardada que não está mais entre as ativas simplesmente some — área desativada não aparece", () => {
+    expect(areasUsadas(["a9", "a2"], ativas).map((a) => a.id)).toStrictEqual(["a2"]);
+  });
+
+  it("o areaId de outra organização não casa, e some pela mesma porta", () => {
+    expect(areasUsadas(["de-outro-lugar"], ativas)).toStrictEqual([]);
+  });
+
+  it("aparecem no máximo três, embora se guardem seis", () => {
+    expect(areasUsadas(["a4", "a3", "a2", "a1"], ativas).map((a) => a.id)).toStrictEqual([
+      "a4",
+      "a3",
+      "a2",
+    ]);
+  });
+
+  it("lista guardada vazia devolve vazio, e o bloco não desenha", () => {
+    expect(areasUsadas([], ativas)).toStrictEqual([]);
+  });
+
+  it("a nova vai para a frente", () => {
+    expect(comAreaUsada(["a1", "a2"], "a3")).toStrictEqual(["a3", "a1", "a2"]);
+  });
+
+  it("repetida não duplica, e sobe", () => {
+    expect(comAreaUsada(["a1", "a2", "a3"], "a3")).toStrictEqual(["a3", "a1", "a2"]);
+  });
+
+  it("o teto de seis corta a mais antiga", () => {
+    expect(comAreaUsada(["1", "2", "3", "4", "5", "6"], "7")).toStrictEqual([
+      "7",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ]);
   });
 });

@@ -806,8 +806,8 @@ da análise de Cagan. Tudo aqui se subordina a isso.
 |---|---|---|
 | `titulo` | obrigatório, 1–150 | |
 | `descricao` | obrigatório, 1–5000 | É onde a intenção do Solicitante vive — **não há campo de urgência** (`glossario.md` §8: o campo sofre inflação e vira ruído, D7) |
-| `categoriaId` | obrigatório | de `GET /categorias`, **só as com `ativa: true`**, na ordem de `ordem` (D18: *"qual categoria aparece antes é escolha do Gestor"*). **O seletor exibe o `icone` ao lado do nome, nunca no lugar dele** — critério **11.6**, metade do **4b.3**. `GET /categorias` já traz `icone` como campo obrigatório, então **nada entra no contrato**: é renderização. *(Acrescentado em 30/08/2026 — itens 4 e 9 da fila.)* |
-| `areaId` | **obrigatório** | de `GET /areas`, só as ativas. É obrigatório porque **é dela que a visibilidade deriva** |
+| `categoriaId` | obrigatório | de `GET /categorias`, **só as com `ativa: true`**, na ordem de `ordem` (D18: *"qual categoria aparece antes é escolha do Gestor"*). **O seletor exibe o `icone` dentro de cada opção, ao lado do nome, nunca no lugar dele** — critério **11.6**, metade do **4b.3**. `GET /categorias` já traz `icone` como campo obrigatório, então **nada entra no contrato**: é renderização. *(Acrescentado em 30/08/2026 — itens 4 e 9 da fila.)* |
+| `areaId` | **obrigatório** | **Campo com busca** (17/09/2026): as ativas de `GET /areas`, na ordem do Gestor, com o **tipo ao lado de cada uma** — é ele que decide a visibilidade e fica congelado na ocorrência. No topo, até três em *Usadas por você*, que moram no **armazenamento do aparelho** como lista de `areaId` e são sempre cruzadas com a lista que acabou de chegar: área desativada não aparece. **Não é cache de resposta** (S-T6). No celular abre em gaveta de baixo; na tela grande, em painel ancorado. É obrigatório porque **é dela que a visibilidade deriva** |
 | `localizacaoComplemento` | opcional, ≤ 200 | texto livre — *"ao lado da vaga 34"* |
 | `imagem` | opcional | uma só (RNF8), como **referência** — nunca bytes |
 
@@ -834,16 +834,25 @@ não terminou — ela espera só o `chave`+`ticket`, que chegam do `201` da auto
 o primeiro registro da trilha (`ultimaTransicao` com `statusAnterior: null`, premissa **P1**) está
 visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
 
+**Na tela grande** (17/09/2026): o formulário num cartão de até 700 px, com *Área* e *Referência do
+lugar* dividindo a linha, e ao lado o painel *Depois de registrar* — os quatro estados do ciclo com
+*Aberta* marcada, na coluna de quem lê (item 31), e a linha *"Quem acompanha: você e os Gestores."* **A
+tela não diz que outros moradores vão ver a ocorrência:** a D10 diz isso de área comum, mas *"Ver as
+ocorrências de área comum do meu local"* está ⬜ no escopo. O painel não aparece no celular, e não falta
+lá: o mesmo caminho está em T-05, que é para onde a pessoa vai depois do registro.
+
 **Como reage ao status.** Não reage — a ocorrência nasce `aberta` e a tela não escolhe nada disso.
 
 **Vazio · carregando · erro.**
 - *Vazio:* não existe estado vazio de formulário. **Mas existe um caso vizinho e ele é grave:** se
   `GET /categorias` ou `GET /areas` devolver zero itens ativos, **não há como registrar nada**. A
-  organização nasce com sementes (POL-01), então isso só acontece se o Gestor desativar tudo. Texto:
-  *"Esta organização não tem {categorias | áreas} ativas. Fale com um Gestor."* — e para o próprio
-  Gestor, o mesmo texto com o caminho para a lista que está faltando — T-09, T-14, ou T-15 quando faltam
-  as duas. Sem essa frase, o formulário fica com um campo obrigatório vazio e insubmissível, sem dizer
-  por quê.
+  organização nasce com sementes (POL-01), então isso só acontece se o Gestor desativar tudo. O texto
+  tem três formas — *"Esta organização não tem {categorias | áreas | categorias nem áreas} ativas."* —,
+  e a segunda frase depende de quem lê: quem configura a organização lê o que reativar e recebe o
+  caminho para a lista que falta (T-09, T-14, ou T-15 quando faltam as duas); **quem não configura lê
+  *"Fale com um Gestor."* e não recebe botão nenhum**, porque oferecer o caminho a quem não pode
+  percorrê-lo é beco. Sem essa frase, o formulário fica com um campo obrigatório vazio e insubmissível,
+  sem dizer por quê.
 - *Carregando:* as duas listas carregam junto com a tela. A foto tem indicação de progresso própria,
   **e ela não bloqueia o formulário** — bloquear é perder o RNF6.
 - *Erro:* `422 CATEGORIA_INVALIDA`, `422 AREA_INVALIDA`, `422 ANEXO_NAO_RECONHECIDO`,
@@ -851,10 +860,10 @@ visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
   **a rede caindo no meio** —
   todos na §7, que é onde esta tela mais contribui.
 
-**Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar: `titulo`, `categoria` e o
-botão de foto. `descricao`, `area` e `localizacaoComplemento` vêm abaixo. A razão de a área não estar
-acima é que ela é o campo mais longo de escolher (~30 opções, `contrato-de-api.md` §7.7) e não é o que a pessoa tem
-na cabeça ao abrir o aplicativo.
+**Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar, na forma de 17/09/2026: o
+alvo da foto, o `titulo` e o começo da `descricao`. `categoria`, `area` e `localizacaoComplemento` vêm
+abaixo. A razão de a área não estar acima é que ela é o campo mais longo de escolher (~30 opções,
+`contrato-de-api.md` §7.7) e não é o que a pessoa tem na cabeça ao abrir o aplicativo.
 
 **Endereço próprio.** Sim — e é o alvo do atalho do aplicativo instalado (§6).
 
@@ -2206,7 +2215,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `OCORRENCIA_NAO_ENCONTRADA` | 404 | T-03, T-05, T-06 | Por decisão do `contrato-de-api.md` (§6.3), é **indistinguível** de "existe em outra organização". Então a frase tem de cobrir os dois sem escolher: *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* — e o nome da organização vem no corpo do erro exatamente para isto: *"metade das vezes a resposta é 'ah, estou na organização errada', e a resposta já diz em qual você está"*. A tela oferece **trocar de organização** quando `contexto.vinculos` tiver outra, e o `traceId` |
 | `ANEXO_NAO_RECONHECIDO` | 422 | T-04 | A imagem recusada **depois** de o upload já ter acontecido. *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A última meia frase é o conteúdo:** perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
 | `ANEXO_ACIMA_DO_LIMITE` | 422 | T-04 | *"A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."* Não menciona bytes: 512 KB não é informação para quem está no subsolo |
-| `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Texto: *"Esta ocorrência já foi registrada — a foto que você anexou já está nela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir |
+| `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Título: *"Esta ocorrência já foi registrada."* Corpo: *"A foto que você anexou já está nela: o envio anterior chegou, mesmo sem resposta na tela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir *(partido em título e corpo em 17/09/2026, pela prancheta)* |
 | `ANEXO_NAO_ENCONTRADO` | 404 | T-05 | O anexo não existe nesta ocorrência — ou existe em outra organização, indistinguível pela mesma razão do `404` de ocorrência. *"Esta foto não está mais disponível."* Na navegação normal não acontece: o `url` vem de `anexos[]`, que a própria tela acabou de ler |
 | `CONTATO_DUPLICADO` | 409 | T-08 | *"Este contato já está na lista."* **No campo do contato repetido**, porque tem campo e a ação é corrigi-lo. O par (`tipo`, `valor`) é único por Pessoa: o mesmo número duas vezes é ruído, não dado |
 | `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | T-04 | *"Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."* O único limite de chamadas do contrato. **O nome do código não mudou em 22/08:** ele nunca nomeou o exemplo, nomeia a operação |

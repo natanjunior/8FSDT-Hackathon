@@ -13,6 +13,10 @@ import { projetarContexto } from "@/interface/projecoes";
  * custa refazer o formulário, e o inventário já decide que voltar dele descarta com confirmação.
  *
  * **O menu de pessoa é o mesmo da casca** (item 44i), e por isso recebe o e-mail da sessão também aqui.
+ *
+ * **A largura muda só em tela grande, e só por causa de T-04** (item 44l): `700 + 24 + 340` são os
+ * números da prancheta *"T-04 · tela grande · pronta para registrar"* — o cartão do formulário, o
+ * respiro e o painel *Depois de registrar*. Abaixo de `lg` nada muda, e a moldura continua estreita.
  */
 export default async function LayoutFocado({ children }: { children: React.ReactNode }) {
   let escopo;
@@ -38,7 +42,7 @@ export default async function LayoutFocado({ children }: { children: React.React
         nomeDaPessoa={projetado.pessoa.nome}
         emailDaPessoa={escopo.resolucao.sessao.email}
       />
-      <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-6 lg:max-w-[1064px]">{children}</main>
     </div>
   );
 }

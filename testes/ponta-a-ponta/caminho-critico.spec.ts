@@ -114,10 +114,17 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena
     .getByLabel("Descrição")
     .fill("Água pingando do teto da garagem, perto da vaga 12. Piora quando chove.");
-  // **Índice 1 porque o índice 0 é a opção «Escolha», desabilitada.** Qual categoria e qual área não muda
-  // nada do que este teste prova, e fixar um nome amarraria o teste ao conteúdo da semente.
-  await helena.getByLabel("Categoria").selectOption({ index: 1 });
-  await helena.getByLabel("Área").selectOption({ index: 1 });
+  // **Categoria e Área deixaram de ser seletores nativos no item 44l**, e o `selectOption` com elas. O
+  // gatilho de cada uma é um botão nomeado pelo rótulo do campo — `getByLabel` o alcança, porque botão é
+  // elemento rotulável e o `Campo` liga os dois por `htmlFor`. **Qual categoria e qual área continua não
+  // importando**, e fixar um nome amarraria o teste ao conteúdo da semente.
+  //
+  // **Este teste roda em 1280 px** (`playwright.config.ts`), que é tela grande: é o painel ancorado que
+  // ele exercita, e não a gaveta do celular.
+  await helena.getByLabel("Categoria").click();
+  await helena.getByRole("option").first().click();
+  await helena.getByLabel("Área").click();
+  await helena.getByRole("option").first().click();
   await helena.getByRole("button", { name: "Registrar ocorrência" }).click();
 
   // Depois do `201`, T-05 da ocorrência criada (critério 11.5). O identificador sai da URL.
