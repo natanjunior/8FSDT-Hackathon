@@ -14,7 +14,7 @@ import {
 import { cn } from "@/interface/componentes/utilitarios"
 
 /*
- * Divergências do catálogo (item 44l). Um novo `shadcn add command` desfaz as três.
+ * Divergências do catálogo (item 44l). Um novo `shadcn add command` desfaz as cinco.
  *
  * 1. O registro importa `cn` de um módulo homônimo, que o CLI instala como pacote; aqui ele vem do
  *    apelido do projeto.
@@ -24,7 +24,12 @@ import { cn } from "@/interface/componentes/utilitarios"
  * 3. O `CommandInput` do registro é `text-sm`. Aqui ele é `text-base md:text-sm`, pela mesma razão do
  *    `ui/input.tsx` e do `ui/textarea.tsx`: abaixo de 16 px o navegador do celular amplia a página ao
  *    focar o campo, e este campo vive dentro da gaveta da tela que o RNF6 cronometra.
- * 4. O `CommandDialog` do registro repassa `showCloseButton` ao `DialogContent`, e **o nosso
+ * 4. O `CommandItem` do registro declara `cursor-default`, e ele **sai**. O item do `command` é
+ *    `[role="option"]`, que é um dos quatro alvos da regra de ponteiro do `app/globals.css` — e
+ *    `cursor-default` é utilitário, emitido numa camada posterior à `base`, então venceria a regra sem
+ *    olhar especificidade. É o mesmo conserto que `select.tsx` e `dropdown-menu.tsx` já receberam, e há
+ *    um caso em `testes/interface/tema.test.ts` que o cobra.
+ * 5. O `CommandDialog` do registro repassa `showCloseButton` ao `DialogContent`, e **o nosso
  *    `ui/dialog.tsx` não tem essa propriedade**: ele desenha o fechar sempre, com a palavra em
  *    português. A propriedade sai daqui em vez de entrar lá — mexer no `DialogContent` mudaria o
  *    comportamento dos modais de T-15, T-16, T-08, T-09 e T-14, que já foram validados com o fechar
@@ -143,7 +148,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
