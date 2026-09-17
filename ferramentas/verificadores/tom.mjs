@@ -53,8 +53,11 @@ const APROVADOS = new Set([
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
   "docs/dominio.md",
+  "docs/infraestrutura.md",
   "docs/premissas-e-questoes-abertas.md",
   "docs/produto.md",
+  "docs/seguranca.md",
+  "docs/testes.md",
   "docs/prototipo-low-fi.md",
   "docs/visao-geral-da-arquitetura.md",
 ]);
@@ -86,7 +89,10 @@ const NOVAS = new Set([
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
   "docs/dominio.md",
+  "docs/infraestrutura.md",
   "docs/produto.md",
+  "docs/seguranca.md",
+  "docs/testes.md",
   "docs/visao-geral-da-arquitetura.md",
 ]);
 
@@ -205,16 +211,25 @@ const ARQUIVO_SEM_LINK = /(.|^)`[^`\n]*\.(?:md|ya?ml|html)`(.{0,2})/gu;
  * A máquina de estados mora num lugar só.
  *
  * O ciclo de vida aparecia desenhado em mais de uma página e enumerado em várias outras. Cada cópia
- * envelhece sozinha, e quem lê não sabe qual é a boa. Uma página nova que não seja a do domínio não
- * desenha a máquina nem lista os estados: aponta para lá.
+ * envelhece sozinha, e quem lê não sabe qual é a boa. O que rende cópia não é o nome de um estado: é o
+ * desenho e a lista de quem vai para onde. Então a regra separa as duas coisas.
  *
- * O teto é dois nomes. Citar um estado para dizer o que acontece nele é leitura normal; citar três é
- * copiar a máquina.
+ * **Desenhar a máquina, ou enumerar transições, só na página do domínio.** Vale para toda página nova, e
+ * pega tanto o bloco Mermaid quanto a seta em prosa.
+ *
+ * **Nomear estados tem teto de dois**, para que uma página não recite a máquina de viés. A exceção é
+ * declarada por arquivo: O produto fala a língua do sistema por decisão editorial, então nomeia os
+ * estados à vontade — e continua sem poder desenhar nem enumerar transição.
  */
 const DONO_DA_MAQUINA_DE_ESTADOS = "docs/dominio.md";
+
+/** Páginas autorizadas a nomear estados sem teto. A proibição de desenhar e de enumerar continua. */
+const PODEM_NOMEAR_ESTADOS = new Set(["docs/produto.md"]);
+
 const DIAGRAMA_DE_ESTADOS = /stateDiagram(?:-v2)?/gu;
-const NOME_DE_ESTADO =
-  /(?<![\w-])(?:Aberta|Em\s+an[áa]lise|Em\s+atendimento|Resolvida|Cancelada|Pausada)(?![\w-])/giu;
+const ESTADO = "(?:Aberta|Em\\s*an[áa]lise|EmAnalise|Em\\s*atendimento|EmAtendimento|Resolvida|Cancelada|Pausada)";
+const NOME_DE_ESTADO = new RegExp(`(?<![\\w-])${ESTADO}(?![\\w-])`, "giu");
+const TRANSICAO_ENUMERADA = new RegExp(`${ESTADO}\\s*(?:--?>|→|=>)\\s*${ESTADO}`, "giu");
 const TETO_DE_ESTADOS_CITADOS = 2;
 
 /** Regra 5 — seção que explica o documento em vez de dizer o que ele tem a dizer. */
@@ -282,16 +297,26 @@ export function violacoesDe(conteudo, eu = "", nova = false) {
         );
       }
 
-      const citados = new Set(
-        (conteudo.match(NOME_DE_ESTADO) ?? []).map((nome) =>
-          nome.toLocaleLowerCase("pt-BR").replace(/\s+/gu, " "),
-        ),
-      );
-      if (citados.size > TETO_DE_ESTADOS_CITADOS) {
+      const transicoes = conteudo.match(TRANSICAO_ENUMERADA) ?? [];
+      if (transicoes.length > 0) {
         violacoes.push(
-          `estrutura — ${citados.size} estados enumerados (${[...citados].join(", ")}); ` +
-            `o teto é ${TETO_DE_ESTADOS_CITADOS} fora de ${DONO_DA_MAQUINA_DE_ESTADOS}`,
+          `estrutura — ${transicoes.length} transições enumeradas fora de ` +
+            `${DONO_DA_MAQUINA_DE_ESTADOS}: ${transicoes[0].trim().slice(0, 40)}`,
         );
+      }
+
+      if (!PODEM_NOMEAR_ESTADOS.has(eu)) {
+        const citados = new Set(
+          (conteudo.match(NOME_DE_ESTADO) ?? []).map((nome) =>
+            nome.toLocaleLowerCase("pt-BR").replace(/\s+/gu, " "),
+          ),
+        );
+        if (citados.size > TETO_DE_ESTADOS_CITADOS) {
+          violacoes.push(
+            `estrutura — ${citados.size} estados nomeados (${[...citados].join(", ")}); ` +
+              `o teto é ${TETO_DE_ESTADOS_CITADOS} fora de ${DONO_DA_MAQUINA_DE_ESTADOS}`,
+          );
+        }
       }
     }
 
@@ -438,7 +463,7 @@ const comoAntiga = violacoesDe(ler(fixture("tom-negativo.md")), "", false).filte
 );
 const positivoComoNova = violacoesDe(ler(fixture("tom-positivo.md")), "", true);
 
-if (comoNova.length < DA_ESTRUTURA_NOVA.length + 4 || comoAntiga.length > 0) {
+if (comoNova.length < DA_ESTRUTURA_NOVA.length + 5 || comoAntiga.length > 0) {
   falhas.push(
     `CONTROLE DA ESTRUTURA FALHOU — o controle negativo deu ${comoNova.length} violações de estrutura ` +
       `como página nova, e ${comoAntiga.length} como página antiga, que tem de ser zero.`,
@@ -454,27 +479,35 @@ if (comoNova.length < DA_ESTRUTURA_NOVA.length + 4 || comoAntiga.length > 0) {
 /**
  * A regra da máquina de estados tem controle próprio, porque é a única que depende de QUAL arquivo é.
  *
- * O mesmo conteúdo, lido como a página do domínio, não pode acusar nada; lido como qualquer outra
- * página nova, tem de acusar as duas: o diagrama e a enumeração. Uma regra que valesse para todo mundo
- * apagaria a máquina de estados do lugar onde ela deve estar.
+ * São três leituras do MESMO conteúdo, e as três têm de dar resultados diferentes:
+ *
+ *   · como página qualquer  -> as três acusam: desenho, transição e nomes;
+ *   · como página autorizada a nomear -> só duas, porque o teto de nomes não vale para ela;
+ *   · como a página do domínio -> nenhuma.
+ *
+ * Uma regra que valesse para todo mundo apagaria a máquina de estados do lugar onde ela deve estar; uma
+ * que valesse para ninguém deixaria a cópia voltar. A exceção por arquivo só é exceção se o controle
+ * mostrar que ela muda o resultado.
  */
-const soEstados = (lista) => lista.filter((v) => /diagrama de estados|estados enumerados/u.test(v));
-const comoOutra = soEstados(
-  violacoesDe(ler(fixture("tom-negativo.md")), "docs/outra-pagina.md", true),
-);
-const comoDono = soEstados(
-  violacoesDe(ler(fixture("tom-negativo.md")), DONO_DA_MAQUINA_DE_ESTADOS, true),
-);
+const soEstados = (lista) =>
+  lista.filter((v) => /diagrama de estados|transições enumeradas|estados nomeados/u.test(v));
+const comoEstaPagina = (eu) => soEstados(violacoesDe(ler(fixture("tom-negativo.md")), eu, true));
 
-if (comoOutra.length !== 2 || comoDono.length > 0) {
+const comoOutra = comoEstaPagina("docs/outra-pagina.md");
+const comoAutorizada = comoEstaPagina([...PODEM_NOMEAR_ESTADOS][0]);
+const comoDono = comoEstaPagina(DONO_DA_MAQUINA_DE_ESTADOS);
+
+if (comoOutra.length !== 3 || comoAutorizada.length !== 2 || comoDono.length > 0) {
   falhas.push(
     "CONTROLE DA MÁQUINA DE ESTADOS FALHOU — o controle negativo deu " +
-      `${comoOutra.length} violações numa página qualquer (tem de ser 2: o diagrama e a enumeração) ` +
-      `e ${comoDono.length} em ${DONO_DA_MAQUINA_DE_ESTADOS}, que tem de ser zero.`,
+      `${comoOutra.length} violações numa página qualquer (tem de ser 3), ` +
+      `${comoAutorizada.length} numa página autorizada a nomear (tem de ser 2) e ` +
+      `${comoDono.length} em ${DONO_DA_MAQUINA_DE_ESTADOS}, que tem de ser zero.`,
   );
 } else {
   notas.push(
-    `máquina de estados conferida: o diagrama e a lista de estados só passam em ${DONO_DA_MAQUINA_DE_ESTADOS}.`,
+    "máquina de estados conferida: desenhar e enumerar transição só em " +
+      `${DONO_DA_MAQUINA_DE_ESTADOS}, e nomear sem teto só em ${[...PODEM_NOMEAR_ESTADOS].join(", ")}.`,
   );
 }
 
