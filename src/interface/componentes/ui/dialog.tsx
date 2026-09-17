@@ -49,7 +49,7 @@ function DialogOverlay({
  * no meio da tela, onde a mão que segura o aparelho chega mal."*
  *
  * **O limiar é `md` (768 px), não `sm`**: é o que o produto já pratica para *celular contra tela
- * grande* (`lista-de-ocorrencias.tsx`, `lista-de-vinculos.tsx`). Adotar `sm` abriria uma faixa de
+ * grande* (`lista-de-ocorrencias.tsx`, `tabela-de-participantes.tsx`). Adotar `sm` abriria uma faixa de
  * 128 px em que T-03 mostra cartões de celular e o modal abre como caixa de tela grande.
  *
  * **O componente `Drawer` do catálogo NÃO é adotado** — traria `vaul`, estado de largura no cliente e

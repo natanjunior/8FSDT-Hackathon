@@ -500,4 +500,17 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     // O botão nunca fica indisponível por falta de papel (critério 44g.9).
     expect(fonte).not.toMatch(/disabled=\{[^}]*papel[^}]*\}/u);
   });
+
+  it("a tabela substitui as duas listas, e a página não lê o endereço no servidor (critérios 44j.1 e 44j.3)", () => {
+    const pagina = ler("app/(casca)/vinculos/page.tsx");
+    expect(pagina).toContain("<TabelaDeParticipantes");
+    expect(pagina).not.toContain("searchParams");
+    expect(pagina).not.toContain("FaixaDoDesfecho");
+    expect(existsSync(`${RAIZ}src/interface/componentes/lista-de-vinculos.tsx`)).toBe(false);
+    // O estado da tabela vive no navegador, e nenhum clique de filtro vai ao servidor.
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).toContain("useSearchParams()");
+    expect(tabela).toContain("window.history.pushState");
+    expect(tabela).toContain("window.history.replaceState");
+  });
 });

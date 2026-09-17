@@ -179,7 +179,7 @@ const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> =
   "app/(casca)/configuracao/areas/nova/page.tsx": ["Criar área", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/[areaId]/editar/page.tsx": ["Corrigir área", "organizacao.configurar"],
   "app/(casca)/dashboard/page.tsx": ["Dashboard", "dashboard.ler"],
-  "app/(casca)/vinculos/page.tsx": ["Quem está na organização", "vinculo.gerir"],
+  "app/(casca)/vinculos/page.tsx": ["Participantes", "vinculo.gerir"],
   "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
   "app/(casca)/vinculos/[pessoaId]/editar/page.tsx": ["Corrigir os dados", "vinculo.gerir"],
 };

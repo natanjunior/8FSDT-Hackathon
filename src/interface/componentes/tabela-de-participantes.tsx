@@ -1,0 +1,590 @@
+"use client";
+
+import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Search } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useId, useState, type MouseEvent, type ReactNode } from "react";
+
+import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-icone";
+import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
+import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
+import { TEXTOS_DA_TABELA, textoDeMaisContatos } from "@/interface/componentes/frases-de-participantes";
+import {
+  FILTROS,
+  ROTULO_DO_FILTRO,
+  TEXTO_DA_BUSCA_VAZIA,
+  VAZIO_DO_FILTRO,
+  ariaSort,
+  comFiltro,
+  comOrdem,
+  contagensDoFiltro,
+  escreverEndereco,
+  estadoDaTabela,
+  faixaDaPagina,
+  filtrarPeloNome,
+  lerEndereco,
+  montarLinhas,
+  naPagina,
+  ordenarLinhas,
+  paginar,
+  pertenceAoFiltro,
+  type Coluna,
+  type Endereco,
+  type Filtro,
+  type LinhaDeParticipante,
+  type PedidoNaTabela,
+} from "@/interface/componentes/linhas-de-participantes";
+import { vizinhas } from "@/interface/componentes/paginacao-da-lista";
+import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
+import { Badge } from "@/interface/componentes/ui/badge";
+import { Button } from "@/interface/componentes/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
+import { Input } from "@/interface/componentes/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/interface/componentes/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/interface/componentes/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
+import { cn } from "@/interface/componentes/utilitarios";
+import { TEXTO_ALEM_DO_FIM } from "@/interface/componentes/vazio-da-lista";
+import type { VinculoProjetado } from "@/interface/projecoes";
+
+/**
+ * ============================================================================
+ *  T-08 · Participantes, numa tabela só — item 44j
+ * ============================================================================
+ *
+ * **Uma tabela, com os pedidos no topo em *Todos***. Eram duas seções: os pedidos em cartão, com a
+ * decisão aberta, e os vínculos numa tabela de oito colunas. São a mesma pergunta para o Gestor —
+ * *"quem está aqui, e quem quer entrar?"* —, e os pedidos são a parte acionável dela.
+ *
+ * **Nada disto vai ao servidor.** `GET /vinculos` devolve a lista inteira (até 200, RNF3) e só filtra
+ * por papel, então filtrar, ordenar, buscar e paginar acontecem aqui. **O filtro, a ordem e a página
+ * vivem no endereço**, escritos com `window.history.pushState`, que o Next 16 integra ao roteador e ao
+ * `useSearchParams`: o endereço é copiável e o voltar do navegador desfaz o último toque, sem uma ida ao
+ * servidor por clique numa nuvem que dorme.
+ *
+ * **A busca fica fora do endereço**: o critério 3 nomeia três coisas, e texto digitado a cada tecla no
+ * histórico seria ruído. O que ela provoca no endereço é só tirar a página, e isso entra por
+ * `replaceState`.
+ *
+ * **As contagens do filtro são do conjunto inteiro, e a busca não as muda.** É o *"o contador não
+ * mente"* da lista anterior: a contagem responde *quantos há*, e a busca responde *quem casa*. O que a
+ * busca muda é a faixa do rodapé.
+ *
+ * **Dois desenhos, um dado:** tabela a partir de `md`, pauta no celular — como T-03. Cada desenho tem as
+ * próprias peças de ação; o conteúdo de um modal só monta quando ele abre.
+ *
+ * **Quando uma linha sai** (aprovar, recusar, remover), o gatilho some com ela e o foco cairia no
+ * `body`: ele vai para a opção marcada do filtro. Não vai para a busca, que abriria o teclado no celular.
+ */
+
+const ROTULO_DE_COLUNA =
+  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono font-medium tracking-[0.11em] uppercase";
+
+const CELULA = "text-interface px-4 py-2.5";
+
+export function TabelaDeParticipantes({
+  pedidos,
+  vinculos,
+  impedimentos,
+  areas,
+  organizacaoId,
+  euPessoaId,
+}: {
+  pedidos: readonly PedidoNaTabela[];
+  vinculos: readonly VinculoProjetado[];
+  /** Por `pessoaId`. **Chave ausente é *pode sair***. */
+  impedimentos: Readonly<Record<string, ImpedimentoNaTela>>;
+  areas: ReadonlyArray<{ id: string; nome: string }>;
+  organizacaoId: string;
+  euPessoaId: string;
+}) {
+  const caminho = usePathname();
+  const endereco = lerEndereco(useSearchParams());
+  const [busca, setBusca] = useState("");
+  const prefixo = useId();
+  const idDoFiltro = `${prefixo}-filtro`;
+
+  const linhas = montarLinhas({ pedidos, vinculos, euPessoaId, impedimentos });
+  const contagens = contagensDoFiltro(linhas);
+  const noFiltro = linhas.filter((linha) => pertenceAoFiltro(linha, endereco.filtro));
+  const encontradas = filtrarPeloNome(noFiltro, busca);
+  const ordenadas = ordenarLinhas(encontradas, endereco.ordem, endereco.sentido);
+  const pagina = paginar(ordenadas, endereco.pagina);
+  const estado = estadoDaTabela({
+    noFiltro: noFiltro.length,
+    encontradas: encontradas.length,
+    pagina: endereco.pagina,
+    totalDePaginas: pagina.totalDePaginas,
+  });
+
+  function enderecoDe(proximo: Endereco): string {
+    const consulta = escreverEndereco(proximo);
+    return consulta === "" ? caminho : `${caminho}?${consulta}`;
+  }
+
+  function escrever(proximo: Endereco): void {
+    window.history.pushState(null, "", enderecoDe(proximo));
+  }
+
+  function focarFiltro(): void {
+    document.getElementById(idDoFiltro)?.querySelector<HTMLElement>('[data-state="on"]')?.focus();
+  }
+
+  function aoBuscar(texto: string): void {
+    setBusca(texto);
+    // Conjunto novo, primeira página. Sem entrada de histórico: a busca não está no endereço.
+    if (endereco.pagina !== 1) window.history.replaceState(null, "", enderecoDe(naPagina(endereco, 1)));
+  }
+
+  const acoes = { areas, organizacaoId, aoSair: focarFiltro };
+  const vazio = VAZIO_DO_FILTRO[endereco.filtro];
+
+  return (
+    <div className="flex flex-col gap-5.5">
+      <ToggleGroup
+        id={idDoFiltro}
+        type="single"
+        spacing={1}
+        value={endereco.filtro}
+        aria-label={TEXTOS_DA_TABELA.filtrar}
+        onValueChange={(escolhido) => {
+          // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
+          const filtro = FILTROS.find((valor) => valor === escolhido);
+          if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
+        }}
+        className="bg-muted flex w-full flex-wrap rounded-sm p-1 md:w-fit"
+      >
+        {FILTROS.map((filtro) => (
+          <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
+        ))}
+      </ToggleGroup>
+
+      <div className="border-linha bg-superficie overflow-hidden rounded-lg border shadow-sm">
+        <div className="border-linha-suave flex flex-col gap-1.5 border-b px-4 py-3 md:flex-row md:items-center md:gap-3">
+          <label htmlFor={`${prefixo}-busca`} className="text-interface text-tinta font-medium whitespace-nowrap">
+            {TEXTOS_DA_TABELA.buscar}
+          </label>
+          <div className="relative md:w-72">
+            <Search
+              aria-hidden="true"
+              className="text-tinta-fraca pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+            />
+            <Input
+              id={`${prefixo}-busca`}
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              /* O teto da coluna e do schema, para um nome inteiro caber. */
+              maxLength={120}
+              placeholder={TEXTOS_DA_TABELA.exemploDaBusca}
+              value={busca}
+              onChange={(evento) => {
+                aoBuscar(evento.currentTarget.value);
+              }}
+              className="border-linha bg-background h-11 pl-9"
+            />
+          </div>
+        </div>
+
+        {estado === "vazio-do-filtro" && <VazioDaTabela titulo={vazio.titulo} corpo={vazio.corpo} />}
+        {estado === "busca-vazia" && <VazioDaTabela titulo={TEXTO_DA_BUSCA_VAZIA} corpo={null} />}
+
+        {(estado === "lista" || estado === "alem-do-fim") && (
+          <>
+            {estado === "alem-do-fim" ? (
+              <VazioDaTabela
+                titulo={TEXTO_ALEM_DO_FIM.titulo}
+                corpo={`Esta lista tem ${String(pagina.total)} ${pagina.total === 1 ? "linha" : "linhas"}, e nenhuma delas cai nesta página.`}
+                acao={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      escrever(naPagina(endereco, 1));
+                    }}
+                    className={cn(CONTORNO_DE_ACAO, "text-interface text-tinta min-h-11 rounded-sm px-4")}
+                  >
+                    {TEXTO_ALEM_DO_FIM.acao}
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <ul className="md:hidden">
+                  {pagina.itens.map((linha, indice) => (
+                    <li
+                      key={linha.chave}
+                      className={cn(
+                        "border-linha-suave flex items-start justify-between gap-3 border-b px-4 py-3 last:border-b-0",
+                        indice % 2 === 1 && "bg-background",
+                        linha.tipo === "pedido" && "bg-marca/5",
+                      )}
+                    >
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <PessoaDaLinha linha={linha} idDoNome={`${prefixo}-p${String(indice)}`} />
+                        <p className="text-meta text-tinta-suave">
+                          {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
+                        </p>
+                        <p className="text-meta text-tinta-suave">
+                          <Contato linha={linha} />
+                        </p>
+                        <p className="text-meta text-tinta-fraca font-mono tabular-nums">
+                          {TEXTOS_DA_TABELA.desde} {linha.desdeTexto}
+                        </p>
+                      </div>
+                      <div className="shrink-0">
+                        <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-p${String(indice)}`} {...acoes} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-linha hover:bg-transparent">
+                        <CabecaQueOrdena coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
+                        <CabecaQueOrdena
+                          coluna="papel"
+                          rotulo="Papel"
+                          endereco={endereco}
+                          aoOrdenar={escrever}
+                          largura="w-[140px]"
+                        />
+                        <CabecaQueOrdena
+                          coluna="unidade"
+                          rotulo="Unidade"
+                          endereco={endereco}
+                          aoOrdenar={escrever}
+                          largura="w-[170px]"
+                        />
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[260px] py-2.5")}>Contato</TableHead>
+                        <CabecaQueOrdena
+                          coluna="desde"
+                          rotulo={TEXTOS_DA_TABELA.desde}
+                          endereco={endereco}
+                          aoOrdenar={escrever}
+                          largura="w-[128px]"
+                        />
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[124px] py-2.5")}>
+                          <span className="sr-only">{TEXTOS_DA_TABELA.acoes}</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagina.itens.map((linha, indice) => (
+                        <TableRow
+                          key={linha.chave}
+                          className={cn(
+                            "border-linha-suave even:bg-background",
+                            linha.tipo === "pedido" && "bg-marca/5 even:bg-marca/5",
+                          )}
+                        >
+                          <TableCell className={CELULA}>
+                            <PessoaDaLinha linha={linha} idDoNome={`${prefixo}-t${String(indice)}`} />
+                          </TableCell>
+                          <TableCell className={CELULA}>
+                            {linha.tipo === "pedido" ? (
+                              <span className="text-tinta-fraca">{linha.rotuloDoPapel}</span>
+                            ) : (
+                              linha.rotuloDoPapel
+                            )}
+                          </TableCell>
+                          <TableCell className={CELULA}>{linha.unidade ?? <Traco />}</TableCell>
+                          <TableCell className={CELULA}>
+                            <Contato linha={linha} />
+                          </TableCell>
+                          <TableCell className={cn(CELULA, "text-tinta-suave font-mono tabular-nums")}>
+                            {linha.desdeTexto}
+                          </TableCell>
+                          <TableCell className="px-3.5 py-1.5 text-right">
+                            <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-t${String(indice)}`} {...acoes} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+
+            <RodapeDaTabela
+              faixa={faixaDaPagina(estado === "alem-do-fim" ? { inicio: 0, fim: 0, total: pagina.total } : pagina)}
+              pagina={Math.min(endereco.pagina, pagina.totalDePaginas)}
+              totalDePaginas={pagina.totalDePaginas}
+              enderecoDe={enderecoDe}
+              endereco={endereco}
+              aoIr={escrever}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OpcaoDoFiltro({ filtro, quantos }: { filtro: Filtro; quantos: number }) {
+  /** A contagem de pedidos veste a marca quando há pedido — é a exceção que o critério 2 abre. */
+  const destaque = filtro === "pedidos" && quantos > 0;
+  return (
+    <ToggleGroupItem
+      value={filtro}
+      className={cn(
+        "text-interface text-tinta-suave min-h-11 gap-2 rounded-sm px-3 font-normal",
+        "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold data-[state=on]:shadow-sm",
+      )}
+    >
+      {ROTULO_DO_FILTRO[filtro]}
+      <span
+        className={cn(
+          "text-meta rounded-full px-1.5 font-mono font-medium tabular-nums",
+          destaque ? "bg-marca text-marca-foreground font-semibold" : "bg-background text-tinta-suave",
+        )}
+      >
+        {quantos}
+      </span>
+    </ToggleGroupItem>
+  );
+}
+
+function CabecaQueOrdena({
+  coluna,
+  rotulo,
+  endereco,
+  aoOrdenar,
+  largura,
+}: {
+  coluna: Coluna;
+  rotulo: string;
+  endereco: Endereco;
+  aoOrdenar: (proximo: Endereco) => void;
+  largura?: string;
+}) {
+  const sentido = ariaSort(endereco, coluna);
+  const ativa = sentido !== "none";
+  return (
+    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, largura)}>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => {
+          aoOrdenar(comOrdem(endereco, coluna));
+        }}
+        className={cn(
+          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono font-medium tracking-[0.11em] uppercase hover:bg-transparent",
+          ativa ? "text-tinta" : "text-tinta-fraca",
+        )}
+      >
+        {rotulo}
+        {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-marca size-3" />}
+        {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-marca size-3" />}
+        {sentido === "none" && <ArrowUpDown aria-hidden="true" className="text-tinta-fraca size-3" />}
+      </Button>
+    </TableHead>
+  );
+}
+
+function Traco() {
+  return <span className="text-tinta-fraca">—</span>;
+}
+
+function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNome: string }) {
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+      <FichaDePessoa nome={linha.nome} tamanho="linha" idDoNome={idDoNome} />
+      {linha.tipo === "pedido" && (
+        <Badge variant="outline" className="border-marca/60 text-marca text-meta rounded-sm font-medium">
+          {TEXTOS_DA_TABELA.seloDePedido}
+        </Badge>
+      )}
+      {linha.tipo === "vinculo" && linha.ehVoce && (
+        <Badge
+          variant="outline"
+          className="bg-sidebar-accent text-tinta text-meta rounded-sm border-transparent font-medium"
+        >
+          {TEXTOS_DA_TABELA.seloVoce}
+        </Badge>
+      )}
+      {linha.tipo === "vinculo" && !linha.vinculo.temConta && (
+        <Badge variant="outline" className="border-linha text-tinta-suave text-meta rounded-sm font-medium">
+          {TEXTOS_DA_TABELA.seloSemConta}
+        </Badge>
+      )}
+    </span>
+  );
+}
+
+/** O primeiro contato e quantos sobram. **O resto não abre aqui**: a lista inteira está em *Editar participante*. */
+function Contato({ linha }: { linha: LinhaDeParticipante }) {
+  if (linha.contato === null) return <Traco />;
+  return (
+    <>
+      <span className="text-tinta-suave">{linha.contato}</span>
+      {linha.maisContatos > 0 && (
+        <span className="text-meta text-tinta-fraca ml-1.5 font-mono tabular-nums">
+          <span aria-hidden="true">+{linha.maisContatos}</span>
+          <span className="sr-only">{textoDeMaisContatos(linha.maisContatos)}</span>
+        </span>
+      )}
+    </>
+  );
+}
+
+function AcoesDaLinha({
+  linha,
+  idDoNome,
+  areas,
+  organizacaoId,
+  aoSair,
+}: {
+  linha: LinhaDeParticipante;
+  idDoNome: string;
+  areas: ReadonlyArray<{ id: string; nome: string }>;
+  organizacaoId: string;
+  aoSair: () => void;
+}) {
+  if (linha.tipo === "pedido") {
+    return (
+      <DecisaoDePedidoDeEntrada
+        pedido={linha.pedido}
+        areas={areas}
+        organizacaoId={organizacaoId}
+        aoSair={aoSair}
+      />
+    );
+  }
+  return (
+    <span className="inline-flex items-center justify-end gap-1.5">
+      <LinkDeIcone
+        href={`/vinculos/${linha.vinculo.pessoa.pessoaId}/editar`}
+        rotulo={TEXTOS_DA_TABELA.editar}
+        icone={<Pencil aria-hidden="true" />}
+        descritoPor={idDoNome}
+      />
+      <RemocaoDeVinculo
+        pessoaId={linha.vinculo.pessoa.pessoaId}
+        nome={linha.nome}
+        temConta={linha.vinculo.temConta}
+        impedimento={linha.impedimento}
+        organizacaoId={organizacaoId}
+        ehMeuProprioVinculo={linha.ehVoce}
+        descritoPor={idDoNome}
+        aoSair={aoSair}
+      />
+    </span>
+  );
+}
+
+function VazioDaTabela({ titulo, corpo, acao }: { titulo: string; corpo: string | null; acao?: ReactNode }) {
+  return (
+    <Empty className="md:p-10">
+      <EmptyHeader>
+        <EmptyTitle className="text-titulo-bloco text-tinta">{titulo}</EmptyTitle>
+        {corpo !== null && <EmptyDescription className="text-corpo text-tinta-suave">{corpo}</EmptyDescription>}
+      </EmptyHeader>
+      {acao !== undefined && <EmptyContent>{acao}</EmptyContent>}
+    </Empty>
+  );
+}
+
+/**
+ * O rodapé. **Os links são endereços de verdade** — sem `href` a página deixa de ser copiável —, e o
+ * clique simples com o botão principal é interceptado; clique do meio e com tecla modificadora seguem o
+ * navegador. É o desenho de `paginacao-da-lista.tsx`, e a regra de números é a mesma (`vizinhas`).
+ *
+ * **Ele aparece mesmo com uma página só**, como na prancheta; anterior e próxima ficam inertes nas pontas.
+ */
+function RodapeDaTabela({
+  faixa,
+  pagina,
+  totalDePaginas,
+  endereco,
+  enderecoDe,
+  aoIr,
+}: {
+  faixa: string;
+  pagina: number;
+  totalDePaginas: number;
+  endereco: Endereco;
+  enderecoDe: (proximo: Endereco) => string;
+  aoIr: (proximo: Endereco) => void;
+}) {
+  const inerte = "pointer-events-none opacity-40";
+  const cliqueSimples = (evento: MouseEvent<HTMLAnchorElement>) =>
+    evento.button === 0 && !evento.metaKey && !evento.ctrlKey && !evento.shiftKey && !evento.altKey;
+
+  function propsDoLink(destino: number) {
+    return {
+      href: enderecoDe(naPagina(endereco, destino)),
+      onClick: (evento: MouseEvent<HTMLAnchorElement>) => {
+        if (!cliqueSimples(evento)) return;
+        evento.preventDefault();
+        aoIr(naPagina(endereco, destino));
+      },
+    };
+  }
+
+  return (
+    <div className="border-linha bg-background flex flex-col items-center gap-2 border-t px-4 py-2 md:flex-row md:justify-between">
+      <p className="text-meta text-tinta-fraca font-mono tracking-[0.06em] uppercase tabular-nums">{faixa}</p>
+      <Pagination className="mx-0 w-auto justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            {pagina > 1 ? (
+              <PaginationPrevious {...propsDoLink(pagina - 1)} className="min-h-11" />
+            ) : (
+              <PaginationPrevious aria-disabled="true" className={cn("min-h-11", inerte)} />
+            )}
+          </PaginationItem>
+
+          {vizinhas(pagina, totalDePaginas).map((numero, indice) =>
+            numero === null ? (
+              <PaginationItem key={indice === 0 ? "reticencias-antes" : "reticencias-depois"}>
+                <PaginationEllipsis className="size-11" />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={numero}>
+                <PaginationLink
+                  {...propsDoLink(numero)}
+                  isActive={numero === pagina}
+                  className="text-interface size-11 font-mono tabular-nums"
+                >
+                  {numero}
+                </PaginationLink>
+              </PaginationItem>
+            ),
+          )}
+
+          <PaginationItem>
+            {pagina < totalDePaginas ? (
+              <PaginationNext {...propsDoLink(pagina + 1)} className="min-h-11" />
+            ) : (
+              <PaginationNext aria-disabled="true" className={cn("min-h-11", inerte)} />
+            )}
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
+}

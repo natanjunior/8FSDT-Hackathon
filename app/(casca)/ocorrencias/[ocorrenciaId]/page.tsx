@@ -90,9 +90,9 @@ export const dynamic = "force-dynamic";
  * O papel **em palavra**, para descer por prop ao modal.
  *
  * **Mora aqui e não em `rotulos.ts`** porque tem um consumidor só, e porque a lista de papéis é do módulo
- * de organização, não do de ocorrência. Se o segundo consumidor aparecer — T-08 já mostra papel, com o
- * próprio `rotuloDoPapel` em `lista-de-vinculos.tsx` —, o lugar dos dois é um módulo, e **isso é achado,
- * não conserto**: são duas cópias hoje, e a segunda nasceu aqui.
+ * de organização, não do de ocorrência. T-08 mostra papel com `rotuloDoPapel` de
+ * `frases-de-participantes.ts` (item 44j), e este é a segunda cópia — o lugar dos dois é um módulo, e
+ * **isso é achado, não conserto**.
  */
 const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
   gestor: "Gestor",
