@@ -7,6 +7,8 @@ import {
   razaoDoImpedimento,
   textoDaConfirmacao,
   textoDaRecusa,
+  tituloDaConfirmacao,
+  tituloDoImpedimento,
 } from "@/interface/componentes/frases-da-remocao";
 import {
   FALHA,
@@ -373,59 +375,64 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
   });
 });
 
-describe("razaoDoImpedimento — a razão que substitui o botão", () => {
-  /**
-   * **O achado A-1 da spec, decidido em 30/08/2026.** A frase antiga nomeava três rastros; o esquema tem
-   * **nove** tabelas dependentes, e o caso comum de um Gestor bloqueado não é nenhum dos três — é ter
-   * decidido um pedido de entrada ou editado uma categoria. *"Rastro"* é a palavra do próprio glossário
-   * (verbete **Remover vínculo**), e a frase é a negação literal da definição.
-   */
+describe("razaoDoImpedimento — a razão que o aviso mostra", () => {
   it("a razão do histórico COMEÇA PELO NOME, fala em rastro e enumera as cinco famílias — nunca só três", () => {
     const razao = razaoDoImpedimento("Helena Rocha", "historico");
 
-    // O critério 10.4 emendado escreve `{nome} já deixou rastro…` — o nome é a primeira palavra.
-    expect(razao.titulo.startsWith("Helena Rocha já deixou rastro nesta organização")).toBe(true);
-    expect(razao.titulo).toContain(
-      "ocorrência, mensagem, atribuição, decisão de entrada ou configuração",
+    expect(razao.startsWith("Helena Rocha já deixou rastro nesta organização")).toBe(true);
+    expect(razao).toContain("ocorrência, mensagem, atribuição, decisão de entrada ou configuração");
+    expect(razao).not.toContain("registrou ocorrências");
+  });
+
+  /**
+   * **Critério 44j.5.** A frase que explicava o que o produto não faz saiu da tela: o guia a recusa, e
+   * o caminho correto — revogar — continua ⬜. O que fica é a razão.
+   */
+  it("a frase do revogar não existe mais no módulo", () => {
+    const fonte = readFileSync(
+      fileURLToPath(new URL("../../src/interface/componentes/frases-da-remocao.ts", import.meta.url)),
+      "utf8",
     );
-    expect(razao.titulo).not.toContain("registrou ocorrências");
-    expect(razao.complemento).toBe(
-      "Encerrar o acesso preservando o registro é uma função que ainda não existe.",
+    expect(fonte).not.toContain("ainda não existe");
+  });
+
+  it("a razão do último Gestor é a verbatim do inventário, e não leva nome", () => {
+    expect(razaoDoImpedimento("Helena Rocha", "ultimo-gestor")).toBe(
+      "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.",
     );
   });
 
-  it("a razão do último Gestor é a verbatim do inventário, não leva nome e não tem complemento", () => {
-    expect(razaoDoImpedimento("Helena Rocha", "ultimo-gestor")).toStrictEqual({
-      titulo:
-        "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.",
-      complemento: null,
-    });
+  it("o título do aviso é neutro: o produto não sabe o gênero de ninguém", () => {
+    expect(tituloDoImpedimento("Beatriz Nunes")).toBe("Beatriz Nunes não pode sair da organização");
+    expect(tituloDaConfirmacao("Beatriz Nunes")).toBe("Remover Beatriz Nunes da organização?");
   });
 });
 
-describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar (spec §3.10)", () => {
+describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar", () => {
   it("os dois 409 reusam a MESMA frase da razão — duas frases para o mesmo fato seriam duas coisas para manter", () => {
-    expect(textoDaRecusa("VINCULO_COM_HISTORICO", "Helena Rocha")).toBe(
-      razaoDoImpedimento("Helena Rocha", "historico").titulo,
+    expect(textoDaRecusa({ codigo: "VINCULO_COM_HISTORICO" }, "Helena Rocha")).toBe(
+      razaoDoImpedimento("Helena Rocha", "historico"),
     );
-    expect(textoDaRecusa("ULTIMO_GESTOR", "Helena Rocha")).toBe(
-      razaoDoImpedimento("Helena Rocha", "ultimo-gestor").titulo,
+    expect(textoDaRecusa({ codigo: "ULTIMO_GESTOR" }, "Helena Rocha")).toBe(
+      razaoDoImpedimento("Helena Rocha", "ultimo-gestor"),
     );
   });
 
   it("o 404 é o caso de dois Gestores removendo o mesmo vínculo", () => {
-    expect(textoDaRecusa("VINCULO_NAO_ENCONTRADO", "Helena Rocha")).toBe(
+    expect(textoDaRecusa({ codigo: "VINCULO_NAO_ENCONTRADO" }, "Helena Rocha")).toBe(
       "Este vínculo não existe mais.",
     );
   });
 
-  it("código desconhecido e ausente caem na frase genérica", () => {
-    expect(textoDaRecusa("QUALQUER_COISA", "Helena Rocha")).toBe(
-      "Não foi possível remover agora. Tente de novo.",
-    );
-    expect(textoDaRecusa(undefined, "Helena Rocha")).toBe(
-      "Não foi possível remover agora. Tente de novo.",
-    );
+  it("código que a tela não conhece mostra o texto do servidor", () => {
+    expect(
+      textoDaRecusa({ codigo: "ORGANIZACAO_DIVERGENTE", detail: "A organização mudou em outra aba." }, "Helena Rocha"),
+    ).toBe("A organização mudou em outra aba.");
+  });
+
+  it("sem código e sem resposta, a frase genérica do produto", () => {
+    expect(textoDaRecusa({}, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
+    expect(textoDaRecusa(null, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
   });
 });
 

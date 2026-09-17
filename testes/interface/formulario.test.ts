@@ -479,4 +479,14 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
       "[@media(hover:hover)_and_(pointer:fine)]:",
     );
   });
+
+  it("remover usa a confirmação do catálogo, e quem fecha é o ciclo (critérios 44j.4 e 44j.11)", () => {
+    const fonte = ler("src/interface/componentes/remocao-de-vinculo.tsx");
+    expect(fonte).toContain("<AlertDialog");
+    expect(fonte).toContain("useEnvioDoModal");
+    // `AlertDialogAction` fecha no clique, e o envio precisa do modal aberto até a resposta chegar.
+    expect(fonte).not.toContain("AlertDialogAction");
+    expect(fonte).not.toContain("<dialog");
+    expect(fonte).not.toContain("showModal");
+  });
 });

@@ -1,54 +1,57 @@
+import { mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+
 /**
  * ============================================================================
- *  As frases da remoção de vínculo — a metade conferível do item 10
+ *  As frases da remoção de vínculo — item 10, e a forma do item 44j
  * ============================================================================
  *
- * **Nenhum `import`, e é de propósito** — o mesmo desenho de `busca-de-candidatos.ts`. O arquivo não
- * conhece React, não conhece `next` e não conhece o Domínio, e é isso que permite testá-lo com
- * `environment: "node"`, que é o único ambiente que a suíte tem.
+ * **A única importação é a do retorno de ação**, e ela chegou com o item 44j: a recusa do servidor passa
+ * pela mesma escolha de mensagem do resto do produto (a frase da tela ganha do `detail`, e o `detail`
+ * ganha da genérica). O arquivo continua sem conhecer React, `next` e o Domínio.
  *
- * **Três das cinco frases são literais de entregável**, e as duas restantes foram decididas em 30/08/2026
- * ao responder as perguntas da spec (`respostas.md`, achados **A-1** e **A-2**). A fonte do texto é a §3.6
- * da spec — **não** a §2 dela, que transcreveu o critério 10.4 antes da emenda.
+ * **Três das cinco frases são literais de entregável**, e as duas restantes foram decididas em
+ * 30/08/2026 ao responder as perguntas da spec do item 10.
  *
- * **O que estas frases NÃO são:** o corpo `problem+json`. Aquele é do `openapi.yaml`, mora em
- * `aplicacao/organizacao/erros.ts`, e a tela nunca o mostra — nos dois `409` a razão substitui o botão.
+ * **O que estas frases NÃO são:** o corpo `problem+json`. Aquele é do `openapi.yaml` e mora em
+ * `aplicacao/organizacao/erros.ts`.
+ *
+ * **O que saiu, no item 44j (critério 5):** o complemento sobre encerrar o acesso preservando o
+ * registro. Era frase que explicava o que o produto não faz, e o guia a recusa; o caminho correto —
+ * revogar — continua ⬜, sem nenhum escritor de `vinculos.revogado_em`.
+ *
+ * **O que entrou:** os títulos do aviso e da confirmação, que o `alert-dialog` pede.
  */
 
 /** As duas razões pelas quais um vínculo não pode sair. Espelha `ImpedimentoDeRemocao` da Aplicação. */
 export type ImpedimentoNaTela = "historico" | "ultimo-gestor";
 
+/** O título do aviso que o clique em *Remover da organização* abre quando o vínculo não pode sair. */
+export function tituloDoImpedimento(nome: string): string {
+  return `${nome} não pode sair da organização`;
+}
+
+/** O título da confirmação, quando o vínculo pode sair. */
+export function tituloDaConfirmacao(nome: string): string {
+  return `Remover ${nome} da organização?`;
+}
+
 /**
- * **A razão que substitui o botão** (critério 10.4, `prototipo-low-fi.md:919`).
+ * **A razão, no corpo do aviso** (critério 10.4, e a forma do critério 44j.4).
  *
  * A do histórico deixou de enumerar três rastros e passou a dizer *"já deixou rastro"*, com cinco
  * exemplos que cobrem os **nove** destinos do esquema. A palavra vem do glossário — verbete **Remover
- * vínculo** (`glossario.md:37`): *"Apagar um vínculo que **não deixou rastro**"* —, e não de invenção:
- * *"registro"* estava fora de questão, porque **Registro de transição** é termo definido e significa
- * outra coisa, e *"histórico"* sozinho **não é termo do projeto** (`glossario.md:182`).
+ * vínculo**: *"Apagar um vínculo que não deixou rastro"* —, e não de invenção: *"registro"* estava fora
+ * de questão, porque **Registro de transição** é termo definido e significa outra coisa, e *"histórico"*
+ * sozinho não é termo do projeto.
  *
- * **É função e não constante porque o critério 10.4 emendado começa a frase pelo nome** —
- * *"{nome} já deixou rastro nesta organização…"* (`backlog.md:621`), e a §3.6 da spec escreve o mesmo.
- * A do último Gestor **não** leva nome: é **verbatim** de `inventario-de-telas.md:1502`, e a frase fala
- * da organização, não da pessoa.
+ * **É função e não constante porque o critério 10.4 emendado começa a frase pelo nome.** A do último
+ * Gestor **não** leva nome: é verbatim do inventário, e a frase fala da organização, não da pessoa.
  */
-export function razaoDoImpedimento(
-  nome: string,
-  impedimento: ImpedimentoNaTela,
-): { titulo: string; complemento: string | null } {
+export function razaoDoImpedimento(nome: string, impedimento: ImpedimentoNaTela): string {
   if (impedimento === "ultimo-gestor") {
-    return {
-      titulo:
-        "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.",
-      complemento: null,
-    };
+    return "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.";
   }
-
-  return {
-    titulo: `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga.`,
-    // O caminho correto é **revogar**, que é ⬜ e continua sem nenhum escritor de `vinculos.revogado_em`.
-    complemento: "Encerrar o acesso preservando o registro é uma função que ainda não existe.",
-  };
+  return `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga.`;
 }
 
 /**
@@ -81,23 +84,28 @@ export function textoDaConfirmacao(dados: {
     : [primeira];
 }
 
-/** A frase genérica, para quando a rede cai antes de haver resposta ou o código não é conhecido. */
-const RECUSA_GENERICA = "Não foi possível remover agora. Tente de novo.";
+/** Os textos dos dois `alert-dialog` da remoção. */
+export const TEXTOS_DA_REMOCAO = {
+  cancelar: "Cancelar",
+  remover: "Remover",
+  removendo: "Removendo…",
+  entendi: "Entendi",
+} as const;
 
 /**
- * A linha de recusa da spec §3.10.
+ * A mensagem que a confirmação mostra quando o `DELETE` recusa.
  *
- * **O desenho diz que o erro não acontece; a concorrência diz que acontece.** Entre a página renderizar e
- * o Gestor clicar, a pessoa pode registrar uma ocorrência, ou o outro Gestor pode sair. Isto **não
- * contradiz o critério 10.4**: o botão continua não aparecendo quando a tela sabe que o vínculo não pode
- * sair — o que esta função cobre é o instante entre saber e clicar.
+ * **O desenho diz que o erro não acontece; a concorrência diz que acontece.** Entre a página renderizar
+ * e o Gestor clicar, a pessoa pode registrar uma ocorrência, ou o outro Gestor pode sair.
  *
- * **Os dois `409` reusam a MESMA frase da razão**, e não uma variante: é o mesmo fato, e duas frases para
- * o mesmo fato são duas coisas para manter.
+ * **Os dois `409` reusam a MESMA frase da razão**, e não uma variante: é o mesmo fato. Código que a tela
+ * não conhece mostra o texto do servidor, e o resto cai na frase genérica do produto — a escolha é a de
+ * `mensagemDoProblema`, desde o item 44j.
  */
-export function textoDaRecusa(codigo: string | undefined, nome: string): string {
-  if (codigo === "VINCULO_COM_HISTORICO") return razaoDoImpedimento(nome, "historico").titulo;
-  if (codigo === "ULTIMO_GESTOR") return razaoDoImpedimento(nome, "ultimo-gestor").titulo;
-  if (codigo === "VINCULO_NAO_ENCONTRADO") return "Este vínculo não existe mais.";
-  return RECUSA_GENERICA;
+export function textoDaRecusa(corpo: unknown, nome: string): string {
+  return mensagemDoProblema(corpo, {
+    VINCULO_COM_HISTORICO: razaoDoImpedimento(nome, "historico"),
+    ULTIMO_GESTOR: razaoDoImpedimento(nome, "ultimo-gestor"),
+    VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais.",
+  });
 }
