@@ -135,31 +135,19 @@ const API = "https://api.supabase.com/v1/projects";
  * nomeada. É também o único jeito de destravar o portão sem apagá-lo: a razão aparece no diff, num PR, e
  * não numa tela de painel que ninguém revisa.
  *
- * **Duas entradas desde 13/09/2026**, as duas pela mesma causa: o item `40c`. Elas saem quando ele fechar,
- * e o portão volta a ser duro nos cinco campos. Enquanto estiverem aqui, a esteira imprime as duas razões
- * em toda execução.
+ * **Vazia de novo desde 17/09/2026, e é o estado certo.** Ela teve duas entradas entre 13 e 17/09, as
+ * duas pela mesma causa: sem SMTP próprio, o Supabase não deixava colar o nosso template de recuperação, e
+ * as conferências `D` e `E` acusavam o de fábrica. O item `40c` configurou o SMTP pelo Azure
+ * Communication Services, o template foi colado, e o dono conferiu em produção que o e-mail chega em
+ * português e que o link abre a tela de definir senha nova. As duas entradas saíram, e o portão voltou a
+ * ser duro nos cinco campos.
  *
  * **O que NÃO se declara aqui.** A válvula é para divergência que não pode ser resolvida hoje e tem dono
  * escrito. Campo que diverge por descuido se conserta no painel; campo que diverge por decisão vira
  * entrada com a decisão na razão. Uma entrada sem item nem decisão é o portão sendo desligado devagar.
  */
 const DIVERGENCIAS = {
-  mailer_subjects_recovery: {
-    razao:
-      "Bloqueado pelo item 40c, não por escolha. O Supabase recusa editar assunto e corpo de template " +
-      "para quem envia pelo SMTP compartilhado dele, e o projeto está nesse SMTP. Os campos 1 a 3 do " +
-      "painel foram publicados em 03/09/2026; o quarto espera o SMTP próprio. Saem daqui quando o 40c " +
-      "fechar, e o portão volta a ser duro nos cinco campos.",
-    data: "2026-09-13",
-  },
-  mailer_templates_recovery_content: {
-    razao:
-      "Mesma causa do campo acima, e o custo desta é maior: enquanto a nuvem servir o template de " +
-      "fábrica, o link de recuperação usa `{{ .ConfirmationURL }}`, que consome o token no servidor do " +
-      "provedor e redireciona para a Site URL. É a assinatura do `?error=…otp_expired` de 31/08/2026, e " +
-      "significa que a recuperação de senha em produção continua quebrada. O item 6d depende deste.",
-    data: "2026-09-13",
-  },
+  // mailer_autoconfirm: { razao: "…", data: "AAAA-MM-DD" },
 };
 
 /**
