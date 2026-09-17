@@ -52,6 +52,18 @@ const APROVADOS = new Set([
   "README.md",
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
+  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
+  "docs/adr/0002-stack-e-plataforma.md",
+  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
+  "docs/adr/0004-execucao-em-container-no-azure.md",
+  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
+  "docs/adr/0006-organizacao-de-modulos.md",
+  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
+  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
+  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
+  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
+  "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
+  "docs/adr/README.md",
   "docs/dominio.md",
   "docs/infraestrutura.md",
   "docs/premissas-e-questoes-abertas.md",
@@ -198,8 +210,12 @@ const DA_ESTRUTURA_NOVA = [
   ],
 ];
 
-/** Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção. */
-const DATA_NO_CORPO = /^(?!\s*(?:\*\*)?(?:Status|Data)\b).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
+/**
+ * Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção, e ela pode
+ * quebrar em duas — a continuação começa pelo separador, e por isso ele também está isento.
+ */
+const DATA_NO_CORPO =
+  /^(?!\s*(?:(?:\*\*)?(?:Status|Data)\b|·)).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
 
 /**
  * Referência a arquivo escrita como código, sem link.

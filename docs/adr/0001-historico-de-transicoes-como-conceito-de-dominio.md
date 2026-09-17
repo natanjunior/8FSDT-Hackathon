@@ -9,97 +9,66 @@ description: "Por que a auditabilidade é invariante do agregado, e não auditor
 
 ## Contexto
 
-O enunciado do desafio fecha a seção de fluxo principal com a frase mais enfática do documento:
-*"Cada transição de status deve ser auditável."* E especifica os cinco campos do registro: status
-anterior, novo status, data e horário, usuário responsável, e observação da alteração.
+O desafio fecha a descrição do fluxo principal com a exigência mais enfática do documento: *"cada
+transição de status deve ser auditável"*. E especifica os cinco campos do registro: status anterior, novo
+status, data e horário, usuário responsável, e observação da alteração.
 
-Existe uma alternativa tentadora: resolver isso na infraestrutura, com auditoria genérica. É um padrão
-maduro e há várias formas dele:
-
-- Tabelas-sombra, no estilo do `fhirbase`: cada recurso tem duas tabelas (`patient` e
-  `patient_history`), e a cada `update` a versão antiga é copiada para a `_history`. A escrita é
-  forçada por *stored procedures*, e não por `UPDATE` direto, para o versionamento não depender de o
-  cliente lembrar.
-- Trigger genérico com JSONB, uma função só aplicada a todas as tabelas.
-- Versionamento temporal (`temporal_tables`, Hibernate Envers no mundo Java).
-
-Todos capturam automaticamente o que mudou na linha, para qualquer tabela, sem código de domínio. E há
-interesse futuro do time em ter histórico de outros recursos, não só de `Ocorrência`.
+A mesma exigência pode ser atendida na infraestrutura, com auditoria genérica. É um padrão maduro, com
+três formas conhecidas: tabelas-sombra, em que cada recurso ganha uma tabela de histórico alimentada a
+cada atualização; gatilho genérico gravando a diferença em JSONB; e versionamento temporal por extensão
+do banco. Todas capturam o que mudou na linha, em qualquer tabela, sem código de domínio.
 
 ## Decisão
 
 O histórico de transições é modelado **dentro do agregado `Ocorrência`**:
 
-- O `status` só muda através de comandos nomeados: `analisar`, `iniciarAtendimento`, `resolver`,
-  `cancelar`, `pausar`, `retomar`.
-- Cada comando produz **exatamente um** registro `HistoricoTransicao`, na mesma operação.
-- O registro é **imutável** e vive dentro do limite do agregado. Nada de fora o escreve.
-- Nenhum código fora do agregado escreve `status`.
+- o `status` só muda por comandos nomeados — `analisar`, `iniciarAtendimento`, `pausar`, `retomar`,
+  `resolver` e `cancelar`;
+- cada comando produz exatamente um registro de transição, na mesma operação;
+- o registro é imutável e vive dentro do limite do agregado, e nada de fora o escreve;
+- nenhum código fora do agregado escreve `status`.
 
-Auditoria genérica não é o mecanismo deste requisito. Pode ser acrescentada depois como defesa em
-profundidade, na camada de infraestrutura, sem alterar esta decisão.
+**O argumento decisivo é o campo `observação`.** Ele é intenção humana declarada no momento do comando, e
+um gatilho que compara linha velha com linha nova nunca vai produzi-lo, porque ele não decorre de mudança
+de coluna nenhuma. O mesmo vale para o motivo da pausa e para o motivo do cancelamento. Auditoria genérica
+responde *o que mudou na linha*; o desafio pede *o que aconteceu e por quê*.
 
-## Justificativa
+O segundo argumento é a consistência forçada. Se ninguém de fora escreve `status` e a única porta são os
+comandos, torna-se impossível mudar o estado sem passar pelo código que grava o histórico, e a
+auditabilidade deixa de depender do cuidado de quem programa. O mesmo limite resolve as transições
+ilegais, que passam a ser recusadas no mesmo lugar em que a trilha é escrita.
 
-**1. O campo `observação` não é derivável de um diff.** Este é o argumento decisivo. A observação é
-intenção humana declarada no momento do comando, e um *trigger* que compara linha velha com linha nova
-nunca vai produzi-la, porque ela não decorre de mudança de coluna nenhuma. O mesmo vale para o motivo
-codificado do cancelamento e para o motivo da pausa. Auditoria genérica responde *"o que mudou na
-linha"*; o enunciado pede *"o que aconteceu e por quê"*. São camadas diferentes, e a de baixo não
-substitui a de cima.
+Auditoria genérica pode ser acrescentada depois como defesa em profundidade, sem alterar esta decisão.
 
-**2. Consistência forçada torna a auditabilidade uma invariante em vez de uma convenção.** Somente a
-lógica do agregado altera o próprio estado. Se ninguém de fora escreve `status` e a única porta são os
-comandos, então é impossível mudar o status sem passar pelo código que grava o histórico. A
-auditabilidade deixa de depender do cuidado de quem programa.
-
-**3. Testabilidade.** Histórico no domínio é testável em memória, sem banco. Política de RLS ou
-*trigger* exige banco real em todo teste.
-
-**4. O mesmo limite resolve as transições ilegais.** Não se vai de `Aberta` direto para `Resolvida`,
-nem se cancela o que já está `Resolvida`. A regra vive no mesmo lugar que a auditoria.
-
-## Alternativas consideradas
+## Alternativas rejeitadas
 
 | Alternativa | Por que não |
 |---|---|
-| Tabelas-sombra no estilo `fhirbase` | Captura diff de linha, e não intenção, então não produz `observação`. Amarra a auditoria ao esquema físico |
-| Trigger genérico com JSONB | Idem, e paga prêmio de espaço de cerca de 2× com consulta histórica pior |
-| Versionamento temporal ou Envers | Idem; o PostgreSQL não tem versionamento temporal nativo, depende de extensão |
-| Event sourcing | Entregaria a melhor auditoria possível, mas o estado passa a ser derivado do fluxo de eventos. Custo incompatível com 6,5 semanas e um implementador |
-
-Uma convergência que ajuda a entender a decisão: o instinto do `fhirbase` é o mesmo nosso, o de ter uma
-porta única de escrita para que a invariante não possa ser burlada. A diferença está em onde a porta
-fica. Ele a coloca no banco, em *stored procedure*; nós na aplicação, no comando do agregado.
+| Tabelas-sombra | Capturam a diferença entre linhas, e não a intenção, então não produzem a observação. Amarram a auditoria ao esquema físico |
+| Gatilho genérico com JSONB | O mesmo limite, com prêmio de espaço de cerca de duas vezes e consulta histórica pior |
+| Versionamento temporal | O mesmo limite, e o PostgreSQL não o tem de forma nativa: depende de extensão |
+| Event sourcing | Entregaria a melhor auditoria possível, ao custo de o estado passar a ser derivado do fluxo de eventos. Incompatível com o prazo e com o tamanho do time |
 
 ## Consequências
 
-**Positivas**
+**O que se ganha**
 
-- A auditabilidade é invariante de desenho, e não convenção de time. É o que sustenta a afirmação de
-  que ela está garantida por código que ninguém consegue contornar.
-- Transições ilegais são bloqueadas no mesmo ponto.
-- Testável sem banco, em milissegundos.
-- O registro de transição já tem o formato de um evento de domínio, o que mantém o caminho para event
-  sourcing aberto por custo praticamente zero.
+- A auditabilidade passa a ser propriedade da estrutura, e não convenção de time.
+- Transição ilegal é bloqueada no mesmo ponto em que a trilha é gravada.
+- A máquina de estados fica testável em memória, sem banco, em milissegundos.
+- O registro de transição já tem formato de evento de domínio, o que mantém aberto o caminho para event
+  sourcing a custo quase zero.
 
-**Negativas e custos assumidos**
+**O que custa**
 
-- Toda operação nova que mude status precisa de um comando explícito. Não existe auditoria de graça:
-  é código deliberado a cada vez.
-- Escrita que contorne a aplicação, como SQL manual ou script de migração, escapa do histórico.
-  Mitigação prevista: permissões de banco restritas e, se necessário, auditoria genérica como defesa
-  em profundidade.
-- Histórico de outros recursos não está coberto por esta ADR. Para esse caso a auditoria genérica
-  segue sendo a resposta provável, e os dois mecanismos podem coexistir sem conflito: um responde o
-  que mudou na linha, o outro o que aconteceu e por quê. Será outra ADR.
+- Toda operação nova que mude status exige um comando explícito. Não há auditoria de graça.
+- Escrita que contorne a aplicação, como SQL manual ou script de migração, escapa do histórico. A
+  mitigação é a permissão restrita de banco descrita em [Segurança](../seguranca.md).
+- Histórico de outros recursos fica fora desta decisão. Para esse caso a auditoria genérica segue sendo a
+  resposta provável, e os dois mecanismos coexistem sem conflito.
 
-## O que esta ADR não decide
-
-A trilha de auditoria tratada aqui não se confunde com a linha do tempo que o Solicitante vê ao
-acompanhar o andamento. Essa é um modelo de leitura derivado, que combina transições com comentários e
-atribuições. A distinção entre os três termos (transição de status, trilha de auditoria e linha do
-tempo) é tratada no glossário.
+Esta decisão não trata da linha do tempo que o Solicitante lê ao acompanhar o andamento: aquilo é um
+modelo de leitura derivado, que combina transições com atribuições e mensagens.
 
 ## Fontes
 
