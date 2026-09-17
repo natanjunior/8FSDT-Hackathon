@@ -23,10 +23,12 @@ import { source } from "@/interface/documentacao/source";
  */
 const SUBSTITUIDAS = new Set([
   "/documentacao/arquitetura",
+  "/documentacao/definition-of-done",
   "/documentacao/documentacao-da-demanda",
   "/documentacao/escopo",
   "/documentacao/event-storming",
   "/documentacao/fluxos-e-diagramas",
+  "/documentacao/premissas-e-questoes-abertas",
   "/documentacao/prototipo-low-fi",
 ]);
 

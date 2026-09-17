@@ -83,6 +83,9 @@ quem fez, e a observação.**
 A trilha tem tela própria, separada da linha do tempo que o Solicitante lê: a linha do tempo conta a
 história em linguagem de gente, e a trilha mostra os campos crus, para conferência.
 
+A linha do tempo reúne três tipos de evento: as transições, as atribuições de responsável e as mensagens
+da conversa. Alteração de prioridade não aparece nela.
+
 ## As regras que o desafio deixou em aberto
 
 | A pergunta | A regra |
@@ -120,8 +123,9 @@ ocorrência, e por isso são testáveis sem banco.
    reproduzível.
 8. Avaliar só é aceito em `Resolvida`, e só do autor.
 9. Iniciar o atendimento exige um responsável atribuído.
-10. Resolver não exige a solução aplicada por regra do sistema: ela é induzida pela interface, com um
-    interruptor por organização para quem precisar exigi-la.
+10. Resolver não exige a solução aplicada por regra do sistema: ela é campo da própria ocorrência,
+    escrito pelo Gestor, induzido pela interface, com um interruptor por organização para quem precisar
+    exigi-lo.
 
 As duas últimas atravessam outra tabela no momento em que o comando roda, e por isso são garantidas pelo
 comando de aplicação, e não pela entidade.
