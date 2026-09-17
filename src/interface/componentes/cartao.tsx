@@ -9,8 +9,8 @@ import type { ReactNode } from "react";
  * pauta"*, e o cartão é a caixa que sobra). Borda `--line`, fundo `--surface`, raio de 10 px, sombra
  * pequena, e nada vaza pelos cantos.
  *
- * **A família Organização o usa em cinco telas**, e o 44i o desenha primeiro: T-15 e T-16 agora, T-08,
- * T-09 e T-14 no 44j e no 44k. As telas que já existem (T-03, T-05, T-07 e o estado sem acesso) não
+ * **A família Organização o usa em cinco telas**, e o 44i o desenha primeiro: T-15, T-16 e T-08, e
+ * T-09 e T-14 no 44k. As telas que já existem (T-03, T-05, T-07 e o estado sem acesso) não
  * migram: seria arrumação sem critério em telas que o dono já validou.
  *
  * **O cartão é nomeado pelo título da cabeça**, por `aria-labelledby`: a seção vira região com nome, e
@@ -42,7 +42,8 @@ export function CabecaDoCartao({
 }: {
   id: string;
   titulo: string;
-  apoio?: string;
+  /** Aceita nó desde o item 44j: a linha de apoio do cartão Contatos muda com o ponteiro. */
+  apoio?: ReactNode;
   acao?: ReactNode;
 }) {
   return (

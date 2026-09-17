@@ -1,34 +1,64 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { BotaoDeIcone } from "@/interface/componentes/botao-de-icone";
+import { ErroDoFormulario, IndicadorDeEnvio } from "@/interface/componentes/campo";
 import {
+  TEXTOS_DA_REMOCAO,
   razaoDoImpedimento,
   textoDaConfirmacao,
   textoDaRecusa,
+  tituloDaConfirmacao,
+  tituloDoImpedimento,
   type ImpedimentoNaTela,
 } from "@/interface/componentes/frases-da-remocao";
+import { FALHA, TEXTOS_DA_TABELA, avisoDeRemovido } from "@/interface/componentes/frases-de-participantes";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/interface/componentes/ui/alert-dialog";
 import { Button } from "@/interface/componentes/ui/button";
+import { useEnvioDoModal, type DesfechoDoEnvio } from "@/interface/ganchos/use-envio-do-modal";
 
 /**
- * **T-08 · o botão-ou-razão** — o conserto do **PA-25**, e o único `DELETE` do produto.
+ * ============================================================================
+ *  T-08 · remover da organização — o conserto do PA-25, e o único `DELETE`
+ * ============================================================================
  *
- * **A razão substitui o botão, e não é mensagem de erro** (critério 10.4, `prototipo-low-fi.md:919`): *"a
- * tela não mostra o botão quando o vínculo não pode sair — o erro só existiria se a tela tivesse falhado
- * antes"*. Quem decide é `impedimentosDeRemocao`, lido pela página na estrada direta.
+ * **O botão existe em toda linha de vínculo** (critério 44j.4, decidido pelo dono em 16/09/2026). Até
+ * aqui a razão substituía o botão; hoje o clique abre o aviso com a razão, que é o que o guia manda
+ * fazer com ação que não pode acontecer: *"o clique abre um aviso que diz por quê, em vez de o botão
+ * sumir"*. Quem decide qual dos dois abre é `impedimentosDeRemocao`, lido pela página.
  *
- * **A confirmação é o `<dialog>` nativo, e não o `AlertDialog` do catálogo.** O `prototipo-low-fi.md:984`
- * mapeia *"confirmação de ato irreversível — aprovar papel, remover vínculo"* para `AlertDialog`, que o
- * projeto **nunca instalou**; a confirmação de **aprovar**, nesta mesma tela e igualmente irreversível, já
- * usa o `<dialog>` nativo (`decisao-de-pedido-de-entrada.tsx:250`). **Um padrão por tela**, e nenhuma
- * dependência nova na última sprint. É o achado **A-5** da spec, registrado e não consertado.
+ * **A confirmação é o `alert-dialog` do catálogo** (critério 44j.11), e **quem confirma não é o botão de
+ * ação do primitivo**, que fecha no clique: é um botão de envio, e quem fecha é o ciclo do 44g — durante
+ * o envio nada fecha, no sucesso o aviso sai e a página se atualiza, no erro a mensagem fica dentro da
+ * confirmação.
  *
- * **`organizacaoId` é o da renderização daquela aba** — a afirmação da §4.3 do contrato —, recebido por
- * propriedade e **nunca lido do cookie no clique**: a outra aba já reescreveu o cookie, e a afirmação
- * bateria consigo mesma.
+ * **O toque no aviso não fecha esta peça**, e ela não precisa da guarda do `dialog.tsx`: o primitivo
+ * recusa fechamento por interação de fora.
+ *
+ * **Quando a linha sai da tabela**, o gatilho some com ela e o foco cairia no `body`: `aoSair` leva o
+ * foco à opção marcada do filtro rápido.
+ *
+ * **`organizacaoId` é o da renderização daquela aba** — a afirmação do contrato §4.3 —, recebido por
+ * propriedade e nunca lido do cookie no clique.
  */
+
+const CONTEUDO = "bg-superficie border-linha";
+const TITULO = "text-titulo-bloco text-tinta leading-snug";
+const DESCRICAO = "text-corpo text-tinta-suave";
+const BOTAO = "text-interface min-h-11 rounded-sm px-4";
+
 export function RemocaoDeVinculo({
   pessoaId,
   nome,
@@ -36,6 +66,8 @@ export function RemocaoDeVinculo({
   impedimento,
   organizacaoId,
   ehMeuProprioVinculo,
+  descritoPor,
+  aoSair,
 }: {
   pessoaId: string;
   nome: string;
@@ -44,110 +76,106 @@ export function RemocaoDeVinculo({
   impedimento: ImpedimentoNaTela | null;
   organizacaoId: string;
   ehMeuProprioVinculo: boolean;
+  /** O `id` do nome na linha, para a dica e o rótulo não precisarem repeti-lo. */
+  descritoPor?: string | undefined;
+  aoSair?: (() => void) | undefined;
 }) {
-  const router = useRouter();
-  const [enviando, setEnviando] = useState(false);
-  const [recusa, setRecusa] = useState<string | null>(null);
-  const confirmacao = useRef<HTMLDialogElement>(null);
+  const [saiu, setSaiu] = useState(false);
 
-  if (impedimento !== null) {
-    const razao = razaoDoImpedimento(nome, impedimento);
-    return (
-      <p className="text-tinta-suave max-w-xs text-xs leading-relaxed">
-        {razao.titulo}
-        {razao.complemento !== null && <span className="mt-1 block">{razao.complemento}</span>}
-      </p>
-    );
-  }
-
-  async function remover() {
-    setEnviando(true);
-    setRecusa(null);
-
-    let removido = false;
-    try {
+  const envio = useEnvioDoModal({
+    enviar: async (): Promise<DesfechoDoEnvio<undefined>> => {
       const resposta = await fetch(`/api/vinculos/${pessoaId}`, {
         method: "DELETE",
         headers: cabecalhosDeEscrita(organizacaoId),
       });
+      if (resposta.ok) return { ok: true };
+      const corpo: unknown = await resposta.json().catch(() => null);
+      return { ok: false, aviso: textoDaRecusa(corpo, nome) };
+    },
+    aoConcluir: () => {
+      setSaiu(true);
+      return avisoDeRemovido(nome);
+    },
+    tituloDaFalha: FALHA.remover,
+    aoAbrir: () => {
+      setSaiu(false);
+    },
+  });
 
-      if (resposta.ok) {
-        removido = true;
-      } else {
-        const problema = (await resposta.json().catch(() => ({}))) as { codigo?: string };
-        setRecusa(textoDaRecusa(problema.codigo, nome));
-      }
-    } catch {
-      // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição sobe pela
-      // transição e aciona o Error Boundary em vez de mostrar a linha de recusa. Nuvem sem SLA: rede
-      // instável é o caso esperado.
-      setRecusa(textoDaRecusa(undefined, nome));
-    } finally {
-      setEnviando(false);
-    }
+  const gatilho = (
+    <AlertDialogTrigger asChild>
+      <BotaoDeIcone
+        rotulo={TEXTOS_DA_TABELA.remover}
+        icone={<Trash2 aria-hidden="true" />}
+        descritoPor={descritoPor}
+      />
+    </AlertDialogTrigger>
+  );
 
-    if (removido) {
-      confirmacao.current?.close();
-      // A faixa é da página, e vem da URL: o que aconteceu tem de sobreviver ao recarregamento, ou a ação
-      // irreversível é comunicada por ausência — que é o que a tela do PA-25 existe para não fazer.
-      router.replace(`/vinculos?removido=${encodeURIComponent(nome)}`);
-      router.refresh();
-    }
+  if (impedimento !== null) {
+    return (
+      <AlertDialog>
+        {gatilho}
+        <AlertDialogContent className={CONTEUDO}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={TITULO}>{tituloDoImpedimento(nome)}</AlertDialogTitle>
+            <AlertDialogDescription className={DESCRICAO}>
+              {razaoDoImpedimento(nome, impedimento)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="marca" className={`${BOTAO} font-semibold`}>
+              {TEXTOS_DA_REMOCAO.entendi}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
   }
 
   const linhas = textoDaConfirmacao({ nome, temConta, ehMeuProprioVinculo });
 
   return (
-    <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        disabled={enviando}
-        onClick={() => confirmacao.current?.showModal()}
-        className="border-linha text-tinta inline-flex min-h-11 w-fit items-center rounded-md border px-3 text-sm"
+    <AlertDialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
+      {gatilho}
+      <AlertDialogContent
+        className={CONTEUDO}
+        onCloseAutoFocus={(evento) => {
+          if (!saiu) return;
+          evento.preventDefault();
+          setSaiu(false);
+          aoSair?.();
+        }}
       >
-        Remover
-        <span className="sr-only"> o vínculo de {nome}</span>
-      </button>
+        <AlertDialogHeader>
+          <AlertDialogTitle className={TITULO}>{tituloDaConfirmacao(nome)}</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className={`${DESCRICAO} flex flex-col gap-2`}>
+              {linhas.map((linha) => (
+                <p key={linha}>{linha}</p>
+              ))}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-      {recusa !== null && (
-        <p
-          role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-xs"
-        >
-          {recusa}{" "}
-          <button
-            type="button"
-            onClick={() => router.refresh()}
-            className="text-marca underline underline-offset-4"
-          >
-            Atualizar a lista
-          </button>
-        </p>
-      )}
+        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
 
-      <dialog
-        ref={confirmacao}
-        className="bg-superficie text-tinta m-auto max-w-md rounded-md p-6 backdrop:bg-black/40"
-      >
-        <h4 className="text-tinta text-base font-semibold">Remover o vínculo de {nome}?</h4>
-        {linhas.map((linha) => (
-          <p key={linha} className="text-tinta-suave mt-3 text-sm leading-relaxed">
-            {linha}
-          </p>
-        ))}
-        <div className="mt-5 flex justify-end gap-3">
-          <button
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={envio.enviando} className={`border-linha ${BOTAO}`}>
+            {TEXTOS_DA_REMOCAO.cancelar}
+          </AlertDialogCancel>
+          <Button
             type="button"
-            onClick={() => confirmacao.current?.close()}
-            className="border-linha h-11 rounded-md border px-5 text-sm"
+            variant="destructive"
+            disabled={envio.enviando}
+            onClick={() => void envio.confirmar()}
+            className={`${BOTAO} font-semibold`}
           >
-            Voltar
-          </button>
-          <Button type="button" disabled={enviando} onClick={remover} className="h-11">
-            {enviando ? "Removendo…" : "Remover vínculo"}
+            <IndicadorDeEnvio ativo={envio.enviando} />
+            {envio.enviando ? TEXTOS_DA_REMOCAO.removendo : TEXTOS_DA_REMOCAO.remover}
           </Button>
-        </div>
-      </dialog>
-    </div>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

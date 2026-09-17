@@ -399,7 +399,9 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
     expect(fonte).toContain("duration-(--tempo-gaveta)");
     expect(fonte).toContain("ease-(--curva-gaveta)");
     expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
-    expect(fonte).toContain('variant="marca"');
+    // O principal veste a marca por padrão; a variante destrutiva entrou no 44j, para *Recusar pedido*.
+    expect(fonte).toContain('variante = "marca"');
+    expect(fonte).toContain('variant={variante === "destrutiva" ? "destructive" : "marca"}');
   });
 
   it("T-16 edita o nome no modal do nome, e o formulário de campo aberto da pessoa saiu", () => {
@@ -454,5 +456,143 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
     expect(fonte).not.toContain("searchParams");
     expect(fonte).not.toContain("Não há como apagar");
     expect(fonte).not.toContain("function Destino(");
+  });
+});
+
+/** Os arquivos em que o 44j aplica o guia: as guardas de forma leem estes. */
+const ALCANCE_DO_44J = [
+  "app/(casca)/vinculos/page.tsx",
+  "app/(casca)/vinculos/loading.tsx",
+  "app/(casca)/vinculos/nova/page.tsx",
+  "app/(casca)/vinculos/nova/loading.tsx",
+  "app/(casca)/vinculos/[pessoaId]/editar/page.tsx",
+  "app/(casca)/vinculos/[pessoaId]/editar/loading.tsx",
+  "src/interface/componentes/tabela-de-participantes.tsx",
+  "src/interface/componentes/linhas-de-participantes.ts",
+  "src/interface/componentes/frases-de-participantes.ts",
+  "src/interface/componentes/regras-do-vinculo.ts",
+  "src/interface/componentes/escolhas-do-vinculo.tsx",
+  "src/interface/componentes/decisao-de-pedido-de-entrada.tsx",
+  "src/interface/componentes/remocao-de-vinculo.tsx",
+  "src/interface/componentes/frases-da-remocao.ts",
+  "src/interface/componentes/formulario-de-vinculo.tsx",
+  "src/interface/componentes/sub-formulario-de-contatos.tsx",
+  "src/interface/componentes/ordem-manual.ts",
+  "src/interface/componentes/controles-de-ordem.tsx",
+  "src/interface/componentes/botao-de-icone.tsx",
+  "src/interface/componentes/caminho-da-pagina.tsx",
+  "src/interface/componentes/ficha-de-pessoa.tsx",
+  "src/interface/ganchos/use-arrasto-de-linha.ts",
+];
+
+/** As quatro páginas e os dois esqueletos: as que o critério 44j.12 limpa. */
+const PAGINAS_DO_44J = ALCANCE_DO_44J.filter((caminho) => caminho.startsWith("app/"));
+
+describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
+  it("os quatro componentes do catálogo entraram (critério 44j.11)", () => {
+    for (const peca of ["alert-dialog", "breadcrumb", "radio-group", "switch"]) {
+      expect(existsSync(`${RAIZ}src/interface/componentes/ui/${peca}.tsx`), peca).toBe(true);
+    }
+  });
+
+  it("o arrastar é o nativo do HTML, sem pacote novo (critério 44j.9)", () => {
+    const fonte = ler("src/interface/ganchos/use-arrasto-de-linha.ts");
+    expect(fonte).toContain("dataTransfer");
+    expect(fonte).toContain("setDragImage");
+    const importados = [...fonte.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    expect(importados.filter((modulo) => modulo !== "react" && !modulo.startsWith("@/"))).toStrictEqual([]);
+  });
+
+  it("a alça só existe onde há ponteiro fino, e sem tocar a folha de estilo global", () => {
+    expect(ler("src/interface/componentes/controles-de-ordem.tsx")).toContain(
+      "[@media(hover:hover)_and_(pointer:fine)]:",
+    );
+  });
+
+  it("remover usa a confirmação do catálogo, e quem fecha é o ciclo (critérios 44j.4 e 44j.11)", () => {
+    const fonte = ler("src/interface/componentes/remocao-de-vinculo.tsx");
+    expect(fonte).toContain("<AlertDialog");
+    expect(fonte).toContain("useEnvioDoModal");
+    // `AlertDialogAction` fecha no clique, e o envio precisa do modal aberto até a resposta chegar.
+    expect(fonte).not.toContain("AlertDialogAction");
+    expect(fonte).not.toContain("<dialog");
+    expect(fonte).not.toContain("showModal");
+  });
+
+  it("responder é um modal de duas faces, e o botão diz o papel (critérios 44j.6 e 44j.7)", () => {
+    const fonte = ler("src/interface/componentes/decisao-de-pedido-de-entrada.tsx");
+    expect(fonte).toContain("<Modal");
+    expect(fonte).toContain("rotuloDeAprovar(papel)");
+    expect(fonte).toContain('variante="destrutiva"');
+    expect(fonte).not.toContain("<dialog");
+    expect(fonte).not.toContain("showModal");
+    // O botão nunca fica indisponível por falta de papel (critério 44g.9).
+    expect(fonte).not.toMatch(/disabled=\{[^}]*papel[^}]*\}/u);
+  });
+
+  it("a tabela substitui as duas listas, e a página não lê o endereço no servidor (critérios 44j.1 e 44j.3)", () => {
+    const pagina = ler("app/(casca)/vinculos/page.tsx");
+    expect(pagina).toContain("<TabelaDeParticipantes");
+    expect(pagina).not.toContain("searchParams");
+    expect(pagina).not.toContain("FaixaDoDesfecho");
+    expect(existsSync(`${RAIZ}src/interface/componentes/lista-de-vinculos.tsx`)).toBe(false);
+    // O estado da tabela vive no navegador, e nenhum clique de filtro vai ao servidor.
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).toContain("useSearchParams()");
+    expect(tabela).toContain("window.history.pushState");
+    expect(tabela).toContain("window.history.replaceState");
+  });
+
+  it("nenhum botão fica desabilitado por campo inválido (critério 44g.9, no alcance do 44j)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/disabled=\{[^}]*(?:=== null|!pode|!valido)[^}]*\}/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44j.12)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as páginas não repetem a marca e não têm Voltar no conteúdo (critério 44j.12)", () => {
+    for (const caminho of PAGINAS_DO_44J) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("Resolve Aí");
+      expect(fonte, caminho).not.toMatch(/^\s*Voltar\s*$/mu);
+    }
+  });
+
+  it("nenhum diálogo nativo sobra em T-08 (critério 44j.11)", () => {
+    for (const caminho of ALCANCE_DO_44J) {
+      expect(ler(caminho), caminho).not.toContain("<dialog");
+      expect(ler(caminho), caminho).not.toContain("showModal");
+    }
+  });
+
+  it("os quatro desfechos por endereço saíram do produto (critério 44j.10)", () => {
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ linha, numero: indice + 1 }))
+        .filter(({ linha }) => /(?:cadastrado|corrigido|removido|decidido)=/u.test(linha))
+        .map(({ numero }) => `${caminho}:${String(numero)}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhuma frase genérica própria em T-08 (critério 44g.6)", () => {
+    const achados = ALCANCE_DO_44J.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"Não foi possível [^"]*agora[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
   });
 });

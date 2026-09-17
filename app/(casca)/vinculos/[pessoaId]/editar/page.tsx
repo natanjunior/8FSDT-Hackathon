@@ -1,22 +1,27 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, verVinculo } from "@/aplicacao/organizacao";
+import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vinculo";
+import { dataCurta, rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea } from "@/interface/projecoes";
 
 /**
- * **T-08 · corrigir os dados de um vínculo.**
+ * **T-08 · editar participante.**
  *
  * A resolução do escopo é a de `app/(casca)/vinculos/page.tsx`, copiada e não importada, pela mesma razão
  * da página de cadastro. O estado sem acesso é o `SemAcesso` da casca.
+ *
+ * O caminho no topo e o rodapé preso ao fim do conteúdo são a forma que o guia §7 deu à página própria
+ * (item 44j).
  */
 export const dynamic = "force-dynamic";
 
-export default async function CorrigirVinculo({
+export default async function EditarParticipante({
   params,
 }: {
   params: Promise<{ pessoaId: string }>;
@@ -27,7 +32,7 @@ export default async function CorrigirVinculo({
   const escopo = await resolverOuMandarParaPorta(pessoaId);
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") {
-    return <SemAcesso titulo="Corrigir os dados" permissao="vinculo.gerir" />;
+    return <SemAcesso titulo="Editar participante" permissao="vinculo.gerir" />;
   }
 
   // Leitura pela estrada direta (contrato §5) — **sem salto HTTP, e pela camada de Aplicação**, como
@@ -41,25 +46,23 @@ export default async function CorrigirVinculo({
   if (vinculo === null) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <Link href="/vinculos" className="text-marca text-sm underline underline-offset-4">
-          Voltar
-        </Link>
-        <h1 className="text-tinta text-xl leading-snug font-semibold">Corrigir os dados</h1>
-        <p className="text-tinta-suave text-sm">{escopo.resolucao.ativo?.organizacao.nome}</p>
-      </header>
-
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Não há como trocar o papel de alguém. O único conserto de papel errado é remover o vínculo e pedir
-        entrada de novo.
-      </p>
-
+    <div className="flex flex-col gap-5.5">
+      <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual={vinculo.pessoa.nome} />
+      <CabecalhoDaPagina
+        titulo="Editar participante"
+        fato={
+          <>
+            {vinculo.pessoa.nome}, {rotuloDoPapel(vinculo.papel)} desde{" "}
+            <span className="font-mono tabular-nums">{dataCurta(vinculo.criadoEm)}</span>.
+          </>
+        }
+      />
       <FormularioDeVinculo
         modo={{
           tipo: "correcao",
           pessoaId,
           nome: vinculo.pessoa.nome,
+          papel: vinculo.papel,
           temConta: vinculo.temConta,
           areaIdAtual: vinculo.area?.id ?? null,
           contatosAtuais: vinculo.pessoa.contatos,
@@ -72,8 +75,8 @@ export default async function CorrigirVinculo({
 }
 
 /**
- * Local, como em `app/vinculos/page.tsx`. **O `destino` carrega o `pessoaId`** — quem foi para T-01 no
- * meio de uma correção volta para a correção daquela pessoa, não para a lista.
+ * Local, como em `app/(casca)/vinculos/page.tsx`. **O `destino` carrega o `pessoaId`** — quem foi para
+ * T-01 no meio de uma edição volta para a edição daquela pessoa, não para a lista.
  */
 async function resolverOuMandarParaPorta(pessoaId: string) {
   try {

@@ -13,6 +13,8 @@ import type { ReactNode } from "react";
  * leitor de tela (o argumento do critério 44c.9). **A ação**, quando houver, fica à direita a partir de
  * `md` e embaixo no celular; T-15 e T-16 não têm.
  *
+ * O fato pode trazer números em mono — é o que T-08 faz com as contagens (item 44j).
+ *
  * **Componente de servidor.**
  */
 export function CabecalhoDaPagina({
@@ -21,7 +23,7 @@ export function CabecalhoDaPagina({
   acao,
 }: {
   titulo: string;
-  fato: string;
+  fato: ReactNode;
   acao?: ReactNode;
 }) {
   return (

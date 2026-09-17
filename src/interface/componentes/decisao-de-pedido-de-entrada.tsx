@@ -1,354 +1,299 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { Phone, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { CONTORNO_DE_ACAO } from "@/interface/componentes/botao-de-icone";
+import { Campo, ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
+import { CampoDeUnidade, OpcoesDePapel, idDaOpcaoDePapel } from "@/interface/componentes/escolhas-do-vinculo";
+import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import {
+  FALHA,
+  FRASES_DO_PEDIDO,
+  TETO_DO_MOTIVO,
+  TEXTOS_DA_RESPOSTA,
+  avisoDeAprovado,
+  avisoDeRecusado,
+  avisoDoEncarregado,
+  descricaoDaRecusa,
+  descricaoDoPedido,
+  erroDoPapelNaResposta,
+  rotuloDeAprovar,
+  tituloDaRecusa,
+  type Papel,
+} from "@/interface/componentes/frases-de-participantes";
+import { BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
+import { mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { telefoneLegivel } from "@/interface/componentes/telefone";
 import { Button } from "@/interface/componentes/ui/button";
+import { Textarea } from "@/interface/componentes/ui/textarea";
+import { cn } from "@/interface/componentes/utilitarios";
+import { useEnvioDoModal, type DesfechoDoEnvio } from "@/interface/ganchos/use-envio-do-modal";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
- * **T-08 · o bloco de aprovação** — a tela onde *a forma previne o defeito*.
+ * ============================================================================
+ *  T-08 · responder um pedido de entrada — o modal de duas faces (item 44j)
+ * ============================================================================
  *
- * O **PA-25** nasceu de um erro de clique num `select`, e o conserto (`DELETE /vinculos/{pessoaId}`) é do
- * Gestor, enquanto quem precisa saber que deve procurá-lo é a pessoa aprovada com o papel errado — que, se
- * caiu em `encarregado`, **não consegue nada**. Daí as três decisões que este componente materializa:
+ * O **PA-25** nasceu de um erro de clique num seletor, e o conserto (`DELETE /vinculos/{pessoaId}`) é do
+ * Gestor, enquanto quem precisa saber que deve procurá-lo é a pessoa aprovada com o papel errado. Daí as
+ * três decisões que este componente materializa, na forma que o item 44j lhes deu:
  *
- * 1. **Nenhum papel pré-selecionado**, e o botão de aprovar indisponível até que um seja escolhido. *Não
- *    existe papel que se obtém por não escolher* — que é exatamente o mecanismo do erro de clique.
- * 2. **A confirmação diz o papel em palavras**, não em campo.
- * 3. **A consequência está escrita onde a escolha é feita**, uma linha por papel.
+ * 1. **Nenhum papel pré-selecionado.** O principal **não** fica indisponível (guia §7): clicado sem
+ *    papel, acende a mensagem e leva o foco à primeira opção.
+ * 2. **O botão diz o papel** — *"Aprovar como Encarregado"*. Era o trabalho da confirmação separada, que
+ *    saiu: a palavra aparece no mesmo lugar do clique, e não numa segunda tela.
+ * 3. **A consequência está escrita onde a escolha é feita**, uma linha por papel, e escolher Encarregado
+ *    abre o aviso dentro do modal.
  *
- * **A unidade é assimétrica ao papel, e a razão é o custo do erro** (spec §2.5): papel errado só se
- * conserta removendo o vínculo e refazendo o pedido; unidade errada se conserta com um `PATCH`. Por isso
- * ela **tem** padrão — *"Sem unidade"* —, e o papel não tem.
+ * **Duas faces, uma raiz.** *Recusar pedido* troca o conteúdo do mesmo modal, com o papel e a unidade
+ * guardados; *Voltar* devolve a primeira face. Um `alert-dialog` empilhado sobre o modal prenderia dois
+ * focos, e um botão *Recusar* na linha não é o que a prancheta desenha.
+ *
+ * **O que o pedido carrega é o telefone informado** (contrato §4.6): `contatos` é tabela global, e
+ * devolvê-la aqui mostraria ao Gestor desta organização o que a pessoa cadastrou em outra.
+ *
+ * **A sequência é a do guia §7**, pelo `useEnvioDoModal`: durante o envio nada fecha; sucesso avisa,
+ * fecha e atualiza a página; erro avisa, deixa a mensagem no modal e o modal aberto. A mensagem do erro
+ * continua à vista se a pessoa trocar de face — um `PEDIDO_JA_DECIDIDO` vale para as duas.
  */
 
-/**
- * **O `<select>` e o `<textarea>` usam `border-input bg-transparent`, que é o par do `Input` do
- * `shadcn/ui`** (`componentes/ui/input.tsx`) — e não um token de fundo próprio: `--color-fundo` **não
- * existe** no tema (`app/globals.css` declara `marca`, `superficie`, `tinta`, `tinta-suave`,
- * `tinta-fraca`, `linha` e `linha-suave`). Classe inventada no Tailwind 4 não é erro de build: ela
- * simplesmente não gera regra, e o campo fica sem fundo em silêncio.
- */
-type Area = { id: string; nome: string; tipo: string };
-
-type Pedido = {
-  id: string;
-  pessoa: { nome: string; telefoneInformado: string | null };
-  criadoEm: string;
-};
-
-type Papel = "solicitante" | "gestor" | "encarregado";
-
-/** As três consequências, verbatim do inventário §T-08 e do protótipo. */
-const CONSEQUENCIA: ReadonlyArray<{ papel: Papel; rotulo: string; texto: string; alerta?: string }> = [
-  {
-    papel: "solicitante",
-    rotulo: "Solicitante",
-    texto: "Registra e acompanha as próprias ocorrências.",
-  },
-  {
-    papel: "gestor",
-    rotulo: "Gestor",
-    texto:
-      "Analisa, atribui, resolve e cancela qualquer ocorrência. Configura a organização e aprova quem entra.",
-  },
-  {
-    papel: "encarregado",
-    rotulo: "Encarregado",
-    texto: "Aparece como responsável pela ocorrência.",
-    alerta: "Não consegue fazer nada dentro do sistema.",
-  },
-];
-
-const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
-  PEDIDO_JA_DECIDIDO: "Este pedido já foi decidido por outro Gestor.",
-  JA_VINCULADO: "Esta pessoa já tem vínculo nesta organização.",
-  AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
-  PEDIDO_NAO_ENCONTRADO: "Este pedido não existe mais.",
-};
-
-const MENSAGEM_GENERICA = "Não foi possível decidir agora. Tente de novo.";
+type Face = "responder" | "recusar";
 
 export function DecisaoDePedidoDeEntrada({
   pedido,
   areas,
   organizacaoId,
+  aoSair,
 }: {
-  pedido: Pedido;
-  areas: readonly Area[];
-  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  pedido: { id: string; pessoa: { nome: string; telefoneInformado: string | null }; criadoEm: string };
+  areas: ReadonlyArray<{ id: string; nome: string }>;
+  /** A organização com que a página renderizou — a afirmação do contrato §4.3. */
   organizacaoId: string;
+  /** Para onde o foco vai quando a linha do pedido sai da tabela. */
+  aoSair?: (() => void) | undefined;
 }) {
-  const router = useRouter();
+  const nome = pedido.pessoa.nome;
+  const prefixo = useId();
+  const [face, setFace] = useState<Face>("responder");
   const [papel, setPapel] = useState<Papel | null>(null);
-  const [areaId, setAreaId] = useState<string>("");
-  const [observacao, setObservacao] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [recusa, setRecusa] = useState<string | null>(null);
+  const [areaId, setAreaId] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [saiu, setSaiu] = useState(false);
+  const trocouDeFace = useRef(false);
+  const campoDoMotivo = useRef<HTMLTextAreaElement>(null);
+  const botaoDeRecusar = useRef<HTMLButtonElement>(null);
 
-  const confirmacao = useRef<HTMLDialogElement>(null);
-  const recusaDialogo = useRef<HTMLDialogElement>(null);
+  const respondendo = face === "responder";
+  const unidade = areas.find((area) => area.id === areaId)?.nome ?? null;
 
-  const escolhido = CONSEQUENCIA.find((c) => c.papel === papel);
-  const area = areas.find((a) => a.id === areaId);
+  const formulario = useFormularioTocado({
+    campos: { papel: idDaOpcaoDePapel(`${prefixo}-papel`, "solicitante") },
+    erros: { papel: papel === null ? erroDoPapelNaResposta(nome) : undefined },
+  });
 
-  async function decidir(caminho: "aprovar" | "recusar", corpo: unknown) {
-    setEnviando(true);
-    setRecusa(null);
-
-    let decidido = false;
-    try {
-      const resposta = await fetch(`/api/pedidos-de-entrada/${pedido.id}/${caminho}`, {
-        method: "POST",
-        headers: cabecalhosDeEscrita(organizacaoId),
-        body: JSON.stringify(corpo),
-      });
-
-      if (resposta.ok) {
-        decidido = true;
-      } else {
-        const problema = (await resposta.json().catch(() => ({}))) as {
-          codigo?: string;
-          detail?: string;
-        };
-        setRecusa(TEXTO_DA_RECUSA[problema.codigo ?? ""] ?? problema.detail ?? MENSAGEM_GENERICA);
-      }
-    } catch {
-      // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição sobe pela
-      // transição e aciona o Error Boundary em vez de mostrar a linha de recusa. Nuvem sem SLA: rede
-      // instável é o caso esperado.
-      setRecusa(MENSAGEM_GENERICA);
-    } finally {
-      setEnviando(false);
-    }
-
-    if (decidido) {
-      confirmacao.current?.close();
-      recusaDialogo.current?.close();
-      // A lista recarrega e o pedido decidido sai dela — o padrão do endpoint é `situacao=pendente`. A
-      // faixa de desfecho é da página, que a mostra a partir da query (spec §2.6).
-      router.replace(
-        caminho === "aprovar"
-          ? `/vinculos?decidido=aprovado&quem=${encodeURIComponent(pedido.pessoa.nome)}&papel=${papel ?? ""}&unidade=${encodeURIComponent(area?.nome ?? "")}`
-          : `/vinculos?decidido=recusado&quem=${encodeURIComponent(pedido.pessoa.nome)}`,
-      );
-      router.refresh();
-    }
+  async function enviarPara(caminho: "aprovar" | "recusar", corpo: unknown): Promise<DesfechoDoEnvio<undefined>> {
+    const resposta = await fetch(`/api/pedidos-de-entrada/${pedido.id}/${caminho}`, {
+      method: "POST",
+      headers: cabecalhosDeEscrita(organizacaoId),
+      body: JSON.stringify(corpo),
+    });
+    if (resposta.ok) return { ok: true };
+    const problema: unknown = await resposta.json().catch(() => null);
+    return { ok: false, aviso: mensagemDoProblema(problema, FRASES_DO_PEDIDO) };
   }
 
+  const envio = useEnvioDoModal({
+    enviar: () =>
+      respondendo
+        ? enviarPara("aprovar", { papel, areaId })
+        : enviarPara("recusar", { observacao: motivo.trim() === "" ? null : motivo }),
+    aoConcluir: () => {
+      setSaiu(true);
+      return respondendo ? avisoDeAprovado(nome, papel ?? "", unidade) : avisoDeRecusado(nome);
+    },
+    tituloDaFalha: respondendo ? FALHA.aprovar : FALHA.recusar,
+    aoAbrir: () => {
+      setFace("responder");
+      setPapel(null);
+      setAreaId(null);
+      setMotivo("");
+      setSaiu(false);
+      formulario.recomecar();
+    },
+  });
+
+  // Trocar de face tira o foco do botão que sumiu: ele vai para o motivo, e volta para *Recusar pedido*.
+  useEffect(() => {
+    if (!trocouDeFace.current) return;
+    trocouDeFace.current = false;
+    if (face === "recusar") campoDoMotivo.current?.focus();
+    else botaoDeRecusar.current?.focus();
+  }, [face]);
+
+  function trocarPara(proxima: Face) {
+    trocouDeFace.current = true;
+    setFace(proxima);
+  }
+
+  function aoEnviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (envio.enviando) return;
+    if (respondendo && !formulario.tentarEnviar()) return;
+    void envio.confirmar();
+  }
+
+  const aviso = papel === "encarregado" ? avisoDoEncarregado(nome) : null;
+
   return (
-    <article className="border-linha bg-superficie flex flex-col gap-4 rounded-md border p-5">
-      <header className="flex flex-col gap-1">
-        <h3 className="text-tinta text-base font-semibold">{pedido.pessoa.nome}</h3>
-        <p className="text-tinta-suave text-sm">pediu em {formatarData(pedido.criadoEm)}</p>
-        {pedido.pessoa.telefoneInformado !== null && (
-          <p className="text-tinta-suave text-sm">
-            Telefone informado no pedido:{" "}
-            <span className="text-tinta">{agrupar(pedido.pessoa.telefoneInformado)}</span>
-          </p>
-        )}
-      </header>
-
-      {recusa !== null && (
-        <p
-          role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm"
-        >
-          {recusa}{" "}
-          <button
-            type="button"
-            onClick={() => router.refresh()}
-            className="text-marca underline underline-offset-4"
-          >
-            Atualizar a lista
-          </button>
-        </p>
-      )}
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-tinta mb-2 text-sm font-semibold">
-          Qual papel {pedido.pessoa.nome} vai ter nesta organização?
-        </legend>
-
-        {CONSEQUENCIA.map((opcao, indice) => (
-          <label
-            key={opcao.papel}
-            className={`border-linha flex min-h-11 items-start gap-3 rounded-md border p-3 ${
-              indice === 2 ? "mt-2 border-t-2" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name={`papel-${pedido.id}`}
-              value={opcao.papel}
-              checked={papel === opcao.papel}
-              onChange={() => setPapel(opcao.papel)}
-              className="mt-1"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span className="text-tinta text-sm font-medium">{opcao.rotulo}</span>
-              <span className="text-tinta-suave text-xs leading-relaxed">
-                {opcao.texto}
-                {opcao.alerta !== undefined && (
-                  <strong className="text-tinta block font-semibold">{opcao.alerta}</strong>
-                )}
-              </span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={`unidade-${pedido.id}`} className="text-tinta text-sm font-medium">
-          Unidade (opcional)
-        </label>
-        <select
-          id={`unidade-${pedido.id}`}
-          value={areaId}
-          onChange={(evento) => setAreaId(evento.target.value)}
-          className="border-input bg-transparent text-tinta h-11 rounded-md border px-3 text-base"
-        >
-          <option value="">Sem unidade</option>
-          {areas.map((opcao) => (
-            <option key={opcao.id} value={opcao.id}>
-              {opcao.nome}
-            </option>
-          ))}
-        </select>
-        <span className="text-tinta-suave text-xs leading-relaxed">
-          Onde esta pessoa mora ou trabalha aqui — o apartamento 302, a sala 14. O Gestor e o terceirizado
-          não têm unidade.
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      titulo={respondendo ? TEXTOS_DA_RESPOSTA.titulo : tituloDaRecusa(nome)}
+      descricao={respondendo ? descricaoDoPedido(pedido.criadoEm) : descricaoDaRecusa(nome)}
+      obrigatorios={respondendo ? 1 : 0}
+      aoEnviar={aoEnviar}
+      aoFecharFoco={(evento) => {
+        if (!saiu) return;
+        evento.preventDefault();
+        setSaiu(false);
+        aoSair?.();
+      }}
+      gatilho={
         <Button
           type="button"
-          disabled={papel === null || enviando}
-          aria-describedby={papel === null ? `dica-${pedido.id}` : undefined}
-          onClick={() => confirmacao.current?.showModal()}
-          className="h-11"
+          variant="outline"
+          className={cn(CONTORNO_DE_ACAO, "text-interface text-tinta min-h-11 rounded-sm px-3.5")}
         >
-          Aprovar
+          {TEXTOS_DA_RESPOSTA.gatilho}
+          <span className="sr-only"> o pedido de {nome}</span>
         </Button>
-        {papel === null && (
-          <span id={`dica-${pedido.id}`} className="text-tinta-suave text-sm">
-            indisponível até escolher um papel
-          </span>
-        )}
-        <button
-          type="button"
-          disabled={enviando}
-          onClick={() => recusaDialogo.current?.showModal()}
-          className="border-linha text-tinta ml-auto h-11 rounded-md border px-5 text-sm"
-        >
-          Recusar
-        </button>
-      </div>
+      }
+      rodape={
+        respondendo ? (
+          <>
+            <Button
+              ref={botaoDeRecusar}
+              type="button"
+              variant="destructive"
+              disabled={envio.enviando}
+              onClick={() => {
+                trocarPara("recusar");
+              }}
+              className="text-interface min-h-11 rounded-sm px-4 font-semibold"
+            >
+              {TEXTOS_DA_RESPOSTA.recusar}
+            </Button>
+            <BotaoDeConfirmar
+              enviando={envio.enviando}
+              rotulo={rotuloDeAprovar(papel)}
+              rotuloEnviando={TEXTOS_DA_RESPOSTA.aprovando}
+            />
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={envio.enviando}
+              onClick={() => {
+                trocarPara("responder");
+              }}
+              className={cn(CONTORNO_DE_ACAO, "text-interface text-tinta min-h-11 rounded-sm px-4")}
+            >
+              {TEXTOS_DA_RESPOSTA.voltar}
+            </Button>
+            <BotaoDeConfirmar
+              enviando={envio.enviando}
+              rotulo={TEXTOS_DA_RESPOSTA.recusar}
+              rotuloEnviando={TEXTOS_DA_RESPOSTA.recusando}
+              variante="destrutiva"
+            />
+          </>
+        )
+      }
+    >
+      {respondendo ? (
+        <>
+          <div className="border-linha-suave bg-background flex flex-col gap-1 rounded-lg border px-3.5 py-3">
+            <FichaDePessoa nome={nome} tamanho="linha" />
+            <p className="text-meta text-tinta-suave flex items-center gap-1.5 pl-[38px]">
+              {pedido.pessoa.telefoneInformado === null ? (
+                TEXTOS_DA_RESPOSTA.semTelefone
+              ) : (
+                <>
+                  <Phone aria-hidden="true" className="size-3.5 shrink-0" />
+                  {telefoneLegivel(pedido.pessoa.telefoneInformado)}
+                </>
+              )}
+            </p>
+          </div>
 
-      {/* A confirmação — onde o papel vira palavra. */}
-      <dialog
-        ref={confirmacao}
-        className="bg-superficie text-tinta m-auto max-w-md rounded-md p-6 backdrop:bg-black/40"
-      >
-        <h4 className="text-tinta text-base font-semibold">
-          Aprovar {pedido.pessoa.nome} como <strong>{escolhido?.rotulo}</strong>
-          {area === undefined ? ", sem unidade registrada" : `, no ${area.nome}`}?
-        </h4>
-        <p className="text-tinta-suave mt-3 text-sm leading-relaxed">{escolhido?.texto}</p>
-        <p className="text-tinta-suave mt-2 text-sm leading-relaxed">
-          O papel não pode ser alterado depois. Para corrigir, é preciso remover o vínculo e pedir entrada
-          de novo.
-        </p>
-        <div className="mt-5 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => confirmacao.current?.close()}
-            className="border-linha h-11 rounded-md border px-5 text-sm"
+          <GrupoDeEscolha
+            id={`${prefixo}-grupo`}
+            legenda={TEXTOS_DA_RESPOSTA.legenda}
+            obrigatorio
+            erro={formulario.erroDe("papel")}
           >
-            Voltar
-          </button>
-          <Button
-            type="button"
-            disabled={enviando}
-            onClick={() => decidir("aprovar", { papel, areaId: areaId === "" ? null : areaId })}
-            className="h-11"
-          >
-            {enviando ? "Aprovando…" : `Aprovar como ${escolhido?.rotulo ?? ""}`}
-          </Button>
-        </div>
-      </dialog>
+            <OpcoesDePapel
+              id={`${prefixo}-papel`}
+              rotulo={TEXTOS_DA_RESPOSTA.legenda}
+              valor={papel}
+              inerte={envio.enviando}
+              aoMudar={(escolhido) => {
+                setPapel(escolhido);
+                formulario.mudou("papel");
+              }}
+            />
+          </GrupoDeEscolha>
 
-      {/* A recusa — e a caixa diz para quem o texto serve ANTES de o Gestor começar a escrever. */}
-      <dialog
-        ref={recusaDialogo}
-        className="bg-superficie text-tinta m-auto max-w-md rounded-md p-6 backdrop:bg-black/40"
-      >
-        <h4 className="text-tinta text-base font-semibold">Recusar o pedido de {pedido.pessoa.nome}?</h4>
-        <p className="text-tinta-suave mt-3 text-sm leading-relaxed">
-          Nenhum vínculo é criado, e ela continua fora desta organização. Um pedido recusado{" "}
-          <strong className="text-tinta font-semibold">pode ser refeito</strong> — recusar não bloqueia
-          para sempre.
-        </p>
+          {/* **Não é região viva:** ele aparece por causa de uma escolha da própria pessoa, logo abaixo
+              dela. As cores são as do tema: o guia §2 não abre cor nova. */}
+          {aviso !== null && (
+            <div className="border-linha bg-background text-interface text-tinta-suave flex gap-2.5 rounded-lg border px-3.5 py-2.5">
+              <TriangleAlert aria-hidden="true" className="text-tinta-suave mt-0.5 size-4 shrink-0" />
+              <p>
+                <strong className="text-tinta font-semibold">{aviso.destaque}</strong> {aviso.resto}
+              </p>
+            </div>
+          )}
 
-        <div className="mt-4 flex flex-col gap-1.5">
-          <label htmlFor={`motivo-${pedido.id}`} className="text-tinta text-sm font-medium">
-            Por que este pedido foi recusado?{" "}
-            <span className="text-tinta-suave font-normal">(opcional)</span>
-          </label>
-          <textarea
-            id={`motivo-${pedido.id}`}
-            maxLength={500}
-            rows={4}
-            value={observacao}
-            onChange={(evento) => setObservacao(evento.target.value)}
-            className="border-input bg-transparent text-tinta rounded-md border px-3 py-2 text-base"
+          <CampoDeUnidade
+            id={`${prefixo}-unidade`}
+            valor={areaId}
+            areas={areas}
+            inerte={envio.enviando}
+            aoMudar={setAreaId}
           />
-          <span className="text-tinta-suave text-xs leading-relaxed">
-            Até 500 caracteres.{" "}
-            <strong className="text-tinta font-semibold">{pedido.pessoa.nome} não vê este texto.</strong>{" "}
-            Ela só verá que o pedido foi recusado. O texto fica no registro da organização, para você e
-            para o próximo Gestor.
-          </span>
-        </div>
+        </>
+      ) : (
+        <Campo
+          id={`${prefixo}-motivo`}
+          rotulo={TEXTOS_DA_RESPOSTA.motivo}
+          ajuda={TEXTOS_DA_RESPOSTA.ajudaDoMotivo}
+          contador={{ usados: motivo.length, maximo: TETO_DO_MOTIVO }}
+        >
+          {(controle) => (
+            <Textarea
+              {...controle}
+              ref={campoDoMotivo}
+              value={motivo}
+              maxLength={TETO_DO_MOTIVO}
+              rows={3}
+              disabled={envio.enviando}
+              onChange={(evento) => {
+                setMotivo(evento.target.value);
+              }}
+              className="border-linha bg-background min-h-20"
+            />
+          )}
+        </Campo>
+      )}
 
-        <div className="mt-5 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => recusaDialogo.current?.close()}
-            className="border-linha h-11 rounded-md border px-5 text-sm"
-          >
-            Voltar
-          </button>
-          <Button
-            type="button"
-            disabled={enviando}
-            onClick={() => decidir("recusar", { observacao: observacao === "" ? null : observacao })}
-            className="h-11"
-          >
-            {enviando ? "Recusando…" : "Recusar pedido"}
-          </Button>
-        </div>
-      </dialog>
-    </article>
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
-}
-
-/**
- * E.164 agrupado — `+55 11 98877-1234`. **O mesmo valor com espaços**, sem inventar um segundo formato:
- * é a decisão declarada do protótipo para a leitura. Número que não case com o padrão brasileiro sai como
- * veio, em vez de sair mutilado.
- */
-function agrupar(e164: string): string {
-  const brasileiro = /^\+55(\d{2})(\d{4,5})(\d{4})$/u.exec(e164);
-  if (brasileiro === null) return e164;
-  return `+55 ${brasileiro[1]} ${brasileiro[2]}-${brasileiro[3]}`;
-}
-
-function formatarData(iso: string): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "long",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(iso));
 }

@@ -1,484 +1,374 @@
 "use client";
 
-import { useId, useSyncExternalStore } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { FINALIDADES_DE_CONTATO } from "@/dominio/pessoa";
+import { BotaoDeIcone, CONTORNO_DE_ACAO } from "@/interface/componentes/botao-de-icone";
 import { Campo } from "@/interface/componentes/campo";
-import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
+import {
+  AlcaDeArrasto,
+  AnuncioDeOrdem,
+  ControlesDeOrdem,
+  VagaDeArrasto,
+} from "@/interface/componentes/controles-de-ordem";
+import { TEXTOS_DO_FORMULARIO } from "@/interface/componentes/frases-de-participantes";
+import { anuncioDeMovimento, moverItem } from "@/interface/componentes/ordem-manual";
+import {
+  ROTULO_DE_FINALIDADE,
+  comTipo,
+  contatoNovo,
+  idDoContato,
+  type ContatoEmEdicao,
+} from "@/interface/componentes/regras-do-vinculo";
+import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/interface/componentes/ui/select";
+import { Switch } from "@/interface/componentes/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
+import { cn } from "@/interface/componentes/utilitarios";
+import { useArrastoDeLinha } from "@/interface/ganchos/use-arrasto-de-linha";
 
 /**
- * **T-08 · o sub-formulário repetível de contatos** — quadros 7 e 8 do protótipo, item 9b.
+ * ============================================================================
+ *  T-08 · os contatos, em linhas que se reordenam (critério 44j.9)
+ * ============================================================================
  *
  * **A ordem da lista é o significado**, e não há caixa de *"contato preferido"*: o 1 é para onde se liga
- * primeiro, e mudar a preferência é mudar a ordem, com **Subir** e **Descer**. Arrastar foi recusado no
- * protótipo — é hostil no celular e invisível em low-fi.
+ * primeiro, e mudar a preferência é mudar a ordem. **Pelas setas**, que servem ao toque e ao teclado, ou
+ * **arrastando pela alça**, onde há ponteiro fino — o arrastar recusado no protótipo por ser hostil ao
+ * toque continua recusado para o toque.
  *
- * **A lista substitui a anterior inteira ao salvar**, e a tela diz isso antes de a pessoa apagar algo.
+ * **A lista substitui a anterior ao salvar**, e a escrita não muda: a posição é a ordem (decisão 2.1 do
+ * item 9b).
  *
- * **`temWhatsapp` só existe quando o tipo é telefone** (`contatos_whatsapp_ck`), e trocar para e-mail
- * limpa a marca — é isso que impede o `400` daquele campo de existir pela tela.
+ * **`temWhatsapp` só existe num telefone** (`contatos_whatsapp_ck`), e trocar para e-mail limpa a marca —
+ * é isso que impede o `400` daquele campo de existir pela tela.
  *
- * **A duplicata é vista aqui, antes de enviar.** Como a escrita é substituição, o estado final é esta
- * lista: um par repetido só pode vir de dentro dela. O `409 CONTATO_DUPLICADO` do servidor é a rede que
- * esta tela não provoca.
+ * **A partir de `lg`, cada contato é uma linha de grade, sob uma linha de cabeçalho**; abaixo disso, um
+ * bloco com os rótulos visíveis e as ações embaixo. O cabeçalho visual não é associado a controle nenhum,
+ * então **cada controle leva o próprio nome**, com o número do contato (A-1).
  */
 
-export type ContatoEmEdicao = {
-  /** Chave estável de React. Não é o `id` do banco — a substituição descarta os antigos. */
-  chave: string;
-  tipo: "telefone" | "email";
-  /** O que a pessoa digitou. Telefone só vira E.164 na hora de montar o corpo. */
-  valor: string;
-  finalidade: (typeof FINALIDADES_DE_CONTATO)[number];
-  temWhatsapp: boolean;
-  observacao: string;
-};
+const GRADE = "lg:grid-cols-[16px_20px_172px_minmax(0,1fr)_140px_150px_minmax(0,1fr)_144px]";
 
-/** O que `GET /vinculos` devolveu, virando linha editável. */
-export function contatoVindoDaApi(contato: {
-  id: string;
-  tipo: string;
-  valor: string;
-  finalidade: string;
-  temWhatsapp: boolean;
-  observacao: string | null;
-}): ContatoEmEdicao {
-  return {
-    chave: contato.id,
-    tipo: contato.tipo === "email" ? "email" : "telefone",
-    valor: contato.valor,
-    finalidade:
-      contato.finalidade === "trabalho"
-        ? "trabalho"
-        : contato.finalidade === "recado"
-          ? "recado"
-          : "pessoal",
-    temWhatsapp: contato.temWhatsapp,
-    observacao: contato.observacao ?? "",
-  };
-}
-
-/** O contato acrescentado entra **no fim** da lista, como o último a ser tentado (quadro 7). */
-export function contatoNovo(chave: string): ContatoEmEdicao {
-  return {
-    chave,
-    tipo: "telefone",
-    valor: PREFIXO_BR,
-    finalidade: "pessoal",
-    temWhatsapp: false,
-    observacao: "",
-  };
-}
-
-export type ContatoNoCorpo = {
-  tipo: "telefone" | "email";
-  valor: string;
-  finalidade: (typeof FINALIDADES_DE_CONTATO)[number];
-  temWhatsapp: boolean;
-  observacao: string | null;
-};
-
-/**
- * A lista virando corpo. **Sem `ordem`:** quem a grava é o servidor, pela posição (decisão 2.1).
- *
- * Devolve `null` quando algum telefone não converte — quem chama não envia, e mostra o erro no campo.
- */
-export function paraCorpo(contatos: readonly ContatoEmEdicao[]): ContatoNoCorpo[] | null {
-  const corpo: ContatoNoCorpo[] = [];
-
-  for (const contato of contatos) {
-    const valor = valorNormalizado(contato);
-    if (valor === null) return null;
-
-    corpo.push({
-      tipo: contato.tipo,
-      valor,
-      finalidade: contato.finalidade,
-      temWhatsapp: contato.tipo === "telefone" && contato.temWhatsapp,
-      observacao: contato.observacao.trim() === "" ? null : contato.observacao.trim(),
-    });
-  }
-
-  return corpo;
-}
-
-/**
- * O valor como ele vai ser **guardado**, ou `null` se não converte.
- *
- * **A comparação de duplicata acontece sobre isto, não sobre o digitado**: `(11) 95521-7788` e
- * `+5511955217788` são o mesmo contato para o `UNIQUE (pessoa_id, tipo, valor)`, e comparar o texto cru
- * deixaria a tela mandar um par que o banco recusa.
- */
-function valorNormalizado(contato: ContatoEmEdicao): string | null {
-  if (contato.tipo === "email") {
-    const email = contato.valor.trim();
-    return email === "" ? null : email;
-  }
-
-  const convertido = converterTelefoneDigitado(contato.valor);
-  return convertido.situacao === "convertido" ? convertido.valor : null;
-}
-
-/** Os índices que repetem um par (`tipo`, `valor`) anterior. O primeiro de cada par não é culpado. */
-export function indicesDuplicados(contatos: readonly ContatoEmEdicao[]): ReadonlySet<number> {
-  const vistos = new Set<string>();
-  const duplicados = new Set<number>();
-
-  contatos.forEach((contato, indice) => {
-    const valor = valorNormalizado(contato);
-    if (valor === null) return;
-
-    const par = `${contato.tipo} ${valor.toLowerCase()}`;
-    if (vistos.has(par)) duplicados.add(indice);
-    else vistos.add(par);
-  });
-
-  return duplicados;
-}
-
-/**
- * A lista mudou em relação ao que foi lido?
- *
- * **Compara conteúdo E ordem** — Subir/Descer sem editar nada **é** alteração, e é a única que um
- * comparador de conjunto não vê. Comparar o corpo montado, e não os objetos em edição, é o que faz
- * `(11) 95521-7788` e `+5511955217788` contarem como iguais.
- *
- * Serve à decisão 2.3: quando nada mudou, o `PATCH` **omite** `contatos`, e os `id` e `criadoEm` das
- * linhas sobrevivem a uma correção de unidade.
- */
-export function listaMudou(
-  atual: readonly ContatoEmEdicao[],
-  original: readonly ContatoEmEdicao[],
-): boolean {
-  return JSON.stringify(paraCorpo(atual)) !== JSON.stringify(paraCorpo(original));
-}
-
-/**
- * `true` abaixo de `md` (768 px), o mesmo ponto de corte da lista de vínculos.
- *
- * **`useSyncExternalStore` e não `useEffect`:** o instantâneo do servidor é `false` — tela grande —, e é
- * ele que a primeira renderização usa, então não há divergência de hidratação.
- */
-function useEhCelular(): boolean {
-  return useSyncExternalStore(
-    (avisar) => {
-      const consulta = window.matchMedia("(max-width: 767px)");
-      consulta.addEventListener("change", avisar);
-      return () => {
-        consulta.removeEventListener("change", avisar);
-      };
-    },
-    () => window.matchMedia("(max-width: 767px)").matches,
-    () => false,
-  );
-}
-
-const ROTULO_DE_FINALIDADE: Readonly<Record<string, string>> = {
-  pessoal: "Pessoal",
-  trabalho: "Trabalho",
-  recado: "Recado",
-};
-
-const CLASSE_DE_CHIP =
-  "border-linha text-tinta inline-flex min-h-11 items-center rounded-md border px-3 text-sm disabled:opacity-40";
+const CLASSE_DO_TIPO = cn(
+  "text-interface text-tinta-suave min-h-11 rounded-sm px-3 font-normal",
+  "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold data-[state=on]:shadow-sm",
+);
 
 export function SubFormularioDeContatos({
+  prefixo,
   contatos,
+  inerte,
   aoMudar,
-  aberto,
-  aoAbrir,
-  somenteLeitura,
+  aoMudarValor,
+  erroDoValor,
 }: {
+  prefixo: string;
   contatos: readonly ContatoEmEdicao[];
+  /** Durante o envio, nada se move e nada se digita. */
+  inerte: boolean;
   aoMudar: (contatos: readonly ContatoEmEdicao[]) => void;
-  /** A chave do contato aberto no celular. Em tela grande todos ficam abertos. */
-  aberto: string | null;
-  aoAbrir: (chave: string | null) => void;
-  /** Quem tem conta: a lista aparece, sem controle nenhum (decisão 2.4). */
-  somenteLeitura: boolean;
+  aoMudarValor: (chave: string) => void;
+  erroDoValor: (chave: string) => string | undefined;
 }) {
-  const ehCelular = useEhCelular();
-  const prefixo = useId();
-  const duplicados = indicesDuplicados(contatos);
+  const [anuncio, setAnuncio] = useState("");
+  const lista = useRef<HTMLDivElement>(null);
+  const focarNoNovo = useRef<string | null>(null);
 
-  function trocar(indice: number, mudanca: Partial<ContatoEmEdicao>) {
-    aoMudar(contatos.map((contato, i) => (i === indice ? { ...contato, ...mudanca } : contato)));
+  function trocar(indice: number, mudanca: (contato: ContatoEmEdicao) => ContatoEmEdicao) {
+    aoMudar(contatos.map((contato, i) => (i === indice ? mudanca(contato) : contato)));
   }
 
-  function mover(indice: number, passo: number) {
-    const destino = indice + passo;
-    if (destino < 0 || destino >= contatos.length) return;
-    const copia = [...contatos];
-    const [movido] = copia.splice(indice, 1);
-    if (movido !== undefined) copia.splice(destino, 0, movido);
-    aoMudar(copia);
+  function mover(de: number, para: number) {
+    const proxima = moverItem(contatos, de, para);
+    if (proxima === contatos) return;
+    aoMudar(proxima);
+    setAnuncio(anuncioDeMovimento(para + 1, contatos.length));
   }
 
-  if (somenteLeitura) {
-    return (
-      <section className="flex flex-col gap-2">
-        <h2 className="text-tinta text-sm font-medium">Contatos</h2>
-        {contatos.length === 0 ? (
-          <p className="text-tinta-suave text-sm">Nenhum contato cadastrado.</p>
-        ) : (
-          <ol className="flex flex-col gap-1">
-            {contatos.map((contato, indice) => (
-              <li key={contato.chave} className="text-tinta-suave text-sm">
-                {indice + 1} · {resumo(contato)}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-    );
-  }
+  const arrasto = useArrastoDeLinha({ quantidade: contatos.length, inerte, aoMover: mover });
+
+  // *Adicionar contato* leva o foco ao tipo do contato novo, que é o primeiro controle da linha.
+  useEffect(() => {
+    const chave = focarNoNovo.current;
+    if (chave === null) return;
+    focarNoNovo.current = null;
+    lista.current
+      ?.querySelector<HTMLElement>(`[data-tipo-do-contato="${chave}"] [data-state="on"]`)
+      ?.focus();
+  }, [contatos]);
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-tinta text-sm font-medium">
-        Contatos <span className="text-tinta-suave font-normal">— por onde se alcança esta pessoa</span>
-      </h2>
-
-      <p className="border-linha text-tinta-suave rounded-md border px-3 py-2.5 text-sm leading-relaxed">
-        <strong className="text-tinta">A ordem da lista é o significado.</strong> O contato 1 é para onde se
-        liga primeiro; o 2 é o que se tenta se o 1 não responder. Não há caixa de &quot;contato
-        preferido&quot; — mudar a preferência é mudar a ordem, com <strong>Subir</strong> e{" "}
-        <strong>Descer</strong>. E ao salvar, <strong>esta lista substitui inteira a anterior</strong>: o
-        que for removido aqui deixa de existir.
-      </p>
-
-      {contatos.map((contato, indice) => {
-        const id = `${prefixo}-${contato.chave}`;
-        const expandido = !ehCelular || aberto === contato.chave;
-        const erroDoCampo = erroDoValor(contato, duplicados.has(indice));
-
-        return (
-          <fieldset key={contato.chave} className="border-linha flex flex-col gap-3 rounded-md border p-3">
-            <legend className="sr-only">Contato {indice + 1}</legend>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <strong className="text-tinta text-sm">Contato {indice + 1}</strong>
-              <span className="text-tinta-suave text-sm">
-                {indice === 0 ? "é para onde se liga primeiro" : "se o anterior não responder"}
-              </span>
-              {ehCelular && (
-                <button
-                  type="button"
-                  className={`${CLASSE_DE_CHIP} ml-auto`}
-                  onClick={() => {
-                    aoAbrir(expandido ? null : contato.chave);
-                  }}
-                >
-                  {expandido ? "Fechar" : "Abrir"}
-                  <span className="sr-only"> o contato {indice + 1}</span>
-                </button>
-              )}
-            </div>
-
-            {!expandido && <p className="text-tinta-suave text-sm">{resumo(contato)}</p>}
-
-            {expandido && (
-              <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-x-4">
-                <fieldset className="flex flex-col gap-1.5">
-                  <legend className="text-tinta mb-1 text-sm font-medium">Tipo</legend>
-                  <div className="flex gap-4">
-                    {(["telefone", "email"] as const).map((tipo) => (
-                      <label key={tipo} className="flex min-h-11 items-center gap-2 text-sm">
-                        <input
-                          type="radio"
-                          name={`${id}-tipo`}
-                          checked={contato.tipo === tipo}
-                          onChange={() => {
-                            // Trocar para e-mail **limpa o WhatsApp**: o banco recusa a marca num e-mail,
-                            // e deixá-la marcada produziria um `400` que a tela deveria ter evitado.
-                            trocar(indice, {
-                              tipo,
-                              temWhatsapp: tipo === "telefone" && contato.temWhatsapp,
-                            });
-                          }}
-                          className="h-4 w-4"
-                        />
-                        {tipo === "telefone" ? "Telefone" : "E-mail"}
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-
-                <Campo
-                  id={`${id}-valor`}
-                  rotulo={contato.tipo === "telefone" ? "Número" : "E-mail"}
-                  ajuda={ajudaDoValor(contato)}
-                  erro={erroDoCampo}
-                >
-                  <Input
-                    id={`${id}-valor`}
-                    type={contato.tipo === "telefone" ? "tel" : "email"}
-                    inputMode={contato.tipo === "telefone" ? "tel" : "email"}
-                    maxLength={255}
-                    value={contato.valor}
-                    aria-invalid={erroDoCampo !== undefined}
-                    onChange={(evento) => {
-                      trocar(indice, { valor: evento.target.value });
-                    }}
-                    className="h-11"
-                  />
-                </Campo>
-
-                <Campo
-                  id={`${id}-finalidade`}
-                  rotulo="Finalidade"
-                  ajuda="Recado é o telefone de terceiro que aceita mensagem — a portaria, o escritório da terceirizada."
-                >
-                  <select
-                    id={`${id}-finalidade`}
-                    value={contato.finalidade}
-                    onChange={(evento) => {
-                      trocar(indice, {
-                        finalidade: evento.target.value as ContatoEmEdicao["finalidade"],
-                      });
-                    }}
-                    className="border-input text-tinta h-11 rounded-md border bg-transparent px-3 text-sm"
-                  >
-                    {FINALIDADES_DE_CONTATO.map((valor) => (
-                      <option key={valor} value={valor}>
-                        {ROTULO_DE_FINALIDADE[valor]}
-                      </option>
-                    ))}
-                  </select>
-                </Campo>
-
-                {contato.tipo === "telefone" && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-tinta text-sm font-medium">WhatsApp</span>
-                    <label className="flex min-h-11 items-center gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={contato.temWhatsapp}
-                        onChange={(evento) => {
-                          trocar(indice, { temWhatsapp: evento.target.checked });
-                        }}
-                        className="h-4 w-4"
-                      />
-                      Este número aceita WhatsApp
-                    </label>
-                  </div>
-                )}
-
-                <div className="md:col-span-2">
-                  <Campo
-                    id={`${id}-observacao`}
-                    rotulo="Observação (opcional)"
-                    ajuda="Instrução humana, para quem for ligar. Até 200 caracteres."
-                  >
-                    <Input
-                      id={`${id}-observacao`}
-                      maxLength={200}
-                      value={contato.observacao}
-                      onChange={(evento) => {
-                        trocar(indice, { observacao: evento.target.value });
-                      }}
-                      className="h-11"
-                    />
-                  </Campo>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={CLASSE_DE_CHIP}
-                disabled={indice === 0}
-                onClick={() => {
-                  mover(indice, -1);
-                }}
-              >
-                Subir<span className="sr-only"> o contato {indice + 1}</span>
-              </button>
-              <button
-                type="button"
-                className={CLASSE_DE_CHIP}
-                disabled={indice === contatos.length - 1}
-                onClick={() => {
-                  mover(indice, 1);
-                }}
-              >
-                Descer<span className="sr-only"> o contato {indice + 1}</span>
-              </button>
-              <button
-                type="button"
-                className={CLASSE_DE_CHIP}
-                onClick={() => {
-                  aoMudar(contatos.filter((_, i) => i !== indice));
-                }}
-              >
-                Remover<span className="sr-only"> o contato {indice + 1}</span>
-              </button>
-            </div>
-          </fieldset>
-        );
-      })}
-
-      <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          className={`${CLASSE_DE_CHIP} self-start`}
-          onClick={() => {
-            const novo = contatoNovo(`novo-${String(contatos.length)}-${String(Date.now())}`);
-            aoMudar([...contatos, novo]);
-            aoAbrir(novo.chave);
-          }}
+    <div ref={lista}>
+      {contatos.length > 0 && (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "bg-background border-linha text-rotulo-coluna text-tinta-fraca hidden gap-x-3 border-b px-4 py-2.5 font-mono font-medium tracking-[0.11em] uppercase lg:grid",
+            GRADE,
+          )}
         >
-          Acrescentar contato
-        </button>
-        <p className="text-tinta-suave text-sm">
-          O contato acrescentado entra no fim da lista, como o último a ser tentado. Cadastrar sem contato
-          nenhum é permitido — a lista pode ficar vazia.
-        </p>
+          <span />
+          <span>Nº</span>
+          <span>Tipo</span>
+          <span>
+            Número ou e-mail <span className="text-destructive">*</span>
+          </span>
+          <span>Finalidade</span>
+          <span>WhatsApp</span>
+          <span>Observação</span>
+          <span />
+        </div>
+      )}
+
+      {contatos.map((contato, indice) => (
+        <Fragment key={contato.chave}>
+          {arrasto.vaga === indice && <VagaDeArrasto {...arrasto.propsDaVaga()} />}
+          <LinhaDeContato
+            prefixo={prefixo}
+            contato={contato}
+            indice={indice}
+            total={contatos.length}
+            inerte={inerte}
+            recuada={arrasto.arrastando === indice}
+            propsDaAlca={arrasto.propsDaAlca(indice)}
+            propsDaLinha={arrasto.propsDaLinha(indice)}
+            erro={erroDoValor(contato.chave)}
+            aoTrocar={trocar}
+            aoMover={mover}
+            aoRemover={() => {
+              aoMudar(contatos.filter((_, i) => i !== indice));
+            }}
+            aoMudarValor={aoMudarValor}
+          />
+        </Fragment>
+      ))}
+      {arrasto.vaga === contatos.length && <VagaDeArrasto {...arrasto.propsDaVaga()} />}
+
+      <div className="px-4 py-3">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={inerte}
+          onClick={() => {
+            const novo = contatoNovo(`novo-${String(Date.now())}-${String(contatos.length)}`);
+            focarNoNovo.current = novo.chave;
+            aoMudar([...contatos, novo]);
+          }}
+          className={cn(CONTORNO_DE_ACAO, "text-interface text-tinta min-h-11 rounded-sm px-4 has-[>svg]:px-4")}
+        >
+          <Plus aria-hidden="true" />
+          {TEXTOS_DO_FORMULARIO.adicionar}
+        </Button>
       </div>
-    </section>
+
+      <AnuncioDeOrdem texto={anuncio} />
+    </div>
   );
 }
 
-/** *"+55 11 95521-7788 — telefone trabalho · Aceita WhatsApp"*. **WhatsApp em palavra** (A-5). */
-function resumo(contato: ContatoEmEdicao): string {
-  const partes = [
-    `${contato.valor} — ${contato.tipo} ${ROTULO_DE_FINALIDADE[contato.finalidade]?.toLowerCase() ?? contato.finalidade}`,
-  ];
-  if (contato.tipo === "telefone") {
-    partes.push(contato.temWhatsapp ? "Aceita WhatsApp" : "sem WhatsApp");
-  }
-  if (contato.observacao.trim() !== "") partes.push("tem observação");
-  return partes.join(" · ");
-}
+function LinhaDeContato({
+  prefixo,
+  contato,
+  indice,
+  total,
+  inerte,
+  recuada,
+  propsDaAlca,
+  propsDaLinha,
+  erro,
+  aoTrocar,
+  aoMover,
+  aoRemover,
+  aoMudarValor,
+}: {
+  prefixo: string;
+  contato: ContatoEmEdicao;
+  indice: number;
+  total: number;
+  inerte: boolean;
+  recuada: boolean;
+  propsDaAlca: ReturnType<ReturnType<typeof useArrastoDeLinha>["propsDaAlca"]>;
+  propsDaLinha: ReturnType<ReturnType<typeof useArrastoDeLinha>["propsDaLinha"]>;
+  erro: string | undefined;
+  aoTrocar: (indice: number, mudanca: (contato: ContatoEmEdicao) => ContatoEmEdicao) => void;
+  aoMover: (de: number, para: number) => void;
+  aoRemover: () => void;
+  aoMudarValor: (chave: string) => void;
+}) {
+  const numero = indice + 1;
+  const id = (parte: Parameters<typeof idDoContato>[2]) => idDoContato(prefixo, contato.chave, parte);
+  const ehTelefone = contato.tipo === "telefone";
 
-/**
- * O erro **do campo do valor** — duplicata primeiro, porque ela fala da lista inteira.
- *
- * **O telefone recusado é a outra metade da §2.5(e) da spec**, e é o que a §6.2 do protótipo manda
- * (`docs/prototipo-low-fi.md`, linha 911: *"`FORMATO_INVALIDO` (400) de telefone · T-08 → no campo do
- * número"*). Sem isto, um número malformado apenas **desabilitaria o botão de salvar sem dizer por quê** —
- * o modo de falha que o A-1 e a §6.2 existem para impedir. **A frase é a do 7a**, que
- * `converterTelefoneDigitado` já devolve: uma regra, uma redação, e nenhum import novo.
- *
- * **Contato recém-acrescentado não é erro.** Ele nasce com `+55 `, e o módulo chama isso de *vazio*, não
- * de *recusado* — a frase só aparece para quem digitou algo que não converte.
- */
-function erroDoValor(contato: ContatoEmEdicao, duplicado: boolean): string | undefined {
-  if (duplicado) return "Este contato já está na lista.";
-  if (contato.tipo !== "telefone") return undefined;
+  return (
+    <fieldset
+      {...propsDaLinha}
+      className={cn(
+        "border-linha-suave min-w-0 border-b px-4 py-3",
+        indice % 2 === 1 && "bg-background",
+        recuada && "opacity-40",
+      )}
+    >
+      <legend className="sr-only">Contato {numero}</legend>
 
-  const convertido = converterTelefoneDigitado(contato.valor);
-  return convertido.situacao === "recusado" ? convertido.mensagem : undefined;
-}
+      <div className={cn("flex flex-col gap-3 lg:grid lg:items-start lg:gap-x-3 lg:gap-y-0", GRADE)}>
+        <div className="flex items-center gap-2 lg:contents">
+          <span className="flex w-4 shrink-0 justify-center lg:mt-3.5">
+            <AlcaDeArrasto {...propsDaAlca} />
+          </span>
+          <span aria-hidden="true" className="text-interface text-tinta-suave font-mono tabular-nums lg:mt-3">
+            <span className="font-sans lg:hidden">Contato </span>
+            {numero}
+          </span>
+        </div>
 
-function ajudaDoValor(contato: ContatoEmEdicao): string {
-  if (contato.tipo === "email") return "O e-mail de contato — não é a credencial de acesso.";
+        <div className="flex flex-col gap-1.5">
+          <span className="text-interface text-tinta font-medium lg:sr-only">Tipo</span>
+          <ToggleGroup
+            type="single"
+            spacing={1}
+            value={contato.tipo}
+            disabled={inerte}
+            data-tipo-do-contato={contato.chave}
+            aria-label={`Tipo do contato ${String(numero)}`}
+            onValueChange={(escolhido) => {
+              if (escolhido !== "telefone" && escolhido !== "email") return;
+              aoTrocar(indice, (atual) => comTipo(atual, escolhido));
+              aoMudarValor(contato.chave);
+            }}
+            className="bg-muted w-fit rounded-sm p-0.5"
+          >
+            <ToggleGroupItem value="telefone" className={CLASSE_DO_TIPO}>
+              Telefone
+            </ToggleGroupItem>
+            <ToggleGroupItem value="email" className={CLASSE_DO_TIPO}>
+              E-mail
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
 
-  const convertido = converterTelefoneDigitado(contato.valor);
-  if (convertido.situacao === "convertido") {
-    return `Vai ser guardado como ${convertido.valor} — o formato que um link de WhatsApp consome direto.`;
-  }
-  return "O país vem Brasil por padrão. Digite com DDD, como (11) 99999-0000.";
+        <Campo
+          id={id("valor")}
+          rotulo="Número ou e-mail"
+          obrigatorio
+          rotuloEmTelaGrande="oculto"
+          erro={erro}
+        >
+          {(controle) => (
+            <Input
+              {...controle}
+              aria-label={`Número ou e-mail do contato ${String(numero)}`}
+              type={ehTelefone ? "tel" : "email"}
+              inputMode={ehTelefone ? "tel" : "email"}
+              maxLength={255}
+              value={contato.valor}
+              disabled={inerte}
+              onChange={(evento) => {
+                const valor = evento.target.value;
+                aoTrocar(indice, (atual) => ({ ...atual, valor }));
+                aoMudarValor(contato.chave);
+              }}
+              className="border-linha bg-background h-11"
+            />
+          )}
+        </Campo>
+
+        <Campo id={id("finalidade")} rotulo="Finalidade" rotuloEmTelaGrande="oculto">
+          {(controle) => (
+            <Select
+              value={contato.finalidade}
+              disabled={inerte}
+              onValueChange={(escolhido) => {
+                const finalidade = FINALIDADES_DE_CONTATO.find((valor) => valor === escolhido);
+                if (finalidade !== undefined) aoTrocar(indice, (atual) => ({ ...atual, finalidade }));
+              }}
+            >
+              <SelectTrigger
+                {...controle}
+                aria-label={`Finalidade do contato ${String(numero)}`}
+                className="border-linha bg-background text-interface min-h-11 w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FINALIDADES_DE_CONTATO.map((finalidade) => (
+                  <SelectItem key={finalidade} value={finalidade}>
+                    {ROTULO_DE_FINALIDADE[finalidade]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Campo>
+
+        {/* No e-mail a célula fica vazia na tela grande, e o bloco some no celular. */}
+        <div className={cn("flex flex-col gap-1.5", !ehTelefone && "hidden lg:flex")}>
+          <span className="text-interface text-tinta font-medium lg:sr-only">WhatsApp</span>
+          {ehTelefone && (
+            <label className="flex min-h-11 w-fit cursor-pointer items-center gap-2.5">
+              <Switch
+                checked={contato.temWhatsapp}
+                disabled={inerte}
+                aria-label={`WhatsApp do contato ${String(numero)}`}
+                onCheckedChange={(ligado) => {
+                  aoTrocar(indice, (atual) => ({ ...atual, temWhatsapp: ligado }));
+                }}
+                className="data-[state=checked]:bg-marca"
+              />
+              {/* A-5: a marca carrega a palavra, nunca só a cor. */}
+              <span className="text-interface text-tinta">
+                {contato.temWhatsapp ? "Aceita" : "Não aceita"}
+              </span>
+            </label>
+          )}
+        </div>
+
+        <Campo id={id("observacao")} rotulo="Observação" rotuloEmTelaGrande="oculto">
+          {(controle) => (
+            <Input
+              {...controle}
+              aria-label={`Observação do contato ${String(numero)}`}
+              maxLength={200}
+              placeholder="Opcional"
+              value={contato.observacao}
+              disabled={inerte}
+              onChange={(evento) => {
+                const observacao = evento.target.value;
+                aoTrocar(indice, (atual) => ({ ...atual, observacao }));
+              }}
+              className="border-linha bg-background h-11"
+            />
+          )}
+        </Campo>
+
+        <div className="flex items-center gap-1.5 lg:mt-1">
+          <ControlesDeOrdem
+            posicao={indice}
+            total={total}
+            rotulos={{
+              subir: `Subir o contato ${String(numero)}`,
+              descer: `Descer o contato ${String(numero)}`,
+            }}
+            inerte={inerte}
+            aoMover={aoMover}
+          />
+          {/* **Remover não pede confirmação**: nada é gravado até o envio, e *Cancelar* descarta tudo. */}
+          <BotaoDeIcone
+            rotulo={`Remover o contato ${String(numero)}`}
+            icone={<Trash2 aria-hidden="true" />}
+            disabled={inerte}
+            onClick={aoRemover}
+          />
+        </div>
+      </div>
+    </fieldset>
+  );
 }

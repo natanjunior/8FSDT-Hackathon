@@ -1,6 +1,8 @@
 import { CircleAlertIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { cn } from "@/interface/componentes/utilitarios";
+
 /**
  * ============================================================================
  *  As peças de forma do formulário — guia §7 (16/09/2026), item 44g
@@ -14,6 +16,7 @@ import type { ReactNode } from "react";
  * | A mensagem que não é de um campo | `ErroDoFormulario` |
  * | Durante o envio, o botão mostra o indicador | `IndicadorDeEnvio` |
  * | O contador *"20 / 120"* à direita do rótulo (item 44i) | `Campo`, propriedade `contador` |
+ * | O rodapé da página própria, preso ao fim do conteúdo (item 44j) | `RodapeDaPagina` |
  *
  * **O `Campo` morava em `moldura-de-tela.tsx`**, e a moldura é das telas de credencial; o campo é do
  * produto inteiro. Os compromissos que ele já cumpria continuam: **A-1** (rótulo ligado ao controle por
@@ -30,7 +33,7 @@ import type { ReactNode } from "react";
  * descrição do campo, e o envio com problema leva o foco ao primeiro campo, que a lê.
  *
  * **Com um elemento como filho, o `Campo` não injeta nada e mantém o `alert`.** É o modo das telas que
- * ainda não foram refeitas (T-04, T-08, T-09 e T-14), onde o controle não aponta para a mensagem; sem o
+ * ainda não foram refeitas (T-04, T-09 e T-14), onde o controle não aponta para a mensagem; sem o
  * `alert`, o erro ficaria sem anúncio. Cada item de tela troca para a função quando a reconstrói, e o
  * modal do nome de T-15 e T-16 (item 44i) já nasceu nela.
  *
@@ -84,6 +87,7 @@ export function Campo({
   ajudaAntes = false,
   erro,
   contador,
+  rotuloEmTelaGrande = "visivel",
   children,
 }: {
   id: string;
@@ -93,6 +97,11 @@ export function Campo({
   ajudaAntes?: boolean;
   erro?: string | undefined;
   contador?: Contador | undefined;
+  /**
+   * `"oculto"` esconde o rótulo a partir de `lg`, onde uma linha de cabeçalho o substitui — é a grade de
+   * contatos de T-08 (item 44j). O controle continua nomeado, por `aria-label`.
+   */
+  rotuloEmTelaGrande?: "visivel" | "oculto";
   children: ReactNode | ((controle: PropsDoControle) => ReactNode);
 }) {
   const idDaAjuda = `${id}-ajuda`;
@@ -116,7 +125,10 @@ export function Campo({
     );
 
   const rotuloDoCampo = (
-    <label htmlFor={id} className="text-tinta text-interface font-medium">
+    <label
+      htmlFor={id}
+      className={cn("text-tinta text-interface font-medium", rotuloEmTelaGrande === "oculto" && "lg:sr-only")}
+    >
       {rotulo}
       {obrigatorio && <Asterisco />}
     </label>
@@ -205,6 +217,19 @@ export function RodapeDoFormulario({ obrigatorios, children }: { obrigatorios: n
         </p>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * O rodapé da **página** própria de criar ou editar (guia §7, item 44j): o mesmo rodapé do modal, preso
+ * ao fim da área de conteúdo e alcançando as bordas dela. As margens negativas desfazem o respiro que a
+ * casca dá ao conteúdo; quando o formulário é curto, a faixa fica logo depois dele.
+ */
+export function RodapeDaPagina({ obrigatorios, children }: { obrigatorios: number; children: ReactNode }) {
+  return (
+    <div className="border-linha bg-superficie sticky bottom-0 z-10 -mx-4 -mb-6 border-t px-4 py-3.5 md:-mx-6 md:px-6">
+      <RodapeDoFormulario obrigatorios={obrigatorios}>{children}</RodapeDoFormulario>
     </div>
   );
 }
