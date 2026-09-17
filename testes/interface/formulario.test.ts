@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { redirect } from "next/navigation";
@@ -383,5 +383,12 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
     expect(fonte).toContain("ease-(--curva-gaveta)");
     expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
     expect(fonte).toContain('variant="marca"');
+  });
+
+  it("T-16 edita o nome no modal do nome, e o formulário de campo aberto da pessoa saiu", () => {
+    const fonte = ler("app/(casca)/meus-dados/page.tsx");
+    expect(fonte).toMatch(/<EdicaoDeNome\s+alvo="pessoa"/u);
+    expect(fonte).not.toContain("searchParams");
+    expect(existsSync(RAIZ + "src/interface/componentes/formulario-de-pessoa.tsx")).toBe(false);
   });
 });
