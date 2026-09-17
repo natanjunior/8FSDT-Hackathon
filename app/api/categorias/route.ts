@@ -34,7 +34,6 @@ export const POST = comContexto(
     const categoria = await criarCategoria(repos.categorias, {
       nome: corpo.nome,
       ...(corpo.icone === undefined ? {} : { icone: corpo.icone }),
-      ...(corpo.ordem === undefined ? {} : { ordem: corpo.ordem }),
       porPessoaId: ctx.pessoaId,
     });
     return resposta(projetarCategoria(categoria), { status: 201 });

@@ -59,11 +59,7 @@ describe("a marca da barra lateral — critério 1", () => {
     ["/configuracao", "/configuracao"],
     ["/configuracao/", "/configuracao"],
     ["/configuracao/categorias", "/configuracao/categorias"],
-    ["/configuracao/categorias/nova", "/configuracao/categorias"],
-    ["/configuracao/categorias/abc/editar", "/configuracao/categorias"],
     ["/configuracao/areas", "/configuracao/areas"],
-    ["/configuracao/areas/nova", "/configuracao/areas"],
-    ["/configuracao/areas/abc/editar", "/configuracao/areas"],
     ["/vinculos", "/vinculos"],
     ["/vinculos/nova", "/vinculos"],
     ["/vinculos/abc/editar", "/vinculos"],
@@ -80,8 +76,10 @@ describe("a marca da barra lateral — critério 1", () => {
   );
 
   it("o destino mais longo leva a marca, e o curto não a recebe mesmo que o longo não esteja desenhado", () => {
-    expect(estaMarcado("/configuracao/categorias", "/configuracao/categorias/nova")).toBe(true);
-    expect(estaMarcado("/configuracao", "/configuracao/categorias/nova")).toBe(false);
+    // `/vinculos/nova` existe e **não** é destino da barra: é o caso que o título promete, e as quatro
+    // rotas de criar e editar de T-09 e T-14, que o serviam antes, saíram com o item 44k.
+    expect(estaMarcado("/vinculos", "/vinculos/nova")).toBe(true);
+    expect(estaMarcado("/configuracao", "/vinculos/nova")).toBe(false);
     expect(estaMarcado("/configuracao", "/configuracao")).toBe(true);
     expect(estaMarcado("/ocorrencias", "/meus-dados")).toBe(false);
   });
@@ -166,18 +164,17 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
   });
 });
 
-/** As onze páginas que recusam sem redirecionar, com o título da face normal e a permissão. */
+/**
+ * As sete páginas que recusam sem redirecionar, com o título da face normal e a permissão.
+ *
+ * **Eram onze até o item 44k**, que apagou as quatro rotas próprias de criar e editar de T-09 e T-14: as
+ * duas listas passaram a criar e editar em modal, e o estado sem acesso das duas telas ficou sendo a
+ * única saída de conteúdo da casca por lá.
+ */
 const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
   "app/(casca)/configuracao/page.tsx": ["Configuração da organização", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
-  "app/(casca)/configuracao/categorias/nova/page.tsx": ["Criar categoria", "organizacao.configurar"],
-  "app/(casca)/configuracao/categorias/[categoriaId]/editar/page.tsx": [
-    "Corrigir categoria",
-    "organizacao.configurar",
-  ],
   "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
-  "app/(casca)/configuracao/areas/nova/page.tsx": ["Criar área", "organizacao.configurar"],
-  "app/(casca)/configuracao/areas/[areaId]/editar/page.tsx": ["Corrigir área", "organizacao.configurar"],
   "app/(casca)/dashboard/page.tsx": ["Dashboard", "dashboard.ler"],
   "app/(casca)/vinculos/page.tsx": ["Participantes", "vinculo.gerir"],
   "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
@@ -185,7 +182,7 @@ const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> =
 };
 
 describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
-  it("as páginas da casca que recusam sem redirecionar são as onze", () => {
+  it("as páginas da casca que recusam sem redirecionar são as sete", () => {
     const recusam = arquivosDe("app/(casca)")
       .filter((caminho) => caminho.endsWith("/page.tsx"))
       .filter((caminho) =>

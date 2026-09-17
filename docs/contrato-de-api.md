@@ -205,7 +205,7 @@ sub-recursos singulares, este é o primeiro candidato.
 | `areaTipo` | **Escrito pelo servidor** no registro, cópia congelada da Área (emenda à D10, §7.5 do `modelo-de-dados.md`). **Nunca aceito no corpo**, em nenhum endpoint |
 | `organizacaoId` · `autorPessoaId` · `registradaEm` · `atualizadaEm` | Escritos pelo servidor. Enviados no corpo → `422 CAMPO_NAO_SUPORTADO` |
 
-**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ordem`, `ativa`, `icone`, `tipo`. Nenhum
+**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ativa`, `icone`, `tipo`. Nenhum
 desses campos é governado por máquina de estados nem gera registro de transição. O critério, escrito para
 ser aplicado a campos futuros:
 
@@ -902,8 +902,8 @@ depois, e é assim que a §13 as contabiliza.
   o caso da Persona 1B (§4.3 e §4.4).
 
 **A ordenação das duas listas, declarada.** `Categoria` e `Area` têm **`ordem`**, e as duas listas saem
-na ordem que o Gestor definiu, com desempate alfabético. A posição é do servidor: quem é criado sem
-`ordem` entra no fim, e o Gestor muda a posição reordenando a lista inteira, pelas duas operações
+na ordem que o Gestor definiu, com desempate alfabético. A posição é do servidor: quem é criado entra no
+fim, e o Gestor muda a posição reordenando a lista inteira, pelas duas operações
 descritas adiante.
 
 A `Area` tem `ordem`, e a razão é medida. Deixá-la em ordem alfabética seria o padrão, e a evidência
@@ -916,9 +916,9 @@ primeiro registro é o único que decide se existe um segundo.
 `ordem` é o único conserto que atua no primeiro. Custa uma coluna, um campo opcional num `PATCH` que já
 existe, e reordenação numa tela que já reordena `Categoria`.
 
-**`PATCH /categorias/{id}`**, `{ nome?, ordem?, ativa?, icone? }`. `ordem` existe porque *"qual categoria
-aparece antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`**
-(P6) e a FK vinda de `ocorrencias` é `RESTRICT`.
+**`PATCH /categorias/{id}`**, `{ nome?, ativa?, icone? }`. A posição não está aqui: *"qual categoria
+aparece antes é escolha do Gestor"* (D18), e quem a grava é `PUT /categorias/ordem`. `ativa` é como
+categoria sai de uso, já que **não há `DELETE`** (P6) e a FK vinda de `ocorrencias` é `RESTRICT`.
 
 ### `icone` vem com uma lista fechada
 
@@ -944,11 +944,12 @@ CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra organização, §6.3) ·
 `UNIQUE (organizacao_id, nome)`, porque duas categorias com o mesmo nome quebrariam o indicador de
 recorrência, que é o número mais importante do dashboard.
 
-**`PATCH /areas/{id}`**, `{ nome?, tipo?, ativa?, ordem? }`. Mudar `tipo` é permitido e não é retroativo:
+**`PATCH /areas/{id}`**, `{ nome?, tipo?, ativa? }`. Mudar `tipo` é permitido e não é retroativo:
 as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
-`ocorrenciasComTipoAnterior`, uma contagem, para que a interface possa dizer ao Gestor, em português, que
-o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e está obsoleto: a
-reordenação passa por `PUT /areas/ordem`. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+`ocorrenciasComTipoAnterior`, uma contagem das ocorrências da organização naquela área cujo tipo
+congelado difere do que a área tem agora, para que a interface possa dizer ao Gestor, em português, que o
+passado não muda. A posição, simetricamente a `Categoria`, passa por `PUT /areas/ordem`. Erros:
+`404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
 
 **`PUT /categorias/ordem` e `PUT /areas/ordem`** recebem `{ ids }`, a lista inteira da organização na
 ordem nova, com as ativas e as inativas, e devolvem `200` com `{ itens }`, na forma do `GET`
@@ -965,10 +966,13 @@ reordenação que não muda nada não grava linha. Duas reordenações simultân
 espera a primeira e vence inteira, pela regra de última escrita da §7.9. Erros: `400` ·
 `403 PERMISSAO_INSUFICIENTE` · `409 LISTA_DESATUALIZADA` · `409 ORGANIZACAO_DIVERGENTE`.
 
-Com as duas operações, `ordem` fica obsoleto no corpo de `POST` e `PATCH` de categorias e de áreas. O
-campo continua aceito, no mesmo intervalo `0..999`, enquanto as telas o enviarem. Quem cria sem ele entra
-no fim da lista: o servidor grava a maior `ordem` da organização mais um, contando as inativas, e `1` na
-lista vazia.
+Com as duas operações, `ordem` saiu do corpo de `POST` e de `PATCH` das duas listas em 17/09/2026, e é
+o `PUT` que grava posição. A razão de tirá-lo, e não de deixá-lo aceito: as duas telas que o enviavam
+deixaram de existir quando criar e editar viraram modal, e um `PATCH` com ordem própria criaria empate e
+lacuna na lista que o `PUT` acabou de deixar de 1 a *n*. Não há consumidor externo a proteger (§7.8). Os
+schemas de entrada não são estritos, então um corpo que ainda traga o campo tem ele **descartado**, sem
+recusa. Quem cria entra no fim da lista: o servidor grava a maior `ordem` da organização mais um,
+contando as inativas, e `1` na lista vazia.
 
 **`PATCH /organizacoes`**, recebe `{ nome? }`, devolve `200` com `OrganizacaoResumo`. O corpo vazio é
 recusado com `400 FORMATO_INVALIDO`, na mesma forma de `PATCH /areas/{id}`. Não há `{id}` no caminho: a

@@ -892,14 +892,8 @@ paths:
               required: [nome]
               properties:
                 nome: { type: string, minLength: 1, maxLength: 60 }
-                ordem:
-                  type: integer
-                  minimum: 0
-                  maximum: 999
-                  deprecated: true
-                  description: Obsoleto. A posição muda por `PUT /categorias/ordem`. Sem este campo, a categoria entra no fim da lista.
                 icone: { $ref: "#/components/schemas/IconeCategoria" }
-            example: { nome: "Jardinagem", ordem: 8, icone: "trees" }
+            example: { nome: "Jardinagem", icone: "trees" }
       responses:
         "201":
           description: Categoria criada.
@@ -938,12 +932,6 @@ paths:
               minProperties: 1
               properties:
                 nome: { type: string, minLength: 1, maxLength: 60 }
-                ordem:
-                  type: integer
-                  minimum: 0
-                  maximum: 999
-                  deprecated: true
-                  description: Obsoleto. Use `PUT /categorias/ordem`, que grava a lista inteira de uma vez.
                 ativa: { type: boolean }
                 icone: { $ref: "#/components/schemas/IconeCategoria" }
             example: { icone: "droplets" }
@@ -1074,13 +1062,7 @@ paths:
               properties:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
-                ordem:
-                  type: integer
-                  minimum: 0
-                  maximum: 999
-                  deprecated: true
-                  description: Obsoleto. A posição muda por `PUT /areas/ordem`. Sem este campo, a área entra no fim da lista.
-            example: { nome: "Playground", tipo: "comum", ordem: 4 }
+            example: { nome: "Playground", tipo: "comum" }
       responses:
         "201":
           description: Área criada.
@@ -1121,12 +1103,6 @@ paths:
                 nome: { type: string, minLength: 1, maxLength: 80 }
                 tipo: { $ref: "#/components/schemas/TipoArea" }
                 ativa: { type: boolean }
-                ordem:
-                  type: integer
-                  minimum: 0
-                  maximum: 999
-                  deprecated: true
-                  description: Obsoleto. Use `PUT /areas/ordem`, que grava a lista inteira de uma vez.
             example: { tipo: "privativa" }
       responses:
         "200":

@@ -71,7 +71,6 @@ export function repositorioEscopadoDeCategorias(
       const atribuicoes: string[] = [];
       if (correcao.nome !== undefined) atribuicoes.push(`nome = ${marcador(correcao.nome)}`);
       if (correcao.icone !== undefined) atribuicoes.push(`icone = ${marcador(correcao.icone)}`);
-      if (correcao.ordem !== undefined) atribuicoes.push(`ordem = ${marcador(correcao.ordem)}`);
       if (correcao.ativa !== undefined) atribuicoes.push(`ativa = ${marcador(correcao.ativa)}`);
 
       // **O carimbo e o autor entram na própria instrução, sem gatilho** (spec §2.7). O relógio é o do

@@ -33,8 +33,8 @@ import { CampoNaoSuportado } from "./problema";
  *
  * `src/interface/http/com-contexto.ts` **começa** com `import { cookies, headers } from "next/headers"`, e
  * `@/interface/http` o reexporta. Do outro lado, **três componentes de cliente alcançam
- * `@/interface/schemas`** — `formulario-de-categoria.tsx` diretamente, e `formulario-de-pedido-de-entrada`
- * e `sub-formulario-de-contatos` através de `componentes/telefone.ts`. Com a seta invertida, o grafo de
+ * `@/interface/schemas`** — `modal-de-categoria.tsx` diretamente, e `formulario-de-pedido-de-entrada` e
+ * `sub-formulario-de-contatos` através de `componentes/telefone.ts`. Com a seta invertida, o grafo de
  * módulos deles passaria a alcançar `next/headers` e, atrás dele, `@/composicao` → `@/infraestrutura` →
  * `pg`, `@supabase/*` e `@azure/*`. **É a mesma classe de defeito que `comando-de-ocorrencia.ts` evita ao
  * receber `rotulosDeStatus` por parâmetro em vez de importá-lo.**

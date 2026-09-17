@@ -3,8 +3,28 @@ import { describe, expect, it } from "vitest";
 
 import { ListaDesatualizada } from "@/aplicacao/organizacao";
 import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
+import {
+  ERRO_DO_TIPO,
+  FRASES_DA_TELA,
+  FRASE_DO_INERTE,
+  avisoDaMudancaDeTipo,
+  erroDoNome as erroDoNomeDaLista,
+  fatoDaLista,
+  textoDaSituacao,
+} from "@/interface/componentes/frases-da-configuracao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
 import { gruposDoCodigo } from "@/interface/componentes/grupos-do-codigo";
+import {
+  FILTROS,
+  cicloDaOrdem,
+  contagensDoFiltro,
+  estadoDaLista,
+  ordemInerte,
+  pertenceAoFiltro,
+  posicaoNaLista,
+  semearOrdem,
+  vistaDaLista,
+} from "@/interface/componentes/ordem-da-lista";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import { problemaDe } from "@/interface/http";
 import {
@@ -115,12 +135,19 @@ describe("criacaoDeCategoriaSchema", () => {
     expect(recusado.error?.issues[0]?.path).toStrictEqual(["icone"]);
   });
 
-  it("aceita ordem de 0 a 999 e recusa fora disso", () => {
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 0 }).success).toBe(true);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 999 }).success).toBe(true);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 1000 }).success).toBe(false);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: -1 }).success).toBe(false);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 1.5 }).success).toBe(false);
+  /**
+   * **`ordem` saiu dos quatro corpos com o item 44k**, e os schemas são `z.object` sem `strict`: um corpo
+   * que ainda a traga **não** é recusado — o campo é descartado. É o que se quer, porque um `PATCH` com
+   * ordem própria criaria empate e lacuna na lista que o `PUT` acabou de deixar de 1 a n.
+   */
+  it("descarta `ordem` no corpo, nas quatro escritas", () => {
+    expect(criacaoDeCategoriaSchema.parse({ nome: "A", ordem: 8 })).toStrictEqual({ nome: "A" });
+    expect(correcaoDeCategoriaSchema.parse({ nome: "A", ordem: 8 })).toStrictEqual({ nome: "A" });
+    expect(criacaoDeAreaSchema.parse({ nome: "A", tipo: "comum", ordem: 8 })).toStrictEqual({
+      nome: "A",
+      tipo: "comum",
+    });
+    expect(correcaoDeAreaSchema.parse({ tipo: "comum", ordem: 8 })).toStrictEqual({ tipo: "comum" });
   });
 });
 
@@ -337,5 +364,231 @@ describe("erroDoNome — o campo do modal Editar organização (critérios 44i.2
 
   it("outro nome não tem erro", () => {
     expect(erroDoNome("organizacao", "Condomínio Residencial Recanto Azul", ATUAL)).toBeUndefined();
+  });
+});
+
+/**
+ * ============================================================================
+ *  As regras das listas de ordem manual — T-09 e T-14, item 44k
+ * ============================================================================
+ *
+ * **Nenhum arquivo de teste novo**: este já é o arquivo destas duas telas. O que se prova aqui é a
+ * decisão inteira delas — o filtro, as contagens, a busca, qual vazio, a posição e o ciclo da ordem
+ * gravada —, porque o projeto não tem biblioteca de teste de componente (ADR-0008) e o arrastar depende
+ * da leitura humana.
+ */
+describe("ordem-da-lista — as regras das listas de ordem manual (item 44k)", () => {
+  const ILUMINACAO = { id: "a", nome: "Iluminação", ativa: true };
+  const VAZAMENTO = { id: "b", nome: "Vazamento de água", ativa: true };
+  const PORTAO = { id: "c", nome: "Portão", ativa: false };
+  const ARVORE = { id: "d", nome: "Árvore caída", ativa: true };
+  const LISTA = [ILUMINACAO, VAZAMENTO, PORTAO, ARVORE];
+
+  it("as contagens são do conjunto inteiro, e a busca não as muda", () => {
+    expect(contagensDoFiltro(LISTA)).toEqual({ todas: 4, ativas: 3, inativas: 1 });
+    // "o contador não mente": a vista é que encolhe.
+    expect(vistaDaLista(LISTA, "todas", "port")).toHaveLength(1);
+    expect(contagensDoFiltro(LISTA)).toEqual({ todas: 4, ativas: 3, inativas: 1 });
+  });
+
+  it("pertenceAoFiltro separa as três abas", () => {
+    expect(LISTA.filter((item) => pertenceAoFiltro(item, "todas"))).toHaveLength(4);
+    expect(LISTA.filter((item) => pertenceAoFiltro(item, "ativas"))).toHaveLength(3);
+    expect(LISTA.filter((item) => pertenceAoFiltro(item, "inativas"))).toHaveLength(1);
+    expect(FILTROS).toEqual(["todas", "ativas", "inativas"]);
+  });
+
+  it("a busca é a de T-08, reusada: prefixo de palavra, sem acento e sem caixa", () => {
+    expect(vistaDaLista(LISTA, "todas", "arvore").map((item) => item.id)).toEqual(["d"]);
+    expect(vistaDaLista(LISTA, "todas", "AGUA").map((item) => item.id)).toEqual(["b"]);
+    expect(vistaDaLista(LISTA, "todas", "   ")).toHaveLength(4);
+  });
+
+  it("a ordem só é viva com Todas e busca vazia", () => {
+    expect(ordemInerte("todas", "")).toBe(false);
+    expect(ordemInerte("todas", "  ")).toBe(false);
+    expect(ordemInerte("ativas", "")).toBe(true);
+    expect(ordemInerte("todas", "porta")).toBe(true);
+    expect(ordemInerte("inativas", "porta")).toBe(true);
+  });
+
+  it("estadoDaLista nas quatro saídas, e a busca ganha do filtro", () => {
+    expect(estadoDaLista({ total: 0, noFiltro: 0, encontradas: 0, busca: "" })).toBe("lista-vazia");
+    expect(estadoDaLista({ total: 4, noFiltro: 3, encontradas: 3, busca: "" })).toBe("lista");
+    expect(estadoDaLista({ total: 4, noFiltro: 0, encontradas: 0, busca: "" })).toBe("vazio-do-filtro");
+    expect(estadoDaLista({ total: 4, noFiltro: 3, encontradas: 0, busca: "xyz" })).toBe("busca-vazia");
+    // Filtro vazio E busca com texto: vence a busca, que foi o último gesto.
+    expect(estadoDaLista({ total: 4, noFiltro: 0, encontradas: 0, busca: "xyz" })).toBe("busca-vazia");
+  });
+
+  it("a posição é sempre a da lista inteira, mesmo com filtro aplicado", () => {
+    const soAtivas = vistaDaLista(LISTA, "ativas", "");
+    expect(soAtivas.map((item) => posicaoNaLista(LISTA, item.id))).toEqual([1, 2, 4]);
+    expect(posicaoNaLista(LISTA, "c")).toBe(3);
+  });
+
+  describe("o ciclo da ordem gravada", () => {
+    const semear = () => semearOrdem(LISTA);
+
+    it("semeou zera a escrita em voo e sobe a geração", () => {
+      const depois = cicloDaOrdem({ ...semear(), enviados: ["a"] }, { tipo: "semeou", itens: LISTA });
+      expect(depois.estado.enviados).toBeNull();
+      expect(depois.estado.geracao).toBe(1);
+      expect(depois.efeitos).toEqual([]);
+    });
+
+    it("moveu sem escrita em voo anda a lista, anuncia e grava", () => {
+      const passo = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      expect(passo.estado.naTela.map((item) => item.id)).toEqual(["b", "c", "a", "d"]);
+      expect(passo.estado.confirmada.map((item) => item.id)).toEqual(["a", "b", "c", "d"]);
+      expect(passo.efeitos).toEqual([
+        { tipo: "anunciar", texto: "Movido para a posição 3 de 4." },
+        { tipo: "gravar", ids: ["b", "c", "a", "d"], geracao: 0 },
+      ]);
+    });
+
+    it("moveu duas vezes com escrita em voo anda de novo e grava uma vez só", () => {
+      const primeiro = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const segundo = cicloDaOrdem(primeiro.estado, { tipo: "moveu", de: 3, para: 0 });
+      expect(segundo.estado.naTela.map((item) => item.id)).toEqual(["d", "b", "c", "a"]);
+      expect(segundo.efeitos.filter((efeito) => efeito.tipo === "gravar")).toEqual([]);
+      // O que está em voo continua sendo a lista da primeira escrita.
+      expect(segundo.estado.enviados).toEqual(["b", "c", "a", "d"]);
+    });
+
+    it("respondeu-ok com a ordem enviada encerra a escrita, sem efeito", () => {
+      const movido = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const resposta = [VAZAMENTO, PORTAO, ILUMINACAO, ARVORE];
+      const passo = cicloDaOrdem(movido.estado, { tipo: "respondeu-ok", geracao: 0, itens: resposta });
+      expect(passo.estado.enviados).toBeNull();
+      expect(passo.estado.naTela).toEqual(resposta);
+      expect(passo.estado.confirmada).toEqual(resposta);
+      expect(passo.efeitos).toEqual([]);
+    });
+
+    it("respondeu-ok com ordem diferente dispara a escrita seguinte, com os ids de agora", () => {
+      const primeiro = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const segundo = cicloDaOrdem(primeiro.estado, { tipo: "moveu", de: 3, para: 0 });
+      const resposta = [VAZAMENTO, PORTAO, ILUMINACAO, ARVORE];
+      const passo = cicloDaOrdem(segundo.estado, { tipo: "respondeu-ok", geracao: 0, itens: resposta });
+      expect(passo.estado.naTela.map((item) => item.id)).toEqual(["d", "b", "c", "a"]);
+      expect(passo.efeitos).toEqual([{ tipo: "gravar", ids: ["d", "b", "c", "a"], geracao: 0 }]);
+    });
+
+    it("respondeu-erro devolve a lista confirmada e avisa, sem recarregar", () => {
+      const movido = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const passo = cicloDaOrdem(movido.estado, {
+        tipo: "respondeu-erro",
+        geracao: 0,
+        aviso: "Não deu",
+        desatualizada: false,
+      });
+      expect(passo.estado.naTela).toEqual(LISTA);
+      expect(passo.estado.enviados).toBeNull();
+      expect(passo.efeitos).toEqual([{ tipo: "avisar-erro", aviso: "Não deu" }]);
+    });
+
+    it("LISTA_DESATUALIZADA avisa e recarrega a página", () => {
+      const movido = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const passo = cicloDaOrdem(movido.estado, {
+        tipo: "respondeu-erro",
+        geracao: 0,
+        aviso: "A lista mudou desde que você a abriu.",
+        desatualizada: true,
+      });
+      expect(passo.efeitos).toEqual([
+        { tipo: "avisar-erro", aviso: "A lista mudou desde que você a abriu." },
+        { tipo: "recarregar" },
+      ]);
+    });
+
+    it("resposta de geração velha não muda nada", () => {
+      const movido = cicloDaOrdem(semear(), { tipo: "moveu", de: 0, para: 2 });
+      const semeado = cicloDaOrdem(movido.estado, { tipo: "semeou", itens: LISTA });
+      const velha = cicloDaOrdem(semeado.estado, { tipo: "respondeu-ok", geracao: 0, itens: [] });
+      expect(velha.estado).toBe(semeado.estado);
+      expect(velha.efeitos).toEqual([]);
+
+      const velhaComErro = cicloDaOrdem(semeado.estado, {
+        tipo: "respondeu-erro",
+        geracao: 0,
+        aviso: "x",
+        desatualizada: true,
+      });
+      expect(velhaComErro.efeitos).toEqual([]);
+    });
+  });
+});
+
+describe("frases-da-configuracao — o texto das duas telas (item 44k)", () => {
+  it("avisoDaMudancaDeTipo: zero é sucesso, e a atenção só aparece com contagem", () => {
+    expect(avisoDaMudancaDeTipo("Garagem", "privativa", 0)).toEqual({
+      titulo: "Garagem passou a ser Unidade privativa.",
+    });
+    expect(avisoDaMudancaDeTipo("Garagem", "comum", 1)).toEqual({
+      forma: "atencao",
+      titulo: "Garagem passou a ser Área comum",
+      descricao: "1 ocorrência já registrada mantém o tipo anterior. O passado não muda.",
+    });
+    expect(avisoDaMudancaDeTipo("Garagem", "comum", 3).descricao).toBe(
+      "3 ocorrências já registradas mantêm o tipo anterior. O passado não muda.",
+    );
+    // O plural é escrito, nunca montado com "(s)".
+    expect(avisoDaMudancaDeTipo("Garagem", "comum", 3).descricao).not.toContain("(s)");
+  });
+
+  it("textoDaSituacao: desativar é destrutivo e explica que não apaga; reativar é curto", () => {
+    const desativar = textoDaSituacao("categorias", "Iluminação", true, false);
+    expect(desativar.titulo).toBe("Desativar Iluminação?");
+    expect(desativar.corpo).toContain("continuam com esta categoria");
+    expect(desativar.corpo).toContain("reativá-la");
+    expect(desativar.confirmar).toBe("Desativar");
+    expect(desativar.destrutiva).toBe(true);
+    expect(desativar.aviso).toBeNull();
+
+    const reativar = textoDaSituacao("areas", "Garagem", false, false);
+    expect(reativar.titulo).toBe("Reativar Garagem?");
+    expect(reativar.corpo).toBe("Ela volta a aparecer no formulário de registro.");
+    expect(reativar.destrutiva).toBe(false);
+  });
+
+  it("a última ativa traz a frase que o inventário obriga e troca o botão", () => {
+    const ultima = textoDaSituacao("areas", "Garagem", true, true);
+    expect(ultima.aviso).toBe("Sem nenhuma área ativa, ninguém consegue registrar ocorrência.");
+    expect(ultima.confirmar).toBe("Desativar mesmo assim");
+  });
+
+  it("fatoDaLista escreve a contagem e o que cada lista é", () => {
+    expect(fatoDaLista("categorias", 7, 8)).toBe(
+      "7 ativas de 8. Sete foram criadas junto com a organização.",
+    );
+    expect(fatoDaLista("areas", 2, 2)).toBe(
+      "2 ativas de 2. Onde, dentro da organização, a ocorrência aconteceu.",
+    );
+    // A organização pode ser empresa ou bairro (decisão de produto D3).
+    expect(fatoDaLista("areas", 2, 2)).not.toContain("condomínio");
+  });
+
+  it("o erro do nome diz o que fazer, com o substantivo certo", () => {
+    expect(erroDoNomeDaLista("categorias", "")).toBe("Dê um nome à categoria.");
+    expect(erroDoNomeDaLista("areas", "   ")).toBe("Dê um nome à área.");
+    expect(erroDoNomeDaLista("areas", "Garagem")).toBeUndefined();
+    expect(ERRO_DO_TIPO).toBe("Escolha o tipo da área.");
+  });
+
+  it("a frase do inerte manda voltar para Todas e limpar a busca", () => {
+    expect(FRASE_DO_INERTE).toContain("Todas");
+    expect(FRASE_DO_INERTE).toContain("busca");
+  });
+
+  it("as telas conhecem quatro códigos, e LISTA_DESATUALIZADA não é um deles", () => {
+    expect(Object.keys(FRASES_DA_TELA.categorias)).toEqual([
+      "CATEGORIA_NOME_DUPLICADO",
+      "CATEGORIA_NAO_ENCONTRADA",
+    ]);
+    expect(Object.keys(FRASES_DA_TELA.areas)).toEqual(["AREA_NOME_DUPLICADO", "AREA_NAO_ENCONTRADA"]);
+    // O item 50 redigiu o `detail` desse código para esta tela: escrever frase própria o esconderia.
+    expect(FRASES_DA_TELA.categorias.LISTA_DESATUALIZADA).toBeUndefined();
+    expect(FRASES_DA_TELA.areas.LISTA_DESATUALIZADA).toBeUndefined();
   });
 });

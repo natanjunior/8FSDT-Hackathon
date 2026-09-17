@@ -7,8 +7,8 @@
  * prefixo dele por segmento inteiro; se nenhum for, nada é marcado.
  *
  * - *Por segmento inteiro:* `/ocorrencias` alcança `/ocorrencias/abc` e não alcança `/ocorrenciasx`.
- * - *Mais longo:* em `/configuracao/categorias/nova`, `/configuracao` e `/configuracao/categorias`
- *   alcançam, e ganha o segundo.
+ * - *Mais longo:* em `/vinculos/nova`, `/vinculos` alcança e ganha; em `/configuracao/categorias`,
+ *   `/configuracao` e `/configuracao/categorias` alcançam, e ganha o segundo.
  *
  * **A disputa corre sobre a lista inteira, e não só sobre os itens que o papel vê.** Correndo só sobre os
  * visíveis, quem visse *Configuração* e não visse *Categorias* ganharia a marca errada em
