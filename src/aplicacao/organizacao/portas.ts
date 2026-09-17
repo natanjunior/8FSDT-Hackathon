@@ -121,23 +121,41 @@ export type AreaLida = {
 };
 
 /**
- * O que `POST /categorias` grava. **`icone` e `ordem` chegam resolvidos** — o padrão é decisão de produto
- * e mora na Aplicação, não no schema de entrada nem no banco.
+ * **A posição de um item criado — item 50, spec §4.3.** A intenção `"no-fim"`, que o repositório resolve
+ * na própria instrução do `insert` — a maior `ordem` da organização mais um, contando as inativas, e 1 na
+ * lista vazia —, ou um número, que **nenhum caminho de hoje usa**: `ordem` saiu do corpo de `POST` com o
+ * item 44k.
+ *
+ * **A intenção, e não um número**, porque ler o máximo aqui seria uma segunda instrução e uma corrida a
+ * mais. Quem decide que o padrão é *no fim* é a Aplicação; quem calcula é o banco. **O número continua no
+ * tipo** porque colapsá-lo trocaria a assinatura de duas portas e do `insert` das duas tabelas por nenhum
+ * ganho: o `"no-fim"` é a intenção que a Aplicação manda, e é ela que o tipo precisa carregar.
+ */
+export type OrdemNaCriacao = number | "no-fim";
+
+/**
+ * O que `POST /categorias` grava. **`icone` chega resolvido, e `ordem` chega como a intenção `"no-fim"`**
+ * (`OrdemNaCriacao`). O padrão é decisão de produto e mora na Aplicação, não no schema de entrada.
  */
 export type NovaCategoria = {
   nome: string;
   icone: string;
-  ordem: number;
+  ordem: OrdemNaCriacao;
   /** Vai para `criado_por_pessoa_id`. **Exige vínculo vivo** — a FK é composta para `vinculos`. */
   criadaPorPessoaId: string;
 };
 
-/** O que `PATCH /categorias/{id}` altera. **Campo ausente é *não mexa*** — não é *apague*. */
+/**
+ * O que `PATCH /categorias/{id}` altera. **Campo ausente é *não mexa*** — não é *apague*.
+ *
+ * **Sem `ordem`:** quem muda posição é `PUT /categorias/ordem`, que grava a lista inteira numa transação
+ * (item 50). Um `PATCH` com ordem própria criaria empate e lacuna na lista que o `PUT` acabou de deixar
+ * de 1 a n.
+ */
 export type CorrecaoDeCategoria = {
   categoriaId: string;
   nome?: string;
   icone?: string;
-  ordem?: number;
   ativa?: boolean;
   /** Vai para `atualizado_por_pessoa_id`. É *"último a escrever"*, não histórico (modelo §6.5). */
   atualizadaPorPessoaId: string;
@@ -146,15 +164,15 @@ export type CorrecaoDeCategoria = {
 export type NovaArea = {
   nome: string;
   tipo: TipoArea;
-  ordem: number;
+  ordem: OrdemNaCriacao;
   criadaPorPessoaId: string;
 };
 
+/** O mesmo de `CorrecaoDeCategoria`, e **sem `ordem`** pela mesma razão: quem a grava é o `PUT`. */
 export type CorrecaoDeArea = {
   areaId: string;
   nome?: string;
   tipo?: TipoArea;
-  ordem?: number;
   ativa?: boolean;
   atualizadaPorPessoaId: string;
 };
@@ -190,6 +208,33 @@ export type ResultadoDeCorrecaoDeArea =
   | { desfecho: "nome-duplicado" }
   | { desfecho: "nao-encontrada" };
 
+/** Uma linha da reordenação: o item e a posição nova, de 1 a n. */
+export type PosicaoNaLista = {
+  id: string;
+  ordem: number;
+};
+
+/**
+ * O que `PUT /categorias/ordem` e `PUT /areas/ordem` gravam — item 50.
+ *
+ * **`posicoes` é a lista inteira, e já passou pela regra do conjunto na Aplicação.** A porta a confere de
+ * novo contra as linhas que travou, dentro da transação: é o predicado da escrita (spec §4.7).
+ */
+export type Reordenacao = {
+  posicoes: readonly PosicaoNaLista[];
+  /** Vai para `atualizado_por_pessoa_id`, **só nas linhas cuja `ordem` mudou** (spec §4.2). */
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * Os dois desfechos. **`lista-desatualizada` é o predicado falhando dentro da transação:** o conjunto
+ * travado não é o conjunto pedido, porque alguém criou um item depois da leitura. `itens` é a lista
+ * inteira, ativas e inativas, na ordem nova.
+ */
+export type ResultadoDaReordenacao<L> =
+  | { desfecho: "reordenada"; itens: readonly L[] }
+  | { desfecho: "lista-desatualizada" };
+
 /**
  * As duas portas escopadas desta fatia. Nenhuma recebe o identificador da organização — ele está amarrado
  * ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é. É isso que torna
@@ -200,12 +245,16 @@ export interface RepositorioEscopadoDeCategorias {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly CategoriaLida[]>;
   criar(nova: NovaCategoria): Promise<ResultadoDeCriacaoDeCategoria>;
   corrigir(correcao: CorrecaoDeCategoria): Promise<ResultadoDeCorrecaoDeCategoria>;
+  /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */
+  reordenar(reordenacao: Reordenacao): Promise<ResultadoDaReordenacao<CategoriaLida>>;
 }
 
 export interface RepositorioEscopadoDeAreas {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly AreaLida[]>;
   criar(nova: NovaArea): Promise<ResultadoDeCriacaoDeArea>;
   corrigir(correcao: CorrecaoDeArea): Promise<ResultadoDeCorrecaoDeArea>;
+  /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */
+  reordenar(reordenacao: Reordenacao): Promise<ResultadoDaReordenacao<AreaLida>>;
 }
 
 // ---------------------------------------------------------------------------

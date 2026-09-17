@@ -126,8 +126,12 @@ export function PaginacaoDaLista({
   );
 }
 
-/** A primeira, a última, a atual e as vizinhas dela. `null` é reticência. */
-function vizinhas(pagina: number, total: number): readonly (number | null)[] {
+/**
+ * A primeira, a última, a atual e as vizinhas dela. `null` é reticência.
+ *
+ * T-08 usa a mesma regra, importada daqui (item 44j): a primeira, a última, a atual e as vizinhas dela.
+ */
+export function vizinhas(pagina: number, total: number): readonly (number | null)[] {
   const numeros = new Set<number>([1, total, pagina - 1, pagina, pagina + 1]);
   const validos = [...numeros]
     .filter((numero) => numero >= 1 && numero <= total)

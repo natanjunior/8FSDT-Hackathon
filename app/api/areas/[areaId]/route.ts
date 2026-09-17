@@ -12,6 +12,10 @@ import { correcaoDeAreaSchema } from "@/interface/schemas";
  * do tipo da Área no momento do registro (emenda à D10): reclassificar de *privativa* para *comum* **não**
  * expõe retroativamente ocorrências registradas sob expectativa de privacidade.
  *
+ * **`ordem` saiu do corpo em 17/09/2026, com o item 44k:** a posição muda por `PUT /areas/ordem`, que
+ * grava a lista inteira numa transação, e a tela que digitava o número deixou de existir. Um corpo que
+ * ainda a traga tem o campo descartado pelo schema.
+ *
  * A resposta traz `ocorrenciasComTipoAnterior` — **um campo que só existe para produzir uma frase de
  * tela** —, e enquanto o item 11 não criar a tabela `ocorrencias` ele vale `0`, que é verdade (spec §2.1).
  */
@@ -24,7 +28,6 @@ export const PATCH = comContexto(
     if (
       corpo.nome === undefined &&
       corpo.tipo === undefined &&
-      corpo.ordem === undefined &&
       corpo.ativa === undefined
     ) {
       throw new FormatoInvalido([
@@ -40,7 +43,6 @@ export const PATCH = comContexto(
       areaId: areaId.data,
       ...(corpo.nome === undefined ? {} : { nome: corpo.nome }),
       ...(corpo.tipo === undefined ? {} : { tipo: corpo.tipo }),
-      ...(corpo.ordem === undefined ? {} : { ordem: corpo.ordem }),
       ...(corpo.ativa === undefined ? {} : { ativa: corpo.ativa }),
       porPessoaId: ctx.pessoaId,
     });

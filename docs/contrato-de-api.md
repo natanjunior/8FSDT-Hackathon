@@ -205,7 +205,7 @@ sub-recursos singulares, este é o primeiro candidato.
 | `areaTipo` | **Escrito pelo servidor** no registro, cópia congelada da Área (emenda à D10, §7.5 do `modelo-de-dados.md`). **Nunca aceito no corpo**, em nenhum endpoint |
 | `organizacaoId` · `autorPessoaId` · `registradaEm` · `atualizadaEm` | Escritos pelo servidor. Enviados no corpo → `422 CAMPO_NAO_SUPORTADO` |
 
-**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ordem`, `ativa`, `icone`, `tipo`. Nenhum
+**Onde `PATCH` existe, e por quê.** Só em `categorias` e `areas`: `nome`, `ativa`, `icone`, `tipo`. Nenhum
 desses campos é governado por máquina de estados nem gera registro de transição. O critério, escrito para
 ser aplicado a campos futuros:
 
@@ -533,7 +533,8 @@ Swagger; quem recebe `422` precisa reler o domínio.
 **`409` para conflito de estado.** Toda transição fora da tabela da `arquitetura.md` (Parte I, §4) é `409`,
 com `statusAtual` e `acoesDisponiveis` no corpo, o cliente descobre pelo erro o que **pode** fazer, sem
 reimplementar a máquina de estados. `409` também cobre o que já aconteceu (`JA_AVALIADA`,
-`PEDIDO_JA_DECIDIDO`) e a unicidade que o banco impõe (`CATEGORIA_NOME_DUPLICADO`).
+`PEDIDO_JA_DECIDIDO`), a lista que mudou desde a leitura (`LISTA_DESATUALIZADA`) e a unicidade que o banco
+impõe (`CATEGORIA_NOME_DUPLICADO`).
 
 ### 6.3 Recurso de outra organização: `404`, não `403`
 
@@ -586,6 +587,7 @@ contrato:
 | `VINCULO_COM_HISTORICO` | 409 | Remover vínculo que já tem linha dependente. Recusa vinda do `ON DELETE RESTRICT`, traduzida — o caminho é revogar, que é evolução prevista (§8.2) |
 | `ULTIMO_GESTOR` | 409 | Remover o último vínculo com `gerir` da Organização. A única regra do `DELETE` que o banco não garante (§8.2) |
 | `CATEGORIA_NOME_DUPLICADO` · `AREA_NOME_DUPLICADO` | 409 | `UNIQUE (organizacao_id, nome)` |
+| `LISTA_DESATUALIZADA` | 409 | O conjunto de `ids` de uma reordenação não é o conjunto atual da lista: falta ou sobra item, ou há id de outra organização ou inexistente. Mesma resposta para os quatro casos (§6.3) |
 | `CATEGORIA_INVALIDA` · `AREA_INVALIDA` | 422 | Existe, mas está **inativa** — ou não é desta organização |
 | `RESPONSAVEL_SEM_VINCULO_ATIVO` | 422 | A pessoa indicada não tem vínculo ativo aqui (D21) |
 | `MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL` | 422 | Motivo de cancelamento fora da lista do papel (D5) |
@@ -604,7 +606,7 @@ de contrato, e é o que impede que a mensagem de erro faça o que o status foi p
 O que este catálogo não tem, e a ausência é decisão. Não existe código para *"você já
 tem organização ativa"*, e não vai existir: os cinco endpoints da §4.4 **ignoram** a organização ativa
 em vez de recusá-la. Consequência direta para quem lê a tabela acima: **`SEM_ORGANIZACAO_ATIVA` nunca é
-resposta de nenhum dos cinco**, ele é a resposta dos outros trinta e quatro, e é o que leva a T-02.
+resposta de nenhum dos cinco**, ele é a resposta dos outros trinta e seis, e é o que leva a T-02.
 
 A ausência está escrita porque um catálogo é lido como exaustivo, e um leitor que não achasse o código
 concluiria que ele foi esquecido.
@@ -814,7 +816,7 @@ comentários, e não há exclusão de mensagem (P6).
 
 ## 8. Os endpoints
 
-**39 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
+**41 operações**, agrupadas pelas nove atividades do `escopo.md`. Nas tabelas: *Quem* é a permissão exigida
 (§4.5); *Capacidade* é a linha do `escopo.md` com o marcador de origem; *Comando/Leitura* é a origem no
 Event Storming.
 
@@ -874,9 +876,11 @@ agiu, não como essa pessoa se chamava na época.
 | `GET /categorias` | qualquer vínculo ativo | Editar categorias | leitura do formulário de registro |
 | `POST /categorias` | `organizacao.configurar` | idem | `Criar categoria` |
 | `PATCH /categorias/{id}` | `organizacao.configurar` | idem | `Criar` / `Desativar categoria` |
+| `PUT /categorias/ordem` | `organizacao.configurar` | idem | sem comando no Event Storming, ver a §13 |
 | `GET /areas` | qualquer vínculo ativo | Editar áreas · D18 | leitura do formulário de registro |
 | `POST /areas` | `organizacao.configurar` | idem | `Definir áreas do local` |
 | `PATCH /areas/{id}` | `organizacao.configurar` | idem | idem |
+| `PUT /areas/ordem` | `organizacao.configurar` | idem | `Definir áreas do local` |
 
 **`POST /organizacoes`**, recebe `{ nome }`, devolve `201` com a organização (incluindo o `codigoPublico`
 gerado pelo servidor), cria o vínculo de Gestor de quem chamou e **deixa a nova organização ativa na
@@ -898,7 +902,9 @@ depois, e é assim que a §13 as contabiliza.
   o caso da Persona 1B (§4.3 e §4.4).
 
 **A ordenação das duas listas, declarada.** `Categoria` e `Area` têm **`ordem`**, e as duas listas saem
-na ordem que o Gestor definiu, com desempate alfabético.
+na ordem que o Gestor definiu, com desempate alfabético. A posição é do servidor: quem é criado entra no
+fim, e o Gestor muda a posição reordenando a lista inteira, pelas duas operações
+descritas adiante.
 
 A `Area` tem `ordem`, e a razão é medida. Deixá-la em ordem alfabética seria o padrão, e a evidência
 que desfez o padrão veio do protótipo. O orçamento de tempo do protótipo mediu o campo de Área em **cerca de 12
@@ -910,9 +916,9 @@ primeiro registro é o único que decide se existe um segundo.
 `ordem` é o único conserto que atua no primeiro. Custa uma coluna, um campo opcional num `PATCH` que já
 existe, e reordenação numa tela que já reordena `Categoria`.
 
-**`PATCH /categorias/{id}`**, `{ nome?, ordem?, ativa?, icone? }`. `ordem` existe porque *"qual categoria
-aparece antes é escolha do Gestor"* (D18); `ativa` é como categoria sai de uso, já que **não há `DELETE`**
-(P6) e a FK vinda de `ocorrencias` é `RESTRICT`.
+**`PATCH /categorias/{id}`**, `{ nome?, ativa?, icone? }`. A posição não está aqui: *"qual categoria
+aparece antes é escolha do Gestor"* (D18), e quem a grava é `PUT /categorias/ordem`. `ativa` é como
+categoria sai de uso, já que **não há `DELETE`** (P6) e a FK vinda de `ocorrencias` é `RESTRICT`.
 
 ### `icone` vem com uma lista fechada
 
@@ -938,11 +944,35 @@ CATEGORIA_NAO_ENCONTRADA` (inclusive quando é de outra organização, §6.3) ·
 `UNIQUE (organizacao_id, nome)`, porque duas categorias com o mesmo nome quebrariam o indicador de
 recorrência, que é o número mais importante do dashboard.
 
-**`PATCH /areas/{id}`**, `{ nome?, tipo?, ativa?, ordem? }`. Mudar `tipo` é permitido e não é retroativo:
+**`PATCH /areas/{id}`**, `{ nome?, tipo?, ativa? }`. Mudar `tipo` é permitido e não é retroativo:
 as ocorrências já registradas guardam a cópia congelada `areaTipo` (emenda à D10). A resposta traz
-`ocorrenciasComTipoAnterior`, uma contagem, para que a interface possa dizer ao Gestor, em português, que
-o passado não muda. `ordem` é `0..999`, simétrico ao de `Categoria`, e é o que sustenta a reordenação em
-T-14. Erros: `404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+`ocorrenciasComTipoAnterior`, uma contagem das ocorrências da organização naquela área cujo tipo
+congelado difere do que a área tem agora, para que a interface possa dizer ao Gestor, em português, que o
+passado não muda. A posição, simetricamente a `Categoria`, passa por `PUT /areas/ordem`. Erros:
+`404 AREA_NAO_ENCONTRADA` · `409 AREA_NOME_DUPLICADO`.
+
+**`PUT /categorias/ordem` e `PUT /areas/ordem`** recebem `{ ids }`, a lista inteira da organização na
+ordem nova, com as ativas e as inativas, e devolvem `200` com `{ itens }`, na forma do `GET`
+correspondente com `?ativa=false`. Numa transação só, o item na posição *i* recebe `ordem = i`, de 1 a
+*n*, e uma falha no meio deixa a lista como estava. Mandar a lista inteira, e não um item por vez, é o que
+permite ao servidor perceber que ela mudou desde a leitura. Se o conjunto de `ids` não for o conjunto
+atual, porque falta item, sobra item ou há id de outra organização ou inexistente, a resposta é
+`409 LISTA_DESATUALIZADA`, igual nos quatro casos pela §6.3, e o cliente recarrega a lista. O caso comum
+é outro Gestor ter criado um item entre a leitura e a escrita. Lista vazia, lista com mais de 999 itens e
+id repetido são forma, e respondem `400 FORMATO_INVALIDO`.
+
+Só as linhas que mudaram de posição recebem `atualizado_em` e `atualizado_por_pessoa_id`, e uma
+reordenação que não muda nada não grava linha. Duas reordenações simultâneas não se misturam: a segunda
+espera a primeira e vence inteira, pela regra de última escrita da §7.9. Erros: `400` ·
+`403 PERMISSAO_INSUFICIENTE` · `409 LISTA_DESATUALIZADA` · `409 ORGANIZACAO_DIVERGENTE`.
+
+Com as duas operações, `ordem` saiu do corpo de `POST` e de `PATCH` das duas listas em 17/09/2026, e é
+o `PUT` que grava posição. A razão de tirá-lo, e não de deixá-lo aceito: as duas telas que o enviavam
+deixaram de existir quando criar e editar viraram modal, e um `PATCH` com ordem própria criaria empate e
+lacuna na lista que o `PUT` acabou de deixar de 1 a *n*. Não há consumidor externo a proteger (§7.8). Os
+schemas de entrada não são estritos, então um corpo que ainda traga o campo tem ele **descartado**, sem
+recusa. Quem cria entra no fim da lista: o servidor grava a maior `ordem` da organização mais um,
+contando as inativas, e `1` na lista vazia.
 
 **`PATCH /organizacoes`**, recebe `{ nome? }`, devolve `200` com `OrganizacaoResumo`. O corpo vazio é
 recusado com `400 FORMATO_INVALIDO`, na mesma forma de `PATCH /areas/{id}`. Não há `{id}` no caminho: a
@@ -2059,9 +2089,9 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
 | **1b** | **Corrigir o nome da organização** | D25 | `PATCH /organizacoes` |
 | 2 | Categorias-semente | D18 | *(efeito da POL-01 em `POST /organizacoes`; verificável em `GET /categorias`)* |
 | 3 | Áreas-semente, com os dois tipos | D10, D18 | *(efeito da POL-01; verificável em `GET /areas`)* |
-| 4 | Editar categorias | Enunciado | `GET/POST /categorias` · `PATCH /categorias/{id}` |
+| 4 | Editar categorias | Enunciado | `GET/POST /categorias` · `PATCH /categorias/{id}` · `PUT /categorias/ordem` |
 | 4b | **Escolher o ícone da categoria**, sobre a lista fechada de 25 nomes | RNF6 | campo `icone` em `POST /categorias` e `PATCH /categorias/{id}`; lido em `GET /categorias` |
-| 5 | Editar áreas | D18 | `GET/POST /areas` · `PATCH /areas/{id}` |
+| 5 | Editar áreas | D18 | `GET/POST /areas` · `PATCH /areas/{id}` · `PUT /areas/ordem` |
 | **1 · Entrar na organização** |
 | 6 | Criar conta e autenticar-se | Enunciado | fora do contrato — Supabase Auth (§4.1); consumida por `GET /contexto` |
 | **6b** | **Corrigir os próprios dados** | PA-26 | `PATCH /contexto/pessoa` |
@@ -2120,11 +2150,12 @@ renumerado**, os números desta tabela são citados por outros documentos (*"cap
   quatro capacidades dividem endpoint com outra, e é por isso que os dois números diferem.
 - **6 de fundação técnica.** Duas (37 e 38) **moldam o contrato inteiro** em vez de virar endpoint; quatro
   não são de API, e a nº 42 é, em parte, este par de arquivos.
-- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 39 endpoints existe sem
-  capacidade correspondente, e cinco não têm comando no Event Storming**: os três de pedido de entrada
+- **Nenhuma capacidade ✅ ficou sem caminho.** E no sentido inverso: **nenhum dos 41 endpoints existe sem
+  capacidade correspondente, e seis não têm comando no Event Storming**: os três de pedido de entrada
   têm capacidade (nº 8) e caem na lacuna C-5, o `PATCH /organizacoes` (nº 1b) nasceu depois do
-  workshop, que não se emenda para trás, e o `PATCH /contexto/pessoa` (nº 6b) pela mesma razão. Lacuna
-  registrada, não invenção.
+  workshop, que não se emenda para trás, e o `PATCH /contexto/pessoa` (nº 6b) e o
+  `PUT /categorias/ordem` (nº 4) pela mesma razão. O `PUT /areas/ordem` tem comando,
+  `Definir áreas do local`, porque a ordem é parte da estrutura de áreas. Lacuna registrada, não invenção.
 
 ---
 
@@ -2244,3 +2275,4 @@ em dois tempos*, acima.
 | 23 | **Formato do telefone** | **E.164** em toda a superfície, imposto por schema | Texto livre — impede deduplicação, e obriga a normalizar em cada lugar que monta um link de WhatsApp |
 | 24 | **Miniatura do anexo** | Segundo objeto, **na mesma autorização**, lido por `?variante=miniatura` | Duas autorizações — dobra a ida e volta e consome dois slots do limite · caminho separado `/miniatura` — operação nova e um segundo lugar onde checar permissão · sem miniatura, servindo a imagem de 400 KB na listagem — 8 MB por página |
 | 25 | **Unidade do morador na superfície** | `vinculo.area` na leitura, `areaId` na escrita, só com `vinculo.gerir` | Não expor — mas então o produto continuaria guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia |
+| 26 | **Reordenação** | A lista inteira em `PUT /categorias/ordem` e `PUT /areas/ordem`, numa transação, com `409 LISTA_DESATUALIZADA` quando o conjunto diverge do atual | `PATCH` por item (N escritas sem transação, e o empate de `ordem` deixa a seta sem efeito) · `ETag` (§7.9) · mover um item por posição relativa, que não deixa o servidor perceber que a lista mudou |

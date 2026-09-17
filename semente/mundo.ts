@@ -277,10 +277,12 @@ export async function semear(
     const conta = gestor === undefined ? undefined : contasPorChave.get(gestor);
     if (conta === undefined) throw new Error(`Sem Gestor para criar áreas em ${area.organizacao}.`);
 
+    // **A posição é a da lista do plano**, e não um número declarado: `criarArea` põe cada área no fim
+    // desde o item 50, e `ordem` saiu do comando com o 44k. Criar na ordem do arranjo dá o mesmo
+    // resultado, porque as duas áreas da POL-01 já ocupam 1 e 2.
     await criarArea(portasDe(area.organizacao).areas, {
       nome: area.nome,
       tipo: area.tipo,
-      ordem: area.ordem,
       porPessoaId: conta.pessoaId,
     });
   }

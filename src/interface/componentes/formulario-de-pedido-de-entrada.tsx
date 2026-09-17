@@ -1,13 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
+import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
+import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import {
+  avisarErro,
+  avisarSucesso,
+  MENSAGEM_GENERICA,
+  mensagemDoProblema,
+} from "@/interface/componentes/retorno-de-acao";
 import { PREFIXO_BR, converterTelefoneDigitado } from "@/interface/componentes/telefone";
-import { Aviso, Campo } from "@/interface/componentes/moldura-de-tela";
+import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
-import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
+import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-formulario-tocado";
+import { codigoPublico } from "@/interface/schemas";
 
 /**
  * **T-02 face A · o caminho de entrar.** *"Onde eu trabalho?"* — e quem chega aqui quase sempre está
@@ -18,6 +27,8 @@ import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao"
  *
  * **Onde cada erro aparece** (spec §2.3): `400` com `erros[]` vai **no campo** — a mesma regra que o item
  * 9b fixa para `CONTATO_DUPLICADO`; `404` e os dois `409` vão na **faixa**, porque não têm campo culpado.
+ * O código e o telefone são conferidos também antes do envio, com a regra de formulário tocado do guia §7
+ * (item 44g).
  *
  * **Os dois `409` são desfechos de estado velho, e a ação dos dois é recarregar** (spec §2.5): com pedido
  * pendente a tela passa a mostrar a face B; com vínculo, o contexto ativa a organização e o shell manda
@@ -39,21 +50,55 @@ type EstadoDoPedido = {
   reconhecido?: { organizacaoId: string; nome: string };
 };
 
-type ProblemaDaApi = {
-  codigo?: string;
-  detail?: string;
-  erros?: Array<{ campo: string; mensagem?: string }>;
-};
-
 const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
   CODIGO_PUBLICO_NAO_ENCONTRADO: "Nenhuma organização usa este código. Confira as letras e os números.",
   PEDIDO_DE_ENTRADA_PENDENTE: "Seu pedido já foi enviado e está aguardando a decisão de um Gestor.",
   JA_VINCULADO: "Você já está nesta organização.",
 };
 
-// Mesma mensagem nos dois desfechos sem detalhe utilizável: a resposta de erro sem código conhecido e a
-// rejeição do próprio `fetch` (rede caiu, DNS falhou) — ver o `catch` abaixo.
-const MENSAGEM_DE_RECUSA_GENERICA = "Não foi possível enviar o pedido agora. Tente de novo.";
+type ErroDeCampoDaApi = { campo: string; mensagem?: string };
+
+const FALHA_DO_PEDIDO = "Não foi possível enviar o pedido";
+
+function codigoDigitado(dados: FormData): string {
+  return String(dados.get("codigo") ?? "").trim().toUpperCase();
+}
+
+/**
+ * **O que a tela sabe conferir antes de enviar** (C-11 do plano do 44g): o formato do código, pelo mesmo
+ * `codigoPublico` que o servidor usa, e o telefone, pela mesma conversão que o envio usa. O nome não tem
+ * erro possível: é opcional, e o campo corta em 120.
+ */
+function errosDoPedido(dados: FormData, primeiraEntrada: boolean): ErrosDeCampo {
+  const codigo = codigoPublico.safeParse(codigoDigitado(dados));
+  const telefone = primeiraEntrada
+    ? converterTelefoneDigitado(String(dados.get("telefone") ?? ""))
+    : null;
+  return {
+    codigo: codigo.success ? undefined : codigo.error.issues[0]?.message,
+    telefone: telefone?.situacao === "recusado" ? telefone.mensagem : undefined,
+  };
+}
+
+function lerCodigo(problema: unknown): string {
+  if (typeof problema !== "object" || problema === null) return "ERRO_INTERNO";
+  const { codigo } = problema as { codigo?: unknown };
+  return typeof codigo === "string" ? codigo : "ERRO_INTERNO";
+}
+
+/** `400` com `erros[]` vai **no campo** (spec do 7a, §2.3). `codigoPublico` é o campo `codigo` da tela. */
+function lerErrosDeCampo(problema: unknown): Record<string, string> | null {
+  if (typeof problema !== "object" || problema === null) return null;
+  const { erros } = problema as { erros?: unknown };
+  if (!Array.isArray(erros) || erros.length === 0) return null;
+
+  const saida: Record<string, string> = {};
+  for (const erro of erros as ErroDeCampoDaApi[]) {
+    const campo = erro.campo === "codigoPublico" ? "codigo" : erro.campo;
+    saida[campo] = erro.mensagem ?? "Confira este campo.";
+  }
+  return saida;
+}
 
 export function FormularioDePedidoDeEntrada({
   nome,
@@ -69,12 +114,19 @@ export function FormularioDePedidoDeEntrada({
 }) {
   const router = useRouter();
   const primeiraEntrada = variante === "primeira-entrada";
+  const [falhaAoEntrar, setFalhaAoEntrar] = useState<string | null>(null);
+
+  const formulario = useFormularioTocado({
+    campos: primeiraEntrada ? { codigo: "codigo", nome: "nome", telefone: "telefone" } : { codigo: "codigo" },
+    validar: (dados) => errosDoPedido(dados, primeiraEntrada),
+  });
 
   const [estado, agir, aguardando] = useActionState(
     async (_anterior: EstadoDoPedido, dados: FormData): Promise<EstadoDoPedido> => {
-      const codigo = String(dados.get("codigo") ?? "").trim().toUpperCase();
+      const codigo = codigoDigitado(dados);
       const nomeInformado = String(dados.get("nome") ?? "").trim();
       const telefoneDigitado = String(dados.get("telefone") ?? "").trim();
+      setFalhaAoEntrar(null);
 
       /**
        * **O código é reconhecido antes de virar erro** (critério 7b.4, spec §2.6).
@@ -90,16 +142,15 @@ export function FormularioDePedidoDeEntrada({
        */
       const jaVinculada = vinculos.find((v) => v.codigoPublico === codigo);
       if (jaVinculada !== undefined) {
+        formulario.recomecar();
         return { reconhecido: { organizacaoId: jaVinculada.organizacaoId, nome: jaVinculada.nome } };
       }
 
-      // A conversão acontece aqui, e o campo é o único lugar onde ela pode falhar de forma explicável:
-      // quem digitou nove dígitos merece a frase, não um `400` genérico do servidor. Não é rede, então
-      // fica fora do `try` abaixo. **A regra saiu para `componentes/telefone.ts` em 24/08/2026**, para
-      // T-08 usar a mesma — ver a decisão 2.2 da spec do 9b. **Na variante `outra-organizacao` não há
-      // campo de telefone**, então não há o que converter.
+      // A conferência do cliente já barrou o telefone malformado; este ramo fica como guarda do envio.
       const convertido = converterTelefoneDigitado(primeiraEntrada ? telefoneDigitado : "");
       if (convertido.situacao === "recusado") {
+        formulario.recomecar();
+        avisarErro(FALHA_DO_PEDIDO);
         return { erros: { telefone: convertido.mensagem } };
       }
       const telefone = convertido.situacao === "convertido" ? convertido.valor : undefined;
@@ -132,42 +183,38 @@ export function FormularioDePedidoDeEntrada({
         if (resposta.ok) {
           enviado = true;
         } else {
-          const problema = (await resposta.json().catch(() => ({}))) as ProblemaDaApi;
-
-          if (problema.erros !== undefined && problema.erros.length > 0) {
-            const erros: Record<string, string> = {};
-            for (const erro of problema.erros) {
-              const campo = erro.campo === "codigoPublico" ? "codigo" : erro.campo;
-              erros[campo] = erro.mensagem ?? "Confira este campo.";
-            }
-            resultado = { erros };
-          } else {
-            const codigoDaRecusa = problema.codigo ?? "ERRO_INTERNO";
-            resultado = {
-              recusa: {
-                codigo: codigoDaRecusa,
-                // O texto que nós escrevemos para os três códigos conhecidos ganha do `detail` do
-                // servidor, porque é redigido para a tela; o `detail` só entra quando não temos texto
-                // próprio (contrato §6.1, mesma leitura de `formulario-de-nova-organizacao.tsx`); o
-                // genérico é o último recurso.
-                detalhe: TEXTO_DA_RECUSA[codigoDaRecusa] ?? problema.detail ?? MENSAGEM_DE_RECUSA_GENERICA,
-              },
-            };
-          }
+          const problema = (await resposta.json().catch(() => null)) as unknown;
+          const erros = lerErrosDeCampo(problema);
+          resultado =
+            erros !== null
+              ? { erros }
+              : {
+                  recusa: {
+                    codigo: lerCodigo(problema),
+                    // A frase que nós escrevemos para os três códigos conhecidos ganha do `detail`, que
+                    // ganha da genérica (retorno-de-acao.ts).
+                    detalhe: mensagemDoProblema(problema, TEXTO_DA_RECUSA),
+                  },
+                };
         }
       } catch {
         // `fetch` rejeitou antes de haver resposta — rede caiu, DNS falhou. Sem este `catch`, a rejeição
         // sobe sem tratamento pela transição do `useActionState`: risco de acionar o Error Boundary mais
         // próximo em vez de simplesmente mostrar `<Aviso>`. RNF de cold start e nuvem sem SLA: rede
         // instável é o caso esperado.
-        resultado = { recusa: { codigo: "ERRO_INTERNO", detalhe: MENSAGEM_DE_RECUSA_GENERICA } };
+        resultado = { recusa: { codigo: "ERRO_INTERNO", detalhe: MENSAGEM_GENERICA } };
       }
 
+      formulario.recomecar();
+
       if (enviado) {
+        avisarSucesso("Pedido de entrada enviado");
         // O contexto refeito escolhe a face B — sem tela nova e sem texto novo (spec §2.7). Fora do
         // `try`: uma falha síncrona aqui não pode virar mensagem de erro de envio — o pedido já foi
         // enviado com sucesso.
         router.refresh();
+      } else {
+        avisarErro(FALHA_DO_PEDIDO);
       }
 
       return resultado;
@@ -176,8 +223,7 @@ export function FormularioDePedidoDeEntrada({
   );
 
   const podeRecarregar =
-    estado.recusa?.codigo === "PEDIDO_DE_ENTRADA_PENDENTE" ||
-    estado.recusa?.codigo === "JA_VINCULADO";
+    estado.recusa?.codigo === "PEDIDO_DE_ENTRADA_PENDENTE" || estado.recusa?.codigo === "JA_VINCULADO";
 
   // **Um `const`, e não `estado.reconhecido!` dentro do `onClick`**: o estreitamento de
   // `estado.reconhecido !== undefined` não sobrevive ao fecho do callback, e a asserção `!` seria a
@@ -186,8 +232,14 @@ export function FormularioDePedidoDeEntrada({
 
   /** O `PUT /contexto/organizacao` daquele `organizacaoId` — a mesma troca do menu, e o mesmo destino. */
   async function entrarNela(organizacaoId: string) {
+    setFalhaAoEntrar(null);
     const resultado = await trocarOrganizacao(organizacaoId);
-    if (!resultado.ok) return;
+    if (!resultado.ok) {
+      // **Até o item 44g esta falha era muda**: o botão não fazia nada, e a pessoa não sabia por quê.
+      setFalhaAoEntrar(resultado.aviso);
+      avisarErro("Não foi possível entrar na organização");
+      return;
+    }
 
     router.refresh();
     router.replace("/");
@@ -196,9 +248,11 @@ export function FormularioDePedidoDeEntrada({
   return (
     <>
       {reconhecido !== undefined && (
-        <Aviso>
+        // **Tom de nota:** reconhecer o código não é erro, é o caminho certo (spec do 44g, §4.5).
+        <Aviso tom="nota">
           Você já está em{" "}
           <strong className="text-tinta font-semibold">{reconhecido.nome}</strong>.{" "}
+          {/* O botão de texto que já existia continua nativo, e continua na contagem do G7 (spec §6). */}
           <button
             type="button"
             disabled={aguardando}
@@ -211,6 +265,8 @@ export function FormularioDePedidoDeEntrada({
           </button>
         </Aviso>
       )}
+
+      {falhaAoEntrar !== null && <Aviso>{falhaAoEntrar}</Aviso>}
 
       {estado.recusa !== undefined && (
         <Aviso>
@@ -230,24 +286,32 @@ export function FormularioDePedidoDeEntrada({
         </Aviso>
       )}
 
-      <form action={agir} className="flex flex-col gap-5" noValidate>
+      <form
+        action={agir}
+        onChange={formulario.aoMudarNoFormulario}
+        onSubmit={formulario.aoEnviarFormulario}
+        className="flex flex-col gap-5"
+        noValidate
+      >
         <Campo
           id="codigo"
           rotulo="Código da organização"
+          obrigatorio
           ajuda="Está no cartaz do elevador ou na mensagem do grupo. Seis a doze letras e números."
-          erro={estado.erros?.["codigo"]}
+          erro={formulario.erroDe("codigo", estado.erros)}
         >
-          <Input
-            id="codigo"
-            name="codigo"
-            type="text"
-            maxLength={12}
-            autoComplete="off"
-            autoCapitalize="characters"
-            required
-            aria-invalid={estado.erros?.["codigo"] !== undefined}
-            className="h-12 text-base tracking-[0.12em] uppercase"
-          />
+          {(controle) => (
+            <Input
+              {...controle}
+              name="codigo"
+              type="text"
+              maxLength={12}
+              autoComplete="off"
+              autoCapitalize="characters"
+              required
+              className="h-12 text-base tracking-[0.12em] uppercase"
+            />
+          )}
         </Campo>
 
         {primeiraEntrada && (
@@ -255,47 +319,47 @@ export function FormularioDePedidoDeEntrada({
             <Campo
               id="nome"
               rotulo="Seu nome"
-              ajuda={
-                <>
-                  É como você vai aparecer para os Gestores e no histórico das ocorrências.{" "}
-                  <strong className="text-tinta font-semibold">Depois daqui não há como mudar.</strong>
-                </>
-              }
-              erro={estado.erros?.["nome"]}
+              ajuda="É como você vai aparecer para os Gestores e no histórico das ocorrências."
+              erro={formulario.erroDe("nome", estado.erros)}
             >
-              <Input
-                id="nome"
-                name="nome"
-                type="text"
-                maxLength={120}
-                defaultValue={nome}
-                aria-invalid={estado.erros?.["nome"] !== undefined}
-                className="h-12 text-base"
-              />
+              {(controle) => (
+                <Input
+                  {...controle}
+                  name="nome"
+                  type="text"
+                  maxLength={120}
+                  defaultValue={nome}
+                  className="h-12 text-base"
+                />
+              )}
             </Campo>
 
             <Campo
               id="telefone"
               rotulo="Telefone (opcional)"
               ajuda="Vai virar o seu primeiro contato na organização."
-              erro={estado.erros?.["telefone"]}
+              erro={formulario.erroDe("telefone", estado.erros)}
             >
-              <Input
-                id="telefone"
-                name="telefone"
-                type="tel"
-                inputMode="tel"
-                defaultValue={PREFIXO_BR}
-                aria-invalid={estado.erros?.["telefone"] !== undefined}
-                className="h-12 text-base"
-              />
+              {(controle) => (
+                <Input
+                  {...controle}
+                  name="telefone"
+                  type="tel"
+                  inputMode="tel"
+                  defaultValue={PREFIXO_BR}
+                  className="h-12 text-base"
+                />
+              )}
             </Campo>
           </>
         )}
 
-        <Button type="submit" disabled={aguardando} className="h-12 w-full text-base">
-          {aguardando ? "Enviando…" : "Pedir entrada"}
-        </Button>
+        <RodapeDoFormulario obrigatorios={1}>
+          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+            <IndicadorDeEnvio ativo={aguardando} />
+            {aguardando ? "Enviando…" : "Pedir entrada"}
+          </Button>
+        </RodapeDoFormulario>
       </form>
     </>
   );

@@ -86,13 +86,6 @@ type Props = {
    * propriedade continua sendo **uma só**: quando o controle nascer, a assinatura não muda de novo.
    */
   primeiraPagina: PaginaDeOcorrenciasProjetada;
-  /**
-   * A *query string* de T-03, crua — o recorte que definiu esta lista. Vazia quando não há filtro.
-   *
-   * **Obrigatória de propósito** (item 15): opcional, um esquecimento em quem monta a lista faz o *Voltar*
-   * de T-05 perder o filtro em silêncio, e o compilador deixa de ser a garantia.
-   */
-  consultaAtual: string;
   /** `categoriaId → nome do ícone`, cruzado **no cliente** contra `GET /categorias` (critério 14.6). */
   iconePorCategoria: Readonly<Record<string, string>>;
   /**
@@ -110,7 +103,7 @@ type Props = {
    * **Texto, e por isso atravessa a fronteira do servidor sem problema** — ao contrário do
    * `destinoDoItem`, que é função e teve de ser montado aqui dentro (ver o bloco dele).
    *
-   * **Obrigatória de propósito**, como `consultaAtual`: opcional, um esquecimento em quem monta a lista
+   * **Obrigatória de propósito**: opcional, um esquecimento em quem monta a lista
    * faz o convite sumir em silêncio, e o compilador deixa de ser a garantia. O objetivo **O4** depende
    * dele existir.
    */
@@ -121,7 +114,6 @@ type Props = {
 
 export function ListaDeOcorrencias({
   primeiraPagina,
-  consultaAtual,
   iconePorCategoria,
   mostrarPrioridade,
   pessoaIdDeQuemLe,
@@ -132,24 +124,12 @@ export function ListaDeOcorrencias({
   const itens = primeiraPagina.itens;
 
   /**
-   * **O recorte viaja com o link, e só quando existe** — a metade do critério 15.3 que fala do *Voltar*.
-   *
-   * Um `<Link href="/ocorrencias">` estático em T-05 devolveria a lista **do zero**: o gesto de voltar do
-   * sistema preserva a URL, o **controle da tela** não. Com `?de=`, T-05 sabe para onde voltar mesmo quem
-   * abriu o link numa aba nova, sem histórico — que é a condição que o critério 11.7 impõe ao endereço.
-   *
-   * **Sem filtro, o endereço não ganha nada:** `/ocorrencias/{id}` continua limpo, e é ele que se
-   * compartilha. Quem copia a URL no meio de uma triagem filtrada leva `?de=` junto — inútil para quem
-   * recebe, e inofensivo: T-05 não a usa para mais nada.
-   *
-   * **Montado aqui, e não recebido pronto da página.** O plano previa `destinoDoItem` descendo como
-   * propriedade, mas este é um Client Component e **função não atravessa a fronteira do servidor**. A
-   * regra é a mesma; a peça que atravessa é `consultaAtual`, que é texto.
+   * **O link de cada item é o endereço da ocorrência, e só ele.** Até o item 44g ele levava o parâmetro
+   * `de` com o recorte, para o *Voltar* de T-05 devolver a lista filtrada; o *Voltar* saiu (critério
+   * 44g.10), e quem devolve a lista filtrada é o botão voltar do navegador. **Continua função**, porque os
+   * dois desenhos de linha a recebem pronta.
    */
-  const destinoDoItem = (id: string) =>
-    consultaAtual === ""
-      ? `/ocorrencias/${id}`
-      : `/ocorrencias/${id}?de=${encodeURIComponent(consultaAtual)}`;
+  const destinoDoItem = (id: string) => `/ocorrencias/${id}`;
 
   const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora, pessoaIdDeQuemLe };
 

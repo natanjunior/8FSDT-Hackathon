@@ -12,6 +12,10 @@ import { correcaoDeCategoriaSchema } from "@/interface/schemas";
  * ela e a FK vinda de `ocorrencias` é `RESTRICT`. **Não existe `DELETE` neste caminho, e não deve
  * existir.**
  *
+ * **`ordem` saiu do corpo em 17/09/2026, com o item 44k:** a posição muda por `PUT /categorias/ordem`,
+ * que grava a lista inteira numa transação, e a tela que digitava o número deixou de existir. Um corpo que
+ * ainda a traga tem o campo descartado pelo schema.
+ *
  * **Duas recusas acontecem aqui, antes da Aplicação:**
  *
  * 1. **Identificador que não é `uuid` → `404`**, não `500`. Sem esta linha, o `where id = $n` recebe texto
@@ -29,7 +33,6 @@ export const PATCH = comContexto(
     if (
       corpo.nome === undefined &&
       corpo.icone === undefined &&
-      corpo.ordem === undefined &&
       corpo.ativa === undefined
     ) {
       throw new FormatoInvalido([
@@ -45,7 +48,6 @@ export const PATCH = comContexto(
       categoriaId: categoriaId.data,
       ...(corpo.nome === undefined ? {} : { nome: corpo.nome }),
       ...(corpo.icone === undefined ? {} : { icone: corpo.icone }),
-      ...(corpo.ordem === undefined ? {} : { ordem: corpo.ordem }),
       ...(corpo.ativa === undefined ? {} : { ativa: corpo.ativa }),
       porPessoaId: ctx.pessoaId,
     });

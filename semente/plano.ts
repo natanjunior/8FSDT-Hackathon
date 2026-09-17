@@ -195,12 +195,15 @@ export type PessoaDoPlano = {
   readonly email: string | null;
 };
 
+/**
+ * **Sem `ordem`:** a posição é a da lista abaixo. Quem é criado entra no fim (item 50), e `ordem` saiu do
+ * comando de criação com o item 44k — declarar um número aqui seria uma segunda fonte para a mesma coisa.
+ */
 export type AreaDoPlano = {
   readonly chave: string;
   readonly organizacao: ChaveDeOrganizacao;
   readonly nome: string;
   readonly tipo: TipoArea;
-  readonly ordem: number;
 };
 
 export type VinculoDoPlano = {
@@ -285,15 +288,15 @@ const PESSOAS: readonly PessoaDoPlano[] = [
  * semente é uma organização mal configurada."*
  */
 const AREAS: readonly AreaDoPlano[] = [
-  { chave: "a-garagem", organizacao: "a", nome: "Garagem", tipo: "comum", ordem: 3 },
-  { chave: "a-hall", organizacao: "a", nome: "Hall de entrada", tipo: "comum", ordem: 4 },
-  { chave: "a-salao", organizacao: "a", nome: "Salão de festas", tipo: "comum", ordem: 5 },
-  { chave: "a-elevador", organizacao: "a", nome: "Elevador social", tipo: "comum", ordem: 6 },
-  { chave: "a-101", organizacao: "a", nome: "Apartamento 101", tipo: "privativa", ordem: 7 },
-  { chave: "a-302", organizacao: "a", nome: "Apartamento 302", tipo: "privativa", ordem: 8 },
-  { chave: "b-portaria", organizacao: "b", nome: "Portaria", tipo: "comum", ordem: 3 },
-  { chave: "b-lazer", organizacao: "b", nome: "Área de lazer", tipo: "comum", ordem: 4 },
-  { chave: "b-405", organizacao: "b", nome: "Sala 405", tipo: "privativa", ordem: 5 },
+  { chave: "a-garagem", organizacao: "a", nome: "Garagem", tipo: "comum" },
+  { chave: "a-hall", organizacao: "a", nome: "Hall de entrada", tipo: "comum" },
+  { chave: "a-salao", organizacao: "a", nome: "Salão de festas", tipo: "comum" },
+  { chave: "a-elevador", organizacao: "a", nome: "Elevador social", tipo: "comum" },
+  { chave: "a-101", organizacao: "a", nome: "Apartamento 101", tipo: "privativa" },
+  { chave: "a-302", organizacao: "a", nome: "Apartamento 302", tipo: "privativa" },
+  { chave: "b-portaria", organizacao: "b", nome: "Portaria", tipo: "comum" },
+  { chave: "b-lazer", organizacao: "b", nome: "Área de lazer", tipo: "comum" },
+  { chave: "b-405", organizacao: "b", nome: "Sala 405", tipo: "privativa" },
 ];
 
 const VINCULOS: readonly VinculoDoPlano[] = [

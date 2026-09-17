@@ -60,10 +60,13 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
 
   return (
     <SidebarProvider open className="min-h-dvh flex-col">
+      {/* **O e-mail vem da resolução, e não da projeção** (item 44i): ele serve ao cabeçalho do menu de
+          pessoa, sempre para a própria pessoa, e continua fora de `ContextoProjetado`. */}
       <BarraSuperior
         vinculos={projetado.vinculos}
         organizacaoAtivaId={organizacaoAtiva.id}
         nomeDaPessoa={projetado.pessoa.nome}
+        emailDaPessoa={resolucao.sessao.email}
       >
         <SidebarTrigger aria-label="Abrir navegação" className="size-11 md:hidden" />
       </BarraSuperior>
@@ -99,11 +102,16 @@ type VinculoDaCasca = { pode: (permissao: Permissao) => boolean };
 /**
  * **A navegação enquanto a contagem não chegou.** Mesma forma, sem o número — e nunca esqueleto: a casca
  * já está no cliente, e esqueleto aqui piscaria a cada navegação.
+ *
+ * **Participantes já está nela**, com a linha do número reservada (item 44h). Até ali, o item só existia
+ * com a contagem: na primeira carga ele entrava depois, empurrando os de baixo, e `/vinculos` ficava sem
+ * marca durante a espera.
  */
 function NavegacaoSemContagem({ vinculo }: { vinculo: VinculoDaCasca }) {
   return (
     <Navegacao
       podeVerDashboard={vinculo.pode("dashboard.ler")}
+      podeGerirVinculos={vinculo.pode("vinculo.gerir")}
       pendentes={null}
       podeConfigurar={vinculo.pode("organizacao.configurar")}
     />
@@ -125,13 +133,15 @@ async function NavegacaoComContagem({
   vinculo: VinculoDaCasca;
   pedidos: Parameters<typeof listarPedidosDeEntrada>[0];
 }) {
-  const pendentes = vinculo.pode("vinculo.gerir")
+  const podeGerirVinculos = vinculo.pode("vinculo.gerir");
+  const pendentes = podeGerirVinculos
     ? (await listarPedidosDeEntrada(pedidos, {})).length
     : null;
 
   return (
     <Navegacao
       podeVerDashboard={vinculo.pode("dashboard.ler")}
+      podeGerirVinculos={podeGerirVinculos}
       pendentes={pendentes}
       podeConfigurar={vinculo.pode("organizacao.configurar")}
     />

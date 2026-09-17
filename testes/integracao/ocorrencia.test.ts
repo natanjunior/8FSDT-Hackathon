@@ -80,8 +80,11 @@ function portas() {
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
-    categorias: repositorioEscopadoDeCategorias(consulta),
-    areas: repositorioEscopadoDeAreas(consulta),
+    categorias: repositorioEscopadoDeCategorias(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    areas: repositorioEscopadoDeAreas(consulta, escoparTransacao(criarTransacao(), organizacaoId)),
     armazenamento: SEM_ANEXO,
   };
 }

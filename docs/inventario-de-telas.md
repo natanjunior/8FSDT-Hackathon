@@ -6,7 +6,7 @@ description: "As telas desta entrega: o que cada uma responde, os estados vazio,
 # Inventário de Telas — Resolve Aí
 
 **Dezesseis telas.** É o número que este documento defende, contra as 46 capacidades ✅ do
-[escopo](escopo.md) e os 39 endpoints do [contrato de API](contrato-de-api.md).
+[escopo](escopo.md) e os 41 endpoints do [contrato de API](contrato-de-api.md).
 
 > **Eram dez até 21/08/2026.** A revisão de tela partiu T-01 em quatro: a tela declarava **três ações**
 > — *"Entrar · criar conta · redefinir senha"* — e especificava **um** formulário. As outras duas nunca
@@ -182,7 +182,7 @@ alto porque foram descobertas depois (ver o quadro do topo).
 | **T-05** | Ocorrência | quem pode ler aquela ocorrência | *"O que está acontecendo com esta, e o que eu faço com ela?"* | celular | **sim — é o link que substitui o WhatsApp** |
 | **T-06** | Trilha de auditoria | quem pode ler aquela ocorrência | *"Prove o que aconteceu, campo por campo."* | tela grande | sim |
 | **T-07** | Dashboard | `dashboard.ler` | *"Está melhorando ou piorando?"* | tela grande | sim |
-| **T-08** | Quem está na organização | `vinculo.gerir` | *"Quem está aqui, e quem quer entrar?"* | tela grande | sim |
+| **T-08** | Participantes | `vinculo.gerir` | *"Quem está aqui, e quem quer entrar?"* | tela grande | sim |
 | **T-15** | Configuração da organização | `organizacao.configurar` | *"O que desta organização eu posso ajustar?"* | tela grande | sim |
 | **T-09** | Categorias | `organizacao.configurar` | *"As categorias que o Solicitante escolhe estão certas?"* | tela grande | sim |
 | **T-14** | Áreas | `organizacao.configurar` | *"As áreas descrevem este lugar?"* | tela grande | sim |
@@ -197,15 +197,12 @@ usuário está em linguagem de gente, escrito na seção de cada uma. Dois nomes
 - **T-07 é `Dashboard`, não "Painel".** *Dashboard* é palavra do enunciado (G8) e o `contrato-de-api.md` §7.2 já a
   declara como um dos quatro nomes que vieram de fora do glossário sem serem inventados. Criar "Painel"
   seria um segundo nome para uma coisa só — exatamente o que o glossário existe para impedir.
-- **T-08 é `Quem está na organização`**, que é a frase que o próprio `openapi.yaml` usa como resumo de
-  `GET /vinculos`. Não é "Pessoas": `Pessoa` é a tabela **global**, e a *regra do vínculo primeiro*
-  (`contrato-de-api.md` §4.6) diz que toda listagem de gente é listagem de `Vínculo`. Nomear a tela "Pessoas"
-  contradiria a regra na primeira palavra. **Se o hub quiser um nome curto, ele é proposta ao
-  glossário — não é invenção deste inventário** (`glossario.md` §9).
+- **T-08 é `Participantes`**, o termo do [glossário](glossario.md) §1. Não é "Pessoas": `Pessoa` é a
+  tabela **global**, e a *regra do vínculo primeiro* (`contrato-de-api.md` §4.6) diz que toda listagem de
+  gente é listagem de `Vínculo`. Nomear a tela "Pessoas" contradiria a regra na primeira palavra.
 
-  **O nome curto chegou em 16/09/2026, e veio pelo caminho que esta linha previu:** a navegação chama a
-  tela de `Participantes`, o termo está definido no [glossário](glossario.md) §1, e o título da tela não
-  muda. A divergência é deliberada — o título diz onde você está, o rótulo diz para onde você vai.
+  O nome curto chegou em 16/09/2026 pela navegação, e o título da tela passou a ser o mesmo em
+  17/09/2026. Duas palavras para a mesma tela confundiam quem chegava pelo menu, e a divergência acabou.
 
 ### A navegação
 
@@ -225,7 +222,7 @@ flowchart TD
     T05["T-05 · Ocorrência<br/>os onze comandos moram aqui"]
     T06["T-06 · Trilha de auditoria"]
     T07["T-07 · Dashboard"]
-    T08["T-08 · Quem está na organização"]
+    T08["T-08 · Participantes"]
     T15["T-15 · Configuração da organização"]
     T09["T-09 · Categorias"]
     T14["T-14 · Áreas"]
@@ -310,7 +307,7 @@ sessão e não da URL, o endereço não diz onde você está, então a tela tem 
 | **modal aberto** | **fecha o modal e permanece na tela** |
 | T-11, T-12 | volta a **T-01** — é de lá que as duas são alcançadas |
 | **T-13** | **nunca volta ao formulário.** O endereço carrega o token de redefinição; consumido ele, voltar leva a T-01 |
-| **T-16** | volta a **T-03**, como as outras de dentro — e o link *Voltar* do rodapé aponta para lá |
+| **T-16** | volta a **T-03**, como as outras de dentro |
 | T-02, T-10 | não há para onde voltar; o botão é inerte |
 
 A última linha da tabela do meio exige um mecanismo, e ele é decisão declarada:
@@ -809,8 +806,8 @@ da análise de Cagan. Tudo aqui se subordina a isso.
 |---|---|---|
 | `titulo` | obrigatório, 1–150 | |
 | `descricao` | obrigatório, 1–5000 | É onde a intenção do Solicitante vive — **não há campo de urgência** (`glossario.md` §8: o campo sofre inflação e vira ruído, D7) |
-| `categoriaId` | obrigatório | de `GET /categorias`, **só as com `ativa: true`**, na ordem de `ordem` (D18: *"qual categoria aparece antes é escolha do Gestor"*). **O seletor exibe o `icone` ao lado do nome, nunca no lugar dele** — critério **11.6**, metade do **4b.3**. `GET /categorias` já traz `icone` como campo obrigatório, então **nada entra no contrato**: é renderização. *(Acrescentado em 30/08/2026 — itens 4 e 9 da fila.)* |
-| `areaId` | **obrigatório** | de `GET /areas`, só as ativas. É obrigatório porque **é dela que a visibilidade deriva** |
+| `categoriaId` | obrigatório | de `GET /categorias`, **só as com `ativa: true`**, na ordem de `ordem` (D18: *"qual categoria aparece antes é escolha do Gestor"*). **O seletor exibe o `icone` dentro de cada opção, ao lado do nome, nunca no lugar dele** — critério **11.6**, metade do **4b.3**. `GET /categorias` já traz `icone` como campo obrigatório, então **nada entra no contrato**: é renderização. *(Acrescentado em 30/08/2026 — itens 4 e 9 da fila.)* |
+| `areaId` | **obrigatório** | **Campo com busca** (17/09/2026): as ativas de `GET /areas`, na ordem do Gestor, com o **tipo ao lado de cada uma** — é ele que decide a visibilidade e fica congelado na ocorrência. No topo, até três em *Usadas por você*, que moram no **armazenamento do aparelho** como lista de `areaId` e são sempre cruzadas com a lista que acabou de chegar: área desativada não aparece. **Não é cache de resposta** (S-T6). No celular abre em gaveta de baixo; na tela grande, em painel ancorado. É obrigatório porque **é dela que a visibilidade deriva** |
 | `localizacaoComplemento` | opcional, ≤ 200 | texto livre — *"ao lado da vaga 34"* |
 | `imagem` | opcional | uma só (RNF8), como **referência** — nunca bytes |
 
@@ -837,16 +834,25 @@ não terminou — ela espera só o `chave`+`ticket`, que chegam do `201` da auto
 o primeiro registro da trilha (`ultimaTransicao` com `statusAnterior: null`, premissa **P1**) está
 visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
 
+**Na tela grande** (17/09/2026): o formulário num cartão de até 700 px, com *Área* e *Referência do
+lugar* dividindo a linha, e ao lado o painel *Depois de registrar* — os quatro estados do ciclo com
+*Aberta* marcada, na coluna de quem lê (item 31), e a linha *"Quem acompanha: você e os Gestores."* **A
+tela não diz que outros moradores vão ver a ocorrência:** a D10 diz isso de área comum, mas *"Ver as
+ocorrências de área comum do meu local"* está ⬜ no escopo. O painel não aparece no celular, e não falta
+lá: o mesmo caminho está em T-05, que é para onde a pessoa vai depois do registro.
+
 **Como reage ao status.** Não reage — a ocorrência nasce `aberta` e a tela não escolhe nada disso.
 
 **Vazio · carregando · erro.**
 - *Vazio:* não existe estado vazio de formulário. **Mas existe um caso vizinho e ele é grave:** se
   `GET /categorias` ou `GET /areas` devolver zero itens ativos, **não há como registrar nada**. A
-  organização nasce com sementes (POL-01), então isso só acontece se o Gestor desativar tudo. Texto:
-  *"Esta organização não tem {categorias | áreas} ativas. Fale com um Gestor."* — e para o próprio
-  Gestor, o mesmo texto com o caminho para a lista que está faltando — T-09, T-14, ou T-15 quando faltam
-  as duas. Sem essa frase, o formulário fica com um campo obrigatório vazio e insubmissível, sem dizer
-  por quê.
+  organização nasce com sementes (POL-01), então isso só acontece se o Gestor desativar tudo. O texto
+  tem três formas — *"Esta organização não tem {categorias | áreas | categorias nem áreas} ativas."* —,
+  e a segunda frase depende de quem lê: quem configura a organização lê o que reativar e recebe o
+  caminho para a lista que falta (T-09, T-14, ou T-15 quando faltam as duas); **quem não configura lê
+  *"Fale com um Gestor."* e não recebe botão nenhum**, porque oferecer o caminho a quem não pode
+  percorrê-lo é beco. Sem essa frase, o formulário fica com um campo obrigatório vazio e insubmissível,
+  sem dizer por quê.
 - *Carregando:* as duas listas carregam junto com a tela. A foto tem indicação de progresso própria,
   **e ela não bloqueia o formulário** — bloquear é perder o RNF6.
 - *Erro:* `422 CATEGORIA_INVALIDA`, `422 AREA_INVALIDA`, `422 ANEXO_NAO_RECONHECIDO`,
@@ -854,10 +860,10 @@ visível — e é a prova, para quem acabou de reclamar, de que o pedido existe.
   **a rede caindo no meio** —
   todos na §7, que é onde esta tela mais contribui.
 
-**Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar: `titulo`, `categoria` e o
-botão de foto. `descricao`, `area` e `localizacaoComplemento` vêm abaixo. A razão de a área não estar
-acima é que ela é o campo mais longo de escolher (~30 opções, `contrato-de-api.md` §7.7) e não é o que a pessoa tem
-na cabeça ao abrir o aplicativo.
+**Alvo primário.** **Celular, sem concorrência.** O que aparece sem rolar, na forma de 17/09/2026: o
+alvo da foto, o `titulo` e o começo da `descricao`. `categoria`, `area` e `localizacaoComplemento` vêm
+abaixo. A razão de a área não estar acima é que ela é o campo mais longo de escolher (~30 opções,
+`contrato-de-api.md` §7.7) e não é o que a pessoa tem na cabeça ao abrir o aplicativo.
 
 **Endereço próprio.** Sim — e é o alvo do atalho do aplicativo instalado (§6).
 
@@ -1407,7 +1413,7 @@ que se manda para a imobiliária.
 
 ---
 
-### T-08 · Quem está na organização
+### T-08 · Participantes
 
 | Campo | Conteúdo |
 |---|---|
@@ -1418,15 +1424,26 @@ que se manda para a imobiliária.
 para o Gestor: os pedidos pendentes são a parte acionável da lista de gente. Separá-las produziria uma
 tela cuja resposta é *"nenhum pedido"* na esmagadora maioria dos dias.
 
-**O que mostra.** Duas listas, e a ordem entre elas é decisão: **os pedidos vêm primeiro**, porque são
-o que exige ação.
+**O que mostra.** Uma tabela só, com quem está e quem pediu para entrar. Em *Todos*, os pedidos ficam no
+topo, porque são o que exige ação.
 
-**1 · Pedidos de entrada** — `GET /pedidos-de-entrada` (padrão `situacao=pendente`). Por item,
-`PedidoDeEntradaDetalhe`: `pessoa.nome`, **`pessoa.contatos[]`**, `criadoEm`. É o único lugar, com a
-lista abaixo, onde contato aparece — **dado pessoal sob o RNF10** (S-A5).
+A lista chega inteira do servidor, até 200 linhas (RNF3), e o navegador faz o resto: o filtro rápido
+(*Todos*, *Pedidos de entrada*, *Solicitantes*, *Gestores*, *Encarregados*, cada um com a contagem do
+conjunto), a ordenação por Pessoa, Papel, Unidade e Desde, a busca pelo nome e a paginação de vinte em
+vinte. O filtro, a ordem e a página ficam no endereço; a busca não.
 
-**2 · Vínculos ativos** — `GET /vinculos`. Por item, `Vinculo`: `pessoa.nome`, **`pessoa.contatos[]`**,
-`papel`, **`area`**, `temConta`, `criadoEm`.
+**1 · Pedidos de entrada**, `GET /pedidos-de-entrada` (padrão `situacao=pendente`). Por item,
+`PedidoDeEntradaDetalhe`: `pessoa.nome`, `pessoa.telefoneInformado` e `criadoEm`. O pedido carrega um
+telefone só, o que a própria pessoa informou nele, porque `contatos` é tabela global e a lista mostraria
+ao Gestor desta organização o que ela cadastrou em outra. Na tabela, o pedido é uma linha com o selo
+*pedido de entrada*, o fundo levemente tingido e o botão *Responder*.
+
+**2 · Vínculos ativos**, `GET /vinculos`. Por item, `Vinculo`: `pessoa.nome`, `pessoa.contatos[]`,
+`papel`, `area`, `temConta` e `criadoEm`. É o único lugar onde a lista de contatos aparece, e ela é dado
+pessoal sob o RNF10 (S-A5).
+
+As colunas são Pessoa, com os selos *você* e *sem conta*, Papel, Unidade, Contato, Desde, e as ações da
+linha: *Editar participante* e *Remover da organização*, em botão só com ícone.
 
 > **Contato deixou de ser dois campos e passou a ser uma lista — 22/08/2026.** `pessoas.email_contato` e
 > `pessoas.telefone` não existem mais; no lugar, `contatos[]` com `tipo`, `valor`, `finalidade`,
@@ -1440,7 +1457,8 @@ lista abaixo, onde contato aparece — **dado pessoal sob o RNF10** (S-A5).
 >    literal: um ícone verde sem texto some para quem não distingue as duas cores.
 > 3. **A listagem mostra o primeiro contato e a contagem do resto.** Quatro contatos por pessoa numa tabela
 >    de vínculos empurram a linha para três alturas, e a pergunta desta tela é *"quem está aqui"*, não
->    *"como alcanço esta pessoa"*. O resto abre no item.
+>    *"como alcanço esta pessoa"*. O resto aparece como **+N** na linha, e a lista inteira está em
+>    *Editar participante*.
 
 **`area` é a unidade da pessoa nesta organização** — o apartamento 302, a sala 14 —, e é `null` para o
 Gestor e para o Encarregado terceirizado. **A tela a mostra em coluna própria, nunca embutida no nome.** A
@@ -1455,13 +1473,17 @@ visível ou o Gestor a interpreta como defeito.
 
 | Ação | Endpoint |
 |---|---|
-| Aprovar um pedido, escolhendo o papel **e a unidade** | `POST /pedidos-de-entrada/{id}/aprovar` `{ papel, areaId? }` — `areaId` é opcional, e este é o **único** momento em que a unidade de quem **tem conta** pode ser informada. Área de outra organização, ou inativa → `422 AREA_INVALIDA` *(esta linha dizia `{ papel }` até 30/08/2026 — ver a correção adiante)* |
-| Recusar um pedido | `POST /pedidos-de-entrada/{id}/recusar` `{ observacao? }` |
+| *Responder*, na linha do pedido, abre o modal: aprovar escolhendo o papel **e a unidade** | `POST /pedidos-de-entrada/{id}/aprovar` `{ papel, areaId? }` — `areaId` é opcional, e este é o **único** momento em que a unidade de quem **tem conta** pode ser informada. Área de outra organização, ou inativa → `422 AREA_INVALIDA` *(esta linha dizia `{ papel }` até 30/08/2026 — ver a correção adiante)* |
+| No mesmo modal, **Recusar pedido** abre a confirmação, com motivo opcional | `POST /pedidos-de-entrada/{id}/recusar` `{ observacao? }` |
 | Cadastrar pessoa sem conta (o Encarregado) | `POST /vinculos` `{ nome, papel, areaId?, contatos[]? }` |
-| Corrigir os dados de quem **não tem conta** — **e a unidade de qualquer um** | `PATCH /vinculos/{pessoaId}` `{ nome?, areaId?, contatos[]? }` — **`contatos` é substituição, não mesclagem**: a lista enviada troca a anterior inteira, `[]` remove todos, e omitir não mexe. **A guarda de quem tem conta nomeia campos, não o endpoint** (`contrato-de-api.md` §8.2, precisão de 22/08/2026): ela recusa `nome` e `contatos`, que são globais, e **não** alcança `areaId`, que é do Vínculo *(a ressalva entrou em 30/08/2026)* |
-| Remover um vínculo sem histórico | `DELETE /vinculos/{pessoaId}` — sem corpo, devolve `204` |
-| Filtrar por papel · por situação do pedido | `GET /vinculos?papel=` · `GET /pedidos-de-entrada?situacao=` |
-| **Buscar um vínculo pelo nome** | **no cliente** — recorta a lista de `GET /vinculos` já carregada; nenhum parâmetro novo no endpoint. Ver o quadro abaixo *(critério 10.6, acrescentado em 30/08/2026)* |
+| **Editar participante**: o nome e os contatos de quem não tem conta, e a unidade de qualquer um | `PATCH /vinculos/{pessoaId}` `{ nome?, areaId?, contatos[]? }` — **`contatos` é substituição, não mesclagem**: a lista enviada troca a anterior inteira, `[]` remove todos, e omitir não mexe. **A guarda de quem tem conta nomeia campos, não o endpoint** (`contrato-de-api.md` §8.2, precisão de 22/08/2026): ela recusa `nome` e `contatos`, que são globais, e **não** alcança `areaId`, que é do Vínculo *(a ressalva entrou em 30/08/2026)* |
+| **Remover da organização**, em toda linha de vínculo | `DELETE /vinculos/{pessoaId}` — sem corpo, devolve `204` |
+| Filtrar por papel e por pedido | **no navegador**, sobre a lista que já chegou; os parâmetros `?papel=` e `?situacao=` do contrato continuam sem consumidor nesta tela |
+| **Buscar pelo nome** | **no navegador**, sobre a tabela inteira, pedidos de entrada inclusive; nenhum parâmetro novo no endpoint (critério 10.6). Ver o quadro abaixo |
+
+**Cadastrar e editar são páginas próprias**, com o caminho no topo e o rodapé preso ao fim do conteúdo. A
+exceção está declarada no guia de estilo, e a razão é o sub-formulário de contatos, que é repetível e
+reordenável.
 
 **Duas coisas que a tela não oferece, e precisam ser ditas porque a ausência surpreende:**
 
@@ -1471,7 +1493,8 @@ visível ou o Gestor a interpreta como defeito.
 - **Não há como corrigir o nome nem os contatos de quem tem conta.** `409 PESSOA_COM_CONTA_NAO_EDITAVEL`,
   e a razão é boa: `pessoas` e `contatos` são tabelas **globais**, e um Gestor editando o nome de quem tem
   conta alteraria o cadastro daquela pessoa **em todas as outras organizações**. A tela mostra esses campos
-  como leitura, com a frase em §7. Mas **isso deixa um buraco que não é de tela** — ver §9, achado F11.
+  como leitura, e não oferece edição; a frase da §7 fica para o `409`, se algo escapar. Mas **isso deixa um
+  buraco que não é de tela** — ver §9, achado F11.
   **A unidade não está sob essa guarda** e continua editável para todo mundo — ver a linha *Corrigir os
   dados* da tabela acima. *(A ressalva entrou em 30/08/2026, com a correção abaixo; antes esta linha dizia
   "os dados", sem distinguir os campos.)*
@@ -1508,7 +1531,8 @@ visível ou o Gestor a interpreta como defeito.
 
 **E uma coisa nova que a tela passa a oferecer:** o **sub-formulário repetível de contatos**, no cadastro e
 na correção de quem não tem conta. Cada linha traz `tipo`, `valor`, `finalidade`, `temWhatsapp`, `ordem` e
-`observacao`; a lista é reordenável e a escrita é **substituição**.
+`observacao`; a lista se reordena pelas setas de subir e descer ou, onde há ponteiro, arrastando pela
+alça, e a escrita continua sendo substituição.
 
 > **Esta é a única tela do inventário que ganhou complexidade de propósito**, e vale dizer por que isso não
 > contradiz nada. O RNF6 cronometra **T-04**, não esta: o cadastro de Encarregado é *"trabalho de escritório,
@@ -1523,51 +1547,45 @@ na correção de quem não tem conta. Cada linha traz `tipo`, `valor`, `finalida
 > recusado não vê esse texto**, porque dizer-lhe é decisão de produto em aberto, e a face C de T-02 continua
 > dizendo apenas *"não foi aprovado"*.
 
-> ### O campo de busca da lista de vínculos — 30/08/2026
+> ### O campo de busca da tabela
 >
-> **A lista de vínculos tem um campo de busca por nome, sempre visível**, com rótulo visível *Buscar pelo
-> nome*. Ele casa **prefixo de palavra, sem acento e sem caixa**, e filtra **apenas a lista de vínculos** —
-> os pedidos de entrada não são alcançados por ele. O cabeçalho continua mostrando o **total**, e enquanto
-> houver busca a sub-linha diz `N de TOTAL · ordenados por nome`. Sem resultado:
-> *"Ninguém com esse nome."*
+> A tabela tem um campo de busca por nome, sempre visível, com rótulo visível *Buscar pelo nome*. Ele casa
+> **prefixo de palavra, sem acento e sem caixa**, e alcança a tabela inteira, pedidos de entrada
+> inclusive. As contagens do filtro rápido continuam sendo as do conjunto, e o rodapé diz a faixa das
+> linhas que casaram. Sem resultado: *"Ninguém com esse nome."*
 >
-> **É a mesma busca do modal de atribuir de T-05, de propósito** — mesmo rótulo, mesmo casamento, mesma
-> frase de vazio: é o mesmo evento, e duas redações para a mesma coisa na mesma tela é o defeito que este
+> É a mesma busca do modal de atribuir de T-05, de propósito: mesmo rótulo, mesmo casamento, mesma frase
+> de vazio. É o mesmo evento, e duas redações para a mesma coisa na mesma tela é o defeito que este
 > inventário evita em toda parte.
 >
-> **Por que esta lista precisa dele:** o RNF3 admite até **200 vínculos** por organização, e depois do item
-> 20 ela é a última lista desse tamanho sem recorte nenhum.
+> **Por que esta lista precisa dele:** o RNF3 admite até 200 vínculos por organização.
 >
-> **O vazio da busca não é o vazio da lista, e os dois não se misturam.** *"Vazio, vínculos: não existe"*
-> continua verdadeiro — toda organização tem ao menos o Gestor que a criou (D26) —, e é justamente por a
-> lista não ter vazio que a busca pode ter frase própria sem colidir com nada. **A frase só existe com
-> texto digitado.**
->
-> **É silêncio, não contradição** — mesma classe do item 14 da fila da frente de documentação: nenhuma
-> frase desta seção afirmava o contrário, e a convenção 6 do `CLAUDE.md` manda registrar em vez de deixar
-> em branco. *(Critério **10.6**, nascido em 29/08/2026 ao responder a P1 da spec do item 20; item 32 da
-> fila. **O [`prototipo/telas.html`](prototipo/telas.html#t08) ainda desenha a tabela de sete colunas sem
-> campo nenhum acima delas** — é conserto de desenho, e fica registrado.)*
+> O vazio da busca é outro estado, e não se mistura com o vazio de uma opção do filtro: a opção sem linha
+> diz que não há ninguém ali, e a busca sem resultado diz que ninguém tem aquele nome. *(Critério 10.6.)*
 
-**Como reage ao status.** Não reage a status de ocorrência. Reage ao **estado do vínculo**: os três
-botões de remover não aparecem iguais — ver o quadro adiante.
+**Como reage ao status.** Não reage a status de ocorrência. Reage ao **estado do vínculo**: o botão de
+remover está em toda linha, e o clique abre a confirmação ou, quando o vínculo não pode sair, o aviso com
+a razão.
 
 **Vazio · carregando · erro.**
-- *Vazio, pedidos:* *"Nenhum pedido aguardando."* É o **caso normal**, não uma falta — e a frase precisa
-  soar como isso.
-- *Vazio, vínculos:* **não existe.** Toda organização tem ao menos o Gestor que a criou (D26), e o
-  `409 ULTIMO_GESTOR` garante que ele não pode se remover. Lista vazia aqui é defeito.
-- *Vazio da **busca por nome**:* é **outro estado** — *procurei e não achei* —, e tem frase própria:
-  *"Ninguém com esse nome."* Só existe **com texto digitado**, e não substitui a linha acima.
-  *(Acrescentado em 30/08/2026 — critério 10.6, item 32 da fila.)*
-- *Carregando:* duas requisições, disparadas juntas.
-- *Erro:* `409 VINCULO_COM_HISTORICO`, `409 ULTIMO_GESTOR`, `409 PEDIDO_JA_DECIDIDO`,
-  `409 JA_VINCULADO`, `409 PESSOA_COM_CONTA_NAO_EDITAVEL` — os cinco na §7. **Esta é a tela que mais
-  contribui para aquela seção**, e não por acaso: é onde as decisões estruturais do modelo (papel
-  imutável, nada é apagado, um vínculo por pessoa) encostam umas nas outras.
+- *Vazio de uma opção do filtro:* cada opção tem frase própria. *Pedidos de entrada*: *"Nenhum pedido de
+  entrada aguardando."*, que é o **caso normal** e precisa soar como isso, com a linha *"Os pedidos
+  aparecem aqui quando alguém usa o código da organização."*; as três de papel: *"Nenhum {papel} nesta
+  organização."* O filtro e a busca continuam na tela.
+- *Vazio de **Todos**:* não existe. Toda organização tem ao menos o Gestor que a criou (D26), e o
+  `409 ULTIMO_GESTOR` garante que ele não pode se remover.
+- *Vazio da **busca por nome**:* *"Ninguém com esse nome."* A opção do filtro tem linhas, e nenhuma casa.
+  O vazio da opção ganha deste.
+- *Página além do fim:* *"Esta página não existe mais."*, com *Ir para a primeira página*. Acontece quando
+  a última linha de uma página sai; o vazio da busca ganha dele.
+- *Carregando:* as quatro leituras da página, disparadas juntas. Filtro, ordem e página não esperam nada.
+- *Erro:* `409 VINCULO_COM_HISTORICO`, `409 ULTIMO_GESTOR`, `409 PEDIDO_JA_DECIDIDO`, `409 JA_VINCULADO`,
+  `409 PESSOA_COM_CONTA_NAO_EDITAVEL` — os cinco na §7. **Esta é a tela que mais contribui para aquela
+  seção**, e não por acaso: é onde as decisões estruturais do modelo encostam umas nas outras.
 
-**Alvo primário.** Tela grande. Sem rolar: os pedidos pendentes por inteiro, e o começo da lista de
-vínculos. É trabalho de escritório, feito uma vez por semana.
+**Alvo primário.** Tela grande. Sem rolar: os pedidos no topo da tabela e as primeiras linhas. É trabalho
+de escritório, feito uma vez por semana. No celular a tabela vira pauta no mesmo cartão, sem ordenação por
+coluna.
 
 **Endereço próprio.** Sim.
 
@@ -1586,28 +1604,32 @@ vínculos. É trabalho de escritório, feito uma vez por semana.
 > `encarregado`, cai em T-10 e não consegue **nada**. A tela onde o erro acontece tem de torná-lo
 > difícil. Três decisões:
 >
-> **1 · Não há papel pré-selecionado.** O botão de aprovar fica indisponível até que um papel seja
-> escolhido. **Não existe papel que se obtém por não escolher** — que é exatamente o mecanismo do erro
-> de clique.
+> **1 · Não há papel pré-selecionado.** O botão de aprovar **nunca** fica indisponível: clicado sem papel,
+> ele pede a escolha e leva o foco à primeira opção. **Não existe papel que se obtém por não escolher** —
+> que é exatamente o mecanismo do erro de clique.
 >
-> **2 · A confirmação diz o papel em palavras, não em campo.**
-> *"Aprovar {nome} como **Gestor** nesta organização?"* — o papel numa frase que a pessoa lê, em vez de
-> um valor num controle que ela já parou de olhar.
+> **2 · O botão diz o papel:** *"Aprovar como Gestor"*. A palavra aparece no mesmo lugar do clique, e não
+> num controle que a pessoa já parou de olhar. A confirmação separada saiu, porque o botão faz o trabalho
+> dela.
 >
 > **3 · A consequência está escrita onde a escolha é feita**, uma linha por papel:
 > - **Solicitante** — *"Registra e acompanha as próprias ocorrências."*
 > - **Gestor** — *"Analisa, atribui, resolve e cancela qualquer ocorrência. Configura a organização e
 >   aprova quem entra."*
-> - **Encarregado** — *"Aparece como responsável pela ocorrência. **Nesta versão, não consegue fazer
->   nada dentro do sistema.**"*
+> - **Encarregado** — *"Aparece como responsável pela ocorrência. **Não consegue fazer nada dentro do
+>   sistema.**"*
+>
+> E escolher Encarregado abre, dentro do modal, o aviso de que a pessoa não vai conseguir fazer nada no
+> sistema.
 >
 > **A terceira linha é a que teria evitado o PA-25**, e é por isso que ela está em negrito no produto e
-> não só aqui. Ela também é a única frase de interface do inventário que declara uma limitação de versão
-> — e vale, porque a alternativa é uma pessoa presa em T-10 sem saber por quê.
+> não só aqui. Ela diz o que o papel não faz, sem falar de versão, e fica, porque a alternativa é uma
+> pessoa presa em T-10 sem saber por quê.
 >
-> **E o remover, que é o conserto, também é difícil de errar:** o botão só aparece quando o vínculo pode
-> sair, e quando não pode, a razão substitui o botão (§7). A confirmação diz o que sobra — e ela tem **dois
-> ramos**, escolhidos pelo campo `temConta`, que esta mesma seção já lista em `Vinculo`:
+> **E o remover, que é o conserto, também é difícil de errar:** o botão aparece em toda linha de vínculo,
+> e quando o vínculo não pode sair, o clique abre o aviso com a razão (§7), em vez de o botão sumir. A
+> confirmação diz o que sobra — e ela tem **dois ramos**, escolhidos pelo campo `temConta`, que esta mesma
+> seção já lista em `Vinculo`:
 >
 > | `temConta` | O que a confirmação diz |
 > |:--:|---|
@@ -1642,18 +1664,21 @@ argumento era verdadeiro sobre T-04 e errado sobre quem configura, e a decisão 
 por decisão do dono do produto: quem está aqui não está registrando ocorrência, e para quem administra são
 dois assuntos. As listas viraram **T-09 · Categorias** e **T-14 · Áreas**.
 
-**O que mostra.** A seção **Identidade** primeiro, e os dois destinos depois. A identidade tem o **nome
-da organização num campo editável** e o **código da organização** em fonte mono, grande o bastante para
-ser lido do outro lado da mesa, com o botão *Copiar* ao lado. Os dois destinos trazem a contagem de cada
-um — *"Categorias · 7 ativas de 7"* e *"Áreas · 11 ativas de 12"*. **A contagem é o que faz o índice valer
-a visita**: sem ela a página repete a barra lateral; com ela responde *"está configurado?"* de um relance.
-As duas contagens saem das mesmas duas chamadas que a tela fundida já disparava em paralelo, e o nome e o
-código vêm do contexto que a página já resolveu — nenhuma consulta nova entrou.
+**O que mostra.** Dois cartões de leitura. O cartão *Identidade* vem primeiro, com o nome da organização
+e o código da organização lado a lado na tela grande. O código aparece em fonte mono, em dois grupos de
+quatro, grande o bastante para ser lido do outro lado da mesa, com o botão *Copiar* ao lado; o que se
+copia é o código sem espaço. O cartão *Listas do formulário de registro* é uma pauta de índice com duas
+linhas, Categorias e Áreas, cada uma com ícone, descrição e a contagem *"7 ativas de 8"*. As duas linhas
+têm o mesmo fundo. **A contagem é o que faz o índice valer a visita**: sem ela a página repete a barra
+lateral, e com ela responde *"está configurado?"* de um relance. As duas contagens saem das mesmas duas
+chamadas que a tela fundida já disparava em paralelo, e o nome e o código vêm do contexto que a página
+já resolveu. Nenhuma consulta nova entrou.
 
-**O subtítulo com o nome saiu do cabeçalho, e só desta tela.** Em T-08, T-09 e T-14 o nome da organização
-é contexto, e responde *"estas categorias são de onde?"*. Aqui ele é conteúdo: está no campo. Imprimi-lo
-duas vezes, uma delas dentro de um campo, convida à pergunta de qual dos dois é o de verdade. O contexto
-não se perde — a barra superior carrega a organização ativa em toda tela da casca.
+**O cabeçalho não repete o nome da organização.** Ele tem o título e uma linha com um fato: *"A
+identidade desta organização e as duas listas do formulário de registro."* Aqui o nome é conteúdo e está
+no cartão *Identidade*, e imprimi-lo também no cabeçalho convidaria à pergunta de qual dos dois é o de
+verdade. O contexto não se perde, porque a barra superior carrega a organização ativa em toda tela da
+casca.
 
 **Identidade antes das listas**, porque o que é **desta** organização vem antes do que está **dentro**
 dela — a mesma regra do geral para o particular que ordena a barra lateral.
@@ -1662,9 +1687,14 @@ dela — a mesma regra do geral para o particular que ordena a barra lateral.
 
 | Ação | Endpoint |
 |---|---|
-| Corrigir o nome da organização | `PATCH /organizacoes` `{ nome? }` |
+| Corrigir o nome da organização, no modal *Editar organização* | `PATCH /organizacoes` `{ nome? }` |
 | Copiar o código da organização | nenhum — o dado vem de `GET /contexto` |
 | Navegar para Categorias e para Áreas | — |
+
+**O cartão mostra e o modal edita.** *Editar*, na cabeça do cartão *Identidade*, abre o modal *Editar
+organização*: `dialog` na tela grande, e `sheet` que sobe de baixo no celular. O modal tem só o campo do
+nome, obrigatório, com o contador até 120. O código fica fora dele, porque não se edita. O botão *Salvar*
+nunca fica desabilitado: sem mudança, a mensagem do campo pede para alterar o nome.
 
 **Quem vê o código, e por quê.** Só quem tem `organizacao.configurar`, que é o portão da tela inteira.
 Não é sigilo: o `codigoPublico` já chega no payload de **toda** sessão, porque a face E de T-02 o usa para
@@ -1677,17 +1707,19 @@ decidir pedido é `vinculo.gerir`.
 **Vazio · carregando · erro.**
 - *Vazio:* não existe — as sementes garantem as duas listas, e as contagens sempre têm número.
 - *Carregando:* duas requisições, disparadas juntas.
-- *Erro:* `400 FORMATO_INVALIDO` no campo do nome, com a frase junto dele; `403 PERMISSAO_INSUFICIENTE`
-  para quem chega por link recebido, que recebe a tela de sem acesso; `409 ORGANIZACAO_DIVERGENTE` quando
-  outra aba trocou de organização, com o texto do servidor.
+- *Erro:* as falhas de salvar ficam dentro do modal, que continua aberto, e saem também num aviso de
+  erro. `400 FORMATO_INVALIDO` põe a frase embaixo do campo do nome; `409 ORGANIZACAO_DIVERGENTE`, quando
+  outra aba trocou de organização, mostra o texto do servidor, e fechar o modal atualiza a página. Quem
+  chega por link recebido sem a permissão recebe `403 PERMISSAO_INSUFICIENTE` e vê o estado sem acesso,
+  com o título da tela.
 - *Sem área de transferência:* **não é erro.** Fora de contexto seguro `navigator.clipboard` não existe, o
   botão seleciona o texto do código e a frase de apoio vira *"Selecione o código e copie"*. O botão nunca
   diz *Copiado* sem ter copiado.
 
 **Alvo primário.** Tela grande, pela mesma razão das duas listas.
 
-**Endereço próprio.** Sim — `/configuracao`. O desfecho da correção volta em `?renomeada=`, para
-sobreviver ao recarregamento.
+**Endereço próprio.** Sim, `/configuracao`. O desfecho da correção é um aviso de sucesso que diz o nome
+novo, e não entra no endereço.
 
 **Capacidades que realiza.** **`1b · Corrigir o nome da organização`**. Ela nasceu sem nenhuma, como a
 segunda exceção da §8.2, e **a exceção fechou em 16/09/2026** com o item **46 · 47**, que lhe deu campo
@@ -1702,17 +1734,25 @@ próprio.
 | **Quem vê** | `organizacao.configurar` — Gestor. `GET /categorias` é de **qualquer vínculo ativo**, porque T-04 o consome |
 | **A pergunta** | *"As categorias que o Solicitante escolhe estão certas?"* |
 
-**O que mostra.** A lista de categorias — `Categoria`: `nome` (≤ 60), **`icone`**, `ativa`, `ordem`.
-Ordenadas por `ordem`, porque *"qual categoria aparece antes é escolha do Gestor"* (D18). Nascem com **as
+**O que mostra.** Uma tabela com a lista de categorias — `Categoria`: `nome` (≤ 60), **`icone`**,
+`ativa` —, na ordem que o Gestor escolheu, porque *"qual categoria aparece antes é escolha do Gestor"*
+(D18). A coluna de posição mostra o **lugar na lista**, de 1 a n, e não o valor gravado. Nascem com **as
 sete do desafio** (POL-01), e a tela diz isso: *"Sete categorias foram criadas junto com a organização."*
 — sem essa frase, o Gestor não sabe se as encontrou ou se alguém as digitou.
+
+A tela tem **filtro rápido** — *Todas*, *Ativas*, *Inativas*, cada um com a contagem do conjunto inteiro —
+e **busca pelo nome**, as duas no navegador. **A posição se muda arrastando a linha pela alça**, onde há
+ponteiro, **ou pelas setas de subir e descer**, que servem ao toque e ao teclado; ninguém digita o número.
+Com filtro ou busca ativos, alça e setas ficam inertes, e a tela escreve por quê: a ordem se grava com a
+lista inteira.
 
 **O que oferece.**
 
 | Ação | Endpoint |
 |---|---|
-| Criar categoria, **escolhendo o ícone** | `POST /categorias` `{ nome, ordem?, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo |
-| Renomear, **trocar o ícone**, reordenar, desativar e reativar categoria | `PATCH /categorias/{id}` `{ nome?, ordem?, ativa?, icone? }` — os **quatro** campos, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — ver a correção adiante)* |
+| Criar categoria, **escolhendo o ícone**, num modal | `POST /categorias` `{ nome, icone? }` — `icone` é **opcional no corpo**: sem ele o servidor grava o padrão **`tag`**, e a resposta nunca vem com `icone` nulo. A posição é do servidor, que grava no fim da lista |
+| Renomear e **trocar o ícone**, no modal de editar; desativar e reativar, na confirmação própria | `PATCH /categorias/{id}` `{ nome?, ativa?, icone? }` |
+| Reordenar | `PUT /categorias/ordem` `{ ids }` — a lista inteira, ativas e inativas, na ordem nova, numa transação só |
 
 > ### Correção — 30/08/2026 — o ícone ganhou tela, e este quadro dizia o contrário
 >
@@ -1756,9 +1796,9 @@ sete do desafio** (POL-01), e a tela diz isso: *"Sete categorias foram criadas j
 > nota, alcançada por dois caminhos.)*
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma categoria sai de uso — não há
-`DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar:
-*"Desativar não apaga. As ocorrências já registradas continuam apontando para esta categoria, e ela
-deixa de aparecer no formulário de registro."*
+`DELETE` (P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. **A explicação mora na
+confirmação de desativar**, que é onde a pessoa decide: *"Ela deixa de aparecer no formulário de registro.
+As ocorrências já registradas continuam com esta categoria, e você pode reativá-la quando quiser."*
 
 **A frase que a tela é obrigada a produzir.** **Ao renomear a última categoria ativa, ou ao desativar
 todas:** *"Sem nenhuma categoria ativa, ninguém consegue registrar ocorrência."* É a única configuração
@@ -1770,8 +1810,10 @@ inventário a escreve como `{categoria | área}` porque as duas a produzem.
 **Vazio · carregando · erro.**
 - *Vazio:* **não existe na prática** — as sementes garantem sete categorias. Se a lista vier vazia, a
   POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem categorias ativas."*
-- *Carregando:* uma requisição. Coleção pequena — ~15 —, **sem paginação** (`contrato-de-api.md` §7.7).
-- *Erro:* `409 CATEGORIA_NOME_DUPLICADO` — ver §7.
+- *Carregando:* uma requisição. Coleção pequena — ~15 —, **sem paginação** (`contrato-de-api.md` §7.7), e
+  sem paginação também na tela, porque paginar quebraria o arrastar.
+- *Erro:* `409 CATEGORIA_NOME_DUPLICADO` — ver §7. E `409 LISTA_DESATUALIZADA` na reordenação: a linha
+  volta ao lugar, sai o aviso com o texto do servidor, e a tela recarrega a lista.
 
 **Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
 sentado, uma vez.
@@ -1793,10 +1835,15 @@ sentado, uma vez.
 | **Quem vê** | `organizacao.configurar` — Gestor. `GET /areas` é de **qualquer vínculo ativo**, porque T-04 o consome |
 | **A pergunta** | *"As áreas descrevem este lugar?"* |
 
-**O que mostra.** A lista de áreas — `Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`), `ativa`,
-**`ordem`**. **O `tipo` precisa de uma linha de explicação na tela**, porque a palavra não se explica:
-*"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala, loja."* E ordenadas por
-`ordem`, **simetricamente a `Categoria` e pela mesma razão** (D18) — ver §9, achado **F12**, fechado.
+**O que mostra.** Uma tabela com a lista de áreas — `Area`: `nome` (≤ 80), `tipo` (`comum` |
+`privativa`), `ativa` —, na ordem do Gestor, **simetricamente a `Categoria` e pela mesma razão** (D18) —
+ver §9, achado **F12**, fechado. A coluna de posição mostra o lugar na lista, de 1 a n. **O `tipo` precisa
+de uma linha de explicação fixa na tela**, porque a palavra não se explica, e ela **nunca** vive em dica de
+ponteiro (compromisso A-6): *"Área comum — garagem, hall, salão. Unidade privativa — apartamento, sala,
+loja."*
+
+O filtro rápido, a busca pelo nome e a ordem que se muda arrastando ou pelas setas são os mesmos de T-09,
+e pelas mesmas razões.
 
 *(Corrigido em 30/08/2026: a redação anterior era* "`Area`: `nome` (≤ 80), `tipo` (`comum` | `privativa`),
 `ativa`. … E ordenadas por `nome`, por ausência de alternativa: o schema de `Area` **não tem `ordem`**, ao
@@ -1808,13 +1855,14 @@ ele: a nota de método do item mandava **procurar um terceiro lugar**, e é este
 
 | Ação | Endpoint |
 |---|---|
-| Criar área | `POST /areas` `{ nome, tipo, ordem? }` — `ordem` é opcional e o padrão é `0` |
-| Renomear, mudar o tipo, **reordenar**, desativar e reativar área | `PATCH /areas/{id}` `{ nome?, tipo?, ativa?, ordem? }` — os **quatro** campos, `ordem` em `0..999`, como o `contrato-de-api.md` §8.1 e o `api/openapi.yaml` já declaravam *(esta linha listava três até 30/08/2026 — item 10 da fila, e a mesma omissão estava no contrato)* |
+| Criar área, num modal | `POST /areas` `{ nome, tipo }` — `tipo` é obrigatório e vem num grupo de escolha, sem nenhum marcado; a posição é do servidor, que grava no fim da lista |
+| Renomear e mudar o tipo, no modal de editar; desativar e reativar, na confirmação própria | `PATCH /areas/{id}` `{ nome?, tipo?, ativa? }` |
+| Reordenar | `PUT /areas/ordem` `{ ids }` — a lista inteira, ativas e inativas, na ordem nova, numa transação só |
 
 **Não há apagar, e a tela diz por quê.** `ativa: false` é como uma área sai de uso — não há `DELETE`
-(P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. Ao desativar: *"Desativar não apaga. As
-ocorrências já registradas continuam apontando para esta área, e ela deixa de aparecer no formulário de
-registro."*
+(P6), e a chave estrangeira vinda de `ocorrencias` é `RESTRICT`. **A explicação mora na confirmação de
+desativar**: *"Ela deixa de aparecer no formulário de registro. As ocorrências já registradas continuam
+com esta área, e você pode reativá-la quando quiser."*
 
 **Duas frases que a tela é obrigada a produzir, e a segunda é a mais importante do inventário depois do
 aviso de visibilidade:**
@@ -1824,19 +1872,24 @@ aviso de visibilidade:**
   de T-04).
 - **Ao mudar o `tipo` de uma Área**, a resposta do `PATCH` traz `ocorrenciasComTipoAnterior` — uma
   contagem que existe *"para que a interface possa dizer ao Gestor, em português, que o passado não
-  muda"* (`contrato-de-api.md` §8.1). A frase: *"{N} ocorrências já registradas mantêm o tipo anterior. Mudar o
-  tipo vale de agora em diante — o passado não muda."* Sem ela, um Gestor que reclassifique uma área
-  espera que a visibilidade das ocorrências antigas mude, e ela não muda (emenda à D10). **É um campo
-  de resposta que só existe para produzir uma frase de tela; deixar de produzi-la desperdiça a decisão
-  inteira.**
+  muda"* (`contrato-de-api.md` §8.1). **São duas frases, e em dois momentos.** Dentro do modal, assim que
+  o tipo escolhido difere do atual e **sem número**: *"Mudar o tipo vale de agora em diante — o passado
+  não muda. As ocorrências já registradas mantêm o tipo que a área tinha quando foram criadas."* Depois de
+  salvar, com a contagem e **ficando na tela até ser fechado**: *"{N} ocorrências já registradas mantêm o
+  tipo anterior. O passado não muda."* — e com contagem zero o aviso é de sucesso, porque prender um aviso
+  para dizer *"0 ocorrências"* cobraria um clique por uma informação vazia. Sem elas, um Gestor que
+  reclassifique uma área espera que a visibilidade das ocorrências antigas mude, e ela não muda (emenda à
+  D10). **É um campo de resposta que só existe para produzir uma frase de tela; deixar de produzi-la
+  desperdiça a decisão inteira.**
 
 **Como reage ao status.** Não reage.
 
 **Vazio · carregando · erro.**
 - *Vazio:* **não existe na prática** — as sementes garantem as áreas iniciais. Se a lista vier vazia, a
   POL-01 falhou, e a frase é a de T-04: *"Esta organização não tem áreas ativas."*
-- *Carregando:* uma requisição. Coleção pequena — ~30 —, **sem paginação** (`contrato-de-api.md` §7.7).
-- *Erro:* `409 AREA_NOME_DUPLICADO` — ver §7.
+- *Carregando:* uma requisição. Coleção pequena — ~30 —, **sem paginação** (`contrato-de-api.md` §7.7), e
+  sem paginação também na tela, porque paginar quebraria o arrastar.
+- *Erro:* `409 AREA_NOME_DUPLICADO` — ver §7, e `409 LISTA_DESATUALIZADA` na reordenação, como em T-09.
 
 **Alvo primário.** Tela grande. Uma lista editável, com reordenação — trabalho de configuração, feito
 sentado, uma vez.
@@ -1950,18 +2003,20 @@ listava *Perfil / minha conta* entre as telas que não existem, com a razão de 
 salvar. A razão era verdadeira e deixou de ser: o `PATCH /contexto/pessoa` deu o que salvar. A `Q-T6` foi
 redecidida, e o quadro do **F11** na §9 guarda as duas decisões.
 
-**Chega-se por ela pelo menu de pessoa** da barra superior, onde o nome já era impresso como item
-desabilitado. **Não** pela barra lateral, cujo `aria-label` é *"Nesta organização"*: dado pessoal é
-global e não pertence a um grupo de navegação que promete o contrário. É por isso também que ela não é
-subrota de `/configuracao` — configuração é **da organização**, e quem administra a organização não
-está administrando a si mesmo.
+**Chega-se por ela pelo menu de pessoa** da barra superior, que abre com um cabeçalho de quem é a conta,
+com o nome e o e-mail, e tem *Meus dados* como primeiro item. **Não** pela barra lateral, cujo
+`aria-label` é *"Nesta organização"*: dado pessoal é global e não pertence a um grupo de navegação que
+promete o contrário. É por isso também que ela não é subrota de `/configuracao` — configuração é **da
+organização**, e quem administra a organização não está administrando a si mesmo.
 
-**O que mostra.** Duas seções, identidade antes de mecanismo. **Identidade** tem o campo `nome`, com o
-texto de ajuda que diz onde aquele nome aparece: na lista de participantes, nos pedidos de entrada e em
-**cada transição já registrada**. A última parte é a que importa, e a segunda frase do texto diz que o
-nome vale em **todas** as organizações da pessoa — é a Persona 1B descobrindo, antes de salvar, que está
-se renomeando nos dois prédios. **Acesso** tem o e-mail de entrada em leitura, com a razão de ele não
-mudar nesta entrega, o link para **T-12 · Redefinir senha**, e a frase sobre os contatos.
+**O que mostra.** Dois cartões de leitura, identidade antes de mecanismo, como em T-15. O cartão
+*Identidade* mostra o nome, com a frase que diz que é assim que os Gestores veem a pessoa, inclusive nas
+transições que ela já registrou. *Editar* abre o modal *Editar nome*, o mesmo componente de T-15, que diz
+logo abaixo do título que o nome vale em todas as organizações da pessoa. A ajuda do campo diz onde o
+nome aparece: na lista de participantes, nos pedidos de entrada e em **cada transição já registrada**. É
+a Persona 1B descobrindo, antes de salvar, que está se renomeando nos dois prédios. O cartão *Acesso* é
+uma lista de definição, em duas metades na tela grande: o e-mail de entrada com a razão dele, e a senha
+oculta com *Redefinir senha*, que leva a T-12 · Redefinir senha.
 
 **É a única tela do produto que não dispara requisição ao abrir.** O nome e o e-mail vêm da resolução de
 contexto que a casca já fez.
@@ -1970,14 +2025,15 @@ contexto que a casca já fez.
 
 | Ação | Endpoint |
 |---|---|
-| Corrigir o próprio nome | `PATCH /contexto/pessoa` `{ nome? }` |
+| Corrigir o próprio nome, no modal *Editar nome* | `PATCH /contexto/pessoa` `{ nome? }` |
 | Ir para redefinir a senha | nenhum — navega para T-12, que chama o provedor |
 
-**O que ela não oferece, e a ausência é escrita na própria tela.** O e-mail não é editável: ele é a
+**O que ela não oferece, e a tela não o anuncia.** O e-mail não é editável: ele é a
 credencial de acesso e o único canal de recuperação, e a troca envolve o provedor, dois e-mails de
 confirmação e um intervalo em que a conta tem dois endereços. Os contatos de quem tem conta não são
 editáveis nem por ela nem pelo Gestor, porque `PATCH /vinculos/{pessoaId}` responde
-`409 PESSOA_COM_CONTA_NAO_EDITAVEL`. A tela diz as duas coisas em vez de omiti-las.
+`409 PESSOA_COM_CONTA_NAO_EDITAVEL`. A tela não oferece nenhuma das duas edições e não explica a
+ausência: o que não se edita simplesmente não oferece edição.
 
 **Como reage ao status.** Não reage.
 
@@ -1985,11 +2041,14 @@ editáveis nem por ela nem pelo Gestor, porque `PATCH /vinculos/{pessoaId}` resp
 - *Vazio:* não existe — sempre há nome, nem que seja o literal *"Sem nome"*, e é justamente quem caiu
   nele que mais precisa desta tela.
 - *Carregando:* nenhuma requisição na abertura.
-- *Erro:* `400 FORMATO_INVALIDO` como frase no campo, nunca tela do framework. O `Salvar` fica
-  desabilitado enquanto o campo não mudou, e o `maxLength` corta em 120.
+- *Erro:* as falhas de salvar ficam dentro do modal, que continua aberto, e saem também num aviso de
+  erro; `400 FORMATO_INVALIDO` põe a frase embaixo do campo. O *Salvar* nunca fica desabilitado: sem
+  mudança, a mensagem do campo pede para alterar o nome. O contador mostra o teto de 120, e o
+  `maxLength` corta ali.
 
-**O desfecho vem na URL** (`?renomeado=`), como em T-15, T-14, T-09 e T-08, e sobrevive ao
-recarregamento. Ele diz o alcance: *"você passou a aparecer como … em todas as suas organizações"*.
+**O desfecho é um aviso de sucesso**, como em T-15, e diz o alcance: *"Você passou a aparecer como …
+em todas as suas organizações."* O aviso mora no layout raiz e sobrevive à atualização da página que o
+salvamento dispara.
 
 **Alvo primário.** **Celular**, ao contrário de T-15, que é trabalho de escritório. Esta é a tela que
 alguém abre no minuto em que percebe que o próprio nome está errado na lista.
@@ -2032,7 +2091,7 @@ Vinte recusas. Cada uma com o motivo, porque **recusa sem motivo é indistinguí
 | **Comentários** | Bloco 4 de T-05. Uma conversa sobre uma ocorrência não tem vida fora dela, e o canal 1 **não tem lista própria** no contrato |
 | **A imagem**, em tela cheia | Elemento de T-05. O endpoint é um `302`; ampliar uma foto é um gesto, não um destino |
 | **Cinco telas de indicador** | Uma T-07. O contrato já decidiu por um endpoint só, e a razão — cinco cold starts para uma tela — vale ainda mais para cinco telas |
-| **Aprovar / recusar pedido** | Ações em T-08. Duas ações sobre um item de lista |
+| **Aprovar / recusar pedido** | Modal de T-08, aberto por *Responder* na linha do pedido. As duas decisões são sobre o mesmo pedido, e o modal é onde se responde |
 
 ### As que não existem porque a capacidade não existe
 
@@ -2072,6 +2131,17 @@ Isso cobre o link profundo recebido antes de a pessoa entrar em qualquer organiz
 *aquela* tela — é um `403 PERMISSAO_INSUFICIENTE`, e **na navegação normal ele não acontece**, porque os
 itens de menu de T-07, T-08, T-09, T-14 e T-15 só existem com a permissão respectiva. Ele acontece por
 **link recebido**, e por isso tem frase própria na §7.
+
+**A forma é uma só** em T-07, T-08, T-09, T-14 e T-15, e nas páginas próprias de criar e corrigir que
+ainda existem. **T-09 e T-14 não têm mais nenhuma**, desde que criar e editar viraram modal: nelas o
+estado sem acesso é a única saída de conteúdo da casca.
+o título da tela e, num cartão, um cadeado, a frase que diz de quem é aquela tela, a recusa da §7 e o
+botão *Ir para Ocorrências*, que leva a T-03. A frase muda com a permissão que faltou: *"Esta página é de
+quem configura a organização."*, *"Esta página é de quem decide quem participa da organização."* ou
+*"Esta página é de quem acompanha os indicadores da organização."*
+
+A tela tem saída no conteúdo porque é beco: a barra lateral de quem chega ali não tem o item dela, e
+nenhum outro item fica marcado.
 
 ### Cold start
 
@@ -2139,13 +2209,13 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 
 | `codigo` | HTTP | Onde | A frase, e o que a tela oferece |
 |---|---|---|---|
-| `VINCULO_COM_HISTORICO` | 409 | T-08 | *"{nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga."* **A tela não mostra o botão** quando o vínculo tem histórico: mostra essa razão no lugar dele. O caminho correto é **revogar**, que é ⬜ — e a frase diz: *"Encerrar o acesso preservando o registro é uma função que ainda não existe."* **Só a primeira oração mudou, em 30/08/2026** — ver a correção logo abaixo da tabela |
-| `ULTIMO_GESTOR` | 409 | T-08 | *"Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas."* Igual à de cima: **o botão não aparece**, a razão aparece. É a guarda que impede este endpoint de abrir uma segunda porta para o **PA-24** |
+| `VINCULO_COM_HISTORICO` | 409 | T-08 | *"{nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga."* A razão aparece no aviso que o clique em *Remover da organização* abre, e na confirmação quando o `409` chega entre a tela saber e o Gestor clicar. **Só a primeira oração mudou, em 30/08/2026** — ver a correção logo abaixo da tabela |
+| `ULTIMO_GESTOR` | 409 | T-08 | *"Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas."* Igual à de cima: a razão aparece no aviso que o clique abre. É a guarda que impede este endpoint de abrir uma segunda porta para o **PA-24** |
 | `TRANSICAO_NAO_PERMITIDA` | 409 | T-05 | **O caso das duas pessoas triando ao mesmo tempo.** Não há controle otimista no `contrato-de-api.md` (§7.9) — a segunda descobre pelo erro. *"Esta ocorrência mudou enquanto você estava olhando: agora ela está **{statusAtual em rótulo}**."* + **a tela se recarrega e mostra as ações novas**, que vêm no próprio corpo do erro em `acoesDisponiveis`. É a resposta mais completa que o inventário dá a um erro, e ela é possível **só porque o contrato pôs `statusAtual` e `acoesDisponiveis` no corpo do `409`** |
 | `OCORRENCIA_NAO_ENCONTRADA` | 404 | T-03, T-05, T-06 | Por decisão do `contrato-de-api.md` (§6.3), é **indistinguível** de "existe em outra organização". Então a frase tem de cobrir os dois sem escolher: *"Esta ocorrência não existe em **{organizacaoAtiva.nome}**."* — e o nome da organização vem no corpo do erro exatamente para isto: *"metade das vezes a resposta é 'ah, estou na organização errada', e a resposta já diz em qual você está"*. A tela oferece **trocar de organização** quando `contexto.vinculos` tiver outra, e o `traceId` |
 | `ANEXO_NAO_RECONHECIDO` | 422 | T-04 | A imagem recusada **depois** de o upload já ter acontecido. *"A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui."* **A última meia frase é o conteúdo:** perder o texto por causa da foto é o modo de falha que faz alguém voltar para o WhatsApp |
 | `ANEXO_ACIMA_DO_LIMITE` | 422 | T-04 | *"A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."* Não menciona bytes: 512 KB não é informação para quem está no subsolo |
-| `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Texto: *"Esta ocorrência já foi registrada — a foto que você anexou já está nela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir |
+| `ANEXO_JA_REIVINDICADO` | 409 | T-04 | **A única frase de erro deste inventário que diz *"deu certo"*.** O `POST` anterior comitou e só a resposta se perdeu; o reenvio da mesma `chave` esbarra no `UNIQUE` de `anexos`. Título: *"Esta ocorrência já foi registrada."* Corpo: *"A foto que você anexou já está nela: o envio anterior chegou, mesmo sem resposta na tela."* + **[Ver a ocorrência]**, com o `ocorrenciaId` que vem no corpo do erro. **Não** oferece tentar de novo, e **não** diz para escolher a foto de novo: as duas coisas produziriam a segunda ocorrência que este erro existe para impedir *(partido em título e corpo em 17/09/2026, pela prancheta)* |
 | `ANEXO_NAO_ENCONTRADO` | 404 | T-05 | O anexo não existe nesta ocorrência — ou existe em outra organização, indistinguível pela mesma razão do `404` de ocorrência. *"Esta foto não está mais disponível."* Na navegação normal não acontece: o `url` vem de `anexos[]`, que a própria tela acabou de ler |
 | `CONTATO_DUPLICADO` | 409 | T-08 | *"Este contato já está na lista."* **No campo do contato repetido**, porque tem campo e a ação é corrigi-lo. O par (`tipo`, `valor`) é único por Pessoa: o mesmo número duas vezes é ruído, não dado |
 | `LIMITE_DE_AUTORIZACOES_DE_UPLOAD` | 429 | T-04 | *"Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."* O único limite de chamadas do contrato. **O nome do código não mudou em 22/08:** ele nunca nomeou o exemplo, nomeia a operação |
@@ -2155,7 +2225,7 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `PEDIDO_DE_ENTRADA_PENDENTE` | 409 | T-02 | *"Seu pedido já foi enviado e está aguardando a decisão de um Gestor."* + leva para a **face B** da própria tela |
 | `SEM_VINCULO_NA_ORGANIZACAO` | 403 | menu de troca, T-02 face D | *"Você não tem acesso a esta organização."* Resposta **idêntica** para organização inexistente, de propósito. Na prática só aparece se um vínculo foi removido entre o `GET /contexto` e o `PUT` |
 | `ORGANIZACAO_DIVERGENTE` | 409 | qualquer tela | **A aba esquecida.** *"Esta aba estava em outra organização. Recarregando…"* — e a tela **refaz `GET /contexto` e a leitura, sem pedir nada ao usuário**. É o erro que o cabeçalho opcional `X-Organizacao-Id` existe para produzir, e ele não é um problema do usuário: é o mecanismo funcionando |
-| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09, T-14, T-15 por link | *"Seu papel nesta organização não dá acesso a esta página."* + volta a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
+| `PERMISSAO_INSUFICIENTE` | 403 | T-07, T-08, T-09, T-14, T-15 por link | *"Seu papel nesta organização não dá acesso a esta página."* + **Ir para Ocorrências**, que leva a T-03. Não acontece pela navegação, só por link recebido — e nunca é a resposta para o vínculo sem permissão nenhuma, que vai para T-10 |
 | `SEM_ORGANIZACAO_ATIVA` | 403 | qualquer tela | Não tem frase: **leva a T-02**, guardando o destino |
 | `PESSOA_COM_CONTA_NAO_EDITAVEL` | 409 | T-08 | *"{nome} tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela."* **A tela mostra os campos como leitura**, então o erro só aparece se algo escapar. E a segunda frase é a única explicação disponível — ver **F11** |
 | `JA_AVALIADA` | 409 | T-05 | *"Esta ocorrência já foi avaliada."* + mostra a avaliação. Não acontece pela tela (o convite desaparece com `avaliacao != null`), acontece com duas abas |
@@ -2166,9 +2236,9 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 | `SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` · `SOMENTE_O_AUTOR_PODE_AVALIAR` | 403 | T-05 | ⚠️ **defeito, não caminho:** os dois estão cobertos por `acoesDisponiveis` |
 | `CATEGORIA_NOME_DUPLICADO` | 409 | T-09 | *"Já existe uma categoria com este nome."* O nome é único por organização porque *"duas categorias com o mesmo nome quebrariam o indicador de recorrência, que é o número mais importante do dashboard"* |
 | `AREA_NOME_DUPLICADO` | 409 | T-14 | *"Já existe uma área com este nome."* O nome é único por organização pela mesma razão, aplicada ao recorte por área |
-| `PEDIDO_JA_DECIDIDO` | 409 | T-08 | *"Este pedido já foi decidido por outro Gestor."* + recarrega a lista |
+| `PEDIDO_JA_DECIDIDO` | 409 | T-08 | *"Este pedido já foi decidido por outro Gestor."*, dentro do modal de responder; fechar o modal atualiza a tabela |
 | `NAO_AUTENTICADO` | 401 | qualquer tela | Não tem frase: leva a T-01, guardando o destino |
-| `ERRO_INTERNO` | 500 | qualquer tela | *"Algo deu errado do nosso lado."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
+| `ERRO_INTERNO` | 500 | qualquer tela | *"Não foi possível realizar a ação."* + **o `traceId` visível e copiável**, porque é a única coisa que liga a tela à linha de log. É o que compensa a decisão da `contrato-de-api.md` §6.3 |
 | `FORMATO_INVALIDO` | 400 | formulários | Não vira faixa de erro: vira mensagem **por campo**, de `erros[]` (`{ campo, codigo, mensagem }`) |
 
 > ### Correção — 30/08/2026 — a razão do `VINCULO_COM_HISTORICO` nomeava três rastros, e o esquema tem nove tabelas
@@ -2186,8 +2256,8 @@ usuário.** Três estão nessa categoria e estão marcados abaixo.
 > nenhuma, e conclui que a tela está errada — que é exatamente o desfecho que a frase existe para evitar.
 >
 > **A primeira oração passa a ser:** *"{nome} já deixou rastro nesta organização: ocorrência, mensagem,
-> atribuição, decisão de entrada ou configuração."* **A segunda oração e a frase do revogar continuam
-> literais** — só a enumeração mudou.
+> atribuição, decisão de entrada ou configuração."* **A segunda oração continua literal** — só a enumeração mudou. A
+> frase do revogar saiu da tela em 17/09/2026, com o item 44j.
 >
 > **`rastro` não é sinônimo solto: é a palavra do glossário.** O verbete **Remover vínculo** define a
 > operação como *"apagar um vínculo que **não deixou rastro**"*, e a frase da tela é a negação literal
@@ -2213,7 +2283,7 @@ estado terminal. Se aparecerem, são defeito, e o `detail` do contrato basta.
 
 ## 8. Rastreabilidade — o triângulo, nos três sentidos
 
-Três conjuntos: **46 capacidades ✅**, **39 endpoints**, **16 telas**.
+Três conjuntos: **46 capacidades ✅**, **41 endpoints**, **16 telas**.
 
 > **Eram 42 até 30/08/2026.** A contagem ficou parada enquanto o backlog andava, e entraram a **4b**
 > (escolher o ícone da categoria) e a **7b** (entrar em outra organização tendo uma ativa) — as duas
@@ -2341,9 +2411,11 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `GET /categorias` | T-04 · T-09 · T-15 (a contagem) |
 | `POST /categorias` | T-09 |
 | `PATCH /categorias/{id}` | T-09 |
+| `PUT /categorias/ordem` | T-09 |
 | `GET /areas` | T-04 · T-14 · T-15 (a contagem) |
 | `POST /areas` | T-14 |
 | `PATCH /areas/{id}` | T-14 |
+| `PUT /areas/ordem` | T-14 |
 | `POST /pedidos-de-entrada` | T-02 |
 | `GET /pedidos-de-entrada` | T-08 (+ a contagem no menu do Gestor — ver F10) |
 | `POST /pedidos-de-entrada/{id}/aprovar` | T-08 |
@@ -2373,7 +2445,7 @@ Este é o sentido mais revelador, e ele **produziu uma tela**: sem T-06,
 | `POST /ocorrencias/{id}/comentarios` | T-05 |
 | `GET /dashboard` | T-07 |
 
-**Trinta e oito endpoints, trinta e oito chamados. Zero órfãos.** Mas dois merecem nota:
+**Quarenta e um endpoints, todos chamados.** Dois deles merecem nota:
 
 - **`GET /ocorrencias/{id}/trilha-de-auditoria` só não é órfão porque T-06 existe.** Se a trilha fosse
   uma aba dentro de T-05, o endpoint seguiria chamado — mas a tela teria sido decidida por conveniência
@@ -2556,11 +2628,10 @@ síndico único.
 > na trilha, não há nada de inconsistente em voltar atrás. **Um passo, nunca uma pilha:** uma pilha seria
 > histórico, e histórico deste comando não existe (17.3). **Não há desfazer do desfazer.**
 >
-> **É linha no bloco, e não notificação flutuante** — a decisão de interação do protótipo foi adotada e o
-> componente, recusado; o produto não tem sobreposição não-modal nenhuma. O idioma é o que o bloco de
-> solução aplicada já usa no mesmo T-05: contêiner com `role="status"`, a frase e o botão juntos, porque
-> a novidade é a *disponibilidade* do desfazer e não só a frase. **Sem temporizador:** a linha sai por
-> ação — nova troca, desfazer, erro, recarregar ou navegar.
+> **É linha no bloco, e não notificação flutuante.** O produto passou a ter aviso flutuante para o
+> retorno de ação (item 44g, ADR-0011), e o desfazer continua no bloco pelo critério 17.7: contêiner com
+> `role="status"`, a frase e o botão juntos, porque a novidade é a *disponibilidade* do desfazer e não só
+> a frase. **Sem temporizador:** a linha sai por ação — nova troca, desfazer, erro, recarregar ou navegar.
 >
 > **O que continua declarado sem conserto, e é metade do achado:** `registrar-solucao-aplicada`. A última
 > escrita continua vencendo sem aviso e sem rastro ali, e o campo **não** tem desfazer — mas ele tem
@@ -2707,8 +2778,8 @@ escolha em silêncio.
 > `Categoria`. É a **Q-P5, saída (a)** do `prototipo-low-fi.md`, decidida *"agora com evidência de tempo:
 > é o único conserto que serve **no primeiro registro**, que é o que decide se existe um segundo"*.
 >
-> **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita com
-> padrão `0`, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-14
+> **O que existe hoje:** `ordem` está em `Area.required` no `openapi.yaml`, `POST /areas` o aceita e,
+> sem ele, põe a área no fim da lista, `PATCH /areas/{id}` o aceita em `0..999` (critério **5.4**), e o formulário de área de T-14
 > tem o campo. **A ordenação da lista de Áreas passou a ser por `ordem`**, como a de Categorias.
 >
 > **Consequência para a S-T10:** ela previa exatamente isto — *"se `Area` ganhar `ordem`, T-04 e a tela de
@@ -2848,7 +2919,7 @@ aqui é suposição**, e o que segue são as que mudam o desenho se estiverem er
 | **Q-T4** | **T-10 vira capacidade no `escopo.md`?** (F3) | (a) não — nota na atividade 1, ao lado da nº 10; (b) sim — capacidade nova, `NOSSO` | **(a).** Não há nada a construir além de texto, e a nota é o instrumento que a S-A15 já usou para o mesmo tipo de estado |
 | ~~**Q-T5**~~ | ~~**De onde vem o nome de uma Pessoa recém-criada?** (F6)~~ | — | ✅ **Respondida por construção em 21/08/2026, e por um caminho que não estava nas opções:** as duas supunham que o formulário de cadastro não era nosso. **T-11 pede o `nome`**, sem mudança de schema. Ver o quadro do F6 |
 | ~~**Q-T6**~~ | ~~**Quem tem conta edita os próprios dados onde?** (F11)~~ | — | ✅ **Decidida pelo hub em 22/08/2026 pela terceira via, e redecidida em 16/09/2026 pela (b), com o item 49.** Em 22/08 o `contrato-de-api.md` §8.2 fechou que o nome nasce do cadastro da conta, é corrigível no campo `nome` de `POST /pedidos-de-entrada` e depois disso não muda. **A razão de reabrir é o custo, e ele é permanente e atravessa organizações:** `pessoas` é tabela global, então um nome errado aparece assim em toda organização da pessoa e em toda a trilha que ela escreveu. Agora há `PATCH /contexto/pessoa` e **T-16 · Meus dados**. **Fica de fora, com razão escrita:** o e-mail, que é a credencial e o único canal de recuperação, e os contatos de quem tem conta |
-| **Q-T7** | **T-08 pode se chamar algo mais curto que "Quem está na organização"?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(b)**, em 16/09/2026. O rótulo da navegação é `Participantes`, com entrada no [glossário](glossario.md) §1 e o *"não confundir com"* que o separa dos participantes de um canal de conversa. O título da tela continua sendo *"Quem está na organização"* |
+| **Q-T7** | **T-08 pode se chamar algo mais curto?** | (a) fica assim; (b) o hub aprova um termo novo no glossário | **(b)**, em 16/09/2026. O rótulo da navegação é `Participantes`, com entrada no [glossário](glossario.md) §1 e o *"não confundir com"* que o separa dos participantes de um canal de conversa. O título da tela passou a ser *Participantes* em 17/09/2026, com o item 44j |
 | **Q-T8** | **A contagem de pedidos pendentes no menu do Gestor vale uma requisição a mais no shell?** (F10) | (a) sim; (b) não — o Gestor descobre abrindo T-08 | **(a).** Com a notificação ⬜, é a única coisa que separa "entra hoje" de "entra quando alguém lembrar" |
 | ~~**Q-T10**~~ | ~~**Onde a unidade de quem tem conta é registrada?** (F13)~~ | — | ✅ **Respondida pelo hub em 22/08/2026 — pela (a), e a (c) veio junto.** `/aprovar` passou a aceitar `areaId?`: o Gestor escolhe a unidade **no mesmo momento em que escolhe o papel**, que é quando ele está olhando o pedido e sabe quem é a pessoa. A **(b)** foi recusada — faria a própria pessoa declarar onde mora antes de ser admitida, sem ninguém conferir. **E a (c) aconteceu no mesmo movimento**, sem ser escolhida como saída: a guarda `PESSOA_COM_CONTA_NAO_EDITAVEL` passou a nomear **campos**, não o endpoint, então `areaId` continua editável no `PATCH` para quem tem conta (`contrato-de-api.md` §8.2). **O que sobrou aberto é a especificação publicada**, que ainda descreve a recusa como sendo do endpoint — achado **R-24** do `prototipo-low-fi.md`. *Marcado em 30/08/2026, item 3 da fila da frente de documentação* |
 

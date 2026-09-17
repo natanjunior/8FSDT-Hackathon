@@ -3,8 +3,8 @@ import { z } from "zod";
 import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
 
 /**
- * Os quatro corpos de escrita da configuração — `POST`/`PATCH` de `categorias` e de `areas`
- * (contrato §8.1).
+ * Os cinco corpos de escrita da configuração — `POST`/`PATCH` de `categorias` e de `areas`, e o `PUT`
+ * das duas reordenações (contrato §8.1).
  *
  * **A lista de ícones mora aqui, e a decisão é da §14.5 do `modelo-de-dados.md`:** o banco guarda a
  * *forma* — `CHECK (icone ~ '^[a-z0-9-]{1,40}$')` —, a *lista* mora no schema de validação da Interface.
@@ -12,9 +12,15 @@ import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
  * renderizar uma string**: `lucide-react` exporta componentes, então um mapa nome → componente é
  * inevitável nesta camada.
  *
- * **Nada aqui aplica padrão.** `icone` ausente e `ordem` ausente sobem ausentes; quem decide o que
- * acontece quando ninguém manda é a **Aplicação**, pela mesma doutrina que `aplicacao/organizacao/
- * consultas.ts` escreveu para o *"só as ativas"*: padrão de produto não é convenção de HTTP.
+ * **Nada aqui aplica padrão.** `icone` ausente sobe ausente; quem decide o que acontece quando ninguém
+ * manda é a **Aplicação**, pela mesma doutrina que `aplicacao/organizacao/consultas.ts` escreveu para o
+ * *"só as ativas"*: padrão de produto não é convenção de HTTP.
+ *
+ * **`ordem` saiu dos quatro corpos em 17/09/2026, com o item 44k.** A posição passou a ser do `PUT` das
+ * duas reordenações, quem é criado sem ela entra no fim, e as duas telas que a enviavam deixaram de
+ * existir. Como os schemas são `z.object` sem `strict`, um corpo que ainda a traga tem o campo
+ * **descartado** — e é o que se quer: um `PATCH {ordem: 999}` criaria empate e lacuna na lista que o `PUT`
+ * acabou de deixar de 1 a n.
  */
 
 /**
@@ -96,9 +102,6 @@ const nomeDeArea = z
   .min(1, "Informe o nome da área.")
   .max(80, "O nome cabe em 80 caracteres.");
 
-/** `smallint` com o teto do contrato. Quem escolhe a ordem é o Gestor (D18). */
-const ordem = z.int().min(0, "A ordem começa em 0.").max(999, "A ordem vai até 999.");
-
 /**
  * **`tipo` é obrigatório e não tem padrão.** Um padrão implícito escolheria a visibilidade da ocorrência
  * em silêncio — que é exatamente o que a D10 recusa ao dizer que a visibilidade é *derivação, não
@@ -109,30 +112,55 @@ const tipoDeArea = z.enum(TIPOS_DE_AREA, { error: "Escolha o tipo da área." });
 export const criacaoDeCategoriaSchema = z.object({
   nome: nomeDeCategoria,
   icone: iconeDeCategoria.optional(),
-  ordem: ordem.optional(),
 });
 
 export const correcaoDeCategoriaSchema = z.object({
   nome: nomeDeCategoria.optional(),
   icone: iconeDeCategoria.optional(),
-  ordem: ordem.optional(),
   ativa: z.boolean().optional(),
 });
 
 export const criacaoDeAreaSchema = z.object({
   nome: nomeDeArea,
   tipo: tipoDeArea,
-  ordem: ordem.optional(),
 });
 
 export const correcaoDeAreaSchema = z.object({
   nome: nomeDeArea.optional(),
   tipo: tipoDeArea.optional(),
-  ordem: ordem.optional(),
   ativa: z.boolean().optional(),
+});
+
+/**
+ * **O teto da reordenação — item 50, spec §4.5.** O mesmo de `ordem`: as posições 1 a n precisam caber
+ * no intervalo que o contrato declara. O esperado é ~15 categorias e ~30 áreas (contrato §7.7).
+ */
+const TETO_DA_REORDENACAO = 999;
+
+/**
+ * **O corpo de `PUT /categorias/ordem` e `PUT /areas/ordem` — item 50.**
+ *
+ * `ids` é a lista inteira da organização, ativas e inativas, na ordem desejada.
+ *
+ * **O que é forma recusa aqui, com `400`** (spec §4.1): lista vazia, acima do teto, elemento que não é
+ * UUID, e **id repetido**. Recarregar a lista não conserta um cliente que repete id, então o repetido não
+ * é *"a lista mudou"*. O conjunto que diverge do atual é `409`, e quem o recusa é a Aplicação.
+ *
+ * **Os ids saem em minúsculas** (spec §4.9): o `z.uuid()` aceita maiúsculas e o Postgres devolve
+ * minúsculas. A conferência de repetição roda **depois** da normalização, então o mesmo id em duas
+ * caixas é repetido.
+ */
+export const reordenacaoSchema = z.object({
+  ids: z
+    .array(z.uuid("Cada item da lista precisa ser um identificador válido."))
+    .min(1, "Envie a lista inteira, com ao menos um item.")
+    .max(TETO_DA_REORDENACAO, "A lista vai até 999 itens.")
+    .transform((ids) => ids.map((id) => id.toLowerCase()))
+    .refine((ids) => new Set(ids).size === ids.length, "A lista não pode repetir um item."),
 });
 
 export type EntradaDeCriacaoDeCategoria = z.infer<typeof criacaoDeCategoriaSchema>;
 export type EntradaDeCorrecaoDeCategoria = z.infer<typeof correcaoDeCategoriaSchema>;
 export type EntradaDeCriacaoDeArea = z.infer<typeof criacaoDeAreaSchema>;
 export type EntradaDeCorrecaoDeArea = z.infer<typeof correcaoDeAreaSchema>;
+export type EntradaDeReordenacao = z.infer<typeof reordenacaoSchema>;

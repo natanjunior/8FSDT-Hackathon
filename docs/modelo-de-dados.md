@@ -310,9 +310,11 @@ erDiagram
         boolean ativa
         smallint ordem
         uuid criado_por_pessoa_id FK
-        uuid atualizado_por_pessoa_id FK "quem tornou esta area comum"
+        uuid atualizado_por_pessoa_id FK "ultima escrita"
         timestamptz criado_em
         timestamptz atualizado_em
+        timestamptz tipo_alterado_em
+        uuid tipo_alterado_por_pessoa_id FK "quem tornou esta area comum"
     }
 
     OCORRENCIAS {
@@ -1092,7 +1094,12 @@ enunciado, **enumeradas na §13.1**.
 o evento do Event Storming é *"Categoria desativada"*, não apagada. É o que sustenta o `RESTRICT` na FK
 vinda de `ocorrencias`.
 
-`ordem` existe porque a D18 diz que *"qual categoria aparece antes é escolha do Gestor"*.
+`ordem` existe porque a D18 diz que *"qual categoria aparece antes é escolha do Gestor"*. A coluna
+guarda a posição na lista. A reordenação grava 1 a *n* na lista inteira, ativas e inativas, e quem é
+criado sem `ordem` recebe a maior `ordem` da organização mais um. Uma lista que nunca foi reordenada
+pode ter empate e lacuna, e o nome desempata. Não há `UNIQUE (organizacao_id, ordem)`: os dados
+anteriores à reordenação têm empate, e a instrução que renumera a lista violaria a restrição no meio do
+caminho. A regra vale igual para `areas`.
 
 **Índices:** nenhum além dos acima. `UNIQUE (organizacao_id, nome)` já atende a listagem por organização
 (prefixo `organizacao_id`), e são ~7 a 15 linhas por organização.
@@ -1117,10 +1124,15 @@ metade do dado-semente que ainda não foi decidida — §13.2.
 | `atualizado_por_pessoa_id` | `uuid` | sim | — |
 | `criado_em` | `timestamptz` | não | `now()` |
 | `atualizado_em` | `timestamptz` | não | `now()` |
+| `tipo_alterado_em` | `timestamptz` | sim | — |
+| `tipo_alterado_por_pessoa_id` | `uuid` | sim | — |
 
 **Chaves e constraints:** iguais às de `categorias`, `PRIMARY KEY (id)`, `UNIQUE (id, organizacao_id)`,
 `UNIQUE (organizacao_id, nome)`, FK para `organizacoes` com `RESTRICT`, e as duas FKs compostas de
-auditoria para `vinculos`.
+auditoria para `vinculos`. Mais duas, só desta tabela: `FOREIGN KEY (tipo_alterado_por_pessoa_id,
+organizacao_id) → vinculos (pessoa_id, organizacao_id) RESTRICT`, não diferida, e
+`CHECK ((tipo_alterado_em IS NULL) = (tipo_alterado_por_pessoa_id IS NULL))`, que obriga o par a vir
+inteiro.
 
 ### ⚠️ É aqui que a auditoria de configuração deixa de ser boa prática e passa a ser necessária
 
@@ -1135,16 +1147,26 @@ Mas ela é seguríssima para trás e consequente para frente. Reclassificar uma 
 para `comum` muda a visibilidade de tudo que for registrado dali em diante, e, até 22/08/2026,
 nada no banco registrava quem fez isso. Havia `criado_em` e nem `atualizado_em`.
 
-A pergunta que o esquema não conseguia responder: *"as ocorrências deste bloco ficaram públicas —
-quem tornou esta Área comum, e quando?"* Numa discussão de privacidade real, essa é **a** pergunta, e a
-resposta era um encolher de ombros.
+A pergunta que o esquema não conseguia responder: *"as ocorrências deste bloco ficaram públicas; quem
+tornou esta Área comum, e quando?"* Numa discussão de privacidade real, essa é **a** pergunta.
 
-Duas colunas e um `atualizado_em` resolvem. **Não é histórico**, é a última escrita, e a limitação
-está dita na §6.5: histórico de configuração seria tabela própria, e não entra.
+A coluna de última escrita não a responde. `atualizado_por_pessoa_id` troca de dono em qualquer escrita na
+linha: renomear, desativar ou mudar a posição na lista. Quem renomeasse uma Área depois de outra pessoa a
+ter tornado comum passaria a ser a resposta, com nome e data. A resposta tem colunas próprias,
+`tipo_alterado_em` e `tipo_alterado_por_pessoa_id`, escritas só quando `PATCH /areas/{id}` muda o valor
+de `tipo`. Nenhuma outra escrita as toca, e mandar o mesmo tipo de novo não conta.
+
+Com o par preenchido, quem tornou a Área comum é `tipo_alterado_por_pessoa_id`. Com o par nulo, a Área não
+foi reclassificada desde a migração `011`: se ela nasceu comum, a resposta é `criado_por_pessoa_id`, que é
+nulo nas sementes; se ela é anterior à `011`, uma reclassificação antiga não deixou registro, porque a
+última escrita daquelas linhas pode ter sido qualquer campo.
+
+O par guarda a última reclassificação, e não a sequência delas. A limitação está dita na §6.5: histórico
+de configuração seria tabela própria, e não entra.
 
 **Consequência para o contrato:** `PATCH /areas/{id}` já devolve `ocorrenciasComTipoAnterior` para
-avisar o Gestor que o passado não muda. Agora o servidor também **grava quem avisou**, e a próxima
-pergunta, *"a interface deve mostrar isso?"*, é de tela, não de esquema.
+avisar o Gestor que o passado não muda. O servidor também grava quem reclassificou, e a próxima pergunta,
+*"a interface deve mostrar isso?"*, é de tela, não de esquema.
 
 `ordem` foi acrescentada em 21/08/2026, e a decisão anterior era não tê-la. `Categoria` sempre teve
 `ordem`; `Area` não, sob o argumento de que trinta itens sem ordem natural não se curam à mão. O
@@ -2223,7 +2245,7 @@ a regra de evitar índice de baixa seletividade continua valendo.
 | 17 | **Ordem da trilha** | Coluna `sequencia`, com `UNIQUE (ocorrencia_id, sequencia)` | `ORDER BY ocorreu_em` sozinho — empata quando dois registros nascem na mesma transação, e `now()` é o instante da transação · `ORDER BY ocorreu_em, id` — desempate **estável mas arbitrário**, porque UUID v4 não tem ordem temporal | §6.8 |
 | 18 | **Unidade do morador** | `vinculos.area_id`, anulável, FK composta | Texto livre em `pessoas` — duas verdades sobre o mesmo fato · coluna em `pessoas` — a unidade é da relação, não do ser humano · nada, e continuar guardando a unidade dentro do `nome` (*"Morador do 302"*), que era o que acontecia | §6.4, §6.2.1 |
 | 19 | **Proveniência do objeto de storage** | `anexos.fonte`, `NOT NULL DEFAULT` | Conhecimento global num arquivo de configuração — funciona com um provedor e fica ambíguo com dois, e este projeto já trocou de provedor uma vez | §5, §6.16 |
-| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas`, e `atualizado_por` em `organizacoes` — última escrita nas três tabelas de configuração; quem criou a organização já está em `criada_por_pessoa_id` | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede | §6.5, §6.6 |
+| 20 | **Auditoria de configuração** | `criado_por`/`atualizado_por` em `categorias` e `areas`, e `atualizado_por` em `organizacoes` — última escrita nas três tabelas de configuração; quem criou a organização já está em `criada_por_pessoa_id`; em `areas`, o par `tipo_alterado_em` e `tipo_alterado_por_pessoa_id` guarda a última reclassificação, que a última escrita não preserva | Nada (era o estado anterior: nem `atualizado_em` existia) · tabela de histórico de configuração — é a segunda trilha que o RNF9 não pede · responder a pergunta de privacidade pela última escrita de `areas`, que troca de dono em qualquer campo | §6.5, §6.6 |
 | 21 | **Ordenação alfabética** | `COLLATE "pt-BR-x-icu"` na coluna | `COLLATE` no `ORDER BY` — funciona e precisa ser lembrado em toda consulta · `collation` padrão do banco — ordena `Área` depois de `Zona` | §2.10 |
 
 ### 7.8 Reversão declarada — a imagem deixa de ser coluna e vira a tabela `anexos`
@@ -2415,6 +2437,7 @@ defesa em profundidade contra o caminho que a ADR-0001 declara como o que *"esca
 | Ordem temporal em seis tabelas | `CHECK` de *"não anterior a"* em `ocorrencias.avaliada_em`, `atribuicoes.encerrada_em`, `canais_conversa.arquivado_em`, `notificacoes.lida_em`, `pedidos_de_entrada.decidido_em` e `convites.expira_em` | §8.1 · classe A — pega relógio errado, fuso trocado e bug de aplicação, e antes de 22/08/2026 só `convites` tinha |
 | Só recusa carrega motivo | `CHECK (observacao IS NULL OR situacao = 'recusado')` em `pedidos_de_entrada` | §6.15 · classe B |
 | A avaliação é **um objeto de valor inteiro** | `CHECK` que cruza `avaliacao_nota`, `avaliada_em`, `avaliacao_comentario` e `status` | D1, invariante 8 · *o comentário entrou no `CHECK` em 22/08/2026 — sem ele, o banco aceitava comentário sem nota* |
+| O par da reclassificação de uma Área vem inteiro | `CHECK ((tipo_alterado_em IS NULL) = (tipo_alterado_por_pessoa_id IS NULL))` em `areas` | §6.6 · classe A |
 
 ### ⚠️ A única garantia deste esquema que **piorou** — 22/08/2026
 
@@ -2466,6 +2489,7 @@ três meses tem o direito de saber que esta linha é a mais fraca da tabela.
 | **O telefone chega em E.164** | O banco **recusa** o que não está no formato; **normalizar** o que a pessoa digitou depende de país padrão e regra de discagem nacional, e é trabalho de biblioteca (`libphonenumber`). Divisão: o banco garante a forma, a aplicação produz a forma |
 | O teto de 30 autorizações de upload por Pessoa por hora (contrato §10.3, critério 13a.3) | Depende de contar várias linhas dentro de uma janela de tempo e de responder `429` antes de escrever — é decisão de comando, não forma de linha. O banco contribui com a **tabela e o índice** da §6.18, que é o que torna a contagem correta com mais de uma réplica; um contador em memória de processo concederia o dobro, e erraria exatamente sob carga. A limpeza da janela é oportunista, no mesmo comando |
 | `atualizado_por_pessoa_id` é quem realmente fez a última escrita | Nada impede a aplicação de escrever outro valor. É carimbo, não invariante — e a alternativa (gatilho lendo o usuário da sessão) exigiria que o contexto de organização da ADR-0003 chegasse ao banco, que é o oposto da decisão daquela ADR |
+| O par da reclassificação só muda quando o valor de `areas.tipo` muda | Comparar o valor novo com o antigo exigiria gatilho com `OLD`/`NEW`. A comparação mora na própria instrução do `PATCH`, com `tipo IS DISTINCT FROM` o valor enviado, e `tipo_alterado_por_pessoa_id` é carimbo pelo mesmo motivo da linha acima |
 
 ### ⚠️ Limitação declarada — uma regra de negócio mora no montador de consulta
 

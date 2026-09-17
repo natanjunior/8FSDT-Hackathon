@@ -3,9 +3,21 @@
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import {
+  Campo,
+  ErroDoFormulario,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import {
+  avisarErro,
+  avisarSucesso,
+  type TextosDoRetorno,
+} from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -23,10 +35,16 @@ import { Textarea } from "@/interface/componentes/ui/textarea";
  * bloco fica na tela, então o repinte acontece no sucesso e a frase de erro sobrevive sozinha. A extração
  * continua sendo dos cinco modais; este não é o sexto caso.
  *
- * **O repinte NÃO remonta este componente, e é isso que faz o botão apagar.** `router.refresh()`
- * re-renderiza a página do servidor e a prop `valorAtual` chega com o texto novo; o estado `texto`
- * permanece, porque o componente não é desmontado. Como `podeSalvar` compara os dois, ele fica `false` —
- * sem uma linha a mais.
+ * **O repinte NÃO remonta este componente.** `router.refresh()` re-renderiza a página do servidor e a
+ * prop `valorAtual` chega com o texto novo; o estado `texto` permanece, porque o componente não é
+ * desmontado, e é por isso que o formulário recomeça depois do sucesso: sem isso, o texto igual ao salvo
+ * acenderia a mensagem de campo.
+ *
+ * **O retorno (guia §7, item 44g).** Salvar responde com aviso; a linha *"Solução aplicada salva."* saiu,
+ * porque o aviso a substitui. **O *Salvar* só fica inerte durante o envio.** Vazio, ele mostra *"Escreva o
+ * que foi feito."*; igual ao que está salvo, *"Altere o texto antes de salvar."*. O segundo caso **não
+ * envia** de propósito: o campo é pré-preenchido com o valor da renderização, e se outro Gestor salvou
+ * depois, o reenvio sobrescreveria o texto dele com o velho (a janela que o item 25 fechou).
  *
  * **O aviso de visibilidade NÃO está aqui**, e é a letra da restrição herdada nº 1 do inventário: ela
  * enumera *"todo modal que tem campo `observacao`"*, e isto não é modal nem `observacao`. Que este campo
@@ -34,15 +52,21 @@ import { Textarea } from "@/interface/componentes/ui/textarea";
  * nenhum** — é o achado **A-2** da spec, e inventar a frase aqui seria escrever texto de produto num
  * componente.
  *
- * **Acessibilidade:** `<label htmlFor>` de verdade (**A-1**) — `placeholder` **não** é rótulo —,
- * `min-h-11` no campo e `h-11` no botão (**A-3**), e o erro e a confirmação em **palavra**, com
- * `role="alert"` e `role="status"` (**A-5**). O DOM é linear, então a ordem de foco é a de leitura (A-2).
+ * **Acessibilidade:** `<label htmlFor>` pelo `Campo` (**A-1**), `min-h-11` no campo e `h-11` no botão
+ * (**A-3**), e o erro em palavra (**A-5**). O DOM é linear, então a ordem de foco é a de leitura.
  */
+function erroDaSolucao(texto: string, salvo: string): string | undefined {
+  if (texto.trim() === "") return "Escreva o que foi feito.";
+  if (texto === salvo) return "Altere o texto antes de salvar.";
+  return undefined;
+}
+
 export function CampoDeSolucaoAplicada({
   ocorrenciaId,
   valorAtual,
   rotulosDeStatus,
   organizacaoId,
+  retorno,
 }: {
   ocorrenciaId: string;
   /** O que está gravado. **O campo abre pré-preenchido**, e não vazio: é registro, não rascunho. */
@@ -51,31 +75,26 @@ export function CampoDeSolucaoAplicada({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /** Os títulos do aviso, prontos (`RETORNO_DO_COMANDO`). */
+  retorno: TextosDoRetorno;
 }) {
   const router = useRouter();
   const campoId = useId();
   const [texto, setTexto] = useState(valorAtual ?? "");
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [salvo, setSalvo] = useState(false);
 
-  /**
-   * **Vazio desabilita porque o schema o proíbe** (`minLength: 1`, `required`): habilitar produziria um
-   * `400` no clique, sobre um campo que a pessoa vê vazio. **Igual desabilita porque não há o que salvar.**
-   *
-   * **No `ModalDeResolucao` o *Resolver* continua sem desabilitar, e não é incoerência:** lá os dois campos
-   * são opcionais e *"a indução é o foco, nunca a trava"*. São dois contratos diferentes para o mesmo dado,
-   * e a diferença está publicada — `required: false` num, `required: [solucaoAplicada]` no outro.
-   */
-  const podeSalvar = !enviando && texto.trim() !== "" && texto !== (valorAtual ?? "");
+  const formulario = useFormularioTocado({
+    campos: { solucao: campoId },
+    erros: { solucao: erroDaSolucao(texto, valorAtual ?? "") },
+  });
 
   async function salvar() {
+    if (enviando || !formulario.tentarEnviar()) return;
     setEnviando(true);
     setAviso(null);
-    setSalvo(false);
 
-    // **A tela manda o que digitou, sem aparar.** Quem apara é o schema, num lugar só — e `podeSalvar` já
-    // impede o envio de espaço em branco, então nada chega vazio ao `400`.
+    // **A tela manda o que digitou, sem aparar.** Quem apara é o schema, num lugar só.
     const resultado = await executarComando(
       ocorrenciaId,
       "registrar-solucao-aplicada",
@@ -87,66 +106,53 @@ export function CampoDeSolucaoAplicada({
     setEnviando(false);
 
     if (resultado.ok) {
-      setSalvo(true);
-      // **O repinte acontece no sucesso**, e não no fechamento: não há fechamento. Ele traz `valorAtual`
-      // novo, e é o que apaga o botão.
+      avisarSucesso(retorno.sucesso);
+      formulario.recomecar();
+      // **O repinte acontece no sucesso**, e não no fechamento: não há fechamento.
       router.refresh();
       return;
     }
 
     setAviso(resultado.aviso);
+    avisarErro(retorno.falha);
   }
 
   return (
     <section className="flex flex-col gap-2">
-      <label htmlFor={campoId} className="text-tinta text-sm font-semibold">
-        Solução aplicada
-      </label>
+      <Campo id={campoId} rotulo="Solução aplicada" obrigatorio erro={formulario.erroDe("solucao")}>
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={texto}
+            onChange={(evento) => {
+              setTexto(evento.target.value);
+              // Aviso velho ao lado de texto novo é a pior combinação possível.
+              setAviso(null);
+              formulario.mudou("solucao");
+            }}
+            disabled={enviando}
+            rows={4}
+            /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
+            maxLength={4000}
+            placeholder="O que foi feito"
+          />
+        )}
+      </Campo>
 
-      <Textarea
-        id={campoId}
-        value={texto}
-        onChange={(evento) => {
-          setTexto(evento.target.value);
-          // Aviso velho ao lado de texto novo é a pior combinação possível — e a confirmação some junto,
-          // porque ela fala de um texto que já não é o que está na tela.
-          setAviso(null);
-          setSalvo(false);
-        }}
-        disabled={enviando}
-        rows={4}
-        /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
-        maxLength={4000}
-        placeholder="O que foi feito"
-      />
+      {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
 
-      {aviso !== null && (
-        <p
-          role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
+      <RodapeDoFormulario obrigatorios={1}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11"
+          disabled={enviando}
+          onClick={() => void salvar()}
         >
-          {aviso}
-        </p>
-      )}
-
-      {/* **A única frase nova de produto desta fatia**, declarada no achado A-3 da spec para o hub
-          confirmar ou trocar. Sem ela o sucesso é invisível: o repinte devolve o mesmo texto no mesmo
-          campo, e a única mudança perceptível seria o botão apagando — que é ausência, não confirmação. */}
-      {salvo && aviso === null && (
-        <p role="status" className="text-tinta-suave text-xs">
-          Solução aplicada salva.
-        </p>
-      )}
-
-      <Button
-        type="button"
-        variant="outline"
-        className="h-11 w-auto self-start"
-        disabled={!podeSalvar}
-        onClick={() => void salvar()}
-      >
-        {enviando ? "Salvando…" : "Salvar"}
-      </Button>
+          <IndicadorDeEnvio ativo={enviando} />
+          {enviando ? "Salvando…" : "Salvar"}
+        </Button>
+      </RodapeDoFormulario>
     </section>
   );
 }

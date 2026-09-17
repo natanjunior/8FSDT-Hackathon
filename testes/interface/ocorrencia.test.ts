@@ -59,6 +59,7 @@ import {
   type ErroDeCampo,
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { areasUsadas, comAreaUsada } from "@/interface/componentes/areas-usadas";
 import {
   casaPeloNome,
   filtrarPorNome,
@@ -68,11 +69,16 @@ import {
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
 import { lerOCiclo } from "@/interface/componentes/ciclo";
+import { enviarComentario, executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import {
-  enviarComentario,
-  executarComando,
-  MENSAGEM_GENERICA,
-} from "@/interface/componentes/comando-de-ocorrencia";
+  errosDoRegistro,
+  rotuloDoTipoDeArea,
+  temAlgoEscrito,
+  VALORES_VAZIOS,
+  vazioDoRegistro,
+  type ValoresDoRegistro,
+} from "@/interface/componentes/registro-de-ocorrencia";
+import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import {
   acaoPrimaria,
   acoesDaBarra,
@@ -80,6 +86,9 @@ import {
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
   palavrasDaAtribuicao,
+  RETORNO_DA_MENSAGEM,
+  RETORNO_DO_COMANDO,
+  retornoDoComando,
   rotuloDeComando,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
@@ -548,7 +557,7 @@ describe("os parâmetros de paginação de GET /ocorrencias — item 14b", () =>
     }
   });
 
-  it("14b.9 · os três NÃO entram em FiltroDeOcorrencias — e é o que traz o Voltar de T-05 limpo", () => {
+  it("14b.9 · os três NÃO entram em FiltroDeOcorrencias — paginação não é recorte", () => {
     const filtro = lerFiltroDeOcorrenciasDaUrl(
       consulta("status=aberta&pagina=3&ate=2026-08-20T08:00:00Z&totalNoCorte=137"),
     );
@@ -1600,6 +1609,8 @@ describe("as palavras da atribuição — o par do item 21", () => {
       descricao: "Quem vai cuidar desta ocorrência.",
       confirmar: "Atribuir",
       enviando: "Atribuindo…",
+      sucesso: "Responsável atribuído",
+      falha: "Não foi possível atribuir o responsável",
     });
   });
 
@@ -1611,6 +1622,8 @@ describe("as palavras da atribuição — o par do item 21", () => {
       descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
       confirmar: "Reatribuir",
       enviando: "Reatribuindo…",
+      sucesso: "Ocorrência reatribuída",
+      falha: "Não foi possível reatribuir a ocorrência",
     });
   });
 
@@ -1633,7 +1646,7 @@ describe("as palavras da atribuição — o par do item 21", () => {
     expect(PALAVRAS_DA_ATRIBUICAO.primeira.descricao).not.toContain("encerrada");
   });
 
-  it("nenhum dos DEZ textos é vazio", () => {
+  it("nenhum dos CATORZE textos é vazio", () => {
     for (const par of PARES) {
       for (const texto of Object.values(par)) {
         expect(texto.trim().length).toBeGreaterThan(0);
@@ -1647,6 +1660,49 @@ describe("as palavras da atribuição — o par do item 21", () => {
     // lista faria o modal dizer *Atribuir* sobre uma ocorrência que tem responsável.
     expect(palavrasDaAtribuicao(false)).toBe(PALAVRAS_DA_ATRIBUICAO.primeira);
     expect(palavrasDaAtribuicao(true)).toBe(PALAVRAS_DA_ATRIBUICAO.nova);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O retorno dos comandos de T-05 — item 44g, critério 6
+ * ============================================================================
+ *
+ * **Os títulos do aviso moram em `rotulos.ts`**, ao lado das palavras da atribuição, porque é lá que
+ * moram os textos de T-05 que dependem do comando. **E nenhum título pode conter o que o teste de ponta
+ * a ponta procura sem escopo** (spec do 44g, §4.13): o aviso desenha uma `<section>` em toda página, e um
+ * título com *Situação*, *Nota* ou *Sua avaliação* faria uma asserção passar pela razão errada.
+ */
+describe("o retorno dos comandos — item 44g", () => {
+  const TITULOS = [
+    ...Object.values(RETORNO_DO_COMANDO),
+    RETORNO_DA_MENSAGEM,
+    PALAVRAS_DA_ATRIBUICAO.primeira,
+    PALAVRAS_DA_ATRIBUICAO.nova,
+  ].flatMap((textos) => [textos.sucesso, textos.falha]);
+
+  it("todo comando que a tela envia tem o par, e as duas exceções são asseridas", () => {
+    // `atribuir-responsavel` tem o par em `palavrasDaAtribuicao`, porque a palavra muda com o estado;
+    // `alterar-prioridade` responde pela linha de desfazer do bloco (critério 17.7, achado A-04).
+    const semPar = COMANDOS_IMPLEMENTADOS.filter((comando) => retornoDoComando(comando) === null);
+    expect(semPar).toStrictEqual(["atribuir-responsavel", "alterar-prioridade"]);
+  });
+
+  it("a falha diz o verbo da ação, e nunca é a frase genérica", () => {
+    const falhas = TITULOS.filter((_, indice) => indice % 2 === 1);
+    for (const falha of falhas) {
+      expect(falha.startsWith("Não foi possível ")).toBe(true);
+      expect(falha).not.toBe(MENSAGEM_GENERICA);
+      expect(falha).not.toContain("agora");
+    }
+  });
+
+  it("nenhum título contém o que o teste de ponta a ponta procura sem escopo", () => {
+    for (const titulo of TITULOS) {
+      for (const proibida of ["Situação", "Nota", "Sua avaliação", "Avaliar", "Atribuir"]) {
+        expect(titulo).not.toContain(proibida);
+      }
+    }
   });
 });
 
@@ -2538,7 +2594,7 @@ describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor con
     }
   });
 
-  it("só Duplicada tem descrição, e ela é a do protótipo", () => {
+  it("só Duplicada tem descrição, e ela pede a outra ocorrência na observação", () => {
     // **A condição é POR OPÇÃO, não por modal** — é o que faz a tela do item 23 não mudar um pixel.
     const comDescricao = opcoesDeMotivoCancelamento(DO_GESTOR).filter(
       (opcao) => opcao.descricao !== undefined,
@@ -2546,9 +2602,7 @@ describe("opcoesDeMotivoCancelamento — a MESMA fonte que o 422 do servidor con
 
     expect(comDescricao).toHaveLength(1);
     expect(comDescricao[0]?.valor).toBe("duplicada");
-    expect(comDescricao[0]?.descricao).toBe(
-      "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.",
-    );
+    expect(comDescricao[0]?.descricao).toBe("Diga na observação qual é a outra ocorrência.");
   });
 
   it("a opção Duplicada do SOLICITANTE também traz a descrição — ela é dele antes de ser do Gestor", () => {
@@ -3141,7 +3195,8 @@ describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repart
   });
 
   it("a palavra que separa os blocos é `Solicitante`, e ela vem do PAPEL_EM_PALAVRA de T-05", () => {
-    // O acoplamento existe desde o item 19 (`modal-de-atribuicao.tsx:144-145`) e nada aqui o conserta.
+    // O acoplamento existe desde o item 19 (a constante `PAPEL_SOLICITANTE` de `busca-de-candidatos.ts`,
+    // que o `ModalDeAtribuicao` usa para repartir os blocos) e nada aqui o conserta.
     // O que muda é que ele passa a ter teste: se `PAPEL_EM_PALAVRA` mudar a palavra, este caso cai.
     const so = [candidato("p-9", "Quem Quer", "Solicitante")] as const;
 
@@ -3274,5 +3329,156 @@ describe("a leitura do ciclo — critérios 44d.2 e 44d.7", () => {
     expect(leitura.passos[2]?.em).toBeNull();
     expect(leitura.passos[1]?.estado).toBe("por-alcancar");
     expect(leitura.foraDaLinha).toBeNull();
+  });
+});
+
+describe("errosDoRegistro — os quatro obrigatórios de T-04 (critério 44l.7)", () => {
+  const cheio: ValoresDoRegistro = {
+    titulo: "Infiltração no teto da garagem",
+    descricao: "Água pingando perto da vaga 12 quando chove.",
+    categoriaId: "cat-1",
+    areaId: "area-1",
+    localizacaoComplemento: "",
+  };
+
+  it("com tudo preenchido, nenhum erro", () => {
+    expect(errosDoRegistro(cheio)).toStrictEqual({});
+  });
+
+  it("cada obrigatório vazio tem a sua frase, e ela diz o que fazer", () => {
+    expect(errosDoRegistro(VALORES_VAZIOS)).toStrictEqual({
+      titulo: "Dê um título à ocorrência.",
+      descricao: "Descreva o que aconteceu, em uma frase.",
+      categoriaId: "Escolha uma categoria.",
+      areaId: "Escolha onde aconteceu.",
+    });
+  });
+
+  it("só espaço não vale, nos dois campos de texto", () => {
+    const erros = errosDoRegistro({ ...cheio, titulo: "   ", descricao: "\n \t" });
+    expect(erros.titulo).toBe("Dê um título à ocorrência.");
+    expect(erros.descricao).toBe("Descreva o que aconteceu, em uma frase.");
+  });
+
+  it("a referência do lugar vazia nunca é erro — ela não é obrigatória", () => {
+    expect(errosDoRegistro({ ...cheio, localizacaoComplemento: "" }).localizacaoComplemento).toBeUndefined();
+  });
+});
+
+describe("temAlgoEscrito — o que faz o cancelar perguntar (critério 44l.9)", () => {
+  it("nada escrito e sem foto: não pergunta", () => {
+    expect(temAlgoEscrito(VALORES_VAZIOS, false)).toBe(false);
+  });
+
+  it("só espaço em branco não conta como escrito", () => {
+    expect(temAlgoEscrito({ ...VALORES_VAZIOS, titulo: "   " }, false)).toBe(false);
+  });
+
+  it("qualquer um dos cinco campos conta", () => {
+    for (const campo of [
+      "titulo",
+      "descricao",
+      "categoriaId",
+      "areaId",
+      "localizacaoComplemento",
+    ] as const) {
+      expect(temAlgoEscrito({ ...VALORES_VAZIOS, [campo]: "x" }, false), campo).toBe(true);
+    }
+  });
+
+  it("a foto conta sozinha — escolher, esperar subir e cancelar descartava sem perguntar", () => {
+    expect(temAlgoEscrito(VALORES_VAZIOS, true)).toBe(true);
+  });
+});
+
+describe("vazioDoRegistro — as três faltas, e o botão só para quem configura (critério 44l.13)", () => {
+  it("sem áreas, quem configura vê o caminho para a lista que falta", () => {
+    const vazio = vazioDoRegistro(["areas"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem áreas ativas.");
+    expect(vazio.corpo).toContain("Reative ao menos uma");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao/areas", rotulo: "Ir para Áreas" });
+  });
+
+  it("sem categorias, o mesmo, apontando para a outra lista", () => {
+    const vazio = vazioDoRegistro(["categorias"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem categorias ativas.");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao/categorias", rotulo: "Ir para Categorias" });
+  });
+
+  it("faltando as duas, não há lista privilegiada e o destino é o índice", () => {
+    const vazio = vazioDoRegistro(["categorias", "areas"], true);
+    expect(vazio.titulo).toBe("Esta organização não tem categorias nem áreas ativas.");
+    expect(vazio.acao).toStrictEqual({ href: "/configuracao", rotulo: "Ir para a configuração" });
+  });
+
+  it("quem NÃO configura lê a mesma primeira frase, 'Fale com um Gestor.' e nenhum botão", () => {
+    for (const faltando of [["areas"], ["categorias"], ["categorias", "areas"]] as const) {
+      const com = vazioDoRegistro(faltando, true);
+      const sem = vazioDoRegistro(faltando, false);
+      expect(sem.titulo).toBe(com.titulo);
+      expect(sem.corpo).toBe("Fale com um Gestor.");
+      // O botão e a segunda frase andam juntos: oferecer o caminho a quem não pode percorrê-lo é o
+      // beco que o item 44h passou inteiro tirando do produto.
+      expect(sem.acao).toBeNull();
+    }
+  });
+});
+
+describe("rotuloDoTipoDeArea — a palavra que vai ao lado de cada área", () => {
+  it("os dois tipos, em palavra, nunca só por cor (compromisso A-5)", () => {
+    expect(rotuloDoTipoDeArea("comum")).toBe("área comum");
+    expect(rotuloDoTipoDeArea("privativa")).toBe("unidade privativa");
+  });
+});
+
+describe("as áreas usadas no aparelho — critério 44l.4", () => {
+  const ativas = [
+    { id: "a1", nome: "Garagem" },
+    { id: "a2", nome: "Hall de entrada" },
+    { id: "a3", nome: "Salão de festas" },
+    { id: "a4", nome: "Elevador social" },
+  ];
+
+  it("a lista guardada é reordenada SOBRE as ativas que acabaram de chegar", () => {
+    expect(areasUsadas(["a3", "a1"], ativas).map((a) => a.id)).toStrictEqual(["a3", "a1"]);
+  });
+
+  it("guardada que não está mais entre as ativas simplesmente some — área desativada não aparece", () => {
+    expect(areasUsadas(["a9", "a2"], ativas).map((a) => a.id)).toStrictEqual(["a2"]);
+  });
+
+  it("o areaId de outra organização não casa, e some pela mesma porta", () => {
+    expect(areasUsadas(["de-outro-lugar"], ativas)).toStrictEqual([]);
+  });
+
+  it("aparecem no máximo três, embora se guardem seis", () => {
+    expect(areasUsadas(["a4", "a3", "a2", "a1"], ativas).map((a) => a.id)).toStrictEqual([
+      "a4",
+      "a3",
+      "a2",
+    ]);
+  });
+
+  it("lista guardada vazia devolve vazio, e o bloco não desenha", () => {
+    expect(areasUsadas([], ativas)).toStrictEqual([]);
+  });
+
+  it("a nova vai para a frente", () => {
+    expect(comAreaUsada(["a1", "a2"], "a3")).toStrictEqual(["a3", "a1", "a2"]);
+  });
+
+  it("repetida não duplica, e sobe", () => {
+    expect(comAreaUsada(["a1", "a2", "a3"], "a3")).toStrictEqual(["a3", "a1", "a2"]);
+  });
+
+  it("o teto de seis corta a mais antiga", () => {
+    expect(comAreaUsada(["1", "2", "3", "4", "5", "6"], "7")).toStrictEqual([
+      "7",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ]);
   });
 });

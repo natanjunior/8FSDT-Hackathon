@@ -5,6 +5,8 @@ import {
   type Prioridade,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
+import type { Permissao } from "@/dominio/organizacao";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { nomeDoStatus, rotuloDeStatus, type LenteDeRotulo } from "@/interface/projecoes";
 
 /**
@@ -126,6 +128,56 @@ const ROTULO_DE_COMANDO: Partial<Record<Comando, string>> = {
 export function rotuloDeComando(comando: Comando): string | null {
   return ROTULO_DE_COMANDO[comando] ?? null;
 }
+
+/**
+ * ============================================================================
+ *  Os títulos do aviso de cada comando — item 44g, critério 6
+ * ============================================================================
+ *
+ * **O título diz o que foi tentado** (guia §7): o de sucesso diz o que aconteceu, o de falha começa por
+ * *"Não foi possível"* e o verbo. A razão da falha fica dentro do modal.
+ *
+ * **Nenhum título leva nome de pessoa, título de ocorrência, *Situação* nem nota**, e um teste confere: o
+ * teste de ponta a ponta procura esses textos sem escopo (spec do 44g, §4.13).
+ *
+ * **Dois comandos não estão aqui, e o teste os nomeia.** `atribuir-responsavel` tem o par em
+ * `palavrasDaAtribuicao`, porque a palavra muda com o estado (critério 21.1). `alterar-prioridade`
+ * responde pela linha de desfazer do bloco, que o critério 17.7 decidiu (achado A-04 da spec do 44g).
+ *
+ * **O objeto é literal, e não `Partial<Record<…>>`**, para que a página leia
+ * `RETORNO_DO_COMANDO.pausar` sem `!`. A busca por um `Comando` qualquer passa pela cópia larga.
+ */
+export const RETORNO_DO_COMANDO = {
+  analisar: {
+    sucesso: "Ocorrência em análise",
+    falha: "Não foi possível analisar a ocorrência",
+  },
+  "iniciar-atendimento": {
+    sucesso: "Atendimento iniciado",
+    falha: "Não foi possível iniciar o atendimento",
+  },
+  pausar: { sucesso: "Ocorrência pausada", falha: "Não foi possível pausar a ocorrência" },
+  retomar: { sucesso: "Ocorrência retomada", falha: "Não foi possível retomar a ocorrência" },
+  resolver: { sucesso: "Ocorrência resolvida", falha: "Não foi possível resolver a ocorrência" },
+  cancelar: { sucesso: "Ocorrência cancelada", falha: "Não foi possível cancelar a ocorrência" },
+  avaliar: { sucesso: "Avaliação enviada", falha: "Não foi possível enviar a avaliação" },
+  "registrar-solucao-aplicada": {
+    sucesso: "Solução aplicada salva",
+    falha: "Não foi possível salvar a solução aplicada",
+  },
+} as const satisfies Partial<Record<Comando, TextosDoRetorno>>;
+
+const RETORNO_LARGO: Partial<Record<Comando, TextosDoRetorno>> = RETORNO_DO_COMANDO;
+
+export function retornoDoComando(comando: Comando): TextosDoRetorno | null {
+  return RETORNO_LARGO[comando] ?? null;
+}
+
+/** A conversa não é comando (`Comando.ts`), e tem o próprio par. */
+export const RETORNO_DA_MENSAGEM: TextosDoRetorno = {
+  sucesso: "Mensagem enviada",
+  falha: "Não foi possível enviar a mensagem",
+};
 
 /**
  * ============================================================================
@@ -403,6 +455,10 @@ export type PalavrasDaAtribuicao = {
   confirmar: string;
   /** O mesmo botão enquanto a requisição corre. */
   enviando: string;
+  /** O título do aviso quando a atribuição foi gravada. */
+  sucesso: string;
+  /** O título do aviso quando não foi. */
+  falha: string;
 };
 
 const PRIMEIRA_ATRIBUICAO: PalavrasDaAtribuicao = {
@@ -411,6 +467,8 @@ const PRIMEIRA_ATRIBUICAO: PalavrasDaAtribuicao = {
   descricao: "Quem vai cuidar desta ocorrência.",
   confirmar: "Atribuir",
   enviando: "Atribuindo…",
+  sucesso: "Responsável atribuído",
+  falha: "Não foi possível atribuir o responsável",
 };
 
 const NOVA_ATRIBUICAO: PalavrasDaAtribuicao = {
@@ -419,6 +477,8 @@ const NOVA_ATRIBUICAO: PalavrasDaAtribuicao = {
   descricao: "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
   confirmar: "Reatribuir",
   enviando: "Reatribuindo…",
+  sucesso: "Ocorrência reatribuída",
+  falha: "Não foi possível reatribuir a ocorrência",
 };
 
 export const PALAVRAS_DA_ATRIBUICAO: Readonly<Record<"primeira" | "nova", PalavrasDaAtribuicao>> = {
@@ -452,3 +512,60 @@ export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribui
  */
 export const RECORTE_TODAS = "Todas as ocorrências";
 export const RECORTE_MINHAS = "Minhas ocorrências";
+
+/**
+ * ============================================================================
+ *  O estado sem acesso — item 44h
+ * ============================================================================
+ *
+ * **Três permissões guardam uma tela que recusa quem chega por link:** configurar a organização (T-15,
+ * T-09, T-14 e as páginas de criar e corrigir delas), gerir vínculos (T-08 e as duas páginas próprias) e
+ * ler o dashboard (T-07). `ocorrencia.ler_propria` também guarda tela, mas quem não a tem vai para T-10 e
+ * nunca vê este estado.
+ *
+ * **`satisfies` é o que impede o nome errado:** uma permissão que não existe no domínio não compila. E o
+ * mapa de frases, tipado pela união, não compila sem a frase de uma permissão de tela nova.
+ */
+export const PERMISSOES_DE_TELA = [
+  "organizacao.configurar",
+  "vinculo.gerir",
+  "dashboard.ler",
+] as const satisfies readonly Permissao[];
+
+export type PermissaoDeTela = (typeof PERMISSOES_DE_TELA)[number];
+
+/**
+ * **A frase de quem usa a tela é por permissão, e não por página.** A prancheta escreve a de
+ * configuração; as outras duas seguem a mesma construção, com a palavra de *Participante* (*participa*)
+ * e a dos cinco blocos do dashboard (*indicadores*).
+ */
+export const QUEM_USA_A_TELA: Readonly<Record<PermissaoDeTela, string>> = {
+  "organizacao.configurar": "Esta página é de quem configura a organização.",
+  "vinculo.gerir": "Esta página é de quem decide quem participa da organização.",
+  "dashboard.ler": "Esta página é de quem acompanha os indicadores da organização.",
+};
+
+/**
+ * **A recusa, escrita uma vez.** É a frase da §7 do inventário de telas para `PERMISSAO_INSUFICIENTE`, e
+ * morava em onze páginas até o item 44h. Este comentário não a repete de propósito: a conferência do item
+ * conta a frase em `app/` e `src/` por `grep`, com comentário e tudo.
+ */
+export const RECUSA_DE_ACESSO = "Seu papel nesta organização não dá acesso a esta página.";
+
+/** **A saída do estado sem acesso**, que leva a T-03, o eixo das telas de dentro. */
+export const SAIDA_DO_SEM_ACESSO = "Ir para Ocorrências";
+
+/**
+ * ============================================================================
+ *  A contagem de pedidos da barra lateral — item 44h, critério 2
+ * ============================================================================
+ *
+ * **Três formas, e a de zero é informação:** a fila foi olhada e está vazia. A palavra é decisão do dono
+ * em 16/09/2026, porque a anterior não cabia nos 214 px da barra. A geometria que faz a forma de zero
+ * caber está em `casca/navegacao.tsx`.
+ */
+export function fraseDePedidosPendentes(pendentes: number): string {
+  if (pendentes === 0) return "nenhum pedido pendente";
+  if (pendentes === 1) return "1 pedido pendente";
+  return `${pendentes} pedidos pendentes`;
+}

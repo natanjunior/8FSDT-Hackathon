@@ -46,10 +46,11 @@ se atualiza: o CLI copia o código-fonte para dentro do projeto. Trocamos depend
 código que se mantém, então nada quebra numa atualização que não pedimos, e em contrapartida a manutenção
 é nossa.
 
-A frase tem **três exceções conhecidas, e é honesto nomeá-las**: os primitivos, os ícones e a biblioteca
-de gráfico chegam como pacote instalado, e não como código copiado. A terceira entrou depois desta ADR,
-pela [ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md). A regra continua verdadeira no que
-importa, que é o código dos componentes ser nosso; o que vem instalado é a base sobre a qual ele roda.
+A frase tem **cinco exceções conhecidas, e é honesto nomeá-las**: os primitivos, os ícones, a biblioteca
+de gráfico, o aviso de retorno de ação e a busca em lista chegam como pacote instalado, e não como código
+copiado. A terceira entrou pela [ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md), e as
+duas últimas pela [ADR-0011](0011-sonner-e-cmdk-entram-como-pacotes.md). A regra continua verdadeira no
+que importa, que é o código dos componentes ser nosso; o que vem instalado é a base sobre a qual ele roda.
 
 **2 · A base de primitivos é escolha explícita, e a predominante é o meta-pacote `radix-ui`.** O projeto
 de origem oferece mais de uma base, e herdar o padrão sem decidir produziria uma interface com bases

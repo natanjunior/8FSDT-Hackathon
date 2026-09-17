@@ -169,8 +169,9 @@ function useTroca() {
 /**
  * O papel em palavra.
  *
- * **É a terceira cópia deste mapa no repositório** — as outras são `lista-de-vinculos.tsx:174` e o
- * `PAPEL_EM_PALAVRA` de `app/ocorrencias/[ocorrenciaId]/page.tsx:56` —, e o comentário de lá já registrou
+ * **É a terceira cópia deste mapa no repositório** — a outra é o `PAPEL_EM_PALAVRA` de
+ * `app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx`; a de T-08 virou `frases-de-participantes.ts` no
+ * item 44j —, e o comentário de lá já registrou
  * o achado: *"o lugar dos dois é um módulo, e isso é achado, não conserto"*. **Ela não é uma cópia nova:**
  * a de `app/organizacao/page.tsx` morre nesta mesma tarefa, quando a lista da face D vira este componente.
  */

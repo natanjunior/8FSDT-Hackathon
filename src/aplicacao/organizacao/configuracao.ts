@@ -3,6 +3,7 @@ import { ICONE_PADRAO, type TipoArea } from "@/dominio/organizacao";
 import {
   AreaNaoEncontrada,
   CategoriaNaoEncontrada,
+  ListaDesatualizada,
   NomeDeAreaDuplicado,
   NomeDeCategoriaDuplicado,
 } from "./erros";
@@ -11,6 +12,7 @@ import type {
   AreaLida,
   CategoriaLida,
   OrganizacaoLida,
+  PosicaoNaLista,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
@@ -18,23 +20,27 @@ import type {
 
 /**
  * ============================================================================
- *  A configuração da organização — itens 4a, 5 e 46 · 47 (T-09, T-14 e T-15)
+ *  A configuração da organização — itens 4a, 5, 46 · 47 e 50 (T-09, T-14 e T-15)
  * ============================================================================
  *
  * **Os dois padrões de produto moram aqui, e não no schema de entrada.** É a mesma doutrina que
  * `consultas.ts` escreveu para o *"só as ativas"*: o padrão não é convenção de HTTP — é a regra que o
  * `openapi.yaml` escreve por extenso (*"o servidor grava `tag` quando o cliente não manda"*, §14.5 do
- * modelo; `ordem` com `default: 0`). A Interface traduz o corpo; **quem sabe o que acontece quando
- * ninguém manda nada é esta camada.**
+ * modelo). A Interface traduz o corpo; **quem sabe o que acontece quando ninguém manda nada é esta
+ * camada.**
  *
- * **Nenhuma das cinco funções abre transação, e nenhuma precisa:** cada uma é uma instrução só. É o que
- * separa esta fatia do cadastro de vínculo, que escreve Pessoa e Vínculo juntos.
+ * **A posição de quem é criado é sempre o fim da lista** — desde o item 50 é o servidor que a grava, e
+ * desde o 44k `ordem` não existe mais no corpo de `POST` nem de `PATCH`: quem muda posição é o `PUT` das
+ * duas reordenações, que recebe a lista inteira.
+ *
+ * **Nenhuma das sete funções abre transação.** As cinco primeiras são uma instrução só. As duas
+ * reordenações precisam de uma, e quem a abre é a porta, que recebe a transação escopada (ADR-0003):
+ * esta camada decide, a porta transcreve com predicado.
  */
 
 export type ComandoDeNovaCategoria = {
   nome: string;
   icone?: string;
-  ordem?: number;
   /** Quem está criando — `ctx.pessoaId`. Vai para a coluna de auditoria de configuração (modelo §6.5). */
   porPessoaId: string;
 };
@@ -48,7 +54,9 @@ export async function criarCategoria(
     // **Nunca nulo, e é aqui que isso se decide.** A coluna é `NOT NULL` e o schema `Categoria` traz
     // `icone` como `required` — nenhuma tela precisa de caminho para ausência (contrato §8.1).
     icone: comando.icone ?? ICONE_PADRAO,
-    ordem: comando.ordem ?? 0,
+    // **O fim da lista, sempre** (item 50, spec §4.3). A intenção vai à porta, e o número sai do banco
+    // na própria instrução do `insert`.
+    ordem: "no-fim",
     criadaPorPessoaId: comando.porPessoaId,
   });
 
@@ -60,7 +68,6 @@ export type ComandoDeCorrecaoDeCategoria = {
   categoriaId: string;
   nome?: string;
   icone?: string;
-  ordem?: number;
   ativa?: boolean;
   porPessoaId: string;
 };
@@ -75,7 +82,6 @@ export async function corrigirCategoria(
     categoriaId: comando.categoriaId,
     ...(comando.nome === undefined ? {} : { nome: comando.nome }),
     ...(comando.icone === undefined ? {} : { icone: comando.icone }),
-    ...(comando.ordem === undefined ? {} : { ordem: comando.ordem }),
     ...(comando.ativa === undefined ? {} : { ativa: comando.ativa }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
@@ -88,7 +94,6 @@ export async function corrigirCategoria(
 export type ComandoDeNovaArea = {
   nome: string;
   tipo: TipoArea;
-  ordem?: number;
   porPessoaId: string;
 };
 
@@ -101,7 +106,9 @@ export async function criarArea(
     // **`tipo` não tem padrão, e é o único campo obrigatório desta camada que não o tem.** Um padrão
     // implícito escolheria a visibilidade da ocorrência em silêncio (D10).
     tipo: comando.tipo,
-    ordem: comando.ordem ?? 0,
+    // **O fim da lista, sempre** (item 50, spec §4.3). A intenção vai à porta, e o número sai do banco
+    // na própria instrução do `insert`.
+    ordem: "no-fim",
     criadaPorPessoaId: comando.porPessoaId,
   });
 
@@ -113,7 +120,6 @@ export type ComandoDeCorrecaoDeArea = {
   areaId: string;
   nome?: string;
   tipo?: TipoArea;
-  ordem?: number;
   ativa?: boolean;
   porPessoaId: string;
 };
@@ -126,7 +132,6 @@ export async function corrigirArea(
     areaId: comando.areaId,
     ...(comando.nome === undefined ? {} : { nome: comando.nome }),
     ...(comando.tipo === undefined ? {} : { tipo: comando.tipo }),
-    ...(comando.ordem === undefined ? {} : { ordem: comando.ordem }),
     ...(comando.ativa === undefined ? {} : { ativa: comando.ativa }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
@@ -165,4 +170,72 @@ export async function corrigirOrganizacao(
     ...(comando.nome === undefined ? {} : { nome: comando.nome }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
+}
+
+export type ComandoDeReordenacao = {
+  /** A lista inteira da organização, ativas e inativas, na ordem desejada. */
+  ids: readonly string[];
+  /** Quem reordena — `ctx.pessoaId`. Vai para `atualizado_por_pessoa_id` das linhas que mudarem. */
+  porPessoaId: string;
+};
+
+/**
+ * **Reordenar as categorias — item 50, `PUT /categorias/ordem`.**
+ *
+ * A forma é a de `aplicarTransicao` (`aplicacao/ocorrencia/portas.ts`): **lê, decide, grava com
+ * predicado.** A regra do conjunto mora aqui; a porta a repete sobre as linhas que travou, porque um item
+ * criado entre esta leitura e a escrita derruba a premissa da decisão (spec §4.7). As duas recusas são a
+ * mesma, para quem chama.
+ */
+export async function reordenarCategorias(
+  categorias: RepositorioEscopadoDeCategorias,
+  comando: ComandoDeReordenacao,
+): Promise<readonly CategoriaLida[]> {
+  const atuais = await categorias.listar({ apenasAtivas: false });
+  const resultado = await categorias.reordenar({
+    posicoes: posicoesDaReordenacao(atuais, comando.ids),
+    atualizadaPorPessoaId: comando.porPessoaId,
+  });
+
+  if (resultado.desfecho === "lista-desatualizada") throw new ListaDesatualizada();
+  return resultado.itens;
+}
+
+/** **Reordenar as áreas — item 50, `PUT /areas/ordem`.** A mesma forma e a mesma regra. */
+export async function reordenarAreas(
+  areas: RepositorioEscopadoDeAreas,
+  comando: ComandoDeReordenacao,
+): Promise<readonly AreaLida[]> {
+  const atuais = await areas.listar({ apenasAtivas: false });
+  const resultado = await areas.reordenar({
+    posicoes: posicoesDaReordenacao(atuais, comando.ids),
+    atualizadaPorPessoaId: comando.porPessoaId,
+  });
+
+  if (resultado.desfecho === "lista-desatualizada") throw new ListaDesatualizada();
+  return resultado.itens;
+}
+
+/**
+ * **A regra do conjunto:** a lista pedida tem de ser uma permutação da lista atual.
+ *
+ * Faltando, sobrando, repetido, de outra organização ou inexistente dão **a mesma recusa** (spec §4.1).
+ * Pela rota, o repetido para antes, no schema; aqui ele é defesa, e o teste de unidade o exercita.
+ *
+ * **A comparação é em minúsculas** (spec §4.9). O schema já normaliza, e esta função não confia nisso: o
+ * Postgres devolve `uuid` em minúsculas, e um id em maiúsculas seria recusado sendo correto.
+ */
+function posicoesDaReordenacao(
+  atuais: readonly { id: string }[],
+  pedidos: readonly string[],
+): PosicaoNaLista[] {
+  const conjuntoAtual = new Set(atuais.map((item) => item.id.toLowerCase()));
+  const normalizados = pedidos.map((id) => id.toLowerCase());
+  const ehPermutacao =
+    normalizados.length === conjuntoAtual.size &&
+    new Set(normalizados).size === normalizados.length &&
+    normalizados.every((id) => conjuntoAtual.has(id));
+
+  if (!ehPermutacao) throw new ListaDesatualizada();
+  return normalizados.map((id, indice) => ({ id, ordem: indice + 1 }));
 }

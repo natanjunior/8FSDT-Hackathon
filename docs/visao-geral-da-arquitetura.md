@@ -128,5 +128,8 @@ uma revisão nova, nessa ordem — porque voltar atrás na aplicação é imedia
 que roda na máquina de quem desenvolve é o que roda no ar, e é a esteira quem prova isso, subindo a pilha
 do zero num servidor limpo a cada entrega.
 
+A ordem dos passos, o caminho de volta e o que a franquia gratuita impõe estão em
+[Infraestrutura](infraestrutura.md).
+
 O passo a passo de como rodar está no
 [README do repositório](https://github.com/natanjunior/8FSDT-Hackathon#como-rodar).

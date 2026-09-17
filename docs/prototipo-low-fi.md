@@ -333,6 +333,19 @@ topo, e **o primeiro registro de todo mundo fica rápido**, não só o do reinci
 `ordem` em `areas`, um campo opcional em `PATCH /areas`, e reordenação em T-09 — que **já existe**, para
 `Categoria`. É a simetria que o F12 pediu, agora com uma razão de tempo medido por trás.
 
+**Construída em 17/09/2026**, no item que refez T-04. O que mudou da decisão de agosto, e por quê:
+
+| O que a §3 decidiu | O que foi construído | Por quê |
+|---|---|---|
+| busca por prefixo do nome | **prefixo de palavra** | é a regra que o produto já tem escrita num lugar só, em `busca-de-candidatos.ts`, e duas buscas com regras diferentes na mesma aplicação é defeito |
+| *"usadas recentemente"* no topo | **até três**, guardadas seis, gravadas no `201` | gravar na escolha encheria a lista com as tentativas abandonadas no cancelar; guardar três encolheria o bloco assim que uma área fosse desativada |
+| a lista alfabética inteira embaixo | **a ordem do Gestor** | **(d) já aconteceu**: `Area` ganhou `ordem`, a S-T10 caiu, e a lista chega ordenada por quem conhece o prédio — que era o que faltava para o primeiro registro também ser rápido |
+
+**A conta não muda, e isso é o ponto.** Os *"~4 s"* e *"~2 s"* da tabela acima são **estimativa**, e o
+total continua **53 s contra 60**. É o mesmo precedente da §2.7: creditar ganho não medido ao passo 7
+tornaria o orçamento menos verificável, que é o defeito que o P-15 aponta no próprio RNF6. **O
+instrumento continua sendo o da §9**, e a linha datada da cronometragem vai aqui quando houver.
+
 ---
 
 ## 4. Os desenhos
@@ -1105,7 +1118,7 @@ data e item de origem, porque decisão de tela não mora numa célula de tabela.
 | Comando com texto — **celular** | **`Drawer`** | ✅ | **não** — gaveta em **CSS sobre o `Dialog`** (item 23) — ver §13.6 |
 | Comando com texto — **tela grande** | **`Dialog`** | ✅ | **sim** — `ui/dialog.tsx` |
 | O mesmo comando nas duas larguras | **padrão "responsive dialog"**: `Dialog` em tela grande, `Drawer` no celular | ✅ — **documentado pelo próprio shadcn/ui**, na página de `Drawer` | **não** — o mesmo `Dialog`, com a gaveta em CSS abaixo de `md` — ver §13.6 |
-| Confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria | **`AlertDialog`** | ✅ | **não** — `<dialog>` nativo, em T-08 e em T-09 — ver §13.6 |
+| Confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria | **`AlertDialog`** | ✅ | **sim** — `ui/alert-dialog.tsx`, desde 16/09/2026 — ver §13.6 |
 | "Mais ações" no celular (D-3) | **`DropdownMenu`** | ✅ | **sim** — `ui/dropdown-menu.tsx` |
 | Ações lado a lado em tela grande | **`ButtonGroup`** | ✅ | **não** — `flex` + `ui/button.tsx` (`barra-de-acoes.tsx`) |
 | Espera com a forma da tela (§6.1) | **`Skeleton`** | ✅ | **não** — `loading.tsx` próprio por rota |
@@ -1822,26 +1835,26 @@ quis**.
 real** no bloco 1 de T-05 em vez de flutuar sobre o conteúdo. **O que se ganha:** nenhum componente de
 sobreposição não-modal nasce com um consumidor só.
 
-#### 4 · O `AlertDialog` — `<dialog>` nativo, em duas telas
+#### 4 · O `AlertDialog` — instalado em 16/09/2026, e as três confirmações o usam
 
 A linha *"confirmação de ato irreversível — aprovar papel, remover vínculo, desativar categoria"* mapeia
-para `AlertDialog`, que **nunca foi instalado**. As três confirmações existem, e as três são `<dialog>`
-nativo:
+para `AlertDialog`. Ele entrou com a prancheta da família Organização, e as três confirmações passaram a
+usá-lo:
 
 | Ato | Tela | Arquivo |
 |---|---|---|
-| Aprovar pedido de entrada | T-08 | `decisao-de-pedido-de-entrada.tsx:251` |
-| Remover vínculo | T-08 | `remocao-de-vinculo.tsx:128` |
-| Desativar categoria e desativar área | T-09 | `formulario-de-categoria.tsx:184` · `formulario-de-area.tsx:229` |
+| Recusar pedido de entrada | T-08 | `decisao-de-pedido-de-entrada.tsx` |
+| Remover vínculo | T-08 | `remocao-de-vinculo.tsx` |
+| Desativar e reativar categoria ou área | T-09 e T-14 | `situacao-do-item.tsx` |
 
-**A razão está escrita no código, e é de escopo:** *"um padrão por tela, e nenhuma dependência nova na
-última sprint"* (`remocao-de-vinculo.tsx:22-27`). A confirmação de **aprovar** já usava `<dialog>` nativo
-desde o item 8, e a de **remover** seguiu o precedente da casa em vez de abrir um segundo idioma de
-confirmação dentro de T-08.
+**O `<dialog>` nativo, que servia as três até ali, não existe mais no produto**, e o portão de teste
+guarda isso. Enquanto ele durou a razão era de escopo — *"um padrão por tela, e nenhuma dependência nova
+na última sprint"* —, e o custo declarado era o foco preso e o `aria-describedby` montados à mão em cada
+uso, que é justamente o que o primitivo dá de graça.
 
-**Custo declarado:** o `<dialog>` nativo não traz o foco preso nem o `aria-describedby` de graça — cada
-uso os monta à mão, e um esquecimento não aparece em teste de tipo. **O que se ganha:** zero dependência,
-e o mesmo elemento nas duas telas.
+**Uma coisa o primitivo não dá:** quem confirma não pode ser o `AlertDialogAction`, que fecha no clique —
+o envio precisa do modal aberto até a resposta chegar. As três usam um botão de envio comum, e quem fecha
+é o ciclo do formulário.
 
 **A regra que vale para as quatro, e é a lição desta subseção:** *"o catálogo tem X"* **nunca** é
 orçamento de implementação. Onde a §7.1 diz ✅ na coluna do catálogo e **não** na coluna de adoção, a

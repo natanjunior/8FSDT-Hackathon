@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { Toaster } from "@/interface/componentes/ui/sonner";
+
 import "./globals.css";
 
 /**
@@ -58,6 +60,11 @@ export default function CascoDaAplicacao({ children }: { children: React.ReactNo
     <html lang="pt-BR">
       <body className={`${fonteDeTexto.variable} ${fonteDeDado.variable} min-h-dvh antialiased`}>
         {children}
+        {/* **Depois de `{children}`, e uma vez só.** O aviso mora aqui para sobreviver ao modal que o
+            disparou e à atualização da página (guia §7, ADR-0011). Ele desenha uma `<section>` em toda
+            página, e vir depois do conteúdo é uma das duas razões pelas quais o teste de ponta a ponta,
+            que acha o bloco *Situação* pela primeira `<section>` que contém a palavra, não o lê. */}
+        <Toaster />
       </body>
     </html>
   );

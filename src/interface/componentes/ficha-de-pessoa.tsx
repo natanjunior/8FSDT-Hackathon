@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/interface/componentes/ui/hover-card";
+import { cn } from "@/interface/componentes/utilitarios";
 
 /**
  * **Uma pessoa, escrita uma vez.** Aparece em T-03, T-05, T-06 e T-08.
@@ -12,10 +13,16 @@ export function FichaDePessoa({
   nome,
   papel,
   contato,
+  tamanho = "interface",
+  idDoNome,
 }: {
   nome: string;
   papel?: string | null;
   contato?: string | null;
+  /** `"linha"` é o tamanho de linha de tabela e de ficha de modal (item 44j): avatar maior, nome no papel de linha. */
+  tamanho?: "interface" | "linha";
+  /** O `id` do nome, para a ação da linha apontar para ele com `aria-describedby` (item 44j). */
+  idDoNome?: string;
 }) {
   const partes = nome.trim().split(/\s+/u).filter(Boolean);
   const sigla = (
@@ -23,11 +30,19 @@ export function FichaDePessoa({
   ).toUpperCase();
 
   const face = (
-    <span className="inline-flex items-center gap-2">
-      <Avatar className="size-6">
+    <span className={cn("inline-flex items-center", tamanho === "linha" ? "gap-2.5" : "gap-2")}>
+      <Avatar className={tamanho === "linha" ? "size-7" : "size-6"}>
         <AvatarFallback className="text-rotulo-coluna font-mono">{sigla}</AvatarFallback>
       </Avatar>
-      <span className="text-tinta text-interface">{nome}</span>
+      <span
+        id={idDoNome}
+        className={cn(
+          "text-tinta",
+          tamanho === "linha" ? "text-titulo-linha font-medium" : "text-interface",
+        )}
+      >
+        {nome}
+      </span>
     </span>
   );
 

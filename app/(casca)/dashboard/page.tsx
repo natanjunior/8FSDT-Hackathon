@@ -13,6 +13,7 @@ import {
 } from "@/interface/componentes/blocos-do-dashboard";
 import { GraficoDaRecorrencia } from "@/interface/componentes/grafico-da-recorrencia";
 import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
+import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import {
@@ -38,8 +39,9 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * estradas, e as duas passam pela **mesma** função e pela **mesma** projeção.
  *
  * **Nada aqui é clicável ainda**, e isso deixou de ser regra em 14/09/2026 — passou a ser só o estado de
- * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar; os dois
- * links das telas de erro ficam, que são saída de erro e não navegação duplicada.
+ * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar. O link
+ * do período inválido fica, que é saída de erro e não navegação duplicada; e quem chega sem
+ * `dashboard.ler` recebe o `SemAcesso` da casca (item 44h), com a saída que ele traz.
  *
  * **O atalho para a lista filtrada é trabalho de outro item.** Os blocos 2 e 3 já têm para onde ir —
  * `?status=` e `?categoriaId=` existem desde o item 15. Os blocos 1 e 4 dependem de um filtro por área e
@@ -68,7 +70,9 @@ export default async function Dashboard({
   }
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
-  if (escopo.situacao === "sem-permissao") return <SemPermissao />;
+  if (escopo.situacao === "sem-permissao") {
+    return <SemAcesso titulo="Dashboard" permissao="dashboard.ler" />;
+  }
 
   // **A janela é lida DEPOIS da sessão, e a ordem é o mapa de navegação, não gosto.** Quem chega sem
   // sessão vai para T-01 mesmo com `?de=` torto — se a leitura viesse antes, `/dashboard?de=01/06/2026`
@@ -376,24 +380,6 @@ function PeriodoInvalido() {
         className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         Ver os últimos 90 dias
-      </Link>
-    </div>
-  );
-}
-
-/** Quem chega por link sem `dashboard.ler` (`inventario-de-telas.md:1517`). */
-function SemPermissao() {
-  return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-titulo-pagina leading-snug font-semibold">Dashboard</h1>
-      <p role="alert" className="text-tinta-suave text-corpo">
-        Seu papel nesta organização não dá acesso a esta página.
-      </p>
-      <Link
-        href="/ocorrencias"
-        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
-      >
-        Voltar
       </Link>
     </div>
   );

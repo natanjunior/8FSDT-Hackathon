@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -33,12 +32,16 @@ import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
+  RETORNO_DA_MENSAGEM,
+  RETORNO_DO_COMANDO,
+  retornoDoComando,
   rotuloDeComando,
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
@@ -48,7 +51,6 @@ import {
 } from "@/interface/componentes/rotulos";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import {
-  lerFiltroDeOcorrenciasDaUrl,
   novoTraceId,
   registrarFalha,
   resolverEscopoParaTela,
@@ -77,6 +79,10 @@ import {
  *
  * **A leitura vai pela estrada direta**, como T-09 e o shell: `app/` não monta repositório, e um `fetch`
  * interno custaria o salto HTTP que a §5 do contrato recusou.
+ *
+ * **Sem saída de retorno no conteúdo** (guia §7, decidido em 16/09/2026, critério 44g.10): dentro da casca,
+ * quem navega é a barra lateral, e o botão voltar do navegador devolve a lista com o filtro que ela tinha,
+ * porque o filtro mora no endereço da lista.
  */
 export const dynamic = "force-dynamic";
 
@@ -84,9 +90,9 @@ export const dynamic = "force-dynamic";
  * O papel **em palavra**, para descer por prop ao modal.
  *
  * **Mora aqui e não em `rotulos.ts`** porque tem um consumidor só, e porque a lista de papéis é do módulo
- * de organização, não do de ocorrência. Se o segundo consumidor aparecer — T-08 já mostra papel, com o
- * próprio `rotuloDoPapel` em `lista-de-vinculos.tsx` —, o lugar dos dois é um módulo, e **isso é achado,
- * não conserto**: são duas cópias hoje, e a segunda nasceu aqui.
+ * de organização, não do de ocorrência. T-08 mostra papel com `rotuloDoPapel` de
+ * `frases-de-participantes.ts` (item 44j), e este é a segunda cópia — o lugar dos dois é um módulo, e
+ * **isso é achado, não conserto**.
  */
 const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
   gestor: "Gestor",
@@ -94,40 +100,10 @@ const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
   solicitante: "Solicitante",
 };
 
-/**
- * **O `de=` é reconstruído, nunca repassado cru** — item 15, critério 15.3.
- *
- * Ele vem de uma URL que qualquer pessoa pode ter editado. Passar a *query string* adiante sem olhar seria
- * confiar em texto de fora; em vez disso ela atravessa a **mesma** leitura que a lista usa, e só os quatro
- * parâmetros conhecidos voltam para o endereço. Filtro estragado no `de=` degrada para o *Voltar* limpo —
- * a lista sem recorte —, que é o pior caso aceitável.
- *
- * **`catch {}` sem tipo é o único caminho honesto aqui**, e não é engolir erro: qualquer coisa que a
- * leitura recuse é lixo vindo de fora, e a resposta certa é a lista inteira — não uma tela de erro em
- * T-05, que é a tela que precisa abrir para quem recebeu o link por mensagem.
- */
-function destinoDeVolta(de: string | undefined): string {
-  if (de === undefined || de === "") return "/ocorrencias";
-  try {
-    const filtro = lerFiltroDeOcorrenciasDaUrl(new URLSearchParams(de));
-    const consulta = new URLSearchParams();
-    if (filtro.status !== undefined) consulta.set("status", filtro.status.join(","));
-    if (filtro.categoriaId !== undefined) consulta.set("categoriaId", filtro.categoriaId.join(","));
-    if (filtro.prioridade !== undefined) consulta.set("prioridade", filtro.prioridade.join(","));
-    if (filtro.apenasDoAutor === true) consulta.set("autor", "eu");
-    const texto = consulta.toString();
-    return texto === "" ? "/ocorrencias" : `/ocorrencias?${texto}`;
-  } catch {
-    return "/ocorrencias";
-  }
-}
-
 export default async function Ocorrencia({
   params,
-  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -141,9 +117,6 @@ export default async function Ocorrencia({
   if (escopo.situacao === "sem-permissao") redirect("/");
 
   const { ocorrenciaId } = await params;
-
-  const parametros = await searchParams;
-  const voltarPara = destinoDeVolta(typeof parametros.de === "string" ? parametros.de : undefined);
 
   /**
    * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
@@ -262,11 +235,17 @@ export default async function Ocorrencia({
     // **O retorno é anotado como `string`, e não é enfeite:** sem a anotação o `map` infere `comando` como
     // o literal `Comando`, e aí o guarda de tipo abaixo — que promete `{ comando: string }` — deixa de ser
     // atribuível ao próprio parâmetro (`TS2677`). Anotar aqui mantém o Domínio fora do `import` de `app/`.
-    .map((comando): { comando: string; rotulo: string | null } => ({
-      comando,
-      rotulo: rotuloDeComando(comando),
-    }))
-    .filter((acao): acao is { comando: string; rotulo: string } => acao.rotulo !== null);
+    .map(
+      (comando): { comando: string; rotulo: string | null; retorno: TextosDoRetorno | null } => ({
+        comando,
+        rotulo: rotuloDeComando(comando),
+        retorno: retornoDoComando(comando),
+      }),
+    )
+    .filter(
+      (acao): acao is { comando: string; rotulo: string; retorno: TextosDoRetorno | null } =>
+        acao.rotulo !== null,
+    );
 
   /**
    * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
@@ -408,6 +387,7 @@ export default async function Ocorrencia({
         variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO["iniciar-atendimento"]}
       />
     ),
     /**
@@ -423,6 +403,7 @@ export default async function Ocorrencia({
         variante={primario === "resolver" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.resolver}
       />
     ),
     /**
@@ -449,13 +430,14 @@ export default async function Ocorrencia({
         variante={varianteDe("pausar")}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.pausar}
       />
     ),
     /**
      * **O quinto modal, e ele é o `ModalDeObservacao` reusado INTEIRO** — zero componente novo, zero
      * variante nova, zero linha alterada nele. O componente foi escrito parametrizado exatamente para
      * isto: *"o modal de `iniciar-atendimento` (item 22) e o de `retomar` (item 24) diferem em três
-     * strings"* (`modal-de-observacao.tsx:25-28`).
+     * strings"* (o parágrafo *"Um componente parametrizado"* do cabeçalho de `modal-de-observacao.tsx`).
      *
      * **A descrição NÃO nomeia o destino, e é o critério 24.2 na tela.** *"Volta para Em atendimento"*
      * seria informar antes o que o critério manda descobrir depois — e seria uma frase que esta tela
@@ -487,6 +469,7 @@ export default async function Ocorrencia({
         variante={primario === "retomar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.retomar}
       />
     ),
     /**
@@ -510,6 +493,8 @@ export default async function Ocorrencia({
      * **Entra SEMPRE, como os quatro de cima**: não precisa de consulta nenhuma além do que a página já
      * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e é ela que esconde o
      * botão do Solicitante autor a partir de `Em atendimento` (critério 18.3).
+     *
+     * **O botão que confirma é `destructive`** (critério 44g.5): é a ação que cancela.
      */
     cancelar: (
       <ModalDeMotivo
@@ -526,6 +511,8 @@ export default async function Ocorrencia({
         variante={varianteDe("cancelar")}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.cancelar}
+        destrutivo
       />
     ),
     /**
@@ -537,7 +524,8 @@ export default async function Ocorrencia({
      *
      * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
      * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
-     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está em `barra-de-acoes.tsx:69-72`.
+     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está no parágrafo *"Corrigido no item
+     * 18"* do cabeçalho de `barra-de-acoes.tsx`.
      */
     avaliar: (
       <ModalDeAvaliacao
@@ -545,6 +533,7 @@ export default async function Ocorrencia({
         variante={primario === "avaliar" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.avaliar}
       />
     ),
     ...(podeAtribuir
@@ -572,7 +561,7 @@ export default async function Ocorrencia({
        **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
        VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
        olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
-       deixaria a barra cobrir o *Voltar* exatamente no caso em que há algo a ler. **O custo é 96 px de
+       deixaria a barra cobrir o fim da conversa exatamente no caso em que há algo a ler. **O custo é 96 px de
        branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
        qualquer forma. */
     <div className="flex flex-col gap-6 pb-24 lg:pb-0">
@@ -804,6 +793,7 @@ export default async function Ocorrencia({
               valorAtual={detalhe.solucaoAplicada}
               rotulosDeStatus={rotulos}
               organizacaoId={organizacaoId}
+              retorno={RETORNO_DO_COMANDO["registrar-solucao-aplicada"]}
             />
           ) : (
             detalhe.solucaoAplicada !== null && (
@@ -866,19 +856,9 @@ export default async function Ocorrencia({
               pessoaIdDeQuemLe={escopo.ctx.pessoaId}
               vazio={vazioDaConversa(ehAutor)}
               rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
+              retorno={RETORNO_DA_MENSAGEM}
             />
           )}
-
-          {/* **O *Voltar* FICA, e o argumento do 44e.8 não se aplica aqui.** Em T-07 ele é navegação; em
-              T-05 ele é a devolução do recorte — reconstrói o endereço da lista a partir do `?de=`,
-              pelo critério 15.3 —, e a barra lateral da casca leva a `/ocorrencias` sem consulta
-              nenhuma. Tirá-lo apagaria uma capacidade entregue. */}
-          <Link
-            href={voltarPara}
-            className="text-marca inline-flex min-h-11 items-center self-start text-interface underline underline-offset-4"
-          >
-            Voltar
-          </Link>
         </div>
       </div>
     </div>

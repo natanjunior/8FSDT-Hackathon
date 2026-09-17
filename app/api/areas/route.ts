@@ -27,7 +27,6 @@ export const POST = comContexto(
     const area = await criarArea(repos.areas, {
       nome: corpo.nome,
       tipo: corpo.tipo,
-      ...(corpo.ordem === undefined ? {} : { ordem: corpo.ordem }),
       porPessoaId: ctx.pessoaId,
     });
     return resposta(projetarArea(area), { status: 201 });

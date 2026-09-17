@@ -4,12 +4,24 @@ import { useRouter } from "next/navigation";
 import { Suspense, use, useId, useState } from "react";
 
 import {
+  Campo,
+  ErroDoFormulario,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
+import {
   enviarComentario,
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
 import { autoria, dataHora } from "@/interface/componentes/linha-do-tempo";
+import {
+  avisarErro,
+  avisarSucesso,
+  type TextosDoRetorno,
+} from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import type { PaginaDeComentariosProjetada } from "@/interface/projecoes";
 
 /**
@@ -37,10 +49,12 @@ import type { PaginaDeComentariosProjetada } from "@/interface/projecoes";
  *   efeito, e este produto já recusou isso uma vez por escrito. Com os dois, o efeito existe e é visível.
  * - O repinte **não remonta** este componente, então o que foi acrescentado localmente não é duplicado
  *   nem perdido — é o mesmo mecanismo que o `CampoDeSolucaoAplicada` documenta.
+ * - **O aviso de sucesso** sai, e o formulário recomeça, para o campo vazio não acender o erro (item
+ *   44g).
  *
  * **Acessibilidade:** `<label htmlFor>` de verdade (**A-1**) — o protótipo o desenha, e `placeholder`
- * **não** é rótulo —, `min-h-11` no campo e `h-11` nos botões (**A-3**), e o erro em **palavra**, com
- * `role="alert"` (**A-5**). O DOM é linear, então a ordem de foco é a de leitura (A-2).
+ * **não** é rótulo —, `min-h-11` no campo e `h-11` nos botões (**A-3**), e o erro em **palavra**: o de
+ * campo pela descrição do campo, o do servidor em `role="alert"` (**A-5**). O DOM é linear, então a ordem de foco é a de leitura (A-2).
  */
 export function ConversaDaOcorrencia({
   ocorrenciaId,
@@ -49,6 +63,7 @@ export function ConversaDaOcorrencia({
   pessoaIdDeQuemLe,
   vazio,
   rotuloDoCampo,
+  retorno,
 }: {
   ocorrenciaId: string;
   /** A promessa da estrada direta. **Ela parte antes do `await` do detalhe** — critério 29.5. */
@@ -61,6 +76,8 @@ export function ConversaDaOcorrencia({
   vazio: string;
   /** O rótulo do campo, mesmo predicado. */
   rotuloDoCampo: string;
+  /** Os títulos do aviso, prontos (`RETORNO_DA_MENSAGEM`). */
+  retorno: TextosDoRetorno;
 }) {
   const router = useRouter();
   const campoId = useId();
@@ -69,16 +86,16 @@ export function ConversaDaOcorrencia({
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  /**
-   * **Vazio desabilita porque o schema o proíbe** (`minLength: 1`): habilitar produziria um `400` sobre um
-   * campo que a pessoa vê vazio. **Enviando desabilita porque é o único freio possível contra o toque
-   * duplo** — e o critério 30.3 e a §7.10 do contrato declaram que **dois toques criam dois comentários**,
-   * sem chave de idempotência. **O freio é da tela e não promete nada:** dois aparelhos, ou um `curl`,
-   * continuam criando dois.
-   */
-  const podeEnviar = !enviando && texto.trim() !== "";
+  const formulario = useFormularioTocado({
+    campos: { mensagem: campoId },
+    erros: { mensagem: texto.trim() === "" ? "Escreva a mensagem." : undefined },
+  });
 
   async function enviar() {
+    // **O freio contra o toque duplo é da tela** (critério 30.3, §7.10 do contrato): enquanto envia, o
+    // botão fica inerte e um segundo clique não passa daqui. Não promete nada: dois aparelhos, ou um
+    // `curl`, continuam criando dois comentários.
+    if (enviando || !formulario.tentarEnviar()) return;
     setEnviando(true);
     setAviso(null);
 
@@ -88,11 +105,15 @@ export function ConversaDaOcorrencia({
 
     if (!resultado.ok) {
       setAviso(resultado.aviso);
+      avisarErro(retorno.falha);
       return;
     }
 
     setAcrescentadas((anteriores) => [...anteriores, resultado.comentario]);
     setTexto("");
+    // O campo vazio acenderia "Escreva a mensagem." se o formulário continuasse tocado.
+    formulario.recomecar();
+    avisarSucesso(retorno.sucesso);
     // Repinta o bloco 3, onde a mesma mensagem aparece entre aspas — critério 30.8.
     router.refresh();
   }
@@ -109,54 +130,45 @@ export function ConversaDaOcorrencia({
         />
       </Suspense>
 
-      <label htmlFor={campoId} className="text-tinta text-sm font-semibold">
-        {rotuloDoCampo}
-      </label>
+      <Campo id={campoId} rotulo={rotuloDoCampo} obrigatorio erro={formulario.erroDe("mensagem")}>
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={texto}
+            onChange={(evento) => {
+              setTexto(evento.target.value);
+              // Aviso velho ao lado de texto novo é a pior combinação possível.
+              setAviso(null);
+              formulario.mudou("mensagem");
+            }}
+            disabled={enviando}
+            rows={3}
+            /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
+               não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
+            maxLength={4000}
+          />
+        )}
+      </Campo>
 
-      <Textarea
-        id={campoId}
-        value={texto}
-        onChange={(evento) => {
-          setTexto(evento.target.value);
-          // Aviso velho ao lado de texto novo é a pior combinação possível.
-          setAviso(null);
-        }}
-        disabled={enviando}
-        rows={3}
-        /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
-           não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
-        maxLength={4000}
-      />
+      {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
 
-      {aviso !== null && (
-        <p
-          role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
+      {/* **A mensagem enviada responde com aviso** (guia §7, item 44g), e isso fecha a pergunta Q-6 do
+          item 30: a mensagem também aparece na lista, e o aviso é o retorno que todo salvamento dá.
+          **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
+          momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
+          inerte durante o envio. */}
+      <RodapeDoFormulario obrigatorios={1}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 font-medium"
+          disabled={enviando}
+          onClick={() => void enviar()}
         >
-          {aviso}
-        </p>
-      )}
-
-      {/* **Sem frase de confirmação, e a ausência é decisão:** ao contrário do campo de solução aplicada,
-          aqui o sucesso **se vê** — a mensagem aparece na lista logo acima e o campo esvazia. Uma frase
-          dizendo "mensagem enviada" ao lado da própria mensagem é ruído. É a pergunta Q-6 ao hub. */}
-      {/* **Continua contorno**, porque o guia §2 é explícito: *"toda outra ação fica em contorno sobre
-          fundo neutro"*, e a ação na cor da marca desta tela é o comando do momento. **O que muda é a
-          distância entre os dois estados:** com `disabled:opacity-50` do catálogo sobre um contorno
-          neutro, habilitado e desabilitado liam quase igual — é o *"Enviar é cinza e lê como
-          desativado"* do critério 44d.4. O habilitado ganha peso e borda de tinta; o desabilitado perde
-          a borda além da opacidade. */}
-      <Button
-        type="button"
-        variant="outline"
-        className={`h-11 w-auto self-start ${
-          podeEnviar ? "border-tinta-suave font-medium" : "border-linha-suave"
-        }`}
-        disabled={!podeEnviar}
-        onClick={() => void enviar()}
-      >
-        {enviando ? "Enviando…" : "Enviar"}
-      </Button>
+          <IndicadorDeEnvio ativo={enviando} />
+          {enviando ? "Enviando…" : "Enviar"}
+        </Button>
+      </RodapeDoFormulario>
     </section>
   );
 }

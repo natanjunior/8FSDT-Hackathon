@@ -1,89 +1,88 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { CONTORNO_DE_ACAO } from "@/interface/componentes/botao-de-icone";
+import { Campo, ErroDoFormulario, GrupoDeEscolha, RodapeDaPagina } from "@/interface/componentes/campo";
+import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
+import { CampoDeUnidade, OpcoesDePapel, idDaOpcaoDePapel } from "@/interface/componentes/escolhas-do-vinculo";
 import {
-  SubFormularioDeContatos,
+  FALHA,
+  FRASES_DO_FORMULARIO,
+  TEXTOS_DO_FORMULARIO,
+  avisoDeCadastrado,
+  avisoDeSalvo,
+  rotuloDoPapel,
+  type Papel,
+} from "@/interface/componentes/frases-de-participantes";
+import { BotaoDeConfirmar } from "@/interface/componentes/modal";
+import { TETO_DO_NOME } from "@/interface/componentes/regras-do-nome";
+import {
+  campoDoContato,
+  contatoEmLeitura,
   contatoVindoDaApi,
-  indicesDuplicados,
-  listaMudou,
-  paraCorpo,
+  corpoDaCorrecao,
+  corpoDoCadastro,
+  edicaoMudou,
+  errosDoFormularioDeVinculo,
+  errosDoServidorNoFormulario,
+  idDoContato,
+  type ContatoDaApi,
   type ContatoEmEdicao,
-} from "@/interface/componentes/sub-formulario-de-contatos";
-import { Button } from "@/interface/componentes/ui/button";
+} from "@/interface/componentes/regras-do-vinculo";
+import {
+  MENSAGEM_GENERICA,
+  avisarConclusao,
+  avisarErro,
+  mensagemDoProblema,
+} from "@/interface/componentes/retorno-de-acao";
+import { SubFormularioDeContatos } from "@/interface/componentes/sub-formulario-de-contatos";
+import { buttonVariants } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
+import { cn } from "@/interface/componentes/utilitarios";
+import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
- * **T-08 · cadastrar pessoa sem conta, e corrigir os dados de um vínculo.**
+ * ============================================================================
+ *  T-08 · cadastrar pessoa sem conta, e editar participante — item 44j
+ * ============================================================================
+ *
+ * **Página própria, pela exceção do guia §7**, declarada em 16/09/2026: o sub-formulário de contatos é
+ * repetível e reordenável, e a página de edição é a que um dia serviria a uma página de detalhes da
+ * pessoa. O rodapé é o mesmo do modal, preso ao fim da área de conteúdo, e é a única saída além do
+ * caminho no topo.
  *
  * **Este formulário não está sob o RNF6.** É trabalho de escritório, feito sentado, uma vez — o orçamento
  * de 60 segundos é de T-04. Aqui a completude vale mais que a velocidade.
  *
- * **A escolha de papel é a do PA-25, sem exceção:** nada pré-selecionado, botão indisponível até a
- * escolha, `Encarregado` por último depois de uma régua, e a consequência escrita onde a escolha é feita.
- * *Não existe papel que se obtém por não escolher* — que é exatamente o mecanismo do erro de clique.
+ * **O papel não aparece na edição**, e isso não é omissão: `PATCH /vinculos/{pessoaId}` não o aceita, e o
+ * único conserto de papel errado é remover o vínculo e refazer o pedido. **Quem tem conta lê nome e
+ * contatos e edita só a unidade**: os dois primeiros são globais, e o Gestor desta organização não os
+ * altera nas outras. A tela não explica o que não oferece (guia §7, *Texto de tela*).
  *
- * **O papel não aparece no modo de correção**, e isso não é omissão: `PATCH /vinculos/{pessoaId}` não o
- * aceita, e o único conserto de papel errado é remover o vínculo e refazer o pedido (item 10).
+ * **A sequência é a do guia, adaptada à página** (critério 10): durante o envio o principal mostra o
+ * indicador e os controles ficam inertes; no sucesso sai o aviso e a página vai para a lista; no erro sai
+ * o aviso, a mensagem aparece no fim do formulário — ou embaixo do campo, quando o servidor disse qual — e
+ * o formulário fica como estava.
  *
- * **`contatos[]` chegou no item 9b**, e a escrita é **substituição**: a lista enviada troca a anterior
- * inteira. Na correção, ela só é enviada quando mudou de verdade — omitir é o *"não mexe em nada"* do
- * contrato §8.2, e é o que preserva o `criadoEm` de cada contato quando o Gestor corrige só a unidade.
+ * **O cliente valida com o mesmo schema da rota** (`regras-do-vinculo.ts`), e o botão principal nunca
+ * fica desabilitado por campo inválido.
  */
 
-type Area = { id: string; nome: string };
-
 type Modo =
-  | { tipo: "cadastro" }
+  | { readonly tipo: "cadastro" }
   | {
-      tipo: "correcao";
-      pessoaId: string;
-      nome: string;
-      temConta: boolean;
-      areaIdAtual: string | null;
-      contatosAtuais: ReadonlyArray<{
-        id: string;
-        tipo: string;
-        valor: string;
-        finalidade: string;
-        temWhatsapp: boolean;
-        observacao: string | null;
-      }>;
+      readonly tipo: "correcao";
+      readonly pessoaId: string;
+      readonly nome: string;
+      readonly papel: string;
+      readonly temConta: boolean;
+      readonly areaIdAtual: string | null;
+      readonly contatosAtuais: readonly ContatoDaApi[];
     };
-
-const PAPEIS: ReadonlyArray<{ papel: string; rotulo: string; texto: string; alerta?: string }> = [
-  {
-    papel: "solicitante",
-    rotulo: "Solicitante",
-    texto: "Registra e acompanha as próprias ocorrências.",
-  },
-  {
-    papel: "gestor",
-    rotulo: "Gestor",
-    texto:
-      "Analisa, atribui, resolve e cancela qualquer ocorrência. Configura a organização e aprova quem entra.",
-  },
-  {
-    papel: "encarregado",
-    rotulo: "Encarregado",
-    texto: "Aparece como responsável pela ocorrência.",
-    alerta: "Nesta versão, não consegue fazer nada dentro do sistema.",
-  },
-];
-
-const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
-  AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
-  PESSOA_COM_CONTA_NAO_EDITAVEL:
-    "Esta pessoa tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela.",
-  VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais nesta organização.",
-  CAMPO_NAO_SUPORTADO: "Um dos campos enviados não é aceito por esta operação.",
-  FORMATO_INVALIDO: "Confira os campos indicados.",
-  CONTATO_DUPLICADO: "Este contato já está na lista. Confira os contatos marcados.",
-};
-
-const MENSAGEM_GENERICA = "Não foi possível salvar agora. Tente de novo.";
 
 export function FormularioDeVinculo({
   modo,
@@ -91,228 +90,301 @@ export function FormularioDeVinculo({
   organizacaoId,
 }: {
   modo: Modo;
-  areas: readonly Area[];
-  /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
+  areas: ReadonlyArray<{ id: string; nome: string }>;
+  /** A organização com que a página renderizou — a afirmação do contrato §4.3. */
   organizacaoId: string;
 }) {
   const router = useRouter();
-  const [nome, setNome] = useState(modo.tipo === "correcao" ? modo.nome : "");
-  const [papel, setPapel] = useState<string | null>(null);
-  const [areaId, setAreaId] = useState<string>(
-    modo.tipo === "correcao" ? (modo.areaIdAtual ?? "") : "",
-  );
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const prefixo = useId();
 
-  // `originais` é recalculado a cada renderização de propósito — é só a lista de referência para o
-  // `listaMudou`, e as props desta tela não mudam sem remontar a página.
+  const cadastro = modo.tipo === "cadastro";
+  const editaNomeEContatos = modo.tipo === "cadastro" || !modo.temConta;
+  const nomeOriginal = modo.tipo === "correcao" ? modo.nome : "";
+  const areaOriginal = modo.tipo === "correcao" ? modo.areaIdAtual : null;
+  // Recalculado a cada renderização de propósito: é só a lista de referência da comparação, e as
+  // propriedades desta tela não mudam sem remontar a página.
   const originais = modo.tipo === "correcao" ? modo.contatosAtuais.map(contatoVindoDaApi) : [];
+
+  const [nome, setNome] = useState(nomeOriginal);
+  const [papel, setPapel] = useState<Papel | null>(null);
+  const [areaId, setAreaId] = useState<string | null>(areaOriginal);
   const [contatos, setContatos] = useState<readonly ContatoEmEdicao[]>(originais);
-  const [abertoNoCelular, setAbertoNoCelular] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [errosDoServidor, setErrosDoServidor] = useState<ErrosDeCampo>({});
+  const [avisoDoServidor, setAvisoDoServidor] = useState<string | null>(null);
+  const [tentouSemMudanca, setTentouSemMudanca] = useState(false);
 
-  const corpoDosContatos = paraCorpo(contatos);
-  const contatosValem = corpoDosContatos !== null && indicesDuplicados(contatos).size === 0;
+  const idDoNome = `${prefixo}-nome`;
+  const idDoPapel = `${prefixo}-papel`;
 
-  // No cadastro, o botão nasce indisponível — é a decisão 1 do PA-25. Na correção não há papel a
-  // escolher, e travar o botão seria travar por nada. Em qualquer dos dois, contato malformado ou
-  // repetido segura o envio: o erro já está no campo, e mandar produziria um `400`/`409` que a tela sabe
-  // evitar.
-  const podeSalvar =
-    contatosValem && (modo.tipo === "cadastro" ? papel !== null && nome.trim() !== "" : true);
-
-  async function salvar() {
-    setEnviando(true);
-    setErro(null);
-
-    const alvo = modo.tipo === "cadastro" ? "/api/vinculos" : `/api/vinculos/${modo.pessoaId}`;
-
-    // Quem tem conta nunca manda contatos: eles são globais, como o nome, e a tela os mostra em leitura.
-    // Ele cai no mesmo caminho de quem não mexeu na lista — sem caso especial (decisão 2.4).
-    const mandaContatos =
-      modo.tipo === "cadastro" || (!modo.temConta && listaMudou(contatos, originais));
-
-    const corpo =
-      modo.tipo === "cadastro"
-        ? {
-            nome: nome.trim(),
-            papel,
-            areaId: areaId === "" ? null : areaId,
-            contatos: corpoDosContatos,
-          }
-        : {
-            // Quem tem conta não tem o nome enviado: a tela mostra o campo como leitura, e mandá-lo
-            // produziria o `409` que a tela existe para não provocar.
-            ...(modo.temConta ? {} : { nome: nome.trim() }),
-            areaId: areaId === "" ? null : areaId,
-            // **Omitir e `[]` são coisas diferentes** (contrato §8.2): a chave só entra quando a lista
-            // mudou de verdade. Sem isto, corrigir a unidade apagaria e reinseriria todo contato da
-            // pessoa, trocando o `id` e o `criadoEm` de cada um.
-            ...(mandaContatos ? { contatos: corpoDosContatos } : {}),
-          };
-
-    try {
-      const resposta = await fetch(alvo, {
-        method: modo.tipo === "cadastro" ? "POST" : "PATCH",
-        headers: cabecalhosDeEscrita(organizacaoId),
-        body: JSON.stringify(corpo),
-      });
-
-      if (!resposta.ok) {
-        const problema = (await resposta.json().catch(() => ({}))) as {
-          codigo?: string;
-          detail?: string;
-        };
-        // **O `detail` antes do genérico** (item 7b): o texto que nós escrevemos ganha, porque é
-        // redigido para a tela; o do servidor entra quando não temos texto próprio (contrato §6.1).
-        // Sem esta linha, o `409 ORGANIZACAO_DIVERGENTE` — alcançável desde o critério 7b.6 — vira
-        // *"Não foi possível salvar agora"*, que é a única frase que **não** diz o que aconteceu.
-        setErro(TEXTO_DA_RECUSA[problema.codigo ?? ""] ?? problema.detail ?? MENSAGEM_GENERICA);
-        setEnviando(false);
-        return;
-      }
-
-      const parametros =
-        modo.tipo === "cadastro"
-          ? `cadastrado=${encodeURIComponent(nome.trim())}&papel=${encodeURIComponent(papel ?? "")}`
-          : `corrigido=${encodeURIComponent(modo.temConta ? modo.nome : nome.trim())}`;
-
-      router.replace(`/vinculos?${parametros}`);
-      router.refresh();
-    } catch {
-      // `fetch` rejeitou antes de haver resposta — a rede caiu. Sem este `catch` a rejeição sobe pela
-      // fronteira do React e a pessoa vê a tela de erro do framework no lugar de uma frase.
-      setErro(MENSAGEM_GENERICA);
-      setEnviando(false);
+  // A ordem das chaves é a do documento: é ela que decide para onde o foco vai no envio com problema.
+  const campos: Record<string, string> = {};
+  if (editaNomeEContatos) campos["nome"] = idDoNome;
+  if (cadastro) campos["papel"] = idDaOpcaoDePapel(idDoPapel, "solicitante");
+  if (editaNomeEContatos) {
+    for (const contato of contatos) {
+      campos[campoDoContato(contato.chave)] = idDoContato(prefixo, contato.chave, "valor");
     }
   }
 
-  return (
-    <form
-      className="flex flex-col gap-5"
-      onSubmit={(evento) => {
-        evento.preventDefault();
-        if (podeSalvar && !enviando) void salvar();
-      }}
+  const erros = errosDoFormularioDeVinculo({
+    modo: modo.tipo,
+    editaNomeEContatos,
+    nome,
+    papel,
+    contatos,
+  });
+  const formulario = useFormularioTocado({ campos, erros });
+
+  const mudou =
+    cadastro ||
+    edicaoMudou({ editaNomeEContatos, nomeOriginal, nome, areaOriginal, areaId, originais, contatos });
+  const mensagem = tentouSemMudanca && !mudou ? TEXTOS_DO_FORMULARIO.semMudanca : avisoDoServidor;
+  const obrigatorios = (editaNomeEContatos ? 1 + contatos.length : 0) + (cadastro ? 1 : 0);
+
+  async function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (enviando || !formulario.tentarEnviar()) return;
+    if (!mudou) {
+      setTentouSemMudanca(true);
+      return;
+    }
+
+    const corpo =
+      modo.tipo === "cadastro"
+        ? papel === null
+          ? null
+          : corpoDoCadastro({ nome, papel, areaId, contatos })
+        : corpoDaCorrecao({ editaNomeEContatos, nome, areaId, contatos, originais });
+    // O formulário tocado já acendeu o problema que impediu o corpo de ficar pronto.
+    if (corpo === null) return;
+
+    const falha = cadastro ? FALHA.cadastrar : FALHA.salvar;
+    setEnviando(true);
+    setAvisoDoServidor(null);
+    setErrosDoServidor({});
+    setTentouSemMudanca(false);
+
+    try {
+      const resposta = await fetch(
+        modo.tipo === "cadastro" ? "/api/vinculos" : `/api/vinculos/${modo.pessoaId}`,
+        {
+          method: modo.tipo === "cadastro" ? "POST" : "PATCH",
+          headers: cabecalhosDeEscrita(organizacaoId),
+          body: JSON.stringify(corpo),
+        },
+      );
+      const problema: unknown = await resposta.json().catch(() => null);
+
+      if (resposta.ok) {
+        const nomeDoAviso = editaNomeEContatos ? nome.trim() : nomeOriginal;
+        avisarConclusao(
+          modo.tipo === "cadastro" && papel !== null
+            ? avisoDeCadastrado(nomeDoAviso, papel)
+            : avisoDeSalvo(nomeDoAviso),
+        );
+        // `replace`: voltar pelo navegador não reencontra o formulário já enviado.
+        router.replace("/vinculos");
+        router.refresh();
+        return;
+      }
+
+      // **A resposta recomeça o formulário** (a regra do 44g): sem isto, o erro que o servidor pôs num
+      // campo que a pessoa já tinha mexido ficaria escondido.
+      formulario.recomecar();
+      setErrosDoServidor(errosDoServidorNoFormulario(problema, contatos));
+      setAvisoDoServidor(mensagemDoProblema(problema, FRASES_DO_FORMULARIO));
+      avisarErro(falha);
+    } catch {
+      // `fetch` rejeitou antes de haver resposta — a rede caiu. Sem este `catch` a rejeição sobe pela
+      // fronteira do React e a pessoa vê a tela de erro do framework no lugar de uma frase.
+      setAvisoDoServidor(MENSAGEM_GENERICA);
+      avisarErro(falha);
+    }
+    setEnviando(false);
+  }
+
+  const campoDoNome = (
+    <Campo
+      id={idDoNome}
+      rotulo={TEXTOS_DO_FORMULARIO.nome}
+      obrigatorio
+      ajuda={TEXTOS_DO_FORMULARIO.ajudaDoNome}
+      erro={formulario.erroDe("nome", errosDoServidor)}
+      contador={{ usados: nome.length, maximo: TETO_DO_NOME }}
     >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="nome" className="text-tinta text-sm font-medium">
-          Nome
-        </label>
-        {modo.tipo === "correcao" && modo.temConta ? (
-          <>
-            <p id="nome" className="text-tinta text-sm">
-              {modo.nome}
-            </p>
-            <p className="text-tinta-suave text-sm leading-relaxed">
-              {modo.nome} tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta
-              vale em todas as organizações dela.
-            </p>
-          </>
-        ) : (
-          <>
-            <Input
-              id="nome"
-              name="nome"
-              maxLength={120}
-              value={nome}
-              onChange={(evento) => setNome(evento.target.value)}
-            />
-            <p className="text-tinta-suave text-sm leading-relaxed">
-              Até 120 caracteres. O nome vai para a trilha de auditoria a cada transição que esta pessoa
-              autorar, e a trilha é imutável — o que estiver escrito aqui fica lá para sempre. Não escreva
-              a unidade no nome: ela tem campo próprio abaixo.
-            </p>
-          </>
-        )}
-      </div>
+      {(controle) => (
+        <Input
+          {...controle}
+          value={nome}
+          maxLength={TETO_DO_NOME}
+          autoComplete="off"
+          disabled={enviando}
+          onChange={(evento) => {
+            setNome(evento.target.value);
+            formulario.mudou("nome");
+          }}
+          className="border-linha bg-background h-11"
+        />
+      )}
+    </Campo>
+  );
 
-      {modo.tipo === "cadastro" && (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-tinta text-sm font-medium">
-            Qual papel esta pessoa vai ter nesta organização?
-          </legend>
-          {PAPEIS.map((opcao, indice) => (
-            <label
-              key={opcao.papel}
-              className={`border-linha flex min-h-11 gap-3 rounded-md border px-3 py-2.5 ${
-                indice === 2 ? "mt-2 border-t-2" : ""
-              }`}
+  const campoDaUnidade = (
+    <CampoDeUnidade
+      id={`${prefixo}-unidade`}
+      valor={areaId}
+      areas={areas}
+      inerte={enviando}
+      aoMudar={setAreaId}
+    />
+  );
+
+  return (
+    <form noValidate onSubmit={(evento) => void enviar(evento)} className="flex flex-col gap-5.5">
+      <Cartao tituloId={`${prefixo}-pessoa`}>
+        <CabecaDoCartao id={`${prefixo}-pessoa`} titulo={TEXTOS_DO_FORMULARIO.cartaoPessoa} />
+        {modo.tipo === "cadastro" ? (
+          <div className="flex flex-col gap-4.5 p-[15px] md:p-[18px]">
+            <div className="grid gap-4.5 lg:grid-cols-2">
+              {campoDoNome}
+              {campoDaUnidade}
+            </div>
+            <GrupoDeEscolha
+              id={`${idDoPapel}-grupo`}
+              legenda={TEXTOS_DO_FORMULARIO.papel}
+              obrigatorio
+              erro={formulario.erroDe("papel")}
             >
-              <input
-                type="radio"
-                name="papel"
-                value={opcao.papel}
-                checked={papel === opcao.papel}
-                onChange={() => setPapel(opcao.papel)}
-                className="mt-1 h-4 w-4 shrink-0"
+              <OpcoesDePapel
+                id={idDoPapel}
+                rotulo={TEXTOS_DO_FORMULARIO.papel}
+                valor={papel}
+                inerte={enviando}
+                emColunas
+                aoMudar={(escolhido) => {
+                  setPapel(escolhido);
+                  formulario.mudou("papel");
+                }}
               />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-tinta text-sm font-medium">{opcao.rotulo}</span>
-                <span className="text-tinta-suave text-sm">{opcao.texto}</span>
-                {opcao.alerta !== undefined && (
-                  <strong className="text-tinta text-sm font-semibold">{opcao.alerta}</strong>
-                )}
-              </span>
-            </label>
-          ))}
-        </fieldset>
-      )}
+            </GrupoDeEscolha>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3">
+            <div className="p-[15px] md:p-[18px]">
+              {modo.temConta ? <Leitura rotulo={TEXTOS_DO_FORMULARIO.nome} valor={modo.nome} /> : campoDoNome}
+            </div>
+            <div className="border-linha-suave border-t p-[15px] md:p-[18px] lg:border-t-0 lg:border-l">
+              <Leitura rotulo={TEXTOS_DO_FORMULARIO.papel} valor={rotuloDoPapel(modo.papel)} />
+            </div>
+            <div className="border-linha-suave border-t p-[15px] md:p-[18px] lg:border-t-0 lg:border-l">
+              {campoDaUnidade}
+            </div>
+          </div>
+        )}
+      </Cartao>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="areaId" className="text-tinta text-sm font-medium">
-          Unidade (opcional)
-        </label>
-        <select
-          id="areaId"
-          name="areaId"
-          value={areaId}
-          onChange={(evento) => setAreaId(evento.target.value)}
-          className="border-input text-tinta h-11 rounded-md border bg-transparent px-3 text-sm"
+      <Cartao tituloId={`${prefixo}-contatos`}>
+        <CabecaDoCartao
+          id={`${prefixo}-contatos`}
+          titulo={TEXTOS_DO_FORMULARIO.cartaoContatos}
+          apoio={editaNomeEContatos ? <ApoioDaOrdem /> : undefined}
+        />
+        {editaNomeEContatos ? (
+          <SubFormularioDeContatos
+            prefixo={prefixo}
+            contatos={contatos}
+            inerte={enviando}
+            aoMudar={setContatos}
+            aoMudarValor={(chave) => {
+              formulario.mudou(campoDoContato(chave));
+            }}
+            erroDoValor={(chave) => formulario.erroDe(campoDoContato(chave), errosDoServidor)}
+          />
+        ) : (
+          <ContatosEmLeitura contatos={modo.tipo === "correcao" ? modo.contatosAtuais : []} />
+        )}
+      </Cartao>
+
+      {mensagem !== null && <ErroDoFormulario>{mensagem}</ErroDoFormulario>}
+
+      <RodapeDaPagina obrigatorios={obrigatorios}>
+        <Link
+          href="/vinculos"
+          aria-disabled={enviando || undefined}
+          tabIndex={enviando ? -1 : undefined}
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            CONTORNO_DE_ACAO,
+            "text-interface text-tinta min-h-11 rounded-sm px-4",
+            enviando && "pointer-events-none opacity-50",
+          )}
         >
-          <option value="">Sem unidade</option>
-          {areas.map((area) => (
-            <option key={area.id} value={area.id}>
-              {area.nome}
-            </option>
-          ))}
-        </select>
-        <p className="text-tinta-suave text-sm leading-relaxed">
-          A unidade desta pessoa nesta organização — o apartamento 302, a sala 14. Deixe em{" "}
-          <em>Sem unidade</em> para Gestor e para Encarregado de terceirizada, que não têm uma. A unidade
-          é do vínculo, não da pessoa: a mesma pessoa mora num lugar e trabalha em outro.
-        </p>
-      </div>
-
-      <SubFormularioDeContatos
-        contatos={contatos}
-        aoMudar={setContatos}
-        aberto={abertoNoCelular}
-        aoAbrir={setAbertoNoCelular}
-        somenteLeitura={modo.tipo === "correcao" && modo.temConta}
-      />
-
-      {erro !== null && (
-        <p role="alert" className="text-tinta text-sm">
-          {erro}
-        </p>
-      )}
-
-      <div className="flex items-center gap-4">
-        <Button type="submit" disabled={!podeSalvar || enviando} className="w-auto px-6">
-          {modo.tipo === "cadastro" ? "Cadastrar" : "Salvar"}
-        </Button>
-        {modo.tipo === "cadastro" && papel === null && (
-          <span className="text-tinta-suave text-sm">indisponível até escolher um papel</span>
-        )}
-        {!contatosValem && (
-          <span className="text-tinta-suave text-sm">
-            indisponível até os contatos ficarem completos e sem repetição
-          </span>
-        )}
-        <a href="/vinculos" className="text-marca ml-auto text-sm underline underline-offset-4">
-          Cancelar
-        </a>
-      </div>
+          {TEXTOS_DO_FORMULARIO.cancelar}
+        </Link>
+        <BotaoDeConfirmar
+          enviando={enviando}
+          rotulo={cadastro ? TEXTOS_DO_FORMULARIO.cadastrar : TEXTOS_DO_FORMULARIO.salvar}
+          rotuloEnviando={cadastro ? TEXTOS_DO_FORMULARIO.cadastrando : TEXTOS_DO_FORMULARIO.salvando}
+        />
+      </RodapeDaPagina>
     </form>
+  );
+}
+
+/** Onde não se arrasta, a frase não promete arrastar. */
+function ApoioDaOrdem() {
+  return (
+    <>
+      <span className="hidden [@media(hover:hover)_and_(pointer:fine)]:inline">
+        {TEXTOS_DO_FORMULARIO.apoioComAlca}
+      </span>
+      <span className="[@media(hover:hover)_and_(pointer:fine)]:hidden">
+        {TEXTOS_DO_FORMULARIO.apoioSemAlca}
+      </span>
+    </>
+  );
+}
+
+function Leitura({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <dl className="flex flex-col gap-1.5">
+      <dt className="text-rotulo-coluna text-tinta-fraca font-mono font-medium tracking-[0.11em] uppercase">
+        {rotulo}
+      </dt>
+      <dd className="text-titulo-linha text-tinta font-medium">{valor}</dd>
+    </dl>
+  );
+}
+
+/** Os contatos de quem tem conta, em leitura (decisão 2.4 do item 9b). */
+function ContatosEmLeitura({ contatos }: { contatos: readonly ContatoDaApi[] }) {
+  if (contatos.length === 0) {
+    return (
+      <p className="text-interface text-tinta-suave px-[15px] py-3.5 md:px-[18px]">
+        {TEXTOS_DO_FORMULARIO.semContatos}
+      </p>
+    );
+  }
+
+  return (
+    <dl>
+      {contatos.map((contato, indice) => {
+        const leitura = contatoEmLeitura(contato);
+        return (
+          <div
+            key={contato.id}
+            className="border-linha-suave grid grid-cols-[28px_1fr] items-center gap-x-3 gap-y-0.5 border-b px-[15px] py-3 last:border-b-0 md:grid-cols-[28px_1fr_160px_160px] md:px-[18px]"
+          >
+            <dt className="text-interface text-tinta-suave font-mono tabular-nums">{indice + 1}</dt>
+            <dd className="text-interface text-tinta">{leitura.valor}</dd>
+            <dd className="text-meta text-tinta-suave col-start-2 md:col-start-auto">{leitura.finalidade}</dd>
+            <dd className="text-meta text-tinta-suave col-start-2 md:col-start-auto">
+              {leitura.whatsapp ?? ""}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }

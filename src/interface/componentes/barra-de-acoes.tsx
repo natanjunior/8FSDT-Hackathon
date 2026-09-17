@@ -4,7 +4,13 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Fragment, useState } from "react";
 
+import { ErroDoFormulario, IndicadorDeEnvio } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import {
+  avisarErro,
+  avisarSucesso,
+  type TextosDoRetorno,
+} from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   DropdownMenu,
@@ -25,6 +31,9 @@ import {
  * modal, e os outros oito comandos precisam de modal, seletor ou campo. Em vez de a barra ganhar **um `if`
  * por comando** — oito ramos até o item 27 —, ela recebe, por comando, **ou o nó pronto ou nada**. Quem
  * monta o nó é a **página**, que é quem tem os candidatos e quem sabe qual ação é a primeira.
+ *
+ * **O botão nu responde com aviso** (guia §7, item 44g): sucesso e falha saem pelo `retorno-de-acao`, e a
+ * frase do `409` continua dentro da barra, agora com o desenho único de erro (`ErroDoFormulario`).
  *
  * **Nenhum tipo do Domínio entra aqui.** `comando` é `string`, o rótulo chega pronto, o nó chega pronto e
  * o mapa de status chega pronto.
@@ -93,7 +102,12 @@ import {
  *
  * **Alvo de toque ≥ 44 px** (`h-12`) e **rótulo em palavra** — A-3 e A-5.
  */
-export type AcaoDisponivel = { comando: string; rotulo: string };
+export type AcaoDisponivel = {
+  comando: string;
+  rotulo: string;
+  /** Os títulos do aviso, prontos (`retornoDoComando`). `null` não dá aviso de sucesso. */
+  retorno: TextosDoRetorno | null;
+};
 
 export function BarraDeAcoes({
   ocorrenciaId,
@@ -138,7 +152,7 @@ export function BarraDeAcoes({
    */
   if (acoes.length === 0 && aviso === null) return null;
 
-  async function disparar(comando: string) {
+  async function disparar(acao: AcaoDisponivel) {
     setEnviando(true);
     setAviso(null);
 
@@ -146,12 +160,18 @@ export function BarraDeAcoes({
     // `corpoOpcional` do servidor existe para o cliente que NÃO é esta tela.
     const resultado = await executarComando(
       ocorrenciaId,
-      comando,
+      acao.comando,
       {},
       rotulosDeStatus,
       organizacaoId,
     );
-    if (!resultado.ok) setAviso(resultado.aviso);
+
+    if (resultado.ok) {
+      if (acao.retorno !== null) avisarSucesso(acao.retorno.sucesso);
+    } else {
+      setAviso(resultado.aviso);
+      if (acao.retorno !== null) avisarErro(acao.retorno.falha);
+    }
     setEnviando(false);
 
     /**
@@ -174,14 +194,7 @@ export function BarraDeAcoes({
        *ver a trilha de auditoria* — é o defeito V-1, e é a metade de dentro do critério 44d.1. */
     <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 lg:max-w-none">
-        {aviso !== null && (
-          <p
-            role="alert"
-            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-corpo"
-          >
-            {aviso}
-          </p>
-        )}
+        {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
         {acoes.length > 0 && (
           /* **Empilhados na coluna, lado a lado no celular.** A conta de largura que decidiu o menu é
              a do celular, e ela não se refaz aqui: a partir de `lg` os mesmos botões e o mesmo menu
@@ -209,9 +222,10 @@ export function BarraDeAcoes({
                     type="button"
                     variant={ehPrimario ? "marca" : "outline"}
                     disabled={enviando}
-                    onClick={() => void disparar(acao.comando)}
+                    onClick={() => void disparar(acao)}
                     className={`h-12 text-base lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
                   >
+                    <IndicadorDeEnvio ativo={enviando} />
                     {enviando ? "Enviando…" : acao.rotulo}
                   </Button>
                 );

@@ -220,13 +220,12 @@ export function nomeDoMotivoCancelamento(motivo: MotivoCancelamento): string {
 /**
  * A descrição da opção **Duplicada**, e ela é a única que tem uma.
  *
- * **Transcrição literal do protótipo** (`telas.html:2502-2503`), e é o texto que impede o defeito de
- * expectativa: quem escolhe *Duplicada* espera que o produto ligue as duas ocorrências, e o vínculo é
- * **evolução prevista** — é o mesmo campo que o `422 CAMPO_NAO_SUPORTADO` do critério 18.5 recusa em voz
- * alta do lado do servidor. Aqui a tela diz antes, para ninguém chegar lá.
+ * **Ela diz o que fazer:** a outra ocorrência vai na observação, porque o formulário não tem campo para
+ * ela. Até o item 44g a frase explicava também que o vínculo entre as duas não existe; a regra de texto de
+ * tela do guia §7 recusa frase que explica o que o produto não faz. O `422 CAMPO_NAO_SUPORTADO` do critério
+ * 18.5 continua recusando o vínculo do lado do servidor.
  */
-const DESCRICAO_DE_DUPLICADA =
-  "Diga na observação qual é a outra ocorrência: o vínculo entre as duas ainda não existe nesta entrega.";
+const DESCRICAO_DE_DUPLICADA = "Diga na observação qual é a outra ocorrência.";
 
 /**
  * Os pares **prontos e já filtrados por permissão**, para descer por prop até o modal de cancelamento.

@@ -718,39 +718,86 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
   });
 
   /**
-   * **A guarda contra deriva (spec §3.5), e ela é um teste porque o risco é envelhecer em silêncio.**
+   * **Quem só reclassificou uma Área tem rastro — item 50, migração `011`.**
    *
-   * Uma tabela nova com chave estrangeira para `vinculos` — revogação, notificação, leitura — não entraria
-   * na consulta de `impedimentosDeRemocao`, e a tela passaria a mostrar um botão que leva a `409`. **Botão
-   * que promete e falha é pior que a razão no lugar dele.**
-   *
-   * `pg_constraint` e não `information_schema`: a pergunta é *"quem aponta para `vinculos`"*, e
-   * `confrelid` a responde em uma linha, sem os três `join` que o `information_schema` exige.
-   *
-   * **`autorizacoes_de_upload` NÃO está na lista, e é o falso positivo que este caso precisa não pegar:**
-   * ela tem `pessoa_id`, mas a FK aponta para `pessoas (id)` — não bloqueia remoção de vínculo nenhum.
+   * `areas.tipo_alterado_por_pessoa_id` é a décima quarta coluna que aponta para `vinculos`, e a chave é
+   * `on delete restrict` não diferida. Sem ela na consulta, T-08 mostraria *remover* e o `DELETE`
+   * responderia `409`, que é a deriva que a guarda logo abaixo existe para pegar.
    */
-  it("as tabelas que apontam para vinculos são exatamente as nove que a consulta cobre", async () => {
-    const COBERTAS = [
-      "anexos",
-      "areas",
-      "atribuicoes",
-      "categorias",
-      "mensagens",
-      "ocorrencias",
-      "organizacoes",
-      "pedidos_de_entrada",
-      "registros_transicao",
-    ];
+  it("quem só reclassificou uma área recebe historico, e o DELETE concorda", async () => {
+    const criado = await repositorio().cadastrar({
+      nome: "Encarregado Que Reclassificou",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error("cadastro falhou");
+    const pessoaId = criado.vinculo.pessoa.pessoaId;
 
-    const linhas = await consulta<{ tabela: string }>(
-      `select distinct c.conrelid::regclass::text as tabela
-         from pg_constraint c
-        where c.contype = 'f'
-          and c.confrelid = 'public.vinculos'::regclass
-        order by 1`,
+    await consulta(
+      `update areas
+          set tipo_alterado_em = now(), tipo_alterado_por_pessoa_id = $2
+        where organizacao_id = $1 and id = $3`,
+      [idOrganizacao, pessoaId, AREA_INATIVA],
     );
 
-    expect(linhas.map((l) => l.tabela)).toStrictEqual(COBERTAS);
+    const mapa = await repositorio().impedimentosDeRemocao();
+    expect(mapa.get(pessoaId)).toBe("historico");
+
+    // O esquema concorda com a consulta: a chave nova recusa no próprio `delete`.
+    const removido = await repositorio().remover(pessoaId);
+    expect(removido.desfecho).toBe("com-historico");
+  });
+
+  /**
+   * **A guarda contra deriva (spec §3.5 do item 10), e ela é um teste porque o risco é envelhecer em
+   * silêncio.**
+   *
+   * Uma coluna nova com chave estrangeira para `vinculos` não entraria na consulta de
+   * `impedimentosDeRemocao`, e a tela passaria a mostrar um botão que leva a `409`. **Botão que promete e
+   * falha é pior que a razão no lugar dele.**
+   *
+   * **Por coluna desde o item 50.** Até ali a guarda comparava tabelas, e uma coluna nova numa tabela já
+   * coberta passava calada: `areas.tipo_alterado_por_pessoa_id` é esse caso. A consulta pega, de cada
+   * chave, a coluna local que casa com `vinculos.pessoa_id`, e não a de organização.
+   *
+   * `pg_constraint` e não `information_schema`: `confrelid` responde *"quem aponta para `vinculos`"* sem
+   * três `join`. **`autorizacoes_de_upload` NÃO está na lista**: a chave dela aponta para `pessoas (id)`,
+   * e não bloqueia remoção de vínculo nenhum.
+   *
+   * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
+   * de outro jeito, e o teste passaria a depender dela.
+   */
+  it("as colunas que apontam para vinculos são exatamente as catorze que a consulta cobre, em nove tabelas", async () => {
+    const COBERTAS = [
+      "anexos.anexado_por_pessoa_id",
+      "areas.atualizado_por_pessoa_id",
+      "areas.criado_por_pessoa_id",
+      "areas.tipo_alterado_por_pessoa_id",
+      "atribuicoes.atribuido_por_pessoa_id",
+      "atribuicoes.responsavel_pessoa_id",
+      "categorias.atualizado_por_pessoa_id",
+      "categorias.criado_por_pessoa_id",
+      "mensagens.autor_pessoa_id",
+      "ocorrencias.autor_pessoa_id",
+      "organizacoes.atualizado_por_pessoa_id",
+      "organizacoes.criada_por_pessoa_id",
+      "pedidos_de_entrada.decidido_por_pessoa_id",
+      "registros_transicao.autor_pessoa_id",
+    ];
+
+    const linhas = await consulta<{ par: string }>(
+      `select c.conrelid::regclass::text || '.' || a.attname::text as par
+         from pg_constraint c
+         cross join lateral unnest(c.conkey, c.confkey) as k(local, alvo)
+         join pg_attribute a on a.attrelid = c.conrelid  and a.attnum = k.local
+         join pg_attribute r on r.attrelid = c.confrelid and r.attnum = k.alvo
+        where c.contype = 'f'
+          and c.confrelid = 'public.vinculos'::regclass
+          and r.attname = 'pessoa_id'`,
+    );
+
+    expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(9);
   });
 });

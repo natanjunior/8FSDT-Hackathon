@@ -1,9 +1,13 @@
 "use client";
 
+import { CircleAlertIcon, ImagePlus, RefreshCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
+import { BotaoDeIcone } from "@/interface/componentes/botao-de-icone";
+import { FOTO, FRASES_DO_SERVIDOR, ROTULOS } from "@/interface/componentes/registro-de-ocorrencia";
 import { Button } from "@/interface/componentes/ui/button";
+import { TooltipProvider } from "@/interface/componentes/ui/tooltip";
 
 import {
   ImagemGrandeDemais,
@@ -36,12 +40,13 @@ import {
  */
 
 /**
- * **Não há campo de progresso, e é decisão declarada.** O protótipo (§7.1) lista um `Progress` para o
- * upload, e ele não é entregável nesta fatia por duas razões independentes: `fetch` **não emite evento de
- * progresso de envio** — quem emite é `XMLHttpRequest`, e trocar o transporte é escopo que ninguém pediu —,
- * e `ui/progress.tsx` não existe no repositório. Guardar um `progresso: number` que nada renderiza seria
- * sobra — estado sem leitor. **O que o compromisso A-5 exige é a palavra, e ela está lá:** *"Enviando a
- * foto — você pode continuar escrevendo."* Está na §9 como achado.
+ * **A barra existe, e é indeterminada.** O protótipo (§7.1) lista um `Progress` para o envio; ele não
+ * entra, e por duas razões independentes: `fetch` **não emite evento de progresso de envio** — quem emite
+ * é `XMLHttpRequest`, e trocar o transporte é escopo que ninguém pediu na tela cronometrada —, e
+ * `progress` não está na lista do guia §7, então pôr um primitivo novo para desenhar duas divisões seria
+ * pacote por enfeite. O que entra é uma faixa que diz *"está acontecendo"*, não *"falta tanto"*: peça
+ * local, `aria-hidden`, parada sob movimento reduzido. **O que o compromisso A-5 exige é a palavra, e ela
+ * está lá** — *"Enviando a foto"* mais *"Você pode continuar escrevendo."*
  */
 type Situacao =
   | { nome: "vazio" }
@@ -114,10 +119,7 @@ export function ControleDeFoto({
     // O teto do seletor é do RNF8, e a recusa acontece **antes de decodificar**: um arquivo de 40 MB não
     // precisa virar bitmap para se saber que não serve.
     if (arquivo.size > LIMITE_DO_SELETOR_EM_BYTES) {
-      setSituacao({
-        nome: "erro",
-        mensagem: "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
-      });
+      setSituacao({ nome: "erro", mensagem: FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE! });
       aoMudar({ nome: "falhou" });
       return;
     }
@@ -136,10 +138,10 @@ export function ControleDeFoto({
         nome: "erro",
         mensagem:
           erro instanceof ImagemIlegivel
-            ? "Não foi possível ler esta imagem. Escolha outra foto."
+            ? FOTO.ilegivel
             : erro instanceof ImagemGrandeDemais
-              ? "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."
-              : "Não foi possível preparar esta foto. Escolha outra.",
+              ? FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE!
+              : FOTO.naoPreparou,
       });
       aoMudar({ nome: "falhou" });
       return;
@@ -164,13 +166,12 @@ export function ControleDeFoto({
         nome: "erro",
         mensagem:
           problema.codigo === "LIMITE_DE_AUTORIZACOES_DE_UPLOAD"
-            ? "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra."
+            ? FRASES_DO_SERVIDOR.LIMITE_DE_AUTORIZACOES_DE_UPLOAD!
             : // **O `detail` antes do genérico** (item 7b): esta linha chamava *qualquer* erro
               // inesperado de *"a foto ficou grande demais"*, e desde o critério 7b.6 há um erro que
               // ela alcança e que não tem nada a ver com tamanho — o `409 ORGANIZACAO_DIVERGENTE` da
               // aba esquecida.
-              (problema.detail ??
-                "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe."),
+              (problema.detail ?? FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE!),
       });
       aoMudar({ nome: "falhou" });
       return;
@@ -214,7 +215,7 @@ export function ControleDeFoto({
     setSituacao(
       pronta !== null
         ? { nome: "pronta", previa }
-        : { nome: "erro", mensagem: "A foto não subiu. Toque para tentar de novo." },
+        : { nome: "erro", mensagem: FOTO.naoSubiu },
     );
     aoMudar(pronta !== null ? { nome: "pronta", referencia } : { nome: "falhou" });
   }
@@ -228,12 +229,30 @@ export function ControleDeFoto({
     if (entrada.current !== null) entrada.current.value = "";
   }
 
+  const subindo = situacao.nome === "comprimindo" || situacao.nome === "enviando";
+  const previa = "previa" in situacao ? situacao.previa : null;
+
+  const palavra =
+    situacao.nome === "comprimindo"
+      ? { titulo: FOTO.preparando, apoio: FOTO.subindoApoio }
+      : situacao.nome === "enviando"
+        ? { titulo: FOTO.subindoTitulo, apoio: FOTO.subindoApoio }
+        : situacao.nome === "pronta"
+          ? { titulo: FOTO.prontaTitulo, apoio: FOTO.prontaApoio }
+          : situacao.nome === "erro"
+            ? { titulo: situacao.mensagem, apoio: "" }
+            : null;
+
   return (
-    <div className="space-y-2">
-      <label htmlFor="foto" className="block text-sm font-medium">
-        Foto <span className="text-muted-foreground">(opcional)</span>
+    <div className="flex flex-col gap-2">
+      {/* O rótulo continua ligado ao controle por `htmlFor` (compromisso A-1), e fica oculto: o alvo
+          grande já diz "Adicionar foto" em palavra, e dois rótulos seriam a mesma frase duas vezes. */}
+      <label htmlFor="foto" className="sr-only">
+        {ROTULOS.foto}
       </label>
 
+      {/* **A entrada de arquivo continua crua**, porque o catálogo não tem peça para ela — e o critério
+          G7 do guia não conta entrada. */}
       <input
         ref={entrada}
         id="foto"
@@ -246,59 +265,90 @@ export function ControleDeFoto({
         }}
       />
 
-      {"previa" in situacao ? (
-        /*
-          **`div` com `background-image`, e não `<img>`.** `@next/next/no-img-element` dispara sobre a
-          tag, e desativá-lo gastaria o **primeiro `eslint-disable` do repositório** — que o DoD lista
-          como um dos quatro instrumentos que substituem o revisor humano. `next/image` também não
-          serve: a fonte é uma `blob:` local, sem otimização a fazer e sem dimensão conhecida.
-
-          **A acessibilidade não é perdida no caminho:** `role="img"` + `aria-label` dão ao leitor de
-          tela exatamente o que o `alt` daria.
-        */
-        <div
-          role="img"
-          aria-label="A foto escolhida"
-          className="bg-superficie h-48 w-full rounded-md bg-contain bg-left bg-no-repeat"
-          style={{ backgroundImage: `url(${situacao.previa})` }}
-        />
-      ) : null}
-
-      <div className="flex items-center gap-3">
+      {previa === null && situacao.nome !== "erro" ? (
+        /* **O alvo grande, e ele é o `Button` do catálogo** (critério 6). A altura é própria: é o
+           primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira. */
         <Button
           type="button"
           variant="outline"
-          className="min-h-11"
           onClick={() => entrada.current?.click()}
+          className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7"
         >
-          {situacao.nome === "vazio" ? "Adicionar foto" : "Trocar a foto"}
+          <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-lg border">
+            <ImagePlus aria-hidden="true" className="size-5" />
+          </span>
+          <span className="text-interface text-tinta font-medium">{FOTO.vazioTitulo}</span>
+          <span className="text-meta text-tinta-suave font-normal">{FOTO.vazioApoio}</span>
         </Button>
+      ) : (
+        <div className="border-linha bg-superficie flex items-center gap-3 rounded-lg border p-2.5">
+          {previa !== null && (
+            /*
+              **Uma divisão com `background-image`, e não a tag de imagem.** `@next/next/no-img-element`
+              dispara sobre a tag, e desativá-lo gastaria o **primeiro `eslint-disable` do repositório** —
+              que o DoD lista como um dos quatro instrumentos que substituem o revisor humano.
+              `next/image` também não serve: a fonte é uma `blob:` local, sem otimização a fazer e sem
+              dimensão conhecida.
 
-        {situacao.nome !== "vazio" ? (
-          <Button type="button" variant="ghost" className="min-h-11" onClick={limpar}>
-            Remover
-          </Button>
-        ) : null}
-      </div>
-
-      {/* **A palavra, sempre** — compromisso A-5. Barra sem texto é defeito. */}
-      <p role="status" className="text-muted-foreground text-sm">
-        {situacao.nome === "comprimindo"
-          ? "Preparando a foto…"
-          : situacao.nome === "enviando"
-            ? "Enviando a foto — você pode continuar escrevendo."
-            : situacao.nome === "pronta"
-              ? "Foto enviada."
-              : situacao.nome === "erro"
-                ? situacao.mensagem
-                : ""}
-      </p>
+              **A acessibilidade não é perdida no caminho:** `role="img"` + `aria-label` dão ao leitor de
+              tela exatamente o que o `alt` daria.
+            */
+            <div
+              role="img"
+              aria-label="A foto escolhida"
+              className="bg-background size-14 shrink-0 rounded-md bg-cover bg-center"
+              style={{ backgroundImage: `url(${previa})` }}
+            />
+          )}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            {/* **A palavra, sempre** — compromisso A-5. Barra sem texto é defeito. */}
+            <p role="status" className="text-interface text-tinta font-medium">
+              {palavra?.titulo ?? ""}
+            </p>
+            {subindo ? (
+              /* **A barra é indeterminada, e isso é decisão declarada.** Ela é `aria-hidden`: quem
+                 carrega o estado para o leitor de tela é a frase acima. **Não anima sob movimento
+                 reduzido** (guia §6), e nesse caso fica uma faixa parada. */
+              <div aria-hidden="true" className="bg-linha-suave h-1 w-full overflow-hidden rounded-full">
+                <div className="bg-marca h-full w-2/5 rounded-full motion-safe:animate-pulse" />
+              </div>
+            ) : null}
+            {palavra !== null && palavra.apoio !== "" && (
+              <p className="text-meta text-tinta-suave">{palavra.apoio}</p>
+            )}
+          </div>
+          {/* **Trocar e remover são botões só com ícone** — a regra de *Ações de linha* do guia §7.
+              **O `TooltipProvider` é obrigatório aqui, e é a diferença entre T-04 e as telas da casca.**
+              O `BotaoDeIcone` monta uma dica do Radix, e o Radix **lança** *"`Tooltip` must be used
+              within `TooltipProvider`"* quando não há provedor acima — o contexto dele não tem valor
+              padrão. Nas telas do 44j e do 44k o provedor vem de graça, dentro do `SidebarProvider` de
+              `app/(casca)/layout.tsx`; T-04 mora na moldura focada, que não tem barra lateral e por isso
+              não tem provedor nenhum. Ele fica aqui, e não no layout `(foco)`, porque é este arquivo que
+              traz a dependência: o dia em que a foto deixar de usar botão de ícone, o provedor sai com
+              ela. */}
+          <TooltipProvider>
+            <span className="flex shrink-0 items-center gap-1.5">
+              <BotaoDeIcone
+                rotulo={FOTO.trocar}
+                icone={<RefreshCw aria-hidden="true" />}
+                onClick={() => entrada.current?.click()}
+              />
+              <BotaoDeIcone
+                rotulo={FOTO.remover}
+                icone={<Trash2 aria-hidden="true" />}
+                onClick={limpar}
+              />
+            </span>
+          </TooltipProvider>
+        </div>
+      )}
 
       {erro !== undefined && (
         /* **A-5: texto, nunca só cor.** E fica logo abaixo do campo, porque com o teclado aberto sobra
            metade da tela e o campo, o rótulo e o erro têm de caber juntos acima dele (achado P-02). */
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-          {erro}
+        <p role="alert" className="text-destructive text-meta flex items-center gap-1.5 font-medium">
+          <CircleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
+          <span>{erro}</span>
         </p>
       )}
     </div>

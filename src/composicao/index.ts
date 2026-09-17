@@ -87,8 +87,14 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
-    categorias: repositorioEscopadoDeCategorias(consulta),
-    areas: repositorioEscopadoDeAreas(consulta),
+    // Recebem as **duas** formas de acesso desde o item 50: a consulta para a leitura e para as escritas de
+    // uma instrução só, e a transação escopada para a reordenação, que trava a lista, confere o conjunto,
+    // grava e relê num `COMMIT` só. As duas passam pelo mesmo `$1`.
+    categorias: repositorioEscopadoDeCategorias(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    areas: repositorioEscopadoDeAreas(consulta, escoparTransacao(criarTransacao(), organizacaoId)),
     // **Só a consulta, e a ausência da transação é o desenho:** a correção do nome é uma instrução só, e
     // uma porta que recebesse `escoparTransacao` daria a ela atomicidade que ninguém pediu.
     organizacao: repositorioEscopadoDaOrganizacao(consulta),

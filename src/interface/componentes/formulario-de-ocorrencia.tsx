@@ -1,13 +1,76 @@
 "use client";
 
+import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
-import { ControleDeFoto, type EstadoDoAnexo } from "./controle-de-foto";
-import { IconeDeCategoria } from "./icone-de-categoria";
-import { Campo } from "./moldura-de-tela";
+import { gravarAreaUsada } from "@/interface/componentes/areas-usadas";
+import {
+  Campo,
+  ErroDoFormulario,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
+import { ControleDeFoto, type EstadoDoAnexo } from "@/interface/componentes/controle-de-foto";
+import { IconeDeCategoria } from "@/interface/componentes/icone-de-categoria";
+import {
+  AJUDA_DA_DESCRICAO,
+  BLOCOS,
+  CAMPOS_DO_REGISTRO,
+  CANCELAR,
+  CODIGOS_DE_ESCOLHA,
+  CODIGOS_DO_ANEXO,
+  DESCARTE,
+  errosDoRegistro,
+  EXEMPLOS,
+  FRASES_DO_SERVIDOR,
+  JA_REGISTRADA,
+  REGISTRANDO,
+  REGISTRAR,
+  ROTULOS,
+  SEM_REDE,
+  temAlgoEscrito,
+  TETO_DA_REFERENCIA,
+  TETO_DA_DESCRICAO,
+  TETO_DO_TITULO,
+  TEXTOS_DO_REGISTRO,
+  VALORES_VAZIOS,
+  type ValoresDoRegistro,
+} from "@/interface/componentes/registro-de-ocorrencia";
+import { avisarErro, avisarSucesso, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { SeletorDeArea, type AreaEscolhivel } from "@/interface/componentes/seletor-de-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/interface/componentes/ui/alert-dialog";
+import { Button, buttonVariants } from "@/interface/componentes/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
+import { Input } from "@/interface/componentes/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/interface/componentes/ui/select";
+import { Textarea } from "@/interface/componentes/ui/textarea";
+import { cn } from "@/interface/componentes/utilitarios";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -31,61 +94,118 @@ import { Campo } from "./moldura-de-tela";
  * **Localização** como *"uma referência a uma Área mais um complemento em texto livre"*. Um conceito, um
  * bloco, um rótulo.
  *
- * **A descrição abre com duas linhas.** Ela aceita 5000 caracteres, e um campo alto **pede** um
- * parágrafo. É a única alavanca de desenho sobre o passo mais caro do orçamento — e ela é fraca.
+ * **O formulário é controlado nos cinco campos** (item 44l). Ele era lido por `FormData` no envio, e a
+ * troca tem causa: **categoria e área deixaram de ser controles nativos**, e o `FormData` não os lê. Com
+ * os cinco no estado, os erros saem de uma função pura com teste — `errosDoRegistro` —, e é também o que
+ * o contador de caracteres do título e da referência pede. **O custo, declarado:** cada tecla repinta o
+ * formulário. É o padrão que os modais dos itens 44i e 44j já usam com contador, o formulário tem cinco
+ * campos, e nada abaixo dele é caro de repintar.
  *
- * **O botão fica no fim do conteúdo, não fixo no rodapé.** Fixo, o teclado o cobre — e o teclado está
- * aberto durante a maior parte do registro.
+ * **Os blocos não usam o `Cartao` do item 44i**, e a razão está no comentário do `Bloco`, abaixo.
+ *
+ * **O rodapé fica no fim do conteúdo, não preso.** Preso, o teclado o cobre — e o teclado está aberto
+ * durante a maior parte do registro. **Esta é a exceção que o guia §7 registra por escrito** para T-04 no
+ * celular.
  *
  * **Acessibilidade:** `Campo` exige `htmlFor` (A-1); os controles têm `min-h-11` ≈ 44 px (A-3); o erro é
- * texto com `role="alert"`, nunca cor sozinha (A-5).
+ * texto, nunca cor sozinha (A-5).
  */
 
-/** Os textos são os que o `inventario-de-telas.md` §10 fixou. Nenhum foi inventado aqui. */
-const ERRO_DO_ANEXO: Readonly<Record<string, string>> = {
-  ANEXO_NAO_RECONHECIDO:
-    "A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui.",
-  ANEXO_ACIMA_DO_LIMITE:
-    "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
-};
-
 type CategoriaEscolhivel = { id: string; nome: string; icone: string };
-type AreaEscolhivel = { id: string; nome: string; tipo: "comum" | "privativa" };
+
+/**
+ * **Um bloco de T-04, e por que ele não é o `Cartao` do item 44i.** O `Cartao` é uma seção com as classes
+ * de cartão fixas; o que esta tela precisa é de um cartão que **se dissolve** a partir de `lg` — a
+ * prancheta do celular desenha duas seções separadas, e a da tela grande desenha **um** cartão com os
+ * dois títulos e uma régua entre eles. Envolver o `Cartao` numa classe que desfaz a borda dele seria
+ * escrever a exceção duas vezes.
+ *
+ * **O que não se perde:** cada bloco continua sendo uma seção com `aria-labelledby` apontando para o
+ * próprio título, nas duas larguras, então quem navega por regiões encontra *O que aconteceu* e *Onde* do
+ * mesmo jeito.
+ */
+function Bloco({
+  id,
+  titulo,
+  reguaEmCima = false,
+  children,
+}: {
+  readonly id: string;
+  readonly titulo: string;
+  readonly reguaEmCima?: boolean;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section
+      aria-labelledby={id}
+      className={cn(
+        "border-linha bg-superficie rounded-lg border p-4 shadow-sm",
+        "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
+        reguaEmCima && "lg:border-linha-suave lg:border-t lg:pt-5",
+      )}
+    >
+      <h2 id={id} className="text-titulo-bloco text-tinta mb-4 leading-snug font-semibold">
+        {titulo}
+      </h2>
+      <div className="flex flex-col gap-4.5">{children}</div>
+    </section>
+  );
+}
 
 export function FormularioDeOcorrencia({
   categorias,
   areas,
   organizacaoId,
+  painel,
 }: {
   categorias: readonly CategoriaEscolhivel[];
   areas: readonly AreaEscolhivel[];
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /** O painel *Depois de registrar*, montado no servidor. Ele some nos dois estados terminais. */
+  painel: ReactNode;
 }) {
   const router = useRouter();
+  const [valores, setValores] = useState<ValoresDoRegistro>(VALORES_VAZIOS);
   const [enviando, setEnviando] = useState(false);
-  const [erros, setErros] = useState<Record<string, string>>({});
+  const [errosDoServidor, setErrosDoServidor] = useState<Record<string, string | undefined>>({});
   const [falha, setFalha] = useState<string | null>(null);
-  /** A categoria escolhida — so para o icone ao lado do seletor (criterio 11.6). */
-  const [escolhida, setEscolhida] = useState("");
+  const [erroDaFoto, setErroDaFoto] = useState<string | undefined>(undefined);
   const [anexo, setAnexo] = useState<EstadoDoAnexo>({ nome: "vazio" });
   /** Trocar a chave **remonta** o controle: é como ele volta a *vazio* sem um método imperativo. */
   const [chaveDoControle, setChaveDoControle] = useState(0);
   /** O `409`: a ocorrência que **já** tem esta foto. Presente, ele substitui o formulário inteiro. */
   const [jaRegistrada, setJaRegistrada] = useState<string | null>(null);
+  const [perguntandoDescarte, setPerguntandoDescarte] = useState(false);
+
+  const erros = errosDoRegistro(valores);
+
+  /**
+   * **`modo: "campo"` — a exceção de T-04, decidida em 17/09/2026 e escrita no guia §7.** O erro de um
+   * campo aparece quando a pessoa **sai dele** ou quando **tenta registrar**, e não na primeira interação
+   * com o formulário. Com a regra geral, digitar o título deixaria descrição, categoria e área vermelhas
+   * antes de a pessoa chegar nelas — numa tela cronometrada, é alarme no meio do caminho. O resto do
+   * produto continua no modo `formulario`.
+   */
+  const formulario = useFormularioTocado({ campos: CAMPOS_DO_REGISTRO, modo: "campo", erros });
+
+  function mudar(campo: keyof ValoresDoRegistro, valor: string) {
+    setValores((anteriores) => ({ ...anteriores, [campo]: valor }));
+    formulario.mudou(campo);
+  }
 
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    setEnviando(true);
-    setErros({});
-    setFalha(null);
+    if (!formulario.tentarEnviar(erros)) return;
 
-    const dados = new FormData(evento.currentTarget);
-    const complemento = String(dados.get("localizacaoComplemento") ?? "").trim();
+    setEnviando(true);
+    setErrosDoServidor({});
+    setFalha(null);
+    setErroDaFoto(undefined);
 
     /**
-     * **O envio espera o `PUT`.** Com o upload em voo, aguarda a promessa; pronto, usa a referência;
-     * vazio ou falhou, manda sem anexo — que é desfecho legítimo.
+     * **O envio espera o `PUT`.** Com o envio em voo, aguarda a promessa; pronto, usa a referência;
+     * vazio ou falhou, manda sem anexo — que é desfecho legítimo. **É o DG-5, e não muda aqui.**
      */
     const referencia =
       anexo.nome === "pronta"
@@ -94,15 +214,17 @@ export function FormularioDeOcorrencia({
           ? await anexo.conclusao
           : null;
 
+    const complemento = valores.localizacaoComplemento.trim();
+
     try {
       const resposta = await fetch("/api/ocorrencias", {
         method: "POST",
         headers: cabecalhosDeEscrita(organizacaoId),
         body: JSON.stringify({
-          titulo: String(dados.get("titulo") ?? ""),
-          descricao: String(dados.get("descricao") ?? ""),
-          categoriaId: String(dados.get("categoriaId") ?? ""),
-          areaId: String(dados.get("areaId") ?? ""),
+          titulo: valores.titulo,
+          descricao: valores.descricao,
+          categoriaId: valores.categoriaId,
+          areaId: valores.areaId,
           localizacaoComplemento: complemento === "" ? null : complemento,
           anexos: referencia === null ? null : [referencia],
         }),
@@ -110,12 +232,15 @@ export function FormularioDeOcorrencia({
 
       if (resposta.status === 201) {
         const criada = (await resposta.json()) as { id: string };
+        gravarAreaUsada(organizacaoId, valores.areaId);
         /**
-         * **Depois do `201`: T-05 da ocorrência criada, nunca de volta ao formulário** (critério 11.5).
-         * É onde o primeiro registro da trilha está visível — e é a prova, para quem acabou de reclamar,
-         * de que o pedido existe. `replace` e não `push`: o botão "voltar" do navegador não deve
-         * reabrir um formulário já enviado.
+         * **O aviso sobrevive à navegação, e é por isso que pode sair antes do `replace`:** o `Toaster`
+         * mora no layout raiz, a navegação é do cliente, e o layout não remonta (ADR-0011).
+         *
+         * **T-05 da ocorrência criada, nunca de volta ao formulário** (critério 11.5), e `replace` e não
+         * `push`: o botão "voltar" do navegador não deve reabrir um formulário já enviado.
          */
+        avisarSucesso(TEXTOS_DO_REGISTRO.sucesso);
         router.replace(`/ocorrencias/${criada.id}`);
         return;
       }
@@ -130,226 +255,337 @@ export function FormularioDeOcorrencia({
       /**
        * **O `409` substitui o formulário, e o critério 13b.3 é explícito sobre por quê:** ele diz que a
        * tela *"não oferece tentar de novo nem escolher outra foto"* — e um formulário que continua na
-       * tela oferece as duas por construção, porque o botão está lá. Bloco terminal é a forma que torna o
-       * critério verdadeiro em vez de prometido.
-       *
-       * **Mostrar, e não navegar sozinho.** O quadro da S-T7 do inventário diz *"navega para a
-       * ocorrência"*; a tabela de erros do mesmo documento e o critério pedem o texto **mais** o botão.
-       * Seguimos o critério — navegar sozinho faria o texto recém-escrito desaparecer sem explicação, num
-       * caminho que a pessoa já vive como falha de rede. *(Achado A-2 da spec.)*
+       * tela oferece as duas por construção, porque o botão está lá.
        */
       if (problema.codigo === "ANEXO_JA_REIVINDICADO" && typeof problema.ocorrenciaId === "string") {
         setJaRegistrada(problema.ocorrenciaId);
         return;
       }
 
+      const mensagem = mensagemDoProblema(problema, FRASES_DO_SERVIDOR);
+      avisarErro(TEXTOS_DO_REGISTRO.falha);
+
       /**
        * Os dois `422` do anexo são **erro de campo**, e o campo é a foto. O controle volta a *vazio* pela
-       * remontagem por `key`, e a pessoa escolhe outra foto **sem perder uma palavra do que escreveu** —
-       * que é a meia frase que o inventário chama de *"o conteúdo"*.
-       *
-       * *(A `blob:` da prévia descartada só é liberada quando a aba fecha: o controle revoga ao trocar e
-       * ao remover, não no `unmount`. Um objeto por `422`, e é achado do relatório, não desta linha.)*
+       * remontagem por `key`, e a pessoa escolhe outra foto **sem perder uma palavra do que escreveu**.
        */
-      if (problema.codigo !== undefined && problema.codigo in ERRO_DO_ANEXO) {
-        setErros({ foto: ERRO_DO_ANEXO[problema.codigo]! });
+      if (problema.codigo !== undefined && CODIGOS_DO_ANEXO.includes(problema.codigo)) {
+        setErroDaFoto(mensagem);
         setAnexo({ nome: "vazio" });
         setChaveDoControle((numero) => numero + 1);
         return;
       }
 
+      /**
+       * **`CATEGORIA_INVALIDA` e `AREA_INVALIDA` recarregam a lista**, que é o que o
+       * `inventario-de-telas.md` §7 manda desde agosto e nunca foi construído: *"Escolha outra."* **mais**
+       * a lista recarregada, mantendo o resto do formulário. A página é `force-dynamic`, o `refresh`
+       * repinta só os componentes de servidor, e o estado do formulário sobrevive.
+       */
+      const campoDaEscolha =
+        problema.codigo === undefined ? undefined : CODIGOS_DE_ESCOLHA[problema.codigo];
+      if (campoDaEscolha !== undefined) {
+        setValores((anteriores) => ({ ...anteriores, [campoDaEscolha]: "" }));
+        setErrosDoServidor({ [campoDaEscolha]: mensagem });
+        router.refresh();
+        return;
+      }
+
       if (problema.erros !== undefined && problema.erros.length > 0) {
-        setErros(
+        setErrosDoServidor(
           Object.fromEntries(
             problema.erros.map((erro) => [erro.campo, erro.mensagem ?? "Confira este campo."]),
           ),
         );
+        return;
       }
-      // O erro do campo vai **imediatamente abaixo dele** (achado P-02: com o teclado aberto sobra
-      // metade da tela, e o campo em foco, o rótulo e o erro têm de caber juntos acima do teclado).
-      // O que não é de campo vira a faixa acima do botão.
-      if (problema.erros === undefined || problema.erros.length === 0) {
-        setFalha(problema.detail ?? "Não foi possível registrar agora. Tente de novo.");
-      }
+
+      setFalha(mensagem);
     } catch {
       // `fetch` rejeitou antes de haver resposta — a rede caiu.
-      setFalha("Sem conexão. O que você escreveu continua aqui; tente de novo quando a rede voltar.");
+      avisarErro(TEXTOS_DO_REGISTRO.falha);
+      setFalha(SEM_REDE);
     } finally {
       setEnviando(false);
     }
   }
 
+  function cancelar() {
+    if (temAlgoEscrito(valores, anexo.nome !== "vazio" && anexo.nome !== "falhou")) {
+      setPerguntandoDescarte(true);
+      return;
+    }
+    router.push("/ocorrencias");
+  }
+
   if (jaRegistrada !== null) {
     return (
-      <section
-        role="alert"
-        className="border-linha bg-superficie flex flex-col gap-3 rounded-md border px-4 py-4"
-      >
-        <p className="text-tinta text-base leading-snug">
-          Esta ocorrência já foi registrada — a foto que você anexou já está nela.
-        </p>
-        <Link
-          href={`/ocorrencias/${jaRegistrada}`}
-          className="bg-marca inline-flex min-h-11 items-center justify-center rounded-md px-4 text-base font-semibold text-white"
-        >
-          Ver a ocorrência
-        </Link>
-      </section>
+      <div className="border-linha bg-superficie rounded-lg border shadow-sm">
+        <Empty className="px-6 py-14 md:px-6 md:py-14">
+          <EmptyHeader>
+            <EmptyMedia
+              variant="icon"
+              className="border-linha bg-background text-tinta-suave mb-3 size-13 rounded-lg border"
+            >
+              <CircleCheck aria-hidden="true" className="size-5.5" />
+            </EmptyMedia>
+            <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+              {JA_REGISTRADA.titulo}
+            </EmptyTitle>
+            <EmptyDescription className="text-corpo text-tinta-suave">
+              {JA_REGISTRADA.corpo}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              href={`/ocorrencias/${jaRegistrada}`}
+              className={cn(
+                buttonVariants({ variant: "marca" }),
+                "text-interface min-h-11 rounded-sm px-4",
+              )}
+            >
+              {JA_REGISTRADA.acao}
+            </Link>
+          </EmptyContent>
+        </Empty>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-5" noValidate>
-      {/* **A foto é o primeiro alvo da tela** — protótipo §2.3 e desenho D-1. O item 11 deixou este
-          lugar reservado de propósito, e o 13a o preenche sem reordenar mais nada. */}
-      <ControleDeFoto
-        key={chaveDoControle}
-        aoMudar={setAnexo}
-        erro={erros.foto}
-        organizacaoId={organizacaoId}
-      />
-
-      <Campo id="titulo" rotulo="Título" erro={erros.titulo}>
-        <input
-          id="titulo"
-          name="titulo"
-          type="text"
-          maxLength={150}
-          required
-          autoComplete="off"
-          className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 text-base"
-        />
-      </Campo>
-
-      <Campo
-        id="descricao"
-        rotulo="Descrição"
-        ajuda="Uma ou duas frases bastam."
-        erro={erros.descricao}
+    <div className="lg:grid lg:grid-cols-[minmax(0,700px)_340px] lg:items-start lg:gap-6">
+      <form
+        onSubmit={enviar}
+        noValidate
+        className={cn(
+          "flex flex-col gap-4",
+          "lg:border-linha lg:bg-superficie lg:gap-0 lg:rounded-lg lg:border lg:p-6 lg:shadow-sm",
+        )}
       >
-        <textarea
-          id="descricao"
-          name="descricao"
-          rows={2}
-          maxLength={5000}
-          required
-          className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 py-2 text-base"
-        />
-      </Campo>
+        <Bloco id="bloco-o-que" titulo={BLOCOS.oQue}>
+          {/* **A foto é o primeiro alvo da tela** — protótipo §2.3 e desenho D-1. O envio corre em
+              paralelo enquanto a pessoa digita, e é isso que tira 400 KB da conta do RNF6. */}
+          <ControleDeFoto
+            key={chaveDoControle}
+            aoMudar={setAnexo}
+            erro={erroDaFoto}
+            organizacaoId={organizacaoId}
+          />
 
-      <Campo id="categoriaId" rotulo="Categoria" erro={erros.categoriaId}>
-        {/*
-          **O ícone ao lado do nome, nunca no lugar dele** — critério 11.6 e compromisso A-5. O `select`
-          nativo não renderiza componente dentro de `option`, então o ícone da categoria escolhida
-          aparece **ao lado do seletor**, e a lista mantém o nome, que é o dado.
-        */}
-        <div className="flex items-center gap-2">
-          <select
+          <Campo
+            id="titulo"
+            rotulo={ROTULOS.titulo}
+            obrigatorio
+            contador={{ usados: valores.titulo.length, maximo: TETO_DO_TITULO }}
+            erro={formulario.erroDe("titulo", errosDoServidor)}
+          >
+            {(controle) => (
+              <Input
+                {...controle}
+                value={valores.titulo}
+                maxLength={TETO_DO_TITULO}
+                placeholder={EXEMPLOS.titulo}
+                autoComplete="off"
+                disabled={enviando}
+                onChange={(evento) => {
+                  mudar("titulo", evento.target.value);
+                }}
+                onBlur={() => {
+                  formulario.saiu("titulo");
+                }}
+                className="border-linha bg-background min-h-11"
+              />
+            )}
+          </Campo>
+
+          <Campo
+            id="descricao"
+            rotulo={ROTULOS.descricao}
+            obrigatorio
+            ajuda={AJUDA_DA_DESCRICAO}
+            erro={formulario.erroDe("descricao", errosDoServidor)}
+          >
+            {(controle) => (
+              <Textarea
+                {...controle}
+                value={valores.descricao}
+                rows={2}
+                maxLength={TETO_DA_DESCRICAO}
+                disabled={enviando}
+                onChange={(evento) => {
+                  mudar("descricao", evento.target.value);
+                }}
+                onBlur={() => {
+                  formulario.saiu("descricao");
+                }}
+                className="border-linha bg-background min-h-20"
+              />
+            )}
+          </Campo>
+
+          <Campo
             id="categoriaId"
-            name="categoriaId"
-            required
-            defaultValue=""
-            onChange={(evento) => setEscolhida(evento.target.value)}
-            className="border-linha bg-superficie text-tinta min-h-11 flex-1 rounded-md border px-3 text-base"
+            rotulo={ROTULOS.categoria}
+            obrigatorio
+            erro={formulario.erroDe("categoriaId", errosDoServidor)}
           >
-            <option value="" disabled>
-              Escolha
-            </option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-          <IconeDeCategoria
-            nome={categorias.find((c) => c.id === escolhida)?.icone ?? "tag"}
-            className="text-tinta-suave size-5 shrink-0"
-          />
+            {(controle) => (
+              <Select
+                value={valores.categoriaId}
+                disabled={enviando}
+                onValueChange={(escolhida) => {
+                  mudar("categoriaId", escolhida);
+                }}
+              >
+                <SelectTrigger
+                  {...controle}
+                  onBlur={() => {
+                    formulario.saiu("categoriaId");
+                  }}
+                  className="border-linha bg-background text-interface min-h-11 w-full"
+                >
+                  <SelectValue placeholder="Escolha" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* **O ícone vai DENTRO de cada opção, ao lado do nome** (critério 5) — o que o
+                      seletor nativo nunca permitiu. O `SelectValue` reimprime o conteúdo do item
+                      escolhido, então o gatilho mostra ícone e nome sem código a mais, e o ícone solto
+                      que vivia ao lado do seletor some. O ícone acompanha a palavra, nunca a substitui
+                      (critério 4b.4). */}
+                  {categorias.map((categoria) => (
+                    <SelectItem key={categoria.id} value={categoria.id}>
+                      <IconeDeCategoria nome={categoria.icone} className="text-tinta-suave size-4" />
+                      {categoria.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Campo>
+        </Bloco>
+
+        {/* **O bloco "Onde"** — Localização é *"uma referência a uma Área mais um complemento em texto
+            livre"* (glossário, D10). Um conceito, um bloco, um rótulo. */}
+        <Bloco id="bloco-onde" titulo={BLOCOS.onde} reguaEmCima>
+          <div className="flex flex-col gap-4.5 lg:grid lg:grid-cols-2 lg:gap-4">
+            <Campo
+              id="areaId"
+              rotulo={ROTULOS.area}
+              obrigatorio
+              erro={formulario.erroDe("areaId", errosDoServidor)}
+            >
+              {(controle) => (
+                <SeletorDeArea
+                  controle={controle}
+                  areas={areas}
+                  valor={valores.areaId}
+                  organizacaoId={organizacaoId}
+                  inerte={enviando}
+                  aoEscolher={(areaId) => {
+                    mudar("areaId", areaId);
+                  }}
+                  aoSair={() => {
+                    formulario.saiu("areaId");
+                  }}
+                />
+              )}
+            </Campo>
+
+            <Campo
+              id="localizacaoComplemento"
+              rotulo={ROTULOS.referencia}
+              contador={{
+                usados: valores.localizacaoComplemento.length,
+                maximo: TETO_DA_REFERENCIA,
+              }}
+              erro={formulario.erroDe("localizacaoComplemento", errosDoServidor)}
+            >
+              {(controle) => (
+                <Input
+                  {...controle}
+                  value={valores.localizacaoComplemento}
+                  maxLength={TETO_DA_REFERENCIA}
+                  placeholder={EXEMPLOS.referencia}
+                  autoComplete="off"
+                  disabled={enviando}
+                  onChange={(evento) => {
+                    mudar("localizacaoComplemento", evento.target.value);
+                  }}
+                  onBlur={() => {
+                    formulario.saiu("localizacaoComplemento");
+                  }}
+                  className="border-linha bg-background min-h-11"
+                />
+              )}
+            </Campo>
+          </div>
+        </Bloco>
+
+        {falha !== null && <ErroDoFormulario>{falha}</ErroDoFormulario>}
+
+        {/* **O rodapé fica no FIM do conteúdo, e não preso** — decisão 5 do D-1 do protótipo, e a exceção
+            que o guia §7 registra por escrito: preso, o teclado o cobriria, e o teclado está aberto
+            durante quase todo o registro. A partir de `lg` ele ganha a régua e o respiro do cartão,
+            porque ali ele é o rodapé do cartão. */}
+        <div className="lg:border-linha-suave mt-2 lg:mt-5 lg:border-t lg:pt-4">
+          <RodapeDoFormulario obrigatorios={4}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={enviando}
+              onClick={cancelar}
+              className="border-linha text-tinta text-interface min-h-11 px-4"
+            >
+              {CANCELAR}
+            </Button>
+            <Button
+              type="submit"
+              variant="marca"
+              disabled={enviando}
+              className="text-interface min-h-11 px-4"
+            >
+              <IndicadorDeEnvio ativo={enviando} />
+              {enviando ? REGISTRANDO : REGISTRAR}
+            </Button>
+          </RodapeDoFormulario>
         </div>
-      </Campo>
+      </form>
 
-      {/*
-        **O bloco "Onde"** — Localização é *"uma referência a uma Área mais um complemento em texto
-        livre"* (glossário, D10). Eram um conceito desenhado como dois campos soltos.
-      */}
-      <fieldset className="border-linha flex flex-col gap-4 rounded-md border px-3 py-3">
-        <legend className="text-tinta px-1 text-sm font-medium">Onde</legend>
+      {/* **O painel não carrega nada que falte no celular.** Lá, o mesmo caminho aparece em T-05, que é
+          para onde a pessoa vai depois do registro. */}
+      <div className="hidden lg:block">{painel}</div>
 
-        <Campo id="areaId" rotulo="Área" erro={erros.areaId}>
-          <select
-            id="areaId"
-            name="areaId"
-            required
-            defaultValue=""
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 text-base"
-          >
-            <option value="" disabled>
-              Escolha
-            </option>
-            {/*
-              **Só as ativas, na ordem de `ordem`** (critério 12.4) — a ordem vem do servidor e a tela
-              não reordena. **O `tipo` aparece na linha do item** porque é o dado que decide a
-              visibilidade da ocorrência, e o Solicitante não tem outro lugar para vê-lo — e não vai num
-              *tooltip*, pela regra A-6.
-            */}
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.nome} · {area.tipo === "comum" ? "área comum" : "unidade privativa"}
-              </option>
-            ))}
-          </select>
-        </Campo>
-
-        <Campo
-          id="localizacaoComplemento"
-          rotulo="Referência do lugar (opcional)"
-          erro={erros.localizacaoComplemento}
-        >
-          <input
-            id="localizacaoComplemento"
-            name="localizacaoComplemento"
-            type="text"
-            maxLength={200}
-            className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 text-base"
-          />
-        </Campo>
-      </fieldset>
-
-      {falha !== null && (
-        <p
-          role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2.5 text-sm"
-        >
-          {falha}
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2">
-        <button
-          type="submit"
-          disabled={enviando}
-          className="bg-marca min-h-11 rounded-md px-4 text-base font-semibold text-white disabled:opacity-60"
-        >
-          {enviando ? "Registrando…" : "Registrar ocorrência"}
-        </button>
-        {/*
-          **Cancelar volta a T-03**, que é o que o inventário manda (`:278`) e o que o item 11 deixou
-          anotado: *"o destino vira uma linha no item 14"*. A confirmação só aparece se algo foi digitado.
-        */}
-        <button
-          type="button"
-          onClick={(evento) => {
-            const formulario = evento.currentTarget.closest("form");
-            const digitou =
-              formulario !== null &&
-              [...new FormData(formulario).values()].some((valor) => String(valor).trim() !== "");
-            if (!digitou || confirm("Descartar o que você escreveu?")) router.push("/ocorrencias");
-          }}
-          className="text-marca min-h-11 text-sm underline underline-offset-4"
-        >
-          Cancelar
-        </button>
-      </div>
-    </form>
+      <AlertDialog open={perguntandoDescarte} onOpenChange={setPerguntandoDescarte}>
+        <AlertDialogContent className="bg-superficie border-linha">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-titulo-bloco text-tinta leading-snug">
+              {DESCARTE.titulo}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-corpo text-tinta-suave">
+              {DESCARTE.corpo}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-interface min-h-11 rounded-sm px-4">
+              {DESCARTE.continuar}
+            </AlertDialogCancel>
+            {/* **`destructive`, porque é a ação que perde trabalho** (guia §7). Aqui o `AlertDialogAction`
+                serve: não há envio ao servidor, e fechar no clique é o comportamento certo — ao contrário
+                da remoção de vínculo (item 44j), onde quem fecha tem de ser o ciclo do envio. */}
+            <AlertDialogAction
+              onClick={() => {
+                router.push("/ocorrencias");
+              }}
+              className={cn(
+                buttonVariants({ variant: "destructive" }),
+                "text-interface min-h-11 rounded-sm px-4",
+              )}
+            >
+              {DESCARTE.descartar}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

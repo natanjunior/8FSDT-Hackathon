@@ -1,9 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import {
+  Campo,
+  ErroDoFormulario,
+  IndicadorDeEnvio,
+  RodapeDoFormulario,
+} from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import {
@@ -11,12 +17,12 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 
 /**
  * ============================================================================
@@ -25,7 +31,7 @@ import { Textarea } from "@/interface/componentes/ui/textarea";
  *
  * **Um componente parametrizado, não um por comando.** O modal de `iniciar-atendimento` (item 22) e o
  * de `retomar` (item 24) diferem em **três strings**: título, descrição e rótulo do gatilho — e a
- * partir do item 24 os dois existem, montados pela página com as mesmas **dez** props. Escrever dois
+ * partir do item 24 os dois existem, montados pela página com as mesmas **doze** props. Escrever dois
  * arquivos iguais seria a cópia de sempre — e a estrutura de `formularios` que o item 19 criou já aceita
  * qualquer nó pronto, sem a barra ganhar um `if`.
  *
@@ -34,10 +40,11 @@ import { Textarea } from "@/interface/componentes/ui/textarea";
  * `comandosDisponiveis` — a máquina de estados inteira — para o pacote do navegador, que é literalmente a
  * segunda cópia que `acoesDisponiveis` existe para impedir.
  *
- * **O ciclo de repinte é o do `ModalDeAtribuicao`, e é herança deliberada:** repintar no erro desmontaria
- * o componente no exato caso em que a frase do `409` existe para ser lida. Então a frase fica visível
- * enquanto o modal está aberto, e **é o fechamento que repinta**. O sucesso passa pelo mesmo caminho.
- * *(É o furo F-2 que a revisão do item 19 fechou; herdar a correção é mais barato que redescobri-la.)*
+ * **O envio segue a sequência de modal do guia §7**, pelo `useEnvioDoModal` (item 44g): carregando no
+ * modal, que não fecha durante o envio; sucesso com aviso, modal fechado e página atualizada; erro com
+ * aviso e mensagem no modal aberto, e o fechamento depois de um erro atualiza a página. **O botão
+ * principal só fica inerte durante o envio**: clicado com campo obrigatório vazio, ele mostra os erros e
+ * leva o foco ao primeiro (guia §7, decidido em 16/09/2026).
  *
  * **A pré-visualização da observação NÃO está aqui**, e o dono é o critério **29.6**: *"na forma em que o
  * Solicitante vai lê-la"* é a linha do tempo, que é o item 29 e não existe — e o achado **P-10** diz que
@@ -61,6 +68,7 @@ export function ModalDeObservacao({
   variante,
   rotulosDeStatus,
   organizacaoId,
+  retorno,
 }: {
   ocorrenciaId: string;
   /** O caminho do endpoint. **`string`, nunca `Comando`** — o Domínio não entra no navegador. */
@@ -77,64 +85,24 @@ export function ModalDeObservacao({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /** Os títulos do aviso de sucesso e de falha, prontos (`RETORNO_DO_COMANDO`). */
+  retorno: TextosDoRetorno;
 }) {
-  const router = useRouter();
   const campoId = useId();
-  const avisoId = useId();
-  const [aberto, setAberto] = useState(false);
   const [texto, setTexto] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [precisaRepintar, setPrecisaRepintar] = useState(false);
 
-  /** **O repinte acontece AO FECHAR, e nunca ao falhar.** Ver o bloco acima. */
-  function aoMudarAbertura(proximo: boolean) {
-    setAberto(proximo);
-
-    if (proximo) {
-      // Reabrir começa limpo: aviso velho ao lado de texto novo é a pior combinação possível — e
-      // `precisaRepintar` volta a `false` para que abrir-e-fechar sem agir não custe uma ida ao servidor.
-      setAviso(null);
-      setTexto("");
-      setPrecisaRepintar(false);
-      return;
-    }
-
-    if (precisaRepintar) {
-      setPrecisaRepintar(false);
-      router.refresh();
-    }
-  }
-
-  async function confirmar() {
-    setEnviando(true);
-    setAviso(null);
-
+  const envio = useEnvioDoModal({
     // **A tela manda o que digitou, sem aparar.** Quem apara é o comando de aplicação, num lugar só — e é
     // ele que decide que vazio vira `null`. Aparar aqui também criaria a segunda regra.
-    const resultado = await executarComando(
-      ocorrenciaId,
-      comando,
-      { observacao: texto },
-      rotulosDeStatus,
-      organizacaoId,
-    );
-
-    setEnviando(false);
-    setPrecisaRepintar(true);
-
-    if (resultado.ok) {
-      aoMudarAbertura(false);
-      // `precisaRepintar` ainda não valia quando `aoMudarAbertura` leu o estado — o React agenda.
-      router.refresh();
-      return;
-    }
-
-    setAviso(resultado.aviso);
-  }
+    enviar: () =>
+      executarComando(ocorrenciaId, comando, { observacao: texto }, rotulosDeStatus, organizacaoId),
+    aoConcluir: () => ({ titulo: retorno.sucesso }),
+    tituloDaFalha: retorno.falha,
+    aoAbrir: () => setTexto(""),
+  });
 
   return (
-    <Dialog open={aberto} onOpenChange={aoMudarAbertura}>
+    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -156,53 +124,41 @@ export function ModalDeObservacao({
           <DialogDescription>{descricao}</DialogDescription>
         </DialogHeader>
 
-        {aviso !== null && (
-          <p
-            role="alert"
-            className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
-          >
-            {aviso}
-          </p>
-        )}
+        {/* O aviso de visibilidade é descrição do campo e vem ANTES dele (critério 22.5). */}
+        <Campo id={campoId} rotulo={rotuloDoCampo} ajuda={AVISO_DE_VISIBILIDADE} ajudaAntes>
+          {(controle) => (
+            <Textarea
+              {...controle}
+              value={texto}
+              onChange={(evento) => setTexto(evento.target.value)}
+              disabled={envio.enviando}
+              rows={3}
+              /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
+              maxLength={1000}
+            />
+          )}
+        </Campo>
 
-        {/* **A marcação é própria, e NÃO reusa `Campo`**: ele renderiza a `ajuda` DEPOIS do children, e o
-            critério 22.5 exige o aviso ANTES do campo. */}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={campoId} className="text-tinta text-sm font-medium">
-            {rotuloDoCampo}
-          </label>
-          <p id={avisoId} className="text-tinta-suave text-xs leading-relaxed">
-            {AVISO_DE_VISIBILIDADE}
-          </p>
-          <Textarea
-            id={campoId}
-            aria-describedby={avisoId}
-            value={texto}
-            onChange={(evento) => setTexto(evento.target.value)}
-            disabled={enviando}
-            rows={3}
-            /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
-            maxLength={1000}
-          />
-        </div>
+        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
 
-        <DialogFooter>
+        {/* **Sem nota de obrigatório:** a observação é opcional (D23: *"campo obrigatório em momento
+            rotineiro é preenchido com 'ok' e o dado morre"*). */}
+        <RodapeDoFormulario obrigatorios={0}>
           <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11">
+            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
               Fechar
             </Button>
           </DialogClose>
-          {/* **Confirmar NÃO é desabilitado por campo vazio** — a `observacao` é opcional (D23: *"campo
-              obrigatório em momento rotineiro é preenchido com 'ok' e o dado morre"*). */}
           <Button
             type="button"
             className="h-11"
-            disabled={enviando}
-            onClick={() => void confirmar()}
+            disabled={envio.enviando}
+            onClick={() => void envio.confirmar()}
           >
-            {enviando ? verboEnviando : rotuloDeConfirmar}
+            <IndicadorDeEnvio ativo={envio.enviando} />
+            {envio.enviando ? verboEnviando : rotuloDeConfirmar}
           </Button>
-        </DialogFooter>
+        </RodapeDoFormulario>
       </DialogContent>
     </Dialog>
   );
