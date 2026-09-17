@@ -26,8 +26,12 @@ import type {
  * **Os dois padrões de produto moram aqui, e não no schema de entrada.** É a mesma doutrina que
  * `consultas.ts` escreveu para o *"só as ativas"*: o padrão não é convenção de HTTP — é a regra que o
  * `openapi.yaml` escreve por extenso (*"o servidor grava `tag` quando o cliente não manda"*, §14.5 do
- * modelo; `ordem` ausente é *no fim*, desde o item 50). A Interface traduz o corpo; **quem sabe o que
- * acontece quando ninguém manda nada é esta camada.**
+ * modelo). A Interface traduz o corpo; **quem sabe o que acontece quando ninguém manda nada é esta
+ * camada.**
+ *
+ * **A posição de quem é criado é sempre o fim da lista** — desde o item 50 é o servidor que a grava, e
+ * desde o 44k `ordem` não existe mais no corpo de `POST` nem de `PATCH`: quem muda posição é o `PUT` das
+ * duas reordenações, que recebe a lista inteira.
  *
  * **Nenhuma das sete funções abre transação.** As cinco primeiras são uma instrução só. As duas
  * reordenações precisam de uma, e quem a abre é a porta, que recebe a transação escopada (ADR-0003):
@@ -37,7 +41,6 @@ import type {
 export type ComandoDeNovaCategoria = {
   nome: string;
   icone?: string;
-  ordem?: number;
   /** Quem está criando — `ctx.pessoaId`. Vai para a coluna de auditoria de configuração (modelo §6.5). */
   porPessoaId: string;
 };
@@ -51,9 +54,9 @@ export async function criarCategoria(
     // **Nunca nulo, e é aqui que isso se decide.** A coluna é `NOT NULL` e o schema `Categoria` traz
     // `icone` como `required` — nenhuma tela precisa de caminho para ausência (contrato §8.1).
     icone: comando.icone ?? ICONE_PADRAO,
-    // **Sem `ordem`, o fim da lista** (item 50, spec §4.3). A intenção vai à porta, e o número sai do
-    // banco na própria instrução do `insert`.
-    ordem: comando.ordem ?? "no-fim",
+    // **O fim da lista, sempre** (item 50, spec §4.3). A intenção vai à porta, e o número sai do banco
+    // na própria instrução do `insert`.
+    ordem: "no-fim",
     criadaPorPessoaId: comando.porPessoaId,
   });
 
@@ -65,7 +68,6 @@ export type ComandoDeCorrecaoDeCategoria = {
   categoriaId: string;
   nome?: string;
   icone?: string;
-  ordem?: number;
   ativa?: boolean;
   porPessoaId: string;
 };
@@ -80,7 +82,6 @@ export async function corrigirCategoria(
     categoriaId: comando.categoriaId,
     ...(comando.nome === undefined ? {} : { nome: comando.nome }),
     ...(comando.icone === undefined ? {} : { icone: comando.icone }),
-    ...(comando.ordem === undefined ? {} : { ordem: comando.ordem }),
     ...(comando.ativa === undefined ? {} : { ativa: comando.ativa }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
@@ -93,7 +94,6 @@ export async function corrigirCategoria(
 export type ComandoDeNovaArea = {
   nome: string;
   tipo: TipoArea;
-  ordem?: number;
   porPessoaId: string;
 };
 
@@ -106,9 +106,9 @@ export async function criarArea(
     // **`tipo` não tem padrão, e é o único campo obrigatório desta camada que não o tem.** Um padrão
     // implícito escolheria a visibilidade da ocorrência em silêncio (D10).
     tipo: comando.tipo,
-    // **Sem `ordem`, o fim da lista** (item 50, spec §4.3). A intenção vai à porta, e o número sai do
-    // banco na própria instrução do `insert`.
-    ordem: comando.ordem ?? "no-fim",
+    // **O fim da lista, sempre** (item 50, spec §4.3). A intenção vai à porta, e o número sai do banco
+    // na própria instrução do `insert`.
+    ordem: "no-fim",
     criadaPorPessoaId: comando.porPessoaId,
   });
 
@@ -120,7 +120,6 @@ export type ComandoDeCorrecaoDeArea = {
   areaId: string;
   nome?: string;
   tipo?: TipoArea;
-  ordem?: number;
   ativa?: boolean;
   porPessoaId: string;
 };
@@ -133,7 +132,6 @@ export async function corrigirArea(
     areaId: comando.areaId,
     ...(comando.nome === undefined ? {} : { nome: comando.nome }),
     ...(comando.tipo === undefined ? {} : { tipo: comando.tipo }),
-    ...(comando.ordem === undefined ? {} : { ordem: comando.ordem }),
     ...(comando.ativa === undefined ? {} : { ativa: comando.ativa }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });

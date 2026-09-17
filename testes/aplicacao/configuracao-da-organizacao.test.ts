@@ -34,8 +34,8 @@ import {
  * ============================================================================
  *
  * **O que está sob teste é a tradução, e só ela:** desfecho da porta → recusa nomeada do contrato, mais
- * os **dois padrões de produto** que esta camada é dona de aplicar — `icone` ausente vira `tag`, `ordem`
- * ausente vira a intenção `"no-fim"`, que o repositório resolve no `insert`. As garantias que produzem os
+ * os **dois padrões de produto** que esta camada é dona de aplicar — `icone` ausente vira `tag`, e a
+ * posição de quem é criado é sempre a intenção `"no-fim"`, que o repositório resolve no `insert`. As garantias que produzem os
  * desfechos são do banco (`UNIQUE (organizacao_id, nome)` e o `$1` do ponto único), e prová-las contra um
  * duplo provaria que o duplo simula.
  */
@@ -104,7 +104,7 @@ function portaDeAreas(
 }
 
 describe("criarCategoria", () => {
-  it("grava o padrão `tag` e pede o fim da lista quando o cliente não manda ícone nem ordem", async () => {
+  it("grava o padrão `tag` e pede o fim da lista quando o cliente não manda ícone", async () => {
     const { porta, recebido } = portaDeCategorias();
 
     await criarCategoria(porta, { nome: "Jardinagem", porPessoaId: "pessoa-1" });
@@ -117,20 +117,21 @@ describe("criarCategoria", () => {
     });
   });
 
-  it("respeita o ícone e a ordem quando vêm no comando", async () => {
+  it("respeita o ícone quando vem no comando, e a posição continua sendo o fim", async () => {
     const { porta, recebido } = portaDeCategorias();
 
     await criarCategoria(porta, {
       nome: "Jardinagem",
       icone: "trees",
-      ordem: 8,
       porPessoaId: "pessoa-1",
     });
 
+    // **`ordem` saiu do comando com o item 44k:** quem muda posição é `PUT /categorias/ordem`, e quem é
+    // criado entra no fim, sempre.
     expect(recebido.criar).toStrictEqual({
       nome: "Jardinagem",
       icone: "trees",
-      ordem: 8,
+      ordem: "no-fim",
       criadaPorPessoaId: "pessoa-1",
     });
   });

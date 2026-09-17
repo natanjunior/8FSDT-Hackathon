@@ -12,8 +12,9 @@ import { correcaoDeCategoriaSchema } from "@/interface/schemas";
  * ela e a FK vinda de `ocorrencias` é `RESTRICT`. **Não existe `DELETE` neste caminho, e não deve
  * existir.**
  *
- * **`ordem` aqui é obsoleto desde o item 50:** a posição muda por `PUT /categorias/ordem`, que grava a
- * lista inteira numa transação. O campo continua aceito enquanto o formulário o enviar, e sai com o 44k.
+ * **`ordem` saiu do corpo em 17/09/2026, com o item 44k:** a posição muda por `PUT /categorias/ordem`,
+ * que grava a lista inteira numa transação, e a tela que digitava o número deixou de existir. Um corpo que
+ * ainda a traga tem o campo descartado pelo schema.
  *
  * **Duas recusas acontecem aqui, antes da Aplicação:**
  *
@@ -32,7 +33,6 @@ export const PATCH = comContexto(
     if (
       corpo.nome === undefined &&
       corpo.icone === undefined &&
-      corpo.ordem === undefined &&
       corpo.ativa === undefined
     ) {
       throw new FormatoInvalido([
@@ -48,7 +48,6 @@ export const PATCH = comContexto(
       categoriaId: categoriaId.data,
       ...(corpo.nome === undefined ? {} : { nome: corpo.nome }),
       ...(corpo.icone === undefined ? {} : { icone: corpo.icone }),
-      ...(corpo.ordem === undefined ? {} : { ordem: corpo.ordem }),
       ...(corpo.ativa === undefined ? {} : { ativa: corpo.ativa }),
       porPessoaId: ctx.pessoaId,
     });

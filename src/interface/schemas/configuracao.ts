@@ -12,9 +12,15 @@ import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
  * renderizar uma string**: `lucide-react` exporta componentes, então um mapa nome → componente é
  * inevitável nesta camada.
  *
- * **Nada aqui aplica padrão.** `icone` ausente e `ordem` ausente sobem ausentes; quem decide o que
- * acontece quando ninguém manda é a **Aplicação**, pela mesma doutrina que `aplicacao/organizacao/
- * consultas.ts` escreveu para o *"só as ativas"*: padrão de produto não é convenção de HTTP.
+ * **Nada aqui aplica padrão.** `icone` ausente sobe ausente; quem decide o que acontece quando ninguém
+ * manda é a **Aplicação**, pela mesma doutrina que `aplicacao/organizacao/consultas.ts` escreveu para o
+ * *"só as ativas"*: padrão de produto não é convenção de HTTP.
+ *
+ * **`ordem` saiu dos quatro corpos em 17/09/2026, com o item 44k.** A posição passou a ser do `PUT` das
+ * duas reordenações, quem é criado sem ela entra no fim, e as duas telas que a enviavam deixaram de
+ * existir. Como os schemas são `z.object` sem `strict`, um corpo que ainda a traga tem o campo
+ * **descartado** — e é o que se quer: um `PATCH {ordem: 999}` criaria empate e lacuna na lista que o `PUT`
+ * acabou de deixar de 1 a n.
  */
 
 /**
@@ -97,16 +103,6 @@ const nomeDeArea = z
   .max(80, "O nome cabe em 80 caracteres.");
 
 /**
- * `smallint` com o teto do contrato. Quem escolhe a ordem é o Gestor (D18).
- *
- * **Obsoleto nos quatro corpos desde o item 50** (spec §4.4): a posição muda por `PUT /categorias/ordem`
- * e `PUT /areas/ordem`, e quem cria sem `ordem` entra no fim. O campo continua aceito porque os
- * formulários de hoje ainda o enviam, e tirá-lo de um `z.object` sem `strict` faria o `PATCH` descartar a
- * ordem digitada em silêncio. **Sai com o 44k**, no commit que apaga esses formulários.
- */
-const ordem = z.int().min(0, "A ordem começa em 0.").max(999, "A ordem vai até 999.");
-
-/**
  * **`tipo` é obrigatório e não tem padrão.** Um padrão implícito escolheria a visibilidade da ocorrência
  * em silêncio — que é exatamente o que a D10 recusa ao dizer que a visibilidade é *derivação, não
  * configuração*.
@@ -116,26 +112,22 @@ const tipoDeArea = z.enum(TIPOS_DE_AREA, { error: "Escolha o tipo da área." });
 export const criacaoDeCategoriaSchema = z.object({
   nome: nomeDeCategoria,
   icone: iconeDeCategoria.optional(),
-  ordem: ordem.optional(),
 });
 
 export const correcaoDeCategoriaSchema = z.object({
   nome: nomeDeCategoria.optional(),
   icone: iconeDeCategoria.optional(),
-  ordem: ordem.optional(),
   ativa: z.boolean().optional(),
 });
 
 export const criacaoDeAreaSchema = z.object({
   nome: nomeDeArea,
   tipo: tipoDeArea,
-  ordem: ordem.optional(),
 });
 
 export const correcaoDeAreaSchema = z.object({
   nome: nomeDeArea.optional(),
   tipo: tipoDeArea.optional(),
-  ordem: ordem.optional(),
   ativa: z.boolean().optional(),
 });
 

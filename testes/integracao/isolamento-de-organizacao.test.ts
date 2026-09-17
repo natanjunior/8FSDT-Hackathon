@@ -1606,14 +1606,15 @@ describe("as escritas de configuração não atravessam organizações", () => {
   });
 
   /**
-   * **P3, o fim da lista** (spec §4.3): quem nasce sem `ordem` recebe a maior `ordem` da organização mais
-   * um, **contando as inativas**, por isso o maior valor de cada lista é posto numa linha desativada.
-   * `ordem` enviada continua valendo enquanto o campo existir (P4).
+   * **P3, o fim da lista** (spec §4.3): quem nasce recebe a maior `ordem` da organização mais um,
+   * **contando as inativas**, por isso o maior valor de cada lista é posto numa linha desativada. **É o
+   * único caminho desde o item 44k**, que tirou `ordem` do corpo de `POST`: a porta ainda aceita um
+   * número, e nenhum comando da Aplicação o manda.
    *
    * A lista vazia (`1`) não tem caso: nenhuma organização a tem, porque a POL-01 semeia as duas listas e
    * não há `DELETE`. Montar uma terceira organização só para isso mudaria o mundo compartilhado.
    */
-  it("criar sem ordem põe o item depois do maior, inativas incluídas", async () => {
+  it("quem é criado entra depois do maior, inativas incluídas", async () => {
     const categorias = categoriasEm(idRecanto);
     const guardada = await categorias.criar({
       nome: "Bicicletário",
@@ -1630,13 +1631,6 @@ describe("as escritas de configuração não atravessam organizações", () => {
 
     const lavanderia = await criarCategoria(categorias, { nome: "Lavanderia", porPessoaId: idSindica });
     expect(lavanderia.ordem).toBe(501);
-
-    const explicita = await criarCategoria(categorias, {
-      nome: "Brinquedoteca",
-      ordem: 3,
-      porPessoaId: idSindica,
-    });
-    expect(explicita.ordem).toBe(3);
 
     const areas = areasEm(idRecanto);
     const deposito = await areas.criar({

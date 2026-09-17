@@ -135,12 +135,19 @@ describe("criacaoDeCategoriaSchema", () => {
     expect(recusado.error?.issues[0]?.path).toStrictEqual(["icone"]);
   });
 
-  it("aceita ordem de 0 a 999 e recusa fora disso", () => {
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 0 }).success).toBe(true);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 999 }).success).toBe(true);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 1000 }).success).toBe(false);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: -1 }).success).toBe(false);
-    expect(criacaoDeCategoriaSchema.safeParse({ nome: "A", ordem: 1.5 }).success).toBe(false);
+  /**
+   * **`ordem` saiu dos quatro corpos com o item 44k**, e os schemas são `z.object` sem `strict`: um corpo
+   * que ainda a traga **não** é recusado — o campo é descartado. É o que se quer, porque um `PATCH` com
+   * ordem própria criaria empate e lacuna na lista que o `PUT` acabou de deixar de 1 a n.
+   */
+  it("descarta `ordem` no corpo, nas quatro escritas", () => {
+    expect(criacaoDeCategoriaSchema.parse({ nome: "A", ordem: 8 })).toStrictEqual({ nome: "A" });
+    expect(correcaoDeCategoriaSchema.parse({ nome: "A", ordem: 8 })).toStrictEqual({ nome: "A" });
+    expect(criacaoDeAreaSchema.parse({ nome: "A", tipo: "comum", ordem: 8 })).toStrictEqual({
+      nome: "A",
+      tipo: "comum",
+    });
+    expect(correcaoDeAreaSchema.parse({ tipo: "comum", ordem: 8 })).toStrictEqual({ tipo: "comum" });
   });
 });
 

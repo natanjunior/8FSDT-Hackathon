@@ -74,7 +74,6 @@ export function repositorioEscopadoDeAreas(
           `tipo_alterado_por_pessoa_id = case when tipo is distinct from ${tipo} then ${autor}::uuid else tipo_alterado_por_pessoa_id end`,
         );
       }
-      if (correcao.ordem !== undefined) atribuicoes.push(`ordem = ${marcador(correcao.ordem)}`);
       if (correcao.ativa !== undefined) atribuicoes.push(`ativa = ${marcador(correcao.ativa)}`);
 
       atribuicoes.push("atualizado_em = now()");
