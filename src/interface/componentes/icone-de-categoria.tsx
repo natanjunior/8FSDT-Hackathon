@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { ICONE_PADRAO } from "@/dominio/organizacao";
+import { GrupoDeEscolha } from "@/interface/componentes/campo";
 import { ICONES_DE_CATEGORIA, type NomeDeIcone } from "@/interface/schemas";
 
 /**
@@ -91,9 +92,9 @@ export function IconeDeCategoria({ nome, className }: { nome: string; className?
  * **A grade de 25, e ela é um grupo de `radio` de verdade.**
  *
  * **Por que `input type="radio"` e não botões com `aria-label`** (spec §2.2): o compromisso **A-1** pede
- * *rótulo associado ao controle — `htmlFor` ↔ `id`*, e `aria-label` num `<button>` dá **nome acessível**,
- * que é outra coisa. Com `radio` de verdade, teclado (setas), agrupamento e semântica de formulário vêm
- * do navegador, em vez de serem reimplementados — que é o risco que a ADR-0007 recusou ao não construir
+ * *rótulo associado ao controle — `htmlFor` ↔ `id`*, e `aria-label` num botão dá **nome acessível**, que é
+ * outra coisa. Com `radio` de verdade, teclado (setas), agrupamento e semântica de formulário vêm do
+ * navegador, em vez de serem reimplementados — que é o risco que a ADR-0007 recusou ao não construir
  * controles do zero.
  *
  * **`sr-only` no `input`, nunca `display:none`:** o segundo tira a célula da ordem de foco, e o
@@ -109,37 +110,47 @@ export function IconeDeCategoria({ nome, className }: { nome: string; className?
  * **O A-5 não se aplica à grade** (spec §2.4): aqui o desenho **é o objeto da escolha**, como as amostras
  * num seletor de cor — não um marcador que substitui palavra. Onde o A-5 vale é na exibição, e lá a
  * palavra está sempre ao lado.
+ *
+ * **A moldura é o `GrupoDeEscolha` do `campo.tsx`** desde o item 44k, para o rótulo e o espaço serem os
+ * mesmos dos outros campos do modal.
+ *
+ * **O `id` de cada rádio leva um prefixo que vem de fora**, e isto é defeito que a página própria não
+ * tinha: no modal, o seletor pode existir duas vezes no mesmo documento — o gatilho de criar no cabeçalho
+ * e o de editar numa linha —, e `id` duplicado faria o clique no rótulo marcar o rádio da outra cópia.
  */
 export function SeletorDeIcone({
+  prefixo,
   valor,
+  inerte = false,
   aoEscolher,
 }: {
+  /** O `useId` de quem monta o seletor: é ele que torna os 25 `id` únicos no documento. */
+  prefixo: string;
   valor: NomeDeIcone;
+  inerte?: boolean;
   aoEscolher: (nome: NomeDeIcone) => void;
 }) {
   const escolhido = ICONES_DE_CATEGORIA.find((icone) => icone.nome === valor);
 
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="text-tinta text-sm font-medium">Ícone</legend>
-      <p className="text-tinta-suave text-xs leading-relaxed">
-        Aparece ao lado do nome da categoria nas listas e no formulário de registro.
-      </p>
-
+    <GrupoDeEscolha id={`${prefixo}-icone`} legenda="Ícone">
       <div className="grid w-fit grid-cols-6 gap-2">
         {ICONES_DE_CATEGORIA.map((icone) => (
           <div key={icone.nome} className="contents">
             <input
-              id={`icone-${icone.nome}`}
+              id={`${prefixo}-icone-${icone.nome}`}
               type="radio"
-              name="icone"
+              name={`${prefixo}-icone`}
               value={icone.nome}
               checked={valor === icone.nome}
+              disabled={inerte}
               className="peer sr-only"
-              onChange={() => aoEscolher(icone.nome)}
+              onChange={() => {
+                aoEscolher(icone.nome);
+              }}
             />
             <label
-              htmlFor={`icone-${icone.nome}`}
+              htmlFor={`${prefixo}-icone-${icone.nome}`}
               className="border-linha text-tinta-suave peer-checked:border-marca peer-checked:bg-accent peer-checked:text-tinta peer-focus-visible:ring-marca flex size-11 cursor-pointer items-center justify-center rounded-md border peer-focus-visible:ring-2"
             >
               <IconeDeCategoria nome={icone.nome} className="size-5" />
@@ -155,10 +166,11 @@ export function SeletorDeIcone({
           **Sem texto de reserva escrito à mão:** `valor` é `NomeDeIcone`, então o `find` acha sempre, e
           repetir *"Etiqueta"* aqui criaria uma segunda fonte para um rótulo que já mora na constante. */}
       {escolhido !== undefined && (
-        <p className="text-tinta-suave text-xs">
-          Ícone: <strong className="text-tinta font-medium">{escolhido.rotulo}</strong>
+        <p className="text-tinta-suave text-meta">
+          Escolhido: <strong className="text-tinta font-medium">{escolhido.rotulo}</strong>. O ícone fica
+          ao lado do nome, nunca no lugar dele.
         </p>
       )}
-    </fieldset>
+    </GrupoDeEscolha>
   );
 }
