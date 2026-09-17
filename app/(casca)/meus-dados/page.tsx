@@ -1,8 +1,13 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { FormularioDePessoa } from "@/interface/componentes/formulario-de-pessoa";
+import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
+import { EdicaoDeNome } from "@/interface/componentes/edicao-de-nome";
+import { buttonVariants } from "@/interface/componentes/ui/button";
+import { cn } from "@/interface/componentes/utilitarios";
 import { resolverEscopoParaTela } from "@/interface/http";
 
 /**
@@ -11,10 +16,16 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * **Não é subrota de `/configuracao`**: configuração é **da organização**, e o item 48 separou os dois
  * assuntos justamente porque quem administra a organização não está administrando a si mesmo. Dado
  * pessoal é global, e por isso também não tem lugar na barra lateral, cujo `aria-label` é *"Nesta
- * organização"*. **O caminho é o menu do avatar**, onde o nome já era impresso como item desabilitado.
+ * organização"*. **O caminho é o menu de pessoa**, que abre com o nome e o e-mail de quem está na sessão
+ * e tem *Meus dados* como primeiro item.
+ *
+ * **A tela grande segue T-15** (item 44i, guia §7): dois cartões de leitura, e *Editar* só na
+ * identidade, com o mesmo modal do nome. *Acesso* é lista de definição, em duas metades na tela grande. O
+ * que não se edita, como o e-mail, não oferece edição, e a tela não explica a ausência.
  *
  * **Nenhuma requisição nova na abertura, e é a única tela do produto assim:** o nome e o e-mail vêm da
- * resolução de contexto que a casca já fez.
+ * resolução de contexto que a casca já fez. O desfecho do salvamento é um aviso, que mora no layout raiz
+ * e sobrevive à atualização da página.
  *
  * **Quem não tem vínculo nenhum não chega aqui**, porque a casca exige `qualquer-vinculo-ativo` e T-02
  * não tem barra superior. Para essa pessoa o ponto de correção continua sendo o campo `nome` de
@@ -23,88 +34,74 @@ import { resolverEscopoParaTela } from "@/interface/http";
  */
 export const dynamic = "force-dynamic";
 
-export default async function MeusDados({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+/** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
+const ROTULO = "text-rotulo-coluna text-tinta-fraca font-mono font-medium tracking-[0.11em] uppercase";
+
+export default async function MeusDados() {
   const escopo = await resolverOuMandarParaPorta();
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   // `qualquer-vinculo-ativo` nunca produz `sem-permissao`; a guarda existe para o tipo, não para o caso.
   if (escopo.situacao === "sem-permissao") redirect("/ocorrencias");
 
-  const parametros = await searchParams;
   const { nome, email } = escopo.resolucao.sessao;
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
-        <h1 className="text-tinta text-xl leading-snug font-semibold">Meus dados</h1>
-      </header>
+    <div className="flex flex-col gap-5.5">
+      <CabecalhoDaPagina titulo="Meus dados" fato="Valem em todas as organizações em que você está." />
 
-      <FaixaDoDesfecho parametros={parametros} />
+      {/* **Identidade antes de mecanismo**, a mesma regra do geral para o particular que ordena a barra
+          lateral e que T-15 usa: o que é seu vem antes de como você entra. */}
+      <Cartao tituloId="identidade">
+        <CabecaDoCartao
+          id="identidade"
+          titulo="Identidade"
+          acao={<EdicaoDeNome alvo="pessoa" nome={nome} />}
+        />
+        <dl className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
+          <dt className={ROTULO}>Nome</dt>
+          <dd className="text-titulo-bloco text-tinta leading-snug font-medium wrap-break-word">{nome}</dd>
+          <dd className="text-meta text-tinta-suave">
+            É como os Gestores veem você, inclusive nas transições que você já registrou.
+          </dd>
+        </dl>
+      </Cartao>
 
-      {/* **Identidade antes de mecanismo** — a mesma regra do geral para o particular que ordena a barra
-          lateral e que T-15 usou: o que é seu vem antes de como você entra. */}
-      <section className="flex flex-col gap-5">
-        <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Identidade</h2>
-        <FormularioDePessoa nome={nome} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Acesso</h2>
-
-        <div className="flex flex-col gap-1.5">
-          <p className="text-tinta text-sm font-medium">E-mail de entrada</p>
-          <p className="text-tinta text-sm break-all">{email ?? "Não informado pelo provedor"}</p>
-          <p className="text-tinta-suave text-xs leading-relaxed">
-            É com ele que você entra, e é para ele que vai o link de recuperação de senha.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <p className="text-tinta text-sm font-medium">Senha</p>
-          {/* **Aponta, em vez de duplicar.** T-12 aceita quem tem sessão desde a D-6b-5, e é a única
-              porta de trocar a senha que o produto tem. */}
-          <Link
-            href="/redefinir-senha"
-            className="text-marca inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-          >
-            Redefinir senha
-          </Link>
-        </div>
-      </section>
-
-      <Link href="/ocorrencias" className="text-marca text-sm underline underline-offset-4">
-        Voltar
-      </Link>
+      <Cartao tituloId="acesso">
+        <CabecaDoCartao id="acesso" titulo="Acesso" />
+        <dl className="grid lg:grid-cols-2">
+          <div className="flex flex-col gap-1.5 p-[15px] md:px-6 md:py-5">
+            <dt className={ROTULO}>E-mail de entrada</dt>
+            <dd className="text-interface text-tinta break-all">{email ?? "Não informado pelo provedor"}</dd>
+            <dd className="text-meta text-tinta-suave">
+              É com ele que você entra e recebe o link de recuperação de senha.
+            </dd>
+          </div>
+          <div className="border-linha-suave grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
+            <dt className={cn(ROTULO, "col-start-1")}>Senha</dt>
+            {/* **Os pontos são desenho**, e quem usa leitor de tela ouve *oculta*. */}
+            <dd className="text-interface text-tinta-suave col-start-1 font-mono tracking-[0.2em]">
+              <span aria-hidden="true">••••••••</span>
+              <span className="sr-only">oculta</span>
+            </dd>
+            {/* **Aponta, em vez de duplicar.** T-12 aceita quem tem sessão desde a D-6b-5, e é a única
+                porta de trocar a senha que o produto tem. */}
+            <dd className="col-start-2 row-span-2 row-start-1">
+              <Link
+                href="/redefinir-senha"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "border-linha text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4",
+                )}
+              >
+                Redefinir senha
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </dd>
+          </div>
+        </dl>
+      </Cartao>
     </div>
-  );
-}
-
-/**
- * **O desfecho sobrevive ao recarregamento porque vem na URL**, e não num estado que o `router.refresh()`
- * apagaria. Mesma forma de T-15, T-09, T-14 e T-08.
- */
-function FaixaDoDesfecho({
-  parametros,
-}: {
-  parametros: Record<string, string | string[] | undefined>;
-}) {
-  const valor = parametros["renomeado"];
-  const renomeado = typeof valor === "string" ? valor : "";
-  if (renomeado === "") return null;
-
-  return (
-    <p
-      role="status"
-      className="border-linha bg-superficie text-tinta rounded-md border px-3 py-2.5 text-sm"
-    >
-      Você passou a aparecer como <strong className="font-semibold">{renomeado}</strong> em todas as suas
-      organizações.
-    </p>
   );
 }
 

@@ -32,8 +32,9 @@ import type { Vinculo } from "@/dominio/organizacao";
  * A sessão, já traduzida. **O domínio nunca vê token** (arquitetura.md, Parte I §3): o que atravessa é
  * isto, e mais nada. `nomeSugerido` vem dos metadados da conta, preenchidos no cadastro (contrato §4.1).
  *
- * **`email` entra no item 49, e serve UMA leitura:** a seção *Acesso* de T-16, que o imprime para dizer
- * com o que a pessoa entra e para onde vai o link de recuperação. Ele **não** entra no
+ * **`email` entra no item 49, e serve DUAS leituras, as duas da própria pessoa:** a seção *Acesso* de
+ * T-16, que o imprime para dizer com o que a pessoa entra e para onde vai o link de recuperação, e o
+ * cabeçalho do menu de pessoa da casca (item 44i), que diz de quem é a conta. Ele **não** entra no
  * `ContextoProjetado` nem no schema `Contexto` do `openapi.yaml` — publicar a credencial numa resposta
  * que hoje não a tem é o que a spec §3.4 recusou. Quem o acrescentar a uma projeção está desfazendo a
  * decisão, não estendendo-a.

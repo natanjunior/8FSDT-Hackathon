@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
  * | O rodapé diz "campo obrigatório" à esquerda; botões só no rodapé, à direita | `RodapeDoFormulario` |
  * | A mensagem que não é de um campo | `ErroDoFormulario` |
  * | Durante o envio, o botão mostra o indicador | `IndicadorDeEnvio` |
+ * | O contador *"20 / 120"* à direita do rótulo (item 44i) | `Campo`, propriedade `contador` |
  *
  * **O `Campo` morava em `moldura-de-tela.tsx`**, e a moldura é das telas de credencial; o campo é do
  * produto inteiro. Os compromissos que ele já cumpria continuam: **A-1** (rótulo ligado ao controle por
@@ -29,8 +30,13 @@ import type { ReactNode } from "react";
  * descrição do campo, e o envio com problema leva o foco ao primeiro campo, que a lê.
  *
  * **Com um elemento como filho, o `Campo` não injeta nada e mantém o `alert`.** É o modo das telas que
- * ainda não foram refeitas (T-04 e a família Organização), onde o controle não aponta para a mensagem; sem
- * o `alert`, o erro ficaria sem anúncio. Cada item de tela troca para a função quando a reconstrói.
+ * ainda não foram refeitas (T-04, T-08, T-09 e T-14), onde o controle não aponta para a mensagem; sem o
+ * `alert`, o erro ficaria sem anúncio. Cada item de tela troca para a função quando a reconstrói, e o
+ * modal do nome de T-15 e T-16 (item 44i) já nasceu nela.
+ *
+ * **O contador fica fora do `<label>`** (item 44i): dentro, ele entraria no nome acessível do campo. Ele
+ * conta o valor cru, que é o que o `maxLength` limita, e não é região viva, porque seria anunciado a cada
+ * tecla. Quem não passa `contador` recebe o mesmo HTML de antes.
  *
  * **A ajuda pode vir antes do controle** (`ajudaAntes`): os modais de T-05 põem o aviso de visibilidade
  * antes do campo (critério 22.5), e foi por isso que eles não usavam o `Campo` até aqui.
@@ -67,6 +73,9 @@ function MensagemDeCampo({ id, alerta, children }: { id: string; alerta: boolean
   );
 }
 
+/** O *"20 / 120"* da prancheta: quantos caracteres o campo tem, e o teto dele. */
+export type Contador = { readonly usados: number; readonly maximo: number };
+
 export function Campo({
   id,
   rotulo,
@@ -74,6 +83,7 @@ export function Campo({
   ajuda,
   ajudaAntes = false,
   erro,
+  contador,
   children,
 }: {
   id: string;
@@ -82,6 +92,7 @@ export function Campo({
   ajuda?: ReactNode;
   ajudaAntes?: boolean;
   erro?: string | undefined;
+  contador?: Contador | undefined;
   children: ReactNode | ((controle: PropsDoControle) => ReactNode);
 }) {
   const idDaAjuda = `${id}-ajuda`;
@@ -104,12 +115,25 @@ export function Campo({
       </span>
     );
 
+  const rotuloDoCampo = (
+    <label htmlFor={id} className="text-tinta text-interface font-medium">
+      {rotulo}
+      {obrigatorio && <Asterisco />}
+    </label>
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-tinta text-interface font-medium">
-        {rotulo}
-        {obrigatorio && <Asterisco />}
-      </label>
+      {contador === undefined ? (
+        rotuloDoCampo
+      ) : (
+        <div className="flex items-baseline justify-between gap-3">
+          {rotuloDoCampo}
+          <span className="text-tinta-fraca text-meta shrink-0 font-mono tabular-nums">
+            {contador.usados} / {contador.maximo}
+          </span>
+        </div>
+      )}
       {ajudaAntes && textoDeAjuda}
       {typeof children === "function" ? children(controle) : children}
       {!ajudaAntes && textoDeAjuda}

@@ -18,7 +18,7 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
  * 5. Sucesso e atenção ficam com o ícone na tinta: o tema não tem cor própria para os dois.
  * 6. A lista aceita ponteiro mesmo com um modal aberto. O `radix-ui` desliga o ponteiro do `<body>`
  *    enquanto o modal está aberto, e sem isto o toque no aviso cairia no fundo do modal e o fecharia.
- *    O par dela é `manterAbertoAoTocarNoAviso`, abaixo, que o `dialog.tsx` chama.
+ *    O par dela é `manterAbertoAoTocarNoAviso`, abaixo, que o `dialog.tsx` e o `sheet.tsx` chamam.
  */
 const TELA_GRANDE = "(min-width: 64rem)"
 
@@ -82,9 +82,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
 /**
  * **O toque no aviso não é toque fora do modal.** Todo conteúdo de modal do catálogo chama isto no
- * `onInteractOutside`: sem ele, fechar o aviso de erro fecharia junto o modal que o guia manda manter
- * aberto (§7, retorno de ação). O `sheet.tsx` precisa da mesma linha quando o primeiro modal de celular
- * nascer (item 44i).
+ * `onInteractOutside`, o do `dialog.tsx` (item 44g) e o do `sheet.tsx` (item 44i): sem ele, fechar o
+ * aviso de erro fecharia junto o modal que o guia manda manter aberto (§7, retorno de ação).
  */
 function manterAbertoAoTocarNoAviso(evento: { target: EventTarget | null; preventDefault: () => void }) {
   if (evento.target instanceof Element && evento.target.closest("[data-sonner-toaster]") !== null) {

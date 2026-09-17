@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { redirect } from "next/navigation";
@@ -70,9 +70,11 @@ describe("o Toaster — critério 1", () => {
     expect(pacote.dependencies["cn"]).toBeUndefined();
   });
 
-  it("o toque no aviso não fecha o modal que ficou aberto depois de um erro (R-1 da revisão)", () => {
-    // Um novo `shadcn add dialog` desfaria a linha em silêncio; este caso é o alarme.
-    expect(ler("src/interface/componentes/ui/dialog.tsx")).toContain("manterAbertoAoTocarNoAviso(evento)");
+  it("o toque no aviso não fecha o modal que ficou aberto depois de um erro (R-1 do 44g; o sheet no 44i)", () => {
+    // Um novo `shadcn add dialog` ou `shadcn add sheet` desfaria a linha em silêncio; este caso é o alarme.
+    for (const arquivo of ["src/interface/componentes/ui/dialog.tsx", "src/interface/componentes/ui/sheet.tsx"]) {
+      expect(ler(arquivo), arquivo).toContain("manterAbertoAoTocarNoAviso(evento)");
+    }
   });
 });
 
@@ -368,5 +370,89 @@ describe("o alcance do 44g — critérios 6 e 9", () => {
       ler(caminho).includes('"Não foi possível realizar a ação."'),
     );
     expect(comAFrase).toStrictEqual(["src/interface/componentes/retorno-de-acao.ts"]);
+  });
+});
+
+/** Os arquivos das duas telas e das peças do 44i (spec §1.1): as guardas de forma leem estes. */
+const ALCANCE_DO_44I = [
+  "app/(casca)/configuracao/page.tsx",
+  "app/(casca)/configuracao/loading.tsx",
+  "app/(casca)/meus-dados/page.tsx",
+  "src/interface/componentes/codigo-da-organizacao.tsx",
+  "src/interface/componentes/edicao-de-nome.tsx",
+  "src/interface/componentes/modal.tsx",
+  "src/interface/componentes/cartao.tsx",
+  "src/interface/componentes/cabecalho-da-pagina.tsx",
+  "src/interface/componentes/campo.tsx",
+  "src/interface/componentes/casca/menu-de-pessoa.tsx",
+];
+
+/** As três páginas das duas telas: as que o critério 44i.9 limpa. */
+const TELAS_DO_44I = ALCANCE_DO_44I.filter((caminho) => caminho.startsWith("app/"));
+
+describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
+  it("o modal é uma raiz com as duas peças do catálogo, a gaveta vem de baixo, e sem pacote novo", () => {
+    const fonte = ler("src/interface/componentes/modal.tsx");
+    expect(fonte).toContain("useIsMobile()");
+    expect(fonte).toContain("<DialogContent");
+    expect(fonte).toContain('<SheetContent side="bottom"');
+    expect(fonte).toContain("duration-(--tempo-gaveta)");
+    expect(fonte).toContain("ease-(--curva-gaveta)");
+    expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
+    expect(fonte).toContain('variant="marca"');
+  });
+
+  it("T-16 edita o nome no modal do nome, e o formulário de campo aberto da pessoa saiu", () => {
+    const fonte = ler("app/(casca)/meus-dados/page.tsx");
+    expect(fonte).toMatch(/<EdicaoDeNome\s+alvo="pessoa"/u);
+    expect(fonte).not.toContain("searchParams");
+    expect(existsSync(RAIZ + "src/interface/componentes/formulario-de-pessoa.tsx")).toBe(false);
+  });
+
+  it("nenhum botão fica desabilitado por campo inválido (critério 44g.9, no alcance do 44i)", () => {
+    const achados = ALCANCE_DO_44I.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/disabled=\{[^}]*(?:=== null|!pode|!valido)[^}]*\}/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o desfecho por endereço saiu do produto, com os dois formulários de campo aberto (critério 44i.8)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/formulario-de-organizacao.tsx")).toBe(false);
+    const achados = [...arquivosDe("app"), ...arquivosDe("src")].flatMap((caminho) =>
+      ler(caminho)
+        .split(/\r?\n/u)
+        .map((linha, indice) => ({ linha, numero: indice + 1 }))
+        // **O parâmetro, e não a palavra** (R-1 da revisão): `"Organização renomeada"` é o título do aviso.
+        .filter(({ linha }) => /\?renomead[ao]=|\["renomead[ao]"\]/u.test(linha))
+        .map(({ numero }) => `${caminho}:${numero}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44i.9)", () => {
+    const achados = ALCANCE_DO_44I.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as duas telas não repetem a marca e não têm Voltar no conteúdo (critério 44i.9)", () => {
+    for (const caminho of TELAS_DO_44I) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("Resolve Aí");
+      expect(fonte, caminho).not.toMatch(/^\s*Voltar\s*$/mu);
+    }
+  });
+
+  it("T-15 edita o nome no modal, e as duas caixas e a frase do apagar saíram (critérios 44i.2 e 44i.4)", () => {
+    const fonte = ler("app/(casca)/configuracao/page.tsx");
+    expect(fonte).toMatch(/<EdicaoDeNome\s+alvo="organizacao"/u);
+    expect(fonte).not.toContain("searchParams");
+    expect(fonte).not.toContain("Não há como apagar");
+    expect(fonte).not.toContain("function Destino(");
   });
 });

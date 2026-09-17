@@ -11,6 +11,8 @@ import { projetarContexto } from "@/interface/projecoes";
  * A barra superior fica porque a organização ativa precisa estar visível: registrar na organização errada
  * é o erro que ela previne. A navegação lateral não fica, pela razão inversa — sair no meio de um registro
  * custa refazer o formulário, e o inventário já decide que voltar dele descarta com confirmação.
+ *
+ * **O menu de pessoa é o mesmo da casca** (item 44i), e por isso recebe o e-mail da sessão também aqui.
  */
 export default async function LayoutFocado({ children }: { children: React.ReactNode }) {
   let escopo;
@@ -34,6 +36,7 @@ export default async function LayoutFocado({ children }: { children: React.React
         vinculos={projetado.vinculos}
         organizacaoAtivaId={organizacaoAtiva.id}
         nomeDaPessoa={projetado.pessoa.nome}
+        emailDaPessoa={escopo.resolucao.sessao.email}
       />
       <main className="mx-auto w-full max-w-2xl px-4 py-6 md:px-6">{children}</main>
     </div>

@@ -168,7 +168,7 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
 
 /** As onze páginas que recusam sem redirecionar, com o título da face normal e a permissão. */
 const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
-  "app/(casca)/configuracao/page.tsx": ["Configuração", "organizacao.configurar"],
+  "app/(casca)/configuracao/page.tsx": ["Configuração da organização", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/nova/page.tsx": ["Criar categoria", "organizacao.configurar"],
   "app/(casca)/configuracao/categorias/[categoriaId]/editar/page.tsx": [
@@ -229,5 +229,48 @@ describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
     expect(fonte).toContain("min-h-11");
     expect(fonte).not.toContain("role=");
     expect(fonte).not.toContain("use client");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 44i — o menu de pessoa diz de quem é a conta
+ * ============================================================================
+ *
+ * **Guardas sobre o código-fonte**, no precedente das de cima: o cabeçalho é o rótulo do menu (que o
+ * teclado não visita), *Meus dados* é item com ícone e não imprime o nome, e os dois layouts que montam
+ * a barra superior passam o e-mail da sessão.
+ */
+describe("o menu de pessoa — critério 7 do 44i", () => {
+  const MENU = "src/interface/componentes/casca/menu-de-pessoa.tsx";
+
+  it("abre com um cabeçalho que não é alvo, com o nome e o e-mail quando há e-mail", () => {
+    const fonte = ler(MENU);
+    expect(fonte).toContain("<DropdownMenuLabel");
+    expect(fonte).toContain("emailDaPessoa !== null");
+    expect(fonte).toContain("{emailDaPessoa}");
+  });
+
+  it("Meus dados é item com ícone, e o item não imprime o nome", () => {
+    const fonte = ler(MENU);
+    const inicio = fonte.indexOf('href="/meus-dados"');
+    const item = fonte.slice(inicio, fonte.indexOf("</DropdownMenuItem>", inicio));
+    expect(inicio).toBeGreaterThan(-1);
+    expect(item).toContain("<UserRound");
+    expect(item).toContain("Meus dados");
+    expect(item).not.toContain("nomeDaPessoa");
+  });
+
+  it("Sair continua formulário com botão de envio, agora com ícone", () => {
+    const fonte = ler(MENU);
+    expect(fonte).toContain("<form action={acaoDeSair}>");
+    expect(fonte).toContain('type="submit"');
+    expect(fonte).toContain("<LogOut");
+  });
+
+  it("os dois layouts que montam a barra superior passam o e-mail da sessão", () => {
+    for (const layout of ["app/(casca)/layout.tsx", "app/(foco)/layout.tsx"]) {
+      expect(ler(layout), layout).toMatch(/emailDaPessoa=\{[^}]*sessao\.email\}/u);
+    }
   });
 });
