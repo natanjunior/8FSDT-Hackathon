@@ -1,8 +1,10 @@
 {
   "title": "Documentação",
   "pages": [
+    "---Produto---",
     "produto",
     "glossario",
+    "---Técnico---",
     "atendimento-ao-enunciado",
     "visao-geral-da-arquitetura",
     "dominio",

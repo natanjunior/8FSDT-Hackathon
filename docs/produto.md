@@ -47,40 +47,26 @@ organização sem sair da sessão. Uma organização nunca vê o dado da outra.
 
 ## O ciclo de vida da ocorrência
 
-A ocorrência nasce `Aberta` e caminha até `Resolvida`. `Cancelada` é alcançável enquanto o trabalho não
-terminou.
+A ocorrência nasce quando alguém a registra, passa por análise, ganha um responsável, entra em atendimento
+e termina resolvida. Pode esperar no meio do caminho, e pode ser encerrada sem solução enquanto o trabalho
+não terminou.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Aberta
-    Aberta --> EmAnalise: analisar
-    EmAnalise --> EmAtendimento: iniciar atendimento
-    EmAtendimento --> Pausada: pausar
-    Pausada --> EmAnalise: retomar
-    Pausada --> EmAtendimento: retomar
-    EmAtendimento --> Resolvida: resolver
-    Aberta --> Cancelada: cancelar
-    EmAnalise --> Cancelada: cancelar
-    EmAtendimento --> Cancelada: cancelar
-    Resolvida --> [*]
-    Cancelada --> [*]
-    EmAnalise: Em análise
-    EmAtendimento: Em atendimento
-```
+O que governa esse caminho, em linguagem de negócio:
 
-As regras que governam o desenho, em linguagem de negócio:
-
-- **Só o Gestor move a ocorrência adiante.** O Solicitante abre, comenta, avalia e cancela a própria.
-- **Pausar exige motivo**, escolhido numa lista curta: esperando resposta do solicitante, esperando
-  material, esperando autorização, esperando um terceiro. Retomar devolve a ocorrência ao estado anterior
-  à pausa.
-- **Cancelar exige motivo**, e cancelar não é resolver: as duas saídas são terminais, e a diferença fica
-  registrada.
-- **A avaliação não é um estado.** Ela é uma ação do autor sobre uma ocorrência já resolvida, com nota de
-  1 a 5 e comentário opcional.
-- **Toda mudança de estado grava um registro** com o estado anterior, o novo, a data e a hora, quem fez e
-  a observação. O registro não se altera nem se apaga.
+- **Só quem gere move a ocorrência adiante.** Quem abriu acompanha, comenta, avalia, e desiste da própria
+  enquanto ninguém começou a atendê-la. Depois que o atendimento começa, encerrar sem solução é decisão de
+  quem gere.
+- **Esperar exige dizer por quê**, escolhido numa lista curta: esperando resposta de quem abriu, esperando
+  material, esperando autorização, esperando um terceiro. Ao voltar, a ocorrência retoma de onde parou.
+- **Encerrar sem solução exige motivo escrito**, e fica registrado como coisa diferente de resolver.
+- **A avaliação é uma ação de quem abriu**, sobre uma ocorrência já resolvida, com nota de 1 a 5 e
+  comentário opcional. Ela não é uma etapa do caminho.
+- **Toda mudança grava um registro** com o que era, o que passou a ser, a data e a hora, quem fez e a
+  observação. O registro não se altera nem se apaga.
 - **Não existe reabrir.** Problema que volta é ocorrência nova, ligada à original.
+
+Os nomes exatos dos estados, o desenho da máquina e quem pode executar cada transição estão em
+[Domínio e regras](dominio.md), que é onde essa regra mora.
 
 ## O que o Gestor vê no painel
 
@@ -109,7 +95,7 @@ isoladas na mesma instalação.
 - nota interna entre Gestores;
 - editar uma ocorrência depois de registrada.
 
-**Nenhuma exigência do desafio ficou de fora.** Todo o corte recaiu sobre adições do projeto, e o
+**Nenhuma exigência do desafio ficou de fora.** O
 [Atendimento ao enunciado](atendimento-ao-enunciado.md) mostra exigência por exigência onde cada uma é
 cumprida.
 
@@ -120,12 +106,8 @@ cumprida.
 | Isolamento entre organizações | Nenhuma consulta devolve dado de outra organização, verificado por teste automatizado |
 | Auditabilidade | Toda transição grava os cinco campos, e é impossível mudar o estado sem gerar o registro |
 | Escala | 50 organizações, 200 pessoas por organização, 2.000 ocorrências e 20 pessoas usando ao mesmo tempo |
-| Desempenho | Resposta em até 1 segundo em 95% das requisições, com a aplicação quente |
+| Desempenho | Resposta em até 1 segundo em 95% das requisições |
 | Registro pelo celular | Menos de 1 minuto do toque no atalho à confirmação, com foto |
 | Imagem | Uma por ocorrência, comprimida no próprio aparelho para no máximo 400 KB |
-| Retenção | O histórico não expira: ele é o produto |
+| Retenção | O histórico não expira |
 | Dados pessoais | Foto e localização ficam dentro da organização, e excluir a conta preserva a trilha com o autor anonimizado |
-
-**A aplicação escala a zero para caber na franquia gratuita da nuvem**, e a primeira requisição depois de
-um período ocioso demora: a medição foi de 20,7 segundos, contra 0,30 segundo com a aplicação quente. É
-consequência declarada da escolha de custo zero, e não defeito.

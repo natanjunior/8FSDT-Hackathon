@@ -9,9 +9,6 @@ Cada linha é uma exigência do desafio. A coluna do meio diz onde a solução e
 endereço da API que a realiza e a tela onde ela acontece. Onde a exigência não vira endereço nem tela, a
 coluna diz o que a cumpre.
 
-Esta é a única página de rastreabilidade do pacote. As afirmações de endereço são conferidas por máquina
-contra a [especificação executável](/documentacao/api/referencia), a cada publicação.
-
 ## O que o Solicitante faz
 
 | Exigência | Onde está descrita | Onde acontece |
@@ -43,8 +40,8 @@ contra a [especificação executável](/documentacao/api/referencia), a cada pub
 
 | Exigência | Onde está descrita | Onde acontece |
 |---|---|---|
-| Os estados `Aberta`, `Em análise`, `Em atendimento`, `Resolvida` e `Cancelada` | [Domínio e regras](dominio.md) | a máquina de estados do agregado `Ocorrência` |
-| `Cancelada` alcançável dos três primeiros | [Domínio e regras](dominio.md) | a tabela de transições permitidas |
+| Os cinco estados que o desafio exige, no mínimo | [Domínio e regras](dominio.md) | a máquina de estados do agregado `Ocorrência`, que acrescenta um sexto |
+| Cancelar a partir dos estados em que o trabalho ainda não terminou | [Domínio e regras](dominio.md) | a tabela de transições permitidas diz de quais, e quem pode |
 | Toda mudança de status gera registro com status anterior, novo status, data e horário, usuário responsável e observação | [Domínio e regras](dominio.md) | `registros_transicao`, escrita na mesma operação do comando |
 | Cada transição é auditável | [Domínio e regras](dominio.md) | `GET /ocorrencias/{id}/trilha-de-auditoria` · `Trilha de auditoria` |
 
@@ -62,23 +59,21 @@ mecanismo está em [Domínio e regras](dominio.md), e a decisão que o fixou, na
 | Backend | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | `src/dominio/`, `src/aplicacao/`, `src/infraestrutura/` |
 | APIs | [referência da API](/documentacao/api/referencia) | 39 operações, conferidas contra as rotas a cada publicação |
 | Banco de dados | [Modelo de dados](modelo-de-dados.md) | catorze tabelas em `supabase/migrations/` |
-| Frontend | [O produto](produto.md) | as telas da aplicação, em `app/` |
+| Frontend | [Telas](inventario-de-telas.md) | as telas da aplicação, em `app/` |
 | Testes | [Definition of Done](definition-of-done.md) | domínio e aplicação sem banco, isolamento contra Postgres, e um de ponta a ponta num navegador |
 | Docker | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | o mesmo `Dockerfile` sobe o ambiente local e a produção |
 | Deploy em cloud | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | a aplicação publicada, com uma revisão nova por entrega |
-| Documentação | esta pasta | os verificadores do portão de entrega, um deles contra o site publicado |
+| Documentação | esta documentação | os verificadores do portão de entrega, um deles contra o site publicado |
 
-## O que o enunciado não fixou, e a solução fixou
+## O que o enunciado não fixou
 
 O desafio deixa seis pontos em aberto. Cada um virou regra escrita, e não escolha invisível:
 
-| Em aberto no enunciado | A regra desta solução |
+| Em aberto no enunciado | Onde está a regra |
 |---|---|
-| De quais estados se pode cancelar | Das três primeiras: `Aberta`, `Em análise` e `Em atendimento` |
-| Se a avaliação é um estado | Não é. É uma ação sobre a ocorrência resolvida, e o ciclo tem cinco estados |
-| Quem pode cancelar | O autor cancela a própria; o Gestor cancela qualquer uma da organização |
-| Quem é o responsável | A pessoa com vínculo na organização a quem a ocorrência foi atribuída, e o papel não restringe quem pode ser |
-| Quais indicadores entram no dashboard | Cinco: backlog por status, backlog por categoria, média das avaliações, recorrência, e tempo médio de resolução |
-| Quais categorias existem | As sete do enunciado nascem com a organização, e o Gestor as edita |
-
-O raciocínio de cada uma está em [Domínio e regras](dominio.md).
+| De quais estados se pode cancelar | [Domínio e regras](dominio.md) |
+| Se a avaliação é um estado | [Domínio e regras](dominio.md) |
+| Quem pode cancelar | [Domínio e regras](dominio.md) |
+| Quem é o responsável | [Domínio e regras](dominio.md) |
+| Quais indicadores entram no dashboard | [O produto](produto.md) |
+| Quais categorias existem | [Domínio e regras](dominio.md) |

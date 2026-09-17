@@ -16,9 +16,6 @@ estado fica gravada com quem fez, quando e por quê.
 | **Ver o código** | [github.com/natanjunior/8FSDT-Hackathon](https://github.com/natanjunior/8FSDT-Hackathon) |
 | **Referência da API** | [a especificação executável, no Swagger](/documentacao/api/referencia) |
 
-A aplicação escala a zero para caber numa franquia gratuita, então a primeira visita depois de um período
-ocioso demora cerca de vinte segundos. A seguinte é imediata.
-
 ## Conheça o produto
 
 Para quem quer saber **o que o sistema faz**, sem entrar no como.
