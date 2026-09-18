@@ -113,8 +113,7 @@ o que pode fazer, sem reimplementar a máquina de estados.
 | Ordenação | a listagem de ocorrências tem uma ordem só, da mais recente para a mais antiga. Ordenar por outra coluna exigiria índice novo |
 
 Na paginação, um item pode ser pulado quando alguém age no sentido inverso entre duas páginas. A fila de
-triagem é exata, porque nenhuma transição leva de volta ao estado inicial; onde há reentrada, o resíduo
-fica declarado em vez de escondido.
+triagem é exata, porque nenhuma transição leva de volta ao estado inicial.
 
 ## O que o cliente recebe
 
@@ -161,8 +160,5 @@ operação. Ele recusa quatro coisas em particular: que o estado apareça em alg
 algum caminho exponha pessoas, que a organização volte a ser informada pelo cliente fora dos dois casos
 permitidos, e que a especificação prometa um corpo que a rota recusa.
 
-A última nasceu de um defeito real, que ficou aberto por semanas sem que nada acusasse, porque era a
-primeira verificação a comparar os dois lados.
-
-Gerar a especificação a partir dos esquemas de validação continua sendo o destino, e é dívida declarada
-com o portão que a cobre nomeado.
+Gerar a especificação a partir dos esquemas de validação continua sendo o destino. Até lá, o verificador
+é o que segura os dois lados juntos.

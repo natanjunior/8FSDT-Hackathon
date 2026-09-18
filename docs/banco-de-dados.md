@@ -28,30 +28,36 @@ as que não dependem de ninguém lembrar.
 | `anexos` | a imagem reivindicada por uma ocorrência, com a miniatura |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
 
+**Quem é quem, e onde.** A metade que responde antes de existir ocorrência:
+
 ```mermaid
 erDiagram
+    direction TB
     PESSOAS ||--o{ CONTATOS : "é alcançada por"
     PESSOAS ||--o{ VINCULOS : "tem"
     PESSOAS ||--o{ PEDIDOS_DE_ENTRADA : "solicita"
-    PESSOAS ||--o{ AUTORIZACOES_DE_UPLOAD : "recebeu"
-
     ORGANIZACOES ||--o{ VINCULOS : "concede"
+    ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
     ORGANIZACOES ||--o{ CATEGORIAS : "configura"
     ORGANIZACOES ||--o{ AREAS : "configura"
-    ORGANIZACOES ||--o{ OCORRENCIAS : "escopa"
-    ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
+```
 
-    CATEGORIAS ||--o{ OCORRENCIAS : "classifica"
-    AREAS ||--o{ OCORRENCIAS : "localiza"
+**A ocorrência, e o que gira em volta dela.** Todas as tabelas abaixo são escopadas à organização, e a
+ocorrência ainda aponta para a categoria e para a área do desenho de cima:
 
+```mermaid
+erDiagram
+    direction TB
     OCORRENCIAS ||--|{ REGISTROS_TRANSICAO : "trilha"
     OCORRENCIAS ||--o{ ATRIBUICOES : "designa"
     OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa em"
     OCORRENCIAS ||--o{ ANEXOS : "evidencia"
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
-
     CANAIS_CONVERSA ||--o{ MENSAGENS : "contém"
 ```
+
+A tabela do livro-caixa de autorizações de upload não aparece em nenhum dos dois: ela é global, ligada
+apenas à pessoa que pediu a credencial, e existe para conter abuso.
 
 ## O escopo, garantido pelo esquema
 
