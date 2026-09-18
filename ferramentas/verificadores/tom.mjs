@@ -28,6 +28,9 @@ import { RAIZ, curto, documentos, ler, relatar } from "./comum.mjs";
 
 /** Arquivos já reescritos. Uma linha por tarefa concluída da reescrita. */
 const APROVADOS = new Set([
+  "CONTRIBUTING.md",
+  "README.md",
+  "docs/README.md",
   "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
   "docs/adr/0002-stack-e-plataforma.md",
   "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
@@ -40,38 +43,26 @@ const APROVADOS = new Set([
   "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
   "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
   "docs/adr/README.md",
+  "docs/api.md",
   "docs/arquitetura.md",
+  "docs/atendimento-ao-enunciado.md",
+  "docs/banco-de-dados.md",
   "docs/contrato-de-api.md",
   "docs/definition-of-done.md",
   "docs/documentacao-da-demanda.md",
+  "docs/dominio.md",
   "docs/escopo.md",
   "docs/event-storming.md",
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
-  "docs/modelo-de-dados.md",
-  "CONTRIBUTING.md",
-  "README.md",
-  "docs/README.md",
-  "docs/atendimento-ao-enunciado.md",
-  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
-  "docs/adr/0002-stack-e-plataforma.md",
-  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
-  "docs/adr/0004-execucao-em-container-no-azure.md",
-  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
-  "docs/adr/0006-organizacao-de-modulos.md",
-  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
-  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
-  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
-  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
-  "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
-  "docs/adr/README.md",
-  "docs/dominio.md",
   "docs/infraestrutura.md",
+  "docs/modelo-de-dados.md",
   "docs/premissas-e-questoes-abertas.md",
   "docs/produto.md",
-  "docs/seguranca.md",
-  "docs/testes.md",
   "docs/prototipo-low-fi.md",
+  "docs/seguranca.md",
+  "docs/telas.md",
+  "docs/testes.md",
   "docs/visao-geral-da-arquitetura.md",
 ]);
 
@@ -91,6 +82,14 @@ const APROVADOS = new Set([
 const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
 
 /**
+ * E ha um segundo congelado, que nem chega a PARCIAIS: o inventario de telas.
+ *
+ * Ele foi substituido pela pagina de Telas e saiu da navegacao sem nunca ter passado pela reescrita de
+ * voz, entao esta fora de APROVADOS e as violacoes dele sao NOTA. Continua compilando porque as paginas
+ * ainda nao trocadas o citam, e sai do repositorio no dia em que o ultimo desses ponteiros sumir.
+ */
+
+/**
  * As páginas da estrutura nova, que respondem também pelas regras de estrutura.
  *
  * A troca é página a página: a nova entra na navegação quando fica pronta, e a antiga sai no mesmo
@@ -101,13 +100,29 @@ const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
  * a `APROVADOS` passam a ser a mesma coisa, e uma das duas sai.
  */
 const NOVAS = new Set([
+  "CONTRIBUTING.md",
   "docs/README.md",
+  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
+  "docs/adr/0002-stack-e-plataforma.md",
+  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
+  "docs/adr/0004-execucao-em-container-no-azure.md",
+  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
+  "docs/adr/0006-organizacao-de-modulos.md",
+  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
+  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
+  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
+  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
+  "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
+  "docs/adr/README.md",
+  "docs/api.md",
   "docs/atendimento-ao-enunciado.md",
+  "docs/banco-de-dados.md",
   "docs/dominio.md",
   "docs/glossario.md",
   "docs/infraestrutura.md",
   "docs/produto.md",
   "docs/seguranca.md",
+  "docs/telas.md",
   "docs/testes.md",
   "docs/visao-geral-da-arquitetura.md",
 ]);

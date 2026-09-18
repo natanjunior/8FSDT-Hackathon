@@ -58,8 +58,8 @@ mecanismo está em [Domínio e regras](dominio.md), e a decisão que o fixou, na
 | Arquitetura | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | os diagramas de contexto e de blocos, e as decisões registradas |
 | Backend | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | `src/dominio/`, `src/aplicacao/`, `src/infraestrutura/` |
 | APIs | [referência da API](/documentacao/api/referencia) | 41 operações, conferidas contra as rotas a cada publicação |
-| Banco de dados | [Modelo de dados](modelo-de-dados.md) | catorze tabelas em `supabase/migrations/` |
-| Frontend | [Telas](inventario-de-telas.md) | as telas da aplicação, em `app/` |
+| Banco de dados | [Banco de dados](banco-de-dados.md) | catorze tabelas em `supabase/migrations/` |
+| Frontend | [Telas](telas.md) | as telas da aplicação, em `app/` |
 | Testes | [Testes](testes.md) | domínio e aplicação sem banco, isolamento contra Postgres, e um de ponta a ponta num navegador |
 | Docker | [Infraestrutura](infraestrutura.md) | o mesmo `Dockerfile` sobe o ambiente local e a produção |
 | Deploy em cloud | [Infraestrutura](infraestrutura.md) | a aplicação publicada, com uma revisão nova por entrega |

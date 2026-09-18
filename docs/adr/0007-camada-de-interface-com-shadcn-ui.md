@@ -5,8 +5,8 @@ description: "O código dos componentes mora no repositório, e o esquema que va
 
 # ADR-0007 — Camada de interface com shadcn/ui sobre Tailwind
 
-**Status:** Parcialmente substituída pela
-[ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) · 21/08/2026 · Complementa a
+**Status:** Aceita em 21/08/2026 · Parcialmente substituída pela
+[ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) · Complementa a
 [ADR-0002](0002-stack-e-plataforma.md)
 
 ## Contexto
