@@ -9,10 +9,10 @@ description: "Os mesmos arquivos markdown compilados em páginas navegáveis, se
 
 ## Contexto
 
-A documentação da solução são mais de vinte arquivos markdown, e a única forma de lê-los era abrir o
-repositório e rolar arquivos de milhares de linhas. Não havia barra lateral, sumário, navegação entre
-páginas nem busca. Quem avalia recebe um endereço da aplicação publicada e um link do repositório, e as
-duas superfícies não se encontravam.
+A documentação da solução é um conjunto de arquivos markdown no repositório, e a única forma de lê-los
+era abrir o repositório e rolar cada arquivo do começo ao fim. Não havia barra lateral, sumário,
+navegação entre páginas nem busca. Quem avalia recebe um endereço da aplicação publicada e um link do
+repositório, e as duas superfícies não se encontravam.
 
 A restrição que decide o desenho: **a entrega tem duas superfícies, e as duas precisam funcionar**. Um
 avaliador pode clonar o repositório, e outro pode abrir a URL publicada. Qualquer solução que faça a

@@ -5,7 +5,9 @@ segurança, manutenção) e acompanha cada uma até a resolução, com **trilha 
 status**. Hoje esse trabalho acontece em grupo de WhatsApp, e-mail e planilha: o pedido chega como texto
 solto, alguém transcreve à mão, e ele some no momento em que trava esperando por alguém.
 
-Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP. Entrega em 29/09/2026.
+Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP.
+
+**Entrega:** 29/09/2026
 
 ## Estado do projeto
 
@@ -20,7 +22,7 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
-O que ainda não existe é o que o [Escopo](docs/escopo.md) corta em letra, com o motivo de cada corte:
+O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, o convite por link, a nota interna
 e a conversa privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado
 ficou de fora:** todo o corte recaiu sobre adições nossas.
@@ -34,42 +36,42 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 | O que | Quanto | Onde se confere |
 |---|---|---|
 | A `Ocorrência`, com o ciclo de vida inteiro | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
-| **A superfície HTTP** | **41 operações em 33 caminhos** | `docs/api/openapi.yaml`, conferido contra o código por `npm run verificar:openapi` |
-| **As telas** | **T-01 a T-16**, as dezesseis do [Inventário de Telas](docs/inventario-de-telas.md) — a T-10 como estado da rota `/`, que é como o inventário a descreve | `app/` |
+| **A superfície HTTP** | **41 operações em 33 caminhos** | [`docs/api/openapi.yaml`](docs/api/openapi.yaml), conferido contra o código por `npm run verificar:openapi` |
+| **As telas** | as **dezesseis** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
 | **O esquema** | **14 tabelas**, em onze migrações | `supabase/migrations/` |
 | **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
-| **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | `.github/workflows/entrega.yml` |
+| **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | [[`.github/workflows/entrega.yml`](.github/workflows/entrega.yml)](.github/workflows/entrega.yml) |
 | **Os testes** | domínio e aplicação sem banco · isolamento contra Postgres · um de ponta a ponta, num navegador, contra a pilha real | `testes/` |
 
 ### A documentação
 
 | Documento | O que responde |
 |---|---|
-| [Documentação da Demanda](docs/documentacao-da-demanda.md) | Quem são as pessoas, qual é o problema, o objetivo com métrica, e os requisitos — funcionais e não funcionais quantificados |
-| [Escopo](docs/escopo.md) | O que o produto é, o que entra nesta entrega, e o que ficou de fora com o motivo de cada corte |
-| [Glossário](docs/glossario.md) | A linguagem ubíqua: uma definição por termo, e as colisões de vocabulário que ela resolve |
-| [Arquitetura](docs/arquitetura.md) | Design estratégico de DDD e o Documento de Requisito Técnico da Solução |
-| [Modelo de Dados](docs/modelo-de-dados.md) | O esquema em PostgreSQL, com cada índice justificado por uma consulta |
-| [Contrato de API](docs/contrato-de-api.md) · [openapi.yaml](docs/api/openapi.yaml) | A superfície HTTP, e a especificação executável em OpenAPI 3.1 |
-| [Fluxos e Diagramas](docs/fluxos-e-diagramas.md) | Os fluxos que o texto explica pior — e a lista do que decidimos não desenhar |
-| [Inventário de Telas](docs/inventario-de-telas.md) | O que cada tela responde, o que oferece e qual endpoint chama |
-| [Protótipo Low-Fi](docs/prototipo-low-fi.md) | A forma das telas, e o orçamento de tempo do requisito de registro em menos de um minuto |
-| [Registros de Decisão (ADR)](docs/adr/) | As decisões de arquitetura, no formato Nygard — com as alternativas rejeitadas |
-| [Premissas e Questões Abertas](docs/premissas-e-questoes-abertas.md) | O que assumimos sem confirmar, e o que muda se estiver errado |
-| [Definition of Done e Definition of Ready](docs/definition-of-done.md) | Os dois portões de qualidade do projeto |
+| [O produto](docs/produto.md) | O problema, quem usa, o ciclo de vida da ocorrência, e o que está e o que não está nesta versão |
+| [Glossário](docs/glossario.md) | A linguagem do produto: uma definição por termo |
+| [Atendimento ao enunciado](docs/atendimento-ao-enunciado.md) | Cada exigência do desafio, e onde ela é cumprida |
+| [Visão geral da arquitetura](docs/visao-geral-da-arquitetura.md) | O sistema no contexto, os blocos, a stack contra cada requisito |
+| [Domínio e regras](docs/dominio.md) | O agregado `Ocorrência`, a máquina de estados, o histórico e as invariantes |
+| [Segurança](docs/seguranca.md) | O isolamento entre organizações, quem entra, e o que acontece com dado pessoal |
+| [Infraestrutura](docs/infraestrutura.md) | Onde cada peça roda, a ordem da esteira, e o caminho de volta |
+| [Testes](docs/testes.md) | O que cada tipo de teste protege, e os verificadores |
+| [Banco de dados](docs/banco-de-dados.md) | As catorze tabelas, e o que o esquema garante sozinho |
+| [A API](docs/api.md) · [openapi.yaml](docs/api/openapi.yaml) | As convenções da superfície HTTP, e a especificação executável |
+| [Telas](docs/telas.md) | O que cada tela responde, e como se navega entre elas |
+| [Registros de Decisão](docs/adr/) | As decisões de arquitetura, no formato Nygard, com as alternativas rejeitadas |
 
-O índice comentado, com a ordem de leitura, está em **[docs/README.md](docs/README.md)**.
+O índice, na ordem de leitura, está em **[docs/README.md](docs/README.md)**. Os dois portões de qualidade
+do projeto estão em **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Por onde começar
 
-**Caminho curto** — [o produto em uma passada](docs/escopo.md#o-produto-em-uma-passada), na abertura do
-Escopo: do cadastro ao dashboard, contado como quem usa o encontra. De lá, a
-[Arquitetura](docs/arquitetura.md) e a
-[ADR-0001](docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md), que é a decisão que sustenta o
-resto.
+**Caminho curto** — [O produto](docs/produto.md), que conta o que o sistema faz sem entrar no como. De lá,
+a [Visão geral da arquitetura](docs/visao-geral-da-arquitetura.md) e a
+[ADR-0001](docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md), que é a decisão que sustenta
+o resto.
 
-**Caminho completo**, a ordem numerada de [docs/README.md](docs/README.md), que é a ordem em que os
-documentos foram produzidos: cada um usa o anterior.
+**Caminho completo**, a ordem de [docs/README.md](docs/README.md), que é produto primeiro e referência
+por último.
 
 ## O que define esta solução
 
@@ -85,40 +87,10 @@ vazaria dados de outro condomínio ([ADR-0003](docs/adr/0003-isolamento-de-tenan
 **O container construído é o que roda.** Em produção, e não só no ambiente de
 desenvolvimento ([ADR-0004](docs/adr/0004-execucao-em-container-no-azure.md)).
 
-**O corte de escopo é verificável.** Cada requisito do enunciado está inventariado na
-[Documentação da Demanda](docs/documentacao-da-demanda.md), e o [Escopo](docs/escopo.md) diz de cada item
-se ele entra, e se não entra, por quê. Nenhum requisito do enunciado ficou de fora: o corte recaiu inteiro
-sobre adições nossas.
-
-## O que deu errado
-
-Seis defeitos que este projeto produziu, cada um com o seu número. Estão escritos porque documentação que
-só mostra o que deu certo não dá a ninguém como julgar o resto dela.
-
-**Duas contagens de tabela, nenhuma qualificada.** O modelo descreve dezessete tabelas e as migrações
-criam catorze, e as duas afirmações estão certas: três tabelas são de evolução prevista. O defeito não era
-o número, era escrever *tabela* sem dizer de qual conjunto se falava, e isso atravessou quatro documentos.
-
-**A mesma grandeza, contada duas vezes.** Dentro do contrato de API, um parágrafo dizia *"42 de 63"*
-capacidades e a seção de rastreabilidade dizia *"44 de 66"*. A segunda estava certa; a primeira envelheceu
-quando o escopo andou, e ninguém a reabriu.
-
-**A errata não impediu nenhum dos dois.** Eram 1.905 linhas em 83 blocos, 12% do pacote. O mecanismo
-custava caro e entregava pouco: cada correção virava texto novo em vez de conserto do texto velho, e o
-documento crescia enquanto a afirmação errada continuava de pé logo acima da correção dela.
-
-**O verificador forte foi descartado duas vezes.** A versão que lia a vizinhança da citação produziu 217
-falhas; a de padrões estreitos, 147. Em nenhuma das duas havia um erro real. O que ficou é mais fraco de
-propósito: pergunta só se a seção existe em algum documento do pacote. Alarme que grita 147 vezes errado
-ensina a ignorar alarme.
-
-**Um negrito a cada 27 palavras.** E um travessão a cada 54. Nada disso foi percebido lendo: apareceu
-quando alguém contou. Hoje são um a cada 40 e um a cada 102, com um documento ainda na fila e a voz do
-protótipo dispensada por decisão registrada.
-
-**O termo que prometia uma segunda entrega.** *"Primeira entrega"* apareceu 124 vezes em 18 arquivos, e
-segunda entrega não existe. Ele atravessou a reescrita inteira sem que ninguém de dentro o visse. Quem viu foi
-quem leu.
+**O corte de escopo é verificável.** O [Atendimento ao enunciado](docs/atendimento-ao-enunciado.md)
+percorre exigência por exigência e diz onde cada uma é cumprida, e [O produto](docs/produto.md) diz o que
+ficou de fora e por quê. Nenhum requisito do enunciado ficou de fora: o corte recaiu inteiro sobre
+adições nossas.
 
 ## Como rodar
 
@@ -173,7 +145,7 @@ Porque são duas ferramentas, e cada uma faz o seu projeto, não é duplicação
 
 | Grupo | Quem cria | O que tem dentro |
 |---|---|---|
-| `resolve-ai-local` | o nosso `docker-compose.yml` | `resolve-ai` (a aplicação) e `resolve-ai-azurite` (o storage) |
+| `resolve-ai-local` | o nosso [`docker-compose.yml`](docker-compose.yml) | `resolve-ai` (a aplicação) e `resolve-ai-azurite` (o storage) |
 | `resolve-ai` | a **CLI do Supabase**, pelo `project_id` do `supabase/config.toml` | `supabase_db_…`, `supabase_auth_…`, `supabase_kong_…` e os demais |
 
 O nome `resolve-ai-local` é explícito no compose. Sem ele, o Compose nomearia o projeto pela pasta,
@@ -219,7 +191,7 @@ Cada peça, separada:
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
 | `npm run teste:ponta-a-ponta` | O caminho crítico do enunciado, de fora para dentro — um navegador contra a pilha real, com autenticação de verdade: registrar → analisar → atribuir → atender → resolver → avaliar, mais a trilha conferida na tela e a troca de organização no meio do percurso. É um só, e para sempre ([ADR-0008](docs/adr/0008-a-suite-de-testes-segue-a-garantia.md)); não é portão de pipeline por push |
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
-| `npm run verificar:openapi` | As quatro regras mecânicas da §15 do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
+| `npm run verificar:openapi` | As quatro regras mecânicas do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso não está no `npm run verificar`; no pipeline ele roda antes do `push`, porque imagem publicada com segredo dentro não se desfaz |
 | `npm run verificar:auth` | A configuração de Auth publicada bate com a que este repositório declara — Site URL, lista de redirecionamento, confirmação de e-mail, assunto e corpo do e-mail de recuperação. Exige credencial e rede, e por isso não está no `npm run verificar`; é o mesmo tratamento do `verificar:imagem`. Ver *[Publicar](#publicar)* |
@@ -259,7 +231,7 @@ quebra; `npm run semear:demo -- --apagar` limpa tudo. Numa falha, o rastro, a im
 
 ### Publicar
 
-Não há comando: **`merge` em `main` publica.** O `.github/workflows/entrega.yml` verifica, aplica as
+Não há comando: **`merge` em `main` publica.** O [`.github/workflows/entrega.yml`](.github/workflows/entrega.yml) verifica, aplica as
 migrações, constrói a imagem, publica no `ghcr.io` e cria uma revisão nova no Azure Container Apps, nessa
 ordem, porque *o rollback da aplicação é imediato e o do banco não é*. Antes de qualquer publicação, a
 esteira sobe o `docker compose` num runner limpo e bate na aplicação por HTTP, é a mesma `npm run
@@ -280,14 +252,14 @@ locais incluídas, e `site_url` e `additional_redirect_urls` têm de divergir en
 Consequência: estes quatro campos são digitados à mão, uma vez, no painel do projeto hospedado.
 Enquanto ninguém os digitou, a nuvem fica no padrão de fábrica, que é literalmente
 `http://localhost:3000`, e foi o que quebrou a confirmação de conta e a redefinição de senha em produção
-até 31/08/2026.
+até que alguém os digitasse.
 
 | # | Onde, no painel | O que digitar |
 |---|---|---|
 | 1 | *Authentication* → *URL Configuration* → **Site URL** | a URL pública da aplicação, **sem barra final** |
 | 2 | *Authentication* → *URL Configuration* → **Redirect URLs** | `<pública>/confirmar-conta` — e **remover** toda entrada com `localhost` ou `127.0.0.1` |
 | 3 | *Authentication* → *Sign In / Providers* → *Email* → **Confirm email** | **desligado**, que é o mesmo valor de `enable_confirmations` no `config.toml` |
-| 4 | *Authentication* → *Emails* → *Templates* → **Reset Password** | o assunto e o corpo de `supabase/templates/recuperacao.html` |
+| 4 | *Authentication* → *Emails* → *Templates* → **Reset Password** | o assunto e o corpo de [`supabase/templates/recuperacao.html`](supabase/templates/recuperacao.html) |
 
 O 4 não precisa da lista de permissão. O link daquele template aponta direto para a nossa rota, com
 `{{ .TokenHash }}`, e `pedirRedefinicaoDeSenha` chama `resetPasswordForEmail` **sem `redirectTo`**, de
@@ -307,12 +279,12 @@ este repositório declara. Precisa de três variáveis, no `.env.local` ou no am
 
 | Código | O que aconteceu |
 |---|---|
-| **0** | os cinco campos batem |
-| **1** | a configuração publicada diverge da declarada — ou os controles embutidos do verificador falharam |
-| **2** | falta credencial: ele não olhou para nada |
-| **3** | não deu para falar com a API de management |
+| `0` | os cinco campos batem |
+| `1` | a configuração publicada diverge da declarada — ou os controles embutidos do verificador falharam |
+| `2` | falta credencial: ele não olhou para nada |
+| `3` | não deu para falar com a API de management |
 
-**E ele roda sozinho em dois lugares.** No `entrega.yml`, como emprego próprio de que `migrar` depende —
+**E ele roda sozinho em dois lugares.** No [`entrega.yml`](.github/workflows/entrega.yml), como emprego próprio de que `migrar` depende —
 um Auth divergente **barra a entrega inteira**, inclusive mudanças que não tocam autenticação, e a saída
 de emergência é a válvula `DIVERGENCIAS` do verificador, que exige razão escrita e aparece no diff. E no
 cron de sexta, que é a metade que importa: deriva de configuração não nasce de commit, alguém clica
@@ -383,9 +355,9 @@ viram configuração em `eslint.config.mjs`, com o comentário de cada uma no ar
 | `refs/` | Material de terceiros, a começar pelo enunciado do desafio | não, porque não é nosso para redistribuir |
 | `trabalho/` | O processo interno: depósito de ideias, decisões em andamento, pesquisa e planos | não, porque é rascunho e não entrega |
 
-Onde um documento cita uma decisão de produto por identificador (`D1` a `D27`), uma premissa (`P1` a `P5`)
-ou um ponto de atenção (`PA-nn`), o conteúdo está em `docs/`, os identificadores são estáveis e
-atravessam todos os documentos.
+Os identificadores de processo — decisões de produto, premissas e pontos de atenção — vivem em
+`trabalho/`, e não aparecem no que é entregue. O que a documentação diz, ela diz por inteiro no lugar
+onde está escrito.
 
 ---
 

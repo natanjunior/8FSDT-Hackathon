@@ -13,94 +13,23 @@ import { RAIZ, curto, documentos, ler, relatar } from "./comum.mjs";
  * por releitura. Dez horas de regra no lugar de quarenta de leitura.
  *
  * ---------------------------------------------------------------------------
- *  Por que há uma lista de aprovados, em vez de o portão valer para tudo
+ *  Uma lista só, e ela tem de ser o pacote inteiro
  * ---------------------------------------------------------------------------
  *
- * A reescrita é de 25 arquivos e leva semanas. Um portão que exigisse todos de uma vez ficaria vermelho o
- * tempo todo, e portão sempre vermelho ensina a ignorar portão. Então:
+ * Durante a reescrita houve duas listas: a dos arquivos já reescritos, cuja violação derrubava o build, e
+ * a das páginas da estrutura nova, que respondiam também pelas regras de estrutura. Elas existiam porque
+ * um portão que exigisse tudo de uma vez ficaria vermelho por semanas, e portão sempre vermelho ensina a
+ * ignorar portão.
  *
- *   · arquivo em APROVADOS  -> violação é FALHA, e o build cai;
- *   · arquivo fora da lista -> violação é NOTA, e o build passa.
- *
- * Cada tarefa da reescrita acrescenta uma linha à lista. Quando ela tiver os 25, o `if` deixa de ter
- * função e sai, e nesse dia o portão vale para o pacote inteiro.
+ * **A reescrita terminou, e as duas viraram a mesma coisa.** Sobrou uma, e a guarda lá embaixo exige que
+ * ela seja exatamente o conjunto de documentos conferidos — nem mais, nem menos. Um arquivo novo em
+ * `docs/` que ninguém acrescentar aqui derruba o build, em vez de passar despercebido como nota.
  */
 
-/** Arquivos já reescritos. Uma linha por tarefa concluída da reescrita. */
-const APROVADOS = new Set([
+/** O pacote entregue, arquivo por arquivo. A guarda do fim exige que esta lista seja exata. */
+const DOCUMENTOS = new Set([
   "CONTRIBUTING.md",
   "README.md",
-  "docs/README.md",
-  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
-  "docs/adr/0002-stack-e-plataforma.md",
-  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
-  "docs/adr/0004-execucao-em-container-no-azure.md",
-  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
-  "docs/adr/0006-organizacao-de-modulos.md",
-  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
-  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
-  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
-  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
-  "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
-  "docs/adr/README.md",
-  "docs/api.md",
-  "docs/arquitetura.md",
-  "docs/atendimento-ao-enunciado.md",
-  "docs/banco-de-dados.md",
-  "docs/contrato-de-api.md",
-  "docs/definition-of-done.md",
-  "docs/documentacao-da-demanda.md",
-  "docs/dominio.md",
-  "docs/escopo.md",
-  "docs/event-storming.md",
-  "docs/fluxos-e-diagramas.md",
-  "docs/glossario.md",
-  "docs/infraestrutura.md",
-  "docs/modelo-de-dados.md",
-  "docs/premissas-e-questoes-abertas.md",
-  "docs/produto.md",
-  "docs/prototipo-low-fi.md",
-  "docs/seguranca.md",
-  "docs/telas.md",
-  "docs/testes.md",
-  "docs/visao-geral-da-arquitetura.md",
-]);
-
-/**
- * Arquivo aprovado com regras dispensadas, e a dispensa tem dono.
- *
- * O protótipo entrou no site sem a reescrita de voz (D6 de documentação, e a resposta do hub de
- * 09/09/2026): ele é citado 70 vezes em 11 documentos, e como página os 70 links resolvem sozinhos.
- * Recebeu as regras 4, 5 e 6, que são as que se aplicam com busca. As regras 1, 2 e 3 exigem reescrever
- * prosa, e essa hora não estava no orçamento desta entrega.
- *
- * **O arquivo está congelado.** Ele sai da documentação entregue, então a voz dele não será reescrita e
- * ele não recebe atualização nova. Continua compilando, porque as páginas ainda não trocadas apontam
- * para ele às centenas, e sai da lista no dia em que o último desses ponteiros sumir. Até lá a dispensa
- * é visível e tem dono, que é o que distingue exceção de esquecimento.
- */
-const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
-
-/**
- * E ha um segundo congelado, que nem chega a PARCIAIS: o inventario de telas.
- *
- * Ele foi substituido pela pagina de Telas e saiu da navegacao sem nunca ter passado pela reescrita de
- * voz, entao esta fora de APROVADOS e as violacoes dele sao NOTA. Continua compilando porque as paginas
- * ainda nao trocadas o citam, e sai do repositorio no dia em que o ultimo desses ponteiros sumir.
- */
-
-/**
- * As páginas da estrutura nova, que respondem também pelas regras de estrutura.
- *
- * A troca é página a página: a nova entra na navegação quando fica pronta, e a antiga sai no mesmo
- * momento. Enquanto uma antiga estiver no ar, ela responde só pelas seis regras de tom — cobrar dela o
- * resto deixaria o portão vermelho sem que ninguém pudesse consertá-lo antes da hora.
- *
- * Cada página nova acrescenta uma linha aqui. Quando a estrutura antiga tiver saído inteira, esta lista e
- * a `APROVADOS` passam a ser a mesma coisa, e uma das duas sai.
- */
-const NOVAS = new Set([
-  "CONTRIBUTING.md",
   "docs/README.md",
   "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
   "docs/adr/0002-stack-e-plataforma.md",
@@ -228,11 +157,12 @@ const DA_ESTRUTURA_NOVA = [
 ];
 
 /**
- * Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção, e ela pode
+ * Data no corpo: o histórico é do `git log`. As exceções são campos declarados — o status de uma ADR e
+ * o prazo de entrega —, e a linha de status pode
  * quebrar em duas — a continuação começa pelo separador, e por isso ele também está isento.
  */
 const DATA_NO_CORPO =
-  /^(?!\s*(?:(?:\*\*)?(?:Status|Data)\b|·)).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
+  /^(?!\s*(?:(?:\*\*)?(?:Status|Data|Entrega)\b|·)).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
 
 /**
  * Referência a arquivo escrita como código, sem link.
@@ -430,26 +360,59 @@ export function violacoesDe(conteudo, eu = "", nova = false) {
 const falhas = [];
 const notas = [];
 let conferidos = 0;
-let pendentes = 0;
+
+const encontrados = documentos([".md"]).map(curto);
 
 for (const caminho of documentos([".md"])) {
   const eu = curto(caminho);
   conferidos += 1;
-  const violacoes = violacoesDe(ler(caminho), eu, NOVAS.has(eu));
+  for (const violacao of violacoesDe(ler(caminho), eu, true)) falhas.push(`${eu} — ${violacao}`);
+}
 
-  if (APROVADOS.has(eu)) {
-    const dispensadas = PARCIAIS.get(eu) ?? [];
-    const exigidas = violacoes.filter(
-      (v) => !dispensadas.includes(Number(/^regra (\d)/u.exec(v)?.[1])),
-    );
-    for (const violacao of exigidas) falhas.push(`${eu} — ${violacao}`);
-    if (dispensadas.length > 0) {
-      notas.push(`${eu}: regras ${dispensadas.join(", ")} dispensadas por decisão registrada neste arquivo`);
-    }
-  } else if (violacoes.length > 0) {
-    pendentes += 1;
-    notas.push(`${eu}: ${violacoes.join(" · ")}`);
+/**
+ * A guarda da lista, e ela fecha nos dois sentidos.
+ *
+ * **Arquivo em `docs/` que não está na lista** seria um documento entregue sem portão nenhum, que é como
+ * a reescrita começou e o estado a que ela não pode voltar. **Nome na lista sem arquivo** é lista que
+ * envelheceu, e lista que envelhece deixa de significar alguma coisa.
+ */
+const foraDaLista = encontrados.filter((eu) => !DOCUMENTOS.has(eu));
+const semArquivo = [...DOCUMENTOS].filter((eu) => !encontrados.includes(eu));
+
+if (foraDaLista.length > 0 || semArquivo.length > 0) {
+  falhas.push(
+    `A LISTA E O DISCO DIVERGEM — ${DOCUMENTOS.size} na lista, ${encontrados.length} no disco. ` +
+      (foraDaLista.length > 0 ? `Fora da lista: ${foraDaLista.join(", ")}. ` : "") +
+      (semArquivo.length > 0 ? `Na lista sem arquivo: ${semArquivo.join(", ")}.` : ""),
+  );
+} else {
+  notas.push(`a lista tem os ${DOCUMENTOS.size} documentos do disco, e nenhum a mais`);
+}
+
+/**
+ * E a navegação, que é a terceira ponta.
+ *
+ * Um arquivo pode existir, estar na lista e mesmo assim não aparecer para ninguém, porque a barra lateral
+ * sai de `meta.json` e não da pasta. Toda página de `docs/` tem de estar num `meta.json`, e o `README` de
+ * cada pasta é a exceção, porque ele é o índice dela.
+ */
+const naNavegacao = new Set();
+for (const pasta of ["docs", "docs/adr"]) {
+  const meta = JSON.parse(ler(join(RAIZ, pasta, "meta.json")));
+  for (const pagina of meta.pages ?? []) {
+    if (pagina.startsWith("---")) continue;
+    naNavegacao.add(pagina === "adr" ? "docs/adr" : `${pasta}/${pagina}.md`);
   }
+}
+
+const invisiveis = encontrados.filter(
+  (eu) => eu.startsWith("docs/") && !eu.endsWith("README.md") && !naNavegacao.has(eu),
+);
+
+if (invisiveis.length > 0) {
+  falhas.push(`FORA DA NAVEGAÇÃO — existem e não aparecem na barra lateral: ${invisiveis.join(", ")}`);
+} else {
+  notas.push(`as ${naNavegacao.size - 1} páginas da navegação existem em disco, e nenhuma página sobra`);
 }
 
 // ---------------------------------------------------------------------------
@@ -550,9 +513,5 @@ if (comoOutra.length !== 3 || comoAutorizada.length !== 2 || comoDono.length > 0
       `${DONO_DA_MAQUINA_DE_ESTADOS}, e nomear sem teto só em ${[...PODEM_NOMEAR_ESTADOS].join(", ")}.`,
   );
 }
-
-notas.push(
-  `${APROVADOS.size} de ${conferidos} documentos já reescritos; ${pendentes} ainda com pendências`,
-);
 
 process.exit(relatar("Tom", { conferidos, unidade: "documento", falhas, notas }));
