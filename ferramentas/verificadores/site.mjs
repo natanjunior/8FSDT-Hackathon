@@ -40,12 +40,11 @@ const KEYWORDS_MERMAID =
 const TEXTO_EM_INGLES = [">Search<", ">On this page<", ">No results found<", ">Next Page<", ">Previous Page<"];
 
 /**
- * Página com mais de um `<h1>`, e a exceção tem dono.
- *
- * A Arquitetura é dois documentos numa página, "Parte I" e "Parte II", cada um aberto por `#`. Ela vira
- * duas páginas, Visão geral e Domínio, e esta entrada sai no mesmo commit em que isso acontecer.
+ * Página com mais de um `<h1>`: hoje não há nenhuma, e o mapa fica porque a exceção precisa ter dono
+ * no dia em que aparecer. A única que existiu era a Arquitetura, dois documentos numa página, e ela saiu
+ * quando virou Visão geral mais Domínio.
  */
-const TITULOS_ESPERADOS = new Map([["/documentacao/arquitetura", 3]]);
+const TITULOS_ESPERADOS = new Map();
 
 async function buscar(url, tentativas = 2) {
   for (let tentativa = 1; ; tentativa += 1) {

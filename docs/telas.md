@@ -37,17 +37,18 @@ que hoje é o caso do Encarregado.
 
 ```mermaid
 flowchart TB
+    CONTA["Criar conta<br/>Redefinir senha"]
     ENTRAR["Entrar"]
-    CONTA["Criar conta · Redefinir senha · Definir nova senha"]
-    CTX{"Tem organização ativa?"}
-    ORG["Sem organização ativa<br/>entrar numa · criar uma · esperar aprovação"]
+    CTX{"Tem organização<br/>ativa?"}
+    ORG["Sem organização ativa"]
     LISTA["Ocorrências"]
-    NOVA["Registrar ocorrência"]
-    DETALHE["Ocorrência<br/>é onde os comandos moram"]
+    NOVA["Registrar"]
+    DETALHE["Ocorrência"]
     TRILHA["Trilha de auditoria"]
+    MENU["Menu do cabeçalho"]
     PAINEL["Painel"]
     GENTE["Participantes"]
-    CONFIG["Configuração<br/>categorias e áreas"]
+    CONFIG["Configuração"]
     MEUS["Meus dados"]
 
     CONTA --> ENTRAR
@@ -58,16 +59,19 @@ flowchart TB
     LISTA --> NOVA
     LISTA --> DETALHE
     DETALHE --> TRILHA
-    LISTA --> PAINEL
-    LISTA --> GENTE
-    LISTA --> CONFIG
-    LISTA --> MEUS
+    LISTA --> MENU
+    MENU --> PAINEL
+    MENU --> GENTE
+    MENU --> CONFIG
+    MENU --> MEUS
 ```
 
-A lista de ocorrências é a tela inicial de todo papel que age. O menu do cabeçalho leva ao painel, aos
-participantes e à configuração, e **cada item só existe para quem tem a permissão correspondente** — por
-isso, na navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de
-fora, e tem mensagem própria.
+A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
+moram. A configuração abre as categorias e as áreas.
+
+No menu do cabeçalho, **cada item só existe para quem tem a permissão correspondente** — por isso, na
+navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de fora, e tem
+mensagem própria.
 
 Trocar de organização é um menu no cabeçalho, com o nome da organização ativa sempre visível ao lado.
 Numa aplicação em que a organização vem da sessão e não do endereço, a URL não diz onde você está, e é o
@@ -121,10 +125,10 @@ onde o polegar alcança.
 
 ## Acessibilidade
 
-Não há teste de acessibilidade neste projeto, e isso está declarado em vez de disfarçado. O que existe é
-compromisso de construção, conferido a olho, e três deles não dependem de ferramenta: todo campo tem
-rótulo associado ao controle, nenhum alvo de toque é menor que cerca de 44 px no celular, e nada é
-comunicado só por cor — prioridade, estado e motivo de pausa sempre carregam a palavra.
+Não há teste de acessibilidade neste projeto. O que existe é compromisso de construção, conferido a olho,
+e três deles não dependem de ferramenta: todo campo tem rótulo associado ao controle, nenhum alvo de toque
+é menor que cerca de 44 px no celular, e nada é comunicado só por cor — prioridade, estado e motivo de
+pausa sempre carregam a palavra.
 
 O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está na
 [ADR-0007](adr/0007-camada-de-interface-com-shadcn-ui.md).
