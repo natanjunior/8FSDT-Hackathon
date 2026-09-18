@@ -41,7 +41,7 @@ Para quem vai **manter, avaliar ou estender** a solução.
 | [Contrato de API](contrato-de-api.md) | As convenções da superfície HTTP: sessão, organização, erros e upload |
 | [Telas](inventario-de-telas.md) | O que cada tela responde, o que oferece e qual endereço chama |
 | [Decisões de arquitetura](adr/) | Uma decisão por arquivo, com o contexto, as alternativas rejeitadas e as consequências |
-| [Definition of Done](definition-of-done.md) | Os portões de qualidade, cada um justificado pelo defeito que previne |
+| [Como contribuir](https://github.com/natanjunior/8FSDT-Hackathon/blob/main/CONTRIBUTING.md) | O que uma tarefa precisa cumprir para entrar e para fechar |
 
 ## Se a pergunta for específica
 

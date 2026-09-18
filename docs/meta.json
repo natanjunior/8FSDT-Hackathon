@@ -14,8 +14,6 @@
     "modelo-de-dados",
     "contrato-de-api",
     "inventario-de-telas",
-    "adr",
-    "definition-of-done",
-    "premissas-e-questoes-abertas"
+    "adr"
   ]
 }

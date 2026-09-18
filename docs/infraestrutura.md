@@ -75,7 +75,7 @@ vez de depender de alguém lembrar de rodar um comando antes da mesclagem.
 **Criar revisão não move tráfego.** O ambiente roda em modo de revisões múltiplas, que é a precondição de
 poder voltar atrás sem reconstruir nada, e o preço desse modo é que a revisão nova nasce com peso zero. Sem
 o passo que aponta o tráfego, a esteira ficaria verde enquanto a URL continuasse servindo o código
-anterior, que é o modo de falha mais traiçoeiro possível.
+anterior.
 
 ## Voltar atrás
 

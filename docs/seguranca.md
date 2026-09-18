@@ -31,9 +31,9 @@ A resolução acontece **uma vez por requisição** e produz o contexto com o us
 ativa e o papel. Daí em diante nenhuma consulta é escrita com o filtro de organização repetido à mão:
 quem consulta recebe repositórios que já nascem escopados, e o filtro é aplicado numa função só.
 
-O que torna isso um estrangulamento, e não uma boa intenção: **nenhum arquivo fora da camada de
-infraestrutura importa o cliente de banco**, e isso é regra de lint, conferida a cada build. Quem quisesse
-escapar do funil teria de escrever uma importação que o portão recusa.
+O funil é fechado por regra de lint: **nenhum arquivo fora da camada de infraestrutura importa o cliente
+de banco**, e a regra é conferida a cada build. Quem quisesse escapar dele teria de escrever uma
+importação que o portão recusa.
 
 **Duas escritas acontecem sem sessão de onde tirar a organização, e as duas estão enumeradas.** Quem pede
 entrada numa organização ainda não tem vínculo com ela, e quem cria uma organização está criando o próprio
@@ -132,7 +132,7 @@ só muda por comando, e todo comando grava o registro na mesma operação, **nã
 capaz de alterar uma ocorrência sem deixar rastro**. Quem fez, quando e a partir de qual estado ficam
 gravados, e o registro não se altera nem se apaga. O mecanismo está em [Domínio e regras](dominio.md).
 
-## Os controles que esta versão não tem
+## Fora desta versão
 
 Teste de intrusão, firewall de aplicação, criptografia por coluna, limite de requisições por cliente e
-auditoria de acesso de leitura. Ficam nomeados para que a ausência seja escolha visível.
+auditoria de acesso de leitura.

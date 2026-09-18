@@ -49,9 +49,22 @@ const APROVADOS = new Set([
   "docs/fluxos-e-diagramas.md",
   "docs/glossario.md",
   "docs/modelo-de-dados.md",
+  "CONTRIBUTING.md",
   "README.md",
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
+  "docs/adr/0001-historico-de-transicoes-como-conceito-de-dominio.md",
+  "docs/adr/0002-stack-e-plataforma.md",
+  "docs/adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md",
+  "docs/adr/0004-execucao-em-container-no-azure.md",
+  "docs/adr/0005-regra-de-dependencia-por-inversao.md",
+  "docs/adr/0006-organizacao-de-modulos.md",
+  "docs/adr/0007-camada-de-interface-com-shadcn-ui.md",
+  "docs/adr/0008-a-suite-de-testes-segue-a-garantia.md",
+  "docs/adr/0009-documentacao-como-paginas-do-produto.md",
+  "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
+  "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
+  "docs/adr/README.md",
   "docs/dominio.md",
   "docs/infraestrutura.md",
   "docs/premissas-e-questoes-abertas.md",
@@ -70,8 +83,10 @@ const APROVADOS = new Set([
  * Recebeu as regras 4, 5 e 6, que são as que se aplicam com busca. As regras 1, 2 e 3 exigem reescrever
  * prosa, e essa hora não estava no orçamento desta entrega.
  *
- * Sai desta lista quando a voz dele for reescrita. Enquanto estiver aqui, a exceção é visível e tem dono,
- * que é o que distingue exceção de esquecimento.
+ * **O arquivo está congelado.** Ele sai da documentação entregue, então a voz dele não será reescrita e
+ * ele não recebe atualização nova. Continua compilando, porque as páginas ainda não trocadas apontam
+ * para ele às centenas, e sai da lista no dia em que o último desses ponteiros sumir. Até lá a dispensa
+ * é visível e tem dono, que é o que distingue exceção de esquecimento.
  */
 const PARCIAIS = new Map([["docs/prototipo-low-fi.md", [1, 2, 3]]]);
 
@@ -89,6 +104,7 @@ const NOVAS = new Set([
   "docs/README.md",
   "docs/atendimento-ao-enunciado.md",
   "docs/dominio.md",
+  "docs/glossario.md",
   "docs/infraestrutura.md",
   "docs/produto.md",
   "docs/seguranca.md",
@@ -196,8 +212,12 @@ const DA_ESTRUTURA_NOVA = [
   ],
 ];
 
-/** Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção. */
-const DATA_NO_CORPO = /^(?!\s*(?:\*\*)?(?:Status|Data)\b).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
+/**
+ * Data no corpo: o histórico é do `git log`. A linha de status de uma ADR é a exceção, e ela pode
+ * quebrar em duas — a continuação começa pelo separador, e por isso ele também está isento.
+ */
+const DATA_NO_CORPO =
+  /^(?!\s*(?:(?:\*\*)?(?:Status|Data)\b|·)).*?\b(\d{2}\/\d{2}\/\d{4})\b.*$/gmu;
 
 /**
  * Referência a arquivo escrita como código, sem link.
@@ -223,8 +243,13 @@ const ARQUIVO_SEM_LINK = /(.|^)`[^`\n]*\.(?:md|ya?ml|html)`(.{0,2})/gu;
  */
 const DONO_DA_MAQUINA_DE_ESTADOS = "docs/dominio.md";
 
-/** Páginas autorizadas a nomear estados sem teto. A proibição de desenhar e de enumerar continua. */
-const PODEM_NOMEAR_ESTADOS = new Set(["docs/produto.md"]);
+/**
+ * Páginas autorizadas a nomear estados sem teto. A proibição de desenhar e de enumerar continua.
+ *
+ * O produto fala a língua do sistema por decisão editorial, e o glossário é onde os nomes são definidos:
+ * uma lista de termos que não pudesse citar três deles não seria um glossário.
+ */
+const PODEM_NOMEAR_ESTADOS = new Set(["docs/glossario.md", "docs/produto.md"]);
 
 const DIAGRAMA_DE_ESTADOS = /stateDiagram(?:-v2)?/gu;
 const ESTADO = "(?:Aberta|Em\\s*an[áa]lise|EmAnalise|Em\\s*atendimento|EmAtendimento|Resolvida|Cancelada|Pausada)";
