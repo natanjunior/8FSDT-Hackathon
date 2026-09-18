@@ -1,0 +1,135 @@
+---
+title: "Telas"
+description: "As dezesseis telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+---
+
+# Telas
+
+Dezesseis telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
+ganha endereço próprio.
+
+## As dezesseis
+
+| Tela | Endereço | A pergunta que ela responde | Quem vê |
+|---|---|---|---|
+| Entrar | `/entrar` | *Como eu entro?* | qualquer pessoa, sem sessão |
+| Criar conta | `/criar-conta` | *Não tenho conta.* | qualquer pessoa, sem sessão |
+| Redefinir senha | `/redefinir-senha` | *Esqueci a senha.* | qualquer pessoa, sem sessão |
+| Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
+| Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
+| Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
+| Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
+| Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
+| Trilha de auditoria | `/ocorrencias/{id}/auditoria` | *Prove o que aconteceu, campo por campo.* | quem pode ler aquela ocorrência |
+| Painel | `/dashboard` | *Está melhorando ou piorando?* | quem pode ler o painel |
+| Participantes | `/vinculos` | *Quem está aqui, e quem quer entrar?* | quem gere vínculos |
+| Configuração | `/configuracao` | *O que desta organização eu posso ajustar?* | quem configura a organização |
+| Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
+| Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
+| Meus dados | `/meus-dados` | *O que é meu, e como eu entro?* | qualquer vínculo ativo |
+| Vínculo sem permissões | — | *Entrei. Por que não consigo fazer nada?* | vínculo sem permissão nenhuma |
+
+A última não tem endereço próprio: é o que a aplicação mostra quando o vínculo existe e não autoriza nada,
+que hoje é o caso do Encarregado.
+
+## Como se navega
+
+```mermaid
+flowchart TB
+    ENTRAR["Entrar"]
+    CONTA["Criar conta · Redefinir senha · Definir nova senha"]
+    CTX{"Tem organização ativa?"}
+    ORG["Sem organização ativa<br/>entrar numa · criar uma · esperar aprovação"]
+    LISTA["Ocorrências"]
+    NOVA["Registrar ocorrência"]
+    DETALHE["Ocorrência<br/>é onde os comandos moram"]
+    TRILHA["Trilha de auditoria"]
+    PAINEL["Painel"]
+    GENTE["Participantes"]
+    CONFIG["Configuração<br/>categorias e áreas"]
+    MEUS["Meus dados"]
+
+    CONTA --> ENTRAR
+    ENTRAR --> CTX
+    CTX -->|não| ORG
+    ORG --> LISTA
+    CTX -->|sim| LISTA
+    LISTA --> NOVA
+    LISTA --> DETALHE
+    DETALHE --> TRILHA
+    LISTA --> PAINEL
+    LISTA --> GENTE
+    LISTA --> CONFIG
+    LISTA --> MEUS
+```
+
+A lista de ocorrências é a tela inicial de todo papel que age. O menu do cabeçalho leva ao painel, aos
+participantes e à configuração, e **cada item só existe para quem tem a permissão correspondente** — por
+isso, na navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de
+fora, e tem mensagem própria.
+
+Trocar de organização é um menu no cabeçalho, com o nome da organização ativa sempre visível ao lado.
+Numa aplicação em que a organização vem da sessão e não do endereço, a URL não diz onde você está, e é o
+cabeçalho que diz.
+
+## Duas telas carregam o produto
+
+**Registrar ocorrência** é a única tela cronometrada. O alvo é menos de um minuto do toque no atalho à
+confirmação, com foto, num celular em rede móvel — e o desenho inteiro dela serve a isso: a foto é o
+primeiro alvo, os campos de digitar vêm antes dos de escolher para evitar trocas de teclado, e a área
+tem busca com as usadas recentemente no topo.
+
+**Ocorrência** é onde o trabalho acontece, e é o link que substitui a conversa em grupo. Os onze comandos
+do agregado moram nela: analisar, atribuir, iniciar atendimento, pausar, retomar, resolver, cancelar,
+alterar prioridade, registrar a solução, comentar e avaliar. Nenhum deles é uma tela.
+
+Onze telas de comando produziriam um produto em que o Gestor sai da ocorrência para agir sobre ela e volta
+para ver o resultado — navegar em vez de trabalhar.
+
+## O que a tela desenha vem do servidor
+
+A resposta que traz uma ocorrência traz também **a lista de ações disponíveis para quem está lendo**, já
+cruzada com o estado e com as permissões. A interface desenha os botões a partir dela, sem manter uma
+segunda cópia da máquina de estados.
+
+A lista pode vir vazia, e isso não é erro: é uma ocorrência terminal, ou alguém sem permissão de agir
+sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
+
+O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
+abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
+
+## Celular primeiro, e o que muda na tela grande
+
+O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,
+a trilha de auditoria, os participantes e a configuração são desenhados para a tela grande, porque são
+trabalho de quem senta para administrar.
+
+Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
+dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
+onde o polegar alcança.
+
+## Os estados que não são telas
+
+| Estado | O que a aplicação faz |
+|---|---|
+| Sem organização ativa | leva à tela de escolher organização, guardando o destino pretendido, o que cobre o link recebido antes de a pessoa pertencer a algum lugar |
+| Sem permissão para aquela tela | mensagem própria, com o caminho de volta. Só acontece por link recebido |
+| Lista vazia | texto que diz o que fazer em seguida, e não uma área em branco |
+| Carregando | esqueleto do conteúdo, e não um indicador girando sobre o nada |
+| Erro | a frase em português que vem da resposta, com a ação que a pessoa pode tentar |
+
+## Acessibilidade
+
+Não há teste de acessibilidade neste projeto, e isso está declarado em vez de disfarçado. O que existe é
+compromisso de construção, conferido a olho, e três deles não dependem de ferramenta: todo campo tem
+rótulo associado ao controle, nenhum alvo de toque é menor que cerca de 44 px no celular, e nada é
+comunicado só por cor — prioridade, estado e motivo de pausa sempre carregam a palavra.
+
+O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está na
+[ADR-0007](adr/0007-camada-de-interface-com-shadcn-ui.md).
+
+## Fora desta versão
+
+Não há tela para o Encarregado, nem tela de avisos, nem filtros salvos, nem página pública da organização.
+O que cada ausência custa está em [O produto](produto.md).

@@ -11,9 +11,9 @@
     "seguranca",
     "infraestrutura",
     "testes",
-    "modelo-de-dados",
-    "contrato-de-api",
-    "inventario-de-telas",
+    "banco-de-dados",
+    "api",
+    "telas",
     "adr"
   ]
 }

@@ -1,0 +1,154 @@
+---
+title: "Banco de dados"
+description: "As catorze tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+---
+
+# Banco de dados
+
+PostgreSQL, catorze tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
+as que não dependem de ninguém lembrar.
+
+## As catorze tabelas
+
+| Tabela | O que guarda |
+|---|---|
+| `pessoas` | o ser humano no sistema: nome, e a ligação opcional com uma conta |
+| `contatos` | os telefones e e-mails de uma pessoa, com finalidade e ordem de tentativa |
+| `organizacoes` | o condomínio, a empresa ou o bairro, com o código público de entrada |
+| `vinculos` | a ligação entre pessoa, organização e papel. É a chave do isolamento |
+| `pedidos_de_entrada` | quem apresentou o código e aguarda decisão do Gestor |
+| `categorias` | a natureza da ocorrência, configurável por organização |
+| `areas` | a subdivisão do lugar, comum ou privativa |
+| `ocorrencias` | o objeto central, com estado, prioridade, solução aplicada e avaliação |
+| `registros_transicao` | a trilha de auditoria: um registro por mudança de estado |
+| `atribuicoes` | quem é o responsável por uma ocorrência, e desde quando |
+| `canais_conversa` | o canal de mensagens de uma ocorrência |
+| `mensagens` | o texto trocado dentro de um canal |
+| `anexos` | a imagem reivindicada por uma ocorrência, com a miniatura |
+| `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
+
+```mermaid
+erDiagram
+    PESSOAS ||--o{ CONTATOS : "é alcançada por"
+    PESSOAS ||--o{ VINCULOS : "tem"
+    PESSOAS ||--o{ PEDIDOS_DE_ENTRADA : "solicita"
+    PESSOAS ||--o{ AUTORIZACOES_DE_UPLOAD : "recebeu"
+
+    ORGANIZACOES ||--o{ VINCULOS : "concede"
+    ORGANIZACOES ||--o{ CATEGORIAS : "configura"
+    ORGANIZACOES ||--o{ AREAS : "configura"
+    ORGANIZACOES ||--o{ OCORRENCIAS : "escopa"
+    ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
+
+    CATEGORIAS ||--o{ OCORRENCIAS : "classifica"
+    AREAS ||--o{ OCORRENCIAS : "localiza"
+
+    OCORRENCIAS ||--|{ REGISTROS_TRANSICAO : "trilha"
+    OCORRENCIAS ||--o{ ATRIBUICOES : "designa"
+    OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa em"
+    OCORRENCIAS ||--o{ ANEXOS : "evidencia"
+    OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
+
+    CANAIS_CONVERSA ||--o{ MENSAGENS : "contém"
+```
+
+## O escopo, garantido pelo esquema
+
+Toda tabela dentro do limite de uma organização carrega `organizacao_id`. As três que ficam fora dele são
+`pessoas`, `contatos` e `autorizacoes_de_upload`, porque uma pessoa existe antes de pertencer a qualquer
+organização e pode pertencer a várias.
+
+O que impede uma ocorrência de apontar para a categoria de outra organização não é disciplina de consulta:
+é a **chave estrangeira composta**. Cada tabela escopada tem uma chave única em `(id, organizacao_id)`, e
+quem a referencia carrega as duas colunas:
+
+```sql
+categoria_id uuid not null,
+foreign key (categoria_id, organizacao_id)
+  references categorias (id, organizacao_id) on delete restrict
+```
+
+Como o `organizacao_id` da ocorrência é o mesmo das duas pontas, uma linha que cruzasse organizações não
+tem como ser gravada. O banco recusa antes de qualquer código opinar, e o mesmo padrão vale para área,
+atribuição, canal, mensagem, anexo e registro de transição.
+
+O escopo também é aplicado na camada de aplicação, num ponto único, que é o mecanismo primário descrito em
+[Segurança](seguranca.md). Este aqui é a segunda camada.
+
+## A trilha não pode ser alterada
+
+`registros_transicao` é append-only, e isso está escrito em dois lugares.
+
+O mecanismo primário é o agregado: o repositório não expõe atualização nem exclusão para essa tabela. A
+defesa em profundidade é um gatilho que recusa qualquer `update` ou `delete` com erro:
+
+```sql
+create trigger registros_transicao_append_only_tg
+  before update or delete on registros_transicao
+  for each statement execute function registros_transicao_append_only();
+```
+
+Isso não contradiz a decisão de manter a auditoria no domínio, registrada na
+[ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md): aquela decisão recusa o gatilho
+como **mecanismo de captura**, porque a diferença entre duas linhas nunca produz a observação escrita por
+quem executou o comando. Este gatilho não captura nada: ele apenas proíbe.
+
+Cada registro carrega uma `sequencia`, única por ocorrência, que é o que dá ordem estável à leitura sem
+depender do relógio.
+
+## Os tipos enumerados
+
+Catorze tipos `enum` fixam no banco os conjuntos que o domínio fecha: os papéis, o tipo da área, a
+situação do pedido de entrada, o tipo e a finalidade do contato, a prioridade, o status, os motivos de
+pausa e de cancelamento, o vínculo entre ocorrências, o tipo e a fonte do anexo, o motivo de encerramento
+de uma atribuição, e o tipo do canal.
+
+Valor fora da lista é recusado pelo banco, e acrescentar um valor novo é uma migração — que é o custo
+desejado, porque cada um desses conjuntos é decisão de domínio e não configuração.
+
+## Os índices, um por consulta
+
+Não há índice criado por precaução. Cada um existe porque uma consulta da aplicação o pede:
+
+| Índice | A consulta que o justifica |
+|---|---|
+| ocorrências por organização e data de registro | a listagem padrão, da mais recente para a mais antiga |
+| ocorrências por organização e status | a fila de triagem, que é o filtro mais usado do Gestor |
+| ocorrências por organização e autor | a lista de quem abriu, que é a tela inicial do Solicitante |
+| registros por organização e data | a trilha e o tempo de resolução do painel |
+| atribuição vigente, única por ocorrência | garante que não existam dois responsáveis ao mesmo tempo |
+| canal por tipo, único por ocorrência | garante um canal de cada tipo por ocorrência |
+| pedido pendente, único por pessoa e organização | impede dois pedidos abertos, e permite refazer um recusado |
+
+Os três últimos são índices únicos parciais: eles não aceleram uma consulta, garantem uma regra.
+
+## As contas ficam fora
+
+O produto não guarda senha. A tabela `pessoas` tem uma coluna que aponta para o usuário do provedor de
+autenticação, anulável, porque uma pessoa cadastrada pelo Gestor existe antes de ter conta.
+
+Essa é a única ligação entre o esquema do produto e o do provedor, e é o que mantém a troca de provedor
+como um problema de uma coluna.
+
+## Dados pessoais
+
+Excluir a conta não apaga a trilha: a pessoa recebe a marca de anonimizada, perde a ligação com o usuário
+e tem os contatos removidos. As ocorrências e os registros de transição continuam apontando para ela, e a
+auditoria permanece íntegra com o autor anonimizado. Apagar o histórico destruiria a exigência central do
+desafio, e é por isso que a exclusão foi desenhada assim.
+
+Uma restrição do banco recusa pessoa anonimizada que ainda tenha conta, para que os dois estados não
+possam divergir.
+
+Todas as tabelas têm Row Level Security ligada e nenhuma política escrita, o que no PostgreSQL é negação
+total para os papéis anônimo e autenticado. Quem fala com o banco é o servidor.
+
+## Volume
+
+O alvo declarado em [O produto](produto.md) é de 50 organizações, 2.000 ocorrências e 200 pessoas por
+organização. O teto da franquia gratuita comporta cerca de 55.000 ocorrências, quase trinta vezes isso,
+então o banco não é a restrição desta entrega.
+
+A especificação completa de cada coluna está nas migrações, em `supabase/migrations/`, que são a fonte da
+verdade e o que a esteira aplica.
