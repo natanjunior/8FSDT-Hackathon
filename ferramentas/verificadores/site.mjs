@@ -162,9 +162,29 @@ notas.push(`${referencias.length} links seguidos, ${new Set(referencias.map((r) 
 // 3 · Diagramas
 // ---------------------------------------------------------------------------
 
-const esperados = documentos([".md"])
-  .filter((caminho) => caminho.startsWith(join(RAIZ, "docs")))
-  .reduce((soma, caminho) => soma + (ler(caminho).match(/^\s*```mermaid\s*$/gmu) ?? []).length, 0);
+/**
+ * **O universo é o que a navegação alcança, e não o diretório inteiro.**
+ *
+ * Uma página substituída sai da barra lateral e o arquivo dela fica, porque as páginas ainda não trocadas
+ * a citam. O rastreador não chega nela, então contar os blocos de `docs/` inteiro compararia laranjas com
+ * maçãs e o portão ficaria vermelho sem defeito nenhum. Aqui cada página visitada é traduzida de volta
+ * para o arquivo que a gerou, e só os blocos dela entram na conta.
+ */
+const arquivoDaPagina = (url) => {
+  const resto = new URL(url).pathname.replace(/^\/documentacao\/?/u, "");
+  return resto === "" ? null : join(RAIZ, "docs", `${resto}.md`);
+};
+
+let esperados = 0;
+for (const [url] of documentacao) {
+  const arquivo = arquivoDaPagina(url);
+  if (!arquivo) continue;
+  try {
+    esperados += (ler(arquivo).match(/^\s*```mermaid\s*$/gmu) ?? []).length;
+  } catch {
+    // Página sem arquivo correspondente, como a referência da API. Não tem diagrama a contar.
+  }
+}
 
 let desenhados = 0;
 for (const [url, { corpo }] of documentacao) {
@@ -176,11 +196,13 @@ for (const [url, { corpo }] of documentacao) {
   }
 }
 if (esperados === 0) {
-  falhas.push("nenhum bloco mermaid em docs/: a conferência de diagramas não confere nada");
+  falhas.push("nenhum bloco mermaid nas páginas visitadas: a conferência de diagramas não confere nada");
 } else if (desenhados !== esperados) {
-  falhas.push(`diagramas: ${esperados} blocos mermaid em docs/, ${desenhados} diagramas nas páginas`);
+  falhas.push(
+    `diagramas: ${esperados} blocos mermaid nas páginas visitadas, ${desenhados} desenhados`,
+  );
 } else {
-  notas.push(`${desenhados} diagramas, um por bloco mermaid de docs/`);
+  notas.push(`${desenhados} diagramas, um por bloco mermaid das páginas visitadas`);
 }
 
 // ---------------------------------------------------------------------------
