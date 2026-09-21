@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeEntrada } from "@/interface/componentes/formulario-de-entrada";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { resolverParaTela } from "@/interface/http";
 
 /**
  * **T-01 · Entrar** — a única tela que qualquer pessoa alcança sem sessão, e o destino de qualquer
- * redirecionamento por falta dela (inventário, §3, decisão 2).
+ * redirecionamento por falta dela (a porta do produto).
  *
  * O `?destino=` é o que faz o link profundo sobreviver à autenticação: *"uma ocorrência que não pode ser
  * mandada por link é uma ocorrência que vai ser descrita por WhatsApp"*.
@@ -31,12 +32,29 @@ export default async function TelaDeEntrar({
   if (await temSessao()) redirect(destino !== undefined && destino.startsWith("/") ? destino : "/");
 
   return (
-    <MolduraDeTela titulo="Entrar">
+    <MolduraDeConta
+      titulo="Entrar"
+      contexto="Entre para ver e acompanhar as ocorrências."
+      apresentacao
+      caminhos={
+        <>
+          <Link href="/criar-conta" className="text-marca text-interface py-1 underline underline-offset-4">
+            Criar conta
+          </Link>
+          <Link
+            href="/redefinir-senha"
+            className="text-marca text-interface py-1 underline underline-offset-4"
+          >
+            Esqueci a senha
+          </Link>
+        </>
+      }
+    >
       <FormularioDeEntrada
         {...(destino !== undefined && destino.startsWith("/") ? { destino } : {})}
         {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
       />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
 

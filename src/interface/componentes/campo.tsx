@@ -1,4 +1,4 @@
-import { CircleAlertIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react";
+import { CircleAlertIcon, CircleXIcon, InfoIcon, LoaderCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/interface/componentes/utilitarios";
@@ -205,10 +205,49 @@ export function ErroDoFormulario({ children }: { children: ReactNode }) {
   );
 }
 
-export function RodapeDoFormulario({ obrigatorios, children }: { obrigatorios: number; children: ReactNode }) {
+/**
+ * A faixa que fala do formulário inteiro, e não de um campo.
+ *
+ * **Morava em `moldura-de-tela.tsx`** até o item 44m, e mudou de casa pela razão que mudou o `Campo` no
+ * 44g: aquele arquivo passou a ser a moldura de T-02 e de T-10, e a faixa é do produto inteiro.
+ *
+ * `tom="recusa"` é o erro, e desenha o mesmo `ErroDoFormulario` do resto do produto. `tom="nota"` é o
+ * aviso que **não** é erro — *"Conta confirmada."*, *"Você já está em …"* — e desde o 44m ele também
+ * carrega ícone: o critério 6 pede faixa com ícone nos dois tons, e sem isso o produto teria dois
+ * desenhos para a mesma coisa. A diferença entre os dois é de forma e de ícone, não de cor sozinha (A-5).
+ */
+export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; children: ReactNode }) {
+  if (tom === "recusa") return <ErroDoFormulario>{children}</ErroDoFormulario>;
+
+  return (
+    <div
+      role="alert"
+      className="border-linha bg-superficie text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5 leading-snug"
+    >
+      <InfoIcon aria-hidden="true" className="text-tinta-suave mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+export function RodapeDoFormulario({
+  obrigatorios,
+  todosObrigatorios = false,
+  children,
+}: {
+  obrigatorios: number;
+  /**
+   * **Quando todo campo do formulário é obrigatório, a nota sai e o asterisco fica** (guia §7,
+   * 20/09/2026, com as telas de conta). Ela serve para *distinguir* campo obrigatório de opcional, e
+   * não há o que distinguir. O asterisco fica porque quem chega ao campo pelo leitor de tela ouve o
+   * `aria-required`, e quem lê a tela vê a marca.
+   */
+  todosObrigatorios?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-      {obrigatorios > 0 && (
+      {obrigatorios > 0 && !todosObrigatorios && (
         <p className="text-tinta-fraca text-meta sm:mr-auto">
           <span aria-hidden="true" className="text-destructive">
             *
