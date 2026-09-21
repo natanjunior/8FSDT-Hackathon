@@ -948,3 +948,43 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect([...fonte.matchAll(/catch\s*\{/gu)]).toHaveLength(2);
   });
 });
+
+describe("o alcance do 44n — a trilha vira linha do tempo", () => {
+  it("os seis status têm ícone e marcador, e as três chaves batem (critério 44n.6)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // **O `tsc` não pega isto, e é o custo declarado da ADR-0006**: `FORMA_DO_SELO` é
+    // `Record<string, string>` porque `app/` não importa o Domínio, então um sétimo status entraria em
+    // silêncio no contorno. Esta guarda é o que sobra no lugar da exaustividade.
+    const chavesDe = (mapa: string): string[] => {
+      const bloco = new RegExp(`const ${mapa}[^=]*=\\s*\\{([^}]*)\\}`, "u").exec(fonte);
+      if (bloco === null) throw new Error(`mapa ${mapa} não encontrado`);
+      return [...bloco[1]!.matchAll(/^\s*(\w+):/gmu)].map((achado) => achado[1]!).sort();
+    };
+
+    const SEIS = [
+      "aberta",
+      "cancelada",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+    ];
+
+    expect(chavesDe("FORMA_DO_SELO")).toStrictEqual(SEIS);
+    expect(chavesDe("ICONE_DO_STATUS")).toStrictEqual(SEIS);
+    expect(chavesDe("FORMA_DO_MARCADOR")).toStrictEqual(SEIS);
+  });
+
+  it("o ícone do marcador é mudo para o leitor de tela (critério 44n.6)", () => {
+    // A palavra está no selo e a forma está no marcador. Um rótulo acessível aqui faria o leitor de tela
+    // dizer "Em análise" duas vezes por registro.
+    //
+    // **O corte é na FORMA DE ATRIBUTO, e é de propósito.** O docblock do marcador explica por escrito
+    // por que o rótulo acessível não entra, e o nome dele aparece na frase. Uma expressão sem o `=`
+    // reprovaria o comentário que existe para defender a regra.
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+    expect(fonte).toContain('aria-hidden="true"');
+    expect(fonte).not.toMatch(/aria-label\s*=/u);
+  });
+});
