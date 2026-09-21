@@ -1,4 +1,5 @@
 import type { VinculoNoMenu } from "@/interface/componentes/menu-de-organizacao";
+import { MarcaDoProduto } from "@/interface/componentes/marca";
 import { MenuDePessoa } from "@/interface/componentes/casca/menu-de-pessoa";
 import { SeletorDeOrganizacao } from "@/interface/componentes/casca/seletor-de-organizacao";
 
@@ -25,9 +26,7 @@ export function BarraSuperior({
   return (
     <header className="border-linha bg-superficie sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 md:h-[60px] md:px-6">
       {children}
-      <span className="text-marca text-rotulo-coluna font-mono font-medium tracking-[0.11em] uppercase">
-        Resolve Aí
-      </span>
+      <MarcaDoProduto />
       <div className="ml-auto flex items-center gap-2">
         <SeletorDeOrganizacao vinculos={vinculos} organizacaoAtivaId={organizacaoAtivaId} />
         <MenuDePessoa nomeDaPessoa={nomeDaPessoa} emailDaPessoa={emailDaPessoa} />
