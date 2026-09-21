@@ -987,4 +987,51 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
     expect(fonte).toContain('aria-hidden="true"');
     expect(fonte).not.toMatch(/aria-label\s*=/u);
   });
+
+  const TELA_DO_44N = [
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx",
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/loading.tsx",
+  ];
+
+  it("a trilha não é mais tabela, nas duas faces (critério 44n.1)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:table|tbody|thead|caption)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum valor cru de status na tela (critério 44n.5)", () => {
+    // O comentário que dizia "o Solicitante lê `em_analise`" saiu com a tabela. A tela não tem chave de
+    // mapa nem tipo — os dois mapas moram em `selo-de-status.tsx` —, então aqui o corte é seco.
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\b(?:em_analise|em_atendimento|aguardando_\w+)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o RESOLVE AÍ repetido sai de T-06, e some da casca (A-12 do 44i)", () => {
+    for (const caminho of TELA_DO_44N) expect(ler(caminho)).not.toContain("Resolve Aí");
+    // **A guarda é escopada a `app/(casca)`, e é de propósito** — pelo mesmo argumento que o 44m já
+    // escreveu ao lado da dele: a busca por "Resolve Aí" em `app` inteiro devolve sete linhas, e cinco
+    // não são deste item (o `metadata` do layout raiz, as duas da documentação e as duas de
+    // `app/organizacao/`, que morrem com a moldura antiga no 44o). Uma guarda global falharia por defeito
+    // que o 44n não criou nem tem mandato para consertar.
+    //
+    // **Dentro da casca, estas duas eram as últimas.** A barra superior é quem carrega a marca.
+    const sobras = arquivosDe("app/(casca)").filter((caminho) => ler(caminho).includes("Resolve Aí"));
+    expect(sobras).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis, nas duas faces (guia §3)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
 });
