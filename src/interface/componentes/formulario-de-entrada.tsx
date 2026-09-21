@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 
 import { acaoDeEntrar, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
+import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
@@ -80,41 +80,27 @@ export function FormularioDeEntrada({
               inputMode="email"
               autoCapitalize="none"
               required
-              className="h-12 text-base"
+              className="border-linha bg-background min-h-11"
             />
           )}
         </Campo>
 
         <Campo id="senha" rotulo="Senha" obrigatorio erro={formulario.erroDe("senha", estado.erros)}>
           {(controle) => (
-            <Input
-              {...controle}
-              name="senha"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="h-12 text-base"
-            />
+            <EntradaDeSenha controle={controle} name="senha" autoComplete="current-password" />
           )}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={2}>
-          {/* A-3: alvo de toque de 48 px. É a pessoa com uma mão no corrimão, o cenário literal do RNF6. */}
-          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+        <RodapeDoFormulario obrigatorios={2} todosObrigatorios>
+          {/* O alvo é o piso do guia §4, 44 px — o mesmo de T-04. É a pessoa com uma mão no corrimão, o
+              cenário literal do RNF6, e duas alturas para o mesmo controle era a divergência que o guia
+              existe para tirar. */}
+          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Entrando…" : "Entrar"}
           </Button>
         </RodapeDoFormulario>
       </form>
-
-      <div className="flex flex-col gap-3 pt-1">
-        <Link href="/criar-conta" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
-          Criar conta
-        </Link>
-        <Link href="/redefinir-senha" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
-          Esqueci a senha
-        </Link>
-      </div>
     </>
   );
 }

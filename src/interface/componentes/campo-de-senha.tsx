@@ -22,8 +22,10 @@ import { Input } from "@/interface/componentes/ui/input";
  * **Sem dica na passagem do ponteiro.** A regra de dica do guia §7 é das *ações de linha*; dentro de um
  * campo ela apareceria a cada foco sem trazer informação nova.
  *
- * **O botão é o `Button` do catálogo**, e não um `<button>` cru: o G7 do guia conta controle cru fora de
- * `componentes/ui/`, e as quatro telas de conta estão em zero.
+ * **O botão é o `Button` do catálogo**, e não um elemento `button` cru: o G7 do guia conta controle cru
+ * fora de `componentes/ui/`, e as quatro telas de conta estão em zero. *(A frase não escreve a etiqueta
+ * com os sinais de menor e maior de propósito — a guarda do critério 44m.4 lê o texto-fonte, e o
+ * exemplo dentro do comentário contaria como ocorrência.)*
  */
 export function EntradaDeSenha({
   controle,

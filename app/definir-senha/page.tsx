@@ -1,9 +1,18 @@
+import { Link2Off } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeNovaSenha } from "@/interface/componentes/formulario-de-nova-senha";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { buttonVariants } from "@/interface/componentes/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
 import { armazenamentoDeRedefinicao } from "@/interface/http";
 
 /**
@@ -32,17 +41,37 @@ export default async function TelaDeDefinirSenha({
 
   if (estado === "expirado") {
     return (
-      <MolduraDeTela titulo="Este link expirou">
-        <p className="text-tinta-suave text-sm leading-relaxed">Peça um novo.</p>
-
-        <Link href="/redefinir-senha" className={buttonVariants({ className: "h-12 w-fit px-6 text-base" })}>
-          Pedir um novo link
-        </Link>
-
-        <Link href="/entrar" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
-          Voltar para entrar
-        </Link>
-      </MolduraDeTela>
+      <MolduraDeConta
+        titulo="Definir nova senha"
+        caminhos={
+          <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+            Voltar para entrar
+          </Link>
+        }
+      >
+        <Empty className="px-2 py-8 md:px-2 md:py-8">
+          <EmptyHeader>
+            <EmptyMedia
+              variant="icon"
+              className="border-linha bg-background text-tinta-suave mb-3 size-13 rounded-lg border"
+            >
+              <Link2Off aria-hidden="true" className="size-5.5" />
+            </EmptyMedia>
+            <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+              Este link expirou
+            </EmptyTitle>
+            <EmptyDescription className="text-corpo text-tinta-suave">Peça um novo.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              href="/redefinir-senha"
+              className={buttonVariants({ className: "text-interface min-h-11 px-4" })}
+            >
+              Pedir um novo link
+            </Link>
+          </EmptyContent>
+        </Empty>
+      </MolduraDeConta>
     );
   }
 
@@ -51,8 +80,16 @@ export default async function TelaDeDefinirSenha({
   if (!(await armazenamentoDeRedefinicao()).emCurso()) redirect("/entrar");
 
   return (
-    <MolduraDeTela titulo="Definir nova senha">
+    <MolduraDeConta
+      titulo="Definir nova senha"
+      contexto="Escolha a senha que você vai usar para entrar."
+      caminhos={
+        <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+          Voltar para entrar
+        </Link>
+      }
+    >
       <FormularioDeNovaSenha />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }

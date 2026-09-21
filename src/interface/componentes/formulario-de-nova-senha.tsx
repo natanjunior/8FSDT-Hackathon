@@ -6,19 +6,19 @@ import { useActionState } from "react";
 import { acaoDeDefinirSenha, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
+import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import {
   avisarErro,
   avisarSucesso,
   MENSAGEM_GENERICA,
 } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
-import { Input } from "@/interface/componentes/ui/input";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import { definirSenhaSchema, errosDoSchema } from "@/interface/schemas";
 
 /**
  * **T-13 · Definir nova senha.** Um campo de senha, **sem pedir a antiga** — quem chegou aqui é justamente
- * quem não a tem (inventário, T-13). É o critério 2.
+ * quem não a tem. É o critério 2.
  *
  * A regra de força aparece **antes** de digitar, como em T-11, e evita o modo de falha mais comum de um
  * cadastro: a pessoa escolhe, envia, e descobre a regra como erro.
@@ -55,10 +55,6 @@ export function FormularioDeNovaSenha() {
     <>
       {estado.recusa !== undefined && <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>}
 
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Escolha a senha que você vai usar para entrar.
-      </p>
-
       <form
         action={agir}
         onChange={formulario.aoMudarNoFormulario}
@@ -71,26 +67,18 @@ export function FormularioDeNovaSenha() {
           rotulo="Nova senha"
           obrigatorio
           // **A MESMA frase de T-11, e o mesmo número** — seis, comprimento e nada mais (item 6a, §3.3),
-          // que é também o `minimum_password_length` do `supabase/config.toml`. O protótipo desenha aqui
-          // "Pelo menos 8 caracteres · Uma letra e um número": é o achado **A-6b-1**, e não se conserta
-          // nesta linha — duas regras para a mesma senha seria pior que uma divergência registrada.
+          // que é também o `minimum_password_length` do `supabase/config.toml`. O desenho de origem pedia
+          // aqui "Pelo menos 8 caracteres · Uma letra e um número": é o achado **A-6b-1**, e não se
+          // conserta nesta linha — duas regras para a mesma senha seria pior que uma divergência
+          // registrada.
           ajuda="No mínimo 6 caracteres."
           erro={formulario.erroDe("senha", estado.erros)}
         >
-          {(controle) => (
-            <Input
-              {...controle}
-              name="senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              className="h-12 text-base"
-            />
-          )}
+          {(controle) => <EntradaDeSenha controle={controle} name="senha" autoComplete="new-password" />}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={1}>
-          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Definindo…" : "Definir a senha"}
           </Button>

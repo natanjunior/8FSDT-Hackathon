@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { FormularioDeRedefinicao } from "@/interface/componentes/formulario-de-redefinicao";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 
 /**
  * **T-12 · Redefinir senha** — alcançada de T-01 e do erro de e-mail repetido em T-11.
@@ -13,8 +15,16 @@ import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
  */
 export default function TelaDeRedefinirSenha() {
   return (
-    <MolduraDeTela titulo="Redefinir senha">
+    <MolduraDeConta
+      titulo="Redefinir senha"
+      contexto="Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova."
+      caminhos={
+        <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+          Voltar para entrar
+        </Link>
+      }
+    >
       <FormularioDeRedefinicao />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
