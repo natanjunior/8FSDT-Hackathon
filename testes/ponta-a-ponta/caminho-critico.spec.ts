@@ -338,7 +338,12 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
 async function entrar(pagina: Page, email: string): Promise<void> {
   await pagina.goto("/entrar");
   await pagina.getByLabel("E-mail").fill(email);
-  await pagina.getByLabel("Senha").fill(SENHA as string);
+  // **Ancorada, e não por trecho nem exata** (item 44m). Por trecho, "Senha" casa também com o
+  // "Mostrar a senha" do botão que o 44m pôs dentro do campo, e o `fill` quebra por modo estrito. Exata
+  // não casa com nada, porque o rótulo é "Senha *": o asterisco é um `<span aria-hidden>` dentro do
+  // `<label>`, e o motor do localizador não pula `aria-hidden`. A âncora resolve os dois, e sobrevive ao
+  // asterisco existir ou não.
+  await pagina.getByLabel(/^Senha/u).fill(SENHA as string);
   await pagina.getByRole("button", { name: "Entrar" }).click();
 }
 
