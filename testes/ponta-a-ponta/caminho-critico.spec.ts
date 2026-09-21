@@ -303,7 +303,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     // O carimbo com segundos, no formato do protótipo. **É um dos cinco campos do F5**, e a asserção é de
     // forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
     await expect(linha.getByRole("cell").nth(2)).toHaveText(
-      /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/u,
+      /^\d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}$/u,
     );
     await expect(linha.getByRole("cell").nth(3)).toHaveText(registro.autor);
     await expect(continuacao).toContainText(registro.observacao);

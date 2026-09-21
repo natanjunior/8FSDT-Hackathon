@@ -3208,20 +3208,24 @@ describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repart
 describe("o carimbo da trilha de auditoria — com segundos, e no fuso escrito", () => {
   it("mostra dia, mês, ano e hora com segundos, em America/Sao_Paulo", () => {
     // 12h14:02 UTC em agosto é 09h14:02 em São Paulo (UTC-3, sem horário de verão desde 2019).
-    expect(dataHoraComSegundos("2026-08-03T12:14:02.000Z")).toBe("03/08/2026 09:14:02");
+    // **O separador é ` · `** — a regra de data de 16/09/2026, e o critério 44n.14. Os segundos são a
+    // exceção declarada ao `dd/mm/aaaa · hh:mm` do guia: numa trilha, o segundo é a prova da ordem.
+    expect(dataHoraComSegundos("2026-08-03T12:14:02.000Z")).toBe("03/08/2026 · 09:14:02");
   });
 
   it("meia-noite é 00, nunca 24 — é o `hourCycle: h23`", () => {
-    expect(dataHoraComSegundos("2026-08-04T03:00:00.000Z")).toBe("04/08/2026 00:00:00");
+    expect(dataHoraComSegundos("2026-08-04T03:00:00.000Z")).toBe("04/08/2026 · 00:00:00");
   });
 
   it("vira o dia com o fuso, e não com o UTC", () => {
     // 02h30 UTC de 05/08 ainda é 23h30 de 04/08 em São Paulo. Uma trilha que erra o dia prova o
     // contrário do que aconteceu.
-    expect(dataHoraComSegundos("2026-08-05T02:30:00.000Z")).toBe("04/08/2026 23:30:00");
+    expect(dataHoraComSegundos("2026-08-05T02:30:00.000Z")).toBe("04/08/2026 · 23:30:00");
   });
 
   it("o campo vazio é o travessão do protótipo, escrito uma vez", () => {
+    // **Sem consumidor de tela desde o 44n** — os dois nadas viraram frase (critério 44n.4). A constante
+    // fica, e é o achado A5 da spec: apagá-la é de quem inventariar exportação sem consumidor.
     expect(CAMPO_VAZIO).toBe("—");
   });
 });
