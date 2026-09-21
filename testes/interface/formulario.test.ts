@@ -834,23 +834,8 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(achados).toStrictEqual([]);
   });
 
-  it("T-04 saiu da moldura das telas de credencial (critério 44l.14)", () => {
-    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
-      ler(caminho).includes("MolduraDeTela"),
-    );
-    // **T-10 (`app/page.tsx`) está aqui de propósito**: ela não é tela de credencial nem T-02, e usa a
-    // moldura desde antes deste item. O que esta guarda protege é T-04 ter saído — nada mais.
-    expect(comMoldura).toStrictEqual([
-      "app/criar-conta/page.tsx",
-      "app/definir-senha/page.tsx",
-      "app/entrar/page.tsx",
-      "app/organizacao/page.tsx",
-      "app/page.tsx",
-      "app/redefinir-senha/page.tsx",
-      "src/interface/componentes/formulario-de-redefinicao.tsx",
-      "src/interface/componentes/moldura-de-tela.tsx",
-    ]);
-  });
+  // **A guarda do 44l.14 que vivia aqui foi absorvida pela do 44m.2**, que afirma a mesma coisa com a
+  // lista de hoje: T-04 saiu da moldura no 44l, e as quatro telas de credencial saíram no 44m.
 
   it("a busca do cmdk fica desligada, e o casamento é o mesmo do 44j (critério 44l.3)", () => {
     const fonte = ler("src/interface/componentes/seletor-de-area.tsx");
@@ -946,5 +931,201 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     // Falha de leitura ou escrita é engolida: `localStorage` lança em janela privada, e uma lista de
     // conveniência nunca pode impedir o registro na tela que o RNF6 cronometra.
     expect([...fonte.matchAll(/catch\s*\{/gu)]).toHaveLength(2);
+  });
+});
+
+const ALCANCE_DO_44M = [
+  "app/entrar/page.tsx",
+  "app/criar-conta/page.tsx",
+  "app/redefinir-senha/page.tsx",
+  "app/definir-senha/page.tsx",
+  "src/interface/componentes/formulario-de-entrada.tsx",
+  "src/interface/componentes/formulario-de-cadastro.tsx",
+  "src/interface/componentes/formulario-de-redefinicao.tsx",
+  "src/interface/componentes/formulario-de-nova-senha.tsx",
+  "src/interface/componentes/moldura-de-conta.tsx",
+  "src/interface/componentes/campo-de-senha.tsx",
+  "src/interface/componentes/marca.tsx",
+];
+
+describe("o alcance do 44m — as telas de conta na moldura nova", () => {
+  it("nenhum tamanho fora dos sete papéis (critério 44m.3)", () => {
+    const achados = ALCANCE_DO_44M.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum controle cru nas telas de conta (critério 44m.4, e o G7 do guia)", () => {
+    // O botão de mostrar a senha é o `Button` do catálogo. Um controle cru aqui passaria no olho e
+    // derrubaria o G7, que é o único portão que o alcança.
+    const achados = ALCANCE_DO_44M.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("as quatro telas saíram da moldura de credencial (critério 44m.2)", () => {
+    // **A guarda do 44l.14 vivia num `it` próprio e foi absorvida por esta**, que afirma a mesma coisa
+    // com a lista de hoje: T-04 saiu da moldura no 44l, e as quatro telas de credencial saíram no 44m.
+    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("MolduraDeTela"),
+    );
+    // **T-02 e T-10, e mais nada.** As duas não são redesenhadas neste item: elas têm item próprio
+    // quando chegar a vez, e até lá a moldura antiga é delas.
+    expect(comMoldura).toStrictEqual([
+      "app/organizacao/page.tsx",
+      "app/page.tsx",
+      "src/interface/componentes/moldura-de-tela.tsx",
+    ]);
+  });
+
+  it("a nota do rodapé sai das quatro, e o asterisco fica (critério 44m.5)", () => {
+    const formularios = ALCANCE_DO_44M.filter((caminho) => caminho.includes("formulario-de-"));
+    expect(formularios).toHaveLength(4);
+    for (const caminho of formularios) {
+      const fonte = ler(caminho);
+      expect(fonte).toContain("todosObrigatorios");
+      // O `obrigatorio` de cada campo continua, que é quem desenha o `*`.
+      expect(fonte).toContain("obrigatorio");
+    }
+  });
+
+  it("o campo de senha entra em T-01, T-11 e T-13, e não em T-12 (critério 44m.4)", () => {
+    const comEntradaDeSenha = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("EntradaDeSenha"),
+    );
+    expect(comEntradaDeSenha).toStrictEqual([
+      "src/interface/componentes/campo-de-senha.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+      "src/interface/componentes/formulario-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]);
+  });
+
+  it("o EyeOff continua significando Desativar, e só isso", () => {
+    // O par do botão de senha é `Eye`/`EyeClosed`. Se alguém trocar por `EyeOff`, o mesmo ícone passa a
+    // ter dois sentidos no produto — o avesso da regra do guia §7.
+    expect(ler("src/interface/componentes/campo-de-senha.tsx")).not.toContain("EyeOff");
+    const comEyeOff = [...arquivosDe("src")].filter((caminho) => ler(caminho).includes("EyeOff"));
+    expect(comEyeOff).toStrictEqual(["src/interface/componentes/situacao-do-item.tsx"]);
+  });
+
+  it("a marca do alcance vem da peça, e nenhum arquivo dele a escreve (critério 44m.1)", () => {
+    // **A guarda é escopada ao alcance de propósito.** A busca por "Resolve Aí" em `app` e `src` devolve
+    // dez linhas, e quatro delas desenham a marca à mão, no estilo anterior ao 44b:
+    // `auditoria/loading.tsx`, `auditoria/page.tsx`, `organizacao/loading.tsx` e `moldura-de-tela.tsx`.
+    // **Nenhuma é deste item** — é o achado R-1 da revisão —, e uma guarda global falharia por defeito
+    // que o 44m não criou nem tem mandato para consertar.
+    for (const caminho of [
+      "src/interface/componentes/casca/barra-superior.tsx",
+      "src/interface/componentes/moldura-de-conta.tsx",
+    ]) {
+      expect(ler(caminho)).toContain("MarcaDoProduto");
+      expect(ler(caminho)).not.toContain("Resolve Aí");
+    }
+    expect(ler("src/interface/componentes/marca.tsx")).toContain("Resolve Aí");
+  });
+
+  it("o localizador de senha do teste de ponta a ponta é ancorado (critério 44m.10)", () => {
+    const fonte = ler("testes/ponta-a-ponta/caminho-critico.spec.ts");
+    // **Por trecho, "Senha" casaria também com o "Mostrar a senha" do botão** — o `getByLabel` do
+    // Playwright alcança qualquer elemento com `aria-label`, e o `fill` quebraria por modo estrito. E o
+    // modo exato **também** não serve: o rótulo do campo é "Senha *", porque o asterisco é um `<span>`
+    // dentro do `<label>` e o motor do localizador não pula `aria-hidden`.
+    expect(fonte).toContain("getByLabel(/^Senha/u)");
+    expect(fonte).toContain('getByLabel("E-mail")');
+    expect(fonte).toContain('getByRole("button", { name: "Entrar" })');
+  });
+});
+
+describe("o alcance do 44n — a trilha vira linha do tempo", () => {
+  it("os seis status têm ícone e marcador, e as três chaves batem (critério 44n.6)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // **O `tsc` não pega isto, e é o custo declarado da ADR-0006**: `FORMA_DO_SELO` é
+    // `Record<string, string>` porque `app/` não importa o Domínio, então um sétimo status entraria em
+    // silêncio no contorno. Esta guarda é o que sobra no lugar da exaustividade.
+    const chavesDe = (mapa: string): string[] => {
+      const bloco = new RegExp(`const ${mapa}[^=]*=\\s*\\{([^}]*)\\}`, "u").exec(fonte);
+      if (bloco === null) throw new Error(`mapa ${mapa} não encontrado`);
+      return [...bloco[1]!.matchAll(/^\s*(\w+):/gmu)].map((achado) => achado[1]!).sort();
+    };
+
+    const SEIS = [
+      "aberta",
+      "cancelada",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+    ];
+
+    expect(chavesDe("FORMA_DO_SELO")).toStrictEqual(SEIS);
+    expect(chavesDe("ICONE_DO_STATUS")).toStrictEqual(SEIS);
+    expect(chavesDe("FORMA_DO_MARCADOR")).toStrictEqual(SEIS);
+  });
+
+  it("o ícone do marcador é mudo para o leitor de tela (critério 44n.6)", () => {
+    // A palavra está no selo e a forma está no marcador. Um rótulo acessível aqui faria o leitor de tela
+    // dizer "Em análise" duas vezes por registro.
+    //
+    // **O corte é na FORMA DE ATRIBUTO, e é de propósito.** O docblock do marcador explica por escrito
+    // por que o rótulo acessível não entra, e o nome dele aparece na frase. Uma expressão sem o `=`
+    // reprovaria o comentário que existe para defender a regra.
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+    expect(fonte).toContain('aria-hidden="true"');
+    expect(fonte).not.toMatch(/aria-label\s*=/u);
+  });
+
+  const TELA_DO_44N = [
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx",
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/loading.tsx",
+  ];
+
+  it("a trilha não é mais tabela, nas duas faces (critério 44n.1)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:table|tbody|thead|caption)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum valor cru de status na tela (critério 44n.5)", () => {
+    // O comentário que dizia "o Solicitante lê `em_analise`" saiu com a tabela. A tela não tem chave de
+    // mapa nem tipo — os dois mapas moram em `selo-de-status.tsx` —, então aqui o corte é seco.
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\b(?:em_analise|em_atendimento|aguardando_\w+)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o RESOLVE AÍ repetido sai de T-06, e some da casca (A-12 do 44i)", () => {
+    for (const caminho of TELA_DO_44N) expect(ler(caminho)).not.toContain("Resolve Aí");
+    // **A guarda é escopada a `app/(casca)`, e é de propósito** — pelo mesmo argumento que o 44m já
+    // escreveu ao lado da dele: a busca por "Resolve Aí" em `app` inteiro devolve sete linhas, e cinco
+    // não são deste item (o `metadata` do layout raiz, as duas da documentação e as duas de
+    // `app/organizacao/`, que morrem com a moldura antiga no 44o). Uma guarda global falharia por defeito
+    // que o 44n não criou nem tem mandato para consertar.
+    //
+    // **Dentro da casca, estas duas eram as últimas.** A barra superior é quem carrega a marca.
+    const sobras = arquivosDe("app/(casca)").filter((caminho) => ler(caminho).includes("Resolve Aí"));
+    expect(sobras).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis, nas duas faces (guia §3)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
   });
 });

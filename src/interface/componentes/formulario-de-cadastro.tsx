@@ -1,19 +1,27 @@
 "use client";
 
+import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 
 import { acaoDeCriarConta, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
-import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
+import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import {
   avisarErro,
   avisarSucesso,
   MENSAGEM_GENERICA,
 } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
 import { Input } from "@/interface/componentes/ui/input";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
@@ -63,20 +71,27 @@ export function FormularioDeCadastro() {
 
   // DORMENTE — este bloco é o estado *"olhe seu e-mail"*, e ele **não acontece** nesta entrega: a Q-T9 foi
   // fechada em 22/08/2026 e T-11 termina em sessão válida, direto. Fica pelo dia do interruptor.
+  //
+  // **A saída daqui é o "Já tenho conta" da moldura**, abaixo do cartão: duas saídas para o mesmo lugar
+  // na mesma tela custam mais que um rótulo que ninguém alcança (item 44m, respostas P4).
   if (estado.aviso === "confirme-o-email") {
     return (
-      <>
-        {/* A tela **não finge** que a pessoa já entrou (inventário, T-11). */}
-        <Aviso tom="nota">
-          Enviamos um e-mail de confirmação. Toque no link para confirmar a conta e depois entre.
-        </Aviso>
-        <Link
-          href="/entrar"
-          className="text-marca w-fit py-1 text-sm underline underline-offset-4"
-        >
-          Ir para a tela de entrar
-        </Link>
-      </>
+      <Empty className="px-2 py-8 md:px-2 md:py-8">
+        <EmptyHeader>
+          <EmptyMedia
+            variant="icon"
+            className="border-linha bg-background text-tinta-suave mb-3 size-13 rounded-lg border"
+          >
+            <MailCheck aria-hidden="true" className="size-5.5" />
+          </EmptyMedia>
+          <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+            Confirme a sua conta
+          </EmptyTitle>
+          <EmptyDescription className="text-corpo text-tinta-suave">
+            Enviamos um e-mail de confirmação. Toque no link para confirmar a conta e depois entre.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -91,7 +106,7 @@ export function FormularioDeCadastro() {
           {estado.recusa === "CONTA_JA_EXISTE" && (
             <Link
               href="/redefinir-senha"
-              className="text-marca w-fit py-1 text-sm underline underline-offset-4"
+              className="text-marca text-interface w-fit py-1 underline underline-offset-4"
             >
               Esqueci a senha
             </Link>
@@ -121,7 +136,7 @@ export function FormularioDeCadastro() {
               maxLength={120}
               autoComplete="name"
               required
-              className="h-12 text-base"
+              className="border-linha bg-background min-h-11"
             />
           )}
         </Campo>
@@ -136,7 +151,7 @@ export function FormularioDeCadastro() {
               inputMode="email"
               autoCapitalize="none"
               required
-              className="h-12 text-base"
+              className="border-linha bg-background min-h-11"
             />
           )}
         </Campo>
@@ -146,10 +161,10 @@ export function FormularioDeCadastro() {
           rotulo="Senha"
           obrigatorio
           // **Seis caracteres, comprimento e nada mais** — decidido em 22/08/2026, item 6a. Antes disso o
-          // valor era herança do padrão do provedor, sem origem em documento nenhum: era o risco **R-21**
-          // do `prototipo-low-fi.md`. O mesmo número está no `minimum_password_length` de
-          // `supabase/config.toml` (hoje `:200`), e os dois têm de continuar batendo. *(Citava `:196`; o
-          // item 6c moveu a linha. Citação por nome de chave envelhece menos que por número.)*
+          // valor era herança do padrão do provedor, sem origem em documento nenhum, e isso era risco
+          // registrado. O mesmo número está no `minimum_password_length` de `supabase/config.toml` (hoje
+          // `:200`), e os dois têm de continuar batendo. *(Citava `:196`; o item 6c moveu a linha. Citação
+          // por nome de chave envelhece menos que por número.)*
           //
           // É dita **antes** de digitar, não como erro depois (T-11). E é por a regra ser de comprimento
           // que o texto da recusa — *"Escolha uma senha mais longa."* — continua verdadeiro: regra de
@@ -157,29 +172,16 @@ export function FormularioDeCadastro() {
           ajuda="No mínimo 6 caracteres."
           erro={formulario.erroDe("senha", estado.erros)}
         >
-          {(controle) => (
-            <Input
-              {...controle}
-              name="senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              className="h-12 text-base"
-            />
-          )}
+          {(controle) => <EntradaDeSenha controle={controle} name="senha" autoComplete="new-password" />}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={3}>
-          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+        <RodapeDoFormulario obrigatorios={3} todosObrigatorios>
+          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Criando…" : "Criar conta"}
           </Button>
         </RodapeDoFormulario>
       </form>
-
-      <Link href="/entrar" className="text-marca w-fit py-1 text-sm underline underline-offset-4">
-        Já tenho conta
-      </Link>
     </>
   );
 }

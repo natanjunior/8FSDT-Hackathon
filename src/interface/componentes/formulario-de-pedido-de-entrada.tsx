@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
-import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import {
   avisarErro,
   avisarSucesso,

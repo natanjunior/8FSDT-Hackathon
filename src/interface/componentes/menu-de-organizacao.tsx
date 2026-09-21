@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { Aviso } from "@/interface/componentes/campo";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 import {
   DropdownMenu,

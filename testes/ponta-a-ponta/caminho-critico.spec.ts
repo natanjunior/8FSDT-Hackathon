@@ -265,48 +265,61 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // **Quatro registros, e não seis:** `atribuir-responsavel` e `avaliar` não transicionam (estão em
   // `SEM_TRANSICAO`, `MaquinaDeEstados.ts:29-43`), então não geram registro de trilha.
   //
-  // **`statusAnterior` vazio SÓ no primeiro** — é a premissa P1, e é o campo que faz uma trilha ser
-  // trilha. **Nomes de status crus**, porque auditoria que traduz não é auditoria.
+  // **`statusAnterior` ausente SÓ no primeiro** — é a premissa P1, e é o campo que faz uma trilha ser
+  // trilha. Desde o item 44n ele é dito por extenso, em vez de travessão.
+  //
+  // **Os nomes são os do glossário, na coluna neutra** (critério 44n.5): a trilha imprime *Em análise*,
+  // e não `em_analise`. Não é o rótulo por papel do item 31 — esta tela está fora da lente, e sempre
+  // esteve; o que mudou foi o vocabulário neutro que ela usa.
+  //
+  // **A lista é localizada pelo nome**, e não por `getByRole("list")` seco: a casca põe barra lateral e
+  // barra superior nesta tela, e as duas são listas.
   // -------------------------------------------------------------------------
   await helena.getByRole("link", { name: "ver a trilha de auditoria" }).click();
   await helena.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}/auditoria$`, "u"));
   await expect(helena.getByRole("heading", { name: "Trilha de auditoria" })).toBeVisible();
   await expect(helena.getByText(TITULO)).toBeVisible();
 
-  const corpo = helena.getByRole("table").locator("tbody");
-  // Quatro registros, cada um com a sua linha de continuação.
-  await expect(corpo.getByRole("row")).toHaveCount(8);
+  const trilha = helena.getByRole("list", { name: "Registros da trilha" });
+  await expect(trilha.getByRole("listitem")).toHaveCount(4);
 
   const esperado = [
-    { de: "—", para: "aberta", autor: "Helena Rocha", observacao: "observação: —" },
-    { de: "aberta", para: "em_analise", autor: "Marcos Vieira", observacao: "observação: —" },
     {
-      de: "em_analise",
-      para: "em_atendimento",
-      autor: "Marcos Vieira",
-      observacao: `observação: ${OBSERVACAO_DO_ATENDIMENTO}`,
+      novo: "Aberta",
+      anterior: "primeiro registro, sem status anterior",
+      autor: "Helena Rocha",
+      observacao: "sem observação",
     },
     {
-      de: "em_atendimento",
-      para: "resolvida",
+      novo: "Em análise",
+      anterior: "Aberta",
       autor: "Marcos Vieira",
-      observacao: `observação: ${OBSERVACAO_DA_RESOLUCAO}`,
+      observacao: "sem observação",
+    },
+    {
+      novo: "Em atendimento",
+      anterior: "Em análise",
+      autor: "Marcos Vieira",
+      observacao: OBSERVACAO_DO_ATENDIMENTO,
+    },
+    {
+      novo: "Resolvida",
+      anterior: "Em atendimento",
+      autor: "Marcos Vieira",
+      observacao: OBSERVACAO_DA_RESOLUCAO,
     },
   ];
 
   for (const [indice, registro] of esperado.entries()) {
-    const linha = corpo.getByRole("row").nth(indice * 2);
-    const continuacao = corpo.getByRole("row").nth(indice * 2 + 1);
+    const item = trilha.getByRole("listitem").nth(indice);
 
-    await expect(linha.getByRole("cell").nth(0)).toHaveText(registro.de);
-    await expect(linha.getByRole("cell").nth(1)).toHaveText(registro.para);
-    // O carimbo com segundos, no formato do protótipo. **É um dos cinco campos do F5**, e a asserção é de
-    // forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
-    await expect(linha.getByRole("cell").nth(2)).toHaveText(
-      /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/u,
-    );
-    await expect(linha.getByRole("cell").nth(3)).toHaveText(registro.autor);
-    await expect(continuacao).toContainText(registro.observacao);
+    await expect(item).toContainText(`novo status: ${registro.novo}`);
+    await expect(item).toContainText(`status anterior: ${registro.anterior}`);
+    await expect(item).toContainText(`autor: ${registro.autor}`);
+    await expect(item).toContainText(`observação: ${registro.observacao}`);
+    // O carimbo com segundos, com o separador da regra de data. **É um dos cinco campos do F5**, e a
+    // asserção é de forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
+    await expect(item).toContainText(/data e hora: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}/u);
   }
 
   // -------------------------------------------------------------------------
@@ -338,7 +351,12 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
 async function entrar(pagina: Page, email: string): Promise<void> {
   await pagina.goto("/entrar");
   await pagina.getByLabel("E-mail").fill(email);
-  await pagina.getByLabel("Senha").fill(SENHA as string);
+  // **Ancorada, e não por trecho nem exata** (item 44m). Por trecho, "Senha" casa também com o
+  // "Mostrar a senha" do botão que o 44m pôs dentro do campo, e o `fill` quebra por modo estrito. Exata
+  // não casa com nada, porque o rótulo é "Senha *": o asterisco é um `<span aria-hidden>` dentro do
+  // `<label>`, e o motor do localizador não pula `aria-hidden`. A âncora resolve os dois, e sobrevive ao
+  // asterisco existir ou não.
+  await pagina.getByLabel(/^Senha/u).fill(SENHA as string);
   await pagina.getByRole("button", { name: "Entrar" }).click();
 }
 
