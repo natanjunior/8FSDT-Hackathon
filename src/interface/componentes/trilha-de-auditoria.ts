@@ -43,15 +43,18 @@ const FORMATO = new Intl.DateTimeFormat("pt-BR", {
 export const CAMPO_VAZIO = "—";
 
 /**
- * `03/08/2026 09:14:02`.
+ * `03/08/2026 · 09:14:02`.
  *
  * **Montado a partir das partes nomeadas**, e não de um `replace` sobre o `format`: `pt-BR` devolve
  * `03/08/2026, 09:14:02` e remover a vírgula com `String.replace` seria uma aposta sobre qual separador a
  * ICU escolhe — inclusive sobre espaços estreitos que não se veem no diff. As partes têm nome.
+ *
+ * **O ` · ` entre dia e hora é a regra de data de 16/09/2026** (critério 44n.14), e é o mesmo separador
+ * que o resto do produto usa em `dd/mm/aaaa · hh:mm`. O que é exceção aqui são os segundos, não o ponto.
  */
 export function dataHoraComSegundos(iso: string): string {
   const partes = new Map(
     FORMATO.formatToParts(new Date(iso)).map((parte) => [parte.type, parte.value]),
   );
-  return `${partes.get("day")}/${partes.get("month")}/${partes.get("year")} ${partes.get("hour")}:${partes.get("minute")}:${partes.get("second")}`;
+  return `${partes.get("day")}/${partes.get("month")}/${partes.get("year")} · ${partes.get("hour")}:${partes.get("minute")}:${partes.get("second")}`;
 }

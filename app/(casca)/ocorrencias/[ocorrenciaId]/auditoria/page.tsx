@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { History } from "lucide-react";
 import { redirect } from "next/navigation";
-import { Fragment } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
@@ -9,43 +9,57 @@ import {
   verOcorrencia,
   verTrilhaDeAuditoria,
 } from "@/aplicacao/ocorrencia";
+import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
-import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
+import { nomesDeStatus } from "@/interface/componentes/rotulos";
+import { MarcadorDoStatus, SeloDeStatus } from "@/interface/componentes/selo-de-status";
+import { dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/interface/componentes/ui/empty";
 import { novoTraceId, registrarFalha, resolverEscopoParaTela } from "@/interface/http";
-import { projetarTransicao } from "@/interface/projecoes";
+import { nomeDoMotivoCancelamento, nomeDoMotivoPausa, projetarTransicao } from "@/interface/projecoes";
 
 /**
  * ============================================================================
  *  T-06 · Trilha de auditoria — a tela que responde "prove"
  * ============================================================================
  *
- * **Endereço próprio, e é a tela que mais precisa de um** (`inventario-de-telas.md`, T-06): é o que se
- * leva para a assembleia, para a imobiliária e para quem avalia. *"Cada transição de status deve ser
- * auditável"* é o requisito central do enunciado, e esta é a superfície dele.
- *
- * **Ela chega no item 41b, e a razão de ter demorado é estrutural, não descuido:** a tela está pendurada
- * na **capacidade 37** (`trabalho/backlog.md:968`), que é *"restrição, não tarefa"* e por construção não
- * vira item. Nenhuma spec podia entregá-la porque não havia item a que ela pertencesse. Ver os critérios
- * **41b.6** e **41b.7**.
+ * **Endereço próprio, e é a tela que mais precisa de um:** é o que se leva para a assembleia, para a
+ * imobiliária e para quem avalia. *"Cada transição de status deve ser auditável"* é o requisito central do
+ * enunciado, e esta é a superfície dele.
  *
  * **A leitura vai pela estrada direta**, como T-05 e T-03: `app/` não monta repositório, e um `fetch`
- * interno custaria o salto HTTP que a §5 do contrato recusou. **São as MESMAS duas leituras do
- * `route.ts`** — `verOcorrencia` (a guarda e o título) e `verTrilhaDeAuditoria` —, e a projeção é a
- * **mesma função**: `projetarTransicao`. Dois transportes que projetassem por conta própria divergiriam,
- * e a §5 existe para impedir isso.
+ * interno custaria o salto HTTP que o contrato recusou. **São as MESMAS duas leituras do `route.ts`** —
+ * `verOcorrencia` (a guarda e o título) e `verTrilhaDeAuditoria` —, e a projeção é a **mesma função**:
+ * `projetarTransicao`. Dois transportes que projetassem por conta própria divergiriam.
  *
- * **Nenhuma ação, em lugar nenhum** (critério 41b.6). É a expressão de interface da invariante 3 do
- * agregado — *"o histórico é append-only"* — e da §9.1 do contrato: não existe `POST`, não existe
- * `PATCH`, não existe `DELETE` sobre registro de transição, e não pode existir. Se um dia aparecer botão
- * aqui, a garantia central do produto terá sido perdida.
+ * **Nenhuma ação, em lugar nenhum** (critério 44n.15). É a expressão de interface da invariante 3 do
+ * agregado — *"o histórico é append-only"*: não existe `POST`, não existe `PATCH`, não existe `DELETE`
+ * sobre registro de transição, e não pode existir. Se um dia aparecer botão aqui, a garantia central do
+ * produto terá sido perdida.
  *
- * **Vocabulário de máquina, de propósito.** `statusAnterior`, `statusNovo`, `motivoPausa` e
- * `motivoCancelamento` saem **crus**, sem `rotuloDeStatus` e sem lente: *"auditoria que traduz não é
- * auditoria"*. É a única tela do produto assim, e a consequência — o Solicitante lê `em_analise` — está
- * assumida no `backlog.md`, sob o 41b, e **não é regressão do rótulo por papel** do item 31.
+ * **A língua é a do produto, e a coluna é a neutra** (item 44n, critério 5). A tela imprimia o valor que o
+ * banco guarda — o identificador do status, em caixa baixa e com sublinhado — sob o argumento de que
+ * *"auditoria que traduz não é auditoria"*. Não se sustenta: o nome do status **é** *Em análise*, e aquele
+ * identificador é só como ele é codificado. **A guarda de `formulario.test.ts` recusa o valor cru até em
+ * comentário**, e é por isso que ele não aparece escrito aqui — a regra do critério 5 vale para o arquivo,
+ * não só para o que se pinta. Os nomes saem
+ * de `nomesDeStatus()`, a coluna neutra do glossário, **sem lente e para quem quer que abra a tela** — é
+ * o que a spec do item 31 já declarava para esta tela, *"por definição"*. A consequência é assumida: um
+ * Solicitante lê *Em execução* em T-05 e *Em atendimento* aqui, e é o preço de a trilha imprimir o nome
+ * pelo qual o fato é chamado em todo lugar.
  *
  * **O autor vai pelo nome, sempre**, nunca *"Você"*: a segunda pessoa é da linha do tempo (`autoria()`),
  * e numa trilha ela apagaria de quem é o registro.
+ *
+ * **O trilho é escrito aqui, e é o da `ReguaDoCiclo`.** O catálogo não tem peça de linha do tempo, e a de
+ * terceiro que a prancheta apontava traz uma segunda biblioteca de primitivos — ver o achado A6 da spec
+ * do 44n. A régua vertical, o marcador e a ancoragem são os de `regua-do-ciclo.tsx`, que é a tela vizinha.
  */
 export const dynamic = "force-dynamic";
 
@@ -116,32 +130,60 @@ export default async function TrilhaDeAuditoria({
     projetarTransicao,
   );
 
+  /**
+   * **O vazio aqui é defeito, e o defeito vai para o log — não para a tela.**
+   *
+   * A premissa P1 faz a criação gravar o primeiro registro, então toda ocorrência tem ao menos um. Uma
+   * lista vazia significa que a invariante 2 da ADR-0001 foi violada. **Quem lê a tela não pode consertar
+   * isso**, e as quatro regras de texto do guia §7 recusam a frase que anuncia defeito a quem não pode
+   * agir: o que a tela diz é o que é, e o diagnóstico vai para onde o operador chega.
+   *
+   * **O `traceId` nasce aqui** porque este caminho chega como `200` e não tem um — e a linha de log é a
+   * MESMA que `registrarEResponder` escreve, pela mesma função. Nunca uma segunda cópia do formato.
+   *
+   * **Fora do componente, de propósito:** escrever log dentro de um componente de servidor o faria
+   * disparar de novo a cada recomposição que o Next decidir fazer.
+   */
+  if (registros.length === 0) {
+    const vazio = new Error(
+      `trilha vazia: ocorrencia=${ocorrenciaId} organizacao=${escopo.ctx.vinculo.organizacaoId}`,
+    );
+    vazio.name = "TrilhaVazia";
+    registrarFalha(vazio, `/ocorrencias/${ocorrenciaId}/auditoria`, "GET", novoTraceId());
+  }
+
+  const nomes = nomesDeStatus();
+
   return (
-    <div className="flex flex-col gap-5">
-      <p className="text-marca text-sm font-semibold tracking-wide uppercase">Resolve Aí</p>
-      <h1 className="text-tinta text-xl leading-snug font-semibold">Trilha de auditoria</h1>
-      {/* O título da ocorrência abaixo do `<h1>`, como o protótipo o põe na barra da tela grande e no
-          subtítulo do celular. **Não entra no `<h1>`:** o título da tela é o que ela é, não sobre o que
-          ela é. */}
-      <p className="text-tinta-suave text-sm leading-snug">{lida.titulo}</p>
+    <div className="flex flex-col gap-6">
+      <CabecalhoDaPagina
+        titulo="Trilha de auditoria"
+        fato={
+          <>
+            <span className="block truncate">{lida.titulo}</span>
+            <span className="mt-1.5 flex flex-wrap items-center gap-2">
+              {/* **A situação vem do agregado, e não do último registro** (critério 44n.8). Os dois
+                  coincidem sempre; ler daqui é o que continua verdadeiro no caminho em que a trilha
+                  chega vazia — que é justamente o caminho que o log acima registra. */}
+              <SeloDeStatus status={lida.status} rotulo={nomes[lida.status]} />
+              <span>{fatoDaTrilha(registros.length)}</span>
+            </span>
+          </>
+        }
+      />
 
-      {registros.length === 0 ? (
-        <TrilhaVaziaEhDefeito
-          ocorrenciaId={lida.id}
-          organizacaoId={escopo.ctx.vinculo.organizacaoId}
-        />
-      ) : (
-        <>
-          <TabelaDaTrilha registros={registros} />
-          <BlocosDaTrilha registros={registros} />
-        </>
-      )}
+      {/* **O invólucro é o do `SemAcesso`, e não o `Cartao`:** o `Cartao` exige `tituloId` e se nomeia por
+          `aria-labelledby`, e o critério 44n.8 diz que o cartão passa a ter **só a lista**, sem cabeça.
+          Quem se nomeia aqui é o `<ol>`. */}
+      <div className="border-linha bg-superficie rounded-lg border shadow-sm">
+        {registros.length === 0 ? <TrilhaSemRegistros /> : <Trilha registros={registros} nomes={nomes} />}
+      </div>
 
-      {/* **A-3:** alvo de toque. **É a única navegação da tela** — o inventário: *"só navegação de volta a
-          T-05"*. */}
+      {/* **É a única navegação da tela**, e é a única saída de conteúdo que sobra dentro da casca: a barra
+          lateral não leva a uma ocorrência. Achado A-10 do 44g, que continua sem dono. */}
       <Link
         href={`/ocorrencias/${lida.id}`}
-        className="text-marca inline-flex min-h-11 w-fit items-center text-sm font-medium underline underline-offset-4"
+        className="text-marca text-interface inline-flex min-h-11 w-fit items-center font-medium underline underline-offset-4"
       >
         ← voltar à ocorrência
       </Link>
@@ -149,200 +191,137 @@ export default async function TrilhaDeAuditoria({
   );
 }
 
+/**
+ * A segunda linha do cabeçalho — quantos registros, em que ordem, e que nenhum se altera (critério 44n.8).
+ *
+ * **O singular tem forma própria**, e não é capricho: *"do mais antigo para o mais recente"* não diz nada
+ * sobre um registro só. **Com um, a ordem vira origem** — é a premissa P1 do domínio dita em voz de tela.
+ */
+function fatoDaTrilha(quantos: number): string {
+  return quantos === 1
+    ? "Um registro, o primeiro. Nenhum se altera nem se apaga."
+    : `${String(quantos)} registros, do mais antigo para o mais recente. Nenhum se altera nem se apaga.`;
+}
+
 /** O que a projeção devolve, por registro. **É o `RegistroDeTransicao` do contrato**, sem `sequencia`. */
 type RegistroProjetado = ReturnType<typeof projetarTransicao>;
 
 /**
- * **Recorte de tela grande — o compromisso A-7, *tabela de verdade*.**
+ * ============================================================================
+ *  O trilho — uma forma só, tela grande e celular (critério 44n.1)
+ * ============================================================================
  *
- * **Quatro colunas e uma linha de continuação, e não sete colunas.** É o achado **P-07** do protótipo —
- * *"os cinco campos do F5 não são cinco colunas"* — e é como `telas.html:3030-3090` desenha: as três
- * primeiras colunas têm largura fixa, a do autor fica livre (é o único campo que pode chegar a 120
- * caracteres), e o parágrafo da observação mora numa célula que ocupa a largura toda, de modo que ele
- * **só pode crescer para baixo**.
+ * **Eram duas**, e mantê-las custava dobrado: a tabela de quatro colunas com linha de continuação, e o
+ * bloco empilhado do celular. A que sobrou é a do celular crescida — que é a que já carregava **o nome de
+ * cada campo ao lado do valor**, que é o que o compromisso A-7 passa a exigir.
  *
- * **A linha de continuação carrega o NOME de cada campo**, e é o que a torna legítima. A objeção contra duas
- * `<tr>` por registro está escrita no docblock do *Recorte B*, em `lista-de-ocorrencias.tsx` — *"numa tabela,
- * uma linha é um registro, e duas `<tr>` por ocorrência mentem para quem navega por leitor de tela"* —, e ela
- * vale lá porque a segunda linha repetiria dados sob colunas erradas. **Aqui a célula se auto-rotula**, que é
- * a mesma escolha que o protótipo faz no celular: *"é verboso de propósito: quem lê esta tela está provando
- * algo, e prova sem rótulo de campo é afirmação"*.
+ * **A régua é a da `ReguaDoCiclo`** (`regua-do-ciclo.tsx:103-105`): `absolute`, um pixel, `--line-soft`, e
+ * **não desce do último** — um trilho que continua depois do fim sugere registro por vir, e numa trilha
+ * não há. Ela é `aria-hidden` porque é o desenho da relação que a ordem do `<ol>` já publica.
  *
- * **O `<caption>` não é enfeite:** a ordem *do mais antigo para o mais recente* é regra do inventário e
- * não estaria visível em lugar nenhum sem ele — *"uma trilha lida na ordem errada prova o contrário do
- * que aconteceu"* — e ele dá nome à tabela para leitor de tela, que é o que o A-7 existe para proteger.
+ * **O `<ol>` tem nome**, e não é enfeite: a casca põe barra lateral e barra superior em toda tela
+ * autenticada, e um `getByRole("list")` sem nome casaria com elas primeiro. É por este nome que o teste de
+ * ponta a ponta alcança a trilha sem escopar por classe de CSS.
  *
- * **`overflow-x-auto` no invólucro** porque a página nunca rola na horizontal; quem rola é a tabela.
+ * **A numeração do registro saiu.** Ela era do recorte de celular, e o marcador ocupa aquele lugar:
+ * numerar e marcar no mesmo ponto são dois sinais para a mesma coisa.
  */
-function TabelaDaTrilha({ registros }: { registros: readonly RegistroProjetado[] }) {
+function Trilha({
+  registros,
+  nomes,
+}: {
+  registros: readonly RegistroProjetado[];
+  nomes: Record<string, string>;
+}) {
   return (
-    <div className="hidden overflow-x-auto md:block">
-      <table className="w-full border-collapse text-left text-sm">
-        <caption className="text-tinta-fraca pb-2 text-left text-xs leading-relaxed">
-          {registros.length === 1 ? "Um registro" : `${String(registros.length)} registros`}, do mais
-          antigo para o mais recente — o oposto da lista de ocorrências, e de propósito: uma trilha se lê
-          do começo.
-        </caption>
-        <thead>
-          <tr className="text-tinta-suave border-linha border-b">
-            <th scope="col" className="w-44 py-2 pr-3 font-medium">
-              De
-            </th>
-            <th scope="col" className="w-48 py-2 pr-3 font-medium">
-              Novo status
-            </th>
-            <th scope="col" className="w-52 py-2 pr-3 font-medium">
-              Quando
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              Autor da transição
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {registros.map((registro, indice) => (
-            <Fragment key={`${registro.ocorreuEm}-${String(indice)}`}>
-              <tr className="align-top">
-                {/* **`statusAnterior` nulo SÓ no registro de criação** — a premissa P1, e é a origem da
-                    trilha. **A-5:** o nada carrega um caractere, nunca uma célula em branco. */}
-                <td className="py-2 pr-3 font-mono">{registro.statusAnterior ?? CAMPO_VAZIO}</td>
-                <td className="py-2 pr-3 font-mono">{registro.statusNovo}</td>
-                <td className="py-2 pr-3 font-mono tabular-nums whitespace-nowrap">
-                  {dataHoraComSegundos(registro.ocorreuEm)}
-                </td>
-                <td className="py-2">{registro.autor.nome}</td>
-              </tr>
-              <tr className="border-linha border-b">
-                <td colSpan={4} className="text-tinta-suave pb-3 text-xs leading-relaxed">
-                  {registro.motivoPausa !== null && (
-                    <span className="block">
-                      motivo da pausa: <span className="font-mono">{registro.motivoPausa}</span>
-                    </span>
-                  )}
-                  {registro.motivoCancelamento !== null && (
-                    <span className="block">
-                      motivo do cancelamento:{" "}
-                      <span className="font-mono">{registro.motivoCancelamento}</span>
-                    </span>
-                  )}
-                  <span className="block whitespace-pre-line">
-                    observação:{" "}
-                    {registro.observacao ?? <span className="font-mono">{CAMPO_VAZIO}</span>}
-                  </span>
-                </td>
-              </tr>
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/**
- * **Recorte de celular — o mesmo registro empilhado, e nenhum campo escondido.**
- *
- * É a única restrição que o passo 5 herda do inventário: *"no celular, cada registro vira um bloco
- * empilhado sem perder nenhum campo — **nenhum dos cinco campos do F5 pode ser escondido por falta de
- * espaço**"*. Por isso não há tabela reduzida nem coluna sacrificada: há a lista inteira, com o nome do
- * campo à esquerda de cada valor.
- *
- * **Os registros são numerados**, como o quadro 3 do protótipo. O número é posição na trilha, e é o que
- * permite alguém dizer *"o registro 4"* ao telefone.
- */
-function BlocosDaTrilha({ registros }: { registros: readonly RegistroProjetado[] }) {
-  return (
-    <ol className="flex flex-col gap-3 md:hidden">
+    <ol aria-label="Registros da trilha" className="flex flex-col px-[15px] py-4 md:px-[18px] md:py-5">
       {registros.map((registro, indice) => (
-        <li
-          key={`${registro.ocorreuEm}-${String(indice)}`}
-          className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3"
-        >
-          <span className="text-tinta-fraca text-xs font-semibold">{indice + 1}</span>
-          <CampoDoBloco nome="de" valor={registro.statusAnterior ?? CAMPO_VAZIO} mono />
-          <CampoDoBloco nome="para" valor={registro.statusNovo} mono />
-          <CampoDoBloco nome="em" valor={dataHoraComSegundos(registro.ocorreuEm)} mono />
-          <CampoDoBloco nome="autor da transição" valor={registro.autor.nome} />
-          {registro.motivoPausa !== null && (
-            <CampoDoBloco nome="motivo da pausa" valor={registro.motivoPausa} mono />
+        <li key={`${registro.ocorreuEm}-${String(indice)}`} className="relative flex gap-3 pb-5 last:pb-0">
+          {indice < registros.length - 1 && (
+            <span aria-hidden="true" className="bg-linha-suave absolute top-7 bottom-0 left-[12px] w-px" />
           )}
-          {registro.motivoCancelamento !== null && (
-            <CampoDoBloco nome="motivo do cancelamento" valor={registro.motivoCancelamento} mono />
-          )}
-          <CampoDoBloco
-            nome="observação"
-            valor={registro.observacao ?? CAMPO_VAZIO}
-            mono={registro.observacao === null}
-          />
+
+          <MarcadorDoStatus status={registro.statusNovo} />
+
+          <div className="flex min-w-0 flex-col gap-1 pt-0.5">
+            <Campo nome="novo status">
+              <SeloDeStatus status={registro.statusNovo} rotulo={nomes[registro.statusNovo] ?? registro.statusNovo} />
+            </Campo>
+            <Campo nome="status anterior">
+              {/* **A premissa P1, dita por extenso** (critério 44n.4). O travessão saiu: quem lê uma prova
+                  precisa saber se o campo está vazio ou se a tela o escondeu. */}
+              {registro.statusAnterior === null
+                ? "primeiro registro, sem status anterior"
+                : (nomes[registro.statusAnterior] ?? registro.statusAnterior)}
+            </Campo>
+            <Campo nome="data e hora">
+              {/* Mono porque é dado temporal — o papel que o guia §3 dá à monoespaçada. */}
+              <span className="font-mono tabular-nums">{dataHoraComSegundos(registro.ocorreuEm)}</span>
+            </Campo>
+            <Campo nome="autor">{registro.autor.nome}</Campo>
+            {registro.motivoPausa !== null && (
+              <Campo nome="motivo da pausa">{nomeDoMotivoPausa(registro.motivoPausa)}</Campo>
+            )}
+            {registro.motivoCancelamento !== null && (
+              <Campo nome="motivo do cancelamento">
+                {nomeDoMotivoCancelamento(registro.motivoCancelamento)}
+              </Campo>
+            )}
+            <Campo nome="observação">
+              <span className="whitespace-pre-line">{registro.observacao ?? "sem observação"}</span>
+            </Campo>
+          </div>
         </li>
       ))}
     </ol>
   );
 }
 
-/** Uma linha `nome: valor` do bloco de celular. O nome do campo **sempre** aparece — A-5. */
-function CampoDoBloco({
-  nome,
-  valor,
-  mono = false,
-}: {
-  nome: string;
-  valor: string;
-  mono?: boolean;
-}) {
+/**
+ * Uma linha `nome: valor` de um registro.
+ *
+ * **O nome do campo SEMPRE aparece** — é o compromisso A-7 na forma nova, e é o que faz esta tela valer
+ * como prova: *"prova sem rótulo de campo é afirmação"*. Em minúscula, porque são rótulos dentro de um
+ * registro e não títulos de coluna.
+ */
+function Campo({ nome, children }: { nome: string; children: React.ReactNode }) {
   return (
-    <span className="text-tinta-suave block text-xs leading-relaxed">
-      {nome}:{" "}
-      <span className={`text-tinta font-medium whitespace-pre-line ${mono ? "font-mono" : ""}`}>
-        {valor}
-      </span>
+    <span className="text-tinta-suave text-meta flex flex-wrap items-baseline gap-x-1.5 leading-relaxed">
+      {nome}: <span className="text-tinta font-medium">{children}</span>
     </span>
   );
 }
 
 /**
- * **O quadro 5 do protótipo — e ele existe porque o vazio aqui NÃO é um estado.**
+ * **A trilha sem registros — e ela deixou de ser um sermão** (critério 44n.9).
  *
- * Esta é a única lista do produto que não pode estar vazia: a premissa **P1** faz a criação gravar o
- * primeiro registro, então toda ocorrência tem ao menos um. *"Se esta tela aparecer vazia algum dia, a
- * invariante 2 da ADR-0001 foi violada — e vale dizer isso ao implementador: **um estado vazio aqui é um
- * defeito, não um estado**"* (`inventario-de-telas.md`, T-06).
+ * O que estava aqui explicava a invariante 2 da ADR-0001, avisava que recarregar não adiantava e despejava
+ * dois identificadores para a pessoa levar a alguém. As quatro regras de texto do guia §7, escritas em
+ * 20/09/2026 por causa desta tela: diga o que é e não por que é · nada ilegível para quem lê · não anuncie
+ * defeito a quem não pode consertar · se não há saída, não encha.
  *
- * **Por que construir o que não pode acontecer.** Sem este bloco, o defeito apareceria como uma tabela
- * com cabeçalho e nenhuma linha — indistinguível de *"ainda não aconteceu nada"*, que é falso e é a
- * leitura que alguém faria. Os dois identificadores estão na tela porque é o que quem for investigar
- * precisa levar, e porque este caminho chega como `200` com lista vazia: **não há `traceId`**, e isso é o
- * achado que o próprio protótipo já registrou (última OBS de T-06 em `telas.html`).
+ * **O diagnóstico não se perdeu, mudou de lugar:** ele é uma linha no log do servidor, escrita acima.
+ *
+ * **Sem ação**, e é a quarta regra: não há saída a oferecer. É o molde do `SemAcesso` (item 44h) sem o
+ * `EmptyContent`.
  */
-function TrilhaVaziaEhDefeito({
-  ocorrenciaId,
-  organizacaoId,
-}: {
-  ocorrenciaId: string;
-  organizacaoId: string;
-}) {
+function TrilhaSemRegistros() {
   return (
-    <div className="flex flex-col gap-3">
-      <p
-        role="alert"
-        className="border-destructive/40 bg-superficie text-tinta rounded-md border px-4 py-3 text-sm leading-relaxed"
-      >
-        <strong className="font-semibold">
-          Esta trilha está vazia, e isso é um defeito — não é um estado.
-        </strong>{" "}
-        Toda ocorrência tem ao menos um registro: a criação grava o primeiro, com status anterior nulo.
-        Uma trilha sem nenhum registro significa que a invariante 2 da ADR-0001 foi violada — o status foi
-        gravado sem que o registro de transição fosse gravado na mesma operação. Não adianta recarregar: o
-        que falta aqui não existe do outro lado.
-      </p>
-      <p className="text-tinta-suave text-xs leading-relaxed">
-        Leve estes dois valores a quem mantém o sistema — eles identificam a ocorrência e a organização em
-        que ela foi lida:
-      </p>
-      <p className="text-tinta-fraca font-mono text-xs leading-relaxed">
-        <span className="block select-all">ocorrenciaId: {ocorrenciaId}</span>
-        <span className="block select-all">organizacaoId: {organizacaoId}</span>
-      </p>
-    </div>
+    <Empty className="px-6 py-14 md:px-6 md:py-14">
+      <EmptyHeader>
+        <EmptyMedia
+          variant="icon"
+          className="border-linha bg-background text-tinta-suave mb-3 size-13 rounded-lg border"
+        >
+          <History aria-hidden="true" className="size-5.5" />
+        </EmptyMedia>
+        <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+          Nenhuma alteração registrada
+        </EmptyTitle>
+        <EmptyDescription className="text-corpo text-tinta-suave">
+          Quando o status desta ocorrência mudar, a mudança aparece aqui.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }

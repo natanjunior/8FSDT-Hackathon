@@ -1042,3 +1042,90 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
     expect(fonte).toContain('getByRole("button", { name: "Entrar" })');
   });
 });
+
+describe("o alcance do 44n — a trilha vira linha do tempo", () => {
+  it("os seis status têm ícone e marcador, e as três chaves batem (critério 44n.6)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // **O `tsc` não pega isto, e é o custo declarado da ADR-0006**: `FORMA_DO_SELO` é
+    // `Record<string, string>` porque `app/` não importa o Domínio, então um sétimo status entraria em
+    // silêncio no contorno. Esta guarda é o que sobra no lugar da exaustividade.
+    const chavesDe = (mapa: string): string[] => {
+      const bloco = new RegExp(`const ${mapa}[^=]*=\\s*\\{([^}]*)\\}`, "u").exec(fonte);
+      if (bloco === null) throw new Error(`mapa ${mapa} não encontrado`);
+      return [...bloco[1]!.matchAll(/^\s*(\w+):/gmu)].map((achado) => achado[1]!).sort();
+    };
+
+    const SEIS = [
+      "aberta",
+      "cancelada",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+    ];
+
+    expect(chavesDe("FORMA_DO_SELO")).toStrictEqual(SEIS);
+    expect(chavesDe("ICONE_DO_STATUS")).toStrictEqual(SEIS);
+    expect(chavesDe("FORMA_DO_MARCADOR")).toStrictEqual(SEIS);
+  });
+
+  it("o ícone do marcador é mudo para o leitor de tela (critério 44n.6)", () => {
+    // A palavra está no selo e a forma está no marcador. Um rótulo acessível aqui faria o leitor de tela
+    // dizer "Em análise" duas vezes por registro.
+    //
+    // **O corte é na FORMA DE ATRIBUTO, e é de propósito.** O docblock do marcador explica por escrito
+    // por que o rótulo acessível não entra, e o nome dele aparece na frase. Uma expressão sem o `=`
+    // reprovaria o comentário que existe para defender a regra.
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+    expect(fonte).toContain('aria-hidden="true"');
+    expect(fonte).not.toMatch(/aria-label\s*=/u);
+  });
+
+  const TELA_DO_44N = [
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx",
+    "app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/loading.tsx",
+  ];
+
+  it("a trilha não é mais tabela, nas duas faces (critério 44n.1)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<(?:table|tbody|thead|caption)(?:\s|>|$)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum valor cru de status na tela (critério 44n.5)", () => {
+    // O comentário que dizia "o Solicitante lê `em_analise`" saiu com a tabela. A tela não tem chave de
+    // mapa nem tipo — os dois mapas moram em `selo-de-status.tsx` —, então aqui o corte é seco.
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\b(?:em_analise|em_atendimento|aguardando_\w+)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o RESOLVE AÍ repetido sai de T-06, e some da casca (A-12 do 44i)", () => {
+    for (const caminho of TELA_DO_44N) expect(ler(caminho)).not.toContain("Resolve Aí");
+    // **A guarda é escopada a `app/(casca)`, e é de propósito** — pelo mesmo argumento que o 44m já
+    // escreveu ao lado da dele: a busca por "Resolve Aí" em `app` inteiro devolve sete linhas, e cinco
+    // não são deste item (o `metadata` do layout raiz, as duas da documentação e as duas de
+    // `app/organizacao/`, que morrem com a moldura antiga no 44o). Uma guarda global falharia por defeito
+    // que o 44n não criou nem tem mandato para consertar.
+    //
+    // **Dentro da casca, estas duas eram as últimas.** A barra superior é quem carrega a marca.
+    const sobras = arquivosDe("app/(casca)").filter((caminho) => ler(caminho).includes("Resolve Aí"));
+    expect(sobras).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis, nas duas faces (guia §3)", () => {
+    const achados = TELA_DO_44N.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+});
