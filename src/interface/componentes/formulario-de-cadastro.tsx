@@ -6,8 +6,7 @@ import { useActionState } from "react";
 
 import { acaoDeCriarConta, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
-import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import {
   avisarErro,
   avisarSucesso,

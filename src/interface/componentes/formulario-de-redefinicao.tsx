@@ -5,8 +5,7 @@ import { useActionState } from "react";
 
 import { acaoDePedirRedefinicao, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
-import { Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { Aviso } from "@/interface/componentes/moldura-de-tela";
+import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";

@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 
-import { ErroDoFormulario } from "@/interface/componentes/campo";
-
 /**
- * A moldura das telas de celular.
+ * A moldura de **T-02 · Sem organização ativa** e de **T-10 · Vínculo sem permissões**.
  *
- * O protótipo desenha as duas telas da fatia com a mesma forma — marca, título, e uma coluna de campos que
- * cabe sem rolar (`docs/prototipo/telas.html`, T-01 e T-02). Escrito uma vez, pela razão que o próprio
- * protótipo declara: *"duas cópias divergem na primeira alteração, e a divergente é pior que a ausente"*.
+ * **Ela já foi a moldura das telas de credencial**, e deixou de ser no item 44m: T-01, T-11, T-12 e T-13
+ * passaram para a `MolduraDeConta`, que tem marca com ícone, cartão e segunda coluna. **As duas telas que
+ * sobraram não foram redesenhadas** — elas têm item próprio quando chegar a vez, e até lá esta moldura
+ * fica como está, com os três tamanhos soltos que o critério 44m.3 não alcança.
+ *
+ * O `Aviso`, que morava aqui, foi para `campo.tsx` no mesmo item.
  */
 export function MolduraDeTela({
   titulo,
@@ -22,23 +23,5 @@ export function MolduraDeTela({
       <h1 className="text-tinta text-xl leading-snug font-semibold">{titulo}</h1>
       {children}
     </main>
-  );
-}
-
-/**
- * A linha de aviso acima do formulário das telas de credencial e de T-02.
- *
- * **`tom="recusa"` desenha o mesmo erro que o resto do produto** (`ErroDoFormulario`, item 44g). Até ali
- * ele pintava o erro com a cor da identidade, e o produto tinha dois desenhos para a mesma coisa.
- * `tom="nota"` é o aviso que não é erro: *"Conta confirmada."*, *"Você já está em …"*. A diferença entre
- * os dois é de forma e de ícone, não de cor sozinha (A-5).
- */
-export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; children: ReactNode }) {
-  if (tom === "recusa") return <ErroDoFormulario>{children}</ErroDoFormulario>;
-
-  return (
-    <p role="alert" className="border-linha bg-superficie text-tinta-suave rounded-md border px-3 py-2.5 text-sm">
-      {children}
-    </p>
   );
 }
