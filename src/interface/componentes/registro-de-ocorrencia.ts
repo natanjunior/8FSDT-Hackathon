@@ -237,6 +237,26 @@ export const FOTO = {
   naoPreparou: "Não foi possível preparar esta foto. Escolha outra.",
 } as const;
 
+/**
+ * As frases que **o controle de foto** conhece, e o mapa que ele entrega a `mensagemDoProblema`.
+ *
+ * **Ele é separado do `FRASES_DO_SERVIDOR` de propósito.** Aquele é compartilhado com o formulário
+ * (`formulario-de-ocorrencia.tsx`), e pôr `ERRO_INTERNO` lá faria um `500` de `POST /ocorrencias` dizer que
+ * a foto não subiu — quando pode não haver foto nenhuma.
+ *
+ * **`ERRO_INTERNO` reaproveita `naoSubiu`, e não ganha frase própria.** Para quem escolheu a foto, a
+ * autorização que não saiu e o `PUT` que falhou são o mesmo fato e pedem a mesma ação: tocar de novo.
+ *
+ * **`ANEXO_ACIMA_DO_LIMITE` entra mesmo não vindo deste endpoint.** Ele é o `422` da reivindicação, chega
+ * pelo `POST /ocorrencias` e é encaminhado ao campo da foto pelo `CODIGOS_DO_ANEXO`. Estar no mapa mantém o
+ * desfecho verdadeiro venha ele de onde vier.
+ */
+export const FRASES_DA_FOTO: Readonly<Record<string, string>> = {
+  ANEXO_ACIMA_DO_LIMITE: FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE!,
+  LIMITE_DE_AUTORIZACOES_DE_UPLOAD: FRASES_DO_SERVIDOR.LIMITE_DE_AUTORIZACOES_DE_UPLOAD!,
+  ERRO_INTERNO: FOTO.naoSubiu,
+};
+
 export const AREA = {
   gatilhoVazio: "Busque ou escolha",
   tituloDoPainel: "Onde aconteceu?",
@@ -252,3 +272,4 @@ export const BLOCOS = { oQue: "O que aconteceu", onde: "Onde" } as const;
 export const REGISTRAR = "Registrar ocorrência";
 export const REGISTRANDO = "Registrando…";
 export const CANCELAR = "Cancelar";
+
