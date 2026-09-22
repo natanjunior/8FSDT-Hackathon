@@ -33,7 +33,10 @@ import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
-import { SeletorDePrioridade } from "@/interface/componentes/seletor-de-prioridade";
+import {
+  LINHA_DA_PRIORIDADE,
+  SeletorDePrioridade,
+} from "@/interface/componentes/seletor-de-prioridade";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
   acoesDaBarra,
@@ -668,7 +671,9 @@ export default async function Ocorrencia({
           {/* **Bloco 1c · O resto da identidade.** */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
             {/* **A presença do CONTROLE depende de `acoesDisponiveis`, não do dado** — a prioridade
-                nunca some da tela, e o que muda é a forma. */}
+                nunca some da tela, e o que muda é só o lado direito da linha. **A linha é a mesma nos
+                dois casos** (item 44p, critério 20): antes, sem o controle, ela virava texto corrido
+                enquanto as outras cinco linhas do cartão continuavam rótulo e valor. */}
             {detalhe.acoesDisponiveis.includes("alterar-prioridade") ? (
               <SeletorDePrioridade
                 ocorrenciaId={detalhe.id}
@@ -678,14 +683,20 @@ export default async function Ocorrencia({
                 organizacaoId={organizacaoId}
               />
             ) : (
-              /* **A prioridade em PALAVRA na linha de apoio** — guia §2. `alta` recebe `--destructive`;
-                 `normal` e `baixa` não recebem cor. */
-              <p className="text-tinta-suave text-interface">
-                <span className="font-medium">Prioridade:</span>{" "}
-                <span className={detalhe.prioridade === "alta" ? "text-destructive font-medium" : ""}>
+              <div className={LINHA_DA_PRIORIDADE}>
+                <span className="text-tinta-suave text-interface font-medium">Prioridade</span>
+                {/* Guia §2: `alta` recebe `--destructive`; `normal` e `baixa` não recebem cor. A palavra
+                    é o sinal, sempre (A-5). */}
+                <span
+                  className={
+                    detalhe.prioridade === "alta"
+                      ? "text-destructive text-interface font-medium"
+                      : "text-tinta text-interface"
+                  }
+                >
                   {rotuloDePrioridade(detalhe.prioridade)}
                 </span>
-              </p>
+              </div>
             )}
 
             <dl className="text-tinta-suave grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-2 text-interface">

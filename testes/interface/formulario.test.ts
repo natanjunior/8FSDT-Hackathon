@@ -1219,4 +1219,26 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(ler("src/interface/componentes/vazio-da-lista.ts")).not.toContain("o seu prédio");
     expect(ler("app/(casca)/ocorrencias/page.tsx")).not.toContain("que não descreve o");
   });
+
+  it("o seletor de prioridade é o `select` do catálogo (critério 44p.4)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-prioridade.tsx");
+
+    // **A guarda lê comentário igual a código**, e este arquivo escrevia `<select>` em prosa em TRÊS
+    // linhas — 19, 30 e 53. As três passam a dizer "o `select` nativo", sem os sinais de maior e menor:
+    // é o mesmo tratamento que `navegacao.tsx` recebeu no critério 44p.2, e é mais honesto que abrir
+    // exceção na guarda.
+    expect(/<select(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain("<SelectTrigger");
+    expect(fonte).toContain("<SelectItem");
+  });
+
+  it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+
+    // Aberta, a linha é rótulo à esquerda e controle à direita. Resolvida, era texto corrido — "Prioridade:
+    // Normal" — enquanto as outras cinco linhas do mesmo cartão continuavam rótulo e valor. Fica a mesma
+    // linha, só sem o seletor: o invólucro e o rótulo passam a ser da página.
+    expect(fonte).not.toContain("Prioridade:</span>");
+    expect(fonte).toContain("LINHA_DA_PRIORIDADE");
+  });
 });
