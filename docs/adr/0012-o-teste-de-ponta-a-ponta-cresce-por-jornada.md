@@ -5,7 +5,8 @@ description: "A medição de cobertura mostrou que a maior superfície do produt
 
 # ADR-0012 — O teste de ponta a ponta cresce por jornada de validação, com teto
 
-**Status:** Aceita · 22/09/2026 · Substitui parcialmente a
+**Status:** Aceita · 22/09/2026 · Parcialmente substituída pela
+[ADR-0013](0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) · Substitui parcialmente a
 [ADR-0008](0008-a-suite-de-testes-segue-a-garantia.md)
 
 ## Contexto

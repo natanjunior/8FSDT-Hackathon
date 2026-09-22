@@ -23,7 +23,8 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
 | [0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) | O componente de gráfico do catálogo entra, e com ele o Recharts | Aceita |
 | [0011](0011-sonner-e-cmdk-entram-como-pacotes.md) | O aviso de retorno de ação e a busca em lista entram como pacotes instalados | Aceita |
-| [0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) | O teste de ponta a ponta cresce por jornada de validação, com teto | Aceita |
+| [0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) | O teste de ponta a ponta cresce por jornada de validação, com teto | Parcialmente substituída pela 0013 |
+| [0013](0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) | O teto da suíte de ponta a ponta sobe para sete, e passa a ter origem medida | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

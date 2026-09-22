@@ -20,10 +20,13 @@ volume se concentra onde a garantia é frágil, e quase não existe onde ela é 
 | Ponta a ponta | as jornadas do produto num navegador, com autenticação real: o caminho crítico, o nascimento de uma organização, as interrupções de uma ocorrência, a configuração, a recuperação de senha e o painel | Playwright | sim, com a pilha de pé e a semente aplicada |
 
 As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integração cresce por consulta
-nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de seis arquivos, e cada
+nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de sete arquivos, e cada
 arquivo declara quem é dono do mundo que ele usa. A regra anterior mandava que ela nunca crescesse, e o
 que a mudou foi medição: a [ADR-0012](adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) registra o
-número que a derrubou e o custo que ela cobra.
+número que a derrubou e o custo que ela cobra. O teto tem origem própria e sai de duas medições, o tempo
+da suíte e a taxa de reescrita, que a
+[ADR-0013](adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) define junto com a condição
+de parar de subir.
 
 ## O que a suíte alcança
 
