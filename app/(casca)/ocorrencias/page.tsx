@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -510,12 +511,12 @@ function Vazio({
           </Link>
         )}
         {/* O primeiro convite é o que importa: a organização nasce com áreas-semente genéricas, e **a
-            primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve o
-            prédio**. */}
+            primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve a
+            organização**. */}
         {tipo === "organizacao" && podeConfigurar && (
           <Link
             href="/configuracao/areas"
-            className="border-marca bg-accent text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+            className={cn(buttonVariants({ variant: "marca" }), "text-interface min-h-11 px-4")}
           >
             Conferir as áreas
           </Link>
@@ -523,9 +524,10 @@ function Vazio({
         {podeRegistrar && (
           <Link
             href="/ocorrencias/nova"
-            className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+            className={cn(buttonVariants({ variant: "outline" }), "text-interface min-h-11 px-4")}
           >
-            {tipo === "organizacao" ? "+ Registrar a primeira" : "+ Registrar ocorrência"}
+            <Plus aria-hidden="true" />
+            {tipo === "organizacao" ? "Registrar a primeira" : "Registrar ocorrência"}
           </Link>
         )}
       </EmptyContent>
@@ -561,7 +563,7 @@ function AlemDoFim({ total, consultaAtual }: { total: number; consultaAtual: str
       <EmptyContent>
         <Link
           href={consulta === "" ? "/ocorrencias" : `/ocorrencias?${consulta}`}
-          className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+          className={cn(buttonVariants({ variant: "outline" }), "text-interface min-h-11 px-4")}
         >
           {TEXTO_ALEM_DO_FIM.acao}
         </Link>

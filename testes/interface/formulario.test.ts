@@ -1196,4 +1196,27 @@ describe("o alcance do 44p — a validação do lote 11", () => {
 
     expect(achados).toStrictEqual([]);
   });
+
+  it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx");
+
+    // A mesma tela já usava `buttonVariants` em duas linhas e montava botão à mão em três. O que sobra é
+    // uma forma só.
+    expect(fonte).not.toContain("inline-flex min-h-11 items-center rounded-sm border px-4");
+    expect(fonte).not.toContain('"+ Registrar');
+    expect(fonte).toContain("<Plus aria-hidden");
+  });
+
+  it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
+    // D3: a organização é condomínio, empresa **ou bairro**. É a terceira vez que a mesma correção se
+    // aplica — a prancheta de Áreas e a coluna esquerda de T-01 do 44m foram as outras duas.
+    //
+    // **A guarda é sobre a FRASE, e não sobre a palavra**, e isso está medido: "prédio" aparece em SETE
+    // lugares do repositório e **cinco estão certos** — `Permissao.ts:7`, `Semente.ts:63`,
+    // `lista-de-ocorrencias.tsx:295` e as duas de `app/organizacao/` usam a palavra como EXEMPLO de um
+    // tipo de organização, que é justamente o que a D3 diz que ela pode ser. O defeito é a tela mandar a
+    // pessoa conferir se as áreas descrevem "o seu prédio", o que exclui bairro e empresa.
+    expect(ler("src/interface/componentes/vazio-da-lista.ts")).not.toContain("o seu prédio");
+    expect(ler("app/(casca)/ocorrencias/page.tsx")).not.toContain("que não descreve o");
+  });
 });
