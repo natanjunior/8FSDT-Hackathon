@@ -57,13 +57,50 @@ type Conta = {
 let contaCompartilhada: Conta | null = null;
 
 /**
- * Lê a conta da variável de execução.
+ * Os pares `chave=valor` da cadeia, sem interpretar nenhum deles.
  *
  * **A cadeia de conexão é analisada aqui, e não entregue ao SDK**, por uma razão prática: para assinar
  * é preciso `StorageSharedKeyCredential` explícito, e obtê-lo de um `BlobServiceClient` depende de um
  * campo cujo tipo é uma união de três credenciais. Ler três pares `chave=valor` é mais estável que
  * conviver com essa união.
  */
+function camposDaCadeia(cadeia: string): Map<string, string> {
+  return new Map(
+    cadeia
+      .split(";")
+      .map((par) => par.trim())
+      .filter((par) => par !== "")
+      .map((par) => {
+        const corte = par.indexOf("=");
+        return [par.slice(0, corte), par.slice(corte + 1)] as const;
+      }),
+  );
+}
+
+/**
+ * O endereço de blob que a cadeia declara, **sem a barra final** — e é o conserto do V-13.
+ *
+ * `az storage account show-connection-string` devolve `BlobEndpoint` terminado em barra, e os três
+ * consumidores do endpoint neste arquivo concatenam com `/`: a URL do `PUT`, a de leitura e o
+ * `new BlobServiceClient(endpoint, …)` de `blob()`, que serve `descrever` e `marcarConfirmado`. Sem
+ * normalizar, a URL sai com barra dupla, o contêiner vira vazio e o `PUT` do navegador morre em falha de
+ * rede — sem resposta, e por isso sem código de erro que a tela pudesse explicar.
+ *
+ * **É pura, e sai pelo `index.ts` devolvendo `string`**: a `Conta` carrega `StorageSharedKeyCredential`, e
+ * tipo de SDK não atravessa a superfície pública.
+ */
+export function enderecoDaCadeia(cadeia: string): string {
+  const partes = camposDaCadeia(cadeia);
+  const declarado = partes.get("BlobEndpoint");
+  const bruto =
+    declarado === undefined || declarado === ""
+      ? `https://${partes.get("AccountName") ?? ""}.blob.core.windows.net`
+      : declarado;
+
+  return bruto.replace(/\/+$/u, "");
+}
+
+/** Lê a conta da variável de execução, uma vez por processo. */
 function conta(): Conta {
   if (contaCompartilhada !== null) return contaCompartilhada;
 
@@ -76,17 +113,7 @@ function conta(): Conta {
     );
   }
 
-  const partes = new Map(
-    cadeia
-      .split(";")
-      .map((par) => par.trim())
-      .filter((par) => par !== "")
-      .map((par) => {
-        const corte = par.indexOf("=");
-        return [par.slice(0, corte), par.slice(corte + 1)] as const;
-      }),
-  );
-
+  const partes = camposDaCadeia(cadeia);
   const nome = partes.get("AccountName");
   const chave = partes.get("AccountKey");
   if (nome === undefined || chave === undefined) {
@@ -96,7 +123,7 @@ function conta(): Conta {
   contaCompartilhada = {
     nome,
     credencial: new StorageSharedKeyCredential(nome, chave),
-    endpoint: partes.get("BlobEndpoint") ?? `https://${nome}.blob.core.windows.net`,
+    endpoint: enderecoDaCadeia(cadeia),
   };
 
   return contaCompartilhada;
