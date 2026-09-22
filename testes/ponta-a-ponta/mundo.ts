@@ -65,6 +65,15 @@ export const RECANTO = "Condomínio Recanto Azul (demonstração)";
 export const ENCARREGADA_DO_AURORA = "Sônia Prado";
 
 /**
+ * O Solicitante sem conta do Aurora (`semente/plano.ts`), com a unidade *Sala 405*.
+ *
+ * **Ele existe aqui porque o modal de atribuição reparte em dois blocos**, e provar a repartição exige
+ * alguém do bloco de baixo que **não** seja quem está olhando nem quem registrou. Helena serve para o
+ * bloco; ele serve para a escolha, porque atribuir a ela mudaria o que o resto do lote lê.
+ */
+export const SOLICITANTE_DO_AURORA = "Diego Fontes";
+
+/**
  * A marca do instante — é ela que separa a ocorrência de uma corrida da das outras e das 36 da
  * demonstração. Toda asserção de lista encontra exatamente a linha dela.
  */
