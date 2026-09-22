@@ -1129,3 +1129,38 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
     expect(achados).toStrictEqual([]);
   });
 });
+
+describe("o alcance do 44p — a validação do lote 11", () => {
+  it("a animação de pressão usa a forma que o Tailwind 4 emite como var() (critério 44p.1)", () => {
+    const fonte = ler("src/interface/componentes/ui/button.tsx");
+
+    // `duration-[--tempo-pressao]` gera `transition-duration: --tempo-pressao`, declaração inválida que o
+    // navegador descarta: o `active:scale-[0.97]` acontecia sem duração e sem curva. A forma com
+    // parênteses é a que emite `var()`, e é a que `modal.tsx` já usa em CONTEUDO_DO_SHEET.
+    expect(fonte).toContain("duration-(--tempo-pressao)");
+    expect(fonte).toContain("ease-(--curva-pressao)");
+
+    // **`transition-all` sai junto.** Ele e `transition-transform` conviviam no mesmo `cva`, e a segunda
+    // vencia pela ordem. Com a duração passando a valer, `transition-all` voltaria a animar cor e sombra
+    // em todo botão do produto — contra o guia §6, que concede só `transform` e `opacity`.
+    expect(fonte).not.toContain("transition-all");
+  });
+
+  it("nenhuma classe arbitrária de duração sobrou em `src` nem em `app` (critério 44p.1)", () => {
+    const achados = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) =>
+      ler(caminho).includes("duration-["),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o `Sair` do menu de pessoa é `Button` do catálogo (critério 44p.5)", () => {
+    const fonte = ler("src/interface/componentes/casca/menu-de-pessoa.tsx");
+
+    // O critério diz "fica dentro de `DropdownMenuItem asChild`" — e já estava. O que era cru é o
+    // ELEMENTO. `asChild` continua funcionando porque o `Button` renderiza um `<button>`, que é quem
+    // recebe `role="menuitem"` e o foco do menu.
+    expect(/<button(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain('<form action={acaoDeSair}>');
+    expect(fonte).toContain('variant="ghost"');
+  });
+});
