@@ -1,9 +1,14 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { acaoDeSair } from "@/interface/acoes";
-import { MenuDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { EscolhaDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
+import { primeiroNome, rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
+import {
+  CaminhoDeSair,
+  CLASSE_DO_CAMINHO,
+  MolduraDeConta,
+} from "@/interface/componentes/moldura-de-conta";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
@@ -12,24 +17,36 @@ import { projetarContexto } from "@/interface/projecoes";
  *  O despachante — e a tela do vínculo sem permissões
  * ============================================================================
  *
- * **Duas coisas, e mais nenhuma.** O `inventario-de-telas.md` (§3) não desenha tela para `/`: o que existe
- * ali é o losango `CTX` (*"tem organização ativa?"*), que desemboca em T-01, T-02, T-10 ou **T-03**. Até o
- * item 14 esta rota acumulava o losango e a moldura de navegação, porque não havia tela de dentro onde
- * pendurar a moldura. Agora há.
+ * **Duas coisas, e mais nenhuma.** Não há tela desenhada para `/`: o que existe ali é o losango *"tem
+ * organização ativa?"*, que desemboca em T-01, T-02, T-10 ou T-03.
  *
  * | Situação | Destino |
  * |---|---|
  * | sem sessão | **T-01** (`/entrar`) |
  * | `organizacaoAtiva == null` | **T-02** (`/organizacao`) |
  * | com `ocorrencia.ler_propria` | **T-03** (`/ocorrencias`) |
- * | `permissoes: []` | **fica aqui** — é a T-10 provisória |
+ * | `permissoes: []` | **fica aqui** — é T-10 |
  *
  * **Não há laço:** `/` só redireciona **com** `ocorrencia.ler_propria`, e T-03 só devolve para cá **sem**
  * ela. As condições são complementares porque só existem três papéis: `solicitante` e `gestor` a têm,
  * `encarregado` tem `[]` (`Permissao.ts`).
  *
- * **T-10 não é item do backlog** (`escopo.md` a declara fora da contagem), e esta fatia não a inventa: o
- * que sobrou aqui é a frase que o contrato §4.5 manda existir para o vínculo sem permissão nenhuma.
+ * ---------------------------------------------------------------------------
+ *  T-10, na moldura das telas fora da casca — item 44o
+ * ---------------------------------------------------------------------------
+ *
+ * **O título continua sendo a saudação**, com o primeiro nome: o critério 44o.7 diz quais títulos mudam,
+ * e T-10 não está entre eles. **A linha de fato é a frase do critério 44o.8**, com o papel e a
+ * organização lidos do contexto — a tela existe pela **ausência de permissão**, e não pelo nome do papel.
+ *
+ * **O que a pessoa pode fazer daqui são duas coisas, e as duas saem desta tela:** trocar para outra
+ * organização em que ela já participa — a lista *"Você também participa de"*, critério 44o.9 — ou pedir
+ * entrada numa nova — o caminho abaixo do cartão, critério 44o.14. Com uma organização só, a lista não
+ * aparece; o caminho, sim.
+ *
+ * **O caminho para a face E existe aqui e no menu de pessoa, e são as duas únicas portas dela.** O
+ * seletor da barra superior virou `select` no 44b e não o carrega. Tirar este link sem pôr outro no lugar
+ * deixa a face E alcançável só por endereço digitado — foi o que o critério 9 quase fez.
  */
 export const dynamic = "force-dynamic";
 
@@ -46,34 +63,33 @@ export default async function Despachante() {
   if (escopo.situacao === "pronto") redirect("/ocorrencias");
 
   const contexto = projetarContexto(escopo.resolucao);
+  const ativa = contexto.organizacaoAtiva;
+  // `sem-permissao` só existe com vínculo ativo, então os dois nulos são inalcançáveis. O `redirect` é o
+  // mesmo destino de quem não tem organização, e é o que estreita os tipos sem asserção.
+  if (ativa === null || contexto.papel === null) redirect("/organizacao");
+
+  const outras = contexto.vinculos.filter((vinculo) => vinculo.organizacaoId !== ativa.id);
 
   return (
-    <MolduraDeTela titulo={`Olá, ${contexto.pessoa.nome}.`}>
-      {/* **É o caso que mais importa do item 7b:** o Encarregado com `permissoes: []` em A e Gestor em B
-          **não tem outra tela**. Sem o menu aqui, ele fica trancado numa organização em que não pode fazer
-          nada, com a outra a um `PUT` de distância e nenhum jeito de chamá-lo. */}
-      {contexto.organizacaoAtiva !== null && (
-        <section className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
-          <span className="text-tinta-fraca text-xs tracking-wide uppercase">Organização ativa</span>
-          <MenuDeOrganizacao
-            vinculos={contexto.vinculos}
-            organizacaoAtivaId={contexto.organizacaoAtiva.id}
-            nomeDaOrganizacaoAtiva={contexto.organizacaoAtiva.nome}
-          />
-        </section>
-      )}
-
-      {/* Vínculo `encarregado` recebe `permissoes: []` — declarado, não esquecido (contrato §4.5). */}
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Nenhuma permissão neste vínculo. Não é engano: as capacidades do Encarregado são evolução
-        prevista, e o contrato declara este estado em vez de deixá-lo acontecer por acidente.
-      </p>
-
-      <form action={acaoDeSair} className="pt-2">
-        <button type="submit" className="text-marca py-1 text-sm underline underline-offset-4">
-          Sair
-        </button>
-      </form>
-    </MolduraDeTela>
+    <MolduraDeConta
+      titulo={`Olá, ${primeiroNome(contexto.pessoa.nome)}.`}
+      contexto={
+        <>
+          Seu papel de {rotuloDoPapel(contexto.papel)} em{" "}
+          <strong className="text-tinta font-semibold">{ativa.nome}</strong> ainda não abre nenhuma tela.
+          Quando abrir, ela aparece aqui.
+        </>
+      }
+      caminhos={
+        <>
+          <Link href="/organizacao?entrar-em-outra=true" className={CLASSE_DO_CAMINHO}>
+            Entrar em outra organização
+          </Link>
+          <CaminhoDeSair />
+        </>
+      }
+    >
+      {outras.length > 0 && <EscolhaDeOrganizacao vinculos={outras} rotulo="Você também participa de" />}
+    </MolduraDeConta>
   );
 }

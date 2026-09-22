@@ -975,11 +975,10 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
     const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
       ler(caminho).includes("MolduraDeTela"),
     );
-    // **T-02 e T-10, e mais nada.** As duas não são redesenhadas neste item: elas têm item próprio
-    // quando chegar a vez, e até lá a moldura antiga é delas.
+    // **T-02 e ela mesma.** T-10 saiu da moldura antiga no 44o; T-02 sai na tarefa seguinte, e a moldura
+    // é apagada depois.
     expect(comMoldura).toStrictEqual([
       "app/organizacao/page.tsx",
-      "app/page.tsx",
       "src/interface/componentes/moldura-de-tela.tsx",
     ]);
   });
@@ -1184,5 +1183,33 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
     expect(fonte).toContain('from "@/interface/componentes/frases-de-participantes"');
     expect(fonte).not.toContain("function rotuloDoPapel");
+  });
+
+  it("o menu de organização saiu do produto (critérios 44o.9 e 44o.10)", () => {
+    const comMenu = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("MenuDeOrganizacao"),
+    );
+    expect(comMenu).toStrictEqual([]);
+    expect(existsSync(RAIZ + "src/interface/componentes/menu-de-organizacao.tsx")).toBe(false);
+  });
+
+  it("T-10 diz o papel e a organização, e não fala de contrato (critério 44o.8)", () => {
+    const fonte = ler("app/page.tsx");
+    expect(fonte).not.toContain("evolução prevista");
+    expect(fonte).not.toContain("o contrato declara");
+    expect(fonte).toMatch(/ainda não abre nenhuma tela\.\s+Quando abrir, ela aparece aqui\./u);
+    // A tela existe pela **ausência de permissão**, e não pelo nome do papel: a palavra é lida do contexto.
+    expect(fonte).toContain("rotuloDoPapel(contexto.papel)");
+  });
+
+  it("T-10 mantém o título, lista as outras organizações e leva à face E (critérios 44o.7, 44o.9 e 44o.14)", () => {
+    const fonte = ler("app/page.tsx");
+    expect(fonte).toContain("titulo={`Olá, ${primeiroNome(contexto.pessoa.nome)}.`}");
+    expect(fonte).toMatch(
+      /outras\.length > 0 &&\s*<EscolhaDeOrganizacao\s[^>]*rotulo="Você também participa de"/u,
+    );
+    expect(fonte).toContain("vinculo.organizacaoId !== ativa.id");
+    expect(fonte).toContain('href="/organizacao?entrar-em-outra=true"');
+    expect(fonte).toContain("<CaminhoDeSair />");
   });
 });

@@ -12,13 +12,6 @@ import {
 } from "@/interface/componentes/lista-de-organizacoes";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/interface/componentes/ui/dropdown-menu";
 
 /**
  * ============================================================================
@@ -38,72 +31,12 @@ import {
  * inerte; as classes daqui dão a forma de linha. **O anel de foco é interno**, porque a lista corta o que
  * vaza dos cantos (`overflow-hidden`) e o anel de fora sumiria na primeira e na última linha.
  *
+ * **Este arquivo foi o menu de organização até o 44o**, e o menu saiu: T-10 era o último lugar que o
+ * usava, e o critério 44o.9 trocou o seletor pela lista. O caminho para a face E que o menu carregava
+ * **não saiu junto** — mora em T-10 e no menu de pessoa (critério 44o.14).
+ *
  * **Acessibilidade:** alvo de 44 px (A-3), o papel vem **em palavra** (A-5).
  */
-export function MenuDeOrganizacao({
-  vinculos,
-  organizacaoAtivaId,
-  nomeDaOrganizacaoAtiva,
-}: {
-  vinculos: readonly VinculoNoMenu[];
-  organizacaoAtivaId: string;
-  nomeDaOrganizacaoAtiva: string;
-}) {
-  const { aviso, trocando, escolher, router } = useTroca();
-
-  const papelAtual = vinculos.find((v) => v.organizacaoId === organizacaoAtivaId)?.papel ?? null;
-  const outras = vinculos.filter((v) => v.organizacaoId !== organizacaoAtivaId);
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={trocando}
-          className="text-tinta-suave inline-flex min-h-11 items-center gap-1 text-sm"
-        >
-          {trocando ? "Trocando…" : nomeDaOrganizacaoAtiva}
-          <span aria-hidden>▾</span>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem disabled className="flex-col items-start gap-0">
-            <span className="text-tinta font-medium">{nomeDaOrganizacaoAtiva}</span>
-            <span className="text-tinta-suave text-xs">
-              {papelAtual === null ? "atual" : `${rotuloDoPapel(papelAtual)} · atual`}
-            </span>
-          </DropdownMenuItem>
-
-          {outras.map((vinculo) => (
-            <DropdownMenuItem
-              key={vinculo.organizacaoId}
-              className="min-h-11 flex-col items-start gap-0"
-              onSelect={() => void escolher(vinculo.organizacaoId)}
-            >
-              <span className="text-tinta font-medium">{vinculo.nome}</span>
-              <span className="text-tinta-suave text-xs">{rotuloDoPapel(vinculo.papel)}</span>
-            </DropdownMenuItem>
-          ))}
-
-          <DropdownMenuSeparator />
-
-          {/* **O `setTimeout(…, 0)` não é enfeite**: `router.push` dentro do `onSelect` do Radix compete com o
-              fechamento do menu e produz navegação engolida em parte dos navegadores. */}
-          <DropdownMenuItem
-            className="min-h-11"
-            onSelect={() => {
-              setTimeout(() => router.push("/organizacao?entrar-em-outra=true"), 0);
-            }}
-          >
-            Entrar em outra organização
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {aviso !== null && <Aviso>{aviso}</Aviso>}
-    </>
-  );
-}
-
 export function EscolhaDeOrganizacao({
   vinculos,
   rotulo,
@@ -137,7 +70,7 @@ export function EscolhaDeOrganizacao({
   );
 }
 
-/** O estado e a navegação, escritos uma vez para os consumidores deste arquivo. */
+/** O estado e a navegação da troca. */
 function useTroca() {
   const router = useRouter();
   const [aviso, setAviso] = useState<string | null>(null);
@@ -161,5 +94,5 @@ function useTroca() {
     router.replace("/");
   }
 
-  return { aviso, trocando, escolher, router };
+  return { aviso, trocando, escolher };
 }
