@@ -28,16 +28,16 @@ nova, e não por arquivo. A de ponta a ponta não cresce: é uma só, por decis�
 A cobertura é medida para informar. Não há limite mínimo, `npm run verificar` não a consulta, e nenhum
 número desta seção reprova uma mesclagem. O que ela responde é onde a suíte chega e onde não chega.
 
-**Data da medição:** 21/09/2026, por `npm run cobertura`, que roda os testes unitários e os de
+**Data da medição:** 22/09/2026, por `npm run cobertura`, que roda os testes unitários e os de
 integração numa execução só e exige um PostgreSQL de pé.
 
 | Recorte | Arquivos | Instruções cobertas |
 |---|---|---|
 | O núcleo: domínio, aplicação, esquemas, projeções e infraestrutura | 109 | **91,2%** |
 | A borda HTTP | 11 | 37,8% |
-| A camada de interface: componentes e ganchos | 99 | 29,3% |
-| O roteamento em `app/` | 59 | 0,0% |
-| Todo o produto | 280 | **46,9%** |
+| A camada de interface: componentes e ganchos | 100 | 29,2% |
+| O roteamento em `app/` | 60 | 0,0% |
+| Todo o produto | 282 | **46,8%** |
 
 Os recortes repetem em número a forma que a [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)
 desenhou antes de qualquer medição existir. O que cresce por caso passa de 90%. O que aquela decisão
