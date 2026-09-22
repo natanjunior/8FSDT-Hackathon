@@ -84,6 +84,13 @@ const ROTULO_DE_COLUNA =
 
 const CELULA = "text-interface px-4 py-2.5";
 
+/**
+ * O ponto que acompanha *Ativa* (item 44p, critério 22). **A palavra continua sendo o sinal** (A-5); o
+ * ponto é a pista de forma que a prancheta desenhou, e é o que distingue as duas situações sem pintar a
+ * maioria das linhas.
+ */
+const PONTO_DE_ATIVA = "•";
+
 export function ListaDeOrdemManual<T extends ItemDaLista>({
   lista,
   itens,
@@ -295,11 +302,11 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
                         <Badge
                           variant="outline"
                           className={cn(
-                            "text-meta rounded-sm font-medium",
-                            item.ativa ? "border-marca/60 text-marca" : "border-linha text-tinta-suave",
+                            "border-linha text-meta rounded-sm font-medium",
+                            item.ativa ? "text-accent-foreground" : "text-tinta-fraca",
                           )}
                         >
-                          {item.ativa ? TEXTOS_DA_TABELA.ativa : TEXTOS_DA_TABELA.inativa}
+                          {item.ativa ? `${PONTO_DE_ATIVA} ${TEXTOS_DA_TABELA.ativa}` : TEXTOS_DA_TABELA.inativa}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-3.5 py-1.5 text-right">

@@ -1325,4 +1325,36 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
     expect(esperas).toHaveLength(12);
   });
+
+  it("as três formas do selo se separam, e nenhuma cor nova entra (critérios 44p.9 e 44p.21)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // O defeito medido: no escuro `--accent-bg` (0,2921) e `--sunken` (0,2758) distavam 1,6% de
+    // luminosidade, e *Aberta* e *Resolvida* eram o mesmo chip no print de produção. O par invertido
+    // afasta os dois para 8,05:1 de contraste WCAG no escuro e 9,59:1 no claro.
+    expect(fonte).toContain("bg-accent-foreground text-accent");
+    expect(fonte).toContain("bg-muted text-accent-foreground");
+
+    // A marca continua fora: ela veste a ação principal, e só ela (guia §2).
+    //
+    // **A guarda é sobre as CLASSES, e não sobre a palavra:** o arquivo fala de "marcador" em cinco
+    // linhas — é o nome da peça de T-06 que mora nele —, e um `toContain("marca")` seria vermelho para
+    // sempre, diga o código o que disser.
+    expect(fonte).not.toContain("bg-marca");
+    expect(fonte).not.toContain("text-marca");
+    expect(fonte).not.toContain("border-marca");
+
+    // E o `globals.css` não muda: a resposta à P1 usa o par que já existe.
+    expect(ler("app/globals.css")).not.toContain("--positivo");
+  });
+
+  it("o `Ativa` das listas de ordem manual não veste a marca (critérios 44p.18 e 44p.22)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+
+    // *Ativa* é a maioria das linhas; pintá-la de laranja é o que fazia o print de Categorias e de Áreas
+    // parecer alarme. O destaque troca de lado, e o ponto é a pista de forma que a prancheta desenhou.
+    expect(fonte).not.toContain("border-marca/60 text-marca");
+    expect(fonte).toContain("text-accent-foreground");
+    expect(fonte).toContain("PONTO_DE_ATIVA");
+  });
 });
