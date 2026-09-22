@@ -1,32 +1,49 @@
 import type { ReactNode } from "react";
 
+import { acaoDeSair } from "@/interface/acoes";
 import { Cartao } from "@/interface/componentes/cartao";
 import { MarcaDoProduto } from "@/interface/componentes/marca";
+import { Button } from "@/interface/componentes/ui/button";
 import { cn } from "@/interface/componentes/utilitarios";
 
 const ID_DO_TITULO = "titulo-da-tela";
 
+/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. */
+const PAGINA =
+  "flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
+
+/** A coluna do cartão: 420 px a partir de `lg`, a largura toda abaixo disso (critério 44m.8). */
+const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
+
 /**
  * ============================================================================
- *  A moldura das quatro telas de conta — item 44m
+ *  A moldura das telas fora da casca — itens 44m e 44o
  * ============================================================================
  *
- * T-01, T-11, T-12 e T-13. **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela
- * e a linha de contexto; o conteúdo, que é o formulário ou o bloco que o substitui; e os caminhos
- * secundários fora do cartão, centrados (critério 1).
+ * **Onze telas, e nenhuma tem barra lateral.** As quatro de credencial — T-01, T-11, T-12 e T-13 —
+ * nasceram nela no item 44m; as cinco faces de T-02, a tela de criar organização e T-10 entraram no 44o,
+ * quando a moldura antiga de celular foi apagada. **O nome ficou**, porque o critério 44o.1 chama a peça
+ * de *"moldura das telas de conta"*; o que ela é, de fato, é a moldura de toda tela fora da casca.
  *
- * **Componente, e não grupo de rotas.** O critério 8 dá a **T-01 sozinha** uma segunda coluna à esquerda
- * do cartão, e um layout de servidor recebe a página por um `children` só, sem saber qual rota está
- * renderizando — atender o critério por grupo de rotas pediria um segundo grupo aninhado, dois para
- * quatro páginas. O G1 do guia continua valendo: a moldura não é declarada em `app/`.
+ * **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela e a linha de fato; o
+ * conteúdo, quando há; e os caminhos secundários fora do cartão, centrados.
+ *
+ * **Componente, e não grupo de rotas.** O critério 44m.8 dá a **T-01 sozinha** uma segunda coluna à
+ * esquerda do cartão, e um layout de servidor recebe a página por um `children` só, sem saber qual rota
+ * está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA` e
+ * `COLUNA`, e nenhum arquivo em `app/` a repete — nem a espera, que usa as mesmas duas constantes.
  *
  * **Sem régua entre a cabeça e o conteúdo.** O guia §4 reserva a régua para separar naturezas
- * diferentes, e aqui título, contexto e formulário são a mesma coisa: a tela. É por isso que a cabeça é
- * escrita aqui e não é a `CabecaDoCartao`, que fixa `<h2>`, o papel de bloco e a régua — nestas telas o
- * título **é** o da página, e não há cabeçalho acima dele.
+ * diferentes, e aqui título, linha de fato e formulário são a mesma coisa: a tela. É por isso que a cabeça
+ * é escrita aqui e não é a `CabecaDoCartao`, que fixa `<h2>`, o papel de bloco e a régua.
  *
- * **`contexto` é opcional**, e a face de link vencido de T-13 é quem o omite: ali a linha de contexto
- * prometeria um formulário que a face não tem.
+ * **`contexto` aceita nó desde o 44o**, pela razão que fez a `CabecaDoCartao.apoio` aceitar no 44j: três
+ * das linhas de fato de T-02 e de T-10 carregam o nome de uma organização em negrito, e o nome é o que a
+ * pessoa procura na tela. Continua opcional — a face de link vencido de T-13 não o passa.
+ *
+ * **`children` é opcional desde o 44o**, e é T-10 quem o omite: quem participa de uma organização só vê o
+ * cartão sem a lista (critério 44o.9). Sem conteúdo, o corpo do cartão não é desenhado, e a cabeça ganha
+ * o respiro de baixo que o corpo daria.
  *
  * **Componente de servidor.** A marca aparece duas vezes no `apresentacao`, uma escondida em cada
  * largura, porque ela troca de lugar: acima do cartão no celular, na coluna da esquerda na tela grande.
@@ -39,30 +56,40 @@ export function MolduraDeConta({
   children,
 }: {
   titulo: string;
-  contexto?: string;
-  /** Só T-01: liga a segunda coluna a partir de `lg` (critério 8). */
+  contexto?: ReactNode;
+  /** Só T-01: liga a segunda coluna a partir de `lg` (critério 44m.8). */
   apresentacao?: boolean;
   caminhos?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
+  // `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
+  const temCorpo = children !== undefined && children !== null && typeof children !== "boolean";
+
   return (
-    <main className="flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16">
+    <main className={PAGINA}>
       {apresentacao && <Apresentacao />}
 
-      <div className="flex w-full max-w-[420px] flex-col gap-5">
+      <div className={COLUNA}>
         <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
 
         <Cartao tituloId={ID_DO_TITULO}>
-          <div className="flex flex-col gap-1.5 px-[15px] pt-[15px] md:px-[18px] md:pt-[18px]">
+          <div
+            className={cn(
+              "flex flex-col gap-1.5 px-[15px] pt-[15px] md:px-[18px] md:pt-[18px]",
+              !temCorpo && "pb-[15px] md:pb-[18px]",
+            )}
+          >
             <h1 id={ID_DO_TITULO} className="text-titulo-pagina text-tinta leading-snug font-semibold">
               {titulo}
             </h1>
             {contexto !== undefined && <p className="text-corpo text-tinta-suave">{contexto}</p>}
           </div>
 
-          <div className="flex flex-col gap-5 px-[15px] py-[15px] md:px-[18px] md:py-[18px]">
-            {children}
-          </div>
+          {temCorpo && (
+            <div className="flex flex-col gap-5 px-[15px] py-[15px] md:px-[18px] md:py-[18px]">
+              {children}
+            </div>
+          )}
         </Cartao>
 
         {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
@@ -72,7 +99,69 @@ export function MolduraDeConta({
 }
 
 /**
- * A coluna da esquerda de T-01, na tela grande (critério 8): a marca, a frase da direção, e a pauta ao
+ * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão. Uma só, para que
+ * o "Sair" de T-02 e o "Voltar" da tela de criar não pareçam coisas diferentes.
+ *
+ * **`min-h-11` é o piso do guia §9** (44 px). As quatro telas de credencial do 44m escrevem a classe à
+ * mão, com `py-1`, abaixo do piso; é o achado P-4 do plano do 44o, e não se conserta aqui.
+ */
+export const CLASSE_DO_CAMINHO =
+  "text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4";
+
+/**
+ * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02 e T-10.
+ *
+ * **Botão dentro de formulário**, como o critério 44b.4 manteve no menu de pessoa: é ação que muda estado
+ * no servidor, e não vira link. **É o `Button` do catálogo** (critério 44o.15): até o 44o eram dois
+ * botões crus, um em cada página, e o critério 44p.5 os contava entre o que o 44o limparia.
+ */
+export function CaminhoDeSair() {
+  return (
+    <form action={acaoDeSair}>
+      <Button
+        type="submit"
+        variant="link"
+        className={cn(CLASSE_DO_CAMINHO, "h-auto px-0 py-0 font-normal")}
+      >
+        Sair
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * **A espera das telas fora da casca.** O `loading.tsx` de T-02 a usa, e ela cobre também a tela de
+ * criar organização, que é filha do mesmo segmento.
+ *
+ * **A mesma página e a mesma coluna da moldura**, pelas duas constantes do topo. A marca é de verdade —
+ * guia §8: *"a casca e o cabeçalho não são esqueleto"* —, e o cartão é esqueleto, com o desenho do
+ * `Cartao` e **sem a semântica dele**: uma região nomeada por um título que ainda não existe seria pior
+ * que nenhuma. É o que `app/(casca)/configuracao/loading.tsx` já faz.
+ *
+ * **O filho é a frase de espera**, que é da tela e não da moldura.
+ */
+export function EsperaDaMolduraDeConta({ children }: { children?: ReactNode }) {
+  return (
+    <main className={PAGINA}>
+      <div className={COLUNA}>
+        <MarcaDoProduto className="self-center" />
+        <div
+          aria-hidden="true"
+          className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
+        >
+          <div className="bg-secondary h-7 w-[70%] animate-pulse rounded" />
+          <div className="bg-secondary h-4 w-[90%] animate-pulse rounded" />
+          <div className="bg-secondary h-11 animate-pulse rounded" />
+          <div className="bg-secondary h-11 w-[45%] self-end animate-pulse rounded" />
+        </div>
+        {children}
+      </div>
+    </main>
+  );
+}
+
+/**
+ * A coluna da esquerda de T-01, na tela grande (critério 44m.8): a marca, a frase da direção, e a pauta ao
  * fundo.
  *
  * **A pauta é desenho, não imagem.** O período é de **22 px**, que é a entrelinha do papel de corpo — é o

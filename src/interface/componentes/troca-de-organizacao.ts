@@ -6,7 +6,7 @@ import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/r
  * ============================================================================
  *
  * **Módulo sem componente**, pela mesma razão escrita em `comando-de-ocorrencia.ts`: há **três** arquivos
- * chamadores — `menu-de-organizacao.tsx` (o menu de T-10 e a escolha da face D de T-02), o
+ * chamadores — `escolha-de-organizacao.tsx` (a lista da face D de T-02 e a de T-10), o
  * `SeletorDeOrganizacao` da casca e o *"Entrar nela"* de T-02 —, e uma construção da mesma frase do `403`
  * em cada um seria a cópia de sempre.
  *
@@ -21,7 +21,7 @@ import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/r
  * diferentes do próprio estado, e embutir o `router` aqui tiraria deles essa escolha.
  */
 
-/** A frase do `403`, literal do `inventario-de-telas.md:1515`. */
+/** A frase do `403`, escrita uma vez para os três chamadores. */
 const TEXTO_DA_RECUSA: Readonly<Record<string, string>> = {
   SEM_VINCULO_NA_ORGANIZACAO: "Você não tem acesso a esta organização.",
 };

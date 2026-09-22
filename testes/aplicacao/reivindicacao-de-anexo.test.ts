@@ -19,6 +19,7 @@ import { TIPO_DE_CONTEUDO_DA_MINIATURA } from "@/dominio/anexo";
 import {
   criarArmazenamentoDeAnexos,
   criarEmissorDeCredencialDeUpload,
+  enderecoDaCadeia,
 } from "@/infraestrutura/clientes";
 
 /**
@@ -438,5 +439,46 @@ describe("o ticket que o 13a assina é o que o 13b lê", () => {
     expect(url).toContain("/anexos/anx_qualquer?");
     // `sp=r` — leitura, e só. A SAS de escrita do 13a é `cwt`.
     expect(url).toMatch(/[?&]sp=r(&|$)/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O endereço da cadeia de conexão — o V-13, e o critério 51.11
+ * ============================================================================
+ *
+ * `az storage account show-connection-string` devolve `BlobEndpoint` **terminado em barra**. O adaptador
+ * monta `${endpoint}/${CONTEINER}/${chave}` em dois lugares — o `PUT` e a URL de leitura —, então a barra
+ * produz `…blob.core.windows.net//anexos/…`: o contêiner vira vazio e o navegador recebe falha de rede sem
+ * resposta.
+ *
+ * **Local nunca pegou** porque o `BlobEndpoint` do Azurite não termina em barra. A diferença entre os dois
+ * ambientes cabe num caractere.
+ */
+describe("o endereço da cadeia de conexão — critério 51.11", () => {
+  it("tira a barra final que a CLI do Azure devolve", () => {
+    expect(
+      enderecoDaCadeia(
+        "DefaultEndpointsProtocol=https;AccountName=stresolveai;" +
+          "BlobEndpoint=https://stresolveai.blob.core.windows.net/;",
+      ),
+    ).toBe("https://stresolveai.blob.core.windows.net");
+  });
+
+  it("não mexe no endereço sem barra — o Azurite não pode regredir", () => {
+    expect(
+      enderecoDaCadeia(
+        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
+          "BlobEndpoint=http://host.docker.internal:10000/devstoreaccount1;",
+      ),
+    ).toBe("http://host.docker.internal:10000/devstoreaccount1");
+  });
+
+  it("deriva de AccountName quando a cadeia não declara BlobEndpoint", () => {
+    expect(
+      enderecoDaCadeia(
+        "DefaultEndpointsProtocol=https;AccountName=stresolveai;EndpointSuffix=core.windows.net",
+      ),
+    ).toBe("https://stresolveai.blob.core.windows.net");
   });
 });

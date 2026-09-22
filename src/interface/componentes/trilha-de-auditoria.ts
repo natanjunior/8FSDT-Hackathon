@@ -1,14 +1,14 @@
 /**
  * ============================================================================
- *  O carimbo de T-06 — e por que ele NÃO é o `dataHora` da linha do tempo
+ *  O carimbo de T-06 — e por que ele NÃO é o `dataEHora` do produto
  * ============================================================================
  *
  * **Módulo puro, sem um único `import`** — o mesmo desenho de `linha-do-tempo.ts`, e pela mesma razão:
  * um módulo que só recebe e devolve `string` atravessa qualquer fronteira sem arrastar nada, e é
  * testável no laço curto, sem navegador.
  *
- * **Os segundos são o que separa as duas formas, e é decisão.** `dataHora` (`linha-do-tempo.ts:64`)
- * devolve `03/08/2026, 09h14` e serve a leitura de acompanhamento — *"o que está acontecendo"*. A trilha
+ * **Os segundos são o que separa as duas formas, e é decisão.** `dataEHora` (`datas.ts`) devolve
+ * `03/08/2026 · 09:14` e serve a leitura de acompanhamento — *"o que está acontecendo"*. A trilha
  * responde outra pergunta: *"prove"*. O protótipo desenha a coluna **Quando** com segundos nos quatro
  * quadros de T-06 (`docs/prototipo/telas.html:3037` em diante), e é o que faz duas transições no mesmo
  * minuto continuarem distinguíveis numa tela que se leva para a assembleia.

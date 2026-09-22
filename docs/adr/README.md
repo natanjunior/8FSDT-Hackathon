@@ -19,10 +19,11 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão, e o lint é a verificação | Aceita |
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
 | [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind, com o código dos componentes no repositório | Parcialmente substituída pela 0010 |
-| [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, e não a pirâmide | Aceita |
+| [0008](0008-a-suite-de-testes-segue-a-garantia.md) | A suíte de testes segue onde mora a garantia, e não a pirâmide | Parcialmente substituída pela 0012 |
 | [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
 | [0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) | O componente de gráfico do catálogo entra, e com ele o Recharts | Aceita |
 | [0011](0011-sonner-e-cmdk-entram-como-pacotes.md) | O aviso de retorno de ação e a busca em lista entram como pacotes instalados | Aceita |
+| [0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) | O teste de ponta a ponta cresce por jornada de validação, com teto | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

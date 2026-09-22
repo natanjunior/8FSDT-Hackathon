@@ -71,14 +71,19 @@ import {
 import { lerOCiclo } from "@/interface/componentes/ciclo";
 import { enviarComentario, executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import {
+  avisoDoRegistro,
   errosDoRegistro,
+  FOTO,
+  FRASES_DA_FOTO,
+  FRASES_DO_SERVIDOR,
   rotuloDoTipoDeArea,
   temAlgoEscrito,
+  TEXTOS_DO_REGISTRO,
   VALORES_VAZIOS,
   vazioDoRegistro,
   type ValoresDoRegistro,
 } from "@/interface/componentes/registro-de-ocorrencia";
-import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
   acaoPrimaria,
   acoesDaBarra,
@@ -394,7 +399,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { minhas: 2, emAberto: 7, semResponsavel: 3 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -435,7 +440,7 @@ describe("o envelope da página — item 14b", () => {
     expect(envelope.totalNoCorte).toBe(137);
     expect(envelope.saidasDesdeOCorte).toBe(3);
     expect(envelope.novasDesdeOCorte).toBe(5);
-    expect(envelope.contagens).toStrictEqual({ minhas: 2, emAberto: 7, semResponsavel: 3 });
+    expect(envelope.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
   });
 
   it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {
@@ -3484,5 +3489,104 @@ describe("as áreas usadas no aparelho — critério 44l.4", () => {
       "4",
       "5",
     ]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os quatro desfechos do controle de foto — o critério 51.8
+ * ============================================================================
+ *
+ * **É a guarda que faltava no V-12.** O encadeamento à mão terminava na frase de tamanho, e como o
+ * `500` não traz `detail` (`docs/api/openapi.yaml`, resposta `ErroInterno`), todo erro de servidor era
+ * anunciado como *"a foto ficou grande demais"* — inclusive um JPEG de 160 bytes.
+ *
+ * **O produto não tem biblioteca de teste de componente React**, e não ganha uma aqui: a decisão mora numa
+ * função com teste, que é a mesma forma dos itens 20 e 21.
+ */
+describe("os quatro desfechos do controle de foto — critério 51.8", () => {
+  it("500 sem detail diz a frase honesta", () => {
+    const corpo = { status: 500, codigo: "ERRO_INTERNO", traceId: "01M30RAB4B5Y3VRN5GJKZK6CCB" };
+    expect(mensagemDoProblema(corpo, FRASES_DA_FOTO)).toBe(FOTO.naoSubiu);
+  });
+
+  it("e a frase de tamanho NÃO aparece quando o servidor não manda o código dela", () => {
+    const corpo = { status: 500, codigo: "ERRO_INTERNO", traceId: "01M30RAB4B5Y3VRN5GJKZK6CCB" };
+    expect(mensagemDoProblema(corpo, FRASES_DA_FOTO)).not.toBe(
+      FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE,
+    );
+  });
+
+  it("o código de tamanho diz a frase de tamanho, e a prefere ao detail do servidor", () => {
+    const corpo = {
+      status: 422,
+      codigo: "ANEXO_ACIMA_DO_LIMITE",
+      detail: "o objeto tem 900000 bytes, acima do que a autorização carimbou",
+    };
+    expect(mensagemDoProblema(corpo, FRASES_DA_FOTO)).toBe(
+      FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE,
+    );
+  });
+
+  it("429 diz a frase do limite", () => {
+    const corpo = { status: 429, codigo: "LIMITE_DE_AUTORIZACOES_DE_UPLOAD" };
+    expect(mensagemDoProblema(corpo, FRASES_DA_FOTO)).toBe(
+      FRASES_DO_SERVIDOR.LIMITE_DE_AUTORIZACOES_DE_UPLOAD,
+    );
+  });
+
+  it("409 com detail mostra o texto do servidor — é a decisão do item 7b, e ela sobrevive", () => {
+    const daAbaEsquecida = "Esta aba está em outra organização. Recarregue a página antes de continuar.";
+    const corpo = { status: 409, codigo: "ORGANIZACAO_DIVERGENTE", detail: daAbaEsquecida };
+    expect(mensagemDoProblema(corpo, FRASES_DA_FOTO)).toBe(daAbaEsquecida);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O aviso do registro, e a foto que não foi junto — o critério 51.9
+ * ============================================================================
+ *
+ * **O DG-5 continua valendo:** foto vazia ou falhada manda sem anexo, e isso é desfecho legítimo. O que
+ * muda é o silêncio. Quem escolheu uma foto, viu vermelho e registrou ficava sem saber se ela foi.
+ *
+ * **Segurar o registro foi recusado na spec**: transformaria indisponibilidade de armazenamento em
+ * indisponibilidade de registrar ocorrência, que é a capacidade central do enunciado.
+ */
+describe("o aviso do registro — critério 51.9", () => {
+  it("sem foto nenhuma, é o aviso de sucesso de sempre", () => {
+    expect(avisoDoRegistro("vazio", false)).toStrictEqual({
+      forma: "sucesso",
+      titulo: TEXTOS_DO_REGISTRO.sucesso,
+    });
+  });
+
+  it("com a foto pronta, é o aviso de sucesso de sempre", () => {
+    expect(avisoDoRegistro("pronta", true)).toStrictEqual({
+      forma: "sucesso",
+      titulo: TEXTOS_DO_REGISTRO.sucesso,
+    });
+  });
+
+  it("com a foto falhada, avisa que a ocorrência foi sem ela", () => {
+    expect(avisoDoRegistro("falhou", false)).toStrictEqual({
+      forma: "atencao",
+      titulo: TEXTOS_DO_REGISTRO.semFoto,
+      descricao: TEXTOS_DO_REGISTRO.semFotoApoio,
+    });
+  });
+
+  it("subindo e a promessa não entregou referência, avisa igual", () => {
+    expect(avisoDoRegistro("subindo", false)).toStrictEqual({
+      forma: "atencao",
+      titulo: TEXTOS_DO_REGISTRO.semFoto,
+      descricao: TEXTOS_DO_REGISTRO.semFotoApoio,
+    });
+  });
+
+  it("o aviso de atenção fica até ser fechado, e é por isso que ele não é um sucesso comum", () => {
+    // `router.replace` leva a pessoa para T-05 no mesmo instante. Um aviso de quatro segundos numa tela
+    // que acabou de trocar é um aviso que ninguém leu.
+    expect(avisoDoRegistro("falhou", false).forma).toBe("atencao");
   });
 });

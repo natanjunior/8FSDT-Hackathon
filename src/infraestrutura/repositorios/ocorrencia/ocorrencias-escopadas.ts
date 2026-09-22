@@ -39,6 +39,7 @@ import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/conte
 
 type LinhaDeContagens = {
   total_filtrado: number;
+  todas: number;
   minhas: number;
   em_aberto: number;
   sem_responsavel: number;
@@ -1312,7 +1313,7 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * As cinco contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
+     * As seis contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
      * listagem aplica**.
      *
      * **Este é o ponto onde um erro vira furo de multi-tenant.** Um `COUNT` sem `autor_pessoa_id` vaza a
@@ -1320,17 +1321,21 @@ export function repositorioEscopadoDeOcorrencias(
      * número. É por isso que o `GET /dashboard` **não** foi reusado — o `SELECT_DO_BACKLOG_POR_STATUS`
      * conta a organização inteira, o que está correto lá (só o Gestor o alcança) e seria vazamento aqui.
      *
-     * **UMA consulta, cinco números, uma varredura da partição.** O `where` carrega só a organização e a
+     * **UMA consulta, seis números, uma varredura da partição.** O `where` carrega só a organização e a
      * visibilidade; o corte e o recorte moram dentro de cada `FILTER`, porque `novas` olha para o outro
      * lado do corte e não caberia num `where` compartilhado.
      *
      * **A assimetria do recorte é deliberada, e não é descuido.** `totalFiltrado` e `novas` aplicam os
-     * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `minhas`, `emAberto` e
-     * `semResponsavel` **não** aplicam nenhum dos quatro. A razão é de uso: os três do painel existem para
-     * o leitor **decidir qual recorte pedir**, e recalculá-los dentro do recorte que ele já pediu seria um
-     * espelho de frente para outro — `emAberto` sob `?status=resolvida` daria zero, sempre, e não
+     * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `todas`, `minhas`, `emAberto` e
+     * `semResponsavel` **não** aplicam nenhum dos quatro. A razão é de uso: os quatro do painel existem
+     * para o leitor **decidir qual recorte pedir**, e recalculá-los dentro do recorte que ele já pediu
+     * seria um espelho de frente para outro — `emAberto` sob `?status=resolvida` daria zero, sempre, e não
      * informaria nada. `novas` é o oposto: ela responde *"apertar Atualizar vai mudar a lista que você
      * está lendo"*, e essa lista é a filtrada.
+     *
+     * **`todas` acompanha `minhas`** (item 44p, critério 23): os dois existem para o leitor escolher o
+     * recorte, e por isso nenhum dos dois aplica os quatro. Foi a falta dele que deixou T-03 sem contagem
+     * enquanto T-08 tinha — lá o cliente tem a lista inteira na mão, aqui a lista pagina.
      *
      * **`semResponsavel` conta só entre as não terminais**, e é escolha: *"sem responsável"* é uma fila de
      * trabalho, e ocorrência resolvida sem responsável não é trabalho parado — é história.
@@ -1380,6 +1385,7 @@ export function repositorioEscopadoDeOcorrencias(
 
       const linhas = await consulta<LinhaDeContagens>(
         `select count(*) filter (where ${corte}${eRecorte})::int                             as total_filtrado,
+                count(*) filter (where ${corte})::int                                        as todas,
                 count(*) filter (where ${corte} and o.autor_pessoa_id = ${quem}::uuid)::int  as minhas,
                 count(*) filter (where ${corte} and ${naoTerminal})::int                     as em_aberto,
                 count(*) filter (where ${corte} and ${naoTerminal}
@@ -1395,11 +1401,12 @@ export function repositorioEscopadoDeOcorrencias(
       // `count(*)` sem `group by` sempre devolve uma linha, inclusive com zero linhas na tabela. O ramo
       // existe para o compilador, não para o banco.
       if (linha === undefined) {
-        return { totalFiltrado: 0, minhas: 0, emAberto: 0, semResponsavel: 0, novas: 0 };
+        return { totalFiltrado: 0, todas: 0, minhas: 0, emAberto: 0, semResponsavel: 0, novas: 0 };
       }
 
       return {
         totalFiltrado: linha.total_filtrado,
+        todas: linha.todas,
         minhas: linha.minhas,
         emAberto: linha.em_aberto,
         semResponsavel: linha.sem_responsavel,

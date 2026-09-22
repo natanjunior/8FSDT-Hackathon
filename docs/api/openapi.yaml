@@ -1531,12 +1531,18 @@ paths:
                       Quantas foram registradas **depois** do corte e casam com o recorte aplicado.
                   contagens:
                     type: object
-                    required: [minhas, emAberto, semResponsavel]
+                    required: [todas, minhas, emAberto, semResponsavel]
                     description: |
                       O painel. **Calculado sem os filtros de status, categoria e prioridade**: estes
                       números existem para o leitor decidir qual recorte pedir, e recalculá-los dentro do
                       recorte já pedido seria um espelho de frente para outro.
                     properties:
+                      todas:
+                        type: integer
+                        description: |
+                          Quantas existem sob a visibilidade de quem pergunta, no corte — **sem** os
+                          filtros e **sem** o recorte de autor. É a regra de `minhas`, do outro lado:
+                          os dois existem para o leitor escolher o recorte.
                       minhas: { type: integer }
                       emAberto:
                         type: integer
@@ -1557,7 +1563,7 @@ paths:
                 totalNoCorte: 140
                 saidasDesdeOCorte: 3
                 novasDesdeOCorte: 5
-                contagens: { minhas: 2, emAberto: 41, semResponsavel: 12 }
+                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12 }
                 itens:
                   - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
                     titulo: "Lâmpada queimada na garagem"

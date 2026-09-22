@@ -8,24 +8,11 @@ import {
   termosDaBusca,
   type Candidato,
 } from "@/interface/componentes/busca-de-candidatos";
-import {
-  ErroDoFormulario,
-  GrupoDeEscolha,
-  IndicadorDeEnvio,
-  RodapeDoFormulario,
-} from "@/interface/componentes/campo";
+import { ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import { palavrasDaAtribuicao } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 import { Input } from "@/interface/componentes/ui/input";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
@@ -174,7 +161,7 @@ export function ModalDeAtribuicao({
 
     return (
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-tinta-fraca px-0 pb-1 text-xs tracking-wide uppercase">
+        <legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 tracking-wide uppercase">
           {titulo}
         </legend>
         {lista.map((pessoa) => {
@@ -185,7 +172,7 @@ export function ModalDeAtribuicao({
             <label
               key={pessoa.pessoaId}
               htmlFor={id}
-              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
                 atual ? "opacity-60" : "cursor-pointer"
               }`}
             >
@@ -204,7 +191,7 @@ export function ModalDeAtribuicao({
               <span className="flex flex-col">
                 {/* **Nome por extenso** — abreviar não está autorizado em documento nenhum (R-12). */}
                 <span className="text-tinta font-medium">{pessoa.nome}</span>
-                <span className="text-tinta-suave text-xs">
+                <span className="text-tinta-suave text-meta">
                   {pessoa.papel}
                   {pessoa.area !== null && ` · ${pessoa.area}`}
                   {/* **A-5:** o estado vai em palavra, nunca só em cor. */}
@@ -240,9 +227,12 @@ export function ModalDeAtribuicao({
   }
 
   return (
-    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
-      <DialogTrigger asChild>
-        {variante === "menu" ? (
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      gatilho={
+        variante === "menu" ? (
           /* **`onSelect` prevenido:** `DropdownMenuContent` desmonta os filhos ao fechar, e selecionar
              um item fecha o menu por padrão — o `Dialog` morreria no instante em que deveria abrir.
              Custo declarado: o menu fica aberto atrás do diálogo. */
@@ -261,133 +251,134 @@ export function ModalDeAtribuicao({
             /* **A largura vem da variante desde o item 22** — o invólucro do secundário é `flex-none`,
                e `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
             className={
-              variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+              variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
             }
           >
             {palavras.gatilho}
           </Button>
-        )}
-      </DialogTrigger>
+        )
+      }
+      titulo={palavras.titulo}
+      descricao={palavras.descricao}
+      /* **Só o grupo *Responsável* é campo de formulário**, e ele é obrigatório: a busca é ferramenta
+         de achar, não campo (critério 44p.11). */
+      obrigatorios={1}
+      todosObrigatorios
+      aoEnviar={(evento) => {
+        evento.preventDefault();
+        confirmar();
+      }}
+      rodape={
+        <>
+          <BotaoDeCancelar enviando={envio.enviando} />
+          <BotaoDeConfirmar
+            enviando={envio.enviando}
+            rotulo={palavras.confirmar}
+            rotuloEnviando={palavras.enviando}
+          />
+        </>
+      }
+    >
+      <GrupoDeEscolha
+        id={grupoId}
+        legenda="Responsável"
+        obrigatorio
+        erro={formulario.erroDe("responsavel")}
+      >
+        {/*
+          **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
+          `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo botão do rodapé.
+          **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
+          FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
 
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{palavras.titulo}</DialogTitle>
-          <DialogDescription>{palavras.descricao}</DialogDescription>
-        </DialogHeader>
+          **Fora dos dois `fieldset` dos blocos, e isso não separa o grupo:** rádio agrupa por `name`, não
+          por `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
 
-        <GrupoDeEscolha
-          id={grupoId}
-          legenda="Responsável"
-          obrigatorio
-          erro={formulario.erroDe("responsavel")}
-        >
-          {/*
-            **A primeira linha do modal, e o critério 20.5.** É uma opção de escolha única — mesmo
-            `name="responsavel"`, mesmo estado `escolhido`, confirmada pelo mesmo botão do rodapé.
-            **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
-            FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
-
-            **Fora dos dois `fieldset` dos blocos, e isso não separa o grupo:** rádio agrupa por `name`, não
-            por `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
-
-            **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
-            dispensar da busca voltaria a depender dela.
-          */}
-          {eu !== null && (
-            <label
-              htmlFor={`candidato-${eu.pessoaId}`}
-              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
-                euSouOResponsavel ? "opacity-60" : "cursor-pointer"
-              }`}
-            >
-              <input
-                type="radio"
-                id={`candidato-${eu.pessoaId}`}
-                name="responsavel"
-                value={eu.pessoaId}
-                required
-                disabled={euSouOResponsavel || envio.enviando}
-                checked={escolhido === eu.pessoaId}
-                onChange={() => escolher(eu.pessoaId)}
-                className="size-4"
-              />
-              <span className="flex flex-col">
-                {/* Verbo no imperativo — é como se escreve botão. */}
-                <span className="text-tinta font-medium">Atribuir a mim</span>
-                {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
-                    qual identidade ele está prestes a se atribuir. */}
-                <span className="text-tinta-suave text-xs">
-                  {eu.nome} · {eu.papel}
-                  {eu.area !== null && ` · ${eu.area}`}
-                  {euSouOResponsavel && " · Responsável atual"}
-                </span>
-              </span>
-            </label>
-          )}
-
-          {/*
-            **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
-            que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
-
-            **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
-            campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
-            organização, e nenhuma tela do produto pratica isso.
-
-            **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
-            das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
-          */}
-          <div className="flex flex-col gap-1.5">
-            {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
-            <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
-              Buscar pelo nome
-            </label>
-            <Input
-              id={campoDeBuscaId}
-              type="search"
-              inputMode="search"
-              autoComplete="off"
-              /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
-              maxLength={120}
-              value={busca}
-              onChange={(evento) => aoBuscar(evento.currentTarget.value)}
-              disabled={envio.enviando}
-              /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
-              className="h-11"
+          **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
+          dispensar da busca voltaria a depender dela.
+        */}
+        {eu !== null && (
+          <label
+            htmlFor={`candidato-${eu.pessoaId}`}
+            className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
+              euSouOResponsavel ? "opacity-60" : "cursor-pointer"
+            }`}
+          >
+            <input
+              type="radio"
+              id={`candidato-${eu.pessoaId}`}
+              name="responsavel"
+              value={eu.pessoaId}
+              required
+              disabled={euSouOResponsavel || envio.enviando}
+              checked={escolhido === eu.pessoaId}
+              onChange={() => escolher(eu.pessoaId)}
+              className="size-4"
             />
-          </div>
+            <span className="flex flex-col">
+              {/* Verbo no imperativo — é como se escreve botão. */}
+              <span className="text-tinta font-medium">Atribuir a mim</span>
+              {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
+                  qual identidade ele está prestes a se atribuir. */}
+              <span className="text-tinta-suave text-meta">
+                {eu.nome} · {eu.papel}
+                {eu.area !== null && ` · ${eu.area}`}
+                {euSouOResponsavel && " · Responsável atual"}
+              </span>
+            </span>
+          </label>
+        )}
 
-          <div className="flex flex-col gap-4">
-            {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
-            {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+        {/*
+          **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
+          que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
 
-            {/*
-              **Frase própria, diferente de qualquer outra do produto** — é a regra que o
-              `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
-              perdeu dados.
+          **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
+          campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
+          organização, e nenhuma tela do produto pratica isso.
 
-              **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
-              usa leitor de tela, e a lista está imediatamente abaixo do campo.
+          **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
+          das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
+        */}
+        <div className="flex flex-col gap-1.5">
+          {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
+          <label htmlFor={campoDeBuscaId} className="text-tinta text-interface font-medium">
+            Buscar pelo nome
+          </label>
+          <Input
+            id={campoDeBuscaId}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
+            maxLength={120}
+            value={busca}
+            onChange={(evento) => aoBuscar(evento.currentTarget.value)}
+            disabled={envio.enviando}
+            /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
+            className="h-11"
+          />
+        </div>
 
-              **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
-            */}
-            {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
-          </div>
-        </GrupoDeEscolha>
+        <div className="flex flex-col gap-4">
+          {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
+          {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
 
-        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+          {/*
+            **Frase própria, diferente de qualquer outra do produto** — é a regra que o
+            `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
+            perdeu dados.
 
-        <RodapeDoFormulario obrigatorios={1}>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
-              Fechar
-            </Button>
-          </DialogClose>
-          <Button type="button" className="h-11" disabled={envio.enviando} onClick={confirmar}>
-            <IndicadorDeEnvio ativo={envio.enviando} />
-            {envio.enviando ? palavras.enviando : palavras.confirmar}
-          </Button>
-        </RodapeDoFormulario>
-      </DialogContent>
-    </Dialog>
+            **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
+            usa leitor de tela, e a lista está imediatamente abaixo do campo.
+
+            **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
+          */}
+          {nadaEncontrado && <p className="text-tinta-suave text-corpo">Ninguém com esse nome.</p>}
+        </div>
+      </GrupoDeEscolha>
+
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
 }

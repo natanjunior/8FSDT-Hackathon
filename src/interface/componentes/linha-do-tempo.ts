@@ -24,46 +24,11 @@
  *
  * **Cada modal adota isto quando for tocado.** Ninguém promete voltar nos cinco já construídos — decisão
  * do hub ao criar o critério 29.6.
+ *
+ * **A data com hora não mora mais aqui** (item 44p, critério 17): ela é `dataEHora` de `datas.ts`, e a
+ * forma é a do guia §7 — `dd/mm/aaaa · hh:mm`. O `15/08/2026, 09h40` que este módulo escrevia era o
+ * segundo formato do produto, e o guia decidiu o outro em 16/09/2026.
  */
-
-/**
- * O formatador único da linha do tempo, **com o fuso escrito**.
- *
- * *"O servidor roda em UTC … Sem `timeZone`, o pedido enviado às 22h de uma terça apareceria como 01h de
- * quarta. … Um produto de condomínio brasileiro tem um fuso, e escrevê-lo é mais honesto que herdar o do
- * contêiner"* — o argumento é de `app/organizacao/page.tsx:166-177`, e aqui ele vale multiplicado: onde
- * T-05 mostrava uma data, passa a mostrar de quatro a dez.
- *
- * **`hourCycle: "h23"` e não `hour12: false`**, porque é o que garante `00h00` em vez de `24h00`.
- */
-const FORMATO = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: "America/Sao_Paulo",
-});
-
-/**
- * `15/08/2026, 09h40`.
- *
- * **Montado a partir das partes nomeadas, e não de um `replace` sobre o `format`.** `pt-BR` devolve
- * `15/08/2026, 09:40`, e trocar o `:` por `h` com `String.replace` seria uma aposta sobre qual separador
- * a ICU escolhe — inclusive sobre espaços estreitos que não se veem no diff. As partes têm nome.
- *
- * **Recusado — `tempoRelativo`** (`tempo-relativo.ts`): *"há 6 dias"* repetido em oito eventos
- * consecutivos apaga a cronologia, que é a única coisa que uma linha do tempo tem para dar. E o
- * `ontem, 16h40` do protótipo é uma **terceira** forma, com regra de relógio, que fica declaradamente de
- * fora (§3.10 da spec).
- */
-export function dataHora(iso: string): string {
-  const partes = new Map(
-    FORMATO.formatToParts(new Date(iso)).map((parte) => [parte.type, parte.value]),
-  );
-  return `${partes.get("day")}/${partes.get("month")}/${partes.get("year")}, ${partes.get("hour")}h${partes.get("minute")}`;
-}
 
 /**
  * `Em análise. “Vou ver se a garagem já teve infiltração nesse ponto.”`

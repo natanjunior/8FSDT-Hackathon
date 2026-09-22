@@ -82,6 +82,16 @@ const SOLUCAO_APLICADA = "Trecho da manta refeito na junta de dilatação e ralo
 const OBSERVACAO_DA_RESOLUCAO = "Duas horas de teste com mangueira, sem gotejamento.";
 const COMENTARIO_DA_AVALIACAO = "Resolveram rápido e me avisaram do começo ao fim.";
 
+/**
+ * **Um PNG de 16×16, 79 bytes, montado aqui e não guardado como arquivo.** Binário no repositório para uma
+ * asserção só não se paga, e o que este teste prova não depende do conteúdo da imagem.
+ *
+ * **PNG e não JPEG de propósito:** o controle de foto re-codifica qualquer entrada para JPEG no canvas
+ * (item 13a), então o caminho exercitado é o mesmo — e um PNG mínimo válido cabe numa linha.
+ */
+const FOTO_EM_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mM4YaNBEmIY1TCqYfhqAAAeBCwQMd+aqQAAAABJRU5ErkJggg==";
+
 test("o caminho crítico do enunciado, com autenticação real e a trilha conferida na interface", async ({
   browser,
 }) => {
@@ -114,6 +124,23 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena
     .getByLabel("Descrição")
     .fill("Água pingando do teto da garagem, perto da vaga 12. Piora quando chove.");
+
+  // -------------------------------------------------------------------------
+  // A foto — o critério 51.10, e o buraco que deixou o V-11 invisível por 26 dias
+  //
+  // **O controle de arquivo é cru e fica `sr-only`** (o catálogo não tem peça para ele), então o
+  // localizador é o `id`. `setInputFiles` alcança entrada oculta.
+  // -------------------------------------------------------------------------
+  await helena.locator("input#foto").setInputFiles({
+    name: "vazamento.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(FOTO_EM_BASE64, "base64"),
+  });
+
+  // **Esperar a foto ficar pronta antes de registrar.** O formulário não trava enquanto ela sobe (DG-5), e
+  // é justamente por isso que o teste precisa esperar: sem isto, o clique poderia sair antes de a
+  // referência existir e a ocorrência nasceria sem anexo — passando verde pelo motivo errado.
+  await expect(helena.getByText("Foto pronta")).toBeVisible({ timeout: 30_000 });
   // **Categoria e Área deixaram de ser seletores nativos no item 44l**, e o `selectOption` com elas. O
   // gatilho de cada uma é um botão nomeado pelo rótulo do campo — `getByLabel` o alcança, porque botão é
   // elemento rotulável e o `Campo` liga os dois por `htmlFor`. **Qual categoria e qual área continua não
@@ -185,6 +212,31 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await marcos.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
 
   // -------------------------------------------------------------------------
+  // A foto aparece, e os BYTES voltam — critério 51.10
+  //
+  // **A asserção de visibilidade sozinha não provaria nada.** A foto é desenhada como `div` com
+  // `background-image` (decisão do 13b, para os bytes não atravessarem o contêiner), e elemento com
+  // `background-image` fica visível mesmo quando a imagem não carrega. Um caminho que gravasse a linha em
+  // `anexos` e não guardasse os bytes passaria verde.
+  //
+  // **A requisição direta é o que transforma a asserção em prova.** O `href` responde `302` para uma URL
+  // assinada; o `request` do Playwright segue o redirecionamento com os cookies da sessão.
+  //
+  // **É a única coisa do repositório que fala com o armazenamento pela rede.** Nenhum teste de integração
+  // o alcança — os dois de anexo batem em Postgres, e o do emissor só assina HMAC.
+  // -------------------------------------------------------------------------
+  const aFoto = marcos.getByRole("img", { name: "Foto anexada à ocorrência" });
+  await expect(aFoto).toBeVisible();
+
+  const enderecoDaFoto = await marcos.getByRole("link").filter({ has: aFoto }).getAttribute("href");
+  expect(enderecoDaFoto).not.toBeNull();
+
+  const bytes = await marcos.request.get(enderecoDaFoto ?? "");
+  expect(bytes.status()).toBe(200);
+  expect(bytes.headers()["content-type"]).toContain("image");
+  expect((await bytes.body()).byteLength).toBeGreaterThan(0);
+
+  // -------------------------------------------------------------------------
   // 5 · Analisar — `aberta` → `em_analise`
   //
   // **Sem observação, e não é esquecimento:** `analisar` é botão nu em T-05 — não tem entrada no mapa
@@ -237,7 +289,9 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   await marcos.getByRole("button", { name: "Resolver" }).click();
   const modalDeResolucao = marcos.getByRole("dialog");
-  await modalDeResolucao.getByLabel("O que foi feito (opcional)").fill(SOLUCAO_APLICADA);
+  // **O escopo `modalDeResolucao` deixou de ser conveniência e virou necessidade** (item 44p, critério
+  // 19): a página tem um campo com este mesmo rótulo, e um localizador solto pegaria os dois.
+  await modalDeResolucao.getByLabel("Solução aplicada").fill(SOLUCAO_APLICADA);
   await modalDeResolucao.getByLabel("Observação (opcional)").fill(OBSERVACAO_DA_RESOLUCAO);
   await modalDeResolucao.getByRole("button", { name: "Resolver" }).click();
   await esperarSituacao(marcos, "Resolvida");

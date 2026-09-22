@@ -415,11 +415,37 @@ jobs:
       url: ${{ steps.endereco.outputs.url }}
 
     steps:
+      # **O clone sobe para cá por causa da sonda de ambiente.** Ela roda antes
+      # do `update`, e precisa do `.env.example` e do verificador. O
+      # verificador de site, lá no fim, usa o mesmo clone — não há um segundo.
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # **Vermelho aqui não cria revisão e não move tráfego**, que é a razão de
+      # o passo estar antes do `update` e não depois.
+      #
+      # **Ele não é emprego próprio como o `auth`.** Aquele barra a entrega
+      # inteira porque a divergência que ele pega é declarada no repositório —
+      # dá para vê-la num pull request. Variável faltando no Container App é
+      # fato do recurso, e só este emprego fala com ele.
+      #
+      # **Sem `npm ci`, de propósito:** o verificador só usa builtins do Node.
+      - name: as variáveis de execução declaradas existem no Container App
+        run: |
+          az containerapp show \
+            --name "${{ vars.AZURE_CONTAINER_APP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.template.containers[0].env[].name" -o json \
+            | npm run --silent verificar:ambiente
 
       - name: nova revisão com a imagem recém-publicada
         # **As variáveis de ambiente da aplicação NÃO passam por aqui.** Elas
@@ -490,11 +516,5 @@ jobs:
       # A mesma conferência do emprego `verificar`, agora contra o que está no
       # ar. Ela só lê: vermelho aqui não desfaz nada, e avisa que a revisão
       # nova publicou uma documentação quebrada.
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-
       - name: verificador do site — a documentação publicada
         run: node ferramentas/verificadores/site.mjs "${{ steps.endereco.outputs.url }}"

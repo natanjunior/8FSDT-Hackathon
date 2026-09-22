@@ -22,6 +22,7 @@
     "verificar:referencias": "node ferramentas/verificadores/referencias.mjs",
     "verificar:imagem": "node ferramentas/verificadores/imagem.mjs",
     "verificar:auth": "node --env-file-if-exists=.env.local ferramentas/verificadores/auth-publicado.mjs",
+    "verificar:ambiente": "node ferramentas/verificadores/ambiente-publicado.mjs",
     "verificar:tom": "node ferramentas/verificadores/tom.mjs",
     "verificar:site": "node ferramentas/verificadores/site.mjs",
     "verificar:docs": "npm run verificar:mermaid && npm run verificar:openapi && npm run verificar:referencias && npm run verificar:tom",
@@ -29,7 +30,8 @@
     "migrar": "supabase db push",
     "migrar:local": "supabase db reset",
     "teste:integracao": "vitest run --project integracao",
-    "teste:ponta-a-ponta": "playwright test"
+    "teste:ponta-a-ponta": "playwright test",
+    "cobertura": "vitest run --coverage"
   },
   "dependencies": {
     "@azure/storage-blob": "12.33.0",
@@ -61,6 +63,7 @@
     "@types/pg": "8.23.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.2",
     "jsdom": "^30.0.1",

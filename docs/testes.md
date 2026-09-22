@@ -23,6 +23,37 @@ As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integra�
 nova, e não por arquivo. A de ponta a ponta não cresce: é uma só, por decisão registrada na
 [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md).
 
+## O que a suíte alcança
+
+A cobertura é medida para informar. Não há limite mínimo, `npm run verificar` não a consulta, e nenhum
+número desta seção reprova uma mesclagem. O que ela responde é onde a suíte chega e onde não chega.
+
+**Data da medição:** 22/09/2026, por `npm run cobertura`, que roda os testes unitários e os de
+integração numa execução só e exige um PostgreSQL de pé.
+
+| Recorte | Arquivos | Instruções cobertas |
+|---|---|---|
+| O núcleo: domínio, aplicação, esquemas, projeções e infraestrutura | 109 | **91,2%** |
+| A borda HTTP | 11 | 37,8% |
+| A camada de interface: componentes e ganchos | 100 | 29,2% |
+| O roteamento em `app/` | 60 | 0,0% |
+| Todo o produto | 282 | **46,8%** |
+
+Os recortes repetem em número a forma que a [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)
+desenhou antes de qualquer medição existir. O que cresce por caso passa de 90%. O que aquela decisão
+declarou como o buraco que ela abria, a camada de interface, fica abaixo de 30%.
+
+**O roteamento marca zero porque nada nesta medição o executa.** As páginas e as rotas de `app/` são
+percorridas apenas pelo teste de ponta a ponta, que roda em outro programa e fora desta contagem. O zero
+diz que a instrumentação não passou por ali, e não que aquele código nunca rodou.
+
+Ficam de fora da conta os componentes gerados pela biblioteca de interface, a ligação com o motor da
+documentação, os arquivos de estrutura do roteamento e a semente de demonstração: código que o projeto
+não escreveu, ou que não carrega regra.
+
+Um número sem data envelhece sem avisar. Este é remedido quando o pacote da entrega fecha, junto das
+outras medidas feitas à mão.
+
 ## O isolamento tem suíte própria
 
 O portão que exige que uma organização não veja o dado de outra é cobrado toda vez que uma tarefa toca
@@ -75,8 +106,11 @@ Seis programas conferem o que teste de código não alcança, e todos rodam na e
 | Site publicado | link quebrado, diagrama que não desenhou, busca sem resultado e título repetido, no site de verdade |
 | Imagem | segredo assado em qualquer camada da imagem, lido do histórico de construção |
 
-Um sétimo compara a configuração de autenticação publicada com o que o repositório declara, porque a
-esteira publica migração e imagem, e nunca configuração.
+Outros dois olham para a nuvem, e não para o repositório. Um compara a configuração de autenticação
+publicada com o que o repositório declara, porque a esteira publica migração e imagem, e nunca
+configuração. O outro confere, antes de cada implantação, que toda variável de execução declarada existe
+no serviço — uma variável declarada e nunca publicada deixou o envio de imagens quebrado por semanas sem
+que nada acusasse.
 
 **Todo verificador prova que discrimina.** Cada um carrega um par de controles: um conteúdo que precisa ser
 recusado e outro, equivalente, que precisa passar. Um verificador que aceitasse tudo passaria por bom até
@@ -91,6 +125,7 @@ npm run verificar             lint, tipos, testes unitários e verificadores de 
 npm run teste                 só os unitários, que é o laço curto de quem implementa
 npm run teste:integracao      a suíte de isolamento; exige um PostgreSQL
 npm run teste:ponta-a-ponta   o caminho crítico num navegador; exige a pilha de pé
+npm run cobertura             o número da seção acima; roda os dois primeiros juntos
 npm run local                 sobe a pilha inteira em contêiner, para os dois de cima
 ```
 

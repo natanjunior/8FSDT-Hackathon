@@ -969,21 +969,6 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
     expect(achados).toStrictEqual([]);
   });
 
-  it("as quatro telas saíram da moldura de credencial (critério 44m.2)", () => {
-    // **A guarda do 44l.14 vivia num `it` próprio e foi absorvida por esta**, que afirma a mesma coisa
-    // com a lista de hoje: T-04 saiu da moldura no 44l, e as quatro telas de credencial saíram no 44m.
-    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
-      ler(caminho).includes("MolduraDeTela"),
-    );
-    // **T-02 e T-10, e mais nada.** As duas não são redesenhadas neste item: elas têm item próprio
-    // quando chegar a vez, e até lá a moldura antiga é delas.
-    expect(comMoldura).toStrictEqual([
-      "app/organizacao/page.tsx",
-      "app/page.tsx",
-      "src/interface/componentes/moldura-de-tela.tsx",
-    ]);
-  });
-
   it("a nota do rodapé sai das quatro, e o asterisco fica (critério 44m.5)", () => {
     const formularios = ALCANCE_DO_44M.filter((caminho) => caminho.includes("formulario-de-"));
     expect(formularios).toHaveLength(4);
@@ -1016,11 +1001,11 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
   });
 
   it("a marca do alcance vem da peça, e nenhum arquivo dele a escreve (critério 44m.1)", () => {
-    // **A guarda é escopada ao alcance de propósito.** A busca por "Resolve Aí" em `app` e `src` devolve
-    // dez linhas, e quatro delas desenham a marca à mão, no estilo anterior ao 44b:
-    // `auditoria/loading.tsx`, `auditoria/page.tsx`, `organizacao/loading.tsx` e `moldura-de-tela.tsx`.
-    // **Nenhuma é deste item** — é o achado R-1 da revisão —, e uma guarda global falharia por defeito
-    // que o 44m não criou nem tem mandato para consertar.
+    // **A guarda é escopada ao alcance de propósito.** Quatro arquivos desenhavam a marca à mão, no
+    // estilo anterior ao 44b — é o achado R-1 da revisão —, e os quatro já saíram: as duas telas de
+    // auditoria no 44n, a espera de T-02 e a moldura antiga no 44o. A guarda continua escopada porque
+    // "Resolve Aí" em `app` e `src` também é texto legítimo — o `metadata`, a documentação e a pergunta
+    // da face A de T-02, que cita o produto pelo nome.
     for (const caminho of [
       "src/interface/componentes/casca/barra-superior.tsx",
       "src/interface/componentes/moldura-de-conta.tsx",
@@ -1112,8 +1097,9 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
     // **A guarda é escopada a `app/(casca)`, e é de propósito** — pelo mesmo argumento que o 44m já
     // escreveu ao lado da dele: a busca por "Resolve Aí" em `app` inteiro devolve sete linhas, e cinco
     // não são deste item (o `metadata` do layout raiz, as duas da documentação e as duas de
-    // `app/organizacao/`, que morrem com a moldura antiga no 44o). Uma guarda global falharia por defeito
-    // que o 44n não criou nem tem mandato para consertar.
+    // `app/organizacao/`: a marca à mão da espera saiu no 44o, e a pergunta da face A cita o produto pelo
+    // nome, e fica). Uma guarda global falharia por defeito que o 44n não criou nem tem mandato para
+    // consertar.
     //
     // **Dentro da casca, estas duas eram as últimas.** A barra superior é quem carrega a marca.
     const sobras = arquivosDe("app/(casca)").filter((caminho) => ler(caminho).includes("Resolve Aí"));
@@ -1127,5 +1113,478 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
       ),
     );
     expect(achados).toStrictEqual([]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 44o — T-02, T-10 e a tela de criar, na moldura das telas fora da casca
+ * ============================================================================
+ *
+ * **Cada tarefa do plano acrescenta as guardas dela a este bloco**, e as do alcance inteiro — tamanhos,
+ * controles crus, a moldura declarada fora dela — chegam por último, quando todos os arquivos existem.
+ */
+const MOLDURA_DE_CONTA = "src/interface/componentes/moldura-de-conta.tsx";
+const ESCOLHA_DE_ORGANIZACAO = "src/interface/componentes/escolha-de-organizacao.tsx";
+const NOVA_ORGANIZACAO = "src/interface/componentes/formulario-de-nova-organizacao.tsx";
+const PEDIDO_DE_ENTRADA = "src/interface/componentes/formulario-de-pedido-de-entrada.tsx";
+
+/** Os arquivos em que o 44o aplica o guia: as guardas do alcance inteiro leem estes. */
+const ALCANCE_DO_44O = [
+  "app/organizacao/page.tsx",
+  "app/organizacao/loading.tsx",
+  "app/organizacao/criar/page.tsx",
+  "app/page.tsx",
+  MOLDURA_DE_CONTA,
+  "src/interface/componentes/lista-de-organizacoes.tsx",
+  ESCOLHA_DE_ORGANIZACAO,
+  NOVA_ORGANIZACAO,
+  PEDIDO_DE_ENTRADA,
+];
+
+describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
+  it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    // A moldura e a espera desenham a mesma página e a mesma coluna. Se uma delas voltar a escrever as
+    // classes à mão, o esqueleto passa a pintar numa forma e a tela em outra.
+    expect([...fonte.matchAll(/className=\{PAGINA\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/className=\{COLUNA\}/gu)]).toHaveLength(2);
+    expect(fonte).toContain("export function EsperaDaMolduraDeConta");
+  });
+
+  it("o caminho tem o piso de 44 px, e o Sair é o Button do catálogo num formulário (critério 44o.15)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("min-h-11");
+    expect(fonte).toContain("<form action={acaoDeSair}>");
+    expect(fonte).toMatch(/<Button\s+type="submit"\s+variant="link"/u);
+  });
+
+  it("a linha de fato aceita nó, e o corpo do cartão é opcional (critérios 44o.7 e 44o.9)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect(fonte).toContain("contexto?: ReactNode;");
+    expect(fonte).toContain("children?: ReactNode;");
+    expect(fonte).toContain("{temCorpo && (");
+  });
+
+  it("a lista é de servidor, e só a escolha é de cliente (critério 44o.10)", () => {
+    // **Dois arquivos, e não um:** com `"use client"` no topo, toda exportação vira componente de
+    // cliente, e a lista de pedidos da face E — que não tem estado — iria para o navegador.
+    expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).not.toContain('"use client"');
+    expect(ler(ESCOLHA_DE_ORGANIZACAO)).toMatch(/^"use client";/u);
+  });
+
+  it("a linha que troca de organização é o Button do catálogo, com a seta (critérios 44o.10 e 44o.15)", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    expect(fonte).toMatch(/<Button\s[^>]*variant="ghost"/u);
+    expect(fonte).toMatch(/<LinhaDeOrganizacao\s[^>]*\sseta\s*\/>/u);
+    expect([...fonte.matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)]).toStrictEqual([]);
+  });
+
+  it("o papel em palavra vem do mapa compartilhado, e a cópia local saiu", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    expect(fonte).toContain('from "@/interface/componentes/frases-de-participantes"');
+    expect(fonte).not.toContain("function rotuloDoPapel");
+  });
+
+  it("o menu de organização saiu do produto (critérios 44o.9 e 44o.10)", () => {
+    const comMenu = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("MenuDeOrganizacao"),
+    );
+    expect(comMenu).toStrictEqual([]);
+    expect(existsSync(RAIZ + "src/interface/componentes/menu-de-organizacao.tsx")).toBe(false);
+  });
+
+  it("T-10 diz o papel e a organização, e não fala de contrato (critério 44o.8)", () => {
+    const fonte = ler("app/page.tsx");
+    expect(fonte).not.toContain("evolução prevista");
+    expect(fonte).not.toContain("o contrato declara");
+    expect(fonte).toMatch(/ainda não abre nenhuma tela\.\s+Quando abrir, ela aparece aqui\./u);
+    // A tela existe pela **ausência de permissão**, e não pelo nome do papel: a palavra é lida do contexto.
+    expect(fonte).toContain("rotuloDoPapel(contexto.papel)");
+  });
+
+  it("T-10 mantém o título, lista as outras organizações e leva à face E (critérios 44o.7, 44o.9 e 44o.14)", () => {
+    const fonte = ler("app/page.tsx");
+    expect(fonte).toContain("titulo={`Olá, ${primeiroNome(contexto.pessoa.nome)}.`}");
+    expect(fonte).toMatch(
+      /outras\.length > 0 &&\s*<EscolhaDeOrganizacao\s[^>]*rotulo="Você também participa de"/u,
+    );
+    expect(fonte).toContain("vinculo.organizacaoId !== ativa.id");
+    expect(fonte).toContain('href="/organizacao?entrar-em-outra=true"');
+    expect(fonte).toContain("<CaminhoDeSair />");
+  });
+
+  it("a face E tem duas portas, e nenhuma é o seletor de organização (critério 44o.14)", () => {
+    // **O achado A3 da spec:** desde o 44b o único produtor deste endereço era o menu de organização de
+    // T-10, e só o Encarregado cai em T-10. Esta guarda impede que ele volte a ter uma porta só — ou
+    // nenhuma.
+    const produtores = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("entrar-em-outra=true"),
+    );
+    expect(produtores).toStrictEqual([
+      "app/page.tsx",
+      "src/interface/componentes/casca/menu-de-pessoa.tsx",
+    ]);
+    // O seletor é `select` pelo critério 44b.4, e uma opção que não é um valor desfaria aquela decisão.
+    expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toContain(
+      "Entrar em outra organização",
+    );
+    expect(ler("src/interface/componentes/casca/menu-de-pessoa.tsx")).toContain("<Building2");
+  });
+
+  it("criar organização é uma tela, com a guarda das outras e sem recusar quem tem organização (critérios 44o.4 e 44o.5)", () => {
+    const fonte = ler("app/organizacao/criar/page.tsx");
+    expect(fonte).toContain("<FormularioDeNovaOrganizacao />");
+    expect(fonte).toContain('titulo="Criar uma organização"');
+    expect(fonte).toContain('href="/organizacao"');
+    expect(fonte).toContain('redirect("/entrar?destino=%2Forganizacao%2Fcriar")');
+    expect(fonte).toContain('export const dynamic = "force-dynamic"');
+    // A rota **não recusa** quem tem organização ativa, porque o caso de uso não recusa.
+    expect(fonte).not.toContain("organizacaoAtiva");
+  });
+
+  it("o botão de criar é o principal, e a nota do rodapé sai (critérios 44o.4 e 44o.11)", () => {
+    const fonte = ler(NOVA_ORGANIZACAO);
+    expect(fonte).not.toContain('variant="outline"');
+    // **Principal é a cor da marca** (guia §2), e a variante padrão do catálogo é `bg-primary`, azul.
+    expect(fonte).toMatch(/<Button\s+type="submit"\s+variant="marca"/u);
+    expect(fonte).toContain("<RodapeDoFormulario obrigatorios={1} todosObrigatorios>");
+  });
+
+  it("o comentário que defendia o campo registra a decisão nova (critério 44o.6)", () => {
+    const fonte = ler(NOVA_ORGANIZACAO);
+    expect(fonte).not.toContain("o inventário diz por que não é uma tela");
+    expect(fonte).toContain("20/09/2026");
+    expect(fonte).toContain("dois formulários");
+  });
+
+  it("as cinco faces de T-02 estão na moldura, com os títulos e as linhas do critério (critérios 44o.1 e 44o.7)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect([...fonte.matchAll(/<MolduraDeConta\b/gu)]).toHaveLength(5);
+    for (const trecho of [
+      'titulo="Entrar em uma organização"',
+      "Você ainda não participa de nenhuma. Use o código que recebeu para pedir entrada.",
+      'titulo="Pedido enviado"',
+      "Um Gestor decide, e a resposta aparece aqui.",
+      'titulo="Pedido não aprovado"',
+      'titulo="Em qual organização você quer trabalhar?"',
+      "Dá para trocar depois, pelo nome no alto da tela.",
+      'titulo="Entrar em outra organização"',
+    ]) {
+      expect(fonte, trecho).toContain(trecho);
+    }
+  });
+
+  it("entrar e criar são duas telas, e o caminho de criar sai só da face A (critérios 44o.4 e 44o.5)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).not.toContain("FormularioDeNovaOrganizacao");
+    expect([...fonte.matchAll(/href="\/organizacao\/criar"/gu)]).toHaveLength(1);
+  });
+
+  it("a face E lista os pedidos na forma da lista, sem seta (critério 44o.10)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).toContain('<ListaDeOrganizacoes rotulo="Seus pedidos">');
+    expect(fonte).toContain("<LinhaDeOrganizacao");
+    // O `seta` como propriedade de JSX — e não a palavra num comentário.
+    expect(fonte).not.toMatch(/\sseta(?:\s*\/?>|=\{)/u);
+  });
+
+  it("as datas de T-02 são as do guia, e o formatador local saiu (guia §7)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).not.toContain("Intl.DateTimeFormat");
+    expect(fonte).toContain("dataEHora(");
+  });
+
+  it("a nota do pedido de entrada sai só onde todo campo é obrigatório (critério 44o.11)", () => {
+    expect(ler(PEDIDO_DE_ENTRADA)).toContain("todosObrigatorios={!primeiraEntrada}");
+  });
+
+  it("a espera de T-02 é a da moldura, com a mesma frase (critério 44o.1)", () => {
+    const fonte = ler("app/organizacao/loading.tsx");
+    expect(fonte).toContain("<EsperaDaMolduraDeConta>");
+    expect(fonte).toContain("Acordando o servidor — a primeira abertura do dia é mais lenta.");
+  });
+
+  it("a moldura antiga saiu do produto, nem em comentário (critério 44o.2)", () => {
+    // **Absorve a guarda do critério 44m.2**, que afirmava os arquivos com a moldura antiga — T-02, T-10
+    // e ela mesma. Os três saíram neste item. O caminho entra na busca porque um comentário que cite o
+    // arquivo apagado mente a quem o procurar.
+    expect(existsSync(RAIZ + "src/interface/componentes/moldura-de-tela.tsx")).toBe(false);
+    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes("MolduraDeTela") || fonte.includes("moldura-de-tela");
+    });
+    expect(comMoldura).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44o.3)", () => {
+    const achados = ALCANCE_DO_44O.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum controle cru, fora os dois botões de texto do pedido de entrada (critério 44o.15)", () => {
+    const crus = (caminho: string) => [...ler(caminho).matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)];
+    const achados = ALCANCE_DO_44O.filter((caminho) => caminho !== PEDIDO_DE_ENTRADA).flatMap((caminho) =>
+      crus(caminho).map((achado) => `${caminho}: ${achado[0]}`),
+    );
+    expect(achados).toStrictEqual([]);
+    // A exceção que o critério 44p.5 declara por escrito: "Entrar nela" e "Atualizar esta tela".
+    expect(crus(PEDIDO_DE_ENTRADA)).toHaveLength(2);
+  });
+
+  it("nenhuma das telas declara a própria moldura nem desenha a marca à mão (critério 44o.1, e o G1 do guia)", () => {
+    for (const caminho of ALCANCE_DO_44O.filter((caminho) => caminho.startsWith("app/"))) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("min-h-dvh");
+      // A marca à mão era `<p …>Resolve Aí</p>`. A frase da face A cita o produto no meio de uma
+      // pergunta, e por isso a guarda procura o nome sozinho entre tags, e não a palavra.
+      expect(fonte, caminho).not.toMatch(/>\s*Resolve Aí\s*</u);
+    }
+  });
+
+  it("o teste de ponta a ponta acha o que procura na face D (critério 44o.12)", () => {
+    // **Conferido por leitura, e não por execução:** o teste não roda na pilha que o critério dele
+    // autoriza (achado A-10). O relatório não afirma execução verde.
+    const e2e = ler("testes/ponta-a-ponta/caminho-critico.spec.ts");
+    expect(e2e).toContain('getByRole("heading", { name: "Em qual organização você quer trabalhar?" })');
+    expect(e2e).toContain('getByRole("button", { name: AURORA })');
+    // O título é o `<h1>` da moldura, e a linha é o `Button` do catálogo, que renderiza `<button>`.
+    expect(ler("app/organizacao/page.tsx")).toContain('titulo="Em qual organização você quer trabalhar?"');
+    expect(ler(MOLDURA_DE_CONTA)).toContain("<h1 id={ID_DO_TITULO}");
+    expect(ler(ESCOLHA_DE_ORGANIZACAO)).toContain("<Button");
+  });
+});
+
+describe("o alcance do 44p — a validação do lote 11", () => {
+  it("a animação de pressão usa a forma que o Tailwind 4 emite como var() (critério 44p.1)", () => {
+    const fonte = ler("src/interface/componentes/ui/button.tsx");
+
+    // `duration-[--tempo-pressao]` gera `transition-duration: --tempo-pressao`, declaração inválida que o
+    // navegador descarta: o `active:scale-[0.97]` acontecia sem duração e sem curva. A forma com
+    // parênteses é a que emite `var()`, e é a que `modal.tsx` já usa em CONTEUDO_DO_SHEET.
+    expect(fonte).toContain("duration-(--tempo-pressao)");
+    expect(fonte).toContain("ease-(--curva-pressao)");
+
+    // **`transition-all` sai junto.** Ele e `transition-transform` conviviam no mesmo `cva`, e a segunda
+    // vencia pela ordem. Com a duração passando a valer, `transition-all` voltaria a animar cor e sombra
+    // em todo botão do produto — contra o guia §6, que concede só `transform` e `opacity`.
+    expect(fonte).not.toContain("transition-all");
+  });
+
+  it("nenhuma classe arbitrária de duração sobrou em `src` nem em `app` (critério 44p.1)", () => {
+    const achados = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) =>
+      ler(caminho).includes("duration-["),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o `Sair` do menu de pessoa é `Button` do catálogo (critério 44p.5)", () => {
+    const fonte = ler("src/interface/componentes/casca/menu-de-pessoa.tsx");
+
+    // O critério diz "fica dentro de `DropdownMenuItem asChild`" — e já estava. O que era cru é o
+    // ELEMENTO. `asChild` continua funcionando porque o `Button` renderiza um `<button>`, que é quem
+    // recebe `role="menuitem"` e o foco do menu.
+    expect(/<button(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain('<form action={acaoDeSair}>');
+    expect(fonte).toContain('variant="ghost"');
+  });
+
+  it("nenhum tamanho fora dos sete papéis, fora do catálogo (critério 44p.2)", () => {
+    // **O 44o é quem limpa o resto.** `app/organizacao/`, `app/page.tsx`, `menu-de-organizacao`,
+    // `formulario-de-pedido-de-entrada`, `formulario-de-nova-organizacao` e `moldura-de-tela` — que o
+    // plano dele APAGA — somam trinta ocorrências que não são deste item. Enquanto ele não mesclar, esta
+    // guarda seria vermelha por defeito alheio; por isso ela exclui o que é dele, por caminho, e o
+    // critério 44p.2 só fecha de verdade depois do merge do 44o.
+    const DO_44O = [
+      "app/organizacao/",
+      "app/page.tsx",
+      "src/interface/componentes/menu-de-organizacao.tsx",
+      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-nova-organizacao.tsx",
+      "src/interface/componentes/moldura-de-tela.tsx",
+    ];
+
+    // **`utilitarios.ts` sai da conta, e é o único que sai por mérito próprio.** `arquivosDe` lê `.ts`
+    // junto de `.tsx`, e as quatro ocorrências dele são o comentário que explica por que o `cn` estendido
+    // existe: *"o `text-sm` do catálogo — que está fora da escala — sobrevive"*. É o arquivo que declara a
+    // escala; reescrever a frase para não escrever a classe apagaria a explicação, ao contrário do
+    // comentário de `navegacao.tsx`, que continua dizendo a mesma coisa sem ela.
+    const achados = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")]
+      .filter((caminho) => !caminho.startsWith("src/interface/componentes/ui/"))
+      .filter((caminho) => caminho !== "src/interface/componentes/utilitarios.ts")
+      .filter((caminho) => !DO_44O.some((dele) => caminho.startsWith(dele)))
+      .flatMap((caminho) =>
+        [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+          (achado) => `${caminho}: ${achado[0]}`,
+        ),
+      );
+
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx");
+
+    // A mesma tela já usava `buttonVariants` em duas linhas e montava botão à mão em três. O que sobra é
+    // uma forma só.
+    expect(fonte).not.toContain("inline-flex min-h-11 items-center rounded-sm border px-4");
+    expect(fonte).not.toContain('"+ Registrar');
+    expect(fonte).toContain("<Plus aria-hidden");
+  });
+
+  it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
+    // D3: a organização é condomínio, empresa **ou bairro**. É a terceira vez que a mesma correção se
+    // aplica — a prancheta de Áreas e a coluna esquerda de T-01 do 44m foram as outras duas.
+    //
+    // **A guarda é sobre a FRASE, e não sobre a palavra**, e isso está medido: "prédio" aparece em SETE
+    // lugares do repositório e **cinco estão certos** — `Permissao.ts:7`, `Semente.ts:63`,
+    // `lista-de-ocorrencias.tsx:295` e as duas de `app/organizacao/` usam a palavra como EXEMPLO de um
+    // tipo de organização, que é justamente o que a D3 diz que ela pode ser. O defeito é a tela mandar a
+    // pessoa conferir se as áreas descrevem "o seu prédio", o que exclui bairro e empresa.
+    expect(ler("src/interface/componentes/vazio-da-lista.ts")).not.toContain("o seu prédio");
+    expect(ler("app/(casca)/ocorrencias/page.tsx")).not.toContain("que não descreve o");
+  });
+
+  it("o seletor de prioridade é o `select` do catálogo (critério 44p.4)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-prioridade.tsx");
+
+    // **A guarda lê comentário igual a código**, e este arquivo escrevia `<select>` em prosa em TRÊS
+    // linhas — 19, 30 e 53. As três passam a dizer "o `select` nativo", sem os sinais de maior e menor:
+    // é o mesmo tratamento que `navegacao.tsx` recebeu no critério 44p.2, e é mais honesto que abrir
+    // exceção na guarda.
+    expect(/<select(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain("<SelectTrigger");
+    expect(fonte).toContain("<SelectItem");
+  });
+
+  it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+
+    // Aberta, a linha é rótulo à esquerda e controle à direita. Resolvida, era texto corrido — "Prioridade:
+    // Normal" — enquanto as outras cinco linhas do mesmo cartão continuavam rótulo e valor. Fica a mesma
+    // linha, só sem o seletor: o invólucro e o rótulo passam a ser da página.
+    expect(fonte).not.toContain("Prioridade:</span>");
+    expect(fonte).toContain("LINHA_DA_PRIORIDADE");
+  });
+
+  it("os cinco modais de T-05 usam a moldura compartilhada (critérios 44p.15 e 44p.16)", () => {
+    const CINCO = [
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-observacao.tsx",
+      "src/interface/componentes/modal-de-resolucao.tsx",
+    ];
+
+    for (const caminho of CINCO) {
+      const fonte = ler(caminho);
+      // A moldura: nenhum dos cinco monta o `Dialog` direto.
+      expect(fonte).not.toContain("ui/dialog");
+      expect(fonte).toContain("<Modal");
+      // A cor: o `BotaoDeConfirmar` é `variant="marca"` por padrão, então o critério 15 vem junto.
+      expect(fonte).toContain("<BotaoDeConfirmar");
+      expect(fonte).toContain("<BotaoDeCancelar");
+      // E "Fechar" some: o secundário do rodapé compartilhado escreve "Cancelar".
+      expect(fonte).not.toContain("Fechar");
+    }
+  });
+
+  it("a nota de obrigatório só aparece onde há campo opcional (critério 44p.11)", () => {
+    const COM_TODOS = [
+      "src/interface/componentes/conversa-da-ocorrencia.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-categoria.tsx",
+      "src/interface/componentes/modal-de-area.tsx",
+      "src/interface/componentes/edicao-de-nome.tsx",
+    ];
+    for (const caminho of COM_TODOS) expect(ler(caminho)).toContain("todosObrigatorios");
+
+    // O `Modal` precisa deixar a propriedade atravessar: três dos seis só o alcançam por ele.
+    expect(ler("src/interface/componentes/modal.tsx")).toContain("todosObrigatorios");
+
+    // E onde há campo opcional a nota FICA — a avaliação tem "Comentário (opcional)".
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("todosObrigatorios");
+  });
+
+  it("a solução aplicada tem um nome só, e ele é o do glossário (critério 44p.19)", () => {
+    const pagina = ler("src/interface/componentes/campo-de-solucao-aplicada.tsx");
+    const modal = ler("src/interface/componentes/modal-de-resolucao.tsx");
+
+    // `docs/glossario.md:46` registra "Solução aplicada" como o termo da linguagem ubíqua. O modal dizia
+    // "O que foi feito (opcional)" para o MESMO dado — ele abre preenchido com o que está na página, pela
+    // D22 —, e quem lia a página entendia que resolver exige a solução.
+    expect(pagina).toContain('rotulo="Solução aplicada"');
+    expect(modal).toContain('rotulo="Solução aplicada"');
+    expect(modal).not.toContain("O que foi feito");
+
+    // A marca de obrigatório sai do campo da página: ele salva quando se tem o que salvar. A propriedade
+    // vive na MESMA linha do `Campo`, entre o rótulo e o `erro` — é essa vizinhança que a guarda lê.
+    expect(pagina).not.toContain("obrigatorio erro=");
+    expect(pagina).toContain("obrigatorios={0}");
+  });
+
+  it("a coluna TEMPO não repete o mesmo valor, e o símbolo tem nome (critério 44p.12)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+
+    // A comparação é sobre o INSTANTE, não sobre o texto de `tempoCurto`: comparar o texto esconderia uma
+    // atualização de meia hora atrás sempre que as duas caíssem no mesmo "3 d" — e é numa ocorrência
+    // tocada há pouco que a coluna tem o que dizer.
+    expect(fonte).toContain("item.registradaEm !== item.atualizadaEm");
+
+    // Os DOIS valores ganham nome. Nomear só o segundo faz o leitor de tela ler "5 d, atualizada 2 h",
+    // com o primeiro número solto.
+    expect(fonte).toContain("sr-only");
+    expect(fonte).toContain("registrada");
+    expect(fonte).toContain("atualizada");
+  });
+
+  it("T-16 e T-04 têm espera, e o produto ganha as duas que faltavam (critério 44p.6)", () => {
+    expect(existsSync(RAIZ + "app/(casca)/meus-dados/loading.tsx")).toBe(true);
+    expect(existsSync(RAIZ + "app/(foco)/ocorrencias/nova/loading.tsx")).toBe(true);
+
+    // **A guarda conta as esperas e NÃO fixa o número de páginas**, e isso é medido: o critério fala de
+    // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
+    // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
+    // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
+    expect(esperas).toHaveLength(12);
+  });
+
+  it("as três formas do selo se separam, e nenhuma cor nova entra (critérios 44p.9 e 44p.21)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // O defeito medido: no escuro `--accent-bg` (0,2921) e `--sunken` (0,2758) distavam 1,6% de
+    // luminosidade, e *Aberta* e *Resolvida* eram o mesmo chip no print de produção. O par invertido
+    // afasta os dois para 8,05:1 de contraste WCAG no escuro e 9,59:1 no claro.
+    expect(fonte).toContain("bg-accent-foreground text-accent");
+    expect(fonte).toContain("bg-muted text-accent-foreground");
+
+    // A marca continua fora: ela veste a ação principal, e só ela (guia §2).
+    //
+    // **A guarda é sobre as CLASSES, e não sobre a palavra:** o arquivo fala de "marcador" em cinco
+    // linhas — é o nome da peça de T-06 que mora nele —, e um `toContain("marca")` seria vermelho para
+    // sempre, diga o código o que disser.
+    expect(fonte).not.toContain("bg-marca");
+    expect(fonte).not.toContain("text-marca");
+    expect(fonte).not.toContain("border-marca");
+
+    // E o `globals.css` não muda: a resposta à P1 usa o par que já existe.
+    expect(ler("app/globals.css")).not.toContain("--positivo");
+  });
+
+  it("o `Ativa` das listas de ordem manual não veste a marca (critérios 44p.18 e 44p.22)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+
+    // *Ativa* é a maioria das linhas; pintá-la de laranja é o que fazia o print de Categorias e de Áreas
+    // parecer alarme. O destaque troca de lado, e o ponto é a pista de forma que a prancheta desenhou.
+    expect(fonte).not.toContain("border-marca/60 text-marca");
+    expect(fonte).toContain("text-accent-foreground");
+    expect(fonte).toContain("PONTO_DE_ATIVA");
   });
 });

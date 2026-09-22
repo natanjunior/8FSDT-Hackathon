@@ -121,6 +121,7 @@ export function EdicaoDeNome(props: Propriedades) {
       titulo={textos.titulo}
       descricao={textos.descricao}
       obrigatorios={1}
+      todosObrigatorios
       aoEnviar={aoEnviar}
       gatilho={
         <Button

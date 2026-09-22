@@ -1,3 +1,4 @@
+import { dataCurta, dataEHora } from "@/interface/componentes/datas";
 import type { AvisoDeConclusao, FrasesDaTela } from "@/interface/componentes/retorno-de-acao";
 
 /**
@@ -13,11 +14,14 @@ import type { AvisoDeConclusao, FrasesDaTela } from "@/interface/componentes/ret
  * **Nenhum texto supõe gênero** (A-03 da spec): o produto não sabe o de ninguém, e onde a prancheta
  * escreve *"Ele"* a tela escreve o primeiro nome.
  *
- * **As datas levam o fuso escrito**, montadas por partes nomeadas, como `linha-do-tempo.ts`: a tabela
- * renderiza no servidor, que roda em UTC, e hidrata no navegador.
+ * **As datas moram em `datas.ts` desde 21/09/2026** (item 44p, critério 17), e este arquivo as reexporta
+ * para os chamadores que já apontavam para cá. Elas levam o fuso escrito, montadas por partes nomeadas —
+ * a tabela renderiza no servidor, que roda em UTC, e hidrata no navegador.
  *
- * **A importação é só de tipo, e em instrução inteira:** `retorno-de-acao.ts` traz o pacote de avisos.
+ * **A importação de tipo é em instrução inteira:** `retorno-de-acao.ts` traz o pacote de avisos.
  */
+
+export { dataCurta, dataEHora };
 
 export type Papel = "solicitante" | "gestor" | "encarregado";
 
@@ -65,40 +69,6 @@ export const ROTULO_SEM_PAPEL = "a decidir";
 
 export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/u)[0] ?? "";
-}
-
-const FUSO = "America/Sao_Paulo";
-const DATA = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  timeZone: FUSO,
-});
-/** `hourCycle: "h23"` garante `00:00`, e não `24:00`. */
-const DATA_E_HORA = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: FUSO,
-});
-
-function partes(formato: Intl.DateTimeFormat, iso: string): ReadonlyMap<string, string> {
-  return new Map(formato.formatToParts(new Date(iso)).map((parte) => [parte.type, parte.value]));
-}
-
-/** `dd/mm/aaaa` (guia §7, *Texto de tela*). */
-export function dataCurta(iso: string): string {
-  const p = partes(DATA, iso);
-  return `${p.get("day") ?? ""}/${p.get("month") ?? ""}/${p.get("year") ?? ""}`;
-}
-
-/** `dd/mm/aaaa · hh:mm`. */
-export function dataEHora(iso: string): string {
-  const p = partes(DATA_E_HORA, iso);
-  return `${p.get("day") ?? ""}/${p.get("month") ?? ""}/${p.get("year") ?? ""} · ${p.get("hour") ?? ""}:${p.get("minute") ?? ""}`;
 }
 
 // ---------------------------------------------------------------------------

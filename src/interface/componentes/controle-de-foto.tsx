@@ -5,7 +5,13 @@ import { useRef, useState } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { BotaoDeIcone } from "@/interface/componentes/botao-de-icone";
-import { FOTO, FRASES_DO_SERVIDOR, ROTULOS } from "@/interface/componentes/registro-de-ocorrencia";
+import {
+  FOTO,
+  FRASES_DA_FOTO,
+  FRASES_DO_SERVIDOR,
+  ROTULOS,
+} from "@/interface/componentes/registro-de-ocorrencia";
+import { mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { TooltipProvider } from "@/interface/componentes/ui/tooltip";
 
@@ -158,20 +164,20 @@ export function ControleDeFoto({
     });
 
     if (!resposta.ok) {
-      const problema = (await resposta.json().catch(() => ({}))) as {
-        codigo?: string;
-        detail?: string;
-      };
+      /**
+       * **O mesmo mecanismo do resto do produto** (`mensagemDoProblema`), e o controle de foto era o
+       * último lugar que ainda escolhia a frase à mão. A ordem é: a frase da tela para aquele `codigo`; o
+       * `detail` do servidor quando há um; e a genérica no resto.
+       *
+       * **O que sai daqui é o último degrau do encadeamento antigo**, que chamava de *"grande demais"*
+       * tudo o que não reconhecia — inclusive o `500`, que por contrato vem sem `detail`. É o V-12.
+       *
+       * **O `409 ORGANIZACAO_DIVERGENTE` continua mostrando o texto do servidor**, que é a decisão do
+       * item 7b: ele cai no degrau do `detail`.
+       */
       setSituacao({
         nome: "erro",
-        mensagem:
-          problema.codigo === "LIMITE_DE_AUTORIZACOES_DE_UPLOAD"
-            ? FRASES_DO_SERVIDOR.LIMITE_DE_AUTORIZACOES_DE_UPLOAD!
-            : // **O `detail` antes do genérico** (item 7b): esta linha chamava *qualquer* erro
-              // inesperado de *"a foto ficou grande demais"*, e desde o critério 7b.6 há um erro que
-              // ela alcança e que não tem nada a ver com tamanho — o `409 ORGANIZACAO_DIVERGENTE` da
-              // aba esquecida.
-              (problema.detail ?? FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE!),
+        mensagem: mensagemDoProblema(await resposta.json().catch(() => null), FRASES_DA_FOTO),
       });
       aoMudar({ nome: "falhou" });
       return;

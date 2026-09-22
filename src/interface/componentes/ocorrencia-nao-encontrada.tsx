@@ -51,7 +51,7 @@ export function OcorrenciaNaoEncontradaNaTela({
       */}
       <Link
         href="/ocorrencias"
-        className="border-linha text-tinta inline-flex min-h-11 w-full items-center justify-center rounded-md border px-4 text-sm font-medium"
+        className="border-linha text-tinta text-interface inline-flex min-h-11 w-full items-center justify-center rounded-md border px-4 font-medium"
       >
         Voltar à lista
       </Link>
@@ -60,7 +60,7 @@ export function OcorrenciaNaoEncontradaNaTela({
         **O `traceId` carrega a palavra (A-5) e é copiável.** Ele existe porque a §6.3 do contrato diz
         para que serve — *"liga à linha de log"* — e porque `registrarFalha` acabou de escrever essa linha.
       */}
-      <p className="text-tinta-fraca text-xs">
+      <p className="text-tinta-fraca text-meta">
         Código para suporte: <code className="select-all font-mono">{traceId}</code>
       </p>
     </div>

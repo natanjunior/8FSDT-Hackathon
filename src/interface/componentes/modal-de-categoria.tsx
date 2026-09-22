@@ -139,6 +139,7 @@ export function ModalDeCategoria(props: Props) {
       titulo={props.modo === "criar" ? textos.tituloDeCriar : textos.tituloDeEditar}
       descricao={props.modo === "criar" ? textos.descricaoDeCriar : textos.descricaoDeEditar}
       obrigatorios={1}
+      todosObrigatorios
       aoEnviar={aoEnviar}
       gatilho={
         props.modo === "criar" ? (

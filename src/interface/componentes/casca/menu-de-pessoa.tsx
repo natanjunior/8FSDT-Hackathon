@@ -1,8 +1,9 @@
-import { LogOut, UserRound } from "lucide-react";
+import { Building2, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { acaoDeSair } from "@/interface/acoes";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
+import { Button } from "@/interface/componentes/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,9 +33,16 @@ function iniciaisDe(nome: string): string {
  * ***Meus dados* é item com ícone**, e é o caminho até T-16. Até o item 44i o item imprimia o nome, com
  * *Meus dados* embaixo; com o nome no cabeçalho, o item diz só o destino.
  *
+ * ***Entrar em outra organização* mora aqui desde o item 44o** (critério 44o.14), e é a porta da face E
+ * de T-02 para quem está dentro da casca. Ela morava no menu de organização da barra superior, que virou
+ * `select` no 44b (critério 44b.4) e não podia carregar uma opção que não é um valor; desde então a face E
+ * só era alcançável por quem caía em T-10. O menu de pessoa guarda as ações da **pessoa**, e entrar em
+ * outra organização é sobre os vínculos dela, não sobre a organização atual. O ícone é o `Building2`, o
+ * mesmo que rotula o grupo *Organização* da barra lateral — um sentido só nos dois lugares.
+ *
  * Sair permanece formulário com botão de envio, e não vira link: é ação que muda estado no servidor, e o
  * critério 44b.4 a manteve de propósito na forma que já tinha. O `min-h-11` do compromisso **A-3** fica
- * nos dois itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
+ * nos três itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
  * a classe daqui o sobrescreve.
  */
 export function MenuDePessoa({
@@ -77,17 +85,28 @@ export function MenuDePessoa({
             Meus dados
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild className="text-interface min-h-11">
+          <Link href="/organizacao?entrar-em-outra=true">
+            <Building2 aria-hidden="true" />
+            Entrar em outra organização
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         {/* **O formulário envolve o item, e não o contrário.** O `asChild` do Radix funde as props do
             `menuitem` no filho único, e um `<form>` não é focável nem responde ao teclado do menu — quem
-            precisa receber o papel é o `<button>`. Sair continua sendo botão dentro de formulário, que é
-            o que o critério 4 preserva. */}
+            precisa receber o papel é o botão. Sair continua sendo botão dentro de formulário, que é o
+            que o critério 44b.4 preserva.
+
+            **E o botão é o do catálogo desde 21/09/2026** (critério 44p.5): o elemento cru era o último
+            de `app/(casca)` fora das exceções declaradas. O `Button` renderiza um botão nativo, então o
+            `asChild` continua entregando `role="menuitem"` ao elemento certo; `justify-start` desfaz o
+            `justify-center` da base do `cva`, que centralizaria o rótulo dentro do item de menu. */}
         <form action={acaoDeSair}>
           <DropdownMenuItem asChild className="text-interface min-h-11">
-            <button type="submit" className="w-full text-left">
+            <Button type="submit" variant="ghost" className="h-auto w-full justify-start px-2 py-1.5 font-normal">
               <LogOut aria-hidden="true" />
               Sair
-            </button>
+            </Button>
           </DropdownMenuItem>
         </form>
       </DropdownMenuContent>

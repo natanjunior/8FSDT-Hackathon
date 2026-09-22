@@ -1,4 +1,4 @@
-import type { VinculoNoMenu } from "@/interface/componentes/menu-de-organizacao";
+import type { VinculoNoMenu } from "@/interface/componentes/lista-de-organizacoes";
 import { MarcaDoProduto } from "@/interface/componentes/marca";
 import { MenuDePessoa } from "@/interface/componentes/casca/menu-de-pessoa";
 import { SeletorDeOrganizacao } from "@/interface/componentes/casca/seletor-de-organizacao";

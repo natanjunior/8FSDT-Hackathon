@@ -121,14 +121,16 @@ divergiu, sem sobrescrever → cria o database `resolveai_teste`, da suíte de i
 `supabase migration up` → sobe o Azurite e **confere do host** que ele responde → `docker compose up --build`,
 no mesmo `Dockerfile` que vai a produção.
 
-Depois: **<http://host.docker.internal:3000>**.
+Depois: **<http://localhost:3000>**.
 
-> ⚠️ **Abra por `host.docker.internal`, não por `localhost`.** O `@supabase/ssr` deriva o **nome do cookie
-> de sessão do host do provedor**: com `127.0.0.1` ele grava `sb-127-auth-token`, com
-> `host.docker.internal` grava `sb-host-auth-token`. Se o navegador falar do provedor por um nome e o
-> container por outro, o cookie que o navegador guarda tem um nome que o servidor não procura, e a sessão
-> simplesmente não existe do lado de dentro, sem erro nenhum. Em produção o problema não existe: os dois
-> lados usam a mesma URL pública. Os detalhes estão em `.env.example`.
+> ⚠️ **Abra por `localhost`, e não por `host.docker.internal`.** O cookie que guarda a organização ativa
+> sai com o atributo `Secure`, porque o container roda com `NODE_ENV=production` — o mesmo que vai à
+> nuvem. O Chromium **descarta um cookie `Secure` servido por `http://` quando o host não é loopback**, e
+> `host.docker.internal` não é loopback. Aberto por ali, quem tem vínculo em duas organizações escolhe uma
+> e a tela volta a pedir a escolha, sem erro nenhum. Por `localhost` o cookie é aceito e a escolha vale.
+>
+> O nome do cookie de sessão sai do host da **URL do provedor**, que é variável do servidor, então ele não
+> muda com a origem pela qual o navegador chega. Em produção nada disto aparece: lá o transporte é HTTPS.
 
 ⚠️ As portas locais do Supabase não são as padrão do CLI (`54391` para a API, `54392` para o banco). O
 Windows reserva faixas de porta para o Hyper-V, e na máquina onde isto foi escrito a faixa reservada cobria
@@ -190,6 +192,7 @@ Cada peça, separada:
 | `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
 | `npm run teste:ponta-a-ponta` | O caminho crítico do enunciado, de fora para dentro — um navegador contra a pilha real, com autenticação de verdade: registrar → analisar → atribuir → atender → resolver → avaliar, mais a trilha conferida na tela e a troca de organização no meio do percurso. É um só, e para sempre ([ADR-0008](docs/adr/0008-a-suite-de-testes-segue-a-garantia.md)); não é portão de pipeline por push |
+| `npm run cobertura` | O alcance da suíte em número, para informar e nunca para reprovar: não há limite mínimo, e nada do portão o consulta. Roda o unitário e o de integração numa execução só, e por isso exige Postgres. Os recortes e a data da última medição estão em [Testes](docs/testes.md) |
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As quatro regras mecânicas do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { dataCurta, dataEHora } from "@/interface/componentes/datas";
 import {
   autoria,
-  dataHora,
   fraseDaAtribuicao,
   fraseDaMensagem,
   fraseDaTransicao,
@@ -18,26 +18,26 @@ import {
  * sem ele, um `timeZone` esquecido passa despercebido, porque a esteira roda em UTC.
  */
 
-describe("dataHora — o fuso é escrito, não herdado", () => {
-  it("formata como o protótipo, com hora de São Paulo", () => {
+describe("dataEHora — um formato só, e o fuso é escrito", () => {
+  it("escreve `dd/mm/aaaa · hh:mm`, que é a regra do guia §7", () => {
     // 09h40 em São Paulo é 12:40 em UTC.
-    expect(dataHora("2026-08-15T12:40:00.000Z")).toBe("15/08/2026, 09h40");
+    expect(dataEHora("2026-08-15T12:40:00.000Z")).toBe("15/08/2026 · 09:40");
   });
 
-  it("um instante que já virou o dia em UTC continua sendo ONTEM aqui", () => {
-    // 02h30 de 15/08 em UTC é 23h30 de 14/08 em São Paulo. Sem `timeZone`, sai "15/08/2026, 02h30".
-    expect(dataHora("2026-08-15T02:30:00.000Z")).toBe("14/08/2026, 23h30");
+  it("vira o dia no fuso de São Paulo, e não no do contêiner", () => {
+    expect(dataEHora("2026-08-15T02:30:00.000Z")).toBe("14/08/2026 · 23:30");
   });
 
-  it("meia-noite sai como 00h, nunca como 24h", () => {
-    expect(dataHora("2026-08-15T03:00:00.000Z")).toBe("15/08/2026, 00h00");
+  it("`hourCycle: h23` dá 00:00, e não 24:00", () => {
+    expect(dataEHora("2026-08-15T03:00:00.000Z")).toBe("15/08/2026 · 00:00");
   });
 
-  it("a linha do tempo NÃO tem segundos, e a trilha tem — são duas formas, de propósito", () => {
-    // `dataHoraComSegundos` mora em `trilha-de-auditoria.ts` e é de T-06: a pergunta dela é "prove", e
-    // duas transições no mesmo minuto precisam continuar distinguíveis. Esta aqui responde "o que está
-    // acontecendo", e segundos seriam ruído em oito eventos seguidos.
-    expect(dataHora("2026-08-03T12:14:02.000Z")).toBe("03/08/2026, 09h14");
+  it("sem segundos — eles são a exceção da trilha de auditoria, que responde `prove`", () => {
+    expect(dataEHora("2026-08-03T12:14:02.000Z")).toBe("03/08/2026 · 09:14");
+  });
+
+  it("`dataCurta` continua sendo `dd/mm/aaaa`", () => {
+    expect(dataCurta("2026-08-15T12:40:00.000Z")).toBe("15/08/2026");
   });
 });
 
