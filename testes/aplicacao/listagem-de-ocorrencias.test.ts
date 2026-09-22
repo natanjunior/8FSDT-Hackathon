@@ -61,7 +61,7 @@ const repositorio = () =>
     },
     contar: async (filtro: FiltroDeContagem) => {
       pedidosDeContagem.push(filtro);
-      return { totalFiltrado, minhas: 2, emAberto: 7, semResponsavel: 3, novas: 5 };
+      return { totalFiltrado, todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, novas: 5 };
     },
   }) as unknown as RepositorioEscopadoDeOcorrencias;
 
@@ -287,7 +287,7 @@ describe("as contagens chegam ao envelope, e `novas` sai da porta de contagem", 
       podeLerTodas: true,
     });
 
-    expect(pagina.contagens).toStrictEqual({ minhas: 2, emAberto: 7, semResponsavel: 3 });
+    expect(pagina.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
     expect(pagina.novasDesdeOCorte).toBe(5);
   });
 });

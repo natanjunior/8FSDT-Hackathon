@@ -184,7 +184,14 @@ export default async function Ocorrencias({
 
           <div className="flex items-center gap-3">
             {podeLerTodas ? (
-              <SeletorDeRecorte consultaAtual={consultaAtual} visibilidadeAplicada={visibilidade} />
+              <SeletorDeRecorte
+                consultaAtual={consultaAtual}
+                visibilidadeAplicada={visibilidade}
+                /* **A promessa desce, e não o número** (item 44p, critério 10): esperá-la aqui faria o
+                   cabeçalho esperar pela consulta, que é exatamente o que a linha acima diz que ele não
+                   faz. O seletor imprime os dois números quando eles chegam, junto com a lista. */
+                contagens={paginaPedida.then((pagina) => pagina.contagens)}
+              />
             ) : (
               /* Critério 44c.9 — as mesmas palavras, no mesmo lugar, sem controle. Parágrafo e não
                  `role="status"`: o texto só muda com a página, e região viva que nunca se atualiza é

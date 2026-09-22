@@ -241,8 +241,9 @@ export type VisibilidadeAplicada = "todas" | "apenas_minhas";
 /** O teto de página do contrato. Deslocamento fundo é varredura, e nenhuma tela pede o milésimo clique. */
 export const PAGINA_MAXIMA = 1000;
 
-/** As três contagens de painel — as que respondem *"o que existe para você escolher"*. */
+/** As quatro contagens de painel — as que respondem *"o que existe para você escolher"*. */
 export type ContagensDoPainel = {
+  todas: number;
   minhas: number;
   emAberto: number;
   semResponsavel: number;
@@ -403,6 +404,7 @@ export async function listarOcorrencias(
     saidasDesdeOCorte,
     novasDesdeOCorte: contagens.novas,
     contagens: {
+      todas: contagens.todas,
       minhas: contagens.minhas,
       emAberto: contagens.emAberto,
       semResponsavel: contagens.semResponsavel,

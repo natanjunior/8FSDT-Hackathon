@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense, use } from "react";
+
 import type { VisibilidadeAplicada } from "@/aplicacao/ocorrencia";
 import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
 
@@ -26,14 +28,26 @@ import { RECORTE_MINHAS, RECORTE_TODAS } from "./rotulos";
  * superfície, texto de tinta, peso e sombra. A palavra continua sendo o sinal, e é o compromisso **A-5**.
  *
  * **Trocar de recorte descarta a paginação.** Conjunto novo, corte novo — `semPaginacao`.
+ *
+ * **As contagens chegam como PROMESSA, e não como número** (item 44p, critério 10). A página monta este
+ * cabeçalho **fora** da fronteira de espera — é o que faz o título pintar antes da lista, e está escrito
+ * lá em `app/(casca)/ocorrencias/page.tsx` desde o item 14b. Esperar os números aqui faria a tela inteira
+ * esperar pela consulta, desfazendo aquela decisão; então o rótulo e o alvo de 44 px aparecem na hora, e
+ * **só o número** fica sob um `Suspense` próprio, que chega junto com a lista.
+ *
+ * **O vazio da espera é vazio mesmo**, e não um traço nem um esqueleto: um placeholder que vira número
+ * meio segundo depois é duas informações onde havia uma.
  */
 export function SeletorDeRecorte({
   consultaAtual,
   visibilidadeAplicada,
+  contagens,
 }: {
   /** A *query string* atual, crua, como a página a recebeu. */
   consultaAtual: string;
   visibilidadeAplicada: VisibilidadeAplicada;
+  /** Os dois números do painel, medidos pela mesma regra — guia §8, item 44p. */
+  contagens: Promise<ContagensDoRecorte>;
 }) {
   const { navegar } = useNavegacaoDaLista();
 
@@ -56,23 +70,56 @@ export function SeletorDeRecorte({
       aria-label="Recorte da lista"
       className="bg-muted w-full rounded-sm p-1 md:w-auto"
     >
-      <Item valor="todas" rotulo={RECORTE_TODAS} />
-      <Item valor="minhas" rotulo={RECORTE_MINHAS} />
+      <Item valor="todas" rotulo={RECORTE_TODAS} contagens={contagens} />
+      <Item valor="minhas" rotulo={RECORTE_MINHAS} contagens={contagens} />
     </ToggleGroup>
   );
 }
 
-function Item({ valor, rotulo }: { valor: string; rotulo: string }) {
+/** Os dois números do painel que este seletor imprime — os dois medem o mesmo conjunto. */
+export type ContagensDoRecorte = { readonly todas: number; readonly minhas: number };
+
+function Item({
+  valor,
+  rotulo,
+  contagens,
+}: {
+  valor: keyof ContagensDoRecorte;
+  rotulo: string;
+  contagens: Promise<ContagensDoRecorte>;
+}) {
   return (
     <ToggleGroupItem
       value={valor}
       className={[
-        "text-interface text-tinta-suave min-h-11 flex-1 rounded-sm px-3 font-normal md:flex-none",
+        "text-interface text-tinta-suave min-h-11 flex-1 gap-2 rounded-sm px-3 font-normal md:flex-none",
         "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold",
         "data-[state=on]:shadow-sm",
       ].join(" ")}
     >
       {rotulo}
+      <Suspense fallback={null}>
+        <Quantos valor={valor} contagens={contagens} />
+      </Suspense>
     </ToggleGroupItem>
+  );
+}
+
+/**
+ * **A mesma peça de T-08, T-09 e T-14** (`lista-de-ordem-manual.tsx:176-178`), e o número fica DENTRO do
+ * nome acessível, como lá: esconder de quem usa leitor de tela um número que está na tela seria
+ * negar-lhe o que todo mundo vê.
+ */
+function Quantos({
+  valor,
+  contagens,
+}: {
+  valor: keyof ContagensDoRecorte;
+  contagens: Promise<ContagensDoRecorte>;
+}) {
+  return (
+    <span className="bg-background text-tinta-suave text-meta rounded-full px-1.5 font-mono font-medium tabular-nums">
+      {use(contagens)[valor]}
+    </span>
   );
 }
