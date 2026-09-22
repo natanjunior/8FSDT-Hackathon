@@ -1129,3 +1129,39 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
     expect(achados).toStrictEqual([]);
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 44o — T-02, T-10 e a tela de criar, na moldura das telas fora da casca
+ * ============================================================================
+ *
+ * **Cada tarefa do plano acrescenta as guardas dela a este bloco**, e as do alcance inteiro — tamanhos,
+ * controles crus, a moldura declarada fora dela — chegam por último, quando todos os arquivos existem.
+ */
+const MOLDURA_DE_CONTA = "src/interface/componentes/moldura-de-conta.tsx";
+
+describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
+  it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    // A moldura e a espera desenham a mesma página e a mesma coluna. Se uma delas voltar a escrever as
+    // classes à mão, o esqueleto passa a pintar numa forma e a tela em outra.
+    expect([...fonte.matchAll(/className=\{PAGINA\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/className=\{COLUNA\}/gu)]).toHaveLength(2);
+    expect(fonte).toContain("export function EsperaDaMolduraDeConta");
+  });
+
+  it("o caminho tem o piso de 44 px, e o Sair é o Button do catálogo num formulário (critério 44o.15)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("min-h-11");
+    expect(fonte).toContain("<form action={acaoDeSair}>");
+    expect(fonte).toMatch(/<Button\s+type="submit"\s+variant="link"/u);
+  });
+
+  it("a linha de fato aceita nó, e o corpo do cartão é opcional (critérios 44o.7 e 44o.9)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect(fonte).toContain("contexto?: ReactNode;");
+    expect(fonte).toContain("children?: ReactNode;");
+    expect(fonte).toContain("{temCorpo && (");
+  });
+});
