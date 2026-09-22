@@ -13,7 +13,8 @@ import {
   enviarComentario,
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
-import { autoria, dataHora } from "@/interface/componentes/linha-do-tempo";
+import { dataEHora } from "@/interface/componentes/datas";
+import { autoria } from "@/interface/componentes/linha-do-tempo";
 import {
   avisarErro,
   avisarSucesso,
@@ -257,7 +258,7 @@ function ListaDeMensagens({
                 {autoria(
                   mensagem.autor.nome,
                   mensagem.autor.pessoaId === pessoaIdDeQuemLe,
-                  dataHora(mensagem.criadoEm),
+                  dataEHora(mensagem.criadoEm),
                 )}
               </span>
               {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa

@@ -16,11 +16,11 @@ import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
 import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
+import { dataEHora } from "@/interface/componentes/datas";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
   autoria,
-  dataHora,
   fraseDaAtribuicao,
   fraseDaMensagem,
   fraseDaTransicao,
@@ -652,7 +652,7 @@ export default async function Ocorrencia({
               {autoria(
                 detalhe.ultimaTransicao.autor.nome,
                 detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
-                dataHora(detalhe.ultimaTransicao.ocorreuEm),
+                dataEHora(detalhe.ultimaTransicao.ocorreuEm),
               )}
             </p>
             {detalhe.ultimaTransicao.observacao !== null && (
@@ -737,7 +737,7 @@ export default async function Ocorrencia({
 
               <dt className="font-medium">Quando</dt>
               {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC. */}
-              <dd className="font-mono">{dataHora(detalhe.registradaEm)}</dd>
+              <dd className="font-mono">{dataEHora(detalhe.registradaEm)}</dd>
             </dl>
           </section>
         </div>
@@ -940,7 +940,7 @@ async function LinhaDoTempo({
                 {autoria(
                   evento.autor.nome,
                   evento.autor.pessoaId === pessoaIdDeQuemLe,
-                  dataHora(evento.ocorridoEm),
+                  dataEHora(evento.ocorridoEm),
                 )}
               </span>
               <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
@@ -1029,7 +1029,7 @@ async function ReguaComDatas({
    */
   const transicoes = (await eventos).flatMap((evento) =>
     evento.tipo === "transicao"
-      ? [{ status: evento.transicao.statusNovo, em: dataHora(evento.ocorridoEm) }]
+      ? [{ status: evento.transicao.statusNovo, em: dataEHora(evento.ocorridoEm) }]
       : [],
   );
 

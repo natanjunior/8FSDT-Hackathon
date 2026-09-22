@@ -62,14 +62,15 @@ export function tempoCurto(iso: string, agora: number): string {
  * A hora do corte da listagem — `09h14`.
  *
  * **O fuso é escrito, e não herdado do contêiner.** É o mesmo argumento de `dataHoraComSegundos` e de
- * `linha-do-tempo.ts`: o servidor roda em UTC, e um produto de condomínio brasileiro tem um fuso.
+ * `datas.ts`: o servidor roda em UTC, e um produto de condomínio brasileiro tem um fuso.
  * Herdá-lo do contêiner faria a linha de deriva nomear a hora errada.
  *
  * **`hourCycle: "h23"`** é o que garante `00h00` em vez de `24h00`.
  *
- * **O separador é `h`, e não `:`** — aqui a hora aparece no meio de uma frase, e não como carimbo. É a
- * mesma escolha que `linha-do-tempo.ts` fez pela mesma razão, e a oposta da trilha de auditoria, que
- * responde *"prove"*.
+ * **O separador é `h`, e não `:`** — aqui a hora aparece **no meio de uma frase** ("o corte foi às 09h14"),
+ * e não como carimbo de coluna. É o oposto da trilha de auditoria, que responde "prove" e escreve
+ * `09:14:02`. **O formato de data COM hora do produto é um só** (`datas.ts`, item 44p); isto é hora
+ * sozinha, e o guia §7 não a alcança.
  */
 const CORTE = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
