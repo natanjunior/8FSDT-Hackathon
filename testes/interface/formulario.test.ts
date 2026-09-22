@@ -1212,4 +1212,22 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(fonte).toContain('href="/organizacao?entrar-em-outra=true"');
     expect(fonte).toContain("<CaminhoDeSair />");
   });
+
+  it("a face E tem duas portas, e nenhuma é o seletor de organização (critério 44o.14)", () => {
+    // **O achado A3 da spec:** desde o 44b o único produtor deste endereço era o menu de organização de
+    // T-10, e só o Encarregado cai em T-10. Esta guarda impede que ele volte a ter uma porta só — ou
+    // nenhuma.
+    const produtores = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
+      ler(caminho).includes("entrar-em-outra=true"),
+    );
+    expect(produtores).toStrictEqual([
+      "app/page.tsx",
+      "src/interface/componentes/casca/menu-de-pessoa.tsx",
+    ]);
+    // O seletor é `select` pelo critério 44b.4, e uma opção que não é um valor desfaria aquela decisão.
+    expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toContain(
+      "Entrar em outra organização",
+    );
+    expect(ler("src/interface/componentes/casca/menu-de-pessoa.tsx")).toContain("<Building2");
+  });
 });
