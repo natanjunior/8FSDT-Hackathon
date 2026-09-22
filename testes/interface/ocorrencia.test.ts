@@ -71,12 +71,14 @@ import {
 import { lerOCiclo } from "@/interface/componentes/ciclo";
 import { enviarComentario, executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import {
+  avisoDoRegistro,
   errosDoRegistro,
   FOTO,
   FRASES_DA_FOTO,
   FRASES_DO_SERVIDOR,
   rotuloDoTipoDeArea,
   temAlgoEscrito,
+  TEXTOS_DO_REGISTRO,
   VALORES_VAZIOS,
   vazioDoRegistro,
   type ValoresDoRegistro,
@@ -3540,3 +3542,51 @@ describe("os quatro desfechos do controle de foto — critério 51.8", () => {
   });
 });
 
+/**
+ * ============================================================================
+ *  O aviso do registro, e a foto que não foi junto — o critério 51.9
+ * ============================================================================
+ *
+ * **O DG-5 continua valendo:** foto vazia ou falhada manda sem anexo, e isso é desfecho legítimo. O que
+ * muda é o silêncio. Quem escolheu uma foto, viu vermelho e registrou ficava sem saber se ela foi.
+ *
+ * **Segurar o registro foi recusado na spec**: transformaria indisponibilidade de armazenamento em
+ * indisponibilidade de registrar ocorrência, que é a capacidade central do enunciado.
+ */
+describe("o aviso do registro — critério 51.9", () => {
+  it("sem foto nenhuma, é o aviso de sucesso de sempre", () => {
+    expect(avisoDoRegistro("vazio", false)).toStrictEqual({
+      forma: "sucesso",
+      titulo: TEXTOS_DO_REGISTRO.sucesso,
+    });
+  });
+
+  it("com a foto pronta, é o aviso de sucesso de sempre", () => {
+    expect(avisoDoRegistro("pronta", true)).toStrictEqual({
+      forma: "sucesso",
+      titulo: TEXTOS_DO_REGISTRO.sucesso,
+    });
+  });
+
+  it("com a foto falhada, avisa que a ocorrência foi sem ela", () => {
+    expect(avisoDoRegistro("falhou", false)).toStrictEqual({
+      forma: "atencao",
+      titulo: TEXTOS_DO_REGISTRO.semFoto,
+      descricao: TEXTOS_DO_REGISTRO.semFotoApoio,
+    });
+  });
+
+  it("subindo e a promessa não entregou referência, avisa igual", () => {
+    expect(avisoDoRegistro("subindo", false)).toStrictEqual({
+      forma: "atencao",
+      titulo: TEXTOS_DO_REGISTRO.semFoto,
+      descricao: TEXTOS_DO_REGISTRO.semFotoApoio,
+    });
+  });
+
+  it("o aviso de atenção fica até ser fechado, e é por isso que ele não é um sucesso comum", () => {
+    // `router.replace` leva a pessoa para T-05 no mesmo instante. Um aviso de quatro segundos numa tela
+    // que acabou de trocar é um aviso que ninguém leu.
+    expect(avisoDoRegistro("falhou", false).forma).toBe("atencao");
+  });
+});

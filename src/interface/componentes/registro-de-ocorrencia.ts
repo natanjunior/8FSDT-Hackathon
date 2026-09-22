@@ -3,10 +3,10 @@
  *  As regras e as palavras de T-04 — item 44l
  * ============================================================================
  *
- * **Nenhum `import`, e é de propósito**, pela mesma razão de `busca-de-candidatos.ts` e de `ciclo.ts`: o
- * arquivo não conhece React, não conhece `next` e não conhece o Domínio, atravessa a fronteira
- * servidor/cliente sem arrastar nada, e é testável num projeto que roda `environment: "node"` e não
- * renderiza componente (ADR-0008).
+ * **Um único `import`, e ele é de tipo**, o que o `verbatimModuleSyntax` apaga na compilação: o arquivo
+ * continua não conhecendo React, `next` nem o Domínio, continua atravessando a fronteira servidor/cliente
+ * sem arrastar nada, e continua testável num projeto que roda `environment: "node"` (ADR-0008). O que ele
+ * importa é a **forma** do aviso, que `avisoDoRegistro` devolve.
  *
  * **Toda palavra que T-04 diz mora aqui.** O que fica dentro do `.tsx` não tem teste nenhum; trocar uma
  * frase passa a ser trocar uma constante com caso.
@@ -17,6 +17,8 @@
  *
  * **As frases de erro do servidor são as do `inventario-de-telas.md` §7, e nenhuma é inventada aqui.**
  */
+
+import type { AvisoDeConclusao } from "@/interface/componentes/retorno-de-acao";
 
 export type ValoresDoRegistro = {
   readonly titulo: string;
@@ -71,6 +73,8 @@ export const AJUDA_DA_DESCRICAO = "Uma ou duas frases bastam.";
 /** Os dois títulos do aviso flutuante. O de erro diz **o que foi tentado** (`retorno-de-acao.ts`). */
 export const TEXTOS_DO_REGISTRO = {
   sucesso: "Ocorrência registrada",
+  semFoto: "Ocorrência registrada sem a foto",
+  semFotoApoio: "A foto não subiu.",
   falha: "Não foi possível registrar a ocorrência",
 } as const;
 
@@ -273,3 +277,20 @@ export const REGISTRAR = "Registrar ocorrência";
 export const REGISTRANDO = "Registrando…";
 export const CANCELAR = "Cancelar";
 
+/** Os quatro estados que o controle de foto anuncia ao formulário. */
+export type NomeDoAnexo = "vazio" | "subindo" | "pronta" | "falhou";
+
+/**
+ * Qual aviso sai depois do `201`.
+ *
+ * **A decisão mora aqui e não num ternário dentro do JSX**, que é a forma que os itens 20 e 21 fixaram —
+ * e é o que torna o critério 51.9 conferível sem biblioteca de componente.
+ *
+ * **`vazio` não avisa**: quem nunca escolheu foto não perdeu nada. Avisar ali seria falar de uma ausência
+ * que a pessoa escolheu.
+ */
+export function avisoDoRegistro(anexo: NomeDoAnexo, subiu: boolean): AvisoDeConclusao {
+  return anexo !== "vazio" && !subiu
+    ? { forma: "atencao", titulo: TEXTOS_DO_REGISTRO.semFoto, descricao: TEXTOS_DO_REGISTRO.semFotoApoio }
+    : { forma: "sucesso", titulo: TEXTOS_DO_REGISTRO.sucesso };
+}

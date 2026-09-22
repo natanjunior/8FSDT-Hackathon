@@ -17,6 +17,7 @@ import { ControleDeFoto, type EstadoDoAnexo } from "@/interface/componentes/cont
 import { IconeDeCategoria } from "@/interface/componentes/icone-de-categoria";
 import {
   AJUDA_DA_DESCRICAO,
+  avisoDoRegistro,
   BLOCOS,
   CAMPOS_DO_REGISTRO,
   CANCELAR,
@@ -39,7 +40,7 @@ import {
   VALORES_VAZIOS,
   type ValoresDoRegistro,
 } from "@/interface/componentes/registro-de-ocorrencia";
-import { avisarErro, avisarSucesso, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { avisarConclusao, avisarErro, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import { SeletorDeArea, type AreaEscolhivel } from "@/interface/componentes/seletor-de-area";
 import {
   AlertDialog,
@@ -240,7 +241,7 @@ export function FormularioDeOcorrencia({
          * **T-05 da ocorrência criada, nunca de volta ao formulário** (critério 11.5), e `replace` e não
          * `push`: o botão "voltar" do navegador não deve reabrir um formulário já enviado.
          */
-        avisarSucesso(TEXTOS_DO_REGISTRO.sucesso);
+        avisarConclusao(avisoDoRegistro(anexo.nome, referencia !== null));
         router.replace(`/ocorrencias/${criada.id}`);
         return;
       }
