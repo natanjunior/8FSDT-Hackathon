@@ -5,8 +5,9 @@ description: "A quantidade de teste segue a natureza do que ele protege, e não 
 
 # ADR-0008 — A suíte de testes segue onde mora a garantia, não a pirâmide
 
-**Status:** Aceita · 22/08/2026 · Complementa a [ADR-0005](0005-regra-de-dependencia-por-inversao.md),
-que é o que a tornou possível
+**Status:** Aceita · 22/08/2026 · Parcialmente substituída pela
+[ADR-0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) · Complementa a
+[ADR-0005](0005-regra-de-dependencia-por-inversao.md), que é o que a tornou possível
 
 ## Contexto
 
