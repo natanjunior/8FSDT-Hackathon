@@ -1298,4 +1298,31 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(pagina).not.toContain("obrigatorio erro=");
     expect(pagina).toContain("obrigatorios={0}");
   });
+
+  it("a coluna TEMPO não repete o mesmo valor, e o símbolo tem nome (critério 44p.12)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+
+    // A comparação é sobre o INSTANTE, não sobre o texto de `tempoCurto`: comparar o texto esconderia uma
+    // atualização de meia hora atrás sempre que as duas caíssem no mesmo "3 d" — e é numa ocorrência
+    // tocada há pouco que a coluna tem o que dizer.
+    expect(fonte).toContain("item.registradaEm !== item.atualizadaEm");
+
+    // Os DOIS valores ganham nome. Nomear só o segundo faz o leitor de tela ler "5 d, atualizada 2 h",
+    // com o primeiro número solto.
+    expect(fonte).toContain("sr-only");
+    expect(fonte).toContain("registrada");
+    expect(fonte).toContain("atualizada");
+  });
+
+  it("T-16 e T-04 têm espera, e o produto ganha as duas que faltavam (critério 44p.6)", () => {
+    expect(existsSync(RAIZ + "app/(casca)/meus-dados/loading.tsx")).toBe(true);
+    expect(existsSync(RAIZ + "app/(foco)/ocorrencias/nova/loading.tsx")).toBe(true);
+
+    // **A guarda conta as esperas e NÃO fixa o número de páginas**, e isso é medido: o critério fala de
+    // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
+    // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
+    // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
+    expect(esperas).toHaveLength(12);
+  });
 });
