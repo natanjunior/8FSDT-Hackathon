@@ -18,9 +18,10 @@ import { cn } from "@/interface/componentes/utilitarios";
  * | O contador *"20 / 120"* à direita do rótulo (item 44i) | `Campo`, propriedade `contador` |
  * | O rodapé da página própria, preso ao fim do conteúdo (item 44j) | `RodapeDaPagina` |
  *
- * **O `Campo` morava em `moldura-de-tela.tsx`**, e a moldura é das telas de credencial; o campo é do
- * produto inteiro. Os compromissos que ele já cumpria continuam: **A-1** (rótulo ligado ao controle por
- * `htmlFor`, e por isso `id` é obrigatório) e **A-5** (o erro é texto, e o ícone só acompanha).
+ * **O `Campo` morava na moldura antiga das telas de celular** até o item 44g; o campo é do produto
+ * inteiro, e aquela moldura foi apagada no 44o. Os compromissos que ele já cumpria continuam: **A-1**
+ * (rótulo ligado ao controle por `htmlFor`, e por isso `id` é obrigatório) e **A-5** (o erro é texto, e o
+ * ícone só acompanha).
  *
  * **O `*` é `aria-hidden`.** O nome acessível do campo continua sendo o rótulo, e quem diz que o campo é
  * obrigatório ao leitor de tela é o `aria-required` do controle. A nota do rodapé diz o que o asterisco
@@ -208,8 +209,8 @@ export function ErroDoFormulario({ children }: { children: ReactNode }) {
 /**
  * A faixa que fala do formulário inteiro, e não de um campo.
  *
- * **Morava em `moldura-de-tela.tsx`** até o item 44m, e mudou de casa pela razão que mudou o `Campo` no
- * 44g: aquele arquivo passou a ser a moldura de T-02 e de T-10, e a faixa é do produto inteiro.
+ * **Morava na moldura antiga das telas fora da casca** até o item 44m, e mudou de casa pela razão que
+ * mudou o `Campo` no 44g: a faixa é do produto inteiro. A moldura antiga foi apagada no 44o.
  *
  * `tom="recusa"` é o erro, e desenha o mesmo `ErroDoFormulario` do resto do produto. `tom="nota"` é o
  * aviso que **não** é erro — *"Conta confirmada."*, *"Você já está em …"* — e desde o 44m ele também

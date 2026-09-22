@@ -969,16 +969,6 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
     expect(achados).toStrictEqual([]);
   });
 
-  it("as quatro telas saíram da moldura de credencial (critério 44m.2)", () => {
-    // **A guarda do 44l.14 vivia num `it` próprio e foi absorvida por esta**, que afirma a mesma coisa
-    // com a lista de hoje: T-04 saiu da moldura no 44l, e as quatro telas de credencial saíram no 44m.
-    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
-      ler(caminho).includes("MolduraDeTela"),
-    );
-    // **Só ela mesma.** T-10 e T-02 saíram da moldura antiga no 44o, e ela é apagada na tarefa seguinte.
-    expect(comMoldura).toStrictEqual(["src/interface/componentes/moldura-de-tela.tsx"]);
-  });
-
   it("a nota do rodapé sai das quatro, e o asterisco fica (critério 44m.5)", () => {
     const formularios = ALCANCE_DO_44M.filter((caminho) => caminho.includes("formulario-de-"));
     expect(formularios).toHaveLength(4);
@@ -1011,11 +1001,11 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
   });
 
   it("a marca do alcance vem da peça, e nenhum arquivo dele a escreve (critério 44m.1)", () => {
-    // **A guarda é escopada ao alcance de propósito.** A busca por "Resolve Aí" em `app` e `src` devolve
-    // dez linhas, e quatro delas desenham a marca à mão, no estilo anterior ao 44b:
-    // `auditoria/loading.tsx`, `auditoria/page.tsx`, `organizacao/loading.tsx` e `moldura-de-tela.tsx`.
-    // **Nenhuma é deste item** — é o achado R-1 da revisão —, e uma guarda global falharia por defeito
-    // que o 44m não criou nem tem mandato para consertar.
+    // **A guarda é escopada ao alcance de propósito.** Quatro arquivos desenhavam a marca à mão, no
+    // estilo anterior ao 44b — é o achado R-1 da revisão —, e os quatro já saíram: as duas telas de
+    // auditoria no 44n, a espera de T-02 e a moldura antiga no 44o. A guarda continua escopada porque
+    // "Resolve Aí" em `app` e `src` também é texto legítimo — o `metadata`, a documentação e a pergunta
+    // da face A de T-02, que cita o produto pelo nome.
     for (const caminho of [
       "src/interface/componentes/casca/barra-superior.tsx",
       "src/interface/componentes/moldura-de-conta.tsx",
@@ -1107,8 +1097,9 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
     // **A guarda é escopada a `app/(casca)`, e é de propósito** — pelo mesmo argumento que o 44m já
     // escreveu ao lado da dele: a busca por "Resolve Aí" em `app` inteiro devolve sete linhas, e cinco
     // não são deste item (o `metadata` do layout raiz, as duas da documentação e as duas de
-    // `app/organizacao/`, que morrem com a moldura antiga no 44o). Uma guarda global falharia por defeito
-    // que o 44n não criou nem tem mandato para consertar.
+    // `app/organizacao/`: a marca à mão da espera saiu no 44o, e a pergunta da face A cita o produto pelo
+    // nome, e fica). Uma guarda global falharia por defeito que o 44n não criou nem tem mandato para
+    // consertar.
     //
     // **Dentro da casca, estas duas eram as últimas.** A barra superior é quem carrega a marca.
     const sobras = arquivosDe("app/(casca)").filter((caminho) => ler(caminho).includes("Resolve Aí"));
@@ -1300,5 +1291,17 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     const fonte = ler("app/organizacao/loading.tsx");
     expect(fonte).toContain("<EsperaDaMolduraDeConta>");
     expect(fonte).toContain("Acordando o servidor — a primeira abertura do dia é mais lenta.");
+  });
+
+  it("a moldura antiga saiu do produto, nem em comentário (critério 44o.2)", () => {
+    // **Absorve a guarda do critério 44m.2**, que afirmava os arquivos com a moldura antiga — T-02, T-10
+    // e ela mesma. Os três saíram neste item. O caminho entra na busca porque um comentário que cite o
+    // arquivo apagado mente a quem o procurar.
+    expect(existsSync(RAIZ + "src/interface/componentes/moldura-de-tela.tsx")).toBe(false);
+    const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes("MolduraDeTela") || fonte.includes("moldura-de-tela");
+    });
+    expect(comMoldura).toStrictEqual([]);
   });
 });
