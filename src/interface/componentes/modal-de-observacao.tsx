@@ -111,7 +111,7 @@ export function ModalDeObservacao({
              { width: auto }` do protótipo, e dispensa apostar em como o navegador resolve `w-full`
              dentro de um invólucro `flex-none`. */
           className={
-            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+            variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
           }
         >
           {rotuloDoGatilho}

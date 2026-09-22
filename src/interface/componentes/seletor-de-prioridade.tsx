@@ -143,7 +143,7 @@ export function SeletorDePrioridade({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor={campoId} className="text-tinta-suave text-sm font-medium">
+        <label htmlFor={campoId} className="text-tinta-suave text-interface font-medium">
           Prioridade
         </label>
         <select
@@ -166,7 +166,7 @@ export function SeletorDePrioridade({
       {aviso !== null && (
         <p
           role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
+          className="border-marca/40 bg-accent text-tinta text-interface rounded-md border px-3 py-2"
         >
           {aviso}
         </p>
@@ -176,7 +176,7 @@ export function SeletorDePrioridade({
           a novidade é a disponibilidade do desfazer, não só a frase. Sem temporizador: a linha sai por
           ação. */}
       {desfazer !== null && aviso === null && (
-        <p role="status" className="text-tinta-suave flex flex-wrap items-center gap-2 text-xs">
+        <p role="status" className="text-tinta-suave text-meta flex flex-wrap items-center gap-2">
           Prioridade alterada de {palavraDe(desfazer.de)} para {palavraDe(desfazer.para)}.
           <button
             type="button"

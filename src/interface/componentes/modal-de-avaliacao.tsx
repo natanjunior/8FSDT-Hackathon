@@ -133,7 +133,7 @@ export function ModalDeAvaliacao({
           type="button"
           variant={variante === "primario" ? "marca" : "outline"}
           className={
-            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+            variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
           }
         >
           Avaliar
@@ -155,7 +155,7 @@ export function ModalDeAvaliacao({
               <label
                 key={opcao.valor}
                 htmlFor={id}
-                className="border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
+                className="border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2"
               >
                 <input
                   type="radio"

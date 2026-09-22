@@ -1163,4 +1163,37 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain('<form action={acaoDeSair}>');
     expect(fonte).toContain('variant="ghost"');
   });
+
+  it("nenhum tamanho fora dos sete papéis, fora do catálogo (critério 44p.2)", () => {
+    // **O 44o é quem limpa o resto.** `app/organizacao/`, `app/page.tsx`, `menu-de-organizacao`,
+    // `formulario-de-pedido-de-entrada`, `formulario-de-nova-organizacao` e `moldura-de-tela` — que o
+    // plano dele APAGA — somam trinta ocorrências que não são deste item. Enquanto ele não mesclar, esta
+    // guarda seria vermelha por defeito alheio; por isso ela exclui o que é dele, por caminho, e o
+    // critério 44p.2 só fecha de verdade depois do merge do 44o.
+    const DO_44O = [
+      "app/organizacao/",
+      "app/page.tsx",
+      "src/interface/componentes/menu-de-organizacao.tsx",
+      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-nova-organizacao.tsx",
+      "src/interface/componentes/moldura-de-tela.tsx",
+    ];
+
+    // **`utilitarios.ts` sai da conta, e é o único que sai por mérito próprio.** `arquivosDe` lê `.ts`
+    // junto de `.tsx`, e as quatro ocorrências dele são o comentário que explica por que o `cn` estendido
+    // existe: *"o `text-sm` do catálogo — que está fora da escala — sobrevive"*. É o arquivo que declara a
+    // escala; reescrever a frase para não escrever a classe apagaria a explicação, ao contrário do
+    // comentário de `navegacao.tsx`, que continua dizendo a mesma coisa sem ela.
+    const achados = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")]
+      .filter((caminho) => !caminho.startsWith("src/interface/componentes/ui/"))
+      .filter((caminho) => caminho !== "src/interface/componentes/utilitarios.ts")
+      .filter((caminho) => !DO_44O.some((dele) => caminho.startsWith(dele)))
+      .flatMap((caminho) =>
+        [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+          (achado) => `${caminho}: ${achado[0]}`,
+        ),
+      );
+
+    expect(achados).toStrictEqual([]);
+  });
 });

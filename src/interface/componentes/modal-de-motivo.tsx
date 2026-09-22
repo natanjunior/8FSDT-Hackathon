@@ -192,7 +192,7 @@ export function ModalDeMotivo({
            { width: auto }` do protótipo, e dispensa apostar em como o navegador resolve `w-full`
            dentro de um invólucro `flex-none`. */
         className={
-          variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+          variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
         }
       >
         {rotuloDoGatilho}
@@ -224,7 +224,7 @@ export function ModalDeMotivo({
                 /* **`items-start` só quando há descrição**, para o rádio alinhar com a PRIMEIRA linha em
                    vez de centralizar num bloco de duas. `min-h-11` continua nos dois casos, e o alvo de
                    toque cresce em vez de encolher (A-3). */
-                className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 text-sm ${
+                className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 ${
                   motivo.descricao === undefined ? "items-center py-2" : "items-start py-2.5"
                 }`}
               >
@@ -249,7 +249,7 @@ export function ModalDeMotivo({
                 <span className="flex flex-col gap-0.5">
                   <span className="text-tinta">{motivo.rotulo}</span>
                   {motivo.descricao !== undefined && (
-                    <span className="text-tinta-suave text-xs leading-relaxed">
+                    <span className="text-tinta-suave text-meta leading-relaxed">
                       {motivo.descricao}
                     </span>
                   )}

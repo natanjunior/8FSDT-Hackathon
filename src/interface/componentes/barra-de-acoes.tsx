@@ -223,7 +223,7 @@ export function BarraDeAcoes({
                     variant={ehPrimario ? "marca" : "outline"}
                     disabled={enviando}
                     onClick={() => void disparar(acao)}
-                    className={`h-12 text-base lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
+                    className={`text-interface h-12 lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
                   >
                     <IndicadorDeEnvio ativo={enviando} />
                     {enviando ? "Enviando…" : acao.rotulo}
@@ -240,7 +240,7 @@ export function BarraDeAcoes({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-12 flex-none text-base lg:w-full"
+                    className="text-interface h-12 flex-none lg:w-full"
                   >
                     Mais ações ▾
                   </Button>

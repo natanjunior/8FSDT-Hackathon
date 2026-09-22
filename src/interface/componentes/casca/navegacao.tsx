@@ -204,7 +204,7 @@ export function Navegacao({
  * 48,5 px — `text-interface` e `text-meta` em `leading-tight` somam 32,5. Meio pixel de corte, e ele cai
  * no descendente da linha de apoio. Com a altura decidida pelo conteúdo o caso some.
  *
- * **`text-interface` vence o `text-sm`** do `cva` pelo `cn` estendido, que declara os sete papéis da
+ * **`text-interface` vence o padrão do `cva`** pelo `cn` estendido, que declara os sete papéis da
  * escala como `font-size`.
  *
  * **O movimento usa a forma de parêntese**, `duration-(--tempo-ponteiro)`, e não a de colchete:

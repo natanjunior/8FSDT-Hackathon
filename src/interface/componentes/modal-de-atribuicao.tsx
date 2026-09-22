@@ -174,7 +174,7 @@ export function ModalDeAtribuicao({
 
     return (
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-tinta-fraca px-0 pb-1 text-xs tracking-wide uppercase">
+        <legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 tracking-wide uppercase">
           {titulo}
         </legend>
         {lista.map((pessoa) => {
@@ -185,7 +185,7 @@ export function ModalDeAtribuicao({
             <label
               key={pessoa.pessoaId}
               htmlFor={id}
-              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
                 atual ? "opacity-60" : "cursor-pointer"
               }`}
             >
@@ -204,7 +204,7 @@ export function ModalDeAtribuicao({
               <span className="flex flex-col">
                 {/* **Nome por extenso** — abreviar não está autorizado em documento nenhum (R-12). */}
                 <span className="text-tinta font-medium">{pessoa.nome}</span>
-                <span className="text-tinta-suave text-xs">
+                <span className="text-tinta-suave text-meta">
                   {pessoa.papel}
                   {pessoa.area !== null && ` · ${pessoa.area}`}
                   {/* **A-5:** o estado vai em palavra, nunca só em cor. */}
@@ -261,7 +261,7 @@ export function ModalDeAtribuicao({
             /* **A largura vem da variante desde o item 22** — o invólucro do secundário é `flex-none`,
                e `w-auto` é `.actionbar .btn.ghost { width: auto }` do protótipo. */
             className={
-              variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+              variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
             }
           >
             {palavras.gatilho}
@@ -296,7 +296,7 @@ export function ModalDeAtribuicao({
           {eu !== null && (
             <label
               htmlFor={`candidato-${eu.pessoaId}`}
-              className={`border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
                 euSouOResponsavel ? "opacity-60" : "cursor-pointer"
               }`}
             >
@@ -316,7 +316,7 @@ export function ModalDeAtribuicao({
                 <span className="text-tinta font-medium">Atribuir a mim</span>
                 {/* A sub-linha faz a fileira PARECER o que ela é, e diz ao Gestor de três organizações em
                     qual identidade ele está prestes a se atribuir. */}
-                <span className="text-tinta-suave text-xs">
+                <span className="text-tinta-suave text-meta">
                   {eu.nome} · {eu.papel}
                   {eu.area !== null && ` · ${eu.area}`}
                   {euSouOResponsavel && " · Responsável atual"}
@@ -338,7 +338,7 @@ export function ModalDeAtribuicao({
           */}
           <div className="flex flex-col gap-1.5">
             {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
-            <label htmlFor={campoDeBuscaId} className="text-tinta text-sm font-medium">
+            <label htmlFor={campoDeBuscaId} className="text-tinta text-interface font-medium">
               Buscar pelo nome
             </label>
             <Input
@@ -370,7 +370,7 @@ export function ModalDeAtribuicao({
 
               **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
             */}
-            {nadaEncontrado && <p className="text-tinta-suave text-sm">Ninguém com esse nome.</p>}
+            {nadaEncontrado && <p className="text-tinta-suave text-corpo">Ninguém com esse nome.</p>}
           </div>
         </GrupoDeEscolha>
 

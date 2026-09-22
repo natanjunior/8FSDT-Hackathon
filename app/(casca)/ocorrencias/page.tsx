@@ -325,7 +325,7 @@ async function Lista({
          * por um link filtrado que um Gestor compartilhou (critério 15.3). Sem esta saída, ele fica preso
          * num recorte que não sabe que existe.
          */
-        <p className="border-linha border-b px-4 py-3 text-sm">
+        <p className="border-linha text-interface border-b px-4 py-3">
           <Link href="/ocorrencias" className="text-marca underline underline-offset-4">
             Limpar filtros
           </Link>
@@ -439,13 +439,13 @@ async function Lista({
 function FiltroInvalido() {
   return (
     <div className="border-linha bg-superficie rounded-lg border px-4 py-10 text-center shadow-sm">
-      <h2 className="text-tinta text-base font-medium">Este link tem um filtro que não existe.</h2>
-      <p className="text-tinta-suave mt-1 text-sm">
+      <h2 className="text-tinta text-titulo-bloco font-medium">Este link tem um filtro que não existe.</h2>
+      <p className="text-tinta-suave text-corpo mt-1">
         Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
       </p>
       <Link
         href="/ocorrencias"
-        className="text-marca mt-4 inline-block text-sm underline underline-offset-4"
+        className="text-marca text-interface mt-4 inline-block underline underline-offset-4"
       >
         Limpar filtros
       </Link>

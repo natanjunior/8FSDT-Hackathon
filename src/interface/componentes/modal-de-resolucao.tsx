@@ -140,7 +140,7 @@ export function ModalDeResolucao({
           variant={variante === "primario" ? "marca" : "outline"}
           /* **A largura vem da variante, não do *shrink-to-fit*** — a geometria que o item 22 firmou. */
           className={
-            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+            variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
           }
         >
           Resolver
