@@ -14,6 +14,7 @@ export { criarConsulta, criarTransacao, type Consulta, type Transacao } from "./
 export {
   criarArmazenamentoDeAnexos,
   criarEmissorDeCredencialDeUpload,
+  enderecoDaCadeia,
 } from "./armazenamento";
 export {
   criarAutenticacao,
