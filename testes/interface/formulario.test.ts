@@ -1281,4 +1281,21 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // E onde há campo opcional a nota FICA — a avaliação tem "Comentário (opcional)".
     expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("todosObrigatorios");
   });
+
+  it("a solução aplicada tem um nome só, e ele é o do glossário (critério 44p.19)", () => {
+    const pagina = ler("src/interface/componentes/campo-de-solucao-aplicada.tsx");
+    const modal = ler("src/interface/componentes/modal-de-resolucao.tsx");
+
+    // `docs/glossario.md:46` registra "Solução aplicada" como o termo da linguagem ubíqua. O modal dizia
+    // "O que foi feito (opcional)" para o MESMO dado — ele abre preenchido com o que está na página, pela
+    // D22 —, e quem lia a página entendia que resolver exige a solução.
+    expect(pagina).toContain('rotulo="Solução aplicada"');
+    expect(modal).toContain('rotulo="Solução aplicada"');
+    expect(modal).not.toContain("O que foi feito");
+
+    // A marca de obrigatório sai do campo da página: ele salva quando se tem o que salvar. A propriedade
+    // vive na MESMA linha do `Campo`, entre o rótulo e o `erro` — é essa vizinhança que a guarda lê.
+    expect(pagina).not.toContain("obrigatorio erro=");
+    expect(pagina).toContain("obrigatorios={0}");
+  });
 });

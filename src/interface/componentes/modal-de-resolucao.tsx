@@ -161,7 +161,7 @@ export function ModalDeResolucao({
     >
       {/* **PRIMEIRO campo, em foco.** É a indução da D22, e é o único mecanismo que existe até o
           interruptor por organização nascer. */}
-      <Campo id={campoSolucaoId} rotulo="O que foi feito (opcional)">
+      <Campo id={campoSolucaoId} rotulo="Solução aplicada">
         {(controle) => (
           <Textarea
             {...controle}

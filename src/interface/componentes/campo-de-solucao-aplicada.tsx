@@ -119,7 +119,7 @@ export function CampoDeSolucaoAplicada({
 
   return (
     <section className="flex flex-col gap-2">
-      <Campo id={campoId} rotulo="Solução aplicada" obrigatorio erro={formulario.erroDe("solucao")}>
+      <Campo id={campoId} rotulo="Solução aplicada" erro={formulario.erroDe("solucao")}>
         {(controle) => (
           <Textarea
             {...controle}
@@ -134,14 +134,13 @@ export function CampoDeSolucaoAplicada({
             rows={4}
             /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
             maxLength={4000}
-            placeholder="O que foi feito"
           />
         )}
       </Campo>
 
       {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
 
-      <RodapeDoFormulario obrigatorios={1}>
+      <RodapeDoFormulario obrigatorios={0}>
         <Button
           type="button"
           variant="outline"
