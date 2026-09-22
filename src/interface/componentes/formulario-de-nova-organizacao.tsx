@@ -18,16 +18,21 @@ import { criacaoDeOrganizacaoSchema, errosDoSchema } from "@/interface/schemas";
 const FALHA_DA_CRIACAO = "Não foi possível criar a organização";
 
 /**
- * **T-02 face A, o segundo caminho:** *"Você administra um condomínio, empresa ou bairro que ainda não usa
- * o Resolve Aí?"*
+ * **A tela de criar organização** — `/organizacao/criar`, alcançada pelo caminho abaixo do cartão da face
+ * A de T-02: *"Administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?"*
  *
- * **Um campo de texto, e o inventário diz por que não é uma tela:** *"Criar organização — face de T-02. É
- * um campo de texto. Um campo não é um lugar a visitar"* (§8). A hierarquia da face também é do
- * inventário: quem chega aqui quase sempre está **entrando**, não fundando — por isso este bloco fica
- * **abaixo** da linha divisória.
+ * **Até 20/09/2026 isto era um campo dentro da face A**, e a decisão se defendia dizendo que um campo não
+ * é um lugar a visitar. **O dono a reverteu naquele dia** (critério 44o.4), pela razão que a própria tela
+ * mostrava: o que estava ali não era um campo, eram **dois formulários concorrendo** — o do código, com
+ * três campos, e este. Entrar e criar viraram duas telas, e este componente passou a ser o único
+ * conteúdo da segunda.
+ *
+ * **O botão é o principal da tela** (guia §2), e deixou de ser contorno: era o segundo caminho de uma
+ * tela com dois, e agora é o único.
  *
  * **O nome vazio é erro de campo, e não linha de aviso** (guia §7, item 44g): aparece embaixo do campo,
- * depois da primeira interação, pelo mesmo schema que a rota usa.
+ * depois da primeira interação, pelo mesmo schema que a rota usa. **Sem a nota "campo obrigatório"**
+ * (critério 44o.11): o formulário tem um campo só, e ele é obrigatório.
  */
 export function FormularioDeNovaOrganizacao() {
   const router = useRouter();
@@ -85,9 +90,8 @@ export function FormularioDeNovaOrganizacao() {
       // que o navegador aplica à History API, por exemplo) não pode virar mensagem de erro de criação —
       // a organização já foi criada com sucesso.
       router.refresh();
-      // *"Criar organização leva direto a T-03 com o estado vazio de organização nova"* — inventário,
-      // T-02. Antes ia para `/`, que era o mapa; agora T-03 existe, e é lá que o convite a conferir as
-      // áreas semeadas mora.
+      // Leva direto à lista de ocorrências, no estado vazio de organização nova — o critério 44o.4 manda
+      // que isso não mude. É lá que o convite a conferir as áreas semeadas mora.
       router.push("/ocorrencias");
     }
   }
@@ -118,13 +122,13 @@ export function FormularioDeNovaOrganizacao() {
               autoComplete="organization"
               required
               disabled={enviando}
-              className="h-12 text-base"
+              className="border-linha bg-background min-h-11"
             />
           )}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={1}>
-          <Button type="submit" variant="outline" disabled={enviando} className="h-12 px-6 text-base">
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+          <Button type="submit" variant="marca" disabled={enviando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={enviando} />
             {enviando ? "Criando…" : "Criar uma organização"}
           </Button>

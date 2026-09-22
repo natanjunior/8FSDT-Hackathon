@@ -1139,6 +1139,7 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
  */
 const MOLDURA_DE_CONTA = "src/interface/componentes/moldura-de-conta.tsx";
 const ESCOLHA_DE_ORGANIZACAO = "src/interface/componentes/escolha-de-organizacao.tsx";
+const NOVA_ORGANIZACAO = "src/interface/componentes/formulario-de-nova-organizacao.tsx";
 
 describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
   it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
@@ -1229,5 +1230,31 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
       "Entrar em outra organização",
     );
     expect(ler("src/interface/componentes/casca/menu-de-pessoa.tsx")).toContain("<Building2");
+  });
+
+  it("criar organização é uma tela, com a guarda das outras e sem recusar quem tem organização (critérios 44o.4 e 44o.5)", () => {
+    const fonte = ler("app/organizacao/criar/page.tsx");
+    expect(fonte).toContain("<FormularioDeNovaOrganizacao />");
+    expect(fonte).toContain('titulo="Criar uma organização"');
+    expect(fonte).toContain('href="/organizacao"');
+    expect(fonte).toContain('redirect("/entrar?destino=%2Forganizacao%2Fcriar")');
+    expect(fonte).toContain('export const dynamic = "force-dynamic"');
+    // A rota **não recusa** quem tem organização ativa, porque o caso de uso não recusa.
+    expect(fonte).not.toContain("organizacaoAtiva");
+  });
+
+  it("o botão de criar é o principal, e a nota do rodapé sai (critérios 44o.4 e 44o.11)", () => {
+    const fonte = ler(NOVA_ORGANIZACAO);
+    expect(fonte).not.toContain('variant="outline"');
+    // **Principal é a cor da marca** (guia §2), e a variante padrão do catálogo é `bg-primary`, azul.
+    expect(fonte).toMatch(/<Button\s+type="submit"\s+variant="marca"/u);
+    expect(fonte).toContain("<RodapeDoFormulario obrigatorios={1} todosObrigatorios>");
+  });
+
+  it("o comentário que defendia o campo registra a decisão nova (critério 44o.6)", () => {
+    const fonte = ler(NOVA_ORGANIZACAO);
+    expect(fonte).not.toContain("o inventário diz por que não é uma tela");
+    expect(fonte).toContain("20/09/2026");
+    expect(fonte).toContain("dois formulários");
   });
 });
