@@ -190,6 +190,7 @@ Cada peça, separada:
 | `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |
 | `npm run teste:ponta-a-ponta` | O caminho crítico do enunciado, de fora para dentro — um navegador contra a pilha real, com autenticação de verdade: registrar → analisar → atribuir → atender → resolver → avaliar, mais a trilha conferida na tela e a troca de organização no meio do percurso. É um só, e para sempre ([ADR-0008](docs/adr/0008-a-suite-de-testes-segue-a-garantia.md)); não é portão de pipeline por push |
+| `npm run cobertura` | O alcance da suíte em número, para informar e nunca para reprovar: não há limite mínimo, e nada do portão o consulta. Roda o unitário e o de integração numa execução só, e por isso exige Postgres. Os recortes e a data da última medição estão em [Testes](docs/testes.md) |
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As quatro regras mecânicas do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
