@@ -37,7 +37,7 @@ export const TEXTO_DO_VAZIO: Readonly<Record<TipoDeVazio, { titulo: string; corp
   organizacao: {
     titulo: "Nenhuma ocorrência ainda.",
     corpo:
-      "A organização foi criada com áreas genéricas. Confira se elas descrevem o seu prédio — é a lista " +
+      "A organização foi criada com áreas genéricas. Confira se elas descrevem a sua organização — é a lista " +
       "que o Solicitante vê na hora de registrar.",
   },
   solicitante: {

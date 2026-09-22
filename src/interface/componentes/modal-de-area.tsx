@@ -164,6 +164,7 @@ export function ModalDeArea(props: Props) {
       titulo={props.modo === "criar" ? textos.tituloDeCriar : textos.tituloDeEditar}
       descricao={props.modo === "criar" ? textos.descricaoDeCriar : textos.descricaoDeEditar}
       obrigatorios={2}
+      todosObrigatorios
       aoEnviar={aoEnviar}
       gatilho={
         props.modo === "criar" ? (

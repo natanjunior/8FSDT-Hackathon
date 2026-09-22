@@ -271,15 +271,15 @@ export type FiltroDeContagem = {
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
-   * **Aplicado a `totalFiltrado` e a `novas`; NÃO aos três do painel.** A assimetria é deliberada: os três
-   * do painel respondem *"o que existe para você escolher"* e por isso ignoram o recorte; `totalFiltrado`
+   * **Aplicado a `totalFiltrado` e a `novas`; NÃO aos quatro do painel.** A assimetria é deliberada: os
+   * quatro do painel respondem *"o que existe para você escolher"* e por isso ignoram o recorte; `totalFiltrado`
    * descreve a lista que está na tela, e `novas` responde *"apertar Atualizar vai mudar essa lista"*. Ver
    * o comentário do SQL.
    */
   filtro?: FiltroDeOcorrencias;
 };
 
-/** As cinco contagens, como o repositório as devolve. */
+/** As seis contagens, como o repositório as devolve. */
 export type ContagensLidas = {
   /**
    * O tamanho do conjunto **filtrado**, no corte — o `total` do envelope e o insumo da compensação.
@@ -290,6 +290,12 @@ export type ContagensLidas = {
    * índice, e o número sai da consulta que já ia varrer a partição para o painel.
    */
   totalFiltrado: number;
+  /**
+   * Quantas existem sob a visibilidade de quem pergunta, no corte — **sem** os três filtros de G2 e
+   * **sem** o recorte de autor da página. É a regra de `minhas`, do outro lado: os dois números existem
+   * para o leitor **escolher o recorte**, e por isso medem o mesmo conjunto.
+   */
+  todas: number;
   minhas: number;
   emAberto: number;
   semResponsavel: number;

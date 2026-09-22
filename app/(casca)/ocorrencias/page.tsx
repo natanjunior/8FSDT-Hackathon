@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -183,7 +184,14 @@ export default async function Ocorrencias({
 
           <div className="flex items-center gap-3">
             {podeLerTodas ? (
-              <SeletorDeRecorte consultaAtual={consultaAtual} visibilidadeAplicada={visibilidade} />
+              <SeletorDeRecorte
+                consultaAtual={consultaAtual}
+                visibilidadeAplicada={visibilidade}
+                /* **A promessa desce, e não o número** (item 44p, critério 10): esperá-la aqui faria o
+                   cabeçalho esperar pela consulta, que é exatamente o que a linha acima diz que ele não
+                   faz. O seletor imprime os dois números quando eles chegam, junto com a lista. */
+                contagens={paginaPedida.then((pagina) => pagina.contagens)}
+              />
             ) : (
               /* Critério 44c.9 — as mesmas palavras, no mesmo lugar, sem controle. Parágrafo e não
                  `role="status"`: o texto só muda com a página, e região viva que nunca se atualiza é
@@ -325,7 +333,7 @@ async function Lista({
          * por um link filtrado que um Gestor compartilhou (critério 15.3). Sem esta saída, ele fica preso
          * num recorte que não sabe que existe.
          */
-        <p className="border-linha border-b px-4 py-3 text-sm">
+        <p className="border-linha text-interface border-b px-4 py-3">
           <Link href="/ocorrencias" className="text-marca underline underline-offset-4">
             Limpar filtros
           </Link>
@@ -439,13 +447,13 @@ async function Lista({
 function FiltroInvalido() {
   return (
     <div className="border-linha bg-superficie rounded-lg border px-4 py-10 text-center shadow-sm">
-      <h2 className="text-tinta text-base font-medium">Este link tem um filtro que não existe.</h2>
-      <p className="text-tinta-suave mt-1 text-sm">
+      <h2 className="text-tinta text-titulo-bloco font-medium">Este link tem um filtro que não existe.</h2>
+      <p className="text-tinta-suave text-corpo mt-1">
         Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
       </p>
       <Link
         href="/ocorrencias"
-        className="text-marca mt-4 inline-block text-sm underline underline-offset-4"
+        className="text-marca text-interface mt-4 inline-block underline underline-offset-4"
       >
         Limpar filtros
       </Link>
@@ -510,12 +518,12 @@ function Vazio({
           </Link>
         )}
         {/* O primeiro convite é o que importa: a organização nasce com áreas-semente genéricas, e **a
-            primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve o
-            prédio**. */}
+            primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve a
+            organização**. */}
         {tipo === "organizacao" && podeConfigurar && (
           <Link
             href="/configuracao/areas"
-            className="border-marca bg-accent text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+            className={cn(buttonVariants({ variant: "marca" }), "text-interface min-h-11 px-4")}
           >
             Conferir as áreas
           </Link>
@@ -523,9 +531,10 @@ function Vazio({
         {podeRegistrar && (
           <Link
             href="/ocorrencias/nova"
-            className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+            className={cn(buttonVariants({ variant: "outline" }), "text-interface min-h-11 px-4")}
           >
-            {tipo === "organizacao" ? "+ Registrar a primeira" : "+ Registrar ocorrência"}
+            <Plus aria-hidden="true" />
+            {tipo === "organizacao" ? "Registrar a primeira" : "Registrar ocorrência"}
           </Link>
         )}
       </EmptyContent>
@@ -561,7 +570,7 @@ function AlemDoFim({ total, consultaAtual }: { total: number; consultaAtual: str
       <EmptyContent>
         <Link
           href={consulta === "" ? "/ocorrencias" : `/ocorrencias?${consulta}`}
-          className="border-linha text-tinta inline-flex min-h-11 items-center rounded-sm border px-4 text-sm font-medium"
+          className={cn(buttonVariants({ variant: "outline" }), "text-interface min-h-11 px-4")}
         >
           {TEXTO_ALEM_DO_FIM.acao}
         </Link>

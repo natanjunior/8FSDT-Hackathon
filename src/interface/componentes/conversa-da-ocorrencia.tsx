@@ -13,7 +13,8 @@ import {
   enviarComentario,
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
-import { autoria, dataHora } from "@/interface/componentes/linha-do-tempo";
+import { dataEHora } from "@/interface/componentes/datas";
+import { autoria } from "@/interface/componentes/linha-do-tempo";
 import {
   avisarErro,
   avisarSucesso,
@@ -157,7 +158,7 @@ export function ConversaDaOcorrencia({
           **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
           momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
           inerte durante o envio. */}
-      <RodapeDoFormulario obrigatorios={1}>
+      <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
         <Button
           type="button"
           variant="outline"
@@ -241,29 +242,29 @@ function ListaDeMensagens({
         lado de um *Carregar mais* diria *"2"* numa conversa de trinta. É a mesma razão pela qual o
         esqueleto da linha do tempo não conta: **não se conta o que ainda não chegou**.
       */}
-      <h2 className="text-tinta text-sm font-semibold">
+      <h2 className="text-tinta text-titulo-bloco font-semibold">
         Mensagens{" "}
         {cursor === null && <span className="text-tinta-fraca font-normal">{itens.length}</span>}
       </h2>
 
       {itens.length === 0 ? (
-        <p className="text-tinta-suave text-sm leading-relaxed">{vazio}</p>
+        <p className="text-tinta-suave text-corpo leading-relaxed">{vazio}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {itens.map((mensagem) => (
             <li key={mensagem.id} className="flex flex-col gap-0.5">
               {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. */}
-              <span className="text-tinta-fraca text-xs">
+              <span className="text-tinta-fraca text-meta">
                 {autoria(
                   mensagem.autor.nome,
                   mensagem.autor.pessoaId === pessoaIdDeQuemLe,
-                  dataHora(mensagem.criadoEm),
+                  dataEHora(mensagem.criadoEm),
                 )}
               </span>
               {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
                   escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é ruído.
                   **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
-              <span className="text-tinta-suave text-sm leading-relaxed whitespace-pre-line">
+              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
                 {mensagem.texto}
               </span>
             </li>
@@ -272,7 +273,7 @@ function ListaDeMensagens({
       )}
 
       {falha !== null && (
-        <p role="alert" className="text-tinta-suave text-xs">
+        <p role="alert" className="text-tinta-suave text-meta">
           {falha}
         </p>
       )}
@@ -299,7 +300,7 @@ function ListaDeMensagens({
 function EsqueletoDaConversa() {
   return (
     <>
-      <h2 className="text-tinta text-sm font-semibold">Mensagens</h2>
+      <h2 className="text-tinta text-titulo-bloco font-semibold">Mensagens</h2>
       <div aria-hidden className="flex flex-col gap-3">
         {[
           [44, 90],

@@ -118,7 +118,7 @@ export function ReguaDoCiclo({
                 {passo.estado === "inalcancavel" && <span className="sr-only"> (não alcançada)</span>}
               </span>
               {/* **A data em monoespaçada** — guia §3: a mono é para dado temporal, contagem e
-                  identificador. O formato é o de `dataHora`, e não uma segunda forma de escrever hora. */}
+                  identificador. O formato é o de `dataEHora`, e não uma segunda forma de escrever hora. */}
               {passo.em !== null && (
                 <span className="text-tinta-fraca text-meta font-mono">{passo.em}</span>
               )}

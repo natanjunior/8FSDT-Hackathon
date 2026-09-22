@@ -399,7 +399,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { minhas: 2, emAberto: 7, semResponsavel: 3 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -440,7 +440,7 @@ describe("o envelope da página — item 14b", () => {
     expect(envelope.totalNoCorte).toBe(137);
     expect(envelope.saidasDesdeOCorte).toBe(3);
     expect(envelope.novasDesdeOCorte).toBe(5);
-    expect(envelope.contagens).toStrictEqual({ minhas: 2, emAberto: 7, semResponsavel: 3 });
+    expect(envelope.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
   });
 
   it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {

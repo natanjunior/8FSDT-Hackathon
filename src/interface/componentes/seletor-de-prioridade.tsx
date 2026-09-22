@@ -4,6 +4,13 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/interface/componentes/ui/select";
 
 /**
  * ============================================================================
@@ -16,8 +23,12 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * simplesmente não está em `acoesDisponiveis`"* (`inventario-de-telas.md:811-812`). O protótipo o desenha
  * como primeira linha do bloco de identidade (`telas.html:2154-2158`).
  *
- * **`<select>` nativo**, como os cinco que o produto já tem. O `ctrl pick` do protótipo é estilo, e o
- * catálogo dele não foi adotado (item 13 da `fila-documentacao.md`).
+ * **`Select` do catálogo** (item 44p, critério 4, 21/09/2026). Era o último `select` nativo do produto:
+ * dos cinco que existiam, quatro já tinham saído, e a barra superior da casca usa esta peça desde o 44b.
+ *
+ * **A seta do teclado continua trocando o valor com o gatilho em foco** — o `Select` do Radix publica
+ * `role="combobox"` e `role="option"`, e é a mesma navegação que o nativo dava. O que se ganha é a forma
+ * do catálogo em todos os temas e o alvo de 44 px sem depender do navegador.
  *
  * **Salva no `onChange` — critério 17.4, *"salvando na mudança"*.** Sem botão, sem modal, sem confirmar. E
  * é exatamente isso que cria a razão do desfazer, abaixo.
@@ -27,8 +38,8 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * ---------------------------------------------------------------------------
  *
  * **Este é o único ponto de escrita do produto sem confirmação:** os cinco comandos com formulário abrem
- * modal, e o campo de solução aplicada tem *Salvar* próprio. Num `<select>` nativo com foco, a seta do
- * teclado troca o valor e dispara `change` — sem intenção. **E o que foi sobrescrito não está em lugar
+ * modal, e o campo de solução aplicada tem *Salvar* próprio. Com o gatilho do seletor em foco, a seta
+ * do teclado troca o valor — sem intenção. **E o que foi sobrescrito não está em lugar
  * nenhum:** nem na trilha (critério 17.3), nem na linha do tempo (**PA-21**).
  *
  * Então a fatia entrega uma janela de conserto: depois de uma gravação bem-sucedida, uma linha sob o
@@ -50,7 +61,7 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * - **`escolhido`** — o sobrescrito otimista. `null` significa *"mostre o que o servidor mandou"*. É o que
  *   faz o controle exibir o valor novo **enquanto envia** e depois do sucesso, e o que **volta a `null` no
  *   erro**, devolvendo a tela ao valor que o banco tem.
- * - **`enviando`** — desabilita o `<select>` e o *Desfazer*.
+ * - **`enviando`** — desabilita o `Select` e o *Desfazer*.
  * - **`aviso`** — a frase do `executarComando`, em `role="alert"`.
  * - **`desfazer`** — o par `{ de, para }` da última gravação. **Um passo, nunca uma pilha:** uma pilha seria
  *   histórico, e histórico deste comando não existe (17.3).
@@ -73,6 +84,13 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
  * **e** o botão — a novidade é a *disponibilidade* do desfazer, não só a frase. O DOM é linear, então a
  * ordem de foco é a de leitura (**A-2**).
  */
+/**
+ * A linha da prioridade — **a mesma com e sem o controle** (item 44p, critério 20). A página desenha a
+ * versão sem o seletor, e as duas precisam ser a mesma forma: era isso que faltava quando a ocorrência
+ * fechava e a linha virava texto corrido, entre cinco linhas de rótulo e valor.
+ */
+export const LINHA_DA_PRIORIDADE = "flex flex-wrap items-center gap-3";
+
 export function SeletorDePrioridade({
   ocorrenciaId,
   valorAtual,
@@ -142,31 +160,34 @@ export function SeletorDePrioridade({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor={campoId} className="text-tinta-suave text-sm font-medium">
+      <div className={LINHA_DA_PRIORIDADE}>
+        <label htmlFor={campoId} className="text-tinta-suave text-interface font-medium">
           Prioridade
         </label>
-        <select
-          id={campoId}
+        <Select
           value={valor}
           disabled={enviando}
-          onChange={(evento) => {
-            void gravar(evento.target.value, valor, true);
+          onValueChange={(destino) => {
+            void gravar(destino, valor, true);
           }}
-          className="border-linha bg-superficie text-tinta min-h-11 rounded-md border px-3 text-base"
         >
-          {opcoes.map((opcao) => (
-            <option key={opcao.valor} value={opcao.valor}>
-              {opcao.rotulo}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id={campoId} className="min-h-11 w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {opcoes.map((opcao) => (
+              <SelectItem key={opcao.valor} value={opcao.valor}>
+                {opcao.rotulo}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {aviso !== null && (
         <p
           role="alert"
-          className="border-marca/40 bg-accent text-tinta rounded-md border px-3 py-2 text-sm"
+          className="border-marca/40 bg-accent text-tinta text-interface rounded-md border px-3 py-2"
         >
           {aviso}
         </p>
@@ -176,7 +197,7 @@ export function SeletorDePrioridade({
           a novidade é a disponibilidade do desfazer, não só a frase. Sem temporizador: a linha sai por
           ação. */}
       {desfazer !== null && aviso === null && (
-        <p role="status" className="text-tinta-suave flex flex-wrap items-center gap-2 text-xs">
+        <p role="status" className="text-tinta-suave text-meta flex flex-wrap items-center gap-2">
           Prioridade alterada de {palavraDe(desfazer.de)} para {palavraDe(desfazer.para)}.
           <button
             type="button"

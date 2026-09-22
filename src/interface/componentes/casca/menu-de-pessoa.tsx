@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { acaoDeSair } from "@/interface/acoes";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
+import { Button } from "@/interface/componentes/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,14 +94,19 @@ export function MenuDePessoa({
         <DropdownMenuSeparator />
         {/* **O formulário envolve o item, e não o contrário.** O `asChild` do Radix funde as props do
             `menuitem` no filho único, e um `<form>` não é focável nem responde ao teclado do menu — quem
-            precisa receber o papel é o `<button>`. Sair continua sendo botão dentro de formulário, que é
-            o que o critério 4 preserva. */}
+            precisa receber o papel é o botão. Sair continua sendo botão dentro de formulário, que é o
+            que o critério 44b.4 preserva.
+
+            **E o botão é o do catálogo desde 21/09/2026** (critério 44p.5): o elemento cru era o último
+            de `app/(casca)` fora das exceções declaradas. O `Button` renderiza um botão nativo, então o
+            `asChild` continua entregando `role="menuitem"` ao elemento certo; `justify-start` desfaz o
+            `justify-center` da base do `cva`, que centralizaria o rótulo dentro do item de menu. */}
         <form action={acaoDeSair}>
           <DropdownMenuItem asChild className="text-interface min-h-11">
-            <button type="submit" className="w-full text-left">
+            <Button type="submit" variant="ghost" className="h-auto w-full justify-start px-2 py-1.5 font-normal">
               <LogOut aria-hidden="true" />
               Sair
-            </button>
+            </Button>
           </DropdownMenuItem>
         </form>
       </DropdownMenuContent>

@@ -2,25 +2,11 @@
 
 import { useId, useState } from "react";
 
-import {
-  Campo,
-  ErroDoFormulario,
-  GrupoDeEscolha,
-  IndicadorDeEnvio,
-  RodapeDoFormulario,
-} from "@/interface/componentes/campo";
+import { Campo, ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
@@ -127,96 +113,99 @@ export function ModalDeAvaliacao({
   }
 
   return (
-    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
-      <DialogTrigger asChild>
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      gatilho={
         <Button
           type="button"
           variant={variante === "primario" ? "marca" : "outline"}
           className={
-            variante === "primario" ? "h-12 w-full text-base" : "h-12 w-auto text-base lg:w-full"
+            variante === "primario" ? "text-interface h-12 w-full" : "text-interface h-12 w-auto lg:w-full"
           }
         >
           Avaliar
         </Button>
-      </DialogTrigger>
+      }
+      titulo="Avaliar"
+      /* **Frase nova de produto**, declarada no achado A-2 da spec para o hub confirmar ou trocar;
+         trocá-la não muda uma linha de estrutura. */
+      descricao="Como foi a resolução?"
+      /* **A nota fica**, e é o único dos cinco em que ela fica: *Comentário (opcional)* existe, então
+         nem todo campo é obrigatório (critério 44p.11). */
+      obrigatorios={1}
+      aoEnviar={(evento) => {
+        evento.preventDefault();
+        confirmar();
+      }}
+      rodape={
+        <>
+          <BotaoDeCancelar enviando={envio.enviando} />
+          <BotaoDeConfirmar
+            enviando={envio.enviando}
+            rotulo="Enviar avaliação"
+            rotuloEnviando="Enviando…"
+          />
+        </>
+      }
+    >
+      <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
+        {NOTAS.map((opcao) => {
+          const id = `${grupoId}-${String(opcao.valor)}`;
+          return (
+            <label
+              key={opcao.valor}
+              htmlFor={id}
+              className="border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2"
+            >
+              <input
+                type="radio"
+                id={id}
+                name={grupoId}
+                value={opcao.valor}
+                required
+                disabled={envio.enviando}
+                checked={nota === opcao.valor}
+                onChange={() => {
+                  setNota(opcao.valor);
+                  formulario.mudou("nota");
+                }}
+                className="size-4"
+              />
+              {/* **A legenda da ponta vai DENTRO do `<label>`**, e não em `aria-describedby`: o nome
+                  acessível já a inclui, e uma descrição ancorada à parte a leria duas vezes (A-1). */}
+              <span className="text-tinta">
+                {opcao.valor}
+                {opcao.descricao !== null && (
+                  <span className="text-tinta-suave">{`, ${opcao.descricao}`}</span>
+                )}
+              </span>
+            </label>
+          );
+        })}
+      </GrupoDeEscolha>
 
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Avaliar</DialogTitle>
-          {/* **Frase nova de produto**, declarada no achado A-2 da spec para o hub confirmar ou trocar;
-              trocá-la não muda uma linha de estrutura. */}
-          <DialogDescription>Como foi a resolução?</DialogDescription>
-        </DialogHeader>
+      {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
+          enumera *"modais que têm campo `observacao`"*, e este tem `comentario`. Inventar a frase aqui
+          seria escrever texto de produto num componente. */}
+      <Campo id={campoComentarioId} rotulo="Comentário (opcional)">
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={comentario}
+            onChange={(evento) => {
+              setComentario(evento.target.value);
+            }}
+            disabled={envio.enviando}
+            rows={3}
+            /* **O mesmo teto do `avaliacaoSchema`** — 1000. Dois números divergiriam. */
+            maxLength={1000}
+          />
+        )}
+      </Campo>
 
-        <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
-          {NOTAS.map((opcao) => {
-            const id = `${grupoId}-${String(opcao.valor)}`;
-            return (
-              <label
-                key={opcao.valor}
-                htmlFor={id}
-                className="border-linha group-data-invalido:border-destructive/[75%] flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm"
-              >
-                <input
-                  type="radio"
-                  id={id}
-                  name={grupoId}
-                  value={opcao.valor}
-                  required
-                  disabled={envio.enviando}
-                  checked={nota === opcao.valor}
-                  onChange={() => {
-                    setNota(opcao.valor);
-                    formulario.mudou("nota");
-                  }}
-                  className="size-4"
-                />
-                {/* **A legenda da ponta vai DENTRO do `<label>`**, e não em `aria-describedby`: o nome
-                    acessível já a inclui, e uma descrição ancorada à parte a leria duas vezes (A-1). */}
-                <span className="text-tinta">
-                  {opcao.valor}
-                  {opcao.descricao !== null && (
-                    <span className="text-tinta-suave">{`, ${opcao.descricao}`}</span>
-                  )}
-                </span>
-              </label>
-            );
-          })}
-        </GrupoDeEscolha>
-
-        {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
-            enumera *"modais que têm campo `observacao`"*, e este tem `comentario`. Inventar a frase aqui
-            seria escrever texto de produto num componente. */}
-        <Campo id={campoComentarioId} rotulo="Comentário (opcional)">
-          {(controle) => (
-            <Textarea
-              {...controle}
-              value={comentario}
-              onChange={(evento) => {
-                setComentario(evento.target.value);
-              }}
-              disabled={envio.enviando}
-              rows={3}
-              /* **O mesmo teto do `avaliacaoSchema`** — 1000. Dois números divergiriam. */
-              maxLength={1000}
-            />
-          )}
-        </Campo>
-
-        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
-
-        <RodapeDoFormulario obrigatorios={1}>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
-              Fechar
-            </Button>
-          </DialogClose>
-          <Button type="button" className="h-11" disabled={envio.enviando} onClick={confirmar}>
-            <IndicadorDeEnvio ativo={envio.enviando} />
-            {envio.enviando ? "Enviando…" : "Enviar avaliação"}
-          </Button>
-        </RodapeDoFormulario>
-      </DialogContent>
-    </Dialog>
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
 }

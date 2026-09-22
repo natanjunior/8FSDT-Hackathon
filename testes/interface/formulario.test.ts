@@ -1359,3 +1359,232 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(ler(ESCOLHA_DE_ORGANIZACAO)).toContain("<Button");
   });
 });
+
+describe("o alcance do 44p — a validação do lote 11", () => {
+  it("a animação de pressão usa a forma que o Tailwind 4 emite como var() (critério 44p.1)", () => {
+    const fonte = ler("src/interface/componentes/ui/button.tsx");
+
+    // `duration-[--tempo-pressao]` gera `transition-duration: --tempo-pressao`, declaração inválida que o
+    // navegador descarta: o `active:scale-[0.97]` acontecia sem duração e sem curva. A forma com
+    // parênteses é a que emite `var()`, e é a que `modal.tsx` já usa em CONTEUDO_DO_SHEET.
+    expect(fonte).toContain("duration-(--tempo-pressao)");
+    expect(fonte).toContain("ease-(--curva-pressao)");
+
+    // **`transition-all` sai junto.** Ele e `transition-transform` conviviam no mesmo `cva`, e a segunda
+    // vencia pela ordem. Com a duração passando a valer, `transition-all` voltaria a animar cor e sombra
+    // em todo botão do produto — contra o guia §6, que concede só `transform` e `opacity`.
+    expect(fonte).not.toContain("transition-all");
+  });
+
+  it("nenhuma classe arbitrária de duração sobrou em `src` nem em `app` (critério 44p.1)", () => {
+    const achados = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) =>
+      ler(caminho).includes("duration-["),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o `Sair` do menu de pessoa é `Button` do catálogo (critério 44p.5)", () => {
+    const fonte = ler("src/interface/componentes/casca/menu-de-pessoa.tsx");
+
+    // O critério diz "fica dentro de `DropdownMenuItem asChild`" — e já estava. O que era cru é o
+    // ELEMENTO. `asChild` continua funcionando porque o `Button` renderiza um `<button>`, que é quem
+    // recebe `role="menuitem"` e o foco do menu.
+    expect(/<button(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain('<form action={acaoDeSair}>');
+    expect(fonte).toContain('variant="ghost"');
+  });
+
+  it("nenhum tamanho fora dos sete papéis, fora do catálogo (critério 44p.2)", () => {
+    // **O 44o é quem limpa o resto.** `app/organizacao/`, `app/page.tsx`, `menu-de-organizacao`,
+    // `formulario-de-pedido-de-entrada`, `formulario-de-nova-organizacao` e `moldura-de-tela` — que o
+    // plano dele APAGA — somam trinta ocorrências que não são deste item. Enquanto ele não mesclar, esta
+    // guarda seria vermelha por defeito alheio; por isso ela exclui o que é dele, por caminho, e o
+    // critério 44p.2 só fecha de verdade depois do merge do 44o.
+    const DO_44O = [
+      "app/organizacao/",
+      "app/page.tsx",
+      "src/interface/componentes/menu-de-organizacao.tsx",
+      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-nova-organizacao.tsx",
+      "src/interface/componentes/moldura-de-tela.tsx",
+    ];
+
+    // **`utilitarios.ts` sai da conta, e é o único que sai por mérito próprio.** `arquivosDe` lê `.ts`
+    // junto de `.tsx`, e as quatro ocorrências dele são o comentário que explica por que o `cn` estendido
+    // existe: *"o `text-sm` do catálogo — que está fora da escala — sobrevive"*. É o arquivo que declara a
+    // escala; reescrever a frase para não escrever a classe apagaria a explicação, ao contrário do
+    // comentário de `navegacao.tsx`, que continua dizendo a mesma coisa sem ela.
+    const achados = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")]
+      .filter((caminho) => !caminho.startsWith("src/interface/componentes/ui/"))
+      .filter((caminho) => caminho !== "src/interface/componentes/utilitarios.ts")
+      .filter((caminho) => !DO_44O.some((dele) => caminho.startsWith(dele)))
+      .flatMap((caminho) =>
+        [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+          (achado) => `${caminho}: ${achado[0]}`,
+        ),
+      );
+
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx");
+
+    // A mesma tela já usava `buttonVariants` em duas linhas e montava botão à mão em três. O que sobra é
+    // uma forma só.
+    expect(fonte).not.toContain("inline-flex min-h-11 items-center rounded-sm border px-4");
+    expect(fonte).not.toContain('"+ Registrar');
+    expect(fonte).toContain("<Plus aria-hidden");
+  });
+
+  it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
+    // D3: a organização é condomínio, empresa **ou bairro**. É a terceira vez que a mesma correção se
+    // aplica — a prancheta de Áreas e a coluna esquerda de T-01 do 44m foram as outras duas.
+    //
+    // **A guarda é sobre a FRASE, e não sobre a palavra**, e isso está medido: "prédio" aparece em SETE
+    // lugares do repositório e **cinco estão certos** — `Permissao.ts:7`, `Semente.ts:63`,
+    // `lista-de-ocorrencias.tsx:295` e as duas de `app/organizacao/` usam a palavra como EXEMPLO de um
+    // tipo de organização, que é justamente o que a D3 diz que ela pode ser. O defeito é a tela mandar a
+    // pessoa conferir se as áreas descrevem "o seu prédio", o que exclui bairro e empresa.
+    expect(ler("src/interface/componentes/vazio-da-lista.ts")).not.toContain("o seu prédio");
+    expect(ler("app/(casca)/ocorrencias/page.tsx")).not.toContain("que não descreve o");
+  });
+
+  it("o seletor de prioridade é o `select` do catálogo (critério 44p.4)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-prioridade.tsx");
+
+    // **A guarda lê comentário igual a código**, e este arquivo escrevia `<select>` em prosa em TRÊS
+    // linhas — 19, 30 e 53. As três passam a dizer "o `select` nativo", sem os sinais de maior e menor:
+    // é o mesmo tratamento que `navegacao.tsx` recebeu no critério 44p.2, e é mais honesto que abrir
+    // exceção na guarda.
+    expect(/<select(\s|>)/u.test(fonte)).toBe(false);
+    expect(fonte).toContain("<SelectTrigger");
+    expect(fonte).toContain("<SelectItem");
+  });
+
+  it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+
+    // Aberta, a linha é rótulo à esquerda e controle à direita. Resolvida, era texto corrido — "Prioridade:
+    // Normal" — enquanto as outras cinco linhas do mesmo cartão continuavam rótulo e valor. Fica a mesma
+    // linha, só sem o seletor: o invólucro e o rótulo passam a ser da página.
+    expect(fonte).not.toContain("Prioridade:</span>");
+    expect(fonte).toContain("LINHA_DA_PRIORIDADE");
+  });
+
+  it("os cinco modais de T-05 usam a moldura compartilhada (critérios 44p.15 e 44p.16)", () => {
+    const CINCO = [
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-observacao.tsx",
+      "src/interface/componentes/modal-de-resolucao.tsx",
+    ];
+
+    for (const caminho of CINCO) {
+      const fonte = ler(caminho);
+      // A moldura: nenhum dos cinco monta o `Dialog` direto.
+      expect(fonte).not.toContain("ui/dialog");
+      expect(fonte).toContain("<Modal");
+      // A cor: o `BotaoDeConfirmar` é `variant="marca"` por padrão, então o critério 15 vem junto.
+      expect(fonte).toContain("<BotaoDeConfirmar");
+      expect(fonte).toContain("<BotaoDeCancelar");
+      // E "Fechar" some: o secundário do rodapé compartilhado escreve "Cancelar".
+      expect(fonte).not.toContain("Fechar");
+    }
+  });
+
+  it("a nota de obrigatório só aparece onde há campo opcional (critério 44p.11)", () => {
+    const COM_TODOS = [
+      "src/interface/componentes/conversa-da-ocorrencia.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-categoria.tsx",
+      "src/interface/componentes/modal-de-area.tsx",
+      "src/interface/componentes/edicao-de-nome.tsx",
+    ];
+    for (const caminho of COM_TODOS) expect(ler(caminho)).toContain("todosObrigatorios");
+
+    // O `Modal` precisa deixar a propriedade atravessar: três dos seis só o alcançam por ele.
+    expect(ler("src/interface/componentes/modal.tsx")).toContain("todosObrigatorios");
+
+    // E onde há campo opcional a nota FICA — a avaliação tem "Comentário (opcional)".
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("todosObrigatorios");
+  });
+
+  it("a solução aplicada tem um nome só, e ele é o do glossário (critério 44p.19)", () => {
+    const pagina = ler("src/interface/componentes/campo-de-solucao-aplicada.tsx");
+    const modal = ler("src/interface/componentes/modal-de-resolucao.tsx");
+
+    // `docs/glossario.md:46` registra "Solução aplicada" como o termo da linguagem ubíqua. O modal dizia
+    // "O que foi feito (opcional)" para o MESMO dado — ele abre preenchido com o que está na página, pela
+    // D22 —, e quem lia a página entendia que resolver exige a solução.
+    expect(pagina).toContain('rotulo="Solução aplicada"');
+    expect(modal).toContain('rotulo="Solução aplicada"');
+    expect(modal).not.toContain("O que foi feito");
+
+    // A marca de obrigatório sai do campo da página: ele salva quando se tem o que salvar. A propriedade
+    // vive na MESMA linha do `Campo`, entre o rótulo e o `erro` — é essa vizinhança que a guarda lê.
+    expect(pagina).not.toContain("obrigatorio erro=");
+    expect(pagina).toContain("obrigatorios={0}");
+  });
+
+  it("a coluna TEMPO não repete o mesmo valor, e o símbolo tem nome (critério 44p.12)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+
+    // A comparação é sobre o INSTANTE, não sobre o texto de `tempoCurto`: comparar o texto esconderia uma
+    // atualização de meia hora atrás sempre que as duas caíssem no mesmo "3 d" — e é numa ocorrência
+    // tocada há pouco que a coluna tem o que dizer.
+    expect(fonte).toContain("item.registradaEm !== item.atualizadaEm");
+
+    // Os DOIS valores ganham nome. Nomear só o segundo faz o leitor de tela ler "5 d, atualizada 2 h",
+    // com o primeiro número solto.
+    expect(fonte).toContain("sr-only");
+    expect(fonte).toContain("registrada");
+    expect(fonte).toContain("atualizada");
+  });
+
+  it("T-16 e T-04 têm espera, e o produto ganha as duas que faltavam (critério 44p.6)", () => {
+    expect(existsSync(RAIZ + "app/(casca)/meus-dados/loading.tsx")).toBe(true);
+    expect(existsSync(RAIZ + "app/(foco)/ocorrencias/nova/loading.tsx")).toBe(true);
+
+    // **A guarda conta as esperas e NÃO fixa o número de páginas**, e isso é medido: o critério fala de
+    // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
+    // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
+    // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
+    expect(esperas).toHaveLength(12);
+  });
+
+  it("as três formas do selo se separam, e nenhuma cor nova entra (critérios 44p.9 e 44p.21)", () => {
+    const fonte = ler("src/interface/componentes/selo-de-status.tsx");
+
+    // O defeito medido: no escuro `--accent-bg` (0,2921) e `--sunken` (0,2758) distavam 1,6% de
+    // luminosidade, e *Aberta* e *Resolvida* eram o mesmo chip no print de produção. O par invertido
+    // afasta os dois para 8,05:1 de contraste WCAG no escuro e 9,59:1 no claro.
+    expect(fonte).toContain("bg-accent-foreground text-accent");
+    expect(fonte).toContain("bg-muted text-accent-foreground");
+
+    // A marca continua fora: ela veste a ação principal, e só ela (guia §2).
+    //
+    // **A guarda é sobre as CLASSES, e não sobre a palavra:** o arquivo fala de "marcador" em cinco
+    // linhas — é o nome da peça de T-06 que mora nele —, e um `toContain("marca")` seria vermelho para
+    // sempre, diga o código o que disser.
+    expect(fonte).not.toContain("bg-marca");
+    expect(fonte).not.toContain("text-marca");
+    expect(fonte).not.toContain("border-marca");
+
+    // E o `globals.css` não muda: a resposta à P1 usa o par que já existe.
+    expect(ler("app/globals.css")).not.toContain("--positivo");
+  });
+
+  it("o `Ativa` das listas de ordem manual não veste a marca (critérios 44p.18 e 44p.22)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+
+    // *Ativa* é a maioria das linhas; pintá-la de laranja é o que fazia o print de Categorias e de Áreas
+    // parecer alarme. O destaque troca de lado, e o ponto é a pista de forma que a prancheta desenhou.
+    expect(fonte).not.toContain("border-marca/60 text-marca");
+    expect(fonte).toContain("text-accent-foreground");
+    expect(fonte).toContain("PONTO_DE_ATIVA");
+  });
+});

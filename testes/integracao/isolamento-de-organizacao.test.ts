@@ -1085,8 +1085,9 @@ describe("as consultas de configuração não atravessam organizações", () => 
       // Sem o recorte de autor, a organização inteira é contada — é o COUNT ingênuo, e ele existe.
       expect(semRecorte.totalFiltrado).toBeGreaterThan(comVisibilidade.totalFiltrado);
 
-      // **Com ele, nenhum dos cinco números passa de 2** — nem `emAberto`, nem `semResponsavel`.
+      // **Com ele, nenhum dos SEIS números passa de 2** — nem `emAberto`, nem `semResponsavel`.
       expect(comVisibilidade.totalFiltrado).toBe(2);
+      expect(comVisibilidade.todas).toBe(2);
       expect(comVisibilidade.minhas).toBe(2);
       expect(comVisibilidade.emAberto).toBe(2);
       expect(comVisibilidade.semResponsavel).toBe(2);

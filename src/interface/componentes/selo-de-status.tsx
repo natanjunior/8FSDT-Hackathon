@@ -6,12 +6,12 @@ import { Badge } from "@/interface/componentes/ui/badge";
 const CONTORNO = "border-linha text-tinta bg-transparent";
 
 const FORMA_DO_SELO: Readonly<Record<string, string>> = {
-  aberta: "bg-accent text-accent-foreground border-transparent",
-  pausada: "bg-accent text-accent-foreground border-transparent",
+  aberta: "bg-accent-foreground text-accent border-transparent",
+  pausada: "bg-accent-foreground text-accent border-transparent",
   em_analise: CONTORNO,
   em_atendimento: CONTORNO,
-  resolvida: "bg-muted text-tinta-suave border-transparent",
-  cancelada: "bg-muted text-tinta-suave border-transparent",
+  resolvida: "bg-muted text-accent-foreground border-transparent",
+  cancelada: "bg-muted text-accent-foreground border-transparent",
 };
 
 /**
@@ -47,12 +47,12 @@ const ICONE_DO_STATUS: Readonly<Record<string, typeof FilePlus>> = {
 };
 
 const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
-  aberta: "bg-accent text-accent-foreground border-transparent",
+  aberta: "bg-accent-foreground text-accent border-transparent",
   em_analise: "border-linha text-tinta bg-superficie",
   em_atendimento: "border-linha text-tinta bg-superficie",
-  pausada: "bg-accent text-accent-foreground border-dashed border-tinta-suave",
-  resolvida: "bg-muted text-tinta-suave border-transparent",
-  cancelada: "bg-muted text-tinta-suave border-transparent",
+  pausada: "bg-accent-foreground text-accent border-dashed border-tinta-suave",
+  resolvida: "bg-muted text-accent-foreground border-transparent",
+  cancelada: "bg-muted text-accent-foreground border-transparent",
 };
 
 /**
@@ -66,13 +66,20 @@ const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
  * | Contorno | Em análise · Em atendimento |
  * | Apagado | Resolvida · Cancelada |
  *
- * **O sólido usa `bg-accent`, que neste repositório resolve para `--accent-bg`** — o par de fundo do
- * vocabulário —, com `--accent-foreground` por cima. **A cor da marca não entra aqui:** ela é
- * `--color-marca`, e só a ação principal a veste.
+ * **O sólido inverte o par do vocabulário** (item 44p, critério 21, 21/09/2026): fundo em
+ * `--accent-foreground`, texto em `--accent-bg`. Antes ele era o contrário, e o resultado medido é que o
+ * sólido e o apagado distavam **1,6% de luminosidade no escuro e 2,8% no claro** — no print de produção,
+ * *Aberta* e *Resolvida* eram o mesmo chip. Invertido, a distância vai a **8,05:1 no escuro e 9,59:1 no
+ * claro**, e o texto do apagado fica colorido, que é o que o critério 9 pede.
  *
- * **E o sólido não pode usar `--chrome` nem `--sunken`, que são o mesmo valor nos dois temas**: o sólido
- * e o apagado ficariam com o mesmo fundo, separados só pela cor do texto, e as três formas virariam duas
- * e meia.
+ * **Nenhuma cor nova entra, e o `globals.css` não muda.** `--accent-bg` e `--accent-foreground` já são um
+ * par por desenho — a linha 99 do tema os nomeia assim. **A cor da marca continua fora:** ela veste a
+ * ação principal, e só ela.
+ *
+ * **O contorno fica neutro, e é decisão.** O guia §2 promete "borda e texto coloridos"; com o sólido
+ * consertado as três formas já se separam por presença de preenchimento e de borda — o contorno é a única
+ * sem fundo, o apagado a única com fundo e sem borda. Quem se corrige é o guia (fila de documentação,
+ * item 38).
  *
  * **O raio é o de selo, 6 px.** O `ui/badge` chega do catálogo com `rounded-full`, que o guia §4 não
  * concede a selo nenhum.

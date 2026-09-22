@@ -289,7 +289,9 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   await marcos.getByRole("button", { name: "Resolver" }).click();
   const modalDeResolucao = marcos.getByRole("dialog");
-  await modalDeResolucao.getByLabel("O que foi feito (opcional)").fill(SOLUCAO_APLICADA);
+  // **O escopo `modalDeResolucao` deixou de ser conveniência e virou necessidade** (item 44p, critério
+  // 19): a página tem um campo com este mesmo rótulo, e um localizador solto pegaria os dois.
+  await modalDeResolucao.getByLabel("Solução aplicada").fill(SOLUCAO_APLICADA);
   await modalDeResolucao.getByLabel("Observação (opcional)").fill(OBSERVACAO_DA_RESOLUCAO);
   await modalDeResolucao.getByRole("button", { name: "Resolver" }).click();
   await esperarSituacao(marcos, "Resolvida");

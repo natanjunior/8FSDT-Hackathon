@@ -344,7 +344,16 @@ function LinhaDeTriagemNoCelular({
           )}
           ·
           <span className="font-mono tabular-nums">
-            {tempoCurto(item.registradaEm, agora)} ↻ {tempoCurto(item.atualizadaEm, agora)}
+            <span className="sr-only">registrada </span>
+            {tempoCurto(item.registradaEm, agora)}
+            {item.registradaEm !== item.atualizadaEm && (
+              <>
+                {" "}
+                <span aria-hidden="true">↻</span>
+                <span className="sr-only">, atualizada </span>{" "}
+                {tempoCurto(item.atualizadaEm, agora)}
+              </>
+            )}
           </span>
         </span>
       </Link>
@@ -363,6 +372,10 @@ function LinhaDeTriagemNoCelular({
  * **`registradaEm` e `atualizadaEm` dividem a coluna TEMPO**, a segunda marcada por `↻` — o protótipo:
  * *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém faz de
  * relance"*.
+ *
+ * **A segunda metade só aparece quando há diferença** (item 44p, critério 12): numa ocorrência que
+ * ninguém tocou os dois instantes são iguais, e o `↻` repetia o mesmo número. O símbolo é `aria-hidden` e
+ * os dois valores levam nome em `sr-only` — um glifo sozinho não diz o que mede.
  */
 /** O sétimo papel da escala: 10 px, monoespaçada, versal, entreletra de 0,11em. */
 const ROTULO_DE_COLUNA =
@@ -453,8 +466,17 @@ function TabelaDeTriagem({
                   )}
                 </TableCell>
                 <TableCell className="text-tinta-suave text-meta px-4 py-3 font-mono whitespace-nowrap tabular-nums">
-                  <span className="block">{tempoCurto(item.registradaEm, agora)}</span>
-                  <span className="block">↻ {tempoCurto(item.atualizadaEm, agora)}</span>
+                  <span className="block">
+                    <span className="sr-only">registrada </span>
+                    {tempoCurto(item.registradaEm, agora)}
+                  </span>
+                  {item.registradaEm !== item.atualizadaEm && (
+                    <span className="block">
+                      <span aria-hidden="true">↻</span>
+                      <span className="sr-only">atualizada </span>{" "}
+                      {tempoCurto(item.atualizadaEm, agora)}
+                    </span>
+                  )}
                 </TableCell>
               </TableRow>
             );

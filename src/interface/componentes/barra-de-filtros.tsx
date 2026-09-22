@@ -122,7 +122,7 @@ export function BarraDeFiltros({
       {algumLigado && (
         <Link
           href={caminho}
-          className="text-marca ml-auto px-2 py-1 text-sm underline underline-offset-4"
+          className="text-marca text-interface ml-auto px-2 py-1 underline underline-offset-4"
         >
           Limpar filtros
         </Link>
@@ -144,7 +144,7 @@ export function BarraDeFiltros({
 /** O `.chip` do protótipo: **44 px de alvo** (A-3), e o estado ligado com borda, peso e cor — nunca só cor. */
 function chip(ligado: boolean): string {
   return cn(
-    "border-linha bg-superficie text-tinta inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-sm",
+    "border-linha bg-superficie text-tinta text-interface inline-flex h-11 items-center gap-1.5 rounded-md border px-3",
     "focus-visible:outline-marca focus-visible:outline-2 focus-visible:outline-offset-2",
     ligado && "border-marca text-marca font-semibold",
   );
