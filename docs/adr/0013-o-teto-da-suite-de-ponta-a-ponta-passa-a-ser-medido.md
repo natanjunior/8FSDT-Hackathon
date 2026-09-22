@@ -70,9 +70,10 @@ do portão de cada envio.
 
 **O que custa**
 
-- **A suíte passa de dois minutos e meio para algo entre quatro e cinco.** A margem do sétimo arquivo
-  contra o limite por teste é a menor do conjunto, e a ordem do que sai primeiro se ele estourar está
-  escrita junto da lista.
+- **A suíte passa de dois minutos e meio para dois minutos e cinquenta e quatro segundos**, medidos com o
+  sétimo arquivo dentro. A estimativa feita antes de escrevê-lo falava em quatro a cinco minutos, e errou
+  para cima: o arquivo fechou em trinta e três segundos contra os noventa a cento e vinte previstos. O
+  limite de dez minutos que faz o teto parar de subir continua distante.
 - **Um teto subiu no dia seguinte ao de nascer**, e isso fica no registro. A defesa é que ele subiu com
   medição e ganhou a regra que exige medição da próxima vez; a acusação é que um teto que se move é mais
   fraco que um que não se move, e ela é justa.
