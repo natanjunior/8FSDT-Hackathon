@@ -47,13 +47,35 @@ export default defineConfig({
    */
   use: {
     /**
-     * **`host.docker.internal`, e NÃO `localhost`.** O `@supabase/ssr` deriva o nome do cookie de sessão
-     * do host do provedor: com `127.0.0.1` grava `sb-127-auth-token`, com `host.docker.internal` grava
-     * `sb-host-auth-token` (README `:96-103`). Um navegador que abrisse por `localhost` **autenticaria e
-     * a sessão simplesmente não existiria do lado de dentro, sem erro nenhum** — é o modo de falha mais
-     * provável deste teste, e ele é evitado por esta linha.
+     * **`localhost`, e o alvo MUDOU — em 22/09/2026, por medição.** Até aqui esta linha apontava para
+     * `host.docker.internal:3000`, e o teste **morria no passo 1**: a escolha de organização não
+     * acontecia e a página voltava para T-02. É o achado A-10.
+     *
+     * **A causa, e ela não é do teste.** O cookie de organização sai com `Secure`
+     * (`cookie-de-organizacao.ts`, `NODE_ENV=production` também no contêiner local), e o Chromium
+     * **descarta `Secure` sobre `http://` em host que não é loopback**. `host.docker.internal` não é
+     * loopback; `localhost` é.
+     *
+     * **O que esta linha antes afirmava era falso, e foi medido.** A versão anterior dizia que o
+     * `@supabase/ssr` derivaria o nome do cookie de sessão da origem do navegador, e que por isso
+     * `localhost` perderia a sessão. O nome vem do **host da URL do provedor** — `SUPABASE_URL`, que é
+     * variável do servidor. Sonda de 22/09/2026, Helena entrando e escolhendo organização nas três
+     * origens:
+     *
+     * | Origem | Cookie de sessão | Cookie de organização | Desfecho |
+     * |---|---|---|---|
+     * | `host.docker.internal:3000` | `sb-host-auth-token` | descartado | preso em T-02 |
+     * | `localhost:3000` | `sb-host-auth-token` | guardado | chega em `/ocorrencias` |
+     * | `127.0.0.1:3000` | `sb-host-auth-token` | guardado | chega em `/ocorrencias` |
+     *
+     * **O mesmo nome nas três.** A origem do navegador não decide o nome do cookie de sessão.
+     *
+     * **O que este teste deixou de exercitar, e está dito em voz alta:** ele não passa mais pelo host
+     * que o README manda usar para navegar à mão. O `Secure` sobre `http://` em host não-loopback
+     * continua descartado, e **nada aqui conserta isso** — produção usa HTTPS e não é afetada. Quem
+     * navegar à mão por `host.docker.internal` continua esbarrando no A-10.
      */
-    baseURL: process.env["URL_DA_APLICACAO"] ?? "http://host.docker.internal:3000",
+    baseURL: process.env["URL_DA_APLICACAO"] ?? "http://localhost:3000",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
