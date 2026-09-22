@@ -1,4 +1,4 @@
-import { LogOut, UserRound } from "lucide-react";
+import { Building2, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { acaoDeSair } from "@/interface/acoes";
@@ -32,9 +32,16 @@ function iniciaisDe(nome: string): string {
  * ***Meus dados* é item com ícone**, e é o caminho até T-16. Até o item 44i o item imprimia o nome, com
  * *Meus dados* embaixo; com o nome no cabeçalho, o item diz só o destino.
  *
+ * ***Entrar em outra organização* mora aqui desde o item 44o** (critério 44o.14), e é a porta da face E
+ * de T-02 para quem está dentro da casca. Ela morava no menu de organização da barra superior, que virou
+ * `select` no 44b (critério 44b.4) e não podia carregar uma opção que não é um valor; desde então a face E
+ * só era alcançável por quem caía em T-10. O menu de pessoa guarda as ações da **pessoa**, e entrar em
+ * outra organização é sobre os vínculos dela, não sobre a organização atual. O ícone é o `Building2`, o
+ * mesmo que rotula o grupo *Organização* da barra lateral — um sentido só nos dois lugares.
+ *
  * Sair permanece formulário com botão de envio, e não vira link: é ação que muda estado no servidor, e o
  * critério 44b.4 a manteve de propósito na forma que já tinha. O `min-h-11` do compromisso **A-3** fica
- * nos dois itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
+ * nos três itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
  * a classe daqui o sobrescreve.
  */
 export function MenuDePessoa({
@@ -75,6 +82,12 @@ export function MenuDePessoa({
           <Link href="/meus-dados">
             <UserRound aria-hidden="true" />
             Meus dados
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="text-interface min-h-11">
+          <Link href="/organizacao?entrar-em-outra=true">
+            <Building2 aria-hidden="true" />
+            Entrar em outra organização
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
