@@ -23,6 +23,37 @@ As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integra�
 nova, e não por arquivo. A de ponta a ponta não cresce: é uma só, por decisão registrada na
 [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md).
 
+## O que a suíte alcança
+
+A cobertura é medida para informar. Não há limite mínimo, `npm run verificar` não a consulta, e nenhum
+número desta seção reprova uma mesclagem. O que ela responde é onde a suíte chega e onde não chega.
+
+**Data da medição:** 21/09/2026, por `npm run cobertura`, que roda os testes unitários e os de
+integração numa execução só e exige um PostgreSQL de pé.
+
+| Recorte | Arquivos | Instruções cobertas |
+|---|---|---|
+| O núcleo: domínio, aplicação, esquemas, projeções e infraestrutura | 109 | **91,2%** |
+| A borda HTTP | 11 | 37,8% |
+| A camada de interface: componentes e ganchos | 99 | 29,3% |
+| O roteamento em `app/` | 59 | 0,0% |
+| Todo o produto | 280 | **46,9%** |
+
+Os recortes repetem em número a forma que a [ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md)
+desenhou antes de qualquer medição existir. O que cresce por caso passa de 90%. O que aquela decisão
+declarou como o buraco que ela abria, a camada de interface, fica abaixo de 30%.
+
+**O roteamento marca zero porque nada nesta medição o executa.** As páginas e as rotas de `app/` são
+percorridas apenas pelo teste de ponta a ponta, que roda em outro programa e fora desta contagem. O zero
+diz que a instrumentação não passou por ali, e não que aquele código nunca rodou.
+
+Ficam de fora da conta os componentes gerados pela biblioteca de interface, a ligação com o motor da
+documentação, os arquivos de estrutura do roteamento e a semente de demonstração: código que o projeto
+não escreveu, ou que não carrega regra.
+
+Um número sem data envelhece sem avisar. Este é remedido quando o pacote da entrega fecha, junto das
+outras medidas feitas à mão.
+
 ## O isolamento tem suíte própria
 
 O portão que exige que uma organização não veja o dado de outra é cobrado toda vez que uma tarefa toca
@@ -91,6 +122,7 @@ npm run verificar             lint, tipos, testes unitários e verificadores de 
 npm run teste                 só os unitários, que é o laço curto de quem implementa
 npm run teste:integracao      a suíte de isolamento; exige um PostgreSQL
 npm run teste:ponta-a-ponta   o caminho crítico num navegador; exige a pilha de pé
+npm run cobertura             o número da seção acima; roda os dois primeiros juntos
 npm run local                 sobe a pilha inteira em contêiner, para os dois de cima
 ```
 
