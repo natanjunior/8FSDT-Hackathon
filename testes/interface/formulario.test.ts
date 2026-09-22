@@ -1129,6 +1129,19 @@ const ESCOLHA_DE_ORGANIZACAO = "src/interface/componentes/escolha-de-organizacao
 const NOVA_ORGANIZACAO = "src/interface/componentes/formulario-de-nova-organizacao.tsx";
 const PEDIDO_DE_ENTRADA = "src/interface/componentes/formulario-de-pedido-de-entrada.tsx";
 
+/** Os arquivos em que o 44o aplica o guia: as guardas do alcance inteiro leem estes. */
+const ALCANCE_DO_44O = [
+  "app/organizacao/page.tsx",
+  "app/organizacao/loading.tsx",
+  "app/organizacao/criar/page.tsx",
+  "app/page.tsx",
+  MOLDURA_DE_CONTA,
+  "src/interface/componentes/lista-de-organizacoes.tsx",
+  ESCOLHA_DE_ORGANIZACAO,
+  NOVA_ORGANIZACAO,
+  PEDIDO_DE_ENTRADA,
+];
+
 describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
   it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
     const fonte = ler(MOLDURA_DE_CONTA);
@@ -1303,5 +1316,46 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
       return fonte.includes("MolduraDeTela") || fonte.includes("moldura-de-tela");
     });
     expect(comMoldura).toStrictEqual([]);
+  });
+
+  it("nenhum tamanho fora dos sete papéis (critério 44o.3)", () => {
+    const achados = ALCANCE_DO_44O.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("nenhum controle cru, fora os dois botões de texto do pedido de entrada (critério 44o.15)", () => {
+    const crus = (caminho: string) => [...ler(caminho).matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)];
+    const achados = ALCANCE_DO_44O.filter((caminho) => caminho !== PEDIDO_DE_ENTRADA).flatMap((caminho) =>
+      crus(caminho).map((achado) => `${caminho}: ${achado[0]}`),
+    );
+    expect(achados).toStrictEqual([]);
+    // A exceção que o critério 44p.5 declara por escrito: "Entrar nela" e "Atualizar esta tela".
+    expect(crus(PEDIDO_DE_ENTRADA)).toHaveLength(2);
+  });
+
+  it("nenhuma das telas declara a própria moldura nem desenha a marca à mão (critério 44o.1, e o G1 do guia)", () => {
+    for (const caminho of ALCANCE_DO_44O.filter((caminho) => caminho.startsWith("app/"))) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toContain("min-h-dvh");
+      // A marca à mão era `<p …>Resolve Aí</p>`. A frase da face A cita o produto no meio de uma
+      // pergunta, e por isso a guarda procura o nome sozinho entre tags, e não a palavra.
+      expect(fonte, caminho).not.toMatch(/>\s*Resolve Aí\s*</u);
+    }
+  });
+
+  it("o teste de ponta a ponta acha o que procura na face D (critério 44o.12)", () => {
+    // **Conferido por leitura, e não por execução:** o teste não roda na pilha que o critério dele
+    // autoriza (achado A-10). O relatório não afirma execução verde.
+    const e2e = ler("testes/ponta-a-ponta/caminho-critico.spec.ts");
+    expect(e2e).toContain('getByRole("heading", { name: "Em qual organização você quer trabalhar?" })');
+    expect(e2e).toContain('getByRole("button", { name: AURORA })');
+    // O título é o `<h1>` da moldura, e a linha é o `Button` do catálogo, que renderiza `<button>`.
+    expect(ler("app/organizacao/page.tsx")).toContain('titulo="Em qual organização você quer trabalhar?"');
+    expect(ler(MOLDURA_DE_CONTA)).toContain("<h1 id={ID_DO_TITULO}");
+    expect(ler(ESCOLHA_DE_ORGANIZACAO)).toContain("<Button");
   });
 });
