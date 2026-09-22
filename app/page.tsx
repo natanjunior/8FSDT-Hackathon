@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
-import { MenuDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
+import { MenuDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";

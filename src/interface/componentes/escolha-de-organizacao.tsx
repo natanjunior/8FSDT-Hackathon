@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Aviso } from "@/interface/componentes/campo";
+import { rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
+import {
+  LinhaDeOrganizacao,
+  ListaDeOrganizacoes,
+  type VinculoNoMenu,
+} from "@/interface/componentes/lista-de-organizacoes";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
+import { Button } from "@/interface/componentes/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,32 +22,24 @@ import {
 
 /**
  * ============================================================================
- *  O menu de organização — o `▾` que faltava, e a lista da face D
+ *  Escolher a organização — a lista da face D de T-02 e a de T-10
  * ============================================================================
  *
- * **Ele não resolve contexto e não sabe em que página está**: recebe `vinculos` e a organização ativa já
- * projetados. É o que faz o mesmo componente servir T-03, a T-10 provisória e — pela `EscolhaDeOrganizacao`
- * logo abaixo — a face D de T-02, e é o que o deixa pronto para o dia em que existir um shell de verdade.
+ * **Ele não resolve contexto e não sabe em que página está**: recebe `vinculos` já projetados. É o que
+ * faz o mesmo componente servir as duas telas.
  *
- * **O menu aparece com um vínculo só** (spec §2.7), e esconder seria o erro que fecha a porta para quem
- * ela existe para servir: a Persona 1B **começa com um vínculo** — o segundo só nasce de um pedido de
- * entrada feito de dentro. Um menu que só aparecesse depois do segundo vínculo seria uma porta que só abre
- * para quem já entrou.
+ * **Depois da troca, o destino é `/`**: `/` é o **losango**, não uma tela — ele reresolve o contexto e
+ * despacha para T-03, ou fica em T-10 quando `permissoes` vem `[]`. É o único destino correto para os três
+ * papéis, e o Encarregado é o que o prova, porque não tem T-03 nenhuma. `replace` e não `push`, porque
+ * *"voltar"* levaria a uma tela da organização anterior mostrando dados de outra.
  *
- * **Depois da troca, o destino é `/`** (spec §2.2): `/` é o **losango**, não uma tela — ele reresolve o
- * contexto e despacha para T-03, ou fica na T-10 quando `permissoes` vem `[]`. É o único destino correto
- * para os três casos, e o Encarregado é o que o prova, porque não tem T-03 nenhuma. `replace` e não
- * `push`, porque *"voltar"* levaria a uma tela da organização anterior mostrando dados de outra.
+ * **A forma é a da `lista-de-organizacoes.tsx`** (critério 44o.10), e a linha é o `Button` do catálogo
+ * (critério 44o.15): até o 44o era um botão cru. A variante `ghost` dá o foco, a pressão e o estado
+ * inerte; as classes daqui dão a forma de linha. **O anel de foco é interno**, porque a lista corta o que
+ * vaza dos cantos (`overflow-hidden`) e o anel de fora sumiria na primeira e na última linha.
  *
- * **Acessibilidade:** o gatilho tem `min-h-11` (44 px, A-3), o papel vem **em palavra** e a ativa é
- * marcada com a palavra *atual*, nunca só com um sinal gráfico (A-5).
+ * **Acessibilidade:** alvo de 44 px (A-3), o papel vem **em palavra** (A-5).
  */
-export type VinculoNoMenu = {
-  organizacaoId: string;
-  nome: string;
-  papel: string;
-};
-
 export function MenuDeOrganizacao({
   vinculos,
   organizacaoAtivaId,
@@ -87,11 +86,8 @@ export function MenuDeOrganizacao({
 
           <DropdownMenuSeparator />
 
-          {/* **O `setTimeout(…, 0)` não é enfeite**, e o plano já o previa como a alternativa: `router.push`
-              dentro do `onSelect` do Radix compete com o fechamento do menu e produz navegação engolida em
-              parte dos navegadores. Adiar um tique deixa o menu fechar primeiro. A navegação dura
-              (`window.location.assign`) resolveria igual, mas o lint do Next a recusa para destino interno —
-              e este plano não admite `eslint-disable`. */}
+          {/* **O `setTimeout(…, 0)` não é enfeite**: `router.push` dentro do `onSelect` do Radix compete com o
+              fechamento do menu e produz navegação engolida em parte dos navegadores. */}
           <DropdownMenuItem
             className="min-h-11"
             onSelect={() => {
@@ -108,38 +104,40 @@ export function MenuDeOrganizacao({
   );
 }
 
-/**
- * **Face D de T-02 · escolher a organização.** A mesma troca, sem menu: quem chega aqui **não tem**
- * organização ativa, então não há nome no cabeçalho para pendurar um `▾`.
- */
-export function EscolhaDeOrganizacao({ vinculos }: { vinculos: readonly VinculoNoMenu[] }) {
+export function EscolhaDeOrganizacao({
+  vinculos,
+  rotulo,
+}: {
+  vinculos: readonly VinculoNoMenu[];
+  /** O rótulo da lista. A face D não tem — o título do cartão é a pergunta —; T-10 tem. */
+  rotulo?: string;
+}) {
   const { aviso, trocando, escolher } = useTroca();
 
   return (
     <>
       {aviso !== null && <Aviso>{aviso}</Aviso>}
 
-      <ul className="border-linha divide-linha-suave bg-superficie divide-y overflow-hidden rounded-md border">
+      <ListaDeOrganizacoes rotulo={rotulo}>
         {vinculos.map((vinculo) => (
           <li key={vinculo.organizacaoId}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               disabled={trocando}
               onClick={() => void escolher(vinculo.organizacaoId)}
-              className="flex min-h-11 w-full flex-col gap-0.5 px-4 py-3.5 text-left disabled:opacity-60"
+              className="h-auto min-h-11 w-full justify-start rounded-none p-0 font-normal whitespace-normal focus-visible:ring-inset"
             >
-              <span className="text-tinta text-base leading-snug font-medium">{vinculo.nome}</span>
-              {/* A-5: nada é comunicado só por cor — o papel sempre carrega a palavra. */}
-              <span className="text-tinta-suave text-xs">{rotuloDoPapel(vinculo.papel)}</span>
-            </button>
+              <LinhaDeOrganizacao nome={vinculo.nome} apoio={rotuloDoPapel(vinculo.papel)} seta />
+            </Button>
           </li>
         ))}
-      </ul>
+      </ListaDeOrganizacoes>
     </>
   );
 }
 
-/** O estado e a navegação, escritos uma vez para os dois consumidores deste arquivo. */
+/** O estado e a navegação, escritos uma vez para os consumidores deste arquivo. */
 function useTroca() {
   const router = useRouter();
   const [aviso, setAviso] = useState<string | null>(null);
@@ -164,19 +162,4 @@ function useTroca() {
   }
 
   return { aviso, trocando, escolher, router };
-}
-
-/**
- * O papel em palavra.
- *
- * **É a terceira cópia deste mapa no repositório** — a outra é o `PAPEL_EM_PALAVRA` de
- * `app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx`; a de T-08 virou `frases-de-participantes.ts` no
- * item 44j —, e o comentário de lá já registrou
- * o achado: *"o lugar dos dois é um módulo, e isso é achado, não conserto"*. **Ela não é uma cópia nova:**
- * a de `app/organizacao/page.tsx` morre nesta mesma tarefa, quando a lista da face D vira este componente.
- */
-function rotuloDoPapel(papel: string): string {
-  if (papel === "gestor") return "Gestor";
-  if (papel === "encarregado") return "Encarregado";
-  return "Solicitante";
 }

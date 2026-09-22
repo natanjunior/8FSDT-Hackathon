@@ -5,7 +5,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { acaoDeSair } from "@/interface/acoes";
 import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
 import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
-import { EscolhaDeOrganizacao } from "@/interface/componentes/menu-de-organizacao";
+import { EscolhaDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
 import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
 import { resolverParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";

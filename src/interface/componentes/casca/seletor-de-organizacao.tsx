@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import type { VinculoNoMenu } from "@/interface/componentes/menu-de-organizacao";
+import type { VinculoNoMenu } from "@/interface/componentes/lista-de-organizacoes";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 import {
   Select,

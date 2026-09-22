@@ -1139,6 +1139,7 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
  * controles crus, a moldura declarada fora dela — chegam por último, quando todos os arquivos existem.
  */
 const MOLDURA_DE_CONTA = "src/interface/componentes/moldura-de-conta.tsx";
+const ESCOLHA_DE_ORGANIZACAO = "src/interface/componentes/escolha-de-organizacao.tsx";
 
 describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
   it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
@@ -1163,5 +1164,25 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(fonte).toContain("contexto?: ReactNode;");
     expect(fonte).toContain("children?: ReactNode;");
     expect(fonte).toContain("{temCorpo && (");
+  });
+
+  it("a lista é de servidor, e só a escolha é de cliente (critério 44o.10)", () => {
+    // **Dois arquivos, e não um:** com `"use client"` no topo, toda exportação vira componente de
+    // cliente, e a lista de pedidos da face E — que não tem estado — iria para o navegador.
+    expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).not.toContain('"use client"');
+    expect(ler(ESCOLHA_DE_ORGANIZACAO)).toMatch(/^"use client";/u);
+  });
+
+  it("a linha que troca de organização é o Button do catálogo, com a seta (critérios 44o.10 e 44o.15)", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    expect(fonte).toMatch(/<Button\s[^>]*variant="ghost"/u);
+    expect(fonte).toMatch(/<LinhaDeOrganizacao\s[^>]*\sseta\s*\/>/u);
+    expect([...fonte.matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)]).toStrictEqual([]);
+  });
+
+  it("o papel em palavra vem do mapa compartilhado, e a cópia local saiu", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    expect(fonte).toContain('from "@/interface/componentes/frases-de-participantes"');
+    expect(fonte).not.toContain("function rotuloDoPapel");
   });
 });
