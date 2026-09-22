@@ -37,5 +37,9 @@ next-env.d.ts
 test-results/
 playwright-report/
 
+# Saída de `npm run cobertura`. O número entra na documentação à mão, com a data em que foi medido;
+# o relatório em si é descartável e se refaz em um comando.
+.cobertura/
+
 # Saída do fumadocs-mdx: os .md de docs/ compilados em componentes. Gerado pelo postinstall.
 .source/

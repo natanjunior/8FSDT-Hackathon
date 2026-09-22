@@ -31,6 +31,42 @@ export default defineConfig({
   test: {
     // Uma suíte vazia é indistinguível de uma suíte que não roda.
     passWithNoTests: false,
+
+    /**
+     * **Cobertura é medição, e nunca portão.** Não há `thresholds` aqui, e a ausência é decisão: a
+     * ADR-0008 recusou *"meta de cobertura em porcentagem"* por medir linha executada em vez de garantia
+     * protegida, e esse argumento continua de pé. O que ela não recusou foi **saber o número**, que é
+     * outra coisa e é o que este bloco produz. Por isso a cobertura mora em `npm run cobertura`, e não
+     * em `npm run teste`: o laço curto e o portão não pagam os segundos a mais.
+     *
+     * **`include` nomeia o que é produto, e a lista curta é o ponto.** Sem ela o `v8` conta apenas o
+     * arquivo que algum teste importou — recorte que apaga os arquivos sem teste nenhum e devolve um
+     * número alto por construção. Com ela, o que ninguém cobre aparece como zero, que é o dado útil.
+     *
+     * **`app/**` entra de propósito, e vai marcar perto de zero.** É produto, e o zero é a afirmação
+     * verdadeira de que só o Playwright o percorre, fora desta instrumentação. Escondê-lo inflaria o
+     * número escondendo justamente onde o risco mora.
+     *
+     * **`semente/` fica de fora** por omissão do `include`: é dado de demonstração. O que nela é regra
+     * (`semente/plano.ts`) já tem teste no portão.
+     */
+    coverage: {
+      provider: "v8",
+      reportsDirectory: ".cobertura",
+      reporter: ["text-summary", "json-summary"],
+      include: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+      exclude: [
+        // Gerado pelo shadcn (`components.json`, estilo `new-york`). O projeto não o escreveu e não o
+        // mantém; contá-lo mediria a régua de outra pessoa.
+        "src/interface/componentes/ui/**",
+        // Ligação com o Fumadocs, sem regra própria.
+        "src/interface/documentacao/**",
+        // Estrutura do App Router, sem regra própria.
+        "app/**/loading.tsx",
+        "app/**/layout.tsx",
+      ],
+    },
+
     projects: [
       {
         resolve: { alias: apelido },
