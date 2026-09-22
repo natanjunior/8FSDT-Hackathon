@@ -75,8 +75,11 @@ Seis programas conferem o que teste de código não alcança, e todos rodam na e
 | Site publicado | link quebrado, diagrama que não desenhou, busca sem resultado e título repetido, no site de verdade |
 | Imagem | segredo assado em qualquer camada da imagem, lido do histórico de construção |
 
-Um sétimo compara a configuração de autenticação publicada com o que o repositório declara, porque a
-esteira publica migração e imagem, e nunca configuração.
+Outros dois olham para a nuvem, e não para o repositório. Um compara a configuração de autenticação
+publicada com o que o repositório declara, porque a esteira publica migração e imagem, e nunca
+configuração. O outro confere, antes de cada implantação, que toda variável de execução declarada existe
+no serviço — uma variável declarada e nunca publicada deixou o envio de imagens quebrado por semanas sem
+que nada acusasse.
 
 **Todo verificador prova que discrimina.** Cada um carrega um par de controles: um conteúdo que precisa ser
 recusado e outro, equivalente, que precisa passar. Um verificador que aceitasse tudo passaria por bom até
