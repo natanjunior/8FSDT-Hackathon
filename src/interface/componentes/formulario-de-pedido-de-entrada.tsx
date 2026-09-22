@@ -18,8 +18,8 @@ import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-
 import { codigoPublico } from "@/interface/schemas";
 
 /**
- * **T-02 face A · o caminho de entrar.** *"Onde eu trabalho?"* — e quem chega aqui quase sempre está
- * entrando, não fundando.
+ * **T-02 · o caminho de entrar**, nas faces A, C e E. *"Onde eu trabalho?"* — e desde o item 44o ele é o
+ * único formulário da face A: criar organização ganhou tela própria.
  *
  * **A tela produz os dois formatos que o servidor exige** (spec §2.4): o código em maiúscula, o telefone em
  * E.164. O servidor é estrito nos dois, e o `400` que ele devolve é o que aparece no campo.
@@ -131,7 +131,7 @@ export function FormularioDePedidoDeEntrada({
        * **O código é reconhecido antes de virar erro** (critério 7b.4, spec §2.6).
        *
        * O `problem+json` do `JA_VINCULADO` traz `title` e `detail` e **nenhuma identidade de organização**
-       * (`openapi.yaml:311-312`), então a frase do `inventario-de-telas.md:1513` — *"Você já está em
+       * (`openapi.yaml:311-312`), então a frase *"Você já está em
        * {nome}."* + **entrar nela** — não podia ser escrita com o que o servidor devolve. Com
        * `codigoPublico` em `vinculos[]` (item 7b, §3.7) ela pode: o cliente casa o que foi digitado com o
        * que ele já tem, **sem gastar uma ida ao servidor para receber um erro**.
@@ -308,7 +308,7 @@ export function FormularioDePedidoDeEntrada({
               autoComplete="off"
               autoCapitalize="characters"
               required
-              className="h-12 text-base tracking-[0.12em] uppercase"
+              className="border-linha bg-background min-h-11 tracking-[0.12em] uppercase"
             />
           )}
         </Campo>
@@ -328,7 +328,7 @@ export function FormularioDePedidoDeEntrada({
                   type="text"
                   maxLength={120}
                   defaultValue={nome}
-                  className="h-12 text-base"
+                  className="border-linha bg-background min-h-11"
                 />
               )}
             </Campo>
@@ -346,15 +346,17 @@ export function FormularioDePedidoDeEntrada({
                   type="tel"
                   inputMode="tel"
                   defaultValue={PREFIXO_BR}
-                  className="h-12 text-base"
+                  className="border-linha bg-background min-h-11"
                 />
               )}
             </Campo>
           </>
         )}
 
-        <RodapeDoFormulario obrigatorios={1}>
-          <Button type="submit" disabled={aguardando} className="h-12 px-6 text-base">
+        {/* **A nota sai só onde todo campo é obrigatório** (critério 44o.11): na variante de outra
+            organização sobra o código, e só ele. Na primeira entrada o telefone é opcional, e a nota fica. */}
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios={!primeiraEntrada}>
+          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Pedir entrada"}
           </Button>

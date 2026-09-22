@@ -2,11 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { acaoDeSair } from "@/interface/acoes";
-import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
-import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
 import { EscolhaDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
-import { MolduraDeTela } from "@/interface/componentes/moldura-de-tela";
+import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
+import { dataEHora } from "@/interface/componentes/frases-de-participantes";
+import { LinhaDeOrganizacao, ListaDeOrganizacoes } from "@/interface/componentes/lista-de-organizacoes";
+import {
+  CaminhoDeSair,
+  CLASSE_DO_CAMINHO,
+  MolduraDeConta,
+} from "@/interface/componentes/moldura-de-conta";
 import { resolverParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
@@ -14,20 +18,20 @@ import { projetarContexto } from "@/interface/projecoes";
  * **T-02 · Sem organização ativa** — *"Onde eu trabalho?"*
  *
  * Uma tela, **cinco faces**, e a face é escolhida por `GET /contexto` — o único endpoint que uma Pessoa
- * sem vínculo consegue usar (contrato §8.0). Aqui a leitura vai pela **estrada direta** da §5, com a mesma
- * projeção do route handler.
+ * sem vínculo consegue usar. Aqui a leitura vai pela estrada direta, com a mesma projeção do route
+ * handler.
  *
- * **As quatro primeiras são para quem não tem organização ativa.** A face **C** (pedido recusado) passou a
- * ser alcançável com o item 8, que é quem produz `situacao: "recusado"` — até ele, ela era inalcançável
- * por construção.
+ * **As quatro primeiras são para quem não tem organização ativa.** A face **C** (pedido recusado) é
+ * alcançável desde o item 8, que é quem produz `situacao: "recusado"`.
  *
- * **A quinta é a face E, e é o avesso das outras: ela só existe COM organização ativa** (item 7b). É
- * desenho novo, autorizado pelo critério 7b.5 — *"a forma desse ponto não está escrita em documento
- * nenhum"* —, e o que ela entrega é o caminho que faltava para a Persona 1B: pedir entrada em outra
- * organização **sem sair da que se está**.
+ * **A quinta é a face E, e é o avesso das outras: ela só existe COM organização ativa** (item 7b). O que
+ * ela entrega é o caminho que faltava para a Persona 1B: pedir entrada em outra organização **sem sair da
+ * que se está**.
  *
- * **Desde o item 7b nenhum botão desta tela diz na tela que não faz.** A face D passou a chamar o
- * `PUT /contexto/organizacao`, e com ela saiu o **último `AvisoDeFatia` do produto**.
+ * **Desde o item 44o as cinco estão na moldura das telas fora da casca**, e **criar organização saiu
+ * daqui**: virou a tela `/organizacao/criar`, alcançada pelo caminho abaixo do cartão da face A. Até o
+ * 44o a face A empilhava dois formulários separados por um traço — o do código e o do nome da
+ * organização —, e o dono os separou em 20/09/2026.
  */
 export const dynamic = "force-dynamic";
 
@@ -65,17 +69,16 @@ export default async function TelaSemOrganizacaoAtiva({
   // **Pendente ganha de tudo — para quem não tem vínculo nenhum.** Quem tem pedido em andamento não deve
   // ser convidado a abrir outro, e é por isso que a face B não tem campo de código.
   //
-  // **A condição `vinculos.length === 0` é o critério 7b.7**, e a face C já a tinha (`:42`). Sem ela, quem
-  // tem **dois vínculos, nenhum ativo e um pedido pendente** cai aqui e só recebe *"Sair"* — trancado fora
-  // das duas organizações em que já foi aceito. É alcançável desde o item 7b, porque é ele que produz o
-  // segundo vínculo e o pedido feito de dentro; `escolherAtivo` devolve `null` com dois ou mais vínculos
-  // sem cookie válido (`resolver-contexto.ts:170-177`), que é celular novo, aba anônima ou cookie expirado.
+  // **A condição `vinculos.length === 0` é o critério 7b.7.** Sem ela, quem tem **dois vínculos, nenhum
+  // ativo e um pedido pendente** cai aqui e só recebe *"Sair"* — trancado fora das duas organizações em
+  // que já foi aceito. `escolherAtivo` devolve `null` com dois ou mais vínculos sem cookie válido
+  // (`resolver-contexto.ts:170-177`), que é celular novo, aba anônima ou cookie expirado.
   const pendente = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "pendente");
   if (pendente !== undefined && contexto.vinculos.length === 0) return <FaceB pedido={pendente} />;
 
-  // **Face C — recusado.** A lista vem em `criadoEm` decrescente (spec §2.6 do 7a), então o primeiro
-  // recusado é o mais recente. Só aparece para quem não tem vínculo nenhum: quem foi recusado em B e
-  // entrou em A tem organização ativa e nem chega aqui.
+  // **Face C — recusado.** A lista vem em `criadoEm` decrescente, então o primeiro recusado é o mais
+  // recente. Só aparece para quem não tem vínculo nenhum: quem foi recusado em B e entrou em A tem
+  // organização ativa e nem chega aqui.
   const recusado = contexto.pedidosDeEntrada.find((pedido) => pedido.situacao === "recusado");
   if (recusado !== undefined && contexto.vinculos.length === 0) {
     return <FaceC nome={contexto.pessoa.nome} organizacao={recusado.organizacao.nome} />;
@@ -87,130 +90,124 @@ export default async function TelaSemOrganizacaoAtiva({
   return <FaceA nome={contexto.pessoa.nome} />;
 }
 
+/** O nome de uma organização dentro de uma frase: é o que a pessoa procura na tela. */
+function NomeDaOrganizacao({ children }: { children: string }) {
+  return <strong className="text-tinta font-semibold">{children}</strong>;
+}
+
+/** Uma data no formato do guia §7, em mono — guia §3: dado temporal é monoespaçado. */
+function Data({ iso }: { iso: string }) {
+  return <span className="font-mono tabular-nums">{dataEHora(iso)}</span>;
+}
+
 /**
  * **Face A · Entrar em uma organização.** `vinculos: []` e `pedidosDeEntrada: []` — acabou de criar a conta.
  *
- * **É o estado vazio, e por isso é convite e não aviso.** Dois caminhos, com hierarquia clara: quem chega
- * aqui quase sempre está **entrando**, não fundando — e desde esta linha os dois funcionam.
+ * **É o estado vazio, e por isso é convite e não aviso.** O cartão tem **um formulário só**, o do código;
+ * criar organização é o caminho abaixo dele, que leva à tela própria (critério 44o.4). **Só a face A o
+ * oferece**: a face C é a tela de quem acabou de ser recusado, e a face E é de quem já tem organização —
+ * fundar uma segunda tendo uma ativa está fora desta entrega.
  */
 function FaceA({ nome }: { nome: string }) {
   return (
-    <MolduraDeTela titulo="Você ainda não está em nenhuma organização.">
+    <MolduraDeConta
+      titulo="Entrar em uma organização"
+      contexto="Você ainda não participa de nenhuma. Use o código que recebeu para pedir entrada."
+      caminhos={
+        <>
+          <div className="flex flex-col items-center">
+            <p className="text-interface text-tinta-suave text-center">
+              Administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?
+            </p>
+            <Link href="/organizacao/criar" className={CLASSE_DO_CAMINHO}>
+              Criar uma organização
+            </Link>
+          </div>
+          <CaminhoDeSair />
+        </>
+      }
+    >
       <FormularioDePedidoDeEntrada nome={nome} />
-
-      <hr className="border-linha-suave my-1" />
-
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Você administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?
-      </p>
-      {/* Do item 1 — não trocar por botão desabilitado. */}
-      <FormularioDeNovaOrganizacao />
-
-      <BotaoDeSair />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
 
 /**
- * **Face B · Esperando aprovação.** `vinculos: []` e um pedido `pendente`.
+ * **Face B · Pedido enviado.** `vinculos: []` e um pedido `pendente`.
  *
- * **A segunda frase não é enfeite, e a redação dela importa.** O aviso automático de aprovação é ⬜ (Q10),
- * e uma tela que diz *"aguarde"* sem dizer **onde a resposta aparece** produz uma pessoa que fecha a aba
- * esperando um e-mail que nunca vem.
+ * **A linha de fato diz onde a resposta aparece, e a redação importa.** O aviso automático de aprovação
+ * não existe nesta entrega, e uma tela que diz *"aguarde"* sem dizer **onde** produz uma pessoa que fecha
+ * a aba esperando um e-mail que nunca vem. *"Um Gestor decide, e a resposta aparece aqui."* faz esse
+ * trabalho sem anunciar a lacuna — é a frase do critério 44o.7, que juntou numa linha o título e o
+ * parágrafo de antes.
  *
- * *(Corrigido em 08/09/2026. A frase era "Você não será avisado automaticamente — volte aqui para ver.",
- * e este comentário a defendia dizendo que "mentir por omissão é pior do que a limitação". O objetivo
- * estava certo e continua; a **redação** estava errada, e a objeção do dono do produto é exata:
- * ela **anuncia uma lacuna** em vez de orientar. `Volte aqui para ver a resposta.` faz o mesmo trabalho —
- * quem precisa voltar já entendeu que nada o procura — sem transformar a tela em confissão.)*
+ * **A data é linha de meta, e não caixa.** O bloco *"Pedido enviado em"* repetiria o título, e o guia §1
+ * reserva a caixa para o que agrupa naturezas diferentes.
  *
  * **Não há campo de código:** quem tem pedido em andamento não abre outro. O caminho de volta é a decisão
  * do Gestor, que é o item 8.
  */
 function FaceB({ pedido }: { pedido: { organizacao: { nome: string }; criadoEm: string } }) {
   return (
-    <MolduraDeTela titulo={`Seu pedido para entrar em ${pedido.organizacao.nome} está aguardando a decisão de um Gestor.`}>
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Volte aqui para ver a resposta.
+    <MolduraDeConta
+      titulo="Pedido enviado"
+      contexto={
+        <>
+          Você pediu entrada em <NomeDaOrganizacao>{pedido.organizacao.nome}</NomeDaOrganizacao>.{" "}
+          Um Gestor decide, e a resposta aparece aqui.
+        </>
+      }
+      caminhos={<CaminhoDeSair />}
+    >
+      <p className="text-meta text-tinta-suave">
+        Enviado em <Data iso={pedido.criadoEm} />
       </p>
-
-      <dl className="border-linha bg-superficie flex flex-col gap-1 rounded-md border px-4 py-3.5">
-        <dt className="text-tinta-suave text-xs">Pedido enviado em</dt>
-        <dd className="text-tinta text-base leading-snug font-medium">
-          {formatarData(pedido.criadoEm)}
-        </dd>
-      </dl>
-
-      <BotaoDeSair />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
 
 /**
- * **Face C · Pedido recusado.** Um pedido `recusado`, nenhum pendente e nenhum vínculo.
+ * **Face C · Pedido não aprovado.** Um pedido `recusado`, nenhum pendente e nenhum vínculo.
  *
  * **O campo de código volta, e não é enfeite:** *"pedido recusado pode ser refeito"* é a suposição S4 do
- * modelo, e é o índice único **parcial** que a permite. Sem o campo, esta face é um beco — palavras do
- * protótipo.
+ * modelo, e é o índice único **parcial** que a permite. Sem o campo, esta face é um beco.
  *
- * **O motivo da recusa não aparece, e é decisão de três documentos:** `GET /contexto` devolve `situacao`
- * e não o motivo; dizê-lo a quem foi recusado é decisão de produto ainda não tomada. A tela diz o que
- * aconteceu e o que fazer, e mais nada.
+ * **O motivo da recusa não aparece:** `GET /contexto` devolve `situacao` e não o motivo, e dizê-lo a quem
+ * foi recusado é decisão de produto ainda não tomada. A tela diz o que aconteceu e o que fazer, numa linha
+ * só (critério 44o.7), e mais nada.
  */
 function FaceC({ nome, organizacao }: { nome: string; organizacao: string }) {
   return (
-    <MolduraDeTela titulo={`Seu pedido para entrar em ${organizacao} não foi aprovado.`}>
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Você pode pedir entrada de novo, aqui mesmo.
-      </p>
-
+    <MolduraDeConta
+      titulo="Pedido não aprovado"
+      contexto={
+        <>
+          Seu pedido para entrar em <NomeDaOrganizacao>{organizacao}</NomeDaOrganizacao> não foi aprovado.
+          Você pode pedir de novo, aqui mesmo.
+        </>
+      }
+      caminhos={<CaminhoDeSair />}
+    >
       <FormularioDePedidoDeEntrada nome={nome} />
-
-      <BotaoDeSair />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
-}
-
-/**
- * Data e hora em pt-BR, **com o fuso escrito por extenso**.
- *
- * **`FaceB` é Server Component**, então isto roda no servidor — e o servidor roda em UTC (modelo §2.3:
- * *"a nuvem roda em UTC enquanto os usuários estão em BRT"*). Sem `timeZone`, o pedido enviado às 22h de
- * uma terça apareceria como 01h de quarta, na primeira tela que este item entrega.
- *
- * O fuso do aparelho exigiria formatar no cliente, e formatar no cliente aqui custaria um componente
- * `"use client"` só para uma linha de texto — mais uma divergência de hidratação a administrar. **Um
- * produto de condomínio brasileiro tem um fuso**, e escrevê-lo é mais honesto que herdar o do contêiner.
- */
-function formatarData(iso: string): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(iso));
 }
 
 /**
  * **Face D · Escolher a organização.** Dois ou mais vínculos e nenhum ativo — é a Persona 1B, o síndico que
  * também mora em outro prédio.
  *
- * **Nome e papel, nada mais:** não há contagem de ocorrências por organização, porque não há endpoint que a
- * dê sem organização ativa (contrato §4.4).
+ * **Nome e papel, nada mais:** não há contagem de ocorrências por organização, porque não há endpoint que
+ * a dê sem organização ativa. A lista é a `EscolhaDeOrganizacao` — componente de cliente, porque escolher
+ * é gravar um cookie, e Server Component em renderização não grava cookie.
  *
- * **O botão passou a fazer no item 7b**, e com isso **o último `AvisoDeFatia` do produto saiu**. A lista
- * virou `EscolhaDeOrganizacao` — componente de cliente, porque escolher é gravar um cookie, e Server
- * Component em renderização não grava cookie (`com-contexto.ts:506-515`).
+ * **A linha de fato diz que a escolha não é para sempre** (critério 44o.7): o nome da organização no alto
+ * da tela, dentro do produto, é o seletor.
  *
  * **O pedido pendente aparece aqui e não some**, e é a outra metade do critério 7b.7: quem tem dois
- * vínculos e um pedido pendente deixou de cair na face B, então esta é a única tela em que ele ainda pode
- * ser visto antes de entrar em alguma organização.
- *
- * *(Corrigido em 08/09/2026, junto com a face B — achado V-03.* O fim da frase era *"…e você não será
- * avisado automaticamente."*, a mesma redação que a face B tinha e pelo mesmo defeito: **anunciava a
- * lacuna** em vez de dizer onde olhar. E como este comentário registra que esta é a **única** tela em que
- * o pedido pendente ainda aparece, *"a resposta aparece aqui"* é literalmente verdade. Ao contrário da
- * face B, nenhum critério nem documento fixava esta redação — o `7b.5` diz que *"a forma desse ponto não
- * está escrita em documento nenhum"*.)*
+ * vínculos e um pedido pendente não cai na face B, então esta é a única tela em que ele ainda pode ser
+ * visto antes de entrar em alguma organização — e é por isso que *"a resposta aparece aqui"* é
+ * literalmente verdade.
  */
 function FaceD({
   vinculos,
@@ -220,49 +217,47 @@ function FaceD({
   pendente: { organizacao: { nome: string }; criadoEm: string } | null;
 }) {
   return (
-    <MolduraDeTela titulo="Em qual organização você quer trabalhar?">
+    <MolduraDeConta
+      titulo="Em qual organização você quer trabalhar?"
+      contexto="Dá para trocar depois, pelo nome no alto da tela."
+      caminhos={<CaminhoDeSair />}
+    >
       <EscolhaDeOrganizacao vinculos={vinculos} />
 
       {pendente !== null && (
-        <p className="text-tinta-suave text-sm leading-relaxed">
-          Você também pediu entrada em{" "}
-          <strong className="text-tinta font-semibold">{pendente.organizacao.nome}</strong>, em{" "}
-          {formatarData(pendente.criadoEm)}. Ainda aguarda a decisão de um Gestor — a resposta aparece
+        <p className="text-corpo text-tinta-suave">
+          Você também pediu entrada em <NomeDaOrganizacao>{pendente.organizacao.nome}</NomeDaOrganizacao>,
+          em <Data iso={pendente.criadoEm} />. Ainda aguarda a decisão de um Gestor — a resposta aparece
           aqui.
         </p>
       )}
-
-      <BotaoDeSair />
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
 
 /**
  * ============================================================================
- *  **Face E · Entrar em outra organização** — o item 7b, e é desenho novo
+ *  **Face E · Entrar em outra organização** — o item 7b
  * ============================================================================
  *
- * **Não está em documento nenhum, e o critério 7b.5 sabe disso:** *"A forma desse ponto não está escrita
- * em documento nenhum — o `inventario-de-telas.md` não a tem, e é lá que ela vai morar; este critério
- * confere que o caminho existe, **o desenho, não**."* É proposta, e vira achado — nunca conserto em
- * `docs/`.
+ * **Não estava em documento nenhum quando nasceu**, e o critério 7b.5 sabia disso. Ganhou desenho na
+ * prancheta *"Sala de entrada"*, em 20/09/2026 (item 44o).
  *
- * **A ordem de leitura é a resposta a três perguntas, nesta ordem:** *eu perco o que tenho?* — não;
- * *o que eu já pedi?* — isto aqui; *como peço mais um?* — o campo.
+ * **A ordem de leitura é a resposta a três perguntas, nesta ordem:** *eu perco o que tenho?* — não, e é a
+ * linha de fato; *o que eu já pedi?* — a lista; *como peço mais um?* — o campo.
  *
- * **O bloco de pedidos não é enfeite: é o que torna verdadeira a frase da face B.** *"Você não será avisado
- * automaticamente — volte aqui para ver"* pressupõe um *aqui*, e **para quem tem organização ativa a face
- * B é inalcançável** — T-02 redireciona. Sem este bloco, o pedido feito nesta tela sumiria da vista no
- * instante seguinte.
+ * **A lista de pedidos não é enfeite: é o que torna verdadeira a frase da face B.** *"Um Gestor decide, e
+ * a resposta aparece aqui"* pressupõe um *aqui*, e **para quem tem organização ativa a face B é
+ * inalcançável** — T-02 redireciona. Sem esta lista, o pedido feito nesta tela sumiria da vista no
+ * instante seguinte. **Ela usa a forma da lista de organizações sem a seta** (critério 44o.10): pedido
+ * não leva a lugar nenhum.
  *
- * **O formulário NÃO some quando há pedido pendente**, e é a diferença explícita para a face A. Lá
- * *"pendente ganha de tudo"* porque quem não tem vínculo nenhum não deve abrir um segundo pedido. Aqui o
- * banco permite: o índice único é `(pessoa_id, organizacao_id) where situacao = 'pendente'`, **um por
- * organização**. A síndica que administra três prédios pede aos três.
+ * **O formulário NÃO some quando há pedido pendente**, e é a diferença explícita para a face A: o banco
+ * permite um pedido pendente **por organização**, e a síndica que administra três prédios pede aos três.
  *
  * **O *Voltar* vai para `/`, e não para `/ocorrencias`.** `/` é o losango: ele reresolve o contexto e
- * despacha. Mandar para T-03 trancaria o Encarregado, que tem `permissoes: []` e **não tem T-03**
- * (`app/page.tsx:44-46`) — e é justamente ele o caso que o menu da T-10 existe para servir.
+ * despacha. Mandar para T-03 trancaria o Encarregado, que não tem T-03 — e é justamente ele que chega
+ * aqui pelo caminho de T-10.
  */
 function FaceE({
   organizacaoAtiva,
@@ -274,39 +269,41 @@ function FaceE({
   pedidos: ReadonlyArray<{ id: string; organizacao: { nome: string }; situacao: string; criadoEm: string }>;
 }) {
   return (
-    <MolduraDeTela titulo="Entrar em outra organização">
-      {/* É a frase que o critério 7b.1 exige em palavras: *"o vínculo em A não é tocado"*. */}
-      <p className="text-tinta-suave text-sm leading-relaxed">
-        Você continua em{" "}
-        <strong className="text-tinta font-semibold">{organizacaoAtiva.nome}</strong>. Pedir entrada em
-        outra não tira você daqui.
-      </p>
-
+    <MolduraDeConta
+      titulo="Entrar em outra organização"
+      contexto={
+        // É a frase que o critério 7b.1 exige em palavras: *"o vínculo em A não é tocado"*.
+        <>
+          Você continua em <NomeDaOrganizacao>{organizacaoAtiva.nome}</NomeDaOrganizacao>. Pedir entrada em
+          outra não tira você daqui.
+        </>
+      }
+      caminhos={
+        <Link href="/" className={CLASSE_DO_CAMINHO}>
+          Voltar
+        </Link>
+      }
+    >
       {pedidos.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-tinta text-sm font-semibold tracking-wide uppercase">Seus pedidos</h2>
-          <ul className="border-linha divide-linha-suave bg-superficie divide-y overflow-hidden rounded-md border">
-            {pedidos.map((pedido) => (
-              <li key={pedido.id} className="flex flex-col gap-0.5 px-4 py-3.5">
-                <span className="text-tinta text-base leading-snug font-medium">
-                  {pedido.organizacao.nome}
-                </span>
-                {/* A-5: a situação sempre carrega a palavra, nunca só uma cor. */}
-                <span className="text-tinta-suave text-xs">
-                  {rotuloDaSituacao(pedido.situacao)} · {formatarData(pedido.criadoEm)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ListaDeOrganizacoes rotulo="Seus pedidos">
+          {pedidos.map((pedido) => (
+            <li key={pedido.id}>
+              <LinhaDeOrganizacao
+                nome={pedido.organizacao.nome}
+                apoio={
+                  // A-5: a situação sempre carrega a palavra, nunca só uma cor.
+                  <>
+                    {rotuloDaSituacao(pedido.situacao)} · <Data iso={pedido.criadoEm} />
+                  </>
+                }
+              />
+            </li>
+          ))}
+        </ListaDeOrganizacoes>
       )}
 
       <FormularioDePedidoDeEntrada variante="outra-organizacao" vinculos={vinculos} />
-
-      <Link href="/" className="text-marca py-1 text-sm underline underline-offset-4">
-        Voltar
-      </Link>
-    </MolduraDeTela>
+    </MolduraDeConta>
   );
 }
 
@@ -314,7 +311,7 @@ function FaceE({
  * A situação do pedido em palavra.
  *
  * **O motivo da recusa não aparece**, e é a mesma decisão da face C: `GET /contexto` devolve `situacao` e
- * não o motivo, e dizê-lo a quem foi recusado é decisão de produto ainda não tomada (⬜, §6.15 do modelo).
+ * não o motivo, e dizê-lo a quem foi recusado é decisão de produto ainda não tomada.
  */
 function rotuloDaSituacao(situacao: string): string {
   if (situacao === "aprovado") return "Aprovado";
@@ -322,21 +319,11 @@ function rotuloDaSituacao(situacao: string): string {
   return "Aguardando a decisão de um Gestor";
 }
 
-function BotaoDeSair() {
-  return (
-    <form action={acaoDeSair} className="pt-2">
-      <button type="submit" className="text-marca py-1 text-sm underline underline-offset-4">
-        Sair
-      </button>
-    </form>
-  );
-}
-
 async function resolverOuMandarParaPorta() {
   try {
     return await resolverParaTela();
   } catch (erro) {
-    // Regra do shell: sem sessão vai para T-01, guardando o destino pretendido (inventário, §3).
+    // Sem sessão vai para T-01, guardando o destino pretendido.
     if (erro instanceof NaoAutenticado) redirect("/entrar?destino=%2Forganizacao");
     throw erro;
   }

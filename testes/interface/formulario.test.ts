@@ -975,12 +975,8 @@ describe("o alcance do 44m — as telas de conta na moldura nova", () => {
     const comMoldura = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
       ler(caminho).includes("MolduraDeTela"),
     );
-    // **T-02 e ela mesma.** T-10 saiu da moldura antiga no 44o; T-02 sai na tarefa seguinte, e a moldura
-    // é apagada depois.
-    expect(comMoldura).toStrictEqual([
-      "app/organizacao/page.tsx",
-      "src/interface/componentes/moldura-de-tela.tsx",
-    ]);
+    // **Só ela mesma.** T-10 e T-02 saíram da moldura antiga no 44o, e ela é apagada na tarefa seguinte.
+    expect(comMoldura).toStrictEqual(["src/interface/componentes/moldura-de-tela.tsx"]);
   });
 
   it("a nota do rodapé sai das quatro, e o asterisco fica (critério 44m.5)", () => {
@@ -1140,6 +1136,7 @@ describe("o alcance do 44n — a trilha vira linha do tempo", () => {
 const MOLDURA_DE_CONTA = "src/interface/componentes/moldura-de-conta.tsx";
 const ESCOLHA_DE_ORGANIZACAO = "src/interface/componentes/escolha-de-organizacao.tsx";
 const NOVA_ORGANIZACAO = "src/interface/componentes/formulario-de-nova-organizacao.tsx";
+const PEDIDO_DE_ENTRADA = "src/interface/componentes/formulario-de-pedido-de-entrada.tsx";
 
 describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
   it("a página e a coluna da moldura são escritas uma vez, e a espera as usa (critério 44o.1)", () => {
@@ -1256,5 +1253,52 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(fonte).not.toContain("o inventário diz por que não é uma tela");
     expect(fonte).toContain("20/09/2026");
     expect(fonte).toContain("dois formulários");
+  });
+
+  it("as cinco faces de T-02 estão na moldura, com os títulos e as linhas do critério (critérios 44o.1 e 44o.7)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect([...fonte.matchAll(/<MolduraDeConta\b/gu)]).toHaveLength(5);
+    for (const trecho of [
+      'titulo="Entrar em uma organização"',
+      "Você ainda não participa de nenhuma. Use o código que recebeu para pedir entrada.",
+      'titulo="Pedido enviado"',
+      "Um Gestor decide, e a resposta aparece aqui.",
+      'titulo="Pedido não aprovado"',
+      'titulo="Em qual organização você quer trabalhar?"',
+      "Dá para trocar depois, pelo nome no alto da tela.",
+      'titulo="Entrar em outra organização"',
+    ]) {
+      expect(fonte, trecho).toContain(trecho);
+    }
+  });
+
+  it("entrar e criar são duas telas, e o caminho de criar sai só da face A (critérios 44o.4 e 44o.5)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).not.toContain("FormularioDeNovaOrganizacao");
+    expect([...fonte.matchAll(/href="\/organizacao\/criar"/gu)]).toHaveLength(1);
+  });
+
+  it("a face E lista os pedidos na forma da lista, sem seta (critério 44o.10)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).toContain('<ListaDeOrganizacoes rotulo="Seus pedidos">');
+    expect(fonte).toContain("<LinhaDeOrganizacao");
+    // O `seta` como propriedade de JSX — e não a palavra num comentário.
+    expect(fonte).not.toMatch(/\sseta(?:\s*\/?>|=\{)/u);
+  });
+
+  it("as datas de T-02 são as do guia, e o formatador local saiu (guia §7)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect(fonte).not.toContain("Intl.DateTimeFormat");
+    expect(fonte).toContain("dataEHora(");
+  });
+
+  it("a nota do pedido de entrada sai só onde todo campo é obrigatório (critério 44o.11)", () => {
+    expect(ler(PEDIDO_DE_ENTRADA)).toContain("todosObrigatorios={!primeiraEntrada}");
+  });
+
+  it("a espera de T-02 é a da moldura, com a mesma frase (critério 44o.1)", () => {
+    const fonte = ler("app/organizacao/loading.tsx");
+    expect(fonte).toContain("<EsperaDaMolduraDeConta>");
+    expect(fonte).toContain("Acordando o servidor — a primeira abertura do dia é mais lenta.");
   });
 });
