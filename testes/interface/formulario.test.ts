@@ -1241,4 +1241,44 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).not.toContain("Prioridade:</span>");
     expect(fonte).toContain("LINHA_DA_PRIORIDADE");
   });
+
+  it("os cinco modais de T-05 usam a moldura compartilhada (critérios 44p.15 e 44p.16)", () => {
+    const CINCO = [
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-observacao.tsx",
+      "src/interface/componentes/modal-de-resolucao.tsx",
+    ];
+
+    for (const caminho of CINCO) {
+      const fonte = ler(caminho);
+      // A moldura: nenhum dos cinco monta o `Dialog` direto.
+      expect(fonte).not.toContain("ui/dialog");
+      expect(fonte).toContain("<Modal");
+      // A cor: o `BotaoDeConfirmar` é `variant="marca"` por padrão, então o critério 15 vem junto.
+      expect(fonte).toContain("<BotaoDeConfirmar");
+      expect(fonte).toContain("<BotaoDeCancelar");
+      // E "Fechar" some: o secundário do rodapé compartilhado escreve "Cancelar".
+      expect(fonte).not.toContain("Fechar");
+    }
+  });
+
+  it("a nota de obrigatório só aparece onde há campo opcional (critério 44p.11)", () => {
+    const COM_TODOS = [
+      "src/interface/componentes/conversa-da-ocorrencia.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-categoria.tsx",
+      "src/interface/componentes/modal-de-area.tsx",
+      "src/interface/componentes/edicao-de-nome.tsx",
+    ];
+    for (const caminho of COM_TODOS) expect(ler(caminho)).toContain("todosObrigatorios");
+
+    // O `Modal` precisa deixar a propriedade atravessar: três dos seis só o alcançam por ele.
+    expect(ler("src/interface/componentes/modal.tsx")).toContain("todosObrigatorios");
+
+    // E onde há campo opcional a nota FICA — a avaliação tem "Comentário (opcional)".
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("todosObrigatorios");
+  });
 });

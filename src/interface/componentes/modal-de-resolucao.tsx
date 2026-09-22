@@ -2,25 +2,12 @@
 
 import { useId, useState } from "react";
 
-import {
-  Campo,
-  ErroDoFormulario,
-  IndicadorDeEnvio,
-  RodapeDoFormulario,
-} from "@/interface/componentes/campo";
+import { Campo, ErroDoFormulario } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 
@@ -133,8 +120,11 @@ export function ModalDeResolucao({
   });
 
   return (
-    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
-      <DialogTrigger asChild>
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      gatilho={
         <Button
           type="button"
           variant={variante === "primario" ? "marca" : "outline"}
@@ -145,75 +135,68 @@ export function ModalDeResolucao({
         >
           Resolver
         </Button>
-      </DialogTrigger>
-
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Resolver</DialogTitle>
-          {/* **Os dois fatos do estado terminal, e é a única frase nova de produto desta fatia.** Ela
-              está declarada no achado A-3 da spec para o hub confirmar ou trocar; trocá-la não muda uma
-              linha de estrutura. */}
-          <DialogDescription>A ocorrência será encerrada. Não há como reabrir.</DialogDescription>
-        </DialogHeader>
-
-        {/* **PRIMEIRO campo, em foco.** É a indução da D22, e é o único mecanismo que existe até o
-            interruptor por organização nascer. */}
-        <Campo id={campoSolucaoId} rotulo="O que foi feito (opcional)">
-          {(controle) => (
-            <Textarea
-              {...controle}
-              autoFocus
-              value={solucao}
-              onChange={(evento) => setSolucao(evento.target.value)}
-              disabled={envio.enviando}
-              rows={4}
-              /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */
-              maxLength={4000}
-            />
-          )}
-        </Campo>
-
-        {/* **SEGUNDO campo**, com o aviso ANTES dele: a restrição herdada nº 1. */}
-        <Campo
-          id={campoObservacaoId}
-          rotulo="Observação (opcional)"
-          ajuda={AVISO_DE_VISIBILIDADE}
-          ajudaAntes
-        >
-          {(controle) => (
-            <Textarea
-              {...controle}
-              value={observacao}
-              onChange={(evento) => setObservacao(evento.target.value)}
-              disabled={envio.enviando}
-              rows={3}
-              /* **O mesmo teto do campo `observacao` do módulo de schemas** — 1000. */
-              maxLength={1000}
-            />
-          )}
-        </Campo>
-
-        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
-
-        {/* **Sem nota de obrigatório:** os dois campos são opcionais (D23, e o critério 25.4: resolver sem
-            solução responde `200`). A indução é o foco, nunca a trava. */}
-        <RodapeDoFormulario obrigatorios={0}>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
-              Fechar
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            className="h-11"
+      }
+      titulo="Resolver"
+      /* **Os dois fatos do estado terminal, e é a única frase nova de produto desta fatia.** Ela está
+         declarada no achado A-3 da spec para o hub confirmar ou trocar; trocá-la não muda uma linha de
+         estrutura. */
+      descricao="A ocorrência será encerrada. Não há como reabrir."
+      /* **Sem nota de obrigatório:** os dois campos são opcionais (D23, e o critério 25.4: resolver sem
+         solução responde `200`). A indução é o foco, nunca a trava. */
+      obrigatorios={0}
+      aoEnviar={(evento) => {
+        evento.preventDefault();
+        void envio.confirmar();
+      }}
+      rodape={
+        <>
+          <BotaoDeCancelar enviando={envio.enviando} />
+          <BotaoDeConfirmar
+            enviando={envio.enviando}
+            rotulo="Resolver"
+            rotuloEnviando="Resolvendo…"
+          />
+        </>
+      }
+    >
+      {/* **PRIMEIRO campo, em foco.** É a indução da D22, e é o único mecanismo que existe até o
+          interruptor por organização nascer. */}
+      <Campo id={campoSolucaoId} rotulo="O que foi feito (opcional)">
+        {(controle) => (
+          <Textarea
+            {...controle}
+            autoFocus
+            value={solucao}
+            onChange={(evento) => setSolucao(evento.target.value)}
             disabled={envio.enviando}
-            onClick={() => void envio.confirmar()}
-          >
-            <IndicadorDeEnvio ativo={envio.enviando} />
-            {envio.enviando ? "Resolvendo…" : "Resolver"}
-          </Button>
-        </RodapeDoFormulario>
-      </DialogContent>
-    </Dialog>
+            rows={4}
+            /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */
+            maxLength={4000}
+          />
+        )}
+      </Campo>
+
+      {/* **SEGUNDO campo**, com o aviso ANTES dele: a restrição herdada nº 1. */}
+      <Campo
+        id={campoObservacaoId}
+        rotulo="Observação (opcional)"
+        ajuda={AVISO_DE_VISIBILIDADE}
+        ajudaAntes
+      >
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={observacao}
+            onChange={(evento) => setObservacao(evento.target.value)}
+            disabled={envio.enviando}
+            rows={3}
+            /* **O mesmo teto do campo `observacao` do módulo de schemas** — 1000. */
+            maxLength={1000}
+          />
+        )}
+      </Campo>
+
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
 }

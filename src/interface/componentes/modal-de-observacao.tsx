@@ -2,25 +2,12 @@
 
 import { useId, useState } from "react";
 
-import {
-  Campo,
-  ErroDoFormulario,
-  IndicadorDeEnvio,
-  RodapeDoFormulario,
-} from "@/interface/componentes/campo";
+import { Campo, ErroDoFormulario } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/interface/componentes/ui/dialog";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 
@@ -102,8 +89,11 @@ export function ModalDeObservacao({
   });
 
   return (
-    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
-      <DialogTrigger asChild>
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      gatilho={
         <Button
           type="button"
           variant={variante === "primario" ? "marca" : "outline"}
@@ -116,50 +106,43 @@ export function ModalDeObservacao({
         >
           {rotuloDoGatilho}
         </Button>
-      </DialogTrigger>
-
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>{descricao}</DialogDescription>
-        </DialogHeader>
-
-        {/* O aviso de visibilidade é descrição do campo e vem ANTES dele (critério 22.5). */}
-        <Campo id={campoId} rotulo={rotuloDoCampo} ajuda={AVISO_DE_VISIBILIDADE} ajudaAntes>
-          {(controle) => (
-            <Textarea
-              {...controle}
-              value={texto}
-              onChange={(evento) => setTexto(evento.target.value)}
-              disabled={envio.enviando}
-              rows={3}
-              /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
-              maxLength={1000}
-            />
-          )}
-        </Campo>
-
-        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
-
-        {/* **Sem nota de obrigatório:** a observação é opcional (D23: *"campo obrigatório em momento
-            rotineiro é preenchido com 'ok' e o dado morre"*). */}
-        <RodapeDoFormulario obrigatorios={0}>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
-              Fechar
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            className="h-11"
+      }
+      titulo={titulo}
+      descricao={descricao}
+      /* **Sem nota de obrigatório:** a observação é opcional (D23: *"campo obrigatório em momento
+         rotineiro é preenchido com 'ok' e o dado morre"*). */
+      obrigatorios={0}
+      aoEnviar={(evento) => {
+        evento.preventDefault();
+        void envio.confirmar();
+      }}
+      rodape={
+        <>
+          <BotaoDeCancelar enviando={envio.enviando} />
+          <BotaoDeConfirmar
+            enviando={envio.enviando}
+            rotulo={rotuloDeConfirmar}
+            rotuloEnviando={verboEnviando}
+          />
+        </>
+      }
+    >
+      {/* O aviso de visibilidade é descrição do campo e vem ANTES dele (critério 22.5). */}
+      <Campo id={campoId} rotulo={rotuloDoCampo} ajuda={AVISO_DE_VISIBILIDADE} ajudaAntes>
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={texto}
+            onChange={(evento) => setTexto(evento.target.value)}
             disabled={envio.enviando}
-            onClick={() => void envio.confirmar()}
-          >
-            <IndicadorDeEnvio ativo={envio.enviando} />
-            {envio.enviando ? verboEnviando : rotuloDeConfirmar}
-          </Button>
-        </RodapeDoFormulario>
-      </DialogContent>
-    </Dialog>
+            rows={3}
+            /* **O mesmo teto do `comandoComObservacaoSchema`** — 1000. Dois números divergiriam. */
+            maxLength={1000}
+          />
+        )}
+      </Campo>
+
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
 }

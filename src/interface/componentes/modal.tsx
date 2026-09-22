@@ -39,7 +39,10 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * limiar é o mesmo `md` do `dialog.tsx`. O primeiro valor do gancho é `false` e nunca desenha nada: o
  * modal só abre por clique, depois da hidratação.
  *
- * **T-05 não usa este componente.** Os cinco modais dela continuam com a gaveta do `dialog.tsx` (item 23).
+ * **T-05 usa este componente desde 21/09/2026** (item 44p, critério 16). Os cinco modais dela montavam o
+ * `Dialog` direto, com rodapé sem faixa e um confirmar azul ao lado de ações laranja na mesma tela. O
+ * pedido do dono de 16/09 — que o comportamento do 44g valesse para as telas já construídas — não os
+ * tinha alcançado.
  *
  * **O modal não sabe enviar.** Quem o usa liga `useEnvioDoModal` e passa `aberto`, `aoMudarAbertura` e
  * `enviando`; durante o envio o ciclo recusa o fechamento, e o modal só desabilita o fechar que ele mesmo
@@ -67,6 +70,7 @@ export function Modal({
   titulo,
   descricao,
   obrigatorios,
+  todosObrigatorios = false,
   aoEnviar,
   aoFecharFoco,
   rodape,
@@ -81,6 +85,12 @@ export function Modal({
   descricao: string;
   /** Quantos campos obrigatórios o corpo tem; com zero, o rodapé não escreve a nota. */
   obrigatorios: number;
+  /**
+   * **Quando todo campo do corpo é obrigatório, a nota sai e o asterisco fica** (guia §7). Atravessa até
+   * `RodapeDoFormulario`, que é quem decide — três dos seis formulários do critério 44p.11 só a alcançam
+   * por aqui, e depois do critério 44p.16 os cinco modais de T-05 também.
+   */
+  todosObrigatorios?: boolean;
   aoEnviar: (evento: FormEvent<HTMLFormElement>) => void;
   /**
    * Opcional: para onde o foco vai quando o modal fecha (item 44j). Sem ela, o foco volta ao gatilho —
@@ -101,7 +111,9 @@ export function Modal({
       </div>
       <div className={cn("flex flex-col gap-4.5", celular ? "px-4 pt-4 pb-1.5" : "px-6 py-5")}>{children}</div>
       <div className={celular ? "px-4 pt-3 pb-5" : "border-linha-suave bg-background border-t px-6 py-3.5"}>
-        <RodapeDoFormulario obrigatorios={obrigatorios}>{rodape}</RodapeDoFormulario>
+        <RodapeDoFormulario obrigatorios={obrigatorios} todosObrigatorios={todosObrigatorios}>
+          {rodape}
+        </RodapeDoFormulario>
       </div>
     </form>
   );

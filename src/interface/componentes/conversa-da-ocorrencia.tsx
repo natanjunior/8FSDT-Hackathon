@@ -157,7 +157,7 @@ export function ConversaDaOcorrencia({
           **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
           momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
           inerte durante o envio. */}
-      <RodapeDoFormulario obrigatorios={1}>
+      <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
         <Button
           type="button"
           variant="outline"

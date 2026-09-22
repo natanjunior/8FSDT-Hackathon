@@ -2,25 +2,11 @@
 
 import { useId, useState } from "react";
 
-import {
-  Campo,
-  ErroDoFormulario,
-  GrupoDeEscolha,
-  IndicadorDeEnvio,
-  RodapeDoFormulario,
-} from "@/interface/componentes/campo";
+import { Campo, ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/interface/componentes/ui/dialog";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
@@ -200,109 +186,108 @@ export function ModalDeMotivo({
     );
 
   return (
-    <Dialog open={envio.aberto} onOpenChange={envio.mudarAbertura}>
-      <DialogTrigger asChild>{gatilho}</DialogTrigger>
+    <Modal
+      aberto={envio.aberto}
+      aoMudarAbertura={envio.mudarAbertura}
+      enviando={envio.enviando}
+      gatilho={gatilho}
+      titulo={titulo}
+      descricao={descricao}
+      /* **Os dois campos são obrigatórios**, então a nota do rodapé sai e o asterisco fica
+         (critério 44p.11). */
+      obrigatorios={2}
+      todosObrigatorios
+      aoEnviar={(evento) => {
+        evento.preventDefault();
+        confirmar();
+      }}
+      rodape={
+        <>
+          <BotaoDeCancelar enviando={envio.enviando} />
+          <BotaoDeConfirmar
+            enviando={envio.enviando}
+            variante={destrutivo ? "destrutiva" : undefined}
+            rotulo={rotuloDeConfirmar}
+            rotuloEnviando={verboEnviando}
+          />
+        </>
+      }
+    >
+      <GrupoDeEscolha
+        id={grupoId}
+        legenda={rotuloDoGrupo}
+        obrigatorio
+        erro={formulario.erroDe("motivo")}
+      >
+        {motivos.map((motivo) => {
+          const id = `${grupoId}-${motivo.valor}`;
+          return (
+            <label
+              key={motivo.valor}
+              htmlFor={id}
+              /* **`items-start` só quando há descrição**, para o rádio alinhar com a PRIMEIRA linha em
+                 vez de centralizar num bloco de duas. `min-h-11` continua nos dois casos, e o alvo de
+                 toque cresce em vez de encolher (A-3). */
+              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 ${
+                motivo.descricao === undefined ? "items-center py-2" : "items-start py-2.5"
+              }`}
+            >
+              {/* **A-1:** rótulo associado ao controle — clicar no texto seleciona. */}
+              <input
+                type="radio"
+                id={id}
+                name={grupoId}
+                value={motivo.valor}
+                required
+                disabled={envio.enviando}
+                checked={escolhido === motivo.valor}
+                onChange={() => {
+                  setEscolhido(motivo.valor);
+                  formulario.mudou("motivo");
+                }}
+                className="mt-0.5 size-4"
+              />
+              {/* **A descrição vai DENTRO do `<label>`, e não em `aria-describedby`**: o nome
+                  acessível da opção já a inclui, e uma descrição ancorada separadamente a leria duas
+                  vezes (A-1). */}
+              <span className="flex flex-col gap-0.5">
+                <span className="text-tinta">{motivo.rotulo}</span>
+                {motivo.descricao !== undefined && (
+                  <span className="text-tinta-suave text-meta leading-relaxed">
+                    {motivo.descricao}
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
+      </GrupoDeEscolha>
 
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
-          <DialogDescription>{descricao}</DialogDescription>
-        </DialogHeader>
-
-        <GrupoDeEscolha
-          id={grupoId}
-          legenda={rotuloDoGrupo}
-          obrigatorio
-          erro={formulario.erroDe("motivo")}
-        >
-          {motivos.map((motivo) => {
-            const id = `${grupoId}-${motivo.valor}`;
-            return (
-              <label
-                key={motivo.valor}
-                htmlFor={id}
-                /* **`items-start` só quando há descrição**, para o rádio alinhar com a PRIMEIRA linha em
-                   vez de centralizar num bloco de duas. `min-h-11` continua nos dois casos, e o alvo de
-                   toque cresce em vez de encolher (A-3). */
-                className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 ${
-                  motivo.descricao === undefined ? "items-center py-2" : "items-start py-2.5"
-                }`}
-              >
-                {/* **A-1:** rótulo associado ao controle — clicar no texto seleciona. */}
-                <input
-                  type="radio"
-                  id={id}
-                  name={grupoId}
-                  value={motivo.valor}
-                  required
-                  disabled={envio.enviando}
-                  checked={escolhido === motivo.valor}
-                  onChange={() => {
-                    setEscolhido(motivo.valor);
-                    formulario.mudou("motivo");
-                  }}
-                  className="mt-0.5 size-4"
-                />
-                {/* **A descrição vai DENTRO do `<label>`, e não em `aria-describedby`**: o nome
-                    acessível da opção já a inclui, e uma descrição ancorada separadamente a leria duas
-                    vezes (A-1). */}
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-tinta">{motivo.rotulo}</span>
-                  {motivo.descricao !== undefined && (
-                    <span className="text-tinta-suave text-meta leading-relaxed">
-                      {motivo.descricao}
-                    </span>
-                  )}
-                </span>
-              </label>
-            );
-          })}
-        </GrupoDeEscolha>
-
-        <Campo
-          id={campoId}
-          rotulo="Observação"
-          obrigatorio
-          ajuda={avisoDeVisibilidade}
-          ajudaAntes
-          erro={formulario.erroDe("observacao")}
-        >
-          {(controle) => (
-            <Textarea
-              {...controle}
-              value={texto}
-              onChange={(evento) => {
-                setTexto(evento.target.value);
-                formulario.mudou("observacao");
-              }}
-              disabled={envio.enviando}
-              rows={3}
-              /* **O mesmo teto do `pausaSchema`** — 1000. Dois números divergiriam. */
-              maxLength={1000}
-            />
-          )}
-        </Campo>
-
-        {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
-
-        <RodapeDoFormulario obrigatorios={2}>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="h-11" disabled={envio.enviando}>
-              Fechar
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            variant={destrutivo ? "destructive" : "default"}
-            className="h-11"
+      <Campo
+        id={campoId}
+        rotulo="Observação"
+        obrigatorio
+        ajuda={avisoDeVisibilidade}
+        ajudaAntes
+        erro={formulario.erroDe("observacao")}
+      >
+        {(controle) => (
+          <Textarea
+            {...controle}
+            value={texto}
+            onChange={(evento) => {
+              setTexto(evento.target.value);
+              formulario.mudou("observacao");
+            }}
             disabled={envio.enviando}
-            onClick={confirmar}
-          >
-            <IndicadorDeEnvio ativo={envio.enviando} />
-            {envio.enviando ? verboEnviando : rotuloDeConfirmar}
-          </Button>
-        </RodapeDoFormulario>
-      </DialogContent>
-    </Dialog>
+            rows={3}
+            /* **O mesmo teto do `pausaSchema`** — 1000. Dois números divergiriam. */
+            maxLength={1000}
+          />
+        )}
+      </Campo>
+
+      {envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}
+    </Modal>
   );
 }
