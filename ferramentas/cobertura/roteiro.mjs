@@ -32,6 +32,9 @@ const CERCA = /^```/u;
 const PARTE = /^#\s+(.+)$/u;
 const SECAO = /^##\s+(.+)$/u;
 const SUBSECAO = /^###\s+(.+)$/u;
+
+/** `### Atribuir · critérios 19 e 20 (era o "Passo avulso" do 20)` → `19 e 20`. */
+const CRITERIO_DA_SUBSECAO = /·\s*crit[ée]rios?\s+([^(]+)/u;
 const ITEM = /^\s{0,3}(\d+)\.\s+(\S.*)$/u;
 /** A marca aceita a crase em volta, porque no documento ela é código: `` `[olho]` a razão ``. */
 const OLHO = /`?\[olho\]`?\s*([^\n]*)/u;
@@ -98,6 +101,7 @@ export function lerRoteiro(conteudo) {
   let painelDaParte = [];
   let painelDaSecao = [];
   let grupo = [];
+  let subsecao = [];
   let dentroDaCerca = false;
   let ignorandoSecao = false;
 
@@ -118,6 +122,7 @@ export function lerRoteiro(conteudo) {
       painelDaParte = itensDoPainel(titulo);
       painelDaSecao = [];
       grupo = [];
+      subsecao = [];
       ignorandoSecao = FORA.some((padrao) => padrao.test(titulo));
       continue;
     }
@@ -129,12 +134,32 @@ export function lerRoteiro(conteudo) {
       rotulo = rotularSecao(titulo, numeroDaParte) ?? numeroDaParte;
       painelDaSecao = itensDoPainel(titulo);
       grupo = [];
+      subsecao = [];
       ignorandoSecao = FORA.some((padrao) => padrao.test(titulo));
       continue;
     }
 
-    // Um `###` divide a leitura e **não** troca o rótulo: na Parte 4 a numeração atravessa os subtítulos.
-    if (SUBSECAO.test(linha)) continue;
+    /**
+     * **Um `###` não troca o rótulo, e troca a atribuição.** Na Parte 4 a numeração atravessa os
+     * subtítulos, então a identidade continua vindo do `##`. Mas o cabeçalho da seção 4.3 declara *"valida
+     * 16 · 17 · 19 · 20 · 22 · 25 · 26 · 44d"* para trinta e dois itens de uma vez, e os subtítulos dizem
+     * qual dos oito é cada faixa — *Analisar · critério 16*, *A prioridade · critério 17*.
+     *
+     * Sem isto o mapa manda quem abre o item 17 conferir trinta e dois passos, quando a prioridade tem
+     * dez. A atribuição grossa não está errada; ela é inútil para a decisão que o mapa existe para
+     * encurtar.
+     */
+    const daSubsecao = SUBSECAO.exec(linha);
+    if (daSubsecao) {
+      const doCriterio = CRITERIO_DA_SUBSECAO.exec(daSubsecao[1]);
+      subsecao = doCriterio
+        ? doCriterio[1]
+            .split(/\s+e\s+|·|,/u)
+            .map((pedaco) => pedaco.trim().replace(/\*\*/gu, ""))
+            .filter((pedaco) => /^[0-9]/u.test(pedaco))
+        : [];
+      continue;
+    }
 
     if (ignorandoSecao || rotulo === null) continue;
 
@@ -171,8 +196,16 @@ export function lerRoteiro(conteudo) {
       linha: indice + 1,
       texto: texto.replace(/\*\*/gu, "").trim(),
       olho: daMarca ? daMarca[1].trim() : null,
-      // O mais fino que o documento oferecer: o chapéu, depois a seção, depois a parte.
-      painel: grupo.length > 0 ? grupo : painelDaSecao.length > 0 ? painelDaSecao : painelDaParte,
+      painelDaSecao: [...painelDaSecao],
+      // O mais fino que o documento oferecer: o chapéu, o subtítulo, a seção, a parte.
+      painel:
+        grupo.length > 0
+          ? grupo
+          : subsecao.length > 0
+            ? subsecao
+            : painelDaSecao.length > 0
+              ? painelDaSecao
+              : painelDaParte,
     });
   }
 
@@ -182,6 +215,33 @@ export function lerRoteiro(conteudo) {
    * TODOS os itens daquela seção, não só para os do segundo grupo, para que `2.1 · 6a · 1` e
    * `2.1 · 44 · 1` se leiam como par em vez de como exceção.
    */
+  /**
+   * **O subtítulo dá a atribuição fina, e o cabeçalho continua dono do que nenhum subtítulo reivindica.**
+   *
+   * A seção 4.3 declara *"valida 16 · 17 · 19 · 20 · 22 · 25 · 26 · 44d"*, e os subtítulos repartem sete
+   * desses oito em faixas. O `44d` é a tela inteira, e nenhum subtítulo o nomeia — a validação dele **é**
+   * a seção toda. Deixá-lo de fora perderia informação que o documento dá de graça; dá-lo a todos de volta
+   * desfaria o recorte fino.
+   *
+   * A regra que resolve os dois: item do cabeçalho que nenhum subtítulo reivindica herda a seção inteira.
+   */
+  const reivindicadosPorSubsecao = new Map();
+  for (const item of itens) {
+    if (item.painelDaSecao.length === 0) continue;
+    const doCabecalho = new Set(item.painelDaSecao);
+    if (!reivindicadosPorSubsecao.has(item.rotulo)) reivindicadosPorSubsecao.set(item.rotulo, new Set());
+    for (const chave of item.painel) {
+      if (doCabecalho.has(chave)) reivindicadosPorSubsecao.get(item.rotulo).add(chave);
+    }
+  }
+
+  for (const item of itens) {
+    const reivindicados = reivindicadosPorSubsecao.get(item.rotulo) ?? new Set();
+    const orfaos = item.painelDaSecao.filter((chave) => !reivindicados.has(chave));
+    if (orfaos.length > 0) item.painel = [...new Set([...item.painel, ...orfaos])];
+    delete item.painelDaSecao;
+  }
+
   const porRotulo = new Map();
   for (const item of itens) {
     if (!porRotulo.has(item.rotulo)) porRotulo.set(item.rotulo, []);
