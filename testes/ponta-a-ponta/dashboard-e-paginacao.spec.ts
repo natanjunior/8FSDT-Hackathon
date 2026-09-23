@@ -58,7 +58,7 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  *
  * | O que fica de fora | Por quê |
  * |---|---|
- * | O **32.5 na forma forte** — os cinco quadros batendo com o resumo que a semente imprime | Exige um mundo intocado, e este teste acrescenta a ele. Continua sendo passada humana |
+ * | O **32.5 na forma forte** — os cinco quadros **que o resumo cobre** batendo com o resumo que a semente imprime | Exige um mundo intocado, e este teste acrescenta a ele. Continua sendo passada humana |
  * | O **43.1** — o resumo impresso no terminal pelo `npm run semear:demo` | É saída de programa, não de tela. Nenhum navegador a alcança |
  * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
@@ -82,7 +82,7 @@ const CATEGORIAS_DA_SEMENTE = 7;
 const POR_PAGINA = 20;
 
 /**
- * Um dos cinco quadros de T-07. **Escopado pela `section` do `Cartao`, e nunca por posição:** os cinco
+ * Um dos seis quadros de T-07. **Escopado pela `section` do `Cartao`, e nunca por posição:** os seis
  * são irmãos dentro do `<main>` da casca, e nenhuma outra peça da casca é `section`.
  *
  * **O nome vai em expressão regular insensível a caixa** porque o título do quadro é `uppercase` por
@@ -393,7 +393,48 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   cobre(test.info(), "7.2 · 5", { criterio: "34" });
 
   // -------------------------------------------------------------------------
-  // 3 · A lista, com a página 1 cheia — passo 7 do roteiro
+  // 2.6 · Quadro 6 · Em aberto por idade agora — as quatro faixas (critérios 59.2 a 59.6)
+  //
+  // **É o único quadro do painel que enxerga o que NÃO foi resolvido**, e o que ele prova aqui é a
+  // igualdade: a soma das quatro faixas é a soma do quadro 3, porque os dois contam o mesmo conjunto —
+  // as não terminais — por dois cortes. **Nenhum schema declara essa igualdade**: ela vive em dois
+  // `where` que ninguém obriga a concordar, e é esta linha que pega um deles escorregando.
+  //
+  // **Nenhuma asserção sobre qual faixa tem quanto.** A semente espalha os registros por cinco meses, e
+  // o dia em que a suíte roda decide onde cada um cai. O que é estável é a estrutura e a soma.
+  // -------------------------------------------------------------------------
+  const emAbertoPorIdade = quadro(helena, "Em aberto por idade");
+  await expect(emAbertoPorIdade).toContainText("agora");
+  await expect(emAbertoPorIdade).toContainText(
+    "Há quanto tempo o que está em aberto espera, contando do registro.",
+  );
+
+  // **As quatro, sempre, inclusive as que estão em zero** — critério 59.2. Os textos são inteiros e
+  // literais: uma faixa que mudasse de rótulo sem que ninguém percebesse é o defeito que isto pega.
+  const linhasDeIdade = await linhasDoMedidor(emAbertoPorIdade);
+  expect(linhasDeIdade.map((linha) => linha.rotulo)).toStrictEqual([
+    "Até 7 dias",
+    "8 a 30 dias",
+    "31 a 90 dias",
+    "Mais de 90 dias",
+  ]);
+
+  // O número em texto, em toda linha — critério 59.4 e compromisso A-5.
+  for (const linha of linhasDeIdade) {
+    expect(Number.isInteger(Number(linha.texto)), `faixa "${linha.rotulo}"`).toBe(true);
+  }
+
+  // **A asserção forte.** `soma` é a mesma da seção 2.3.
+  expect(soma(linhasDeIdade)).toBe(soma(linhasDeCategoria));
+
+  cobre(test.info(), "7.2 · 6", {
+    criterio: "59.2, 59.3, 59.4, 59.6",
+    falta:
+      "a oração que aponta a faixa mais velha, que só aparece quando a semente deixa alguém acima de 90 dias",
+  });
+
+  // -------------------------------------------------------------------------
+  // 3 · A lista, com a página 1 cheia — passo 8 do roteiro
   //
   // **A asserção é de forma, nunca de total:** o Recanto tem 24 ocorrências na primeira corrida e ganha
   // uma a cada corrida deste arquivo. O que é estável é a página 1 estar cheia e existir uma página 2.
@@ -418,7 +459,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const sonda = await lerSondaDaTroca(helena);
   expect(sonda.esqueleto, "o esqueleto cinza apareceu na troca de página").toBe(0);
   expect(sonda.listaVazia, "a lista anterior sumiu antes de a página 2 chegar").toBe(0);
-  cobre(test.info(), "7.3 · 7", {
+  cobre(test.info(), "7.3 · 8", {
     falta:
       "a lista da página 1 ficar esmaecida na espera — a sonda prova que ela não some, não que ela esmaece",
   });
@@ -443,7 +484,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await outraAba.goto(enderecoDaPagina2);
   await expect(outraAba.getByText(/Página 2 de \d+/u)).toBeVisible();
   expect(await enderecosNaTabela(outraAba)).toEqual(daPagina2);
-  cobre(test.info(), "7.3 · 8", { criterio: "14b.2" });
+  cobre(test.info(), "7.3 · 9", { criterio: "14b.2" });
 
   // -------------------------------------------------------------------------
   // 5 · A linha de novidades — passo 9 do roteiro, critério 14b.2
@@ -461,7 +502,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(deriva).toBeVisible();
   await expect(deriva).toContainText(/\d+h\d+/u);
   await expect(deriva).toContainText("1 chegou desde então");
-  cobre(test.info(), "7.3 · 9", { criterio: "14b.2" });
+  cobre(test.info(), "7.3 · 10", { criterio: "14b.2" });
 
   // **A página 2 continua sendo a mesma**, com uma ocorrência nova no conjunto: é a compensação de
   // deslocamento do `totalNoCorte`, e sem ela a lista pularia itens respondendo `200` com vinte linhas.
@@ -498,7 +539,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(helena.url()).toBe(enderecoDaPagina2);
   await expect(helena.getByText(/Página 2 de \d+/u)).toBeVisible();
   expect(await enderecosNaTabela(helena)).toEqual(daPagina2);
-  cobre(test.info(), "7.3 · 10", {
+  cobre(test.info(), "7.3 · 11", {
     falta:
       "a volta pela barra lateral caindo na página 1 com corte novo — o teste volta pelo botão do navegador, que devolve a página 2 inteira",
   });
