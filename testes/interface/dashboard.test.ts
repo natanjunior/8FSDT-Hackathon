@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
+import {
+  chaveDaDupla,
+  rotuloDaDupla,
+  SEM_DUPLA_RECORRENTE,
+} from "@/interface/componentes/duplas-recorrentes";
 import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
 import {
   rotuloDaFaixaDeIdade,
@@ -76,6 +81,18 @@ const LIDO: DashboardLido = {
       porMes: [{ mes: "2026-06", quantidade: 2 }],
     },
   ],
+  duplasRecorrentes: [
+    {
+      area: { id: "a-1", nome: "Garagem", tipo: "comum", ativa: true, ordem: 1 },
+      categoria: { id: "c-1", nome: "Vazamento" },
+      quantidade: 4,
+    },
+    {
+      area: { id: "a-2", nome: "Hall", tipo: "privativa", ativa: false, ordem: 2 },
+      categoria: { id: "c-2", nome: "Limpeza" },
+      quantidade: 2,
+    },
+  ],
   tempoDeResolucao: {
     porMes: [{ mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 }],
   },
@@ -123,6 +140,30 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
   it("a categoria sai com dois campos — o contrato a declara inline, sem ícone", () => {
     const [serie] = projetarDashboard(LIDO).recorrenciaPorCategoria;
     expect(serie?.categoria).toStrictEqual({ id: "c-1", nome: "Vazamento" });
+  });
+
+  /**
+   * **A dupla atravessa com a Área de cinco campos e a Categoria de dois** — é o mesmo `projetarArea`
+   * de `recorrenciaPorArea`, e uma segunda forma de Área no mesmo envelope seria a que diverge na
+   * primeira alteração.
+   */
+  it("a dupla sai com a Área de cinco campos e a Categoria de dois", () => {
+    const [dupla] = projetarDashboard(LIDO).duplasRecorrentes;
+    expect(dupla).toStrictEqual({
+      area: { id: "a-1", nome: "Garagem", tipo: "comum", ativa: true, ordem: 1 },
+      categoria: { id: "c-1", nome: "Vazamento" },
+      quantidade: 4,
+    });
+  });
+
+  /**
+   * **A projeção não reordena e não refiltra.** Quem decide a ordem é a Aplicação; repeti-la aqui
+   * seria afirmar a mesma regra em duas camadas, e a segunda envelhece sozinha.
+   */
+  it("a ordem que a Aplicação deu atravessa intacta", () => {
+    expect(
+      projetarDashboard(LIDO).duplasRecorrentes.map((dupla) => dupla.quantidade),
+    ).toStrictEqual([4, 2]);
   });
 
   it("o periodo é ecoado, e os três blocos de número atravessam sem alteração", () => {
@@ -439,5 +480,49 @@ describe("textoDaIdadeEmAberto — uma oração sempre, duas quando há o que ap
 
   it("sem faixa nenhuma, a oração continua — a tela nunca fica sem a linha que explica", () => {
     expect(textoDaIdadeEmAberto([])).toBe(SEMPRE);
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  A dupla na tela — item 60, critérios 60.3 e 60.4
+ * ---------------------------------------------------------------------------
+ *
+ * **As três funções são testadas sozinhas, e não através da tela**, pela razão dos itens 57, 58 e 59:
+ * derivação dentro de um componente é derivação que nenhum teste do laço curto alcança.
+ */
+describe("a dupla na tela — o rótulo, a chave e a frase de vazio", () => {
+  const VAZAMENTO_NA_GARAGEM = {
+    area: { id: "a-1", nome: "Garagem — Subsolo 1" },
+    categoria: { id: "c-1", nome: "Vazamentos" },
+    quantidade: 8,
+  };
+
+  /** **Área primeiro**, como o critério 60.4 escreve a dupla — e a frase do cartão é prosa, não alvo. */
+  it("escreve área e categoria nessa ordem, com o separador do vocabulário da tela", () => {
+    expect(rotuloDaDupla(VAZAMENTO_NA_GARAGEM)).toBe("Garagem — Subsolo 1 · Vazamentos");
+  });
+
+  /**
+   * **A chave sai dos identificadores, e nunca do rótulo.** Uma Área e uma Categoria homônimas na mesma
+   * organização produziriam a mesma chave pelo nome, e `key` duplicada em React é defeito silencioso.
+   */
+  it("a chave usa os identificadores, então nomes iguais com ids diferentes não colidem", () => {
+    const outra = {
+      area: { id: "a-2", nome: "Garagem — Subsolo 1" },
+      categoria: { id: "c-2", nome: "Vazamentos" },
+      quantidade: 3,
+    };
+
+    expect(chaveDaDupla(VAZAMENTO_NA_GARAGEM)).toBe("a-1:c-1");
+    expect(chaveDaDupla(outra)).not.toBe(chaveDaDupla(VAZAMENTO_NA_GARAGEM));
+  });
+
+  /** O critério 60.3: a frase diz o que aconteceu e o que vai aparecer ali, e não avisa defeito nenhum. */
+  it("a frase de vazio diz o que vai aparecer na seção", () => {
+    expect(SEM_DUPLA_RECORRENTE).toBe(
+      "Nenhuma dupla se repetiu no período. Aqui aparece a mesma categoria voltando na mesma área, " +
+        "a partir da segunda vez.",
+    );
   });
 });
