@@ -42,6 +42,11 @@ export type DashboardProjetado = {
     area: AreaProjetada;
     porMes: readonly PontoDoMesProjetado[];
   }[];
+  duplasRecorrentes: readonly {
+    area: AreaProjetada;
+    categoria: { id: string; nome: string };
+    quantidade: number;
+  }[];
   tempoDeResolucao: {
     porMes: readonly {
       mes: string;
@@ -92,6 +97,11 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
     recorrenciaPorArea: lido.recorrenciaPorArea.map((serie) => ({
       area: projetarArea(serie.area),
       porMes: serie.porMes.map((ponto) => ({ mes: ponto.mes, quantidade: ponto.quantidade })),
+    })),
+    duplasRecorrentes: lido.duplasRecorrentes.map((dupla) => ({
+      area: projetarArea(dupla.area),
+      categoria: { id: dupla.categoria.id, nome: dupla.categoria.nome },
+      quantidade: dupla.quantidade,
     })),
     tempoDeResolucao: {
       porMes: lido.tempoDeResolucao.porMes.map((mes) => ({

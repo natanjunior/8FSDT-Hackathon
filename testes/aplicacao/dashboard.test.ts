@@ -79,6 +79,7 @@ import type {
   ContagemPorCategoria,
   ContagemPorFaixaDeIdade,
   ContagemPorStatus,
+  DuplaRecorrente,
   Janela,
   LinhaDeResolucao,
   PontoDeArea,
@@ -98,6 +99,7 @@ type Dados = {
   porArea?: readonly PontoDeArea[];
   resolucoes?: readonly LinhaDeResolucao[];
   idades?: readonly ContagemPorFaixaDeIdade[];
+  duplas?: readonly DuplaRecorrente[];
 };
 
 /**
@@ -138,6 +140,11 @@ function repositorioEmMemoria(dados: Dados) {
       janelas.push(janela);
       return Promise.resolve(dados.resolucoes ?? []);
     },
+    duplasRecorrentes: (janela) => {
+      chamadas.push("duplasRecorrentes");
+      janelas.push(janela);
+      return Promise.resolve(dados.duplas ?? []);
+    },
   };
 
   return { repositorio, chamadas, janelas };
@@ -153,23 +160,34 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     expect(lido.periodo).toStrictEqual(TRES_MESES);
   });
 
-  it("lê as seis fontes e mais nada — a porta não tem escrita", async () => {
+  it("lê as sete fontes e mais nada — a porta não tem escrita", async () => {
     const { repositorio, chamadas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect([...chamadas].sort()).toStrictEqual([
       "abertasPorCategoria",
       "abertasPorIdade",
       "backlogPorStatus",
+      "duplasRecorrentes",
       "recorrenciaPorArea",
       "recorrenciaPorCategoria",
       "resolucoesPorMes",
     ]);
   });
 
-  it("passa a MESMA janela às três séries, e nenhuma aos três de fotografia", async () => {
+  /**
+   * **Quatro leituras com janela, e os três de fotografia continuam sem nenhuma** — que é a metade do
+   * caso que prova o critério 33.2. O par entrou como a quarta com janela, e o **tamanho** deste array
+   * é o que percebe um método novo recebendo período sem que ninguém decida isso.
+   */
+  it("passa a MESMA janela às quatro leituras de período, e nenhuma aos três de fotografia", async () => {
     const { repositorio, janelas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
-    expect(janelas).toStrictEqual([TRES_MESES, TRES_MESES, TRES_MESES]);
+    expect(janelas).toStrictEqual([
+      TRES_MESES,
+      TRES_MESES,
+      TRES_MESES,
+      TRES_MESES,
+    ]);
   });
 
   it("devolve os SEIS status, na ordem do ciclo, com zero onde o banco não trouxe nada", async () => {
@@ -449,5 +467,104 @@ describe("as quatro faixas de idade — sempre todas, na ordem crescente", () =>
 
     expect(semTeto).toHaveLength(1);
     expect(lido.abertasPorIdade.at(-1)?.ateDias).toBeNull();
+  });
+});
+
+/**
+ * As duplas do duplo. **Nomes escolhidos pelo desempate**: `Adega` antes de `Água` só se a comparação for
+ * a do `localeCompare` em pt-BR — na ordem de código, `Á` vem depois de toda letra sem acento.
+ */
+const ADEGA = {
+  id: "a-3",
+  nome: "Adega",
+  tipo: "comum" as const,
+  ativa: true,
+  ordem: 3,
+};
+const AGUA = {
+  id: "a-4",
+  nome: "Água",
+  tipo: "comum" as const,
+  ativa: true,
+  ordem: 4,
+};
+
+const dupla = (
+  area: typeof GARAGEM,
+  categoria: string,
+  quantidade: number,
+): DuplaRecorrente => ({
+  area,
+  categoria: { id: `c-${categoria}`, nome: categoria },
+  quantidade,
+});
+
+describe("as duplas recorrentes — o mínimo é dois, e a ordem é da Aplicação", () => {
+  /**
+   * **O refiltro tem prova própria, e sem este caso o `filter` seria linha morta.** O `having` do SQL já
+   * corta, então um duplo que só devolvesse duplas legítimas deixaria a regra sem portão — e
+   * `npm run verificar` não roda o projeto de integração.
+   */
+  it("a dupla com uma ocorrência não sai, mesmo quando o repositório a devolve", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      duplas: [dupla(GARAGEM, "Vazamentos", 3), dupla(HALL, "Limpeza", 1)],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.duplasRecorrentes.map((d) => d.categoria.nome)).toStrictEqual([
+      "Vazamentos",
+    ]);
+  });
+
+  it("a ordem é por contagem decrescente", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      duplas: [
+        dupla(GARAGEM, "Duas", 2),
+        dupla(HALL, "Sete", 7),
+        dupla(ADEGA, "Quatro", 4),
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.duplasRecorrentes.map((d) => d.quantidade)).toStrictEqual([
+      7, 4, 2,
+    ]);
+  });
+
+  /**
+   * **O empate desempata pelo nome da ÁREA, na colação do `localeCompare` em pt-BR.** A do banco e esta
+   * não concordam em acentuação, e duas duplas empatadas trocariam de lugar conforme a resposta viesse do
+   * banco ou de um duplo — por isso a ordem publicada é decidida aqui.
+   */
+  it("o empate desempata pelo nome da área, e Adega vem antes de Água", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      duplas: [dupla(AGUA, "Vazamentos", 5), dupla(ADEGA, "Vazamentos", 5)],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.duplasRecorrentes.map((d) => d.area.nome)).toStrictEqual([
+      "Adega",
+      "Água",
+    ]);
+  });
+
+  it("empate de contagem e de área desempata pelo nome da categoria", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      duplas: [dupla(GARAGEM, "Zeladoria", 4), dupla(GARAGEM, "Acessos", 4)],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.duplasRecorrentes.map((d) => d.categoria.nome)).toStrictEqual([
+      "Acessos",
+      "Zeladoria",
+    ]);
+  });
+
+  /** Sem nenhuma dupla o campo é `[]` e não `undefined` — o envelope não se entrega pela metade. */
+  it("sem nenhuma dupla, o campo é uma lista vazia e não um buraco", async () => {
+    const { repositorio } = repositorioEmMemoria({});
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.duplasRecorrentes).toStrictEqual([]);
   });
 });
