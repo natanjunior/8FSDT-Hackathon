@@ -31,6 +31,14 @@ import {
  * no mesmo valor os pontos coincidem, e sem o afastamento as duas palavras cairiam uma sobre a outra. A
  * margem direita abre o espaço.
  *
+ * **O afastamento horizontal é medido, e não é enfeite.** O rótulo do mês do eixo é centrado no ponto, e
+ * a série que termina no chão do desenho põe o rótulo de ponta na mesma faixa vertical dele: com um
+ * afastamento de 8 px o `Resolvidas` encostou no `set` com **zero** de folga (medido no Recanto, em
+ * 23/09/2026 — a caixa do eixo ia até `x=745` e a do rótulo começava em `x=745`), e as duas palavras
+ * liam como uma. O caso que manda é a janela que atravessa a virada do ano, quando o rótulo do mês leva
+ * o ano junto e fica o dobro mais largo: com 22 px a folga contra o `fev/26` caiu para 4 px. Trinta
+ * deixam 12, e a margem direita cresce junto para o rótulo não ser cortado.
+ *
  * **Nenhuma cor semântica.** Verde para resolvidas e vermelho para registradas julgaria o número antes de
  * quem lê, e um mês de muitas registradas pode ser a organização finalmente usando o produto. As cores
  * são `--chart-1` e `--chart-2`, da paleta categórica que um teste mede.
@@ -63,7 +71,7 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart data={[...linhas]} margin={{ top: 12, right: 78, bottom: 0, left: 4 }}>
+      <LineChart data={[...linhas]} margin={{ top: 12, right: 104, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="mes" tickLine={false} axisLine={false} tickMargin={8} />
         <ChartTooltip content={<ChartTooltipContent />} />
@@ -82,7 +90,7 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
             {/* Sem `dataKey`: o valor sai do `valueAccessor`, e ele só escreve no último ponto. */}
             <LabelList
               position="right"
-              offset={8}
+              offset={30}
               dy={serie.dy}
               className="text-meta"
               fill={`var(--color-${serie.chave})`}
