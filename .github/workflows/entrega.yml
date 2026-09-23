@@ -106,6 +106,14 @@ jobs:
       - name: verificador de links e referências
         run: npm run verificar:referencias
 
+      # O portão de estilo mede as peças do catálogo no Chromium (item 44q). O job não instalava
+      # navegador; o `--with-deps` traz as bibliotecas de sistema que o Ubuntu do runner não tem.
+      - name: navegador do portão de estilo
+        run: npx playwright install --with-deps chromium
+
+      - name: verificador de estilo — as peças contra a prancheta, com controle diferencial
+        run: npm run verificar:estilo
+
       # --- E o build tem de passar antes de valer a pena construir imagem --
       - name: build
         run: npm run build
