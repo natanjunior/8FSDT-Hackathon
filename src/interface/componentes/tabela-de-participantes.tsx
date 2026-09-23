@@ -7,6 +7,11 @@ import { useId, useState, type MouseEvent, type ReactNode } from "react";
 import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import {
+  CAIXA_DO_FILTRO,
+  CONTAGEM_DO_FILTRO,
+  OPCAO_DO_FILTRO,
+} from "@/interface/componentes/filtro-rapido";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import { TEXTOS_DA_TABELA, textoDeMaisContatos } from "@/interface/componentes/frases-de-participantes";
 import {
@@ -35,6 +40,7 @@ import {
   type PedidoNaTabela,
 } from "@/interface/componentes/linhas-de-participantes";
 import { vizinhas } from "@/interface/componentes/paginacao-da-lista";
+import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
 import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Button } from "@/interface/componentes/ui/button";
@@ -97,11 +103,6 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  * **Quando uma linha sai** (aprovar, recusar, remover), o gatilho some com ela e o foco cairia no
  * `body`: ele vai para a opção marcada do filtro. Não vai para a busca, que abriria o teclado no celular.
  */
-
-const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono font-medium tracking-[0.11em] uppercase";
-
-const CELULA = "text-interface px-4 py-2.5";
 
 export function TabelaDeParticipantes({
   pedidos,
@@ -173,7 +174,7 @@ export function TabelaDeParticipantes({
           const filtro = FILTROS.find((valor) => valor === escolhido);
           if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
         }}
-        className="bg-muted flex w-full flex-wrap rounded-sm p-1 md:w-fit"
+        className={CAIXA_DO_FILTRO}
       >
         {FILTROS.map((filtro) => (
           <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
@@ -279,7 +280,7 @@ export function TabelaDeParticipantes({
                           aoOrdenar={escrever}
                           largura="w-[170px]"
                         />
-                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[260px] py-2.5")}>Contato</TableHead>
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[260px]")}>Contato</TableHead>
                         <CabecaQueOrdena
                           coluna="desde"
                           rotulo={TEXTOS_DA_TABELA.desde}
@@ -287,7 +288,7 @@ export function TabelaDeParticipantes({
                           aoOrdenar={escrever}
                           largura="w-[128px]"
                         />
-                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[124px] py-2.5")}>
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[124px]")}>
                           <span className="sr-only">{TEXTOS_DA_TABELA.acoes}</span>
                         </TableHead>
                       </TableRow>
@@ -350,18 +351,10 @@ function OpcaoDoFiltro({ filtro, quantos }: { filtro: Filtro; quantos: number })
   return (
     <ToggleGroupItem
       value={filtro}
-      className={cn(
-        "text-interface text-tinta-suave min-h-11 gap-2 rounded-sm px-3 font-normal",
-        "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold data-[state=on]:shadow-sm",
-      )}
+      className={OPCAO_DO_FILTRO}
     >
       {ROTULO_DO_FILTRO[filtro]}
-      <span
-        className={cn(
-          "text-meta rounded-full px-1.5 font-mono font-medium tabular-nums",
-          destaque ? "bg-marca text-marca-foreground font-semibold" : "bg-background text-tinta-suave",
-        )}
-      >
+      <span className={cn(CONTAGEM_DO_FILTRO, destaque && "bg-marca text-marca-foreground font-semibold")}>
         {quantos}
       </span>
     </ToggleGroupItem>
@@ -384,7 +377,9 @@ function CabecaQueOrdena({
   const sentido = ariaSort(endereco, coluna);
   const ativa = sentido !== "none";
   return (
-    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, largura)}>
+    // `py-0`: o botão de ordenar já tem os 44 px do alvo de toque, e os 11 px do rótulo de coluna em
+    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q).
+    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "py-0", largura)}>
       <Button
         type="button"
         variant="ghost"
@@ -392,7 +387,7 @@ function CabecaQueOrdena({
           aoOrdenar(comOrdem(endereco, coluna));
         }}
         className={cn(
-          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono font-medium tracking-[0.11em] uppercase hover:bg-transparent",
+          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
           ativa ? "text-tinta" : "text-tinta-fraca",
         )}
       >
@@ -414,20 +409,20 @@ function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNo
     <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
       <FichaDePessoa nome={linha.nome} tamanho="linha" idDoNome={idDoNome} />
       {linha.tipo === "pedido" && (
-        <Badge variant="outline" className="border-marca/60 text-marca text-meta rounded-sm font-medium">
+        <Badge variant="outline" className="border-marca/60 text-marca rounded-sm">
           {TEXTOS_DA_TABELA.seloDePedido}
         </Badge>
       )}
       {linha.tipo === "vinculo" && linha.ehVoce && (
         <Badge
           variant="outline"
-          className="bg-sidebar-accent text-tinta text-meta rounded-sm border-transparent font-medium"
+          className="bg-sidebar-accent text-tinta rounded-sm border-transparent"
         >
           {TEXTOS_DA_TABELA.seloVoce}
         </Badge>
       )}
       {linha.tipo === "vinculo" && !linha.vinculo.temConta && (
-        <Badge variant="outline" className="border-linha text-tinta-suave text-meta rounded-sm font-medium">
+        <Badge variant="outline" className="border-linha text-tinta-suave rounded-sm">
           {TEXTOS_DA_TABELA.seloSemConta}
         </Badge>
       )}

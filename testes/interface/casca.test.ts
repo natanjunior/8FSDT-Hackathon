@@ -51,6 +51,44 @@ function linhasDeCodigoCom(caminho: string, trecho: string): string[] {
     .filter((linha) => linha.includes(trecho) && !COMENTARIO.test(linha));
 }
 
+/**
+ * O arquivo linha a linha, com o comentário apagado e as linhas no lugar — inclusive o comentário de
+ * bloco que atravessa várias linhas.
+ *
+ * `COMENTARIO` olha uma linha por vez, e o miolo de um bloco não tem como se declarar: a linha do meio
+ * de um comentário de JSX começa com a palavra e não com marca nenhuma. Quem procura uma palavra no
+ * produto inteiro precisa ler o bloco como bloco, e é o que esta função faz. O que sai daqui não é
+ * TypeScript válido, é o texto que sobra quando o comentário sai.
+ */
+function linhasSemComentario(caminho: string): string[] {
+  let dentroDeBloco = false;
+  return ler(caminho)
+    .split(/\r?\n/u)
+    .map((bruta) => {
+      let resto = bruta;
+      let codigo = "";
+      while (resto.length > 0) {
+        if (dentroDeBloco) {
+          const fecha = resto.indexOf("*/");
+          if (fecha === -1) return codigo;
+          dentroDeBloco = false;
+          resto = resto.slice(fecha + 2);
+          continue;
+        }
+        const abreBloco = resto.indexOf("/*");
+        const abreLinha = resto.indexOf("//");
+        if (abreLinha !== -1 && (abreBloco === -1 || abreLinha < abreBloco)) {
+          return codigo + resto.slice(0, abreLinha);
+        }
+        if (abreBloco === -1) return codigo + resto;
+        codigo += resto.slice(0, abreBloco);
+        dentroDeBloco = true;
+        resto = resto.slice(abreBloco + 2);
+      }
+      return codigo;
+    });
+}
+
 describe("a marca da barra lateral — critério 1", () => {
   it.each([
     ["/ocorrencias", "/ocorrencias"],
@@ -269,5 +307,55 @@ describe("o menu de pessoa — critério 7 do 44i", () => {
     for (const layout of ["app/(casca)/layout.tsx", "app/(foco)/layout.tsx"]) {
       expect(ler(layout), layout).toMatch(/emailDaPessoa=\{[^}]*sessao\.email\}/u);
     }
+  });
+});
+
+/**
+ * ============================================================================
+ *  Critério 31.5 — a palavra "síndico" não chega à tela, em lugar nenhum
+ * ============================================================================
+ *
+ * A decisão **D3** diz que a organização é o local, e condomínio é um local entre outros: empresa,
+ * bairro, escola. Uma palavra de condomínio num rótulo trava o produto num tipo de cliente, e é por isso
+ * que o critério existe.
+ *
+ * **O que já estava provado:** `ocorrencia.test.ts` percorre as três tabelas de rótulo de status e
+ * nenhuma tem a palavra. **O que falta é o resto do produto** — botão, título, frase de vazio, texto de
+ * erro, `aria-label`, o que for. Esta guarda lê `app/` e `src/` inteiros e pergunta uma coisa só: a
+ * palavra aparece fora de comentário?
+ *
+ * **O comentário fica de fora de propósito.** A palavra aparece hoje em comentário de sete arquivos, e
+ * é onde ela deve mesmo estar: explicar o Gestor que mora no prédio é o que faz o código de
+ * `lista-de-ocorrencias` ser legível. Comentário não chega ao navegador. Por isso a guarda precisa do
+ * coador de bloco, e por isso o coador é testado antes de ser acreditado.
+ */
+describe("a palavra do condomínio — critério 31.5", () => {
+  const SINDICO = /s[ií]ndico/iu;
+  const PRODUTO = [...arquivosDe("app"), ...arquivosDe("src")];
+
+  it("o coador guarda o código e apaga o comentário, inclusive o bloco de JSX em três linhas", () => {
+    const lista = linhasSemComentario("src/interface/componentes/lista-de-ocorrencias.tsx");
+    // O comentário de JSX que explica a marca do convite: a linha do meio dele é a única do produto que
+    // escapa de `COMENTARIO`, e é o caso que justifica esta função existir.
+    expect(lista.filter((linha) => SINDICO.test(linha))).toStrictEqual([]);
+    expect(lista.some((linha) => linha.includes("convidaAAvaliar(item, pessoaIdDeQuemLe)"))).toBe(
+      true,
+    );
+
+    // E o coador não pode comer texto que chega à tela: a frase da recusa continua, a tabela que só
+    // existe no comentário de `rotulos.ts` some.
+    const rotulos = linhasSemComentario("src/interface/componentes/rotulos.ts");
+    expect(rotulos.some((linha) => linha.includes(RECUSA_DE_ACESSO))).toBe(true);
+    expect(rotulos.some((linha) => linha.includes("**Gestor autor**"))).toBe(false);
+  });
+
+  it("nenhuma linha de código de app/ e src/ escreve a palavra", () => {
+    expect(PRODUTO.length).toBeGreaterThan(100);
+    const onde = PRODUTO.flatMap((caminho) =>
+      linhasSemComentario(caminho)
+        .map((linha, indice) => (SINDICO.test(linha) ? `${caminho}:${indice + 1}` : null))
+        .filter((achado) => achado !== null),
+    );
+    expect(onde).toStrictEqual([]);
   });
 });

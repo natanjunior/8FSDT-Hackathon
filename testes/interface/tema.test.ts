@@ -179,13 +179,53 @@ describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
   it("um papel da escala ainda substitui outro", () => {
     expect(cn("text-corpo", "text-meta")).toBe("text-meta");
   });
+
+  it("conhece o oitavo papel, nas duas direções (item 44q, critério 3)", () => {
+    // Sem a extensão, `text-rotulo-peca` cairia no grupo de COR e apagaria a tinta do selo — o mesmo
+    // defeito que o 44d achou com `text-interface`.
+    expect(cn("text-tinta text-xs", "text-rotulo-peca")).toBe("text-tinta text-rotulo-peca");
+    expect(cn("text-rotulo-peca", "text-meta")).toBe("text-meta");
+  });
+});
+
+describe("app/globals.css — os oito papéis carregam o papel inteiro (item 44q, critério 1)", () => {
+  /** O `@theme inline` não é bloco de `:root`, então é lido pelo próprio seletor. */
+  const tema = tokensDe(corpoDoBloco("@theme inline {"));
+  const raiz = tokensDe(corpoDoBloco(":root {"));
+
+  const PAPEIS = {
+    "titulo-pagina": { tamanho: "1.625rem", entrelinha: "1.9375rem", peso: "600", entreletra: "-0.021em" },
+    "titulo-bloco": { tamanho: "1.1875rem", entrelinha: "1.5625rem", peso: "600", entreletra: "-0.012em" },
+    "titulo-linha": { tamanho: "0.9375rem", entrelinha: "1.3125rem", peso: "500", entreletra: null },
+    corpo: { tamanho: "0.90625rem", entrelinha: "1.375rem", peso: "400", entreletra: null },
+    interface: { tamanho: "0.84375rem", entrelinha: "1.1875rem", peso: "400", entreletra: null },
+    meta: { tamanho: "0.78125rem", entrelinha: "1.0625rem", peso: "400", entreletra: null },
+    "rotulo-coluna": { tamanho: "0.625rem", entrelinha: null, peso: "500", entreletra: "0.11em" },
+    "rotulo-peca": { tamanho: "0.71875rem", entrelinha: "1.0625rem", peso: "600", entreletra: "0.02em" },
+  } as const;
+
+  it("são oito, e nenhum outro `--texto-` existe", () => {
+    const tamanhos = [...raiz.keys()].filter((token) => /^--texto-[\w-]+$/u.test(token)).sort();
+    expect(tamanhos).toStrictEqual(Object.keys(PAPEIS).map((papel) => `--texto-${papel}`).sort());
+  });
+
+  for (const [papel, esperado] of Object.entries(PAPEIS)) {
+    it(`${papel}: tamanho, entrelinha, peso e entreletra chegam ao utilitário`, () => {
+      expect(raiz.get(`--texto-${papel}`)).toBe(esperado.tamanho);
+      expect(tema.get(`--text-${papel}`)).toBe(`var(--texto-${papel})`);
+      expect(tema.get(`--text-${papel}--font-weight`)).toBe(esperado.peso);
+      expect(tema.get(`--text-${papel}--line-height`)).toBe(esperado.entrelinha ?? undefined);
+      expect(tema.get(`--text-${papel}--letter-spacing`)).toBe(esperado.entreletra ?? undefined);
+    });
+  }
 });
 
 /**
  * **A paleta categórica, medida — item 44e, critérios 3 e 4.**
  *
- * O gráfico de área empilhada de T-07 se liga a `var(--chart-1)` até `var(--chart-4)`, e quatro faixas
- * empilhadas só informam se o olho as separa. Os valores que o autor do tema escolheu não separavam:
+ * O gráfico de T-07 se liga a `var(--chart-1)` e `var(--chart-2)` desde o item 57, e duas séries num
+ * mesmo desenho só informam se o olho as separa. **Os quatro continuam medidos**, porque a paleta é
+ * inventário do tema e não do consumidor do dia. Os valores que o autor do tema escolheu não separavam:
  * `--chart-3` tinha croma 0,0599 no escuro, abaixo do piso categórico, e ficava a 5,17° de matiz de
  * `--chart-1` — a mesma cor em duas luminosidades.
  *
@@ -316,7 +356,7 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
         }
       });
 
-      it("a quarta série lê como cinza, que é o que `Outras` precisa ser", () => {
+      it("a quarta série lê como cinza, que é o que uma série de resto precisa ser", () => {
         const { series } = paletaDe(cabecalho);
         const cinza = series[3] as Lab;
         expect(croma(cinza)).toBeLessThanOrEqual(0.02);
@@ -345,6 +385,73 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
       });
     });
   }
+});
+
+/**
+ * **As cores dos seis estados, medidas — item 44q, critérios 10 e 11.**
+ *
+ * O selo aparece sobre três fundos: `--surface` no cartão, `--ground` na linha zebrada de T-03 e
+ * `--sunken` no apagado. Texto sobre fundo pede 4,5:1, e a asserção usa o **pior** dos três — o selo
+ * em linha zebrada é o caso que ninguém testaria de propósito.
+ *
+ * **`--ink-faint` sobre `--sunken` reprova** (2,57:1 no escuro), e é por isso que *Cancelada* e
+ * *Inativa* usam `--ink-soft` (desvio D1 do plano do 44q).
+ */
+describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", () => {
+  const MODOS = [
+    { nome: "claro", cabecalho: ":root {" },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+  ] as const;
+
+  const claro = tokensDe(corpoDoBloco(":root {"));
+
+  for (const { nome, cabecalho } of MODOS) {
+    describe(`modo ${nome}`, () => {
+      const bloco = tokensDe(corpoDoBloco(cabecalho));
+      /** O token do modo, e o do claro quando o modo não o redeclara — é a cascata. */
+      const cor = (token: string): Lab => {
+        const valor = bloco.get(token) ?? claro.get(token);
+        if (valor === undefined) throw new Error(`${token} não está declarado`);
+        return oklabDe(valor);
+      };
+      const fundos = ["--surface", "--ground", "--sunken"].map(cor);
+      const piorFundo = (tinta: Lab): number => Math.min(...fundos.map((fundo) => contraste(tinta, fundo)));
+
+      it("imprime a medição, que é o que o relatório do item copia", () => {
+        for (const token of ["--ok", "--info", "--ink-soft", "--ink-faint"]) {
+          console.info(`[44q] ${nome} ${token} ${hexDe(cor(token))} pior fundo ${piorFundo(cor(token)).toFixed(2)}:1`);
+        }
+      });
+
+      it("o texto de sucesso, de informação e o neutro passam em qualquer dos três fundos", () => {
+        for (const token of ["--ok", "--info", "--ink-soft"]) {
+          expect(piorFundo(cor(token)), token).toBeGreaterThanOrEqual(4.5);
+        }
+      });
+
+      it("a tinta escura passa sobre o sólido de marca e sobre o de atenção", () => {
+        expect(contraste(cor("--marca-foreground"), cor("--accent"))).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(cor("--marca-foreground"), cor("--atencao"))).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it("a borda de todo contorno passa 3:1 contra a superfície (spec §3.11)", () => {
+        // Em análise (`--ink-soft`), Em atendimento (`--info`) e Ativa (`--ok`, cheio — desvio D6: a 55%
+        // da prancheta mede 2,34:1 no claro e 2,50:1 no escuro).
+        for (const token of ["--ink-soft", "--info", "--ok"]) {
+          expect(contraste(cor(token), cor("--surface")), token).toBeGreaterThanOrEqual(3);
+        }
+      });
+
+      it("a tinta fraca reprova no apagado, e é por isso que ele não a usa", () => {
+        expect(contraste(cor("--ink-faint"), cor("--sunken"))).toBeLessThan(4.5);
+      });
+    });
+  }
+
+  it("o `--atencao` é declarado uma vez, porque é fundo com tinta escura nos dois temas", () => {
+    expect(claro.has("--atencao")).toBe(true);
+    expect(tokensDe(corpoDoBloco(':root[data-theme="dark"]')).has("--atencao")).toBe(false);
+  });
 });
 
 /**

@@ -10,8 +10,9 @@ import type { ReactNode } from "react";
  * pequena, e nada vaza pelos cantos.
  *
  * **A família Organização o usa em cinco telas**, e o 44i o desenha primeiro: T-15, T-16 e T-08, e
- * T-09 e T-14 no 44k. As telas que já existem (T-03, T-05, T-07 e o estado sem acesso) não
- * migram: seria arrumação sem critério em telas que o dono já validou.
+ * T-09 e T-14 no 44k. As telas que já existem (T-03, T-07 e o estado sem acesso) não migram: seria
+ * arrumação sem critério em telas que o dono já validou. T-05 migrou no item 44q, com a faixa abaixo,
+ * porque o critério 44q.5 pede cartão em cada bloco.
  *
  * **O cartão é nomeado pelo título da cabeça**, por `aria-labelledby`: a seção vira região com nome, e
  * quem navega por regiões encontra *Identidade* e *Acesso*. Quem usa passa o mesmo `id` aos dois.
@@ -49,7 +50,7 @@ export function CabecaDoCartao({
   return (
     <div className="border-linha-suave flex items-center justify-between gap-4 border-b px-[15px] py-3 md:px-[18px] md:py-4">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h2 id={id} className="text-titulo-bloco text-tinta leading-snug font-semibold">
+        <h2 id={id} className="text-titulo-bloco text-tinta">
           {titulo}
         </h2>
         {apoio !== undefined && <p className="text-meta text-tinta-suave">{apoio}</p>}
@@ -57,4 +58,31 @@ export function CabecaDoCartao({
       {acao !== undefined && <div className="shrink-0">{acao}</div>}
     </div>
   );
+}
+
+/**
+ * **A faixa, que é a segunda cabeça do cartão** — item 44q, critério 5. Onde a `CabecaDoCartao` dá
+ * título de bloco a um cartão de leitura (T-15, T-16), a faixa dá rótulo em mono versal a um bloco de
+ * conteúdo (T-05): *O que foi relatado*, *Linha do tempo*, *Mensagens*.
+ *
+ * **O título é o `h2` de quem chama**, e não uma prop de texto, por dois motivos: a linha do tempo e as
+ * mensagens põem a contagem dentro do título, e o teste de ponta a ponta afirma o nome inteiro
+ * (*"Mensagens 1"*); e o título da linha do tempo espera dados, então vem dentro de um `<Suspense>`. O
+ * versal é CSS, e o nome acessível continua com a caixa do texto.
+ */
+export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase";
+
+export function FaixaDoCartao({ children, dado }: { children: ReactNode; dado?: ReactNode }) {
+  return (
+    <div className="border-linha-suave flex min-h-11 items-center justify-between gap-4 border-b px-[15px] py-2 md:px-[18px]">
+      {children}
+      {dado !== undefined && (
+        <div className="text-rotulo-coluna text-tinta-fraca shrink-0 font-mono uppercase">{dado}</div>
+      )}
+    </div>
+  );
+}
+
+export function CorpoDoCartao({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-3 p-[15px] md:p-[18px]">{children}</div>;
 }

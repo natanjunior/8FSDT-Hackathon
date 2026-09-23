@@ -5,7 +5,7 @@
 export default function EsperandoMeusDados() {
   return (
     <div className="flex flex-col gap-5.5">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Meus dados</h1>
+      <h1 className="text-titulo-pagina text-tinta">Meus dados</h1>
 
       <div aria-hidden className="flex flex-col gap-5.5">
         {["identidade", "acesso"].map((cartao) => (

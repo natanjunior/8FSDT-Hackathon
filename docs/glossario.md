@@ -58,6 +58,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | `Pausada` | Parada esperando alguém, com motivo obrigatório. Ao retomar, volta ao estado anterior | `Cancelada`, que é terminal |
 | `Resolvida` | O Gestor conferiu e declarou concluída. Terminal | `Cancelada` |
 | `Cancelada` | Encerrada sem solução, com motivo obrigatório. Terminal | `Resolvida` |
+| `Em aberto` | O conjunto dos quatro status não terminais: `Aberta`, `Em análise`, `Em atendimento` e `Pausada`. É o que o painel conta por categoria | `Aberta`, que é um dos quatro |
 | Transição | A operação de negócio que muda o status, e que só acontece por comando nomeado | "atualizar o campo status", que não existe |
 | Registro de transição | O registro imutável de cada transição, com os cinco campos: status anterior, novo status, data e hora, quem fez, e observação | Trilha de auditoria, que é o conjunto deles |
 | Observação | O texto que quem executa a transição escreve no momento do comando, explicando o porquê | Comentário; Solução aplicada |
@@ -70,4 +71,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Termo | Definição | Não confundir com |
 |---|---|---|
 | Tempo de resolução | Do registro até a resolução, em tempo de calendário, incluindo o período pausado | Tempo de trabalho, que descontaria as pausas e não é o que o painel mostra |
-| Recorrência | Volume de ocorrências por Categoria e por Área ao longo do tempo. É o que distingue oito chamados avulsos de uma obra que falta | Duplicidade, que é o mesmo problema relatado duas vezes |
+| Mediana e p90 | Os dois números com que o painel resume o tempo de resolução de um mês: a mediana é o caso do meio, e o p90 é o décimo pior atendimento | Média, que a cauda longa dos casos arrastados puxa para cima do caso típico |
+| Idade em aberto | Há quanto tempo uma ocorrência que ainda não terminou está esperando, contada do registro e sem descontar pausa | Tempo de resolução, que só existe depois que a ocorrência acabou |
+| Recorrência | O mesmo problema voltando no mesmo lugar dentro de um período. É o que distingue oito chamados avulsos de uma obra que falta | Volume, que diz onde há mais casos e não se são o mesmo caso |
+| Dupla recorrente | Um par de Área e Categoria com duas ocorrências ou mais no período. Uma só é um caso, não um padrão | Duplicidade, que é o mesmo problema relatado duas vezes |

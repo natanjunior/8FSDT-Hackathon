@@ -3,7 +3,7 @@ import { comContexto, lerJanelaDoDashboardDaUrl } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
 
 /**
- * **`GET /dashboard`** — os cinco indicadores, numa resposta só.
+ * **`GET /dashboard`** — os seis indicadores, numa resposta só.
  *
  * **Um endpoint e não cinco**, e a razão é de plataforma (contrato §8.7): *"o dashboard é uma tela, e numa
  * aplicação com escala a zero cinco requisições podem significar cinco esperas de cold start onde uma

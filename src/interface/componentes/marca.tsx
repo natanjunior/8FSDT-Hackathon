@@ -5,7 +5,7 @@ import { cn } from "@/interface/componentes/utilitarios";
 /**
  * **A marca do produto, e ela é uma só.**
  *
- * O ícone mais o rótulo no sétimo papel da escala — mono, versal, `tracking-[0.11em]` (guia §3). O
+ * O ícone mais o rótulo no sétimo papel da escala — mono, versal, e a entreletra de 0,11em que o token carrega (guia §3). O
  * `NotebookPen` é o que a direção do guia §1 descreve: *"o livro de ocorrências"*, o objeto da portaria
  * em que se escreve, se data e se assina.
  *
@@ -19,7 +19,7 @@ export function MarcaDoProduto({ className }: { className?: string }) {
   return (
     <span className={cn("text-marca flex items-center gap-2", className)}>
       <NotebookPen aria-hidden="true" className="size-4 shrink-0" />
-      <span className="text-rotulo-coluna font-mono font-medium tracking-[0.11em] uppercase">
+      <span className="text-rotulo-coluna font-mono uppercase">
         Resolve Aí
       </span>
     </span>

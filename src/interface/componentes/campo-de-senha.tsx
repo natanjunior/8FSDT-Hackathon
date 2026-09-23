@@ -56,7 +56,7 @@ export function EntradaDeSenha({
         onClick={() => {
           definirVisivel(!visivel);
         }}
-        className="text-tinta-suave hover:text-tinta absolute inset-y-0 right-0 size-11 rounded-l-none"
+        className="text-tinta-suave hover:text-tinta absolute inset-y-0 right-0 rounded-l-none"
       >
         {visivel ? <EyeClosed aria-hidden="true" /> : <Eye aria-hidden="true" />}
       </Button>

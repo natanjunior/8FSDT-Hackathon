@@ -67,7 +67,7 @@ export function FormularioDeRedefinicao() {
           >
             <Mail aria-hidden="true" className="size-5.5" />
           </EmptyMedia>
-          <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+          <EmptyTitle className="text-titulo-bloco text-tinta">
             Confira o seu e-mail
           </EmptyTitle>
           <EmptyDescription className="text-corpo text-tinta-suave">

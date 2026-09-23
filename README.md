@@ -178,7 +178,7 @@ healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que n
 ### Verificar
 
 ```bash
-npm run verificar                   # lint + tipos + teste unitário + os três verificadores de docs
+npm run verificar                   # lint + tipos + teste unitário + os verificadores de docs + o de estilo
 npm run teste:integracao            # exige Postgres — é o critério A4 (organização A não vê dado de B)
 npm run teste:ponta-a-ponta         # exige a pilha de pé E a semente de demonstração — ver abaixo
 ```
@@ -196,6 +196,7 @@ Cada peça, separada:
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As quatro regras mecânicas do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
+| `npm run verificar:estilo` | As peças do catálogo medidas no navegador contra os valores da prancheta (raio, altura, papel da escala, cor de fundo), **com controle diferencial**: uma peça sabidamente errada tem de ser recusada. Exige o Chromium do Playwright (`npx playwright install chromium`) |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso não está no `npm run verificar`; no pipeline ele roda antes do `push`, porque imagem publicada com segredo dentro não se desfaz |
 | `npm run verificar:auth` | A configuração de Auth publicada bate com a que este repositório declara — Site URL, lista de redirecionamento, confirmação de e-mail, assunto e corpo do e-mail de recuperação. Exige credencial e rede, e por isso não está no `npm run verificar`; é o mesmo tratamento do `verificar:imagem`. Ver *[Publicar](#publicar)* |
 
@@ -299,7 +300,7 @@ mesmas que o `migrar` usa.
 
 ### A demonstração
 
-O produto sem dado não se demonstra: *recorrência por categoria* e *tempo médio de resolução, mês a mês*
+O produto sem dado não se demonstra: *recorrência por categoria* e *tempo de resolução, mês a mês*
 são séries mensais, e cinco semanas de uso real cabem em um mês e meio. A semente escreve cinco meses
 de ocorrências pelas mesmas portas que o produto usa, nenhum `INSERT` administrativo, nenhuma data
 corrigida depois do fato.

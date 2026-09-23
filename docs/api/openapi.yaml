@@ -2419,27 +2419,39 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os cinco indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
+        Os seis indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
         aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
-        *o que eu mudo no mês*.** Por isso `backlog` é fotografia de agora (ignora a janela) e `recorrencia`
-        é série mensal dentro dela.
+        *o que eu mudo no mês*.** Por isso `backlogPorStatus` e `abertasPorCategoria` são fotografia de
+        agora (os dois ignoram a janela) e `recorrencia` é série mensal dentro dela.
+
+        **Os dois blocos de fotografia contam conjuntos diferentes, e não somam o mesmo número.**
+        `backlogPorStatus` conta tudo o que a organização registrou, inclusive o que já terminou;
+        `abertasPorCategoria` conta só o que está em aberto. A tela escreve isso nos dois quadros.
+
+        **O painel conta também a idade do que está em aberto, e é o único número que olha para o que
+        NÃO terminou.** Os outros saem do que já acabou — uma operação que deixasse os casos difíceis de
+        lado veria os indicadores melhorarem. `abertasPorIdade` conta o mesmo conjunto que
+        `abertasPorCategoria`, por outro corte, e as duas somas fecham.
 
         **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
         em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
-        do reativo.
+        do reativo. As duas séries dizem onde há mais volume, cada uma por uma dimensão;
+        `duplasRecorrentes` cruza as duas e diz o que está voltando.
 
-        `mediaDasAvaliacoes` e `tempoMedioDeResolucao` vêm com o denominador de propósito: sem ele, a média
-        mente quando poucos avaliam, e a duração média mente quando o mês teve duas resoluções.
+        `mediaDasAvaliacoes` e `tempoDeResolucao` vêm com o denominador de propósito: sem ele, a média
+        mente quando poucos avaliam, e o percentil mente quando o mês teve duas resoluções.
 
-        `tempoMedioDeResolucao` é **tempo de calendário** — do registro à resolução, pausas incluídas.
-        Separar calendário de tempo ativo é evolução prevista. Mês sem nenhuma resolução aparece com
-        `horas: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico mentir.
+        `tempoDeResolucao` é **tempo de calendário** — do registro à resolução, pausas incluídas.
+        Separar calendário de tempo ativo é evolução prevista. Cada mês traz a **mediana** e o **p90**, e
+        não a média: duração de atendimento tem cauda longa. Mês sem nenhuma resolução aparece com
+        `mediana: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico
+        mentir.
 
-        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); backlog por status e
-        categoria, média das avaliações, recorrência por categoria e área, e tempo médio de resolução mês a
-        mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
+        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); ocorrências por status, em
+        aberto por categoria, média das avaliações, recorrência por categoria e área, tempo de
+        resolução mês a mês, e idade do que está em aberto por faixa · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
       parameters:
         - name: de
           in: query
@@ -2463,9 +2475,19 @@ paths:
                   - { status: "em_analise", statusRotulo: "Em análise", quantidade: 7 }
                   - { status: "em_atendimento", statusRotulo: "Em atendimento", quantidade: 4 }
                   - { status: "pausada", statusRotulo: "Pausada", quantidade: 3 }
-                backlogPorCategoria:
+                # As duas listas do exemplo são recortes, não conjuntos completos: `backlogPorStatus`
+                # mostra quatro dos seis status e `abertasPorCategoria` mostra duas das categorias. Por
+                # isso as somas não fecham aqui. Na resposta de verdade elas fecham: a soma de
+                # `abertasPorCategoria` é IGUAL à soma das quatro linhas não terminais de
+                # `backlogPorStatus`, porque toda ocorrência tem categoria.
+                abertasPorCategoria:
                   - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8 }
                   - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6 }
+                abertasPorIdade:
+                  - { deDias: 0, ateDias: 7, quantidade: 12 }
+                  - { deDias: 8, ateDias: 30, quantidade: 5 }
+                  - { deDias: 31, ateDias: 90, quantidade: 2 }
+                  - { deDias: 91, ateDias: null, quantidade: 1 }
                 mediaDasAvaliacoes: { media: 4.3, avaliadas: 31, resolvidas: 47 }
                 recorrenciaPorCategoria:
                   - categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
@@ -2479,11 +2501,15 @@ paths:
                       - { mes: "2026-06", quantidade: 2 }
                       - { mes: "2026-07", quantidade: 6 }
                       - { mes: "2026-08", quantidade: 4 }
-                tempoMedioDeResolucao:
+                duplasRecorrentes:
+                  - area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true, ordem: 3 }
+                    categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
+                    quantidade: 8
+                tempoDeResolucao:
                   porMes:
-                    - { mes: "2026-06", horas: 52.4, resolvidas: 11 }
-                    - { mes: "2026-07", horas: 41.5, resolvidas: 9 }
-                    - { mes: "2026-08", horas: null, resolvidas: 0 }
+                    - { mes: "2026-06", mediana: 10.42, p90: 92.5, amostra: null, resolvidas: 11 }
+                    - { mes: "2026-07", mediana: 0.2, p90: null, amostra: [0.07, 0.2, 1.54], resolvidas: 3 }
+                    - { mes: "2026-08", mediana: null, p90: null, amostra: null, resolvidas: 0 }
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
@@ -3660,9 +3686,15 @@ components:
     Dashboard:
       type: object
       description: |
-        O que a listagem não responde: **padrão e tendência**, não item individual. `backlog` é fotografia
-        de agora; `recorrencia` é série mensal dentro da janela.
-      required: [periodo, backlogPorStatus, backlogPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoMedioDeResolucao]
+        O que a listagem não responde: **padrão e tendência**, não item individual. `backlogPorStatus` e
+        `abertasPorCategoria` são fotografia de agora; `recorrencia` é série mensal dentro da janela.
+
+        Os dois blocos de fotografia contam conjuntos diferentes e **não somam o mesmo número**: um conta
+        tudo o que existe, o outro só o que está em aberto.
+
+        `abertasPorIdade` é a terceira fotografia, e a única que olha para o tempo do que ainda não
+        terminou.
+      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, duplasRecorrentes, tempoDeResolucao]
       properties:
         periodo:
           type: object
@@ -3677,8 +3709,15 @@ components:
               status: { $ref: "#/components/schemas/StatusOcorrencia" }
               statusRotulo: { type: string }
               quantidade: { type: integer }
-        backlogPorCategoria:
+        abertasPorCategoria:
           type: array
+          description: |
+            Quantas ocorrências **não terminais** existem agora em cada categoria — `aberta`,
+            `em_analise`, `em_atendimento` e `pausada`. Ignora a janela, como `backlogPorStatus`, e
+            **não soma com ele**: aquele conta os seis status, inclusive `resolvida` e `cancelada`.
+
+            Toda categoria ativa aparece, mesmo a zero; a desativada aparece enquanto ainda carregar algo
+            em aberto.
           items:
             type: object
             properties:
@@ -3688,6 +3727,30 @@ components:
                   id: { type: string, format: uuid }
                   nome: { type: string }
               quantidade: { type: integer }
+        abertasPorIdade:
+          type: array
+          description: |
+            Quantas ocorrências **não terminais** existem agora em cada faixa de idade. Conta o mesmo
+            conjunto que `abertasPorCategoria`, por outro corte — e as duas somas fecham.
+
+            A idade é o tempo de **calendário** desde `registrada_em`, em dias inteiros, com o período
+            pausado dentro dela, como no tempo de resolução. Ignora a janela `de`/`ate`: é fotografia de
+            agora.
+
+            **As quatro faixas vêm sempre, mesmo a zero**, em ordem crescente de idade — a estrutura
+            ensina o que vai ser medido a quem ainda não tem volume. Cada uma publica os **próprios
+            limites em dias** em vez de um nome: os limites são escolha de quem opera, e publicá-los é o
+            que permite trocá-los sem mudar o formato da resposta. `ateDias: null` é a faixa sem teto, a
+            mais velha.
+
+            **Nenhum rótulo viaja.** O texto de cada faixa é os dois números escritos em português, e
+            escrevê-lo é do cliente — ao contrário de `statusRotulo`, que depende de quem lê.
+          items:
+            type: object
+            properties:
+              deDias: { type: integer }
+              ateDias: { type: [integer, "null"] }
+              quantidade: { type: integer }
         mediaDasAvaliacoes:
           type: object
           description: |
@@ -3695,11 +3758,12 @@ components:
             denominador a média mente quando poucos avaliam.
 
             **Respeita a janela `de`/`ate`, ancorada no instante da RESOLUÇÃO** — não é fotografia de agora
-            como o `backlog`, e não é série mensal como a recorrência: é um número só, sobre um recorte de
+            como `backlogPorStatus` e `abertasPorCategoria`, e não é série mensal como a recorrência: é um
+            número só, sobre um recorte de
             período. `resolvidas` conta as ocorrências resolvidas dentro da janela; `avaliadas` conta
             quantas **dessas** foram avaliadas; `media` é a média **dessas** notas. É o que mantém
             `avaliadas ≤ resolvidas` por construção, e o que faz `resolvidas` fechar com a soma de
-            `tempoMedioDeResolucao.porMes[].resolvidas` na mesma janela. **Nunca ancorada em `avaliada_em`:**
+            `tempoDeResolucao.porMes[].resolvidas` na mesma janela. **Nunca ancorada em `avaliada_em`:**
             avaliação que chega depois do fim da janela conta na janela em que a ocorrência foi resolvida.
             *(Acrescentado em 30/08/2026 — decisão do hub de 29/08/2026; nenhuma mudança de forma. Item 27
             da fila da frente de documentação.)*
@@ -3740,11 +3804,45 @@ components:
                   properties:
                     mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
                     quantidade: { type: integer }
-        tempoMedioDeResolucao:
+        duplasRecorrentes:
+          type: array
+          description: |
+            As **duplas de área e categoria** que se repetiram dentro da janela, da maior contagem para a
+            menor, com desempate pelo nome da área e depois pelo da categoria.
+
+            `recorrenciaPorCategoria` e `recorrenciaPorArea` contam as duas dimensões **em separado**, e
+            oito ocorrências da mesma categoria espalhadas por oito lugares produzem ali o mesmo número
+            que oito no mesmo lugar. Esta lista cruza as duas na linha da ocorrência, que é onde o
+            cruzamento existe, e é ela que aponta causa.
+
+            **Só entra a dupla com duas ocorrências ou mais.** Uma ocorrência é um caso, não um padrão.
+            A lista pode vir vazia, e vazia significa que nada se repetiu no período.
+
+            Cada linha traz a Área inteira e a Categoria inline, as mesmas formas que as duas séries de
+            recorrência publicam. **Nenhum rótulo viaja:** o texto da linha são os dois nomes com um
+            separador, e escrevê-lo é do cliente. Os identificadores viajam embora a leitura seja pelos
+            nomes — são o que permite a uma tela futura ligar a linha à listagem filtrada.
+          items:
+            type: object
+            properties:
+              area: { $ref: "#/components/schemas/Area" }
+              categoria:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  nome: { type: string }
+              quantidade: { type: integer }
+        tempoDeResolucao:
           type: object
           description: |
-            Tempo médio de calendário entre o registro e a resolução, mês a mês, dentro da janela. Se está
+            O tempo de calendário entre o registro e a resolução, resumido mês a mês dentro da janela.
+            **Dois números por mês, e nenhum deles é a média**: duração de atendimento tem cauda longa, e
+            a média sobe acima do caso típico por causa de poucos casos arrastados. Se a mediana está
             subindo, o problema é estrutural — gente, fornecedor, orçamento.
+
+            **O método do percentil é a interpolação linear** (`percentile_cont`): as durações do mês são
+            ordenadas, o índice sai da fração multiplicada por `n − 1`, e o valor sai da interpolação
+            entre os dois vizinhos desse índice. Outro método devolve outro número sobre os mesmos dados.
           properties:
             porMes:
               type: array
@@ -3752,9 +3850,24 @@ components:
                 type: object
                 properties:
                   mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
-                  horas:
+                  mediana:
                     type: [number, "null"]
-                    description: "`null` quando o mês não teve nenhuma resolução — o mês continua na série."
+                    description: >-
+                      A duração do caso do meio, em horas. `null` quando o mês não teve nenhuma
+                      resolução — o mês continua na série.
+                  p90:
+                    type: [number, "null"]
+                    description: >-
+                      Percentil 90 em horas, por interpolação linear entre os dois valores vizinhos do
+                      índice. `null` quando o mês teve três resoluções ou menos, porque um percentil
+                      sobre três pontos descreveria mais do que três pontos sustentam.
+                  amostra:
+                    type: [array, "null"]
+                    items: { type: number }
+                    description: >-
+                      As durações cruas do mês, em horas e em ordem crescente, quando ele teve três
+                      resoluções ou menos. `null` acima disso: `null` diz que não se aplica, e uma lista
+                      vazia diria que não houve resolução, que já tem representação.
                   resolvidas:
                     type: integer
-                    description: O denominador. Sem ele, a média de um mês com duas resoluções parece igual à de um mês com trinta.
+                    description: O denominador. Sem ele, um mês com duas resoluções parece igual a um mês com trinta.

@@ -103,6 +103,38 @@ sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
 O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
 abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
 
+No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
+tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas inteiras, e acima disso
+escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
+zero hora.
+
+O quadro *Tempo de resolução* do painel mostra, por mês, a mediana e o p90 das resoluções daquele mês, com
+quantas foram. A mediana diz como foi o caso do meio; o p90 diz como foi o décimo pior atendimento, e é
+nele que há o que corrigir. Mês com três resoluções ou menos aparece com as durações escritas uma a uma,
+porque um percentil sobre três pontos descreveria mais do que três pontos sustentam.
+
+No painel, o quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as
+canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois não somam o mesmo número**,
+e cada um diz na tela o que conta, porque um leitor que somasse os dois quadros chegaria a uma conclusão
+que os dados não sustentam.
+
+O mesmo painel desenha, mês a mês, quantas ocorrências foram registradas e quantas foram resolvidas. Os
+dois números já vêm na resposta: a soma das séries de recorrência é o que entrou, e o denominador do tempo
+de resolução é o que saiu, e é a tela que os cruza. **Registradas acima de resolvidas em meses seguidos é
+fila crescendo**, e o contrário é fila encolhendo.
+
+No quadro de recorrência, além das duas listas de volume, o painel escreve as duplas de área e categoria
+que se repetiram no período, da maior para a menor. As listas respondem onde há mais volume, cada uma por
+uma dimensão; a dupla responde o que está voltando, que é a pergunta que a frase do quadro faz. Uma
+ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem nenhuma, o quadro escreve
+uma linha dizendo o que vai aparecer ali.
+
+O painel mostra ainda, agora, quantas ocorrências em aberto estão em cada faixa de idade — até uma
+semana, até um mês, até três meses, e acima disso. **As quatro faixas aparecem sempre, mesmo a zero**,
+para que uma organização que está começando veja o que vai ser medido. Quando há alguma na faixa mais
+antiga, o quadro escreve quantas são: é o único número do painel que aponta um caso enquanto ainda dá para
+agir, porque o tempo de resolução só existe depois que a ocorrência acabou.
+
 ## Celular primeiro, e o que muda na tela grande
 
 O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,

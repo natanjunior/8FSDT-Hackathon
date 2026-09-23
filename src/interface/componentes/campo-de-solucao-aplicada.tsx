@@ -9,6 +9,12 @@ import {
   IndicadorDeEnvio,
   RodapeDoFormulario,
 } from "@/interface/componentes/campo";
+import {
+  Cartao,
+  CorpoDoCartao,
+  FaixaDoCartao,
+  TITULO_DA_FAIXA,
+} from "@/interface/componentes/cartao";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import {
   avisarErro,
@@ -118,40 +124,50 @@ export function CampoDeSolucaoAplicada({
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <Campo id={campoId} rotulo="Solução aplicada" erro={formulario.erroDe("solucao")}>
-        {(controle) => (
-          <Textarea
-            {...controle}
-            value={texto}
-            onChange={(evento) => {
-              setTexto(evento.target.value);
-              // Aviso velho ao lado de texto novo é a pior combinação possível.
-              setAviso(null);
-              formulario.mudou("solucao");
-            }}
+    /* **Cartão com faixa, como os outros blocos de T-05** (item 44q, critério 5). A faixa escreve
+       *Solução aplicada*, e o rótulo do campo sai da vista para não repetir a palavra logo abaixo: ele
+       continua sendo o `<label>` do controle. */
+    <Cartao tituloId={`${campoId}-titulo`}>
+      <FaixaDoCartao>
+        <h2 id={`${campoId}-titulo`} className={TITULO_DA_FAIXA}>
+          Solução aplicada
+        </h2>
+      </FaixaDoCartao>
+      <CorpoDoCartao>
+        <Campo id={campoId} rotulo="Solução aplicada" rotuloOculto erro={formulario.erroDe("solucao")}>
+          {(controle) => (
+            <Textarea
+              {...controle}
+              value={texto}
+              onChange={(evento) => {
+                setTexto(evento.target.value);
+                // Aviso velho ao lado de texto novo é a pior combinação possível.
+                setAviso(null);
+                formulario.mudou("solucao");
+              }}
+              disabled={enviando}
+              rows={4}
+              /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
+              maxLength={4000}
+            />
+          )}
+        </Campo>
+
+        {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
+
+        <RodapeDoFormulario obrigatorios={0}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11"
             disabled={enviando}
-            rows={4}
-            /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */
-            maxLength={4000}
-          />
-        )}
-      </Campo>
-
-      {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
-
-      <RodapeDoFormulario obrigatorios={0}>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11"
-          disabled={enviando}
-          onClick={() => void salvar()}
-        >
-          <IndicadorDeEnvio ativo={enviando} />
-          {enviando ? "Salvando…" : "Salvar"}
-        </Button>
-      </RodapeDoFormulario>
-    </section>
+            onClick={() => void salvar()}
+          >
+            <IndicadorDeEnvio ativo={enviando} />
+            {enviando ? "Salvando…" : "Salvar"}
+          </Button>
+        </RodapeDoFormulario>
+      </CorpoDoCartao>
+    </Cartao>
   );
 }

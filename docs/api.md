@@ -126,6 +126,64 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
+## Os recortes do painel
+
+O painel conta a mesma coleção de duas maneiras, e elas não somam. Por status, ele conta **tudo o que a
+organização registrou**, com `resolvida` e `cancelada` entre os valores: é a distribuição do que existe.
+Por categoria, conta **só o que está em aberto** — os quatro status não terminais —, que é a fila de
+trabalho de hoje.
+
+Os dois ignoram a janela de datas, porque são fotografia de agora. Os nomes dos campos carregam a
+diferença, e o segundo se chama `abertasPorCategoria` por isso.
+
+Há um terceiro recorte de fotografia, por idade, e ele conta **o mesmo conjunto** que o recorte por
+categoria: as duas somas fecham. Com o recorte por status elas não fecham, e quem lê precisa saber qual
+par soma.
+
+## A mediana e o p90 do tempo de resolução
+
+O painel resume o tempo de resolução de cada mês por dois números: a mediana, que descreve o caso do
+meio, e o p90, que descreve o décimo pior atendimento. A duração de atendimento tem cauda longa, e uma
+média seria puxada para cima do caso típico por uns poucos casos arrastados.
+
+**O método do percentil é a interpolação linear**: as durações do mês são ordenadas, o índice sai da
+fração multiplicada por `n − 1`, e o valor sai da interpolação entre os dois vizinhos desse índice. Numa
+amostra de oito resoluções, o p90 cai entre a sétima e a oitava, e não sobre a maior delas. Outros métodos
+devolvem outro número sobre os mesmos dados, e por isso este fica escrito.
+
+**Mês com três resoluções ou menos não recebe p90.** A resposta traz as durações cruas daquele mês, e a
+tela as escreve uma a uma. Com três pontos, o percentil descreveria a interpolação entre dois deles, com
+uma exatidão que a amostra não sustenta.
+
+## A idade do que está em aberto
+
+Os outros números do painel só enxergam o que terminou: o tempo de resolução sai da trilha, e a trilha só
+tem a linha da resolução depois que ela aconteceu. A ocorrência que está em aberto há duzentos dias não
+entra em nenhum deles, e uma operação que deixasse os casos difíceis de lado veria os indicadores melhorarem.
+
+Por isso o painel conta também, agora, quantas ocorrências em aberto existem em cada faixa de idade. A
+idade é o tempo de calendário desde o registro, em dias inteiros, e o período pausado conta dentro dela,
+como no tempo de resolução.
+
+**As quatro faixas vêm sempre, mesmo a zero**, em ordem crescente, e cada uma publica os próprios limites
+em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
+sem mudar o formato da resposta.
+
+## A dupla que volta
+
+As duas listas de recorrência contam área e categoria em separado. Oito vazamentos no mesmo bloco e oito
+problemas diferentes espalhados pelo prédio produzem o mesmo número nas duas, e o segundo caso não é uma
+obra só. O cruzamento entre as duas dimensões existe na linha da ocorrência, e é ele que aponta causa.
+
+Por isso a resposta traz também as duplas de área e categoria contadas juntas dentro do período, da maior
+contagem para a menor, com desempate pelo nome da área e depois pelo da categoria. **Só entra a dupla com
+duas ocorrências ou mais**: uma ocorrência é um caso, não um padrão. A lista pode vir vazia, e vazia
+significa que nada se repetiu no período.
+
+Cada linha publica a área inteira, a categoria e a contagem. Nenhum rótulo viaja — o texto da linha são os
+dois nomes com um separador, e escrevê-lo é de quem desenha a tela. Os identificadores viajam embora a
+leitura seja pelos nomes, porque são o que permite ligar a linha a uma listagem filtrada mais adiante.
+
 ## O upload é em duas etapas
 
 O servidor não transporta os bytes da imagem.

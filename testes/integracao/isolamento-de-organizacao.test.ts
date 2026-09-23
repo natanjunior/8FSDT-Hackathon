@@ -892,10 +892,15 @@ describe("as consultas de configuração não atravessam organizações", () => 
    * agregado** — as pessoas, as organizações, as categorias, as áreas e as duas ocorrências são da suíte
    * (§7.1); o que é dela é a resolução de A, semeada no `beforeAll`.
    *
-   * **É a única entrada que exercita CINCO consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
+   * **É a única entrada que exercita SETE consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
    * funcionar: cada linha vira uma frase que carrega **a dimensão, o rótulo e o número**. Um `$1` perdido
-   * em qualquer uma das cinco muda pelo menos um número ou traz um rótulo da outra organização — e nos
+   * em qualquer uma das sete muda pelo menos um número ou traz um rótulo da outra organização — e nos
    * dois casos o conjunto deixa de bater.
+   *
+   * **A sétima consulta devolve vazio dos dois lados, e é prova fraca — por isso está dito.** O mundo
+   * da suíte tem **uma** ocorrência por organização, e o mínimo do par é dois: nenhuma dupla chega lá.
+   * A entrada passa a exercitar a consulta contra o `$1` e a provar que ela não traz linha da outra
+   * organização; quem prova o **conteúdo** dela é `testes/integracao/dashboard.test.ts`.
    *
    * **Os rótulos são únicos por organização, de propósito**: a suíte semeia *"Portaria do Recanto"* contra
    * *"Portaria da Aurora"* e *"Garagem do Recanto"* contra *"Garagem da Aurora"*. É o que faz o vazamento
@@ -906,7 +911,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
    * seria frágil na virada; `2000-01-01` até `2099-12-31` não é.
    *
    * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
-   * própria suíte: **nenhum dos cinco modelos de leitura expõe `organizacao_id`**, e é assim que o
+   * própria suíte: **nenhum dos sete modelos de leitura expõe `organizacao_id`**, e é assim que o
    * Definition of Done os quer.
    */
   casosDeIsolamento(mundo, {
@@ -915,17 +920,20 @@ describe("as consultas de configuração não atravessam organizações", () => 
       const repo = repositorioEscopadoDeDashboard(escoparConsulta(consulta, organizacaoId));
       const janela = { de: "2000-01-01", ate: "2099-12-31" };
 
-      const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
-        repo.backlogPorStatus(),
-        repo.backlogPorCategoria(),
-        repo.recorrenciaPorCategoria(janela),
-        repo.recorrenciaPorArea(janela),
-        repo.resolucoesPorMes(janela),
-      ]);
+      const [status, categorias, porCategoria, porArea, resolucoes, idades, duplas] =
+        await Promise.all([
+          repo.backlogPorStatus(),
+          repo.abertasPorCategoria(),
+          repo.recorrenciaPorCategoria(janela),
+          repo.recorrenciaPorArea(janela),
+          repo.resolucoesPorMes(janela),
+          repo.abertasPorIdade(),
+          repo.duplasRecorrentes(janela),
+        ]);
 
       return [
         ...status.map((l) => `status:${l.status}:${String(l.quantidade)}`),
-        ...categorias.map((l) => `backlog-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
+        ...categorias.map((l) => `abertas-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
         ...porCategoria.map(
           (l) => `recorrencia-categoria:${l.categoria.nome}:${l.mes}:${String(l.quantidade)}`,
         ),
@@ -933,6 +941,8 @@ describe("as consultas de configuração não atravessam organizações", () => 
         ...resolucoes.map(
           (l) => `resolucao:${l.mes}:${String(l.resolvidas)}:${String(l.avaliadas)}`,
         ),
+        ...idades.map((l) => `idade-em-aberto:${String(l.faixa)}:${String(l.quantidade)}`),
+        ...duplas.map((l) => `dupla:${l.area.nome}:${l.categoria.nome}:${String(l.quantidade)}`),
       ];
     },
     chaveDaLinha: (frase) => frase,
@@ -945,7 +955,10 @@ describe("as consultas de configuração não atravessam organizações", () => 
         const mes = mesEmSaoPaulo(new Date());
         return [
           "status:resolvida:1",
-          "backlog-categoria:Portaria do Recanto:1",
+          // **Zero, e é o item 56 acontecendo aqui dentro.** A única ocorrência de A é `resolvida`, e o
+          // bloco por categoria passou a contar só o que está em aberto. *Portaria do Recanto* é ativa,
+          // então ela continua aparecendo — com zero, que é o critério 32.3 e a primeira metade do 56.6.
+          "abertas-categoria:Portaria do Recanto:0",
           `recorrencia-categoria:Portaria do Recanto:${mes}:1`,
           `recorrencia-area:Garagem do Recanto:${mes}:1`,
           `resolucao:${mes}:1:1`,
@@ -955,9 +968,14 @@ describe("as consultas de configuração não atravessam organizações", () => 
         const mes = mesEmSaoPaulo(new Date());
         return [
           "status:aberta:1",
-          "backlog-categoria:Portaria da Aurora:1",
+          "abertas-categoria:Portaria da Aurora:1",
           `recorrencia-categoria:Portaria da Aurora:${mes}:1`,
           `recorrencia-area:Garagem da Aurora:${mes}:1`,
+          // **A ocorrência de B nasce com `registrada_em` no instante da corrida**, então a idade é 0 e
+          // a faixa é a primeira. **`emA` não ganha linha nenhuma**, e é aí que a prova mora: a única
+          // ocorrência de A é `resolvida`, que é terminal — se o filtro de organização escorregar, a
+          // linha de B aparece no conjunto de A e o PRIMEIRO caso da suíte cai.
+          "idade-em-aberto:0:1",
         ];
       },
     },

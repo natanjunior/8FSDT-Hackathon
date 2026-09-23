@@ -51,7 +51,7 @@ import { cn } from "@/interface/componentes/utilitarios";
 export function SemAcesso({ titulo, permissao }: { titulo: string; permissao: PermissaoDeTela }) {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">{titulo}</h1>
+      <h1 className="text-titulo-pagina text-tinta">{titulo}</h1>
 
       <div className="border-linha bg-superficie rounded-lg border shadow-sm">
         <Empty className="px-6 py-14 md:px-6 md:py-14">
@@ -62,7 +62,7 @@ export function SemAcesso({ titulo, permissao }: { titulo: string; permissao: Pe
             >
               <LockKeyhole aria-hidden="true" className="size-5.5" />
             </EmptyMedia>
-            <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+            <EmptyTitle className="text-titulo-bloco text-tinta">
               {QUEM_USA_A_TELA[permissao]}
             </EmptyTitle>
             <EmptyDescription className="text-corpo text-tinta-suave">{RECUSA_DE_ACESSO}</EmptyDescription>

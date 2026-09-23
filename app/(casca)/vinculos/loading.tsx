@@ -10,7 +10,7 @@
 export default function EsperandoOsParticipantes() {
   return (
     <div className="flex flex-col gap-5.5">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Participantes</h1>
+      <h1 className="text-titulo-pagina text-tinta">Participantes</h1>
 
       <div aria-hidden className="flex flex-col gap-5.5">
         <div className="bg-secondary h-13 w-full animate-pulse rounded-sm md:w-[34rem]" />

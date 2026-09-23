@@ -1,20 +1,25 @@
 import {
+  AMOSTRA_PEQUENA,
   FUSO,
+  LIMITES_DAS_FAIXAS_DE_IDADE,
+  MINIMO_PARA_RECORRENCIA,
   type ContagemPorCategoria,
+  type ContagemPorFaixaDeIdade,
   type ContagemPorStatus,
+  type DuplaRecorrente,
   type Janela,
   type LinhaDeResolucao,
   type PontoDeArea,
   type PontoDeCategoria,
   type RepositorioEscopadoDeDashboard,
 } from "@/aplicacao/dashboard";
-import type { StatusOcorrencia } from "@/dominio/ocorrencia";
+import { TERMINAIS, type StatusOcorrencia } from "@/dominio/ocorrencia";
 import type { TipoArea } from "@/dominio/organizacao";
 import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 
 /**
  * ============================================================================
- *  As cinco agregações de `GET /dashboard`
+ *  As sete agregações de `GET /dashboard`
  * ============================================================================
  *
  * Note o que este arquivo **não** contém: um valor de organização. `$1` é injetado pelo ponto de
@@ -31,14 +36,22 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
  * recorte dela é **comparação de faixa contra a coluna crua**, e não uma função aplicada sobre ela: um
  * `where (ocorreu_em at time zone …)::date between …` desligaria o índice que o critério 36.4 manda usar.
  *
- * **O nome do fuso é interpolado, e é a única interpolação do arquivo.** Ele é constante de módulo
- * importada de `@/aplicacao/dashboard`, nunca dado de requisição — e escrevê-lo no texto mantém a consulta
- * legível e o `EXPLAIN` reproduzível. Toda data de quem chama continua entrando por parâmetro.
+ * **Duas coisas são interpoladas, e as duas são constante de módulo.** O nome do fuso, importado de
+ * `@/aplicacao/dashboard`, e a lista de status terminais, importada de `@/dominio/ocorrencia`. Nenhuma das
+ * duas é dado de requisição, e escrevê-las no texto mantém a consulta legível e o `EXPLAIN` reproduzível.
+ * Toda data de quem chama continua entrando por parâmetro.
+ *
+ * **A lista de terminais vem de `TERMINAIS` e nunca é escrita à mão aqui.** Um `('resolvida','cancelada')`
+ * digitado seria a segunda cópia de *quais status são terminais* no projeto, e a segunda cópia é a que
+ * esquece de crescer quando um terceiro terminal nascer.
  *
  * **Os `::int` e o `::float8` não são decoração.** O `pg` devolve `numeric` como **string**, para não
  * perder precisão. `count(*)` é `bigint` e `sum(...)` é `numeric`; sem os *casts*, `quantidade` chegaria
- * como `"12"` e a soma de horas como `"373.5"`, e o envelope somaria strings sem reclamar.
+ * como `"12"` e a soma das notas como `"18"`, e o envelope somaria strings sem reclamar.
  */
+
+/** Os terminais como literais SQL, `'resolvida', 'cancelada'` — ver a nota de interpolação acima. */
+const TERMINAIS_EM_SQL = TERMINAIS.map((status) => `'${status}'`).join(", ");
 
 const INICIO_DA_JANELA = `($2::date)::timestamp at time zone '${FUSO}'`;
 const FIM_DA_JANELA = `(($3::date + 1)::timestamp at time zone '${FUSO}')`;
@@ -49,6 +62,19 @@ const mesDe = (coluna: string): string =>
 const mesTruncadoDe = (coluna: string): string =>
   `date_trunc('month', ${coluna} at time zone '${FUSO}')`;
 
+/**
+ * A duração de uma resolução em horas — **tempo de calendário, com as pausas** (critério 36.3).
+ *
+ * **Extraída para constante porque aparece quatro vezes** na consulta: nos dois `percentile_cont`, e duas
+ * vezes dentro do `array_agg` (no valor e na ordenação). Quatro cópias de uma expressão de tempo é a
+ * quarta que diverge.
+ *
+ * **O `::float8` fica aqui, e é aqui que ele é necessário.** `extract(epoch from …)` devolve `numeric`, e
+ * o `pg` entrega `numeric` como string. `percentile_cont` sobre `float8` devolve `float8`, e `float8[]`
+ * chega como array de números — então nenhum dos três campos novos precisa de cast próprio.
+ */
+const HORAS_ATE_A_RESOLUCAO = `(extract(epoch from (r.ocorreu_em - o.registrada_em)) / 3600.0)::float8`;
+
 const SELECT_DO_BACKLOG_POR_STATUS = `
   select o.status, count(*)::int as quantidade
     from ocorrencias o
@@ -56,24 +82,91 @@ const SELECT_DO_BACKLOG_POR_STATUS = `
    group by o.status`;
 
 /**
+ * **Conta só o que está em aberto** — os quatro status não terminais. Ela não soma com
+ * `SELECT_DO_BACKLOG_POR_STATUS`, que conta os seis, e as duas telas dizem isso (critério 56.4).
+ *
  * **`left join` a partir de `categorias`, e não de `ocorrencias`** — é o que faz a categoria ativa sem
  * nenhuma ocorrência aparecer com zero, que é o critério 32.3 na resposta.
  *
- * **O `having` cobre o caso que ninguém tinha nomeado:** a categoria **desativada** que ainda carrega
- * ocorrências. Filtrar só `c.ativa` a esconderia, e a soma por categoria passaria a discordar da soma por
- * status sem nada na tela explicando a diferença. Ela entra; a ativa a zero também; a desativada e vazia
- * não.
+ * **O filtro de status vai no `on`, nunca no `where`.** No `where` o `left join` degeneraria em
+ * `inner join` e a categoria ativa e vazia sumiria da resposta — o que quebraria o 32.3 e tornaria a
+ * primeira metade do critério 56.6 impossível de afirmar: a categoria com cinco resolvidas e nada em
+ * aberto não apareceria **com zero**, apareceria ausente.
+ *
+ * **O `having` continua onde estava, e a razão dele mudou.** Ele cobre a categoria **desativada** que
+ * ainda carrega ocorrência: ela aparece porque ainda há trabalho nela. Antes deste item a justificativa
+ * era fechar a soma com o bloco por status; as duas somas agora discordam de propósito. Os quatro casos:
+ *
+ * | Categoria | O que a consulta devolve |
+ * |---|---|
+ * | ativa, nada em aberto | aparece com zero |
+ * | ativa, com abertas | aparece com o que está em aberto |
+ * | desativada, com abertas | aparece — ainda há trabalho nela |
+ * | desativada, só com terminais | some, porque não tem o que dizer num bloco que conta fila |
  */
-const SELECT_DO_BACKLOG_POR_CATEGORIA = `
+const SELECT_DAS_ABERTAS_POR_CATEGORIA = `
   select c.id, c.nome, count(o.id)::int as quantidade
     from categorias c
     left join ocorrencias o
       on o.categoria_id = c.id
      and o.organizacao_id = c.organizacao_id
+     and o.status not in (${TERMINAIS_EM_SQL})
    where c.organizacao_id = $1
    group by c.id, c.nome, c.ativa
   having c.ativa or count(o.id) > 0
    order by count(o.id) desc, c.nome`;
+
+/**
+ * A idade de uma ocorrência — **dias inteiros de calendário desde o registro**, sem descontar pausa, que
+ * é como o quadro 4 já conta.
+ *
+ * **Nenhum `at time zone` aqui, e é o contrário de descuido.** A exceção da §7.5 do contrato existe para
+ * agregação mês a mês: em UTC, o mês brasileiro parte em dois. Isto não agrega por mês — mede a distância
+ * entre dois instantes, que é o que `HORAS_ATE_A_RESOLUCAO` mede logo acima. Distância entre instantes
+ * não tem fuso, e trazer um para cá criaria a segunda regra de calendário do painel sem nenhum mês para
+ * justificá-la.
+ *
+ * **`floor` e não `round`.** A ocorrência registrada há 7 dias e 20 horas tem idade `7`, e fica na
+ * primeira faixa até completar 8 dias. Arredondar faria a faixa `0–7` conter casos de quase oito dias e
+ * meio, e o rótulo passaria a mentir sobre o próprio limite.
+ */
+const IDADE_EM_DIAS = `floor(extract(epoch from (now() - o.registrada_em)) / 86400)`;
+
+/**
+ * O índice da faixa, derivado dos **mesmos** limites que a Aplicação lê — nenhum `7`, `30` ou `90`
+ * digitado aqui. O `else` é a faixa sem teto, e o índice dela é o comprimento da lista.
+ */
+const FAIXA_DA_IDADE = `case ${LIMITES_DAS_FAIXAS_DE_IDADE.map(
+  (limite, i) => `when ${IDADE_EM_DIAS} <= ${String(limite)} then ${String(i)}`,
+).join(" ")} else ${String(LIMITES_DAS_FAIXAS_DE_IDADE.length)} end`;
+
+/**
+ * **A única consulta do painel que olha para o tempo do que NÃO terminou.**
+ *
+ * As outras medem o que já acabou: a de resoluções filtra `status_novo = 'resolvida'`, e a ocorrência
+ * aberta há duzentos dias não entra em número nenhum — o painel **melhora** quando a operação para de
+ * resolver os casos difíceis. Esta é a que aponta o caso enquanto ainda dá para agir.
+ *
+ * **Conta o mesmo conjunto que `SELECT_DAS_ABERTAS_POR_CATEGORIA`**, por outro corte, e as duas somas
+ * fecham. A lista de terminais é a mesma `TERMINAIS_EM_SQL`, derivada do Domínio.
+ *
+ * **`group by 1` não produz faixa vazia** — um agrupamento não inventa grupo sem linha —, e quem completa
+ * as quatro é a Aplicação, pela razão de portão: `npm run verificar` não roda o projeto de integração, e
+ * uma regra de produto que só vivesse no SQL seria uma regra que o portão nunca confere.
+ *
+ * **O `order by 1` fica**, embora a resposta já saia ordenada da Aplicação: uma consulta que devolve
+ * grupos numerados sem ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente.
+ *
+ * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
+ * organização é varredura, e a expressão de idade é calculada por linha de qualquer forma.
+ */
+const SELECT_DAS_ABERTAS_POR_IDADE = `
+  select ${FAIXA_DA_IDADE} as faixa, count(*)::int as quantidade
+    from ocorrencias o
+   where o.organizacao_id = $1
+     and o.status not in (${TERMINAIS_EM_SQL})
+   group by 1
+   order by 1`;
 
 const SELECT_DA_RECORRENCIA_POR_CATEGORIA = `
   select c.id,
@@ -116,6 +209,49 @@ const SELECT_DA_RECORRENCIA_POR_AREA = `
    order by a.nome, mes`;
 
 /**
+ * **A terceira leitura da recorrência, e a única que cruza as duas dimensões** (critério 60.1).
+ *
+ * As duas séries acima são agregados independentes: saber que houve oito em *Vazamentos* e oito na
+ * *Garagem* não diz se são os mesmos oito. O cruzamento existe só na linha da ocorrência, e é por isso
+ * que o critério pede consulta nova em vez de derivação — o molde barato do item 57 não alcança isto.
+ *
+ * **`join` e não `left join`, e a migração é quem autoriza.** `ocorrencias.categoria_id` e
+ * `ocorrencias.area_id` são `not null` (migração 005), então toda ocorrência tem as duas pontas do par e
+ * nenhuma junção descarta linha. O par `(id, organizacao_id)` das duas junções é o da FK da mesma
+ * migração, e é ele que impede que uma área de outra organização entre por baixo.
+ *
+ * **`a.tipo` é o tipo VIGENTE da Área**, não o `o.area_tipo` congelado no registro, pela razão que a
+ * consulta irmã já traz escrita: a resposta devolve a Área, e o schema `Area` a descreve como ela é hoje.
+ *
+ * **O `having` é economia de transporte**, e a regra de produto mora na Aplicação, com a mesma constante.
+ *
+ * **O `order by` fica**, embora a resposta saia ordenada da Aplicação: uma consulta que devolve grupos sem
+ * ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente. **O desempate publicado é o da
+ * Aplicação** — a colação do banco e o `localeCompare` em pt-BR não concordam em acentuação.
+ *
+ * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
+ * organização é varredura.
+ */
+const SELECT_DAS_DUPLAS_RECORRENTES = `
+  select a.id as area_id,
+         a.nome as area_nome,
+         a.tipo,
+         a.ativa,
+         a.ordem,
+         c.id as categoria_id,
+         c.nome as categoria_nome,
+         count(*)::int as quantidade
+    from ocorrencias o
+    join areas a on a.id = o.area_id and a.organizacao_id = o.organizacao_id
+    join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
+   where o.organizacao_id = $1
+     and o.registrada_em >= ${INICIO_DA_JANELA}
+     and o.registrada_em <  ${FIM_DA_JANELA}
+   group by a.id, a.nome, a.tipo, a.ativa, a.ordem, c.id, c.nome
+  having count(*) >= ${String(MINIMO_PARA_RECORRENCIA)}
+   order by count(*) desc, a.nome, c.nome`;
+
+/**
  * **A única consulta do dashboard que lê a trilha** — e é ela que os critérios 36.4 e 34.5 encomendam.
  *
  * **Parte de `registros_transicao` e junta pela chave composta** `(ocorrencia_id, organizacao_id)`, que é
@@ -130,11 +266,27 @@ const SELECT_DA_RECORRENCIA_POR_AREA = `
  *
  * **Tempo de CALENDÁRIO, com as pausas** (critério 36.3): a diferença é entre o instante da resolução e o
  * `registrada_em` da ocorrência, sem descontar nada.
+ *
+ * **Mediana e p90 por `percentile_cont`, que é o percentil CONTÍNUO** — ele ordena as durações, calcula o
+ * índice `fração × (n − 1)` e **interpola linearmente** entre os dois vizinhos desse índice.
+ * `percentile_disc` devolveria sempre um valor observado, e daria outro número sobre os mesmos dados. O
+ * método fica escrito aqui e em `docs/api.md` porque quem lê o número precisa saber qual dos dois é.
+ *
+ * **Nenhuma ida a mais ao banco, nenhum índice novo** (critério 58.1): é a mesma varredura, o mesmo
+ * `group by` e as mesmas linhas. O custo a mais é a ordenação dentro de cada grupo.
+ *
+ * **O `case` do `array_agg` é economia de transporte, e não a regra de produto** — essa mora na
+ * Aplicação, com a mesma constante `AMOSTRA_PEQUENA`.
  */
 const SELECT_DAS_RESOLUCOES = `
   select ${mesDe("r.ocorreu_em")} as mes,
          count(*)::int as resolvidas,
-         sum(extract(epoch from (r.ocorreu_em - o.registrada_em)) / 3600.0)::float8 as soma_de_horas,
+         percentile_cont(0.5) within group (order by ${HORAS_ATE_A_RESOLUCAO}) as mediana_de_horas,
+         percentile_cont(0.9) within group (order by ${HORAS_ATE_A_RESOLUCAO}) as p90_de_horas,
+         case when count(*) <= ${String(AMOSTRA_PEQUENA)}
+              then array_agg(${HORAS_ATE_A_RESOLUCAO} order by ${HORAS_ATE_A_RESOLUCAO})
+              else '{}'::float8[]
+         end as amostra_em_horas,
          count(o.avaliacao_nota)::int as avaliadas,
          coalesce(sum(o.avaliacao_nota), 0)::int as soma_das_notas
     from registros_transicao r
@@ -148,6 +300,7 @@ const SELECT_DAS_RESOLUCOES = `
 
 type LinhaDeStatus = { status: StatusOcorrencia; quantidade: number };
 type LinhaDeCategoria = { id: string; nome: string; quantidade: number };
+type LinhaDeIdade = { faixa: number; quantidade: number };
 type LinhaDeCategoriaMensal = { id: string; nome: string; mes: string; quantidade: number };
 type LinhaDeAreaMensal = {
   id: string;
@@ -158,10 +311,22 @@ type LinhaDeAreaMensal = {
   mes: string;
   quantidade: number;
 };
+type LinhaDeDupla = {
+  area_id: string;
+  area_nome: string;
+  tipo: TipoArea;
+  ativa: boolean;
+  ordem: number;
+  categoria_id: string;
+  categoria_nome: string;
+  quantidade: number;
+};
 type LinhaDeResolucaoDoBanco = {
   mes: string;
   resolvidas: number;
-  soma_de_horas: number;
+  mediana_de_horas: number;
+  p90_de_horas: number;
+  amostra_em_horas: number[];
   avaliadas: number;
   soma_das_notas: number;
 };
@@ -175,12 +340,17 @@ export function repositorioEscopadoDeDashboard(
       return linhas.map((linha) => ({ status: linha.status, quantidade: linha.quantidade }));
     },
 
-    async backlogPorCategoria(): Promise<readonly ContagemPorCategoria[]> {
-      const linhas = await consulta<LinhaDeCategoria>(SELECT_DO_BACKLOG_POR_CATEGORIA);
+    async abertasPorCategoria(): Promise<readonly ContagemPorCategoria[]> {
+      const linhas = await consulta<LinhaDeCategoria>(SELECT_DAS_ABERTAS_POR_CATEGORIA);
       return linhas.map((linha) => ({
         categoria: { id: linha.id, nome: linha.nome },
         quantidade: linha.quantidade,
       }));
+    },
+
+    async abertasPorIdade(): Promise<readonly ContagemPorFaixaDeIdade[]> {
+      const linhas = await consulta<LinhaDeIdade>(SELECT_DAS_ABERTAS_POR_IDADE);
+      return linhas.map((linha) => ({ faixa: linha.faixa, quantidade: linha.quantidade }));
     },
 
     async recorrenciaPorCategoria(janela: Janela): Promise<readonly PontoDeCategoria[]> {
@@ -213,6 +383,24 @@ export function repositorioEscopadoDeDashboard(
       }));
     },
 
+    async duplasRecorrentes(janela: Janela): Promise<readonly DuplaRecorrente[]> {
+      const linhas = await consulta<LinhaDeDupla>(SELECT_DAS_DUPLAS_RECORRENTES, [
+        janela.de,
+        janela.ate,
+      ]);
+      return linhas.map((linha) => ({
+        area: {
+          id: linha.area_id,
+          nome: linha.area_nome,
+          tipo: linha.tipo,
+          ativa: linha.ativa,
+          ordem: linha.ordem,
+        },
+        categoria: { id: linha.categoria_id, nome: linha.categoria_nome },
+        quantidade: linha.quantidade,
+      }));
+    },
+
     async resolucoesPorMes(janela: Janela): Promise<readonly LinhaDeResolucao[]> {
       const linhas = await consulta<LinhaDeResolucaoDoBanco>(SELECT_DAS_RESOLUCOES, [
         janela.de,
@@ -221,7 +409,9 @@ export function repositorioEscopadoDeDashboard(
       return linhas.map((linha) => ({
         mes: linha.mes,
         resolvidas: linha.resolvidas,
-        somaDeHoras: linha.soma_de_horas,
+        medianaDeHoras: linha.mediana_de_horas,
+        p90DeHoras: linha.p90_de_horas,
+        amostraEmHoras: linha.amostra_em_horas,
         avaliadas: linha.avaliadas,
         somaDasNotas: linha.soma_das_notas,
       }));

@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { cobre } from "./cobertura";
+
 /**
  * ============================================================================
  *  O caminho crítico do enunciado, de fora para dentro — o item 41b
@@ -141,6 +143,11 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // é justamente por isso que o teste precisa esperar: sem isto, o clique poderia sair antes de a
   // referência existir e a ocorrência nasceria sem anexo — passando verde pelo motivo errado.
   await expect(helena.getByText("Foto pronta")).toBeVisible({ timeout: 30_000 });
+  cobre(test.info(), "4.1 · 5", {
+    criterio: "13a.4",
+    falta:
+      "as três frases transitórias do envio, o botão Adicionar foto, os de trocar e remover, e a frase «Ela segue junto com a ocorrência.»",
+  });
   // **Categoria e Área deixaram de ser seletores nativos no item 44l**, e o `selectOption` com elas. O
   // gatilho de cada uma é um botão nomeado pelo rótulo do campo — `getByLabel` o alcança, porque botão é
   // elemento rotulável e o `Campo` liga os dois por `htmlFor`. **Qual categoria e qual área continua não
@@ -152,6 +159,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena.getByRole("option").first().click();
   await helena.getByLabel("Área").click();
   await helena.getByRole("option").first().click();
+  cobre(test.info(), "4.1 · 2", {
+    falta:
+      "a ordem dos campos na tela, o bloco «Foto (opcional)», a dica da descrição, o «Escolha» do seletor de categoria, o quadro Onde com Referência do lugar e o botão Cancelar",
+  });
   await helena.getByRole("button", { name: "Registrar ocorrência" }).click();
 
   // Depois do `201`, T-05 da ocorrência criada (critério 11.5). O identificador sai da URL.
@@ -160,6 +171,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   );
   const ocorrenciaId = helena.url().split("/").pop() ?? "";
   expect(ocorrenciaId).not.toBe("");
+  cobre(test.info(), "4.1 · 6", {
+    criterio: "11.5",
+    falta: "o botão dizer «Registrando…» enquanto grava",
+  });
 
   // -------------------------------------------------------------------------
   // 3 · A troca de organização, no meio do percurso — o critério 41b.3
@@ -208,8 +223,17 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await entrar(marcos, MARCOS);
   await marcos.waitForURL(/\/ocorrencias$/u);
   await expect(marcos.getByRole("radio", { name: "Todas as ocorrências" })).toBeChecked();
+  cobre(test.info(), "4.2 · 10", {
+    criterio: "14.3",
+    falta:
+      "o par grudado com Minhas ocorrências, as duas contagens em círculo, os três botões de filtro e as colunas do cartão",
+  });
   await marcos.getByRole("link", { name: TITULO }).click();
   await marcos.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
+  cobre(test.info(), "4.2 · 12", {
+    criterio: "14.5",
+    falta: "que nenhuma linha tem botão nem caixa de seleção",
+  });
 
   // -------------------------------------------------------------------------
   // A foto aparece, e os BYTES voltam — critério 51.10
@@ -249,6 +273,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await esperarSituacao(marcos, "Aberta");
   await marcos.getByRole("button", { name: "Analisar" }).click();
   await esperarSituacao(marcos, "Em análise");
+  cobre(test.info(), "4.3 · 29", {
+    criterio: "16",
+    falta: "o passo «Em análise» do ciclo aceso com data, e a linha do tempo com dois itens",
+  });
 
   // -------------------------------------------------------------------------
   // 6 · Atribuir a Sônia Prado — a Encarregada do Aurora
@@ -269,17 +297,40 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     modalDeAtribuicao.getByRole("heading", { name: "Atribuir responsável" }),
   ).toBeVisible();
   await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  cobre(test.info(), "4.3 · 31", {
+    criterio: "20.5",
+    falta:
+      "a frase «Quem vai cuidar desta ocorrência.», a linha Atribuir a mim, o campo Buscar pelo nome, os dois grupos na ordem e o botão Cancelar",
+  });
   await modalDeAtribuicao.getByRole("button", { name: "Atribuir" }).click();
   await expect(marcos.getByText(ENCARREGADA_DO_AURORA).first()).toBeVisible();
+  cobre(test.info(), "4.3 · 37", {
+    criterio: "19",
+    falta:
+      "que o nome apareça no campo Responsável da coluna direita — o localizador é solto e casaria também com a linha do tempo —, e a bolinha vazada da atribuição",
+  });
 
   // -------------------------------------------------------------------------
   // 7 · Iniciar atendimento, com observação — `em_analise` → `em_atendimento`
   // -------------------------------------------------------------------------
   await marcos.getByRole("button", { name: "Iniciar atendimento" }).click();
+  cobre(test.info(), "4.3 · 38", {
+    criterio: "22.3",
+    falta: "que o botão é laranja, e o Mais ações com Reatribuir, Pausar e Cancelar",
+  });
   const modalDeAtendimento = marcos.getByRole("dialog");
   await modalDeAtendimento.getByLabel("Observação (opcional)").fill(OBSERVACAO_DO_ATENDIMENTO);
+  cobre(test.info(), "4.3 · 40", {
+    criterio: "22.5",
+    falta:
+      "a frase «O trabalho começa agora.» e o aviso de visibilidade entre o rótulo e o campo",
+  });
   await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
   await esperarSituacao(marcos, "Em atendimento");
+  cobre(test.info(), "4.3 · 41", {
+    falta:
+      "a linha do tempo de T-05 com a observação entre aspas — o teste só a confere na trilha de auditoria, que é outra tela",
+  });
 
   // -------------------------------------------------------------------------
   // 8 · Resolver, com a solução aplicada no mesmo modal — `em_atendimento` → `resolvida`
@@ -293,8 +344,18 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // 19): a página tem um campo com este mesmo rótulo, e um localizador solto pegaria os dois.
   await modalDeResolucao.getByLabel("Solução aplicada").fill(SOLUCAO_APLICADA);
   await modalDeResolucao.getByLabel("Observação (opcional)").fill(OBSERVACAO_DA_RESOLUCAO);
+  cobre(test.info(), "4.3 · 47", {
+    criterio: "26",
+    falta:
+      "a frase «A ocorrência será encerrada. Não há como reabrir.», o aviso de visibilidade, o campo já preenchido com a solução salva antes, e o rótulo do primeiro campo: o roteiro o chama de «O que foi feito (opcional)» e a tela hoje diz «Solução aplicada»",
+  });
   await modalDeResolucao.getByRole("button", { name: "Resolver" }).click();
   await esperarSituacao(marcos, "Resolvida");
+  cobre(test.info(), "4.3 · 48", {
+    criterio: "17.2",
+    falta:
+      "os quatro passos do ciclo acesos, o bloco Solução aplicada virar texto e o seletor de prioridade virar texto",
+  });
 
   // -------------------------------------------------------------------------
   // 9 · Helena avalia — nota e comentário
@@ -304,12 +365,25 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena.goto(`/ocorrencias/${ocorrenciaId}`);
   await esperarSituacao(helena, "Resolvida");
   await helena.getByRole("button", { name: "Avaliar" }).click();
+  cobre(test.info(), "4.5 · 70", {
+    falta: "a faixa «Resolvida. Conte como foi.» no topo da coluna esquerda",
+  });
   const modalDeAvaliacao = helena.getByRole("dialog");
   await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
   await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
+  cobre(test.info(), "4.5 · 71", {
+    criterio: "27",
+    falta:
+      "o título da janela, a frase «Como foi a resolução?», as outras quatro notas do grupo e o botão Cancelar",
+  });
   await modalDeAvaliacao.getByRole("button", { name: "Enviar avaliação" }).click();
   await expect(helena.getByRole("heading", { name: "Sua avaliação" })).toBeVisible();
   await expect(helena.getByText("Nota 5 de 5")).toBeVisible();
+  cobre(test.info(), "4.5 · 72", {
+    criterio: "27",
+    falta:
+      "a faixa laranja e o botão Avaliar sumirem, o comentário dentro do bloco, a frase «Esta ocorrência está encerrada.» e o recarregar que não desfaz",
+  });
 
   // -------------------------------------------------------------------------
   // 10 · A trilha, conferida NA INTERFACE — o critério 41b.2
@@ -375,6 +449,12 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     // asserção é de forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
     await expect(item).toContainText(/data e hora: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}/u);
   }
+
+  cobre(test.info(), "4.5 · 77", {
+    criterio: "44n.5",
+    falta:
+      "o selo da situação ao lado do título, a frase «4 registros, do mais antigo para o mais recente. Nenhum se altera nem se apaga.», o trilho com o ícone do status em cada marcador, e a ausência de tabela e de botão",
+  });
 
   // -------------------------------------------------------------------------
   // 11 · A asserção de recusa — o critério 41b.8

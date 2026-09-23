@@ -28,10 +28,11 @@ export type PontoDoMesProjetado = { mes: string; quantidade: number };
 export type DashboardProjetado = {
   periodo: { de: string; ate: string };
   backlogPorStatus: readonly { status: string; statusRotulo: string; quantidade: number }[];
-  backlogPorCategoria: readonly {
+  abertasPorCategoria: readonly {
     categoria: { id: string; nome: string };
     quantidade: number;
   }[];
+  abertasPorIdade: readonly { deDias: number; ateDias: number | null; quantidade: number }[];
   mediaDasAvaliacoes: { media: number | null; avaliadas: number; resolvidas: number };
   recorrenciaPorCategoria: readonly {
     categoria: { id: string; nome: string };
@@ -41,8 +42,19 @@ export type DashboardProjetado = {
     area: AreaProjetada;
     porMes: readonly PontoDoMesProjetado[];
   }[];
-  tempoMedioDeResolucao: {
-    porMes: readonly { mes: string; horas: number | null; resolvidas: number }[];
+  duplasRecorrentes: readonly {
+    area: AreaProjetada;
+    categoria: { id: string; nome: string };
+    quantidade: number;
+  }[];
+  tempoDeResolucao: {
+    porMes: readonly {
+      mes: string;
+      mediana: number | null;
+      p90: number | null;
+      amostra: readonly number[] | null;
+      resolvidas: number;
+    }[];
   };
 };
 
@@ -64,9 +76,14 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
       statusRotulo: rotuloDeStatus(linha.status, null, LENTE_DO_DASHBOARD),
       quantidade: linha.quantidade,
     })),
-    backlogPorCategoria: lido.backlogPorCategoria.map((linha) => ({
+    abertasPorCategoria: lido.abertasPorCategoria.map((linha) => ({
       categoria: { id: linha.categoria.id, nome: linha.categoria.nome },
       quantidade: linha.quantidade,
+    })),
+    abertasPorIdade: lido.abertasPorIdade.map((faixa) => ({
+      deDias: faixa.deDias,
+      ateDias: faixa.ateDias,
+      quantidade: faixa.quantidade,
     })),
     mediaDasAvaliacoes: {
       media: lido.mediaDasAvaliacoes.media,
@@ -81,10 +98,17 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
       area: projetarArea(serie.area),
       porMes: serie.porMes.map((ponto) => ({ mes: ponto.mes, quantidade: ponto.quantidade })),
     })),
-    tempoMedioDeResolucao: {
-      porMes: lido.tempoMedioDeResolucao.porMes.map((mes) => ({
+    duplasRecorrentes: lido.duplasRecorrentes.map((dupla) => ({
+      area: projetarArea(dupla.area),
+      categoria: { id: dupla.categoria.id, nome: dupla.categoria.nome },
+      quantidade: dupla.quantidade,
+    })),
+    tempoDeResolucao: {
+      porMes: lido.tempoDeResolucao.porMes.map((mes) => ({
         mes: mes.mes,
-        horas: mes.horas,
+        mediana: mes.mediana,
+        p90: mes.p90,
+        amostra: mes.amostra === null ? null : [...mes.amostra],
         resolvidas: mes.resolvidas,
       })),
     },

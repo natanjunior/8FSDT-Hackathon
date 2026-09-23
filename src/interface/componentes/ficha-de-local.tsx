@@ -1,4 +1,14 @@
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/interface/componentes/ui/hover-card";
+import { cn } from "@/interface/componentes/utilitarios";
+
+/**
+ * **O sublinhado promete o cartão, e só aparece onde ele existe** (critério 44q.9): no ramo do
+ * `HoverCard`, e atrás da mesma consulta que esconde o cartão em aparelho de toque (guia §9). Hoje
+ * nenhuma chamada do produto passa `referencia`, então este ramo não pinta em tela nenhuma — é a
+ * crítica C1 do plano do 44q.
+ */
+const SUBLINHADO_DO_CARTAO =
+  "[@media(hover:hover)_and_(pointer:fine)]:underline [@media(hover:hover)_and_(pointer:fine)]:decoration-linha [@media(hover:hover)_and_(pointer:fine)]:underline-offset-3";
 
 /**
  * **O lugar de uma ocorrência, escrito uma vez.** Aparece em T-03, T-05 e T-09.
@@ -15,18 +25,25 @@ export function FichaDeLocal({
   nomeDaArea: string;
   referencia?: string | null;
 }) {
-  const nome = (
-    <span className="text-tinta text-interface inline-flex items-center gap-1">
+  /* A tinta desce um degrau dentro de uma linha encerrada de T-03 (critério 44q.9). Fora de uma linha
+     com `group/linha`, a variante não casa, e a ficha não muda. */
+  const nome = (sublinhado: boolean) => (
+    <span
+      className={cn(
+        "text-tinta text-interface group-data-[recuada]/linha:text-tinta-suave inline-flex items-center gap-1",
+        sublinhado && SUBLINHADO_DO_CARTAO,
+      )}
+    >
       <span aria-hidden>📍</span>
       {nomeDaArea}
     </span>
   );
 
-  if (referencia === undefined || referencia === null || referencia === "") return nome;
+  if (referencia === undefined || referencia === null || referencia === "") return nome(false);
 
   return (
     <HoverCard>
-      <HoverCardTrigger asChild>{nome}</HoverCardTrigger>
+      <HoverCardTrigger asChild>{nome(true)}</HoverCardTrigger>
       <HoverCardContent data-cartao-de-ponteiro className="text-meta w-64">
         {referencia}
       </HoverCardContent>

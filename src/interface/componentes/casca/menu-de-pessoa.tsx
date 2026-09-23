@@ -62,14 +62,14 @@ export function MenuDePessoa({
         className="inline-flex min-h-11 items-center gap-2"
       >
         <Avatar className="size-8">
-          <AvatarFallback className="text-meta">{iniciais}</AvatarFallback>
+          <AvatarFallback>{iniciais}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-68 max-w-[calc(100vw-2rem)]">
         <DropdownMenuLabel className="text-interface flex items-center gap-3 px-2.5 pt-2 pb-2.5 font-normal">
           <Avatar className="size-8">
-            <AvatarFallback className="text-meta">{iniciais}</AvatarFallback>
+            <AvatarFallback>{iniciais}</AvatarFallback>
           </Avatar>
           <span className="flex min-w-0 flex-col">
             <span className="text-tinta truncate font-semibold">{nomeDaPessoa}</span>

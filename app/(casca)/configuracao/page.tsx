@@ -39,7 +39,7 @@ import { resolverEscopoParaTela } from "@/interface/http";
 export const dynamic = "force-dynamic";
 
 /** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
-const ROTULO = "text-rotulo-coluna text-tinta-fraca font-mono font-medium tracking-[0.11em] uppercase";
+const ROTULO = "text-rotulo-coluna text-tinta-fraca font-mono uppercase";
 
 export default async function ConfiguracaoDaOrganizacao() {
   const escopo = await resolverOuMandarParaPorta();
@@ -87,7 +87,7 @@ export default async function ConfiguracaoDaOrganizacao() {
           <dl className="grid lg:grid-cols-2">
             <div className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
               <dt className={ROTULO}>Nome</dt>
-              <dd className="text-titulo-bloco text-tinta leading-snug font-medium wrap-break-word">
+              <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">
                 {ativo.organizacao.nome}
               </dd>
               <dd className="text-meta text-tinta-suave max-w-110">{EDICAO_DE_NOME.organizacao.ajuda}</dd>
@@ -174,7 +174,7 @@ function DestinoDaPauta({
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-center md:gap-4">
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-titulo-linha text-tinta font-medium">{titulo}</span>
+          <span className="text-titulo-linha text-tinta">{titulo}</span>
           <span className="text-meta text-tinta-suave">{descricao}</span>
         </span>
         <span className="text-interface text-tinta-suave shrink-0">
