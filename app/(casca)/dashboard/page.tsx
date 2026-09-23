@@ -12,8 +12,12 @@ import {
   type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
-import { GraficoDaRecorrencia } from "@/interface/componentes/grafico-da-recorrencia";
-import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
+import {
+  linhasDoFluxoMensal,
+  textoDoFluxoMensal,
+  type LinhaDoFluxoMensal,
+} from "@/interface/componentes/fluxo-mensal";
+import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
@@ -176,19 +180,27 @@ function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
  * O bloco 1 — **o único que carrega uma frase explicando por que existe**, e é o que faz a hierarquia da
  * tela sem usar cor.
  *
- * **O gráfico é da tela grande, e a lista fica sempre.** Até o item 44e a lista sumia a partir de `lg`,
- * substituída pelas colunas mensais. Com o balão sendo o único lugar onde o número por série apareceria,
- * a informação passaria a existir só em passagem do ponteiro — que é o compromisso A-5 quebrado. A lista
- * fica nos dois tamanhos; o gráfico entra onde há largura para ler tendência.
+ * **Três seções, e a de cima é a que responde a pergunta da tela.** *"Está melhorando ou piorando?"* é o
+ * que `docs/telas.md` promete do painel, e até o item 57 nenhum dos cinco quadros respondia: o quadro por
+ * status é fotografia, as listas de recorrência são contagem no período, o tempo é média e a avaliação é
+ * nota. As duas séries de cima — quanto foi registrado e quanto foi resolvido em cada mês — **saem da
+ * mesma resposta que já chegava**, cruzadas em `fluxo-mensal.ts`.
+ *
+ * **A seção nova fica FORA do vazio das listas**, e o caso que decide é concreto: janela sem nenhuma
+ * ocorrência registrada e com resoluções dentro dela — ocorrências abertas antes do período e fechadas
+ * nele. Antes, essa organização lia *"a recorrência aparece a partir do segundo mês"* e mais nada; agora
+ * lê que zero entrou e N saíram, que é exatamente a fila encolhendo.
+ *
+ * **O gráfico é da tela grande, e a lista fica sempre.** Com o balão sendo o único lugar onde o número
+ * por mês apareceria, a informação passaria a existir só em passagem do ponteiro — o compromisso A-5
+ * quebrado. A lista fica nos dois tamanhos; o gráfico entra onde há largura para ler tendência.
  *
  * **As áreas continuam lista**, à direita: são cerca de trinta séries, e o achado **P-11** já decidiu que
  * trinta séries não têm legenda possível.
  *
- * **O corte é "as cinco primeiras", e ele nunca mente.** A frase do protótipo é literal — *"mais N áreas
- * com 1 ocorrência ou nenhuma"* —, e ela é uma afirmação sobre os dados, não só uma contagem. Por isso o
- * corte mostra as cinco **ou mais**, até que tudo o que sobra tenha total ≤ 1: assim a frase é verdadeira
- * por construção, em vez de verdadeira nos dados do protótipo. *(Decisão do plano; a spec fixava o corte
- * em cinco e não previu o caso.)*
+ * **O corte é "as cinco primeiras", e ele nunca mente.** A frase é literal — *"mais N áreas com 1
+ * ocorrência ou nenhuma"* —, e ela é uma afirmação sobre os dados, não só uma contagem. Por isso o corte
+ * mostra as cinco **ou mais**, até que tudo o que sobra tenha total ≤ 1.
  */
 function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
   const categorias = dashboard.recorrenciaPorCategoria.map((serie) => ({
@@ -202,14 +214,33 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
     total: totalDaSerie(serie.porMes),
   }));
 
-  const meses = dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes);
-  const { linhas, nomes } = linhasDaRecorrencia(categorias, rotulosDosMeses(meses));
+  // **Um eixo só para o desenho e para a lista**, e por isso os dois não podem discordar: o mesmo array
+  // alimenta os dois. Os rótulos vêm do bloco 4, que é a única série que o contrato garante sem buraco.
+  const fluxo = linhasDoFluxoMensal(
+    dashboard.recorrenciaPorCategoria,
+    dashboard.tempoMedioDeResolucao.porMes,
+    rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes)),
+  );
 
   return (
     <Cartao numero={1} titulo="Recorrência" quando="no período">
       <p className="text-tinta-suave text-corpo">
         Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.
       </p>
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
+          Registradas e resolvidas
+        </h3>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Tela grande: as duas linhas. No celular a seção é só a lista, em largura inteira. */}
+          <div className="hidden lg:block">
+            <GraficoDoFluxoMensal linhas={fluxo} />
+          </div>
+          {/* Os dois números de cada mês, em texto, nos dois tamanhos — A-5 e critério 57.5. */}
+          <ListaDoFluxoMensal linhas={fluxo} />
+        </div>
+      </div>
 
       {categorias.length === 0 && areas.length === 0 ? (
         <p role="status" className="text-tinta text-corpo">
@@ -221,11 +252,6 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
             <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               Por categoria
             </h3>
-            {/* Tela grande: as três de maior total mais `Outras`, empilhadas. */}
-            <div className="hidden lg:block">
-              <GraficoDaRecorrencia linhas={linhas} nomes={nomes} />
-            </div>
-            {/* O número por categoria, em texto, nos dois tamanhos — A-5. */}
             <ListaComResto series={categorias} substantivo="categorias" />
           </div>
 
@@ -238,6 +264,35 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
         </div>
       )}
     </Cartao>
+  );
+}
+
+/**
+ * A lista de meses do bloco 1 — **os dois números em texto, e nenhuma barra**.
+ *
+ * **A barra fica de fora, e é decisão.** O `Medidor` desenha uma barra por linha, e aqui há dois números
+ * por linha: uma barra teria de escolher um deles e calar o outro, e duas barras por mês seriam o gráfico
+ * redesenhado em texto ao lado do gráfico. O compromisso A-5 fica satisfeito do jeito mais simples que
+ * existe — não há cor nem barra carregando informação, só o número.
+ *
+ * **A chave é o rótulo do mês**, e ele é único por construção: `rotulosDosMeses` acrescenta o ano ao eixo
+ * inteiro assim que a janela atravessa a virada do ano.
+ */
+function ListaDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxoMensal[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {linhas.map((linha) => (
+        <li
+          key={linha.mes}
+          className="text-corpo flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
+        >
+          <span className="text-tinta">{linha.mes}</span>
+          <span className="text-tinta-suave text-meta tabular-nums">
+            {textoDoFluxoMensal(linha)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

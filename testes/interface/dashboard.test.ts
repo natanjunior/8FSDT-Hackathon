@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
-import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
 
@@ -107,81 +106,6 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
     expect(projetado.mediaDasAvaliacoes).toStrictEqual({ media: 4.2, avaliadas: 6, resolvidas: 14 });
     expect(projetado.tempoMedioDeResolucao.porMes).toStrictEqual([
       { mes: "2026-06", horas: 72, resolvidas: 5 },
-    ]);
-  });
-});
-
-/**
- * **O corte do bloco 1 — item 44e, critério 2.**
- *
- * A função não ordena e não preenche mês: as duas coisas já aconteceram em `agrupar`, e os testes abaixo
- * afirmam justo isso, para que ninguém acrescente uma segunda ordenação por via das dúvidas.
- */
-describe("o corte da recorrência em três categorias mais `Outras`", () => {
-  const serie = (rotulo: string, ...quantidades: number[]) => ({
-    rotulo,
-    porMes: quantidades.map((quantidade, i) => ({
-      mes: `2026-0${String(i + 6)}`,
-      quantidade,
-    })),
-  });
-
-  const MESES = ["jun", "jul"] as const;
-
-  it("com cinco categorias, três saem nomeadas e `outras` soma as duas restantes, mês a mês", () => {
-    const { linhas, nomes } = linhasDaRecorrencia(
-      [
-        serie("Vazamento", 6, 4),
-        serie("Elétrica", 3, 3),
-        serie("Limpeza", 2, 1),
-        serie("Portaria", 1, 2),
-        serie("Jardim", 0, 5),
-      ],
-      MESES,
-    );
-
-    expect(nomes).toStrictEqual({
-      categoria1: "Vazamento",
-      categoria2: "Elétrica",
-      categoria3: "Limpeza",
-    });
-    expect(linhas).toStrictEqual([
-      { mes: "jun", categoria1: 6, categoria2: 3, categoria3: 2, outras: 1 },
-      { mes: "jul", categoria1: 4, categoria2: 3, categoria3: 1, outras: 7 },
-    ]);
-  });
-
-  it("com três categorias ou menos, `outras` é zero em todo mês — faixa de altura zero é categoria que o olho não acha", () => {
-    const { linhas, nomes } = linhasDaRecorrencia(
-      [serie("Vazamento", 6, 4), serie("Elétrica", 3, 3)],
-      MESES,
-    );
-
-    expect(linhas.every((linha) => linha.outras === 0)).toBe(true);
-    expect(linhas.map((linha) => linha.categoria3)).toStrictEqual([0, 0]);
-    expect(nomes.categoria3).toBeUndefined();
-  });
-
-  it("preserva a ordem de entrada — quem ordena é a Aplicação, e ordenar de novo aqui envelheceria sozinho", () => {
-    const { nomes } = linhasDaRecorrencia(
-      [serie("Zíper", 1, 1), serie("Alvenaria", 9, 9), serie("Mofo", 5, 5)],
-      MESES,
-    );
-
-    expect(nomes.categoria1).toBe("Zíper");
-    expect(nomes.categoria2).toBe("Alvenaria");
-    expect(nomes.categoria3).toBe("Mofo");
-  });
-
-  it("o eixo é o das linhas, e uma série mais curta que ele lê como zero no mês que falta", () => {
-    // O bloco 4 é a espinha do eixo: `tempoMedioDeResolucao.porMes` é a única série que o contrato
-    // garante sem buraco. Uma série de categoria mais curta é dado impossível hoje, e mesmo assim não
-    // pode virar `undefined` dentro de um `<Area>`.
-    const { linhas } = linhasDaRecorrencia([serie("Vazamento", 6)], MESES);
-
-    expect(linhas).toStrictEqual([
-      { mes: "jun", categoria1: 6, categoria2: 0, categoria3: 0, outras: 0 },
-      { mes: "jul", categoria1: 0, categoria2: 0, categoria3: 0, outras: 0 },
     ]);
   });
 });
