@@ -2,16 +2,22 @@ import { Ban, Check, FilePlus, Pause, Search, Wrench } from "lucide-react";
 
 import { Badge } from "@/interface/componentes/ui/badge";
 
-/** A forma neutra das três — contorno. */
-const CONTORNO = "border-linha text-tinta bg-transparent";
-
+/**
+ * **Seis tratamentos, um por estado** — critério 44q.10, que desfaz o 44p.21. A forma continua dizendo
+ * se a ocorrência espera alguém (sólido: espera; contorno: andando; apagado: acabou); a cor separa os
+ * dois estados de cada forma. *Aberta* veste a marca, e é a única exceção à regra *"a marca é da ação
+ * principal"* do guia §2 — a prancheta a desenha assim, e o selo não é ação.
+ *
+ * *Cancelada* usa `--ink-soft`, e não o `--ink-faint` da prancheta: o fraco mede 2,57:1 sobre
+ * `--sunken` no escuro, abaixo dos 4,5:1 de texto (desvio D1 do plano do 44q).
+ */
 const FORMA_DO_SELO: Readonly<Record<string, string>> = {
-  aberta: "bg-accent-foreground text-accent border-transparent",
-  pausada: "bg-accent-foreground text-accent border-transparent",
-  em_analise: CONTORNO,
-  em_atendimento: CONTORNO,
-  resolvida: "bg-muted text-accent-foreground border-transparent",
-  cancelada: "bg-muted text-accent-foreground border-transparent",
+  aberta: "bg-marca text-marca-foreground border-transparent",
+  pausada: "bg-atencao text-marca-foreground border-transparent",
+  em_analise: "border-tinta-suave text-tinta-suave bg-transparent",
+  em_atendimento: "border-info text-info bg-transparent",
+  resolvida: "bg-muted text-ok border-transparent",
+  cancelada: "bg-muted text-tinta-suave border-transparent",
 };
 
 /**
@@ -47,12 +53,12 @@ const ICONE_DO_STATUS: Readonly<Record<string, typeof FilePlus>> = {
 };
 
 const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
-  aberta: "bg-accent-foreground text-accent border-transparent",
-  em_analise: "border-linha text-tinta bg-superficie",
-  em_atendimento: "border-linha text-tinta bg-superficie",
-  pausada: "bg-accent-foreground text-accent border-dashed border-tinta-suave",
-  resolvida: "bg-muted text-accent-foreground border-transparent",
-  cancelada: "bg-muted text-accent-foreground border-transparent",
+  aberta: "bg-marca text-marca-foreground border-transparent",
+  em_analise: "border-tinta-suave text-tinta-suave bg-superficie",
+  em_atendimento: "border-info text-info bg-superficie",
+  pausada: "bg-atencao text-marca-foreground border-dashed border-tinta-suave",
+  resolvida: "bg-muted text-ok border-transparent",
+  cancelada: "bg-muted text-tinta-suave border-transparent",
 };
 
 /**
@@ -66,29 +72,19 @@ const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
  * | Contorno | Em análise · Em atendimento |
  * | Apagado | Resolvida · Cancelada |
  *
- * **O sólido inverte o par do vocabulário** (item 44p, critério 21, 21/09/2026): fundo em
- * `--accent-foreground`, texto em `--accent-bg`. Antes ele era o contrário, e o resultado medido é que o
- * sólido e o apagado distavam **1,6% de luminosidade no escuro e 2,8% no claro** — no print de produção,
- * *Aberta* e *Resolvida* eram o mesmo chip. Invertido, a distância vai a **8,05:1 no escuro e 9,59:1 no
- * claro**, e o texto do apagado fica colorido, que é o que o critério 9 pede.
+ * **Dentro de cada forma, uma cor por estado** (item 44q, critério 10), e o `FORMA_DO_SELO` acima diz
+ * qual. Três cores entraram no tema para isso, `--ok`, `--atencao` e `--info`, e as medições de
+ * contraste delas moram em `tema.test.ts`. *Aberta* veste a marca, que é a exceção do guia §2: o selo não
+ * é ação, e a prancheta o desenha assim.
  *
- * **Nenhuma cor nova entra, e o `globals.css` não muda.** `--accent-bg` e `--accent-foreground` já são um
- * par por desenho — a linha 99 do tema os nomeia assim. **A cor da marca continua fora:** ela veste a
- * ação principal, e só ela.
+ * **O raio, o tamanho e o peso vêm da peça:** o `ui/badge` passou a ter raio de 6 px e o oitavo papel da
+ * escala (`text-rotulo-peca`), e nada aqui os repete — um `text-meta` no ponto de uso derrubaria o papel.
  *
- * **O contorno fica neutro, e é decisão.** O guia §2 promete "borda e texto coloridos"; com o sólido
- * consertado as três formas já se separam por presença de preenchimento e de borda — o contorno é a única
- * sem fundo, o apagado a única com fundo e sem borda. Quem se corrige é o guia (fila de documentação,
- * item 38).
- *
- * **O raio é o de selo, 6 px.** O `ui/badge` chega do catálogo com `rounded-full`, que o guia §4 não
- * concede a selo nenhum.
- *
- * **Nada é comunicado só por forma:** o selo sempre imprime o `statusRotulo`, que vem pronto do servidor
- * na coluna de quem lê (item 31).
+ * **Nada é comunicado só por forma nem só por cor:** o selo sempre imprime o `statusRotulo`, que vem
+ * pronto do servidor na coluna de quem lê (item 31).
  *
  * **`status` é `string` porque `app/` não importa o Domínio** (ADR-0006). Status desconhecido cai no
- * contorno, que é a forma neutra das três.
+ * contorno neutro de *Em análise*.
  *
  * **E esse é o preço da regra.** `FORMA_DO_SELO` já foi `Record<StatusOcorrencia, string>`; trocar por
  * `Record<string, string>` custou a exaustividade do `tsc` — um sétimo status entraria em silêncio no
@@ -96,7 +92,7 @@ const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
  */
 export function SeloDeStatus({ status, rotulo }: { status: string; rotulo: string }) {
   return (
-    <Badge variant="outline" className={`text-meta rounded-sm ${FORMA_DO_SELO[status] ?? CONTORNO}`}>
+    <Badge variant="outline" className={FORMA_DO_SELO[status] ?? FORMA_DO_SELO.em_analise}>
       {rotulo}
     </Badge>
   );

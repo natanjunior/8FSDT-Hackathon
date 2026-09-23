@@ -69,7 +69,7 @@ function MensagemDeCampo({ id, alerta, children }: { id: string; alerta: boolean
     <p
       id={id}
       role={alerta ? "alert" : undefined}
-      className="text-destructive text-meta flex items-center gap-1.5 font-medium"
+      className="text-destructive text-meta flex items-center gap-1.5"
     >
       <CircleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
       <span>{children}</span>
@@ -89,6 +89,7 @@ export function Campo({
   erro,
   contador,
   rotuloEmTelaGrande = "visivel",
+  rotuloOculto = false,
   children,
 }: {
   id: string;
@@ -103,6 +104,12 @@ export function Campo({
    * contatos de T-08 (item 44j). O controle continua nomeado, por `aria-label`.
    */
   rotuloEmTelaGrande?: "visivel" | "oculto";
+  /**
+   * Esconde o rótulo da vista em qualquer largura, e ele continua sendo o `<label>` do controle. É o
+   * campo da solução aplicada de T-05 (item 44q): a faixa do cartão já escreve *Solução aplicada*, e o
+   * rótulo visível repetiria a mesma palavra logo abaixo.
+   */
+  rotuloOculto?: boolean;
   children: ReactNode | ((controle: PropsDoControle) => ReactNode);
 }) {
   const idDaAjuda = `${id}-ajuda`;
@@ -120,7 +127,7 @@ export function Campo({
 
   const textoDeAjuda =
     ajuda === undefined ? null : (
-      <span id={idDaAjuda} className="text-tinta-suave text-meta leading-relaxed">
+      <span id={idDaAjuda} className="text-tinta-suave text-meta">
         {ajuda}
       </span>
     );
@@ -128,7 +135,11 @@ export function Campo({
   const rotuloDoCampo = (
     <label
       htmlFor={id}
-      className={cn("text-tinta text-interface font-medium", rotuloEmTelaGrande === "oculto" && "lg:sr-only")}
+      className={cn(
+        "text-tinta text-interface font-medium",
+        rotuloEmTelaGrande === "oculto" && "lg:sr-only",
+        rotuloOculto && "sr-only",
+      )}
     >
       {rotulo}
       {obrigatorio && <Asterisco />}
@@ -198,7 +209,7 @@ export function ErroDoFormulario({ children }: { children: ReactNode }) {
   return (
     <div
       role="alert"
-      className="border-destructive/[55%] bg-destructive/[8%] text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5 leading-snug"
+      className="border-destructive/[55%] bg-destructive/[8%] text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5"
     >
       <CircleXIcon aria-hidden="true" className="text-destructive mt-0.5 size-4 shrink-0" />
       <div className="min-w-0">{children}</div>
@@ -223,7 +234,7 @@ export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; c
   return (
     <div
       role="alert"
-      className="border-linha bg-superficie text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5 leading-snug"
+      className="border-linha bg-superficie text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5"
     >
       <InfoIcon aria-hidden="true" className="text-tinta-suave mt-0.5 size-4 shrink-0" />
       <div className="min-w-0">{children}</div>
@@ -256,7 +267,7 @@ export function RodapeDoFormulario({
           {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row">{children}</div>
+      <div className="flex flex-col-reverse gap-2.5 sm:flex-row">{children}</div>
     </div>
   );
 }

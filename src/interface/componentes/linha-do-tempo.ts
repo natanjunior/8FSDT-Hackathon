@@ -79,5 +79,18 @@ export function fraseDaMensagem(texto: string): string {
  * contrato não tem *"você"*, e quem monta a segunda pessoa é quem sabe quem está lendo.
  */
 export function autoria(nome: string, ehQuemLe: boolean, quando: string): string {
-  return `${ehQuemLe ? "Você" : nome} · ${quando}`;
+  const partes = partesDaAutoria(nome, ehQuemLe, quando);
+  return `${partes.quem} · ${partes.quando}`;
+}
+
+/**
+ * As duas metades da autoria, para a tela pintar cada uma no seu papel: o nome em tinta cheia e o
+ * instante em monoespaçada (item 44q, critério 7). Juntas com ` · `, são exatamente `autoria`.
+ */
+export function partesDaAutoria(
+  nome: string,
+  ehQuemLe: boolean,
+  quando: string,
+): { quem: string; quando: string } {
+  return { quem: ehQuemLe ? "Você" : nome, quando };
 }

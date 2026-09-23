@@ -1556,35 +1556,223 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(esperas).toHaveLength(12);
   });
 
-  it("as três formas do selo se separam, e nenhuma cor nova entra (critérios 44p.9 e 44p.21)", () => {
+  it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {
     const fonte = ler("src/interface/componentes/selo-de-status.tsx");
-
-    // O defeito medido: no escuro `--accent-bg` (0,2921) e `--sunken` (0,2758) distavam 1,6% de
-    // luminosidade, e *Aberta* e *Resolvida* eram o mesmo chip no print de produção. O par invertido
-    // afasta os dois para 8,05:1 de contraste WCAG no escuro e 9,59:1 no claro.
-    expect(fonte).toContain("bg-accent-foreground text-accent");
-    expect(fonte).toContain("bg-muted text-accent-foreground");
-
-    // A marca continua fora: ela veste a ação principal, e só ela (guia §2).
-    //
-    // **A guarda é sobre as CLASSES, e não sobre a palavra:** o arquivo fala de "marcador" em cinco
-    // linhas — é o nome da peça de T-06 que mora nele —, e um `toContain("marca")` seria vermelho para
-    // sempre, diga o código o que disser.
-    expect(fonte).not.toContain("bg-marca");
-    expect(fonte).not.toContain("text-marca");
-    expect(fonte).not.toContain("border-marca");
-
-    // E o `globals.css` não muda: a resposta à P1 usa o par que já existe.
-    expect(ler("app/globals.css")).not.toContain("--positivo");
+    // **O 44p.21 decidiu no lugar do dono**, e disse que a decisão cairia se a prancheta tivesse
+    // argumento. A validação de 22/09 é o dono lendo a prancheta: seis tratamentos, um por estado.
+    expect(fonte).toContain('aberta: "bg-marca text-marca-foreground border-transparent"');
+    expect(fonte).toContain('pausada: "bg-atencao text-marca-foreground border-transparent"');
+    expect(fonte).toContain('em_analise: "border-tinta-suave text-tinta-suave bg-transparent"');
+    expect(fonte).toContain('em_atendimento: "border-info text-info bg-transparent"');
+    expect(fonte).toContain('resolvida: "bg-muted text-ok border-transparent"');
+    expect(fonte).toContain('cancelada: "bg-muted text-tinta-suave border-transparent"');
+    // A tinta fraca reprova no apagado (2,57:1 no escuro) — desvio D1.
+    expect(fonte).not.toContain("text-tinta-fraca");
+    // O `text-meta` no ponto de uso derrubaria o oitavo papel que a peça passou a ter.
+    expect(fonte).not.toContain("text-meta rounded-sm");
   });
 
-  it("o `Ativa` das listas de ordem manual não veste a marca (critérios 44p.18 e 44p.22)", () => {
+  it("o `Ativa` volta a ser selo de sucesso com o ponto, e o `Inativa` é apagado (critério 44q.11)", () => {
     const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+    // Contorno cheio, e não os 55% da prancheta: a 55% a borda mede 2,34:1 (desvio D6).
+    expect(fonte).toContain('"border-ok text-ok gap-1.5"');
+    expect(fonte).not.toContain("border-ok/");
+    expect(fonte).toContain("bg-ok size-1.5 rounded-full");
+    expect(fonte).toContain("bg-muted text-tinta-suave border-transparent");
+    // O ponto era um caractere, e agora é desenho: o `•` saiu.
+    expect(fonte).not.toContain('PONTO_DE_ATIVA = "•"');
+  });
+});
 
-    // *Ativa* é a maioria das linhas; pintá-la de laranja é o que fazia o print de Categorias e de Áreas
-    // parecer alarme. O destaque troca de lado, e o ponto é a pista de forma que a prancheta desenhou.
-    expect(fonte).not.toContain("border-marca/60 text-marca");
-    expect(fonte).toContain("text-accent-foreground");
-    expect(fonte).toContain("PONTO_DE_ATIVA");
+describe("o alcance do 44q — a estilização da prancheta", () => {
+  /** Telas e componentes próprios, fora do catálogo — o alcance do critério 2. */
+  const PROPRIOS = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")].filter(
+    (caminho) => !caminho.startsWith("src/interface/componentes/ui/") && caminho.endsWith(".tsx"),
+  );
+
+  it("nenhuma entrelinha improvisada fora do catálogo (critério 44q.2)", () => {
+    // **Sobra só `leading-none`**, que não é correção de papel: é o que se põe em ícone e em número
+    // isolado para a caixa não crescer. O resto era remendo de papel que o token passou a carregar.
+    const achados = PROPRIOS.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\bleading-(?!none\b)[\w.[\]-]+/gu)].map((achado) => `${caminho}: ${achado[0]}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("título de página e de bloco não repetem o peso que o token já traz (critério 44q.2)", () => {
+    const achados = PROPRIOS.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"[^"]*\btext-titulo-(?:pagina|bloco)\b[^"]*\bfont-semibold\b[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("a entreletra do rótulo vem do token, e não se repete na chamada (critério 44q.2)", () => {
+    const achados = PROPRIOS.filter((caminho) => ler(caminho).includes("tracking-[0.11em]"));
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o rótulo de grupo do modal de atribuição está no papel de rótulo (critério 44q.12)", () => {
+    const fonte = ler("src/interface/componentes/modal-de-atribuicao.tsx");
+    expect(fonte).toContain('<legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">');
+    expect(fonte).not.toContain("tracking-wide");
+  });
+
+  it("o raio de 6 px voltou às seis peças (critério 44q.4)", () => {
+    // `rounded-md` é `--radius-md`, 8 px; `rounded-sm` é `--radius-sm`, 6 px (`globals.css:271-272`).
+    for (const peca of ["button", "input", "textarea", "toggle", "tooltip"]) {
+      expect(ler(`src/interface/componentes/ui/${peca}.tsx`), peca).not.toMatch(/\brounded-md\b/u);
+    }
+    expect(ler("src/interface/componentes/ui/sidebar.tsx")).toMatch(
+      /const sidebarMenuButtonVariants = cva\(\s*"[^"]*\brounded-sm\b/u,
+    );
+  });
+
+  it("o alvo de toque vem da peça: botão, campo, item de menu e botão de ícone (critério 44q.14a)", () => {
+    const botao = ler("src/interface/componentes/ui/button.tsx");
+    expect(botao).toMatch(/default: "min-h-11 /u);
+    expect(botao).toMatch(/icon: "size-11"/u);
+    expect(ler("src/interface/componentes/ui/input.tsx")).toMatch(/"h-11 /u);
+    expect(ler("src/interface/componentes/ui/sidebar.tsx")).toMatch(/default: "min-h-11 text-interface\/\[17px\]"/u);
+    // A entrelinha de 17 do item de menu viaja COLADA ao tamanho, e não num `leading-*` solto: o
+    // `tailwind-merge` apaga o `leading-*` que vem antes de qualquer tamanho de texto (grupo em conflito),
+    // e a navegação passa `text-interface` por cima. Conferido com o pacote do repositório na revisão.
+    expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain('"text-interface/[17px] h-auto min-h-11');
+  });
+
+  it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
+    expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
+    expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
+  });
+
+  it("a contagem, a caixa e a opção do filtro rápido existem uma vez só (desvio D4 do plano)", () => {
+    for (const caminho of [
+      "src/interface/componentes/recorte-da-lista.tsx",
+      "src/interface/componentes/lista-de-ordem-manual.tsx",
+      "src/interface/componentes/tabela-de-participantes.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("CONTAGEM_DO_FILTRO");
+      expect(fonte, caminho).not.toContain("rounded-full px-1.5 font-mono");
+    }
+  });
+
+  it("o cabeçalho de coluna e a célula existem uma vez só, com o fundo e os 11 px (critério 44q.3)", () => {
+    const pecas = ler("src/interface/componentes/pecas-da-tabela.ts");
+    expect(pecas).toMatch(/ROTULO_DE_COLUNA =[^;]*bg-background[^;]*py-2\.75/u);
+    expect(pecas).toMatch(/CELULA =[^;]*py-2\.75/u);
+    const copias = [
+      "lista-de-ocorrencias.tsx",
+      "lista-de-ordem-manual.tsx",
+      "tabela-de-areas.tsx",
+      "tabela-de-participantes.tsx",
+    ].filter((nome) => /const ROTULO_DE_COLUNA =/u.test(ler(`src/interface/componentes/${nome}`)));
+    expect(copias).toStrictEqual([]);
+  });
+
+  it("dica, erro de campo e rodapé de modal (critério 44q.3)", () => {
+    expect(ler("src/interface/componentes/ui/tooltip.tsx")).toMatch(/CLASSE_DA_DICA =[^;]*rounded-sm[^;]*px-2\.25 py-1\.25[^;]*font-medium/u);
+    expect(ler("src/interface/componentes/campo.tsx")).toContain(
+      'className="text-destructive text-meta flex items-center gap-1.5"',
+    );
+    expect(ler("src/interface/componentes/modal.tsx")).toMatch(/RODAPE_DO_MODAL =[^;]*bg-background[^;]*border-t[^;]*px-6 py-3\.5/u);
+    expect(ler("src/interface/componentes/campo.tsx")).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
+  });
+
+  it("a faixa do cartão é uma variante da cabeça, com o título em h2 no papel de rótulo (critério 44q.5)", () => {
+    const fonte = ler("src/interface/componentes/cartao.tsx");
+    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase"');
+    expect(fonte).toContain("export function FaixaDoCartao");
+    expect(fonte).toContain("export function CorpoDoCartao");
+  });
+
+  it("os blocos de T-05 são cartões com faixa, e os títulos não mudaram de texto (critérios 44q.5 e 44q.16)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    for (const titulo of ["O que foi relatado", "Solução aplicada", "Linha do tempo", "Detalhes"]) {
+      expect(pagina, titulo).toMatch(new RegExp(`className=\\{TITULO_DA_FAIXA\\}[^>]*>\\s*${titulo}`, "u"));
+    }
+    // O título da avaliação continua o que o teste de ponta a ponta afirma (desvio D3).
+    expect(pagina).toContain('{ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}');
+    // `0 fotos` não se escreve — e sem foto o `dado` é `undefined`, não `false`, para a faixa não montar
+    // o invólucro da direita vazio.
+    expect(pagina).toMatch(/detalhe\.anexos\.length > 0\s*\?/u);
+
+    const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
+    // **"Mensagens N" é o nome que o teste afirma** (`interrupcoes-da-ocorrencia.spec.ts:320`). O
+    // separador entra mudo, e a contagem continua sumindo enquanto há cursor.
+    expect(conversa).toMatch(/Mensagens\{" "\}\s*\{cursor === null && \(/u);
+    expect(conversa).toContain('<span aria-hidden="true">· </span>');
+  });
+
+  it("nenhum invólucro novo de T-05 é `<section>` sem nome — o teste escopa a Situação por seção", () => {
+    // `mundo.ts:121` e `caminho-critico.spec.ts:439`: `locator("section").filter({ hasText: "Situação" }).first()`.
+    // Um `<section>` que envolvesse a coluna de apoio casaria primeiro. O cartão da barra é `<div>`.
+    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
+    expect(barra).not.toMatch(/<section/u);
+  });
+
+  it("as ações dividem a linha: a principal com dois terços (critério 44q.8)", () => {
+    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
+    expect(barra).not.toContain("lg:flex-col");
+    expect(barra).not.toContain("lg:w-full");
+    expect(barra).toContain('ehPrimario ? "flex-[2]" : "flex-1"');
+    // O cartão só a partir de `lg`; abaixo dele, a barra continua presa ao pé.
+    expect(barra).toContain("lg:rounded-lg lg:border lg:bg-superficie");
+  });
+
+  it("o rótulo do campo da solução some da vista e fica no nome (critério 44q.5)", () => {
+    expect(ler("src/interface/componentes/campo.tsx")).toContain('rotuloOculto && "sr-only"');
+    expect(ler("src/interface/componentes/campo-de-solucao-aplicada.tsx")).toContain(
+      '<Campo id={campoId} rotulo="Solução aplicada" rotuloOculto',
+    );
+  });
+
+  it("a régua ganha o visto, a marca de agora e a data à direita (critério 44q.6)", () => {
+    const regua = ler("src/interface/componentes/regua-do-ciclo.tsx");
+    expect(regua).toMatch(/passo\.estado === "alcancado" && \(\s*<Check aria-hidden/u);
+    expect(regua).toMatch(/passo\.estado === "atual" && <span[^>]*>agora<\/span>/u);
+    expect(regua).toContain("justify-between");
+    // Os três marcadores e a ligação não mudaram (critério 44q.6).
+    expect(regua).toContain('alcancado: "bg-tinta-suave border-tinta-suave"');
+  });
+
+  it("a linha do tempo e as mensagens têm avatar, e o primeiro evento veste a cor da Aberta (critério 44q.7)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).toContain("<AvatarDePessoa");
+    expect(pagina).toMatch(/indice === 0 && evento\.tipo === "transicao"/u);
+    expect(pagina).toContain("bg-marca border-marca");
+    const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
+    expect(conversa).toContain("<AvatarDePessoa");
+    // O balão: fundo próprio, que separa o que uma pessoa escreveu do que o sistema registrou.
+    expect(conversa).toContain("bg-background rounded-lg");
+  });
+
+  it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
+    const cartao = ler("src/interface/componentes/cartao-da-lista.tsx");
+    expect(cartao).toMatch(/\{faixa\}\s*\n\s*<div\s+className=\{\s*pendente/u);
+    const pagina = ler("app/(casca)/ocorrencias/page.tsx");
+    expect(pagina).toContain('<CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>');
+  });
+
+  it("as encerradas descem um degrau de tinta por grupo, e o selo e o convite não descem (critério 44q.9)", () => {
+    const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+    expect(lista).toContain('data-recuada={encerrada(item.status) ? "" : undefined}');
+    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-suave");
+    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
+    expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
+    // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
+    expect(lista).not.toContain('"text-tinta-fraca text-meta flex flex-wrap items-center gap-1.5"');
+  });
+
+  it("o sublinhado da ficha só existe onde existe o cartão de ponteiro (critério 44q.9, crítica C1)", () => {
+    for (const caminho of ["src/interface/componentes/ficha-de-local.tsx", "src/interface/componentes/ficha-de-pessoa.tsx"]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain(
+        "[@media(hover:hover)_and_(pointer:fine)]:underline [@media(hover:hover)_and_(pointer:fine)]:decoration-linha [@media(hover:hover)_and_(pointer:fine)]:underline-offset-3",
+      );
+    }
   });
 });

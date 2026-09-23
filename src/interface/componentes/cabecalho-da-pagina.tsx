@@ -33,7 +33,7 @@ export function CabecalhoDaPagina({
   return (
     <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">{titulo}</h1>
+        <h1 className="text-titulo-pagina text-tinta">{titulo}</h1>
         <p className="text-interface text-tinta-suave">{fato}</p>
       </div>
       {acao !== undefined && <div className="shrink-0">{acao}</div>}

@@ -112,7 +112,7 @@ export function SubFormularioDeContatos({
         <div
           aria-hidden="true"
           className={cn(
-            "bg-background border-linha text-rotulo-coluna text-tinta-fraca hidden gap-x-3 border-b px-4 py-2.5 font-mono font-medium tracking-[0.11em] uppercase lg:grid",
+            "bg-background border-linha text-rotulo-coluna text-tinta-fraca hidden gap-x-3 border-b px-4 py-2.5 font-mono uppercase lg:grid",
             GRADE,
           )}
         >

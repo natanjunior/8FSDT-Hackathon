@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { dataCurta, dataEHora } from "@/interface/componentes/datas";
 import {
   autoria,
+  partesDaAutoria,
   fraseDaAtribuicao,
   fraseDaMensagem,
   fraseDaTransicao,
@@ -67,6 +68,16 @@ describe("as frases — transcritas do protótipo, não inventadas", () => {
     expect(autoria("Marina Rocha", false, "15/08/2026, 08h12")).toBe(
       "Marina Rocha · 15/08/2026, 08h12",
     );
+  });
+
+  it("partesDaAutoria separa quem de quando, e juntas são a autoria (item 44q, critério 7)", () => {
+    expect(partesDaAutoria("Marina Rocha", false, "15/08/2026 · 09:40")).toStrictEqual({
+      quem: "Marina Rocha",
+      quando: "15/08/2026 · 09:40",
+    });
+    expect(partesDaAutoria("Marina Rocha", true, "x").quem).toBe("Você");
+    const { quem, quando } = partesDaAutoria("Marina Rocha", false, "15/08/2026 · 09:40");
+    expect(`${quem} · ${quando}`).toBe(autoria("Marina Rocha", false, "15/08/2026 · 09:40"));
   });
 });
 

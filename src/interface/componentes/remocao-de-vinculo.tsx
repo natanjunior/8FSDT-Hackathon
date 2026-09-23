@@ -55,7 +55,7 @@ import { useEnvioDoModal, type DesfechoDoEnvio } from "@/interface/ganchos/use-e
  */
 
 const CONTEUDO = "bg-superficie border-linha";
-const TITULO = "text-titulo-bloco text-tinta leading-snug";
+const TITULO = "text-titulo-bloco text-tinta";
 const DESCRICAO = "text-corpo text-tinta-suave";
 const BOTAO = "text-interface min-h-11 rounded-sm px-4";
 

@@ -52,7 +52,7 @@ export function ListaDeOrganizacoes({ rotulo, children }: { rotulo?: string; chi
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-rotulo-coluna text-tinta-suave font-mono font-medium tracking-[0.11em] uppercase">
+      <h2 className="text-rotulo-coluna text-tinta-suave font-mono uppercase">
         {rotulo}
       </h2>
       {lista}
@@ -77,7 +77,7 @@ export function LinhaDeOrganizacao({
   return (
     <span className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left">
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-titulo-linha text-tinta font-medium">{nome}</span>
+        <span className="text-titulo-linha text-tinta">{nome}</span>
         <span className="text-meta text-tinta-suave font-normal">{apoio}</span>
       </span>
       {seta && <ChevronRight aria-hidden="true" className="text-tinta-fraca size-4 shrink-0" />}

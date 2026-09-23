@@ -79,7 +79,7 @@ export function Cartao({
   return (
     <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
       <h2 className="flex flex-wrap items-baseline gap-2">
-        <span className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+        <span className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
           {numero} · {titulo}
         </span>
         <span className="text-tinta-suave text-meta">{quando}</span>

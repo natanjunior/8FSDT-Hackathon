@@ -55,7 +55,7 @@ export function BotaoDeIcone({
           size="icon"
           aria-label={rotulo}
           aria-describedby={descritoPor}
-          className={cn(CONTORNO_DE_ACAO, "size-11 rounded-sm", className)}
+          className={cn(CONTORNO_DE_ACAO, "rounded-sm", className)}
           {...props}
         >
           {icone}
@@ -72,7 +72,7 @@ export function LinkDeIcone({ href, rotulo, icone, descritoPor }: Comum & { read
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button asChild variant="outline" size="icon" className={cn(CONTORNO_DE_ACAO, "size-11 rounded-sm")}>
+        <Button asChild variant="outline" size="icon" className={cn(CONTORNO_DE_ACAO, "rounded-sm")}>
           <Link href={href} aria-label={rotulo} aria-describedby={descritoPor}>
             {icone}
           </Link>

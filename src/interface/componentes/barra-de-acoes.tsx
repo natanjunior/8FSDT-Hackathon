@@ -86,14 +86,11 @@ import {
  * a variante `"menu"`. No dia em que alguém mexer em `ACAO_PRIMARIA`, ele cai — que é o alarme que esta
  * nota queria ser.
  *
- * **A geometria é a do protótipo desde o item 22** (`docs/prototipo/telas.html:328-330`): o primário
- * cresce (`flex-1`), os demais encolhem até o próprio texto (`flex-none`). Antes os dois eram `flex-1`, e
- * era a barra que divergia do desenho — não o rótulo.
- *
- * **`lg:flex-none` no primário, e não só `flex-1`:** a partir de `lg` o contêiner vira coluna
- * (`lg:flex-col`), e `flex: 1 1 0%` passa a governar o eixo vertical do botão em vez do horizontal — o
- * botão em destaque cresceria em altura, sozinho, dentro da pilha. `lg:w-full` já cuida da largura; o que
- * falta é o `lg:flex-none` que devolve ao primário o mesmo comportamento dos outros dois nessa largura.
+ * **A geometria é a da prancheta desde o item 44q** (critério 8): o primário ocupa dois terços da linha
+ * (`flex-[2]`) e o que vem ao lado, um terço (`flex-1`), nas duas larguras. Até o 44q, a partir de `lg`
+ * os botões viravam uma pilha de largura cheia. **O invólucro do gatilho de modal estica o filho**
+ * (`*:w-full`): os gatilhos secundários chegam com `w-auto`, do tempo em que o invólucro encolhia até o
+ * texto, e sem isso ficariam menores que o terço que lhes cabe.
  *
  * **E o destaque deixa de ser decidido por ÍNDICE.** `acoes[0]` acertava por coincidência: a ordem do enum
  * põe `atribuir-responsavel` antes de `iniciar-atendimento`, e em `em_analise` com responsável o destaque
@@ -191,15 +188,26 @@ export function BarraDeAcoes({
 
        **Abaixo de `lg` a barra flutua; a partir de `lg` ela é um bloco da coluna.** Em tela grande ela
        atravessava a tela inteira com miolo de 672 px sobre uma coluna de 448, e cortava ao meio o link
-       *ver a trilha de auditoria* — é o defeito V-1, e é a metade de dentro do critério 44d.1. */
-    <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+       *ver a trilha de auditoria* — é o defeito V-1, e é a metade de dentro do critério 44d.1.
+
+       **A partir de `lg` ela entra num cartão** (critério 44q.5), e o cartão é `<div>`, nunca
+       elemento de seção: o teste de ponta a ponta localiza a situação por `locator("section")`. **O cartão só
+       pinta quando há o que mostrar**: a barra é montada sempre, e sem ação nem aviso ela seria uma caixa
+       vazia na coluna de apoio de toda ocorrência encerrada. */
+    <div
+      className={`border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3 lg:static lg:z-auto ${
+        acoes.length > 0 || aviso !== null
+          ? "lg:rounded-lg lg:border lg:bg-superficie lg:p-[18px] lg:shadow-sm"
+          : "lg:border-0 lg:bg-transparent lg:p-0"
+      }`}
+    >
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 lg:max-w-none">
         {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
         {acoes.length > 0 && (
-          /* **Empilhados na coluna, lado a lado no celular.** A conta de largura que decidiu o menu é
-             a do celular, e ela não se refaz aqui: a partir de `lg` os mesmos botões e o mesmo menu
-             viram uma pilha. O custo está declarado na §3.3 da spec. */
-          <div className="flex gap-2 lg:flex-col">
+          /* **Lado a lado nas duas larguras, e a principal com dois terços** (critério 44q.8). Até o
+             44q, a partir de `lg` os dois viravam uma pilha de largura cheia com o mesmo peso visual.
+             `flex-[2]` contra `flex-1` é o terço da prancheta; com uma ação só, ela cresce e ocupa a linha. */
+          <div className="flex gap-2">
             {acoes
               .filter((acao) => !emMenu.includes(acao.comando))
               .map((acao) => {
@@ -209,7 +217,7 @@ export function BarraDeAcoes({
                   return (
                     <div
                       key={acao.comando}
-                      className={`lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
+                      className={`*:w-full ${ehPrimario ? "flex-[2]" : "flex-1"}`}
                     >
                       {formulario}
                     </div>
@@ -223,7 +231,7 @@ export function BarraDeAcoes({
                     variant={ehPrimario ? "marca" : "outline"}
                     disabled={enviando}
                     onClick={() => void disparar(acao)}
-                    className={`text-interface h-12 lg:w-full ${ehPrimario ? "flex-1 lg:flex-none" : "flex-none"}`}
+                    className={`text-interface h-12 ${ehPrimario ? "flex-[2]" : "flex-1"}`}
                   >
                     <IndicadorDeEnvio ativo={enviando} />
                     {enviando ? "Enviando…" : acao.rotulo}
@@ -240,7 +248,7 @@ export function BarraDeAcoes({
                   <Button
                     type="button"
                     variant="outline"
-                    className="text-interface h-12 flex-none lg:w-full"
+                    className="text-interface h-12 flex-1"
                   >
                     Mais ações ▾
                   </Button>

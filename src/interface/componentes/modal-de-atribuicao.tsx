@@ -161,7 +161,7 @@ export function ModalDeAtribuicao({
 
     return (
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 tracking-wide uppercase">
+        <legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">
           {titulo}
         </legend>
         {lista.map((pessoa) => {

@@ -123,7 +123,7 @@ export function Navegacao({
         <>
           <SidebarSeparator className="mx-2 my-3" />
           <SidebarGroup className="p-0">
-            <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono tracking-[0.11em] uppercase">
+            <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono uppercase">
               <Building2 aria-hidden="true" />
               Organização
             </SidebarGroupLabel>
@@ -200,11 +200,12 @@ export function Navegacao({
  *
  * **`h-auto` mais `min-h-11`**, e não a altura do `cva`: `h-8` e `h-12` são grupo `h` no `tailwind-merge`,
  * então `h-auto` os substitui e o piso de 44 px do guia §4 passa a ser `min-h-11`. **Medido:** no
- * `size="lg"`, `h-12` são 48 px fixos com `overflow-hidden`, e as duas linhas mais o `p-2` do `cva` pedem
- * 48,5 px — `text-interface` e `text-meta` em `leading-tight` somam 32,5. Meio pixel de corte, e ele cai
- * no descendente da linha de apoio. Com a altura decidida pelo conteúdo o caso some.
+ * `size="lg"`, `h-12` são 48 px fixos com `overflow-hidden`, e as duas linhas pediam mais que isso. Desde
+ * o item 44q o rótulo leva os 13,5 / 17 do item de menu da prancheta (`text-interface/[17px]`, tamanho e
+ * entrelinha numa classe só, que o `cn` não separa): rótulo 17 mais apoio 17 (`text-meta`) mais 12 de
+ * respiro (`py-1.5`) dá 46 px, acima dos 44. Com a altura decidida pelo conteúdo, nada corta.
  *
- * **`text-interface` vence o padrão do `cva`** pelo `cn` estendido, que declara os sete papéis da
+ * **`text-interface` vence o padrão do `cva`** pelo `cn` estendido, que declara os oito papéis da
  * escala como `font-size`.
  *
  * **O movimento usa a forma de parêntese**, `duration-(--tempo-ponteiro)`, e não a de colchete:
@@ -246,11 +247,11 @@ function ItemDeNavegacao({
         asChild
         isActive={marcado}
         size={duasLinhas ? "lg" : "default"}
-        className="text-interface h-auto min-h-11 transition-[background-color,color,transform] duration-(--tempo-ponteiro) ease-(--curva-ponteiro) active:scale-[0.97]"
+        className="text-interface/[17px] h-auto min-h-11 transition-[background-color,color,transform] duration-(--tempo-ponteiro) ease-(--curva-ponteiro) active:scale-[0.97]"
       >
         <Link href={destino} aria-current={marcado ? "page" : undefined} onClick={aoTocar}>
           <Icone aria-hidden="true" className={marcado ? "text-tinta" : "text-tinta-suave"} />
-          <div className="grid min-w-0 flex-1 leading-tight">
+          <div className="grid min-w-0 flex-1">
             <span className="truncate">{rotulo}</span>
             {duasLinhas && apoio === null && (
               <span aria-hidden="true" className="text-meta font-normal">

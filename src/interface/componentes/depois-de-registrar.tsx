@@ -31,7 +31,7 @@ export function DepoisDeRegistrar({ passos }: { readonly passos: readonly string
     >
       <h2
         id="depois-de-registrar"
-        className="text-titulo-bloco text-tinta mb-4 leading-snug font-semibold"
+        className="text-titulo-bloco text-tinta mb-4"
       >
         {DEPOIS_DE_REGISTRAR.titulo}
       </h2>
@@ -65,7 +65,7 @@ export function DepoisDeRegistrar({ passos }: { readonly passos: readonly string
         ))}
       </ol>
 
-      <p className="text-corpo text-tinta-suave mt-4 leading-relaxed">
+      <p className="text-corpo text-tinta-suave mt-4">
         {DEPOIS_DE_REGISTRAR.explicacao}
       </p>
       <p className="text-meta text-tinta-suave border-linha-suave mt-4 border-t pt-3.5">

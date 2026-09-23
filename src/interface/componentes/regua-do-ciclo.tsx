@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { Fragment } from "react";
 
 import { lerOCiclo, type PassoDoCiclo, type TransicaoDoCiclo } from "@/interface/componentes/ciclo";
@@ -104,12 +105,18 @@ export function ReguaDoCiclo({
               <span aria-hidden className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
             )}
 
+            {/* **O visto dentro do marcador cumprido** (critério 44q.6). É a terceira pista, nunca a
+                primeira, como o ícone do marcador de T-06: a data e a ordem já dizem que o passo passou. */}
             <span
               aria-hidden
-              className={`mt-1.5 size-[11px] shrink-0 rounded-full border ${MARCADOR[passo.estado]}`}
-            />
+              className={`mt-1.5 flex size-[11px] shrink-0 items-center justify-center rounded-full border ${MARCADOR[passo.estado]}`}
+            >
+              {passo.estado === "alcancado" && (
+                <Check aria-hidden className="text-superficie size-2" strokeWidth={4} />
+              )}
+            </span>
 
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
               <span className={`text-interface ${PALAVRA[passo.estado]}`}>
                 {nomeDoStatus(passo.status)}
                 {/* **O quarto estado, publicado em palavra.** `alcancado`, `atual` e `por-alcancar` já
@@ -117,10 +124,14 @@ export function ReguaDoCiclo({
                     tinha nenhuma fora do `line-through` visual. */}
                 {passo.estado === "inalcancavel" && <span className="sr-only"> (não alcançada)</span>}
               </span>
-              {/* **A data em monoespaçada** — guia §3: a mono é para dado temporal, contagem e
-                  identificador. O formato é o de `dataEHora`, e não uma segunda forma de escrever hora. */}
+              {/* **A data à direita, e o `agora` ao lado dela no passo atual** (critério 44q.6). Abaixo de
+                  `sm`, sem largura, ela quebra para baixo em vez de espremer o nome. **Em monoespaçada**,
+                  guia §3: a mono é para dado temporal, e o formato é o de `dataEHora`. */}
               {passo.em !== null && (
-                <span className="text-tinta-fraca text-meta font-mono">{passo.em}</span>
+                <span className="text-tinta-fraca text-meta flex items-baseline gap-2">
+                  <span className="font-mono tabular-nums">{passo.em}</span>
+                  {passo.estado === "atual" && <span className="text-tinta-suave">agora</span>}
+                </span>
               )}
             </span>
           </li>

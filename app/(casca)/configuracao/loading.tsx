@@ -10,7 +10,7 @@
 export default function EsperandoAConfiguracao() {
   return (
     <div className="flex flex-col gap-5.5">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Configuração da organização</h1>
+      <h1 className="text-titulo-pagina text-tinta">Configuração da organização</h1>
 
       <div aria-hidden className="flex flex-col gap-5.5">
         <div className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]">

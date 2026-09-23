@@ -105,7 +105,7 @@ export default async function RegistrarOcorrencia() {
               >
                 <CircleAlert aria-hidden="true" className="size-5.5" />
               </EmptyMedia>
-              <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+              <EmptyTitle className="text-titulo-bloco text-tinta">
                 {vazio.titulo}
               </EmptyTitle>
               <EmptyDescription className="text-corpo text-tinta-suave">{vazio.corpo}</EmptyDescription>

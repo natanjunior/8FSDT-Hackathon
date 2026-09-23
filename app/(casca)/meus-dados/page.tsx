@@ -35,7 +35,7 @@ import { resolverEscopoParaTela } from "@/interface/http";
 export const dynamic = "force-dynamic";
 
 /** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
-const ROTULO = "text-rotulo-coluna text-tinta-fraca font-mono font-medium tracking-[0.11em] uppercase";
+const ROTULO = "text-rotulo-coluna text-tinta-fraca font-mono uppercase";
 
 export default async function MeusDados() {
   const escopo = await resolverOuMandarParaPorta();
@@ -60,7 +60,7 @@ export default async function MeusDados() {
         />
         <dl className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
           <dt className={ROTULO}>Nome</dt>
-          <dd className="text-titulo-bloco text-tinta leading-snug font-medium wrap-break-word">{nome}</dd>
+          <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">{nome}</dd>
           <dd className="text-meta text-tinta-suave">
             É como os Gestores veem você, inclusive nas transições que você já registrou.
           </dd>
