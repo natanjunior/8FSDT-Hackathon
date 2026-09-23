@@ -892,10 +892,15 @@ describe("as consultas de configuração não atravessam organizações", () => 
    * agregado** — as pessoas, as organizações, as categorias, as áreas e as duas ocorrências são da suíte
    * (§7.1); o que é dela é a resolução de A, semeada no `beforeAll`.
    *
-   * **É a única entrada que exercita SEIS consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
+   * **É a única entrada que exercita SETE consultas de uma vez**, e a `chaveDaLinha` é o que faz isso
    * funcionar: cada linha vira uma frase que carrega **a dimensão, o rótulo e o número**. Um `$1` perdido
-   * em qualquer uma das seis muda pelo menos um número ou traz um rótulo da outra organização — e nos
+   * em qualquer uma das sete muda pelo menos um número ou traz um rótulo da outra organização — e nos
    * dois casos o conjunto deixa de bater.
+   *
+   * **A sétima consulta devolve vazio dos dois lados, e é prova fraca — por isso está dito.** O mundo
+   * da suíte tem **uma** ocorrência por organização, e o mínimo do par é dois: nenhuma dupla chega lá.
+   * A entrada passa a exercitar a consulta contra o `$1` e a provar que ela não traz linha da outra
+   * organização; quem prova o **conteúdo** dela é `testes/integracao/dashboard.test.ts`.
    *
    * **Os rótulos são únicos por organização, de propósito**: a suíte semeia *"Portaria do Recanto"* contra
    * *"Portaria da Aurora"* e *"Garagem do Recanto"* contra *"Garagem da Aurora"*. É o que faz o vazamento
@@ -906,7 +911,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
    * seria frágil na virada; `2000-01-01` até `2099-12-31` não é.
    *
    * O terceiro caso da suíte — *"toda linha carrega a organização pedida"* — fica de fora pela decisão da
-   * própria suíte: **nenhum dos seis modelos de leitura expõe `organizacao_id`**, e é assim que o
+   * própria suíte: **nenhum dos sete modelos de leitura expõe `organizacao_id`**, e é assim que o
    * Definition of Done os quer.
    */
   casosDeIsolamento(mundo, {
@@ -915,14 +920,16 @@ describe("as consultas de configuração não atravessam organizações", () => 
       const repo = repositorioEscopadoDeDashboard(escoparConsulta(consulta, organizacaoId));
       const janela = { de: "2000-01-01", ate: "2099-12-31" };
 
-      const [status, categorias, porCategoria, porArea, resolucoes, idades] = await Promise.all([
-        repo.backlogPorStatus(),
-        repo.abertasPorCategoria(),
-        repo.recorrenciaPorCategoria(janela),
-        repo.recorrenciaPorArea(janela),
-        repo.resolucoesPorMes(janela),
-        repo.abertasPorIdade(),
-      ]);
+      const [status, categorias, porCategoria, porArea, resolucoes, idades, duplas] =
+        await Promise.all([
+          repo.backlogPorStatus(),
+          repo.abertasPorCategoria(),
+          repo.recorrenciaPorCategoria(janela),
+          repo.recorrenciaPorArea(janela),
+          repo.resolucoesPorMes(janela),
+          repo.abertasPorIdade(),
+          repo.duplasRecorrentes(janela),
+        ]);
 
       return [
         ...status.map((l) => `status:${l.status}:${String(l.quantidade)}`),
@@ -935,6 +942,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
           (l) => `resolucao:${l.mes}:${String(l.resolvidas)}:${String(l.avaliadas)}`,
         ),
         ...idades.map((l) => `idade-em-aberto:${String(l.faixa)}:${String(l.quantidade)}`),
+        ...duplas.map((l) => `dupla:${l.area.nome}:${l.categoria.nome}:${String(l.quantidade)}`),
       ];
     },
     chaveDaLinha: (frase) => frase,

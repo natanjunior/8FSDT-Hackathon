@@ -2,9 +2,11 @@ import {
   AMOSTRA_PEQUENA,
   FUSO,
   LIMITES_DAS_FAIXAS_DE_IDADE,
+  MINIMO_PARA_RECORRENCIA,
   type ContagemPorCategoria,
   type ContagemPorFaixaDeIdade,
   type ContagemPorStatus,
+  type DuplaRecorrente,
   type Janela,
   type LinhaDeResolucao,
   type PontoDeArea,
@@ -17,7 +19,7 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 
 /**
  * ============================================================================
- *  As seis agregações de `GET /dashboard`
+ *  As sete agregações de `GET /dashboard`
  * ============================================================================
  *
  * Note o que este arquivo **não** contém: um valor de organização. `$1` é injetado pelo ponto de
@@ -155,7 +157,7 @@ const FAIXA_DA_IDADE = `case ${LIMITES_DAS_FAIXAS_DE_IDADE.map(
  * **O `order by 1` fica**, embora a resposta já saia ordenada da Aplicação: uma consulta que devolve
  * grupos numerados sem ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente.
  *
- * **Nenhum índice novo**, como nas outras cinco: o plano correto para `GROUP BY` sobre toda a partição da
+ * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
  * organização é varredura, e a expressão de idade é calculada por linha de qualquer forma.
  */
 const SELECT_DAS_ABERTAS_POR_IDADE = `
@@ -205,6 +207,49 @@ const SELECT_DA_RECORRENCIA_POR_AREA = `
      and o.registrada_em <  ${FIM_DA_JANELA}
    group by a.id, a.nome, a.tipo, a.ativa, a.ordem, ${mesTruncadoDe("o.registrada_em")}
    order by a.nome, mes`;
+
+/**
+ * **A terceira leitura da recorrência, e a única que cruza as duas dimensões** (critério 60.1).
+ *
+ * As duas séries acima são agregados independentes: saber que houve oito em *Vazamentos* e oito na
+ * *Garagem* não diz se são os mesmos oito. O cruzamento existe só na linha da ocorrência, e é por isso
+ * que o critério pede consulta nova em vez de derivação — o molde barato do item 57 não alcança isto.
+ *
+ * **`join` e não `left join`, e a migração é quem autoriza.** `ocorrencias.categoria_id` e
+ * `ocorrencias.area_id` são `not null` (migração 005), então toda ocorrência tem as duas pontas do par e
+ * nenhuma junção descarta linha. O par `(id, organizacao_id)` das duas junções é o da FK da mesma
+ * migração, e é ele que impede que uma área de outra organização entre por baixo.
+ *
+ * **`a.tipo` é o tipo VIGENTE da Área**, não o `o.area_tipo` congelado no registro, pela razão que a
+ * consulta irmã já traz escrita: a resposta devolve a Área, e o schema `Area` a descreve como ela é hoje.
+ *
+ * **O `having` é economia de transporte**, e a regra de produto mora na Aplicação, com a mesma constante.
+ *
+ * **O `order by` fica**, embora a resposta saia ordenada da Aplicação: uma consulta que devolve grupos sem
+ * ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente. **O desempate publicado é o da
+ * Aplicação** — a colação do banco e o `localeCompare` em pt-BR não concordam em acentuação.
+ *
+ * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
+ * organização é varredura.
+ */
+const SELECT_DAS_DUPLAS_RECORRENTES = `
+  select a.id as area_id,
+         a.nome as area_nome,
+         a.tipo,
+         a.ativa,
+         a.ordem,
+         c.id as categoria_id,
+         c.nome as categoria_nome,
+         count(*)::int as quantidade
+    from ocorrencias o
+    join areas a on a.id = o.area_id and a.organizacao_id = o.organizacao_id
+    join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
+   where o.organizacao_id = $1
+     and o.registrada_em >= ${INICIO_DA_JANELA}
+     and o.registrada_em <  ${FIM_DA_JANELA}
+   group by a.id, a.nome, a.tipo, a.ativa, a.ordem, c.id, c.nome
+  having count(*) >= ${String(MINIMO_PARA_RECORRENCIA)}
+   order by count(*) desc, a.nome, c.nome`;
 
 /**
  * **A única consulta do dashboard que lê a trilha** — e é ela que os critérios 36.4 e 34.5 encomendam.
@@ -266,6 +311,16 @@ type LinhaDeAreaMensal = {
   mes: string;
   quantidade: number;
 };
+type LinhaDeDupla = {
+  area_id: string;
+  area_nome: string;
+  tipo: TipoArea;
+  ativa: boolean;
+  ordem: number;
+  categoria_id: string;
+  categoria_nome: string;
+  quantidade: number;
+};
 type LinhaDeResolucaoDoBanco = {
   mes: string;
   resolvidas: number;
@@ -324,6 +379,24 @@ export function repositorioEscopadoDeDashboard(
           ordem: linha.ordem,
         },
         mes: linha.mes,
+        quantidade: linha.quantidade,
+      }));
+    },
+
+    async duplasRecorrentes(janela: Janela): Promise<readonly DuplaRecorrente[]> {
+      const linhas = await consulta<LinhaDeDupla>(SELECT_DAS_DUPLAS_RECORRENTES, [
+        janela.de,
+        janela.ate,
+      ]);
+      return linhas.map((linha) => ({
+        area: {
+          id: linha.area_id,
+          nome: linha.area_nome,
+          tipo: linha.tipo,
+          ativa: linha.ativa,
+          ordem: linha.ordem,
+        },
+        categoria: { id: linha.categoria_id, nome: linha.categoria_nome },
         quantidade: linha.quantidade,
       }));
     },
