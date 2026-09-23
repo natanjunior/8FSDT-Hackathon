@@ -358,3 +358,186 @@ describe("resolucoesPorMes devolve mediana e p90 por percentile_cont", () => {
     expect(linha!.medianaDeHoras * 60).toBeCloseTo(60, 6);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+/**
+ * O mundo do item 59 — **uma segunda organização, e ela é obrigatória.**
+ *
+ * As asserções do item 56 pinam o conjunto exato de categorias e as contagens da **primeira**
+ * organização (`ESPERADO`). Toda ocorrência **não terminal** acrescentada lá as derruba. O item 58 pôde
+ * escrever na organização existente porque só inseriu `resolvida`; este `describe` insere o contrário, e
+ * por isso muda de organização em vez de depender da ordem entre `describe`s — que quebraria no dia em
+ * que alguém puser um `.only`.
+ *
+ * **De brinde, a segunda organização prova a primeira metade do critério 1:** as ocorrências velhas de
+ * uma não aparecem nas faixas da outra.
+ *
+ * **As idades são escritas relativas a `now()`**, e não em datas literais: a consulta mede a distância
+ * até o instante em que ela roda, e uma data fixa viraria vermelha amanhã.
+ *
+ * | Ocorrência | Status | Idade | Faixa |
+ * |---|---|---|---|
+ * | registrada agora | `aberta` | 0 dias | **0** (`0–7`) |
+ * | há 7 dias e 12 h | `aberta` | 7 dias | **0** — a borda inclusiva |
+ * | há 8 dias | `em_atendimento` | 8 dias | **1** (`8–30`) |
+ * | há 10 dias | `pausada` | 10 dias | **1** |
+ * | há 45 dias | `aberta` | 45 dias | **2** (`31–90`) |
+ * | há 120 dias | `aberta` | 120 dias | **3** (`90+`) |
+ * | há 120 dias | `resolvida` | — | **nenhuma** |
+ * | há 120 dias | `cancelada` | — | **nenhuma** |
+ *
+ * **Os dias saem do corte escolhido, e não do texto do critério 8.** O critério pede três propriedades
+ * — uma velha na faixa mais velha, uma terminal em faixa nenhuma, uma pausada numa intermediária —, e os
+ * números dele foram escritos contra a outra candidata do critério 10.
+ */
+const IDADES: readonly { horas: number; status: string; faixa: number | null }[] = [
+  { horas: 0, status: "aberta", faixa: 0 },
+  { horas: 7 * 24 + 12, status: "aberta", faixa: 0 },
+  { horas: 8 * 24, status: "em_atendimento", faixa: 1 },
+  { horas: 10 * 24, status: "pausada", faixa: 1 },
+  { horas: 45 * 24, status: "aberta", faixa: 2 },
+  { horas: 120 * 24, status: "aberta", faixa: 3 },
+  { horas: 120 * 24, status: "resolvida", faixa: null },
+  { horas: 120 * 24, status: "cancelada", faixa: null },
+];
+
+/**
+ * `[2, 2, 1, 1]` — a contagem por faixa que a tabela acima produz, e a soma dela é **6**, que é o número
+ * de não terminais do mundo. **Duas** na faixa 0 (a de agora e a de 7 dias e 12 h, pela borda inclusiva)
+ * e **duas** na faixa 1 (a de 8 dias cravados e a pausada de 10).
+ */
+const POR_FAIXA_ESPERADA = [2, 2, 1, 1];
+
+let idDaOrganizacaoDeIdade: string;
+
+const dashboardDeIdade = () =>
+  repositorioEscopadoDeDashboard(escoparConsulta(consulta, idDaOrganizacaoDeIdade));
+
+describe("abertasPorIdade distribui o que está em aberto por faixa de idade", () => {
+  beforeAll(async () => {
+    idDaOrganizacaoDeIdade = (
+      await consulta<{ id: string }>(
+        `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+        ["Condomínio das Idades", `IDADE${SUFIXO.slice(-5)}`],
+      )
+    )[0]!.id;
+
+    const usuario = (
+      await consulta<{ id: string }>(
+        `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+        [`gestora-idade-${SUFIXO}@exemplo.test`],
+      )
+    )[0]!.id;
+
+    const pessoa = (
+      await consulta<{ id: string }>(
+        `insert into pessoas (usuario_id, nome) values ($1, 'Gestora das Idades') returning id`,
+        [usuario],
+      )
+    )[0]!.id;
+
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoa, idDaOrganizacaoDeIdade],
+    );
+
+    const area = (
+      await consulta<{ id: string }>(
+        `insert into areas (organizacao_id, nome, tipo, ordem)
+              values ($1, 'Hall das Idades', 'comum', 1) returning id`,
+        [idDaOrganizacaoDeIdade],
+      )
+    )[0]!.id;
+
+    const categoria = (
+      await consulta<{ id: string }>(
+        `insert into categorias (organizacao_id, nome, icone, ativa, ordem)
+              values ($1, 'Idade', 'tag', true, 1) returning id`,
+        [idDaOrganizacaoDeIdade],
+      )
+    )[0]!.id;
+
+    for (const [i, caso] of IDADES.entries()) {
+      await consulta(
+        `insert into ocorrencias
+              (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id,
+               status, registrada_em)
+              values ($1, $2, $3, 'comum', $4, 'Semente das faixas de idade.', $5, $6,
+                      now() - make_interval(hours => $7::int))`,
+        [
+          idDaOrganizacaoDeIdade,
+          categoria,
+          area,
+          `Idade ${String(i + 1)}`,
+          pessoa,
+          caso.status,
+          caso.horas,
+        ],
+      );
+    }
+  });
+
+  /**
+   * **A prova do critério 8**, com os dias que o corte escolhido exige. Ela lê a consulta crua — o
+   * repositório devolve **só** as faixas que o banco produziu, e quem completa as vazias é a Aplicação.
+   * Com este mundo as quatro têm alguém, então o conjunto é o de cima inteiro.
+   */
+  it("as quatro faixas voltam com 2, 2, 1 e 1, em ordem crescente, e os terminais ficam de fora", async () => {
+    const linhas = await dashboardDeIdade().abertasPorIdade();
+
+    expect(linhas.map((linha) => linha.faixa)).toStrictEqual([0, 1, 2, 3]);
+    expect(linhas.map((linha) => linha.quantidade)).toStrictEqual(POR_FAIXA_ESPERADA);
+  });
+
+  /**
+   * **A borda é inclusiva, e é o `floor` que decide.** Sete dias e meio ainda é a primeira faixa; oito
+   * dias cravados já é a segunda. Um `round` no lugar do `floor` moveria a fronteira meio dia para cima,
+   * e o rótulo `Até 7 dias` passaria a contar casos de quase oito dias e meio.
+   */
+  it("sete dias e meio é a primeira faixa, e oito dias é a segunda", async () => {
+    const linhas = await dashboardDeIdade().abertasPorIdade();
+    const porFaixa = new Map(linhas.map((linha) => [linha.faixa, linha.quantidade]));
+
+    // Duas na faixa 0: a de agora e a de 7 dias e 12 h.
+    expect(porFaixa.get(0)).toBe(2);
+    // Duas na faixa 1: a de 8 dias cravados e a pausada de 10.
+    expect(porFaixa.get(1)).toBe(2);
+  });
+
+  /**
+   * **A asserção mais forte do item, e ela existe porque o 56 fechou o conjunto.**
+   * `abertasPorCategoria` e `abertasPorIdade` contam **o mesmo conjunto** por dois cortes, e nenhum
+   * schema declara essa igualdade: ela vive em dois `where` que ninguém obriga a concordar. Se um deles
+   * esquecer `pausada`, ou incluir um terminal, esta linha cai e as outras não.
+   */
+  it("a soma das faixas é igual à soma das categorias — os dois cortes contam o mesmo conjunto", async () => {
+    const repo = dashboardDeIdade();
+    const [faixas, categorias] = await Promise.all([
+      repo.abertasPorIdade(),
+      repo.abertasPorCategoria(),
+    ]);
+
+    const soma = (linhas: readonly { quantidade: number }[]) =>
+      linhas.reduce((total, linha) => total + linha.quantidade, 0);
+
+    expect(soma(faixas)).toBe(soma(categorias));
+    expect(soma(faixas)).toBe(POR_FAIXA_ESPERADA.reduce((a, b) => a + b, 0));
+  });
+
+  /**
+   * A primeira metade do critério 1, de graça: a organização do resto do arquivo não tem nada velho.
+   *
+   * **O `5` sai do `MUNDO`** — `Vazamento:4` mais `Portaria:1` —, e os `describe`s dos itens 56 e 58 só
+   * acrescentam `resolvida`, que é terminal. Um item futuro que acrescente uma **não terminal** àquela
+   * organização derruba esta linha e nenhuma outra; o conserto é derivar a soma de `abertasPorCategoria`,
+   * como a prova acima já faz.
+   */
+  it("as ocorrências da outra organização não aparecem em faixa nenhuma", async () => {
+    const outras = await dashboard().abertasPorIdade();
+    const soma = outras.reduce((total, linha) => total + linha.quantidade, 0);
+
+    expect(outras.map((linha) => linha.faixa)).toStrictEqual([0]);
+    expect(soma).toBe(5);
+  });
+});
