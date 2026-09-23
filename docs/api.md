@@ -126,6 +126,16 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
+## Os dois recortes do painel
+
+O painel conta a mesma coleção de duas maneiras, e elas não somam. Por status, ele conta **tudo o que a
+organização registrou**, com `resolvida` e `cancelada` entre os valores: é a distribuição do que existe.
+Por categoria, conta **só o que está em aberto** — os quatro status não terminais —, que é a fila de
+trabalho de hoje.
+
+Os dois ignoram a janela de datas, porque são fotografia de agora. Os nomes dos campos carregam a
+diferença, e o segundo se chama `abertasPorCategoria` por isso.
+
 ## O upload é em duas etapas
 
 O servidor não transporta os bytes da imagem.

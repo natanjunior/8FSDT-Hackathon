@@ -108,6 +108,11 @@ tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas 
 escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
 zero hora.
 
+No painel, o quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as
+canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois não somam o mesmo número**,
+e cada um diz na tela o que conta, porque um leitor que somasse os dois quadros chegaria a uma conclusão
+que os dados não sustentam.
+
 ## Celular primeiro, e o que muda na tela grande
 
 O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,

@@ -8,7 +8,7 @@ import {
   type PontoDeCategoria,
   type RepositorioEscopadoDeDashboard,
 } from "@/aplicacao/dashboard";
-import type { StatusOcorrencia } from "@/dominio/ocorrencia";
+import { TERMINAIS, type StatusOcorrencia } from "@/dominio/ocorrencia";
 import type { TipoArea } from "@/dominio/organizacao";
 import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 
@@ -31,14 +31,22 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
  * recorte dela é **comparação de faixa contra a coluna crua**, e não uma função aplicada sobre ela: um
  * `where (ocorreu_em at time zone …)::date between …` desligaria o índice que o critério 36.4 manda usar.
  *
- * **O nome do fuso é interpolado, e é a única interpolação do arquivo.** Ele é constante de módulo
- * importada de `@/aplicacao/dashboard`, nunca dado de requisição — e escrevê-lo no texto mantém a consulta
- * legível e o `EXPLAIN` reproduzível. Toda data de quem chama continua entrando por parâmetro.
+ * **Duas coisas são interpoladas, e as duas são constante de módulo.** O nome do fuso, importado de
+ * `@/aplicacao/dashboard`, e a lista de status terminais, importada de `@/dominio/ocorrencia`. Nenhuma das
+ * duas é dado de requisição, e escrevê-las no texto mantém a consulta legível e o `EXPLAIN` reproduzível.
+ * Toda data de quem chama continua entrando por parâmetro.
+ *
+ * **A lista de terminais vem de `TERMINAIS` e nunca é escrita à mão aqui.** Um `('resolvida','cancelada')`
+ * digitado seria a segunda cópia de *quais status são terminais* no projeto, e a segunda cópia é a que
+ * esquece de crescer quando um terceiro terminal nascer.
  *
  * **Os `::int` e o `::float8` não são decoração.** O `pg` devolve `numeric` como **string**, para não
  * perder precisão. `count(*)` é `bigint` e `sum(...)` é `numeric`; sem os *casts*, `quantidade` chegaria
  * como `"12"` e a soma de horas como `"373.5"`, e o envelope somaria strings sem reclamar.
  */
+
+/** Os terminais como literais SQL, `'resolvida', 'cancelada'` — ver a nota de interpolação acima. */
+const TERMINAIS_EM_SQL = TERMINAIS.map((status) => `'${status}'`).join(", ");
 
 const INICIO_DA_JANELA = `($2::date)::timestamp at time zone '${FUSO}'`;
 const FIM_DA_JANELA = `(($3::date + 1)::timestamp at time zone '${FUSO}')`;
@@ -56,20 +64,35 @@ const SELECT_DO_BACKLOG_POR_STATUS = `
    group by o.status`;
 
 /**
+ * **Conta só o que está em aberto** — os quatro status não terminais. Ela não soma com
+ * `SELECT_DO_BACKLOG_POR_STATUS`, que conta os seis, e as duas telas dizem isso (critério 56.4).
+ *
  * **`left join` a partir de `categorias`, e não de `ocorrencias`** — é o que faz a categoria ativa sem
  * nenhuma ocorrência aparecer com zero, que é o critério 32.3 na resposta.
  *
- * **O `having` cobre o caso que ninguém tinha nomeado:** a categoria **desativada** que ainda carrega
- * ocorrências. Filtrar só `c.ativa` a esconderia, e a soma por categoria passaria a discordar da soma por
- * status sem nada na tela explicando a diferença. Ela entra; a ativa a zero também; a desativada e vazia
- * não.
+ * **O filtro de status vai no `on`, nunca no `where`.** No `where` o `left join` degeneraria em
+ * `inner join` e a categoria ativa e vazia sumiria da resposta — o que quebraria o 32.3 e tornaria a
+ * primeira metade do critério 56.6 impossível de afirmar: a categoria com cinco resolvidas e nada em
+ * aberto não apareceria **com zero**, apareceria ausente.
+ *
+ * **O `having` continua onde estava, e a razão dele mudou.** Ele cobre a categoria **desativada** que
+ * ainda carrega ocorrência: ela aparece porque ainda há trabalho nela. Antes deste item a justificativa
+ * era fechar a soma com o bloco por status; as duas somas agora discordam de propósito. Os quatro casos:
+ *
+ * | Categoria | O que a consulta devolve |
+ * |---|---|
+ * | ativa, nada em aberto | aparece com zero |
+ * | ativa, com abertas | aparece com o que está em aberto |
+ * | desativada, com abertas | aparece — ainda há trabalho nela |
+ * | desativada, só com terminais | some, porque não tem o que dizer num bloco que conta fila |
  */
-const SELECT_DO_BACKLOG_POR_CATEGORIA = `
+const SELECT_DAS_ABERTAS_POR_CATEGORIA = `
   select c.id, c.nome, count(o.id)::int as quantidade
     from categorias c
     left join ocorrencias o
       on o.categoria_id = c.id
      and o.organizacao_id = c.organizacao_id
+     and o.status not in (${TERMINAIS_EM_SQL})
    where c.organizacao_id = $1
    group by c.id, c.nome, c.ativa
   having c.ativa or count(o.id) > 0
@@ -175,8 +198,8 @@ export function repositorioEscopadoDeDashboard(
       return linhas.map((linha) => ({ status: linha.status, quantidade: linha.quantidade }));
     },
 
-    async backlogPorCategoria(): Promise<readonly ContagemPorCategoria[]> {
-      const linhas = await consulta<LinhaDeCategoria>(SELECT_DO_BACKLOG_POR_CATEGORIA);
+    async abertasPorCategoria(): Promise<readonly ContagemPorCategoria[]> {
+      const linhas = await consulta<LinhaDeCategoria>(SELECT_DAS_ABERTAS_POR_CATEGORIA);
       return linhas.map((linha) => ({
         categoria: { id: linha.id, nome: linha.nome },
         quantidade: linha.quantidade,

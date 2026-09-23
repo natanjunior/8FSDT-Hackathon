@@ -101,7 +101,7 @@ type Dados = {
 /**
  * O duplo em memória — **é o que a ADR-0005 comprou**: substituir o repositório é passar outro argumento.
  *
- * Ele **anota o que recebeu**, e é assim que o critério 33.2 se prova: os dois métodos de backlog não têm
+ * Ele **anota o que recebeu**, e é assim que o critério 33.2 se prova: os dois métodos de fotografia não têm
  * parâmetro nenhum na assinatura, então não há como a janela alcançá-los.
  */
 function repositorioEmMemoria(dados: Dados) {
@@ -113,8 +113,8 @@ function repositorioEmMemoria(dados: Dados) {
       chamadas.push("backlogPorStatus");
       return Promise.resolve(dados.status ?? []);
     },
-    backlogPorCategoria: () => {
-      chamadas.push("backlogPorCategoria");
+    abertasPorCategoria: () => {
+      chamadas.push("abertasPorCategoria");
       return Promise.resolve(dados.categorias ?? []);
     },
     recorrenciaPorCategoria: (janela) => {
@@ -151,7 +151,7 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     const { repositorio, chamadas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect([...chamadas].sort()).toStrictEqual([
-      "backlogPorCategoria",
+      "abertasPorCategoria",
       "backlogPorStatus",
       "recorrenciaPorArea",
       "recorrenciaPorCategoria",
@@ -159,7 +159,7 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     ]);
   });
 
-  it("passa a MESMA janela às três séries, e nenhuma aos dois backlogs", async () => {
+  it("passa a MESMA janela às três séries, e nenhuma aos dois de fotografia", async () => {
     const { repositorio, janelas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(janelas).toStrictEqual([TRES_MESES, TRES_MESES, TRES_MESES]);

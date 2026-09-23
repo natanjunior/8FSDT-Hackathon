@@ -30,9 +30,9 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  *  T-07 · Dashboard — *"Está melhorando ou piorando, e onde?"*
  * ============================================================================
  *
- * **A ordem é conteúdo**, e é numerada na tela: recorrência, backlog por status, backlog por categoria,
- * tempo médio, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4). **Só o nº 1 carrega
- * uma frase dizendo por que existe**, e é essa assimetria que faz a hierarquia sem usar cor.
+ * **A ordem é conteúdo**, e é numerada na tela: recorrência, ocorrências por status, em aberto por
+ * categoria, tempo médio, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4). **Só o
+ * nº 1 carrega uma frase dizendo por que existe**, e é essa assimetria que faz a hierarquia sem usar cor.
  *
  * **A leitura vai pela estrada direta** (contrato §5), como T-03, T-05, T-08 e T-09: `app/` não monta
  * repositório, e um `fetch` interno custaria o salto HTTP que a §5 recusou — cobrado, sob escala a zero,
@@ -104,8 +104,8 @@ export default async function Dashboard({
       <Recorrencia dashboard={dashboard} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <BacklogPorStatus dashboard={dashboard} />
-        <BacklogPorCategoria dashboard={dashboard} />
+        <OcorrenciasPorStatus dashboard={dashboard} />
+        <EmAbertoPorCategoria dashboard={dashboard} />
         <TempoMedio dashboard={dashboard} />
         <MediaDasAvaliacoes dashboard={dashboard} />
       </div>
@@ -272,12 +272,16 @@ function ListaComResto({
 /**
  * O bloco 2 — **os SEIS status, sempre todos, na ordem do ciclo**, mesmo a zero (critério 32.3).
  *
- * A palavra `agora` no cabeçalho é o critério **33.4**: sem ela, o Gestor lê o backlog como se ele
+ * A palavra `agora` no cabeçalho é o critério **33.4**: sem ela, o Gestor leria o quadro como se ele
  * respeitasse o período que acabou de escolher.
+ *
+ * **Ele conta TUDO o que a organização registrou**, inclusive o que já terminou, e é por isso que ele e o
+ * bloco 3 não somam o mesmo número. O título diz o que ele é, e as seis linhas — com `Resolvida` e
+ * `Cancelada` entre elas — dizem o resto, então ele não carrega frase nenhuma embaixo.
  */
-function BacklogPorStatus({ dashboard }: { dashboard: DashboardProjetado }) {
+function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
-    <Cartao numero={2} titulo="Backlog por status" quando="agora">
+    <Cartao numero={2} titulo="Ocorrências por status" quando="agora">
       <Medidor
         itens={dashboard.backlogPorStatus.map((linha) => ({
           rotulo: linha.statusRotulo,
@@ -288,16 +292,34 @@ function BacklogPorStatus({ dashboard }: { dashboard: DashboardProjetado }) {
   );
 }
 
-/** O bloco 3 — todas as categorias, ordenadas por quantidade, e `agora` pela mesma razão do bloco 2. */
-function BacklogPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) {
+/**
+ * O bloco 3 — as categorias ordenadas por quantidade, e `agora` pela mesma razão do bloco 2.
+ *
+ * **Ele conta só os quatro status não terminais**, e a linha abaixo do medidor escreve quais são — é o
+ * critério 56.4 na forma positiva: em vez de negar que os dois quadros somem, ela diz o que entra, e quem
+ * lê os seis status do quadro vizinho conclui sozinho que os totais não se encontram.
+ *
+ * **Toda categoria ativa aparece, mesmo a zero** (critério 32.3), e a desativada aparece enquanto ainda
+ * carregar algo em aberto.
+ *
+ * **O título não é *Abertas por categoria***: `Aberta` é um dos seis rótulos do quadro ao lado, e o plural
+ * leria como recorte por aquele status. *Em aberto* nomeia o conjunto e não colide com rótulo nenhum. O
+ * campo da resposta continua `abertasPorCategoria`, pela convenção de que o rótulo que a pessoa lê é coisa
+ * à parte do nome do campo.
+ */
+function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
-    <Cartao numero={3} titulo="Backlog por categoria" quando="agora">
+    <Cartao numero={3} titulo="Em aberto por categoria" quando="agora">
       <Medidor
-        itens={dashboard.backlogPorCategoria.map((linha) => ({
+        itens={dashboard.abertasPorCategoria.map((linha) => ({
           rotulo: linha.categoria.nome,
           quantidade: linha.quantidade,
         }))}
       />
+      <p className="text-tinta-suave text-corpo">
+        Só o que está em aberto: Aberta, Em análise, Em atendimento e Pausada. Resolvidas e canceladas
+        ficam fora.
+      </p>
     </Cartao>
   );
 }
