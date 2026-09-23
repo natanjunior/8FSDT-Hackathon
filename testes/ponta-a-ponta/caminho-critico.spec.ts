@@ -81,6 +81,15 @@ const TITULO = `Ponta a ponta ${MARCA} — vazamento na garagem`;
 
 const OBSERVACAO_DO_ATENDIMENTO = "A equipe sobe hoje à tarde para ver de onde vem a água.";
 const SOLUCAO_APLICADA = "Trecho da manta refeito na junta de dilatação e ralo desobstruído.";
+
+/**
+ * **O segundo texto existe por causa de uma regra do produto, e não por capricho.** O passo 46 do roteiro
+ * manda reescrever a solução e salvar de novo; o campo **recusa** salvar texto idêntico ao que já está
+ * gravado, com *"Altere o texto antes de salvar."* (`campo-de-solucao-aplicada.tsx`). Reusar o primeiro
+ * texto provaria a recusa, e não o que o passo pede.
+ */
+const SOLUCAO_APLICADA_CORRIGIDA =
+  "Trecho da manta refeito na junta de dilatação, ralo desobstruído e rejunte do box trocado.";
 const OBSERVACAO_DA_RESOLUCAO = "Duas horas de teste com mangueira, sem gotejamento.";
 const COMENTARIO_DA_AVALIACAO = "Resolveram rápido e me avisaram do começo ao fim.";
 
@@ -319,18 +328,99 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     falta: "que o botão é laranja, e o Mais ações com Reatribuir, Pausar e Cancelar",
   });
   const modalDeAtendimento = marcos.getByRole("dialog");
+  await expect(modalDeAtendimento.getByText("O trabalho começa agora.")).toBeVisible();
+  await expect(
+    modalDeAtendimento.getByText(
+      "O Solicitante vê esta observação. Não há como editá-la depois.",
+    ),
+  ).toBeVisible();
   await modalDeAtendimento.getByLabel("Observação (opcional)").fill(OBSERVACAO_DO_ATENDIMENTO);
-  cobre(test.info(), "4.3 · 40", {
-    criterio: "22.5",
-    falta:
-      "a frase «O trabalho começa agora.» e o aviso de visibilidade entre o rótulo e o campo",
-  });
+  cobre(test.info(), "4.3 · 40", { criterio: "22.5" });
+
   await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
   await esperarSituacao(marcos, "Em atendimento");
-  cobre(test.info(), "4.3 · 41", {
+
+  // **A linha do tempo de T-05, e não a trilha de auditoria.** São duas telas, e o passo 41 fala desta:
+  // o bloco `<h2>Linha do tempo</h2>` da coluna direita, onde a observação chega entre aspas curvas.
+  await expect(
+    linhaDoTempo(marcos).getByText(`Em atendimento. “${OBSERVACAO_DO_ATENDIMENTO}”`),
+  ).toBeVisible();
+  cobre(test.info(), "4.3 · 41", { criterio: "22" });
+
+  // -------------------------------------------------------------------------
+  // 7a · A mesma ocorrência, lida pelo Solicitante — a lente do papel
+  //
+  // **Duas palavras para o mesmo estado, e elas nunca aparecem juntas.** Para quem cuida é *Em
+  // atendimento*; para quem pediu é *Em execução* (31.2). É a única parte deste percurso em que a
+  // asserção precisa ser feita **dos dois lados na mesma corrida** — uma tela só não prova que as
+  // palavras se excluem.
+  // -------------------------------------------------------------------------
+  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
+  await esperarSituacao(helena, "Em execução");
+  await expect(situacao(helena)).not.toContainText("Em atendimento");
+  await expect(helena.getByRole("listitem").filter({ hasText: "Em execução" }).first()).toBeVisible();
+  await expect(linhaDoTempo(helena).getByText(OBSERVACAO_DO_ATENDIMENTO)).toBeVisible();
+  cobre(test.info(), "4.3 · 42", {
+    criterio: "31.2",
     falta:
-      "a linha do tempo de T-05 com a observação entre aspas — o teste só a confere na trilha de auditoria, que é outra tela",
+      "que o passo aceso do ciclo é o TERCEIRO por posição — aqui se prova que existe um passo «Em execução» e que o selo não diz «Em atendimento»",
   });
+
+  // **O Solicitante não cancela a partir daqui, e a tela diz por quê** (18.6, 30.6). A ausência do botão
+  // sozinha passaria verde num produto que só o tivesse renomeado, então a frase é afirmada junto.
+  await expect(helena.getByRole("button", { name: "Cancelar" })).toHaveCount(0);
+  await expect(
+    helena.getByText(
+      "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+    ),
+  ).toBeVisible();
+  cobre(test.info(), "4.3 · 43", { criterio: "18.6, 30.6" });
+
+  // **O passo 50, afirmado no lugar em que ele é afirmável.** O roteiro pede que o Solicitante *"nunca"*
+  // veja *Resolver* nesta seção; o teste prova o instante em que o botão existiria para o Gestor — se a
+  // permissão vazasse por papel, é aqui que apareceria.
+  await expect(helena.getByRole("button", { name: "Resolver" })).toHaveCount(0);
+  cobre(test.info(), "4.3 · 50", {
+    criterio: "26",
+    falta:
+      "o «nunca» na forma forte: isto prova a ausência com a ocorrência em atendimento, e não em todos os estados da seção",
+  });
+
+  // -------------------------------------------------------------------------
+  // 7b · A solução aplicada pelo bloco próprio — o item 25, que o percurso não tocava
+  //
+  // **Ela viaja no corpo do `resolver`, e por isso o bloco ficava sem prova.** O contrato §8.4 diz que
+  // mandá-la ali *"equivale a chamar `/registrar-solucao-aplicada` antes"*, e o teste usava o atalho. O
+  // atalho não exercita o campo, o *Salvar*, a gravação nem a reescrita — que é o item 25 inteiro.
+  // -------------------------------------------------------------------------
+  await expect(marcos.getByLabel("Solução aplicada")).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Salvar" })).toBeVisible();
+  cobre(test.info(), "4.3 · 44", {
+    criterio: "25",
+    falta:
+      "a dica «O que foi feito» no campo — ela não existe no produto; o rótulo é «Solução aplicada», e «Escreva o que foi feito.» é a mensagem de campo vazio",
+  });
+
+  await escreverSolucao(marcos, SOLUCAO_APLICADA);
+  await marcos.getByRole("button", { name: "Salvar" }).click();
+  await expect(marcos.getByText("Solução aplicada salva")).toBeVisible();
+
+  // **O `reload` é a asserção.** Sem ele o que se prova é que a tela mudou; com ele, que o servidor
+  // gravou. É a diferença que o passo 45 pede ao mandar apertar `F5`.
+  await marcos.reload();
+  await expect(marcos.getByLabel("Solução aplicada")).toHaveValue(SOLUCAO_APLICADA);
+  cobre(test.info(), "4.3 · 45", {
+    criterio: "25",
+    falta:
+      "a frase «Solução aplicada salva.» com ponto, como linha na tela — o item 44g tirou a linha e pôs o aviso, que diz «Solução aplicada salva»",
+  });
+
+  await escreverSolucao(marcos, SOLUCAO_APLICADA_CORRIGIDA);
+  await marcos.getByRole("button", { name: "Salvar" }).click();
+  await expect(marcos.getByText("Solução aplicada salva")).toBeVisible();
+  await marcos.reload();
+  await expect(marcos.getByLabel("Solução aplicada")).toHaveValue(SOLUCAO_APLICADA_CORRIGIDA);
+  cobre(test.info(), "4.3 · 46", { criterio: "25" });
 
   // -------------------------------------------------------------------------
   // 8 · Resolver, com a solução aplicada no mesmo modal — `em_atendimento` → `resolvida`
@@ -342,20 +432,49 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   const modalDeResolucao = marcos.getByRole("dialog");
   // **O escopo `modalDeResolucao` deixou de ser conveniência e virou necessidade** (item 44p, critério
   // 19): a página tem um campo com este mesmo rótulo, e um localizador solto pegaria os dois.
-  await modalDeResolucao.getByLabel("Solução aplicada").fill(SOLUCAO_APLICADA);
+  await expect(
+    modalDeResolucao.getByText("A ocorrência será encerrada. Não há como reabrir."),
+  ).toBeVisible();
+  await expect(
+    modalDeResolucao.getByText(
+      "O Solicitante vê esta observação. Não há como editá-la depois.",
+    ),
+  ).toBeVisible();
+
+  // **O campo chega preenchido, e é o que amarra o bloco de cima a este modal.** O passo 47 pede o texto
+  // do passo 46 já dentro dele — sem o bloco exercitado antes, esta asserção não existiria.
+  await expect(modalDeResolucao.getByLabel("Solução aplicada")).toHaveValue(
+    SOLUCAO_APLICADA_CORRIGIDA,
+  );
   await modalDeResolucao.getByLabel("Observação (opcional)").fill(OBSERVACAO_DA_RESOLUCAO);
   cobre(test.info(), "4.3 · 47", {
-    criterio: "26",
+    criterio: "26, 25.4",
     falta:
-      "a frase «A ocorrência será encerrada. Não há como reabrir.», o aviso de visibilidade, o campo já preenchido com a solução salva antes, e o rótulo do primeiro campo: o roteiro o chama de «O que foi feito (opcional)» e a tela hoje diz «Solução aplicada»",
+      "o rótulo do primeiro campo: o roteiro o chama de «O que foi feito (opcional)» e a tela diz «Solução aplicada»; e que o botão do rodapé fica habilitado com os campos vazios",
   });
+
   await modalDeResolucao.getByRole("button", { name: "Resolver" }).click();
   await esperarSituacao(marcos, "Resolvida");
+
+  // **As três formas que o estado terminal impõe à tela**, e o passo 48 cobra as três: o bloco de solução
+  // perde o campo e vira texto, a prioridade perde o seletor e vira texto, e o ciclo acende até o fim.
+  await expect(marcos.getByLabel("Solução aplicada")).toHaveCount(0);
+  await expect(marcos.getByText(SOLUCAO_APLICADA_CORRIGIDA)).toBeVisible();
+  await expect(marcos.getByRole("combobox", { name: "Prioridade" })).toHaveCount(0);
   cobre(test.info(), "4.3 · 48", {
     criterio: "17.2",
     falta:
-      "os quatro passos do ciclo acesos, o bloco Solução aplicada virar texto e o seletor de prioridade virar texto",
+      "os quatro passos do ciclo acesos por posição — aqui se prova o que o estado terminal tira da tela, e não a régua",
   });
+
+  // **Nenhum botão para quem cuidou, e a frase que explica o vazio.** `vazioDaBarra` devolve duas frases
+  // conforme a razão do vazio; em `resolvida` é esta, e afirmar a frase junto da ausência impede que um
+  // produto que só tivesse escondido a barra passasse verde.
+  await expect(marcos.getByText("Esta ocorrência está encerrada.")).toBeVisible();
+  for (const acao of ["Resolver", "Analisar", "Iniciar atendimento", "Pausar", "Avaliar"]) {
+    await expect(marcos.getByRole("button", { name: acao })).toHaveCount(0);
+  }
+  cobre(test.info(), "4.3 · 49", { criterio: "26" });
 
   // -------------------------------------------------------------------------
   // 9 · Helena avalia — nota e comentário
@@ -517,6 +636,40 @@ async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void>
  */
 function situacao(pagina: Page): Locator {
   return pagina.locator("section").filter({ hasText: "Situação" }).first();
+}
+
+/**
+ * Escreve no campo de solução aplicada, **insistindo até o React ser o dono do valor**.
+ *
+ * **Isto não é paciência decorativa, e a razão foi medida.** Preencher o campo no instante seguinte ao
+ * `reload()` produziu os dois textos concatenados: o `fill` escreve no DOM que veio do servidor, e a
+ * hidratação chega depois e reaplica o estado dela por cima. O campo é controlado
+ * (`campo-de-solucao-aplicada.tsx`, `value={texto}`), então enquanto o React não assume não há a quem
+ * escrever.
+ *
+ * **O produto não tem defeito aqui** — quem digitar no milissegundo do `F5` vive o mesmo, e é o preço de
+ * uma tela renderizada no servidor. O que tem defeito é um teste que escreve antes de existir alguém
+ * para ouvir.
+ */
+async function escreverSolucao(pagina: Page, texto: string): Promise<void> {
+  const campo = pagina.getByLabel("Solução aplicada");
+  await expect
+    .poll(async () => {
+      await campo.fill(texto);
+      return campo.inputValue();
+    })
+    .toBe(texto);
+}
+
+/**
+ * O bloco *Linha do tempo* da coluna direita de T-05, e **não** a trilha de auditoria.
+ *
+ * São duas telas com a mesma matéria-prima: a trilha (T-06) lista os cinco campos de cada transição para
+ * quem audita, e a linha do tempo conta a história em prosa para quem acompanha. O passo 41 do roteiro
+ * fala desta, e um localizador solto pegaria as duas quando o teste estivesse na outra.
+ */
+function linhaDoTempo(pagina: Page): Locator {
+  return pagina.locator("section").filter({ has: pagina.getByRole("heading", { name: /^Linha do tempo/u }) });
 }
 
 async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {
