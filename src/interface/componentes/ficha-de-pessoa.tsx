@@ -32,7 +32,7 @@ export function FichaDePessoa({
   const face = (
     <span className={cn("inline-flex items-center", tamanho === "linha" ? "gap-2.5" : "gap-2")}>
       <Avatar className={tamanho === "linha" ? "size-7" : "size-6"}>
-        <AvatarFallback className="text-rotulo-coluna font-mono">{sigla}</AvatarFallback>
+        <AvatarFallback>{sigla}</AvatarFallback>
       </Avatar>
       <span
         id={idDoNome}

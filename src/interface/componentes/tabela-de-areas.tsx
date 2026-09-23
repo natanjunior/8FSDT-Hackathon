@@ -8,7 +8,9 @@ import {
 import { ListaDeOrdemManual } from "@/interface/componentes/lista-de-ordem-manual";
 import { ModalDeArea } from "@/interface/componentes/modal-de-area";
 import { SituacaoDoItem } from "@/interface/componentes/situacao-do-item";
+import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
 import { TableCell, TableHead } from "@/interface/componentes/ui/table";
+import { cn } from "@/interface/componentes/utilitarios";
 import type { AreaProjetada } from "@/interface/projecoes";
 
 /**
@@ -21,9 +23,6 @@ import type { AreaProjetada } from "@/interface/projecoes";
  * **Abaixo de `md` as colunas *Tipo* e da situação somem**, e as duas palavras aparecem na segunda linha
  * da célula do nome.
  */
-const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono uppercase";
-
 export function TabelaDeAreas({
   itens,
   organizacaoId,
@@ -39,12 +38,12 @@ export function TabelaDeAreas({
       legenda={LEGENDA_DOS_TIPOS}
       colunasProprias={1}
       cabecalhosProprios={
-        <TableHead className={`${ROTULO_DE_COLUNA} hidden w-[180px] py-2.5 md:table-cell`}>
+        <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-[180px] md:table-cell")}>
           {TEXTOS_DA_TABELA.tipo}
         </TableHead>
       }
       celulasProprias={(area) => (
-        <TableCell className="text-interface hidden px-4 py-2.5 md:table-cell">
+        <TableCell className={cn(CELULA, "hidden md:table-cell")}>
           {rotuloDoTipo(area.tipo)}
         </TableCell>
       )}

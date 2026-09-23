@@ -4,7 +4,9 @@ import { Suspense, use } from "react";
 
 import type { VisibilidadeAplicada } from "@/aplicacao/ocorrencia";
 import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
+import { cn } from "@/interface/componentes/utilitarios";
 
+import { CAIXA_DO_FILTRO, CONTAGEM_DO_FILTRO, OPCAO_DO_FILTRO } from "./filtro-rapido";
 import { semPaginacao, useNavegacaoDaLista } from "./navegacao-da-lista";
 import { RECORTE_MINHAS, RECORTE_TODAS } from "./rotulos";
 
@@ -68,7 +70,8 @@ export function SeletorDeRecorte({
       value={visibilidadeAplicada === "todas" ? "todas" : "minhas"}
       onValueChange={aoTrocar}
       aria-label="Recorte da lista"
-      className="bg-muted w-full rounded-sm p-1 md:w-auto"
+      spacing={1}
+      className={cn(CAIXA_DO_FILTRO, "md:w-auto")}
     >
       <Item valor="todas" rotulo={RECORTE_TODAS} contagens={contagens} />
       <Item valor="minhas" rotulo={RECORTE_MINHAS} contagens={contagens} />
@@ -91,11 +94,7 @@ function Item({
   return (
     <ToggleGroupItem
       value={valor}
-      className={[
-        "text-interface text-tinta-suave min-h-11 flex-1 gap-2 rounded-sm px-3 font-normal md:flex-none",
-        "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold",
-        "data-[state=on]:shadow-sm",
-      ].join(" ")}
+      className={cn(OPCAO_DO_FILTRO, "flex-1 md:flex-none")}
     >
       {rotulo}
       <Suspense fallback={null}>
@@ -118,7 +117,7 @@ function Quantos({
   contagens: Promise<ContagensDoRecorte>;
 }) {
   return (
-    <span className="bg-background text-tinta-suave text-meta rounded-full px-1.5 font-mono font-medium tabular-nums">
+    <span className={CONTAGEM_DO_FILTRO}>
       {use(contagens)[valor]}
     </span>
   );

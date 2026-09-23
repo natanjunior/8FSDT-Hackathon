@@ -32,6 +32,12 @@ import {
   type ItemDaLista,
 } from "@/interface/componentes/ordem-da-lista";
 import { Cartao } from "@/interface/componentes/cartao";
+import {
+  CAIXA_DO_FILTRO,
+  CONTAGEM_DO_FILTRO,
+  OPCAO_DO_FILTRO,
+} from "@/interface/componentes/filtro-rapido";
+import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/interface/componentes/ui/empty";
 import { Input } from "@/interface/componentes/ui/input";
@@ -78,11 +84,6 @@ import { useOrdemGravada } from "@/interface/ganchos/use-ordem-gravada";
  * **A linha inativa recua sem sumir, e não perde a alça nem as setas**: a ordem vale para as duas, e a
  * lista que se reordena é a inteira.
  */
-
-const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono uppercase";
-
-const CELULA = "text-interface px-4 py-2.5";
 
 /**
  * O ponto que acompanha *Ativa* (item 44p, critério 22). **A palavra continua sendo o sinal** (A-5); o
@@ -169,19 +170,16 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
           const proximo = FILTROS.find((valor) => valor === escolhido);
           if (proximo !== undefined) setFiltro(proximo);
         }}
-        className="bg-muted flex w-full flex-wrap rounded-sm p-1 md:w-fit"
+        className={CAIXA_DO_FILTRO}
       >
         {FILTROS.map((valor) => (
           <ToggleGroupItem
             key={valor}
             value={valor}
-            className={cn(
-              "text-interface text-tinta-suave min-h-11 gap-2 rounded-sm px-3 font-normal",
-              "data-[state=on]:bg-superficie data-[state=on]:text-tinta data-[state=on]:font-semibold data-[state=on]:shadow-sm",
-            )}
+            className={OPCAO_DO_FILTRO}
           >
             {ROTULO_DO_FILTRO[valor]}
-            <span className="bg-background text-tinta-suave text-meta rounded-full px-1.5 font-mono font-medium tabular-nums">
+            <span className={CONTAGEM_DO_FILTRO}>
               {contagens[valor]}
             </span>
           </ToggleGroupItem>
@@ -251,18 +249,18 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
           <Table>
             <TableHeader>
               <TableRow className="border-linha hover:bg-transparent">
-                <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-10 py-2.5 md:table-cell")}>
+                <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-10 md:table-cell")}>
                   <span className="sr-only">{TEXTOS_DA_TABELA.arrastar}</span>
                 </TableHead>
-                <TableHead className={cn(ROTULO_DE_COLUNA, "w-[72px] py-2.5")}>
+                <TableHead className={cn(ROTULO_DE_COLUNA, "w-[72px]")}>
                   {TEXTOS_DA_TABELA.ordem}
                 </TableHead>
-                <TableHead className={cn(ROTULO_DE_COLUNA, "py-2.5")}>{textos.colunaDoNome}</TableHead>
+                <TableHead className={ROTULO_DE_COLUNA}>{textos.colunaDoNome}</TableHead>
                 {cabecalhosProprios}
-                <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-[160px] py-2.5 md:table-cell")}>
+                <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-[160px] md:table-cell")}>
                   {TEXTOS_DA_TABELA.noFormulario}
                 </TableHead>
-                <TableHead className={cn(ROTULO_DE_COLUNA, "w-[200px] py-2.5")}>
+                <TableHead className={cn(ROTULO_DE_COLUNA, "w-[200px]")}>
                   <span className="sr-only">{TEXTOS_DA_TABELA.acoes}</span>
                 </TableHead>
               </TableRow>
@@ -302,7 +300,7 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
                         <Badge
                           variant="outline"
                           className={cn(
-                            "border-linha text-meta rounded-sm font-medium",
+                            "border-linha rounded-sm",
                             item.ativa ? "text-accent-foreground" : "text-tinta-fraca",
                           )}
                         >

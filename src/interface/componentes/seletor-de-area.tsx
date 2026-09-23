@@ -244,7 +244,7 @@ export function SeletorDeArea({
               variant="ghost"
               size="icon"
               aria-label={AREA.fechar}
-              className="text-tinta-suave absolute top-3.5 right-3 size-11 rounded-sm"
+              className="text-tinta-suave absolute top-3.5 right-3 rounded-sm"
             >
               <X aria-hidden="true" />
             </Button>

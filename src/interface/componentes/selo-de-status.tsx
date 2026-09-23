@@ -96,7 +96,7 @@ const FORMA_DO_MARCADOR: Readonly<Record<string, string>> = {
  */
 export function SeloDeStatus({ status, rotulo }: { status: string; rotulo: string }) {
   return (
-    <Badge variant="outline" className={`text-meta rounded-sm ${FORMA_DO_SELO[status] ?? CONTORNO}`}>
+    <Badge variant="outline" className={`rounded-sm ${FORMA_DO_SELO[status] ?? CONTORNO}`}>
       {rotulo}
     </Badge>
   );

@@ -69,7 +69,7 @@ function MensagemDeCampo({ id, alerta, children }: { id: string; alerta: boolean
     <p
       id={id}
       role={alerta ? "alert" : undefined}
-      className="text-destructive text-meta flex items-center gap-1.5 font-medium"
+      className="text-destructive text-meta flex items-center gap-1.5"
     >
       <CircleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
       <span>{children}</span>
@@ -256,7 +256,7 @@ export function RodapeDoFormulario({
           {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row">{children}</div>
+      <div className="flex flex-col-reverse gap-2.5 sm:flex-row">{children}</div>
     </div>
   );
 }

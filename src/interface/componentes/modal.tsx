@@ -62,6 +62,9 @@ const CONTEUDO_DO_DIALOG = "bg-superficie border-linha max-h-[85dvh] gap-0 overf
 const CONTEUDO_DO_SHEET =
   "bg-superficie border-linha max-h-[90dvh] gap-0 overflow-y-auto rounded-t-xl ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)";
 
+/** O rodapé na tela grande. Exportado para o portão de estilo, que mede esta cadeia (item 44q). */
+export const RODAPE_DO_MODAL = "border-linha-suave bg-background border-t px-6 py-3.5";
+
 export function Modal({
   aberto,
   aoMudarAbertura,
@@ -110,7 +113,7 @@ export function Modal({
         <DialogDescription className="text-interface text-tinta-suave mt-1.5">{descricao}</DialogDescription>
       </div>
       <div className={cn("flex flex-col gap-4.5", celular ? "px-4 pt-4 pb-1.5" : "px-6 py-5")}>{children}</div>
-      <div className={celular ? "px-4 pt-3 pb-5" : "border-linha-suave bg-background border-t px-6 py-3.5"}>
+      <div className={celular ? "px-4 pt-3 pb-5" : RODAPE_DO_MODAL}>
         <RodapeDoFormulario obrigatorios={obrigatorios} todosObrigatorios={todosObrigatorios}>
           {rodape}
         </RodapeDoFormulario>
@@ -130,7 +133,7 @@ export function Modal({
               variant="ghost"
               size="icon"
               disabled={enviando}
-              className="text-tinta-suave absolute top-2 right-2 size-11"
+              className="text-tinta-suave absolute top-2 right-2"
             >
               <XIcon aria-hidden="true" className="size-4.5" />
               <span className="sr-only">Fechar</span>

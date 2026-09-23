@@ -1623,4 +1623,66 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(fonte).toContain('<legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">');
     expect(fonte).not.toContain("tracking-wide");
   });
+
+  it("o raio de 6 px voltou às seis peças (critério 44q.4)", () => {
+    // `rounded-md` é `--radius-md`, 8 px; `rounded-sm` é `--radius-sm`, 6 px (`globals.css:271-272`).
+    for (const peca of ["button", "input", "textarea", "toggle", "tooltip"]) {
+      expect(ler(`src/interface/componentes/ui/${peca}.tsx`), peca).not.toMatch(/\brounded-md\b/u);
+    }
+    expect(ler("src/interface/componentes/ui/sidebar.tsx")).toMatch(
+      /const sidebarMenuButtonVariants = cva\(\s*"[^"]*\brounded-sm\b/u,
+    );
+  });
+
+  it("o alvo de toque vem da peça: botão, campo, item de menu e botão de ícone (critério 44q.14a)", () => {
+    const botao = ler("src/interface/componentes/ui/button.tsx");
+    expect(botao).toMatch(/default: "min-h-11 /u);
+    expect(botao).toMatch(/icon: "size-11"/u);
+    expect(ler("src/interface/componentes/ui/input.tsx")).toMatch(/"h-11 /u);
+    expect(ler("src/interface/componentes/ui/sidebar.tsx")).toMatch(/default: "min-h-11 text-interface\/\[17px\]"/u);
+    // A entrelinha de 17 do item de menu viaja COLADA ao tamanho, e não num `leading-*` solto: o
+    // `tailwind-merge` apaga o `leading-*` que vem antes de qualquer tamanho de texto (grupo em conflito),
+    // e a navegação passa `text-interface` por cima. Conferido com o pacote do repositório na revisão.
+    expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain('"text-interface/[17px] h-auto min-h-11');
+  });
+
+  it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
+    expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
+    expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
+  });
+
+  it("a contagem, a caixa e a opção do filtro rápido existem uma vez só (desvio D4 do plano)", () => {
+    for (const caminho of [
+      "src/interface/componentes/recorte-da-lista.tsx",
+      "src/interface/componentes/lista-de-ordem-manual.tsx",
+      "src/interface/componentes/tabela-de-participantes.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("CONTAGEM_DO_FILTRO");
+      expect(fonte, caminho).not.toContain("rounded-full px-1.5 font-mono");
+    }
+  });
+
+  it("o cabeçalho de coluna e a célula existem uma vez só, com o fundo e os 11 px (critério 44q.3)", () => {
+    const pecas = ler("src/interface/componentes/pecas-da-tabela.ts");
+    expect(pecas).toMatch(/ROTULO_DE_COLUNA =[^;]*bg-background[^;]*py-2\.75/u);
+    expect(pecas).toMatch(/CELULA =[^;]*py-2\.75/u);
+    const copias = [
+      "lista-de-ocorrencias.tsx",
+      "lista-de-ordem-manual.tsx",
+      "tabela-de-areas.tsx",
+      "tabela-de-participantes.tsx",
+    ].filter((nome) => /const ROTULO_DE_COLUNA =/u.test(ler(`src/interface/componentes/${nome}`)));
+    expect(copias).toStrictEqual([]);
+  });
+
+  it("dica, erro de campo e rodapé de modal (critério 44q.3)", () => {
+    expect(ler("src/interface/componentes/ui/tooltip.tsx")).toMatch(/CLASSE_DA_DICA =[^;]*rounded-sm[^;]*px-2\.25 py-1\.25[^;]*font-medium/u);
+    expect(ler("src/interface/componentes/campo.tsx")).toContain(
+      'className="text-destructive text-meta flex items-center gap-1.5"',
+    );
+    expect(ler("src/interface/componentes/modal.tsx")).toMatch(/RODAPE_DO_MODAL =[^;]*bg-background[^;]*border-t[^;]*px-6 py-3\.5/u);
+    expect(ler("src/interface/componentes/campo.tsx")).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
+  });
 });

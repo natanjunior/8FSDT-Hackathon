@@ -9,12 +9,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/interface/componentes/ui/table";
+import { cn } from "@/interface/componentes/utilitarios";
 import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
 import { FichaDeLocal } from "./ficha-de-local";
 import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
+import { CELULA, ROTULO_DE_COLUNA } from "./pecas-da-tabela";
 import { rotuloDePrioridade } from "./rotulos";
 import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto, tempoRelativo } from "./tempo-relativo";
@@ -377,10 +379,6 @@ function LinhaDeTriagemNoCelular({
  * ninguém tocou os dois instantes são iguais, e o `↻` repetia o mesmo número. O símbolo é `aria-hidden` e
  * os dois valores levam nome em `sr-only` — um glifo sozinho não diz o que mede.
  */
-/** O sétimo papel da escala: 10 px, monoespaçada, versal, entreletra de 0,11em. */
-const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca h-auto px-4 py-2 font-mono uppercase";
-
 function TabelaDeTriagem({
   itens,
   destinoDoItem,
@@ -417,7 +415,7 @@ function TabelaDeTriagem({
 
             return (
               <TableRow key={item.id} className={`${LINHA_DA_LISTA} align-top`}>
-                <TableCell className="px-4 py-3">
+                <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
                   {segundaLinha !== null && (
                     <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
@@ -434,7 +432,7 @@ function TabelaDeTriagem({
                 {/* **O `whitespace-normal` desfaz o `whitespace-nowrap` que o `TableCell` do catálogo
                     traz.** O título é texto livre de até 120 caracteres; sem isto a tabela rolaria na
                     horizontal em vez de embrulhar, que é a leitura que o recorte B existe para dar. */}
-                <TableCell className="px-4 py-3 whitespace-normal">
+                <TableCell className={cn(CELULA, "whitespace-normal")}>
                   <Link
                     href={destinoDoItem(item.id)}
                     className="text-titulo-linha text-tinta underline-offset-4 hover:underline"
@@ -450,22 +448,22 @@ function TabelaDeTriagem({
                     {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
                   </span>
                 </TableCell>
-                <TableCell className="px-4 py-3">
+                <TableCell className={CELULA}>
                   <FichaDeLocal nomeDaArea={item.area.nome} />
                 </TableCell>
                 {mostrarPrioridade && (
-                  <TableCell className="text-interface px-4 py-3">
+                  <TableCell className={CELULA}>
                     <PalavraDePrioridade prioridade={item.prioridade} />
                   </TableCell>
                 )}
-                <TableCell className="px-4 py-3">
+                <TableCell className={CELULA}>
                   {item.responsavel === null ? (
                     <span className="text-tinta-fraca">—</span>
                   ) : (
                     <FichaDePessoa nome={item.responsavel.nome} />
                   )}
                 </TableCell>
-                <TableCell className="text-tinta-suave text-meta px-4 py-3 font-mono whitespace-nowrap tabular-nums">
+                <TableCell className={cn(CELULA, "text-tinta-suave text-meta font-mono whitespace-nowrap tabular-nums")}>
                   <span className="block">
                     <span className="sr-only">registrada </span>
                     {tempoCurto(item.registradaEm, agora)}
