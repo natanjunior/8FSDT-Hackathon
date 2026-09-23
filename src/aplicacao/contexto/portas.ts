@@ -180,7 +180,7 @@ export type RepositoriosEscopados = {
    */
   ocorrencias: RepositorioEscopadoDeOcorrencias;
   /**
-   * Os cinco indicadores de T-07. Escopado como todos, e **somente leitura** — a porta não declara um
+   * Os seis indicadores de T-07. Escopado como todos, e **somente leitura** — a porta não declara um
    * único método de escrita, então este membro não é caminho para gravar nada.
    */
   dashboard: RepositorioEscopadoDeDashboard;

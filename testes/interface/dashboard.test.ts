@@ -56,6 +56,12 @@ const LIDO: DashboardLido = {
     { status: "cancelada", quantidade: 2 },
   ],
   abertasPorCategoria: [{ categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 }],
+  abertasPorIdade: [
+    { deDias: 0, ateDias: 7, quantidade: 12 },
+    { deDias: 8, ateDias: 30, quantidade: 5 },
+    { deDias: 31, ateDias: 90, quantidade: 2 },
+    { deDias: 91, ateDias: null, quantidade: 1 },
+  ],
   mediaDasAvaliacoes: { media: 4.2, avaliadas: 6, resolvidas: 14 },
   recorrenciaPorCategoria: [
     { categoria: { id: "c-1", nome: "Vazamento" }, porMes: [{ mes: "2026-06", quantidade: 6 }] },
@@ -98,6 +104,15 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
   it("o bloco por categoria atravessa com o nome que diz o que ele conta", () => {
     expect(projetarDashboard(LIDO).abertasPorCategoria).toStrictEqual([
       { categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 },
+    ]);
+  });
+
+  it("as quatro faixas atravessam com os limites em número, e sem rótulo", () => {
+    expect(projetarDashboard(LIDO).abertasPorIdade).toStrictEqual([
+      { deDias: 0, ateDias: 7, quantidade: 12 },
+      { deDias: 8, ateDias: 30, quantidade: 5 },
+      { deDias: 31, ateDias: 90, quantidade: 2 },
+      { deDias: 91, ateDias: null, quantidade: 1 },
     ]);
   });
 

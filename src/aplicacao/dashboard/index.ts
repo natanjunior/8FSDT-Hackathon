@@ -27,6 +27,7 @@ export type {
 export {
   verDashboard,
   type DashboardLido,
+  type FaixaDeIdadeLida,
   type MediaDasAvaliacoes,
   type MesDeResolucao,
   type PontoDoMes,
