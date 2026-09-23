@@ -1588,3 +1588,39 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain("PONTO_DE_ATIVA");
   });
 });
+
+describe("o alcance do 44q — a estilização da prancheta", () => {
+  /** Telas e componentes próprios, fora do catálogo — o alcance do critério 2. */
+  const PROPRIOS = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")].filter(
+    (caminho) => !caminho.startsWith("src/interface/componentes/ui/") && caminho.endsWith(".tsx"),
+  );
+
+  it("nenhuma entrelinha improvisada fora do catálogo (critério 44q.2)", () => {
+    // **Sobra só `leading-none`**, que não é correção de papel: é o que se põe em ícone e em número
+    // isolado para a caixa não crescer. O resto era remendo de papel que o token passou a carregar.
+    const achados = PROPRIOS.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/\bleading-(?!none\b)[\w.[\]-]+/gu)].map((achado) => `${caminho}: ${achado[0]}`),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("título de página e de bloco não repetem o peso que o token já traz (critério 44q.2)", () => {
+    const achados = PROPRIOS.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/"[^"]*\btext-titulo-(?:pagina|bloco)\b[^"]*\bfont-semibold\b[^"]*"/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("a entreletra do rótulo vem do token, e não se repete na chamada (critério 44q.2)", () => {
+    const achados = PROPRIOS.filter((caminho) => ler(caminho).includes("tracking-[0.11em]"));
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("o rótulo de grupo do modal de atribuição está no papel de rótulo (critério 44q.12)", () => {
+    const fonte = ler("src/interface/componentes/modal-de-atribuicao.tsx");
+    expect(fonte).toContain('<legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">');
+    expect(fonte).not.toContain("tracking-wide");
+  });
+});

@@ -253,7 +253,7 @@ export function ModalDeMotivo({
               <span className="flex flex-col gap-0.5">
                 <span className="text-tinta">{motivo.rotulo}</span>
                 {motivo.descricao !== undefined && (
-                  <span className="text-tinta-suave text-meta leading-relaxed">
+                  <span className="text-tinta-suave text-meta">
                     {motivo.descricao}
                   </span>
                 )}

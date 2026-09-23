@@ -180,7 +180,7 @@ export default async function Ocorrencias({
             **O título é fixo e o recorte é controle** — critério 44c.2. As palavras do recorte não saíram
             da tela: elas mudaram de lugar, e são as mesmas do critério 14.3. */}
         <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Ocorrências</h1>
+          <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
 
           <div className="flex items-center gap-3">
             {podeLerTodas ? (

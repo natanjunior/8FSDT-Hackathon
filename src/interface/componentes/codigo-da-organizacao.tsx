@@ -67,7 +67,7 @@ export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
       <dd className="flex flex-wrap items-center gap-3">
         <span
           ref={valor}
-          className="border-linha bg-background text-tinta text-titulo-pagina inline-block rounded-md border px-4 py-1.5 font-mono leading-snug font-medium tracking-[0.08em] tabular-nums select-all"
+          className="border-linha bg-background text-tinta text-titulo-pagina inline-block rounded-md border px-4 py-1.5 font-mono font-medium tracking-[0.08em] tabular-nums select-all"
         >
           {gruposDoCodigo(codigo).map((grupo, indice) => (
             <span key={indice} className={indice === 0 ? undefined : "ml-3.5"}>

@@ -266,7 +266,7 @@ export function ModalDeArea(props: Props) {
       </GrupoDeEscolha>
 
       {mudouOTipo && (
-        <p className="border-linha bg-background text-interface text-tinta rounded-lg border px-3.5 py-2.5 leading-relaxed">
+        <p className="border-linha bg-background text-interface text-tinta rounded-lg border px-3.5 py-2.5">
           {AVISO_DE_TIPO_NO_MODAL}
         </p>
       )}

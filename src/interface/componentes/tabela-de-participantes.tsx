@@ -99,7 +99,7 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  */
 
 const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono font-medium tracking-[0.11em] uppercase";
+  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono uppercase";
 
 const CELULA = "text-interface px-4 py-2.5";
 
@@ -392,7 +392,7 @@ function CabecaQueOrdena({
           aoOrdenar(comOrdem(endereco, coluna));
         }}
         className={cn(
-          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono font-medium tracking-[0.11em] uppercase hover:bg-transparent",
+          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
           ativa ? "text-tinta" : "text-tinta-fraca",
         )}
       >

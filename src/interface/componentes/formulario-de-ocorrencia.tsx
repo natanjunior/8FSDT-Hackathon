@@ -145,7 +145,7 @@ function Bloco({
         reguaEmCima && "lg:border-linha-suave lg:border-t lg:pt-5",
       )}
     >
-      <h2 id={id} className="text-titulo-bloco text-tinta mb-4 leading-snug font-semibold">
+      <h2 id={id} className="text-titulo-bloco text-tinta mb-4">
         {titulo}
       </h2>
       <div className="flex flex-col gap-4.5">{children}</div>
@@ -330,7 +330,7 @@ export function FormularioDeOcorrencia({
             >
               <CircleCheck aria-hidden="true" className="size-5.5" />
             </EmptyMedia>
-            <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+            <EmptyTitle className="text-titulo-bloco text-tinta">
               {JA_REGISTRADA.titulo}
             </EmptyTitle>
             <EmptyDescription className="text-corpo text-tinta-suave">
@@ -559,7 +559,7 @@ export function FormularioDeOcorrencia({
       <AlertDialog open={perguntandoDescarte} onOpenChange={setPerguntandoDescarte}>
         <AlertDialogContent className="bg-superficie border-linha">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-titulo-bloco text-tinta leading-snug">
+            <AlertDialogTitle className="text-titulo-bloco text-tinta">
               {DESCARTE.titulo}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-corpo text-tinta-suave">

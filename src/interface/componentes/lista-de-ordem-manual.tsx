@@ -80,7 +80,7 @@ import { useOrdemGravada } from "@/interface/ganchos/use-ordem-gravada";
  */
 
 const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono font-medium tracking-[0.11em] uppercase";
+  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono uppercase";
 
 const CELULA = "text-interface px-4 py-2.5";
 

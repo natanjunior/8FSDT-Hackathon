@@ -96,7 +96,7 @@ export default async function Dashboard({
       {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
           uma e já carrega o seletor da outra, e repeti-las aqui era a tela dizendo duas vezes o que a
           casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Dashboard</h1>
+      <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
 
       <Periodo periodo={dashboard.periodo} />
 
@@ -217,7 +217,7 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               Por categoria
             </h3>
             {/* Tela grande: as três de maior total mais `Outras`, empilhadas. */}
@@ -229,7 +229,7 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               Por área
             </h3>
             <ListaComResto series={areas} substantivo="áreas" />
@@ -352,7 +352,7 @@ function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
     <Cartao numero={5} titulo="Média das avaliações" quando="no período">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-tinta text-titulo-pagina font-semibold tabular-nums">
+        <span className="text-tinta text-titulo-pagina tabular-nums">
           {media === null ? "—" : media.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
         </span>
         <span className="text-tinta-suave text-corpo">de 1 a 5</span>
@@ -370,7 +370,7 @@ function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
 function PeriodoInvalido() {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-titulo-pagina leading-snug font-semibold">Dashboard</h1>
+      <h1 className="text-tinta text-titulo-pagina">Dashboard</h1>
       <p role="alert" className="text-tinta text-corpo">
         O período pedido não é válido, e por isso a consulta não correu — os números abaixo não existem, e
         não são zeros.

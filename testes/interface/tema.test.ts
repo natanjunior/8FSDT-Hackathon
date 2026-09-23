@@ -179,6 +179,45 @@ describe("o `cn` conhece os sete papéis da escala — item 44d", () => {
   it("um papel da escala ainda substitui outro", () => {
     expect(cn("text-corpo", "text-meta")).toBe("text-meta");
   });
+
+  it("conhece o oitavo papel, nas duas direções (item 44q, critério 3)", () => {
+    // Sem a extensão, `text-rotulo-peca` cairia no grupo de COR e apagaria a tinta do selo — o mesmo
+    // defeito que o 44d achou com `text-interface`.
+    expect(cn("text-tinta text-xs", "text-rotulo-peca")).toBe("text-tinta text-rotulo-peca");
+    expect(cn("text-rotulo-peca", "text-meta")).toBe("text-meta");
+  });
+});
+
+describe("app/globals.css — os oito papéis carregam o papel inteiro (item 44q, critério 1)", () => {
+  /** O `@theme inline` não é bloco de `:root`, então é lido pelo próprio seletor. */
+  const tema = tokensDe(corpoDoBloco("@theme inline {"));
+  const raiz = tokensDe(corpoDoBloco(":root {"));
+
+  const PAPEIS = {
+    "titulo-pagina": { tamanho: "1.625rem", entrelinha: "1.9375rem", peso: "600", entreletra: "-0.021em" },
+    "titulo-bloco": { tamanho: "1.1875rem", entrelinha: "1.5625rem", peso: "600", entreletra: "-0.012em" },
+    "titulo-linha": { tamanho: "0.9375rem", entrelinha: "1.3125rem", peso: "500", entreletra: null },
+    corpo: { tamanho: "0.90625rem", entrelinha: "1.375rem", peso: "400", entreletra: null },
+    interface: { tamanho: "0.84375rem", entrelinha: "1.1875rem", peso: "400", entreletra: null },
+    meta: { tamanho: "0.78125rem", entrelinha: "1.0625rem", peso: "400", entreletra: null },
+    "rotulo-coluna": { tamanho: "0.625rem", entrelinha: null, peso: "500", entreletra: "0.11em" },
+    "rotulo-peca": { tamanho: "0.71875rem", entrelinha: "1.0625rem", peso: "600", entreletra: "0.02em" },
+  } as const;
+
+  it("são oito, e nenhum outro `--texto-` existe", () => {
+    const tamanhos = [...raiz.keys()].filter((token) => /^--texto-[\w-]+$/u.test(token)).sort();
+    expect(tamanhos).toStrictEqual(Object.keys(PAPEIS).map((papel) => `--texto-${papel}`).sort());
+  });
+
+  for (const [papel, esperado] of Object.entries(PAPEIS)) {
+    it(`${papel}: tamanho, entrelinha, peso e entreletra chegam ao utilitário`, () => {
+      expect(raiz.get(`--texto-${papel}`)).toBe(esperado.tamanho);
+      expect(tema.get(`--text-${papel}`)).toBe(`var(--texto-${papel})`);
+      expect(tema.get(`--text-${papel}--font-weight`)).toBe(esperado.peso);
+      expect(tema.get(`--text-${papel}--line-height`)).toBe(esperado.entrelinha ?? undefined);
+      expect(tema.get(`--text-${papel}--letter-spacing`)).toBe(esperado.entreletra ?? undefined);
+    });
+  }
 });
 
 /**

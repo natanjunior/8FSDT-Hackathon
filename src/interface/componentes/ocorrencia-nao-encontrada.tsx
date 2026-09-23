@@ -41,7 +41,7 @@ export function OcorrenciaNaoEncontradaNaTela({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">
+      <h1 className="text-titulo-pagina text-tinta">
         {ocorrenciaNaoEncontradaEm(organizacaoAtiva?.nome ?? null)}
       </h1>
 

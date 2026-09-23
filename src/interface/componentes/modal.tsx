@@ -106,7 +106,7 @@ export function Modal({
   const formulario = (
     <form noValidate onSubmit={aoEnviar} className="flex flex-col">
       <div className={celular ? "px-4 pt-5 pr-14" : "px-6 pt-5.5 pr-14"}>
-        <DialogTitle className="text-titulo-bloco text-tinta leading-snug font-semibold">{titulo}</DialogTitle>
+        <DialogTitle className="text-titulo-bloco text-tinta">{titulo}</DialogTitle>
         <DialogDescription className="text-interface text-tinta-suave mt-1.5">{descricao}</DialogDescription>
       </div>
       <div className={cn("flex flex-col gap-4.5", celular ? "px-4 pt-4 pb-1.5" : "px-6 py-5")}>{children}</div>

@@ -267,7 +267,7 @@ function LinhaDoSolicitante({
             )}
           </span>
         </span>
-        <span className="text-titulo-linha text-tinta leading-snug font-medium">{item.titulo}</span>
+        <span className="text-titulo-linha text-tinta">{item.titulo}</span>
         <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <IconeDeCategoria
             nome={iconePorCategoria[item.categoria.id] ?? "tag"}
@@ -334,7 +334,7 @@ function LinhaDeTriagemNoCelular({
             </span>
           )}
         </span>
-        <span className="text-titulo-linha text-tinta leading-snug font-medium">{item.titulo}</span>
+        <span className="text-titulo-linha text-tinta">{item.titulo}</span>
         <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-1.5">
           <FichaDeLocal nomeDaArea={item.area.nome} />·
           {item.responsavel === null ? (
@@ -379,7 +379,7 @@ function LinhaDeTriagemNoCelular({
  */
 /** O sétimo papel da escala: 10 px, monoespaçada, versal, entreletra de 0,11em. */
 const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca h-auto px-4 py-2 font-mono font-medium tracking-[0.11em] uppercase";
+  "text-rotulo-coluna text-tinta-fraca h-auto px-4 py-2 font-mono uppercase";
 
 function TabelaDeTriagem({
   itens,
@@ -437,7 +437,7 @@ function TabelaDeTriagem({
                 <TableCell className="px-4 py-3 whitespace-normal">
                   <Link
                     href={destinoDoItem(item.id)}
-                    className="text-titulo-linha text-tinta font-medium underline-offset-4 hover:underline"
+                    className="text-titulo-linha text-tinta underline-offset-4 hover:underline"
                   >
                     {item.titulo}
                   </Link>

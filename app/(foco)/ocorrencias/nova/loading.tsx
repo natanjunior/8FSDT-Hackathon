@@ -8,7 +8,7 @@
 export default function EsperandoORegistro() {
   return (
     <div className="flex flex-col gap-5.5">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">Registrar ocorrência</h1>
+      <h1 className="text-titulo-pagina text-tinta">Registrar ocorrência</h1>
 
       <div
         aria-hidden

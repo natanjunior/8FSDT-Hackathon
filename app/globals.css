@@ -55,14 +55,21 @@
      e vale se a fonte não carregar. */
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* ---- A escala, sete papéis (guia §3). Não há tamanho fora destes. ---- */
-  --texto-titulo-pagina: 1.625rem;   /* 26 px · 31 · 600 · -0.021em */
-  --texto-titulo-bloco: 1.1875rem;   /* 19 px · 25 · 600 · -0.012em */
-  --texto-titulo-linha: 0.9375rem;   /* 15 px · 21 · 500 */
-  --texto-corpo: 0.90625rem;         /* 14.5 px · 22 · 400 */
-  --texto-interface: 0.84375rem;     /* 13.5 px · 19 · 400 ou 500 */
-  --texto-meta: 0.78125rem;          /* 12.5 px · 17 · 400 */
-  --texto-rotulo-coluna: 0.625rem;   /* 10 px · 500 · versal · 0.11em · monoespaçada */
+  /* ---- A escala, oito papéis (guia §3). Não há tamanho fora destes. ----
+     O tamanho mora aqui; entrelinha, peso e entreletra moram no `@theme inline`, ao lado do
+     utilitário que os consome, que é onde o Tailwind 4 os lê (`--text-x--line-height`). Até o item 44q
+     só o tamanho chegava ao token, e cada tela improvisava o resto com `leading-snug`: toda linha do
+     produto ficava entre 6% e 15% mais alta do que foi desenhada. */
+  --texto-titulo-pagina: 1.625rem;   /* 26 px */
+  --texto-titulo-bloco: 1.1875rem;   /* 19 px */
+  --texto-titulo-linha: 0.9375rem;   /* 15 px */
+  --texto-corpo: 0.90625rem;         /* 14,5 px */
+  --texto-interface: 0.84375rem;     /* 13,5 px */
+  --texto-meta: 0.78125rem;          /* 12,5 px */
+  --texto-rotulo-coluna: 0.625rem;   /* 10 px · monoespaçada e versal, que o token não carrega */
+  /* O oitavo, desde o item 44q: selo, avatar e contagem, que a prancheta desenha em 11,5 px e nenhum
+     dos sete tinha. A contagem fica meio pixel acima dos 11 dela — exceção declarada no guia. */
+  --texto-rotulo-peca: 0.71875rem;   /* 11,5 px */
 
   /* ---- Movimento (guia §6). Só `transform` e `opacity` animam. ---- */
   --curva-pressao: cubic-bezier(0.23, 1, 0.32, 1);
@@ -320,13 +327,36 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
+  /* **Interface carrega 400**, e o 500 fica escrito como `font-medium` onde é querido (rótulo de campo,
+     item ativo): o guia diz "400 ou 500", e um token só tem um peso. **O rótulo de coluna não tem
+     entrelinha**, porque o guia não a declara. */
   --text-titulo-pagina: var(--texto-titulo-pagina);
+  --text-titulo-pagina--line-height: 1.9375rem;
+  --text-titulo-pagina--font-weight: 600;
+  --text-titulo-pagina--letter-spacing: -0.021em;
   --text-titulo-bloco: var(--texto-titulo-bloco);
+  --text-titulo-bloco--line-height: 1.5625rem;
+  --text-titulo-bloco--font-weight: 600;
+  --text-titulo-bloco--letter-spacing: -0.012em;
   --text-titulo-linha: var(--texto-titulo-linha);
+  --text-titulo-linha--line-height: 1.3125rem;
+  --text-titulo-linha--font-weight: 500;
   --text-corpo: var(--texto-corpo);
+  --text-corpo--line-height: 1.375rem;
+  --text-corpo--font-weight: 400;
   --text-interface: var(--texto-interface);
+  --text-interface--line-height: 1.1875rem;
+  --text-interface--font-weight: 400;
   --text-meta: var(--texto-meta);
+  --text-meta--line-height: 1.0625rem;
+  --text-meta--font-weight: 400;
   --text-rotulo-coluna: var(--texto-rotulo-coluna);
+  --text-rotulo-coluna--font-weight: 500;
+  --text-rotulo-coluna--letter-spacing: 0.11em;
+  --text-rotulo-peca: var(--texto-rotulo-peca);
+  --text-rotulo-peca--line-height: 1.0625rem;
+  --text-rotulo-peca--font-weight: 600;
+  --text-rotulo-peca--letter-spacing: 0.02em;
 
   --color-marca: var(--accent);
   --color-marca-foreground: var(--marca-foreground);

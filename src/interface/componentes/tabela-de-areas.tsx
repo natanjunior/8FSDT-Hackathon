@@ -22,7 +22,7 @@ import type { AreaProjetada } from "@/interface/projecoes";
  * da célula do nome.
  */
 const ROTULO_DE_COLUNA =
-  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono font-medium tracking-[0.11em] uppercase";
+  "text-rotulo-coluna text-tinta-fraca bg-background h-auto px-4 py-0 font-mono uppercase";
 
 export function TabelaDeAreas({
   itens,

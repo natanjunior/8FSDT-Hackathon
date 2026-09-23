@@ -49,7 +49,7 @@ export function CabecaDoCartao({
   return (
     <div className="border-linha-suave flex items-center justify-between gap-4 border-b px-[15px] py-3 md:px-[18px] md:py-4">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h2 id={id} className="text-titulo-bloco text-tinta leading-snug font-semibold">
+        <h2 id={id} className="text-titulo-bloco text-tinta">
           {titulo}
         </h2>
         {apoio !== undefined && <p className="text-meta text-tinta-suave">{apoio}</p>}

@@ -38,7 +38,7 @@ export function FichaDePessoa({
         id={idDoNome}
         className={cn(
           "text-tinta",
-          tamanho === "linha" ? "text-titulo-linha font-medium" : "text-interface",
+          tamanho === "linha" ? "text-titulo-linha" : "text-interface",
         )}
       >
         {nome}

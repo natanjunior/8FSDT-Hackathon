@@ -101,7 +101,7 @@ export function SituacaoDoItem({
       </AlertDialogTrigger>
       <AlertDialogContent className={CONTEUDO}>
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-titulo-bloco text-tinta leading-snug">
+          <AlertDialogTitle className="text-titulo-bloco text-tinta">
             {textos.titulo}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-corpo text-tinta-suave">

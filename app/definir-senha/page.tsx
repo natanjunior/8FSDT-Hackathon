@@ -57,7 +57,7 @@ export default async function TelaDeDefinirSenha({
             >
               <Link2Off aria-hidden="true" className="size-5.5" />
             </EmptyMedia>
-            <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+            <EmptyTitle className="text-titulo-bloco text-tinta">
               Este link expirou
             </EmptyTitle>
             <EmptyDescription className="text-corpo text-tinta-suave">Peça um novo.</EmptyDescription>

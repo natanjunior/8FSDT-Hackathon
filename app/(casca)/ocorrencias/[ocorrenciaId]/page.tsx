@@ -568,7 +568,7 @@ export default async function Ocorrencia({
        branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
        qualquer forma. */
     <div className="flex flex-col gap-6 pb-24 lg:pb-0">
-      <h1 className="text-titulo-pagina text-tinta leading-snug font-semibold">{detalhe.titulo}</h1>
+      <h1 className="text-titulo-pagina text-tinta">{detalhe.titulo}</h1>
 
       {/* **Duas colunas a partir de `lg`, e a de apoio tem 280 px por conta.** Em 1024 px a casca já
           gasta 214 na lateral e 48 no respiro do `<main>`; com 24 de calha, a narrativa fica com 458 —
@@ -589,7 +589,7 @@ export default async function Ocorrencia({
               T-03 —, e **a palavra *Situação* fica**: é o que dá nome ao que o selo diz, e é o que o
               teste de ponta a ponta localiza. */}
           <section className="border-linha bg-superficie flex flex-col gap-2 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <span className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+            <span className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               Situação
             </span>
             <span className="w-fit">
@@ -598,7 +598,7 @@ export default async function Ocorrencia({
             {/* **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.** Para o
                 Solicitante os dois textos coincidem e ela devolve `null`: o bloco dele não muda. */}
             {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
-              <span className="text-tinta-suave text-meta leading-snug">
+              <span className="text-tinta-suave text-meta">
                 {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
               </span>
             )}
@@ -610,7 +610,7 @@ export default async function Ocorrencia({
               passaria em qualquer estado — o teste ficaria verde e deixaria de afirmar o que existe
               para afirmar. */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono tracking-[0.11em] uppercase">
+            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               O ciclo
             </h2>
             <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
@@ -638,7 +638,7 @@ export default async function Ocorrencia({
           />
 
           {vazio !== null && (
-            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px] leading-relaxed">
+            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px]">
               {vazio}
             </p>
           )}
@@ -647,7 +647,7 @@ export default async function Ocorrencia({
               que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
               `OcorrenciaDetalhe`. */}
           <section className="flex flex-col gap-1.5">
-            <h2 className="text-tinta text-titulo-linha font-medium">Última mudança</h2>
+            <h2 className="text-tinta text-titulo-linha">Última mudança</h2>
             <p className="text-tinta-fraca text-meta">
               {autoria(
                 detalhe.ultimaTransicao.autor.nome,
@@ -656,7 +656,7 @@ export default async function Ocorrencia({
               )}
             </p>
             {detalhe.ultimaTransicao.observacao !== null && (
-              <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+              <p className="text-tinta-suave text-corpo whitespace-pre-line">
                 {`“${detalhe.ultimaTransicao.observacao}”`}
               </p>
             )}
@@ -753,8 +753,8 @@ export default async function Ocorrencia({
 
           {/* **Bloco 2 · Conteúdo.** */}
           <section className="flex flex-col gap-2">
-            <h2 className="text-tinta text-titulo-bloco font-semibold">O que foi relatado</h2>
-            <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+            <h2 className="text-tinta text-titulo-bloco">O que foi relatado</h2>
+            <p className="text-tinta-suave text-corpo whitespace-pre-line">
               {detalhe.descricao}
             </p>
 
@@ -809,8 +809,8 @@ export default async function Ocorrencia({
           ) : (
             detalhe.solucaoAplicada !== null && (
               <section className="flex flex-col gap-2">
-                <h2 className="text-tinta text-titulo-bloco font-semibold">Solução aplicada</h2>
-                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                <h2 className="text-tinta text-titulo-bloco">Solução aplicada</h2>
+                <p className="text-tinta-suave text-corpo whitespace-pre-line">
                   {detalhe.solucaoAplicada}
                 </p>
               </section>
@@ -821,15 +821,15 @@ export default async function Ocorrencia({
               diria que a nota foi registrada. */}
           {detalhe.avaliacao !== null && (
             <section className="flex flex-col gap-2">
-              <h2 className="text-tinta text-titulo-bloco font-semibold">
+              <h2 className="text-tinta text-titulo-bloco">
                 {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
               </h2>
               {/* **A-5: a nota carrega a palavra**, e nunca é só um número solto ou uma cor. */}
-              <p className="text-tinta-suave text-corpo leading-relaxed">
+              <p className="text-tinta-suave text-corpo">
                 Nota {detalhe.avaliacao.nota} de 5
               </p>
               {detalhe.avaliacao.comentario !== null && (
-                <p className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+                <p className="text-tinta-suave text-corpo whitespace-pre-line">
                   {detalhe.avaliacao.comentario}
                 </p>
               )}
@@ -902,7 +902,7 @@ async function LinhaDoTempo({
       {/* **A contagem ao lado do título.** **Não há estado vazio, e é garantia e não sorte:** a premissa
           P1 faz o registro da criação nascer com a ocorrência, e o repositório trata trilha vazia como
           invariante violada. Toda linha do tempo tem ao menos um. */}
-      <h2 className="text-titulo-bloco text-tinta font-semibold">
+      <h2 className="text-titulo-bloco text-tinta">
         Linha do tempo <span className="text-tinta-fraca font-normal">{itens.length}</span>
       </h2>
 
@@ -943,7 +943,7 @@ async function LinhaDoTempo({
                   dataEHora(evento.ocorridoEm),
                 )}
               </span>
-              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+              <span className="text-tinta-suave text-corpo whitespace-pre-line">
                 {evento.tipo === "transicao"
                   ? fraseDaTransicao(evento.rotulo, evento.observacao)
                   : evento.tipo === "mensagem"
@@ -970,7 +970,7 @@ function EsqueletoDaLinhaDoTempo() {
   return (
     <>
       {/* Cabeçalho **sem a contagem** — não se conta o que ainda não chegou. */}
-      <h2 className="text-titulo-bloco text-tinta font-semibold">Linha do tempo</h2>
+      <h2 className="text-titulo-bloco text-tinta">Linha do tempo</h2>
       <div aria-hidden className="flex flex-col">
         {(
           [

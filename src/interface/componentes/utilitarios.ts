@@ -12,7 +12,7 @@ import { extendTailwindMerge } from "tailwind-merge";
  *  Por que o `twMerge` precisa ser ESTENDIDO — e o que acontecia sem isto
  * ---------------------------------------------------------------------------
  *
- * **Ele não lê o `@theme` do projeto.** Os sete papéis da escala são nomes nossos, e o dicionário de
+ * **Ele não lê o `@theme` do projeto.** Os oito papéis da escala são nomes nossos, e o dicionário de
  * sufixos do `tailwind-merge` não os conhece: `text-interface` cai no grupo genérico de **cor de texto**
  * e colide com `text-marca-foreground`, que é cor de verdade. Medido, com o pacote deste repositório:
  *
@@ -22,7 +22,7 @@ import { extendTailwindMerge } from "tailwind-merge";
  * ```
  *
  * A cor **some**, e o `text-sm` do catálogo — que está fora da escala — **sobrevive**. Os dois avessos do
- * que se queria. Declarar os sete como `font-size` conserta os dois lados de uma vez: a cor atravessa, e
+ * que se queria. Declarar os oito como `font-size` conserta os dois lados de uma vez: a cor atravessa, e
  * o papel da escala passa a vencer o `text-sm`, que é o trabalho que a escala existe para fazer.
  */
 const mesclar = extendTailwindMerge({
@@ -38,6 +38,7 @@ const mesclar = extendTailwindMerge({
             "interface",
             "meta",
             "rotulo-coluna",
+            "rotulo-peca",
           ],
         },
       ],

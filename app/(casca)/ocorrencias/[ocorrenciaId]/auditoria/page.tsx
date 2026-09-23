@@ -286,7 +286,7 @@ function Trilha({
  */
 function Campo({ nome, children }: { nome: string; children: React.ReactNode }) {
   return (
-    <span className="text-tinta-suave text-meta flex flex-wrap items-baseline gap-x-1.5 leading-relaxed">
+    <span className="text-tinta-suave text-meta flex flex-wrap items-baseline gap-x-1.5">
       {nome}: <span className="text-tinta font-medium">{children}</span>
     </span>
   );
@@ -315,7 +315,7 @@ function TrilhaSemRegistros() {
         >
           <History aria-hidden="true" className="size-5.5" />
         </EmptyMedia>
-        <EmptyTitle className="text-titulo-bloco text-tinta font-semibold">
+        <EmptyTitle className="text-titulo-bloco text-tinta">
           Nenhuma alteração registrada
         </EmptyTitle>
         <EmptyDescription className="text-corpo text-tinta-suave">

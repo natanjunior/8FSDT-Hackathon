@@ -242,13 +242,13 @@ function ListaDeMensagens({
         lado de um *Carregar mais* diria *"2"* numa conversa de trinta. É a mesma razão pela qual o
         esqueleto da linha do tempo não conta: **não se conta o que ainda não chegou**.
       */}
-      <h2 className="text-tinta text-titulo-bloco font-semibold">
+      <h2 className="text-tinta text-titulo-bloco">
         Mensagens{" "}
         {cursor === null && <span className="text-tinta-fraca font-normal">{itens.length}</span>}
       </h2>
 
       {itens.length === 0 ? (
-        <p className="text-tinta-suave text-corpo leading-relaxed">{vazio}</p>
+        <p className="text-tinta-suave text-corpo">{vazio}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {itens.map((mensagem) => (
@@ -264,7 +264,7 @@ function ListaDeMensagens({
               {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
                   escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é ruído.
                   **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
-              <span className="text-tinta-suave text-corpo leading-relaxed whitespace-pre-line">
+              <span className="text-tinta-suave text-corpo whitespace-pre-line">
                 {mensagem.texto}
               </span>
             </li>
@@ -300,7 +300,7 @@ function ListaDeMensagens({
 function EsqueletoDaConversa() {
   return (
     <>
-      <h2 className="text-tinta text-titulo-bloco font-semibold">Mensagens</h2>
+      <h2 className="text-tinta text-titulo-bloco">Mensagens</h2>
       <div aria-hidden className="flex flex-col gap-3">
         {[
           [44, 90],

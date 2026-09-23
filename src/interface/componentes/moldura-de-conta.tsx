@@ -79,7 +79,7 @@ export function MolduraDeConta({
               !temCorpo && "pb-[15px] md:pb-[18px]",
             )}
           >
-            <h1 id={ID_DO_TITULO} className="text-titulo-pagina text-tinta leading-snug font-semibold">
+            <h1 id={ID_DO_TITULO} className="text-titulo-pagina text-tinta">
               {titulo}
             </h1>
             {contexto !== undefined && <p className="text-corpo text-tinta-suave">{contexto}</p>}
@@ -181,7 +181,7 @@ function Apresentacao() {
         }}
       />
       <MarcaDoProduto />
-      <p className="text-titulo-bloco text-tinta leading-snug font-semibold">
+      <p className="text-titulo-bloco text-tinta">
         O que é registrado aqui fica registrado, com data e autor.
       </p>
     </div>

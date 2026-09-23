@@ -120,7 +120,7 @@ export function Campo({
 
   const textoDeAjuda =
     ajuda === undefined ? null : (
-      <span id={idDaAjuda} className="text-tinta-suave text-meta leading-relaxed">
+      <span id={idDaAjuda} className="text-tinta-suave text-meta">
         {ajuda}
       </span>
     );
@@ -198,7 +198,7 @@ export function ErroDoFormulario({ children }: { children: ReactNode }) {
   return (
     <div
       role="alert"
-      className="border-destructive/[55%] bg-destructive/[8%] text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5 leading-snug"
+      className="border-destructive/[55%] bg-destructive/[8%] text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5"
     >
       <CircleXIcon aria-hidden="true" className="text-destructive mt-0.5 size-4 shrink-0" />
       <div className="min-w-0">{children}</div>
@@ -223,7 +223,7 @@ export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; c
   return (
     <div
       role="alert"
-      className="border-linha bg-superficie text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5 leading-snug"
+      className="border-linha bg-superficie text-tinta text-interface flex gap-2.5 rounded-lg border px-3.5 py-2.5"
     >
       <InfoIcon aria-hidden="true" className="text-tinta-suave mt-0.5 size-4 shrink-0" />
       <div className="min-w-0">{children}</div>

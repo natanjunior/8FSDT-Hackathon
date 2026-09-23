@@ -233,7 +233,7 @@ export function SeletorDeArea({
             "ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)",
           )}
         >
-          <SheetTitle className="text-titulo-bloco text-tinta px-4 pt-5 pr-14 leading-snug font-semibold">
+          <SheetTitle className="text-titulo-bloco text-tinta px-4 pt-5 pr-14">
             {AREA.tituloDoPainel}
           </SheetTitle>
           {lista}
