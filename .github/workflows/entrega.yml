@@ -186,11 +186,30 @@ jobs:
           # num dia em que ninguém tocou no repositório.
           version: 2.101.0
 
+      # **Login antes de baixar imagem, e a razão foi medida.** Em 23/09/2026
+      # este emprego morreu em `toomanyrequests` do ghcr.io sem ninguém ter
+      # tocado no repositório: quem baixa como anônimo divide a cota com o IP do
+      # runner, que é público e compartilhado. O emprego "Publicar a imagem" já
+      # autentica assim desde sempre; aqui faltava, e a esteira inteira parou —
+      # `migrar`, `publicar` e `implantar` declaram `needs` que passam por aqui.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Só o que a aplicação usa: banco, autenticação e o gateway que a serve.
       # Estúdio, storage, realtime e o resto são minutos de download que nada
       # aqui exercita. `auth` não é excluível, e é justamente o que queremos.
+      #
+      # **Os nomes são os da CLI, e errar um só rende um aviso.** Até 23/09/2026
+      # esta linha pedia `inbucket`, `storage`, `analytics`, `functions` e
+      # `meta`: cinco nomes que a 2.101.0 não conhece. Ela imprime um WARNING no
+      # meio de mil linhas de download e sobe os contêineres assim mesmo, então
+      # `mailpit` e `postgres-meta` desciam a cada execução, à toa. Os outros
+      # três não custavam nada porque `supabase/config.toml` já os desliga.
       - name: Postgres e Auth locais
-        run: supabase start -x studio,imgproxy,inbucket,realtime,storage,analytics,vector,edge-runtime,functions,meta
+        run: supabase start -x studio,imgproxy,realtime,storage-api,logflare,vector,edge-runtime,postgres-meta,mailpit
 
       # **O mesmo comando que o README manda rodar.** O `npm ci` acima serve
       # **só** ao `ferramentas/azurite.mjs`; as dependências da aplicação
@@ -220,9 +239,16 @@ jobs:
 
       # Sem isto, um compose que sobe e morre aparece como uma linha de curl com
       # o número errado, e a causa fica dentro do container que já foi embora.
+      #
+      # **A guarda existe porque este passo já foi a segunda vítima.** O
+      # `docker-compose.yml` declara `env_file: .env.local`, e quem gera esse
+      # arquivo é o `npm run local`. Numa falha anterior a ele o Compose recusa
+      # até o `logs`, e o passo que serve para explicar morre sem imprimir linha.
       - name: os logs, quando algo falha
         if: failure()
-        run: docker compose logs --no-color --tail 200
+        run: |
+          [ -f .env.local ] || { echo "Sem .env.local: a pilha não chegou a subir, a falha é anterior ao compose."; exit 0; }
+          docker compose logs --no-color --tail 200
 
   # ---------------------------------------------------------------------------
   # 1c · O Auth publicado. **A esteira publica migração e imagem; a
