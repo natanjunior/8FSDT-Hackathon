@@ -11,10 +11,10 @@
  * `maximumFractionDigits: 0` dentro do `.tsx` que desenha, e uma ocorrência resolvida em nove minutos
  * chegava como `0.2` e aparecia como `0 h`, afirmando instantaneidade. Apareceu em produção.
  *
- * **A unidade é escolha da tela, e a API não muda** (critério 55.4): ela continua devolvendo horas com
- * uma casa decimal, que é o que o `openapi.yaml` exemplifica. A consequência declarada é que os minutos
- * andam de seis em seis — `0.1 h` é `6 min` e não existe `9 min`. O defeito consertado é o zero, e a
- * precisão abaixo de seis minutos custaria mudança de contrato.
+ * **A unidade é escolha da tela** (critério 55.1): a API devolve horas, e quem decide se isso se lê em
+ * minutos, em horas ou em dias é este módulo. Desde o item 58 o número chega com **duas** casas decimais,
+ * e o quantum de 36 segundos fica abaixo do menor texto que esta função sabe escrever — então os minutos
+ * que ela escreve são os minutos que houve.
  *
  * **O piso de um minuto é o que faz o critério 55.2 valer.** Sem ele meio minuto voltaria a ser zero, e o
  * item teria trocado um zero mentiroso por outro.

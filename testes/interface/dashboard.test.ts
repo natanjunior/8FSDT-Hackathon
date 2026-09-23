@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
+import {
+  textoDoTempoDeResolucao,
+  type MesDoTempoDeResolucao,
+} from "@/interface/componentes/tempo-de-resolucao";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
 
@@ -179,6 +183,69 @@ describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero 
 
   it("a vírgula é da ICU, e não de um `replace` sobre o resultado", () => {
     expect(duracaoEmTexto(100)).toBe("4,2 dias");
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  A linha do mês do quadro 4 — item 58, critérios 58.3, 58.4 e 58.5
+ * ---------------------------------------------------------------------------
+ *
+ * **A função é testada sozinha, e não através da tela.** Três formas de linha, um plural, uma junção por
+ * vírgula e a decisão de qual forma usar não cabem dentro do `.map` de um Server Component — é o mesmo
+ * argumento do item 57: *"derivação dentro de um componente é derivação que nenhum teste do laço curto
+ * alcança"*.
+ *
+ * **A formatação de unidade não é reescrita aqui.** Ela é `duracaoEmTexto`, do item 55, chamada uma, duas
+ * ou três vezes conforme a forma.
+ */
+describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mostra os valores crus", () => {
+  const mes = (parcial: Partial<MesDoTempoDeResolucao>): MesDoTempoDeResolucao => ({
+    mediana: null,
+    p90: null,
+    amostra: null,
+    resolvidas: 0,
+    ...parcial,
+  });
+
+  it("com quatro ou mais, escreve mediana e p90 rotulados — os rótulos são obrigatórios", () => {
+    expect(textoDoTempoDeResolucao(mes({ mediana: 0.2, p90: 50.4, resolvidas: 11 }))).toBe(
+      "mediana 12 min · p90 2,1 dias · 11 resolvidas",
+    );
+  });
+
+  it("com quatro cravado, já é a forma de cima — é o primeiro mês acima do teto", () => {
+    expect(textoDoTempoDeResolucao(mes({ mediana: 1, p90: 2, resolvidas: 4 }))).toBe(
+      "mediana 1 h · p90 2 h · 4 resolvidas",
+    );
+  });
+
+  it("com três ou menos, escreve as durações uma a uma e NÃO repete a mediana rotulada", () => {
+    expect(
+      textoDoTempoDeResolucao(mes({ mediana: 0.2, amostra: [0.1, 0.2, 72], resolvidas: 3 })),
+    ).toBe("6 min, 12 min, 3,0 dias · 3 resolvidas");
+  });
+
+  it("com UMA resolução, o denominador vai no singular e a lista tem um valor", () => {
+    expect(textoDoTempoDeResolucao(mes({ mediana: 0.1, amostra: [0.1], resolvidas: 1 }))).toBe(
+      "6 min · 1 resolvida",
+    );
+  });
+
+  it("dois minutos continuam dois minutos — as duas casas do item 58 e o critério 55.2", () => {
+    expect(textoDoTempoDeResolucao(mes({ mediana: 0.03, amostra: [0.03], resolvidas: 1 }))).toBe(
+      "2 min · 1 resolvida",
+    );
+  });
+
+  it("mediana e p90 iguais escrevem o mesmo número duas vezes, e isso é correto", () => {
+    expect(textoDoTempoDeResolucao(mes({ mediana: 3, p90: 3, resolvidas: 7 }))).toBe(
+      "mediana 3 h · p90 3 h · 7 resolvidas",
+    );
+  });
+
+  it("sem resolução, o travessão e o denominador em zero — critério 36.2, intacto", () => {
+    expect(textoDoTempoDeResolucao(mes({}))).toBe("— · 0 resolvidas");
   });
 });
 
