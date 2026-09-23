@@ -481,6 +481,28 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   //
   // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
   // -------------------------------------------------------------------------
+  // **O convite aparece na LISTA antes de a autora abrir a ocorrência**, e é assim que ela descobre que
+  // há algo a fazer. O passo 69 insiste que é *marca, e não botão*: afirmar que existe um botão com esse
+  // nome falharia, e afirmar só o texto não separaria os dois.
+  await helena.goto("/ocorrencias");
+  // **A lista do Solicitante é `<ul>`/`<li>`, e não tabela** — a tabela é o recorte de quem tem a coluna
+  // de prioridade, e ela some por permissão (P-03). Um `getByRole("row")` aqui acha zero, e foi o que
+  // esta asserção descobriu ao nascer.
+  //
+  // **`getByRole("listitem")` e não `locator("li")`, e a diferença é a que importa:** a página desenha
+  // duas listas, uma para tela larga e outra com `md:hidden` para celular. O papel é ciente de
+  // acessibilidade e ignora o que está com `display:none`, então ele devolve a que está na tela.
+  const linhaDeA = helena
+    .getByRole("listitem")
+    .filter({ has: helena.getByRole("link", { name: TITULO }) });
+  await expect(linhaDeA.getByText("Conte como foi")).toBeVisible();
+  await expect(linhaDeA.getByRole("button", { name: "Conte como foi" })).toHaveCount(0);
+  cobre(test.info(), "4.5 · 69", {
+    criterio: "27.5",
+    falta:
+      "que B e C não têm a marca — esta jornada tem uma ocorrência só, e as outras duas são de outro percurso",
+  });
+
   await helena.goto(`/ocorrencias/${ocorrenciaId}`);
   await esperarSituacao(helena, "Resolvida");
   await helena.getByRole("button", { name: "Avaliar" }).click();
@@ -503,6 +525,27 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     falta:
       "a faixa laranja e o botão Avaliar sumirem, o comentário dentro do bloco, a frase «Esta ocorrência está encerrada.» e o recarregar que não desfaz",
   });
+
+  // **O convite some da lista depois de atendido**, e sem esta asserção o produto poderia deixá-lo lá
+  // para sempre sem ninguém notar: quem já avaliou não volta à lista para conferir.
+  await helena.goto("/ocorrencias");
+  await expect(linhaDeA.getByText("Conte como foi")).toHaveCount(0);
+  await expect(linhaDeA.getByRole("link", { name: TITULO })).toBeVisible();
+  cobre(test.info(), "4.5 · 73", { criterio: "27.5" });
+
+  // **A mesma nota, lida do outro lado, com outro nome.** Para quem avaliou o bloco é *Sua avaliação*;
+  // para quem cuidou é *Avaliação do solicitante*. É a lente de papel outra vez, e prova que a avaliação
+  // atravessou de verdade em vez de ficar na tela de quem a escreveu.
+  await marcos.goto(`/ocorrencias/${ocorrenciaId}`);
+  await expect(marcos.getByRole("heading", { name: "Avaliação do solicitante" })).toBeVisible();
+  await expect(marcos.getByText("Nota 5 de 5")).toBeVisible();
+  await expect(marcos.getByRole("heading", { name: "Sua avaliação" })).toHaveCount(0);
+  cobre(test.info(), "4.5 · 74", { criterio: "27" });
+
+  // De volta à ocorrência pela própria lista: o passo seguinte abre a trilha **clicando**, e clicar
+  // exige estar na tela que tem o link.
+  await helena.getByRole("link", { name: TITULO }).click();
+  await helena.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
 
   // -------------------------------------------------------------------------
   // 10 · A trilha, conferida NA INTERFACE — o critério 41b.2

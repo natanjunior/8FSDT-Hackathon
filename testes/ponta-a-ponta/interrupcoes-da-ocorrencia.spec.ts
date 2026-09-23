@@ -232,6 +232,22 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
       "o passo Resolvida continuar apagado, e a marca da pausa estar ancorada no passo Em atendimento",
   });
 
+  // **A lista do Gestor, e as duas linhas que o passo 55 separa.** O motivo desce para a segunda linha e
+  // **nunca entra dentro da palavra**: um produto que escrevesse *"Pausada — esperando material chegar"*
+  // numa linha só passaria numa asserção de texto e falharia aqui, porque as duas são afirmadas em
+  // elementos diferentes da mesma linha da tabela.
+  await marcos.goto("/ocorrencias");
+  const linhaDeMarcos = marcos
+    .getByRole("row")
+    .filter({ has: marcos.getByRole("link", { name: TITULO }) });
+  await expect(linhaDeMarcos.getByText("Pausada", { exact: true })).toBeVisible();
+  await expect(linhaDeMarcos.getByText(O_QUE_O_SOLICITANTE_LE)).toBeVisible();
+  cobre(test.info(), "4.4 · 55", { criterio: "23.6, 31.6" });
+
+  // De volta à ocorrência: o percurso do Gestor continua nela, e a ida à lista foi uma visita.
+  await marcos.getByRole("link", { name: TITULO }).click();
+  await esperarSituacao(marcos, "Pausada");
+
   // -------------------------------------------------------------------------
   // 5 · O que o Solicitante lê — critérios 31.3, 31.6, 28.4 e a recusa de acesso
   //
