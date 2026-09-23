@@ -1,7 +1,9 @@
 import {
   AMOSTRA_PEQUENA,
   FUSO,
+  LIMITES_DAS_FAIXAS_DE_IDADE,
   type ContagemPorCategoria,
+  type ContagemPorFaixaDeIdade,
   type ContagemPorStatus,
   type Janela,
   type LinhaDeResolucao,
@@ -15,7 +17,7 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 
 /**
  * ============================================================================
- *  As cinco agregações de `GET /dashboard`
+ *  As seis agregações de `GET /dashboard`
  * ============================================================================
  *
  * Note o que este arquivo **não** contém: um valor de organização. `$1` é injetado pelo ponto de
@@ -112,6 +114,58 @@ const SELECT_DAS_ABERTAS_POR_CATEGORIA = `
   having c.ativa or count(o.id) > 0
    order by count(o.id) desc, c.nome`;
 
+/**
+ * A idade de uma ocorrência — **dias inteiros de calendário desde o registro**, sem descontar pausa, que
+ * é como o quadro 4 já conta.
+ *
+ * **Nenhum `at time zone` aqui, e é o contrário de descuido.** A exceção da §7.5 do contrato existe para
+ * agregação mês a mês: em UTC, o mês brasileiro parte em dois. Isto não agrega por mês — mede a distância
+ * entre dois instantes, que é o que `HORAS_ATE_A_RESOLUCAO` mede logo acima. Distância entre instantes
+ * não tem fuso, e trazer um para cá criaria a segunda regra de calendário do painel sem nenhum mês para
+ * justificá-la.
+ *
+ * **`floor` e não `round`.** A ocorrência registrada há 7 dias e 20 horas tem idade `7`, e fica na
+ * primeira faixa até completar 8 dias. Arredondar faria a faixa `0–7` conter casos de quase oito dias e
+ * meio, e o rótulo passaria a mentir sobre o próprio limite.
+ */
+const IDADE_EM_DIAS = `floor(extract(epoch from (now() - o.registrada_em)) / 86400)`;
+
+/**
+ * O índice da faixa, derivado dos **mesmos** limites que a Aplicação lê — nenhum `7`, `30` ou `90`
+ * digitado aqui. O `else` é a faixa sem teto, e o índice dela é o comprimento da lista.
+ */
+const FAIXA_DA_IDADE = `case ${LIMITES_DAS_FAIXAS_DE_IDADE.map(
+  (limite, i) => `when ${IDADE_EM_DIAS} <= ${String(limite)} then ${String(i)}`,
+).join(" ")} else ${String(LIMITES_DAS_FAIXAS_DE_IDADE.length)} end`;
+
+/**
+ * **A única consulta do painel que olha para o tempo do que NÃO terminou.**
+ *
+ * As outras medem o que já acabou: a de resoluções filtra `status_novo = 'resolvida'`, e a ocorrência
+ * aberta há duzentos dias não entra em número nenhum — o painel **melhora** quando a operação para de
+ * resolver os casos difíceis. Esta é a que aponta o caso enquanto ainda dá para agir.
+ *
+ * **Conta o mesmo conjunto que `SELECT_DAS_ABERTAS_POR_CATEGORIA`**, por outro corte, e as duas somas
+ * fecham. A lista de terminais é a mesma `TERMINAIS_EM_SQL`, derivada do Domínio.
+ *
+ * **`group by 1` não produz faixa vazia** — um agrupamento não inventa grupo sem linha —, e quem completa
+ * as quatro é a Aplicação, pela razão de portão: `npm run verificar` não roda o projeto de integração, e
+ * uma regra de produto que só vivesse no SQL seria uma regra que o portão nunca confere.
+ *
+ * **O `order by 1` fica**, embora a resposta já saia ordenada da Aplicação: uma consulta que devolve
+ * grupos numerados sem ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente.
+ *
+ * **Nenhum índice novo**, como nas outras cinco: o plano correto para `GROUP BY` sobre toda a partição da
+ * organização é varredura, e a expressão de idade é calculada por linha de qualquer forma.
+ */
+const SELECT_DAS_ABERTAS_POR_IDADE = `
+  select ${FAIXA_DA_IDADE} as faixa, count(*)::int as quantidade
+    from ocorrencias o
+   where o.organizacao_id = $1
+     and o.status not in (${TERMINAIS_EM_SQL})
+   group by 1
+   order by 1`;
+
 const SELECT_DA_RECORRENCIA_POR_CATEGORIA = `
   select c.id,
          c.nome,
@@ -201,6 +255,7 @@ const SELECT_DAS_RESOLUCOES = `
 
 type LinhaDeStatus = { status: StatusOcorrencia; quantidade: number };
 type LinhaDeCategoria = { id: string; nome: string; quantidade: number };
+type LinhaDeIdade = { faixa: number; quantidade: number };
 type LinhaDeCategoriaMensal = { id: string; nome: string; mes: string; quantidade: number };
 type LinhaDeAreaMensal = {
   id: string;
@@ -236,6 +291,11 @@ export function repositorioEscopadoDeDashboard(
         categoria: { id: linha.id, nome: linha.nome },
         quantidade: linha.quantidade,
       }));
+    },
+
+    async abertasPorIdade(): Promise<readonly ContagemPorFaixaDeIdade[]> {
+      const linhas = await consulta<LinhaDeIdade>(SELECT_DAS_ABERTAS_POR_IDADE);
+      return linhas.map((linha) => ({ faixa: linha.faixa, quantidade: linha.quantidade }));
     },
 
     async recorrenciaPorCategoria(janela: Janela): Promise<readonly PontoDeCategoria[]> {

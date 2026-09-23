@@ -2,9 +2,10 @@ import type { AreaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 
 import { mesesDaJanela, resolverJanela, type Janela, type JanelaPedida } from "./janela";
-import { AMOSTRA_PEQUENA } from "./portas";
+import { AMOSTRA_PEQUENA, FAIXAS_DE_IDADE } from "./portas";
 import type {
   ContagemPorCategoria,
+  ContagemPorFaixaDeIdade,
   ContagemPorStatus,
   LinhaDeResolucao,
   PontoMensal,
@@ -17,17 +18,20 @@ import type {
  * ============================================================================
  *
  * **O envelope é o que o item 32 é** (`backlog.md:1387-1391`): a permissão, a janela, o eixo dos meses, a
- * forma da resposta e os zeros. Os cinco conteúdos são dos itens 33 a 36, e chegam prontos do repositório.
+ * forma da resposta e os zeros. Os seis conteúdos são dos itens 33 a 36 e do 59, e chegam prontos do
+ * repositório.
  *
- * **Uma requisição, cinco leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
+ * **Uma requisição, seis leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
  * valendo: *"cinco requisições podem significar cinco esperas de cold start onde uma bastaria"*. Aqui são
- * cinco idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
+ * seis idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
  * mesmo idioma de `verLinhaDoTempo`.
  *
- * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as cinco consultas o ocupam por alguns
- * milissegundos. Não há impasse possível: nenhuma delas segura conexão esperando outra, então uma
- * requisição concorrente apenas enfileira. Sequenciá-las trocaria essa fila por cinco idas e voltas somadas
- * na tela mais pesada do produto.
+ * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as seis consultas são uma a mais do que o
+ * pool tem: a sexta espera uma conexão liberar e corre em seguida. Não há impasse possível, e a razão é a
+ * mesma de antes: nenhuma delas segura conexão esperando outra. O `5` é justificado pelo teto de conexões
+ * do free tier e pela escala a zero; mexer nele muda toda requisição do produto, não só esta tela, e não
+ * cabe num item de painel. Sequenciá-las trocaria essa espera por seis idas e voltas somadas na tela mais
+ * pesada do produto.
  */
 
 export type PontoDoMes = { mes: string; quantidade: number };
@@ -63,11 +67,23 @@ export type MesDeResolucao = {
 };
 export type MediaDasAvaliacoes = { media: number | null; avaliadas: number; resolvidas: number };
 
+/**
+ * Uma faixa do quadro 6, **já completa**: os dois limites em dias e quantas ocorrências em aberto caem
+ * nela. `ateDias: null` é a faixa sem teto, e o `null` aqui diz *não há teto* — o mesmo uso que `amostra`
+ * recebeu no item 58, onde `null` diz *não se aplica* e nunca *zero*.
+ *
+ * **Nenhum rótulo viaja.** `statusRotulo` existe porque o texto do status depende de quem lê; o rótulo da
+ * faixa não depende de leitor nenhum — ele é os dois números escritos em português, e escrevê-los é da
+ * tela. É o mesmo corte do item 55, que deixou a unidade de tempo para a tela.
+ */
+export type FaixaDeIdadeLida = { deDias: number; ateDias: number | null; quantidade: number };
+
 /** O schema `Dashboard` do contrato, ainda sem o `statusRotulo` — quem o acrescenta é a projeção. */
 export type DashboardLido = {
   periodo: Janela;
   backlogPorStatus: readonly ContagemPorStatus[];
   abertasPorCategoria: readonly ContagemPorCategoria[];
+  abertasPorIdade: readonly FaixaDeIdadeLida[];
   mediaDasAvaliacoes: MediaDasAvaliacoes;
   recorrenciaPorCategoria: readonly SerieDeCategoria[];
   recorrenciaPorArea: readonly SerieDeArea[];
@@ -81,18 +97,20 @@ export async function verDashboard(
   const periodo = resolverJanela({ de: pedido.de, ate: pedido.ate }, pedido.agora);
   const meses = mesesDaJanela(periodo);
 
-  const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
+  const [status, categorias, porCategoria, porArea, resolucoes, idades] = await Promise.all([
     repositorio.backlogPorStatus(),
     repositorio.abertasPorCategoria(),
     repositorio.recorrenciaPorCategoria(periodo),
     repositorio.recorrenciaPorArea(periodo),
     repositorio.resolucoesPorMes(periodo),
+    repositorio.abertasPorIdade(),
   ]);
 
   return {
     periodo,
     backlogPorStatus: comOsSeisStatus(status),
     abertasPorCategoria: categorias,
+    abertasPorIdade: comTodasAsFaixas(idades),
     mediaDasAvaliacoes: mediaDe(resolucoes),
     recorrenciaPorCategoria: agrupar(
       porCategoria,
@@ -139,6 +157,27 @@ function arredondarHoras(valor: number): number {
 function comOsSeisStatus(lidas: readonly ContagemPorStatus[]): readonly ContagemPorStatus[] {
   const porStatus = new Map(lidas.map((linha) => [linha.status, linha.quantidade]));
   return STATUS.map((status) => ({ status, quantidade: porStatus.get(status) ?? 0 }));
+}
+
+/**
+ * **As quatro, sempre, na ordem crescente** — que é a ordem de `FAIXAS_DE_IDADE` (`portas.ts`).
+ *
+ * O critério 59.2 pede a estrutura com zeros, e a consulta não a produz: um `group by` não inventa grupo
+ * sem linha. É o mesmo par de `comOsSeisStatus` com `STATUS`, e pela mesma razão de portão — a regra de
+ * produto mora aqui, onde o `npm run verificar` a confere.
+ *
+ * **A ordem cai de graça:** ela é a da constante, e o `order by 1` da consulta deixa de importar para a
+ * resposta.
+ */
+function comTodasAsFaixas(
+  lidas: readonly ContagemPorFaixaDeIdade[],
+): readonly FaixaDeIdadeLida[] {
+  const porFaixa = new Map(lidas.map((linha) => [linha.faixa, linha.quantidade]));
+  return FAIXAS_DE_IDADE.map((faixa, i) => ({
+    deDias: faixa.deDias,
+    ateDias: faixa.ateDias,
+    quantidade: porFaixa.get(i) ?? 0,
+  }));
 }
 
 /**

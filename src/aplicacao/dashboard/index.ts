@@ -10,11 +10,13 @@ export {
   type JanelaPedida,
 } from "./janela";
 
-export { AMOSTRA_PEQUENA } from "./portas";
+export { AMOSTRA_PEQUENA, FAIXAS_DE_IDADE, LIMITES_DAS_FAIXAS_DE_IDADE } from "./portas";
 
 export type {
   ContagemPorCategoria,
+  ContagemPorFaixaDeIdade,
   ContagemPorStatus,
+  FaixaDeIdade,
   LinhaDeResolucao,
   PontoDeArea,
   PontoDeCategoria,
@@ -25,6 +27,7 @@ export type {
 export {
   verDashboard,
   type DashboardLido,
+  type FaixaDeIdadeLida,
   type MediaDasAvaliacoes,
   type MesDeResolucao,
   type PontoDoMes,

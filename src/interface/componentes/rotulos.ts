@@ -537,7 +537,7 @@ export type PermissaoDeTela = (typeof PERMISSOES_DE_TELA)[number];
 /**
  * **A frase de quem usa a tela é por permissão, e não por página.** A prancheta escreve a de
  * configuração; as outras duas seguem a mesma construção, com a palavra de *Participante* (*participa*)
- * e a dos cinco blocos do dashboard (*indicadores*).
+ * e a dos seis blocos do dashboard (*indicadores*).
  */
 export const QUEM_USA_A_TELA: Readonly<Record<PermissaoDeTela, string>> = {
   "organizacao.configurar": "Esta página é de quem configura a organização.",

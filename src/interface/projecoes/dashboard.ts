@@ -32,6 +32,7 @@ export type DashboardProjetado = {
     categoria: { id: string; nome: string };
     quantidade: number;
   }[];
+  abertasPorIdade: readonly { deDias: number; ateDias: number | null; quantidade: number }[];
   mediaDasAvaliacoes: { media: number | null; avaliadas: number; resolvidas: number };
   recorrenciaPorCategoria: readonly {
     categoria: { id: string; nome: string };
@@ -73,6 +74,11 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
     abertasPorCategoria: lido.abertasPorCategoria.map((linha) => ({
       categoria: { id: linha.categoria.id, nome: linha.categoria.nome },
       quantidade: linha.quantidade,
+    })),
+    abertasPorIdade: lido.abertasPorIdade.map((faixa) => ({
+      deDias: faixa.deDias,
+      ateDias: faixa.ateDias,
+      quantidade: faixa.quantidade,
     })),
     mediaDasAvaliacoes: {
       media: lido.mediaDasAvaliacoes.media,

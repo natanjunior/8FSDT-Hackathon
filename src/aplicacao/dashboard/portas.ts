@@ -8,7 +8,7 @@ import type { Janela } from "./janela";
  *  O que o dashboard lê — e repare no que NÃO está aqui: escrita
  * ============================================================================
  *
- * **Cinco métodos, os cinco de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
+ * **Seis métodos, os seis de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
  * por teste; aqui ela é provada pela **assinatura**: não existe método por onde este módulo grave. É o
  * primeiro modelo de leitura do projeto que não convive com escrita no mesmo repositório.
  *
@@ -34,6 +34,45 @@ import type { Janela } from "./janela";
  * uma regra que o portão nunca confere.
  */
 export const AMOSTRA_PEQUENA = 3;
+
+/**
+ * **Os três limites das faixas de idade, em dias inteiros.** Trocar esta linha move a consulta, a
+ * resposta e os rótulos da tela, e mais nada.
+ *
+ * `0–7 · 8–30 · 31–90 · 90+` — a escolha é de quem opera, e o domínio decidiu: manutenção predial e
+ * condomínio, onde uma semana ainda é prazo razoável para uma lâmpada ou um portão. O corte de suporte de
+ * TI — `0–2 · 3–7` — trataria como atrasado o que aqui é normal, e a primeira faixa ficaria cheia todo
+ * dia.
+ *
+ * **Ela mora aqui pela razão de `AMOSTRA_PEQUENA`:** descreve o que `abertasPorIdade` devolve, que é o
+ * contrato entre a Aplicação e o repositório. O SQL a interpola, como já faz com `FUSO` e `TERMINAIS`; a
+ * Aplicação deriva dela as faixas e completa os zeros; a resposta publica os dois números de cada faixa.
+ * **Nenhum dos três escreve `7`, `30` ou `90`.**
+ *
+ * **Quantas faixas existem também sai daqui.** Um quarto limite acrescentado à lista cria uma quinta
+ * faixa em toda a corrente, sem uma linha a mais em lugar nenhum.
+ */
+export const LIMITES_DAS_FAIXAS_DE_IDADE = [7, 30, 90] as const;
+
+/** Uma faixa de idade, em dias. `ateDias: null` é a faixa sem teto — a mais velha. */
+export type FaixaDeIdade = { deDias: number; ateDias: number | null };
+
+/**
+ * As quatro faixas, **derivadas** dos limites e nunca escritas à mão — uma segunda lista seria a que
+ * esquece de crescer quando um limite entrar.
+ *
+ * O `?? -1` é o começo da primeira: não há limite anterior ao índice `0`, e `-1 + 1` é `0`.
+ */
+export const FAIXAS_DE_IDADE: readonly FaixaDeIdade[] = [
+  ...LIMITES_DAS_FAIXAS_DE_IDADE,
+  null,
+].map((ateDias, i) => ({ deDias: (LIMITES_DAS_FAIXAS_DE_IDADE[i - 1] ?? -1) + 1, ateDias }));
+
+/**
+ * Uma contagem por faixa, **como o banco a devolve**: `faixa` é o índice em `FAIXAS_DE_IDADE`, e só vêm
+ * as faixas que têm alguém. Quem completa as vazias é o envelope, como faz com os seis status.
+ */
+export type ContagemPorFaixaDeIdade = { faixa: number; quantidade: number };
 
 /** Uma contagem do backlog por status. **Só o que o banco tem** — quem completa os seis é o envelope. */
 export type ContagemPorStatus = { status: StatusOcorrencia; quantidade: number };
@@ -106,6 +145,20 @@ export interface RepositorioEscopadoDeDashboard {
    * trabalho nela.
    */
   abertasPorCategoria(): Promise<readonly ContagemPorCategoria[]>;
+  /**
+   * **Fotografia de agora**, a terceira — e a única que olha para o tempo do que **não** terminou.
+   *
+   * Conta o mesmo conjunto que `abertasPorCategoria` — os quatro status não terminais —, por outro corte:
+   * há quanto tempo cada uma está aberta. **As duas somas fecham**, e é a propriedade que nenhum schema
+   * declara: ela vive em dois `where` que ninguém obriga a concordar, e por isso tem prova de integração
+   * e prova de tela.
+   *
+   * **Devolve só as faixas que têm alguém.** As quatro que a resposta publica são completadas pelo
+   * envelope, a partir de `FAIXAS_DE_IDADE` — a mesma divisão de `backlogPorStatus` e dos seis status.
+   *
+   * **Sem parâmetro, como as duas irmãs:** não há como uma data de quem chama alcançar esta consulta.
+   */
+  abertasPorIdade(): Promise<readonly ContagemPorFaixaDeIdade[]>;
   /** Série mensal por categoria, dentro da janela, recortada por `ocorrencias.registrada_em`. */
   recorrenciaPorCategoria(janela: Janela): Promise<readonly PontoDeCategoria[]>;
   /** Série mensal por área, dentro da janela, recortada por `ocorrencias.registrada_em`. */

@@ -2419,7 +2419,7 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os cinco indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
+        Os seis indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
         aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
@@ -2429,6 +2429,11 @@ paths:
         **Os dois blocos de fotografia contam conjuntos diferentes, e não somam o mesmo número.**
         `backlogPorStatus` conta tudo o que a organização registrou, inclusive o que já terminou;
         `abertasPorCategoria` conta só o que está em aberto. A tela escreve isso nos dois quadros.
+
+        **O painel conta também a idade do que está em aberto, e é o único número que olha para o que
+        NÃO terminou.** Os outros saem do que já acabou — uma operação que deixasse os casos difíceis de
+        lado veria os indicadores melhorarem. `abertasPorIdade` conta o mesmo conjunto que
+        `abertasPorCategoria`, por outro corte, e as duas somas fecham.
 
         **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
         em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
@@ -2444,8 +2449,8 @@ paths:
         mentir.
 
         *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); ocorrências por status, em
-        aberto por categoria, média das avaliações, recorrência por categoria e área, e tempo de
-        resolução mês a mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
+        aberto por categoria, média das avaliações, recorrência por categoria e área, tempo de
+        resolução mês a mês, e idade do que está em aberto por faixa · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
       parameters:
         - name: de
           in: query
@@ -2477,6 +2482,11 @@ paths:
                 abertasPorCategoria:
                   - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8 }
                   - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6 }
+                abertasPorIdade:
+                  - { deDias: 0, ateDias: 7, quantidade: 12 }
+                  - { deDias: 8, ateDias: 30, quantidade: 5 }
+                  - { deDias: 31, ateDias: 90, quantidade: 2 }
+                  - { deDias: 91, ateDias: null, quantidade: 1 }
                 mediaDasAvaliacoes: { media: 4.3, avaliadas: 31, resolvidas: 47 }
                 recorrenciaPorCategoria:
                   - categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
@@ -3676,7 +3686,10 @@ components:
 
         Os dois blocos de fotografia contam conjuntos diferentes e **não somam o mesmo número**: um conta
         tudo o que existe, o outro só o que está em aberto.
-      required: [periodo, backlogPorStatus, abertasPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoDeResolucao]
+
+        `abertasPorIdade` é a terceira fotografia, e a única que olha para o tempo do que ainda não
+        terminou.
+      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoDeResolucao]
       properties:
         periodo:
           type: object
@@ -3708,6 +3721,30 @@ components:
                 properties:
                   id: { type: string, format: uuid }
                   nome: { type: string }
+              quantidade: { type: integer }
+        abertasPorIdade:
+          type: array
+          description: |
+            Quantas ocorrências **não terminais** existem agora em cada faixa de idade. Conta o mesmo
+            conjunto que `abertasPorCategoria`, por outro corte — e as duas somas fecham.
+
+            A idade é o tempo de **calendário** desde `registrada_em`, em dias inteiros, com o período
+            pausado dentro dela, como no tempo de resolução. Ignora a janela `de`/`ate`: é fotografia de
+            agora.
+
+            **As quatro faixas vêm sempre, mesmo a zero**, em ordem crescente de idade — a estrutura
+            ensina o que vai ser medido a quem ainda não tem volume. Cada uma publica os **próprios
+            limites em dias** em vez de um nome: os limites são escolha de quem opera, e publicá-los é o
+            que permite trocá-los sem mudar o formato da resposta. `ateDias: null` é a faixa sem teto, a
+            mais velha.
+
+            **Nenhum rótulo viaja.** O texto de cada faixa é os dois números escritos em português, e
+            escrevê-lo é do cliente — ao contrário de `statusRotulo`, que depende de quem lê.
+          items:
+            type: object
+            properties:
+              deDias: { type: integer }
+              ateDias: { type: [integer, "null"] }
               quantidade: { type: integer }
         mediaDasAvaliacoes:
           type: object

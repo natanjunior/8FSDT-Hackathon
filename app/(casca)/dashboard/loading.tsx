@@ -3,10 +3,10 @@
  * requisição que passe de ~2 s ganha o texto"*, e o texto **não promete prazo**.
  *
  * **Vale aqui mesmo não sendo a primeira requisição da sessão**, e é a única tela do produto em que isso
- * precisa ser dito: são **cinco agregações numa chamada só**, a requisição mais pesada do produto.
+ * precisa ser dito: são **seis agregações numa chamada só**, a requisição mais pesada do produto.
  *
  * O esqueleto tem a forma **desta** tela: a faixa de período, o bloco largo da recorrência — o gráfico à
- * esquerda e a lista de áreas à direita — e os quatro blocos em duas colunas. A marca saiu daqui no item
+ * esquerda e a lista de áreas à direita — e os cinco blocos em duas colunas. A marca saiu daqui no item
  * 44e, pelo mesmo motivo que saiu da página: a barra superior da casca já a pinta. Os títulos não entram
  * no esqueleto porque a página os desenha assim que existe.
  */
@@ -30,6 +30,7 @@ export default function EsperandoODashboard() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
+          <div className="bg-secondary h-44 animate-pulse rounded-lg" />
           <div className="bg-secondary h-44 animate-pulse rounded-lg" />
           <div className="bg-secondary h-44 animate-pulse rounded-lg" />
           <div className="bg-secondary h-44 animate-pulse rounded-lg" />

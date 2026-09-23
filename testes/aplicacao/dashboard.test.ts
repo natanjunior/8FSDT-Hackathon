@@ -77,6 +77,7 @@ describe("o eixo dos meses — do envelope, e um só para as duas séries", () =
 
 import type {
   ContagemPorCategoria,
+  ContagemPorFaixaDeIdade,
   ContagemPorStatus,
   Janela,
   LinhaDeResolucao,
@@ -84,7 +85,7 @@ import type {
   PontoDeCategoria,
   RepositorioEscopadoDeDashboard,
 } from "@/aplicacao/dashboard";
-import { verDashboard } from "@/aplicacao/dashboard";
+import { FAIXAS_DE_IDADE, verDashboard } from "@/aplicacao/dashboard";
 
 /** As áreas do duplo, na forma do `AreaLida` — cinco campos, como o schema `Area` exige. */
 const GARAGEM = { id: "a-1", nome: "Garagem", tipo: "comum" as const, ativa: true, ordem: 1 };
@@ -96,13 +97,14 @@ type Dados = {
   porCategoria?: readonly PontoDeCategoria[];
   porArea?: readonly PontoDeArea[];
   resolucoes?: readonly LinhaDeResolucao[];
+  idades?: readonly ContagemPorFaixaDeIdade[];
 };
 
 /**
  * O duplo em memória — **é o que a ADR-0005 comprou**: substituir o repositório é passar outro argumento.
  *
- * Ele **anota o que recebeu**, e é assim que o critério 33.2 se prova: os dois métodos de fotografia não têm
- * parâmetro nenhum na assinatura, então não há como a janela alcançá-los.
+ * Ele **anota o que recebeu**, e é assim que o critério 33.2 se prova: os três métodos de fotografia não
+ * têm parâmetro nenhum na assinatura, então não há como a janela alcançá-los.
  */
 function repositorioEmMemoria(dados: Dados) {
   const chamadas: string[] = [];
@@ -116,6 +118,10 @@ function repositorioEmMemoria(dados: Dados) {
     abertasPorCategoria: () => {
       chamadas.push("abertasPorCategoria");
       return Promise.resolve(dados.categorias ?? []);
+    },
+    abertasPorIdade: () => {
+      chamadas.push("abertasPorIdade");
+      return Promise.resolve(dados.idades ?? []);
     },
     recorrenciaPorCategoria: (janela) => {
       chamadas.push("recorrenciaPorCategoria");
@@ -147,11 +153,12 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     expect(lido.periodo).toStrictEqual(TRES_MESES);
   });
 
-  it("lê as cinco fontes e mais nada — a porta não tem escrita", async () => {
+  it("lê as seis fontes e mais nada — a porta não tem escrita", async () => {
     const { repositorio, chamadas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect([...chamadas].sort()).toStrictEqual([
       "abertasPorCategoria",
+      "abertasPorIdade",
       "backlogPorStatus",
       "recorrenciaPorArea",
       "recorrenciaPorCategoria",
@@ -159,7 +166,7 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     ]);
   });
 
-  it("passa a MESMA janela às três séries, e nenhuma aos dois de fotografia", async () => {
+  it("passa a MESMA janela às três séries, e nenhuma aos três de fotografia", async () => {
     const { repositorio, janelas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(janelas).toStrictEqual([TRES_MESES, TRES_MESES, TRES_MESES]);
@@ -387,5 +394,60 @@ describe("a média das avaliações — derivada das MESMAS linhas do tempo de r
     const somaDaSerie = lido.tempoDeResolucao.porMes.reduce((t, m) => t + m.resolvidas, 0);
     expect(lido.mediaDasAvaliacoes.resolvidas).toBe(somaDaSerie);
     expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: 4.5, avaliadas: 6, resolvidas: 14 });
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  As faixas de idade — item 59, critérios 2 e 6
+ * ---------------------------------------------------------------------------
+ *
+ * **A regra de produto mora aqui, e não no SQL**, pela mesma razão do item 58: `npm run verificar` não
+ * roda o projeto de integração, então uma regra que só vivesse na consulta seria uma regra que o portão
+ * nunca confere. O `group by` do banco não produz grupo sem linha; quem publica as quatro sempre é este
+ * módulo.
+ */
+describe("as quatro faixas de idade — sempre todas, na ordem crescente", () => {
+  it("o banco devolve UMA faixa e o envelope publica as quatro, com zero nas outras três", async () => {
+    const { repositorio } = repositorioEmMemoria({ idades: [{ faixa: 2, quantidade: 5 }] });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.abertasPorIdade).toStrictEqual([
+      { deDias: 0, ateDias: 7, quantidade: 0 },
+      { deDias: 8, ateDias: 30, quantidade: 0 },
+      { deDias: 31, ateDias: 90, quantidade: 5 },
+      { deDias: 91, ateDias: null, quantidade: 0 },
+    ]);
+  });
+
+  it("a organização recém-criada vê as quatro a zero — é a estrutura ensinando o que vai ser medido", async () => {
+    const { repositorio } = repositorioEmMemoria({ idades: [] });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.abertasPorIdade.map((faixa) => faixa.quantidade)).toStrictEqual([0, 0, 0, 0]);
+    expect(lido.abertasPorIdade).toHaveLength(FAIXAS_DE_IDADE.length);
+  });
+
+  it("a ordem publicada é a das faixas, mesmo com o banco devolvendo fora de ordem", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      idades: [
+        { faixa: 3, quantidade: 1 },
+        { faixa: 0, quantidade: 12 },
+        { faixa: 2, quantidade: 2 },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+
+    expect(lido.abertasPorIdade.map((faixa) => faixa.deDias)).toStrictEqual([0, 8, 31, 91]);
+    expect(lido.abertasPorIdade.map((faixa) => faixa.quantidade)).toStrictEqual([12, 0, 2, 1]);
+  });
+
+  it("a faixa mais velha é a última, e é a única sem teto", async () => {
+    const { repositorio } = repositorioEmMemoria({});
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    const semTeto = lido.abertasPorIdade.filter((faixa) => faixa.ateDias === null);
+
+    expect(semTeto).toHaveLength(1);
+    expect(lido.abertasPorIdade.at(-1)?.ateDias).toBeNull();
   });
 });
