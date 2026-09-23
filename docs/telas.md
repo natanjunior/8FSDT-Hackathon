@@ -103,10 +103,15 @@ sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
 O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
 abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
 
-No painel, a API devolve o tempo de resolução em horas com uma casa, e **a unidade que se lê é escolha da
+No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
 tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas inteiras, e acima disso
 escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
 zero hora.
+
+O quadro *Tempo de resolução* do painel mostra, por mês, a mediana e o p90 das resoluções daquele mês, com
+quantas foram. A mediana diz como foi o caso do meio; o p90 diz como foi o décimo pior atendimento, e é
+nele que há o que corrigir. Mês com três resoluções ou menos aparece com as durações escritas uma a uma,
+porque um percentil sobre três pontos descreveria mais do que três pontos sustentam.
 
 No painel, o quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as
 canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois não somam o mesmo número**,

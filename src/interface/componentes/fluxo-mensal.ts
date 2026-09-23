@@ -6,7 +6,7 @@
  * **Duas séries que já chegam prontas, cruzadas por mês.** A soma das séries de
  * `recorrenciaPorCategoria` num mês é quanto foi registrado naquele mês — `ocorrencias.categoria_id` é
  * `not null` e a consulta recorta a janela por `registrada_em`, então nenhuma ocorrência fica fora de uma
- * categoria. E `tempoMedioDeResolucao.porMes[].resolvidas` é quanto saiu. **Nenhuma consulta nova e
+ * categoria. E `tempoDeResolucao.porMes[].resolvidas` é quanto saiu. **Nenhuma consulta nova e
  * nenhum campo novo** — é o critério 57.1, e é o que faz deste o item mais barato da leva.
  *
  * **Módulo puro, sem um único `import`, e é por isso que ele não mora no componente.** O critério 57.1
@@ -40,7 +40,7 @@ export type LinhaDoFluxoMensal = {
 /**
  * Cruza as duas séries mês a mês, sobre o eixo que `rotulos` define.
  *
- * O eixo vem de fora porque quem o monta é o bloco 4: `tempoMedioDeResolucao.porMes` é a única série que
+ * O eixo vem de fora porque quem o monta é o bloco 4: `tempoDeResolucao.porMes` é a única série que
  * o contrato garante sem buraco. **O nome da categoria não entra aqui** — o que se soma é a contagem, e
  * quem responde *onde* e *o quê* são as duas listas do mesmo bloco.
  */

@@ -1,4 +1,5 @@
 import {
+  AMOSTRA_PEQUENA,
   FUSO,
   type ContagemPorCategoria,
   type ContagemPorStatus,
@@ -42,7 +43,7 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
  *
  * **Os `::int` e o `::float8` não são decoração.** O `pg` devolve `numeric` como **string**, para não
  * perder precisão. `count(*)` é `bigint` e `sum(...)` é `numeric`; sem os *casts*, `quantidade` chegaria
- * como `"12"` e a soma de horas como `"373.5"`, e o envelope somaria strings sem reclamar.
+ * como `"12"` e a soma das notas como `"18"`, e o envelope somaria strings sem reclamar.
  */
 
 /** Os terminais como literais SQL, `'resolvida', 'cancelada'` — ver a nota de interpolação acima. */
@@ -56,6 +57,19 @@ const mesDe = (coluna: string): string =>
   `to_char(date_trunc('month', ${coluna} at time zone '${FUSO}'), 'YYYY-MM')`;
 const mesTruncadoDe = (coluna: string): string =>
   `date_trunc('month', ${coluna} at time zone '${FUSO}')`;
+
+/**
+ * A duração de uma resolução em horas — **tempo de calendário, com as pausas** (critério 36.3).
+ *
+ * **Extraída para constante porque aparece quatro vezes** na consulta: nos dois `percentile_cont`, e duas
+ * vezes dentro do `array_agg` (no valor e na ordenação). Quatro cópias de uma expressão de tempo é a
+ * quarta que diverge.
+ *
+ * **O `::float8` fica aqui, e é aqui que ele é necessário.** `extract(epoch from …)` devolve `numeric`, e
+ * o `pg` entrega `numeric` como string. `percentile_cont` sobre `float8` devolve `float8`, e `float8[]`
+ * chega como array de números — então nenhum dos três campos novos precisa de cast próprio.
+ */
+const HORAS_ATE_A_RESOLUCAO = `(extract(epoch from (r.ocorreu_em - o.registrada_em)) / 3600.0)::float8`;
 
 const SELECT_DO_BACKLOG_POR_STATUS = `
   select o.status, count(*)::int as quantidade
@@ -153,11 +167,27 @@ const SELECT_DA_RECORRENCIA_POR_AREA = `
  *
  * **Tempo de CALENDÁRIO, com as pausas** (critério 36.3): a diferença é entre o instante da resolução e o
  * `registrada_em` da ocorrência, sem descontar nada.
+ *
+ * **Mediana e p90 por `percentile_cont`, que é o percentil CONTÍNUO** — ele ordena as durações, calcula o
+ * índice `fração × (n − 1)` e **interpola linearmente** entre os dois vizinhos desse índice.
+ * `percentile_disc` devolveria sempre um valor observado, e daria outro número sobre os mesmos dados. O
+ * método fica escrito aqui e em `docs/api.md` porque quem lê o número precisa saber qual dos dois é.
+ *
+ * **Nenhuma ida a mais ao banco, nenhum índice novo** (critério 58.1): é a mesma varredura, o mesmo
+ * `group by` e as mesmas linhas. O custo a mais é a ordenação dentro de cada grupo.
+ *
+ * **O `case` do `array_agg` é economia de transporte, e não a regra de produto** — essa mora na
+ * Aplicação, com a mesma constante `AMOSTRA_PEQUENA`.
  */
 const SELECT_DAS_RESOLUCOES = `
   select ${mesDe("r.ocorreu_em")} as mes,
          count(*)::int as resolvidas,
-         sum(extract(epoch from (r.ocorreu_em - o.registrada_em)) / 3600.0)::float8 as soma_de_horas,
+         percentile_cont(0.5) within group (order by ${HORAS_ATE_A_RESOLUCAO}) as mediana_de_horas,
+         percentile_cont(0.9) within group (order by ${HORAS_ATE_A_RESOLUCAO}) as p90_de_horas,
+         case when count(*) <= ${String(AMOSTRA_PEQUENA)}
+              then array_agg(${HORAS_ATE_A_RESOLUCAO} order by ${HORAS_ATE_A_RESOLUCAO})
+              else '{}'::float8[]
+         end as amostra_em_horas,
          count(o.avaliacao_nota)::int as avaliadas,
          coalesce(sum(o.avaliacao_nota), 0)::int as soma_das_notas
     from registros_transicao r
@@ -184,7 +214,9 @@ type LinhaDeAreaMensal = {
 type LinhaDeResolucaoDoBanco = {
   mes: string;
   resolvidas: number;
-  soma_de_horas: number;
+  mediana_de_horas: number;
+  p90_de_horas: number;
+  amostra_em_horas: number[];
   avaliadas: number;
   soma_das_notas: number;
 };
@@ -244,7 +276,9 @@ export function repositorioEscopadoDeDashboard(
       return linhas.map((linha) => ({
         mes: linha.mes,
         resolvidas: linha.resolvidas,
-        somaDeHoras: linha.soma_de_horas,
+        medianaDeHoras: linha.mediana_de_horas,
+        p90DeHoras: linha.p90_de_horas,
+        amostraEmHoras: linha.amostra_em_horas,
         avaliadas: linha.avaliadas,
         somaDasNotas: linha.soma_das_notas,
       }));

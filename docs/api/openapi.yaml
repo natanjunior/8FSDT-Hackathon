@@ -2434,15 +2434,17 @@ paths:
         em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
         do reativo.
 
-        `mediaDasAvaliacoes` e `tempoMedioDeResolucao` vêm com o denominador de propósito: sem ele, a média
-        mente quando poucos avaliam, e a duração média mente quando o mês teve duas resoluções.
+        `mediaDasAvaliacoes` e `tempoDeResolucao` vêm com o denominador de propósito: sem ele, a média
+        mente quando poucos avaliam, e o percentil mente quando o mês teve duas resoluções.
 
-        `tempoMedioDeResolucao` é **tempo de calendário** — do registro à resolução, pausas incluídas.
-        Separar calendário de tempo ativo é evolução prevista. Mês sem nenhuma resolução aparece com
-        `horas: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico mentir.
+        `tempoDeResolucao` é **tempo de calendário** — do registro à resolução, pausas incluídas.
+        Separar calendário de tempo ativo é evolução prevista. Cada mês traz a **mediana** e o **p90**, e
+        não a média: duração de atendimento tem cauda longa. Mês sem nenhuma resolução aparece com
+        `mediana: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico
+        mentir.
 
         *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); ocorrências por status, em
-        aberto por categoria, média das avaliações, recorrência por categoria e área, e tempo médio de
+        aberto por categoria, média das avaliações, recorrência por categoria e área, e tempo de
         resolução mês a mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
       parameters:
         - name: de
@@ -2488,11 +2490,11 @@ paths:
                       - { mes: "2026-06", quantidade: 2 }
                       - { mes: "2026-07", quantidade: 6 }
                       - { mes: "2026-08", quantidade: 4 }
-                tempoMedioDeResolucao:
+                tempoDeResolucao:
                   porMes:
-                    - { mes: "2026-06", horas: 52.4, resolvidas: 11 }
-                    - { mes: "2026-07", horas: 41.5, resolvidas: 9 }
-                    - { mes: "2026-08", horas: null, resolvidas: 0 }
+                    - { mes: "2026-06", mediana: 10.42, p90: 92.5, amostra: null, resolvidas: 11 }
+                    - { mes: "2026-07", mediana: 0.2, p90: null, amostra: [0.07, 0.2, 1.54], resolvidas: 3 }
+                    - { mes: "2026-08", mediana: null, p90: null, amostra: null, resolvidas: 0 }
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
@@ -3674,7 +3676,7 @@ components:
 
         Os dois blocos de fotografia contam conjuntos diferentes e **não somam o mesmo número**: um conta
         tudo o que existe, o outro só o que está em aberto.
-      required: [periodo, backlogPorStatus, abertasPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoMedioDeResolucao]
+      required: [periodo, backlogPorStatus, abertasPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoDeResolucao]
       properties:
         periodo:
           type: object
@@ -3719,7 +3721,7 @@ components:
             período. `resolvidas` conta as ocorrências resolvidas dentro da janela; `avaliadas` conta
             quantas **dessas** foram avaliadas; `media` é a média **dessas** notas. É o que mantém
             `avaliadas ≤ resolvidas` por construção, e o que faz `resolvidas` fechar com a soma de
-            `tempoMedioDeResolucao.porMes[].resolvidas` na mesma janela. **Nunca ancorada em `avaliada_em`:**
+            `tempoDeResolucao.porMes[].resolvidas` na mesma janela. **Nunca ancorada em `avaliada_em`:**
             avaliação que chega depois do fim da janela conta na janela em que a ocorrência foi resolvida.
             *(Acrescentado em 30/08/2026 — decisão do hub de 29/08/2026; nenhuma mudança de forma. Item 27
             da fila da frente de documentação.)*
@@ -3760,11 +3762,17 @@ components:
                   properties:
                     mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
                     quantidade: { type: integer }
-        tempoMedioDeResolucao:
+        tempoDeResolucao:
           type: object
           description: |
-            Tempo médio de calendário entre o registro e a resolução, mês a mês, dentro da janela. Se está
+            O tempo de calendário entre o registro e a resolução, resumido mês a mês dentro da janela.
+            **Dois números por mês, e nenhum deles é a média**: duração de atendimento tem cauda longa, e
+            a média sobe acima do caso típico por causa de poucos casos arrastados. Se a mediana está
             subindo, o problema é estrutural — gente, fornecedor, orçamento.
+
+            **O método do percentil é a interpolação linear** (`percentile_cont`): as durações do mês são
+            ordenadas, o índice sai da fração multiplicada por `n − 1`, e o valor sai da interpolação
+            entre os dois vizinhos desse índice. Outro método devolve outro número sobre os mesmos dados.
           properties:
             porMes:
               type: array
@@ -3772,9 +3780,24 @@ components:
                 type: object
                 properties:
                   mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
-                  horas:
+                  mediana:
                     type: [number, "null"]
-                    description: "`null` quando o mês não teve nenhuma resolução — o mês continua na série."
+                    description: >-
+                      A duração do caso do meio, em horas. `null` quando o mês não teve nenhuma
+                      resolução — o mês continua na série.
+                  p90:
+                    type: [number, "null"]
+                    description: >-
+                      Percentil 90 em horas, por interpolação linear entre os dois valores vizinhos do
+                      índice. `null` quando o mês teve três resoluções ou menos, porque um percentil
+                      sobre três pontos descreveria mais do que três pontos sustentam.
+                  amostra:
+                    type: [array, "null"]
+                    items: { type: number }
+                    description: >-
+                      As durações cruas do mês, em horas e em ordem crescente, quando ele teve três
+                      resoluções ou menos. `null` acima disso: `null` diz que não se aplica, e uma lista
+                      vazia diria que não houve resolução, que já tem representação.
                   resolvidas:
                     type: integer
-                    description: O denominador. Sem ele, a média de um mês com duas resoluções parece igual à de um mês com trinta.
+                    description: O denominador. Sem ele, um mês com duas resoluções parece igual a um mês com trinta.

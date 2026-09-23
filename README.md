@@ -300,7 +300,7 @@ mesmas que o `migrar` usa.
 
 ### A demonstração
 
-O produto sem dado não se demonstra: *recorrência por categoria* e *tempo médio de resolução, mês a mês*
+O produto sem dado não se demonstra: *recorrência por categoria* e *tempo de resolução, mês a mês*
 são séries mensais, e cinco semanas de uso real cabem em um mês e meio. A semente escreve cinco meses
 de ocorrências pelas mesmas portas que o produto usa, nenhum `INSERT` administrativo, nenhuma data
 corrigida depois do fato.

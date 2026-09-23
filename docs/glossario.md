@@ -71,4 +71,5 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Termo | Definição | Não confundir com |
 |---|---|---|
 | Tempo de resolução | Do registro até a resolução, em tempo de calendário, incluindo o período pausado | Tempo de trabalho, que descontaria as pausas e não é o que o painel mostra |
+| Mediana e p90 | Os dois números com que o painel resume o tempo de resolução de um mês: a mediana é o caso do meio, e o p90 é o décimo pior atendimento | Média, que a cauda longa dos casos arrastados puxa para cima do caso típico |
 | Recorrência | Volume de ocorrências por Categoria e por Área ao longo do tempo. É o que distingue oito chamados avulsos de uma obra que falta | Duplicidade, que é o mesmo problema relatado duas vezes |

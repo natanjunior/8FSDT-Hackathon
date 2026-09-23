@@ -226,41 +226,165 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
     expect(lido.recorrenciaPorArea).toStrictEqual([]);
   });
 
-  it("mês sem resolução fica na série, com horas nula e o denominador em zero", async () => {
+  it("mês sem resolução fica na série, com os três nulos e o denominador em zero", async () => {
     const { repositorio } = repositorioEmMemoria({
       resolucoes: [
-        { mes: "2026-06", resolvidas: 5, somaDeHoras: 360, avaliadas: 2, somaDasNotas: 9 },
-        { mes: "2026-08", resolvidas: 9, somaDeHoras: 373.5, avaliadas: 4, somaDasNotas: 18 },
+        {
+          mes: "2026-06",
+          resolvidas: 5,
+          medianaDeHoras: 12,
+          p90DeHoras: 72,
+          amostraEmHoras: [],
+          avaliadas: 2,
+          somaDasNotas: 9,
+        },
+        {
+          mes: "2026-08",
+          resolvidas: 9,
+          medianaDeHoras: 41.5,
+          p90DeHoras: 200,
+          amostraEmHoras: [],
+          avaliadas: 4,
+          somaDasNotas: 18,
+        },
       ],
     });
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
-    expect(lido.tempoMedioDeResolucao.porMes).toStrictEqual([
-      { mes: "2026-06", horas: 72, resolvidas: 5 },
-      { mes: "2026-07", horas: null, resolvidas: 0 },
-      { mes: "2026-08", horas: 41.5, resolvidas: 9 },
+    expect(lido.tempoDeResolucao.porMes).toStrictEqual([
+      { mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 },
+      { mes: "2026-07", mediana: null, p90: null, amostra: null, resolvidas: 0 },
+      { mes: "2026-08", mediana: 41.5, p90: 200, amostra: null, resolvidas: 9 },
     ]);
+  });
+
+  /**
+   * **A regra do critério 58.4 mora aqui, e é por isso que ela tem teste no laço curto.** O projeto de
+   * integração não está no `npm run verificar`; se a regra vivesse só no SQL, o portão nunca a conferiria.
+   */
+  it("mês com TRÊS resoluções publica as durações cruas e recusa o p90", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 3,
+          medianaDeHoras: 1,
+          p90DeHoras: 1.8,
+          amostraEmHoras: [0.5, 1, 2],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
+      mes: "2026-08",
+      mediana: 1,
+      p90: null,
+      amostra: [0.5, 1, 2],
+      resolvidas: 3,
+    });
+  });
+
+  /** O primeiro mês ACIMA do teto — um `<=` escrito como `<` passa despercebido em todo outro caso. */
+  it("mês com QUATRO resoluções publica o p90 e descarta a amostra", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 4,
+          medianaDeHoras: 1,
+          p90DeHoras: 1.9,
+          amostraEmHoras: [],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
+      mes: "2026-08",
+      mediana: 1,
+      p90: 1.9,
+      amostra: null,
+      resolvidas: 4,
+    });
+  });
+
+  /**
+   * **Duas casas, e o critério 55.2 é quem obriga.** Com uma casa, `0.028` h viraria `0.0` e a tela
+   * escreveria `0 min` — o zero que o item 55 acabou de tirar da tela. Com duas, o quantum é de 36
+   * segundos, abaixo do menor texto que a tela sabe escrever.
+   */
+  it("a amostra sai com DUAS casas, e um minuto e quarenta não vira zero", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 1,
+          medianaDeHoras: 0.0283,
+          p90DeHoras: 0.0283,
+          amostraEmHoras: [0.0283],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
+      mes: "2026-08",
+      mediana: 0.03,
+      p90: null,
+      amostra: [0.03],
+      resolvidas: 1,
+    });
   });
 });
 
-describe("a média das avaliações — derivada das MESMAS linhas do tempo médio", () => {
+describe("a média das avaliações — derivada das MESMAS linhas do tempo de resolução", () => {
   it("sem nenhuma avaliação, a média é null e o denominador continua contando", async () => {
     const { repositorio } = repositorioEmMemoria({
-      resolucoes: [{ mes: "2026-08", resolvidas: 3, somaDeHoras: 30, avaliadas: 0, somaDasNotas: 0 }],
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 3,
+          medianaDeHoras: 10,
+          p90DeHoras: 10,
+          amostraEmHoras: [5, 10, 15],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
     });
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: null, avaliadas: 0, resolvidas: 3 });
   });
 
-  it("critério 34.5: resolvidas é IGUAL à soma de tempoMedioDeResolucao.porMes[].resolvidas", async () => {
+  it("critério 34.5: resolvidas é IGUAL à soma de tempoDeResolucao.porMes[].resolvidas", async () => {
     const { repositorio } = repositorioEmMemoria({
       resolucoes: [
-        { mes: "2026-06", resolvidas: 5, somaDeHoras: 360, avaliadas: 2, somaDasNotas: 9 },
-        { mes: "2026-08", resolvidas: 9, somaDeHoras: 373.5, avaliadas: 4, somaDasNotas: 18 },
+        {
+          mes: "2026-06",
+          resolvidas: 5,
+          medianaDeHoras: 12,
+          p90DeHoras: 72,
+          amostraEmHoras: [],
+          avaliadas: 2,
+          somaDasNotas: 9,
+        },
+        {
+          mes: "2026-08",
+          resolvidas: 9,
+          medianaDeHoras: 41.5,
+          p90DeHoras: 200,
+          amostraEmHoras: [],
+          avaliadas: 4,
+          somaDasNotas: 18,
+        },
       ],
     });
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
 
-    const somaDaSerie = lido.tempoMedioDeResolucao.porMes.reduce((t, m) => t + m.resolvidas, 0);
+    const somaDaSerie = lido.tempoDeResolucao.porMes.reduce((t, m) => t + m.resolvidas, 0);
     expect(lido.mediaDasAvaliacoes.resolvidas).toBe(somaDaSerie);
     expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: 4.5, avaliadas: 6, resolvidas: 14 });
   });

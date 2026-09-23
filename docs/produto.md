@@ -72,7 +72,7 @@ O desenho da máquina, a tabela de transições permitidas e quem pode executar 
 ## O que o Gestor vê no painel
 
 Cinco indicadores, numa tela só: o total por estado, o que está em aberto por categoria, a média das
-avaliações, a recorrência por categoria e por área, e o tempo médio de resolução mês a mês.
+avaliações, a recorrência por categoria e por área, e o tempo de resolução mês a mês.
 
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, se a fila
 cresce ou encolhe, e se quem abriu ficou satisfeito.**
@@ -83,8 +83,9 @@ resolvidas, com os dois números em texto ao lado do desenho.
 A média das avaliações vem vazia enquanto ninguém tiver avaliado. Ao lado dela o painel mostra quantas
 ocorrências foram resolvidas e quantas dessas receberam nota, que é o que diz se a média tem base.
 
-**O tempo médio de resolução é de calendário**: conta do registro até a resolução e inclui o período em
-que a ocorrência ficou pausada. Pausar não melhora o número.
+**O tempo de resolução é de calendário**: conta do registro até a resolução e inclui o período em que a
+ocorrência ficou pausada. Pausar não melhora o número. O painel o resume em dois números por mês: a
+mediana, que é o caso do meio, e o p90, que é o décimo pior atendimento.
 
 ## O escopo desta versão
 

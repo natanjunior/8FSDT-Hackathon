@@ -11,7 +11,6 @@ import {
   type ItemDoMedidor,
   type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
-import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import {
   linhasDoFluxoMensal,
   textoDoFluxoMensal,
@@ -19,6 +18,7 @@ import {
 } from "@/interface/componentes/fluxo-mensal";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
+import { textoDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import {
@@ -35,7 +35,8 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * ============================================================================
  *
  * **A ordem é conteúdo**, e é numerada na tela: recorrência, ocorrências por status, em aberto por
- * categoria, tempo médio, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4). **Só o
+ * categoria, tempo de resolução, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4).
+ * **Só o
  * nº 1 carrega uma frase dizendo por que existe**, e é essa assimetria que faz a hierarquia sem usar cor.
  *
  * **A leitura vai pela estrada direta** (contrato §5), como T-03, T-05, T-08 e T-09: `app/` não monta
@@ -110,7 +111,7 @@ export default async function Dashboard({
       <div className="grid gap-4 lg:grid-cols-2">
         <OcorrenciasPorStatus dashboard={dashboard} />
         <EmAbertoPorCategoria dashboard={dashboard} />
-        <TempoMedio dashboard={dashboard} />
+        <TempoDeResolucao dashboard={dashboard} />
         <MediaDasAvaliacoes dashboard={dashboard} />
       </div>
     </div>
@@ -218,8 +219,8 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
   // alimenta os dois. Os rótulos vêm do bloco 4, que é a única série que o contrato garante sem buraco.
   const fluxo = linhasDoFluxoMensal(
     dashboard.recorrenciaPorCategoria,
-    dashboard.tempoMedioDeResolucao.porMes,
-    rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes)),
+    dashboard.tempoDeResolucao.porMes,
+    rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes)),
   );
 
   return (
@@ -382,38 +383,40 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
 /**
  * O bloco 4 — uma linha por mês da janela, **inclusive o mês sem resolução** (critério 36.2).
  *
- * **`— · 0 resolvidas` e a frase *"nenhuma resolução no mês"***, literais do protótipo. E a linha
- * *"Tempo de calendário, com as pausas."* — **sem nenhum espaço reservado** prometendo a separação
- * calendário × tempo ativo, que é ⬜ (critério 36.3).
+ * **Dois números de tempo por mês, e nenhum deles é a média** (item 58): a mediana diz como foi o caso do
+ * meio, e o p90 diz como foi o décimo pior atendimento. Duração de atendimento tem cauda longa, e a média
+ * era puxada acima do caso típico por uns poucos casos arrastados.
  *
- * **A unidade segue a magnitude, e quem decide é a tela** (item 55): minutos abaixo de uma hora, horas
- * inteiras até 48, dias com uma casa acima disso. A API continua devolvendo horas com a casa decimal, que
- * é o que o `openapi.yaml` exemplifica, e a regra mora em `duracao.ts` porque o item 58 a chama de novo.
+ * **`— · 0 resolvidas` e a frase *"nenhuma resolução no mês"***, literais do protótipo. E o rodapé, que
+ * ganhou a segunda oração porque sem ela a linha do mês pequeno pareceria defeito — **sem nenhum espaço
+ * reservado** prometendo a separação calendário × tempo ativo, que é ⬜ (critério 36.3).
  *
- * **A barra continua sendo desenhada sobre `mes.horas`, e não sobre o texto.** Ela compara os meses entre
- * si, e um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade — desenhar sobre o
- * número já convertido faria `18` de minutos parecer maior que `9` de dias.
+ * **O texto da linha mora em `tempo-de-resolucao.ts`**, que é módulo puro: três formas, um plural e uma
+ * junção por vírgula não cabem dentro deste `.map`. A unidade segue a magnitude, e quem a escreve é
+ * `duracao.ts`, do item 55.
+ *
+ * **A barra desenha a MEDIANA, sempre, e sobre o número em horas — nunca sobre o texto.** Ela compara os
+ * meses entre si, e o que se compara é o caso típico; desenhar o p90 faria o mês de uma catástrofe única
+ * encobrir o mês inteiro. E um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade.
  */
-function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
-  const rotulos = rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes));
+function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
+  const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
 
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoMedioDeResolucao.porMes.map((mes, i) => {
+  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) => {
     const rotulo = rotulos[i] ?? mes.mes;
-    const denominador = `${String(mes.resolvidas)} ${mes.resolvidas === 1 ? "resolvida" : "resolvidas"}`;
+    const texto = textoDoTempoDeResolucao(mes);
 
-    return mes.horas === null
-      ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto: `— · ${denominador}` }
-      : {
-          rotulo,
-          quantidade: mes.horas,
-          texto: `${duracaoEmTexto(mes.horas)} · ${denominador}`,
-        };
+    return mes.mediana === null
+      ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto }
+      : { rotulo, quantidade: mes.mediana, texto };
   });
 
   return (
-    <Cartao numero={4} titulo="Tempo médio de resolução" quando="no período">
+    <Cartao numero={4} titulo="Tempo de resolução" quando="no período">
       <Medidor itens={itens} />
-      <p className="text-tinta-suave text-corpo">Tempo de calendário, com as pausas.</p>
+      <p className="text-tinta-suave text-corpo">
+        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma.
+      </p>
     </Cartao>
   );
 }
