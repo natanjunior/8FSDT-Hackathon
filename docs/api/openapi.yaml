@@ -2437,7 +2437,8 @@ paths:
 
         **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
         em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
-        do reativo.
+        do reativo. As duas séries dizem onde há mais volume, cada uma por uma dimensão;
+        `duplasRecorrentes` cruza as duas e diz o que está voltando.
 
         `mediaDasAvaliacoes` e `tempoDeResolucao` vêm com o denominador de propósito: sem ele, a média
         mente quando poucos avaliam, e o percentil mente quando o mês teve duas resoluções.
@@ -2500,6 +2501,10 @@ paths:
                       - { mes: "2026-06", quantidade: 2 }
                       - { mes: "2026-07", quantidade: 6 }
                       - { mes: "2026-08", quantidade: 4 }
+                duplasRecorrentes:
+                  - area: { id: "0f9a4d71-1111-4b2c-9d3e-4f5a6b7c8d9e", nome: "Garagem — Subsolo 1", tipo: "comum", ativa: true, ordem: 3 }
+                    categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
+                    quantidade: 8
                 tempoDeResolucao:
                   porMes:
                     - { mes: "2026-06", mediana: 10.42, p90: 92.5, amostra: null, resolvidas: 11 }
@@ -3689,7 +3694,7 @@ components:
 
         `abertasPorIdade` é a terceira fotografia, e a única que olha para o tempo do que ainda não
         terminou.
-      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoDeResolucao]
+      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, duplasRecorrentes, tempoDeResolucao]
       properties:
         periodo:
           type: object
@@ -3799,6 +3804,34 @@ components:
                   properties:
                     mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
                     quantidade: { type: integer }
+        duplasRecorrentes:
+          type: array
+          description: |
+            As **duplas de área e categoria** que se repetiram dentro da janela, da maior contagem para a
+            menor, com desempate pelo nome da área e depois pelo da categoria.
+
+            `recorrenciaPorCategoria` e `recorrenciaPorArea` contam as duas dimensões **em separado**, e
+            oito ocorrências da mesma categoria espalhadas por oito lugares produzem ali o mesmo número
+            que oito no mesmo lugar. Esta lista cruza as duas na linha da ocorrência, que é onde o
+            cruzamento existe, e é ela que aponta causa.
+
+            **Só entra a dupla com duas ocorrências ou mais.** Uma ocorrência é um caso, não um padrão.
+            A lista pode vir vazia, e vazia significa que nada se repetiu no período.
+
+            Cada linha traz a Área inteira e a Categoria inline, as mesmas formas que as duas séries de
+            recorrência publicam. **Nenhum rótulo viaja:** o texto da linha são os dois nomes com um
+            separador, e escrevê-lo é do cliente. Os identificadores viajam embora a leitura seja pelos
+            nomes — são o que permite a uma tela futura ligar a linha à listagem filtrada.
+          items:
+            type: object
+            properties:
+              area: { $ref: "#/components/schemas/Area" }
+              categoria:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  nome: { type: string }
+              quantidade: { type: integer }
         tempoDeResolucao:
           type: object
           description: |

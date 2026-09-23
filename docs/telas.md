@@ -123,6 +123,12 @@ dois números já vêm na resposta: a soma das séries de recorrência é o que 
 de resolução é o que saiu, e é a tela que os cruza. **Registradas acima de resolvidas em meses seguidos é
 fila crescendo**, e o contrário é fila encolhendo.
 
+No quadro de recorrência, além das duas listas de volume, o painel escreve as duplas de área e categoria
+que se repetiram no período, da maior para a menor. As listas respondem onde há mais volume, cada uma por
+uma dimensão; a dupla responde o que está voltando, que é a pergunta que a frase do quadro faz. Uma
+ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem nenhuma, o quadro escreve
+uma linha dizendo o que vai aparecer ali.
+
 O painel mostra ainda, agora, quantas ocorrências em aberto estão em cada faixa de idade — até uma
 semana, até um mês, até três meses, e acima disso. **As quatro faixas aparecem sempre, mesmo a zero**,
 para que uma organização que está começando veja o que vai ser medido. Quando há alguma na faixa mais

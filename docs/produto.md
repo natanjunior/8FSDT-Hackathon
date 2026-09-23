@@ -79,7 +79,9 @@ O que eles respondem é o que não se sabe hoje: **o que está parado, onde o pr
 cresce ou encolhe, e se quem abriu ficou satisfeito.**
 
 O quadro de recorrência mostra, mês a mês, quantas ocorrências foram registradas e quantas foram
-resolvidas, com os dois números em texto ao lado do desenho.
+resolvidas, com os dois números em texto ao lado do desenho. Ele mostra também as duplas de área e categoria
+que voltaram no período, porque é a combinação que aponta causa, e não a contagem de cada dimensão em
+separado.
 
 A média das avaliações vem vazia enquanto ninguém tiver avaliado. Ao lado dela o painel mostra quantas
 ocorrências foram resolvidas e quantas dessas receberam nota, que é o que diz se a média tem base.
