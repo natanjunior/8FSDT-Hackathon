@@ -308,52 +308,61 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   });
 
   // -------------------------------------------------------------------------
-  // 2.4 · Quadro 4 · Tempo médio de resolução — nenhum mês omitido (critérios 36.2 e 43.2)
+  // 2.4 · Quadro 4 · Tempo de resolução — nenhum mês omitido (critérios 36.2 e 43.2)
   //
   // **O eixo esperado é calculado a partir do que o formulário mostra**, e não fixado num número: a
   // janela de 90 dias toca três, quatro ou cinco meses conforme o dia em que a corrida acontece, e um
   // número escrito aqui seria um teste que muda de resultado na virada do mês.
   // -------------------------------------------------------------------------
-  const tempoMedio = quadro(helena, "Tempo médio de resolução");
-  await expect(tempoMedio).toContainText("no período");
-  await expect(tempoMedio).toContainText("Tempo de calendário, com as pausas.");
+  const tempoDeResolucao = quadro(helena, "Tempo de resolução");
+  await expect(tempoDeResolucao).toContainText("no período");
+  await expect(tempoDeResolucao).toContainText("Tempo de calendário, com as pausas.");
+  await expect(tempoDeResolucao).toContainText(
+    "Mês com três resoluções ou menos mostra as durações uma a uma.",
+  );
 
-  const linhasDeMes = await linhasDoMedidor(tempoMedio);
+  const linhasDeMes = await linhasDoMedidor(tempoDeResolucao);
   expect(linhasDeMes).toHaveLength(mesesNaJanela(de, ate));
 
   const mesesSemResolucao = linhasDeMes.filter((linha) => linha.texto.startsWith("—"));
   expect(mesesSemResolucao.length).toBeGreaterThan(0);
-  await expect(tempoMedio).toContainText("nenhuma resolução no mês");
+  await expect(tempoDeResolucao).toContainText("nenhuma resolução no mês");
   for (const mes of mesesSemResolucao) {
     // **`— · 0 resolvidas`, e nunca `0 h`** — critério 36.2: um zero de horas diria que o mês resolveu
     // instantaneamente, quando o que houve foi não ter resolvido nada.
     expect(mes.texto, `mês "${mes.rotulo}"`).toBe("— · 0 resolvidas");
   }
 
-  // **O mês COM resolução escreve a unidade que cabe à magnitude** — item 55, critérios 55.1 e 55.2.
+  // **O mês COM resolução escreve uma das DUAS formas do item 58**, e a gramática não aposta em qual: a
+  // semente espalha os instantes pelo balde do mês, então quantas resoluções cada mês recebe muda com o
+  // dia em que a suíte roda. É a mesma cautela do eixo de meses calculado, algumas linhas acima.
   //
-  // **A gramática aceita as três faixas e não aposta em qual delas a corrida encontra.** A semente
-  // espalha os instantes pelo balde do mês, então a distância entre registro e resolução muda com o dia
-  // em que a suíte roda — a mesma cautela do eixo de meses calculado, algumas linhas acima.
+  // - quatro ou mais: `mediana 12 min · p90 2,1 dias · 11 resolvidas`
+  // - três ou menos:  `6 min, 12 min, 3,0 dias · 3 resolvidas`
+  //
+  // **A unidade cabe à magnitude** — item 55, critérios 55.1 e 55.2.
+  const DURACAO = String.raw`(?:\d+ min|\d+ h|\d+,\d dias)`;
+  const LINHA_COM_RESOLUCAO = new RegExp(
+    String.raw`^(?:mediana ${DURACAO} · p90 ${DURACAO}|${DURACAO}(?:, ${DURACAO}){0,2}) · \d+ resolvidas?$`,
+    "u",
+  );
+
   const mesesComResolucao = linhasDeMes.filter((linha) => !linha.texto.startsWith("—"));
   expect(mesesComResolucao.length).toBeGreaterThan(0);
   for (const mes of mesesComResolucao) {
-    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(
-      /^(?:\d+ min|\d+ h|\d+,\d dias) · \d+ resolvidas?$/u,
-    );
+    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(LINHA_COM_RESOLUCAO);
     // **Nenhum valor maior que zero é renderizado como zero** — critério 55.2, e o defeito que o item 55
-    // conserta. **A gramática acima sozinha não pega a regressão**, porque `0 h · 3 resolvidas` casa com
-    // `\d+ h`; esta linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`.
+    // conserta. **A gramática acima sozinha não pega a regressão**, porque `0 h` casa com `\d+ h`; esta
+    // linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`. Ela vale para **cada**
+    // duração da linha, e não só para a primeira: desde o item 58 o mês pequeno escreve até três.
     //
-    // **`0 h` é impossível por construção** depois do item 55: a faixa de horas começa em 1. **`0 min`
-    // não é** — ele sai quando a API entrega `0.0`, e o achado A-55-5 registra que esse zero é do
-    // contrato, não da tela. Esta asserção só não conflita com aquele achado porque **a semente separa
-    // dois passos de um roteiro por no mínimo 37 minutos** (`EMPURRAO`, `semente/plano.ts:117`), então
-    // nenhuma média mensal desta suíte cai abaixo de 0,6 h. Se a semente mudar e um mês render `0 min`,
-    // **quem move é esta linha, e não a tela.**
-    expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/^0 (?:min|h) /u);
+    // **O zero ficou improvável por construção no item 58**: a API passou a mandar duas casas decimais, e
+    // o quantum de 36 segundos está abaixo do menor texto que a tela sabe escrever. Se um mês render
+    // `0 min` mesmo assim, **quem move é esta linha, e não a tela.**
+    expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/\b0 (?:min|h)\b/u);
   }
   cobre(test.info(), "7.2 · 4", {
+    criterio: "58.3, 58.4",
     falta:
       "amarrar a frase nenhuma resolução no mês à linha do mês vazio, e com ela a ausência da barra",
   });
