@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { cobre } from "./cobertura";
+
 /**
  * ============================================================================
  *  O nascimento de uma organização, e a vida dos vínculos — Partes 2 e 6
@@ -208,17 +210,26 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await a.goto("/criar-conta");
   await expect(a.getByText("No mínimo 6 caracteres.")).toBeVisible();
+  cobre(test.info(), "2.1 · 6a · 2", { criterio: "6a.1" });
 
   await a.getByLabel("Seu nome").fill(NOME_A);
   await a.getByLabel("E-mail").fill(EMAIL_A);
   await a.getByLabel(/^Senha/u).fill(SENHA);
+  cobre(test.info(), "2.1 · 6a · 1", {
+    falta: "a contagem — o teste preenche os três campos rotulados, e não afirma que não existe um quarto",
+  });
   await a.getByRole("button", { name: "Criar conta" }).click();
   await a.waitForURL(/\/organizacao$/u);
   await expect(a.getByRole("heading", { name: "Entrar em uma organização" })).toBeVisible();
+  cobre(test.info(), "6.1 · 1", {
+    falta:
+      "«um formulário só — o do código»: a asserção é o título da face A, e não a ausência de um segundo formulário",
+  });
 
   // **O nome digitado aparece na tela** — critério 6a.2. Na face A ele aparece já preenchido no campo do
   // pedido de entrada, que é o que a tela sabe sobre quem acabou de entrar.
   await expect(a.getByLabel("Seu nome")).toHaveValue(NOME_A);
+  cobre(test.info(), "2.1 · 6a · 5", { criterio: "6a.2" });
 
   // -------------------------------------------------------------------------
   // 2 · As três recusas de T-01 e T-11 — critérios 6a.3 e 6a.4
@@ -236,6 +247,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
 
   await entrar(a, EMAIL_INEXISTENTE, SENHA);
   await expect(a.getByText("E-mail ou senha incorretos.")).toBeVisible();
+  cobre(test.info(), "2.1 · 6a · 3", { criterio: "6a.3" });
 
   await a.getByRole("link", { name: "Criar conta" }).click();
   await a.waitForURL(/\/criar-conta$/u);
@@ -249,6 +261,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(a.getByText("Já existe uma conta com este e-mail. Entre em vez de criar.")).toBeVisible();
   await expect(a.getByRole("link", { name: "Esqueci a senha" })).toBeVisible();
   await expect(a.getByRole("link", { name: "Já tenho conta" })).toBeVisible();
+  cobre(test.info(), "2.1 · 6a · 4", { criterio: "6a.4" });
 
   await a.getByRole("link", { name: "Já tenho conta" }).click();
   await a.waitForURL(/\/entrar$/u);
@@ -267,11 +280,16 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await criarOrganizacao(a, ORGANIZACAO_A);
   await expect(a.getByRole("combobox", { name: /organização/iu })).toHaveText(ORGANIZACAO_A);
+  cobre(test.info(), "2.2 · 1", { criterio: "1.3" });
   // O nome de quem entrou, agora dentro da casca — a outra metade do 6a.2.
   await expect(a.getByRole("button", { name: `Conta de ${NOME_A}` })).toBeVisible();
 
   const codigoDeA = await lerCodigoPublico(a);
   expect(codigoDeA).toMatch(/^[A-Z0-9]{6,12}$/u);
+  cobre(test.info(), "2.2 · 2", {
+    falta:
+      "o nome do cartão «Identidade» — a caixa do código é achada pelo botão «Copiar» ao lado, e não pelo título",
+  });
 
   // As sete categorias, com a frase que diz **como** elas chegaram ali — critério 2.3. Sem a frase, quem
   // abre a tela não sabe se as encontrou ou se alguém as digitou.
@@ -283,6 +301,10 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   for (const categoria of CATEGORIAS_DA_SEMENTE) {
     await expect(a.getByRole("cell", { name: categoria })).toBeVisible();
   }
+  cobre(test.info(), "2.2 · 3", {
+    falta:
+      "a frase do roteiro é «Sete categorias foram criadas junto com a organização.»; o produto escreve «Sete foram criadas junto com a organização.», e é essa que o teste assere",
+  });
 
   // As duas áreas, **uma de cada tipo** — critério 3.1. A asserção é por linha, e não por célula solta:
   // *Área comum* é nome de uma e rótulo de tipo da outra, e um localizador solto pegaria as duas.
@@ -292,6 +314,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   const linhaPrivativa = a.getByRole("row").filter({ hasText: "Unidade privativa" });
   await expect(linhaPrivativa).toHaveCount(1);
   await expect(linhaPrivativa).toContainText("Unidade");
+  cobre(test.info(), "2.2 · 4", { criterio: "3.1" });
 
   // -------------------------------------------------------------------------
   // 4 · A conta de B, e o código inventado ANTES do verdadeiro — critérios 7a.1 e 7a.4
@@ -303,12 +326,14 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await criarConta(b, NOME_B, EMAIL_B);
 
   await b.getByLabel("Código da organização").fill(CODIGO_INVENTADO);
+  cobre(test.info(), "2.4 · 1");
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   await expect(
     b.getByText("Nenhuma organização usa este código. Confira as letras e os números."),
   ).toBeVisible();
   // **E nada da organização vaza junto** — a recusa não diz o nome de organização nenhuma.
   await expect(b.getByText(ORGANIZACAO_A)).toHaveCount(0);
+  cobre(test.info(), "2.4 · 2", { criterio: "7a.1" });
 
   await b.getByLabel("Código da organização").fill(codigoDeA);
   await b.getByLabel("Telefone (opcional)").fill(TELEFONE_DIGITADO);
@@ -319,6 +344,10 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(b.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
   await expect(b.getByText(ORGANIZACAO_A)).toBeVisible();
   await expect(b.getByLabel("Código da organização")).toHaveCount(0);
+  cobre(test.info(), "2.4 · 3", {
+    falta:
+      "quando o pedido foi feito, e a frase que avisa onde a resposta aparece — a segunda é o achado V-03",
+  });
 
   // -------------------------------------------------------------------------
   // 5 · A decide: o pedido, a recusa, e a aprovação depois de B refazer
@@ -336,6 +365,10 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(modalDoPedido.getByRole("heading", { name: "Responder pedido de entrada" })).toBeVisible();
   // **O telefone é o que B informou no pedido**, escrito como a tela o escreve — critério 8.5.
   await expect(modalDoPedido).toContainText(TELEFONE_NA_TELA);
+  cobre(test.info(), "2.5 · 1", {
+    falta:
+      "o telefone vindo de outra organização, que é a segunda metade do 8.5 — o que se afirma é que o mostrado é o informado no pedido",
+  });
 
   // **Nenhum papel vem marcado** — a primeira das três decisões que o PA-25 produziu.
   await expect(modalDoPedido.getByRole("radio", { checked: true })).toHaveCount(0);
@@ -343,6 +376,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // em destaque.
   await expect(modalDoPedido.getByText("Registra e acompanha as próprias ocorrências.")).toBeVisible();
   await expect(modalDoPedido.getByText("Não consegue fazer nada dentro do sistema.")).toBeVisible();
+  cobre(test.info(), "2.5 · 3", {
+    falta: "a consequência do papel Gestor — o teste afirma as de Solicitante e de Encarregado",
+  });
 
   // Aprovar sem escolher papel **não aprova** — ver a divergência 2 do cabeçalho.
   await modalDoPedido.getByRole("button", { name: "Aprovar" }).click();
@@ -355,11 +391,16 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await modalDoPedido.getByRole("button", { name: "Recusar pedido" }).click();
   await expect(a.getByRole("dialog")).toHaveCount(0);
   await expect(linhaDe(a, NOME_B)).toHaveCount(0);
+  cobre(test.info(), "2.5 · 4", {
+    falta:
+      "«a confirmação diz o papel em palavras» — a confirmação da recusa nomeia a pessoa, e papel nenhum aparece nela",
+  });
 
   // Do lado de B: a recusa aparece, **e o motivo não** — critério 8.3. A observação é para os Gestores.
   await b.reload();
   await expect(b.getByRole("heading", { name: "Pedido não aprovado" })).toBeVisible();
   await expect(b.getByText(MOTIVO_DA_RECUSA)).toHaveCount(0);
+  cobre(test.info(), "2.5 · 5", { criterio: "8.3" });
 
   // **Recusado pode ser refeito** — é a suposição S4 do modelo, e é por isso que a face C tem o campo.
   await b.getByLabel("Código da organização").fill(codigoDeA);
@@ -376,11 +417,13 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(modalDaAprovacao.getByRole("radio", { checked: true })).toHaveCount(1);
   // **O botão diz o papel** — o trabalho que a confirmação separada fazia antes do item 44j.
   await modalDaAprovacao.getByRole("button", { name: "Aprovar como Solicitante" }).click();
+  cobre(test.info(), "2.5 · 2", { criterio: "8.4" });
   await expect(a.getByRole("dialog")).toHaveCount(0);
 
   const linhaDeB = linhaDe(a, NOME_B);
   await expect(linhaDeB).toContainText("Solicitante");
   await expect(linhaDeB).not.toContainText("pedido de entrada");
+  cobre(test.info(), "2.5 · 6", { criterio: "7a.2, 8.1" });
 
   // -------------------------------------------------------------------------
   // 6 · A cadastra quem não tem conta, corrige o nome dele, e não corrige o de B
@@ -398,6 +441,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // **Aparece na lista imediatamente** — critério 9a.1 —, com o selo de quem não tem conta.
   await expect(linhaDe(a, ENCARREGADO)).toContainText("Encarregado");
   await expect(linhaDe(a, ENCARREGADO)).toContainText("sem conta");
+  cobre(test.info(), "2.6 · 1", { criterio: "9a.1" });
 
   await linhaDe(a, ENCARREGADO).getByRole("link", { name: "Editar participante" }).click();
   await a.waitForURL(/\/vinculos\/[0-9a-f-]+\/editar$/u);
@@ -405,6 +449,11 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await a.getByRole("button", { name: "Salvar" }).click();
   await a.waitForURL(/\/vinculos$/u);
   await expect(linhaDe(a, ENCARREGADO_CORRIGIDO)).toHaveCount(1);
+  cobre(test.info(), "2.6 · 4", { criterio: "9a.3" });
+  cobre(test.info(), "2.6 · 2", {
+    falta:
+      "os dois na mesma leitura — o papel de B é afirmado antes de o Encarregado existir, e o do Encarregado depois",
+  });
 
   await linhaDe(a, NOME_B).getByRole("link", { name: "Editar participante" }).click();
   await a.waitForURL(/\/vinculos\/[0-9a-f-]+\/editar$/u);
@@ -417,15 +466,27 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // casa por trecho, e a mesma chamada acabou de preencher o campo do Encarregado, duas linhas acima.
   await expect(a.getByLabel("Nome")).toHaveCount(0);
   await expect(a.getByText(NOME_B).first()).toBeVisible();
+  cobre(test.info(), "2.6 · 3", {
+    falta:
+      "a frase que explica — o teste afirma a ausência do campo e o nome em leitura, e não o texto que diz que o nome vem da conta",
+  });
 
   // -------------------------------------------------------------------------
   // 7 · A segunda organização nasce, com a conta de C
   // -------------------------------------------------------------------------
   await criarConta(c, NOME_C, EMAIL_C);
   await criarOrganizacao(c, ORGANIZACAO_C);
+  cobre(test.info(), "6.1 · 2", {
+    falta:
+      "a frase «Administra um condomínio…», a cor do botão de criar, a ausência da nota «campo obrigatório» e a lista de ocorrências vazia no fim",
+  });
   const codigoDeC = await lerCodigoPublico(c);
   expect(codigoDeC).toMatch(/^[A-Z0-9]{6,12}$/u);
   expect(codigoDeC).not.toBe(codigoDeA);
+  cobre(test.info(), "6.1 · 3", {
+    falta:
+      "o caminho pelo menu da esquerda e o clique em «Copiar» — o teste vai pelo endereço e lê o código do texto, sem a área de transferência",
+  });
 
   // -------------------------------------------------------------------------
   // 8 · B pede entrada na segunda SEM sair da primeira — critério 7b.1
@@ -438,6 +499,10 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await b.getByRole("button", { name: `Conta de ${NOME_B}` }).click();
   await b.getByRole("menuitem", { name: "Entrar em outra organização" }).click();
   await b.waitForURL(/entrar-em-outra=true$/u);
+  cobre(test.info(), "6.2 · 4", {
+    falta:
+      "o conteúdo do menu — nome, e-mail, «Meus dados» e «Sair»; o teste afirma só o item «Entrar em outra organização»",
+  });
 
   await expect(b.getByRole("heading", { name: "Entrar em outra organização" })).toBeVisible();
   // A frase que o critério 7b.1 exige em palavras: **o vínculo na primeira não é tocado**.
@@ -448,6 +513,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // A lista de pedidos é o *aqui* que a face B promete — sem ela, o pedido sumiria da vista.
   await expect(b.getByText("Aguardando a decisão de um Gestor")).toBeVisible();
   await expect(b.getByText(ORGANIZACAO_C)).toBeVisible();
+  cobre(test.info(), "6.2 · 5", {
+    falta: "o rótulo da seção «SEUS PEDIDOS», que nenhuma asserção toca",
+  });
 
   // -------------------------------------------------------------------------
   // 9 · C aprova, e B passa a ter duas — critérios 7b.2 e 7b.3
@@ -460,6 +528,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await modalDeC.getByRole("button", { name: "Aprovar como Solicitante" }).click();
   await expect(c.getByRole("dialog")).toHaveCount(0);
   await expect(linhaDe(c, NOME_B)).toContainText("Solicitante");
+  cobre(test.info(), "6.2 · 6");
 
   // **Entrar numa nova não troca sozinho** — critério 7b.2. A ativa continua sendo a primeira.
   await b.goto("/ocorrencias");
@@ -468,11 +537,16 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await seletorDeB.click();
   await expect(b.getByRole("option", { name: ORGANIZACAO_A })).toBeVisible();
   await expect(b.getByRole("option", { name: ORGANIZACAO_C })).toBeVisible();
+  cobre(test.info(), "6.2 · 7", { criterio: "7b.2" });
 
   // E a troca leva à outra — critério 7b.3.
   await b.getByRole("option", { name: ORGANIZACAO_C }).click();
   await b.waitForURL(/\/ocorrencias$/u);
   await expect(b.getByRole("combobox", { name: /organização/iu })).toHaveText(ORGANIZACAO_C);
+  cobre(test.info(), "6.2 · 8", {
+    falta:
+      "a frase «Trocando…», a lista vazia do outro lado e a volta para a primeira organização",
+  });
 
   // -------------------------------------------------------------------------
   // 10 · C cadastra alguém sem conta e a remove — critério 10.4, ramo sem conta
@@ -501,4 +575,5 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
 
   await expect(c.getByRole("alertdialog")).toHaveCount(0);
   await expect(linhaDe(c, PESSOA_PARA_REMOVER)).toHaveCount(0);
+  cobre(test.info(), "6.3 · 11", { criterio: "10.4" });
 });

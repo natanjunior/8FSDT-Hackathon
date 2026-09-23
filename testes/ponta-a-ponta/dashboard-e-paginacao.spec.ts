@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { cobre } from "./cobertura";
 import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from "./mundo";
 
 /**
@@ -218,6 +219,10 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const listasDoBloco1 = recorrencia.getByRole("list");
   await expect(listasDoBloco1).toHaveCount(2);
   expect((await linhasDoMedidor(recorrencia)).length).toBeGreaterThan(1);
+  cobre(test.info(), "7.2 · 1", {
+    falta:
+      "o gráfico de linha por categoria e as barras por área — só a existência de uma superfície de desenho tem asserção",
+  });
 
   // -------------------------------------------------------------------------
   // 2.2 · Quadro 2 · Backlog por status agora — os SEIS, nenhum a zero (critério 33)
@@ -233,6 +238,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   for (const linha of linhasDeStatus) {
     expect(Number(linha.texto), `status "${linha.rotulo}" no dashboard`).toBeGreaterThan(0);
   }
+  cobre(test.info(), "7.2 · 2", { criterio: "33" });
 
   // -------------------------------------------------------------------------
   // 2.3 · Quadro 3 · Backlog por categoria agora — as sete (critério 33)
@@ -245,6 +251,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   for (const linha of linhasDeCategoria) {
     expect(Number.isInteger(Number(linha.texto)), `categoria "${linha.rotulo}"`).toBe(true);
   }
+  cobre(test.info(), "7.2 · 3", { falta: "os nomes das sete categorias e a barra de cada linha" });
 
   // -------------------------------------------------------------------------
   // 2.4 · Quadro 4 · Tempo médio de resolução — nenhum mês omitido (critérios 36.2 e 43.2)
@@ -268,6 +275,10 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     // instantaneamente, quando o que houve foi não ter resolvido nada.
     expect(mes.texto, `mês "${mes.rotulo}"`).toBe("— · 0 resolvidas");
   }
+  cobre(test.info(), "7.2 · 4", {
+    falta:
+      "amarrar a frase nenhuma resolução no mês à linha do mês vazio, e com ela a ausência da barra",
+  });
 
   // -------------------------------------------------------------------------
   // 2.5 · Quadro 5 · Média das avaliações — um número de 1 a 5 (critério 34)
@@ -292,6 +303,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const resolvidas = Number(denominador?.[2] ?? "0");
   expect(avaliadas).toBeGreaterThan(0);
   expect(resolvidas).toBeGreaterThanOrEqual(avaliadas);
+  cobre(test.info(), "7.2 · 5", { criterio: "34" });
 
   // -------------------------------------------------------------------------
   // 3 · A lista, com a página 1 cheia — passo 7 do roteiro
@@ -319,6 +331,10 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const sonda = await lerSondaDaTroca(helena);
   expect(sonda.esqueleto, "o esqueleto cinza apareceu na troca de página").toBe(0);
   expect(sonda.listaVazia, "a lista anterior sumiu antes de a página 2 chegar").toBe(0);
+  cobre(test.info(), "7.3 · 7", {
+    falta:
+      "a lista da página 1 ficar esmaecida na espera — a sonda prova que ela não some, não que ela esmaece",
+  });
 
   // O endereço da página 2 carrega os três parâmetros de paginação — critério 14b.2.
   const enderecoDaPagina2 = helena.url();
@@ -340,6 +356,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await outraAba.goto(enderecoDaPagina2);
   await expect(outraAba.getByText(/Página 2 de \d+/u)).toBeVisible();
   expect(await enderecosNaTabela(outraAba)).toEqual(daPagina2);
+  cobre(test.info(), "7.3 · 8", { criterio: "14b.2" });
 
   // -------------------------------------------------------------------------
   // 5 · A linha de novidades — passo 9 do roteiro, critério 14b.2
@@ -357,6 +374,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(deriva).toBeVisible();
   await expect(deriva).toContainText(/\d+h\d+/u);
   await expect(deriva).toContainText("1 chegou desde então");
+  cobre(test.info(), "7.3 · 9", { criterio: "14b.2" });
 
   // **A página 2 continua sendo a mesma**, com uma ocorrência nova no conjunto: é a compensação de
   // deslocamento do `totalNoCorte`, e sem ela a lista pularia itens respondendo `200` com vinte linhas.
@@ -393,6 +411,10 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(helena.url()).toBe(enderecoDaPagina2);
   await expect(helena.getByText(/Página 2 de \d+/u)).toBeVisible();
   expect(await enderecosNaTabela(helena)).toEqual(daPagina2);
+  cobre(test.info(), "7.3 · 10", {
+    falta:
+      "a volta pela barra lateral caindo na página 1 com corte novo — o teste volta pelo botão do navegador, que devolve a página 2 inteira",
+  });
 
   await terceiraAba.close();
   await outraAba.close();

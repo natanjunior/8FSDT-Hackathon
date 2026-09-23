@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { cobre } from "./cobertura";
 import {
   abrirNoMenu,
   AURORA,
@@ -167,6 +168,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   const modalDeAtendimento = marcos.getByRole("dialog");
   await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
   await esperarSituacao(marcos, "Em atendimento");
+  cobre(test.info(), "4.4 · 51");
 
   // -------------------------------------------------------------------------
   // 4 · Pausar — o critério 23, e os dois campos obrigatórios
@@ -193,11 +195,16 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   await expect(
     modalDePausa.getByText("O Solicitante vê esta observação. Não há como editá-la depois."),
   ).toBeVisible();
+  cobre(test.info(), "4.4 · 52", {
+    falta:
+      "o botão Cancelar do rodapé, o rótulo de Observação sem a palavra opcional, e a ordem do aviso antes do campo",
+  });
 
   await modalDePausa.getByRole("button", { name: "Pausar" }).click();
   await expect(modalDePausa.getByText("Escolha o motivo.")).toBeVisible();
   await expect(modalDePausa.getByText("Escreva a observação.")).toBeVisible();
   await esperarSituacao(marcos, "Em atendimento");
+  cobre(test.info(), "4.4 · 53", { falta: "o foco ir ao primeiro campo com problema" });
 
   await modalDePausa.getByRole("radio", { name: MOTIVO_ESCOLHIDO }).check();
   await expect(modalDePausa.getByText("Escolha o motivo.")).toHaveCount(0);
@@ -220,6 +227,10 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   await expect(ciclo(marcos)).toContainText("Pausada");
   await expect(ciclo(marcos)).toContainText(O_QUE_O_SOLICITANTE_LE);
   await expect(ciclo(marcos)).toContainText("Resolvida");
+  cobre(test.info(), "4.4 · 54", {
+    falta:
+      "o passo Resolvida continuar apagado, e a marca da pausa estar ancorada no passo Em atendimento",
+  });
 
   // -------------------------------------------------------------------------
   // 5 · O que o Solicitante lê — critérios 31.3, 31.6, 28.4 e a recusa de acesso
@@ -242,10 +253,20 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // e não há coluna de prioridade: ela não tem `ocorrencia.alterar_prioridade` em nenhum desenho de papel.
   await helena.goto("/ocorrencias");
   await expect(helena.getByText("Minhas ocorrências")).toBeVisible();
+  cobre(test.info(), "5 · 1", {
+    falta:
+      "Minhas ocorrências ser texto e não um par de botões, e a lista não trazer ocorrência de terceiro",
+  });
   const linhaDeHelena = helena.getByRole("link", { name: TITULO });
   await expect(linhaDeHelena).toContainText(O_QUE_O_SOLICITANTE_LE);
   await expect(helena.getByText("Pausada")).toHaveCount(0);
+  cobre(test.info(), "4.4 · 56", {
+    falta: "a barra do Solicitante estar sem botão nenhum — só a frase do cancelamento tem asserção",
+  });
   await expect(helena.getByRole("columnheader", { name: "Prioridade" })).toHaveCount(0);
+  cobre(test.info(), "5 · 2", {
+    falta: "as cinco colunas que restam: STATUS, TÍTULO, ONDE, RESPONSÁVEL e TEMPO",
+  });
 
   // **A tela de Gestor aberta pelo endereço** — Parte 5, passo 7. É o `SemAcesso` do item 44h: título,
   // quem usa a tela, a recusa e a saída. **É beco**, e por isso a saída mora no conteúdo.
@@ -255,6 +276,9 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
     helena.getByText("Seu papel nesta organização não dá acesso a esta página."),
   ).toBeVisible();
   await expect(helena.getByRole("link", { name: "Ir para Ocorrências" })).toBeVisible();
+  cobre(test.info(), "5 · 7", {
+    falta: "as outras quatro telas de Gestor pelo endereço, e a linha que diz quem usa a tela",
+  });
 
   // -------------------------------------------------------------------------
   // 6 · Retomar — o critério 24, e a descrição que NÃO diz para onde
@@ -273,10 +297,12 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   ).toBeVisible();
   await expect(modalDeRetomada).not.toContainText("Em atendimento");
   await modalDeRetomada.getByRole("button", { name: "Retomar" }).click();
+  cobre(test.info(), "4.4 · 57", { falta: "Retomar ser o botão em destaque da barra, que é cor" });
 
   // Volta para onde saiu — e a régua não recua: o passo continua datado da primeira vez.
   await esperarSituacao(marcos, "Em atendimento");
   await expect(ciclo(marcos)).not.toContainText("Pausada");
+  cobre(test.info(), "4.4 · 58", { criterio: "24.2" });
 
   // -------------------------------------------------------------------------
   // 7 · Reatribuir — o critério 21, e a fileira apagada
@@ -294,15 +320,20 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
       "Quem passa a cuidar desta ocorrência. A atribuição atual será encerrada.",
     ),
   ).toBeVisible();
+  cobre(test.info(), "4.4 · 60", { criterio: "21" });
 
   const fileiraDeMarcos = modalDeReatribuicao.getByRole("radio", { name: "Atribuir a mim" });
   await expect(fileiraDeMarcos).toBeDisabled();
   await expect(modalDeReatribuicao.getByText("Responsável atual")).toBeVisible();
+  cobre(test.info(), "4.4 · 61", { criterio: "21" });
 
   await modalDeReatribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
   await modalDeReatribuicao.getByRole("button", { name: "Reatribuir" }).click();
   await fecharOMenu(marcos);
   await expect(marcos.getByText(ENCARREGADA_DO_AURORA).first()).toBeVisible();
+  cobre(test.info(), "4.4 · 62", {
+    falta: "o responsável anterior ter saído, e continuar havendo um só",
+  });
 
   // -------------------------------------------------------------------------
   // 8 · A conversa — critérios 30 e 30.4, e os dois campos nomeando o outro lado
@@ -319,6 +350,10 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   await helena.getByRole("button", { name: "Enviar", exact: true }).click();
   await expect(helena.getByRole("heading", { name: "Mensagens 1" })).toBeVisible();
   await expect(helena.getByText(PERGUNTA_DE_HELENA).first()).toBeVisible();
+  cobre(test.info(), "5 · 4", {
+    falta:
+      "o campo esvaziar depois do envio, a mensagem entre aspas na linha do tempo e a borda escura do Enviar",
+  });
 
   await marcos.reload();
   await expect(marcos.getByLabel(/^Escrever para o Solicitante/u)).toBeVisible();
@@ -332,6 +367,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
 
   await helena.reload();
   await expect(helena.getByText(RESPOSTA_DE_MARCOS).first()).toBeVisible();
+  cobre(test.info(), "5 · 5", { criterio: "30.4" });
 
   // -------------------------------------------------------------------------
   // 9 · O Gestor cancela — o critério 18, e os sete motivos
@@ -353,9 +389,13 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
     ),
   ).toBeVisible();
   await expect(modalDeCancelamento.getByRole("radio")).toHaveCount(7);
+  cobre(test.info(), "4.4 · 63", {
+    falta: "os sete motivos pelo nome e a explicação de Duplicada — só a contagem tem asserção",
+  });
   await expect(
     modalDeCancelamento.getByText("O Solicitante vê esta observação. Não há como editá-la depois."),
   ).toBeVisible();
+  cobre(test.info(), "4.4 · 64", { criterio: "18.7" });
 
   await modalDeCancelamento.getByRole("radio", { name: MOTIVO_DO_CANCELAMENTO }).check();
   await modalDeCancelamento.getByLabel(/^Observação/u).fill(OBSERVACAO_DO_CANCELAMENTO);
@@ -365,6 +405,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // **A linha para, e a marca diz que o ciclo não continua** — critério 44d.7, o outro ramo da saída.
   await expect(ciclo(marcos)).toContainText("O ciclo não continua.");
   await expect(marcos.getByText("Esta ocorrência está encerrada.")).toBeVisible();
+  cobre(test.info(), "4.4 · 65", { falta: "a prioridade virar texto depois do cancelamento" });
 
   // -------------------------------------------------------------------------
   // 10 · O Solicitante vê a ocorrência encerrada
@@ -375,6 +416,11 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // -------------------------------------------------------------------------
   await helena.reload();
   await esperarSituacao(helena, "Cancelada");
+  // Dois dos seis rótulos do Solicitante passaram por este percurso: a frase da pausa e *Cancelada*.
+  cobre(test.info(), "5 · 3", {
+    falta:
+      "quatro dos seis rótulos — Recebida, Em análise, Em execução e Resolvida não aparecem neste percurso",
+  });
   await expect(helena.getByText("Esta ocorrência está encerrada.")).toBeVisible();
   await expect(helena.getByText(OBSERVACAO_DO_CANCELAMENTO).first()).toBeVisible();
 

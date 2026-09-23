@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
+import { cobre } from "./cobertura";
+
 /**
  * ============================================================================
  *  A recuperação de senha, do pedido ao e-mail e à senha nova — o item 6b
@@ -141,6 +143,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   // A face de sucesso **substitui** o formulário, e a frase é a que o critério cobra.
   await expect(pagina.getByText("Confira o seu e-mail")).toBeVisible();
   await expect(pagina.getByText(FRASE_DO_ENVIO)).toBeVisible();
+  cobre(test.info(), "2.3 · 1");
 
   // -------------------------------------------------------------------------
   // 3 · O mesmo pedido, com endereço que não existe — o critério 6b.1
@@ -160,6 +163,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   // endereço que não tem conta.
   const paraNinguem = await buscarNaCaixa(pagina.request, EMAIL_INEXISTENTE);
   expect(paraNinguem.messages).toHaveLength(0);
+  cobre(test.info(), "2.3 · 2", { criterio: "6b.1" });
 
   // -------------------------------------------------------------------------
   // 4 · O e-mail, e o corpo é o nosso — o passo 3 do roteiro
@@ -177,6 +181,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
     "Você pediu uma senha nova no Resolve Aí. O link abaixo vale por uma hora.",
   );
   expect(mensagem.HTML).toContain("Se não foi você quem pediu, ignore este e-mail");
+  cobre(test.info(), "2.3 · 3");
 
   const link = enderecoDoLink(mensagem.HTML);
   // **O host do link é o da `site_url`**, e é a razão de este arquivo inteiro viver em `127.0.0.1`.
@@ -206,6 +211,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   await expect(pagina.getByText("Este link expirou")).toBeVisible();
   await expect(pagina.getByText("Peça um novo.")).toBeVisible();
   await expect(pagina.getByRole("link", { name: "Pedir um novo link" })).toBeVisible();
+  cobre(test.info(), "2.3 · 6", { criterio: "6b.3" });
 
   // -------------------------------------------------------------------------
   // 6 · O link íntegro, e o formulário que não pede a senha antiga — o critério 6b.2
@@ -224,6 +230,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   // formulário inteiro. Só a primeira metade deixaria passar um segundo campo chamado de outra coisa.
   await expect(pagina.getByLabel(/senha (atual|antiga)/iu)).toHaveCount(0);
   await expect(pagina.locator("form input")).toHaveCount(1);
+  cobre(test.info(), "2.3 · 4", { criterio: "6b.2" });
 
   // -------------------------------------------------------------------------
   // 7 · A senha nova
@@ -248,6 +255,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
 
   await pagina.goto(`${ORIGEM}/definir-senha`);
   await pagina.waitForURL(/\/entrar$/u);
+  cobre(test.info(), "2.3 · 5", { criterio: "6b.4" });
 
   // -------------------------------------------------------------------------
   // 9 · E ela entra com a senha nova
