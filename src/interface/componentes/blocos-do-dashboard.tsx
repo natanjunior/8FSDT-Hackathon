@@ -99,7 +99,7 @@ export type ItemDoMedidor = {
 };
 
 /**
- * A lista com barra — o desenho de quatro dos cinco blocos.
+ * A lista com barra — o desenho de cinco dos seis blocos.
  *
  * **A barra é proporcional ao MAIOR item da própria lista**, não a um teto absoluto: o que a tela compara
  * é o item contra os irmãos dele. Com todos a zero, todas as barras têm largura zero — que é o estado da

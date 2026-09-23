@@ -17,6 +17,10 @@ import {
   type LinhaDoFluxoMensal,
 } from "@/interface/componentes/fluxo-mensal";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
+import {
+  rotuloDaFaixaDeIdade,
+  textoDaIdadeEmAberto,
+} from "@/interface/componentes/idade-em-aberto";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { textoDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
 import { Button } from "@/interface/componentes/ui/button";
@@ -35,9 +39,9 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * ============================================================================
  *
  * **A ordem é conteúdo**, e é numerada na tela: recorrência, ocorrências por status, em aberto por
- * categoria, tempo de resolução, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4).
- * **Só o
- * nº 1 carrega uma frase dizendo por que existe**, e é essa assimetria que faz a hierarquia sem usar cor.
+ * categoria, tempo de resolução, média das avaliações e em aberto por idade
+ * (`inventario-de-telas.md:984-988`, critério 32.4). **Só o nº 1 carrega uma frase dizendo por que
+ * existe**, e é essa assimetria que faz a hierarquia sem usar cor.
  *
  * **A leitura vai pela estrada direta** (contrato §5), como T-03, T-05, T-08 e T-09: `app/` não monta
  * repositório, e um `fetch` interno custaria o salto HTTP que a §5 recusou — cobrado, sob escala a zero,
@@ -55,7 +59,7 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * clicáveis e dois não precisa dizer qual é qual sem que ninguém tenha de descobrir clicando.
  *
  * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão. No
- * celular os cinco empilham na ordem numerada, e a recorrência é a que fica visível sem rolar.
+ * celular os seis empilham na ordem numerada, e a recorrência é a que fica visível sem rolar.
  */
 export const dynamic = "force-dynamic";
 
@@ -113,6 +117,7 @@ export default async function Dashboard({
         <EmAbertoPorCategoria dashboard={dashboard} />
         <TempoDeResolucao dashboard={dashboard} />
         <MediaDasAvaliacoes dashboard={dashboard} />
+        <EmAbertoPorIdade dashboard={dashboard} />
       </div>
     </div>
   );
@@ -448,6 +453,43 @@ function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
             : `${String(avaliadas)} de ${String(resolvidas)} resolvidas avaliadas`}
         </span>
       </div>
+    </Cartao>
+  );
+}
+
+/**
+ * O bloco 6 — **o único número do painel que enxerga o que NÃO foi resolvido.**
+ *
+ * Os outros medem o que terminou: o tempo de resolução sai da trilha, e a trilha só tem a linha da
+ * resolução depois que ela aconteceu. A ocorrência aberta há duzentos dias não entrava em número nenhum,
+ * e uma operação que deixasse os casos difíceis de lado veria os indicadores melhorarem.
+ *
+ * **As quatro faixas aparecem sempre, mesmo a zero** (critério 59.2), e `agora` no cabeçalho é o 59.3 —
+ * sem a palavra, o Gestor leria o quadro como se ele respeitasse o período que acabou de escolher.
+ *
+ * **O `Medidor`, e nenhum desenho novo** (critério 59.4): é a lista com barra que quatro dos outros
+ * quadros já usam, com a barra `aria-hidden` e o número em texto ao lado — A-5. Um componente novo aqui
+ * seria a sexta forma de desenhar quatro números.
+ *
+ * **Ele ocupa uma coluna, como os quadros 2 a 5**, e a grade fica com cinco cartões em duas colunas. Dar
+ * `lg:col-span-2` a ele esticaria quatro barras pela tela e faria uma diferença de duas ocorrências
+ * parecer enorme.
+ *
+ * **A faixa mais velha se distingue por palavra, no rodapé** (critério 59.5). Nada aqui muda de cor, de
+ * peso ou de ícone: as quatro barras são a mesma `bg-marca`.
+ */
+function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
+  return (
+    <Cartao numero={6} titulo="Em aberto por idade" quando="agora">
+      <Medidor
+        itens={dashboard.abertasPorIdade.map((faixa) => ({
+          rotulo: rotuloDaFaixaDeIdade(faixa),
+          quantidade: faixa.quantidade,
+        }))}
+      />
+      <p className="text-tinta-suave text-corpo">
+        {textoDaIdadeEmAberto(dashboard.abertasPorIdade)}
+      </p>
     </Cartao>
   );
 }

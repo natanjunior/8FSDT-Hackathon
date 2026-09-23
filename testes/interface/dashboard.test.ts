@@ -4,6 +4,10 @@ import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
 import {
+  rotuloDaFaixaDeIdade,
+  textoDaIdadeEmAberto,
+} from "@/interface/componentes/idade-em-aberto";
+import {
   textoDoTempoDeResolucao,
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
@@ -356,5 +360,84 @@ describe("o cruzamento mensal do bloco 1 — quanto entrou e quanto saiu", () =>
     expect(textoDoFluxoMensal({ mes: "jun", registradas: 0, resolvidas: 5 })).toBe(
       "0 registradas · 5 resolvidas",
     );
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  A idade do que está em aberto — item 59, critérios 4, 5 e 6
+ * ---------------------------------------------------------------------------
+ *
+ * **O módulo é testado sozinho, e não através da tela**, pela razão dos itens 57 e 58: derivação dentro
+ * de um componente é derivação que nenhum teste do laço curto alcança.
+ *
+ * **Ele não importa a constante dos limites.** O `90` já chega na faixa, em `deDias`, e ler o mesmo
+ * número de duas fontes numa frase só é estar errado justamente quando elas discordam — o caso normal
+ * durante um deploy, com uma resposta servida pela versão anterior.
+ */
+describe("rotuloDaFaixaDeIdade — os dois números escritos em português", () => {
+  it("a primeira faixa se escreve com `Até`, porque começar em zero não se diz", () => {
+    expect(rotuloDaFaixaDeIdade({ deDias: 0, ateDias: 7, quantidade: 0 })).toBe("Até 7 dias");
+  });
+
+  it("as do meio levam os dois números", () => {
+    expect(rotuloDaFaixaDeIdade({ deDias: 8, ateDias: 30, quantidade: 0 })).toBe("8 a 30 dias");
+    expect(rotuloDaFaixaDeIdade({ deDias: 31, ateDias: 90, quantidade: 0 })).toBe("31 a 90 dias");
+  });
+
+  it("a faixa sem teto diz `Mais de`, e o número é o limite dela, não o começo", () => {
+    expect(rotuloDaFaixaDeIdade({ deDias: 91, ateDias: null, quantidade: 0 })).toBe(
+      "Mais de 90 dias",
+    );
+  });
+
+  it("um dia é um dia — o singular vale, porque os limites são de quem opera", () => {
+    // Se o dono trocar `LIMITES_DAS_FAIXAS_DE_IDADE` para `[1, 7, 30]`, estas são as duas primeiras
+    // linhas da tela — `{0, 1}` e `{2, 7}`, que é o que a derivação de `FAIXAS_DE_IDADE` produz.
+    expect(rotuloDaFaixaDeIdade({ deDias: 0, ateDias: 1, quantidade: 0 })).toBe("Até 1 dia");
+    expect(rotuloDaFaixaDeIdade({ deDias: 2, ateDias: 7, quantidade: 0 })).toBe("2 a 7 dias");
+  });
+});
+
+/** As quatro faixas do corte de hoje, com a quantidade da faixa mais velha por parâmetro. */
+const faixasCom = (naMaisVelha: number) => [
+  { deDias: 0, ateDias: 7, quantidade: 12 },
+  { deDias: 8, ateDias: 30, quantidade: 5 },
+  { deDias: 31, ateDias: 90, quantidade: 2 },
+  { deDias: 91, ateDias: null, quantidade: naMaisVelha },
+];
+
+describe("textoDaIdadeEmAberto — uma oração sempre, duas quando há o que apontar", () => {
+  const SEMPRE = "Há quanto tempo o que está em aberto espera, contando do registro.";
+
+  it("com a faixa mais velha em zero, só a oração que diz o que o quadro mede — critério 6", () => {
+    expect(textoDaIdadeEmAberto(faixasCom(0))).toBe(SEMPRE);
+  });
+
+  it("a organização recém-criada, com tudo a zero, lê a mesma oração", () => {
+    const zeradas = faixasCom(0).map((faixa) => ({ ...faixa, quantidade: 0 }));
+    expect(textoDaIdadeEmAberto(zeradas)).toBe(SEMPRE);
+  });
+
+  it("uma na faixa mais velha: a palavra que distingue, no singular — critério 5", () => {
+    expect(textoDaIdadeEmAberto(faixasCom(1))).toBe(`${SEMPRE} 1 espera há mais de 90 dias.`);
+  });
+
+  it("quatro na faixa mais velha: o plural sai do número", () => {
+    expect(textoDaIdadeEmAberto(faixasCom(4))).toBe(`${SEMPRE} 4 esperam há mais de 90 dias.`);
+  });
+
+  it("a faixa mais velha é a ÚLTIMA do array, e não a que alguém procurar por `ateDias`", () => {
+    // O array vem ordenado por construção da Aplicação. Uma segunda regra de *qual é a mais velha* seria
+    // a segunda que envelhece — então a função lê a última, e esta linha é o que fixa isso.
+    const fora = [
+      { deDias: 91, ateDias: null, quantidade: 0 },
+      { deDias: 0, ateDias: 7, quantidade: 9 },
+    ];
+    expect(textoDaIdadeEmAberto(fora)).toBe(`${SEMPRE} 9 esperam há até 7 dias.`);
+  });
+
+  it("sem faixa nenhuma, a oração continua — a tela nunca fica sem a linha que explica", () => {
+    expect(textoDaIdadeEmAberto([])).toBe(SEMPRE);
   });
 });
