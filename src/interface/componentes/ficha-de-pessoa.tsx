@@ -2,6 +2,26 @@ import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/interface/componentes/ui/hover-card";
 import { cn } from "@/interface/componentes/utilitarios";
 
+/** As iniciais: a primeira letra do primeiro nome e a do último. */
+function siglaDe(nome: string): string {
+  const partes = nome.trim().split(/\s+/u).filter(Boolean);
+  return (
+    (partes[0]?.[0] ?? "?") + (partes.length > 1 ? (partes[partes.length - 1]?.[0] ?? "") : "")
+  ).toUpperCase();
+}
+
+/**
+ * **O rosto da pessoa, escrito uma vez** — a ficha, a linha do tempo e as mensagens de T-05 (item 44q).
+ * Três telas desenhando o avatar cada uma do seu jeito é o que o guia §7 proíbe para as fichas.
+ */
+export function AvatarDePessoa({ nome, className }: { nome: string; className?: string }) {
+  return (
+    <Avatar className={className ?? "size-6"}>
+      <AvatarFallback>{siglaDe(nome)}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 /**
  * **Uma pessoa, escrita uma vez.** Aparece em T-03, T-05, T-06 e T-08.
  *
@@ -24,16 +44,9 @@ export function FichaDePessoa({
   /** O `id` do nome, para a ação da linha apontar para ele com `aria-describedby` (item 44j). */
   idDoNome?: string;
 }) {
-  const partes = nome.trim().split(/\s+/u).filter(Boolean);
-  const sigla = (
-    (partes[0]?.[0] ?? "?") + (partes.length > 1 ? (partes[partes.length - 1]?.[0] ?? "") : "")
-  ).toUpperCase();
-
   const face = (
     <span className={cn("inline-flex items-center", tamanho === "linha" ? "gap-2.5" : "gap-2")}>
-      <Avatar className={tamanho === "linha" ? "size-7" : "size-6"}>
-        <AvatarFallback>{sigla}</AvatarFallback>
-      </Avatar>
+      <AvatarDePessoa nome={nome} className={tamanho === "linha" ? "size-7" : "size-6"} />
       <span
         id={idDoNome}
         className={cn(

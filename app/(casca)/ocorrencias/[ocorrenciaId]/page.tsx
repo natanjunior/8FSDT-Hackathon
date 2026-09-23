@@ -24,12 +24,13 @@ import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
-import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
   autoria,
   fraseDaAtribuicao,
   fraseDaMensagem,
   fraseDaTransicao,
+  partesDaAutoria,
 } from "@/interface/componentes/linha-do-tempo";
 import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
@@ -978,26 +979,42 @@ async function LinhaDoTempo({
             {/* **Três formas de marcador, e nenhuma delas carrega informação sozinha** — a frase abaixo
                 diz o que aconteceu, em palavras. Transição é cheio, atribuição é contorno, mensagem é
                 contorno menor. */}
+            {/* **O primeiro evento é a criação** (premissa P1), e veste a cor do selo *Aberta*, que é o
+                estado que ele cria (critério 44q.7). A ordem é crescente. */}
             <span
               aria-hidden
               className={
-                evento.tipo === "transicao"
-                  ? "bg-tinta-suave border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border"
-                  : evento.tipo === "atribuicao"
-                    ? "border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent"
-                    : "border-linha mt-2 size-[7px] shrink-0 rounded-full border bg-transparent"
+                indice === 0 && evento.tipo === "transicao"
+                  ? "bg-marca border-marca mt-1.5 size-[11px] shrink-0 rounded-full border"
+                  : evento.tipo === "transicao"
+                    ? "bg-tinta-suave border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border"
+                    : evento.tipo === "atribuicao"
+                      ? "border-tinta-suave mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent"
+                      : "border-linha mt-2 size-[7px] shrink-0 rounded-full border bg-transparent"
               }
             />
 
             <span className="flex min-w-0 flex-col gap-0.5">
               {/* **A-5: nada só por cor.** Cada evento carrega quem, quando e o quê, em palavras. O
-                  instante vai em monoespaçada, pelo guia §3 — dado temporal. */}
-              <span className="text-tinta-fraca text-meta">
-                {autoria(
-                  evento.autor.nome,
-                  evento.autor.pessoaId === pessoaIdDeQuemLe,
-                  dataEHora(evento.ocorridoEm),
-                )}
+                  instante vai em monoespaçada, pelo guia §3 — dado temporal. **O rosto da pessoa vem
+                  antes do nome** (critério 44q.7), a mesma peça da ficha. O texto do `<span>` de dentro
+                  é o de `autoria(…)`, caractere por caractere. */}
+              <span className="text-meta flex items-center gap-2">
+                <AvatarDePessoa nome={evento.autor.nome} />
+                {(() => {
+                  const { quem, quando } = partesDaAutoria(
+                    evento.autor.nome,
+                    evento.autor.pessoaId === pessoaIdDeQuemLe,
+                    dataEHora(evento.ocorridoEm),
+                  );
+                  return (
+                    <span>
+                      <span className="text-tinta font-medium">{quem}</span>
+                      <span className="text-tinta-fraca"> · </span>
+                      <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
+                    </span>
+                  );
+                })()}
               </span>
               <span className="text-tinta-suave text-corpo whitespace-pre-line">
                 {evento.tipo === "transicao"

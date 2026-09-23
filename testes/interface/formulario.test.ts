@@ -1728,4 +1728,24 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
       '<Campo id={campoId} rotulo="Solução aplicada" rotuloOculto',
     );
   });
+
+  it("a régua ganha o visto, a marca de agora e a data à direita (critério 44q.6)", () => {
+    const regua = ler("src/interface/componentes/regua-do-ciclo.tsx");
+    expect(regua).toMatch(/passo\.estado === "alcancado" && \(\s*<Check aria-hidden/u);
+    expect(regua).toMatch(/passo\.estado === "atual" && <span[^>]*>agora<\/span>/u);
+    expect(regua).toContain("justify-between");
+    // Os três marcadores e a ligação não mudaram (critério 44q.6).
+    expect(regua).toContain('alcancado: "bg-tinta-suave border-tinta-suave"');
+  });
+
+  it("a linha do tempo e as mensagens têm avatar, e o primeiro evento veste a cor da Aberta (critério 44q.7)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).toContain("<AvatarDePessoa");
+    expect(pagina).toMatch(/indice === 0 && evento\.tipo === "transicao"/u);
+    expect(pagina).toContain("bg-marca border-marca");
+    const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
+    expect(conversa).toContain("<AvatarDePessoa");
+    // O balão: fundo próprio, que separa o que uma pessoa escreveu do que o sistema registrou.
+    expect(conversa).toContain("bg-background rounded-lg");
+  });
 });

@@ -20,7 +20,8 @@ import {
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
-import { autoria } from "@/interface/componentes/linha-do-tempo";
+import { AvatarDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { partesDaAutoria } from "@/interface/componentes/linha-do-tempo";
 import {
   avisarErro,
   avisarSucesso,
@@ -276,21 +277,33 @@ function ListaDeMensagens({
         ) : (
           <ol className="flex flex-col gap-3">
             {itens.map((mensagem) => (
-              <li key={mensagem.id} className="flex flex-col gap-0.5">
-                {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. */}
-                <span className="text-tinta-fraca text-meta">
-                  {autoria(
-                    mensagem.autor.nome,
-                    mensagem.autor.pessoaId === pessoaIdDeQuemLe,
-                    dataEHora(mensagem.criadoEm),
-                  )}
-                </span>
-                {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
-                    escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é ruído.
-                    **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
-                <span className="text-tinta-suave text-corpo whitespace-pre-line">
-                  {mensagem.texto}
-                </span>
+              <li key={mensagem.id} className="flex gap-2.5">
+                <AvatarDePessoa nome={mensagem.autor.nome} className="mt-0.5 size-7" />
+                {/* **O balão: fundo próprio**, que é o que separa o que uma pessoa escreveu do que o
+                    sistema registrou (critério 44q.7). **Ele não muda de lado por autor**: é livro de
+                    ocorrências, não conversa de mensageiro, e o autor já está nomeado em cada registro. */}
+                <div className="bg-background rounded-lg flex min-w-0 flex-1 flex-col gap-1 px-3.5 py-2.5">
+                  {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. O
+                      texto de fora é o de `autoria(…)`, caractere por caractere. */}
+                  {(() => {
+                    const { quem, quando } = partesDaAutoria(
+                      mensagem.autor.nome,
+                      mensagem.autor.pessoaId === pessoaIdDeQuemLe,
+                      dataEHora(mensagem.criadoEm),
+                    );
+                    return (
+                      <span className="text-meta">
+                        <span className="text-tinta font-medium">{quem}</span>
+                        <span className="text-tinta-fraca"> · </span>
+                        <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
+                      </span>
+                    );
+                  })()}
+                  {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
+                      escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é
+                      ruído. **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
+                  <span className="text-tinta text-corpo whitespace-pre-line">{mensagem.texto}</span>
+                </div>
               </li>
             ))}
           </ol>
