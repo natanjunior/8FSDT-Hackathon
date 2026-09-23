@@ -136,6 +136,21 @@ trabalho de hoje.
 Os dois ignoram a janela de datas, porque são fotografia de agora. Os nomes dos campos carregam a
 diferença, e o segundo se chama `abertasPorCategoria` por isso.
 
+## A mediana e o p90 do tempo de resolução
+
+O painel resume o tempo de resolução de cada mês por dois números: a mediana, que descreve o caso do
+meio, e o p90, que descreve o décimo pior atendimento. A duração de atendimento tem cauda longa, e uma
+média seria puxada para cima do caso típico por uns poucos casos arrastados.
+
+**O método do percentil é a interpolação linear**: as durações do mês são ordenadas, o índice sai da
+fração multiplicada por `n − 1`, e o valor sai da interpolação entre os dois vizinhos desse índice. Numa
+amostra de oito resoluções, o p90 cai entre a sétima e a oitava, e não sobre a maior delas. Outros métodos
+devolvem outro número sobre os mesmos dados, e por isso este fica escrito.
+
+**Mês com três resoluções ou menos não recebe p90.** A resposta traz as durações cruas daquele mês, e a
+tela as escreve uma a uma. Com três pontos, o percentil descreveria a interpolação entre dois deles, com
+uma exatidão que a amostra não sustenta.
+
 ## O upload é em duas etapas
 
 O servidor não transporta os bytes da imagem.
