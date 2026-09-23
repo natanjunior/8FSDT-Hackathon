@@ -51,7 +51,7 @@ const LIDO: DashboardLido = {
     { status: "resolvida", quantidade: 14 },
     { status: "cancelada", quantidade: 2 },
   ],
-  backlogPorCategoria: [{ categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 }],
+  abertasPorCategoria: [{ categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 }],
   mediaDasAvaliacoes: { media: 4.2, avaliadas: 6, resolvidas: 14 },
   recorrenciaPorCategoria: [
     { categoria: { id: "c-1", nome: "Vazamento" }, porMes: [{ mes: "2026-06", quantidade: 6 }] },
@@ -87,6 +87,12 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
       ativa: true,
       ordem: 1,
     });
+  });
+
+  it("o bloco por categoria atravessa com o nome que diz o que ele conta", () => {
+    expect(projetarDashboard(LIDO).abertasPorCategoria).toStrictEqual([
+      { categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 },
+    ]);
   });
 
   it("a categoria sai com dois campos — o contrato a declara inline, sem ícone", () => {

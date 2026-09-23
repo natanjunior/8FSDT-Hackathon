@@ -917,7 +917,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
 
       const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
         repo.backlogPorStatus(),
-        repo.backlogPorCategoria(),
+        repo.abertasPorCategoria(),
         repo.recorrenciaPorCategoria(janela),
         repo.recorrenciaPorArea(janela),
         repo.resolucoesPorMes(janela),
@@ -925,7 +925,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
 
       return [
         ...status.map((l) => `status:${l.status}:${String(l.quantidade)}`),
-        ...categorias.map((l) => `backlog-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
+        ...categorias.map((l) => `abertas-categoria:${l.categoria.nome}:${String(l.quantidade)}`),
         ...porCategoria.map(
           (l) => `recorrencia-categoria:${l.categoria.nome}:${l.mes}:${String(l.quantidade)}`,
         ),
@@ -945,7 +945,10 @@ describe("as consultas de configuração não atravessam organizações", () => 
         const mes = mesEmSaoPaulo(new Date());
         return [
           "status:resolvida:1",
-          "backlog-categoria:Portaria do Recanto:1",
+          // **Zero, e é o item 56 acontecendo aqui dentro.** A única ocorrência de A é `resolvida`, e o
+          // bloco por categoria passou a contar só o que está em aberto. *Portaria do Recanto* é ativa,
+          // então ela continua aparecendo — com zero, que é o critério 32.3 e a primeira metade do 56.6.
+          "abertas-categoria:Portaria do Recanto:0",
           `recorrencia-categoria:Portaria do Recanto:${mes}:1`,
           `recorrencia-area:Garagem do Recanto:${mes}:1`,
           `resolucao:${mes}:1:1`,
@@ -955,7 +958,7 @@ describe("as consultas de configuração não atravessam organizações", () => 
         const mes = mesEmSaoPaulo(new Date());
         return [
           "status:aberta:1",
-          "backlog-categoria:Portaria da Aurora:1",
+          "abertas-categoria:Portaria da Aurora:1",
           `recorrencia-categoria:Portaria da Aurora:${mes}:1`,
           `recorrencia-area:Garagem da Aurora:${mes}:1`,
         ];

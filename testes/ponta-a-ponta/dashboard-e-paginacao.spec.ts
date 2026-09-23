@@ -86,7 +86,7 @@ const POR_PAGINA = 20;
  * são irmãos dentro do `<main>` da casca, e nenhuma outra peça da casca é `section`.
  *
  * **O nome vai em expressão regular insensível a caixa** porque o título do quadro é `uppercase` por
- * CSS, e o que a página serve é *"Backlog por status"*.
+ * CSS, e o que a página serve é *"Ocorrências por status"*.
  */
 function quadro(pagina: Page, titulo: string): Locator {
   return pagina
@@ -225,33 +225,54 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   });
 
   // -------------------------------------------------------------------------
-  // 2.2 · Quadro 2 · Backlog por status agora — os SEIS, nenhum a zero (critério 33)
+  // 2.2 · Quadro 2 · Ocorrências por status agora — os SEIS, nenhum a zero (critérios 33 e 56.3)
   //
-  // **`agora` é o critério 33.4**, e não enfeite: sem a palavra, o Gestor lê o backlog como se ele
-  // respeitasse o período que acabou de escolher.
+  // **`agora` é o critério 33.4**, e não enfeite: sem a palavra, o Gestor leria o quadro como se ele
+  // respeitasse o período que acabou de escolher. **O título deixou de dizer `backlog`** (item 56):
+  // este quadro conta tudo o que a organização registrou, inclusive os terminais.
   // -------------------------------------------------------------------------
-  const backlogPorStatus = quadro(helena, "Backlog por status");
-  await expect(backlogPorStatus).toContainText("agora");
+  const ocorrenciasPorStatus = quadro(helena, "Ocorrências por status");
+  await expect(ocorrenciasPorStatus).toContainText("agora");
 
-  const linhasDeStatus = await linhasDoMedidor(backlogPorStatus);
+  const linhasDeStatus = await linhasDoMedidor(ocorrenciasPorStatus);
   expect(linhasDeStatus.map((linha) => linha.rotulo)).toEqual(SEIS_STATUS);
   for (const linha of linhasDeStatus) {
     expect(Number(linha.texto), `status "${linha.rotulo}" no dashboard`).toBeGreaterThan(0);
   }
-  cobre(test.info(), "7.2 · 2", { criterio: "33" });
+  cobre(test.info(), "7.2 · 2", { criterio: "33, 56.3" });
 
   // -------------------------------------------------------------------------
-  // 2.3 · Quadro 3 · Backlog por categoria agora — as sete (critério 33)
+  // 2.3 · Quadro 3 · Em aberto por categoria agora — as sete (critérios 33, 56.1 e 56.4)
   // -------------------------------------------------------------------------
-  const backlogPorCategoria = quadro(helena, "Backlog por categoria");
-  await expect(backlogPorCategoria).toContainText("agora");
+  const emAbertoPorCategoria = quadro(helena, "Em aberto por categoria");
+  await expect(emAbertoPorCategoria).toContainText("agora");
+  await expect(emAbertoPorCategoria).toContainText("Só o que está em aberto");
 
-  const linhasDeCategoria = await linhasDoMedidor(backlogPorCategoria);
+  const linhasDeCategoria = await linhasDoMedidor(emAbertoPorCategoria);
   expect(linhasDeCategoria).toHaveLength(CATEGORIAS_DA_SEMENTE);
   for (const linha of linhasDeCategoria) {
     expect(Number.isInteger(Number(linha.texto)), `categoria "${linha.rotulo}"`).toBe(true);
   }
-  cobre(test.info(), "7.2 · 3", { falta: "os nomes das sete categorias e a barra de cada linha" });
+
+  // **A soma do quadro 3 é a soma das QUATRO primeiras linhas do quadro 2** — e é igualdade exata por
+  // construção: `ocorrencias.categoria_id` é `not null` desde a migração 005, e o `join` casa
+  // `organizacao_id`, então nenhuma ocorrência em aberto fica fora de uma categoria. O `slice(0, 4)` é
+  // seguro porque a ordem dos seis está pinada logo acima, na ordem do ciclo.
+  //
+  // **É a asserção que pega a regressão que a gramática não pega.** Se o filtro de status voltar para o
+  // `where`, a igualdade some junto com as categorias a zero; se o filtro sumir, a desigualdade estrita
+  // cai. A desigualdade é estrita porque a seção 2.2 já afirmou que nenhum dos seis está em zero.
+  const soma = (linhas: readonly { texto: string }[]) =>
+    linhas.reduce((total, linha) => total + Number(linha.texto), 0);
+  const naoTerminais = soma(linhasDeStatus.slice(0, 4));
+
+  expect(soma(linhasDeCategoria)).toBe(naoTerminais);
+  expect(soma(linhasDeCategoria)).toBeLessThan(soma(linhasDeStatus));
+
+  cobre(test.info(), "7.2 · 3", {
+    criterio: "56.1, 56.4",
+    falta: "os nomes das sete categorias e a barra de cada linha",
+  });
 
   // -------------------------------------------------------------------------
   // 2.4 · Quadro 4 · Tempo médio de resolução — nenhum mês omitido (critérios 36.2 e 43.2)

@@ -71,8 +71,8 @@ O desenho da máquina, a tabela de transições permitidas e quem pode executar 
 
 ## O que o Gestor vê no painel
 
-Cinco indicadores, numa tela só: o backlog por estado, o backlog por categoria, a média das avaliações, a
-recorrência por categoria e por área, e o tempo médio de resolução mês a mês.
+Cinco indicadores, numa tela só: o total por estado, o que está em aberto por categoria, a média das
+avaliações, a recorrência por categoria e por área, e o tempo médio de resolução mês a mês.
 
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, e se quem
 abriu ficou satisfeito.**

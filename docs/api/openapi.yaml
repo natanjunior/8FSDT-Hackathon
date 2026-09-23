@@ -2423,8 +2423,12 @@ paths:
         aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
-        *o que eu mudo no mês*.** Por isso `backlog` é fotografia de agora (ignora a janela) e `recorrencia`
-        é série mensal dentro dela.
+        *o que eu mudo no mês*.** Por isso `backlogPorStatus` e `abertasPorCategoria` são fotografia de
+        agora (os dois ignoram a janela) e `recorrencia` é série mensal dentro dela.
+
+        **Os dois blocos de fotografia contam conjuntos diferentes, e não somam o mesmo número.**
+        `backlogPorStatus` conta tudo o que a organização registrou, inclusive o que já terminou;
+        `abertasPorCategoria` conta só o que está em aberto. A tela escreve isso nos dois quadros.
 
         **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
         em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
@@ -2437,9 +2441,9 @@ paths:
         Separar calendário de tempo ativo é evolução prevista. Mês sem nenhuma resolução aparece com
         `horas: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico mentir.
 
-        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); backlog por status e
-        categoria, média das avaliações, recorrência por categoria e área, e tempo médio de resolução mês a
-        mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
+        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); ocorrências por status, em
+        aberto por categoria, média das avaliações, recorrência por categoria e área, e tempo médio de
+        resolução mês a mês · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
       parameters:
         - name: de
           in: query
@@ -2463,7 +2467,12 @@ paths:
                   - { status: "em_analise", statusRotulo: "Em análise", quantidade: 7 }
                   - { status: "em_atendimento", statusRotulo: "Em atendimento", quantidade: 4 }
                   - { status: "pausada", statusRotulo: "Pausada", quantidade: 3 }
-                backlogPorCategoria:
+                # As duas listas do exemplo são recortes, não conjuntos completos: `backlogPorStatus`
+                # mostra quatro dos seis status e `abertasPorCategoria` mostra duas das categorias. Por
+                # isso as somas não fecham aqui. Na resposta de verdade elas fecham: a soma de
+                # `abertasPorCategoria` é IGUAL à soma das quatro linhas não terminais de
+                # `backlogPorStatus`, porque toda ocorrência tem categoria.
+                abertasPorCategoria:
                   - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8 }
                   - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6 }
                 mediaDasAvaliacoes: { media: 4.3, avaliadas: 31, resolvidas: 47 }
@@ -3660,9 +3669,12 @@ components:
     Dashboard:
       type: object
       description: |
-        O que a listagem não responde: **padrão e tendência**, não item individual. `backlog` é fotografia
-        de agora; `recorrencia` é série mensal dentro da janela.
-      required: [periodo, backlogPorStatus, backlogPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoMedioDeResolucao]
+        O que a listagem não responde: **padrão e tendência**, não item individual. `backlogPorStatus` e
+        `abertasPorCategoria` são fotografia de agora; `recorrencia` é série mensal dentro da janela.
+
+        Os dois blocos de fotografia contam conjuntos diferentes e **não somam o mesmo número**: um conta
+        tudo o que existe, o outro só o que está em aberto.
+      required: [periodo, backlogPorStatus, abertasPorCategoria, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, tempoMedioDeResolucao]
       properties:
         periodo:
           type: object
@@ -3677,8 +3689,15 @@ components:
               status: { $ref: "#/components/schemas/StatusOcorrencia" }
               statusRotulo: { type: string }
               quantidade: { type: integer }
-        backlogPorCategoria:
+        abertasPorCategoria:
           type: array
+          description: |
+            Quantas ocorrências **não terminais** existem agora em cada categoria — `aberta`,
+            `em_analise`, `em_atendimento` e `pausada`. Ignora a janela, como `backlogPorStatus`, e
+            **não soma com ele**: aquele conta os seis status, inclusive `resolvida` e `cancelada`.
+
+            Toda categoria ativa aparece, mesmo a zero; a desativada aparece enquanto ainda carregar algo
+            em aberto.
           items:
             type: object
             properties:
@@ -3695,7 +3714,8 @@ components:
             denominador a média mente quando poucos avaliam.
 
             **Respeita a janela `de`/`ate`, ancorada no instante da RESOLUÇÃO** — não é fotografia de agora
-            como o `backlog`, e não é série mensal como a recorrência: é um número só, sobre um recorte de
+            como `backlogPorStatus` e `abertasPorCategoria`, e não é série mensal como a recorrência: é um
+            número só, sobre um recorte de
             período. `resolvidas` conta as ocorrências resolvidas dentro da janela; `avaliadas` conta
             quantas **dessas** foram avaliadas; `media` é a média **dessas** notas. É o que mantém
             `avaliadas ≤ resolvidas` por construção, e o que faz `resolvidas` fechar com a soma de

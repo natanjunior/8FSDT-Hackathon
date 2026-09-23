@@ -24,7 +24,7 @@ import type { Janela } from "./janela";
 /** Uma contagem do backlog por status. **Só o que o banco tem** — quem completa os seis é o envelope. */
 export type ContagemPorStatus = { status: StatusOcorrencia; quantidade: number };
 
-/** Uma contagem do backlog por categoria. `{id, nome}` inline, como o `openapi.yaml:3229` declara. */
+/** Uma contagem por categoria. `{id, nome}` inline, como o `openapi.yaml:3229` declara. */
 export type ContagemPorCategoria = { categoria: { id: string; nome: string }; quantidade: number };
 
 /**
@@ -71,11 +71,14 @@ export interface RepositorioEscopadoDeDashboard {
   /**
    * **Fotografia de agora**, pela mesma razão da irmã acima.
    *
+   * Conta **só o que está em aberto** — os quatro status não terminais —, e por isso **não soma com
+   * `backlogPorStatus`**, que conta os seis. As duas telas dizem o que cada uma conta (critério 56.4).
+   *
    * Traz **toda categoria ativa**, mesmo a zero — é o critério 32.3, *"a estrutura ensina o que vai ser
-   * medido"* —, **mais** a categoria desativada que ainda tem ocorrência: escondê-la faria a soma por
-   * categoria discordar da soma por status sem nada na tela explicando por quê.
+   * medido"* —, **mais** a categoria desativada que ainda tem ocorrência em aberto, porque ainda há
+   * trabalho nela.
    */
-  backlogPorCategoria(): Promise<readonly ContagemPorCategoria[]>;
+  abertasPorCategoria(): Promise<readonly ContagemPorCategoria[]>;
   /** Série mensal por categoria, dentro da janela, recortada por `ocorrencias.registrada_em`. */
   recorrenciaPorCategoria(janela: Janela): Promise<readonly PontoDeCategoria[]>;
   /** Série mensal por área, dentro da janela, recortada por `ocorrencias.registrada_em`. */

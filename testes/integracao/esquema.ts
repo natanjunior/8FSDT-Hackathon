@@ -63,8 +63,8 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // `drop function` aqui. `drop table ... cascade` derruba o **gatilho**, porque ele depende da tabela —
   // e **não** derruba a função, que não depende de nada. Sem esta linha, o **segundo** arquivo de
   // integração a chamar `aplicarEsquema` no mesmo banco falha em
-  // `create function registros_transicao_append_only ... already exists`. E são cinco arquivos rodando
-  // em série (`fileParallelism: false`).
+  // `create function registros_transicao_append_only ... already exists`. E são vários arquivos rodando
+  // em série (`fileParallelism: false`) — o número deles esteve escrito aqui e envelheceu sozinho.
   await consulta(`drop function if exists registros_transicao_append_only() cascade`);
 
   await consulta(shim);

@@ -28,7 +28,7 @@ export type PontoDoMesProjetado = { mes: string; quantidade: number };
 export type DashboardProjetado = {
   periodo: { de: string; ate: string };
   backlogPorStatus: readonly { status: string; statusRotulo: string; quantidade: number }[];
-  backlogPorCategoria: readonly {
+  abertasPorCategoria: readonly {
     categoria: { id: string; nome: string };
     quantidade: number;
   }[];
@@ -64,7 +64,7 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
       statusRotulo: rotuloDeStatus(linha.status, null, LENTE_DO_DASHBOARD),
       quantidade: linha.quantidade,
     })),
-    backlogPorCategoria: lido.backlogPorCategoria.map((linha) => ({
+    abertasPorCategoria: lido.abertasPorCategoria.map((linha) => ({
       categoria: { id: linha.categoria.id, nome: linha.categoria.nome },
       quantidade: linha.quantidade,
     })),

@@ -42,7 +42,7 @@ export type MediaDasAvaliacoes = { media: number | null; avaliadas: number; reso
 export type DashboardLido = {
   periodo: Janela;
   backlogPorStatus: readonly ContagemPorStatus[];
-  backlogPorCategoria: readonly ContagemPorCategoria[];
+  abertasPorCategoria: readonly ContagemPorCategoria[];
   mediaDasAvaliacoes: MediaDasAvaliacoes;
   recorrenciaPorCategoria: readonly SerieDeCategoria[];
   recorrenciaPorArea: readonly SerieDeArea[];
@@ -58,7 +58,7 @@ export async function verDashboard(
 
   const [status, categorias, porCategoria, porArea, resolucoes] = await Promise.all([
     repositorio.backlogPorStatus(),
-    repositorio.backlogPorCategoria(),
+    repositorio.abertasPorCategoria(),
     repositorio.recorrenciaPorCategoria(periodo),
     repositorio.recorrenciaPorArea(periodo),
     repositorio.resolucoesPorMes(periodo),
@@ -67,7 +67,7 @@ export async function verDashboard(
   return {
     periodo,
     backlogPorStatus: comOsSeisStatus(status),
-    backlogPorCategoria: categorias,
+    abertasPorCategoria: categorias,
     mediaDasAvaliacoes: mediaDe(resolucoes),
     recorrenciaPorCategoria: agrupar(
       porCategoria,
