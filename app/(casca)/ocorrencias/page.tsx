@@ -369,13 +369,8 @@ async function Lista({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* A barra some no vazio de organização — guia §8: filtrar um conjunto vazio não é uma oferta.
-          Nos outros desfechos ela fica, e é o que impede o vazio de filtro de virar beco. */}
-      {estado !== "organizacao" && barra}
-
-      {/* **A deriva fica FORA do cartão**, e é o mesmo lugar e a mesma razão da barra: ela não recua
-          durante a espera, e o *Atualizar* dela continua clicável enquanto a lista anterior está
-          pintada. */}
+      {/* **A deriva fica FORA do cartão, acima dele**: ela não recua durante a espera, e o *Atualizar*
+          dela continua clicável enquanto a lista anterior está pintada. */}
       <DerivaDaLista
         consultaAtual={consultaAtual}
         ate={projetada.ate}
@@ -384,7 +379,10 @@ async function Lista({
         novas={projetada.novasDesdeOCorte}
       />
 
-      <CartaoDaLista>
+      {/* **A barra de filtros é a primeira faixa do cartão** (critério 44q.9), fora do recuo da espera.
+          Ela some no vazio de organização — guia §8: filtrar um conjunto vazio não é uma oferta. Nos
+          outros desfechos ela fica, e é o que impede o vazio de filtro de virar beco. */}
+      <CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>
         {/*
           **A `key` saiu no item 44c, e a propriedade ficou.** Ela foi escrita quando o componente
           acumulava páginas; desde o item 14b ele é **só desenho**, sem estado a descartar, e remontá-lo a

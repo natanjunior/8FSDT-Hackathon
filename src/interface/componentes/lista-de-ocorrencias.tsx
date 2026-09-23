@@ -28,7 +28,13 @@ import { tempoCurto, tempoRelativo } from "./tempo-relativo";
  */
 function PalavraDePrioridade({ prioridade }: { prioridade: OcorrenciaResumoProjetada["prioridade"] }) {
   return (
-    <span className={prioridade === "alta" ? "text-destructive font-medium" : "text-tinta-suave"}>
+    <span
+      className={
+        prioridade === "alta"
+          ? "text-destructive font-medium"
+          : "text-tinta-suave group-data-[recuada]/linha:text-tinta-fraca"
+      }
+    >
       {rotuloDePrioridade(prioridade)}
     </span>
   );
@@ -41,7 +47,16 @@ function PalavraDePrioridade({ prioridade }: { prioridade: OcorrenciaResumoProje
  * têm o mesmo valor, e a régua desapareceria em cima dela. Com o chão da página, os dois ficam visíveis
  * nos dois temas. Decidido em `respostas.md` P2.
  */
-const LINHA_DA_LISTA = "border-linha-suave border-b even:bg-background last:border-b-0";
+const LINHA_DA_LISTA = "group/linha border-linha-suave border-b even:bg-background last:border-b-0";
+
+/**
+ * *Resolvida* e *Cancelada* descem um degrau de tinta (critério 44q.9): o olho varre primeiro o que está
+ * vivo. **O recuo é por tinta nomeada, nunca `opacity` na linha**: o selo e o convite a avaliar não
+ * descem, porque são as duas coisas que ainda pedem leitura ou ação.
+ */
+function encerrada(status: string): boolean {
+  return status === "resolvida" || status === "cancelada";
+}
 
 /**
  * ============================================================================
@@ -239,7 +254,7 @@ function LinhaDoSolicitante({
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li className={LINHA_DA_LISTA}>
+    <li className={LINHA_DA_LISTA} data-recuada={encerrada(item.status) ? "" : undefined}>
       <Link
         href={destinoDoItem(item.id)}
         className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
@@ -269,8 +284,10 @@ function LinhaDoSolicitante({
             )}
           </span>
         </span>
-        <span className="text-titulo-linha text-tinta">{item.titulo}</span>
-        <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave">
+          {item.titulo}
+        </span>
+        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <IconeDeCategoria
             nome={iconePorCategoria[item.categoria.id] ?? "tag"}
             className="size-3.5 shrink-0"
@@ -279,7 +296,9 @@ function LinhaDoSolicitante({
           <FichaDeLocal nomeDaArea={item.area.nome} />
           {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
         </span>
-        <span className="text-tinta-fraca text-meta flex flex-wrap items-center gap-1.5">
+        {/* A meta segue a prancheta, `--ink-soft` (exceção c do critério 44q.14): é o mesmo elemento no
+            mesmo papel. A tinta fraca reprovava no contraste de texto. */}
+        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
           {item.responsavel !== null && (
             <>
               <FichaDePessoa nome={item.responsavel.nome} /> está cuidando ·
@@ -312,7 +331,7 @@ function LinhaDeTriagemNoCelular({
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li className={LINHA_DA_LISTA}>
+    <li className={LINHA_DA_LISTA} data-recuada={encerrada(item.status) ? "" : undefined}>
       <Link
         href={destinoDoItem(item.id)}
         className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
@@ -336,8 +355,10 @@ function LinhaDeTriagemNoCelular({
             </span>
           )}
         </span>
-        <span className="text-titulo-linha text-tinta">{item.titulo}</span>
-        <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-1.5">
+        <span className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave">
+          {item.titulo}
+        </span>
+        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
           <FichaDeLocal nomeDaArea={item.area.nome} />·
           {item.responsavel === null ? (
             "sem responsável"
@@ -414,7 +435,11 @@ function TabelaDeTriagem({
             const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
             return (
-              <TableRow key={item.id} className={`${LINHA_DA_LISTA} align-top`}>
+              <TableRow
+                key={item.id}
+                className={`${LINHA_DA_LISTA} align-top`}
+                data-recuada={encerrada(item.status) ? "" : undefined}
+              >
                 <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
                   {segundaLinha !== null && (
@@ -435,11 +460,11 @@ function TabelaDeTriagem({
                 <TableCell className={cn(CELULA, "whitespace-normal")}>
                   <Link
                     href={destinoDoItem(item.id)}
-                    className="text-titulo-linha text-tinta underline-offset-4 hover:underline"
+                    className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave underline-offset-4 hover:underline"
                   >
                     {item.titulo}
                   </Link>
-                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
+                  <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca mt-0.5 flex items-center gap-1.5">
                     <IconeDeCategoria
                       nome={iconePorCategoria[item.categoria.id] ?? "tag"}
                       className="size-3.5 shrink-0"
@@ -463,7 +488,10 @@ function TabelaDeTriagem({
                     <FichaDePessoa nome={item.responsavel.nome} />
                   )}
                 </TableCell>
-                <TableCell className={cn(CELULA, "text-tinta-suave text-meta font-mono whitespace-nowrap tabular-nums")}>
+                <TableCell className={cn(
+                    CELULA,
+                    "text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca font-mono whitespace-nowrap tabular-nums",
+                  )}>
                   <span className="block">
                     <span className="sr-only">registrada </span>
                     {tempoCurto(item.registradaEm, agora)}

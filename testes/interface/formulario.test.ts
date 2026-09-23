@@ -1748,4 +1748,31 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     // O balão: fundo próprio, que separa o que uma pessoa escreveu do que o sistema registrou.
     expect(conversa).toContain("bg-background rounded-lg");
   });
+
+  it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
+    const cartao = ler("src/interface/componentes/cartao-da-lista.tsx");
+    expect(cartao).toMatch(/\{faixa\}\s*\n\s*<div\s+className=\{\s*pendente/u);
+    const pagina = ler("app/(casca)/ocorrencias/page.tsx");
+    expect(pagina).toContain('<CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>');
+  });
+
+  it("as encerradas descem um degrau de tinta por grupo, e o selo e o convite não descem (critério 44q.9)", () => {
+    const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+    expect(lista).toContain('data-recuada={encerrada(item.status) ? "" : undefined}');
+    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-suave");
+    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
+    expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
+    // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
+    expect(lista).not.toContain('"text-tinta-fraca text-meta flex flex-wrap items-center gap-1.5"');
+  });
+
+  it("o sublinhado da ficha só existe onde existe o cartão de ponteiro (critério 44q.9, crítica C1)", () => {
+    for (const caminho of ["src/interface/componentes/ficha-de-local.tsx", "src/interface/componentes/ficha-de-pessoa.tsx"]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain(
+        "[@media(hover:hover)_and_(pointer:fine)]:underline [@media(hover:hover)_and_(pointer:fine)]:decoration-linha [@media(hover:hover)_and_(pointer:fine)]:underline-offset-3",
+      );
+    }
+  });
 });
