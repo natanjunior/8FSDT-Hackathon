@@ -35,7 +35,8 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * ============================================================================
  *
  * **A ordem é conteúdo**, e é numerada na tela: recorrência, ocorrências por status, em aberto por
- * categoria, tempo médio, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4). **Só o
+ * categoria, tempo de resolução, média das avaliações (`inventario-de-telas.md:984-988`, critério 32.4).
+ * **Só o
  * nº 1 carrega uma frase dizendo por que existe**, e é essa assimetria que faz a hierarquia sem usar cor.
  *
  * **A leitura vai pela estrada direta** (contrato §5), como T-03, T-05, T-08 e T-09: `app/` não monta
@@ -218,8 +219,8 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
   // alimenta os dois. Os rótulos vêm do bloco 4, que é a única série que o contrato garante sem buraco.
   const fluxo = linhasDoFluxoMensal(
     dashboard.recorrenciaPorCategoria,
-    dashboard.tempoMedioDeResolucao.porMes,
-    rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes)),
+    dashboard.tempoDeResolucao.porMes,
+    rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes)),
   );
 
   return (
@@ -395,18 +396,18 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
  * número já convertido faria `18` de minutos parecer maior que `9` de dias.
  */
 function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
-  const rotulos = rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes));
+  const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
 
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoMedioDeResolucao.porMes.map((mes, i) => {
+  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) => {
     const rotulo = rotulos[i] ?? mes.mes;
     const denominador = `${String(mes.resolvidas)} ${mes.resolvidas === 1 ? "resolvida" : "resolvidas"}`;
 
-    return mes.horas === null
+    return mes.mediana === null
       ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto: `— · ${denominador}` }
       : {
           rotulo,
-          quantidade: mes.horas,
-          texto: `${duracaoEmTexto(mes.horas)} · ${denominador}`,
+          quantidade: mes.mediana,
+          texto: `${duracaoEmTexto(mes.mediana)} · ${denominador}`,
         };
   });
 

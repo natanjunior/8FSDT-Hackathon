@@ -62,7 +62,9 @@ const LIDO: DashboardLido = {
       porMes: [{ mes: "2026-06", quantidade: 2 }],
     },
   ],
-  tempoMedioDeResolucao: { porMes: [{ mes: "2026-06", horas: 72, resolvidas: 5 }] },
+  tempoDeResolucao: {
+    porMes: [{ mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 }],
+  },
 };
 
 describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
@@ -104,8 +106,8 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
     const projetado = projetarDashboard(LIDO);
     expect(projetado.periodo).toStrictEqual({ de: "2026-06-01", ate: "2026-08-29" });
     expect(projetado.mediaDasAvaliacoes).toStrictEqual({ media: 4.2, avaliadas: 6, resolvidas: 14 });
-    expect(projetado.tempoMedioDeResolucao.porMes).toStrictEqual([
-      { mes: "2026-06", horas: 72, resolvidas: 5 },
+    expect(projetado.tempoDeResolucao.porMes).toStrictEqual([
+      { mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 },
     ]);
   });
 });
@@ -116,8 +118,8 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
  * ---------------------------------------------------------------------------
  *
  * **A função é testada sozinha, e não através da tela.** Ela é o entregável durável do item: o 58 a chama
- * três vezes por linha, para média, mediana e p90. Um teste que precisasse montar componente não seria
- * reutilizado por ele.
+ * até três vezes por linha, para a mediana, o p90 e cada valor da amostra. Um teste que precisasse montar
+ * componente não seria reutilizado por ele.
  *
  * **O defeito que estes casos guardam** é `0 h` para uma ocorrência resolvida em nove minutos, visto em
  * produção. Cada `it` abaixo é uma linha da tabela da spec §3.2.

@@ -96,9 +96,9 @@ export function resolverJanela(pedida: JanelaPedida, agora?: string): Janela {
 /**
  * **Todo mês que a janela toca, do mais antigo para o mais novo** — e é UM eixo, usado pelas duas séries.
  *
- * O critério 36.2 pede isso para o tempo médio — *"nenhum mês é omitido"* —, e a razão que o contrato dá
- * vale igual para a recorrência: *"buraco na série é informação, e omitir o mês faria a linha do gráfico
- * mentir"*.
+ * O critério 36.2 pede isso para o tempo de resolução — *"nenhum mês é omitido"* —, e a razão que o
+ * contrato dá vale igual para a recorrência: *"buraco na série é informação, e omitir o mês faria a linha
+ * do gráfico mentir"*.
  *
  * **Um mês parcial continua sendo um mês.** Janela que começa em 15/06 tem `2026-06` na série, com o que
  * houve de 15 a 30 — não se arredonda para o mês inteiro nem se descarta a ponta.

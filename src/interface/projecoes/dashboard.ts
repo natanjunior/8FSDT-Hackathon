@@ -41,8 +41,14 @@ export type DashboardProjetado = {
     area: AreaProjetada;
     porMes: readonly PontoDoMesProjetado[];
   }[];
-  tempoMedioDeResolucao: {
-    porMes: readonly { mes: string; horas: number | null; resolvidas: number }[];
+  tempoDeResolucao: {
+    porMes: readonly {
+      mes: string;
+      mediana: number | null;
+      p90: number | null;
+      amostra: readonly number[] | null;
+      resolvidas: number;
+    }[];
   };
 };
 
@@ -81,10 +87,12 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
       area: projetarArea(serie.area),
       porMes: serie.porMes.map((ponto) => ({ mes: ponto.mes, quantidade: ponto.quantidade })),
     })),
-    tempoMedioDeResolucao: {
-      porMes: lido.tempoMedioDeResolucao.porMes.map((mes) => ({
+    tempoDeResolucao: {
+      porMes: lido.tempoDeResolucao.porMes.map((mes) => ({
         mes: mes.mes,
-        horas: mes.horas,
+        mediana: mes.mediana,
+        p90: mes.p90,
+        amostra: mes.amostra === null ? null : [...mes.amostra],
         resolvidas: mes.resolvidas,
       })),
     },

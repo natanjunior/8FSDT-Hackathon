@@ -2,6 +2,7 @@ import type { AreaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 
 import { mesesDaJanela, resolverJanela, type Janela, type JanelaPedida } from "./janela";
+import { AMOSTRA_PEQUENA } from "./portas";
 import type {
   ContagemPorCategoria,
   ContagemPorStatus,
@@ -35,7 +36,31 @@ export type SerieDeCategoria = {
   porMes: readonly PontoDoMes[];
 };
 export type SerieDeArea = { area: AreaLida; porMes: readonly PontoDoMes[] };
-export type MesDeResolucao = { mes: string; horas: number | null; resolvidas: number };
+/**
+ * Um mês do quadro 4. **Três valores de tempo, e nunca os três preenchidos ao mesmo tempo** — a tabela da
+ * spec §3.3 é o contrato:
+ *
+ * | Mês | `mediana` | `p90` | `amostra` |
+ * |---|---|---|---|
+ * | sem resolução | `null` | `null` | `null` |
+ * | 1 a 3 resoluções | o valor | `null` | as durações, ordenadas |
+ * | 4 ou mais | o valor | o valor | `null` |
+ *
+ * **A mediana é publicada sempre que houve resolução, inclusive no mês pequeno.** Ela não é percentil
+ * chutado: com um ponto é aquele ponto, com dois é o ponto médio, com três é o do meio. O que o critério
+ * 58.4 recusa é o p90, e é só ele que fica em `null` — com três pontos `percentile_cont` **interpola** um
+ * valor entre os dois maiores, que ninguém observou.
+ *
+ * **`amostra` é `null` acima do teto, e não `[]`:** `null` diz *não se aplica*; `[]` diria *nenhuma
+ * resolução*, que é outra coisa e já tem representação.
+ */
+export type MesDeResolucao = {
+  mes: string;
+  mediana: number | null;
+  p90: number | null;
+  amostra: readonly number[] | null;
+  resolvidas: number;
+};
 export type MediaDasAvaliacoes = { media: number | null; avaliadas: number; resolvidas: number };
 
 /** O schema `Dashboard` do contrato, ainda sem o `statusRotulo` — quem o acrescenta é a projeção. */
@@ -46,7 +71,7 @@ export type DashboardLido = {
   mediaDasAvaliacoes: MediaDasAvaliacoes;
   recorrenciaPorCategoria: readonly SerieDeCategoria[];
   recorrenciaPorArea: readonly SerieDeArea[];
-  tempoMedioDeResolucao: { porMes: readonly MesDeResolucao[] };
+  tempoDeResolucao: { porMes: readonly MesDeResolucao[] };
 };
 
 export async function verDashboard(
@@ -83,13 +108,26 @@ export async function verDashboard(
       (ponto, porMes) => ({ area: ponto.area, porMes }),
       (ponto) => ponto.area.nome,
     ),
-    tempoMedioDeResolucao: { porMes: serieDeResolucao(resolucoes, meses) },
+    tempoDeResolucao: { porMes: serieDeResolucao(resolucoes, meses) },
   };
 }
 
-/** Uma casa decimal — a precisão que o `openapi.yaml` exemplifica (`52.4`, `41.5`, `4.3`). */
+/** Uma casa decimal, e o único consumidor é a nota de 1 a 5 — o `4.3` que o `openapi.yaml` exemplifica. */
 function arredondar(valor: number): number {
   return Math.round(valor * 10) / 10;
+}
+
+/**
+ * **Duas casas, e o critério 55.2 é quem obriga.** *"Nenhum valor maior que zero é renderizado como
+ * zero"* é absoluto, e com uma casa os minutos que a tela escreve andam de seis em seis: qualquer
+ * duração abaixo de três minutos voltaria a ser `0 min`.
+ *
+ * **A amostra é o que muda o cálculo de risco.** Ela publica a duração de **uma** resolução, e o mês com
+ * uma resolução de dois minutos é comum numa organização que está começando. Com duas casas o quantum é
+ * de 36 segundos, abaixo do menor texto que a tela sabe escrever.
+ */
+function arredondarHoras(valor: number): number {
+  return Math.round(valor * 100) / 100;
 }
 
 /**
@@ -148,8 +186,13 @@ function agrupar<P extends PontoMensal, S>(
 }
 
 /**
- * **Nenhum mês é omitido** — critério 36.2. Mês sem resolução fica na série com `horas: null` e
- * `resolvidas: 0`, e a razão é do contrato: *"buraco na série é informação"*.
+ * **Nenhum mês é omitido** — critério 36.2. Mês sem resolução fica na série com os três valores de tempo
+ * em `null` e `resolvidas: 0`, e a razão é do contrato: *"buraco na série é informação"*.
+ *
+ * **A regra do critério 58.4 mora aqui, e não no SQL**: `npm run verificar` não roda o projeto de
+ * integração, então uma regra de produto que só vivesse na consulta seria uma regra que o portão nunca
+ * confere. O `case` do SQL usa a **mesma** constante e existe só para não transportar duzentos números
+ * que ninguém vai ler.
  */
 function serieDeResolucao(
   resolucoes: readonly LinhaDeResolucao[],
@@ -159,10 +202,16 @@ function serieDeResolucao(
 
   return meses.map((mes) => {
     const linha = porMes.get(mes);
-    if (linha === undefined || linha.resolvidas === 0) return { mes, horas: null, resolvidas: 0 };
+    if (linha === undefined || linha.resolvidas === 0) {
+      return { mes, mediana: null, p90: null, amostra: null, resolvidas: 0 };
+    }
+
+    const pequena = linha.resolvidas <= AMOSTRA_PEQUENA;
     return {
       mes,
-      horas: arredondar(linha.somaDeHoras / linha.resolvidas),
+      mediana: arredondarHoras(linha.medianaDeHoras),
+      p90: pequena ? null : arredondarHoras(linha.p90DeHoras),
+      amostra: pequena ? linha.amostraEmHoras.map((horas) => arredondarHoras(horas)) : null,
       resolvidas: linha.resolvidas,
     };
   });
