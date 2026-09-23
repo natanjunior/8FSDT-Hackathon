@@ -103,6 +103,11 @@ sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
 O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
 abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
 
+No painel, a API devolve o tempo de resolução em horas com uma casa, e **a unidade que se lê é escolha da
+tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas inteiras, e acima disso
+escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
+zero hora.
+
 ## Celular primeiro, e o que muda na tela grande
 
 O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,
