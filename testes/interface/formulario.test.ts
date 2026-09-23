@@ -1680,4 +1680,52 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(ler("src/interface/componentes/modal.tsx")).toMatch(/RODAPE_DO_MODAL =[^;]*bg-background[^;]*border-t[^;]*px-6 py-3\.5/u);
     expect(ler("src/interface/componentes/campo.tsx")).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
   });
+
+  it("a faixa do cartão é uma variante da cabeça, com o título em h2 no papel de rótulo (critério 44q.5)", () => {
+    const fonte = ler("src/interface/componentes/cartao.tsx");
+    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase"');
+    expect(fonte).toContain("export function FaixaDoCartao");
+    expect(fonte).toContain("export function CorpoDoCartao");
+  });
+
+  it("os blocos de T-05 são cartões com faixa, e os títulos não mudaram de texto (critérios 44q.5 e 44q.16)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    for (const titulo of ["O que foi relatado", "Solução aplicada", "Linha do tempo", "Detalhes"]) {
+      expect(pagina, titulo).toMatch(new RegExp(`className=\\{TITULO_DA_FAIXA\\}[^>]*>\\s*${titulo}`, "u"));
+    }
+    // O título da avaliação continua o que o teste de ponta a ponta afirma (desvio D3).
+    expect(pagina).toContain('{ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}');
+    // `0 fotos` não se escreve — e sem foto o `dado` é `undefined`, não `false`, para a faixa não montar
+    // o invólucro da direita vazio.
+    expect(pagina).toMatch(/detalhe\.anexos\.length > 0\s*\?/u);
+
+    const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
+    // **"Mensagens N" é o nome que o teste afirma** (`interrupcoes-da-ocorrencia.spec.ts:320`). O
+    // separador entra mudo, e a contagem continua sumindo enquanto há cursor.
+    expect(conversa).toMatch(/Mensagens\{" "\}\s*\{cursor === null && \(/u);
+    expect(conversa).toContain('<span aria-hidden="true">· </span>');
+  });
+
+  it("nenhum invólucro novo de T-05 é `<section>` sem nome — o teste escopa a Situação por seção", () => {
+    // `mundo.ts:121` e `caminho-critico.spec.ts:439`: `locator("section").filter({ hasText: "Situação" }).first()`.
+    // Um `<section>` que envolvesse a coluna de apoio casaria primeiro. O cartão da barra é `<div>`.
+    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
+    expect(barra).not.toMatch(/<section/u);
+  });
+
+  it("as ações dividem a linha: a principal com dois terços (critério 44q.8)", () => {
+    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
+    expect(barra).not.toContain("lg:flex-col");
+    expect(barra).not.toContain("lg:w-full");
+    expect(barra).toContain('ehPrimario ? "flex-[2]" : "flex-1"');
+    // O cartão só a partir de `lg`; abaixo dele, a barra continua presa ao pé.
+    expect(barra).toContain("lg:rounded-lg lg:border lg:bg-superficie");
+  });
+
+  it("o rótulo do campo da solução some da vista e fica no nome (critério 44q.5)", () => {
+    expect(ler("src/interface/componentes/campo.tsx")).toContain('rotuloOculto && "sr-only"');
+    expect(ler("src/interface/componentes/campo-de-solucao-aplicada.tsx")).toContain(
+      '<Campo id={campoId} rotulo="Solução aplicada" rotuloOculto',
+    );
+  });
 });

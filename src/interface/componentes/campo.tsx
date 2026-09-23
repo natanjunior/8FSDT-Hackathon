@@ -89,6 +89,7 @@ export function Campo({
   erro,
   contador,
   rotuloEmTelaGrande = "visivel",
+  rotuloOculto = false,
   children,
 }: {
   id: string;
@@ -103,6 +104,12 @@ export function Campo({
    * contatos de T-08 (item 44j). O controle continua nomeado, por `aria-label`.
    */
   rotuloEmTelaGrande?: "visivel" | "oculto";
+  /**
+   * Esconde o rótulo da vista em qualquer largura, e ele continua sendo o `<label>` do controle. É o
+   * campo da solução aplicada de T-05 (item 44q): a faixa do cartão já escreve *Solução aplicada*, e o
+   * rótulo visível repetiria a mesma palavra logo abaixo.
+   */
+  rotuloOculto?: boolean;
   children: ReactNode | ((controle: PropsDoControle) => ReactNode);
 }) {
   const idDaAjuda = `${id}-ajuda`;
@@ -128,7 +135,11 @@ export function Campo({
   const rotuloDoCampo = (
     <label
       htmlFor={id}
-      className={cn("text-tinta text-interface font-medium", rotuloEmTelaGrande === "oculto" && "lg:sr-only")}
+      className={cn(
+        "text-tinta text-interface font-medium",
+        rotuloEmTelaGrande === "oculto" && "lg:sr-only",
+        rotuloOculto && "sr-only",
+      )}
     >
       {rotulo}
       {obrigatorio && <Asterisco />}

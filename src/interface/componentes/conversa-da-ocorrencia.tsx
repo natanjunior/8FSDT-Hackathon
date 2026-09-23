@@ -10,6 +10,12 @@ import {
   RodapeDoFormulario,
 } from "@/interface/componentes/campo";
 import {
+  Cartao,
+  CorpoDoCartao,
+  FaixaDoCartao,
+  TITULO_DA_FAIXA,
+} from "@/interface/componentes/cartao";
+import {
   enviarComentario,
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
@@ -82,6 +88,7 @@ export function ConversaDaOcorrencia({
 }) {
   const router = useRouter();
   const campoId = useId();
+  const idDoTitulo = useId();
   const [acrescentadas, setAcrescentadas] = useState<readonly ComentarioDoEnvio[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -120,9 +127,12 @@ export function ConversaDaOcorrencia({
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <Suspense fallback={<EsqueletoDaConversa />}>
+    /* **Cartão com faixa, como os outros blocos de T-05** (item 44q, critério 5). A faixa mora dentro
+       da `ListaDeMensagens`, porque é lá que estão a contagem e o cursor. */
+    <Cartao tituloId={idDoTitulo}>
+      <Suspense fallback={<EsqueletoDaConversa idDoTitulo={idDoTitulo} />}>
         <ListaDeMensagens
+          idDoTitulo={idDoTitulo}
           pagina={primeiraPagina}
           acrescentadas={acrescentadas}
           ocorrenciaId={ocorrenciaId}
@@ -131,46 +141,48 @@ export function ConversaDaOcorrencia({
         />
       </Suspense>
 
-      <Campo id={campoId} rotulo={rotuloDoCampo} obrigatorio erro={formulario.erroDe("mensagem")}>
-        {(controle) => (
-          <Textarea
-            {...controle}
-            value={texto}
-            onChange={(evento) => {
-              setTexto(evento.target.value);
-              // Aviso velho ao lado de texto novo é a pior combinação possível.
-              setAviso(null);
-              formulario.mudou("mensagem");
-            }}
+      <CorpoDoCartao>
+        <Campo id={campoId} rotulo={rotuloDoCampo} obrigatorio erro={formulario.erroDe("mensagem")}>
+          {(controle) => (
+            <Textarea
+              {...controle}
+              value={texto}
+              onChange={(evento) => {
+                setTexto(evento.target.value);
+                // Aviso velho ao lado de texto novo é a pior combinação possível.
+                setAviso(null);
+                formulario.mudou("mensagem");
+              }}
+              disabled={enviando}
+              rows={3}
+              /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
+                 não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
+              maxLength={4000}
+            />
+          )}
+        </Campo>
+
+        {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
+
+        {/* **A mensagem enviada responde com aviso** (guia §7, item 44g), e isso fecha a pergunta Q-6 do
+            item 30: a mensagem também aparece na lista, e o aviso é o retorno que todo salvamento dá.
+            **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
+            momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
+            inerte durante o envio. */}
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 font-medium"
             disabled={enviando}
-            rows={3}
-            /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
-               não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
-            maxLength={4000}
-          />
-        )}
-      </Campo>
-
-      {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
-
-      {/* **A mensagem enviada responde com aviso** (guia §7, item 44g), e isso fecha a pergunta Q-6 do
-          item 30: a mensagem também aparece na lista, e o aviso é o retorno que todo salvamento dá.
-          **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
-          momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
-          inerte durante o envio. */}
-      <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 font-medium"
-          disabled={enviando}
-          onClick={() => void enviar()}
-        >
-          <IndicadorDeEnvio ativo={enviando} />
-          {enviando ? "Enviando…" : "Enviar"}
-        </Button>
-      </RodapeDoFormulario>
-    </section>
+            onClick={() => void enviar()}
+          >
+            <IndicadorDeEnvio ativo={enviando} />
+            {enviando ? "Enviando…" : "Enviar"}
+          </Button>
+        </RodapeDoFormulario>
+      </CorpoDoCartao>
+    </Cartao>
   );
 }
 
@@ -182,12 +194,14 @@ export function ConversaDaOcorrencia({
  * conversa que a pessoa já lê é dela.
  */
 function ListaDeMensagens({
+  idDoTitulo,
   pagina,
   acrescentadas,
   ocorrenciaId,
   pessoaIdDeQuemLe,
   vazio,
 }: {
+  idDoTitulo: string;
   pagina: Promise<PaginaDeComentariosProjetada>;
   acrescentadas: readonly ComentarioDoEnvio[];
   ocorrenciaId: string;
@@ -242,53 +256,64 @@ function ListaDeMensagens({
         lado de um *Carregar mais* diria *"2"* numa conversa de trinta. É a mesma razão pela qual o
         esqueleto da linha do tempo não conta: **não se conta o que ainda não chegou**.
       */}
-      <h2 className="text-tinta text-titulo-bloco">
-        Mensagens{" "}
-        {cursor === null && <span className="text-tinta-fraca font-normal">{itens.length}</span>}
-      </h2>
+      <FaixaDoCartao>
+        {/* O nome acessível continua *"Mensagens 1"*, que é o que o teste de ponta a ponta afirma: o
+            separador é mudo, e sobra *Mensagens*, espaço, *1*. */}
+        <h2 id={idDoTitulo} className={TITULO_DA_FAIXA}>
+          Mensagens{" "}
+          {cursor === null && (
+            <>
+              <span aria-hidden="true">· </span>
+              <span className="text-tinta-fraca">{itens.length}</span>
+            </>
+          )}
+        </h2>
+      </FaixaDoCartao>
 
-      {itens.length === 0 ? (
-        <p className="text-tinta-suave text-corpo">{vazio}</p>
-      ) : (
-        <ol className="flex flex-col gap-3">
-          {itens.map((mensagem) => (
-            <li key={mensagem.id} className="flex flex-col gap-0.5">
-              {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. */}
-              <span className="text-tinta-fraca text-meta">
-                {autoria(
-                  mensagem.autor.nome,
-                  mensagem.autor.pessoaId === pessoaIdDeQuemLe,
-                  dataEHora(mensagem.criadoEm),
-                )}
-              </span>
-              {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
-                  escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é ruído.
-                  **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
-              <span className="text-tinta-suave text-corpo whitespace-pre-line">
-                {mensagem.texto}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <CorpoDoCartao>
+        {itens.length === 0 ? (
+          <p className="text-tinta-suave text-corpo">{vazio}</p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {itens.map((mensagem) => (
+              <li key={mensagem.id} className="flex flex-col gap-0.5">
+                {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. */}
+                <span className="text-tinta-fraca text-meta">
+                  {autoria(
+                    mensagem.autor.nome,
+                    mensagem.autor.pessoaId === pessoaIdDeQuemLe,
+                    dataEHora(mensagem.criadoEm),
+                  )}
+                </span>
+                {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
+                    escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é ruído.
+                    **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
+                <span className="text-tinta-suave text-corpo whitespace-pre-line">
+                  {mensagem.texto}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
 
-      {falha !== null && (
-        <p role="alert" className="text-tinta-suave text-meta">
-          {falha}
-        </p>
-      )}
+        {falha !== null && (
+          <p role="alert" className="text-tinta-suave text-meta">
+            {falha}
+          </p>
+        )}
 
-      {cursor !== null && (
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-auto self-start"
-          disabled={carregando}
-          onClick={() => void carregarMais()}
-        >
-          {carregando ? "Carregando…" : "Carregar mais"}
-        </Button>
-      )}
+        {cursor !== null && (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-auto self-start"
+            disabled={carregando}
+            onClick={() => void carregarMais()}
+          >
+            {carregando ? "Carregando…" : "Carregar mais"}
+          </Button>
+        )}
+      </CorpoDoCartao>
     </>
   );
 }
@@ -297,27 +322,33 @@ function ListaDeMensagens({
  * O estado de carregamento do bloco 4 — cabeçalho **sem a contagem** e duas mensagens em barra cinza.
  * `animate-pulse` é a mesma classe do `EsqueletoDaLinhaDoTempo`.
  */
-function EsqueletoDaConversa() {
+function EsqueletoDaConversa({ idDoTitulo }: { idDoTitulo: string }) {
   return (
     <>
-      <h2 className="text-tinta text-titulo-bloco">Mensagens</h2>
-      <div aria-hidden className="flex flex-col gap-3">
-        {[
-          [44, 90],
-          [50, 72],
-        ].map(([autor, frase]) => (
-          <div key={autor} className="flex flex-col gap-1.5">
-            <div
-              className="bg-secondary h-3 animate-pulse rounded"
-              style={{ width: `${String(autor)}%` }}
-            />
-            <div
-              className="bg-secondary h-4 animate-pulse rounded"
-              style={{ width: `${String(frase)}%` }}
-            />
-          </div>
-        ))}
-      </div>
+      <FaixaDoCartao>
+        <h2 id={idDoTitulo} className={TITULO_DA_FAIXA}>
+          Mensagens
+        </h2>
+      </FaixaDoCartao>
+      <CorpoDoCartao>
+        <div aria-hidden className="flex flex-col gap-3">
+          {[
+            [44, 90],
+            [50, 72],
+          ].map(([autor, frase]) => (
+            <div key={autor} className="flex flex-col gap-1.5">
+              <div
+                className="bg-secondary h-3 animate-pulse rounded"
+                style={{ width: `${String(autor)}%` }}
+              />
+              <div
+                className="bg-secondary h-4 animate-pulse rounded"
+                style={{ width: `${String(frase)}%` }}
+              />
+            </div>
+          ))}
+        </div>
+      </CorpoDoCartao>
     </>
   );
 }
