@@ -11,6 +11,7 @@ import {
   type ItemDoMedidor,
   type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
+import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import { GraficoDaRecorrencia } from "@/interface/componentes/grafico-da-recorrencia";
 import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
@@ -308,8 +309,13 @@ function BacklogPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) {
  * *"Tempo de calendário, com as pausas."* — **sem nenhum espaço reservado** prometendo a separação
  * calendário × tempo ativo, que é ⬜ (critério 36.3).
  *
- * **As horas aparecem inteiras**, como o protótipo desenha (`72 h`, `41 h`); a API continua devolvendo a
- * casa decimal, que é o que o `openapi.yaml` exemplifica.
+ * **A unidade segue a magnitude, e quem decide é a tela** (item 55): minutos abaixo de uma hora, horas
+ * inteiras até 48, dias com uma casa acima disso. A API continua devolvendo horas com a casa decimal, que
+ * é o que o `openapi.yaml` exemplifica, e a regra mora em `duracao.ts` porque o item 58 a chama de novo.
+ *
+ * **A barra continua sendo desenhada sobre `mes.horas`, e não sobre o texto.** Ela compara os meses entre
+ * si, e um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade — desenhar sobre o
+ * número já convertido faria `18` de minutos parecer maior que `9` de dias.
  */
 function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
   const rotulos = rotulosDosMeses(dashboard.tempoMedioDeResolucao.porMes.map((mes) => mes.mes));
@@ -323,7 +329,7 @@ function TempoMedio({ dashboard }: { dashboard: DashboardProjetado }) {
       : {
           rotulo,
           quantidade: mes.horas,
-          texto: `${mes.horas.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} h · ${denominador}`,
+          texto: `${duracaoEmTexto(mes.horas)} · ${denominador}`,
         };
   });
 

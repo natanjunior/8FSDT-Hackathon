@@ -275,6 +275,30 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     // instantaneamente, quando o que houve foi não ter resolvido nada.
     expect(mes.texto, `mês "${mes.rotulo}"`).toBe("— · 0 resolvidas");
   }
+
+  // **O mês COM resolução escreve a unidade que cabe à magnitude** — item 55, critérios 55.1 e 55.2.
+  //
+  // **A gramática aceita as três faixas e não aposta em qual delas a corrida encontra.** A semente
+  // espalha os instantes pelo balde do mês, então a distância entre registro e resolução muda com o dia
+  // em que a suíte roda — a mesma cautela do eixo de meses calculado, algumas linhas acima.
+  const mesesComResolucao = linhasDeMes.filter((linha) => !linha.texto.startsWith("—"));
+  expect(mesesComResolucao.length).toBeGreaterThan(0);
+  for (const mes of mesesComResolucao) {
+    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(
+      /^(?:\d+ min|\d+ h|\d+,\d dias) · \d+ resolvidas?$/u,
+    );
+    // **Nenhum valor maior que zero é renderizado como zero** — critério 55.2, e o defeito que o item 55
+    // conserta. **A gramática acima sozinha não pega a regressão**, porque `0 h · 3 resolvidas` casa com
+    // `\d+ h`; esta linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`.
+    //
+    // **`0 h` é impossível por construção** depois do item 55: a faixa de horas começa em 1. **`0 min`
+    // não é** — ele sai quando a API entrega `0.0`, e o achado A-55-5 registra que esse zero é do
+    // contrato, não da tela. Esta asserção só não conflita com aquele achado porque **a semente separa
+    // dois passos de um roteiro por no mínimo 37 minutos** (`EMPURRAO`, `semente/plano.ts:117`), então
+    // nenhuma média mensal desta suíte cai abaixo de 0,6 h. Se a semente mudar e um mês render `0 min`,
+    // **quem move é esta linha, e não a tela.**
+    expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/^0 (?:min|h) /u);
+  }
   cobre(test.info(), "7.2 · 4", {
     falta:
       "amarrar a frase nenhuma resolução no mês à linha do mês vazio, e com ela a ausência da barra",
