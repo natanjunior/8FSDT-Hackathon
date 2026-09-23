@@ -10,6 +10,8 @@ export {
   type JanelaPedida,
 } from "./janela";
 
+export { AMOSTRA_PEQUENA } from "./portas";
+
 export type {
   ContagemPorCategoria,
   ContagemPorStatus,

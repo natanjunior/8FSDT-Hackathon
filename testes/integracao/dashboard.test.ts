@@ -225,3 +225,136 @@ async function idDeUmVinculo(): Promise<string> {
   );
   return linhas[0]!.pessoa_id;
 }
+
+// ---------------------------------------------------------------------------
+
+/**
+ * A amostra do critério 58.6, em minutos, e os dois números esperados escritos ao lado dela.
+ *
+ * **`percentile_cont` é o percentil CONTÍNUO**: ele ordena os valores, calcula o índice
+ * `fração × (n − 1)` e **interpola linearmente** entre os dois vizinhos desse índice. O irmão
+ * `percentile_disc` devolveria sempre um valor observado, e daria outro número sobre estes mesmos dados —
+ * que é o motivo de o critério 58.2 mandar declarar o método.
+ *
+ * **O p90 desta amostra não é o máximo, e nem é o 55**: é um valor que ninguém observou, entre os dois
+ * maiores. É o que torna a regra do critério 58.4 necessária.
+ */
+const AMOSTRA_EM_MINUTOS = [4, 6, 7, 9, 12, 18, 55, 180];
+const MEDIANA_ESPERADA_EM_MINUTOS = 10.5; // índice 0,5 × 7 = 3,5 → 9 + 0,5 × (12 − 9)
+const P90_ESPERADO_EM_MINUTOS = 92.5; //     índice 0,9 × 7 = 6,3 → 55 + 0,3 × (180 − 55)
+
+/** Um mês inteiro dentro da janela do teste, longe das duas bordas e longe da virada do mês. */
+const JANELA_DA_AMOSTRA = { de: "2026-04-01", ate: "2026-04-30" };
+const MES_DA_AMOSTRA = "2026-04";
+const REGISTRADA_EM = "2026-04-10T12:00:00-03:00";
+
+/**
+ * Uma ocorrência resolvida, com a duração exata que o caso pede.
+ *
+ * **Duas linhas de trilha, e as duas são obrigatórias.** A migração 005 tem
+ * `registros_transicao_p1_ck` — `(sequencia = 1) = (status_anterior is null)` — e
+ * `registros_transicao_origem_ck` — `status_anterior is not null or status_novo = 'aberta'`. Uma
+ * `sequencia = 1` com `status_novo = 'resolvida'` é recusada pelas duas. A abertura entra em
+ * `registrada_em`, e a resolução `minutos` depois; a consulta filtra `status_novo = 'resolvida'`, então a
+ * linha de abertura não entra em número nenhum. É o mesmo formato de
+ * `isolamento-de-organizacao.test.ts:288-292`, e é fixture de leitura, não caminho de produção.
+ */
+async function resolverEm(minutos: number, titulo: string): Promise<void> {
+  const [ocorrencia] = await consulta<{ id: string }>(
+    `insert into ocorrencias
+          (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id,
+           status, registrada_em)
+          values ($1, $2, $3, 'comum', $4, 'Semente da amostra de oito.', $5, 'resolvida', $6::timestamptz)
+       returning id`,
+    [
+      idDaOrganizacao,
+      idDaCategoria["Elevador"],
+      await idDeUmaArea(),
+      titulo,
+      await idDeUmVinculo(),
+      REGISTRADA_EM,
+    ],
+  );
+
+  await consulta(
+    `insert into registros_transicao
+       (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id, ocorreu_em)
+     values ($1, $2, 1, null, 'aberta', $3, $4::timestamptz),
+            ($1, $2, 2, 'aberta', 'resolvida', $3, $4::timestamptz + make_interval(mins => $5))`,
+    [idDaOrganizacao, ocorrencia!.id, await idDeUmVinculo(), REGISTRADA_EM, minutos],
+  );
+}
+
+const linhaDoMes = async (mes: string) =>
+  (await dashboard().resolucoesPorMes(JANELA_DA_AMOSTRA)).find((linha) => linha.mes === mes);
+
+describe("resolucoesPorMes devolve mediana e p90 por percentile_cont", () => {
+  beforeAll(async () => {
+    for (const [i, minutos] of AMOSTRA_EM_MINUTOS.entries()) {
+      await resolverEm(minutos, `Amostra ${String(i + 1)}`);
+    }
+  });
+
+  it("os oito valores devolvem a mediana e o p90 da interpolação linear, em horas", async () => {
+    const linha = await linhaDoMes(MES_DA_AMOSTRA);
+
+    expect(linha).toBeDefined();
+    expect(linha!.medianaDeHoras * 60).toBeCloseTo(MEDIANA_ESPERADA_EM_MINUTOS, 6);
+    expect(linha!.p90DeHoras * 60).toBeCloseTo(P90_ESPERADO_EM_MINUTOS, 6);
+  });
+
+  it("acima do teto da amostra pequena o array vem VAZIO, e o denominador é oito", async () => {
+    const linha = await linhaDoMes(MES_DA_AMOSTRA);
+
+    expect(linha!.resolvidas).toBe(AMOSTRA_EM_MINUTOS.length);
+    expect(linha!.amostraEmHoras).toStrictEqual([]);
+  });
+
+  it("mês com três resoluções devolve a amostra ORDENADA, e a mediana no valor do meio", async () => {
+    // Um mês só dele, para que as oito acima não entrem na conta. A ordem de inserção é decrescente
+    // **de propósito**: o que ordena é o `order by` de dentro do `array_agg`, e sem ele esta asserção
+    // devolveria a ordem física das linhas.
+    //
+    // **Os `::status_ocorrencia` são obrigatórios nesta forma, e só nela.** Num `insert … select … union
+    // all`, o Postgres resolve o tipo da coluna entre os dois ramos antes de olhar o destino: `null` e
+    // `'aberta'` são ambos `unknown`, a resolução cai em `text`, e o `insert` é recusado com *"column
+    // status_anterior is of type status_ocorrencia but expression is of type text"*. A forma com `values`
+    // do `resolverEm` acima não precisa deles, porque ali o tipo do destino é conhecido de saída.
+    const mes = "2026-03";
+    const registradaEm = "2026-03-10T12:00:00-03:00";
+    for (const [i, minutos] of [90, 30, 60].entries()) {
+      await consulta(
+        `with nova as (
+           insert into ocorrencias
+                (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id,
+                 status, registrada_em)
+                values ($1, $2, $3, 'comum', $4, 'Semente do mes pequeno.', $5, 'resolvida', $6::timestamptz)
+             returning id
+         )
+         insert into registros_transicao
+           (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id, ocorreu_em)
+         select $1, nova.id, 1, null::status_ocorrencia, 'aberta'::status_ocorrencia, $5,
+                $6::timestamptz from nova
+          union all
+         select $1, nova.id, 2, 'aberta'::status_ocorrencia, 'resolvida'::status_ocorrencia, $5,
+                $6::timestamptz + make_interval(mins => $7) from nova`,
+        [
+          idDaOrganizacao,
+          idDaCategoria["Elevador"],
+          await idDeUmaArea(),
+          `Mes pequeno ${String(i + 1)}`,
+          await idDeUmVinculo(),
+          registradaEm,
+          minutos,
+        ],
+      );
+    }
+
+    const linhas = await dashboard().resolucoesPorMes({ de: "2026-03-01", ate: "2026-03-31" });
+    const linha = linhas.find((l) => l.mes === mes);
+
+    expect(linha!.resolvidas).toBe(3);
+    expect(linha!.amostraEmHoras.map((horas) => Math.round(horas * 60))).toStrictEqual([30, 60, 90]);
+    expect(linha!.medianaDeHoras * 60).toBeCloseTo(60, 6);
+  });
+});

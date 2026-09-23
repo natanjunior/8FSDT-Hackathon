@@ -13,13 +13,27 @@ import type { Janela } from "./janela";
  * primeiro modelo de leitura do projeto que não convive com escrita no mesmo repositório.
  *
  * **Nenhum tipo daqui é a forma de uma tabela** (ADR-0005). `LinhaDeResolucao` é o exemplo mais claro:
- * ela carrega `somaDeHoras` e `somaDasNotas`, que não existem em coluna nenhuma — são o que a agregação
+ * ela carrega `medianaDeHoras` e `somaDasNotas`, que não existem em coluna nenhuma — são o que a agregação
  * produz, e são o que permite ao envelope derivar dois indicadores de uma leitura só.
  *
  * **`AreaLida` vem do módulo de Organização, e não é cópia.** O `openapi.yaml:3266` declara
  * `recorrenciaPorArea[].area` como `$ref: Area`, com `required: [id, nome, tipo, ativa, ordem]` — que é
  * exatamente `AreaLida`. Um sexto formato de área no projeto seria o que diverge na primeira alteração.
  */
+
+/**
+ * O teto da amostra pequena — **três**, e o número é do critério 58.4.
+ *
+ * **Ele mora aqui porque descreve o que `resolucoesPorMes` devolve**, que é o contrato entre a Aplicação
+ * e o repositório. O SQL o interpola, como já faz com `FUSO` e `TERMINAIS`, e a Aplicação o compara: os
+ * dois lendo a mesma constante é o que impede que discordem.
+ *
+ * **A regra de produto mora na Aplicação, e não no SQL** — o `case` da consulta é economia de transporte,
+ * para que um mês com duzentas resoluções não devolva duzentos números que ninguém vai ler. A razão é de
+ * portão: `npm run verificar` não roda o projeto de integração, e uma regra que só vivesse no SQL seria
+ * uma regra que o portão nunca confere.
+ */
+export const AMOSTRA_PEQUENA = 3;
 
 /** Uma contagem do backlog por status. **Só o que o banco tem** — quem completa os seis é o envelope. */
 export type ContagemPorStatus = { status: StatusOcorrencia; quantidade: number };
@@ -45,19 +59,32 @@ export type PontoDeArea = PontoMensal & { area: AreaLida };
 /**
  * Um mês de resoluções — **e ele alimenta DOIS indicadores**, que é a decisão central deste módulo.
  *
- * O bloco 4 quer `horas` e `resolvidas` por mês; o bloco 5 quer `media`, `avaliadas` e `resolvidas` na
- * janela inteira. Os dois contam **o mesmo conjunto** — o que foi resolvido dentro do período —, e o
- * critério **34.5** exige que os dois números batam. Derivando o bloco 5 destas linhas, eles batem **por
- * construção**; com duas consultas, eles bateriam por coincidência, e a coincidência quebra no dia em que
- * um `where` mudar sozinho.
+ * O bloco 4 quer a **mediana**, o **p90** e `resolvidas` por mês; o bloco 5 quer `media`, `avaliadas` e
+ * `resolvidas` na janela inteira. Os dois contam **o mesmo conjunto** — o que foi resolvido dentro do
+ * período —, e o critério **34.5** exige que os dois números batam. Derivando o bloco 5 destas linhas,
+ * eles batem **por construção**; com duas consultas, eles bateriam por coincidência, e a coincidência
+ * quebra no dia em que um `where` mudar sozinho.
  *
- * `somaDeHoras` é a soma de (instante da resolução − `registrada_em`) em horas — **tempo de calendário,
- * com as pausas** (critério 36.3). `somaDasNotas` é a soma das notas das avaliadas.
+ * `somaDasNotas` é a soma das notas das avaliadas.
+ *
+ * `medianaDeHoras` e `p90DeHoras` saem de `percentile_cont` — **percentil contínuo, com interpolação
+ * linear** entre os dois vizinhos do índice `fração × (n − 1)`. Os dois são tempo de calendário, com as
+ * pausas dentro (critério 36.3), medidos entre `registrada_em` e o instante da resolução.
+ *
+ * `amostraEmHoras` traz as durações cruas, **ordenadas**, quando o mês teve `AMOSTRA_PEQUENA` resoluções
+ * ou menos; acima disso vem **vazia, nunca nula** — um `readonly number[]` sem `| null` é um ramo a menos
+ * para a Aplicação tratar, e o `null` que a API publica nasce onde ele significa alguma coisa.
+ *
+ * **Nenhum destes três campos é nulo numa linha devolvida**: o `group by` não produz linha para mês sem
+ * resolução, e `registrada_em` e `ocorreu_em` são `not null`. Quem cria o `null` do mês vazio é a
+ * Aplicação.
  */
 export type LinhaDeResolucao = {
   mes: string;
   resolvidas: number;
-  somaDeHoras: number;
+  medianaDeHoras: number;
+  p90DeHoras: number;
+  amostraEmHoras: readonly number[];
   avaliadas: number;
   somaDasNotas: number;
 };
