@@ -85,13 +85,6 @@ import { useOrdemGravada } from "@/interface/ganchos/use-ordem-gravada";
  * lista que se reordena é a inteira.
  */
 
-/**
- * O ponto que acompanha *Ativa* (item 44p, critério 22). **A palavra continua sendo o sinal** (A-5); o
- * ponto é a pista de forma que a prancheta desenhou, e é o que distingue as duas situações sem pintar a
- * maioria das linhas.
- */
-const PONTO_DE_ATIVA = "•";
-
 export function ListaDeOrdemManual<T extends ItemDaLista>({
   lista,
   itens,
@@ -297,14 +290,19 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
                       </TableCell>
                       {celulasProprias?.(item)}
                       <TableCell className={cn(CELULA, "hidden md:table-cell")}>
+                        {/* **Ativa é contorno de sucesso com o ponto; Inativa é apagado** (critério
+                            44q.11). O ponto é desenho, e não o caractere `•` de antes: o caractere
+                            entrava no nome acessível, e a palavra já diz tudo. */}
                         <Badge
                           variant="outline"
-                          className={cn(
-                            "border-linha rounded-sm",
-                            item.ativa ? "text-accent-foreground" : "text-tinta-fraca",
-                          )}
+                          className={
+                            item.ativa
+                              ? "border-ok text-ok gap-1.5"
+                              : "bg-muted text-tinta-suave border-transparent"
+                          }
                         >
-                          {item.ativa ? `${PONTO_DE_ATIVA} ${TEXTOS_DA_TABELA.ativa}` : TEXTOS_DA_TABELA.inativa}
+                          {item.ativa && <span aria-hidden className="bg-ok size-1.5 rounded-full" />}
+                          {item.ativa ? TEXTOS_DA_TABELA.ativa : TEXTOS_DA_TABELA.inativa}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-3.5 py-1.5 text-right">

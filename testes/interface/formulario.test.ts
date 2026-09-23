@@ -1556,36 +1556,31 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(esperas).toHaveLength(12);
   });
 
-  it("as três formas do selo se separam, e nenhuma cor nova entra (critérios 44p.9 e 44p.21)", () => {
+  it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {
     const fonte = ler("src/interface/componentes/selo-de-status.tsx");
-
-    // O defeito medido: no escuro `--accent-bg` (0,2921) e `--sunken` (0,2758) distavam 1,6% de
-    // luminosidade, e *Aberta* e *Resolvida* eram o mesmo chip no print de produção. O par invertido
-    // afasta os dois para 8,05:1 de contraste WCAG no escuro e 9,59:1 no claro.
-    expect(fonte).toContain("bg-accent-foreground text-accent");
-    expect(fonte).toContain("bg-muted text-accent-foreground");
-
-    // A marca continua fora: ela veste a ação principal, e só ela (guia §2).
-    //
-    // **A guarda é sobre as CLASSES, e não sobre a palavra:** o arquivo fala de "marcador" em cinco
-    // linhas — é o nome da peça de T-06 que mora nele —, e um `toContain("marca")` seria vermelho para
-    // sempre, diga o código o que disser.
-    expect(fonte).not.toContain("bg-marca");
-    expect(fonte).not.toContain("text-marca");
-    expect(fonte).not.toContain("border-marca");
-
-    // E o `globals.css` não muda: a resposta à P1 usa o par que já existe.
-    expect(ler("app/globals.css")).not.toContain("--positivo");
+    // **O 44p.21 decidiu no lugar do dono**, e disse que a decisão cairia se a prancheta tivesse
+    // argumento. A validação de 22/09 é o dono lendo a prancheta: seis tratamentos, um por estado.
+    expect(fonte).toContain('aberta: "bg-marca text-marca-foreground border-transparent"');
+    expect(fonte).toContain('pausada: "bg-atencao text-marca-foreground border-transparent"');
+    expect(fonte).toContain('em_analise: "border-tinta-suave text-tinta-suave bg-transparent"');
+    expect(fonte).toContain('em_atendimento: "border-info text-info bg-transparent"');
+    expect(fonte).toContain('resolvida: "bg-muted text-ok border-transparent"');
+    expect(fonte).toContain('cancelada: "bg-muted text-tinta-suave border-transparent"');
+    // A tinta fraca reprova no apagado (2,57:1 no escuro) — desvio D1.
+    expect(fonte).not.toContain("text-tinta-fraca");
+    // O `text-meta` no ponto de uso derrubaria o oitavo papel que a peça passou a ter.
+    expect(fonte).not.toContain("text-meta rounded-sm");
   });
 
-  it("o `Ativa` das listas de ordem manual não veste a marca (critérios 44p.18 e 44p.22)", () => {
+  it("o `Ativa` volta a ser selo de sucesso com o ponto, e o `Inativa` é apagado (critério 44q.11)", () => {
     const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
-
-    // *Ativa* é a maioria das linhas; pintá-la de laranja é o que fazia o print de Categorias e de Áreas
-    // parecer alarme. O destaque troca de lado, e o ponto é a pista de forma que a prancheta desenhou.
-    expect(fonte).not.toContain("border-marca/60 text-marca");
-    expect(fonte).toContain("text-accent-foreground");
-    expect(fonte).toContain("PONTO_DE_ATIVA");
+    // Contorno cheio, e não os 55% da prancheta: a 55% a borda mede 2,34:1 (desvio D6).
+    expect(fonte).toContain('"border-ok text-ok gap-1.5"');
+    expect(fonte).not.toContain("border-ok/");
+    expect(fonte).toContain("bg-ok size-1.5 rounded-full");
+    expect(fonte).toContain("bg-muted text-tinta-suave border-transparent");
+    // O ponto era um caractere, e agora é desenho: o `•` saiu.
+    expect(fonte).not.toContain('PONTO_DE_ATIVA = "•"');
   });
 });
 
