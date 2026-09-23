@@ -13,6 +13,7 @@
     "0009-documentacao-como-paginas-do-produto",
     "0010-o-componente-de-grafico-entra-com-o-recharts",
     "0011-sonner-e-cmdk-entram-como-pacotes",
-    "0012-o-teste-de-ponta-a-ponta-cresce-por-jornada"
+    "0012-o-teste-de-ponta-a-ponta-cresce-por-jornada",
+    "0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido"
   ]
 }

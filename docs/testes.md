@@ -17,11 +17,16 @@ volume se concentra onde a garantia é frágil, e quase não existe onde ela é 
 | Unitário de interface | os esquemas de validação da borda HTTP, antes de qualquer regra rodar | Vitest | não |
 | Unitário de infraestrutura | a camada de tradução do provedor de autenticação, com o SDK simulado | Vitest | não |
 | Integração de repositório | o isolamento entre organizações: consulta feita em nome de uma nunca devolve linha de outra | Vitest com o PostgreSQL da CLI do Supabase | sim |
-| Ponta a ponta | o caminho crítico inteiro num navegador, com a troca de organização no meio do percurso | Playwright | sim, com a pilha de pé |
+| Ponta a ponta | as jornadas do produto num navegador, com autenticação real: o caminho crítico, o nascimento de uma organização, as interrupções de uma ocorrência, a configuração, a recuperação de senha e o painel | Playwright | sim, com a pilha de pé e a semente aplicada |
 
 As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integração cresce por consulta
-nova, e não por arquivo. A de ponta a ponta não cresce: é uma só, por decisão registrada na
-[ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md).
+nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de sete arquivos, e cada
+arquivo declara quem é dono do mundo que ele usa. A regra anterior mandava que ela nunca crescesse, e o
+que a mudou foi medição: a [ADR-0012](adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) registra o
+número que a derrubou e o custo que ela cobra. O teto tem origem própria e sai de duas medições, o tempo
+da suíte e a taxa de reescrita, que a
+[ADR-0013](adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) define junto com a condição
+de parar de subir.
 
 ## O que a suíte alcança
 
@@ -124,7 +129,7 @@ invisível para ele.
 npm run verificar             lint, tipos, testes unitários e verificadores de documentação
 npm run teste                 só os unitários, que é o laço curto de quem implementa
 npm run teste:integracao      a suíte de isolamento; exige um PostgreSQL
-npm run teste:ponta-a-ponta   o caminho crítico num navegador; exige a pilha de pé
+npm run teste:ponta-a-ponta   as jornadas num navegador; exige a pilha, a semente e SENHA_DA_DEMONSTRACAO
 npm run cobertura             o número da seção acima; roda os dois primeiros juntos
 npm run local                 sobe a pilha inteira em contêiner, para os dois de cima
 ```

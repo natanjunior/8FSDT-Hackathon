@@ -43,6 +43,7 @@ const DOCUMENTOS = new Set([
   "docs/adr/0010-o-componente-de-grafico-entra-com-o-recharts.md",
   "docs/adr/0011-sonner-e-cmdk-entram-como-pacotes.md",
   "docs/adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md",
+  "docs/adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md",
   "docs/adr/README.md",
   "docs/api.md",
   "docs/atendimento-ao-enunciado.md",
