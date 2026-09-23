@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DashboardLido } from "@/aplicacao/dashboard";
+import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
@@ -175,5 +176,75 @@ describe("o corte da recorrência em três categorias mais `Outras`", () => {
       { mes: "jun", categoria1: 6, categoria2: 0, categoria3: 0, outras: 0 },
       { mes: "jul", categoria1: 0, categoria2: 0, categoria3: 0, outras: 0 },
     ]);
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  A unidade do tempo segue a magnitude — item 55, critérios 55.1 e 55.2
+ * ---------------------------------------------------------------------------
+ *
+ * **A função é testada sozinha, e não através da tela.** Ela é o entregável durável do item: o 58 a chama
+ * três vezes por linha, para média, mediana e p90. Um teste que precisasse montar componente não seria
+ * reutilizado por ele.
+ *
+ * **O defeito que estes casos guardam** é `0 h` para uma ocorrência resolvida em nove minutos, visto em
+ * produção. Cada `it` abaixo é uma linha da tabela da spec §3.2.
+ */
+describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero vira zero", () => {
+  it("abaixo de uma hora escreve minutos — `18 min` é o exemplo do critério 55.1", () => {
+    expect(duracaoEmTexto(0.3)).toBe("18 min");
+  });
+
+  it("três minutos são três minutos, e não zero — o caso literal do critério 55.2", () => {
+    expect(duracaoEmTexto(0.05)).toBe("3 min");
+  });
+
+  it("os doze minutos que a produção escrevia como `0 h`", () => {
+    expect(duracaoEmTexto(0.2)).toBe("12 min");
+  });
+
+  it("meio minuto sobe ao piso de um, porque o zero era o defeito", () => {
+    expect(duracaoEmTexto(0.008)).toBe("1 min");
+  });
+
+  it("zero continua zero — o critério 55.2 fala de valor MAIOR que zero, e uma casa decimal é o que a API dá", () => {
+    expect(duracaoEmTexto(0)).toBe("0 min");
+  });
+
+  it("`60 min` não se escreve: a costura de baixo promove à faixa de cima", () => {
+    expect(duracaoEmTexto(0.999)).toBe("1 h");
+  });
+
+  it("uma hora cravada já é hora, e não sessenta minutos", () => {
+    expect(duracaoEmTexto(1)).toBe("1 h");
+  });
+
+  it("hora e pouco é uma hora, e nunca zero, porque a faixa começa em 1", () => {
+    expect(duracaoEmTexto(1.4)).toBe("1 h");
+  });
+
+  it("de uma a 48 horas, horas inteiras — `41 h` é o exemplo do critério 55.1", () => {
+    expect(duracaoEmTexto(41)).toBe("41 h");
+  });
+
+  it("48 h é o limite superior INCLUSIVO da faixa de horas", () => {
+    expect(duracaoEmTexto(48)).toBe("48 h");
+  });
+
+  it("a costura de cima: o primeiro valor em dias diz a mesma coisa que `48 h`", () => {
+    expect(duracaoEmTexto(48.1)).toBe("2,0 dias");
+  });
+
+  it("acima de 48 horas, dias com uma casa — `9,2 dias` é o exemplo do critério 55.1", () => {
+    expect(duracaoEmTexto(220.8)).toBe("9,2 dias");
+  });
+
+  it("dia redondo mantém a casa — `3 dias` e `3,0 dias` não prometem a mesma precisão", () => {
+    expect(duracaoEmTexto(72)).toBe("3,0 dias");
+  });
+
+  it("a vírgula é da ICU, e não de um `replace` sobre o resultado", () => {
+    expect(duracaoEmTexto(100)).toBe("4,2 dias");
   });
 });
