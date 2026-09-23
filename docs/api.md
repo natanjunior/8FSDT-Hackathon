@@ -126,7 +126,7 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
-## Os dois recortes do painel
+## Os recortes do painel
 
 O painel conta a mesma coleção de duas maneiras, e elas não somam. Por status, ele conta **tudo o que a
 organização registrou**, com `resolvida` e `cancelada` entre os valores: é a distribuição do que existe.
@@ -135,6 +135,10 @@ trabalho de hoje.
 
 Os dois ignoram a janela de datas, porque são fotografia de agora. Os nomes dos campos carregam a
 diferença, e o segundo se chama `abertasPorCategoria` por isso.
+
+Há um terceiro recorte de fotografia, por idade, e ele conta **o mesmo conjunto** que o recorte por
+categoria: as duas somas fecham. Com o recorte por status elas não fecham, e quem lê precisa saber qual
+par soma.
 
 ## A mediana e o p90 do tempo de resolução
 
@@ -150,6 +154,20 @@ devolvem outro número sobre os mesmos dados, e por isso este fica escrito.
 **Mês com três resoluções ou menos não recebe p90.** A resposta traz as durações cruas daquele mês, e a
 tela as escreve uma a uma. Com três pontos, o percentil descreveria a interpolação entre dois deles, com
 uma exatidão que a amostra não sustenta.
+
+## A idade do que está em aberto
+
+Os outros números do painel só enxergam o que terminou: o tempo de resolução sai da trilha, e a trilha só
+tem a linha da resolução depois que ela aconteceu. A ocorrência que está em aberto há duzentos dias não
+entra em nenhum deles, e uma operação que deixasse os casos difíceis de lado veria os indicadores melhorarem.
+
+Por isso o painel conta também, agora, quantas ocorrências em aberto existem em cada faixa de idade. A
+idade é o tempo de calendário desde o registro, em dias inteiros, e o período pausado conta dentro dela,
+como no tempo de resolução.
+
+**As quatro faixas vêm sempre, mesmo a zero**, em ordem crescente, e cada uma publica os próprios limites
+em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
+sem mudar o formato da resposta.
 
 ## O upload é em duas etapas
 

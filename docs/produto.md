@@ -71,8 +71,9 @@ O desenho da máquina, a tabela de transições permitidas e quem pode executar 
 
 ## O que o Gestor vê no painel
 
-Cinco indicadores, numa tela só: o total por estado, o que está em aberto por categoria, a média das
-avaliações, a recorrência por categoria e por área, e o tempo de resolução mês a mês.
+Seis indicadores, numa tela só: o total por estado, o que está em aberto por categoria, a média das
+avaliações, a recorrência por categoria e por área, o tempo de resolução mês a mês, e a idade do que está
+em aberto.
 
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, se a fila
 cresce ou encolhe, e se quem abriu ficou satisfeito.**
@@ -87,10 +88,14 @@ ocorrências foram resolvidas e quantas dessas receberam nota, que é o que diz 
 ocorrência ficou pausada. Pausar não melhora o número. O painel o resume em dois números por mês: a
 mediana, que é o caso do meio, e o p90, que é o décimo pior atendimento.
 
+**O painel conta também a idade do que está em aberto**, em faixas de dias. É o único número da tela que
+olha para o que ainda não terminou: o tempo de resolução só existe depois que a ocorrência acabou, e sem
+este quadro o painel melhoraria quando os casos difíceis fossem deixados de lado.
+
 ## O escopo desta versão
 
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
-conversa dentro da ocorrência, a avaliação, o painel com os cinco indicadores, o cadastro de categorias,
+conversa dentro da ocorrência, a avaliação, o painel com os seis indicadores, o cadastro de categorias,
 áreas e pessoas, a entrada na organização por código com aprovação do Gestor, e várias organizações
 isoladas na mesma instalação.
 

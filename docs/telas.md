@@ -123,6 +123,12 @@ dois números já vêm na resposta: a soma das séries de recorrência é o que 
 de resolução é o que saiu, e é a tela que os cruza. **Registradas acima de resolvidas em meses seguidos é
 fila crescendo**, e o contrário é fila encolhendo.
 
+O painel mostra ainda, agora, quantas ocorrências em aberto estão em cada faixa de idade — até uma
+semana, até um mês, até três meses, e acima disso. **As quatro faixas aparecem sempre, mesmo a zero**,
+para que uma organização que está começando veja o que vai ser medido. Quando há alguma na faixa mais
+antiga, o quadro escreve quantas são: é o único número do painel que aponta um caso enquanto ainda dá para
+agir, porque o tempo de resolução só existe depois que a ocorrência acabou.
+
 ## Celular primeiro, e o que muda na tela grande
 
 O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,
