@@ -223,8 +223,9 @@ describe("app/globals.css — os oito papéis carregam o papel inteiro (item 44q
 /**
  * **A paleta categórica, medida — item 44e, critérios 3 e 4.**
  *
- * O gráfico de área empilhada de T-07 se liga a `var(--chart-1)` até `var(--chart-4)`, e quatro faixas
- * empilhadas só informam se o olho as separa. Os valores que o autor do tema escolheu não separavam:
+ * O gráfico de T-07 se liga a `var(--chart-1)` e `var(--chart-2)` desde o item 57, e duas séries num
+ * mesmo desenho só informam se o olho as separa. **Os quatro continuam medidos**, porque a paleta é
+ * inventário do tema e não do consumidor do dia. Os valores que o autor do tema escolheu não separavam:
  * `--chart-3` tinha croma 0,0599 no escuro, abaixo do piso categórico, e ficava a 5,17° de matiz de
  * `--chart-1` — a mesma cor em duas luminosidades.
  *
@@ -355,7 +356,7 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
         }
       });
 
-      it("a quarta série lê como cinza, que é o que `Outras` precisa ser", () => {
+      it("a quarta série lê como cinza, que é o que uma série de resto precisa ser", () => {
         const { series } = paletaDe(cabecalho);
         const cinza = series[3] as Lab;
         expect(croma(cinza)).toBeLessThanOrEqual(0.02);

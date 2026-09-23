@@ -60,7 +60,7 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * |---|---|
  * | O **32.5 na forma forte** — os cinco quadros batendo com o resumo que a semente imprime | Exige um mundo intocado, e este teste acrescenta a ele. Continua sendo passada humana |
  * | O **43.1** — o resumo impresso no terminal pelo `npm run semear:demo` | É saída de programa, não de tela. Nenhum navegador a alcança |
- * | **O que o gráfico do bloco 1 desenha** (35) | Ele é `aria-hidden` por decisão do compromisso A-5, e o número por série vive na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou** |
+ * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
  * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts` |
  * | O período escolhido à mão (`De`, `Até`, `Aplicar`) e a faixa de período inválido | São o formulário de T-07, e a janela padrão é a que a semente foi construída para encher. Um período digitado seria outra jornada |
@@ -201,27 +201,60 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toBeVisible();
 
   // -------------------------------------------------------------------------
-  // 2.1 · Quadro 1 · Recorrência no período — o gráfico DESENHOU (critério 35)
+  // 2.1 · Quadro 1 · Recorrência no período — as três seções (critérios 35 e 57)
   //
-  // **O que se afirma é que ele existe com superfície**, e não o que ele mostra: o `ChartContainer` é
-  // `aria-hidden` por decisão do compromisso A-5, e o número por série vive na lista ao lado — que é o
-  // que tem asserção logo abaixo. Um gráfico que não renderiza deixa a lista intacta, e passaria
-  // despercebido por qualquer asserção de texto.
+  // **A seção de cima é a que responde a pergunta da tela.** O gráfico desenha duas linhas — quanto foi
+  // registrado e quanto foi resolvido em cada mês —, e o mesmo array alimenta a lista ao lado: por isso
+  // a contagem de linhas da lista tem de bater com o eixo do quadro 4, e é essa asserção que pega o eixo
+  // derivando entre os dois blocos.
+  //
+  // **O gráfico é `aria-hidden`**, então o que se afirma dentro dele é nó de DOM, nunca papel: a
+  // superfície existe, e a identidade de cada série está escrita em palavra duas vezes — no rótulo de
+  // ponta, dentro do SVG, e na legenda, fora dele (critério 57.4).
   // -------------------------------------------------------------------------
   const recorrencia = quadro(helena, "Recorrência");
   await expect(recorrencia).toContainText("no período");
   await expect(recorrencia).toContainText(
     "Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.",
   );
-  await expect(recorrencia.locator('[data-slot="chart"] svg').first()).toBeVisible();
+  await expect(
+    recorrencia.getByRole("heading", { name: "Registradas e resolvidas" }),
+  ).toBeVisible();
 
-  // As duas listas do bloco 1, com o número em texto — A-5. Nenhuma das duas vazia.
+  const grafico = recorrencia.locator('[data-slot="chart"]');
+  await expect(grafico.locator("svg").first()).toBeVisible();
+
+  // **Uma ocorrência de cada palavra, e não "pelo menos uma".** Duas seriam o rótulo desenhando em todo
+  // ponto em vez de só na ponta, que é o defeito que o `valueAccessor` existe para não ter.
+  for (const serie of ["Registradas", "Resolvidas"]) {
+    await expect(
+      grafico.locator("svg text").filter({ hasText: new RegExp(`^${serie}$`, "u") }),
+    ).toHaveCount(1);
+  }
+
+  const legenda = grafico.locator(".recharts-legend-wrapper");
+  await expect(legenda).toContainText("Registradas");
+  await expect(legenda).toContainText("Resolvidas");
+
+  // As TRÊS listas do bloco 1, com o número em texto — A-5. A dos meses é a primeira do documento.
   const listasDoBloco1 = recorrencia.getByRole("list");
-  await expect(listasDoBloco1).toHaveCount(2);
-  expect((await linhasDoMedidor(recorrencia)).length).toBeGreaterThan(1);
+  await expect(listasDoBloco1).toHaveCount(3);
+
+  const mesesDoFluxo = await linhasDoMedidor(listasDoBloco1.first());
+  expect(mesesDoFluxo).toHaveLength(mesesNaJanela(de, ate));
+  for (const mes of mesesDoFluxo) {
+    // **A gramática é do critério 57.5**, e o singular vale dos dois lados.
+    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(/^\d+ registradas? · \d+ resolvidas?$/u);
+  }
+
+  // As duas listas de baixo continuam onde estavam, e nenhuma das duas vazia.
+  expect((await linhasDoMedidor(listasDoBloco1.nth(1))).length).toBeGreaterThan(1);
+  expect((await linhasDoMedidor(listasDoBloco1.nth(2))).length).toBeGreaterThan(1);
+
   cobre(test.info(), "7.2 · 1", {
+    criterio: "57.2, 57.4, 57.5",
     falta:
-      "o gráfico de linha por categoria e as barras por área — só a existência de uma superfície de desenho tem asserção",
+      "que as duas linhas não se empilhem e que os dois rótulos de ponta não se sobreponham — o desenho é aria-hidden, e o que tem asserção é a existência dele",
   });
 
   // -------------------------------------------------------------------------

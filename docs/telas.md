@@ -113,6 +113,11 @@ canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois 
 e cada um diz na tela o que conta, porque um leitor que somasse os dois quadros chegaria a uma conclusão
 que os dados não sustentam.
 
+O mesmo painel desenha, mês a mês, quantas ocorrências foram registradas e quantas foram resolvidas. Os
+dois números já vêm na resposta: a soma das séries de recorrência é o que entrou, e o denominador do tempo
+de resolução é o que saiu, e é a tela que os cruza. **Registradas acima de resolvidas em meses seguidos é
+fila crescendo**, e o contrário é fila encolhendo.
+
 ## Celular primeiro, e o que muda na tela grande
 
 O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,

@@ -174,15 +174,16 @@
   --marca-foreground: oklch(0.1808 0.0095 255.6419);
 
   /* ---- A paleta categórica, e o que sobrou do inventário ------------------
-     Os quatro primeiros têm consumidor desde o item 44e: o gráfico de área
-     empilhada de T-07 se liga a var(--chart-1) até var(--chart-4). Os valores
+     O gráfico de T-07 se liga a var(--chart-1) e var(--chart-2) — duas linhas,
+     registradas e resolvidas, desde o item 57. Os --chart-3 e --chart-4 ficam
+     medidos e sem consumidor, como estavam antes do item 44e. Os valores
      do autor do tema não serviam como paleta categórica — --chart-3 tinha
      croma 0,06 e lia como cinza, e --chart-1 e --chart-3 ficavam a cinco graus
      de matiz um do outro. Estes foram medidos: croma acima de 0,10 nos três
      coloridos, ΔEok de pelo menos 0,15 entre cada par, e 3:1 contra a
      superfície do próprio modo. Quem os segura é o testes/interface/tema.test.ts.
-     O --chart-4 é o cinza de "Outras": croma 0,015, e a luminosidade dele vai
-     na direção da tinta do modo, para ler como chão da pilha.
+     O --chart-4 é o cinza que era o chão da pilha: croma 0,015, e a
+     luminosidade dele vai na direção da tinta do modo.
      O --chart-5 continua sem consumidor e fica no valor do autor do tema.
      As sombras são diferentes: shadow-xs JÁ tem consumidor — o input.tsx e a
      variante outline do button.tsx. A entrada do Recharts está na ADR-0010. */

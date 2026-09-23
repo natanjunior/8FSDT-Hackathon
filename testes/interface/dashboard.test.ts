@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
-import { linhasDaRecorrencia } from "@/interface/componentes/recorrencia";
+import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
 
@@ -111,81 +111,6 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
 });
 
 /**
- * **O corte do bloco 1 — item 44e, critério 2.**
- *
- * A função não ordena e não preenche mês: as duas coisas já aconteceram em `agrupar`, e os testes abaixo
- * afirmam justo isso, para que ninguém acrescente uma segunda ordenação por via das dúvidas.
- */
-describe("o corte da recorrência em três categorias mais `Outras`", () => {
-  const serie = (rotulo: string, ...quantidades: number[]) => ({
-    rotulo,
-    porMes: quantidades.map((quantidade, i) => ({
-      mes: `2026-0${String(i + 6)}`,
-      quantidade,
-    })),
-  });
-
-  const MESES = ["jun", "jul"] as const;
-
-  it("com cinco categorias, três saem nomeadas e `outras` soma as duas restantes, mês a mês", () => {
-    const { linhas, nomes } = linhasDaRecorrencia(
-      [
-        serie("Vazamento", 6, 4),
-        serie("Elétrica", 3, 3),
-        serie("Limpeza", 2, 1),
-        serie("Portaria", 1, 2),
-        serie("Jardim", 0, 5),
-      ],
-      MESES,
-    );
-
-    expect(nomes).toStrictEqual({
-      categoria1: "Vazamento",
-      categoria2: "Elétrica",
-      categoria3: "Limpeza",
-    });
-    expect(linhas).toStrictEqual([
-      { mes: "jun", categoria1: 6, categoria2: 3, categoria3: 2, outras: 1 },
-      { mes: "jul", categoria1: 4, categoria2: 3, categoria3: 1, outras: 7 },
-    ]);
-  });
-
-  it("com três categorias ou menos, `outras` é zero em todo mês — faixa de altura zero é categoria que o olho não acha", () => {
-    const { linhas, nomes } = linhasDaRecorrencia(
-      [serie("Vazamento", 6, 4), serie("Elétrica", 3, 3)],
-      MESES,
-    );
-
-    expect(linhas.every((linha) => linha.outras === 0)).toBe(true);
-    expect(linhas.map((linha) => linha.categoria3)).toStrictEqual([0, 0]);
-    expect(nomes.categoria3).toBeUndefined();
-  });
-
-  it("preserva a ordem de entrada — quem ordena é a Aplicação, e ordenar de novo aqui envelheceria sozinho", () => {
-    const { nomes } = linhasDaRecorrencia(
-      [serie("Zíper", 1, 1), serie("Alvenaria", 9, 9), serie("Mofo", 5, 5)],
-      MESES,
-    );
-
-    expect(nomes.categoria1).toBe("Zíper");
-    expect(nomes.categoria2).toBe("Alvenaria");
-    expect(nomes.categoria3).toBe("Mofo");
-  });
-
-  it("o eixo é o das linhas, e uma série mais curta que ele lê como zero no mês que falta", () => {
-    // O bloco 4 é a espinha do eixo: `tempoMedioDeResolucao.porMes` é a única série que o contrato
-    // garante sem buraco. Uma série de categoria mais curta é dado impossível hoje, e mesmo assim não
-    // pode virar `undefined` dentro de um `<Area>`.
-    const { linhas } = linhasDaRecorrencia([serie("Vazamento", 6)], MESES);
-
-    expect(linhas).toStrictEqual([
-      { mes: "jun", categoria1: 6, categoria2: 0, categoria3: 0, outras: 0 },
-      { mes: "jul", categoria1: 0, categoria2: 0, categoria3: 0, outras: 0 },
-    ]);
-  });
-});
-
-/**
  * ---------------------------------------------------------------------------
  *  A unidade do tempo segue a magnitude — item 55, critérios 55.1 e 55.2
  * ---------------------------------------------------------------------------
@@ -252,5 +177,100 @@ describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero 
 
   it("a vírgula é da ICU, e não de um `replace` sobre o resultado", () => {
     expect(duracaoEmTexto(100)).toBe("4,2 dias");
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  O cruzamento mensal do bloco 1 — item 57, critérios 57.1 e 57.7
+ * ---------------------------------------------------------------------------
+ *
+ * **A função é testada sozinha, e é o critério 1 na letra:** *"a derivação mora onde o teste alcança, não
+ * dentro do componente de cliente"*. O projeto `unitario` roda em `environment: "node"`, e um teste que
+ * precisasse montar componente não alcançaria nada.
+ *
+ * **Ela não ordena e não preenche mês.** As duas coisas já aconteceram na Aplicação, e
+ * `testes/aplicacao/dashboard.test.ts` as afirma lá. Aqui só se afirma o cruzamento.
+ */
+describe("o cruzamento mensal do bloco 1 — quanto entrou e quanto saiu", () => {
+  const serie = (...quantidades: number[]) => ({
+    porMes: quantidades.map((quantidade) => ({ quantidade })),
+  });
+  const resolucoes = (...quantidades: number[]) =>
+    quantidades.map((resolvidas) => ({ resolvidas }));
+
+  const MESES = ["jun", "jul"] as const;
+
+  it("três registradas e cinco resolvidas em junho — o critério 57.7, literal", () => {
+    const linhas = linhasDoFluxoMensal(
+      [serie(2, 4), serie(1, 3)],
+      resolucoes(5, 2),
+      ["jun", "jul"],
+    );
+
+    expect(linhas[0]).toStrictEqual({ mes: "jun", registradas: 3, resolvidas: 5 });
+  });
+
+  it("a soma é por mês, e nunca do período — cada mês fecha com as séries daquele mês", () => {
+    const linhas = linhasDoFluxoMensal(
+      [serie(2, 4), serie(1, 3), serie(0, 1)],
+      resolucoes(5, 2),
+      MESES,
+    );
+
+    expect(linhas).toStrictEqual([
+      { mes: "jun", registradas: 3, resolvidas: 5 },
+      { mes: "jul", registradas: 8, resolvidas: 2 },
+    ]);
+  });
+
+  it("série de categoria mais curta que o eixo lê zero no mês que falta, e nunca `undefined`", () => {
+    // Uma `<Line>` com `undefined` num ponto desenha um buraco onde há um zero medido.
+    const linhas = linhasDoFluxoMensal([serie(6)], resolucoes(1, 1), MESES);
+
+    expect(linhas).toStrictEqual([
+      { mes: "jun", registradas: 6, resolvidas: 1 },
+      { mes: "jul", registradas: 0, resolvidas: 1 },
+    ]);
+  });
+
+  it("sem categoria e sem resolução, uma linha por mês, todas a zero — a estrutura ensina o que vai ser medido", () => {
+    expect(linhasDoFluxoMensal([], [], MESES)).toStrictEqual([
+      { mes: "jun", registradas: 0, resolvidas: 0 },
+      { mes: "jul", registradas: 0, resolvidas: 0 },
+    ]);
+  });
+
+  it("o eixo manda: resolução a mais que os rótulos não vira mês", () => {
+    const linhas = linhasDoFluxoMensal([serie(1)], resolucoes(1, 9), ["jun"]);
+
+    expect(linhas).toStrictEqual([{ mes: "jun", registradas: 1, resolvidas: 1 }]);
+  });
+
+  it("a janela de um mês só tem uma linha — é o que `De` e `Até` no mesmo mês produzem", () => {
+    expect(linhasDoFluxoMensal([serie(4)], resolucoes(2), ["jun"])).toStrictEqual([
+      { mes: "jun", registradas: 4, resolvidas: 2 },
+    ]);
+  });
+
+  it("a virada do ano chega pronta nos rótulos, e as chaves da lista continuam distintas", () => {
+    // `rotulosDosMeses` acrescenta o ano ao eixo inteiro quando a janela atravessa dezembro, e o rótulo
+    // é a chave de cada `<li>` da lista de meses.
+    const linhas = linhasDoFluxoMensal([serie(1, 2)], resolucoes(0, 3), ["dez/25", "jan/26"]);
+
+    expect(linhas.map((linha) => linha.mes)).toStrictEqual(["dez/25", "jan/26"]);
+    expect(new Set(linhas.map((linha) => linha.mes)).size).toBe(2);
+  });
+
+  it("o singular vale dos dois lados — `1 registrada · 1 resolvida`", () => {
+    expect(textoDoFluxoMensal({ mes: "jun", registradas: 1, resolvidas: 1 })).toBe(
+      "1 registrada · 1 resolvida",
+    );
+  });
+
+  it("o plural e o zero — `0 registradas · 5 resolvidas`", () => {
+    expect(textoDoFluxoMensal({ mes: "jun", registradas: 0, resolvidas: 5 })).toBe(
+      "0 registradas · 5 resolvidas",
+    );
   });
 });
