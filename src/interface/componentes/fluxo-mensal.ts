@@ -24,9 +24,9 @@
  * tela o que a Aplicação já fez é afirmar a mesma coisa em duas camadas, e a segunda envelhece sozinha.
  *
  * **Isto NÃO é *recorrência*, e o nome é deliberado.** Recorrência é o mesmo problema voltando no mesmo
- * lugar, e é o que as duas listas do bloco respondem. Aqui a pergunta é outra — *está melhorando ou
- * piorando* —, e o qualificador `mensal` afasta a palavra *fluxo* do que `docs/fluxos-e-diagramas.md`
- * chama de fluxo.
+ * lugar, e é o que a seção do par responde; as duas listas do bloco contam volume por dimensão. Aqui a
+ * pergunta é outra — *está melhorando ou piorando* —, e o qualificador `mensal` afasta a palavra *fluxo*
+ * do que `docs/fluxos-e-diagramas.md` chama de fluxo.
  */
 
 /** Uma linha do desenho e da lista: um mês do eixo, com o que entrou e o que saiu. */

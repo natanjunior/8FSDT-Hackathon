@@ -201,7 +201,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toBeVisible();
 
   // -------------------------------------------------------------------------
-  // 2.1 · Quadro 1 · Recorrência no período — as três seções (critérios 35 e 57)
+  // 2.1 · Quadro 1 · Recorrência no período — as quatro seções (critérios 35, 57 e 60)
   //
   // **A seção de cima é a que responde a pergunta da tela.** O gráfico desenha duas linhas — quanto foi
   // registrado e quanto foi resolvido em cada mês —, e o mesmo array alimenta a lista ao lado: por isso
@@ -211,6 +211,14 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // **O gráfico é `aria-hidden`**, então o que se afirma dentro dele é nó de DOM, nunca papel: a
   // superfície existe, e a identidade de cada série está escrita em palavra duas vezes — no rótulo de
   // ponta, dentro do SVG, e na legenda, fora dele (critério 57.4).
+  //
+  // **Os índices posicionais saíram daqui no item 60, e a razão é que eles quebrariam em silêncio.** A
+  // seção do par entrou em segundo, então `nth(1)` e `nth(2)` passariam a apontar para outra lista e
+  // continuariam verdes afirmando a coisa errada. Somar um aos índices não resolveria: a seção do par
+  // pode não renderizar lista nenhuma — sem dupla repetida ali há uma frase —, e o índice voltaria a
+  // escorregar. As quatro sublistas passam a ser alcançadas pelo próprio título, por `role="group"`
+  // mais `aria-labelledby`, e a âncora da expressão é o que separa *Por área* de *Por área e
+  // categoria*.
   // -------------------------------------------------------------------------
   const recorrencia = quadro(helena, "Recorrência");
   await expect(recorrencia).toContainText("no período");
@@ -236,25 +244,49 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(legenda).toContainText("Registradas");
   await expect(legenda).toContainText("Resolvidas");
 
-  // As TRÊS listas do bloco 1, com o número em texto — A-5. A dos meses é a primeira do documento.
-  const listasDoBloco1 = recorrencia.getByRole("list");
-  await expect(listasDoBloco1).toHaveCount(3);
+  // As QUATRO seções do bloco 1, cada uma pelo nome acessível do `h3` dela. A âncora da expressão é o
+  // que separa *Por área* de *Por área e categoria*; `exact` não serve, porque o título é `uppercase`
+  // por CSS e o que a página serve é a caixa mista.
+  const fluxo = recorrencia.getByRole("group", { name: /^Registradas e resolvidas$/iu });
+  const par = recorrencia.getByRole("group", { name: /^Por área e categoria$/iu });
+  const porCategoria = recorrencia.getByRole("group", { name: /^Por categoria$/iu });
+  const porArea = recorrencia.getByRole("group", { name: /^Por área$/iu });
 
-  const mesesDoFluxo = await linhasDoMedidor(listasDoBloco1.first());
+  for (const secao of [fluxo, par, porCategoria, porArea]) {
+    await expect(secao).toBeVisible();
+  }
+
+  const mesesDoFluxo = await linhasDoMedidor(fluxo);
   expect(mesesDoFluxo).toHaveLength(mesesNaJanela(de, ate));
   for (const mes of mesesDoFluxo) {
     // **A gramática é do critério 57.5**, e o singular vale dos dois lados.
     expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(/^\d+ registradas? · \d+ resolvidas?$/u);
   }
 
+  // **Nenhuma contagem absoluta contra a semente na seção do par**, e o número está atrás da regra: o
+  // Recanto tem UMA dupla repetida na janela padrão e a Aurora não tem nenhuma, e o passo 4 deste teste
+  // registra uma ocorrência por corrida, que move o par de posição na segunda. O que se afirma é a
+  // gramática: ou linhas no formato `rótulo · rótulo` com um inteiro de dois para cima, ou a frase de
+  // vazio. As duas formas são corretas, e por isso as duas estão aqui.
+  const duplas = await linhasDoMedidor(par);
+  if (duplas.length === 0) {
+    await expect(par).toContainText("Nenhuma dupla se repetiu no período.");
+  } else {
+    for (const dupla of duplas) {
+      expect(dupla.rotulo, "rótulo da dupla").toMatch(/^.+ · .+$/u);
+      // O critério 60.2: dupla com uma não aparece.
+      expect(Number(dupla.texto), `dupla "${dupla.rotulo}"`).toBeGreaterThanOrEqual(2);
+    }
+  }
+
   // As duas listas de baixo continuam onde estavam, e nenhuma das duas vazia.
-  expect((await linhasDoMedidor(listasDoBloco1.nth(1))).length).toBeGreaterThan(1);
-  expect((await linhasDoMedidor(listasDoBloco1.nth(2))).length).toBeGreaterThan(1);
+  expect((await linhasDoMedidor(porCategoria)).length).toBeGreaterThan(1);
+  expect((await linhasDoMedidor(porArea)).length).toBeGreaterThan(1);
 
   cobre(test.info(), "7.2 · 1", {
-    criterio: "57.2, 57.4, 57.5",
+    criterio: "57.2, 57.4, 57.5, 60.2, 60.3, 60.4",
     falta:
-      "que as duas linhas não se empilhem e que os dois rótulos de ponta não se sobreponham — o desenho é aria-hidden, e o que tem asserção é a existência dele",
+      "que as duas linhas não se empilhem e que os dois rótulos de ponta não se sobreponham — o desenho é aria-hidden, e o que tem asserção é a existência dele; e, na seção do par, o corte por posição da lista e a contagem exata contra a semente, que continuam sendo olho humano",
   });
 
   // -------------------------------------------------------------------------

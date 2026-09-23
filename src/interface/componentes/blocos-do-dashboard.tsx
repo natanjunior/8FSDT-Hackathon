@@ -142,6 +142,40 @@ export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
   );
 }
 
+export type ItemEmTexto = { chave: string; rotulo: string; texto: string };
+
+/**
+ * A lista **sem barra** — o desenho das duas seções do bloco 1 que não comparam magnitudes.
+ *
+ * **A barra fica de fora, e é decisão.** O `Medidor` desenha uma barra por linha sobre um rótulo truncado
+ * em `7rem`. A lista dos meses tem dois números por linha, e uma barra teria de escolher um deles; a lista
+ * do par tem um rótulo de duas partes, e o `truncate` cortaria justamente a segunda, que é a metade que a
+ * seção acrescenta às listas de baixo. O compromisso A-5 fica satisfeito do jeito mais simples que existe
+ * — não há cor nem barra carregando informação, só o número.
+ *
+ * **A chave vem de fora**, e cada chamador sabe qual é a sua: o rótulo do mês, que é único por construção,
+ * ou o par de identificadores da dupla.
+ *
+ * **Cada `<li>` tem exatamente dois `<span>` filhos diretos**, rótulo primeiro e texto por último. O
+ * ponta a ponta lê `:scope > span` e pega o primeiro e o último; um terceiro `span` aqui, ou um rótulo
+ * embrulhado, quebra a leitura de todas as listas do painel.
+ */
+export function ListaEmTexto({ itens }: { itens: readonly ItemEmTexto[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {itens.map((item) => (
+        <li
+          key={item.chave}
+          className="text-corpo flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
+        >
+          <span className="text-tinta">{item.rotulo}</span>
+          <span className="text-tinta-suave text-meta tabular-nums">{item.texto}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export type SerieMensal = {
   rotulo: string;
   porMes: readonly { mes: string; quantidade: number }[];

@@ -2,11 +2,12 @@ import type { AreaLida } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 
 import { mesesDaJanela, resolverJanela, type Janela, type JanelaPedida } from "./janela";
-import { AMOSTRA_PEQUENA, FAIXAS_DE_IDADE } from "./portas";
+import { AMOSTRA_PEQUENA, FAIXAS_DE_IDADE, MINIMO_PARA_RECORRENCIA } from "./portas";
 import type {
   ContagemPorCategoria,
   ContagemPorFaixaDeIdade,
   ContagemPorStatus,
+  DuplaRecorrente,
   LinhaDeResolucao,
   PontoMensal,
   RepositorioEscopadoDeDashboard,
@@ -18,20 +19,20 @@ import type {
  * ============================================================================
  *
  * **O envelope é o que o item 32 é** (`backlog.md:1387-1391`): a permissão, a janela, o eixo dos meses, a
- * forma da resposta e os zeros. Os seis conteúdos são dos itens 33 a 36 e do 59, e chegam prontos do
- * repositório.
+ * forma da resposta e os zeros. Os sete conteúdos são dos itens 33 a 36, do 59 e do 60, e chegam
+ * prontos do repositório.
  *
- * **Uma requisição, seis leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
+ * **Uma requisição, sete leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
  * valendo: *"cinco requisições podem significar cinco esperas de cold start onde uma bastaria"*. Aqui são
- * seis idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
+ * sete idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
  * mesmo idioma de `verLinhaDoTempo`.
  *
- * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as seis consultas são uma a mais do que o
- * pool tem: a sexta espera uma conexão liberar e corre em seguida. Não há impasse possível, e a razão é a
- * mesma de antes: nenhuma delas segura conexão esperando outra. O `5` é justificado pelo teto de conexões
- * do free tier e pela escala a zero; mexer nele muda toda requisição do produto, não só esta tela, e não
- * cabe num item de painel. Sequenciá-las trocaria essa espera por seis idas e voltas somadas na tela mais
- * pesada do produto.
+ * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as sete consultas são duas a mais do que o
+ * pool tem: a sexta e a sétima esperam uma conexão liberar e correm em seguida. Não há impasse possível, e
+ * a razão é a mesma de antes: nenhuma delas segura conexão esperando outra. O `5` é justificado pelo teto
+ * de conexões do free tier e pela escala a zero; mexer nele muda toda requisição do produto, não só esta
+ * tela, e não cabe num item de painel. Sequenciá-las trocaria essa espera por sete idas e voltas somadas
+ * na tela mais pesada do produto.
  */
 
 export type PontoDoMes = { mes: string; quantidade: number };
@@ -87,6 +88,7 @@ export type DashboardLido = {
   mediaDasAvaliacoes: MediaDasAvaliacoes;
   recorrenciaPorCategoria: readonly SerieDeCategoria[];
   recorrenciaPorArea: readonly SerieDeArea[];
+  duplasRecorrentes: readonly DuplaRecorrente[];
   tempoDeResolucao: { porMes: readonly MesDeResolucao[] };
 };
 
@@ -97,14 +99,16 @@ export async function verDashboard(
   const periodo = resolverJanela({ de: pedido.de, ate: pedido.ate }, pedido.agora);
   const meses = mesesDaJanela(periodo);
 
-  const [status, categorias, porCategoria, porArea, resolucoes, idades] = await Promise.all([
-    repositorio.backlogPorStatus(),
-    repositorio.abertasPorCategoria(),
-    repositorio.recorrenciaPorCategoria(periodo),
-    repositorio.recorrenciaPorArea(periodo),
-    repositorio.resolucoesPorMes(periodo),
-    repositorio.abertasPorIdade(),
-  ]);
+  const [status, categorias, porCategoria, porArea, resolucoes, idades, duplas] =
+    await Promise.all([
+      repositorio.backlogPorStatus(),
+      repositorio.abertasPorCategoria(),
+      repositorio.recorrenciaPorCategoria(periodo),
+      repositorio.recorrenciaPorArea(periodo),
+      repositorio.resolucoesPorMes(periodo),
+      repositorio.abertasPorIdade(),
+      repositorio.duplasRecorrentes(periodo),
+    ]);
 
   return {
     periodo,
@@ -126,6 +130,7 @@ export async function verDashboard(
       (ponto, porMes) => ({ area: ponto.area, porMes }),
       (ponto) => ponto.area.nome,
     ),
+    duplasRecorrentes: soAsRecorrentes(duplas),
     tempoDeResolucao: { porMes: serieDeResolucao(resolucoes, meses) },
   };
 }
@@ -178,6 +183,30 @@ function comTodasAsFaixas(
     ateDias: faixa.ateDias,
     quantidade: porFaixa.get(i) ?? 0,
   }));
+}
+
+/**
+ * **O corte do critério 60.2 mora aqui, e não no SQL.** O `having` da consulta é economia de transporte;
+ * a regra de produto vive onde o `npm run verificar` a confere, que é o mesmo argumento de portão de
+ * `AMOSTRA_PEQUENA` e das faixas de idade. Sem o refiltro, trocar a constante mudaria o SQL e deixaria a
+ * resposta para trás.
+ *
+ * **A ordem é a da Aplicação, com dois desempates.** Contagem decrescente, depois nome da área, depois
+ * nome da categoria, em pt-BR — a mesma regra de `agrupar`, com uma perna a mais porque a chave é dupla.
+ * O `order by` do SQL não serve: a colação do banco e o `localeCompare` não concordam em acentuação, e
+ * duas duplas empatadas trocariam de lugar conforme a resposta viesse do banco ou de um duplo.
+ */
+function soAsRecorrentes(
+  lidas: readonly DuplaRecorrente[],
+): readonly DuplaRecorrente[] {
+  return [...lidas]
+    .filter((dupla) => dupla.quantidade >= MINIMO_PARA_RECORRENCIA)
+    .sort(
+      (a, b) =>
+        b.quantidade - a.quantidade ||
+        a.area.nome.localeCompare(b.area.nome, "pt-BR") ||
+        a.categoria.nome.localeCompare(b.categoria.nome, "pt-BR"),
+    );
 }
 
 /**

@@ -5,6 +5,7 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { verDashboard } from "@/aplicacao/dashboard";
 import {
   Cartao,
+  ListaEmTexto,
   Medidor,
   rotulosDosMeses,
   totalDaSerie,
@@ -12,9 +13,13 @@ import {
   type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
 import {
+  chaveDaDupla,
+  rotuloDaDupla,
+  SEM_DUPLA_RECORRENTE,
+} from "@/interface/componentes/duplas-recorrentes";
+import {
   linhasDoFluxoMensal,
   textoDoFluxoMensal,
-  type LinhaDoFluxoMensal,
 } from "@/interface/componentes/fluxo-mensal";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import {
@@ -186,11 +191,29 @@ function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
  * O bloco 1 — **o único que carrega uma frase explicando por que existe**, e é o que faz a hierarquia da
  * tela sem usar cor.
  *
- * **Três seções, e a de cima é a que responde a pergunta da tela.** *"Está melhorando ou piorando?"* é o
- * que `docs/telas.md` promete do painel, e até o item 57 nenhum dos cinco quadros respondia: o quadro por
+ * **Quatro seções, e cada uma responde uma pergunta diferente:**
+ *
+ * | # | Seção | Que pergunta responde |
+ * |---|---|---|
+ * | 1 | Registradas e resolvidas | está melhorando ou piorando |
+ * | 2 | Por área e categoria | o que está voltando |
+ * | 3 | Por categoria · Por área | onde há mais volume |
+ *
+ * **A de cima é a que responde a pergunta da tela.** *"Está melhorando ou piorando?"* é o que
+ * `docs/telas.md` promete do painel, e até o item 57 nenhum dos cinco quadros respondia: o quadro por
  * status é fotografia, as listas de recorrência são contagem no período, o tempo é média e a avaliação é
  * nota. As duas séries de cima — quanto foi registrado e quanto foi resolvido em cada mês — **saem da
  * mesma resposta que já chegava**, cruzadas em `fluxo-mensal.ts`.
+ *
+ * **O par entra em SEGUNDO, e não em primeiro.** A frase do cartão promete o par — oito vazamentos no
+ * mesmo bloco não são oito ordens de serviço —, e as duas listas de baixo contam as dimensões em
+ * separado: oito no mesmo lugar e oito espalhados dão ali o mesmo número. Rebaixar a seção de cima para
+ * abrir espaço seria redecidir em silêncio o que o item 57 decidiu com razão escrita.
+ *
+ * **As quatro sublistas têm nome acessível**, por `role="group"` mais `aria-labelledby` no `h3` de cada
+ * uma. É o que tira o índice posicional do ponta a ponta sem criar landmark: `<section>` aqui daria
+ * quatro regiões dentro de um cartão que hoje não tem nenhuma, e tornaria falso o comentário do helper
+ * que localiza os seis quadros.
  *
  * **A seção nova fica FORA do vazio das listas**, e o caso que decide é concreto: janela sem nenhuma
  * ocorrência registrada e com resoluções dentro dela — ocorrências abertas antes do período e fechadas
@@ -220,6 +243,8 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
     total: totalDaSerie(serie.porMes),
   }));
 
+  const duplas = dashboard.duplasRecorrentes;
+
   // **Um eixo só para o desenho e para a lista**, e por isso os dois não podem discordar: o mesmo array
   // alimenta os dois. Os rótulos vêm do bloco 4, que é a única série que o contrato garante sem buraco.
   const fluxo = linhasDoFluxoMensal(
@@ -234,8 +259,11 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
         Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.
       </p>
 
-      <div className="flex flex-col gap-3">
-        <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
+      <div role="group" aria-labelledby="recorrencia-fluxo" className="flex flex-col gap-3">
+        <h3
+          id="recorrencia-fluxo"
+          className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
+        >
           Registradas e resolvidas
         </h3>
         <div className="grid gap-6 lg:grid-cols-2">
@@ -244,7 +272,13 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
             <GraficoDoFluxoMensal linhas={fluxo} />
           </div>
           {/* Os dois números de cada mês, em texto, nos dois tamanhos — A-5 e critério 57.5. */}
-          <ListaDoFluxoMensal linhas={fluxo} />
+          <ListaEmTexto
+            itens={fluxo.map((linha) => ({
+              chave: linha.mes,
+              rotulo: linha.mes,
+              texto: textoDoFluxoMensal(linha),
+            }))}
+          />
         </div>
       </div>
 
@@ -253,52 +287,64 @@ function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
           A recorrência aparece a partir do segundo mês de uso.
         </p>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
-              Por categoria
+        <>
+          <div role="group" aria-labelledby="recorrencia-par" className="flex flex-col gap-3">
+            <h3
+              id="recorrencia-par"
+              className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
+            >
+              Por área e categoria
             </h3>
-            <ListaComResto series={categorias} substantivo="categorias" />
+            {duplas.length === 0 ? (
+              <p role="status" className="text-tinta text-corpo">
+                {SEM_DUPLA_RECORRENTE}
+              </p>
+            ) : (
+              /* **Nenhum corte de topo N**, e o corte já aconteceu: quem tem uma não é recorrência.
+                 Um segundo corte por posição esconderia atrás de *mais N* justamente a dupla que a
+                 seção existe para mostrar. */
+              <ListaEmTexto
+                itens={duplas.map((dupla) => ({
+                  chave: chaveDaDupla(dupla),
+                  rotulo: rotuloDaDupla(dupla),
+                  texto: String(dupla.quantidade),
+                }))}
+              />
+            )}
           </div>
 
-          <div className="flex flex-col gap-3">
-            <h3 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
-              Por área
-            </h3>
-            <ListaComResto series={areas} substantivo="áreas" />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div
+              role="group"
+              aria-labelledby="recorrencia-categoria"
+              className="flex flex-col gap-3"
+            >
+              <h3
+                id="recorrencia-categoria"
+                className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
+              >
+                Por categoria
+              </h3>
+              <ListaComResto series={categorias} substantivo="categorias" />
+            </div>
+
+            <div
+              role="group"
+              aria-labelledby="recorrencia-area"
+              className="flex flex-col gap-3"
+            >
+              <h3
+                id="recorrencia-area"
+                className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
+              >
+                Por área
+              </h3>
+              <ListaComResto series={areas} substantivo="áreas" />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </Cartao>
-  );
-}
-
-/**
- * A lista de meses do bloco 1 — **os dois números em texto, e nenhuma barra**.
- *
- * **A barra fica de fora, e é decisão.** O `Medidor` desenha uma barra por linha, e aqui há dois números
- * por linha: uma barra teria de escolher um deles e calar o outro, e duas barras por mês seriam o gráfico
- * redesenhado em texto ao lado do gráfico. O compromisso A-5 fica satisfeito do jeito mais simples que
- * existe — não há cor nem barra carregando informação, só o número.
- *
- * **A chave é o rótulo do mês**, e ele é único por construção: `rotulosDosMeses` acrescenta o ano ao eixo
- * inteiro assim que a janela atravessa a virada do ano.
- */
-function ListaDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxoMensal[] }) {
-  return (
-    <ul className="flex flex-col gap-2">
-      {linhas.map((linha) => (
-        <li
-          key={linha.mes}
-          className="text-corpo flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
-        >
-          <span className="text-tinta">{linha.mes}</span>
-          <span className="text-tinta-suave text-meta tabular-nums">
-            {textoDoFluxoMensal(linha)}
-          </span>
-        </li>
-      ))}
-    </ul>
   );
 }
 

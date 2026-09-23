@@ -8,7 +8,7 @@ import type { Janela } from "./janela";
  *  O que o dashboard lê — e repare no que NÃO está aqui: escrita
  * ============================================================================
  *
- * **Seis métodos, os seis de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
+ * **Sete métodos, os sete de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
  * por teste; aqui ela é provada pela **assinatura**: não existe método por onde este módulo grave. É o
  * primeiro modelo de leitura do projeto que não convive com escrita no mesmo repositório.
  *
@@ -54,6 +54,21 @@ export const AMOSTRA_PEQUENA = 3;
  */
 export const LIMITES_DAS_FAIXAS_DE_IDADE = [7, 30, 90] as const;
 
+/**
+ * O mínimo para uma dupla ser recorrência — **dois**, e o número é do critério 60.2.
+ * *Uma ocorrência não é recorrência.*
+ *
+ * **Ela mora aqui pela razão das duas irmãs acima:** descreve o que `duplasRecorrentes` devolve, que é o
+ * contrato entre a Aplicação e o repositório. O SQL a interpola, como já faz com `FUSO` e `TERMINAIS`, e a
+ * Aplicação refiltra com ela — os dois lendo a mesma constante é o que impede que discordem.
+ *
+ * **O `having` do SQL é economia de transporte, e não a regra de produto.** Ele existe para que uma
+ * organização com duzentas duplas de uma ocorrência não transporte duzentas linhas que ninguém vai ler. A
+ * regra mora na Aplicação por razão de portão: `npm run verificar` não roda o projeto de integração, e uma
+ * regra que só vivesse no SQL seria uma regra que o portão nunca confere.
+ */
+export const MINIMO_PARA_RECORRENCIA = 2;
+
 /** Uma faixa de idade, em dias. `ateDias: null` é a faixa sem teto — a mais velha. */
 export type FaixaDeIdade = { deDias: number; ateDias: number | null };
 
@@ -94,6 +109,19 @@ export type PontoDeCategoria = PontoMensal & { categoria: { id: string; nome: st
 
 /** Um ponto da série mensal de uma área. **O `tipo` é o VIGENTE da Área**, não o congelado no registro. */
 export type PontoDeArea = PontoMensal & { area: AreaLida };
+
+/**
+ * Uma dupla de Área e Categoria com as ocorrências dela no período.
+ *
+ * **`area` é `AreaLida` e `categoria` é o `{id, nome}` inline** — as mesmas formas que `PontoDeArea` e
+ * `PontoDeCategoria` já publicam. Um segundo formato de Área no mesmo envelope seria o que diverge na
+ * primeira alteração.
+ */
+export type DuplaRecorrente = {
+  area: AreaLida;
+  categoria: { id: string; nome: string };
+  quantidade: number;
+};
 
 /**
  * Um mês de resoluções — **e ele alimenta DOIS indicadores**, que é a decisão central deste módulo.
@@ -163,6 +191,18 @@ export interface RepositorioEscopadoDeDashboard {
   recorrenciaPorCategoria(janela: Janela): Promise<readonly PontoDeCategoria[]>;
   /** Série mensal por área, dentro da janela, recortada por `ocorrencias.registrada_em`. */
   recorrenciaPorArea(janela: Janela): Promise<readonly PontoDeArea[]>;
+  /**
+   * As duplas de Área e Categoria que se repetiram dentro da janela, recortadas por
+   * `ocorrencias.registrada_em`, como as duas séries acima.
+   *
+   * **É a terceira leitura da recorrência, e ela responde outra pergunta.** As duas séries contam as
+   * dimensões em separado: oito ocorrências da mesma categoria espalhadas por oito lugares produzem ali o
+   * mesmo número que oito no mesmo lugar. O cruzamento só existe na linha da ocorrência.
+   *
+   * **Devolve só o que já passou do mínimo** — o `having` do SQL —, e a Aplicação refiltra com a mesma
+   * constante. Lista vazia é resposta legítima: significa que nada se repetiu no período.
+   */
+  duplasRecorrentes(janela: Janela): Promise<readonly DuplaRecorrente[]>;
   /**
    * Um mês por linha, **recortado pelo INSTANTE DA RESOLUÇÃO** lido da trilha — nunca por `avaliada_em`.
    *

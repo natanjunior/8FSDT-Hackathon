@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { resolverJanela } from "@/aplicacao/dashboard";
 import { escoparConsulta } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 
@@ -539,5 +540,198 @@ describe("abertasPorIdade distribui o que está em aberto por faixa de idade", (
 
     expect(outras.map((linha) => linha.faixa)).toStrictEqual([0]);
     expect(soma).toBe(5);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O par de Área e Categoria — o critério 60.5, literal
+ * ============================================================================
+ *
+ * **Organização própria e `beforeAll` próprio**, no molde do `describe` das idades acima: o mundo do topo
+ * do arquivo tem uma área só, e o par precisa de cinco duplas distintas para provar o corte.
+ *
+ * O mundo, e o que cada linha existe para provar:
+ *
+ * | Dupla | Ocorrências | Onde | Por quê |
+ * |---|---|---|---|
+ * | `Bloco A · Vazamentos` | **3** | dentro da janela | a única que sai — critério 60.5 |
+ * | `Bloco A · Vazamentos` | **1** | 200 dias atrás | prova que o recorte é por `registrada_em` |
+ * | `Bloco B · Vazamentos` | 1 | dentro | mesma categoria, outra área — não sai |
+ * | `Bloco A · Iluminação` | 1 | dentro | mesma área, outra categoria — não sai |
+ * | `Bloco C · Limpeza` | 1 | dentro | — |
+ * | `Bloco D · Segurança` | 1 | dentro | — |
+ * | `Bloco E · Manutenção` | 1 | dentro | — |
+ *
+ * As cinco últimas são as *"outras cinco duplas"* do critério, e as duas primeiras linhas são a mesma
+ * dupla: juntas somam **4**, das quais **3** estão na janela.
+ */
+const DUPLAS_DO_MUNDO: readonly {
+  area: string;
+  categoria: string;
+  quantas: number;
+  diasAtras: number;
+}[] = [
+  { area: "Bloco A", categoria: "Vazamentos", quantas: 3, diasAtras: 1 },
+  { area: "Bloco A", categoria: "Vazamentos", quantas: 1, diasAtras: 200 },
+  { area: "Bloco B", categoria: "Vazamentos", quantas: 1, diasAtras: 1 },
+  { area: "Bloco A", categoria: "Iluminação", quantas: 1, diasAtras: 1 },
+  { area: "Bloco C", categoria: "Limpeza", quantas: 1, diasAtras: 1 },
+  { area: "Bloco D", categoria: "Segurança", quantas: 1, diasAtras: 1 },
+  { area: "Bloco E", categoria: "Manutenção", quantas: 1, diasAtras: 1 },
+];
+
+/** A janela padrão do produto — 90 dias terminando hoje, em São Paulo, como `GET /dashboard` a resolve. */
+const JANELA_DO_PAR = resolverJanela({});
+
+const AREAS_DO_PAR = ["Bloco A", "Bloco B", "Bloco C", "Bloco D", "Bloco E"];
+const CATEGORIAS_DO_PAR = ["Vazamentos", "Iluminação", "Limpeza", "Segurança", "Manutenção"];
+
+let idDaOrganizacaoDoPar: string;
+
+const dashboardDoPar = () =>
+  repositorioEscopadoDeDashboard(escoparConsulta(consulta, idDaOrganizacaoDoPar));
+
+/** `Área · Categoria:quantidade` — o mesmo par que a tela escreve, com o número junto. */
+const duplasDe = (
+  linhas: readonly { area: { nome: string }; categoria: { nome: string }; quantidade: number }[],
+) => linhas.map((l) => `${l.area.nome} · ${l.categoria.nome}:${String(l.quantidade)}`);
+
+describe("duplasRecorrentes devolve só o par que voltou dentro da janela", () => {
+  beforeAll(async () => {
+    idDaOrganizacaoDoPar = (
+      await consulta<{ id: string }>(
+        `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+        ["Condomínio dos Pares", `PAR${SUFIXO.slice(-5)}`],
+      )
+    )[0]!.id;
+
+    const usuario = (
+      await consulta<{ id: string }>(
+        `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+        [`gestora-par-${SUFIXO}@exemplo.test`],
+      )
+    )[0]!.id;
+
+    const pessoa = (
+      await consulta<{ id: string }>(
+        `insert into pessoas (usuario_id, nome) values ($1, 'Gestora dos Pares') returning id`,
+        [usuario],
+      )
+    )[0]!.id;
+
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoa, idDaOrganizacaoDoPar],
+    );
+
+    const areas: Record<string, string> = {};
+    for (const [i, nome] of AREAS_DO_PAR.entries()) {
+      areas[nome] = (
+        await consulta<{ id: string }>(
+          `insert into areas (organizacao_id, nome, tipo, ordem)
+                values ($1, $2, 'comum', $3) returning id`,
+          [idDaOrganizacaoDoPar, nome, i + 1],
+        )
+      )[0]!.id;
+    }
+
+    const categorias: Record<string, string> = {};
+    for (const [i, nome] of CATEGORIAS_DO_PAR.entries()) {
+      categorias[nome] = (
+        await consulta<{ id: string }>(
+          `insert into categorias (organizacao_id, nome, icone, ativa, ordem)
+                values ($1, $2, 'tag', true, $3) returning id`,
+          [idDaOrganizacaoDoPar, nome, i + 1],
+        )
+      )[0]!.id;
+    }
+
+    let n = 0;
+    for (const linha of DUPLAS_DO_MUNDO) {
+      for (let k = 0; k < linha.quantas; k += 1) {
+        n += 1;
+        await consulta(
+          `insert into ocorrencias
+                (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id,
+                 status, registrada_em)
+                values ($1, $2, $3, 'comum', $4, 'Semente do par área e categoria.', $5, 'aberta',
+                        now() - make_interval(days => $6::int))`,
+          [
+            idDaOrganizacaoDoPar,
+            categorias[linha.categoria],
+            areas[linha.area],
+            `Par ${String(n)}`,
+            pessoa,
+            linha.diasAtras,
+          ],
+        );
+      }
+    }
+  });
+
+  /**
+   * **O critério 60.5, palavra por palavra.** Três na mesma dupla e uma em cada de outras cinco: sai uma
+   * linha só. As cinco de uma ocorrência ficam de fora porque uma ocorrência não é recorrência, e o
+   * `having` da consulta é quem as corta antes de virar transporte.
+   */
+  it("só a dupla que se repetiu volta, e as cinco de uma ocorrência ficam de fora", async () => {
+    const linhas = await dashboardDoPar().duplasRecorrentes(JANELA_DO_PAR);
+
+    expect(duplasDe(linhas)).toStrictEqual(["Bloco A · Vazamentos:3"]);
+  });
+
+  /**
+   * **A metade que prova o recorte.** A quarta ocorrência da mesma dupla está 200 dias atrás; se a janela
+   * não estivesse no `where`, a linha viria com `4` e este teste seria o único a perceber.
+   */
+  it("a ocorrência fora da janela não conta, e a dupla volta com três", async () => {
+    const linhas = await dashboardDoPar().duplasRecorrentes(JANELA_DO_PAR);
+
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]!.quantidade).toBe(3);
+  });
+
+  /**
+   * **A Área vem inteira, com os cinco campos do schema `Area`**, e a Categoria com os dois de sempre —
+   * as mesmas formas que as duas séries de recorrência já publicam no mesmo envelope.
+   */
+  it("a linha traz a Área de cinco campos e a Categoria de dois", async () => {
+    const [linha] = await dashboardDoPar().duplasRecorrentes(JANELA_DO_PAR);
+
+    expect(Object.keys(linha!.area).sort()).toStrictEqual(["ativa", "id", "nome", "ordem", "tipo"]);
+    expect(linha!.area.tipo).toBe("comum");
+    expect(linha!.area.ativa).toBe(true);
+    expect(Object.keys(linha!.categoria).sort()).toStrictEqual(["id", "nome"]);
+  });
+
+  /** Janela sem nenhuma ocorrência devolve lista vazia — e não uma dupla com zero. */
+  it("a janela sem nenhuma ocorrência devolve lista vazia, e não uma dupla com zero", async () => {
+    const linhas = await dashboardDoPar().duplasRecorrentes({
+      de: "2024-01-01",
+      ate: "2024-01-02",
+    });
+
+    expect(linhas).toStrictEqual([]);
+  });
+
+  /**
+   * **O `$1` é quem separa as duas, e aqui as DUAS têm dupla.** A organização do topo do arquivo tem as
+   * suas — `Hall · Vazamento` e `Hall · Elevador`, do `MUNDO` —, e esta tem `Bloco A · Vazamentos`. Um
+   * filtro de organização escorregado misturaria os dois conjuntos.
+   *
+   * **A asserção é de ausência, e não de conteúdo**, de propósito: as contagens do `MUNDO` são de outros
+   * itens e mudam quando eles mudam. O que este caso afirma é que nenhuma área desta organização aparece
+   * do outro lado, e isso continua verdadeiro em qualquer mundo futuro.
+   */
+  it("as áreas desta organização não aparecem nas duplas da outra", async () => {
+    const daOutra = await dashboard().duplasRecorrentes(JANELA_DO_PAR);
+
+    const invasoras = daOutra
+      .map((l) => l.area.nome)
+      .filter((nome) => AREAS_DO_PAR.includes(nome));
+
+    expect(invasoras).toStrictEqual([]);
+    expect(daOutra.length).toBeGreaterThan(0);
   });
 });

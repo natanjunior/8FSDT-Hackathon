@@ -169,6 +169,21 @@ como no tempo de resolução.
 em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
 sem mudar o formato da resposta.
 
+## A dupla que volta
+
+As duas listas de recorrência contam área e categoria em separado. Oito vazamentos no mesmo bloco e oito
+problemas diferentes espalhados pelo prédio produzem o mesmo número nas duas, e o segundo caso não é uma
+obra só. O cruzamento entre as duas dimensões existe na linha da ocorrência, e é ele que aponta causa.
+
+Por isso a resposta traz também as duplas de área e categoria contadas juntas dentro do período, da maior
+contagem para a menor, com desempate pelo nome da área e depois pelo da categoria. **Só entra a dupla com
+duas ocorrências ou mais**: uma ocorrência é um caso, não um padrão. A lista pode vir vazia, e vazia
+significa que nada se repetiu no período.
+
+Cada linha publica a área inteira, a categoria e a contagem. Nenhum rótulo viaja — o texto da linha são os
+dois nomes com um separador, e escrevê-lo é de quem desenha a tela. Os identificadores viajam embora a
+leitura seja pelos nomes, porque são o que permite ligar a linha a uma listagem filtrada mais adiante.
+
 ## O upload é em duas etapas
 
 O servidor não transporta os bytes da imagem.
