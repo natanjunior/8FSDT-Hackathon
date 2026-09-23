@@ -31,7 +31,8 @@
     "migrar:local": "supabase db reset",
     "teste:integracao": "vitest run --project integracao",
     "teste:ponta-a-ponta": "playwright test",
-    "cobertura": "vitest run --coverage"
+    "cobertura": "vitest run --coverage",
+    "mapa:roteiro": "node ferramentas/cobertura/mapa-do-roteiro.mjs"
   },
   "dependencies": {
     "@azure/storage-blob": "12.33.0",

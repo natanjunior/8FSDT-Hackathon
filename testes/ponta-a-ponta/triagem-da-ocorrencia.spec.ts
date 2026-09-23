@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { cobertura, cobre } from "./cobertura";
+
 import {
   AURORA,
   ciclo,
@@ -222,6 +224,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // a pilha vertical que o roteiro descreve é a do celular.
   await expect(helena.getByRole("button", { name: "Registrar ocorrência" })).toBeVisible();
   await expect(helena.getByRole("button", { name: "Cancelar" })).toBeVisible();
+  cobre(test.info(), "4.1 · 2", {
+    falta: "a ordem vertical do formulário, o rótulo Foto (opcional) e o Escolha inicial da Categoria",
+  });
 
   // -------------------------------------------------------------------------
   // 2 · Categoria — o desenho mora DENTRO da opção, e o gatilho reimprime os dois
@@ -259,6 +264,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // O `lucide-react` publica o nome do desenho na classe do `svg`, e é por ela que se prova a troca: a
   // palavra sozinha não distinguiria um gatilho que reimprimisse o nome e esquecesse o ícone.
   expect(desenhoDeA).not.toBe(desenhoDaPrimeira);
+  cobre(test.info(), "4.1 · 3", {
+    falta: "o ícone dentro de cada opção da lista — a asserção lê o desenho do gatilho, pela classe do SVG",
+  });
 
   // -------------------------------------------------------------------------
   // 3 · Área — toda opção carrega o tipo, e os dois tipos aparecem
@@ -283,6 +291,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
       `nenhuma área do Aurora é "${tipo}"`,
     ).toBe(true);
   }
+  cobre(test.info(), "4.1 · 4", {
+    falta: "a busca filtrando ao digitar, o grupo Usadas por você e a gaveta do celular",
+  });
 
   await helena.getByRole("option").first().click();
 
@@ -306,6 +317,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // O alvo grande vira linha com duas ações de ícone, e a palavra vai no nome acessível — guia §7.
   await expect(helena.getByRole("button", { name: "Trocar a foto" })).toBeVisible();
   await expect(helena.getByRole("button", { name: "Adicionar foto" })).toHaveCount(0);
+  cobre(test.info(), "4.1 · 5", {
+    falta: "as frases transitórias da foto, que duram menos que a asserção, e o botão de remover",
+  });
 
   await helena.getByRole("button", { name: "Registrar ocorrência" }).click();
   await helena.waitForURL(
@@ -313,6 +327,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   );
   const ocorrenciaA = helena.url().split("/").pop() ?? "";
   expect(ocorrenciaA).not.toBe("");
+  cobre(test.info(), "4.1 · 6", { falta: "a frase Registrando… no botão durante o envio" });
 
   // -------------------------------------------------------------------------
   // 5 · T-05 pelos olhos de quem abriu — a lente do Solicitante, inteira
@@ -323,6 +338,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await helena.reload();
   await expect(helena.getByRole("heading", { name: TITULO_A, level: 1 })).toBeVisible();
   await esperarSituacao(helena, ABERTA_PARA_O_SOLICITANTE);
+  cobre(test.info(), "4.1 · 7", { criterio: "11.7" });
 
   // **A régua tem quatro passos e um só carimbo.** O primeiro é datado pela premissa P1 — a criação grava
   // o registro inicial —, e os três seguintes estão por alcançar, sem data.
@@ -360,6 +376,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **O predicado das duas frases da conversa é a AUTORIA, e não o papel** — critério 30.4.
   await expect(helena.getByRole("heading", { name: "Mensagens 0" })).toBeVisible();
   await expect(helena.getByLabel(/^Escrever para os Gestores/u)).toBeVisible();
+  cobre(test.info(), "4.1 · 8", {
+    falta: "o bloco Última mudança, o texto do relato, a foto abrindo em outra aba e o botão Enviar",
+  });
 
   // -------------------------------------------------------------------------
   // 6 · A ocorrência C, pelo atalho — ela existe para morrer cancelada no fim
@@ -370,6 +389,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await helena.goto("/ocorrencias");
   const ocorrenciaC = await registrarOcorrencia(helena, TITULO_C, DESCRICAO_C);
   expect(ocorrenciaC).not.toBe(ocorrenciaA);
+  cobre(test.info(), "4.1 · 9", {
+    falta: "a segunda ocorrência sem foto, e a lista do Solicitante mostrando as três",
+  });
 
   // -------------------------------------------------------------------------
   // 7 · Marcos entra — a tabela de triagem, e nenhuma ação dentro da linha
@@ -391,12 +413,16 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("button", { name: "Categoria" })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Prioridade" })).toBeVisible();
   await expect(marcos.getByRole("link", { name: "+ Registrar ocorrência" })).toBeVisible();
+  cobre(test.info(), "4.2 · 10", {
+    falta: "as três novas no topo da lista, com status Aberta e sem responsável",
+  });
 
   // **Nenhuma ação no item — critério 14.5.** Uma ação de lote obrigaria o cliente a adivinhar quais itens
   // a aceitam, que é a segunda cópia da máquina de estados. O item inteiro é um link.
   await expect(marcos.locator("tbody button")).toHaveCount(0);
   await expect(marcos.locator("tbody input")).toHaveCount(0);
   await expect(marcos.getByRole("link", { name: TITULO_A })).toBeVisible();
+  cobre(test.info(), "4.2 · 12", { criterio: "14.5" });
 
   // **O ícone da categoria, ao lado do nome e nunca no lugar dele** — critério 14.6, no recorte que
   // exibe o nome.
@@ -404,6 +430,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   const celulaDoTitulo = linhaDeA.locator("td").nth(1);
   await expect(celulaDoTitulo).toContainText(categoriaDeA);
   await expect(celulaDoTitulo.locator("svg")).toHaveCount(1);
+  cobre(test.info(), "4.2 · 11", {
+    falta: "o recorte de celular — o playwright.config.ts fixa 1280 px por decisão registrada",
+  });
 
   // -------------------------------------------------------------------------
   // 8 · O recorte — a linha some, e os dois números do painel NÃO se mexem
@@ -423,6 +452,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await marcos.getByRole("radio", { name: "Todas as ocorrências" }).click();
   await marcos.waitForURL((url) => !url.searchParams.has("autor"));
   await expect(marcos.getByRole("link", { name: TITULO_A })).toBeVisible();
+  cobre(test.info(), "4.2 · 13", {
+    falta: "a ocorrência do próprio Gestor ficando no recorte — Marcos não é autor de nenhuma do Aurora",
+  });
 
   // -------------------------------------------------------------------------
   // 9 · O filtro de categoria — a URL é o estado, e o chip carrega a palavra
@@ -446,6 +478,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(outraAba.getByRole("button", { name: `Categoria: ${categoriaDeA}` })).toBeVisible();
   await expect(outraAba.getByRole("link", { name: TITULO_A })).toBeVisible();
   await outraAba.close();
+  cobre(test.info(), "4.2 · 14", {
+    falta: "a ausência das outras categorias na lista — a asserção confere a presença de A",
+  });
 
   // -------------------------------------------------------------------------
   // 9.1 · O vazio de FILTRO, e ele nunca é beco — critérios 14.4 e 15.6
@@ -466,6 +501,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // A barra fica em cima do vazio — sem ela, o vazio de filtro seria um beco.
   await expect(marcos.getByRole("button", { name: "Status" })).toBeVisible();
   await expect(marcos.getByRole("link", { name: "Limpar filtros" }).first()).toBeVisible();
+  cobre(test.info(), "4.2 · 15", {
+    falta: "o vazio por Status → Resolvida; a asserção chega nele pelo recorte Minhas ocorrências",
+  });
 
   // -------------------------------------------------------------------------
   // 9.2 · A página além do fim — o QUARTO estado, decidido antes dos três vazios
@@ -480,6 +518,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await marcos.goto(`${marcos.url()}&pagina=9`);
   await expect(marcos.getByText("Esta página não existe mais.")).toBeVisible();
   await expect(marcos.getByRole("link", { name: "Ir para a primeira página" })).toBeVisible();
+  cobre(test.info(), "4.2 · 16", { criterio: "44c.3" });
 
   await marcos.getByRole("link", { name: "Ir para a primeira página" }).click();
   await marcos.waitForURL((url) => !url.searchParams.has("pagina"));
@@ -500,6 +539,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await marcos.waitForURL(/[?&]categoriaId=/u);
   expect(marcos.url()).toBe(enderecoDaLista);
   await expect(marcos.getByRole("link", { name: TITULO_A })).toBeVisible();
+  cobre(test.info(), "4.2 · 17", {
+    falta: "o clique em Limpar filtros, e a volta pela barra lateral — a asserção volta pelo navegador",
+  });
 
   // -------------------------------------------------------------------------
   // 10 · T-05 pelos olhos do Gestor — a outra lente, a outra barra
@@ -538,6 +580,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   for (const [indice, palavra] of PRIORIDADES.entries()) {
     await expect(opcoesDePrioridade.nth(indice)).toHaveText(palavra);
   }
+  cobre(test.info(), "4.3 · 19", {
+    falta: "a posição do seletor acima de Categoria, Onde e Registrada por",
+  });
 
   // 11.1 · Grava na mudança — sem botão, sem janela (critério 17.4).
   await marcos.getByRole("option", { name: "Alta" }).click();
@@ -552,23 +597,29 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(desfazer(marcos)).toHaveCount(0);
   await expect(marcos.getByRole("button", { name: "Analisar" })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Mais ações ▾" })).toBeVisible();
+  cobre(test.info(), "4.3 · 20", { criterio: "17.4" });
 
   // 11.2 · A linha nomeia os DOIS valores, e sobrevive ao repinte e a cinco segundos.
   await seletorDePrioridade.click();
   await marcos.getByRole("option", { name: "Baixa" }).click();
   await expect(desfazer(marcos)).toContainText("Prioridade alterada de Alta para Baixa.");
   await expect(desfazer(marcos).getByRole("button", { name: "Desfazer" })).toBeVisible();
+  cobre(test.info(), "4.3 · 21", { criterio: "17.7" });
 
   // **Cinco segundos, e não trinta.** A linha sai por ação — trocar, desfazer, errar, recarregar ou
   // navegar —, e não por temporizador; provar os trinta do roteiro custaria um sexto do teto de 180 s.
   await marcos.waitForTimeout(5_000);
   await expect(desfazer(marcos)).toContainText("Prioridade alterada de Alta para Baixa.");
+  cobre(test.info(), "4.3 · 22", {
+    falta: "os trinta segundos — a linha não tem temporizador, e a asserção espera cinco segundos",
+  });
 
   // 11.3 · A linha é SUBSTITUÍDA, e continua sendo uma. Pilha seria histórico, e histórico não existe.
   await seletorDePrioridade.click();
   await marcos.getByRole("option", { name: "Normal" }).click();
   await expect(desfazer(marcos)).toHaveCount(1);
   await expect(desfazer(marcos)).toContainText("Prioridade alterada de Baixa para Normal.");
+  cobre(test.info(), "4.3 · 23", { criterio: "17.7" });
 
   // 11.4 · Desfazer volta UM passo, e não há desfazer do desfazer.
   await desfazer(marcos).getByRole("button", { name: "Desfazer" }).click();
@@ -576,6 +627,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(desfazer(marcos)).toHaveCount(0);
   await marcos.reload();
   await expect(seletorDePrioridade).toHaveText("Baixa");
+  cobre(test.info(), "4.3 · 24", { criterio: "17.7" });
 
   // 11.5 · A linha é estado de cliente: recarregar sem clicar a leva embora, e a gravação fica.
   await seletorDePrioridade.click();
@@ -584,6 +636,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await marcos.reload();
   await expect(desfazer(marcos)).toHaveCount(0);
   await expect(seletorDePrioridade).toHaveText("Alta");
+  cobre(test.info(), "4.3 · 25", { criterio: "17.7" });
 
   // -------------------------------------------------------------------------
   // 11.6 · Pelo teclado — e o roteiro descreve aqui o produto anterior
@@ -607,16 +660,21 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // O teclado grava igual ao ponteiro, e o `F5` é quem diz isso.
   await marcos.reload();
   await expect(seletorDePrioridade).toHaveText("Normal");
+  cobre(test.info(), "4.3 · 26", {
+    falta: "a visibilidade do anel de foco, e o Tab até o seletor — a asserção põe o foco por código",
+  });
 
   // **Em nenhum momento houve janela ou campo de observação**, e é o que separa este comando dos cinco que
   // abrem modal e do campo de solução aplicada, que tem *Salvar* próprio.
   await expect(marcos.getByRole("dialog")).toHaveCount(0);
   await expect(marcos.getByLabel(/^Observação/u)).toHaveCount(0);
+  cobre(test.info(), "4.3 · 27", { criterio: "17.6" });
 
   // A ocorrência fica em *Alta*, que é onde a triagem a deixa.
   await seletorDePrioridade.click();
   await marcos.getByRole("option", { name: "Alta" }).click();
   await expect(desfazer(marcos)).toContainText("Prioridade alterada de Normal para Alta.");
+  cobre(test.info(), "4.3 · 28");
 
   // -------------------------------------------------------------------------
   // 12 · Analisar — nenhuma janela, e a barra muda de forma
@@ -630,6 +688,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await esperarSituacao(marcos, "Em análise");
   await expect(ciclo(marcos).getByText(CARIMBO)).toHaveCount(2);
   await expect(marcos.getByRole("heading", { name: "Linha do tempo 2" })).toBeVisible();
+  cobre(test.info(), "4.3 · 29", { falta: "o texto Em análise. no último item da linha do tempo" });
 
   await expect(marcos.getByRole("button", { name: "Atribuir" })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toHaveCount(0);
@@ -638,6 +697,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("menuitem", { name: "Cancelar" })).toBeVisible();
   await marcos.keyboard.press("Escape");
   await expect(marcos.getByRole("menu")).toHaveCount(0);
+  cobre(test.info(), "4.3 · 30", { criterio: "22.3" });
 
   // -------------------------------------------------------------------------
   // 13 · O modal de atribuição — a fileira do topo, os dois blocos e a busca
@@ -658,6 +718,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **E o nome dele aparece uma vez só:** quem chama sai dos dois blocos, para não existirem dois
   // controles enviando o mesmo `pessoaId`.
   await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_MARCOS })).toHaveCount(1);
+  cobre(test.info(), "4.3 · 32", { criterio: "20.5" });
 
   await expect(modalDeAtribuicao.getByLabel("Buscar pelo nome")).toBeVisible();
   await expect(modalDeAtribuicao.getByText("Gestores e Encarregados")).toBeVisible();
@@ -671,6 +732,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   ).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Atribuir" })).toBeVisible();
+  cobre(test.info(), "4.3 · 31", {
+    falta: "a frase Quem vai cuidar desta ocorrência. e a ordem dos blocos dentro da janela",
+  });
 
   // **Não grava no toque**, e a razão é dupla: a fileira é item de FORMULÁRIO, e a atribuição aparece na
   // linha do tempo do Solicitante sem ter desfazer.
@@ -682,6 +746,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // fileira do topo viver fora dos dois `fieldset`.
   await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
   await expect(fileiraDeMarcos).not.toBeChecked();
+  cobre(test.info(), "4.3 · 33", { criterio: "20.5" });
 
   // -------------------------------------------------------------------------
   // 13.1 · A busca — prefixo de PALAVRA, sem acento e sem caixa, e só o nome
@@ -714,6 +779,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await busca.fill("zzz");
   await expect(modalDeAtribuicao.getByText("Ninguém com esse nome.")).toBeVisible();
   await expect(fileiraDeMarcos).toBeVisible();
+  cobre(test.info(), "4.3 · 34", { criterio: "20.6" });
 
   // -------------------------------------------------------------------------
   // 13.2 · Seleção que o filtro esconde é APAGADA, e não guardada
@@ -732,6 +798,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await modalDeAtribuicao.getByRole("button", { name: "Atribuir" }).click();
   await expect(modalDeAtribuicao.getByText("Escolha o responsável.")).toBeVisible();
   await esperarSituacao(marcos, "Em análise");
+  cobre(test.info(), "4.3 · 35", { criterio: "20.6" });
 
   // Reabrir zera o formulário — `aoAbrir` limpa a escolha e a busca.
   await modalDeAtribuicao.getByRole("button", { name: "Cancelar" }).click();
@@ -739,6 +806,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await marcos.getByRole("button", { name: "Atribuir" }).click();
   const modalReaberto = marcos.getByRole("dialog");
   await expect(modalReaberto.getByLabel("Buscar pelo nome")).toHaveValue("");
+  cobre(test.info(), "4.3 · 36");
 
   // -------------------------------------------------------------------------
   // 13.3 · O responsável é um Solicitante, e isso é decisão de contrato
@@ -752,6 +820,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("dialog")).toHaveCount(0);
 
   await expect(identidade(marcos)).toContainText(SOLICITANTE_DO_AURORA);
+  cobre(test.info(), "4.3 · 37", { falta: "a linha do tempo com o ficou responsável, e a bolinha vazada" });
   // **A palavra sai do ESTADO, não da intenção de quem clica** — há responsável, então o menu diz
   // *Reatribuir*. E *Iniciar atendimento* passou a existir.
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toBeVisible();
@@ -759,6 +828,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("menuitem", { name: "Reatribuir" })).toBeVisible();
   await marcos.keyboard.press("Escape");
   await expect(marcos.getByRole("menu")).toHaveCount(0);
+  cobre(test.info(), "4.3 · 38", { falta: "Pausar e Cancelar no menu depois da atribuição" });
 
   // -------------------------------------------------------------------------
   // 14 · Helena cancela a própria ocorrência — a Parte 4.5, que nenhum dos seis toca
@@ -782,8 +852,12 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
     modalDeCancelamento.getByText("A ocorrência será encerrada sem resolução. Não há como reabrir."),
   ).toBeVisible();
   await expect(modalDeCancelamento.getByRole("radio")).toHaveCount(MOTIVOS_DO_AUTOR);
+  cobre(test.info(), "4.5 · 66", {
+    falta: "os nomes dos quatro motivos — a asserção conta quatro e nomeia só Aberta por engano",
+  });
   await expect(modalDeCancelamento.getByText(AVISO_PARA_QUEM_NAO_GESTIONA)).toBeVisible();
   await expect(modalDeCancelamento.getByText(AVISO_DE_VISIBILIDADE)).toHaveCount(0);
+  cobre(test.info(), "4.5 · 67", { criterio: "18.7" });
 
   await modalDeCancelamento.getByRole("radio", { name: MOTIVO_DE_C }).check();
   await modalDeCancelamento.getByLabel(/^Observação/u).fill(OBSERVACAO_DE_C);
@@ -794,6 +868,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // a frase terminal no lugar dela.
   await expect(helena.getByText("Esta ocorrência está encerrada.")).toBeVisible();
   await expect(ciclo(helena)).toContainText("O ciclo não continua.");
+  cobre(test.info(), "4.5 · 68", {
+    falta: "a barra sem botão nenhum — a asserção confere a frase terminal, não a ausência das ações",
+  });
 
   await contextoDeHelena.close();
   await contextoDeMarcos.close();
@@ -841,6 +918,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
  */
 test.fixme(
   "V-14 · depois de gravar a prioridade pelo teclado, o foco volta ao gatilho e o Desfazer é o próximo alvo",
+  cobertura([{ roteiro: "4.3 · 26", falta: "a visibilidade do anel de foco" }]),
   async ({ browser }) => {
     const contextoDeHelena = await browser.newContext();
     const contextoDeMarcos = await browser.newContext();

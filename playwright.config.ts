@@ -94,7 +94,19 @@ export default defineConfig({
    */
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 
-  reporter: [["list"], ["html", { open: "never" }]],
+  /**
+   * **O `json` existe para uma coisa só, e ela não é gente lendo.** O `npm run mapa:roteiro` lê esse
+   * arquivo para descobrir quais itens do roteiro de validação cada teste afirma cobrir — a declaração
+   * vive em `annotations`, e o `list` e o `html` não a devolvem em forma que uma ferramenta leia.
+   *
+   * **Ele cai em `test-results/`, que o `.gitignore` já cobre.** O mapa é gerado, nunca versionado, e
+   * ninguém precisa do relatório depois que o mapa existe.
+   */
+  reporter: [
+    ["list"],
+    ["html", { open: "never" }],
+    ["json", { outputFile: "test-results/relatorio.json" }],
+  ],
 
   /**
    * **Não há `webServer`, e a ausência é decisão.** A pilha é `npm run local` — `supabase start`, escrita

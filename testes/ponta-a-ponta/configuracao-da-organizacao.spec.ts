@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { cobertura, cobre } from "./cobertura";
+
 /**
  * ============================================================================
  *  A configuração da organização — Parte 3
@@ -270,6 +272,10 @@ test("a configuração da organização: nome repetido, desativar até a última
   // Quem não toca na grade nasce com a etiqueta neutra, e o rodapé do seletor diz qual é — ver a
   // divergência 3 do cabeçalho.
   await expect(modalDeCriar.getByText(/^Escolhido:/u)).toContainText("Etiqueta");
+  cobre(test.info(), "3 · 8", {
+    falta:
+      "a categoria criada de fato — o teste lê o rodapé e cancela, e nenhuma categoria nova nasce para conferir a etiqueta neutra na lista",
+  });
 
   await modalDeCriar.getByLabel("Nome").fill(SEMENTES[4].nome);
   await modalDeCriar.getByRole("button", { name: "Criar categoria" }).click();
@@ -281,6 +287,10 @@ test("a configuração da organização: nome repetido, desativar até a última
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // **A recusa recusou mesmo:** continuam sendo sete, e não oito.
   await expect(page.getByRole("row")).toHaveCount(SEMENTES.length + 1);
+  cobre(test.info(), "3 · 1", {
+    falta:
+      "«no campo, não em faixa» — aqui só a frase e a lista intacta; a forma é o defeito de produto do `test.fixme` do fim do arquivo",
+  });
 
   // -------------------------------------------------------------------------
   // 2 · A desativada fica na lista e some do seletor de T-04 — critério 4a.2
@@ -358,6 +368,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   }
   // A desativada não está em lugar nenhum da lista — a outra metade do 4a.2.
   await expect(page.getByRole("option", { name: desativada })).toHaveCount(0);
+  cobre(test.info(), "3 · 3", { criterio: "4a.2" });
 
   // **A segunda visita é decisão, e custa um carregamento.** As duas listas de T-04 são peças
   // diferentes — a categoria é o `select` do catálogo, a área é o painel com busca do item 44l —, e a
@@ -373,6 +384,8 @@ test("a configuração da organização: nome repetido, desativar até a última
   // a palavra *Unidade* também é o rótulo do tipo da outra, e um localizador por trecho pegaria as duas.
   await expect(areasNoSeletor.nth(0)).not.toContainText(AREA_COMUM);
   await expect(areasNoSeletor.nth(1)).toContainText(AREA_COMUM);
+  cobre(test.info(), "3 · 4", { criterio: "4a.5, 5.4" });
+  cobre(test.info(), "2.2 · 5", { criterio: "2.3, 3.3" });
 
   // -------------------------------------------------------------------------
   // 5 · O tipo de uma área, e o aviso nos dois momentos — critério 5.2
@@ -400,6 +413,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText(`${AREA_COMUM} passou a ser Unidade privativa.`)).toBeVisible();
   await expect(linhaDe(page, AREA_COMUM)).toContainText("Unidade privativa");
+  cobre(test.info(), "3 · 5", { criterio: "5.2" });
 
   // -------------------------------------------------------------------------
   // 6 · O ícone de uma categoria — critérios 4b.3 e 4b.4
@@ -431,6 +445,11 @@ test("a configuração da organização: nome repetido, desativar até a última
     await expect(linha.locator(`svg.lucide-${semente.icone}`)).toHaveCount(1);
     await expect(linha).toContainText(semente.nome);
   }
+  cobre(test.info(), "3 · 6", { criterio: "4b.3" });
+  cobre(test.info(), "3 · 7", {
+    falta:
+      "«à esquerda do nome» — a asserção prova o desenho na linha e o nome escrito ao lado, e não a posição relativa dos dois",
+  });
 
   // -------------------------------------------------------------------------
   // 7 · Os contatos do vínculo — item 9b
@@ -465,6 +484,7 @@ test("a configuração da organização: nome repetido, desativar até a última
     TELEFONE_EM_E164,
     EMAIL_DO_ENCARREGADO,
   ]);
+  cobre(test.info(), "3 · 10", { criterio: "9b M-1" });
 
   // -------------------------------------------------------------------------
   // 8 · A ordem dos contatos é a cadeia de tentativa — passo 11
@@ -488,6 +508,7 @@ test("a configuração da organização: nome repetido, desativar até a última
     EMAIL_DO_ENCARREGADO,
     TELEFONE_EM_E164,
   ]);
+  cobre(test.info(), "3 · 11");
 
   // -------------------------------------------------------------------------
   // 9 · Salvar SÓ a unidade não substitui os contatos — passo 12
@@ -505,9 +526,11 @@ test("a configuração da organização: nome repetido, desativar até a última
   await page.getByRole("button", { name: "Salvar" }).click();
   await page.waitForURL(/\/vinculos$/u);
   await expect(linhaDe(page, ENCARREGADO)).toContainText(AREA_COMUM);
+  cobre(test.info(), "2.6 · 5", { criterio: "9a.3" });
 
   const depoisDaUnidade = await contatosDe(page, ENCARREGADO);
   expect(depoisDaUnidade.map((contato) => contato.id)).toEqual(idsAntes);
+  cobre(test.info(), "3 · 12");
 
   // -------------------------------------------------------------------------
   // 10 · O mesmo número noutro formato é recusado — passo 13
@@ -531,6 +554,10 @@ test("a configuração da organização: nome repetido, desativar até a última
   await expect(page.getByText("Este contato já está na lista.")).toBeVisible();
   const depoisDaRecusa = await contatosDe(page, ENCARREGADO);
   expect(depoisDaRecusa.map((contato) => contato.id)).toEqual(idsAntes);
+  cobre(test.info(), "3 · 13", {
+    falta:
+      "«no campo» e o foco que vai até o erro — o teste afirma a frase, o endereço que não muda e os dois contatos intactos",
+  });
 
   // -------------------------------------------------------------------------
   // 11 · A última ativa, nos dois lugares — critério 4a.4
@@ -571,6 +598,7 @@ test("a configuração da organização: nome repetido, desativar até a última
 
   // O segundo lugar: a faixa acima da lista, que fica.
   await expect(page.getByText(fraseDoBloqueio)).toBeVisible();
+  cobre(test.info(), "3 · 2", { criterio: "4a.4" });
   // E as sete continuam lá, todas marcadas — desativar nunca apagou nada (4a.2).
   await expect(page.getByRole("row")).toHaveCount(SEMENTES.length + 1);
 
@@ -622,6 +650,7 @@ test("a configuração da organização: nome repetido, desativar até a última
  */
 test.fixme(
   "a recusa do nome repetido aparece no campo, e não em faixa — critério 4a.1",
+  cobertura([{ roteiro: "3 · 1", criterio: "4a.1" }]),
   async ({ page }) => {
     await organizacaoPropria(page, "recusa");
 
