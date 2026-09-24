@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DIAS_DA_JANELA,
   diaEmSaoPaulo,
+  ehJanelaPadrao,
   mesEmSaoPaulo,
   mesesDaJanela,
   resolverJanela,
@@ -49,6 +50,22 @@ describe("a janela do dashboard — os quatro casos do contrato", () => {
   it("o dia é o de São Paulo, não o de UTC", () => {
     expect(diaEmSaoPaulo(new Date(AGORA))).toBe("2026-08-29");
     expect(mesEmSaoPaulo(new Date("2026-09-01T02:00:00.000Z"))).toBe("2026-08");
+  });
+
+  it("a janela padrão é reconhecida quando ninguém pediu nada — critério 69.1", () => {
+    expect(ehJanelaPadrao(resolverJanela({}, AGORA), AGORA)).toBe(true);
+  });
+
+  it("o padrão escrito por extenso na URL também é o padrão: compara valor, não endereço", () => {
+    expect(ehJanelaPadrao({ de: "2026-06-01", ate: "2026-08-29" }, AGORA)).toBe(true);
+  });
+
+  it("noventa dias que terminam ontem não são o padrão", () => {
+    expect(ehJanelaPadrao({ de: "2026-05-31", ate: "2026-08-28" }, AGORA)).toBe(false);
+  });
+
+  it("basta uma ponta diferente para não ser o padrão", () => {
+    expect(ehJanelaPadrao({ de: "2026-06-02", ate: "2026-08-29" }, AGORA)).toBe(false);
   });
 });
 

@@ -94,6 +94,18 @@ export function resolverJanela(pedida: JanelaPedida, agora?: string): Janela {
 }
 
 /**
+ * **A janela é a padrão?** É o que apaga o atalho *"últimos 90 dias"* de T-07 (critério 69.1).
+ *
+ * **Compara valores, e não o endereço**: `/dashboard` e `/dashboard?de=<hoje−89>&ate=<hoje>` pedem a mesma
+ * janela, e o atalho apaga nos dois. Mora aqui pela mesma razão de `resolverJanela`: quem sabe o que são
+ * 90 dias é a Aplicação, e a página só pergunta.
+ */
+export function ehJanelaPadrao(janela: Janela, agora?: string): boolean {
+  const padrao = resolverJanela({}, agora);
+  return janela.de === padrao.de && janela.ate === padrao.ate;
+}
+
+/**
  * **Todo mês que a janela toca, do mais antigo para o mais novo** — e é UM eixo, usado pelas duas séries.
  *
  * O critério 36.2 pede isso para o tempo de resolução — *"nenhum mês é omitido"* —, e a razão que o
