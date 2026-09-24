@@ -193,9 +193,7 @@ function Apresentacao() {
         }}
       />
       <MarcaDoProduto />
-      <p className="text-titulo-bloco text-tinta">
-        O que é registrado aqui fica registrado, com data e autor.
-      </p>
+      <p className="text-titulo-bloco text-tinta">O livro de ocorrências da sua organização, aberto para quem cuida.</p>
     </div>
   );
 }

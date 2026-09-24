@@ -1961,4 +1961,16 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     // O portão de estilo mede a mesma tinta.
     expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--marca-foreground\)"/u);
   });
+
+  it("a tela de áreas monta o fato a partir da frase que o teste protege (troca 15)", () => {
+    const pagina = ler("app/(casca)/configuracao/areas/page.tsx");
+    expect(pagina).toContain("FRASE_DAS_AREAS");
+    expect(pagina).not.toContain("Onde, dentro da organização");
+  });
+
+  it("o slogan de /entrar (troca 14)", () => {
+    const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
+    expect(moldura).toContain("O livro de ocorrências da sua organização, aberto para quem cuida.");
+    expect(moldura).not.toContain("fica registrado, com data e autor");
+  });
 });
