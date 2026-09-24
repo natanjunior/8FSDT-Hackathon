@@ -24,6 +24,7 @@ import {
   descricaoDaRecusa,
   descricaoDoPedido,
   erroDoPapelNaResposta,
+  fatoDeEdicao,
   fraseDoFato,
   fraseDoFatoDeEdicao,
   papelDoValor,
@@ -608,10 +609,31 @@ describe("as frases de T-08 — papéis, datas e o fato", () => {
     expect(fraseDoFato(6, 0)).toBe("6 participantes. Nenhum pedido de entrada aguardando.");
   });
 
-  it("o fato da página de editar", () => {
-    expect(fraseDoFatoDeEdicao("Paulo Mendes", "solicitante", "2026-09-16T15:00:00.000Z")).toBe(
+  it("o fato da edição traz a entrada, e a última atualização quando ela existe", () => {
+    expect(fraseDoFatoDeEdicao("Paulo Mendes", "solicitante", "2026-09-16T15:00:00.000Z", null)).toBe(
       "Paulo Mendes, Solicitante desde 16/09/2026.",
     );
+    expect(
+      fraseDoFatoDeEdicao(
+        "Helena Rocha",
+        "gestor",
+        "2026-03-12T15:00:00.000Z",
+        "2026-09-24T15:00:00.000Z",
+      ),
+    ).toBe("Helena Rocha, Gestor desde 12/03/2026. Última atualização em 24/09/2026.");
+  });
+
+  it("os segmentos põem as duas datas em mono, e o resto não", () => {
+    const segmentos = fatoDeEdicao(
+      "Helena Rocha",
+      "gestor",
+      "2026-03-12T15:00:00.000Z",
+      "2026-09-24T15:00:00.000Z",
+    );
+    expect(segmentos.filter((segmento) => segmento.mono).map((segmento) => segmento.texto)).toStrictEqual(
+      ["12/03/2026", "24/09/2026"],
+    );
+    expect(new Set(segmentos.map((segmento) => segmento.chave)).size).toBe(segmentos.length);
   });
 
   it("o rótulo da coluna e o prefixo da pauta dizem atualização, e desde saiu", () => {
