@@ -2063,4 +2063,33 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     // G7 do guia: nenhum controle cru fora de `ui/` — o gatilho é o `Button` do catálogo.
     expect(foto).not.toMatch(/<button(\s|>|$)/mu);
   });
+
+  const ARQUIVOS_DO_66 = [
+    "src/interface/componentes/cabecalho-da-ocorrencia.tsx",
+    "src/interface/componentes/aviso-de-avaliacao.tsx",
+    "src/interface/componentes/foto-ampliavel.tsx",
+    "src/interface/componentes/caminho-da-pagina.tsx",
+    "src/interface/componentes/modal-de-atribuicao.tsx",
+    "src/interface/componentes/conversa-da-ocorrencia.tsx",
+    "src/interface/componentes/barra-de-acoes.tsx",
+  ];
+
+  it("nenhum tamanho fora dos sete papéis, e nenhuma primitiva de outra biblioteca (critério 66.4)", () => {
+    const tamanhos = ARQUIVOS_DO_66.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/text-(?:xs|sm|base|lg|xl|2xl)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(tamanhos).toStrictEqual([]);
+
+    const importados = ARQUIVOS_DO_66.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? ""),
+    );
+    const deFora = importados.filter(
+      (modulo) =>
+        !modulo.startsWith("@/") &&
+        !["react", "next/link", "next/navigation", "lucide-react"].includes(modulo),
+    );
+    expect(deFora).toStrictEqual([]);
+  });
 });
