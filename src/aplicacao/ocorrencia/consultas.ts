@@ -7,6 +7,7 @@ import type {
   FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
+  OrdenacaoDeOcorrencias,
   RepositorioEscopadoDeOcorrencias,
   TransicaoLida,
 } from "./portas";
@@ -318,6 +319,8 @@ export async function listarOcorrencias(
     ate?: string;
     totalNoCorte?: number;
     filtro?: FiltroDeOcorrencias;
+    /** A ordem da página (item 67). **Vai só para `listar`**: ordem não muda contagem nenhuma. */
+    ordenacao?: OrdenacaoDeOcorrencias;
     /** Só o teste passa. **Um relógio, lido uma vez** — o mesmo instante corta as duas consultas. */
     agora?: string;
   } = {},
@@ -392,6 +395,7 @@ export async function listarOcorrencias(
     deslocamento,
     ate,
     ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
+    ...(pagina.ordenacao === undefined ? {} : { ordenacao: pagina.ordenacao }),
   });
 
   return {
