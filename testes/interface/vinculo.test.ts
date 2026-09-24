@@ -29,8 +29,8 @@ import {
   papelDoValor,
   primeiroNome,
   rotuloDeAprovar,
+  rotuloDoContato,
   rotuloDoPapel,
-  textoDeMaisContatos,
   tituloDaRecusa,
 } from "@/interface/componentes/frases-de-participantes";
 import {
@@ -612,9 +612,11 @@ describe("as frases de T-08 — papéis, datas e o fato", () => {
     );
   });
 
-  it("o +N diz a palavra para quem não vê o sinal", () => {
-    expect(textoDeMaisContatos(1)).toBe("e mais 1 contato");
-    expect(textoDeMaisContatos(2)).toBe("e mais 2 contatos");
+  it("o nome do botão de contato diz o tipo, o número e de quem é", () => {
+    expect(rotuloDoContato("telefone", 1, "Ana Lima")).toBe("Telefone de Ana Lima");
+    expect(rotuloDoContato("telefone", 2, "Ana Lima")).toBe("Telefones de Ana Lima");
+    expect(rotuloDoContato("email", 1, "Ana Lima")).toBe("E-mail de Ana Lima");
+    expect(rotuloDoContato("email", 3, "Ana Lima")).toBe("E-mails de Ana Lima");
   });
 });
 
@@ -683,7 +685,7 @@ describe("os avisos de T-08 — o desfecho por endereço vira aviso (critério 1
 });
 
 describe("as linhas da tabela única (critério 1)", () => {
-  it("o pedido vira linha com o papel a decidir e o telefone informado, legível", () => {
+  it("o pedido vira linha com o papel a decidir e o telefone informado, legível e sem finalidade", () => {
     const linha = linhaDoPedido(PEDIDO("q1", "Paulo Mendes"));
     expect(linha).toMatchObject({
       tipo: "pedido",
@@ -691,21 +693,25 @@ describe("as linhas da tabela única (critério 1)", () => {
       nome: "Paulo Mendes",
       rotuloDoPapel: "a decidir",
       unidade: null,
-      contato: "(11) 98877-6655",
-      maisContatos: 0,
+      telefones: [{ chave: "telefone-informado", valor: "(11) 98877-6655", finalidade: null, whatsapp: false }],
+      emails: [],
       desdeTexto: "14/09/2026",
     });
-    expect(linhaDoPedido(PEDIDO("q2", "Sem Telefone", undefined, null)).contato).toBeNull();
   });
 
-  it("o vínculo mostra o primeiro contato, a palavra WhatsApp e quantos sobram", () => {
+  it("o pedido sem telefone informado não tem contato nenhum", () => {
+    expect(linhaDoPedido(PEDIDO("q2", "Sem Telefone", undefined, null))).toMatchObject({ telefones: [], emails: [] });
+  });
+
+  it("o vínculo separa os contatos por tipo, na ordem cadastrada, com finalidade e WhatsApp", () => {
     const linha = linhaDoVinculo(
       VINCULO("p1", "Cláudia Meireles", "solicitante", {
         area: { id: "a1", nome: "Apartamento 101" },
         temConta: false,
         contatos: [
           CONTATO("c1", "telefone", "+5511998124410", { temWhatsapp: true }),
-          CONTATO("c2", "email", "claudia@example.com"),
+          CONTATO("c2", "email", "claudia@example.com", { finalidade: "trabalho" }),
+          CONTATO("c3", "telefone", "+5511333344444", { finalidade: "recado" }),
         ],
       }),
       CONTEXTO,
@@ -715,22 +721,31 @@ describe("as linhas da tabela única (critério 1)", () => {
       chave: "vinculo:p1",
       rotuloDoPapel: "Solicitante",
       unidade: "Apartamento 101",
-      contato: "(11) 99812-4410 · WhatsApp",
-      maisContatos: 1,
       desdeTexto: "02/03/2026",
       ehVoce: false,
       impedimento: null,
     });
+    expect(linha.telefones).toStrictEqual([
+      { chave: "c1", valor: "(11) 99812-4410", finalidade: "Pessoal", whatsapp: true },
+      { chave: "c3", valor: expect.any(String), finalidade: "Recado", whatsapp: false },
+    ]);
+    expect(linha.emails).toStrictEqual([
+      { chave: "c2", valor: "claudia@example.com", finalidade: "Trabalho", whatsapp: false },
+    ]);
   });
 
-  it("o e-mail como primeiro contato sai como está, e sem contato a célula fica vazia", () => {
-    const comEmail = VINCULO("p-helena", "Helena Rocha", "gestor", {
-      contatos: [CONTATO("c1", "email", "helena.rocha@email.com")],
-    });
-    expect(linhaDoVinculo(comEmail, CONTEXTO).contato).toBe("helena.rocha@email.com");
+  it("dois telefones e nenhum e-mail: um tipo só, os dois nele; sem contato, as duas listas vazias", () => {
+    const doisTelefones = linhaDoVinculo(
+      VINCULO("p2", "Jorge Tavares", "solicitante", {
+        contatos: [CONTATO("c1", "telefone", "+5511998124410"), CONTATO("c2", "telefone", "+5511977776666")],
+      }),
+      CONTEXTO,
+    );
+    expect(doisTelefones.telefones.map((contato) => contato.chave)).toStrictEqual(["c1", "c2"]);
+    expect(doisTelefones.emails).toStrictEqual([]);
     expect(linhaDoVinculo(VINCULO("p9", "Sem Contato", "gestor"), CONTEXTO)).toMatchObject({
-      contato: null,
-      maisContatos: 0,
+      telefones: [],
+      emails: [],
     });
   });
 

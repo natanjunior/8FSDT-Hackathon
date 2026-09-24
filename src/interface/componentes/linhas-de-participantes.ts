@@ -14,6 +14,7 @@ import {
   proximaOrdenacao,
   type Sentido,
 } from "@/interface/componentes/ordenacao-em-tres-estados";
+import { contatoEmLeitura } from "@/interface/componentes/regras-do-vinculo";
 import { telefoneLegivel } from "@/interface/componentes/telefone";
 import type { VinculoProjetado } from "@/interface/projecoes";
 
@@ -84,13 +85,22 @@ export type PedidoNaTabela = {
   readonly criadoEm: string;
 };
 
+export type ContatoNaLinha = {
+  readonly chave: string;
+  /** O que se lê e o que se copia: o telefone já legível, ou o e-mail como está. */
+  readonly valor: string;
+  /** "Pessoal", "Trabalho", "Recado"; `null` no pedido, que não carrega finalidade. */
+  readonly finalidade: string | null;
+  readonly whatsapp: boolean;
+};
+
 type Comum = {
   readonly chave: string;
   readonly nome: string;
   readonly rotuloDoPapel: string;
   readonly unidade: string | null;
-  readonly contato: string | null;
-  readonly maisContatos: number;
+  readonly telefones: readonly ContatoNaLinha[];
+  readonly emails: readonly ContatoNaLinha[];
   /** O instante, para ordenar. */
   readonly desde: string;
   /** O que a coluna escreve. */
@@ -115,19 +125,21 @@ export type ContextoDaTabela = {
 };
 
 /**
- * O primeiro contato e quantos sobram. **A palavra WhatsApp acompanha o número** (A-5), e o resto não
- * abre na linha: a lista inteira está em *Editar participante*.
+ * Os contatos da linha, **separados por tipo e na ordem cadastrada** (item 68a): a célula mostra um ícone
+ * por tipo, e o `popover` de cada um lista todos daquele tipo. Não há mais *"+N"*.
  */
-export function contatoResumido(
-  contatos: VinculoProjetado["pessoa"]["contatos"],
-): { readonly texto: string | null; readonly mais: number } {
-  const [primeiro] = contatos;
-  if (primeiro === undefined) return { texto: null, mais: 0 };
-  const texto =
-    primeiro.tipo === "telefone"
-      ? `${telefoneLegivel(primeiro.valor)}${primeiro.temWhatsapp ? " · WhatsApp" : ""}`
-      : primeiro.valor;
-  return { texto, mais: contatos.length - 1 };
+function contatosPorTipo(contatos: VinculoProjetado["pessoa"]["contatos"]): {
+  readonly telefones: readonly ContatoNaLinha[];
+  readonly emails: readonly ContatoNaLinha[];
+} {
+  const naLinha = (contato: VinculoProjetado["pessoa"]["contatos"][number]): ContatoNaLinha => {
+    const lido = contatoEmLeitura(contato);
+    return { chave: contato.id, valor: lido.valor, finalidade: lido.finalidade, whatsapp: lido.whatsapp !== null };
+  };
+  return {
+    telefones: contatos.filter((contato) => contato.tipo === "telefone").map(naLinha),
+    emails: contatos.filter((contato) => contato.tipo === "email").map(naLinha),
+  };
 }
 
 export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
@@ -138,15 +150,25 @@ export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
     nome: pedido.pessoa.nome,
     rotuloDoPapel: ROTULO_SEM_PAPEL,
     unidade: null,
-    contato: pedido.pessoa.telefoneInformado === null ? null : telefoneLegivel(pedido.pessoa.telefoneInformado),
-    maisContatos: 0,
+    telefones:
+      pedido.pessoa.telefoneInformado === null
+        ? []
+        : [
+            {
+              chave: "telefone-informado",
+              valor: telefoneLegivel(pedido.pessoa.telefoneInformado),
+              finalidade: null,
+              whatsapp: false,
+            },
+          ],
+    emails: [],
     desde: pedido.criadoEm,
     desdeTexto: dataCurta(pedido.criadoEm),
   };
 }
 
 export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTabela): LinhaDeVinculo {
-  const contato = contatoResumido(vinculo.pessoa.contatos);
+  const contatos = contatosPorTipo(vinculo.pessoa.contatos);
   return {
     tipo: "vinculo",
     vinculo,
@@ -155,8 +177,8 @@ export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTa
     papel: vinculo.papel,
     rotuloDoPapel: rotuloDoPapel(vinculo.papel),
     unidade: vinculo.area?.nome ?? null,
-    contato: contato.texto,
-    maisContatos: contato.mais,
+    telefones: contatos.telefones,
+    emails: contatos.emails,
     desde: vinculo.criadoEm,
     desdeTexto: dataCurta(vinculo.criadoEm),
     ehVoce: vinculo.pessoa.pessoaId === contexto.euPessoaId,

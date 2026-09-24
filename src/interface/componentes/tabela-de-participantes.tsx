@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useId, useState, type MouseEvent, type ReactNode } from "react";
 
 import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-icone";
+import { ContatoPorIcone } from "@/interface/componentes/contato-por-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
@@ -13,7 +14,7 @@ import {
   OPCAO_DO_FILTRO,
 } from "@/interface/componentes/filtro-rapido";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
-import { TEXTOS_DA_TABELA, textoDeMaisContatos } from "@/interface/componentes/frases-de-participantes";
+import { TEXTOS_DA_TABELA } from "@/interface/componentes/frases-de-participantes";
 import {
   FILTROS,
   ROTULO_DO_FILTRO,
@@ -251,9 +252,9 @@ export function TabelaDeParticipantes({
                         <p className="text-meta text-tinta-suave">
                           {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
                         </p>
-                        <p className="text-meta text-tinta-suave">
-                          <Contato linha={linha} />
-                        </p>
+                        <div className="-ml-3">
+                          <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
+                        </div>
                         <p className="text-meta text-tinta-fraca font-mono tabular-nums">
                           {TEXTOS_DA_TABELA.desde} {linha.desdeTexto}
                         </p>
@@ -284,7 +285,7 @@ export function TabelaDeParticipantes({
                           aoOrdenar={escrever}
                           largura="w-[170px]"
                         />
-                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[260px]")}>Contato</TableHead>
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[120px]")}>Contato</TableHead>
                         <CabecaQueOrdena
                           coluna="desde"
                           rotulo={TEXTOS_DA_TABELA.desde}
@@ -317,8 +318,8 @@ export function TabelaDeParticipantes({
                             )}
                           </TableCell>
                           <TableCell className={CELULA}>{linha.unidade ?? <Traco />}</TableCell>
-                          <TableCell className={CELULA}>
-                            <Contato linha={linha} />
+                          <TableCell className="px-3.5 py-1.5">
+                            <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                           </TableCell>
                           <TableCell className={cn(CELULA, "text-tinta-suave font-mono tabular-nums")}>
                             {linha.desdeTexto}
@@ -438,22 +439,6 @@ function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNo
         </Badge>
       )}
     </span>
-  );
-}
-
-/** O primeiro contato e quantos sobram. **O resto não abre aqui**: a lista inteira está em *Editar participante*. */
-function Contato({ linha }: { linha: LinhaDeParticipante }) {
-  if (linha.contato === null) return <Traco />;
-  return (
-    <>
-      <span className="text-tinta-suave">{linha.contato}</span>
-      {linha.maisContatos > 0 && (
-        <span className="text-meta text-tinta-fraca ml-1.5 font-mono tabular-nums">
-          <span aria-hidden="true">+{linha.maisContatos}</span>
-          <span className="sr-only">{textoDeMaisContatos(linha.maisContatos)}</span>
-        </span>
-      )}
-    </>
   );
 }
 

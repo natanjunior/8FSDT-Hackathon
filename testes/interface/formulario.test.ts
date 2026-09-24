@@ -469,6 +469,8 @@ const ALCANCE_DO_44J = [
   "app/(casca)/vinculos/[pessoaId]/editar/loading.tsx",
   "src/interface/componentes/tabela-de-participantes.tsx",
   "src/interface/componentes/linhas-de-participantes.ts",
+  "src/interface/componentes/ordenacao-em-tres-estados.ts",
+  "src/interface/componentes/contato-por-icone.tsx",
   "src/interface/componentes/frases-de-participantes.ts",
   "src/interface/componentes/regras-do-vinculo.ts",
   "src/interface/componentes/escolhas-do-vinculo.tsx",
@@ -596,6 +598,18 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
       ),
     );
     expect(achados).toStrictEqual([]);
+  });
+
+  it("o contato é botão que abre popover, sem hover-card e sem +N (item 68a, critério 68.4)", () => {
+    const peca = ler("src/interface/componentes/contato-por-icone.tsx");
+    expect(peca).toContain("<Popover");
+    expect(peca).toContain("rotuloDoContato(");
+    expect(peca).toContain('role="status"');
+    // O docblock escreve a palavra para explicar a ausência; a guarda olha o import.
+    expect(peca).not.toMatch(/ui\/hover-card/u);
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).toContain("<ContatoPorIcone");
+    expect(tabela).not.toContain("maisContatos");
   });
 });
 
