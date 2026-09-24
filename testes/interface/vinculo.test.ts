@@ -845,12 +845,42 @@ describe("a ordem por coluna (critério 3)", () => {
     expect(chaves(ordenarLinhas([b, a], "pessoa", "decrescente"))).toStrictEqual(["vinculo:p1", "vinculo:p2"]);
   });
 
-  it("os pedidos ficam no topo qualquer que seja a ordem", () => {
+  it("com ordenação escolhida, o pedido não tem lugar reservado", () => {
     const pedido = linhaDoPedido(PEDIDO("q1", "Zuleica"));
     const vinculo = V("1", "Ana", "gestor", { criadoEm: "2026-01-01T12:00:00.000Z" });
-    expect(nomes(ordenarLinhas([vinculo, pedido], "pessoa", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
-    expect(nomes(ordenarLinhas([vinculo, pedido], "desde", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
-    expect(nomes(ordenarLinhas([vinculo, pedido], "papel", "decrescente"))).toStrictEqual(["Zuleica", "Ana"]);
+    expect(nomes(ordenarLinhas([pedido, vinculo], "pessoa", "crescente"))).toStrictEqual(["Ana", "Zuleica"]);
+    expect(nomes(ordenarLinhas([pedido, vinculo], "desde", "crescente"))).toStrictEqual(["Ana", "Zuleica"]);
+    // Em Papel o pedido ordena pelo que a coluna mostra, "a decidir", antes de "Gestor".
+    expect(nomes(ordenarLinhas([vinculo, pedido], "papel", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
+    // Em Unidade o pedido não tem unidade, e vai para o fim nos dois sentidos.
+    const comUnidade = V("2", "Bia", "solicitante", { area: { id: "a1", nome: "Apartamento 101" } });
+    expect(nomes(ordenarLinhas([pedido, comUnidade], "unidade", "decrescente"))).toStrictEqual(["Bia", "Zuleica"]);
+  });
+
+  it("sem ordenação: pedidos no topo pela entrada mais recente, depois vínculos pela entrada mais recente", () => {
+    const linhas = [
+      V("1", "Velho", "gestor", { criadoEm: "2026-01-10T12:00:00.000Z" }),
+      linhaDoPedido(PEDIDO("q-antigo", "Pedido Antigo", "2026-09-01T12:00:00.000Z")),
+      V("2", "Novo", "solicitante", { criadoEm: "2026-09-10T12:00:00.000Z" }),
+      linhaDoPedido(PEDIDO("q-recente", "Pedido Recente", "2026-09-20T12:00:00.000Z")),
+    ];
+    expect(nomes(ordenarLinhas(linhas, null, "crescente"))).toStrictEqual([
+      "Pedido Recente",
+      "Pedido Antigo",
+      "Novo",
+      "Velho",
+    ]);
+  });
+
+  it("sem ordenação, o empate de entrada é pelo nome e depois pela chave, e não depende da entrada", () => {
+    const mesmoDia = { criadoEm: "2026-05-05T12:00:00.000Z" };
+    const b = V("p2", "Ana", "gestor", mesmoDia);
+    const a = V("p1", "Ana", "gestor", mesmoDia);
+    const c = V("p3", "Bruno", "gestor", mesmoDia);
+    const chaves = (linhas: readonly LinhaDeParticipante[]) => linhas.map((linha) => linha.chave);
+    const esperado = ["vinculo:p1", "vinculo:p2", "vinculo:p3"];
+    expect(chaves(ordenarLinhas([c, b, a], null, "crescente"))).toStrictEqual(esperado);
+    expect(chaves(ordenarLinhas([a, c, b], null, "crescente"))).toStrictEqual(esperado);
   });
 });
 
@@ -933,9 +963,11 @@ describe("a paginação de vinte (critério 3)", () => {
 describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
   const ler = (consulta: string) => lerEndereco(new URLSearchParams(consulta));
 
-  it("sem nada, o padrão: Todos, Pessoa, crescente, primeira página", () => {
+  it("sem nada, o padrão: Todos, sem ordenação, primeira página", () => {
     expect(ler("")).toStrictEqual(ENDERECO_PADRAO);
-    expect(ENDERECO_PADRAO).toStrictEqual({ filtro: "todos", ordem: "pessoa", sentido: "crescente", pagina: 1 });
+    expect(ENDERECO_PADRAO).toStrictEqual({ filtro: "todos", ordem: null, sentido: "crescente", pagina: 1 });
+    // Um endereço guardado só com o sentido abre na ordem inicial.
+    expect(ler("sentido=decrescente")).toStrictEqual(ENDERECO_PADRAO);
   });
 
   it("lê os quatro quando são válidos", () => {
@@ -952,11 +984,12 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
     for (const pagina of ["0", "-2", "2.5", ""]) expect(ler(`pagina=${pagina}`).pagina).toBe(1);
   });
 
-  it("escreve só o que não é padrão", () => {
+  it("escreve só o que não é padrão, e a coluna sempre que há ordem — inclusive Pessoa", () => {
     expect(escreverEndereco(ENDERECO_PADRAO)).toBe("");
     expect(escreverEndereco({ filtro: "pedidos", ordem: "pessoa", sentido: "decrescente", pagina: 1 })).toBe(
-      "filtro=pedidos&sentido=decrescente",
+      "filtro=pedidos&ordem=pessoa&sentido=decrescente",
     );
+    expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "pessoa" })).toBe("ordem=pessoa");
     expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "unidade", pagina: 3 })).toBe("ordem=unidade&pagina=3");
   });
 
@@ -967,16 +1000,21 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
     expect(naPagina(ENDERECO_PADRAO, 2)).toStrictEqual({ ...ENDERECO_PADRAO, pagina: 2 });
   });
 
-  it("clicar na coluna ativa inverte o sentido; em outra, ordena crescente", () => {
-    const desc = comOrdem(ENDERECO_PADRAO, "pessoa");
-    expect(desc).toStrictEqual({ ...ENDERECO_PADRAO, sentido: "decrescente" });
-    expect(comOrdem(desc, "pessoa")).toStrictEqual(ENDERECO_PADRAO);
-    expect(comOrdem(desc, "papel")).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "papel" });
+  it("três cliques na mesma coluna devolvem a ordem inicial (critério 68.3)", () => {
+    const um = comOrdem(ENDERECO_PADRAO, "pessoa");
+    expect(um).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "pessoa" });
+    const dois = comOrdem(um, "pessoa");
+    expect(dois).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "pessoa", sentido: "decrescente" });
+    expect(comOrdem(dois, "pessoa")).toStrictEqual(ENDERECO_PADRAO);
+    expect(comOrdem(dois, "papel")).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "papel" });
   });
 
-  it("aria-sort diz a coluna e o sentido, e none nas outras", () => {
-    const desc = comOrdem(ENDERECO_PADRAO, "pessoa");
-    expect(ariaSort(ENDERECO_PADRAO, "pessoa")).toBe("ascending");
+  it("aria-sort: none em todas sem ordenação, e o sentido na coluna ativa", () => {
+    for (const coluna of ["pessoa", "papel", "unidade", "desde"] as const) {
+      expect(ariaSort(ENDERECO_PADRAO, coluna)).toBe("none");
+    }
+    const desc = comOrdem(comOrdem(ENDERECO_PADRAO, "pessoa"), "pessoa");
+    expect(ariaSort(comOrdem(ENDERECO_PADRAO, "pessoa"), "pessoa")).toBe("ascending");
     expect(ariaSort(desc, "pessoa")).toBe("descending");
     expect(ariaSort(desc, "desde")).toBe("none");
   });
