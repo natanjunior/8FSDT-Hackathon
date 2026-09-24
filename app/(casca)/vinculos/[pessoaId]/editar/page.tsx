@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
+import { Fragment } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, verVinculo } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vinculo";
-import { dataCurta, rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
+import { fatoDeEdicao } from "@/interface/componentes/frases-de-participantes";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea } from "@/interface/projecoes";
@@ -50,12 +51,20 @@ export default async function EditarParticipante({
       <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual={vinculo.pessoa.nome} />
       <CabecalhoDaPagina
         titulo="Editar participante"
-        fato={
-          <>
-            {vinculo.pessoa.nome}, {rotuloDoPapel(vinculo.papel)} desde{" "}
-            <span className="font-mono tabular-nums">{dataCurta(vinculo.criadoEm)}</span>.
-          </>
-        }
+        fato={fatoDeEdicao(
+          vinculo.pessoa.nome,
+          vinculo.papel,
+          vinculo.criadoEm,
+          vinculo.atualizadoEm,
+        ).map((segmento) =>
+          segmento.mono ? (
+            <span key={segmento.chave} className="font-mono tabular-nums">
+              {segmento.texto}
+            </span>
+          ) : (
+            <Fragment key={segmento.chave}>{segmento.texto}</Fragment>
+          ),
+        )}
       />
       <FormularioDeVinculo
         modo={{

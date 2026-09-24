@@ -27,6 +27,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0013](0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) | O teto da suíte de ponta a ponta sobe para sete, e passa a ter origem medida | Aceita |
 | [0014](0014-o-campo-de-codigo-entra-com-o-input-otp.md) | O campo de código entra com o input-otp, em oito casas | Aceita |
 | [0015](0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md) | O seletor de faixa de datas entra com o react-day-picker | Aceita |
+| [0016](0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md) | O relógio de atualização das seis tabelas passa a ser escrito por gatilho do banco | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

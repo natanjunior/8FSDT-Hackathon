@@ -40,7 +40,7 @@ export const POR_PAGINA = 20;
 export const FILTROS = ["todos", "pedidos", "solicitantes", "gestores", "encarregados"] as const;
 export type Filtro = (typeof FILTROS)[number];
 
-export const COLUNAS_QUE_ORDENAM = ["pessoa", "papel", "unidade", "desde"] as const;
+export const COLUNAS_QUE_ORDENAM = ["pessoa", "papel", "unidade", "atualizacao"] as const;
 export type Coluna = (typeof COLUNAS_QUE_ORDENAM)[number];
 
 export type Endereco = {
@@ -101,10 +101,15 @@ type Comum = {
   readonly unidade: string | null;
   readonly telefones: readonly ContatoNaLinha[];
   readonly emails: readonly ContatoNaLinha[];
-  /** O instante, para ordenar. */
+  /** O instante da entrada. Fica, porque é a chave dos pedidos e o segundo termo da ordem inicial. */
   readonly desde: string;
-  /** O que a coluna escreve. */
-  readonly desdeTexto: string;
+  /**
+   * O instante da última alteração, para ordenar. `null` é *nenhuma alteração registrada* — e a data de
+   * entrada **não** entra no lugar: a coluna existe para não mostrar a criação vestida de atualização.
+   */
+  readonly atualizadoEm: string | null;
+  /** O que a coluna escreve, ou `null` quando ela escreve o traço. */
+  readonly atualizadoTexto: string | null;
 };
 
 export type LinhaDePedido = Comum & { readonly tipo: "pedido"; readonly pedido: PedidoNaTabela };
@@ -163,7 +168,9 @@ export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
           ],
     emails: [],
     desde: pedido.criadoEm,
-    desdeTexto: dataCurta(pedido.criadoEm),
+    // **Pedido pendente não foi alterado**: a coluna mostra o traço, como em vínculo nunca mexido.
+    atualizadoEm: null,
+    atualizadoTexto: null,
   };
 }
 
@@ -180,7 +187,8 @@ export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTa
     telefones: contatos.telefones,
     emails: contatos.emails,
     desde: vinculo.criadoEm,
-    desdeTexto: dataCurta(vinculo.criadoEm),
+    atualizadoEm: vinculo.atualizadoEm,
+    atualizadoTexto: vinculo.atualizadoEm === null ? null : dataCurta(vinculo.atualizadoEm),
     ehVoce: vinculo.pessoa.pessoaId === contexto.euPessoaId,
     impedimento: contexto.impedimentos[vinculo.pessoa.pessoaId] ?? null,
   };
@@ -247,17 +255,23 @@ function primaria(coluna: Coluna, a: LinhaDeParticipante, b: LinhaDeParticipante
   if (coluna === "pessoa") return porNome(a, b);
   if (coluna === "papel") return COLACAO.compare(a.rotuloDoPapel, b.rotuloDoPapel);
   if (coluna === "unidade") return COLACAO.compare(a.unidade ?? "", b.unidade ?? "");
-  return Date.parse(a.desde) - Date.parse(b.desde);
+  return Date.parse(a.atualizadoEm ?? "") - Date.parse(b.atualizadoEm ?? "");
+}
+
+/** **Sem valor vai sempre para o fim**, nos dois sentidos. Era a regra de *Unidade*, e agora são duas. */
+function semValor(coluna: Coluna, linha: LinhaDeParticipante): boolean {
+  if (coluna === "unidade") return linha.unidade === null;
+  if (coluna === "atualizacao") return linha.atualizadoEm === null;
+  return false;
 }
 
 /**
  * **Sem ordenação vale a ordem inicial** (item 68a): pedidos no topo pela entrada mais recente, depois os
- * vínculos pela entrada mais recente. Quando o relógio de `vinculos` existir (resto do item 68), a chave dos
- * vínculos passa a ser a última atualização, e toda linha sem alteração fica onde está.
+ * vínculos pela **última atualização quando existe, e pela entrada quando não** (item 68b) — linha nunca
+ * alterada fica onde estava.
  *
- * **Com uma coluna escolhida, ela manda**, e o pedido não tem lugar reservado. **Sem unidade vai sempre para
- * o fim** nos dois sentidos, o empate é pelo nome e o último desempate é a chave — para a ordem não mudar
- * entre duas renderizações do mesmo conjunto.
+ * **Com uma coluna escolhida, ela manda**, e o pedido não tem lugar reservado. O empate é pelo nome e o
+ * último desempate é a chave, para a ordem não mudar entre duas renderizações do mesmo conjunto.
  */
 export function ordenarLinhas(
   linhas: readonly LinhaDeParticipante[],
@@ -267,10 +281,11 @@ export function ordenarLinhas(
   if (ordem === null) return [...linhas].sort(ordemInicial);
   const fator = sentido === "crescente" ? 1 : -1;
   return [...linhas].sort((a, b) => {
-    if (ordem === "unidade" && (a.unidade === null) !== (b.unidade === null)) {
-      return a.unidade === null ? 1 : -1;
-    }
-    const primeiro = primaria(ordem, a, b) * fator;
+    const vazio = semValor(ordem, a);
+    if (vazio !== semValor(ordem, b)) return vazio ? 1 : -1;
+    // **Os dois sem valor não vão à primária**: `Date.parse("")` é `NaN`, e um comparador que devolve
+    // `NaN` deixa a ordem indefinida. Vão direto ao desempate.
+    const primeiro = vazio ? 0 : primaria(ordem, a, b) * fator;
     if (primeiro !== 0) return primeiro;
     return desempate(ordem === "pessoa" ? 0 : porNome(a, b), a, b);
   });
@@ -278,9 +293,14 @@ export function ordenarLinhas(
 
 function ordemInicial(a: LinhaDeParticipante, b: LinhaDeParticipante): number {
   if (a.tipo !== b.tipo) return a.tipo === "pedido" ? -1 : 1;
-  const maisRecente = Date.parse(b.desde) - Date.parse(a.desde);
+  const maisRecente = Date.parse(relogioInicial(b)) - Date.parse(relogioInicial(a));
   if (maisRecente !== 0) return maisRecente;
   return desempate(porNome(a, b), a, b);
+}
+
+/** A última alteração quando ela existe, e a entrada quando não. O pedido cai sempre na entrada. */
+function relogioInicial(linha: LinhaDeParticipante): string {
+  return linha.atualizadoEm ?? linha.desde;
 }
 
 function desempate(peloNome: number, a: LinhaDeParticipante, b: LinhaDeParticipante): number {

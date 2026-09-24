@@ -4,8 +4,9 @@ import type { VinculoLido } from "@/aplicacao/organizacao";
  * A projeção do schema `Vinculo` — o que a aprovação devolve.
  *
  * **`area` é a unidade da pessoa nesta organização**, e é `null` para o Gestor e o Encarregado
- * terceirizado. `organizacao_id`, `revogado_em` e os relógios de auditoria existem no esquema e **não
- * aparecem aqui** — não porque alguém se lembrou de omiti-los, mas porque este tipo não os tem.
+ * terceirizado. `organizacao_id` e `revogado_em` existem no esquema e **não aparecem aqui**, porque este
+ * tipo não os tem. O relógio de atualização aparece, e é o único: `atualizadoEm` é a resposta de uma
+ * coluna de tela, e vem do contrato.
  *
  * **`area` sai com `id` e `nome`, e não com `tipo`** — é o que o schema `Vinculo` do `openapi.yaml`
  * declara (`required: [id, nome]`, e nenhuma outra propriedade). O `tipo` existe em `VinculoLido`, do
@@ -36,6 +37,8 @@ export type VinculoProjetado = {
   area: { id: string; nome: string } | null;
   temConta: boolean;
   criadoEm: string;
+  /** A **maior** entre o relógio da Pessoa e o do Vínculo. `null` é *nenhuma alteração registrada*. */
+  atualizadoEm: string | null;
 };
 
 export function projetarVinculo(vinculo: VinculoLido): VinculoProjetado {
@@ -51,5 +54,6 @@ export function projetarVinculo(vinculo: VinculoLido): VinculoProjetado {
     area: vinculo.area === null ? null : { id: vinculo.area.id, nome: vinculo.area.nome },
     temConta: vinculo.temConta,
     criadoEm: vinculo.criadoEm,
+    atualizadoEm: vinculo.atualizadoEm,
   };
 }

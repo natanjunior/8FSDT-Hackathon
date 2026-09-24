@@ -1921,7 +1921,7 @@ describe("renomear a Pessoa vale em todas as organizações — pessoas é globa
     expect(depoisDaMoradora?.nome).toBe(antesDaMoradora?.nome);
   });
 
-  it("o carimbo de atualizado_em anda, e é a aplicação que o escreve", async () => {
+  it("o carimbo de atualizado_em anda, e quem o escreve é o gatilho do banco", async () => {
     const [antes] = await consulta<{ atualizado_em: Date }>(
       `select atualizado_em from pessoas where id = $1`,
       [idMoradora],
@@ -1932,8 +1932,9 @@ describe("renomear a Pessoa vale em todas as organizações — pessoas é globa
       [idMoradora],
     );
 
-    // A migração `001` declara que **não há gatilho** de `atualizado_em`. Se este caso falhar, o `update`
-    // perdeu a cláusula — e uma coluna de relógio que não anda é pior que a ausência dela.
-    expect(depois!.atualizado_em.getTime()).toBeGreaterThanOrEqual(antes!.atualizado_em.getTime());
+    // A migração `012` carimba a coluna por gatilho `before update`, e o `update` daqui já não a
+    // menciona. **A asserção é estrita de propósito**: com o gatilho, uma coluna de relógio que não anda
+    // deixou de ser um esquecimento possível e passou a ser defeito do banco.
+    expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
   });
 });

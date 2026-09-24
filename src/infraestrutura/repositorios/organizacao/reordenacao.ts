@@ -18,7 +18,7 @@ import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/conte
  *    durante a reordenação.
  * 2. **Confere** que o conjunto travado é o conjunto pedido. Um item criado depois da leitura da
  *    Aplicação faz o predicado falhar, e o desfecho é o mesmo da recusa de lá.
- * 3. **Grava** `ordem`, `atualizado_em` e `atualizado_por_pessoa_id` numa instrução só, e **só onde a
+ * 3. **Grava** `ordem` e `atualizado_por_pessoa_id` numa instrução só, e **só onde a
  *    `ordem` muda** (spec §4.2). A reordenação idêntica não grava linha.
  * 4. **Relê** a lista inteira, dentro da mesma transação, na ordem nova.
  *
@@ -50,7 +50,6 @@ export function reordenarNaTransacao<L>(
     await dentro(
       `update ${tabela} t
           set ordem = p.ordem,
-              atualizado_em = now(),
               atualizado_por_pessoa_id = $4
          from unnest($2::uuid[], $3::smallint[]) as p(id, ordem)
         where t.organizacao_id = $1

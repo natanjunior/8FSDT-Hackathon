@@ -33,6 +33,7 @@ const VINCULO: VinculoLido = {
   area: { id: "area-1", nome: "Apartamento 302", tipo: "privativa" },
   temConta: true,
   criadoEm: "2026-08-23T12:00:00.000Z",
+  atualizadoEm: null,
 };
 
 const PEDIDO: PedidoDeEntradaLido = {

@@ -103,6 +103,26 @@ quem executou o comando. Este gatilho não captura nada: ele apenas proíbe.
 Cada registro carrega uma `sequencia`, única por ocorrência, que é o que dá ordem estável à leitura sem
 depender do relógio.
 
+## O relógio de atualização é do banco
+
+Seis tabelas carregam o par `criado_em` e `atualizado_em`: `pessoas`, `organizacoes`, `vinculos`,
+`categorias`, `areas` e `contatos`. Quem move o segundo é um gatilho `before update`, um por tabela,
+todos chamando a mesma função. A aplicação não escreve essa coluna em lugar nenhum, e a
+[ADR-0016](adr/0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md) registra por quê.
+
+O relógio de `ocorrencias` fica de fora, e por nome. Ele responde outra pergunta, houve atividade nesta
+ocorrência, o que inclui uma mensagem nova numa tabela vizinha, e quem o escreve é o agregado, com o
+instante do comando.
+
+O gatilho de `pessoas` é o único com guarda: ele só dispara quando a linha muda de valor. A resolução do
+primeiro login grava a mesma linha de volta para poder devolvê-la, e sem a guarda todo acesso carimbaria
+a pessoa.
+
+`vinculos.atualizado_em` é anulável, e nulo quer dizer que nenhuma alteração foi registrada desde a
+migração que criou a coluna. A tela que mostra a última atualização de um participante lê a maior das
+duas datas, a da pessoa e a do vínculo. **O relógio da pessoa é global:** quem troca o próprio nome move
+essa data em toda organização onde participa, e nenhuma tela diz quem mexeu.
+
 ## Os tipos enumerados
 
 Catorze tipos `enum` fixam no banco os conjuntos que o domínio fecha: os papéis, o tipo da área, a

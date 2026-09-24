@@ -66,6 +66,9 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // `create function registros_transicao_append_only ... already exists`. E são vários arquivos rodando
   // em série (`fileParallelism: false`) — o número deles esteve escrito aqui e envelheceu sozinho.
   await consulta(`drop function if exists registros_transicao_append_only() cascade`);
+  // **A `012` cria uma segunda função e NÃO precisa de linha aqui**, porque ela entra com
+  // `create or replace`: reaplicar a migração sobre a função que sobreviveu ao `drop table` é no-op.
+  // Os seis gatilhos dela dependem das tabelas e morrem no `cascade`, renascendo com a migração.
 
   await consulta(shim);
   for (const migracao of migracoes) await consulta(migracao);

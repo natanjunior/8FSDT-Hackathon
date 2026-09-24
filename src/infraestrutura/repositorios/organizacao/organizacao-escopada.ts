@@ -32,10 +32,8 @@ export function repositorioEscopadoDaOrganizacao(
       const atribuicoes: string[] = [];
       if (correcao.nome !== undefined) atribuicoes.push(`nome = ${marcador(correcao.nome)}`);
 
-      // **O carimbo e o autor entram na própria instrução, sem gatilho** — a migração `001` declara que
-      // *"não há gatilho de `atualizado_em`"*, e este é o primeiro escritor da coluna. O relógio é o do
-      // banco de qualquer forma; o *quem* não teria como vir de lá.
-      atribuicoes.push("atualizado_em = now()");
+      // **O autor entra na própria instrução; o relógio não.** `atualizado_em` é carimbado pelo gatilho
+      // da migração `012`, e o *quem* não teria como vir de lá.
       atribuicoes.push(`atualizado_por_pessoa_id = ${marcador(correcao.atualizadaPorPessoaId)}`);
 
       const linhas = await consulta<LinhaDaOrganizacao>(

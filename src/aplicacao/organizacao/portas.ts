@@ -383,8 +383,8 @@ export type PedidoDeEntradaLido = {
 
 /**
  * O schema `Vinculo` do contrato — **um objeto de leitura declarado, nunca a linha de `vinculos`**
- * (ADR-0005, parte 3). `organizacao_id`, `revogado_em` e os relógios de auditoria existem no esquema e
- * não aparecem aqui.
+ * (ADR-0005, parte 3). `organizacao_id` e `revogado_em` existem no esquema e não aparecem aqui. O
+ * relógio de atualização aparece, e por decisão: `atualizadoEm` é a resposta de uma coluna de tela.
  *
  * **Serve três consumidores**: o `200` de `POST …/aprovar` (item 8), o `201` de `POST /vinculos` e cada
  * item de `GET /vinculos` (item 9a). Um tipo só, porque o schema do contrato é um só.
@@ -396,6 +396,12 @@ export type VinculoLido = {
   area: { id: string; nome: string; tipo: TipoArea } | null;
   temConta: boolean;
   criadoEm: string;
+  /**
+   * Quando este participante mudou pela última vez: a **maior** entre o relógio da Pessoa e o do
+   * Vínculo, os dois carimbados por gatilho (migração `012`). `null` é *nenhuma alteração registrada*,
+   * e a tela mostra um traço — nunca a data de entrada.
+   */
+  atualizadoEm: string | null;
 };
 
 /** O que `POST /vinculos` recebe, já conferido pelo schema. */
