@@ -31,6 +31,7 @@ import {
   rotuloDeAprovar,
   rotuloDoContato,
   rotuloDoPapel,
+  TEXTOS_DA_TABELA,
   tituloDaRecusa,
 } from "@/interface/componentes/frases-de-participantes";
 import {
@@ -611,6 +612,12 @@ describe("as frases de T-08 — papéis, datas e o fato", () => {
     expect(fraseDoFatoDeEdicao("Paulo Mendes", "solicitante", "2026-09-16T15:00:00.000Z")).toBe(
       "Paulo Mendes, Solicitante desde 16/09/2026.",
     );
+  });
+
+  it("o rótulo da coluna e o prefixo da pauta dizem atualização, e desde saiu", () => {
+    expect(TEXTOS_DA_TABELA.atualizacao).toBe("Última atualização");
+    expect(TEXTOS_DA_TABELA.atualizadoEm).toBe("Atualizado em");
+    expect(TEXTOS_DA_TABELA).not.toHaveProperty("desde");
   });
 
   it("o nome do botão de contato diz o tipo, o número e de quem é", () => {

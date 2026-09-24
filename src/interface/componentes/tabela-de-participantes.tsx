@@ -256,9 +256,11 @@ export function TabelaDeParticipantes({
                         <div className="-ml-3">
                           <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                         </div>
-                        <p className="text-meta text-tinta-fraca font-mono tabular-nums">
-                          {TEXTOS_DA_TABELA.desde} {linha.desdeTexto}
-                        </p>
+                        {linha.atualizadoTexto !== null && (
+                          <p className="text-meta text-tinta-fraca font-mono tabular-nums">
+                            {TEXTOS_DA_TABELA.atualizadoEm} {linha.atualizadoTexto}
+                          </p>
+                        )}
                       </div>
                       <div className="shrink-0">
                         <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-p${String(indice)}`} {...acoes} />
@@ -284,15 +286,15 @@ export function TabelaDeParticipantes({
                           rotulo="Unidade"
                           endereco={endereco}
                           aoOrdenar={escrever}
-                          largura="w-[170px]"
+                          largura="w-[150px]"
                         />
                         <TableHead className={cn(ROTULO_DE_COLUNA, "w-[120px]")}>Contato</TableHead>
                         <CabecaDaTabela
-                          coluna="desde"
-                          rotulo={TEXTOS_DA_TABELA.desde}
+                          coluna="atualizacao"
+                          rotulo={TEXTOS_DA_TABELA.atualizacao}
                           endereco={endereco}
                           aoOrdenar={escrever}
-                          largura="w-[128px]"
+                          largura="w-[152px]"
                         />
                         <TableHead className={cn(ROTULO_DE_COLUNA, "w-[124px]")}>
                           <span className="sr-only">{TEXTOS_DA_TABELA.acoes}</span>
@@ -323,7 +325,7 @@ export function TabelaDeParticipantes({
                             <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                           </TableCell>
                           <TableCell className={cn(CELULA, "text-tinta-suave font-mono tabular-nums")}>
-                            {linha.desdeTexto}
+                            {linha.atualizadoTexto ?? <SemAlteracao />}
                           </TableCell>
                           <TableCell className="px-3.5 py-1.5 text-right">
                             <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-t${String(indice)}`} {...acoes} />
@@ -400,6 +402,21 @@ function CabecaDaTabela({
 
 function Traco() {
   return <span className="text-tinta-fraca">—</span>;
+}
+
+/**
+ * O traço da coluna de última atualização. **O `—` é decorativo e o leitor de tela ouve a frase**: um
+ * travessão sozinho é lido de jeito diferente em cada leitor, e às vezes não é lido.
+ */
+function SemAlteracao() {
+  return (
+    <>
+      <span aria-hidden="true" className="text-tinta-fraca">
+        —
+      </span>
+      <span className="sr-only">{TEXTOS_DA_TABELA.semAlteracao}</span>
+    </>
+  );
 }
 
 function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNome: string }) {
