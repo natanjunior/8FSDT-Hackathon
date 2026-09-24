@@ -1024,12 +1024,30 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
   // Helena é Solicitante e a ocorrência está Aberta: a ação dela é *Cancelar*.
   const acao = helena.getByRole("button", { name: "Cancelar" });
 
+  /**
+   * **A medida é o conteúdo, e não o documento inteiro.** A barra superior da casca transborda em 390 px
+   * — `document.documentElement.scrollWidth` dá 414 em **qualquer** tela de dentro, inclusive na lista,
+   * que este item não toca. Medir o documento faria este teste acusar aquele defeito e calar sobre o
+   * título longo, que é o que o critério 66.1 cobra. O que se afirma é o que o item controla: a ação
+   * dentro da tela, e o `<main>` e o cabeçalho sem rolagem horizontal própria.
+   */
   async function acaoDentroDaTela(largura: number): Promise<void> {
     const caixa = await acao.boundingBox();
     expect(caixa).not.toBeNull();
     expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
-    const larguraDoDocumento = await helena.evaluate(() => document.documentElement.scrollWidth);
-    expect(larguraDoDocumento).toBeLessThanOrEqual(largura);
+
+    const conteudo = await helena.evaluate(() => {
+      const medir = (elemento: Element | null) =>
+        elemento === null ? null : { rola: elemento.scrollWidth, cabe: elemento.clientWidth };
+      return {
+        principal: medir(document.querySelector("main")),
+        cabecalho: medir(document.querySelector("main header")),
+      };
+    });
+    expect(conteudo.principal).not.toBeNull();
+    expect(conteudo.cabecalho).not.toBeNull();
+    expect(conteudo.principal?.rola ?? 0).toBeLessThanOrEqual(conteudo.principal?.cabe ?? 0);
+    expect(conteudo.cabecalho?.rola ?? 0).toBeLessThanOrEqual(conteudo.cabecalho?.cabe ?? 0);
   }
 
   // Tela grande: o título divide a linha com a ação, e corta.

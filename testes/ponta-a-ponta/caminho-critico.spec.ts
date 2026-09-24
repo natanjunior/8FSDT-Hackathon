@@ -252,7 +252,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   const aFoto = marcos.getByRole("img", { name: "Foto anexada à ocorrência" });
   await expect(aFoto).toBeVisible();
 
-  const enderecoDaFoto = await marcos.getByRole("link").filter({ has: aFoto }).getAttribute("href");
+  // **Desde o item 66 a foto não é link**: ela é o gatilho de um diálogo, e o endereço mora na primeira
+  // camada do `background-image` — a de tamanho cheio, que a miniatura cobre enquanto carrega.
+  const fundoDaFoto = await aFoto.getAttribute("style");
+  const enderecoDaFoto = /url\("?([^")]+)"?\)/u.exec(fundoDaFoto ?? "")?.[1] ?? null;
   expect(enderecoDaFoto).not.toBeNull();
 
   const bytes = await marcos.request.get(enderecoDaFoto ?? "");
@@ -428,8 +431,13 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // um *voltar* no conteúdo.
   const caminhoDaTrilha = helena.getByRole("navigation", { name: "Caminho" });
   await expect(caminhoDaTrilha.getByRole("link", { name: "Ocorrências" })).toBeVisible();
-  await expect(caminhoDaTrilha.getByRole("link")).toHaveCount(2);
-  await expect(caminhoDaTrilha).toContainText("Trilha de auditoria");
+  // **Dois níveis navegáveis, e o atual que não navega.** A contagem é de âncora, e não de papel: o
+  // `BreadcrumbPage` do catálogo publica `role="link"` com `aria-disabled`, então por papel seriam três.
+  await expect(caminhoDaTrilha.locator("a")).toHaveCount(2);
+  await expect(caminhoDaTrilha.getByRole("link", { name: "Trilha de auditoria" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 
   const trilha = helena.getByRole("list", { name: "Registros da trilha" });
   await expect(trilha.getByRole("listitem")).toHaveCount(4);
@@ -539,7 +547,7 @@ async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void>
  * do tempo, dentro de uma frase, e um localizador solto pegaria as duas.
  */
 function situacao(pagina: Page): Locator {
-  return pagina.getByRole("group", { name: "Situação" });
+  return pagina.locator('[role="group"][aria-label="Situação"]');
 }
 
 async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {

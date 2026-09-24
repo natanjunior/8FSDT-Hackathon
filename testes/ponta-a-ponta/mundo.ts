@@ -115,9 +115,13 @@ export async function trocarDeOrganizacao(pagina: Page, destino: string): Promis
  *
  * **Escopado pelo grupo *Situação*, que só contém o selo:** a mesma palavra aparece na régua do ciclo, nas
  * frases da linha do tempo e, em teste, pode aparecer no título. O grupo não alcança nenhum deles.
+ *
+ * **Localizado por atributo, e não por `getByRole`:** com um modal aberto, o `Dialog` do Radix marca
+ * `aria-hidden` em tudo que fica fora dele, e o localizador por papel deixaria de achar o selo — que é
+ * justamente o que três passos afirmam com o modal na tela.
  */
 export function situacao(pagina: Page): Locator {
-  return pagina.getByRole("group", { name: "Situação" });
+  return pagina.locator('[role="group"][aria-label="Situação"]');
 }
 
 export async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {
