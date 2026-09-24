@@ -75,5 +75,6 @@ export {
   lerPaginacaoDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,
+  trocarJanelaInvertida,
   type PaginacaoDaUrl,
 } from "./consulta-de-url";
