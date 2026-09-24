@@ -408,6 +408,13 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(helena.getByRole("heading", { name: "Trilha de auditoria" })).toBeVisible();
   await expect(helena.getByText(TITULO)).toBeVisible();
 
+  // **O caminho de três níveis** (critério 66.3): a trilha sobe para a ocorrência pelo caminho, e não por
+  // um *voltar* no conteúdo.
+  const caminhoDaTrilha = helena.getByRole("navigation", { name: "Caminho" });
+  await expect(caminhoDaTrilha.getByRole("link", { name: "Ocorrências" })).toBeVisible();
+  await expect(caminhoDaTrilha.getByRole("link")).toHaveCount(2);
+  await expect(caminhoDaTrilha).toContainText("Trilha de auditoria");
+
   const trilha = helena.getByRole("list", { name: "Registros da trilha" });
   await expect(trilha.getByRole("listitem")).toHaveCount(4);
 

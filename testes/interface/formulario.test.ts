@@ -1984,3 +1984,24 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(moldura).not.toContain("fica registrado, com data e autor");
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 66 — a página da ocorrência, remontada
+ * ============================================================================
+ *
+ * O cabeçalho, o caminho, a faixa de avaliação, a foto em diálogo e o escopo do teste de situação. Como no
+ * resto deste arquivo, o que é regra de forma vira guarda sobre o código-fonte.
+ */
+describe("o item 66 — a página da ocorrência, remontada", () => {
+  it("a trilha tem o caminho de três níveis e perde o voltar (critério 66.3)", () => {
+    const trilha = ler("app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx");
+    expect(trilha).toContain("<CaminhoDaPagina");
+    expect(trilha).toContain('atual="Trilha de auditoria"');
+    expect(trilha).not.toContain("voltar à ocorrência");
+    // As duas telas de participante continuam com a forma de um nível só.
+    expect(ler("app/(casca)/vinculos/nova/page.tsx")).toContain(
+      'anterior={{ rotulo: "Participantes", href: "/vinculos" }}',
+    );
+  });
+});
