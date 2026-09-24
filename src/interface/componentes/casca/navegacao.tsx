@@ -55,8 +55,10 @@ import {
  * `group-data-[collapsible=icon]:hidden`.
  *
  * **O ícone de `Áreas` não é `MapPin`, e a recusa é do glossário.** A entrada *Localização* diz *"não é
- * geolocalização: não há mapa nem coordenada"*, e um alfinete de mapa contradiria a definição no primeiro
- * pixel. `LayoutGrid` é o lugar dividido em partes.
+ * geolocalização: não há mapa nem coordenada"*, e um alfinete de mapa no item que **nomeia a lista**
+ * contradiria a definição no primeiro pixel. `LayoutGrid` é o lugar dividido em partes. A recusa vale
+ * para este item: a ficha do local numa ocorrência leva o `MapPin` desde o item 64, porque ali ele marca
+ * *onde*, e o emoji que ele substituiu já era um alfinete.
  *
  * **O ícone nunca substitui o rótulo** (compromisso A-5): ele vai `aria-hidden` e a palavra fica ao lado
  * em todas as larguras.

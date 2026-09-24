@@ -1935,4 +1935,14 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     );
     expect(lista.match(/<PalavraDePrioridade /gu)).toHaveLength(3);
   });
+
+  it("o local leva MapPin, e nenhum emoji de local sobra no produto (troca 11)", () => {
+    const ficha = ler("src/interface/componentes/ficha-de-local.tsx");
+    expect(ficha).toContain('<MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-fraca size-[15px] shrink-0" />');
+    expect(ficha).toContain("inline-flex items-center gap-1.5");
+    const comEmoji = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) => ler(caminho).includes("📍"));
+    expect(comEmoji).toStrictEqual([]);
+    // A recusa do 44f fica, com o alcance que ela de fato decidiu: o item Áreas da barra.
+    expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain("LayoutGrid");
+  });
 });
