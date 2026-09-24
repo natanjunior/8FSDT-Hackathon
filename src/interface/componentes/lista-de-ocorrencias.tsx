@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { Badge } from "@/interface/componentes/ui/badge";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/interface/componentes/ui/hover-card";
+import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/interface/componentes/ui/table";
@@ -14,13 +18,52 @@ import { cn } from "@/interface/componentes/utilitarios";
 import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
+import { CabecaQueOrdena } from "./cabeca-que-ordena";
+import { dataEHora } from "./datas";
 import { FichaDeLocal } from "./ficha-de-local";
 import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
-import { CELULA, ROTULO_DE_COLUNA } from "./pecas-da-tabela";
-import { rotuloDePrioridade } from "./rotulos";
+import { useNavegacaoDaLista } from "./navegacao-da-lista";
+import {
+  ariaSortNaLista,
+  consultaComOrdenacao,
+  lerOrdenacaoDaLista,
+  proximaNaLista,
+  rotuloNaLista,
+  type ColunaDaLista,
+} from "./ordenacao-das-ocorrencias";
+import { CELULA } from "./pecas-da-tabela";
+import { destinoDaAvaliacao, rotuloDePrioridade } from "./rotulos";
 import { SeloDeStatus } from "./selo-de-status";
-import { tempoCurto, tempoRelativo } from "./tempo-relativo";
+import { tempoCurto } from "./tempo-relativo";
+
+/**
+ * ============================================================================
+ *  A linha inteira leva à ocorrência — item 67, critério 67.3
+ * ============================================================================
+ *
+ * **Um link só por linha, e o alvo de teclado é o título.** Ele ganha uma camada que cobre a linha
+ * inteira (`after:absolute after:inset-0`), e a linha vira `relative`. Assim o ponteiro clica em qualquer
+ * lugar e chega à ocorrência, e o teclado continua com **uma parada por linha** — que é o que se perderia
+ * embrulhando tudo num `<a>` com controles dentro, e o que se perderia de outro jeito pondo um link
+ * invisível em cada célula.
+ *
+ * **O anel de foco é da linha, e não do título**, por `focus-within`: o que recebe o clique é a linha
+ * toda, então é ela que precisa aparecer quando o título está focado.
+ *
+ * **O que fica POR CIMA vai em `relative z-10`:** o convite a avaliar e o gatilho do cartão de Tempo. Sem
+ * isso a camada os cobriria, e o cartão nunca abriria.
+ */
+const LINHA_CLICAVEL =
+  "relative hover:bg-secondary focus-within:outline-2 focus-within:outline-marca focus-within:-outline-offset-2";
+
+/** A camada que cobre a linha. Vai no link do título, que é o alvo de teclado. */
+const CAMADA_DO_TITULO =
+  "after:absolute after:inset-0 after:content-[''] focus-visible:outline-none";
+
+/** **Por cima da camada** — o que precisa de clique próprio. */
+const ACIMA_DA_CAMADA = "relative z-10";
+
 
 /**
  * A prioridade **em selo de contorno, nos três níveis** — item 64. A palavra fica dentro do selo (guia
@@ -104,6 +147,8 @@ type Props = {
    * propriedade continua sendo **uma só**: quando o controle nascer, a assinatura não muda de novo.
    */
   primeiraPagina: PaginaDeOcorrenciasProjetada;
+  /** A *query string* atual, crua — o insumo do cabeçalho que ordena (item 67). */
+  consultaAtual: string;
   /** `categoriaId → nome do ícone`, cruzado **no cliente** contra `GET /categorias` (critério 14.6). */
   iconePorCategoria: Readonly<Record<string, string>>;
   /**
@@ -132,6 +177,7 @@ type Props = {
 
 export function ListaDeOcorrencias({
   primeiraPagina,
+  consultaAtual,
   iconePorCategoria,
   mostrarPrioridade,
   pessoaIdDeQuemLe,
@@ -171,7 +217,7 @@ export function ListaDeOcorrencias({
           <LinhaDeTriagemNoCelular key={item.id} item={item} {...comum} />
         ))}
       </ul>
-      <TabelaDeTriagem itens={itens} {...comum} />
+      <TabelaDeTriagem itens={itens} consultaAtual={consultaAtual} {...comum} />
     </>
   );
 }
@@ -185,6 +231,49 @@ type PropsDoItem = {
   pessoaIdDeQuemLe: string;
   agora: number;
 };
+
+/**
+ * **O par de datas da coluna Tempo, escrito uma vez** — item 67.
+ *
+ * Registrada sempre; atualizada só quando difere, marcada por `↻`. O símbolo é `aria-hidden` e os dois
+ * valores levam nome em `sr-only`, porque um glifo sozinho não diz o que mede.
+ *
+ * **Os três recortes usam esta peça desde o item 67.** Antes, o recorte A mostrava só o tempo de
+ * registro, e com a ordem nova — por última atualização — uma lista que só mostra a data de registro
+ * pareceria fora de ordem.
+ */
+function ParDeDatas({
+  registradaEm,
+  atualizadaEm,
+  agora,
+  empilhado = false,
+}: {
+  registradaEm: string;
+  atualizadaEm: string;
+  agora: number;
+  /** Na tabela as duas datas ficam uma sobre a outra; nos cartões, lado a lado. */
+  empilhado?: boolean;
+}) {
+  const mudou = registradaEm !== atualizadaEm;
+  const forma = empilhado ? "block" : undefined;
+
+  return (
+    <>
+      <span className={forma}>
+        <span className="sr-only">registrada </span>
+        {tempoCurto(registradaEm, agora)}
+      </span>
+      {mudou && (
+        <span className={forma}>
+          {!empilhado && " "}
+          <span aria-hidden="true">↻</span>
+          <span className="sr-only">, atualizada </span>{" "}
+          {tempoCurto(atualizadaEm, agora)}
+        </span>
+      )}
+    </>
+  );
+}
 
 /**
  * **O convite a avaliar, no item da lista** — critério 27.5, metade de T-03.
@@ -255,60 +344,90 @@ function LinhaDoSolicitante({
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li className={LINHA_DA_LISTA} data-recuada={encerrada(item.status) ? "" : undefined}>
+    <li
+      className={cn(LINHA_DA_LISTA, LINHA_CLICAVEL, "flex min-h-11 flex-col gap-1 px-4 py-3")}
+      data-recuada={encerrada(item.status) ? "" : undefined}
+    >
+      <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="flex flex-col gap-0.5">
+          {/* **A-5: a espera carrega a palavra, nunca só a cor.** O selo sempre imprime o
+              `statusRotulo`; a forma dele diz se a ocorrência espera alguém, e nunca sozinha. */}
+          <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+          {segundaLinha !== null && (
+            <span className="text-meta text-tinta-suave">{segundaLinha}</span>
+          )}
+        </span>
+        {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
+            vez de espalhar três filhos pela linha. */}
+        <span className="flex items-center gap-2">
+          {convidaAAvaliar(item, pessoaIdDeQuemLe) && <ConviteAAvaliar id={item.id} />}
+          {mostrarPrioridade && (
+            <span className="text-meta shrink-0">
+              <PalavraDePrioridade prioridade={item.prioridade} />
+            </span>
+          )}
+        </span>
+      </span>
+      {/* **O título é o link, e a camada dele cobre a linha** (item 67): o ponteiro clica em qualquer
+          lugar e o teclado continua com uma parada por linha. */}
       <Link
         href={destinoDoItem(item.id)}
-        className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
+        className={cn(
+          CAMADA_DO_TITULO,
+          "text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave",
+        )}
       >
-        <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <span className="flex flex-col gap-0.5">
-            {/* **A-5: a espera carrega a palavra, nunca só a cor.** O selo sempre imprime o
-                `statusRotulo`; a forma dele diz se a ocorrência espera alguém, e nunca sozinha. */}
-            <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
-            {segundaLinha !== null && (
-              <span className="text-meta text-tinta-suave">{segundaLinha}</span>
-            )}
-          </span>
-          {/* **Os dois num invólucro** para que `justify-between` continue separando o status do PAR, em
-              vez de espalhar três filhos pela linha. */}
-          <span className="flex items-center gap-2">
-            {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-              /* **Marca, não botão.** O item inteiro já é um `<Link>`; um segundo alvo aqui dentro é
-                 conteúdo interativo aninhado e alvo pequeno dentro de alvo grande (A-3), e seria a
-                 primeira ação no item da lista, que o critério 14.5 proíbe. **A-5:** carrega a palavra. */
-              <span className="text-marca text-meta shrink-0 font-medium">{CONVITE_A_AVALIAR}</span>
-            )}
-            {mostrarPrioridade && (
-              <span className="text-meta shrink-0">
-                <PalavraDePrioridade prioridade={item.prioridade} />
-              </span>
-            )}
-          </span>
-        </span>
-        <span className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave">
-          {item.titulo}
-        </span>
-        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          <IconeDeCategoria
-            nome={iconePorCategoria[item.categoria.id] ?? "tag"}
-            className="size-3.5 shrink-0"
-          />
-          {item.categoria.nome} ·
-          <FichaDeLocal nomeDaArea={item.area.nome} />
-          {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
-        </span>
-        {/* A meta segue a prancheta, `--ink-soft` (exceção c do critério 44q.14): é o mesmo elemento no
-            mesmo papel. A tinta fraca reprovava no contraste de texto. */}
-        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
-          {item.responsavel !== null && (
-            <>
-              <FichaDePessoa nome={item.responsavel.nome} /> está cuidando ·
-            </>
-          )}
-          <span className="font-mono tabular-nums">{tempoRelativo(item.registradaEm, agora)}</span>
-        </span>
+        {item.titulo}
       </Link>
+      <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <IconeDeCategoria
+          nome={iconePorCategoria[item.categoria.id] ?? "tag"}
+          className="size-3.5 shrink-0"
+        />
+        {item.categoria.nome} ·
+        <FichaDeLocal nomeDaArea={item.area.nome} />
+        {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
+      </span>
+      {/* A meta segue a prancheta, `--ink-soft` (exceção c do critério 44q.14): é o mesmo elemento no
+          mesmo papel. A tinta fraca reprovava no contraste de texto. */}
+      <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
+        {item.responsavel !== null && (
+          <>
+            <FichaDePessoa nome={item.responsavel.nome} /> está cuidando ·
+          </>
+        )}
+        {/* **O par, e não só o registro** (item 67): a lista abre ordenada pela última atualização, e
+            mostrar só a data de registro a faria parecer fora de ordem. */}
+        <span className="font-mono tabular-nums">
+          <ParDeDatas
+            registradaEm={item.registradaEm}
+            atualizadaEm={item.atualizadaEm}
+            agora={agora}
+          />
+        </span>
+      </span>
     </li>
+  );
+}
+
+/**
+ * **O convite a avaliar virou ação no item 67** — antes era frase solta, que dizia o que fazer e não
+ * levava a lugar nenhum.
+ *
+ * **`z-10`, por cima da camada da linha**, e sublinhado: ele leva a um destino diferente do resto da
+ * linha. Alvo de 44 px, como tudo que se clica.
+ */
+function ConviteAAvaliar({ id }: { id: string }) {
+  return (
+    <Link
+      href={destinoDaAvaliacao(id)}
+      className={cn(
+        ACIMA_DA_CAMADA,
+        "text-marca text-meta inline-flex min-h-11 shrink-0 items-center font-medium underline underline-offset-4",
+      )}
+    >
+      {CONVITE_A_AVALIAR}
+    </Link>
   );
 }
 
@@ -332,55 +451,54 @@ function LinhaDeTriagemNoCelular({
   const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
   return (
-    <li className={LINHA_DA_LISTA} data-recuada={encerrada(item.status) ? "" : undefined}>
+    <li
+      className={cn(LINHA_DA_LISTA, LINHA_CLICAVEL, "flex min-h-11 flex-col gap-1 px-4 py-3")}
+      data-recuada={encerrada(item.status) ? "" : undefined}
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2">
+          <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+          {/* **Em `resolvida` a segunda linha do motivo é sempre nula** — `segundaLinhaDeMotivo` só
+              devolve texto em `pausada` —, então os dois nunca aparecem juntos. */}
+          {segundaLinha !== null && (
+            <span className="text-meta text-tinta-suave">{segundaLinha}</span>
+          )}
+          {convidaAAvaliar(item, pessoaIdDeQuemLe) && <ConviteAAvaliar id={item.id} />}
+        </span>
+        {/* A-5: a prioridade carrega a palavra. Nunca só a cor. */}
+        {mostrarPrioridade && (
+          <span className="text-meta shrink-0">
+            <PalavraDePrioridade prioridade={item.prioridade} />
+          </span>
+        )}
+      </span>
       <Link
         href={destinoDoItem(item.id)}
-        className="hover:bg-muted/60 flex min-h-11 flex-col gap-1 px-4 py-3 transition-colors"
+        className={cn(
+          CAMADA_DO_TITULO,
+          "text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave",
+        )}
       >
-        <span className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2">
-            <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
-            {/* **Em `resolvida` a segunda linha do motivo é sempre nula** — `segundaLinhaDeMotivo` só
-                devolve texto em `pausada` —, então os dois nunca aparecem juntos. */}
-            {segundaLinha !== null && (
-              <span className="text-meta text-tinta-suave">{segundaLinha}</span>
-            )}
-            {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-              <span className="text-marca text-meta font-medium">{CONVITE_A_AVALIAR}</span>
-            )}
-          </span>
-          {/* A-5: a prioridade carrega a palavra. Nunca só a cor. */}
-          {mostrarPrioridade && (
-            <span className="text-meta shrink-0">
-              <PalavraDePrioridade prioridade={item.prioridade} />
-            </span>
-          )}
-        </span>
-        <span className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave">
-          {item.titulo}
-        </span>
-        <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
-          <FichaDeLocal nomeDaArea={item.area.nome} />·
-          {item.responsavel === null ? (
-            "sem responsável"
-          ) : (
-            <FichaDePessoa nome={item.responsavel.nome} />
-          )}
-          ·
-          <span className="font-mono tabular-nums">
-            <span className="sr-only">registrada </span>
-            {tempoCurto(item.registradaEm, agora)}
-            {item.registradaEm !== item.atualizadaEm && (
-              <>
-                {" "}
-                <span aria-hidden="true">↻</span>
-                <span className="sr-only">, atualizada </span>{" "}
-                {tempoCurto(item.atualizadaEm, agora)}
-              </>
-            )}
-          </span>
-        </span>
+        {item.titulo}
       </Link>
+      <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
+        <FichaDeLocal nomeDaArea={item.area.nome} />·
+        {item.responsavel === null ? (
+          "sem responsável"
+        ) : (
+          <FichaDePessoa nome={item.responsavel.nome} />
+        )}
+        ·
+        {/* **No celular não há cartão** — `hover` não existe em toque, e o par já está aqui, por extenso
+            na linha de meta. */}
+        <span className="font-mono tabular-nums">
+          <ParDeDatas
+            registradaEm={item.registradaEm}
+            atualizadaEm={item.atualizadaEm}
+            agora={agora}
+          />
+        </span>
+      </span>
     </li>
   );
 }
@@ -403,6 +521,7 @@ function LinhaDeTriagemNoCelular({
  */
 function TabelaDeTriagem({
   itens,
+  consultaAtual,
   destinoDoItem,
   iconePorCategoria,
   mostrarPrioridade,
@@ -410,23 +529,46 @@ function TabelaDeTriagem({
   agora,
 }: {
   itens: readonly OcorrenciaResumoProjetada[];
+  consultaAtual: string;
   destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
   pessoaIdDeQuemLe: string;
   agora: number;
 }) {
+  const { navegar } = useNavegacaoDaLista();
+  const ordem = lerOrdenacaoDaLista(new URLSearchParams(consultaAtual));
+
+  /**
+   * **Ordenar é navegação com `push`, e tira a página** — conjunto novo, corte novo. O estado vive na
+   * URL, como os filtros: um cabeçalho que guardasse ordem em estado local perderia a ordem no *Voltar*
+   * do navegador e a esconderia de quem copia o endereço.
+   */
+  function cabeca(coluna: ColunaDaLista, rotulo: string, largura?: string) {
+    return (
+      <CabecaQueOrdena
+        sentido={ariaSortNaLista(ordem, coluna)}
+        rotulo={rotulo}
+        nomeAcessivel={rotuloNaLista(ordem, coluna, rotulo)}
+        aoClicar={() => {
+          navegar(consultaComOrdenacao(consultaAtual, proximaNaLista(ordem, coluna)));
+        }}
+        {...(largura === undefined ? {} : { largura })}
+      />
+    );
+  }
+
   return (
     <div className="hidden md:block">
       <Table>
         <TableHeader>
           <TableRow className="border-linha-suave hover:bg-transparent">
-            <TableHead className={ROTULO_DE_COLUNA}>Status</TableHead>
-            <TableHead className={ROTULO_DE_COLUNA}>Título</TableHead>
-            <TableHead className={ROTULO_DE_COLUNA}>Onde</TableHead>
-            {mostrarPrioridade && <TableHead className={ROTULO_DE_COLUNA}>Prioridade</TableHead>}
-            <TableHead className={ROTULO_DE_COLUNA}>Responsável</TableHead>
-            <TableHead className={ROTULO_DE_COLUNA}>Tempo</TableHead>
+            {cabeca("status", "Status")}
+            {cabeca("titulo", "Título")}
+            {cabeca("area", "Onde")}
+            {mostrarPrioridade && cabeca("prioridade", "Prioridade")}
+            {cabeca("responsavel", "Responsável")}
+            {cabeca("atualizacao", "Tempo")}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -438,7 +580,7 @@ function TabelaDeTriagem({
             return (
               <TableRow
                 key={item.id}
-                className={`${LINHA_DA_LISTA} align-top`}
+                className={cn(LINHA_DA_LISTA, LINHA_CLICAVEL, "align-top")}
                 data-recuada={encerrada(item.status) ? "" : undefined}
               >
                 <TableCell className={CELULA}>
@@ -450,8 +592,8 @@ function TabelaDeTriagem({
                       critério 27.5 é POR ITEM, e limitá-la ao recorte A deixaria o **Gestor-autor** — o
                       síndico morador — sem convite. */}
                   {convidaAAvaliar(item, pessoaIdDeQuemLe) && (
-                    <span className="text-marca text-meta mt-1 block font-medium">
-                      {CONVITE_A_AVALIAR}
+                    <span className="mt-1 block">
+                      <ConviteAAvaliar id={item.id} />
                     </span>
                   )}
                 </TableCell>
@@ -461,7 +603,10 @@ function TabelaDeTriagem({
                 <TableCell className={cn(CELULA, "whitespace-normal")}>
                   <Link
                     href={destinoDoItem(item.id)}
-                    className="text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave underline-offset-4 hover:underline"
+                    className={cn(
+                      CAMADA_DO_TITULO,
+                      "text-titulo-linha text-tinta group-data-[recuada]/linha:text-tinta-suave underline-offset-4 hover:underline",
+                    )}
                   >
                     {item.titulo}
                   </Link>
@@ -489,21 +634,18 @@ function TabelaDeTriagem({
                     <FichaDePessoa nome={item.responsavel.nome} />
                   )}
                 </TableCell>
-                <TableCell className={cn(
+                <TableCell
+                  className={cn(
                     CELULA,
                     "text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca font-mono whitespace-nowrap tabular-nums",
-                  )}>
-                  <span className="block">
-                    <span className="sr-only">registrada </span>
-                    {tempoCurto(item.registradaEm, agora)}
-                  </span>
-                  {item.registradaEm !== item.atualizadaEm && (
-                    <span className="block">
-                      <span aria-hidden="true">↻</span>
-                      <span className="sr-only">atualizada </span>{" "}
-                      {tempoCurto(item.atualizadaEm, agora)}
-                    </span>
                   )}
+                >
+                  <CartaoDeTempo
+                    destino={destinoDoItem(item.id)}
+                    registradaEm={item.registradaEm}
+                    atualizadaEm={item.atualizadaEm}
+                    agora={agora}
+                  />
                 </TableCell>
               </TableRow>
             );
@@ -511,5 +653,55 @@ function TabelaDeTriagem({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/**
+ * **O cartão da coluna Tempo — item 67, critério 67.6.**
+ *
+ * A coluna mostra dois instantes relativos e nada na tela dizia o que cada um é. O cartão nomeia os dois,
+ * por extenso e sempre os dois, mesmo quando iguais: *"Registrada em"* e *"Atualizada em"*.
+ *
+ * **É atalho, e não o único caminho.** `hover` não existe em toque, então as duas datas continuam
+ * legíveis na página da ocorrência, e o celular recebe o par direto na linha de meta. Sem o cartão, a
+ * célula continua dizendo exatamente o que dizia, com os nomes em `sr-only`.
+ *
+ * **O gatilho é ele mesmo um link para a ocorrência, fora da ordem de tabulação** (`tabIndex={-1}`).
+ * Assim o ponteiro que para em cima dele abre o cartão, e o clique nele abre a ocorrência como no resto
+ * da linha — sem isso, a linha teria uma ilha onde clicar não faz nada. Fora da tabulação porque o alvo
+ * de teclado da linha já é o título, e uma segunda parada por linha não acrescentaria destino nenhum.
+ */
+function CartaoDeTempo({
+  destino,
+  registradaEm,
+  atualizadaEm,
+  agora,
+}: {
+  destino: string;
+  registradaEm: string;
+  atualizadaEm: string;
+  agora: number;
+}) {
+  return (
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        <Link href={destino} tabIndex={-1} className={cn(ACIMA_DA_CAMADA, "block")}>
+          <ParDeDatas
+            registradaEm={registradaEm}
+            atualizadaEm={atualizadaEm}
+            agora={agora}
+            empilhado
+          />
+        </Link>
+      </HoverCardTrigger>
+      <HoverCardContent data-cartao-de-ponteiro className="text-meta w-64">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dt className="text-tinta-suave">Registrada em</dt>
+          <dd className="text-tinta font-mono tabular-nums">{dataEHora(registradaEm)}</dd>
+          <dt className="text-tinta-suave">Atualizada em</dt>
+          <dd className="text-tinta font-mono tabular-nums">{dataEHora(atualizadaEm)}</dd>
+        </dl>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

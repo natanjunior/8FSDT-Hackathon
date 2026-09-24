@@ -110,10 +110,13 @@ o que pode fazer, sem reimplementar a máquina de estados.
 | Valores de enumeração | idênticos aos do banco, em minúsculo e sem acento. O rótulo que a pessoa lê é um campo à parte, e nunca uma tradução do valor |
 | Datas | ISO 8601, sempre em UTC na saída. Converter é do cliente. A janela do painel é a exceção, e é interpretada no fuso de São Paulo, porque agregar mês a mês em UTC partiria o mês brasileiro em dois |
 | Identificadores | UUID em texto |
-| Ordenação | a listagem de ocorrências tem uma ordem só, da mais recente para a mais antiga. Ordenar por outra coluna exigiria índice novo |
+| Ordenação | a listagem de ocorrências abre pelo que mudou por último, e aceita ordenar por qualquer coluna da tabela. A ordem é feita sem índice próprio, porque o volume de uma organização cabe na memória |
 
 Na paginação, um item pode ser pulado quando alguém age no sentido inverso entre duas páginas. A fila de
 triagem é exata, porque nenhuma transição leva de volta ao estado inicial.
+
+Há um segundo caso, e ele vem da ordem por última atualização: quem é atualizado entre a leitura de duas
+páginas muda de posição, e pode repetir uma linha e pular outra. Pedir a primeira página de novo traz tudo.
 
 ## O que o cliente recebe
 

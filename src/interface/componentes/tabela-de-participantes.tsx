@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Search } from "lucide-react";
+import { Pencil, Search } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useId, useState, type MouseEvent, type ReactNode } from "react";
 
 import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-icone";
+import { CabecaQueOrdena } from "@/interface/componentes/cabeca-que-ordena";
 import { ContatoPorIcone } from "@/interface/componentes/contato-por-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
@@ -270,15 +271,15 @@ export function TabelaDeParticipantes({
                   <Table>
                     <TableHeader>
                       <TableRow className="border-linha hover:bg-transparent">
-                        <CabecaQueOrdena coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
-                        <CabecaQueOrdena
+                        <CabecaDaTabela coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
+                        <CabecaDaTabela
                           coluna="papel"
                           rotulo="Papel"
                           endereco={endereco}
                           aoOrdenar={escrever}
                           largura="w-[140px]"
                         />
-                        <CabecaQueOrdena
+                        <CabecaDaTabela
                           coluna="unidade"
                           rotulo="Unidade"
                           endereco={endereco}
@@ -286,7 +287,7 @@ export function TabelaDeParticipantes({
                           largura="w-[170px]"
                         />
                         <TableHead className={cn(ROTULO_DE_COLUNA, "w-[120px]")}>Contato</TableHead>
-                        <CabecaQueOrdena
+                        <CabecaDaTabela
                           coluna="desde"
                           rotulo={TEXTOS_DA_TABELA.desde}
                           endereco={endereco}
@@ -366,7 +367,12 @@ function OpcaoDoFiltro({ filtro, quantos }: { filtro: Filtro; quantos: number })
   );
 }
 
-function CabecaQueOrdena({
+/**
+ * **A forma saiu para `cabeca-que-ordena.tsx` no item 67**, quando a lista de ocorrências passou a
+ * ordenar pela mesma gramática. O que fica aqui é a tradução: esta tabela raciocina em `Coluna` e
+ * `Endereco`, e a peça compartilhada não conhece nenhum dos dois.
+ */
+function CabecaDaTabela({
   coluna,
   rotulo,
   endereco,
@@ -379,36 +385,16 @@ function CabecaQueOrdena({
   aoOrdenar: (proximo: Endereco) => void;
   largura?: string;
 }) {
-  const sentido = ariaSort(endereco, coluna);
-  const ativa = sentido !== "none";
   return (
-    // `py-0`: o botão de ordenar já tem os 44 px do alvo de toque, e os 11 px do rótulo de coluna em
-    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q). `group`: a seta dupla só aparece
-    // com o ponteiro sobre o cabeçalho ou com o foco no botão (item 68a).
-    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "group py-0", largura)}>
-      <Button
-        type="button"
-        variant="ghost"
-        aria-label={rotuloDoCabecalho(endereco, coluna, rotulo)}
-        onClick={() => {
-          aoOrdenar(comOrdem(endereco, coluna));
-        }}
-        className={cn(
-          "text-rotulo-coluna h-11 w-full justify-start gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
-          ativa ? "text-tinta" : "text-tinta-fraca",
-        )}
-      >
-        {rotulo}
-        {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "none" && (
-          <ArrowUpDown
-            aria-hidden="true"
-            className="text-tinta-fraca size-3 opacity-0 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
-          />
-        )}
-      </Button>
-    </TableHead>
+    <CabecaQueOrdena
+      sentido={ariaSort(endereco, coluna)}
+      rotulo={rotulo}
+      nomeAcessivel={rotuloDoCabecalho(endereco, coluna, rotulo)}
+      aoClicar={() => {
+        aoOrdenar(comOrdem(endereco, coluna));
+      }}
+      {...(largura === undefined ? {} : { largura })}
+    />
   );
 }
 

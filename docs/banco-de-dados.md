@@ -119,7 +119,7 @@ Não há índice criado por precaução. Cada um existe porque uma consulta da a
 
 | Índice | A consulta que o justifica |
 |---|---|
-| ocorrências por organização e data de registro | a listagem padrão, da mais recente para a mais antiga |
+| ocorrências por organização e data de registro | o corte da listagem, que é sempre em data de registro, e as contagens do painel |
 | ocorrências por organização e status | a fila de triagem, que é o filtro mais usado do Gestor |
 | ocorrências por organização e autor | a lista de quem abriu, que é a tela inicial do Solicitante |
 | registros por organização e data | a trilha e o tempo de resolução do painel |

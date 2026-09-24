@@ -611,3 +611,13 @@ export function abreAvaliacaoPeloEndereco(
 ): boolean {
   return acao === "avaliar" && acoesDisponiveis.includes("avaliar");
 }
+
+/**
+ * **O outro lado da mesma porta** — o endereço que a marca *"Conte como foi"* de T-03 escreve (item 67).
+ *
+ * Mora ao lado de quem o lê de propósito: as duas metades de um endereço combinado, em arquivos
+ * diferentes, é como um dos lados envelhece sem ninguém perceber.
+ */
+export function destinoDaAvaliacao(ocorrenciaId: string): string {
+  return `/ocorrencias/${ocorrenciaId}?acao=avaliar`;
+}

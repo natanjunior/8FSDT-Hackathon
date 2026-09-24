@@ -1585,7 +1585,10 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // A comparação é sobre o INSTANTE, não sobre o texto de `tempoCurto`: comparar o texto esconderia uma
     // atualização de meia hora atrás sempre que as duas caíssem no mesmo "3 d" — e é numa ocorrência
     // tocada há pouco que a coluna tem o que dizer.
-    expect(fonte).toContain("item.registradaEm !== item.atualizadaEm");
+    //
+    // **O item 67 mudou de lugar, não de regra**: o par virou uma peça só, usada nos três recortes, e a
+    // comparação mora dentro dela — por isso a guarda casa o par de campos, e não o `item.` na frente.
+    expect(fonte).toContain("registradaEm !== atualizadaEm");
 
     // Os DOIS valores ganham nome. Nomear só o segundo faz o leitor de tela ler "5 d, atualizada 2 h",
     // com o primeiro número solto.
@@ -1920,8 +1923,9 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
     const registrar = conteudo.indexOf('href="/ocorrencias/nova"');
     const conferir = conteudo.indexOf('href="/configuracao/areas"');
-    // `\s` e não `\n`: os `.tsx` estão em CRLF na cópia de trabalho.
-    const limpar = conteudo.search(/href="\/ocorrencias"\s/u);
+    // **O destino de *Limpar filtros* virou expressão no item 67**: ele mantém a ordem escolhida, então
+    // o endereço carrega a consulta sem os sete recortes, em vez do caminho limpo.
+    const limpar = conteudo.search(/href=\{`\/ocorrencias\?\$\{semFiltros/u);
     expect(registrar).toBeGreaterThan(-1);
     expect(registrar).toBeLessThan(conferir);
     expect(registrar).toBeLessThan(limpar);

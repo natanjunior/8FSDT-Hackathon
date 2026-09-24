@@ -245,6 +245,11 @@ export type FiltroDeListagem = {
    * e melhor que renomear um tipo que três arquivos já usam.
    */
   filtro?: FiltroDeOcorrencias;
+  /**
+   * A ordem da página (item 67). **Ausente é o padrão**: `atualizada_em` decrescente. Não entra em
+   * `FiltroDeOcorrencias` porque não recorta: a contagem é a mesma em qualquer ordem.
+   */
+  ordenacao?: OrdenacaoDeOcorrencias;
 };
 
 /**
@@ -317,6 +322,37 @@ export type FiltroDeOcorrencias = {
   readonly categoriaId?: readonly string[];
   readonly prioridade?: readonly Prioridade[];
   readonly apenasDoAutor?: boolean;
+  /**
+   * O texto como a pessoa digitou, aparado — **não** os termos já partidos. Quem parte em termos é o
+   * repositório, que é quem sabe a forma do casamento; a frase do vazio precisa do texto inteiro.
+   */
+  readonly titulo?: string;
+  readonly areaId?: readonly string[];
+  readonly responsavelPessoaId?: readonly string[];
+};
+
+/**
+ * As colunas por que a listagem aceita ordenar (item 67, critério 67.5).
+ *
+ * **A ordenação fica FORA de `FiltroDeOcorrencias`**, pela mesma razão que o 14b tirou a paginação dele:
+ * recorte muda quantas linhas existem, ordem não muda número nenhum. Por isso `FiltroDeContagem` não a
+ * recebe.
+ */
+export const COLUNAS_DE_ORDENACAO = [
+  "status",
+  "titulo",
+  "area",
+  "prioridade",
+  "responsavel",
+  "atualizacao",
+] as const;
+
+export type ColunaDeOrdenacao = (typeof COLUNAS_DE_ORDENACAO)[number];
+
+/** Ausente é o padrão: `atualizacao` decrescente. */
+export type OrdenacaoDeOcorrencias = {
+  readonly ordem: ColunaDeOrdenacao;
+  readonly sentido: "crescente" | "decrescente";
 };
 
 /**
