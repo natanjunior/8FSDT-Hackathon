@@ -62,7 +62,7 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * | O **43.1** — o resumo impresso no terminal pelo `npm run semear:demo` | É saída de programa, não de tela. Nenhum navegador a alcança |
  * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
- * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts` |
+ * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts`. A exceção é o quadro 4, medido também a 390 px pelo item 61, porque é onde a barra do mês de maior mediana sumia |
  * | O período escolhido à mão (`De`, `Até`, `Aplicar`) e a faixa de período inválido | São o formulário de T-07, e a janela padrão é a que a semente foi construída para encher. Um período digitado seria outra jornada |
  * | O quarto estado da lista — *página além do fim* | Ele já tem teste de unidade em `estadoDaLista`, e alcançá-lo aqui pediria uma página que não existe, que é URL editada à mão e não gesto de tela |
  */
@@ -115,6 +115,50 @@ async function linhasDoMedidor(secao: Locator): Promise<{ rotulo: string; texto:
     });
   }
   return linhas;
+}
+
+/**
+ * As medidas em pixels das linhas COM barra de um `Medidor` — o trilho, a barra, e a porcentagem que a
+ * barra declara. A linha do mês sem resolução não tem barra, e sai com `barra: null`.
+ *
+ * **Lido pelo DOM, e não por papel**, porque a barra é `aria-hidden` (A-5): o que se mede é desenho. O
+ * trilho é o segundo filho do `<li>`, e a barra é o filho único dele.
+ */
+async function medidasDasBarras(
+  secao: Locator,
+): Promise<{ trilho: number; barra: number | null; porcento: number | null }[]> {
+  return secao.getByRole("listitem").evaluateAll((itens) =>
+    itens.map((item) => {
+      const trilho = item.children[1] as HTMLElement;
+      const barra = trilho.firstElementChild as HTMLElement | null;
+      return {
+        trilho: trilho.getBoundingClientRect().width,
+        barra: barra === null ? null : barra.getBoundingClientRect().width,
+        porcento: barra === null ? null : Number.parseFloat(barra.style.width),
+      };
+    }),
+  );
+}
+
+/**
+ * **Barras de trilhos diferentes não se comparam** — item 61. Todo trilho com barra da mesma lista tem a
+ * mesma largura, e cada barra mede a própria porcentagem aplicada a ele; juntas, as duas dizem que
+ * ordenar as linhas pela barra é ordená-las pela quantidade. A tolerância de 1 px é o arredondamento
+ * de subpixel do motor.
+ */
+function barrasComparaveis(
+  medidas: readonly { trilho: number; barra: number | null; porcento: number | null }[],
+  onde: string,
+): void {
+  const comBarra = medidas.filter((medida) => medida.barra !== null);
+  expect(comBarra.length, onde).toBeGreaterThan(0);
+  const primeiro = comBarra[0]?.trilho ?? 0;
+  expect(primeiro, `${onde}: trilho maior que zero`).toBeGreaterThan(0);
+  for (const medida of comBarra) {
+    expect(Math.abs(medida.trilho - primeiro), `${onde}: trilhos iguais`).toBeLessThanOrEqual(1);
+    const esperada = ((medida.porcento ?? 0) / 100) * medida.trilho;
+    expect(Math.abs((medida.barra ?? 0) - esperada), `${onde}: barra proporcional`).toBeLessThanOrEqual(1);
+  }
 }
 
 /** Os endereços de T-05 que a tabela de triagem está mostrando, na ordem em que estão. */
@@ -393,11 +437,34 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     // `0 min` mesmo assim, **quem move é esta linha, e não a tela.**
     expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/\b0 (?:min|h)\b/u);
   }
-  cobre(test.info(), "7.2 · 4", {
-    criterio: "58.3, 58.4",
-    falta:
-      "amarrar a frase nenhuma resolução no mês à linha do mês vazio, e com ela a ausência da barra",
+  // O item 61 — **as barras dos meses se comparam**, nas duas larguras. Em 23/09/2026 julho, de mediana
+  // maior, desenhava 51 px e agosto 140 px a 1280 px, e a 390 px o trilho de julho media zero: cada linha
+  // era uma grade própria, e o texto longo do mês pequeno comia o trilho. **Nenhum mês é nomeado aqui**:
+  // o caso julho × agosto está no teste de interface, com os números escritos, e este afirma a regra que
+  // torna o caso impossível, qualquer que seja o mês que a janela mostre.
+  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 1280 px");
+
+  // O mês sem resolução não desenha barra — critério 61.3, e a falta que o passo 4 do roteiro declarava.
+  const medidasDoQuadro4 = await medidasDasBarras(tempoDeResolucao);
+  linhasDeMes.forEach((linha, indice) => {
+    if (linha.texto.startsWith("—")) {
+      expect(medidasDoQuadro4[indice]?.barra, `mês "${linha.rotulo}"`).toBeNull();
+    }
   });
+
+  // O mesmo defeito, em escala pequena, no quadro 2 — achado A-61-4. **Vem DEPOIS do quadro 4 de
+  // propósito**: contra o código velho, `3` e `12` já dariam trilhos diferentes, e a falha do passo 3
+  // tem de ser a do quadro 4, que é o caso do item.
+  barrasComparaveis(await medidasDasBarras(ocorrenciasPorStatus), "quadro 2 em 1280 px");
+
+  const tamanhoOriginal = helena.viewportSize() ?? { width: 1280, height: 720 };
+  await helena.setViewportSize({ width: 390, height: 844 });
+  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 390 px");
+  await helena.setViewportSize(tamanhoOriginal);
+
+  await expect(tempoDeResolucao).toContainText("A barra é a mediana.");
+
+  cobre(test.info(), "7.2 · 4", { criterio: "58.3, 58.4, 61.1, 61.2, 61.3" });
 
   // -------------------------------------------------------------------------
   // 2.5 · Quadro 5 · Média das avaliações — um número de 1 a 5 (critério 34)

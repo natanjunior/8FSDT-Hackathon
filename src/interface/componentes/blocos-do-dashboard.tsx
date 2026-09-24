@@ -99,25 +99,52 @@ export type ItemDoMedidor = {
 };
 
 /**
+ * Onde o texto de cada linha vai. `em-linha` é o número à direita da barra, na mesma linha; `texto-embaixo`
+ * põe o texto sob o trilho, e é a do quadro 4, cujo texto do mês pequeno tem três durações. **União fechada,
+ * e não a presença de `texto`**: quem passa texto curto não deve ganhar a linha de baixo sem pedir.
+ */
+export type DisposicaoDoMedidor = "em-linha" | "texto-embaixo";
+
+/**
  * A lista com barra — o desenho de cinco dos seis blocos.
  *
  * **A barra é proporcional ao MAIOR item da própria lista**, não a um teto absoluto: o que a tela compara
  * é o item contra os irmãos dele. Com todos a zero, todas as barras têm largura zero — que é o estado da
  * organização recém-criada (critério 32.3), e continua mostrando a estrutura.
  *
+ * **As linhas dividem as colunas: a grade é o `<ul>`, e cada `<li>` a herda por `subgrid`** (item 61).
+ * Com uma grade por linha, a coluna do texto media o próprio texto, e o trilho ficava com o que sobrava:
+ * em 23/09/2026 o mês de maior mediana desenhava 51 px e o de menor 140 px, porque o primeiro tinha o
+ * texto mais longo. Barras de trilhos diferentes não se comparam. **O `<li>` continua com três `<span>`
+ * filhos diretos, rótulo primeiro e texto por último**, que é o que o ponta a ponta lê; a linha de baixo é
+ * posicionamento de grade, e não elemento a mais.
+ *
  * **A barra ancora no zero, e é redonda só na ponta do dado.** Com as duas pontas redondas, um valor baixo
  * vira uma pílula flutuando e a marca da origem se descola da linha de base. O trilho continua redondo dos
  * dois lados, porque ele é a régua e não o dado.
  */
-export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
+export function Medidor({
+  itens,
+  disposicao = "em-linha",
+}: {
+  itens: readonly ItemDoMedidor[];
+  disposicao?: DisposicaoDoMedidor;
+}) {
   const maior = itens.reduce((maximo, item) => Math.max(maximo, item.quantidade), 0);
+  const embaixo = disposicao === "texto-embaixo";
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul
+      className={
+        embaixo
+          ? "grid grid-cols-[7rem_1fr] gap-x-3 gap-y-2 sm:grid-cols-[10rem_1fr]"
+          : "grid grid-cols-[7rem_1fr_auto] gap-x-3 gap-y-2 sm:grid-cols-[10rem_1fr_auto]"
+      }
+    >
       {itens.map((item) => (
         <li
           key={item.rotulo}
-          className="text-corpo grid grid-cols-[7rem_1fr_auto] items-center gap-3 sm:grid-cols-[10rem_1fr_auto]"
+          className="text-corpo col-span-full grid grid-cols-subgrid items-center gap-y-1"
         >
           <span className="text-tinta truncate">{item.rotulo}</span>
 
@@ -133,7 +160,13 @@ export function Medidor({ itens }: { itens: readonly ItemDoMedidor[] }) {
             <span className="text-tinta-fraca text-meta">{item.vazio}</span>
           )}
 
-          <span className="text-tinta-suave text-meta tabular-nums">
+          <span
+            className={
+              embaixo
+                ? "text-tinta-suave text-meta col-start-2 tabular-nums"
+                : "text-tinta-suave text-meta text-right tabular-nums"
+            }
+          >
             {item.texto ?? String(item.quantidade)}
           </span>
         </li>
