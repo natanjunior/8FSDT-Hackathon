@@ -1602,8 +1602,10 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // argumento. A validação de 22/09 é o dono lendo a prancheta: seis tratamentos, um por estado.
     expect(fonte).toContain('aberta: "bg-marca text-marca-foreground border-transparent"');
     expect(fonte).toContain('pausada: "bg-atencao text-marca-foreground border-transparent"');
-    expect(fonte).toContain('em_analise: "border-tinta-suave text-tinta-suave bg-transparent"');
-    expect(fonte).toContain('em_atendimento: "border-info text-info bg-transparent"');
+    // Desde o item 64 os dois estados de contorno são sólidos: o status é a peça cheia da linha, e a
+    // prioridade, ao lado, é contorno. A tinta é `--surface`, porque `--marca-foreground` mede 3:1 no claro.
+    expect(fonte).toContain('em_analise: "bg-tinta-suave text-superficie border-transparent"');
+    expect(fonte).toContain('em_atendimento: "bg-info text-superficie border-transparent"');
     expect(fonte).toContain('resolvida: "bg-muted text-ok border-transparent"');
     expect(fonte).toContain('cancelada: "bg-muted text-tinta-suave border-transparent"');
     // A tinta fraca reprova no apagado (2,57:1 no escuro) — desvio D1.
@@ -1912,5 +1914,25 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(link).toContain("Ver a trilha de auditoria");
     expect(link).not.toContain("→");
     expect(link).not.toContain("text-marca");
+  });
+
+  it("o status é a única peça cheia da linha, e a prioridade é contorno nos três níveis (troca 10, critério 4)", () => {
+    const selo = ler("src/interface/componentes/selo-de-status.tsx");
+    const inicioDoSelo = selo.indexOf("const FORMA_DO_SELO");
+    const formas = selo.slice(inicioDoSelo, selo.indexOf("};", inicioDoSelo));
+    // Nenhum selo de status é transparente: todos têm fundo.
+    expect(formas).not.toContain("bg-transparent");
+
+    const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+    const inicio = lista.indexOf("const FORMA_DA_PRIORIDADE");
+    const prioridade = lista.slice(inicio, lista.indexOf("};", inicio));
+    expect(prioridade).toContain('alta: "border-destructive text-destructive bg-transparent"');
+    expect(prioridade).toContain('normal: "border-linha text-tinta-suave bg-transparent"');
+    expect(prioridade).toContain('baixa: "border-linha text-tinta-suave bg-transparent"');
+    // A palavra continua dentro do selo (guia §2), e os três desenhos chamam a mesma peça.
+    expect(lista).toMatch(
+      /<Badge variant="outline" className=\{FORMA_DA_PRIORIDADE\[prioridade\]\}>\s*\{rotuloDePrioridade\(prioridade\)\}/u,
+    );
+    expect(lista.match(/<PalavraDePrioridade /gu)).toHaveLength(3);
   });
 });

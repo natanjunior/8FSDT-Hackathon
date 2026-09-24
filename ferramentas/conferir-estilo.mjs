@@ -27,6 +27,7 @@ import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
+import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
 import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
 
@@ -42,7 +43,9 @@ const div = (classe, texto = "") => `<div class="${classe}">${texto}</div>`;
 const PECAS = [
   {
     id: "selo",
-    html: () => renderToStaticMarkup(h(Badge, { variant: "outline" }, "Em atendimento")),
+    // Item 64: o status é a peça cheia da linha. *Em atendimento* era contorno até aqui, e é o caso que
+    // prova o preenchimento.
+    html: () => renderToStaticMarkup(h(SeloDeStatus, { status: "em_atendimento", rotulo: "Em atendimento" })),
     esperado: {
       "font-size": "11.5px",
       "font-weight": "600",
@@ -50,6 +53,21 @@ const PECAS = [
       "padding-left": "9px",
       "border-top-left-radius": "6px",
       "line-height": "17px",
+      "background-color": "token(--info)",
+      color: "token(--surface)",
+    },
+  },
+  {
+    id: "prioridade",
+    // Item 64: contorno, sem fundo. Medida com a cadeia da `Alta`, a única com cor.
+    html: () =>
+      renderToStaticMarkup(
+        h(Badge, { variant: "outline", className: "border-destructive text-destructive bg-transparent" }, "Alta"),
+      ),
+    esperado: {
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-top-color": "token(--destructive)",
+      color: "token(--destructive)",
     },
   },
   {
