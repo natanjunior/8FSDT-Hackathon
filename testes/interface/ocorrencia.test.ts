@@ -43,6 +43,7 @@ import {
   segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
+  algumFiltroAplicado,
   CampoNaoSuportado,
   comOrganizacaoAtiva,
   CorpoNaoSuportado,
@@ -50,6 +51,7 @@ import {
   lerCorpoOpcional,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   lerPaginacaoDaUrl,
   lerVarianteDaUrl,
   problemaDe,
@@ -1022,6 +1024,149 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
 
   it("parâmetro repetido é recusado — o contrato descreve UMA gramática", () => {
     expect(() => ler("status=aberta&status=pausada")).toThrow(FormatoInvalido);
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os três recortes novos e a ordem — os critérios 67.1, 67.4 e 67.5
+ * ============================================================================
+ */
+const AREA = "7c2d9a3f-1111-4b3c-9d4e-5f6a7b8c9d0e";
+const OUTRA_AREA = "7c2d9a3f-2222-4b3c-9d4e-5f6a7b8c9d0e";
+const PESSOA = "8d3e0b40-1111-4c4d-ae5f-6a7b8c9d0e1f";
+
+describe("os critérios 67.1 e 67.4 — título, área e responsável na URL", () => {
+  it("os três entram, e combinam com os quatro de hoje", () => {
+    expect(
+      ler(
+        `status=aberta&categoriaId=${CATEGORIA}&prioridade=alta&autor=eu` +
+          `&titulo=vazamento&areaId=${AREA},${OUTRA_AREA}&responsavelPessoaId=${PESSOA}`,
+      ),
+    ).toStrictEqual({
+      status: ["aberta"],
+      categoriaId: [CATEGORIA],
+      prioridade: ["alta"],
+      apenasDoAutor: true,
+      titulo: "vazamento",
+      areaId: [AREA, OUTRA_AREA],
+      responsavelPessoaId: [PESSOA],
+    });
+  });
+
+  it("o título vem aparado, e só espaço é o mesmo que ausente", () => {
+    expect(ler("titulo=%20%20vaz%20gar%20%20")).toStrictEqual({ titulo: "vaz gar" });
+    expect(ler("titulo=%20%20%20")).toStrictEqual({});
+    expect(ler("titulo=")).toStrictEqual({});
+  });
+
+  it("título de 120 caracteres passa, e o de 121 é recusado", () => {
+    expect(ler(`titulo=${"a".repeat(120)}`)).toStrictEqual({ titulo: "a".repeat(120) });
+    expect(() => ler(`titulo=${"a".repeat(121)}`)).toThrow(FormatoInvalido);
+  });
+
+  it.each([
+    ["areaId=nao-e-uuid", "areaId"],
+    [`areaId=${AREA},nao-e-uuid`, "areaId"],
+    ["responsavelPessoaId=nao-e-uuid", "responsavelPessoaId"],
+    [`titulo=${"a".repeat(121)}`, "titulo"],
+  ])("%s é recusado, e o erro nomeia o campo", (consulta, campo) => {
+    try {
+      ler(consulta);
+      expect.unreachable("devia ter recusado");
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(FormatoInvalido);
+      const erros = (erro as FormatoInvalido).extensoes.erros as readonly ErroDeCampo[];
+      expect(erros[0]).toMatchObject({ campo, codigo: "VALOR_INVALIDO" });
+    }
+  });
+
+  it.each([
+    ["status=aberta"],
+    [`categoriaId=${CATEGORIA}`],
+    ["prioridade=alta"],
+    ["autor=eu"],
+    ["titulo=vaz"],
+    [`areaId=${AREA}`],
+    [`responsavelPessoaId=${PESSOA}`],
+  ])("%s conta como filtro aplicado", (consulta) => {
+    expect(algumFiltroAplicado(ler(consulta))).toBe(true);
+  });
+
+  it("sem parâmetro nenhum, nenhum filtro está aplicado", () => {
+    expect(algumFiltroAplicado(ler(""))).toBe(false);
+  });
+
+  /**
+   * **A ordem não é filtro, e o teste existe porque a consequência é visível:** se ela contasse, o
+   * terceiro vazio diria *"Nenhuma ocorrência com estes filtros."* para quem só trocou a coluna, e
+   * *"Limpar filtros"* prometeria desfazer algo que não desfaz.
+   */
+  it("ordem e sentido não contam como filtro", () => {
+    expect(algumFiltroAplicado(ler("ordem=titulo&sentido=decrescente"))).toBe(false);
+  });
+});
+
+const lerOrdem = (consulta: string) =>
+  lerOrdenacaoDeOcorrenciasDaUrl(new URLSearchParams(consulta));
+
+describe("a ordenação de GET /ocorrencias — critério 67.5", () => {
+  it.each([
+    ["status"],
+    ["titulo"],
+    ["area"],
+    ["prioridade"],
+    ["responsavel"],
+  ])("ordem=%s sem sentido é crescente", (ordem) => {
+    expect(lerOrdem(`ordem=${ordem}`)).toStrictEqual({ ordem, sentido: "crescente" });
+  });
+
+  it("sentido=decrescente vale para qualquer coluna que não seja a do padrão", () => {
+    expect(lerOrdem("ordem=titulo&sentido=decrescente")).toStrictEqual({
+      ordem: "titulo",
+      sentido: "decrescente",
+    });
+  });
+
+  it("ordem=atualizacao sem sentido é a mais parada primeiro", () => {
+    expect(lerOrdem("ordem=atualizacao")).toStrictEqual({
+      ordem: "atualizacao",
+      sentido: "crescente",
+    });
+  });
+
+  /**
+   * **Um estado, um endereço.** `ordem=atualizacao&sentido=decrescente` é o padrão escrito por extenso, e
+   * volta como ausente: dois endereços para o mesmo resultado obrigariam a tela a escolher qual deles
+   * desenha a seta.
+   */
+  it("o padrão escrito por extenso volta como ausente", () => {
+    expect(lerOrdem("ordem=atualizacao&sentido=decrescente")).toBeUndefined();
+  });
+
+  it("sem ordem, não há ordenação — e o sentido sozinho é ignorado", () => {
+    expect(lerOrdem("")).toBeUndefined();
+    expect(lerOrdem("sentido=decrescente")).toBeUndefined();
+    expect(lerOrdem("sentido=xpto")).toBeUndefined();
+  });
+
+  it.each([
+    ["ordem=registro", "ordem"],
+    ["ordem=titulo&sentido=crescente", "sentido"],
+    ["ordem=titulo&sentido=asc", "sentido"],
+  ])("%s é recusado, e o erro nomeia o campo", (consulta, campo) => {
+    try {
+      lerOrdem(consulta);
+      expect.unreachable("devia ter recusado");
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(FormatoInvalido);
+      const erros = (erro as FormatoInvalido).extensoes.erros as readonly ErroDeCampo[];
+      expect(erros[0]).toMatchObject({ campo, codigo: "VALOR_INVALIDO" });
+    }
+  });
+
+  it("ordem repetida é recusada, como todo parâmetro deste endpoint", () => {
+    expect(() => lerOrdem("ordem=titulo&ordem=status")).toThrow(FormatoInvalido);
   });
 });
 

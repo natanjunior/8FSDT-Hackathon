@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 import {
+  COLUNAS_DE_ORDENACAO,
   LIMITE_MAXIMO,
   PAGINA_MAXIMA,
+  type ColunaDeOrdenacao,
   type CursorDeConversa,
   type FiltroDeOcorrencias,
+  type OrdenacaoDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
@@ -302,8 +305,12 @@ function lerLista<V extends string>(
   return pedidos;
 }
 
+/** O teto do título, o mesmo do registro (`schemas/ocorrencia.ts`). Buscar por mais do que cabe num
+ *  título é pedido que nunca casa, e recusá-lo é a disciplina do arquivo. */
+const TETO_DO_TITULO = 120;
+
 /**
- * Os quatro parâmetros de `GET /ocorrencias` — o **item 15**.
+ * Os sete parâmetros de recorte de `GET /ocorrencias` — o **item 15**, mais os três do **67**.
  *
  * **Assina sobre `URLSearchParams`, e não sobre `Request`, porque tem dois chamadores de formas
  * diferentes:** o `route.ts` tem a requisição, e a página tem os `searchParams` do App Router. Uma função
@@ -334,10 +341,36 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     'Use "baixa", "normal" ou "alta", separados por vírgula.',
   );
 
+  const areaId = lerLista(
+    parametros,
+    "areaId",
+    ehIdentificador,
+    "Use identificadores de área separados por vírgula.",
+  );
+  const responsavelPessoaId = lerLista(
+    parametros,
+    "responsavelPessoaId",
+    ehIdentificador,
+    "Use identificadores de pessoa separados por vírgula.",
+  );
+
   const autor = lerUnico(parametros, "autor");
   if (autor !== undefined && autor !== "eu") {
     throw new FormatoInvalido([
       { campo: "autor", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "eu".' },
+    ]);
+  }
+
+  // **Aparado aqui, e não no repositório**: só espaço é o mesmo que não filtrar, e um `?titulo=%20`
+  // virando recorte deixaria a lista vazia sem que ninguém tivesse pedido nada.
+  const titulo = lerUnico(parametros, "titulo")?.trim();
+  if (titulo !== undefined && titulo.length > TETO_DO_TITULO) {
+    throw new FormatoInvalido([
+      {
+        campo: "titulo",
+        codigo: "VALOR_INVALIDO",
+        mensagem: `Use até ${String(TETO_DO_TITULO)} caracteres.`,
+      },
     ]);
   }
 
@@ -348,11 +381,59 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ...(categoriaId === undefined ? {} : { categoriaId }),
     ...(prioridade === undefined ? {} : { prioridade }),
     ...(autor === undefined ? {} : { apenasDoAutor: true }),
+    ...(titulo === undefined || titulo === "" ? {} : { titulo }),
+    ...(areaId === undefined ? {} : { areaId }),
+    ...(responsavelPessoaId === undefined ? {} : { responsavelPessoaId }),
   };
 }
 
 /**
- * Se **algum** dos quatro está aplicado.
+ * Lê `?ordem=` e `?sentido=` de `GET /ocorrencias` — o critério **67.5**.
+ *
+ * **`undefined` é o padrão**, que é `atualizacao` decrescente. E `?ordem=atualizacao&sentido=decrescente`
+ * também volta como `undefined`: senão o mesmo resultado teria dois endereços, e a tela precisaria decidir
+ * qual deles é "o padrão" ao desenhar a seta.
+ *
+ * **Valor desconhecido é `400`, e isto diverge da ordenação da tabela de participantes de propósito.** Lá
+ * a leitura é só do navegador e cair no padrão é inofensivo; aqui a mesma função serve a URL da tela e a
+ * do endpoint, e a disciplina deste arquivo é recusar em voz alta — responder outra ordem em silêncio é o
+ * cliente pedir uma coisa e receber outra.
+ *
+ * **`sentido` sem `ordem` é ignorado**, não recusado: sozinho ele não descreve ordem nenhuma, e o padrão
+ * já é decrescente.
+ */
+export function lerOrdenacaoDeOcorrenciasDaUrl(
+  parametros: URLSearchParams,
+): OrdenacaoDeOcorrencias | undefined {
+  const ordem = lerUnico(parametros, "ordem");
+  if (ordem === undefined) return undefined;
+
+  if (!(COLUNAS_DE_ORDENACAO as readonly string[]).includes(ordem)) {
+    throw new FormatoInvalido([
+      {
+        campo: "ordem",
+        codigo: "VALOR_INVALIDO",
+        mensagem: `Use ${COLUNAS_DE_ORDENACAO.map((coluna) => `"${coluna}"`).join(", ")}.`,
+      },
+    ]);
+  }
+
+  const bruto = lerUnico(parametros, "sentido");
+  if (bruto !== undefined && bruto !== "decrescente") {
+    throw new FormatoInvalido([
+      { campo: "sentido", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "decrescente".' },
+    ]);
+  }
+
+  const sentido = bruto === "decrescente" ? "decrescente" : "crescente";
+  if (ordem === "atualizacao" && sentido === "decrescente") return undefined;
+
+  return { ordem: ordem as ColunaDeOrdenacao, sentido };
+}
+
+/**
+ * Se **algum** dos sete está aplicado. **`ordem` não conta**: ela não recorta, e *"Limpar filtros"* a
+ * mantém.
  *
  * É o segundo argumento do `vazioDaLista` que o item 14 declarou — e é o que faz o terceiro vazio ganhar
  * da visibilidade: quem chega por URL filtrada e recebe zero lê *"Nenhuma ocorrência com estes filtros."*,
@@ -363,7 +444,10 @@ export function algumFiltroAplicado(filtro: FiltroDeOcorrencias): boolean {
     filtro.status !== undefined ||
     filtro.categoriaId !== undefined ||
     filtro.prioridade !== undefined ||
-    filtro.apenasDoAutor === true
+    filtro.apenasDoAutor === true ||
+    filtro.titulo !== undefined ||
+    filtro.areaId !== undefined ||
+    filtro.responsavelPessoaId !== undefined
   );
 }
 

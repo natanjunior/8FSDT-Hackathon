@@ -72,6 +72,7 @@ export {
   lerFiltroDeOcorrenciasDaUrl,
   lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   lerPaginacaoDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,
