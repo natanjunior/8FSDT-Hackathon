@@ -166,19 +166,14 @@ async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
 /**
  * Lê o código público em T-15 · Configuração.
  *
- * **O código é desenhado em grupos**, cada um num `span` — e os grupos são texto em linha, sem espaço no
- * documento, para que *"selecionar à mão e copiar pelo botão deem o mesmo código"*. Por isso o texto do
- * invólucro devolve o código inteiro, sem o espaço que os olhos veem.
+ * **Desde o item 65 o código mora nas casas de um campo desabilitado**, e o texto delas não é conteúdo de
+ * elemento: o valor é o do campo. O nome acessível é o rótulo da exibição.
  */
 async function lerCodigoPublico(pagina: Page): Promise<string> {
   await pagina.goto("/configuracao");
-  const caixa = pagina
-    .locator("dd")
-    .filter({ has: pagina.getByRole("button", { name: "Copiar" }) })
-    .locator("span")
-    .first();
-  await expect(caixa).toBeVisible();
-  return ((await caixa.textContent()) ?? "").trim();
+  const campo = pagina.getByLabel("Código da organização");
+  await expect(campo).toBeDisabled();
+  return (await campo.inputValue()).trim();
 }
 
 /** A linha de uma pessoa na tabela de T-08 — o escopo de toda ação de linha. */

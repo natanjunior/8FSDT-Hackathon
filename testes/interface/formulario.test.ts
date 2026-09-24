@@ -2146,6 +2146,16 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).not.toContain("codigoPublico.safeParse");
   });
 
+  it("T-15 mostra o código nas casas desabilitadas, e a falha de cópia seleciona um texto próprio (critério 65.3)", () => {
+    const fonte = ler("src/interface/componentes/codigo-da-organizacao.tsx");
+    expect(fonte).toContain('<ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />');
+    expect(fonte).toContain("Selecione e copie:");
+    expect(fonte).not.toContain("Selecione o código e copie.");
+    // O `select-all` existe uma vez, e é o do texto que só aparece na falha.
+    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(1);
+    expect(fonte).not.toContain("gruposDoCodigo");
+  });
+
   it("nenhum tamanho fora dos sete papéis e nenhum controle cru nos arquivos novos do 65", () => {
     for (const caminho of [CAMPO_DE_CODIGO]) {
       const fonte = ler(caminho);
