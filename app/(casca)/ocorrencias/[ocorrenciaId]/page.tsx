@@ -28,6 +28,7 @@ import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorre
 import { dataEHora } from "@/interface/componentes/datas";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -771,41 +772,16 @@ export default async function Ocorrencia({
                 {detalhe.descricao}
               </p>
 
-              {/* **A foto, e ela continua `div` com duas camadas de `background-image`** — critério 6.
-                  `<img>` dispararia `@next/next/no-img-element` e gastaria o primeiro `eslint-disable` do
-                  repositório; `next/image` faria os bytes do anexo atravessarem o contêiner, que a §10.1
-                  do contrato proíbe.
-
-                  **A etiqueta é persistente e não vive em passagem do ponteiro** — é a segunda metade do
-                  critério 6. Pôr o convite no ponteiro esconderia de quem usa toque a única pista de que a
-                  foto abre. **O verbo é *abrir*, e não *ampliar*:** o `href` leva a outra aba.
-
-                  **`min-h-11`** dá o alvo de toque do compromisso A-3, e a etiqueta entra no nome
-                  acessível do link — *"Foto anexada à ocorrência, Abrir a foto"* —, que descreve o que é e
-                  o que acontece. */}
+              {/* **A foto abre em diálogo** (item 66, critério 2) — o porquê das duas camadas de fundo e da
+                  etiqueta persistente está em `foto-ampliavel.tsx`. */}
               {detalhe.anexos.map((anexo) => (
-                <a
+                <FotoAmpliavel
                   key={anexo.id}
-                  href={anexo.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="relative mt-1 block"
-                >
-                  <div
-                    role="img"
-                    aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
-                    className="bg-superficie border-linha h-56 w-full rounded-lg border bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage:
-                        anexo.miniaturaUrl === null
-                          ? `url(${anexo.url})`
-                          : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
-                    }}
-                  />
-                  <span className="bg-superficie text-tinta border-linha text-meta absolute right-3 bottom-3 inline-flex min-h-11 items-center rounded-sm border px-3 font-medium">
-                    Abrir a foto ↗
-                  </span>
-                </a>
+                  url={anexo.url}
+                  miniaturaUrl={anexo.miniaturaUrl}
+                  titulo={anexo.titulo}
+                  nomeArquivo={anexo.nomeArquivo}
+                />
               ))}
             </CorpoDoCartao>
           </Cartao>

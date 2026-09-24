@@ -2044,4 +2044,18 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(fimDaLista).toBeGreaterThan(inicio);
     expect(proximoDt === -1 || proximoDt > fimDaLista).toBe(true);
   });
+
+  it("a foto abre em diálogo, sem aba nova e sem <img> (critério 66.2)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain('target="_blank"');
+    expect(pagina).not.toContain("Abrir a foto");
+    expect(pagina).toContain("<FotoAmpliavel");
+    const foto = ler("src/interface/componentes/foto-ampliavel.tsx");
+    expect(foto).toContain("<DialogTrigger asChild>");
+    expect(foto).toContain("Ampliar");
+    expect(foto).toContain("bg-contain");
+    expect(foto).not.toMatch(/<img[\s>]/u);
+    // G7 do guia: nenhum controle cru fora de `ui/` — o gatilho é o `Button` do catálogo.
+    expect(foto).not.toMatch(/<button(\s|>|$)/mu);
+  });
 });

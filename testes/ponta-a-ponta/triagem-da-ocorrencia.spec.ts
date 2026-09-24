@@ -370,7 +370,21 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **A etiqueta da foto é persistente, e não vive na passagem do ponteiro** — critério 6, segunda metade:
   // no toque não há ponteiro, e sem ela não haveria pista de que a foto abre.
   await expect(helena.getByRole("img", { name: "Foto anexada à ocorrência" })).toBeVisible();
-  await expect(helena.getByText("Abrir a foto ↗")).toBeVisible();
+
+  // **A foto abre em diálogo, e o foco volta ao gatilho** — critério 66.2, pelas duas saídas.
+  const ampliar = helena.getByRole("button", { name: /Ampliar/u });
+  await expect(ampliar).toBeVisible();
+  await ampliar.click();
+  const foto = helena.getByRole("dialog");
+  await expect(foto.getByRole("img", { name: "Foto anexada à ocorrência" })).toBeVisible();
+  await helena.keyboard.press("Escape");
+  await expect(foto).toHaveCount(0);
+  await expect(ampliar).toBeFocused();
+  await ampliar.click();
+  await expect(foto).toBeVisible();
+  await helena.mouse.click(5, 5);
+  await expect(foto).toHaveCount(0);
+  await expect(ampliar).toBeFocused();
 
   await expect(helena.getByRole("heading", { name: "Linha do tempo 1" })).toBeVisible();
   await expect(helena.getByRole("link", { name: "Ver a trilha de auditoria" })).toBeVisible();
@@ -379,7 +393,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByRole("heading", { name: "Mensagens 0" })).toBeVisible();
   await expect(helena.getByLabel(/^Escrever para os Gestores/u)).toBeVisible();
   cobre(test.info(), "4.1 · 8", {
-    falta: "o texto do relato, a foto abrindo em outra aba e o botão Enviar",
+    falta: "o texto do relato e o botão Enviar",
   });
 
   // -------------------------------------------------------------------------
