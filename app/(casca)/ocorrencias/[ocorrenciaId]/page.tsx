@@ -11,9 +11,12 @@ import {
   type EventoLido,
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
+import { AvisoDeAvaliacao } from "@/interface/componentes/aviso-de-avaliacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
+import { CabecalhoDaOcorrencia } from "@/interface/componentes/cabecalho-da-ocorrencia";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import {
   Cartao,
   CorpoDoCartao,
@@ -25,6 +28,7 @@ import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorre
 import { dataEHora } from "@/interface/componentes/datas";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -44,10 +48,11 @@ import {
   LINHA_DA_PRIORIDADE,
   SeletorDePrioridade,
 } from "@/interface/componentes/seletor-de-prioridade";
-import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
+  abreAvaliacaoPeloEndereco,
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
+  encurtarParaOCaminho,
   AVISO_PARA_QUEM_NAO_GESTIONA,
   RETORNO_DA_MENSAGEM,
   RETORNO_DO_COMANDO,
@@ -114,8 +119,10 @@ const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
 
 export default async function Ocorrencia({
   params,
+  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -238,6 +245,12 @@ export default async function Ocorrencia({
     permissoes: vinculo.permissoes,
   });
 
+  /** A porta de fora para o modal de avaliar (item 66; spec do 67, §4.9). */
+  const abrirAvaliacao = abreAvaliacaoPeloEndereco(
+    (await searchParams).acao,
+    detalhe.acoesDisponiveis,
+  );
+
   /**
    * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
    * é a forma do comando na tela. Dois deles nunca serão botão (`alterar-prioridade` é seletor,
@@ -344,6 +357,13 @@ export default async function Ocorrencia({
   );
 
   /**
+   * **`avaliar` não chega à barra** (item 66). O gatilho dele mora na faixa de avaliação, que é o único
+   * *Avaliar* da tela. O vazio continua olhando `renderizaveis`: em `resolvida`, para a autora que ainda
+   * não avaliou, a barra fica sem botão **e** sem frase, porque a ação da tela está na faixa.
+   */
+  const naBarra = renderizaveis.filter((acao) => acao.comando !== "avaliar");
+
+  /**
    * **Qual ação ganha ênfase, e o que vai para o menu — uma fonte só.**
    *
    * A tela tinha **duas**: `acoes[0]?.comando` decidia a `variante` do modal, e `indice === 0` decidia a
@@ -359,7 +379,7 @@ export default async function Ocorrencia({
    */
   const { destaque: primario, emMenu } = acoesDaBarra(
     detalhe.status,
-    renderizaveis.map((acao) => acao.comando),
+    naBarra.map((acao) => acao.comando),
   );
 
   /** A variante do gatilho de cada comando: no menu, é `DropdownMenuItem`; fora dele, botão. */
@@ -527,27 +547,6 @@ export default async function Ocorrencia({
         destrutivo
       />
     ),
-    /**
-     * **O quinto modal, e o último** — não há sexto, porque não há décimo primeiro comando.
-     *
-     * **Entra SEMPRE, como os outros quatro**: não precisa de consulta nenhuma além do que a página já
-     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e ela já cruza *ser o autor*
-     * com *ainda não avaliou* (`MaquinaDeEstados.ts:188-191`).
-     *
-     * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
-     * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
-     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está no parágrafo *"Corrigido no item
-     * 18"* do cabeçalho de `barra-de-acoes.tsx`.
-     */
-    avaliar: (
-      <ModalDeAvaliacao
-        ocorrenciaId={detalhe.id}
-        variante={primario === "avaliar" ? "primario" : "secundario"}
-        rotulosDeStatus={rotulos}
-        organizacaoId={organizacaoId}
-        retorno={RETORNO_DO_COMANDO.avaliar}
-      />
-    ),
     ...(podeAtribuir
       ? {
           "atribuir-responsavel": (
@@ -566,18 +565,51 @@ export default async function Ocorrencia({
   };
 
   return (
-    /* **O respiro inferior é do tamanho da barra fixa**, e só existe abaixo de `lg`, onde ela flutua.
-       É a mesma saída que o 44c deu a T-03 — reservar a altura em vez de espaçador no fim do documento —,
-       e ela funciona independente de onde a barra esteja na árvore.
+    <div className="flex flex-col gap-6">
+      {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
+          cortado em 40 caracteres e inteiro no `title`. */}
+      <CaminhoDaPagina
+        anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }}
+        atual={encurtarParaOCaminho(detalhe.titulo)}
+        tituloDoAtual={detalhe.titulo}
+      />
 
-       **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
-       VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
-       olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
-       deixaria a barra cobrir o fim da conversa exatamente no caso em que há algo a ler. **O custo é 96 px de
-       branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
-       qualquer forma. */
-    <div className="flex flex-col gap-6 pb-24 lg:pb-0">
-      <h1 className="text-titulo-pagina text-tinta">{detalhe.titulo}</h1>
+      {/* **O cabeçalho: título, selo e ações** (item 66). A barra é montada SEMPRE: o `router.refresh()`
+          que o `409` dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
+          olhando"* sumiria no mesmo repinte que a exibiu. */}
+      <CabecalhoDaOcorrencia
+        titulo={detalhe.titulo}
+        status={detalhe.status}
+        statusRotulo={detalhe.statusRotulo}
+        vazio={vazio}
+        acoes={
+          <BarraDeAcoes
+            ocorrenciaId={detalhe.id}
+            acoes={naBarra}
+            rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
+            formularios={formularios}
+            primario={primario}
+            emMenu={emMenu}
+          />
+        }
+      />
+
+      {/* **A faixa de avaliação, acima das duas colunas** (item 66, spec §3.5): no celular a coluna de
+          apoio vem antes da narrativa, e a faixa é o único lugar onde se avalia. A condição é
+          `acoesDisponiveis`, e não uma segunda regra na tela. */}
+      {detalhe.acoesDisponiveis.includes("avaliar") && (
+        <AvisoDeAvaliacao>
+          <ModalDeAvaliacao
+            ocorrenciaId={detalhe.id}
+            variante="primario"
+            abrirAoCarregar={abrirAvaliacao}
+            rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
+            retorno={RETORNO_DO_COMANDO.avaliar}
+          />
+        </AvisoDeAvaliacao>
+      )}
 
       {/* **Duas colunas a partir de `lg`, e a de apoio tem 280 px por conta.** Em 1024 px a casca já
           gasta 214 na lateral e 48 no respiro do `<main>`; com 24 de calha, a narrativa fica com 458 —
@@ -589,35 +621,13 @@ export default async function Ocorrencia({
           **colocada** na segunda coluna da grade. Quem lê por teclado ou por leitor de tela recebe a
           mesma sequência nas duas larguras; o que muda é onde ela é pintada.
 
-          **Os dois invólucros são `<div>`, nunca `<section>`:** o teste de ponta a ponta localiza o bloco
-          de situação por `locator("section").filter({ hasText: "Situação" })`, e um `<section>` de layout
-          envolvendo a coluna casaria primeiro. */}
+          **Os dois invólucros são `<div>`, nunca `<section>`:** seção de layout sem nome só acrescenta
+          marco de navegação vazio para quem usa leitor de tela. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1">
-          {/* **Bloco 1a · Identidade que não pode rolar.** O status vira selo — guia §2, a mesma peça de
-              T-03 —, e **a palavra *Situação* fica**: é o que dá nome ao que o selo diz, e é o que o
-              teste de ponta a ponta localiza. */}
-          <section className="border-linha bg-superficie flex flex-col gap-2 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <span className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
-              Situação
-            </span>
-            <span className="w-fit">
-              <SeloDeStatus status={detalhe.status} rotulo={detalhe.statusRotulo} />
-            </span>
-            {/* **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.** Para o
-                Solicitante os dois textos coincidem e ela devolve `null`: o bloco dele não muda. */}
-            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
-              <span className="text-tinta-suave text-meta">
-                {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-              </span>
-            )}
-          </section>
-
-          {/* **A régua do ciclo, em bloco IRMÃO e nunca dentro da seção acima.** A razão é mecânica: o
-              teste afirma o estado atual quatro vezes escopado à seção que contém a palavra *Situação*,
-              e a régua nomeia os quatro estados do ciclo. Dentro dela, `toContainText("Aberta")`
-              passaria em qualquer estado — o teste ficaria verde e deixaria de afirmar o que existe
-              para afirmar. */}
+          {/* **A régua do ciclo é o primeiro cartão da coluna** (item 66): o cartão *Situação* saiu, e o
+              selo mora no cabeçalho. Ela também carrega a segunda linha do motivo da pausa
+              (`notaDaSaida`, critério 31.8), que morava naquele cartão. */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
             <h2 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               O ciclo
@@ -631,50 +641,6 @@ export default async function Ocorrencia({
                 rotuloDaSaida={detalhe.statusRotulo}
               />
             </Suspense>
-          </section>
-
-          {/* **A barra de ações, e o vazio dela.** Montada SEMPRE: o `router.refresh()` que o `409`
-              dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
-              olhando"* sumiria no mesmo repinte que a exibiu. */}
-          <BarraDeAcoes
-            ocorrenciaId={detalhe.id}
-            acoes={renderizaveis}
-            rotulosDeStatus={rotulos}
-            organizacaoId={organizacaoId}
-            formularios={formularios}
-            primario={primario}
-            emMenu={emMenu}
-          />
-
-          {vazio !== null && (
-            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px]">
-              {vazio}
-            </p>
-          )}
-
-          {/* **Bloco 1b · A última mudança, subida do bloco 3.** É a decisão 1 do D-3 do protótipo, e é o
-              que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
-              `OcorrenciaDetalhe`. */}
-          <section className="flex flex-col gap-1.5">
-            <h2 className="text-tinta text-titulo-linha">Última mudança</h2>
-            <p className="text-tinta-fraca text-meta">
-              {autoria(
-                detalhe.ultimaTransicao.autor.nome,
-                detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
-                dataEHora(detalhe.ultimaTransicao.ocorreuEm),
-              )}
-            </p>
-            {detalhe.ultimaTransicao.observacao !== null && (
-              <p className="text-tinta-suave text-corpo whitespace-pre-line">
-                {`“${detalhe.ultimaTransicao.observacao}”`}
-              </p>
-            )}
-            <a
-              href="#linha-do-tempo"
-              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
-            >
-              ver a linha do tempo →
-            </a>
           </section>
 
           {/* **Bloco 1c · O resto da identidade**, com a faixa *Detalhes* (critério 44q.5). O `Cartao`
@@ -754,20 +720,38 @@ export default async function Ocorrencia({
                 <dt className="font-medium">Quando</dt>
                 {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC. */}
                 <dd className="font-mono">{dataEHora(detalhe.registradaEm)}</dd>
+
+                {/* **A última mudança, como última linha de Detalhes** (item 66). Continua subida do
+                    bloco 3, e é o que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
+                    `OcorrenciaDetalhe`. O atalho para a linha do tempo fica, porque no celular a linha do
+                    tempo está bem abaixo. */}
+                <dt className="font-medium">Última mudança</dt>
+                <dd className="flex flex-col gap-1">
+                  <span className="text-tinta-fraca text-meta">
+                    {autoria(
+                      detalhe.ultimaTransicao.autor.nome,
+                      detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
+                      dataEHora(detalhe.ultimaTransicao.ocorreuEm),
+                    )}
+                  </span>
+                  {detalhe.ultimaTransicao.observacao !== null && (
+                    <span className="text-tinta-suave text-corpo whitespace-pre-line">
+                      {`“${detalhe.ultimaTransicao.observacao}”`}
+                    </span>
+                  )}
+                  <a
+                    href="#linha-do-tempo"
+                    className="text-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
+                  >
+                    ver a linha do tempo →
+                  </a>
+                </dd>
               </dl>
             </CorpoDoCartao>
           </Cartao>
         </div>
 
         <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
-          {/* **O convite a avaliar — o critério 27.5.** A condição é `acoesDisponiveis`, e não uma
-              segunda regra na tela. O texto é literal do inventário. */}
-          {detalhe.acoesDisponiveis.includes("avaliar") && (
-            <p className="border-marca/40 bg-accent text-tinta rounded-lg border px-4 py-3 text-corpo">
-              Resolvida. Conte como foi.
-            </p>
-          )}
-
           {/* **Bloco 2 · Conteúdo**, em cartão com faixa (critério 44q.5). O dado da faixa é o número de
               fotos, e ele usa o ternário, e não `&&`: a faixa testa `dado !== undefined`, e um `false`
               montaria o invólucro da direita vazio. `0 fotos` não se escreve. */}
@@ -788,41 +772,16 @@ export default async function Ocorrencia({
                 {detalhe.descricao}
               </p>
 
-              {/* **A foto, e ela continua `div` com duas camadas de `background-image`** — critério 6.
-                  `<img>` dispararia `@next/next/no-img-element` e gastaria o primeiro `eslint-disable` do
-                  repositório; `next/image` faria os bytes do anexo atravessarem o contêiner, que a §10.1
-                  do contrato proíbe.
-
-                  **A etiqueta é persistente e não vive em passagem do ponteiro** — é a segunda metade do
-                  critério 6. Pôr o convite no ponteiro esconderia de quem usa toque a única pista de que a
-                  foto abre. **O verbo é *abrir*, e não *ampliar*:** o `href` leva a outra aba.
-
-                  **`min-h-11`** dá o alvo de toque do compromisso A-3, e a etiqueta entra no nome
-                  acessível do link — *"Foto anexada à ocorrência, Abrir a foto"* —, que descreve o que é e
-                  o que acontece. */}
+              {/* **A foto abre em diálogo** (item 66, critério 2) — o porquê das duas camadas de fundo e da
+                  etiqueta persistente está em `foto-ampliavel.tsx`. */}
               {detalhe.anexos.map((anexo) => (
-                <a
+                <FotoAmpliavel
                   key={anexo.id}
-                  href={anexo.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="relative mt-1 block"
-                >
-                  <div
-                    role="img"
-                    aria-label={anexo.titulo ?? "Foto anexada à ocorrência"}
-                    className="bg-superficie border-linha h-56 w-full rounded-lg border bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage:
-                        anexo.miniaturaUrl === null
-                          ? `url(${anexo.url})`
-                          : `url(${anexo.url}), url(${anexo.miniaturaUrl})`,
-                    }}
-                  />
-                  <span className="bg-superficie text-tinta border-linha text-meta absolute right-3 bottom-3 inline-flex min-h-11 items-center rounded-sm border px-3 font-medium">
-                    Abrir a foto ↗
-                  </span>
-                </a>
+                  url={anexo.url}
+                  miniaturaUrl={anexo.miniaturaUrl}
+                  titulo={anexo.titulo}
+                  nomeArquivo={anexo.nomeArquivo}
+                />
               ))}
             </CorpoDoCartao>
           </Cartao>

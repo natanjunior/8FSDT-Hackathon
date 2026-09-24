@@ -50,6 +50,15 @@ export const MODAL_FECHADO: EstadoDoModal = {
   precisaAtualizar: false,
 };
 
+/**
+ * **O estado com que o modal nasce.** Fechado, quase sempre; aberto quando a página chega pedindo o modal
+ * pelo endereço (item 66, `?acao=avaliar`). Nasce **sem** o efeito `limpar-campos`: não há o que limpar num
+ * formulário que acabou de montar.
+ */
+export function estadoInicialDoModal(abertoAoMontar: boolean): EstadoDoModal {
+  return abertoAoMontar ? { ...MODAL_FECHADO, aberto: true } : MODAL_FECHADO;
+}
+
 export type EventoDoModal =
   | { readonly tipo: "abriu" }
   | { readonly tipo: "pediu-fechar" }
@@ -101,9 +110,13 @@ export function useEnvioDoModal<T = undefined>(opcoes: {
   readonly aoConcluir: (valor: T | undefined) => AvisoDeConclusao;
   readonly tituloDaFalha: string;
   readonly aoAbrir?: () => void;
+  /** O modal nasce aberto (item 66). Só vale na montagem; mudar depois não reabre. */
+  readonly abertoAoMontar?: boolean;
 }): EnvioDoModal {
   const router = useRouter();
-  const [estado, setEstado] = useState<EstadoDoModal>(MODAL_FECHADO);
+  const [estado, setEstado] = useState<EstadoDoModal>(() =>
+    estadoInicialDoModal(opcoes.abertoAoMontar === true),
+  );
 
   const executar = (efeitos: readonly EfeitoDoModal[], valor?: T) => {
     for (const efeito of efeitos) {

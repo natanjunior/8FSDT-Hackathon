@@ -364,11 +364,27 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // Nulo escreve *"sem responsável"*, que é a palavra que a lista já usa — não se inventa um terceiro texto.
   await expect(identidade(helena)).toContainText("sem responsável");
   await expect(identidade(helena)).toContainText(categoriaDeA);
+  // **A última mudança é a última linha de Detalhes desde o item 66**, e não mais um bloco próprio.
+  await expect(identidade(helena)).toContainText("Última mudança");
 
   // **A etiqueta da foto é persistente, e não vive na passagem do ponteiro** — critério 6, segunda metade:
   // no toque não há ponteiro, e sem ela não haveria pista de que a foto abre.
   await expect(helena.getByRole("img", { name: "Foto anexada à ocorrência" })).toBeVisible();
-  await expect(helena.getByText("Abrir a foto ↗")).toBeVisible();
+
+  // **A foto abre em diálogo, e o foco volta ao gatilho** — critério 66.2, pelas duas saídas.
+  const ampliar = helena.getByRole("button", { name: /Ampliar/u });
+  await expect(ampliar).toBeVisible();
+  await ampliar.click();
+  const foto = helena.getByRole("dialog");
+  await expect(foto.getByRole("img", { name: "Foto anexada à ocorrência" })).toBeVisible();
+  await helena.keyboard.press("Escape");
+  await expect(foto).toHaveCount(0);
+  await expect(ampliar).toBeFocused();
+  await ampliar.click();
+  await expect(foto).toBeVisible();
+  await helena.mouse.click(5, 5);
+  await expect(foto).toHaveCount(0);
+  await expect(ampliar).toBeFocused();
 
   await expect(helena.getByRole("heading", { name: "Linha do tempo 1" })).toBeVisible();
   await expect(helena.getByRole("link", { name: "Ver a trilha de auditoria" })).toBeVisible();
@@ -377,7 +393,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByRole("heading", { name: "Mensagens 0" })).toBeVisible();
   await expect(helena.getByLabel(/^Escrever para os Gestores/u)).toBeVisible();
   cobre(test.info(), "4.1 · 8", {
-    falta: "o bloco Última mudança, o texto do relato, a foto abrindo em outra aba e o botão Enviar",
+    falta: "o texto do relato e o botão Enviar",
   });
 
   // -------------------------------------------------------------------------
@@ -718,17 +734,18 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **E o nome dele aparece uma vez só:** quem chama sai dos dois blocos, para não existirem dois
   // controles enviando o mesmo `pessoaId`.
   await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_MARCOS })).toHaveCount(1);
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_MARCOS })).toHaveCount(0);
   cobre(test.info(), "4.3 · 32", { criterio: "20.5" });
 
   await expect(modalDeAtribuicao.getByLabel("Buscar pelo nome")).toBeVisible();
   await expect(modalDeAtribuicao.getByText("Gestores e Encarregados")).toBeVisible();
   await expect(modalDeAtribuicao.getByText("Solicitantes")).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toBeVisible();
-  await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).toBeVisible();
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: SOLICITANTE_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: SOLICITANTE_DO_AURORA }),
   ).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Atribuir" })).toBeVisible();
@@ -742,9 +759,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(modalDeAtribuicao).toBeVisible();
   await esperarSituacao(marcos, "Em análise");
 
-  // Escolha única de verdade: mesmo `name`, mesmo estado — marcar uma desmarca a outra, apesar de a
-  // fileira do topo viver fora dos dois `fieldset`.
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  // Escolha única de verdade: o estado `escolhido` é um só — escolher um candidato desmarca a fileira,
+  // apesar de ela viver fora do `command` dos grupos (item 66).
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   await expect(fileiraDeMarcos).not.toBeChecked();
   cobre(test.info(), "4.3 · 33", { criterio: "20.5" });
 
@@ -756,22 +773,23 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   for (const termo of ["prado", "PRADO", "sonia"]) {
     await busca.fill(termo);
     await expect(
-      modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+      modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
       `a busca por "${termo}"`,
     ).toBeVisible();
-    await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).toHaveCount(0);
+    await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).toHaveCount(0);
   }
 
   // Sobrenome é como se procura gente — é a adaptação ao campo que o protótipo não previa.
   await busca.fill("fontes");
-  await expect(modalDeAtribuicao.getByRole("radio", { name: SOLICITANTE_DO_AURORA })).toBeVisible();
+  await expect(modalDeAtribuicao.getByRole("option", { name: SOLICITANTE_DO_AURORA })).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toHaveCount(0);
 
   // **Prefixo, e não pedaço:** `ado` não acha *Prado*. Sobra só a fileira do topo, que não é filtrada.
   await busca.fill("ado");
   await expect(modalDeAtribuicao.getByRole("radio")).toHaveCount(1);
+  await expect(modalDeAtribuicao.getByRole("option")).toHaveCount(0);
   await expect(fileiraDeMarcos).toBeVisible();
 
   // **Frase própria, diferente de qualquer outra do produto** — trocar uma pela outra faz o Gestor pensar
@@ -781,6 +799,18 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(fileiraDeMarcos).toBeVisible();
   cobre(test.info(), "4.3 · 34", { criterio: "20.6" });
 
+  // **`Enter` no campo escolhe, e não envia** — o `cmdk` previne o `Enter`. Sem isso, o formulário
+  // enviaria e acenderia o erro do campo obrigatório, ou gravaria a pessoa realçada.
+  await busca.fill("prado");
+  await busca.press("Enter");
+  await expect(modalDeAtribuicao).toBeVisible();
+  await expect(
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
+  ).toHaveAttribute("aria-checked", "true");
+  await expect(modalDeAtribuicao.getByText("Escolha o responsável.")).toHaveCount(0);
+  await esperarSituacao(marcos, "Em análise");
+  await busca.fill("");
+
   // -------------------------------------------------------------------------
   // 13.2 · Seleção que o filtro esconde é APAGADA, e não guardada
   //
@@ -788,12 +818,15 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // devolver a mensagem do campo obrigatório em vez de gravar alguém que a tela não mostra.
   // -------------------------------------------------------------------------
   await busca.fill("");
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   await busca.fill("rocha");
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toHaveCount(0);
-  await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).not.toBeChecked();
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).not.toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
 
   await modalDeAtribuicao.getByRole("button", { name: "Atribuir" }).click();
   await expect(modalDeAtribuicao.getByText("Escolha o responsável.")).toBeVisible();
@@ -815,7 +848,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **qualquer** vínculo responder por uma ocorrência. Atribuir a um Solicitante é o caso que prova que o
   // agrupamento ordena sem excluir.
   // -------------------------------------------------------------------------
-  await modalReaberto.getByRole("radio", { name: SOLICITANTE_DO_AURORA }).check();
+  await modalReaberto.getByRole("option", { name: SOLICITANTE_DO_AURORA }).click();
   await modalReaberto.getByRole("button", { name: "Atribuir" }).click();
   await expect(marcos.getByRole("dialog")).toHaveCount(0);
 
@@ -967,3 +1000,65 @@ test.fixme(
     await contextoDeMarcos.close();
   },
 );
+
+test("o título longo corta na tela grande e quebra no celular, sem empurrar as ações (critério 66.1)", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext();
+  const helena = await contexto.newPage();
+
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: AURORA }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  // **150 caracteres, o teto do schema, e uma palavra de 60 sem espaço** — foco da revisão 3.
+  const palavraSemEspaco = "x".repeat(60);
+  const titulo = `Titulo longo ${marcaDoInstante()} ${palavraSemEspaco} ${"infiltracao no corredor ".repeat(4)}`
+    .slice(0, 150)
+    .trim();
+  await registrarOcorrencia(helena, titulo, "Ocorrência do teste de título longo.");
+
+  const h1 = helena.getByRole("heading", { level: 1 });
+  await expect(h1).toHaveAttribute("title", titulo);
+  // Helena é Solicitante e a ocorrência está Aberta: a ação dela é *Cancelar*.
+  const acao = helena.getByRole("button", { name: "Cancelar" });
+
+  /**
+   * **A medida é o conteúdo, e não o documento inteiro.** A barra superior da casca transborda em 390 px
+   * — `document.documentElement.scrollWidth` dá 414 em **qualquer** tela de dentro, inclusive na lista,
+   * que este item não toca. Medir o documento faria este teste acusar aquele defeito e calar sobre o
+   * título longo, que é o que o critério 66.1 cobra. O que se afirma é o que o item controla: a ação
+   * dentro da tela, e o `<main>` e o cabeçalho sem rolagem horizontal própria.
+   */
+  async function acaoDentroDaTela(largura: number): Promise<void> {
+    const caixa = await acao.boundingBox();
+    expect(caixa).not.toBeNull();
+    expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
+
+    const conteudo = await helena.evaluate(() => {
+      const medir = (elemento: Element | null) =>
+        elemento === null ? null : { rola: elemento.scrollWidth, cabe: elemento.clientWidth };
+      return {
+        principal: medir(document.querySelector("main")),
+        cabecalho: medir(document.querySelector("main header")),
+      };
+    });
+    expect(conteudo.principal).not.toBeNull();
+    expect(conteudo.cabecalho).not.toBeNull();
+    expect(conteudo.principal?.rola ?? 0).toBeLessThanOrEqual(conteudo.principal?.cabe ?? 0);
+    expect(conteudo.cabecalho?.rola ?? 0).toBeLessThanOrEqual(conteudo.cabecalho?.cabe ?? 0);
+  }
+
+  // Tela grande: o título divide a linha com a ação, e corta.
+  await acaoDentroDaTela(1280);
+  expect(await h1.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(true);
+
+  // Celular: a ação vai para a linha de baixo, e o título quebra inteiro.
+  await helena.setViewportSize({ width: 390, height: 844 });
+  await acaoDentroDaTela(390);
+  expect(await h1.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(false);
+  await esperarSituacao(helena, ABERTA_PARA_O_SOLICITANTE);
+
+  await contexto.close();
+});

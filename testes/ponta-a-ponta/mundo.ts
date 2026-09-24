@@ -111,14 +111,17 @@ export async function trocarDeOrganizacao(pagina: Page, destino: string): Promis
 }
 
 /**
- * O bloco 1a de T-05 — *Situação*, o selo que não pode rolar.
+ * O selo de T-05 — o estado atual, no cabeçalho (item 66).
  *
- * **Escopado pela seção, e nunca por índice de posição:** a mesma palavra aparece na régua do ciclo e
- * dentro das frases da linha do tempo, e um localizador solto pegaria as três. A página garante o
- * escopo: os invólucros de layout são `div`, e só os blocos são `section`.
+ * **Escopado pelo grupo *Situação*, que só contém o selo:** a mesma palavra aparece na régua do ciclo, nas
+ * frases da linha do tempo e, em teste, pode aparecer no título. O grupo não alcança nenhum deles.
+ *
+ * **Localizado por atributo, e não por `getByRole`:** com um modal aberto, o `Dialog` do Radix marca
+ * `aria-hidden` em tudo que fica fora dele, e o localizador por papel deixaria de achar o selo — que é
+ * justamente o que três passos afirmam com o modal na tela.
  */
 export function situacao(pagina: Page): Locator {
-  return pagina.locator("section").filter({ hasText: "Situação" }).first();
+  return pagina.locator('[role="group"][aria-label="Situação"]');
 }
 
 export async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {

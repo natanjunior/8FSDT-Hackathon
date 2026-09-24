@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { Campo, ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
@@ -59,9 +59,8 @@ const NOTAS = [
  * em vez de produzir um `400` que ela podia evitar. **O comentário vazio não impede nada**, porque é
  * opcional.
  *
- * **A variante nunca é `"menu"`, e a prova está no parágrafo *"Corrigido no item 18"* do cabeçalho de
- * `barra-de-acoes.tsx`**, escrita com o nome deste item: `ACAO_PRIMARIA.resolvida === "avaliar"`, e `emMenu`
- * exclui o destaque por construção. Sempre que `avaliar` é renderizável, ele **é** o destaque.
+ * **A variante é sempre `"primario"` desde o item 66.** O gatilho mora na faixa de avaliação, fora da barra,
+ * e é o único *Avaliar* da tela. A barra nem recebe `avaliar` (`page.tsx`, `naBarra`).
  *
  * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco opções e
  * no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), o erro do servidor em
@@ -74,6 +73,7 @@ export function ModalDeAvaliacao({
   rotulosDeStatus,
   organizacaoId,
   retorno,
+  abrirAoCarregar = false,
 }: {
   ocorrenciaId: string;
   variante: "primario" | "secundario";
@@ -83,6 +83,11 @@ export function ModalDeAvaliacao({
   organizacaoId: string;
   /** Os títulos do aviso de sucesso e de falha, prontos (`RETORNO_DO_COMANDO`). */
   retorno: TextosDoRetorno;
+  /**
+   * **A página chegou por `?acao=avaliar`** (item 66, a porta que a lista usa) e `avaliar` está em
+   * `acoesDisponiveis`. O modal nasce aberto, e o parâmetro sai da URL no mesmo instante.
+   */
+  abrirAoCarregar?: boolean;
 }) {
   const grupoId = useId();
   const campoComentarioId = useId();
@@ -106,7 +111,21 @@ export function ModalDeAvaliacao({
       setComentario("");
       formulario.recomecar();
     },
+    abertoAoMontar: abrirAoCarregar,
   });
+
+  /**
+   * **O parâmetro sai da URL ao ABRIR, e não ao fechar** — desvio D1 do plano do 66. O modal fecha por dois
+   * caminhos, e o do sucesso não passa pelo `aoMudarAbertura`. Tirar aqui garante, por um caminho só, que
+   * recarregar e voltar não o reabram. `replaceState` e não `router.replace`: mudar só a URL não pede nova
+   * renderização do servidor.
+   */
+  useEffect(() => {
+    if (!abrirAoCarregar) return;
+    const endereco = new URL(window.location.href);
+    endereco.searchParams.delete("acao");
+    window.history.replaceState(window.history.state, "", endereco);
+  }, [abrirAoCarregar]);
 
   function confirmar() {
     if (formulario.tentarEnviar()) void envio.confirmar();

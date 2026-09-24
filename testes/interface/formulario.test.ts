@@ -14,7 +14,7 @@ import {
   MENSAGEM_GENERICA,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
-import { cicloDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
+import { cicloDoModal, estadoInicialDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
 import {
   erroVisivel,
   interagir,
@@ -279,6 +279,16 @@ describe("cicloDoModal — a sequência de modal do guia §7", () => {
 
   it("abrir e fechar sem enviar não custa ida ao servidor", () => {
     expect(cicloDoModal(aberto, { tipo: "pediu-fechar" })).toStrictEqual({ estado: MODAL_FECHADO, efeitos: [] });
+  });
+
+  it("o modal pode nascer aberto, sem envio nem aviso (item 66, ?acao=avaliar)", () => {
+    expect(estadoInicialDoModal(false)).toStrictEqual(MODAL_FECHADO);
+    expect(estadoInicialDoModal(true)).toStrictEqual({
+      aberto: true,
+      enviando: false,
+      aviso: null,
+      precisaAtualizar: false,
+    });
   });
 });
 
@@ -1655,9 +1665,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(achados).toStrictEqual([]);
   });
 
-  it("o rótulo de grupo do modal de atribuição está no papel de rótulo (critério 44q.12)", () => {
+  it("os grupos do modal de atribuição estão no papel de rótulo, e a busca é a nossa (critérios 44q.12 e 66)", () => {
     const fonte = ler("src/interface/componentes/modal-de-atribuicao.tsx");
-    expect(fonte).toContain('<legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">');
+    expect(fonte).toContain("[&_[cmdk-group-heading]]:text-rotulo-coluna");
+    expect(fonte).toContain("[&_[cmdk-group-heading]]:font-mono");
+    expect(fonte).toContain("shouldFilter={false}");
+    expect(fonte).toContain("aria-checked={escolhida}");
     expect(fonte).not.toContain("tracking-wide");
   });
 
@@ -1749,20 +1762,33 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(conversa).toContain('<span aria-hidden="true">· </span>');
   });
 
-  it("nenhum invólucro novo de T-05 é `<section>` sem nome — o teste escopa a Situação por seção", () => {
-    // `mundo.ts:121` e `caminho-critico.spec.ts:439`: `locator("section").filter({ hasText: "Situação" }).first()`.
-    // Um `<section>` que envolvesse a coluna de apoio casaria primeiro. O cartão da barra é `<div>`.
-    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
-    expect(barra).not.toMatch(/<section/u);
+  it("o estado atual mora num grupo nomeado que só contém o selo (item 66, a emenda de teste)", () => {
+    // `mundo.ts` e `caminho-critico.spec.ts` escopam a situação por `getByRole("group", { name: "Situação" })`.
+    // Se o grupo alcançasse o título, um título com "resolvida" faria a asserção passar pela razão errada.
+    const cabecalho = ler("src/interface/componentes/cabecalho-da-ocorrencia.tsx");
+    const inicio = cabecalho.indexOf('role="group"');
+    const grupo = cabecalho.slice(inicio, cabecalho.indexOf("</div>", inicio));
+    expect(grupo).toContain('aria-label="Situação"');
+    expect(grupo).toContain("<SeloDeStatus");
+    expect(grupo).not.toContain("{titulo}");
+    expect(grupo).not.toContain("{acoes}");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).toContain("<CabecalhoDaOcorrencia");
+    expect(pagina).toContain("<CaminhoDaPagina");
+    expect(pagina).not.toMatch(/>\s*Situação\s*</u);
   });
 
-  it("as ações dividem a linha: a principal com dois terços (critério 44q.8)", () => {
+  it("as ações moram no cabeçalho: nada preso ao pé, primário na ponta direita e em cima no celular (item 66)", () => {
     const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
-    expect(barra).not.toContain("lg:flex-col");
-    expect(barra).not.toContain("lg:w-full");
-    expect(barra).toContain('ehPrimario ? "flex-[2]" : "flex-1"');
-    // O cartão só a partir de `lg`; abaixo dele, a barra continua presa ao pé.
-    expect(barra).toContain("lg:rounded-lg lg:border lg:bg-superficie");
+    expect(barra).not.toContain("fixed inset-x-0 bottom-0");
+    expect(barra).not.toContain("flex-[2]");
+    expect(barra).not.toMatch(/<section/u);
+    expect(barra).toContain("md:contents");
+    expect(barra).toContain("md:flex-row-reverse");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain("pb-24");
+    // O título trunca só onde divide a linha com as ações; no celular ele quebra (spec §3.1).
+    expect(ler("src/interface/componentes/cabecalho-da-ocorrencia.tsx")).toContain("break-words md:truncate");
   });
 
   it("o rótulo do campo da solução some da vista e fica no nome (critério 44q.5)", () => {
@@ -1788,8 +1814,10 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(pagina).toContain("bg-marca border-marca");
     const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
     expect(conversa).toContain("<AvatarDePessoa");
-    // O balão: fundo próprio, que separa o que uma pessoa escreveu do que o sistema registrou.
-    expect(conversa).toContain("bg-background rounded-lg");
+    // A bolha (item 66): fundo `--chrome`, exposto como `bg-secondary`; autoria fora dela; 60 caracteres.
+    expect(conversa).toContain("bg-secondary text-tinta text-corpo");
+    expect(conversa).toContain("max-w-[60ch]");
+    expect(conversa).not.toContain("bg-background rounded-lg");
   });
 
   it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
@@ -1972,5 +2000,96 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
     expect(moldura).toContain("O livro de ocorrências da sua organização, aberto para quem cuida.");
     expect(moldura).not.toContain("fica registrado, com data e autor");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 66 — a página da ocorrência, remontada
+ * ============================================================================
+ *
+ * O cabeçalho, o caminho, a faixa de avaliação, a foto em diálogo e o escopo do teste de situação. Como no
+ * resto deste arquivo, o que é regra de forma vira guarda sobre o código-fonte.
+ */
+describe("o item 66 — a página da ocorrência, remontada", () => {
+  it("a trilha tem o caminho de três níveis e perde o voltar (critério 66.3)", () => {
+    const trilha = ler("app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx");
+    expect(trilha).toContain("<CaminhoDaPagina");
+    expect(trilha).toContain('atual="Trilha de auditoria"');
+    expect(trilha).not.toContain("voltar à ocorrência");
+    // As duas telas de participante continuam com a forma de um nível só.
+    expect(ler("app/(casca)/vinculos/nova/page.tsx")).toContain(
+      'anterior={{ rotulo: "Participantes", href: "/vinculos" }}',
+    );
+  });
+
+  it("o aviso de avaliação é a faixa do catálogo, e avaliar sai da barra (critérios 66.4 e 66.5)", () => {
+    expect(existsSync(`${RAIZ}src/interface/componentes/ui/alert.tsx`)).toBe(true);
+    const aviso = ler("src/interface/componentes/aviso-de-avaliacao.tsx");
+    expect(aviso).toContain("<Alert");
+    expect(aviso).toContain("AVISO_DE_AVALIACAO");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain("Resolvida. Conte como foi.");
+    expect(pagina).toContain('acao.comando !== "avaliar"');
+    expect(pagina).toContain("abreAvaliacaoPeloEndereco(");
+    // O parâmetro sai da URL ao abrir, por `replaceState`, sem ida ao servidor (desvio D1 do plano).
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).toContain("history.replaceState");
+  });
+
+  it("a última mudança é a última linha de Detalhes, e não um bloco (item 66)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toMatch(/<h2[^>]*>\s*Última mudança/u);
+    expect(pagina).toMatch(/<dt className="font-medium">Última mudança<\/dt>/u);
+    // É a última linha: entre ela e o `</dl>` não entra outro `<dt`. **`indexOf` devolve `-1` quando não
+    // há mais nenhum `<dt` no arquivo**, que é o caso hoje e satisfaz a exigência com folga — comparar
+    // `-1` com a posição do `</dl>` diria o contrário.
+    const inicio = pagina.indexOf("Última mudança</dt>");
+    const fimDaLista = pagina.indexOf("</dl>", inicio);
+    const proximoDt = pagina.indexOf("<dt", inicio);
+    expect(fimDaLista).toBeGreaterThan(inicio);
+    expect(proximoDt === -1 || proximoDt > fimDaLista).toBe(true);
+  });
+
+  it("a foto abre em diálogo, sem aba nova e sem <img> (critério 66.2)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain('target="_blank"');
+    expect(pagina).not.toContain("Abrir a foto");
+    expect(pagina).toContain("<FotoAmpliavel");
+    const foto = ler("src/interface/componentes/foto-ampliavel.tsx");
+    expect(foto).toContain("<DialogTrigger asChild>");
+    expect(foto).toContain("Ampliar");
+    expect(foto).toContain("bg-contain");
+    expect(foto).not.toMatch(/<img[\s>]/u);
+    // G7 do guia: nenhum controle cru fora de `ui/` — o gatilho é o `Button` do catálogo.
+    expect(foto).not.toMatch(/<button(\s|>|$)/mu);
+  });
+
+  const ARQUIVOS_DO_66 = [
+    "src/interface/componentes/cabecalho-da-ocorrencia.tsx",
+    "src/interface/componentes/aviso-de-avaliacao.tsx",
+    "src/interface/componentes/foto-ampliavel.tsx",
+    "src/interface/componentes/caminho-da-pagina.tsx",
+    "src/interface/componentes/modal-de-atribuicao.tsx",
+    "src/interface/componentes/conversa-da-ocorrencia.tsx",
+    "src/interface/componentes/barra-de-acoes.tsx",
+  ];
+
+  it("nenhum tamanho fora dos sete papéis, e nenhuma primitiva de outra biblioteca (critério 66.4)", () => {
+    const tamanhos = ARQUIVOS_DO_66.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/text-(?:xs|sm|base|lg|xl|2xl)/gu)].map(
+        (achado) => `${caminho}: ${achado[0]}`,
+      ),
+    );
+    expect(tamanhos).toStrictEqual([]);
+
+    const importados = ARQUIVOS_DO_66.flatMap((caminho) =>
+      [...ler(caminho).matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? ""),
+    );
+    const deFora = importados.filter(
+      (modulo) =>
+        !modulo.startsWith("@/") &&
+        !["react", "next/link", "next/navigation", "lucide-react"].includes(modulo),
+    );
+    expect(deFora).toStrictEqual([]);
   });
 });

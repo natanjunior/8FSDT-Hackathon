@@ -78,7 +78,8 @@ import {
  *
  * **O mesmo argumento vale para `analisar` (`aberta`), `iniciar-atendimento` (`em_analise`) e
  * `resolver` (`em_atendimento`)** — cada um é o `ACAO_PRIMARIA` do único estado em que é renderizável.
- * E vale para `avaliar` no item 27: `ACAO_PRIMARIA.resolvida === "avaliar"`.
+ * Valia para `avaliar` no item 27; **desde o item 66 `avaliar` não chega à barra** — o gatilho mora na
+ * faixa de avaliação, e a página filtra o comando antes de chamar `acoesDaBarra`.
  *
  * **Os três que chegam ao menu não são `ACAO_PRIMARIA` de estado nenhum**, e é exatamente por isso que
  * caem lá. **A coincidência virou invariante guardada:** um caso de `testes/interface/ocorrencia.test.ts`
@@ -86,11 +87,12 @@ import {
  * a variante `"menu"`. No dia em que alguém mexer em `ACAO_PRIMARIA`, ele cai — que é o alarme que esta
  * nota queria ser.
  *
- * **A geometria é a da prancheta desde o item 44q** (critério 8): o primário ocupa dois terços da linha
- * (`flex-[2]`) e o que vem ao lado, um terço (`flex-1`), nas duas larguras. Até o 44q, a partir de `lg`
- * os botões viravam uma pilha de largura cheia. **O invólucro do gatilho de modal estica o filho**
- * (`*:w-full`): os gatilhos secundários chegam com `w-auto`, do tempo em que o invólucro encolhia até o
- * texto, e sem isso ficariam menores que o terço que lhes cabe.
+ * **A geometria é a do cabeçalho desde o item 66.** A barra deixou de flutuar no pé do celular e de ser
+ * cartão na coluna de apoio: ela é pintada dentro do `CabecalhoDaOcorrencia`, com o destaque na ponta
+ * direita a partir de `md` e em cima no celular, todos em largura cheia abaixo de `md`. Os dois terços do
+ * critério 44q.8 saíram com ela — é o achado A-1 da spec do 66, que o design do item decidiu. **O invólucro
+ * do gatilho de modal continua esticando o filho** (`*:w-full`), porque os gatilhos secundários chegam
+ * com `w-auto`.
  *
  * **E o destaque deixa de ser decidido por ÍNDICE.** `acoes[0]` acertava por coincidência: a ordem do enum
  * põe `atribuir-responsavel` antes de `iniciar-atendimento`, e em `em_analise` com responsável o destaque
@@ -181,90 +183,78 @@ export function BarraDeAcoes({
     router.refresh();
   }
 
+  /**
+   * **O destaque vem PRIMEIRO no documento**: é o primeiro a receber o foco, e no celular, empilhado, fica
+   * em cima. A partir de `md` a fileira é `flex-row-reverse`, e ele vai para a ponta direita, com o menu na
+   * ponta esquerda (design §66).
+   */
+  const destaque = primario ?? acoes[0]?.comando ?? null;
+  const naLinha = acoes
+    .filter((acao) => !emMenu.includes(acao.comando))
+    .sort((a, b) => Number(b.comando === destaque) - Number(a.comando === destaque));
+
   return (
-    /* **O espaçador saiu daqui.** Ele era `h-24` dentro do componente, e com a barra na coluna de apoio
-       ele passaria a abrir um buraco no meio da coluna em vez de reservar o rodapé. Quem reserva agora é
-       o `pb-24 lg:pb-0` do invólucro da página — a mesma saída que o 44c deu a T-03.
+    /* **`md:contents` é o que põe a barra dentro da grade do cabeçalho** (item 66): o invólucro some, e
+       os dois filhos se posicionam sozinhos — a fileira na coluna 2 da linha 1, a frase do `409` na linha 2
+       inteira. Abaixo de `md` o invólucro é uma coluna comum, logo abaixo do título. */
+    <div className="flex flex-col gap-2 md:contents">
+      {acoes.length > 0 && (
+        <div className="flex flex-col gap-2 md:col-start-2 md:row-start-1 md:flex-row-reverse md:items-center">
+          {naLinha.map((acao) => {
+            const ehPrimario = acao.comando === destaque;
+            const formulario = formularios[acao.comando];
+            if (formulario !== undefined) {
+              return (
+                <div key={acao.comando} className="w-full md:w-auto *:w-full">
+                  {formulario}
+                </div>
+              );
+            }
 
-       **Abaixo de `lg` a barra flutua; a partir de `lg` ela é um bloco da coluna.** Em tela grande ela
-       atravessava a tela inteira com miolo de 672 px sobre uma coluna de 448, e cortava ao meio o link
-       *ver a trilha de auditoria* — é o defeito V-1, e é a metade de dentro do critério 44d.1.
+            return (
+              <Button
+                key={acao.comando}
+                type="button"
+                variant={ehPrimario ? "marca" : "outline"}
+                disabled={enviando}
+                onClick={() => void disparar(acao)}
+                className="text-interface h-12 w-full md:w-auto"
+              >
+                <IndicadorDeEnvio ativo={enviando} />
+                {enviando ? "Enviando…" : acao.rotulo}
+              </Button>
+            );
+          })}
 
-       **A partir de `lg` ela entra num cartão** (critério 44q.5), e o cartão é `<div>`, nunca
-       elemento de seção: o teste de ponta a ponta localiza a situação por `locator("section")`. **O cartão só
-       pinta quando há o que mostrar**: a barra é montada sempre, e sem ação nem aviso ela seria uma caixa
-       vazia na coluna de apoio de toda ocorrência encerrada. */
-    <div
-      className={`border-linha bg-superficie fixed inset-x-0 bottom-0 z-10 border-t px-4 py-3 lg:static lg:z-auto ${
-        acoes.length > 0 || aviso !== null
-          ? "lg:rounded-lg lg:border lg:bg-superficie lg:p-[18px] lg:shadow-sm"
-          : "lg:border-0 lg:bg-transparent lg:p-0"
-      }`}
-    >
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 lg:max-w-none">
-        {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
-        {acoes.length > 0 && (
-          /* **Lado a lado nas duas larguras, e a principal com dois terços** (critério 44q.8). Até o
-             44q, a partir de `lg` os dois viravam uma pilha de largura cheia com o mesmo peso visual.
-             `flex-[2]` contra `flex-1` é o terço da prancheta; com uma ação só, ela cresce e ocupa a linha. */
-          <div className="flex gap-2">
-            {acoes
-              .filter((acao) => !emMenu.includes(acao.comando))
-              .map((acao) => {
-                const ehPrimario = acao.comando === (primario ?? acoes[0]?.comando);
-                const formulario = formularios[acao.comando];
-                if (formulario !== undefined) {
-                  return (
-                    <div
-                      key={acao.comando}
-                      className={`*:w-full ${ehPrimario ? "flex-[2]" : "flex-1"}`}
-                    >
-                      {formulario}
-                    </div>
-                  );
-                }
-
-                return (
-                  <Button
-                    key={acao.comando}
-                    type="button"
-                    variant={ehPrimario ? "marca" : "outline"}
-                    disabled={enviando}
-                    onClick={() => void disparar(acao)}
-                    className={`text-interface h-12 ${ehPrimario ? "flex-[2]" : "flex-1"}`}
-                  >
-                    <IndicadorDeEnvio ativo={enviando} />
-                    {enviando ? "Enviando…" : acao.rotulo}
-                  </Button>
-                );
-              })}
-
-            {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`.
-                **`modal={false}` é o par do `onSelect` prevenido dos itens:** com `modal` ligado, o menu
-                prende o foco e trava a rolagem, e o diálogo que abre por cima disputa as duas coisas. */}
-            {emMenu.length > 0 && (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="text-interface h-12 flex-1"
-                  >
-                    Mais ações ▾
-                  </Button>
-                </DropdownMenuTrigger>
-                {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica
-                    `role="menu"`, e um `div` intermediário deixaria um filho que não é `menuitem`. */}
-                <DropdownMenuContent align="end">
-                  {emMenu.map((comando) => (
-                    <Fragment key={comando}>{formularios[comando]}</Fragment>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        )}
-      </div>
+          {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`.
+              **`modal={false}` é o par do `onSelect` prevenido dos itens:** com `modal` ligado, o menu
+              prende o foco e trava a rolagem, e o diálogo que abre por cima disputa as duas coisas. */}
+          {emMenu.length > 0 && (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className="text-interface h-12 w-full md:w-auto">
+                  Mais ações ▾
+                </Button>
+              </DropdownMenuTrigger>
+              {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica
+                  `role="menu"`, e um `div` intermediário deixaria um filho que não é `menuitem`. */}
+              <DropdownMenuContent align="end">
+                {emMenu.map((comando) => (
+                  <Fragment key={comando}>{formularios[comando]}</Fragment>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
+      {/* **A frase do `409` vem DEPOIS dos botões no documento** (spec §3.2, *"logo abaixo da fileira do
+          cabeçalho"*): no celular ela fica sob os botões; a partir de `md` a grade a põe na linha 2 inteira.
+          *(Revisão: antes dos botões, no celular ela ficaria entre o título e as ações.)* */}
+      {aviso !== null && (
+        <div className="md:col-span-2 md:row-start-2">
+          <ErroDoFormulario>{aviso}</ErroDoFormulario>
+        </div>
+      )}
     </div>
   );
 }
