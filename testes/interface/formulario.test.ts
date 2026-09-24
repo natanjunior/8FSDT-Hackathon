@@ -1685,7 +1685,8 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
     expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
-    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
+    // A tinta do avatar é a da marca desde o item 64; o papel da escala é o que esta guarda afirma.
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-marca-foreground");
     expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
   });
 
@@ -1944,5 +1945,20 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(comEmoji).toStrictEqual([]);
     // A recusa do 44f fica, com o alcance que ela de fato decidiu: o item Áreas da barra.
     expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain("LayoutGrid");
+  });
+
+  it("todo avatar é laranja, pela peça base, e ninguém a repinta de neutro (troca 12)", () => {
+    const base = ler("src/interface/componentes/ui/avatar.tsx");
+    expect(base).toContain("rounded-full bg-marca text-rotulo-peca text-marca-foreground");
+    expect(base).not.toContain("bg-muted text-rotulo-peca text-tinta");
+    // Nenhum chamador devolve o avatar ao neutro por classe. A página do grupo (item 70) é a exceção
+    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70, não repintura.
+    const repintados = [...arquivosDe("src"), ...arquivosDe("app")].filter(
+      (caminho) =>
+        !caminho.endsWith("cartao-de-integrante.tsx") && /<AvatarFallback[^>]*className=/u.test(ler(caminho)),
+    );
+    expect(repintados).toStrictEqual([]);
+    // O portão de estilo mede a mesma tinta.
+    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--marca-foreground\)"/u);
   });
 });

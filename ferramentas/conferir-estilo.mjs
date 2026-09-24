@@ -144,7 +144,7 @@ const PECAS = [
     id: "avatar",
     html: () => renderToStaticMarkup(h(Avatar, null, h(AvatarFallback, null, "HR"))),
     seletor: "[data-slot=avatar-fallback]",
-    esperado: { "font-size": "11.5px", "font-weight": "600", color: "token(--ink)" },
+    esperado: { "font-size": "11.5px", "font-weight": "600", color: "token(--marca-foreground)" },
   },
   {
     id: "dica",
