@@ -1,7 +1,13 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { resolverJanela, verDashboard } from "@/aplicacao/dashboard";
+import {
+  LIMITES_DAS_FAIXAS_DE_IDADE,
+  QUANTAS_MAIS_VELHAS,
+  atalhosDaJanela,
+  resolverJanela,
+  verDashboard,
+} from "@/aplicacao/dashboard";
 import { escoparConsulta } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 
@@ -358,6 +364,26 @@ describe("resolucoesPorMes devolve mediana e p90 por percentile_cont", () => {
     expect(linha!.amostraEmHoras.map((horas) => Math.round(horas * 60))).toStrictEqual([30, 60, 90]);
     expect(linha!.medianaDeHoras * 60).toBeCloseTo(60, 6);
   });
+
+  /**
+   * **A contagem por nota sai das mesmas linhas que `avaliadas`**, e a soma das cinco posições é ela.
+   * As oito da amostra nascem sem nota; duas ganham uma aqui. `avaliada_em = now()` respeita
+   * `ocorrencias_avaliada_em_ck`, e o `status` já é `resolvida`, que `ocorrencias_avaliacao_ck` exige.
+   */
+  it("a contagem por nota soma avaliadas, uma posição por nota", async () => {
+    await consulta(
+      `update ocorrencias set avaliacao_nota = case titulo when 'Amostra 1' then 4 else 5 end,
+                              avaliada_em = now()
+        where organizacao_id = $1 and titulo in ('Amostra 1', 'Amostra 2')`,
+      [idDaOrganizacao],
+    );
+
+    const linha = await linhaDoMes(MES_DA_AMOSTRA);
+
+    expect(linha!.avaliadas).toBe(2);
+    expect(linha!.contagemPorNota).toStrictEqual([0, 0, 0, 1, 1]);
+    expect(linha!.contagemPorNota.reduce((a, b) => a + b, 0)).toBe(linha!.avaliadas);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -540,6 +566,48 @@ describe("abertasPorIdade distribui o que está em aberto por faixa de idade", (
 
     expect(outras.map((linha) => linha.faixa)).toStrictEqual([0]);
     expect(soma).toBe(5);
+  });
+
+  /**
+   * **As mais velhas e as envelhecidas medem a idade pela mesma régua**, sobre a organização das idades.
+   * As duas bordas já estão lá, `7 × 24 + 12` horas (não envelhecida) e `8 × 24` horas (envelhecida), e
+   * nenhum caso se acrescenta: um a mais mudaria `POR_FAIXA_ESPERADA` e quebraria dois testes.
+   */
+  describe("as mais velhas e as envelhecidas medem a idade pela mesma régua", () => {
+    it("vêm em registrada_em crescente, no máximo QUANTAS_MAIS_VELHAS, sem terminais", async () => {
+      const velhas = await dashboardDeIdade().maisVelhasEmAberto();
+      const naoTerminais = IDADES.filter((caso) => caso.faixa !== null)
+        .map((caso) => caso.horas)
+        .sort((a, b) => b - a);
+
+      expect(velhas.length).toBe(Math.min(QUANTAS_MAIS_VELHAS, naoTerminais.length));
+      expect(velhas.map((o) => o.status)).not.toContain("resolvida");
+      expect(velhas.map((o) => o.status)).not.toContain("cancelada");
+      expect(velhas.map((o) => o.idadeEmDias)).toStrictEqual(
+        naoTerminais.slice(0, QUANTAS_MAIS_VELHAS).map((horas) => Math.floor(horas / 24)),
+      );
+    });
+
+    it("a idade da primeira cai na faixa mais alta que abertasPorIdade conta com alguém", async () => {
+      const repo = dashboardDeIdade();
+      const [velhas, faixas] = await Promise.all([repo.maisVelhasEmAberto(), repo.abertasPorIdade()]);
+      const faixaMaisAlta = Math.max(...faixas.map((f) => f.faixa));
+      const idade = velhas[0]!.idadeEmDias;
+      const faixaDaIdade = LIMITES_DAS_FAIXAS_DE_IDADE.findIndex((limite) => idade <= limite);
+
+      expect(faixaDaIdade === -1 ? LIMITES_DAS_FAIXAS_DE_IDADE.length : faixaDaIdade).toBe(faixaMaisAlta);
+    });
+
+    it("envelhecidas conta quem passou do primeiro limite em dias cheios, e a borda de 7 dias e meio fica de fora", async () => {
+      const [categoria] = await dashboardDeIdade().abertasPorCategoria();
+      const esperadas = IDADES.filter(
+        (caso) => caso.faixa !== null && Math.floor(caso.horas / 24) > LIMITES_DAS_FAIXAS_DE_IDADE[0],
+      ).length;
+
+      expect(categoria!.categoria.nome).toBe("Idade");
+      expect(categoria!.envelhecidas).toBe(esperadas);
+      expect(esperadas).toBe(4);
+    });
   });
 });
 
@@ -756,9 +824,242 @@ describe("a faixa no futuro devolve os quadros da janela vazios, e a fotografia 
       { mes: "2099-02", mediana: null, resolvidas: 0 },
       { mes: "2099-03", mediana: null, resolvidas: 0 },
     ]);
-    expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: null, avaliadas: 0, resolvidas: 0 });
+    expect(lido.mediaDasAvaliacoes).toStrictEqual({
+      media: null,
+      avaliadas: 0,
+      resolvidas: 0,
+      distribuicao: [
+        { nota: 1, quantidade: 0 },
+        { nota: 2, quantidade: 0 },
+        { nota: 3, quantidade: 0 },
+        { nota: 4, quantidade: 0 },
+        { nota: 5, quantidade: 0 },
+      ],
+    });
 
     expect(lido.backlogPorStatus.reduce((soma, linha) => soma + linha.quantidade, 0)).toBeGreaterThan(0);
     expect(lido.abertasPorCategoria).toStrictEqual(await dashboard().abertasPorCategoria());
+  });
+});
+
+/**
+ * ============================================================================
+ *  O saldo, o início da janela e as mais velhas — item 73
+ * ============================================================================
+ *
+ * **Organização própria**, no molde das idades e dos pares: as ocorrências daqui terminam em estados que
+ * mudariam as contagens que os `describe`s de cima afirmam.
+ *
+ * O mundo de março, com instantes fixos e hora cheia, para nenhum cair na borda de um mês:
+ *
+ * | Ocorrência | Registro | Trilha |
+ * |---|---|---|
+ * | A | `2026-02-10` | aberta · **cancelada** em `2026-02-20` (antes da janela) |
+ * | B | `2026-02-15` | aberta · **resolvida** em `2026-03-05` |
+ * | C | `2026-02-20` | aberta · **cancelada** em `2026-03-10` |
+ * | D | `2026-02-25` | aberta (continua) |
+ * | E | `2026-03-12` | aberta · **cancelada** em `2026-03-12` + 1 h |
+ * | F | `2026-03-15` | aberta · **cancelada** em `2026-04-02` (depois da janela) |
+ *
+ * E o mundo de agora, relativo a `now()`, para a conferência do critério 4 ter movimento dentro da janela
+ * que termina hoje. Sem ele a conta fecharia com zero de cada lado, e não provaria nada:
+ *
+ * | Ocorrência | Registro | Trilha | Papel na conta |
+ * |---|---|---|---|
+ * | G | `now() − 40 dias` | aberta · **resolvida** em `now() − 10 dias` | no início, e saiu |
+ * | H | `now() − 50 dias` | aberta · **cancelada** em `now() − 3 dias` | no início, e saiu |
+ * | I | `now() − 5 dias` | aberta (continua) | entrou, e está em aberto |
+ * | J | `now() − 2 dias` | aberta · **cancelada** em `now() − 1 dia` | entrou e saiu |
+ */
+const JANELA_DE_MARCO = { de: "2026-03-01", ate: "2026-03-31" };
+
+let idDaOrganizacaoDoSaldo: string;
+let pessoaDoSaldo: string;
+let areaDoSaldo: string;
+let categoriaDoSaldo: string;
+
+const dashboardDoSaldo = () =>
+  repositorioEscopadoDeDashboard(escoparConsulta(consulta, idDaOrganizacaoDoSaldo));
+
+const DIA = 86_400_000;
+const diasAtras = (dias: number): string => new Date(Date.now() - dias * DIA).toISOString();
+
+/**
+ * Uma ocorrência com a trilha que o caso pede, **no formato de `resolverEm`**: a primeira linha é a
+ * abertura, com `status_anterior` nulo, e cada passo seguinte parte do anterior.
+ *
+ * **O cancelamento carrega motivo e observação**, porque `registros_transicao_motivo_ck` (migração 005)
+ * os exige na linha com `status_novo = 'cancelada'`. `resolverEm` nunca encontrou essa `check` porque só
+ * resolve.
+ */
+async function semearComTrilha(
+  titulo: string,
+  registradaEm: string,
+  passos: readonly { status: "resolvida" | "cancelada"; em: string }[],
+): Promise<void> {
+  const final = passos.at(-1)?.status ?? "aberta";
+  const [ocorrencia] = await consulta<{ id: string }>(
+    `insert into ocorrencias
+          (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id,
+           status, registrada_em)
+          values ($1, $2, $3, 'comum', $4, 'Semente do saldo do painel.', $5, $6, $7::timestamptz)
+       returning id`,
+    [
+      idDaOrganizacaoDoSaldo,
+      categoriaDoSaldo,
+      areaDoSaldo,
+      titulo,
+      pessoaDoSaldo,
+      final,
+      registradaEm,
+    ],
+  );
+
+  await consulta(
+    `insert into registros_transicao
+       (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id, ocorreu_em)
+     values ($1, $2, 1, null, 'aberta', $3, $4::timestamptz)`,
+    [idDaOrganizacaoDoSaldo, ocorrencia!.id, pessoaDoSaldo, registradaEm],
+  );
+
+  let anterior = "aberta";
+  for (const [i, passo] of passos.entries()) {
+    const cancelada = passo.status === "cancelada";
+    await consulta(
+      `insert into registros_transicao
+         (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id,
+          ocorreu_em, motivo_cancelamento, observacao)
+       values ($1, $2, $3, $4::status_ocorrencia, $5::status_ocorrencia, $6, $7::timestamptz,
+               $8::motivo_cancelamento, $9)`,
+      [
+        idDaOrganizacaoDoSaldo,
+        ocorrencia!.id,
+        i + 2,
+        anterior,
+        passo.status,
+        pessoaDoSaldo,
+        passo.em,
+        cancelada ? "duplicada" : null,
+        cancelada ? "Cancelada na semente do saldo." : null,
+      ],
+    );
+    anterior = passo.status;
+  }
+}
+
+describe("o saldo, o início da janela e as mais velhas", () => {
+  beforeAll(async () => {
+    idDaOrganizacaoDoSaldo = (
+      await consulta<{ id: string }>(
+        `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+        ["Condomínio do Saldo", `SALDO${SUFIXO.slice(-5)}`],
+      )
+    )[0]!.id;
+
+    const usuario = (
+      await consulta<{ id: string }>(
+        `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id`,
+        [`gestora-saldo-${SUFIXO}@exemplo.test`],
+      )
+    )[0]!.id;
+
+    pessoaDoSaldo = (
+      await consulta<{ id: string }>(
+        `insert into pessoas (usuario_id, nome) values ($1, 'Gestora do Saldo') returning id`,
+        [usuario],
+      )
+    )[0]!.id;
+
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+      [pessoaDoSaldo, idDaOrganizacaoDoSaldo],
+    );
+
+    areaDoSaldo = (
+      await consulta<{ id: string }>(
+        `insert into areas (organizacao_id, nome, tipo, ordem)
+              values ($1, 'Hall do Saldo', 'comum', 1) returning id`,
+        [idDaOrganizacaoDoSaldo],
+      )
+    )[0]!.id;
+
+    categoriaDoSaldo = (
+      await consulta<{ id: string }>(
+        `insert into categorias (organizacao_id, nome, icone, ativa, ordem)
+              values ($1, 'Saldo', 'tag', true, 1) returning id`,
+        [idDaOrganizacaoDoSaldo],
+      )
+    )[0]!.id;
+
+    await semearComTrilha("A", "2026-02-10T12:00:00-03:00", [
+      { status: "cancelada", em: "2026-02-20T12:00:00-03:00" },
+    ]);
+    await semearComTrilha("B", "2026-02-15T12:00:00-03:00", [
+      { status: "resolvida", em: "2026-03-05T12:00:00-03:00" },
+    ]);
+    await semearComTrilha("C", "2026-02-20T12:00:00-03:00", [
+      { status: "cancelada", em: "2026-03-10T12:00:00-03:00" },
+    ]);
+    await semearComTrilha("D", "2026-02-25T12:00:00-03:00", []);
+    await semearComTrilha("E", "2026-03-12T12:00:00-03:00", [
+      { status: "cancelada", em: "2026-03-12T13:00:00-03:00" },
+    ]);
+    await semearComTrilha("F", "2026-03-15T12:00:00-03:00", [
+      { status: "cancelada", em: "2026-04-02T12:00:00-03:00" },
+    ]);
+
+    await semearComTrilha("G", diasAtras(40), [{ status: "resolvida", em: diasAtras(10) }]);
+    await semearComTrilha("H", diasAtras(50), [{ status: "cancelada", em: diasAtras(3) }]);
+    await semearComTrilha("I", diasAtras(5), []);
+    await semearComTrilha("J", diasAtras(2), [{ status: "cancelada", em: diasAtras(1) }]);
+  });
+
+  it("em aberto no início de março são B, C e D — A já tinha saído, e G e H ainda não existiam", async () => {
+    expect(await dashboardDoSaldo().emAbertoNoInicio(JANELA_DE_MARCO)).toBe(3);
+  });
+
+  it("as canceladas de março são C e E, pelo instante do cancelamento — A e F ficam fora", async () => {
+    expect(await dashboardDoSaldo().canceladasPorMes(JANELA_DE_MARCO)).toStrictEqual([
+      { mes: "2026-03", quantidade: 2 },
+    ]);
+  });
+
+  it("a resolução de B entra nas resoluções de março, e os cancelamentos não", async () => {
+    const linhas = await dashboardDoSaldo().resolucoesPorMes(JANELA_DE_MARCO);
+    expect(linhas.map((l) => `${l.mes}:${String(l.resolvidas)}`)).toStrictEqual(["2026-03:1"]);
+  });
+
+  /**
+   * **A conferência do critério 4 contra o banco, com a janela terminando hoje.** O caso afirma a
+   * igualdade **e** os quatro números, para que uma conta certa por compensação de dois erros não passe.
+   * Com `ate` antes de hoje a conta não fecha por aritmética: o que entrou e saiu depois do fim da janela
+   * mexe no *agora* e em nenhum dos termos.
+   */
+  it("em aberto no início, mais o que entrou, menos o que saiu, é o que está em aberto agora", async () => {
+    const janela = atalhosDaJanela().trinta;
+    const repo = dashboardDoSaldo();
+    const [noInicio, porCategoria, resolucoes, canceladas, idades] = await Promise.all([
+      repo.emAbertoNoInicio(janela),
+      repo.recorrenciaPorCategoria(janela),
+      repo.resolucoesPorMes(janela),
+      repo.canceladasPorMes(janela),
+      repo.abertasPorIdade(),
+    ]);
+    const soma = (xs: readonly { quantidade: number }[]) => xs.reduce((t, x) => t + x.quantidade, 0);
+    const registradas = soma(porCategoria);
+    const resolvidas = resolucoes.reduce((t, l) => t + l.resolvidas, 0);
+    const emAbertoAgora = soma(idades);
+
+    expect(noInicio).toBe(3); // D, G, H
+    expect(registradas).toBe(2); // I, J
+    expect(resolvidas).toBe(1); // G
+    expect(soma(canceladas)).toBe(2); // H, J
+    expect(emAbertoAgora).toBe(2); // D, I
+    expect(noInicio + registradas - resolvidas - soma(canceladas)).toBe(emAbertoAgora);
+  });
+
+  it("as mais velhas em aberto são D e I, nessa ordem, e nenhuma terminal", async () => {
+    const velhas = await dashboardDoSaldo().maisVelhasEmAberto();
+    expect(velhas.map((o) => `${o.titulo}:${o.status}`)).toStrictEqual(["D:aberta", "I:aberta"]);
   });
 });
