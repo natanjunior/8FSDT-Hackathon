@@ -3843,6 +3843,9 @@ components:
             **O método do percentil é a interpolação linear** (`percentile_cont`): as durações do mês são
             ordenadas, o índice sai da fração multiplicada por `n − 1`, e o valor sai da interpolação
             entre os dois vizinhos desse índice. Outro método devolve outro número sobre os mesmos dados.
+
+            Os valores em horas vêm com quatro casas decimais, e uma duração maior que zero nunca chega
+            como zero: a menor que a resposta publica é `0.0001`, pouco mais de um terço de segundo.
           properties:
             porMes:
               type: array
