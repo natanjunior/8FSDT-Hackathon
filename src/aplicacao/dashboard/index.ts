@@ -3,6 +3,7 @@ export {
   DIAS_DA_JANELA,
   FUSO,
   diaEmSaoPaulo,
+  ehJanelaPadrao,
   mesEmSaoPaulo,
   mesesDaJanela,
   resolverJanela,

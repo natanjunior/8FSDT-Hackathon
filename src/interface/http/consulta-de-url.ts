@@ -409,22 +409,28 @@ export function consultaDe(
  * 3. **janela invertida** — `de > ate`. Uma janela que termina antes de começar não é uma janela, e
  *    devolver zeros diria *"não há dado"* onde o certo é *"a consulta não correu"* — a confusão que o item
  *    14 já nomeou (classe do achado R-15).
+ *
+ * A tela troca antes de chegar aqui (`trocarJanelaInvertida`, item 69); a recusa é o que a API responde.
  */
 const DIA_ISO = /^\d{4}-\d{2}-\d{2}$/u;
+
+/** A data existe e está em `AAAA-MM-DD`? A ida e volta separa `2026-02-30` de uma data. */
+function ehDia(bruto: string): boolean {
+  // **A ida e volta é o que separa `2026-02-30` de uma data**: o `Date` a aceita e devolve `2026-03-02`,
+  // e comparar o resultado com o que se escreveu é o que revela a troca.
+  const instante = new Date(`${bruto}T00:00:00Z`);
+  return (
+    DIA_ISO.test(bruto) &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString().slice(0, 10) === bruto
+  );
+}
 
 function lerDia(parametros: URLSearchParams, nome: "de" | "ate"): string | undefined {
   const bruto = lerUnico(parametros, nome);
   if (bruto === undefined) return undefined;
 
-  // **A ida e volta é o que separa `2026-02-30` de uma data**: o `Date` a aceita e devolve `2026-03-02`,
-  // e comparar o resultado com o que se escreveu é o que revela a troca.
-  const instante = new Date(`${bruto}T00:00:00Z`);
-  const valido =
-    DIA_ISO.test(bruto) &&
-    !Number.isNaN(instante.getTime()) &&
-    instante.toISOString().slice(0, 10) === bruto;
-
-  if (!valido) {
+  if (!ehDia(bruto)) {
     throw new FormatoInvalido([
       { campo: nome, codigo: "VALOR_INVALIDO", mensagem: "Use uma data no formato AAAA-MM-DD." },
     ]);
@@ -454,4 +460,37 @@ export function lerJanelaDoDashboardDaUrl(parametros: URLSearchParams): {
 
   // Campo ausente é "decida por mim" — por isso o espalhamento condicional, e não `de: undefined`.
   return { ...(de === undefined ? {} : { de }), ...(ate === undefined ? {} : { ate }) };
+}
+
+/**
+ * **A troca da janela invertida é gesto da tela, e não do contrato** (item 69, `respostas.md` P1).
+ *
+ * Quem escolhe datas no calendário do sistema e erra a ordem quer o painel, não a página de erro — e na
+ * tela a troca não é silenciosa, porque T-07 escreve o aviso. Para um cliente HTTP, `de > ate` continua
+ * sendo defeito dele, e `lerJanelaDoDashboardDaUrl` continua o recusando: por isso a troca é uma função
+ * à parte, chamada só pela página, **antes** da leitura.
+ *
+ * **Só troca o que a leitura aceitaria na outra ordem**: um `de` e um `ate`, os dois datas que existem.
+ * Parâmetro repetido e data mal formada passam intactos e caem na recusa de sempre.
+ */
+export function trocarJanelaInvertida(parametros: URLSearchParams): {
+  consulta: URLSearchParams;
+  trocada: boolean;
+} {
+  const de = parametros.getAll("de");
+  const ate = parametros.getAll("ate");
+  const [umDe] = de;
+  const [umAte] = ate;
+
+  if (de.length !== 1 || ate.length !== 1 || umDe === undefined || umAte === undefined) {
+    return { consulta: parametros, trocada: false };
+  }
+  if (!ehDia(umDe) || !ehDia(umAte) || umDe <= umAte) {
+    return { consulta: parametros, trocada: false };
+  }
+
+  const consulta = new URLSearchParams(parametros);
+  consulta.set("de", umAte);
+  consulta.set("ate", umDe);
+  return { consulta, trocada: true };
 }

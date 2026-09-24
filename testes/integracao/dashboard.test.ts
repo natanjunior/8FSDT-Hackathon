@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { resolverJanela } from "@/aplicacao/dashboard";
+import { resolverJanela, verDashboard } from "@/aplicacao/dashboard";
 import { escoparConsulta } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 
@@ -733,5 +733,32 @@ describe("duplasRecorrentes devolve só o par que voltou dentro da janela", () =
 
     expect(invasoras).toStrictEqual([]);
     expect(daOutra.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * **A faixa no futuro não tem código próprio, e este teste é o que o critério 69.3 entrega.** Os quadros
+ * da janela voltam vazios porque as consultas recortam por data; os de fotografia não, porque ignoram a
+ * janela por contrato (`openapi.yaml:2427`). Só o banco afirma as duas metades.
+ */
+describe("a faixa no futuro devolve os quadros da janela vazios, e a fotografia intacta", () => {
+  it("recorrência, duplas, tempo e avaliação vazios; status e categorias com o que há agora", async () => {
+    const lido = await verDashboard(dashboard(), { de: "2099-01-01", ate: "2099-03-31" });
+
+    expect(lido.periodo).toStrictEqual({ de: "2099-01-01", ate: "2099-03-31" });
+    expect(lido.recorrenciaPorCategoria).toStrictEqual([]);
+    expect(lido.recorrenciaPorArea).toStrictEqual([]);
+    expect(lido.duplasRecorrentes).toStrictEqual([]);
+    expect(
+      lido.tempoDeResolucao.porMes.map(({ mes, mediana, resolvidas }) => ({ mes, mediana, resolvidas })),
+    ).toStrictEqual([
+      { mes: "2099-01", mediana: null, resolvidas: 0 },
+      { mes: "2099-02", mediana: null, resolvidas: 0 },
+      { mes: "2099-03", mediana: null, resolvidas: 0 },
+    ]);
+    expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: null, avaliadas: 0, resolvidas: 0 });
+
+    expect(lido.backlogPorStatus.reduce((soma, linha) => soma + linha.quantidade, 0)).toBeGreaterThan(0);
+    expect(lido.abertasPorCategoria).toStrictEqual(await dashboard().abertasPorCategoria());
   });
 });

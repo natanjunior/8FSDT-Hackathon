@@ -18,7 +18,7 @@ import {
   textoDoTempoDeResolucao,
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
-import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
+import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
 import { projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
@@ -53,6 +53,60 @@ describe("os dois parâmetros do dashboard, lidos da URL", () => {
     expect(() => lerJanelaDoDashboardDaUrl(consulta("de=2026-06-01&de=2026-07-01"))).toThrow(
       FormatoInvalido,
     );
+  });
+});
+
+describe("a troca da janela invertida — gesto da tela, e a API continua recusando", () => {
+  it("de depois de ate troca os dois e avisa — critério 69.3", () => {
+    const { consulta: trocada, trocada: avisa } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&ate=2026-07-01"),
+    );
+    expect(avisa).toBe(true);
+    expect(lerJanelaDoDashboardDaUrl(trocada)).toStrictEqual({ de: "2026-07-01", ate: "2026-09-29" });
+  });
+
+  it("não altera a consulta recebida", () => {
+    const original = consulta("de=2026-09-29&ate=2026-07-01");
+    trocarJanelaInvertida(original);
+    expect(original.toString()).toBe("de=2026-09-29&ate=2026-07-01");
+  });
+
+  it("os outros parâmetros atravessam intactos", () => {
+    const { consulta: trocada } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&ate=2026-07-01&organizacao=x"),
+    );
+    expect(trocada.get("organizacao")).toBe("x");
+  });
+
+  it("na ordem certa, não troca nem avisa", () => {
+    const { consulta: mesma, trocada } = trocarJanelaInvertida(consulta("de=2026-07-01&ate=2026-09-29"));
+    expect(trocada).toBe(false);
+    expect(mesma.toString()).toBe("de=2026-07-01&ate=2026-09-29");
+  });
+
+  it("datas iguais são uma janela de um dia, e não uma inversão", () => {
+    expect(trocarJanelaInvertida(consulta("de=2026-07-01&ate=2026-07-01")).trocada).toBe(false);
+  });
+
+  it("com uma data só não há o que inverter", () => {
+    expect(trocarJanelaInvertida(consulta("de=2026-09-29")).trocada).toBe(false);
+    expect(trocarJanelaInvertida(consulta("ate=2026-07-01")).trocada).toBe(false);
+  });
+
+  it("data mal formada não é trocada, e a recusa de formato continua valendo", () => {
+    for (const bruto of ["de=2026-09-31&ate=2026-07-01", "de=29/09/2026&ate=2026-07-01"]) {
+      const { consulta: mesma, trocada } = trocarJanelaInvertida(consulta(bruto));
+      expect(trocada).toBe(false);
+      expect(() => lerJanelaDoDashboardDaUrl(mesma)).toThrow(FormatoInvalido);
+    }
+  });
+
+  it("parâmetro repetido não é trocado, e continua 400", () => {
+    const { consulta: mesma, trocada } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&de=2026-08-01&ate=2026-07-01"),
+    );
+    expect(trocada).toBe(false);
+    expect(() => lerJanelaDoDashboardDaUrl(mesma)).toThrow(FormatoInvalido);
   });
 });
 

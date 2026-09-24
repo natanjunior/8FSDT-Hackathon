@@ -242,7 +242,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(ate).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   expect(de < ate).toBe(true);
   await expect(helena.getByRole("button", { name: "Aplicar" })).toBeVisible();
-  await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toBeVisible();
+  // No recorte padrão o atalho é texto apagado, e não link (critério 69.1): o rótulo continua o mesmo.
+  await expect(helena.getByText("últimos 90 dias", { exact: true })).toBeVisible();
+  await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toHaveCount(0);
 
   // -------------------------------------------------------------------------
   // 2.1 · Quadro 1 · Recorrência no período — as quatro seções (critérios 35, 57 e 60)
