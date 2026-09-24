@@ -425,9 +425,14 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
 
   // Os três chips do item 15 e o botão de registrar. *Prioridade* aparece nos dois lugares pelo mesmo
   // portão — quem altera, filtra e lê a coluna (P-03).
-  await expect(marcos.getByRole("button", { name: "Status" })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Categoria" })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Prioridade" })).toBeVisible();
+  //
+  // **`exact` porque o chip e o cabeçalho que ordena dividem a palavra.** O nome do `name` casa por
+  // pedaço, e desde o item 67 a mesma tela traz `Ordenar por Status` no cabeçalho da coluna — o chip sem
+  // valor marcado se chama `Status`, e sem `exact` a asserção pediria os dois. Os nomes acessíveis são
+  // distintos; quem estava solto era o predicado do teste.
+  await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Categoria", exact: true })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Prioridade", exact: true })).toBeVisible();
   await expect(marcos.getByRole("link", { name: "+ Registrar ocorrência" })).toBeVisible();
   cobre(test.info(), "4.2 · 10", {
     falta: "as três novas no topo da lista, com status Aberta e sem responsável",
@@ -478,7 +483,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **O rótulo do chip é o sinal, e nunca um ponto colorido** (A-5): com um valor marcado ele passa a ser
   // o **nome do valor**.
   // -------------------------------------------------------------------------
-  await marcos.getByRole("button", { name: "Categoria" }).click();
+  await marcos.getByRole("button", { name: "Categoria", exact: true }).click();
   await marcos.getByRole("menuitemcheckbox", { name: categoriaDeA }).click();
   await marcos.waitForURL(/[?&]categoriaId=/u);
 
@@ -515,7 +520,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // O subtítulo do terceiro vazio traz o recorte em palavras, com os mesmos rótulos dos chips.
   await expect(marcos.getByText(categoriaDeA).first()).toBeVisible();
   // A barra fica em cima do vazio — sem ela, o vazio de filtro seria um beco.
-  await expect(marcos.getByRole("button", { name: "Status" })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
   await expect(marcos.getByRole("link", { name: "Limpar filtros" }).first()).toBeVisible();
   cobre(test.info(), "4.2 · 15", {
     falta: "o vazio por Status → Resolvida; a asserção chega nele pelo recorte Minhas ocorrências",
