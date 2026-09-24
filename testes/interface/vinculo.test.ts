@@ -64,6 +64,15 @@ import {
   vaoDoArrasto,
 } from "@/interface/componentes/ordem-manual";
 import {
+  SEM_ORDENACAO,
+  ariaSortDa,
+  escreverOrdenacao,
+  lerOrdenacao,
+  proximaOrdenacao,
+  rotuloDoCabecalho,
+  type Ordenacao,
+} from "@/interface/componentes/ordenacao-em-tres-estados";
+import {
   SEM_UNIDADE,
   areaDoSeletor,
   campoDoContato,
@@ -842,6 +851,59 @@ describe("a ordem por coluna (critério 3)", () => {
     expect(nomes(ordenarLinhas([vinculo, pedido], "pessoa", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
     expect(nomes(ordenarLinhas([vinculo, pedido], "desde", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
     expect(nomes(ordenarLinhas([vinculo, pedido], "papel", "decrescente"))).toStrictEqual(["Zuleica", "Ana"]);
+  });
+});
+
+describe("a ordenação em três estados — a regra que o 67 também usa", () => {
+  type C = "a" | "b";
+  const CRESC_A: Ordenacao<C> = { ordem: "a", sentido: "crescente" };
+  const DECRESC_A: Ordenacao<C> = { ordem: "a", sentido: "decrescente" };
+
+  it("na mesma coluna: sem ordem, crescente, decrescente, e volta a sem ordem", () => {
+    const primeiro = proximaOrdenacao<C>(SEM_ORDENACAO, "a");
+    expect(primeiro).toStrictEqual(CRESC_A);
+    const segundo = proximaOrdenacao(primeiro, "a");
+    expect(segundo).toStrictEqual(DECRESC_A);
+    expect(proximaOrdenacao(segundo, "a")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  it("em outra coluna começa crescente, venha de onde vier", () => {
+    const CRESC_B = { ordem: "b", sentido: "crescente" };
+    expect(proximaOrdenacao<C>(SEM_ORDENACAO, "b")).toStrictEqual(CRESC_B);
+    expect(proximaOrdenacao(CRESC_A, "b")).toStrictEqual(CRESC_B);
+    expect(proximaOrdenacao(DECRESC_A, "b")).toStrictEqual(CRESC_B);
+  });
+
+  it("aria-sort e o rótulo dizem o estado e o próximo clique", () => {
+    expect(ariaSortDa<C>(SEM_ORDENACAO, "a")).toBe("none");
+    expect(ariaSortDa(CRESC_A, "a")).toBe("ascending");
+    expect(ariaSortDa(DECRESC_A, "a")).toBe("descending");
+    expect(ariaSortDa(DECRESC_A, "b")).toBe("none");
+    expect(rotuloDoCabecalho<C>(SEM_ORDENACAO, "a", "Pessoa")).toBe("Ordenar por Pessoa");
+    expect(rotuloDoCabecalho(CRESC_A, "a", "Pessoa")).toBe("Inverter a ordem de Pessoa");
+    expect(rotuloDoCabecalho(DECRESC_A, "a", "Pessoa")).toBe("Tirar a ordenação de Pessoa");
+    expect(rotuloDoCabecalho(DECRESC_A, "b", "Papel")).toBe("Ordenar por Papel");
+  });
+
+  it("lê do endereço: sem ordem é sem ordenação, e sentido sozinho não vale", () => {
+    const ler = (consulta: string) => lerOrdenacao<C>(new URLSearchParams(consulta), ["a", "b"]);
+    expect(ler("")).toStrictEqual(SEM_ORDENACAO);
+    expect(ler("sentido=decrescente")).toStrictEqual(SEM_ORDENACAO);
+    expect(ler("ordem=cor&sentido=decrescente")).toStrictEqual(SEM_ORDENACAO);
+    expect(ler("ordem=a")).toStrictEqual(CRESC_A);
+    expect(ler("ordem=a&sentido=decrescente")).toStrictEqual(DECRESC_A);
+    expect(ler("ordem=a&sentido=cima")).toStrictEqual(CRESC_A);
+  });
+
+  it("escreve a coluna sempre que há ordem, e o sentido só quando decrescente", () => {
+    const escrever = (ordenacao: Ordenacao<C>) => {
+      const consulta = new URLSearchParams();
+      escreverOrdenacao(consulta, ordenacao);
+      return consulta.toString();
+    };
+    expect(escrever(SEM_ORDENACAO)).toBe("");
+    expect(escrever(CRESC_A)).toBe("ordem=a");
+    expect(escrever(DECRESC_A)).toBe("ordem=a&sentido=decrescente");
   });
 });
 
