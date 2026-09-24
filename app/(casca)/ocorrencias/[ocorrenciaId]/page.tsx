@@ -642,31 +642,6 @@ export default async function Ocorrencia({
             </Suspense>
           </section>
 
-          {/* **Bloco 1b · A última mudança, subida do bloco 3.** É a decisão 1 do D-3 do protótipo, e é o
-              que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
-              `OcorrenciaDetalhe`. */}
-          <section className="flex flex-col gap-1.5">
-            <h2 className="text-tinta text-titulo-linha">Última mudança</h2>
-            <p className="text-tinta-fraca text-meta">
-              {autoria(
-                detalhe.ultimaTransicao.autor.nome,
-                detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
-                dataEHora(detalhe.ultimaTransicao.ocorreuEm),
-              )}
-            </p>
-            {detalhe.ultimaTransicao.observacao !== null && (
-              <p className="text-tinta-suave text-corpo whitespace-pre-line">
-                {`“${detalhe.ultimaTransicao.observacao}”`}
-              </p>
-            )}
-            <a
-              href="#linha-do-tempo"
-              className="text-marca inline-flex min-h-11 items-center self-start text-interface font-medium"
-            >
-              ver a linha do tempo →
-            </a>
-          </section>
-
           {/* **Bloco 1c · O resto da identidade**, com a faixa *Detalhes* (critério 44q.5). O `Cartao`
               continua `<section>`, e o teste de ponta a ponta o acha por *"Registrada por"*. */}
           <Cartao tituloId="bloco-detalhes">
@@ -744,6 +719,32 @@ export default async function Ocorrencia({
                 <dt className="font-medium">Quando</dt>
                 {/* **Com fuso, e não `toLocaleString` cru.** O Server Component roda em UTC. */}
                 <dd className="font-mono">{dataEHora(detalhe.registradaEm)}</dd>
+
+                {/* **A última mudança, como última linha de Detalhes** (item 66). Continua subida do
+                    bloco 3, e é o que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do
+                    `OcorrenciaDetalhe`. O atalho para a linha do tempo fica, porque no celular a linha do
+                    tempo está bem abaixo. */}
+                <dt className="font-medium">Última mudança</dt>
+                <dd className="flex flex-col gap-1">
+                  <span className="text-tinta-fraca text-meta">
+                    {autoria(
+                      detalhe.ultimaTransicao.autor.nome,
+                      detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
+                      dataEHora(detalhe.ultimaTransicao.ocorreuEm),
+                    )}
+                  </span>
+                  {detalhe.ultimaTransicao.observacao !== null && (
+                    <span className="text-tinta-suave text-corpo whitespace-pre-line">
+                      {`“${detalhe.ultimaTransicao.observacao}”`}
+                    </span>
+                  )}
+                  <a
+                    href="#linha-do-tempo"
+                    className="text-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
+                  >
+                    ver a linha do tempo →
+                  </a>
+                </dd>
               </dl>
             </CorpoDoCartao>
           </Cartao>

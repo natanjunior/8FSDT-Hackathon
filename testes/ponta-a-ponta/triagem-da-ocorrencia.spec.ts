@@ -364,6 +364,8 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // Nulo escreve *"sem responsável"*, que é a palavra que a lista já usa — não se inventa um terceiro texto.
   await expect(identidade(helena)).toContainText("sem responsável");
   await expect(identidade(helena)).toContainText(categoriaDeA);
+  // **A última mudança é a última linha de Detalhes desde o item 66**, e não mais um bloco próprio.
+  await expect(identidade(helena)).toContainText("Última mudança");
 
   // **A etiqueta da foto é persistente, e não vive na passagem do ponteiro** — critério 6, segunda metade:
   // no toque não há ponteiro, e sem ela não haveria pista de que a foto abre.
@@ -377,7 +379,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByRole("heading", { name: "Mensagens 0" })).toBeVisible();
   await expect(helena.getByLabel(/^Escrever para os Gestores/u)).toBeVisible();
   cobre(test.info(), "4.1 · 8", {
-    falta: "o bloco Última mudança, o texto do relato, a foto abrindo em outra aba e o botão Enviar",
+    falta: "o texto do relato, a foto abrindo em outra aba e o botão Enviar",
   });
 
   // -------------------------------------------------------------------------

@@ -2030,4 +2030,18 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     // O parâmetro sai da URL ao abrir, por `replaceState`, sem ida ao servidor (desvio D1 do plano).
     expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).toContain("history.replaceState");
   });
+
+  it("a última mudança é a última linha de Detalhes, e não um bloco (item 66)", () => {
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toMatch(/<h2[^>]*>\s*Última mudança/u);
+    expect(pagina).toMatch(/<dt className="font-medium">Última mudança<\/dt>/u);
+    // É a última linha: entre ela e o `</dl>` não entra outro `<dt`. **`indexOf` devolve `-1` quando não
+    // há mais nenhum `<dt` no arquivo**, que é o caso hoje e satisfaz a exigência com folga — comparar
+    // `-1` com a posição do `</dl>` diria o contrário.
+    const inicio = pagina.indexOf("Última mudança</dt>");
+    const fimDaLista = pagina.indexOf("</dl>", inicio);
+    const proximoDt = pagina.indexOf("<dt", inicio);
+    expect(fimDaLista).toBeGreaterThan(inicio);
+    expect(proximoDt === -1 || proximoDt > fimDaLista).toBe(true);
+  });
 });
