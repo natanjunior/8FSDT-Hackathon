@@ -487,7 +487,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await criarOrganizacao(c, ORGANIZACAO_C);
   cobre(test.info(), "6.1 · 2", {
     falta:
-      "a frase «Administra um condomínio…», a cor do botão de criar, a ausência da nota «campo obrigatório» e a lista de ocorrências vazia no fim",
+      "o convite ao lado do cartão e a régua do «ou», a cor do botão de criar, a ausência da nota «campo obrigatório» e a lista de ocorrências vazia no fim",
   });
   const codigoDeC = await lerCodigoPublico(c);
   expect(codigoDeC).toMatch(/^[A-Z0-9]{6,12}$/u);

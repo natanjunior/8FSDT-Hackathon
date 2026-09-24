@@ -2182,6 +2182,27 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).toContain('<h2 id={ID_DO_CONVITE} className="text-titulo-bloco');
   });
 
+  it("a face A convida a fundar à direita, e só ela tem convite em T-02 (critério 65.1)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect([...fonte.matchAll(/convite=\{\{/gu)]).toHaveLength(1);
+    expect(fonte).toContain('lado: "direita"');
+    expect(fonte).toContain('titulo="Sua organização ainda não usa o Resolve Aí?"');
+    expect(fonte).toContain('rotulo="Criar uma organização"');
+    expect(fonte).not.toContain("Administra um condomínio");
+    // O nome do link é o que dois testes de ponta a ponta seguem.
+    expect([...fonte.matchAll(/href="\/organizacao\/criar"/gu)]).toHaveLength(1);
+  });
+
+  it("a tela de criar convida a entrar à esquerda, e troca o Voltar pelo Sair", () => {
+    const fonte = ler("app/organizacao/criar/page.tsx");
+    expect(fonte).toContain('lado: "esquerda"');
+    expect(fonte).toContain('titulo="Recebeu um código?"');
+    expect(fonte).toContain('rotulo="Entrar com um código"');
+    expect(fonte).toContain('href="/organizacao"');
+    expect(fonte).toContain("caminhos={<CaminhoDeSair />}");
+    expect(fonte).not.toMatch(/>\s*Voltar\s*</u);
+  });
+
   it("nenhum tamanho fora dos sete papéis e nenhum controle cru nos arquivos novos do 65", () => {
     for (const caminho of [CAMPO_DE_CODIGO, CONVITE, MOLDURA_DE_CONTA]) {
       const fonte = ler(caminho);
