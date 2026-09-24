@@ -872,6 +872,61 @@ describe("o relógio de atualização é do banco (item 68b)", () => {
     expect(depois!.atualizado_em.getTime()).toBe(antes!.atualizado_em.getTime());
   });
 
+  /** Cada caso cria a própria pessoa, para não depender da ordem nem do que os outros alteraram. */
+  async function pessoaNova(nome: string): Promise<string> {
+    const criado = await repositorio().cadastrar({
+      nome,
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error(`cadastro falhou: ${criado.desfecho}`);
+    return criado.vinculo.pessoa.pessoaId;
+  }
+
+  it("as duas nulas devolvem nulo: greatest ignora nulo e só devolve nulo quando todos são", async () => {
+    const criado = await repositorio().cadastrar({
+      nome: "Recém-Cadastrado sem Alteração",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    expect(criado.desfecho).toBe("cadastrado");
+    if (criado.desfecho !== "cadastrado") return;
+
+    // A pessoa nasce com `pessoas.atualizado_em` igual a `criado_em` (o `nullif` a anula) e o vínculo
+    // nasce com `atualizado_em` nulo. As duas nulas: o `greatest` devolve nulo.
+    expect(criado.vinculo.atualizadoEm).toBeNull();
+    const lido = await repositorio().porPessoa(criado.vinculo.pessoa.pessoaId);
+    expect(lido!.atualizadoEm).toBeNull();
+  });
+
+  it("corrigir só o nome move o valor lido, porque quem anda é o relógio da pessoa", async () => {
+    const pessoaId = await pessoaNova("Zelador a Renomear");
+    await repositorio().corrigir({ pessoaId, nome: "Zelador Renomeado" });
+    const depois = await repositorio().porPessoa(pessoaId);
+    expect(depois!.atualizadoEm).not.toBeNull();
+  });
+
+  it("corrigir só a unidade move o valor lido, porque quem anda é o relógio do vínculo", async () => {
+    const pessoaId = await pessoaNova("Zelador a Realocar");
+    await repositorio().corrigir({ pessoaId, areaId: AREA_ATIVA });
+    const depois = await repositorio().porPessoa(pessoaId);
+    expect(depois!.atualizadoEm).not.toBeNull();
+  });
+
+  it("a correção na forma que a tela manda move o valor lido", async () => {
+    const pessoaId = await pessoaNova("Zelador da Tela");
+    await repositorio().corrigir({
+      pessoaId,
+      nome: "Zelador da Tela, Corrigido",
+      areaId: AREA_ATIVA,
+      contatos: [],
+    });
+    const depois = await repositorio().porPessoa(pessoaId);
+    expect(depois!.atualizadoEm).not.toBeNull();
+  });
+
   it("alterar o nome de verdade carimba a pessoa", async () => {
     const [antes] = await consulta<{ atualizado_em: Date }>(
       `select atualizado_em from pessoas where id = $1`,

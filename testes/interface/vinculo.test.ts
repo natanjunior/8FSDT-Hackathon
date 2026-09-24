@@ -143,6 +143,7 @@ function VINCULO(
     area: null,
     temConta: true,
     criadoEm: "2026-03-02T12:00:00.000Z",
+    atualizadoEm: null,
     ...resto,
   };
 }

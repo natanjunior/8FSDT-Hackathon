@@ -349,10 +349,18 @@ async function lerVinculos(
   consulta: ConsultaEscopada,
   pessoaId: string | null,
 ): Promise<readonly VinculoLido[]> {
+  // **A última atualização do participante é a MAIOR das duas**, a da pessoa e a do vínculo (item 68b).
+  // `greatest` no PostgreSQL ignora nulo e só devolve nulo quando todos os argumentos são nulos — é
+  // divergência conhecida em relação ao padrão SQL, e é o que se quer aqui.
+  // `nullif(p.atualizado_em, p.criado_em)` é como se lê *"a pessoa nunca foi alterada"*: a coluna é
+  // `not null default now()`, e `now()` é o instante da transação, então numa linha recém-criada as duas
+  // são iguais ao microssegundo. **Limitação declarada:** pessoa criada E alterada na mesma transação
+  // leria como nunca alterada. Nenhum caminho do produto faz isso.
   const linhas = await consulta<{
     pessoa_id: string;
     papel: string;
     criado_em: Date;
+    atualizado_em: Date | null;
     pessoa_nome: string;
     tem_conta: boolean;
     area_id: string | null;
@@ -362,6 +370,7 @@ async function lerVinculos(
     `select v.pessoa_id,
             v.papel,
             v.criado_em,
+            greatest(nullif(p.atualizado_em, p.criado_em), v.atualizado_em) as atualizado_em,
             p.nome                        as pessoa_nome,
             (p.usuario_id is not null)    as tem_conta,
             a.id                          as area_id,
@@ -449,6 +458,7 @@ async function lerVinculos(
       area,
       temConta: linha.tem_conta,
       criadoEm: linha.criado_em.toISOString(),
+      atualizadoEm: linha.atualizado_em === null ? null : linha.atualizado_em.toISOString(),
     };
   });
 }
