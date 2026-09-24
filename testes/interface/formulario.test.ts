@@ -1816,3 +1816,49 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     }
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 64 — a varredura de botão, ícone e rótulo
+ * ============================================================================
+ *
+ * Guardas sobre a fonte, no precedente dos itens 44g a 44q: cada troca da validação de 23/09/2026 no
+ * componente que a serve. **Principal é a cor da marca** (guia §2), e a variante padrão do catálogo é
+ * `bg-primary`, tinta escura.
+ */
+describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
+  it("Entrar, Criar conta e Pedir entrada são o botão principal (trocas 1, 2 e 4)", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
+    ]) {
+      expect(ler(caminho), caminho).toMatch(/<Button\s+type="submit"\s+variant="marca"/u);
+    }
+  });
+
+  it("Entrar e Criar conta ocupam a largura do cartão, e Pedir entrada não (troca 3)", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+    ]) {
+      expect(ler(caminho), caminho).toMatch(/<RodapeDoFormulario[^>]*\blarguraCheia\b/u);
+    }
+    expect(ler("src/interface/componentes/formulario-de-pedido-de-entrada.tsx")).not.toContain("larguraCheia");
+
+    const campo = ler("src/interface/componentes/campo.tsx");
+    // O ramo de sempre fica como estava (critério 44q.3 afirma a cadeia dele).
+    expect(campo).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
+    expect(campo).toContain('"flex flex-col gap-2.5"');
+  });
+
+  it("Editar de /meus-dados e de /configuracao é o botão principal, e é um componente só (troca 5)", () => {
+    const fonte = ler("src/interface/componentes/edicao-de-nome.tsx");
+    const gatilho = fonte.slice(fonte.indexOf("gatilho={"), fonte.indexOf("rodape={"));
+    expect(gatilho).toContain('variant="marca"');
+    expect(gatilho).not.toContain('variant="outline"');
+    for (const tela of ["app/(casca)/meus-dados/page.tsx", "app/(casca)/configuracao/page.tsx"]) {
+      expect(ler(tela), tela).toContain("<EdicaoDeNome");
+    }
+  });
+});

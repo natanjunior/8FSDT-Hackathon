@@ -91,11 +91,11 @@ export function FormularioDeEntrada({
           )}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={2} todosObrigatorios>
+        <RodapeDoFormulario obrigatorios={2} todosObrigatorios larguraCheia>
           {/* O alvo é o piso do guia §4, 44 px — o mesmo de T-04. É a pessoa com uma mão no corrimão, o
               cenário literal do RNF6, e duas alturas para o mesmo controle era a divergência que o guia
-              existe para tirar. */}
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+              existe para tirar. **Principal e na largura do cartão** desde o item 64. */}
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 w-full px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Entrando…" : "Entrar"}
           </Button>
