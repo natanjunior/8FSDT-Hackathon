@@ -15,18 +15,40 @@ import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
+  corteDeTopo,
+  fraseDoResto,
   rotuloDaDupla,
   SEM_DUPLA_RECORRENTE,
 } from "@/interface/componentes/duplas-recorrentes";
-import { linhasDoFluxoMensal, textoDoFluxoMensal } from "@/interface/componentes/fluxo-mensal";
 import {
+  linhasDoFluxoMensal,
+  mesParcial,
+  nomeCompletoDoMes,
+  saldoDoPeriodo,
+  vereditoDoFluxo,
+  type LinhaDoFluxoMensal,
+} from "@/interface/componentes/fluxo-mensal";
+import {
+  dias,
+  parteDoTotal,
+  rodapeDaIdade,
   rotuloDaFaixaDeIdade,
-  textoDaIdadeEmAberto,
+  totalEmAberto,
+  vereditoDaIdade,
 } from "@/interface/componentes/idade-em-aberto";
 import {
-  itemDoTempoDeResolucao,
+  denominadorDaSatisfacao,
+  rotuloDaNota,
+  segundoTermoDoEmAberto,
+  segundoTermoDoSaldo,
+  textoDoSaldo,
+  textoDoValorDaCategoria,
+} from "@/interface/componentes/indicadores-do-painel";
+import {
+  celulasDoTempo,
   SEM_RESOLUCAO_NO_MES,
-  textoDoTempoDeResolucao,
+  unidadeDoEixo,
+  vereditoDoTempo,
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
@@ -245,14 +267,27 @@ const LIDO: DashboardLido = {
     { status: "resolvida", quantidade: 14 },
     { status: "cancelada", quantidade: 2 },
   ],
-  abertasPorCategoria: [{ categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 }],
+  abertasPorCategoria: [
+    { categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7, envelhecidas: 3 },
+  ],
   abertasPorIdade: [
     { deDias: 0, ateDias: 7, quantidade: 12 },
     { deDias: 8, ateDias: 30, quantidade: 5 },
     { deDias: 31, ateDias: 90, quantidade: 2 },
     { deDias: 91, ateDias: null, quantidade: 1 },
   ],
-  mediaDasAvaliacoes: { media: 4.2, avaliadas: 6, resolvidas: 14 },
+  mediaDasAvaliacoes: {
+    media: 4.2,
+    avaliadas: 6,
+    resolvidas: 14,
+    distribuicao: [
+      { nota: 1, quantidade: 0 },
+      { nota: 2, quantidade: 0 },
+      { nota: 3, quantidade: 1 },
+      { nota: 4, quantidade: 3 },
+      { nota: 5, quantidade: 2 },
+    ],
+  },
   recorrenciaPorCategoria: [
     { categoria: { id: "c-1", nome: "Vazamento" }, porMes: [{ mes: "2026-06", quantidade: 6 }] },
   ],
@@ -277,6 +312,12 @@ const LIDO: DashboardLido = {
   tempoDeResolucao: {
     porMes: [{ mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 }],
   },
+  canceladasPorMes: [{ mes: "2026-06", quantidade: 2 }],
+  emAbertoNoInicio: 11,
+  maisVelhasEmAberto: [
+    { id: "o-1", titulo: "Portão travado", status: "pausada", idadeEmDias: 120 },
+    { id: "o-2", titulo: "Lâmpada do hall", status: "em_atendimento", idadeEmDias: 45 },
+  ],
 };
 
 describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
@@ -305,7 +346,7 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
 
   it("o bloco por categoria atravessa com o nome que diz o que ele conta", () => {
     expect(projetarDashboard(LIDO).abertasPorCategoria).toStrictEqual([
-      { categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7 },
+      { categoria: { id: "c-1", nome: "Vazamento" }, quantidade: 7, envelhecidas: 3 },
     ]);
   });
 
@@ -350,10 +391,35 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
   it("o periodo é ecoado, e os três blocos de número atravessam sem alteração", () => {
     const projetado = projetarDashboard(LIDO);
     expect(projetado.periodo).toStrictEqual({ de: "2026-06-01", ate: "2026-08-29" });
-    expect(projetado.mediaDasAvaliacoes).toStrictEqual({ media: 4.2, avaliadas: 6, resolvidas: 14 });
+    expect(projetado.mediaDasAvaliacoes).toStrictEqual({
+      media: 4.2,
+      avaliadas: 6,
+      resolvidas: 14,
+      distribuicao: LIDO.mediaDasAvaliacoes.distribuicao,
+    });
     expect(projetado.tempoDeResolucao.porMes).toStrictEqual([
       { mes: "2026-06", mediana: 12, p90: 72, amostra: null, resolvidas: 5 },
     ]);
+  });
+
+  /** O rótulo depende de quem lê, e a lente do painel é a do Gestor — como no backlog por status. */
+  it("as mais velhas ganham o statusRotulo do Gestor", () => {
+    expect(
+      projetarDashboard(LIDO).maisVelhasEmAberto.map((o) => [o.status, o.statusRotulo]),
+    ).toStrictEqual([
+      ["pausada", "Pausada"],
+      ["em_atendimento", "Em atendimento"],
+    ]);
+  });
+
+  it("a distribuição, as envelhecidas, as canceladas e o início atravessam sem alteração", () => {
+    const projetado = projetarDashboard(LIDO);
+    expect(projetado.mediaDasAvaliacoes.distribuicao).toStrictEqual(
+      LIDO.mediaDasAvaliacoes.distribuicao,
+    );
+    expect(projetado.abertasPorCategoria[0]?.envelhecidas).toBe(3);
+    expect(projetado.canceladasPorMes).toStrictEqual([{ mes: "2026-06", quantidade: 2 }]);
+    expect(projetado.emAbertoNoInicio).toBe(11);
   });
 });
 
@@ -446,225 +512,279 @@ describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero 
 
 /**
  * ---------------------------------------------------------------------------
- *  A linha do mês do quadro 4 — item 58, critérios 58.3, 58.4 e 58.5
+ *  O quadro 3 — o eixo, o veredito e a tabela do tempo de resolução (item 73)
  * ---------------------------------------------------------------------------
  *
- * **A função é testada sozinha, e não através da tela.** Três formas de linha, um plural, uma junção por
- * vírgula e a decisão de qual forma usar não cabem dentro do `.map` de um Server Component — é o mesmo
- * argumento do item 57: *"derivação dentro de um componente é derivação que nenhum teste do laço curto
- * alcança"*.
- *
- * **A formatação de unidade não é reescrita aqui.** Ela é `duracaoEmTexto`, do item 55, chamada uma, duas
- * ou três vezes conforme a forma.
+ * **As funções são testadas sozinhas, e não através da tela**, pelo argumento do item 57: derivação
+ * dentro de um componente é derivação que nenhum teste do laço curto alcança. A unidade continua sendo
+ * `duracaoEmTexto`, do item 55, chamada.
  */
-describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mostra os valores crus", () => {
-  const mes = (parcial: Partial<MesDoTempoDeResolucao>): MesDoTempoDeResolucao => ({
-    mediana: null,
-    p90: null,
-    amostra: null,
-    resolvidas: 0,
-    ...parcial,
-  });
+const mesDoTempo = (
+  parcial: Partial<MesDoTempoDeResolucao> & { mes: string },
+): MesDoTempoDeResolucao => ({
+  mediana: null,
+  p90: null,
+  amostra: null,
+  resolvidas: 0,
+  ...parcial,
+});
 
-  it("com quatro ou mais, escreve mediana e p90 rotulados — os rótulos são obrigatórios", () => {
-    expect(textoDoTempoDeResolucao(mes({ mediana: 0.2, p90: 50.4, resolvidas: 11 }))).toBe(
-      "mediana 12 min · p90 2,1 dias · 11 resolvidas",
-    );
-  });
-
-  it("com quatro cravado, já é a forma de cima — é o primeiro mês acima do teto", () => {
-    expect(textoDoTempoDeResolucao(mes({ mediana: 1, p90: 2, resolvidas: 4 }))).toBe(
-      "mediana 1 h · p90 2 h · 4 resolvidas",
-    );
-  });
-
-  it("com três ou menos, escreve as durações uma a uma e NÃO repete a mediana rotulada", () => {
-    expect(
-      textoDoTempoDeResolucao(mes({ mediana: 0.2, amostra: [0.1, 0.2, 72], resolvidas: 3 })),
-    ).toBe("6 min, 12 min, 3,0 dias · 3 resolvidas");
-  });
-
-  it("com UMA resolução, o denominador vai no singular e a lista tem um valor", () => {
-    expect(textoDoTempoDeResolucao(mes({ mediana: 0.1, amostra: [0.1], resolvidas: 1 }))).toBe(
-      "6 min · 1 resolvida",
-    );
-  });
-
-  it("dois minutos continuam dois minutos — critério 55.2", () => {
-    expect(textoDoTempoDeResolucao(mes({ mediana: 0.03, amostra: [0.03], resolvidas: 1 }))).toBe(
-      "2 min · 1 resolvida",
-    );
-  });
-
-  it("mediana e p90 iguais escrevem o mesmo número duas vezes, e isso é correto", () => {
-    expect(textoDoTempoDeResolucao(mes({ mediana: 3, p90: 3, resolvidas: 7 }))).toBe(
-      "mediana 3 h · p90 3 h · 7 resolvidas",
-    );
-  });
-
-  it("o mês grande da Aurora, todo abaixo de um minuto, escreve o piso nos dois números — e não o travessão", () => {
-    expect(
-      textoDoTempoDeResolucao(mes({ mediana: 0.0031, p90: 0.0083, resolvidas: 44 })),
-    ).toBe("mediana menos de 1 min · p90 menos de 1 min · 44 resolvidas");
-  });
-
-  it("o mês pequeno mistura as três grandezas sem perder nenhuma", () => {
-    expect(
-      textoDoTempoDeResolucao(mes({ mediana: 0.05, amostra: [0.004, 0.05, 72], resolvidas: 3 })),
-    ).toBe("menos de 1 min, 3 min, 3,0 dias · 3 resolvidas");
-  });
-
-  it("sem resolução, o travessão e o denominador em zero — critério 36.2, intacto", () => {
-    expect(textoDoTempoDeResolucao(mes({}))).toBe("— · 0 resolvidas");
-    expect(textoDoTempoDeResolucao(mes({})).startsWith(SEM_DURACAO)).toBe(true);
+describe("unidadeDoEixo — segue a magnitude do maior valor desenhado", () => {
+  it.each([
+    [0.5, { divisor: 1 / 60, sufixo: "min" }],
+    [12, { divisor: 1, sufixo: "h" }],
+    [604, { divisor: 24, sufixo: "d" }],
+  ])("%f h → %o", (maior, esperado) => {
+    expect(unidadeDoEixo(maior)).toStrictEqual(esperado);
   });
 });
 
-/**
- * O item 61 — **a barra do quadro 4 é a mediana, em toda linha que tem barra**, e o caso é o medido no
- * Recanto Azul em 23/09/2026: julho com três resoluções e mediana de 6,1 dias, agosto com uma de 5,2.
- * **Os números vão em HORAS**, que é a unidade de `MesDoTempoDeResolucao`; o texto em dias sai de
- * `duracaoEmTexto`, e a asserção do texto prova que o caso é o mesmo que a tela mostrou.
- *
- * **Este teste passa também com o código de antes do item**, e é de propósito que isso está escrito: a
- * quantidade já era a mediana. O defeito era de desenho, o trilho de julho mais curto que o de agosto, e
- * o projeto `unitario` roda sem DOM. Quem pega o defeito é a medição em pixels de
- * `dashboard-e-paginacao.spec.ts`; este guarda a escolha do critério 61.1 contra regressão.
- */
-describe("o item de cada mês do quadro 4 — a barra desenha a mediana (item 61)", () => {
-  // Em horas: 125 h, 146 h e 247 h são 5,2, 6,1 e 10,3 dias; 124 h são 5,2 dias.
-  const julho: MesDoTempoDeResolucao = {
-    mediana: 146,
-    p90: null,
-    amostra: [125, 146, 247],
-    resolvidas: 3,
-  };
-  const agosto: MesDoTempoDeResolucao = { mediana: 124, p90: null, amostra: [124], resolvidas: 1 };
-
-  it("julho, de mediana maior, desenha mais que agosto — o caso medido do critério 61.2", () => {
-    const itemDeJulho = itemDoTempoDeResolucao(julho, "jul");
-    const itemDeAgosto = itemDoTempoDeResolucao(agosto, "ago");
-    expect(itemDeJulho.texto).toBe("5,2 dias, 6,1 dias, 10,3 dias · 3 resolvidas");
-    expect(itemDeAgosto.texto).toBe("5,2 dias · 1 resolvida");
-    expect(itemDeJulho.quantidade).toBeGreaterThan(itemDeAgosto.quantidade);
+describe("vereditoDoTempo — o mês mais recente que teve resolução", () => {
+  it("com p90", () => {
+    expect(
+      vereditoDoTempo(
+        [
+          mesDoTempo({ mes: "2026-08", mediana: 137, p90: 326, resolvidas: 14 }),
+          mesDoTempo({ mes: "2026-09", mediana: 76.8, p90: 237.6, resolvidas: 5 }),
+        ],
+        false,
+      ),
+    ).toBe(
+      "Em setembro, metade das resoluções levou até 3,2 dias, e uma em cada dez levou mais de 9,9 dias.",
+    );
   });
 
-  it("a quantidade é a mediana, e o texto é a linha do mês, sem nada inventado no meio", () => {
-    expect(itemDoTempoDeResolucao(julho, "jul")).toEqual({
-      rotulo: "jul",
-      quantidade: 146,
-      texto: textoDoTempoDeResolucao(julho),
-    });
+  it("com amostra pequena", () => {
+    expect(
+      vereditoDoTempo(
+        [mesDoTempo({ mes: "2026-09", mediana: 25.5, p90: null, amostra: [3, 48], resolvidas: 2 })],
+        false,
+      ),
+    ).toBe("Em setembro houve 2 resoluções: 3 h e 48 h.");
   });
 
-  it("com duas resoluções a barra é o ponto médio, que o texto não escreve — o rodapé diz o que ela é", () => {
-    const dois: MesDoTempoDeResolucao = { mediana: 144, p90: null, amostra: [120, 168], resolvidas: 2 };
-    expect(itemDoTempoDeResolucao(dois, "set").quantidade).toBe(144);
+  it("pula o mês vazio no fim", () => {
+    const meses = [
+      mesDoTempo({ mes: "2026-08", mediana: 3, p90: null, amostra: [3], resolvidas: 1 }),
+      mesDoTempo({ mes: "2026-09" }),
+    ];
+    expect(vereditoDoTempo(meses, false)).toBe("Em agosto houve 1 resolução: 3 h.");
   });
 
-  it("sem resolução, nenhuma barra: a frase no lugar dela, e o travessão no texto — critério 61.3", () => {
-    const vazio: MesDoTempoDeResolucao = { mediana: null, p90: null, amostra: null, resolvidas: 0 };
-    expect(itemDoTempoDeResolucao(vazio, "jun")).toEqual({
-      rotulo: "jun",
-      quantidade: 0,
-      vazio: SEM_RESOLUCAO_NO_MES,
-      texto: "— · 0 resolvidas",
+  it("nenhuma resolução no período", () => {
+    expect(vereditoDoTempo([mesDoTempo({ mes: "2026-09" })], false)).toBe(
+      "Nenhuma resolução no período.",
+    );
+  });
+
+  it("leva o ano quando o eixo atravessa a virada", () => {
+    expect(
+      vereditoDoTempo(
+        [mesDoTempo({ mes: "2025-12", mediana: 3, p90: null, amostra: [3], resolvidas: 1 })],
+        true,
+      ),
+    ).toBe("Em dezembro de 2025 houve 1 resolução: 3 h.");
+  });
+});
+
+describe("celulasDoTempo — as colunas da tabela do Ver dados", () => {
+  it("o mês vazio escreve a frase do contrato", () => {
+    expect(celulasDoTempo(mesDoTempo({ mes: "2026-06" })).mediana).toBe(SEM_RESOLUCAO_NO_MES);
+  });
+
+  it("o mês pequeno escreve as durações no lugar do p90", () => {
+    expect(
+      celulasDoTempo(
+        mesDoTempo({ mes: "2026-09", mediana: 25.5, p90: null, amostra: [3, 48], resolvidas: 2 }),
+      ).p90,
+    ).toBe("durações: 3 h e 48 h");
+  });
+
+  it("o mês grande escreve mediana e p90 pela mesma função de duração", () => {
+    expect(
+      celulasDoTempo(mesDoTempo({ mes: "2026-08", mediana: 0.2, p90: 50.4, resolvidas: 11 })),
+    ).toStrictEqual({ mediana: "12 min", p90: "2,1 dias", resolvidas: "11" });
+  });
+
+  it("o mês vazio tem o travessão no p90 e zero resoluções", () => {
+    expect(celulasDoTempo(mesDoTempo({ mes: "2026-06" }))).toStrictEqual({
+      mediana: SEM_RESOLUCAO_NO_MES,
+      p90: SEM_DURACAO,
+      resolvidas: "0",
     });
   });
 });
 
 /**
  * ---------------------------------------------------------------------------
- *  O cruzamento mensal do bloco 1 — item 57, critérios 57.1 e 57.7
+ *  O quadro 1 — entradas, saídas, saldo e mês parcial (item 73)
  * ---------------------------------------------------------------------------
  *
- * **A função é testada sozinha, e é o critério 1 na letra:** *"a derivação mora onde o teste alcança, não
- * dentro do componente de cliente"*. O projeto `unitario` roda em `environment: "node"`, e um teste que
- * precisasse montar componente não alcançaria nada.
- *
- * **Ela não ordena e não preenche mês.** As duas coisas já aconteceram na Aplicação, e
- * `testes/aplicacao/dashboard.test.ts` as afirma lá. Aqui só se afirma o cruzamento.
+ * **A função é testada sozinha**, e é o critério 57.1 na letra: *"a derivação mora onde o teste alcança,
+ * não dentro do componente de cliente"*. Ela não ordena e não preenche mês; as duas coisas já aconteceram
+ * na Aplicação.
  */
-describe("o cruzamento mensal do bloco 1 — quanto entrou e quanto saiu", () => {
-  const serie = (...quantidades: number[]) => ({
-    porMes: quantidades.map((quantidade) => ({ quantidade })),
+const NOVENTA = { de: "2026-06-27", ate: "2026-09-24" };
+
+const linhaDoFluxo = (
+  parcial: Partial<LinhaDoFluxoMensal> & { mes: string },
+): LinhaDoFluxoMensal => ({
+  rotulo: parcial.mes,
+  parcial: false,
+  registradas: 0,
+  resolvidas: 0,
+  canceladas: 0,
+  saidas: 0,
+  saldo: 0,
+  ...parcial,
+});
+
+describe("nomeCompletoDoMes — o nome inteiro, com o ano na virada", () => {
+  it("agosto, sem ano", () => {
+    expect(nomeCompletoDoMes("2026-08", false)).toBe("agosto");
   });
-  const resolucoes = (...quantidades: number[]) =>
-    quantidades.map((resolvidas) => ({ resolvidas }));
 
-  const MESES = ["jun", "jul"] as const;
-
-  it("três registradas e cinco resolvidas em junho — o critério 57.7, literal", () => {
-    const linhas = linhasDoFluxoMensal(
-      [serie(2, 4), serie(1, 3)],
-      resolucoes(5, 2),
-      ["jun", "jul"],
-    );
-
-    expect(linhas[0]).toStrictEqual({ mes: "jun", registradas: 3, resolvidas: 5 });
+  it("dezembro de 2025, com ano", () => {
+    expect(nomeCompletoDoMes("2025-12", true)).toBe("dezembro de 2025");
   });
+});
 
-  it("a soma é por mês, e nunca do período — cada mês fecha com as séries daquele mês", () => {
-    const linhas = linhasDoFluxoMensal(
-      [serie(2, 4), serie(1, 3), serie(0, 1)],
-      resolucoes(5, 2),
-      MESES,
-    );
+describe("mesParcial — a janela corta o mês", () => {
+  it.each([
+    ["2026-06", NOVENTA, true], // começa no dia 27
+    ["2026-07", NOVENTA, false],
+    ["2026-09", NOVENTA, true], // termina no dia 24
+    ["2026-02", { de: "2026-02-01", ate: "2026-02-28" }, false], // fevereiro inteiro, sem bissexto
+    ["2024-02", { de: "2024-02-01", ate: "2024-02-28" }, true], // bissexto: falta o 29
+  ] as const)("%s em %o é parcial: %s", (mes, periodo, esperado) => {
+    expect(mesParcial(mes, periodo)).toBe(esperado);
+  });
+});
 
-    expect(linhas).toStrictEqual([
-      { mes: "jun", registradas: 3, resolvidas: 5 },
-      { mes: "jul", registradas: 8, resolvidas: 2 },
+describe("as linhas do fluxo — entradas, saídas e saldo por mês", () => {
+  const series = [
+    {
+      porMes: [
+        { mes: "2026-06", quantidade: 2 },
+        { mes: "2026-07", quantidade: 19 },
+      ],
+    },
+    {
+      porMes: [
+        { mes: "2026-06", quantidade: 0 },
+        { mes: "2026-07", quantidade: 3 },
+      ],
+    },
+  ];
+  const resolucoes = [
+    { mes: "2026-06", resolvidas: 0 },
+    { mes: "2026-07", resolvidas: 18 },
+  ];
+  const canceladas = [
+    { mes: "2026-06", quantidade: 1 },
+    { mes: "2026-07", quantidade: 2 },
+  ];
+  const periodo = { de: "2026-06-27", ate: "2026-07-31" };
+
+  it("soma as séries no que entrou, e resolvidas mais canceladas no que saiu", () => {
+    expect(linhasDoFluxoMensal(series, resolucoes, canceladas, periodo)).toStrictEqual([
+      {
+        mes: "2026-06",
+        rotulo: "jun*",
+        parcial: true,
+        registradas: 2,
+        resolvidas: 0,
+        canceladas: 1,
+        saidas: 1,
+        saldo: 1,
+      },
+      {
+        mes: "2026-07",
+        rotulo: "jul",
+        parcial: false,
+        registradas: 22,
+        resolvidas: 18,
+        canceladas: 2,
+        saidas: 20,
+        saldo: 2,
+      },
     ]);
   });
 
-  it("série de categoria mais curta que o eixo lê zero no mês que falta, e nunca `undefined`", () => {
-    // Uma `<Line>` com `undefined` num ponto desenha um buraco onde há um zero medido.
-    const linhas = linhasDoFluxoMensal([serie(6)], resolucoes(1, 1), MESES);
+  it("o mês com cancelamento e nenhuma resolução tem saída", () => {
+    const [junho] = linhasDoFluxoMensal(series, resolucoes, canceladas, periodo);
+    expect(junho?.saidas).toBe(1);
+  });
 
-    expect(linhas).toStrictEqual([
-      { mes: "jun", registradas: 6, resolvidas: 1 },
-      { mes: "jul", registradas: 0, resolvidas: 1 },
+  it("a soma da coluna saldo é o saldo do período", () => {
+    const linhas = linhasDoFluxoMensal(series, resolucoes, canceladas, periodo);
+    expect(saldoDoPeriodo(linhas)).toStrictEqual({ entraram: 24, sairam: 21, saldo: 3 });
+    expect(linhas.reduce((t, l) => t + l.saldo, 0)).toBe(saldoDoPeriodo(linhas).saldo);
+  });
+
+  it("o eixo que atravessa a virada leva o ano no rótulo", () => {
+    const virada = linhasDoFluxoMensal(
+      [
+        {
+          porMes: [
+            { mes: "2025-12", quantidade: 1 },
+            { mes: "2026-01", quantidade: 1 },
+          ],
+        },
+      ],
+      [
+        { mes: "2025-12", resolvidas: 0 },
+        { mes: "2026-01", resolvidas: 0 },
+      ],
+      [
+        { mes: "2025-12", quantidade: 0 },
+        { mes: "2026-01", quantidade: 0 },
+      ],
+      { de: "2025-12-15", ate: "2026-01-31" },
+    );
+    expect(virada.map((l) => l.rotulo)).toStrictEqual(["dez/25*", "jan/26"]);
+  });
+
+  it("sem categoria e sem cancelamento, uma linha por mês, todas a zero", () => {
+    expect(
+      linhasDoFluxoMensal([], resolucoes, [], periodo).map((l) => [l.registradas, l.saidas]),
+    ).toStrictEqual([
+      [0, 0],
+      [0, 18],
     ]);
   });
+});
 
-  it("sem categoria e sem resolução, uma linha por mês, todas a zero — a estrutura ensina o que vai ser medido", () => {
-    expect(linhasDoFluxoMensal([], [], MESES)).toStrictEqual([
-      { mes: "jun", registradas: 0, resolvidas: 0 },
-      { mes: "jul", registradas: 0, resolvidas: 0 },
-    ]);
+describe("vereditoDoFluxo — o último mês completo", () => {
+  it("fala do último mês inteiro, e não do parcial", () => {
+    const linhas = [
+      linhaDoFluxo({ mes: "2026-07", parcial: false, registradas: 19, saidas: 18 }),
+      linhaDoFluxo({ mes: "2026-08", parcial: false, registradas: 22, saidas: 18 }),
+      linhaDoFluxo({ mes: "2026-09", parcial: true, registradas: 74, saidas: 9 }),
+    ];
+    expect(vereditoDoFluxo(linhas)).toBe("Em agosto, o último mês completo, entraram 22 e saíram 18.");
   });
 
-  it("o eixo manda: resolução a mais que os rótulos não vira mês", () => {
-    const linhas = linhasDoFluxoMensal([serie(1)], resolucoes(1, 9), ["jun"]);
-
-    expect(linhas).toStrictEqual([{ mes: "jun", registradas: 1, resolvidas: 1 }]);
-  });
-
-  it("a janela de um mês só tem uma linha — é o que `De` e `Até` no mesmo mês produzem", () => {
-    expect(linhasDoFluxoMensal([serie(4)], resolucoes(2), ["jun"])).toStrictEqual([
-      { mes: "jun", registradas: 4, resolvidas: 2 },
-    ]);
-  });
-
-  it("a virada do ano chega pronta nos rótulos, e as chaves da lista continuam distintas", () => {
-    // `rotulosDosMeses` acrescenta o ano ao eixo inteiro quando a janela atravessa dezembro, e o rótulo
-    // é a chave de cada `<li>` da lista de meses.
-    const linhas = linhasDoFluxoMensal([serie(1, 2)], resolucoes(0, 3), ["dez/25", "jan/26"]);
-
-    expect(linhas.map((linha) => linha.mes)).toStrictEqual(["dez/25", "jan/26"]);
-    expect(new Set(linhas.map((linha) => linha.mes)).size).toBe(2);
-  });
-
-  it("o singular vale dos dois lados — `1 registrada · 1 resolvida`", () => {
-    expect(textoDoFluxoMensal({ mes: "jun", registradas: 1, resolvidas: 1 })).toBe(
-      "1 registrada · 1 resolvida",
+  it("sem mês completo, diz isso", () => {
+    expect(vereditoDoFluxo([linhaDoFluxo({ mes: "2026-09", parcial: true })])).toBe(
+      "O período não tem mês completo.",
     );
   });
 
-  it("o plural e o zero — `0 registradas · 5 resolvidas`", () => {
-    expect(textoDoFluxoMensal({ mes: "jun", registradas: 0, resolvidas: 5 })).toBe(
-      "0 registradas · 5 resolvidas",
+  it("leva o ano quando o eixo atravessa a virada", () => {
+    const linhas = [
+      linhaDoFluxo({ mes: "2025-12", parcial: false, registradas: 3, saidas: 1 }),
+      linhaDoFluxo({ mes: "2026-01", parcial: true }),
+    ];
+    expect(vereditoDoFluxo(linhas)).toBe(
+      "Em dezembro de 2025, o último mês completo, entraram 3 e saiu 1.",
     );
+  });
+
+  it("concorda em número: 1 entrou e 1 saiu", () => {
+    expect(
+      vereditoDoFluxo([linhaDoFluxo({ mes: "2026-08", parcial: false, registradas: 1, saidas: 1 })]),
+    ).toBe("Em agosto, o último mês completo, entrou 1 e saiu 1.");
   });
 });
 
@@ -704,46 +824,59 @@ describe("rotuloDaFaixaDeIdade — os dois números escritos em português", () 
   });
 });
 
-/** As quatro faixas do corte de hoje, com a quantidade da faixa mais velha por parâmetro. */
-const faixasCom = (naMaisVelha: number) => [
-  { deDias: 0, ateDias: 7, quantidade: 12 },
-  { deDias: 8, ateDias: 30, quantidade: 5 },
-  { deDias: 31, ateDias: 90, quantidade: 2 },
-  { deDias: 91, ateDias: null, quantidade: naMaisVelha },
+/** As quatro faixas do corte de hoje, com a quantidade de cada uma por parâmetro. */
+const faixas = (q0: number, q1: number, q2: number, q3: number) => [
+  { deDias: 0, ateDias: 7, quantidade: q0 },
+  { deDias: 8, ateDias: 30, quantidade: q1 },
+  { deDias: 31, ateDias: 90, quantidade: q2 },
+  { deDias: 91, ateDias: null, quantidade: q3 },
 ];
 
-describe("textoDaIdadeEmAberto — uma oração sempre, duas quando há o que apontar", () => {
-  const SEMPRE = "Há quanto tempo o que está em aberto espera, contando do registro.";
+/**
+ * **O veredito conta acima de 30, e a oração dos 90 é o 59.5**: a faixa mais velha, quando maior que
+ * zero, se distingue por palavra. Os dois números saem das faixas, e nenhum é escrito no módulo.
+ */
+describe("vereditoDaIdade — acima de 30, e a oração dos 90 quando há alguém", () => {
+  it.each([
+    [faixas(56, 18, 1, 0), "1 em aberto há mais de 30 dias."],
+    [faixas(56, 18, 2, 1), "3 em aberto há mais de 30 dias, e 1 delas há mais de 90."],
+    [faixas(5, 2, 0, 0), "Nenhuma em aberto há mais de 30 dias."],
+    [faixas(0, 0, 0, 0), "Nada em aberto agora."],
+  ])("%o → %s", (entrada, esperado) => {
+    expect(vereditoDaIdade(entrada)).toBe(esperado);
+  });
+});
 
-  it("com a faixa mais velha em zero, só a oração que diz o que o quadro mede — critério 6", () => {
-    expect(textoDaIdadeEmAberto(faixasCom(0))).toBe(SEMPRE);
+describe("rodapeDaIdade — o que o quadro mede, sempre (59.6)", () => {
+  it("escreve a primeira oração do 59 e o total", () => {
+    expect(rodapeDaIdade(faixas(56, 18, 1, 0))).toBe(
+      "Há quanto tempo o que está em aberto espera, contando do registro: 75 ao todo, nos quatro status não terminais.",
+    );
   });
 
-  it("a organização recém-criada, com tudo a zero, lê a mesma oração", () => {
-    const zeradas = faixasCom(0).map((faixa) => ({ ...faixa, quantidade: 0 }));
-    expect(textoDaIdadeEmAberto(zeradas)).toBe(SEMPRE);
+  it("escreve a mesma frase com zero", () => {
+    expect(rodapeDaIdade(faixas(0, 0, 0, 0))).toContain(": 0 ao todo");
+  });
+});
+
+describe("parteDoTotal — uma casa, e nada de divisão por zero", () => {
+  it.each([
+    [56, 75, "74,7%"],
+    [0, 75, "0,0%"],
+    [0, 0, "—"],
+  ])("%i de %i → %s", (q, total, esperado) => {
+    expect(parteDoTotal(q, total)).toBe(esperado);
+  });
+});
+
+describe("totalEmAberto e dias", () => {
+  it("o total é a soma das faixas — o número do cartão Em aberto agora", () => {
+    expect(totalEmAberto(faixas(56, 18, 1, 0))).toBe(75);
   });
 
-  it("uma na faixa mais velha: a palavra que distingue, no singular — critério 5", () => {
-    expect(textoDaIdadeEmAberto(faixasCom(1))).toBe(`${SEMPRE} 1 espera há mais de 90 dias.`);
-  });
-
-  it("quatro na faixa mais velha: o plural sai do número", () => {
-    expect(textoDaIdadeEmAberto(faixasCom(4))).toBe(`${SEMPRE} 4 esperam há mais de 90 dias.`);
-  });
-
-  it("a faixa mais velha é a ÚLTIMA do array, e não a que alguém procurar por `ateDias`", () => {
-    // O array vem ordenado por construção da Aplicação. Uma segunda regra de *qual é a mais velha* seria
-    // a segunda que envelhece — então a função lê a última, e esta linha é o que fixa isso.
-    const fora = [
-      { deDias: 91, ateDias: null, quantidade: 0 },
-      { deDias: 0, ateDias: 7, quantidade: 9 },
-    ];
-    expect(textoDaIdadeEmAberto(fora)).toBe(`${SEMPRE} 9 esperam há até 7 dias.`);
-  });
-
-  it("sem faixa nenhuma, a oração continua — a tela nunca fica sem a linha que explica", () => {
-    expect(textoDaIdadeEmAberto([])).toBe(SEMPRE);
+  it("um dia é um dia", () => {
+    expect(dias(1)).toBe("1 dia");
+    expect(dias(31)).toBe("31 dias");
   });
 });
 
@@ -788,5 +921,89 @@ describe("a dupla na tela — o rótulo, a chave e a frase de vazio", () => {
       "Nenhuma dupla se repetiu no período. Aqui aparece a mesma categoria voltando na mesma área, " +
         "a partir da segunda vez.",
     );
+  });
+});
+
+describe("corteDeTopo — as cinco, mais as empatadas com a quinta", () => {
+  const d = (...qs: number[]) => qs.map((quantidade, i) => ({ chave: String(i), quantidade }));
+
+  it("com os dados da validação: seis, e o resto com 5 ou menos", () => {
+    const { mostradas, restantes, maiorDasRestantes } = corteDeTopo(d(12, 10, 6, 6, 6, 6, 5, 4, 4, 3));
+    expect(mostradas).toHaveLength(6);
+    expect(restantes).toBe(4);
+    expect(maiorDasRestantes).toBe(5);
+  });
+
+  it("não corta o que cabe", () => {
+    expect(corteDeTopo(d(3, 2)).restantes).toBe(0);
+  });
+
+  it("empate que atravessa tudo mostra tudo", () => {
+    expect(corteDeTopo(d(2, 2, 2, 2, 2, 2, 2)).mostradas).toHaveLength(7);
+  });
+});
+
+describe("fraseDoResto", () => {
+  it.each([
+    [23, 5, "Mais 23 duplas com 5 ocorrências ou menos"],
+    [1, 2, "Mais 1 dupla com 2 ocorrências ou menos"],
+  ])("%i, %i → %s", (restantes, maior, esperado) => {
+    expect(fraseDoResto(restantes, maior)).toBe(esperado);
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  Os três cartões, a categoria e a satisfação — item 73
+ * ---------------------------------------------------------------------------
+ */
+describe("os três cartões", () => {
+  it.each([
+    [71, "+71"],
+    [-3, "−3"], // U+2212, o sinal de menos da tipografia, e não o hífen
+    [0, "0"],
+  ])("textoDoSaldo(%i) → %s", (saldo, esperado) => {
+    expect(textoDoSaldo(saldo)).toBe(esperado);
+  });
+
+  it("segundo termo do saldo, e a concordância", () => {
+    expect(segundoTermoDoSaldo({ entraram: 117, sairam: 46, saldo: 71 })).toBe(
+      "117 entraram, 46 saíram",
+    );
+    expect(segundoTermoDoSaldo({ entraram: 1, sairam: 0, saldo: 1 })).toBe("1 entrou, 0 saíram");
+  });
+
+  it("segundo termo do em aberto", () => {
+    expect(segundoTermoDoEmAberto(4)).toBe("eram 4 no início do período");
+    expect(segundoTermoDoEmAberto(1)).toBe("era 1 no início do período");
+    expect(segundoTermoDoEmAberto(0)).toBe("nenhuma no início do período");
+  });
+});
+
+describe("o valor da categoria — o segundo número em texto", () => {
+  it.each([
+    [7, 4, 7, "7 · 4 há mais de 7 dias"],
+    [9, 0, 7, "9 · nenhuma há mais de 7 dias"],
+    [0, 0, 7, "0"],
+  ])("%i, %i, %i → %s", (q, env, limite, esperado) => {
+    expect(textoDoValorDaCategoria(q, env, limite)).toBe(esperado);
+  });
+});
+
+describe("a satisfação", () => {
+  it("com avaliação: o denominador e a taxa arredondada", () => {
+    expect(denominadorDaSatisfacao({ media: 3.8, avaliadas: 26, resolvidas: 37 })).toBe(
+      "26 de 37 resolvidas avaliadas · 70% responderam",
+    );
+  });
+
+  it("sem avaliação: a frase literal do 34.2", () => {
+    expect(denominadorDaSatisfacao({ media: null, avaliadas: 0, resolvidas: 5 })).toBe(
+      "Nenhuma ocorrência avaliada ainda — 0 de 0 resolvidas.",
+    );
+  });
+
+  it("o rótulo da nota não é estrela", () => {
+    expect(rotuloDaNota(5)).toBe("Nota 5");
   });
 });

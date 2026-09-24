@@ -13,35 +13,11 @@
  * número é o dado. Barra sem número seria a definição do defeito que o A-5 nomeia.
  */
 
-const NOMES_DOS_MESES = [
-  "jan",
-  "fev",
-  "mar",
-  "abr",
-  "mai",
-  "jun",
-  "jul",
-  "ago",
-  "set",
-  "out",
-  "nov",
-  "dez",
-] as const;
-
 /**
- * `2026-06` vira `jun` — **e vira `jun/26` quando a janela atravessa a virada do ano**.
- *
- * Sem isso, uma janela de 90 dias aberta em janeiro mostraria `nov · dez · jan` sem dizer que os dois
- * primeiros são do ano passado, e a série leria como se subisse quando desce. A decisão é do eixo inteiro,
- * não de cada rótulo: ou todos levam ano, ou nenhum leva.
+ * Os nomes dos meses moram em `fluxo-mensal.ts`, que é módulo puro: este arquivo tem JSX, e o módulo puro
+ * não o importa. A página continua lendo daqui.
  */
-export function rotulosDosMeses(meses: readonly string[]): readonly string[] {
-  const anos = new Set(meses.map((mes) => mes.slice(0, 4)));
-  return meses.map((mes) => {
-    const nome = NOMES_DOS_MESES[Number(mes.slice(5, 7)) - 1] ?? mes;
-    return anos.size === 1 ? nome : `${nome}/${mes.slice(2, 4)}`;
-  });
-}
+export { nomeCompletoDoMes, rotulosDosMeses } from "./fluxo-mensal";
 
 /** O total de uma série no período — é por ele que a tela ordena e corta. */
 export function totalDaSerie(porMes: readonly { quantidade: number }[]): number {

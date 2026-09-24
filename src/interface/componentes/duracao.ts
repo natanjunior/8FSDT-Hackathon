@@ -43,8 +43,11 @@
  * precisão diferente da linha de cima.
  */
 
-/** O limite INCLUSIVO da faixa de horas. Acima dele a tela conta em dias (critério 55.1). */
-const TETO_DAS_HORAS = 48;
+/**
+ * O limite INCLUSIVO da faixa de horas. Acima dele a tela conta em dias (critério 55.1). O eixo do
+ * quadro 3 lê o mesmo degrau.
+ */
+export const TETO_DAS_HORAS = 48;
 
 const MINUTOS_POR_HORA = 60;
 const HORAS_POR_DIA = 24;
