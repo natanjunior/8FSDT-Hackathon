@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezesseis telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As dezessete telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezesseis telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Dezessete telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezesseis
+## As dezessete
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -28,6 +28,7 @@ ganha endereço próprio.
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
 | Meus dados | `/meus-dados` | *O que é meu, e como eu entro?* | qualquer vínculo ativo |
+| Grupo | `/grupo` | *Quem fez isto?* | qualquer pessoa, sem sessão |
 | Vínculo sem permissões | — | *Entrei. Por que não consigo fazer nada?* | vínculo sem permissão nenhuma |
 
 A última não tem endereço próprio: é o que a aplicação mostra quando o vínculo existe e não autoriza nada,
@@ -50,6 +51,7 @@ flowchart TB
     GENTE["Participantes"]
     CONFIG["Configuração"]
     MEUS["Meus dados"]
+    GRUPO["Grupo"]
 
     CONTA --> ENTRAR
     ENTRAR --> CTX
@@ -64,10 +66,15 @@ flowchart TB
     MENU --> GENTE
     MENU --> CONFIG
     MENU --> MEUS
+    ENTRAR --> GRUPO
+    MENU --> GRUPO
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. A configuração abre as categorias e as áreas.
+
+A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
+pede sessão.
 
 No menu do cabeçalho, **cada item só existe para quem tem a permissão correspondente** — por isso, na
 navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de fora, e tem

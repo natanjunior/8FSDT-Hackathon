@@ -649,3 +649,60 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await outraAba.close();
   await contexto.close();
 });
+
+/**
+ * **As portas públicas — item 70, critérios 1 e 5.**
+ *
+ * Sem sessão, `/entrar` tem os dois links do pé, e os dois abrem em nova aba páginas que respondem sem
+ * sessão. Com sessão, a barra lateral leva à mesma página do grupo, que é igual para os dois.
+ *
+ * **Só lê.** Não escreve na semente, então não disputa o mundo com o teste acima.
+ */
+test("as portas públicas: a página do grupo e a documentação, com e sem sessão", async ({ browser }) => {
+  const NOMES = ["Dario Lacerda", "Larissa Kramer", "Mirian Storino", "Natanael Dias", "Tiago Victor"];
+
+  // 1 · Sem sessão: o pé de T-01
+  const anonimo = await browser.newContext();
+  const porta = await anonimo.newPage();
+  await porta.goto("/entrar");
+
+  const linkDoGrupo = porta.getByRole("link", { name: /^Feito pelo Grupo 1/u });
+  const linkDaDocumentacao = porta.getByRole("link", { name: /^Documentação/u });
+  await expect(linkDoGrupo).toHaveAttribute("target", "_blank");
+  await expect(linkDaDocumentacao).toHaveAttribute("target", "_blank");
+
+  const [grupoSemSessao] = await Promise.all([anonimo.waitForEvent("page"), linkDoGrupo.click()]);
+  await grupoSemSessao.waitForURL(/\/grupo$/u);
+  await expect(grupoSemSessao.getByRole("heading", { name: "Grupo 1", level: 1 })).toBeVisible();
+  for (const nome of NOMES) {
+    await expect(grupoSemSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
+  }
+  // Link sem endereço não existe: só dois LinkedIn e dois GitHub na página inteira.
+  await expect(grupoSemSessao.getByRole("link", { name: /^LinkedIn de /u })).toHaveCount(2);
+  await expect(grupoSemSessao.getByRole("link", { name: /^GitHub de /u })).toHaveCount(2);
+
+  const [documentacaoSemSessao] = await Promise.all([anonimo.waitForEvent("page"), linkDaDocumentacao.click()]);
+  await documentacaoSemSessao.waitForURL(/\/documentacao/u);
+  await expect(documentacaoSemSessao).not.toHaveURL(/\/entrar/u);
+  await anonimo.close();
+
+  // 2 · Com sessão: a barra lateral leva à mesma página
+  const contexto = await browser.newContext();
+  const helena = await contexto.newPage();
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Grupo 1/u });
+  await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
+  const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
+  await grupoComSessao.waitForURL(/\/grupo$/u);
+  for (const nome of NOMES) {
+    await expect(grupoComSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
+  }
+  await expect(
+    helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Documentação/u }),
+  ).toHaveAttribute("target", "_blank");
+  await contexto.close();
+});

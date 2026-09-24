@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
 import { cn } from "@/interface/componentes/utilitarios";
 
 /**
@@ -452,6 +453,69 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
     expect(claro.has("--atencao")).toBe(true);
     expect(tokensDe(corpoDoBloco(':root[data-theme="dark"]')).has("--atencao")).toBe(false);
   });
+});
+
+/**
+ * **O avatar da página do grupo, medido — item 70, critério 2 e resposta P2 da spec.**
+ *
+ * A inicial é texto, e texto pede 4,5:1 contra o que está atrás dele. Na forma `clara` o que está atrás é
+ * a cor a 12% **composta sobre `--surface`**, que é o fundo do cartão: o `bg-ok/12` do Tailwind vira
+ * `color-mix(in oklab, … 12%, transparent)`, e o navegador compõe a transparência em sRGB com gama. Na
+ * forma `cheia` é a cor inteira, com `--marca-foreground` por cima.
+ *
+ * **A forma é declarada por tema no dado**, e este teste é quem a decide: o `--ok` reprova na clara no
+ * escuro e na cheia no claro, e só passa com uma forma em cada tema.
+ */
+describe("app/globals.css — o avatar da página do grupo, medido (item 70)", () => {
+  const claro = tokensDe(corpoDoBloco(":root {"));
+  const MODOS = [
+    { nome: "claro", cabecalho: ":root {" },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+  ] as const;
+
+  const gama = (canal: number): number =>
+    canal <= 0.0031308 ? 12.92 * canal : 1.055 * canal ** (1 / 2.4) - 0.055;
+  const semGama = (canal: number): number =>
+    canal <= 0.04045 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4;
+
+  /** A luminância da cor com alfa composta sobre o fundo, como o navegador pinta. */
+  function luminanciaComposta(cor: Lab, fundo: Lab, alfa: number): number {
+    const frente = sRGBLinearDe(cor).map(gama);
+    const atras = sRGBLinearDe(fundo).map(gama);
+    const [r, g, b] = frente.map((canal, i) => semGama(canal * alfa + (atras[i] as number) * (1 - alfa))) as [
+      number,
+      number,
+      number,
+    ];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  const razao = (uma: number, outra: number): number =>
+    (Math.max(uma, outra) + 0.05) / (Math.min(uma, outra) + 0.05);
+
+  for (const { nome, cabecalho } of MODOS) {
+    describe(`modo ${nome}`, () => {
+      const bloco = tokensDe(corpoDoBloco(cabecalho));
+      const cor = (token: string): Lab => {
+        const valor = bloco.get(token) ?? claro.get(token);
+        if (valor === undefined) throw new Error(`${token} não está declarado`);
+        return oklabDe(valor);
+      };
+
+      for (const integrante of INTEGRANTES) {
+        const forma = integrante.forma[nome];
+        it(`${integrante.nome}: a inicial passa 4,5:1 na forma ${forma}`, () => {
+          const propria = cor(TOKEN_DA_COR[integrante.cor]);
+          const tinta = forma === "clara" ? propria : cor("--marca-foreground");
+          const fundo =
+            forma === "clara" ? luminanciaComposta(propria, cor("--surface"), 0.12) : luminancia(propria);
+          const medido = razao(luminancia(tinta), fundo);
+          console.info(`[70] ${nome} ${integrante.nome} ${forma} ${hexDe(propria)} ${medido.toFixed(2)}:1`);
+          expect(medido).toBeGreaterThanOrEqual(4.5);
+        });
+      }
+    });
+  }
 });
 
 /**
