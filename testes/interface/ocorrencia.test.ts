@@ -85,8 +85,11 @@ import {
 } from "@/interface/componentes/registro-de-ocorrencia";
 import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
+  abreAvaliacaoPeloEndereco,
   acaoPrimaria,
   acoesDaBarra,
+  AVISO_DE_AVALIACAO,
+  encurtarParaOCaminho,
   nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
@@ -3588,5 +3591,33 @@ describe("o aviso do registro — critério 51.9", () => {
     // `router.replace` leva a pessoa para T-05 no mesmo instante. Um aviso de quatro segundos numa tela
     // que acabou de trocar é um aviso que ninguém leu.
     expect(avisoDoRegistro("falhou", false).forma).toBe("atencao");
+  });
+});
+
+describe("o que o item 66 acrescenta às frases de T-05", () => {
+  it("o caminho corta o título em 40 caracteres, com reticências contadas", () => {
+    expect(encurtarParaOCaminho("Vazamento no teto")).toBe("Vazamento no teto");
+    expect(encurtarParaOCaminho("a".repeat(40))).toBe("a".repeat(40));
+    expect(encurtarParaOCaminho("a".repeat(41))).toBe(`${"a".repeat(39)}…`);
+    expect(Array.from(encurtarParaOCaminho("x".repeat(150)))).toHaveLength(40);
+  });
+
+  it("o espaço antes do corte não fica pendurado antes das reticências", () => {
+    expect(encurtarParaOCaminho(`${"a".repeat(38)} bcd`)).toBe(`${"a".repeat(38)}…`);
+  });
+
+  it("o endereço só abre a avaliação para quem pode avaliar (foco da revisão 2)", () => {
+    expect(abreAvaliacaoPeloEndereco("avaliar", ["avaliar"])).toBe(true);
+    expect(abreAvaliacaoPeloEndereco("avaliar", [])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco("avaliar", ["analisar", "cancelar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco(undefined, ["avaliar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco(["avaliar", "avaliar"], ["avaliar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco("resolver", ["avaliar"])).toBe(false);
+  });
+
+  it("o aviso de avaliação não contém o que o ponta a ponta procura sem escopo", () => {
+    for (const proibida of ["Situação", "Nota", "Sua avaliação", "Avaliar"]) {
+      expect(AVISO_DE_AVALIACAO).not.toContain(proibida);
+    }
   });
 });

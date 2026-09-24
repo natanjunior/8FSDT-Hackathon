@@ -14,7 +14,7 @@ import {
   MENSAGEM_GENERICA,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
-import { cicloDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
+import { cicloDoModal, estadoInicialDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
 import {
   erroVisivel,
   interagir,
@@ -279,6 +279,16 @@ describe("cicloDoModal — a sequência de modal do guia §7", () => {
 
   it("abrir e fechar sem enviar não custa ida ao servidor", () => {
     expect(cicloDoModal(aberto, { tipo: "pediu-fechar" })).toStrictEqual({ estado: MODAL_FECHADO, efeitos: [] });
+  });
+
+  it("o modal pode nascer aberto, sem envio nem aviso (item 66, ?acao=avaliar)", () => {
+    expect(estadoInicialDoModal(false)).toStrictEqual(MODAL_FECHADO);
+    expect(estadoInicialDoModal(true)).toStrictEqual({
+      aberto: true,
+      enviando: false,
+      aviso: null,
+      precisaAtualizar: false,
+    });
   });
 });
 
