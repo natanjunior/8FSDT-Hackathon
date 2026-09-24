@@ -164,6 +164,21 @@ async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
 }
 
 /**
+ * Escreve o código nas oito casas de T-02 (item 65).
+ *
+ * **`fill` sozinho não serve num campo que já tem valor.** O `input-otp` põe o cursor na última casa ao
+ * receber foco, e o `fill` do Playwright insere o texto na seleção que encontra: o que entra é uma casa
+ * trocada, não o código novo. Selecionar tudo e digitar é o que a pessoa faz, e é o que exercita a
+ * conversão de minúscula e a recusa de tecla fora do alfabeto.
+ */
+async function preencherCodigo(pagina: Page, codigo: string): Promise<void> {
+  const campo = pagina.getByLabel("Código da organização");
+  await campo.press("ControlOrMeta+a");
+  await campo.pressSequentially(codigo);
+  await expect(campo).toHaveValue(codigo);
+}
+
+/**
  * Lê o código público em T-15 · Configuração.
  *
  * **Desde o item 65 o código mora nas casas de um campo desabilitado**, e o texto delas não é conteúdo de
@@ -334,7 +349,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await criarConta(b, NOME_B, EMAIL_B);
 
-  await b.getByLabel("Código da organização").fill(CODIGO_INVENTADO);
+  await preencherCodigo(b, CODIGO_INVENTADO);
   cobre(test.info(), "2.4 · 1");
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   await expect(
@@ -344,7 +359,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(b.getByText(ORGANIZACAO_A)).toHaveCount(0);
   cobre(test.info(), "2.4 · 2", { criterio: "7a.1" });
 
-  await b.getByLabel("Código da organização").fill(codigoDeA);
+  await preencherCodigo(b, codigoDeA);
   await b.getByLabel("Telefone (opcional)").fill(TELEFONE_DIGITADO);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
 
@@ -412,7 +427,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   cobre(test.info(), "2.5 · 5", { criterio: "8.3" });
 
   // **Recusado pode ser refeito** — é a suposição S4 do modelo, e é por isso que a face C tem o campo.
-  await b.getByLabel("Código da organização").fill(codigoDeA);
+  await preencherCodigo(b, codigoDeA);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   await expect(b.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
 
@@ -544,7 +559,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // A frase que o critério 7b.1 exige em palavras: **o vínculo na primeira não é tocado**.
   await expect(b.getByText("Pedir entrada em outra não tira você daqui.")).toBeVisible();
 
-  await b.getByLabel("Código da organização").fill(codigoDeC);
+  await preencherCodigo(b, codigoDeC);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   // A lista de pedidos é o *aqui* que a face B promete — sem ela, o pedido sumiria da vista.
   await expect(b.getByText("Aguardando a decisão de um Gestor")).toBeVisible();
