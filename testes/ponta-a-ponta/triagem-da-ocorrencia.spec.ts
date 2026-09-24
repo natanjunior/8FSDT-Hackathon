@@ -371,7 +371,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByText("Abrir a foto ↗")).toBeVisible();
 
   await expect(helena.getByRole("heading", { name: "Linha do tempo 1" })).toBeVisible();
-  await expect(helena.getByRole("link", { name: "ver a trilha de auditoria →" })).toBeVisible();
+  await expect(helena.getByRole("link", { name: "Ver a trilha de auditoria" })).toBeVisible();
 
   // **O predicado das duas frases da conversa é a AUTORIA, e não o papel** — critério 30.4.
   await expect(helena.getByRole("heading", { name: "Mensagens 0" })).toBeVisible();

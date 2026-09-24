@@ -1903,4 +1903,14 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     // Abaixo de `sm` empilham, na largura cheia; a partir de `sm`, lado a lado com 12 px.
     expect(conteudo).toContain('"flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center"');
   });
+
+  it("a trilha de auditoria é botão de contorno, e continua <a> (troca 9)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    const inicio = fonte.indexOf("href={`/ocorrencias/${detalhe.id}/auditoria`}");
+    const link = fonte.slice(fonte.lastIndexOf("<a", inicio), fonte.indexOf("</a>", inicio));
+    expect(link).toContain('variant: "outline"');
+    expect(link).toContain("Ver a trilha de auditoria");
+    expect(link).not.toContain("→");
+    expect(link).not.toContain("text-marca");
+  });
 });
