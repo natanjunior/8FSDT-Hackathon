@@ -78,7 +78,8 @@ import {
  *
  * **O mesmo argumento vale para `analisar` (`aberta`), `iniciar-atendimento` (`em_analise`) e
  * `resolver` (`em_atendimento`)** — cada um é o `ACAO_PRIMARIA` do único estado em que é renderizável.
- * E vale para `avaliar` no item 27: `ACAO_PRIMARIA.resolvida === "avaliar"`.
+ * Valia para `avaliar` no item 27; **desde o item 66 `avaliar` não chega à barra** — o gatilho mora na
+ * faixa de avaliação, e a página filtra o comando antes de chamar `acoesDaBarra`.
  *
  * **Os três que chegam ao menu não são `ACAO_PRIMARIA` de estado nenhum**, e é exatamente por isso que
  * caem lá. **A coincidência virou invariante guardada:** um caso de `testes/interface/ocorrencia.test.ts`

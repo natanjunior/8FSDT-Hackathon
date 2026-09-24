@@ -362,12 +362,28 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   //
   // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
   // -------------------------------------------------------------------------
-  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
+  // **A porta de fora** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9). O modal nasce aberto e o
+  // parâmetro sai da URL no mesmo instante, para o recarregar não o reabrir (foco da revisão 4).
+  await helena.goto(`/ocorrencias/${ocorrenciaId}?acao=avaliar`);
+  await expect(helena.getByRole("dialog")).toBeVisible();
+  await expect(helena).toHaveURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
+  await helena.keyboard.press("Escape");
+  await expect(helena.getByRole("dialog")).toHaveCount(0);
+  await helena.reload();
+  await expect(helena.getByRole("dialog")).toHaveCount(0);
   await esperarSituacao(helena, "Resolvida");
-  await helena.getByRole("button", { name: "Avaliar" }).click();
-  cobre(test.info(), "4.5 · 70", {
-    falta: "a faixa «Resolvida. Conte como foi.» no topo da coluna esquerda",
-  });
+
+  // **A faixa explica e leva à ação num clique** (critério 66.5). O filtro por texto separa a faixa de
+  // qualquer outra região `alert` da página.
+  const faixaDeAvaliacao = helena
+    .getByRole("alert")
+    .filter({ hasText: "Conte como foi o atendimento para os Gestores." });
+  await expect(faixaDeAvaliacao).toContainText("Esta ocorrência foi resolvida.");
+  // **Um *Avaliar* só na tela** (spec §3.5): o cabeçalho não o repete. Conta-se antes do clique, porque
+  // com o diálogo aberto o Radix esconde da árvore de acessibilidade o que fica fora dele.
+  await expect(helena.getByRole("button", { name: "Avaliar" })).toHaveCount(1);
+  await faixaDeAvaliacao.getByRole("button", { name: "Avaliar" }).click();
+  cobre(test.info(), "4.5 · 70");
   const modalDeAvaliacao = helena.getByRole("dialog");
   await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
   await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);

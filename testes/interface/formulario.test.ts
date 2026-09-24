@@ -2004,4 +2004,17 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
       'anterior={{ rotulo: "Participantes", href: "/vinculos" }}',
     );
   });
+
+  it("o aviso de avaliação é a faixa do catálogo, e avaliar sai da barra (critérios 66.4 e 66.5)", () => {
+    expect(existsSync(`${RAIZ}src/interface/componentes/ui/alert.tsx`)).toBe(true);
+    const aviso = ler("src/interface/componentes/aviso-de-avaliacao.tsx");
+    expect(aviso).toContain("<Alert");
+    expect(aviso).toContain("AVISO_DE_AVALIACAO");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain("Resolvida. Conte como foi.");
+    expect(pagina).toContain('acao.comando !== "avaliar"');
+    expect(pagina).toContain("abreAvaliacaoPeloEndereco(");
+    // O parâmetro sai da URL ao abrir, por `replaceState`, sem ida ao servidor (desvio D1 do plano).
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).toContain("history.replaceState");
+  });
 });

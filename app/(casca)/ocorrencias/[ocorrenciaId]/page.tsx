@@ -11,6 +11,7 @@ import {
   type EventoLido,
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
+import { AvisoDeAvaliacao } from "@/interface/componentes/aviso-de-avaliacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
@@ -46,6 +47,7 @@ import {
 } from "@/interface/componentes/seletor-de-prioridade";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
+  abreAvaliacaoPeloEndereco,
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   AVISO_PARA_QUEM_NAO_GESTIONA,
@@ -114,8 +116,10 @@ const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
 
 export default async function Ocorrencia({
   params,
+  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -238,6 +242,12 @@ export default async function Ocorrencia({
     permissoes: vinculo.permissoes,
   });
 
+  /** A porta de fora para o modal de avaliar (item 66; spec do 67, §4.9). */
+  const abrirAvaliacao = abreAvaliacaoPeloEndereco(
+    (await searchParams).acao,
+    detalhe.acoesDisponiveis,
+  );
+
   /**
    * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
    * é a forma do comando na tela. Dois deles nunca serão botão (`alterar-prioridade` é seletor,
@@ -344,6 +354,13 @@ export default async function Ocorrencia({
   );
 
   /**
+   * **`avaliar` não chega à barra** (item 66). O gatilho dele mora na faixa de avaliação, que é o único
+   * *Avaliar* da tela. O vazio continua olhando `renderizaveis`: em `resolvida`, para a autora que ainda
+   * não avaliou, a barra fica sem botão **e** sem frase, porque a ação da tela está na faixa.
+   */
+  const naBarra = renderizaveis.filter((acao) => acao.comando !== "avaliar");
+
+  /**
    * **Qual ação ganha ênfase, e o que vai para o menu — uma fonte só.**
    *
    * A tela tinha **duas**: `acoes[0]?.comando` decidia a `variante` do modal, e `indice === 0` decidia a
@@ -359,7 +376,7 @@ export default async function Ocorrencia({
    */
   const { destaque: primario, emMenu } = acoesDaBarra(
     detalhe.status,
-    renderizaveis.map((acao) => acao.comando),
+    naBarra.map((acao) => acao.comando),
   );
 
   /** A variante do gatilho de cada comando: no menu, é `DropdownMenuItem`; fora dele, botão. */
@@ -527,27 +544,6 @@ export default async function Ocorrencia({
         destrutivo
       />
     ),
-    /**
-     * **O quinto modal, e o último** — não há sexto, porque não há décimo primeiro comando.
-     *
-     * **Entra SEMPRE, como os outros quatro**: não precisa de consulta nenhuma além do que a página já
-     * leu. Quem decide se ele **aparece** continua sendo `acoesDisponiveis` — e ela já cruza *ser o autor*
-     * com *ainda não avaliou* (`MaquinaDeEstados.ts:188-191`).
-     *
-     * **A ternária, e não `varianteDe`:** `ModalDeAvaliacao` aceita `"primario" | "secundario"`, e
-     * `varianteDe` devolve as três. Em `resolvida`, `avaliar` é o **único** renderizável e é
-     * `ACAO_PRIMARIA.resolvida` — ele nunca cai no menu, e a prova está no parágrafo *"Corrigido no item
-     * 18"* do cabeçalho de `barra-de-acoes.tsx`.
-     */
-    avaliar: (
-      <ModalDeAvaliacao
-        ocorrenciaId={detalhe.id}
-        variante={primario === "avaliar" ? "primario" : "secundario"}
-        rotulosDeStatus={rotulos}
-        organizacaoId={organizacaoId}
-        retorno={RETORNO_DO_COMANDO.avaliar}
-      />
-    ),
     ...(podeAtribuir
       ? {
           "atribuir-responsavel": (
@@ -578,6 +574,22 @@ export default async function Ocorrencia({
        qualquer forma. */
     <div className="flex flex-col gap-6 pb-24 lg:pb-0">
       <h1 className="text-titulo-pagina text-tinta">{detalhe.titulo}</h1>
+
+      {/* **A faixa de avaliação, acima das duas colunas** (item 66, spec §3.5): no celular a coluna de
+          apoio vem antes da narrativa, e a faixa é o único lugar onde se avalia. A condição é
+          `acoesDisponiveis`, e não uma segunda regra na tela. */}
+      {detalhe.acoesDisponiveis.includes("avaliar") && (
+        <AvisoDeAvaliacao>
+          <ModalDeAvaliacao
+            ocorrenciaId={detalhe.id}
+            variante="primario"
+            abrirAoCarregar={abrirAvaliacao}
+            rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
+            retorno={RETORNO_DO_COMANDO.avaliar}
+          />
+        </AvisoDeAvaliacao>
+      )}
 
       {/* **Duas colunas a partir de `lg`, e a de apoio tem 280 px por conta.** Em 1024 px a casca já
           gasta 214 na lateral e 48 no respiro do `<main>`; com 24 de calha, a narrativa fica com 458 —
@@ -638,7 +650,7 @@ export default async function Ocorrencia({
               olhando"* sumiria no mesmo repinte que a exibiu. */}
           <BarraDeAcoes
             ocorrenciaId={detalhe.id}
-            acoes={renderizaveis}
+            acoes={naBarra}
             rotulosDeStatus={rotulos}
             organizacaoId={organizacaoId}
             formularios={formularios}
@@ -760,14 +772,6 @@ export default async function Ocorrencia({
         </div>
 
         <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
-          {/* **O convite a avaliar — o critério 27.5.** A condição é `acoesDisponiveis`, e não uma
-              segunda regra na tela. O texto é literal do inventário. */}
-          {detalhe.acoesDisponiveis.includes("avaliar") && (
-            <p className="border-marca/40 bg-accent text-tinta rounded-lg border px-4 py-3 text-corpo">
-              Resolvida. Conte como foi.
-            </p>
-          )}
-
           {/* **Bloco 2 · Conteúdo**, em cartão com faixa (critério 44q.5). O dado da faixa é o número de
               fotos, e ele usa o ternário, e não `&&`: a faixa testa `dado !== undefined`, e um `false`
               montaria o invólucro da direita vazio. `0 fotos` não se escreve. */}
