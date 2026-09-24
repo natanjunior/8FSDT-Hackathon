@@ -4,7 +4,6 @@ export {
   FUSO,
   atalhosDaJanela,
   diaEmSaoPaulo,
-  ehJanelaPadrao,
   mesEmSaoPaulo,
   mesesDaJanela,
   resolverJanela,

@@ -30,6 +30,7 @@ import {
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
+import { cn } from "@/interface/componentes/utilitarios";
 import { projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
@@ -220,6 +221,17 @@ describe("o alcance dos menus de mês e de ano — item 71", () => {
     expect(paraDia(inicio)).toBe("1900-01-01");
     expect(deDia("1900-01-01").getTime()).toBeGreaterThanOrEqual(inicio.getTime());
     expect(deDia("2026-09-29").getTime()).toBeLessThanOrEqual(fim.getTime());
+  });
+});
+
+describe("o tamanho da casa do calendário — desvio D1 do plano do 71", () => {
+  it("a classe da chamada vence a do registro, que é do que o alvo de 44 px depende", () => {
+    // O registro do `calendar` escreve `[--cell-size:--spacing(8)]`, que é 32 px. O alvo de toque do lote
+    // é 44 px, e quem o impõe é a chamada. Se esta fusão deixar as duas classes de pé, a ordem no CSS
+    // decide, e o tamanho da casa passa a depender de sorte.
+    expect(cn("[--cell-size:--spacing(8)]", "[--cell-size:--spacing(11)]")).toBe(
+      "[--cell-size:--spacing(11)]",
+    );
   });
 });
 
