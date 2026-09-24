@@ -215,12 +215,10 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   await modalDePausa.getByRole("button", { name: "Pausar" }).click();
   await fecharOMenu(marcos);
 
-  // **O selo do Gestor colapsa em *Pausada*, e o motivo desce para a segunda linha** — critério 31.8.
-  // Para ele os dois textos divergem, e é isso que faz a segunda linha aparecer.
+  // **O selo do Gestor colapsa em *Pausada*, e o motivo mora só na régua do ciclo** — critério 31.8, e a
+  // asserção da régua é a de logo abaixo. Para o Gestor os dois textos divergem, e é isso que faz a nota
+  // aparecer na marca de saída.
   await esperarSituacao(marcos, "Pausada");
-  await expect(marcos.locator("section").filter({ hasText: "Situação" }).first()).toContainText(
-    O_QUE_O_SOLICITANTE_LE,
-  );
 
   // **A régua do ciclo — critério 44d.7.** A pausa sai da linha reta e fica ancorada depois do último
   // passo alcançado; *Resolvida* continua por alcançar, e por isso o bloco não a datou.

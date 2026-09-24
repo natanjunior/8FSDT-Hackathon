@@ -14,7 +14,9 @@ import { listarVinculos } from "@/aplicacao/organizacao";
 import { AvisoDeAvaliacao } from "@/interface/componentes/aviso-de-avaliacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
 import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
+import { CabecalhoDaOcorrencia } from "@/interface/componentes/cabecalho-da-ocorrencia";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
+import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import {
   Cartao,
   CorpoDoCartao,
@@ -45,11 +47,11 @@ import {
   LINHA_DA_PRIORIDADE,
   SeletorDePrioridade,
 } from "@/interface/componentes/seletor-de-prioridade";
-import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import {
   abreAvaliacaoPeloEndereco,
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
+  encurtarParaOCaminho,
   AVISO_PARA_QUEM_NAO_GESTIONA,
   RETORNO_DA_MENSAGEM,
   RETORNO_DO_COMANDO,
@@ -562,18 +564,35 @@ export default async function Ocorrencia({
   };
 
   return (
-    /* **O respiro inferior é do tamanho da barra fixa**, e só existe abaixo de `lg`, onde ela flutua.
-       É a mesma saída que o 44c deu a T-03 — reservar a altura em vez de espaçador no fim do documento —,
-       e ela funciona independente de onde a barra esteja na árvore.
+    <div className="flex flex-col gap-6">
+      {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
+          cortado em 40 caracteres e inteiro no `title`. */}
+      <CaminhoDaPagina
+        anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }}
+        atual={encurtarParaOCaminho(detalhe.titulo)}
+        tituloDoAtual={detalhe.titulo}
+      />
 
-       **Ele é incondicional, e não `renderizaveis.length > 0`.** A barra também aparece com a lista
-       VAZIA, quando um `409` a esvazia e sobra a frase *"Esta ocorrência mudou enquanto você estava
-       olhando"* — e `aviso` é estado de cliente, que o servidor não tem como consultar. Condicionar
-       deixaria a barra cobrir o fim da conversa exatamente no caso em que há algo a ler. **O custo é 96 px de
-       branco no fim de uma ocorrência encerrada**, onde não há barra; página termina em branco de
-       qualquer forma. */
-    <div className="flex flex-col gap-6 pb-24 lg:pb-0">
-      <h1 className="text-titulo-pagina text-tinta">{detalhe.titulo}</h1>
+      {/* **O cabeçalho: título, selo e ações** (item 66). A barra é montada SEMPRE: o `router.refresh()`
+          que o `409` dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
+          olhando"* sumiria no mesmo repinte que a exibiu. */}
+      <CabecalhoDaOcorrencia
+        titulo={detalhe.titulo}
+        status={detalhe.status}
+        statusRotulo={detalhe.statusRotulo}
+        vazio={vazio}
+        acoes={
+          <BarraDeAcoes
+            ocorrenciaId={detalhe.id}
+            acoes={naBarra}
+            rotulosDeStatus={rotulos}
+            organizacaoId={organizacaoId}
+            formularios={formularios}
+            primario={primario}
+            emMenu={emMenu}
+          />
+        }
+      />
 
       {/* **A faixa de avaliação, acima das duas colunas** (item 66, spec §3.5): no celular a coluna de
           apoio vem antes da narrativa, e a faixa é o único lugar onde se avalia. A condição é
@@ -601,35 +620,13 @@ export default async function Ocorrencia({
           **colocada** na segunda coluna da grade. Quem lê por teclado ou por leitor de tela recebe a
           mesma sequência nas duas larguras; o que muda é onde ela é pintada.
 
-          **Os dois invólucros são `<div>`, nunca `<section>`:** o teste de ponta a ponta localiza o bloco
-          de situação por `locator("section").filter({ hasText: "Situação" })`, e um `<section>` de layout
-          envolvendo a coluna casaria primeiro. */}
+          **Os dois invólucros são `<div>`, nunca `<section>`:** seção de layout sem nome só acrescenta
+          marco de navegação vazio para quem usa leitor de tela. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1">
-          {/* **Bloco 1a · Identidade que não pode rolar.** O status vira selo — guia §2, a mesma peça de
-              T-03 —, e **a palavra *Situação* fica**: é o que dá nome ao que o selo diz, e é o que o
-              teste de ponta a ponta localiza. */}
-          <section className="border-linha bg-superficie flex flex-col gap-2 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <span className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
-              Situação
-            </span>
-            <span className="w-fit">
-              <SeloDeStatus status={detalhe.status} rotulo={detalhe.statusRotulo} />
-            </span>
-            {/* **A segunda linha do motivo — critério 31.8, e é a MESMA função de T-03.** Para o
-                Solicitante os dois textos coincidem e ela devolve `null`: o bloco dele não muda. */}
-            {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo) !== null && (
-              <span className="text-tinta-suave text-meta">
-                {segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-              </span>
-            )}
-          </section>
-
-          {/* **A régua do ciclo, em bloco IRMÃO e nunca dentro da seção acima.** A razão é mecânica: o
-              teste afirma o estado atual quatro vezes escopado à seção que contém a palavra *Situação*,
-              e a régua nomeia os quatro estados do ciclo. Dentro dela, `toContainText("Aberta")`
-              passaria em qualquer estado — o teste ficaria verde e deixaria de afirmar o que existe
-              para afirmar. */}
+          {/* **A régua do ciclo é o primeiro cartão da coluna** (item 66): o cartão *Situação* saiu, e o
+              selo mora no cabeçalho. Ela também carrega a segunda linha do motivo da pausa
+              (`notaDaSaida`, critério 31.8), que morava naquele cartão. */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
             <h2 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
               O ciclo
@@ -644,25 +641,6 @@ export default async function Ocorrencia({
               />
             </Suspense>
           </section>
-
-          {/* **A barra de ações, e o vazio dela.** Montada SEMPRE: o `router.refresh()` que o `409`
-              dispara trocaria o ramo do JSX e a frase *"Esta ocorrência mudou enquanto você estava
-              olhando"* sumiria no mesmo repinte que a exibiu. */}
-          <BarraDeAcoes
-            ocorrenciaId={detalhe.id}
-            acoes={naBarra}
-            rotulosDeStatus={rotulos}
-            organizacaoId={organizacaoId}
-            formularios={formularios}
-            primario={primario}
-            emMenu={emMenu}
-          />
-
-          {vazio !== null && (
-            <p className="border-linha bg-superficie text-tinta-suave rounded-lg border p-[15px] text-meta md:p-[18px]">
-              {vazio}
-            </p>
-          )}
 
           {/* **Bloco 1b · A última mudança, subida do bloco 3.** É a decisão 1 do D-3 do protótipo, e é o
               que faz o topo pintar com UMA requisição: `ultimaTransicao` vem dentro do

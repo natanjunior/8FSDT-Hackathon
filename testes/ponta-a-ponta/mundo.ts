@@ -111,14 +111,13 @@ export async function trocarDeOrganizacao(pagina: Page, destino: string): Promis
 }
 
 /**
- * O bloco 1a de T-05 — *Situação*, o selo que não pode rolar.
+ * O selo de T-05 — o estado atual, no cabeçalho (item 66).
  *
- * **Escopado pela seção, e nunca por índice de posição:** a mesma palavra aparece na régua do ciclo e
- * dentro das frases da linha do tempo, e um localizador solto pegaria as três. A página garante o
- * escopo: os invólucros de layout são `div`, e só os blocos são `section`.
+ * **Escopado pelo grupo *Situação*, que só contém o selo:** a mesma palavra aparece na régua do ciclo, nas
+ * frases da linha do tempo e, em teste, pode aparecer no título. O grupo não alcança nenhum deles.
  */
 export function situacao(pagina: Page): Locator {
-  return pagina.locator("section").filter({ hasText: "Situação" }).first();
+  return pagina.getByRole("group", { name: "Situação" });
 }
 
 export async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {

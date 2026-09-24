@@ -1759,20 +1759,33 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(conversa).toContain('<span aria-hidden="true">· </span>');
   });
 
-  it("nenhum invólucro novo de T-05 é `<section>` sem nome — o teste escopa a Situação por seção", () => {
-    // `mundo.ts:121` e `caminho-critico.spec.ts:439`: `locator("section").filter({ hasText: "Situação" }).first()`.
-    // Um `<section>` que envolvesse a coluna de apoio casaria primeiro. O cartão da barra é `<div>`.
-    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
-    expect(barra).not.toMatch(/<section/u);
+  it("o estado atual mora num grupo nomeado que só contém o selo (item 66, a emenda de teste)", () => {
+    // `mundo.ts` e `caminho-critico.spec.ts` escopam a situação por `getByRole("group", { name: "Situação" })`.
+    // Se o grupo alcançasse o título, um título com "resolvida" faria a asserção passar pela razão errada.
+    const cabecalho = ler("src/interface/componentes/cabecalho-da-ocorrencia.tsx");
+    const inicio = cabecalho.indexOf('role="group"');
+    const grupo = cabecalho.slice(inicio, cabecalho.indexOf("</div>", inicio));
+    expect(grupo).toContain('aria-label="Situação"');
+    expect(grupo).toContain("<SeloDeStatus");
+    expect(grupo).not.toContain("{titulo}");
+    expect(grupo).not.toContain("{acoes}");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).toContain("<CabecalhoDaOcorrencia");
+    expect(pagina).toContain("<CaminhoDaPagina");
+    expect(pagina).not.toMatch(/>\s*Situação\s*</u);
   });
 
-  it("as ações dividem a linha: a principal com dois terços (critério 44q.8)", () => {
+  it("as ações moram no cabeçalho: nada preso ao pé, primário na ponta direita e em cima no celular (item 66)", () => {
     const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
-    expect(barra).not.toContain("lg:flex-col");
-    expect(barra).not.toContain("lg:w-full");
-    expect(barra).toContain('ehPrimario ? "flex-[2]" : "flex-1"');
-    // O cartão só a partir de `lg`; abaixo dele, a barra continua presa ao pé.
-    expect(barra).toContain("lg:rounded-lg lg:border lg:bg-superficie");
+    expect(barra).not.toContain("fixed inset-x-0 bottom-0");
+    expect(barra).not.toContain("flex-[2]");
+    expect(barra).not.toMatch(/<section/u);
+    expect(barra).toContain("md:contents");
+    expect(barra).toContain("md:flex-row-reverse");
+    const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(pagina).not.toContain("pb-24");
+    // O título trunca só onde divide a linha com as ações; no celular ele quebra (spec §3.1).
+    expect(ler("src/interface/componentes/cabecalho-da-ocorrencia.tsx")).toContain("break-words md:truncate");
   });
 
   it("o rótulo do campo da solução some da vista e fica no nome (critério 44q.5)", () => {

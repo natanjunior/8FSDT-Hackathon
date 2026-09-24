@@ -539,7 +539,7 @@ async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void>
  * do tempo, dentro de uma frase, e um localizador solto pegaria as duas.
  */
 function situacao(pagina: Page): Locator {
-  return pagina.locator("section").filter({ hasText: "Situação" }).first();
+  return pagina.getByRole("group", { name: "Situação" });
 }
 
 async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {
