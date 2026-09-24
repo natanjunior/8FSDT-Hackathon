@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
+import { COLUNAS_DE_ORDENACAO, OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
 import type {
   AnexoLido,
   OcorrenciaLida,
@@ -62,6 +62,25 @@ import {
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { areasUsadas, comAreaUsada } from "@/interface/componentes/areas-usadas";
+import {
+  comTitulo,
+  comValorUnico,
+  PARAMETROS_DE_FILTRO,
+  primeirasOpcoes,
+  rotuloDoGatilho,
+  semFiltros,
+  type OpcaoComBusca,
+} from "@/interface/componentes/filtros-da-lista";
+import {
+  ariaSortNaLista,
+  COLUNAS_DA_LISTA,
+  consultaComOrdenacao,
+  lerOrdenacaoDaLista,
+  proximaNaLista,
+  rotuloNaLista,
+  type ColunaDaLista,
+} from "@/interface/componentes/ordenacao-das-ocorrencias";
+import { SEM_ORDENACAO, type Ordenacao } from "@/interface/componentes/ordenacao-em-tres-estados";
 import {
   casaPeloNome,
   filtrarPorNome,
@@ -1167,6 +1186,220 @@ describe("a ordenação de GET /ocorrencias — critério 67.5", () => {
 
   it("ordem repetida é recusada, como todo parâmetro deste endpoint", () => {
     expect(() => lerOrdem("ordem=titulo&ordem=status")).toThrow(FormatoInvalido);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A ordenação de T-03 — critério 67.5
+ * ============================================================================
+ *
+ * **O que este bloco prova é o que a lista acrescenta ao ciclo do 68a**: que o padrão aparece marcado em
+ * Tempo, que Tempo tem ciclo de dois passos, e que as outras colunas voltam ao padrão no terceiro clique.
+ * O ciclo em si tem teste próprio, no arquivo de vínculo.
+ */
+const ordenacaoDe = (consulta: string) => lerOrdenacaoDaLista(new URLSearchParams(consulta));
+
+describe("a ordenação de T-03 — critério 67.5", () => {
+  /**
+   * **As duas listas são a mesma, e o teste é o que as prende.** A da tela é copiada da Aplicação de
+   * propósito — importá-la arrastaria a camada para o pacote do navegador —, e sem este caso a cópia
+   * envelheceria em silêncio: a tela ofereceria uma coluna que o endpoint recusa com `400`.
+   */
+  it("as colunas da tela são as mesmas da Aplicação", () => {
+    expect([...COLUNAS_DA_LISTA]).toStrictEqual([...COLUNAS_DE_ORDENACAO]);
+  });
+
+  it("sem nada na URL, Tempo está ordenada para baixo e as outras não estão ordenadas", () => {
+    const atual = ordenacaoDe("");
+
+    expect(atual).toStrictEqual(SEM_ORDENACAO);
+    expect(ariaSortNaLista(atual, "atualizacao")).toBe("descending");
+    for (const coluna of ["status", "titulo", "area", "prioridade", "responsavel"] as const) {
+      expect(ariaSortNaLista(atual, coluna)).toBe("none");
+    }
+  });
+
+  it("o padrão escrito por extenso na URL é lido como o padrão", () => {
+    expect(ordenacaoDe("ordem=atualizacao&sentido=decrescente")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  /** **Dois passos, e não três.** Do padrão, um clique inverte; o segundo devolve o padrão. */
+  it("em Tempo o ciclo é de dois passos", () => {
+    const doPadrao = proximaNaLista(SEM_ORDENACAO, "atualizacao");
+    expect(doPadrao).toStrictEqual({ ordem: "atualizacao", sentido: "crescente" });
+    expect(ariaSortNaLista(doPadrao, "atualizacao")).toBe("ascending");
+
+    expect(proximaNaLista(doPadrao, "atualizacao")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  it("nas outras colunas o terceiro clique devolve o padrão", () => {
+    const um = proximaNaLista(SEM_ORDENACAO, "titulo");
+    expect(um).toStrictEqual({ ordem: "titulo", sentido: "crescente" });
+
+    const dois = proximaNaLista(um, "titulo");
+    expect(dois).toStrictEqual({ ordem: "titulo", sentido: "decrescente" });
+
+    expect(proximaNaLista(dois, "titulo")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  it("clicar em outra coluna começa nela, crescente, venha de onde vier", () => {
+    const tituloDecrescente: Ordenacao<ColunaDaLista> = { ordem: "titulo", sentido: "decrescente" };
+
+    expect(proximaNaLista(tituloDecrescente, "status")).toStrictEqual({
+      ordem: "status",
+      sentido: "crescente",
+    });
+    expect(proximaNaLista(tituloDecrescente, "atualizacao")).toStrictEqual({
+      ordem: "atualizacao",
+      sentido: "crescente",
+    });
+  });
+
+  it("com outra coluna ordenando, Tempo não está ordenada e o clique começa nela", () => {
+    const tituloCrescente: Ordenacao<ColunaDaLista> = { ordem: "titulo", sentido: "crescente" };
+
+    expect(ariaSortNaLista(tituloCrescente, "atualizacao")).toBe("none");
+    expect(rotuloNaLista(tituloCrescente, "atualizacao", "Tempo")).toBe("Ordenar por Tempo");
+  });
+
+  /**
+   * **O nome acessível diz o que o próximo clique faz**, e em Tempo ele diz *inverter* nos dois estados
+   * em que Tempo é a ordem. *"Tirar a ordenação"* seria falso ali: não há como tirar o padrão.
+   */
+  it("o nome acessível de Tempo diz inverter nos dois estados em que ele ordena", () => {
+    expect(rotuloNaLista(SEM_ORDENACAO, "atualizacao", "Tempo")).toBe("Inverter a ordem de Tempo");
+    expect(
+      rotuloNaLista({ ordem: "atualizacao", sentido: "crescente" }, "atualizacao", "Tempo"),
+    ).toBe("Inverter a ordem de Tempo");
+  });
+
+  it("o nome acessível de Título percorre os três", () => {
+    expect(rotuloNaLista(SEM_ORDENACAO, "titulo", "Título")).toBe("Ordenar por Título");
+    expect(rotuloNaLista({ ordem: "titulo", sentido: "crescente" }, "titulo", "Título")).toBe(
+      "Inverter a ordem de Título",
+    );
+    expect(rotuloNaLista({ ordem: "titulo", sentido: "decrescente" }, "titulo", "Título")).toBe(
+      "Tirar a ordenação de Título",
+    );
+  });
+
+  it("a URL da ordem mantém os filtros e descarta a paginação", () => {
+    const consulta = consultaComOrdenacao(
+      "status=aberta&titulo=vaz&pagina=3&ate=2026-09-01T00%3A00%3A00.000Z&totalNoCorte=40&ordem=titulo&sentido=decrescente",
+      { ordem: "status", sentido: "crescente" },
+    );
+
+    expect(consulta.get("status")).toBe("aberta");
+    expect(consulta.get("titulo")).toBe("vaz");
+    expect(consulta.get("pagina")).toBeNull();
+    expect(consulta.get("ate")).toBeNull();
+    expect(consulta.get("totalNoCorte")).toBeNull();
+    expect(consulta.get("ordem")).toBe("status");
+    expect(consulta.get("sentido")).toBeNull();
+  });
+
+  it("voltar ao padrão apaga ordem e sentido da URL", () => {
+    const consulta = consultaComOrdenacao("status=aberta&ordem=titulo&sentido=decrescente", SEM_ORDENACAO);
+
+    expect(consulta.get("ordem")).toBeNull();
+    expect(consulta.get("sentido")).toBeNull();
+    expect(consulta.get("status")).toBe("aberta");
+  });
+
+  /**
+   * **A ida e volta entre a tela e o endpoint.** O que a tabela escreve na URL é o que
+   * `lerOrdenacaoDeOcorrenciasDaUrl` lê do outro lado — se as duas divergissem, clicar numa coluna daria
+   * `400` na própria tela.
+   */
+  it.each([...COLUNAS_DA_LISTA])("o que a tela escreve para %s, o endpoint lê", (coluna) => {
+    for (const sentido of ["crescente", "decrescente"] as const) {
+      const consulta = consultaComOrdenacao("", { ordem: coluna, sentido });
+      const doEndpoint = lerOrdenacaoDeOcorrenciasDaUrl(consulta);
+
+      const esperado = coluna === "atualizacao" && sentido === "decrescente" ? undefined : { ordem: coluna, sentido };
+      expect(doEndpoint).toStrictEqual(esperado);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os puros da barra de T-03 — critérios 67.1 e 67.4
+ * ============================================================================
+ */
+describe("os puros da barra — o que Limpar filtros limpa, e o que ele mantém", () => {
+  it("semFiltros apaga os sete recortes e a paginação, e MANTÉM a ordem", () => {
+    const consulta = semFiltros(
+      "status=aberta&categoriaId=c-1&prioridade=alta&autor=eu&titulo=vaz&areaId=a-1" +
+        "&responsavelPessoaId=p-1&pagina=3&ate=2026-09-01T00%3A00%3A00.000Z&totalNoCorte=40" +
+        "&ordem=titulo&sentido=decrescente",
+    );
+
+    for (const parametro of PARAMETROS_DE_FILTRO) expect(consulta.get(parametro)).toBeNull();
+    for (const parametro of ["pagina", "ate", "totalNoCorte"]) {
+      expect(consulta.get(parametro)).toBeNull();
+    }
+    expect(consulta.get("ordem")).toBe("titulo");
+    expect(consulta.get("sentido")).toBe("decrescente");
+  });
+
+  /**
+   * **A lista da tela e a do servidor têm de concordar.** `PARAMETROS_DE_FILTRO` decide o que *Limpar
+   * filtros* apaga; `algumFiltroAplicado` decide se o botão aparece e qual frase o vazio mostra. Um
+   * parâmetro em só uma das duas produziria um botão que não limpa o que promete — ou um recorte ligado
+   * sem botão para desligá-lo.
+   */
+  it.each([
+    ["status", "aberta"],
+    ["categoriaId", CATEGORIA],
+    ["prioridade", "alta"],
+    ["autor", "eu"],
+    ["titulo", "vaz"],
+    ["areaId", AREA],
+    ["responsavelPessoaId", PESSOA],
+  ])("%s está nos dois lados: liga o filtro e é apagado por Limpar", (parametro, valor) => {
+    expect([...PARAMETROS_DE_FILTRO]).toContain(parametro);
+    expect(algumFiltroAplicado(ler(`${parametro}=${valor}`))).toBe(true);
+    expect(semFiltros(`${parametro}=${valor}`).get(parametro)).toBeNull();
+  });
+
+  it("comValorUnico troca o valor, apaga com null, e descarta a paginação", () => {
+    expect(comValorUnico("areaId=a-1&pagina=2", "areaId", "a-2").toString()).toBe("areaId=a-2");
+    expect(comValorUnico("areaId=a-1&status=aberta", "areaId", null).toString()).toBe("status=aberta");
+  });
+
+  it("comTitulo apara, e texto em branco apaga o parâmetro", () => {
+    expect(comTitulo("", "  vaz gar  ").get("titulo")).toBe("vaz gar");
+    expect(comTitulo("titulo=vaz", "   ").get("titulo")).toBeNull();
+    expect(comTitulo("titulo=vaz&pagina=4", "luz").toString()).toBe("titulo=luz");
+  });
+
+  it("antes de digitar, as dez primeiras por nome — e a ordem é a de pt-BR", () => {
+    const opcoes: OpcaoComBusca[] = [
+      { valor: "z", rotulo: "Zeladoria" },
+      { valor: "a", rotulo: "Área de lazer" },
+      { valor: "g", rotulo: "Garagem" },
+    ];
+
+    expect(primeirasOpcoes(opcoes, 2).map((uma) => uma.rotulo)).toStrictEqual([
+      "Área de lazer",
+      "Garagem",
+    ]);
+  });
+
+  /** Sem valor, o nome; com um, o nome do valor; com mais de um, a contagem. Nunca só cor. */
+  it("o rótulo do gatilho carrega a palavra", () => {
+    const opcoes: OpcaoComBusca[] = [{ valor: "g", rotulo: "Garagem" }];
+
+    expect(rotuloDoGatilho("Área", opcoes, [])).toBe("Área");
+    expect(rotuloDoGatilho("Área", opcoes, ["g"])).toBe("Área: Garagem");
+    expect(rotuloDoGatilho("Área", opcoes, ["g", "h"])).toBe("Área: 2 selecionados");
+  });
+
+  /** Valor fora da lista — área desativada que veio por link — conta, e não inventa nome. */
+  it("valor que não está na lista conta em vez de inventar nome", () => {
+    expect(rotuloDoGatilho("Área", [], ["a-1"])).toBe("Área: 1 selecionado");
   });
 });
 
