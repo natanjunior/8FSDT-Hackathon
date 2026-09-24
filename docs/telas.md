@@ -129,10 +129,11 @@ canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois 
 e cada um diz na tela o que conta, porque um leitor que somasse os dois quadros chegaria a uma conclusão
 que os dados não sustentam.
 
-No painel, o período se escolhe por duas datas, e o atalho dos últimos 90 dias fica apagado quando o
-período já é esse. Se a data de início vier depois da de fim, a tela troca as duas e diz que trocou, em vez
-de recusar o pedido. A API continua recusando a mesma consulta, porque para um programa a ordem errada é
-defeito de quem chamou.
+No painel, o período se escolhe num controle único, que mostra o intervalo aplicado e abre um calendário
+com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho fica apagado quando o
+período já é o dele, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
+de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
+mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 
 O mesmo painel desenha, mês a mês, quantas ocorrências foram registradas e quantas foram resolvidas. Os
 dois números já vêm na resposta: a soma das séries de recorrência é o que entrou, e o denominador do tempo
