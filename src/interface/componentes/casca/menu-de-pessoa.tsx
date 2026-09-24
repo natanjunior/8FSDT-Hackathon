@@ -2,6 +2,7 @@ import { Building2, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { acaoDeSair } from "@/interface/acoes";
+import { ItemDeTema } from "@/interface/componentes/casca/item-de-tema";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { Button } from "@/interface/componentes/ui/button";
 import {
@@ -40,9 +41,12 @@ function iniciaisDe(nome: string): string {
  * outra organização é sobre os vínculos dela, não sobre a organização atual. O ícone é o `Building2`, o
  * mesmo que rotula o grupo *Organização* da barra lateral — um sentido só nos dois lugares.
  *
+ * **O tema mora aqui desde o item 72**, logo abaixo, e é a única peça cliente do menu: o resto continua
+ * renderizado no servidor. `item-de-tema.tsx` diz por que é `Toggle` e por que o papel é de item marcável.
+ *
  * Sair permanece formulário com botão de envio, e não vira link: é ação que muda estado no servidor, e o
  * critério 44b.4 a manteve de propósito na forma que já tinha. O `min-h-11` do compromisso **A-3** fica
- * nos três itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
+ * nos quatro itens. **Os tamanhos vêm dos papéis**: o rótulo e o item do catálogo trazem tamanho próprio, e
  * a classe daqui o sobrescreve.
  */
 export function MenuDePessoa({
@@ -91,6 +95,7 @@ export function MenuDePessoa({
             Entrar em outra organização
           </Link>
         </DropdownMenuItem>
+        <ItemDeTema />
         <DropdownMenuSeparator />
         {/* **O formulário envolve o item, e não o contrário.** O `asChild` do Radix funde as props do
             `menuitem` no filho único, e um `<form>` não é focável nem responde ao teclado do menu — quem

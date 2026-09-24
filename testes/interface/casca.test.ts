@@ -325,6 +325,24 @@ describe("o menu de pessoa — critério 7 do 44i", () => {
     expect(fonte).toContain("<LogOut");
   });
 
+  it("o tema é o `Toggle` do catálogo, entre «Entrar em outra organização» e o Sair (item 72)", () => {
+    const menu = ler(MENU);
+    const item = ler("src/interface/componentes/casca/item-de-tema.tsx");
+
+    const entrar = menu.indexOf("Entrar em outra organização");
+    const tema = menu.indexOf("<ItemDeTema />");
+    const sair = menu.indexOf("<form action={acaoDeSair}>");
+    expect(entrar).toBeGreaterThan(-1);
+    expect(tema).toBeGreaterThan(entrar);
+    expect(sair).toBeGreaterThan(tema);
+
+    // O papel é de item marcável, e não de botão pressionado: `aria-pressed` não vale em item de menu.
+    expect(item).toContain("<Toggle");
+    expect(item).toContain('role="menuitemcheckbox"');
+    expect(item).toContain("aria-pressed={undefined}");
+    expect(item).toContain("<DropdownMenuItem asChild");
+  });
+
   it("os dois layouts que montam a barra superior passam o e-mail da sessão", () => {
     for (const layout of ["app/(casca)/layout.tsx", "app/(foco)/layout.tsx"]) {
       expect(ler(layout), layout).toMatch(/emailDaPessoa=\{[^}]*sessao\.email\}/u);
