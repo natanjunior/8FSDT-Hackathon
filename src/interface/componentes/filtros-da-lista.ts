@@ -8,9 +8,13 @@
  * `busca-de-candidatos.ts` e do `vazio-da-lista.ts`: a decisão mora numa função pura, com teste, e o
  * componente só a chama.
  *
- * **Nenhum `import`, e é de propósito.** O arquivo não conhece React nem `next`, e por isso pode ser
- * chamado do servidor — a página monta as opções dos dois campos com busca aqui dentro — e do navegador.
+ * **Não conhece React nem `next`, e é de propósito.** O único `import` é o da busca do produto, que
+ * também é pura — e é o que impede este arquivo de ganhar uma segunda regra de casamento. Por não
+ * conhecer React, ele é chamado dos dois lados: a página monta aqui as opções dos campos com busca, e o
+ * navegador filtra aqui enquanto alguém digita.
  */
+
+import { casaPeloNome, termosDaBusca } from "./busca-de-candidatos";
 
 /**
  * Os três parâmetros de **paginação**, que não são recorte.
@@ -90,6 +94,53 @@ export function primeirasOpcoes(
   return [...opcoes]
     .sort((uma, outra) => uma.rotulo.localeCompare(outra.rotulo, "pt-BR"))
     .slice(0, quantas);
+}
+
+/**
+ * As áreas viram opções, com o tipo em *meta*.
+ *
+ * **O tipo entra porque a palavra do dono é *unidade*, e ela é verdadeira só na metade privativa.** O
+ * campo se chama *Área* porque recorta a coluna **Onde**, que mostra área comum e privativa; cada opção
+ * diz qual das duas é, pela mesma frase que T-04 escreve no seletor de área.
+ */
+export function opcoesDeArea(
+  areas: readonly { id: string; nome: string; tipo: "comum" | "privativa" }[],
+  rotuloDoTipo: (tipo: "comum" | "privativa") => string,
+): readonly OpcaoComBusca[] {
+  return areas.map((area) => ({
+    valor: area.id,
+    rotulo: area.nome,
+    complemento: rotuloDoTipo(area.tipo),
+  }));
+}
+
+/**
+ * Os participantes viram opções — **e a projeção é estreita de propósito**.
+ *
+ * `contatos[]` é dado pessoal sob o RNF10, e é a razão de `GET /vinculos` exigir `vinculo.gerir`. O que
+ * desce ao navegador aqui é o par identificador e nome, e mais nada: não há como vazar contato porque o
+ * objeto que alimenta o campo não o tem.
+ */
+export function opcoesDeResponsavel(
+  vinculos: readonly { pessoa: { pessoaId: string; nome: string } }[],
+): readonly OpcaoComBusca[] {
+  return vinculos.map((vinculo) => ({
+    valor: vinculo.pessoa.pessoaId,
+    rotulo: vinculo.pessoa.nome,
+  }));
+}
+
+/**
+ * As opções que casam com o que foi digitado — **a mesma busca do resto do produto**: prefixo de palavra,
+ * sem acento, sem caixa, todos os termos. Busca em branco devolve tudo, na ordem que chegou.
+ */
+export function filtrarOpcoes(
+  opcoes: readonly OpcaoComBusca[],
+  busca: string,
+): readonly OpcaoComBusca[] {
+  const termos = termosDaBusca(busca);
+  if (termos.length === 0) return opcoes;
+  return opcoes.filter((opcao) => casaPeloNome(opcao.rotulo, termos));
 }
 
 /**
