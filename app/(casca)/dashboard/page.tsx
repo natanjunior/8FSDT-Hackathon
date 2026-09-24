@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { verDashboard } from "@/aplicacao/dashboard";
+import { ehJanelaPadrao, verDashboard } from "@/aplicacao/dashboard";
 import {
   Cartao,
   ListaEmTexto,
@@ -35,6 +35,7 @@ import {
   FormatoInvalido,
   lerJanelaDoDashboardDaUrl,
   resolverEscopoParaTela,
+  trocarJanelaInvertida,
 } from "@/interface/http";
 import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoes";
 
@@ -52,6 +53,10 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * repositório, e um `fetch` interno custaria o salto HTTP que a §5 recusou — cobrado, sob escala a zero,
  * do tempo de quem abre a tela. O `GET /api/dashboard` existe para o mesmo contrato ser verdade nas duas
  * estradas, e as duas passam pela **mesma** função e pela **mesma** projeção.
+ *
+ * **Uma exceção, e ela é da tela** (item 69): a janela invertida é trocada por `trocarJanelaInvertida`
+ * antes da leitura, e a tela avisa. A API recebe a mesma consulta sem a troca e responde `400`. Depois da
+ * troca, as duas estradas voltam a passar pela mesma função.
  *
  * **Nada aqui é clicável ainda**, e isso deixou de ser regra em 14/09/2026 — passou a ser só o estado de
  * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar. O link
@@ -94,9 +99,13 @@ export default async function Dashboard({
   // desenharia a faixa de período inválido para quem nem entrou, e essa é a única tela do produto que
   // responderia alguma coisa sem sessão. Custa uma ida ao banco numa URL malformada, e é o que T-08 e
   // T-09 já fazem: contexto primeiro. *(Ordem corrigida na revisão de 29/08/2026.)*
+  // **A troca vem antes da leitura, e só aqui** (item 69): na tela, quem inverteu as datas quer o painel;
+  // na API, a mesma consulta continua `400`. Data mal formada não é trocada e segue para a recusa.
+  const { consulta: consultaNaOrdem, trocada } = trocarJanelaInvertida(consulta);
+
   let janela;
   try {
-    janela = lerJanelaDoDashboardDaUrl(consulta);
+    janela = lerJanelaDoDashboardDaUrl(consultaNaOrdem);
   } catch (erro) {
     // **Não é "não há dado": é "a consulta não correu"** — a distinção que o item 14 nomeou (classe do
     // achado R-15). Devolver zeros aqui diria ao Gestor que o condomínio dele está parado.
@@ -113,7 +122,11 @@ export default async function Dashboard({
           casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
       <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
 
-      <Periodo periodo={dashboard.periodo} />
+      <Periodo
+        periodo={dashboard.periodo}
+        padrao={ehJanelaPadrao(dashboard.periodo)}
+        trocada={trocada}
+      />
 
       <Recorrencia dashboard={dashboard} />
 
@@ -135,13 +148,33 @@ export default async function Dashboard({
  * que é o endereço compartilhável que o inventário pede — *"um dashboard de um trimestre é a coisa que se
  * manda para a imobiliária"*.
  *
- * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos e no
- * botão, que nem o `Input` nem o `Button` do catálogo trazem sozinhos.
+ * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos, no atalho
+ * e no botão, que nem o `Input` nem o `Button` do catálogo trazem sozinhos.
  *
  * **O `Aplicar` não veste a marca.** A regra do guia é uma ação na cor da marca por tela, e T-07 é tela de
  * leitura: a ação de escrever não existe aqui.
+ *
+ * **A ordem é De · Até · atalho · Aplicar** (critério 69.1): o atalho fica colado ao botão, e os campos
+ * vêm primeiro porque são o que se preenche. **Com o recorte já no padrão, o atalho é texto apagado**, e
+ * não link: um link para onde já se está é alvo de toque que não faz nada. Ele guarda o `min-h-11` para a
+ * faixa não mudar de altura entre os dois estados.
+ *
+ * **`dark:[color-scheme:dark]` nos dois campos** (critério 69.2): sem ele, o navegador desenha o
+ * calendário do `type="date"` no esquema claro dentro do campo escuro. A variante `dark` cobre os dois
+ * estados escuros do produto (`globals.css`), e a classe fica só aqui porque este é o único campo de data.
+ *
+ * **O aviso da troca** (critério 69.3) é uma oração em *meta* embaixo da faixa, e não repete as datas: os
+ * campos já as mostram na ordem certa, porque o `defaultValue` vem de `periodo`.
  */
-function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
+function Periodo({
+  periodo,
+  padrao,
+  trocada,
+}: {
+  periodo: DashboardProjetado["periodo"];
+  padrao: boolean;
+  trocada: boolean;
+}) {
   return (
     <form
       method="get"
@@ -156,7 +189,7 @@ function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
           name="de"
           type="date"
           defaultValue={periodo.de}
-          className="border-linha text-tinta text-interface min-h-11 w-auto"
+          className="border-linha text-tinta text-interface min-h-11 w-auto dark:[color-scheme:dark]"
         />
       </div>
 
@@ -169,20 +202,32 @@ function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
           name="ate"
           type="date"
           defaultValue={periodo.ate}
-          className="border-linha text-tinta text-interface min-h-11 w-auto"
+          className="border-linha text-tinta text-interface min-h-11 w-auto dark:[color-scheme:dark]"
         />
       </div>
+
+      {padrao ? (
+        <span className="text-tinta-fraca text-interface inline-flex min-h-11 items-center">
+          últimos 90 dias
+        </span>
+      ) : (
+        <Link
+          href="/dashboard"
+          className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
+        >
+          últimos 90 dias
+        </Link>
+      )}
 
       <Button type="submit" variant="outline" className="border-linha text-tinta text-interface min-h-11 px-4">
         Aplicar
       </Button>
 
-      <Link
-        href="/dashboard"
-        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
-      >
-        últimos 90 dias
-      </Link>
+      {trocada ? (
+        <p role="status" className="text-tinta-suave text-meta basis-full">
+          As datas estavam invertidas e foram trocadas.
+        </p>
+      ) : null}
     </form>
   );
 }
