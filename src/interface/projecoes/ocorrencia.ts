@@ -370,28 +370,52 @@ export function opcoesDePrioridade(): readonly { valor: string; rotulo: string }
  */
 export function descricaoDoRecorte(
   filtro: FiltroDeOcorrencias,
-  nomeDaCategoria: (id: string) => string | undefined,
+  nomes: {
+    categoria: (id: string) => string | undefined;
+    area: (id: string) => string | undefined;
+    pessoa: (id: string) => string | undefined;
+  },
 ): readonly string[] {
   const clausulas: string[] = [];
+
+  /**
+   * **A regra dos identificadores, num lugar só:** nomeia quando conhece **todos**; senão, conta.
+   *
+   * **`selecionado`, masculino, concordando com o "valor" implícito** — e é a MESMA palavra que o chip
+   * usa (`Status: 2 selecionados`). Duas superfícies mostrando o mesmo recorte com duas palavras
+   * diferentes seria o começo de dois vocabulários.
+   */
+  function porIdentificador(
+    rotulo: string,
+    ids: readonly string[],
+    nomeDe: (id: string) => string | undefined,
+  ): string {
+    const achados = ids.map(nomeDe).filter((nome) => nome !== undefined);
+    if (achados.length === ids.length) return `${rotulo}: ${achados.join(", ")}`;
+    return `${rotulo}: ${ids.length} selecionado${ids.length > 1 ? "s" : ""}`;
+  }
+
+  // A ordem é a da barra, e ela começa no campo de texto.
+  if (filtro.titulo !== undefined) clausulas.push(`Título com "${filtro.titulo}"`);
 
   if (filtro.status !== undefined) {
     clausulas.push(`Status: ${filtro.status.map(nomeDoStatus).join(", ")}`);
   }
 
   if (filtro.categoriaId !== undefined) {
-    const nomes = filtro.categoriaId.map(nomeDaCategoria).filter((nome) => nome !== undefined);
-    clausulas.push(
-      nomes.length === filtro.categoriaId.length
-        ? `Categoria: ${nomes.join(", ")}`
-        : // **`selecionado`, masculino, concordando com o "valor" implícito** — e é a MESMA palavra que o
-          // chip usa (`Status: 2 selecionados`, §3.5 da spec). Duas superfícies mostrando o mesmo recorte
-          // com duas palavras diferentes seria o começo de dois vocabulários.
-          `Categoria: ${filtro.categoriaId.length} selecionado${filtro.categoriaId.length > 1 ? "s" : ""}`,
-    );
+    clausulas.push(porIdentificador("Categoria", filtro.categoriaId, nomes.categoria));
   }
 
   if (filtro.prioridade !== undefined) {
     clausulas.push(`Prioridade: ${filtro.prioridade.map(nomeDaPrioridade).join(", ")}`);
+  }
+
+  if (filtro.areaId !== undefined) {
+    clausulas.push(porIdentificador("Área", filtro.areaId, nomes.area));
+  }
+
+  if (filtro.responsavelPessoaId !== undefined) {
+    clausulas.push(porIdentificador("Responsável", filtro.responsavelPessoaId, nomes.pessoa));
   }
 
   if (filtro.apenasDoAutor === true) clausulas.push("Só as minhas");

@@ -65,6 +65,8 @@ import { areasUsadas, comAreaUsada } from "@/interface/componentes/areas-usadas"
 import {
   comTitulo,
   comValorUnico,
+  opcoesDeArea,
+  opcoesDeResponsavel,
   PARAMETROS_DE_FILTRO,
   primeirasOpcoes,
   rotuloDoGatilho,
@@ -107,6 +109,7 @@ import {
 import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
   abreAvaliacaoPeloEndereco,
+  destinoDaAvaliacao,
   acaoPrimaria,
   acoesDaBarra,
   AVISO_DE_AVALIACAO,
@@ -1403,6 +1406,76 @@ describe("os puros da barra — o que Limpar filtros limpa, e o que ele mantém"
   });
 });
 
+/**
+ * ============================================================================
+ *  As opções dos dois campos com busca — critério 67.2
+ * ============================================================================
+ *
+ * **A entrada vem das leituras escopadas** — `repos.areas` e `repos.vinculos`, que a página passa —, e é
+ * a suíte de isolamento que prova que elas não atravessam organização. O que estes casos provam é o outro
+ * lado: **o que desce ao navegador**.
+ */
+describe("as opções dos campos com busca — critério 67.2", () => {
+  it("a área traz o tipo em palavra, pela frase que T-04 já usa", () => {
+    expect(
+      opcoesDeArea(
+        [
+          { id: "a-1", nome: "Garagem", tipo: "comum" },
+          { id: "a-2", nome: "Apartamento 302", tipo: "privativa" },
+        ],
+        rotuloDoTipoDeArea,
+      ),
+    ).toStrictEqual([
+      { valor: "a-1", rotulo: "Garagem", complemento: "área comum" },
+      { valor: "a-2", rotulo: "Apartamento 302", complemento: "unidade privativa" },
+    ]);
+  });
+
+  /**
+   * **`contatos[]` não desce, e o caso é a garantia.** É dado pessoal sob o RNF10, e é a razão de
+   * `GET /vinculos` exigir `vinculo.gerir`: um filtro de responsável que carregasse telefone e e-mail no
+   * pacote do navegador publicaria a lista de contatos da organização inteira em cada carga de T-03.
+   */
+  it("o responsável desce com duas chaves e nada mais — sem contato, sem papel", () => {
+    // Um `VinculoLido` inteiro, com contato preenchido — é o que a leitura escopada devolve.
+    const lidos = [
+      {
+        pessoa: {
+          pessoaId: "p-1",
+          nome: "Marcos Ribeiro",
+          contatos: [{ tipo: "telefone", valor: "11999990000" }],
+        },
+        papel: "encarregado",
+        area: { id: "a-1", nome: "Garagem", tipo: "comum" },
+      },
+    ];
+    const opcoes = opcoesDeResponsavel(lidos);
+
+    expect(opcoes).toStrictEqual([{ valor: "p-1", rotulo: "Marcos Ribeiro" }]);
+    expect(Object.keys(opcoes[0] ?? {})).toStrictEqual(["valor", "rotulo"]);
+  });
+});
+
+/**
+ * **O destino de *"Conte como foi"*** — item 67. A marca deixou de ser frase solta e virou link; o
+ * destino é a porta de fora do modal de avaliar de T-05, que é onde a avaliação continua acontecendo.
+ */
+describe("o convite a avaliar leva à avaliação", () => {
+  it("o destino é a ocorrência com a ação de avaliar", () => {
+    expect(destinoDaAvaliacao("o-1")).toBe("/ocorrencias/o-1?acao=avaliar");
+  });
+
+  /** A ida e volta: o que a lista escreve é o que T-05 lê. */
+  it("T-05 abre o modal por esse endereço quando avaliar está disponível", () => {
+    const acao =
+      new URL(`https://exemplo.test${destinoDaAvaliacao("o-1")}`).searchParams.get("acao") ??
+      undefined;
+
+    expect(abreAvaliacaoPeloEndereco(acao, ["avaliar", "comentar"])).toBe(true);
+    expect(abreAvaliacaoPeloEndereco(acao, ["comentar"])).toBe(false);
+  });
+});
+
 describe("a lente de rótulo — o critério 31.2, e ela segue PERMISSÃO", () => {
   it("quem tem ocorrencia.ler_todas lê pela coluna do Gestor", () => {
     expect(lenteDeRotulo(["ocorrencia.ler_todas"])).toBe("gestor");
@@ -1681,34 +1754,64 @@ describe("o critério 15.5 — os nomes das opções de filtro", () => {
 });
 
 describe("o critério 15.6 — a descrição do recorte, para o subtítulo do vazio", () => {
-  const nomeDaCategoria = (id: string) => (id === "c-1" ? "Iluminação" : undefined);
+  /** Os três mapas de nome, como a página os monta (item 67). */
+  const nomes = {
+    categoria: (id: string) => (id === "c-1" ? "Iluminação" : undefined),
+    area: (id: string) => (id === "a-1" ? "Garagem" : undefined),
+    pessoa: (id: string) => (id === "p-1" ? "Marcos Ribeiro" : undefined),
+  };
 
   it("sem filtro nenhum, não há o que descrever", () => {
-    expect(descricaoDoRecorte({}, nomeDaCategoria)).toStrictEqual([]);
+    expect(descricaoDoRecorte({}, nomes)).toStrictEqual([]);
   });
 
   it("cada dimensão vira uma cláusula com o MESMO rótulo do chip", () => {
-    expect(
-      descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomeDaCategoria),
-    ).toStrictEqual(["Status: Pausada", "Prioridade: Alta"]);
+    expect(descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomes)).toStrictEqual([
+      "Status: Pausada",
+      "Prioridade: Alta",
+    ]);
   });
 
   it("dois valores na mesma dimensão viram uma cláusula só, com os dois", () => {
-    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomeDaCategoria)).toStrictEqual([
+    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomes)).toStrictEqual([
       "Status: Aberta, Em análise",
     ]);
   });
 
   it("categoria desconhecida não vira texto inventado", () => {
-    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomeDaCategoria)).toStrictEqual([
+    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomes)).toStrictEqual([
       "Categoria: 1 selecionado",
     ]);
   });
 
   it("só as minhas é uma cláusula como as outras", () => {
-    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
-      "Só as minhas",
+    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes)).toStrictEqual(["Só as minhas"]);
+  });
+
+  /** Os três do item 67, com os mesmos rótulos dos gatilhos da barra. */
+  it("o título com aspas vem primeiro, e área e responsável depois das três de hoje", () => {
+    expect(
+      descricaoDoRecorte(
+        {
+          titulo: "vaz gar",
+          status: ["aberta"],
+          areaId: ["a-1"],
+          responsavelPessoaId: ["p-1"],
+        },
+        nomes,
+      ),
+    ).toStrictEqual([
+      'Título com "vaz gar"',
+      "Status: Aberta",
+      "Área: Garagem",
+      "Responsável: Marcos Ribeiro",
     ]);
+  });
+
+  it("área e responsável desconhecidos contam, como a categoria", () => {
+    expect(
+      descricaoDoRecorte({ areaId: ["a-9"], responsavelPessoaId: ["p-8", "p-9"] }, nomes),
+    ).toStrictEqual(["Área: 1 selecionado", "Responsável: 2 selecionados"]);
   });
 });
 

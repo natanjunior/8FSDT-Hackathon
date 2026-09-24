@@ -8,18 +8,33 @@ import {
   listarOcorrencias,
   PAGINA_MAXIMA,
   type FiltroDeOcorrencias,
+  type OrdenacaoDeOcorrencias,
   type PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
-import { listarCategorias, type CategoriaLida } from "@/aplicacao/organizacao";
+import {
+  listarAreas,
+  listarCategorias,
+  listarVinculos,
+  type AreaLida,
+  type CategoriaLida,
+  type VinculoLido,
+} from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
 import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
 import { DerivaDaLista } from "@/interface/componentes/deriva-da-lista";
 import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
+import {
+  opcoesDeArea,
+  opcoesDeResponsavel,
+  semFiltros,
+  type OpcaoComBusca,
+} from "@/interface/componentes/filtros-da-lista";
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
 import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
 import { PaginacaoDaLista } from "@/interface/componentes/paginacao-da-lista";
 import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
+import { rotuloDoTipoDeArea } from "@/interface/componentes/registro-de-ocorrencia";
 import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
 import { horaDoCorte, instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { cn } from "@/interface/componentes/utilitarios";
@@ -42,6 +57,7 @@ import {
   consultaDe,
   FormatoInvalido,
   lerFiltroDeOcorrenciasDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   lerPaginacaoDaUrl,
   resolverEscopoParaTela,
   type PaginacaoDaUrl,
@@ -82,12 +98,15 @@ export default async function Ocorrencias({
 
   let filtro: FiltroDeOcorrencias;
   let paginacao: PaginacaoDaUrl;
+  let ordenacao: OrdenacaoDeOcorrencias | undefined;
   try {
     filtro = lerFiltroDeOcorrenciasDaUrl(consulta);
     // **Na mesma guarda, e é de propósito.** `?pagina=0` é a mesma classe de engano que `?status=xpto`:
     // a consulta **não correu**. Deixá-lo cair no `throw` de fora produziria uma tela de erro onde o
-    // resto do produto mostra a frase do §3.9.
+    // resto do produto mostra a frase do §3.9. **`?ordem=xpto` entrou na mesma guarda pelo item 67**,
+    // pela mesma razão: ordem que não existe é link editado à mão, e a tabela nunca a escreve.
     paginacao = lerPaginacaoDaUrl(consulta);
+    ordenacao = lerOrdenacaoDeOcorrenciasDaUrl(consulta);
   } catch (erro) {
     // §3.9 — **isto não é o quarto vazio.** Os três vazios do critério 14.4 respondem "a consulta correu e
     // não achou nada"; este responde "a consulta não correu". Confundi-los é o erro que o 14.4 existe para
@@ -164,9 +183,21 @@ export default async function Ocorrencias({
     // 14b: quem renderiza a página pedida é este Server Component, e ele não vê nada além da URL. Sem
     // `ate` o corte se refaria a cada clique; sem `totalNoCorte` a compensação de deslocamento nunca
     // executaria.
-    { filtro, ...paginacao },
+    { filtro, ...paginacao, ...(ordenacao === undefined ? {} : { ordenacao }) },
   );
   const categoriasPedidas = listarCategorias(repos.categorias, { incluirInativas: true });
+  /**
+   * **As quatro promessas partem juntas, e são esperadas juntas lá dentro.** Encadeá-las custaria idas ao
+   * banco em série numa tela que o RNF5 cronometra.
+   *
+   * **A lista de participantes só é pedida com `vinculo.gerir`**, que é a permissão que a guarda. Sem
+   * ela não há consulta e não há campo — o filtro de responsável simplesmente não existe na barra.
+   */
+  const areasPedidas = listarAreas(repos.areas);
+  const podeGerirVinculos = vinculo.pode("vinculo.gerir");
+  const participantesPedidos: Promise<readonly VinculoLido[] | null> = podeGerirVinculos
+    ? listarVinculos(repos.vinculos)
+    : Promise.resolve(null);
 
   return (
     <NavegacaoDaLista>
@@ -217,6 +248,8 @@ export default async function Ocorrencias({
           <Lista
             pagina={paginaPedida}
             categorias={categoriasPedidas}
+            areas={areasPedidas}
+            participantes={participantesPedidos}
             filtro={filtro}
             consultaAtual={consultaAtual}
             nomeDaOrganizacao={organizacao?.nome ?? null}
@@ -263,6 +296,8 @@ export default async function Ocorrencias({
 async function Lista({
   pagina,
   categorias,
+  areas,
+  participantes,
   filtro,
   consultaAtual,
   nomeDaOrganizacao,
@@ -278,6 +313,9 @@ async function Lista({
 }: {
   pagina: Promise<PaginaDeOcorrencias>;
   categorias: Promise<readonly CategoriaLida[]>;
+  areas: Promise<readonly AreaLida[]>;
+  /** `null` quando quem lê não tem `vinculo.gerir` — e aí o filtro de responsável não aparece. */
+  participantes: Promise<readonly VinculoLido[] | null>;
   filtro: FiltroDeOcorrencias;
   consultaAtual: string;
   nomeDaOrganizacao: string | null;
@@ -293,7 +331,12 @@ async function Lista({
   /** Quem abriu T-03 — para a marca *"Conte como foi"* do critério 27.5. */
   pessoaIdDeQuemLe: string;
 }) {
-  const [resultado, listaDeCategorias] = await Promise.all([pagina, categorias]);
+  const [resultado, listaDeCategorias, listaDeAreas, listaDeParticipantes] = await Promise.all([
+    pagina,
+    categorias,
+    areas,
+    participantes,
+  ]);
   const projetada = projetarPaginaDeOcorrencias(resultado, lente);
 
   /**
@@ -306,8 +349,27 @@ async function Lista({
     .filter((categoria) => categoria.ativa)
     .map((categoria) => ({ valor: categoria.id, rotulo: categoria.nome }));
 
-  /** Categoria que veio na URL e não está no mapa — desativada, ou de outra organização — não vira nome. */
-  const nomeDaCategoria = (id: string) => listaDeCategorias.find((uma) => uma.id === id)?.nome;
+  /**
+   * **As projeções estreitas, montadas no servidor** (item 67). O que desce ao navegador é o par
+   * identificador e nome, mais o tipo da área — e nada de `contatos[]`, que é RNF10.
+   */
+  const opcoesDeAreaDoFiltro: readonly OpcaoComBusca[] = opcoesDeArea(
+    listaDeAreas,
+    rotuloDoTipoDeArea,
+  );
+  const opcoesDeResponsavelDoFiltro: readonly OpcaoComBusca[] | null =
+    listaDeParticipantes === null ? null : opcoesDeResponsavel(listaDeParticipantes);
+
+  /**
+   * Identificador que veio na URL e não está no mapa — desativado, ou de outra organização — não vira
+   * nome, e a frase do vazio conta em vez de inventar.
+   */
+  const nomesDoRecorte = {
+    categoria: (id: string) => listaDeCategorias.find((uma) => uma.id === id)?.nome,
+    area: (id: string) => listaDeAreas.find((uma) => uma.id === id)?.nome,
+    pessoa: (id: string) =>
+      listaDeParticipantes?.find((um) => um.pessoa.pessoaId === id)?.pessoa.nome,
+  };
 
   /**
    * **A barra vive DENTRO da fronteira de espera**, junto da lista, e o preço está declarado: durante a
@@ -325,6 +387,8 @@ async function Lista({
         status={opcoesDeStatus}
         categorias={opcoesDeCategoria}
         prioridades={podeAlterarPrioridade ? opcoesDePrioridade : null}
+        areas={opcoesDeAreaDoFiltro}
+        participantes={opcoesDeResponsavelDoFiltro}
       />
     ) : (
       algumFiltroAplicado(filtro) && (
@@ -396,6 +460,7 @@ async function Lista({
         {estado === "lista" && (
           <ListaDeOcorrencias
             primeiraPagina={projetada}
+            consultaAtual={consultaAtual}
             iconePorCategoria={iconePorCategoria}
             mostrarPrioridade={mostrarPrioridade}
             pessoaIdDeQuemLe={pessoaIdDeQuemLe}
@@ -412,7 +477,8 @@ async function Lista({
             tipo={estado}
             filtro={filtro}
             nomeDaOrganizacao={nomeDaOrganizacao}
-            nomeDaCategoria={nomeDaCategoria}
+            nomesDoRecorte={nomesDoRecorte}
+            consultaAtual={consultaAtual}
             podeRegistrar={podeRegistrar}
             podeConfigurar={podeConfigurar}
           />
@@ -473,14 +539,20 @@ function Vazio({
   tipo,
   filtro,
   nomeDaOrganizacao,
-  nomeDaCategoria,
+  nomesDoRecorte,
+  consultaAtual,
   podeRegistrar,
   podeConfigurar,
 }: {
   tipo: TipoDeVazio;
   filtro: FiltroDeOcorrencias;
   nomeDaOrganizacao: string | null;
-  nomeDaCategoria: (id: string) => string | undefined;
+  nomesDoRecorte: {
+    categoria: (id: string) => string | undefined;
+    area: (id: string) => string | undefined;
+    pessoa: (id: string) => string | undefined;
+  };
+  consultaAtual: string;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
 }) {
@@ -502,7 +574,7 @@ function Vazio({
         {tipo === "filtro" && (
           <EmptyDescription className="text-corpo text-tinta-suave">
             {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
-            {descricaoDoRecorte(filtro, nomeDaCategoria).join(" · ")}.
+            {descricaoDoRecorte(filtro, nomesDoRecorte).join(" · ")}.
           </EmptyDescription>
         )}
       </EmptyHeader>
@@ -529,9 +601,10 @@ function Vazio({
             Conferir as áreas
           </Link>
         )}
+        {/* **Limpar filtros mantém a ordem escolhida** (item 67), como o da barra. */}
         {tipo === "filtro" && (
           <Link
-            href="/ocorrencias"
+            href={`/ocorrencias?${semFiltros(consultaAtual).toString()}`}
             className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
           >
             Limpar filtros
