@@ -104,7 +104,7 @@ export function repositorioEscopadoDeVinculos(
           // que é global.
           const alteradas = await dentro<{ id: string }>(
             `update pessoas p
-                set nome = $3, atualizado_em = now()
+                set nome = $3
                from vinculos v
               where v.pessoa_id = p.id
                 and v.organizacao_id = $1

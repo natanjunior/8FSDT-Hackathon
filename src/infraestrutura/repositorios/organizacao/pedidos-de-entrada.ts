@@ -70,13 +70,7 @@ export function repositorioDePedidosDeEntrada(
         if (criado === undefined) return { desfecho: "ja-pendente" };
 
         if (nome !== null) {
-          // **O primeiro `UPDATE` do produto.** A migração 001 deixou ao hub a questão de quem mantém
-          // `atualizado_em`; aqui a aplicação o escreve explicitamente, porque não há gatilho e uma coluna
-          // de relógio que não anda é pior que a ausência dela.
-          await consulta(`update pessoas set nome = $2, atualizado_em = now() where id = $1`, [
-            pessoaId,
-            nome,
-          ]);
+          await consulta(`update pessoas set nome = $2 where id = $1`, [pessoaId, nome]);
         }
 
         if (telefone !== null) {
