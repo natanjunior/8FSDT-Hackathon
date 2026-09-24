@@ -391,6 +391,21 @@ const ALCANCE_DO_44I = [
 const TELAS_DO_44I = ALCANCE_DO_44I.filter((caminho) => caminho.startsWith("app/"));
 
 describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
+  it("o modal rola só no corpo: cabeçalho e rodapé ficam fixos, sem scroll-area (item 68a)", () => {
+    const fonte = ler("src/interface/componentes/modal.tsx");
+    // A guarda lê as classes, não a ordem delas: `flex max-h-[85dvh] flex-col` não contém "flex flex-col".
+    const classes = (nome: string) =>
+      (fonte.match(new RegExp(`const ${nome} =\\s*"([^"]*)"`, "u"))?.[1] ?? "").split(/\s+/u);
+    for (const nome of ["CONTEUDO_DO_DIALOG", "CONTEUDO_DO_SHEET"]) {
+      expect(classes(nome), nome).toEqual(expect.arrayContaining(["flex", "flex-col", "overflow-hidden"]));
+      expect(classes(nome), nome).not.toContain("overflow-y-auto");
+    }
+    // O corpo: uma cadeia com as três classes que o fazem rolar dentro da coluna, em qualquer ordem entre outras.
+    expect(fonte).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*"/u);
+    // O docblock escreve a palavra para explicar a ausência; a guarda olha o import.
+    expect(fonte).not.toMatch(/ui\/scroll-area/u);
+  });
+
   it("o modal é uma raiz com as duas peças do catálogo, a gaveta vem de baixo, e sem pacote novo", () => {
     const fonte = ler("src/interface/componentes/modal.tsx");
     expect(fonte).toContain("useIsMobile()");
