@@ -111,7 +111,8 @@ zero hora.
 O quadro *Tempo de resolução* do painel mostra, por mês, a mediana e o p90 das resoluções daquele mês, com
 quantas foram. A mediana diz como foi o caso do meio; o p90 diz como foi o décimo pior atendimento, e é
 nele que há o que corrigir. Mês com três resoluções ou menos aparece com as durações escritas uma a uma,
-porque um percentil sobre três pontos descreveria mais do que três pontos sustentam.
+porque um percentil sobre três pontos descreveria mais do que três pontos sustentam. A barra de cada mês
+desenha a mediana, também no mês que mostra as durações uma a uma, e o próprio quadro diz isso no rodapé.
 
 No painel, o quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as
 canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois não somam o mesmo número**,

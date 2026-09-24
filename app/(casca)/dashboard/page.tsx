@@ -27,7 +27,7 @@ import {
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
-import { textoDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
+import { itemDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import {
@@ -449,24 +449,23 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
  * **A barra desenha a MEDIANA, sempre, e sobre o número em horas — nunca sobre o texto.** Ela compara os
  * meses entre si, e o que se compara é o caso típico; desenhar o p90 faria o mês de uma catástrofe única
  * encobrir o mês inteiro. E um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade.
+ * **E o texto vai embaixo da barra** (item 61): na mesma linha, o texto de três durações comia o trilho do
+ * mês pequeno, e a barra do mês de maior mediana saía a menor da lista. O rodapé diz que a barra é a
+ * mediana, que é o que o mês de duas resoluções não escreve.
  */
 function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
   const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
 
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) => {
-    const rotulo = rotulos[i] ?? mes.mes;
-    const texto = textoDoTempoDeResolucao(mes);
-
-    return mes.mediana === null
-      ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto }
-      : { rotulo, quantidade: mes.mediana, texto };
-  });
+  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) =>
+    itemDoTempoDeResolucao(mes, rotulos[i] ?? mes.mes),
+  );
 
   return (
     <Cartao numero={4} titulo="Tempo de resolução" quando="no período">
-      <Medidor itens={itens} />
+      <Medidor itens={itens} disposicao="texto-embaixo" />
       <p className="text-tinta-suave text-corpo">
-        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma.
+        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma. A
+        barra é a mediana.
       </p>
     </Cartao>
   );
