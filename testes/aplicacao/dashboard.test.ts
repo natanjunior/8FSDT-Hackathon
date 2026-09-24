@@ -336,11 +336,12 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
   });
 
   /**
-   * **Duas casas, e o critério 55.2 é quem obriga.** Com uma casa, `0.028` h viraria `0.0` e a tela
-   * escreveria `0 min` — o zero que o item 55 acabou de tirar da tela. Com duas, o quantum é de 36
-   * segundos, abaixo do menor texto que a tela sabe escrever.
+   * **Quatro casas, e piso de `0.0001` para o que é maior que zero** — item 62, critério 62.2. Com duas
+   * casas, qualquer duração abaixo de ~18 s chegava como `0` exato, **antes** do piso da tela, e a Aurora
+   * escreveu `mediana 0 min` com 44 resolvidas. O quantum de quatro casas é de 0,36 s; o piso cobre o que
+   * fica abaixo dele, e a regra passa a valer por construção.
    */
-  it("a amostra sai com DUAS casas, e um minuto e quarenta não vira zero", async () => {
+  it("a amostra sai com QUATRO casas, e um minuto e quarenta chega inteiro", async () => {
     const { repositorio } = repositorioEmMemoria({
       resolucoes: [
         {
@@ -357,11 +358,65 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
       mes: "2026-08",
-      mediana: 0.03,
+      mediana: 0.0283,
       p90: null,
-      amostra: [0.03],
+      amostra: [0.0283],
       resolvidas: 1,
     });
+  });
+
+  it("cinco segundos chegam como 0.0014, e não como zero — a pergunta do critério 62.2", async () => {
+    const cincoSegundos = 5 / 3600;
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 1,
+          medianaDeHoras: cincoSegundos,
+          p90DeHoras: cincoSegundos,
+          amostraEmHoras: [cincoSegundos],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
+      mes: "2026-08",
+      mediana: 0.0014,
+      p90: null,
+      amostra: [0.0014],
+      resolvidas: 1,
+    });
+  });
+
+  it("abaixo do quantum, o valor positivo sobe ao piso de 0.0001 — mediana, p90 e amostra", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 4,
+          medianaDeHoras: 0.00001,
+          p90DeHoras: 0.00002,
+          amostraEmHoras: [],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+        {
+          mes: "2026-07",
+          resolvidas: 1,
+          medianaDeHoras: 0.00001,
+          p90DeHoras: 0.00001,
+          amostraEmHoras: [0.00001],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    const porMes = new Map(lido.tempoDeResolucao.porMes.map((m) => [m.mes, m]));
+    expect(porMes.get("2026-08")).toMatchObject({ mediana: 0.0001, p90: 0.0001, amostra: null });
+    expect(porMes.get("2026-07")).toMatchObject({ mediana: 0.0001, p90: null, amostra: [0.0001] });
   });
 });
 

@@ -104,9 +104,9 @@ O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e
 abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
 
 No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
-tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas inteiras, e acima disso
-escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
-zero hora.
+tela**: abaixo de um minuto ela escreve *menos de 1 min*, abaixo de uma hora escreve minutos, de uma a 48
+horas escreve horas inteiras, e acima disso escreve dias com uma casa. Assim uma ocorrência resolvida em
+nove minutos aparece em minutos, e uma resolvida em dez segundos não aparece como zero.
 
 O quadro *Tempo de resolução* do painel mostra, por mês, a mediana e o p90 das resoluções daquele mês, com
 quantas foram. A mediana diz como foi o caso do meio; o p90 diz como foi o décimo pior atendimento, e é

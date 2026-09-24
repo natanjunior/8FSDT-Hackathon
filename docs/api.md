@@ -151,6 +151,10 @@ fração multiplicada por `n − 1`, e o valor sai da interpolação entre os do
 amostra de oito resoluções, o p90 cai entre a sétima e a oitava, e não sobre a maior delas. Outros métodos
 devolvem outro número sobre os mesmos dados, e por isso este fica escrito.
 
+Os valores vêm em horas, com quatro casas decimais. Uma duração maior que zero nunca chega como zero: a
+menor que a resposta publica é `0.0001`, pouco mais de um terço de segundo, e é a tela que decide como
+escrevê-la.
+
 **Mês com três resoluções ou menos não recebe p90.** A resposta traz as durações cruas daquele mês, e a
 tela as escreve uma a uma. Com três pontos, o percentil descreveria a interpolação entre dois deles, com
 uma exatidão que a amostra não sustenta.

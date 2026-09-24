@@ -12,12 +12,16 @@
  * chegava como `0.2` e aparecia como `0 h`, afirmando instantaneidade. Apareceu em produção.
  *
  * **A unidade é escolha da tela** (critério 55.1): a API devolve horas, e quem decide se isso se lê em
- * minutos, em horas ou em dias é este módulo. Desde o item 58 o número chega com **duas** casas decimais,
- * e o quantum de 36 segundos fica abaixo do menor texto que esta função sabe escrever — então os minutos
- * que ela escreve são os minutos que houve.
+ * minutos, em horas ou em dias é este módulo. Desde o item 62 o número chega com **quatro** casas e
+ * nunca chega como zero quando a duração foi maior que zero (`arredondarHoras`, em
+ * `src/aplicacao/dashboard/indicadores.ts`).
  *
- * **O piso de um minuto é o que faz o critério 55.2 valer.** Sem ele meio minuto voltaria a ser zero, e o
- * item teria trocado um zero mentiroso por outro.
+ * **O degrau de baixo é `menos de 1 min`** (critério 62.1), e vale para tudo entre zero e um minuto
+ * cheio. Antes dele havia um piso de `1 min`, que só rodava para `horas > 0`, e o arredondamento de duas
+ * casas entregava um `0` exato antes do piso: a Aurora escreveu `mediana 0 min` com 44 resolvidas.
+ *
+ * **Zero é o travessão, `SEM_DURACAO`** (critério 62.3), o mesmo símbolo que o mês sem resolução
+ * escreve. Ausência e quantidade não dividem texto: `—` não é duração, `menos de 1 min` é.
  *
  * **`60 min` é promovido a `1 h`, e isso é correção de arredondamento, não mudança de faixa.** Escrever
  * `60 min` seria a tela usando uma unidade para dizer o valor da seguinte.
@@ -45,6 +49,12 @@ const TETO_DAS_HORAS = 48;
 const MINUTOS_POR_HORA = 60;
 const HORAS_POR_DIA = 24;
 
+/** O que se escreve quando não houve duração a medir (critério 62.3). */
+export const SEM_DURACAO = "—";
+
+/** O degrau de baixo: maior que zero e menor que um minuto cheio (critério 62.1). */
+const MENOS_DE_UM_MINUTO = "menos de 1 min";
+
 const DIAS = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
@@ -56,12 +66,18 @@ const DIAS = new Intl.NumberFormat("pt-BR", {
  * **Pré-condição: `horas` é finito e não negativo.** A aplicação só produz o número quando houve
  * resolução, e resolução vem depois do registro (`src/aplicacao/dashboard/indicadores.ts`, `serieDeResolucao`
  * devolve `null` quando `resolvidas === 0`). Não há ramo defensivo porque não há entrada defensável.
+ *
+ * **Acima do corte de um minuto, `round` nunca devolve zero**: `horas × 60 ≥ 1` arredonda no mínimo para
+ * `1`. Por isso o `Math.max(1, …)` do item 55 saiu.
  */
 export function duracaoEmTexto(horas: number): string {
   if (horas > TETO_DAS_HORAS) return `${DIAS.format(horas / HORAS_POR_DIA)} dias`;
   if (horas >= 1) return `${String(Math.round(horas))} h`;
-  if (horas <= 0) return "0 min";
+  if (horas <= 0) return SEM_DURACAO;
 
-  const minutos = Math.max(1, Math.round(horas * MINUTOS_POR_HORA));
+  const minutosExatos = horas * MINUTOS_POR_HORA;
+  if (minutosExatos < 1) return MENOS_DE_UM_MINUTO;
+
+  const minutos = Math.round(minutosExatos);
   return minutos === MINUTOS_POR_HORA ? "1 h" : `${String(minutos)} min`;
 }
