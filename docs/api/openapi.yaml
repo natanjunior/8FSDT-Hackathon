@@ -625,6 +625,7 @@ paths:
                     papel: "encarregado"
                     temConta: false
                     criadoEm: "2026-08-20T12:05:00Z"
+                    atualizadoEm: null
                   - pessoa:
                       pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f"
                       nome: "Síndica do Recanto Azul"
@@ -633,6 +634,7 @@ paths:
                     papel: "gestor"
                     temConta: true
                     criadoEm: "2026-08-20T12:00:00Z"
+                    atualizadoEm: "2026-09-18T09:30:00Z"
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
@@ -3187,7 +3189,7 @@ components:
     Vinculo:
       type: object
       description: A ligação entre uma Pessoa, um Papel e uma Organização. É a ponte entre o global e o escopado.
-      required: [pessoa, papel, temConta, criadoEm]
+      required: [pessoa, papel, temConta, criadoEm, atualizadoEm]
       properties:
         pessoa: { $ref: "#/components/schemas/PessoaComContato" }
         papel: { $ref: "#/components/schemas/PapelVinculo" }
@@ -3210,6 +3212,16 @@ components:
             `false` é o Encarregado sem conta — existe como cadastro, recebe atribuições e aparece como
             responsável, e **para agir no sistema seria preciso ter conta**.
         criadoEm: { type: string, format: date-time }
+        atualizadoEm:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Quando este participante mudou pela última vez: a **maior** entre o relógio da Pessoa e o do
+            Vínculo, os dois carimbados por gatilho do banco. `null` quer dizer **nenhuma alteração
+            registrada** — a tela mostra um traço, e nunca a data de entrada.
+
+            **O relógio da Pessoa é global.** Quem troca o próprio nome move esta data em toda
+            organização onde participa, e a resposta não diz quem mexeu.
 
     IconeCategoria:
       type: string
