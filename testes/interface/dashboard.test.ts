@@ -13,6 +13,8 @@ import {
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
 import {
+  itemDoTempoDeResolucao,
+  SEM_RESOLUCAO_NO_MES,
   textoDoTempoDeResolucao,
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
@@ -306,6 +308,59 @@ describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mos
 
   it("sem resolução, o travessão e o denominador em zero — critério 36.2, intacto", () => {
     expect(textoDoTempoDeResolucao(mes({}))).toBe("— · 0 resolvidas");
+  });
+});
+
+/**
+ * O item 61 — **a barra do quadro 4 é a mediana, em toda linha que tem barra**, e o caso é o medido no
+ * Recanto Azul em 23/09/2026: julho com três resoluções e mediana de 6,1 dias, agosto com uma de 5,2.
+ * **Os números vão em HORAS**, que é a unidade de `MesDoTempoDeResolucao`; o texto em dias sai de
+ * `duracaoEmTexto`, e a asserção do texto prova que o caso é o mesmo que a tela mostrou.
+ *
+ * **Este teste passa também com o código de antes do item**, e é de propósito que isso está escrito: a
+ * quantidade já era a mediana. O defeito era de desenho, o trilho de julho mais curto que o de agosto, e
+ * o projeto `unitario` roda sem DOM. Quem pega o defeito é a medição em pixels de
+ * `dashboard-e-paginacao.spec.ts`; este guarda a escolha do critério 61.1 contra regressão.
+ */
+describe("o item de cada mês do quadro 4 — a barra desenha a mediana (item 61)", () => {
+  // Em horas: 125 h, 146 h e 247 h são 5,2, 6,1 e 10,3 dias; 124 h são 5,2 dias.
+  const julho: MesDoTempoDeResolucao = {
+    mediana: 146,
+    p90: null,
+    amostra: [125, 146, 247],
+    resolvidas: 3,
+  };
+  const agosto: MesDoTempoDeResolucao = { mediana: 124, p90: null, amostra: [124], resolvidas: 1 };
+
+  it("julho, de mediana maior, desenha mais que agosto — o caso medido do critério 61.2", () => {
+    const itemDeJulho = itemDoTempoDeResolucao(julho, "jul");
+    const itemDeAgosto = itemDoTempoDeResolucao(agosto, "ago");
+    expect(itemDeJulho.texto).toBe("5,2 dias, 6,1 dias, 10,3 dias · 3 resolvidas");
+    expect(itemDeAgosto.texto).toBe("5,2 dias · 1 resolvida");
+    expect(itemDeJulho.quantidade).toBeGreaterThan(itemDeAgosto.quantidade);
+  });
+
+  it("a quantidade é a mediana, e o texto é a linha do mês, sem nada inventado no meio", () => {
+    expect(itemDoTempoDeResolucao(julho, "jul")).toEqual({
+      rotulo: "jul",
+      quantidade: 146,
+      texto: textoDoTempoDeResolucao(julho),
+    });
+  });
+
+  it("com duas resoluções a barra é o ponto médio, que o texto não escreve — o rodapé diz o que ela é", () => {
+    const dois: MesDoTempoDeResolucao = { mediana: 144, p90: null, amostra: [120, 168], resolvidas: 2 };
+    expect(itemDoTempoDeResolucao(dois, "set").quantidade).toBe(144);
+  });
+
+  it("sem resolução, nenhuma barra: a frase no lugar dela, e o travessão no texto — critério 61.3", () => {
+    const vazio: MesDoTempoDeResolucao = { mediana: null, p90: null, amostra: null, resolvidas: 0 };
+    expect(itemDoTempoDeResolucao(vazio, "jun")).toEqual({
+      rotulo: "jun",
+      quantidade: 0,
+      vazio: SEM_RESOLUCAO_NO_MES,
+      texto: "— · 0 resolvidas",
+    });
   });
 });
 

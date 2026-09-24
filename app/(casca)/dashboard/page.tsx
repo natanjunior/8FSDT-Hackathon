@@ -27,7 +27,7 @@ import {
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
-import { textoDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
+import { itemDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import {
@@ -453,14 +453,9 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
 function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
   const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
 
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) => {
-    const rotulo = rotulos[i] ?? mes.mes;
-    const texto = textoDoTempoDeResolucao(mes);
-
-    return mes.mediana === null
-      ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto }
-      : { rotulo, quantidade: mes.mediana, texto };
-  });
+  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) =>
+    itemDoTempoDeResolucao(mes, rotulos[i] ?? mes.mes),
+  );
 
   return (
     <Cartao numero={4} titulo="Tempo de resolução" quando="no período">
