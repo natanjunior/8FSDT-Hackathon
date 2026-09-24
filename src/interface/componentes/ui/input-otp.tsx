@@ -7,10 +7,12 @@ import { MinusIcon } from "lucide-react"
 import { cn } from "@/interface/componentes/utilitarios"
 
 /*
- * Divergências do catálogo (item 65). Um novo `shadcn add input-otp` desfaz a primeira.
+ * Divergências do catálogo (item 65). Um novo `shadcn add input-otp` desfaz as duas.
  *
  * 1. O registro importa `cn` de um módulo homônimo, que o CLI instala como pacote; aqui ele vem do
  *    apelido do projeto, e o pacote `cn` foi desinstalado (R-05 do 44b, pela terceira vez).
+ * 2. As duas classes da variante escura do registro saíram — este produto troca token por `data-theme` e
+ *    por preferência do sistema, e o guarda é `testes/interface/variante-escura.test.ts`.
  *
  * O resto é do catálogo, e quem veste a peça é `campo-de-codigo.tsx`: a casa deste arquivo traz o
  * tamanho e as cores do registro, e as classes do projeto entram por `className` na chamada.
@@ -61,7 +63,7 @@ function InputOTPSlot({
       data-slot="input-otp-slot"
       data-active={isActive}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-sm shadow-xs transition-all outline-none first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-[3px] data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20 dark:bg-input/30 dark:data-[active=true]:aria-invalid:ring-destructive/40",
+        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-sm shadow-xs transition-all outline-none first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-[3px] data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20",
         className
       )}
       {...props}
