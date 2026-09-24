@@ -1437,14 +1437,24 @@ paths:
         O Gestor que também mora no prédio usa `autor=eu` para ver as próprias — é o síndico morador,
         resolvido por parâmetro e não por um segundo vínculo.
 
-        **Ordenação fixa em `registradaEm` decrescente** e **paginação numerada sobre um instante de
-        corte** (`pagina`, `limite`, `ate`). A ordenação não é parametrizável.
+        A ordenação padrão é por `atualizadaEm` decrescente — o que mudou por último vem primeiro — e é
+        parametrizável por `ordem` e `sentido`. O desempate é sempre `atualizadaEm` decrescente e o
+        identificador, para que dois pedidos iguais devolvam a mesma ordem. Ordenar por `responsavel`
+        põe quem não tem responsável no fim, nos dois sentidos. A **paginação é numerada sobre um instante
+        de corte** (`pagina`, `limite`, `ate`), e o corte continua sendo em `registradaEm`, qualquer que
+        seja a ordem pedida.
 
         O corte imobiliza a fronteira superior do conjunto — `registradaEm` nunca muda —, então uma
         ocorrência registrada entre duas páginas **não aparece duas vezes**; ela é contada à parte, em
         `novasDesdeOCorte`. O corte **não** imobiliza a pertinência de cada item: quem sai do recorte
         (uma triagem entre páginas, por exemplo) encolhe o conjunto, e é a **compensação de deslocamento**
-        — via `totalNoCorte` — que impede o pulo. Ver §7.7 do contrato, e a premissa **P6** para o resíduo.
+        — via `totalNoCorte` — que impede o pulo.
+
+        O corte também não imobiliza a **posição**. Com a ordem por `atualizadaEm`, uma ocorrência
+        atualizada entre a leitura de duas páginas sobe para o topo: se ela estava numa página ainda não
+        vista, a primeira linha da página seguinte repete a última da anterior, e uma linha é pulada. A
+        compensação trata saída do recorte, não troca de posição, e não alcança este caso. Pedir a
+        primeira página de novo traz tudo.
 
         **O envelope traz contagens**, todas sob a mesma visibilidade que a listagem aplica.
 
@@ -1480,6 +1490,44 @@ paths:
             `eu` restringe às ocorrências de que o chamador é autor. É o que dá ao Gestor a visão de
             Solicitante sem um segundo vínculo.
           schema: { type: string, enum: [eu] }
+        - name: titulo
+          in: query
+          description: |
+            Casa por prefixo de palavra, sem acento e sem caixa, e todos os termos precisam casar.
+            `vaz gar` acha *Vazamento na garagem*; `ana` não acha *Mariana*.
+          schema: { type: string, maxLength: 120 }
+        - name: areaId
+          in: query
+          description: Uma ou mais áreas. Identificador de outra organização devolve lista vazia.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+        - name: responsavelPessoaId
+          in: query
+          description: |
+            Uma ou mais Pessoas, casando a **atribuição vigente** — quem responde hoje, não quem já
+            respondeu.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+        - name: ordem
+          in: query
+          description: |
+            A coluna da ordenação. Ausente é o padrão, `atualizacao` decrescente; `ordem=atualizacao` com
+            `sentido=decrescente` é o mesmo padrão escrito por extenso.
+          schema:
+            type: string
+            enum: [status, titulo, area, prioridade, responsavel, atualizacao]
+        - name: sentido
+          in: query
+          description: |
+            Inverte a ordem pedida. Sem `ordem`, é ignorado; o sentido natural de cada coluna é o
+            crescente.
+          schema: { type: string, enum: [decrescente] }
         - $ref: "#/components/parameters/Limite"
         - $ref: "#/components/parameters/Pagina"
         - $ref: "#/components/parameters/Ate"
