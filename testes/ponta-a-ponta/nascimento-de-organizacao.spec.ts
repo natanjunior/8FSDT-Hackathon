@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
+
 import { cobre } from "./cobertura";
 
 /**
@@ -208,6 +210,18 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // afirmá-la depois do envio não distinguiria ajuda de mensagem de erro, que é exatamente a diferença
   // que o critério existe para cobrar.
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // O escuro vem do servidor, e o script do tema vem antes do corpo — critério 72.1
+  //
+  // **Sem navegador**: a requisição devolve o HTML como o servidor o escreveu, antes de qualquer script
+  // rodar. Se ele já diz escuro, a pintura clara não tem de onde vir.
+  // -------------------------------------------------------------------------
+  const htmlCru = await (await contextoDeA.request.get("/criar-conta")).text();
+  expect(htmlCru).toMatch(/<html[^>]*\sdata-theme="dark"/u);
+  const posicaoDoScript = htmlCru.indexOf(`id="${ID_DO_SCRIPT_DO_TEMA}"`);
+  expect(posicaoDoScript).toBeGreaterThan(-1);
+  expect(posicaoDoScript).toBeLessThan(htmlCru.indexOf("<body"));
+
   await a.goto("/criar-conta");
   await expect(a.getByText("No mínimo 6 caracteres.")).toBeVisible();
   cobre(test.info(), "2.1 · 6a · 2", { criterio: "6a.1" });
@@ -496,9 +510,36 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await b.reload();
   await b.waitForURL(/\/ocorrencias$/u);
-  await b.getByRole("button", { name: `Conta de ${NOME_B}` }).click();
+  // **O sistema deixou de decidir** (critério 72.1): o Chromium do Playwright tem esquema claro por
+  // padrão, e a página abre escura mesmo assim.
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  // **O tema, pelo teclado** (critério 72.3): o gatilho abre com Enter, as setas chegam ao item, e o
+  // leitor de tela lê o papel, o nome e o estado.
+  const gatilhoDeB = b.getByRole("button", { name: `Conta de ${NOME_B}` });
+  await gatilhoDeB.focus();
+  await b.keyboard.press("Enter");
+  const itemDeTema = b.getByRole("menuitemcheckbox", { name: "Tema escuro" });
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "true");
+  await expect(itemDeTema).not.toHaveAttribute("aria-pressed");
+  while (!(await itemDeTema.evaluate((elemento) => elemento === document.activeElement))) {
+    await b.keyboard.press("ArrowDown");
+  }
+  await expect(itemDeTema).toBeFocused();
+
+  // Trocar não fecha o menu, e o Enter troca uma vez só.
+  await b.keyboard.press("Enter");
+  await expect(itemDeTema).toBeVisible();
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "false");
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+  expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")?.value).toBe("claro");
+
+  // E o caminho que o passo 8 já fazia, agora com o menu aberto pelo teclado.
   await b.getByRole("menuitem", { name: "Entrar em outra organização" }).click();
   await b.waitForURL(/entrar-em-outra=true$/u);
+
+  // Navegação por link: o `<html>` é do layout raiz, que a navegação suave não refaz.
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
   cobre(test.info(), "6.2 · 4", {
     falta:
       "o conteúdo do menu — nome, e-mail, «Meus dados» e «Sair»; o teste afirma só o item «Entrar em outra organização»",
@@ -532,6 +573,12 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
 
   // **Entrar numa nova não troca sozinho** — critério 7b.2. A ativa continua sendo a primeira.
   await b.goto("/ocorrencias");
+
+  // Navegação dura: o servidor devolve escuro, e o script do `<head>` lê o cookie e troca para claro.
+  // É o mesmo caminho de quem volta depois de um deploy: a escolha mora no navegador, e nenhum deploy a
+  // toca (critério 72.4).
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+
   const seletorDeB = b.getByRole("combobox", { name: /organização/iu });
   await expect(seletorDeB).toHaveText(ORGANIZACAO_A);
   await seletorDeB.click();

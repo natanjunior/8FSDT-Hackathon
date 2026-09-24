@@ -4,6 +4,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
+import {
+  atributoDoTema,
+  cookieDoTema,
+  SCRIPT_DO_TEMA,
+  temaDoAtributo,
+  temaDoCookie,
+} from "@/interface/componentes/tema";
 import { cn } from "@/interface/componentes/utilitarios";
 
 /**
@@ -573,5 +580,72 @@ describe("app/globals.css — o ponteiro dos elementos pressionáveis", () => {
     // que a regra existe para alcançar: o item do menu de pessoa e a opção do seletor de organização.
     // A classe também não descrevia nada — `default` é o valor inicial de `cursor` nesses elementos.
     expect(componentesQueDeclaram("cursor-default")).toEqual([]);
+  });
+});
+
+/**
+ * **Item 72 — o escuro como padrão, e a escolha em cookie.**
+ *
+ * Duas cópias da mesma regra existem, e é por isso que este bloco existe: `temaDoCookie` roda no
+ * componente, e `SCRIPT_DO_TEMA` roda **antes do React**, como texto dentro do `<head>`. O script não
+ * pode importar a função, então a garantia de que as duas dizem a mesma coisa é esta tabela, aplicada às
+ * duas.
+ */
+describe("o tema do produto — item 72", () => {
+  const CASOS: ReadonlyArray<[string, "claro" | "escuro"]> = [
+    ["", "escuro"],
+    ["tema=claro", "claro"],
+    ["tema=escuro", "escuro"],
+    ["organizacao=abc; tema=claro", "claro"],
+    ["tema=claro; organizacao=abc", "claro"],
+    ["xtema=claro", "escuro"],
+    ["outro_tema=claro", "escuro"],
+    ["tema=CLARO", "escuro"],
+    ["tema=claroX", "escuro"],
+    ["tema=", "escuro"],
+  ];
+
+  /** Roda o script contra um documento de mentira e devolve o `data-theme` que ficou. */
+  function rodarOScript(cookie: string | (() => never)): string {
+    let atributo = "dark";
+    const documento = {
+      get cookie() {
+        return typeof cookie === "function" ? cookie() : cookie;
+      },
+      documentElement: {
+        setAttribute(nome: string, valor: string) {
+          if (nome === "data-theme") atributo = valor;
+        },
+      },
+    };
+    new Function("document", SCRIPT_DO_TEMA)(documento);
+    return atributo;
+  }
+
+  it.each(CASOS)("o cookie «%s» dá %s, na função e no script", (cookie, esperado) => {
+    expect(temaDoCookie(cookie)).toBe(esperado);
+    expect(rodarOScript(cookie)).toBe(atributoDoTema(esperado));
+  });
+
+  it("o script não quebra quando o cookie é inacessível, e deixa escuro", () => {
+    expect(
+      rodarOScript(() => {
+        throw new Error("SecurityError");
+      }),
+    ).toBe("dark");
+  });
+
+  it("o atributo volta a tema, e só `light` é claro", () => {
+    expect(temaDoAtributo("light")).toBe("claro");
+    expect(temaDoAtributo("dark")).toBe("escuro");
+    expect(temaDoAtributo(null)).toBe("escuro");
+  });
+
+  it("o cookie gravado dura um ano, vale no site todo e não leva `Secure`", () => {
+    const gravado = cookieDoTema("claro");
+    expect(gravado).toBe("tema=claro; path=/; max-age=31536000; samesite=lax");
+    // Sem `Secure`: o Chromium o descarta sobre `http://` em host que não é loopback (achado A-10).
+    expect(gravado.toLowerCase()).not.toContain("secure");
+    expect(temaDoCookie(cookieDoTema("escuro").split(";")[0] ?? "")).toBe("escuro");
   });
 });
