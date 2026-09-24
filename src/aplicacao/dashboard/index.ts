@@ -17,6 +17,7 @@ export {
   FAIXAS_DE_IDADE,
   LIMITES_DAS_FAIXAS_DE_IDADE,
   MINIMO_PARA_RECORRENCIA,
+  QUANTAS_MAIS_VELHAS,
 } from "./portas";
 
 export type {
@@ -26,6 +27,7 @@ export type {
   DuplaRecorrente,
   FaixaDeIdade,
   LinhaDeResolucao,
+  MaisVelhaEmAberto,
   PontoDeArea,
   PontoDeCategoria,
   PontoMensal,
@@ -38,6 +40,7 @@ export {
   type FaixaDeIdadeLida,
   type MediaDasAvaliacoes,
   type MesDeResolucao,
+  type NotaDaDistribuicao,
   type PontoDoMes,
   type SerieDeArea,
   type SerieDeCategoria,

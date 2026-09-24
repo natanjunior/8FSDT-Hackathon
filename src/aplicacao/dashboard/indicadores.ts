@@ -1,14 +1,20 @@
 import type { AreaLida } from "@/aplicacao/organizacao";
-import { STATUS } from "@/dominio/ocorrencia";
+import { NOTAS_DA_AVALIACAO, STATUS } from "@/dominio/ocorrencia";
 
 import { mesesDaJanela, resolverJanela, type Janela, type JanelaPedida } from "./janela";
-import { AMOSTRA_PEQUENA, FAIXAS_DE_IDADE, MINIMO_PARA_RECORRENCIA } from "./portas";
+import {
+  AMOSTRA_PEQUENA,
+  FAIXAS_DE_IDADE,
+  MINIMO_PARA_RECORRENCIA,
+  QUANTAS_MAIS_VELHAS,
+} from "./portas";
 import type {
   ContagemPorCategoria,
   ContagemPorFaixaDeIdade,
   ContagemPorStatus,
   DuplaRecorrente,
   LinhaDeResolucao,
+  MaisVelhaEmAberto,
   PontoMensal,
   RepositorioEscopadoDeDashboard,
 } from "./portas";
@@ -19,19 +25,19 @@ import type {
  * ============================================================================
  *
  * **O envelope é o que o item 32 é** (`backlog.md:1387-1391`): a permissão, a janela, o eixo dos meses, a
- * forma da resposta e os zeros. Os sete conteúdos são dos itens 33 a 36, do 59 e do 60, e chegam
+ * forma da resposta e os zeros. Os conteúdos são dos itens 33 a 36, do 59, do 60 e do 73, e chegam
  * prontos do repositório.
  *
- * **Uma requisição, sete leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
+ * **Uma requisição, dez leituras em paralelo.** A razão da §8.7 do contrato é de plataforma e continua
  * valendo: *"cinco requisições podem significar cinco esperas de cold start onde uma bastaria"*. Aqui são
- * sete idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
+ * dez idas ao banco dentro de **uma** requisição HTTP, e nenhuma espera pela outra — o `Promise.all` é o
  * mesmo idioma de `verLinhaDoTempo`.
  *
- * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as sete consultas são duas a mais do que o
- * pool tem: a sexta e a sétima esperam uma conexão liberar e correm em seguida. Não há impasse possível, e
+ * **`pool.max` é 5** (`infraestrutura/clientes/banco.ts:44`), e as dez consultas são cinco a mais do que o
+ * pool tem: da sexta à décima esperam uma conexão liberar e correm em seguida. Não há impasse possível, e
  * a razão é a mesma de antes: nenhuma delas segura conexão esperando outra. O `5` é justificado pelo teto
  * de conexões do free tier e pela escala a zero; mexer nele muda toda requisição do produto, não só esta
- * tela, e não cabe num item de painel. Sequenciá-las trocaria essa espera por sete idas e voltas somadas
+ * tela, e não cabe num item de painel. Sequenciá-las trocaria essa espera por dez idas e voltas somadas
  * na tela mais pesada do produto.
  */
 
@@ -66,7 +72,18 @@ export type MesDeResolucao = {
   amostra: readonly number[] | null;
   resolvidas: number;
 };
-export type MediaDasAvaliacoes = { media: number | null; avaliadas: number; resolvidas: number };
+/** Uma nota e quantas avaliações a deram. */
+export type NotaDaDistribuicao = { nota: number; quantidade: number };
+/**
+ * `distribuicao` traz **as cinco notas sempre**, de 1 a 5, e a soma delas é `avaliadas`: as duas saem
+ * das mesmas linhas.
+ */
+export type MediaDasAvaliacoes = {
+  media: number | null;
+  avaliadas: number;
+  resolvidas: number;
+  distribuicao: readonly NotaDaDistribuicao[];
+};
 
 /**
  * Uma faixa do quadro 6, **já completa**: os dois limites em dias e quantas ocorrências em aberto caem
@@ -90,6 +107,10 @@ export type DashboardLido = {
   recorrenciaPorArea: readonly SerieDeArea[];
   duplasRecorrentes: readonly DuplaRecorrente[];
   tempoDeResolucao: { porMes: readonly MesDeResolucao[] };
+  /** O eixo inteiro da janela, com zero onde não houve cancelamento. */
+  canceladasPorMes: readonly PontoDoMes[];
+  emAbertoNoInicio: number;
+  maisVelhasEmAberto: readonly MaisVelhaEmAberto[];
 };
 
 export async function verDashboard(
@@ -99,16 +120,29 @@ export async function verDashboard(
   const periodo = resolverJanela({ de: pedido.de, ate: pedido.ate }, pedido.agora);
   const meses = mesesDaJanela(periodo);
 
-  const [status, categorias, porCategoria, porArea, resolucoes, idades, duplas] =
-    await Promise.all([
-      repositorio.backlogPorStatus(),
-      repositorio.abertasPorCategoria(),
-      repositorio.recorrenciaPorCategoria(periodo),
-      repositorio.recorrenciaPorArea(periodo),
-      repositorio.resolucoesPorMes(periodo),
-      repositorio.abertasPorIdade(),
-      repositorio.duplasRecorrentes(periodo),
-    ]);
+  const [
+    status,
+    categorias,
+    porCategoria,
+    porArea,
+    resolucoes,
+    idades,
+    duplas,
+    canceladas,
+    noInicio,
+    velhas,
+  ] = await Promise.all([
+    repositorio.backlogPorStatus(),
+    repositorio.abertasPorCategoria(),
+    repositorio.recorrenciaPorCategoria(periodo),
+    repositorio.recorrenciaPorArea(periodo),
+    repositorio.resolucoesPorMes(periodo),
+    repositorio.abertasPorIdade(),
+    repositorio.duplasRecorrentes(periodo),
+    repositorio.canceladasPorMes(periodo),
+    repositorio.emAbertoNoInicio(periodo),
+    repositorio.maisVelhasEmAberto(),
+  ]);
 
   return {
     periodo,
@@ -132,7 +166,16 @@ export async function verDashboard(
     ),
     duplasRecorrentes: soAsRecorrentes(duplas),
     tempoDeResolucao: { porMes: serieDeResolucao(resolucoes, meses) },
+    canceladasPorMes: noEixo(canceladas, meses),
+    emAbertoNoInicio: noInicio,
+    maisVelhasEmAberto: velhas.slice(0, QUANTAS_MAIS_VELHAS),
   };
+}
+
+/** Uma série de contagem sobre o eixo inteiro — zero onde o banco não trouxe o mês (critério 36.2). */
+function noEixo(pontos: readonly PontoMensal[], meses: readonly string[]): readonly PontoDoMes[] {
+  const porMes = new Map(pontos.map((p) => [p.mes, p.quantidade]));
+  return meses.map((mes) => ({ mes, quantidade: porMes.get(mes) ?? 0 }));
 }
 
 /** Uma casa decimal, e o único consumidor é a nota de 1 a 5 — o `4.3` que o `openapi.yaml` exemplifica. */
@@ -302,21 +345,29 @@ function serieDeResolucao(
  *
  * **`media` é `null`, nunca `0`, quando ninguém avaliou** (critério 34.2) — e `resolvidas` continua
  * contando, porque a frase da tela é *"0 de 0 resolvidas"*, não *"sem dados"*.
+ *
+ * **A distribuição sai das mesmas linhas, e pela mesma razão:** somada posição a posição, ela conta o
+ * conjunto que a média conta, e a soma das cinco é `avaliadas`. As cinco vêm sempre, mesmo a zero.
  */
 function mediaDe(resolucoes: readonly LinhaDeResolucao[]): MediaDasAvaliacoes {
   let resolvidas = 0;
   let avaliadas = 0;
   let somaDasNotas = 0;
+  const somas = NOTAS_DA_AVALIACAO.map(() => 0);
 
   for (const linha of resolucoes) {
     resolvidas += linha.resolvidas;
     avaliadas += linha.avaliadas;
     somaDasNotas += linha.somaDasNotas;
+    linha.contagemPorNota.forEach((quantidade, i) => {
+      somas[i] = (somas[i] ?? 0) + quantidade;
+    });
   }
 
   return {
     media: avaliadas === 0 ? null : arredondar(somaDasNotas / avaliadas),
     avaliadas,
     resolvidas,
+    distribuicao: NOTAS_DA_AVALIACAO.map((nota, i) => ({ nota, quantidade: somas[i] ?? 0 })),
   };
 }
