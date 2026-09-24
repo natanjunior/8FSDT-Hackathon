@@ -562,8 +562,9 @@ describe("frases-da-configuracao — o texto das duas telas (item 44k)", () => {
     expect(fatoDaLista("categorias", 7, 8)).toBe(
       "7 ativas de 8. Sete foram criadas junto com a organização.",
     );
+    // Áreas: o que a lista é, primeiro, e a contagem no fim (item 64, validação de 23/09/2026).
     expect(fatoDaLista("areas", 2, 2)).toBe(
-      "2 ativas de 2. Onde, dentro da organização, a ocorrência aconteceu.",
+      "As áreas da organização. Aparecem no registro de ocorrência e podem estar associadas a participantes. 2 ativas de 2.",
     );
     // A organização pode ser empresa ou bairro (decisão de produto D3).
     expect(fatoDaLista("areas", 2, 2)).not.toContain("condomínio");

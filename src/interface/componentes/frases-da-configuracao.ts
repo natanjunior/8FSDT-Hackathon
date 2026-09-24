@@ -62,21 +62,30 @@ export const TEXTOS_DA_LISTA: Readonly<Record<Lista, TextosDaLista>> = {
 };
 
 /**
+ * O que a lista de áreas é. **Mora aqui, e a tela a importa** (item 64): até o 64 a tela colava a frase em
+ * JSX e o teste protegia uma cópia que nada renderizava.
+ *
+ * **"Da organização", e não "do condomínio"**: a organização pode ser empresa ou bairro (decisão de
+ * produto D3), e é a redação do verbete *Localização* do glossário.
+ */
+export const FRASE_DAS_AREAS =
+  "As áreas da organização. Aparecem no registro de ocorrência e podem estar associadas a participantes.";
+
+/**
  * O fato do cabeçalho.
  *
  * **T-09 mantém a frase que o inventário obriga** (*"Sete categorias foram criadas junto com a
  * organização"*), comprimida como a prancheta a escreve. Ela é incondicional: diz como a organização
  * nasceu, e continua verdadeira depois de a pessoa mexer na lista.
  *
- * **T-14 diz *"dentro da organização"*, e não *"dentro do condomínio"*** como a prancheta desenha: a
- * organização pode ser empresa ou bairro (decisão de produto D3), e é a redação do verbete *Localização*
- * do glossário.
+ * **T-14 diz o que a lista é, e a contagem vem no fim** (item 64). As duas listas ficam com a contagem em
+ * lugares diferentes, e é decisão: a validação falou só de áreas.
  */
 export function fatoDaLista(lista: Lista, ativas: number, total: number): string {
   const contagem = `${String(ativas)} ativas de ${String(total)}.`;
   return lista === "categorias"
     ? `${contagem} Sete foram criadas junto com a organização.`
-    : `${contagem} Onde, dentro da organização, a ocorrência aconteceu.`;
+    : `${FRASE_DAS_AREAS} ${contagem}`;
 }
 
 export const TEXTOS_DA_TABELA = {

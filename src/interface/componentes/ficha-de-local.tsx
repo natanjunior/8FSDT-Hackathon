@@ -1,3 +1,5 @@
+import { MapPin } from "lucide-react";
+
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/interface/componentes/ui/hover-card";
 import { cn } from "@/interface/componentes/utilitarios";
 
@@ -30,11 +32,13 @@ export function FichaDeLocal({
   const nome = (sublinhado: boolean) => (
     <span
       className={cn(
-        "text-tinta text-interface group-data-[recuada]/linha:text-tinta-suave inline-flex items-center gap-1",
+        "text-tinta text-interface group-data-[recuada]/linha:text-tinta-suave inline-flex items-center gap-1.5",
         sublinhado && SUBLINHADO_DO_CARTAO,
       )}
     >
-      <span aria-hidden>📍</span>
+      {/* **O pino, 15 px, traço 1.9, na tinta fraca, a 6 px do nome** (item 64). O emoji que ele
+          substitui já era um alfinete; o que muda é que agora ele segue a tinta e o tema. */}
+      <MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-fraca size-[15px] shrink-0" />
       {nomeDaArea}
     </span>
   );

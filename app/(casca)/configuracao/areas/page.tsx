@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { FRASE_DAS_AREAS } from "@/interface/componentes/frases-da-configuracao";
 import { ModalDeArea } from "@/interface/componentes/modal-de-area";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { TabelaDeAreas } from "@/interface/componentes/tabela-de-areas";
@@ -19,8 +20,7 @@ import { projetarArea } from "@/interface/projecoes";
  * (contrato §5), e a lista vem com as inativas, porque é aqui que se reativa o que foi desativado e
  * porque a ordem se grava com a lista inteira (item 50).
  *
- * **O fato diz *"dentro da organização"*, e não *"dentro do condomínio"***: a organização pode ser
- * empresa ou bairro (decisão de produto D3), e é a redação do verbete *Localização* do glossário.
+ * **O fato vem de `FRASE_DAS_AREAS`** (item 64): diz o que a lista é, e a contagem vai no fim.
  *
  * **Criar e editar são modal desde o item 44k**, e as duas rotas próprias saíram com ele. A contagem de
  * ocorrências que mantêm o tipo anterior deixou de viajar pelo endereço: ela vai no aviso de atenção, que
@@ -53,12 +53,12 @@ export default async function Areas() {
   );
 }
 
-/** O fato do cabeçalho, com os números em mono, como T-08 os escreve. */
+/** O fato do cabeçalho: a frase de `frases-da-configuracao.ts`, e os números em mono, como T-08 os escreve. */
 function Fato({ ativas, total }: { ativas: number; total: number }) {
   const numero = (valor: number) => <span className="font-mono tabular-nums">{valor}</span>;
   return (
     <>
-      {numero(ativas)} ativas de {numero(total)}. Onde, dentro da organização, a ocorrência aconteceu.
+      {FRASE_DAS_AREAS} {numero(ativas)} ativas de {numero(total)}.
     </>
   );
 }

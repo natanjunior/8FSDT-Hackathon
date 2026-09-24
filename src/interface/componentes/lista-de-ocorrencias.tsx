@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Badge } from "@/interface/componentes/ui/badge";
 import {
   Table,
   TableBody,
@@ -22,21 +23,21 @@ import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto, tempoRelativo } from "./tempo-relativo";
 
 /**
- * A prioridade **em palavra, na linha de apoio** — guia §2. `alta` recebe `--destructive`; `normal` e
- * `baixa` não recebem cor. Deixa de ser a pílula com borda dos dois cartões, porque o guia §1 tira a
- * caixa de rótulo de estado.
+ * A prioridade **em selo de contorno, nos três níveis** — item 64. A palavra fica dentro do selo (guia
+ * §2, *"todo selo carrega a palavra"*), e só `alta` tem cor, `--destructive`; `normal` e `baixa` ganham
+ * forma, não tinta. **Contorno sempre**: o selo de status é a peça cheia da linha, e nenhuma outra é.
  */
+const FORMA_DA_PRIORIDADE: Readonly<Record<OcorrenciaResumoProjetada["prioridade"], string>> = {
+  alta: "border-destructive text-destructive bg-transparent",
+  normal: "border-linha text-tinta-suave bg-transparent",
+  baixa: "border-linha text-tinta-suave bg-transparent",
+};
+
 function PalavraDePrioridade({ prioridade }: { prioridade: OcorrenciaResumoProjetada["prioridade"] }) {
   return (
-    <span
-      className={
-        prioridade === "alta"
-          ? "text-destructive font-medium"
-          : "text-tinta-suave group-data-[recuada]/linha:text-tinta-fraca"
-      }
-    >
+    <Badge variant="outline" className={FORMA_DA_PRIORIDADE[prioridade]}>
       {rotuloDePrioridade(prioridade)}
-    </span>
+    </Badge>
   );
 }
 

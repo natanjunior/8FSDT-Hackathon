@@ -245,6 +245,7 @@ export function Aviso({ tom = "recusa", children }: { tom?: "recusa" | "nota"; c
 export function RodapeDoFormulario({
   obrigatorios,
   todosObrigatorios = false,
+  larguraCheia = false,
   children,
 }: {
   obrigatorios: number;
@@ -255,10 +256,20 @@ export function RodapeDoFormulario({
    * `aria-required`, e quem lê a tela vê a marca.
    */
   todosObrigatorios?: boolean;
+  /**
+   * **O botão ocupa a largura do cartão** (item 64, troca 3): Entrar e Criar conta, que têm uma ação só e
+   * um cartão de 420 px. A coluna não vira linha em `sm`, e o botão estica pelo `align-items: stretch`
+   * da coluna. Os outros formulários continuam com o botão à direita.
+   */
+  larguraCheia?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+    <div
+      className={
+        larguraCheia ? "flex flex-col gap-3" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end"
+      }
+    >
       {obrigatorios > 0 && !todosObrigatorios && (
         <p className="text-tinta-fraca text-meta sm:mr-auto">
           <span aria-hidden="true" className="text-destructive">
@@ -267,7 +278,9 @@ export function RodapeDoFormulario({
           {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2.5 sm:flex-row">{children}</div>
+      <div className={larguraCheia ? "flex flex-col gap-2.5" : "flex flex-col-reverse gap-2.5 sm:flex-row"}>
+        {children}
+      </div>
     </div>
   );
 }

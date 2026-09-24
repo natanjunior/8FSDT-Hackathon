@@ -356,7 +356,7 @@ export function FormularioDePedidoDeEntrada({
         {/* **A nota sai só onde todo campo é obrigatório** (critério 44o.11): na variante de outra
             organização sobra o código, e só ele. Na primeira entrada o telefone é opcional, e a nota fica. */}
         <RodapeDoFormulario obrigatorios={1} todosObrigatorios={!primeiraEntrada}>
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Pedir entrada"}
           </Button>

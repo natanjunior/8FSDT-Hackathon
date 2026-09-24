@@ -124,11 +124,8 @@ export function EdicaoDeNome(props: Propriedades) {
       todosObrigatorios
       aoEnviar={aoEnviar}
       gatilho={
-        <Button
-          type="button"
-          variant="outline"
-          className="border-linha text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4"
-        >
+        /* **Principal** desde o item 64: é a única ação do cartão, em /meus-dados e em /configuracao. */
+        <Button type="button" variant="marca" className="text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4">
           <Pencil aria-hidden="true" />
           Editar
         </Button>

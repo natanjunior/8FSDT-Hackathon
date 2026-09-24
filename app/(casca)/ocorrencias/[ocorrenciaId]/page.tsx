@@ -59,7 +59,9 @@ import {
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
+import { buttonVariants } from "@/interface/componentes/ui/button";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
+import { cn } from "@/interface/componentes/utilitarios";
 import {
   novoTraceId,
   registrarFalha,
@@ -888,12 +890,16 @@ export default async function Ocorrencia({
                 /* **FORA do `<Suspense>`, de propósito:** dentro do `fallback` o link sumiria
                    justamente durante a espera, que é quando alguém desiste da tela. **`<a>` e não
                    `next/link`** porque T-06 é `force-dynamic` e o *prefetch* a renderizaria a cada
-                   aparição na viewport. A faixa pinta o dado em mono versal; o link desfaz os dois. */
+                   aparição na viewport. A faixa pinta o dado em mono versal; o botão desfaz os dois.
+                   **Botão de contorno desde o item 64**, e sem a seta: botão não carrega seta de link. */
                 <a
                   href={`/ocorrencias/${detalhe.id}/auditoria`}
-                  className="text-marca text-interface inline-flex min-h-11 items-center font-sans font-medium tracking-normal normal-case"
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "border-linha text-interface min-h-11 px-4 font-sans tracking-normal normal-case",
+                  )}
                 >
-                  ver a trilha de auditoria →
+                  Ver a trilha de auditoria
                 </a>
               }
             >
