@@ -1861,4 +1861,24 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
       expect(ler(tela), tela).toContain("<EdicaoDeNome");
     }
   });
+
+  it("Descartar pede destructive pela variante, que é o que o AlertDialogAction lê (troca 6)", () => {
+    const fonte = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    const acao = fonte.slice(fonte.indexOf("<AlertDialogAction"), fonte.indexOf("</AlertDialogAction>"));
+    expect(acao).toContain('variant="destructive"');
+    expect(acao).not.toContain("buttonVariants");
+  });
+
+  it("nenhum AlertDialogAction ou AlertDialogCancel recebe cor por className (Review Focus 3)", () => {
+    // O `AlertDialogAction` embrulha a si mesmo num `<Button variant asChild>`, e o `Slot` concatena as
+    // classes sem `tailwind-merge`: a cor que chega por `className` disputa com a variante, e perde.
+    // Cada elemento é lido da abertura ao fechamento: um `[^>]*` pararia no `=>` do `onClick`, que vem
+    // antes do `className` no Descartar, e a guarda passaria sobre o próprio defeito.
+    const comCorPorClasse = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) =>
+      [...ler(caminho).matchAll(/<AlertDialog(Action|Cancel)\b[\s\S]*?<\/AlertDialog\1>/gu)].some((elemento) =>
+        elemento[0].includes("buttonVariants"),
+      ),
+    );
+    expect(comCorPorClasse).toStrictEqual([]);
+  });
 });

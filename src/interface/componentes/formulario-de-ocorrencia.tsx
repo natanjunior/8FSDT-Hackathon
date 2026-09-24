@@ -572,15 +572,18 @@ export function FormularioDeOcorrencia({
             </AlertDialogCancel>
             {/* **`destructive`, porque é a ação que perde trabalho** (guia §7). Aqui o `AlertDialogAction`
                 serve: não há envio ao servidor, e fechar no clique é o comportamento certo — ao contrário
-                da remoção de vínculo (item 44j), onde quem fecha tem de ser o ciclo do envio. */}
+                da remoção de vínculo (item 44j), onde quem fecha tem de ser o ciclo do envio.
+
+                **A cor vai pela variante, não pela classe** (item 64). O `AlertDialogAction` embrulha a si
+                mesmo num `<Button variant asChild>`, e o `Slot` junta as duas classes sem `tailwind-merge`:
+                com `buttonVariants({ variant: "destructive" })` na classe, `bg-primary` e `bg-destructive`
+                chegavam juntas ao elemento, e o botão saía escuro. */}
             <AlertDialogAction
+              variant="destructive"
               onClick={() => {
                 router.push("/ocorrencias");
               }}
-              className={cn(
-                buttonVariants({ variant: "destructive" }),
-                "text-interface min-h-11 rounded-sm px-4",
-              )}
+              className="text-interface min-h-11 rounded-sm px-4"
             >
               {DESCARTE.descartar}
             </AlertDialogAction>
