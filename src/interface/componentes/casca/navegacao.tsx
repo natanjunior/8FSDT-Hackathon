@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Settings,
   Tags,
+  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -35,9 +36,11 @@ import {
  * **Três blocos, separados por régua**, e a ordem é a do dono em 14/09/2026: `Ocorrências` sozinha,
  * o grupo `Organização`, e `Dashboard` por último.
  *
- * **Um quarto bloco, desde o item 70, num segundo marco: *Além desta organização*.** A página do grupo e
- * a documentação não são desta organização, e sob o rótulo *"Nesta organização"* o leitor de tela
- * anunciaria uma coisa falsa. É o mesmo bloco onde *Meus dados* mora (critério 70.7).
+ * **Um quarto bloco, num segundo marco: *Além desta organização*.** *Meus dados* entra nele no item 64:
+ * a tela vale em todas as organizações (`meus-dados/page.tsx:51`), e sob o rótulo *"Nesta organização"* o
+ * leitor de tela anunciaria uma coisa falsa. A página do grupo e a documentação, do item 70, vêm depois
+ * dela, pela mesma razão (critério 70.7). A régua acima do bloco não depende de papel: o Solicitante, sem
+ * Dashboard, também a vê, e ela separa os dois marcos.
  *
  * **`Ocorrências` fica sozinha no topo** porque o `inventario-de-telas.md` decide que *"T-03 é o eixo:
  * toda tela de dentro se alcança dela"*, e um eixo dentro de um grupo deixa de parecer eixo. **`Dashboard`
@@ -207,6 +210,13 @@ export function Navegacao({
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
             <SidebarMenu>
+              <ItemDeNavegacao
+                destino="/meus-dados"
+                rotulo="Meus dados"
+                Icone={UserRound}
+                caminho={caminho}
+                aoTocar={aoTocar}
+              />
               <ItemExterno endereco="/grupo" rotulo="Grupo 1" Icone={GraduationCap} aoTocar={aoTocar} />
               <ItemExterno endereco="/documentacao" rotulo="Documentação" Icone={BookOpen} aoTocar={aoTocar} />
             </SidebarMenu>
