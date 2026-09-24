@@ -39,6 +39,7 @@ import {
   type LinhaDeParticipante,
   type PedidoNaTabela,
 } from "@/interface/componentes/linhas-de-participantes";
+import { rotuloDoCabecalho } from "@/interface/componentes/ordenacao-em-tres-estados";
 import { vizinhas } from "@/interface/componentes/paginacao-da-lista";
 import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
 import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
@@ -88,6 +89,9 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  * vivem no endereço**, escritos com `window.history.pushState`, que o Next 16 integra ao roteador e ao
  * `useSearchParams`: o endereço é copiável e o voltar do navegador desfaz o último toque, sem uma ida ao
  * servidor por clique numa nuvem que dorme.
+ *
+ * **A ordem tem três estados** (item 68a): crescente, decrescente, e sem ordenação, que é a ordem inicial —
+ * pedidos em cima, depois quem chegou por último. A regra do ciclo mora em `ordenacao-em-tres-estados.ts`.
  *
  * **A busca fica fora do endereço**: o critério 3 nomeia três coisas, e texto digitado a cada tecla no
  * histórico seria ruído. O que ela provoca no endereço é só tirar a página, e isso entra por
@@ -378,23 +382,30 @@ function CabecaQueOrdena({
   const ativa = sentido !== "none";
   return (
     // `py-0`: o botão de ordenar já tem os 44 px do alvo de toque, e os 11 px do rótulo de coluna em
-    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q).
-    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "py-0", largura)}>
+    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q). `group`: a seta dupla só aparece
+    // com o ponteiro sobre o cabeçalho ou com o foco no botão (item 68a).
+    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "group py-0", largura)}>
       <Button
         type="button"
         variant="ghost"
+        aria-label={rotuloDoCabecalho(endereco, coluna, rotulo)}
         onClick={() => {
           aoOrdenar(comOrdem(endereco, coluna));
         }}
         className={cn(
-          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
+          "text-rotulo-coluna h-11 w-full justify-start gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
           ativa ? "text-tinta" : "text-tinta-fraca",
         )}
       >
         {rotulo}
         {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-marca size-3" />}
         {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "none" && <ArrowUpDown aria-hidden="true" className="text-tinta-fraca size-3" />}
+        {sentido === "none" && (
+          <ArrowUpDown
+            aria-hidden="true"
+            className="text-tinta-fraca size-3 opacity-0 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
+          />
+        )}
       </Button>
     </TableHead>
   );
