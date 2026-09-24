@@ -270,15 +270,15 @@ export function FormularioDeVinculo({
             </GrupoDeEscolha>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-3">
+          <div className="grid md:grid-cols-3">
             <div className="p-[15px] md:p-[18px]">
               {modo.temConta ? <Leitura rotulo={TEXTOS_DO_FORMULARIO.nome} valor={modo.nome} /> : campoDoNome}
             </div>
-            <div className="border-linha-suave border-t p-[15px] md:p-[18px] lg:border-t-0 lg:border-l">
-              <Leitura rotulo={TEXTOS_DO_FORMULARIO.papel} valor={rotuloDoPapel(modo.papel)} />
-            </div>
-            <div className="border-linha-suave border-t p-[15px] md:p-[18px] lg:border-t-0 lg:border-l">
+            <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
               {campoDaUnidade}
+            </div>
+            <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
+              <Leitura rotulo={TEXTOS_DO_FORMULARIO.papel} valor={rotuloDoPapel(modo.papel)} />
             </div>
           </div>
         )}

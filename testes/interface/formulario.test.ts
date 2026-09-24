@@ -615,6 +615,17 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(achados).toStrictEqual([]);
   });
 
+  it("na edição, o cartão Pessoa é Nome, Unidade e Papel, em três colunas a partir de md (item 68a)", () => {
+    const fonte = ler("src/interface/componentes/formulario-de-vinculo.tsx");
+    const inicio = fonte.indexOf('<div className="grid md:grid-cols-3">');
+    expect(inicio).toBeGreaterThan(-1);
+    const edicao = fonte.slice(inicio);
+    const posicao = (trecho: string) => edicao.indexOf(trecho);
+    expect(posicao("campoDoNome")).toBeLessThan(posicao("{campoDaUnidade}"));
+    expect(posicao("{campoDaUnidade}")).toBeLessThan(posicao("TEXTOS_DO_FORMULARIO.papel"));
+    expect(fonte).not.toContain('<div className="grid lg:grid-cols-3">');
+  });
+
   it("o contato é botão que abre popover, sem hover-card e sem +N (item 68a, critério 68.4)", () => {
     const peca = ler("src/interface/componentes/contato-por-icone.tsx");
     expect(peca).toContain("<Popover");
