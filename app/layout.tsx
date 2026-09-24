@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { ReaplicacaoDoTema } from "@/interface/componentes/reaplicacao-do-tema";
+import { ID_DO_SCRIPT_DO_TEMA, SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 import { Toaster } from "@/interface/componentes/ui/sonner";
 
 import "./globals.css";
@@ -57,8 +59,16 @@ export const viewport: Viewport = {
 
 export default function CascoDaAplicacao({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    /* **Escuro por padrão, escrito no servidor** (item 72). Sem JavaScript nenhum a página já vem escura,
+       e é isso que torna o "sem piscar" demonstrável: a pintura clara não tem de onde vir. O script do
+       `<head>` troca para claro só quando o cookie pede, durante o parse e antes da primeira pintura.
+       `suppressHydrationWarning` porque o atributo pode ter sido trocado antes de o React chegar. */
+    <html lang="pt-BR" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script id={ID_DO_SCRIPT_DO_TEMA} dangerouslySetInnerHTML={{ __html: SCRIPT_DO_TEMA }} />
+      </head>
       <body className={`${fonteDeTexto.variable} ${fonteDeDado.variable} min-h-dvh antialiased`}>
+        <ReaplicacaoDoTema />
         {children}
         {/* **Depois de `{children}`, e uma vez só.** O aviso mora aqui para sobreviver ao modal que o
             disparou e à atualização da página (guia §7, ADR-0011). Ele desenha uma `<section>` em toda
