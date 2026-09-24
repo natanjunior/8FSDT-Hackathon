@@ -11,6 +11,14 @@ export type DadosDeAvaliacao = {
 };
 
 /**
+ * As notas possíveis, em ordem crescente. A validação abaixo, a distribuição do painel e o SQL que a
+ * conta leem daqui. **Ficam duas cópias fora do alcance deste item, e estão ditas:** a `check` da
+ * migração 005, porque migração aplicada não se edita, e o `min(1)`/`max(5)` de
+ * `src/interface/schemas/ocorrencia.ts`, que carrega as mensagens de tela.
+ */
+export const NOTAS_DA_AVALIACAO = [1, 2, 3, 4, 5] as const;
+
+/**
  * ============================================================================
  *  `Avaliacao` — o TERCEIRO objeto de valor dentro do limite do agregado
  * ============================================================================
@@ -55,7 +63,7 @@ export class Avaliacao {
     if (!Number.isInteger(dados.nota)) {
       throw new Error(`A nota da avaliação é inteira; recebida '${String(dados.nota)}'.`);
     }
-    if (dados.nota < 1 || dados.nota > 5) {
+    if (!(NOTAS_DA_AVALIACAO as readonly number[]).includes(dados.nota)) {
       throw new Error(`A nota da avaliação fica entre 1 e 5; recebida ${dados.nota}.`);
     }
 
