@@ -296,7 +296,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(
     modalDeAtribuicao.getByRole("heading", { name: "Atribuir responsável" }),
   ).toBeVisible();
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   cobre(test.info(), "4.3 · 31", {
     criterio: "20.5",
     falta:

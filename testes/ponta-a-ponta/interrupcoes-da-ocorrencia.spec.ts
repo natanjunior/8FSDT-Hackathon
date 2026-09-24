@@ -325,7 +325,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   await expect(modalDeReatribuicao.getByText("Responsável atual")).toBeVisible();
   cobre(test.info(), "4.4 · 61", { criterio: "21" });
 
-  await modalDeReatribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeReatribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   await modalDeReatribuicao.getByRole("button", { name: "Reatribuir" }).click();
   await fecharOMenu(marcos);
   await expect(marcos.getByText(ENCARREGADA_DO_AURORA).first()).toBeVisible();

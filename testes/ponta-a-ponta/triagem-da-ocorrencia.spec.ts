@@ -734,17 +734,18 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **E o nome dele aparece uma vez só:** quem chama sai dos dois blocos, para não existirem dois
   // controles enviando o mesmo `pessoaId`.
   await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_MARCOS })).toHaveCount(1);
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_MARCOS })).toHaveCount(0);
   cobre(test.info(), "4.3 · 32", { criterio: "20.5" });
 
   await expect(modalDeAtribuicao.getByLabel("Buscar pelo nome")).toBeVisible();
   await expect(modalDeAtribuicao.getByText("Gestores e Encarregados")).toBeVisible();
   await expect(modalDeAtribuicao.getByText("Solicitantes")).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toBeVisible();
-  await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).toBeVisible();
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: SOLICITANTE_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: SOLICITANTE_DO_AURORA }),
   ).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Atribuir" })).toBeVisible();
@@ -758,9 +759,9 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(modalDeAtribuicao).toBeVisible();
   await esperarSituacao(marcos, "Em análise");
 
-  // Escolha única de verdade: mesmo `name`, mesmo estado — marcar uma desmarca a outra, apesar de a
-  // fileira do topo viver fora dos dois `fieldset`.
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  // Escolha única de verdade: o estado `escolhido` é um só — escolher um candidato desmarca a fileira,
+  // apesar de ela viver fora do `command` dos grupos (item 66).
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   await expect(fileiraDeMarcos).not.toBeChecked();
   cobre(test.info(), "4.3 · 33", { criterio: "20.5" });
 
@@ -772,22 +773,23 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   for (const termo of ["prado", "PRADO", "sonia"]) {
     await busca.fill(termo);
     await expect(
-      modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+      modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
       `a busca por "${termo}"`,
     ).toBeVisible();
-    await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).toHaveCount(0);
+    await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).toHaveCount(0);
   }
 
   // Sobrenome é como se procura gente — é a adaptação ao campo que o protótipo não previa.
   await busca.fill("fontes");
-  await expect(modalDeAtribuicao.getByRole("radio", { name: SOLICITANTE_DO_AURORA })).toBeVisible();
+  await expect(modalDeAtribuicao.getByRole("option", { name: SOLICITANTE_DO_AURORA })).toBeVisible();
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toHaveCount(0);
 
   // **Prefixo, e não pedaço:** `ado` não acha *Prado*. Sobra só a fileira do topo, que não é filtrada.
   await busca.fill("ado");
   await expect(modalDeAtribuicao.getByRole("radio")).toHaveCount(1);
+  await expect(modalDeAtribuicao.getByRole("option")).toHaveCount(0);
   await expect(fileiraDeMarcos).toBeVisible();
 
   // **Frase própria, diferente de qualquer outra do produto** — trocar uma pela outra faz o Gestor pensar
@@ -797,6 +799,18 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(fileiraDeMarcos).toBeVisible();
   cobre(test.info(), "4.3 · 34", { criterio: "20.6" });
 
+  // **`Enter` no campo escolhe, e não envia** — o `cmdk` previne o `Enter`. Sem isso, o formulário
+  // enviaria e acenderia o erro do campo obrigatório, ou gravaria a pessoa realçada.
+  await busca.fill("prado");
+  await busca.press("Enter");
+  await expect(modalDeAtribuicao).toBeVisible();
+  await expect(
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
+  ).toHaveAttribute("aria-checked", "true");
+  await expect(modalDeAtribuicao.getByText("Escolha o responsável.")).toHaveCount(0);
+  await esperarSituacao(marcos, "Em análise");
+  await busca.fill("");
+
   // -------------------------------------------------------------------------
   // 13.2 · Seleção que o filtro esconde é APAGADA, e não guardada
   //
@@ -804,12 +818,15 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // devolver a mensagem do campo obrigatório em vez de gravar alguém que a tela não mostra.
   // -------------------------------------------------------------------------
   await busca.fill("");
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   await busca.fill("rocha");
   await expect(
-    modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }),
+    modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }),
   ).toHaveCount(0);
-  await expect(modalDeAtribuicao.getByRole("radio", { name: NOME_DE_HELENA })).not.toBeChecked();
+  await expect(modalDeAtribuicao.getByRole("option", { name: NOME_DE_HELENA })).not.toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
 
   await modalDeAtribuicao.getByRole("button", { name: "Atribuir" }).click();
   await expect(modalDeAtribuicao.getByText("Escolha o responsável.")).toBeVisible();
@@ -831,7 +848,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **qualquer** vínculo responder por uma ocorrência. Atribuir a um Solicitante é o caso que prova que o
   // agrupamento ordena sem excluir.
   // -------------------------------------------------------------------------
-  await modalReaberto.getByRole("radio", { name: SOLICITANTE_DO_AURORA }).check();
+  await modalReaberto.getByRole("option", { name: SOLICITANTE_DO_AURORA }).click();
   await modalReaberto.getByRole("button", { name: "Atribuir" }).click();
   await expect(marcos.getByRole("dialog")).toHaveCount(0);
 

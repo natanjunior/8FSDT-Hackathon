@@ -1665,9 +1665,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(achados).toStrictEqual([]);
   });
 
-  it("o rótulo de grupo do modal de atribuição está no papel de rótulo (critério 44q.12)", () => {
+  it("os grupos do modal de atribuição estão no papel de rótulo, e a busca é a nossa (critérios 44q.12 e 66)", () => {
     const fonte = ler("src/interface/componentes/modal-de-atribuicao.tsx");
-    expect(fonte).toContain('<legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">');
+    expect(fonte).toContain("[&_[cmdk-group-heading]]:text-rotulo-coluna");
+    expect(fonte).toContain("[&_[cmdk-group-heading]]:font-mono");
+    expect(fonte).toContain("shouldFilter={false}");
+    expect(fonte).toContain("aria-checked={escolhida}");
     expect(fonte).not.toContain("tracking-wide");
   });
 

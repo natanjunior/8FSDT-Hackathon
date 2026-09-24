@@ -8,6 +8,7 @@ import {
   ListaDesatualizada,
   criarArea,
   criarCategoria,
+  listarVinculos,
   reordenarAreas,
   reordenarCategorias,
   type Reordenacao,
@@ -351,6 +352,18 @@ describe("o repositório escopado nunca devolve linha de outra organização", (
     expect(ativos[0]?.pessoa.pessoaId).toBe(idSindica);
     expect(ativos[0]?.papel).toBe("solicitante");
     expect(ativos.map((a) => a.pessoa.pessoaId)).not.toContain(idMoradora);
+  });
+
+  it("a lista de candidatos do modal de atribuir não traz ninguém de outra organização (critério 66.6)", async () => {
+    // É a MESMA chamada que T-05 faz para montar o modal (`page.tsx`, `candidatos`).
+    const reposDeAurora = repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const candidatos = (await listarVinculos(reposDeAurora)).map((lido) => lido.pessoa.pessoaId);
+
+    expect(candidatos).toContain(idSindica);
+    expect(candidatos).not.toContain(idMoradora);
   });
 
   it("vínculo revogado desaparece da leitura, sem apagar a linha", async () => {

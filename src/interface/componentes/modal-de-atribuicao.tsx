@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useId, useState } from "react";
 
 import {
@@ -13,8 +14,14 @@ import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import { palavrasDaAtribuicao } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/interface/componentes/ui/command";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
-import { Input } from "@/interface/componentes/ui/input";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
@@ -46,12 +53,28 @@ import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
  * aviso e mensagem no modal aberto, e o fechamento depois de um erro atualiza a página. **O botão
  * principal só fica inerte durante o envio**: clicado com campo obrigatório vazio, ele mostra os erros e
  * leva o foco ao primeiro (guia §7, decidido em 16/09/2026).
+ *
+ * **Desde o item 66 os dois blocos são `command`, e a fileira de cima continua rádio, fora dele.**
  */
 
 const NOME_DO_BLOCO = {
   executores: "Gestores e Encarregados",
   solicitantes: "Solicitantes",
 } as const;
+
+/**
+ * **O título de cada grupo, no papel de rótulo** (critério 44q.12), agora no cabeçalho do `cmdk`. E o vão
+ * entre os candidatos, que o `cmdk` não dá.
+ */
+const CLASSE_DO_GRUPO =
+  "p-0 [&_[cmdk-group-heading]]:text-tinta-fraca [&_[cmdk-group-heading]]:text-rotulo-coluna [&_[cmdk-group-heading]]:px-0 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1";
+
+const CLASSE_DO_CANDIDATO =
+  "border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2";
+
+/** O campo do `cmdk` com a borda e a altura dos campos do produto (A-3). */
+const CLASSE_DA_BUSCA =
+  "bg-transparent [&_[data-slot=command-input-wrapper]]:border-linha [&_[data-slot=command-input-wrapper]]:h-11 [&_[data-slot=command-input-wrapper]]:rounded-sm [&_[data-slot=command-input-wrapper]]:border";
 
 export function ModalDeAtribuicao({
   ocorrenciaId,
@@ -85,7 +108,7 @@ export function ModalDeAtribuicao({
   variante: "primario" | "secundario" | "menu";
 }) {
   const grupoId = useId();
-  const campoDeBuscaId = useId();
+  const buscaId = useId();
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
 
@@ -100,7 +123,9 @@ export function ModalDeAtribuicao({
   const palavras = palavrasDaAtribuicao(responsavelAtualPessoaId !== null);
 
   const formulario = useFormularioTocado({
-    campos: { responsavel: grupoId },
+    // **O foco do erro vai para a busca** (spec §3.9). O `cmdk` impõe o `id` do campo, então o alvo é o
+    // invólucro, e `focar` desce até o primeiro campo livre dele.
+    campos: { responsavel: buscaId },
     erros: { responsavel: escolhido === null ? "Escolha o responsável." : undefined },
   });
 
@@ -155,53 +180,45 @@ export function ModalDeAtribuicao({
   const nadaEncontrado =
     buscando && executoresVisiveis.length === 0 && solicitantesVisiveis.length === 0;
 
-  function bloco(titulo: string, lista: readonly Candidato[]) {
-    // **Bloco vazio não renderiza** — um subtítulo sozinho pergunta o que aconteceu com a lista.
+  function grupo(titulo: string, lista: readonly Candidato[]) {
+    // **Grupo vazio não renderiza** — um título sozinho pergunta o que aconteceu com a lista.
     if (lista.length === 0) return null;
 
     return (
-      <fieldset className="flex flex-col gap-1">
-        <legend className="text-tinta-fraca text-rotulo-coluna px-0 pb-1 font-mono uppercase">
-          {titulo}
-        </legend>
+      <CommandGroup heading={titulo} className={CLASSE_DO_GRUPO}>
         {lista.map((pessoa) => {
           const atual = pessoa.pessoaId === responsavelAtualPessoaId;
-          const id = `candidato-${pessoa.pessoaId}`;
+          const escolhida = escolhido === pessoa.pessoaId;
 
           return (
-            <label
+            /* **Escolher não grava** — marca a pessoa, e quem grava é o botão do rodapé. `aria-checked` diz
+               *escolhida*; o `aria-selected` do `cmdk` quer dizer *realçada*, que é outra coisa. **A-5:** a
+               escolha também vai em palavra e em ícone. */
+            <CommandItem
               key={pessoa.pessoaId}
-              htmlFor={id}
-              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
-                atual ? "opacity-60" : "cursor-pointer"
-              }`}
+              value={pessoa.pessoaId}
+              disabled={atual || envio.enviando}
+              aria-checked={escolhida}
+              onSelect={() => {
+                escolher(pessoa.pessoaId);
+              }}
+              className={CLASSE_DO_CANDIDATO}
             >
-              {/* **A-1:** rótulo associado ao controle — clicar no nome seleciona. */}
-              <input
-                type="radio"
-                id={id}
-                name="responsavel"
-                value={pessoa.pessoaId}
-                required
-                disabled={atual || envio.enviando}
-                checked={escolhido === pessoa.pessoaId}
-                onChange={() => escolher(pessoa.pessoaId)}
-                className="size-4"
-              />
-              <span className="flex flex-col">
+              <span className="flex min-w-0 flex-1 flex-col">
                 {/* **Nome por extenso** — abreviar não está autorizado em documento nenhum (R-12). */}
                 <span className="text-tinta font-medium">{pessoa.nome}</span>
                 <span className="text-tinta-suave text-meta">
                   {pessoa.papel}
                   {pessoa.area !== null && ` · ${pessoa.area}`}
-                  {/* **A-5:** o estado vai em palavra, nunca só em cor. */}
                   {atual && " · Responsável atual"}
+                  {escolhida && " · Sua escolha"}
                 </span>
               </span>
-            </label>
+              {escolhida && <Check aria-hidden="true" className="text-marca size-4 shrink-0" />}
+            </CommandItem>
           );
         })}
-      </fieldset>
+      </CommandGroup>
     );
   }
 
@@ -291,8 +308,9 @@ export function ModalDeAtribuicao({
           **Não grava no toque**, e a razão é dupla: o `inventario-de-telas.md:786` a descreve como item de
           FORMULÁRIO, e a atribuição aparece na linha do tempo do Solicitante (19.4) sem ter desfazer.
 
-          **Fora dos dois `fieldset` dos blocos, e isso não separa o grupo:** rádio agrupa por `name`, não
-          por `fieldset`. Escolhê-la **desmarca** qualquer candidato, e vice-versa.
+          **Fora do `Command` dos grupos desde o item 66, e isso não separa o grupo:** ela continua o
+          rádio que era, e o estado `escolhido` é um só. Escolhê-la **desmarca** qualquer candidato, e
+          vice-versa.
 
           **Não é filtrada pela busca (§3.7)** — se a busca a escondesse, o caso que o 20.5 existe para
           dispensar da busca voltaria a depender dela.
@@ -330,51 +348,47 @@ export function ModalDeAtribuicao({
         )}
 
         {/*
-          **O campo fica ABAIXO da fileira e ACIMA dos blocos, e é deliberado:** ele encosta exatamente no
-          que filtra. Pô-lo no topo diria, pela posição, que filtra a fileira também — e não filtra (§3.7).
+          **O campo fica ABAIXO da fileira e ACIMA dos grupos, e é deliberado:** ele encosta no que filtra.
+          **Sempre visível** (critério 20.6) e **sem foco automático** (§3.10 da spec do 20).
 
-          **Sempre visível.** O critério 20.6 diz *"o modal **tem** um campo de busca"*, sem condição — um
-          campo que aparecesse acima de N candidatos faria o mesmo modal ter duas formas conforme a
-          organização, e nenhuma tela do produto pratica isso.
+          **A busca é a nossa, e a do `cmdk` fica desligada** (`shouldFilter={false}`), como no seletor de
+          área: `filtrarPorNome` é prefixo de palavra, sem acento e sem caixa, e é ela que deixa a fileira
+          de cima fora do filtro. **`Enter` no campo escolhe o candidato realçado e não envia o formulário**
+          — o `cmdk` previne o `Enter`.
 
-          **Sem foco automático (§3.10):** um campo com busca abre o teclado, e num modal que na maior parte
-          das aberturas é resolvido pela primeira fileira isso cobre a lista com metade da tela para nada.
+          **O rótulo visível é `aria-hidden`, e o nome acessível vem do `label` do `Command`:** o `cmdk`
+          impõe `id` e `aria-labelledby` ao campo, então um rótulo associado por `htmlFor` não o alcançaria.
         */}
-        <div className="flex flex-col gap-1.5">
-          {/* **A-1:** rótulo visível e associado. `placeholder` nunca é rótulo. */}
-          <label htmlFor={campoDeBuscaId} className="text-tinta text-interface font-medium">
+        <div id={buscaId} className="flex flex-col gap-1.5">
+          <span aria-hidden="true" className="text-tinta text-interface font-medium">
             Buscar pelo nome
-          </label>
-          <Input
-            id={campoDeBuscaId}
-            type="search"
-            inputMode="search"
-            autoComplete="off"
-            /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
-            maxLength={120}
-            value={busca}
-            onChange={(evento) => aoBuscar(evento.currentTarget.value)}
-            disabled={envio.enviando}
-            /* **A-3:** o catálogo entrega `h-9`; os modais sobem para ~44 px. */
-            className="h-11"
-          />
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {bloco(NOME_DO_BLOCO.executores, executoresVisiveis)}
-          {bloco(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
-
-          {/*
-            **Frase própria, diferente de qualquer outra do produto** — é a regra que o
-            `inventario-de-telas.md:619` escreve para T-03: trocar uma pela outra faz o Gestor pensar que
-            perdeu dados.
-
-            **Texto simples, não região viva:** um `role="status"` que fala a cada tecla é ruído para quem
-            usa leitor de tela, e a lista está imediatamente abaixo do campo.
-
-            **Sem botão de limpar:** o campo está a um dedo e tem o `×` nativo do `type="search"`.
-          */}
-          {nadaEncontrado && <p className="text-tinta-suave text-corpo">Ninguém com esse nome.</p>}
+          </span>
+          <Command shouldFilter={false} label="Buscar pelo nome" className={CLASSE_DA_BUSCA}>
+            <CommandInput
+              value={busca}
+              onValueChange={aoBuscar}
+              disabled={envio.enviando}
+              /* O teto da coluna e do schema (`schemas/vinculo.ts`), para que um nome inteiro caiba. */
+              maxLength={120}
+              className="text-tinta h-11"
+            />
+            {/* **Sem teto próprio de altura**: quem rola é o corpo do modal (item 68a). **O vão entre os
+                grupos vai no `cmdk-list-sizer`**, o invólucro que o `cmdk` põe entre a lista e os grupos:
+                na própria lista ele não alcançaria filho nenhum. **O `label` da lista é obrigatório**: sem
+                ele o `cmdk` nomeia o `listbox` de *"Suggestions"*, em inglês. */}
+            <CommandList
+              label="Pessoas"
+              className="mt-3 max-h-none overflow-visible [&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:flex-col [&_[cmdk-list-sizer]]:gap-4"
+            >
+              {grupo(NOME_DO_BLOCO.executores, executoresVisiveis)}
+              {grupo(NOME_DO_BLOCO.solicitantes, solicitantesVisiveis)}
+            </CommandList>
+            {/* **Frase própria, diferente de qualquer outra do produto** — trocar uma pela outra faz o
+                Gestor pensar que perdeu dados. Texto simples, não região viva, e **fora do `listbox`**:
+                dentro dele só cabem opção e grupo. Não é o `CommandEmpty`, que apareceria também sem
+                busca digitada, que é o caso que `nadaEncontrado` existe para excluir. */}
+            {nadaEncontrado && <p className="text-tinta-suave text-corpo mt-3">Ninguém com esse nome.</p>}
+          </Command>
         </div>
       </GrupoDeEscolha>
 
