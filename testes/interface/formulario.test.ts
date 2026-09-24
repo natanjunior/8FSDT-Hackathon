@@ -2211,3 +2211,31 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     }
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 71 — o seletor de faixa de datas do painel
+ * ============================================================================
+ */
+describe("o alcance do 71 — o seletor de faixa de datas", () => {
+  it("o react-day-picker entra fixado, e é o único pacote novo (ADR-0015)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/calendar.tsx")).toBe(true);
+    const pacote = JSON.parse(ler("package.json")) as { dependencies: Record<string, string | undefined> };
+    // Fixado, sem acento circunflexo: a ADR-0011 faz da atualização uma decisão.
+    expect(pacote.dependencies["react-day-picker"]).toBe("10.0.1");
+    // O registro do `calendar` declara `cn` e `date-fns`. O primeiro é o pacote homônimo do módulo de
+    // utilitários, que o 44b já desinstalou três vezes; o segundo o `react-day-picker` declara para si, e
+    // o nosso código não o importa. Dependência direta sem `import` é inventário que mente.
+    expect(pacote.dependencies["cn"]).toBeUndefined();
+    expect(pacote.dependencies["date-fns"]).toBeUndefined();
+  });
+
+  it("a peça do catálogo veio na sintaxe do Tailwind 4, e sem a variante escura", () => {
+    const fonte = ler("src/interface/componentes/ui/calendar.tsx");
+    expect(fonte).toContain("size-(--cell-size)");
+    expect(fonte).not.toContain("[--cell-size]");
+    expect(fonte).not.toContain("dark:");
+    expect(fonte).toContain('from "@/interface/componentes/utilitarios"');
+    expect(fonte).toContain('from "@/interface/componentes/ui/button"');
+  });
+});
