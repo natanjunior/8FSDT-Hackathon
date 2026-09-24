@@ -100,14 +100,14 @@ const ORGANIZACAO_A = `Nascimento ${MARCA}`;
 const ORGANIZACAO_C = `Segunda Casa ${MARCA}`;
 
 /**
- * **O código inventado do critério 7a.1, e ele é inventado por construção.**
+ * **O código inventado do critério 7a.1.**
  *
- * Passa no formato que a tela confere antes de enviar — `^[A-Z0-9]{6,12}$` — e **não pode existir**: o
- * sorteio usa `ALFABETO_DO_CODIGO`, que tira `I`, `O`, `0` e `1` justamente porque quem transcreve erra.
- * Um código só de `O` e `0` nunca sai daquele sorteio. Sem isso, a asserção de *não encontrado* estaria
- * apostando que nenhuma organização do banco local tirou aquele número.
+ * Desde o item 65 o campo só aceita o alfabeto do sorteio, em oito casas: um código com `O` e `0`, que era
+ * inventado por construção, nem entra mais. Este é um código válido que ninguém sorteou, e a aposta é
+ * declarada: a chance de uma organização do banco local ter tirado exatamente este número é de uma em
+ * 1,1 × 10¹² por organização.
  */
-const CODIGO_INVENTADO = "OOO000";
+const CODIGO_INVENTADO = "ZZZZ2222";
 
 const TELEFONE_DIGITADO = "(11) 95521-7788";
 /** O mesmo número como a tabela e o modal de T-08 o escrevem (`telefoneLegivel`). */

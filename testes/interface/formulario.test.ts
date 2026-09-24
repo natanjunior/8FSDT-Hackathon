@@ -2115,4 +2115,42 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(pacote.dependencies["cn"]).toBeUndefined();
     expect(Object.keys(pacote.dependencies).filter((nome) => nome.startsWith("@radix-ui/"))).toStrictEqual([]);
   });
+
+  it("o campo de código é o input-otp, com o padrão, a colagem e o teclado domados (critério 65.2)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    expect(fonte).toMatch(/^"use client";/u);
+    expect(fonte).toContain("pattern={PADRAO_DA_DIGITACAO}");
+    expect(fonte).toContain("pasteTransformer={limparCodigo}");
+    expect(fonte).toContain("onChange={(novo) => setValor(novo.toUpperCase())}");
+    expect(fonte).toContain('autoCapitalize="characters"');
+    expect(fonte).toContain('autoComplete="off"');
+    expect(fonte).toContain("spellCheck={false}");
+    // A tela não pode importar o arquivo do Domínio que importa `node:crypto`.
+    expect(fonte).not.toContain("@/dominio");
+  });
+
+  it("as oito casas cabem num celular de 360 px (F2 do plano)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    const casa = /const CASA_DA_ENTRADA =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    // Abaixo de `sm` a casa divide a largura; a partir de `sm` ela tem os 40 px do design, e 48 a partir de `md`.
+    expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "sm:w-10", "sm:flex-none", "md:w-12", "md:h-14"]));
+  });
+
+  it("o pedido de entrada usa o campo novo, com a ajuda e a conferência de oito", () => {
+    const fonte = ler(PEDIDO_DE_ENTRADA);
+    expect(fonte).toContain("<EntradaDeCodigo");
+    expect(fonte).toContain("erroDoCodigo(codigoDigitado(dados))");
+    expect(fonte).toContain('ajuda="Está no cartaz do elevador ou na mensagem do grupo."');
+    expect(fonte).not.toContain("Seis a doze");
+    expect(fonte).not.toContain("maxLength={12}");
+    expect(fonte).not.toContain("codigoPublico.safeParse");
+  });
+
+  it("nenhum tamanho fora dos sete papéis e nenhum controle cru nos arquivos novos do 65", () => {
+    for (const caminho of [CAMPO_DE_CODIGO]) {
+      const fonte = ler(caminho);
+      expect([...fonte.matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)], caminho).toStrictEqual([]);
+      expect([...fonte.matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)], caminho).toStrictEqual([]);
+    }
+  });
 });
