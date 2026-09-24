@@ -22,6 +22,8 @@ function siglaDe(nome: string): string {
 /**
  * **O rosto da pessoa, escrito uma vez** — a ficha, a linha do tempo e as mensagens de T-05 (item 44q).
  * Três telas desenhando o avatar cada uma do seu jeito é o que o guia §7 proíbe para as fichas.
+ *
+ * **Laranja desde o item 64**, pela peça base: o dono quis a cor da marca em todo avatar.
  */
 export function AvatarDePessoa({ nome, className }: { nome: string; className?: string }) {
   return (

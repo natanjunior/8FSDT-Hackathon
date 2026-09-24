@@ -277,33 +277,34 @@ function ListaDeMensagens({
         ) : (
           <ol className="flex flex-col gap-3">
             {itens.map((mensagem) => (
-              <li key={mensagem.id} className="flex gap-2.5">
-                <AvatarDePessoa nome={mensagem.autor.nome} className="mt-0.5 size-7" />
-                {/* **O balão: fundo próprio**, que é o que separa o que uma pessoa escreveu do que o
-                    sistema registrou (critério 44q.7). **Ele não muda de lado por autor**: é livro de
-                    ocorrências, não conversa de mensageiro, e o autor já está nomeado em cada registro. */}
-                <div className="bg-background rounded-lg flex min-w-0 flex-1 flex-col gap-1 px-3.5 py-2.5">
-                  {/* **A-5: nada só por cor.** Cada mensagem carrega quem, quando e o quê, em palavras. O
-                      texto de fora é o de `autoria(…)`, caractere por caractere. */}
-                  {(() => {
-                    const { quem, quando } = partesDaAutoria(
-                      mensagem.autor.nome,
-                      mensagem.autor.pessoaId === pessoaIdDeQuemLe,
-                      dataEHora(mensagem.criadoEm),
-                    );
-                    return (
-                      <span className="text-meta">
-                        <span className="text-tinta font-medium">{quem}</span>
+              <li key={mensagem.id} className="flex flex-col gap-1.5">
+                {/* **A autoria numa linha, a mensagem embaixo, na bolha** (item 66). **A-5: nada só por
+                    cor** — quem, quando e o quê, em palavras. O texto da linha é o de `autoria(…)`, caractere
+                    por caractere. A bolha **não muda de lado por autor**: é livro de ocorrências, não
+                    conversa de mensageiro. */}
+                {(() => {
+                  const { quem, quando } = partesDaAutoria(
+                    mensagem.autor.nome,
+                    mensagem.autor.pessoaId === pessoaIdDeQuemLe,
+                    dataEHora(mensagem.criadoEm),
+                  );
+                  return (
+                    <span className="text-meta flex items-center gap-2">
+                      <AvatarDePessoa nome={mensagem.autor.nome} className="size-7" />
+                      <span>
+                        <span className="text-tinta text-interface font-medium">{quem}</span>
                         <span className="text-tinta-fraca"> · </span>
                         <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
                       </span>
-                    );
-                  })()}
-                  {/* **SEM aspas aqui**, ao contrário do bloco 3: ali as aspas distinguem o que uma pessoa
-                      escreveu do que o sistema registrou; aqui tudo é texto de pessoa, e aspar tudo é
-                      ruído. **Duas formas, as duas transcritas do protótipo** — critério 30.8. */}
-                  <span className="text-tinta text-corpo whitespace-pre-line">{mensagem.texto}</span>
-                </div>
+                    </span>
+                  );
+                })()}
+                {/* **SEM aspas aqui**, ao contrário do bloco 3: aqui tudo é texto de pessoa. **`bg-secondary`
+                    é o `--chrome`** (`globals.css:129`), e a bolha recua até o nome, 28 px do avatar mais
+                    8 de vão. */}
+                <p className="bg-secondary text-tinta text-corpo ml-9 w-fit max-w-[60ch] rounded-lg px-3 py-2.5 break-words whitespace-pre-line">
+                  {mensagem.texto}
+                </p>
               </li>
             ))}
           </ol>

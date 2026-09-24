@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { History } from "lucide-react";
 import { redirect } from "next/navigation";
 
@@ -10,8 +9,9 @@ import {
   verTrilhaDeAuditoria,
 } from "@/aplicacao/ocorrencia";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
-import { nomesDeStatus } from "@/interface/componentes/rotulos";
+import { encurtarParaOCaminho, nomesDeStatus } from "@/interface/componentes/rotulos";
 import { MarcadorDoStatus, SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
 import {
@@ -156,6 +156,21 @@ export default async function TrilhaDeAuditoria({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* **O caminho de três níveis** (item 66, critério 3): a trilha sobe para a ocorrência por aqui, e
+          não por um *voltar* no conteúdo. O título do meio entra cortado em 40 caracteres, inteiro no
+          `title`. */}
+      <CaminhoDaPagina
+        anterior={[
+          { rotulo: "Ocorrências", href: "/ocorrencias" },
+          {
+            rotulo: encurtarParaOCaminho(lida.titulo),
+            href: `/ocorrencias/${lida.id}`,
+            titulo: lida.titulo,
+          },
+        ]}
+        atual="Trilha de auditoria"
+      />
+
       <CabecalhoDaPagina
         titulo="Trilha de auditoria"
         fato={
@@ -178,15 +193,6 @@ export default async function TrilhaDeAuditoria({
       <div className="border-linha bg-superficie rounded-lg border shadow-sm">
         {registros.length === 0 ? <TrilhaSemRegistros /> : <Trilha registros={registros} nomes={nomes} />}
       </div>
-
-      {/* **É a única navegação da tela**, e é a única saída de conteúdo que sobra dentro da casca: a barra
-          lateral não leva a uma ocorrência. Achado A-10 do 44g, que continua sem dono. */}
-      <Link
-        href={`/ocorrencias/${lida.id}`}
-        className="text-marca text-interface inline-flex min-h-11 w-fit items-center font-medium underline underline-offset-4"
-      >
-        ← voltar à ocorrência
-      </Link>
     </div>
   );
 }

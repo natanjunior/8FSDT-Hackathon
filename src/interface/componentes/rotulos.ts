@@ -569,3 +569,55 @@ export function fraseDePedidosPendentes(pendentes: number): string {
   if (pendentes === 1) return "1 pedido pendente";
   return `${pendentes} pedidos pendentes`;
 }
+
+/**
+ * ============================================================================
+ *  O que o item 66 acrescenta: o caminho, o aviso de avaliação e a porta de fora
+ * ============================================================================
+ *
+ * **O título entra no caminho cortado em quarenta caracteres** (design §66), e o limite conta as
+ * reticências. Conta por ponto de código, e não por unidade de UTF-16, para um emoji no título não virar
+ * meio caractere. O espaço antes do corte sai, para não sobrar *"palavra …"*.
+ */
+export const LIMITE_DO_TITULO_NO_CAMINHO = 40;
+
+export function encurtarParaOCaminho(
+  titulo: string,
+  limite: number = LIMITE_DO_TITULO_NO_CAMINHO,
+): string {
+  const caracteres = Array.from(titulo.trim());
+  if (caracteres.length <= limite) return caracteres.join("");
+  return `${caracteres
+    .slice(0, limite - 1)
+    .join("")
+    .trimEnd()}…`;
+}
+
+/**
+ * **A frase da faixa de avaliação**, do design §66. Não contém *Avaliar*: o botão ao lado é quem diz o
+ * verbo, e o teste de ponta a ponta o procura por esse nome.
+ */
+export const AVISO_DE_AVALIACAO =
+  "Esta ocorrência foi resolvida. Conte como foi o atendimento para os Gestores.";
+
+/**
+ * **A porta de fora para o modal de avaliar** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9).
+ * Só abre quando `avaliar` está em `acoesDisponiveis`; em qualquer outro caso a página abre como sempre, e
+ * o parâmetro é ignorado. Parâmetro repetido não conta: o endereço que o produto gera nunca o repete.
+ */
+export function abreAvaliacaoPeloEndereco(
+  acao: string | string[] | undefined,
+  acoesDisponiveis: readonly string[],
+): boolean {
+  return acao === "avaliar" && acoesDisponiveis.includes("avaliar");
+}
+
+/**
+ * **O outro lado da mesma porta** — o endereço que a marca *"Conte como foi"* de T-03 escreve (item 67).
+ *
+ * Mora ao lado de quem o lê de propósito: as duas metades de um endereço combinado, em arquivos
+ * diferentes, é como um dos lados envelhece sem ninguém perceber.
+ */
+export function destinoDaAvaliacao(ocorrenciaId: string): string {
+  return `/ocorrencias/${ocorrenciaId}?acao=avaliar`;
+}

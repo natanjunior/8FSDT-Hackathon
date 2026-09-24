@@ -73,9 +73,8 @@ export function repositorioEscopadoDeCategorias(
       if (correcao.icone !== undefined) atribuicoes.push(`icone = ${marcador(correcao.icone)}`);
       if (correcao.ativa !== undefined) atribuicoes.push(`ativa = ${marcador(correcao.ativa)}`);
 
-      // **O carimbo e o autor entram na própria instrução, sem gatilho** (spec §2.7). O relógio é o do
-      // banco de qualquer forma; o *quem* não teria como vir de lá.
-      atribuicoes.push("atualizado_em = now()");
+      // **O autor entra na própria instrução; o relógio não.** `atualizado_em` é carimbado pelo gatilho
+      // da migração `012`, e o *quem* não teria como vir de lá.
       atribuicoes.push(`atualizado_por_pessoa_id = ${marcador(correcao.atualizadaPorPessoaId)}`);
 
       const idDaCategoria = marcador(correcao.categoriaId);

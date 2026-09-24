@@ -29,6 +29,7 @@ export const DESTINOS_DA_BARRA = [
   "/configuracao/categorias",
   "/configuracao/areas",
   "/dashboard",
+  "/meus-dados",
 ] as const;
 
 export type DestinoDaBarra = (typeof DESTINOS_DA_BARRA)[number];

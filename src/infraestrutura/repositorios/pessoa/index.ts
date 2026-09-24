@@ -52,8 +52,8 @@ export function repositorioDePessoas(consulta: Consulta): RepositorioDePessoas {
 
     /**
      * `PATCH /contexto/pessoa` — item 49. **Cópia literal do `update` que `pedidos-de-entrada.ts` já
-     * faz**, que é o único outro escritor de `pessoas.nome`: a migração `001` declara que não há gatilho
-     * de `atualizado_em`, e quem a mantém é a aplicação.
+     * faz**, que é o único outro escritor de `pessoas.nome`. O relógio de `atualizado_em` é carimbado
+     * pelo gatilho da migração `012`, e esta instrução não o menciona.
      *
      * **`where id = $1`, e o `$1` vem da sessão resolvida.** Não há filtro de organização a aplicar —
      * `pessoas` é global (modelo §6.2) — e não há identificador que quem chama possa escolher: o
@@ -62,7 +62,7 @@ export function repositorioDePessoas(consulta: Consulta): RepositorioDePessoas {
     async renomear(pessoaId, nome) {
       const linhas = await consulta<{ id: string; nome: string }>(
         `update pessoas
-            set nome = $2, atualizado_em = now()
+            set nome = $2
           where id = $1
       returning id, nome`,
         [pessoaId, nome],

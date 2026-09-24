@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezesseis telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As dezessete telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezesseis telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Dezessete telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezesseis
+## As dezessete
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -28,6 +28,7 @@ ganha endereço próprio.
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
 | Meus dados | `/meus-dados` | *O que é meu, e como eu entro?* | qualquer vínculo ativo |
+| Grupo | `/grupo` | *Quem fez isto?* | qualquer pessoa, sem sessão |
 | Vínculo sem permissões | — | *Entrei. Por que não consigo fazer nada?* | vínculo sem permissão nenhuma |
 
 A última não tem endereço próprio: é o que a aplicação mostra quando o vínculo existe e não autoriza nada,
@@ -50,6 +51,7 @@ flowchart TB
     GENTE["Participantes"]
     CONFIG["Configuração"]
     MEUS["Meus dados"]
+    GRUPO["Grupo"]
 
     CONTA --> ENTRAR
     ENTRAR --> CTX
@@ -64,10 +66,15 @@ flowchart TB
     MENU --> GENTE
     MENU --> CONFIG
     MENU --> MEUS
+    ENTRAR --> GRUPO
+    MENU --> GRUPO
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. A configuração abre as categorias e as áreas.
+
+A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
+pede sessão.
 
 No menu do cabeçalho, **cada item só existe para quem tem a permissão correspondente** — por isso, na
 navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de fora, e tem
@@ -76,6 +83,9 @@ mensagem própria.
 Trocar de organização é um menu no cabeçalho, com o nome da organização ativa sempre visível ao lado.
 Numa aplicação em que a organização vem da sessão e não do endereço, a URL não diz onde você está, e é o
 cabeçalho que diz.
+
+O produto abre no tema escuro. Quem prefere o claro troca no menu da pessoa, e a escolha vale para todas
+as telas e fica guardada no navegador. A documentação tem o próprio interruptor, e também começa escura.
 
 ## Duas telas carregam o produto
 
@@ -104,19 +114,26 @@ O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e
 abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
 
 No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
-tela**: abaixo de uma hora ela escreve minutos, de uma a 48 horas escreve horas inteiras, e acima disso
-escreve dias com uma casa. Assim uma ocorrência resolvida em nove minutos aparece em minutos, e não como
-zero hora.
+tela**: abaixo de um minuto ela escreve *menos de 1 min*, abaixo de uma hora escreve minutos, de uma a 48
+horas escreve horas inteiras, e acima disso escreve dias com uma casa. Assim uma ocorrência resolvida em
+nove minutos aparece em minutos, e uma resolvida em dez segundos não aparece como zero.
 
 O quadro *Tempo de resolução* do painel mostra, por mês, a mediana e o p90 das resoluções daquele mês, com
 quantas foram. A mediana diz como foi o caso do meio; o p90 diz como foi o décimo pior atendimento, e é
 nele que há o que corrigir. Mês com três resoluções ou menos aparece com as durações escritas uma a uma,
-porque um percentil sobre três pontos descreveria mais do que três pontos sustentam.
+porque um percentil sobre três pontos descreveria mais do que três pontos sustentam. A barra de cada mês
+desenha a mediana, também no mês que mostra as durações uma a uma, e o próprio quadro diz isso no rodapé.
 
 No painel, o quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as
 canceladas, e o quadro por categoria conta só o que está em aberto. **Os dois não somam o mesmo número**,
 e cada um diz na tela o que conta, porque um leitor que somasse os dois quadros chegaria a uma conclusão
 que os dados não sustentam.
+
+No painel, o período se escolhe num controle único, que mostra o intervalo aplicado e abre um calendário
+com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho fica apagado quando o
+período já é o dele, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
+de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
+mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 
 O mesmo painel desenha, mês a mês, quantas ocorrências foram registradas e quantas foram resolvidas. Os
 dois números já vêm na resposta: a soma das séries de recorrência é o que entrou, e o denominador do tempo

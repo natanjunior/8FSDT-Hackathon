@@ -70,13 +70,7 @@ export function repositorioDePedidosDeEntrada(
         if (criado === undefined) return { desfecho: "ja-pendente" };
 
         if (nome !== null) {
-          // **O primeiro `UPDATE` do produto.** A migração 001 deixou ao hub a questão de quem mantém
-          // `atualizado_em`; aqui a aplicação o escreve explicitamente, porque não há gatilho e uma coluna
-          // de relógio que não anda é pior que a ausência dela.
-          await consulta(`update pessoas set nome = $2, atualizado_em = now() where id = $1`, [
-            pessoaId,
-            nome,
-          ]);
+          await consulta(`update pessoas set nome = $2 where id = $1`, [pessoaId, nome]);
         }
 
         if (telefone !== null) {
@@ -347,6 +341,7 @@ async function lerVinculoCriado(
 ): Promise<VinculoLido> {
   const vinculos = await consulta<{
     papel: string;
+    atualizado_em: Date | null;
     pessoa_nome: string;
     tem_conta: boolean;
     area_id: string | null;
@@ -354,6 +349,7 @@ async function lerVinculoCriado(
     area_tipo: string | null;
   }>(
     `select v.papel,
+            greatest(nullif(p.atualizado_em, p.criado_em), v.atualizado_em) as atualizado_em,
             p.nome                        as pessoa_nome,
             (p.usuario_id is not null)    as tem_conta,
             a.id                          as area_id,
@@ -417,6 +413,9 @@ async function lerVinculoCriado(
     area,
     temConta: linha.tem_conta,
     criadoEm: criadoEm.toISOString(),
+    // **A aprovação pode devolver valor**, e não nulo: quando o Gestor corrige o nome no ato, o relógio
+    // da Pessoa anda, e a coluna passa a dizer a verdade — aquele cadastro foi mexido agora.
+    atualizadoEm: linha.atualizado_em === null ? null : linha.atualizado_em.toISOString(),
   };
 }
 

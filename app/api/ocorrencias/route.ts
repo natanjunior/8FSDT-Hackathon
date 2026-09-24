@@ -6,6 +6,7 @@ import {
   lerPaginacaoDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   resposta,
 } from "@/interface/http";
 import {
@@ -78,9 +79,12 @@ export const POST = comContexto(
  * `encarregado` — que é justamente quem tem de levar `403`. Qual dos dois conjuntos volta é decidido
  * **depois**, por `ler_todas`, e sai declarado em `visibilidadeAplicada`.
  *
- * **Os quatro filtros são do item 15**, e o endpoint não os gateia por permissão: o contrato não o faz
- * (§8.5), e quem só tem `ler_propria` já recebe apenas as próprias — filtrar dentro disso é legítimo. **O
- * que é de permissão é a barra na tela**, não o parâmetro na URL.
+ * **Os sete filtros são do item 15 e do 67**, e o endpoint não os gateia por permissão: o contrato não o
+ * faz (§8.5), e quem só tem `ler_propria` já recebe apenas as próprias — filtrar dentro disso é legítimo.
+ * **O que é de permissão é a barra na tela**, não o parâmetro na URL.
+ *
+ * **`ordem` e `sentido` não são filtro nem paginação** (item 67): não recortam, então não entram em
+ * `FiltroDeOcorrencias` e não alcançam contagem nenhuma.
  *
  * *Capacidades: listar todas da organização · `ENUNCIADO · aberto` (G1).*
  */
@@ -91,11 +95,17 @@ export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx
   // e `totalNoCorte` no lugar do `cursor`. Os três são de paginação e **não** entram no filtro — é o
   // critério `14b.9`, e é o que faz o *Voltar* de T-05 devolver a lista filtrada na página 1.
   const paginacao = lerPaginacaoDaUrl(consulta);
+  const ordenacao = lerOrdenacaoDeOcorrenciasDaUrl(consulta);
 
   const pagina = await listarOcorrencias(
     repos.ocorrencias,
     { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") },
-    { limite: lerLimiteDaUrl(requisicao), ...paginacao, filtro },
+    {
+      limite: lerLimiteDaUrl(requisicao),
+      ...paginacao,
+      filtro,
+      ...(ordenacao === undefined ? {} : { ordenacao }),
+    },
   );
 
   // **A mesma permissão que decidiu o CONJUNTO decide a COLUNA** — `ocorrencia.ler_todas`, e é o

@@ -76,7 +76,6 @@ export function repositorioEscopadoDeAreas(
       }
       if (correcao.ativa !== undefined) atribuicoes.push(`ativa = ${marcador(correcao.ativa)}`);
 
-      atribuicoes.push("atualizado_em = now()");
       atribuicoes.push(`atualizado_por_pessoa_id = ${autor}`);
 
       const idDaArea = marcador(correcao.areaId);

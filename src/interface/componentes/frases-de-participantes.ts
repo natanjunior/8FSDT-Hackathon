@@ -93,9 +93,50 @@ export function fraseDoFato(participantes: number, pedidos: number): string {
     : `${inicio} e ${String(pedidos)} ${palavraDePedidos(pedidos)}.`;
 }
 
-/** O fato da página de editar. A página desenha a data em mono. */
-export function fraseDoFatoDeEdicao(nome: string, papel: string, criadoEm: string): string {
-  return `${nome}, ${rotuloDoPapel(papel)} desde ${dataCurta(criadoEm)}.`;
+/** Um pedaço do fato da página de editar. As datas saem em mono; o resto, não. */
+export type SegmentoDoFato = {
+  readonly chave: string;
+  readonly texto: string;
+  readonly mono: boolean;
+};
+
+/**
+ * O fato da página de editar, em segmentos, porque a página desenha as datas em mono e o resto não.
+ *
+ * **Sem alteração registrada, a segunda frase não existe** — e não vira *"Nenhuma alteração desde a
+ * entrada"*. Numa linha anterior ao relógio de gatilho pode ter havido alteração que ninguém gravou:
+ * omitir não afirma nada, e a frase afirmaria.
+ */
+export function fatoDeEdicao(
+  nome: string,
+  papel: string,
+  criadoEm: string,
+  atualizadoEm: string | null,
+): readonly SegmentoDoFato[] {
+  const entrada: readonly SegmentoDoFato[] = [
+    { chave: "quem", texto: `${nome}, ${rotuloDoPapel(papel)} desde `, mono: false },
+    { chave: "desde", texto: dataCurta(criadoEm), mono: true },
+    { chave: "ponto", texto: ".", mono: false },
+  ];
+  if (atualizadoEm === null) return entrada;
+  return [
+    ...entrada,
+    { chave: "entre", texto: " Última atualização em ", mono: false },
+    { chave: "atualizacao", texto: dataCurta(atualizadoEm), mono: true },
+    { chave: "ponto-final", texto: ".", mono: false },
+  ];
+}
+
+/** O mesmo fato como texto corrido: é o que o teste afirma e o que um leitor de tela ouve. */
+export function fraseDoFatoDeEdicao(
+  nome: string,
+  papel: string,
+  criadoEm: string,
+  atualizadoEm: string | null,
+): string {
+  return fatoDeEdicao(nome, papel, criadoEm, atualizadoEm)
+    .map((segmento) => segmento.texto)
+    .join("");
 }
 
 // ---------------------------------------------------------------------------
@@ -108,15 +149,19 @@ export const TEXTOS_DA_TABELA = {
   exemploDaBusca: "Ex.: Beatriz",
   editar: "Editar participante",
   remover: "Remover da organização",
-  desde: "Desde",
+  atualizacao: "Última atualização",
+  atualizadoEm: "Atualizado em",
+  semAlteracao: "sem alteração registrada",
   acoes: "Ações",
   seloDePedido: "pedido de entrada",
   seloSemConta: "sem conta",
   seloVoce: "você",
 } as const;
 
-export function textoDeMaisContatos(quantos: number): string {
-  return quantos === 1 ? "e mais 1 contato" : `e mais ${String(quantos)} contatos`;
+/** O nome do botão de contato na tabela: o tipo, no plural quando há mais de um, e de quem é (item 68a). */
+export function rotuloDoContato(tipo: "telefone" | "email", quantos: number, nome: string): string {
+  const palavra = tipo === "telefone" ? "Telefone" : "E-mail";
+  return `${palavra}${quantos > 1 ? "s" : ""} de ${nome}`;
 }
 
 // ---------------------------------------------------------------------------

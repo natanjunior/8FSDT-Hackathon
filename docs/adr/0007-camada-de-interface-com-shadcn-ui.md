@@ -37,11 +37,13 @@ atualiza: a ferramenta copia o código-fonte para dentro do projeto. Trocamos de
 por código que se mantém, então nada quebra numa atualização que não pedimos, e em contrapartida a
 manutenção é nossa.
 
-A frase tem cinco exceções, e é honesto nomeá-las: os primitivos, os ícones, a biblioteca de gráfico, o
-aviso de retorno de ação e a busca em lista chegam como pacote instalado. A terceira entrou pela
-[ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md), e as duas últimas pela
-[ADR-0011](0011-sonner-e-cmdk-entram-como-pacotes.md). O que vem instalado é a base sobre a qual o nosso
-código roda.
+A frase tem sete exceções, e é honesto nomeá-las: os primitivos, os ícones, a biblioteca de gráfico, o
+aviso de retorno de ação, a busca em lista, o campo de código e o calendário de faixa chegam como pacote
+instalado. A terceira entrou pela [ADR-0010](0010-o-componente-de-grafico-entra-com-o-recharts.md), a
+quarta e a quinta pela [ADR-0011](0011-sonner-e-cmdk-entram-como-pacotes.md), a sexta pela
+[ADR-0014](0014-o-campo-de-codigo-entra-com-o-input-otp.md) e a sétima pela
+[ADR-0015](0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md). O que vem instalado é a base sobre a
+qual o nosso código roda.
 
 **A base de primitivos é escolha explícita, e é o meta-pacote `radix-ui`.** O projeto de origem oferece
 mais de uma base, e herdar o padrão sem decidir produziria uma interface com bases misturadas. Quem

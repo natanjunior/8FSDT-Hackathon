@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
+import { COLUNAS_DE_ORDENACAO, OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
 import type {
   AnexoLido,
   OcorrenciaLida,
@@ -43,6 +43,7 @@ import {
   segundaLinhaDeMotivo,
 } from "@/interface/projecoes";
 import {
+  algumFiltroAplicado,
   CampoNaoSuportado,
   comOrganizacaoAtiva,
   CorpoNaoSuportado,
@@ -50,6 +51,7 @@ import {
   lerCorpoOpcional,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   lerPaginacaoDaUrl,
   lerVarianteDaUrl,
   problemaDe,
@@ -60,6 +62,27 @@ import {
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { areasUsadas, comAreaUsada } from "@/interface/componentes/areas-usadas";
+import {
+  comTitulo,
+  comValorUnico,
+  opcoesDeArea,
+  opcoesDeResponsavel,
+  PARAMETROS_DE_FILTRO,
+  primeirasOpcoes,
+  rotuloDoGatilho,
+  semFiltros,
+  type OpcaoComBusca,
+} from "@/interface/componentes/filtros-da-lista";
+import {
+  ariaSortNaLista,
+  COLUNAS_DA_LISTA,
+  consultaComOrdenacao,
+  lerOrdenacaoDaLista,
+  proximaNaLista,
+  rotuloNaLista,
+  type ColunaDaLista,
+} from "@/interface/componentes/ordenacao-das-ocorrencias";
+import { SEM_ORDENACAO, type Ordenacao } from "@/interface/componentes/ordenacao-em-tres-estados";
 import {
   casaPeloNome,
   filtrarPorNome,
@@ -85,8 +108,12 @@ import {
 } from "@/interface/componentes/registro-de-ocorrencia";
 import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
+  abreAvaliacaoPeloEndereco,
+  destinoDaAvaliacao,
   acaoPrimaria,
   acoesDaBarra,
+  AVISO_DE_AVALIACAO,
+  encurtarParaOCaminho,
   nomesDeStatus,
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
@@ -1022,6 +1049,433 @@ describe("o critério 15.1 — o que a URL recusa em voz alta", () => {
   });
 });
 
+/**
+ * ============================================================================
+ *  Os três recortes novos e a ordem — os critérios 67.1, 67.4 e 67.5
+ * ============================================================================
+ */
+const AREA = "7c2d9a3f-1111-4b3c-9d4e-5f6a7b8c9d0e";
+const OUTRA_AREA = "7c2d9a3f-2222-4b3c-9d4e-5f6a7b8c9d0e";
+const PESSOA = "8d3e0b40-1111-4c4d-ae5f-6a7b8c9d0e1f";
+
+describe("os critérios 67.1 e 67.4 — título, área e responsável na URL", () => {
+  it("os três entram, e combinam com os quatro de hoje", () => {
+    expect(
+      ler(
+        `status=aberta&categoriaId=${CATEGORIA}&prioridade=alta&autor=eu` +
+          `&titulo=vazamento&areaId=${AREA},${OUTRA_AREA}&responsavelPessoaId=${PESSOA}`,
+      ),
+    ).toStrictEqual({
+      status: ["aberta"],
+      categoriaId: [CATEGORIA],
+      prioridade: ["alta"],
+      apenasDoAutor: true,
+      titulo: "vazamento",
+      areaId: [AREA, OUTRA_AREA],
+      responsavelPessoaId: [PESSOA],
+    });
+  });
+
+  it("o título vem aparado, e só espaço é o mesmo que ausente", () => {
+    expect(ler("titulo=%20%20vaz%20gar%20%20")).toStrictEqual({ titulo: "vaz gar" });
+    expect(ler("titulo=%20%20%20")).toStrictEqual({});
+    expect(ler("titulo=")).toStrictEqual({});
+  });
+
+  it("título de 120 caracteres passa, e o de 121 é recusado", () => {
+    expect(ler(`titulo=${"a".repeat(120)}`)).toStrictEqual({ titulo: "a".repeat(120) });
+    expect(() => ler(`titulo=${"a".repeat(121)}`)).toThrow(FormatoInvalido);
+  });
+
+  it.each([
+    ["areaId=nao-e-uuid", "areaId"],
+    [`areaId=${AREA},nao-e-uuid`, "areaId"],
+    ["responsavelPessoaId=nao-e-uuid", "responsavelPessoaId"],
+    [`titulo=${"a".repeat(121)}`, "titulo"],
+  ])("%s é recusado, e o erro nomeia o campo", (consulta, campo) => {
+    try {
+      ler(consulta);
+      expect.unreachable("devia ter recusado");
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(FormatoInvalido);
+      const erros = (erro as FormatoInvalido).extensoes.erros as readonly ErroDeCampo[];
+      expect(erros[0]).toMatchObject({ campo, codigo: "VALOR_INVALIDO" });
+    }
+  });
+
+  it.each([
+    ["status=aberta"],
+    [`categoriaId=${CATEGORIA}`],
+    ["prioridade=alta"],
+    ["autor=eu"],
+    ["titulo=vaz"],
+    [`areaId=${AREA}`],
+    [`responsavelPessoaId=${PESSOA}`],
+  ])("%s conta como filtro aplicado", (consulta) => {
+    expect(algumFiltroAplicado(ler(consulta))).toBe(true);
+  });
+
+  it("sem parâmetro nenhum, nenhum filtro está aplicado", () => {
+    expect(algumFiltroAplicado(ler(""))).toBe(false);
+  });
+
+  /**
+   * **A ordem não é filtro, e o teste existe porque a consequência é visível:** se ela contasse, o
+   * terceiro vazio diria *"Nenhuma ocorrência com estes filtros."* para quem só trocou a coluna, e
+   * *"Limpar filtros"* prometeria desfazer algo que não desfaz.
+   */
+  it("ordem e sentido não contam como filtro", () => {
+    expect(algumFiltroAplicado(ler("ordem=titulo&sentido=decrescente"))).toBe(false);
+  });
+});
+
+const lerOrdem = (consulta: string) =>
+  lerOrdenacaoDeOcorrenciasDaUrl(new URLSearchParams(consulta));
+
+describe("a ordenação de GET /ocorrencias — critério 67.5", () => {
+  it.each([
+    ["status"],
+    ["titulo"],
+    ["area"],
+    ["prioridade"],
+    ["responsavel"],
+  ])("ordem=%s sem sentido é crescente", (ordem) => {
+    expect(lerOrdem(`ordem=${ordem}`)).toStrictEqual({ ordem, sentido: "crescente" });
+  });
+
+  it("sentido=decrescente vale para qualquer coluna que não seja a do padrão", () => {
+    expect(lerOrdem("ordem=titulo&sentido=decrescente")).toStrictEqual({
+      ordem: "titulo",
+      sentido: "decrescente",
+    });
+  });
+
+  it("ordem=atualizacao sem sentido é a mais parada primeiro", () => {
+    expect(lerOrdem("ordem=atualizacao")).toStrictEqual({
+      ordem: "atualizacao",
+      sentido: "crescente",
+    });
+  });
+
+  /**
+   * **Um estado, um endereço.** `ordem=atualizacao&sentido=decrescente` é o padrão escrito por extenso, e
+   * volta como ausente: dois endereços para o mesmo resultado obrigariam a tela a escolher qual deles
+   * desenha a seta.
+   */
+  it("o padrão escrito por extenso volta como ausente", () => {
+    expect(lerOrdem("ordem=atualizacao&sentido=decrescente")).toBeUndefined();
+  });
+
+  it("sem ordem, não há ordenação — e o sentido sozinho é ignorado", () => {
+    expect(lerOrdem("")).toBeUndefined();
+    expect(lerOrdem("sentido=decrescente")).toBeUndefined();
+    expect(lerOrdem("sentido=xpto")).toBeUndefined();
+  });
+
+  it.each([
+    ["ordem=registro", "ordem"],
+    ["ordem=titulo&sentido=crescente", "sentido"],
+    ["ordem=titulo&sentido=asc", "sentido"],
+  ])("%s é recusado, e o erro nomeia o campo", (consulta, campo) => {
+    try {
+      lerOrdem(consulta);
+      expect.unreachable("devia ter recusado");
+    } catch (erro) {
+      expect(erro).toBeInstanceOf(FormatoInvalido);
+      const erros = (erro as FormatoInvalido).extensoes.erros as readonly ErroDeCampo[];
+      expect(erros[0]).toMatchObject({ campo, codigo: "VALOR_INVALIDO" });
+    }
+  });
+
+  it("ordem repetida é recusada, como todo parâmetro deste endpoint", () => {
+    expect(() => lerOrdem("ordem=titulo&ordem=status")).toThrow(FormatoInvalido);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A ordenação de T-03 — critério 67.5
+ * ============================================================================
+ *
+ * **O que este bloco prova é o que a lista acrescenta ao ciclo do 68a**: que o padrão aparece marcado em
+ * Tempo, que Tempo tem ciclo de dois passos, e que as outras colunas voltam ao padrão no terceiro clique.
+ * O ciclo em si tem teste próprio, no arquivo de vínculo.
+ */
+const ordenacaoDe = (consulta: string) => lerOrdenacaoDaLista(new URLSearchParams(consulta));
+
+describe("a ordenação de T-03 — critério 67.5", () => {
+  /**
+   * **As duas listas são a mesma, e o teste é o que as prende.** A da tela é copiada da Aplicação de
+   * propósito — importá-la arrastaria a camada para o pacote do navegador —, e sem este caso a cópia
+   * envelheceria em silêncio: a tela ofereceria uma coluna que o endpoint recusa com `400`.
+   */
+  it("as colunas da tela são as mesmas da Aplicação", () => {
+    expect([...COLUNAS_DA_LISTA]).toStrictEqual([...COLUNAS_DE_ORDENACAO]);
+  });
+
+  it("sem nada na URL, Tempo está ordenada para baixo e as outras não estão ordenadas", () => {
+    const atual = ordenacaoDe("");
+
+    expect(atual).toStrictEqual(SEM_ORDENACAO);
+    expect(ariaSortNaLista(atual, "atualizacao")).toBe("descending");
+    for (const coluna of ["status", "titulo", "area", "prioridade", "responsavel"] as const) {
+      expect(ariaSortNaLista(atual, coluna)).toBe("none");
+    }
+  });
+
+  it("o padrão escrito por extenso na URL é lido como o padrão", () => {
+    expect(ordenacaoDe("ordem=atualizacao&sentido=decrescente")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  /** **Dois passos, e não três.** Do padrão, um clique inverte; o segundo devolve o padrão. */
+  it("em Tempo o ciclo é de dois passos", () => {
+    const doPadrao = proximaNaLista(SEM_ORDENACAO, "atualizacao");
+    expect(doPadrao).toStrictEqual({ ordem: "atualizacao", sentido: "crescente" });
+    expect(ariaSortNaLista(doPadrao, "atualizacao")).toBe("ascending");
+
+    expect(proximaNaLista(doPadrao, "atualizacao")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  it("nas outras colunas o terceiro clique devolve o padrão", () => {
+    const um = proximaNaLista(SEM_ORDENACAO, "titulo");
+    expect(um).toStrictEqual({ ordem: "titulo", sentido: "crescente" });
+
+    const dois = proximaNaLista(um, "titulo");
+    expect(dois).toStrictEqual({ ordem: "titulo", sentido: "decrescente" });
+
+    expect(proximaNaLista(dois, "titulo")).toStrictEqual(SEM_ORDENACAO);
+  });
+
+  it("clicar em outra coluna começa nela, crescente, venha de onde vier", () => {
+    const tituloDecrescente: Ordenacao<ColunaDaLista> = { ordem: "titulo", sentido: "decrescente" };
+
+    expect(proximaNaLista(tituloDecrescente, "status")).toStrictEqual({
+      ordem: "status",
+      sentido: "crescente",
+    });
+    expect(proximaNaLista(tituloDecrescente, "atualizacao")).toStrictEqual({
+      ordem: "atualizacao",
+      sentido: "crescente",
+    });
+  });
+
+  it("com outra coluna ordenando, Tempo não está ordenada e o clique começa nela", () => {
+    const tituloCrescente: Ordenacao<ColunaDaLista> = { ordem: "titulo", sentido: "crescente" };
+
+    expect(ariaSortNaLista(tituloCrescente, "atualizacao")).toBe("none");
+    expect(rotuloNaLista(tituloCrescente, "atualizacao", "Tempo")).toBe("Ordenar por Tempo");
+  });
+
+  /**
+   * **O nome acessível diz o que o próximo clique faz**, e em Tempo ele diz *inverter* nos dois estados
+   * em que Tempo é a ordem. *"Tirar a ordenação"* seria falso ali: não há como tirar o padrão.
+   */
+  it("o nome acessível de Tempo diz inverter nos dois estados em que ele ordena", () => {
+    expect(rotuloNaLista(SEM_ORDENACAO, "atualizacao", "Tempo")).toBe("Inverter a ordem de Tempo");
+    expect(
+      rotuloNaLista({ ordem: "atualizacao", sentido: "crescente" }, "atualizacao", "Tempo"),
+    ).toBe("Inverter a ordem de Tempo");
+  });
+
+  it("o nome acessível de Título percorre os três", () => {
+    expect(rotuloNaLista(SEM_ORDENACAO, "titulo", "Título")).toBe("Ordenar por Título");
+    expect(rotuloNaLista({ ordem: "titulo", sentido: "crescente" }, "titulo", "Título")).toBe(
+      "Inverter a ordem de Título",
+    );
+    expect(rotuloNaLista({ ordem: "titulo", sentido: "decrescente" }, "titulo", "Título")).toBe(
+      "Tirar a ordenação de Título",
+    );
+  });
+
+  it("a URL da ordem mantém os filtros e descarta a paginação", () => {
+    const consulta = consultaComOrdenacao(
+      "status=aberta&titulo=vaz&pagina=3&ate=2026-09-01T00%3A00%3A00.000Z&totalNoCorte=40&ordem=titulo&sentido=decrescente",
+      { ordem: "status", sentido: "crescente" },
+    );
+
+    expect(consulta.get("status")).toBe("aberta");
+    expect(consulta.get("titulo")).toBe("vaz");
+    expect(consulta.get("pagina")).toBeNull();
+    expect(consulta.get("ate")).toBeNull();
+    expect(consulta.get("totalNoCorte")).toBeNull();
+    expect(consulta.get("ordem")).toBe("status");
+    expect(consulta.get("sentido")).toBeNull();
+  });
+
+  it("voltar ao padrão apaga ordem e sentido da URL", () => {
+    const consulta = consultaComOrdenacao("status=aberta&ordem=titulo&sentido=decrescente", SEM_ORDENACAO);
+
+    expect(consulta.get("ordem")).toBeNull();
+    expect(consulta.get("sentido")).toBeNull();
+    expect(consulta.get("status")).toBe("aberta");
+  });
+
+  /**
+   * **A ida e volta entre a tela e o endpoint.** O que a tabela escreve na URL é o que
+   * `lerOrdenacaoDeOcorrenciasDaUrl` lê do outro lado — se as duas divergissem, clicar numa coluna daria
+   * `400` na própria tela.
+   */
+  it.each([...COLUNAS_DA_LISTA])("o que a tela escreve para %s, o endpoint lê", (coluna) => {
+    for (const sentido of ["crescente", "decrescente"] as const) {
+      const consulta = consultaComOrdenacao("", { ordem: coluna, sentido });
+      const doEndpoint = lerOrdenacaoDeOcorrenciasDaUrl(consulta);
+
+      const esperado = coluna === "atualizacao" && sentido === "decrescente" ? undefined : { ordem: coluna, sentido };
+      expect(doEndpoint).toStrictEqual(esperado);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  Os puros da barra de T-03 — critérios 67.1 e 67.4
+ * ============================================================================
+ */
+describe("os puros da barra — o que Limpar filtros limpa, e o que ele mantém", () => {
+  it("semFiltros apaga os sete recortes e a paginação, e MANTÉM a ordem", () => {
+    const consulta = semFiltros(
+      "status=aberta&categoriaId=c-1&prioridade=alta&autor=eu&titulo=vaz&areaId=a-1" +
+        "&responsavelPessoaId=p-1&pagina=3&ate=2026-09-01T00%3A00%3A00.000Z&totalNoCorte=40" +
+        "&ordem=titulo&sentido=decrescente",
+    );
+
+    for (const parametro of PARAMETROS_DE_FILTRO) expect(consulta.get(parametro)).toBeNull();
+    for (const parametro of ["pagina", "ate", "totalNoCorte"]) {
+      expect(consulta.get(parametro)).toBeNull();
+    }
+    expect(consulta.get("ordem")).toBe("titulo");
+    expect(consulta.get("sentido")).toBe("decrescente");
+  });
+
+  /**
+   * **A lista da tela e a do servidor têm de concordar.** `PARAMETROS_DE_FILTRO` decide o que *Limpar
+   * filtros* apaga; `algumFiltroAplicado` decide se o botão aparece e qual frase o vazio mostra. Um
+   * parâmetro em só uma das duas produziria um botão que não limpa o que promete — ou um recorte ligado
+   * sem botão para desligá-lo.
+   */
+  it.each([
+    ["status", "aberta"],
+    ["categoriaId", CATEGORIA],
+    ["prioridade", "alta"],
+    ["autor", "eu"],
+    ["titulo", "vaz"],
+    ["areaId", AREA],
+    ["responsavelPessoaId", PESSOA],
+  ])("%s está nos dois lados: liga o filtro e é apagado por Limpar", (parametro, valor) => {
+    expect([...PARAMETROS_DE_FILTRO]).toContain(parametro);
+    expect(algumFiltroAplicado(ler(`${parametro}=${valor}`))).toBe(true);
+    expect(semFiltros(`${parametro}=${valor}`).get(parametro)).toBeNull();
+  });
+
+  it("comValorUnico troca o valor, apaga com null, e descarta a paginação", () => {
+    expect(comValorUnico("areaId=a-1&pagina=2", "areaId", "a-2").toString()).toBe("areaId=a-2");
+    expect(comValorUnico("areaId=a-1&status=aberta", "areaId", null).toString()).toBe("status=aberta");
+  });
+
+  it("comTitulo apara, e texto em branco apaga o parâmetro", () => {
+    expect(comTitulo("", "  vaz gar  ").get("titulo")).toBe("vaz gar");
+    expect(comTitulo("titulo=vaz", "   ").get("titulo")).toBeNull();
+    expect(comTitulo("titulo=vaz&pagina=4", "luz").toString()).toBe("titulo=luz");
+  });
+
+  it("antes de digitar, as dez primeiras por nome — e a ordem é a de pt-BR", () => {
+    const opcoes: OpcaoComBusca[] = [
+      { valor: "z", rotulo: "Zeladoria" },
+      { valor: "a", rotulo: "Área de lazer" },
+      { valor: "g", rotulo: "Garagem" },
+    ];
+
+    expect(primeirasOpcoes(opcoes, 2).map((uma) => uma.rotulo)).toStrictEqual([
+      "Área de lazer",
+      "Garagem",
+    ]);
+  });
+
+  /** Sem valor, o nome; com um, o nome do valor; com mais de um, a contagem. Nunca só cor. */
+  it("o rótulo do gatilho carrega a palavra", () => {
+    const opcoes: OpcaoComBusca[] = [{ valor: "g", rotulo: "Garagem" }];
+
+    expect(rotuloDoGatilho("Área", opcoes, [])).toBe("Área");
+    expect(rotuloDoGatilho("Área", opcoes, ["g"])).toBe("Área: Garagem");
+    expect(rotuloDoGatilho("Área", opcoes, ["g", "h"])).toBe("Área: 2 selecionados");
+  });
+
+  /** Valor fora da lista — área desativada que veio por link — conta, e não inventa nome. */
+  it("valor que não está na lista conta em vez de inventar nome", () => {
+    expect(rotuloDoGatilho("Área", [], ["a-1"])).toBe("Área: 1 selecionado");
+  });
+});
+
+/**
+ * ============================================================================
+ *  As opções dos dois campos com busca — critério 67.2
+ * ============================================================================
+ *
+ * **A entrada vem das leituras escopadas** — `repos.areas` e `repos.vinculos`, que a página passa —, e é
+ * a suíte de isolamento que prova que elas não atravessam organização. O que estes casos provam é o outro
+ * lado: **o que desce ao navegador**.
+ */
+describe("as opções dos campos com busca — critério 67.2", () => {
+  it("a área traz o tipo em palavra, pela frase que T-04 já usa", () => {
+    expect(
+      opcoesDeArea(
+        [
+          { id: "a-1", nome: "Garagem", tipo: "comum" },
+          { id: "a-2", nome: "Apartamento 302", tipo: "privativa" },
+        ],
+        rotuloDoTipoDeArea,
+      ),
+    ).toStrictEqual([
+      { valor: "a-1", rotulo: "Garagem", complemento: "área comum" },
+      { valor: "a-2", rotulo: "Apartamento 302", complemento: "unidade privativa" },
+    ]);
+  });
+
+  /**
+   * **`contatos[]` não desce, e o caso é a garantia.** É dado pessoal sob o RNF10, e é a razão de
+   * `GET /vinculos` exigir `vinculo.gerir`: um filtro de responsável que carregasse telefone e e-mail no
+   * pacote do navegador publicaria a lista de contatos da organização inteira em cada carga de T-03.
+   */
+  it("o responsável desce com duas chaves e nada mais — sem contato, sem papel", () => {
+    // Um `VinculoLido` inteiro, com contato preenchido — é o que a leitura escopada devolve.
+    const lidos = [
+      {
+        pessoa: {
+          pessoaId: "p-1",
+          nome: "Marcos Ribeiro",
+          contatos: [{ tipo: "telefone", valor: "11999990000" }],
+        },
+        papel: "encarregado",
+        area: { id: "a-1", nome: "Garagem", tipo: "comum" },
+      },
+    ];
+    const opcoes = opcoesDeResponsavel(lidos);
+
+    expect(opcoes).toStrictEqual([{ valor: "p-1", rotulo: "Marcos Ribeiro" }]);
+    expect(Object.keys(opcoes[0] ?? {})).toStrictEqual(["valor", "rotulo"]);
+  });
+});
+
+/**
+ * **O destino de *"Conte como foi"*** — item 67. A marca deixou de ser frase solta e virou link; o
+ * destino é a porta de fora do modal de avaliar de T-05, que é onde a avaliação continua acontecendo.
+ */
+describe("o convite a avaliar leva à avaliação", () => {
+  it("o destino é a ocorrência com a ação de avaliar", () => {
+    expect(destinoDaAvaliacao("o-1")).toBe("/ocorrencias/o-1?acao=avaliar");
+  });
+
+  /** A ida e volta: o que a lista escreve é o que T-05 lê. */
+  it("T-05 abre o modal por esse endereço quando avaliar está disponível", () => {
+    const acao =
+      new URL(`https://exemplo.test${destinoDaAvaliacao("o-1")}`).searchParams.get("acao") ??
+      undefined;
+
+    expect(abreAvaliacaoPeloEndereco(acao, ["avaliar", "comentar"])).toBe(true);
+    expect(abreAvaliacaoPeloEndereco(acao, ["comentar"])).toBe(false);
+  });
+});
+
 describe("a lente de rótulo — o critério 31.2, e ela segue PERMISSÃO", () => {
   it("quem tem ocorrencia.ler_todas lê pela coluna do Gestor", () => {
     expect(lenteDeRotulo(["ocorrencia.ler_todas"])).toBe("gestor");
@@ -1300,34 +1754,64 @@ describe("o critério 15.5 — os nomes das opções de filtro", () => {
 });
 
 describe("o critério 15.6 — a descrição do recorte, para o subtítulo do vazio", () => {
-  const nomeDaCategoria = (id: string) => (id === "c-1" ? "Iluminação" : undefined);
+  /** Os três mapas de nome, como a página os monta (item 67). */
+  const nomes = {
+    categoria: (id: string) => (id === "c-1" ? "Iluminação" : undefined),
+    area: (id: string) => (id === "a-1" ? "Garagem" : undefined),
+    pessoa: (id: string) => (id === "p-1" ? "Marcos Ribeiro" : undefined),
+  };
 
   it("sem filtro nenhum, não há o que descrever", () => {
-    expect(descricaoDoRecorte({}, nomeDaCategoria)).toStrictEqual([]);
+    expect(descricaoDoRecorte({}, nomes)).toStrictEqual([]);
   });
 
   it("cada dimensão vira uma cláusula com o MESMO rótulo do chip", () => {
-    expect(
-      descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomeDaCategoria),
-    ).toStrictEqual(["Status: Pausada", "Prioridade: Alta"]);
+    expect(descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomes)).toStrictEqual([
+      "Status: Pausada",
+      "Prioridade: Alta",
+    ]);
   });
 
   it("dois valores na mesma dimensão viram uma cláusula só, com os dois", () => {
-    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomeDaCategoria)).toStrictEqual([
+    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomes)).toStrictEqual([
       "Status: Aberta, Em análise",
     ]);
   });
 
   it("categoria desconhecida não vira texto inventado", () => {
-    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomeDaCategoria)).toStrictEqual([
+    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomes)).toStrictEqual([
       "Categoria: 1 selecionado",
     ]);
   });
 
   it("só as minhas é uma cláusula como as outras", () => {
-    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomeDaCategoria)).toStrictEqual([
-      "Só as minhas",
+    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes)).toStrictEqual(["Só as minhas"]);
+  });
+
+  /** Os três do item 67, com os mesmos rótulos dos gatilhos da barra. */
+  it("o título com aspas vem primeiro, e área e responsável depois das três de hoje", () => {
+    expect(
+      descricaoDoRecorte(
+        {
+          titulo: "vaz gar",
+          status: ["aberta"],
+          areaId: ["a-1"],
+          responsavelPessoaId: ["p-1"],
+        },
+        nomes,
+      ),
+    ).toStrictEqual([
+      'Título com "vaz gar"',
+      "Status: Aberta",
+      "Área: Garagem",
+      "Responsável: Marcos Ribeiro",
     ]);
+  });
+
+  it("área e responsável desconhecidos contam, como a categoria", () => {
+    expect(
+      descricaoDoRecorte({ areaId: ["a-9"], responsavelPessoaId: ["p-8", "p-9"] }, nomes),
+    ).toStrictEqual(["Área: 1 selecionado", "Responsável: 2 selecionados"]);
   });
 });
 
@@ -3588,5 +4072,33 @@ describe("o aviso do registro — critério 51.9", () => {
     // `router.replace` leva a pessoa para T-05 no mesmo instante. Um aviso de quatro segundos numa tela
     // que acabou de trocar é um aviso que ninguém leu.
     expect(avisoDoRegistro("falhou", false).forma).toBe("atencao");
+  });
+});
+
+describe("o que o item 66 acrescenta às frases de T-05", () => {
+  it("o caminho corta o título em 40 caracteres, com reticências contadas", () => {
+    expect(encurtarParaOCaminho("Vazamento no teto")).toBe("Vazamento no teto");
+    expect(encurtarParaOCaminho("a".repeat(40))).toBe("a".repeat(40));
+    expect(encurtarParaOCaminho("a".repeat(41))).toBe(`${"a".repeat(39)}…`);
+    expect(Array.from(encurtarParaOCaminho("x".repeat(150)))).toHaveLength(40);
+  });
+
+  it("o espaço antes do corte não fica pendurado antes das reticências", () => {
+    expect(encurtarParaOCaminho(`${"a".repeat(38)} bcd`)).toBe(`${"a".repeat(38)}…`);
+  });
+
+  it("o endereço só abre a avaliação para quem pode avaliar (foco da revisão 2)", () => {
+    expect(abreAvaliacaoPeloEndereco("avaliar", ["avaliar"])).toBe(true);
+    expect(abreAvaliacaoPeloEndereco("avaliar", [])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco("avaliar", ["analisar", "cancelar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco(undefined, ["avaliar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco(["avaliar", "avaliar"], ["avaliar"])).toBe(false);
+    expect(abreAvaliacaoPeloEndereco("resolver", ["avaliar"])).toBe(false);
+  });
+
+  it("o aviso de avaliação não contém o que o ponta a ponta procura sem escopo", () => {
+    for (const proibida of ["Situação", "Nota", "Sua avaliação", "Avaliar"]) {
+      expect(AVISO_DE_AVALIACAO).not.toContain(proibida);
+    }
   });
 });

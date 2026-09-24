@@ -72,8 +72,10 @@ export {
   lerFiltroDeOcorrenciasDaUrl,
   lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,
+  lerOrdenacaoDeOcorrenciasDaUrl,
   lerPaginacaoDaUrl,
   lerSituacoesDaUrl,
   lerVarianteDaUrl,
+  trocarJanelaInvertida,
   type PaginacaoDaUrl,
 } from "./consulta-de-url";

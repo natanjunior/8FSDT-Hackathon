@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
+import { EntradaDeCodigo } from "@/interface/componentes/campo-de-codigo";
+import { erroDoCodigo } from "@/interface/componentes/regras-do-codigo";
 import {
   avisarErro,
   avisarSucesso,
@@ -15,14 +17,14 @@ import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao"
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-formulario-tocado";
-import { codigoPublico } from "@/interface/schemas";
 
 /**
  * **T-02 · o caminho de entrar**, nas faces A, C e E. *"Onde eu trabalho?"* — e desde o item 44o ele é o
  * único formulário da face A: criar organização ganhou tela própria.
  *
  * **A tela produz os dois formatos que o servidor exige** (spec §2.4): o código em maiúscula, o telefone em
- * E.164. O servidor é estrito nos dois, e o `400` que ele devolve é o que aparece no campo.
+ * E.164. O servidor é estrito nos dois, e o `400` que ele devolve é o que aparece no campo. Desde o item 65
+ * o código é digitado em oito casas, que já recusam o que está fora do alfabeto e já convertem a minúscula.
  *
  * **Onde cada erro aparece** (spec §2.3): `400` com `erros[]` vai **no campo** — a mesma regra que o item
  * 9b fixa para `CONTATO_DUPLICADO`; `404` e os dois `409` vão na **faixa**, porque não têm campo culpado.
@@ -64,17 +66,17 @@ function codigoDigitado(dados: FormData): string {
 }
 
 /**
- * **O que a tela sabe conferir antes de enviar** (C-11 do plano do 44g): o formato do código, pelo mesmo
- * `codigoPublico` que o servidor usa, e o telefone, pela mesma conversão que o envio usa. O nome não tem
- * erro possível: é opcional, e o campo corta em 120.
+ * **O que a tela sabe conferir antes de enviar** (C-11 do plano do 44g): o formato do código, pelas oito
+ * casas do sorteio (item 65), mais estrito que o `codigoPublico` do servidor, que aceita de 6 a 12; e o
+ * telefone, pela mesma conversão que o envio usa. O nome não tem erro possível: é opcional, e o campo corta
+ * em 120.
  */
 function errosDoPedido(dados: FormData, primeiraEntrada: boolean): ErrosDeCampo {
-  const codigo = codigoPublico.safeParse(codigoDigitado(dados));
   const telefone = primeiraEntrada
     ? converterTelefoneDigitado(String(dados.get("telefone") ?? ""))
     : null;
   return {
-    codigo: codigo.success ? undefined : codigo.error.issues[0]?.message,
+    codigo: erroDoCodigo(codigoDigitado(dados)),
     telefone: telefone?.situacao === "recusado" ? telefone.mensagem : undefined,
   };
 }
@@ -296,19 +298,15 @@ export function FormularioDePedidoDeEntrada({
           id="codigo"
           rotulo="Código da organização"
           obrigatorio
-          ajuda="Está no cartaz do elevador ou na mensagem do grupo. Seis a doze letras e números."
+          ajuda="Está no cartaz do elevador ou na mensagem do grupo."
           erro={formulario.erroDe("codigo", estado.erros)}
         >
           {(controle) => (
-            <Input
-              {...controle}
+            <EntradaDeCodigo
+              controle={controle}
               name="codigo"
-              type="text"
-              maxLength={12}
-              autoComplete="off"
-              autoCapitalize="characters"
-              required
-              className="border-linha bg-background min-h-11 tracking-[0.12em] uppercase"
+              erro={formulario.erroDe("codigo", estado.erros) !== undefined}
+              ocupado={aguardando}
             />
           )}
         </Campo>
@@ -356,7 +354,7 @@ export function FormularioDePedidoDeEntrada({
         {/* **A nota sai só onde todo campo é obrigatório** (critério 44o.11): na variante de outra
             organização sobra o código, e só ele. Na primeira entrada o telefone é opcional, e a nota fica. */}
         <RodapeDoFormulario obrigatorios={1} todosObrigatorios={!primeiraEntrada}>
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Pedir entrada"}
           </Button>

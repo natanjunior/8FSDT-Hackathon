@@ -2,10 +2,12 @@
 export {
   DIAS_DA_JANELA,
   FUSO,
+  atalhosDaJanela,
   diaEmSaoPaulo,
   mesEmSaoPaulo,
   mesesDaJanela,
   resolverJanela,
+  type AtalhosDaJanela,
   type Janela,
   type JanelaPedida,
 } from "./janela";

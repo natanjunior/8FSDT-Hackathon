@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DIAS_DA_JANELA,
+  atalhosDaJanela,
   diaEmSaoPaulo,
   mesEmSaoPaulo,
   mesesDaJanela,
@@ -49,6 +50,52 @@ describe("a janela do dashboard — os quatro casos do contrato", () => {
   it("o dia é o de São Paulo, não o de UTC", () => {
     expect(diaEmSaoPaulo(new Date(AGORA))).toBe("2026-08-29");
     expect(mesEmSaoPaulo(new Date("2026-09-01T02:00:00.000Z"))).toBe("2026-08");
+  });
+});
+
+describe("os quatro atalhos do painel — item 71", () => {
+  it("as quatro janelas saem do dia de São Paulo, com as duas pontas dentro", () => {
+    expect(atalhosDaJanela(AGORA)).toStrictEqual({
+      sete: { de: "2026-08-23", ate: "2026-08-29" },
+      trinta: { de: "2026-07-31", ate: "2026-08-29" },
+      noventa: { de: "2026-06-01", ate: "2026-08-29" },
+      mes: { de: "2026-08-01", ate: "2026-08-29" },
+    });
+  });
+
+  it("sete, trinta e noventa contam as duas pontas, como DIAS_DA_JANELA já significa", () => {
+    const dias = ({ de, ate }: { de: string; ate: string }) =>
+      (Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000 + 1;
+    const atalhos = atalhosDaJanela(AGORA);
+    expect(dias(atalhos.sete)).toBe(7);
+    expect(dias(atalhos.trinta)).toBe(30);
+    expect(dias(atalhos.noventa)).toBe(DIAS_DA_JANELA);
+  });
+
+  it("este mês começa no dia 01 e termina hoje, nunca no fim do mês", () => {
+    expect(atalhosDaJanela(AGORA).mes).toStrictEqual({ de: "2026-08-01", ate: "2026-08-29" });
+  });
+
+  it("no dia 01 este mês é um dia só, e não uma janela invertida", () => {
+    expect(atalhosDaJanela("2026-09-01T15:00:00.000Z").mes).toStrictEqual({
+      de: "2026-09-01",
+      ate: "2026-09-01",
+    });
+  });
+
+  it("o mês é o de São Paulo: 02:00 UTC do dia 01 ainda é o mês anterior", () => {
+    expect(atalhosDaJanela("2026-09-01T02:00:00.000Z").mes).toStrictEqual({
+      de: "2026-08-01",
+      ate: "2026-08-31",
+    });
+  });
+
+  it("o atalho de 90 dias é a janela padrão — os quatro casos que eram de ehJanelaPadrao", () => {
+    const { noventa } = atalhosDaJanela(AGORA);
+    expect(noventa).toStrictEqual(resolverJanela({}, AGORA));
+    expect(noventa).toStrictEqual({ de: "2026-06-01", ate: "2026-08-29" });
+    expect(noventa).not.toStrictEqual({ de: "2026-05-31", ate: "2026-08-28" });
+    expect(noventa).not.toStrictEqual({ de: "2026-06-02", ate: "2026-08-29" });
   });
 });
 
@@ -336,11 +383,12 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
   });
 
   /**
-   * **Duas casas, e o critério 55.2 é quem obriga.** Com uma casa, `0.028` h viraria `0.0` e a tela
-   * escreveria `0 min` — o zero que o item 55 acabou de tirar da tela. Com duas, o quantum é de 36
-   * segundos, abaixo do menor texto que a tela sabe escrever.
+   * **Quatro casas, e piso de `0.0001` para o que é maior que zero** — item 62, critério 62.2. Com duas
+   * casas, qualquer duração abaixo de ~18 s chegava como `0` exato, **antes** do piso da tela, e a Aurora
+   * escreveu `mediana 0 min` com 44 resolvidas. O quantum de quatro casas é de 0,36 s; o piso cobre o que
+   * fica abaixo dele, e a regra passa a valer por construção.
    */
-  it("a amostra sai com DUAS casas, e um minuto e quarenta não vira zero", async () => {
+  it("a amostra sai com QUATRO casas, e um minuto e quarenta chega inteiro", async () => {
     const { repositorio } = repositorioEmMemoria({
       resolucoes: [
         {
@@ -357,11 +405,65 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
       mes: "2026-08",
-      mediana: 0.03,
+      mediana: 0.0283,
       p90: null,
-      amostra: [0.03],
+      amostra: [0.0283],
       resolvidas: 1,
     });
+  });
+
+  it("cinco segundos chegam como 0.0014, e não como zero — a pergunta do critério 62.2", async () => {
+    const cincoSegundos = 5 / 3600;
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 1,
+          medianaDeHoras: cincoSegundos,
+          p90DeHoras: cincoSegundos,
+          amostraEmHoras: [cincoSegundos],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.tempoDeResolucao.porMes.at(-1)).toStrictEqual({
+      mes: "2026-08",
+      mediana: 0.0014,
+      p90: null,
+      amostra: [0.0014],
+      resolvidas: 1,
+    });
+  });
+
+  it("abaixo do quantum, o valor positivo sobe ao piso de 0.0001 — mediana, p90 e amostra", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        {
+          mes: "2026-08",
+          resolvidas: 4,
+          medianaDeHoras: 0.00001,
+          p90DeHoras: 0.00002,
+          amostraEmHoras: [],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+        {
+          mes: "2026-07",
+          resolvidas: 1,
+          medianaDeHoras: 0.00001,
+          p90DeHoras: 0.00001,
+          amostraEmHoras: [0.00001],
+          avaliadas: 0,
+          somaDasNotas: 0,
+        },
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    const porMes = new Map(lido.tempoDeResolucao.porMes.map((m) => [m.mes, m]));
+    expect(porMes.get("2026-08")).toMatchObject({ mediana: 0.0001, p90: 0.0001, amostra: null });
+    expect(porMes.get("2026-07")).toMatchObject({ mediana: 0.0001, p90: null, amostra: [0.0001] });
   });
 });
 

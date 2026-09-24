@@ -175,8 +175,8 @@ export function FormularioDeCadastro() {
           {(controle) => <EntradaDeSenha controle={controle} name="senha" autoComplete="new-password" />}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={3} todosObrigatorios>
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+        <RodapeDoFormulario obrigatorios={3} todosObrigatorios larguraCheia>
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 w-full px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Criando…" : "Criar conta"}
           </Button>

@@ -23,8 +23,10 @@ export { enviarComentario, verComentarios, type PaginaDeConversa } from "./conve
 export { iniciarAtendimento } from "./iniciar-atendimento";
 export { pausarOcorrencia } from "./pausar-ocorrencia";
 export {
+  COLUNAS_DE_ORDENACAO,
   type AnexoLido,
   type AtribuicaoLida,
+  type ColunaDeOrdenacao,
   type ComentarioLido,
   type ContagensLidas,
   type CursorDeConversa,
@@ -38,6 +40,7 @@ export {
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
+  type OrdenacaoDeOcorrencias,
   type PaginaDeMensagens,
   type PessoaReferencia,
   type PortasDoRegistro,

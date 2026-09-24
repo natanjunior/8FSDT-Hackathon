@@ -18,6 +18,9 @@ import { resolverParaTela } from "@/interface/http";
  * **Quem acabou de trocar a senha em T-13 chega aqui com o aviso de sucesso**, que mora no layout raiz e
  * sobrevive à navegação. Até o item 44g era uma faixa lida de um parâmetro do endereço; o guia §7 trocou a
  * faixa de desfecho pelo aviso.
+ *
+ * **O pé leva à página do grupo e à documentação** (item 70), as duas públicas e em nova aba. Fica fora
+ * dos caminhos debaixo do cartão, porque aqueles são sobre a conta e estes não.
  */
 export const dynamic = "force-dynamic";
 
@@ -48,6 +51,25 @@ export default async function TelaDeEntrar({
             Esqueci a senha
           </Link>
         </>
+      }
+      rodape={
+        <p className="text-meta text-tinta-suave flex items-center gap-2">
+          <Link
+            href="/grupo"
+            target="_blank" rel="noreferrer"
+            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+          >
+            Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            href="/documentacao"
+            target="_blank" rel="noreferrer"
+            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+          >
+            Documentação<span className="sr-only">, abre em nova aba</span>
+          </Link>
+        </p>
       }
     >
       <FormularioDeEntrada

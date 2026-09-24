@@ -625,6 +625,7 @@ paths:
                     papel: "encarregado"
                     temConta: false
                     criadoEm: "2026-08-20T12:05:00Z"
+                    atualizadoEm: null
                   - pessoa:
                       pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f"
                       nome: "Síndica do Recanto Azul"
@@ -633,6 +634,7 @@ paths:
                     papel: "gestor"
                     temConta: true
                     criadoEm: "2026-08-20T12:00:00Z"
+                    atualizadoEm: "2026-09-18T09:30:00Z"
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
@@ -1437,14 +1439,24 @@ paths:
         O Gestor que também mora no prédio usa `autor=eu` para ver as próprias — é o síndico morador,
         resolvido por parâmetro e não por um segundo vínculo.
 
-        **Ordenação fixa em `registradaEm` decrescente** e **paginação numerada sobre um instante de
-        corte** (`pagina`, `limite`, `ate`). A ordenação não é parametrizável.
+        A ordenação padrão é por `atualizadaEm` decrescente — o que mudou por último vem primeiro — e é
+        parametrizável por `ordem` e `sentido`. O desempate é sempre `atualizadaEm` decrescente e o
+        identificador, para que dois pedidos iguais devolvam a mesma ordem. Ordenar por `responsavel`
+        põe quem não tem responsável no fim, nos dois sentidos. A **paginação é numerada sobre um instante
+        de corte** (`pagina`, `limite`, `ate`), e o corte continua sendo em `registradaEm`, qualquer que
+        seja a ordem pedida.
 
         O corte imobiliza a fronteira superior do conjunto — `registradaEm` nunca muda —, então uma
         ocorrência registrada entre duas páginas **não aparece duas vezes**; ela é contada à parte, em
         `novasDesdeOCorte`. O corte **não** imobiliza a pertinência de cada item: quem sai do recorte
         (uma triagem entre páginas, por exemplo) encolhe o conjunto, e é a **compensação de deslocamento**
-        — via `totalNoCorte` — que impede o pulo. Ver §7.7 do contrato, e a premissa **P6** para o resíduo.
+        — via `totalNoCorte` — que impede o pulo.
+
+        O corte também não imobiliza a **posição**. Com a ordem por `atualizadaEm`, uma ocorrência
+        atualizada entre a leitura de duas páginas sobe para o topo: se ela estava numa página ainda não
+        vista, a primeira linha da página seguinte repete a última da anterior, e uma linha é pulada. A
+        compensação trata saída do recorte, não troca de posição, e não alcança este caso. Pedir a
+        primeira página de novo traz tudo.
 
         **O envelope traz contagens**, todas sob a mesma visibilidade que a listagem aplica.
 
@@ -1480,6 +1492,44 @@ paths:
             `eu` restringe às ocorrências de que o chamador é autor. É o que dá ao Gestor a visão de
             Solicitante sem um segundo vínculo.
           schema: { type: string, enum: [eu] }
+        - name: titulo
+          in: query
+          description: |
+            Casa por prefixo de palavra, sem acento e sem caixa, e todos os termos precisam casar.
+            `vaz gar` acha *Vazamento na garagem*; `ana` não acha *Mariana*.
+          schema: { type: string, maxLength: 120 }
+        - name: areaId
+          in: query
+          description: Uma ou mais áreas. Identificador de outra organização devolve lista vazia.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+        - name: responsavelPessoaId
+          in: query
+          description: |
+            Uma ou mais Pessoas, casando a **atribuição vigente** — quem responde hoje, não quem já
+            respondeu.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+          style: form
+          explode: false
+        - name: ordem
+          in: query
+          description: |
+            A coluna da ordenação. Ausente é o padrão, `atualizacao` decrescente; `ordem=atualizacao` com
+            `sentido=decrescente` é o mesmo padrão escrito por extenso.
+          schema:
+            type: string
+            enum: [status, titulo, area, prioridade, responsavel, atualizacao]
+        - name: sentido
+          in: query
+          description: |
+            Inverte a ordem pedida. Sem `ordem`, é ignorado; o sentido natural de cada coluna é o
+            crescente.
+          schema: { type: string, enum: [decrescente] }
         - $ref: "#/components/parameters/Limite"
         - $ref: "#/components/parameters/Pagina"
         - $ref: "#/components/parameters/Ate"
@@ -3139,7 +3189,7 @@ components:
     Vinculo:
       type: object
       description: A ligação entre uma Pessoa, um Papel e uma Organização. É a ponte entre o global e o escopado.
-      required: [pessoa, papel, temConta, criadoEm]
+      required: [pessoa, papel, temConta, criadoEm, atualizadoEm]
       properties:
         pessoa: { $ref: "#/components/schemas/PessoaComContato" }
         papel: { $ref: "#/components/schemas/PapelVinculo" }
@@ -3162,6 +3212,16 @@ components:
             `false` é o Encarregado sem conta — existe como cadastro, recebe atribuições e aparece como
             responsável, e **para agir no sistema seria preciso ter conta**.
         criadoEm: { type: string, format: date-time }
+        atualizadoEm:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Quando este participante mudou pela última vez: a **maior** entre o relógio da Pessoa e o do
+            Vínculo, os dois carimbados por gatilho do banco. `null` quer dizer **nenhuma alteração
+            registrada** — a tela mostra um traço, e nunca a data de entrada.
+
+            **O relógio da Pessoa é global.** Quem troca o próprio nome move esta data em toda
+            organização onde participa, e a resposta não diz quem mexeu.
 
     IconeCategoria:
       type: string
@@ -3843,6 +3903,9 @@ components:
             **O método do percentil é a interpolação linear** (`percentile_cont`): as durações do mês são
             ordenadas, o índice sai da fração multiplicada por `n − 1`, e o valor sai da interpolação
             entre os dois vizinhos desse índice. Outro método devolve outro número sobre os mesmos dados.
+
+            Os valores em horas vêm com quatro casas decimais, e uma duração maior que zero nunca chega
+            como zero: a menor que a resposta publica é `0.0001`, pouco mais de um terço de segundo.
           properties:
             porMes:
               type: array

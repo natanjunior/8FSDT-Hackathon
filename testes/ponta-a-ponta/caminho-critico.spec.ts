@@ -252,7 +252,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   const aFoto = marcos.getByRole("img", { name: "Foto anexada à ocorrência" });
   await expect(aFoto).toBeVisible();
 
-  const enderecoDaFoto = await marcos.getByRole("link").filter({ has: aFoto }).getAttribute("href");
+  // **Desde o item 66 a foto não é link**: ela é o gatilho de um diálogo, e o endereço mora na primeira
+  // camada do `background-image` — a de tamanho cheio, que a miniatura cobre enquanto carrega.
+  const fundoDaFoto = await aFoto.getAttribute("style");
+  const enderecoDaFoto = /url\("?([^")]+)"?\)/u.exec(fundoDaFoto ?? "")?.[1] ?? null;
   expect(enderecoDaFoto).not.toBeNull();
 
   const bytes = await marcos.request.get(enderecoDaFoto ?? "");
@@ -296,7 +299,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(
     modalDeAtribuicao.getByRole("heading", { name: "Atribuir responsável" }),
   ).toBeVisible();
-  await modalDeAtribuicao.getByRole("radio", { name: ENCARREGADA_DO_AURORA }).check();
+  await modalDeAtribuicao.getByRole("option", { name: ENCARREGADA_DO_AURORA }).click();
   cobre(test.info(), "4.3 · 31", {
     criterio: "20.5",
     falta:
@@ -362,12 +365,28 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   //
   // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
   // -------------------------------------------------------------------------
-  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
+  // **A porta de fora** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9). O modal nasce aberto e o
+  // parâmetro sai da URL no mesmo instante, para o recarregar não o reabrir (foco da revisão 4).
+  await helena.goto(`/ocorrencias/${ocorrenciaId}?acao=avaliar`);
+  await expect(helena.getByRole("dialog")).toBeVisible();
+  await expect(helena).toHaveURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
+  await helena.keyboard.press("Escape");
+  await expect(helena.getByRole("dialog")).toHaveCount(0);
+  await helena.reload();
+  await expect(helena.getByRole("dialog")).toHaveCount(0);
   await esperarSituacao(helena, "Resolvida");
-  await helena.getByRole("button", { name: "Avaliar" }).click();
-  cobre(test.info(), "4.5 · 70", {
-    falta: "a faixa «Resolvida. Conte como foi.» no topo da coluna esquerda",
-  });
+
+  // **A faixa explica e leva à ação num clique** (critério 66.5). O filtro por texto separa a faixa de
+  // qualquer outra região `alert` da página.
+  const faixaDeAvaliacao = helena
+    .getByRole("alert")
+    .filter({ hasText: "Conte como foi o atendimento para os Gestores." });
+  await expect(faixaDeAvaliacao).toContainText("Esta ocorrência foi resolvida.");
+  // **Um *Avaliar* só na tela** (spec §3.5): o cabeçalho não o repete. Conta-se antes do clique, porque
+  // com o diálogo aberto o Radix esconde da árvore de acessibilidade o que fica fora dele.
+  await expect(helena.getByRole("button", { name: "Avaliar" })).toHaveCount(1);
+  await faixaDeAvaliacao.getByRole("button", { name: "Avaliar" }).click();
+  cobre(test.info(), "4.5 · 70");
   const modalDeAvaliacao = helena.getByRole("dialog");
   await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
   await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
@@ -407,6 +426,18 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}/auditoria$`, "u"));
   await expect(helena.getByRole("heading", { name: "Trilha de auditoria" })).toBeVisible();
   await expect(helena.getByText(TITULO)).toBeVisible();
+
+  // **O caminho de três níveis** (critério 66.3): a trilha sobe para a ocorrência pelo caminho, e não por
+  // um *voltar* no conteúdo.
+  const caminhoDaTrilha = helena.getByRole("navigation", { name: "Caminho" });
+  await expect(caminhoDaTrilha.getByRole("link", { name: "Ocorrências" })).toBeVisible();
+  // **Dois níveis navegáveis, e o atual que não navega.** A contagem é de âncora, e não de papel: o
+  // `BreadcrumbPage` do catálogo publica `role="link"` com `aria-disabled`, então por papel seriam três.
+  await expect(caminhoDaTrilha.locator("a")).toHaveCount(2);
+  await expect(caminhoDaTrilha.getByRole("link", { name: "Trilha de auditoria" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 
   const trilha = helena.getByRole("list", { name: "Registros da trilha" });
   await expect(trilha.getByRole("listitem")).toHaveCount(4);
@@ -516,7 +547,7 @@ async function trocarDeOrganizacao(pagina: Page, destino: string): Promise<void>
  * do tempo, dentro de uma frase, e um localizador solto pegaria as duas.
  */
 function situacao(pagina: Page): Locator {
-  return pagina.locator("section").filter({ hasText: "Situação" }).first();
+  return pagina.locator('[role="group"][aria-label="Situação"]');
 }
 
 async function esperarSituacao(pagina: Page, rotulo: string): Promise<void> {

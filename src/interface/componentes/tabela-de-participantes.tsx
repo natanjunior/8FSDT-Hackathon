@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Search } from "lucide-react";
+import { Pencil, Search } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useId, useState, type MouseEvent, type ReactNode } from "react";
 
 import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-icone";
+import { CabecaQueOrdena } from "@/interface/componentes/cabeca-que-ordena";
+import { ContatoPorIcone } from "@/interface/componentes/contato-por-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
@@ -13,7 +15,7 @@ import {
   OPCAO_DO_FILTRO,
 } from "@/interface/componentes/filtro-rapido";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
-import { TEXTOS_DA_TABELA, textoDeMaisContatos } from "@/interface/componentes/frases-de-participantes";
+import { TEXTOS_DA_TABELA } from "@/interface/componentes/frases-de-participantes";
 import {
   FILTROS,
   ROTULO_DO_FILTRO,
@@ -39,6 +41,7 @@ import {
   type LinhaDeParticipante,
   type PedidoNaTabela,
 } from "@/interface/componentes/linhas-de-participantes";
+import { rotuloDoCabecalho } from "@/interface/componentes/ordenacao-em-tres-estados";
 import { vizinhas } from "@/interface/componentes/paginacao-da-lista";
 import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
 import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
@@ -88,6 +91,9 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  * vivem no endereço**, escritos com `window.history.pushState`, que o Next 16 integra ao roteador e ao
  * `useSearchParams`: o endereço é copiável e o voltar do navegador desfaz o último toque, sem uma ida ao
  * servidor por clique numa nuvem que dorme.
+ *
+ * **A ordem tem três estados** (item 68a): crescente, decrescente, e sem ordenação, que é a ordem inicial —
+ * pedidos em cima, depois quem chegou por último. A regra do ciclo mora em `ordenacao-em-tres-estados.ts`.
  *
  * **A busca fica fora do endereço**: o critério 3 nomeia três coisas, e texto digitado a cada tecla no
  * histórico seria ruído. O que ela provoca no endereço é só tirar a página, e isso entra por
@@ -247,12 +253,14 @@ export function TabelaDeParticipantes({
                         <p className="text-meta text-tinta-suave">
                           {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
                         </p>
-                        <p className="text-meta text-tinta-suave">
-                          <Contato linha={linha} />
-                        </p>
-                        <p className="text-meta text-tinta-fraca font-mono tabular-nums">
-                          {TEXTOS_DA_TABELA.desde} {linha.desdeTexto}
-                        </p>
+                        <div className="-ml-3">
+                          <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
+                        </div>
+                        {linha.atualizadoTexto !== null && (
+                          <p className="text-meta text-tinta-fraca font-mono tabular-nums">
+                            {TEXTOS_DA_TABELA.atualizadoEm} {linha.atualizadoTexto}
+                          </p>
+                        )}
                       </div>
                       <div className="shrink-0">
                         <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-p${String(indice)}`} {...acoes} />
@@ -265,28 +273,28 @@ export function TabelaDeParticipantes({
                   <Table>
                     <TableHeader>
                       <TableRow className="border-linha hover:bg-transparent">
-                        <CabecaQueOrdena coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
-                        <CabecaQueOrdena
+                        <CabecaDaTabela coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
+                        <CabecaDaTabela
                           coluna="papel"
                           rotulo="Papel"
                           endereco={endereco}
                           aoOrdenar={escrever}
                           largura="w-[140px]"
                         />
-                        <CabecaQueOrdena
+                        <CabecaDaTabela
                           coluna="unidade"
                           rotulo="Unidade"
                           endereco={endereco}
                           aoOrdenar={escrever}
-                          largura="w-[170px]"
+                          largura="w-[150px]"
                         />
-                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[260px]")}>Contato</TableHead>
-                        <CabecaQueOrdena
-                          coluna="desde"
-                          rotulo={TEXTOS_DA_TABELA.desde}
+                        <TableHead className={cn(ROTULO_DE_COLUNA, "w-[120px]")}>Contato</TableHead>
+                        <CabecaDaTabela
+                          coluna="atualizacao"
+                          rotulo={TEXTOS_DA_TABELA.atualizacao}
                           endereco={endereco}
                           aoOrdenar={escrever}
-                          largura="w-[128px]"
+                          largura="w-[152px]"
                         />
                         <TableHead className={cn(ROTULO_DE_COLUNA, "w-[124px]")}>
                           <span className="sr-only">{TEXTOS_DA_TABELA.acoes}</span>
@@ -313,11 +321,11 @@ export function TabelaDeParticipantes({
                             )}
                           </TableCell>
                           <TableCell className={CELULA}>{linha.unidade ?? <Traco />}</TableCell>
-                          <TableCell className={CELULA}>
-                            <Contato linha={linha} />
+                          <TableCell className="px-3.5 py-1.5">
+                            <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                           </TableCell>
                           <TableCell className={cn(CELULA, "text-tinta-suave font-mono tabular-nums")}>
-                            {linha.desdeTexto}
+                            {linha.atualizadoTexto ?? <SemAlteracao />}
                           </TableCell>
                           <TableCell className="px-3.5 py-1.5 text-right">
                             <AcoesDaLinha linha={linha} idDoNome={`${prefixo}-t${String(indice)}`} {...acoes} />
@@ -361,7 +369,12 @@ function OpcaoDoFiltro({ filtro, quantos }: { filtro: Filtro; quantos: number })
   );
 }
 
-function CabecaQueOrdena({
+/**
+ * **A forma saiu para `cabeca-que-ordena.tsx` no item 67**, quando a lista de ocorrências passou a
+ * ordenar pela mesma gramática. O que fica aqui é a tradução: esta tabela raciocina em `Coluna` e
+ * `Endereco`, e a peça compartilhada não conhece nenhum dos dois.
+ */
+function CabecaDaTabela({
   coluna,
   rotulo,
   endereco,
@@ -374,34 +387,36 @@ function CabecaQueOrdena({
   aoOrdenar: (proximo: Endereco) => void;
   largura?: string;
 }) {
-  const sentido = ariaSort(endereco, coluna);
-  const ativa = sentido !== "none";
   return (
-    // `py-0`: o botão de ordenar já tem os 44 px do alvo de toque, e os 11 px do rótulo de coluna em
-    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q).
-    <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "py-0", largura)}>
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => {
-          aoOrdenar(comOrdem(endereco, coluna));
-        }}
-        className={cn(
-          "text-rotulo-coluna h-11 gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
-          ativa ? "text-tinta" : "text-tinta-fraca",
-        )}
-      >
-        {rotulo}
-        {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "none" && <ArrowUpDown aria-hidden="true" className="text-tinta-fraca size-3" />}
-      </Button>
-    </TableHead>
+    <CabecaQueOrdena
+      sentido={ariaSort(endereco, coluna)}
+      rotulo={rotulo}
+      nomeAcessivel={rotuloDoCabecalho(endereco, coluna, rotulo)}
+      aoClicar={() => {
+        aoOrdenar(comOrdem(endereco, coluna));
+      }}
+      {...(largura === undefined ? {} : { largura })}
+    />
   );
 }
 
 function Traco() {
   return <span className="text-tinta-fraca">—</span>;
+}
+
+/**
+ * O traço da coluna de última atualização. **O `—` é decorativo e o leitor de tela ouve a frase**: um
+ * travessão sozinho é lido de jeito diferente em cada leitor, e às vezes não é lido.
+ */
+function SemAlteracao() {
+  return (
+    <>
+      <span aria-hidden="true" className="text-tinta-fraca">
+        —
+      </span>
+      <span className="sr-only">{TEXTOS_DA_TABELA.semAlteracao}</span>
+    </>
+  );
 }
 
 function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNome: string }) {
@@ -427,22 +442,6 @@ function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNo
         </Badge>
       )}
     </span>
-  );
-}
-
-/** O primeiro contato e quantos sobram. **O resto não abre aqui**: a lista inteira está em *Editar participante*. */
-function Contato({ linha }: { linha: LinhaDeParticipante }) {
-  if (linha.contato === null) return <Traco />;
-  return (
-    <>
-      <span className="text-tinta-suave">{linha.contato}</span>
-      {linha.maisContatos > 0 && (
-        <span className="text-meta text-tinta-fraca ml-1.5 font-mono tabular-nums">
-          <span aria-hidden="true">+{linha.maisContatos}</span>
-          <span className="sr-only">{textoDeMaisContatos(linha.maisContatos)}</span>
-        </span>
-      )}
-    </>
   );
 }
 

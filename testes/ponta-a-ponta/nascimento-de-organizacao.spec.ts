@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
+
 import { cobre } from "./cobertura";
 
 /**
@@ -98,14 +100,14 @@ const ORGANIZACAO_A = `Nascimento ${MARCA}`;
 const ORGANIZACAO_C = `Segunda Casa ${MARCA}`;
 
 /**
- * **O código inventado do critério 7a.1, e ele é inventado por construção.**
+ * **O código inventado do critério 7a.1.**
  *
- * Passa no formato que a tela confere antes de enviar — `^[A-Z0-9]{6,12}$` — e **não pode existir**: o
- * sorteio usa `ALFABETO_DO_CODIGO`, que tira `I`, `O`, `0` e `1` justamente porque quem transcreve erra.
- * Um código só de `O` e `0` nunca sai daquele sorteio. Sem isso, a asserção de *não encontrado* estaria
- * apostando que nenhuma organização do banco local tirou aquele número.
+ * Desde o item 65 o campo só aceita o alfabeto do sorteio, em oito casas: um código com `O` e `0`, que era
+ * inventado por construção, nem entra mais. Este é um código válido que ninguém sorteou, e a aposta é
+ * declarada: a chance de uma organização do banco local ter tirado exatamente este número é de uma em
+ * 1,1 × 10¹² por organização.
  */
-const CODIGO_INVENTADO = "OOO000";
+const CODIGO_INVENTADO = "ZZZZ2222";
 
 const TELEFONE_DIGITADO = "(11) 95521-7788";
 /** O mesmo número como a tabela e o modal de T-08 o escrevem (`telefoneLegivel`). */
@@ -162,21 +164,31 @@ async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
 }
 
 /**
+ * Escreve o código nas oito casas de T-02 (item 65).
+ *
+ * **`fill` sozinho não serve num campo que já tem valor.** O `input-otp` põe o cursor na última casa ao
+ * receber foco, e o `fill` do Playwright insere o texto na seleção que encontra: o que entra é uma casa
+ * trocada, não o código novo. Selecionar tudo e digitar é o que a pessoa faz, e é o que exercita a
+ * conversão de minúscula e a recusa de tecla fora do alfabeto.
+ */
+async function preencherCodigo(pagina: Page, codigo: string): Promise<void> {
+  const campo = pagina.getByLabel("Código da organização");
+  await campo.press("ControlOrMeta+a");
+  await campo.pressSequentially(codigo);
+  await expect(campo).toHaveValue(codigo);
+}
+
+/**
  * Lê o código público em T-15 · Configuração.
  *
- * **O código é desenhado em grupos**, cada um num `span` — e os grupos são texto em linha, sem espaço no
- * documento, para que *"selecionar à mão e copiar pelo botão deem o mesmo código"*. Por isso o texto do
- * invólucro devolve o código inteiro, sem o espaço que os olhos veem.
+ * **Desde o item 65 o código mora nas casas de um campo desabilitado**, e o texto delas não é conteúdo de
+ * elemento: o valor é o do campo. O nome acessível é o rótulo da exibição.
  */
 async function lerCodigoPublico(pagina: Page): Promise<string> {
   await pagina.goto("/configuracao");
-  const caixa = pagina
-    .locator("dd")
-    .filter({ has: pagina.getByRole("button", { name: "Copiar" }) })
-    .locator("span")
-    .first();
-  await expect(caixa).toBeVisible();
-  return ((await caixa.textContent()) ?? "").trim();
+  const campo = pagina.getByLabel("Código da organização");
+  await expect(campo).toBeDisabled();
+  return (await campo.inputValue()).trim();
 }
 
 /** A linha de uma pessoa na tabela de T-08 — o escopo de toda ação de linha. */
@@ -208,6 +220,18 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // afirmá-la depois do envio não distinguiria ajuda de mensagem de erro, que é exatamente a diferença
   // que o critério existe para cobrar.
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // O escuro vem do servidor, e o script do tema vem antes do corpo — critério 72.1
+  //
+  // **Sem navegador**: a requisição devolve o HTML como o servidor o escreveu, antes de qualquer script
+  // rodar. Se ele já diz escuro, a pintura clara não tem de onde vir.
+  // -------------------------------------------------------------------------
+  const htmlCru = await (await contextoDeA.request.get("/criar-conta")).text();
+  expect(htmlCru).toMatch(/<html[^>]*\sdata-theme="dark"/u);
+  const posicaoDoScript = htmlCru.indexOf(`id="${ID_DO_SCRIPT_DO_TEMA}"`);
+  expect(posicaoDoScript).toBeGreaterThan(-1);
+  expect(posicaoDoScript).toBeLessThan(htmlCru.indexOf("<body"));
+
   await a.goto("/criar-conta");
   await expect(a.getByText("No mínimo 6 caracteres.")).toBeVisible();
   cobre(test.info(), "2.1 · 6a · 2", { criterio: "6a.1" });
@@ -325,7 +349,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await criarConta(b, NOME_B, EMAIL_B);
 
-  await b.getByLabel("Código da organização").fill(CODIGO_INVENTADO);
+  await preencherCodigo(b, CODIGO_INVENTADO);
   cobre(test.info(), "2.4 · 1");
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   await expect(
@@ -335,7 +359,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(b.getByText(ORGANIZACAO_A)).toHaveCount(0);
   cobre(test.info(), "2.4 · 2", { criterio: "7a.1" });
 
-  await b.getByLabel("Código da organização").fill(codigoDeA);
+  await preencherCodigo(b, codigoDeA);
   await b.getByLabel("Telefone (opcional)").fill(TELEFONE_DIGITADO);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
 
@@ -403,7 +427,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   cobre(test.info(), "2.5 · 5", { criterio: "8.3" });
 
   // **Recusado pode ser refeito** — é a suposição S4 do modelo, e é por isso que a face C tem o campo.
-  await b.getByLabel("Código da organização").fill(codigoDeA);
+  await preencherCodigo(b, codigoDeA);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   await expect(b.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
 
@@ -478,7 +502,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await criarOrganizacao(c, ORGANIZACAO_C);
   cobre(test.info(), "6.1 · 2", {
     falta:
-      "a frase «Administra um condomínio…», a cor do botão de criar, a ausência da nota «campo obrigatório» e a lista de ocorrências vazia no fim",
+      "o convite ao lado do cartão e a régua do «ou», a cor do botão de criar, a ausência da nota «campo obrigatório» e a lista de ocorrências vazia no fim",
   });
   const codigoDeC = await lerCodigoPublico(c);
   expect(codigoDeC).toMatch(/^[A-Z0-9]{6,12}$/u);
@@ -496,9 +520,36 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // -------------------------------------------------------------------------
   await b.reload();
   await b.waitForURL(/\/ocorrencias$/u);
-  await b.getByRole("button", { name: `Conta de ${NOME_B}` }).click();
+  // **O sistema deixou de decidir** (critério 72.1): o Chromium do Playwright tem esquema claro por
+  // padrão, e a página abre escura mesmo assim.
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  // **O tema, pelo teclado** (critério 72.3): o gatilho abre com Enter, as setas chegam ao item, e o
+  // leitor de tela lê o papel, o nome e o estado.
+  const gatilhoDeB = b.getByRole("button", { name: `Conta de ${NOME_B}` });
+  await gatilhoDeB.focus();
+  await b.keyboard.press("Enter");
+  const itemDeTema = b.getByRole("menuitemcheckbox", { name: "Tema escuro" });
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "true");
+  await expect(itemDeTema).not.toHaveAttribute("aria-pressed");
+  while (!(await itemDeTema.evaluate((elemento) => elemento === document.activeElement))) {
+    await b.keyboard.press("ArrowDown");
+  }
+  await expect(itemDeTema).toBeFocused();
+
+  // Trocar não fecha o menu, e o Enter troca uma vez só.
+  await b.keyboard.press("Enter");
+  await expect(itemDeTema).toBeVisible();
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "false");
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+  expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")?.value).toBe("claro");
+
+  // E o caminho que o passo 8 já fazia, agora com o menu aberto pelo teclado.
   await b.getByRole("menuitem", { name: "Entrar em outra organização" }).click();
   await b.waitForURL(/entrar-em-outra=true$/u);
+
+  // Navegação por link: o `<html>` é do layout raiz, que a navegação suave não refaz.
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
   cobre(test.info(), "6.2 · 4", {
     falta:
       "o conteúdo do menu — nome, e-mail, «Meus dados» e «Sair»; o teste afirma só o item «Entrar em outra organização»",
@@ -508,7 +559,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // A frase que o critério 7b.1 exige em palavras: **o vínculo na primeira não é tocado**.
   await expect(b.getByText("Pedir entrada em outra não tira você daqui.")).toBeVisible();
 
-  await b.getByLabel("Código da organização").fill(codigoDeC);
+  await preencherCodigo(b, codigoDeC);
   await b.getByRole("button", { name: "Pedir entrada" }).click();
   // A lista de pedidos é o *aqui* que a face B promete — sem ela, o pedido sumiria da vista.
   await expect(b.getByText("Aguardando a decisão de um Gestor")).toBeVisible();
@@ -532,6 +583,12 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
 
   // **Entrar numa nova não troca sozinho** — critério 7b.2. A ativa continua sendo a primeira.
   await b.goto("/ocorrencias");
+
+  // Navegação dura: o servidor devolve escuro, e o script do `<head>` lê o cookie e troca para claro.
+  // É o mesmo caminho de quem volta depois de um deploy: a escolha mora no navegador, e nenhum deploy a
+  // toca (critério 72.4).
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+
   const seletorDeB = b.getByRole("combobox", { name: /organização/iu });
   await expect(seletorDeB).toHaveText(ORGANIZACAO_A);
   await seletorDeB.click();

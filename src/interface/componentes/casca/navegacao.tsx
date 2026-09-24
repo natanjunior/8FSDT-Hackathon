@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   Building2,
   ChartColumn,
   ClipboardList,
+  ExternalLink,
+  GraduationCap,
   LayoutGrid,
   Settings,
   Tags,
+  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +36,12 @@ import {
  * **Três blocos, separados por régua**, e a ordem é a do dono em 14/09/2026: `Ocorrências` sozinha,
  * o grupo `Organização`, e `Dashboard` por último.
  *
+ * **Um quarto bloco, num segundo marco: *Além desta organização*.** *Meus dados* entra nele no item 64:
+ * a tela vale em todas as organizações (`meus-dados/page.tsx:51`), e sob o rótulo *"Nesta organização"* o
+ * leitor de tela anunciaria uma coisa falsa. A página do grupo e a documentação, do item 70, vêm depois
+ * dela, pela mesma razão (critério 70.7). A régua acima do bloco não depende de papel: o Solicitante, sem
+ * Dashboard, também a vê, e ela separa os dois marcos.
+ *
  * **`Ocorrências` fica sozinha no topo** porque o `inventario-de-telas.md` decide que *"T-03 é o eixo:
  * toda tela de dentro se alcança dela"*, e um eixo dentro de um grupo deixa de parecer eixo. **`Dashboard`
  * vem por último** porque é leitura sobre o que as outras três produzem.
@@ -48,8 +58,10 @@ import {
  * `group-data-[collapsible=icon]:hidden`.
  *
  * **O ícone de `Áreas` não é `MapPin`, e a recusa é do glossário.** A entrada *Localização* diz *"não é
- * geolocalização: não há mapa nem coordenada"*, e um alfinete de mapa contradiria a definição no primeiro
- * pixel. `LayoutGrid` é o lugar dividido em partes.
+ * geolocalização: não há mapa nem coordenada"*, e um alfinete de mapa no item que **nomeia a lista**
+ * contradiria a definição no primeiro pixel. `LayoutGrid` é o lugar dividido em partes. A recusa vale
+ * para este item: a ficha do local numa ocorrência leva o `MapPin` desde o item 64, porque ali ele marca
+ * *onde*, e o emoji que ele substituiu já era um alfinete.
  *
  * **O ícone nunca substitui o rótulo** (compromisso A-5): ele vai `aria-hidden` e a palavra fica ao lado
  * em todas as larguras.
@@ -104,93 +116,114 @@ export function Navegacao({
   const temOrganizacao = podeGerirVinculos || podeConfigurar;
 
   return (
-    <nav aria-label="Nesta organização" className="flex flex-col">
-      <SidebarGroup className="p-0">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <ItemDeNavegacao
-              destino="/ocorrencias"
-              rotulo="Ocorrências"
-              Icone={ClipboardList}
-              caminho={caminho}
-              aoTocar={aoTocar}
-            />
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+    <>
+      <nav aria-label="Nesta organização" className="flex flex-col">
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <ItemDeNavegacao
+                destino="/ocorrencias"
+                rotulo="Ocorrências"
+                Icone={ClipboardList}
+                caminho={caminho}
+                aoTocar={aoTocar}
+              />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-      {temOrganizacao && (
-        <>
-          <SidebarSeparator className="mx-2 my-3" />
-          <SidebarGroup className="p-0">
-            <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono uppercase">
-              <Building2 aria-hidden="true" />
-              Organização
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {podeConfigurar && (
-                  <ItemDeNavegacao
-                    destino="/configuracao"
-                    rotulo="Configuração"
-                    Icone={Settings}
-                    caminho={caminho}
-                    aoTocar={aoTocar}
-                  />
-                )}
-                {podeGerirVinculos && (
-                  <ItemDeNavegacao
-                    destino="/vinculos"
-                    rotulo="Participantes"
-                    Icone={Users}
-                    apoio={pendentes === null ? null : fraseDePedidosPendentes(pendentes)}
-                    caminho={caminho}
-                    aoTocar={aoTocar}
-                  />
-                )}
-                {podeConfigurar && (
-                  <>
+        {temOrganizacao && (
+          <>
+            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarGroup className="p-0">
+              <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono uppercase">
+                <Building2 aria-hidden="true" />
+                Organização
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {podeConfigurar && (
                     <ItemDeNavegacao
-                      destino="/configuracao/categorias"
-                      rotulo="Categorias"
-                      Icone={Tags}
+                      destino="/configuracao"
+                      rotulo="Configuração"
+                      Icone={Settings}
                       caminho={caminho}
                       aoTocar={aoTocar}
                     />
+                  )}
+                  {podeGerirVinculos && (
                     <ItemDeNavegacao
-                      destino="/configuracao/areas"
-                      rotulo="Áreas"
-                      Icone={LayoutGrid}
+                      destino="/vinculos"
+                      rotulo="Participantes"
+                      Icone={Users}
+                      apoio={pendentes === null ? null : fraseDePedidosPendentes(pendentes)}
                       caminho={caminho}
                       aoTocar={aoTocar}
                     />
-                  </>
-                )}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </>
-      )}
+                  )}
+                  {podeConfigurar && (
+                    <>
+                      <ItemDeNavegacao
+                        destino="/configuracao/categorias"
+                        rotulo="Categorias"
+                        Icone={Tags}
+                        caminho={caminho}
+                        aoTocar={aoTocar}
+                      />
+                      <ItemDeNavegacao
+                        destino="/configuracao/areas"
+                        rotulo="Áreas"
+                        Icone={LayoutGrid}
+                        caminho={caminho}
+                        aoTocar={aoTocar}
+                      />
+                    </>
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
 
-      {podeVerDashboard && (
-        <>
-          <SidebarSeparator className="mx-2 my-3" />
-          <SidebarGroup className="p-0">
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <ItemDeNavegacao
-                  destino="/dashboard"
-                  rotulo="Dashboard"
-                  Icone={ChartColumn}
-                  caminho={caminho}
-                  aoTocar={aoTocar}
-                />
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </>
-      )}
-    </nav>
+        {podeVerDashboard && (
+          <>
+            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarGroup className="p-0">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <ItemDeNavegacao
+                    destino="/dashboard"
+                    rotulo="Dashboard"
+                    Icone={ChartColumn}
+                    caminho={caminho}
+                    aoTocar={aoTocar}
+                  />
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+      </nav>
+
+      <SidebarSeparator className="mx-2 my-3" />
+      <nav aria-label="Além desta organização" className="flex flex-col">
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <ItemDeNavegacao
+                destino="/meus-dados"
+                rotulo="Meus dados"
+                Icone={UserRound}
+                caminho={caminho}
+                aoTocar={aoTocar}
+              />
+              <ItemExterno endereco="/grupo" rotulo="Grupo 1" Icone={GraduationCap} aoTocar={aoTocar} />
+              <ItemExterno endereco="/documentacao" rotulo="Documentação" Icone={BookOpen} aoTocar={aoTocar} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </nav>
+    </>
   );
 }
 
@@ -262,6 +295,46 @@ function ItemDeNavegacao({
               <span className="text-tinta-suave text-meta truncate font-normal">{apoio}</span>
             )}
           </div>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+/**
+ * **Um item que sai da casca — item 70.** A página do grupo e a documentação são públicas e abrem em nova
+ * aba, então o item nunca é o lugar atual: não recebe `DestinoDaBarra`, não marca e não tem
+ * `aria-current`. **A prop é `endereco`, e não `destino`**, porque a guarda do 44h conta todo `destino=`
+ * deste arquivo como destino da barra.
+ *
+ * **As mesmas classes de altura e movimento do `ItemDeNavegacao`**, e o mesmo `aoTocar`: no celular, tocar
+ * num item fecha a gaveta, e isso vale também para o que abre outra aba.
+ *
+ * **`size-3.5!` no ícone de saída**: o `cva` do `SidebarMenuButton` traz `[&>svg]:size-4`, que ganharia de
+ * uma classe simples, e o design pede 14 px.
+ */
+function ItemExterno({
+  endereco,
+  rotulo,
+  Icone,
+  aoTocar,
+}: {
+  endereco: "/grupo" | "/documentacao";
+  rotulo: string;
+  Icone: LucideIcon;
+  aoTocar: () => void;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className="text-interface/[17px] h-auto min-h-11 transition-[background-color,color,transform] duration-(--tempo-ponteiro) ease-(--curva-ponteiro) active:scale-[0.97]"
+      >
+        <Link href={endereco} target="_blank" rel="noreferrer" onClick={aoTocar}>
+          <Icone aria-hidden="true" className="text-tinta-suave" />
+          <span className="min-w-0 flex-1 truncate">{rotulo}</span>
+          <span className="sr-only">, abre em nova aba</span>
+          <ExternalLink aria-hidden="true" className="text-tinta-suave size-3.5!" />
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

@@ -26,13 +26,20 @@ import { createContext, useContext, useTransition, type ReactNode } from "react"
  *
  * **`push`, e não `replace`:** numa tela cuja interação principal é filtrar e paginar, voltar como
  * desfazer vale mais que sair da tela num toque. O preço, dito: cada marca é uma entrada de histórico.
+ * **A exceção é o campo de texto** (item 67), que passa `substituir` — ver o tipo, logo abaixo.
  *
  * **Recebe `children` do servidor e não os torna cliente.** A lista e a barra continuam renderizadas no
  * servidor; o que atravessa é o elemento pronto.
  */
 type Navegacao = {
-  /** Escreve a *query string* e navega. Vazia vira o caminho limpo. */
-  navegar: (proximos: URLSearchParams) => void;
+  /**
+   * Escreve a *query string* e navega. Vazia vira o caminho limpo.
+   *
+   * **`substituir` é a exceção do texto** (item 67). Cada marca de filtro é um gesto e merece uma entrada
+   * de histórico; **digitar não é**. Com `push` a cada pausa da digitação, o voltar do navegador desfaria
+   * o campo de busca letra por letra em vez de sair do recorte.
+   */
+  navegar: (proximos: URLSearchParams, opcoes?: { substituir?: boolean }) => void;
   /** Há navegação em voo. É o insumo do estado *atualizando* do cartão. */
   pendente: boolean;
 };
@@ -48,28 +55,23 @@ export function useNavegacaoDaLista(): Navegacao {
 }
 
 /**
- * Os três parâmetros de **paginação**, que não são recorte.
- *
- * **Trocar de recorte descarta os três** — spec do 14b, §3.7: *"cursor é posição dentro de um conjunto"*,
- * e a frase vale igual com `pagina`, `ate` e `totalNoCorte` no lugar dele. Conjunto novo, corte novo.
+ * **`semPaginacao` mudou de casa no item 67, e continua exportada daqui.** Ela passou para
+ * `filtros-da-lista.ts`, que é puro e por isso tem teste; este arquivo é `"use client"` e não tem. O
+ * reexporte existe para que os chamadores de hoje não precisem saber disso.
  */
-const DA_PAGINACAO = ["pagina", "ate", "totalNoCorte"] as const;
-
-export function semPaginacao(atual: URLSearchParams): URLSearchParams {
-  const proximos = new URLSearchParams(atual.toString());
-  for (const nome of DA_PAGINACAO) proximos.delete(nome);
-  return proximos;
-}
+export { semPaginacao } from "./filtros-da-lista";
 
 export function NavegacaoDaLista({ children }: { children: ReactNode }) {
   const router = useRouter();
   const caminho = usePathname();
   const [pendente, comecar] = useTransition();
 
-  function navegar(proximos: URLSearchParams): void {
+  function navegar(proximos: URLSearchParams, opcoes?: { substituir?: boolean }): void {
     const consulta = proximos.toString();
+    const destino = consulta === "" ? caminho : `${caminho}?${consulta}`;
     comecar(() => {
-      router.push(consulta === "" ? caminho : `${caminho}?${consulta}`);
+      if (opcoes?.substituir === true) router.replace(destino);
+      else router.push(destino);
     });
   }
 

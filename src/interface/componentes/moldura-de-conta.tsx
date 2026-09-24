@@ -8,12 +8,27 @@ import { cn } from "@/interface/componentes/utilitarios";
 
 const ID_DO_TITULO = "titulo-da-tela";
 
-/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. */
+/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. `relative`
+ *  ancora o pé de T-01, que fica fora da linha. */
 const PAGINA =
-  "flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
+  "relative flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
 
 /** A coluna do cartão: 420 px a partir de `lg`, a largura toda abaixo disso (critério 44m.8). */
 const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
+
+/** Com convite (item 65): a coluna de 420 px no celular, a fileira de 960 px a partir de `lg`. */
+const COLUNA_COM_CONVITE = "flex w-full max-w-[420px] flex-col items-center gap-8 lg:max-w-[960px]";
+
+/**
+ * A fileira das duas portas. **Empilhada abaixo de `lg`**, na ordem do documento: cartão, "ou", convite
+ * (critério 65.1). A partir de `lg`, três trilhas do design, com o cartão na mais larga.
+ */
+const FILEIRA =
+  "flex w-full flex-col gap-8 lg:grid lg:items-start lg:justify-center lg:gap-x-8 lg:gap-y-0";
+const TRILHAS = {
+  direita: "lg:grid-cols-[minmax(0,460px)_auto_minmax(0,380px)]",
+  esquerda: "lg:grid-cols-[minmax(0,380px)_auto_minmax(0,460px)]",
+} as const;
 
 /**
  * ============================================================================
@@ -28,10 +43,18 @@ const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
  * **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela e a linha de fato; o
  * conteúdo, quando há; e os caminhos secundários fora do cartão, centrados.
  *
+ * **O pé é de T-01 só** (item 70): os links para a página do grupo e para a documentação. Ele é absoluto,
+ * no respiro de baixo da página, porque com a apresentação a página é uma linha, e um terceiro filho seria
+ * uma terceira coluna.
+ *
  * **Componente, e não grupo de rotas.** O critério 44m.8 dá a **T-01 sozinha** uma segunda coluna à
  * esquerda do cartão, e um layout de servidor recebe a página por um `children` só, sem saber qual rota
  * está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA` e
  * `COLUNA`, e nenhum arquivo em `app/` a repete — nem a espera, que usa as mesmas duas constantes.
+ *
+ * **Desde o item 65 há uma segunda forma de duas colunas**: `/organizacao` (face A) e `/organizacao/criar`
+ * recebem a outra porta ao lado do cartão, pela prop `convite`. As duas formas não se combinam — nenhuma
+ * tela passa `apresentacao` e `convite` juntos.
  *
  * **Sem régua entre a cabeça e o conteúdo.** O guia §4 reserva a régua para separar naturezas
  * diferentes, e aqui título, linha de fato e formulário são a mesma coisa: a tela. É por isso que a cabeça
@@ -52,14 +75,23 @@ export function MolduraDeConta({
   titulo,
   contexto,
   apresentacao = false,
+  convite,
   caminhos,
+  rodape,
   children,
 }: {
   titulo: string;
   contexto?: ReactNode;
   /** Só T-01: liga a segunda coluna a partir de `lg` (critério 44m.8). */
   apresentacao?: boolean;
+  /**
+   * Só `/organizacao` (face A) e `/organizacao/criar` (item 65): a outra porta, ao lado do cartão a partir
+   * de `lg`. `lado` é onde ela fica na tela grande; no documento o cartão vem sempre primeiro.
+   */
+  convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };
   caminhos?: ReactNode;
+  /** Só T-01: os links do pé da página, fora da linha das colunas (item 70). */
+  rodape?: ReactNode;
   children?: ReactNode;
 }) {
   // `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
@@ -69,38 +101,109 @@ export function MolduraDeConta({
     <main className={PAGINA}>
       {apresentacao && <Apresentacao />}
 
-      <div className={COLUNA}>
-        <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
-
-        <Cartao tituloId={ID_DO_TITULO}>
-          <div
-            className={cn(
-              "flex flex-col gap-1.5 px-[15px] pt-[15px] md:px-[18px] md:pt-[18px]",
-              !temCorpo && "pb-[15px] md:pb-[18px]",
-            )}
-          >
-            <h1 id={ID_DO_TITULO} className="text-titulo-pagina text-tinta">
-              {titulo}
-            </h1>
-            {contexto !== undefined && <p className="text-corpo text-tinta-suave">{contexto}</p>}
-          </div>
-
-          {temCorpo && (
-            <div className="flex flex-col gap-5 px-[15px] py-[15px] md:px-[18px] md:py-[18px]">
-              {children}
+      {convite === undefined ? (
+        <div className={COLUNA}>
+          <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
+          <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
+            {children}
+          </CartaoDaTela>
+          {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
+        </div>
+      ) : (
+        <div className={COLUNA_COM_CONVITE}>
+          <MarcaDoProduto className="self-center" />
+          <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
+            <div
+              className={cn(
+                "flex w-full flex-col",
+                convite.lado === "esquerda" ? "lg:order-3" : "lg:order-1",
+              )}
+            >
+              <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
+                {children}
+              </CartaoDaTela>
             </div>
-          )}
-        </Cartao>
+            <ReguaDoOu />
+            <div
+              className={cn(
+                "flex w-full flex-col",
+                convite.lado === "esquerda" ? "lg:order-1" : "lg:order-3",
+              )}
+            >
+              {convite.conteudo}
+            </div>
+          </div>
+          {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
+        </div>
+      )}
 
-        {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
-      </div>
+      {rodape !== undefined && (
+        <footer className="absolute inset-x-0 bottom-0 flex justify-center">{rodape}</footer>
+      )}
     </main>
   );
 }
 
 /**
+ * **O cartão da tela**, o mesmo nas duas formas da moldura — com convite e sem. Extraído no item 65 sem
+ * mudar uma classe: o `h1` continua sendo o primeiro título do documento, porque o cartão vem antes do
+ * convite na ordem de leitura, em qualquer largura.
+ */
+function CartaoDaTela({
+  titulo,
+  contexto,
+  temCorpo,
+  children,
+}: {
+  titulo: string;
+  contexto?: ReactNode;
+  temCorpo: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <Cartao tituloId={ID_DO_TITULO}>
+      <div
+        className={cn(
+          "flex flex-col gap-1.5 px-[15px] pt-[15px] md:px-[18px] md:pt-[18px]",
+          !temCorpo && "pb-[15px] md:pb-[18px]",
+        )}
+      >
+        <h1 id={ID_DO_TITULO} className="text-titulo-pagina text-tinta">
+          {titulo}
+        </h1>
+        {contexto !== undefined && <p className="text-corpo text-tinta-suave">{contexto}</p>}
+      </div>
+
+      {temCorpo && (
+        <div className="flex flex-col gap-5 px-[15px] py-[15px] md:px-[18px] md:py-[18px]">
+          {children}
+        </div>
+      )}
+    </Cartao>
+  );
+}
+
+/**
+ * **A régua do "ou"** (item 65): horizontal no celular, entre o cartão e o convite; vertical a partir de
+ * `lg`, do topo ao pé da fileira. É desenho, e por isso `aria-hidden`: a ordem de leitura já diz que são
+ * duas saídas.
+ */
+function ReguaDoOu() {
+  return (
+    <div
+      aria-hidden="true"
+      className="text-meta text-tinta-fraca flex items-center gap-3 lg:order-2 lg:flex-col lg:self-stretch"
+    >
+      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+      <span>ou</span>
+      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+    </div>
+  );
+}
+
+/**
  * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão. Uma só, para que
- * o "Sair" de T-02 e o "Voltar" da tela de criar não pareçam coisas diferentes.
+ * o "Sair" de T-02 e o "Voltar" da face E não pareçam coisas diferentes.
  *
  * **`min-h-11` é o piso do guia §9** (44 px). As quatro telas de credencial do 44m escrevem a classe à
  * mão, com `py-1`, abaixo do piso; é o achado P-4 do plano do 44o, e não se conserta aqui.
@@ -109,7 +212,8 @@ export const CLASSE_DO_CAMINHO =
   "text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4";
 
 /**
- * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02 e T-10.
+ * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02, T-10 e, desde o item 65, a
+ * tela de criar organização.
  *
  * **Botão dentro de formulário**, como o critério 44b.4 manteve no menu de pessoa: é ação que muda estado
  * no servidor, e não vira link. **É o `Button` do catálogo** (critério 44o.15): até o 44o eram dois
@@ -181,9 +285,7 @@ function Apresentacao() {
         }}
       />
       <MarcaDoProduto />
-      <p className="text-titulo-bloco text-tinta">
-        O que é registrado aqui fica registrado, com data e autor.
-      </p>
+      <p className="text-titulo-bloco text-tinta">O livro de ocorrências da sua organização, aberto para quem cuida.</p>
     </div>
   );
 }

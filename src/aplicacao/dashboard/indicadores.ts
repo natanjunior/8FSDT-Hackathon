@@ -140,17 +140,27 @@ function arredondar(valor: number): number {
   return Math.round(valor * 10) / 10;
 }
 
+/** O menor valor em horas que a resposta publica: um décimo de milésimo, 0,36 segundo. */
+const QUANTUM_DE_HORAS = 0.0001;
+
 /**
- * **Duas casas, e o critério 55.2 é quem obriga.** *"Nenhum valor maior que zero é renderizado como
- * zero"* é absoluto, e com uma casa os minutos que a tela escreve andam de seis em seis: qualquer
- * duração abaixo de três minutos voltaria a ser `0 min`.
+ * **Quatro casas, e nenhum valor maior que zero sai como zero** — critério 62.2.
  *
- * **A amostra é o que muda o cálculo de risco.** Ela publica a duração de **uma** resolução, e o mês com
- * uma resolução de dois minutos é comum numa organização que está começando. Com duas casas o quantum é
- * de 36 segundos, abaixo do menor texto que a tela sabe escrever.
+ * **Por que o item 58 não bastava.** Com duas casas, qualquer duração abaixo de ~18 s arredondava para
+ * `0` exato, e o piso da tela só roda para o que é maior que zero. Na Aurora, 44 resoluções de 10 a 40
+ * segundos viraram `mediana 0 min`. O quantum de 36 s não protegia de nada: o problema era o que
+ * arredondava para baixo dele.
+ *
+ * **O piso é o que torna a regra verdadeira por construção.** Quatro casas sozinhas levam o zero para
+ * abaixo de 0,18 s, que é improvável, e improvável foi o argumento que falhou. Com o `max`, zero na
+ * resposta passa a significar zero medido.
+ *
+ * **`round` com piso, e não `ceil`**: `0.0283 × 10 000` dá `283.00000000000006` em ponto flutuante, e o
+ * `ceil` subiria um quantum em valores que já eram exatos.
  */
 function arredondarHoras(valor: number): number {
-  return Math.round(valor * 100) / 100;
+  if (valor <= 0) return 0;
+  return Math.max(QUANTUM_DE_HORAS, Math.round(valor * 10_000) / 10_000);
 }
 
 /**

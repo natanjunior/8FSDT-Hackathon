@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import { atalhosDaJanela } from "@/aplicacao/dashboard";
+import {
+  CHAVES_DE_ATALHO,
+  deDia,
+  diaEmTexto,
+  ehAFaixaAplicada,
+  limitesDoCalendario,
+  nomeDaFaixa,
+  paraDia,
+  rotuloDaFaixa,
+} from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
-import { duracaoEmTexto } from "@/interface/componentes/duracao";
+import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
   rotuloDaDupla,
@@ -13,10 +24,13 @@ import {
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
 import {
+  itemDoTempoDeResolucao,
+  SEM_RESOLUCAO_NO_MES,
   textoDoTempoDeResolucao,
   type MesDoTempoDeResolucao,
 } from "@/interface/componentes/tempo-de-resolucao";
-import { FormatoInvalido, lerJanelaDoDashboardDaUrl } from "@/interface/http";
+import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
+import { cn } from "@/interface/componentes/utilitarios";
 import { projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
@@ -50,6 +64,173 @@ describe("os dois parâmetros do dashboard, lidos da URL", () => {
   it("parâmetro repetido é 400 — a mesma gramática dos filtros de T-03", () => {
     expect(() => lerJanelaDoDashboardDaUrl(consulta("de=2026-06-01&de=2026-07-01"))).toThrow(
       FormatoInvalido,
+    );
+  });
+});
+
+describe("a troca da janela invertida — gesto da tela, e a API continua recusando", () => {
+  it("de depois de ate troca os dois e avisa — critério 69.3", () => {
+    const { consulta: trocada, trocada: avisa } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&ate=2026-07-01"),
+    );
+    expect(avisa).toBe(true);
+    expect(lerJanelaDoDashboardDaUrl(trocada)).toStrictEqual({ de: "2026-07-01", ate: "2026-09-29" });
+  });
+
+  it("não altera a consulta recebida", () => {
+    const original = consulta("de=2026-09-29&ate=2026-07-01");
+    trocarJanelaInvertida(original);
+    expect(original.toString()).toBe("de=2026-09-29&ate=2026-07-01");
+  });
+
+  it("os outros parâmetros atravessam intactos", () => {
+    const { consulta: trocada } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&ate=2026-07-01&organizacao=x"),
+    );
+    expect(trocada.get("organizacao")).toBe("x");
+  });
+
+  it("na ordem certa, não troca nem avisa", () => {
+    const { consulta: mesma, trocada } = trocarJanelaInvertida(consulta("de=2026-07-01&ate=2026-09-29"));
+    expect(trocada).toBe(false);
+    expect(mesma.toString()).toBe("de=2026-07-01&ate=2026-09-29");
+  });
+
+  it("datas iguais são uma janela de um dia, e não uma inversão", () => {
+    expect(trocarJanelaInvertida(consulta("de=2026-07-01&ate=2026-07-01")).trocada).toBe(false);
+  });
+
+  it("com uma data só não há o que inverter", () => {
+    expect(trocarJanelaInvertida(consulta("de=2026-09-29")).trocada).toBe(false);
+    expect(trocarJanelaInvertida(consulta("ate=2026-07-01")).trocada).toBe(false);
+  });
+
+  it("data mal formada não é trocada, e a recusa de formato continua valendo", () => {
+    for (const bruto of ["de=2026-09-31&ate=2026-07-01", "de=29/09/2026&ate=2026-07-01"]) {
+      const { consulta: mesma, trocada } = trocarJanelaInvertida(consulta(bruto));
+      expect(trocada).toBe(false);
+      expect(() => lerJanelaDoDashboardDaUrl(mesma)).toThrow(FormatoInvalido);
+    }
+  });
+
+  it("parâmetro repetido não é trocado, e continua 400", () => {
+    const { consulta: mesma, trocada } = trocarJanelaInvertida(
+      consulta("de=2026-09-29&de=2026-08-01&ate=2026-07-01"),
+    );
+    expect(trocada).toBe(false);
+    expect(() => lerJanelaDoDashboardDaUrl(mesma)).toThrow(FormatoInvalido);
+  });
+});
+
+describe("a tradução entre o dia do endereço e o dia do calendário — item 71", () => {
+  it("a ida e a volta devolvem o mesmo dia, inclusive em ano bissexto", () => {
+    for (const dia of ["2026-07-01", "2026-12-31", "2026-01-01", "2024-02-29"]) {
+      expect(paraDia(deDia(dia))).toBe(dia);
+    }
+  });
+
+  it("o instante montado é o meio-dia local, e não a meia-noite universal", () => {
+    // Meia-noite em tempo universal cai no dia anterior em todo fuso a oeste, que é o do produto inteiro.
+    const data = deDia("2026-07-01");
+    expect(data.getHours()).toBe(12);
+    expect(data.getFullYear()).toBe(2026);
+    expect(data.getMonth()).toBe(6);
+    expect(data.getDate()).toBe(1);
+  });
+
+  it("a leitura é pelas partes locais, e a hora do dia não muda o dia", () => {
+    // `toISOString().slice(0, 10)` devolveria 02/07 para quem escolhesse às 21h no horário de Brasília.
+    for (const hora of [0, 8, 12, 21, 23]) {
+      expect(paraDia(new Date(2026, 6, 1, hora, 30))).toBe("2026-07-01");
+    }
+    expect(paraDia(new Date(2025, 11, 31, 23, 0))).toBe("2025-12-31");
+    expect(paraDia(new Date(2026, 0, 1, 0, 30))).toBe("2026-01-01");
+  });
+
+  it("o texto do dia reordena os três pedaços, sem tocar em fuso nenhum", () => {
+    expect(diaEmTexto("2026-07-01")).toBe("01/07/2026");
+    expect(diaEmTexto("2026-07-01")).not.toBe("30/06/2026");
+  });
+
+  it("o rótulo do gatilho é o intervalo com travessão curto", () => {
+    expect(rotuloDaFaixa({ de: "2026-07-01", ate: "2026-09-29" })).toBe("01/07/2026 – 29/09/2026");
+  });
+
+  it("o nome acessível contém o rótulo visível inteiro — a regra de rótulo no nome", () => {
+    const periodo = { de: "2026-07-01", ate: "2026-09-29" };
+    expect(nomeDaFaixa(periodo)).toContain(rotuloDaFaixa(periodo));
+    expect(nomeDaFaixa(periodo)).toBe("Período: 01/07/2026 – 29/09/2026");
+  });
+});
+
+describe("qual atalho é o recorte aplicado — item 71, critério 2", () => {
+  const AGORA_DA_TELA = "2026-08-30T02:00:00.000Z";
+  const ATALHOS = atalhosDaJanela(AGORA_DA_TELA);
+
+  it("as quatro chaves da Interface são as quatro janelas da Aplicação", () => {
+    expect([...CHAVES_DE_ATALHO].sort()).toStrictEqual(Object.keys(ATALHOS).sort());
+  });
+
+  it("cada um dos quatro se reconhece quando é o recorte", () => {
+    for (const chave of CHAVES_DE_ATALHO) {
+      expect(ehAFaixaAplicada(ATALHOS[chave], ATALHOS[chave]), chave).toBe(true);
+    }
+  });
+
+  it("recorte que não é nenhum dos quatro não acende nenhum", () => {
+    const outro = { de: "2026-01-01", ate: "2026-01-31" };
+    for (const chave of CHAVES_DE_ATALHO) {
+      expect(ehAFaixaAplicada(outro, ATALHOS[chave]), chave).toBe(false);
+    }
+  });
+
+  it("basta uma ponta diferente para não ser o atalho", () => {
+    expect(ehAFaixaAplicada({ de: "2026-06-02", ate: "2026-08-29" }, ATALHOS.noventa)).toBe(false);
+  });
+
+  it("no dia 7 e no dia 30 dois atalhos são a mesma janela, e os dois apagam", () => {
+    // O defeito que a pergunta por atalho evita: uma função que devolvesse "qual dos quatro" apagaria o
+    // primeiro da lista e deixaria o outro aceso oferecendo um toque que não faz nada.
+    const dia7 = atalhosDaJanela("2026-09-07T15:00:00.000Z");
+    expect(dia7.sete).toStrictEqual(dia7.mes);
+    expect(ehAFaixaAplicada(dia7.mes, dia7.sete)).toBe(true);
+    expect(ehAFaixaAplicada(dia7.mes, dia7.mes)).toBe(true);
+
+    const dia30 = atalhosDaJanela("2026-09-30T15:00:00.000Z");
+    expect(dia30.trinta).toStrictEqual(dia30.mes);
+    expect(ehAFaixaAplicada(dia30.mes, dia30.trinta)).toBe(true);
+
+    // E a janela de 90 dias nunca empata com as outras três, que é o que o critério 2 nomeia.
+    for (const atalhos of [dia7, dia30]) {
+      for (const chave of ["sete", "trinta", "mes"] as const) {
+        expect(ehAFaixaAplicada(atalhos.noventa, atalhos[chave]), chave).toBe(false);
+      }
+    }
+  });
+});
+
+describe("o alcance dos menus de mês e de ano — item 71", () => {
+  it("o menu oferece cinco anos para trás e o ano que vem inteiro", () => {
+    const { inicio, fim } = limitesDoCalendario({ de: "2026-07-01", ate: "2026-09-29" });
+    expect(paraDia(inicio)).toBe("2021-01-01");
+    expect(paraDia(fim)).toBe("2027-12-31");
+  });
+
+  it("o recorte aplicado sempre cabe no alcance, mesmo vindo de um endereço antigo", () => {
+    const { inicio, fim } = limitesDoCalendario({ de: "1900-01-01", ate: "2026-09-29" });
+    expect(paraDia(inicio)).toBe("1900-01-01");
+    expect(deDia("1900-01-01").getTime()).toBeGreaterThanOrEqual(inicio.getTime());
+    expect(deDia("2026-09-29").getTime()).toBeLessThanOrEqual(fim.getTime());
+  });
+});
+
+describe("o tamanho da casa do calendário — desvio D1 do plano do 71", () => {
+  it("a classe da chamada vence a do registro, que é do que o alvo de 44 px depende", () => {
+    // O registro do `calendar` escreve `[--cell-size:--spacing(8)]`, que é 32 px. O alvo de toque do lote
+    // é 44 px, e quem o impõe é a chamada. Se esta fusão deixar as duas classes de pé, a ordem no CSS
+    // decide, e o tamanho da casa passa a depender de sorte.
+    expect(cn("[--cell-size:--spacing(8)]", "[--cell-size:--spacing(11)]")).toBe(
+      "[--cell-size:--spacing(11)]",
     );
   });
 });
@@ -187,13 +368,16 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
  *
  * **O defeito que estes casos guardam** é `0 h` para uma ocorrência resolvida em nove minutos, visto em
  * produção. Cada `it` abaixo é uma linha da tabela da spec §3.2.
+ *
+ * Desde o item 62, o piso é `menos de 1 min` e o zero é o travessão; as duas asserções do 55 que diziam
+ * outra coisa trocaram de valor por critério.
  */
 describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero vira zero", () => {
   it("abaixo de uma hora escreve minutos — `18 min` é o exemplo do critério 55.1", () => {
     expect(duracaoEmTexto(0.3)).toBe("18 min");
   });
 
-  it("três minutos são três minutos, e não zero — o caso literal do critério 55.2", () => {
+  it("três minutos são três minutos, e não zero — o caso literal do critério 55.2, e o terceiro caso do 62.4", () => {
     expect(duracaoEmTexto(0.05)).toBe("3 min");
   });
 
@@ -201,12 +385,26 @@ describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero 
     expect(duracaoEmTexto(0.2)).toBe("12 min");
   });
 
-  it("meio minuto sobe ao piso de um, porque o zero era o defeito", () => {
-    expect(duracaoEmTexto(0.008)).toBe("1 min");
+  it("zero é o travessão — critério 62.3, e o primeiro dos três casos do 62.4", () => {
+    expect(duracaoEmTexto(0)).toBe("—");
+    expect(duracaoEmTexto(0)).toBe(SEM_DURACAO);
   });
 
-  it("zero continua zero — o critério 55.2 fala de valor MAIOR que zero, e uma casa decimal é o que a API dá", () => {
-    expect(duracaoEmTexto(0)).toBe("0 min");
+  it("catorze segundos são `menos de 1 min` — o segundo caso do 62.4, e o que a Aurora escrevia como zero", () => {
+    expect(duracaoEmTexto(0.004)).toBe("menos de 1 min");
+  });
+
+  it("meio minuto também é `menos de 1 min`: o piso novo substitui o `1 min` do item 55 (critério 62.1)", () => {
+    expect(duracaoEmTexto(0.008)).toBe("menos de 1 min");
+  });
+
+  it("o menor valor que a API publica ainda é `menos de 1 min`, e nunca o travessão", () => {
+    expect(duracaoEmTexto(0.0001)).toBe("menos de 1 min");
+  });
+
+  it("a costura do minuto cheio: 59,8 s ainda é menos de um minuto, 60,1 s já é `1 min`", () => {
+    expect(duracaoEmTexto(0.0166)).toBe("menos de 1 min");
+    expect(duracaoEmTexto(0.0167)).toBe("1 min");
   });
 
   it("`60 min` não se escreve: a costura de baixo promove à faixa de cima", () => {
@@ -292,7 +490,7 @@ describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mos
     );
   });
 
-  it("dois minutos continuam dois minutos — as duas casas do item 58 e o critério 55.2", () => {
+  it("dois minutos continuam dois minutos — critério 55.2", () => {
     expect(textoDoTempoDeResolucao(mes({ mediana: 0.03, amostra: [0.03], resolvidas: 1 }))).toBe(
       "2 min · 1 resolvida",
     );
@@ -304,8 +502,74 @@ describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mos
     );
   });
 
+  it("o mês grande da Aurora, todo abaixo de um minuto, escreve o piso nos dois números — e não o travessão", () => {
+    expect(
+      textoDoTempoDeResolucao(mes({ mediana: 0.0031, p90: 0.0083, resolvidas: 44 })),
+    ).toBe("mediana menos de 1 min · p90 menos de 1 min · 44 resolvidas");
+  });
+
+  it("o mês pequeno mistura as três grandezas sem perder nenhuma", () => {
+    expect(
+      textoDoTempoDeResolucao(mes({ mediana: 0.05, amostra: [0.004, 0.05, 72], resolvidas: 3 })),
+    ).toBe("menos de 1 min, 3 min, 3,0 dias · 3 resolvidas");
+  });
+
   it("sem resolução, o travessão e o denominador em zero — critério 36.2, intacto", () => {
     expect(textoDoTempoDeResolucao(mes({}))).toBe("— · 0 resolvidas");
+    expect(textoDoTempoDeResolucao(mes({})).startsWith(SEM_DURACAO)).toBe(true);
+  });
+});
+
+/**
+ * O item 61 — **a barra do quadro 4 é a mediana, em toda linha que tem barra**, e o caso é o medido no
+ * Recanto Azul em 23/09/2026: julho com três resoluções e mediana de 6,1 dias, agosto com uma de 5,2.
+ * **Os números vão em HORAS**, que é a unidade de `MesDoTempoDeResolucao`; o texto em dias sai de
+ * `duracaoEmTexto`, e a asserção do texto prova que o caso é o mesmo que a tela mostrou.
+ *
+ * **Este teste passa também com o código de antes do item**, e é de propósito que isso está escrito: a
+ * quantidade já era a mediana. O defeito era de desenho, o trilho de julho mais curto que o de agosto, e
+ * o projeto `unitario` roda sem DOM. Quem pega o defeito é a medição em pixels de
+ * `dashboard-e-paginacao.spec.ts`; este guarda a escolha do critério 61.1 contra regressão.
+ */
+describe("o item de cada mês do quadro 4 — a barra desenha a mediana (item 61)", () => {
+  // Em horas: 125 h, 146 h e 247 h são 5,2, 6,1 e 10,3 dias; 124 h são 5,2 dias.
+  const julho: MesDoTempoDeResolucao = {
+    mediana: 146,
+    p90: null,
+    amostra: [125, 146, 247],
+    resolvidas: 3,
+  };
+  const agosto: MesDoTempoDeResolucao = { mediana: 124, p90: null, amostra: [124], resolvidas: 1 };
+
+  it("julho, de mediana maior, desenha mais que agosto — o caso medido do critério 61.2", () => {
+    const itemDeJulho = itemDoTempoDeResolucao(julho, "jul");
+    const itemDeAgosto = itemDoTempoDeResolucao(agosto, "ago");
+    expect(itemDeJulho.texto).toBe("5,2 dias, 6,1 dias, 10,3 dias · 3 resolvidas");
+    expect(itemDeAgosto.texto).toBe("5,2 dias · 1 resolvida");
+    expect(itemDeJulho.quantidade).toBeGreaterThan(itemDeAgosto.quantidade);
+  });
+
+  it("a quantidade é a mediana, e o texto é a linha do mês, sem nada inventado no meio", () => {
+    expect(itemDoTempoDeResolucao(julho, "jul")).toEqual({
+      rotulo: "jul",
+      quantidade: 146,
+      texto: textoDoTempoDeResolucao(julho),
+    });
+  });
+
+  it("com duas resoluções a barra é o ponto médio, que o texto não escreve — o rodapé diz o que ela é", () => {
+    const dois: MesDoTempoDeResolucao = { mediana: 144, p90: null, amostra: [120, 168], resolvidas: 2 };
+    expect(itemDoTempoDeResolucao(dois, "set").quantidade).toBe(144);
+  });
+
+  it("sem resolução, nenhuma barra: a frase no lugar dela, e o travessão no texto — critério 61.3", () => {
+    const vazio: MesDoTempoDeResolucao = { mediana: null, p90: null, amostra: null, resolvidas: 0 };
+    expect(itemDoTempoDeResolucao(vazio, "jun")).toEqual({
+      rotulo: "jun",
+      quantidade: 0,
+      vazio: SEM_RESOLUCAO_NO_MES,
+      texto: "— · 0 resolvidas",
+    });
   });
 });
 

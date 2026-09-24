@@ -102,11 +102,12 @@ describe("a marca da barra lateral — critério 1", () => {
     ["/vinculos/nova", "/vinculos"],
     ["/vinculos/abc/editar", "/vinculos"],
     ["/dashboard", "/dashboard"],
+    ["/meus-dados", "/meus-dados"],
   ])("%s marca %s", (caminho, destino) => {
     expect(destinoAtual(caminho)).toBe(destino);
   });
 
-  it.each(["/meus-dados", "/", "", "/ocorrenciasx", "/configuracaox/categorias", "/entrar"])(
+  it.each(["/", "", "/ocorrenciasx", "/configuracaox/categorias", "/entrar", "/meus-dadosx"])(
     "'%s' não marca nada",
     (caminho) => {
       expect(destinoAtual(caminho)).toBeNull();
@@ -120,14 +121,18 @@ describe("a marca da barra lateral — critério 1", () => {
     expect(estaMarcado("/configuracao", "/vinculos/nova")).toBe(false);
     expect(estaMarcado("/configuracao", "/configuracao")).toBe(true);
     expect(estaMarcado("/ocorrencias", "/meus-dados")).toBe(false);
+    // Desde o item 64 `/meus-dados` está na barra, e a premissa do 44h ("não marca nada, porque não está
+    // na barra") caiu com ela.
+    expect(estaMarcado("/meus-dados", "/meus-dados")).toBe(true);
   });
 
-  it("a lista tem os seis destinos da barra, sem repetição", () => {
+  it("a lista tem os sete destinos da barra, sem repetição", () => {
     expect([...DESTINOS_DA_BARRA].sort()).toStrictEqual([
       "/configuracao",
       "/configuracao/areas",
       "/configuracao/categorias",
       "/dashboard",
+      "/meus-dados",
       "/ocorrencias",
       "/vinculos",
     ]);
@@ -198,7 +203,24 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0"]);
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
+  });
+
+  it("Meus dados mora num segundo marco, fora de «Nesta organização», depois de uma régua (item 64)", () => {
+    const fonte = ler(NAVEGACAO);
+    const organizacao = fonte.indexOf('<nav aria-label="Nesta organização"');
+    const alem = fonte.indexOf('<nav aria-label="Além desta organização"');
+    const meusDados = fonte.indexOf('destino="/meus-dados"');
+    expect(organizacao).toBeGreaterThan(-1);
+    expect(alem).toBeGreaterThan(organizacao);
+    // O item está dentro do segundo marco, e não do primeiro.
+    expect(meusDados).toBeGreaterThan(alem);
+    expect(fonte.slice(organizacao, alem)).not.toContain('destino="/meus-dados"');
+    // A régua fica fora de qualquer condição: o Solicitante, sem Dashboard, também a vê (Review Focus 2).
+    const entreOsMarcos = fonte.slice(fonte.lastIndexOf("</nav>", alem), alem);
+    expect(entreOsMarcos).toContain("<SidebarSeparator");
+    expect(entreOsMarcos).not.toContain("&&");
+    expect(fonte.slice(alem)).toContain("Icone={UserRound}");
   });
 });
 
@@ -301,6 +323,24 @@ describe("o menu de pessoa — critério 7 do 44i", () => {
     expect(fonte).toContain("<form action={acaoDeSair}>");
     expect(fonte).toContain('type="submit"');
     expect(fonte).toContain("<LogOut");
+  });
+
+  it("o tema é o `Toggle` do catálogo, entre «Entrar em outra organização» e o Sair (item 72)", () => {
+    const menu = ler(MENU);
+    const item = ler("src/interface/componentes/casca/item-de-tema.tsx");
+
+    const entrar = menu.indexOf("Entrar em outra organização");
+    const tema = menu.indexOf("<ItemDeTema />");
+    const sair = menu.indexOf("<form action={acaoDeSair}>");
+    expect(entrar).toBeGreaterThan(-1);
+    expect(tema).toBeGreaterThan(entrar);
+    expect(sair).toBeGreaterThan(tema);
+
+    // O papel é de item marcável, e não de botão pressionado: `aria-pressed` não vale em item de menu.
+    expect(item).toContain("<Toggle");
+    expect(item).toContain('role="menuitemcheckbox"');
+    expect(item).toContain("aria-pressed={undefined}");
+    expect(item).toContain("<DropdownMenuItem asChild");
   });
 
   it("os dois layouts que montam a barra superior passam o e-mail da sessão", () => {

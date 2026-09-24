@@ -1,14 +1,24 @@
 "use client";
 
+import { Search, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
+import { FiltroComBusca } from "@/interface/componentes/filtro-com-busca";
+import {
+  comTitulo,
+  PARAMETROS_DE_FILTRO,
+  semFiltros,
+  type OpcaoComBusca,
+} from "@/interface/componentes/filtros-da-lista";
+import { Button } from "@/interface/componentes/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/interface/componentes/ui/dropdown-menu";
+import { Input } from "@/interface/componentes/ui/input";
 import { cn } from "@/interface/componentes/utilitarios";
 
 import { semPaginacao, useNavegacaoDaLista } from "./navegacao-da-lista";
@@ -50,6 +60,8 @@ export function BarraDeFiltros({
   status,
   categorias,
   prioridades,
+  areas,
+  participantes,
 }: {
   /** A *query string* atual, crua, como a página a recebeu. */
   consultaAtual: string;
@@ -57,8 +69,15 @@ export function BarraDeFiltros({
   categorias: readonly OpcaoDeFiltro[];
   /** `null` quando quem lê não tem `ocorrencia.alterar_prioridade` — o mesmo portão da coluna (P-03). */
   prioridades: readonly OpcaoDeFiltro[] | null;
+  /** As áreas ativas, com o tipo em *meta*. */
+  areas: readonly OpcaoComBusca[];
+  /**
+   * `null` quando quem lê não tem `vinculo.gerir` — **e o campo some**. É a permissão que guarda a lista
+   * de participantes; hoje as duas andam juntas no Gestor, e o dia em que se separarem o campo some sem
+   * vazar lista de gente.
+   */
+  participantes: readonly OpcaoComBusca[] | null;
 }) {
-  const caminho = usePathname();
   const { navegar, pendente } = useNavegacaoDaLista();
 
   const atual = new URLSearchParams(consultaAtual);
@@ -83,18 +102,22 @@ export function BarraDeFiltros({
    * **`autor=eu` continua contando como filtro ligado**, e não é descuido: é ele que faz *"Limpar
    * filtros"* aparecer quando só o recorte está ligado, e é a mesma condição que `algumFiltroAplicado`
    * usa do lado do servidor.
+   *
+   * **A lista vem de `PARAMETROS_DE_FILTRO` desde o item 67**, e não de uma expressão escrita aqui: é a
+   * mesma que *Limpar filtros* apaga, e um teste a prende à do servidor.
    */
-  const algumLigado =
-    marcados("status").length > 0 ||
-    marcados("categoriaId").length > 0 ||
-    marcados("prioridade").length > 0 ||
-    atual.get("autor") === "eu";
+  const algumLigado = PARAMETROS_DE_FILTRO.some((parametro) => {
+    const bruto = atual.get(parametro);
+    return bruto !== null && bruto !== "";
+  });
 
   return (
     <div
       aria-busy={pendente}
       className="border-linha flex flex-wrap items-center gap-2 border-b px-4 py-3"
     >
+      <CampoDoTitulo consultaAtual={consultaAtual} />
+
       <MenuDeFiltro
         nome="Status"
         parametro="status"
@@ -119,9 +142,35 @@ export function BarraDeFiltros({
         />
       )}
 
+      <FiltroComBusca
+        nome="Área"
+        parametro="areaId"
+        opcoes={areas}
+        marcados={marcados("areaId")}
+        consultaAtual={consultaAtual}
+        textoDaBusca="Buscar área"
+        textoDoVazio="Nenhuma área com esse nome."
+      />
+
+      {participantes !== null && (
+        <FiltroComBusca
+          nome="Responsável"
+          parametro="responsavelPessoaId"
+          opcoes={participantes}
+          marcados={marcados("responsavelPessoaId")}
+          consultaAtual={consultaAtual}
+          textoDaBusca="Buscar participante"
+          textoDoVazio="Ninguém com esse nome."
+        />
+      )}
+
+      {/*
+        **`Link`, e não o caminho limpo.** Limpar filtros mantém a ordem escolhida: quem limpou o recorte
+        não pediu para a tabela voltar à coluna de origem (item 67).
+      */}
       {algumLigado && (
         <Link
-          href={caminho}
+          href={`?${semFiltros(consultaAtual).toString()}`}
           className="text-marca text-interface ml-auto px-2 py-1 underline underline-offset-4"
         >
           Limpar filtros
@@ -207,4 +256,90 @@ function rotuloDoChip(
   // inventar nome: é a mesma regra da `descricaoDoRecorte`.
   const opcao = opcoes.find((uma) => uma.valor === marcados[0]);
   return opcao === undefined ? `${nome}: 1 selecionado` : `${nome}: ${opcao.rotulo}`;
+}
+
+/** Quanto tempo sem digitar antes de a URL mudar. O desenho pediu 300 ms (`design-64-a-70.md`). */
+const ESPERA_DA_DIGITACAO = 300;
+
+/**
+ * O campo de busca por título — item 67, critério 67.4.
+ *
+ * **`replace`, e não `push`.** Cada marca de filtro é um gesto e merece uma entrada de histórico; cada
+ * pausa da digitação não é: com `push`, o voltar do navegador desfaria o texto letra por letra em vez de
+ * sair do recorte. **O `X` usa `push`**, porque limpar é um gesto.
+ *
+ * **O campo não remonta quando a lista troca, e é por isso que ele não perde o foco.** O texto vive em
+ * estado local; o que a URL diz só é copiado para dentro quando ela muda **por fora** — *Limpar filtros*,
+ * o voltar do navegador. A comparação acontece durante a renderização, no padrão de ajustar estado sem
+ * efeito, porque `setState` dentro de um efeito é o que a regra `react-hooks/set-state-in-effect`
+ * reprova, e este projeto não tem `eslint-disable` para gastar.
+ */
+function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
+  const { navegar } = useNavegacaoDaLista();
+  const daUrl = new URLSearchParams(consultaAtual).get("titulo") ?? "";
+
+  const [texto, setTexto] = useState(daUrl);
+  const [urlVista, setUrlVista] = useState(daUrl);
+  const cronometro = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A URL mudou por fora: o campo acompanha. Durante a renderização, sem efeito.
+  if (daUrl !== urlVista) {
+    setUrlVista(daUrl);
+    setTexto(daUrl);
+  }
+
+  // O cronômetro pendente morre com o componente — senão ele navegaria depois de a tela ter saído.
+  useEffect(
+    () => () => {
+      if (cronometro.current !== null) clearTimeout(cronometro.current);
+    },
+    [],
+  );
+
+  function digitar(valor: string) {
+    setTexto(valor);
+    if (cronometro.current !== null) clearTimeout(cronometro.current);
+    cronometro.current = setTimeout(() => {
+      setUrlVista(valor.trim());
+      navegar(comTitulo(consultaAtual, valor), { substituir: true });
+    }, ESPERA_DA_DIGITACAO);
+  }
+
+  function limpar() {
+    if (cronometro.current !== null) clearTimeout(cronometro.current);
+    setTexto("");
+    setUrlVista("");
+    navegar(comTitulo(consultaAtual, ""));
+  }
+
+  return (
+    <div className="relative w-full md:w-[280px]">
+      <Search
+        aria-hidden="true"
+        className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+      />
+      <Input
+        type="search"
+        value={texto}
+        onChange={(evento) => {
+          digitar(evento.target.value);
+        }}
+        aria-label="Buscar pelo título"
+        placeholder="Buscar pelo título"
+        className="border-linha bg-superficie text-interface text-tinta h-11 pr-11 pl-9"
+      />
+      {texto !== "" && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={limpar}
+          aria-label="Limpar a busca por título"
+          className="text-tinta-suave absolute top-1/2 right-0 size-11 -translate-y-1/2 rounded-sm"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  );
 }

@@ -35,6 +35,7 @@ const ENCARREGADO: VinculoLido = {
   area: null,
   temConta: false,
   criadoEm: "2026-08-23T12:00:00.000Z",
+  atualizadoEm: null,
 };
 
 /** O duplo da porta. Cada teste diz o desfecho que quer, e inspeciona o que a porta recebeu. */

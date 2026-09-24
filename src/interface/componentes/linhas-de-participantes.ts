@@ -6,6 +6,15 @@ import {
   dataCurta,
   rotuloDoPapel,
 } from "@/interface/componentes/frases-de-participantes";
+import {
+  SEM_ORDENACAO,
+  ariaSortDa,
+  escreverOrdenacao,
+  lerOrdenacao,
+  proximaOrdenacao,
+  type Sentido,
+} from "@/interface/componentes/ordenacao-em-tres-estados";
+import { contatoEmLeitura } from "@/interface/componentes/regras-do-vinculo";
 import { telefoneLegivel } from "@/interface/componentes/telefone";
 import type { VinculoProjetado } from "@/interface/projecoes";
 
@@ -22,7 +31,8 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  * ter dois desenhos. A origem viaja junto (`pedido`, `vinculo`), porque é dela que os modais precisam.
  *
  * **O endereço guarda filtro, ordem e página; a busca não.** Texto digitado a cada tecla no histórico
- * seria ruído, e o critério 3 nomeia três coisas.
+ * seria ruído, e o critério 3 nomeia três coisas. Sem `ordem` no endereço é sem ordenação, e vale a ordem
+ * inicial (item 68a).
  */
 
 export const POR_PAGINA = 20;
@@ -30,24 +40,18 @@ export const POR_PAGINA = 20;
 export const FILTROS = ["todos", "pedidos", "solicitantes", "gestores", "encarregados"] as const;
 export type Filtro = (typeof FILTROS)[number];
 
-export const COLUNAS_QUE_ORDENAM = ["pessoa", "papel", "unidade", "desde"] as const;
+export const COLUNAS_QUE_ORDENAM = ["pessoa", "papel", "unidade", "atualizacao"] as const;
 export type Coluna = (typeof COLUNAS_QUE_ORDENAM)[number];
-
-export type Sentido = "crescente" | "decrescente";
 
 export type Endereco = {
   readonly filtro: Filtro;
-  readonly ordem: Coluna;
+  /** `null` é sem ordenação: vale a ordem inicial (item 68a). */
+  readonly ordem: Coluna | null;
   readonly sentido: Sentido;
   readonly pagina: number;
 };
 
-export const ENDERECO_PADRAO: Endereco = {
-  filtro: "todos",
-  ordem: "pessoa",
-  sentido: "crescente",
-  pagina: 1,
-};
+export const ENDERECO_PADRAO: Endereco = { filtro: "todos", ...SEM_ORDENACAO, pagina: 1 };
 
 export const ROTULO_DO_FILTRO: Readonly<Record<Filtro, string>> = {
   todos: "Todos",
@@ -81,17 +85,31 @@ export type PedidoNaTabela = {
   readonly criadoEm: string;
 };
 
+export type ContatoNaLinha = {
+  readonly chave: string;
+  /** O que se lê e o que se copia: o telefone já legível, ou o e-mail como está. */
+  readonly valor: string;
+  /** "Pessoal", "Trabalho", "Recado"; `null` no pedido, que não carrega finalidade. */
+  readonly finalidade: string | null;
+  readonly whatsapp: boolean;
+};
+
 type Comum = {
   readonly chave: string;
   readonly nome: string;
   readonly rotuloDoPapel: string;
   readonly unidade: string | null;
-  readonly contato: string | null;
-  readonly maisContatos: number;
-  /** O instante, para ordenar. */
+  readonly telefones: readonly ContatoNaLinha[];
+  readonly emails: readonly ContatoNaLinha[];
+  /** O instante da entrada. Fica, porque é a chave dos pedidos e o segundo termo da ordem inicial. */
   readonly desde: string;
-  /** O que a coluna escreve. */
-  readonly desdeTexto: string;
+  /**
+   * O instante da última alteração, para ordenar. `null` é *nenhuma alteração registrada* — e a data de
+   * entrada **não** entra no lugar: a coluna existe para não mostrar a criação vestida de atualização.
+   */
+  readonly atualizadoEm: string | null;
+  /** O que a coluna escreve, ou `null` quando ela escreve o traço. */
+  readonly atualizadoTexto: string | null;
 };
 
 export type LinhaDePedido = Comum & { readonly tipo: "pedido"; readonly pedido: PedidoNaTabela };
@@ -112,19 +130,21 @@ export type ContextoDaTabela = {
 };
 
 /**
- * O primeiro contato e quantos sobram. **A palavra WhatsApp acompanha o número** (A-5), e o resto não
- * abre na linha: a lista inteira está em *Editar participante*.
+ * Os contatos da linha, **separados por tipo e na ordem cadastrada** (item 68a): a célula mostra um ícone
+ * por tipo, e o `popover` de cada um lista todos daquele tipo. Não há mais *"+N"*.
  */
-export function contatoResumido(
-  contatos: VinculoProjetado["pessoa"]["contatos"],
-): { readonly texto: string | null; readonly mais: number } {
-  const [primeiro] = contatos;
-  if (primeiro === undefined) return { texto: null, mais: 0 };
-  const texto =
-    primeiro.tipo === "telefone"
-      ? `${telefoneLegivel(primeiro.valor)}${primeiro.temWhatsapp ? " · WhatsApp" : ""}`
-      : primeiro.valor;
-  return { texto, mais: contatos.length - 1 };
+function contatosPorTipo(contatos: VinculoProjetado["pessoa"]["contatos"]): {
+  readonly telefones: readonly ContatoNaLinha[];
+  readonly emails: readonly ContatoNaLinha[];
+} {
+  const naLinha = (contato: VinculoProjetado["pessoa"]["contatos"][number]): ContatoNaLinha => {
+    const lido = contatoEmLeitura(contato);
+    return { chave: contato.id, valor: lido.valor, finalidade: lido.finalidade, whatsapp: lido.whatsapp !== null };
+  };
+  return {
+    telefones: contatos.filter((contato) => contato.tipo === "telefone").map(naLinha),
+    emails: contatos.filter((contato) => contato.tipo === "email").map(naLinha),
+  };
 }
 
 export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
@@ -135,15 +155,27 @@ export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
     nome: pedido.pessoa.nome,
     rotuloDoPapel: ROTULO_SEM_PAPEL,
     unidade: null,
-    contato: pedido.pessoa.telefoneInformado === null ? null : telefoneLegivel(pedido.pessoa.telefoneInformado),
-    maisContatos: 0,
+    telefones:
+      pedido.pessoa.telefoneInformado === null
+        ? []
+        : [
+            {
+              chave: "telefone-informado",
+              valor: telefoneLegivel(pedido.pessoa.telefoneInformado),
+              finalidade: null,
+              whatsapp: false,
+            },
+          ],
+    emails: [],
     desde: pedido.criadoEm,
-    desdeTexto: dataCurta(pedido.criadoEm),
+    // **Pedido pendente não foi alterado**: a coluna mostra o traço, como em vínculo nunca mexido.
+    atualizadoEm: null,
+    atualizadoTexto: null,
   };
 }
 
 export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTabela): LinhaDeVinculo {
-  const contato = contatoResumido(vinculo.pessoa.contatos);
+  const contatos = contatosPorTipo(vinculo.pessoa.contatos);
   return {
     tipo: "vinculo",
     vinculo,
@@ -152,10 +184,11 @@ export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTa
     papel: vinculo.papel,
     rotuloDoPapel: rotuloDoPapel(vinculo.papel),
     unidade: vinculo.area?.nome ?? null,
-    contato: contato.texto,
-    maisContatos: contato.mais,
+    telefones: contatos.telefones,
+    emails: contatos.emails,
     desde: vinculo.criadoEm,
-    desdeTexto: dataCurta(vinculo.criadoEm),
+    atualizadoEm: vinculo.atualizadoEm,
+    atualizadoTexto: vinculo.atualizadoEm === null ? null : dataCurta(vinculo.atualizadoEm),
     ehVoce: vinculo.pessoa.pessoaId === contexto.euPessoaId,
     impedimento: contexto.impedimentos[vinculo.pessoa.pessoaId] ?? null,
   };
@@ -222,31 +255,57 @@ function primaria(coluna: Coluna, a: LinhaDeParticipante, b: LinhaDeParticipante
   if (coluna === "pessoa") return porNome(a, b);
   if (coluna === "papel") return COLACAO.compare(a.rotuloDoPapel, b.rotuloDoPapel);
   if (coluna === "unidade") return COLACAO.compare(a.unidade ?? "", b.unidade ?? "");
-  return Date.parse(a.desde) - Date.parse(b.desde);
+  return Date.parse(a.atualizadoEm ?? "") - Date.parse(b.atualizadoEm ?? "");
+}
+
+/** **Sem valor vai sempre para o fim**, nos dois sentidos. Era a regra de *Unidade*, e agora são duas. */
+function semValor(coluna: Coluna, linha: LinhaDeParticipante): boolean {
+  if (coluna === "unidade") return linha.unidade === null;
+  if (coluna === "atualizacao") return linha.atualizadoEm === null;
+  return false;
 }
 
 /**
- * **Os pedidos ficam no topo qualquer que seja a ordem** (critério 1), **sem unidade vai sempre para o
- * fim** nos dois sentidos, o empate é pelo nome e o último desempate é a chave — para a ordem não mudar
- * entre duas renderizações do mesmo conjunto.
+ * **Sem ordenação vale a ordem inicial** (item 68a): pedidos no topo pela entrada mais recente, depois os
+ * vínculos pela **última atualização quando existe, e pela entrada quando não** (item 68b) — linha nunca
+ * alterada fica onde estava.
+ *
+ * **Com uma coluna escolhida, ela manda**, e o pedido não tem lugar reservado. O empate é pelo nome e o
+ * último desempate é a chave, para a ordem não mudar entre duas renderizações do mesmo conjunto.
  */
 export function ordenarLinhas(
   linhas: readonly LinhaDeParticipante[],
-  ordem: Coluna,
+  ordem: Coluna | null,
   sentido: Sentido,
 ): readonly LinhaDeParticipante[] {
+  if (ordem === null) return [...linhas].sort(ordemInicial);
   const fator = sentido === "crescente" ? 1 : -1;
   return [...linhas].sort((a, b) => {
-    if (a.tipo !== b.tipo) return a.tipo === "pedido" ? -1 : 1;
-    if (ordem === "unidade" && (a.unidade === null) !== (b.unidade === null)) {
-      return a.unidade === null ? 1 : -1;
-    }
-    const primeiro = primaria(ordem, a, b) * fator;
+    const vazio = semValor(ordem, a);
+    if (vazio !== semValor(ordem, b)) return vazio ? 1 : -1;
+    // **Os dois sem valor não vão à primária**: `Date.parse("")` é `NaN`, e um comparador que devolve
+    // `NaN` deixa a ordem indefinida. Vão direto ao desempate.
+    const primeiro = vazio ? 0 : primaria(ordem, a, b) * fator;
     if (primeiro !== 0) return primeiro;
-    const peloNome = ordem === "pessoa" ? 0 : porNome(a, b);
-    if (peloNome !== 0) return peloNome;
-    return a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0;
+    return desempate(ordem === "pessoa" ? 0 : porNome(a, b), a, b);
   });
+}
+
+function ordemInicial(a: LinhaDeParticipante, b: LinhaDeParticipante): number {
+  if (a.tipo !== b.tipo) return a.tipo === "pedido" ? -1 : 1;
+  const maisRecente = Date.parse(relogioInicial(b)) - Date.parse(relogioInicial(a));
+  if (maisRecente !== 0) return maisRecente;
+  return desempate(porNome(a, b), a, b);
+}
+
+/** A última alteração quando ela existe, e a entrada quando não. O pedido cai sempre na entrada. */
+function relogioInicial(linha: LinhaDeParticipante): string {
+  return linha.atualizadoEm ?? linha.desde;
+}
+
+function desempate(peloNome: number, a: LinhaDeParticipante, b: LinhaDeParticipante): number {
+  if (peloNome !== 0) return peloNome;
+  return a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0;
 }
 
 export type Pagina<T> = {
@@ -290,8 +349,7 @@ export function lerEndereco(parametros: { get: (nome: string) => string | null }
   const pagina = Number(parametros.get("pagina"));
   return {
     filtro: umDe(FILTROS, parametros.get("filtro"), "todos"),
-    ordem: umDe(COLUNAS_QUE_ORDENAM, parametros.get("ordem"), "pessoa"),
-    sentido: parametros.get("sentido") === "decrescente" ? "decrescente" : "crescente",
+    ...lerOrdenacao(parametros, COLUNAS_QUE_ORDENAM),
     pagina: Number.isInteger(pagina) && pagina >= 1 ? pagina : 1,
   };
 }
@@ -300,8 +358,7 @@ export function lerEndereco(parametros: { get: (nome: string) => string | null }
 export function escreverEndereco(endereco: Endereco): string {
   const consulta = new URLSearchParams();
   if (endereco.filtro !== "todos") consulta.set("filtro", endereco.filtro);
-  if (endereco.ordem !== "pessoa") consulta.set("ordem", endereco.ordem);
-  if (endereco.sentido === "decrescente") consulta.set("sentido", "decrescente");
+  escreverOrdenacao(consulta, endereco);
   if (endereco.pagina > 1) consulta.set("pagina", String(endereco.pagina));
   return consulta.toString();
 }
@@ -311,11 +368,9 @@ export function comFiltro(endereco: Endereco, filtro: Filtro): Endereco {
   return { ...endereco, filtro, pagina: 1 };
 }
 
-/** Na coluna ativa, inverte o sentido; em outra, ordena por ela, crescente. */
+/** O ciclo de três estados (item 68a), e a página volta à primeira. */
 export function comOrdem(endereco: Endereco, coluna: Coluna): Endereco {
-  return coluna === endereco.ordem
-    ? { ...endereco, sentido: endereco.sentido === "crescente" ? "decrescente" : "crescente", pagina: 1 }
-    : { ...endereco, ordem: coluna, sentido: "crescente", pagina: 1 };
+  return { ...endereco, ...proximaOrdenacao(endereco, coluna), pagina: 1 };
 }
 
 export function naPagina(endereco: Endereco, pagina: number): Endereco {
@@ -323,8 +378,7 @@ export function naPagina(endereco: Endereco, pagina: number): Endereco {
 }
 
 export function ariaSort(endereco: Endereco, coluna: Coluna): "ascending" | "descending" | "none" {
-  if (endereco.ordem !== coluna) return "none";
-  return endereco.sentido === "crescente" ? "ascending" : "descending";
+  return ariaSortDa(endereco, coluna);
 }
 
 export type EstadoDaTabela = "lista" | "vazio-do-filtro" | "busca-vazia" | "alem-do-fim";

@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 import {
+  COLUNAS_DE_ORDENACAO,
   LIMITE_MAXIMO,
   PAGINA_MAXIMA,
+  type ColunaDeOrdenacao,
   type CursorDeConversa,
   type FiltroDeOcorrencias,
+  type OrdenacaoDeOcorrencias,
   type VarianteDoAnexo,
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
@@ -302,8 +305,12 @@ function lerLista<V extends string>(
   return pedidos;
 }
 
+/** O teto do título, o mesmo do registro (`schemas/ocorrencia.ts`). Buscar por mais do que cabe num
+ *  título é pedido que nunca casa, e recusá-lo é a disciplina do arquivo. */
+const TETO_DO_TITULO = 120;
+
 /**
- * Os quatro parâmetros de `GET /ocorrencias` — o **item 15**.
+ * Os sete parâmetros de recorte de `GET /ocorrencias` — o **item 15**, mais os três do **67**.
  *
  * **Assina sobre `URLSearchParams`, e não sobre `Request`, porque tem dois chamadores de formas
  * diferentes:** o `route.ts` tem a requisição, e a página tem os `searchParams` do App Router. Uma função
@@ -334,10 +341,36 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     'Use "baixa", "normal" ou "alta", separados por vírgula.',
   );
 
+  const areaId = lerLista(
+    parametros,
+    "areaId",
+    ehIdentificador,
+    "Use identificadores de área separados por vírgula.",
+  );
+  const responsavelPessoaId = lerLista(
+    parametros,
+    "responsavelPessoaId",
+    ehIdentificador,
+    "Use identificadores de pessoa separados por vírgula.",
+  );
+
   const autor = lerUnico(parametros, "autor");
   if (autor !== undefined && autor !== "eu") {
     throw new FormatoInvalido([
       { campo: "autor", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "eu".' },
+    ]);
+  }
+
+  // **Aparado aqui, e não no repositório**: só espaço é o mesmo que não filtrar, e um `?titulo=%20`
+  // virando recorte deixaria a lista vazia sem que ninguém tivesse pedido nada.
+  const titulo = lerUnico(parametros, "titulo")?.trim();
+  if (titulo !== undefined && titulo.length > TETO_DO_TITULO) {
+    throw new FormatoInvalido([
+      {
+        campo: "titulo",
+        codigo: "VALOR_INVALIDO",
+        mensagem: `Use até ${String(TETO_DO_TITULO)} caracteres.`,
+      },
     ]);
   }
 
@@ -348,11 +381,59 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ...(categoriaId === undefined ? {} : { categoriaId }),
     ...(prioridade === undefined ? {} : { prioridade }),
     ...(autor === undefined ? {} : { apenasDoAutor: true }),
+    ...(titulo === undefined || titulo === "" ? {} : { titulo }),
+    ...(areaId === undefined ? {} : { areaId }),
+    ...(responsavelPessoaId === undefined ? {} : { responsavelPessoaId }),
   };
 }
 
 /**
- * Se **algum** dos quatro está aplicado.
+ * Lê `?ordem=` e `?sentido=` de `GET /ocorrencias` — o critério **67.5**.
+ *
+ * **`undefined` é o padrão**, que é `atualizacao` decrescente. E `?ordem=atualizacao&sentido=decrescente`
+ * também volta como `undefined`: senão o mesmo resultado teria dois endereços, e a tela precisaria decidir
+ * qual deles é "o padrão" ao desenhar a seta.
+ *
+ * **Valor desconhecido é `400`, e isto diverge da ordenação da tabela de participantes de propósito.** Lá
+ * a leitura é só do navegador e cair no padrão é inofensivo; aqui a mesma função serve a URL da tela e a
+ * do endpoint, e a disciplina deste arquivo é recusar em voz alta — responder outra ordem em silêncio é o
+ * cliente pedir uma coisa e receber outra.
+ *
+ * **`sentido` sem `ordem` é ignorado**, não recusado: sozinho ele não descreve ordem nenhuma, e o padrão
+ * já é decrescente.
+ */
+export function lerOrdenacaoDeOcorrenciasDaUrl(
+  parametros: URLSearchParams,
+): OrdenacaoDeOcorrencias | undefined {
+  const ordem = lerUnico(parametros, "ordem");
+  if (ordem === undefined) return undefined;
+
+  if (!(COLUNAS_DE_ORDENACAO as readonly string[]).includes(ordem)) {
+    throw new FormatoInvalido([
+      {
+        campo: "ordem",
+        codigo: "VALOR_INVALIDO",
+        mensagem: `Use ${COLUNAS_DE_ORDENACAO.map((coluna) => `"${coluna}"`).join(", ")}.`,
+      },
+    ]);
+  }
+
+  const bruto = lerUnico(parametros, "sentido");
+  if (bruto !== undefined && bruto !== "decrescente") {
+    throw new FormatoInvalido([
+      { campo: "sentido", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "decrescente".' },
+    ]);
+  }
+
+  const sentido = bruto === "decrescente" ? "decrescente" : "crescente";
+  if (ordem === "atualizacao" && sentido === "decrescente") return undefined;
+
+  return { ordem: ordem as ColunaDeOrdenacao, sentido };
+}
+
+/**
+ * Se **algum** dos sete está aplicado. **`ordem` não conta**: ela não recorta, e *"Limpar filtros"* a
+ * mantém.
  *
  * É o segundo argumento do `vazioDaLista` que o item 14 declarou — e é o que faz o terceiro vazio ganhar
  * da visibilidade: quem chega por URL filtrada e recebe zero lê *"Nenhuma ocorrência com estes filtros."*,
@@ -363,7 +444,10 @@ export function algumFiltroAplicado(filtro: FiltroDeOcorrencias): boolean {
     filtro.status !== undefined ||
     filtro.categoriaId !== undefined ||
     filtro.prioridade !== undefined ||
-    filtro.apenasDoAutor === true
+    filtro.apenasDoAutor === true ||
+    filtro.titulo !== undefined ||
+    filtro.areaId !== undefined ||
+    filtro.responsavelPessoaId !== undefined
   );
 }
 
@@ -409,22 +493,28 @@ export function consultaDe(
  * 3. **janela invertida** — `de > ate`. Uma janela que termina antes de começar não é uma janela, e
  *    devolver zeros diria *"não há dado"* onde o certo é *"a consulta não correu"* — a confusão que o item
  *    14 já nomeou (classe do achado R-15).
+ *
+ * A tela troca antes de chegar aqui (`trocarJanelaInvertida`, item 69); a recusa é o que a API responde.
  */
 const DIA_ISO = /^\d{4}-\d{2}-\d{2}$/u;
+
+/** A data existe e está em `AAAA-MM-DD`? A ida e volta separa `2026-02-30` de uma data. */
+function ehDia(bruto: string): boolean {
+  // **A ida e volta é o que separa `2026-02-30` de uma data**: o `Date` a aceita e devolve `2026-03-02`,
+  // e comparar o resultado com o que se escreveu é o que revela a troca.
+  const instante = new Date(`${bruto}T00:00:00Z`);
+  return (
+    DIA_ISO.test(bruto) &&
+    !Number.isNaN(instante.getTime()) &&
+    instante.toISOString().slice(0, 10) === bruto
+  );
+}
 
 function lerDia(parametros: URLSearchParams, nome: "de" | "ate"): string | undefined {
   const bruto = lerUnico(parametros, nome);
   if (bruto === undefined) return undefined;
 
-  // **A ida e volta é o que separa `2026-02-30` de uma data**: o `Date` a aceita e devolve `2026-03-02`,
-  // e comparar o resultado com o que se escreveu é o que revela a troca.
-  const instante = new Date(`${bruto}T00:00:00Z`);
-  const valido =
-    DIA_ISO.test(bruto) &&
-    !Number.isNaN(instante.getTime()) &&
-    instante.toISOString().slice(0, 10) === bruto;
-
-  if (!valido) {
+  if (!ehDia(bruto)) {
     throw new FormatoInvalido([
       { campo: nome, codigo: "VALOR_INVALIDO", mensagem: "Use uma data no formato AAAA-MM-DD." },
     ]);
@@ -454,4 +544,37 @@ export function lerJanelaDoDashboardDaUrl(parametros: URLSearchParams): {
 
   // Campo ausente é "decida por mim" — por isso o espalhamento condicional, e não `de: undefined`.
   return { ...(de === undefined ? {} : { de }), ...(ate === undefined ? {} : { ate }) };
+}
+
+/**
+ * **A troca da janela invertida é gesto da tela, e não do contrato** (item 69, `respostas.md` P1).
+ *
+ * Quem escolhe datas no calendário do sistema e erra a ordem quer o painel, não a página de erro — e na
+ * tela a troca não é silenciosa, porque T-07 escreve o aviso. Para um cliente HTTP, `de > ate` continua
+ * sendo defeito dele, e `lerJanelaDoDashboardDaUrl` continua o recusando: por isso a troca é uma função
+ * à parte, chamada só pela página, **antes** da leitura.
+ *
+ * **Só troca o que a leitura aceitaria na outra ordem**: um `de` e um `ate`, os dois datas que existem.
+ * Parâmetro repetido e data mal formada passam intactos e caem na recusa de sempre.
+ */
+export function trocarJanelaInvertida(parametros: URLSearchParams): {
+  consulta: URLSearchParams;
+  trocada: boolean;
+} {
+  const de = parametros.getAll("de");
+  const ate = parametros.getAll("ate");
+  const [umDe] = de;
+  const [umAte] = ate;
+
+  if (de.length !== 1 || ate.length !== 1 || umDe === undefined || umAte === undefined) {
+    return { consulta: parametros, trocada: false };
+  }
+  if (!ehDia(umDe) || !ehDia(umAte) || umDe <= umAte) {
+    return { consulta: parametros, trocada: false };
+  }
+
+  const consulta = new URLSearchParams(parametros);
+  consulta.set("de", umAte);
+  consulta.set("ate", umDe);
+  return { consulta, trocada: true };
 }

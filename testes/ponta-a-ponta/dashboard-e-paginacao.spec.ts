@@ -62,8 +62,8 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * | O **43.1** — o resumo impresso no terminal pelo `npm run semear:demo` | É saída de programa, não de tela. Nenhum navegador a alcança |
  * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
- * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts` |
- * | O período escolhido à mão (`De`, `Até`, `Aplicar`) e a faixa de período inválido | São o formulário de T-07, e a janela padrão é a que a semente foi construída para encher. Um período digitado seria outra jornada |
+ * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts`. A exceção é o quadro 4, medido também a 390 px pelo item 61, porque é onde a barra do mês de maior mediana sumia |
+ * | O período escolhido à mão no calendário e a faixa de período inválido | São a escolha de recorte de T-07, e a janela padrão é a que a semente foi construída para encher. Um período escolhido seria outra jornada |
  * | O quarto estado da lista — *página além do fim* | Ele já tem teste de unidade em `estadoDaLista`, e alcançá-lo aqui pediria uma página que não existe, que é URL editada à mão e não gesto de tela |
  */
 
@@ -117,10 +117,64 @@ async function linhasDoMedidor(secao: Locator): Promise<{ rotulo: string; texto:
   return linhas;
 }
 
-/** Os endereços de T-05 que a tabela de triagem está mostrando, na ordem em que estão. */
+/**
+ * As medidas em pixels das linhas COM barra de um `Medidor` — o trilho, a barra, e a porcentagem que a
+ * barra declara. A linha do mês sem resolução não tem barra, e sai com `barra: null`.
+ *
+ * **Lido pelo DOM, e não por papel**, porque a barra é `aria-hidden` (A-5): o que se mede é desenho. O
+ * trilho é o segundo filho do `<li>`, e a barra é o filho único dele.
+ */
+async function medidasDasBarras(
+  secao: Locator,
+): Promise<{ trilho: number; barra: number | null; porcento: number | null }[]> {
+  return secao.getByRole("listitem").evaluateAll((itens) =>
+    itens.map((item) => {
+      const trilho = item.children[1] as HTMLElement;
+      const barra = trilho.firstElementChild as HTMLElement | null;
+      return {
+        trilho: trilho.getBoundingClientRect().width,
+        barra: barra === null ? null : barra.getBoundingClientRect().width,
+        porcento: barra === null ? null : Number.parseFloat(barra.style.width),
+      };
+    }),
+  );
+}
+
+/**
+ * **Barras de trilhos diferentes não se comparam** — item 61. Todo trilho com barra da mesma lista tem a
+ * mesma largura, e cada barra mede a própria porcentagem aplicada a ele; juntas, as duas dizem que
+ * ordenar as linhas pela barra é ordená-las pela quantidade. A tolerância de 1 px é o arredondamento
+ * de subpixel do motor.
+ */
+function barrasComparaveis(
+  medidas: readonly { trilho: number; barra: number | null; porcento: number | null }[],
+  onde: string,
+): void {
+  const comBarra = medidas.filter((medida) => medida.barra !== null);
+  expect(comBarra.length, onde).toBeGreaterThan(0);
+  const primeiro = comBarra[0]?.trilho ?? 0;
+  expect(primeiro, `${onde}: trilho maior que zero`).toBeGreaterThan(0);
+  for (const medida of comBarra) {
+    expect(Math.abs(medida.trilho - primeiro), `${onde}: trilhos iguais`).toBeLessThanOrEqual(1);
+    const esperada = ((medida.porcento ?? 0) / 100) * medida.trilho;
+    expect(Math.abs((medida.barra ?? 0) - esperada), `${onde}: barra proporcional`).toBeLessThanOrEqual(1);
+  }
+}
+
+/**
+ * O seletor do link do **título** numa linha da tabela.
+ *
+ * **Uma linha tem mais de uma âncora desde o item 67**, e as três levam para lugares diferentes: o
+ * título, que é o alvo de teclado e carrega a camada que cobre a linha; o gatilho do cartão de Tempo,
+ * fora da ordem de tabulação (`tabindex="-1"`); e *"Conte como foi"*, que leva à mesma ocorrência com
+ * `?acao=avaliar`. Ler todas devolveria a mesma linha três vezes, e o `toHaveLength` da página cairia.
+ */
+const LINK_DO_TITULO = 'tbody a[href^="/ocorrencias/"]:not([tabindex="-1"]):not([href*="?"])';
+
+/** Os endereços de T-05 que a tabela de triagem está mostrando, na ordem em que estão — **um por linha**. */
 async function enderecosNaTabela(pagina: Page): Promise<string[]> {
   return pagina
-    .locator('tbody a[href^="/ocorrencias/"]')
+    .locator(LINK_DO_TITULO)
     .evaluateAll((ancoras) => ancoras.map((ancora) => ancora.getAttribute("href") ?? ""));
 }
 
@@ -128,6 +182,19 @@ async function enderecosNaTabela(pagina: Page): Promise<string[]> {
 function mesesNaJanela(de: string, ate: string): number {
   const anos = Number(ate.slice(0, 4)) - Number(de.slice(0, 4));
   return anos * 12 + (Number(ate.slice(5, 7)) - Number(de.slice(5, 7))) + 1;
+}
+
+/**
+ * As duas pontas do recorte, em dia do contrato, lidas do rótulo do seletor de período (item 71).
+ *
+ * **O rótulo passou a ser a única fonte do recorte aplicado** depois que os dois campos de data saíram da
+ * tela: ele é `dd/mm/aaaa – dd/mm/aaaa`, e `mesesNaJanela` conta sobre `YYYY-MM-DD`.
+ */
+function pontasDoRotulo(rotulo: string): { de: string; ate: string } {
+  const [de = "", ate = ""] = rotulo
+    .split("–")
+    .map((parte) => parte.trim().split("/").reverse().join("-"));
+  return { de, ate };
 }
 
 /**
@@ -191,14 +258,37 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await helena.waitForURL(/\/dashboard$/u);
   await expect(helena.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
-  // O formulário de período, com a janela padrão dos 90 dias já preenchida (critério 32.1).
-  const de = await helena.getByLabel("De", { exact: true }).inputValue();
-  const ate = await helena.getByLabel("Até", { exact: true }).inputValue();
+  // O seletor de período, com a janela padrão dos 90 dias já aplicada (critérios 32.1 e 71.1). O nome
+  // acessível carrega o intervalo, e o rótulo visível é o mesmo texto (critério 71.4).
+  const seletorDePeriodo = helena.getByRole("button", { name: /^Período: /u });
+  await expect(seletorDePeriodo).toBeVisible();
+  await expect(seletorDePeriodo).toHaveText(/^\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}$/u);
+  // As duas pontas voltam a ser dia do contrato para o resto do passo, que conta os meses da janela.
+  const { de, ate } = pontasDoRotulo(await seletorDePeriodo.innerText());
   expect(de).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   expect(ate).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   expect(de < ate).toBe(true);
-  await expect(helena.getByRole("button", { name: "Aplicar" })).toBeVisible();
-  await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toBeVisible();
+
+  await seletorDePeriodo.click();
+  // O painel do `popover` do Radix é `role="dialog"`, e escopar por ele separa os atalhos de qualquer
+  // outro botão da página.
+  const painelDoPeriodo = helena.getByRole("dialog");
+  for (const atalho of ["últimos 7 dias", "últimos 30 dias", "últimos 90 dias", "este mês"]) {
+    await expect(painelDoPeriodo.getByRole("button", { name: atalho, exact: true })).toBeVisible();
+  }
+  await expect(painelDoPeriodo.getByRole("button", { name: "Aplicar", exact: true })).toBeVisible();
+  // No recorte padrão o atalho dos 90 dias não tem o que fazer, e por isso está desabilitado e fora da
+  // ordem de tabulação (critério 71.2). É o herdeiro direto da asserção que provava que ele não era link.
+  await expect(
+    painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }),
+  ).toBeDisabled();
+
+  // Fechar sem aplicar não escreve no endereço: o recorte continua o padrão, sem `de` e sem `ate`.
+  await helena.keyboard.press("Escape");
+  await expect(painelDoPeriodo).toBeHidden();
+  const semRecorte = new URL(helena.url()).searchParams;
+  expect(semRecorte.has("de")).toBe(false);
+  expect(semRecorte.has("ate")).toBe(false);
 
   // -------------------------------------------------------------------------
   // 2.1 · Quadro 1 · Recorrência no período — as quatro seções (critérios 35, 57 e 60)
@@ -373,7 +463,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // - três ou menos:  `6 min, 12 min, 3,0 dias · 3 resolvidas`
   //
   // **A unidade cabe à magnitude** — item 55, critérios 55.1 e 55.2.
-  const DURACAO = String.raw`(?:\d+ min|\d+ h|\d+,\d dias)`;
+  const DURACAO = String.raw`(?:menos de 1 min|\d+ min|\d+ h|\d+,\d dias)`;
   const LINHA_COM_RESOLUCAO = new RegExp(
     String.raw`^(?:mediana ${DURACAO} · p90 ${DURACAO}|${DURACAO}(?:, ${DURACAO}){0,2}) · \d+ resolvidas?$`,
     "u",
@@ -388,16 +478,39 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     // linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`. Ela vale para **cada**
     // duração da linha, e não só para a primeira: desde o item 58 o mês pequeno escreve até três.
     //
-    // **O zero ficou improvável por construção no item 58**: a API passou a mandar duas casas decimais, e
-    // o quantum de 36 segundos está abaixo do menor texto que a tela sabe escrever. Se um mês render
-    // `0 min` mesmo assim, **quem move é esta linha, e não a tela.**
+    // **Desde o item 62 o zero é impossível por construção**: a Aplicação publica quatro casas com piso de
+    // `0.0001` para valor positivo, e a tela escreve `menos de 1 min` para tudo abaixo do minuto cheio, que
+    // é o degrau que a gramática acima aceita. Se um mês render `0 min` mesmo assim, o defeito voltou.
     expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/\b0 (?:min|h)\b/u);
   }
-  cobre(test.info(), "7.2 · 4", {
-    criterio: "58.3, 58.4",
-    falta:
-      "amarrar a frase nenhuma resolução no mês à linha do mês vazio, e com ela a ausência da barra",
+  // O item 61 — **as barras dos meses se comparam**, nas duas larguras. Em 23/09/2026 julho, de mediana
+  // maior, desenhava 51 px e agosto 140 px a 1280 px, e a 390 px o trilho de julho media zero: cada linha
+  // era uma grade própria, e o texto longo do mês pequeno comia o trilho. **Nenhum mês é nomeado aqui**:
+  // o caso julho × agosto está no teste de interface, com os números escritos, e este afirma a regra que
+  // torna o caso impossível, qualquer que seja o mês que a janela mostre.
+  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 1280 px");
+
+  // O mês sem resolução não desenha barra — critério 61.3, e a falta que o passo 4 do roteiro declarava.
+  const medidasDoQuadro4 = await medidasDasBarras(tempoDeResolucao);
+  linhasDeMes.forEach((linha, indice) => {
+    if (linha.texto.startsWith("—")) {
+      expect(medidasDoQuadro4[indice]?.barra, `mês "${linha.rotulo}"`).toBeNull();
+    }
   });
+
+  // O mesmo defeito, em escala pequena, no quadro 2 — achado A-61-4. **Vem DEPOIS do quadro 4 de
+  // propósito**: contra o código velho, `3` e `12` já dariam trilhos diferentes, e a falha do passo 3
+  // tem de ser a do quadro 4, que é o caso do item.
+  barrasComparaveis(await medidasDasBarras(ocorrenciasPorStatus), "quadro 2 em 1280 px");
+
+  const tamanhoOriginal = helena.viewportSize() ?? { width: 1280, height: 720 };
+  await helena.setViewportSize({ width: 390, height: 844 });
+  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 390 px");
+  await helena.setViewportSize(tamanhoOriginal);
+
+  await expect(tempoDeResolucao).toContainText("A barra é a mediana.");
+
+  cobre(test.info(), "7.2 · 4", { criterio: "58.3, 58.4, 61.1, 61.2, 61.3" });
 
   // -------------------------------------------------------------------------
   // 2.5 · Quadro 5 · Média das avaliações — um número de 1 a 5 (critério 34)
@@ -562,7 +675,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const primeiraDaPagina2 = daPagina2[0] ?? "";
   expect(primeiraDaPagina2).not.toBe("");
 
-  await helena.locator(`tbody a[href="${primeiraDaPagina2}"]`).click();
+  await helena.locator(`${LINK_DO_TITULO}[href="${primeiraDaPagina2}"]`).click();
   await helena.waitForURL(new RegExp(`${primeiraDaPagina2}$`, "u"));
   await expect(helena.getByRole("button", { name: "Voltar" })).toHaveCount(0);
 
@@ -578,5 +691,62 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
 
   await terceiraAba.close();
   await outraAba.close();
+  await contexto.close();
+});
+
+/**
+ * **As portas públicas — item 70, critérios 1 e 5.**
+ *
+ * Sem sessão, `/entrar` tem os dois links do pé, e os dois abrem em nova aba páginas que respondem sem
+ * sessão. Com sessão, a barra lateral leva à mesma página do grupo, que é igual para os dois.
+ *
+ * **Só lê.** Não escreve na semente, então não disputa o mundo com o teste acima.
+ */
+test("as portas públicas: a página do grupo e a documentação, com e sem sessão", async ({ browser }) => {
+  const NOMES = ["Dario Lacerda", "Larissa Kramer", "Mirian Storino", "Natanael Dias", "Tiago Victor"];
+
+  // 1 · Sem sessão: o pé de T-01
+  const anonimo = await browser.newContext();
+  const porta = await anonimo.newPage();
+  await porta.goto("/entrar");
+
+  const linkDoGrupo = porta.getByRole("link", { name: /^Feito pelo Grupo 1/u });
+  const linkDaDocumentacao = porta.getByRole("link", { name: /^Documentação/u });
+  await expect(linkDoGrupo).toHaveAttribute("target", "_blank");
+  await expect(linkDaDocumentacao).toHaveAttribute("target", "_blank");
+
+  const [grupoSemSessao] = await Promise.all([anonimo.waitForEvent("page"), linkDoGrupo.click()]);
+  await grupoSemSessao.waitForURL(/\/grupo$/u);
+  await expect(grupoSemSessao.getByRole("heading", { name: "Grupo 1", level: 1 })).toBeVisible();
+  for (const nome of NOMES) {
+    await expect(grupoSemSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
+  }
+  // Link sem endereço não existe: só dois LinkedIn e dois GitHub na página inteira.
+  await expect(grupoSemSessao.getByRole("link", { name: /^LinkedIn de /u })).toHaveCount(2);
+  await expect(grupoSemSessao.getByRole("link", { name: /^GitHub de /u })).toHaveCount(2);
+
+  const [documentacaoSemSessao] = await Promise.all([anonimo.waitForEvent("page"), linkDaDocumentacao.click()]);
+  await documentacaoSemSessao.waitForURL(/\/documentacao/u);
+  await expect(documentacaoSemSessao).not.toHaveURL(/\/entrar/u);
+  await anonimo.close();
+
+  // 2 · Com sessão: a barra lateral leva à mesma página
+  const contexto = await browser.newContext();
+  const helena = await contexto.newPage();
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Grupo 1/u });
+  await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
+  const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
+  await grupoComSessao.waitForURL(/\/grupo$/u);
+  for (const nome of NOMES) {
+    await expect(grupoComSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
+  }
+  await expect(
+    helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Documentação/u }),
+  ).toHaveAttribute("target", "_blank");
   await contexto.close();
 });

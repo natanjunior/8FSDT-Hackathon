@@ -3,6 +3,14 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
+import {
+  atributoDoTema,
+  cookieDoTema,
+  SCRIPT_DO_TEMA,
+  temaDoAtributo,
+  temaDoCookie,
+} from "@/interface/componentes/tema";
 import { cn } from "@/interface/componentes/utilitarios";
 
 /**
@@ -455,6 +463,69 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
 });
 
 /**
+ * **O avatar da página do grupo, medido — item 70, critério 2 e resposta P2 da spec.**
+ *
+ * A inicial é texto, e texto pede 4,5:1 contra o que está atrás dele. Na forma `clara` o que está atrás é
+ * a cor a 12% **composta sobre `--surface`**, que é o fundo do cartão: o `bg-ok/12` do Tailwind vira
+ * `color-mix(in oklab, … 12%, transparent)`, e o navegador compõe a transparência em sRGB com gama. Na
+ * forma `cheia` é a cor inteira, com `--marca-foreground` por cima.
+ *
+ * **A forma é declarada por tema no dado**, e este teste é quem a decide: o `--ok` reprova na clara no
+ * escuro e na cheia no claro, e só passa com uma forma em cada tema.
+ */
+describe("app/globals.css — o avatar da página do grupo, medido (item 70)", () => {
+  const claro = tokensDe(corpoDoBloco(":root {"));
+  const MODOS = [
+    { nome: "claro", cabecalho: ":root {" },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+  ] as const;
+
+  const gama = (canal: number): number =>
+    canal <= 0.0031308 ? 12.92 * canal : 1.055 * canal ** (1 / 2.4) - 0.055;
+  const semGama = (canal: number): number =>
+    canal <= 0.04045 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4;
+
+  /** A luminância da cor com alfa composta sobre o fundo, como o navegador pinta. */
+  function luminanciaComposta(cor: Lab, fundo: Lab, alfa: number): number {
+    const frente = sRGBLinearDe(cor).map(gama);
+    const atras = sRGBLinearDe(fundo).map(gama);
+    const [r, g, b] = frente.map((canal, i) => semGama(canal * alfa + (atras[i] as number) * (1 - alfa))) as [
+      number,
+      number,
+      number,
+    ];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  const razao = (uma: number, outra: number): number =>
+    (Math.max(uma, outra) + 0.05) / (Math.min(uma, outra) + 0.05);
+
+  for (const { nome, cabecalho } of MODOS) {
+    describe(`modo ${nome}`, () => {
+      const bloco = tokensDe(corpoDoBloco(cabecalho));
+      const cor = (token: string): Lab => {
+        const valor = bloco.get(token) ?? claro.get(token);
+        if (valor === undefined) throw new Error(`${token} não está declarado`);
+        return oklabDe(valor);
+      };
+
+      for (const integrante of INTEGRANTES) {
+        const forma = integrante.forma[nome];
+        it(`${integrante.nome}: a inicial passa 4,5:1 na forma ${forma}`, () => {
+          const propria = cor(TOKEN_DA_COR[integrante.cor]);
+          const tinta = forma === "clara" ? propria : cor("--marca-foreground");
+          const fundo =
+            forma === "clara" ? luminanciaComposta(propria, cor("--surface"), 0.12) : luminancia(propria);
+          const medido = razao(luminancia(tinta), fundo);
+          console.info(`[70] ${nome} ${integrante.nome} ${forma} ${hexDe(propria)} ${medido.toFixed(2)}:1`);
+          expect(medido).toBeGreaterThanOrEqual(4.5);
+        });
+      }
+    });
+  }
+});
+
+/**
  * **O ponteiro dos elementos pressionáveis — item 44f, critério 2.**
  *
  * O Tailwind 4 não dá `cursor: pointer` a `<button>` e nenhum `cva` do catálogo o declara, então até
@@ -509,5 +580,72 @@ describe("app/globals.css — o ponteiro dos elementos pressionáveis", () => {
     // que a regra existe para alcançar: o item do menu de pessoa e a opção do seletor de organização.
     // A classe também não descrevia nada — `default` é o valor inicial de `cursor` nesses elementos.
     expect(componentesQueDeclaram("cursor-default")).toEqual([]);
+  });
+});
+
+/**
+ * **Item 72 — o escuro como padrão, e a escolha em cookie.**
+ *
+ * Duas cópias da mesma regra existem, e é por isso que este bloco existe: `temaDoCookie` roda no
+ * componente, e `SCRIPT_DO_TEMA` roda **antes do React**, como texto dentro do `<head>`. O script não
+ * pode importar a função, então a garantia de que as duas dizem a mesma coisa é esta tabela, aplicada às
+ * duas.
+ */
+describe("o tema do produto — item 72", () => {
+  const CASOS: ReadonlyArray<[string, "claro" | "escuro"]> = [
+    ["", "escuro"],
+    ["tema=claro", "claro"],
+    ["tema=escuro", "escuro"],
+    ["organizacao=abc; tema=claro", "claro"],
+    ["tema=claro; organizacao=abc", "claro"],
+    ["xtema=claro", "escuro"],
+    ["outro_tema=claro", "escuro"],
+    ["tema=CLARO", "escuro"],
+    ["tema=claroX", "escuro"],
+    ["tema=", "escuro"],
+  ];
+
+  /** Roda o script contra um documento de mentira e devolve o `data-theme` que ficou. */
+  function rodarOScript(cookie: string | (() => never)): string {
+    let atributo = "dark";
+    const documento = {
+      get cookie() {
+        return typeof cookie === "function" ? cookie() : cookie;
+      },
+      documentElement: {
+        setAttribute(nome: string, valor: string) {
+          if (nome === "data-theme") atributo = valor;
+        },
+      },
+    };
+    new Function("document", SCRIPT_DO_TEMA)(documento);
+    return atributo;
+  }
+
+  it.each(CASOS)("o cookie «%s» dá %s, na função e no script", (cookie, esperado) => {
+    expect(temaDoCookie(cookie)).toBe(esperado);
+    expect(rodarOScript(cookie)).toBe(atributoDoTema(esperado));
+  });
+
+  it("o script não quebra quando o cookie é inacessível, e deixa escuro", () => {
+    expect(
+      rodarOScript(() => {
+        throw new Error("SecurityError");
+      }),
+    ).toBe("dark");
+  });
+
+  it("o atributo volta a tema, e só `light` é claro", () => {
+    expect(temaDoAtributo("light")).toBe("claro");
+    expect(temaDoAtributo("dark")).toBe("escuro");
+    expect(temaDoAtributo(null)).toBe("escuro");
+  });
+
+  it("o cookie gravado dura um ano, vale no site todo e não leva `Secure`", () => {
+    const gravado = cookieDoTema("claro");
+    expect(gravado).toBe("tema=claro; path=/; max-age=31536000; samesite=lax");
+    // Sem `Secure`: o Chromium o descarta sobre `http://` em host que não é loopback (achado A-10).
+    expect(gravado.toLowerCase()).not.toContain("secure");
+    expect(temaDoCookie(cookieDoTema("escuro").split(";")[0] ?? "")).toBe("escuro");
   });
 });

@@ -10,12 +10,18 @@ import { Badge } from "@/interface/componentes/ui/badge";
  *
  * *Cancelada* usa `--ink-soft`, e não o `--ink-faint` da prancheta: o fraco mede 2,57:1 sobre
  * `--sunken` no escuro, abaixo dos 4,5:1 de texto (desvio D1 do plano do 44q).
+ *
+ * **Desde o item 64 todo selo é cheio.** Com a prioridade em selo de contorno ao lado, o status precisava
+ * ganhar peso para continuar sendo o primeiro a ser lido, e o dono escolheu preenchimento: o status é a
+ * peça cheia da linha, e nenhuma outra é. *Em análise* e *Em atendimento* saíram do contorno para o
+ * sólido, com tinta `--surface`, porque `--marca-foreground` sobre `--info` e `--ink-soft` mede 3:1 no
+ * tema claro. A distinção entre os seis segue pela cor e, sempre, pela palavra.
  */
 const FORMA_DO_SELO: Readonly<Record<string, string>> = {
   aberta: "bg-marca text-marca-foreground border-transparent",
   pausada: "bg-atencao text-marca-foreground border-transparent",
-  em_analise: "border-tinta-suave text-tinta-suave bg-transparent",
-  em_atendimento: "border-info text-info bg-transparent",
+  em_analise: "bg-tinta-suave text-superficie border-transparent",
+  em_atendimento: "bg-info text-superficie border-transparent",
   resolvida: "bg-muted text-ok border-transparent",
   cancelada: "bg-muted text-tinta-suave border-transparent",
 };
@@ -31,7 +37,8 @@ const FORMA_DO_SELO: Readonly<Record<string, string>> = {
  *
  * **As três formas do marcador são as três formas do selo** (guia §2) — sólido, contorno, apagado —, e não
  * uma quarta escala inventada. O marcador e o selo do mesmo registro dizem a mesma coisa com a mesma
- * tinta, lidos juntos.
+ * tinta, lidos juntos. Desde o item 64 o selo é todo cheio, e o marcador guarda as três formas: ele vive
+ * sozinho no trilho, sem prioridade ao lado.
  *
  * **`Pausada` leva borda tracejada**, que é o mesmo sinal que a `ReguaDoCiclo` dá à saída do ciclo
  * (`regua-do-ciclo.tsx:74-77`): o que está fora da linha tem contorno interrompido, nas duas telas.

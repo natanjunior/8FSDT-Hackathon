@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { verDashboard } from "@/aplicacao/dashboard";
+import { atalhosDaJanela, verDashboard, type AtalhosDaJanela } from "@/aplicacao/dashboard";
 import {
   Cartao,
   ListaEmTexto,
@@ -26,15 +26,15 @@ import {
   rotuloDaFaixaDeIdade,
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
+import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
-import { textoDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
-import { Button } from "@/interface/componentes/ui/button";
-import { Input } from "@/interface/componentes/ui/input";
+import { itemDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
 import {
   consultaDe,
   FormatoInvalido,
   lerJanelaDoDashboardDaUrl,
   resolverEscopoParaTela,
+  trocarJanelaInvertida,
 } from "@/interface/http";
 import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoes";
 
@@ -52,6 +52,10 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * repositório, e um `fetch` interno custaria o salto HTTP que a §5 recusou — cobrado, sob escala a zero,
  * do tempo de quem abre a tela. O `GET /api/dashboard` existe para o mesmo contrato ser verdade nas duas
  * estradas, e as duas passam pela **mesma** função e pela **mesma** projeção.
+ *
+ * **Uma exceção, e ela é da tela** (item 69): a janela invertida é trocada por `trocarJanelaInvertida`
+ * antes da leitura, e a tela avisa. A API recebe a mesma consulta sem a troca e responde `400`. Depois da
+ * troca, as duas estradas voltam a passar pela mesma função.
  *
  * **Nada aqui é clicável ainda**, e isso deixou de ser regra em 14/09/2026 — passou a ser só o estado de
  * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar. O link
@@ -94,9 +98,13 @@ export default async function Dashboard({
   // desenharia a faixa de período inválido para quem nem entrou, e essa é a única tela do produto que
   // responderia alguma coisa sem sessão. Custa uma ida ao banco numa URL malformada, e é o que T-08 e
   // T-09 já fazem: contexto primeiro. *(Ordem corrigida na revisão de 29/08/2026.)*
+  // **A troca vem antes da leitura, e só aqui** (item 69): na tela, quem inverteu as datas quer o painel;
+  // na API, a mesma consulta continua `400`. Data mal formada não é trocada e segue para a recusa.
+  const { consulta: consultaNaOrdem, trocada } = trocarJanelaInvertida(consulta);
+
   let janela;
   try {
-    janela = lerJanelaDoDashboardDaUrl(consulta);
+    janela = lerJanelaDoDashboardDaUrl(consultaNaOrdem);
   } catch (erro) {
     // **Não é "não há dado": é "a consulta não correu"** — a distinção que o item 14 nomeou (classe do
     // achado R-15). Devolver zeros aqui diria ao Gestor que o condomínio dele está parado.
@@ -113,7 +121,12 @@ export default async function Dashboard({
           casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
       <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
 
-      <Periodo periodo={dashboard.periodo} />
+      <Periodo
+        periodo={dashboard.periodo}
+        atalhos={atalhosDaJanela()}
+        consultaAtual={consultaNaOrdem.toString()}
+        trocada={trocada}
+      />
 
       <Recorrencia dashboard={dashboard} />
 
@@ -129,61 +142,45 @@ export default async function Dashboard({
 }
 
 /**
- * **`<form method="get">`, e é a tela inteira de interação de T-07.**
+ * **A faixa deixou de ser formulário no item 71**, e o cartão continua sendo o cartão: mesma borda, mesmo
+ * respiro, e é a casa do aviso da troca. Refazer a moldura do painel é outro item.
  *
- * Sem `"use client"`, sem `useRouter`, sem `useState`: o navegador monta `/dashboard?de=…&ate=…` sozinho,
- * que é o endereço compartilhável que o inventário pede — *"um dashboard de um trimestre é a coisa que se
- * manda para a imobiliária"*.
+ * **O que saiu, e não é regressão:** os dois campos de data nativos, os dois rótulos que os nomeavam e a
+ * classe de esquema de cor que o item 69 pôs neles. Aquela classe existia para o navegador desenhar o
+ * calendário **do sistema** no tema do campo; sem campo nativo não há calendário do sistema. Declarar o
+ * esquema de cor globalmente mudaria a barra de rolagem e todo controle nativo do produto, e por isso não
+ * se faz.
  *
- * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos e no
- * botão, que nem o `Input` nem o `Button` do catálogo trazem sozinhos.
+ * *(Nenhum comentário deste bloco escreve a classe nem o tipo de campo por extenso: a guarda que protege
+ * esta decisão casa texto-fonte e não distingue código de prosa.)*
  *
- * **O `Aplicar` não veste a marca.** A regra do guia é uma ação na cor da marca por tela, e T-07 é tela de
- * leitura: a ação de escrever não existe aqui.
+ * **O atalho dos 90 dias continua vindo antes do `Aplicar`** (critério 69.1): a coluna de atalhos do
+ * painel vem antes do rodapé.
+ *
+ * **O aviso da troca** (critério 71.3) é uma oração em *meta* no pé do cartão, e não repete as datas: o
+ * gatilho já as mostra na ordem certa, porque o rótulo sai de `periodo`.
  */
-function Periodo({ periodo }: { periodo: DashboardProjetado["periodo"] }) {
+function Periodo({
+  periodo,
+  atalhos,
+  consultaAtual,
+  trocada,
+}: {
+  periodo: DashboardProjetado["periodo"];
+  atalhos: AtalhosDaJanela;
+  consultaAtual: string;
+  trocada: boolean;
+}) {
   return (
-    <form
-      method="get"
-      className="border-linha bg-superficie flex flex-wrap items-end gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor="de" className="text-tinta-suave text-meta">
-          De
-        </label>
-        <Input
-          id="de"
-          name="de"
-          type="date"
-          defaultValue={periodo.de}
-          className="border-linha text-tinta text-interface min-h-11 w-auto"
-        />
-      </div>
+    <div className="border-linha bg-superficie flex flex-wrap items-center gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+      <SeletorDePeriodo periodo={periodo} atalhos={atalhos} consultaAtual={consultaAtual} />
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="ate" className="text-tinta-suave text-meta">
-          Até
-        </label>
-        <Input
-          id="ate"
-          name="ate"
-          type="date"
-          defaultValue={periodo.ate}
-          className="border-linha text-tinta text-interface min-h-11 w-auto"
-        />
-      </div>
-
-      <Button type="submit" variant="outline" className="border-linha text-tinta text-interface min-h-11 px-4">
-        Aplicar
-      </Button>
-
-      <Link
-        href="/dashboard"
-        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
-      >
-        últimos 90 dias
-      </Link>
-    </form>
+      {trocada ? (
+        <p role="status" className="text-tinta-suave text-meta basis-full">
+          As datas estavam invertidas e foram trocadas.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -449,24 +446,23 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
  * **A barra desenha a MEDIANA, sempre, e sobre o número em horas — nunca sobre o texto.** Ela compara os
  * meses entre si, e o que se compara é o caso típico; desenhar o p90 faria o mês de uma catástrofe única
  * encobrir o mês inteiro. E um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade.
+ * **E o texto vai embaixo da barra** (item 61): na mesma linha, o texto de três durações comia o trilho do
+ * mês pequeno, e a barra do mês de maior mediana saía a menor da lista. O rodapé diz que a barra é a
+ * mediana, que é o que o mês de duas resoluções não escreve.
  */
 function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
   const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
 
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) => {
-    const rotulo = rotulos[i] ?? mes.mes;
-    const texto = textoDoTempoDeResolucao(mes);
-
-    return mes.mediana === null
-      ? { rotulo, quantidade: 0, vazio: "nenhuma resolução no mês", texto }
-      : { rotulo, quantidade: mes.mediana, texto };
-  });
+  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) =>
+    itemDoTempoDeResolucao(mes, rotulos[i] ?? mes.mes),
+  );
 
   return (
     <Cartao numero={4} titulo="Tempo de resolução" quando="no período">
-      <Medidor itens={itens} />
+      <Medidor itens={itens} disposicao="texto-embaixo" />
       <p className="text-tinta-suave text-corpo">
-        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma.
+        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma. A
+        barra é a mediana.
       </p>
     </Cartao>
   );

@@ -349,3 +349,30 @@ describe("o critério 15.1 — o filtro atravessa a Aplicação sem ser interpre
     expect(pedidosDeListagem[0]?.deslocamento).toBe(0);
   });
 });
+
+describe("o critério 67.5 — a ordenação vai para a página, e não para a contagem", () => {
+  /**
+   * **O que este caso prende:** que `ordenacao` não virou recorte. Se ela entrasse em
+   * `FiltroDeOcorrencias`, chegaria também a `contar`, e os quatro números do painel passariam a depender
+   * da ordem pedida — que não muda quantas linhas existem.
+   */
+  it("a ordenação chega à listagem e não à contagem", async () => {
+    await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: true },
+      { ordenacao: { ordem: "titulo", sentido: "decrescente" } },
+    );
+
+    expect(pedidosDeListagem[0]?.ordenacao).toStrictEqual({
+      ordem: "titulo",
+      sentido: "decrescente",
+    });
+    expect(pedidosDeContagem[0]).not.toHaveProperty("ordenacao");
+  });
+
+  it("sem ordenação pedida, a listagem não recebe a chave — ausente é o padrão", async () => {
+    await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: true });
+
+    expect(pedidosDeListagem[0]).not.toHaveProperty("ordenacao");
+  });
+});
