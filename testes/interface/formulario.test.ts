@@ -1811,8 +1811,10 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     expect(pagina).toContain("bg-marca border-marca");
     const conversa = ler("src/interface/componentes/conversa-da-ocorrencia.tsx");
     expect(conversa).toContain("<AvatarDePessoa");
-    // O balão: fundo próprio, que separa o que uma pessoa escreveu do que o sistema registrou.
-    expect(conversa).toContain("bg-background rounded-lg");
+    // A bolha (item 66): fundo `--chrome`, exposto como `bg-secondary`; autoria fora dela; 60 caracteres.
+    expect(conversa).toContain("bg-secondary text-tinta text-corpo");
+    expect(conversa).toContain("max-w-[60ch]");
+    expect(conversa).not.toContain("bg-background rounded-lg");
   });
 
   it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
