@@ -417,7 +417,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // - três ou menos:  `6 min, 12 min, 3,0 dias · 3 resolvidas`
   //
   // **A unidade cabe à magnitude** — item 55, critérios 55.1 e 55.2.
-  const DURACAO = String.raw`(?:\d+ min|\d+ h|\d+,\d dias)`;
+  const DURACAO = String.raw`(?:menos de 1 min|\d+ min|\d+ h|\d+,\d dias)`;
   const LINHA_COM_RESOLUCAO = new RegExp(
     String.raw`^(?:mediana ${DURACAO} · p90 ${DURACAO}|${DURACAO}(?:, ${DURACAO}){0,2}) · \d+ resolvidas?$`,
     "u",
@@ -432,9 +432,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     // linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`. Ela vale para **cada**
     // duração da linha, e não só para a primeira: desde o item 58 o mês pequeno escreve até três.
     //
-    // **O zero ficou improvável por construção no item 58**: a API passou a mandar duas casas decimais, e
-    // o quantum de 36 segundos está abaixo do menor texto que a tela sabe escrever. Se um mês render
-    // `0 min` mesmo assim, **quem move é esta linha, e não a tela.**
+    // **Desde o item 62 o zero é impossível por construção**: a Aplicação publica quatro casas com piso de
+    // `0.0001` para valor positivo, e a tela escreve `menos de 1 min` para tudo abaixo do minuto cheio, que
+    // é o degrau que a gramática acima aceita. Se um mês render `0 min` mesmo assim, o defeito voltou.
     expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/\b0 (?:min|h)\b/u);
   }
   // O item 61 — **as barras dos meses se comparam**, nas duas larguras. Em 23/09/2026 julho, de mediana
