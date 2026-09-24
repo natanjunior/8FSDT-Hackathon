@@ -146,3 +146,42 @@ describe("a barra lateral — critérios 70.5 e 70.7", () => {
     expect(fonte).toContain("<ExternalLink");
   });
 });
+
+describe("o pé de /entrar — critério 70.5", () => {
+  const ENTRAR = "app/entrar/page.tsx";
+  const MOLDURA = "src/interface/componentes/moldura-de-conta.tsx";
+
+  it("a moldura aceita um pé, fora da linha das colunas", () => {
+    const fonte = ler(MOLDURA);
+    expect(fonte).toContain("rodape?: ReactNode;");
+    expect(fonte).toMatch(/const PAGINA =\s*"relative /u);
+    expect(fonte).toContain('<footer className="absolute inset-x-0 bottom-0 flex justify-center">');
+  });
+
+  it("só T-01 passa o pé", () => {
+    // As outras seis que usam a moldura (`grep -rl MolduraDeConta app`).
+    const telas = [
+      "app/criar-conta/page.tsx",
+      "app/redefinir-senha/page.tsx",
+      "app/definir-senha/page.tsx",
+      "app/page.tsx",
+      "app/organizacao/page.tsx",
+      "app/organizacao/criar/page.tsx",
+    ];
+    for (const caminho of telas) expect(ler(caminho), caminho).not.toContain("rodape=");
+    expect(ler(ENTRAR)).toContain("rodape=");
+  });
+
+  it("os dois links, na ordem, com o texto decidido, em nova aba, e o ponto mudo", () => {
+    const fonte = ler(ENTRAR);
+    const grupo = fonte.indexOf('href="/grupo"');
+    const documentacao = fonte.indexOf('href="/documentacao"');
+    expect(grupo).toBeGreaterThan(0);
+    expect(documentacao).toBeGreaterThan(grupo);
+    expect(fonte).toContain("Feito pelo Grupo 1");
+    expect(fonte).not.toMatch(/Created by/iu);
+    expect([...fonte.matchAll(/target="_blank" rel="noreferrer"/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/<span className="sr-only">, abre em nova aba<\/span>/gu)]).toHaveLength(2);
+    expect(fonte).toContain('<span aria-hidden="true">·</span>');
+  });
+});

@@ -8,9 +8,10 @@ import { cn } from "@/interface/componentes/utilitarios";
 
 const ID_DO_TITULO = "titulo-da-tela";
 
-/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. */
+/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. `relative`
+ *  ancora o pé de T-01, que fica fora da linha. */
 const PAGINA =
-  "flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
+  "relative flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
 
 /** A coluna do cartão: 420 px a partir de `lg`, a largura toda abaixo disso (critério 44m.8). */
 const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
@@ -27,6 +28,10 @@ const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
  *
  * **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela e a linha de fato; o
  * conteúdo, quando há; e os caminhos secundários fora do cartão, centrados.
+ *
+ * **O pé é de T-01 só** (item 70): os links para a página do grupo e para a documentação. Ele é absoluto,
+ * no respiro de baixo da página, porque com a apresentação a página é uma linha, e um terceiro filho seria
+ * uma terceira coluna.
  *
  * **Componente, e não grupo de rotas.** O critério 44m.8 dá a **T-01 sozinha** uma segunda coluna à
  * esquerda do cartão, e um layout de servidor recebe a página por um `children` só, sem saber qual rota
@@ -53,6 +58,7 @@ export function MolduraDeConta({
   contexto,
   apresentacao = false,
   caminhos,
+  rodape,
   children,
 }: {
   titulo: string;
@@ -60,6 +66,8 @@ export function MolduraDeConta({
   /** Só T-01: liga a segunda coluna a partir de `lg` (critério 44m.8). */
   apresentacao?: boolean;
   caminhos?: ReactNode;
+  /** Só T-01: os links do pé da página, fora da linha das colunas (item 70). */
+  rodape?: ReactNode;
   children?: ReactNode;
 }) {
   // `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
@@ -94,6 +102,10 @@ export function MolduraDeConta({
 
         {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
       </div>
+
+      {rodape !== undefined && (
+        <footer className="absolute inset-x-0 bottom-0 flex justify-center">{rodape}</footer>
+      )}
     </main>
   );
 }
