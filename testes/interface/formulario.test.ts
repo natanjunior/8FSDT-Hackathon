@@ -2097,3 +2097,22 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(deFora).toStrictEqual([]);
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 65 — as duas portas de entrada, e o código em casas
+ * ============================================================================
+ */
+const CAMPO_DE_CODIGO = "src/interface/componentes/campo-de-codigo.tsx";
+const CONVITE = "src/interface/componentes/convite-da-outra-porta.tsx";
+
+describe("o alcance do 65 — as duas portas de entrada", () => {
+  it("o input-otp entra fixado, e é o único pacote novo (ADR-0014)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/input-otp.tsx")).toBe(true);
+    const pacote = JSON.parse(ler("package.json")) as { dependencies: Record<string, string | undefined> };
+    // Fixado, sem acento circunflexo: a ADR-0011 faz da atualização uma decisão.
+    expect(pacote.dependencies["input-otp"]).toBe("1.5.0");
+    expect(pacote.dependencies["cn"]).toBeUndefined();
+    expect(Object.keys(pacote.dependencies).filter((nome) => nome.startsWith("@radix-ui/"))).toStrictEqual([]);
+  });
+});
