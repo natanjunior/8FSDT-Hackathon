@@ -96,6 +96,8 @@ const ATRIBUIDA_EM_B = "2026-08-02T11:00:00.000Z";
 const NO_FUTURO = "2099-01-01T00:00:00.000Z";
 /** A categoria da ocorrência de B — o identificador de FORA que o filtro do item 15 aceita do cliente. */
 let idDaCategoriaDeB: string;
+/** A área da ocorrência de B — o que a décima segunda entrada pede **dentro de A**. */
+let idDaAreaDeB: string;
 
 /**
  * As portas de uma organizacao, montadas como a producao as monta.
@@ -258,7 +260,10 @@ beforeAll(async () => {
     // O identificador de categoria que a oitava entrada de isolamento pede **dentro de A**. Lido aqui
     // porque é a categoria que a ocorrência de B de fato aponta — o `insert` de `semear()` cria uma por
     // organização, e qual delas é a de B só se sabe lendo.
-    if (organizacaoId === idAurora) idDaCategoriaDeB = categoria!.id;
+    if (organizacaoId === idAurora) {
+      idDaCategoriaDeB = categoria!.id;
+      idDaAreaDeB = area!.id;
+    }
   }
 
   /**
@@ -1038,6 +1043,73 @@ describe("as consultas de configuração não atravessam organizações", () => 
       },
       get emB() {
         return [`${idSindica}:historico`];
+      },
+    },
+  });
+
+  /**
+   * **A décima segunda entrada — o recorte de área do item 67.** Ela é a irmã da oitava: aquela pede a
+   * **categoria** de B dentro de A, esta pede a **área**.
+   *
+   * O que ela mira é a condição nova de `condicoesDoRecorte` e o `join` de área do `SELECT_DO_RESUMO`. Se
+   * o `and a.organizacao_id = o.organizacao_id` do `join` caísse, ou se a condição do filtro fosse
+   * montada fora do repositório escopado, é este caso que acende — e nenhum dos anteriores acenderia,
+   * porque nenhum deles filtra por área.
+   *
+   * **`emA` vazio É a prova**: pedir a área de B dentro de A não traz nada, nem de A nem de B.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias?areaId= (identificador da outra organização)",
+    // O identificador é SEMPRE o da área de B — inclusive quando quem pergunta é A.
+    consultar: (organizacaoId) =>
+      portasDe(organizacaoId).ocorrencias.listar({
+        limite: 50,
+        deslocamento: 0,
+        ate: NO_FUTURO,
+        filtro: { areaId: [idDaAreaDeB] },
+      }),
+    chaveDaLinha: (ocorrencia) => ocorrencia.id,
+    // **Em getter, pela razão que as entradas vizinhas já explicam**: o corpo do `describe` roda na
+    // coleta, antes de qualquer `beforeAll`, e um `uuid` lido ali ainda é `undefined`.
+    esperadas: {
+      get emA() {
+        return [];
+      },
+      get emB() {
+        return [idDaOcorrenciaEmB];
+      },
+    },
+  });
+
+  /**
+   * **A décima terceira entrada — o recorte de responsável, e ela é o cenário do critério A4.**
+   *
+   * As duas anteriores pedem um identificador que só existe **de um lado**, e por isso `emA` é vazio.
+   * Esta pede `idSindica`, que é responsável vigente nas **duas** organizações: o conjunto esperado é
+   * diferente em cada lado, e **nenhum dos dois é vazio**. É a armadilha do A4 — uma semente com pessoas
+   * distintas por organização não detectaria o vazamento, porque nenhum identificador seria comum.
+   *
+   * **O que ela prova de fato.** Se o `exists` das atribuições perdesse o
+   * `atf.organizacao_id = o.organizacao_id`, nada vazaria aqui: o `where o.organizacao_id = $1` de fora
+   * segura a lista. O que morde é o outro lado — que o filtro por uma Pessoa **global** não atravessa o
+   * `$1`, e quem pergunta em A recebe a de A e só a de A, mesmo com o responsável sendo a mesma pessoa.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias?responsavelPessoaId= (a mesma Pessoa nas duas organizações)",
+    consultar: (organizacaoId) =>
+      portasDe(organizacaoId).ocorrencias.listar({
+        limite: 50,
+        deslocamento: 0,
+        ate: NO_FUTURO,
+        filtro: { responsavelPessoaId: [idSindica] },
+      }),
+    chaveDaLinha: (ocorrencia) => ocorrencia.id,
+    esperadas: {
+      get emA() {
+        return [idDaOcorrenciaEmA];
+      },
+      get emB() {
+        return [idDaOcorrenciaEmB];
       },
     },
   });

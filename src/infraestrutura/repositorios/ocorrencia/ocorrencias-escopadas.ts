@@ -3,9 +3,11 @@ import type {
   AtribuicaoLida,
   ComentarioLido,
   ContagensLidas,
+  ColunaDeOrdenacao,
   FiltroDeOcorrencias,
   OcorrenciaLida,
   OcorrenciaResumoLida,
+  OrdenacaoDeOcorrencias,
   RepositorioEscopadoDeOcorrencias,
   ResultadoDoRegistro,
   TransicaoLida,
@@ -550,8 +552,113 @@ function condicoesDoRecorte(
     condicoes.push(`o.prioridade = any(${proximo()}::prioridade_ocorrencia[])`);
     valores.push(recorte.prioridade);
   }
+  if (recorte?.areaId !== undefined) {
+    condicoes.push(`o.area_id = any(${proximo()}::uuid[])`);
+    valores.push(recorte.areaId);
+  }
+  if (recorte?.responsavelPessoaId !== undefined) {
+    // **`atf`, e nao `at`.** O `contar` ja usa `at` no `not exists` de `sem_responsavel`, e os dois
+    // existem na mesma consulta: repetir o alias faria o de dentro esconder o de fora.
+    condicoes.push(`exists (select 1
+                              from atribuicoes atf
+                             where atf.ocorrencia_id = o.id
+                               and atf.organizacao_id = o.organizacao_id
+                               and atf.encerrada_em is null
+                               and atf.responsavel_pessoa_id = any(${proximo()}::uuid[]))`);
+    valores.push(recorte.responsavelPessoaId);
+  }
+  for (const termo of termosDoTitulo(recorte?.titulo)) {
+    condicoes.push(`${TITULO_SEM_ACENTO} ~ ('(^|[[:space:]])' || ${proximo()})`);
+    valores.push(escaparParaRegex(termo));
+  }
 
   return condicoes;
+}
+
+/**
+ * ============================================================================
+ *  O casamento do titulo — o criterio 67.4, e ele roda no BANCO
+ * ============================================================================
+ *
+ * **Roda aqui porque a lista pagina.** Filtrar no navegador daria paginas de tamanho aleatorio, que e o
+ * defeito que `FiltroDeListagem` ja descreve; e o `total` do envelope descreveria um conjunto que nao e o
+ * da tela.
+ *
+ * **A regra e a mesma do produto: prefixo de palavra, sem acento, sem caixa, todos os termos.** E o que
+ * `busca-de-candidatos.ts` faz nas duas buscas que existem. **A normalizacao nao e importada de la** —
+ * Infraestrutura nao importa `interface` (ADR-0006) —, e por isso a concordancia entre as duas e prendida
+ * por um caso de integracao, e nao por prosa.
+ *
+ * **A fronteira de palavra e o espaco, e so ele.** `[^[:alnum:]]` casaria `"apto"` em *"Luz (apto 302)"*,
+ * e a busca do titulo passaria a ter regra diferente da do resto do produto, que parte por espaco.
+ *
+ * **Sem `unaccent`.** A extensao exigiria migracao; `translate` faz o mesmo com duas constantes do codigo.
+ * As maiusculas acentuadas entram na lista porque `lower` depende do `ctype` do banco.
+ */
+const DE = "áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ";
+const PARA = "aaaaaeeeeiiiiooooouuuucnaaaaaeeeeiiiiooooouuuucn";
+const TITULO_SEM_ACENTO = `translate(lower(o.titulo), '${DE}', '${PARA}')`;
+
+/**
+ * Combining Diacritical Marks, escrito com `\u` pela mesma razao de `busca-de-candidatos.ts`: os
+ * combinantes literais sao invisiveis no editor.
+ */
+const DIACRITICOS = /[\u0300-\u036f]/gu;
+
+/** Os termos do titulo pedido, normalizados como a busca do produto normaliza. Ausente e lista vazia. */
+function termosDoTitulo(titulo: string | undefined): readonly string[] {
+  if (titulo === undefined) return [];
+
+  const normalizado = titulo
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(DIACRITICOS, "")
+    .replace(/\s+/gu, " ");
+
+  return normalizado === "" ? [] : [...new Set(normalizado.split(" "))];
+}
+
+/**
+ * O que o Postgres le como metacaractere de expressao regular, neutralizado. O termo entra por `$n`, e
+ * isto e o que impede um `(` digitado de virar erro de sintaxe na consulta.
+ */
+function escaparParaRegex(termo: string): string {
+  return termo.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/**
+ * ============================================================================
+ *  A ordem da pagina — o criterio 67.5
+ * ============================================================================
+ *
+ * **Um mapa fechado, e o texto que entra no SQL sai so dele.** Nenhum pedaco do que o cliente envia
+ * atravessa para o texto da consulta: `ColunaDeOrdenacao` ja foi validada na fronteira HTTP, e aqui ela e
+ * chave de um `Record` — nao ha caminho por onde um nome de coluna inventado chegue ao banco.
+ */
+const CHAVE_DA_ORDEM: Readonly<Record<ColunaDeOrdenacao, string>> = {
+  // O enum e declarado na ordem do ciclo (migracao 005), entao ordenar por ele ordena pelo ciclo.
+  status: "o.status",
+  titulo: "o.titulo",
+  area: "a.nome",
+  // `('baixa', 'normal', 'alta')` — crescente e de baixa para alta (migracao 005).
+  prioridade: "o.prioridade",
+  responsavel: "resp.responsavel_nome",
+  atualizacao: "o.atualizada_em",
+};
+
+/**
+ * **`nulls last` nos dois sentidos** poe *sem responsavel* no fim sempre: uma fila de trabalho que comeca
+ * pelas linhas sem ninguem nao e o que a coluna ordena.
+ *
+ * **O desempate e sempre o mesmo par**, e e o que faz dois pedidos iguais devolverem a mesma ordem — sem
+ * ele, duas linhas com a mesma chave trocariam de pagina entre um pedido e outro.
+ */
+function ordemDaPagina(ordenacao?: OrdenacaoDeOcorrencias): string {
+  if (ordenacao === undefined) return "o.atualizada_em desc, o.id desc";
+
+  const sentido = ordenacao.sentido === "decrescente" ? "desc" : "asc";
+  return `${CHAVE_DA_ORDEM[ordenacao.ordem]} ${sentido} nulls last, o.atualizada_em desc, o.id desc`;
 }
 
 const SELECT_DO_RESUMO = `
@@ -1275,11 +1382,14 @@ export function repositorioEscopadoDeOcorrencias(
      * **Sem `count(*) over ()`, e a ausência é decisão.** Uma função de janela obrigaria a consumir o
      * conjunto filtrado inteiro antes de emitir a primeira linha — o `limit` para a saída, não a entrada.
      * O `total` vem do `contar`, logo abaixo, num `count(*) FILTER` da consulta que já contava. **Assim a
-     * página continua sendo um `limit/offset` sobre o índice `(organizacao_id, registrada_em desc)`.**
+     * página continua sendo um `limit/offset` sobre o conjunto escopado e cortado.**
      *
-     * **O índice que serve esta consulta é `(organizacao_id, registrada_em DESC)`**, o da ordenação — não
-     * o `(organizacao_id, status)`. O `EXPLAIN` que o confirmaria continua sem ser rodado (passo manual
-     * **M.2**).
+     * **A ordem deixou de ser fixa no item 67, e o índice mudou de papel.** O
+     * `(organizacao_id, registrada_em DESC)` serve agora o corte (`registrada_em <= $ate`) e as contagens,
+     * e não a ordem: o padrão passou a ser `atualizada_em` decrescente, e qualquer coluna da tabela é
+     * ordenável. A ordenação é feita em memória sobre a partição da organização, e isso é aceito — no
+     * volume de uma organização é nada, e um índice por coluna custaria migração e escrita em toda
+     * transição, para ganho que o RNF5 não mede.
      */
     async listar(filtro) {
       const valores: unknown[] = [];
@@ -1304,7 +1414,7 @@ export function repositorioEscopadoDeOcorrencias(
       const linhas = await consulta<LinhaDeResumo>(
         `${SELECT_DO_RESUMO}
            ${condicoes.map((condicao) => `and ${condicao}`).join("\n           ")}
-         order by o.registrada_em desc, o.id desc
+         order by ${ordemDaPagina(filtro.ordenacao)}
          limit ${limite}::int offset ${deslocamento}::int`,
         valores,
       );

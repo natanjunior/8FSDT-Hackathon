@@ -23,6 +23,7 @@ import {
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
 } from "@/infraestrutura/repositorios/organizacao";
+import { casaPeloNome, termosDaBusca } from "@/interface/componentes/busca-de-candidatos";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 
 import { urlDoBancoDeTeste } from "./banco";
@@ -799,6 +800,330 @@ describe("o critério 15.1 no banco — OU dentro da dimensão, E entre dimensõ
 
 /**
  * ============================================================================
+ *  Os três recortes novos e a ordem — o item 67, contra Postgres
+ * ============================================================================
+ *
+ * **Este bloco tem cerca própria, e os outros não têm.** Todos os `describe` deste arquivo escrevem na
+ * mesma organização e na mesma área, e quando este roda a lista da organização já tem dezenas de linhas
+ * das outras. Ler ordem sobre a organização inteira misturaria tudo. Então o cenário cria **três áreas
+ * próprias**, e toda leitura de ordem filtra por elas — o que confina o conjunto e exercita o filtro novo
+ * de graça.
+ *
+ * **As três áreas ordenam A < B < C pelo nome, e as duas Pessoas também**: é o que torna a afirmação de
+ * ordem uma sequência esperada, e não uma inspeção.
+ */
+describe("o item 67 no banco — área, responsável, título e a ordem da página", () => {
+  /** Os títulos não levam acento **de propósito**: a ordem por título não deve amarrar o teste à
+   *  *collation* do banco, que é `en_US.UTF-8` por ICU e trata acento e caixa no nível secundário. */
+  const CENARIO = [
+    { chave: "a", titulo: "Vazamento na garagem", status: "em_analise", prioridade: "alta" },
+    { chave: "b", titulo: "Lampada queimada", status: "aberta", prioridade: "baixa" },
+    { chave: "c", titulo: "Mariana reclamou do portao", status: "resolvida", prioridade: "normal" },
+  ] as const;
+
+  let areas: Record<"a" | "b" | "c", string>;
+  let pessoas: Record<"a" | "b", string>;
+  let ids: Record<"a" | "b" | "c", string>;
+  /** Uma quarta, fora do trio, para o caso do título com parêntese e para a concordância. */
+  let idDaLuz: string;
+
+  /** O recorte que confina a leitura ao cenário — as quatro do bloco e mais nada. */
+  let soDoCenario: { areaId: readonly string[] };
+
+  async function novaArea(nome: string, ordem: number): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into areas (organizacao_id, nome, tipo, ordem) values ($1, $2, 'comum', $3) returning id`,
+      [organizacaoId, `${nome} ${SUFIXO}`, ordem],
+    );
+    return linha!.id;
+  }
+
+  async function novaPessoa(nome: string): Promise<string> {
+    const [linha] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`${nome} ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [linha!.id, organizacaoId],
+    );
+    return linha!.id;
+  }
+
+  async function registrar(titulo: string, areaDaVez: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      {
+        titulo: `${titulo} ${SUFIXO}`,
+        descricao: "Semeada para o recorte e a ordem do item 67.",
+        categoriaId,
+        areaId: areaDaVez,
+        localizacaoComplemento: null,
+      },
+    );
+    return lida.id;
+  }
+
+  const lendo = async (
+    filtro: Record<string, unknown>,
+    ordenacao?: { ordem: string; sentido: string },
+  ) =>
+    portas().ocorrencias.listar({
+      limite: 50,
+      deslocamento: 0,
+      ate: NO_FUTURO,
+      filtro: { ...soDoCenario, ...filtro } as never,
+      ...(ordenacao === undefined ? {} : { ordenacao: ordenacao as never }),
+    });
+
+  /** Os do cenário, na ordem em que a página os devolveu — as de fora do trio não entram. */
+  const chavesEm = (linhas: readonly { id: string }[]): string[] =>
+    linhas
+      .map((linha) => (["a", "b", "c"] as const).find((chave) => ids[chave] === linha.id))
+      .filter((chave): chave is "a" | "b" | "c" => chave !== undefined);
+
+  beforeAll(async () => {
+    areas = {
+      a: await novaArea("Ordem A", 900),
+      b: await novaArea("Ordem B", 901),
+      c: await novaArea("Ordem C", 902),
+    };
+    soDoCenario = { areaId: [areas.a, areas.b, areas.c] };
+
+    pessoas = { a: await novaPessoa("Ordena Alfa"), b: await novaPessoa("Ordena Beta") };
+
+    ids = {
+      a: await registrar(CENARIO[0].titulo, areas.a),
+      b: await registrar(CENARIO[1].titulo, areas.b),
+      c: await registrar(CENARIO[2].titulo, areas.c),
+    };
+    idDaLuz = await registrar("Luz (apto 302)", areas.a);
+
+    // **`update` direto, que é o idioma deste arquivo** para o que o produto ainda não faz por comando
+    // neste ponto da suíte. O gatilho *append-only* é de `registros_transicao`, não de `ocorrencias`.
+    for (const linha of CENARIO) {
+      await consultaCrua(`update ocorrencias set status = $2, prioridade = $3 where id = $1`, [
+        ids[linha.chave],
+        linha.status,
+        linha.prioridade,
+      ]);
+    }
+
+    // **A ordem de `atualizada_em` é escrita à mão**, e é ela que o padrão da página segue: a `c` é a
+    // mais recente, a `a` a mais parada.
+    const relogio: Record<"a" | "b" | "c", string> = {
+      a: "2026-09-01T10:00:00.000Z",
+      b: "2026-09-02T10:00:00.000Z",
+      c: "2026-09-03T10:00:00.000Z",
+    };
+    for (const chave of ["a", "b", "c"] as const) {
+      await consultaCrua(`update ocorrencias set atualizada_em = $2::timestamptz where id = $1`, [
+        ids[chave],
+        relogio[chave],
+      ]);
+    }
+    await consultaCrua(
+      `update ocorrencias set atualizada_em = '2026-08-01T10:00:00.000Z'::timestamptz where id = $1`,
+      [idDaLuz],
+    );
+
+    // **A `a` tem responsável vigente; a `b`, um ENCERRADO.** É o par que prova que o filtro casa a
+    // atribuição vigente e não a história.
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id,
+                                atribuido_por_pessoa_id, atribuido_em)
+       values ($1, $2, $3, $4, '2026-09-01T09:00:00.000Z'::timestamptz)`,
+      [organizacaoId, ids.a, pessoas.a, pessoaId],
+    );
+    await consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id,
+                                atribuido_por_pessoa_id, atribuido_em, encerrada_em, motivo_encerramento)
+       values ($1, $2, $3, $4, '2026-09-01T09:00:00.000Z'::timestamptz,
+               '2026-09-02T09:00:00.000Z'::timestamptz, 'reatribuicao')`,
+      [organizacaoId, ids.b, pessoas.b, pessoaId],
+    );
+  });
+
+  describe("o critério 67.1 — o recorte de área", () => {
+    it("uma área devolve só as dela, e o total do contar bate com a lista", async () => {
+      const linhas = await lendo({ areaId: [areas.b] });
+
+      expect(linhas.map((linha) => linha.id)).toStrictEqual([ids.b]);
+
+      const contagens = await portas().ocorrencias.contar({
+        pessoaIdDeQuemPergunta: pessoaId,
+        ate: NO_FUTURO,
+        filtro: { areaId: [areas.b] },
+      });
+      expect(contagens.totalFiltrado).toBe(linhas.length);
+    });
+
+    it("área e status estreitam uma à outra", async () => {
+      expect((await lendo({ areaId: [areas.b], status: ["aberta"] })).map((l) => l.id)).toStrictEqual([
+        ids.b,
+      ]);
+      expect(await lendo({ areaId: [areas.b], status: ["resolvida"] })).toStrictEqual([]);
+    });
+
+    it("área de identificador que não existe devolve lista vazia, e não erro", async () => {
+      const linhas = await portas().ocorrencias.listar({
+        limite: 50,
+        deslocamento: 0,
+        ate: NO_FUTURO,
+        filtro: { areaId: ["00000000-0000-4000-8000-000000000000"] },
+      });
+
+      expect(linhas).toStrictEqual([]);
+    });
+  });
+
+  describe("o critério 67.1 — o recorte de responsável casa a atribuição VIGENTE", () => {
+    it("quem é responsável vigente traz a ocorrência", async () => {
+      const linhas = await lendo({ responsavelPessoaId: [pessoas.a] });
+
+      expect(linhas.map((linha) => linha.id)).toStrictEqual([ids.a]);
+    });
+
+    /**
+     * **A atribuição encerrada NÃO casa**, e é o que separa *"quem responde hoje"* de *"quem já
+     * respondeu"*. Sem o `encerrada_em is null`, a fila de trabalho de quem foi reatribuído continuaria
+     * mostrando o que já saiu da mão dele.
+     */
+    it("atribuição encerrada não casa", async () => {
+      const linhas = await lendo({ responsavelPessoaId: [pessoas.b] });
+
+      expect(linhas).toStrictEqual([]);
+    });
+  });
+
+  describe("o critério 67.4 — o casamento do título", () => {
+    it("dois termos casam prefixos de palavras diferentes", async () => {
+      const linhas = await lendo({ titulo: "vaz gar" });
+
+      expect(linhas.map((linha) => linha.id)).toStrictEqual([ids.a]);
+    });
+
+    it("sem acento e sem caixa — LAMPADA acha Lâmpada", async () => {
+      await consultaCrua(`update ocorrencias set titulo = $2 where id = $1`, [
+        ids.b,
+        `Lâmpada queimada ${SUFIXO}`,
+      ]);
+
+      expect((await lendo({ titulo: "LAMPADA" })).map((linha) => linha.id)).toStrictEqual([ids.b]);
+      expect((await lendo({ titulo: "lâmpada" })).map((linha) => linha.id)).toStrictEqual([ids.b]);
+    });
+
+    /** **Prefixo, e não pedaço.** É a regra do produto, e é o que impede `"ana"` de achar *Mariana*. */
+    it("ana não acha Mariana", async () => {
+      expect(await lendo({ titulo: "ana" })).toStrictEqual([]);
+    });
+
+    /**
+     * **Nenhum destes vira sintaxe.** Os termos entram por `$n` e passam por `escaparParaRegex`, então o
+     * `(` é um parêntese e não um grupo, e a `\` é uma barra e não uma fuga. O `"(a"` **acha** *"Luz
+     * (apto 302)"*, e isso não é acidente: o produto parte a busca por espaço, e `(apto` começa por `(a`
+     * dos dois lados — é o que o caso de concordância, logo abaixo, prende.
+     */
+    it("caractere especial não quebra a consulta", async () => {
+      expect(await lendo({ titulo: "100%" })).toStrictEqual([]);
+      expect(await lendo({ titulo: "\\" })).toStrictEqual([]);
+      expect((await lendo({ titulo: "(a" })).map((linha) => linha.id)).toStrictEqual([idDaLuz]);
+    });
+
+    /**
+     * **A prova de que as duas regras são a mesma.** A normalização do banco não pode importar a do
+     * navegador (ADR-0006), então o que prende as duas é este caso: para cada par (busca, título), o
+     * banco devolve a linha **se e somente se** `casaPeloNome` diz que sim.
+     *
+     * O par *"apto"* × *"Luz (apto 302)"* é o que fixa a fronteira de palavra: o produto parte por
+     * espaço, então `(apto` não começa por `apto` e nenhum dos dois lados casa.
+     */
+    it("o banco e casaPeloNome concordam, par a par", async () => {
+      const pares = [
+        { busca: "vaz gar", titulo: `${CENARIO[0].titulo} ${SUFIXO}`, id: ids.a },
+        { busca: "LAMPADA", titulo: `Lâmpada queimada ${SUFIXO}`, id: ids.b },
+        { busca: "ana", titulo: `${CENARIO[2].titulo} ${SUFIXO}`, id: ids.c },
+        { busca: "mari", titulo: `${CENARIO[2].titulo} ${SUFIXO}`, id: ids.c },
+        { busca: "apto", titulo: `Luz (apto 302) ${SUFIXO}`, id: idDaLuz },
+        { busca: "luz", titulo: `Luz (apto 302) ${SUFIXO}`, id: idDaLuz },
+      ];
+
+      for (const par of pares) {
+        const doBanco = await portas().ocorrencias.listar({
+          limite: 50,
+          deslocamento: 0,
+          ate: NO_FUTURO,
+          filtro: { areaId: [areas.a, areas.b, areas.c], titulo: par.busca },
+        });
+        const achouNoBanco = doBanco.some((linha) => linha.id === par.id);
+
+        expect({
+          busca: par.busca,
+          achou: achouNoBanco,
+        }).toStrictEqual({
+          busca: par.busca,
+          achou: casaPeloNome(par.titulo, termosDaBusca(par.busca)),
+        });
+      }
+    });
+  });
+
+  describe("o critério 67.5 — a ordem da página", () => {
+    it("o padrão é a última atualização primeiro", async () => {
+      expect(chavesEm(await lendo({}))).toStrictEqual(["c", "b", "a"]);
+    });
+
+    /** Atualizar a mais parada a põe no topo — é o que o padrão promete, do lado que se mexe. */
+    it("atualizar a mais parada a leva para o topo", async () => {
+      await consultaCrua(
+        `update ocorrencias set atualizada_em = '2026-09-04T10:00:00.000Z'::timestamptz where id = $1`,
+        [ids.a],
+      );
+
+      expect(chavesEm(await lendo({}))).toStrictEqual(["a", "c", "b"]);
+
+      await consultaCrua(
+        `update ocorrencias set atualizada_em = '2026-09-01T10:00:00.000Z'::timestamptz where id = $1`,
+        [ids.a],
+      );
+    });
+
+    it.each([
+      // `status`: o enum é declarado na ordem do ciclo — aberta, em_analise, …, resolvida.
+      ["status", ["b", "a", "c"]],
+      // `titulo`: Lampada < Mariana < Vazamento.
+      ["titulo", ["b", "c", "a"]],
+      // `area`: Ordem A < Ordem B < Ordem C.
+      ["area", ["a", "b", "c"]],
+      // `prioridade`: o enum é ('baixa', 'normal', 'alta'), então crescente é de baixa para alta.
+      ["prioridade", ["b", "c", "a"]],
+      // `atualizacao`: crescente é a mais parada primeiro.
+      ["atualizacao", ["a", "b", "c"]],
+    ])("ordem=%s crescente, e decrescente é o inverso", async (ordem, esperada) => {
+      expect(chavesEm(await lendo({}, { ordem, sentido: "crescente" }))).toStrictEqual(esperada);
+      expect(chavesEm(await lendo({}, { ordem, sentido: "decrescente" }))).toStrictEqual(
+        [...esperada].reverse(),
+      );
+    });
+
+    /**
+     * **Sem responsável vai para o fim nos DOIS sentidos.** Inverter a ordem não pode trazer para o topo
+     * as linhas que não têm o que a coluna mostra: uma fila de trabalho que começa pelo vazio não é fila.
+     */
+    it("responsável nulo fica no fim nos dois sentidos", async () => {
+      for (const sentido of ["crescente", "decrescente"]) {
+        const chaves = chavesEm(await lendo({}, { ordem: "responsavel", sentido }));
+
+        expect(chaves[0]).toBe("a");
+        expect(chaves.slice(1).sort()).toStrictEqual(["b", "c"]);
+      }
+    });
+  });
+});
+
+/**
+ * ============================================================================
  *  A transição contra Postgres — o item 16
  * ============================================================================
  *
@@ -1277,7 +1602,16 @@ describe("a atribuição contra Postgres — item 19", () => {
       em: EM,
     });
 
-    const pagina = await portas().ocorrencias.listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO });
+    // **A ordem ascendente não é enfeite, e ela entrou no item 67.** A página passou a sair por
+    // `atualizada_em` decrescente, e `EM` é uma data **anterior** à semente deste arquivo: atribuir
+    // empurra esta linha para o fim da organização, longe das cinquenta primeiras. Pedindo a mais parada
+    // primeiro, ela volta ao topo — e o que o caso mede continua sendo o `LATERAL` na listagem.
+    const pagina = await portas().ocorrencias.listar({
+      limite: 50,
+      deslocamento: 0,
+      ate: NO_FUTURO,
+      ordenacao: { ordem: "atualizacao", sentido: "crescente" },
+    });
     const item = pagina.find((linha) => linha.id === id);
     expect(item?.responsavel).toStrictEqual({
       pessoaId: segundoPessoaId,
