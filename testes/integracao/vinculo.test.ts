@@ -801,3 +801,87 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(9);
   });
 });
+
+describe("o relógio de atualização é do banco (item 68b)", () => {
+  it("vínculo recém-criado tem atualizado_em nulo: entrar não é alterar", async () => {
+    // **Uma pessoa nova, e não a gestora do `beforeAll`.** O vínculo dela já levou três
+    // `update vinculos set area_id` dos casos de correção, e com o gatilho sem guarda a coluna dela
+    // deixa de ser nula muito antes deste `describe`. Quem prova *"entrar não é alterar"* tem de ser uma
+    // linha que ninguém tocou.
+    const criado = await repositorio().cadastrar({
+      nome: "Recém-Cadastrado do Gatilho",
+      papel: "encarregado",
+      areaId: null,
+      contatos: [],
+    });
+    if (criado.desfecho !== "cadastrado") throw new Error(`cadastro falhou: ${criado.desfecho}`);
+
+    const [linha] = await consulta<{ atualizado_em: Date | null }>(
+      `select atualizado_em from vinculos where organizacao_id = $1 and pessoa_id = $2`,
+      [idOrganizacao, criado.vinculo.pessoa.pessoaId],
+    );
+    expect(linha?.atualizado_em).toBeNull();
+  });
+
+  it("um update em vinculos carimba atualizado_em, sem a aplicação escrever a coluna", async () => {
+    await consulta(
+      `update vinculos set papel = 'gestor' where pessoa_id = $1 and organizacao_id = $2`,
+      [idGestora, idOrganizacao],
+    );
+    const [depois] = await consulta<{ atualizado_em: Date | null }>(
+      `select atualizado_em from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [idGestora, idOrganizacao],
+    );
+    expect(depois?.atualizado_em).toBeInstanceOf(Date);
+  });
+
+  it("o gatilho vale para as outras tabelas: um update em areas anda o relógio", async () => {
+    const [antes] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from areas where id = $1`,
+      [AREA_INATIVA],
+    );
+    await consulta(`update areas set nome = 'Depósito reformado' where id = $1`, [AREA_INATIVA]);
+    const [depois] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from areas where id = $1`,
+      [AREA_INATIVA],
+    );
+    expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
+  });
+
+  it("o update no-op do primeiro login NÃO carimba a pessoa", async () => {
+    // `garantirParaUsuario` resolve o login com
+    // `on conflict do update set usuario_id = excluded.usuario_id`, que grava a mesma linha de volta só
+    // para o `returning` devolvê-la. Sem a guarda `when` do gatilho de `pessoas`, todo login moveria a
+    // última atualização de todo participante com conta.
+    const [antes] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idGestora],
+    );
+
+    await consulta(
+      `insert into pessoas (usuario_id, nome)
+            values ((select usuario_id from pessoas where id = $1), 'Nome Ignorado')
+       on conflict (usuario_id) do update set usuario_id = excluded.usuario_id`,
+      [idGestora],
+    );
+
+    const [depois] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idGestora],
+    );
+    expect(depois!.atualizado_em.getTime()).toBe(antes!.atualizado_em.getTime());
+  });
+
+  it("alterar o nome de verdade carimba a pessoa", async () => {
+    const [antes] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idGestora],
+    );
+    await consulta(`update pessoas set nome = 'Marina Gestora Silva' where id = $1`, [idGestora]);
+    const [depois] = await consulta<{ atualizado_em: Date }>(
+      `select atualizado_em from pessoas where id = $1`,
+      [idGestora],
+    );
+    expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
+  });
+});
