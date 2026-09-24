@@ -84,6 +84,9 @@ Trocar de organização é um menu no cabeçalho, com o nome da organização at
 Numa aplicação em que a organização vem da sessão e não do endereço, a URL não diz onde você está, e é o
 cabeçalho que diz.
 
+O produto abre no tema escuro. Quem prefere o claro troca no menu da pessoa, e a escolha vale para todas
+as telas e fica guardada no navegador. A documentação tem o próprio interruptor, e também começa escura.
+
 ## Duas telas carregam o produto
 
 **Registrar ocorrência** é a única tela cronometrada. O alvo é menos de um minuto do toque no atalho à
