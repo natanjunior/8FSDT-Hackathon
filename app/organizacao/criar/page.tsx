@@ -1,15 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
+import { ConviteDaOutraPorta } from "@/interface/componentes/convite-da-outra-porta";
 import { FormularioDeNovaOrganizacao } from "@/interface/componentes/formulario-de-nova-organizacao";
-import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { CaminhoDeSair, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { resolverParaTela } from "@/interface/http";
 
 /**
  * **Criar uma organização** — a tela que o dono separou da face A de T-02 em 20/09/2026 (critério 44o.4).
  *
- * **Alcançada pelo caminho abaixo do cartão da face A**, que é a tela de quem ainda não participa de
+ * **Alcançada pela outra porta da face A**, que é a tela de quem ainda não participa de
  * organização nenhuma. **Ela não recusa quem tem organização ativa** (critério 44o.5), porque o caso de
  * uso não recusa — *"um Gestor de A pode fundar B"* (`criar-organizacao.ts`). **Nenhuma tela a oferece a
  * quem já tem uma**: fundar uma segunda organização tendo uma ativa está fora desta entrega, por decisão de
@@ -18,6 +18,11 @@ import { resolverParaTela } from "@/interface/http";
  * **A guarda é escrita aqui, e não extraída.** É a mesma de `app/organizacao/page.tsx` e dos dois layouts
  * de grupo, cada um no seu arquivo: `src/interface/http` não importa `next/navigation`, e abrir essa porta
  * para poupar oito linhas trocaria uma repetição conhecida por uma dependência nova.
+ *
+ * **O avesso da face A** (item 65): a outra porta fica à esquerda na tela grande, e convida a entrar com
+ * um código. O Voltar saiu, porque o botão do convite leva ao mesmo `/organizacao`, e o Sair entrou
+ * embaixo, como na face A. Quem chega aqui com organização ativa, só pelo endereço, vai para
+ * `/organizacao` e dali para `/`.
  *
  * **A espera é a de T-02**: o `loading.tsx` de `app/organizacao/` vale para este filho também.
  */
@@ -30,11 +35,23 @@ export default async function TelaDeCriarOrganizacao() {
     <MolduraDeConta
       titulo="Criar uma organização"
       contexto="Você vira o Gestor dela, e recebe um código para as pessoas pedirem entrada."
-      caminhos={
-        <Link href="/organizacao" className={CLASSE_DO_CAMINHO}>
-          Voltar
-        </Link>
-      }
+      convite={{
+        lado: "esquerda",
+        conteudo: (
+          <ConviteDaOutraPorta
+            titulo="Recebeu um código?"
+            frase="Se a sua organização já usa o Resolve Aí, peça entrada nela."
+            itens={[
+              "Peça entrada com o código",
+              "Um Gestor aprova",
+              "Você acompanha o que registrar",
+            ]}
+            rotulo="Entrar com um código"
+            href="/organizacao"
+          />
+        ),
+      }}
+      caminhos={<CaminhoDeSair />}
     >
       <FormularioDeNovaOrganizacao />
     </MolduraDeConta>

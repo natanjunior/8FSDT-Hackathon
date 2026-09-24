@@ -6,8 +6,8 @@
  * real é 4 + 4. O formato aceita de 6 a 12, e para outro comprimento a regra continua: 6 vira 4 + 2, e 12
  * vira 4 + 4 + 4.
  *
- * **Unidos, os grupos devolvem o código.** O espaço entre eles é margem no componente, e não caractere:
- * selecionar à mão e copiar pelo botão dão o mesmo texto.
+ * **Unidos, os grupos devolvem o código.** Desde o item 65 a divisão é das casas do campo de código
+ * (`casasDosGrupos`, em `regras-do-codigo.ts`), na entrada de T-02 e na exibição de T-15.
  */
 const TAMANHO_DO_GRUPO = 4;
 

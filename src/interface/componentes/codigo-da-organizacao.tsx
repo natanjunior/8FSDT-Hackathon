@@ -1,9 +1,9 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { gruposDoCodigo } from "@/interface/componentes/grupos-do-codigo";
+import { ExibicaoDeCodigo } from "@/interface/componentes/campo-de-codigo";
 import { Button } from "@/interface/componentes/ui/button";
 
 /**
@@ -18,15 +18,15 @@ import { Button } from "@/interface/componentes/ui/button";
  * usar só os sete papéis; o mais próximo é o de 26 px. O alfabeto do sorteio já tira `I`, `O`, `0` e `1`
  * porque a transcrição humana erra; copiar é o conserto do mesmo problema um nível acima.
  *
- * **O espaço entre os grupos é margem, e não caractere.** Os grupos são texto em linha, sem espaço no
- * documento, então selecionar à mão e copiar pelo botão dão o mesmo código. Em linha, e não como itens de
- * uma caixa flexível: item flexível vira bloco, e o navegador pode pôr uma quebra de linha entre dois
- * blocos ao copiar.
+ * **Desde o item 65 o código é desenhado nas casas do campo de código, desabilitadas** (critério 65.3):
+ * não se edita, não recebe foco e não se seleciona por acidente. É a mesma peça que T-02 usa para digitar,
+ * vista do outro lado.
  *
  * **A falha tem nome, e é prevista.** `navigator.clipboard` **não existe fora de contexto seguro**, e a
  * aplicação servida em `http://host.docker.internal:3000` não é `localhost` nem `https`. Quando a API não
- * existe ou a escrita rejeita, o componente **seleciona o texto do código** e troca a frase de apoio.
- * **O botão nunca diz `Copiado` sem ter copiado.**
+ * existe ou a escrita rejeita, a frase de apoio passa a mostrar o código em texto, já selecionado para
+ * `Ctrl+C`. É o mesmo mecanismo do `contato-por-icone.tsx`, sobre um texto que só existe na falha
+ * (respostas do 65, P1). **O botão nunca diz `Copiado` sem ter copiado.**
  *
  * **A palavra, nunca só um ícone** (compromisso A-5): o desfecho é `Copiado`, escrito, e anunciado pela
  * região `status` da frase de apoio. **Sem aviso flutuante**: copiar não é salvamento, e a palavra no
@@ -37,17 +37,13 @@ import { Button } from "@/interface/componentes/ui/button";
  */
 export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
   const [desfecho, setDesfecho] = useState<"parado" | "copiado" | "selecione">("parado");
-  const valor = useRef<HTMLSpanElement>(null);
+  const copiaManual = useRef<HTMLSpanElement>(null);
 
-  function selecionar() {
-    const no = valor.current;
-    if (no === null) return;
-    const intervalo = document.createRange();
-    intervalo.selectNodeContents(no);
-    const selecao = window.getSelection();
-    selecao?.removeAllRanges();
-    selecao?.addRange(intervalo);
-  }
+  // O texto da falha só existe depois do render que o desenha: a seleção vem no efeito, e não no `catch`.
+  useEffect(() => {
+    if (desfecho !== "selecione" || copiaManual.current === null) return;
+    window.getSelection()?.selectAllChildren(copiaManual.current);
+  }, [desfecho]);
 
   async function copiar() {
     try {
@@ -58,23 +54,13 @@ export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
       window.setTimeout(() => setDesfecho("parado"), 4000);
     } catch {
       setDesfecho("selecione");
-      selecionar();
     }
   }
 
   return (
     <>
       <dd className="flex flex-wrap items-center gap-3">
-        <span
-          ref={valor}
-          className="border-linha bg-background text-tinta text-titulo-pagina inline-block rounded-md border px-4 py-1.5 font-mono font-medium tracking-[0.08em] tabular-nums select-all"
-        >
-          {gruposDoCodigo(codigo).map((grupo, indice) => (
-            <span key={indice} className={indice === 0 ? undefined : "ml-3.5"}>
-              {grupo}
-            </span>
-          ))}
-        </span>
+        <ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />
         <Button
           type="button"
           variant="outline"
@@ -87,9 +73,16 @@ export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
       </dd>
       <dd>
         <p role="status" aria-live="polite" className="text-meta text-tinta-suave max-w-115">
-          {desfecho === "selecione"
-            ? "Selecione o código e copie."
-            : "É o código do cartaz do elevador. Quem o digita abre um pedido de entrada, que você decide em Participantes. Ele não muda."}
+          {desfecho === "selecione" ? (
+            <>
+              Selecione e copie:{" "}
+              <span ref={copiaManual} className="text-tinta font-mono select-all">
+                {codigo}
+              </span>
+            </>
+          ) : (
+            "É o código do cartaz do elevador. Quem o digita abre um pedido de entrada, que você decide em Participantes. Ele não muda."
+          )}
         </p>
       </dd>
     </>

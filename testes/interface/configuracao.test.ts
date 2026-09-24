@@ -2,7 +2,7 @@ import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
 import { ListaDesatualizada } from "@/aplicacao/organizacao";
-import { CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
+import { ALFABETO_DO_CODIGO, CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
 import {
   ERRO_DO_TIPO,
   FRASES_DA_TELA,
@@ -25,6 +25,14 @@ import {
   semearOrdem,
   vistaDaLista,
 } from "@/interface/componentes/ordem-da-lista";
+import {
+  ALFABETO_DA_TELA,
+  casasDosGrupos,
+  erroDoCodigo,
+  FRASE_DO_CODIGO_INCOMPLETO,
+  limparCodigo,
+  PADRAO_DA_DIGITACAO,
+} from "@/interface/componentes/regras-do-codigo";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import { problemaDe } from "@/interface/http";
 import {
@@ -341,6 +349,67 @@ describe("gruposDoCodigo — o código do cartaz em grupos de quatro (critério 
       expect(grupos.every((grupo) => grupo.length > 0 && grupo.length <= 4)).toBe(true);
     }
     expect(gruposDoCodigo("")).toStrictEqual([]);
+  });
+});
+
+describe("regras-do-codigo — o campo de oito casas (critério 65.2)", () => {
+  it("o alfabeto da tela é o do sorteio, letra por letra", () => {
+    // A tela não importa o do Domínio porque aquele arquivo importa `node:crypto`, e o campo é de cliente.
+    // Este caso é o que impede os dois de divergirem.
+    expect(ALFABETO_DA_TELA).toBe(ALFABETO_DO_CODIGO);
+  });
+
+  it("minúscula vira maiúscula", () => {
+    expect(limparCodigo("k7rq4mzp")).toBe("K7RQ4MZP");
+  });
+
+  it("I, O, 0, 1 e símbolos saem", () => {
+    expect(limparCodigo("IO01K7-RQ#")).toBe("K7RQ");
+  });
+
+  it("a colagem com espaço, hífen e quebra de linha vira o código", () => {
+    expect(limparCodigo(" k7rq 4mzp\n")).toBe("K7RQ4MZP");
+    expect(limparCodigo("K7RQ-4MZP")).toBe("K7RQ4MZP");
+  });
+
+  it("corta em oito", () => {
+    expect(limparCodigo("K7RQ4MZPAB")).toBe("K7RQ4MZP");
+  });
+
+  it("a digitação aceita o alfabeto e as minúsculas dele, e nada mais", () => {
+    const padrao = new RegExp(PADRAO_DA_DIGITACAO, "u");
+    for (const letra of ALFABETO_DA_TELA) {
+      expect(padrao.test(letra), letra).toBe(true);
+      expect(padrao.test(letra.toLowerCase()), letra.toLowerCase()).toBe(true);
+    }
+    for (const fora of ["I", "O", "0", "1", "i", "o", "-", " ", "Ç"]) {
+      expect(padrao.test(fora), fora).toBe(false);
+    }
+    // O `input-otp` confere o valor inteiro a cada tecla, e o valor mistura o que já virou maiúscula.
+    expect(padrao.test("K7Rq")).toBe(true);
+  });
+
+  it.each([
+    ["K7RQ4MZ", FRASE_DO_CODIGO_INCOMPLETO],
+    ["K7RQ4MZP", undefined],
+    ["K7RQ4MZPA", FRASE_DO_CODIGO_INCOMPLETO],
+    ["K7RQ4MZ0", FRASE_DO_CODIGO_INCOMPLETO],
+    ["", FRASE_DO_CODIGO_INCOMPLETO],
+  ])("erroDoCodigo(%j) é %j", (codigo, esperado) => {
+    expect(erroDoCodigo(codigo)).toBe(esperado);
+  });
+
+  it.each([
+    [8, [[0, 1, 2, 3], [4, 5, 6, 7]]],
+    [6, [[0, 1, 2, 3], [4, 5]]],
+    [12, [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]],
+  ])("casasDosGrupos(%i) segue a regra de gruposDoCodigo", (comprimento, esperado) => {
+    expect(casasDosGrupos(comprimento)).toStrictEqual(esperado);
+    // A mesma divisão que o texto do código usa, para as duas formas nunca discordarem.
+    const codigo = "K7RQ4MZPAB23".slice(0, comprimento);
+    expect(casasDosGrupos(comprimento).map((grupo) => grupo.length)).toStrictEqual(
+      gruposDoCodigo(codigo).map((grupo) => grupo.length),
+    );
   });
 });
 

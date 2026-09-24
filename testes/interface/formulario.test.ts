@@ -2097,3 +2097,117 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(deFora).toStrictEqual([]);
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 65 — as duas portas de entrada, e o código em casas
+ * ============================================================================
+ */
+const CAMPO_DE_CODIGO = "src/interface/componentes/campo-de-codigo.tsx";
+const CONVITE = "src/interface/componentes/convite-da-outra-porta.tsx";
+
+describe("o alcance do 65 — as duas portas de entrada", () => {
+  it("o input-otp entra fixado, e é o único pacote novo (ADR-0014)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/input-otp.tsx")).toBe(true);
+    const pacote = JSON.parse(ler("package.json")) as { dependencies: Record<string, string | undefined> };
+    // Fixado, sem acento circunflexo: a ADR-0011 faz da atualização uma decisão.
+    expect(pacote.dependencies["input-otp"]).toBe("1.5.0");
+    expect(pacote.dependencies["cn"]).toBeUndefined();
+    expect(Object.keys(pacote.dependencies).filter((nome) => nome.startsWith("@radix-ui/"))).toStrictEqual([]);
+  });
+
+  it("o campo de código é o input-otp, com o padrão, a colagem e o teclado domados (critério 65.2)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    expect(fonte).toMatch(/^"use client";/u);
+    expect(fonte).toContain("pattern={PADRAO_DA_DIGITACAO}");
+    expect(fonte).toContain("pasteTransformer={limparCodigo}");
+    expect(fonte).toContain("onChange={(novo) => setValor(novo.toUpperCase())}");
+    expect(fonte).toContain('autoCapitalize="characters"');
+    expect(fonte).toContain('autoComplete="off"');
+    expect(fonte).toContain("spellCheck={false}");
+    // A tela não pode importar o arquivo do Domínio que importa `node:crypto`.
+    expect(fonte).not.toContain("@/dominio");
+  });
+
+  it("as oito casas cabem num celular de 360 px (F2 do plano)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    const casa = /const CASA_DA_ENTRADA =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    // Abaixo de `sm` a casa divide a largura; a partir de `sm` ela tem os 40 px do design, e 48 a partir de `md`.
+    expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "sm:w-10", "sm:flex-none", "md:w-12", "md:h-14"]));
+  });
+
+  it("o pedido de entrada usa o campo novo, com a ajuda e a conferência de oito", () => {
+    const fonte = ler(PEDIDO_DE_ENTRADA);
+    expect(fonte).toContain("<EntradaDeCodigo");
+    expect(fonte).toContain("erroDoCodigo(codigoDigitado(dados))");
+    expect(fonte).toContain('ajuda="Está no cartaz do elevador ou na mensagem do grupo."');
+    expect(fonte).not.toContain("Seis a doze");
+    expect(fonte).not.toContain("maxLength={12}");
+    expect(fonte).not.toContain("codigoPublico.safeParse");
+  });
+
+  it("T-15 mostra o código nas casas desabilitadas, e a falha de cópia seleciona um texto próprio (critério 65.3)", () => {
+    const fonte = ler("src/interface/componentes/codigo-da-organizacao.tsx");
+    expect(fonte).toContain('<ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />');
+    expect(fonte).toContain("Selecione e copie:");
+    expect(fonte).not.toContain("Selecione o código e copie.");
+    // O `select-all` existe uma vez, e é o do texto que só aparece na falha.
+    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(1);
+    expect(fonte).not.toContain("gruposDoCodigo");
+  });
+
+  it("a moldura aceita um convite, e sem ele é a de sempre (critério 65.1)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect(fonte).toContain('convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };');
+    // A página e a coluna de sempre continuam escritas duas vezes: moldura e espera (critério 44o.1).
+    expect([...fonte.matchAll(/className=\{PAGINA\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/className=\{COLUNA\}/gu)]).toHaveLength(2);
+    // As trilhas do design, nas duas ordens.
+    expect(fonte).toContain("lg:grid-cols-[minmax(0,460px)_auto_minmax(0,380px)]");
+    expect(fonte).toContain("lg:grid-cols-[minmax(0,380px)_auto_minmax(0,460px)]");
+    // O espelho é por ordem de grade: no documento o cartão vem sempre primeiro, e o `h1` é o primeiro título.
+    expect(fonte).toContain("lg:order-1");
+    expect(fonte).toContain("lg:order-3");
+    expect(fonte).toContain("function ReguaDoOu");
+    expect(fonte).not.toContain("só T-01 ganha duas colunas");
+  });
+
+  it("o convite não é cartão, e o botão dele é link de contorno em largura cheia", () => {
+    const fonte = ler(CONVITE);
+    expect(fonte).not.toContain('"use client"');
+    expect(fonte).not.toContain("<Cartao");
+    expect(fonte).toMatch(/<Button asChild variant="outline" className="[^"]*\bw-full\b/u);
+    expect(fonte).toContain('<Check aria-hidden="true"');
+    expect(fonte).toContain("text-ok");
+    expect(fonte).toContain('<h2 id={ID_DO_CONVITE} className="text-titulo-bloco');
+  });
+
+  it("a face A convida a fundar à direita, e só ela tem convite em T-02 (critério 65.1)", () => {
+    const fonte = ler("app/organizacao/page.tsx");
+    expect([...fonte.matchAll(/convite=\{\{/gu)]).toHaveLength(1);
+    expect(fonte).toContain('lado: "direita"');
+    expect(fonte).toContain('titulo="Sua organização ainda não usa o Resolve Aí?"');
+    expect(fonte).toContain('rotulo="Criar uma organização"');
+    expect(fonte).not.toContain("Administra um condomínio");
+    // O nome do link é o que dois testes de ponta a ponta seguem.
+    expect([...fonte.matchAll(/href="\/organizacao\/criar"/gu)]).toHaveLength(1);
+  });
+
+  it("a tela de criar convida a entrar à esquerda, e troca o Voltar pelo Sair", () => {
+    const fonte = ler("app/organizacao/criar/page.tsx");
+    expect(fonte).toContain('lado: "esquerda"');
+    expect(fonte).toContain('titulo="Recebeu um código?"');
+    expect(fonte).toContain('rotulo="Entrar com um código"');
+    expect(fonte).toContain('href="/organizacao"');
+    expect(fonte).toContain("caminhos={<CaminhoDeSair />}");
+    expect(fonte).not.toMatch(/>\s*Voltar\s*</u);
+  });
+
+  it("nenhum tamanho fora dos sete papéis e nenhum controle cru nos arquivos novos do 65", () => {
+    for (const caminho of [CAMPO_DE_CODIGO, CONVITE, MOLDURA_DE_CONTA]) {
+      const fonte = ler(caminho);
+      expect([...fonte.matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)], caminho).toStrictEqual([]);
+      expect([...fonte.matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)], caminho).toStrictEqual([]);
+    }
+  });
+});

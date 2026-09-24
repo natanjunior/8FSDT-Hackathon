@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
+import { ConviteDaOutraPorta } from "@/interface/componentes/convite-da-outra-porta";
 import { EscolhaDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
 import { FormularioDePedidoDeEntrada } from "@/interface/componentes/formulario-de-pedido-de-entrada";
 import { dataEHora } from "@/interface/componentes/frases-de-participantes";
@@ -29,7 +30,7 @@ import { projetarContexto } from "@/interface/projecoes";
  * que se está**.
  *
  * **Desde o item 44o as cinco estão na moldura das telas fora da casca**, e **criar organização saiu
- * daqui**: virou a tela `/organizacao/criar`, alcançada pelo caminho abaixo do cartão da face A. Até o
+ * daqui**: virou a tela `/organizacao/criar`, alcançada pela outra porta da face A. Até o
  * 44o a face A empilhava dois formulários separados por um traço — o do código e o do nome da
  * organização —, e o dono os separou em 20/09/2026.
  */
@@ -104,28 +105,32 @@ function Data({ iso }: { iso: string }) {
  * **Face A · Entrar em uma organização.** `vinculos: []` e `pedidosDeEntrada: []` — acabou de criar a conta.
  *
  * **É o estado vazio, e por isso é convite e não aviso.** O cartão tem **um formulário só**, o do código;
- * criar organização é o caminho abaixo dele, que leva à tela própria (critério 44o.4). **Só a face A o
- * oferece**: a face C é a tela de quem acabou de ser recusado, e a face E é de quem já tem organização —
- * fundar uma segunda tendo uma ativa está fora desta entrega.
+ * criar organização é a outra porta, ao lado do cartão na tela grande e abaixo dele no celular (item 65).
+ * **Só a face A o oferece**: a face C é a tela de quem acabou de ser recusado, e a face E é de quem já tem
+ * organização — fundar uma segunda tendo uma ativa está fora desta entrega.
  */
 function FaceA({ nome }: { nome: string }) {
   return (
     <MolduraDeConta
       titulo="Entrar em uma organização"
       contexto="Você ainda não participa de nenhuma. Use o código que recebeu para pedir entrada."
-      caminhos={
-        <>
-          <div className="flex flex-col items-center">
-            <p className="text-interface text-tinta-suave text-center">
-              Administra um condomínio, empresa ou bairro que ainda não usa o Resolve Aí?
-            </p>
-            <Link href="/organizacao/criar" className={CLASSE_DO_CAMINHO}>
-              Criar uma organização
-            </Link>
-          </div>
-          <CaminhoDeSair />
-        </>
-      }
+      convite={{
+        lado: "direita",
+        conteudo: (
+          <ConviteDaOutraPorta
+            titulo="Sua organização ainda não usa o Resolve Aí?"
+            frase="Condomínio, empresa ou bairro: quem cria a organização cuida dela."
+            itens={[
+              "Você vira o Gestor",
+              "Recebe um código para distribuir",
+              "Categorias e áreas já vêm prontas",
+            ]}
+            rotulo="Criar uma organização"
+            href="/organizacao/criar"
+          />
+        ),
+      }}
+      caminhos={<CaminhoDeSair />}
     >
       <FormularioDePedidoDeEntrada nome={nome} />
     </MolduraDeConta>
