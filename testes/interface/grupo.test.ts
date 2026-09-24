@@ -114,3 +114,35 @@ describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
     }
   });
 });
+
+describe("a barra lateral — critérios 70.5 e 70.7", () => {
+  const NAVEGACAO = "src/interface/componentes/casca/navegacao.tsx";
+
+  it("o grupo e a documentação moram no bloco «Além desta organização», um só, depois de Meus dados", () => {
+    const fonte = ler(NAVEGACAO);
+    const organizacao = fonte.indexOf('<nav aria-label="Nesta organização"');
+    const alem = fonte.indexOf('<nav aria-label="Além desta organização"');
+    expect(organizacao).toBeGreaterThanOrEqual(0);
+    expect(alem).toBeGreaterThan(organizacao);
+    // Um bloco só: quem sair primeiro, o 64 ou o 70, cria; o segundo acrescenta.
+    expect([...fonte.matchAll(/<nav aria-label="Além desta organização"/gu)]).toHaveLength(1);
+    const grupo = fonte.indexOf('endereco="/grupo"');
+    expect(grupo).toBeGreaterThan(alem);
+    // Com o 64 na base, Meus dados vem antes; sem ele, a asserção não tem o que comparar.
+    const meusDados = fonte.indexOf('destino="/meus-dados"');
+    if (meusDados !== -1) expect(grupo).toBeGreaterThan(meusDados);
+  });
+
+  it("as duas entradas, na ordem, abrem em nova aba e fecham a gaveta", () => {
+    const fonte = ler(NAVEGACAO);
+    const grupo = fonte.indexOf('endereco="/grupo"');
+    const documentacao = fonte.indexOf('endereco="/documentacao"');
+    expect(grupo).toBeGreaterThan(0);
+    expect(documentacao).toBeGreaterThan(grupo);
+    expect(fonte).toContain('rotulo="Grupo 1"');
+    expect(fonte).toContain('rotulo="Documentação"');
+    expect(fonte).toMatch(/target="_blank"\s+rel="noreferrer"\s+onClick=\{aoTocar\}/u);
+    expect(fonte).toContain('<span className="sr-only">, abre em nova aba</span>');
+    expect(fonte).toContain("<ExternalLink");
+  });
+});

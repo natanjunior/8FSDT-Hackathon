@@ -198,7 +198,7 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0"]);
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
   });
 });
 
