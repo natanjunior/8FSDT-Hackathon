@@ -115,8 +115,10 @@ export const TEXTOS_DA_TABELA = {
   seloVoce: "você",
 } as const;
 
-export function textoDeMaisContatos(quantos: number): string {
-  return quantos === 1 ? "e mais 1 contato" : `e mais ${String(quantos)} contatos`;
+/** O nome do botão de contato na tabela: o tipo, no plural quando há mais de um, e de quem é (item 68a). */
+export function rotuloDoContato(tipo: "telefone" | "email", quantos: number, nome: string): string {
+  const palavra = tipo === "telefone" ? "Telefone" : "E-mail";
+  return `${palavra}${quantos > 1 ? "s" : ""} de ${nome}`;
 }
 
 // ---------------------------------------------------------------------------

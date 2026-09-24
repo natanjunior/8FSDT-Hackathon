@@ -55,12 +55,16 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * rodapé sem faixa, e o fechar com 44 px (compromisso A-3). A gaveta usa o tempo e a curva do guia §6
  * pelos tokens `--tempo-gaveta` e `--curva-gaveta`, na forma com parênteses que o Tailwind emite com
  * `var()`; o `sheet.tsx` não muda o próprio padrão, porque a gaveta da barra lateral também o usa.
+ *
+ * **Só o corpo rola** (item 68a): o conteúdo é coluna com o teto de altura, e título e rodapé ficam fora da
+ * rolagem. Sem `scroll-area` e sem teto próprio no corpo — com o teto no conteúdo, um segundo só desperdiça
+ * altura em tela alta. Vale para os nove modais da família, e é o conserto que o item 66 pede no de atribuir.
  */
 
-const CONTEUDO_DO_DIALOG = "bg-superficie border-linha max-h-[85dvh] gap-0 overflow-y-auto p-0";
+const CONTEUDO_DO_DIALOG = "bg-superficie border-linha flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0";
 
 const CONTEUDO_DO_SHEET =
-  "bg-superficie border-linha max-h-[90dvh] gap-0 overflow-y-auto rounded-t-xl ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)";
+  "bg-superficie border-linha flex max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-t-xl ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)";
 
 /** O rodapé na tela grande. Exportado para o portão de estilo, que mede esta cadeia (item 44q). */
 export const RODAPE_DO_MODAL = "border-linha-suave bg-background border-t px-6 py-3.5";
@@ -107,13 +111,20 @@ export function Modal({
   const celular = useIsMobile();
 
   const formulario = (
-    <form noValidate onSubmit={aoEnviar} className="flex flex-col">
-      <div className={celular ? "px-4 pt-5 pr-14" : "px-6 pt-5.5 pr-14"}>
+    <form noValidate onSubmit={aoEnviar} className="flex min-h-0 flex-1 flex-col">
+      <div className={cn("shrink-0", celular ? "px-4 pt-5 pr-14" : "px-6 pt-5.5 pr-14")}>
         <DialogTitle className="text-titulo-bloco text-tinta">{titulo}</DialogTitle>
         <DialogDescription className="text-interface text-tinta-suave mt-1.5">{descricao}</DialogDescription>
       </div>
-      <div className={cn("flex flex-col gap-4.5", celular ? "px-4 pt-4 pb-1.5" : "px-6 py-5")}>{children}</div>
-      <div className={celular ? "px-4 pt-3 pb-5" : RODAPE_DO_MODAL}>
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-4.5 overflow-y-auto",
+          celular ? "px-4 pt-4 pb-1.5" : "px-6 py-5",
+        )}
+      >
+        {children}
+      </div>
+      <div className={cn("shrink-0", celular ? "px-4 pt-3 pb-5" : RODAPE_DO_MODAL)}>
         <RodapeDoFormulario obrigatorios={obrigatorios} todosObrigatorios={todosObrigatorios}>
           {rodape}
         </RodapeDoFormulario>

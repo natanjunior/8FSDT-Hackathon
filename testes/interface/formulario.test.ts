@@ -391,6 +391,21 @@ const ALCANCE_DO_44I = [
 const TELAS_DO_44I = ALCANCE_DO_44I.filter((caminho) => caminho.startsWith("app/"));
 
 describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
+  it("o modal rola só no corpo: cabeçalho e rodapé ficam fixos, sem scroll-area (item 68a)", () => {
+    const fonte = ler("src/interface/componentes/modal.tsx");
+    // A guarda lê as classes, não a ordem delas: `flex max-h-[85dvh] flex-col` não contém "flex flex-col".
+    const classes = (nome: string) =>
+      (fonte.match(new RegExp(`const ${nome} =\\s*"([^"]*)"`, "u"))?.[1] ?? "").split(/\s+/u);
+    for (const nome of ["CONTEUDO_DO_DIALOG", "CONTEUDO_DO_SHEET"]) {
+      expect(classes(nome), nome).toEqual(expect.arrayContaining(["flex", "flex-col", "overflow-hidden"]));
+      expect(classes(nome), nome).not.toContain("overflow-y-auto");
+    }
+    // O corpo: uma cadeia com as três classes que o fazem rolar dentro da coluna, em qualquer ordem entre outras.
+    expect(fonte).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*"/u);
+    // O docblock escreve a palavra para explicar a ausência; a guarda olha o import.
+    expect(fonte).not.toMatch(/ui\/scroll-area/u);
+  });
+
   it("o modal é uma raiz com as duas peças do catálogo, a gaveta vem de baixo, e sem pacote novo", () => {
     const fonte = ler("src/interface/componentes/modal.tsx");
     expect(fonte).toContain("useIsMobile()");
@@ -469,6 +484,8 @@ const ALCANCE_DO_44J = [
   "app/(casca)/vinculos/[pessoaId]/editar/loading.tsx",
   "src/interface/componentes/tabela-de-participantes.tsx",
   "src/interface/componentes/linhas-de-participantes.ts",
+  "src/interface/componentes/ordenacao-em-tres-estados.ts",
+  "src/interface/componentes/contato-por-icone.tsx",
   "src/interface/componentes/frases-de-participantes.ts",
   "src/interface/componentes/regras-do-vinculo.ts",
   "src/interface/componentes/escolhas-do-vinculo.tsx",
@@ -596,6 +613,29 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
       ),
     );
     expect(achados).toStrictEqual([]);
+  });
+
+  it("na edição, o cartão Pessoa é Nome, Unidade e Papel, em três colunas a partir de md (item 68a)", () => {
+    const fonte = ler("src/interface/componentes/formulario-de-vinculo.tsx");
+    const inicio = fonte.indexOf('<div className="grid md:grid-cols-3">');
+    expect(inicio).toBeGreaterThan(-1);
+    const edicao = fonte.slice(inicio);
+    const posicao = (trecho: string) => edicao.indexOf(trecho);
+    expect(posicao("campoDoNome")).toBeLessThan(posicao("{campoDaUnidade}"));
+    expect(posicao("{campoDaUnidade}")).toBeLessThan(posicao("TEXTOS_DO_FORMULARIO.papel"));
+    expect(fonte).not.toContain('<div className="grid lg:grid-cols-3">');
+  });
+
+  it("o contato é botão que abre popover, sem hover-card e sem +N (item 68a, critério 68.4)", () => {
+    const peca = ler("src/interface/componentes/contato-por-icone.tsx");
+    expect(peca).toContain("<Popover");
+    expect(peca).toContain("rotuloDoContato(");
+    expect(peca).toContain('role="status"');
+    // O docblock escreve a palavra para explicar a ausência; a guarda olha o import.
+    expect(peca).not.toMatch(/ui\/hover-card/u);
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).toContain("<ContatoPorIcone");
+    expect(tabela).not.toContain("maisContatos");
   });
 });
 
