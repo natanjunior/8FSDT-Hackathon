@@ -1000,3 +1000,47 @@ test.fixme(
     await contextoDeMarcos.close();
   },
 );
+
+test("o título longo corta na tela grande e quebra no celular, sem empurrar as ações (critério 66.1)", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext();
+  const helena = await contexto.newPage();
+
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: AURORA }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  // **150 caracteres, o teto do schema, e uma palavra de 60 sem espaço** — foco da revisão 3.
+  const palavraSemEspaco = "x".repeat(60);
+  const titulo = `Titulo longo ${marcaDoInstante()} ${palavraSemEspaco} ${"infiltracao no corredor ".repeat(4)}`
+    .slice(0, 150)
+    .trim();
+  await registrarOcorrencia(helena, titulo, "Ocorrência do teste de título longo.");
+
+  const h1 = helena.getByRole("heading", { level: 1 });
+  await expect(h1).toHaveAttribute("title", titulo);
+  // Helena é Solicitante e a ocorrência está Aberta: a ação dela é *Cancelar*.
+  const acao = helena.getByRole("button", { name: "Cancelar" });
+
+  async function acaoDentroDaTela(largura: number): Promise<void> {
+    const caixa = await acao.boundingBox();
+    expect(caixa).not.toBeNull();
+    expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
+    const larguraDoDocumento = await helena.evaluate(() => document.documentElement.scrollWidth);
+    expect(larguraDoDocumento).toBeLessThanOrEqual(largura);
+  }
+
+  // Tela grande: o título divide a linha com a ação, e corta.
+  await acaoDentroDaTela(1280);
+  expect(await h1.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(true);
+
+  // Celular: a ação vai para a linha de baixo, e o título quebra inteiro.
+  await helena.setViewportSize({ width: 390, height: 844 });
+  await acaoDentroDaTela(390);
+  expect(await h1.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(false);
+  await esperarSituacao(helena, ABERTA_PARA_O_SOLICITANTE);
+
+  await contexto.close();
+});
