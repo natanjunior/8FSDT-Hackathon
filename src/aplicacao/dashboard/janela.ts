@@ -106,6 +106,39 @@ export function ehJanelaPadrao(janela: Janela, agora?: string): boolean {
 }
 
 /**
+ * As quatro janelas que a tela oferece como atalho — item 71.
+ *
+ * **Elas são calculadas aqui, e não no navegador, por duas razões.** A primeira é a mesma de
+ * `resolverJanela`: quem sabe o que são 90 dias é a Aplicação, e a Interface traduz e recusa. A segunda é
+ * de fato: o relógio de quem abre não está no fuso do produto, e um atalho calculado no cliente diria
+ * *hoje* com um dia de diferença para quem estiver fora de São Paulo.
+ *
+ * **As duas pontas contam**, como `DIAS_DA_JANELA` já significa: 7 dias é `ate − 6`, 30 é `ate − 29` e 90
+ * é `ate − 89`.
+ *
+ * **`mes` termina hoje, e não no fim do mês.** Uma janela que acaba no futuro só acrescenta dias vazios
+ * ao recorte. No dia 01 ela é um dia só, que é uma janela válida.
+ *
+ * **Quem escreve as palavras é a Interface.** Aqui só há datas.
+ */
+export type AtalhosDaJanela = {
+  readonly sete: Janela;
+  readonly trinta: Janela;
+  readonly noventa: Janela;
+  readonly mes: Janela;
+};
+
+export function atalhosDaJanela(agora?: string): AtalhosDaJanela {
+  const hoje = diaEmSaoPaulo(agora === undefined ? new Date() : new Date(agora));
+  return {
+    sete: { de: recuar(hoje, 6), ate: hoje },
+    trinta: { de: recuar(hoje, 29), ate: hoje },
+    noventa: { de: recuar(hoje, DIAS_DA_JANELA - 1), ate: hoje },
+    mes: { de: `${hoje.slice(0, 8)}01`, ate: hoje },
+  };
+}
+
+/**
  * **Todo mês que a janela toca, do mais antigo para o mais novo** — e é UM eixo, usado pelas duas séries.
  *
  * O critério 36.2 pede isso para o tempo de resolução — *"nenhum mês é omitido"* —, e a razão que o
