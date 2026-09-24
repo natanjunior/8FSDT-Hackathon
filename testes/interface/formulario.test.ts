@@ -1881,4 +1881,26 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     );
     expect(comCorPorClasse).toStrictEqual([]);
   });
+
+  it("nos vazios de /ocorrencias, registrar é principal e vem primeiro; o outro é contorno (trocas 7 e 8)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx");
+    const vazio = fonte.slice(fonte.indexOf("function Vazio("), fonte.indexOf("function AlemDoFim("));
+    const conteudo = vazio.slice(vazio.indexOf("<EmptyContent"), vazio.indexOf("</EmptyContent>"));
+
+    const registrar = conteudo.indexOf('href="/ocorrencias/nova"');
+    const conferir = conteudo.indexOf('href="/configuracao/areas"');
+    // `\s` e não `\n`: os `.tsx` estão em CRLF na cópia de trabalho.
+    const limpar = conteudo.search(/href="\/ocorrencias"\s/u);
+    expect(registrar).toBeGreaterThan(-1);
+    expect(registrar).toBeLessThan(conferir);
+    expect(registrar).toBeLessThan(limpar);
+
+    // A cor de cada um: o bloco de registrar em marca, os dois outros em contorno.
+    expect(conteudo.slice(registrar, conferir)).toContain('variant: "marca"');
+    expect(conteudo.slice(conferir)).toContain('variant: "outline"');
+    expect(conteudo).not.toContain("underline underline-offset-4");
+
+    // Abaixo de `sm` empilham, na largura cheia; a partir de `sm`, lado a lado com 12 px.
+    expect(conteudo).toContain('"flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center"');
+  });
 });

@@ -506,33 +506,35 @@ function Vazio({
           </EmptyDescription>
         )}
       </EmptyHeader>
-      <EmptyContent className="flex flex-row flex-wrap justify-center gap-2">
-        {tipo === "filtro" && (
+      {/* **Registrar é a ação da tela, e vem primeiro, em marca** (item 64, validação de 23/09/2026). Até
+          o 64 o convite principal do primeiro vazio era *Conferir as áreas*, porque a organização nasce com
+          áreas-semente genéricas e é isso que primeiro quebra o registro do Solicitante. Ele continua
+          oferecido, ao lado e em contorno: o dono decidiu a hierarquia pela ação da tela. Abaixo de `sm`
+          os dois empilham, principal em cima, na largura cheia. */}
+      <EmptyContent className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
+        {podeRegistrar && (
           <Link
-            href="/ocorrencias"
-            className="text-marca text-interface underline underline-offset-4"
+            href="/ocorrencias/nova"
+            className={cn(buttonVariants({ variant: "marca" }), "text-interface min-h-11 px-4")}
           >
-            Limpar filtros
+            <Plus aria-hidden="true" />
+            {tipo === "organizacao" ? "Registrar a primeira" : "Registrar ocorrência"}
           </Link>
         )}
-        {/* O primeiro convite é o que importa: a organização nasce com áreas-semente genéricas, e **a
-            primeira coisa que quebra o registro do Solicitante é uma lista de áreas que não descreve a
-            organização**. */}
         {tipo === "organizacao" && podeConfigurar && (
           <Link
             href="/configuracao/areas"
-            className={cn(buttonVariants({ variant: "marca" }), "text-interface min-h-11 px-4")}
+            className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
           >
             Conferir as áreas
           </Link>
         )}
-        {podeRegistrar && (
+        {tipo === "filtro" && (
           <Link
-            href="/ocorrencias/nova"
-            className={cn(buttonVariants({ variant: "outline" }), "text-interface min-h-11 px-4")}
+            href="/ocorrencias"
+            className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
           >
-            <Plus aria-hidden="true" />
-            {tipo === "organizacao" ? "Registrar a primeira" : "Registrar ocorrência"}
+            Limpar filtros
           </Link>
         )}
       </EmptyContent>
