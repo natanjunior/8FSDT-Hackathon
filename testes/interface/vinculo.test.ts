@@ -696,7 +696,6 @@ describe("as linhas da tabela única (critério 1)", () => {
       unidade: null,
       telefones: [{ chave: "telefone-informado", valor: "(11) 98877-6655", finalidade: null, whatsapp: false }],
       emails: [],
-      desdeTexto: "14/09/2026",
     });
   });
 
@@ -722,7 +721,6 @@ describe("as linhas da tabela única (critério 1)", () => {
       chave: "vinculo:p1",
       rotuloDoPapel: "Solicitante",
       unidade: "Apartamento 101",
-      desdeTexto: "02/03/2026",
       ehVoce: false,
       impedimento: null,
     });
@@ -756,6 +754,27 @@ describe("as linhas da tabela única (critério 1)", () => {
       impedimentos: { "p-helena": "ultimo-gestor" },
     });
     expect(linha).toMatchObject({ ehVoce: true, impedimento: "ultimo-gestor" });
+  });
+
+  it("a linha do vínculo traz o instante e o texto da última atualização", () => {
+    const linha = linhaDoVinculo(
+      VINCULO("p9", "Helena Rocha", "gestor", { atualizadoEm: "2026-09-24T12:00:00.000Z" }),
+      CONTEXTO,
+    );
+    expect(linha.atualizadoEm).toBe("2026-09-24T12:00:00.000Z");
+    expect(linha.atualizadoTexto).toBe("24/09/2026");
+  });
+
+  it("sem alteração registrada, os dois campos ficam nulos e a célula decide o traço", () => {
+    const linha = linhaDoVinculo(VINCULO("p10", "Sem Alteração", "solicitante"), CONTEXTO);
+    expect(linha.atualizadoEm).toBeNull();
+    expect(linha.atualizadoTexto).toBeNull();
+  });
+
+  it("o pedido de entrada nunca tem última atualização: pedido pendente não foi alterado", () => {
+    const linha = linhaDoPedido(PEDIDO("q9", "Paulo Mendes"));
+    expect(linha.atualizadoEm).toBeNull();
+    expect(linha.atualizadoTexto).toBeNull();
   });
 
   it("a tabela junta pedidos e vínculos", () => {
@@ -843,14 +862,14 @@ describe("a ordem por coluna (critério 3)", () => {
     expect(nomes(ordenarLinhas(linhas, "unidade", "decrescente"))).toStrictEqual(["Trezentos", "Cento", "Sem"]);
   });
 
-  it("Desde pelo instante, e o empate pelo nome", () => {
+  it("Última atualização pelo instante, e o empate pelo nome", () => {
     const linhas = [
-      V("1", "Novo", "gestor", { criadoEm: "2026-09-10T12:00:00.000Z" }),
-      V("2", "Velho", "gestor", { criadoEm: "2026-01-10T12:00:00.000Z" }),
-      V("3", "Antigo", "gestor", { criadoEm: "2026-01-10T12:00:00.000Z" }),
+      V("1", "Novo", "gestor", { atualizadoEm: "2026-09-10T12:00:00.000Z" }),
+      V("2", "Velho", "gestor", { atualizadoEm: "2026-01-10T12:00:00.000Z" }),
+      V("3", "Antigo", "gestor", { atualizadoEm: "2026-01-10T12:00:00.000Z" }),
     ];
-    expect(nomes(ordenarLinhas(linhas, "desde", "crescente"))).toStrictEqual(["Antigo", "Velho", "Novo"]);
-    expect(nomes(ordenarLinhas(linhas, "desde", "decrescente"))).toStrictEqual(["Novo", "Antigo", "Velho"]);
+    expect(nomes(ordenarLinhas(linhas, "atualizacao", "crescente"))).toStrictEqual(["Antigo", "Velho", "Novo"]);
+    expect(nomes(ordenarLinhas(linhas, "atualizacao", "decrescente"))).toStrictEqual(["Novo", "Antigo", "Velho"]);
   });
 
   it("o último empate é a chave, e a ordem não depende da entrada", () => {
@@ -863,9 +882,10 @@ describe("a ordem por coluna (critério 3)", () => {
 
   it("com ordenação escolhida, o pedido não tem lugar reservado", () => {
     const pedido = linhaDoPedido(PEDIDO("q1", "Zuleica"));
-    const vinculo = V("1", "Ana", "gestor", { criadoEm: "2026-01-01T12:00:00.000Z" });
+    const vinculo = V("1", "Ana", "gestor", { atualizadoEm: "2026-01-01T12:00:00.000Z" });
     expect(nomes(ordenarLinhas([pedido, vinculo], "pessoa", "crescente"))).toStrictEqual(["Ana", "Zuleica"]);
-    expect(nomes(ordenarLinhas([pedido, vinculo], "desde", "crescente"))).toStrictEqual(["Ana", "Zuleica"]);
+    // Em Última atualização o pedido é nulo, e nulo vai para o fim nos dois sentidos.
+    expect(nomes(ordenarLinhas([pedido, vinculo], "atualizacao", "crescente"))).toStrictEqual(["Ana", "Zuleica"]);
     // Em Papel o pedido ordena pelo que a coluna mostra, "a decidir", antes de "Gestor".
     expect(nomes(ordenarLinhas([vinculo, pedido], "papel", "crescente"))).toStrictEqual(["Zuleica", "Ana"]);
     // Em Unidade o pedido não tem unidade, e vai para o fim nos dois sentidos.
@@ -885,6 +905,61 @@ describe("a ordem por coluna (critério 3)", () => {
       "Pedido Antigo",
       "Novo",
       "Velho",
+    ]);
+  });
+
+  it("ordenar por atualização põe nulo no fim, nos dois sentidos", () => {
+    const comData = linhaDoVinculo(
+      VINCULO("p1", "Com Data", "solicitante", { atualizadoEm: "2026-05-01T12:00:00.000Z" }),
+      CONTEXTO,
+    );
+    const maisNova = linhaDoVinculo(
+      VINCULO("p2", "Mais Nova", "solicitante", { atualizadoEm: "2026-07-01T12:00:00.000Z" }),
+      CONTEXTO,
+    );
+    const semData = linhaDoVinculo(VINCULO("p3", "Sem Data", "solicitante"), CONTEXTO);
+    const linhas = [semData, maisNova, comData];
+
+    expect(nomes(ordenarLinhas(linhas, "atualizacao", "crescente"))).toStrictEqual([
+      "Com Data",
+      "Mais Nova",
+      "Sem Data",
+    ]);
+    expect(nomes(ordenarLinhas(linhas, "atualizacao", "decrescente"))).toStrictEqual([
+      "Mais Nova",
+      "Com Data",
+      "Sem Data",
+    ]);
+  });
+
+  it("duas linhas sem alteração empatam pelo nome, e a ordem não oscila", () => {
+    const zuleica = linhaDoVinculo(VINCULO("p1", "Zuleica", "solicitante"), CONTEXTO);
+    const ana = linhaDoVinculo(VINCULO("p2", "Ana", "solicitante"), CONTEXTO);
+    expect(nomes(ordenarLinhas([zuleica, ana], "atualizacao", "crescente"))).toStrictEqual([
+      "Ana",
+      "Zuleica",
+    ]);
+    expect(nomes(ordenarLinhas([zuleica, ana], "atualizacao", "decrescente"))).toStrictEqual([
+      "Ana",
+      "Zuleica",
+    ]);
+  });
+
+  it("sem ordenação, o vínculo alterado sobe pela alteração e o não alterado fica pela entrada", () => {
+    const antigoAlterado = linhaDoVinculo(
+      VINCULO("p1", "Antigo Alterado", "solicitante", {
+        criadoEm: "2026-01-01T12:00:00.000Z",
+        atualizadoEm: "2026-09-20T12:00:00.000Z",
+      }),
+      CONTEXTO,
+    );
+    const novoIntocado = linhaDoVinculo(
+      VINCULO("p2", "Novo Intocado", "solicitante", { criadoEm: "2026-06-01T12:00:00.000Z" }),
+      CONTEXTO,
+    );
+    expect(nomes(ordenarLinhas([novoIntocado, antigoAlterado], null, "crescente"))).toStrictEqual([
+      "Antigo Alterado",
+      "Novo Intocado",
     ]);
   });
 
@@ -987,9 +1062,9 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
   });
 
   it("lê os quatro quando são válidos", () => {
-    expect(ler("filtro=gestores&ordem=desde&sentido=decrescente&pagina=2")).toStrictEqual({
+    expect(ler("filtro=gestores&ordem=atualizacao&sentido=decrescente&pagina=2")).toStrictEqual({
       filtro: "gestores",
-      ordem: "desde",
+      ordem: "atualizacao",
       sentido: "decrescente",
       pagina: 2,
     });
@@ -1012,7 +1087,7 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
   it("trocar o filtro ou a ordem volta à primeira página; ir a uma página só troca a página", () => {
     const naTerceira = { ...ENDERECO_PADRAO, pagina: 3 };
     expect(comFiltro(naTerceira, "gestores")).toStrictEqual({ ...ENDERECO_PADRAO, filtro: "gestores" });
-    expect(comOrdem(naTerceira, "desde")).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "desde" });
+    expect(comOrdem(naTerceira, "atualizacao")).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "atualizacao" });
     expect(naPagina(ENDERECO_PADRAO, 2)).toStrictEqual({ ...ENDERECO_PADRAO, pagina: 2 });
   });
 
@@ -1025,14 +1100,36 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
     expect(comOrdem(dois, "papel")).toStrictEqual({ ...ENDERECO_PADRAO, ordem: "papel" });
   });
 
+  it("um endereço guardado com ordem=desde cai no padrão, e ordem=atualizacao vale", () => {
+    expect(ler("ordem=desde&sentido=decrescente")).toStrictEqual(ENDERECO_PADRAO);
+    expect(ler("ordem=atualizacao&sentido=decrescente")).toStrictEqual({
+      ...ENDERECO_PADRAO,
+      ordem: "atualizacao",
+      sentido: "decrescente",
+    });
+  });
+
+  it("o nome acessível do cabeçalho percorre os três estados na coluna nova", () => {
+    const rotulo = "Última atualização";
+    expect(rotuloDoCabecalho(ENDERECO_PADRAO, "atualizacao", rotulo)).toBe(
+      "Ordenar por Última atualização",
+    );
+    expect(
+      rotuloDoCabecalho({ ordem: "atualizacao", sentido: "crescente" }, "atualizacao", rotulo),
+    ).toBe("Inverter a ordem de Última atualização");
+    expect(
+      rotuloDoCabecalho({ ordem: "atualizacao", sentido: "decrescente" }, "atualizacao", rotulo),
+    ).toBe("Tirar a ordenação de Última atualização");
+  });
+
   it("aria-sort: none em todas sem ordenação, e o sentido na coluna ativa", () => {
-    for (const coluna of ["pessoa", "papel", "unidade", "desde"] as const) {
+    for (const coluna of ["pessoa", "papel", "unidade", "atualizacao"] as const) {
       expect(ariaSort(ENDERECO_PADRAO, coluna)).toBe("none");
     }
     const desc = comOrdem(comOrdem(ENDERECO_PADRAO, "pessoa"), "pessoa");
     expect(ariaSort(comOrdem(ENDERECO_PADRAO, "pessoa"), "pessoa")).toBe("ascending");
     expect(ariaSort(desc, "pessoa")).toBe("descending");
-    expect(ariaSort(desc, "desde")).toBe("none");
+    expect(ariaSort(desc, "atualizacao")).toBe("none");
   });
 });
 
