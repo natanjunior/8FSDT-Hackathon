@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   DIAS_DA_JANELA,
+  atalhosDaJanela,
   diaEmSaoPaulo,
-  ehJanelaPadrao,
   mesEmSaoPaulo,
   mesesDaJanela,
   resolverJanela,
@@ -51,21 +51,51 @@ describe("a janela do dashboard — os quatro casos do contrato", () => {
     expect(diaEmSaoPaulo(new Date(AGORA))).toBe("2026-08-29");
     expect(mesEmSaoPaulo(new Date("2026-09-01T02:00:00.000Z"))).toBe("2026-08");
   });
+});
 
-  it("a janela padrão é reconhecida quando ninguém pediu nada — critério 69.1", () => {
-    expect(ehJanelaPadrao(resolverJanela({}, AGORA), AGORA)).toBe(true);
+describe("os quatro atalhos do painel — item 71", () => {
+  it("as quatro janelas saem do dia de São Paulo, com as duas pontas dentro", () => {
+    expect(atalhosDaJanela(AGORA)).toStrictEqual({
+      sete: { de: "2026-08-23", ate: "2026-08-29" },
+      trinta: { de: "2026-07-31", ate: "2026-08-29" },
+      noventa: { de: "2026-06-01", ate: "2026-08-29" },
+      mes: { de: "2026-08-01", ate: "2026-08-29" },
+    });
   });
 
-  it("o padrão escrito por extenso na URL também é o padrão: compara valor, não endereço", () => {
-    expect(ehJanelaPadrao({ de: "2026-06-01", ate: "2026-08-29" }, AGORA)).toBe(true);
+  it("sete, trinta e noventa contam as duas pontas, como DIAS_DA_JANELA já significa", () => {
+    const dias = ({ de, ate }: { de: string; ate: string }) =>
+      (Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000 + 1;
+    const atalhos = atalhosDaJanela(AGORA);
+    expect(dias(atalhos.sete)).toBe(7);
+    expect(dias(atalhos.trinta)).toBe(30);
+    expect(dias(atalhos.noventa)).toBe(DIAS_DA_JANELA);
   });
 
-  it("noventa dias que terminam ontem não são o padrão", () => {
-    expect(ehJanelaPadrao({ de: "2026-05-31", ate: "2026-08-28" }, AGORA)).toBe(false);
+  it("este mês começa no dia 01 e termina hoje, nunca no fim do mês", () => {
+    expect(atalhosDaJanela(AGORA).mes).toStrictEqual({ de: "2026-08-01", ate: "2026-08-29" });
   });
 
-  it("basta uma ponta diferente para não ser o padrão", () => {
-    expect(ehJanelaPadrao({ de: "2026-06-02", ate: "2026-08-29" }, AGORA)).toBe(false);
+  it("no dia 01 este mês é um dia só, e não uma janela invertida", () => {
+    expect(atalhosDaJanela("2026-09-01T15:00:00.000Z").mes).toStrictEqual({
+      de: "2026-09-01",
+      ate: "2026-09-01",
+    });
+  });
+
+  it("o mês é o de São Paulo: 02:00 UTC do dia 01 ainda é o mês anterior", () => {
+    expect(atalhosDaJanela("2026-09-01T02:00:00.000Z").mes).toStrictEqual({
+      de: "2026-08-01",
+      ate: "2026-08-31",
+    });
+  });
+
+  it("o atalho de 90 dias é a janela padrão — os quatro casos que eram de ehJanelaPadrao", () => {
+    const { noventa } = atalhosDaJanela(AGORA);
+    expect(noventa).toStrictEqual(resolverJanela({}, AGORA));
+    expect(noventa).toStrictEqual({ de: "2026-06-01", ate: "2026-08-29" });
+    expect(noventa).not.toStrictEqual({ de: "2026-05-31", ate: "2026-08-28" });
+    expect(noventa).not.toStrictEqual({ de: "2026-06-02", ate: "2026-08-29" });
   });
 });
 

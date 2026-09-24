@@ -63,7 +63,7 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
  * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts`. A exceção é o quadro 4, medido também a 390 px pelo item 61, porque é onde a barra do mês de maior mediana sumia |
- * | O período escolhido à mão (`De`, `Até`, `Aplicar`) e a faixa de período inválido | São o formulário de T-07, e a janela padrão é a que a semente foi construída para encher. Um período digitado seria outra jornada |
+ * | O período escolhido à mão no calendário e a faixa de período inválido | São a escolha de recorte de T-07, e a janela padrão é a que a semente foi construída para encher. Um período escolhido seria outra jornada |
  * | O quarto estado da lista — *página além do fim* | Ele já tem teste de unidade em `estadoDaLista`, e alcançá-lo aqui pediria uma página que não existe, que é URL editada à mão e não gesto de tela |
  */
 
@@ -185,6 +185,19 @@ function mesesNaJanela(de: string, ate: string): number {
 }
 
 /**
+ * As duas pontas do recorte, em dia do contrato, lidas do rótulo do seletor de período (item 71).
+ *
+ * **O rótulo passou a ser a única fonte do recorte aplicado** depois que os dois campos de data saíram da
+ * tela: ele é `dd/mm/aaaa – dd/mm/aaaa`, e `mesesNaJanela` conta sobre `YYYY-MM-DD`.
+ */
+function pontasDoRotulo(rotulo: string): { de: string; ate: string } {
+  const [de = "", ate = ""] = rotulo
+    .split("–")
+    .map((parte) => parte.trim().split("/").reverse().join("-"));
+  return { de, ate };
+}
+
+/**
  * A sonda da troca de página — critério 14.7, e ela roda **dentro** do navegador.
  *
  * **Uma asserção de fora não alcança isto.** O esqueleto, se aparecesse, viveria os milissegundos entre
@@ -245,16 +258,37 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await helena.waitForURL(/\/dashboard$/u);
   await expect(helena.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
 
-  // O formulário de período, com a janela padrão dos 90 dias já preenchida (critério 32.1).
-  const de = await helena.getByLabel("De", { exact: true }).inputValue();
-  const ate = await helena.getByLabel("Até", { exact: true }).inputValue();
+  // O seletor de período, com a janela padrão dos 90 dias já aplicada (critérios 32.1 e 71.1). O nome
+  // acessível carrega o intervalo, e o rótulo visível é o mesmo texto (critério 71.4).
+  const seletorDePeriodo = helena.getByRole("button", { name: /^Período: /u });
+  await expect(seletorDePeriodo).toBeVisible();
+  await expect(seletorDePeriodo).toHaveText(/^\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}$/u);
+  // As duas pontas voltam a ser dia do contrato para o resto do passo, que conta os meses da janela.
+  const { de, ate } = pontasDoRotulo(await seletorDePeriodo.innerText());
   expect(de).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   expect(ate).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
   expect(de < ate).toBe(true);
-  await expect(helena.getByRole("button", { name: "Aplicar" })).toBeVisible();
-  // No recorte padrão o atalho é texto apagado, e não link (critério 69.1): o rótulo continua o mesmo.
-  await expect(helena.getByText("últimos 90 dias", { exact: true })).toBeVisible();
-  await expect(helena.getByRole("link", { name: "últimos 90 dias" })).toHaveCount(0);
+
+  await seletorDePeriodo.click();
+  // O painel do `popover` do Radix é `role="dialog"`, e escopar por ele separa os atalhos de qualquer
+  // outro botão da página.
+  const painelDoPeriodo = helena.getByRole("dialog");
+  for (const atalho of ["últimos 7 dias", "últimos 30 dias", "últimos 90 dias", "este mês"]) {
+    await expect(painelDoPeriodo.getByRole("button", { name: atalho, exact: true })).toBeVisible();
+  }
+  await expect(painelDoPeriodo.getByRole("button", { name: "Aplicar", exact: true })).toBeVisible();
+  // No recorte padrão o atalho dos 90 dias não tem o que fazer, e por isso está desabilitado e fora da
+  // ordem de tabulação (critério 71.2). É o herdeiro direto da asserção que provava que ele não era link.
+  await expect(
+    painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }),
+  ).toBeDisabled();
+
+  // Fechar sem aplicar não escreve no endereço: o recorte continua o padrão, sem `de` e sem `ate`.
+  await helena.keyboard.press("Escape");
+  await expect(painelDoPeriodo).toBeHidden();
+  const semRecorte = new URL(helena.url()).searchParams;
+  expect(semRecorte.has("de")).toBe(false);
+  expect(semRecorte.has("ate")).toBe(false);
 
   // -------------------------------------------------------------------------
   // 2.1 · Quadro 1 · Recorrência no período — as quatro seções (critérios 35, 57 e 60)

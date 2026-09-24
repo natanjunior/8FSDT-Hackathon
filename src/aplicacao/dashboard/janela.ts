@@ -94,15 +94,36 @@ export function resolverJanela(pedida: JanelaPedida, agora?: string): Janela {
 }
 
 /**
- * **A janela é a padrão?** É o que apaga o atalho *"últimos 90 dias"* de T-07 (critério 69.1).
+ * As quatro janelas que a tela oferece como atalho — item 71.
  *
- * **Compara valores, e não o endereço**: `/dashboard` e `/dashboard?de=<hoje−89>&ate=<hoje>` pedem a mesma
- * janela, e o atalho apaga nos dois. Mora aqui pela mesma razão de `resolverJanela`: quem sabe o que são
- * 90 dias é a Aplicação, e a página só pergunta.
+ * **Elas são calculadas aqui, e não no navegador, por duas razões.** A primeira é a mesma de
+ * `resolverJanela`: quem sabe o que são 90 dias é a Aplicação, e a Interface traduz e recusa. A segunda é
+ * de fato: o relógio de quem abre não está no fuso do produto, e um atalho calculado no cliente diria
+ * *hoje* com um dia de diferença para quem estiver fora de São Paulo.
+ *
+ * **As duas pontas contam**, como `DIAS_DA_JANELA` já significa: 7 dias é `ate − 6`, 30 é `ate − 29` e 90
+ * é `ate − 89`.
+ *
+ * **`mes` termina hoje, e não no fim do mês.** Uma janela que acaba no futuro só acrescenta dias vazios
+ * ao recorte. No dia 01 ela é um dia só, que é uma janela válida.
+ *
+ * **Quem escreve as palavras é a Interface.** Aqui só há datas.
  */
-export function ehJanelaPadrao(janela: Janela, agora?: string): boolean {
-  const padrao = resolverJanela({}, agora);
-  return janela.de === padrao.de && janela.ate === padrao.ate;
+export type AtalhosDaJanela = {
+  readonly sete: Janela;
+  readonly trinta: Janela;
+  readonly noventa: Janela;
+  readonly mes: Janela;
+};
+
+export function atalhosDaJanela(agora?: string): AtalhosDaJanela {
+  const hoje = diaEmSaoPaulo(agora === undefined ? new Date() : new Date(agora));
+  return {
+    sete: { de: recuar(hoje, 6), ate: hoje },
+    trinta: { de: recuar(hoje, 29), ate: hoje },
+    noventa: { de: recuar(hoje, DIAS_DA_JANELA - 1), ate: hoje },
+    mes: { de: `${hoje.slice(0, 8)}01`, ate: hoje },
+  };
 }
 
 /**

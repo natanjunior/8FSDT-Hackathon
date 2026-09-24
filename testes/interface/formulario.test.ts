@@ -2211,3 +2211,80 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     }
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 71 — o seletor de faixa de datas do painel
+ * ============================================================================
+ */
+describe("o alcance do 71 — o seletor de faixa de datas", () => {
+  it("o react-day-picker entra fixado, e é o único pacote novo (ADR-0015)", () => {
+    expect(existsSync(RAIZ + "src/interface/componentes/ui/calendar.tsx")).toBe(true);
+    const pacote = JSON.parse(ler("package.json")) as { dependencies: Record<string, string | undefined> };
+    // Fixado, sem acento circunflexo: a ADR-0011 faz da atualização uma decisão.
+    expect(pacote.dependencies["react-day-picker"]).toBe("10.0.1");
+    // O registro do `calendar` declara `cn` e `date-fns`. O primeiro é o pacote homônimo do módulo de
+    // utilitários, que o 44b já desinstalou três vezes; o segundo o `react-day-picker` declara para si, e
+    // o nosso código não o importa. Dependência direta sem `import` é inventário que mente.
+    expect(pacote.dependencies["cn"]).toBeUndefined();
+    expect(pacote.dependencies["date-fns"]).toBeUndefined();
+  });
+
+  it("a peça do catálogo veio na sintaxe do Tailwind 4, e sem a variante escura", () => {
+    const fonte = ler("src/interface/componentes/ui/calendar.tsx");
+    expect(fonte).toContain("size-(--cell-size)");
+    expect(fonte).not.toContain("[--cell-size]");
+    expect(fonte).not.toContain("dark:");
+    expect(fonte).toContain('from "@/interface/componentes/utilitarios"');
+    expect(fonte).toContain('from "@/interface/componentes/ui/button"');
+  });
+
+  it("o seletor é cliente, escreve a URL pelo roteador e parte do recorte aplicado (critério 71.1)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-periodo.tsx");
+    expect(fonte).toMatch(/^"use client";/u);
+    // `push`, e não `replace`: voltar como desfazer vale mais que sair da tela num toque, que é a razão
+    // escrita em `navegacao-da-lista.tsx`.
+    expect(fonte).toContain("router.push(");
+    expect(fonte).not.toContain("router.replace(");
+    expect(fonte).toContain("comecar(");
+    // Abrir semeia a escolha com o que está na URL; fechar sem aplicar não deixa resíduo.
+    expect(fonte).toContain("if (proximo) setEscolha(");
+    // O alvo de toque do lote, e não os 32 px do registro (desvio D1 do plano).
+    expect(fonte).toContain("[--cell-size:--spacing(11)]");
+    // Os menus de mês e ano repõem o alcance que o campo nativo dava de graça.
+    expect(fonte).toContain('captionLayout="dropdown"');
+    // Sem o idioma, os meses e os dias da semana saem em inglês dentro de um produto todo em pt-BR.
+    expect(fonte).toContain("locale={ptBR}");
+  });
+
+  it("aplicar com uma ponta só não é oferecido, e o rótulo do gatilho vem do recorte (critério 71.4)", () => {
+    const fonte = ler("src/interface/componentes/seletor-de-periodo.tsx");
+    expect(fonte).toContain("aria-label={nomeDaFaixa(periodo)}");
+    expect(fonte).toContain("{rotuloDaFaixa(periodo)}");
+    expect(fonte).toContain("disabled={!completa}");
+    // O atalho igual ao recorte não é alvo de toque que não faz nada.
+    expect(fonte).toContain("disabled={ehAFaixaAplicada(periodo, atalhos[chave])}");
+    expect(fonte).not.toContain("atalhoCorrente");
+  });
+
+  it("nenhum tamanho fora dos sete papéis e nenhuma cor crua nos arquivos novos do 71", () => {
+    for (const caminho of [
+      "src/interface/componentes/seletor-de-periodo.tsx",
+      "src/interface/componentes/faixa-de-periodo.ts",
+    ]) {
+      const fonte = ler(caminho);
+      expect([...fonte.matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)], caminho).toStrictEqual([]);
+      expect(fonte, caminho).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\brgb\(/u);
+    }
+  });
+
+  it("os dois campos de data saíram da página, e o color-scheme saiu com eles", () => {
+    const fonte = ler("app/(casca)/dashboard/page.tsx");
+    expect(fonte).not.toContain('type="date"');
+    expect(fonte).not.toContain("color-scheme");
+    expect(fonte).not.toContain('<form method="get">');
+    expect(fonte).toContain("<SeletorDePeriodo");
+    // O aviso da troca fica onde estava, e o mecanismo não mudou (critério 71.3).
+    expect(fonte).toContain("As datas estavam invertidas e foram trocadas.");
+  });
+});

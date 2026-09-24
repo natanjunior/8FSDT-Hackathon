@@ -45,6 +45,7 @@ const DOCUMENTOS = new Set([
   "docs/adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md",
   "docs/adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md",
   "docs/adr/0014-o-campo-de-codigo-entra-com-o-input-otp.md",
+  "docs/adr/0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md",
   "docs/adr/README.md",
   "docs/api.md",
   "docs/atendimento-ao-enunciado.md",

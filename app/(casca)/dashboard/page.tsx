@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { ehJanelaPadrao, verDashboard } from "@/aplicacao/dashboard";
+import { atalhosDaJanela, verDashboard, type AtalhosDaJanela } from "@/aplicacao/dashboard";
 import {
   Cartao,
   ListaEmTexto,
@@ -26,10 +26,9 @@ import {
   rotuloDaFaixaDeIdade,
   textoDaIdadeEmAberto,
 } from "@/interface/componentes/idade-em-aberto";
+import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { itemDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
-import { Button } from "@/interface/componentes/ui/button";
-import { Input } from "@/interface/componentes/ui/input";
 import {
   consultaDe,
   FormatoInvalido,
@@ -124,7 +123,8 @@ export default async function Dashboard({
 
       <Periodo
         periodo={dashboard.periodo}
-        padrao={ehJanelaPadrao(dashboard.periodo)}
+        atalhos={atalhosDaJanela()}
+        consultaAtual={consultaNaOrdem.toString()}
         trocada={trocada}
       />
 
@@ -142,93 +142,45 @@ export default async function Dashboard({
 }
 
 /**
- * **`<form method="get">`, e é a tela inteira de interação de T-07.**
+ * **A faixa deixou de ser formulário no item 71**, e o cartão continua sendo o cartão: mesma borda, mesmo
+ * respiro, e é a casa do aviso da troca. Refazer a moldura do painel é outro item.
  *
- * Sem `"use client"`, sem `useRouter`, sem `useState`: o navegador monta `/dashboard?de=…&ate=…` sozinho,
- * que é o endereço compartilhável que o inventário pede — *"um dashboard de um trimestre é a coisa que se
- * manda para a imobiliária"*.
+ * **O que saiu, e não é regressão:** os dois campos de data nativos, os dois rótulos que os nomeavam e a
+ * classe de esquema de cor que o item 69 pôs neles. Aquela classe existia para o navegador desenhar o
+ * calendário **do sistema** no tema do campo; sem campo nativo não há calendário do sistema. Declarar o
+ * esquema de cor globalmente mudaria a barra de rolagem e todo controle nativo do produto, e por isso não
+ * se faz.
  *
- * **A-1:** os dois campos têm `<label htmlFor>` de verdade. **A-3:** `min-h-11` nos dois campos, no atalho
- * e no botão, que nem o `Input` nem o `Button` do catálogo trazem sozinhos.
+ * *(Nenhum comentário deste bloco escreve a classe nem o tipo de campo por extenso: a guarda que protege
+ * esta decisão casa texto-fonte e não distingue código de prosa.)*
  *
- * **O `Aplicar` não veste a marca.** A regra do guia é uma ação na cor da marca por tela, e T-07 é tela de
- * leitura: a ação de escrever não existe aqui.
+ * **O atalho dos 90 dias continua vindo antes do `Aplicar`** (critério 69.1): a coluna de atalhos do
+ * painel vem antes do rodapé.
  *
- * **A ordem é De · Até · atalho · Aplicar** (critério 69.1): o atalho fica colado ao botão, e os campos
- * vêm primeiro porque são o que se preenche. **Com o recorte já no padrão, o atalho é texto apagado**, e
- * não link: um link para onde já se está é alvo de toque que não faz nada. Ele guarda o `min-h-11` para a
- * faixa não mudar de altura entre os dois estados.
- *
- * **`dark:[color-scheme:dark]` nos dois campos** (critério 69.2): sem ele, o navegador desenha o
- * calendário do `type="date"` no esquema claro dentro do campo escuro. A variante `dark` cobre os dois
- * estados escuros do produto (`globals.css`), e a classe fica só aqui porque este é o único campo de data.
- *
- * **O aviso da troca** (critério 69.3) é uma oração em *meta* embaixo da faixa, e não repete as datas: os
- * campos já as mostram na ordem certa, porque o `defaultValue` vem de `periodo`.
+ * **O aviso da troca** (critério 71.3) é uma oração em *meta* no pé do cartão, e não repete as datas: o
+ * gatilho já as mostra na ordem certa, porque o rótulo sai de `periodo`.
  */
 function Periodo({
   periodo,
-  padrao,
+  atalhos,
+  consultaAtual,
   trocada,
 }: {
   periodo: DashboardProjetado["periodo"];
-  padrao: boolean;
+  atalhos: AtalhosDaJanela;
+  consultaAtual: string;
   trocada: boolean;
 }) {
   return (
-    <form
-      method="get"
-      className="border-linha bg-superficie flex flex-wrap items-end gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor="de" className="text-tinta-suave text-meta">
-          De
-        </label>
-        <Input
-          id="de"
-          name="de"
-          type="date"
-          defaultValue={periodo.de}
-          className="border-linha text-tinta text-interface min-h-11 w-auto dark:[color-scheme:dark]"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="ate" className="text-tinta-suave text-meta">
-          Até
-        </label>
-        <Input
-          id="ate"
-          name="ate"
-          type="date"
-          defaultValue={periodo.ate}
-          className="border-linha text-tinta text-interface min-h-11 w-auto dark:[color-scheme:dark]"
-        />
-      </div>
-
-      {padrao ? (
-        <span className="text-tinta-fraca text-interface inline-flex min-h-11 items-center">
-          últimos 90 dias
-        </span>
-      ) : (
-        <Link
-          href="/dashboard"
-          className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
-        >
-          últimos 90 dias
-        </Link>
-      )}
-
-      <Button type="submit" variant="outline" className="border-linha text-tinta text-interface min-h-11 px-4">
-        Aplicar
-      </Button>
+    <div className="border-linha bg-superficie flex flex-wrap items-center gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+      <SeletorDePeriodo periodo={periodo} atalhos={atalhos} consultaAtual={consultaAtual} />
 
       {trocada ? (
         <p role="status" className="text-tinta-suave text-meta basis-full">
           As datas estavam invertidas e foram trocadas.
         </p>
       ) : null}
-    </form>
+    </div>
   );
 }
 
