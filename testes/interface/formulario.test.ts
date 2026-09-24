@@ -2156,8 +2156,34 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).not.toContain("gruposDoCodigo");
   });
 
+  it("a moldura aceita um convite, e sem ele é a de sempre (critério 65.1)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect(fonte).toContain('convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };');
+    // A página e a coluna de sempre continuam escritas duas vezes: moldura e espera (critério 44o.1).
+    expect([...fonte.matchAll(/className=\{PAGINA\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/className=\{COLUNA\}/gu)]).toHaveLength(2);
+    // As trilhas do design, nas duas ordens.
+    expect(fonte).toContain("lg:grid-cols-[minmax(0,460px)_auto_minmax(0,380px)]");
+    expect(fonte).toContain("lg:grid-cols-[minmax(0,380px)_auto_minmax(0,460px)]");
+    // O espelho é por ordem de grade: no documento o cartão vem sempre primeiro, e o `h1` é o primeiro título.
+    expect(fonte).toContain("lg:order-1");
+    expect(fonte).toContain("lg:order-3");
+    expect(fonte).toContain("function ReguaDoOu");
+    expect(fonte).not.toContain("só T-01 ganha duas colunas");
+  });
+
+  it("o convite não é cartão, e o botão dele é link de contorno em largura cheia", () => {
+    const fonte = ler(CONVITE);
+    expect(fonte).not.toContain('"use client"');
+    expect(fonte).not.toContain("<Cartao");
+    expect(fonte).toMatch(/<Button asChild variant="outline" className="[^"]*\bw-full\b/u);
+    expect(fonte).toContain('<Check aria-hidden="true"');
+    expect(fonte).toContain("text-ok");
+    expect(fonte).toContain('<h2 id={ID_DO_CONVITE} className="text-titulo-bloco');
+  });
+
   it("nenhum tamanho fora dos sete papéis e nenhum controle cru nos arquivos novos do 65", () => {
-    for (const caminho of [CAMPO_DE_CODIGO]) {
+    for (const caminho of [CAMPO_DE_CODIGO, CONVITE, MOLDURA_DE_CONTA]) {
       const fonte = ler(caminho);
       expect([...fonte.matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)], caminho).toStrictEqual([]);
       expect([...fonte.matchAll(/<(?:select|textarea|button)(?:\s|>|$)/gu)], caminho).toStrictEqual([]);
