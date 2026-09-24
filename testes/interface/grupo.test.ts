@@ -71,5 +71,46 @@ describe("os integrantes — critérios 70.2 e 70.3", () => {
   });
 });
 
-// As guardas da página, da barra e do pé entram nas Tarefas 2, 3 e 4. `ler` é usado por elas.
-void ler;
+describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
+  const PAGINA = "app/grupo/page.tsx";
+  const CARTAO = "src/interface/componentes/cartao-de-integrante.tsx";
+
+  it("não lê sessão: nenhum import da resolução de contexto nem da borda HTTP", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).not.toMatch(/@\/interface\/http|@\/aplicacao\/contexto|force-dynamic|cookies\(|headers\(/u);
+  });
+
+  it("desenha os integrantes do dado, e não uma cópia deles", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain("INTEGRANTES.map(");
+    expect(fonte).not.toMatch(/369195|Lacerda/u);
+  });
+
+  it("a grade empilha no celular e abre em três colunas na tela grande", () => {
+    expect(ler(PAGINA)).toContain("grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3");
+  });
+
+  it("o link de perfil só existe com endereço, abre em nova aba e diz de quem é", () => {
+    const fonte = ler(CARTAO);
+    expect(fonte).toContain("integrante.linkedin !== undefined &&");
+    expect(fonte).toContain("integrante.github !== undefined &&");
+    expect(fonte).toContain('target="_blank"');
+    expect(fonte).toContain('rel="noreferrer"');
+    expect(fonte).toContain("aria-label={`${servico} de ${nome}, abre em nova aba`}");
+    expect(fonte).not.toMatch(/href="#"/u);
+  });
+
+  it("o cartão não estoura no celular: o nome encolhe e os botões quebram linha", () => {
+    const fonte = ler(CARTAO);
+    expect(fonte).toContain("min-w-0");
+    expect(fonte).toContain("flex-wrap");
+  });
+
+  it("nenhuma cor crua e nenhum tamanho fora dos papéis da escala", () => {
+    for (const caminho of [PAGINA, CARTAO]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\brgb\(/u);
+      expect(fonte, caminho).not.toMatch(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b/u);
+    }
+  });
+});
