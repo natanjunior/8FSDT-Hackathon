@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { atalhosDaJanela } from "@/aplicacao/dashboard";
+import {
+  CHAVES_DE_ATALHO,
+  deDia,
+  diaEmTexto,
+  ehAFaixaAplicada,
+  limitesDoCalendario,
+  nomeDaFaixa,
+  paraDia,
+  rotuloDaFaixa,
+} from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
@@ -107,6 +118,108 @@ describe("a troca da janela invertida — gesto da tela, e a API continua recusa
     );
     expect(trocada).toBe(false);
     expect(() => lerJanelaDoDashboardDaUrl(mesma)).toThrow(FormatoInvalido);
+  });
+});
+
+describe("a tradução entre o dia do endereço e o dia do calendário — item 71", () => {
+  it("a ida e a volta devolvem o mesmo dia, inclusive em ano bissexto", () => {
+    for (const dia of ["2026-07-01", "2026-12-31", "2026-01-01", "2024-02-29"]) {
+      expect(paraDia(deDia(dia))).toBe(dia);
+    }
+  });
+
+  it("o instante montado é o meio-dia local, e não a meia-noite universal", () => {
+    // Meia-noite em tempo universal cai no dia anterior em todo fuso a oeste, que é o do produto inteiro.
+    const data = deDia("2026-07-01");
+    expect(data.getHours()).toBe(12);
+    expect(data.getFullYear()).toBe(2026);
+    expect(data.getMonth()).toBe(6);
+    expect(data.getDate()).toBe(1);
+  });
+
+  it("a leitura é pelas partes locais, e a hora do dia não muda o dia", () => {
+    // `toISOString().slice(0, 10)` devolveria 02/07 para quem escolhesse às 21h no horário de Brasília.
+    for (const hora of [0, 8, 12, 21, 23]) {
+      expect(paraDia(new Date(2026, 6, 1, hora, 30))).toBe("2026-07-01");
+    }
+    expect(paraDia(new Date(2025, 11, 31, 23, 0))).toBe("2025-12-31");
+    expect(paraDia(new Date(2026, 0, 1, 0, 30))).toBe("2026-01-01");
+  });
+
+  it("o texto do dia reordena os três pedaços, sem tocar em fuso nenhum", () => {
+    expect(diaEmTexto("2026-07-01")).toBe("01/07/2026");
+    expect(diaEmTexto("2026-07-01")).not.toBe("30/06/2026");
+  });
+
+  it("o rótulo do gatilho é o intervalo com travessão curto", () => {
+    expect(rotuloDaFaixa({ de: "2026-07-01", ate: "2026-09-29" })).toBe("01/07/2026 – 29/09/2026");
+  });
+
+  it("o nome acessível contém o rótulo visível inteiro — a regra de rótulo no nome", () => {
+    const periodo = { de: "2026-07-01", ate: "2026-09-29" };
+    expect(nomeDaFaixa(periodo)).toContain(rotuloDaFaixa(periodo));
+    expect(nomeDaFaixa(periodo)).toBe("Período: 01/07/2026 – 29/09/2026");
+  });
+});
+
+describe("qual atalho é o recorte aplicado — item 71, critério 2", () => {
+  const AGORA_DA_TELA = "2026-08-30T02:00:00.000Z";
+  const ATALHOS = atalhosDaJanela(AGORA_DA_TELA);
+
+  it("as quatro chaves da Interface são as quatro janelas da Aplicação", () => {
+    expect([...CHAVES_DE_ATALHO].sort()).toStrictEqual(Object.keys(ATALHOS).sort());
+  });
+
+  it("cada um dos quatro se reconhece quando é o recorte", () => {
+    for (const chave of CHAVES_DE_ATALHO) {
+      expect(ehAFaixaAplicada(ATALHOS[chave], ATALHOS[chave]), chave).toBe(true);
+    }
+  });
+
+  it("recorte que não é nenhum dos quatro não acende nenhum", () => {
+    const outro = { de: "2026-01-01", ate: "2026-01-31" };
+    for (const chave of CHAVES_DE_ATALHO) {
+      expect(ehAFaixaAplicada(outro, ATALHOS[chave]), chave).toBe(false);
+    }
+  });
+
+  it("basta uma ponta diferente para não ser o atalho", () => {
+    expect(ehAFaixaAplicada({ de: "2026-06-02", ate: "2026-08-29" }, ATALHOS.noventa)).toBe(false);
+  });
+
+  it("no dia 7 e no dia 30 dois atalhos são a mesma janela, e os dois apagam", () => {
+    // O defeito que a pergunta por atalho evita: uma função que devolvesse "qual dos quatro" apagaria o
+    // primeiro da lista e deixaria o outro aceso oferecendo um toque que não faz nada.
+    const dia7 = atalhosDaJanela("2026-09-07T15:00:00.000Z");
+    expect(dia7.sete).toStrictEqual(dia7.mes);
+    expect(ehAFaixaAplicada(dia7.mes, dia7.sete)).toBe(true);
+    expect(ehAFaixaAplicada(dia7.mes, dia7.mes)).toBe(true);
+
+    const dia30 = atalhosDaJanela("2026-09-30T15:00:00.000Z");
+    expect(dia30.trinta).toStrictEqual(dia30.mes);
+    expect(ehAFaixaAplicada(dia30.mes, dia30.trinta)).toBe(true);
+
+    // E a janela de 90 dias nunca empata com as outras três, que é o que o critério 2 nomeia.
+    for (const atalhos of [dia7, dia30]) {
+      for (const chave of ["sete", "trinta", "mes"] as const) {
+        expect(ehAFaixaAplicada(atalhos.noventa, atalhos[chave]), chave).toBe(false);
+      }
+    }
+  });
+});
+
+describe("o alcance dos menus de mês e de ano — item 71", () => {
+  it("o menu oferece cinco anos para trás e o ano que vem inteiro", () => {
+    const { inicio, fim } = limitesDoCalendario({ de: "2026-07-01", ate: "2026-09-29" });
+    expect(paraDia(inicio)).toBe("2021-01-01");
+    expect(paraDia(fim)).toBe("2027-12-31");
+  });
+
+  it("o recorte aplicado sempre cabe no alcance, mesmo vindo de um endereço antigo", () => {
+    const { inicio, fim } = limitesDoCalendario({ de: "1900-01-01", ate: "2026-09-29" });
+    expect(paraDia(inicio)).toBe("1900-01-01");
+    expect(deDia("1900-01-01").getTime()).toBeGreaterThanOrEqual(inicio.getTime());
+    expect(deDia("2026-09-29").getTime()).toBeLessThanOrEqual(fim.getTime());
   });
 });
 
