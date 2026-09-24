@@ -1,5 +1,5 @@
 import type { ItemDoMedidor } from "./blocos-do-dashboard";
-import { duracaoEmTexto } from "./duracao";
+import { duracaoEmTexto, SEM_DURACAO } from "./duracao";
 
 /**
  * ============================================================================
@@ -52,7 +52,7 @@ export function textoDoTempoDeResolucao(mes: MesDoTempoDeResolucao): string {
 
   // O mês sem resolução. O `p90` entra na guarda junto com a mediana porque os dois vêm nulos no mesmo
   // caso, e um `!` aqui seria uma afirmação que o tipo não sustenta.
-  if (mes.mediana === null || mes.p90 === null) return `— · ${denominador}`;
+  if (mes.mediana === null || mes.p90 === null) return `${SEM_DURACAO} · ${denominador}`;
 
   return `mediana ${duracaoEmTexto(mes.mediana)} · p90 ${duracaoEmTexto(mes.p90)} · ${denominador}`;
 }

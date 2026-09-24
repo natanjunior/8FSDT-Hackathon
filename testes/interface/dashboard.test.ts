@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DashboardLido } from "@/aplicacao/dashboard";
-import { duracaoEmTexto } from "@/interface/componentes/duracao";
+import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
   rotuloDaDupla,
@@ -189,13 +189,16 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
  *
  * **O defeito que estes casos guardam** é `0 h` para uma ocorrência resolvida em nove minutos, visto em
  * produção. Cada `it` abaixo é uma linha da tabela da spec §3.2.
+ *
+ * Desde o item 62, o piso é `menos de 1 min` e o zero é o travessão; as duas asserções do 55 que diziam
+ * outra coisa trocaram de valor por critério.
  */
 describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero vira zero", () => {
   it("abaixo de uma hora escreve minutos — `18 min` é o exemplo do critério 55.1", () => {
     expect(duracaoEmTexto(0.3)).toBe("18 min");
   });
 
-  it("três minutos são três minutos, e não zero — o caso literal do critério 55.2", () => {
+  it("três minutos são três minutos, e não zero — o caso literal do critério 55.2, e o terceiro caso do 62.4", () => {
     expect(duracaoEmTexto(0.05)).toBe("3 min");
   });
 
@@ -203,12 +206,26 @@ describe("duracaoEmTexto — a unidade segue a magnitude, e nada maior que zero 
     expect(duracaoEmTexto(0.2)).toBe("12 min");
   });
 
-  it("meio minuto sobe ao piso de um, porque o zero era o defeito", () => {
-    expect(duracaoEmTexto(0.008)).toBe("1 min");
+  it("zero é o travessão — critério 62.3, e o primeiro dos três casos do 62.4", () => {
+    expect(duracaoEmTexto(0)).toBe("—");
+    expect(duracaoEmTexto(0)).toBe(SEM_DURACAO);
   });
 
-  it("zero continua zero — o critério 55.2 fala de valor MAIOR que zero, e uma casa decimal é o que a API dá", () => {
-    expect(duracaoEmTexto(0)).toBe("0 min");
+  it("catorze segundos são `menos de 1 min` — o segundo caso do 62.4, e o que a Aurora escrevia como zero", () => {
+    expect(duracaoEmTexto(0.004)).toBe("menos de 1 min");
+  });
+
+  it("meio minuto também é `menos de 1 min`: o piso novo substitui o `1 min` do item 55 (critério 62.1)", () => {
+    expect(duracaoEmTexto(0.008)).toBe("menos de 1 min");
+  });
+
+  it("o menor valor que a API publica ainda é `menos de 1 min`, e nunca o travessão", () => {
+    expect(duracaoEmTexto(0.0001)).toBe("menos de 1 min");
+  });
+
+  it("a costura do minuto cheio: 59,8 s ainda é menos de um minuto, 60,1 s já é `1 min`", () => {
+    expect(duracaoEmTexto(0.0166)).toBe("menos de 1 min");
+    expect(duracaoEmTexto(0.0167)).toBe("1 min");
   });
 
   it("`60 min` não se escreve: a costura de baixo promove à faixa de cima", () => {
@@ -294,7 +311,7 @@ describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mos
     );
   });
 
-  it("dois minutos continuam dois minutos — as duas casas do item 58 e o critério 55.2", () => {
+  it("dois minutos continuam dois minutos — critério 55.2", () => {
     expect(textoDoTempoDeResolucao(mes({ mediana: 0.03, amostra: [0.03], resolvidas: 1 }))).toBe(
       "2 min · 1 resolvida",
     );
@@ -306,8 +323,21 @@ describe("a linha do mês do quadro 4 — mediana, p90, e o mês pequeno que mos
     );
   });
 
+  it("o mês grande da Aurora, todo abaixo de um minuto, escreve o piso nos dois números — e não o travessão", () => {
+    expect(
+      textoDoTempoDeResolucao(mes({ mediana: 0.0031, p90: 0.0083, resolvidas: 44 })),
+    ).toBe("mediana menos de 1 min · p90 menos de 1 min · 44 resolvidas");
+  });
+
+  it("o mês pequeno mistura as três grandezas sem perder nenhuma", () => {
+    expect(
+      textoDoTempoDeResolucao(mes({ mediana: 0.05, amostra: [0.004, 0.05, 72], resolvidas: 3 })),
+    ).toBe("menos de 1 min, 3 min, 3,0 dias · 3 resolvidas");
+  });
+
   it("sem resolução, o travessão e o denominador em zero — critério 36.2, intacto", () => {
     expect(textoDoTempoDeResolucao(mes({}))).toBe("— · 0 resolvidas");
+    expect(textoDoTempoDeResolucao(mes({})).startsWith(SEM_DURACAO)).toBe(true);
   });
 });
 
