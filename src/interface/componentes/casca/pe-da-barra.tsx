@@ -31,7 +31,7 @@ export function PeDaBarra() {
 
   return (
     <SidebarFooter className="gap-0 px-2 pt-0 pb-4">
-      <SidebarSeparator className="mx-2 mb-3" />
+      <SidebarSeparator className="mx-2 mb-3 data-[orientation=horizontal]:w-auto" />
       <nav aria-label="Sobre o projeto" className="flex flex-col">
         <SidebarMenu>
           <ItemExterno endereco="/documentacao" rotulo="Documentação" Icone={BookOpen} aoTocar={aoTocar} />

@@ -131,7 +131,7 @@ export function Navegacao({
 
         {temOrganizacao && (
           <>
-            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
             <SidebarGroup className="p-0">
               <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono uppercase">
                 <Building2 aria-hidden="true" />
@@ -184,7 +184,7 @@ export function Navegacao({
 
         {podeVerDashboard && (
           <>
-            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
             <SidebarGroup className="p-0">
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -202,7 +202,7 @@ export function Navegacao({
         )}
       </nav>
 
-      <SidebarSeparator className="mx-2 my-3" />
+      <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
       <nav aria-label="Além desta organização" className="flex flex-col">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>

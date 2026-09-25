@@ -169,6 +169,19 @@ describe("a barra lateral — critérios 70.5, 70.7, 76.1 e 76.2", () => {
     expect(ler(LAYOUT)).toMatch(/<SidebarContent className="[^"]*\boverflow-x-hidden\b/u);
     expect(ler(PE)).toMatch(/className="min-w-0"/u);
   });
+
+  it("nenhuma régua da barra soma largura cheia com margem (critério 76.1, a causa medida)", () => {
+    // O `w-auto` do `SidebarSeparator` do catálogo perde para o `data-[orientation=horizontal]:w-full` do
+    // `Separator`, que é mais específico; com o `mx-2`, a caixa da régua passava 16 px da coluna. Medido
+    // no navegador: escondida a régua entre os dois marcos, a diferença de rolagem ia de 16 a 0.
+    for (const caminho of [NAVEGACAO, PE]) {
+      const reguas = [...ler(caminho).matchAll(/<SidebarSeparator className="([^"]*)"/gu)].map((a) => a[1]);
+      expect(reguas.length, caminho).toBeGreaterThan(0);
+      for (const classe of reguas) {
+        expect(classe, caminho).toContain("data-[orientation=horizontal]:w-auto");
+      }
+    }
+  });
 });
 
 describe("o pé de /entrar — critério 70.5", () => {
