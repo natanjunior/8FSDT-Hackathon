@@ -164,10 +164,11 @@ function barrasComparaveis(
 /**
  * O seletor do link do **título** numa linha da tabela.
  *
- * **Uma linha tem mais de uma âncora desde o item 67**, e as três levam para lugares diferentes: o
- * título, que é o alvo de teclado e carrega a camada que cobre a linha; o gatilho do cartão de Tempo,
- * fora da ordem de tabulação (`tabindex="-1"`); e *"Conte como foi"*, que leva à mesma ocorrência com
- * `?acao=avaliar`. Ler todas devolveria a mesma linha três vezes, e o `toHaveLength` da página cairia.
+ * **Uma linha tem duas âncoras desde o item 67**: o título, que é o alvo de teclado e carrega a camada
+ * que cobre a linha, e o gatilho do cartão de Tempo, fora da ordem de tabulação (`tabindex="-1"`). Ler
+ * as duas devolveria a mesma linha duas vezes, e o `toHaveLength` da página cairia. Até o item 76 havia
+ * uma terceira, *"Conte como foi"*, com `?acao=avaliar`; o `:not([href*="?"])` fica, inofensivo, contra
+ * um link com consulta que volte.
  */
 const LINK_DO_TITULO = 'tbody a[href^="/ocorrencias/"]:not([tabindex="-1"]):not([href*="?"])';
 

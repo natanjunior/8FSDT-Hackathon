@@ -14,7 +14,7 @@ import {
   MENSAGEM_GENERICA,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
-import { cicloDoModal, estadoInicialDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
+import { cicloDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
 import {
   erroVisivel,
   interagir,
@@ -279,16 +279,6 @@ describe("cicloDoModal — a sequência de modal do guia §7", () => {
 
   it("abrir e fechar sem enviar não custa ida ao servidor", () => {
     expect(cicloDoModal(aberto, { tipo: "pediu-fechar" })).toStrictEqual({ estado: MODAL_FECHADO, efeitos: [] });
-  });
-
-  it("o modal pode nascer aberto, sem envio nem aviso (item 66, ?acao=avaliar)", () => {
-    expect(estadoInicialDoModal(false)).toStrictEqual(MODAL_FECHADO);
-    expect(estadoInicialDoModal(true)).toStrictEqual({
-      aberto: true,
-      enviando: false,
-      aviso: null,
-      precisaAtualizar: false,
-    });
   });
 });
 
@@ -1962,11 +1952,12 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(prioridade).toContain('alta: "border-destructive text-destructive bg-transparent"');
     expect(prioridade).toContain('normal: "border-linha text-tinta-suave bg-transparent"');
     expect(prioridade).toContain('baixa: "border-linha text-tinta-suave bg-transparent"');
-    // A palavra continua dentro do selo (guia §2), e os três desenhos chamam a mesma peça.
+    // A palavra continua dentro do selo (guia §2), e os dois desenhos chamam a mesma peça. Eram três até
+    // o item 76, que tirou o cartão alto de *Minhas ocorrências* (critério 76.3).
     expect(lista).toMatch(
       /<Badge variant="outline" className=\{FORMA_DA_PRIORIDADE\[prioridade\]\}>\s*\{rotuloDePrioridade\(prioridade\)\}/u,
     );
-    expect(lista.match(/<PalavraDePrioridade /gu)).toHaveLength(3);
+    expect(lista.match(/<PalavraDePrioridade /gu)).toHaveLength(2);
   });
 
   it("o local leva MapPin, e nenhum emoji de local sobra no produto (troca 11)", () => {
@@ -2035,9 +2026,8 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     const pagina = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
     expect(pagina).not.toContain("Resolvida. Conte como foi.");
     expect(pagina).toContain('acao.comando !== "avaliar"');
-    expect(pagina).toContain("abreAvaliacaoPeloEndereco(");
-    // O parâmetro sai da URL ao abrir, por `replaceState`, sem ida ao servidor (desvio D1 do plano).
-    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).toContain("history.replaceState");
+    expect(pagina).not.toContain("abreAvaliacaoPeloEndereco(");
+    expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("history.replaceState");
   });
 
   it("a última mudança é a última linha de Detalhes, e não um bloco (item 66)", () => {

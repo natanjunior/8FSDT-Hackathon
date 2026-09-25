@@ -599,25 +599,3 @@ export function encurtarParaOCaminho(
  */
 export const AVISO_DE_AVALIACAO =
   "Esta ocorrência foi resolvida. Conte como foi o atendimento para os Gestores.";
-
-/**
- * **A porta de fora para o modal de avaliar** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9).
- * Só abre quando `avaliar` está em `acoesDisponiveis`; em qualquer outro caso a página abre como sempre, e
- * o parâmetro é ignorado. Parâmetro repetido não conta: o endereço que o produto gera nunca o repete.
- */
-export function abreAvaliacaoPeloEndereco(
-  acao: string | string[] | undefined,
-  acoesDisponiveis: readonly string[],
-): boolean {
-  return acao === "avaliar" && acoesDisponiveis.includes("avaliar");
-}
-
-/**
- * **O outro lado da mesma porta** — o endereço que a marca *"Conte como foi"* de T-03 escreve (item 67).
- *
- * Mora ao lado de quem o lê de propósito: as duas metades de um endereço combinado, em arquivos
- * diferentes, é como um dos lados envelhece sem ninguém perceber.
- */
-export function destinoDaAvaliacao(ocorrenciaId: string): string {
-  return `/ocorrencias/${ocorrenciaId}?acao=avaliar`;
-}

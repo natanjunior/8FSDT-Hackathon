@@ -365,15 +365,9 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   //
   // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
   // -------------------------------------------------------------------------
-  // **A porta de fora** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9). O modal nasce aberto e o
-  // parâmetro sai da URL no mesmo instante, para o recarregar não o reabrir (foco da revisão 4).
-  await helena.goto(`/ocorrencias/${ocorrenciaId}?acao=avaliar`);
-  await expect(helena.getByRole("dialog")).toBeVisible();
-  await expect(helena).toHaveURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
-  await helena.keyboard.press("Escape");
-  await expect(helena.getByRole("dialog")).toHaveCount(0);
-  await helena.reload();
-  await expect(helena.getByRole("dialog")).toHaveCount(0);
+  // **Avaliar só acontece na página da ocorrência** (critério 76.4): a porta pelo endereço, que a lista
+  // usava, saiu com o convite. Helena vai até a ocorrência, e o passo 8 foi todo de Marcos.
+  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
   await esperarSituacao(helena, "Resolvida");
 
   // **A faixa explica e leva à ação num clique** (critério 66.5). O filtro por texto separa a faixa de
