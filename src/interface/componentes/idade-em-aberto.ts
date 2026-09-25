@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  O quadro 6 de T-07 — a idade do que está em aberto, em palavra
+ *  O quadro 2 de T-07 — a idade do que está em aberto, em palavra
  * ============================================================================
  *
  * **Os limites chegam na faixa, e não por import.** A resposta publica `deDias` e `ateDias` em número —
@@ -13,15 +13,15 @@
  * componente é derivação que nenhum teste do laço curto alcança.
  *
  * **Nada de cor, de peso nem de ícone.** A faixa mais velha se distingue **por palavra** (critério 59.5),
- * numa oração que entra quando há alguém nela e sai quando não há. Na linha da faixa ela não caberia: a
- * linha já diz *Mais de 90 dias*, e um `· a mais antiga` ao lado do número seria o mesmo fato escrito
- * duas vezes — foi o argumento que tirou a mediana repetida do mês pequeno, no item 58.
+ * numa oração do veredito que entra quando há alguém nela e sai quando não há. Desde o item 73 a oração
+ * mora no veredito, no topo do quadro, e não mais no rodapé.
  */
 
 /** O que a linha precisa saber da faixa. É a forma de `DashboardProjetado.abertasPorIdade[]`. */
 export type FaixaDeIdadeNaTela = { deDias: number; ateDias: number | null; quantidade: number };
 
-const dias = (quantos: number): string => `${String(quantos)} ${quantos === 1 ? "dia" : "dias"}`;
+export const dias = (quantos: number): string =>
+  `${String(quantos)} ${quantos === 1 ? "dia" : "dias"}`;
 
 /**
  * `Até 7 dias` · `8 a 30 dias` · `31 a 90 dias` · `Mais de 90 dias`.
@@ -36,25 +36,51 @@ export function rotuloDaFaixaDeIdade(faixa: FaixaDeIdadeNaTela): string {
   return `${String(faixa.deDias)} a ${dias(faixa.ateDias)}`;
 }
 
+/** Quantas estão em aberto agora: a soma das faixas. É o número do cartão *Em aberto agora*. */
+export function totalEmAberto(faixas: readonly FaixaDeIdadeNaTela[]): number {
+  return faixas.reduce((soma, faixa) => soma + faixa.quantidade, 0);
+}
+
 /**
- * O rodapé do cartão: **uma oração sempre, duas quando a faixa mais velha tem alguém.**
+ * **O veredito conta acima do segundo limite**, e ganha a oração do último **só quando a faixa mais velha
+ * tem alguém** — é o 59.5, a faixa mais velha distinguida por palavra.
  *
- * A primeira cumpre o critério 59.6 — a organização recém-criada vê as quatro faixas a zero e uma linha
- * dizendo o que vai ser medido. A segunda é o critério 59.5, e acrescenta o que a linha da faixa não tem:
- * o número lido em voz alta, e a afirmação de que aquilo está esperando.
- *
- * **A mais velha é a ÚLTIMA do array**, e não a de `ateDias === null` procurada por busca: o array vem
- * ordenado por construção da Aplicação, e uma segunda regra de *qual é a mais velha* seria a segunda que
- * envelhece.
+ * Os dois limites saem das faixas: o de 30 é o `ateDias` da segunda, e o de 90 é o começo da última menos
+ * um. **Nenhum dos dois é escrito aqui.** Com menos de três faixas, que é impossível hoje, a contagem é
+ * acima do último limite que houver.
  */
-export function textoDaIdadeEmAberto(faixas: readonly FaixaDeIdadeNaTela[]): string {
-  const sempre = "Há quanto tempo o que está em aberto espera, contando do registro.";
+export function vereditoDaIdade(faixas: readonly FaixaDeIdadeNaTela[]): string {
+  if (totalEmAberto(faixas) === 0) return "Nada em aberto agora.";
+
+  const indiceDoCorte = faixas.length > 2 ? 1 : 0;
+  const corte = faixas[indiceDoCorte]?.ateDias ?? 0;
+  const acima = faixas.slice(indiceDoCorte + 1).reduce((soma, faixa) => soma + faixa.quantidade, 0);
+  if (acima === 0) return `Nenhuma em aberto há mais de ${String(corte)} dias.`;
+
   const maisVelha = faixas.at(-1);
+  const ultimoLimite = (maisVelha?.deDias ?? 1) - 1;
+  const oracao =
+    faixas.length > 2 && maisVelha !== undefined && maisVelha.quantidade > 0
+      ? `, e ${String(maisVelha.quantidade)} delas há mais de ${String(ultimoLimite)}`
+      : "";
+  return `${String(acima)} em aberto há mais de ${String(corte)} dias${oracao}.`;
+}
 
-  if (maisVelha === undefined || maisVelha.quantidade === 0) return sempre;
+/**
+ * O rodapé do quadro, **sempre**: a primeira oração do item 59, que cumpre o 59.6 (a organização
+ * recém-criada lê o que o quadro mede), e a soma em texto, que deixa à vista a conferência com o quadro 5.
+ */
+export function rodapeDaIdade(faixas: readonly FaixaDeIdadeNaTela[]): string {
+  return `Há quanto tempo o que está em aberto espera, contando do registro: ${String(totalEmAberto(faixas))} ao todo, nos quatro status não terminais.`;
+}
 
-  const verbo = maisVelha.quantidade === 1 ? "espera" : "esperam";
-  const quando = rotuloDaFaixaDeIdade(maisVelha).toLocaleLowerCase("pt-BR");
+const PORCENTAGEM = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 
-  return `${sempre} ${String(maisVelha.quantidade)} ${verbo} há ${quando}.`;
+/** A parte de uma faixa no total, com uma casa (`74,7%`). Com total zero, o travessão, e nada de `NaN`. */
+export function parteDoTotal(quantidade: number, total: number): string {
+  if (total === 0) return "—";
+  return `${PORCENTAGEM.format((quantidade / total) * 100)}%`;
 }

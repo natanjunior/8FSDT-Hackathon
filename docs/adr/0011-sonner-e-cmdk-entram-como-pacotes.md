@@ -39,8 +39,8 @@ importam. É o que faz o aviso viver fora da tela que o dispara: um modal pode f
 atualizar sem que ele se perca, e a mesma chamada serve a toda tela, construída ou futura.
 
 **O estado de formulário tocado é escrito no projeto, sem biblioteca.** Nenhum campo mostra problema antes
-da primeira interação, e depois dela todos mostram. O estado que isso exige cabe em poucos fatos: se houve
-interação, quais campos perderam o foco e quais mudaram desde a última resposta do servidor. A validação
+de a pessoa sair dele ou tentar enviar. O estado que isso exige cabe em poucos fatos: se houve tentativa de
+envio, quais campos perderam o foco e quais mudaram desde a última resposta do servidor. A validação
 continua sendo a dos esquemas que a ação e a rota já usam, e o mesmo esquema confere o campo no navegador e
 a requisição no servidor.
 

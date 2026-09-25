@@ -8,7 +8,7 @@ import type { Janela } from "./janela";
  *  O que o dashboard lê — e repare no que NÃO está aqui: escrita
  * ============================================================================
  *
- * **Sete métodos, os sete de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
+ * **Dez métodos, os dez de leitura.** A invariante 3 — *"a trilha é imutável"* — costuma ser provada
  * por teste; aqui ela é provada pela **assinatura**: não existe método por onde este módulo grave. É o
  * primeiro modelo de leitura do projeto que não convive com escrita no mesmo repositório.
  *
@@ -69,6 +69,15 @@ export const LIMITES_DAS_FAIXAS_DE_IDADE = [7, 30, 90] as const;
  */
 export const MINIMO_PARA_RECORRENCIA = 2;
 
+/**
+ * Quantas ocorrências a lista das mais velhas em aberto traz — **cinco**, e o número é da spec do item 73.
+ *
+ * **Ela mora aqui pela razão das três irmãs acima:** descreve o que `maisVelhasEmAberto` devolve. O SQL a
+ * interpola num `limit`, que é economia de transporte, e a Aplicação corta com ela, que é onde o portão
+ * confere a regra.
+ */
+export const QUANTAS_MAIS_VELHAS = 5;
+
 /** Uma faixa de idade, em dias. `ateDias: null` é a faixa sem teto — a mais velha. */
 export type FaixaDeIdade = { deDias: number; ateDias: number | null };
 
@@ -93,7 +102,26 @@ export type ContagemPorFaixaDeIdade = { faixa: number; quantidade: number };
 export type ContagemPorStatus = { status: StatusOcorrencia; quantidade: number };
 
 /** Uma contagem por categoria. `{id, nome}` inline, como o `openapi.yaml:3229` declara. */
-export type ContagemPorCategoria = { categoria: { id: string; nome: string }; quantidade: number };
+export type ContagemPorCategoria = {
+  categoria: { id: string; nome: string };
+  quantidade: number;
+  /** Quantas destas passaram do PRIMEIRO limite de `LIMITES_DAS_FAIXAS_DE_IDADE`. */
+  envelhecidas: number;
+};
+
+/**
+ * Uma das ocorrências em aberto há mais tempo.
+ *
+ * **Sem `statusRotulo`**: o rótulo depende de quem lê, e quem o acrescenta é a projeção, como em
+ * `backlogPorStatus`.
+ */
+export type MaisVelhaEmAberto = {
+  id: string;
+  titulo: string;
+  status: StatusOcorrencia;
+  /** A MESMA expressão de idade de `abertasPorIdade`: a mais velha da lista cai na faixa que a conta. */
+  idadeEmDias: number;
+};
 
 /**
  * O que os dois pontos de série têm em comum — o mês e o número.
@@ -154,6 +182,11 @@ export type LinhaDeResolucao = {
   amostraEmHoras: readonly number[];
   avaliadas: number;
   somaDasNotas: number;
+  /**
+   * Uma contagem por nota, na ordem de `NOTAS_DA_AVALIACAO`. A soma é `avaliadas`: as duas saem da mesma
+   * linha, e a distribuição e a média contam o mesmo conjunto por construção.
+   */
+  contagemPorNota: readonly number[];
 };
 
 export interface RepositorioEscopadoDeDashboard {
@@ -213,4 +246,23 @@ export interface RepositorioEscopadoDeDashboard {
    * (`MaquinaDeEstados.ts:18`), então a junção com a trilha é determinística e não precisa de desempate.
    */
   resolucoesPorMes(janela: Janela): Promise<readonly LinhaDeResolucao[]>;
+  /**
+   * Um mês por linha, **recortado pelo INSTANTE DO CANCELAMENTO** lido da trilha — a mesma âncora de
+   * `resolucoesPorMes`, na mesma tabela. Só vêm os meses que tiveram algum; quem completa o eixo é o
+   * envelope.
+   */
+  canceladasPorMes(janela: Janela): Promise<readonly PontoMensal[]>;
+  /**
+   * Quantas ocorrências estavam em aberto no instante em que a janela abre.
+   *
+   * **Medido, nunca derivado de agora menos o saldo:** é a terceira leitura independente que faz a
+   * conferência do critério 4 poder falhar. Vale para qualquer janela; a conferência só fecha quando a
+   * janela termina hoje.
+   */
+  emAbertoNoInicio(janela: Janela): Promise<number>;
+  /**
+   * **Fotografia de agora**, a quarta, e sem parâmetro como as três irmãs. As ocorrências em aberto há
+   * mais tempo, na ordem de `registrada_em` crescente e depois `id`, no máximo `QUANTAS_MAIS_VELHAS`.
+   */
+  maisVelhasEmAberto(): Promise<readonly MaisVelhaEmAberto[]>;
 }

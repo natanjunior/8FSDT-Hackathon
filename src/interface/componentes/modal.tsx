@@ -15,6 +15,7 @@ import {
 } from "@/interface/componentes/ui/dialog";
 import { SheetContent } from "@/interface/componentes/ui/sheet";
 import { cn } from "@/interface/componentes/utilitarios";
+import { SAI_SEM_ACUSAR } from "@/interface/ganchos/use-formulario-tocado";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
 /**
@@ -61,9 +62,10 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * altura em tela alta. Vale para os nove modais da família, e é o conserto que o item 66 pede no de atribuir.
  */
 
-const CONTEUDO_DO_DIALOG = "bg-superficie border-linha flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0";
+/** As duas classes de conteúdo, exportadas para o `ModalDeDados` de T-07 vestir a mesma forma. */
+export const CONTEUDO_DO_DIALOG = "bg-superficie border-linha flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0";
 
-const CONTEUDO_DO_SHEET =
+export const CONTEUDO_DO_SHEET =
   "bg-superficie border-linha flex max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-t-xl ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)";
 
 /** O rodapé na tela grande. Exportado para o portão de estilo, que mede esta cadeia (item 44q). */
@@ -145,6 +147,7 @@ export function Modal({
               size="icon"
               disabled={enviando}
               className="text-tinta-suave absolute top-2 right-2"
+              {...{ [SAI_SEM_ACUSAR]: "" }}
             >
               <XIcon aria-hidden="true" className="size-4.5" />
               <span className="sr-only">Fechar</span>
@@ -167,6 +170,7 @@ export function BotaoDeCancelar({ enviando }: { enviando: boolean }) {
         variant="outline"
         disabled={enviando}
         className="border-linha text-interface min-h-11 rounded-sm px-4"
+        {...{ [SAI_SEM_ACUSAR]: "" }}
       >
         Cancelar
       </Button>

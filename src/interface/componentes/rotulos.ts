@@ -601,23 +601,34 @@ export const AVISO_DE_AVALIACAO =
   "Esta ocorrência foi resolvida. Conte como foi o atendimento para os Gestores.";
 
 /**
- * **A porta de fora para o modal de avaliar** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9).
- * Só abre quando `avaliar` está em `acoesDisponiveis`; em qualquer outro caso a página abre como sempre, e
- * o parâmetro é ignorado. Parâmetro repetido não conta: o endereço que o produto gera nunca o repete.
+ * **As cinco notas da avaliação, com nome só nas pontas** — o desenho do protótipo §7.2, que o modal
+ * tinha à mão até o item 76. Mora aqui para o texto ao lado das estrelas e o nome de cada rádio saírem
+ * da mesma lista.
  */
-export function abreAvaliacaoPeloEndereco(
-  acao: string | string[] | undefined,
-  acoesDisponiveis: readonly string[],
-): boolean {
-  return acao === "avaliar" && acoesDisponiveis.includes("avaliar");
+export const NOTAS_DA_AVALIACAO = [
+  { valor: 1, descricao: "muito ruim" },
+  { valor: 2, descricao: null },
+  { valor: 3, descricao: null },
+  { valor: 4, descricao: null },
+  { valor: 5, descricao: "muito bom" },
+] as const;
+
+function descricaoDaNota(valor: number): string | null {
+  return NOTAS_DA_AVALIACAO.find((nota) => nota.valor === valor)?.descricao ?? null;
+}
+
+/** O nome acessível de cada estrela: `"5, muito bom"` nas pontas, o número no meio. */
+export function nomeDaNota(valor: number): string {
+  const descricao = descricaoDaNota(valor);
+  return descricao === null ? String(valor) : `${String(valor)}, ${descricao}`;
 }
 
 /**
- * **O outro lado da mesma porta** — o endereço que a marca *"Conte como foi"* de T-03 escreve (item 67).
- *
- * Mora ao lado de quem o lê de propósito: as duas metades de um endereço combinado, em arquivos
- * diferentes, é como um dos lados envelhece sem ninguém perceber.
+ * **O valor em palavra, ao lado das estrelas** (critério 76.5, compromisso A-5). As notas 2 a 4 não
+ * ganham palavra: o desenho de origem só nomeia as pontas, e inventar uma seria decidir escala.
  */
-export function destinoDaAvaliacao(ocorrenciaId: string): string {
-  return `/ocorrencias/${ocorrenciaId}?acao=avaliar`;
+export function textoDaNota(nota: number | null): string {
+  if (nota === null) return "Escolha de 1 a 5";
+  const descricao = descricaoDaNota(nota);
+  return descricao === null ? `${String(nota)} de 5` : `${String(nota)} de 5, ${descricao}`;
 }

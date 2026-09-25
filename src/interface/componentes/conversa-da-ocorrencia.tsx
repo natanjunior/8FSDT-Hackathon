@@ -154,6 +154,7 @@ export function ConversaDaOcorrencia({
                 setAviso(null);
                 formulario.mudou("mensagem");
               }}
+              onBlur={formulario.aoSair("mensagem")}
               disabled={enviando}
               rows={3}
               /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:

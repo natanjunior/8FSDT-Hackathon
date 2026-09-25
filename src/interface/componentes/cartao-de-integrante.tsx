@@ -10,7 +10,8 @@ import { cn } from "@/interface/componentes/utilitarios";
  * **O cartão de um integrante — item 70.**
  *
  * Avatar de iniciais, nome em `<h2>`, RM em mono, e os links de perfil que existirem. **Sem endereço, sem
- * botão**, e sem nenhum dos dois não há régua nem fileira (critério 70.3).
+ * botão.** Sem nenhum dos dois, a fileira fica vazia e a régua continua, para os cinco cartões terem a
+ * mesma altura (critério 76.6, que reverte o 70.3).
  *
  * **Os dois ícones são SVG escritos aqui**, porque o `lucide-react` 1.34.0 não traz marcas: `Linkedin` e
  * `Github` saíram do pacote. Vão `aria-hidden` e em `currentColor`, sem a cor da marca de terceiros, que
@@ -26,7 +27,7 @@ export function CartaoDeIntegrante({ integrante }: { integrante: Integrante }) {
   const temPerfil = integrante.linkedin !== undefined || integrante.github !== undefined;
 
   return (
-    <Cartao tituloId={tituloId}>
+    <Cartao tituloId={tituloId} className="flex h-full flex-col">
       <div className="flex items-center gap-4 p-[18px]">
         <Avatar className="size-12">
           <AvatarFallback className={cn("text-interface font-mono font-semibold", classeDoAvatar(integrante))}>
@@ -41,20 +42,25 @@ export function CartaoDeIntegrante({ integrante }: { integrante: Integrante }) {
         </div>
       </div>
 
-      {temPerfil && (
-        <div className="border-linha-suave flex flex-wrap gap-2 border-t px-[18px] py-3">
-          {integrante.linkedin !== undefined && (
-            <LinkDePerfil endereco={integrante.linkedin} servico="LinkedIn" nome={integrante.nome}>
-              <IconeDoLinkedin />
-            </LinkDePerfil>
-          )}
-          {integrante.github !== undefined && (
-            <LinkDePerfil endereco={integrante.github} servico="GitHub" nome={integrante.nome}>
-              <IconeDoGithub />
-            </LinkDePerfil>
-          )}
-        </div>
-      )}
+      {/* **A fileira fica sempre** (critério 76.6, que reverte o 70.3): sem perfil, a régua continua e o
+          espaço abaixo dela fica vazio, sem texto substituto. `mt-auto` a leva ao pé do cartão, e a altura
+          mínima é a do botão mais o respiro, para as réguas da mesma linha da grade coincidirem. Vazia,
+          ela não tem o que dizer, e sai da árvore de acessibilidade. */}
+      <div
+        aria-hidden={temPerfil ? undefined : true}
+        className="border-linha-suave mt-auto flex min-h-[68px] flex-wrap gap-2 border-t px-[18px] py-3"
+      >
+        {integrante.linkedin !== undefined && (
+          <LinkDePerfil endereco={integrante.linkedin} servico="LinkedIn" nome={integrante.nome}>
+            <IconeDoLinkedin />
+          </LinkDePerfil>
+        )}
+        {integrante.github !== undefined && (
+          <LinkDePerfil endereco={integrante.github} servico="GitHub" nome={integrante.nome}>
+            <IconeDoGithub />
+          </LinkDePerfil>
+        )}
+      </div>
     </Cartao>
   );
 }

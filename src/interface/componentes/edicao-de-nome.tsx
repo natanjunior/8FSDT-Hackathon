@@ -156,6 +156,7 @@ export function EdicaoDeNome(props: Propriedades) {
               setValor(evento.target.value);
               formulario.mudou("nome");
             }}
+            onBlur={formulario.aoSair("nome")}
             className="border-linha bg-background h-11"
           />
         )}

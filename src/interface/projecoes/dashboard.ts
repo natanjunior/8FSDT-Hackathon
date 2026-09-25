@@ -31,9 +31,15 @@ export type DashboardProjetado = {
   abertasPorCategoria: readonly {
     categoria: { id: string; nome: string };
     quantidade: number;
+    envelhecidas: number;
   }[];
   abertasPorIdade: readonly { deDias: number; ateDias: number | null; quantidade: number }[];
-  mediaDasAvaliacoes: { media: number | null; avaliadas: number; resolvidas: number };
+  mediaDasAvaliacoes: {
+    media: number | null;
+    avaliadas: number;
+    resolvidas: number;
+    distribuicao: readonly { nota: number; quantidade: number }[];
+  };
   recorrenciaPorCategoria: readonly {
     categoria: { id: string; nome: string };
     porMes: readonly PontoDoMesProjetado[];
@@ -56,6 +62,15 @@ export type DashboardProjetado = {
       resolvidas: number;
     }[];
   };
+  canceladasPorMes: readonly PontoDoMesProjetado[];
+  emAbertoNoInicio: number;
+  maisVelhasEmAberto: readonly {
+    id: string;
+    titulo: string;
+    status: string;
+    statusRotulo: string;
+    idadeEmDias: number;
+  }[];
 };
 
 /**
@@ -63,8 +78,10 @@ export type DashboardProjetado = {
  * **não pode variar** — e um parâmetro que não varia é o argumento morto que o item 27 removeu de
  * `vazioDaBarra`. Fica literal, com a razão escrita ao lado.
  *
- * **`null` no motivo, e não é perda:** o backlog por status conta linhas agrupadas, não uma ocorrência —
- * não há motivo de pausa a passar. E do lado do Gestor `pausada` é *"Pausada"* com ou sem ele.
+ * **Ela serve às duas listas que carregam status**: o backlog por status e as mais velhas em aberto.
+ *
+ * **`null` no motivo, e não é perda:** o backlog por status conta linhas agrupadas, e a lista das mais
+ * velhas não traz o motivo da pausa. Do lado do Gestor `pausada` é *"Pausada"* com ou sem ele.
  */
 const LENTE_DO_DASHBOARD = "gestor" as const;
 
@@ -79,6 +96,7 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
     abertasPorCategoria: lido.abertasPorCategoria.map((linha) => ({
       categoria: { id: linha.categoria.id, nome: linha.categoria.nome },
       quantidade: linha.quantidade,
+      envelhecidas: linha.envelhecidas,
     })),
     abertasPorIdade: lido.abertasPorIdade.map((faixa) => ({
       deDias: faixa.deDias,
@@ -89,6 +107,10 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
       media: lido.mediaDasAvaliacoes.media,
       avaliadas: lido.mediaDasAvaliacoes.avaliadas,
       resolvidas: lido.mediaDasAvaliacoes.resolvidas,
+      distribuicao: lido.mediaDasAvaliacoes.distribuicao.map((linha) => ({
+        nota: linha.nota,
+        quantidade: linha.quantidade,
+      })),
     },
     recorrenciaPorCategoria: lido.recorrenciaPorCategoria.map((serie) => ({
       categoria: { id: serie.categoria.id, nome: serie.categoria.nome },
@@ -112,5 +134,17 @@ export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
         resolvidas: mes.resolvidas,
       })),
     },
+    canceladasPorMes: lido.canceladasPorMes.map((ponto) => ({
+      mes: ponto.mes,
+      quantidade: ponto.quantidade,
+    })),
+    emAbertoNoInicio: lido.emAbertoNoInicio,
+    maisVelhasEmAberto: lido.maisVelhasEmAberto.map((ocorrencia) => ({
+      id: ocorrencia.id,
+      titulo: ocorrencia.titulo,
+      status: ocorrencia.status,
+      statusRotulo: rotuloDeStatus(ocorrencia.status, null, LENTE_DO_DASHBOARD),
+      idadeEmDias: ocorrencia.idadeEmDias,
+    })),
   };
 }

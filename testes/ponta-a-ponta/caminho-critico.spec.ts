@@ -365,15 +365,9 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   //
   // Ela é a autora, e `avaliar` é o único comando renderizável em `resolvida` para ela.
   // -------------------------------------------------------------------------
-  // **A porta de fora** — `?acao=avaliar`, que a lista usa (spec do 67, §4.9). O modal nasce aberto e o
-  // parâmetro sai da URL no mesmo instante, para o recarregar não o reabrir (foco da revisão 4).
-  await helena.goto(`/ocorrencias/${ocorrenciaId}?acao=avaliar`);
-  await expect(helena.getByRole("dialog")).toBeVisible();
-  await expect(helena).toHaveURL(new RegExp(`/ocorrencias/${ocorrenciaId}$`, "u"));
-  await helena.keyboard.press("Escape");
-  await expect(helena.getByRole("dialog")).toHaveCount(0);
-  await helena.reload();
-  await expect(helena.getByRole("dialog")).toHaveCount(0);
+  // **Avaliar só acontece na página da ocorrência** (critério 76.4): a porta pelo endereço, que a lista
+  // usava, saiu com o convite. Helena vai até a ocorrência, e o passo 8 foi todo de Marcos.
+  await helena.goto(`/ocorrencias/${ocorrenciaId}`);
   await esperarSituacao(helena, "Resolvida");
 
   // **A faixa explica e leva à ação num clique** (critério 66.5). O filtro por texto separa a faixa de
@@ -388,7 +382,26 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await faixaDeAvaliacao.getByRole("button", { name: "Avaliar" }).click();
   cobre(test.info(), "4.5 · 70");
   const modalDeAvaliacao = helena.getByRole("dialog");
-  await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
+  // **Critério 76.5 — as estrelas continuam rádios.** O teclado anda por seta, e o texto ao lado segue a
+  // escolha do teclado mesmo depois de o ponteiro ter passado por outra estrela.
+  // O ponteiro vai no `<label>`, que é a estrela: o rádio é visualmente oculto e não tem caixa para
+  // receber o ponteiro. O `has` parte da página, e não do diálogo: ele é procurado DENTRO do `<label>`.
+  await modalDeAvaliacao
+    .locator("label")
+    .filter({ has: helena.getByRole("radio", { name: "4", exact: true }) })
+    .hover();
+  await modalDeAvaliacao.getByRole("radio", { name: "1, muito ruim" }).focus();
+  await helena.keyboard.press("ArrowRight");
+  await expect(modalDeAvaliacao.getByRole("radio", { name: "2", exact: true })).toBeChecked();
+  await expect(modalDeAvaliacao.getByText("2 de 5", { exact: true })).toBeVisible();
+  // **A pessoa clica na estrela, que é o `<label>`** — o rádio é visualmente oculto, e o Playwright não
+  // marca o que não vê. O que se confere é o rádio marcado, que é o que o formulário envia.
+  await modalDeAvaliacao
+    .locator("label")
+    .filter({ has: helena.getByRole("radio", { name: "5, muito bom" }) })
+    .click();
+  await expect(modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" })).toBeChecked();
+  await expect(modalDeAvaliacao.getByText("5 de 5, muito bom", { exact: true })).toBeVisible();
   await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
   cobre(test.info(), "4.5 · 71", {
     criterio: "27",

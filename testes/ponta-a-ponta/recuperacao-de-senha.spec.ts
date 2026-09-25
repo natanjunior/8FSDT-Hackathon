@@ -262,9 +262,23 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   //
   // **Sem esta asserção o percurso inteiro poderia ter gravado nada.** A tela dizer "Senha alterada" é
   // afirmação da interface; entrar com a senha nova é o provedor concordando.
+  //
+  // **E o erro de campo segue a regra do item 75, digitado letra a letra.** Com `fill`, o valor entra
+  // num evento só, e o defeito de acusar a senha na primeira tecla do e-mail passaria sem ninguém ver.
   // -------------------------------------------------------------------------
-  await pagina.getByLabel("E-mail").fill(EMAIL);
-  await pagina.getByLabel(/^Senha/u).fill(SENHA_NOVA);
+  const senha = pagina.getByLabel(/^Senha/u);
+  await pagina.getByLabel("E-mail").pressSequentially(EMAIL, { delay: 20 });
+  await expect(senha).not.toHaveAttribute("aria-invalid", "true");
+  await expect(pagina.getByText("Informe a senha.")).toHaveCount(0);
+
+  // Tentar entrar com a senha vazia acende o erro e leva o foco a ela.
+  await pagina.getByRole("button", { name: "Entrar" }).click();
+  await expect(senha).toHaveAttribute("aria-invalid", "true");
+  await expect(pagina.getByText("Informe a senha.")).toBeVisible();
+  await expect(senha).toBeFocused();
+  await expect(pagina).toHaveURL(new RegExp(`^${ORIGEM}/entrar$`, "u"));
+
+  await senha.pressSequentially(SENHA_NOVA, { delay: 20 });
   await pagina.getByRole("button", { name: "Entrar" }).click();
 
   await pagina.waitForURL(/\/organizacao$/u);

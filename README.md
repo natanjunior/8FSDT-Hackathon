@@ -7,7 +7,7 @@ solto, alguém transcreve à mão, e ele some no momento em que trava esperando 
 
 Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP.
 
-**Entrega:** 29/09/2026
+**Entrega:** 09/10/2026
 
 ## Estado do projeto
 
@@ -320,6 +320,10 @@ fazer. Para recomeçar:
 npm run semear:demo -- --apagar   # apaga as duas organizações inteiras
 npm run semear:demo               # e semeia de novo
 ```
+
+O `--apagar` roda contra o banco que `BANCO_URL` aponta, e imprime o host antes de começar. Ele só apaga
+organização com um desses dois nomes que tenha sido fundada por uma das duas contas abaixo; se encontrar
+outra com o mesmo nome, deixa-a intacta e diz qual é.
 
 **As duas contas de demonstração**, para o ambiente publicado em
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:

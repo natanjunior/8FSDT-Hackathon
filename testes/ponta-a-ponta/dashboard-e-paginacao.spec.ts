@@ -60,9 +60,9 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * |---|---|
  * | O **32.5 na forma forte** — os cinco quadros **que o resumo cobre** batendo com o resumo que a semente imprime | Exige um mundo intocado, e este teste acrescenta a ele. Continua sendo passada humana |
  * | O **43.1** — o resumo impresso no terminal pelo `npm run semear:demo` | É saída de programa, não de tela. Nenhum navegador a alcança |
- * | **A forma que o gráfico do bloco 1 desenha** (35, 57.2) | Ele é `aria-hidden` por decisão do compromisso A-5, e os dois números de cada mês vivem na lista ao lado — que é o que tem asserção. Aqui se prova que ele **desenhou**, e que cada série se nomeia em palavra |
+ * | **A forma que os gráficos desenham** (57.2, 73.5, 73.6) | Eles são `aria-hidden` por decisão do compromisso A-5, e os números vivem na tabela do `Ver dados` ou na lista para leitor de tela — que é o que tem asserção. Aqui se prova que o do quadro 1 **desenhou**, e que cada série se nomeia em palavra |
  * | A **suavidade** da troca de página (14.7) | O que é mecanizável é o esqueleto **não** reaparecer e a lista anterior **não** sumir; que a transição seja agradável é olho humano |
- * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts`. A exceção é o quadro 4, medido também a 390 px pelo item 61, porque é onde a barra do mês de maior mediana sumia |
+ * | O recorte de celular e a barra fixa do rodapé | O Playwright roda em 1280 px por decisão do `playwright.config.ts` |
  * | O período escolhido à mão no calendário e a faixa de período inválido | São a escolha de recorte de T-07, e a janela padrão é a que a semente foi construída para encher. Um período escolhido seria outra jornada |
  * | O quarto estado da lista — *página além do fim* | Ele já tem teste de unidade em `estadoDaLista`, e alcançá-lo aqui pediria uma página que não existe, que é URL editada à mão e não gesto de tela |
  */
@@ -75,6 +75,26 @@ const DESCRICAO_DA_NOVA =
 /** Os seis status na lente do Gestor, que é a do dashboard — `NOME_DO_STATUS`, critério 32.3. */
 const SEIS_STATUS = ["Aberta", "Em análise", "Em atendimento", "Pausada", "Resolvida", "Cancelada"];
 
+/**
+ * Os sete quadros de T-07, na ordem da tela, com a pergunta de decisão de cada um (item 73, critérios 1
+ * e 2). A numeração da tela é a posição aqui, mais um.
+ */
+const QUADROS = [
+  { titulo: "Entradas e saídas por mês", pergunta: "Está melhorando ou piorando?" },
+  { titulo: "Em aberto por idade", pergunta: "O que está esperando demais, e qual ocorrência?" },
+  {
+    titulo: "Tempo de resolução",
+    pergunta: "Quanto demora, e quanto demora para quem espera mais?",
+  },
+  {
+    titulo: "O que está voltando",
+    pergunta: "Onde vale atacar a causa em vez de abrir outra ordem de serviço?",
+  },
+  { titulo: "Em aberto por categoria", pergunta: "Onde está o trabalho que não terminou?" },
+  { titulo: "Ocorrências por status", pergunta: "Como se distribui tudo o que já foi registrado?" },
+  { titulo: "Satisfação", pergunta: "Quem foi atendido ficou satisfeito?" },
+] as const;
+
 /** As sete categorias com que toda organização nasce (critério 4a, semente de categorias). */
 const CATEGORIAS_DA_SEMENTE = 7;
 
@@ -82,92 +102,77 @@ const CATEGORIAS_DA_SEMENTE = 7;
 const POR_PAGINA = 20;
 
 /**
- * Um dos seis quadros de T-07. **Escopado pela `section` do `Cartao`, e nunca por posição:** os seis
- * são irmãos dentro do `<main>` da casca, e nenhuma outra peça da casca é `section`.
+ * Um dos sete quadros de T-07. **Escopado pela `section` do `Cartao`, e casando o TÍTULO do quadro**, e
+ * nunca qualquer texto de dentro dele: com sete quadros, três têm *aberto* no título, e *Em aberto*
+ * aparece também no rodapé de outros. O nome acessível do `h2` começa pelo número, `2 · Em aberto por
+ * idade`, e a âncora é o que separa um título de outro que o contenha.
  *
  * **O nome vai em expressão regular insensível a caixa** porque o título do quadro é `uppercase` por
  * CSS, e o que a página serve é *"Ocorrências por status"*.
  */
 function quadro(pagina: Page, titulo: string): Locator {
-  return pagina
-    .locator("section")
-    .filter({ hasText: new RegExp(titulo, "iu") })
-    .first();
+  return pagina.locator("section").filter({
+    has: pagina.getByRole("heading", { level: 2, name: new RegExp(`^\\d · ${titulo}`, "iu") }),
+  });
 }
 
 /**
- * As linhas de um `Medidor` — rótulo à esquerda, texto à direita, barra no meio.
+ * As linhas da lista para leitor de tela que o `GraficoDeBarras` desenha junto do SVG — rótulo e texto,
+ * os dois `span` de cada item.
  *
- * **Lido por localizador, e não por `split` do texto do item.** A linha do mês sem resolução troca a
- * barra por uma frase de cinco palavras, e qualquer parse posicional sobre o texto inteiro do `li`
- * quebraria justamente ali — que é a linha que o critério 36.2 existe para conferir.
+ * **Lido por `textContent`, e não por `innerText`**: a lista é `sr-only`, e o `innerText` de conteúdo
+ * recortado depende do motor. O gráfico é `aria-hidden`, então esta lista é o que o quadro diz em texto,
+ * e é o que tem asserção.
  */
-async function linhasDoMedidor(secao: Locator): Promise<{ rotulo: string; texto: string }[]> {
-  const itens = secao.getByRole("listitem");
-  const quantas = await itens.count();
-
-  const linhas: { rotulo: string; texto: string }[] = [];
-  for (let indice = 0; indice < quantas; indice += 1) {
-    const colunas = itens.nth(indice).locator(":scope > span");
-    linhas.push({
-      rotulo: (await colunas.first().innerText()).trim(),
-      texto: (await colunas.last().innerText()).trim(),
-    });
-  }
-  return linhas;
-}
-
-/**
- * As medidas em pixels das linhas COM barra de um `Medidor` — o trilho, a barra, e a porcentagem que a
- * barra declara. A linha do mês sem resolução não tem barra, e sai com `barra: null`.
- *
- * **Lido pelo DOM, e não por papel**, porque a barra é `aria-hidden` (A-5): o que se mede é desenho. O
- * trilho é o segundo filho do `<li>`, e a barra é o filho único dele.
- */
-async function medidasDasBarras(
-  secao: Locator,
-): Promise<{ trilho: number; barra: number | null; porcento: number | null }[]> {
-  return secao.getByRole("listitem").evaluateAll((itens) =>
+async function linhasDaLista(secao: Locator): Promise<{ rotulo: string; texto: string }[]> {
+  return secao.locator("ul.sr-only > li").evaluateAll((itens) =>
     itens.map((item) => {
-      const trilho = item.children[1] as HTMLElement;
-      const barra = trilho.firstElementChild as HTMLElement | null;
+      const spans = item.querySelectorAll(":scope > span");
       return {
-        trilho: trilho.getBoundingClientRect().width,
-        barra: barra === null ? null : barra.getBoundingClientRect().width,
-        porcento: barra === null ? null : Number.parseFloat(barra.style.width),
+        rotulo: (spans[0]?.textContent ?? "").trim(),
+        texto: (spans[spans.length - 1]?.textContent ?? "").trim(),
       };
     }),
   );
 }
 
-/**
- * **Barras de trilhos diferentes não se comparam** — item 61. Todo trilho com barra da mesma lista tem a
- * mesma largura, e cada barra mede a própria porcentagem aplicada a ele; juntas, as duas dizem que
- * ordenar as linhas pela barra é ordená-las pela quantidade. A tolerância de 1 px é o arredondamento
- * de subpixel do motor.
- */
-function barrasComparaveis(
-  medidas: readonly { trilho: number; barra: number | null; porcento: number | null }[],
-  onde: string,
-): void {
-  const comBarra = medidas.filter((medida) => medida.barra !== null);
-  expect(comBarra.length, onde).toBeGreaterThan(0);
-  const primeiro = comBarra[0]?.trilho ?? 0;
-  expect(primeiro, `${onde}: trilho maior que zero`).toBeGreaterThan(0);
-  for (const medida of comBarra) {
-    expect(Math.abs(medida.trilho - primeiro), `${onde}: trilhos iguais`).toBeLessThanOrEqual(1);
-    const esperada = ((medida.porcento ?? 0) / 100) * medida.trilho;
-    expect(Math.abs((medida.barra ?? 0) - esperada), `${onde}: barra proporcional`).toBeLessThanOrEqual(1);
-  }
+/** As células de cada linha do corpo da tabela do `Ver dados` aberto, em ordem. */
+async function linhasDaTabela(pagina: Page): Promise<string[][]> {
+  return pagina
+    .getByRole("dialog")
+    .locator("tbody tr")
+    .evaluateAll((linhas) =>
+      linhas.map((linha) =>
+        Array.from(linha.querySelectorAll("th, td")).map((celula) => (celula.textContent ?? "").trim()),
+      ),
+    );
 }
+
+/** Os títulos das colunas da tabela do `Ver dados` aberto. */
+async function colunasDaTabela(pagina: Page): Promise<string[]> {
+  return pagina
+    .getByRole("dialog")
+    .locator("thead th")
+    .evaluateAll((celulas) => celulas.map((celula) => (celula.textContent ?? "").trim()));
+}
+
+/** O último dia do mês de um dia `YYYY-MM-DD`. */
+function ultimoDiaDoMes(dia: string): string {
+  const ultimo = new Date(Date.UTC(Number(dia.slice(0, 4)), Number(dia.slice(5, 7)), 0)).getUTCDate();
+  return `${dia.slice(0, 7)}-${String(ultimo).padStart(2, "0")}`;
+}
+
+/** O número inteiro que abre um texto — `7` de `7 · 4 há mais de 7 dias`. */
+const primeiroNumero = (texto: string): number => Number(/^\d+/u.exec(texto)?.[0] ?? Number.NaN);
 
 /**
  * O seletor do link do **título** numa linha da tabela.
  *
- * **Uma linha tem mais de uma âncora desde o item 67**, e as três levam para lugares diferentes: o
- * título, que é o alvo de teclado e carrega a camada que cobre a linha; o gatilho do cartão de Tempo,
- * fora da ordem de tabulação (`tabindex="-1"`); e *"Conte como foi"*, que leva à mesma ocorrência com
- * `?acao=avaliar`. Ler todas devolveria a mesma linha três vezes, e o `toHaveLength` da página cairia.
+ * **Uma linha tem duas âncoras desde o item 67**: o título, que é o alvo de teclado e carrega a camada
+ * que cobre a linha, e o gatilho do cartão de Tempo, fora da ordem de tabulação (`tabindex="-1"`). Ler
+ * as duas devolveria a mesma linha duas vezes, e o `toHaveLength` da página cairia. Até o item 76 havia
+ * uma terceira, *"Conte como foi"*, com `?acao=avaliar`; o `:not([href*="?"])` fica, inofensivo, contra
+ * um link com consulta que volte.
  */
 const LINK_DO_TITULO = 'tbody a[href^="/ocorrencias/"]:not([tabindex="-1"]):not([href*="?"])';
 
@@ -291,292 +296,324 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(semRecorte.has("ate")).toBe(false);
 
   // -------------------------------------------------------------------------
-  // 2.1 · Quadro 1 · Recorrência no período — as quatro seções (critérios 35, 57 e 60)
+  // 2.0 · A ordem dos sete quadros, e a pergunta de cada um (item 73, critérios 1 e 2)
   //
-  // **A seção de cima é a que responde a pergunta da tela.** O gráfico desenha duas linhas — quanto foi
-  // registrado e quanto foi resolvido em cada mês —, e o mesmo array alimenta a lista ao lado: por isso
-  // a contagem de linhas da lista tem de bater com o eixo do quadro 4, e é essa asserção que pega o eixo
-  // derivando entre os dois blocos.
-  //
-  // **O gráfico é `aria-hidden`**, então o que se afirma dentro dele é nó de DOM, nunca papel: a
-  // superfície existe, e a identidade de cada série está escrita em palavra duas vezes — no rótulo de
-  // ponta, dentro do SVG, e na legenda, fora dele (critério 57.4).
-  //
-  // **Os índices posicionais saíram daqui no item 60, e a razão é que eles quebrariam em silêncio.** A
-  // seção do par entrou em segundo, então `nth(1)` e `nth(2)` passariam a apontar para outra lista e
-  // continuariam verdes afirmando a coisa errada. Somar um aos índices não resolveria: a seção do par
-  // pode não renderizar lista nenhuma — sem dupla repetida ali há uma frase —, e o índice voltaria a
-  // escorregar. As quatro sublistas passam a ser alcançadas pelo próprio título, por `role="group"`
-  // mais `aria-labelledby`, e a âncora da expressão é o que separa *Por área* de *Por área e
-  // categoria*.
+  // **Os títulos lidos na ordem do documento**, por `textContent`: o título é `uppercase` por CSS, e o
+  // `innerText` o devolveria em caixa alta. A frase que o item 73 tirou da página não existe mais nela.
   // -------------------------------------------------------------------------
-  const recorrencia = quadro(helena, "Recorrência");
-  await expect(recorrencia).toContainText("no período");
-  await expect(recorrencia).toContainText(
-    "Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.",
+  const titulosNaOrdem = await helena
+    .locator("section h2")
+    .evaluateAll((titulos) => titulos.map((titulo) => (titulo.textContent ?? "").trim()));
+  expect(titulosNaOrdem).toHaveLength(QUADROS.length);
+  QUADROS.forEach(({ titulo }, i) => {
+    expect(titulosNaOrdem[i], `quadro ${String(i + 1)}`).toMatch(
+      new RegExp(`^${String(i + 1)} · ${titulo}`, "u"),
+    );
+  });
+  for (const { titulo, pergunta } of QUADROS) {
+    await expect(quadro(helena, titulo)).toContainText(pergunta);
+  }
+  await expect(helena.getByText(/oito vazamentos/iu)).toHaveCount(0);
+
+  const emAbertoPorIdade = quadro(helena, "Em aberto por idade");
+  const rodapeDaIdade = await emAbertoPorIdade.getByText(/ao todo, nos quatro status/u).innerText();
+  const totalEmAberto = Number(/: (\d+) ao todo/u.exec(rodapeDaIdade)?.[1] ?? Number.NaN);
+  expect(Number.isInteger(totalEmAberto), `rodapé do quadro 2: ${rodapeDaIdade}`).toBe(true);
+
+  // -------------------------------------------------------------------------
+  // 2.1 · Os três cartões do topo (item 73, critérios 3 e 4)
+  //
+  // **Cada cartão carrega o segundo termo embaixo do número**, e o de *Em aberto agora* é a soma que o
+  // rodapé do quadro 2 escreve: os dois leem o mesmo conjunto.
+  // -------------------------------------------------------------------------
+  const cartao = (rotulo: string) => helena.getByText(rotulo, { exact: true }).locator("xpath=..");
+
+  const emAbertoAgora = cartao("Em aberto agora");
+  await expect(emAbertoAgora).toContainText("no início do período");
+  const textoDoEmAberto = await emAbertoAgora.innerText();
+  expect(textoDoEmAberto).toMatch(/^Em aberto agora\s+\d+\s/iu);
+  expect(Number(/\n\s*(\d+)\s*\n/u.exec(textoDoEmAberto)?.[1])).toBe(totalEmAberto);
+
+  const saldo = cartao("Saldo do período");
+  // `innerText`, e não `toContainText`: o `textContent` cola os três parágrafos sem espaço entre eles.
+  expect(await saldo.innerText()).toMatch(
+    /^Saldo do período\s+(?:[+−]\d+|0)\s+\d+ entr(?:ou|aram), \d+ sa(?:iu|íram)$/iu,
   );
-  await expect(
-    recorrencia.getByRole("heading", { name: "Registradas e resolvidas" }),
-  ).toBeVisible();
 
-  const grafico = recorrencia.locator('[data-slot="chart"]');
+  const maisVelha = cartao("A mais velha em aberto");
+  if (totalEmAberto > 0) {
+    await expect(maisVelha).toContainText(/\d+ dias?/u);
+    await expect(maisVelha.getByRole("link")).toHaveAttribute("href", /^\/ocorrencias\//u);
+  } else {
+    await expect(maisVelha).toContainText("nada em aberto");
+  }
+
+  cobre(test.info(), "7.2 · 8", {
+    criterio: "73.3",
+    falta:
+      "a conferência do critério 73.4 na tela — em aberto agora menos o saldo é o que estava em aberto no início —, que depende de a semente ter trilha coerente com o status; o banco a prova na integração",
+  });
+
+  // -------------------------------------------------------------------------
+  // 2.2 · Quadro 1 · Entradas e saídas por mês (item 73, critérios 6, 7 e 12)
+  //
+  // **O gráfico é `aria-hidden`**, então o que se afirma dentro dele é nó de DOM: a superfície existe, e
+  // a identidade de cada série está escrita no rótulo da ponta, com o valor do último mês junto. A legenda
+  // de baixo saiu. **O número de cada mês se lê pela tabela do `Ver dados`**, e é ela que tem asserção.
+  // -------------------------------------------------------------------------
+  const entradasESaidas = quadro(helena, "Entradas e saídas por mês");
+  await expect(entradasESaidas).toContainText("no período");
+
+  const grafico = entradasESaidas.locator('[data-slot="chart"]');
   await expect(grafico.locator("svg").first()).toBeVisible();
-
-  // **Uma ocorrência de cada palavra, e não "pelo menos uma".** Duas seriam o rótulo desenhando em todo
-  // ponto em vez de só na ponta, que é o defeito que o `valueAccessor` existe para não ter.
-  for (const serie of ["Registradas", "Resolvidas"]) {
+  // **Uma ocorrência de cada palavra, e não "pelo menos uma"**: duas seriam o rótulo desenhando em todo
+  // ponto em vez de só na ponta.
+  for (const serie of ["Registradas", "Saíram"]) {
     await expect(
-      grafico.locator("svg text").filter({ hasText: new RegExp(`^${serie}$`, "u") }),
+      grafico.locator("svg text").filter({ hasText: new RegExp(`^${serie} \\d+$`, "u") }),
     ).toHaveCount(1);
   }
+  await expect(grafico.locator(".recharts-legend-wrapper")).toHaveCount(0);
 
-  const legenda = grafico.locator(".recharts-legend-wrapper");
-  await expect(legenda).toContainText("Registradas");
-  await expect(legenda).toContainText("Resolvidas");
+  // O veredito fica FORA do modal, visível no quadro.
+  await expect(
+    entradasESaidas.getByText(/o último mês completo|O período não tem mês completo\./u),
+  ).toBeVisible();
 
-  // As QUATRO seções do bloco 1, cada uma pelo nome acessível do `h3` dela. A âncora da expressão é o
-  // que separa *Por área* de *Por área e categoria*; `exact` não serve, porque o título é `uppercase`
-  // por CSS e o que a página serve é a caixa mista.
-  const fluxo = recorrencia.getByRole("group", { name: /^Registradas e resolvidas$/iu });
-  const par = recorrencia.getByRole("group", { name: /^Por área e categoria$/iu });
-  const porCategoria = recorrencia.getByRole("group", { name: /^Por categoria$/iu });
-  const porArea = recorrencia.getByRole("group", { name: /^Por área$/iu });
+  // **A nota do mês parcial se afirma pela regra, e não como sempre presente**: ela aparece se e só se o
+  // período corta a primeira ou a última ponta. Na janela padrão as duas cortam quase sempre, mas não
+  // em 31/03 de ano não bissexto, quando os 90 dias vão de 01/01 a 31/03.
+  const algumParcial = !de.endsWith("-01") || ate !== ultimoDiaDoMes(ate);
+  await expect(entradasESaidas.getByText(/^\* Mês parcial/u)).toHaveCount(algumParcial ? 1 : 0);
 
-  for (const secao of [fluxo, par, porCategoria, porArea]) {
-    await expect(secao).toBeVisible();
+  const verDadosDoFluxo = entradasESaidas.getByRole("button", { name: "Ver dados" });
+  await verDadosDoFluxo.click();
+  const dialogoDoFluxo = helena.getByRole("dialog", { name: "Entradas e saídas por mês" });
+  await expect(dialogoDoFluxo).toBeVisible();
+  expect(await colunasDaTabela(helena)).toStrictEqual([
+    "Mês",
+    "Registradas",
+    "Resolvidas",
+    "Canceladas",
+    "Saíram",
+    "Saldo",
+  ]);
+  const linhasDoFluxo = await linhasDaTabela(helena);
+  expect(linhasDoFluxo).toHaveLength(mesesNaJanela(de, ate));
+  for (const linha of linhasDoFluxo) {
+    const [, registradas, resolvidas, canceladas, sairam] = linha.map(Number);
+    // Saíram é resolvidas mais canceladas, em toda linha (critério 73.4).
+    expect(sairam, `mês "${linha[0] ?? ""}"`).toBe((resolvidas ?? 0) + (canceladas ?? 0));
+    expect(Number.isInteger(registradas)).toBe(true);
   }
-
-  const mesesDoFluxo = await linhasDoMedidor(fluxo);
-  expect(mesesDoFluxo).toHaveLength(mesesNaJanela(de, ate));
-  for (const mes of mesesDoFluxo) {
-    // **A gramática é do critério 57.5**, e o singular vale dos dois lados.
-    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(/^\d+ registradas? · \d+ resolvidas?$/u);
-  }
-
-  // **Nenhuma contagem absoluta contra a semente na seção do par**, e o número está atrás da regra: o
-  // Recanto tem UMA dupla repetida na janela padrão e a Aurora não tem nenhuma, e o passo 4 deste teste
-  // registra uma ocorrência por corrida, que move o par de posição na segunda. O que se afirma é a
-  // gramática: ou linhas no formato `rótulo · rótulo` com um inteiro de dois para cima, ou a frase de
-  // vazio. As duas formas são corretas, e por isso as duas estão aqui.
-  const duplas = await linhasDoMedidor(par);
-  if (duplas.length === 0) {
-    await expect(par).toContainText("Nenhuma dupla se repetiu no período.");
-  } else {
-    for (const dupla of duplas) {
-      expect(dupla.rotulo, "rótulo da dupla").toMatch(/^.+ · .+$/u);
-      // O critério 60.2: dupla com uma não aparece.
-      expect(Number(dupla.texto), `dupla "${dupla.rotulo}"`).toBeGreaterThanOrEqual(2);
-    }
-  }
-
-  // As duas listas de baixo continuam onde estavam, e nenhuma das duas vazia.
-  expect((await linhasDoMedidor(porCategoria)).length).toBeGreaterThan(1);
-  expect((await linhasDoMedidor(porArea)).length).toBeGreaterThan(1);
+  // **O foco volta ao botão quando o `Esc` fecha** — é do primitivo, e é aqui que se prova.
+  await helena.keyboard.press("Escape");
+  await expect(dialogoDoFluxo).toBeHidden();
+  await expect(verDadosDoFluxo).toBeFocused();
 
   cobre(test.info(), "7.2 · 1", {
-    criterio: "57.2, 57.4, 57.5, 60.2, 60.3, 60.4",
+    criterio: "73.6, 73.7, 73.12",
     falta:
-      "que as duas linhas não se empilhem e que os dois rótulos de ponta não se sobreponham — o desenho é aria-hidden, e o que tem asserção é a existência dele; e, na seção do par, o corte por posição da lista e a contagem exata contra a semente, que continuam sendo olho humano",
+      "a escala no eixo vertical e o rótulo em todo mês — o desenho é aria-hidden, e o que tem asserção é a tabela, o rótulo de ponta e a nota do mês parcial",
   });
 
   // -------------------------------------------------------------------------
-  // 2.2 · Quadro 2 · Ocorrências por status agora — os SEIS, nenhum a zero (critérios 33 e 56.3)
-  //
-  // **`agora` é o critério 33.4**, e não enfeite: sem a palavra, o Gestor leria o quadro como se ele
-  // respeitasse o período que acabou de escolher. **O título deixou de dizer `backlog`** (item 56):
-  // este quadro conta tudo o que a organização registrou, inclusive os terminais.
-  // -------------------------------------------------------------------------
-  const ocorrenciasPorStatus = quadro(helena, "Ocorrências por status");
-  await expect(ocorrenciasPorStatus).toContainText("agora");
-
-  const linhasDeStatus = await linhasDoMedidor(ocorrenciasPorStatus);
-  expect(linhasDeStatus.map((linha) => linha.rotulo)).toEqual(SEIS_STATUS);
-  for (const linha of linhasDeStatus) {
-    expect(Number(linha.texto), `status "${linha.rotulo}" no dashboard`).toBeGreaterThan(0);
-  }
-  cobre(test.info(), "7.2 · 2", { criterio: "33, 56.3" });
-
-  // -------------------------------------------------------------------------
-  // 2.3 · Quadro 3 · Em aberto por categoria agora — as sete (critérios 33, 56.1 e 56.4)
-  // -------------------------------------------------------------------------
-  const emAbertoPorCategoria = quadro(helena, "Em aberto por categoria");
-  await expect(emAbertoPorCategoria).toContainText("agora");
-  await expect(emAbertoPorCategoria).toContainText("Só o que está em aberto");
-
-  const linhasDeCategoria = await linhasDoMedidor(emAbertoPorCategoria);
-  expect(linhasDeCategoria).toHaveLength(CATEGORIAS_DA_SEMENTE);
-  for (const linha of linhasDeCategoria) {
-    expect(Number.isInteger(Number(linha.texto)), `categoria "${linha.rotulo}"`).toBe(true);
-  }
-
-  // **A soma do quadro 3 é a soma das QUATRO primeiras linhas do quadro 2** — e é igualdade exata por
-  // construção: `ocorrencias.categoria_id` é `not null` desde a migração 005, e o `join` casa
-  // `organizacao_id`, então nenhuma ocorrência em aberto fica fora de uma categoria. O `slice(0, 4)` é
-  // seguro porque a ordem dos seis está pinada logo acima, na ordem do ciclo.
-  //
-  // **É a asserção que pega a regressão que a gramática não pega.** Se o filtro de status voltar para o
-  // `where`, a igualdade some junto com as categorias a zero; se o filtro sumir, a desigualdade estrita
-  // cai. A desigualdade é estrita porque a seção 2.2 já afirmou que nenhum dos seis está em zero.
-  const soma = (linhas: readonly { texto: string }[]) =>
-    linhas.reduce((total, linha) => total + Number(linha.texto), 0);
-  const naoTerminais = soma(linhasDeStatus.slice(0, 4));
-
-  expect(soma(linhasDeCategoria)).toBe(naoTerminais);
-  expect(soma(linhasDeCategoria)).toBeLessThan(soma(linhasDeStatus));
-
-  cobre(test.info(), "7.2 · 3", {
-    criterio: "56.1, 56.4",
-    falta: "os nomes das sete categorias e a barra de cada linha",
-  });
-
-  // -------------------------------------------------------------------------
-  // 2.4 · Quadro 4 · Tempo de resolução — nenhum mês omitido (critérios 36.2 e 43.2)
-  //
-  // **O eixo esperado é calculado a partir do que o formulário mostra**, e não fixado num número: a
-  // janela de 90 dias toca três, quatro ou cinco meses conforme o dia em que a corrida acontece, e um
-  // número escrito aqui seria um teste que muda de resultado na virada do mês.
-  // -------------------------------------------------------------------------
-  const tempoDeResolucao = quadro(helena, "Tempo de resolução");
-  await expect(tempoDeResolucao).toContainText("no período");
-  await expect(tempoDeResolucao).toContainText("Tempo de calendário, com as pausas.");
-  await expect(tempoDeResolucao).toContainText(
-    "Mês com três resoluções ou menos mostra as durações uma a uma.",
-  );
-
-  const linhasDeMes = await linhasDoMedidor(tempoDeResolucao);
-  expect(linhasDeMes).toHaveLength(mesesNaJanela(de, ate));
-
-  const mesesSemResolucao = linhasDeMes.filter((linha) => linha.texto.startsWith("—"));
-  expect(mesesSemResolucao.length).toBeGreaterThan(0);
-  await expect(tempoDeResolucao).toContainText("nenhuma resolução no mês");
-  for (const mes of mesesSemResolucao) {
-    // **`— · 0 resolvidas`, e nunca `0 h`** — critério 36.2: um zero de horas diria que o mês resolveu
-    // instantaneamente, quando o que houve foi não ter resolvido nada.
-    expect(mes.texto, `mês "${mes.rotulo}"`).toBe("— · 0 resolvidas");
-  }
-
-  // **O mês COM resolução escreve uma das DUAS formas do item 58**, e a gramática não aposta em qual: a
-  // semente espalha os instantes pelo balde do mês, então quantas resoluções cada mês recebe muda com o
-  // dia em que a suíte roda. É a mesma cautela do eixo de meses calculado, algumas linhas acima.
-  //
-  // - quatro ou mais: `mediana 12 min · p90 2,1 dias · 11 resolvidas`
-  // - três ou menos:  `6 min, 12 min, 3,0 dias · 3 resolvidas`
-  //
-  // **A unidade cabe à magnitude** — item 55, critérios 55.1 e 55.2.
-  const DURACAO = String.raw`(?:menos de 1 min|\d+ min|\d+ h|\d+,\d dias)`;
-  const LINHA_COM_RESOLUCAO = new RegExp(
-    String.raw`^(?:mediana ${DURACAO} · p90 ${DURACAO}|${DURACAO}(?:, ${DURACAO}){0,2}) · \d+ resolvidas?$`,
-    "u",
-  );
-
-  const mesesComResolucao = linhasDeMes.filter((linha) => !linha.texto.startsWith("—"));
-  expect(mesesComResolucao.length).toBeGreaterThan(0);
-  for (const mes of mesesComResolucao) {
-    expect(mes.texto, `mês "${mes.rotulo}"`).toMatch(LINHA_COM_RESOLUCAO);
-    // **Nenhum valor maior que zero é renderizado como zero** — critério 55.2, e o defeito que o item 55
-    // conserta. **A gramática acima sozinha não pega a regressão**, porque `0 h` casa com `\d+ h`; esta
-    // linha é o que separa o conserto de um retorno ao `maximumFractionDigits: 0`. Ela vale para **cada**
-    // duração da linha, e não só para a primeira: desde o item 58 o mês pequeno escreve até três.
-    //
-    // **Desde o item 62 o zero é impossível por construção**: a Aplicação publica quatro casas com piso de
-    // `0.0001` para valor positivo, e a tela escreve `menos de 1 min` para tudo abaixo do minuto cheio, que
-    // é o degrau que a gramática acima aceita. Se um mês render `0 min` mesmo assim, o defeito voltou.
-    expect(mes.texto, `mês "${mes.rotulo}"`).not.toMatch(/\b0 (?:min|h)\b/u);
-  }
-  // O item 61 — **as barras dos meses se comparam**, nas duas larguras. Em 23/09/2026 julho, de mediana
-  // maior, desenhava 51 px e agosto 140 px a 1280 px, e a 390 px o trilho de julho media zero: cada linha
-  // era uma grade própria, e o texto longo do mês pequeno comia o trilho. **Nenhum mês é nomeado aqui**:
-  // o caso julho × agosto está no teste de interface, com os números escritos, e este afirma a regra que
-  // torna o caso impossível, qualquer que seja o mês que a janela mostre.
-  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 1280 px");
-
-  // O mês sem resolução não desenha barra — critério 61.3, e a falta que o passo 4 do roteiro declarava.
-  const medidasDoQuadro4 = await medidasDasBarras(tempoDeResolucao);
-  linhasDeMes.forEach((linha, indice) => {
-    if (linha.texto.startsWith("—")) {
-      expect(medidasDoQuadro4[indice]?.barra, `mês "${linha.rotulo}"`).toBeNull();
-    }
-  });
-
-  // O mesmo defeito, em escala pequena, no quadro 2 — achado A-61-4. **Vem DEPOIS do quadro 4 de
-  // propósito**: contra o código velho, `3` e `12` já dariam trilhos diferentes, e a falha do passo 3
-  // tem de ser a do quadro 4, que é o caso do item.
-  barrasComparaveis(await medidasDasBarras(ocorrenciasPorStatus), "quadro 2 em 1280 px");
-
-  const tamanhoOriginal = helena.viewportSize() ?? { width: 1280, height: 720 };
-  await helena.setViewportSize({ width: 390, height: 844 });
-  barrasComparaveis(await medidasDasBarras(tempoDeResolucao), "quadro 4 em 390 px");
-  await helena.setViewportSize(tamanhoOriginal);
-
-  await expect(tempoDeResolucao).toContainText("A barra é a mediana.");
-
-  cobre(test.info(), "7.2 · 4", { criterio: "58.3, 58.4, 61.1, 61.2, 61.3" });
-
-  // -------------------------------------------------------------------------
-  // 2.5 · Quadro 5 · Média das avaliações — um número de 1 a 5 (critério 34)
-  //
-  // **O denominador ao lado é o critério 34.3:** *"sem ele a média mente quando poucos avaliam"*.
-  // -------------------------------------------------------------------------
-  const mediaDasAvaliacoes = quadro(helena, "Média das avaliações");
-  await expect(mediaDasAvaliacoes).toContainText("no período");
-  await expect(mediaDasAvaliacoes).toContainText("de 1 a 5");
-  await expect(mediaDasAvaliacoes).not.toContainText("Nenhuma ocorrência avaliada ainda");
-
-  const textoDaMedia = await mediaDasAvaliacoes.innerText();
-  const lidaNaTela = /(\d+,\d+)\s*de 1 a 5/u.exec(textoDaMedia);
-  expect(lidaNaTela, `o quadro 5 imprimiu: ${textoDaMedia}`).not.toBeNull();
-  const media = Number((lidaNaTela?.[1] ?? "").replace(",", "."));
-  expect(media).toBeGreaterThanOrEqual(1);
-  expect(media).toBeLessThanOrEqual(5);
-
-  const denominador = /(\d+) de (\d+) resolvidas avaliadas/u.exec(textoDaMedia);
-  expect(denominador, `o quadro 5 imprimiu: ${textoDaMedia}`).not.toBeNull();
-  const avaliadas = Number(denominador?.[1] ?? "0");
-  const resolvidas = Number(denominador?.[2] ?? "0");
-  expect(avaliadas).toBeGreaterThan(0);
-  expect(resolvidas).toBeGreaterThanOrEqual(avaliadas);
-  cobre(test.info(), "7.2 · 5", { criterio: "34" });
-
-  // -------------------------------------------------------------------------
-  // 2.6 · Quadro 6 · Em aberto por idade agora — as quatro faixas (critérios 59.2 a 59.6)
-  //
-  // **É o único quadro do painel que enxerga o que NÃO foi resolvido**, e o que ele prova aqui é a
-  // igualdade: a soma das quatro faixas é a soma do quadro 3, porque os dois contam o mesmo conjunto —
-  // as não terminais — por dois cortes. **Nenhum schema declara essa igualdade**: ela vive em dois
-  // `where` que ninguém obriga a concordar, e é esta linha que pega um deles escorregando.
+  // 2.3 · Quadro 2 · Em aberto por idade — as mais velhas primeiro (item 73, critério 8; e o 59)
   //
   // **Nenhuma asserção sobre qual faixa tem quanto.** A semente espalha os registros por cinco meses, e
   // o dia em que a suíte roda decide onde cada um cai. O que é estável é a estrutura e a soma.
   // -------------------------------------------------------------------------
-  const emAbertoPorIdade = quadro(helena, "Em aberto por idade");
   await expect(emAbertoPorIdade).toContainText("agora");
   await expect(emAbertoPorIdade).toContainText(
-    "Há quanto tempo o que está em aberto espera, contando do registro.",
+    /há mais de 30 dias|Nenhuma em aberto há mais de 30 dias\.|Nada em aberto agora\./u,
   );
 
-  // **As quatro, sempre, inclusive as que estão em zero** — critério 59.2. Os textos são inteiros e
-  // literais: uma faixa que mudasse de rótulo sem que ninguém percebesse é o defeito que isto pega.
-  const linhasDeIdade = await linhasDoMedidor(emAbertoPorIdade);
-  expect(linhasDeIdade.map((linha) => linha.rotulo)).toStrictEqual([
+  const maisVelhas = emAbertoPorIdade.locator("ol > li");
+  const quantasVelhas = await maisVelhas.count();
+  expect(quantasVelhas).toBeGreaterThan(0);
+  expect(quantasVelhas).toBeLessThanOrEqual(5);
+  for (let i = 0; i < quantasVelhas; i += 1) {
+    await expect(maisVelhas.nth(i).getByRole("link")).toHaveAttribute("href", /^\/ocorrencias\//u);
+    await expect(maisVelhas.nth(i)).toContainText(/\d+ dias?$/u);
+  }
+
+  // **Clicar no título leva à ocorrência**, e o voltar do navegador devolve o painel.
+  await maisVelhas.first().getByRole("link").click();
+  await helena.waitForURL(/\/ocorrencias\/[^/?]+$/u);
+  await helena.goBack();
+  await helena.waitForURL(/\/dashboard$/u);
+
+  // **As quatro faixas se leem pela tabela do `Ver dados`**, e não pela lista para leitor de tela: este
+  // quadro tem `Ver dados`, e por isso a dispensa.
+  await emAbertoPorIdade.getByRole("button", { name: "Ver dados" }).click();
+  await expect(helena.getByRole("dialog", { name: "Em aberto por idade" })).toBeVisible();
+  const linhasDeIdade = await linhasDaTabela(helena);
+  expect(linhasDeIdade.map((linha) => linha[0])).toStrictEqual([
     "Até 7 dias",
     "8 a 30 dias",
     "31 a 90 dias",
     "Mais de 90 dias",
   ]);
+  const somaDaIdade = linhasDeIdade.reduce((total, linha) => total + Number(linha[1]), 0);
+  expect(somaDaIdade).toBe(totalEmAberto);
+  await helena.keyboard.press("Escape");
 
-  // O número em texto, em toda linha — critério 59.4 e compromisso A-5.
-  for (const linha of linhasDeIdade) {
-    expect(Number.isInteger(Number(linha.texto)), `faixa "${linha.rotulo}"`).toBe(true);
+  cobre(test.info(), "7.2 · 2", {
+    criterio: "73.8, 59.2, 59.3, 59.6",
+    falta:
+      "a oração dos 90 dias no veredito, que só aparece quando a semente deixa alguém acima de 90 dias",
+  });
+
+  // -------------------------------------------------------------------------
+  // 2.4 · Quadro 3 · Tempo de resolução — nenhum mês omitido (critérios 36.2, 58 e 73.12)
+  //
+  // **O eixo esperado é calculado a partir do seletor**, e não fixado num número: a janela de 90 dias
+  // toca três, quatro ou cinco meses conforme o dia em que a corrida acontece.
+  // -------------------------------------------------------------------------
+  const tempoDeResolucao = quadro(helena, "Tempo de resolução");
+  await expect(tempoDeResolucao).toContainText("no período");
+  await expect(tempoDeResolucao).toContainText("Tempo de calendário, com as pausas.");
+  await expect(tempoDeResolucao).toContainText(
+    /Em \S+(?: de \d{4})?(?:,| houve)|Nenhuma resolução no período\./u,
+  );
+
+  await tempoDeResolucao.getByRole("button", { name: "Ver dados" }).click();
+  await expect(helena.getByRole("dialog", { name: "Tempo de resolução" })).toBeVisible();
+  expect(await colunasDaTabela(helena)).toStrictEqual(["Mês", "Mediana", "p90", "Resoluções"]);
+  const linhasDoTempo = await linhasDaTabela(helena);
+  expect(linhasDoTempo).toHaveLength(mesesNaJanela(de, ate));
+  const mesesSemResolucao = linhasDoTempo.filter((linha) => linha[3] === "0");
+  expect(mesesSemResolucao.length).toBeGreaterThan(0);
+  for (const linha of mesesSemResolucao) {
+    // **A frase, e nunca `0 h`** — critério 36.2: um zero de horas diria que o mês resolveu
+    // instantaneamente, quando o que houve foi não ter resolvido nada.
+    expect(linha[1], `mês "${linha[0] ?? ""}"`).toBe("nenhuma resolução no mês");
+  }
+  for (const linha of linhasDoTempo) {
+    // **Nenhum valor maior que zero é renderizado como zero** — critério 55.2.
+    expect(linha.join(" "), `mês "${linha[0] ?? ""}"`).not.toMatch(/\b0 (?:min|h)\b/u);
+  }
+  await helena.keyboard.press("Escape");
+
+  cobre(test.info(), "7.2 · 3", {
+    criterio: "36.2, 58.3, 58.4, 73.12",
+    falta: "as duas linhas do gráfico e o buraco do mês sem resolução — o desenho é aria-hidden",
+  });
+
+  // -------------------------------------------------------------------------
+  // 2.5 · Quadro 4 · O que está voltando — o corte de topo (critérios 60 e 73.14)
+  //
+  // **O que se confere é a regra, nunca o número**: o passo 4 deste teste registra uma ocorrência por
+  // corrida, e a semente recém-aplicada muda de dia para dia. Ou há a frase de vazio, ou há barras, e
+  // tudo o que passou das cinco primeiras empata com a quinta.
+  // -------------------------------------------------------------------------
+  const oQueEstaVoltando = quadro(helena, "O que está voltando");
+  await expect(oQueEstaVoltando).toContainText("no período");
+  const duplas = await linhasDaLista(oQueEstaVoltando);
+  if (duplas.length === 0) {
+    await expect(oQueEstaVoltando).toContainText("Nenhuma dupla se repetiu no período.");
+  } else {
+    const contagens = duplas.map((dupla) => Number(dupla.texto));
+    for (const [i, dupla] of duplas.entries()) {
+      expect(dupla.rotulo, "rótulo da dupla").toMatch(/^.+ · .+$/u);
+      // O critério 60.2: dupla com uma não aparece.
+      expect(contagens[i], `dupla "${dupla.rotulo}"`).toBeGreaterThanOrEqual(2);
+      if (i >= 5) expect(contagens[i], "empate com a quinta").toBe(contagens[4]);
+    }
+    const resto = oQueEstaVoltando.getByText(/^Mais \d+ duplas? com \d+ ocorrências? ou menos$/u);
+    if ((await resto.count()) > 0) {
+      const maior = Number(/com (\d+)/u.exec(await resto.innerText())?.[1]);
+      expect(maior).toBeLessThan(contagens[contagens.length - 1] ?? 0);
+    }
   }
 
-  // **A asserção forte.** `soma` é a mesma da seção 2.3.
-  expect(soma(linhasDeIdade)).toBe(soma(linhasDeCategoria));
-
-  cobre(test.info(), "7.2 · 6", {
-    criterio: "59.2, 59.3, 59.4, 59.6",
-    falta:
-      "a oração que aponta a faixa mais velha, que só aparece quando a semente deixa alguém acima de 90 dias",
+  cobre(test.info(), "7.2 · 4", {
+    criterio: "60.2, 60.3, 60.4, 73.14",
+    falta: "o rótulo em duas linhas sem corte, que é desenho aria-hidden",
   });
+
+  // -------------------------------------------------------------------------
+  // 2.6 · Quadro 5 · Em aberto por categoria — as sete, com o segundo número (critérios 56 e 73.9)
+  // -------------------------------------------------------------------------
+  const emAbertoPorCategoria = quadro(helena, "Em aberto por categoria");
+  await expect(emAbertoPorCategoria).toContainText("agora");
+  await expect(emAbertoPorCategoria).toContainText("Só o que está em aberto");
+
+  const linhasDeCategoria = await linhasDaLista(emAbertoPorCategoria);
+  expect(linhasDeCategoria).toHaveLength(CATEGORIAS_DA_SEMENTE);
+  for (const linha of linhasDeCategoria) {
+    expect(linha.texto, `categoria "${linha.rotulo}"`).toMatch(
+      /^(?:0|\d+ · (?:nenhuma|\d+) há mais de 7 dias)$/u,
+    );
+  }
+  // **A soma é o total do quadro 2** — o critério 15 contra o banco de verdade.
+  const somaDaCategoria = linhasDeCategoria.reduce(
+    (total, linha) => total + primeiroNumero(linha.texto),
+    0,
+  );
+  expect(somaDaCategoria).toBe(totalEmAberto);
+
+  cobre(test.info(), "7.2 · 5", {
+    criterio: "56.1, 56.4, 73.9, 73.15",
+    falta: "a barra de cada linha, que é desenho aria-hidden",
+  });
+
+  // -------------------------------------------------------------------------
+  // 2.7 · Quadro 6 · Ocorrências por status — os SEIS, na ordem do ciclo (critérios 33, 56.3 e 73.11)
+  // -------------------------------------------------------------------------
+  const ocorrenciasPorStatus = quadro(helena, "Ocorrências por status");
+  await expect(ocorrenciasPorStatus).toContainText("agora");
+  await expect(ocorrenciasPorStatus).toContainText("Na ordem do ciclo.");
+
+  const linhasDeStatus = await linhasDaLista(ocorrenciasPorStatus);
+  expect(linhasDeStatus.map((linha) => linha.rotulo)).toEqual(SEIS_STATUS);
+  for (const linha of linhasDeStatus) {
+    expect(Number(linha.texto), `status "${linha.rotulo}" no dashboard`).toBeGreaterThan(0);
+  }
+  // **A soma dos quatro primeiros é o total do quadro 2**, e a de todos passa dele: a ordem dos seis está
+  // pinada logo acima, e a seção já afirmou que nenhum está em zero.
+  const somaDoStatus = (linhas: readonly { texto: string }[]) =>
+    linhas.reduce((total, linha) => total + Number(linha.texto), 0);
+  expect(somaDoStatus(linhasDeStatus.slice(0, 4))).toBe(totalEmAberto);
+  expect(somaDoStatus(linhasDeStatus)).toBeGreaterThan(totalEmAberto);
+
+  cobre(test.info(), "7.2 · 6", { criterio: "33, 56.3, 73.11, 73.15" });
+
+  // -------------------------------------------------------------------------
+  // 2.8 · Quadro 7 · Satisfação — um número de 1 a 5 e as cinco notas (critérios 34 e 73.10)
+  //
+  // **O denominador ao lado é o critério 34.3:** *"sem ele a média mente quando poucos avaliam"*.
+  // -------------------------------------------------------------------------
+  const satisfacao = quadro(helena, "Satisfação");
+  await expect(satisfacao).toContainText("no período");
+  await expect(satisfacao).toContainText("de 1 a 5");
+  await expect(satisfacao).not.toContainText("Nenhuma ocorrência avaliada ainda");
+
+  const textoDaMedia = await satisfacao.innerText();
+  const lidaNaTela = /(\d+,\d+)\s*de 1 a 5/u.exec(textoDaMedia);
+  expect(lidaNaTela, `o quadro 7 imprimiu: ${textoDaMedia}`).not.toBeNull();
+  const media = Number((lidaNaTela?.[1] ?? "").replace(",", "."));
+  expect(media).toBeGreaterThanOrEqual(1);
+  expect(media).toBeLessThanOrEqual(5);
+
+  const denominador = /(\d+) de (\d+) resolvidas avaliadas · \d+% responderam/u.exec(textoDaMedia);
+  expect(denominador, `o quadro 7 imprimiu: ${textoDaMedia}`).not.toBeNull();
+  const avaliadas = Number(denominador?.[1] ?? "0");
+  const resolvidas = Number(denominador?.[2] ?? "0");
+  expect(avaliadas).toBeGreaterThan(0);
+  expect(resolvidas).toBeGreaterThanOrEqual(avaliadas);
+
+  const notas = await linhasDaLista(satisfacao);
+  expect(notas.map((nota) => nota.rotulo)).toStrictEqual([
+    "Nota 5",
+    "Nota 4",
+    "Nota 3",
+    "Nota 2",
+    "Nota 1",
+  ]);
+  expect(notas.reduce((total, nota) => total + Number(nota.texto), 0)).toBe(avaliadas);
+
+  cobre(test.info(), "7.2 · 7", { criterio: "34, 73.10" });
 
   // -------------------------------------------------------------------------
   // 3 · A lista, com a página 1 cheia — passo 8 do roteiro
@@ -738,7 +775,14 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
   await helena.getByRole("button", { name: RECANTO }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
 
-  const itemDoGrupo = helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Grupo 1/u });
+  // **Critério 76.1 — o corpo da barra não rola na horizontal.** A medida é a do navegador: largura do
+  // conteúdo contra largura visível. Zero é o único valor aceito.
+  const corpoDaBarra = helena.locator('[data-sidebar="content"]');
+  await expect(corpoDaBarra).toBeVisible();
+  expect(await corpoDaBarra.evaluate((elemento) => elemento.scrollWidth - elemento.clientWidth)).toBe(0);
+
+  // **Critério 76.2 — o grupo e a documentação moram no pé da barra**, num marco próprio.
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Grupo 1/u });
   await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
   const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
   await grupoComSessao.waitForURL(/\/grupo$/u);
@@ -746,7 +790,7 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
     await expect(grupoComSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
   }
   await expect(
-    helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Documentação/u }),
+    helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Documentação/u }),
   ).toHaveAttribute("target", "_blank");
   await contexto.close();
 });

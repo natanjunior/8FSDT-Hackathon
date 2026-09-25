@@ -143,6 +143,16 @@ Há um terceiro recorte de fotografia, por idade, e ele conta **o mesmo conjunto
 categoria: as duas somas fecham. Com o recorte por status elas não fecham, e quem lê precisa saber qual
 par soma.
 
+O saldo do período é o que entrou menos o que saiu, e sai é resolvida ou cancelada. O que entrou é a soma
+das séries por categoria, porque toda ocorrência tem categoria. As resolvidas e as canceladas são contadas
+pelo instante da transição, lido na trilha, e não pela data do registro: uma ocorrência registrada em junho e
+cancelada em agosto sai em agosto.
+
+A resposta traz também quantas ocorrências estavam em aberto no instante em que a janela abre, medido na
+trilha e não derivado das outras contas. É o que torna a conferência possível: em aberto agora, menos o
+saldo do período, é o que estava em aberto no início. A conta fecha quando a janela termina hoje. Com o fim
+da janela no passado, o que entrou e saiu depois dele mexe no agora e em nenhum dos termos.
+
 ## A mediana e o p90 do tempo de resolução
 
 O painel resume o tempo de resolução de cada mês por dois números: a mediana, que descreve o caso do
@@ -176,11 +186,23 @@ como no tempo de resolução.
 em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
 sem mudar o formato da resposta.
 
+## As mais velhas em aberto
+
+A resposta aponta as ocorrências em aberto há mais tempo, no máximo cinco, da mais velha para a mais nova,
+com desempate estável. A idade é medida pela mesma régua das faixas, então a primeira da lista cai na
+faixa mais velha que tem alguém. É o único trecho do painel que nomeia um caso em vez de contar um
+agregado, e a lista vem vazia quando nada está em aberto.
+
 ## A dupla que volta
 
-As duas listas de recorrência contam área e categoria em separado. Oito vazamentos no mesmo bloco e oito
-problemas diferentes espalhados pelo prédio produzem o mesmo número nas duas, e o segundo caso não é uma
-obra só. O cruzamento entre as duas dimensões existe na linha da ocorrência, e é ele que aponta causa.
+As duas séries de recorrência contam área e categoria em separado. Várias ocorrências da mesma categoria
+espalhadas por lugares diferentes produzem ali o mesmo número que as mesmas ocorrências num lugar só, e as
+duas situações pedem respostas diferentes. O cruzamento entre as duas dimensões existe na linha da
+ocorrência, e é ele que aponta causa.
+
+A série por área continua na resposta, e a tela não a desenha: a pergunta de onde há mais volume passou a
+ser respondida pelo que está em aberto por categoria, que conta só o que ainda pede ação. Tirar o campo
+quebraria quem já o lê.
 
 Por isso a resposta traz também as duplas de área e categoria contadas juntas dentro do período, da maior
 contagem para a menor, com desempate pelo nome da área e depois pelo da categoria. **Só entra a dupla com

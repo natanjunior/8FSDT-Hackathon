@@ -24,7 +24,12 @@ import { configDefaults, defineConfig } from "vitest/config";
  * exige a pilha de pé, então não pode entrar no laço curto. O sufixo dela é `.spec.ts`, e não `.test.ts`,
  * para que um glob amplo acrescentado um dia continue não a alcançando.
  */
-const apelido = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
+const apelido = {
+  "@": fileURLToPath(new URL("./src", import.meta.url)),
+  // `semente/` fica fora de `src/`, e o teste de integração da remoção (item 74) precisa alcançá-la sem
+  // importação relativa para fora, que o lint recusa em `testes/` (ADR-0006, regra 3).
+  "@semente": fileURLToPath(new URL("./semente", import.meta.url)),
+};
 
 export default defineConfig({
   resolve: { alias: apelido },
@@ -85,7 +90,8 @@ export default defineConfig({
             // projeto `integracao` logo abaixo.
             "testes/integracao/banco.test.ts",
             // **O segundo arquivo avulso, e pela mesma razão que o primeiro.** `semente/` não é camada
-            // de `src/` e não tem apelido `@/` próprio, então módulo e teste ficam lado a lado — e o que
+            // de `src/` e não tem apelido `@/` próprio (o `@semente/*` existe desde o item 74, para o teste de
+            // integração da remoção), então módulo e teste ficam lado a lado — e o que
             // ele prova é **puro**: a forma do plano, sem banco nenhum. Estar aqui significa estar dentro
             // do `npm run teste`, logo dentro do `npm run verificar`: **plano quebrado trava merge de
             // qualquer item**, não só deste.
