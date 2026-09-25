@@ -71,7 +71,7 @@ import {
 } from "@/interface/componentes/ui/select";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { cn } from "@/interface/componentes/utilitarios";
-import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
+import { SAI_SEM_ACUSAR, useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -181,14 +181,8 @@ export function FormularioDeOcorrencia({
 
   const erros = errosDoRegistro(valores);
 
-  /**
-   * **`modo: "campo"` — a exceção de T-04, decidida em 17/09/2026 e escrita no guia §7.** O erro de um
-   * campo aparece quando a pessoa **sai dele** ou quando **tenta registrar**, e não na primeira interação
-   * com o formulário. Com a regra geral, digitar o título deixaria descrição, categoria e área vermelhas
-   * antes de a pessoa chegar nelas — numa tela cronometrada, é alarme no meio do caminho. O resto do
-   * produto continua no modo `formulario`.
-   */
-  const formulario = useFormularioTocado({ campos: CAMPOS_DO_REGISTRO, modo: "campo", erros });
+  /** O erro de um campo aparece quando a pessoa sai dele ou tenta registrar: a regra do produto desde o item 75. */
+  const formulario = useFormularioTocado({ campos: CAMPOS_DO_REGISTRO, erros });
 
   function mudar(campo: keyof ValoresDoRegistro, valor: string) {
     setValores((anteriores) => ({ ...anteriores, [campo]: valor }));
@@ -391,9 +385,7 @@ export function FormularioDeOcorrencia({
                 onChange={(evento) => {
                   mudar("titulo", evento.target.value);
                 }}
-                onBlur={() => {
-                  formulario.saiu("titulo");
-                }}
+                onBlur={formulario.aoSair("titulo")}
                 className="border-linha bg-background min-h-11"
               />
             )}
@@ -416,9 +408,7 @@ export function FormularioDeOcorrencia({
                 onChange={(evento) => {
                   mudar("descricao", evento.target.value);
                 }}
-                onBlur={() => {
-                  formulario.saiu("descricao");
-                }}
+                onBlur={formulario.aoSair("descricao")}
                 className="border-linha bg-background min-h-20"
               />
             )}
@@ -440,9 +430,7 @@ export function FormularioDeOcorrencia({
               >
                 <SelectTrigger
                   {...controle}
-                  onBlur={() => {
-                    formulario.saiu("categoriaId");
-                  }}
+                  onBlur={formulario.aoSair("categoriaId")}
                   className="border-linha bg-background text-interface min-h-11 w-full"
                 >
                   <SelectValue placeholder="Escolha" />
@@ -512,9 +500,7 @@ export function FormularioDeOcorrencia({
                   onChange={(evento) => {
                     mudar("localizacaoComplemento", evento.target.value);
                   }}
-                  onBlur={() => {
-                    formulario.saiu("localizacaoComplemento");
-                  }}
+                  onBlur={formulario.aoSair("localizacaoComplemento")}
                   className="border-linha bg-background min-h-11"
                 />
               )}
@@ -535,6 +521,7 @@ export function FormularioDeOcorrencia({
               variant="outline"
               disabled={enviando}
               onClick={cancelar}
+              {...{ [SAI_SEM_ACUSAR]: "" }}
               className="border-linha text-tinta text-interface min-h-11 px-4"
             >
               {CANCELAR}

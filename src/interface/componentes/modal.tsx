@@ -15,6 +15,7 @@ import {
 } from "@/interface/componentes/ui/dialog";
 import { SheetContent } from "@/interface/componentes/ui/sheet";
 import { cn } from "@/interface/componentes/utilitarios";
+import { SAI_SEM_ACUSAR } from "@/interface/ganchos/use-formulario-tocado";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
 /**
@@ -146,6 +147,7 @@ export function Modal({
               size="icon"
               disabled={enviando}
               className="text-tinta-suave absolute top-2 right-2"
+              {...{ [SAI_SEM_ACUSAR]: "" }}
             >
               <XIcon aria-hidden="true" className="size-4.5" />
               <span className="sr-only">Fechar</span>
@@ -168,6 +170,7 @@ export function BotaoDeCancelar({ enviando }: { enviando: boolean }) {
         variant="outline"
         disabled={enviando}
         className="border-linha text-interface min-h-11 rounded-sm px-4"
+        {...{ [SAI_SEM_ACUSAR]: "" }}
       >
         Cancelar
       </Button>

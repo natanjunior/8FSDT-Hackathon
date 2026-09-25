@@ -102,6 +102,7 @@ export function FormularioDeNovaOrganizacao() {
 
       <form
         onChange={formulario.aoMudarNoFormulario}
+        onBlur={formulario.aoSairNoFormulario}
         onSubmit={(evento) => void enviar(evento)}
         className="flex flex-col gap-5"
         noValidate

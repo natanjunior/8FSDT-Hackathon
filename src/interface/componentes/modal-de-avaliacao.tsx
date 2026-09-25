@@ -148,7 +148,7 @@ export function ModalDeAvaliacao({
         </>
       }
     >
-      <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
+      <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio aoSair={formulario.aoSair("nota")} erro={formulario.erroDe("nota")}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {/* **O ponteiro prevê a nota, e sair do grupo desfaz a previsão.** Sobre a fileira e não sobre
               cada estrela: entre duas estrelas o ponteiro não deve apagar tudo. */}

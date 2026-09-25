@@ -145,6 +145,7 @@ export function CampoDeSolucaoAplicada({
                 setAviso(null);
                 formulario.mudou("solucao");
               }}
+              onBlur={formulario.aoSair("solucao")}
               disabled={enviando}
               rows={4}
               /* **O mesmo teto do schema** — 4000. Dois números divergiriam. */

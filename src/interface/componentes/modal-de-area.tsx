@@ -213,6 +213,7 @@ export function ModalDeArea(props: Props) {
               setNome(evento.target.value);
               formulario.mudou("nome");
             }}
+            onBlur={formulario.aoSair("nome")}
             className="border-linha bg-background h-11"
           />
         )}
@@ -222,6 +223,7 @@ export function ModalDeArea(props: Props) {
         id={`${prefixo}-grupo-tipo`}
         legenda={TEXTOS_DA_TABELA.tipo}
         obrigatorio
+        aoSair={formulario.aoSair("tipo")}
         erro={formulario.erroDe("tipo")}
       >
         <RadioGroup

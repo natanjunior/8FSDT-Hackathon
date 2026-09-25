@@ -300,6 +300,7 @@ export function ModalDeAtribuicao({
         id={grupoId}
         legenda="Responsável"
         obrigatorio
+        aoSair={formulario.aoSair("responsavel")}
         erro={formulario.erroDe("responsavel")}
       >
         {/*
