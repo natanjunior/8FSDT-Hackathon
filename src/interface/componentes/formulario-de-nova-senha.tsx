@@ -58,6 +58,7 @@ export function FormularioDeNovaSenha() {
       <form
         action={agir}
         onChange={formulario.aoMudarNoFormulario}
+        onBlur={formulario.aoSairNoFormulario}
         onSubmit={formulario.aoEnviarFormulario}
         className="flex flex-col gap-5"
         noValidate
