@@ -26,7 +26,7 @@ export function BarraSuperior({
   return (
     <header className="border-linha bg-superficie sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 md:h-[60px] md:px-6">
       {children}
-      <MarcaDoProduto />
+      <MarcaDoProduto tamanho="barra" />
       <div className="ml-auto flex items-center gap-2">
         <SeletorDeOrganizacao vinculos={vinculos} organizacaoAtivaId={organizacaoAtivaId} />
         <MenuDePessoa nomeDaPessoa={nomeDaPessoa} emailDaPessoa={emailDaPessoa} />

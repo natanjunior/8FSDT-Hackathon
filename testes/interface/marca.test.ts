@@ -93,3 +93,31 @@ describe("o pacote de favicon e o manifesto — critérios 76.11 e 76.12", () =>
     expect(ler("app/manifest.ts")).toContain('from "@/interface/manifesto"');
   });
 });
+
+describe("a marca na tela — critérios 76.7 e 76.8", () => {
+  const MARCA = "src/interface/componentes/marca.tsx";
+
+  it("é o logotipo, e não mais o ícone de caderno com o rótulo em mono", () => {
+    const fonte = ler(MARCA);
+    expect(fonte).not.toContain("NotebookPen");
+    expect(fonte).not.toContain("font-mono");
+    expect(fonte).toContain('src="/marca/logo.svg"');
+    expect(fonte).toContain('alt="Resolve Aí"');
+    expect(fonte).toContain('from "next/image"');
+  });
+
+  it("20 px na barra, 32 px fora dela, e só esses dois", () => {
+    const fonte = ler(MARCA);
+    const alturas = [...fonte.matchAll(/\bh-(\d+)\b/gu)].map((achado) => achado[1]);
+    expect(new Set(alturas)).toStrictEqual(new Set(["5", "8"]));
+  });
+
+  it("na barra estreita é o ícone do R, e a partir de md é o logotipo", () => {
+    const fonte = ler(MARCA);
+    expect(fonte).toMatch(/src="\/marca\/icone\.svg"[\s\S]*?className="[^"]*\bmd:hidden\b/u);
+    expect(fonte).toMatch(/src="\/marca\/logo\.svg"[\s\S]*?className="[^"]*\bhidden\b[^"]*\bmd:block\b/u);
+    expect(ler("src/interface/componentes/casca/barra-superior.tsx")).toContain(
+      '<MarcaDoProduto tamanho="barra" />',
+    );
+  });
+});
