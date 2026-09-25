@@ -2469,8 +2469,8 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os seis indicadores desta entrega, em **uma requisição** — o dashboard é uma tela, e a
-        aplicação escala a zero: cinco requisições poderiam significar cinco esperas de partida a frio.
+        Os indicadores do painel, em **uma requisição** — o dashboard é uma tela, e a aplicação escala a
+        zero: cinco requisições poderiam significar cinco esperas de partida a frio.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
         *o que eu mudo no mês*.** Por isso `backlogPorStatus` e `abertasPorCategoria` são fotografia de
@@ -2485,10 +2485,19 @@ paths:
         lado veria os indicadores melhorarem. `abertasPorIdade` conta o mesmo conjunto que
         `abertasPorCategoria`, por outro corte, e as duas somas fecham.
 
-        **A recorrência é o indicador que justifica o dashboard existir:** oito vazamentos no mesmo bloco
-        em três meses não são oito ordens de serviço, são uma obra — e é o único número que tira o Gestor
-        do reativo. As duas séries dizem onde há mais volume, cada uma por uma dimensão;
-        `duplasRecorrentes` cruza as duas e diz o que está voltando.
+        **A recorrência é o que tira o Gestor do reativo.** As duas séries contam o volume, cada uma por
+        uma dimensão; `duplasRecorrentes` cruza as duas na linha da ocorrência e diz o que está voltando.
+        A tela soma as séries de categoria para saber quanto entrou em cada mês, e não desenha
+        `recorrenciaPorArea`, que continua na resposta para não quebrar quem já a lê.
+
+        **O saldo do período é o que entrou menos o que saiu**, e sai é resolvida ou cancelada: a soma
+        das séries de categoria, menos `tempoDeResolucao.porMes[].resolvidas`, menos `canceladasPorMes`.
+        `emAbertoNoInicio` é medido na trilha, e não derivado: por isso a conta *em aberto agora menos o
+        saldo é o que estava em aberto no início* pode ser conferida, e fecha quando a janela termina
+        hoje. Com `ate` no passado, o que entrou e saiu depois dele mexe no agora e em nenhum dos termos.
+
+        `maisVelhasEmAberto` aponta as ocorrências que esperam há mais tempo, e é o único campo do painel
+        que nomeia um caso.
 
         `mediaDasAvaliacoes` e `tempoDeResolucao` vêm com o denominador de propósito: sem ele, a média
         mente quando poucos avaliam, e o percentil mente quando o mês teve duas resoluções.
@@ -2499,9 +2508,9 @@ paths:
         `mediana: null`, em vez de sumir da série: buraco é informação, e omitir o mês faria o gráfico
         mentir.
 
-        *Capacidades: dashboard com indicadores · `ENUNCIADO · aberto` (G8); ocorrências por status, em
-        aberto por categoria, média das avaliações, recorrência por categoria e área, tempo de
-        resolução mês a mês, e idade do que está em aberto por faixa · `NOSSO` (D19). Permissão: `dashboard.ler` — Gestor.*
+        *Ocorrências por status, em aberto por categoria e por idade, as mais velhas em aberto, entradas e
+        saídas por mês, o que está voltando, tempo de resolução mês a mês e a satisfação com a
+        distribuição das notas. Permissão: `dashboard.ler` — Gestor.*
       parameters:
         - name: de
           in: query
@@ -2531,14 +2540,23 @@ paths:
                 # `abertasPorCategoria` é IGUAL à soma das quatro linhas não terminais de
                 # `backlogPorStatus`, porque toda ocorrência tem categoria.
                 abertasPorCategoria:
-                  - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8 }
-                  - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6 }
+                  - { categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }, quantidade: 8, envelhecidas: 5 }
+                  - { categoria: { id: "6b1c8f2e-1111-4a2b-8c3d-4e5f6a7b8c9d", nome: "Iluminação" }, quantidade: 6, envelhecidas: 0 }
                 abertasPorIdade:
                   - { deDias: 0, ateDias: 7, quantidade: 12 }
                   - { deDias: 8, ateDias: 30, quantidade: 5 }
                   - { deDias: 31, ateDias: 90, quantidade: 2 }
                   - { deDias: 91, ateDias: null, quantidade: 1 }
-                mediaDasAvaliacoes: { media: 4.3, avaliadas: 31, resolvidas: 47 }
+                mediaDasAvaliacoes:
+                  media: 4.3
+                  avaliadas: 31
+                  resolvidas: 47
+                  distribuicao:
+                    - { nota: 1, quantidade: 1 }
+                    - { nota: 2, quantidade: 1 }
+                    - { nota: 3, quantidade: 2 }
+                    - { nota: 4, quantidade: 8 }
+                    - { nota: 5, quantidade: 19 }
                 recorrenciaPorCategoria:
                   - categoria: { id: "6b1c8f2e-2222-4a2b-8c3d-4e5f6a7b8c9d", nome: "Vazamentos" }
                     porMes:
@@ -2560,6 +2578,17 @@ paths:
                     - { mes: "2026-06", mediana: 10.42, p90: 92.5, amostra: null, resolvidas: 11 }
                     - { mes: "2026-07", mediana: 0.2, p90: null, amostra: [0.07, 0.2, 1.54], resolvidas: 3 }
                     - { mes: "2026-08", mediana: null, p90: null, amostra: null, resolvidas: 0 }
+                # O exemplo é um recorte, mas a conferência fecha dentro dele: 12 registradas (a série
+                # de Vazamentos), 14 resolvidas e 2 canceladas dão saldo de −4, e 24 − 4 é a soma de
+                # `abertasPorIdade`.
+                canceladasPorMes:
+                  - { mes: "2026-06", quantidade: 1 }
+                  - { mes: "2026-07", quantidade: 0 }
+                  - { mes: "2026-08", quantidade: 1 }
+                emAbertoNoInicio: 24
+                maisVelhasEmAberto:
+                  - { id: "3c2b1a09-1111-4d5e-8f70-1a2b3c4d5e6f", titulo: "Infiltração no teto da garagem", status: "pausada", statusRotulo: "Pausada", idadeEmDias: 104 }
+                  - { id: "3c2b1a09-2222-4d5e-8f70-1a2b3c4d5e6f", titulo: "Portão da garagem não fecha", status: "em_atendimento", statusRotulo: "Em atendimento", idadeEmDias: 61 }
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
@@ -3754,7 +3783,7 @@ components:
 
         `abertasPorIdade` é a terceira fotografia, e a única que olha para o tempo do que ainda não
         terminou.
-      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, duplasRecorrentes, tempoDeResolucao]
+      required: [periodo, backlogPorStatus, abertasPorCategoria, abertasPorIdade, mediaDasAvaliacoes, recorrenciaPorCategoria, recorrenciaPorArea, duplasRecorrentes, tempoDeResolucao, canceladasPorMes, emAbertoNoInicio, maisVelhasEmAberto]
       properties:
         periodo:
           type: object
@@ -3787,6 +3816,12 @@ components:
                   id: { type: string, format: uuid }
                   nome: { type: string }
               quantidade: { type: integer }
+              envelhecidas:
+                type: integer
+                description: >-
+                  Quantas destas passaram do limite da primeira faixa de idade, que é o `ateDias` da
+                  primeira linha de `abertasPorIdade`. Mesma régua de idade das faixas: trocar o limite
+                  move este número junto.
         abertasPorIdade:
           type: array
           description: |
@@ -3831,11 +3866,21 @@ components:
             media: { type: [number, "null"] }
             avaliadas: { type: integer }
             resolvidas: { type: integer }
+            distribuicao:
+              type: array
+              description: >-
+                Quantas avaliações deram cada nota, de 1 a 5. As cinco vêm sempre, mesmo a zero, e a
+                soma é `avaliadas`: saem do mesmo conjunto que a média.
+              items:
+                type: object
+                properties:
+                  nota: { type: integer, minimum: 1, maximum: 5 }
+                  quantidade: { type: integer }
         recorrenciaPorCategoria:
           type: array
           description: |
-            **O indicador que justifica o dashboard existir.** Oito vazamentos no mesmo bloco em três meses
-            não são oito ordens de serviço, são uma obra.
+            Uma série mensal por categoria, recortada por `registrada_em`. A soma das séries num mês é
+            quanto entrou naquele mês, porque toda ocorrência tem categoria.
           items:
             type: object
             properties:
@@ -3934,3 +3979,36 @@ components:
                   resolvidas:
                     type: integer
                     description: O denominador. Sem ele, um mês com duas resoluções parece igual a um mês com trinta.
+        canceladasPorMes:
+          type: array
+          description: |
+            Quantas ocorrências foram canceladas em cada mês da janela, **pelo instante do cancelamento**
+            lido na trilha, a mesma âncora da resolução. Todo mês da janela aparece, com zero onde não
+            houve. Com as resolvidas, é o que *saiu* no saldo do período.
+          items:
+            type: object
+            properties:
+              mes: { type: string, pattern: "^[0-9]{4}-[0-9]{2}$" }
+              quantidade: { type: integer }
+        emAbertoNoInicio:
+          type: integer
+          description: |
+            Quantas ocorrências estavam em aberto no instante em que a janela abre: registradas antes
+            dele, e sem transição para `resolvida` ou `cancelada` antes dele. **Medido na trilha, e não
+            derivado**: somado ao saldo do período, dá a soma de `abertasPorIdade` quando a janela termina
+            hoje, e é essa conta que prova as três leituras.
+        maisVelhasEmAberto:
+          type: array
+          description: |
+            As ocorrências em aberto há mais tempo, **no máximo cinco**, da mais velha para a mais nova,
+            com desempate estável. A idade é a mesma das faixas de `abertasPorIdade`, então a primeira
+            da lista cai na faixa mais velha que tem alguém. Vazia quando nada está em aberto.
+            `statusRotulo` é o do Gestor, como em `backlogPorStatus`.
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              titulo: { type: string }
+              status: { $ref: "#/components/schemas/StatusOcorrencia" }
+              statusRotulo: { type: string }
+              idadeEmDias: { type: integer }
