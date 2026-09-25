@@ -49,7 +49,6 @@ import {
   SeletorDePrioridade,
 } from "@/interface/componentes/seletor-de-prioridade";
 import {
-  abreAvaliacaoPeloEndereco,
   acoesDaBarra,
   AVISO_DE_VISIBILIDADE,
   encurtarParaOCaminho,
@@ -119,10 +118,8 @@ const PAPEL_EM_PALAVRA: Readonly<Record<string, string>> = {
 
 export default async function Ocorrencia({
   params,
-  searchParams,
 }: {
   params: Promise<{ ocorrenciaId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let escopo;
   try {
@@ -244,12 +241,6 @@ export default async function Ocorrencia({
     pessoaId: escopo.ctx.pessoaId,
     permissoes: vinculo.permissoes,
   });
-
-  /** A porta de fora para o modal de avaliar (item 66; spec do 67, §4.9). */
-  const abrirAvaliacao = abreAvaliacaoPeloEndereco(
-    (await searchParams).acao,
-    detalhe.acoesDisponiveis,
-  );
 
   /**
    * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
@@ -603,7 +594,6 @@ export default async function Ocorrencia({
           <ModalDeAvaliacao
             ocorrenciaId={detalhe.id}
             variante="primario"
-            abrirAoCarregar={abrirAvaliacao}
             rotulosDeStatus={rotulos}
             organizacaoId={organizacaoId}
             retorno={RETORNO_DO_COMANDO.avaliar}

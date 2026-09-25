@@ -100,6 +100,18 @@ describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
     expect(fonte).not.toMatch(/href="#"/u);
   });
 
+  it("os cartões têm a mesma altura, e a régua fica sempre, na mesma altura (critério 76.6)", () => {
+    const fonte = ler(CARTAO);
+    expect(fonte).toMatch(/<Cartao tituloId=\{tituloId\} className="[^"]*\bh-full\b[^"]*\bflex-col\b/u);
+    // A fileira existe com ou sem perfil: sai a condição que a escondia.
+    expect(fonte).not.toContain("{temPerfil && (");
+    // `mt-auto` a empurra para o pé; a altura mínima é a do botão que ela contém (44) mais o `py-3` (24),
+    // para a régua do cartão sem perfil cair na mesma linha da dos vizinhos.
+    expect(fonte).toMatch(/className="[^"]*\bmt-auto\b[^"]*\bmin-h-\[68px\][^"]*\bborder-t\b/u);
+    expect(fonte).toContain("aria-hidden={temPerfil ? undefined : true}");
+    expect(ler("src/interface/componentes/cartao.tsx")).toContain("className?: string");
+  });
+
   it("o cartão não estoura no celular: o nome encolhe e os botões quebram linha", () => {
     const fonte = ler(CARTAO);
     expect(fonte).toContain("min-w-0");
@@ -115,35 +127,60 @@ describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
   });
 });
 
-describe("a barra lateral — critérios 70.5 e 70.7", () => {
+describe("a barra lateral — critérios 70.5, 70.7, 76.1 e 76.2", () => {
   const NAVEGACAO = "src/interface/componentes/casca/navegacao.tsx";
+  const PE = "src/interface/componentes/casca/pe-da-barra.tsx";
+  const LAYOUT = "app/(casca)/layout.tsx";
 
-  it("o grupo e a documentação moram no bloco «Além desta organização», um só, depois de Meus dados", () => {
-    const fonte = ler(NAVEGACAO);
-    const organizacao = fonte.indexOf('<nav aria-label="Nesta organização"');
-    const alem = fonte.indexOf('<nav aria-label="Além desta organização"');
-    expect(organizacao).toBeGreaterThanOrEqual(0);
-    expect(alem).toBeGreaterThan(organizacao);
-    // Um bloco só: quem sair primeiro, o 64 ou o 70, cria; o segundo acrescenta.
-    expect([...fonte.matchAll(/<nav aria-label="Além desta organização"/gu)]).toHaveLength(1);
-    const grupo = fonte.indexOf('endereco="/grupo"');
-    expect(grupo).toBeGreaterThan(alem);
-    // Com o 64 na base, Meus dados vem antes; sem ele, a asserção não tem o que comparar.
-    const meusDados = fonte.indexOf('destino="/meus-dados"');
-    if (meusDados !== -1) expect(grupo).toBeGreaterThan(meusDados);
+  it("o grupo e a documentação saem do corpo e moram no pé, num marco próprio (critério 76.2)", () => {
+    const corpo = ler(NAVEGACAO);
+    expect(corpo).not.toContain('endereco="/grupo"');
+    expect(corpo).not.toContain('endereco="/documentacao"');
+
+    const pe = ler(PE);
+    expect(pe).toContain("<SidebarFooter");
+    const separador = pe.indexOf("<SidebarSeparator");
+    const marco = pe.indexOf('<nav aria-label="Sobre o projeto"');
+    expect(separador).toBeGreaterThan(-1);
+    expect(marco).toBeGreaterThan(separador);
+
+    // O pé é irmão do corpo, dentro do `Sidebar`: é o que o põe no fim da coluna nas duas larguras.
+    const layout = ler(LAYOUT);
+    const posicaoDoPe = layout.indexOf("<PeDaBarra />");
+    expect(posicaoDoPe).toBeGreaterThan(layout.indexOf("</SidebarContent>"));
+    expect(posicaoDoPe).toBeLessThan(layout.indexOf("</Sidebar>"));
   });
 
-  it("as duas entradas, na ordem, abrem em nova aba e fecham a gaveta", () => {
-    const fonte = ler(NAVEGACAO);
-    const grupo = fonte.indexOf('endereco="/grupo"');
-    const documentacao = fonte.indexOf('endereco="/documentacao"');
-    expect(grupo).toBeGreaterThan(0);
-    expect(documentacao).toBeGreaterThan(grupo);
-    expect(fonte).toContain('rotulo="Grupo 1"');
-    expect(fonte).toContain('rotulo="Documentação"');
-    expect(fonte).toMatch(/target="_blank"\s+rel="noreferrer"\s+onClick=\{aoTocar\}/u);
-    expect(fonte).toContain('<span className="sr-only">, abre em nova aba</span>');
-    expect(fonte).toContain("<ExternalLink");
+  it("Documentação vem antes de Grupo 1, e as duas abrem em nova aba e fecham a gaveta", () => {
+    const pe = ler(PE);
+    const documentacao = pe.indexOf('endereco="/documentacao"');
+    const grupo = pe.indexOf('endereco="/grupo"');
+    expect(documentacao).toBeGreaterThan(0);
+    expect(grupo).toBeGreaterThan(documentacao);
+    expect(pe).toContain('rotulo="Grupo 1"');
+    expect(pe).toContain('rotulo="Documentação"');
+    expect(pe).toMatch(/target="_blank"\s+rel="noreferrer"/u);
+    expect(pe).toContain("onClick={aoTocar}");
+    expect(pe).toContain('<span className="sr-only">, abre em nova aba</span>');
+    expect(pe).toContain("<ExternalLink");
+  });
+
+  it("o corpo da barra não rola na horizontal, e o item externo pode encolher (critério 76.1)", () => {
+    expect(ler(LAYOUT)).toMatch(/<SidebarContent className="[^"]*\boverflow-x-hidden\b/u);
+    expect(ler(PE)).toMatch(/className="min-w-0"/u);
+  });
+
+  it("nenhuma régua da barra soma largura cheia com margem (critério 76.1, a causa medida)", () => {
+    // O `w-auto` do `SidebarSeparator` do catálogo perde para o `data-[orientation=horizontal]:w-full` do
+    // `Separator`, que é mais específico; com o `mx-2`, a caixa da régua passava 16 px da coluna. Medido
+    // no navegador: escondida a régua entre os dois marcos, a diferença de rolagem ia de 16 a 0.
+    for (const caminho of [NAVEGACAO, PE]) {
+      const reguas = [...ler(caminho).matchAll(/<SidebarSeparator className="([^"]*)"/gu)].map((a) => a[1]);
+      expect(reguas.length, caminho).toBeGreaterThan(0);
+      for (const classe of reguas) {
+        expect(classe, caminho).toContain("data-[orientation=horizontal]:w-auto");
+      }
+    }
   });
 });
 

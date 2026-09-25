@@ -224,7 +224,8 @@
     --ink-faint: oklch(0.5100 0.0200 265.0000);
     --line: oklch(0.3546 0.0230 261.2175);
     --line-soft: oklch(0.2758 0.0182 262.1965);
-    --accent: oklch(0.6940 0.1017 45.5865);
+    /* --accent: o laranja do logo, #D17A4D (item 76). O claro fica: respostas.md P1. */
+    --accent: oklch(0.6655 0.1241 47.0953);
     --accent-bg: oklch(0.2921 0.0350 252.3026);
     --ok: oklch(0.6451 0.0736 152.4322);
     --info: oklch(0.7194 0.0599 249.4577);
@@ -263,7 +264,7 @@
   --ink-faint: oklch(0.5100 0.0200 265.0000);
   --line: oklch(0.3546 0.0230 261.2175);
   --line-soft: oklch(0.2758 0.0182 262.1965);
-  --accent: oklch(0.6940 0.1017 45.5865);
+  --accent: oklch(0.6655 0.1241 47.0953);
   --accent-bg: oklch(0.2921 0.0350 252.3026);
   --ok: oklch(0.6451 0.0736 152.4322);
   --info: oklch(0.7194 0.0599 249.4577);

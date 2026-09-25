@@ -255,11 +255,11 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
     falta:
       "Minhas ocorrências ser texto e não um par de botões, e a lista não trazer ocorrência de terceiro",
   });
-  // **A linha é o item da lista, e não o link** — desde o item 67 o link é só o título, e o rótulo de
-  // status ficou fora dele: a linha inteira leva à ocorrência por uma camada, não por uma âncora em volta
-  // de tudo.
+  // **A linha é uma linha da tabela desde o item 76**: *Minhas ocorrências* tem a forma de *Todas*. O
+  // link continua sendo só o título, e o rótulo de status fica na célula ao lado: a linha inteira leva à
+  // ocorrência por uma camada, não por uma âncora em volta de tudo.
   const linhaDeHelena = helena
-    .getByRole("listitem")
+    .getByRole("row")
     .filter({ has: helena.getByRole("link", { name: TITULO }) });
   await expect(linhaDeHelena).toContainText(O_QUE_O_SOLICITANTE_LE);
   await expect(helena.getByText("Pausada")).toHaveCount(0);

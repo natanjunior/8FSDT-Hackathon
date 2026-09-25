@@ -6,6 +6,7 @@ import { listarPedidosDeEntrada } from "@/aplicacao/organizacao";
 import type { Permissao } from "@/dominio/organizacao";
 import { BarraSuperior } from "@/interface/componentes/casca/barra-superior";
 import { Navegacao } from "@/interface/componentes/casca/navegacao";
+import { PeDaBarra } from "@/interface/componentes/casca/pe-da-barra";
 import {
   Sidebar,
   SidebarContent,
@@ -77,12 +78,17 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
             marca dentro da lateral e o cabeçalho só sobre o conteúdo. Este produto tem a barra superior
             atravessando, e foi assim que o dono validou. O `!` é o que torna o deslocamento determinístico:
             sem ele, `top-14` e o `inset-y-0` do componente dependeriam da ordem em que o Tailwind emite as
-            duas propriedades. */}
+            duas propriedades.
+
+            **`overflow-x-hidden` no corpo** (critério 76.1): o `overflow-auto` do catálogo vale nos dois
+            eixos, e um filho um pixel mais largo que a coluna ligava a rolagem horizontal. O conserto é no
+            uso, e não em `ui/sidebar.tsx`. O pé, com a documentação e o grupo, é irmão do corpo (76.2). */}
         <Sidebar
           collapsible="offcanvas"
           className="top-14! h-[calc(100svh-3.5rem)]! md:top-[60px]! md:h-[calc(100svh-60px)]!"
         >
-          <SidebarContent className="gap-0 px-2 py-4">{navegacao}</SidebarContent>
+          <SidebarContent className="gap-0 overflow-x-hidden px-2 py-4">{navegacao}</SidebarContent>
+          <PeDaBarra />
         </Sidebar>
 
         <SidebarInset className="min-w-0 px-4 py-6 md:px-6">{children}</SidebarInset>

@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { COLUNAS_DE_ORDENACAO, OcorrenciaNaoEncontrada } from "@/aplicacao/ocorrencia";
@@ -108,13 +111,13 @@ import {
 } from "@/interface/componentes/registro-de-ocorrencia";
 import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
-  abreAvaliacaoPeloEndereco,
-  destinoDaAvaliacao,
   acaoPrimaria,
   acoesDaBarra,
   AVISO_DE_AVALIACAO,
   encurtarParaOCaminho,
+  nomeDaNota,
   nomesDeStatus,
+  NOTAS_DA_AVALIACAO,
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
   palavrasDaAtribuicao,
@@ -124,6 +127,7 @@ import {
   rotuloDeComando,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
+  textoDaNota,
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
@@ -145,6 +149,13 @@ import {
   resolucaoSchema,
   solucaoAplicadaSchema,
 } from "@/interface/schemas";
+
+/** A raiz do repositório, para as guardas que leem código-fonte (item 76). */
+const RAIZ = fileURLToPath(new URL("../../", import.meta.url));
+
+function lerFonte(relativo: string): string {
+  return readFileSync(RAIZ + relativo, "utf8");
+}
 
 /**
  * ============================================================================
@@ -1453,26 +1464,6 @@ describe("as opções dos campos com busca — critério 67.2", () => {
 
     expect(opcoes).toStrictEqual([{ valor: "p-1", rotulo: "Marcos Ribeiro" }]);
     expect(Object.keys(opcoes[0] ?? {})).toStrictEqual(["valor", "rotulo"]);
-  });
-});
-
-/**
- * **O destino de *"Conte como foi"*** — item 67. A marca deixou de ser frase solta e virou link; o
- * destino é a porta de fora do modal de avaliar de T-05, que é onde a avaliação continua acontecendo.
- */
-describe("o convite a avaliar leva à avaliação", () => {
-  it("o destino é a ocorrência com a ação de avaliar", () => {
-    expect(destinoDaAvaliacao("o-1")).toBe("/ocorrencias/o-1?acao=avaliar");
-  });
-
-  /** A ida e volta: o que a lista escreve é o que T-05 lê. */
-  it("T-05 abre o modal por esse endereço quando avaliar está disponível", () => {
-    const acao =
-      new URL(`https://exemplo.test${destinoDaAvaliacao("o-1")}`).searchParams.get("acao") ??
-      undefined;
-
-    expect(abreAvaliacaoPeloEndereco(acao, ["avaliar", "comentar"])).toBe(true);
-    expect(abreAvaliacaoPeloEndereco(acao, ["comentar"])).toBe(false);
   });
 });
 
@@ -4087,18 +4078,78 @@ describe("o que o item 66 acrescenta às frases de T-05", () => {
     expect(encurtarParaOCaminho(`${"a".repeat(38)} bcd`)).toBe(`${"a".repeat(38)}…`);
   });
 
-  it("o endereço só abre a avaliação para quem pode avaliar (foco da revisão 2)", () => {
-    expect(abreAvaliacaoPeloEndereco("avaliar", ["avaliar"])).toBe(true);
-    expect(abreAvaliacaoPeloEndereco("avaliar", [])).toBe(false);
-    expect(abreAvaliacaoPeloEndereco("avaliar", ["analisar", "cancelar"])).toBe(false);
-    expect(abreAvaliacaoPeloEndereco(undefined, ["avaliar"])).toBe(false);
-    expect(abreAvaliacaoPeloEndereco(["avaliar", "avaliar"], ["avaliar"])).toBe(false);
-    expect(abreAvaliacaoPeloEndereco("resolver", ["avaliar"])).toBe(false);
-  });
-
   it("o aviso de avaliação não contém o que o ponta a ponta procura sem escopo", () => {
     for (const proibida of ["Situação", "Nota", "Sua avaliação", "Avaliar"]) {
       expect(AVISO_DE_AVALIACAO).not.toContain(proibida);
     }
+  });
+});
+
+/**
+ * **Critérios 76.3 e 76.4 — a lista tem uma forma só, e o convite a avaliar não mora nela.** Avaliar
+ * acontece só na página da ocorrência, na faixa do item 66. As guardas são de ausência: é o que o
+ * critério pede, e um convite que voltasse por engano voltaria em silêncio.
+ */
+describe("a lista, uma forma nos dois recortes (item 76)", () => {
+  const LISTA = "src/interface/componentes/lista-de-ocorrencias.tsx";
+
+  it("não há desenho próprio para «Minhas ocorrências» (critério 76.3)", () => {
+    const fonte = lerFonte(LISTA);
+    expect(fonte).not.toContain("LinhaDoSolicitante");
+    expect(fonte).not.toContain('visibilidadeAplicada === "apenas_minhas"');
+  });
+
+  it("o convite a avaliar e a porta pelo endereço saíram (critério 76.4)", () => {
+    for (const caminho of [
+      LISTA,
+      "src/interface/componentes/rotulos.ts",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/ganchos/use-envio-do-modal.ts",
+      "app/(casca)/ocorrencias/page.tsx",
+    ]) {
+      const fonte = lerFonte(caminho);
+      expect(fonte, caminho).not.toMatch(
+        /CONVITE_A_AVALIAR|convidaAAvaliar|ConviteAAvaliar|destinoDaAvaliacao|abreAvaliacaoPeloEndereco|abrirAoCarregar|abertoAoMontar|acao=avaliar|pessoaIdDeQuemLe/u,
+      );
+    }
+  });
+
+  /**
+   * **T-05 fica fora do laço de cima**, porque `pessoaIdDeQuemLe` continua existindo lá com outro sentido:
+   * é quem lê a conversa, em `conversa-da-ocorrencia.tsx`.
+   */
+  it("T-05 não lê mais a ação pelo endereço (critério 76.4)", () => {
+    const fonte = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+    expect(fonte).not.toMatch(/abreAvaliacaoPeloEndereco|abrirAoCarregar|searchParams/u);
+  });
+});
+
+describe("a nota em estrelas — critério 76.5", () => {
+  it("as cinco opções, com as pontas nomeadas e o meio em número", () => {
+    expect(NOTAS_DA_AVALIACAO.map((nota) => nomeDaNota(nota.valor))).toStrictEqual([
+      "1, muito ruim",
+      "2",
+      "3",
+      "4",
+      "5, muito bom",
+    ]);
+  });
+
+  it("o texto ao lado das estrelas diz a nota em palavra, e as pontas pelo nome (A-5)", () => {
+    expect(textoDaNota(null)).toBe("Escolha de 1 a 5");
+    expect(textoDaNota(1)).toBe("1 de 5, muito ruim");
+    expect(textoDaNota(3)).toBe("3 de 5");
+    expect(textoDaNota(5)).toBe("5 de 5, muito bom");
+  });
+
+  it("continua sendo um grupo de rádios de verdade, e nada foi instalado", () => {
+    const modal = lerFonte("src/interface/componentes/modal-de-avaliacao.tsx");
+    expect(modal).toContain('type="radio"');
+    expect(modal).toContain("name={grupoId}");
+    expect(modal).toContain("<Star");
+    expect(modal).toContain('className="peer sr-only"');
+    // O rótulo acessível é texto dentro do `<label>`, e não `aria-label`: é a mesma marcação do item 18.
+    expect(modal).toContain('<span className="sr-only">{nomeDaNota(opcao.valor)}</span>');
+    expect(existsSync(`${RAIZ}src/interface/componentes/ui/rating.tsx`)).toBe(false);
   });
 });

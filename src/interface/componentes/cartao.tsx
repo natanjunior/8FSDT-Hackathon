@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@/interface/componentes/utilitarios";
+
 /**
  * ============================================================================
  *  O cartão de leitura e a cabeça dele — guia §4 e §5, item 44i
@@ -20,11 +22,20 @@ import type { ReactNode } from "react";
  * **Componentes de servidor.** Sem estado; a ação da cabeça pode ser de cliente, e chega pronta.
  */
 
-export function Cartao({ tituloId, children }: { tituloId: string; children: ReactNode }) {
+export function Cartao({
+  tituloId,
+  className,
+  children,
+}: {
+  tituloId: string;
+  /** Só geometria de quem o usa — hoje, a altura cheia dos cartões do grupo (item 76). */
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <section
       aria-labelledby={tituloId}
-      className="border-linha bg-superficie overflow-hidden rounded-lg border shadow-sm"
+      className={cn("border-linha bg-superficie overflow-hidden rounded-lg border shadow-sm", className)}
     >
       {children}
     </section>

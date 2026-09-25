@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ReaplicacaoDoTema } from "@/interface/componentes/reaplicacao-do-tema";
 import { ID_DO_SCRIPT_DO_TEMA, SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 import { Toaster } from "@/interface/componentes/ui/sonner";
+import { COR_DA_MARCA } from "@/interface/manifesto";
 
 import "./globals.css";
 
@@ -52,9 +53,9 @@ export const viewport: Viewport = {
   // O alvo primário de T-01 e T-02 é celular (inventário de telas).
   width: "device-width",
   initialScale: 1,
-  // A marca em hex, porque `<meta name="theme-color">` não tem suporte confiável a oklch.
-  // É a conversão de oklch(0.6031 0.1107 41.8526) — o --accent claro —, dentro do gamut sRGB.
-  themeColor: "#b8694a",
+  // **A cor da marca, uma só nos dois temas** (item 76, critério 10): o tema é cookie, e o navegador não
+  // tem como saber qual a pessoa escolheu. Mora em `src/interface/manifesto.ts`, junto do manifesto.
+  themeColor: COR_DA_MARCA,
 };
 
 export default function CascoDaAplicacao({ children }: { children: React.ReactNode }) {

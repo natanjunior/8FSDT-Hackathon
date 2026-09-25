@@ -375,12 +375,14 @@ describe("a palavra do condomínio — critério 31.5", () => {
 
   it("o coador guarda o código e apaga o comentário, inclusive o bloco de JSX em três linhas", () => {
     const lista = linhasSemComentario("src/interface/componentes/lista-de-ocorrencias.tsx");
-    // O comentário de JSX que explica a marca do convite: a linha do meio dele é a única do produto que
-    // escapa de `COMENTARIO`, e é o caso que justifica esta função existir.
+    // O comentário de JSX em três linhas da célula do título: a linha do meio é a que escapa de
+    // `COMENTARIO`, e é o caso que justifica esta função existir. Até o item 76 o caso era o comentário
+    // da marca do convite, que saiu com ele.
     expect(lista.filter((linha) => SINDICO.test(linha))).toStrictEqual([]);
-    expect(lista.some((linha) => linha.includes("convidaAAvaliar(item, pessoaIdDeQuemLe)"))).toBe(
-      true,
-    );
+    expect(lista.some((linha) => linha.includes("texto livre de até 120 caracteres"))).toBe(false);
+    expect(
+      lista.some((linha) => linha.includes("segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo)")),
+    ).toBe(true);
 
     // E o coador não pode comer texto que chega à tela: a frase da recusa continua, a tabela que só
     // existe no comentário de `rotulos.ts` some.

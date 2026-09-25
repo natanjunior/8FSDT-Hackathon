@@ -3,12 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen,
   Building2,
   ChartColumn,
   ClipboardList,
-  ExternalLink,
-  GraduationCap,
   LayoutGrid,
   Settings,
   Tags,
@@ -38,9 +35,9 @@ import {
  *
  * **Um quarto bloco, num segundo marco: *Além desta organização*.** *Meus dados* entra nele no item 64:
  * a tela vale em todas as organizações (`meus-dados/page.tsx:51`), e sob o rótulo *"Nesta organização"* o
- * leitor de tela anunciaria uma coisa falsa. A página do grupo e a documentação, do item 70, vêm depois
- * dela, pela mesma razão (critério 70.7). A régua acima do bloco não depende de papel: o Solicitante, sem
- * Dashboard, também a vê, e ela separa os dois marcos.
+ * leitor de tela anunciaria uma coisa falsa. A página do grupo e a documentação moraram aqui do item 70 ao
+ * 76; desde o 76 elas estão no pé da barra, em `pe-da-barra.tsx`, num marco próprio. A régua acima do
+ * bloco não depende de papel: o Solicitante, sem Dashboard, também a vê, e ela separa os dois marcos.
  *
  * **`Ocorrências` fica sozinha no topo** porque o `inventario-de-telas.md` decide que *"T-03 é o eixo:
  * toda tela de dentro se alcança dela"*, e um eixo dentro de um grupo deixa de parecer eixo. **`Dashboard`
@@ -134,7 +131,7 @@ export function Navegacao({
 
         {temOrganizacao && (
           <>
-            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
             <SidebarGroup className="p-0">
               <SidebarGroupLabel className="text-rotulo-coluna text-tinta-suave gap-2 font-mono uppercase">
                 <Building2 aria-hidden="true" />
@@ -187,7 +184,7 @@ export function Navegacao({
 
         {podeVerDashboard && (
           <>
-            <SidebarSeparator className="mx-2 my-3" />
+            <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
             <SidebarGroup className="p-0">
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -205,7 +202,7 @@ export function Navegacao({
         )}
       </nav>
 
-      <SidebarSeparator className="mx-2 my-3" />
+      <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
       <nav aria-label="Além desta organização" className="flex flex-col">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
@@ -217,8 +214,6 @@ export function Navegacao({
                 caminho={caminho}
                 aoTocar={aoTocar}
               />
-              <ItemExterno endereco="/grupo" rotulo="Grupo 1" Icone={GraduationCap} aoTocar={aoTocar} />
-              <ItemExterno endereco="/documentacao" rotulo="Documentação" Icone={BookOpen} aoTocar={aoTocar} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -295,46 +290,6 @@ function ItemDeNavegacao({
               <span className="text-tinta-suave text-meta truncate font-normal">{apoio}</span>
             )}
           </div>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
-
-/**
- * **Um item que sai da casca — item 70.** A página do grupo e a documentação são públicas e abrem em nova
- * aba, então o item nunca é o lugar atual: não recebe `DestinoDaBarra`, não marca e não tem
- * `aria-current`. **A prop é `endereco`, e não `destino`**, porque a guarda do 44h conta todo `destino=`
- * deste arquivo como destino da barra.
- *
- * **As mesmas classes de altura e movimento do `ItemDeNavegacao`**, e o mesmo `aoTocar`: no celular, tocar
- * num item fecha a gaveta, e isso vale também para o que abre outra aba.
- *
- * **`size-3.5!` no ícone de saída**: o `cva` do `SidebarMenuButton` traz `[&>svg]:size-4`, que ganharia de
- * uma classe simples, e o design pede 14 px.
- */
-function ItemExterno({
-  endereco,
-  rotulo,
-  Icone,
-  aoTocar,
-}: {
-  endereco: "/grupo" | "/documentacao";
-  rotulo: string;
-  Icone: LucideIcon;
-  aoTocar: () => void;
-}) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className="text-interface/[17px] h-auto min-h-11 transition-[background-color,color,transform] duration-(--tempo-ponteiro) ease-(--curva-ponteiro) active:scale-[0.97]"
-      >
-        <Link href={endereco} target="_blank" rel="noreferrer" onClick={aoTocar}>
-          <Icone aria-hidden="true" className="text-tinta-suave" />
-          <span className="min-w-0 flex-1 truncate">{rotulo}</span>
-          <span className="sr-only">, abre em nova aba</span>
-          <ExternalLink aria-hidden="true" className="text-tinta-suave size-3.5!" />
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

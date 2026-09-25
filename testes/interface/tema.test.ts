@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
+import { COR_DA_MARCA } from "@/interface/manifesto";
 import {
   atributoDoTema,
   cookieDoTema,
@@ -134,12 +135,27 @@ describe("app/globals.css — a estrutura de três estados", () => {
   });
 
   it("a tinta da marca é declarada uma vez, fora dos blocos escuros", () => {
-    // `--accent` é laranja de meia-luz nos DOIS temas — 0.6031 no claro, 0.6940 no escuro —, então os
-    // dois querem tinta escura por cima. Um token que invertesse daria branco sobre laranja no claro,
-    // que mede 4,07:1. Este mede 4,61:1 no claro e 6,64:1 no escuro. Item 44d, critério 8.
+    // `--accent` é laranja de meia-luz nos DOIS temas — 0.6031 no claro, 0.6655 no escuro desde o item 76,
+    // que é o laranja do logo —, então os dois querem tinta escura por cima. Um token que invertesse daria
+    // branco sobre laranja no claro, que mede 4,07:1. Este mede 4,61:1 no claro e 5,90:1 no escuro.
     expect(claro.has("--marca-foreground")).toBe(true);
     expect(sistema.has("--marca-foreground")).toBe(false);
     expect(escolhido.has("--marca-foreground")).toBe(false);
+  });
+
+  it("o escuro adota o laranja do logo, e o claro fica (item 76, critério 10)", () => {
+    const escuro = escolhido.get("--accent") ?? "";
+    expect(sistema.get("--accent")).toBe(escuro);
+    expect(hexDe(oklabDe(escuro))).toBe(COR_DA_MARCA.toLowerCase());
+    // No claro, nenhum valor único serve a texto e a fundo sob tinta escura (`respostas.md` P1).
+    expect(claro.get("--accent")).toBe("oklch(0.6031 0.1107 41.8526)");
+
+    // No escuro ele passa nos dois papéis: texto sobre o chão e a superfície, e fundo sob a tinta da marca.
+    const marca = oklabDe(escuro);
+    for (const fundo of ["--ground", "--surface"]) {
+      expect(contraste(marca, oklabDe(escolhido.get(fundo) ?? "")), fundo).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contraste(marca, oklabDe(claro.get("--marca-foreground") ?? ""))).toBeGreaterThanOrEqual(4.5);
   });
 
   it("os oito tokens da barra lateral seguem o vocabulário, e por isso não se repetem no escuro", () => {

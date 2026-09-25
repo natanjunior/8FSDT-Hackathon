@@ -168,10 +168,11 @@ const primeiroNumero = (texto: string): number => Number(/^\d+/u.exec(texto)?.[0
 /**
  * O seletor do link do **título** numa linha da tabela.
  *
- * **Uma linha tem mais de uma âncora desde o item 67**, e as três levam para lugares diferentes: o
- * título, que é o alvo de teclado e carrega a camada que cobre a linha; o gatilho do cartão de Tempo,
- * fora da ordem de tabulação (`tabindex="-1"`); e *"Conte como foi"*, que leva à mesma ocorrência com
- * `?acao=avaliar`. Ler todas devolveria a mesma linha três vezes, e o `toHaveLength` da página cairia.
+ * **Uma linha tem duas âncoras desde o item 67**: o título, que é o alvo de teclado e carrega a camada
+ * que cobre a linha, e o gatilho do cartão de Tempo, fora da ordem de tabulação (`tabindex="-1"`). Ler
+ * as duas devolveria a mesma linha duas vezes, e o `toHaveLength` da página cairia. Até o item 76 havia
+ * uma terceira, *"Conte como foi"*, com `?acao=avaliar`; o `:not([href*="?"])` fica, inofensivo, contra
+ * um link com consulta que volte.
  */
 const LINK_DO_TITULO = 'tbody a[href^="/ocorrencias/"]:not([tabindex="-1"]):not([href*="?"])';
 
@@ -774,7 +775,14 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
   await helena.getByRole("button", { name: RECANTO }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
 
-  const itemDoGrupo = helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Grupo 1/u });
+  // **Critério 76.1 — o corpo da barra não rola na horizontal.** A medida é a do navegador: largura do
+  // conteúdo contra largura visível. Zero é o único valor aceito.
+  const corpoDaBarra = helena.locator('[data-sidebar="content"]');
+  await expect(corpoDaBarra).toBeVisible();
+  expect(await corpoDaBarra.evaluate((elemento) => elemento.scrollWidth - elemento.clientWidth)).toBe(0);
+
+  // **Critério 76.2 — o grupo e a documentação moram no pé da barra**, num marco próprio.
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Grupo 1/u });
   await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
   const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
   await grupoComSessao.waitForURL(/\/grupo$/u);
@@ -782,7 +790,7 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
     await expect(grupoComSessao.getByRole("heading", { name: nome, level: 2 })).toBeVisible();
   }
   await expect(
-    helena.getByRole("navigation", { name: "Além desta organização" }).getByRole("link", { name: /^Documentação/u }),
+    helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Documentação/u }),
   ).toHaveAttribute("target", "_blank");
   await contexto.close();
 });

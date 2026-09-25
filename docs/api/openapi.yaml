@@ -3432,9 +3432,8 @@ components:
         avaliada:
           type: boolean
           description: |
-            Se a resolução já foi avaliada — `avaliacao_nota is not null`. **Sem ele a lista não consegue
-            oferecer *"Conte como foi"***: ela sabe o status e sabe quem é o autor, e não teria como saber
-            se a avaliação já aconteceu (critério **27.5**).
+            Se a resolução já foi avaliada — `avaliacao_nota is not null`. É a resposta curta de
+            *"alguém já avaliou?"*, sem trazer a avaliação.
 
             **É booleano e não contagem**, e o precedente de `quantidadeDeAnexos` não se aplica: ali o
             `0..1` é *"por escopo — não por schema"*; aqui o `0..1` é **do schema** — a invariante 8, com
