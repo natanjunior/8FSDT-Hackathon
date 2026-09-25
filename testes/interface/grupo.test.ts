@@ -115,35 +115,47 @@ describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
   });
 });
 
-describe("a barra lateral — critérios 70.5 e 70.7", () => {
+describe("a barra lateral — critérios 70.5, 70.7, 76.1 e 76.2", () => {
   const NAVEGACAO = "src/interface/componentes/casca/navegacao.tsx";
+  const PE = "src/interface/componentes/casca/pe-da-barra.tsx";
+  const LAYOUT = "app/(casca)/layout.tsx";
 
-  it("o grupo e a documentação moram no bloco «Além desta organização», um só, depois de Meus dados", () => {
-    const fonte = ler(NAVEGACAO);
-    const organizacao = fonte.indexOf('<nav aria-label="Nesta organização"');
-    const alem = fonte.indexOf('<nav aria-label="Além desta organização"');
-    expect(organizacao).toBeGreaterThanOrEqual(0);
-    expect(alem).toBeGreaterThan(organizacao);
-    // Um bloco só: quem sair primeiro, o 64 ou o 70, cria; o segundo acrescenta.
-    expect([...fonte.matchAll(/<nav aria-label="Além desta organização"/gu)]).toHaveLength(1);
-    const grupo = fonte.indexOf('endereco="/grupo"');
-    expect(grupo).toBeGreaterThan(alem);
-    // Com o 64 na base, Meus dados vem antes; sem ele, a asserção não tem o que comparar.
-    const meusDados = fonte.indexOf('destino="/meus-dados"');
-    if (meusDados !== -1) expect(grupo).toBeGreaterThan(meusDados);
+  it("o grupo e a documentação saem do corpo e moram no pé, num marco próprio (critério 76.2)", () => {
+    const corpo = ler(NAVEGACAO);
+    expect(corpo).not.toContain('endereco="/grupo"');
+    expect(corpo).not.toContain('endereco="/documentacao"');
+
+    const pe = ler(PE);
+    expect(pe).toContain("<SidebarFooter");
+    const separador = pe.indexOf("<SidebarSeparator");
+    const marco = pe.indexOf('<nav aria-label="Sobre o projeto"');
+    expect(separador).toBeGreaterThan(-1);
+    expect(marco).toBeGreaterThan(separador);
+
+    // O pé é irmão do corpo, dentro do `Sidebar`: é o que o põe no fim da coluna nas duas larguras.
+    const layout = ler(LAYOUT);
+    const posicaoDoPe = layout.indexOf("<PeDaBarra />");
+    expect(posicaoDoPe).toBeGreaterThan(layout.indexOf("</SidebarContent>"));
+    expect(posicaoDoPe).toBeLessThan(layout.indexOf("</Sidebar>"));
   });
 
-  it("as duas entradas, na ordem, abrem em nova aba e fecham a gaveta", () => {
-    const fonte = ler(NAVEGACAO);
-    const grupo = fonte.indexOf('endereco="/grupo"');
-    const documentacao = fonte.indexOf('endereco="/documentacao"');
-    expect(grupo).toBeGreaterThan(0);
-    expect(documentacao).toBeGreaterThan(grupo);
-    expect(fonte).toContain('rotulo="Grupo 1"');
-    expect(fonte).toContain('rotulo="Documentação"');
-    expect(fonte).toMatch(/target="_blank"\s+rel="noreferrer"\s+onClick=\{aoTocar\}/u);
-    expect(fonte).toContain('<span className="sr-only">, abre em nova aba</span>');
-    expect(fonte).toContain("<ExternalLink");
+  it("Documentação vem antes de Grupo 1, e as duas abrem em nova aba e fecham a gaveta", () => {
+    const pe = ler(PE);
+    const documentacao = pe.indexOf('endereco="/documentacao"');
+    const grupo = pe.indexOf('endereco="/grupo"');
+    expect(documentacao).toBeGreaterThan(0);
+    expect(grupo).toBeGreaterThan(documentacao);
+    expect(pe).toContain('rotulo="Grupo 1"');
+    expect(pe).toContain('rotulo="Documentação"');
+    expect(pe).toMatch(/target="_blank"\s+rel="noreferrer"/u);
+    expect(pe).toContain("onClick={aoTocar}");
+    expect(pe).toContain('<span className="sr-only">, abre em nova aba</span>');
+    expect(pe).toContain("<ExternalLink");
+  });
+
+  it("o corpo da barra não rola na horizontal, e o item externo pode encolher (critério 76.1)", () => {
+    expect(ler(LAYOUT)).toMatch(/<SidebarContent className="[^"]*\boverflow-x-hidden\b/u);
+    expect(ler(PE)).toMatch(/className="min-w-0"/u);
   });
 });
 
