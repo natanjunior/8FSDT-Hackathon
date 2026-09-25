@@ -7,7 +7,7 @@ solto, alguém transcreve à mão, e ele some no momento em que trava esperando 
 
 Trabalho da **Fase 5** da pós-graduação em Full Stack Development da FIAP.
 
-**Entrega:** 29/09/2026
+**Entrega:** 09/10/2026
 
 ## Estado do projeto
 
