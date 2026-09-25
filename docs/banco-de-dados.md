@@ -87,13 +87,21 @@ O escopo também é aplicado na camada de aplicação, num ponto único, que é 
 `registros_transicao` é append-only, e isso está escrito em dois lugares.
 
 O mecanismo primário é o agregado: o repositório não expõe atualização nem exclusão para essa tabela. A
-defesa em profundidade é um gatilho que recusa qualquer `update` ou `delete` com erro:
+defesa em profundidade é um gatilho que recusa com erro todo `update`, e todo `delete` fora de uma única
+transação nomeada:
 
 ```sql
 create trigger registros_transicao_append_only_tg
   before update or delete on registros_transicao
   for each statement execute function registros_transicao_append_only();
 ```
+
+A exceção existe para apagar a demonstração, e só ela a usa. A transação que remove as duas organizações de
+demonstração declara `resolveai.remocao_da_demonstracao` com `set_config(..., true)`, e o gatilho aceita o
+`delete` enquanto essa transação durar. O valor some no `commit` ou no `rollback`, o gatilho nunca é
+desligado, e nenhuma outra sessão ganha a exceção. A remoção só alcança organização com o nome de uma das
+duas da demonstração e fundada por uma das contas dela, então a trilha de qualquer outra organização
+continua fora de alcance.
 
 Isso não contradiz a decisão de manter a auditoria no domínio, registrada na
 [ADR-0001](adr/0001-historico-de-transicoes-como-conceito-de-dominio.md): aquela decisão recusa o gatilho
