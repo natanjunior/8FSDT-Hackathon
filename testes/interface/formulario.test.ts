@@ -907,6 +907,27 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(comModo).toStrictEqual([]);
   });
 
+  it("todo formulário não controlado que marca a mudança também marca a saída (item 75)", () => {
+    const semSaida = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes("formulario.aoMudarNoFormulario") && !fonte.includes("formulario.aoSairNoFormulario");
+    });
+    expect(semSaida).toStrictEqual([]);
+  });
+
+  it("todo formulário controlado que marca a mudança também liga a saída (item 75)", () => {
+    const semSaida = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes("formulario.mudou(") && !fonte.includes("formulario.aoSair(");
+    });
+    expect(semSaida).toStrictEqual([]);
+  });
+
+  it("Cancelar e os dois X do modal saem sem acusar o campo (item 75)", () => {
+    expect(ler("src/interface/componentes/modal.tsx").match(/\{\.\.\.\{ \[SAI_SEM_ACUSAR\]: "" \}\}/gu)).toHaveLength(2);
+    expect(ler("src/interface/componentes/ui/dialog.tsx").match(/\{\.\.\.\{ \[SAI_SEM_ACUSAR\]: "" \}\}/gu)).toHaveLength(1);
+  });
+
   it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
     const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
     expect(fonte).toContain('role="status"');
