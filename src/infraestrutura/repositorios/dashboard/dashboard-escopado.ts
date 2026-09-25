@@ -3,23 +3,26 @@ import {
   FUSO,
   LIMITES_DAS_FAIXAS_DE_IDADE,
   MINIMO_PARA_RECORRENCIA,
+  QUANTAS_MAIS_VELHAS,
   type ContagemPorCategoria,
   type ContagemPorFaixaDeIdade,
   type ContagemPorStatus,
   type DuplaRecorrente,
   type Janela,
   type LinhaDeResolucao,
+  type MaisVelhaEmAberto,
   type PontoDeArea,
   type PontoDeCategoria,
+  type PontoMensal,
   type RepositorioEscopadoDeDashboard,
 } from "@/aplicacao/dashboard";
-import { TERMINAIS, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import { NOTAS_DA_AVALIACAO, TERMINAIS, type StatusOcorrencia } from "@/dominio/ocorrencia";
 import type { TipoArea } from "@/dominio/organizacao";
 import type { ConsultaEscopada } from "@/infraestrutura/contexto";
 
 /**
  * ============================================================================
- *  As sete agregações de `GET /dashboard`
+ *  As dez agregações de `GET /dashboard`
  * ============================================================================
  *
  * Note o que este arquivo **não** contém: um valor de organização. `$1` é injetado pelo ponto de
@@ -31,9 +34,9 @@ import type { ConsultaEscopada } from "@/infraestrutura/contexto";
  *
  * **Nenhum índice novo foi criado para nenhuma destas consultas**, e é decisão do modelo, não pressa:
  * *"o plano correto para `GROUP BY` sobre toda a partição é varredura, não índice"*
- * (`modelo-de-dados.md:1290`). A única que tem índice à disposição é a da trilha —
+ * (`modelo-de-dados.md:1290`). As únicas que têm índice à disposição são as da trilha —
  * `registros_transicao_organizacao_ocorreu_ix (organizacao_id, ocorreu_em desc)` —, e é por isso que o
- * recorte dela é **comparação de faixa contra a coluna crua**, e não uma função aplicada sobre ela: um
+ * recorte delas é **comparação de faixa contra a coluna crua**, e não uma função aplicada sobre ela: um
  * `where (ocorreu_em at time zone …)::date between …` desligaria o índice que o critério 36.4 manda usar.
  *
  * **Duas coisas são interpoladas, e as duas são constante de módulo.** O nome do fuso, importado de
@@ -82,6 +85,22 @@ const SELECT_DO_BACKLOG_POR_STATUS = `
    group by o.status`;
 
 /**
+ * A idade de uma ocorrência — **dias inteiros de calendário desde o registro**, sem descontar pausa, que
+ * é como o quadro 4 já conta.
+ *
+ * **Nenhum `at time zone` aqui, e é o contrário de descuido.** A exceção da §7.5 do contrato existe para
+ * agregação mês a mês: em UTC, o mês brasileiro parte em dois. Isto não agrega por mês — mede a distância
+ * entre dois instantes, que é o que `HORAS_ATE_A_RESOLUCAO` mede logo acima. Distância entre instantes
+ * não tem fuso, e trazer um para cá criaria a segunda regra de calendário do painel sem nenhum mês para
+ * justificá-la.
+ *
+ * **`floor` e não `round`.** A ocorrência registrada há 7 dias e 20 horas tem idade `7`, e fica na
+ * primeira faixa até completar 8 dias. Arredondar faria a faixa `0–7` conter casos de quase oito dias e
+ * meio, e o rótulo passaria a mentir sobre o próprio limite.
+ */
+const IDADE_EM_DIAS = `floor(extract(epoch from (now() - o.registrada_em)) / 86400)`;
+
+/**
  * **Conta só o que está em aberto** — os quatro status não terminais. Ela não soma com
  * `SELECT_DO_BACKLOG_POR_STATUS`, que conta os seis, e as duas telas dizem isso (critério 56.4).
  *
@@ -103,9 +122,15 @@ const SELECT_DO_BACKLOG_POR_STATUS = `
  * | ativa, com abertas | aparece com o que está em aberto |
  * | desativada, com abertas | aparece — ainda há trabalho nela |
  * | desativada, só com terminais | some, porque não tem o que dizer num bloco que conta fila |
+ *
+ * **`envelhecidas` usa o PRIMEIRO limite de `LIMITES_DAS_FAIXAS_DE_IDADE`** e a mesma `IDADE_EM_DIAS` das
+ * faixas, para que trocar a constante mova o segundo número junto. Com `o` nulo do `left join`, a condição
+ * do `filter` é nula e não conta.
  */
 const SELECT_DAS_ABERTAS_POR_CATEGORIA = `
-  select c.id, c.nome, count(o.id)::int as quantidade
+  select c.id, c.nome, count(o.id)::int as quantidade,
+         count(o.id) filter (where ${IDADE_EM_DIAS} > ${String(LIMITES_DAS_FAIXAS_DE_IDADE[0])})::int
+           as envelhecidas
     from categorias c
     left join ocorrencias o
       on o.categoria_id = c.id
@@ -117,22 +142,6 @@ const SELECT_DAS_ABERTAS_POR_CATEGORIA = `
    order by count(o.id) desc, c.nome`;
 
 /**
- * A idade de uma ocorrência — **dias inteiros de calendário desde o registro**, sem descontar pausa, que
- * é como o quadro 4 já conta.
- *
- * **Nenhum `at time zone` aqui, e é o contrário de descuido.** A exceção da §7.5 do contrato existe para
- * agregação mês a mês: em UTC, o mês brasileiro parte em dois. Isto não agrega por mês — mede a distância
- * entre dois instantes, que é o que `HORAS_ATE_A_RESOLUCAO` mede logo acima. Distância entre instantes
- * não tem fuso, e trazer um para cá criaria a segunda regra de calendário do painel sem nenhum mês para
- * justificá-la.
- *
- * **`floor` e não `round`.** A ocorrência registrada há 7 dias e 20 horas tem idade `7`, e fica na
- * primeira faixa até completar 8 dias. Arredondar faria a faixa `0–7` conter casos de quase oito dias e
- * meio, e o rótulo passaria a mentir sobre o próprio limite.
- */
-const IDADE_EM_DIAS = `floor(extract(epoch from (now() - o.registrada_em)) / 86400)`;
-
-/**
  * O índice da faixa, derivado dos **mesmos** limites que a Aplicação lê — nenhum `7`, `30` ou `90`
  * digitado aqui. O `else` é a faixa sem teto, e o índice dela é o comprimento da lista.
  */
@@ -141,7 +150,8 @@ const FAIXA_DA_IDADE = `case ${LIMITES_DAS_FAIXAS_DE_IDADE.map(
 ).join(" ")} else ${String(LIMITES_DAS_FAIXAS_DE_IDADE.length)} end`;
 
 /**
- * **A única consulta do painel que olha para o tempo do que NÃO terminou.**
+ * **A consulta do painel que olha para o tempo do que NÃO terminou**, com a das mais velhas, que usa a
+ * mesma régua.
  *
  * As outras medem o que já acabou: a de resoluções filtra `status_novo = 'resolvida'`, e a ocorrência
  * aberta há duzentos dias não entra em número nenhum — o painel **melhora** quando a operação para de
@@ -157,7 +167,7 @@ const FAIXA_DA_IDADE = `case ${LIMITES_DAS_FAIXAS_DE_IDADE.map(
  * **O `order by 1` fica**, embora a resposta já saia ordenada da Aplicação: uma consulta que devolve
  * grupos numerados sem ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente.
  *
- * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
+ * **Nenhum índice novo**, como nas outras: o plano correto para `GROUP BY` sobre toda a partição da
  * organização é varredura, e a expressão de idade é calculada por linha de qualquer forma.
  */
 const SELECT_DAS_ABERTAS_POR_IDADE = `
@@ -229,7 +239,7 @@ const SELECT_DA_RECORRENCIA_POR_AREA = `
  * ordená-los convida quem lê o `EXPLAIN` a achar que a ordem é acidente. **O desempate publicado é o da
  * Aplicação** — a colação do banco e o `localeCompare` em pt-BR não concordam em acentuação.
  *
- * **Nenhum índice novo**, como nas outras seis: o plano correto para `GROUP BY` sobre toda a partição da
+ * **Nenhum índice novo**, como nas outras: o plano correto para `GROUP BY` sobre toda a partição da
  * organização é varredura.
  */
 const SELECT_DAS_DUPLAS_RECORRENTES = `
@@ -252,7 +262,8 @@ const SELECT_DAS_DUPLAS_RECORRENTES = `
    order by count(*) desc, a.nome, c.nome`;
 
 /**
- * **A única consulta do dashboard que lê a trilha** — e é ela que os critérios 36.4 e 34.5 encomendam.
+ * **A primeira consulta do dashboard a ler a trilha** — e é ela que os critérios 36.4 e 34.5 encomendam.
+ * As canceladas e o início da janela, mais abaixo, leem a mesma tabela pelo mesmo índice.
  *
  * **Parte de `registros_transicao` e junta pela chave composta** `(ocorrencia_id, organizacao_id)`, que é
  * a mesma da FK da migração 005. O `$1` está no `where` da trilha, e o par do `join` impede que uma
@@ -277,6 +288,9 @@ const SELECT_DAS_DUPLAS_RECORRENTES = `
  *
  * **O `case` do `array_agg` é economia de transporte, e não a regra de produto** — essa mora na
  * Aplicação, com a mesma constante `AMOSTRA_PEQUENA`.
+ *
+ * **`contagem_por_nota` conta as mesmas linhas que `avaliadas`**, uma posição por nota de
+ * `NOTAS_DA_AVALIACAO`, e a soma das posições é `avaliadas`. A Aplicação soma os meses.
  */
 const SELECT_DAS_RESOLUCOES = `
   select ${mesDe("r.ocorreu_em")} as mes,
@@ -288,7 +302,9 @@ const SELECT_DAS_RESOLUCOES = `
               else '{}'::float8[]
          end as amostra_em_horas,
          count(o.avaliacao_nota)::int as avaliadas,
-         coalesce(sum(o.avaliacao_nota), 0)::int as soma_das_notas
+         coalesce(sum(o.avaliacao_nota), 0)::int as soma_das_notas,
+         array[${NOTAS_DA_AVALIACAO.map((nota) => `count(*) filter (where o.avaliacao_nota = ${String(nota)})`).join(", ")}]::int[]
+           as contagem_por_nota
     from registros_transicao r
     join ocorrencias o on o.id = r.ocorrencia_id and o.organizacao_id = r.organizacao_id
    where r.organizacao_id = $1
@@ -298,8 +314,61 @@ const SELECT_DAS_RESOLUCOES = `
    group by ${mesTruncadoDe("r.ocorreu_em")}
    order by 1`;
 
+/** `cancelada`, tipado: o compilador recusa um status que não existe, e nenhum literal solto entra no SQL. */
+const CANCELADA: StatusOcorrencia = "cancelada";
+
+/**
+ * **O cancelamento lido da trilha, pelo instante da transição** — a mesma âncora da resolução, na mesma
+ * tabela e pelo mesmo índice. `cancelada` é poço (`MaquinaDeEstados.ts`), então há uma linha por
+ * ocorrência cancelada e a contagem não precisa de `distinct`.
+ */
+const SELECT_DAS_CANCELADAS = `
+  select ${mesDe("r.ocorreu_em")} as mes, count(*)::int as quantidade
+    from registros_transicao r
+   where r.organizacao_id = $1
+     and r.status_novo = '${CANCELADA}'
+     and r.ocorreu_em >= ${INICIO_DA_JANELA}
+     and r.ocorreu_em <  ${FIM_DA_JANELA}
+   group by ${mesTruncadoDe("r.ocorreu_em")}
+   order by 1`;
+
+/**
+ * **Quantas estavam em aberto no instante em que a janela abre** — registradas antes dele e sem
+ * transição terminal antes dele. Os dois terminais são poços, então não há terminal desfeito a
+ * considerar. Lê a trilha e não o `status` de hoje: o `status` diz como a ocorrência está agora, e a
+ * pergunta é sobre outro instante.
+ *
+ * **Só `$2`**: o fim da janela não entra, e é por isso que a conferência do critério 4 só fecha quando
+ * a janela termina hoje.
+ */
+const SELECT_DO_EM_ABERTO_NO_INICIO = `
+  select count(*)::int as quantidade
+    from ocorrencias o
+   where o.organizacao_id = $1
+     and o.registrada_em < ${INICIO_DA_JANELA}
+     and not exists (
+       select 1
+         from registros_transicao r
+        where r.organizacao_id = o.organizacao_id
+          and r.ocorrencia_id = o.id
+          and r.status_novo in (${TERMINAIS_EM_SQL})
+          and r.ocorreu_em < ${INICIO_DA_JANELA})`;
+
+/**
+ * **As mais velhas em aberto, com a MESMA `IDADE_EM_DIAS` das faixas**, para que a primeira da lista
+ * caia na faixa que a conta. A ordem é `registrada_em` e depois `id`, que é idade decrescente com
+ * desempate estável. O `limit` é economia de transporte; a regra mora na Aplicação.
+ */
+const SELECT_DAS_MAIS_VELHAS = `
+  select o.id, o.titulo, o.status, ${IDADE_EM_DIAS}::int as idade_em_dias
+    from ocorrencias o
+   where o.organizacao_id = $1
+     and o.status not in (${TERMINAIS_EM_SQL})
+   order by o.registrada_em, o.id
+   limit ${String(QUANTAS_MAIS_VELHAS)}`;
+
 type LinhaDeStatus = { status: StatusOcorrencia; quantidade: number };
-type LinhaDeCategoria = { id: string; nome: string; quantidade: number };
+type LinhaDeCategoria = { id: string; nome: string; quantidade: number; envelhecidas: number };
 type LinhaDeIdade = { faixa: number; quantidade: number };
 type LinhaDeCategoriaMensal = { id: string; nome: string; mes: string; quantidade: number };
 type LinhaDeAreaMensal = {
@@ -329,6 +398,13 @@ type LinhaDeResolucaoDoBanco = {
   amostra_em_horas: number[];
   avaliadas: number;
   soma_das_notas: number;
+  contagem_por_nota: number[];
+};
+type LinhaDaMaisVelha = {
+  id: string;
+  titulo: string;
+  status: StatusOcorrencia;
+  idade_em_dias: number;
 };
 
 export function repositorioEscopadoDeDashboard(
@@ -345,6 +421,7 @@ export function repositorioEscopadoDeDashboard(
       return linhas.map((linha) => ({
         categoria: { id: linha.id, nome: linha.nome },
         quantidade: linha.quantidade,
+        envelhecidas: linha.envelhecidas,
       }));
     },
 
@@ -414,6 +491,33 @@ export function repositorioEscopadoDeDashboard(
         amostraEmHoras: linha.amostra_em_horas,
         avaliadas: linha.avaliadas,
         somaDasNotas: linha.soma_das_notas,
+        contagemPorNota: linha.contagem_por_nota,
+      }));
+    },
+
+    async canceladasPorMes(janela: Janela): Promise<readonly PontoMensal[]> {
+      const linhas = await consulta<{ mes: string; quantidade: number }>(SELECT_DAS_CANCELADAS, [
+        janela.de,
+        janela.ate,
+      ]);
+      return linhas.map((linha) => ({ mes: linha.mes, quantidade: linha.quantidade }));
+    },
+
+    /** Recebe **só `janela.de`**: o Postgres recusa parâmetro passado que o texto não referencia. */
+    async emAbertoNoInicio(janela: Janela): Promise<number> {
+      const [linha] = await consulta<{ quantidade: number }>(SELECT_DO_EM_ABERTO_NO_INICIO, [
+        janela.de,
+      ]);
+      return linha?.quantidade ?? 0;
+    },
+
+    async maisVelhasEmAberto(): Promise<readonly MaisVelhaEmAberto[]> {
+      const linhas = await consulta<LinhaDaMaisVelha>(SELECT_DAS_MAIS_VELHAS);
+      return linhas.map((linha) => ({
+        id: linha.id,
+        titulo: linha.titulo,
+        status: linha.status,
+        idadeEmDias: linha.idade_em_dias,
       }));
     },
   };

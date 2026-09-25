@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  A terceira seção do quadro 1 de T-07 — o que está voltando
+ *  O quadro 4 de T-07 — o que está voltando
  * ============================================================================
  *
  * **Ele mora aqui, e não no `.tsx` que desenha**, pela razão dos itens 57, 58 e 59: derivação dentro de um
@@ -34,10 +34,10 @@ export function chaveDaDupla(dupla: DuplaNaTela): string {
 /**
  * `Garagem — Subsolo 1 · Vazamentos` — **área primeiro**, como o critério 60.4 escreve a dupla.
  *
- * A frase do cartão diz *"oito vazamentos no mesmo bloco"*, que é categoria primeiro; os critérios dizem
- * *"área e categoria"* três vezes seguidas. Os critérios são o alvo, e a frase é prosa.
+ * Os critérios dizem *"área e categoria"* três vezes seguidas, e o gráfico do quadro segue a mesma ordem:
+ * área na linha de cima do rótulo, categoria na de baixo.
  *
- * **O separador é ` · `**, o mesmo do fluxo mensal e do quadro 4. Nenhum separador novo entra no
+ * **O separador é ` · `**, o mesmo do resto do painel. Nenhum separador novo entra no
  * vocabulário da tela.
  */
 export function rotuloDaDupla(dupla: DuplaNaTela): string {
@@ -53,3 +53,38 @@ export function rotuloDaDupla(dupla: DuplaNaTela): string {
 export const SEM_DUPLA_RECORRENTE =
   "Nenhuma dupla se repetiu no período. Aqui aparece a mesma categoria voltando na mesma área, " +
   "a partir da segunda vez.";
+
+/** Quantas duplas o quadro mostra antes de cortar — **cinco**, e o critério 14 do item 73 pede o corte. */
+const DUPLAS_NO_TOPO = 5;
+
+/**
+ * **As cinco primeiras, mais as empatadas com a quinta** (critério 73.14). O corte nunca separa um
+ * empate, e é isso que torna verdadeira a frase de baixo: tudo o que ficou de fora tem, no máximo, a
+ * contagem da maior das restantes, e ela é menor que a da última mostrada.
+ *
+ * **Recebe a lista já ordenada**: quem ordena é a Aplicação, e ordenar aqui de novo seria afirmar a
+ * mesma regra em duas camadas.
+ */
+export function corteDeTopo<T extends { quantidade: number }>(
+  duplas: readonly T[],
+  topo: number = DUPLAS_NO_TOPO,
+): { mostradas: readonly T[]; restantes: number; maiorDasRestantes: number } {
+  const limite = duplas[topo - 1]?.quantidade;
+  const mostradas =
+    limite === undefined
+      ? duplas
+      : duplas.filter((dupla, i) => i < topo || dupla.quantidade === limite);
+  const fora = duplas.slice(mostradas.length);
+  return {
+    mostradas,
+    restantes: fora.length,
+    maiorDasRestantes: fora[0]?.quantidade ?? 0,
+  };
+}
+
+/** `Mais 23 duplas com 5 ocorrências ou menos`, e o singular quando sobra uma. */
+export function fraseDoResto(restantes: number, maior: number): string {
+  const duplas = restantes === 1 ? "dupla" : "duplas";
+  const ocorrencias = maior === 1 ? "ocorrência" : "ocorrências";
+  return `Mais ${String(restantes)} ${duplas} com ${String(maior)} ${ocorrencias} ou menos`;
+}

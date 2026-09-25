@@ -129,11 +129,14 @@ import type {
   DuplaRecorrente,
   Janela,
   LinhaDeResolucao,
+  MaisVelhaEmAberto,
   PontoDeArea,
   PontoDeCategoria,
+  PontoMensal,
   RepositorioEscopadoDeDashboard,
 } from "@/aplicacao/dashboard";
 import { FAIXAS_DE_IDADE, verDashboard } from "@/aplicacao/dashboard";
+import { TERMINAIS } from "@/dominio/ocorrencia";
 
 /** As áreas do duplo, na forma do `AreaLida` — cinco campos, como o schema `Area` exige. */
 const GARAGEM = { id: "a-1", nome: "Garagem", tipo: "comum" as const, ativa: true, ordem: 1 };
@@ -147,7 +150,24 @@ type Dados = {
   resolucoes?: readonly LinhaDeResolucao[];
   idades?: readonly ContagemPorFaixaDeIdade[];
   duplas?: readonly DuplaRecorrente[];
+  canceladas?: readonly PontoMensal[];
+  emAbertoNoInicio?: number;
+  maisVelhas?: readonly MaisVelhaEmAberto[];
 };
+
+/** Uma linha de resolução com zero em tudo que o caso não diz. */
+function linhaDeResolucao(parcial: Partial<LinhaDeResolucao> & { mes: string }): LinhaDeResolucao {
+  return {
+    resolvidas: 0,
+    medianaDeHoras: 0,
+    p90DeHoras: 0,
+    amostraEmHoras: [],
+    avaliadas: 0,
+    somaDasNotas: 0,
+    contagemPorNota: [0, 0, 0, 0, 0],
+    ...parcial,
+  };
+}
 
 /**
  * O duplo em memória — **é o que a ADR-0005 comprou**: substituir o repositório é passar outro argumento.
@@ -192,6 +212,20 @@ function repositorioEmMemoria(dados: Dados) {
       janelas.push(janela);
       return Promise.resolve(dados.duplas ?? []);
     },
+    canceladasPorMes: (janela) => {
+      chamadas.push("canceladasPorMes");
+      janelas.push(janela);
+      return Promise.resolve(dados.canceladas ?? []);
+    },
+    emAbertoNoInicio: (janela) => {
+      chamadas.push("emAbertoNoInicio");
+      janelas.push(janela);
+      return Promise.resolve(dados.emAbertoNoInicio ?? 0);
+    },
+    maisVelhasEmAberto: () => {
+      chamadas.push("maisVelhasEmAberto");
+      return Promise.resolve(dados.maisVelhas ?? []);
+    },
   };
 
   return { repositorio, chamadas, janelas };
@@ -207,14 +241,17 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
     expect(lido.periodo).toStrictEqual(TRES_MESES);
   });
 
-  it("lê as sete fontes e mais nada — a porta não tem escrita", async () => {
+  it("lê as dez fontes e mais nada — a porta não tem escrita", async () => {
     const { repositorio, chamadas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect([...chamadas].sort()).toStrictEqual([
       "abertasPorCategoria",
       "abertasPorIdade",
       "backlogPorStatus",
+      "canceladasPorMes",
       "duplasRecorrentes",
+      "emAbertoNoInicio",
+      "maisVelhasEmAberto",
       "recorrenciaPorArea",
       "recorrenciaPorCategoria",
       "resolucoesPorMes",
@@ -222,14 +259,17 @@ describe("verDashboard — o envelope, e ele não se entrega pela metade", () =>
   });
 
   /**
-   * **Quatro leituras com janela, e os três de fotografia continuam sem nenhuma** — que é a metade do
-   * caso que prova o critério 33.2. O par entrou como a quarta com janela, e o **tamanho** deste array
-   * é o que percebe um método novo recebendo período sem que ninguém decida isso.
+   * **Seis leituras com janela, e os quatro de fotografia continuam sem nenhuma** — que é a metade do
+   * caso que prova o critério 33.2. As canceladas e o início da janela entraram como a quinta e a sexta
+   * com janela, e o **tamanho** deste array é o que percebe um método novo recebendo período sem que
+   * ninguém decida isso.
    */
-  it("passa a MESMA janela às quatro leituras de período, e nenhuma aos três de fotografia", async () => {
+  it("passa a MESMA janela às seis leituras de período, e nenhuma aos quatro de fotografia", async () => {
     const { repositorio, janelas } = repositorioEmMemoria({});
     await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
     expect(janelas).toStrictEqual([
+      TRES_MESES,
+      TRES_MESES,
       TRES_MESES,
       TRES_MESES,
       TRES_MESES,
@@ -309,6 +349,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [],
           avaliadas: 2,
           somaDasNotas: 9,
+          contagemPorNota: [0, 0, 0, 1, 1],
         },
         {
           mes: "2026-08",
@@ -318,6 +359,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [],
           avaliadas: 4,
           somaDasNotas: 18,
+          contagemPorNota: [0, 0, 0, 2, 2],
         },
       ],
     });
@@ -344,6 +386,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [0.5, 1, 2],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
@@ -369,6 +412,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
@@ -399,6 +443,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [0.0283],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
@@ -424,6 +469,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [cincoSegundos],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
@@ -448,6 +494,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
         {
           mes: "2026-07",
@@ -457,6 +504,7 @@ describe("as duas séries mensais — um eixo só, e nenhum mês omitido", () =>
           amostraEmHoras: [0.00001],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
@@ -479,11 +527,23 @@ describe("a média das avaliações — derivada das MESMAS linhas do tempo de r
           amostraEmHoras: [5, 10, 15],
           avaliadas: 0,
           somaDasNotas: 0,
+          contagemPorNota: [0, 0, 0, 0, 0],
         },
       ],
     });
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
-    expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: null, avaliadas: 0, resolvidas: 3 });
+    expect(lido.mediaDasAvaliacoes).toStrictEqual({
+      media: null,
+      avaliadas: 0,
+      resolvidas: 3,
+      distribuicao: [
+        { nota: 1, quantidade: 0 },
+        { nota: 2, quantidade: 0 },
+        { nota: 3, quantidade: 0 },
+        { nota: 4, quantidade: 0 },
+        { nota: 5, quantidade: 0 },
+      ],
+    });
   });
 
   it("critério 34.5: resolvidas é IGUAL à soma de tempoDeResolucao.porMes[].resolvidas", async () => {
@@ -497,6 +557,7 @@ describe("a média das avaliações — derivada das MESMAS linhas do tempo de r
           amostraEmHoras: [],
           avaliadas: 2,
           somaDasNotas: 9,
+          contagemPorNota: [0, 0, 0, 1, 1],
         },
         {
           mes: "2026-08",
@@ -506,6 +567,7 @@ describe("a média das avaliações — derivada das MESMAS linhas do tempo de r
           amostraEmHoras: [],
           avaliadas: 4,
           somaDasNotas: 18,
+          contagemPorNota: [0, 0, 0, 2, 2],
         },
       ],
     });
@@ -513,7 +575,18 @@ describe("a média das avaliações — derivada das MESMAS linhas do tempo de r
 
     const somaDaSerie = lido.tempoDeResolucao.porMes.reduce((t, m) => t + m.resolvidas, 0);
     expect(lido.mediaDasAvaliacoes.resolvidas).toBe(somaDaSerie);
-    expect(lido.mediaDasAvaliacoes).toStrictEqual({ media: 4.5, avaliadas: 6, resolvidas: 14 });
+    expect(lido.mediaDasAvaliacoes).toStrictEqual({
+      media: 4.5,
+      avaliadas: 6,
+      resolvidas: 14,
+      distribuicao: [
+        { nota: 1, quantidade: 0 },
+        { nota: 2, quantidade: 0 },
+        { nota: 3, quantidade: 0 },
+        { nota: 4, quantidade: 3 },
+        { nota: 5, quantidade: 3 },
+      ],
+    });
   });
 });
 
@@ -668,5 +741,148 @@ describe("as duplas recorrentes — o mínimo é dois, e a ordem é da Aplicaç�
     const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
 
     expect(lido.duplasRecorrentes).toStrictEqual([]);
+  });
+});
+
+describe("as canceladas por mês — o eixo inteiro, com zero onde não houve", () => {
+  it("preenche todo mês da janela", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      canceladas: [{ mes: "2026-07", quantidade: 3 }],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.canceladasPorMes).toStrictEqual([
+      { mes: "2026-06", quantidade: 0 },
+      { mes: "2026-07", quantidade: 3 },
+      { mes: "2026-08", quantidade: 0 },
+    ]);
+  });
+});
+
+describe("em aberto no início — medido, e passado adiante sem conta", () => {
+  it("devolve o que o repositório mediu, e não agora menos o saldo", async () => {
+    const { repositorio } = repositorioEmMemoria({ emAbertoNoInicio: 4 });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.emAbertoNoInicio).toBe(4);
+  });
+});
+
+describe("as mais velhas em aberto — no máximo cinco, na ordem que chegou", () => {
+  const velha = (n: number): MaisVelhaEmAberto => ({
+    id: `o-${String(n)}`,
+    titulo: `Ocorrência ${String(n)}`,
+    status: "pausada",
+    idadeEmDias: 40 - n,
+  });
+
+  it("corta em QUANTAS_MAIS_VELHAS mesmo que o repositório traga mais", async () => {
+    const { repositorio } = repositorioEmMemoria({ maisVelhas: [1, 2, 3, 4, 5, 6, 7].map(velha) });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.maisVelhasEmAberto.map((o) => o.id)).toStrictEqual([
+      "o-1",
+      "o-2",
+      "o-3",
+      "o-4",
+      "o-5",
+    ]);
+  });
+
+  it("devolve lista vazia quando nada está em aberto", async () => {
+    const { repositorio } = repositorioEmMemoria({});
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.maisVelhasEmAberto).toStrictEqual([]);
+  });
+});
+
+describe("a distribuição das notas — as cinco sempre, das mesmas linhas da média", () => {
+  it("soma as contagens de todos os meses, nota a nota", async () => {
+    const { repositorio } = repositorioEmMemoria({
+      resolucoes: [
+        linhaDeResolucao({
+          mes: "2026-07",
+          avaliadas: 3,
+          somaDasNotas: 12,
+          contagemPorNota: [0, 1, 0, 0, 2],
+        }),
+        linhaDeResolucao({
+          mes: "2026-08",
+          avaliadas: 2,
+          somaDasNotas: 6,
+          contagemPorNota: [0, 1, 0, 1, 0],
+        }),
+      ],
+    });
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.mediaDasAvaliacoes.distribuicao).toStrictEqual([
+      { nota: 1, quantidade: 0 },
+      { nota: 2, quantidade: 2 },
+      { nota: 3, quantidade: 0 },
+      { nota: 4, quantidade: 1 },
+      { nota: 5, quantidade: 2 },
+    ]);
+  });
+
+  it("vem com as cinco a zero quando ninguém avaliou", async () => {
+    const { repositorio } = repositorioEmMemoria({});
+    const lido = await verDashboard(repositorio, { agora: AGORA_DE_AGOSTO });
+    expect(lido.mediaDasAvaliacoes.distribuicao.map((n) => n.quantidade)).toStrictEqual([
+      0, 0, 0, 0, 0,
+    ]);
+  });
+});
+
+/**
+ * **As conferências do critério 15, com um mundo pequeno e coerente.** Com duplo, as duas primeiras
+ * somas provam que a Aplicação não perde nem inventa linha. Quem prova que os dois `where` do SQL
+ * concordam é a integração, que o portão não roda.
+ */
+describe("as conferências do painel fecham — critério 15", () => {
+  const mundo = repositorioEmMemoria({
+    status: [
+      { status: "aberta", quantidade: 2 },
+      { status: "pausada", quantidade: 1 },
+      { status: "resolvida", quantidade: 4 },
+      { status: "cancelada", quantidade: 1 },
+    ],
+    categorias: [
+      { categoria: { id: "c-1", nome: "Vazamentos" }, quantidade: 2, envelhecidas: 1 },
+      { categoria: { id: "c-2", nome: "Limpeza" }, quantidade: 1, envelhecidas: 0 },
+    ],
+    idades: [
+      { faixa: 0, quantidade: 2 },
+      { faixa: 1, quantidade: 1 },
+    ],
+    resolucoes: [
+      linhaDeResolucao({
+        mes: "2026-07",
+        resolvidas: 3,
+        avaliadas: 2,
+        somaDasNotas: 9,
+        contagemPorNota: [0, 0, 0, 1, 1],
+      }),
+      linhaDeResolucao({
+        mes: "2026-08",
+        resolvidas: 1,
+        avaliadas: 1,
+        somaDasNotas: 3,
+        contagemPorNota: [0, 0, 1, 0, 0],
+      }),
+    ],
+  });
+
+  it("a soma da idade é a soma da categoria, e é a soma dos quatro não terminais", async () => {
+    const lido = await verDashboard(mundo.repositorio, { agora: AGORA_DE_AGOSTO });
+    const soma = (xs: readonly { quantidade: number }[]) => xs.reduce((t, x) => t + x.quantidade, 0);
+    const naoTerminais = lido.backlogPorStatus.filter((l) => !TERMINAIS.includes(l.status));
+    expect(soma(lido.abertasPorIdade)).toBe(soma(lido.abertasPorCategoria));
+    expect(soma(lido.abertasPorIdade)).toBe(soma(naoTerminais));
+  });
+
+  it("a soma dos n do tempo é o denominador da satisfação, e a da distribuição é avaliadas", async () => {
+    const lido = await verDashboard(mundo.repositorio, { agora: AGORA_DE_AGOSTO });
+    const n = lido.tempoDeResolucao.porMes.reduce((t, m) => t + m.resolvidas, 0);
+    expect(n).toBe(lido.mediaDasAvaliacoes.resolvidas);
+    expect(lido.mediaDasAvaliacoes.distribuicao.reduce((t, d) => t + d.quantidade, 0)).toBe(
+      lido.mediaDasAvaliacoes.avaliadas,
+    );
   });
 });
