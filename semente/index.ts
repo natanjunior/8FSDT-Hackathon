@@ -1,6 +1,11 @@
 import { semear, type ResumoDaSemeadura } from "./mundo";
 import { planoDaDemonstracao } from "./plano";
-import { apagarADemonstracao, organizacoesDaDemonstracao } from "./remocao";
+import {
+  apagarADemonstracao,
+  hostDoBanco,
+  organizacoesDaDemonstracao,
+  type OrganizacaoEncontrada,
+} from "./remocao";
 
 /**
  * ============================================================================
@@ -16,13 +21,22 @@ const LARGURA_DO_CODIGO = 14;
 
 async function principal(): Promise<number> {
   if (process.argv.includes("--apagar")) {
-    const { organizacoes, pessoas } = await apagarADemonstracao();
+    // **A primeira linha é o banco.** Um `BANCO_URL` errado no shell aparece antes de qualquer `delete`.
+    console.log(`Banco: ${hostDoBanco(process.env.BANCO_URL)}`);
+
+    const { organizacoes, pessoas, homonimas } = await apagarADemonstracao();
     console.log(
       organizacoes === 0
         ? "Nenhuma organização de demonstração encontrada. Nada a apagar."
         : `Apagadas ${String(organizacoes)} organizações e ${String(pessoas)} pessoas sem conta. ` +
             "As duas contas de acesso continuam existindo, e a próxima semeadura as reaproveita.",
     );
+    if (homonimas.length > 0) {
+      console.log(
+        "Ficaram de fora, porque têm o nome da demonstração e não foram fundadas pelas contas dela:\n" +
+          listar(homonimas),
+      );
+    }
     return 0;
   }
 
@@ -40,13 +54,23 @@ async function principal(): Promise<number> {
 
   // **A recusa vem ANTES de qualquer escrita.** É o que impede a terceira e a quarta organização de
   // demonstração de nascerem numa execução distraída (critério 43.5).
-  const existentes = await organizacoesDaDemonstracao();
-  if (existentes.length > 0) {
+  const { daDemonstracao, homonimas } = await organizacoesDaDemonstracao();
+
+  // **O homônimo recusa primeiro**, porque o `--apagar` não o resolve: ele não é da demonstração.
+  if (homonimas.length > 0) {
+    console.error(
+      "Há organização com o nome da demonstração que não foi fundada pelas contas dela:\n" +
+        listar(homonimas) +
+        "\nA semente não escreve ao lado de um homônimo, e o `--apagar` não o apaga. " +
+        "Resolva essa organização por fora e rode de novo.",
+    );
+    return 1;
+  }
+
+  if (daDemonstracao.length > 0) {
     console.error(
       "A demonstração já existe neste banco:\n" +
-        existentes
-          .map((o) => `  · ${o.nome} — ${String(o.ocorrencias)} ocorrências`)
-          .join("\n") +
+        listar(daDemonstracao) +
         "\nRode `npm run semear:demo -- --apagar` e semeie de novo.",
     );
     return 1;
@@ -124,6 +148,12 @@ function emLinha(contagem: Readonly<Record<string, number>>): string {
   return Object.entries(contagem)
     .map(([chave, quantas]) => `${chave} ${String(quantas)}`)
     .join(" · ");
+}
+
+function listar(organizacoes: readonly OrganizacaoEncontrada[]): string {
+  return organizacoes
+    .map((o) => `  · ${o.nome}, código ${o.codigoPublico}: ${String(o.ocorrencias)} ocorrências`)
+    .join("\n");
 }
 
 /**
