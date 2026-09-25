@@ -111,12 +111,25 @@ export type LinhaDoFluxoMensal = {
  * `YYYY-MM-DD`, que ordena como data.
  */
 export function mesParcial(mes: string, periodo: { de: string; ate: string }): boolean {
-  const ano = Number(mes.slice(0, 4));
-  const numero = Number(mes.slice(5, 7));
-  const ultimoDia = new Date(Date.UTC(ano, numero, 0)).getUTCDate();
-  const primeiro = `${mes}-01`;
-  const ultimo = `${mes}-${String(ultimoDia).padStart(2, "0")}`;
+  const { primeiro, ultimo } = limitesDoMes(mes);
   return periodo.de > primeiro || periodo.ate < ultimo;
+}
+
+/** O primeiro e o último dia do mês, em `YYYY-MM-DD`. */
+function limitesDoMes(mes: string): { primeiro: string; ultimo: string } {
+  const ultimoDia = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).getUTCDate();
+  return { primeiro: `${mes}-01`, ultimo: `${mes}-${String(ultimoDia).padStart(2, "0")}` };
+}
+
+/**
+ * `de 27 a 30/06` — o pedaço do mês que o período alcança, para a célula do mês parcial na tabela do
+ * `Ver dados`. Lê as mesmas duas pontas que `mesParcial`.
+ */
+export function trechoDoMes(mes: string, periodo: { de: string; ate: string }): string {
+  const { primeiro, ultimo } = limitesDoMes(mes);
+  const de = periodo.de > primeiro ? periodo.de : primeiro;
+  const ate = periodo.ate < ultimo ? periodo.ate : ultimo;
+  return `de ${de.slice(8, 10)} a ${ate.slice(8, 10)}/${mes.slice(5, 7)}`;
 }
 
 /** O rodapé do quadro 1, escrito só quando algum mês é parcial. */

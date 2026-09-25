@@ -267,11 +267,12 @@ function soAsRecorrentes(
  *
  * **Categoria sem nenhum ponto não vira série de zeros** — ela simplesmente não está aqui, porque o
  * repositório não a trouxe. É o que faz o critério 35.2 ser alcançável: sem ocorrência na janela, as duas
- * listas são vazias, e a tela escreve *"A recorrência aparece a partir do segundo mês de uso."*
+ * listas são vazias.
  *
  * **A ordem é o total do período, decrescente, com desempate alfabético em pt-BR.** A API não corta nada
- * (`openapi.yaml:3205` não tem parâmetro de limite); quem corta é a tela, e ela corta **as primeiras** —
- * então a ordem precisa ser a de quem mais aparece.
+ * (`openapi.yaml:3205` não tem parâmetro de limite), e quem lê pela API recebe primeiro quem mais aparece.
+ * Desde o item 73 a tela não desenha as duas listas: soma as séries de categoria no quadro 1, e ignora as
+ * de área.
  */
 function agrupar<P extends PontoMensal, S>(
   pontos: readonly P[],

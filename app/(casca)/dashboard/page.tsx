@@ -5,30 +5,55 @@ import { NaoAutenticado } from "@/aplicacao/contexto";
 import { atalhosDaJanela, verDashboard, type AtalhosDaJanela } from "@/aplicacao/dashboard";
 import {
   Cartao,
-  ListaEmTexto,
-  Medidor,
+  CartaoDeIndicador,
   rotulosDosMeses,
-  totalDaSerie,
-  type ItemDoMedidor,
-  type SerieMensal,
 } from "@/interface/componentes/blocos-do-dashboard";
+import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
-  rotuloDaDupla,
+  corteDeTopo,
+  fraseDoResto,
   SEM_DUPLA_RECORRENTE,
 } from "@/interface/componentes/duplas-recorrentes";
+import { rotuloDaFaixa } from "@/interface/componentes/faixa-de-periodo";
 import {
+  atravessaAVirada,
   linhasDoFluxoMensal,
-  textoDoFluxoMensal,
+  NOTA_DO_MES_PARCIAL,
+  saldoDoPeriodo,
+  trechoDoMes,
+  vereditoDoFluxo,
+  type LinhaDoFluxoMensal,
 } from "@/interface/componentes/fluxo-mensal";
+import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
+import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
 import {
+  dias,
+  parteDoTotal,
+  rodapeDaIdade,
   rotuloDaFaixaDeIdade,
-  textoDaIdadeEmAberto,
+  totalEmAberto,
+  vereditoDaIdade,
 } from "@/interface/componentes/idade-em-aberto";
+import {
+  denominadorDaSatisfacao,
+  rotuloDaNota,
+  segundoTermoDoEmAberto,
+  segundoTermoDoSaldo,
+  textoDoSaldo,
+  textoDoValorDaCategoria,
+} from "@/interface/componentes/indicadores-do-painel";
+import { ModalDeDados } from "@/interface/componentes/modal-de-dados";
 import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
+import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
-import { itemDoTempoDeResolucao } from "@/interface/componentes/tempo-de-resolucao";
+import { TabelaDeDados } from "@/interface/componentes/tabela-de-dados";
+import {
+  celulasDoTempo,
+  unidadeDoEixo,
+  vereditoDoTempo,
+} from "@/interface/componentes/tempo-de-resolucao";
 import {
   consultaDe,
   FormatoInvalido,
@@ -43,10 +68,22 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  *  T-07 · Dashboard — *"Está melhorando ou piorando, e onde?"*
  * ============================================================================
  *
- * **A ordem é conteúdo**, e é numerada na tela: recorrência, ocorrências por status, em aberto por
- * categoria, tempo de resolução, média das avaliações e em aberto por idade
- * (`inventario-de-telas.md:984-988`, critério 32.4). **Só o nº 1 carrega uma frase dizendo por que
- * existe**, e é essa assimetria que faz a hierarquia sem usar cor.
+ * **Três cartões e sete quadros, e cada quadro escreve a pergunta de decisão que responde** (item 73).
+ * Quadro sem pergunta não entra. Os cartões ficam em coluna à esquerda do quadro 1, e o de saldo responde
+ * a pergunta da página sem frase a mais: o sinal escrito diz se a fila cresceu. **Nenhum cartão muda de
+ * cor**, porque saldo positivo pode ser a organização começando a usar o produto.
+ *
+ * **Os sete, na ordem da tela:** entradas e saídas por mês · em aberto por idade · tempo de resolução · o
+ * que está voltando · em aberto por categoria · ocorrências por status · satisfação. A numeração continua
+ * na tela, e mudou de sentido com o item 73: quem lê um relatório anterior a ele lê outros quadros.
+ *
+ * **Cada gráfico tem a forma que a medida pede.** Linha no fluxo e no tempo, que são séries mensais; barra
+ * horizontal com o valor escrito nos outros quatro; número grande com as cinco notas na satisfação.
+ *
+ * **O `Ver dados` abre a tabela do quadro num modal.** É obrigatório nas duas linhas, que não rotulam todo
+ * valor; nas barras é opcional, porque cada barra já tem o número. **A idade o tem mesmo assim**, porque a
+ * tabela dela acrescenta a parte de cada faixa no total. Os quadros de barra sem `Ver dados` levam a lista
+ * para leitor de tela que o `GraficoDeBarras` desenha, e o veredito fica sempre fora do modal.
  *
  * **A leitura vai pela estrada direta** (contrato §5), como T-03, T-05, T-08 e T-09: `app/` não monta
  * repositório, e um `fetch` interno custaria o salto HTTP que a §5 recusou — cobrado, sob escala a zero,
@@ -57,18 +94,13 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * antes da leitura, e a tela avisa. A API recebe a mesma consulta sem a troca e responde `400`. Depois da
  * troca, as duas estradas voltam a passar pela mesma função.
  *
- * **Nada aqui é clicável ainda**, e isso deixou de ser regra em 14/09/2026 — passou a ser só o estado de
- * hoje. O *"Voltar"* do pé saiu no item 44e, porque a barra lateral da casca leva ao mesmo lugar. O link
- * do período inválido fica, que é saída de erro e não navegação duplicada; e quem chega sem
- * `dashboard.ler` recebe o `SemAcesso` da casca (item 44h), com a saída que ele traz.
+ * **O link da mais velha é a única navegação do painel**, e não precisa de filtro: ele aponta uma
+ * ocorrência, e quem lê o painel pode abri-la, porque `dashboard.ler` e `ocorrencia.ler_todas` andam
+ * juntas no Gestor. Levar um quadro à lista filtrada continua de fora: o `GET /ocorrencias` ainda não
+ * filtra por área nem por data.
  *
- * **O atalho para a lista filtrada é trabalho de outro item.** Os blocos 2 e 3 já têm para onde ir —
- * `?status=` e `?categoriaId=` existem desde o item 15. Os blocos 1 e 4 dependem de um filtro por área e
- * de um por data que o `GET /ocorrencias` ainda não tem, e enquanto não tiverem, uma tela com dois números
- * clicáveis e dois não precisa dizer qual é qual sem que ninguém tenha de descobrir clicando.
- *
- * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão. No
- * celular os seis empilham na ordem numerada, e a recorrência é a que fica visível sem rolar.
+ * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão.
+ * Abaixo de `lg` os cartões viram faixa de três acima do quadro 1; abaixo de `sm`, tudo empilha.
  */
 export const dynamic = "force-dynamic";
 
@@ -114,6 +146,14 @@ export default async function Dashboard({
 
   const dashboard = projetarDashboard(await verDashboard(escopo.repos.dashboard, janela));
 
+  // **Um array só para o cartão do saldo e para o quadro 1**, e por isso os dois dizem o mesmo *saíram*.
+  const fluxo = linhasDoFluxoMensal(
+    dashboard.recorrenciaPorCategoria,
+    dashboard.tempoDeResolucao.porMes,
+    dashboard.canceladasPorMes,
+    dashboard.periodo,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
@@ -128,14 +168,22 @@ export default async function Dashboard({
         trocada={trocada}
       />
 
-      <Recorrencia dashboard={dashboard} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
+          <EmAbertoAgora dashboard={dashboard} />
+          <SaldoDoPeriodo fluxo={fluxo} />
+          <AMaisVelha dashboard={dashboard} />
+        </div>
+        <EntradasESaidas fluxo={fluxo} periodo={dashboard.periodo} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <OcorrenciasPorStatus dashboard={dashboard} />
-        <EmAbertoPorCategoria dashboard={dashboard} />
-        <TempoDeResolucao dashboard={dashboard} />
-        <MediaDasAvaliacoes dashboard={dashboard} />
         <EmAbertoPorIdade dashboard={dashboard} />
+        <TempoDeResolucao dashboard={dashboard} />
+        <OQueEstaVoltando dashboard={dashboard} />
+        <EmAbertoPorCategoria dashboard={dashboard} />
+        <OcorrenciasPorStatus dashboard={dashboard} />
+        <Satisfacao dashboard={dashboard} />
       </div>
     </div>
   );
@@ -185,353 +233,409 @@ function Periodo({
 }
 
 /**
- * O bloco 1 — **o único que carrega uma frase explicando por que existe**, e é o que faz a hierarquia da
- * tela sem usar cor.
- *
- * **Quatro seções, e cada uma responde uma pergunta diferente:**
- *
- * | # | Seção | Que pergunta responde |
- * |---|---|---|
- * | 1 | Registradas e resolvidas | está melhorando ou piorando |
- * | 2 | Por área e categoria | o que está voltando |
- * | 3 | Por categoria · Por área | onde há mais volume |
- *
- * **A de cima é a que responde a pergunta da tela.** *"Está melhorando ou piorando?"* é o que
- * `docs/telas.md` promete do painel, e até o item 57 nenhum dos cinco quadros respondia: o quadro por
- * status é fotografia, as listas de recorrência são contagem no período, o tempo é média e a avaliação é
- * nota. As duas séries de cima — quanto foi registrado e quanto foi resolvido em cada mês — **saem da
- * mesma resposta que já chegava**, cruzadas em `fluxo-mensal.ts`.
- *
- * **O par entra em SEGUNDO, e não em primeiro.** A frase do cartão promete o par — oito vazamentos no
- * mesmo bloco não são oito ordens de serviço —, e as duas listas de baixo contam as dimensões em
- * separado: oito no mesmo lugar e oito espalhados dão ali o mesmo número. Rebaixar a seção de cima para
- * abrir espaço seria redecidir em silêncio o que o item 57 decidiu com razão escrita.
- *
- * **As quatro sublistas têm nome acessível**, por `role="group"` mais `aria-labelledby` no `h3` de cada
- * uma. É o que tira o índice posicional do ponta a ponta sem criar landmark: `<section>` aqui daria
- * quatro regiões dentro de um cartão que hoje não tem nenhuma, e tornaria falso o comentário do helper
- * que localiza os seis quadros.
- *
- * **A seção nova fica FORA do vazio das listas**, e o caso que decide é concreto: janela sem nenhuma
- * ocorrência registrada e com resoluções dentro dela — ocorrências abertas antes do período e fechadas
- * nele. Antes, essa organização lia *"a recorrência aparece a partir do segundo mês"* e mais nada; agora
- * lê que zero entrou e N saíram, que é exatamente a fila encolhendo.
- *
- * **O gráfico é da tela grande, e a lista fica sempre.** Com o balão sendo o único lugar onde o número
- * por mês apareceria, a informação passaria a existir só em passagem do ponteiro — o compromisso A-5
- * quebrado. A lista fica nos dois tamanhos; o gráfico entra onde há largura para ler tendência.
- *
- * **As áreas continuam lista**, à direita: são cerca de trinta séries, e o achado **P-11** já decidiu que
- * trinta séries não têm legenda possível.
- *
- * **O corte é "as cinco primeiras", e ele nunca mente.** A frase é literal — *"mais N áreas com 1
- * ocorrência ou nenhuma"* —, e ela é uma afirmação sobre os dados, não só uma contagem. Por isso o corte
- * mostra as cinco **ou mais**, até que tudo o que sobra tenha total ≤ 1.
+ * O primeiro cartão: **a soma das faixas de idade**, e o segundo termo é o que estava em aberto quando o
+ * período abriu. Os dois juntos são a conferência do critério 73.4: agora menos o saldo é o início, quando
+ * a janela termina hoje. Com nada em aberto, o número é `0` e o segundo termo continua sendo o do início.
  */
-function Recorrencia({ dashboard }: { dashboard: DashboardProjetado }) {
-  const categorias = dashboard.recorrenciaPorCategoria.map((serie) => ({
-    rotulo: serie.categoria.nome,
-    porMes: serie.porMes,
-    total: totalDaSerie(serie.porMes),
-  }));
-  const areas = dashboard.recorrenciaPorArea.map((serie) => ({
-    rotulo: serie.area.nome,
-    porMes: serie.porMes,
-    total: totalDaSerie(serie.porMes),
-  }));
-
-  const duplas = dashboard.duplasRecorrentes;
-
-  // **Um eixo só para o desenho e para a lista**, e por isso os dois não podem discordar: o mesmo array
-  // alimenta os dois. Os rótulos vêm do bloco 4, que é a única série que o contrato garante sem buraco.
-  const fluxo = linhasDoFluxoMensal(
-    dashboard.recorrenciaPorCategoria,
-    dashboard.tempoDeResolucao.porMes,
-    rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes)),
+function EmAbertoAgora({ dashboard }: { dashboard: DashboardProjetado }) {
+  const total = totalEmAberto(dashboard.abertasPorIdade);
+  return (
+    <CartaoDeIndicador
+      rotulo="Em aberto agora"
+      valor={String(total)}
+      segundoTermo={segundoTermoDoEmAberto(dashboard.emAbertoNoInicio)}
+    />
   );
+}
+
+/** O segundo cartão: **o sinal sempre escrito**, e quanto entrou e saiu embaixo. Saiu é resolvida mais cancelada. */
+function SaldoDoPeriodo({ fluxo }: { fluxo: readonly LinhaDoFluxoMensal[] }) {
+  const saldo = saldoDoPeriodo(fluxo);
+  return (
+    <CartaoDeIndicador
+      rotulo="Saldo do período"
+      valor={textoDoSaldo(saldo.saldo)}
+      segundoTermo={segundoTermoDoSaldo(saldo)}
+    />
+  );
+}
+
+/**
+ * O terceiro cartão: **a idade da mais velha, e o título dela como link**. O título é o que torna o número
+ * acionável; um agregado não se abre, uma ocorrência sim.
+ */
+function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
+  const [maisVelha] = dashboard.maisVelhasEmAberto;
+  return (
+    <CartaoDeIndicador
+      rotulo="A mais velha em aberto"
+      valor={maisVelha === undefined ? "—" : dias(maisVelha.idadeEmDias)}
+      segundoTermo={
+        maisVelha === undefined ? (
+          "nada em aberto"
+        ) : (
+          <Link
+            href={`/ocorrencias/${maisVelha.id}`}
+            className="text-marca break-words underline underline-offset-4"
+          >
+            {maisVelha.titulo}
+          </Link>
+        )
+      }
+    />
+  );
+}
+
+/**
+ * O quadro 1 — **quanto entrou e quanto saiu, mês a mês**, com *Saíram* sendo resolvidas mais canceladas.
+ *
+ * **O veredito fala do último mês completo**, e não dos totais: eles já estão no cartão do saldo, na mesma
+ * fileira. **O mês parcial leva `*` no rótulo**, e só quando há algum o rodapé explica: na janela de 90
+ * dias o primeiro e o último entram cortados, e sem a marca a série exagera a rampa.
+ *
+ * **O gráfico aparece em todas as larguras.** Com a lista indo para o modal, escondê-lo no celular
+ * deixaria o quadro só com a frase. A soma da coluna *Saldo* da tabela é o número do cartão.
+ */
+function EntradasESaidas({
+  fluxo,
+  periodo,
+}: {
+  fluxo: readonly LinhaDoFluxoMensal[];
+  periodo: DashboardProjetado["periodo"];
+}) {
+  const titulo = "Entradas e saídas por mês";
+  const rotulos = rotulosDosMeses(fluxo.map((linha) => linha.mes));
+  const algumParcial = fluxo.some((linha) => linha.parcial);
 
   return (
-    <Cartao numero={1} titulo="Recorrência" quando="no período">
-      <p className="text-tinta-suave text-corpo">
-        Oito vazamentos no mesmo bloco em três meses não são oito ordens de serviço.
-      </p>
-
-      <div role="group" aria-labelledby="recorrencia-fluxo" className="flex flex-col gap-3">
-        <h3
-          id="recorrencia-fluxo"
-          className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
-        >
-          Registradas e resolvidas
-        </h3>
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Tela grande: as duas linhas. No celular a seção é só a lista, em largura inteira. */}
-          <div className="hidden lg:block">
-            <GraficoDoFluxoMensal linhas={fluxo} />
-          </div>
-          {/* Os dois números de cada mês, em texto, nos dois tamanhos — A-5 e critério 57.5. */}
-          <ListaEmTexto
-            itens={fluxo.map((linha) => ({
+    <Cartao
+      numero={1}
+      titulo={titulo}
+      quando="no período"
+      pergunta="Está melhorando ou piorando?"
+      acao={
+        <ModalDeDados titulo={titulo}>
+          <TabelaDeDados
+            legenda={rotuloDaFaixa(periodo)}
+            colunas={["Mês", "Registradas", "Resolvidas", "Canceladas", "Saíram", "Saldo"]}
+            linhas={fluxo.map((linha, i) => ({
               chave: linha.mes,
-              rotulo: linha.mes,
-              texto: textoDoFluxoMensal(linha),
+              celulas: [
+                linha.parcial
+                  ? `${rotulos[i] ?? linha.mes}, parcial, ${trechoDoMes(linha.mes, periodo)}`
+                  : (rotulos[i] ?? linha.mes),
+                String(linha.registradas),
+                String(linha.resolvidas),
+                String(linha.canceladas),
+                String(linha.saidas),
+                textoDoSaldo(linha.saldo),
+              ],
             }))}
           />
-        </div>
-      </div>
+        </ModalDeDados>
+      }
+    >
+      <p className="text-tinta text-corpo">{vereditoDoFluxo(fluxo)}</p>
+      <GraficoDoFluxoMensal linhas={fluxo} />
+      {algumParcial ? (
+        <p className="text-tinta-fraca text-meta">{NOTA_DO_MES_PARCIAL}</p>
+      ) : null}
+    </Cartao>
+  );
+}
 
-      {categorias.length === 0 && areas.length === 0 ? (
+/**
+ * O quadro 2 — **lidera pelas mais velhas** (critério 73.8): o veredito conta acima do segundo limite, a
+ * lista aponta as cinco que esperam mais, e as barras vêm depois, como contexto.
+ *
+ * **As quatro faixas aparecem sempre, mesmo a zero** (critério 59.2), e `agora` no cabeçalho é o 59.3. A
+ * faixa mais velha se distingue por palavra, na oração do veredito (59.5), e o rodapé diz sempre o que o
+ * quadro mede (59.6).
+ *
+ * **O tempo em pausa não tem indicador próprio**: a lista mostra o status de cada uma, e quem lê *Pausada*
+ * quatro vezes seguidas vê a pausa esquecida sem número novo.
+ */
+function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
+  const titulo = "Em aberto por idade";
+  const faixas = dashboard.abertasPorIdade;
+  const total = totalEmAberto(faixas);
+  const velhas = dashboard.maisVelhasEmAberto;
+
+  return (
+    <Cartao
+      numero={2}
+      titulo={titulo}
+      quando="agora"
+      pergunta="O que está esperando demais, e qual ocorrência?"
+      acao={
+        <ModalDeDados titulo={titulo}>
+          <TabelaDeDados
+            legenda="Situação de agora"
+            colunas={["Faixa de idade", "Em aberto", "Do total"]}
+            linhas={faixas.map((faixa) => ({
+              chave: String(faixa.deDias),
+              celulas: [
+                rotuloDaFaixaDeIdade(faixa),
+                String(faixa.quantidade),
+                parteDoTotal(faixa.quantidade, total),
+              ],
+            }))}
+          />
+        </ModalDeDados>
+      }
+    >
+      <p className="text-tinta text-corpo">{vereditoDaIdade(faixas)}</p>
+      {velhas.length > 0 ? (
+        <ol className="flex flex-col gap-2">
+          {velhas.map((ocorrencia) => (
+            <li
+              key={ocorrencia.id}
+              className="text-corpo flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+            >
+              <Link
+                href={`/ocorrencias/${ocorrencia.id}`}
+                className="text-marca min-w-0 flex-1 break-words underline underline-offset-4"
+              >
+                {ocorrencia.titulo}
+              </Link>
+              <SeloDeStatus status={ocorrencia.status} rotulo={ocorrencia.statusRotulo} />
+              <span className="text-tinta-suave text-meta tabular-nums">
+                {dias(ocorrencia.idadeEmDias)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <GraficoDeBarras
+        larguraDoRotulo={96}
+        listaParaLeitor={false}
+        barras={faixas.map((faixa) => ({
+          chave: String(faixa.deDias),
+          rotulo: rotuloDaFaixaDeIdade(faixa),
+          valor: faixa.quantidade,
+          texto: String(faixa.quantidade),
+        }))}
+      />
+      <p className="text-tinta-suave text-corpo">{rodapeDaIdade(faixas)}</p>
+    </Cartao>
+  );
+}
+
+/**
+ * O quadro 3 — **a mediana e o p90, mês a mês, em duas linhas.** Mês sem resolução é buraco nas duas, e
+ * mês de três resoluções ou menos não tem p90 (critério 58.4): as durações dele estão no `Ver dados`.
+ *
+ * **O veredito fala do mês mais recente que teve resolução.** A unidade do eixo segue o maior valor
+ * desenhado, pelo degrau de `duracao.ts`, e sem nenhuma resolução no período o gráfico não aparece.
+ */
+function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
+  const titulo = "Tempo de resolução";
+  const meses = dashboard.tempoDeResolucao.porMes;
+  const rotulos = rotulosDosMeses(meses.map((mes) => mes.mes));
+  const valores = meses.flatMap((mes) => [mes.mediana, mes.p90]).filter((v) => v !== null);
+  const unidade = unidadeDoEixo(Math.max(0, ...valores));
+  const naUnidade = (horas: number | null) => (horas === null ? null : horas / unidade.divisor);
+  const ultima = (chave: "mediana" | "p90") =>
+    [...meses].reverse().find((mes) => mes[chave] !== null)?.[chave] ?? null;
+  const medianaFinal = ultima("mediana");
+  const p90Final = ultima("p90");
+
+  return (
+    <Cartao
+      numero={3}
+      titulo={titulo}
+      quando="no período"
+      pergunta="Quanto demora, e quanto demora para quem espera mais?"
+      acao={
+        <ModalDeDados titulo={titulo}>
+          <TabelaDeDados
+            legenda={rotuloDaFaixa(dashboard.periodo)}
+            colunas={["Mês", "Mediana", "p90", "Resoluções"]}
+            linhas={meses.map((mes, i) => {
+              const celulas = celulasDoTempo(mes);
+              return {
+                chave: mes.mes,
+                celulas: [rotulos[i] ?? mes.mes, celulas.mediana, celulas.p90, celulas.resolvidas],
+              };
+            })}
+          />
+        </ModalDeDados>
+      }
+    >
+      <p className="text-tinta text-corpo">
+        {vereditoDoTempo(meses, atravessaAVirada(meses.map((mes) => mes.mes)))}
+      </p>
+      {valores.length > 0 ? (
+        <GraficoDoTempoDeResolucao
+          unidade={unidade}
+          pontos={meses.map((mes, i) => ({
+            rotulo: rotulos[i] ?? mes.mes,
+            mediana: naUnidade(mes.mediana),
+            p90: naUnidade(mes.p90),
+          }))}
+          pontas={{
+            mediana: medianaFinal === null ? null : duracaoEmTexto(medianaFinal),
+            p90: p90Final === null ? null : duracaoEmTexto(p90Final),
+          }}
+        />
+      ) : null}
+      <p className="text-tinta-suave text-corpo">
+        Tempo de calendário, com as pausas. Mês com três resoluções ou menos não tem p90, e as durações
+        dele estão em Ver dados.
+      </p>
+    </Cartao>
+  );
+}
+
+/**
+ * O quadro 4 — **a mesma categoria voltando na mesma área** (item 60). As duas séries por dimensão contam
+ * em separado, e o cruzamento só existe na linha da ocorrência.
+ *
+ * **O corte de topo é as cinco primeiras mais as empatadas com a quinta** (critério 73.14), e o que sobra
+ * vira uma frase que é sempre verdadeira, porque o corte nunca separa um empate. **Sem `Ver dados`**:
+ * toda barra mostrada tem o número, e as de fora estão na frase.
+ *
+ * **O rótulo quebra em duas linhas**, área em cima e categoria embaixo: truncar cortaria a metade que o
+ * quadro existe para mostrar.
+ */
+function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
+  const { mostradas, restantes, maiorDasRestantes } = corteDeTopo(dashboard.duplasRecorrentes);
+
+  return (
+    <Cartao
+      numero={4}
+      titulo="O que está voltando"
+      quando="no período"
+      pergunta="Onde vale atacar a causa em vez de abrir outra ordem de serviço?"
+    >
+      {mostradas.length === 0 ? (
         <p role="status" className="text-tinta text-corpo">
-          A recorrência aparece a partir do segundo mês de uso.
+          {SEM_DUPLA_RECORRENTE}
         </p>
       ) : (
         <>
-          <div role="group" aria-labelledby="recorrencia-par" className="flex flex-col gap-3">
-            <h3
-              id="recorrencia-par"
-              className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
-            >
-              Por área e categoria
-            </h3>
-            {duplas.length === 0 ? (
-              <p role="status" className="text-tinta text-corpo">
-                {SEM_DUPLA_RECORRENTE}
-              </p>
-            ) : (
-              /* **Nenhum corte de topo N**, e o corte já aconteceu: quem tem uma não é recorrência.
-                 Um segundo corte por posição esconderia atrás de *mais N* justamente a dupla que a
-                 seção existe para mostrar. */
-              <ListaEmTexto
-                itens={duplas.map((dupla) => ({
-                  chave: chaveDaDupla(dupla),
-                  rotulo: rotuloDaDupla(dupla),
-                  texto: String(dupla.quantidade),
-                }))}
-              />
-            )}
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div
-              role="group"
-              aria-labelledby="recorrencia-categoria"
-              className="flex flex-col gap-3"
-            >
-              <h3
-                id="recorrencia-categoria"
-                className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
-              >
-                Por categoria
-              </h3>
-              <ListaComResto series={categorias} substantivo="categorias" />
-            </div>
-
-            <div
-              role="group"
-              aria-labelledby="recorrencia-area"
-              className="flex flex-col gap-3"
-            >
-              <h3
-                id="recorrencia-area"
-                className="text-tinta-fraca text-rotulo-coluna font-mono uppercase"
-              >
-                Por área
-              </h3>
-              <ListaComResto series={areas} substantivo="áreas" />
-            </div>
-          </div>
+          <GraficoDeBarras
+            larguraDoRotulo={176}
+            barras={mostradas.map((dupla) => ({
+              chave: chaveDaDupla(dupla),
+              rotulo: dupla.area.nome,
+              rotuloDeBaixo: dupla.categoria.nome,
+              valor: dupla.quantidade,
+              texto: String(dupla.quantidade),
+            }))}
+          />
+          {restantes > 0 ? (
+            <p className="text-tinta-fraca text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
+          ) : null}
         </>
       )}
     </Cartao>
   );
 }
 
-type SerieComTotal = SerieMensal & { total: number };
-
-/** As cinco primeiras — ou mais, até que o resto tenha 1 ocorrência ou nenhuma. Ver `Recorrencia`. */
-function ListaComResto({
-  series,
-  substantivo,
-}: {
-  series: readonly SerieComTotal[];
-  substantivo: "categorias" | "áreas";
-}) {
-  const relevantes = series.filter((serie) => serie.total >= 2).length;
-  const mostradas = series.slice(0, Math.max(5, relevantes));
-  const restantes = series.length - mostradas.length;
-
+/**
+ * O quadro 5 — **só o que está em aberto, por categoria**, ordenado por quantidade, e toda categoria
+ * ativa aparece mesmo a zero (critério 32.3).
+ *
+ * **O segundo número vai em texto** (critério 73.9): quantas daquela categoria passaram do primeiro limite
+ * de idade, que chega pela primeira faixa e nunca é escrito aqui. **Sem veredito**: uma regra genérica
+ * para a pior categoria seria um indicador novo.
+ *
+ * **O título não é *Abertas por categoria***: `Aberta` é um dos seis rótulos do quadro 6, e o plural leria
+ * como recorte por aquele status.
+ */
+function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) {
+  const limite = dashboard.abertasPorIdade[0]?.ateDias ?? 0;
   return (
-    <div className="flex flex-col gap-2">
-      <Medidor
-        itens={mostradas.map((serie) => ({ rotulo: serie.rotulo, quantidade: serie.total }))}
+    <Cartao
+      numero={5}
+      titulo="Em aberto por categoria"
+      quando="agora"
+      pergunta="Onde está o trabalho que não terminou?"
+    >
+      <GraficoDeBarras
+        larguraDoRotulo={176}
+        barras={dashboard.abertasPorCategoria.map((linha) => ({
+          chave: linha.categoria.id,
+          rotulo: linha.categoria.nome,
+          valor: linha.quantidade,
+          texto: textoDoValorDaCategoria(linha.quantidade, linha.envelhecidas, limite),
+        }))}
       />
-      {restantes > 0 && (
-        <p className="text-tinta-fraca text-meta">
-          mais {restantes} {substantivo} com 1 ocorrência ou nenhuma
-        </p>
-      )}
-    </div>
+      <p className="text-tinta-suave text-corpo">
+        Só o que está em aberto, e o segundo número é quantas passaram de {limite} dias.
+      </p>
+    </Cartao>
   );
 }
 
 /**
- * O bloco 2 — **os SEIS status, sempre todos, na ordem do ciclo**, mesmo a zero (critério 32.3).
+ * O quadro 6 — **os seis status, na ordem do ciclo**, mesmo a zero. É o único quadro de barra em que a
+ * ordem é o significado, e por isso ele não se ordena por tamanho: a Aplicação já os entrega na ordem de
+ * `STATUS`.
  *
- * A palavra `agora` no cabeçalho é o critério **33.4**: sem ela, o Gestor leria o quadro como se ele
- * respeitasse o período que acabou de escolher.
- *
- * **Ele conta TUDO o que a organização registrou**, inclusive o que já terminou, e é por isso que ele e o
- * bloco 3 não somam o mesmo número. O título diz o que ele é, e as seis linhas — com `Resolvida` e
- * `Cancelada` entre elas — dizem o resto, então ele não carrega frase nenhuma embaixo.
+ * **Ele conta TUDO o que a organização registrou**, inclusive o que terminou, e o rodapé diz isso: é o
+ * que o distingue dos quadros 2 e 5 (critério 56.4).
  */
 function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
-    <Cartao numero={2} titulo="Ocorrências por status" quando="agora">
-      <Medidor
-        itens={dashboard.backlogPorStatus.map((linha) => ({
+    <Cartao
+      numero={6}
+      titulo="Ocorrências por status"
+      quando="agora"
+      pergunta="Como se distribui tudo o que já foi registrado?"
+    >
+      <GraficoDeBarras
+        larguraDoRotulo={112}
+        barras={dashboard.backlogPorStatus.map((linha) => ({
+          chave: linha.status,
           rotulo: linha.statusRotulo,
-          quantidade: linha.quantidade,
-        }))}
-      />
-    </Cartao>
-  );
-}
-
-/**
- * O bloco 3 — as categorias ordenadas por quantidade, e `agora` pela mesma razão do bloco 2.
- *
- * **Ele conta só os quatro status não terminais**, e a linha abaixo do medidor escreve quais são — é o
- * critério 56.4 na forma positiva: em vez de negar que os dois quadros somem, ela diz o que entra, e quem
- * lê os seis status do quadro vizinho conclui sozinho que os totais não se encontram.
- *
- * **Toda categoria ativa aparece, mesmo a zero** (critério 32.3), e a desativada aparece enquanto ainda
- * carregar algo em aberto.
- *
- * **O título não é *Abertas por categoria***: `Aberta` é um dos seis rótulos do quadro ao lado, e o plural
- * leria como recorte por aquele status. *Em aberto* nomeia o conjunto e não colide com rótulo nenhum. O
- * campo da resposta continua `abertasPorCategoria`, pela convenção de que o rótulo que a pessoa lê é coisa
- * à parte do nome do campo.
- */
-function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) {
-  return (
-    <Cartao numero={3} titulo="Em aberto por categoria" quando="agora">
-      <Medidor
-        itens={dashboard.abertasPorCategoria.map((linha) => ({
-          rotulo: linha.categoria.nome,
-          quantidade: linha.quantidade,
+          valor: linha.quantidade,
+          texto: String(linha.quantidade),
         }))}
       />
       <p className="text-tinta-suave text-corpo">
-        Só o que está em aberto: Aberta, Em análise, Em atendimento e Pausada. Resolvidas e canceladas
-        ficam fora.
+        Na ordem do ciclo. Conta tudo o que já foi registrado, inclusive o que terminou.
       </p>
     </Cartao>
   );
 }
 
 /**
- * O bloco 4 — uma linha por mês da janela, **inclusive o mês sem resolução** (critério 36.2).
+ * O quadro 7 — **a média, o denominador e as cinco notas.** O denominador aparece ao lado da média,
+ * sempre (critério 34.3): sem ele a média mente quando poucos avaliam. A taxa de resposta é texto.
  *
- * **Dois números de tempo por mês, e nenhum deles é a média** (item 58): a mediana diz como foi o caso do
- * meio, e o p90 diz como foi o décimo pior atendimento. Duração de atendimento tem cauda longa, e a média
- * era puxada acima do caso típico por uns poucos casos arrastados.
- *
- * **`— · 0 resolvidas` e a frase *"nenhuma resolução no mês"***, literais do protótipo. E o rodapé, que
- * ganhou a segunda oração porque sem ela a linha do mês pequeno pareceria defeito — **sem nenhum espaço
- * reservado** prometendo a separação calendário × tempo ativo, que é ⬜ (critério 36.3).
- *
- * **O texto da linha mora em `tempo-de-resolucao.ts`**, que é módulo puro: três formas, um plural e uma
- * junção por vírgula não cabem dentro deste `.map`. A unidade segue a magnitude, e quem a escreve é
- * `duracao.ts`, do item 55.
- *
- * **A barra desenha a MEDIANA, sempre, e sobre o número em horas — nunca sobre o texto.** Ela compara os
- * meses entre si, e o que se compara é o caso típico; desenhar o p90 faria o mês de uma catástrofe única
- * encobrir o mês inteiro. E um mês de `18 min` contra um de `9,2 dias` só é comparável na mesma unidade.
- * **E o texto vai embaixo da barra** (item 61): na mesma linha, o texto de três durações comia o trilho do
- * mês pequeno, e a barra do mês de maior mediana saía a menor da lista. O rodapé diz que a barra é a
- * mediana, que é o que o mês de duas resoluções não escreve.
+ * **Sem nenhuma avaliação, o número é `—` e a frase é literal** (critério 34.2), nunca `0` — um zero
+ * diria que as pessoas avaliaram mal. **As cinco barras ficam, a zero**, pela razão de 32.3: a estrutura
+ * ensina o que vai ser medido. Nota 5 em cima, como quem lê espera.
  */
-function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
-  const rotulos = rotulosDosMeses(dashboard.tempoDeResolucao.porMes.map((mes) => mes.mes));
-
-  const itens: readonly ItemDoMedidor[] = dashboard.tempoDeResolucao.porMes.map((mes, i) =>
-    itemDoTempoDeResolucao(mes, rotulos[i] ?? mes.mes),
-  );
+function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
+  const avaliacoes = dashboard.mediaDasAvaliacoes;
+  const { media } = avaliacoes;
 
   return (
-    <Cartao numero={4} titulo="Tempo de resolução" quando="no período">
-      <Medidor itens={itens} disposicao="texto-embaixo" />
-      <p className="text-tinta-suave text-corpo">
-        Tempo de calendário, com as pausas. Mês com três resoluções ou menos mostra as durações uma a uma. A
-        barra é a mediana.
-      </p>
-    </Cartao>
-  );
-}
-
-/**
- * O bloco 5 — **o denominador aparece ao lado da média, sempre** (critério 34.3, PA-16): *"sem ele a média
- * mente quando poucos avaliam"*.
- *
- * **Sem nenhuma avaliação, o número é `—` e a frase é literal** (critério 34.2), nunca `0` — um zero diria
- * que as pessoas avaliaram mal.
- *
- * **O número desceu de 36 px para 26 px no item 44e.** A escala do guia tem sete papéis e para no
- * `text-titulo-pagina`; um oitavo papel para o indicador seria mudança do guia, que não é decisão de um
- * item de tela. O custo é presença: a média perde um terço do tamanho.
- */
-function MediaDasAvaliacoes({ dashboard }: { dashboard: DashboardProjetado }) {
-  const { media, avaliadas, resolvidas } = dashboard.mediaDasAvaliacoes;
-
-  return (
-    <Cartao numero={5} titulo="Média das avaliações" quando="no período">
-      <div className="flex flex-wrap items-baseline gap-3">
+    <Cartao
+      numero={7}
+      titulo="Satisfação"
+      quando="no período"
+      pergunta="Quem foi atendido ficou satisfeito?"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-tinta text-titulo-pagina tabular-nums">
           {media === null ? "—" : media.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
         </span>
         <span className="text-tinta-suave text-corpo">de 1 a 5</span>
-        <span className="text-tinta-suave text-corpo ml-auto text-right">
-          {media === null
-            ? "Nenhuma ocorrência avaliada ainda — 0 de 0 resolvidas."
-            : `${String(avaliadas)} de ${String(resolvidas)} resolvidas avaliadas`}
-        </span>
+        <span className="text-tinta-suave text-corpo">{denominadorDaSatisfacao(avaliacoes)}</span>
       </div>
-    </Cartao>
-  );
-}
-
-/**
- * O bloco 6 — **o único número do painel que enxerga o que NÃO foi resolvido.**
- *
- * Os outros medem o que terminou: o tempo de resolução sai da trilha, e a trilha só tem a linha da
- * resolução depois que ela aconteceu. A ocorrência aberta há duzentos dias não entrava em número nenhum,
- * e uma operação que deixasse os casos difíceis de lado veria os indicadores melhorarem.
- *
- * **As quatro faixas aparecem sempre, mesmo a zero** (critério 59.2), e `agora` no cabeçalho é o 59.3 —
- * sem a palavra, o Gestor leria o quadro como se ele respeitasse o período que acabou de escolher.
- *
- * **O `Medidor`, e nenhum desenho novo** (critério 59.4): é a lista com barra que quatro dos outros
- * quadros já usam, com a barra `aria-hidden` e o número em texto ao lado — A-5. Um componente novo aqui
- * seria a sexta forma de desenhar quatro números.
- *
- * **Ele ocupa uma coluna, como os quadros 2 a 5**, e a grade fica com cinco cartões em duas colunas. Dar
- * `lg:col-span-2` a ele esticaria quatro barras pela tela e faria uma diferença de duas ocorrências
- * parecer enorme.
- *
- * **A faixa mais velha se distingue por palavra, no rodapé** (critério 59.5). Nada aqui muda de cor, de
- * peso ou de ícone: as quatro barras são a mesma `bg-marca`.
- */
-function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
-  return (
-    <Cartao numero={6} titulo="Em aberto por idade" quando="agora">
-      <Medidor
-        itens={dashboard.abertasPorIdade.map((faixa) => ({
-          rotulo: rotuloDaFaixaDeIdade(faixa),
-          quantidade: faixa.quantidade,
+      <GraficoDeBarras
+        larguraDoRotulo={72}
+        barras={[...avaliacoes.distribuicao].reverse().map((nota) => ({
+          chave: String(nota.nota),
+          rotulo: rotuloDaNota(nota.nota),
+          valor: nota.quantidade,
+          texto: String(nota.quantidade),
         }))}
       />
-      <p className="text-tinta-suave text-corpo">
-        {textoDaIdadeEmAberto(dashboard.abertasPorIdade)}
-      </p>
     </Cartao>
   );
 }

@@ -25,6 +25,7 @@ import {
   mesParcial,
   nomeCompletoDoMes,
   saldoDoPeriodo,
+  trechoDoMes,
   vereditoDoFluxo,
   type LinhaDoFluxoMensal,
 } from "@/interface/componentes/fluxo-mensal";
@@ -752,6 +753,13 @@ describe("as linhas do fluxo — entradas, saídas e saldo por mês", () => {
       [0, 0],
       [0, 18],
     ]);
+  });
+});
+
+describe("trechoDoMes — o pedaço do mês que o período alcança", () => {
+  it("o mês cortado no começo e o cortado no fim", () => {
+    expect(trechoDoMes("2026-06", NOVENTA)).toBe("de 27 a 30/06");
+    expect(trechoDoMes("2026-09", NOVENTA)).toBe("de 01 a 24/09");
   });
 });
 
