@@ -33,7 +33,8 @@ import {
  * rótulo do mês do eixo é centrado no ponto, e a série que termina no chão do desenho põe o rótulo de ponta
  * na mesma faixa vertical dele: com 8 px o texto encostou no `set` com zero de folga (Recanto, 23/09/2026),
  * e com o ano no rótulo, na virada, a folga contra `fev/26` caiu a 4 px com 22. Trinta deixam 12. A margem
- * direita comporta `Registradas` com três dígitos.
+ * direita comporta `Registradas` com três dígitos, e a de cima comporta o rótulo que sobe 12 px quando o
+ * último mês é o maior valor do desenho (com 12 px de margem, `Registradas 8` saía cortado ao meio).
  *
  * **Nenhuma cor semântica.** Verde para as saídas e vermelho para as registradas julgaria o número antes de
  * quem lê, e um mês de muitas registradas pode ser a organização finalmente usando o produto. As cores são
@@ -67,7 +68,7 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart data={[...linhas]} margin={{ top: 12, right: 132, bottom: 0, left: 4 }}>
+      <LineChart data={[...linhas]} margin={{ top: 24, right: 132, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />

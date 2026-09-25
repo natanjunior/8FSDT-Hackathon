@@ -33,6 +33,9 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * tela.
  *
  * **O título do modal é o do quadro**, e o veredito do quadro fica fora dele, visível no cartão.
+ *
+ * **A largura é `3xl`, e não a `lg` do catálogo**: a tabela do quadro 1 tem seis colunas, e com `2xl` a
+ * de *Saldo* saía cortada (captura de 24/09/2026).
  */
 export function ModalDeDados({ titulo, children }: { titulo: string; children: ReactNode }) {
   const celular = useIsMobile();
@@ -80,7 +83,7 @@ export function ModalDeDados({ titulo, children }: { titulo: string; children: R
       ) : (
         <DialogContent
           aria-describedby={undefined}
-          className={cn(CONTEUDO_DO_DIALOG, "md:max-w-2xl")}
+          className={cn(CONTEUDO_DO_DIALOG, "md:max-w-3xl")}
         >
           {corpo}
         </DialogContent>

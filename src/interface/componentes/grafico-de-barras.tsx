@@ -1,8 +1,9 @@
 "use client";
 
-import { Bar, BarChart, LabelList, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, LabelList, Rectangle, XAxis, YAxis, type RectangleProps } from "recharts";
 
 import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/chart";
+import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
 /**
  * ============================================================================
@@ -19,7 +20,11 @@ import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/cha
  * para que quatro faixas e seis status tenham barras da mesma espessura.
  *
  * **A barra de valor zero não desenha retângulo, e o `LabelList` continua escrevendo `0`**: é o 59.2, a
- * estrutura aparecendo mesmo a zero.
+ * estrutura aparecendo mesmo a zero. **O `shape` próprio é o que garante isso**, e não é enfeite: o
+ * Recharts 3 descarta a barra de dimensão zero antes do rótulo, a menos que ela tenha forma própria
+ * (`cartesian/Bar.js`, *"Filter out 0-dimension rectangles early"*). A forma é o `Rectangle` de sempre,
+ * que não desenha nada com largura zero; o rótulo fica. Medido na captura de 24/09/2026: sem ela,
+ * *Vazamentos*, *Nota 2* e *Nota 1* apareciam sem número.
  *
  * **A lista para leitor de tela existe porque o SVG é `aria-hidden`.** Sem ela, quem não vê chegaria ao
  * quadro e ouviria só o título. Ela sai do **mesmo** array das barras, e por isso as duas não discordam.
@@ -44,7 +49,13 @@ const CONFIGURACAO: ChartConfig = { valor: { label: "Quantidade", color: "var(--
 const ALTURA_DA_LINHA = 36;
 const ALTURA_DA_BARRA = 22;
 /** Largura média de um caractere do papel `meta`, em px — é o que reserva a margem do texto de valor. */
-const LARGURA_DO_CARACTERE = 7;
+const LARGURA_DO_CARACTERE = 6.2;
+/**
+ * O teto da coluna de rótulos no celular. Com os 176 px da categoria e a margem do texto de valor, o
+ * quadro 5 a 390 px ficava sem largura nenhuma para a barra (captura de 24/09/2026); o rótulo quebra em
+ * mais linhas, e a barra aparece.
+ */
+const ROTULO_NO_CELULAR = 96;
 
 export function GraficoDeBarras({
   barras,
@@ -57,8 +68,12 @@ export function GraficoDeBarras({
   /** Sem `Ver dados`, o quadro precisa da lista para leitor de tela. Padrão: `true`. */
   listaParaLeitor?: boolean;
 }) {
+  const celular = useIsMobile();
   const maiorTexto = Math.max(...barras.map((barra) => barra.texto.length), 1);
   const temDuasLinhas = barras.some((barra) => barra.rotuloDeBaixo !== undefined);
+  // O rótulo em duas linhas é SVG sem quebra, e cortá-lo é o que ele existe para evitar: fica fora do teto.
+  const larguraDaColuna =
+    celular && !temDuasLinhas ? Math.min(larguraDoRotulo, ROTULO_NO_CELULAR) : larguraDoRotulo;
   const alturaDaLinha = temDuasLinhas ? ALTURA_DA_LINHA + 12 : ALTURA_DA_LINHA;
 
   return (
@@ -78,7 +93,7 @@ export function GraficoDeBarras({
           <YAxis
             type="category"
             dataKey="rotulo"
-            width={larguraDoRotulo}
+            width={larguraDaColuna}
             tickLine={false}
             axisLine={false}
             interval={0}
@@ -96,6 +111,7 @@ export function GraficoDeBarras({
             radius={4}
             barSize={ALTURA_DA_BARRA}
             isAnimationActive={false}
+            shape={(props: RectangleProps) => <Rectangle {...props} radius={4} />}
           >
             <LabelList
               dataKey="texto"

@@ -65,7 +65,7 @@ export function GraficoDoTempoDeResolucao({
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart data={[...pontos]} margin={{ top: 12, right: 120, bottom: 0, left: 4 }}>
+      <LineChart data={[...pontos]} margin={{ top: 24, right: 120, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis

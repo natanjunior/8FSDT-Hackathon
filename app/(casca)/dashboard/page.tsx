@@ -407,7 +407,7 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
         </ol>
       ) : null}
       <GraficoDeBarras
-        larguraDoRotulo={96}
+        larguraDoRotulo={120}
         listaParaLeitor={false}
         barras={faixas.map((faixa) => ({
           chave: String(faixa.deDias),
@@ -586,7 +586,7 @@ function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) 
       pergunta="Como se distribui tudo o que já foi registrado?"
     >
       <GraficoDeBarras
-        larguraDoRotulo={112}
+        larguraDoRotulo={128}
         barras={dashboard.backlogPorStatus.map((linha) => ({
           chave: linha.status,
           rotulo: linha.statusRotulo,
