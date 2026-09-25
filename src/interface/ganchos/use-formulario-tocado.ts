@@ -1,24 +1,30 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FocusEvent, type FocusEventHandler, type FormEvent } from "react";
 
 /**
  * ============================================================================
  *  O formulário tocado — critério 44g.2, e o mecanismo único do produto
  * ============================================================================
  *
- * **A regra é do guia §7 (16/09/2026):** nenhum campo mostra problema antes da primeira interação com o
- * formulário; depois dela, todo campo com problema mostra. Mudar o valor de um campo conta; tentar enviar
- * conta; passar o foco sem mudar nada **não** conta, e mexer em controle que não é campo também não (a
- * busca pelo nome do modal de atribuição filtra a lista e não é valor enviado).
+ * **A regra é uma só desde o item 75 (24/09/2026):** o erro de um campo aparece quando a pessoa sai dele,
+ * ou quando tenta enviar. Antes disso, nenhum campo mostra erro. Digitar num campo não acusa nem ele nem os
+ * outros; atravessar um campo com Tab, sem digitar, conta como sair dele. Era a exceção de T-04 (44l.7), e
+ * virou regra porque a anterior, a de revelar tudo depois da primeira interação, acendia *"Informe a
+ * senha."* em `/entrar` na primeira tecla do e-mail. Mexer em controle que não é campo não mexe no estado
+ * (a busca pelo nome do modal de atribuição filtra a lista e não é valor enviado).
  *
- * **Dois modos.** `formulario` é a regra geral. `campo` é a exceção de T-04 (17/09/2026): o erro de um
- * campo aparece quando a pessoa sai dele ou quando tenta registrar. Nenhuma tela do 44g usa `campo`; ele
- * está aqui porque o 44l depende só deste item.
+ * **Quando a saída conta** (`saidaConta`): não conta se o foco foi para dentro do próprio campo (a seta
+ * entre as opções de um grupo) ou para a lista que ele controla por `aria-controls` (o `Select` de T-04,
+ * cuja lista mora num portal); não conta se foi para um link ou para um elemento com `SAI_SEM_ACUSAR`
+ * (Cancelar e o X dos modais), porque sair da tela ou fechar o modal não é alcançar o próximo campo.
+ * Conta em todo o resto, inclusive quando o foco vai para o fundo da página.
  *
  * **Quem calcula os erros é quem usa o gancho**, a partir dos valores de agora: pelo estado, nos
  * componentes controlados (`erros`), ou pelo `FormData` do `<form>`, nos não controlados (`validar`).
- * Nas telas de credencial e de T-02, `validar` chama `errosDoSchema` com o mesmo schema da ação.
+ * Nas telas de credencial e de T-02, `validar` chama `errosDoSchema` com o mesmo schema da ação. Os não
+ * controlados releem o `FormData` ao mudar e ao sair, porque sair de um campo vazio nunca mudado também
+ * precisa ter o erro para mostrar.
  *
  * **O erro que o servidor devolveu** aparece embaixo do campo sem depender da interação, porque é resposta
  * a um envio, e some quando aquele campo muda. **A resposta do servidor recomeça o estado**: o React 19
@@ -35,12 +41,9 @@ import { useState, type FormEvent } from "react";
 
 export type ErrosDeCampo = Readonly<Record<string, string | undefined>>;
 
-export type ModoDeRevelar = "formulario" | "campo";
-
 export type EstadoDeInteracao = {
-  readonly interagiu: boolean;
   readonly tentouEnviar: boolean;
-  /** Os campos que perderam o foco. Só o modo `campo` os lê. */
+  /** Os campos de onde a pessoa saiu: o erro deles aparece. */
   readonly saidos: readonly string[];
   /** Os campos que mudaram desde a última resposta: o erro do servidor deles não aparece mais. */
   readonly alterados: readonly string[];
@@ -53,11 +56,13 @@ export type EventoDeInteracao =
   | { readonly tipo: "recomecou" };
 
 export const SEM_INTERACAO: EstadoDeInteracao = {
-  interagiu: false,
   tentouEnviar: false,
   saidos: [],
   alterados: [],
 };
+
+/** O atributo que os botões de saída levam: o foco que vai para eles não acusa o campo de onde saiu. */
+export const SAI_SEM_ACUSAR = "data-sai-sem-acusar";
 
 function comMais(lista: readonly string[], item: string): readonly string[] {
   return lista.includes(item) ? lista : [...lista, item];
@@ -71,12 +76,12 @@ export function interagir(
   switch (evento.tipo) {
     case "mudou":
       if (!campos.includes(evento.campo)) return estado;
-      return { ...estado, interagiu: true, alterados: comMais(estado.alterados, evento.campo) };
+      return { ...estado, alterados: comMais(estado.alterados, evento.campo) };
     case "saiu":
       if (!campos.includes(evento.campo)) return estado;
       return { ...estado, saidos: comMais(estado.saidos, evento.campo) };
     case "tentou-enviar":
-      return { ...estado, interagiu: true, tentouEnviar: true };
+      return { ...estado, tentouEnviar: true };
     case "recomecou":
       return SEM_INTERACAO;
   }
@@ -84,14 +89,12 @@ export function interagir(
 
 export function erroVisivel(
   estado: EstadoDeInteracao,
-  modo: ModoDeRevelar,
   campo: string,
   erros: ErrosDeCampo,
   errosDoServidor: ErrosDeCampo = {},
 ): string | undefined {
   const doCliente = erros[campo];
-  const revelado =
-    modo === "formulario" ? estado.interagiu : estado.tentouEnviar || estado.saidos.includes(campo);
+  const revelado = estado.tentouEnviar || estado.saidos.includes(campo);
   if (doCliente !== undefined && revelado) return doCliente;
   if (estado.alterados.includes(campo)) return undefined;
   return errosDoServidor[campo];
@@ -101,25 +104,37 @@ export function primeiroComProblema(campos: readonly string[], erros: ErrosDeCam
   return campos.find((campo) => erros[campo] !== undefined) ?? null;
 }
 
+/** Se o foco que foi de `de` para `para` conta como a pessoa sair do campo. Ver o cabeçalho. */
+function saidaConta(de: Element, para: EventTarget | null): boolean {
+  if (!(para instanceof Element)) return true;
+  if (de.contains(para)) return false;
+  const controlada = de.getAttribute("aria-controls");
+  if (controlada !== null && document.getElementById(controlada)?.contains(para) === true) return false;
+  return para.closest(`a[href], [${SAI_SEM_ACUSAR}]`) === null;
+}
+
 type OpcoesDoFormulario = {
   /** Nome do campo → `id` do elemento que recebe o foco, **na ordem do documento**. */
   readonly campos: Readonly<Record<string, string>>;
-  readonly modo?: ModoDeRevelar;
 } & (
   | { readonly erros: ErrosDeCampo; readonly validar?: undefined }
   | { readonly validar: (dados: FormData) => ErrosDeCampo; readonly erros?: undefined }
 );
 
 export type FormularioTocado = {
-  readonly interagiu: boolean;
   readonly erroDe: (campo: string, errosDoServidor?: ErrosDeCampo) => string | undefined;
   readonly mudou: (campo: string) => void;
+  /** Para controle que já decide sozinho quando a pessoa saiu (o `SeletorDeArea`). O resto usa `aoSair`. */
   readonly saiu: (campo: string) => void;
-  /** Marca a interação e diz se pode enviar; se não pode, leva o foco ao primeiro problema. */
+  /** Para o `onBlur` do campo controlado, ou do `fieldset` do grupo: marca a saída quando ela conta. */
+  readonly aoSair: (campo: string) => FocusEventHandler<HTMLElement>;
+  /** Marca a tentativa e diz se pode enviar; se não pode, leva o foco ao primeiro problema. */
   readonly tentarEnviar: (atuais?: ErrosDeCampo) => boolean;
   readonly recomecar: () => void;
   /** Para o `onChange` do `<form>` não controlado: relê os erros e marca o campo que mudou. */
   readonly aoMudarNoFormulario: (evento: FormEvent<HTMLFormElement>) => void;
+  /** Para o `onBlur` do `<form>` não controlado: relê os erros e marca o campo de onde a pessoa saiu. */
+  readonly aoSairNoFormulario: (evento: FocusEvent<HTMLFormElement>) => void;
   /** Para o `onSubmit`: previne o envio **só** quando há problema. */
   readonly aoEnviarFormulario: (evento: FormEvent<HTMLFormElement>) => boolean;
 };
@@ -139,8 +154,16 @@ function focar(id: string | undefined): void {
   alvo?.focus();
 }
 
+function ehCampoDoFormulario(
+  alvo: EventTarget | null,
+): alvo is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+  return (
+    alvo instanceof HTMLInputElement || alvo instanceof HTMLTextAreaElement || alvo instanceof HTMLSelectElement
+  );
+}
+
 export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocado {
-  const { campos, modo = "formulario" } = opcoes;
+  const { campos } = opcoes;
   const nomes = Object.keys(campos);
   const [estado, setEstado] = useState<EstadoDeInteracao>(SEM_INTERACAO);
   const [errosLidos, setErrosLidos] = useState<ErrosDeCampo>({});
@@ -159,21 +182,27 @@ export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocad
   };
 
   return {
-    interagiu: estado.interagiu,
-    erroDe: (campo, errosDoServidor) => erroVisivel(estado, modo, campo, erros, errosDoServidor),
+    erroDe: (campo, errosDoServidor) => erroVisivel(estado, campo, erros, errosDoServidor),
     mudou: (campo) => aplicar({ tipo: "mudou", campo }),
     saiu: (campo) => aplicar({ tipo: "saiu", campo }),
+    // `currentTarget`, e nunca `target`: num grupo, `target` é a opção que perdeu o foco, e a seta para a
+    // opção vizinha contaria como saída.
+    aoSair: (campo) => (evento) => {
+      if (saidaConta(evento.currentTarget, evento.relatedTarget)) aplicar({ tipo: "saiu", campo });
+    },
     tentarEnviar,
     recomecar: () => aplicar({ tipo: "recomecou" }),
     aoMudarNoFormulario: (evento) => {
       if (opcoes.validar !== undefined) setErrosLidos(opcoes.validar(new FormData(evento.currentTarget)));
       const alvo = evento.target;
-      if (
-        alvo instanceof HTMLInputElement ||
-        alvo instanceof HTMLTextAreaElement ||
-        alvo instanceof HTMLSelectElement
-      ) {
-        aplicar({ tipo: "mudou", campo: alvo.name });
+      if (ehCampoDoFormulario(alvo)) aplicar({ tipo: "mudou", campo: alvo.name });
+    },
+    // Aqui o tratador mora no `<form>`, então o campo de onde a pessoa saiu é o `target`.
+    aoSairNoFormulario: (evento) => {
+      if (opcoes.validar !== undefined) setErrosLidos(opcoes.validar(new FormData(evento.currentTarget)));
+      const alvo = evento.target;
+      if (ehCampoDoFormulario(alvo) && saidaConta(alvo, evento.relatedTarget)) {
+        aplicar({ tipo: "saiu", campo: alvo.name });
       }
     },
     aoEnviarFormulario: (evento) => {

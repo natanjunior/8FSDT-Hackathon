@@ -140,7 +140,7 @@ describe("as três formas do aviso — guia §7", () => {
   });
 });
 
-describe("o formulário tocado — critério 2", () => {
+describe("o formulário tocado — critério 2, com a regra única do item 75", () => {
   const CAMPOS = ["email", "senha"];
   const ERROS = { email: "Informe o seu e-mail.", senha: "Informe a senha." };
 
@@ -148,21 +148,15 @@ describe("o formulário tocado — critério 2", () => {
     return eventos.reduce((estado, evento) => interagir(estado, evento, CAMPOS), SEM_INTERACAO);
   }
 
-  it("antes da primeira interação, nenhum campo mostra erro", () => {
-    expect(erroVisivel(SEM_INTERACAO, "formulario", "email", ERROS)).toBeUndefined();
-    expect(erroVisivel(SEM_INTERACAO, "formulario", "senha", ERROS)).toBeUndefined();
+  it("antes de qualquer coisa, nenhum campo mostra erro", () => {
+    expect(erroVisivel(SEM_INTERACAO, "email", ERROS)).toBeUndefined();
+    expect(erroVisivel(SEM_INTERACAO, "senha", ERROS)).toBeUndefined();
   });
 
-  it("mudar um campo revela todos os campos com problema, no modo formulario", () => {
+  it("mudar um campo não revela nenhum outro, nem o próprio (critério 75.1)", () => {
     const estado = depois({ tipo: "mudou", campo: "email" });
-    expect(erroVisivel(estado, "formulario", "email", ERROS)).toBe("Informe o seu e-mail.");
-    expect(erroVisivel(estado, "formulario", "senha", ERROS)).toBe("Informe a senha.");
-  });
-
-  it("passar o foco por um campo sem mudar nada não conta como interação", () => {
-    const estado = depois({ tipo: "saiu", campo: "email" });
-    expect(estado.interagiu).toBe(false);
-    expect(erroVisivel(estado, "formulario", "email", ERROS)).toBeUndefined();
+    expect(erroVisivel(estado, "email", ERROS)).toBeUndefined();
+    expect(erroVisivel(estado, "senha", ERROS)).toBeUndefined();
   });
 
   it("mudar um controle que não é campo do formulário não conta (a busca do modal de atribuição)", () => {
@@ -170,18 +164,19 @@ describe("o formulário tocado — critério 2", () => {
     expect(estado).toStrictEqual(SEM_INTERACAO);
   });
 
-  it("no modo campo, só o campo que perdeu o foco mostra o erro (a exceção de T-04)", () => {
-    const estado = depois({ tipo: "mudou", campo: "email" }, { tipo: "saiu", campo: "email" });
-    expect(erroVisivel(estado, "campo", "email", ERROS)).toBe("Informe o seu e-mail.");
-    expect(erroVisivel(estado, "campo", "senha", ERROS)).toBeUndefined();
+  it("sair de um campo revela só ele, inclusive quando foi atravessado sem mudar", () => {
+    const mudouESaiu = depois({ tipo: "mudou", campo: "email" }, { tipo: "saiu", campo: "email" });
+    expect(erroVisivel(mudouESaiu, "email", ERROS)).toBe("Informe o seu e-mail.");
+    expect(erroVisivel(mudouESaiu, "senha", ERROS)).toBeUndefined();
+    const atravessou = depois({ tipo: "saiu", campo: "email" });
+    expect(erroVisivel(atravessou, "email", ERROS)).toBe("Informe o seu e-mail.");
+    expect(erroVisivel(atravessou, "senha", ERROS)).toBeUndefined();
   });
 
-  it("tentar enviar revela todos, nos dois modos", () => {
-    const estado = depois({ tipo: "tentou-enviar" });
-    for (const modo of ["formulario", "campo"] as const) {
-      expect(erroVisivel(estado, modo, "email", ERROS)).toBe("Informe o seu e-mail.");
-      expect(erroVisivel(estado, modo, "senha", ERROS)).toBe("Informe a senha.");
-    }
+  it("tentar enviar revela todos (critério 75.2)", () => {
+    const estado = depois({ tipo: "mudou", campo: "email" }, { tipo: "tentou-enviar" });
+    expect(erroVisivel(estado, "email", ERROS)).toBe("Informe o seu e-mail.");
+    expect(erroVisivel(estado, "senha", ERROS)).toBe("Informe a senha.");
   });
 
   it("recomeçar volta ao estado sem interação", () => {
@@ -191,16 +186,14 @@ describe("o formulário tocado — critério 2", () => {
 
   it("o erro do servidor aparece sem interação, e some quando aquele campo muda", () => {
     const doServidor = { email: "Confira o e-mail." };
-    expect(erroVisivel(SEM_INTERACAO, "formulario", "email", {}, doServidor)).toBe("Confira o e-mail.");
+    expect(erroVisivel(SEM_INTERACAO, "email", {}, doServidor)).toBe("Confira o e-mail.");
     const estado = depois({ tipo: "mudou", campo: "email" });
-    expect(erroVisivel(estado, "formulario", "email", {}, doServidor)).toBeUndefined();
+    expect(erroVisivel(estado, "email", {}, doServidor)).toBeUndefined();
   });
 
   it("o erro do cliente, quando visível, ganha do erro do servidor", () => {
     const estado = depois({ tipo: "tentou-enviar" });
-    expect(erroVisivel(estado, "formulario", "email", ERROS, { email: "Confira o e-mail." })).toBe(
-      "Informe o seu e-mail.",
-    );
+    expect(erroVisivel(estado, "email", ERROS, { email: "Confira o e-mail." })).toBe("Informe o seu e-mail.");
   });
 
   it("o primeiro campo com problema segue a ordem dos campos, que é a do documento", () => {
@@ -906,11 +899,12 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(sobras).toStrictEqual([]);
   });
 
-  it("o erro de campo de T-04 usa o modo campo, e o resto do produto não (critério 44l.7)", () => {
-    const comModoCampo = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
-      ler(caminho).includes('modo: "campo"'),
-    );
-    expect(comModoCampo).toStrictEqual(["src/interface/componentes/formulario-de-ocorrencia.tsx"]);
+  it("nenhum formulário escolhe modo: a regra de revelar o erro é uma só (item 75)", () => {
+    const comModo = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) => {
+      const fonte = ler(caminho);
+      return fonte.includes('modo: "campo"') || fonte.includes('modo: "formulario"');
+    });
+    expect(comModo).toStrictEqual([]);
   });
 
   it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
