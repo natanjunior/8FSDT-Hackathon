@@ -1,5 +1,5 @@
 import { CircleAlertIcon, CircleXIcon, InfoIcon, LoaderCircleIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FocusEventHandler, ReactNode } from "react";
 
 import { cn } from "@/interface/componentes/utilitarios";
 
@@ -175,18 +175,22 @@ export function GrupoDeEscolha({
   legenda,
   obrigatorio = false,
   erro,
+  aoSair,
   children,
 }: {
   id: string;
   legenda: string;
   obrigatorio?: boolean;
   erro?: string | undefined;
+  /** O `onBlur` do `fieldset`, que recebe a saída de cada opção de dentro (item 75). */
+  aoSair?: FocusEventHandler<HTMLFieldSetElement>;
   children: ReactNode;
 }) {
   const idDoErro = `${id}-erro`;
   return (
     <fieldset
       id={id}
+      onBlur={aoSair}
       aria-describedby={erro === undefined ? undefined : idDoErro}
       data-invalido={erro === undefined ? undefined : ""}
       className="group flex min-w-0 flex-col gap-1.5"

@@ -4,6 +4,7 @@ import * as React from "react"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 import { manterAbertoAoTocarNoAviso } from "@/interface/componentes/ui/sonner"
+import { SAI_SEM_ACUSAR } from "@/interface/ganchos/use-formulario-tocado"
 
 import { cn } from "@/interface/componentes/utilitarios"
 
@@ -61,6 +62,10 @@ function DialogOverlay({
  * **Divergência do catálogo (item 44g): o toque no aviso não fecha o modal.** O aviso mora fora do modal,
  * e o `radix-ui` trata o toque nele como toque fora. `manterAbertoAoTocarNoAviso` recusa esse fechamento;
  * um novo `shadcn add dialog` desfaz a linha, e o caso do `formulario.test.ts` acusa.
+ *
+ * **Divergência do catálogo (item 75): o X leva `SAI_SEM_ACUSAR`.** O foco que vai para ele não acusa o
+ * campo de onde saiu, e fechar pelo X não pinta erro durante a animação de saída. Um novo `shadcn add
+ * dialog` também desfaz esta, e o `formulario.test.ts` acusa.
  */
 function DialogContent({
   className,
@@ -84,7 +89,7 @@ function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none">
+        <DialogPrimitive.Close {...{ [SAI_SEM_ACUSAR]: "" }} className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none">
           <XIcon />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>
