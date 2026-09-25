@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type FocusEventHandler } from "react";
 
 import { FINALIDADES_DE_CONTATO } from "@/dominio/pessoa";
 import { BotaoDeIcone, CONTORNO_DE_ACAO } from "@/interface/componentes/botao-de-icone";
@@ -69,6 +69,7 @@ export function SubFormularioDeContatos({
   inerte,
   aoMudar,
   aoMudarValor,
+  aoSairDoValor,
   erroDoValor,
 }: {
   prefixo: string;
@@ -77,6 +78,8 @@ export function SubFormularioDeContatos({
   inerte: boolean;
   aoMudar: (contatos: readonly ContatoEmEdicao[]) => void;
   aoMudarValor: (chave: string) => void;
+  /** O `onBlur` do valor de cada contato: a saída dele revela o erro (item 75). */
+  aoSairDoValor: (chave: string) => FocusEventHandler<HTMLElement>;
   erroDoValor: (chave: string) => string | undefined;
 }) {
   const [anuncio, setAnuncio] = useState("");
@@ -148,6 +151,7 @@ export function SubFormularioDeContatos({
               aoMudar(contatos.filter((_, i) => i !== indice));
             }}
             aoMudarValor={aoMudarValor}
+            aoSairDoValor={aoSairDoValor}
           />
         </Fragment>
       ))}
@@ -189,6 +193,7 @@ function LinhaDeContato({
   aoMover,
   aoRemover,
   aoMudarValor,
+  aoSairDoValor,
 }: {
   prefixo: string;
   contato: ContatoEmEdicao;
@@ -203,6 +208,7 @@ function LinhaDeContato({
   aoMover: (de: number, para: number) => void;
   aoRemover: () => void;
   aoMudarValor: (chave: string) => void;
+  aoSairDoValor: (chave: string) => FocusEventHandler<HTMLElement>;
 }) {
   const numero = indice + 1;
   const id = (parte: Parameters<typeof idDoContato>[2]) => idDoContato(prefixo, contato.chave, parte);
@@ -276,6 +282,7 @@ function LinhaDeContato({
                 aoTrocar(indice, (atual) => ({ ...atual, valor }));
                 aoMudarValor(contato.chave);
               }}
+              onBlur={aoSairDoValor(contato.chave)}
               className="border-linha bg-background h-11"
             />
           )}

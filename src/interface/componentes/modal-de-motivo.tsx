@@ -217,6 +217,7 @@ export function ModalDeMotivo({
         id={grupoId}
         legenda={rotuloDoGrupo}
         obrigatorio
+        aoSair={formulario.aoSair("motivo")}
         erro={formulario.erroDe("motivo")}
       >
         {motivos.map((motivo) => {
@@ -279,6 +280,7 @@ export function ModalDeMotivo({
               setTexto(evento.target.value);
               formulario.mudou("observacao");
             }}
+            onBlur={formulario.aoSair("observacao")}
             disabled={envio.enviando}
             rows={3}
             /* **O mesmo teto do `pausaSchema`** — 1000. Dois números divergiriam. */

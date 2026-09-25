@@ -169,7 +169,7 @@ export function ModalDeAvaliacao({
         </>
       }
     >
-      <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
+      <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio aoSair={formulario.aoSair("nota")} erro={formulario.erroDe("nota")}>
         {NOTAS.map((opcao) => {
           const id = `${grupoId}-${String(opcao.valor)}`;
           return (

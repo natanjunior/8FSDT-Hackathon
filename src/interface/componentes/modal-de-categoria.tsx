@@ -188,6 +188,7 @@ export function ModalDeCategoria(props: Props) {
               setNome(evento.target.value);
               formulario.mudou("nome");
             }}
+            onBlur={formulario.aoSair("nome")}
             className="border-linha bg-background h-11"
           />
         )}

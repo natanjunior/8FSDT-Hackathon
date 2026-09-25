@@ -224,6 +224,7 @@ export function FormularioDeVinculo({
             setNome(evento.target.value);
             formulario.mudou("nome");
           }}
+          onBlur={formulario.aoSair("nome")}
           className="border-linha bg-background h-11"
         />
       )}
@@ -254,6 +255,7 @@ export function FormularioDeVinculo({
               id={`${idDoPapel}-grupo`}
               legenda={TEXTOS_DO_FORMULARIO.papel}
               obrigatorio
+              aoSair={formulario.aoSair("papel")}
               erro={formulario.erroDe("papel")}
             >
               <OpcoesDePapel
@@ -299,6 +301,7 @@ export function FormularioDeVinculo({
             aoMudarValor={(chave) => {
               formulario.mudou(campoDoContato(chave));
             }}
+            aoSairDoValor={(chave) => formulario.aoSair(campoDoContato(chave))}
             erroDoValor={(chave) => formulario.erroDe(campoDoContato(chave), errosDoServidor)}
           />
         ) : (

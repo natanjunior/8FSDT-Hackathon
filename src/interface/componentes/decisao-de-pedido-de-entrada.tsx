@@ -236,6 +236,7 @@ export function DecisaoDePedidoDeEntrada({
             id={`${prefixo}-grupo`}
             legenda={TEXTOS_DA_RESPOSTA.legenda}
             obrigatorio
+            aoSair={formulario.aoSair("papel")}
             erro={formulario.erroDe("papel")}
           >
             <OpcoesDePapel
