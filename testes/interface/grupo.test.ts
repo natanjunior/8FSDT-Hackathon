@@ -100,6 +100,18 @@ describe("a página /grupo — critérios 70.1, 70.3 e 70.4", () => {
     expect(fonte).not.toMatch(/href="#"/u);
   });
 
+  it("os cartões têm a mesma altura, e a régua fica sempre, na mesma altura (critério 76.6)", () => {
+    const fonte = ler(CARTAO);
+    expect(fonte).toMatch(/<Cartao tituloId=\{tituloId\} className="[^"]*\bh-full\b[^"]*\bflex-col\b/u);
+    // A fileira existe com ou sem perfil: sai a condição que a escondia.
+    expect(fonte).not.toContain("{temPerfil && (");
+    // `mt-auto` a empurra para o pé; a altura mínima é a do botão que ela contém (44) mais o `py-3` (24),
+    // para a régua do cartão sem perfil cair na mesma linha da dos vizinhos.
+    expect(fonte).toMatch(/className="[^"]*\bmt-auto\b[^"]*\bmin-h-\[68px\][^"]*\bborder-t\b/u);
+    expect(fonte).toContain("aria-hidden={temPerfil ? undefined : true}");
+    expect(ler("src/interface/componentes/cartao.tsx")).toContain("className?: string");
+  });
+
   it("o cartão não estoura no celular: o nome encolhe e os botões quebram linha", () => {
     const fonte = ler(CARTAO);
     expect(fonte).toContain("min-w-0");
