@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -115,7 +115,9 @@ import {
   acoesDaBarra,
   AVISO_DE_AVALIACAO,
   encurtarParaOCaminho,
+  nomeDaNota,
   nomesDeStatus,
+  NOTAS_DA_AVALIACAO,
   ocorrenciaNaoEncontradaEm,
   PALAVRAS_DA_ATRIBUICAO,
   palavrasDaAtribuicao,
@@ -125,6 +127,7 @@ import {
   rotuloDeComando,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
+  textoDaNota,
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
@@ -4118,5 +4121,35 @@ describe("a lista, uma forma nos dois recortes (item 76)", () => {
   it("T-05 não lê mais a ação pelo endereço (critério 76.4)", () => {
     const fonte = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
     expect(fonte).not.toMatch(/abreAvaliacaoPeloEndereco|abrirAoCarregar|searchParams/u);
+  });
+});
+
+describe("a nota em estrelas — critério 76.5", () => {
+  it("as cinco opções, com as pontas nomeadas e o meio em número", () => {
+    expect(NOTAS_DA_AVALIACAO.map((nota) => nomeDaNota(nota.valor))).toStrictEqual([
+      "1, muito ruim",
+      "2",
+      "3",
+      "4",
+      "5, muito bom",
+    ]);
+  });
+
+  it("o texto ao lado das estrelas diz a nota em palavra, e as pontas pelo nome (A-5)", () => {
+    expect(textoDaNota(null)).toBe("Escolha de 1 a 5");
+    expect(textoDaNota(1)).toBe("1 de 5, muito ruim");
+    expect(textoDaNota(3)).toBe("3 de 5");
+    expect(textoDaNota(5)).toBe("5 de 5, muito bom");
+  });
+
+  it("continua sendo um grupo de rádios de verdade, e nada foi instalado", () => {
+    const modal = lerFonte("src/interface/componentes/modal-de-avaliacao.tsx");
+    expect(modal).toContain('type="radio"');
+    expect(modal).toContain("name={grupoId}");
+    expect(modal).toContain("<Star");
+    expect(modal).toContain('className="peer sr-only"');
+    // O rótulo acessível é texto dentro do `<label>`, e não `aria-label`: é a mesma marcação do item 18.
+    expect(modal).toContain('<span className="sr-only">{nomeDaNota(opcao.valor)}</span>');
+    expect(existsSync(`${RAIZ}src/interface/componentes/ui/rating.tsx`)).toBe(false);
   });
 });

@@ -382,7 +382,15 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await faixaDeAvaliacao.getByRole("button", { name: "Avaliar" }).click();
   cobre(test.info(), "4.5 · 70");
   const modalDeAvaliacao = helena.getByRole("dialog");
+  // **Critério 76.5 — as estrelas continuam rádios.** O teclado anda por seta, e o texto ao lado segue a
+  // escolha do teclado mesmo depois de o ponteiro ter passado por outra estrela.
+  await modalDeAvaliacao.getByRole("radio", { name: "4", exact: true }).hover();
+  await modalDeAvaliacao.getByRole("radio", { name: "1, muito ruim" }).focus();
+  await helena.keyboard.press("ArrowRight");
+  await expect(modalDeAvaliacao.getByRole("radio", { name: "2", exact: true })).toBeChecked();
+  await expect(modalDeAvaliacao.getByText("2 de 5", { exact: true })).toBeVisible();
   await modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" }).check();
+  await expect(modalDeAvaliacao.getByText("5 de 5, muito bom", { exact: true })).toBeVisible();
   await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
   cobre(test.info(), "4.5 · 71", {
     criterio: "27",

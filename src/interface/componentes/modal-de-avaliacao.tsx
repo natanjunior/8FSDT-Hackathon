@@ -1,24 +1,18 @@
 "use client";
 
+import { Star } from "lucide-react";
 import { useId, useState } from "react";
 
 import { Campo, ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
+import { NOTAS_DA_AVALIACAO, nomeDaNota, textoDaNota } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { cn } from "@/interface/componentes/utilitarios";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
-
-/** As cinco opções da escala. **Legenda só nas pontas** — é o desenho do protótipo §7.2, literal. */
-const NOTAS = [
-  { valor: 1, descricao: "muito ruim" },
-  { valor: 2, descricao: null },
-  { valor: 3, descricao: null },
-  { valor: 4, descricao: null },
-  { valor: 5, descricao: "muito bom" },
-] as const;
 
 /**
  * ============================================================================
@@ -39,15 +33,17 @@ const NOTAS = [
  * esquecesse mostrar a frase do Gestor a um Solicitante"*) — desfazer decisão de outro item para economizar
  * um arquivo. **Recusado.**
  *
- * **A nota é `RadioGroup` e não estrelas, e o protótipo já decidiu com o custo escrito:** *"Não há
- * componente de nota no catálogo … Ganha-se acessibilidade de graça e **perde-se reconhecimento**: as
- * pessoas esperam estrelas"* (`prototipo-low-fi.md:1012-1017`). Como o **O4** depende de a avaliação ser
- * fácil, isso é custo real, e é candidato ao que o artefato clicável mediria.
+ * **A nota são estrelas desde o item 76, e continuam rádios.** O protótipo tinha escolhido rádios em
+ * coluna, com o custo escrito (*"perde-se reconhecimento: as pessoas esperam estrelas"*), e o dono
+ * reverteu. Cada estrela é o `<label>` de um `input type="radio"` que continua existindo, visualmente
+ * oculto: o grupo, a seta, o nome por opção e o `required` são do navegador, e nada foi instalado. O
+ * `@reui/rating` que o critério cita não entrou, porque não traz nenhuma dessas três coisas
+ * (`respostas.md` P3 do item 76). A estrela é a `Star` do `lucide`, a mesma da faixa de avaliação.
  *
- * **As cinco opções ficam em COLUNA.** Cinco alvos de 44 px lado a lado não cabem em 390 px menos as
- * bordas sem encolher o alvo, que é o compromisso **A-3**. As legendas das pontas viram descrição da
- * primeira e da última opção, **dentro do `<label>`** — a mesma marcação que o item 18 usou para
- * *Duplicada*, e pelo mesmo motivo: descrição ancorada separadamente seria lida duas vezes.
+ * **Cinco alvos de 44 px numa linha só**: com 4 px de intervalo são 236 px, e cabem no modal de 390 px.
+ * A conta antiga, que mandava para coluna, era de linhas com texto. O nome de cada opção é texto
+ * `sr-only` **dentro do `<label>`** — a mesma marcação que o item 18 usou para *Duplicada*, e pelo mesmo
+ * motivo: descrição ancorada separadamente seria lida duas vezes.
  *
  * **O envio segue a sequência de modal do guia §7**, pelo `useEnvioDoModal` (item 44g): carregando no
  * modal, que não fecha durante o envio; sucesso com aviso, modal fechado e página atualizada; erro com
@@ -63,7 +59,7 @@ const NOTAS = [
  * e é o único *Avaliar* da tela. A barra nem recebe `avaliar` (`page.tsx`, `naBarra`).
  *
  * **Acessibilidade:** `fieldset`/`legend` para o grupo (A-1), `<label htmlFor>` de verdade nas cinco opções e
- * no comentário, `min-h-11` nas opções e no campo e `h-11`/`h-12` nos botões (A-3), o erro do servidor em
+ * no comentário, `size-11` nas estrelas, `min-h-11` no campo e `h-11`/`h-12` nos botões (A-3), o erro do servidor em
  * `role="alert"` e tudo em palavra (A-5). Foco preso, `Esc` e foco devolvido ao gatilho vêm do `Dialog` do
  * `radix-ui` (A-2 e A-4).
  */
@@ -86,6 +82,9 @@ export function ModalDeAvaliacao({
   const grupoId = useId();
   const campoComentarioId = useId();
   const [nota, setNota] = useState<number | null>(null);
+  /** A estrela sob o ponteiro, que prevê a nota antes do clique. */
+  const [sobre, setSobre] = useState<number | null>(null);
+  const acesa = sobre ?? nota ?? 0;
   const [comentario, setComentario] = useState("");
 
   const formulario = useFormularioTocado({
@@ -150,39 +149,56 @@ export function ModalDeAvaliacao({
       }
     >
       <GrupoDeEscolha id={grupoId} legenda="Nota" obrigatorio erro={formulario.erroDe("nota")}>
-        {NOTAS.map((opcao) => {
-          const id = `${grupoId}-${String(opcao.valor)}`;
-          return (
-            <label
-              key={opcao.valor}
-              htmlFor={id}
-              className="border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2"
-            >
-              <input
-                type="radio"
-                id={id}
-                name={grupoId}
-                value={opcao.valor}
-                required
-                disabled={envio.enviando}
-                checked={nota === opcao.valor}
-                onChange={() => {
-                  setNota(opcao.valor);
-                  formulario.mudou("nota");
-                }}
-                className="size-4"
-              />
-              {/* **A legenda da ponta vai DENTRO do `<label>`**, e não em `aria-describedby`: o nome
-                  acessível já a inclui, e uma descrição ancorada à parte a leria duas vezes (A-1). */}
-              <span className="text-tinta">
-                {opcao.valor}
-                {opcao.descricao !== null && (
-                  <span className="text-tinta-suave">{`, ${opcao.descricao}`}</span>
-                )}
-              </span>
-            </label>
-          );
-        })}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* **O ponteiro prevê a nota, e sair do grupo desfaz a previsão.** Sobre a fileira e não sobre
+              cada estrela: entre duas estrelas o ponteiro não deve apagar tudo. */}
+          <div className="flex gap-1" onMouseLeave={() => setSobre(null)}>
+            {NOTAS_DA_AVALIACAO.map((opcao) => {
+              const id = `${grupoId}-${String(opcao.valor)}`;
+              return (
+                <label
+                  key={opcao.valor}
+                  htmlFor={id}
+                  onMouseEnter={() => setSobre(opcao.valor)}
+                  className="flex size-11 cursor-pointer items-center justify-center rounded-md"
+                >
+                  <input
+                    type="radio"
+                    id={id}
+                    name={grupoId}
+                    value={opcao.valor}
+                    required
+                    disabled={envio.enviando}
+                    checked={nota === opcao.valor}
+                    onChange={() => {
+                      setNota(opcao.valor);
+                      // **A escolha do teclado vence a previsão do ponteiro** (foco da revisão 1).
+                      setSobre(null);
+                      formulario.mudou("nota");
+                    }}
+                    className="peer sr-only"
+                  />
+                  <span className="sr-only">{nomeDaNota(opcao.valor)}</span>
+                  <Star
+                    aria-hidden="true"
+                    className={cn(
+                      "size-7 rounded-sm transition-colors duration-(--tempo-ponteiro) ease-(--curva-ponteiro)",
+                      "peer-focus-visible:outline-marca peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2",
+                      opcao.valor <= acesa
+                        ? "fill-marca text-marca"
+                        : "text-linha group-data-invalido:text-destructive/[75%]",
+                    )}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          {/* **A palavra da nota** (A-5). `aria-hidden` porque o nome do rádio marcado já diz o mesmo, e
+              lido duas vezes seria ruído. */}
+          <span aria-hidden="true" className="text-interface text-tinta-suave">
+            {textoDaNota(nota)}
+          </span>
+        </div>
       </GrupoDeEscolha>
 
       {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
