@@ -30,6 +30,9 @@
       ],
       "@fonte/documentacao": [
         "./.source/server.ts"
+      ],
+      "@semente/*": [
+        "./semente/*"
       ]
     }
   },

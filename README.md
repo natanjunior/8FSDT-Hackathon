@@ -321,6 +321,10 @@ npm run semear:demo -- --apagar   # apaga as duas organizações inteiras
 npm run semear:demo               # e semeia de novo
 ```
 
+O `--apagar` roda contra o banco que `BANCO_URL` aponta, e imprime o host antes de começar. Ele só apaga
+organização com um desses dois nomes que tenha sido fundada por uma das duas contas abaixo; se encontrar
+outra com o mesmo nome, deixa-a intacta e diz qual é.
+
 **As duas contas de demonstração**, para o ambiente publicado em
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:
 
