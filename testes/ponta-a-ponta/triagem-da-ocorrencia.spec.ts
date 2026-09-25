@@ -301,15 +301,20 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // 4 · A foto sobe enquanto o título é digitado — o DG-5 na tela
   //
   // **Não há espera entre anexar e digitar, e a ausência é a asserção.** Se o formulário travasse durante
-  // a subida, o `fill` do título falharia por controle inerte — é o único jeito de provar o paralelismo
+  // a subida, digitar o título falharia por controle inerte — é o único jeito de provar o paralelismo
   // sem interceptar a rede, que é o que este teste recusa fazer (o transporte tem de ser real).
+  //
+  // **O título é digitado letra a letra, e a Descrição, ainda não alcançada, não acusa** (item 75).
+  // Categoria e Área já foram escolhidas; a Descrição é o campo vazio e obrigatório que sobra.
   // -------------------------------------------------------------------------
   await helena.locator("input#foto").setInputFiles({
     name: "interfone.png",
     mimeType: "image/png",
     buffer: Buffer.from(FOTO_EM_BASE64, "base64"),
   });
-  await helena.getByLabel("Título").fill(TITULO_A);
+  await helena.getByLabel("Título").pressSequentially(TITULO_A, { delay: 20 });
+  await expect(helena.getByLabel("Descrição")).not.toHaveAttribute("aria-invalid", "true");
+  await expect(helena.getByText("Descreva o que aconteceu, em uma frase.")).toHaveCount(0);
   await helena.getByLabel("Descrição").fill(DESCRICAO_A);
 
   await expect(helena.getByText("Foto pronta")).toBeVisible({ timeout: 30_000 });
