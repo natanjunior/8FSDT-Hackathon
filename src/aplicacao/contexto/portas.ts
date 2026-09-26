@@ -84,8 +84,7 @@ export interface RepositorioDePessoas {
    *
    * **O efeito é global, e a decisão é escrita** (spec §3.6): `pessoas` é tabela única, então o nome novo
    * passa a valer em todas as organizações da Pessoa **e** em toda a trilha que ela já escreveu — a
-   * trilha guarda `autor_pessoa_id` e resolve o nome na leitura. É a mesma propriedade em que a
-   * anonimização do RNF10 se apoia (`modelo` §10.1), e é por isso que congelar o nome não é opção.
+   * trilha guarda `autor_pessoa_id` e resolve o nome na leitura.
    */
   renomear(pessoaId: string, nome: string): Promise<PessoaReferencia>;
 }
