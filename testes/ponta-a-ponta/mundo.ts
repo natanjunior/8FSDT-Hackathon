@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * ============================================================================
- *  O mundo da semente de demonstração — os localizadores num módulo só
+ *  O mundo de teste da semente — os localizadores num módulo só
  * ============================================================================
  *
  * **A ADR-0012 pede exatamente isto.** Ela deixa o teste de ponta a ponta crescer por jornada, com teto
@@ -16,12 +16,15 @@ import { expect, type Locator, type Page } from "@playwright/test";
  *  Quem é dono deste mundo
  * ---------------------------------------------------------------------------
  *
- * **Ninguém daqui.** O mundo é a semente de demonstração, aplicada à mão antes da corrida:
+ * **Ninguém daqui.** O mundo é o gêmeo de teste da semente, aplicado à mão antes da corrida:
  *
- *     SENHA_DA_DEMONSTRACAO=… npm run semear:demo
+ *     SENHA_DA_DEMONSTRACAO=… npm run semear:demo -- --teste
+ *
+ * É o mesmo plano da demonstração, com outras organizações e outras contas. As corridas escreviam na
+ * demonstração, e o painel dela passava a medir o robô (item 63).
  *
  * Quem importa este módulo herda a regra da `arquitetura.md` §7.2 — **um teste acrescenta ao mundo;
- * nunca o altera**. Acrescentar é registrar ocorrência nova, com a marca do instante no título.
+ * nunca o altera**, agora sobre o gêmeo. Acrescentar é registrar ocorrência nova, com a marca do instante no título.
  * Alterar seria trocar a senha de Helena, desativar uma categoria do Recanto ou remover um vínculo: cada
  * uma dessas desarma os outros arquivos do lote. Quem precisa alterar **cria o próprio mundo**, e é o que
  * `recuperacao-de-senha.spec.ts` faz.
@@ -44,22 +47,23 @@ const SENHA_DO_AMBIENTE = process.env["SENHA_DA_DEMONSTRACAO"];
 if (SENHA_DO_AMBIENTE === undefined || SENHA_DO_AMBIENTE === "") {
   throw new Error(
     "SENHA_DA_DEMONSTRACAO não está no ambiente. Rode:\n" +
+      "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo -- --teste\n" +
       "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta\n" +
-      "É a mesma senha com que a semente de demonstração criou as duas contas (README, «A demonstração»).",
+      "É a mesma senha com que a semente criou as contas do mundo de teste (README, «A demonstração»).",
   );
 }
 
 export const SENHA: string = SENHA_DO_AMBIENTE;
 
-/** As duas contas que a semente cria. Helena tem dois vínculos; Marcos, um. */
-export const HELENA = "helena.demo@example.com";
-export const MARCOS = "marcos.demo@example.com";
+/** As duas contas que a semente cria no perfil de teste. Helena tem dois vínculos; Marcos, um. */
+export const HELENA = "helena.teste@example.com";
+export const MARCOS = "marcos.teste@example.com";
 
 export const NOME_DE_HELENA = "Helena Rocha";
 export const NOME_DE_MARCOS = "Marcos Vieira";
 
-export const AURORA = "Edifício Aurora (demonstração)";
-export const RECANTO = "Condomínio Recanto Azul (demonstração)";
+export const AURORA = "Edifício Aurora (teste)";
+export const RECANTO = "Condomínio Recanto Azul (teste)";
 
 /** A Encarregada sem conta do Aurora (`semente/plano.ts`). */
 export const ENCARREGADA_DO_AURORA = "Sônia Prado";
@@ -74,8 +78,8 @@ export const ENCARREGADA_DO_AURORA = "Sônia Prado";
 export const SOLICITANTE_DO_AURORA = "Diego Fontes";
 
 /**
- * A marca do instante — é ela que separa a ocorrência de uma corrida da das outras e das 36 da
- * demonstração. Toda asserção de lista encontra exatamente a linha dela.
+ * A marca do instante — é ela que separa a ocorrência de uma corrida da das outras e das do mundo de
+ * teste. Toda asserção de lista encontra exatamente a linha dela.
  */
 export function marcaDoInstante(): string {
   return new Date().toISOString().replace(/[:.]/gu, "-");

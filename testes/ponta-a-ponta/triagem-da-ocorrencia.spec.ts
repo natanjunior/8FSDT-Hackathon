@@ -38,14 +38,14 @@ import {
  *  O dono do mundo — exigência da ADR-0012, que a 0013 não revoga
  * ---------------------------------------------------------------------------
  *
- * **O mundo é a semente de demonstração, e este arquivo não é dono dele.** Ele **acrescenta** duas
- * ocorrências ao Edifício Aurora por corrida — a **A**, com foto, que é triada até ganhar responsável, e
- * a **C**, sem foto, que morre cancelada pela própria autora. Nada semeado muda de estado: a prioridade,
+ * **O mundo é o gêmeo de teste da semente (`semear:demo -- --teste`), e este arquivo não é dono
+ * dele.** Ele **acrescenta** duas ocorrências ao Edifício Aurora por corrida — a **A**, com foto, que é
+ * triada até ganhar responsável, e a **C**, sem foto, que morre cancelada pela própria autora. Nada semeado muda de estado: a prioridade,
  * o status e o responsável que este teste escreve são sempre os da ocorrência que ele mesmo criou.
  *
- * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e a
- * semente aplicada (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo`). O argumento inteiro está no
- * cabeçalho de `caminho-critico.spec.ts`.
+ * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e o
+ * mundo de teste semeado (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo -- --teste`). O argumento
+ * inteiro está no cabeçalho de `caminho-critico.spec.ts`.
  *
  * ---------------------------------------------------------------------------
  *  Onde o roteiro descreve um produto que não existe mais

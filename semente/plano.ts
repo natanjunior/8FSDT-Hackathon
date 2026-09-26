@@ -181,6 +181,30 @@ export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora (demonstração)";
 export const EMAIL_DE_HELENA = "helena.demo@example.com";
 export const EMAIL_DE_MARCOS = "marcos.demo@example.com";
 
+/** O que identifica um mundo: os dois nomes de organização e as duas contas que as fundam. */
+export type Perfil = {
+  /** Como as mensagens da linha de comando se referem a ele. */
+  readonly rotulo: string;
+  readonly organizacoes: Readonly<Record<ChaveDeOrganizacao, string>>;
+  readonly contas: { readonly helena: string; readonly marcos: string };
+};
+
+export const PERFIL_DA_DEMONSTRACAO: Perfil = {
+  rotulo: "a demonstração",
+  organizacoes: { a: NOME_DA_ORGANIZACAO_A, b: NOME_DA_ORGANIZACAO_B },
+  contas: { helena: EMAIL_DE_HELENA, marcos: EMAIL_DE_MARCOS },
+};
+
+/**
+ * O gêmeo dos testes de ponta a ponta (item 63): o mesmo plano, com outros nomes e outras contas, para
+ * que nenhuma corrida escreva na demonstração. Os nomes de pessoa ficam iguais de propósito.
+ */
+export const PERFIL_DE_TESTE: Perfil = {
+  rotulo: "o mundo de teste",
+  organizacoes: { a: "Condomínio Recanto Azul (teste)", b: "Edifício Aurora (teste)" },
+  contas: { helena: "helena.teste@example.com", marcos: "marcos.teste@example.com" },
+};
+
 export type OrganizacaoDoPlano = {
   readonly chave: ChaveDeOrganizacao;
   readonly nome: string;
@@ -254,6 +278,8 @@ export type OcorrenciaDoPlano = {
 
 export type PlanoDaDemonstracao = {
   readonly hoje: string;
+  /** O mundo que o plano grava: a demonstração ou o gêmeo de teste (item 63). */
+  readonly perfil: Perfil;
   readonly baldes: readonly Balde[];
   readonly organizacoes: readonly OrganizacaoDoPlano[];
   readonly pessoas: readonly PessoaDoPlano[];
@@ -266,21 +292,25 @@ export type PlanoDaDemonstracao = {
 // O mundo, literal
 // ---------------------------------------------------------------------------
 
-const ORGANIZACOES: readonly OrganizacaoDoPlano[] = [
-  { chave: "a", nome: NOME_DA_ORGANIZACAO_A, fundador: "helena" },
-  { chave: "b", nome: NOME_DA_ORGANIZACAO_B, fundador: "marcos" },
-];
+function organizacoesDo(perfil: Perfil): readonly OrganizacaoDoPlano[] {
+  return [
+    { chave: "a", nome: perfil.organizacoes.a, fundador: "helena" },
+    { chave: "b", nome: perfil.organizacoes.b, fundador: "marcos" },
+  ];
+}
 
-const PESSOAS: readonly PessoaDoPlano[] = [
-  { chave: "helena", nome: "Helena Rocha", email: EMAIL_DE_HELENA },
-  { chave: "marcos", nome: "Marcos Vieira", email: EMAIL_DE_MARCOS },
-  { chave: "beatriz", nome: "Beatriz Nunes", email: null },
-  { chave: "rafael", nome: "Rafael Antunes", email: null },
-  { chave: "claudia", nome: "Cláudia Meireles", email: null },
-  { chave: "jorge", nome: "Jorge Tavares", email: null },
-  { chave: "sonia", nome: "Sônia Prado", email: null },
-  { chave: "diego", nome: "Diego Fontes", email: null },
-];
+function pessoasDo(perfil: Perfil): readonly PessoaDoPlano[] {
+  return [
+    { chave: "helena", nome: "Helena Rocha", email: perfil.contas.helena },
+    { chave: "marcos", nome: "Marcos Vieira", email: perfil.contas.marcos },
+    { chave: "beatriz", nome: "Beatriz Nunes", email: null },
+    { chave: "rafael", nome: "Rafael Antunes", email: null },
+    { chave: "claudia", nome: "Cláudia Meireles", email: null },
+    { chave: "jorge", nome: "Jorge Tavares", email: null },
+    { chave: "sonia", nome: "Sônia Prado", email: null },
+    { chave: "diego", nome: "Diego Fontes", email: null },
+  ];
+}
 
 /**
  * As áreas que a demonstração **acrescenta**. As duas da POL-01 — `Área comum` e `Unidade` — ficam, e
@@ -859,7 +889,7 @@ function exigir<T>(valor: T | undefined, oQue: string): T {
  * **Determinístico:** duas chamadas com o mesmo `hoje` devolvem o mesmo objeto. A única variável é o
  * `hoje` — e o teste prova as duas coisas.
  */
-export function planoDaDemonstracao(hoje: Date): PlanoDaDemonstracao {
+export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMONSTRACAO): PlanoDaDemonstracao {
   const baldes = baldesDaDemonstracao(hoje);
   const porDistancia = new Map(baldes.map((balde) => [balde.distancia, balde]));
   const proximo = sorteio(SEMENTE_DO_SORTEIO);
@@ -898,9 +928,10 @@ export function planoDaDemonstracao(hoje: Date): PlanoDaDemonstracao {
 
   return {
     hoje: hoje.toISOString(),
+    perfil,
     baldes,
-    organizacoes: ORGANIZACOES,
-    pessoas: PESSOAS,
+    organizacoes: organizacoesDo(perfil),
+    pessoas: pessoasDo(perfil),
     areas: AREAS,
     vinculos: VINCULOS,
     ocorrencias,

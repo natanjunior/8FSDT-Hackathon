@@ -36,16 +36,16 @@ import {
  *  O dono do mundo — exigência da ADR-0012
  * ---------------------------------------------------------------------------
  *
- * **O mundo é a semente de demonstração, e este arquivo não é dono dele.** Ele só **acrescenta**: uma
- * ocorrência nova no Edifício Aurora por corrida, com a marca do instante no título, e as mensagens que
- * escreve dentro dela. Nada semeado muda de estado — o percurso inteiro acontece sobre a ocorrência que
+ * **O mundo é o gêmeo de teste da semente (`semear:demo -- --teste`), e este arquivo não é dono
+ * dele.** Ele só **acrescenta**: uma ocorrência nova no Edifício Aurora por corrida, com a marca do
+ * instante no título, e as mensagens que escreve dentro dela. Nada semeado muda de estado — o percurso inteiro acontece sobre a ocorrência que
  * ele mesmo criou.
  *
  * Os localizadores compartilhados moram em `mundo.ts`, que é o que a ADR-0012 cobra em troca do teto.
  *
- * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e a
- * semente aplicada (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo`). Os dois estão no cabeçalho de
- * `caminho-critico.spec.ts`, com o argumento inteiro.
+ * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e o
+ * mundo de teste semeado (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo -- --teste`). Os dois estão
+ * no cabeçalho de `caminho-critico.spec.ts`, com o argumento inteiro.
  *
  * ---------------------------------------------------------------------------
  *  O que este arquivo NÃO prova, e cada linha tem dono

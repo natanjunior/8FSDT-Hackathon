@@ -180,7 +180,7 @@ healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que n
 ```bash
 npm run verificar                   # lint + tipos + teste unitário + os verificadores de docs + o de estilo
 npm run teste:integracao            # exige Postgres — é o critério A4 (organização A não vê dado de B)
-npm run teste:ponta-a-ponta         # exige a pilha de pé E a semente de demonstração — ver abaixo
+npm run teste:ponta-a-ponta         # exige a pilha de pé E o mundo de teste semeado — ver abaixo
 ```
 
 Cada peça, separada:
@@ -206,13 +206,14 @@ mesmo banco onde você trabalha, porque a suíte derruba e recria as tabelas a c
 
 O teste de ponta a ponta tem dois pré-requisitos, e eles não são automatizados de propósito. Ele não
 sobe a pilha (o `playwright.config.ts` não tem `webServer`: a pilha não é um processo, e duplicar o
-procedimento desta página seria uma segunda cópia que diverge) e não semeia (a semente **recusa** quando a
-demonstração já existe). Antes da primeira execução:
+procedimento desta página seria uma segunda cópia que diverge) e não semeia (a semente **recusa** quando o
+mundo já existe). O teste usa um mundo próprio, gêmeo da demonstração, com outras organizações e outras
+contas, para que nenhuma corrida mude o que a demonstração mostra. Antes da primeira execução:
 
 ```bash
 npx playwright install chromium                              # uma vez por máquina
 npm run local                                                # a pilha, em outro terminal
-SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo     # o mundo
+SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo -- --teste   # o mundo de teste
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
 ```
 
@@ -223,13 +224,13 @@ PowerShell lê `SENHA_DA_DEMONSTRACAO=ResolveAi!2026` como nome de comando. Lá 
 npx playwright install chromium
 npm run local
 $env:SENHA_DA_DEMONSTRACAO = 'ResolveAi!2026'   # vale para a sessão inteira do terminal
-npm run semear:demo
+npm run semear:demo -- --teste                  # o mundo de teste
 npm run teste:ponta-a-ponta
 ```
 
-Ele **acrescenta** uma ocorrência ao `Edifício Aurora (demonstração)`, com a marca do instante no título,
-e não altera nada do que a semente escreveu. Rodar duas vezes cria duas ocorrências marcadas e nada
-quebra; `npm run semear:demo -- --apagar` limpa tudo. Numa falha, o rastro, a imagem e o vídeo ficam em
+Ele **acrescenta** ocorrências às organizações do mundo de teste, com a marca do instante no título, e
+não toca a demonstração. Rodar duas vezes cria mais ocorrências marcadas e nada quebra;
+`npm run semear:demo -- --teste --apagar` limpa o mundo de teste. Numa falha, o rastro, a imagem e o vídeo ficam em
 `test-results/` e o relatório em `playwright-report/`, os dois fora do git, e o rastro se abre com
 `npx playwright show-trace <caminho>`.
 
