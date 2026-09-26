@@ -6,8 +6,7 @@ import { armazenamentoDeAnexos, comContexto, lerVarianteDaUrl, resposta } from "
  *
  * **Nunca bytes.** Fazer proxy devolveria o custo de *streaming* que a decisão de upload evitou — e agora
  * em toda leitura, não só na escrita (contrato §10.4). E nenhuma URL de storage aparece em payload
- * nenhum: ela muda a cada resposta, o service worker nunca acertaria o cache, e a credencial ficaria em
- * log e em histórico.
+ * nenhum: ela muda a cada resposta, e a credencial ficaria em log e em histórico.
  *
  * **A autorização acontece AQUI, a cada leitura** — é a ocorrência que decide quem vê, nunca a posse de um
  * link. Quem não alcança recebe `404`, idêntico ao de inexistente (§6.3).

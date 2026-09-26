@@ -92,7 +92,7 @@ O detalhe do modelo está em [Domínio e regras](dominio.md).
 | Tecnologia | O requisito que a justifica |
 |---|---|
 | Next.js com TypeScript | interface e API na mesma entrega, sem CORS nem tipos duplicados entre as duas |
-| Aplicação instalável, com service worker | o registro em menos de um minuto pelo celular, que depende de a aplicação abrir do atalho e resistir a rede ruim |
+| Aplicação instalável | o registro em menos de um minuto pelo celular, que depende de a aplicação abrir do atalho na tela inicial |
 | Rotas de API próprias, em Next.js | as APIs são entregável, e o mesmo servidor as serve à interface |
 | Supabase PostgreSQL | a auditabilidade exige gravar a transição e o registro na mesma transação |
 | Supabase Auth | contas e sessões são problema resolvido por terceiros, comprado em vez de construído |
