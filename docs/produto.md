@@ -132,4 +132,4 @@ cumprida.
 | Registro pelo celular | Menos de 1 minuto do toque no atalho à confirmação, com foto |
 | Imagem | Uma por ocorrência, comprimida no próprio aparelho para no máximo 400 KB |
 | Retenção | O histórico não expira |
-| Dados pessoais | Foto e localização ficam dentro da organização, e excluir a conta preserva a trilha com o autor anonimizado |
+| Dados pessoais | Foto e localização ficam dentro da organização |

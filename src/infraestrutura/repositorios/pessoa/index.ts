@@ -5,7 +5,7 @@ import type { Consulta } from "@/infraestrutura/clientes";
  * Implementa a porta `RepositorioDePessoas`.
  *
  * **Devolve `PessoaReferencia` — objeto de leitura declarado —, nunca a linha de `pessoas`** (ADR-0005,
- * parte 3). A coluna `anonimizada_em` existe e não sai daqui; `criado_em` e `atualizado_em` também não.
+ * parte 3). `criado_em` e `atualizado_em` existem e não saem daqui.
  * A porta pede identificador e nome, e é isso que ela recebe.
  *
  * `pessoas` é **tabela global** (modelo §4.1): não tem `organizacao_id`, e portanto não há escopo a

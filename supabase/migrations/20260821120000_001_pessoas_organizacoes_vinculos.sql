@@ -52,8 +52,9 @@ comment on type papel_vinculo is
 -- ----------------------------------------------------------------------------
 -- `pessoas` — o agregado `Pessoa` · GLOBAL (modelo §6.2)
 --
--- Quatro colunas e dois relógios. `pessoas` guarda como a pessoa é chamada, se
--- ela consegue entrar, e se foi anonimizada. Nada mais (§6.2.1).
+-- Quatro colunas e dois relógios. `pessoas` guarda como a pessoa é chamada e se
+-- ela consegue entrar. Nada mais (§6.2.1). A quarta coluna, `anonimizada_em`,
+-- sai na 014 sem nunca ter sido escrita.
 --
 -- **Tabela global: não tem `organizacao_id`, e portanto não há filtro que o
 -- repositório possa aplicar nela.** É por isso que nenhuma listagem parte
@@ -82,12 +83,8 @@ create table pessoas (
   constraint pessoas_usuario_fk
     foreign key (usuario_id) references auth.users (id) on delete set null,
 
-  -- Pessoa anonimizada não tem conta. Este CHECK **encolheu** em 22/08/2026,
-  -- quando o contato saiu daqui para a tabela `contatos`: ele garantia, numa
-  -- linha só, que Pessoa anonimizada não carregava contato, e CHECK no
-  -- PostgreSQL só vê a própria linha. O rebaixamento está declarado no §6.2 do
-  -- modelo, e a garantia é reconstruída no comando de anonimização e num
-  -- gatilho sobre `contatos` — nenhum dos dois nesta fatia.
+  -- Pessoa anonimizada não tem conta. Este CHECK e a coluna que ele restringe
+  -- saem na 014: nenhum código escreveu `anonimizada_em`.
   constraint pessoas_anonimizada_sem_conta_ck
     check (anonimizada_em is null or usuario_id is null)
 );

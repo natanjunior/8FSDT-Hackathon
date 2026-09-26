@@ -157,8 +157,7 @@ paths:
         **O efeito é global e declarado:** `pessoas` é tabela única, então o nome novo passa a valer em
         **todas** as organizações da Pessoa. A trilha de auditoria guarda `autor_pessoa_id` e resolve o
         nome na leitura, então transições antigas passam a ser lidas com o nome de agora — quem lê a
-        trilha vê **quem** agiu, não como essa pessoa se chamava na época. É a mesma propriedade em que a
-        anonimização do RNF10 se apoia, e congelar o nome a quebraria.
+        trilha vê **quem** agiu, não como essa pessoa se chamava na época.
 
         **Sem `403`:** permissão é atributo do Vínculo, e este endpoint roda sem vínculo. **Sem `404`:** a
         Pessoa é a da sessão. **Sem `409`:** não há unicidade sobre `nome`.
@@ -3683,8 +3682,7 @@ components:
           description: |
             O nome do arquivo enviado, se houver. Para foto costuma ser ruído
             (`IMG_20260821_143022.jpg`); para documento é a única etiqueta humana que o arquivo tem.
-            **Pode conter dado pessoal escrito por quem enviou, e a anonimização não o alcança** — entra na
-            mesma lista de texto livre não varrido do PA-05.
+            **Pode conter dado pessoal escrito por quem enviou.**
         miniaturaUrl:
           type: [string, "null"]
           description: |
