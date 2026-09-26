@@ -27,13 +27,13 @@ leitura sem rede para quem executa o trabalho em subsolo, e registro em menos de
 
 ## Decisão
 
-Next.js como aplicação única, com TypeScript, aplicação instalável para a leitura sem rede, rotas de API
-próprias, e Supabase como plataforma de dados.
+Next.js como aplicação única, com TypeScript, aplicação instalável para o registro rápido pelo celular,
+rotas de API próprias, e Supabase como plataforma de dados.
 
 | Peça | Escolha | Por quê |
 |---|---|---|
 | Aplicação | Next.js com TypeScript | uma entrega só, sem CORS nem tipos duplicados entre interface e API |
-| Instalação no aparelho | service worker | atende o uso em rede ruim sem desenvolvimento móvel nativo |
+| Instalação no aparelho | manifesto de aplicação web | põe o atalho na tela inicial do aparelho sem desenvolvimento móvel nativo |
 | APIs | rotas próprias | as APIs são entregável, e são o que a aplicação instalada consome |
 | Banco e contas | Supabase | PostgreSQL gerenciado na franquia gratuita, com autenticação pronta |
 | Ambiente local | Docker, com a aplicação dentro | a conteinerização exigida vale para a aplicação, e não só para as dependências |
@@ -50,7 +50,7 @@ aplicação. É o que a [ADR-0005](0005-regra-de-dependencia-por-inversao.md) tr
 | API em NestJS com interface em Angular | Separação mais canônica, e Angular é o terreno profissional de quem implementa. Custa duas aplicações, dois deploys, dois pipelines, CORS e tipos duplicados. O argumento que a justificaria é trabalho paralelo de time, que não existe aqui |
 | Spring Boot com Angular | Máximo alinhamento com o dia a dia de quem implementa, e o custo de publicação é o mais penoso: Java em franquia gratuita é o pior em memória e em partida a frio |
 | Supabase como plataforma de serviços, com a regra no banco | Caminho mais curto até funcionar, e poria a máquina de estados em SQL, contra a ADR-0001. A [ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) detalha o descarte |
-| Aplicativo nativo para quem executa o trabalho | Resolveria o uso sem rede melhor, ao custo de uma segunda base de código e uma segunda esteira |
+| Aplicativo nativo para quem executa o trabalho | Resolveria o uso sem rede, ao custo de uma segunda base de código e uma segunda esteira |
 | Armazenamento de imagem em outro provedor | Franquia generosa, e um serviço, uma credencial e um fluxo a mais. Com a compressão no aparelho, o volume cabe onde já está |
 
 ## Consequências
@@ -58,7 +58,7 @@ aplicação. É o que a [ADR-0005](0005-regra-de-dependencia-por-inversao.md) tr
 **O que se ganha**
 
 - Uma entrega, uma esteira, uma linguagem, o que pesa muito com um implementador.
-- A aplicação instalável cobre o uso em rede ruim e ajuda o registro rápido pelo celular.
+- A aplicação instalável abre do atalho na tela inicial e ajuda o registro rápido pelo celular.
 - A compressão de imagem no aparelho atende ao mesmo tempo o armazenamento e o tempo de registro.
 
 **O que custa**
