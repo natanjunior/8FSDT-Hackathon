@@ -6,7 +6,11 @@ import { describe, expect, it } from "vitest";
 import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
 import { COR_DA_MARCA } from "@/interface/manifesto";
 import {
+  aplicarContraste,
   atributoDoTema,
+  contrasteDoAtributo,
+  contrasteDoCookie,
+  cookieDoContraste,
   cookieDoTema,
   SCRIPT_DO_TEMA,
   temaDoAtributo,
@@ -663,5 +667,83 @@ describe("o tema do produto — item 72", () => {
     // Sem `Secure`: o Chromium o descarta sobre `http://` em host que não é loopback (achado A-10).
     expect(gravado.toLowerCase()).not.toContain("secure");
     expect(temaDoCookie(cookieDoTema("escuro").split(";")[0] ?? "")).toBe("escuro");
+  });
+});
+
+/**
+ * **Item 85 — a chave de alto contraste, pelo mesmo caminho do tema.**
+ *
+ * As mesmas duas cópias da regra, e a mesma tabela aplicada às duas: `contrasteDoCookie` roda no
+ * componente, e o `SCRIPT_DO_TEMA` roda antes do React. Só `alto`, exato, liga.
+ */
+describe("o contraste do produto — item 85", () => {
+  const CASOS: ReadonlyArray<[string, "alto" | "normal"]> = [
+    ["", "normal"],
+    ["contraste=alto", "alto"],
+    ["contraste=normal", "normal"],
+    ["tema=claro; contraste=alto", "alto"],
+    ["contraste=alto; tema=claro", "alto"],
+    ["xcontraste=alto", "normal"],
+    ["contraste=ALTO", "normal"],
+    ["contraste=alto2", "normal"],
+    ["contraste=", "normal"],
+  ];
+
+  /** Roda o script e devolve os dois atributos que ficaram no `<html>`. */
+  function rodarOScript(cookie: string | (() => never)): { tema: string; contraste: string | null } {
+    const atributos = new Map<string, string>([["data-theme", "dark"]]);
+    const documento = {
+      get cookie() {
+        return typeof cookie === "function" ? cookie() : cookie;
+      },
+      documentElement: {
+        setAttribute(nome: string, valor: string) {
+          atributos.set(nome, valor);
+        },
+      },
+    };
+    new Function("document", SCRIPT_DO_TEMA)(documento);
+    return { tema: atributos.get("data-theme") ?? "", contraste: atributos.get("data-contraste") ?? null };
+  }
+
+  it.each(CASOS)("o cookie «%s» dá contraste %s, na função e no script", (cookie, esperado) => {
+    expect(contrasteDoCookie(cookie)).toBe(esperado);
+    expect(rodarOScript(cookie).contraste).toBe(esperado === "alto" ? "alto" : null);
+  });
+
+  it("o contraste não mexe no tema, e o tema não mexe no contraste", () => {
+    expect(rodarOScript("tema=claro; contraste=alto")).toEqual({ tema: "light", contraste: "alto" });
+    expect(rodarOScript("tema=claro")).toEqual({ tema: "light", contraste: null });
+    expect(rodarOScript("contraste=alto")).toEqual({ tema: "dark", contraste: "alto" });
+  });
+
+  it("o script não quebra com o cookie inacessível, e deixa escuro e normal", () => {
+    expect(
+      rodarOScript(() => {
+        throw new Error("SecurityError");
+      }),
+    ).toEqual({ tema: "dark", contraste: null });
+  });
+
+  it("o atributo volta a contraste, e só `alto` é alto", () => {
+    expect(contrasteDoAtributo("alto")).toBe("alto");
+    expect(contrasteDoAtributo(null)).toBe("normal");
+    expect(contrasteDoAtributo("")).toBe("normal");
+  });
+
+  it("aplicar põe o atributo quando alto e o tira quando normal", () => {
+    const feitos: string[] = [];
+    const raiz = {
+      setAttribute: (nome: string, valor: string) => feitos.push(`set ${nome}=${valor}`),
+      removeAttribute: (nome: string) => feitos.push(`remove ${nome}`),
+    };
+    aplicarContraste(raiz, "alto");
+    aplicarContraste(raiz, "normal");
+    expect(feitos).toEqual(["set data-contraste=alto", "remove data-contraste"]);
+  });
+
+  it("o cookie gravado segue o do tema: um ano, o site todo, sem `Secure`", () => {
+    expect(cookieDoContraste("alto")).toBe("contraste=alto; path=/; max-age=31536000; samesite=lax");
+    expect(contrasteDoCookie(cookieDoContraste("normal").split(";")[0] ?? "")).toBe("normal");
   });
 });
