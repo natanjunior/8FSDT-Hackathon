@@ -267,6 +267,7 @@ export const FALHA = {
   aprovar: "Não foi possível aprovar o pedido",
   recusar: "Não foi possível recusar o pedido",
   remover: "Não foi possível remover o vínculo",
+  encerrar: "Não foi possível encerrar o acesso",
   cadastrar: "Não foi possível cadastrar a pessoa",
   salvar: "Não foi possível salvar os dados",
 } as const;
@@ -284,6 +285,11 @@ export function avisoDeRecusado(nome: string): AvisoDeConclusao {
 
 export function avisoDeRemovido(nome: string): AvisoDeConclusao {
   return { titulo: `Vínculo de ${nome} removido`, descricao: "O cadastro da pessoa não é apagado." };
+}
+
+/** O aviso de sucesso de encerrar o acesso (item 84). A descrição diz o que ficou, e é o item inteiro. */
+export function avisoDeAcessoEncerrado(nome: string): AvisoDeConclusao {
+  return { titulo: `O acesso de ${nome} foi encerrado`, descricao: "As ocorrências e o nome na trilha continuam." };
 }
 
 export function avisoDeCadastrado(nome: string, papel: string): AvisoDeConclusao {

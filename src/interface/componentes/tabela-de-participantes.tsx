@@ -114,6 +114,7 @@ export function TabelaDeParticipantes({
   pedidos,
   vinculos,
   impedimentos,
+  responsabilidades,
   areas,
   organizacaoId,
   euPessoaId,
@@ -122,6 +123,8 @@ export function TabelaDeParticipantes({
   vinculos: readonly VinculoProjetado[];
   /** Por `pessoaId`. **Chave ausente é *pode sair***. */
   impedimentos: Readonly<Record<string, ImpedimentoNaTela>>;
+  /** Por `pessoaId`, quantas ocorrências em aberto a pessoa tem como responsável. **Ausente é zero.** */
+  responsabilidades: Readonly<Record<string, number>>;
   areas: ReadonlyArray<{ id: string; nome: string }>;
   organizacaoId: string;
   euPessoaId: string;
@@ -164,7 +167,7 @@ export function TabelaDeParticipantes({
     if (endereco.pagina !== 1) window.history.replaceState(null, "", enderecoDe(naPagina(endereco, 1)));
   }
 
-  const acoes = { areas, organizacaoId, aoSair: focarFiltro };
+  const acoes = { areas, organizacaoId, responsabilidades, aoSair: focarFiltro };
   const vazio = VAZIO_DO_FILTRO[endereco.filtro];
 
   return (
@@ -450,12 +453,14 @@ function AcoesDaLinha({
   idDoNome,
   areas,
   organizacaoId,
+  responsabilidades,
   aoSair,
 }: {
   linha: LinhaDeParticipante;
   idDoNome: string;
   areas: ReadonlyArray<{ id: string; nome: string }>;
   organizacaoId: string;
+  responsabilidades: Readonly<Record<string, number>>;
   aoSair: () => void;
 }) {
   if (linha.tipo === "pedido") {
@@ -481,6 +486,7 @@ function AcoesDaLinha({
         nome={linha.nome}
         temConta={linha.vinculo.temConta}
         impedimento={linha.impedimento}
+        responsavelEmAberto={responsabilidades[linha.vinculo.pessoa.pessoaId] ?? 0}
         organizacaoId={organizacaoId}
         ehMeuProprioVinculo={linha.ehVoce}
         descritoPor={idDoNome}
