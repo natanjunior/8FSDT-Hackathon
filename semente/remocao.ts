@@ -1,11 +1,6 @@
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 
-import {
-  EMAIL_DE_HELENA,
-  EMAIL_DE_MARCOS,
-  NOME_DA_ORGANIZACAO_A,
-  NOME_DA_ORGANIZACAO_B,
-} from "./plano";
+import { PERFIL_DA_DEMONSTRACAO, reconhecimentoDo } from "./plano";
 
 /**
  * ============================================================================
@@ -27,7 +22,7 @@ import {
  * **A demonstração é reconhecida por nome E autoria** (item 74). Um dos dois nomes basta para ser
  * candidata; ser fundada por uma das duas contas da demonstração é o que a torna da demonstração. O nome
  * sozinho não serve: `organizacoes.nome` não é único e o cadastro é público, então qualquer pessoa pode
- * fundar uma `Edifício Aurora (demonstração)`. A que tem o nome e outra autoria é **homônima**: a remoção
+ * fundar um `Edifício Aurora`. A que tem o nome e outra autoria é **homônima**: a remoção
  * não a toca e a devolve nomeada, e a semeadura recusa escrever ao lado dela.
  */
 
@@ -45,14 +40,13 @@ export type Reconhecimento = {
   readonly homonimas: readonly OrganizacaoEncontrada[];
 };
 
-/** Os dois nomes do critério 43.5. Metade da identificação; a outra metade é a autoria. */
-export const NOMES_DA_DEMONSTRACAO: readonly string[] = [
-  NOME_DA_ORGANIZACAO_A,
-  NOME_DA_ORGANIZACAO_B,
-];
+const RECONHECIMENTO_DA_DEMONSTRACAO = reconhecimentoDo(PERFIL_DA_DEMONSTRACAO);
 
-/** As duas contas que fundam a demonstração (`plano.ts`, Recanto Azul por Helena e Aurora por Marcos). */
-export const EMAILS_DA_DEMONSTRACAO: readonly string[] = [EMAIL_DE_HELENA, EMAIL_DE_MARCOS];
+/** Os nomes da demonstração, os de hoje e os que ela já teve (item 77). Metade da identificação; a outra é a autoria. */
+export const NOMES_DA_DEMONSTRACAO: readonly string[] = RECONHECIMENTO_DA_DEMONSTRACAO.nomes;
+
+/** As contas que fundam a demonstração, as de hoje e as que a fundaram antes (item 77). */
+export const EMAILS_DA_DEMONSTRACAO: readonly string[] = RECONHECIMENTO_DA_DEMONSTRACAO.emails;
 
 /**
  * As tabelas escopadas, **em ordem de dependência**.
@@ -149,14 +143,16 @@ export function hostDoBanco(url: string | undefined): string {
  * É o que a linha de comando usa para **recusar antes de escrever**: sem esta pergunta, uma execução
  * distraída faz nascer a terceira e a quarta organização de demonstração.
  *
- * `emails` existe para o teste de integração, que não pode usar as contas reais da demonstração:
- * `auth.users` não é derrubada entre execuções. A linha de comando usa o padrão.
+ * `emails` e `nomes` são o perfil do mundo a reconhecer. A linha de comando os passa a partir do perfil
+ * escolhido, a demonstração ou o gêmeo de teste (item 63). O teste de integração passa e-mails próprios,
+ * porque `auth.users` não é derrubada entre execuções e as contas reais da demonstração existem no local.
  */
 export async function organizacoesDaDemonstracao(
   emails: readonly string[] = EMAILS_DA_DEMONSTRACAO,
+  nomes: readonly string[] = NOMES_DA_DEMONSTRACAO,
 ): Promise<Reconhecimento> {
   const consulta = criarConsulta();
-  return separar(await consulta<LinhaReconhecida>(RECONHECER, [[...NOMES_DA_DEMONSTRACAO], [...emails]]));
+  return separar(await consulta<LinhaReconhecida>(RECONHECER, [[...nomes], [...emails]]));
 }
 
 /**
@@ -193,6 +189,7 @@ export async function organizacoesDaDemonstracao(
  */
 export async function apagarADemonstracao(
   emails: readonly string[] = EMAILS_DA_DEMONSTRACAO,
+  nomes: readonly string[] = NOMES_DA_DEMONSTRACAO,
 ): Promise<{ organizacoes: number; pessoas: number; homonimas: readonly OrganizacaoEncontrada[] }> {
   const emTransacao = criarTransacao();
 
@@ -200,7 +197,7 @@ export async function apagarADemonstracao(
     await executar(`select set_config('resolveai.remocao_da_demonstracao', 'sim', true)`);
 
     const { daDemonstracao, homonimas } = separar(
-      await executar<LinhaReconhecida>(RECONHECER, [[...NOMES_DA_DEMONSTRACAO], [...emails]]),
+      await executar<LinhaReconhecida>(RECONHECER, [[...nomes], [...emails]]),
     );
     if (daDemonstracao.length === 0) return { organizacoes: 0, pessoas: 0, homonimas };
 

@@ -33,8 +33,6 @@ import {
 import { PERMISSOES_POR_PAPEL } from "@/dominio/organizacao";
 
 import {
-  EMAIL_DE_HELENA,
-  EMAIL_DE_MARCOS,
   type ChaveDeOrganizacao,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
@@ -52,10 +50,6 @@ import {
  * **O que este arquivo NÃO faz:** decidir o mundo. Ele executa o que `plano.ts` descreve — e por isso o
  * teste do plano prova os critérios sem banco, e este arquivo só pode errar a tradução.
  */
-
-/** O texto da mensagem das seis ocorrências do mês corrente (decisão D-3). */
-const TEXTO_DA_MENSAGEM =
-  "Registrado. Qualquer novidade, escreva aqui na ocorrência que a gente acompanha por este canal.";
 
 /**
  * A sessão de uma conta, em memória, viva só durante a execução.
@@ -193,8 +187,8 @@ export async function semear(
   senha: string,
 ): Promise<ResumoDaSemeadura> {
   // 1 · As duas contas. Cada uma com o próprio armazenamento de cookies.
-  const helena = await garantirConta("Helena Rocha", EMAIL_DE_HELENA, senha);
-  const marcos = await garantirConta("Marcos Vieira", EMAIL_DE_MARCOS, senha);
+  const helena = await garantirConta("Helena Rocha", plano.perfil.contas.helena, senha);
+  const marcos = await garantirConta("Marcos Vieira", plano.perfil.contas.marcos, senha);
 
   const pessoas = new Map<string, string>([
     ["helena", helena.pessoaId],
@@ -376,7 +370,7 @@ export async function semear(
 
     await executarRoteiro(portas.ocorrencias, ocorrencia, lida.id, idDePessoa, permissoesDe);
 
-    if (ocorrencia.recebeMensagem) {
+    if (ocorrencia.mensagem !== null) {
       // **Sem instante, e é o achado F-1 do plano.** `enviarComentario` lê o próprio relógio, então só as
       // ocorrências do mês corrente recebem mensagem — nelas, "agora" é a coisa certa.
       const gestor = ocorrencia.organizacao === "a" ? "helena" : "marcos";
@@ -384,7 +378,7 @@ export async function semear(
         portas.ocorrencias,
         lida.id,
         { pessoaId: idDePessoa(gestor), podeLerTodas: true },
-        { texto: TEXTO_DA_MENSAGEM },
+        { texto: ocorrencia.mensagem },
       );
       contagem.mensagens += 1;
     }
@@ -597,8 +591,8 @@ function montarResumo(
     porStatus: contagem.porStatus,
     porMotivoDePausa: contagem.porMotivoDePausa,
     contas: [
-      { email: EMAIL_DE_HELENA, onde: "Gestora em A, Solicitante em B" },
-      { email: EMAIL_DE_MARCOS, onde: "Gestor em B" },
+      { email: plano.perfil.contas.helena, onde: "Gestora em A, Solicitante em B" },
+      { email: plano.perfil.contas.marcos, onde: "Gestor em B" },
     ],
     mensagens: contagem.mensagens,
   };

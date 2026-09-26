@@ -605,9 +605,10 @@ function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) 
  * O quadro 7 — **a média, o denominador e as cinco notas.** O denominador aparece ao lado da média,
  * sempre (critério 34.3): sem ele a média mente quando poucos avaliam. A taxa de resposta é texto.
  *
- * **Sem nenhuma avaliação, o número é `—` e a frase é literal** (critério 34.2), nunca `0` — um zero
- * diria que as pessoas avaliaram mal. **As cinco barras ficam, a zero**, pela razão de 32.3: a estrutura
- * ensina o que vai ser medido. Nota 5 em cima, como quem lê espera.
+ * **Sem nenhuma avaliação, o número é `—`, nunca `0`** (critério 34.2): um zero diria que as pessoas
+ * avaliaram mal. **E a frase ao lado continua trazendo o denominador** — ela diz quantas resolvidas o
+ * período tem e que nenhuma foi avaliada, o que é do item 81. **As cinco barras ficam, a zero**, pela
+ * razão de 32.3: a estrutura ensina o que vai ser medido. Nota 5 em cima, como quem lê espera.
  */
 function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
   const avaliacoes = dashboard.mediaDasAvaliacoes;

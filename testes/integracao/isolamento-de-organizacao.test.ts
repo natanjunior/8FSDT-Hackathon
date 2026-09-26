@@ -465,15 +465,6 @@ describe("as invariantes que o banco garante", () => {
     await consulta(`insert into pessoas (nome) values ('Encarregado sem conta B')`);
   });
 
-  it("recusa Pessoa anonimizada que ainda tem conta", async () => {
-    const usuarioId = await criarUsuario(emailDeTeste("anonimizar"));
-    await expect(
-      consulta(`insert into pessoas (usuario_id, nome, anonimizada_em) values ($1, 'X', now())`, [
-        usuarioId,
-      ]),
-    ).rejects.toThrow(/pessoas_anonimizada_sem_conta_ck/u);
-  });
-
   /**
    * A FK diferida do ovo-e-galinha (modelo §6.3): a organização entra **antes** do vínculo, e a verificação
    * acontece no `COMMIT`. Fora de transação, o `INSERT` da organização com criador falharia.

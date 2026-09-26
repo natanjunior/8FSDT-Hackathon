@@ -1,5 +1,5 @@
 import { semear, type ResumoDaSemeadura } from "./mundo";
-import { planoDaDemonstracao } from "./plano";
+import { PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE, planoDaDemonstracao, reconhecimentoDo } from "./plano";
 import {
   apagarADemonstracao,
   hostDoBanco,
@@ -12,6 +12,10 @@ import {
  *  `npm run semear:demo` — e `npm run semear:demo -- --apagar`
  * ============================================================================
  *
+ * **`--teste` troca o mundo e nada mais.** Semeia (ou, com `--apagar`, apaga) o gêmeo que só os testes de
+ * ponta a ponta usam: o mesmo plano, com outras organizações e outras contas (item 63). A recusa, a
+ * remoção e o resumo são os mesmos para os dois.
+ *
  * **Operação manual, uma vez por ambiente.** Ela não entra em pipeline nenhum: um passo que semeia dado
  * de demonstração a cada push é como se perde o controle do que existe no banco publicado (spec §5).
  */
@@ -19,21 +23,29 @@ import {
 const LARGURA_DO_NOME = 42;
 const LARGURA_DO_CODIGO = 14;
 
+const perfil = process.argv.includes("--teste") ? PERFIL_DE_TESTE : PERFIL_DA_DEMONSTRACAO;
+// Os de hoje e os anteriores (item 77): a recusa e o `--apagar` reconhecem o mundo pelos dois.
+const { nomes, emails } = reconhecimentoDo(perfil);
+/** O rótulo como sujeito da frase: "A demonstração", "O mundo de teste". */
+const ROTULO = perfil.rotulo.charAt(0).toUpperCase() + perfil.rotulo.slice(1);
+const APAGAR =
+  perfil === PERFIL_DE_TESTE ? "npm run semear:demo -- --teste --apagar" : "npm run semear:demo -- --apagar";
+
 async function principal(): Promise<number> {
   if (process.argv.includes("--apagar")) {
     // **A primeira linha é o banco.** Um `BANCO_URL` errado no shell aparece antes de qualquer `delete`.
     console.log(`Banco: ${hostDoBanco(process.env.BANCO_URL)}`);
 
-    const { organizacoes, pessoas, homonimas } = await apagarADemonstracao();
+    const { organizacoes, pessoas, homonimas } = await apagarADemonstracao(emails, nomes);
     console.log(
       organizacoes === 0
-        ? "Nenhuma organização de demonstração encontrada. Nada a apagar."
+        ? `${ROTULO} não tem organização neste banco. Nada a apagar.`
         : `Apagadas ${String(organizacoes)} organizações e ${String(pessoas)} pessoas sem conta. ` +
             "As duas contas de acesso continuam existindo, e a próxima semeadura as reaproveita.",
     );
     if (homonimas.length > 0) {
       console.log(
-        "Ficaram de fora, porque têm o nome da demonstração e não foram fundadas pelas contas dela:\n" +
+        `Ficaram de fora, porque têm um nome de ${perfil.rotulo} e não foram fundadas pelas contas desse mundo:\n` +
           listar(homonimas),
       );
     }
@@ -54,12 +66,12 @@ async function principal(): Promise<number> {
 
   // **A recusa vem ANTES de qualquer escrita.** É o que impede a terceira e a quarta organização de
   // demonstração de nascerem numa execução distraída (critério 43.5).
-  const { daDemonstracao, homonimas } = await organizacoesDaDemonstracao();
+  const { daDemonstracao, homonimas } = await organizacoesDaDemonstracao(emails, nomes);
 
   // **O homônimo recusa primeiro**, porque o `--apagar` não o resolve: ele não é da demonstração.
   if (homonimas.length > 0) {
     console.error(
-      "Há organização com o nome da demonstração que não foi fundada pelas contas dela:\n" +
+      `Há organização com um nome de ${perfil.rotulo} que não foi fundada pelas contas desse mundo:\n` +
         listar(homonimas) +
         "\nA semente não escreve ao lado de um homônimo, e o `--apagar` não o apaga. " +
         "Resolva essa organização por fora e rode de novo.",
@@ -69,15 +81,15 @@ async function principal(): Promise<number> {
 
   if (daDemonstracao.length > 0) {
     console.error(
-      "A demonstração já existe neste banco:\n" +
+      `${ROTULO} já existe neste banco:\n` +
         listar(daDemonstracao) +
-        "\nRode `npm run semear:demo -- --apagar` e semeie de novo.",
+        `\nRode \`${APAGAR}\` e semeie de novo.`,
     );
     return 1;
   }
 
   // **O único relógio do programa.** Daqui para baixo, todo instante vem do plano.
-  const resumo = await semear(planoDaDemonstracao(new Date()), senha);
+  const resumo = await semear(planoDaDemonstracao(new Date(), perfil), senha);
   imprimirResumo(resumo);
   return 0;
 }

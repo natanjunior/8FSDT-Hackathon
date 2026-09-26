@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
+import { AURORA, ENCARREGADA_DO_AURORA, HELENA, MARCOS, RECANTO, SENHA } from "./mundo";
 
 /**
  * ============================================================================
@@ -23,19 +24,20 @@ import { cobre } from "./cobertura";
  * 1. **A pilha de pé** — `npm run local` (README). Não há `webServer` no `playwright.config.ts`: a pilha
  *    não é um processo, e duplicá-la ali seria uma segunda cópia do procedimento do README que diverge no
  *    primeiro ajuste.
- * 2. **A semente de demonstração aplicada** — `SENHA_DA_DEMONSTRACAO=… npm run semear:demo`. Um
- *    `globalSetup` que a rodasse acrescentaria minutos e **falharia por desenho** quando a demonstração
- *    já existisse (*"a semente recusa quando a demonstração já existe"*, README `:164`).
+ * 2. **O mundo de teste semeado** — `SENHA_DA_DEMONSTRACAO=… npm run semear:demo -- --teste`. Um
+ *    `globalSetup` que o semeasse acrescentaria minutos e **falharia por desenho** quando o mundo de
+ *    teste já existisse (*"a semente recusa quando a demonstração já existe"*, README `:164`).
  *
  * ---------------------------------------------------------------------------
- *  O mundo é o da semente, e este teste só ACRESCENTA
+ *  O mundo é o gêmeo de teste da semente, e este teste só ACRESCENTA
  * ---------------------------------------------------------------------------
  *
- * A regra é a da `arquitetura.md` §7.2: **um teste pode acrescentar ao mundo; nunca alterá-lo.** Ele
- * acrescenta **uma** ocorrência ao Edifício Aurora e não toca em nada semeado. O título carrega a marca
- * do instante da execução, para que toda asserção de lista encontre exatamente a linha dela e nunca uma
- * das 36 da demonstração. Rodar duas vezes cria duas ocorrências marcadas e nada quebra;
- * `npm run semear:demo -- --apagar` limpa tudo.
+ * O gêmeo é o mesmo plano da demonstração, com outras organizações e outras contas, e as identidades
+ * dele moram em `mundo.ts` (item 63). A regra é a da `arquitetura.md` §7.2: **um teste pode acrescentar
+ * ao mundo; nunca alterá-lo.** Ele acrescenta **uma** ocorrência ao Edifício Aurora do mundo de teste e
+ * não toca em nada semeado. O título carrega a marca do instante da execução, para que toda asserção de
+ * lista encontre exatamente a linha dela e nunca uma das do mundo de teste. Rodar duas vezes cria duas
+ * ocorrências marcadas e nada quebra; `npm run semear:demo -- --teste --apagar` limpa tudo.
  *
  * **As contas são de verdade** — criadas por `criarConta`, pelos mesmos caminhos do produto
  * (`semente/mundo.ts:146-160`). É o único lugar do repositório onde existe credencial real com senha
@@ -56,26 +58,7 @@ import { cobre } from "./cobertura";
  * outro lugar há índice de posição.
  */
 
-/**
- * **Falha na carga do arquivo, com o comando exato.** Sem isto, a senha ausente apareceria como
- * *"E-mail ou senha incorretos."* na tela de login — indistinguível de defeito de produto.
- */
-const SENHA = process.env["SENHA_DA_DEMONSTRACAO"];
-if (SENHA === undefined || SENHA === "") {
-  throw new Error(
-    "SENHA_DA_DEMONSTRACAO não está no ambiente. Rode:\n" +
-      "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta\n" +
-      "É a mesma senha com que a semente de demonstração criou as duas contas (README, «A demonstração»).",
-  );
-}
-
-const HELENA = "helena.demo@example.com";
-const MARCOS = "marcos.demo@example.com";
-const AURORA = "Edifício Aurora (demonstração)";
-const RECANTO = "Condomínio Recanto Azul (demonstração)";
-const ENCARREGADA_DO_AURORA = "Sônia Prado";
-
-/** A marca do instante — é ela que separa esta ocorrência das 36 da demonstração. */
+/** A marca do instante — é ela que separa esta ocorrência das do mundo de teste. */
 const MARCA = new Date().toISOString().replace(/[:.]/gu, "-");
 const TITULO = `Ponta a ponta ${MARCA} — vazamento na garagem`;
 
@@ -534,7 +517,7 @@ async function entrar(pagina: Page, email: string): Promise<void> {
   // não casa com nada, porque o rótulo é "Senha *": o asterisco é um `<span aria-hidden>` dentro do
   // `<label>`, e o motor do localizador não pula `aria-hidden`. A âncora resolve os dois, e sobrevive ao
   // asterisco existir ou não.
-  await pagina.getByLabel(/^Senha/u).fill(SENHA as string);
+  await pagina.getByLabel(/^Senha/u).fill(SENHA);
   await pagina.getByRole("button", { name: "Entrar" }).click();
 }
 

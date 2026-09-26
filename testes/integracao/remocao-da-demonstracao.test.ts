@@ -1,7 +1,12 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { NOME_DA_ORGANIZACAO_A, NOME_DA_ORGANIZACAO_B } from "@semente/plano";
+import {
+  NOME_DA_ORGANIZACAO_A,
+  NOME_DA_ORGANIZACAO_B,
+  PERFIL_DA_DEMONSTRACAO,
+  PERFIL_DE_TESTE,
+} from "@semente/plano";
 import { apagarADemonstracao, hostDoBanco, organizacoesDaDemonstracao } from "@semente/remocao";
 
 import { urlDoBancoDeTeste } from "./banco";
@@ -281,7 +286,7 @@ async function nadaSobrou(organizacaoId: string): Promise<void> {
 }
 
 describe("a remoção da demonstração: nome e autoria, e nada além", () => {
-  /** As duas contas desta execução, no lugar de `helena.demo` e `marcos.demo`, que existem no local. */
+  /** As duas contas desta execução, no lugar das contas reais da demonstração, que existem no local. */
   let emails: readonly [string, string];
 
   beforeEach(async () => {
@@ -376,6 +381,43 @@ describe("a remoção da demonstração: nome e autoria, e nada além", () => {
 
     expect((await apagarADemonstracao(emails)).organizacoes).toBe(1);
     await nadaSobrou(aurora.organizacaoId);
+  });
+
+  it("2.10 · apagar o mundo de teste não toca a demonstração, e o inverso também", async () => {
+    const nomesDoTeste = [PERFIL_DE_TESTE.organizacoes.a, PERFIL_DE_TESTE.organizacoes.b];
+    const emailsDoTeste = [emailNovo("helena-teste"), emailNovo("marcos-teste")] as const;
+
+    const recanto = await fundar(NOME_DA_ORGANIZACAO_A, emails[0], 2);
+    const recantoDoTeste = await fundar(PERFIL_DE_TESTE.organizacoes.a, emailsDoTeste[0], 3);
+
+    const doTeste = await organizacoesDaDemonstracao(emailsDoTeste, nomesDoTeste);
+    expect(doTeste.daDemonstracao.map((o) => o.id)).toStrictEqual([recantoDoTeste.organizacaoId]);
+    expect(doTeste.homonimas).toStrictEqual([]);
+
+    expect((await apagarADemonstracao(emailsDoTeste, nomesDoTeste)).organizacoes).toBe(1);
+    await nadaSobrou(recantoDoTeste.organizacaoId);
+
+    const daDemo = await organizacoesDaDemonstracao(emails);
+    expect(daDemo.daDemonstracao.map((o) => [o.id, o.ocorrencias])).toStrictEqual([[recanto.organizacaoId, 2]]);
+  });
+
+  it("2.11 · os nomes e as contas anteriores também são da demonstração, e o homônimo antigo fica", async () => {
+    // `NOMES_DA_DEMONSTRACAO` (o padrão da remoção) traz os anteriores; as contas vêm do teste, porque
+    // as anteriores reais existem no `auth.users` local.
+    const nomeAnterior = PERFIL_DA_DEMONSTRACAO.anteriores.organizacoes[1]!;
+    const contaAnterior = emailNovo("marcos-anterior");
+
+    const atual = await fundar(NOME_DA_ORGANIZACAO_B, emails[1], 1);
+    const antiga = await fundar(nomeAnterior, contaAnterior, 2);
+    const homonimaAntiga = await fundar(nomeAnterior, emailNovo("terceiro"), 1);
+
+    const resultado = await apagarADemonstracao([...emails, contaAnterior]);
+
+    expect(resultado.organizacoes).toBe(2);
+    await nadaSobrou(atual.organizacaoId);
+    await nadaSobrou(antiga.organizacaoId);
+    expect(resultado.homonimas.map((o) => o.id)).toStrictEqual([homonimaAntiga.organizacaoId]);
+    expect(await contar("registros_transicao", homonimaAntiga.organizacaoId)).toBe(1);
   });
 });
 

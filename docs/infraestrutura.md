@@ -92,6 +92,15 @@ código depois.
 Sem tráfego, a aplicação escala para zero réplicas; a primeira requisição depois de um período ocioso leva
 cerca de 20 segundos enquanto o contêiner inicia.
 
+Nos dias em que alguém de fora vai abrir a aplicação, uma sonda no GitHub Actions a mantém acordada. Ela
+só lê duas páginas públicas que não consultam o banco, a tela de entrar e a documentação, e roda de dois
+jeitos. Na faixa, chama a cada cinco minutos nos dias e horários declarados numa linha do workflow
+`aquecer-a-aplicacao.yml`, o que torna a partida a frio rara nesse período. Na janela, disparada à mão,
+chama a cada dois minutos e segura a aplicação quente pela duração escolhida, até quatro horas. Uma
+janela custa um despertar, a partida a frio da primeira chamada, porque as seguintes chegam antes de o
+contêiner dormir. Fora das duas, a escala a zero volta. Cada hora de janela custa cerca de 1% da franquia
+mensal de computação e 60 minutos de execução do Actions; a faixa custa um minuto de Actions a cada cinco.
+
 O projeto de banco na franquia gratuita pausa depois de sete dias de inatividade, e uma pausa derruba a
 migração da entrega seguinte. A mitigação é uma consulta trivial agendada diariamente. Já foi semanal, e
 falhou: sete dias de janela contra sete dias de intervalo dão margem zero, e o agendador é de melhor

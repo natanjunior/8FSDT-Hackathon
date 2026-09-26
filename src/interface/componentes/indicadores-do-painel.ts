@@ -58,15 +58,24 @@ export function textoDoValorDaCategoria(
  * `26 de 37 resolvidas avaliadas · 70% responderam`. A taxa arredonda para inteiro, e some quando não há
  * resolvidas.
  *
- * **Sem avaliação, a frase é a do critério 34.2, literal**, com o `0 de 0` mesmo quando há resolvidas:
- * mudá-la é mudar um critério fechado, e este item não o reabre.
+ * **Sem avaliação, a sentença do critério 34.2 fica e o denominador dela passa a ser o verdadeiro.** Com
+ * nenhuma resolvida a saída é a de sempre, caractere por caractere; com resolvidas ela diz quantas são, no
+ * singular quando é uma.
+ *
+ * **A condição era `media === null` e nada mais, e o item 81 a reabriu.** Larga daquele jeito, ela fazia o
+ * 34.2 e o 34.3 não poderem valer juntos: o 34.3 manda o denominador aparecer sempre ao lado da média,
+ * *porque sem ele a média mente quando poucos avaliam* — e o caso sem nenhuma avaliação é o extremo desse
+ * raciocínio, denominador `N` e numerador `0`. O que se reabriu foi a largura, não a sentença.
  */
 export function denominadorDaSatisfacao(m: {
   media: number | null;
   avaliadas: number;
   resolvidas: number;
 }): string {
-  if (m.media === null) return "Nenhuma ocorrência avaliada ainda — 0 de 0 resolvidas.";
+  if (m.media === null) {
+    const quantas = m.resolvidas === 1 ? "1 resolvida" : `${String(m.resolvidas)} resolvidas`;
+    return `Nenhuma ocorrência avaliada ainda — 0 de ${quantas}.`;
+  }
   const base = `${String(m.avaliadas)} de ${String(m.resolvidas)} resolvidas avaliadas`;
   if (m.resolvidas === 0) return base;
   return `${base} · ${String(Math.round((m.avaliadas / m.resolvidas) * 100))}% responderam`;

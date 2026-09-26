@@ -17,7 +17,7 @@ volume se concentra onde a garantia é frágil, e quase não existe onde ela é 
 | Unitário de interface | os esquemas de validação da borda HTTP, antes de qualquer regra rodar | Vitest | não |
 | Unitário de infraestrutura | a camada de tradução do provedor de autenticação, com o SDK simulado | Vitest | não |
 | Integração de repositório | o isolamento entre organizações: consulta feita em nome de uma nunca devolve linha de outra | Vitest com o PostgreSQL da CLI do Supabase | sim |
-| Ponta a ponta | as jornadas do produto num navegador, com autenticação real: o caminho crítico, o nascimento de uma organização, as interrupções de uma ocorrência, a configuração, a recuperação de senha e o painel | Playwright | sim, com a pilha de pé e a semente aplicada |
+| Ponta a ponta | as jornadas do produto num navegador, com autenticação real: o caminho crítico, o nascimento de uma organização, as interrupções de uma ocorrência, a configuração, a recuperação de senha e o painel | Playwright | sim, com a pilha de pé e o mundo de teste semeado |
 
 As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integração cresce por consulta
 nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de sete arquivos, e cada
@@ -98,6 +98,9 @@ A regra que impede a divergência: um teste pode acrescentar ao mundo, e nunca a
 Alterar o mundo compartilhado é o caminho pelo qual o ajuste de um teste desarma, sem ninguém perceber, a
 armadilha que outro teste existe para acionar.
 
+Os testes de ponta a ponta usam um gêmeo da semente de demonstração, com outras organizações e outras
+contas, e por isso nenhuma corrida muda o que a demonstração mostra.
+
 ## Os verificadores
 
 Seis programas conferem o que teste de código não alcança, e todos rodam na esteira.
@@ -129,7 +132,7 @@ invisível para ele.
 npm run verificar             lint, tipos, testes unitários e verificadores de documentação
 npm run teste                 só os unitários, que é o laço curto de quem implementa
 npm run teste:integracao      a suíte de isolamento; exige um PostgreSQL
-npm run teste:ponta-a-ponta   as jornadas num navegador; exige a pilha, a semente e SENHA_DA_DEMONSTRACAO
+npm run teste:ponta-a-ponta   as jornadas num navegador; exige a pilha, o mundo de teste semeado e SENHA_DA_DEMONSTRACAO
 npm run cobertura             o número da seção acima; roda os dois primeiros juntos
 npm run local                 sobe a pilha inteira em contêiner, para os dois de cima
 ```
