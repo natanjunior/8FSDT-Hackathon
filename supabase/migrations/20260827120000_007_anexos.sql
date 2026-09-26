@@ -109,8 +109,7 @@ comment on column anexos.tamanho_bytes is
 
 comment on column anexos.nome_arquivo is
   'Anulavel, e sempre nulo pelo nosso cliente: o arquivo e recomprimido no aparelho, entao o nome '
-  'original e residuo de outro arquivo. PODE conter dado pessoal escrito por quem enviou, e a '
-  'anonimizacao nao o alcanca — entra na lista de texto livre nao varrido do PA-05.';
+  'original e residuo de outro arquivo. PODE conter dado pessoal escrito por quem enviou.';
 
 comment on column anexos.titulo is
   'O rotulo que a pessoa escreve para a evidencia. E aceito pelo contrato e gravado; T-04 nao oferece '
