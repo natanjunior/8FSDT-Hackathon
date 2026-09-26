@@ -104,13 +104,8 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 |---|---|
 | Alcance | foto, localização e contato só são legíveis dentro da organização do vínculo |
 | Leitura de ocorrência | o autor lê as próprias, e só quem tem permissão de ler todas lê as dos outros. Um Solicitante não alcança a ocorrência de um vizinho |
-| Exclusão de conta | a pessoa é anonimizada e perde o vínculo com a conta, e a trilha de auditoria permanece com o autor anonimizado |
 | Retenção | o histórico não expira, porque apagá-lo destruiria a exigência central do desafio |
 | Transporte | tudo por HTTPS, incluindo o envio direto da imagem ao armazenamento |
-
-Um limite fica escrito: **campos de texto livre não são varridos**. Se alguém digitar um dado pessoal na
-descrição ou numa observação, a anonimização não o alcança, porque ela opera sobre os campos que o modelo
-declara como identificadores.
 
 ## Os segredos
 

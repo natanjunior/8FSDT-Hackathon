@@ -165,15 +165,7 @@ autenticação, anulável, porque uma pessoa cadastrada pelo Gestor existe antes
 Essa é a única ligação entre o esquema do produto e o do provedor, e é o que mantém a troca de provedor
 como um problema de uma coluna.
 
-## Dados pessoais
-
-Excluir a conta não apaga a trilha: a pessoa recebe a marca de anonimizada, perde a ligação com o usuário
-e tem os contatos removidos. As ocorrências e os registros de transição continuam apontando para ela, e a
-auditoria permanece íntegra com o autor anonimizado. Apagar o histórico destruiria a exigência central do
-desafio, e é por isso que a exclusão foi desenhada assim.
-
-Uma restrição do banco recusa pessoa anonimizada que ainda tenha conta, para que os dois estados não
-possam divergir.
+## Só o servidor fala com o banco
 
 Todas as tabelas têm Row Level Security ligada e nenhuma política escrita, o que no PostgreSQL é negação
 total para os papéis anônimo e autenticado. Quem fala com o banco é o servidor.
