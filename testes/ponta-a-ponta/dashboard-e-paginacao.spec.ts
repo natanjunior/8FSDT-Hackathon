@@ -5,7 +5,7 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
 
 /**
  * ============================================================================
- *  O dashboard e a paginação, contra a semente de demonstração
+ *  O dashboard e a paginação, contra o mundo de teste da semente
  * ============================================================================
  *
  * **O quarto arquivo de ponta a ponta, e ele nasce pela ADR-0012**: o teste cresce por **jornada** do
@@ -22,10 +22,13 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  *  O dono do mundo — exigência da ADR-0012
  * ---------------------------------------------------------------------------
  *
- * **O mundo é a semente de demonstração, e este arquivo não é dono dele.** Ele lê muito e escreve uma
- * coisa só: **uma** ocorrência no Condomínio Recanto Azul por corrida, com a marca do instante no
- * título, porque a linha de novidades do critério 14b.2 não existe sem que algo chegue depois do corte.
+ * **O mundo é o gêmeo de teste da semente (`semear:demo -- --teste`), e este arquivo não é dono
+ * dele.** Ele lê muito e escreve uma coisa só: **uma** ocorrência no Condomínio Recanto Azul por
+ * corrida, com a marca do instante no título, porque a linha de novidades do critério 14b.2 não existe sem que algo chegue depois do corte.
  * Nada semeado muda de estado, nenhuma configuração é tocada, nenhuma senha é redefinida.
+ *
+ * **De onde vem a massa.** É o mesmo `planoDaDemonstracao` da demonstração, gravado com os nomes do
+ * perfil de teste, então o que se prova aqui sobre o painel vale para o painel da demonstração (item 63).
  *
  * **A consequência está em toda asserção deste arquivo, e é a regra do lote:** o Recanto tem 24
  * ocorrências na primeira corrida, 25 na segunda, 26 na terceira. **Nenhuma asserção de contagem
@@ -33,9 +36,9 @@ import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from ".
  * a zero, as sete categorias aparecem, todo mês da janela tem linha, a média cai entre 1 e 5, e a página
  * 2 traz os mesmos itens de onde quer que se peça.
  *
- * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e a
- * semente aplicada (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo`). Os dois estão no cabeçalho de
- * `caminho-critico.spec.ts`, com o argumento inteiro.
+ * **Pré-requisitos, e eles não são automatizados de propósito:** a pilha de pé (`npm run local`) e o
+ * mundo de teste semeado (`SENHA_DA_DEMONSTRACAO=… npm run semear:demo -- --teste`). Os dois estão
+ * no cabeçalho de `caminho-critico.spec.ts`, com o argumento inteiro.
  *
  * ---------------------------------------------------------------------------
  *  O passo 10 do roteiro descreve um gesto que o produto não tem mais

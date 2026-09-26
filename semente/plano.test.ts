@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,6 +21,9 @@ import {
  * estados não é reprovada aqui: ela já tem os testes dos itens 16 a 27, e cada transição do roteiro passa
  * pelos mesmos comandos. Se o roteiro pedir transição ilegal, o programa estoura na execução — que é o
  * comportamento certo para um script.
+ *
+ * Guarda também o perfil de teste do item 63 e as travas de fonte que impedem os testes de ponta a ponta
+ * de voltarem a escrever na demonstração.
  */
 
 const HOJE = new Date("2026-08-29T12:00:00.000Z");
@@ -289,5 +295,33 @@ describe("o perfil de teste", () => {
     const emails = [PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE].flatMap((p) => Object.values(p.contas));
     expect(new Set(nomes).size).toBe(4);
     expect(new Set(emails).size).toBe(4);
+  });
+});
+
+describe("os testes de ponta a ponta não alcançam a demonstração (item 63)", () => {
+  /** Resolvido a partir deste arquivo, como `testes/interface/formulario.test.ts:43` faz com a raiz. */
+  const PASTA = fileURLToPath(new URL("../testes/ponta-a-ponta/", import.meta.url));
+  const arquivos = readdirSync(PASTA).filter((nome) => nome.endsWith(".ts"));
+  const ler = (nome: string): string => readFileSync(PASTA + nome, "utf8");
+
+  /** O nome como literal, entre aspas, crases ou apóstrofos, e nunca por trecho (ver o plano, §0). */
+  const comoLiteral = (texto: string, nome: string): boolean =>
+    ['"', "'", "`"].some((aspa) => texto.includes(`${aspa}${nome}${aspa}`));
+
+  it("nenhum arquivo cita as contas da demonstração", () => {
+    const contas = Object.values(PERFIL_DA_DEMONSTRACAO.contas);
+    expect(arquivos.filter((nome) => contas.some((email) => ler(nome).includes(email)))).toStrictEqual([]);
+  });
+
+  it("nenhum arquivo nomeia uma organização da demonstração", () => {
+    const nomes = Object.values(PERFIL_DA_DEMONSTRACAO.organizacoes);
+    expect(arquivos.filter((nome) => nomes.some((org) => comoLiteral(ler(nome), org)))).toStrictEqual([]);
+  });
+
+  it("o mundo.ts do Playwright nomeia o mundo de teste da semente, sem cópia divergente", () => {
+    const fonte = ler("mundo.ts");
+    for (const texto of [...Object.values(PERFIL_DE_TESTE.contas), ...Object.values(PERFIL_DE_TESTE.organizacoes)]) {
+      expect(comoLiteral(fonte, texto), texto).toBe(true);
+    }
   });
 });
