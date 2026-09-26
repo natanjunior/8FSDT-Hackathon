@@ -4,15 +4,20 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  faceDepoisDaRecusa,
+  faceInicial,
   razaoDoImpedimento,
   textoDaConfirmacao,
   textoDaRecusa,
+  textoDoEncerramento,
   tituloDaConfirmacao,
+  tituloDoEncerramento,
   tituloDoImpedimento,
 } from "@/interface/componentes/frases-da-remocao";
 import {
   FALHA,
   PAPEIS,
+  avisoDeAcessoEncerrado,
   avisoDeAprovado,
   avisoDeCadastrado,
   avisoDeRecusado,
@@ -397,8 +402,8 @@ describe("razaoDoImpedimento — a razão que o aviso mostra", () => {
   });
 
   /**
-   * **Critério 44j.5.** A frase que explicava o que o produto não faz saiu da tela: o guia a recusa, e
-   * o caminho correto — revogar — continua ⬜. O que fica é a razão.
+   * **Critério 44j.5.** A frase que explicava o que o produto não fazia saiu da tela. Desde o item 84 o
+   * caminho existe, e quem tem rastro recebe a confirmação de encerrar o acesso no lugar do aviso.
    */
   it("a frase do revogar não existe mais no módulo", () => {
     const fonte = readFileSync(
@@ -445,6 +450,78 @@ describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar", ()
   it("sem código e sem resposta, a frase genérica do produto", () => {
     expect(textoDaRecusa({}, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
     expect(textoDaRecusa(null, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Encerrar o acesso — item 84, a metade conferível da tela
+ * ============================================================================
+ *
+ * O componente não é montável aqui (sem biblioteca de teste de componente), então a decisão mora em
+ * funções puras: qual face o clique abre, para qual face a recusa leva, e o que a confirmação diz.
+ */
+describe("faceInicial — o que o clique em Remover da organização abre", () => {
+  it("sem impedimento, a confirmação de remover; com histórico, a de encerrar; último Gestor, o aviso", () => {
+    expect(faceInicial(null)).toBe("remover");
+    expect(faceInicial("historico")).toBe("encerrar");
+    expect(faceInicial("ultimo-gestor")).toBe("aviso");
+  });
+});
+
+describe("faceDepoisDaRecusa — o 409 que chega entre a tela saber e o Gestor clicar (spec §3.8)", () => {
+  it("VINCULO_COM_HISTORICO na confirmação de remover troca para a de encerrar", () => {
+    expect(faceDepoisDaRecusa("remover", { codigo: "VINCULO_COM_HISTORICO" })).toBe("encerrar");
+  });
+
+  it("as outras recusas não trocam a face", () => {
+    expect(faceDepoisDaRecusa("remover", { codigo: "ULTIMO_GESTOR" })).toBe("remover");
+    expect(faceDepoisDaRecusa("remover", { codigo: "VINCULO_NAO_ENCONTRADO" })).toBe("remover");
+    expect(faceDepoisDaRecusa("remover", null)).toBe("remover");
+    expect(faceDepoisDaRecusa("encerrar", { codigo: "ULTIMO_GESTOR" })).toBe("encerrar");
+    expect(faceDepoisDaRecusa("encerrar", { codigo: "VINCULO_COM_HISTORICO" })).toBe("encerrar");
+  });
+});
+
+describe("textoDoEncerramento — o que a confirmação diz", () => {
+  const RASTRO =
+    "Joana Prado já deixou rastro nesta organização, então o vínculo não é apagado: as ocorrências, as mensagens e o nome na trilha continuam.";
+
+  it("com conta, diz que a pessoa pode pedir entrada de novo", () => {
+    expect(
+      textoDoEncerramento({ nome: "Joana Prado", temConta: true, ehMeuProprioVinculo: false, responsavelEmAberto: 0 }),
+    ).toStrictEqual([`${RASTRO} Joana Prado deixa de entrar na organização, e pode pedir entrada de novo.`]);
+  });
+
+  /** O sujeito é *"a pessoa"*, e não o nome: com o nome, *"cadastrada"* suporia gênero (crítica C-5). */
+  it("sem conta, diz que é preciso cadastrar de novo, com os contatos — sem supor gênero", () => {
+    expect(
+      textoDoEncerramento({ nome: "Joana Prado", temConta: false, ehMeuProprioVinculo: false, responsavelEmAberto: 0 }),
+    ).toStrictEqual([
+      `${RASTRO} Sem conta, a pessoa não pede entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`,
+    ]);
+  });
+
+  it("com ocorrências em aberto, uma linha diz quantas, no singular e no plural", () => {
+    const uma = textoDoEncerramento({ nome: "Joana Prado", temConta: true, ehMeuProprioVinculo: false, responsavelEmAberto: 1 });
+    expect(uma[1]).toBe(
+      "Joana Prado é responsável por 1 ocorrência em aberto. Ela continua atribuída a Joana Prado até alguém reatribuir.",
+    );
+
+    const tres = textoDoEncerramento({ nome: "Joana Prado", temConta: true, ehMeuProprioVinculo: false, responsavelEmAberto: 3 });
+    expect(tres[1]).toBe(
+      "Joana Prado é responsável por 3 ocorrências em aberto. Elas continuam atribuídas a Joana Prado até alguém reatribuir.",
+    );
+  });
+
+  it("no próprio vínculo, a última linha diz o que se perde, depois da do responsável", () => {
+    const linhas = textoDoEncerramento({ nome: "Marina Gestora", temConta: true, ehMeuProprioVinculo: true, responsavelEmAberto: 2 });
+    expect(linhas).toHaveLength(3);
+    expect(linhas[2]).toBe("Este é o seu próprio vínculo. Ao encerrar, você perde o acesso a esta organização.");
+  });
+
+  it("o título pergunta, e não supõe gênero", () => {
+    expect(tituloDoEncerramento("Beatriz Nunes")).toBe("Encerrar o acesso de Beatriz Nunes?");
   });
 });
 
@@ -696,6 +773,10 @@ describe("os avisos de T-08 — o desfecho por endereço vira aviso (critério 1
       titulo: "Vínculo de Beatriz Nunes removido",
       descricao: "O cadastro da pessoa não é apagado.",
     });
+    expect(avisoDeAcessoEncerrado("Beatriz Nunes")).toStrictEqual({
+      titulo: "O acesso de Beatriz Nunes foi encerrado",
+      descricao: "As ocorrências e o nome na trilha continuam.",
+    });
     expect(avisoDeCadastrado("Sérgio Lima", "encarregado")).toStrictEqual({
       titulo: "Sérgio Lima entrou como Encarregado",
       descricao: "Sem conta: recebe atribuições e aparece como responsável.",
@@ -703,11 +784,12 @@ describe("os avisos de T-08 — o desfecho por endereço vira aviso (critério 1
     expect(avisoDeSalvo("Sérgio Lima")).toStrictEqual({ titulo: "Dados de Sérgio Lima salvos" });
   });
 
-  it("as cinco falhas dizem o que foi tentado", () => {
+  it("as seis falhas dizem o que foi tentado", () => {
     expect(FALHA).toStrictEqual({
       aprovar: "Não foi possível aprovar o pedido",
       recusar: "Não foi possível recusar o pedido",
       remover: "Não foi possível remover o vínculo",
+      encerrar: "Não foi possível encerrar o acesso",
       cadastrar: "Não foi possível cadastrar a pessoa",
       salvar: "Não foi possível salvar os dados",
     });

@@ -7,6 +7,7 @@ import {
   listarAreas,
   listarImpedimentosDeRemocao,
   listarPedidosDeEntrada,
+  listarResponsabilidadesEmAberto,
   listarVinculos,
 } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
@@ -29,7 +30,7 @@ import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@
  * **Uma tabela só** (item 44j): os pedidos pendentes são a parte acionável da lista de gente, e separá-los
  * produzia uma seção cuja resposta é *"nenhum pedido"* na maior parte das semanas.
  *
- * **A página lê e não decide.** As quatro leituras vão juntas, pela estrada direta (contrato §5); filtro,
+ * **A página lê e não decide.** As cinco leituras vão juntas, pela estrada direta (contrato §5); filtro,
  * ordem, busca e página são do navegador, porque `GET /vinculos` devolve a lista inteira. **Ela não lê o
  * endereço**: quem o lê é a tabela, que também o escreve.
  *
@@ -52,11 +53,12 @@ export default async function Participantes() {
     return <SemAcesso titulo="Participantes" permissao="vinculo.gerir" />;
   }
 
-  const [pedidos, areas, vinculos, mapaDeImpedimentos] = await Promise.all([
+  const [pedidos, areas, vinculos, mapaDeImpedimentos, mapaDeResponsabilidades] = await Promise.all([
     listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {}),
     listarAreas(escopo.repos.areas),
     listarVinculos(escopo.repos.vinculos),
     listarImpedimentosDeRemocao(escopo.repos.vinculos),
+    listarResponsabilidadesEmAberto(escopo.repos.vinculos),
   ]);
 
   // **`Map` → objeto simples na fronteira Server/Client.** O `Map` é a forma certa dentro do servidor —
@@ -65,6 +67,7 @@ export default async function Participantes() {
   const impedimentos = Object.fromEntries(mapaDeImpedimentos) as Readonly<
     Record<string, ImpedimentoNaTela>
   >;
+  const responsabilidades = Object.fromEntries(mapaDeResponsabilidades) as Readonly<Record<string, number>>;
 
   return (
     <div className="flex flex-col gap-5.5">
@@ -89,6 +92,7 @@ export default async function Participantes() {
         pedidos={pedidos.map(projetarPedidoDeEntradaDetalhe)}
         vinculos={vinculos.map(projetarVinculo)}
         impedimentos={impedimentos}
+        responsabilidades={responsabilidades}
         areas={areas.map(projetarArea)}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
         euPessoaId={escopo.ctx.pessoaId}
