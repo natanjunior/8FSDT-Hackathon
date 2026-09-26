@@ -430,47 +430,51 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-4 · organização A ----------------------------------------------
   {
     chave: "a-01", organizacao: "a", distancia: 4,
-    titulo: "Lâmpada queimada na vaga 12",
-    descricao: "A lâmpada sobre a vaga 12 está queimada há alguns dias e a área fica escura à noite.",
+    titulo: "Garagem escura perto da vaga 12",
+    descricao:
+      "A lâmpada que fica em cima da vaga 12 queimou na quinta-feira. À noite não dá para ver o degrau da " +
+      "rampa de pedestres, e ontem uma vizinha quase caiu com as compras. Se puderem olhar logo, agradeço.",
     categoria: ILUMINACAO, area: "Garagem", complemento: "Vaga 12", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
-    solucao: "Lâmpada substituída por modelo LED e reator conferido.",
+    solucao: "Lâmpada trocada por LED e reator conferido. A luminária da vaga 14 também estava fraca e foi trocada junto.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 5, comentario: "Resolvido no mesmo dia. Obrigada!" } },
   },
   {
     chave: "a-02", organizacao: "a", distancia: 4,
-    titulo: "Portão da garagem travando ao fechar",
-    descricao: "O portão para no meio do curso e precisa de um segundo comando para fechar.",
+    titulo: "Controle do portão tendo que apertar duas vezes",
+    descricao: "o portão fecha até a metade e para, aí tem que apertar o controle de novo. acontece quase toda manhã",
     categoria: EQUIPAMENTOS, area: "Garagem", complemento: null, autor: "jorge",
     responsavel: "rafael",
-    solucao: "Trilho limpo e sensor de fim de curso realinhado.",
+    solucao: "Trilho limpo e sensor de fim de curso realinhado. O portão fechou dez vezes seguidas sem parar.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 4, comentario: null } },
   },
   {
     chave: "a-03", organizacao: "a", distancia: 4,
     titulo: "Lixeira do hall sem tampa",
-    descricao: "A tampa da lixeira do hall sumiu e o cheiro incomoda quem espera o elevador.",
+    descricao: "A tampa da lixeira ao lado do elevador sumiu. O cheiro fica forte no fim do dia.",
     categoria: LIMPEZA, area: "Hall de entrada", complemento: null, autor: "claudia",
     responsavel: "beatriz",
-    solucao: "Lixeira substituída por uma com tampa com pedal.",
+    solucao: "Lixeira trocada por uma com tampa de pedal.",
     receita: { desfecho: "resolvida" },
   },
   {
     chave: "a-04", organizacao: "a", distancia: 4,
-    titulo: "Barulho de arrastar no salão de festas",
-    descricao: "Ouve-se arrastar de móveis no salão fora do horário permitido.",
-    categoria: MANUTENCAO, area: "Salão de festas", complemento: null, autor: "jorge",
+    titulo: "Tomada do salão de festas solta da parede",
+    descricao: "a tomada perto da bancada tá solta, balança toda vez que liga alguma coisa",
+    categoria: MANUTENCAO, area: "Salão de festas", complemento: "Bancada da copa", autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "desistencia", por: "autor", apos: "aberta",
-      observacao: "O barulho não se repetiu; prefiro acompanhar antes de abrir de novo.",
+      observacao: "Desisti por enquanto, vou usar a tomada do outro lado. Se piorar abro de novo.",
     },
   },
   {
     chave: "a-05", organizacao: "a", distancia: 4,
     titulo: "Corrimão solto na escada de emergência",
-    descricao: "O corrimão do segundo lance está solto na fixação da parede.",
+    descricao:
+      "O corrimão do segundo lance da escada de emergência está solto na fixação da parede. Ainda segura, " +
+      "mas balança bastante, e quem desce com criança no colo se apoia nele.",
     categoria: ACESSIBILIDADE, area: "Área comum", complemento: "Escada de emergência", autor: "claudia",
     responsavel: "beatriz", prioridade: "baixa",
     solucao: "",
@@ -479,17 +483,19 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-4 · organização B ----------------------------------------------
   {
     chave: "b-01", organizacao: "b", distancia: 4,
-    titulo: "Infiltração na parede da sala",
-    descricao: "Mancha de umidade crescendo na parede que dá para a fachada.",
-    categoria: VAZAMENTOS, area: "Sala 405", complemento: null, autor: "helena",
+    titulo: "Descarga do banheiro do térreo vazando",
+    descricao:
+      "A descarga do banheiro coletivo do térreo fica soltando água sem parar. Dá para ouvir do corredor, e " +
+      "é água indo embora o dia inteiro.",
+    categoria: VAZAMENTOS, area: "Área comum", complemento: "Banheiro coletivo do térreo", autor: "helena",
     responsavel: "sonia",
-    solucao: "Rejunte externo refeito e parede tratada com impermeabilizante.",
+    solucao: "Reparo da válvula de descarga trocado e registro regulado.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 3, comentario: "Demorou, mas resolveu." } },
   },
   {
     chave: "b-02", organizacao: "b", distancia: 4,
-    titulo: "Interfone da portaria sem áudio",
-    descricao: "O interfone chama, mas ninguém ouve do outro lado.",
+    titulo: "Interfone sem áudio",
+    descricao: "interfone chama mas não sai som nenhum",
     categoria: EQUIPAMENTOS, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "",
@@ -500,7 +506,7 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-03", organizacao: "b", distancia: 4,
-    titulo: "Luz da área de lazer piscando",
+    titulo: "Luminárias do deque piscando",
     descricao: "As três luminárias do deque piscam quando a bomba da piscina liga.",
     categoria: ILUMINACAO, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia", prioridade: "baixa",
@@ -510,11 +516,14 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-3 · organização A ----------------------------------------------
   {
     chave: "a-06", organizacao: "a", distancia: 3,
-    titulo: "Vazamento no teto do elevador social",
-    descricao: "Pinga água sobre o teto da cabine quando chove forte.",
+    titulo: "Água pingando dentro do elevador social",
+    descricao:
+      "Quando chove forte pinga água pelo teto da cabine do elevador social, bem no canto do painel. Já " +
+      "aconteceu três vezes este mês. Hoje de manhã tinha uma poça no piso e alguém pôs papelão para não " +
+      "escorregar. Fico preocupada com a parte elétrica.",
     categoria: VAZAMENTOS, area: "Elevador social", complemento: null, autor: "claudia",
     responsavel: "rafael",
-    solucao: "Calha da casa de máquinas desobstruída e vedação da laje refeita.",
+    solucao: "Calha da casa de máquinas desobstruída e vedação da laje refeita. Cabine seca nas duas últimas chuvas.",
     receita: {
       desfecho: "resolvida",
       comPausa: { motivo: "aguardando_terceiro", observacao: "Aguardando a empresa de elevadores liberar o acesso à casa de máquinas." },
@@ -523,8 +532,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-07", organizacao: "a", distancia: 3,
-    titulo: "Rampa de acesso escorregadia quando molha",
-    descricao: "O piso da rampa fica liso com chuva e não tem faixa antiderrapante.",
+    titulo: "Rampa da entrada lisa quando chove",
+    descricao: "com chuva a rampa vira sabão, minha mãe usa andador e não consegue subir sozinha",
     categoria: ACESSIBILIDADE, area: "Área comum", complemento: "Rampa da entrada", autor: "jorge",
     responsavel: "beatriz",
     solucao: "Fitas antiderrapantes aplicadas em toda a extensão da rampa.",
@@ -542,19 +551,19 @@ const RASCUNHOS: readonly Rascunho[] = [
   {
     chave: "a-09", organizacao: "a", distancia: 3,
     titulo: "Cheiro de gás no corredor do térreo",
-    descricao: "Sinto cheiro de gás perto da porta de serviço no fim da tarde.",
+    descricao: "sinto cheiro de gás perto da porta de serviço no fim da tarde, hoje tava mais forte",
     categoria: SEGURANCA, area: "Área comum", complemento: "Corredor do térreo", autor: "jorge",
     responsavel: "beatriz",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "improcedente", por: "gestor", apos: "em_analise",
-      observacao: "Vistoria da concessionária não encontrou vazamento; o odor vinha da lixeira externa.",
+      observacao: "A vistoria da concessionária não encontrou vazamento. O cheiro vinha da lixeira externa, que já foi lavada.",
     },
   },
   {
     chave: "a-10", organizacao: "a", distancia: 3,
-    titulo: "Fechadura do 302 emperrando",
-    descricao: "A chave gira com muita dificuldade na fechadura da porta social.",
+    titulo: "Fechadura da porta do 302 emperrando",
+    descricao: "A chave gira com muita dificuldade na fechadura da porta social. Hoje quase fiquei trancado do lado de fora.",
     categoria: MANUTENCAO, area: "Apartamento 302", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
@@ -563,8 +572,11 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-3 · organização B ----------------------------------------------
   {
     chave: "b-04", organizacao: "b", distancia: 3,
-    titulo: "Câmera da portaria fora do ar",
-    descricao: "O monitor mostra sinal ausente na câmera que cobre a entrada de pedestres.",
+    titulo: "Câmera da entrada sem imagem",
+    descricao:
+      "O monitor da portaria mostra sinal ausente na câmera da entrada de pedestres desde segunda. Hoje " +
+      "entrou um entregador sem ninguém ver pela câmera, e o porteiro só percebeu quando ele já estava no " +
+      "elevador.",
     categoria: SEGURANCA, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "Fonte da câmera substituída e gravação conferida por 24 horas.",
@@ -572,67 +584,73 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-05", organizacao: "b", distancia: 3,
-    titulo: "Ar-condicionado da sala 405 sem gelar",
-    descricao: "O aparelho liga, mas o ar sai na temperatura ambiente.",
-    categoria: EQUIPAMENTOS, area: "Sala 405", complemento: null, autor: "helena",
+    titulo: "Ar da sala de reuniões desligando sozinho",
+    descricao:
+      "O ar-condicionado da sala de reuniões do térreo desliga sozinho depois de uns vinte minutos. Liga de " +
+      "novo pelo controle, mas logo desliga outra vez. Aconteceu nas duas reuniões desta semana.",
+    categoria: EQUIPAMENTOS, area: "Área comum", complemento: "Sala de reuniões do térreo", autor: "helena",
     responsavel: "sonia",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_informacao_solicitante",
-      observacao: "Precisamos do horário em que a sala fica livre para o técnico entrar.",
+      observacao: "Precisamos saber em que horário costuma acontecer, para o técnico vir acompanhar.",
     },
   },
   // ---- M-2 · organização A · o balde sem nenhuma resolução ---------------
   {
     chave: "a-11", organizacao: "a", distancia: 2,
-    titulo: "Motor do portão social parado",
-    descricao: "O portão social só abre no manual desde ontem.",
+    titulo: "Motor do portão da garagem parado",
+    descricao:
+      "Desde ontem à noite o portão da garagem não abre pelo controle, só no manual. O porteiro está abrindo " +
+      "para cada carro, e de manhã formou fila na rua. Ouvi um estalo no motor antes de parar.",
     categoria: EQUIPAMENTOS, area: "Garagem", complemento: null, autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_peca",
-      observacao: "Placa do motor pedida ao fornecedor; prazo de entrega de duas semanas.",
+      observacao: "Placa do motor pedida ao fornecedor, com prazo de duas semanas. Até lá o porteiro abre no manual.",
     },
   },
   {
     chave: "a-12", organizacao: "a", distancia: 2,
-    titulo: "Piso do hall soltando na junta",
-    descricao: "Duas placas do piso do hall estão soltas e balançam ao pisar.",
+    titulo: "Piso do hall soltando",
+    descricao: "duas placas do piso perto da porta tão soltas e fazem barulho quando pisa",
     categoria: MANUTENCAO, area: "Hall de entrada", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_terceiro",
-      observacao: "Orçamento com a empresa de pisos em análise pelo conselho.",
+      observacao: "Orçamento da empresa de pisos em análise pelo conselho.",
     },
   },
   {
     chave: "a-13", organizacao: "a", distancia: 2,
-    titulo: "Reforma da guarita",
-    descricao: "A guarita precisa de pintura e troca do vidro trincado.",
+    titulo: "Vidro da guarita trincado",
+    descricao:
+      "O vidro da frente da guarita está trincado de canto a canto. O porteiro colou fita, mas com vento ele " +
+      "vibra, e tenho medo de cair em alguém.",
     categoria: MANUTENCAO, area: "Área comum", complemento: "Guarita", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
-    solucao: "Vidro trocado; a pintura entra na próxima etapa, com o tempo firme.",
+    solucao: "Vidro trocado. A pintura da guarita entra na próxima etapa, com o tempo firme.",
     receita: { desfecho: "em_atendimento", comSolucao: true },
   },
   {
     chave: "a-14", organizacao: "a", distancia: 2,
-    titulo: "Vaga de garagem ocupada por veículo desconhecido",
-    descricao: "Um carro que não é de morador está na vaga 07 há dois dias.",
+    titulo: "Carro estranho na vaga 07",
+    descricao: "Tem um carro que não é de morador parado na vaga 07 há dois dias.",
     categoria: SEGURANCA, area: "Garagem", complemento: "Vaga 07", autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "sem_informacao_suficiente", por: "gestor", apos: "aberta",
-      observacao: "Sem placa nem foto não há como identificar o veículo. Reabra com esses dados.",
+      observacao: "Sem placa nem foto não dá para identificar o veículo. Se ele voltar, registre de novo com esses dados.",
     },
   },
   {
     chave: "a-15", organizacao: "a", distancia: 2,
-    titulo: "Lâmpada do 101 queimada no corredor",
-    descricao: "A lâmpada do corredor em frente ao 101 está queimada.",
-    categoria: ILUMINACAO, area: "Apartamento 101", complemento: null, autor: "claudia",
+    titulo: "Corredor do 1º andar no escuro",
+    descricao: "A lâmpada do corredor do primeiro andar, entre o 101 e o 102, está queimada.",
+    categoria: ILUMINACAO, area: "Área comum", complemento: "Corredor do 1º andar", autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: { desfecho: "aberta" },
@@ -640,8 +658,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-2 · organização B ----------------------------------------------
   {
     chave: "b-06", organizacao: "b", distancia: 2,
-    titulo: "Grade da área de lazer solta",
-    descricao: "A grade que separa o deque da rua está solta em dois pontos.",
+    titulo: "Grade do deque solta",
+    descricao: "a grade que separa o deque da rua tá solta em dois pontos, dá pra passar a mão por baixo",
     categoria: SEGURANCA, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia", prioridade: "alta",
     solucao: "",
@@ -649,8 +667,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-07", organizacao: "b", distancia: 2,
-    titulo: "Limpeza da caixa d'água atrasada",
-    descricao: "O laudo da última limpeza está vencido há mais de um mês.",
+    titulo: "Laudo da caixa d'água vencido",
+    descricao: "O laudo da última limpeza da caixa d'água, que fica colado na portaria, venceu há mais de um mês.",
     categoria: LIMPEZA, area: "Área comum", complemento: null, autor: "helena",
     responsavel: "sonia",
     solucao: "",
@@ -658,8 +676,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-08", organizacao: "b", distancia: 2,
-    titulo: "Sinalização de saída apagada",
-    descricao: "A luminária de saída de emergência sobre a porta da portaria não acende.",
+    titulo: "Placa de saída de emergência apagada",
+    descricao: "a placa de saída em cima da porta da portaria não acende",
     categoria: ILUMINACAO, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "",
@@ -668,8 +686,10 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-1 · organização A ----------------------------------------------
   {
     chave: "a-16", organizacao: "a", distancia: 1,
-    titulo: "Vazamento na coluna do 302",
-    descricao: "Água escorrendo pela coluna da área de serviço, do teto para o chão.",
+    titulo: "Água descendo pela coluna da área de serviço",
+    descricao:
+      "tá escorrendo água pela coluna da área de serviço, do teto até o chão. já coloquei balde e toalha mas " +
+      "enche rápido. acho que vem do apartamento de cima porque piora quando eles usam a máquina de lavar",
     categoria: VAZAMENTOS, area: "Apartamento 302", complemento: "Área de serviço", autor: "jorge",
     responsavel: "rafael",
     solucao: "Trecho da coluna substituído e teste de estanqueidade feito com o prédio abastecido.",
@@ -681,8 +701,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-17", organizacao: "a", distancia: 1,
-    titulo: "Piso tátil apagado na entrada",
-    descricao: "O piso tátil da entrada está tão desgastado que quase não se distingue.",
+    titulo: "Piso tátil gasto na entrada",
+    descricao: "O piso tátil da entrada está tão desgastado que quase não se distingue do resto.",
     categoria: ACESSIBILIDADE, area: "Hall de entrada", complemento: null, autor: "claudia",
     responsavel: "beatriz",
     solucao: "Piso tátil refeito em toda a faixa da entrada.",
@@ -690,29 +710,32 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-18", organizacao: "a", distancia: 1,
-    titulo: "Limpeza do salão após evento",
-    descricao: "O salão ficou sujo depois da festa do fim de semana.",
+    titulo: "Salão sujo depois da festa de sábado",
+    descricao: "o salão ficou com lixo e copo no chão depois da festa, hoje de manhã ainda tava assim",
     categoria: LIMPEZA, area: "Salão de festas", complemento: null, autor: "jorge",
     responsavel: "rafael",
-    solucao: "Salão limpo e cobrança da taxa de limpeza lançada ao responsável pela reserva.",
+    solucao: "Salão limpo e taxa de limpeza lançada para quem reservou.",
     receita: { desfecho: "resolvida" },
   },
   {
     chave: "a-19", organizacao: "a", distancia: 1,
-    titulo: "Troca do quadro de energia do térreo",
-    descricao: "O quadro do térreo desarma sempre que a bomba e o portão ligam juntos.",
+    titulo: "Quadro de luz do térreo desarmando",
+    descricao:
+      "O disjuntor geral do térreo desarma sempre que a bomba e o portão ligam ao mesmo tempo. Já aconteceu " +
+      "quatro vezes esta semana, e em duas o elevador parou junto. O zelador religa, mas ninguém sabe dizer " +
+      "por que acontece.",
     categoria: MANUTENCAO, area: "Área comum", complemento: "Quadro do térreo", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_autorizacao",
-      observacao: "Obra acima do limite de alçada; depende de aprovação em assembleia.",
+      observacao: "A troca do quadro passa do limite de gasto do síndico e depende de aprovação em assembleia.",
     },
   },
   {
     chave: "a-20", organizacao: "a", distancia: 1,
     titulo: "Espelho do elevador trincado",
-    descricao: "O espelho da cabine está trincado num canto e pode soltar lasca.",
+    descricao: "espelho da cabine trincou no canto de baixo, pode soltar um pedaço",
     categoria: EQUIPAMENTOS, area: "Elevador social", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
@@ -721,7 +744,7 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-1 · organização B ----------------------------------------------
   {
     chave: "b-09", organizacao: "b", distancia: 1,
-    titulo: "Porta da portaria desalinhada",
+    titulo: "Porta de vidro da portaria raspando",
     descricao: "A porta raspa no batente e não fecha sozinha.",
     categoria: MANUTENCAO, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
@@ -730,21 +753,23 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-10", organizacao: "b", distancia: 1,
-    titulo: "Mancha de umidade no corredor do quarto andar",
-    descricao: "Mancha escura no forro do corredor, perto da caixa de inspeção.",
+    titulo: "Mancha de umidade no forro do 4º andar",
+    descricao:
+      "Apareceu uma mancha escura no forro do corredor do 4º andar, perto da copa. Está do tamanho de um " +
+      "prato e parece úmida ao toque.",
     categoria: VAZAMENTOS, area: "Área comum", complemento: "Corredor do 4º andar", autor: "helena",
     responsavel: "sonia",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "resolvido_por_conta_propria", por: "autor", apos: "em_analise",
-      observacao: "Era o registro do meu andar. Já mandei consertar por conta.",
+      observacao: "Era a máquina de café da copa vazando. A empresa do andar já consertou.",
     },
   },
   // ---- M-0 · organização A · as que recebem mensagem ---------------------
   {
     chave: "a-21", organizacao: "a", distancia: 0,
-    titulo: "Refletor do pátio queimado",
-    descricao: "O refletor que ilumina o pátio dos fundos não acende desde o fim de semana.",
+    titulo: "Refletor do pátio dos fundos apagado",
+    descricao: "O refletor do pátio dos fundos não acende desde o fim de semana.",
     categoria: ILUMINACAO, area: "Área comum", complemento: "Pátio dos fundos", autor: "claudia",
     responsavel: "beatriz",
     solucao: "Refletor substituído e temporizador reprogramado.",
@@ -753,11 +778,11 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-22", organizacao: "a", distancia: 0,
-    titulo: "Bomba d'água com ruído alto",
-    descricao: "A bomba faz um ruído metálico quando liga de madrugada.",
+    titulo: "Barulho de metal na bomba d'água",
+    descricao: "a bomba faz um barulho de metal quando liga de madrugada, acorda o bloco todo",
     categoria: EQUIPAMENTOS, area: "Área comum", complemento: "Casa de bombas", autor: "jorge",
     responsavel: "rafael",
-    solucao: "Rolamento trocado; ficará em observação por uma semana antes de encerrar.",
+    solucao: "Rolamento trocado; fica em observação por uma semana antes de encerrar.",
     receita: { desfecho: "em_atendimento", comSolucao: true },
     mensagem:
       "Jorge, o rolamento já foi trocado. Vamos deixar a bomba em observação até sexta. Se o barulho voltar " +
@@ -765,8 +790,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-23", organizacao: "a", distancia: 0,
-    titulo: "Coleta seletiva sem identificação",
-    descricao: "Os contêineres da coleta seletiva perderam as placas e ninguém sabe qual é qual.",
+    titulo: "Contêineres da coleta seletiva sem placa",
+    descricao: "Os contêineres da coleta seletiva perderam as placas, e o reciclável está indo misturado com o lixo comum.",
     categoria: LIMPEZA, area: "Área comum", complemento: "Depósito de lixo", autor: "claudia",
     responsavel: "beatriz", prioridade: "baixa",
     solucao: "",
@@ -775,9 +800,11 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-24", organizacao: "a", distancia: 0,
-    titulo: "Corredor do 101 sem iluminação de emergência",
-    descricao: "A luminária de emergência do corredor não acendeu na última queda de energia.",
-    categoria: SEGURANCA, area: "Apartamento 101", complemento: null, autor: "claudia",
+    titulo: "Luz de emergência da escada não acendeu",
+    descricao:
+      "Na queda de energia de terça, a luz de emergência da escada não acendeu, e desci os dois andares no " +
+      "escuro, com a lanterna do celular.",
+    categoria: SEGURANCA, area: "Área comum", complemento: "Escada, 2º andar", autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: { desfecho: "aberta" },
@@ -786,8 +813,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-0 · organização B ----------------------------------------------
   {
     chave: "b-11", organizacao: "b", distancia: 0,
-    titulo: "Bebedouro da área de lazer sem água",
-    descricao: "O bebedouro do deque não solta água desde segunda-feira.",
+    titulo: "Bebedouro do deque sem água",
+    descricao: "bebedouro não sai água desde segunda",
     categoria: EQUIPAMENTOS, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "Filtro trocado e registro de entrada reaberto.",
@@ -797,7 +824,9 @@ const RASCUNHOS: readonly Rascunho[] = [
   {
     chave: "b-12", organizacao: "b", distancia: 0,
     titulo: "Rampa da portaria sem corrimão",
-    descricao: "A rampa de acesso à portaria não tem corrimão de nenhum lado.",
+    descricao:
+      "A rampa de acesso à portaria não tem corrimão de nenhum lado. Um senhor que vem à sala 210 toda " +
+      "semana precisa de ajuda para subir.",
     categoria: ACESSIBILIDADE, area: "Portaria", complemento: null, autor: "helena",
     responsavel: "sonia",
     solucao: "",

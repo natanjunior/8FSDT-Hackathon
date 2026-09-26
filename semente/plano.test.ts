@@ -287,6 +287,87 @@ describe("planoDaDemonstracao", () => {
   });
 });
 
+describe("a demonstração parece um sistema em uso (item 77)", () => {
+  const plano = planoDaDemonstracao(HOJE);
+
+  /** Todo texto que a semente grava e alguma tela mostra. */
+  const textos = (): readonly string[] => [
+    ...plano.organizacoes.map((o) => o.nome),
+    ...plano.pessoas.map((p) => p.nome),
+    ...plano.areas.map((a) => a.nome),
+    ...plano.ocorrencias.flatMap((o) => [
+      o.titulo,
+      o.descricao,
+      ...(o.localizacaoComplemento === null ? [] : [o.localizacaoComplemento]),
+      ...(o.mensagem === null ? [] : [o.mensagem]),
+      ...o.roteiro.flatMap((p) => {
+        switch (p.comando) {
+          case "analisar":
+          case "iniciar-atendimento":
+          case "retomar":
+          case "pausar":
+          case "cancelar":
+            return [p.observacao];
+          case "resolver":
+            return [p.observacao, p.solucaoAplicada];
+          case "registrar-solucao-aplicada":
+            return [p.solucaoAplicada];
+          case "avaliar":
+            return p.comentario === null ? [] : [p.comentario];
+          default:
+            return [];
+        }
+      }),
+    ]),
+  ];
+
+  it("nenhum texto semeado diz 'demonstração' (critério 77.1)", () => {
+    expect(textos().filter((texto) => /demonstra/iu.test(texto))).toStrictEqual([]);
+  });
+
+  it("nenhum título e nenhuma descrição se repetem (critério 77.2)", () => {
+    const titulos = plano.ocorrencias.map((o) => o.titulo);
+    const descricoes = plano.ocorrencias.map((o) => o.descricao);
+
+    expect(new Set(titulos).size).toBe(titulos.length);
+    expect(new Set(descricoes).size).toBe(descricoes.length);
+  });
+
+  it("na mesma organização, dois títulos nunca começam pelas mesmas duas palavras (critério 77.2)", () => {
+    for (const organizacao of ["a", "b"] as const) {
+      const inicios = plano.ocorrencias
+        .filter((o) => o.organizacao === organizacao)
+        .map((o) => o.titulo.split(" ").slice(0, 2).join(" ").toLowerCase());
+      const repetidos = inicios.filter((inicio, i) => inicios.indexOf(inicio) !== i);
+      expect(repetidos, organizacao).toStrictEqual([]);
+    }
+  });
+
+  it("nenhum título ou descrição tem marca de dado fabricado (critério 77.2)", () => {
+    const marca = /\d{4}-\d{2}-\d{2}|x{3,}|\bteste\b|\bexemplo\b|lorem/iu;
+    const marcados = plano.ocorrencias.flatMap((o) => [o.titulo, o.descricao]).filter((t) => marca.test(t));
+
+    expect(marcados).toStrictEqual([]);
+  });
+
+  it("quem registra em área privativa é quem tem vínculo com ela (spec §4.6)", () => {
+    const privativas = new Set(
+      plano.areas.filter((a) => a.tipo === "privativa").map((a) => `${a.organizacao}:${a.nome}`),
+    );
+    const deFora = plano.ocorrencias
+      .filter((o) => privativas.has(`${o.organizacao}:${o.area}`))
+      .filter(
+        (o) =>
+          !plano.vinculos.some(
+            (v) => v.pessoa === o.autor && v.organizacao === o.organizacao && v.area === o.area,
+          ),
+      )
+      .map((o) => o.chave);
+
+    expect(deFora).toStrictEqual([]);
+  });
+});
+
 describe("o perfil de teste", () => {
   it("sem perfil, o plano é o da demonstração", () => {
     expect(planoDaDemonstracao(HOJE)).toEqual(planoDaDemonstracao(HOJE, PERFIL_DA_DEMONSTRACAO));
