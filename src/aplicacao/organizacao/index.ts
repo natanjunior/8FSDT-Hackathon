@@ -12,8 +12,10 @@ export {
   cadastrarVinculo,
   corrigirVinculo,
   listarImpedimentosDeRemocao,
+  listarResponsabilidadesEmAberto,
   listarVinculos,
   removerVinculo,
+  revogarVinculo,
   verVinculo,
 } from "./vinculos";
 export {
@@ -85,6 +87,7 @@ export type {
   ResultadoDaCorrecao,
   ResultadoDaRecusa,
   ResultadoDaRemocao,
+  ResultadoDaRevogacao,
   ResultadoDaReordenacao,
   ResultadoDeCorrecaoDeArea,
   ResultadoDeCorrecaoDeCategoria,

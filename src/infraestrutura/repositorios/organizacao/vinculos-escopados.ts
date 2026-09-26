@@ -6,9 +6,11 @@ import type {
   RepositorioEscopadoDeVinculos,
   ResultadoDaCorrecao,
   ResultadoDaRemocao,
+  ResultadoDaRevogacao,
   ResultadoDoCadastro,
   VinculoLido,
 } from "@/aplicacao/organizacao";
+import { TERMINAIS } from "@/dominio/ocorrencia";
 import { ehPapel, ehTipoDeArea } from "@/dominio/organizacao";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
@@ -228,6 +230,51 @@ export function repositorioEscopadoDeVinculos(
       }
     },
 
+    async revogar(pessoaId: string): Promise<ResultadoDaRevogacao> {
+      return emTransacao<ResultadoDaRevogacao>(async (dentro) => {
+        // **A MESMA trava do `remover`, e não uma parecida** (spec §3.2). Ela serializa as duas
+        // operações entre si: um Gestor removendo o outro enquanto o outro revoga o primeiro, sem trava
+        // comum, deixaria a organização com zero Gestores — o PA-24 pela porta que as duas guardas fecham.
+        await dentro(
+          `select 1 from vinculos
+            where organizacao_id = $1 and papel = 'gestor' and revogado_em is null
+              for update`,
+        );
+
+        // **A guarda do último Gestor mora no `where`**, como no `remover`. E `revogado_em is null` é o
+        // que faz o segundo `revogar` sobre a mesma pessoa ser `nao-encontrado`, e não um sucesso vazio.
+        //
+        // **Não há `catch` de `23503` aqui:** `update` não viola chave estrangeira nenhuma, então nem as
+        // nove `restrict` nem a chave diferida de `organizacoes` têm o que recusar. É o item inteiro.
+        const revogados = await dentro<{ pessoa_id: string }>(
+          `update vinculos v
+              set revogado_em = now()
+            where v.organizacao_id = $1
+              and v.pessoa_id = $2
+              and v.revogado_em is null
+              and (v.papel <> 'gestor'
+                   or exists (select 1 from vinculos g
+                               where g.organizacao_id = $1
+                                 and g.pessoa_id     <> $2
+                                 and g.papel          = 'gestor'
+                                 and g.revogado_em is null))
+          returning v.pessoa_id`,
+          [pessoaId],
+        );
+
+        if (revogados.length > 0) return { desfecho: "revogado" };
+
+        // Zero linhas, duas causas — o mesmo movimento do `remover`.
+        const restantes = await dentro<{ papel: string }>(
+          `select papel from vinculos
+            where organizacao_id = $1 and pessoa_id = $2 and revogado_em is null`,
+          [pessoaId],
+        );
+
+        return restantes.length === 0 ? { desfecho: "nao-encontrado" } : { desfecho: "ultimo-gestor" };
+      });
+    },
+
     async impedimentosDeRemocao(): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>> {
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
@@ -297,6 +344,34 @@ export function repositorioEscopadoDeVinculos(
         // Ausente é *pode sair*. Não há valor nulo neste mapa.
       }
       return mapa;
+    },
+
+    async responsabilidadesEmAberto(): Promise<ReadonlyMap<string, number>> {
+      // **Parte de `vinculos`**, como toda leitura de gente deste arquivo, e só de vínculo ATIVO: quem já
+      // saiu não abre confirmação nenhuma, e não há por que contar para ele.
+      //
+      // **`TERMINAIS` vem do Domínio e nunca é escrito à mão**, a regra de `dashboard-escopado.ts:47`:
+      // um `('resolvida','cancelada')` literal envelhece no dia em que o ciclo ganhar um estado.
+      //
+      // **O `::int` não é decoração:** `count(*)` é `bigint`, e o `pg` o devolve como string.
+      const linhas = await consulta<{ pessoa_id: string; quantas: number }>(
+        `select v.pessoa_id, count(*)::int as quantas
+           from vinculos v
+           join atribuicoes at
+             on at.responsavel_pessoa_id = v.pessoa_id
+            and at.organizacao_id        = v.organizacao_id
+           join ocorrencias o
+             on o.id             = at.ocorrencia_id
+            and o.organizacao_id = at.organizacao_id
+          where v.organizacao_id = $1
+            and v.revogado_em is null
+            and at.encerrada_em is null
+            and o.status <> all($2::status_ocorrencia[])
+          group by v.pessoa_id`,
+        [[...TERMINAIS]],
+      );
+
+      return new Map(linhas.map((linha) => [linha.pessoa_id, linha.quantas]));
     },
   };
 }
