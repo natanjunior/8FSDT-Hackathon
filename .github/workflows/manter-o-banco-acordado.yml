@@ -70,7 +70,17 @@ jobs:
                  "demonstração pode cair num banco pausado."
             exit 1
           fi
-          psql "$BANCO_URL" -Atc "select 'acordado em ' || now();"
+          # **A cadeia do provedor traz parâmetros que o `psql` recusa, e este cron
+          # morreu por causa disso.** O erro era
+          # `psql: error: invalid URI query parameter: "uselibpqcompat"` — um
+          # parâmetro que os drivers novos entendem e o `libpq` não. Outros da
+          # mesma família (`sslnegotiation`) só existem no libpq 17, e o runner
+          # não garante essa versão.
+          #
+          # Por isso a consulta descarta a string de consulta inteira e declara o
+          # único parâmetro de que precisa. **Não imprima a URL**: ela tem senha.
+          URL_DO_PSQL="${BANCO_URL%%\?*}?sslmode=require"
+          psql "$URL_DO_PSQL" -Atc "select 'acordado em ' || now();"
 
   # ---------------------------------------------------------------------------
   # A vigia do Auth — **irmã do `acordar`, e independente dele**.
