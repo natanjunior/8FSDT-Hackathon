@@ -1,9 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useState } from "react";
 
-import { atributoDoTema, cookieDoTema, temaDoAtributo, type Tema } from "@/interface/componentes/tema";
 import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
 import { Toggle } from "@/interface/componentes/ui/toggle";
 
@@ -27,30 +25,30 @@ import { Toggle } from "@/interface/componentes/ui/toggle";
  * por padrão, o item nasceria ligado e pareceria sempre focado, e quem navega pelas setas perderia onde
  * está. O estado se lê pelo ícone e pelo `aria-checked`; o foco continua com fundo mesmo ligado.
  *
- * **Uma fonte só**: o estado inicial lê o atributo do `<html>`, o mesmo que o CSS lê. O componente só
- * monta com o menu aberto, então nunca renderiza no servidor.
+ * **Desabilitado com o alto contraste ligado** (item 85). O `disabled` vai nos dois: no item, para as
+ * setas o pularem e o leitor dizer indisponível; no `Toggle`, para o clique não chegar. O `opacity-50` do
+ * item desabilitado fica abaixo de 7:1 de propósito: controle inativo não tem piso de contraste, e é o
+ * apagado que diz que ele não responde. O estado mora em `itens-de-aparencia.tsx`.
  */
-export function ItemDeTema() {
-  const [escuro, setEscuro] = useState(
-    () => temaDoAtributo(document.documentElement.getAttribute("data-theme")) === "escuro",
-  );
-
-  function trocar(ligado: boolean) {
-    const tema: Tema = ligado ? "escuro" : "claro";
-    document.documentElement.setAttribute("data-theme", atributoDoTema(tema));
-    // Grava `escuro` também: a escolha explícita fica registrada como escolha.
-    document.cookie = cookieDoTema(tema);
-    setEscuro(ligado);
-  }
-
+export function ItemDeTema({
+  escuro,
+  desabilitado,
+  aoTrocar,
+}: {
+  escuro: boolean;
+  /** Com o alto contraste ligado: o estado fica, e as setas pulam o item (item 85). */
+  desabilitado: boolean;
+  aoTrocar: (ligado: boolean) => void;
+}) {
   return (
-    <DropdownMenuItem asChild onSelect={(evento) => evento.preventDefault()}>
+    <DropdownMenuItem asChild disabled={desabilitado} onSelect={(evento) => evento.preventDefault()}>
       <Toggle
         role="menuitemcheckbox"
         aria-checked={escuro}
         aria-pressed={undefined}
         pressed={escuro}
-        onPressedChange={trocar}
+        disabled={desabilitado}
+        onPressedChange={aoTrocar}
         className="text-interface h-auto min-h-11 w-full justify-start px-2 py-1.5 font-normal hover:bg-accent hover:text-accent-foreground data-[state=on]:bg-transparent data-[state=on]:text-inherit data-[state=on]:focus:bg-accent data-[state=on]:focus:text-accent-foreground"
       >
         {escuro ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}

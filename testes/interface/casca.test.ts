@@ -325,22 +325,31 @@ describe("o menu de pessoa — critério 7 do 44i", () => {
     expect(fonte).toContain("<LogOut");
   });
 
-  it("o tema é o `Toggle` do catálogo, entre «Entrar em outra organização» e o Sair (item 72)", () => {
+  it("o tema e o contraste são dois `Toggle` do catálogo, entre «Entrar em outra organização» e o Sair (itens 72 e 85)", () => {
     const menu = ler(MENU);
-    const item = ler("src/interface/componentes/casca/item-de-tema.tsx");
+    const pai = ler("src/interface/componentes/casca/itens-de-aparencia.tsx");
 
     const entrar = menu.indexOf("Entrar em outra organização");
-    const tema = menu.indexOf("<ItemDeTema />");
+    const aparencia = menu.indexOf("<ItensDeAparencia />");
     const sair = menu.indexOf("<form action={acaoDeSair}>");
     expect(entrar).toBeGreaterThan(-1);
-    expect(tema).toBeGreaterThan(entrar);
-    expect(sair).toBeGreaterThan(tema);
+    expect(aparencia).toBeGreaterThan(entrar);
+    expect(sair).toBeGreaterThan(aparencia);
 
-    // O papel é de item marcável, e não de botão pressionado: `aria-pressed` não vale em item de menu.
-    expect(item).toContain("<Toggle");
-    expect(item).toContain('role="menuitemcheckbox"');
-    expect(item).toContain("aria-pressed={undefined}");
-    expect(item).toContain("<DropdownMenuItem asChild");
+    // O tema vem antes do contraste.
+    expect(pai.indexOf("<ItemDeTema")).toBeGreaterThan(-1);
+    expect(pai.indexOf("<ItemDeContraste")).toBeGreaterThan(pai.indexOf("<ItemDeTema"));
+
+    // Os dois são item marcável, e não botão pressionado: `aria-pressed` não vale em item de menu.
+    for (const arquivo of ["item-de-tema.tsx", "item-de-contraste.tsx"]) {
+      const item = ler(`src/interface/componentes/casca/${arquivo}`);
+      expect(item, arquivo).toContain("<Toggle");
+      expect(item, arquivo).toContain('role="menuitemcheckbox"');
+      expect(item, arquivo).toContain("aria-pressed={undefined}");
+      expect(item, arquivo).toContain("<DropdownMenuItem asChild");
+    }
+    expect(ler("src/interface/componentes/casca/item-de-contraste.tsx")).toContain("Alto contraste");
+    expect(ler("src/interface/componentes/casca/item-de-tema.tsx")).toContain("Tema escuro");
   });
 
   it("os dois layouts que montam a barra superior passam o e-mail da sessão", () => {
