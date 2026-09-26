@@ -6,6 +6,7 @@ import type {
   RepositorioEscopadoDeVinculos,
   ResultadoDaCorrecao,
   ResultadoDaRemocao,
+  ResultadoDaRevogacao,
   ResultadoDoCadastro,
   VinculoLido,
 } from "@/aplicacao/organizacao";
@@ -226,6 +227,51 @@ export function repositorioEscopadoDeVinculos(
         if (ehViolacaoDeDependencia(erro)) return { desfecho: "com-historico" };
         throw erro;
       }
+    },
+
+    async revogar(pessoaId: string): Promise<ResultadoDaRevogacao> {
+      return emTransacao<ResultadoDaRevogacao>(async (dentro) => {
+        // **A MESMA trava do `remover`, e não uma parecida** (spec §3.2). Ela serializa as duas
+        // operações entre si: um Gestor removendo o outro enquanto o outro revoga o primeiro, sem trava
+        // comum, deixaria a organização com zero Gestores — o PA-24 pela porta que as duas guardas fecham.
+        await dentro(
+          `select 1 from vinculos
+            where organizacao_id = $1 and papel = 'gestor' and revogado_em is null
+              for update`,
+        );
+
+        // **A guarda do último Gestor mora no `where`**, como no `remover`. E `revogado_em is null` é o
+        // que faz o segundo `revogar` sobre a mesma pessoa ser `nao-encontrado`, e não um sucesso vazio.
+        //
+        // **Não há `catch` de `23503` aqui:** `update` não viola chave estrangeira nenhuma, então nem as
+        // nove `restrict` nem a chave diferida de `organizacoes` têm o que recusar. É o item inteiro.
+        const revogados = await dentro<{ pessoa_id: string }>(
+          `update vinculos v
+              set revogado_em = now()
+            where v.organizacao_id = $1
+              and v.pessoa_id = $2
+              and v.revogado_em is null
+              and (v.papel <> 'gestor'
+                   or exists (select 1 from vinculos g
+                               where g.organizacao_id = $1
+                                 and g.pessoa_id     <> $2
+                                 and g.papel          = 'gestor'
+                                 and g.revogado_em is null))
+          returning v.pessoa_id`,
+          [pessoaId],
+        );
+
+        if (revogados.length > 0) return { desfecho: "revogado" };
+
+        // Zero linhas, duas causas — o mesmo movimento do `remover`.
+        const restantes = await dentro<{ papel: string }>(
+          `select papel from vinculos
+            where organizacao_id = $1 and pessoa_id = $2 and revogado_em is null`,
+          [pessoaId],
+        );
+
+        return restantes.length === 0 ? { desfecho: "nao-encontrado" } : { desfecho: "ultimo-gestor" };
+      });
     },
 
     async impedimentosDeRemocao(): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>> {

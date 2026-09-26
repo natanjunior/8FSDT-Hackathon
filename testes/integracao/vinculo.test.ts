@@ -3,9 +3,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
+  repositorioGlobalDeVinculos,
 } from "@/infraestrutura/repositorios/organizacao";
 
 import { urlDoBancoDeTeste } from "./banco";
@@ -938,5 +940,169 @@ describe("o relógio de atualização é do banco (item 68b)", () => {
       [idGestora],
     );
     expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
+  });
+});
+
+/**
+ * ============================================================================
+ *  revogar — item 84: a pessoa sai, o rastro fica
+ * ============================================================================
+ *
+ * **Estado herdado dos `describe` de cima, e ele importa:** `idGestora` é a única Gestora de
+ * `idOrganizacao`, e `organizacoes.criada_por_pessoa_id` aponta para ela (caso do critério 10.3).
+ */
+describe("revogar — a pessoa perde o acesso, e o rastro continua nomeando-a", () => {
+  const NO_FUTURO = "2099-01-01T00:00:00.000Z";
+
+  function vinculosEm(organizacaoId: string) {
+    return repositorioEscopadoDeVinculos(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+  }
+
+  function ocorrenciasEm(organizacaoId: string) {
+    return repositorioEscopadoDeOcorrencias(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+  }
+
+  /** Uma Solicitante sem conta, com vínculo em `idOrganizacao`, e o `pessoaId`. */
+  async function solicitante(nome: string): Promise<string> {
+    const [pessoa] = await consulta<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [nome],
+    );
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [pessoa!.id, idOrganizacao],
+    );
+    return pessoa!.id;
+  }
+
+  /**
+   * **O critério 84.1 inteiro, nas três metades que ele nomeia.** A ocorrência e o registro de transição
+   * entram por SQL, como no caso do `remover` com histórico: o que se prova aqui é a leitura depois de
+   * revogar, e não o registro.
+   */
+  it("revoga quem registrou ocorrência: some do acesso, e a ocorrência e a trilha continuam nomeando-a", async () => {
+    const pessoaId = await solicitante("Joana que Mudou de Prédio");
+    const [categoria] = await consulta<{ id: string }>(
+      `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'wrench', 84) returning id`,
+      [idOrganizacao, `Categoria do 84 ${SUFIXO}`],
+    );
+    const [ocorrencia] = await consulta<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, autor_pessoa_id, categoria_id, area_id, area_tipo, titulo, descricao)
+       values ($1, $2, $3, $4, 'privativa', 'Portão emperrado', 'Não fecha desde ontem.')
+       returning id`,
+      [idOrganizacao, pessoaId, categoria!.id, AREA_ATIVA],
+    );
+    await consulta(
+      `insert into registros_transicao
+         (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id)
+       values ($1, $2, 1, null, 'aberta', $3)`,
+      [idOrganizacao, ocorrencia!.id, pessoaId],
+    );
+
+    expect((await vinculosEm(idOrganizacao).revogar(pessoaId)).desfecho).toBe("revogado");
+
+    // 1 · A pessoa perde o acesso: a resolução de contexto não lista mais a organização.
+    const ativos = await repositorioGlobalDeVinculos(consulta).ativosDaPessoa(pessoaId);
+    expect(ativos.map((v) => v.organizacao.id)).not.toContain(idOrganizacao);
+    expect(await vinculosEm(idOrganizacao).porPessoa(pessoaId)).toBeNull();
+
+    // 2 · A ocorrência continua na lista da organização, e com o nome dela.
+    const lista = await ocorrenciasEm(idOrganizacao).listar({ limite: 50, deslocamento: 0, ate: NO_FUTURO });
+    const daJoana = lista.find((linha) => linha.id === ocorrencia!.id);
+    expect(daJoana?.autor).toStrictEqual({ pessoaId, nome: "Joana que Mudou de Prédio" });
+
+    // 3 · A trilha continua íntegra e nomeando-a: o mesmo registro, o mesmo autor, nenhum registro a mais.
+    const trilha = await ocorrenciasEm(idOrganizacao).trilha(ocorrencia!.id);
+    expect(trilha).toHaveLength(1);
+    expect(trilha[0]?.autor).toStrictEqual({ pessoaId, nome: "Joana que Mudou de Prédio" });
+
+    // 4 · E o detalhe também (spec §3.10, "a trilha e o detalhe continuam nomeando-o").
+    const detalhe = await ocorrenciasEm(idOrganizacao).porId(ocorrencia!.id);
+    expect(detalhe?.autor).toStrictEqual({ pessoaId, nome: "Joana que Mudou de Prédio" });
+
+    // E a linha de `vinculos` continua lá — é o que mantém as chaves compostas válidas.
+    const linhas = await consulta<{ revogado: boolean; atualizado: boolean }>(
+      `select revogado_em is not null as revogado, atualizado_em is not null as atualizado
+         from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [pessoaId, idOrganizacao],
+    );
+    expect(linhas).toStrictEqual([{ revogado: true, atualizado: true }]);
+  });
+
+  it("revogar duas vezes: a segunda é nao-encontrado, e não um segundo sucesso", async () => {
+    const pessoaId = await solicitante("Revogada Duas Vezes");
+
+    expect((await vinculosEm(idOrganizacao).revogar(pessoaId)).desfecho).toBe("revogado");
+    expect((await vinculosEm(idOrganizacao).revogar(pessoaId)).desfecho).toBe("nao-encontrado");
+  });
+
+  /** **O critério 84.2**, no cenário do 10.3: o Gestor inicial, que TEM dependente. */
+  it("o Gestor inicial não se revoga: ultimo-gestor, com a mesma força do remover", async () => {
+    expect((await vinculosEm(idOrganizacao).revogar(idGestora)).desfecho).toBe("ultimo-gestor");
+    expect(await vinculosEm(idOrganizacao).porPessoa(idGestora)).not.toBeNull();
+  });
+
+  it("com dois Gestores, um revoga o outro, e a guarda volta a valer para o que ficou", async () => {
+    const segundo = await solicitante("Gestor que Saiu");
+    await consulta(
+      `update vinculos set papel = 'gestor' where pessoa_id = $1 and organizacao_id = $2`,
+      [segundo, idOrganizacao],
+    );
+
+    expect((await vinculosEm(idOrganizacao).revogar(segundo)).desfecho).toBe("revogado");
+    expect((await vinculosEm(idOrganizacao).revogar(idGestora)).desfecho).toBe("ultimo-gestor");
+  });
+
+  /**
+   * **A trava comum, e a razão de ela ser a MESMA do `remover`.** Numa organização com exatamente dois
+   * Gestores, um remove o outro enquanto o outro revoga o primeiro. Sem trava comum as duas transações
+   * veem uma à outra ativa e passam, e a organização fica sem Gestor. Com ela, a segunda espera e recusa.
+   */
+  it("remover e revogar ao mesmo tempo, entre os dois únicos Gestores: um passa, o outro é ultimo-gestor", async () => {
+    const [organizacao] = await consulta<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ('Organização da corrida do 84', $1) returning id`,
+      [`C${SUFIXO.slice(-7).toUpperCase()}`],
+    );
+    const gestores = await consulta<{ id: string }>(
+      `insert into pessoas (nome) values ('Primeiro Gestor'), ('Segundo Gestor') returning id`,
+    );
+    for (const gestor of gestores) {
+      await consulta(
+        `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'gestor')`,
+        [gestor.id, organizacao!.id],
+      );
+    }
+
+    const [remocao, revogacao] = await Promise.all([
+      vinculosEm(organizacao!.id).remover(gestores[0]!.id),
+      vinculosEm(organizacao!.id).revogar(gestores[1]!.id),
+    ]);
+
+    const desfechos = [remocao.desfecho, revogacao.desfecho];
+    expect(desfechos.filter((desfecho) => desfecho === "ultimo-gestor")).toHaveLength(1);
+
+    const restantes = await consulta<{ total: number }>(
+      `select count(*)::int as total from vinculos
+        where organizacao_id = $1 and papel = 'gestor' and revogado_em is null`,
+      [organizacao!.id],
+    );
+    expect(restantes[0]?.total).toBe(1);
+  });
+
+  it("vínculo de outra organização é nao-encontrado, e continua ativo do lado de lá", async () => {
+    expect((await vinculosEm(idOrganizacao).revogar(idSoDaOutra)).desfecho).toBe("nao-encontrado");
+
+    const restou = await consulta<{ revogado_em: Date | null }>(
+      `select revogado_em from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [idSoDaOutra, idOutraOrganizacao],
+    );
+    expect(restou).toStrictEqual([{ revogado_em: null }]);
   });
 });

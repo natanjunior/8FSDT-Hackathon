@@ -458,7 +458,7 @@ export type ResultadoDaCorrecao =
  * **Um valor só para o histórico, e nomear qual dos nove dependentes bloqueou foi recusado** com
  * argumento (`respostas.md` P2): nomear transforma uma constante de tela em nove, obriga a décima quando
  * alguém acrescentar tabela, e põe nome de tabela do esquema num modelo de leitura. O que o Gestor precisa
- * saber é que não pode e que revogar ainda não existe.
+ * saber é que o vínculo não pode ser apagado, e a tela oferece encerrar o acesso no lugar (item 84).
  */
 export type ImpedimentoDeRemocao = "historico" | "ultimo-gestor";
 
@@ -474,6 +474,21 @@ export type ResultadoDaRemocao =
   | { desfecho: "nao-encontrado" }
   | { desfecho: "ultimo-gestor" }
   | { desfecho: "com-historico" };
+
+/**
+ * Os três desfechos da revogação — item 84. **Etiqueta, não exceção**, a mesma doutrina da remoção.
+ *
+ * **Não há `com-historico` aqui, e a ausência é o item inteiro:** revogar é `update`, a linha de
+ * `vinculos` fica, e nenhuma chave estrangeira tem o que recusar. É por isso que revogar alcança quem o
+ * `DELETE` não alcança.
+ *
+ * `nao-encontrado` cobre três casos com uma resposta: nunca houve vínculo, é de outra organização, ou
+ * **já foi revogado** — a guarda `revogado_em is null` mora no `where`.
+ */
+export type ResultadoDaRevogacao =
+  | { desfecho: "revogado" }
+  | { desfecho: "nao-encontrado" }
+  | { desfecho: "ultimo-gestor" };
 
 /**
  * **A porta escopada dos vínculos.**
@@ -508,6 +523,15 @@ export interface RepositorioEscopadoDeVinculos {
    * leitura prévia perderia a corrida que o `409` existe para cobrir.
    */
   remover(pessoaId: string): Promise<ResultadoDaRemocao>;
+
+  /**
+   * Encerra o acesso **preservando o registro** — item 84. Marca `revogado_em`; a linha fica, e todo
+   * `join vinculos` da trilha, da linha do tempo e do detalhe continua nomeando a pessoa.
+   *
+   * **A trava e a guarda são as mesmas do `remover`**, e a trava comum importa além de cada operação: um
+   * Gestor removendo o outro enquanto o outro revoga o primeiro travam as mesmas linhas e se serializam.
+   */
+  revogar(pessoaId: string): Promise<ResultadoDaRevogacao>;
 
   /**
    * Por vínculo ativo desta organização, o que impede a remoção. **Ausência do `pessoaId` no mapa

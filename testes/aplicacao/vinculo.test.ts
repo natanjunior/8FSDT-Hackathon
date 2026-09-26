@@ -11,9 +11,11 @@ import {
   corrigirVinculo,
   listarVinculos,
   removerVinculo,
+  revogarVinculo,
   type RepositorioEscopadoDeVinculos,
   type ResultadoDaCorrecao,
   type ResultadoDaRemocao,
+  type ResultadoDaRevogacao,
   type ResultadoDoCadastro,
   type VinculoLido,
 } from "@/aplicacao/organizacao";
@@ -43,11 +45,12 @@ function portaFalsa(
   cadastro: ResultadoDoCadastro = { desfecho: "cadastrado", vinculo: ENCARREGADO },
   correcao: ResultadoDaCorrecao = { desfecho: "corrigido", vinculo: ENCARREGADO },
   remocao: ResultadoDaRemocao = { desfecho: "removido" },
+  revogacao: ResultadoDaRevogacao = { desfecho: "revogado" },
 ): {
   porta: RepositorioEscopadoDeVinculos;
-  recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown };
+  recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown; revogar?: unknown };
 } {
-  const recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown } = {};
+  const recebido: { cadastrar?: unknown; corrigir?: unknown; remover?: unknown; revogar?: unknown } = {};
   return {
     recebido,
     porta: {
@@ -64,6 +67,10 @@ function portaFalsa(
       remover(pessoaId) {
         recebido.remover = pessoaId;
         return Promise.resolve(remocao);
+      },
+      revogar(pessoaId) {
+        recebido.revogar = pessoaId;
+        return Promise.resolve(revogacao);
       },
       // **Nunca chamada pelo caso de uso**, e é o ponto: `impedimentosDeRemocao` existe para a TELA
       // (spec §3.4). Se algum dia `removerVinculo` a chamar, o desfecho deixou de vir do banco.
@@ -244,5 +251,30 @@ describe("removerVinculo", () => {
     const { porta } = portaFalsa(undefined, undefined, { desfecho: "ultimo-gestor" });
 
     await expect(removerVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(UltimoGestor);
+  });
+});
+
+/**
+ * **Revogar é a tradução de três desfechos, e nenhum vem de leitura prévia** — a mesma doutrina do
+ * `removerVinculo`. As garantias (a trava, a guarda no `where`) são da Tarefa 1 contra Postgres.
+ */
+describe("revogarVinculo", () => {
+  it("no caminho feliz não devolve nada, e entrega à porta o pessoaId cru", async () => {
+    const { porta, recebido } = portaFalsa();
+
+    await expect(revogarVinculo(porta, "pessoa-1")).resolves.toBeUndefined();
+    expect(recebido.revogar).toBe("pessoa-1");
+  });
+
+  it("traduz nao-encontrado em VINCULO_NAO_ENCONTRADO — inclusive o já revogado", async () => {
+    const { porta } = portaFalsa(undefined, undefined, undefined, { desfecho: "nao-encontrado" });
+
+    await expect(revogarVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(VinculoNaoEncontrado);
+  });
+
+  it("traduz ultimo-gestor em ULTIMO_GESTOR — a mesma recusa do remover", async () => {
+    const { porta } = portaFalsa(undefined, undefined, undefined, { desfecho: "ultimo-gestor" });
+
+    await expect(revogarVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(UltimoGestor);
   });
 });

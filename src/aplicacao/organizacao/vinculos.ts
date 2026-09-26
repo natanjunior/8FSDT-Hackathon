@@ -141,6 +141,30 @@ export async function removerVinculo(
 }
 
 /**
+ * Encerrar o acesso de quem deixou rastro — **item 84**, o caminho que `VINCULO_COM_HISTORICO` aponta.
+ *
+ * **Não devolve nada, e é o `204` do contrato.** Nenhum desfecho vem de leitura prévia: `nao-encontrado`
+ * é o `where` com `revogado_em is null`, e `ultimo-gestor` é a guarda dentro do `where` do `update`.
+ *
+ * **A permissão não é conferida aqui.** `vinculo.gerir` é exigida por `comContexto({ exige })`.
+ */
+export async function revogarVinculo(
+  vinculos: RepositorioEscopadoDeVinculos,
+  pessoaId: string,
+): Promise<void> {
+  const resultado = await vinculos.revogar(pessoaId);
+
+  switch (resultado.desfecho) {
+    case "nao-encontrado":
+      throw new VinculoNaoEncontrado();
+    case "ultimo-gestor":
+      throw new UltimoGestor();
+    case "revogado":
+      return;
+  }
+}
+
+/**
  * O que impede a remoção, por vínculo ativo — **a leitura que T-08 faz pela estrada direta** (contrato
  * §5).
  *
