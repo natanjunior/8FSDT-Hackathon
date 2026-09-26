@@ -1781,10 +1781,9 @@ paths:
         Responde **`302`** para uma URL assinada de leitura, válida por 10 minutos. **A API não faz proxy
         dos bytes** — pelo mesmo motivo de custo que decidiu o upload.
 
-        A URL **deste endpoint** é estável, então serve em `<img src>` e é cacheável pelo service worker;
-        a URL assinada, que muda a cada pedido, nunca aparece em payload de listagem. O `anexoId` é o
-        identificador da linha, que nunca muda — o cliente **não o constrói**: ele vem pronto em
-        `OcorrenciaDetalhe.anexos[].url`.
+        A URL **deste endpoint** é estável, então serve em `<img src>`; a URL assinada, que muda a cada
+        pedido, nunca aparece em payload de listagem. O `anexoId` é o identificador da linha, que nunca
+        muda — o cliente **não o constrói**: ele vem pronto em `OcorrenciaDetalhe.anexos[].url`.
 
         O contêiner não é público: ocorrência em unidade privativa é visível só ao autor e aos Gestores, e
         a autorização é feita aqui, **a cada leitura** — é a ocorrência que decide quem vê, nunca a posse
@@ -1801,8 +1800,8 @@ paths:
             `miniatura` devolve a versão reduzida, se existir. Ausente devolve o objeto principal.
 
             **É parâmetro e não caminho novo de propósito:** a miniatura é outra *representação* do mesmo
-            anexo, não outro recurso — e assim a operação continua sendo uma, com a URL igualmente estável
-            para o cache do service worker. `404` quando o anexo existe e não tem miniatura.
+            anexo, não outro recurso — e assim a operação continua sendo uma, com a URL igualmente
+            estável. `404` quando o anexo existe e não tem miniatura.
           schema: { type: string, enum: [miniatura] }
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       responses:
@@ -3703,8 +3702,7 @@ components:
           type: string
           description: |
             Caminho **estável** desta API (`/ocorrencias/{id}/anexos/{anexoId}`), que responde `302` para
-            uma URL assinada de vida curta. Nunca a URL do storage — ela expira, mudaria a cada resposta e
-            quebraria o cache do PWA.
+            uma URL assinada de vida curta. Nunca a URL do storage — ela expira e mudaria a cada resposta.
           example: "/api/ocorrencias/9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8/anexos/c3d4e5f6-7a8b-4c9d-8e0f-1a2b3c4d5e6f"
         anexadoEm: { type: string, format: date-time }
 
