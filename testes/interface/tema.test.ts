@@ -16,6 +16,7 @@ import {
   temaDoAtributo,
   temaDoCookie,
 } from "@/interface/componentes/tema";
+import { vlibrasNaRota } from "@/interface/componentes/rota-do-vlibras";
 import { cn } from "@/interface/componentes/utilitarios";
 
 /**
@@ -832,5 +833,19 @@ describe("o contraste do produto — item 85", () => {
   it("o cookie gravado segue o do tema: um ano, o site todo, sem `Secure`", () => {
     expect(cookieDoContraste("alto")).toBe("contraste=alto; path=/; max-age=31536000; samesite=lax");
     expect(contrasteDoCookie(cookieDoContraste("normal").split(";")[0] ?? "")).toBe("normal");
+  });
+});
+
+describe("o VLibras aparece no produto e não na documentação — item 85", () => {
+  it.each([
+    ["/", true],
+    ["/entrar", true],
+    ["/ocorrencias/abc", true],
+    ["/grupo", true],
+    ["/documentacao", false],
+    ["/documentacao/adr/0017", false],
+    ["/documentacaox", true],
+  ])("%s → %s", (caminho, esperado) => {
+    expect(vlibrasNaRota(caminho)).toBe(esperado);
   });
 });
