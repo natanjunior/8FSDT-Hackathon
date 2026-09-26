@@ -172,6 +172,11 @@ ordem do ciclo. O quadro por categoria conta só o que está em aberto, e escrev
 quantas passaram de uma semana. Os dois não somam o mesmo número, e cada um diz na tela o que conta,
 porque um leitor que somasse os dois chegaria a uma conclusão que os dados não sustentam.
 
+O quadro da satisfação escreve o denominador ao lado da média, sempre: sem ele a média engana quando poucos
+avaliam, porque a média de duas notas ocupa a mesma tela que a média de duzentas. Sem nenhuma avaliação no
+período, o número grande fica num traço, nunca num zero, e a frase ao lado diz quantas resolvidas o período
+tem e que nenhuma delas foi avaliada.
+
 No painel, o período se escolhe num controle único, que mostra o intervalo aplicado e abre um calendário
 com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho fica apagado quando o
 período já é o dele, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
