@@ -213,21 +213,20 @@ export class ListaDesatualizada extends ErroDeDominio {
  * `PedidoDeEntradaPendente` e de `ContatoDuplicado`. São **nove** as tabelas que apontam para
  * `vinculos (pessoa_id, organizacao_id)`, e a recusa é do banco em todas.
  *
- * **O texto é cópia literal do `openapi.yaml:715-717`**, e não da frase de tela. São coisas diferentes:
- * o corpo `problem+json` pertence à especificação versionada — que o Definition of Done manda o código
- * corresponder —, e a tela **nunca o mostra**: nos dois `409` a razão substitui o botão, e a linha de
- * recusa da spec §3.10 reusa a frase da razão, que vive em `frases-da-remocao.ts`.
+ * **O texto é cópia literal do exemplo `comHistorico` do `DELETE /vinculos/{pessoaId}` no
+ * `openapi.yaml`**, e os dois mudaram juntos no item 84: a segunda frase passou a apontar o caminho que
+ * existe (`POST /vinculos/{pessoaId}/revogar`), e a primeira deixou de nomear um só dos nove rastros —
+ * o achado A-1 do item 10, que esperava exatamente um commit que tocasse os dois arquivos.
  *
- * **O `detail` publicado nomeia só um dos nove rastros**, e isso é o achado **A-1** da spec do item 10 —
- * item **32** de `trabalho/fila-documentacao.md`. Consertá-lo aqui faria o código publicar um contrato
- * que o arquivo versionado não tem.
+ * **A tela nunca mostra este `detail`**: quem tem rastro recebe a confirmação de encerrar o acesso, e a
+ * linha de recusa usa a frase de `frases-da-remocao.ts`.
  */
 export class VinculoComHistorico extends ErroDeDominio {
   constructor() {
     super(
       "VINCULO_COM_HISTORICO",
       "Este vínculo já tem histórico",
-      "A pessoa já registrou ocorrências nesta organização. Remover apagaria o rastro dela; o caminho é revogar o acesso.",
+      "A pessoa já deixou rastro nesta organização, e o vínculo não pode ser apagado. Para encerrar o acesso dela, revogue o vínculo.",
     );
   }
 }

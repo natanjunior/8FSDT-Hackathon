@@ -24,6 +24,8 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Encarregado | Papel de quem executa o trabalho: zelador, técnico, prestador. Nesta versão existe como cadastro, sem acesso próprio | Responsável, que é a atribuição e não o papel |
 | Responsável | A Pessoa designada para resolver uma ocorrência. É uma relação, e alcança qualquer Pessoa com vínculo | Encarregado; e o autor da transição, que é quem executou o comando |
 | Pedido de entrada | A solicitação de uma Pessoa para se vincular a uma Organização, apresentando o Código, e que aguarda decisão do Gestor | Vínculo, que só passa a existir depois da aprovação |
+| Remover vínculo | Apagar o vínculo de quem ainda não deixou rastro na Organização. A Pessoa continua existindo, e pode pedir entrada de novo se tiver conta | Revogar vínculo |
+| Revogar vínculo | Encerrar o acesso de quem já deixou rastro, sem apagar nada. O vínculo fica, e o nome continua na trilha. Na tela, é *encerrar o acesso* | Remover vínculo, que apaga |
 
 ## O lugar
 

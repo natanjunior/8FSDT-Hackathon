@@ -475,6 +475,8 @@ paths:
       description: |
         Cria o **Vínculo** com o papel escolhido. É aqui que a invariante da D25 se fecha: *"o Vínculo só
         passa a existir com aprovação do Gestor"*.
+        Quando a Pessoa já teve vínculo nesta organização e ele foi revogado, é o mesmo vínculo que volta a
+        valer, com o papel e a unidade desta aprovação.
 
         *Capacidade: Gestor aprova ou recusa · `NOSSO` (D25). Permissão: `vinculo.gerir`.*
       parameters:
@@ -792,8 +794,8 @@ paths:
         A **Pessoa permanece**: ela é global e nunca se apaga por aqui. Depois da remoção, um novo pedido
         de entrada é aceito, agora com o papel certo.
 
-        Para encerrar o acesso de quem **tem** histórico a operação é outra — *revogar* —, e ela preserva
-        o registro. Não está nesta entrega.
+        Para encerrar o acesso de quem **tem** histórico a operação é outra, `revogarVinculo`, e ela
+        preserva o registro.
 
         *Capacidade: remover vínculo sem histórico · `NOSSO` (D25, PA-25). Permissão: `vinculo.gerir`.*
       parameters:
@@ -823,7 +825,7 @@ paths:
                     type: "https://resolveai.app/erros/vinculo-com-historico"
                     title: "Este vínculo já tem histórico"
                     status: 409
-                    detail: "A pessoa já registrou ocorrências nesta organização. Remover apagaria o rastro dela; o caminho é revogar o acesso."
+                    detail: "A pessoa já deixou rastro nesta organização, e o vínculo não pode ser apagado. Para encerrar o acesso dela, revogue o vínculo."
                     codigo: "VINCULO_COM_HISTORICO"
                     traceId: "01JB8Z6K9T2M4N7Q"
                 ultimoGestor:
@@ -835,6 +837,57 @@ paths:
                     detail: "Aprove outra pessoa como Gestor antes de remover este vínculo."
                     codigo: "ULTIMO_GESTOR"
                     traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/revogar:
+    post:
+      tags: [Vínculos]
+      operationId: revogarVinculo
+      summary: Encerrar o acesso de quem já deixou rastro
+      description: |
+        Encerra o acesso de uma pessoa à organização **preservando o registro**. O vínculo não é apagado:
+        ele fica revogado, sai de toda listagem de gente e da resolução de contexto, e continua nomeando a
+        pessoa na trilha de auditoria, na linha do tempo e nas ocorrências que ela registrou.
+
+        É o caminho para quem **tem** histórico, que `removerVinculo` recusa com `409
+        VINCULO_COM_HISTORICO`. Não é um segundo `DELETE`: a linha fica, e o único `DELETE` do contrato
+        continua sendo o de vínculo sem histórico.
+
+        **Não revoga o último Gestor**, pela mesma razão e com a mesma resposta do `DELETE`.
+
+        **Revogado não é definitivo.** Quem tem conta pode pedir entrada de novo; aprovado o pedido, o
+        mesmo vínculo volta a valer, com o papel e a unidade da nova aprovação.
+
+        As atribuições vigentes em que a pessoa é responsável continuam vigentes. Reatribuir é
+        `atribuirResponsavel`.
+
+        *Capacidade: encerrar o acesso preservando o registro. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "204":
+          description: Acesso encerrado. O vínculo continua existindo, revogado.
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização, inclusive quando ele já foi revogado.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: É o último vínculo com permissão de gerir.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/ultimo-gestor"
+                title: "Esta organização ficaria sem Gestor"
+                status: 409
+                detail: "Aprove outra pessoa como Gestor antes de remover este vínculo."
+                codigo: "ULTIMO_GESTOR"
+                traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /categorias:
