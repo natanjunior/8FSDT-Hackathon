@@ -1005,10 +1005,23 @@ describe("a satisfação", () => {
     );
   });
 
-  it("sem avaliação: a frase literal do 34.2", () => {
-    expect(denominadorDaSatisfacao({ media: null, avaliadas: 0, resolvidas: 5 })).toBe(
+  // **O caso de baixo é a trava de regressão, não o caso novo.** Com nenhuma resolvida a saída tem de ser
+  // idêntica à de antes do item 81, caractere por caractere, porque é a frase que a organização
+  // recém-criada lê e ela já estava certa.
+  it("sem avaliação e sem resolvida: a frase de sempre, caractere por caractere", () => {
+    expect(denominadorDaSatisfacao({ media: null, avaliadas: 0, resolvidas: 0 })).toBe(
       "Nenhuma ocorrência avaliada ainda — 0 de 0 resolvidas.",
     );
+  });
+
+  // **Havendo resolvidas, o denominador é o verdadeiro** (item 81, que reabriu a largura do critério 34.2).
+  // O singular de *resolvida* é a casa do arquivo: `segundoTermoDoSaldo` e `segundoTermoDoEmAberto` fazem o
+  // mesmo.
+  it.each([
+    [1, "Nenhuma ocorrência avaliada ainda — 0 de 1 resolvida."],
+    [5, "Nenhuma ocorrência avaliada ainda — 0 de 5 resolvidas."],
+  ])("sem avaliação, com %i resolvida(s): o denominador é o verdadeiro", (resolvidas, esperado) => {
+    expect(denominadorDaSatisfacao({ media: null, avaliadas: 0, resolvidas })).toBe(esperado);
   });
 
   it("o rótulo da nota não é estrela", () => {
