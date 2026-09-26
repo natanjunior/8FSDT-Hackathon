@@ -24,9 +24,9 @@ export function projetarAutorizacaoDeUpload(emitida: AutorizacaoEmitida) {
  * O schema `Anexo` do contrato.
  *
  * **As duas URLs são caminhos desta API, montados a partir do `anexoId`** — que é a chave primária,
- * imutável. Se elas carregassem a chave do storage, mudariam no dia em que a variante de prefixo da
- * §10.3 fosse necessária, e o cache do service worker, que é a razão de o endpoint existir, quebraria
- * junto (contrato §10.4).
+ * imutável. É por isso que o endpoint existe: se elas carregassem a chave do storage, mudariam no dia em
+ * que a variante de prefixo da §10.3 fosse necessária, e cada `Anexo` já entregue apontaria para um
+ * caminho morto (contrato §10.4).
  *
  * **`fonte` não aparece, de propósito:** ela diz qual provedor resolve a chave, e isso é infraestrutura —
  * o cliente recebe uma URL desta API e segue o `302`.
