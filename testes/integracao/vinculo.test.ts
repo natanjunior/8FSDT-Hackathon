@@ -1106,3 +1106,66 @@ describe("revogar — a pessoa perde o acesso, e o rastro continua nomeando-a", 
     expect(restou).toStrictEqual([{ revogado_em: null }]);
   });
 });
+
+/**
+ * **A leitura do item 84 para a confirmação de encerrar o acesso** (spec §3.7a). "Em aberto" é NÃO
+ * TERMINAL — a régua da fila *sem responsável* (`ocorrencias-escopadas.ts:1450`) —, para as duas
+ * contagens nunca discordarem.
+ */
+describe("responsabilidadesEmAberto — quantas em aberto têm a pessoa como responsável", () => {
+  it("conta a vigente em ocorrência não terminal, e não conta a encerrada nem a de terminal", async () => {
+    const [pessoa] = await consulta<{ id: string }>(
+      `insert into pessoas (nome) values ('Zelador com Três Atribuições') returning id`,
+    );
+    const responsavel = pessoa!.id;
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`,
+      [responsavel, idOrganizacao],
+    );
+    const [categoria] = await consulta<{ id: string }>(
+      `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'wrench', 85) returning id`,
+      [idOrganizacao, `Categoria da contagem do 84 ${SUFIXO}`],
+    );
+
+    /** Uma ocorrência no status pedido, atribuída ao responsável; `encerrada` encerra a atribuição. */
+    async function atribuida(status: "aberta" | "resolvida", encerrada: boolean): Promise<void> {
+      const [ocorrencia] = await consulta<{ id: string }>(
+        `insert into ocorrencias
+           (organizacao_id, autor_pessoa_id, categoria_id, area_id, area_tipo, titulo, descricao)
+         values ($1, $2, $3, $4, 'privativa', 'Contagem do 84', 'Uma ocorrência para contar.')
+         returning id`,
+        [idOrganizacao, idGestora, categoria!.id, AREA_ATIVA],
+      );
+      if (status === "resolvida") {
+        // A forma da suíte de isolamento (`:288-296`), sem a nota: o `ocorrencias_avaliacao_ck` só exige
+        // coerência quando há avaliação.
+        await consulta(
+          `update ocorrencias set status = 'resolvida', atualizada_em = now()
+            where id = $1 and organizacao_id = $2`,
+          [ocorrencia!.id, idOrganizacao],
+        );
+      }
+      await consulta(
+        `insert into atribuicoes
+           (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id,
+            atribuido_em, encerrada_em, motivo_encerramento)
+         values ($1, $2, $3, $4, now() - interval '1 hour',
+                 ${encerrada ? "now()" : "null"}, ${encerrada ? "'reatribuicao'" : "null"})`,
+        [idOrganizacao, ocorrencia!.id, responsavel, idGestora],
+      );
+    }
+
+    await atribuida("aberta", false); // conta
+    await atribuida("aberta", false); // conta
+    await atribuida("aberta", true); // não conta: a atribuição foi encerrada
+    await atribuida("resolvida", false); // não conta: a ocorrência é terminal
+
+    const mapa = await repositorio().responsabilidadesEmAberto();
+    expect(mapa.get(responsavel)).toBe(2);
+  });
+
+  it("quem não é responsável de nada não aparece no mapa — ausente é zero", async () => {
+    const mapa = await repositorio().responsabilidadesEmAberto();
+    expect(mapa.has(idSoDaOutra)).toBe(false);
+  });
+});

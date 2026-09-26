@@ -77,6 +77,10 @@ function portaFalsa(
       impedimentosDeRemocao: () => {
         throw new Error("removerVinculo não lê impedimentos — o desfecho vem do banco.");
       },
+      // A mesma razão, para a leitura do item 84: a contagem é da tela, e nenhum caso de uso a consulta.
+      responsabilidadesEmAberto: () => {
+        throw new Error("nenhum caso de uso lê a contagem de responsável — ela é da tela.");
+      },
     },
   };
 }

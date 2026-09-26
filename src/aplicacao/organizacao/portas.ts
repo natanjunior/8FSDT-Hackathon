@@ -546,6 +546,16 @@ export interface RepositorioEscopadoDeVinculos {
    * para que a razão na tela e a razão do `409` nunca discordem.
    */
   impedimentosDeRemocao(): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>>;
+
+  /**
+   * Por vínculo ativo, quantas atribuições **vigentes** ele tem em ocorrência **não terminal** — item 84.
+   * **Ausência do `pessoaId` é zero.**
+   *
+   * **Existe só para a tela**, como `impedimentosDeRemocao`: a confirmação de encerrar o acesso diz quantas
+   * ocorrências ficam atribuídas a quem sai, porque elas não entram na fila *sem responsável* — têm
+   * atribuição vigente — e o Gestor não as acharia de outro jeito (`respostas.md` P2 do item 84).
+   */
+  responsabilidadesEmAberto(): Promise<ReadonlyMap<string, number>>;
 }
 
 /**

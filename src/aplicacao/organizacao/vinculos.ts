@@ -187,3 +187,14 @@ export function listarImpedimentosDeRemocao(
 ): Promise<ReadonlyMap<string, ImpedimentoDeRemocao>> {
   return vinculos.impedimentosDeRemocao();
 }
+
+/**
+ * Quantas ocorrências em aberto cada vínculo tem como responsável — **a leitura que T-08 faz pela estrada
+ * direta** para a confirmação de encerrar o acesso (item 84). Delega e nada mais, pelo mesmo motivo de
+ * `listarImpedimentosDeRemocao`: nenhuma página chama método de porta direto.
+ */
+export function listarResponsabilidadesEmAberto(
+  vinculos: RepositorioEscopadoDeVinculos,
+): Promise<ReadonlyMap<string, number>> {
+  return vinculos.responsabilidadesEmAberto();
+}

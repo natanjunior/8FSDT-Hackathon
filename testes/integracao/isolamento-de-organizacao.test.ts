@@ -1067,6 +1067,37 @@ describe("as consultas de configuração não atravessam organizações", () => 
   });
 
   /**
+   * **A entrada do item 84 — a contagem de responsável em aberto.** Semeia nada: a síndica é
+   * responsável pela única ocorrência de cada organização, pelas atribuições do `beforeAll`.
+   *
+   * **Os conjuntos são disjuntos, e é o status que os separa:** a ocorrência de Recanto (A) é
+   * `resolvida` (`:285-300`), então em A a síndica **não** aparece — terminal não conta. A de Aurora (B)
+   * está aberta, então em B ela aparece com 1. Um `$1` perdido em qualquer dos três `join` faria A
+   * contar a de B, e `sindica:1` apareceria onde o esperado é vazio.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "responsabilidadesEmAberto",
+    consultar: async (organizacaoId) => {
+      const repo = repositorioEscopadoDeVinculos(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      );
+      return [...(await repo.responsabilidadesEmAberto())].map(
+        ([pessoaId, quantas]) => `${pessoaId}:${String(quantas)}`,
+      );
+    },
+    chaveDaLinha: (frase) => frase,
+    esperadas: {
+      get emA() {
+        return [];
+      },
+      get emB() {
+        return [`${idSindica}:1`];
+      },
+    },
+  });
+
+  /**
    * **A décima segunda entrada — o recorte de área do item 67.** Ela é a irmã da oitava: aquela pede a
    * **categoria** de B dentro de A, esta pede a **área**.
    *

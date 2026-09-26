@@ -10,6 +10,7 @@ import type {
   ResultadoDoCadastro,
   VinculoLido,
 } from "@/aplicacao/organizacao";
+import { TERMINAIS } from "@/dominio/ocorrencia";
 import { ehPapel, ehTipoDeArea } from "@/dominio/organizacao";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
@@ -343,6 +344,34 @@ export function repositorioEscopadoDeVinculos(
         // Ausente é *pode sair*. Não há valor nulo neste mapa.
       }
       return mapa;
+    },
+
+    async responsabilidadesEmAberto(): Promise<ReadonlyMap<string, number>> {
+      // **Parte de `vinculos`**, como toda leitura de gente deste arquivo, e só de vínculo ATIVO: quem já
+      // saiu não abre confirmação nenhuma, e não há por que contar para ele.
+      //
+      // **`TERMINAIS` vem do Domínio e nunca é escrito à mão**, a regra de `dashboard-escopado.ts:47`:
+      // um `('resolvida','cancelada')` literal envelhece no dia em que o ciclo ganhar um estado.
+      //
+      // **O `::int` não é decoração:** `count(*)` é `bigint`, e o `pg` o devolve como string.
+      const linhas = await consulta<{ pessoa_id: string; quantas: number }>(
+        `select v.pessoa_id, count(*)::int as quantas
+           from vinculos v
+           join atribuicoes at
+             on at.responsavel_pessoa_id = v.pessoa_id
+            and at.organizacao_id        = v.organizacao_id
+           join ocorrencias o
+             on o.id             = at.ocorrencia_id
+            and o.organizacao_id = at.organizacao_id
+          where v.organizacao_id = $1
+            and v.revogado_em is null
+            and at.encerrada_em is null
+            and o.status <> all($2::status_ocorrencia[])
+          group by v.pessoa_id`,
+        [[...TERMINAIS]],
+      );
+
+      return new Map(linhas.map((linha) => [linha.pessoa_id, linha.quantas]));
     },
   };
 }

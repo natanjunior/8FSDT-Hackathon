@@ -12,6 +12,7 @@ export {
   cadastrarVinculo,
   corrigirVinculo,
   listarImpedimentosDeRemocao,
+  listarResponsabilidadesEmAberto,
   listarVinculos,
   removerVinculo,
   revogarVinculo,
