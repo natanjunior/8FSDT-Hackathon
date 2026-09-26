@@ -236,11 +236,30 @@ describe("planoDaDemonstracao", () => {
 
   it("as mensagens ficam só no mês corrente, porque enviarComentario não aceita instante", () => {
     const plano = planoDaDemonstracao(HOJE);
-    const comMensagem = plano.ocorrencias.filter((o) => o.recebeMensagem);
+    const comMensagem = plano.ocorrencias.filter((o) => o.mensagem !== null);
     const mesCorrente = plano.baldes.at(-1)?.rotulo;
 
     expect(comMensagem).toHaveLength(6);
     for (const ocorrencia of comMensagem) expect(ocorrencia.balde).toBe(mesCorrente);
+  });
+
+  it("cada mensagem é uma, e nenhuma se repete (critério 77.2)", () => {
+    const mensagens = planoDaDemonstracao(HOJE).ocorrencias.flatMap((o) =>
+      o.mensagem === null ? [] : [o.mensagem],
+    );
+
+    expect(new Set(mensagens).size).toBe(mensagens.length);
+  });
+
+  it("a trilha não repete a mesma observação em toda ocorrência (critério 77.2)", () => {
+    const { ocorrencias } = planoDaDemonstracao(HOJE);
+    for (const comando of ["analisar", "iniciar-atendimento", "retomar", "resolver"] as const) {
+      const observacoes = ocorrencias.flatMap((o) =>
+        o.roteiro.flatMap((p) => (p.comando === comando ? [p.observacao] : [])),
+      );
+      expect(observacoes.length, comando).toBeGreaterThan(1);
+      expect(new Set(observacoes).size, comando).toBeGreaterThan(1);
+    }
   });
 
   it("exercita os dois escritores da solução aplicada", () => {

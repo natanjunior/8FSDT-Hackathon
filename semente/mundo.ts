@@ -51,10 +51,6 @@ import {
  * teste do plano prova os critérios sem banco, e este arquivo só pode errar a tradução.
  */
 
-/** O texto da mensagem das seis ocorrências do mês corrente (decisão D-3). */
-const TEXTO_DA_MENSAGEM =
-  "Registrado. Qualquer novidade, escreva aqui na ocorrência que a gente acompanha por este canal.";
-
 /**
  * A sessão de uma conta, em memória, viva só durante a execução.
  *
@@ -374,7 +370,7 @@ export async function semear(
 
     await executarRoteiro(portas.ocorrencias, ocorrencia, lida.id, idDePessoa, permissoesDe);
 
-    if (ocorrencia.recebeMensagem) {
+    if (ocorrencia.mensagem !== null) {
       // **Sem instante, e é o achado F-1 do plano.** `enviarComentario` lê o próprio relógio, então só as
       // ocorrências do mês corrente recebem mensagem — nelas, "agora" é a coisa certa.
       const gestor = ocorrencia.organizacao === "a" ? "helena" : "marcos";
@@ -382,7 +378,7 @@ export async function semear(
         portas.ocorrencias,
         lida.id,
         { pessoaId: idDePessoa(gestor), podeLerTodas: true },
-        { texto: TEXTO_DA_MENSAGEM },
+        { texto: ocorrencia.mensagem },
       );
       contagem.mensagens += 1;
     }

@@ -297,8 +297,11 @@ export type OcorrenciaDoPlano = {
   readonly roteiro: readonly PassoDoRoteiro[];
   /** Onde a ocorrência PARA. É o que o teste conta e o que o resumo imprime. */
   readonly statusFinal: StatusOcorrencia;
-  /** Decisão D-3: só as do mês corrente, porque `enviarComentario` não aceita instante. */
-  readonly recebeMensagem: boolean;
+  /**
+   * O que o Gestor escreve no canal da ocorrência, ou `null`. Decisão D-3 do 43: só as do mês corrente,
+   * porque `enviarComentario` não aceita instante. Uma por ocorrência (item 77), para nenhuma se repetir.
+   */
+  readonly mensagem: string | null;
 };
 
 export type PlanoDaDemonstracao = {
@@ -411,6 +414,8 @@ type Rascunho = {
   /** O texto de `resolver` / `registrar-solucao-aplicada`. */
   readonly solucao: string;
   readonly receita: Receita;
+  /** A mensagem do Gestor. Só as do mês corrente a recebem, e nelas ela é obrigatória. */
+  readonly mensagem?: string;
 };
 
 const ILUMINACAO = "Problemas de iluminação";
@@ -744,6 +749,7 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "beatriz",
     solucao: "Refletor substituído e temporizador reprogramado.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 5, comentario: null } },
+    mensagem: "Cláudia, o refletor foi trocado hoje à tarde. Se ele não acender às 18h, me avise por aqui.",
   },
   {
     chave: "a-22", organizacao: "a", distancia: 0,
@@ -753,6 +759,9 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "rafael",
     solucao: "Rolamento trocado; ficará em observação por uma semana antes de encerrar.",
     receita: { desfecho: "em_atendimento", comSolucao: true },
+    mensagem:
+      "Jorge, o rolamento já foi trocado. Vamos deixar a bomba em observação até sexta. Se o barulho voltar " +
+      "de madrugada, anote o horário aqui.",
   },
   {
     chave: "a-23", organizacao: "a", distancia: 0,
@@ -762,6 +771,7 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "beatriz", prioridade: "baixa",
     solucao: "",
     receita: { desfecho: "em_analise" },
+    mensagem: "Cláudia, vou ver com a administradora se ainda temos as placas antigas ou se precisamos encomendar novas.",
   },
   {
     chave: "a-24", organizacao: "a", distancia: 0,
@@ -771,6 +781,7 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "beatriz",
     solucao: "",
     receita: { desfecho: "aberta" },
+    mensagem: "Obrigada pelo aviso. Vamos testar todas as luzes de emergência do prédio, não só a da escada.",
   },
   // ---- M-0 · organização B ----------------------------------------------
   {
@@ -781,6 +792,7 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "sonia",
     solucao: "Filtro trocado e registro de entrada reaberto.",
     receita: { desfecho: "resolvida" },
+    mensagem: "Diego, o filtro foi trocado. Pode conferir quando descer.",
   },
   {
     chave: "b-12", organizacao: "b", distancia: 0,
@@ -790,6 +802,7 @@ const RASCUNHOS: readonly Rascunho[] = [
     responsavel: "sonia",
     solucao: "",
     receita: { desfecho: "em_atendimento" },
+    mensagem: "Helena, o serralheiro vem medir na quinta. O corrimão sai nos dois lados da rampa.",
   },
 ];
 
@@ -797,14 +810,35 @@ const RASCUNHOS: readonly Rascunho[] = [
 // Do rascunho ao roteiro
 // ---------------------------------------------------------------------------
 
-const OBS_ANALISE = "Triado e encaminhado para atendimento.";
-const OBS_INICIO = "Atendimento iniciado com o responsável em campo.";
-const OBS_RETOMADA = "Impedimento resolvido; atendimento retomado.";
-const OBS_RESOLUCAO = "Serviço concluído e conferido no local.";
-// **O texto da mensagem NÃO mora aqui.** Ele é da tarefa 4 (`mundo.ts`), porque `enviarComentario` não
-// aceita instante e a mensagem não é passo do roteiro — `plano.ts` só marca `recebeMensagem`. Uma cópia
-// aqui seria constante não usada, e o `no-unused-vars` a acusaria em todo `npm run lint`.
-// *(Achado da revisão, 29/08/2026: a primeira redação tinha as duas cópias.)*
+/**
+ * **As observações de transição variam, e pela posição do rascunho** (item 77). Com uma frase só, a trilha
+ * de toda ocorrência resolvida dizia as mesmas quatro coisas. A escolha é `indice % tamanho`, e **não** o
+ * sorteio: consumir o sorteio aqui mudaria a sequência e, com ela, todos os instantes da semente.
+ */
+const OBS_ANALISE: readonly string[] = [
+  "Triado e encaminhado para atendimento.",
+  "Conferido no local; segue para atendimento.",
+  "Recebido. Vamos verificar e já encaminho.",
+  "Visto com o zelador e encaminhado.",
+];
+const OBS_INICIO: readonly string[] = [
+  "Atendimento iniciado com o responsável em campo.",
+  "Responsável a caminho.",
+  "Serviço começou hoje de manhã.",
+];
+const OBS_RETOMADA: readonly string[] = [
+  "Impedimento resolvido; atendimento retomado.",
+  "Liberado para continuar; serviço retomado.",
+];
+const OBS_RESOLUCAO: readonly string[] = [
+  "Serviço concluído e conferido no local.",
+  "Concluído. Conferi pessoalmente.",
+  "Finalizado e conferido com quem abriu.",
+];
+
+function variante(lista: readonly string[], indice: number): string {
+  return exigir(lista[indice % lista.length], "a variante de observação");
+}
 
 /** Um passo ainda sem instante. O instante só existe depois de sabermos **quantos** passos há. */
 type Molde = (em: string) => PassoDoRoteiro;
@@ -819,7 +853,7 @@ function gestorDe(organizacao: ChaveDeOrganizacao): string {
  * `resolver` → `avaliar`. `iniciarAtendimento` exige responsável (invariante 9), e `cancelar` sai só das
  * três primeiras — aqui, das duas que `ESTADOS_DE_CANCELAMENTO_DO_AUTOR` também admite.
  */
-function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
+function moldesDoRoteiro(rascunho: Rascunho, indice: number): readonly Molde[] {
   const gestor = gestorDe(rascunho.organizacao);
   const { prioridade, receita } = rascunho;
   const moldes: Molde[] = [];
@@ -832,7 +866,7 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
     }
   };
   const comAnalise = (): void => {
-    moldes.push((em) => ({ comando: "analisar", em, por: gestor, observacao: OBS_ANALISE }));
+    moldes.push((em) => ({ comando: "analisar", em, por: gestor, observacao: variante(OBS_ANALISE, indice) }));
   };
 
   if (receita.desfecho === "aberta") {
@@ -858,7 +892,9 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
   moldes.push((em) => ({
     comando: "atribuir-responsavel", em, por: gestor, responsavel: rascunho.responsavel,
   }));
-  moldes.push((em) => ({ comando: "iniciar-atendimento", em, por: gestor, observacao: OBS_INICIO }));
+  moldes.push((em) => ({
+    comando: "iniciar-atendimento", em, por: gestor, observacao: variante(OBS_INICIO, indice),
+  }));
 
   if (receita.desfecho === "em_atendimento") {
     if (receita.comSolucao === true) {
@@ -886,11 +922,12 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
     }));
     // `retomar` volta ao `statusAnterior` do registro da pausa (invariante 6) — que aqui é
     // `em_atendimento`, de onde `resolver` sai.
-    moldes.push((em) => ({ comando: "retomar", em, por: gestor, observacao: OBS_RETOMADA }));
+    moldes.push((em) => ({ comando: "retomar", em, por: gestor, observacao: variante(OBS_RETOMADA, indice) }));
   }
 
   moldes.push((em) => ({
-    comando: "resolver", em, por: gestor, observacao: OBS_RESOLUCAO, solucaoAplicada: rascunho.solucao,
+    comando: "resolver", em, por: gestor, observacao: variante(OBS_RESOLUCAO, indice),
+    solucaoAplicada: rascunho.solucao,
   }));
 
   if (receita.avaliacao !== undefined) {
@@ -921,13 +958,13 @@ export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMON
 
   const ocorrencias: OcorrenciaDoPlano[] = [];
 
-  for (const rascunho of RASCUNHOS) {
+  for (const [indice, rascunho] of RASCUNHOS.entries()) {
     const balde = porDistancia.get(rascunho.distancia);
     // O balde do mês corrente some quando a semente roda no dia 1 (§3.5). As seis ocorrências dele
     // simplesmente não nascem — e os cinco critérios continuam verdadeiros com quatro baldes.
     if (balde === undefined) continue;
 
-    const moldes = moldesDoRoteiro(rascunho);
+    const moldes = moldesDoRoteiro(rascunho, indice);
     const instantes = instantesDoRoteiro(balde, moldes.length + 1, proximo);
 
     ocorrencias.push({
@@ -947,7 +984,8 @@ export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMON
       statusFinal: rascunho.receita.desfecho,
       // **Decisão D-3:** `enviarComentario` não aceita instante e carimba o relógio real. Só as
       // ocorrências do mês corrente recebem mensagem, porque só nelas "agora" é a coisa certa.
-      recebeMensagem: rascunho.distancia === 0,
+      mensagem:
+        rascunho.distancia === 0 ? exigir(rascunho.mensagem, `a mensagem de ${rascunho.chave}`) : null,
     });
   }
 
