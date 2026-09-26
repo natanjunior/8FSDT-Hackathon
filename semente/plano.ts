@@ -176,10 +176,10 @@ function instantesDoRoteiro(balde: Balde, quantos: number, proximo: () => number
 
 export type ChaveDeOrganizacao = "a" | "b";
 
-export const NOME_DA_ORGANIZACAO_A = "Condomínio Recanto Azul (demonstração)";
-export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora (demonstração)";
-export const EMAIL_DE_HELENA = "helena.demo@example.com";
-export const EMAIL_DE_MARCOS = "marcos.demo@example.com";
+export const NOME_DA_ORGANIZACAO_A = "Condomínio Recanto Azul";
+export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora";
+export const EMAIL_DE_HELENA = "helena.rocha@example.com";
+export const EMAIL_DE_MARCOS = "marcos.vieira@example.com";
 
 /** O que identifica um mundo: os dois nomes de organização e as duas contas que as fundam. */
 export type Perfil = {
@@ -187,12 +187,22 @@ export type Perfil = {
   readonly rotulo: string;
   readonly organizacoes: Readonly<Record<ChaveDeOrganizacao, string>>;
   readonly contas: { readonly helena: string; readonly marcos: string };
+  /**
+   * Os nomes e as contas que este mundo já teve (item 77). **O reconhecimento os aceita, a semeadura nunca
+   * os usa.** É o que deixa o `--apagar` de hoje remover a demonstração semeada antes da troca de nome, que
+   * foi fundada pelas contas de então.
+   */
+  readonly anteriores: { readonly organizacoes: readonly string[]; readonly contas: readonly string[] };
 };
 
 export const PERFIL_DA_DEMONSTRACAO: Perfil = {
   rotulo: "a demonstração",
   organizacoes: { a: NOME_DA_ORGANIZACAO_A, b: NOME_DA_ORGANIZACAO_B },
   contas: { helena: EMAIL_DE_HELENA, marcos: EMAIL_DE_MARCOS },
+  anteriores: {
+    organizacoes: ["Condomínio Recanto Azul (demonstração)", "Edifício Aurora (demonstração)"],
+    contas: ["helena.demo@example.com", "marcos.demo@example.com"],
+  },
 };
 
 /**
@@ -203,7 +213,22 @@ export const PERFIL_DE_TESTE: Perfil = {
   rotulo: "o mundo de teste",
   organizacoes: { a: "Condomínio Recanto Azul (teste)", b: "Edifício Aurora (teste)" },
   contas: { helena: "helena.teste@example.com", marcos: "marcos.teste@example.com" },
+  anteriores: { organizacoes: [], contas: [] },
 };
+
+/**
+ * Os nomes e as contas pelos quais o mundo é reconhecido: os de hoje primeiro, depois os anteriores. **Uma
+ * definição só para as duas pontas**, a recusa antes de semear e o `--apagar` (item 74).
+ */
+export function reconhecimentoDo(perfil: Perfil): {
+  readonly nomes: readonly string[];
+  readonly emails: readonly string[];
+} {
+  return {
+    nomes: [...Object.values(perfil.organizacoes), ...perfil.anteriores.organizacoes],
+    emails: [...Object.values(perfil.contas), ...perfil.anteriores.contas],
+  };
+}
 
 export type OrganizacaoDoPlano = {
   readonly chave: ChaveDeOrganizacao;
@@ -272,8 +297,11 @@ export type OcorrenciaDoPlano = {
   readonly roteiro: readonly PassoDoRoteiro[];
   /** Onde a ocorrência PARA. É o que o teste conta e o que o resumo imprime. */
   readonly statusFinal: StatusOcorrencia;
-  /** Decisão D-3: só as do mês corrente, porque `enviarComentario` não aceita instante. */
-  readonly recebeMensagem: boolean;
+  /**
+   * O que o Gestor escreve no canal da ocorrência, ou `null`. Decisão D-3 do 43: só as do mês corrente,
+   * porque `enviarComentario` não aceita instante. Uma por ocorrência (item 77), para nenhuma se repetir.
+   */
+  readonly mensagem: string | null;
 };
 
 export type PlanoDaDemonstracao = {
@@ -386,6 +414,8 @@ type Rascunho = {
   /** O texto de `resolver` / `registrar-solucao-aplicada`. */
   readonly solucao: string;
   readonly receita: Receita;
+  /** A mensagem do Gestor. Só as do mês corrente a recebem, e nelas ela é obrigatória. */
+  readonly mensagem?: string;
 };
 
 const ILUMINACAO = "Problemas de iluminação";
@@ -400,47 +430,51 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-4 · organização A ----------------------------------------------
   {
     chave: "a-01", organizacao: "a", distancia: 4,
-    titulo: "Lâmpada queimada na vaga 12",
-    descricao: "A lâmpada sobre a vaga 12 está queimada há alguns dias e a área fica escura à noite.",
+    titulo: "Garagem escura perto da vaga 12",
+    descricao:
+      "A lâmpada que fica em cima da vaga 12 queimou na quinta-feira. À noite não dá para ver o degrau da " +
+      "rampa de pedestres, e ontem uma vizinha quase caiu com as compras. Se puderem olhar logo, agradeço.",
     categoria: ILUMINACAO, area: "Garagem", complemento: "Vaga 12", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
-    solucao: "Lâmpada substituída por modelo LED e reator conferido.",
+    solucao: "Lâmpada trocada por LED e reator conferido. A luminária da vaga 14 também estava fraca e foi trocada junto.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 5, comentario: "Resolvido no mesmo dia. Obrigada!" } },
   },
   {
     chave: "a-02", organizacao: "a", distancia: 4,
-    titulo: "Portão da garagem travando ao fechar",
-    descricao: "O portão para no meio do curso e precisa de um segundo comando para fechar.",
+    titulo: "Controle do portão tendo que apertar duas vezes",
+    descricao: "o portão fecha até a metade e para, aí tem que apertar o controle de novo. acontece quase toda manhã",
     categoria: EQUIPAMENTOS, area: "Garagem", complemento: null, autor: "jorge",
     responsavel: "rafael",
-    solucao: "Trilho limpo e sensor de fim de curso realinhado.",
+    solucao: "Trilho limpo e sensor de fim de curso realinhado. O portão fechou dez vezes seguidas sem parar.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 4, comentario: null } },
   },
   {
     chave: "a-03", organizacao: "a", distancia: 4,
     titulo: "Lixeira do hall sem tampa",
-    descricao: "A tampa da lixeira do hall sumiu e o cheiro incomoda quem espera o elevador.",
+    descricao: "A tampa da lixeira ao lado do elevador sumiu. O cheiro fica forte no fim do dia.",
     categoria: LIMPEZA, area: "Hall de entrada", complemento: null, autor: "claudia",
     responsavel: "beatriz",
-    solucao: "Lixeira substituída por uma com tampa com pedal.",
+    solucao: "Lixeira trocada por uma com tampa de pedal.",
     receita: { desfecho: "resolvida" },
   },
   {
     chave: "a-04", organizacao: "a", distancia: 4,
-    titulo: "Barulho de arrastar no salão de festas",
-    descricao: "Ouve-se arrastar de móveis no salão fora do horário permitido.",
-    categoria: MANUTENCAO, area: "Salão de festas", complemento: null, autor: "jorge",
+    titulo: "Tomada do salão de festas solta da parede",
+    descricao: "a tomada perto da bancada tá solta, balança toda vez que liga alguma coisa",
+    categoria: MANUTENCAO, area: "Salão de festas", complemento: "Bancada da copa", autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "desistencia", por: "autor", apos: "aberta",
-      observacao: "O barulho não se repetiu; prefiro acompanhar antes de abrir de novo.",
+      observacao: "Desisti por enquanto, vou usar a tomada do outro lado. Se piorar abro de novo.",
     },
   },
   {
     chave: "a-05", organizacao: "a", distancia: 4,
     titulo: "Corrimão solto na escada de emergência",
-    descricao: "O corrimão do segundo lance está solto na fixação da parede.",
+    descricao:
+      "O corrimão do segundo lance da escada de emergência está solto na fixação da parede. Ainda segura, " +
+      "mas balança bastante, e quem desce com criança no colo se apoia nele.",
     categoria: ACESSIBILIDADE, area: "Área comum", complemento: "Escada de emergência", autor: "claudia",
     responsavel: "beatriz", prioridade: "baixa",
     solucao: "",
@@ -449,17 +483,19 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-4 · organização B ----------------------------------------------
   {
     chave: "b-01", organizacao: "b", distancia: 4,
-    titulo: "Infiltração na parede da sala",
-    descricao: "Mancha de umidade crescendo na parede que dá para a fachada.",
-    categoria: VAZAMENTOS, area: "Sala 405", complemento: null, autor: "helena",
+    titulo: "Descarga do banheiro do térreo vazando",
+    descricao:
+      "A descarga do banheiro coletivo do térreo fica soltando água sem parar. Dá para ouvir do corredor, e " +
+      "é água indo embora o dia inteiro.",
+    categoria: VAZAMENTOS, area: "Área comum", complemento: "Banheiro coletivo do térreo", autor: "helena",
     responsavel: "sonia",
-    solucao: "Rejunte externo refeito e parede tratada com impermeabilizante.",
+    solucao: "Reparo da válvula de descarga trocado e registro regulado.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 3, comentario: "Demorou, mas resolveu." } },
   },
   {
     chave: "b-02", organizacao: "b", distancia: 4,
-    titulo: "Interfone da portaria sem áudio",
-    descricao: "O interfone chama, mas ninguém ouve do outro lado.",
+    titulo: "Interfone sem áudio",
+    descricao: "interfone chama mas não sai som nenhum",
     categoria: EQUIPAMENTOS, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "",
@@ -470,7 +506,7 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-03", organizacao: "b", distancia: 4,
-    titulo: "Luz da área de lazer piscando",
+    titulo: "Luminárias do deque piscando",
     descricao: "As três luminárias do deque piscam quando a bomba da piscina liga.",
     categoria: ILUMINACAO, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia", prioridade: "baixa",
@@ -480,11 +516,14 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-3 · organização A ----------------------------------------------
   {
     chave: "a-06", organizacao: "a", distancia: 3,
-    titulo: "Vazamento no teto do elevador social",
-    descricao: "Pinga água sobre o teto da cabine quando chove forte.",
+    titulo: "Água pingando dentro do elevador social",
+    descricao:
+      "Quando chove forte pinga água pelo teto da cabine do elevador social, bem no canto do painel. Já " +
+      "aconteceu três vezes este mês. Hoje de manhã tinha uma poça no piso e alguém pôs papelão para não " +
+      "escorregar. Fico preocupada com a parte elétrica.",
     categoria: VAZAMENTOS, area: "Elevador social", complemento: null, autor: "claudia",
     responsavel: "rafael",
-    solucao: "Calha da casa de máquinas desobstruída e vedação da laje refeita.",
+    solucao: "Calha da casa de máquinas desobstruída e vedação da laje refeita. Cabine seca nas duas últimas chuvas.",
     receita: {
       desfecho: "resolvida",
       comPausa: { motivo: "aguardando_terceiro", observacao: "Aguardando a empresa de elevadores liberar o acesso à casa de máquinas." },
@@ -493,8 +532,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-07", organizacao: "a", distancia: 3,
-    titulo: "Rampa de acesso escorregadia quando molha",
-    descricao: "O piso da rampa fica liso com chuva e não tem faixa antiderrapante.",
+    titulo: "Rampa da entrada lisa quando chove",
+    descricao: "com chuva a rampa vira sabão, minha mãe usa andador e não consegue subir sozinha",
     categoria: ACESSIBILIDADE, area: "Área comum", complemento: "Rampa da entrada", autor: "jorge",
     responsavel: "beatriz",
     solucao: "Fitas antiderrapantes aplicadas em toda a extensão da rampa.",
@@ -512,19 +551,19 @@ const RASCUNHOS: readonly Rascunho[] = [
   {
     chave: "a-09", organizacao: "a", distancia: 3,
     titulo: "Cheiro de gás no corredor do térreo",
-    descricao: "Sinto cheiro de gás perto da porta de serviço no fim da tarde.",
+    descricao: "sinto cheiro de gás perto da porta de serviço no fim da tarde, hoje tava mais forte",
     categoria: SEGURANCA, area: "Área comum", complemento: "Corredor do térreo", autor: "jorge",
     responsavel: "beatriz",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "improcedente", por: "gestor", apos: "em_analise",
-      observacao: "Vistoria da concessionária não encontrou vazamento; o odor vinha da lixeira externa.",
+      observacao: "A vistoria da concessionária não encontrou vazamento. O cheiro vinha da lixeira externa, que já foi lavada.",
     },
   },
   {
     chave: "a-10", organizacao: "a", distancia: 3,
-    titulo: "Fechadura do 302 emperrando",
-    descricao: "A chave gira com muita dificuldade na fechadura da porta social.",
+    titulo: "Fechadura da porta do 302 emperrando",
+    descricao: "A chave gira com muita dificuldade na fechadura da porta social. Hoje quase fiquei trancado do lado de fora.",
     categoria: MANUTENCAO, area: "Apartamento 302", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
@@ -533,8 +572,11 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-3 · organização B ----------------------------------------------
   {
     chave: "b-04", organizacao: "b", distancia: 3,
-    titulo: "Câmera da portaria fora do ar",
-    descricao: "O monitor mostra sinal ausente na câmera que cobre a entrada de pedestres.",
+    titulo: "Câmera da entrada sem imagem",
+    descricao:
+      "O monitor da portaria mostra sinal ausente na câmera da entrada de pedestres desde segunda. Hoje " +
+      "entrou um entregador sem ninguém ver pela câmera, e o porteiro só percebeu quando ele já estava no " +
+      "elevador.",
     categoria: SEGURANCA, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "Fonte da câmera substituída e gravação conferida por 24 horas.",
@@ -542,67 +584,73 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-05", organizacao: "b", distancia: 3,
-    titulo: "Ar-condicionado da sala 405 sem gelar",
-    descricao: "O aparelho liga, mas o ar sai na temperatura ambiente.",
-    categoria: EQUIPAMENTOS, area: "Sala 405", complemento: null, autor: "helena",
+    titulo: "Ar da sala de reuniões desligando sozinho",
+    descricao:
+      "O ar-condicionado da sala de reuniões do térreo desliga sozinho depois de uns vinte minutos. Liga de " +
+      "novo pelo controle, mas logo desliga outra vez. Aconteceu nas duas reuniões desta semana.",
+    categoria: EQUIPAMENTOS, area: "Área comum", complemento: "Sala de reuniões do térreo", autor: "helena",
     responsavel: "sonia",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_informacao_solicitante",
-      observacao: "Precisamos do horário em que a sala fica livre para o técnico entrar.",
+      observacao: "Precisamos saber em que horário costuma acontecer, para o técnico vir acompanhar.",
     },
   },
   // ---- M-2 · organização A · o balde sem nenhuma resolução ---------------
   {
     chave: "a-11", organizacao: "a", distancia: 2,
-    titulo: "Motor do portão social parado",
-    descricao: "O portão social só abre no manual desde ontem.",
+    titulo: "Motor do portão da garagem parado",
+    descricao:
+      "Desde ontem à noite o portão da garagem não abre pelo controle, só no manual. O porteiro está abrindo " +
+      "para cada carro, e de manhã formou fila na rua. Ouvi um estalo no motor antes de parar.",
     categoria: EQUIPAMENTOS, area: "Garagem", complemento: null, autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_peca",
-      observacao: "Placa do motor pedida ao fornecedor; prazo de entrega de duas semanas.",
+      observacao: "Placa do motor pedida ao fornecedor, com prazo de duas semanas. Até lá o porteiro abre no manual.",
     },
   },
   {
     chave: "a-12", organizacao: "a", distancia: 2,
-    titulo: "Piso do hall soltando na junta",
-    descricao: "Duas placas do piso do hall estão soltas e balançam ao pisar.",
+    titulo: "Piso do hall soltando",
+    descricao: "duas placas do piso perto da porta tão soltas e fazem barulho quando pisa",
     categoria: MANUTENCAO, area: "Hall de entrada", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_terceiro",
-      observacao: "Orçamento com a empresa de pisos em análise pelo conselho.",
+      observacao: "Orçamento da empresa de pisos em análise pelo conselho.",
     },
   },
   {
     chave: "a-13", organizacao: "a", distancia: 2,
-    titulo: "Reforma da guarita",
-    descricao: "A guarita precisa de pintura e troca do vidro trincado.",
+    titulo: "Vidro da guarita trincado",
+    descricao:
+      "O vidro da frente da guarita está trincado de canto a canto. O porteiro colou fita, mas com vento ele " +
+      "vibra, e tenho medo de cair em alguém.",
     categoria: MANUTENCAO, area: "Área comum", complemento: "Guarita", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
-    solucao: "Vidro trocado; a pintura entra na próxima etapa, com o tempo firme.",
+    solucao: "Vidro trocado. A pintura da guarita entra na próxima etapa, com o tempo firme.",
     receita: { desfecho: "em_atendimento", comSolucao: true },
   },
   {
     chave: "a-14", organizacao: "a", distancia: 2,
-    titulo: "Vaga de garagem ocupada por veículo desconhecido",
-    descricao: "Um carro que não é de morador está na vaga 07 há dois dias.",
+    titulo: "Carro estranho na vaga 07",
+    descricao: "Tem um carro que não é de morador parado na vaga 07 há dois dias.",
     categoria: SEGURANCA, area: "Garagem", complemento: "Vaga 07", autor: "jorge",
     responsavel: "rafael",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "sem_informacao_suficiente", por: "gestor", apos: "aberta",
-      observacao: "Sem placa nem foto não há como identificar o veículo. Reabra com esses dados.",
+      observacao: "Sem placa nem foto não dá para identificar o veículo. Se ele voltar, registre de novo com esses dados.",
     },
   },
   {
     chave: "a-15", organizacao: "a", distancia: 2,
-    titulo: "Lâmpada do 101 queimada no corredor",
-    descricao: "A lâmpada do corredor em frente ao 101 está queimada.",
-    categoria: ILUMINACAO, area: "Apartamento 101", complemento: null, autor: "claudia",
+    titulo: "Corredor do 1º andar no escuro",
+    descricao: "A lâmpada do corredor do primeiro andar, entre o 101 e o 102, está queimada.",
+    categoria: ILUMINACAO, area: "Área comum", complemento: "Corredor do 1º andar", autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: { desfecho: "aberta" },
@@ -610,8 +658,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-2 · organização B ----------------------------------------------
   {
     chave: "b-06", organizacao: "b", distancia: 2,
-    titulo: "Grade da área de lazer solta",
-    descricao: "A grade que separa o deque da rua está solta em dois pontos.",
+    titulo: "Grade do deque solta",
+    descricao: "a grade que separa o deque da rua tá solta em dois pontos, dá pra passar a mão por baixo",
     categoria: SEGURANCA, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia", prioridade: "alta",
     solucao: "",
@@ -619,8 +667,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-07", organizacao: "b", distancia: 2,
-    titulo: "Limpeza da caixa d'água atrasada",
-    descricao: "O laudo da última limpeza está vencido há mais de um mês.",
+    titulo: "Laudo da caixa d'água vencido",
+    descricao: "O laudo da última limpeza da caixa d'água, que fica colado na portaria, venceu há mais de um mês.",
     categoria: LIMPEZA, area: "Área comum", complemento: null, autor: "helena",
     responsavel: "sonia",
     solucao: "",
@@ -628,8 +676,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-08", organizacao: "b", distancia: 2,
-    titulo: "Sinalização de saída apagada",
-    descricao: "A luminária de saída de emergência sobre a porta da portaria não acende.",
+    titulo: "Placa de saída de emergência apagada",
+    descricao: "a placa de saída em cima da porta da portaria não acende",
     categoria: ILUMINACAO, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "",
@@ -638,8 +686,10 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-1 · organização A ----------------------------------------------
   {
     chave: "a-16", organizacao: "a", distancia: 1,
-    titulo: "Vazamento na coluna do 302",
-    descricao: "Água escorrendo pela coluna da área de serviço, do teto para o chão.",
+    titulo: "Água descendo pela coluna da área de serviço",
+    descricao:
+      "tá escorrendo água pela coluna da área de serviço, do teto até o chão. já coloquei balde e toalha mas " +
+      "enche rápido. acho que vem do apartamento de cima porque piora quando eles usam a máquina de lavar",
     categoria: VAZAMENTOS, area: "Apartamento 302", complemento: "Área de serviço", autor: "jorge",
     responsavel: "rafael",
     solucao: "Trecho da coluna substituído e teste de estanqueidade feito com o prédio abastecido.",
@@ -651,8 +701,8 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-17", organizacao: "a", distancia: 1,
-    titulo: "Piso tátil apagado na entrada",
-    descricao: "O piso tátil da entrada está tão desgastado que quase não se distingue.",
+    titulo: "Piso tátil gasto na entrada",
+    descricao: "O piso tátil da entrada está tão desgastado que quase não se distingue do resto.",
     categoria: ACESSIBILIDADE, area: "Hall de entrada", complemento: null, autor: "claudia",
     responsavel: "beatriz",
     solucao: "Piso tátil refeito em toda a faixa da entrada.",
@@ -660,29 +710,32 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "a-18", organizacao: "a", distancia: 1,
-    titulo: "Limpeza do salão após evento",
-    descricao: "O salão ficou sujo depois da festa do fim de semana.",
+    titulo: "Salão sujo depois da festa de sábado",
+    descricao: "o salão ficou com lixo e copo no chão depois da festa, hoje de manhã ainda tava assim",
     categoria: LIMPEZA, area: "Salão de festas", complemento: null, autor: "jorge",
     responsavel: "rafael",
-    solucao: "Salão limpo e cobrança da taxa de limpeza lançada ao responsável pela reserva.",
+    solucao: "Salão limpo e taxa de limpeza lançada para quem reservou.",
     receita: { desfecho: "resolvida" },
   },
   {
     chave: "a-19", organizacao: "a", distancia: 1,
-    titulo: "Troca do quadro de energia do térreo",
-    descricao: "O quadro do térreo desarma sempre que a bomba e o portão ligam juntos.",
+    titulo: "Quadro de luz do térreo desarmando",
+    descricao:
+      "O disjuntor geral do térreo desarma sempre que a bomba e o portão ligam ao mesmo tempo. Já aconteceu " +
+      "quatro vezes esta semana, e em duas o elevador parou junto. O zelador religa, mas ninguém sabe dizer " +
+      "por que acontece.",
     categoria: MANUTENCAO, area: "Área comum", complemento: "Quadro do térreo", autor: "claudia",
     responsavel: "beatriz", prioridade: "alta",
     solucao: "",
     receita: {
       desfecho: "pausada", motivo: "aguardando_autorizacao",
-      observacao: "Obra acima do limite de alçada; depende de aprovação em assembleia.",
+      observacao: "A troca do quadro passa do limite de gasto do síndico e depende de aprovação em assembleia.",
     },
   },
   {
     chave: "a-20", organizacao: "a", distancia: 1,
     titulo: "Espelho do elevador trincado",
-    descricao: "O espelho da cabine está trincado num canto e pode soltar lasca.",
+    descricao: "espelho da cabine trincou no canto de baixo, pode soltar um pedaço",
     categoria: EQUIPAMENTOS, area: "Elevador social", complemento: null, autor: "jorge",
     responsavel: "rafael",
     solucao: "",
@@ -691,7 +744,7 @@ const RASCUNHOS: readonly Rascunho[] = [
   // ---- M-1 · organização B ----------------------------------------------
   {
     chave: "b-09", organizacao: "b", distancia: 1,
-    titulo: "Porta da portaria desalinhada",
+    titulo: "Porta de vidro da portaria raspando",
     descricao: "A porta raspa no batente e não fecha sozinha.",
     categoria: MANUTENCAO, area: "Portaria", complemento: null, autor: "diego",
     responsavel: "sonia",
@@ -700,71 +753,85 @@ const RASCUNHOS: readonly Rascunho[] = [
   },
   {
     chave: "b-10", organizacao: "b", distancia: 1,
-    titulo: "Mancha de umidade no corredor do quarto andar",
-    descricao: "Mancha escura no forro do corredor, perto da caixa de inspeção.",
+    titulo: "Mancha de umidade no forro do 4º andar",
+    descricao:
+      "Apareceu uma mancha escura no forro do corredor do 4º andar, perto da copa. Está do tamanho de um " +
+      "prato e parece úmida ao toque.",
     categoria: VAZAMENTOS, area: "Área comum", complemento: "Corredor do 4º andar", autor: "helena",
     responsavel: "sonia",
     solucao: "",
     receita: {
       desfecho: "cancelada", motivo: "resolvido_por_conta_propria", por: "autor", apos: "em_analise",
-      observacao: "Era o registro do meu andar. Já mandei consertar por conta.",
+      observacao: "Era a máquina de café da copa vazando. A empresa do andar já consertou.",
     },
   },
   // ---- M-0 · organização A · as que recebem mensagem ---------------------
   {
     chave: "a-21", organizacao: "a", distancia: 0,
-    titulo: "Refletor do pátio queimado",
-    descricao: "O refletor que ilumina o pátio dos fundos não acende desde o fim de semana.",
+    titulo: "Refletor do pátio dos fundos apagado",
+    descricao: "O refletor do pátio dos fundos não acende desde o fim de semana.",
     categoria: ILUMINACAO, area: "Área comum", complemento: "Pátio dos fundos", autor: "claudia",
     responsavel: "beatriz",
     solucao: "Refletor substituído e temporizador reprogramado.",
     receita: { desfecho: "resolvida", avaliacao: { nota: 5, comentario: null } },
+    mensagem: "Cláudia, o refletor foi trocado hoje à tarde. Se ele não acender às 18h, me avise por aqui.",
   },
   {
     chave: "a-22", organizacao: "a", distancia: 0,
-    titulo: "Bomba d'água com ruído alto",
-    descricao: "A bomba faz um ruído metálico quando liga de madrugada.",
+    titulo: "Barulho de metal na bomba d'água",
+    descricao: "a bomba faz um barulho de metal quando liga de madrugada, acorda o bloco todo",
     categoria: EQUIPAMENTOS, area: "Área comum", complemento: "Casa de bombas", autor: "jorge",
     responsavel: "rafael",
-    solucao: "Rolamento trocado; ficará em observação por uma semana antes de encerrar.",
+    solucao: "Rolamento trocado; fica em observação por uma semana antes de encerrar.",
     receita: { desfecho: "em_atendimento", comSolucao: true },
+    mensagem:
+      "Jorge, o rolamento já foi trocado. Vamos deixar a bomba em observação até sexta. Se o barulho voltar " +
+      "de madrugada, anote o horário aqui.",
   },
   {
     chave: "a-23", organizacao: "a", distancia: 0,
-    titulo: "Coleta seletiva sem identificação",
-    descricao: "Os contêineres da coleta seletiva perderam as placas e ninguém sabe qual é qual.",
+    titulo: "Contêineres da coleta seletiva sem placa",
+    descricao: "Os contêineres da coleta seletiva perderam as placas, e o reciclável está indo misturado com o lixo comum.",
     categoria: LIMPEZA, area: "Área comum", complemento: "Depósito de lixo", autor: "claudia",
     responsavel: "beatriz", prioridade: "baixa",
     solucao: "",
     receita: { desfecho: "em_analise" },
+    mensagem: "Cláudia, vou ver com a administradora se ainda temos as placas antigas ou se precisamos encomendar novas.",
   },
   {
     chave: "a-24", organizacao: "a", distancia: 0,
-    titulo: "Corredor do 101 sem iluminação de emergência",
-    descricao: "A luminária de emergência do corredor não acendeu na última queda de energia.",
-    categoria: SEGURANCA, area: "Apartamento 101", complemento: null, autor: "claudia",
+    titulo: "Luz de emergência da escada não acendeu",
+    descricao:
+      "Na queda de energia de terça, a luz de emergência da escada não acendeu, e desci os dois andares no " +
+      "escuro, com a lanterna do celular.",
+    categoria: SEGURANCA, area: "Área comum", complemento: "Escada, 2º andar", autor: "claudia",
     responsavel: "beatriz",
     solucao: "",
     receita: { desfecho: "aberta" },
+    mensagem: "Obrigada pelo aviso. Vamos testar todas as luzes de emergência do prédio, não só a da escada.",
   },
   // ---- M-0 · organização B ----------------------------------------------
   {
     chave: "b-11", organizacao: "b", distancia: 0,
-    titulo: "Bebedouro da área de lazer sem água",
-    descricao: "O bebedouro do deque não solta água desde segunda-feira.",
+    titulo: "Bebedouro do deque sem água",
+    descricao: "bebedouro não sai água desde segunda",
     categoria: EQUIPAMENTOS, area: "Área de lazer", complemento: null, autor: "diego",
     responsavel: "sonia",
     solucao: "Filtro trocado e registro de entrada reaberto.",
     receita: { desfecho: "resolvida" },
+    mensagem: "Diego, o filtro foi trocado. Pode conferir quando descer.",
   },
   {
     chave: "b-12", organizacao: "b", distancia: 0,
     titulo: "Rampa da portaria sem corrimão",
-    descricao: "A rampa de acesso à portaria não tem corrimão de nenhum lado.",
+    descricao:
+      "A rampa de acesso à portaria não tem corrimão de nenhum lado. Um senhor que vem à sala 210 toda " +
+      "semana precisa de ajuda para subir.",
     categoria: ACESSIBILIDADE, area: "Portaria", complemento: null, autor: "helena",
     responsavel: "sonia",
     solucao: "",
     receita: { desfecho: "em_atendimento" },
+    mensagem: "Helena, o serralheiro vem medir na quinta. O corrimão sai nos dois lados da rampa.",
   },
 ];
 
@@ -772,14 +839,35 @@ const RASCUNHOS: readonly Rascunho[] = [
 // Do rascunho ao roteiro
 // ---------------------------------------------------------------------------
 
-const OBS_ANALISE = "Triado e encaminhado para atendimento.";
-const OBS_INICIO = "Atendimento iniciado com o responsável em campo.";
-const OBS_RETOMADA = "Impedimento resolvido; atendimento retomado.";
-const OBS_RESOLUCAO = "Serviço concluído e conferido no local.";
-// **O texto da mensagem NÃO mora aqui.** Ele é da tarefa 4 (`mundo.ts`), porque `enviarComentario` não
-// aceita instante e a mensagem não é passo do roteiro — `plano.ts` só marca `recebeMensagem`. Uma cópia
-// aqui seria constante não usada, e o `no-unused-vars` a acusaria em todo `npm run lint`.
-// *(Achado da revisão, 29/08/2026: a primeira redação tinha as duas cópias.)*
+/**
+ * **As observações de transição variam, e pela posição do rascunho** (item 77). Com uma frase só, a trilha
+ * de toda ocorrência resolvida dizia as mesmas quatro coisas. A escolha é `indice % tamanho`, e **não** o
+ * sorteio: consumir o sorteio aqui mudaria a sequência e, com ela, todos os instantes da semente.
+ */
+const OBS_ANALISE: readonly string[] = [
+  "Triado e encaminhado para atendimento.",
+  "Conferido no local; segue para atendimento.",
+  "Recebido. Vamos verificar e já encaminho.",
+  "Visto com o zelador e encaminhado.",
+];
+const OBS_INICIO: readonly string[] = [
+  "Atendimento iniciado com o responsável em campo.",
+  "Responsável a caminho.",
+  "Serviço começou hoje de manhã.",
+];
+const OBS_RETOMADA: readonly string[] = [
+  "Impedimento resolvido; atendimento retomado.",
+  "Liberado para continuar; serviço retomado.",
+];
+const OBS_RESOLUCAO: readonly string[] = [
+  "Serviço concluído e conferido no local.",
+  "Concluído. Conferi pessoalmente.",
+  "Finalizado e conferido com quem abriu.",
+];
+
+function variante(lista: readonly string[], indice: number): string {
+  return exigir(lista[indice % lista.length], "a variante de observação");
+}
 
 /** Um passo ainda sem instante. O instante só existe depois de sabermos **quantos** passos há. */
 type Molde = (em: string) => PassoDoRoteiro;
@@ -794,7 +882,7 @@ function gestorDe(organizacao: ChaveDeOrganizacao): string {
  * `resolver` → `avaliar`. `iniciarAtendimento` exige responsável (invariante 9), e `cancelar` sai só das
  * três primeiras — aqui, das duas que `ESTADOS_DE_CANCELAMENTO_DO_AUTOR` também admite.
  */
-function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
+function moldesDoRoteiro(rascunho: Rascunho, indice: number): readonly Molde[] {
   const gestor = gestorDe(rascunho.organizacao);
   const { prioridade, receita } = rascunho;
   const moldes: Molde[] = [];
@@ -807,7 +895,7 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
     }
   };
   const comAnalise = (): void => {
-    moldes.push((em) => ({ comando: "analisar", em, por: gestor, observacao: OBS_ANALISE }));
+    moldes.push((em) => ({ comando: "analisar", em, por: gestor, observacao: variante(OBS_ANALISE, indice) }));
   };
 
   if (receita.desfecho === "aberta") {
@@ -833,7 +921,9 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
   moldes.push((em) => ({
     comando: "atribuir-responsavel", em, por: gestor, responsavel: rascunho.responsavel,
   }));
-  moldes.push((em) => ({ comando: "iniciar-atendimento", em, por: gestor, observacao: OBS_INICIO }));
+  moldes.push((em) => ({
+    comando: "iniciar-atendimento", em, por: gestor, observacao: variante(OBS_INICIO, indice),
+  }));
 
   if (receita.desfecho === "em_atendimento") {
     if (receita.comSolucao === true) {
@@ -861,11 +951,12 @@ function moldesDoRoteiro(rascunho: Rascunho): readonly Molde[] {
     }));
     // `retomar` volta ao `statusAnterior` do registro da pausa (invariante 6) — que aqui é
     // `em_atendimento`, de onde `resolver` sai.
-    moldes.push((em) => ({ comando: "retomar", em, por: gestor, observacao: OBS_RETOMADA }));
+    moldes.push((em) => ({ comando: "retomar", em, por: gestor, observacao: variante(OBS_RETOMADA, indice) }));
   }
 
   moldes.push((em) => ({
-    comando: "resolver", em, por: gestor, observacao: OBS_RESOLUCAO, solucaoAplicada: rascunho.solucao,
+    comando: "resolver", em, por: gestor, observacao: variante(OBS_RESOLUCAO, indice),
+    solucaoAplicada: rascunho.solucao,
   }));
 
   if (receita.avaliacao !== undefined) {
@@ -896,13 +987,13 @@ export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMON
 
   const ocorrencias: OcorrenciaDoPlano[] = [];
 
-  for (const rascunho of RASCUNHOS) {
+  for (const [indice, rascunho] of RASCUNHOS.entries()) {
     const balde = porDistancia.get(rascunho.distancia);
     // O balde do mês corrente some quando a semente roda no dia 1 (§3.5). As seis ocorrências dele
     // simplesmente não nascem — e os cinco critérios continuam verdadeiros com quatro baldes.
     if (balde === undefined) continue;
 
-    const moldes = moldesDoRoteiro(rascunho);
+    const moldes = moldesDoRoteiro(rascunho, indice);
     const instantes = instantesDoRoteiro(balde, moldes.length + 1, proximo);
 
     ocorrencias.push({
@@ -922,7 +1013,8 @@ export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMON
       statusFinal: rascunho.receita.desfecho,
       // **Decisão D-3:** `enviarComentario` não aceita instante e carimba o relógio real. Só as
       // ocorrências do mês corrente recebem mensagem, porque só nelas "agora" é a coisa certa.
-      recebeMensagem: rascunho.distancia === 0,
+      mensagem:
+        rascunho.distancia === 0 ? exigir(rascunho.mensagem, `a mensagem de ${rascunho.chave}`) : null,
     });
   }
 

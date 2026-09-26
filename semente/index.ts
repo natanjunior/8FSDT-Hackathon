@@ -1,5 +1,5 @@
 import { semear, type ResumoDaSemeadura } from "./mundo";
-import { PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE, planoDaDemonstracao } from "./plano";
+import { PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE, planoDaDemonstracao, reconhecimentoDo } from "./plano";
 import {
   apagarADemonstracao,
   hostDoBanco,
@@ -24,8 +24,8 @@ const LARGURA_DO_NOME = 42;
 const LARGURA_DO_CODIGO = 14;
 
 const perfil = process.argv.includes("--teste") ? PERFIL_DE_TESTE : PERFIL_DA_DEMONSTRACAO;
-const emails = Object.values(perfil.contas);
-const nomes = Object.values(perfil.organizacoes);
+// Os de hoje e os anteriores (item 77): a recusa e o `--apagar` reconhecem o mundo pelos dois.
+const { nomes, emails } = reconhecimentoDo(perfil);
 /** O rótulo como sujeito da frase: "A demonstração", "O mundo de teste". */
 const ROTULO = perfil.rotulo.charAt(0).toUpperCase() + perfil.rotulo.slice(1);
 const APAGAR =

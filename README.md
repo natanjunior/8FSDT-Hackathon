@@ -310,9 +310,9 @@ corrigida depois do fato.
 SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo
 ```
 
-Ela cria **duas organizações**, `Condomínio Recanto Azul (demonstração)` e
-`Edifício Aurora (demonstração)`, e nunca escreve numa organização existente. Ao terminar, imprime os
-dois códigos públicos, a série mensal e a contagem por status: **é a conferência**.
+Ela cria **duas organizações**, `Condomínio Recanto Azul` e `Edifício Aurora`, e nunca escreve numa
+organização existente. Ao terminar, imprime os dois códigos públicos, a série mensal e a contagem por
+status: **é a conferência**.
 
 **Rodar duas vezes não duplica nada:** a semente recusa quando a demonstração já existe, e diz o que
 fazer. Para recomeçar:
@@ -323,16 +323,16 @@ npm run semear:demo               # e semeia de novo
 ```
 
 O `--apagar` roda contra o banco que `BANCO_URL` aponta, e imprime o host antes de começar. Ele só apaga
-organização com um desses dois nomes que tenha sido fundada por uma das duas contas abaixo; se encontrar
-outra com o mesmo nome, deixa-a intacta e diz qual é.
+organização com o nome da demonstração que tenha sido fundada pelas contas dela; se encontrar outra com o
+mesmo nome, deixa-a intacta e diz qual é.
 
 **As duas contas de demonstração**, para o ambiente publicado em
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:
 
 | E-mail | Senha | O que ela é |
 |---|---|---|
-| `helena.demo@example.com` | `ResolveAi!2026` | **Gestora** no Recanto Azul e **Solicitante** no Aurora — é a pessoa em duas organizações, que é o argumento inteiro do multi-tenant |
-| `marcos.demo@example.com` | `ResolveAi!2026` | **Gestor** no Aurora |
+| `helena.rocha@example.com` | `ResolveAi!2026` | **Gestora** no Recanto Azul e **Solicitante** no Aurora — é a pessoa em duas organizações, que é o argumento inteiro do multi-tenant |
+| `marcos.vieira@example.com` | `ResolveAi!2026` | **Gestor** no Aurora |
 
 **São credenciais de demonstração, publicadas de propósito.** Elas não estão no código nem na imagem —
 a senha chega por `SENHA_DA_DEMONSTRACAO`, em tempo de execução. O cadastro do produto já é público e

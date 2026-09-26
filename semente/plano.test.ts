@@ -8,6 +8,7 @@ import {
   PERFIL_DA_DEMONSTRACAO,
   PERFIL_DE_TESTE,
   planoDaDemonstracao,
+  reconhecimentoDo,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
 } from "./plano";
@@ -235,11 +236,30 @@ describe("planoDaDemonstracao", () => {
 
   it("as mensagens ficam só no mês corrente, porque enviarComentario não aceita instante", () => {
     const plano = planoDaDemonstracao(HOJE);
-    const comMensagem = plano.ocorrencias.filter((o) => o.recebeMensagem);
+    const comMensagem = plano.ocorrencias.filter((o) => o.mensagem !== null);
     const mesCorrente = plano.baldes.at(-1)?.rotulo;
 
     expect(comMensagem).toHaveLength(6);
     for (const ocorrencia of comMensagem) expect(ocorrencia.balde).toBe(mesCorrente);
+  });
+
+  it("cada mensagem é uma, e nenhuma se repete (critério 77.2)", () => {
+    const mensagens = planoDaDemonstracao(HOJE).ocorrencias.flatMap((o) =>
+      o.mensagem === null ? [] : [o.mensagem],
+    );
+
+    expect(new Set(mensagens).size).toBe(mensagens.length);
+  });
+
+  it("a trilha não repete a mesma observação em toda ocorrência (critério 77.2)", () => {
+    const { ocorrencias } = planoDaDemonstracao(HOJE);
+    for (const comando of ["analisar", "iniciar-atendimento", "retomar", "resolver"] as const) {
+      const observacoes = ocorrencias.flatMap((o) =>
+        o.roteiro.flatMap((p) => (p.comando === comando ? [p.observacao] : [])),
+      );
+      expect(observacoes.length, comando).toBeGreaterThan(1);
+      expect(new Set(observacoes).size, comando).toBeGreaterThan(1);
+    }
   });
 
   it("exercita os dois escritores da solução aplicada", () => {
@@ -264,6 +284,87 @@ describe("planoDaDemonstracao", () => {
 
     expect(canceladas).toHaveLength(5);
     expect(peloAutor).toHaveLength(2);
+  });
+});
+
+describe("a demonstração parece um sistema em uso (item 77)", () => {
+  const plano = planoDaDemonstracao(HOJE);
+
+  /** Todo texto que a semente grava e alguma tela mostra. */
+  const textos = (): readonly string[] => [
+    ...plano.organizacoes.map((o) => o.nome),
+    ...plano.pessoas.map((p) => p.nome),
+    ...plano.areas.map((a) => a.nome),
+    ...plano.ocorrencias.flatMap((o) => [
+      o.titulo,
+      o.descricao,
+      ...(o.localizacaoComplemento === null ? [] : [o.localizacaoComplemento]),
+      ...(o.mensagem === null ? [] : [o.mensagem]),
+      ...o.roteiro.flatMap((p) => {
+        switch (p.comando) {
+          case "analisar":
+          case "iniciar-atendimento":
+          case "retomar":
+          case "pausar":
+          case "cancelar":
+            return [p.observacao];
+          case "resolver":
+            return [p.observacao, p.solucaoAplicada];
+          case "registrar-solucao-aplicada":
+            return [p.solucaoAplicada];
+          case "avaliar":
+            return p.comentario === null ? [] : [p.comentario];
+          default:
+            return [];
+        }
+      }),
+    ]),
+  ];
+
+  it("nenhum texto semeado diz 'demonstração' (critério 77.1)", () => {
+    expect(textos().filter((texto) => /demonstra/iu.test(texto))).toStrictEqual([]);
+  });
+
+  it("nenhum título e nenhuma descrição se repetem (critério 77.2)", () => {
+    const titulos = plano.ocorrencias.map((o) => o.titulo);
+    const descricoes = plano.ocorrencias.map((o) => o.descricao);
+
+    expect(new Set(titulos).size).toBe(titulos.length);
+    expect(new Set(descricoes).size).toBe(descricoes.length);
+  });
+
+  it("na mesma organização, dois títulos nunca começam pelas mesmas duas palavras (critério 77.2)", () => {
+    for (const organizacao of ["a", "b"] as const) {
+      const inicios = plano.ocorrencias
+        .filter((o) => o.organizacao === organizacao)
+        .map((o) => o.titulo.split(" ").slice(0, 2).join(" ").toLowerCase());
+      const repetidos = inicios.filter((inicio, i) => inicios.indexOf(inicio) !== i);
+      expect(repetidos, organizacao).toStrictEqual([]);
+    }
+  });
+
+  it("nenhum título ou descrição tem marca de dado fabricado (critério 77.2)", () => {
+    const marca = /\d{4}-\d{2}-\d{2}|x{3,}|\bteste\b|\bexemplo\b|lorem/iu;
+    const marcados = plano.ocorrencias.flatMap((o) => [o.titulo, o.descricao]).filter((t) => marca.test(t));
+
+    expect(marcados).toStrictEqual([]);
+  });
+
+  it("quem registra em área privativa é quem tem vínculo com ela (spec §4.6)", () => {
+    const privativas = new Set(
+      plano.areas.filter((a) => a.tipo === "privativa").map((a) => `${a.organizacao}:${a.nome}`),
+    );
+    const deFora = plano.ocorrencias
+      .filter((o) => privativas.has(`${o.organizacao}:${o.area}`))
+      .filter(
+        (o) =>
+          !plano.vinculos.some(
+            (v) => v.pessoa === o.autor && v.organizacao === o.organizacao && v.area === o.area,
+          ),
+      )
+      .map((o) => o.chave);
+
+    expect(deFora).toStrictEqual([]);
   });
 });
 
@@ -295,6 +396,40 @@ describe("o perfil de teste", () => {
     const emails = [PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE].flatMap((p) => Object.values(p.contas));
     expect(new Set(nomes).size).toBe(4);
     expect(new Set(emails).size).toBe(4);
+  });
+
+  it("a demonstração é reconhecida pelos nomes e contas de hoje e pelos que ela já teve (item 77)", () => {
+    expect(reconhecimentoDo(PERFIL_DA_DEMONSTRACAO)).toStrictEqual({
+      nomes: [
+        "Condomínio Recanto Azul",
+        "Edifício Aurora",
+        "Condomínio Recanto Azul (demonstração)",
+        "Edifício Aurora (demonstração)",
+      ],
+      emails: [
+        "helena.rocha@example.com",
+        "marcos.vieira@example.com",
+        "helena.demo@example.com",
+        "marcos.demo@example.com",
+      ],
+    });
+  });
+
+  it("o gêmeo é reconhecido só pelo que é dele, sem nada em comum com a demonstração", () => {
+    const gemeo = reconhecimentoDo(PERFIL_DE_TESTE);
+    const demo = reconhecimentoDo(PERFIL_DA_DEMONSTRACAO);
+
+    expect(gemeo.nomes).toStrictEqual(Object.values(PERFIL_DE_TESTE.organizacoes));
+    expect(gemeo.emails).toStrictEqual(Object.values(PERFIL_DE_TESTE.contas));
+    expect(gemeo.nomes.filter((nome) => demo.nomes.includes(nome))).toStrictEqual([]);
+    expect(gemeo.emails.filter((email) => demo.emails.includes(email))).toStrictEqual([]);
+  });
+
+  it("nenhuma conta da demonstração carrega 'demo' (critério 77.1, respostas P1)", () => {
+    for (const email of Object.values(PERFIL_DA_DEMONSTRACAO.contas)) {
+      expect(email).not.toMatch(/demo/iu);
+      expect(email).toMatch(/@example\.com$/u);
+    }
   });
 });
 
