@@ -466,6 +466,65 @@ describe("decidir o pedido", () => {
     expect(pedidos[0]?.situacao).toBe("pendente");
   });
 
+  /**
+   * **O critério 84.3, e a lacuna declarada no relatório do 07a.** O par revogado e reaceito nunca foi
+   * montado porque não havia como revogar; aqui ele é montado por SQL, e o teste passa pelas duas
+   * metades: o PEDIDO passa (o predicado `revogado_em is null` do 07a) e a APROVAÇÃO readmite.
+   *
+   * **Antes do item 84 a segunda metade falhava**: o `insert` batia na `vinculos_pk` da linha revogada e
+   * a Gestora recebia `ja-vinculado` de uma pessoa que a tabela dela não mostra.
+   */
+  it("revogado pede entrada de novo e é reaceito: o mesmo vínculo volta, com o papel novo", async () => {
+    await consulta(`delete from vinculos where pessoa_id = $1`, [candidata]);
+    await consulta(`delete from pedidos_de_entrada where pessoa_id = $1`, [candidata]);
+    await consulta(
+      `insert into vinculos (pessoa_id, organizacao_id, papel, criado_em, revogado_em)
+            values ($1, $2, 'solicitante', now() - interval '30 days', now() - interval '1 day')`,
+      [candidata, organizacaoA],
+    );
+
+    const pedido = await escrita.registrar({
+      pessoaId: candidata,
+      codigoPublico: "K7QMX3TD",
+      nome: null,
+      telefone: null,
+    });
+    expect(pedido.desfecho).toBe("registrado");
+    if (pedido.desfecho !== "registrado") return;
+
+    const resultado = await escopadoEm(organizacaoA).aprovar({
+      pedidoId: pedido.pedido.id,
+      papel: "gestor",
+      areaId: null,
+      decididoPorPessoaId: gestora,
+    });
+
+    expect(resultado.desfecho).toBe("aprovado");
+    if (resultado.desfecho !== "aprovado") return;
+    expect(resultado.vinculo.papel).toBe("gestor");
+
+    // **Uma linha só, reativada** — a chave é `(pessoa_id, organizacao_id)`, e não cabe uma segunda.
+    // `criado_em` recomeça (spec §3.5: a tela diz "Gestor desde", e a data antiga mentiria), e
+    // `atualizado_em` NÃO é nulo: o gatilho carimbou a reativação, que é uma alteração de verdade
+    // (crítica C-4 do plano).
+    const linhas = await consulta<{
+      papel: string;
+      revogado: boolean;
+      criado_hoje: boolean;
+      atualizado: boolean;
+    }>(
+      `select papel,
+              revogado_em is not null                    as revogado,
+              criado_em > now() - interval '1 hour'      as criado_hoje,
+              atualizado_em is not null                  as atualizado
+         from vinculos where pessoa_id = $1 and organizacao_id = $2`,
+      [candidata, organizacaoA],
+    );
+    expect(linhas).toStrictEqual([
+      { papel: "gestor", revogado: false, criado_hoje: true, atualizado: true },
+    ]);
+  });
+
   it("área inativa e área de outra organização dão o mesmo desfecho", async () => {
     const primeiro = await pedidoPendente();
     const comInativa = await escopadoEm(organizacaoA).aprovar({

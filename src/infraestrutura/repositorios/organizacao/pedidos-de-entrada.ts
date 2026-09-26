@@ -220,15 +220,43 @@ export function repositorioEscopadoDePedidosDeEntrada(
         const decidido = decididos[0];
         if (decidido === undefined) return await distinguirRecusa(consulta, pedidoId);
 
-        // 3 · O Vínculo. `JA_VINCULADO` é violação da `PRIMARY KEY (pessoa_id, organizacao_id)`, tratada
-        // no `catch` externo — e alcançável só por corrida, porque o índice parcial já impede dois
-        // pedidos pendentes da mesma Pessoa.
-        const criados = await consulta<{ criado_em: Date }>(
-          `insert into vinculos (pessoa_id, organizacao_id, papel, area_id)
-                values ($2, $1, $3, $4)
-             returning criado_em`,
+        // 3 · O Vínculo — **primeiro a readmissão, depois a criação** (item 84).
+        //
+        // Quem foi revogado ainda TEM a linha: revogar não apaga. Então o `update` abaixo a reativa, com o
+        // papel e a unidade DESTA aprovação e `criado_em` recomeçando — a tela diz *"Gestor desde"*, e a
+        // data antiga afirmaria o papel novo desde a primeira entrada. A perda da data antiga é a mesma
+        // limitação já aceita no esquema para `revogado_em` (comentário da coluna, migração 001).
+        //
+        // **Duas instruções, e não `insert … on conflict do update … where`** (crítica C-1 do plano): o
+        // `on conflict` com `where` devolve ZERO linhas quando o vínculo está ativo, e devolver um desfecho
+        // daqui de dentro COMMITA — o pedido ficaria `aprovado` sem vínculo novo. Com o `insert` separado,
+        // o vínculo ativo continua batendo na `vinculos_pk`, e o `catch` externo traduz em `ja-vinculado`
+        // com `ROLLBACK`, como sempre.
+        const readmitidos = await consulta<{ criado_em: Date }>(
+          `update vinculos
+              set papel       = $3,
+                  area_id     = $4,
+                  revogado_em = null,
+                  criado_em   = now()
+            where organizacao_id = $1
+              and pessoa_id      = $2
+              and revogado_em is not null
+        returning criado_em`,
           [decidido.pessoa_id, papel, areaId],
         );
+
+        // `JA_VINCULADO` é violação da `PRIMARY KEY (pessoa_id, organizacao_id)`, tratada no `catch`
+        // externo — e alcançável só por corrida, porque o índice parcial já impede dois pedidos pendentes
+        // da mesma Pessoa, e o pedido só nasce sem vínculo ativo.
+        const criados =
+          readmitidos.length > 0
+            ? readmitidos
+            : await consulta<{ criado_em: Date }>(
+                `insert into vinculos (pessoa_id, organizacao_id, papel, area_id)
+                      values ($2, $1, $3, $4)
+                   returning criado_em`,
+                [decidido.pessoa_id, papel, areaId],
+              );
 
         return {
           desfecho: "aprovado",
