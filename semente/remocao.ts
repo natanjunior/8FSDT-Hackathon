@@ -149,14 +149,16 @@ export function hostDoBanco(url: string | undefined): string {
  * É o que a linha de comando usa para **recusar antes de escrever**: sem esta pergunta, uma execução
  * distraída faz nascer a terceira e a quarta organização de demonstração.
  *
- * `emails` existe para o teste de integração, que não pode usar as contas reais da demonstração:
- * `auth.users` não é derrubada entre execuções. A linha de comando usa o padrão.
+ * `emails` e `nomes` são o perfil do mundo a reconhecer. A linha de comando os passa a partir do perfil
+ * escolhido, a demonstração ou o gêmeo de teste (item 63). O teste de integração passa e-mails próprios,
+ * porque `auth.users` não é derrubada entre execuções e as contas reais da demonstração existem no local.
  */
 export async function organizacoesDaDemonstracao(
   emails: readonly string[] = EMAILS_DA_DEMONSTRACAO,
+  nomes: readonly string[] = NOMES_DA_DEMONSTRACAO,
 ): Promise<Reconhecimento> {
   const consulta = criarConsulta();
-  return separar(await consulta<LinhaReconhecida>(RECONHECER, [[...NOMES_DA_DEMONSTRACAO], [...emails]]));
+  return separar(await consulta<LinhaReconhecida>(RECONHECER, [[...nomes], [...emails]]));
 }
 
 /**
@@ -193,6 +195,7 @@ export async function organizacoesDaDemonstracao(
  */
 export async function apagarADemonstracao(
   emails: readonly string[] = EMAILS_DA_DEMONSTRACAO,
+  nomes: readonly string[] = NOMES_DA_DEMONSTRACAO,
 ): Promise<{ organizacoes: number; pessoas: number; homonimas: readonly OrganizacaoEncontrada[] }> {
   const emTransacao = criarTransacao();
 
@@ -200,7 +203,7 @@ export async function apagarADemonstracao(
     await executar(`select set_config('resolveai.remocao_da_demonstracao', 'sim', true)`);
 
     const { daDemonstracao, homonimas } = separar(
-      await executar<LinhaReconhecida>(RECONHECER, [[...NOMES_DA_DEMONSTRACAO], [...emails]]),
+      await executar<LinhaReconhecida>(RECONHECER, [[...nomes], [...emails]]),
     );
     if (daDemonstracao.length === 0) return { organizacoes: 0, pessoas: 0, homonimas };
 
