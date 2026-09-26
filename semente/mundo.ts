@@ -33,8 +33,6 @@ import {
 import { PERMISSOES_POR_PAPEL } from "@/dominio/organizacao";
 
 import {
-  EMAIL_DE_HELENA,
-  EMAIL_DE_MARCOS,
   type ChaveDeOrganizacao,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
@@ -193,8 +191,8 @@ export async function semear(
   senha: string,
 ): Promise<ResumoDaSemeadura> {
   // 1 · As duas contas. Cada uma com o próprio armazenamento de cookies.
-  const helena = await garantirConta("Helena Rocha", EMAIL_DE_HELENA, senha);
-  const marcos = await garantirConta("Marcos Vieira", EMAIL_DE_MARCOS, senha);
+  const helena = await garantirConta("Helena Rocha", plano.perfil.contas.helena, senha);
+  const marcos = await garantirConta("Marcos Vieira", plano.perfil.contas.marcos, senha);
 
   const pessoas = new Map<string, string>([
     ["helena", helena.pessoaId],
@@ -597,8 +595,8 @@ function montarResumo(
     porStatus: contagem.porStatus,
     porMotivoDePausa: contagem.porMotivoDePausa,
     contas: [
-      { email: EMAIL_DE_HELENA, onde: "Gestora em A, Solicitante em B" },
-      { email: EMAIL_DE_MARCOS, onde: "Gestor em B" },
+      { email: plano.perfil.contas.helena, onde: "Gestora em A, Solicitante em B" },
+      { email: plano.perfil.contas.marcos, onde: "Gestor em B" },
     ],
     mensagens: contagem.mensagens,
   };

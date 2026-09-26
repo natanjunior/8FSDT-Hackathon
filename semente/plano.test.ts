@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   baldesDaDemonstracao,
+  PERFIL_DA_DEMONSTRACAO,
+  PERFIL_DE_TESTE,
   planoDaDemonstracao,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
@@ -256,5 +258,36 @@ describe("planoDaDemonstracao", () => {
 
     expect(canceladas).toHaveLength(5);
     expect(peloAutor).toHaveLength(2);
+  });
+});
+
+describe("o perfil de teste", () => {
+  it("sem perfil, o plano é o da demonstração", () => {
+    expect(planoDaDemonstracao(HOJE)).toEqual(planoDaDemonstracao(HOJE, PERFIL_DA_DEMONSTRACAO));
+  });
+
+  it("o gêmeo troca só os nomes das organizações e os e-mails das duas contas", () => {
+    const demo = planoDaDemonstracao(HOJE);
+    const gemeo = planoDaDemonstracao(HOJE, PERFIL_DE_TESTE);
+
+    expect(gemeo.ocorrencias).toEqual(demo.ocorrencias);
+    expect(gemeo.areas).toEqual(demo.areas);
+    expect(gemeo.vinculos).toEqual(demo.vinculos);
+    expect(gemeo.pessoas.map((p) => p.nome)).toEqual(demo.pessoas.map((p) => p.nome));
+    expect(gemeo.organizacoes.map((o) => o.nome)).toEqual([
+      PERFIL_DE_TESTE.organizacoes.a,
+      PERFIL_DE_TESTE.organizacoes.b,
+    ]);
+    expect(gemeo.pessoas.filter((p) => p.email !== null).map((p) => p.email)).toEqual([
+      PERFIL_DE_TESTE.contas.helena,
+      PERFIL_DE_TESTE.contas.marcos,
+    ]);
+  });
+
+  it("os dois perfis não compartilham nome de organização nem e-mail", () => {
+    const nomes = [PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE].flatMap((p) => Object.values(p.organizacoes));
+    const emails = [PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE].flatMap((p) => Object.values(p.contas));
+    expect(new Set(nomes).size).toBe(4);
+    expect(new Set(emails).size).toBe(4);
   });
 });
