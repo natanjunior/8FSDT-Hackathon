@@ -8,6 +8,7 @@ import {
   PERFIL_DA_DEMONSTRACAO,
   PERFIL_DE_TESTE,
   planoDaDemonstracao,
+  reconhecimentoDo,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
 } from "./plano";
@@ -295,6 +296,40 @@ describe("o perfil de teste", () => {
     const emails = [PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE].flatMap((p) => Object.values(p.contas));
     expect(new Set(nomes).size).toBe(4);
     expect(new Set(emails).size).toBe(4);
+  });
+
+  it("a demonstração é reconhecida pelos nomes e contas de hoje e pelos que ela já teve (item 77)", () => {
+    expect(reconhecimentoDo(PERFIL_DA_DEMONSTRACAO)).toStrictEqual({
+      nomes: [
+        "Condomínio Recanto Azul",
+        "Edifício Aurora",
+        "Condomínio Recanto Azul (demonstração)",
+        "Edifício Aurora (demonstração)",
+      ],
+      emails: [
+        "helena.rocha@example.com",
+        "marcos.vieira@example.com",
+        "helena.demo@example.com",
+        "marcos.demo@example.com",
+      ],
+    });
+  });
+
+  it("o gêmeo é reconhecido só pelo que é dele, sem nada em comum com a demonstração", () => {
+    const gemeo = reconhecimentoDo(PERFIL_DE_TESTE);
+    const demo = reconhecimentoDo(PERFIL_DA_DEMONSTRACAO);
+
+    expect(gemeo.nomes).toStrictEqual(Object.values(PERFIL_DE_TESTE.organizacoes));
+    expect(gemeo.emails).toStrictEqual(Object.values(PERFIL_DE_TESTE.contas));
+    expect(gemeo.nomes.filter((nome) => demo.nomes.includes(nome))).toStrictEqual([]);
+    expect(gemeo.emails.filter((email) => demo.emails.includes(email))).toStrictEqual([]);
+  });
+
+  it("nenhuma conta da demonstração carrega 'demo' (critério 77.1, respostas P1)", () => {
+    for (const email of Object.values(PERFIL_DA_DEMONSTRACAO.contas)) {
+      expect(email).not.toMatch(/demo/iu);
+      expect(email).toMatch(/@example\.com$/u);
+    }
   });
 });
 

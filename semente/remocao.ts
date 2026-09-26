@@ -1,11 +1,6 @@
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 
-import {
-  EMAIL_DE_HELENA,
-  EMAIL_DE_MARCOS,
-  NOME_DA_ORGANIZACAO_A,
-  NOME_DA_ORGANIZACAO_B,
-} from "./plano";
+import { PERFIL_DA_DEMONSTRACAO, reconhecimentoDo } from "./plano";
 
 /**
  * ============================================================================
@@ -27,7 +22,7 @@ import {
  * **A demonstração é reconhecida por nome E autoria** (item 74). Um dos dois nomes basta para ser
  * candidata; ser fundada por uma das duas contas da demonstração é o que a torna da demonstração. O nome
  * sozinho não serve: `organizacoes.nome` não é único e o cadastro é público, então qualquer pessoa pode
- * fundar uma `Edifício Aurora (demonstração)`. A que tem o nome e outra autoria é **homônima**: a remoção
+ * fundar um `Edifício Aurora`. A que tem o nome e outra autoria é **homônima**: a remoção
  * não a toca e a devolve nomeada, e a semeadura recusa escrever ao lado dela.
  */
 
@@ -45,14 +40,13 @@ export type Reconhecimento = {
   readonly homonimas: readonly OrganizacaoEncontrada[];
 };
 
-/** Os dois nomes do critério 43.5. Metade da identificação; a outra metade é a autoria. */
-export const NOMES_DA_DEMONSTRACAO: readonly string[] = [
-  NOME_DA_ORGANIZACAO_A,
-  NOME_DA_ORGANIZACAO_B,
-];
+const RECONHECIMENTO_DA_DEMONSTRACAO = reconhecimentoDo(PERFIL_DA_DEMONSTRACAO);
 
-/** As duas contas que fundam a demonstração (`plano.ts`, Recanto Azul por Helena e Aurora por Marcos). */
-export const EMAILS_DA_DEMONSTRACAO: readonly string[] = [EMAIL_DE_HELENA, EMAIL_DE_MARCOS];
+/** Os nomes da demonstração, os de hoje e os que ela já teve (item 77). Metade da identificação; a outra é a autoria. */
+export const NOMES_DA_DEMONSTRACAO: readonly string[] = RECONHECIMENTO_DA_DEMONSTRACAO.nomes;
+
+/** As contas que fundam a demonstração, as de hoje e as que a fundaram antes (item 77). */
+export const EMAILS_DA_DEMONSTRACAO: readonly string[] = RECONHECIMENTO_DA_DEMONSTRACAO.emails;
 
 /**
  * As tabelas escopadas, **em ordem de dependência**.

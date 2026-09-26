@@ -176,10 +176,10 @@ function instantesDoRoteiro(balde: Balde, quantos: number, proximo: () => number
 
 export type ChaveDeOrganizacao = "a" | "b";
 
-export const NOME_DA_ORGANIZACAO_A = "Condomínio Recanto Azul (demonstração)";
-export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora (demonstração)";
-export const EMAIL_DE_HELENA = "helena.demo@example.com";
-export const EMAIL_DE_MARCOS = "marcos.demo@example.com";
+export const NOME_DA_ORGANIZACAO_A = "Condomínio Recanto Azul";
+export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora";
+export const EMAIL_DE_HELENA = "helena.rocha@example.com";
+export const EMAIL_DE_MARCOS = "marcos.vieira@example.com";
 
 /** O que identifica um mundo: os dois nomes de organização e as duas contas que as fundam. */
 export type Perfil = {
@@ -187,12 +187,22 @@ export type Perfil = {
   readonly rotulo: string;
   readonly organizacoes: Readonly<Record<ChaveDeOrganizacao, string>>;
   readonly contas: { readonly helena: string; readonly marcos: string };
+  /**
+   * Os nomes e as contas que este mundo já teve (item 77). **O reconhecimento os aceita, a semeadura nunca
+   * os usa.** É o que deixa o `--apagar` de hoje remover a demonstração semeada antes da troca de nome, que
+   * foi fundada pelas contas de então.
+   */
+  readonly anteriores: { readonly organizacoes: readonly string[]; readonly contas: readonly string[] };
 };
 
 export const PERFIL_DA_DEMONSTRACAO: Perfil = {
   rotulo: "a demonstração",
   organizacoes: { a: NOME_DA_ORGANIZACAO_A, b: NOME_DA_ORGANIZACAO_B },
   contas: { helena: EMAIL_DE_HELENA, marcos: EMAIL_DE_MARCOS },
+  anteriores: {
+    organizacoes: ["Condomínio Recanto Azul (demonstração)", "Edifício Aurora (demonstração)"],
+    contas: ["helena.demo@example.com", "marcos.demo@example.com"],
+  },
 };
 
 /**
@@ -203,7 +213,22 @@ export const PERFIL_DE_TESTE: Perfil = {
   rotulo: "o mundo de teste",
   organizacoes: { a: "Condomínio Recanto Azul (teste)", b: "Edifício Aurora (teste)" },
   contas: { helena: "helena.teste@example.com", marcos: "marcos.teste@example.com" },
+  anteriores: { organizacoes: [], contas: [] },
 };
+
+/**
+ * Os nomes e as contas pelos quais o mundo é reconhecido: os de hoje primeiro, depois os anteriores. **Uma
+ * definição só para as duas pontas**, a recusa antes de semear e o `--apagar` (item 74).
+ */
+export function reconhecimentoDo(perfil: Perfil): {
+  readonly nomes: readonly string[];
+  readonly emails: readonly string[];
+} {
+  return {
+    nomes: [...Object.values(perfil.organizacoes), ...perfil.anteriores.organizacoes],
+    emails: [...Object.values(perfil.contas), ...perfil.anteriores.contas],
+  };
+}
 
 export type OrganizacaoDoPlano = {
   readonly chave: ChaveDeOrganizacao;
