@@ -310,18 +310,23 @@ describe("correcaoDeVinculoSchema — ausente e vazio são instruções diferent
 
 /**
  * ============================================================================
- *  O critério 10.5 — é o ÚNICO `DELETE` do contrato
+ *  O critério 10.5 — a lista fechada dos `DELETE`
  * ============================================================================
  *
  * **Um critério de aceitação sem nada que o confira é um critério que ninguém confere.** O 10.5 afirma
  * que não há caminho que apague ocorrência, mensagem, categoria nem área — e o custo de conferir isso é
  * uma varredura de doze linhas.
  *
+ * **A lista tem dois desde o item 87, e a asserção continua fechada.** O segundo `DELETE` desfaz um
+ * compartilhamento, que por decisão não tem histórico: a linha diz quem pode ler a ocorrência hoje, e
+ * desfazer é tirar isso. Nenhum dos dois toca as quatro coisas que o 10.5 nomeia. **O que a guarda pega é
+ * o terceiro**, que chegaria sem ninguém decidir que ele podia existir.
+ *
  * **Não é o mesmo que o portão do contrato:** aquele roda sobre o `openapi.yaml`, e este roda sobre o
  * **código**. O dia em que os dois discordarem é o dia em que alguém escreveu endpoint sem publicar.
  */
-describe("o único DELETE do produto", () => {
-  it("existe exatamente um export const DELETE em app/api/, e é o de vínculos", () => {
+describe("os DELETE do produto, e são dois", () => {
+  it("existem exatamente dois export const DELETE em app/api/, e a lista é a decidida", () => {
     const raiz = fileURLToPath(new URL("../../app/api/", import.meta.url));
 
     const rotas = readdirSync(raiz, { recursive: true, encoding: "utf8" })
@@ -330,7 +335,12 @@ describe("o único DELETE do produto", () => {
       // O `readdirSync` recursivo devolve separador do sistema; a asserção é sobre o caminho lógico.
       .map((caminho) => caminho.replace(/\\/gu, "/"));
 
-    expect(rotas).toStrictEqual(["vinculos/[pessoaId]/route.ts"]);
+    expect(rotas.sort()).toStrictEqual(
+      [
+        "ocorrencias/[ocorrenciaId]/compartilhamentos/[pessoaId]/route.ts",
+        "vinculos/[pessoaId]/route.ts",
+      ].sort(),
+    );
   });
 });
 

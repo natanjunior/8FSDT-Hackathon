@@ -286,6 +286,11 @@ export type FiltroDeListagem = {
    * `FiltroDeOcorrencias` porque não recorta: a contagem é a mesma em qualquer ordem.
    */
   ordenacao?: OrdenacaoDeOcorrencias;
+  /**
+   * O recorte da aba do item 87 — **decidido pela Aplicação**, e não copiado da URL: quando ele está
+   * presente, `autorPessoaId` sai, porque o conjunto pedido não é do autor.
+   */
+  compartilhadaComPessoaId?: string;
 };
 
 /**
@@ -309,6 +314,11 @@ export type FiltroDeListagem = {
 export type FiltroDeContagem = {
   autorPessoaId?: string;
   autorPessoaIdDaPagina?: string;
+  /**
+   * O recorte da aba do item 87, **do lado da página e só dele**: `totalFiltrado` e `novas` o veem, e os
+   * quatro números do painel continuam medindo o que mediam.
+   */
+  compartilhadaComPessoaIdDaPagina?: string;
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
@@ -365,6 +375,12 @@ export type FiltroDeOcorrencias = {
   readonly titulo?: string;
   readonly areaId?: readonly string[];
   readonly responsavelPessoaId?: readonly string[];
+  /**
+   * A aba *Compartilhadas comigo* (item 87). **Vem da URL, e não é filtro no sentido dos sete acima**:
+   * ela troca o conjunto da página em vez de estreitá-lo, e por isso não entra em `algumFiltroAplicado`
+   * nem em `PARAMETROS_DE_FILTRO`.
+   */
+  readonly compartilhadasComigo?: boolean;
 };
 
 /**

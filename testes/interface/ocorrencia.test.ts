@@ -53,6 +53,7 @@ import {
   CorpoNaoSuportado,
   FormatoInvalido,
   lerCorpoOpcional,
+  lerBuscaDeCandidatosDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerOrdenacaoDeOcorrenciasDaUrl,
@@ -4193,5 +4194,67 @@ describe("87.2 · a leitura muda num lugar só, e nenhuma permissão nasce", () 
     for (const rota of rotas) {
       expect(lerFonte(rota), rota).not.toMatch(/autor\.pessoaId !== ctx\.pessoaId/u);
     }
+  });
+});
+
+/**
+ * ============================================================================
+ *  87 · A fronteira HTTP do compartilhamento
+ * ============================================================================
+ */
+describe("87 · a fronteira HTTP do compartilhamento", () => {
+  it("a busca exige 2 letras depois de aparar, e recusa acima de 120", () => {
+    expect(() => lerBuscaDeCandidatosDaUrl(new URLSearchParams("busca=%20a%20"))).toThrow(
+      FormatoInvalido,
+    );
+    expect(lerBuscaDeCandidatosDaUrl(new URLSearchParams("busca=%20an%20"))).toBe("an");
+    expect(() =>
+      lerBuscaDeCandidatosDaUrl(new URLSearchParams(`busca=${"a".repeat(121)}`)),
+    ).toThrow(FormatoInvalido);
+  });
+
+  const AUTORA_87 = "00000000-0000-4000-8000-0000000000b1";
+  const VIZINHA = "00000000-0000-4000-8000-0000000000b2";
+  const SOLICITANTE_87 = [
+    "ocorrencia.registrar",
+    "ocorrencia.ler_propria",
+    "ocorrencia.comentar",
+    "ocorrencia.cancelar_propria",
+    "ocorrencia.avaliar",
+  ];
+
+  it("o detalhe dá a lista a quem participa, e só a faixa a quem recebeu", () => {
+    const lida: OcorrenciaLida = {
+      ...umaOcorrenciaLidaCom([]),
+      autor: { pessoaId: AUTORA_87, nome: "Ana" },
+      compartilhamentos: [
+        {
+          com: { pessoaId: VIZINHA, nome: "Bia", papel: "solicitante" },
+          por: { pessoaId: AUTORA_87, nome: "Ana", papel: "solicitante" },
+          compartilhadoEm: "2026-09-26T12:00:00.000Z",
+        },
+      ],
+    };
+    const daAutora = projetarOcorrenciaDetalhe(lida, {
+      pessoaId: AUTORA_87,
+      permissoes: SOLICITANTE_87,
+    });
+    expect(daAutora.compartilhamento).toMatchObject({
+      tipo: "gestao",
+      pessoas: [{ podeDesfazer: true }],
+    });
+
+    const daVizinha = projetarOcorrenciaDetalhe(lida, {
+      pessoaId: VIZINHA,
+      permissoes: SOLICITANTE_87,
+    });
+    expect(daVizinha.compartilhamento).toStrictEqual({
+      tipo: "recebida",
+      por: { nome: "Ana", papel: "solicitante" },
+      compartilhadoEm: "2026-09-26T12:00:00.000Z",
+    });
+    // A lista não viaja para quem recebeu: ela nomeia outros vizinhos.
+    expect(JSON.stringify(daVizinha)).not.toContain(VIZINHA);
+    expect(daVizinha.acoesDisponiveis).toStrictEqual([]);
   });
 });
