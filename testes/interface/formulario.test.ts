@@ -2296,3 +2296,146 @@ describe("o alcance do 71 — o seletor de faixa de datas", () => {
     expect(fonte).toContain("As datas estavam invertidas e foram trocadas.");
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 91 — os 44 px nas seis peças que faltam
+ * ============================================================================
+ *
+ * **Guardas de fonte, e não de tela.** A medida de verdade é a sonda, fora do git; aqui fica o que
+ * impede cada peça de voltar ao tamanho de antes numa edição distraída.
+ */
+describe("o alcance do 91 — os 44 px", () => {
+  it("o gatilho do menu de pessoa é um círculo de 44 px com o avatar de 32 dentro (critério 91.1)", () => {
+    const fonte = ler("src/interface/componentes/casca/menu-de-pessoa.tsx");
+    const gatilho = fonte.slice(
+      fonte.indexOf("<DropdownMenuTrigger"),
+      fonte.indexOf("</DropdownMenuTrigger>"),
+    );
+    expect(gatilho).toMatch(/className="[^"]*\bsize-11\b[^"]*"/u);
+    expect(gatilho).toMatch(/className="[^"]*\brounded-full\b[^"]*"/u);
+    expect(gatilho).toMatch(/className="[^"]*\bjustify-center\b[^"]*"/u);
+    expect(gatilho).toContain('<Avatar className="size-8">');
+  });
+
+  it("o Ver dados não usa o tamanho pequeno do catálogo (critério 91.2)", () => {
+    const fonte = ler("src/interface/componentes/modal-de-dados.tsx");
+    const gatilho = fonte.slice(fonte.indexOf("<DialogTrigger"), fonte.indexOf("</DialogTrigger>"));
+    expect(gatilho).not.toMatch(/size="(?:sm|xs|icon-sm|icon-xs)"/u);
+    expect(gatilho).toContain("Ver dados");
+  });
+
+  it("nenhum caminho escrito à mão com py-1, e as telas de conta usam a constante (critério 91.3)", () => {
+    const arquivos = [
+      "app/entrar/page.tsx",
+      "app/criar-conta/page.tsx",
+      "app/redefinir-senha/page.tsx",
+      "app/definir-senha/page.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+    ];
+    for (const caminho of arquivos) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toMatch(/py-1 underline underline-offset-4/u);
+      expect(fonte, caminho).toContain("CLASSE_DO_CAMINHO");
+    }
+    const usos = arquivos.reduce(
+      (soma, caminho) =>
+        soma + [...ler(caminho).matchAll(/\{CLASSE_DO_CAMINHO\}|cn\(CLASSE_DO_CAMINHO/gu)].length,
+      0,
+    );
+    expect(usos).toBe(7);
+
+    const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
+    expect(moldura).not.toContain("não se conserta aqui");
+    // O "Voltar" da face E media 37 px de largura com a constante antiga: o piso é dos dois lados.
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(moldura)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("min-w-11");
+    expect(classe.split(" ")).toContain("justify-center");
+  });
+
+  it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {
+    const fonte = ler("src/interface/componentes/barra-de-filtros.tsx");
+    // Por regex, e não por `indexOf`: o comentário logo acima do link também diz "Limpar filtros".
+    const limpar = /<Link(?:(?!<Link)[\s\S])*?>\s*Limpar filtros\s*<\/Link>/u.exec(fonte)?.[0] ?? "";
+    expect(limpar).not.toBe("");
+    expect(limpar).toMatch(/\binline-flex\b/u);
+    expect(limpar).toMatch(/\bmin-h-11\b/u);
+    expect(limpar).toMatch(/\bitems-center\b/u);
+    expect(limpar).not.toMatch(/\bpy-1\b/u);
+  });
+
+  it("o Sair tem largura mínima de 44 px e perdeu o px-0 (critério 91.5)", () => {
+    const fonte = ler("src/interface/componentes/moldura-de-conta.tsx");
+    // Por regex, e não por `indexOf("Sair\n")`: o repositório versiona `.tsx` com **CRLF** — o
+    // `.gitattributes` fixa LF só para `.md`, `.yaml`, `.yml`, `.html`, `.mmd`, `.json` e `.sh`. Com
+    // `Sair\r\n` no arquivo o `indexOf` devolve `-1`, e `slice(inicio, -1)` leria daqui até o
+    // fim do arquivo: o guarda passaria verde medindo outra coisa.
+    const sair = /export function CaminhoDeSair[\s\S]*?<\/Button>/u.exec(fonte)?.[0] ?? "";
+    expect(sair).not.toBe("");
+    expect(sair).toMatch(/\bmin-w-11\b/u);
+    expect(sair).not.toMatch(/\bpx-0\b/u);
+  });
+
+  it("o campo de busca do catálogo tem 44 px no invólucro e no campo (critério 91.6)", () => {
+    const fonte = ler("src/interface/componentes/ui/command.tsx");
+    const campo = fonte.slice(
+      fonte.indexOf("function CommandInput"),
+      fonte.indexOf("function CommandList"),
+    );
+    expect(campo).toMatch(/data-slot="command-input-wrapper" className="[^"]*\bh-11\b/u);
+    expect(campo).not.toMatch(/\bh-9\b|\bh-10\b/u);
+    expect(campo).toMatch(/"placeholder:text-muted-foreground flex h-11\b/u);
+  });
+
+  it("a moldura da documentação tem os cinco alvos do critério a 44 px (critério 91.7)", () => {
+    const fonte = ler("app/documentacao/documentacao.css");
+    for (const seletor of [
+      "#nd-subnav button",
+      "#nd-sidebar a",
+      "#nd-sidebar button",
+      "[data-search-full]",
+      "[data-toc-popover-trigger]",
+    ]) {
+      expect(fonte, seletor).toContain(seletor);
+    }
+    expect(fonte).toContain("min-height: 2.75rem");
+  });
+
+  it("Anterior e Próxima da paginação têm 44 px de largura mínima (P1 do 91)", () => {
+    const fonte = ler("src/interface/componentes/paginacao-da-lista.tsx");
+    expect(fonte).toMatch(/<PaginationPrevious[^>]*className="min-w-11"/su);
+    expect(fonte).toMatch(/<PaginationNext[^>]*className="min-w-11"/su);
+  });
+
+  it("o padrão de linha clicável mora num módulo de servidor, e as duas listas o usam (P2 do 91)", () => {
+    const modulo = ler("src/interface/componentes/linha-clicavel.ts");
+    expect(modulo).not.toContain('"use client"');
+    expect(modulo).toContain("export const LINHA_CLICAVEL");
+    expect(modulo).toContain("export const CAMADA_DO_TITULO");
+    expect(ler("src/interface/componentes/lista-de-ocorrencias.tsx")).toContain(
+      'from "./linha-clicavel"',
+    );
+
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    const lista = painel.slice(
+      painel.indexOf("velhas.length > 0 ?"),
+      painel.indexOf("<GraficoDeBarras", painel.indexOf("velhas.length > 0 ?")),
+    );
+    expect(lista).toMatch(/<ol className="flex flex-col">/u);
+    expect(lista).toMatch(/cn\(LINHA_CLICAVEL, "[^"]*\bmin-h-11\b/u);
+    expect(lista).toContain("CAMADA_DO_TITULO");
+  });
+
+  it("o cartão da mais velha é clicável só quando há uma mais velha (P1 do 91)", () => {
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    const cartao = painel.slice(
+      painel.indexOf('rotulo="A mais velha em aberto"') - 200,
+      painel.indexOf('rotulo="A mais velha em aberto"') + 900,
+    );
+    expect(cartao).toContain("clicavel={maisVelha !== undefined}");
+    expect(cartao).toContain("CAMADA_DO_TITULO");
+    const blocos = ler("src/interface/componentes/blocos-do-dashboard.tsx");
+    expect(blocos).toMatch(/clicavel\?: boolean/u);
+    expect(blocos).toContain("LINHA_CLICAVEL");
+  });
+});
