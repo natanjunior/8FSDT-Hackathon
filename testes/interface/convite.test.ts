@@ -60,3 +60,49 @@ describe("linkDoConvite — o que o Gestor manda", () => {
     );
   });
 });
+
+describe("a página do convite — critérios 86.2 e 86.3 na fonte", () => {
+  const PAGINA = "app/convite/[codigo]/page.tsx";
+
+  it("lê pela estrada direta, e só por ela", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain("resolverConviteParaTela(");
+    expect(fonte).not.toContain("resolverParaTela(");
+    expect(fonte).not.toContain("resolverEscopoParaTela(");
+  });
+
+  it("os cinco estados têm as frases da spec, e nenhum fala de revogação", () => {
+    const fonte = ler(PAGINA);
+    for (const frase of [
+      "Convite não encontrado",
+      "Confira o link com quem enviou.",
+      "Você recebeu um convite para participar desta organização.",
+      "Você já participa desta organização",
+      "Pedido enviado",
+      "está aguardando o Gestor.",
+      "Peça para entrar. Um Gestor decide.",
+    ]) {
+      expect(fonte, frase).toContain(frase);
+    }
+    expect(fonte).not.toMatch(/revog/iu);
+  });
+
+  it("sem sessão, a página não desenha nada além de nome, código e as duas saídas", () => {
+    const fonte = ler(PAGINA);
+    const semSessao = fonte.slice(
+      fonte.indexOf("function FaceSemSessao"),
+      fonte.indexOf("function FaceJaParticipa"),
+    );
+    expect(semSessao).toContain("<ExibicaoDeCodigo");
+    expect(semSessao).toContain("/criar-conta?destino=");
+    expect(semSessao).toContain("/entrar?destino=");
+    expect(semSessao).not.toMatch(/\.id\b|pessoa|contagem|quantidade/u);
+  });
+
+  it("o formulário recebe o código travado, e ele vai escondido no envio", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-pedido-de-entrada.tsx");
+    expect(formulario).toContain("codigoFixo");
+    expect(formulario).toContain('<input type="hidden" name="codigo" value={codigoFixo} />');
+    expect(formulario).toContain("<ExibicaoDeCodigo");
+  });
+});
