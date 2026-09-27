@@ -45,6 +45,7 @@ import {
   textoDoSaldo,
   textoDoValorDaCategoria,
 } from "@/interface/componentes/indicadores-do-painel";
+import { CAMADA_DO_TITULO, LINHA_CLICAVEL } from "@/interface/componentes/linha-clicavel";
 import { ModalDeDados } from "@/interface/componentes/modal-de-dados";
 import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
@@ -55,6 +56,7 @@ import {
   unidadeDoEixo,
   vereditoDoTempo,
 } from "@/interface/componentes/tempo-de-resolucao";
+import { cn } from "@/interface/componentes/utilitarios";
 import {
   consultaDe,
   FormatoInvalido,
@@ -272,6 +274,7 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
     <CartaoDeIndicador
       rotulo="A mais velha em aberto"
+      clicavel={maisVelha !== undefined}
       valor={maisVelha === undefined ? "—" : dias(maisVelha.idadeEmDias)}
       segundoTermo={
         maisVelha === undefined ? (
@@ -279,7 +282,7 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
         ) : (
           <Link
             href={`/ocorrencias/${maisVelha.id}`}
-            className="text-tinta-marca break-words underline underline-offset-4"
+            className={cn("text-tinta-marca break-words underline underline-offset-4", CAMADA_DO_TITULO)}
           >
             {maisVelha.titulo}
           </Link>
@@ -389,15 +392,18 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
     >
       <p className="text-tinta text-corpo">{vereditoDaIdade(faixas)}</p>
       {velhas.length > 0 ? (
-        <ol className="flex flex-col gap-2">
+        <ol className="flex flex-col">
           {velhas.map((ocorrencia) => (
             <li
               key={ocorrencia.id}
-              className="text-corpo flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+              className={cn(LINHA_CLICAVEL, "text-corpo flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1")}
             >
               <Link
                 href={`/ocorrencias/${ocorrencia.id}`}
-                className="text-tinta-marca min-w-0 flex-1 break-words underline underline-offset-4"
+                className={cn(
+                  "text-tinta-marca min-w-0 flex-1 break-words underline underline-offset-4",
+                  CAMADA_DO_TITULO,
+                )}
               >
                 {ocorrencia.titulo}
               </Link>
