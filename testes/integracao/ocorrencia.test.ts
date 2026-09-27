@@ -8,6 +8,8 @@ import {
   avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
+  listarOcorrencias,
+  podeLerOcorrencia,
   pausarOcorrencia,
   registrarOcorrencia,
   registrarSolucaoAplicada,
@@ -4110,5 +4112,257 @@ describe("a conversa contra Postgres — item 30", () => {
     }
 
     expect((await repo.mensagens(id)).map((m) => m.texto)).toStrictEqual(["m1", "m2", "m3"]);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O compartilhamento no banco — item 87
+ * ============================================================================
+ *
+ * **O que só o Postgres prova:** a chave primária que impede a segunda linha, as duas chaves compostas
+ * que amarram a organização, e as duas pontas de `on delete` — `com` em cascata, `por` restrito.
+ */
+describe("o compartilhamento no banco — item 87", () => {
+  let recebePessoaId: string;
+  let outraOrganizacaoId: string;
+  let deForaPessoaId: string;
+
+  beforeAll(async () => {
+    const [recebe] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha ${SUFIXO}`],
+    );
+    recebePessoaId = recebe!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [recebePessoaId, organizacaoId],
+    );
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      // `V1`, e não `AU`: o item 19 deste arquivo já usa `AU${SUFIXO}`, e o código é único.
+      [`Aurora ${SUFIXO}`, `V1${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    outraOrganizacaoId = outra!.id;
+    const [deFora] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`De fora ${SUFIXO}`],
+    );
+    deForaPessoaId = deFora!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [deForaPessoaId, outraOrganizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Vazou de novo.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  const inserir = (ocorrenciaId: string, com: string, org = organizacaoId) =>
+    consultaCrua(
+      `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
+       values ($1, $2, $3, $4)`,
+      [org, ocorrenciaId, com, pessoaId],
+    );
+
+  it("grava uma linha, e a segunda igual é recusada pela chave primária", async () => {
+    const id = await registrada("Vazamento na garagem, vaga 14");
+    await inserir(id, recebePessoaId);
+    await expect(inserir(id, recebePessoaId)).rejects.toThrow(/compartilhamentos_pk/u);
+  });
+
+  it("recusa ligar a ocorrência a um vínculo de outra organização", async () => {
+    const id = await registrada("Portão travado");
+    await expect(inserir(id, deForaPessoaId)).rejects.toThrow(/compartilhamentos_com_fk/u);
+    expect(outraOrganizacaoId).not.toBe(organizacaoId);
+  });
+
+  it("remover o vínculo de quem recebeu leva a linha junto; o de quem compartilhou é recusado", async () => {
+    const id = await registrada("Luz do hall");
+    const [temporaria] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Temporária ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [temporaria!.id, organizacaoId],
+    );
+    await inserir(id, temporaria!.id);
+    await consultaCrua(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [
+      temporaria!.id,
+      organizacaoId,
+    ]);
+    const restantes = await consultaCrua(
+      `select 1 from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, temporaria!.id],
+    );
+    expect(restantes).toHaveLength(0);
+
+    await expect(
+      consultaCrua(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [
+        pessoaId,
+        organizacaoId,
+      ]),
+    ).rejects.toThrow();
+  });
+
+  /**
+   * **É a metade de banco do critério 87.5.** A outra metade, *"deixa de ver"*, já é do `comContexto`, que
+   * recusa vínculo revogado antes de qualquer leitura (item 84).
+   */
+  it("porId traz com quem está compartilhada; o revogado some da lista e a linha fica", async () => {
+    const id = await registrada("Infiltração no teto do 302");
+    await inserir(id, recebePessoaId);
+
+    const lida = await portas().ocorrencias.porId(id);
+    expect(lida!.compartilhamentos.map((c) => c.com.pessoaId)).toStrictEqual([recebePessoaId]);
+    expect(lida!.compartilhamentos[0]!.com.papel).toBe("solicitante");
+    expect(lida!.compartilhamentos[0]!.por.pessoaId).toBe(pessoaId);
+
+    await consultaCrua(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const revogada = (await portas().ocorrencias.porId(id))!;
+    expect(revogada.compartilhamentos).toHaveLength(0);
+    expect(podeLerOcorrencia(revogada, { pessoaId: recebePessoaId, podeLerTodas: false })).toBe(false);
+    expect(await portas().ocorrencias.compartilhamentoCom(id, recebePessoaId)).toBeNull();
+    const linhas = await consultaCrua(
+      `select 1 from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(linhas).toHaveLength(1); // a linha nunca saiu da tabela
+
+    // A readmissão do item 84 é `update … revogado_em = null`, e é o que faz o critério 5 valer sem código.
+    await consultaCrua(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const readmitida = (await portas().ocorrencias.porId(id))!;
+    expect(readmitida.compartilhamentos).toHaveLength(1);
+    expect(podeLerOcorrencia(readmitida, { pessoaId: recebePessoaId, podeLerTodas: false })).toBe(true);
+  });
+
+  it("compartilhar não mexe em ocorrencias.atualizada_em", async () => {
+    const id = await registrada("Interfone mudo");
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    await inserir(id, recebePessoaId);
+    const [depois] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(depois!.atualizada_em.toISOString()).toBe(antes!.atualizada_em.toISOString());
+  });
+  it("compartilhar duas vezes ao mesmo tempo deixa uma linha, e as duas respostas são sucesso", async () => {
+    const id = await registrada("Porta da garagem");
+    const repo = portas().ocorrencias;
+    const dados = {
+      comPessoaId: recebePessoaId,
+      porPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    };
+    const [a, b] = await Promise.all([repo.compartilhar(id, dados), repo.compartilhar(id, dados)]);
+    expect([a.desfecho, b.desfecho].sort()).toStrictEqual(["criado", "ja-existia"]);
+    const linhas = await consultaCrua(`select 1 from compartilhamentos where ocorrencia_id = $1`, [id]);
+    expect(linhas).toHaveLength(1);
+  });
+
+  it("com o destinatário revogado, a escrita não grava e diz por quê", async () => {
+    const id = await registrada("Câmera do hall");
+    await consultaCrua(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const resultado = await portas().ocorrencias.compartilhar(id, {
+      comPessoaId: recebePessoaId,
+      porPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    expect(resultado.desfecho).toBe("destinatario-sem-vinculo-ativo");
+    await consultaCrua(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+  });
+
+  /**
+   * **O critério 87.6 na metade que o banco responde:** com 200 participantes, a busca casa prefixo de
+   * palavra sem acento, respeita os papéis pedidos e para no teto. A outra metade — o painel a 360 px —
+   * é passo manual.
+   */
+  it("a busca casa prefixo de palavra sem acento, respeita os papéis e o teto, com 200 participantes", async () => {
+    const id = await registrada("Elevador parado");
+    await consultaCrua(
+      `with novas as (
+         insert into pessoas (nome)
+         select 'Andréa Morador ' || g || ' ${SUFIXO}' from generate_series(1, 200) g
+         returning id)
+       insert into vinculos (pessoa_id, organizacao_id, papel)
+       select id, $1, 'solicitante' from novas`,
+      [organizacaoId],
+    );
+    const itens = await portas().ocorrencias.candidatosAoCompartilhamento(id, {
+      texto: "andrea",
+      papeis: ["solicitante"],
+      exceto: pessoaId,
+      limite: 20,
+    });
+    expect(itens).toHaveLength(20);
+    expect(itens.every((i) => i.papel === "solicitante")).toBe(true);
+
+    const porMeioDaPalavra = await portas().ocorrencias.candidatosAoCompartilhamento(id, {
+      texto: "ndrea",
+      papeis: ["solicitante"],
+      exceto: pessoaId,
+      limite: 20,
+    });
+    expect(porMeioDaPalavra).toHaveLength(0);
+  });
+  /**
+   * **A aba não vaza, e é o caso que prende os dois riscos de uma vez.** Se o filtro de compartilhamento
+   * não entrar no `where` da página, a aba passa a trazer ocorrência que ninguém compartilhou; se o `where`
+   * de fora afrouxar, o painel passa a contar as compartilhadas como se fossem dela.
+   */
+  it("a aba não vaza: a vizinha vê só a compartilhada, e o painel dela conta só as dela", async () => {
+    // Uma vizinha NOVA: `recebePessoaId` já recebeu ocorrências nos casos anteriores deste `describe`.
+    const [nova] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha da aba ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [nova!.id, organizacaoId],
+    );
+    const compartilhada = await registrada("Vazamento compartilhado");
+    await registrada("Vazamento que ninguém compartilhou");
+    await inserir(compartilhada, nova!.id);
+
+    const pagina = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: nova!.id, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true }, limite: 100 },
+    );
+    expect(pagina.itens.map((i) => i.id)).toStrictEqual([compartilhada]);
+    expect(pagina.total).toBe(1);
+    expect(pagina.contagens.todas).toBe(0); // ela não registrou nenhuma
+    expect(pagina.contagens.minhas).toBe(0);
+
+    // E sem a aba ela continua sem ver nada: o conjunto dela é vazio.
+    const semAba = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: nova!.id, podeLerTodas: false },
+      { limite: 100 },
+    );
+    expect(semAba.itens).toStrictEqual([]);
   });
 });

@@ -78,6 +78,7 @@ export {
   consultaDe,
   lerBooleanoDaUrl,
   lerCursorDeConversaDaUrl,
+  lerBuscaDeCandidatosDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerJanelaDoDashboardDaUrl,
   lerLimiteDaUrl,

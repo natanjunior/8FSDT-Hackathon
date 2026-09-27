@@ -30,6 +30,7 @@ import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
 import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
+import { rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -37,6 +38,7 @@ import {
   fraseDaTransicao,
   partesDaAutoria,
 } from "@/interface/componentes/linha-do-tempo";
+import { CartaoDeCompartilhamento } from "@/interface/componentes/compartilhamento-da-ocorrencia";
 import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
@@ -61,6 +63,7 @@ import {
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
+  faixaDeQuemRecebeu,
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
@@ -347,6 +350,15 @@ export default async function Ocorrencia({
    */
   const ehAutor = detalhe.autor.pessoaId === escopo.ctx.pessoaId;
 
+  /**
+   * **As duas faces do compartilhamento** (item 87), decididas pela projeção e não por permissão aqui.
+   * `recebida` é quem abriu a ocorrência porque alguém a compartilhou: ela lê tudo e não age. `participa`
+   * é o autor ou quem tem `ler_todas`, e é quem vê e gere a lista de com quem a ocorrência está.
+   */
+  const recebida =
+    detalhe.compartilhamento?.tipo === "recebida" ? detalhe.compartilhamento : null;
+  const participa = detalhe.compartilhamento?.tipo === "gestao";
+
   const candidatos: readonly Candidato[] = podeAtribuir
     ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
         pessoaId: lido.pessoa.pessoaId,
@@ -407,7 +419,19 @@ export default async function Ocorrencia({
    * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
    * que mantém `app/` sem `import` do Domínio desde o item 11.
    */
-  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
+  /**
+   * **A faixa de quem recebeu entra pelo `vazio` do cabeçalho** (item 87), que já é `string | null` e já
+   * ocupa o lugar das ações: nada muda no componente.
+   *
+   * **E ela substitui `vazioDaBarra`, em vez de somar.** Aquela frase fala com o autor — *"Só os Gestores
+   * podem cancelar a partir daqui"* — e mentiria para quem recebeu, que não cancela em lugar nenhum.
+   */
+  const vazio =
+    recebida !== null
+      ? faixaDeQuemRecebeu(recebida.por.nome, rotuloDoPapel(recebida.por.papel))
+      : renderizaveis.length === 0
+        ? vazioDaBarra(detalhe.status)
+        : null;
 
   /**
    * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
@@ -779,6 +803,26 @@ export default async function Ocorrencia({
               </dl>
             </CorpoDoCartao>
           </Cartao>
+
+          {/* **Bloco 1d · Compartilhada com** (item 87). Só para quem participa: quem recebeu a ocorrência
+              não vê a lista, que nomeia outros vizinhos, e a projeção nem a manda para ele.
+
+              **O papel e a data descem em palavra e formatados**, montados aqui: quem formata é o
+              servidor, e é a mesma decisão dos rótulos de status. */}
+          {participa && detalhe.compartilhamento?.tipo === "gestao" && (
+            <CartaoDeCompartilhamento
+              ocorrenciaId={detalhe.id}
+              organizacaoId={organizacaoId}
+              pessoas={detalhe.compartilhamento.pessoas.map((pessoa) => ({
+                pessoaId: pessoa.com.pessoaId,
+                nome: pessoa.com.nome,
+                papel: rotuloDoPapel(pessoa.com.papel),
+                compartilhadoEm: dataEHora(pessoa.compartilhadoEm),
+                porNome: pessoa.por.nome,
+                podeDesfazer: pessoa.podeDesfazer,
+              }))}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
@@ -922,9 +966,13 @@ export default async function Ocorrencia({
               primeiraPagina={conversaPedida}
               organizacaoId={organizacaoId}
               pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-              vazio={vazioDaConversa(ehAutor)}
+              vazio={vazioDaConversa(ehAutor, recebida === null)}
               rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
               retorno={RETORNO_DA_MENSAGEM}
+              /* **Quem recebeu LÊ e não escreve** (item 87). A permissão `ocorrencia.comentar` acima não
+                 basta: quem recebeu a tem, e o `POST` da conversa a recusa com `403`. Um campo que sempre
+                 falha é pior que nenhum campo. */
+              podeEscrever={recebida === null}
             />
           )}
         </div>

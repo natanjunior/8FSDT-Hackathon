@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As catorze tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As quinze tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, catorze tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, quinze tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As catorze tabelas
+## As quinze tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -26,6 +26,7 @@ as que não dependem de ninguém lembrar.
 | `canais_conversa` | o canal de mensagens de uma ocorrência |
 | `mensagens` | o texto trocado dentro de um canal |
 | `anexos` | a imagem reivindicada por uma ocorrência, com a miniatura |
+| `compartilhamentos` | quem, além do autor e dos Gestores, pode ler uma ocorrência |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
 
 **Quem é quem, e onde.** A metade que responde antes de existir ocorrência:
@@ -52,6 +53,7 @@ erDiagram
     OCORRENCIAS ||--o{ ATRIBUICOES : "designa"
     OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa em"
     OCORRENCIAS ||--o{ ANEXOS : "evidencia"
+    OCORRENCIAS ||--o{ COMPARTILHAMENTOS : "abre a"
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
     CANAIS_CONVERSA ||--o{ MENSAGENS : "contém"
 ```
@@ -153,9 +155,26 @@ Não há índice criado por precaução. Cada um existe porque uma consulta da a
 | registros por organização e data | a trilha e o tempo de resolução do painel |
 | atribuição vigente, única por ocorrência | garante que não existam dois responsáveis ao mesmo tempo |
 | canal por tipo, único por ocorrência | garante um canal de cada tipo por ocorrência |
+| compartilhamentos por organização e quem recebe | a aba *Compartilhadas comigo* do Solicitante |
 | pedido pendente, único por pessoa e organização | impede dois pedidos abertos, e permite refazer um recusado |
 
 Os três últimos são índices únicos parciais: eles não aceleram uma consulta, garantem uma regra.
+
+## As duas pontas do compartilhamento
+
+A tabela `compartilhamentos` diz que uma ocorrência pode ser lida por uma pessoa a mais. Ela tem três
+chaves estrangeiras compostas, e as três carregam `organizacao_id`: uma linha que ligasse a ocorrência de
+uma organização ao vínculo de outra não grava. A chave primária é o par ocorrência e pessoa, e é ela que
+faz o pedido repetido terminar com uma linha só.
+
+As duas pontas que apontam para `vinculos` se comportam de forma diferente, e a diferença é a definição de
+rastro. Remover um vínculo sem histórico leva com ele o que a pessoa **recebeu**, porque receber não deixa
+rastro: a chave apaga em cascata. O que ela **compartilhou** aparece nomeado na tela de quem olha a
+ocorrência, então conta como histórico, a chave recusa a remoção, e o caminho é revogar — que é uma
+atualização e não apaga linha nenhuma. É o que faz a pessoa readmitida voltar a ver o que já estava
+compartilhado com ela.
+
+A tabela não tem coluna de estado e não tem trilha: desfazer apaga a linha.
 
 ## As contas ficam fora
 

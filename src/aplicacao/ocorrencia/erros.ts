@@ -227,3 +227,60 @@ export class SomenteOAutorPodeAvaliar extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `403` a quem recebeu a ocorrência compartilhada e tentou agir sobre ela (item 87).
+ *
+ * **O `codigo` é `PERMISSAO_INSUFICIENTE`, de propósito, e é a segunda classe com ele.** O openapi
+ * descreve esse código como *"ou a operação depende de uma relação com o recurso que o chamador não
+ * tem"* (`SemPermissao`), que é exatamente este caso; um código novo obrigaria todo cliente a aprender
+ * uma palavra para a mesma decisão. **O que muda é o texto**, porque *"o seu papel não permite"* seria
+ * falso: o papel dela permite comentar, cancelar a própria e avaliar — só não nesta ocorrência.
+ */
+export class SoParaLeitura extends ErroDeDominio {
+  constructor() {
+    super(
+      "PERMISSAO_INSUFICIENTE",
+      "Sem permissão",
+      "Esta ocorrência foi compartilhada com você só para leitura.",
+    );
+  }
+}
+
+/**
+ * `403` a quem tenta desfazer o compartilhamento que outra pessoa fez, sem `ler_todas` (item 87).
+ *
+ * O mesmo código da `SoParaLeitura`, pela mesma razão; o texto diz o que é verdade aqui.
+ */
+export class CompartilhamentoDeOutraPessoa extends ErroDeDominio {
+  constructor() {
+    super(
+      "PERMISSAO_INSUFICIENTE",
+      "Sem permissão",
+      "Só quem compartilhou, ou um Gestor, desfaz este compartilhamento.",
+    );
+  }
+}
+
+export type MotivoDoDestinatarioInvalido = "JA_VE_A_OCORRENCIA" | "FORA_DO_ALCANCE";
+
+const DETALHE_DO_DESTINATARIO: Readonly<Record<MotivoDoDestinatarioInvalido, string>> = {
+  JA_VE_A_OCORRENCIA: "Esta pessoa já vê esta ocorrência.",
+  FORA_DO_ALCANCE: "Você só compartilha com quem pode registrar ocorrências.",
+};
+
+/**
+ * `422` do destino que existe e não serve (item 87). **Carrega o campo**, como
+ * `MotivoNaoPermitidoParaOPapel`. Destino que não existe NESTA organização não chega aqui: é `404` da
+ * ocorrência (critério 87.4).
+ */
+export class DestinatarioInvalido extends ErroDeDominio {
+  constructor(motivo: MotivoDoDestinatarioInvalido) {
+    super(
+      "DESTINATARIO_INVALIDO",
+      "Não dá para compartilhar com esta pessoa",
+      DETALHE_DO_DESTINATARIO[motivo],
+      { erros: [{ campo: "pessoaId", codigo: motivo }] },
+    );
+  }
+}

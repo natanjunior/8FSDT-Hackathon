@@ -19,7 +19,7 @@ ganha endereço próprio.
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
 | Convite | `/convite/{codigo}` | *Me mandaram este link. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
-| Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
+| Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?*, *o que me mostraram?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
 | Trilha de auditoria | `/ocorrencias/{id}/auditoria` | *Prove o que aconteceu, campo por campo.* | quem pode ler aquela ocorrência |
@@ -81,6 +81,11 @@ flowchart TB
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. A configuração abre as categorias e as áreas.
 
+Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
+ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
+escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*, sem contagem: o número das compartilhadas
+ainda não existe.
+
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
 
@@ -108,6 +113,16 @@ tem busca com as usadas recentemente no topo.
 **Ocorrência** é onde o trabalho acontece, e é o link que substitui a conversa em grupo. Os onze comandos
 do agregado moram nela: analisar, atribuir, iniciar atendimento, pausar, retomar, resolver, cancelar,
 alterar prioridade, registrar a solução, comentar e avaliar. Nenhum deles é uma tela.
+
+Nela mora também o compartilhamento, que não é comando. Quem registrou e os Gestores veem um cartão
+*Compartilhada com*, que lista quem recebeu, quem compartilhou e quando, com o desfazer só nas linhas que
+quem olha pode desfazer. O botão de compartilhar abre uma busca de pessoas: tela cheia no celular, painel
+lateral na tela grande. Tocar num nome compartilha na hora, uma pessoa por vez; quem já vê a ocorrência
+aparece na lista com o motivo escrito, e não é escolhível.
+
+Quem recebeu a ocorrência compartilhada vê o que o autor vê, e no lugar das ações do cabeçalho lê uma faixa
+com quem a compartilhou. Ela não tem botão de ação nenhum, não tem o cartão *Compartilhada com* e não tem o
+campo de mensagem — as mensagens continuam legíveis.
 
 Onze telas de comando produziriam um produto em que o Gestor sai da ocorrência para agir sobre ela e volta
 para ver o resultado — navegar em vez de trabalhar.
@@ -202,7 +217,8 @@ trabalho de quem senta para administrar.
 
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
-onde o polegar alcança.
+onde o polegar alcança. A exceção é a busca de pessoas para compartilhar, que abre em tela cheia no
+celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele.
 
 ## Os estados que não são telas
 

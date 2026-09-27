@@ -69,7 +69,7 @@ e o mapa de papel para permissões é constante em código.
 
 | Papel | O que recebe |
 |---|---|
-| Solicitante | registrar, ler as próprias, comentar, cancelar a própria e avaliar |
+| Solicitante | registrar, ler as próprias e as compartilhadas com ele, comentar, cancelar a própria e avaliar |
 | Gestor | tudo do Solicitante, mais ler todas, triar, atribuir, conduzir o atendimento, cancelar qualquer uma, configurar a organização, gerir vínculos e ler o painel |
 | Encarregado | nenhuma permissão nesta versão |
 
@@ -107,7 +107,8 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 | O que | O controle |
 |---|---|
 | Alcance | foto, localização e contato só são legíveis dentro da organização do vínculo |
-| Leitura de ocorrência | o autor lê as próprias, e só quem tem permissão de ler todas lê as dos outros. Um Solicitante não alcança a ocorrência de um vizinho |
+| Leitura de ocorrência | o autor lê as próprias, quem tem permissão de ler todas lê as dos outros, e uma ocorrência compartilhada é lida, sem poder de ação, por quem a recebeu. Um Solicitante não alcança a ocorrência de um vizinho que não a compartilhou com ele |
+| Nomes de participantes | a busca de quem vai receber uma ocorrência devolve nome e papel, com mínimo de duas letras e teto de vinte, e não traz contato nem unidade. Ela limita, sem impedir, que um participante descubra os nomes dos outros |
 | Retenção | o histórico não expira, porque apagá-lo destruiria a exigência central do desafio |
 | Transporte | tudo por HTTPS, incluindo o envio direto da imagem ao armazenamento |
 

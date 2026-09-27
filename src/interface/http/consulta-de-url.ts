@@ -374,6 +374,20 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ]);
   }
 
+  const compartilhadas = lerUnico(parametros, "compartilhadas");
+  if (compartilhadas !== undefined && compartilhadas !== "comigo") {
+    throw new FormatoInvalido([
+      { campo: "compartilhadas", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "comigo".' },
+    ]);
+  }
+  // **As duas não se somam**: "as minhas" e "as que me mostraram" são conjuntos disjuntos para o
+  // Solicitante, e responder um deles em silêncio seria o cliente pedir uma coisa e receber outra.
+  if (compartilhadas !== undefined && autor !== undefined) {
+    throw new FormatoInvalido([
+      { campo: "compartilhadas", codigo: "VALOR_INVALIDO", mensagem: 'Não combina com "autor".' },
+    ]);
+  }
+
   // Campo ausente é "não filtre por esta dimensão" — por isso o espalhamento condicional em vez de
   // `status: undefined`, que faria `toStrictEqual({})` falhar e, pior, esconderia a diferença.
   return {
@@ -384,7 +398,32 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ...(titulo === undefined || titulo === "" ? {} : { titulo }),
     ...(areaId === undefined ? {} : { areaId }),
     ...(responsavelPessoaId === undefined ? {} : { responsavelPessoaId }),
+    ...(compartilhadas === undefined ? {} : { compartilhadasComigo: true }),
   };
+}
+
+/**
+ * `?busca=` de `GET …/candidatos-ao-compartilhamento` — item 87.
+ *
+ * **Aparada antes de contar**, porque espaço não é letra; o teto é o do título, pela mesma razão.
+ */
+export function lerBuscaDeCandidatosDaUrl(parametros: URLSearchParams): string {
+  const busca = (lerUnico(parametros, "busca") ?? "").trim();
+  if (busca.length < 2) {
+    throw new FormatoInvalido([
+      { campo: "busca", codigo: "VALOR_INVALIDO", mensagem: "Digite ao menos 2 letras." },
+    ]);
+  }
+  if (busca.length > TETO_DO_TITULO) {
+    throw new FormatoInvalido([
+      {
+        campo: "busca",
+        codigo: "VALOR_INVALIDO",
+        mensagem: `Use até ${String(TETO_DO_TITULO)} caracteres.`,
+      },
+    ]);
+  }
+  return busca;
 }
 
 /**
@@ -434,6 +473,11 @@ export function lerOrdenacaoDeOcorrenciasDaUrl(
 /**
  * Se **algum** dos sete está aplicado. **`ordem` não conta**: ela não recorta, e *"Limpar filtros"* a
  * mantém.
+ *
+ * **`compartilhadas` também não conta, e a razão difere da de `ordem`** (item 87). O `?autor=eu` está
+ * aqui porque *Minhas* é um estreitamento de *Todas*; a aba é **outro conjunto**, e sair dela é escolha
+ * do controle, não limpeza. Se ela contasse, o vazio da aba seria o de filtro e o *Limpar filtros*
+ * tiraria a pessoa da aba sem que ela tivesse pedido.
  *
  * É o segundo argumento do `vazioDaLista` que o item 14 declarou — e é o que faz o terceiro vazio ganhar
  * da visibilidade: quem chega por URL filtrada e recebe zero lê *"Nenhuma ocorrência com estes filtros."*,

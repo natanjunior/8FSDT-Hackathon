@@ -897,6 +897,58 @@ describe("as consultas de configuração não atravessam organizações", () => 
   });
 
   /**
+   * **A entrada do item 87, e o que ela mira é a busca de quem pode receber um compartilhamento.**
+   *
+   * A consulta parte de `vinculos` e alcança `pessoas`, que é global: sem o `$1` no `where`, um
+   * Solicitante de Recanto passaria a enxergar o nome de quem só existe na Aurora — e nenhuma das
+   * entradas anteriores acenderia, porque nenhuma lê `vinculos` filtrando por nome.
+   *
+   * **As listas são as mesmas da entrada de `GET /vinculos`**, que lê o mesmo conjunto de vínculos
+   * ativos: a síndica está nas duas organizações, a moradora só em Recanto. Busca com texto vazio não
+   * filtra por nome, porque `termosDoTitulo("")` é lista vazia; o `exceto` é um identificador que não
+   * existe, para ninguém sair do conjunto.
+   */
+  casosDeIsolamento(mundo, {
+    nome: "GET /ocorrencias/{id}/candidatos-ao-compartilhamento",
+    consultar: async (organizacaoId) => {
+      const repo = portasDe(organizacaoId).ocorrencias;
+      const ocorrenciaId = organizacaoId === idRecanto ? idDaOcorrenciaEmA : idDaOcorrenciaEmB;
+      return repo.candidatosAoCompartilhamento(ocorrenciaId, {
+        texto: "",
+        papeis: ["solicitante", "gestor", "encarregado"],
+        exceto: "00000000-0000-4000-8000-000000000000",
+        limite: 50,
+      });
+    },
+    chaveDaLinha: (candidato) => candidato.pessoaId,
+    esperadas: {
+      get emA() {
+        return [idSindica, idMoradora];
+      },
+      get emB() {
+        return [idSindica];
+      },
+    },
+  });
+
+  /**
+   * **A suíte acima é toda de leitura, e o compartilhamento também escreve** — por isso o `describe`
+   * curto aqui. O que ele prova é que a escrita não atravessa: o pedido escopado na Aurora com o
+   * identificador de quem só existe em Recanto não grava linha nenhuma, e a Aplicação traduz isso no
+   * `404` da ocorrência (critério 87.4).
+   */
+  describe("87.4 · a escrita não atravessa organizações", () => {
+    it("destinatário de Recanto, pedido escopado em Aurora: sem vínculo ativo, nada gravado", async () => {
+      const resultado = await portasDe(idAurora).ocorrencias.compartilhar(idDaOcorrenciaEmB, {
+        comPessoaId: idMoradora,
+        porPessoaId: idSindica,
+        em: new Date().toISOString(),
+      });
+      expect(resultado.desfecho).toBe("destinatario-sem-vinculo-ativo");
+      expect(await portasDe(idAurora).ocorrencias.destinatario(idMoradora)).toBeNull();
+    });
+  });
+  /**
    * **A décima entrada, e a primeira do dashboard (itens 32 a 36).** Ela semeia **apenas o próprio
    * agregado** — as pessoas, as organizações, as categorias, as áreas e as duas ocorrências são da suíte
    * (§7.1); o que é dela é a resolução de A, semeada no `beforeAll`.

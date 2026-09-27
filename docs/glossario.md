@@ -49,6 +49,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Solução aplicada | O registro do que foi feito para resolver, escrito pelo Gestor | Observação, que justifica uma mudança de estado |
 | Avaliação | A nota de 1 a 5 que o autor dá à resolução, depois de a ocorrência estar `Resolvida`. Não é um estado | `Em análise`, que é o estado em que o Gestor avalia a ocorrência |
 | Comentário | A conversa dentro da ocorrência, entre quem abriu e quem gere | Observação; Solução aplicada |
+| Compartilhamento | Abrir uma ocorrência, só para leitura, a uma pessoa da mesma organização. Quem recebe vê tudo e não age | Atribuição, que dá trabalho e não leitura; Permissão, que é do papel |
 
 ## O ciclo de vida
 

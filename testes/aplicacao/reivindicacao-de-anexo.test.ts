@@ -276,7 +276,11 @@ describe("a leitura do anexo — o 302, e a chave que nunca sai daqui", () => {
     ({
       // **`in` e não `??`**: o caso da ocorrência inalcançável injeta `null` de propósito, e o `??` o
       // trataria como ausente — devolvendo a ocorrência padrão e provando o contrário do que o caso diz.
-      porId: async () => ("ocorrencia" in opcoes ? opcoes.ocorrencia : { id: OCORRENCIA, autor: AUTOR }),
+      porId: async () =>
+        // `compartilhamentos: []` desde o item 87: `podeLerOcorrencia` a percorre.
+        "ocorrencia" in opcoes
+          ? opcoes.ocorrencia
+          : { id: OCORRENCIA, autor: AUTOR, compartilhamentos: [] },
       objetoDoAnexo: async () => opcoes.objeto ?? null,
     }) as unknown as RepositorioEscopadoDeOcorrencias;
 
@@ -354,7 +358,9 @@ describe("a leitura do anexo — o 302, e a chave que nunca sai daqui", () => {
 });
 
 describe("`podeLerOcorrencia` — a regra que estava escrita duas vezes", () => {
-  const lida = { autor: { pessoaId: PESSOA } };
+  // `compartilhamentos` vazia: o ramo do compartilhamento é do `describe` do item 87, em
+  // `comando-de-ocorrencia.test.ts`. Aqui o que se mede é a regra de sempre.
+  const lida = { autor: { pessoaId: PESSOA }, compartilhamentos: [] };
 
   it("o autor pode", () => {
     expect(podeLerOcorrencia(lida, { pessoaId: PESSOA, podeLerTodas: false })).toBe(true);

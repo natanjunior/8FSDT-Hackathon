@@ -356,10 +356,24 @@ export function vazioDaBarra(status: StatusOcorrencia): string {
  * mensagem; o rótulo fica — e é ele que *"impede um Gestor de escrever ali achando que é interno"* depois
  * da primeira linha da conversa, que é a razão que o critério 30.4 dá para as frases serem diferentes.
  */
-export function vazioDaConversa(ehAutor: boolean): string {
+export function vazioDaConversa(ehAutor: boolean, podeEscrever = true): string {
+  // **O terceiro ramo é de quem recebeu a ocorrência compartilhada** (item 87): as duas frases acima
+  // convidam a escrever, e ele não tem campo. Convidar para um campo que não existe é a mentira que o
+  // critério 30.4 existe para impedir, de outro lado.
+  if (!podeEscrever) return "Nenhuma mensagem ainda.";
   return ehAutor
     ? "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores."
     : "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.";
+}
+
+/**
+ * A faixa de quem recebeu a ocorrência compartilhada (item 87), no lugar das ações do cabeçalho.
+ *
+ * **O papel vai depois do nome e separado por ponto médio**, porque *"por Gestor Ana"* e *"por Ana,
+ * Gestor"* tropeçam no gênero, e o rótulo do papel é fixo.
+ */
+export function faixaDeQuemRecebeu(nome: string, papelEmPalavra: string): string {
+  return `Compartilhada com você por ${nome} · ${papelEmPalavra}.`;
 }
 
 /** O par do vazio, com o mesmo predicado — e este fica na tela para sempre. Ver `vazioDaConversa`. */
@@ -506,12 +520,15 @@ export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribui
  * do roteiro de validação mandam procurá-las em tela. Rótulo curto — *"Todas"*, *"Só as minhas"* — diria
  * a mesma coisa e faria os dois passos descreverem uma tela que não existe.
  *
- * **Moram aqui porque têm dois consumidores com naturezas diferentes:** o `toggle-group` de quem pode
- * trocar de recorte, e o parágrafo de quem não pode (critério 44c.9). A terceira cópia é sempre a que
- * diverge.
+ * **Moram aqui porque têm mais de um consumidor:** o `toggle-group` do recorte e as opções que
+ * `opcoes-do-recorte.ts` monta para ele. Até o item 87 o segundo consumidor era o parágrafo de quem não
+ * podia trocar de recorte (critério 44c.9); esse vínculo passou a receber o controle, com *Minhas
+ * ocorrências* e *Compartilhadas comigo*. A terceira cópia é sempre a que diverge.
  */
 export const RECORTE_TODAS = "Todas as ocorrências";
 export const RECORTE_MINHAS = "Minhas ocorrências";
+/** A aba do item 87. **Sem número**: o lugar dele é do item 88, que conta as não abertas. */
+export const RECORTE_COMPARTILHADAS = "Compartilhadas comigo";
 
 /**
  * ============================================================================

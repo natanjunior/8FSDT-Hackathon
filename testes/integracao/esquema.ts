@@ -40,8 +40,13 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // `categorias`/`areas`. `autorizacoes_de_upload` vem na frente de `pessoas`,
   // que é para onde a FK dela aponta. O `cascade` cobre, mas a ordem explícita
   // documenta a direção das FKs.
+  // **`compartilhamentos` é a primeira desde o item 87**, e a linha não é
+  // enfeite: o `cascade` derruba as chaves que apontam PARA as outras tabelas,
+  // e não a tabela nova. Sem ela, o segundo `aplicarEsquema` no mesmo banco
+  // estoura em `relation "compartilhamentos" already exists`.
   await consulta(
-    `drop table if exists mensagens, canais_conversa, atribuicoes, anexos, autorizacoes_de_upload,
+    `drop table if exists compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
+                          autorizacoes_de_upload,
                           registros_transicao, ocorrencias, contatos, pedidos_de_entrada, categorias,
                           areas, vinculos, organizacoes, pessoas cascade`,
   );

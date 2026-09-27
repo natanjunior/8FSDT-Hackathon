@@ -1,5 +1,7 @@
 import type {
+  CandidatoAoCompartilhamento,
   ComentarioLido,
+  CompartilhamentoLido,
   CursorDeConversa,
   CursorDeListagem,
   EventoLido,
@@ -10,6 +12,7 @@ import type {
   PaginaDeOcorrencias,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
+import { participaDaOcorrencia } from "@/aplicacao/ocorrencia";
 import {
   comandosDisponiveis,
   MOTIVOS_DE_PAUSA,
@@ -572,7 +575,58 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
       temResponsavel: lida.responsavel !== null,
       jaAvaliada: lida.avaliacao !== null,
     }),
+    /** O compartilhamento, com duas faces (item 87). Ver `projetarCompartilhamentoDoDetalhe`. */
+    compartilhamento: projetarCompartilhamentoDoDetalhe(lida, quemLe),
   };
+}
+
+/**
+ * **Quem participa recebe a lista; quem recebeu recebe só quem compartilhou** (item 87).
+ *
+ * A lista não viaja para quem recebeu: ela nomeia outros vizinhos, e a tela dele não a desenha. `null` só
+ * acontece em teoria — quem não participa e não recebeu nunca chega aqui, porque `podeLerOcorrencia` o
+ * recusou antes.
+ */
+function projetarCompartilhamentoDoDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) {
+  const quem = {
+    pessoaId: quemLe.pessoaId,
+    podeLerTodas: quemLe.permissoes.includes("ocorrencia.ler_todas"),
+  };
+  if (participaDaOcorrencia(lida.autor.pessoaId, quem)) {
+    return {
+      tipo: "gestao" as const,
+      pessoas: lida.compartilhamentos.map((c) =>
+        projetarCompartilhamento(c, quem.podeLerTodas || c.por.pessoaId === quem.pessoaId),
+      ),
+    };
+  }
+  const recebida = lida.compartilhamentos.find((c) => c.com.pessoaId === quemLe.pessoaId);
+  if (recebida === undefined) return null;
+  return {
+    tipo: "recebida" as const,
+    por: { nome: recebida.por.nome, papel: recebida.por.papel },
+    compartilhadoEm: recebida.compartilhadoEm,
+  };
+}
+
+/**
+ * Uma linha de *Compartilhada com*.
+ *
+ * **`podeDesfazer` é decidido por quem lê, e não pela linha:** quem compartilhou desfaz o seu, e o Gestor
+ * desfaz qualquer um.
+ */
+export function projetarCompartilhamento(lido: CompartilhamentoLido, podeDesfazer: boolean) {
+  return {
+    com: { pessoaId: lido.com.pessoaId, nome: lido.com.nome, papel: lido.com.papel },
+    por: { pessoaId: lido.por.pessoaId, nome: lido.por.nome, papel: lido.por.papel },
+    compartilhadoEm: lido.compartilhadoEm,
+    podeDesfazer,
+  };
+}
+
+/** O item da busca, como a Aplicação o monta. O rótulo do papel é da tela (`rotuloDoPapel`). */
+export function projetarCandidato(candidato: CandidatoAoCompartilhamento) {
+  return { ...candidato };
 }
 
 /**

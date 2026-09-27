@@ -1,5 +1,6 @@
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import type { TipoDeAnexo } from "@/dominio/anexo";
+import type { Papel } from "@/dominio/organizacao";
 import type {
   Comando,
   MotivoCancelamento,
@@ -12,6 +13,38 @@ import type {
 
 /** Como uma Pessoa aparece **dentro** de um recurso escopado. Nunca traz contato (contrato §4.6). */
 export type PessoaReferencia = { pessoaId: string; nome: string };
+
+/** Uma pessoa dentro do compartilhamento: a referência de sempre, mais o papel NESTA organização. */
+export type PessoaComPapel = PessoaReferencia & { papel: Papel };
+
+/**
+ * Um compartilhamento, como a leitura o devolve — item 87.
+ *
+ * **Só de vínculo ATIVO de quem recebeu**: o revogado fica na tabela sem efeito e volta na readmissão.
+ * **Quem compartilhou aparece mesmo revogado**, como quem transicionou continua nomeado na trilha.
+ */
+export type CompartilhamentoLido = {
+  com: PessoaComPapel;
+  por: PessoaComPapel;
+  compartilhadoEm: string;
+};
+
+/** Uma pessoa que pode receber, como o banco a devolve. A situação é decidida pela Aplicação. */
+export type CandidatoLido = {
+  pessoaId: string;
+  nome: string;
+  papel: Papel;
+  jaCompartilhada: boolean;
+};
+
+/**
+ * **Zero linha inserida tem duas causas**, e distinguir as duas é o que separa *"já estava"* — que é
+ * sucesso — de *"o destino perdeu o vínculo no meio"*, que é `404`.
+ */
+export type ResultadoDoCompartilhamento =
+  | { desfecho: "criado" }
+  | { desfecho: "ja-existia" }
+  | { desfecho: "destinatario-sem-vinculo-ativo" };
 
 /** Um registro da trilha, como a leitura o devolve. Os cinco campos do enunciado. */
 export type TransicaoLida = {
@@ -146,6 +179,9 @@ export type OcorrenciaLida = {
   /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
    *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
+  /** Com quem a ocorrência está compartilhada (item 87). Do mais recente para o mais antigo. Lista
+   *  vazia, nunca `null`. */
+  compartilhamentos: readonly CompartilhamentoLido[];
   solucaoAplicada: string | null;
   avaliacao: { nota: number; comentario: string | null; avaliadaEm: string } | null;
   motivoPausa: MotivoPausa | null;
@@ -250,6 +286,11 @@ export type FiltroDeListagem = {
    * `FiltroDeOcorrencias` porque não recorta: a contagem é a mesma em qualquer ordem.
    */
   ordenacao?: OrdenacaoDeOcorrencias;
+  /**
+   * O recorte da aba do item 87 — **decidido pela Aplicação**, e não copiado da URL: quando ele está
+   * presente, `autorPessoaId` sai, porque o conjunto pedido não é do autor.
+   */
+  compartilhadaComPessoaId?: string;
 };
 
 /**
@@ -273,6 +314,11 @@ export type FiltroDeListagem = {
 export type FiltroDeContagem = {
   autorPessoaId?: string;
   autorPessoaIdDaPagina?: string;
+  /**
+   * O recorte da aba do item 87, **do lado da página e só dele**: `totalFiltrado` e `novas` o veem, e os
+   * quatro números do painel continuam medindo o que mediam.
+   */
+  compartilhadaComPessoaIdDaPagina?: string;
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
@@ -329,6 +375,12 @@ export type FiltroDeOcorrencias = {
   readonly titulo?: string;
   readonly areaId?: readonly string[];
   readonly responsavelPessoaId?: readonly string[];
+  /**
+   * A aba *Compartilhadas comigo* (item 87). **Vem da URL, e não é filtro no sentido dos sete acima**:
+   * ela troca o conjunto da página em vez de estreitá-lo, e por isso não entra em `algumFiltroAplicado`
+   * nem em `PARAMETROS_DE_FILTRO`.
+   */
+  readonly compartilhadasComigo?: boolean;
 };
 
 /**
@@ -624,6 +676,39 @@ export interface RepositorioEscopadoDeOcorrencias {
     ocorrenciaId: string,
     anexoId: string,
   ): Promise<{ chave: string; thumbnailChave: string | null } | null>;
+  /**
+   * A linha do par ocorrência e pessoa, ou `null` — item 87.
+   *
+   * **É `porId` com um filtro a mais, e a mesma regra de vínculo ativo**: quem recebeu e foi revogado
+   * responde `null`, porque a linha ficou sem efeito. Existe separada porque quem pergunta aqui é a
+   * recusa de escrita, que precisa distinguir *"recebeu"* de *"não alcança"* para escolher entre `403` e
+   * `404` — e ela não quer a lista inteira da ocorrência para responder um par.
+   */
+  compartilhamentoCom(ocorrenciaId: string, comPessoaId: string): Promise<CompartilhamentoLido | null>;
+  /** O vínculo ATIVO da pessoa nesta organização, ou `null`. **Parte de `vinculos`**, nunca de `pessoas`. */
+  destinatario(pessoaId: string): Promise<{ papel: Papel } | null>;
+  /**
+   * Grava a linha, ou constata que ela já existia (item 87).
+   *
+   * **A guarda do vínculo ativo mora no `where` do próprio `insert`**, e não numa leitura prévia: é a
+   * doutrina do item 8, e é o que fecha a corrida com uma revogação.
+   */
+  compartilhar(
+    ocorrenciaId: string,
+    dados: { comPessoaId: string; porPessoaId: string; em: string },
+  ): Promise<ResultadoDoCompartilhamento>;
+  /** Apaga a linha do par. **Sem desfecho**: a linha que não existe é o mesmo sucesso da que foi apagada. */
+  desfazerCompartilhamento(ocorrenciaId: string, comPessoaId: string): Promise<void>;
+  /**
+   * Quem, nesta organização, casa a busca e tem um dos papéis pedidos — com a marca de quem já recebeu.
+   *
+   * **`papeis` e `limite` descem ao SQL**, e não são aplicados depois: filtrar depois do `limit`
+   * devolveria menos itens que o teto, sem dizer que havia mais.
+   */
+  candidatosAoCompartilhamento(
+    ocorrenciaId: string,
+    busca: { texto: string; papeis: readonly Papel[]; exceto: string; limite: number },
+  ): Promise<readonly CandidatoLido[]>;
   /**
    * Uma página da listagem, em `registrada_em DESC, id DESC`.
    *

@@ -101,7 +101,8 @@ acabou, e sem este quadro o painel melhoraria quando os casos difíceis fossem d
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
 conversa dentro da ocorrência, a avaliação, o painel de indicadores, o cadastro de categorias,
 áreas e pessoas, a entrada na organização por código, por link ou por QR, sempre com aprovação do Gestor,
-e várias organizações isoladas na mesma instalação.
+o compartilhamento de uma ocorrência, só para leitura, com outra pessoa da organização, e várias
+organizações isoladas na mesma instalação.
 
 **Fora desta versão:**
 

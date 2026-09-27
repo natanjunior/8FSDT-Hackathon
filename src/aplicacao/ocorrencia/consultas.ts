@@ -1,6 +1,7 @@
 import { AnexoNaoEncontrado, type ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+import type { ErroDeDominio } from "@/dominio/erros";
 
-import { OcorrenciaNaoEncontrada } from "./erros";
+import { OcorrenciaNaoEncontrada, SoParaLeitura } from "./erros";
 import type {
   AtribuicaoLida,
   ComentarioLido,
@@ -32,19 +33,54 @@ export async function verOcorrencia(
 }
 
 /**
- * **A visibilidade da primeira entrega, numa função só** — autor **ou** `ocorrencia.ler_todas`
- * (`escopo.md` §3.3).
+ * **Posso AGIR sobre esta ocorrência?** Autor, ou `ocorrencia.ler_todas`. É a regra da primeira entrega,
+ * sem mudança, e é o portão de toda escrita: os dez comandos, a mensagem, e compartilhar.
  *
- * Ela estava escrita duas vezes, copiada: em `app/api/ocorrencias/[ocorrenciaId]/route.ts` e em
- * `app/ocorrencias/[ocorrenciaId]/page.tsx`. O `verOcorrencia` acima explica por que ela é **aplicada
- * pelo handler** — é ele quem tem o `Vinculo` —, e isso justifica **onde ela é chamada**, não que ela
- * seja escrita três vezes. Agora é uma, com três chamadores.
+ * **Recebe o autor, e não o objeto de leitura**, porque os escritores têm o agregado na mão, não a
+ * `OcorrenciaLida` — e é isso que os obriga a escolher entre as duas funções em vez de herdar a errada.
+ */
+export function participaDaOcorrencia(autorPessoaId: string, quem: QuemPergunta): boolean {
+  return quem.podeLerTodas || autorPessoaId === quem.pessoaId;
+}
+
+/**
+ * **Posso VER esta ocorrência?** Quem participa, ou quem a recebeu compartilhada (item 87).
+ *
+ * A regra estava escrita duas vezes, copiada, antes do item 13b; e ainda havia uma terceira cópia em
+ * linha na rota da trilha de auditoria, que o item 87 tirou. **Onde ela é chamada** é de quem tem o
+ * `Vinculo`, e isso não justifica que ela seja escrita três vezes.
+ *
+ * **É o único lugar em que o compartilhamento entra na leitura** (critério 87.2). Não há permissão
+ * `ler_compartilhada`: compartilhar é fato sobre uma linha, e não poder do papel. Criar a permissão
+ * espalharia o conceito pela fronteira inteira, e o ponto único da ADR-0003 deixaria de ser um.
  */
 export function podeLerOcorrencia(
-  lida: { autor: { pessoaId: string } },
+  lida: {
+    autor: { pessoaId: string };
+    compartilhamentos: readonly { com: { pessoaId: string } }[];
+  },
   quem: QuemPergunta,
 ): boolean {
-  return quem.podeLerTodas || lida.autor.pessoaId === quem.pessoaId;
+  return (
+    participaDaOcorrencia(lida.autor.pessoaId, quem) ||
+    lida.compartilhamentos.some((compartilhamento) => compartilhamento.com.pessoaId === quem.pessoaId)
+  );
+}
+
+/**
+ * **A recusa de quem não participa, e ela tem DOIS desfechos** — a escada de `docs/api.md` (*Erros*).
+ *
+ * Quem recebeu PODE LER, então a recusa dele é `403`; quem não alcança a ocorrência leva `404`, sem
+ * confirmar que ela existe. **Só roda no caminho da recusa**: o caminho feliz dos escritores não paga
+ * consulta nenhuma a mais.
+ */
+export async function recusaDeQuemNaoParticipa(
+  repositorio: Pick<RepositorioEscopadoDeOcorrencias, "compartilhamentoCom">,
+  ocorrenciaId: string,
+  pessoaId: string,
+): Promise<ErroDeDominio> {
+  const recebida = await repositorio.compartilhamentoCom(ocorrenciaId, pessoaId);
+  return recebida === null ? new OcorrenciaNaoEncontrada() : new SoParaLeitura();
 }
 
 /** A representação pedida. `?variante=miniatura` é **outra representação do mesmo anexo**, não outro
@@ -237,7 +273,7 @@ export type QuemPergunta = { pessoaId: string; podeLerTodas: boolean };
 
 /** O recorte aplicado, declarado na resposta *"para que o cliente possa dizer ao usuário o que está
  *  vendo"* (`contrato-de-api.md` §8.5). */
-export type VisibilidadeAplicada = "todas" | "apenas_minhas";
+export type VisibilidadeAplicada = "todas" | "apenas_minhas" | "compartilhadas_comigo";
 
 /** O teto de página do contrato. Deslocamento fundo é varredura, e nenhuma tela pede o milésimo clique. */
 export const PAGINA_MAXIMA = 1000;
@@ -341,8 +377,20 @@ export async function listarOcorrencias(
    * (contrato §8.5). Quem já só vê as próprias não muda de nada ao pedir: o parâmetro *"só faz diferença
    * para quem tem `ler_todas`"* (critério 28.1).
    */
+  /**
+   * **A aba do item 87 troca o recorte da página, e só o da página.** O conjunto é *"compartilhadas
+   * comigo"*, que por definição quem pergunta pode ler — então o filtro de autor sai da página. O painel
+   * NÃO muda: ele continua recortado pela permissão, e o `contar` recebe o recorte da aba à parte.
+   */
+  const compartilhadaComPessoaId =
+    pagina.filtro?.compartilhadasComigo === true ? quem.pessoaId : undefined;
+
   const autorPessoaId =
-    quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true ? undefined : quem.pessoaId;
+    compartilhadaComPessoaId !== undefined
+      ? undefined
+      : quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true
+        ? undefined
+        : quem.pessoaId;
 
   /**
    * **O painel recorta por PERMISSÃO e não pelo pedido** — §3.6 da spec do 14b, e a diferença é a razão
@@ -367,6 +415,9 @@ export async function listarOcorrencias(
   const contagens = await repositorio.contar({
     ...(visibilidadeDoPainel === undefined ? {} : { autorPessoaId: visibilidadeDoPainel }),
     ...(autorPessoaId === undefined ? {} : { autorPessoaIdDaPagina: autorPessoaId }),
+    ...(compartilhadaComPessoaId === undefined
+      ? {}
+      : { compartilhadaComPessoaIdDaPagina: compartilhadaComPessoaId }),
     pessoaIdDeQuemPergunta: quem.pessoaId,
     ate,
     ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
@@ -391,6 +442,7 @@ export async function listarOcorrencias(
 
   const linhas = await repositorio.listar({
     ...(autorPessoaId === undefined ? {} : { autorPessoaId }),
+    ...(compartilhadaComPessoaId === undefined ? {} : { compartilhadaComPessoaId }),
     limite,
     deslocamento,
     ate,
@@ -413,6 +465,11 @@ export async function listarOcorrencias(
       emAberto: contagens.emAberto,
       semResponsavel: contagens.semResponsavel,
     },
-    visibilidadeAplicada: autorPessoaId === undefined ? "todas" : "apenas_minhas",
+    visibilidadeAplicada:
+      compartilhadaComPessoaId !== undefined
+        ? "compartilhadas_comigo"
+        : autorPessoaId === undefined
+          ? "todas"
+          : "apenas_minhas",
   };
 }

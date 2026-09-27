@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 43 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 46 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -68,6 +68,10 @@ fora, que não existe transição sem registro: se o comando respondeu e não tr
 
 O custo fica declarado: a metade de escrita não é REST ortodoxa. A de leitura é, que é onde a uniformidade
 de recursos paga.
+
+**O compartilhamento fica fora do agregado e tem recurso próprio**, com `POST` para criar e `DELETE` para
+desfazer. Ele não muda estado da ocorrência e não grava trilha: diz apenas quem pode ler, e desfazer tira
+essa leitura.
 
 ## Quem pode o quê
 
@@ -234,7 +238,8 @@ hora estão na referência.
 
 - **Não há endereço para listar pessoas.** A leitura de gente parte sempre do vínculo, porque a tabela de
   pessoas é global e não tem organização a filtrar. O contato é dado pessoal, e só aparece para quem tem
-  permissão de gerir vínculos.
+  permissão de gerir vínculos. A busca de quem pode receber uma ocorrência compartilhada devolve nome e
+  papel, parte do vínculo, exige duas letras, devolve no máximo vinte, e não traz contato.
 - **Não há edição de ocorrência.** Título, descrição, categoria e área são escritos uma vez; o que muda
   depois é estado, prioridade, responsável e solução aplicada.
 - **A foto entra no registro**, e não há endereço para anexá-la depois.
