@@ -12,13 +12,24 @@ export {
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
   SoParaLeitura,
+  CompartilhamentoDeOutraPessoa,
+  DestinatarioInvalido,
   TransicaoNaoPermitida,
+  type MotivoDoDestinatarioInvalido,
 } from "./erros";
 export { alterarPrioridade } from "./alterar-prioridade";
 export { analisarOcorrencia } from "./analisar-ocorrencia";
 export { atribuirResponsavel, type AtribuicaoAplicada } from "./atribuir-responsavel";
 export { avaliarOcorrencia } from "./avaliar-ocorrencia";
 export { cancelarOcorrencia } from "./cancelar-ocorrencia";
+export {
+  LIMITE_DE_CANDIDATOS,
+  buscarCandidatosAoCompartilhamento,
+  compartilharOcorrencia,
+  desfazerCompartilhamento,
+  type CandidatoAoCompartilhamento,
+  type MotivoDeJaVer,
+} from "./compartilhamento";
 export { type ContextoDoComando } from "./comando";
 export { enviarComentario, verComentarios, type PaginaDeConversa } from "./conversa";
 export { iniciarAtendimento } from "./iniciar-atendimento";
@@ -28,6 +39,7 @@ export {
   type AnexoLido,
   type AtribuicaoLida,
   type ColunaDeOrdenacao,
+  type CandidatoLido,
   type ComentarioLido,
   type CompartilhamentoLido,
   type ContagensLidas,
@@ -53,6 +65,7 @@ export {
   type ResultadoDaPrioridade,
   type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
+  type ResultadoDoCompartilhamento,
   type ResultadoDoRegistro,
   type TransicaoLida,
 } from "./portas";

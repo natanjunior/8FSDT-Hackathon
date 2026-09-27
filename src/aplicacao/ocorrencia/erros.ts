@@ -246,3 +246,41 @@ export class SoParaLeitura extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `403` a quem tenta desfazer o compartilhamento que outra pessoa fez, sem `ler_todas` (item 87).
+ *
+ * O mesmo código da `SoParaLeitura`, pela mesma razão; o texto diz o que é verdade aqui.
+ */
+export class CompartilhamentoDeOutraPessoa extends ErroDeDominio {
+  constructor() {
+    super(
+      "PERMISSAO_INSUFICIENTE",
+      "Sem permissão",
+      "Só quem compartilhou, ou um Gestor, desfaz este compartilhamento.",
+    );
+  }
+}
+
+export type MotivoDoDestinatarioInvalido = "JA_VE_A_OCORRENCIA" | "FORA_DO_ALCANCE";
+
+const DETALHE_DO_DESTINATARIO: Readonly<Record<MotivoDoDestinatarioInvalido, string>> = {
+  JA_VE_A_OCORRENCIA: "Esta pessoa já vê esta ocorrência.",
+  FORA_DO_ALCANCE: "Você só compartilha com quem pode registrar ocorrências.",
+};
+
+/**
+ * `422` do destino que existe e não serve (item 87). **Carrega o campo**, como
+ * `MotivoNaoPermitidoParaOPapel`. Destino que não existe NESTA organização não chega aqui: é `404` da
+ * ocorrência (critério 87.4).
+ */
+export class DestinatarioInvalido extends ErroDeDominio {
+  constructor(motivo: MotivoDoDestinatarioInvalido) {
+    super(
+      "DESTINATARIO_INVALIDO",
+      "Não dá para compartilhar com esta pessoa",
+      DETALHE_DO_DESTINATARIO[motivo],
+      { erros: [{ campo: "pessoaId", codigo: motivo }] },
+    );
+  }
+}

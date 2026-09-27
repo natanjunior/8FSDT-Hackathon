@@ -645,6 +645,8 @@ function condicoesDoRecorte(
 const DE = "áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ";
 const PARA = "aaaaaeeeeiiiiooooouuuucnaaaaaeeeeiiiiooooouuuucn";
 const TITULO_SEM_ACENTO = `translate(lower(o.titulo), '${DE}', '${PARA}')`;
+/** A mesma dobra, sobre o nome da pessoa — a busca de quem pode receber um compartilhamento (item 87). */
+const NOME_SEM_ACENTO = `translate(lower(p.nome), '${DE}', '${PARA}')`;
 
 /**
  * Combining Diacritical Marks, escrito com `\u` pela mesma razao de `busca-de-candidatos.ts`: os
@@ -1452,6 +1454,101 @@ export function repositorioEscopadoDeOcorrencias(
       );
       const linha = linhas[0];
       return linha === undefined ? null : montarCompartilhamento(linha);
+    },
+
+    async destinatario(pessoaId) {
+      const linhas = await consulta<{ papel: Papel }>(
+        `select v.papel from vinculos v
+          where v.organizacao_id = $1 and v.pessoa_id = $2 and v.revogado_em is null`,
+        [pessoaId],
+      );
+      return linhas[0] ?? null;
+    },
+
+    /**
+     * **A guarda mora no `where`, e não numa leitura prévia** — a doutrina do item 8. O `where exists`
+     * fecha a corrida com uma revogação; o `on conflict` fecha a corrida de duas abas. Zero linhas tem
+     * duas causas, e uma segunda consulta as distingue, como o `remover` de vínculo já faz.
+     *
+     * **Os `::uuid` do `insert … select` não são enfeite.** Num `select` sem tabela, parâmetro sem tipo
+     * resolve como `text`, e o `insert` numa coluna `uuid` recusaria.
+     */
+    async compartilhar(ocorrenciaId, dados) {
+      const inseridas = await consulta<{ com_pessoa_id: string }>(
+        `insert into compartilhamentos
+           (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id, compartilhado_em)
+         select $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::timestamptz
+          where exists (select 1 from vinculos v
+                         where v.organizacao_id = $1::uuid
+                           and v.pessoa_id = $3::uuid
+                           and v.revogado_em is null)
+         on conflict (ocorrencia_id, com_pessoa_id) do nothing
+         returning com_pessoa_id`,
+        [ocorrenciaId, dados.comPessoaId, dados.porPessoaId, dados.em],
+      );
+      if (inseridas.length > 0) return { desfecho: "criado" };
+
+      const existentes = await consulta(
+        `select 1 from compartilhamentos c
+          where c.organizacao_id = $1 and c.ocorrencia_id = $2 and c.com_pessoa_id = $3`,
+        [ocorrenciaId, dados.comPessoaId],
+      );
+      return existentes.length > 0
+        ? { desfecho: "ja-existia" }
+        : { desfecho: "destinatario-sem-vinculo-ativo" };
+    },
+
+    async desfazerCompartilhamento(ocorrenciaId, comPessoaId) {
+      await consulta(
+        `delete from compartilhamentos c
+          where c.organizacao_id = $1 and c.ocorrencia_id = $2 and c.com_pessoa_id = $3`,
+        [ocorrenciaId, comPessoaId],
+      );
+    },
+
+    /**
+     * A busca do painel de compartilhar — **parte de `vinculos`**, e casa o nome com a mesma regra do
+     * título (`termosDoTitulo`): prefixo de palavra, sem acento, sem caixa, todos os termos.
+     */
+    async candidatosAoCompartilhamento(ocorrenciaId, busca) {
+      const valores: unknown[] = [ocorrenciaId, busca.exceto, [...busca.papeis]];
+      const proximo = () => `$${String(valores.length + 2)}`;
+      const condicoes: string[] = [];
+      for (const termo of termosDoTitulo(busca.texto)) {
+        condicoes.push(`${NOME_SEM_ACENTO} ~ ('(^|[[:space:]])' || ${proximo()})`);
+        valores.push(escaparParaRegex(termo));
+      }
+      const limite = proximo();
+      valores.push(busca.limite);
+
+      const linhas = await consulta<{
+        pessoa_id: string;
+        nome: string;
+        papel: Papel;
+        ja_compartilhada: boolean;
+      }>(
+        `select v.pessoa_id, p.nome, v.papel,
+                exists (select 1 from compartilhamentos c
+                         where c.organizacao_id = v.organizacao_id
+                           and c.ocorrencia_id = $2
+                           and c.com_pessoa_id = v.pessoa_id) as ja_compartilhada
+           from vinculos v
+           join pessoas p on p.id = v.pessoa_id
+          where v.organizacao_id = $1
+            and v.revogado_em is null
+            and v.pessoa_id <> $3::uuid
+            and v.papel = any($4::papel_vinculo[])
+            ${condicoes.map((condicao) => `and ${condicao}`).join(" ")}
+          order by p.nome, v.pessoa_id
+          limit ${limite}::int`,
+        valores,
+      );
+      return linhas.map((linha) => ({
+        pessoaId: linha.pessoa_id,
+        nome: linha.nome,
+        papel: linha.papel,
+        jaCompartilhada: linha.ja_compartilhada,
+      }));
     },
 
     /**

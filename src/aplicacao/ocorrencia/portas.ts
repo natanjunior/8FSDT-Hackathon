@@ -29,6 +29,23 @@ export type CompartilhamentoLido = {
   compartilhadoEm: string;
 };
 
+/** Uma pessoa que pode receber, como o banco a devolve. A situação é decidida pela Aplicação. */
+export type CandidatoLido = {
+  pessoaId: string;
+  nome: string;
+  papel: Papel;
+  jaCompartilhada: boolean;
+};
+
+/**
+ * **Zero linha inserida tem duas causas**, e distinguir as duas é o que separa *"já estava"* — que é
+ * sucesso — de *"o destino perdeu o vínculo no meio"*, que é `404`.
+ */
+export type ResultadoDoCompartilhamento =
+  | { desfecho: "criado" }
+  | { desfecho: "ja-existia" }
+  | { desfecho: "destinatario-sem-vinculo-ativo" };
+
 /** Um registro da trilha, como a leitura o devolve. Os cinco campos do enunciado. */
 export type TransicaoLida = {
   sequencia: number;
@@ -652,6 +669,30 @@ export interface RepositorioEscopadoDeOcorrencias {
    * `404` — e ela não quer a lista inteira da ocorrência para responder um par.
    */
   compartilhamentoCom(ocorrenciaId: string, comPessoaId: string): Promise<CompartilhamentoLido | null>;
+  /** O vínculo ATIVO da pessoa nesta organização, ou `null`. **Parte de `vinculos`**, nunca de `pessoas`. */
+  destinatario(pessoaId: string): Promise<{ papel: Papel } | null>;
+  /**
+   * Grava a linha, ou constata que ela já existia (item 87).
+   *
+   * **A guarda do vínculo ativo mora no `where` do próprio `insert`**, e não numa leitura prévia: é a
+   * doutrina do item 8, e é o que fecha a corrida com uma revogação.
+   */
+  compartilhar(
+    ocorrenciaId: string,
+    dados: { comPessoaId: string; porPessoaId: string; em: string },
+  ): Promise<ResultadoDoCompartilhamento>;
+  /** Apaga a linha do par. **Sem desfecho**: a linha que não existe é o mesmo sucesso da que foi apagada. */
+  desfazerCompartilhamento(ocorrenciaId: string, comPessoaId: string): Promise<void>;
+  /**
+   * Quem, nesta organização, casa a busca e tem um dos papéis pedidos — com a marca de quem já recebeu.
+   *
+   * **`papeis` e `limite` descem ao SQL**, e não são aplicados depois: filtrar depois do `limit`
+   * devolveria menos itens que o teto, sem dizer que havia mais.
+   */
+  candidatosAoCompartilhamento(
+    ocorrenciaId: string,
+    busca: { texto: string; papeis: readonly Papel[]; exceto: string; limite: number },
+  ): Promise<readonly CandidatoLido[]>;
   /**
    * Uma página da listagem, em `registrada_em DESC, id DESC`.
    *

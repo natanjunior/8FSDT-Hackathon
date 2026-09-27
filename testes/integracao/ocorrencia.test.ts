@@ -4262,4 +4262,69 @@ describe("o compartilhamento no banco — item 87", () => {
     );
     expect(depois!.atualizada_em.toISOString()).toBe(antes!.atualizada_em.toISOString());
   });
+  it("compartilhar duas vezes ao mesmo tempo deixa uma linha, e as duas respostas são sucesso", async () => {
+    const id = await registrada("Porta da garagem");
+    const repo = portas().ocorrencias;
+    const dados = {
+      comPessoaId: recebePessoaId,
+      porPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    };
+    const [a, b] = await Promise.all([repo.compartilhar(id, dados), repo.compartilhar(id, dados)]);
+    expect([a.desfecho, b.desfecho].sort()).toStrictEqual(["criado", "ja-existia"]);
+    const linhas = await consultaCrua(`select 1 from compartilhamentos where ocorrencia_id = $1`, [id]);
+    expect(linhas).toHaveLength(1);
+  });
+
+  it("com o destinatário revogado, a escrita não grava e diz por quê", async () => {
+    const id = await registrada("Câmera do hall");
+    await consultaCrua(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const resultado = await portas().ocorrencias.compartilhar(id, {
+      comPessoaId: recebePessoaId,
+      porPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    expect(resultado.desfecho).toBe("destinatario-sem-vinculo-ativo");
+    await consultaCrua(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+  });
+
+  /**
+   * **O critério 87.6 na metade que o banco responde:** com 200 participantes, a busca casa prefixo de
+   * palavra sem acento, respeita os papéis pedidos e para no teto. A outra metade — o painel a 360 px —
+   * é passo manual.
+   */
+  it("a busca casa prefixo de palavra sem acento, respeita os papéis e o teto, com 200 participantes", async () => {
+    const id = await registrada("Elevador parado");
+    await consultaCrua(
+      `with novas as (
+         insert into pessoas (nome)
+         select 'Andréa Morador ' || g || ' ${SUFIXO}' from generate_series(1, 200) g
+         returning id)
+       insert into vinculos (pessoa_id, organizacao_id, papel)
+       select id, $1, 'solicitante' from novas`,
+      [organizacaoId],
+    );
+    const itens = await portas().ocorrencias.candidatosAoCompartilhamento(id, {
+      texto: "andrea",
+      papeis: ["solicitante"],
+      exceto: pessoaId,
+      limite: 20,
+    });
+    expect(itens).toHaveLength(20);
+    expect(itens.every((i) => i.papel === "solicitante")).toBe(true);
+
+    const porMeioDaPalavra = await portas().ocorrencias.candidatosAoCompartilhamento(id, {
+      texto: "ndrea",
+      papeis: ["solicitante"],
+      exceto: pessoaId,
+      limite: 20,
+    });
+    expect(porMeioDaPalavra).toHaveLength(0);
+  });
 });
