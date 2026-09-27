@@ -276,7 +276,7 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
         ) : (
           <Link
             href={`/ocorrencias/${maisVelha.id}`}
-            className="text-marca break-words underline underline-offset-4"
+            className="text-tinta-marca break-words underline underline-offset-4"
           >
             {maisVelha.titulo}
           </Link>
@@ -338,7 +338,7 @@ function EntradasESaidas({
       <p className="text-tinta text-corpo">{vereditoDoFluxo(fluxo)}</p>
       <GraficoDoFluxoMensal linhas={fluxo} />
       {algumParcial ? (
-        <p className="text-tinta-fraca text-meta">{NOTA_DO_MES_PARCIAL}</p>
+        <p className="text-tinta-suave text-meta">{NOTA_DO_MES_PARCIAL}</p>
       ) : null}
     </Cartao>
   );
@@ -394,7 +394,7 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
             >
               <Link
                 href={`/ocorrencias/${ocorrencia.id}`}
-                className="text-marca min-w-0 flex-1 break-words underline underline-offset-4"
+                className="text-tinta-marca min-w-0 flex-1 break-words underline underline-offset-4"
               >
                 {ocorrencia.titulo}
               </Link>
@@ -525,7 +525,7 @@ function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
             }))}
           />
           {restantes > 0 ? (
-            <p className="text-tinta-fraca text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
+            <p className="text-tinta-suave text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
           ) : null}
         </>
       )}
@@ -652,7 +652,7 @@ function PeriodoInvalido() {
       </p>
       <Link
         href="/dashboard"
-        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
+        className="text-tinta-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         Ver os últimos 90 dias
       </Link>

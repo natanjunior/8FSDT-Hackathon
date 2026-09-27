@@ -198,7 +198,7 @@ export function TabelaDeParticipantes({
           <div className="relative md:w-72">
             <Search
               aria-hidden="true"
-              className="text-tinta-fraca pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
             />
             <Input
               id={`${prefixo}-busca`}
@@ -260,7 +260,7 @@ export function TabelaDeParticipantes({
                           <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                         </div>
                         {linha.atualizadoTexto !== null && (
-                          <p className="text-meta text-tinta-fraca font-mono tabular-nums">
+                          <p className="text-meta text-tinta-suave font-mono tabular-nums">
                             {TEXTOS_DA_TABELA.atualizadoEm} {linha.atualizadoTexto}
                           </p>
                         )}
@@ -318,7 +318,7 @@ export function TabelaDeParticipantes({
                           </TableCell>
                           <TableCell className={CELULA}>
                             {linha.tipo === "pedido" ? (
-                              <span className="text-tinta-fraca">{linha.rotuloDoPapel}</span>
+                              <span className="text-tinta-suave">{linha.rotuloDoPapel}</span>
                             ) : (
                               linha.rotuloDoPapel
                             )}
@@ -404,7 +404,7 @@ function CabecaDaTabela({
 }
 
 function Traco() {
-  return <span className="text-tinta-fraca">—</span>;
+  return <span className="text-tinta-suave">—</span>;
 }
 
 /**
@@ -414,7 +414,7 @@ function Traco() {
 function SemAlteracao() {
   return (
     <>
-      <span aria-hidden="true" className="text-tinta-fraca">
+      <span aria-hidden="true" className="text-tinta-suave">
         —
       </span>
       <span className="sr-only">{TEXTOS_DA_TABELA.semAlteracao}</span>
@@ -427,7 +427,7 @@ function PessoaDaLinha({ linha, idDoNome }: { linha: LinhaDeParticipante; idDoNo
     <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
       <FichaDePessoa nome={linha.nome} tamanho="linha" idDoNome={idDoNome} />
       {linha.tipo === "pedido" && (
-        <Badge variant="outline" className="border-marca/60 text-marca rounded-sm">
+        <Badge variant="outline" className="border-marca/60 text-tinta-marca rounded-sm">
           {TEXTOS_DA_TABELA.seloDePedido}
         </Badge>
       )}
@@ -547,7 +547,7 @@ function RodapeDaTabela({
 
   return (
     <div className="border-linha bg-background flex flex-col items-center gap-2 border-t px-4 py-2 md:flex-row md:justify-between">
-      <p className="text-meta text-tinta-fraca font-mono tracking-[0.06em] uppercase tabular-nums">{faixa}</p>
+      <p className="text-meta text-tinta-suave font-mono tracking-[0.06em] uppercase tabular-nums">{faixa}</p>
       <Pagination className="mx-0 w-auto justify-end">
         <PaginationContent>
           <PaginationItem>

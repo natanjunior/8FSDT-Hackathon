@@ -84,7 +84,7 @@ export function OpcoesDePapel({
             <RadioGroupItem
               id={idDaOpcao}
               value={opcao.papel}
-              className="border-tinta-fraca text-marca data-[state=checked]:border-marca mt-0.5 [&_svg]:fill-marca"
+              className="border-tinta-fraca text-tinta-marca data-[state=checked]:border-marca mt-0.5 [&_svg]:fill-tinta-marca"
             />
             <span className="flex flex-col gap-0.5">
               <span className="text-interface text-tinta font-semibold">{opcao.rotulo}</span>

@@ -80,7 +80,7 @@ export function LinhaDeOrganizacao({
         <span className="text-titulo-linha text-tinta">{nome}</span>
         <span className="text-meta text-tinta-suave font-normal">{apoio}</span>
       </span>
-      {seta && <ChevronRight aria-hidden="true" className="text-tinta-fraca size-4 shrink-0" />}
+      {seta && <ChevronRight aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />}
     </span>
   );
 }

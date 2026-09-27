@@ -197,7 +197,7 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
             <div className="relative md:w-72">
               <Search
                 aria-hidden="true"
-                className="text-tinta-fraca pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
               />
               <Input
                 id={`${prefixo}-busca`}
@@ -270,7 +270,7 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
                       {...arrasto.propsDaLinha(indice)}
                       className={cn(
                         "border-linha-suave even:bg-background",
-                        !item.ativa && "text-tinta-fraca",
+                        !item.ativa && "text-tinta-suave",
                         arrasto.arrastando === indice && "opacity-40",
                       )}
                     >

@@ -266,7 +266,7 @@ function ListaDeMensagens({
           {cursor === null && (
             <>
               <span aria-hidden="true">· </span>
-              <span className="text-tinta-fraca">{itens.length}</span>
+              <span className="text-tinta-suave">{itens.length}</span>
             </>
           )}
         </h2>
@@ -294,8 +294,8 @@ function ListaDeMensagens({
                       <AvatarDePessoa nome={mensagem.autor.nome} className="size-7" />
                       <span>
                         <span className="text-tinta text-interface font-medium">{quem}</span>
-                        <span className="text-tinta-fraca"> · </span>
-                        <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
+                        <span className="text-tinta-suave"> · </span>
+                        <span className="text-tinta-suave font-mono tabular-nums">{quando}</span>
                       </span>
                     </span>
                   );

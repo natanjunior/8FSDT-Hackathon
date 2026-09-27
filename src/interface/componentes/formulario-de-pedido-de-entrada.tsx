@@ -260,7 +260,7 @@ export function FormularioDePedidoDeEntrada({
             onClick={() => {
               void entrarNela(reconhecido.organizacaoId);
             }}
-            className="text-marca underline underline-offset-4"
+            className="text-tinta-marca underline underline-offset-4"
           >
             Entrar nela
           </button>
@@ -278,7 +278,7 @@ export function FormularioDePedidoDeEntrada({
               <button
                 type="button"
                 onClick={() => router.refresh()}
-                className="text-marca underline underline-offset-4"
+                className="text-tinta-marca underline underline-offset-4"
               >
                 Atualizar esta tela
               </button>

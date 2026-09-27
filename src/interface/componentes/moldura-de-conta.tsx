@@ -192,7 +192,7 @@ function ReguaDoOu() {
   return (
     <div
       aria-hidden="true"
-      className="text-meta text-tinta-fraca flex items-center gap-3 lg:order-2 lg:flex-col lg:self-stretch"
+      className="text-meta text-tinta-suave flex items-center gap-3 lg:order-2 lg:flex-col lg:self-stretch"
     >
       <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
       <span>ou</span>
@@ -209,7 +209,7 @@ function ReguaDoOu() {
  * mão, com `py-1`, abaixo do piso; é o achado P-4 do plano do 44o, e não se conserta aqui.
  */
 export const CLASSE_DO_CAMINHO =
-  "text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4";
+  "text-tinta-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4";
 
 /**
  * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02, T-10 e, desde o item 65, a

@@ -153,7 +153,7 @@ export function Campo({
       ) : (
         <div className="flex items-baseline justify-between gap-3">
           {rotuloDoCampo}
-          <span className="text-tinta-fraca text-meta shrink-0 font-mono tabular-nums">
+          <span className="text-tinta-suave text-meta shrink-0 font-mono tabular-nums">
             {contador.usados} / {contador.maximo}
           </span>
         </div>
@@ -275,7 +275,7 @@ export function RodapeDoFormulario({
       }
     >
       {obrigatorios > 0 && !todosObrigatorios && (
-        <p className="text-tinta-fraca text-meta sm:mr-auto">
+        <p className="text-tinta-suave text-meta sm:mr-auto">
           <span aria-hidden="true" className="text-destructive">
             *
           </span>{" "}

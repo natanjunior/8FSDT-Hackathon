@@ -38,7 +38,7 @@ export function FichaDeLocal({
     >
       {/* **O pino, 15 px, traço 1.9, na tinta fraca, a 6 px do nome** (item 64). O emoji que ele
           substitui já era um alfinete; o que muda é que agora ele segue a tinta e o tema. */}
-      <MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-fraca size-[15px] shrink-0" />
+      <MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-suave size-[15px] shrink-0" />
       {nomeDaArea}
     </span>
   );

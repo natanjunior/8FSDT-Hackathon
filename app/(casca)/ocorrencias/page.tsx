@@ -394,7 +394,7 @@ async function Lista({
          * num recorte que não sabe que existe.
          */
         <p className="border-linha text-interface border-b px-4 py-3">
-          <Link href="/ocorrencias" className="text-marca underline underline-offset-4">
+          <Link href="/ocorrencias" className="text-tinta-marca underline underline-offset-4">
             Limpar filtros
           </Link>
         </p>
@@ -512,7 +512,7 @@ function FiltroInvalido() {
       </p>
       <Link
         href="/ocorrencias"
-        className="text-marca text-interface mt-4 inline-block underline underline-offset-4"
+        className="text-tinta-marca text-interface mt-4 inline-block underline underline-offset-4"
       >
         Limpar filtros
       </Link>

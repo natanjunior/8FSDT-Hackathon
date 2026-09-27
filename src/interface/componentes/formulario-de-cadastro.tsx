@@ -106,7 +106,7 @@ export function FormularioDeCadastro() {
           {estado.recusa === "CONTA_JA_EXISTE" && (
             <Link
               href="/redefinir-senha"
-              className="text-marca text-interface w-fit py-1 underline underline-offset-4"
+              className="text-tinta-marca text-interface w-fit py-1 underline underline-offset-4"
             >
               Esqueci a senha
             </Link>

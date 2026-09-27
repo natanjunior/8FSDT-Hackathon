@@ -619,7 +619,7 @@ export default async function Ocorrencia({
               selo mora no cabeçalho. Ela também carrega a segunda linha do motivo da pausa
               (`notaDaSaida`, critério 31.8), que morava naquele cartão. */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
+            <h2 className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
               O ciclo
             </h2>
             <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
@@ -681,7 +681,7 @@ export default async function Ocorrencia({
                 <dt className="font-medium">Onde</dt>
                 <dd className="flex flex-col gap-0.5">
                   <FichaDeLocal nomeDaArea={detalhe.area.nome} />
-                  <span className="text-tinta-fraca text-meta">
+                  <span className="text-tinta-suave text-meta">
                     {detalhe.area.tipo === "comum" ? "área comum" : "unidade privativa"}
                     {detalhe.localizacaoComplemento !== null &&
                       ` — ${detalhe.localizacaoComplemento}`}
@@ -701,7 +701,7 @@ export default async function Ocorrencia({
                   {detalhe.responsavel === null ? (
                     /* **Nulo escreve *"sem responsável"***, que é a palavra que a lista já usa. Não se
                        inventa um terceiro texto. */
-                    <span className="text-tinta-fraca">sem responsável</span>
+                    <span className="text-tinta-suave">sem responsável</span>
                   ) : (
                     <FichaDePessoa nome={detalhe.responsavel.nome} />
                   )}
@@ -717,7 +717,7 @@ export default async function Ocorrencia({
                     tempo está bem abaixo. */}
                 <dt className="font-medium">Última mudança</dt>
                 <dd className="flex flex-col gap-1">
-                  <span className="text-tinta-fraca text-meta">
+                  <span className="text-tinta-suave text-meta">
                     {autoria(
                       detalhe.ultimaTransicao.autor.nome,
                       detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
@@ -731,7 +731,7 @@ export default async function Ocorrencia({
                   )}
                   <a
                     href="#linha-do-tempo"
-                    className="text-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
+                    className="text-tinta-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
                   >
                     ver a linha do tempo →
                   </a>
@@ -965,8 +965,8 @@ async function LinhaDoTempo({
                   return (
                     <span>
                       <span className="text-tinta font-medium">{quem}</span>
-                      <span className="text-tinta-fraca"> · </span>
-                      <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
+                      <span className="text-tinta-suave"> · </span>
+                      <span className="text-tinta-suave font-mono tabular-nums">{quando}</span>
                     </span>
                   );
                 })()}
@@ -998,7 +998,7 @@ async function TituloDaLinhaDoTempo({ eventos }: { eventos: Promise<readonly Eve
   const quantos = (await eventos).length;
   return (
     <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-      Linha do tempo <span className="text-tinta-fraca">{quantos}</span>
+      Linha do tempo <span className="text-tinta-suave">{quantos}</span>
     </h2>
   );
 }
@@ -1104,7 +1104,7 @@ function EsqueletoDaRegua({ nomeDoStatus }: { nomeDoStatus: (status: string) => 
             <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
           )}
           <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent" />
-          <span className="text-interface text-tinta-fraca">{nomeDoStatus(status)}</span>
+          <span className="text-interface text-tinta-suave">{nomeDoStatus(status)}</span>
         </div>
       ))}
     </div>

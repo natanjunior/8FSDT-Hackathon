@@ -91,7 +91,7 @@ export const INTEGRANTES: readonly Integrante[] = [
 
 const NO_CLARO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, string>>>> = {
   clara: {
-    marca: "bg-marca/12 text-marca",
+    marca: "bg-marca/12 text-tinta-marca",
     ok: "bg-ok/12 text-ok",
     atencao: "bg-atencao/12 text-atencao",
     info: "bg-info/12 text-info",
@@ -108,7 +108,7 @@ const NO_CLARO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, stri
 
 const NO_ESCURO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, string>>>> = {
   clara: {
-    marca: "dark:bg-marca/12 dark:text-marca",
+    marca: "dark:bg-marca/12 dark:text-tinta-marca",
     ok: "dark:bg-ok/12 dark:text-ok",
     atencao: "dark:bg-atencao/12 dark:text-atencao",
     info: "dark:bg-info/12 dark:text-info",

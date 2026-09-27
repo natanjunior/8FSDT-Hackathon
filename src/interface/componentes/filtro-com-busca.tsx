@@ -103,7 +103,7 @@ export function FiltroComBusca({
       className={cn(
         "border-linha bg-superficie text-tinta text-interface h-11 justify-start gap-1.5 rounded-md border px-3 font-normal",
         "focus-visible:outline-marca focus-visible:outline-2 focus-visible:outline-offset-2",
-        ligado && "border-marca text-marca font-semibold",
+        ligado && "border-marca text-tinta-marca font-semibold",
       )}
     >
       {rotuloDoGatilho(nome, opcoes, marcados)}

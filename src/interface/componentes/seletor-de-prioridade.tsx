@@ -205,7 +205,7 @@ export function SeletorDePrioridade({
             onClick={() => {
               void gravar(desfazer.de, desfazer.para, false);
             }}
-            className="text-marca min-h-11 underline underline-offset-4"
+            className="text-tinta-marca min-h-11 underline underline-offset-4"
           >
             Desfazer
           </button>

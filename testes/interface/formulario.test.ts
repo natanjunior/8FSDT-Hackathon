@@ -1747,7 +1747,7 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("a faixa do cartão é uma variante da cabeça, com o título em h2 no papel de rótulo (critério 44q.5)", () => {
     const fonte = ler("src/interface/componentes/cartao.tsx");
-    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase"');
+    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-suave font-mono uppercase"');
     expect(fonte).toContain("export function FaixaDoCartao");
     expect(fonte).toContain("export function CorpoDoCartao");
   });
@@ -1839,7 +1839,10 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
     expect(lista).toContain('data-recuada={encerrada(item.status) ? "" : undefined}');
     expect(lista).toContain("group-data-[recuada]/linha:text-tinta-suave");
-    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    // Item 89: o apoio da encerrada vestia a tinta fraca, que não passa 4,5:1, e agora veste a suave como o
+    // de qualquer linha. O que a distingue é o título, que desce de `--ink` a `--ink-soft`, e o selo.
+    expect(lista).not.toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(2);
     // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
     expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
     // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
@@ -1977,7 +1980,7 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
   it("o local leva MapPin, e nenhum emoji de local sobra no produto (troca 11)", () => {
     const ficha = ler("src/interface/componentes/ficha-de-local.tsx");
-    expect(ficha).toContain('<MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-fraca size-[15px] shrink-0" />');
+    expect(ficha).toContain('<MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-suave size-[15px] shrink-0" />');
     expect(ficha).toContain("inline-flex items-center gap-1.5");
     const comEmoji = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) => ler(caminho).includes("📍"));
     expect(comEmoji).toStrictEqual([]);

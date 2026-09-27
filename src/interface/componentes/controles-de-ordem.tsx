@@ -86,7 +86,7 @@ export function AlcaDeArrasto({ className, ...props }: PropsDaAlca & { readonly 
     <span
       {...props}
       className={cn(
-        "text-tinta-fraca hidden cursor-grab items-center justify-center active:cursor-grabbing",
+        "text-tinta-suave hidden cursor-grab items-center justify-center active:cursor-grabbing",
         "[@media(hover:hover)_and_(pointer:fine)]:inline-flex",
         className,
       )}

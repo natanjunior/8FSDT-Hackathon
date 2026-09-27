@@ -352,7 +352,7 @@ function ApoioDaOrdem() {
 function Leitura({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <dl className="flex flex-col gap-1.5">
-      <dt className="text-rotulo-coluna text-tinta-fraca font-mono uppercase">
+      <dt className="text-rotulo-coluna text-tinta-suave font-mono uppercase">
         {rotulo}
       </dt>
       <dd className="text-titulo-linha text-tinta">{valor}</dd>
