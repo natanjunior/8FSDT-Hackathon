@@ -81,14 +81,14 @@ export function CabecaDoCartao({
  * (*"Mensagens 1"*); e o título da linha do tempo espera dados, então vem dentro de um `<Suspense>`. O
  * versal é CSS, e o nome acessível continua com a caixa do texto.
  */
-export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase";
+export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-suave font-mono uppercase";
 
 export function FaixaDoCartao({ children, dado }: { children: ReactNode; dado?: ReactNode }) {
   return (
     <div className="border-linha-suave flex min-h-11 items-center justify-between gap-4 border-b px-[15px] py-2 md:px-[18px]">
       {children}
       {dado !== undefined && (
-        <div className="text-rotulo-coluna text-tinta-fraca shrink-0 font-mono uppercase">{dado}</div>
+        <div className="text-rotulo-coluna text-tinta-suave shrink-0 font-mono uppercase">{dado}</div>
       )}
     </div>
   );

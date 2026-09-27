@@ -133,7 +133,7 @@ export function SeletorDePeriodo({
                   // O apagado do catálogo é meia opacidade, que sobre a tinta fraca some. A tinta fraca já
                   // diz "não faz nada", e ela está medida no tema.
                   ehAFaixaAplicada(periodo, atalhos[chave])
-                    ? "text-tinta-fraca disabled:opacity-100"
+                    ? "text-tinta-suave disabled:opacity-100"
                     : "text-tinta",
                 )}
               >

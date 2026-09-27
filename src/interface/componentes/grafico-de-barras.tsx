@@ -160,7 +160,7 @@ function RotuloEmDuasLinhas({
       <tspan x={Number(x) - 4} dy={-6} className="fill-tinta">
         {barra.rotulo}
       </tspan>
-      <tspan x={Number(x) - 4} dy={14} className="fill-tinta-fraca">
+      <tspan x={Number(x) - 4} dy={14} className="fill-tinta-suave">
         {barra.rotuloDeBaixo}
       </tspan>
     </text>

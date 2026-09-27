@@ -41,12 +41,12 @@ export default async function TelaDeEntrar({
       apresentacao
       caminhos={
         <>
-          <Link href="/criar-conta" className="text-marca text-interface py-1 underline underline-offset-4">
+          <Link href="/criar-conta" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
             Criar conta
           </Link>
           <Link
             href="/redefinir-senha"
-            className="text-marca text-interface py-1 underline underline-offset-4"
+            className="text-tinta-marca text-interface py-1 underline underline-offset-4"
           >
             Esqueci a senha
           </Link>

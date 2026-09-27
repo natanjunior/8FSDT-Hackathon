@@ -56,7 +56,7 @@ export function Cartao({
     <section className="border-linha bg-superficie flex min-w-0 flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="flex flex-wrap items-baseline gap-2">
-          <span className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
+          <span className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
             {numero} · {titulo}
           </span>
           <span className="text-tinta-suave text-meta">{quando}</span>
@@ -90,7 +90,7 @@ export function CartaoDeIndicador({
 }) {
   return (
     <div className="border-linha bg-superficie flex min-w-0 flex-col gap-1.5 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-      <p className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">{rotulo}</p>
+      <p className="text-tinta-suave text-rotulo-coluna font-mono uppercase">{rotulo}</p>
       <p className="text-tinta text-titulo-pagina tabular-nums">{valor}</p>
       <p className="text-tinta-suave text-meta">{segundoTermo}</p>
     </div>

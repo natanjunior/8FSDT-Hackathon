@@ -19,7 +19,7 @@ export default function TelaDeRedefinirSenha() {
       titulo="Redefinir senha"
       contexto="Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova."
       caminhos={
-        <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+        <Link href="/entrar" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
           Voltar para entrar
         </Link>
       }

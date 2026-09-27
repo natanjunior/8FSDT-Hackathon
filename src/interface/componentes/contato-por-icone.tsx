@@ -33,7 +33,7 @@ export function ContatoPorIcone({
   telefones: readonly ContatoNaLinha[];
   emails: readonly ContatoNaLinha[];
 }) {
-  if (telefones.length === 0 && emails.length === 0) return <span className="text-tinta-fraca">—</span>;
+  if (telefones.length === 0 && emails.length === 0) return <span className="text-tinta-suave">—</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
       {telefones.length > 0 && (

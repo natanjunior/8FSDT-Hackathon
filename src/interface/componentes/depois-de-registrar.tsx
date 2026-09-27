@@ -52,7 +52,7 @@ export function DepoisDeRegistrar({ passos }: { readonly passos: readonly string
               <span
                 className={cn(
                   "text-interface",
-                  indice === 0 ? "text-tinta font-medium" : "text-tinta-fraca",
+                  indice === 0 ? "text-tinta font-medium" : "text-tinta-suave",
                 )}
               >
                 {passo}

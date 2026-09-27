@@ -185,7 +185,7 @@ export function ModalDeAvaliacao({
                       "size-7 rounded-sm transition-colors duration-(--tempo-ponteiro) ease-(--curva-ponteiro)",
                       "peer-focus-visible:outline-marca peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2",
                       opcao.valor <= acesa
-                        ? "fill-marca text-marca"
+                        ? "fill-tinta-marca text-tinta-marca"
                         : "text-linha group-data-invalido:text-destructive/[75%]",
                     )}
                   />

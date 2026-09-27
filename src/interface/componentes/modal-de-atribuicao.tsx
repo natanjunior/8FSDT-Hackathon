@@ -67,7 +67,7 @@ const NOME_DO_BLOCO = {
  * entre os candidatos, que o `cmdk` não dá.
  */
 const CLASSE_DO_GRUPO =
-  "p-0 [&_[cmdk-group-heading]]:text-tinta-fraca [&_[cmdk-group-heading]]:text-rotulo-coluna [&_[cmdk-group-heading]]:px-0 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1";
+  "p-0 [&_[cmdk-group-heading]]:text-tinta-suave [&_[cmdk-group-heading]]:text-rotulo-coluna [&_[cmdk-group-heading]]:px-0 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1";
 
 const CLASSE_DO_CANDIDATO =
   "border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2";
@@ -214,7 +214,7 @@ export function ModalDeAtribuicao({
                   {escolhida && " · Sua escolha"}
                 </span>
               </span>
-              {escolhida && <Check aria-hidden="true" className="text-marca size-4 shrink-0" />}
+              {escolhida && <Check aria-hidden="true" className="text-tinta-marca size-4 shrink-0" />}
             </CommandItem>
           );
         })}

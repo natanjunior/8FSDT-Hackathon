@@ -300,7 +300,7 @@ function LinhaDeTriagemNoCelular({
       >
         {item.titulo}
       </Link>
-      <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
+      <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-1.5">
         <FichaDeLocal nomeDaArea={item.area.nome} />·
         {item.responsavel === null ? (
           "sem responsável"
@@ -421,7 +421,7 @@ function TabelaDeTriagem({
                   >
                     {item.titulo}
                   </Link>
-                  <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca mt-0.5 flex items-center gap-1.5">
+                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
                     <IconeDeCategoria
                       nome={iconePorCategoria[item.categoria.id] ?? "tag"}
                       className="size-3.5 shrink-0"
@@ -440,7 +440,7 @@ function TabelaDeTriagem({
                 )}
                 <TableCell className={CELULA}>
                   {item.responsavel === null ? (
-                    <span className="text-tinta-fraca">—</span>
+                    <span className="text-tinta-suave">—</span>
                   ) : (
                     <FichaDePessoa nome={item.responsavel.nome} />
                   )}
@@ -448,7 +448,7 @@ function TabelaDeTriagem({
                 <TableCell
                   className={cn(
                     CELULA,
-                    "text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca font-mono whitespace-nowrap tabular-nums",
+                    "text-tinta-suave text-meta font-mono whitespace-nowrap tabular-nums",
                   )}
                 >
                   <CartaoDeTempo

@@ -52,7 +52,7 @@ export function CaminhoDaPagina({
                 {nivel.rotulo}
               </Link>
             </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-tinta-fraca" />
+            <BreadcrumbSeparator className="text-tinta-suave" />
           </Fragment>
         ))}
         <BreadcrumbItem>

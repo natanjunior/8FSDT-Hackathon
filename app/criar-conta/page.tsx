@@ -18,7 +18,7 @@ export default function TelaDeCriarConta() {
       titulo="Criar conta"
       contexto="Uma conta só serve para todas as organizações de que você participar."
       caminhos={
-        <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+        <Link href="/entrar" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
           Já tenho conta
         </Link>
       }

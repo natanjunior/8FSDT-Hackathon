@@ -440,8 +440,10 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
  * `--sunken` no apagado. Texto sobre fundo pede 4,5:1, e a asserção usa o **pior** dos três — o selo
  * em linha zebrada é o caso que ninguém testaria de propósito.
  *
- * **`--ink-faint` sobre `--sunken` reprova** (2,57:1 no escuro), e é por isso que *Cancelada* e
- * *Inativa* usam `--ink-soft` (desvio D1 do plano do 44q).
+ * **Nenhuma tinta de texto reprova em nenhum dos três fundos — item 89, critério 6.** Até o item 89 este
+ * bloco afirmava o contrário para a `--ink-faint` (2,57:1 no escuro), e era a razão para *Cancelada* e
+ * *Inativa* usarem `--ink-soft`. O item tirou a tinta fraca de todo texto; ela ficou como marca que não é
+ * texto, e por isso não está na lista.
  */
 describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", () => {
   const MODOS = [
@@ -454,18 +456,26 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
   for (const { nome, cabecalho } of MODOS) {
     describe(`modo ${nome}`, () => {
       const bloco = tokensDe(corpoDoBloco(cabecalho));
-      /** O token do modo, e o do claro quando o modo não o redeclara — é a cascata. */
+      /**
+       * O token do modo, e o do claro quando o modo não o redeclara, que é a cascata. Um `var(--x)` é
+       * resolvido no mesmo modo: o `--accent-ink` escuro é `var(--accent)`, e o `--accent` que vale ali é o
+       * escuro.
+       */
       const cor = (token: string): Lab => {
         const valor = bloco.get(token) ?? claro.get(token);
         if (valor === undefined) throw new Error(`${token} não está declarado`);
-        return oklabDe(valor);
+        const apelido = /^var\((--[\w-]+)\)$/u.exec(valor);
+        return apelido?.[1] !== undefined ? cor(apelido[1]) : oklabDe(valor);
       };
       const fundos = ["--surface", "--ground", "--sunken"].map(cor);
       const piorFundo = (tinta: Lab): number => Math.min(...fundos.map((fundo) => contraste(tinta, fundo)));
 
+      /** Toda tinta que veste texto no produto (item 89, spec §4.5). A `--ink-faint` não está: não é texto. */
+      const TINTAS_DE_TEXTO = ["--ink", "--ink-soft", "--ok", "--info", "--accent-ink", "--destructive"];
+
       it("imprime a medição, que é o que o relatório do item copia", () => {
-        for (const token of ["--ok", "--info", "--ink-soft", "--ink-faint"]) {
-          console.info(`[44q] ${nome} ${token} ${hexDe(cor(token))} pior fundo ${piorFundo(cor(token)).toFixed(2)}:1`);
+        for (const token of [...TINTAS_DE_TEXTO, "--ink-faint"]) {
+          console.info(`[89] ${nome} ${token} ${hexDe(cor(token))} pior fundo ${piorFundo(cor(token)).toFixed(2)}:1`);
         }
       });
 
@@ -480,6 +490,19 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
         expect(contraste(cor("--marca-foreground"), cor("--atencao"))).toBeGreaterThanOrEqual(4.5);
       });
 
+      it("a tinta do botão destrutivo passa sobre o vermelho (item 89, critério 7)", () => {
+        // No claro a tinta é branca; no escuro, desde o PA-1 do item 85, é quase preta. O par é o do
+        // `ui/button.tsx:15`, e não "branco sobre vermelho".
+        expect(contraste(cor("--destructive-foreground"), cor("--destructive"))).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it("a tinta escura continua passando sobre o preenchimento da marca (item 89, critério 4)", () => {
+        // O critério 4 parte a marca: o `--accent` segue fundo, e o texto vai para `--accent-ink`.
+        expect(contraste(cor("--marca-foreground"), cor("--accent"))).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(cor("--accent-ink"), cor("--surface"))).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(cor("--accent-ink"), cor("--ground"))).toBeGreaterThanOrEqual(4.5);
+      });
+
       it("a borda de todo contorno passa 3:1 contra a superfície (spec §3.11)", () => {
         // Em análise (`--ink-soft`), Em atendimento (`--info`) e Ativa (`--ok`, cheio — desvio D6: a 55%
         // da prancheta mede 2,34:1 no claro e 2,50:1 no escuro).
@@ -488,8 +511,10 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
         }
       });
 
-      it("a tinta fraca reprova no apagado, e é por isso que ele não a usa", () => {
-        expect(contraste(cor("--ink-faint"), cor("--sunken"))).toBeLessThan(4.5);
+      it("nenhum token que veste texto reprova em nenhum dos três fundos (item 89, critério 6)", () => {
+        for (const token of TINTAS_DE_TEXTO) {
+          expect(piorFundo(cor(token)), token).toBeGreaterThanOrEqual(4.5);
+        }
       });
     });
   }
@@ -515,7 +540,7 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
 
   const TINTAS = [
     "--ink", "--ink-soft", "--ink-faint", "--accent", "--destructive",
-    "--ok", "--info", "--primary", "--accent-foreground",
+    "--ok", "--info", "--primary", "--accent-foreground", "--accent-ink",
   ];
   const FUNDOS = ["--ground", "--surface", "--chrome", "--sunken", "--accent-bg"];
   const SOLIDOS: ReadonlyArray<[string, string]> = [
@@ -847,5 +872,47 @@ describe("o VLibras aparece no produto e não na documentação — item 85", ()
     ["/documentacaox", true],
   ])("%s → %s", (caminho, esperado) => {
     expect(vlibrasNaRota(caminho)).toBe(esperado);
+  });
+});
+
+/**
+ * **O uso das tintas, varrido — item 89, critérios 1 e 4.** Os pisos acima medem tokens; este bloco mede se
+ * o código veste o token certo. Sem ele, o primeiro componente novo com `text-tinta-fraca` desfaz o item e
+ * nenhum teste reprova.
+ */
+describe("o texto veste tinta que passa — item 89", () => {
+  const raiz = fileURLToPath(new URL("../../", import.meta.url));
+  const fontes = ["src", "app"].flatMap((pasta) =>
+    (readdirSync(`${raiz}${pasta}`, { recursive: true }) as string[])
+      .filter((arquivo) => /\.(tsx?|mdx?)$/u.test(arquivo))
+      .map((arquivo) => ({
+        arquivo: `${pasta}/${arquivo.replaceAll("\\", "/")}`,
+        texto: readFileSync(`${raiz}${pasta}/${arquivo}`, "utf8"),
+      })),
+  );
+
+  const quemUsa = (padrao: RegExp): string[] =>
+    fontes.filter(({ texto }) => padrao.test(texto)).map(({ arquivo }) => arquivo).sort();
+
+  it("acha os arquivos que varre", () => {
+    // Sem isto, um caminho errado faria os dois guardas abaixo passarem por vacuidade.
+    expect(fontes.length).toBeGreaterThan(50);
+    expect(quemUsa(/text-tinta-suave/u).length).toBeGreaterThan(10);
+  });
+
+  it("nenhum texto veste a tinta fraca, que não passa 4,5:1 (critério 1)", () => {
+    // A borda fica: `border-tinta-fraca` não é texto.
+    expect(quemUsa(/\b(?:text|fill)-tinta-fraca\b/u)).toEqual([]);
+  });
+
+  it("nenhum texto veste o preenchimento da marca, e sim a tinta dela (critério 4)", () => {
+    // `text-marca-foreground` é outra coisa — a tinta escura SOBRE a marca — e passa.
+    expect(quemUsa(/\b(?:text|fill)-marca(?![-\w])/u)).toEqual([]);
+  });
+
+  it("o utilitário da tinta da marca existe, e aponta para o token", () => {
+    // Utilitário que o Tailwind não gera falha calado: o texto herda a cor do pai.
+    const tema = tokensDe(corpoDoBloco("@theme inline {"));
+    expect(tema.get("--color-tinta-marca")).toBe("var(--accent-ink)");
   });
 });
