@@ -4112,3 +4112,116 @@ describe("a conversa contra Postgres — item 30", () => {
     expect((await repo.mensagens(id)).map((m) => m.texto)).toStrictEqual(["m1", "m2", "m3"]);
   });
 });
+
+/**
+ * ============================================================================
+ *  O compartilhamento no banco — item 87
+ * ============================================================================
+ *
+ * **O que só o Postgres prova:** a chave primária que impede a segunda linha, as duas chaves compostas
+ * que amarram a organização, e as duas pontas de `on delete` — `com` em cascata, `por` restrito.
+ */
+describe("o compartilhamento no banco — item 87", () => {
+  let recebePessoaId: string;
+  let outraOrganizacaoId: string;
+  let deForaPessoaId: string;
+
+  beforeAll(async () => {
+    const [recebe] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha ${SUFIXO}`],
+    );
+    recebePessoaId = recebe!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [recebePessoaId, organizacaoId],
+    );
+
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ($1, $2) returning id`,
+      // `V1`, e não `AU`: o item 19 deste arquivo já usa `AU${SUFIXO}`, e o código é único.
+      [`Aurora ${SUFIXO}`, `V1${SUFIXO}`.slice(0, 12).toUpperCase()],
+    );
+    outraOrganizacaoId = outra!.id;
+    const [deFora] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`De fora ${SUFIXO}`],
+    );
+    deForaPessoaId = deFora!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [deForaPessoaId, outraOrganizacaoId],
+    );
+  });
+
+  async function registrada(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      { titulo, descricao: "Vazou de novo.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  const inserir = (ocorrenciaId: string, com: string, org = organizacaoId) =>
+    consultaCrua(
+      `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
+       values ($1, $2, $3, $4)`,
+      [org, ocorrenciaId, com, pessoaId],
+    );
+
+  it("grava uma linha, e a segunda igual é recusada pela chave primária", async () => {
+    const id = await registrada("Vazamento na garagem, vaga 14");
+    await inserir(id, recebePessoaId);
+    await expect(inserir(id, recebePessoaId)).rejects.toThrow(/compartilhamentos_pk/u);
+  });
+
+  it("recusa ligar a ocorrência a um vínculo de outra organização", async () => {
+    const id = await registrada("Portão travado");
+    await expect(inserir(id, deForaPessoaId)).rejects.toThrow(/compartilhamentos_com_fk/u);
+    expect(outraOrganizacaoId).not.toBe(organizacaoId);
+  });
+
+  it("remover o vínculo de quem recebeu leva a linha junto; o de quem compartilhou é recusado", async () => {
+    const id = await registrada("Luz do hall");
+    const [temporaria] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Temporária ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [temporaria!.id, organizacaoId],
+    );
+    await inserir(id, temporaria!.id);
+    await consultaCrua(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [
+      temporaria!.id,
+      organizacaoId,
+    ]);
+    const restantes = await consultaCrua(
+      `select 1 from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, temporaria!.id],
+    );
+    expect(restantes).toHaveLength(0);
+
+    await expect(
+      consultaCrua(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [
+        pessoaId,
+        organizacaoId,
+      ]),
+    ).rejects.toThrow();
+  });
+
+  it("compartilhar não mexe em ocorrencias.atualizada_em", async () => {
+    const id = await registrada("Interfone mudo");
+    const [antes] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    await inserir(id, recebePessoaId);
+    const [depois] = await consultaCrua<{ atualizada_em: Date }>(
+      `select atualizada_em from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(depois!.atualizada_em.toISOString()).toBe(antes!.atualizada_em.toISOString());
+  });
+});

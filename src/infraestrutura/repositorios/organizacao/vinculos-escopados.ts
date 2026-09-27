@@ -279,11 +279,16 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os dez `exists` cobrem as NOVE tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`,
-      // por catorze colunas: `atribuicoes`, `categorias` e `organizacoes` com duas, e `areas` com três. O
-      // décimo `exists` é o do último Gestor. A lista não sai da prosa do contrato, que nomeia quatro: sai do
-      // esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia em que uma tabela
-      // nova entrar sem passar por aqui.
+      // **Os onze `exists` cobrem as DEZ tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`,
+      // por dezesseis colunas: `atribuicoes`, `categorias`, `organizacoes` e `compartilhamentos` com duas, e
+      // `areas` com três. O último `exists` é o do último Gestor. A lista não sai da prosa do contrato, que
+      // nomeia quatro: sai do esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia
+      // em que uma tabela nova entrar sem passar por aqui.
+      //
+      // **`compartilhamentos` tem duas pontas e só uma entra aqui** (item 87): `por_pessoa_id` é rastro —
+      // aparece nomeado na tela de quem olha a ocorrência — e a chave é `on delete restrict`;
+      // `com_pessoa_id` apaga em cascata, porque o que a pessoa recebeu não é rastro, e uma remoção não
+      // precisa ser recusada por causa dele.
       //
       // **`organizacoes` passou a ter duas colunas em 16/09/2026** (item 46 · 47): quem corrige o nome da
       // organização deixa rastro em `atualizado_por_pessoa_id`, com FK `on delete restrict`. Sem esta
@@ -329,7 +334,10 @@ export function repositorioEscopadoDeVinculos(
                  or exists (select 1 from organizacoes t
                              where t.id = $1
                                and (t.criada_por_pessoa_id = v.pessoa_id
-                                    or t.atualizado_por_pessoa_id = v.pessoa_id))) as tem_historico
+                                    or t.atualizado_por_pessoa_id = v.pessoa_id))
+                 or exists (select 1 from compartilhamentos t
+                             where t.organizacao_id = $1
+                               and t.por_pessoa_id = v.pessoa_id)) as tem_historico
            from vinculos v
           where v.organizacao_id = $1
             and v.revogado_em is null`,
