@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -29,6 +30,8 @@ import { projetarCategoria } from "@/interface/projecoes";
  * mais o endereço: filtro e busca vivem na tabela, e o desfecho de cada escrita vem por aviso.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Categorias" };
 
 export default async function Categorias() {
   const escopo = await resolverOuMandarParaPorta();

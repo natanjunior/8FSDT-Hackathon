@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FormularioDeCadastro } from "@/interface/componentes/formulario-de-cadastro";
@@ -11,6 +12,8 @@ import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
  * espera que não é essa.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Criar conta" };
 
 export default function TelaDeCriarConta() {
   return (

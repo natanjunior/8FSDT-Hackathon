@@ -1,4 +1,5 @@
 import { UserPlus } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -41,6 +42,8 @@ import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@
  * T-04, não esta.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Participantes" };
 
 export default async function Participantes() {
   const escopo = await resolverOuMandarParaPorta();

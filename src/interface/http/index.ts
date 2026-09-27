@@ -62,6 +62,8 @@ export {
   somenteDeRedefinicao,
 } from "./redefinicao-de-senha";
 
+export { lerOcorrenciaDaTela, tituloDeAbaDaOcorrencia } from "./ocorrencia-da-tela";
+
 export { novoTraceId } from "./traco";
 
 export {

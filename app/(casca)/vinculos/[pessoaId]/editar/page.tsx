@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Fragment } from "react";
 
@@ -21,6 +22,8 @@ import { projetarArea } from "@/interface/projecoes";
  * (item 44j).
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Editar participante" };
 
 export default async function EditarParticipante({
   params,

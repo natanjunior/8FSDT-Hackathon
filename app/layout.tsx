@@ -43,7 +43,11 @@ const fonteDeDado = Geist_Mono({
  * o atributo que faz um leitor de tela pronunciar "Ocorrência" em vez de "Occurrence".
  */
 export const metadata: Metadata = {
-  title: "Resolve Aí",
+  // **O sufixo mora aqui, uma vez** (item 90): cada página declara só o próprio nome, e a aba sai
+  // `"<nome> · Resolve Aí"`. Antes as 21 rotas herdavam o mesmo texto, e quem usa leitor de tela ouvia o
+  // mesmo nome ao chegar em qualquer lugar — a WCAG 2.4.2 no nível A. A página que escrever "Resolve Aí"
+  // no próprio título sai com o nome dobrado, e o teste do item recusa.
+  title: { template: "%s · Resolve Aí", default: "Resolve Aí" },
   description:
     "Registre uma ocorrência do seu condomínio, empresa ou bairro e acompanhe até a resolução, " +
     "com trilha auditável de toda mudança de status.",

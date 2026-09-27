@@ -6,7 +6,9 @@ import { INTEGRANTES } from "@/interface/componentes/integrantes-do-grupo";
 import { MarcaDoProduto } from "@/interface/componentes/marca";
 import { Badge } from "@/interface/componentes/ui/badge";
 
-export const metadata: Metadata = { title: "Grupo 1 · Resolve Aí" };
+// **Só o nome, sem o sufixo** (item 90): o `template` do layout raiz o acrescenta, e a aba continua
+// saindo `"Grupo 1 · Resolve Aí"`, idêntica à de antes.
+export const metadata: Metadata = { title: "Grupo 1" };
 
 /**
  * ============================================================================

@@ -212,6 +212,27 @@ describe("o registro contra Postgres", () => {
 
     await consultaCrua(`update areas set tipo = 'comum' where id = $1`, [areaId]);
   });
+
+  it("id que não é uuid não existe, e não é erro do banco — critério 90.8", async () => {
+    await expect(portas().ocorrencias.porId("nao-e-uuid")).resolves.toBeNull();
+    await expect(portas().ocorrencias.porId("1")).resolves.toBeNull();
+  });
+
+  it("id válido para o Postgres sem hífen continua sendo lido — o repositório não tem regra própria de forma", async () => {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      {
+        titulo: "Portão sem hífen",
+        descricao: "Registrada só para conferir a forma do id.",
+        categoriaId,
+        areaId,
+      },
+    );
+
+    const semHifen = lida.id.replaceAll("-", "");
+    expect((await portas().ocorrencias.porId(semHifen))?.id).toBe(lida.id);
+  });
 });
 
 describe("o que o banco recusa", () => {

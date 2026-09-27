@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -23,6 +24,8 @@ import { resolverParaTela } from "@/interface/http";
  * dos caminhos debaixo do cartão, porque aqueles são sobre a conta e estes não.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Entrar" };
 
 export default async function TelaDeEntrar({
   searchParams,

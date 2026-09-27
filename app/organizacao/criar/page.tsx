@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -27,6 +28,8 @@ import { resolverParaTela } from "@/interface/http";
  * **A espera é a de T-02**: o `loading.tsx` de `app/organizacao/` vale para este filho também.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Criar uma organização" };
 
 export default async function TelaDeCriarOrganizacao() {
   await exigirSessao();

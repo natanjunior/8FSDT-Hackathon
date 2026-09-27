@@ -1,13 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   OcorrenciaNaoEncontrada,
-  podeLerOcorrencia,
   verComentarios,
   verLinhaDoTempo,
-  verOcorrencia,
   type EventoLido,
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
@@ -26,9 +25,11 @@ import {
 import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
+import { FalhaDoCartao } from "@/interface/componentes/falha-do-cartao";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
+import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -67,9 +68,11 @@ import { buttonVariants } from "@/interface/componentes/ui/button";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import { cn } from "@/interface/componentes/utilitarios";
 import {
+  lerOcorrenciaDaTela,
   novoTraceId,
   registrarFalha,
   resolverEscopoParaTela,
+  tituloDeAbaDaOcorrencia,
 } from "@/interface/http";
 import {
   lenteDeRotulo,
@@ -101,6 +104,23 @@ import {
  * porque o filtro mora no endereço da lista.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * **A aba leva o título da ocorrência** (item 90, spec §4.3). Três abas abertas durante a demonstração é o
+ * cenário que a auditoria descreve, e `Ocorrência` três vezes não o resolve.
+ *
+ * **Sem ida a mais ao banco:** `lerOcorrenciaDaTela` é `cache()` do React, e a página abaixo chama a mesma
+ * função com o mesmo id. **Sem vazar existência:** a autorização é a mesma da página, e o que ela esconde
+ * sai como o recuo `Ocorrência`.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ocorrenciaId: string }>;
+}): Promise<Metadata> {
+  const { ocorrenciaId } = await params;
+  return { title: await tituloDeAbaDaOcorrencia(ocorrenciaId, "Ocorrência") };
+}
 
 /**
  * O papel **em palavra**, para descer por prop ao modal.
@@ -135,8 +155,9 @@ export default async function Ocorrencia({
   const { ocorrenciaId } = await params;
 
   /**
-   * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
-   * a recusa do `podeLerOcorrencia`. As duas causas dão a mesma resposta, de propósito (§6.3).
+   * **Montado uma vez, e desde o item 90 há um caminho só até ele:** o `null` de `lerOcorrenciaDaTela`,
+   * que já absorveu as três causas — não existe, é de outra organização, ou quem lê não pode. As três dão
+   * a mesma resposta, de propósito (§6.3).
    *
    * **`resolucao` sai de `escopo` para um `const`** porque a estreiteza de um `let` não sobrevive dentro
    * de uma função aninhada — e é ela que a arrow abaixo captura.
@@ -201,7 +222,9 @@ export default async function Ocorrencia({
    * recusar, esta função **retorna** e ninguém mais espera esta promessa — que vai rejeitar com a mesma
    * `OcorrenciaNaoEncontrada` e derrubaria o processo como rejeição não tratada. Anexar um tratador a
    * marca como tratada; **a promessa original continua rejeitando para o `<Suspense>`**, porque `catch`
-   * devolve uma promessa nova em vez de alterar esta.
+   * devolve uma promessa nova em vez de alterar esta. **E quem recebe essa rejeição é a `FalhaDoCartao`
+   * que envolve cada `<Suspense>`** (item 90): a falha fica no cartão que esperava o dado, e o relato, a
+   * régua do cabeçalho e o selo continuam na tela.
    */
   const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
   linhaDoTempoPedida.catch(() => undefined);
@@ -225,17 +248,15 @@ export default async function Ocorrencia({
   );
   conversaPedida.catch(() => undefined);
 
-  let lida;
-  try {
-    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
-  } catch (erro) {
-    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
-    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
-    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
-    throw erro;
-  }
-
-  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
+  /**
+   * **A mesma leitura que o `generateMetadata` fez**, pela função `cache()` do React (item 90): uma ida ao
+   * banco atende as duas. Ela já traz dentro o `podeLerOcorrencia`, então **inexistente, de outra
+   * organização e sem permissão chegam aqui como o mesmo `null`** — que é a indistinguibilidade da §6.3, e
+   * era o que os dois caminhos de antes construíam à mão. A tela **diz em qual organização você está**,
+   * que é a compensação que o contrato comprou (critério 28.3).
+   */
+  const lida = await lerOcorrenciaDaTela(ocorrenciaId);
+  if (lida === null) return naoEncontrada();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
     pessoaId: escopo.ctx.pessoaId,
@@ -555,6 +576,17 @@ export default async function Ocorrencia({
       : {}),
   };
 
+  /**
+   * **O título fixo do bloco 3, montado uma vez e usado em três lugares** — a espera, o recuo da falha e
+   * o `id` que dá nome acessível à seção (item 90). Sem o `id` a seção perde o nome, então o recuo repete
+   * o mesmo `h2` do `fallback` em vez de trocá-lo por uma frase.
+   */
+  const tituloFixoDaLinhaDoTempo = (
+    <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
+      Linha do tempo
+    </h2>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
@@ -622,15 +654,23 @@ export default async function Ocorrencia({
             <h2 className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
               O ciclo
             </h2>
-            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
-              <ReguaComDatas
-                eventos={linhaDoTempoPedida}
-                statusAtual={detalhe.status}
-                nomeDoStatus={nomeDoStatus}
-                notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-                rotuloDaSaida={detalhe.statusRotulo}
-              />
-            </Suspense>
+            {/* **A régua depende da promessa da linha do tempo**, então ela cai com a mesma falha — e o
+                recuo é o trilho neutro mais a frase (item 90, critério 5). O estado atual continua dito
+                pelo selo do cabeçalho, que vem do detalhe e não desta promessa. */}
+            <FalhaDoCartao
+              frase={FRASES_DE_FALHA.regua}
+              antes={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}
+            >
+              <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
+                <ReguaComDatas
+                  eventos={linhaDoTempoPedida}
+                  statusAtual={detalhe.status}
+                  nomeDoStatus={nomeDoStatus}
+                  notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                  rotuloDaSaida={detalhe.statusRotulo}
+                />
+              </Suspense>
+            </FalhaDoCartao>
           </section>
 
           {/* **Bloco 1c · O resto da identidade**, com a faixa *Detalhes* (critério 44q.5). O `Cartao`
@@ -852,24 +892,25 @@ export default async function Ocorrencia({
                 </a>
               }
             >
-              <Suspense
-                fallback={
-                  <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-                    Linha do tempo
-                  </h2>
-                }
-              >
-                <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
-              </Suspense>
+              {/* **Sem frase no recuo, de propósito:** o título é o nome acessível da seção, e a frase
+                  da falha já está no corpo do mesmo cartão. Duas frases para uma falha só seriam duas
+                  falhas na leitura de quem usa leitor de tela. */}
+              <FalhaDoCartao frase={null} antes={tituloFixoDaLinhaDoTempo}>
+                <Suspense fallback={tituloFixoDaLinhaDoTempo}>
+                  <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
+                </Suspense>
+              </FalhaDoCartao>
             </FaixaDoCartao>
             <CorpoDoCartao>
-              <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-                <LinhaDoTempo
-                  eventos={linhaDoTempoPedida}
-                  pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-                  lente={lente}
-                />
-              </Suspense>
+              <FalhaDoCartao frase={FRASES_DE_FALHA.linhaDoTempo}>
+                <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+                  <LinhaDoTempo
+                    eventos={linhaDoTempoPedida}
+                    pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+                    lente={lente}
+                  />
+                </Suspense>
+              </FalhaDoCartao>
             </CorpoDoCartao>
           </section>
 

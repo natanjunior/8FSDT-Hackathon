@@ -737,6 +737,14 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
  * Postgres reporta primeiro não é contratual. Conferir só a primeira transformaria metade das corridas
  * em `500`.
  */
+/**
+ * **`22P02` é `invalid_text_representation`** — o que o Postgres devolve quando o texto não vira `uuid`.
+ * Lido sem importar o driver, como as vizinhas.
+ */
+function ehUuidRecusado(erro: unknown): boolean {
+  return (erro as { code?: unknown }).code === "22P02";
+}
+
 function ehAnexoJaReivindicado(erro: unknown): boolean {
   const comCodigo = erro as { code?: unknown; constraint?: unknown };
   return (
@@ -819,7 +827,17 @@ export function repositorioEscopadoDeOcorrencias(
   emTransacao: TransacaoEscopada,
 ): RepositorioEscopadoDeOcorrencias {
   async function lerPorId(executar: ConsultaEscopada, id: string): Promise<OcorrenciaLida | null> {
-    const linhas = await executar<LinhaDeOcorrencia>(`${SELECT_DA_OCORRENCIA} and o.id = $2`, [id]);
+    let linhas;
+    try {
+      linhas = await executar<LinhaDeOcorrencia>(`${SELECT_DA_OCORRENCIA} and o.id = $2`, [id]);
+    } catch (erro) {
+      // **Id que o Postgres recusa como uuid é id que não existe** (item 90, critério 8): a URL é de quem
+      // digita, e a resposta tem de ser o mesmo `404` do inexistente (§6.3 do contrato), não um `500` com
+      // erro do banco chegando a quem lê. A regra de forma é a do banco, e não uma expressão daqui, para
+      // não ficar mais estrita que ele.
+      if (ehUuidRecusado(erro)) return null;
+      throw erro;
+    }
     const linha = linhas[0];
     if (linha === undefined) return null;
 
