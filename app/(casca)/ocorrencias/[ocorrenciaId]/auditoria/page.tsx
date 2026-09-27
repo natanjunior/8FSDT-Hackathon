@@ -3,12 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import {
-  OcorrenciaNaoEncontrada,
-  podeLerOcorrencia,
-  verOcorrencia,
-  verTrilhaDeAuditoria,
-} from "@/aplicacao/ocorrencia";
+import { OcorrenciaNaoEncontrada, verTrilhaDeAuditoria } from "@/aplicacao/ocorrencia";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
@@ -22,7 +17,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/interface/componentes/ui/empty";
-import { novoTraceId, registrarFalha, resolverEscopoParaTela } from "@/interface/http";
+import {
+  lerOcorrenciaDaTela,
+  novoTraceId,
+  registrarFalha,
+  resolverEscopoParaTela,
+  tituloDeAbaDaOcorrencia,
+} from "@/interface/http";
 import { nomeDoMotivoCancelamento, nomeDoMotivoPausa, projetarTransicao } from "@/interface/projecoes";
 
 /**
@@ -64,7 +65,21 @@ import { nomeDoMotivoCancelamento, nomeDoMotivoPausa, projetarTransicao } from "
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Trilha de auditoria" };
+/**
+ * **A aba leva o título da ocorrência, depois do nome da tela** (item 90, spec §4.3), pela mesma função
+ * `cache()` que a página usa: uma ida ao banco atende as duas. O que a autorização esconde sai como o
+ * recuo `Trilha de auditoria`, sem confirmar existência.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ocorrenciaId: string }>;
+}): Promise<Metadata> {
+  const { ocorrenciaId } = await params;
+  const titulo = await tituloDeAbaDaOcorrencia(ocorrenciaId, "Trilha de auditoria");
+  // Uma ocorrência chamada literalmente "Trilha de auditoria" sai sem o prefixo, e isso é aceito.
+  return { title: titulo === "Trilha de auditoria" ? titulo : `Trilha de auditoria · ${titulo}` };
+}
 
 export default async function TrilhaDeAuditoria({
   params,
@@ -112,22 +127,13 @@ export default async function TrilhaDeAuditoria({
     );
   };
 
-  // **A MESMA regra da rota e de T-05**, e ela é função da Aplicação chamada por quem tem o `Vinculo` —
-  // nunca uma quarta cópia da condição de leitura.
-  const quem = {
-    pessoaId: escopo.ctx.pessoaId,
-    podeLerTodas: escopo.ctx.vinculo.pode("ocorrencia.ler_todas"),
-  };
-
-  let lida;
-  try {
-    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
-  } catch (erro) {
-    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
-    throw erro;
-  }
-
-  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
+  /**
+   * **A MESMA leitura que o `generateMetadata` fez** (item 90): `lerOcorrenciaDaTela` é `cache()` do React,
+   * e dentro dela mora a condição de leitura — função da Aplicação chamada por quem tem o `Vinculo`, nunca
+   * uma quarta cópia. Inexistente, de outra organização e sem permissão chegam aqui como o mesmo `null`.
+   */
+  const lida = await lerOcorrenciaDaTela(ocorrenciaId);
+  if (lida === null) return naoEncontrada();
 
   const registros = (await verTrilhaDeAuditoria(escopo.repos.ocorrencias, ocorrenciaId)).map(
     projetarTransicao,

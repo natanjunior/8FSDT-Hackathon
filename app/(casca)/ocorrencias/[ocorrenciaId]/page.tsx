@@ -5,10 +5,8 @@ import { Suspense } from "react";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   OcorrenciaNaoEncontrada,
-  podeLerOcorrencia,
   verComentarios,
   verLinhaDoTempo,
-  verOcorrencia,
   type EventoLido,
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
@@ -70,9 +68,11 @@ import { buttonVariants } from "@/interface/componentes/ui/button";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import { cn } from "@/interface/componentes/utilitarios";
 import {
+  lerOcorrenciaDaTela,
   novoTraceId,
   registrarFalha,
   resolverEscopoParaTela,
+  tituloDeAbaDaOcorrencia,
 } from "@/interface/http";
 import {
   lenteDeRotulo,
@@ -105,7 +105,22 @@ import {
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Ocorrência" };
+/**
+ * **A aba leva o título da ocorrência** (item 90, spec §4.3). Três abas abertas durante a demonstração é o
+ * cenário que a auditoria descreve, e `Ocorrência` três vezes não o resolve.
+ *
+ * **Sem ida a mais ao banco:** `lerOcorrenciaDaTela` é `cache()` do React, e a página abaixo chama a mesma
+ * função com o mesmo id. **Sem vazar existência:** a autorização é a mesma da página, e o que ela esconde
+ * sai como o recuo `Ocorrência`.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ocorrenciaId: string }>;
+}): Promise<Metadata> {
+  const { ocorrenciaId } = await params;
+  return { title: await tituloDeAbaDaOcorrencia(ocorrenciaId, "Ocorrência") };
+}
 
 /**
  * O papel **em palavra**, para descer por prop ao modal.
@@ -140,8 +155,9 @@ export default async function Ocorrencia({
   const { ocorrenciaId } = await params;
 
   /**
-   * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
-   * a recusa do `podeLerOcorrencia`. As duas causas dão a mesma resposta, de propósito (§6.3).
+   * **Montado uma vez, e desde o item 90 há um caminho só até ele:** o `null` de `lerOcorrenciaDaTela`,
+   * que já absorveu as três causas — não existe, é de outra organização, ou quem lê não pode. As três dão
+   * a mesma resposta, de propósito (§6.3).
    *
    * **`resolucao` sai de `escopo` para um `const`** porque a estreiteza de um `let` não sobrevive dentro
    * de uma função aninhada — e é ela que a arrow abaixo captura.
@@ -232,17 +248,15 @@ export default async function Ocorrencia({
   );
   conversaPedida.catch(() => undefined);
 
-  let lida;
-  try {
-    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
-  } catch (erro) {
-    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
-    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
-    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
-    throw erro;
-  }
-
-  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
+  /**
+   * **A mesma leitura que o `generateMetadata` fez**, pela função `cache()` do React (item 90): uma ida ao
+   * banco atende as duas. Ela já traz dentro o `podeLerOcorrencia`, então **inexistente, de outra
+   * organização e sem permissão chegam aqui como o mesmo `null`** — que é a indistinguibilidade da §6.3, e
+   * era o que os dois caminhos de antes construíam à mão. A tela **diz em qual organização você está**,
+   * que é a compensação que o contrato comprou (critério 28.3).
+   */
+  const lida = await lerOcorrenciaDaTela(ocorrenciaId);
+  if (lida === null) return naoEncontrada();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
     pessoaId: escopo.ctx.pessoaId,

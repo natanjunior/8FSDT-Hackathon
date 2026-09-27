@@ -174,3 +174,24 @@ describe("toda página tem título de aba — critérios 90.1 e 90.2", () => {
     expect(fonte).toContain('default: "Resolve Aí"');
   });
 });
+
+describe("o título de T-05 e T-06 vem da mesma leitura da página — spec 90.1 §4.3", () => {
+  const TELAS = [
+    ["app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx", '"Ocorrência"'],
+    ["app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx", '"Trilha de auditoria"'],
+  ] as const;
+
+  it.each(TELAS)("%s lê por lerOcorrenciaDaTela, e nunca por verOcorrencia", (arquivo, recuo) => {
+    const fonte = semComentarios(ler(arquivo));
+    expect(fonte).toContain("lerOcorrenciaDaTela(");
+    expect(fonte).toContain(`tituloDeAbaDaOcorrencia(ocorrenciaId, ${recuo})`);
+    expect(fonte).not.toMatch(/\bverOcorrencia\(/u);
+  });
+
+  it("a função do título engole o erro, e a de leitura aplica a regra de visibilidade", () => {
+    const fonte = semComentarios(ler("src/interface/http/ocorrencia-da-tela.ts"));
+    expect(fonte).toContain("cache(");
+    expect(fonte).toContain("podeLerOcorrencia(lida, quem)");
+    expect(fonte).toMatch(/catch \{\s*return recuo;/u);
+  });
+});
