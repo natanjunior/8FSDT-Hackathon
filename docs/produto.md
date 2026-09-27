@@ -100,8 +100,8 @@ acabou, e sem este quadro o painel melhoraria quando os casos difíceis fossem d
 
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
 conversa dentro da ocorrência, a avaliação, o painel de indicadores, o cadastro de categorias,
-áreas e pessoas, a entrada na organização por código com aprovação do Gestor, e várias organizações
-isoladas na mesma instalação.
+áreas e pessoas, a entrada na organização por código, por link ou por QR, sempre com aprovação do Gestor,
+e várias organizações isoladas na mesma instalação.
 
 **Fora desta versão:**
 
@@ -109,7 +109,6 @@ isoladas na mesma instalação.
   atribuição;
 - avisos automáticos de qualquer tipo — sem notificação, sem sino, sem alarme de ocorrência parada, sem
   e-mail ou mensagem;
-- convite por link e página pública da organização;
 - filtros rápidos salvos;
 - aderir a uma ocorrência parecida em vez de abrir outra igual;
 - nota interna entre Gestores;

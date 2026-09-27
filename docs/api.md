@@ -38,7 +38,8 @@ ocorrência, e quem abre a referência precisa entender que há um contexto ativ
 
 Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
 entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
-convite é a única que dispensa a sessão.
+convite é a única que dispensa a sessão. A razão está na
+[ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
 
 ## A escrita é comando, e não campo
 
@@ -237,8 +238,8 @@ hora estão na referência.
 - **Não há edição de ocorrência.** Título, descrição, categoria e área são escritos uma vez; o que muda
   depois é estado, prioridade, responsável e solução aplicada.
 - **A foto entra no registro**, e não há endereço para anexá-la depois.
-- **Cadastrar alguém cria sempre uma pessoa nova**, sem procurar por e-mail. Reaproveitar cadastro
-  existente exigiria convite, que está fora desta versão.
+- **Cadastrar alguém cria sempre uma pessoa nova**, sem procurar por e-mail. Quem já tem conta entra pelo
+  pedido de entrada, por código ou por link.
 - **Enviar contatos substitui a lista inteira**, e não há endereço próprio de contato.
 - **Um pedido de entrada recusado pode ser refeito**: a unicidade vale enquanto ele está pendente.
 

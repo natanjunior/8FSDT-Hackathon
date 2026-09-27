@@ -23,8 +23,8 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 nele estão em **[A demonstração](#a-demonstração)**.
 
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
-o acesso próprio do Encarregado e as capacidades que caem junto com ele, o convite por link, a nota interna
-e a conversa privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado
+o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
+privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado
 ficou de fora:** todo o corte recaiu sobre adições nossas.
 
 ## O que está entregue
@@ -37,7 +37,7 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 |---|---|---|
 | A `Ocorrência`, com o ciclo de vida inteiro | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
 | **A superfície HTTP** | **43 operações em 35 caminhos** | [`docs/api/openapi.yaml`](docs/api/openapi.yaml), conferido contra o código por `npm run verificar:openapi` |
-| **As telas** | as **dezessete** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
+| **As telas** | as **dezenove** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
 | **O esquema** | **14 tabelas**, em onze migrações | `supabase/migrations/` |
 | **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
 | **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | [[`.github/workflows/entrega.yml`](.github/workflows/entrega.yml)](.github/workflows/entrega.yml) |
@@ -187,7 +187,7 @@ Cada peça, separada:
 
 | Comando | O que confere |
 |---|---|
-| `npm run lint` | As cinco regras de fronteira da ADR-0006, como configuração e não como parágrafo: importação só para dentro e só pela superfície pública do módulo; nada fora de `infraestrutura/clientes/` importa um SDK; `infraestrutura/` só é importada por `composicao/`; `composicao/` só pelos caminhos declarados no `eslint.config.mjs`; e `semOrganizacao` só nos cinco `route.ts` da lista fechada do contrato |
+| `npm run lint` | As cinco regras de fronteira da ADR-0006, como configuração e não como parágrafo: importação só para dentro e só pela superfície pública do módulo; nada fora de `infraestrutura/clientes/` importa um SDK; `infraestrutura/` só é importada por `composicao/`; `composicao/` só pelos caminhos declarados no `eslint.config.mjs`; e `semOrganizacao` só nos cinco `route.ts` da lista fechada do contrato; e a porta sem sessão só na rota e na página do convite |
 | `npm run tipos` | `tsc --noEmit`, em modo estrito |
 | `npm run teste` | Domínio e aplicação, **sem banco**, em segundos |
 | `npm run teste:integracao` | O repositório escopado contra Postgres, no cenário da Persona 1B |

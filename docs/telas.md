@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezessete telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As dezenove telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezessete telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Dezenove telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezessete
+## As dezenove
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -18,12 +18,14 @@ ganha endereço próprio.
 | Redefinir senha | `/redefinir-senha` | *Esqueci a senha.* | qualquer pessoa, sem sessão |
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
+| Convite | `/convite/{codigo}` | *Me mandaram este link. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
 | Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
 | Trilha de auditoria | `/ocorrencias/{id}/auditoria` | *Prove o que aconteceu, campo por campo.* | quem pode ler aquela ocorrência |
 | Painel | `/dashboard` | *Está melhorando ou piorando?* | quem pode ler o painel |
 | Participantes | `/vinculos` | *Quem está aqui, e quem quer entrar?* | quem gere vínculos |
+| Convidar pessoas | `/convidar` | *Como eu chamo gente para cá?* | quem gere vínculos |
 | Configuração | `/configuracao` | *O que desta organização eu posso ajustar?* | quem configura a organização |
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
@@ -52,6 +54,8 @@ flowchart TB
     CONFIG["Configuração"]
     MEUS["Meus dados"]
     GRUPO["Grupo"]
+    CONVITE["Convite"]
+    CONVIDAR["Convidar pessoas"]
 
     CONTA --> ENTRAR
     ENTRAR --> CTX
@@ -68,10 +72,17 @@ flowchart TB
     MENU --> MEUS
     ENTRAR --> GRUPO
     MENU --> GRUPO
+    CONVITE --> CONTA
+    CONVITE --> ENTRAR
+    CONVITE --> ORG
+    MENU --> CONVIDAR
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. A configuração abre as categorias e as áreas.
+
+O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
+conta ou entrar a devolve ao convite.
 
 A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
 pede sessão.
@@ -217,5 +228,5 @@ O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está 
 
 ## Fora desta versão
 
-Não há tela para o Encarregado, nem tela de avisos, nem filtros salvos, nem página pública da organização.
+Não há tela para o Encarregado, nem tela de avisos, nem filtros salvos.
 O que cada ausência custa está em [O produto](produto.md).
