@@ -55,7 +55,7 @@ export function ModalDeDados({ titulo, children }: { titulo: string; children: R
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="border-linha text-interface">
+        <Button type="button" variant="outline" className="border-linha text-interface">
           <TableIcon aria-hidden="true" className="size-4" />
           Ver dados
         </Button>
