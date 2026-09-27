@@ -423,7 +423,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await helena.getByRole("link", { name: "ver a trilha de auditoria" }).click();
   await helena.waitForURL(new RegExp(`/ocorrencias/${ocorrenciaId}/auditoria$`, "u"));
   await expect(helena.getByRole("heading", { name: "Trilha de auditoria" })).toBeVisible();
-  await expect(helena.getByText(TITULO)).toBeVisible();
+  // **`main` em volta, e não `getByText` seco.** Desde o item 90 o `<title>` da aba carrega o título da
+  // ocorrência, e `getByText` casa elemento de `<head>`: sem o recorte são dois nós, e o modo estrito
+  // recusa. O que o passo afirma é o título **no conteúdo**, que é onde ele foi posto para ser lido.
+  await expect(helena.getByRole("main").getByText(TITULO)).toBeVisible();
 
   // **O caminho de três níveis** (critério 66.3): a trilha sobe para a ocorrência pelo caminho, e não por
   // um *voltar* no conteúdo.
