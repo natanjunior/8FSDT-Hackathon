@@ -43,7 +43,7 @@ import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
  * `/`; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha dá o
  * aviso *"Não foi possível criar a conta"*.
  */
-export function FormularioDeCadastro() {
+export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
   const router = useRouter();
   const formulario = useFormularioTocado({
     campos: { nome: "nome", email: "email", senha: "senha" },
@@ -61,8 +61,8 @@ export function FormularioDeCadastro() {
       formulario.recomecar();
       if (proximo.concluido === true) {
         avisarSucesso("Conta criada");
-        // O shell resolve o destino: sem vínculo, T-02 face A (inventário, T-11).
-        router.replace("/");
+        // O destino já chega conferido pela página. Sem ele, o shell resolve: sem vínculo, T-02 face A.
+        router.replace(destino ?? "/");
       } else if (proximo.recusa !== undefined || proximo.erros !== undefined) {
         avisarErro("Não foi possível criar a conta");
       }

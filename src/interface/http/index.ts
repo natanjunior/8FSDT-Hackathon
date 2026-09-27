@@ -43,6 +43,8 @@ export {
   type ErroDeCampo,
 } from "./problema";
 
+export { destinoSeguro } from "./destino-seguro";
+
 export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 
 export {
