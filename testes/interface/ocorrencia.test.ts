@@ -4553,3 +4553,30 @@ describe("88.6 · o número na opção, e o selo na linha", () => {
     }
   });
 });
+
+/**
+ * ============================================================================
+ *  88.3 · a frase dos avisos e o contador dizem a mesma coisa
+ * ============================================================================
+ *
+ * **O único caso deste repositório que lê `docs/`**, e ele existe porque o critério 3 do item 88 é sobre uma
+ * frase de entregável: o contador e a limitação declarada não podem se contradizer.
+ */
+describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
+  const produto = lerFonte("docs/produto.md").replace(/\r\n/gu, "\n");
+
+  it("a frase larga saiu, e a precisa entrou", () => {
+    // **O contador é estado de uma lista que a pessoa abriu.** Enquanto ele existir, *"avisos automáticos
+    // de qualquer tipo"* alcança um número dentro dela, e o entregável passa a se contradizer. A frase nova
+    // nega o que de fato não existe: o aviso que chega sozinho.
+    expect(produto).not.toContain("avisos automáticos de qualquer tipo");
+    expect(produto).toContain("nenhum aviso que chegue sozinho");
+  });
+
+  it("e o que continua fora continua nomeado", () => {
+    // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
+    for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+      expect(produto, ausencia).toContain(ausencia);
+    }
+  });
+});

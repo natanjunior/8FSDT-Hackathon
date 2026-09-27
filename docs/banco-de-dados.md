@@ -174,7 +174,10 @@ ocorrência, então conta como histórico, a chave recusa a remoção, e o camin
 atualização e não apaga linha nenhuma. É o que faz a pessoa readmitida voltar a ver o que já estava
 compartilhado com ela.
 
-A tabela não tem coluna de estado e não tem trilha: desfazer apaga a linha.
+A tabela tem uma coluna de leitura, `aberto_em`: quando quem recebeu abriu a ocorrência pela primeira
+vez, e nulo antes disso. É estado por linha, e não uma data única de última visita: desfazer e refazer o
+compartilhamento devolve a ocorrência à contagem sem nenhuma escrita a mais. Fora dela a tabela não tem
+estado e não tem trilha: desfazer apaga a linha.
 
 ## As contas ficam fora
 
