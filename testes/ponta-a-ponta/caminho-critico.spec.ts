@@ -177,12 +177,14 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // **O recorte de T-03 mudou de forma no item 44c**, e é daí que vêm os três localizadores abaixo — os
   // dois desta seção e o de Marcos, na seguinte. O título da página passa a ser *"Ocorrências"*, fixo, e
   // as duas frases do critério 14.3 viram os rótulos de um `toggle-group` de escolha única — daí
-  // `role="radio"` e `toBeChecked()`. Quem não tem `ocorrencia.ler_todas` não recebe controle (critério
-  // 28.5) e lê a mesma frase como texto, que é o critério 44c.9.
+  // `role="radio"` e `toBeChecked()`. Até o item 87, quem não tinha `ocorrencia.ler_todas` lia a mesma
+  // frase como texto (critério 44c.9); **desde ele, recebe o controle com duas opções** — *Minhas
+  // ocorrências* e *Compartilhadas comigo* —, e o 44c.9 deixa de valer para esse vínculo. O critério 28.5
+  // fica intacto: ele é sobre o `?autor=eu`, que continua só de quem tem `ler_todas`.
   // -------------------------------------------------------------------------
   await helena.goto("/ocorrencias");
-  // Critério 44c.9 — sem `ler_todas` o recorte é texto, e não controle. As palavras são as mesmas.
-  await expect(helena.getByText("Minhas ocorrências")).toBeVisible();
+  // Critério 87.7 — sem `ler_todas` o recorte é controle, com *Minhas* marcada por padrão.
+  await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
   await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
 
   await trocarDeOrganizacao(helena, RECANTO);

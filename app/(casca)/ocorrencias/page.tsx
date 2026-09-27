@@ -11,6 +11,7 @@ import {
   type FiltroDeOcorrencias,
   type OrdenacaoDeOcorrencias,
   type PaginaDeOcorrencias,
+  type VisibilidadeAplicada,
 } from "@/aplicacao/ocorrencia";
 import {
   listarAreas,
@@ -34,9 +35,9 @@ import {
 import { ListaDeOcorrencias } from "@/interface/componentes/lista-de-ocorrencias";
 import { NavegacaoDaLista } from "@/interface/componentes/navegacao-da-lista";
 import { PaginacaoDaLista } from "@/interface/componentes/paginacao-da-lista";
+import { opcoesDoRecorte } from "@/interface/componentes/opcoes-do-recorte";
 import { SeletorDeRecorte } from "@/interface/componentes/recorte-da-lista";
 import { rotuloDoTipoDeArea } from "@/interface/componentes/registro-de-ocorrencia";
-import { RECORTE_MINHAS } from "@/interface/componentes/rotulos";
 import { horaDoCorte, instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import { cn } from "@/interface/componentes/utilitarios";
 import { buttonVariants } from "@/interface/componentes/ui/button";
@@ -163,7 +164,12 @@ export default async function Ocorrencias({
    * **Sem isto o título mente:** com `?autor=eu` a lista traz só as próprias e o cabeçalho continuaria
    * dizendo *"Todas as ocorrências"*, que é o critério 14.3 ao contrário.
    */
-  const visibilidade = podeLerTodas && filtro.apenasDoAutor !== true ? "todas" : "apenas_minhas";
+  const visibilidade: VisibilidadeAplicada =
+    filtro.compartilhadasComigo === true
+      ? "compartilhadas_comigo"
+      : podeLerTodas && filtro.apenasDoAutor !== true
+        ? "todas"
+        : "apenas_minhas";
 
   /** As opções que não dependem de leitura nenhuma — as duas listas são do Domínio. */
   const opcoesDeStatus: readonly OpcaoDeFiltro[] = STATUS.map((status) => ({
@@ -217,21 +223,22 @@ export default async function Ocorrencias({
           <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
 
           <div className="flex items-center gap-3">
-            {podeLerTodas ? (
-              <SeletorDeRecorte
-                consultaAtual={consultaAtual}
-                visibilidadeAplicada={visibilidade}
-                /* **A promessa desce, e não o número** (item 44p, critério 10): esperá-la aqui faria o
-                   cabeçalho esperar pela consulta, que é exatamente o que a linha acima diz que ele não
-                   faz. O seletor imprime os dois números quando eles chegam, junto com a lista. */
-                contagens={paginaPedida.then((pagina) => pagina.contagens)}
-              />
-            ) : (
-              /* Critério 44c.9 — as mesmas palavras, no mesmo lugar, sem controle. Parágrafo e não
-                 `role="status"`: o texto só muda com a página, e região viva que nunca se atualiza é
-                 ruído para quem usa leitor de tela. */
-              <p className="text-interface text-tinta-suave">{RECORTE_MINHAS}</p>
-            )}
+            {/* **O controle é de todo vínculo desde o item 87** (critério 87.7). Quem não tem `ler_todas`
+                recebe *Minhas ocorrências* e *Compartilhadas comigo*: há duas opções, e há o que escolher,
+                então o critério 44c.9 — que existia porque um controle de uma opção só seria um alvo que
+                não faz nada — deixa de valer para ele. Quem tem `ler_todas` continua com *Todas* e
+                *Minhas*, e não ganha a terceira. */}
+            <SeletorDeRecorte
+              consultaAtual={consultaAtual}
+              visibilidadeAplicada={visibilidade}
+              opcoes={opcoesDoRecorte(podeLerTodas)}
+              podeLerTodas={podeLerTodas}
+              /* **A promessa desce, e não o número** (item 44p, critério 10): esperá-la aqui faria o
+                 cabeçalho esperar pela consulta, que é exatamente o que a linha acima diz que ele não
+                 faz. O seletor imprime os números quando eles chegam, junto com a lista — e as opções sem
+                 número não esperam nada. */
+              contagens={paginaPedida.then((pagina) => pagina.contagens)}
+            />
 
             {podeRegistrar && (
               <Link
@@ -397,7 +404,13 @@ async function Lista({
          * num recorte que não sabe que existe.
          */
         <p className="border-linha text-interface border-b px-4 py-3">
-          <Link href="/ocorrencias" className="text-tinta-marca underline underline-offset-4">
+          {/* **`semFiltros` e não `/ocorrencias` cru**: desde o item 87 esta pessoa pode estar na aba
+              *Compartilhadas comigo*, e a aba não é filtro — limpar não pode tirá-la de onde ela escolheu
+              estar. `PARAMETROS_DE_FILTRO` não tem `compartilhadas`, e é isso que preserva. */}
+          <Link
+            href={`/ocorrencias?${semFiltros(consultaAtual).toString()}`}
+            className="text-tinta-marca underline underline-offset-4"
+          >
             Limpar filtros
           </Link>
         </p>

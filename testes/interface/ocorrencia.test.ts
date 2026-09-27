@@ -135,6 +135,11 @@ import {
 } from "@/interface/componentes/rotulos";
 import { horaDoCorte, tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
+import {
+  consultaDoRecorte,
+  opcoesDoRecorte,
+  valorDoRecorte,
+} from "@/interface/componentes/opcoes-do-recorte";
 import { estadoDaLista, TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
   alteracaoDePrioridadeSchema,
@@ -4287,5 +4292,57 @@ describe("87 · a aba na URL e o vazio dela", () => {
       corpo: null,
     });
     expect(vazioDaLista("compartilhadas_comigo", true)).toBe("filtro");
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.7 · O recorte de quem não tem `ler_todas`
+ * ============================================================================
+ *
+ * **O que estas funções existem para conferir é a decisão, e não a redação.** Qual conjunto de opções cada
+ * vínculo recebe, e o que cada escolha escreve na URL, são as duas coisas que o `.tsx` não tem como provar
+ * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
+ */
+describe("87.7 · o recorte de quem não tem ler_todas", () => {
+  it("sem ler_todas: Minhas e Compartilhadas, nesta ordem, sem número", () => {
+    expect(opcoesDoRecorte(false)).toStrictEqual([
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
+      { valor: "compartilhadas", rotulo: "Compartilhadas comigo", contagem: null },
+    ]);
+  });
+
+  it("com ler_todas: Todas e Minhas, com número, e sem a terceira", () => {
+    expect(opcoesDoRecorte(true).map((o) => o.valor)).toStrictEqual(["todas", "minhas"]);
+    expect(opcoesDoRecorte(true).every((o) => o.contagem !== null)).toBe(true);
+  });
+
+  it("o valor marcado sai do que o servidor aplicou", () => {
+    expect(valorDoRecorte("todas")).toBe("todas");
+    expect(valorDoRecorte("apenas_minhas")).toBe("minhas");
+    expect(valorDoRecorte("compartilhadas_comigo")).toBe("compartilhadas");
+  });
+
+  it("trocar para compartilhadas liga o parâmetro e descarta a página; voltar o tira sem ligar autor", () => {
+    const ida = consultaDoRecorte(
+      "pagina=3&ate=x&totalNoCorte=9&status=aberta",
+      "compartilhadas",
+      false,
+    );
+    expect(ida.get("compartilhadas")).toBe("comigo");
+    expect(ida.has("pagina")).toBe(false);
+    expect(ida.has("ate")).toBe(false);
+    expect(ida.has("totalNoCorte")).toBe(false);
+    // O recorte de status sobrevive: trocar de aba não é limpar filtro.
+    expect(ida.get("status")).toBe("aberta");
+
+    const volta = consultaDoRecorte(ida.toString(), "minhas", false);
+    expect(volta.has("compartilhadas")).toBe(false);
+    expect(volta.has("autor")).toBe(false);
+  });
+
+  it("o Gestor em Minhas continua ligando ?autor=eu", () => {
+    expect(consultaDoRecorte("", "minhas", true).get("autor")).toBe("eu");
+    expect(consultaDoRecorte("autor=eu", "todas", true).has("autor")).toBe(false);
   });
 });

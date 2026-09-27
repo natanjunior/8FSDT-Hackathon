@@ -506,12 +506,15 @@ export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribui
  * do roteiro de validação mandam procurá-las em tela. Rótulo curto — *"Todas"*, *"Só as minhas"* — diria
  * a mesma coisa e faria os dois passos descreverem uma tela que não existe.
  *
- * **Moram aqui porque têm dois consumidores com naturezas diferentes:** o `toggle-group` de quem pode
- * trocar de recorte, e o parágrafo de quem não pode (critério 44c.9). A terceira cópia é sempre a que
- * diverge.
+ * **Moram aqui porque têm mais de um consumidor:** o `toggle-group` do recorte e as opções que
+ * `opcoes-do-recorte.ts` monta para ele. Até o item 87 o segundo consumidor era o parágrafo de quem não
+ * podia trocar de recorte (critério 44c.9); esse vínculo passou a receber o controle, com *Minhas
+ * ocorrências* e *Compartilhadas comigo*. A terceira cópia é sempre a que diverge.
  */
 export const RECORTE_TODAS = "Todas as ocorrências";
 export const RECORTE_MINHAS = "Minhas ocorrências";
+/** A aba do item 87. **Sem número**: o lugar dele é do item 88, que conta as não abertas. */
+export const RECORTE_COMPARTILHADAS = "Compartilhadas comigo";
 
 /**
  * ============================================================================

@@ -250,10 +250,11 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // **A lista dela — critérios 31.6 e 28.4.** A linha carrega a frase inteira, sem a palavra do Gestor,
   // e não há coluna de prioridade: ela não tem `ocorrencia.alterar_prioridade` em nenhum desenho de papel.
   await helena.goto("/ocorrencias");
-  await expect(helena.getByText("Minhas ocorrências")).toBeVisible();
+  // Desde o item 87 ela **tem** o controle, com duas opções: *Minhas* marcada, e *Compartilhadas comigo*
+  // ao lado. O critério 44c.9, que fazia disto um texto, deixou de valer para este vínculo.
+  await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
   cobre(test.info(), "5 · 1", {
-    falta:
-      "Minhas ocorrências ser texto e não um par de botões, e a lista não trazer ocorrência de terceiro",
+    falta: "a lista não trazer ocorrência de terceiro",
   });
   // **A linha é uma linha da tabela desde o item 76**: *Minhas ocorrências* tem a forma de *Todas*. O
   // link continua sendo só o título, e o rótulo de status fica na célula ao lado: a linha inteira leva à
