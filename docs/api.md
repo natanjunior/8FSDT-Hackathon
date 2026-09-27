@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 42 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 43 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -25,7 +25,7 @@ cliente, e entrada do cliente é superfície de ataque.
 O que se perde fica declarado: a URL deixa de ser autodescritiva. `/ocorrencias/{id}` não diz de quem é a
 ocorrência, e quem abre a referência precisa entender que há um contexto ativo antes de clicar.
 
-**Cinco operações rodam sem organização ativa**, e a lista é fechada:
+**Seis operações rodam sem organização ativa**, e a lista é fechada:
 
 | Operação | Por que fica fora |
 |---|---|
@@ -34,9 +34,11 @@ ocorrência, e quem abre a referência precisa entender que há um contexto ativ
 | criar uma organização | cria o escopo; não há quem aprove o primeiro Gestor |
 | pedir entrada numa organização | acontece antes de existir vínculo, e recebe o código público |
 | editar os próprios dados | a tabela de pessoas é global, e a escrita é da própria pessoa sobre si |
+| ler um convite | acontece antes de existir conta, e recebe o código público |
 
-Acrescentar uma sexta é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
-entrar é ler ou escrever tabela global pela chave da sessão.
+Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
+entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
+convite é a única que dispensa a sessão.
 
 ## A escrita é comando, e não campo
 
