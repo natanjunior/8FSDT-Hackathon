@@ -202,6 +202,8 @@ onde o polegar alcança.
 | Lista vazia | texto que diz o que fazer em seguida, e não uma área em branco |
 | Carregando | esqueleto do conteúdo, e não um indicador girando sobre o nada |
 | Erro | a frase em português que vem da resposta, com a ação que a pessoa pode tentar |
+| Endereço que não existe | página própria, com o caminho para a aplicação e para esta documentação |
+| Um bloco que não carregou | a falha fica naquele cartão, com a ação de tentar de novo, e o resto da tela continua |
 
 ## Acessibilidade
 
