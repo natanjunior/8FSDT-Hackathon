@@ -35,6 +35,7 @@ import {
 } from "./ordenacao-das-ocorrencias";
 import { CELULA } from "./pecas-da-tabela";
 import { rotuloDePrioridade } from "./rotulos";
+import { SeloDeNaoVista } from "./selo-de-nao-vista";
 import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto } from "./tempo-relativo";
 
@@ -87,6 +88,9 @@ function encerrada(status: string): boolean {
  * |---|---|
  * | ≥ `md` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
  * | celular | linha de três andares, **sem categoria** — achado P-04 do 44c, aprovado pelo hub |
+ *
+ * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não vista* ao lado do status.**
+ * A faixa do celular passou a quebrar (`flex-wrap`) para caber com o status mais longo do Solicitante.
  *
  * **Até o item 76 havia um terceiro desenho**, o cartão alto do recorte A (44c), para *Minhas
  * ocorrências*. O 76 o tirou: o que muda entre os recortes é conteúdo, nunca estrutura. **O preço**, e
@@ -251,8 +255,12 @@ function LinhaDeTriagemNoCelular({
       data-recuada={encerrada(item.status) ? "" : undefined}
     >
       <span className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-2">
           <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+          {/* **`=== true`, e não `??`** — o campo é `boolean | undefined` na projeção, e `undefined`
+              significa *"a pergunta não foi feita"*. Em *Minhas* e em *Todas* nenhuma linha leva selo, por
+              construção. */}
+          {item.naoAberta === true && <SeloDeNaoVista />}
           {segundaLinha !== null && (
             <span className="text-meta text-tinta-suave">{segundaLinha}</span>
           )}
@@ -377,6 +385,7 @@ function TabelaDeTriagem({
               >
                 <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+                  {item.naoAberta === true && <SeloDeNaoVista />}
                   {segundaLinha !== null && (
                     <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
                   )}

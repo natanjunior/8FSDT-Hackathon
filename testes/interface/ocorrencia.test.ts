@@ -4329,16 +4329,24 @@ describe("87 · a aba na URL e o vazio dela", () => {
  * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
  */
 describe("87.7 · o recorte de quem não tem ler_todas", () => {
-  it("sem ler_todas: Minhas e Compartilhadas, nesta ordem, sem número", () => {
+  // **Atualizado pelo item 88**, que deu número à terceira opção — e forma própria a ele, porque ele conta
+  // uma pendência e não um conjunto. *Minhas* continua sem número.
+  it("sem ler_todas: Minhas sem número, Compartilhadas com o das não vistas", () => {
     expect(opcoesDoRecorte(false)).toStrictEqual([
       { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
-      { valor: "compartilhadas", rotulo: "Compartilhadas comigo", contagem: null },
+      {
+        valor: "compartilhadas",
+        rotulo: "Compartilhadas comigo",
+        contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
+      },
     ]);
   });
 
-  it("com ler_todas: Todas e Minhas, com número, e sem a terceira", () => {
-    expect(opcoesDoRecorte(true).map((o) => o.valor)).toStrictEqual(["todas", "minhas"]);
-    expect(opcoesDoRecorte(true).every((o) => o.contagem !== null)).toBe(true);
+  it("com ler_todas: as duas de sempre, as duas com o total", () => {
+    expect(opcoesDoRecorte(true)).toStrictEqual([
+      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas", forma: "total" } },
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas", forma: "total" } },
+    ]);
   });
 
   it("o valor marcado sai do que o servidor aplicou", () => {
@@ -4508,5 +4516,40 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
     // o separador.
     expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.6 · o número na opção, e o selo na linha
+ * ============================================================================
+ *
+ * **Por leitura de fonte, que é o idioma deste arquivo para o que vive em `.tsx`.** O produto não tem
+ * biblioteca de teste de componente; a jornada em tela é do ponta a ponta.
+ */
+describe("88.6 · o número na opção, e o selo na linha", () => {
+  it("zero não desenha pílula na forma das não vistas, e desenha na do total", () => {
+    const fonte = lerFonte("src/interface/componentes/recorte-da-lista.tsx").replace(/\r\n/gu, "\n");
+
+    // A regra *"zero é ausência"* vale só para a pendência: *Todas 0* continua sendo 0.
+    expect(fonte).toContain('forma === "total"');
+    expect(fonte).toContain("if (quantas === 0) return null;");
+    expect(fonte).toContain("CONTAGEM_DE_NAO_VISTAS");
+    expect(fonte).toContain("palavraDeNaoVistas");
+  });
+
+  it("o selo entra nos dois desenhos da lista, e nunca dentro do link do título", () => {
+    const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte.match(/<SeloDeNaoVista \/>/gu)).toHaveLength(2);
+
+    // O título é o `Link` com a camada que torna a linha clicável: um selo dentro dele entraria no nome do
+    // link. **A varredura é por TODOS os `Link` do arquivo**, e não pelo primeiro: `CAMADA_DO_TITULO`
+    // aparece antes no `import`, e fatiar a partir dele começaria o trecho fora de qualquer link.
+    const dentroDeLink = fonte.split("<Link").slice(1);
+    expect(dentroDeLink.length).toBeGreaterThan(0);
+    for (const depois of dentroDeLink) {
+      expect(depois.slice(0, depois.indexOf("</Link>"))).not.toContain("SeloDeNaoVista");
+    }
   });
 });
