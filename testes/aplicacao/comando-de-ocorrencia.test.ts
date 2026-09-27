@@ -20,6 +20,7 @@ import {
   retomarOcorrencia,
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
+  SoParaLeitura,
   TransicaoNaoPermitida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
@@ -230,6 +231,9 @@ function repositorio(opcoes: {
   /** Se a porta do item 27 devolve `conflito`. **Separada das outras três**, pela mesma razão: um
    *  sinalizador só faria um caso ligar o outro. */
   avaliacaoEmConflito?: boolean;
+  /** Com quem a ocorrência está compartilhada (item 87). Uma pessoa basta: o que se mede é o desfecho da
+   *  recusa, `403` em vez de `404`, e não a forma da lista. */
+  compartilhadaCom?: string;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -288,6 +292,16 @@ function repositorio(opcoes: {
         ? { desfecho: "conflito" }
         : { desfecho: "avaliada", ocorrencia: lidaDe(ocorrencia) };
     },
+    // **A porta que a recusa do item 87 consulta**, e só no caminho da recusa: quem não participa e
+    // recebeu leva `403`; quem não recebeu continua levando `404`.
+    compartilhamentoCom: async (_id: string, pessoaId: string) =>
+      opcoes.compartilhadaCom === pessoaId
+        ? {
+            com: { pessoaId, nome: "Vizinha", papel: "solicitante" as const },
+            por: { pessoaId: MORADORA, nome: "Moradora", papel: "solicitante" as const },
+            compartilhadoEm: "2026-09-26T12:00:00.000Z",
+          }
+        : null,
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
@@ -1764,5 +1778,53 @@ describe("avaliarOcorrencia", () => {
     ).catch((causa: unknown) => causa);
 
     expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.1 · Quem recebeu lê, e não age
+ * ============================================================================
+ *
+ * **A escada de `docs/api.md` (*Erros*) ganha um caso.** Quem recebeu a ocorrência compartilhada PODE
+ * LER, então a recusa dele é `403`; quem não alcança a ocorrência continua levando `404`, sem confirmar
+ * que ela existe. **É por isso que a leitura e a ação passaram a ser duas perguntas:** estender só
+ * `podeLerOcorrencia` deixaria quem recebeu cancelar a ocorrência de outra pessoa, porque
+ * `cancelarOcorrencia` não confere autoria depois do portão.
+ */
+describe("87.1 · quem recebeu lê, e não age", () => {
+  const VIZINHA = "00000000-0000-4000-8000-0000000000a7";
+
+  it("cancelar: quem recebeu leva 403, e não 404", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("aberta")], compartilhadaCom: VIZINHA });
+    await expect(
+      cancelarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, motivo: "resolvido_por_conta_propria", observacao: "já resolvi" },
+      ),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
+  });
+
+  it("cancelar: quem não recebeu continua levando 404", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("aberta")] });
+    await expect(
+      cancelarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, motivo: "resolvido_por_conta_propria", observacao: "já resolvi" },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("avaliar: quem recebeu leva 403 da leitura, antes da regra de autoria", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("resolvida")], compartilhadaCom: VIZINHA });
+    await expect(
+      avaliarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, nota: 5 },
+      ),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
   });
 });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   enviarComentario,
   OcorrenciaNaoEncontrada,
+  SoParaLeitura,
   verComentarios,
   type ComentarioLido,
   type OcorrenciaCarregada,
@@ -59,6 +60,10 @@ const repositorio = () =>
     comentar: comentar.mockImplementation((_id: string, dados: { texto: string; em: string }) =>
       Promise.resolve({ id: "nova", texto: dados.texto, autor: GESTOR, criadoEm: dados.em }),
     ),
+    // **Obrigatória desde o item 87**, e não opcional: a recusa de `enviarComentario` a consulta para
+    // escolher entre `403` e `404`, e sem ela o caso *"enviar também recusa"* leva `TypeError`.
+    compartilhamentoCom: (_id: string, pessoaId: string) =>
+      Promise.resolve(ocorrencia?.compartilhamentos.find((c) => c.com.pessoaId === pessoaId) ?? null),
   }) as unknown as RepositorioEscopadoDeOcorrencias;
 
 beforeEach(() => {
@@ -113,6 +118,34 @@ describe("quem pode ler a conversa — critério 30.2", () => {
     ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
 
     expect(comentar).not.toHaveBeenCalled();
+  });
+
+  /**
+   * **Quem recebeu a ocorrência compartilhada LÊ a conversa e não escreve nela** (item 87). As mensagens
+   * já estão na linha do tempo desde o item 30; escondê-las num bloco e mostrá-las no outro seria pior
+   * que qualquer das duas escolhas. O que ela não tem é o campo de envio, na tela e na API.
+   */
+  it("quem recebeu compartilhada lê a conversa e leva 403 ao escrever — item 87", async () => {
+    ocorrencia = {
+      autor: AUTORA,
+      compartilhamentos: [
+        {
+          com: { ...ESTRANHA, papel: "solicitante" },
+          por: { ...AUTORA, papel: "solicitante" },
+          compartilhadoEm: "2026-09-26T12:00:00.000Z",
+        },
+      ],
+    } as unknown as OcorrenciaLida;
+    const recebeu = { pessoaId: ESTRANHA.pessoaId, podeLerTodas: false };
+
+    await expect(
+      enviarComentario(repositorio(), ID, recebeu, { texto: "oi" }),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
+    expect(comentar).not.toHaveBeenCalled();
+
+    paginaDoRepositorio = [mensagem("a", "2026-08-20T10:00:00.000Z")];
+    const pagina = await verComentarios(repositorio(), ID, recebeu);
+    expect(pagina.itens.length).toBe(1);
   });
 
   it("enviar em ocorrência de outra organização dá 404, e não escreve", async () => {

@@ -10,7 +10,7 @@ import {
   recusaPorEstadoDeCancelamento,
   type ContextoDoComando,
 } from "./comando";
-import { participaDaOcorrencia } from "./consultas";
+import { participaDaOcorrencia, recusaDeQuemNaoParticipa } from "./consultas";
 import { MotivoNaoPermitidoParaOPapel, OcorrenciaNaoEncontrada } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -65,7 +65,7 @@ export async function cancelarOcorrencia(
   const agregado = carregada.ocorrencia;
 
   /**
-   * **A conferência de visibilidade, e aqui ela NÃO é redundante.** Nos comandos anteriores quem tinha a
+   * **A conferência de participação, e aqui ela NÃO é redundante.** Nos comandos anteriores quem tinha a
    * permissão do comando tinha `ocorrencia.ler_todas` no mesmo papel; este é chamado também pelo
    * Solicitante, que tem `cancelar_propria` e **não** tem `ler_todas`. Quem tenta cancelar a ocorrência
    * de outra pessoa leva `404` — nunca `403`, e nunca a confirmação de que ela existe (§6.3).
@@ -74,8 +74,9 @@ export async function cancelarOcorrencia(
     pessoaId: ctx.pessoaId,
     podeLerTodas: ctx.permissoes.includes("ocorrencia.ler_todas"),
   };
+  // Quem participa age; quem só recebeu leva `403`, e quem não alcança leva `404` (item 87).
   if (!participaDaOcorrencia(agregado.autorPessoaId, quem)) {
-    throw new OcorrenciaNaoEncontrada();
+    throw await recusaDeQuemNaoParticipa(repositorio, entrada.ocorrenciaId, quem.pessoaId);
   }
 
   if (!transicaoPermitida(agregado.status, "cancelar")) {

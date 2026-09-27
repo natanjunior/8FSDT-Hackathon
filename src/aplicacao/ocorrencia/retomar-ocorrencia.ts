@@ -1,7 +1,7 @@
 import { transicaoPermitida } from "@/dominio/ocorrencia";
 
 import { recusaDeTransicao, type ContextoDoComando } from "./comando";
-import { participaDaOcorrencia } from "./consultas";
+import { participaDaOcorrencia, recusaDeQuemNaoParticipa } from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -35,7 +35,7 @@ import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas"
  * transicionar?"* e entrega o resultado; a resposta HTTP é a ocorrência relida, e é ali que o cliente
  * descobre.
  *
- * **A conferência de visibilidade continua rodando**, mesmo sendo hoje redundante — quem tem
+ * **A conferência de participação continua rodando**, mesmo sendo hoje redundante — quem tem
  * `ocorrencia.retomar` tem `ocorrencia.ler_todas` no mesmo papel. Amarrar a leitura ao comando por
  * coincidência de mapa é o acoplamento que some quando o mapa muda (contrato §4.5).
  */
@@ -52,8 +52,9 @@ export async function retomarOcorrencia(
     pessoaId: ctx.pessoaId,
     podeLerTodas: ctx.permissoes.includes("ocorrencia.ler_todas"),
   };
+  // Quem participa age; quem só recebeu leva `403`, e quem não alcança leva `404` (item 87).
   if (!participaDaOcorrencia(agregado.autorPessoaId, quem)) {
-    throw new OcorrenciaNaoEncontrada();
+    throw await recusaDeQuemNaoParticipa(repositorio, entrada.ocorrenciaId, quem.pessoaId);
   }
 
   if (!transicaoPermitida(agregado.status, "retomar")) {
