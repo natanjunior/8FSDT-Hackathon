@@ -6,12 +6,17 @@ import { describe, expect, it } from "vitest";
 import { INTEGRANTES, TOKEN_DA_COR } from "@/interface/componentes/integrantes-do-grupo";
 import { COR_DA_MARCA } from "@/interface/manifesto";
 import {
+  aplicarContraste,
   atributoDoTema,
+  contrasteDoAtributo,
+  contrasteDoCookie,
+  cookieDoContraste,
   cookieDoTema,
   SCRIPT_DO_TEMA,
   temaDoAtributo,
   temaDoCookie,
 } from "@/interface/componentes/tema";
+import { vlibrasNaRota } from "@/interface/componentes/rota-do-vlibras";
 import { cn } from "@/interface/componentes/utilitarios";
 
 /**
@@ -82,6 +87,7 @@ describe("app/globals.css — a estrutura de três estados", () => {
   const claro = tokensDe(corpoDoBloco(":root {"));
   const sistema = tokensDe(corpoDoBloco(':root:not([data-theme="light"])'));
   const escolhido = tokensDe(corpoDoBloco(':root[data-theme="dark"]'));
+  const contrasteAlto = tokensDe(corpoDoBloco(':root[data-contraste="alto"]'));
 
   it("acha e lê os três blocos", () => {
     // Sem isto, renomear um seletor faria TODAS as asserções abaixo passarem por vacuidade —
@@ -89,10 +95,11 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(claro.size).toBeGreaterThan(10);
     expect(sistema.size).toBeGreaterThan(10);
     expect(escolhido.size).toBeGreaterThan(10);
+    expect(contrasteAlto.size).toBeGreaterThan(10);
   });
 
   it("não tem token com definição única dentro de media ou de [data-theme]", () => {
-    const semPisoNoClaro = [...sistema.keys(), ...escolhido.keys()]
+    const semPisoNoClaro = [...sistema.keys(), ...escolhido.keys(), ...contrasteAlto.keys()]
       .filter((token) => !claro.has(token))
       .sort();
 
@@ -103,6 +110,21 @@ describe("app/globals.css — a estrutura de três estados", () => {
     expect(Object.fromEntries([...escolhido].sort())).toEqual(
       Object.fromEntries([...sistema].sort()),
     );
+  });
+
+  it("o alto contraste redeclara toda cor que o escuro declara, e mais os literais do claro (item 85)", () => {
+    // Token esquecido aqui herda do tema por baixo, e aí existem duas paletas de alto contraste por
+    // acidente — a leitura que a spec §4.1 recusou. Tipografia, raio e movimento não são cor.
+    const NAO_SAO_COR = /^--(font-|radius|texto-|curva-|tempo-)/u;
+    const cores = new Set(
+      [...claro.keys(), ...escolhido.keys()].filter((token) => !NAO_SAO_COR.test(token)),
+    );
+    // Os tokens de fiação (`var(--…)`) seguem o vocabulário; só os literais precisam de valor próprio.
+    const literais = [...cores].filter(
+      (token) => !(claro.get(token) ?? "").startsWith("var(") || escolhido.has(token),
+    );
+    const faltando = literais.filter((token) => !contrasteAlto.has(token)).sort();
+    expect(faltando).toEqual([]);
   });
 
   it("tipografia e raio são declarados uma vez, fora dos blocos escuros", () => {
@@ -479,6 +501,74 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
 });
 
 /**
+ * **Item 85 — o alto contraste, medido.** A razão declarada é 7:1 para texto (spec §4.4), sobre todo fundo
+ * em que texto aparece, e 3:1 para o que não é texto. O branco literal do botão destrutivo saiu (PA-1 do
+ * plano), então não há cor fora de token pintando texto.
+ */
+describe("app/globals.css — o alto contraste, medido (item 85)", () => {
+  const alto = tokensDe(corpoDoBloco(':root[data-contraste="alto"]'));
+  const cor = (token: string): Lab => {
+    const valor = alto.get(token);
+    if (valor === undefined) throw new Error(`${token} não está no bloco de alto contraste`);
+    return oklabDe(valor);
+  };
+
+  const TINTAS = [
+    "--ink", "--ink-soft", "--ink-faint", "--accent", "--destructive",
+    "--ok", "--info", "--primary", "--accent-foreground",
+  ];
+  const FUNDOS = ["--ground", "--surface", "--chrome", "--sunken", "--accent-bg"];
+  const SOLIDOS: ReadonlyArray<[string, string]> = [
+    ["--marca-foreground", "--accent"],
+    ["--marca-foreground", "--atencao"],
+    ["--marca-foreground", "--ok"],
+    ["--marca-foreground", "--info"],
+    ["--marca-foreground", "--ink-soft"],
+    ["--primary-foreground", "--primary"],
+    ["--destructive-foreground", "--destructive"],
+    ["--surface", "--info"],
+    // O selo *Em análise* cheio: `bg-tinta-suave text-superficie` (`selo-de-status.tsx:23`).
+    ["--surface", "--ink-soft"],
+  ];
+
+  it("imprime a medição, que é o que o relatório do item copia", () => {
+    for (const tinta of TINTAS) {
+      const pior = Math.min(...FUNDOS.map((fundo) => contraste(cor(tinta), cor(fundo))));
+      console.info(`[85] ${tinta} ${hexDe(cor(tinta))} pior fundo ${pior.toFixed(2)}:1`);
+    }
+    for (const [tinta, fundo] of SOLIDOS) {
+      console.info(`[85] ${tinta} sobre ${fundo} ${contraste(cor(tinta), cor(fundo)).toFixed(2)}:1`);
+    }
+  });
+
+  it.each(TINTAS)("%s passa 7:1 sobre todo fundo de texto", (tinta) => {
+    for (const fundo of FUNDOS) {
+      expect(contraste(cor(tinta), cor(fundo)), `${tinta} sobre ${fundo}`).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it.each(SOLIDOS)("%s passa 7:1 sobre o sólido %s", (tinta, fundo) => {
+    expect(contraste(cor(tinta), cor(fundo))).toBeGreaterThanOrEqual(7);
+  });
+
+  it("a borda, o foco e as séries do gráfico passam 3:1 contra a superfície", () => {
+    for (const token of ["--line", "--ring", "--chart-1", "--chart-2", "--chart-3", "--chart-4"]) {
+      expect(contraste(cor(token), cor("--surface")), token).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("nenhum componente pinta texto com branco literal (PA-1)", () => {
+    for (const arquivo of ["button.tsx", "badge.tsx"]) {
+      const fonte = readFileSync(
+        fileURLToPath(new URL(`../../src/interface/componentes/ui/${arquivo}`, import.meta.url)),
+        "utf8",
+      );
+      expect(fonte, arquivo).not.toContain("text-white");
+    }
+  });
+});
+
+/**
  * **O avatar da página do grupo, medido — item 70, critério 2 e resposta P2 da spec.**
  *
  * A inicial é texto, e texto pede 4,5:1 contra o que está atrás dele. Na forma `clara` o que está atrás é
@@ -491,9 +581,11 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
  */
 describe("app/globals.css — o avatar da página do grupo, medido (item 70)", () => {
   const claro = tokensDe(corpoDoBloco(":root {"));
+  // O alto contraste usa a forma **escura** (a variante `dark:` vale nele), e o piso sobe para 7:1 (item 85).
   const MODOS = [
-    { nome: "claro", cabecalho: ":root {" },
-    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+    { nome: "claro", cabecalho: ":root {", forma: "claro", piso: 4.5 },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]', forma: "escuro", piso: 4.5 },
+    { nome: "alto contraste", cabecalho: ':root[data-contraste="alto"]', forma: "escuro", piso: 7 },
   ] as const;
 
   const gama = (canal: number): number =>
@@ -516,7 +608,7 @@ describe("app/globals.css — o avatar da página do grupo, medido (item 70)", (
   const razao = (uma: number, outra: number): number =>
     (Math.max(uma, outra) + 0.05) / (Math.min(uma, outra) + 0.05);
 
-  for (const { nome, cabecalho } of MODOS) {
+  for (const { nome, cabecalho, forma: chaveDaForma, piso } of MODOS) {
     describe(`modo ${nome}`, () => {
       const bloco = tokensDe(corpoDoBloco(cabecalho));
       const cor = (token: string): Lab => {
@@ -526,15 +618,15 @@ describe("app/globals.css — o avatar da página do grupo, medido (item 70)", (
       };
 
       for (const integrante of INTEGRANTES) {
-        const forma = integrante.forma[nome];
-        it(`${integrante.nome}: a inicial passa 4,5:1 na forma ${forma}`, () => {
+        const forma = integrante.forma[chaveDaForma];
+        it(`${integrante.nome}: a inicial passa ${piso}:1 na forma ${forma}`, () => {
           const propria = cor(TOKEN_DA_COR[integrante.cor]);
           const tinta = forma === "clara" ? propria : cor("--marca-foreground");
           const fundo =
             forma === "clara" ? luminanciaComposta(propria, cor("--surface"), 0.12) : luminancia(propria);
           const medido = razao(luminancia(tinta), fundo);
           console.info(`[70] ${nome} ${integrante.nome} ${forma} ${hexDe(propria)} ${medido.toFixed(2)}:1`);
-          expect(medido).toBeGreaterThanOrEqual(4.5);
+          expect(medido).toBeGreaterThanOrEqual(piso);
         });
       }
     });
@@ -663,5 +755,97 @@ describe("o tema do produto — item 72", () => {
     // Sem `Secure`: o Chromium o descarta sobre `http://` em host que não é loopback (achado A-10).
     expect(gravado.toLowerCase()).not.toContain("secure");
     expect(temaDoCookie(cookieDoTema("escuro").split(";")[0] ?? "")).toBe("escuro");
+  });
+});
+
+/**
+ * **Item 85 — a chave de alto contraste, pelo mesmo caminho do tema.**
+ *
+ * As mesmas duas cópias da regra, e a mesma tabela aplicada às duas: `contrasteDoCookie` roda no
+ * componente, e o `SCRIPT_DO_TEMA` roda antes do React. Só `alto`, exato, liga.
+ */
+describe("o contraste do produto — item 85", () => {
+  const CASOS: ReadonlyArray<[string, "alto" | "normal"]> = [
+    ["", "normal"],
+    ["contraste=alto", "alto"],
+    ["contraste=normal", "normal"],
+    ["tema=claro; contraste=alto", "alto"],
+    ["contraste=alto; tema=claro", "alto"],
+    ["xcontraste=alto", "normal"],
+    ["contraste=ALTO", "normal"],
+    ["contraste=alto2", "normal"],
+    ["contraste=", "normal"],
+  ];
+
+  /** Roda o script e devolve os dois atributos que ficaram no `<html>`. */
+  function rodarOScript(cookie: string | (() => never)): { tema: string; contraste: string | null } {
+    const atributos = new Map<string, string>([["data-theme", "dark"]]);
+    const documento = {
+      get cookie() {
+        return typeof cookie === "function" ? cookie() : cookie;
+      },
+      documentElement: {
+        setAttribute(nome: string, valor: string) {
+          atributos.set(nome, valor);
+        },
+      },
+    };
+    new Function("document", SCRIPT_DO_TEMA)(documento);
+    return { tema: atributos.get("data-theme") ?? "", contraste: atributos.get("data-contraste") ?? null };
+  }
+
+  it.each(CASOS)("o cookie «%s» dá contraste %s, na função e no script", (cookie, esperado) => {
+    expect(contrasteDoCookie(cookie)).toBe(esperado);
+    expect(rodarOScript(cookie).contraste).toBe(esperado === "alto" ? "alto" : null);
+  });
+
+  it("o contraste não mexe no tema, e o tema não mexe no contraste", () => {
+    expect(rodarOScript("tema=claro; contraste=alto")).toEqual({ tema: "light", contraste: "alto" });
+    expect(rodarOScript("tema=claro")).toEqual({ tema: "light", contraste: null });
+    expect(rodarOScript("contraste=alto")).toEqual({ tema: "dark", contraste: "alto" });
+  });
+
+  it("o script não quebra com o cookie inacessível, e deixa escuro e normal", () => {
+    expect(
+      rodarOScript(() => {
+        throw new Error("SecurityError");
+      }),
+    ).toEqual({ tema: "dark", contraste: null });
+  });
+
+  it("o atributo volta a contraste, e só `alto` é alto", () => {
+    expect(contrasteDoAtributo("alto")).toBe("alto");
+    expect(contrasteDoAtributo(null)).toBe("normal");
+    expect(contrasteDoAtributo("")).toBe("normal");
+  });
+
+  it("aplicar põe o atributo quando alto e o tira quando normal", () => {
+    const feitos: string[] = [];
+    const raiz = {
+      setAttribute: (nome: string, valor: string) => feitos.push(`set ${nome}=${valor}`),
+      removeAttribute: (nome: string) => feitos.push(`remove ${nome}`),
+    };
+    aplicarContraste(raiz, "alto");
+    aplicarContraste(raiz, "normal");
+    expect(feitos).toEqual(["set data-contraste=alto", "remove data-contraste"]);
+  });
+
+  it("o cookie gravado segue o do tema: um ano, o site todo, sem `Secure`", () => {
+    expect(cookieDoContraste("alto")).toBe("contraste=alto; path=/; max-age=31536000; samesite=lax");
+    expect(contrasteDoCookie(cookieDoContraste("normal").split(";")[0] ?? "")).toBe("normal");
+  });
+});
+
+describe("o VLibras aparece no produto e não na documentação — item 85", () => {
+  it.each([
+    ["/", true],
+    ["/entrar", true],
+    ["/ocorrencias/abc", true],
+    ["/grupo", true],
+    ["/documentacao", false],
+    ["/documentacao/adr/0017", false],
+    ["/documentacaox", true],
+  ])("%s → %s", (caminho, esperado) => {
+    expect(vlibrasNaRota(caminho)).toBe(esperado);
   });
 });

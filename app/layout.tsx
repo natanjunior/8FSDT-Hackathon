@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ReaplicacaoDoTema } from "@/interface/componentes/reaplicacao-do-tema";
 import { ID_DO_SCRIPT_DO_TEMA, SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 import { Toaster } from "@/interface/componentes/ui/sonner";
+import { VLibras } from "@/interface/componentes/vlibras";
 import { COR_DA_MARCA } from "@/interface/manifesto";
 
 import "./globals.css";
@@ -76,6 +77,8 @@ export default function CascoDaAplicacao({ children }: { children: React.ReactNo
             página, e vir depois do conteúdo é uma das duas razões pelas quais o teste de ponta a ponta,
             que acha o bloco *Situação* pela primeira `<section>` que contém a palavra, não o lê. */}
         <Toaster />
+        {/* O VLibras (item 85, ADR-0017) se cala em `/documentacao`; o componente diz por quê. */}
+        <VLibras />
       </body>
     </html>
   );
