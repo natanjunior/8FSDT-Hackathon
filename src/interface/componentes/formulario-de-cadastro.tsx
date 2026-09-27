@@ -9,6 +9,7 @@ import { acaoDeCriarConta, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
+import { CLASSE_DO_CAMINHO } from "@/interface/componentes/moldura-de-conta";
 import {
   avisarErro,
   avisarSucesso,
@@ -23,6 +24,7 @@ import {
   EmptyTitle,
 } from "@/interface/componentes/ui/empty";
 import { Input } from "@/interface/componentes/ui/input";
+import { cn } from "@/interface/componentes/utilitarios";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
 
@@ -104,10 +106,7 @@ export function FormularioDeCadastro() {
               "Já tenho conta", abaixo do formulário; este é o de T-12, e é a metade que o 6a declarou como
               dívida do 6b (spec do 6a, §3.6). */}
           {estado.recusa === "CONTA_JA_EXISTE" && (
-            <Link
-              href="/redefinir-senha"
-              className="text-tinta-marca text-interface w-fit py-1 underline underline-offset-4"
-            >
+            <Link href="/redefinir-senha" className={cn(CLASSE_DO_CAMINHO, "w-fit")}>
               Esqueci a senha
             </Link>
           )}

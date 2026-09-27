@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FormularioDeCadastro } from "@/interface/componentes/formulario-de-cadastro";
-import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 
 /**
  * **T-11 · Criar conta.** Alcançada de T-01, e o botão "voltar" do navegador volta para lá.
@@ -21,7 +21,7 @@ export default function TelaDeCriarConta() {
       titulo="Criar conta"
       contexto="Uma conta só serve para todas as organizações de que você participar."
       caminhos={
-        <Link href="/entrar" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
+        <Link href="/entrar" className={CLASSE_DO_CAMINHO}>
           Já tenho conta
         </Link>
       }

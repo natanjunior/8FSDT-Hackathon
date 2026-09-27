@@ -203,13 +203,15 @@ function ReguaDoOu() {
 
 /**
  * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão. Uma só, para que
- * o "Sair" de T-02 e o "Voltar" da face E não pareçam coisas diferentes.
+ * o "Sair" de T-02 e o "Voltar" da face E não pareçam coisas diferentes, e para que nenhuma tela de
+ * credencial volte a escrevê-la à mão.
  *
- * **`min-h-11` é o piso do guia §9** (44 px). As quatro telas de credencial do 44m escrevem a classe à
- * mão, com `py-1`, abaixo do piso; é o achado P-4 do plano do 44o, e não se conserta aqui.
+ * **`min-h-11` e `min-w-11` são o piso do guia §9** (44 px), e o piso vale nos dois lados: a sonda do
+ * item 91 mediu o "Voltar" da face E em 37 px de largura, com a altura já certa. O `justify-center`
+ * mantém a palavra no meio do alvo quando ela é mais curta que ele.
  */
 export const CLASSE_DO_CAMINHO =
-  "text-tinta-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4";
+  "text-tinta-marca text-interface inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4";
 
 /**
  * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02, T-10 e, desde o item 65, a
@@ -225,7 +227,7 @@ export function CaminhoDeSair() {
       <Button
         type="submit"
         variant="link"
-        className={cn(CLASSE_DO_CAMINHO, "h-auto px-0 py-0 font-normal")}
+        className={cn(CLASSE_DO_CAMINHO, "h-auto min-w-11 px-2 py-0 font-normal")}
       >
         Sair
       </Button>

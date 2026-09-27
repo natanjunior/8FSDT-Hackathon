@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeEntrada } from "@/interface/componentes/formulario-de-entrada";
-import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { resolverParaTela } from "@/interface/http";
 
 /**
@@ -44,13 +44,10 @@ export default async function TelaDeEntrar({
       apresentacao
       caminhos={
         <>
-          <Link href="/criar-conta" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
+          <Link href="/criar-conta" className={CLASSE_DO_CAMINHO}>
             Criar conta
           </Link>
-          <Link
-            href="/redefinir-senha"
-            className="text-tinta-marca text-interface py-1 underline underline-offset-4"
-          >
+          <Link href="/redefinir-senha" className={CLASSE_DO_CAMINHO}>
             Esqueci a senha
           </Link>
         </>
