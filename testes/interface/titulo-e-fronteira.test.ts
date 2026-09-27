@@ -105,6 +105,37 @@ describe("a falha de uma leitura secundária fica no cartão — critério 90.6"
     expect(conteiner.querySelector("h2#bloco-linha-do-tempo")?.textContent).toBe("Linha do tempo");
     expect(conteiner.querySelectorAll("button")).toHaveLength(0);
   });
+
+  /**
+   * **O caminho feliz da fronteira, e é o que protege o desenho de T-05.** A documentação do `catchError`
+   * avisa que o recuo passado por propriedade é **renderizado no servidor a cada pintura**, mesmo sem erro
+   * nenhum. Se ele também **aparecesse** no documento, os três cartões de T-05 nasceriam com o título e o
+   * trilho duplicados — e as guardas de estrutura que leem o DOM não pegam isso, porque leem o
+   * código-fonte. Sem erro, a fronteira entrega só os filhos.
+   */
+  it("sem erro, a fronteira entrega os filhos e o recuo não aparece", async () => {
+    await act(async () => {
+      raiz.render(
+        createElement(
+          "div",
+          null,
+          createElement("p", null, "O relato da ocorrência"),
+          createElement(
+            FalhaDoCartao,
+            {
+              frase: FRASES_DE_FALHA.linhaDoTempo,
+              antes: createElement("h2", { id: "bloco-linha-do-tempo" }, "Linha do tempo"),
+            },
+            createElement("p", null, "A linha do tempo de verdade"),
+          ),
+        ),
+      );
+    });
+    expect(conteiner.textContent).toContain("A linha do tempo de verdade");
+    expect(conteiner.textContent).not.toContain("A linha do tempo não carregou.");
+    expect(conteiner.querySelector("h2#bloco-linha-do-tempo")).toBeNull();
+    expect(conteiner.querySelectorAll("button")).toHaveLength(0);
+  });
 });
 
 describe("as frases do item 90 — a voz de tela do guia", () => {
