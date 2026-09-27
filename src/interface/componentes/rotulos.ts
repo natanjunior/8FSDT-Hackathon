@@ -356,10 +356,24 @@ export function vazioDaBarra(status: StatusOcorrencia): string {
  * mensagem; o rótulo fica — e é ele que *"impede um Gestor de escrever ali achando que é interno"* depois
  * da primeira linha da conversa, que é a razão que o critério 30.4 dá para as frases serem diferentes.
  */
-export function vazioDaConversa(ehAutor: boolean): string {
+export function vazioDaConversa(ehAutor: boolean, podeEscrever = true): string {
+  // **O terceiro ramo é de quem recebeu a ocorrência compartilhada** (item 87): as duas frases acima
+  // convidam a escrever, e ele não tem campo. Convidar para um campo que não existe é a mentira que o
+  // critério 30.4 existe para impedir, de outro lado.
+  if (!podeEscrever) return "Nenhuma mensagem ainda.";
   return ehAutor
     ? "Nenhuma mensagem ainda. Escreva aqui para falar com os Gestores."
     : "Nenhuma mensagem ainda. Escreva aqui para falar com o Solicitante.";
+}
+
+/**
+ * A faixa de quem recebeu a ocorrência compartilhada (item 87), no lugar das ações do cabeçalho.
+ *
+ * **O papel vai depois do nome e separado por ponto médio**, porque *"por Gestor Ana"* e *"por Ana,
+ * Gestor"* tropeçam no gênero, e o rótulo do papel é fixo.
+ */
+export function faixaDeQuemRecebeu(nome: string, papelEmPalavra: string): string {
+  return `Compartilhada com você por ${nome} · ${papelEmPalavra}.`;
 }
 
 /** O par do vazio, com o mesmo predicado — e este fica na tela para sempre. Ver `vazioDaConversa`. */

@@ -131,10 +131,19 @@ import {
   rotulosDeStatus,
   textoDaNota,
   vazioDaBarra,
+  faixaDeQuemRecebeu,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
 import { horaDoCorte, tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
+import {
+  aposCompartilhar,
+  aposDesfazer,
+  buscaProntaParaPedir,
+  motivoEscrito,
+  textoDoVazioDaBusca,
+  type CandidatoNaTela,
+} from "@/interface/componentes/busca-de-compartilhamento";
 import {
   consultaDoRecorte,
   opcoesDoRecorte,
@@ -4344,5 +4353,56 @@ describe("87.7 · o recorte de quem não tem ler_todas", () => {
   it("o Gestor em Minhas continua ligando ?autor=eu", () => {
     expect(consultaDoRecorte("", "minhas", true).get("autor")).toBe("eu");
     expect(consultaDoRecorte("autor=eu", "todas", true).has("autor")).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87 · O painel de compartilhar, a metade conferível
+ * ============================================================================
+ */
+describe("87 · o painel de compartilhar, a metade conferível", () => {
+  const item = (
+    situacao: CandidatoNaTela["situacao"],
+    motivo: CandidatoNaTela["motivo"] = null,
+  ): CandidatoNaTela => ({ pessoaId: "p", nome: "Ana", papel: "Solicitante", situacao, motivo });
+
+  it("só pede com 2 letras depois de aparar", () => {
+    expect(buscaProntaParaPedir(" a ")).toBe(false);
+    expect(buscaProntaParaPedir("an")).toBe(true);
+  });
+
+  it("quem já vê carrega o motivo escrito; os outros, nada", () => {
+    expect(motivoEscrito(item("ja_ve", "le_todas"))).toBe("Já vê todas as ocorrências.");
+    expect(motivoEscrito(item("ja_ve", "autor"))).toBe("Registrou esta ocorrência.");
+    expect(motivoEscrito(item("disponivel"))).toBeNull();
+    expect(motivoEscrito(item("ja_compartilhada"))).toBeNull();
+  });
+
+  it("compartilhar e desfazer trocam só a linha tocada", () => {
+    const lista = [item("disponivel"), { ...item("disponivel"), pessoaId: "q" }];
+    const depois = aposCompartilhar(lista, "p");
+    expect(depois.map((i) => i.situacao)).toStrictEqual(["ja_compartilhada", "disponivel"]);
+    expect(aposDesfazer(depois, "p")[0]!.situacao).toBe("disponivel");
+    expect(aposDesfazer(depois, "p")[1]!.situacao).toBe("disponivel");
+  });
+
+  it("o vazio diz o que fazer antes do mínimo, e que não achou depois", () => {
+    expect(textoDoVazioDaBusca("a")).toBe("Digite o nome de quem vai ver esta ocorrência.");
+    expect(textoDoVazioDaBusca("zz")).toBe("Ninguém com esse nome.");
+  });
+
+  it("a faixa de quem recebeu põe o papel depois do nome, com ponto médio", () => {
+    expect(faixaDeQuemRecebeu("Marcos Vieira", "Gestor")).toBe(
+      "Compartilhada com você por Marcos Vieira · Gestor.",
+    );
+  });
+
+  it("o vazio da conversa de quem não escreve não convida a escrever", () => {
+    expect(vazioDaConversa(true, false)).toBe("Nenhuma mensagem ainda.");
+    expect(vazioDaConversa(false, false)).toBe("Nenhuma mensagem ainda.");
+    // Os dois ramos de sempre continuam intactos.
+    expect(vazioDaConversa(true)).toContain("falar com os Gestores");
+    expect(vazioDaConversa(false)).toContain("falar com o Solicitante");
   });
 });

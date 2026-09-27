@@ -77,6 +77,7 @@ export function ConversaDaOcorrencia({
   vazio,
   rotuloDoCampo,
   retorno,
+  podeEscrever,
 }: {
   ocorrenciaId: string;
   /** A promessa da estrada direta. **Ela parte antes do `await` do detalhe** — critério 29.5. */
@@ -91,18 +92,28 @@ export function ConversaDaOcorrencia({
   rotuloDoCampo: string;
   /** Os títulos do aviso, prontos (`RETORNO_DA_MENSAGEM`). */
   retorno: TextosDoRetorno;
+  /**
+   * **Quem recebeu a ocorrência compartilhada LÊ e não escreve** (item 87). Com `false`, o campo e o
+   * rodapé não são montados, e as mensagens continuam na tela: elas já estão na linha do tempo desde o
+   * item 30, e esconder num bloco o que o outro mostra seria pior que qualquer das duas escolhas.
+   */
+  podeEscrever: boolean;
 }) {
   const router = useRouter();
   const campoId = useId();
   const idDoTitulo = useId();
-  const [acrescentadas, setAcrescentadas] = useState<readonly ComentarioDoEnvio[]>([]);
+  const [acrescentadas, setAcrescentadas] = useState<
+    readonly ComentarioDoEnvio[]
+  >([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const formulario = useFormularioTocado({
     campos: { mensagem: campoId },
-    erros: { mensagem: texto.trim() === "" ? "Escreva a mensagem." : undefined },
+    erros: {
+      mensagem: texto.trim() === "" ? "Escreva a mensagem." : undefined,
+    },
   });
 
   async function enviar() {
@@ -114,7 +125,11 @@ export function ConversaDaOcorrencia({
     setAviso(null);
 
     // **A tela manda o que digitou, sem aparar.** Quem apara é o schema, num lugar só.
-    const resultado = await enviarComentario(ocorrenciaId, texto, organizacaoId);
+    const resultado = await enviarComentario(
+      ocorrenciaId,
+      texto,
+      organizacaoId,
+    );
     setEnviando(false);
 
     if (!resultado.ok) {
@@ -160,48 +175,55 @@ export function ConversaDaOcorrencia({
         </Suspense>
       </FalhaDoCartao>
 
-      <CorpoDoCartao>
-        <Campo id={campoId} rotulo={rotuloDoCampo} obrigatorio erro={formulario.erroDe("mensagem")}>
-          {(controle) => (
-            <Textarea
-              {...controle}
-              value={texto}
-              onChange={(evento) => {
-                setTexto(evento.target.value);
-                // Aviso velho ao lado de texto novo é a pior combinação possível.
-                setAviso(null);
-                formulario.mudou("mensagem");
-              }}
-              onBlur={formulario.aoSair("mensagem")}
-              disabled={enviando}
-              rows={3}
-              /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
+      {podeEscrever && (
+        <CorpoDoCartao>
+          <Campo
+            id={campoId}
+            rotulo={rotuloDoCampo}
+            obrigatorio
+            erro={formulario.erroDe("mensagem")}
+          >
+            {(controle) => (
+              <Textarea
+                {...controle}
+                value={texto}
+                onChange={(evento) => {
+                  setTexto(evento.target.value);
+                  // Aviso velho ao lado de texto novo é a pior combinação possível.
+                  setAviso(null);
+                  formulario.mudou("mensagem");
+                }}
+                onBlur={formulario.aoSair("mensagem")}
+                disabled={enviando}
+                rows={3}
+                /* **O mesmo teto do schema** — 4000. Dois números divergiriam. E **sem contador de caracteres**:
                  não há um em nenhum campo do produto, inclusive nos de 1.000 e de 5.000. */
-              maxLength={4000}
-            />
-          )}
-        </Campo>
+                maxLength={4000}
+              />
+            )}
+          </Campo>
 
-        {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
+          {aviso !== null && <ErroDoFormulario>{aviso}</ErroDoFormulario>}
 
-        {/* **A mensagem enviada responde com aviso** (guia §7, item 44g), e isso fecha a pergunta Q-6 do
+          {/* **A mensagem enviada responde com aviso** (guia §7, item 44g), e isso fecha a pergunta Q-6 do
             item 30: a mensagem também aparece na lista, e o aviso é o retorno que todo salvamento dá.
             **O botão continua contorno** (guia §2: a ação na cor da marca desta tela é o comando do
             momento), e as duas classes que distinguiam habilitado de desabilitado saíram: ele só fica
             inerte durante o envio. */}
-        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 font-medium"
-            disabled={enviando}
-            onClick={() => void enviar()}
-          >
-            <IndicadorDeEnvio ativo={enviando} />
-            {enviando ? "Enviando…" : "Enviar"}
-          </Button>
-        </RodapeDoFormulario>
-      </CorpoDoCartao>
+          <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 font-medium"
+              disabled={enviando}
+              onClick={() => void enviar()}
+            >
+              <IndicadorDeEnvio ativo={enviando} />
+              {enviando ? "Enviando…" : "Enviar"}
+            </Button>
+          </RodapeDoFormulario>
+        </CorpoDoCartao>
+      )}
     </Cartao>
   );
 }
@@ -309,11 +331,18 @@ function ListaDeMensagens({
                   );
                   return (
                     <span className="text-meta flex items-center gap-2">
-                      <AvatarDePessoa nome={mensagem.autor.nome} className="size-7" />
+                      <AvatarDePessoa
+                        nome={mensagem.autor.nome}
+                        className="size-7"
+                      />
                       <span>
-                        <span className="text-tinta text-interface font-medium">{quem}</span>
+                        <span className="text-tinta text-interface font-medium">
+                          {quem}
+                        </span>
                         <span className="text-tinta-suave"> · </span>
-                        <span className="text-tinta-suave font-mono tabular-nums">{quando}</span>
+                        <span className="text-tinta-suave font-mono tabular-nums">
+                          {quando}
+                        </span>
                       </span>
                     </span>
                   );
