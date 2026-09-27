@@ -390,7 +390,9 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+  // **Quinze desde o item 88**, e o décimo quinto — `naoAberta` — só existe dentro do recorte das
+  // compartilhadas: fora dele a chave é ausente, e não `null`.
+  it("traz os quinze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
 
     expect(resumo.categoria).toStrictEqual({
@@ -4278,6 +4280,8 @@ describe("87 · a fronteira HTTP do compartilhamento", () => {
       tipo: "recebida",
       por: { nome: "Ana", papel: "solicitante" },
       compartilhadoEm: "2026-09-26T12:00:00.000Z",
+      // O quarto campo do ramo (item 88): a linha da fixture nasce com `abertoEm` nulo.
+      naoAberta: true,
     });
     // A lista não viaja para quem recebeu: ela nomeia outros vizinhos.
     expect(JSON.stringify(daVizinha)).not.toContain(VIZINHA);
@@ -4437,5 +4441,72 @@ describe("88.2 · a abertura não decide nada sobre papel", () => {
     for (const proibido of ["porId", "podeLerOcorrencia", "pode(", "papel"]) {
       expect(corpo, proibido).not.toContain(proibido);
     }
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.4 · a abertura é ação de servidor, e ela invalida a lista
+ * ============================================================================
+ *
+ * **Por que ação de servidor e não endereço do contrato.** O cache de cliente do Next reusa a entrada de
+ * T-03 em toda navegação de voltar; `router.refresh()` limpa só a rota atual, e `revalidatePath` num route
+ * handler não alcança a memória do navegador. Numa função de servidor ele alcança. De lambuja, nada grava
+ * durante *prefetch*.
+ */
+describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
+  const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
+
+  it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
+    const inicio = acoes.indexOf("export async function acaoDeRegistrarAbertura(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
+
+    expect(corpo).toContain("resolverEscopoParaTela");
+    expect(corpo).toContain('revalidatePath("/ocorrencias")');
+    // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
+    // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
+    expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
+  });
+
+  it("nenhuma rota de app/ grava a abertura", () => {
+    // A escrita mora num lugar só; um `route.ts` que a repetisse seria a segunda cópia.
+    const rotas = globSync("app/**/route.ts", { cwd: RAIZ });
+    expect(rotas.length).toBeGreaterThan(0);
+    for (const rota of rotas) {
+      expect(lerFonte(rota), rota).not.toContain("marcarCompartilhamentoAberto");
+      expect(lerFonte(rota), rota).not.toContain("registrarAberturaDoCompartilhamento");
+    }
+  });
+
+  it("o componente dispara uma vez e não desenha nada", () => {
+    const fonte = lerFonte("src/interface/componentes/registro-de-abertura.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte).toContain('"use client"');
+    expect(fonte).toContain("useEffect");
+    expect(fonte).toContain("return null");
+    // O guarda que impede a segunda chamada no mesmo ciclo de vida.
+    expect(fonte).toContain("useRef");
+  });
+
+  it("T-05 só o monta quando a leitura é a primeira", () => {
+    const pagina = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx").replace(/\r\n/gu, "\n");
+
+    expect(pagina).toContain("recebida.naoAberta");
+    expect(pagina).toContain("<RegistroDeAbertura");
+  });
+
+  it("só T-05 conta como abertura: a trilha e o anexo não", () => {
+    // Não conta como abertura a trilha em T-06, a miniatura ou o original do anexo, o
+    // `GET /api/ocorrencias/{id}`, nem o *prefetch* da linha da lista. Com um lugar só montando o
+    // componente, isso é verdade por construção — e este caso é o que impede a segunda montagem.
+    const montam = globSync("app/**/*.tsx", { cwd: RAIZ }).filter((caminho) =>
+      lerFonte(caminho).includes("<RegistroDeAbertura"),
+    );
+
+    expect(montam).toHaveLength(1);
+    // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
+    // o separador.
+    expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
   });
 });

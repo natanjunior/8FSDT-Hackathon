@@ -606,6 +606,12 @@ function projetarCompartilhamentoDoDetalhe(lida: OcorrenciaLida, quemLe: QuemLe)
     tipo: "recebida" as const,
     por: { nome: recebida.por.nome, papel: recebida.por.papel },
     compartilhadoEm: recebida.compartilhadoEm,
+    /**
+     * Se **quem está lendo** ainda não tinha aberto esta ocorrência (item 88). É o gatilho da escrita da
+     * abertura, e vive só neste ramo: o ramo de quem compartilhou **não** leva `abertoEm` de ninguém,
+     * porque recibo de leitura sobre um vizinho está fora do escopo.
+     */
+    naoAberta: recebida.abertoEm === null,
   };
 }
 
@@ -658,6 +664,13 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida, lente: Lent
     responsavel: lida.responsavel,
     quantidadeDeAnexos: lida.quantidadeDeAnexos,
     avaliada: lida.avaliada,
+    /**
+     * **Só existe quando a pergunta foi feita** — dentro do recorte `compartilhadas=comigo` (item 88).
+     * O *spread* condicional é o que torna a chave **ausente** em vez de `null`: o `openapi.yaml` a declara
+     * opcional e `type: boolean`, e um `null` no corpo contradiria o contrato. `undefined` significa *"a
+     * pergunta não foi feita"*, e é o que `lista-de-ocorrencias.tsx` lê com `=== true`.
+     */
+    ...(lida.naoAberta === null ? {} : { naoAberta: lida.naoAberta }),
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
   };
