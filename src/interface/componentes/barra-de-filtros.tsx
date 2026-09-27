@@ -171,7 +171,7 @@ export function BarraDeFiltros({
       {algumLigado && (
         <Link
           href={`?${semFiltros(consultaAtual).toString()}`}
-          className="text-tinta-marca text-interface ml-auto px-2 py-1 underline underline-offset-4"
+          className="text-tinta-marca text-interface ml-auto inline-flex min-h-11 items-center px-2 underline underline-offset-4"
         >
           Limpar filtros
         </Link>
