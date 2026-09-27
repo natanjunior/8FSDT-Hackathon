@@ -10,7 +10,7 @@ import {
   CLASSE_DO_CAMINHO,
   MolduraDeConta,
 } from "@/interface/componentes/moldura-de-conta";
-import { resolverEscopoParaTela } from "@/interface/http";
+import { destinoDoConvite, resolverEscopoParaTela } from "@/interface/http";
 import { projetarContexto } from "@/interface/projecoes";
 
 /**
@@ -18,11 +18,13 @@ import { projetarContexto } from "@/interface/projecoes";
  *  O despachante — e a tela do vínculo sem permissões
  * ============================================================================
  *
- * **Duas coisas, e mais nenhuma.** Não há tela desenhada para `/`: o que existe ali é o losango *"tem
- * organização ativa?"*, que desemboca em T-01, T-02, T-10 ou T-03.
+ * **Três coisas, e mais nenhuma.** A terceira é o convite: `?e=CODIGO` no endereço leva à página do
+ * convite **antes de a sessão ser olhada** (item 86). Fora isso, não há tela desenhada para `/`: o que
+ * existe ali é o losango *"tem organização ativa?"*, que desemboca em T-01, T-02, T-10 ou T-03.
  *
  * | Situação | Destino |
  * |---|---|
+ * | `?e=` no endereço | a página do convite, antes de olhar a sessão |
  * | sem sessão | **T-01** (`/entrar`) |
  * | `organizacaoAtiva == null` | **T-02** (`/organizacao`) |
  * | com `ocorrencia.ler_propria` | **T-03** (`/ocorrencias`) |
@@ -53,7 +55,16 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Início" };
 
-export default async function Despachante() {
+export default async function Despachante({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // **O convite vem antes da sessão** (critério 86.6). Quem abre o link sem conta é justamente quem ele
+  // existe para receber, e a checagem de sessão logo abaixo o mandaria para /entrar sem o código.
+  const convite = destinoDoConvite(await searchParams);
+  if (convite !== null) redirect(convite);
+
   let escopo;
   try {
     escopo = await resolverEscopoParaTela("ocorrencia.ler_propria");

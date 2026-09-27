@@ -44,6 +44,7 @@ export {
 } from "./problema";
 
 export { destinoSeguro } from "./destino-seguro";
+export { destinoDoConvite, linkDoConvite, montarLinkDoConvite } from "./link-do-convite";
 
 export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 
