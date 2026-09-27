@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Settings,
   Tags,
+  UserPlus,
   UserRound,
   Users,
   type LucideIcon,
@@ -154,6 +155,15 @@ export function Navegacao({
                       rotulo="Participantes"
                       Icone={Users}
                       apoio={pendentes === null ? null : fraseDePedidosPendentes(pendentes)}
+                      caminho={caminho}
+                      aoTocar={aoTocar}
+                    />
+                  )}
+                  {podeGerirVinculos && (
+                    <ItemDeNavegacao
+                      destino="/convidar"
+                      rotulo="Convidar pessoas"
+                      Icone={UserPlus}
                       caminho={caminho}
                       aoTocar={aoTocar}
                     />
