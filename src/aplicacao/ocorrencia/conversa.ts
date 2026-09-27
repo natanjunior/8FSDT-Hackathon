@@ -1,4 +1,9 @@
-import { LIMITE_PADRAO, podeLerOcorrencia, type QuemPergunta } from "./consultas";
+import {
+  LIMITE_PADRAO,
+  participaDaOcorrencia,
+  podeLerOcorrencia,
+  type QuemPergunta,
+} from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { ComentarioLido, CursorDeConversa, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -90,7 +95,7 @@ export async function enviarComentario(
 
   // **A autoria vem do agregado carregado**, e não de uma segunda leitura: `Ocorrencia` já a carrega, e
   // pedir `porId` só para conferir quem é o autor seria a terceira ida ao banco por mensagem enviada.
-  if (!podeLerOcorrencia({ autor: { pessoaId: carregada.ocorrencia.autorPessoaId } }, quem)) {
+  if (!participaDaOcorrencia(carregada.ocorrencia.autorPessoaId, quem)) {
     throw new OcorrenciaNaoEncontrada();
   }
 

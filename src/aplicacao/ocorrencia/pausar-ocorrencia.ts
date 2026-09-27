@@ -1,7 +1,7 @@
 import { transicaoPermitida, type MotivoPausa } from "@/dominio/ocorrencia";
 
 import { recusaDeTransicao, type ContextoDoComando } from "./comando";
-import { podeLerOcorrencia } from "./consultas";
+import { participaDaOcorrencia } from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -50,7 +50,7 @@ export async function pausarOcorrencia(
     pessoaId: ctx.pessoaId,
     podeLerTodas: ctx.permissoes.includes("ocorrencia.ler_todas"),
   };
-  if (!podeLerOcorrencia({ autor: { pessoaId: agregado.autorPessoaId } }, quem)) {
+  if (!participaDaOcorrencia(agregado.autorPessoaId, quem)) {
     throw new OcorrenciaNaoEncontrada();
   }
 

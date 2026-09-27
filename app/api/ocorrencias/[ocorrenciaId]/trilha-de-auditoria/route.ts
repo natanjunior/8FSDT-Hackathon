@@ -1,4 +1,9 @@
-import { OcorrenciaNaoEncontrada, verOcorrencia, verTrilhaDeAuditoria } from "@/aplicacao/ocorrencia";
+import {
+  OcorrenciaNaoEncontrada,
+  podeLerOcorrencia,
+  verOcorrencia,
+  verTrilhaDeAuditoria,
+} from "@/aplicacao/ocorrencia";
 import { comContexto } from "@/interface/http";
 import { projetarTransicao } from "@/interface/projecoes";
 
@@ -20,9 +25,11 @@ export const GET = comContexto(
     const id = parametros.ocorrenciaId ?? "";
     const lida = await verOcorrencia(repos.ocorrencias, id);
 
-    if (!ctx.vinculo.pode("ocorrencia.ler_todas") && lida.autor.pessoaId !== ctx.pessoaId) {
-      throw new OcorrenciaNaoEncontrada();
-    }
+    // **A regra de leitura estava copiada aqui em linha**, e o item 87 a devolveu a `podeLerOcorrencia`
+    // — o único lugar onde ela mora. Sem isto, quem recebeu a ocorrência compartilhada veria a trilha em
+    // T-06 e levaria `404` nesta rota, e *"a leitura muda num lugar só"* seria falso.
+    const quem = { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") };
+    if (!podeLerOcorrencia(lida, quem)) throw new OcorrenciaNaoEncontrada();
 
     return { itens: (await verTrilhaDeAuditoria(repos.ocorrencias, id)).map(projetarTransicao) };
   },

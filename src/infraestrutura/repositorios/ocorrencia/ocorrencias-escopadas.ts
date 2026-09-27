@@ -2,6 +2,7 @@ import type {
   AnexoLido,
   AtribuicaoLida,
   ComentarioLido,
+  CompartilhamentoLido,
   ContagensLidas,
   ColunaDeOrdenacao,
   FiltroDeOcorrencias,
@@ -21,6 +22,7 @@ import {
   TERMINAIS,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
+import type { Papel } from "@/dominio/organizacao";
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
@@ -299,6 +301,49 @@ function montarAnexo(linha: LinhaDeAnexo): AnexoLido {
   };
 }
 
+/**
+ * Os compartilhamentos de uma ocorrência — item 87.
+ *
+ * **Os dois pares de `join` partem de `vinculos`**, como os de autor deste arquivo. **O de quem recebeu
+ * filtra `revogado_em is null`, e o de quem compartilhou não**: a linha de quem saiu fica sem efeito e
+ * volta na readmissão; quem compartilhou continua nomeado, como quem transicionou continua nomeado na
+ * trilha. Com `and c.com_pessoa_id = $3` vira a leitura de um par — é o `compartilhamentoCom`.
+ */
+const SELECT_DOS_COMPARTILHAMENTOS = `
+  select c.com_pessoa_id,
+         pc.nome  as com_nome,
+         vc.papel as com_papel,
+         c.por_pessoa_id,
+         pp.nome  as por_nome,
+         vp.papel as por_papel,
+         c.compartilhado_em
+    from compartilhamentos c
+    join vinculos vc on vc.pessoa_id = c.com_pessoa_id
+                    and vc.organizacao_id = c.organizacao_id
+                    and vc.revogado_em is null
+    join pessoas  pc on pc.id = vc.pessoa_id
+    join vinculos vp on vp.pessoa_id = c.por_pessoa_id and vp.organizacao_id = c.organizacao_id
+    join pessoas  pp on pp.id = vp.pessoa_id
+   where c.organizacao_id = $1 and c.ocorrencia_id = $2`;
+
+type LinhaDeCompartilhamento = {
+  com_pessoa_id: string;
+  com_nome: string;
+  com_papel: Papel;
+  por_pessoa_id: string;
+  por_nome: string;
+  por_papel: Papel;
+  compartilhado_em: Date;
+};
+
+function montarCompartilhamento(linha: LinhaDeCompartilhamento): CompartilhamentoLido {
+  return {
+    com: { pessoaId: linha.com_pessoa_id, nome: linha.com_nome, papel: linha.com_papel },
+    por: { pessoaId: linha.por_pessoa_id, nome: linha.por_nome, papel: linha.por_papel },
+    compartilhadoEm: linha.compartilhado_em.toISOString(),
+  };
+}
+
 function montarTransicao(linha: LinhaDeTransicao): TransicaoLida {
   return {
     sequencia: linha.sequencia,
@@ -326,6 +371,7 @@ function montarOcorrencia(
   linha: LinhaDeOcorrencia,
   ultima: TransicaoLida,
   anexos: readonly AnexoLido[],
+  compartilhamentos: readonly CompartilhamentoLido[],
 ): OcorrenciaLida {
   return {
     id: linha.id,
@@ -344,6 +390,7 @@ function montarOcorrencia(
       linha.responsavel_pessoa_id === null || linha.responsavel_nome === null
         ? null
         : { pessoaId: linha.responsavel_pessoa_id, nome: linha.responsavel_nome },
+    compartilhamentos,
     solucaoAplicada: linha.solucao_aplicada,
     avaliacao:
       linha.avaliacao_nota === null || linha.avaliada_em === null
@@ -841,10 +888,14 @@ export function repositorioEscopadoDeOcorrencias(
     const linha = linhas[0];
     if (linha === undefined) return null;
 
-    // As duas leituras filhas em paralelo — é uma ida e volta, não duas.
-    const [trilha, anexos] = await Promise.all([
+    // As três leituras filhas em paralelo — é uma ida e volta, não três.
+    const [trilha, anexos, compartilhamentos] = await Promise.all([
       executar<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]),
       executar<LinhaDeAnexo>(SELECT_DOS_ANEXOS, [id]),
+      executar<LinhaDeCompartilhamento>(
+        `${SELECT_DOS_COMPARTILHAMENTOS} order by c.compartilhado_em desc, c.com_pessoa_id`,
+        [id],
+      ),
     ]);
 
     const ultima = trilha[trilha.length - 1];
@@ -853,7 +904,12 @@ export function repositorioEscopadoDeOcorrencias(
       throw new Error(`Ocorrência ${id} sem registro de transição — invariante 2 violada.`);
     }
 
-    return montarOcorrencia(linha, montarTransicao(ultima), anexos.map(montarAnexo));
+    return montarOcorrencia(
+      linha,
+      montarTransicao(ultima),
+      anexos.map(montarAnexo),
+      compartilhamentos.map(montarCompartilhamento),
+    );
   }
 
   return {
@@ -1380,6 +1436,22 @@ export function repositorioEscopadoDeOcorrencias(
       const linha = linhas[0];
       if (linha === undefined) return null;
       return { chave: linha.chave, thumbnailChave: linha.thumbnail_chave };
+    },
+
+    /**
+     * A linha de um par, para a recusa de escrita escolher entre `403` e `404` (item 87).
+     *
+     * **É o mesmo `SELECT` do detalhe com um filtro a mais**, e não uma segunda definição de *"com quem
+     * está compartilhada"*: duas definições divergiriam no dia em que o vínculo revogado mudasse de
+     * regra num dos lados.
+     */
+    async compartilhamentoCom(ocorrenciaId, comPessoaId) {
+      const linhas = await consulta<LinhaDeCompartilhamento>(
+        `${SELECT_DOS_COMPARTILHAMENTOS} and c.com_pessoa_id = $3`,
+        [ocorrenciaId, comPessoaId],
+      );
+      const linha = linhas[0];
+      return linha === undefined ? null : montarCompartilhamento(linha);
     },
 
     /**

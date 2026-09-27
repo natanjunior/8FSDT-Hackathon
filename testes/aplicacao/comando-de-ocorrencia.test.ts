@@ -158,6 +158,8 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
     prioridade: agregado.prioridade,
     categoria: { id: agregado.categoriaId, nome: "Problemas de iluminação", icone: "lightbulb" },
     area: { id: agregado.areaId, nome: "Garagem", tipo: agregado.areaTipo },
+    // Nenhum compartilhamento: quem age aqui é autor ou Gestor, e é o que estes casos medem (item 87).
+    compartilhamentos: [],
     localizacaoComplemento: agregado.localizacaoComplemento,
     anexos: [],
     autor,

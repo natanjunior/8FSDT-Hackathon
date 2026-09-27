@@ -227,3 +227,22 @@ export class SomenteOAutorPodeAvaliar extends ErroDeDominio {
     );
   }
 }
+
+/**
+ * `403` a quem recebeu a ocorrência compartilhada e tentou agir sobre ela (item 87).
+ *
+ * **O `codigo` é `PERMISSAO_INSUFICIENTE`, de propósito, e é a segunda classe com ele.** O openapi
+ * descreve esse código como *"ou a operação depende de uma relação com o recurso que o chamador não
+ * tem"* (`SemPermissao`), que é exatamente este caso; um código novo obrigaria todo cliente a aprender
+ * uma palavra para a mesma decisão. **O que muda é o texto**, porque *"o seu papel não permite"* seria
+ * falso: o papel dela permite comentar, cancelar a própria e avaliar — só não nesta ocorrência.
+ */
+export class SoParaLeitura extends ErroDeDominio {
+  constructor() {
+    super(
+      "PERMISSAO_INSUFICIENTE",
+      "Sem permissão",
+      "Esta ocorrência foi compartilhada com você só para leitura.",
+    );
+  }
+}

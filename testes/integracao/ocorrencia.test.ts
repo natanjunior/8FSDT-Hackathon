@@ -8,6 +8,7 @@ import {
   avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
+  podeLerOcorrencia,
   pausarOcorrencia,
   registrarOcorrencia,
   registrarSolucaoAplicada,
@@ -4209,6 +4210,43 @@ describe("o compartilhamento no banco — item 87", () => {
         organizacaoId,
       ]),
     ).rejects.toThrow();
+  });
+
+  /**
+   * **É a metade de banco do critério 87.5.** A outra metade, *"deixa de ver"*, já é do `comContexto`, que
+   * recusa vínculo revogado antes de qualquer leitura (item 84).
+   */
+  it("porId traz com quem está compartilhada; o revogado some da lista e a linha fica", async () => {
+    const id = await registrada("Infiltração no teto do 302");
+    await inserir(id, recebePessoaId);
+
+    const lida = await portas().ocorrencias.porId(id);
+    expect(lida!.compartilhamentos.map((c) => c.com.pessoaId)).toStrictEqual([recebePessoaId]);
+    expect(lida!.compartilhamentos[0]!.com.papel).toBe("solicitante");
+    expect(lida!.compartilhamentos[0]!.por.pessoaId).toBe(pessoaId);
+
+    await consultaCrua(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const revogada = (await portas().ocorrencias.porId(id))!;
+    expect(revogada.compartilhamentos).toHaveLength(0);
+    expect(podeLerOcorrencia(revogada, { pessoaId: recebePessoaId, podeLerTodas: false })).toBe(false);
+    expect(await portas().ocorrencias.compartilhamentoCom(id, recebePessoaId)).toBeNull();
+    const linhas = await consultaCrua(
+      `select 1 from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(linhas).toHaveLength(1); // a linha nunca saiu da tabela
+
+    // A readmissão do item 84 é `update … revogado_em = null`, e é o que faz o critério 5 valer sem código.
+    await consultaCrua(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [recebePessoaId, organizacaoId],
+    );
+    const readmitida = (await portas().ocorrencias.porId(id))!;
+    expect(readmitida.compartilhamentos).toHaveLength(1);
+    expect(podeLerOcorrencia(readmitida, { pessoaId: recebePessoaId, podeLerTodas: false })).toBe(true);
   });
 
   it("compartilhar não mexe em ocorrencias.atualizada_em", async () => {

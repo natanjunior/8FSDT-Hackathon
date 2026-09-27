@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import type {
   PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { CategoriaNaoEncontrada } from "@/aplicacao/organizacao";
+import { PERMISSOES } from "@/dominio/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
 import {
   COMANDOS_IMPLEMENTADOS,
@@ -818,6 +819,7 @@ function umaOcorrenciaLidaCom(anexos: readonly AnexoLido[]): OcorrenciaLida {
     status: "aberta",
     prioridade: "normal",
     categoria: { ...RESUMO_LIDO.categoria, icone: "lightbulb" },
+    compartilhamentos: [],
     area: RESUMO_LIDO.area,
     localizacaoComplemento: null,
     anexos,
@@ -4151,5 +4153,45 @@ describe("a nota em estrelas — critério 76.5", () => {
     // O rótulo acessível é texto dentro do `<label>`, e não `aria-label`: é a mesma marcação do item 18.
     expect(modal).toContain('<span className="sr-only">{nomeDaNota(opcao.valor)}</span>');
     expect(existsSync(`${RAIZ}src/interface/componentes/ui/rating.tsx`)).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.2 · A leitura muda num lugar só, e nenhuma permissão nasce
+ * ============================================================================
+ *
+ * **O critério 2 do item 87 é sobre onde o conceito mora, e é por isso que o teste lê fonte.** Um teste
+ * de comportamento não distingue *"o compartilhamento entra na leitura num lugar"* de *"entra em sete"*:
+ * os dois passariam. O que ele prende é a estrutura, e a estrutura é o que a decisão protege.
+ */
+describe("87.2 · a leitura muda num lugar só, e nenhuma permissão nasce", () => {
+  // **O fim de linha é normalizado:** no clone Windows os `.ts` saem com CRLF, e procurar `"\n}\n"` cru
+  // devolveria -1.
+  const fonte = lerFonte("src/aplicacao/ocorrencia/consultas.ts").replace(/\r\n/gu, "\n");
+  const corpoDe = (nome: string) => {
+    const inicio = fonte.indexOf(`export function ${nome}(`);
+    const fim = fonte.indexOf("\n}\n", inicio);
+    expect(inicio, nome).toBeGreaterThanOrEqual(0);
+    expect(fim, nome).toBeGreaterThan(inicio);
+    return fonte.slice(inicio, fim);
+  };
+
+  it("o enum de permissões continua com dezoito, e nenhuma fala de compartilhar", () => {
+    expect(PERMISSOES).toHaveLength(18);
+    expect(PERMISSOES.some((p) => p.includes("compartilh"))).toBe(false);
+  });
+
+  it("o compartilhamento entra em podeLerOcorrencia e não em participaDaOcorrencia", () => {
+    expect(corpoDe("podeLerOcorrencia")).toMatch(/compartilhamentos/u);
+    expect(corpoDe("participaDaOcorrencia")).not.toMatch(/compartilh/u);
+  });
+
+  it("nenhuma rota repete a regra em linha", () => {
+    const rotas = globSync("app/**/*.{ts,tsx}", { cwd: RAIZ });
+    expect(rotas.length).toBeGreaterThan(0);
+    for (const rota of rotas) {
+      expect(lerFonte(rota), rota).not.toMatch(/autor\.pessoaId !== ctx\.pessoaId/u);
+    }
   });
 });

@@ -1,5 +1,6 @@
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import type { TipoDeAnexo } from "@/dominio/anexo";
+import type { Papel } from "@/dominio/organizacao";
 import type {
   Comando,
   MotivoCancelamento,
@@ -12,6 +13,21 @@ import type {
 
 /** Como uma Pessoa aparece **dentro** de um recurso escopado. Nunca traz contato (contrato §4.6). */
 export type PessoaReferencia = { pessoaId: string; nome: string };
+
+/** Uma pessoa dentro do compartilhamento: a referência de sempre, mais o papel NESTA organização. */
+export type PessoaComPapel = PessoaReferencia & { papel: Papel };
+
+/**
+ * Um compartilhamento, como a leitura o devolve — item 87.
+ *
+ * **Só de vínculo ATIVO de quem recebeu**: o revogado fica na tabela sem efeito e volta na readmissão.
+ * **Quem compartilhou aparece mesmo revogado**, como quem transicionou continua nomeado na trilha.
+ */
+export type CompartilhamentoLido = {
+  com: PessoaComPapel;
+  por: PessoaComPapel;
+  compartilhadoEm: string;
+};
 
 /** Um registro da trilha, como a leitura o devolve. Os cinco campos do enunciado. */
 export type TransicaoLida = {
@@ -146,6 +162,9 @@ export type OcorrenciaLida = {
   /** Quem está cuidando **agora** — a atribuição vigente, ou `null` quando não há. Uma no máximo, e quem
    *  garante é o índice `atribuicoes_vigente_uk` (item 19). */
   responsavel: PessoaReferencia | null;
+  /** Com quem a ocorrência está compartilhada (item 87). Do mais recente para o mais antigo. Lista
+   *  vazia, nunca `null`. */
+  compartilhamentos: readonly CompartilhamentoLido[];
   solucaoAplicada: string | null;
   avaliacao: { nota: number; comentario: string | null; avaliadaEm: string } | null;
   motivoPausa: MotivoPausa | null;
@@ -624,6 +643,15 @@ export interface RepositorioEscopadoDeOcorrencias {
     ocorrenciaId: string,
     anexoId: string,
   ): Promise<{ chave: string; thumbnailChave: string | null } | null>;
+  /**
+   * A linha do par ocorrência e pessoa, ou `null` — item 87.
+   *
+   * **É `porId` com um filtro a mais, e a mesma regra de vínculo ativo**: quem recebeu e foi revogado
+   * responde `null`, porque a linha ficou sem efeito. Existe separada porque quem pergunta aqui é a
+   * recusa de escrita, que precisa distinguir *"recebeu"* de *"não alcança"* para escolher entre `403` e
+   * `404` — e ela não quer a lista inteira da ocorrência para responder um par.
+   */
+  compartilhamentoCom(ocorrenciaId: string, comPessoaId: string): Promise<CompartilhamentoLido | null>;
   /**
    * Uma página da listagem, em `registrada_em DESC, id DESC`.
    *

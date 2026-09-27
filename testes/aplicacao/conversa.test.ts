@@ -63,7 +63,9 @@ const repositorio = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ocorrencia = { autor: AUTORA } as unknown as OcorrenciaLida;
+  // `compartilhamentos` é obrigatória desde o item 87: sem ela `podeLerOcorrencia` estoura em
+  // `undefined.some` e o `404` do não-participante viraria `TypeError`.
+  ocorrencia = { autor: AUTORA, compartilhamentos: [] } as unknown as OcorrenciaLida;
   paginaDoRepositorio = [];
   statusCarregado = "em_atendimento";
 });

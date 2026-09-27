@@ -11,6 +11,7 @@ export {
   ResponsavelSemVinculoAtivo,
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
+  SoParaLeitura,
   TransicaoNaoPermitida,
 } from "./erros";
 export { alterarPrioridade } from "./alterar-prioridade";
@@ -28,6 +29,7 @@ export {
   type AtribuicaoLida,
   type ColunaDeOrdenacao,
   type ComentarioLido,
+  type CompartilhamentoLido,
   type ContagensLidas,
   type CursorDeConversa,
   type CursorDeListagem,
@@ -42,6 +44,7 @@ export {
   type OcorrenciaResumoLida,
   type OrdenacaoDeOcorrencias,
   type PaginaDeMensagens,
+  type PessoaComPapel,
   type PessoaReferencia,
   type PortasDoRegistro,
   type RepositorioEscopadoDeOcorrencias,
@@ -63,7 +66,9 @@ export {
   LIMITE_PADRAO,
   PAGINA_MAXIMA,
   listarOcorrencias,
+  participaDaOcorrencia,
   podeLerOcorrencia,
+  recusaDeQuemNaoParticipa,
   verAnexoDaOcorrencia,
   verLinhaDoTempo,
   verOcorrencia,
