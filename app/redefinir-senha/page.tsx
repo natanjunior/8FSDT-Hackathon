@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FormularioDeRedefinicao } from "@/interface/componentes/formulario-de-redefinicao";
-import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 
 export const metadata: Metadata = { title: "Redefinir senha" };
 
@@ -22,7 +22,7 @@ export default function TelaDeRedefinirSenha() {
       titulo="Redefinir senha"
       contexto="Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova."
       caminhos={
-        <Link href="/entrar" className="text-tinta-marca text-interface py-1 underline underline-offset-4">
+        <Link href="/entrar" className={CLASSE_DO_CAMINHO}>
           Voltar para entrar
         </Link>
       }
