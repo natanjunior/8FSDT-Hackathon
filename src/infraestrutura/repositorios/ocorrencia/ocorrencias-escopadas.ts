@@ -1588,6 +1588,16 @@ export function repositorioEscopadoDeOcorrencias(
         valores.push(filtro.autorPessoaId);
       }
 
+      // **A aba do item 87 troca o recorte da página**, e por isso ela vem no lugar do filtro de autor,
+      // nunca ao lado dele: quem pede a aba pede outro conjunto, e a Aplicação já tirou `autorPessoaId`.
+      if (filtro.compartilhadaComPessoaId !== undefined) {
+        condicoes.push(`exists (select 1 from compartilhamentos cf
+                                 where cf.ocorrencia_id = o.id
+                                   and cf.organizacao_id = o.organizacao_id
+                                   and cf.com_pessoa_id = ${proximo()}::uuid)`);
+        valores.push(filtro.compartilhadaComPessoaId);
+      }
+
       condicoes.push(`o.registrada_em <= ${proximo()}::timestamptz`);
       valores.push(filtro.ate);
 
@@ -1646,8 +1656,12 @@ export function repositorioEscopadoDeOcorrencias(
       const condicoes: string[] = [];
       const proximo = () => `$${valores.length + 2}`;
 
+      // **A visibilidade do painel sai de `condicoes` quando a aba do 87 está ligada**, e vira uma lista
+      // própria: com a aba, o `where` de fora precisa ser *"visível OU compartilhada comigo"*, e a
+      // visibilidade desce para dentro dos quatro `FILTER` do painel. Ver o bloco de `ondeDeFora`.
+      const visibilidade: string[] = [];
       if (filtro.autorPessoaId !== undefined) {
-        condicoes.push(`o.autor_pessoa_id = ${proximo()}::uuid`);
+        visibilidade.push(`o.autor_pessoa_id = ${proximo()}::uuid`);
         valores.push(filtro.autorPessoaId);
       }
 
@@ -1670,7 +1684,30 @@ export function repositorioEscopadoDeOcorrencias(
         valores.push(filtro.autorPessoaIdDaPagina);
       }
 
+      /**
+       * **A aba do item 87 pede um conjunto que a visibilidade do painel não contém** — as compartilhadas
+       * não são do autor. Então, com ela ligada, o `where` de fora passa a ser *"visível OU compartilhada
+       * comigo"*, e a visibilidade desce para dentro dos quatro `FILTER` do painel. **Os quatro números
+       * continuam medindo exatamente o que mediam**; só `totalFiltrado` e `novas`, que descrevem a página,
+       * veem a aba.
+       */
+      let compartilhada: string | null = null;
+      if (filtro.compartilhadaComPessoaIdDaPagina !== undefined) {
+        compartilhada = `exists (select 1 from compartilhamentos cf
+                                  where cf.ocorrencia_id = o.id
+                                    and cf.organizacao_id = o.organizacao_id
+                                    and cf.com_pessoa_id = ${proximo()}::uuid)`;
+        valores.push(filtro.compartilhadaComPessoaIdDaPagina);
+        recorte.push(compartilhada);
+      }
+
       const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;
+      const eVisivel = visibilidade.length === 0 ? "" : ` and ${visibilidade.join(" and ")}`;
+      const ondeDeFora =
+        compartilhada === null || visibilidade.length === 0
+          ? eVisivel
+          : ` and (${visibilidade.join(" and ")} or ${compartilhada})`;
+      const doPainel = compartilhada === null ? "" : eVisivel;
 
       const corte = `o.registrada_em <= ${ate}::timestamptz`;
       const naoTerminal = `o.status <> all(${terminais}::status_ocorrencia[])`;
@@ -1682,14 +1719,15 @@ export function repositorioEscopadoDeOcorrencias(
 
       const linhas = await consulta<LinhaDeContagens>(
         `select count(*) filter (where ${corte}${eRecorte})::int                             as total_filtrado,
-                count(*) filter (where ${corte})::int                                        as todas,
-                count(*) filter (where ${corte} and o.autor_pessoa_id = ${quem}::uuid)::int  as minhas,
-                count(*) filter (where ${corte} and ${naoTerminal})::int                     as em_aberto,
+                count(*) filter (where ${corte}${doPainel})::int                             as todas,
+                count(*) filter (where ${corte} and o.autor_pessoa_id = ${quem}::uuid
+                                   ${doPainel})::int                                         as minhas,
+                count(*) filter (where ${corte} and ${naoTerminal}${doPainel})::int          as em_aberto,
                 count(*) filter (where ${corte} and ${naoTerminal}
-                                   and ${semResponsavelVigente})::int                        as sem_responsavel,
+                                   and ${semResponsavelVigente}${doPainel})::int             as sem_responsavel,
                 count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas
            from ocorrencias o
-          where o.organizacao_id = $1
+          where o.organizacao_id = $1${ondeDeFora}
           ${condicoes.map((condicao) => `and ${condicao}`).join("\n          ")}`,
         valores,
       );

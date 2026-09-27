@@ -273,7 +273,7 @@ export type QuemPergunta = { pessoaId: string; podeLerTodas: boolean };
 
 /** O recorte aplicado, declarado na resposta *"para que o cliente possa dizer ao usuário o que está
  *  vendo"* (`contrato-de-api.md` §8.5). */
-export type VisibilidadeAplicada = "todas" | "apenas_minhas";
+export type VisibilidadeAplicada = "todas" | "apenas_minhas" | "compartilhadas_comigo";
 
 /** O teto de página do contrato. Deslocamento fundo é varredura, e nenhuma tela pede o milésimo clique. */
 export const PAGINA_MAXIMA = 1000;
@@ -377,8 +377,20 @@ export async function listarOcorrencias(
    * (contrato §8.5). Quem já só vê as próprias não muda de nada ao pedir: o parâmetro *"só faz diferença
    * para quem tem `ler_todas`"* (critério 28.1).
    */
+  /**
+   * **A aba do item 87 troca o recorte da página, e só o da página.** O conjunto é *"compartilhadas
+   * comigo"*, que por definição quem pergunta pode ler — então o filtro de autor sai da página. O painel
+   * NÃO muda: ele continua recortado pela permissão, e o `contar` recebe o recorte da aba à parte.
+   */
+  const compartilhadaComPessoaId =
+    pagina.filtro?.compartilhadasComigo === true ? quem.pessoaId : undefined;
+
   const autorPessoaId =
-    quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true ? undefined : quem.pessoaId;
+    compartilhadaComPessoaId !== undefined
+      ? undefined
+      : quem.podeLerTodas && pagina.filtro?.apenasDoAutor !== true
+        ? undefined
+        : quem.pessoaId;
 
   /**
    * **O painel recorta por PERMISSÃO e não pelo pedido** — §3.6 da spec do 14b, e a diferença é a razão
@@ -403,6 +415,9 @@ export async function listarOcorrencias(
   const contagens = await repositorio.contar({
     ...(visibilidadeDoPainel === undefined ? {} : { autorPessoaId: visibilidadeDoPainel }),
     ...(autorPessoaId === undefined ? {} : { autorPessoaIdDaPagina: autorPessoaId }),
+    ...(compartilhadaComPessoaId === undefined
+      ? {}
+      : { compartilhadaComPessoaIdDaPagina: compartilhadaComPessoaId }),
     pessoaIdDeQuemPergunta: quem.pessoaId,
     ate,
     ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
@@ -427,6 +442,7 @@ export async function listarOcorrencias(
 
   const linhas = await repositorio.listar({
     ...(autorPessoaId === undefined ? {} : { autorPessoaId }),
+    ...(compartilhadaComPessoaId === undefined ? {} : { compartilhadaComPessoaId }),
     limite,
     deslocamento,
     ate,
@@ -449,6 +465,11 @@ export async function listarOcorrencias(
       emAberto: contagens.emAberto,
       semResponsavel: contagens.semResponsavel,
     },
-    visibilidadeAplicada: autorPessoaId === undefined ? "todas" : "apenas_minhas",
+    visibilidadeAplicada:
+      compartilhadaComPessoaId !== undefined
+        ? "compartilhadas_comigo"
+        : autorPessoaId === undefined
+          ? "todas"
+          : "apenas_minhas",
   };
 }

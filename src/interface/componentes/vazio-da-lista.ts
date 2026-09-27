@@ -17,18 +17,24 @@ import type { VisibilidadeAplicada } from "@/aplicacao/ocorrencia";
  * terceiro ramo alcançável e quem acrescenta o subtítulo com os valores e o *"Limpar filtros"* (critério
  * 15.6). O ramo existe aqui, testado, para que o 15 **reuse** em vez de escrever a segunda cópia.
  */
-export type TipoDeVazio = "organizacao" | "solicitante" | "filtro";
+export type TipoDeVazio = "organizacao" | "solicitante" | "compartilhadas" | "filtro";
 
 export function vazioDaLista(
   visibilidadeAplicada: VisibilidadeAplicada,
   algumFiltroAplicado: boolean,
 ): TipoDeVazio {
   if (algumFiltroAplicado) return "filtro";
+  // A aba do item 87 tem vazio próprio: dizer "você ainda não registrou nenhuma" a quem está olhando o
+  // que os outros mostraram seria a mesma mentira que o critério 14.4 proíbe, de outro lado.
+  if (visibilidadeAplicada === "compartilhadas_comigo") return "compartilhadas";
   return visibilidadeAplicada === "todas" ? "organizacao" : "solicitante";
 }
 
 /**
- * As três frases, literais do `inventario-de-telas.md` (T-03) e do protótipo.
+ * As frases, literais do `inventario-de-telas.md` (T-03) e do protótipo.
+ *
+ * **`compartilhadas` não tem corpo, e a ausência é decisão:** não há nada a fazer para receber um
+ * compartilhamento, e um subtítulo ali só encheria a tela.
  *
  * **`corpo` do vazio de filtro é `null` de propósito:** o subtítulo é *"Nenhuma pausada com prioridade
  * alta em Recanto Azul"*, montado com os **valores aplicados** — e quem os tem é o item 15.
@@ -43,6 +49,10 @@ export const TEXTO_DO_VAZIO: Readonly<Record<TipoDeVazio, { titulo: string; corp
   solicitante: {
     titulo: "Você ainda não registrou nenhuma ocorrência.",
     corpo: "Quando registrar, ela aparece aqui com o andamento.",
+  },
+  compartilhadas: {
+    titulo: "Nada foi compartilhado com você.",
+    corpo: null,
   },
   filtro: {
     titulo: "Nenhuma ocorrência com estes filtros.",

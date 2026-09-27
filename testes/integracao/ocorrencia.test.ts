@@ -8,6 +8,7 @@ import {
   avaliarOcorrencia,
   cancelarOcorrencia,
   iniciarAtendimento,
+  listarOcorrencias,
   podeLerOcorrencia,
   pausarOcorrencia,
   registrarOcorrencia,
@@ -4326,5 +4327,42 @@ describe("o compartilhamento no banco — item 87", () => {
       limite: 20,
     });
     expect(porMeioDaPalavra).toHaveLength(0);
+  });
+  /**
+   * **A aba não vaza, e é o caso que prende os dois riscos de uma vez.** Se o filtro de compartilhamento
+   * não entrar no `where` da página, a aba passa a trazer ocorrência que ninguém compartilhou; se o `where`
+   * de fora afrouxar, o painel passa a contar as compartilhadas como se fossem dela.
+   */
+  it("a aba não vaza: a vizinha vê só a compartilhada, e o painel dela conta só as dela", async () => {
+    // Uma vizinha NOVA: `recebePessoaId` já recebeu ocorrências nos casos anteriores deste `describe`.
+    const [nova] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha da aba ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [nova!.id, organizacaoId],
+    );
+    const compartilhada = await registrada("Vazamento compartilhado");
+    await registrada("Vazamento que ninguém compartilhou");
+    await inserir(compartilhada, nova!.id);
+
+    const pagina = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: nova!.id, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true }, limite: 100 },
+    );
+    expect(pagina.itens.map((i) => i.id)).toStrictEqual([compartilhada]);
+    expect(pagina.total).toBe(1);
+    expect(pagina.contagens.todas).toBe(0); // ela não registrou nenhuma
+    expect(pagina.contagens.minhas).toBe(0);
+
+    // E sem a aba ela continua sem ver nada: o conjunto dela é vazio.
+    const semAba = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: nova!.id, podeLerTodas: false },
+      { limite: 100 },
+    );
+    expect(semAba.itens).toStrictEqual([]);
   });
 });

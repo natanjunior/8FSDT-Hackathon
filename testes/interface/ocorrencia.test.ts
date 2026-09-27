@@ -616,10 +616,11 @@ describe("os parâmetros de paginação de GET /ocorrencias — item 14b", () =>
 
 /**
  * **O critério 14.4 é sobre não trocar uma frase pela outra**, e a troca é uma decisão — não uma
- * redação. Por isso a decisão é uma função pura com os três ramos cobertos, mesmo com o terceiro só
- * ficando alcançável no item 15.
+ * redação. Por isso a decisão é uma função pura com os ramos cobertos, mesmo com o de filtro só ficando
+ * alcançável no item 15. O quarto ramo, da aba *Compartilhadas comigo*, nasceu no item 87 e tem os casos
+ * dele no `describe` da aba, mais abaixo.
  */
-describe("qual dos três vazios a tela mostra", () => {
+describe("qual dos vazios a tela mostra", () => {
   it("todas + sem filtro: a organização, com os dois convites", () => {
     expect(vazioDaLista("todas", false)).toBe("organizacao");
   });
@@ -635,9 +636,9 @@ describe("qual dos três vazios a tela mostra", () => {
     expect(vazioDaLista("apenas_minhas", true)).toBe("filtro");
   });
 
-  it("as três frases são diferentes entre si", () => {
+  it("as frases são diferentes entre si — são quatro desde o item 87", () => {
     const titulos = Object.values(TEXTO_DO_VAZIO).map((texto) => texto.titulo);
-    expect(new Set(titulos).size).toBe(3);
+    expect(new Set(titulos).size).toBe(4);
   });
 });
 
@@ -4256,5 +4257,35 @@ describe("87 · a fronteira HTTP do compartilhamento", () => {
     // A lista não viaja para quem recebeu: ela nomeia outros vizinhos.
     expect(JSON.stringify(daVizinha)).not.toContain(VIZINHA);
     expect(daVizinha.acoesDisponiveis).toStrictEqual([]);
+  });
+});
+
+describe("87 · a aba na URL e o vazio dela", () => {
+  it("?compartilhadas=comigo vira o recorte; outro valor e a mistura com ?autor=eu são 400", () => {
+    expect(
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=comigo")),
+    ).toStrictEqual({ compartilhadasComigo: true });
+    expect(() =>
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=todas")),
+    ).toThrow(FormatoInvalido);
+    expect(() =>
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=comigo&autor=eu")),
+    ).toThrow(FormatoInvalido);
+  });
+
+  it("a aba não conta como filtro, e Limpar filtros a preserva", () => {
+    expect(algumFiltroAplicado({ compartilhadasComigo: true })).toBe(false);
+    expect(semFiltros("compartilhadas=comigo&status=aberta&pagina=3").get("compartilhadas")).toBe(
+      "comigo",
+    );
+  });
+
+  it("o vazio da aba é o dela, e filtro aplicado continua ganhando", () => {
+    expect(vazioDaLista("compartilhadas_comigo", false)).toBe("compartilhadas");
+    expect(TEXTO_DO_VAZIO.compartilhadas).toStrictEqual({
+      titulo: "Nada foi compartilhado com você.",
+      corpo: null,
+    });
+    expect(vazioDaLista("compartilhadas_comigo", true)).toBe("filtro");
   });
 });
