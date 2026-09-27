@@ -1,4 +1,5 @@
 import { CircleAlert } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -46,6 +47,8 @@ import { lenteDeRotulo } from "@/interface/projecoes";
  * protótipo, e o item 13a a insere no topo sem reordenar nada.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Registrar ocorrência" };
 
 export default async function RegistrarOcorrencia() {
   let escopo;

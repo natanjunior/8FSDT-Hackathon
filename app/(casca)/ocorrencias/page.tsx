@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -88,6 +89,8 @@ import {
  * Aplicação e pela mesma projeção, que é o que as impede de divergir.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Ocorrências" };
 
 export default async function Ocorrencias({
   searchParams,

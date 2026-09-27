@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -133,5 +133,44 @@ describe("todo <Suspense> que espera promessa secundária está dentro de uma fr
         `o <Suspense> na posição ${String(posicao)} está fora de fronteira`,
       ).toBeGreaterThan(fechamento);
     }
+  });
+});
+
+/** Toda `page.tsx` de `app/`, com separador `/`. */
+function paginas(): string[] {
+  return readdirSync(join(RAIZ, "app"), { recursive: true, encoding: "utf8" })
+    .map((caminho) => `app/${caminho.replaceAll("\\", "/")}`)
+    .filter((caminho) => caminho.endsWith("/page.tsx"))
+    .sort();
+}
+
+/**
+ * **As exceções, com o motivo.** Nasce vazia: as 21 páginas renderizam alguma coisa, inclusive o
+ * despachante de `/`. Página que só redireciona entraria aqui.
+ */
+const SEM_TITULO_PROPRIO: Readonly<Record<string, string>> = {};
+
+describe("toda página tem título de aba — critérios 90.1 e 90.2", () => {
+  it("são 21 páginas, e a contagem é a do backlog", () => {
+    expect(paginas()).toHaveLength(21);
+  });
+
+  it.each(paginas())("%s exporta metadata com title, ou generateMetadata", (pagina) => {
+    if (pagina in SEM_TITULO_PROPRIO) return;
+    const fonte = semComentarios(ler(pagina));
+    const estatico = /export const metadata: Metadata = \{[^}]*\btitle:/u.test(fonte);
+    const dinamico = /export (?:async )?function generateMetadata\b/u.test(fonte);
+    expect(estatico || dinamico).toBe(true);
+  });
+
+  it.each(paginas())("%s não repete o nome do produto no próprio título", (pagina) => {
+    const fonte = semComentarios(ler(pagina));
+    expect(fonte).not.toMatch(/title:\s*["`][^"`]*Resolve Aí/u);
+  });
+
+  it("o layout raiz põe o sufixo, uma vez", () => {
+    const fonte = ler("app/layout.tsx");
+    expect(fonte).toContain('template: "%s · Resolve Aí"');
+    expect(fonte).toContain('default: "Resolve Aí"');
   });
 });

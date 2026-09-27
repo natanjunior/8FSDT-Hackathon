@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -33,6 +34,8 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * para `POST /organizacoes`: contrato aberto, tela fechada.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Meus dados" };
 
 /** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
 const ROTULO = "text-rotulo-coluna text-tinta-suave font-mono uppercase";

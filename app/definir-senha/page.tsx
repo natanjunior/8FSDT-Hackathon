@@ -1,4 +1,5 @@
 import { Link2Off } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -31,6 +32,8 @@ import { armazenamentoDeRedefinicao } from "@/interface/http";
  * mesmo defeito que a face C de T-02 foi corrigida para não ter.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Definir nova senha" };
 
 export default async function TelaDeDefinirSenha({
   searchParams,

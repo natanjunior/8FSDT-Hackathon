@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -49,6 +50,8 @@ import { projetarContexto } from "@/interface/projecoes";
  * deixa a face E alcançável só por endereço digitado — foi o que o critério 9 quase fez.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Início" };
 
 export default async function Despachante() {
   let escopo;

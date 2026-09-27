@@ -1,4 +1,5 @@
 import { History } from "lucide-react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -62,6 +63,8 @@ import { nomeDoMotivoCancelamento, nomeDoMotivoPausa, projetarTransicao } from "
  * do 44n. A régua vertical, o marcador e a ancoragem são os de `regua-do-ciclo.tsx`, que é a tela vizinha.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Trilha de auditoria" };
 
 export default async function TrilhaDeAuditoria({
   params,

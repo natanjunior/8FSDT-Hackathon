@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FormularioDeRedefinicao } from "@/interface/componentes/formulario-de-redefinicao";
 import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+
+export const metadata: Metadata = { title: "Redefinir senha" };
 
 /**
  * **T-12 · Redefinir senha** — alcançada de T-01 e do erro de e-mail repetido em T-11.

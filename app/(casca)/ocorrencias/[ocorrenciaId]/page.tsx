@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -103,6 +104,8 @@ import {
  * porque o filtro mora no endereço da lista.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Ocorrência" };
 
 /**
  * O papel **em palavra**, para descer por prop ao modal.

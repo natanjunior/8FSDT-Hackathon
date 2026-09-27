@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -103,6 +104,8 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * Abaixo de `lg` os cartões viram faixa de três acima do quadro 1; abaixo de `sm`, tudo empilha.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function Dashboard({
   searchParams,

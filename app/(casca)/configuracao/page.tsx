@@ -1,4 +1,5 @@
 import { ChevronRight, LayoutGrid, Tags, type LucideIcon } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -37,6 +38,8 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Configuração da organização" };
 
 /** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
 const ROTULO = "text-rotulo-coluna text-tinta-suave font-mono uppercase";
