@@ -69,8 +69,9 @@ Infraestrutura depende do Domínio porque implementa portas que o Domínio decla
 
 **A regra é conferida por máquina.** Cinco regras de importação no `eslint.config.mjs` recusam o que a
 tabela proíbe: importação só para dentro e só pela superfície pública do módulo, nenhum pacote de terceiro
-fora da pasta de clientes, e o escopo por organização alcançável apenas pelos quatro endereços de uma
-lista fechada. Uma importação que desrespeite a tabela falha o build.
+fora da pasta de clientes, o escopo por organização dispensado apenas pelos seis endereços da lista fechada
+do contrato, e a sessão dispensada apenas pelo convite. Uma importação que desrespeite a tabela falha o
+build.
 
 ## Os dois contextos do domínio
 

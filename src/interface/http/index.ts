@@ -5,10 +5,11 @@
  * fechada da §4.4 do contrato** — ver `eslint.config.mjs`. É a lista enumerável da ADR-0003 virada
  * mecanismo, em vez de comentário.
  *
- * **São TRÊS listas fechadas, e as três são independentes.** `portasDeAnexo` é a segunda, com um arquivo
- * só — o que emite credencial de upload. `armazenamentoDeAnexos` é a terceira, com dois: os que
- * reivindicam e os que leem anexo. Independentes quer dizer que nenhum bloco do lint herda a folga de
- * outro: os cinco da §4.4 não podem importar as duas de anexo, quem emite credencial não pode importar
+ * **São QUATRO listas fechadas, e as quatro são independentes.** `portasDeAnexo` é a segunda, com um
+ * arquivo só — o que emite credencial de upload. `armazenamentoDeAnexos` é a terceira, com dois: os que
+ * reivindicam e os que leem anexo. `semSessao` e `resolverConviteParaTela` são a quarta, com dois
+ * arquivos: a rota e a página do convite. Independentes quer dizer que nenhum bloco do lint herda a folga
+ * de outro: os cinco da §4.4 não podem importar as duas de anexo, quem emite credencial não pode importar
  * `semOrganizacao` nem `armazenamentoDeAnexos`, e quem lê anexo não pode emitir credencial.
  */
 export { portasDeAnexo } from "./portas-de-anexo";
@@ -19,12 +20,15 @@ export {
   comContexto,
   lerCorpoOpcional,
   registrarFalha,
+  resolverConviteParaTela,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,
   semOrganizacao,
+  semSessao,
   type EntradaEscopada,
   type EntradaSemOrganizacao,
+  type EntradaSemSessao,
   type EscopoDaTela,
 } from "./com-contexto";
 
@@ -38,6 +42,9 @@ export {
   respostaDeProblema,
   type ErroDeCampo,
 } from "./problema";
+
+export { destinoSeguro } from "./destino-seguro";
+export { destinoDoConvite, linkDoConvite, montarLinkDoConvite } from "./link-do-convite";
 
 export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 

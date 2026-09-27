@@ -14,7 +14,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 |---|---|---|
 | [0001](0001-historico-de-transicoes-como-conceito-de-dominio.md) | O histórico de transições é conceito de domínio, e não auditoria de infraestrutura | Aceita |
 | [0002](0002-stack-e-plataforma.md) | Next.js com aplicação instalável, APIs próprias e Supabase | Parcialmente substituída pela 0004 |
-| [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação, com RLS como defesa em profundidade | Aceita |
+| [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação, com RLS como defesa em profundidade | Parcialmente substituída pela 0018 |
 | [0004](0004-execucao-em-container-no-azure.md) | Execução em contêiner no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
 | [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão, e o lint é a verificação | Aceita |
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
@@ -28,6 +28,8 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0014](0014-o-campo-de-codigo-entra-com-o-input-otp.md) | O campo de código entra com o input-otp, em oito casas | Aceita |
 | [0015](0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md) | O seletor de faixa de datas entra com o react-day-picker | Aceita |
 | [0016](0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md) | O relógio de atualização das seis tabelas passa a ser escrito por gatilho do banco | Aceita |
+| [0018](0018-a-primeira-operacao-sem-sessao.md) | O convite lê o nome da organização sem sessão, por uma porta que o lint fecha em dois arquivos | Aceita |
+| [0019](0019-o-qr-do-convite-entra-com-o-uqr.md) | O QR do convite entra com o uqr, desenhado no servidor | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

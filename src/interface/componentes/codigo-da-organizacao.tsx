@@ -1,10 +1,10 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
 import { ExibicaoDeCodigo } from "@/interface/componentes/campo-de-codigo";
 import { Button } from "@/interface/componentes/ui/button";
+import { useCopiar } from "@/interface/ganchos/use-copiar";
 
 /**
  * **O código da organização em T-15: o `M1` e o `M2` do item 46 · 47, na forma do item 44i.**
@@ -34,28 +34,11 @@ import { Button } from "@/interface/componentes/ui/button";
  *
  * **Devolve os dois `dd` do item *Código da organização***; o `dt` é da página, que monta a lista de
  * definição. A região viva mora num parágrafo dentro do `dd`, porque o `dd` não aceita outro papel.
+ *
+ * O mecanismo de copiar mora em `use-copiar.ts` desde o item 86.
  */
 export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
-  const [desfecho, setDesfecho] = useState<"parado" | "copiado" | "selecione">("parado");
-  const copiaManual = useRef<HTMLSpanElement>(null);
-
-  // O texto da falha só existe depois do render que o desenha: a seleção vem no efeito, e não no `catch`.
-  useEffect(() => {
-    if (desfecho !== "selecione" || copiaManual.current === null) return;
-    window.getSelection()?.selectAllChildren(copiaManual.current);
-  }, [desfecho]);
-
-  async function copiar() {
-    try {
-      // `navigator.clipboard` é `undefined` fora de contexto seguro — a checagem vem antes do `await`.
-      if (navigator.clipboard === undefined) throw new Error("sem área de transferência");
-      await navigator.clipboard.writeText(codigo);
-      setDesfecho("copiado");
-      window.setTimeout(() => setDesfecho("parado"), 4000);
-    } catch {
-      setDesfecho("selecione");
-    }
-  }
+  const { desfecho, copiar, copiaManual } = useCopiar(codigo);
 
   return (
     <>

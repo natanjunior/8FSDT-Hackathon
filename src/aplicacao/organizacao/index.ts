@@ -3,6 +3,12 @@ export { criarOrganizacao } from "./criar-organizacao";
 export { listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
 export { pedirEntrada, type ComandoDePedirEntrada } from "./pedir-entrada";
 export {
+  lerConvite,
+  type ConviteLido,
+  type QuemAbreOConvite,
+  type SituacaoDoConvite,
+} from "./ler-convite";
+export {
   aprovarPedidoDeEntrada,
   recusarPedidoDeEntrada,
   type DecisaoDeAprovacao,
@@ -69,12 +75,14 @@ export type {
   NovaOrganizacao,
   OrdemNaCriacao,
   OrganizacaoCriada,
+  OrganizacaoDoConvite,
   OrganizacaoLida,
   PedidoDaPessoa,
   PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
   PosicaoNaLista,
   Reordenacao,
+  RepositorioDeConvites,
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDaOrganizacao,

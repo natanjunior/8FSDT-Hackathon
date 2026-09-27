@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import {
+  repositorioDeConvites,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioGlobalDePedidosDeEntrada,
@@ -676,5 +677,74 @@ describe("pedir entrada TENDO organização ativa — a Persona 1B (item 7b)", (
     // `PUT /contexto/organizacao` —, nunca efeito da aprovação: `escolherAtivo` só escolhe sozinho com
     // **um** vínculo (`resolver-contexto.ts:163-178`), e essa metade está provada em unidade.
     expect(vinculos).toHaveLength(2);
+  });
+});
+
+/**
+ * O convite contra Postgres (item 86). **É o caso escrito à mão que substitui a suíte de isolamento**: as
+ * duas consultas não são escopadas por organização, e a suíte compartilhada pergunta por organização
+ * (`docs/testes.md`, o isolamento). O que se prova aqui é que elas não devolvem mais do que dizem.
+ */
+describe("o convite contra Postgres", () => {
+  let convites: ReturnType<typeof repositorioDeConvites>;
+
+  beforeAll(() => {
+    convites = repositorioDeConvites(consulta);
+  });
+
+  it("porCodigo devolve só nome e código (critério 86.2)", async () => {
+    const lida = await convites.porCodigo("K7QMX3TD");
+    expect(lida).toStrictEqual({ nome: "Condomínio Recanto Azul", codigoPublico: "K7QMX3TD" });
+  });
+
+  it("código nunca sorteado e organização apagada dão o mesmo null (critério 86.3)", async () => {
+    const [apagada] = await consulta<{ id: string }>(
+      `insert into organizacoes (nome, codigo_publico) values ('Apagada ${SUFIXO}', 'QX7ZZ3KM') returning id`,
+    );
+    expect(await convites.porCodigo("QX7ZZ3KM")).not.toBeNull();
+    await consulta(`delete from organizacoes where id = $1`, [apagada!.id]);
+
+    const apagou = await convites.porCodigo("QX7ZZ3KM");
+    const nunca = await convites.porCodigo("ZZZZ2222");
+    expect(apagou).toBeNull();
+    expect(nunca).toBeNull();
+    expect(apagou).toStrictEqual(nunca);
+  });
+
+  it("temPedidoPendente é da pessoa e da organização do código, e só de pendente", async () => {
+    // **Duas pessoas novas, e não `helena` e `outra`.** Por esta altura `helena` já tem pedido pendente nas
+    // duas organizações e `outra` já tem pendente em B (os `describe` de cima): reaproveitá-las daria
+    // `true` onde o caso afirma `false`, e o `insert` bateria no índice único parcial.
+    const usuarios = await consulta<{ id: string }>(
+      `insert into auth.users (id, email) values (gen_random_uuid(), $1), (gen_random_uuid(), $2)
+         returning id`,
+      [`convidada-${SUFIXO}@exemplo.test`, `vizinha-${SUFIXO}@exemplo.test`],
+    );
+    const pessoas = await consulta<{ id: string }>(
+      `insert into pessoas (usuario_id, nome) values ($1, 'Convidada do Link'), ($2, 'Vizinha do Link')
+         returning id`,
+      [usuarios[0]!.id, usuarios[1]!.id],
+    );
+    const convidada = pessoas[0]!.id;
+    const vizinha = pessoas[1]!.id;
+
+    const [pedido] = await consulta<{ id: string }>(
+      `insert into pedidos_de_entrada (organizacao_id, pessoa_id) values ($1, $2) returning id`,
+      [organizacaoB, convidada],
+    );
+
+    // A própria pessoa, na organização do código: sim.
+    expect(await convites.temPedidoPendente(convidada, "P4NHY9WB")).toBe(true);
+    // Outra pessoa, mesma organização: não — o pedido de alguém não vira o de quem abre (Foco 5).
+    expect(await convites.temPedidoPendente(vizinha, "P4NHY9WB")).toBe(false);
+    // Mesma pessoa, outra organização: não — o isolamento que a suíte não alcança.
+    expect(await convites.temPedidoPendente(convidada, "K7QMX3TD")).toBe(false);
+
+    // Decidido deixa de ser pendente. `decidido_por_pessoa_id` fica nulo: a FK composta é MATCH SIMPLE, e
+    // os três CHECK da tabela pedem só `decidido_em` junto de `situacao` diferente de pendente.
+    await consulta(`update pedidos_de_entrada set situacao = 'recusado', decidido_em = now() where id = $1`, [
+      pedido!.id,
+    ]);
+    expect(await convites.temPedidoPendente(convidada, "P4NHY9WB")).toBe(false);
   });
 });

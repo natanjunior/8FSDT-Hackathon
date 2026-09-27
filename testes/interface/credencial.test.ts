@@ -15,6 +15,7 @@ vi.mock("next/headers", () => ({
 import {
   CAMINHO_DA_CONFIRMACAO,
   PREFIXO_DE_REDEFINICAO,
+  destinoSeguro,
   montarDestinoDeConfirmacao,
   origemDoPedido,
   somenteDeRedefinicao,
@@ -257,5 +258,33 @@ describe("origemDoPedido — a precedência dos cabeçalhos (item 6c)", () => {
     // `auth-publicado.mjs`: campo que sumiu é falha, nunca omissão.
     expect(() => origemDoPedido(new Headers())).toThrow(/Origin/u);
     expect(() => origemDoPedido(new Headers())).toThrow(/Host/u);
+  });
+});
+
+describe("destinoSeguro — a volta depois de entrar ou criar conta (critério 86.4)", () => {
+  it.each([
+    ["/convite/K7M4QX2P", "/convite/K7M4QX2P"],
+    ["/ocorrencias/abc?aba=conversa", "/ocorrencias/abc?aba=conversa"],
+    ["/", "/"],
+  ])("aceita %s", (valor, esperado) => {
+    expect(destinoSeguro(valor)).toBe(esperado);
+  });
+
+  it.each([
+    ["//outro-dominio.com"],
+    ["/\\outro-dominio.com"],
+    ["/\t/outro-dominio.com"],
+    ["/\n/outro-dominio.com"],
+    ["https://outro-dominio.com"],
+    ["convite/K7M4QX2P"],
+    [""],
+  ])("recusa %j", (valor) => {
+    expect(destinoSeguro(valor)).toBeNull();
+  });
+
+  it("recusa o que não é texto", () => {
+    expect(destinoSeguro(undefined)).toBeNull();
+    expect(destinoSeguro(null)).toBeNull();
+    expect(destinoSeguro(["/a"])).toBeNull();
   });
 });

@@ -86,6 +86,9 @@ As duas escritas que acontecem fora do funil de escopo não são alcançadas por
 pergunta o que uma consulta devolve. São caso escrito à mão, e são duas para sempre, pela mesma lista
 fechada que [Segurança](seguranca.md) descreve.
 
+A leitura do convite, que roda sem sessão, também não é alcançada pela suíte, e também tem caso escrito à
+mão.
+
 ## O cenário de teste tem dono
 
 Há dois mundos de teste em duas linguagens: linhas de SQL na integração, e objetos em memória na camada de

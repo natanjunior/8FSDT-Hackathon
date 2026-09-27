@@ -4,6 +4,7 @@ import type { ZodType } from "zod";
 
 import {
   contextoDaRequisicao,
+  NaoAutenticado,
   resolverContexto,
   SemOrganizacaoAtiva,
   type ContextoDaRequisicao,
@@ -14,12 +15,20 @@ import {
   type ResolucaoDeContexto,
 } from "@/aplicacao/contexto";
 import {
+  CodigoPublicoNaoEncontrado,
+  lerConvite,
+  type QuemAbreOConvite,
+  type RepositorioDeConvites,
+} from "@/aplicacao/organizacao";
+import {
+  montarPortaDeConvites,
   montarPortasEscopadas,
   montarPortasGlobais,
   type ArmazenamentoDeCookies,
 } from "@/composicao";
 import { PermissaoInsuficiente } from "@/dominio/erros";
-import type { Permissao } from "@/dominio/organizacao";
+import { FORMATO_DO_CODIGO, type Permissao } from "@/dominio/organizacao";
+import { projetarConvite, type ConviteProjetado } from "@/interface/projecoes";
 
 import {
   assinarOrganizacao,
@@ -325,6 +334,101 @@ const abrirRequisicao = cache(async function abrirRequisicao(): Promise<{
 
   return { resolucao, portas, armazenamento };
 });
+
+// ---------------------------------------------------------------------------
+// semSessao — a primeira operação sem sessão (item 86, ADR-0018)
+// ---------------------------------------------------------------------------
+
+/**
+ * O que `GET /convites/{codigo}` recebe.
+ *
+ * **`resolucao` é `null` sem sessão, e nunca lança `NaoAutenticado`.** Com sessão, é a mesma resolução
+ * das outras portas, e é dela que sai `quem`, sem consulta nenhuma. **Não há portas globais nem
+ * escopadas aqui**: quem roda sem sessão recebe o convite e mais nada.
+ */
+export type EntradaSemSessao = {
+  resolucao: ResolucaoDeContexto | null;
+  quem: QuemAbreOConvite | null;
+  convites: RepositorioDeConvites;
+  parametros: Readonly<Record<string, string>>;
+  requisicao: Request;
+};
+
+/**
+ * **A quarta lista fechada** (`eslint.config.mjs`, `SEM_SESSAO`): só a rota e a página do convite a
+ * importam. Um segundo endpoint sem sessão é ADR nova, e não uma linha de código.
+ */
+export function semSessao(manipulador: Manipulador<EntradaSemSessao>): RotaDoNext {
+  return async (requisicao, contextoDaRota) => {
+    const traceId = novoTraceId();
+    try {
+      const resolucao = await resolverSeHouverSessao();
+      const resultado = await manipulador({
+        resolucao,
+        quem: quemAbre(resolucao),
+        convites: montarPortaDeConvites(),
+        parametros: await lerParametros(contextoDaRota),
+        requisicao,
+      });
+      return montarResposta(resultado);
+    } catch (erro) {
+      // Sem sessão não há organização ativa a pôr no corpo; com sessão, esta operação também não é
+      // escopada. O `null` é escrito pelo mesmo motivo do `semOrganizacao`.
+      return registrarEResponder(erro, requisicao, traceId, null);
+    }
+  };
+}
+
+/**
+ * A **estrada direta** de `GET /convites/{codigo}`, para `app/convite/[codigo]/page.tsx`: mesma
+ * resolução, mesma consulta e mesma projeção, sem salto HTTP.
+ *
+ * **Normaliza o que veio digitado** (maiúscula, sem espaço nas pontas), como as oito casas de T-02
+ * fazem, porque o endereço pode ter sido digitado à mão. **Formato inválido e código inexistente dão o
+ * mesmo `convite: null`**: a tela não distingue um do outro (critério 86.3).
+ */
+export async function resolverConviteParaTela(
+  codigoBruto: string,
+): Promise<{ resolucao: ResolucaoDeContexto | null; convite: ConviteProjetado | null }> {
+  const resolucao = await resolverSeHouverSessao();
+  const codigo = decodificar(codigoBruto).trim().toUpperCase();
+  if (!FORMATO_DO_CODIGO.test(codigo)) return { resolucao, convite: null };
+
+  try {
+    const lido = await lerConvite({ convites: montarPortaDeConvites() }, quemAbre(resolucao), codigo);
+    return { resolucao, convite: projetarConvite(lido) };
+  } catch (erro) {
+    if (erro instanceof CodigoPublicoNaoEncontrado) return { resolucao, convite: null };
+    throw erro;
+  }
+}
+
+/** `%` solto no endereço faz `decodeURIComponent` lançar; o cru serve, e o formato o recusa em seguida. */
+function decodificar(valor: string): string {
+  try {
+    return decodeURIComponent(valor);
+  } catch {
+    return valor;
+  }
+}
+
+async function resolverSeHouverSessao(): Promise<ResolucaoDeContexto | null> {
+  try {
+    const { resolucao } = await abrirRequisicao();
+    return resolucao;
+  } catch (erro) {
+    if (erro instanceof NaoAutenticado) return null;
+    throw erro;
+  }
+}
+
+function quemAbre(resolucao: ResolucaoDeContexto | null): QuemAbreOConvite | null {
+  if (resolucao === null) return null;
+  return {
+    pessoaId: resolucao.sessao.pessoaId,
+    codigosComVinculoAtivo: resolucao.vinculos.map((v) => v.organizacao.codigoPublico),
+  };
+}
 
 /**
  * O `access_token` do cabeçalho `Authorization`, quando houver.

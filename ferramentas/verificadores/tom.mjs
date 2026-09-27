@@ -47,6 +47,8 @@ const DOCUMENTOS = new Set([
   "docs/adr/0014-o-campo-de-codigo-entra-com-o-input-otp.md",
   "docs/adr/0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md",
   "docs/adr/0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md",
+  "docs/adr/0018-a-primeira-operacao-sem-sessao.md",
+  "docs/adr/0019-o-qr-do-convite-entra-com-o-uqr.md",
   "docs/adr/README.md",
   "docs/api.md",
   "docs/atendimento-ao-enunciado.md",

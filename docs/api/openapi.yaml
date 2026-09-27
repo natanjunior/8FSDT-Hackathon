@@ -467,6 +467,54 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /convites/{codigo}:
+    get:
+      tags: [Entrada na organização]
+      operationId: lerConvite
+      summary: Ler o convite de uma organização
+      description: |
+        O que a página do convite mostra: o nome e o código da organização, e a situação de quem abre.
+
+        **É a única operação que não exige sessão.** O código é a credencial, como no pedido de entrada:
+        ele já circula em cartaz e mensagem, e o que ele abre é o nome da organização. Sem sessão, a
+        resposta tem só o nome, o código e `situacao: sem-sessao`. Com sessão, a situação diz se a pessoa
+        já participa, se já tem pedido pendente ou se pode pedir. Quem teve o vínculo revogado pode pedir,
+        como qualquer pessoa.
+
+        Código que nunca foi sorteado e código de organização apagada têm a mesma resposta.
+      security:
+        - {}
+        - sessaoSupabase: []
+        - bearerSupabase: []
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{6,12}$" }
+      responses:
+        "200":
+          description: O convite.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Convite" }
+              example:
+                organizacao: { nome: "Condomínio Recanto Azul", codigoPublico: "RECANTO7" }
+                situacao: "sem-sessao"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "404":
+          description: Nenhuma organização com aquele código.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/codigo-publico-nao-encontrado"
+                title: "Código não encontrado"
+                status: 404
+                detail: "Nenhuma organização usa este código."
+                codigo: "CODIGO_PUBLICO_NAO_ENCONTRADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /pedidos-de-entrada/{pedidoId}/aprovar:
     post:
       tags: [Entrada na organização]
@@ -3237,6 +3285,25 @@ components:
             areasSemeadas:
               type: integer
               description: Quantas áreas-semente a política criou junto com a organização.
+
+    Convite:
+      type: object
+      description: |
+        O convite lido pelo código. **São exatamente três campos, e nada mais** — não há identificador,
+        contagem, tipo nem pessoa, porque este corpo é entregue a quem não tem sessão.
+      required: [organizacao, situacao]
+      properties:
+        organizacao:
+          type: object
+          description: Só o nome e o código.
+          required: [nome, codigoPublico]
+          properties:
+            nome: { type: string }
+            codigoPublico: { type: string, pattern: "^[A-Z0-9]{6,12}$" }
+        situacao:
+          type: string
+          description: Decidida no servidor, para que a API e a página digam a mesma coisa.
+          enum: [sem-sessao, pode-pedir, ja-participa, pedido-pendente]
 
     PedidoDeEntrada:
       type: object

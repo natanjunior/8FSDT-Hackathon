@@ -16,6 +16,7 @@ import {
   armazenamentoDeCookies,
   armazenamentoDeRedefinicao,
   destinoDeConfirmacao,
+  destinoSeguro,
 } from "@/interface/http";
 import {
   criarContaSchema,
@@ -77,8 +78,8 @@ export async function acaoDeEntrar(
 
   // O destino pretendido volta em `?destino=`, e é o que faz o link profundo sobreviver à autenticação
   // (inventário, §3, decisão 2). Sem ele, o shell resolve o mapa a partir de `GET /contexto`.
-  const destino = formulario.get("destino");
-  redirect(typeof destino === "string" && destino.startsWith("/") ? destino : "/");
+  const destino = destinoSeguro(formulario.get("destino"));
+  redirect(destino ?? "/");
 }
 
 /** T-11 · Criar conta. O `nome` é obrigatório: é o metadado de onde o ACL semeia `pessoas.nome` (§4.1). */
