@@ -26,9 +26,11 @@ import {
 import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
+import { FalhaDoCartao } from "@/interface/componentes/falha-do-cartao";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
+import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -201,7 +203,9 @@ export default async function Ocorrencia({
    * recusar, esta função **retorna** e ninguém mais espera esta promessa — que vai rejeitar com a mesma
    * `OcorrenciaNaoEncontrada` e derrubaria o processo como rejeição não tratada. Anexar um tratador a
    * marca como tratada; **a promessa original continua rejeitando para o `<Suspense>`**, porque `catch`
-   * devolve uma promessa nova em vez de alterar esta.
+   * devolve uma promessa nova em vez de alterar esta. **E quem recebe essa rejeição é a `FalhaDoCartao`
+   * que envolve cada `<Suspense>`** (item 90): a falha fica no cartão que esperava o dado, e o relato, a
+   * régua do cabeçalho e o selo continuam na tela.
    */
   const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
   linhaDoTempoPedida.catch(() => undefined);
@@ -555,6 +559,17 @@ export default async function Ocorrencia({
       : {}),
   };
 
+  /**
+   * **O título fixo do bloco 3, montado uma vez e usado em três lugares** — a espera, o recuo da falha e
+   * o `id` que dá nome acessível à seção (item 90). Sem o `id` a seção perde o nome, então o recuo repete
+   * o mesmo `h2` do `fallback` em vez de trocá-lo por uma frase.
+   */
+  const tituloFixoDaLinhaDoTempo = (
+    <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
+      Linha do tempo
+    </h2>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
@@ -622,15 +637,23 @@ export default async function Ocorrencia({
             <h2 className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
               O ciclo
             </h2>
-            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
-              <ReguaComDatas
-                eventos={linhaDoTempoPedida}
-                statusAtual={detalhe.status}
-                nomeDoStatus={nomeDoStatus}
-                notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-                rotuloDaSaida={detalhe.statusRotulo}
-              />
-            </Suspense>
+            {/* **A régua depende da promessa da linha do tempo**, então ela cai com a mesma falha — e o
+                recuo é o trilho neutro mais a frase (item 90, critério 5). O estado atual continua dito
+                pelo selo do cabeçalho, que vem do detalhe e não desta promessa. */}
+            <FalhaDoCartao
+              frase={FRASES_DE_FALHA.regua}
+              antes={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}
+            >
+              <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
+                <ReguaComDatas
+                  eventos={linhaDoTempoPedida}
+                  statusAtual={detalhe.status}
+                  nomeDoStatus={nomeDoStatus}
+                  notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                  rotuloDaSaida={detalhe.statusRotulo}
+                />
+              </Suspense>
+            </FalhaDoCartao>
           </section>
 
           {/* **Bloco 1c · O resto da identidade**, com a faixa *Detalhes* (critério 44q.5). O `Cartao`
@@ -852,24 +875,25 @@ export default async function Ocorrencia({
                 </a>
               }
             >
-              <Suspense
-                fallback={
-                  <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-                    Linha do tempo
-                  </h2>
-                }
-              >
-                <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
-              </Suspense>
+              {/* **Sem frase no recuo, de propósito:** o título é o nome acessível da seção, e a frase
+                  da falha já está no corpo do mesmo cartão. Duas frases para uma falha só seriam duas
+                  falhas na leitura de quem usa leitor de tela. */}
+              <FalhaDoCartao frase={null} antes={tituloFixoDaLinhaDoTempo}>
+                <Suspense fallback={tituloFixoDaLinhaDoTempo}>
+                  <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
+                </Suspense>
+              </FalhaDoCartao>
             </FaixaDoCartao>
             <CorpoDoCartao>
-              <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-                <LinhaDoTempo
-                  eventos={linhaDoTempoPedida}
-                  pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-                  lente={lente}
-                />
-              </Suspense>
+              <FalhaDoCartao frase={FRASES_DE_FALHA.linhaDoTempo}>
+                <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+                  <LinhaDoTempo
+                    eventos={linhaDoTempoPedida}
+                    pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+                    lente={lente}
+                  />
+                </Suspense>
+              </FalhaDoCartao>
             </CorpoDoCartao>
           </section>
 

@@ -1,4 +1,8 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { act, createElement, Suspense, use } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +25,23 @@ import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/**
+ * **A raiz sai de `dirname`, e não do `new URL("../../", import.meta.url)` dos outros testes.** Aquele
+ * idioma é reescrito pelo Vite, que reconhece o padrão e o troca por um endereço de ativo —
+ * `http://localhost:3000/@fs/…` — quando o ambiente do arquivo é `jsdom`. O `fileURLToPath` recusa o
+ * esquema, e o arquivo nem chega a rodar. Recebendo a `string` direto, a reescrita não acontece.
+ */
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+function ler(relativo: string): string {
+  return readFileSync(join(RAIZ, relativo), "utf8");
+}
+
+/** Sem comentários de bloco (inclusive `{/* … *\/}`) e sem linhas `//`: prosa não conta como código. */
+function semComentarios(fonte: string): string {
+  return fonte.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, "");
+}
 
 describe("a falha de uma leitura secundária fica no cartão — critério 90.6", () => {
   let conteiner: HTMLDivElement;
@@ -90,6 +111,27 @@ describe("as frases do item 90 — a voz de tela do guia", () => {
   it("nenhuma frase carrega palavra em inglês nem código", () => {
     for (const frase of Object.values(FRASES_DE_FALHA)) {
       expect(frase).not.toMatch(/error|not found|digest|\d{3}/iu);
+    }
+  });
+});
+
+describe("todo <Suspense> que espera promessa secundária está dentro de uma fronteira — critério 90.5", () => {
+  const ARQUIVOS = [
+    "app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx",
+    "src/interface/componentes/conversa-da-ocorrencia.tsx",
+  ];
+
+  it.each(ARQUIVOS)("%s", (arquivo) => {
+    const fonte = semComentarios(ler(arquivo));
+    const posicoes = [...fonte.matchAll(/<Suspense\b/gu)].map((achado) => achado.index);
+    expect(posicoes.length).toBeGreaterThan(0);
+    for (const posicao of posicoes) {
+      const abertura = fonte.lastIndexOf("<FalhaDoCartao", posicao);
+      const fechamento = fonte.lastIndexOf("</FalhaDoCartao>", posicao);
+      expect(
+        abertura,
+        `o <Suspense> na posição ${String(posicao)} está fora de fronteira`,
+      ).toBeGreaterThan(fechamento);
     }
   });
 });

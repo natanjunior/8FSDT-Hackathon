@@ -20,7 +20,9 @@ import {
   type ComentarioDoEnvio,
 } from "@/interface/componentes/comando-de-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
+import { FalhaDoCartao } from "@/interface/componentes/falha-do-cartao";
 import { AvatarDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
 import { partesDaAutoria } from "@/interface/componentes/linha-do-tempo";
 import {
   avisarErro,
@@ -47,6 +49,9 @@ import type { PaginaDeComentariosProjetada } from "@/interface/projecoes";
  * precisam do mesmo estado — a mensagem recém-enviada é acrescentada localmente —, e um `<Suspense>` no
  * servidor envolvendo os dois arrastaria o campo para dentro da espera. Quem espera a promessa é o filho,
  * com `use()`; quem guarda o que foi escrito é o pai.
+ *
+ * **A fronteira de erro segue o mesmo recorte** (item 90): ela envolve só o `<Suspense>`, pela mesma
+ * razão. Com a lista em falha o campo continua disponível, porque a escrita é outra requisição.
  *
  * **Depois de enviar, duas coisas acontecem, cada uma por uma razão:**
  * - **Acrescentar localmente** é o que faz a mensagem aparecer. `router.refresh()` sozinho **não
@@ -131,16 +136,29 @@ export function ConversaDaOcorrencia({
     /* **Cartão com faixa, como os outros blocos de T-05** (item 44q, critério 5). A faixa mora dentro
        da `ListaDeMensagens`, porque é lá que estão a contagem e o cursor. */
     <Cartao tituloId={idDoTitulo}>
-      <Suspense fallback={<EsqueletoDaConversa idDoTitulo={idDoTitulo} />}>
-        <ListaDeMensagens
-          idDoTitulo={idDoTitulo}
-          pagina={primeiraPagina}
-          acrescentadas={acrescentadas}
-          ocorrenciaId={ocorrenciaId}
-          pessoaIdDeQuemLe={pessoaIdDeQuemLe}
-          vazio={vazio}
-        />
-      </Suspense>
+      {/* O recuo repete a faixa com o `h2` de `id={idDoTitulo}`, porque o `Cartao` é nomeado por ele. */}
+      <FalhaDoCartao
+        frase={FRASES_DE_FALHA.conversa}
+        noCorpo
+        antes={
+          <FaixaDoCartao>
+            <h2 id={idDoTitulo} className={TITULO_DA_FAIXA}>
+              Mensagens
+            </h2>
+          </FaixaDoCartao>
+        }
+      >
+        <Suspense fallback={<EsqueletoDaConversa idDoTitulo={idDoTitulo} />}>
+          <ListaDeMensagens
+            idDoTitulo={idDoTitulo}
+            pagina={primeiraPagina}
+            acrescentadas={acrescentadas}
+            ocorrenciaId={ocorrenciaId}
+            pessoaIdDeQuemLe={pessoaIdDeQuemLe}
+            vazio={vazio}
+          />
+        </Suspense>
+      </FalhaDoCartao>
 
       <CorpoDoCartao>
         <Campo id={campoId} rotulo={rotuloDoCampo} obrigatorio erro={formulario.erroDe("mensagem")}>
