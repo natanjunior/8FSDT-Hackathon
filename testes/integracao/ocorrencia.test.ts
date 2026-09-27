@@ -4365,4 +4365,45 @@ describe("o compartilhamento no banco — item 87", () => {
     );
     expect(semAba.itens).toStrictEqual([]);
   });
+
+  it("a linha nasce sem abertura, e o carimbo é do banco — item 88", async () => {
+    const id = await registrada("Bomba do poço fazendo ruído");
+    await inserir(id, recebePessoaId);
+    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(linha!.aberto_em).toBeNull();
+
+    await consultaCrua(
+      `update compartilhamentos set aberto_em = now()
+        where ocorrencia_id = $1 and com_pessoa_id = $2 and aberto_em is null`,
+      [id, recebePessoaId],
+    );
+    const [depois] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(depois!.aberto_em).toBeInstanceOf(Date);
+  });
+
+  it("desfazer e refazer devolve a linha sem abertura — critério 88.2, no banco", async () => {
+    const id = await registrada("Corrimão solto na escada");
+    await inserir(id, recebePessoaId);
+    await consultaCrua(
+      `update compartilhamentos set aberto_em = now() where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    await consultaCrua(`delete from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`, [
+      id,
+      recebePessoaId,
+    ]);
+    await inserir(id, recebePessoaId);
+    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    // **Nenhum código zera nada** (spec §3.1): refazer é `insert` de linha nova.
+    expect(linha!.aberto_em).toBeNull();
+  });
 });
