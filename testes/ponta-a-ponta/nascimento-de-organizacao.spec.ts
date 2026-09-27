@@ -231,6 +231,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   const posicaoDoScript = htmlCru.indexOf(`id="${ID_DO_SCRIPT_DO_TEMA}"`);
   expect(posicaoDoScript).toBeGreaterThan(-1);
   expect(posicaoDoScript).toBeLessThan(htmlCru.indexOf("<body"));
+  // **O contraste também não pisca** (critério 85.1): o servidor nunca o escreve, e o mesmo script do
+  // `<head>`, que já vem antes do corpo, é quem o liga. O HTML cru não pode trazer o atributo.
+  expect(htmlCru).not.toMatch(/<html[^>]*\sdata-contraste=/u);
 
   await a.goto("/criar-conta");
   await expect(a.getByText("No mínimo 6 caracteres.")).toBeVisible();
@@ -543,6 +546,39 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(itemDeTema).toHaveAttribute("aria-checked", "false");
   await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
   expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")?.value).toBe("claro");
+
+  // **O alto contraste, pelo teclado** (critérios 85.1 e 85.3). Ele vence o tema: com o claro guardado,
+  // ligar o contraste escurece a página, e o *Tema escuro* fica desabilitado com o estado que tinha.
+  const itemDeContraste = b.getByRole("menuitemcheckbox", { name: "Alto contraste" });
+  await expect(itemDeContraste).toHaveAttribute("aria-checked", "false");
+  await b.keyboard.press("ArrowDown");
+  await expect(itemDeContraste).toBeFocused();
+  await b.keyboard.press("Enter");
+  await expect(itemDeContraste).toHaveAttribute("aria-checked", "true");
+  await expect(b.locator("html")).toHaveAttribute("data-contraste", "alto");
+  expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "contraste")?.value).toBe("alto");
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "false");
+  await expect(itemDeTema).toHaveAttribute("aria-disabled", "true");
+  expect(
+    await b.evaluate(() => getComputedStyle(document.documentElement).colorScheme),
+  ).toBe("dark");
+
+  // Recarregar: o script do `<head>` lê os dois cookies antes da primeira pintura.
+  await b.reload();
+  await expect(b.locator("html")).toHaveAttribute("data-contraste", "alto");
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+
+  // Desligar devolve o claro guardado, e o *Tema escuro* volta a responder.
+  await gatilhoDeB.click();
+  await b.getByRole("menuitemcheckbox", { name: "Alto contraste" }).click();
+  await expect(b.locator("html")).not.toHaveAttribute("data-contraste");
+  await expect(b.getByRole("menuitemcheckbox", { name: "Tema escuro" })).not.toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  expect(
+    await b.evaluate(() => getComputedStyle(document.documentElement).colorScheme),
+  ).not.toBe("dark");
 
   // E o caminho que o passo 8 já fazia, agora com o menu aberto pelo teclado.
   await b.getByRole("menuitem", { name: "Entrar em outra organização" }).click();
