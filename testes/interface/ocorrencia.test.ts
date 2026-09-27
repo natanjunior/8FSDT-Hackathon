@@ -382,6 +382,8 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   responsavel: null,
   quantidadeDeAnexos: 0,
   avaliada: false,
+  // `null` é *"a pergunta não foi feita"* — fora do recorte das compartilhadas (item 88).
+  naoAberta: null,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
@@ -453,7 +455,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, compartilhadasNaoAbertas: 0 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -494,7 +496,15 @@ describe("o envelope da página — item 14b", () => {
     expect(envelope.totalNoCorte).toBe(137);
     expect(envelope.saidasDesdeOCorte).toBe(3);
     expect(envelope.novasDesdeOCorte).toBe(5);
-    expect(envelope.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
+    // **A quinta chave entra na asserção fechada**, e não se troca por `toMatchObject`: é justamente o
+    // conjunto fechado de números do envelope que esta asserção existe para prender (item 88).
+    expect(envelope.contagens).toStrictEqual({
+      todas: 9,
+      minhas: 2,
+      emAberto: 7,
+      semResponsavel: 3,
+      compartilhadasNaoAbertas: 0,
+    });
   });
 
   it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {
@@ -4247,6 +4257,7 @@ describe("87 · a fronteira HTTP do compartilhamento", () => {
           com: { pessoaId: VIZINHA, nome: "Bia", papel: "solicitante" },
           por: { pessoaId: AUTORA_87, nome: "Ana", papel: "solicitante" },
           compartilhadoEm: "2026-09-26T12:00:00.000Z",
+          abertoEm: null,
         },
       ],
     };
@@ -4404,5 +4415,27 @@ describe("87 · o painel de compartilhar, a metade conferível", () => {
     // Os dois ramos de sempre continuam intactos.
     expect(vazioDaConversa(true)).toContain("falar com os Gestores");
     expect(vazioDaConversa(false)).toContain("falar com o Solicitante");
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.2 · a abertura não decide nada sobre papel
+ * ============================================================================
+ *
+ * **A autorização é a própria linha do par.** Sem ela o `update` não acha nada, e uma leitura prévia só
+ * daria a quem chamasse a informação de que a ocorrência existe (contrato §6.3). Esta guarda impede que
+ * alguém acrescente essa leitura depois, por parecer mais seguro.
+ */
+describe("88.2 · a abertura não decide nada sobre papel", () => {
+  it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
+    const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
+    const inicio = fonte.indexOf("export async function registrarAberturaDoCompartilhamento(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
+
+    for (const proibido of ["porId", "podeLerOcorrencia", "pode(", "papel"]) {
+      expect(corpo, proibido).not.toContain(proibido);
+    }
   });
 });
