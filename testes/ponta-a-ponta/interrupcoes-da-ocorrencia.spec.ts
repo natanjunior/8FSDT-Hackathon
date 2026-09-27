@@ -15,6 +15,8 @@ import {
   NOME_DE_HELENA,
   NOME_DE_MARCOS,
   registrarOcorrencia,
+  situacao,
+  SOLICITANTE_DO_AURORA,
 } from "./mundo";
 
 /**
@@ -427,6 +429,134 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   });
   await expect(helena.getByText("Esta ocorrência está encerrada.")).toBeVisible();
   await expect(helena.getByText(OBSERVACAO_DO_CANCELAMENTO).first()).toBeVisible();
+
+  await contextoDeHelena.close();
+  await contextoDeMarcos.close();
+});
+
+/**
+ * ============================================================================
+ *  O compartilhamento — item 87
+ * ============================================================================
+ *
+ * **Entra neste arquivo, e não num novo, pela ADR-0013**: a suíte está no teto de sete arquivos, e o
+ * compartilhamento é a jornada da ocorrência que **sai do dono** sem sair do ciclo — vizinha das
+ * interrupções.
+ *
+ * **O que só o ponta a ponta prova:** que quem recebeu **não** vê botão nenhum. Afirmar o que não aparece
+ * é o critério 87.1 palavra por palavra, e nenhum teste de camada alcança isso: a barra de T-05 é montada
+ * a partir de `acoesDisponiveis`, do detalhe, e o campo da conversa a partir de outra prop. Só a tela
+ * inteira responde se as duas decisões chegaram juntas.
+ */
+test("compartilhar: a Solicitante escolhe, o Gestor abre, e quem recebe só lê — item 87", async ({
+  browser,
+}) => {
+  const contextoDeHelena = await browser.newContext();
+  const contextoDeMarcos = await browser.newContext();
+  const helena = await contextoDeHelena.newPage();
+  const marcos = await contextoDeMarcos.newPage();
+  const marca = marcaDoInstante();
+
+  // -------------------------------------------------------------------------
+  // 1 · Helena, autora, compartilha com Diego. Marcos aparece e recusa; Sônia não aparece.
+  //
+  // **Marcos é Gestor e já vê todas**, então a opção dele vem desabilitada com o motivo escrito — é o
+  // cenário aprovado *"compartilhar com quem já vê"*, e a tela recusa dizendo por quê. **Sônia é
+  // Encarregada**, e uma Solicitante não a alcança: ela não aparece na busca.
+  // -------------------------------------------------------------------------
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: AURORA }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await registrarOcorrencia(
+    helena,
+    `Vazamento compartilhado ${marca}`,
+    "A água desce pela parede da garagem.",
+  );
+
+  await helena.getByRole("button", { name: "Compartilhar" }).click();
+  const painel = helena.getByRole("dialog", { name: "Compartilhar" });
+  await painel.getByLabel("Buscar pelo nome").fill("Ma");
+  await expect(painel.getByRole("option", { name: new RegExp(NOME_DE_MARCOS, "u") })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(painel.getByText("Já vê todas as ocorrências.")).toBeVisible();
+
+  await painel.getByLabel("Buscar pelo nome").fill("Sô");
+  await expect(painel.getByText("Ninguém com esse nome.")).toBeVisible();
+
+  await painel.getByLabel("Buscar pelo nome").fill("Di");
+  await painel.getByRole("option", { name: new RegExp(SOLICITANTE_DO_AURORA, "u") }).click();
+  await expect(painel.getByText("Já compartilhada")).toBeVisible();
+  await painel.getByRole("button", { name: "Pronto" }).click();
+
+  const cartao = helena.getByRole("region", { name: "Compartilhada com" });
+  await expect(cartao.getByText(SOLICITANTE_DO_AURORA)).toBeVisible();
+
+  // -------------------------------------------------------------------------
+  // 2 · Marcos, Gestor e autor de outra, compartilha com Helena.
+  //
+  // Com um vínculo só, o servidor escolhe a organização e ele cai direto na lista.
+  // -------------------------------------------------------------------------
+  await entrar(marcos, MARCOS);
+  await marcos.waitForURL(/\/ocorrencias$/u);
+  await registrarOcorrencia(
+    marcos,
+    `Portão travado ${marca}`,
+    "O portão da garagem não abre pelo controle.",
+  );
+  await marcos.getByRole("button", { name: "Compartilhar" }).click();
+  const painelDoMarcos = marcos.getByRole("dialog", { name: "Compartilhar" });
+  await painelDoMarcos.getByLabel("Buscar pelo nome").fill("Hel");
+  await painelDoMarcos.getByRole("option", { name: new RegExp(NOME_DE_HELENA, "u") }).click();
+  await expect(painelDoMarcos.getByText("Já compartilhada")).toBeVisible();
+  await painelDoMarcos.getByRole("button", { name: "Pronto" }).click();
+
+  // -------------------------------------------------------------------------
+  // 3 · Helena acha na aba, abre, e lê sem poder agir — critérios 87.1 e 87.7
+  //
+  // **A aba é o controle novo de quem não tem `ler_todas`** (critério 87.7). Antes dela, *Minhas* mostra
+  // só as dela — a ocorrência do Marcos **não** está lá, e é o que prova que a aba é outro conjunto, e não
+  // uma soma.
+  // -------------------------------------------------------------------------
+  await helena.goto("/ocorrencias");
+  await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
+  await expect(helena.getByRole("link", { name: `Portão travado ${marca}` })).toHaveCount(0);
+
+  await helena.getByRole("radio", { name: "Compartilhadas comigo" }).click();
+  await helena.getByRole("link", { name: `Portão travado ${marca}` }).click();
+
+  await expect(
+    helena.getByText(`Compartilhada com você por ${NOME_DE_MARCOS} · Gestor.`),
+  ).toBeVisible();
+  // A ocorrência inteira: o selo de situação e a linha do tempo.
+  await expect(situacao(helena)).toBeVisible();
+  await expect(helena.locator("#linha-do-tempo")).toBeVisible();
+
+  // **O que NÃO aparece, e é o critério 87.1.**
+  for (const nome of ["Compartilhar", "Cancelar", "Avaliar"]) {
+    await expect(helena.getByRole("button", { name: nome })).toHaveCount(0);
+  }
+  await expect(helena.getByRole("region", { name: "Compartilhada com" })).toHaveCount(0);
+  await expect(helena.getByRole("textbox", { name: /Escrever para/u })).toHaveCount(0);
+  cobre(test.info(), "87 · 1", { criterio: "87.1" });
+
+  // -------------------------------------------------------------------------
+  // 4 · Marcos desfaz; a aba de Helena perde a ocorrência.
+  // -------------------------------------------------------------------------
+  await marcos.reload();
+  await marcos
+    .getByRole("button", { name: `Desfazer o compartilhamento com ${NOME_DE_HELENA}` })
+    .click();
+  await expect(
+    marcos.getByText("Só quem registrou e os Gestores veem esta ocorrência."),
+  ).toBeVisible();
+
+  await helena.goto("/ocorrencias?compartilhadas=comigo");
+  await expect(helena.getByRole("link", { name: `Portão travado ${marca}` })).toHaveCount(0);
+  await expect(helena.getByText("Nada foi compartilhado com você.")).toBeVisible();
+  cobre(test.info(), "87 · 2", { criterio: "87.7" });
 
   await contextoDeHelena.close();
   await contextoDeMarcos.close();
