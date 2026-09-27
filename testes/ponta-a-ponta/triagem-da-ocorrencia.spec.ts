@@ -13,6 +13,7 @@ import {
   marcaDoInstante,
   NOME_DE_HELENA,
   NOME_DE_MARCOS,
+  RECANTO,
   registrarOcorrencia,
   SOLICITANTE_DO_AURORA,
 } from "./mundo";
@@ -1011,6 +1012,36 @@ test.fixme(
   },
 );
 
+/**
+ * **A página assentada**, que é quando a medida vale. Os `loading.tsx` da casca são esqueletos mais
+ * estreitos que o conteúdo, e medir neles daria zero falso; a fonte muda a largura do nome no seletor.
+ */
+async function assentar(pagina: Page): Promise<void> {
+  await expect(pagina.locator("main")).toBeVisible();
+  await expect(pagina.locator("main .animate-pulse")).toHaveCount(0);
+  await pagina.evaluate(async () => {
+    await document.fonts.ready;
+  });
+}
+
+/** Quanto o documento rola na horizontal. Zero é o único valor aceito. */
+async function transbordo(pagina: Page): Promise<number> {
+  return pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+}
+
+/**
+ * O primeiro `href` da tela que casa o padrão. **Falha dizendo o padrão**, em vez de navegar para
+ * `/ocorrencias/undefined` e medir a tela de não encontrada.
+ */
+async function primeiroHref(pagina: Page, padrao: RegExp): Promise<string> {
+  const hrefs = await pagina
+    .locator("a[href]")
+    .evaluateAll((ancoras) => ancoras.map((ancora) => ancora.getAttribute("href") ?? ""));
+  const achado = hrefs.find((href) => padrao.test(href));
+  expect(achado, `nenhum link casa ${String(padrao)} em ${pagina.url()}`).toBeDefined();
+  return achado ?? "";
+}
+
 test("o título longo corta na tela grande e quebra no celular, sem empurrar as ações (critério 66.1)", async ({
   browser,
 }) => {
@@ -1035,16 +1066,15 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
   const acao = helena.getByRole("button", { name: "Cancelar" });
 
   /**
-   * **A medida é o conteúdo, e não o documento inteiro.** A barra superior da casca transborda em 390 px
-   * — `document.documentElement.scrollWidth` dá 414 em **qualquer** tela de dentro, inclusive na lista,
-   * que este item não toca. Medir o documento faria este teste acusar aquele defeito e calar sobre o
-   * título longo, que é o que o critério 66.1 cobra. O que se afirma é o que o item controla: a ação
-   * dentro da tela, e o `<main>` e o cabeçalho sem rolagem horizontal própria.
+   * **Três medidas, e cada uma diz uma coisa.** O documento não rola na horizontal (item 92); o `<main>`
+   * e o cabeçalho da ocorrência não rolam por dentro, que é o que o critério 66.1 cobra do título longo.
    */
   async function acaoDentroDaTela(largura: number): Promise<void> {
     const caixa = await acao.boundingBox();
     expect(caixa).not.toBeNull();
     expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
+
+    expect(await transbordo(helena)).toBe(0);
 
     const conteudo = await helena.evaluate(() => {
       const medir = (elemento: Element | null) =>
@@ -1069,6 +1099,55 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
   await acaoDentroDaTela(390);
   expect(await h1.evaluate((elemento) => elemento.scrollWidth > elemento.clientWidth)).toBe(false);
   await esperarSituacao(helena, ABERTA_PARA_O_SOLICITANTE);
+
+  await contexto.close();
+});
+
+test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", async ({ browser }) => {
+  const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const helena = await contexto.newPage();
+
+  // **Helena é Gestor do Recanto**, o papel que alcança as onze telas, e o nome mais longo do mundo.
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await assentar(helena);
+
+  // **A pré-condição: o nome no seletor está truncado.** É o pior caso da barra; com um nome curto o teste
+  // ficaria verde sem provar nada.
+  const nomeTruncado = await helena
+    .getByRole("combobox", { name: "Organização" })
+    .locator('[data-slot="select-value"]')
+    .evaluate((valor) => valor.scrollWidth > valor.clientWidth);
+  expect(nomeTruncado).toBe(true);
+
+  const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  const ocorrencia = await primeiroHref(helena, new RegExp(`^/ocorrencias/${UUID}$`, "u"));
+  await helena.goto("/vinculos");
+  await assentar(helena);
+  const edicao = await primeiroHref(helena, new RegExp(`^/vinculos/${UUID}/editar$`, "u"));
+
+  // As onze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra.
+  const rotas = [
+    "/ocorrencias",
+    ocorrencia,
+    `${ocorrencia}/auditoria`,
+    "/dashboard",
+    "/vinculos",
+    "/vinculos/nova",
+    edicao,
+    "/configuracao",
+    "/configuracao/categorias",
+    "/configuracao/areas",
+    "/meus-dados",
+  ];
+  for (const rota of rotas) {
+    await helena.goto(rota);
+    await assentar(helena);
+    // Suave: uma tela com transbordo não esconde as seguintes.
+    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toBe(0);
+  }
 
   await contexto.close();
 });
