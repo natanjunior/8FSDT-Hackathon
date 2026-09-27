@@ -21,7 +21,7 @@ import { chromium } from "@playwright/test";
 
 import { cn } from "@/interface/componentes/utilitarios";
 import { Button } from "@/interface/componentes/ui/button";
-import { Badge } from "@/interface/componentes/ui/badge";
+import { Badge, badgeVariants } from "@/interface/componentes/ui/badge";
 import { sidebarMenuButtonVariants } from "@/interface/componentes/ui/sidebar";
 import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
@@ -29,7 +29,8 @@ import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
-import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
+import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO, CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { SeloDeNaoVista } from "@/interface/componentes/selo-de-nao-vista";
 
 // O `postcss` não é dependência declarada do projeto; é do `@tailwindcss/postcss`, e é por ele que se
 // alcança, para não depender de como o `npm` achatou a árvore.
@@ -126,6 +127,27 @@ const PECAS = [
     html: () => `<span class="${CONTAGEM_DO_FILTRO}">12</span>`,
     // (d): 11,5 e não 11 — o oitavo papel.
     esperado: { "font-size": "11.5px", "padding-top": "1px", "padding-left": "7px" },
+  },
+  {
+    id: "contagem-de-nao-vistas",
+    // Item 88: a pendência veste o preenchimento da marca, e o par está medido em `tema.test.ts`. Aqui o
+    // que se prende é que a peça usa ESTES dois tokens, e não um vizinho parecido.
+    html: () => `<span class="${cn(badgeVariants({}), CONTAGEM_DE_NAO_VISTAS)}">3</span>`,
+    esperado: {
+      "background-color": "token(--accent)",
+      color: "token(--marca-foreground)",
+    },
+  },
+  {
+    id: "selo-de-nao-vista",
+    // Item 88: contorno, porque o cheio da linha é o selo de status. A borda leva a marca; o texto, a
+    // tinta — `--accent` como texto reprova no tema claro, e é o item 89 que o conserta.
+    html: () => renderToStaticMarkup(h(SeloDeNaoVista)),
+    esperado: {
+      "background-color": "rgba(0, 0, 0, 0)",
+      "border-top-color": "token(--accent)",
+      color: "token(--ink)",
+    },
   },
   {
     id: "item-de-menu",

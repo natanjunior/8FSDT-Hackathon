@@ -39,6 +39,7 @@ import {
   partesDaAutoria,
 } from "@/interface/componentes/linha-do-tempo";
 import { CartaoDeCompartilhamento } from "@/interface/componentes/compartilhamento-da-ocorrencia";
+import { RegistroDeAbertura } from "@/interface/componentes/registro-de-abertura";
 import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
@@ -613,6 +614,11 @@ export default async function Ocorrencia({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* **Item 88 — a primeira abertura.** Não desenha nada; grava, e invalida a lista para que o número
+          caia também na volta pelo botão do navegador. Monta só quando `naoAberta`, então a segunda visita
+          não chama nada. */}
+      {recebida !== null && recebida.naoAberta && <RegistroDeAbertura ocorrenciaId={detalhe.id} />}
+
       {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
           cortado em 40 caracteres e inteiro no `title`. */}
       <CaminhoDaPagina

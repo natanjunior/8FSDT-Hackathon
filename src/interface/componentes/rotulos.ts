@@ -527,8 +527,27 @@ export function palavrasDaAtribuicao(temResponsavel: boolean): PalavrasDaAtribui
  */
 export const RECORTE_TODAS = "Todas as ocorrências";
 export const RECORTE_MINHAS = "Minhas ocorrências";
-/** A aba do item 87. **Sem número**: o lugar dele é do item 88, que conta as não abertas. */
+/** A aba do item 87. O número dela é do item 88, e conta as não abertas. */
 export const RECORTE_COMPARTILHADAS = "Compartilhadas comigo";
+
+/**
+ * **A tela diz *vista*; o banco, o código e o contrato dizem *aberta*** — item 88.
+ *
+ * O selo fica na mesma linha que o `SeloDeStatus`, e *Aberta* é o primeiro estado do ciclo: *Aberta · Não
+ * aberta* é contradição de leitura. O critério fala do comportamento, e não da palavra da tela.
+ *
+ * **A palavra existe porque o compromisso A-5 a exige:** nada é comunicado só por cor nem só por forma.
+ */
+export const SELO_NAO_VISTA = "Não vista";
+
+/**
+ * A palavra do **nome acessível** da opção — *"Compartilhadas comigo, 3 não vistas"*. Na tela fica só o
+ * número, pelo mesmo motivo que o `Quantos` de hoje põe o número dentro do nome: esconder de quem usa
+ * leitor de tela um número que está na tela seria negar-lhe o que todo mundo vê.
+ */
+export function palavraDeNaoVistas(quantas: number): string {
+  return quantas === 1 ? "não vista" : "não vistas";
+}
 
 /**
  * ============================================================================

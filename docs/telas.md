@@ -83,8 +83,11 @@ moram. A configuração abre as categorias e as áreas.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
-escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*, sem contagem: o número das compartilhadas
-ainda não existe.
+escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*.
+
+A opção *Compartilhadas comigo* mostra quantas dessas ocorrências a pessoa ainda não abriu, e o número
+desaparece quando não há nenhuma. Na aba, cada linha que ela ainda não abriu é marcada com a palavra, ao
+lado do status. Nada é empurrado: o número só existe na lista que a pessoa abriu.
 
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.

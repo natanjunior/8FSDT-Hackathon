@@ -17,6 +17,7 @@ import {
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
+  registrarAberturaDoCompartilhamento,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -1880,6 +1881,8 @@ describe("87.3 · compartilhar, desfazer e buscar", () => {
           com: pessoa(d.comPessoaId),
           por: pessoa(d.porPessoaId),
           compartilhadoEm: d.em,
+          // Linha nova é linha não aberta (item 88): nada zera nada, e `insert` já nasce nulo.
+          abertoEm: null,
         });
         return { desfecho: "criado" as const };
       },
@@ -2004,5 +2007,39 @@ describe("87.3 · compartilhar, desfazer e buscar", () => {
       motivo: "autor",
     });
     expect(itens.some((i) => i.pessoaId === ENCARREGADO)).toBe(true);
+  });
+});
+
+/**
+ * ============================================================================
+ *  88 · registrar a abertura
+ * ============================================================================
+ *
+ * **O que esta camada prova:** que a função chama a porta com a ocorrência e com quem lê, e nada mais.
+ * A autorização é a própria linha do par: quem não recebeu não tem linha, e o `update` não acha nada.
+ * A metade que só o Postgres responde está em `testes/integracao/ocorrencia.test.ts`.
+ */
+describe("88 · registrar a abertura", () => {
+  it("chama a porta com a ocorrência e com quem lê, e nada mais", async () => {
+    const chamadas: Array<[string, string]> = [];
+    const repo = {
+      marcarCompartilhamentoAberto: async (ocorrenciaId: string, comPessoaId: string) => {
+        chamadas.push([ocorrenciaId, comPessoaId]);
+      },
+    };
+
+    await registrarAberturaDoCompartilhamento(repo, "oc-1", { pessoaId: "p-1" });
+
+    expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
+  });
+
+  it("não pede nada além da porta que escreve", async () => {
+    // **Se a função lesse a ocorrência antes de marcar**, este duplo — que só tem um método — quebraria.
+    // É a asserção de que a autorização não é uma leitura prévia, e sim a linha do par.
+    const repo = { marcarCompartilhamentoAberto: async () => undefined };
+
+    await expect(
+      registrarAberturaDoCompartilhamento(repo, "oc-2", { pessoaId: "p-2" }),
+    ).resolves.toBeUndefined();
   });
 });

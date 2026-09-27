@@ -108,8 +108,7 @@ organizações isoladas na mesma instalação.
 
 - acesso próprio do Encarregado, e com ele a leitura sem rede, o reporte de execução e a recusa de
   atribuição;
-- avisos automáticos de qualquer tipo — sem notificação, sem sino, sem alarme de ocorrência parada, sem
-  e-mail ou mensagem;
+- nenhum aviso que chegue sozinho: sem sino, sem e-mail, sem mensagem, sem alarme de ocorrência parada;
 - filtros rápidos salvos;
 - aderir a uma ocorrência parecida em vez de abrir outra igual;
 - nota interna entre Gestores;

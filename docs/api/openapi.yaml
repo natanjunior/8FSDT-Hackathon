@@ -1698,7 +1698,7 @@ paths:
                       Quantas foram registradas **depois** do corte e casam com o recorte aplicado.
                   contagens:
                     type: object
-                    required: [todas, minhas, emAberto, semResponsavel]
+                    required: [todas, minhas, emAberto, semResponsavel, compartilhadasNaoAbertas]
                     description: |
                       O painel. **Calculado sem os filtros de status, categoria e prioridade**: estes
                       números existem para o leitor decidir qual recorte pedir, e recalculá-los dentro do
@@ -1717,6 +1717,13 @@ paths:
                       semResponsavel:
                         type: integer
                         description: Sem responsável vigente **e** não terminal.
+                      compartilhadasNaoAbertas:
+                        type: integer
+                        description: |
+                          Quantas ocorrências compartilhadas com quem pergunta ainda **não** foram
+                          abertas por ela, nesta organização. Ignora o corte e os filtros: a pergunta é
+                          quantas esperam, e não quantas desta página. Vem `0` para quem pode ler todas,
+                          que não recebe compartilhamento.
                   visibilidadeAplicada:
                     type: string
                     enum: [todas, apenas_minhas, compartilhadas_comigo]
@@ -1732,7 +1739,7 @@ paths:
                 totalNoCorte: 140
                 saidasDesdeOCorte: 3
                 novasDesdeOCorte: 5
-                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12 }
+                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12, compartilhadasNaoAbertas: 0 }
                 itens:
                   - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
                     titulo: "Lâmpada queimada na garagem"
@@ -3763,6 +3770,14 @@ components:
             *(Acrescentado em 30/08/2026: até esta data o schema declarava treze propriedades, e o produto
             já projetava a décima quarta desde o item 27. Item 21 da fila da frente de documentação.)*
           examples: [false, true]
+        naoAberta:
+          type: boolean
+          description: |
+            Presente apenas quando a listagem foi pedida com `compartilhadas=comigo`: diz se quem pergunta
+            ainda não abriu esta ocorrência. Fora desse recorte a pergunta não é feita, e o campo não vem.
+
+            A palavra é *aberta* aqui e na trilha; a tela escreve *vista*, porque *Aberta* é um status.
+          examples: [true, false]
         registradaEm: { type: string, format: date-time }
         atualizadaEm:
           type: string
@@ -3844,7 +3859,7 @@ components:
                       items: { $ref: "#/components/schemas/Compartilhamento" }
                 - type: object
                   title: Recebida por compartilhamento
-                  required: [tipo, por, compartilhadoEm]
+                  required: [tipo, por, compartilhadoEm, naoAberta]
                   properties:
                     tipo: { type: string, enum: [recebida] }
                     por:
@@ -3854,6 +3869,11 @@ components:
                         nome: { type: string, maxLength: 120 }
                         papel: { $ref: "#/components/schemas/PapelVinculo" }
                     compartilhadoEm: { type: string, format: date-time }
+                    naoAberta:
+                      type: boolean
+                      description: |
+                        Se quem está lendo ainda não tinha aberto esta ocorrência. Só existe neste ramo:
+                        quem compartilhou não recebe recibo de leitura.
 
     Compartilhamento:
       type: object

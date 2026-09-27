@@ -1,7 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { registrarAberturaDoCompartilhamento } from "@/aplicacao/ocorrencia";
 import {
   criarConta,
   definirSenha,
@@ -17,6 +19,9 @@ import {
   armazenamentoDeRedefinicao,
   destinoDeConfirmacao,
   destinoSeguro,
+  novoTraceId,
+  registrarFalha,
+  resolverEscopoParaTela,
 } from "@/interface/http";
 import {
   criarContaSchema,
@@ -30,6 +35,9 @@ import {
  * ============================================================================
  *  As ações de credencial — T-01, T-11, T-12 e T-13
  * ============================================================================
+ *
+ * **Desde o item 88 há uma ação que não é de credencial:** a primeira abertura de uma ocorrência
+ * compartilhada. O bloco dela, no fim do arquivo, explica por que ela não é endereço do contrato.
  *
  * **Não são endpoints deste contrato** (§4.1): são o subdomínio Genérico comprado no provedor. Por isso são
  * *Server Actions* e não `route.ts` — não têm caminho, não entram no `openapi.yaml`, e não devem entrar.
@@ -181,4 +189,51 @@ export async function acaoDeDefinirSenha(
 export async function acaoDeSair(): Promise<void> {
   await sair(montarCredenciais(await armazenamentoDeCookies()));
   redirect("/entrar");
+}
+
+/**
+ * ============================================================================
+ *  T-05 · a primeira abertura de uma ocorrência compartilhada — item 88
+ * ============================================================================
+ *
+ * **Ela não é endereço do contrato, e a ausência é decisão.** `aberto_em` não é status, não grava
+ * histórico, está fora do agregado `Ocorrencia`, e é lida **só por quem a escreveu** — nenhuma tela mostra
+ * a quem compartilhou se a outra pessoa já abriu. Um endereço a mais no `openapi.yaml` descreveria como
+ * comando do produto o que é estado de quem lê. `docs/api.md`, em *O que a API não expõe*, registra a
+ * ausência.
+ *
+ * **E ela é o único mecanismo que faz o número cair na volta pelo navegador.** O cache de cliente reusa a
+ * entrada de T-03 em toda navegação de voltar, `router.refresh()` só limpa a rota atual, e `revalidatePath`
+ * num route handler não alcança a memória do navegador. Numa função de servidor ele alcança. Sem isto, o
+ * critério 88.1 passa em teste que volta por link e falha no gesto mais comum do celular.
+ *
+ * **Não devolve nada, e isso é da §6.3 do contrato.** Chamada com o identificador de uma ocorrência que a
+ * pessoa não recebeu, ela não grava — a instrução não acha a linha — e não diz nada, nem que a ocorrência
+ * existe.
+ *
+ * **Falha ao gravar não derrubaria a tela nem se ela pudesse:** a ocorrência já está lida quando isto roda.
+ * O número fica um a mais até a próxima abertura, e a falha é registrada no formato de sempre.
+ */
+export async function acaoDeRegistrarAbertura(ocorrenciaId: string): Promise<void> {
+  let escopo;
+  try {
+    escopo = await resolverEscopoParaTela("ocorrencia.ler_propria");
+  } catch {
+    // Sem sessão não há o que marcar. A tela que a chamou já teria redirecionado.
+    return;
+  }
+  if (escopo.situacao !== "pronto") return;
+
+  try {
+    await registrarAberturaDoCompartilhamento(escopo.repos.ocorrencias, ocorrenciaId, {
+      pessoaId: escopo.ctx.pessoaId,
+    });
+  } catch (erro) {
+    registrarFalha(erro, `/ocorrencias/${ocorrenciaId}`, "ACAO", novoTraceId());
+    return;
+  }
+
+  // **`/ocorrencias`, e não o caminho desta ocorrência.** O que ficou velho é a lista, que é onde o número
+  // mora.
+  revalidatePath("/ocorrencias");
 }

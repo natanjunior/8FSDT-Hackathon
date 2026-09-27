@@ -21,21 +21,39 @@ import { RECORTE_COMPARTILHADAS, RECORTE_MINHAS, RECORTE_TODAS } from "./rotulos
  * sai dele.
  */
 
+/**
+ * **Duas formas, e a diferença é de significado** (item 88). `"total"` conta um conjunto que a pessoa pode
+ * escolher ver; `"nao-vistas"` conta uma pendência, e pendência zero não é número, é ausência.
+ */
+export type FormaDoNumero = "total" | "nao-vistas";
+
 export type OpcaoDoRecorte = {
   readonly valor: "todas" | "minhas" | "compartilhadas";
   readonly rotulo: string;
-  /** `null` quando a opção não mostra número — as duas de quem não tem `ler_todas`. */
-  readonly contagem: keyof ContagensDoRecorte | null;
+  /**
+   * `null` quando a opção não mostra número. **O campo e a forma andam juntos** porque um sem o outro é
+   * estado impossível: a pílula neutra conta o conjunto, o selo da marca conta o que ainda não foi visto.
+   */
+  readonly contagem: { readonly campo: keyof ContagensDoRecorte; readonly forma: FormaDoNumero } | null;
 };
 
-/** Os dois números do painel que o seletor imprime — os dois medem o mesmo conjunto. */
-export type ContagensDoRecorte = { readonly todas: number; readonly minhas: number };
+/**
+ * Os números do painel que o seletor imprime. `todas` e `minhas` medem o mesmo conjunto; a terceira mede
+ * outra coisa, e por isso o desenho dela é outro.
+ */
+export type ContagensDoRecorte = {
+  readonly todas: number;
+  readonly minhas: number;
+  /** item 88 — as não abertas de quem recebe. `0` para quem tem `ler_todas`. */
+  readonly compartilhadasNaoAbertas: number;
+};
 
 /**
- * **Sem número nas duas opções de quem não tem `ler_todas`, e a ausência é decisão.** O lugar do número em
- * *Compartilhadas comigo* é do item 88, e ele conta **não abertas**: mostrar agora o total e trocá-lo
- * depois pelo não aberto faria o mesmo lugar significar duas coisas em duas versões. Pôr número só em
- * *Minhas* deixaria o controle torto.
+ * **O número de *Compartilhadas comigo* conta as NÃO ABERTAS** (item 88), e por isso ele tem forma própria:
+ * na mesma peça, com a cara do total, *Compartilhadas comigo 3* seria lido como *"3 compartilhadas"*.
+ *
+ * **Minhas continua sem número:** para quem não lê todas, *Minhas* é o padrão, e um número ali seria o
+ * mesmo que o `total` da página, dois centímetros ao lado.
  *
  * **Quem tem `ler_todas` não ganha a terceira opção:** compartilhar com quem lê todas é recusado, então a
  * aba dele seria sempre vazia. O parâmetro `?compartilhadas=comigo` continua funcionando na API para
@@ -44,13 +62,17 @@ export type ContagensDoRecorte = { readonly todas: number; readonly minhas: numb
 export function opcoesDoRecorte(podeLerTodas: boolean): readonly OpcaoDoRecorte[] {
   if (podeLerTodas) {
     return [
-      { valor: "todas", rotulo: RECORTE_TODAS, contagem: "todas" },
-      { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: "minhas" },
+      { valor: "todas", rotulo: RECORTE_TODAS, contagem: { campo: "todas", forma: "total" } },
+      { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: { campo: "minhas", forma: "total" } },
     ];
   }
   return [
     { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: null },
-    { valor: "compartilhadas", rotulo: RECORTE_COMPARTILHADAS, contagem: null },
+    {
+      valor: "compartilhadas",
+      rotulo: RECORTE_COMPARTILHADAS,
+      contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
+    },
   ];
 }
 

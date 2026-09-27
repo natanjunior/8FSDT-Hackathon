@@ -7,6 +7,7 @@ import {
   analisarOcorrencia,
   avaliarOcorrencia,
   cancelarOcorrencia,
+  compartilharOcorrencia,
   iniciarAtendimento,
   listarOcorrencias,
   podeLerOcorrencia,
@@ -4364,5 +4365,183 @@ describe("o compartilhamento no banco — item 87", () => {
       { limite: 100 },
     );
     expect(semAba.itens).toStrictEqual([]);
+  });
+
+  it("a linha nasce sem abertura, e o carimbo é do banco — item 88", async () => {
+    const id = await registrada("Bomba do poço fazendo ruído");
+    await inserir(id, recebePessoaId);
+    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(linha!.aberto_em).toBeNull();
+
+    await consultaCrua(
+      `update compartilhamentos set aberto_em = now()
+        where ocorrencia_id = $1 and com_pessoa_id = $2 and aberto_em is null`,
+      [id, recebePessoaId],
+    );
+    const [depois] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(depois!.aberto_em).toBeInstanceOf(Date);
+  });
+
+  it("desfazer e refazer devolve a linha sem abertura — critério 88.2, no banco", async () => {
+    const id = await registrada("Corrimão solto na escada");
+    await inserir(id, recebePessoaId);
+    await consultaCrua(
+      `update compartilhamentos set aberto_em = now() where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    await consultaCrua(`delete from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`, [
+      id,
+      recebePessoaId,
+    ]);
+    await inserir(id, recebePessoaId);
+    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    // **Nenhum código zera nada** (spec §3.1): refazer é `insert` de linha nova.
+    expect(linha!.aberto_em).toBeNull();
+  });
+
+  it("a contagem conta os nulos de quem recebe, e ignora o resto — item 88", async () => {
+    const [nova] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha do contador ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [nova!.id, organizacaoId],
+    );
+    const a = await registrada("Fiação exposta no hall");
+    const b = await registrada("Vazamento no subsolo");
+    const c = await registrada("Lâmpada do elevador");
+    await inserir(a, nova!.id);
+    await inserir(b, nova!.id);
+    await inserir(c, recebePessoaId); // outra pessoa: não conta para `nova`
+
+    const quem = { pessoaId: nova!.id, podeLerTodas: false };
+    const antes = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
+    expect(antes.contagens.compartilhadasNaoAbertas).toBe(2);
+
+    await portas().ocorrencias.marcarCompartilhamentoAberto(a, nova!.id);
+    const depois = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
+    expect(depois.contagens.compartilhadasNaoAbertas).toBe(1);
+
+    // Idempotente: a segunda chamada não muda nada, e não erra.
+    await portas().ocorrencias.marcarCompartilhamentoAberto(a, nova!.id);
+    const terceira = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
+    expect(terceira.contagens.compartilhadasNaoAbertas).toBe(1);
+  });
+
+  it("quem compartilhou não vê o contador de quem recebeu — item 88", async () => {
+    // `pessoaId` é o autor e o `por_pessoa_id` de todas as linhas deste `describe`. Filtrar pela ponta
+    // errada faria quem compartilhou ver o contador de quem recebeu.
+    const pagina = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId, podeLerTodas: false },
+      { limite: 100 },
+    );
+    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+  });
+
+  it("marcar sem linha do par não faz nada e não erra — item 88", async () => {
+    // Ocorrência que existe, pessoa que não recebeu: a ausência da linha é a própria autorização.
+    const id = await registrada("Portaria sem interfone");
+    await expect(
+      portas().ocorrencias.marcarCompartilhamentoAberto(id, deForaPessoaId),
+    ).resolves.toBeUndefined();
+    const linhas = await consultaCrua(`select 1 from compartilhamentos where ocorrencia_id = $1`, [id]);
+    expect(linhas).toHaveLength(0);
+  });
+
+  it("o campo por item só existe dentro do recorte — item 88", async () => {
+    const [outra] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha do selo ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [outra!.id, organizacaoId],
+    );
+    const compartilhada = await registrada("Grelha do ralo quebrada");
+    await inserir(compartilhada, outra!.id);
+
+    const naAba = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: outra!.id, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true }, limite: 100 },
+    );
+    expect(naAba.itens.map((i) => [i.id, i.naoAberta])).toStrictEqual([[compartilhada, true]]);
+
+    await portas().ocorrencias.marcarCompartilhamentoAberto(compartilhada, outra!.id);
+    const depois = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: outra!.id, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true }, limite: 100 },
+    );
+    expect(depois.itens[0]!.naoAberta).toBe(false);
+
+    // Fora do recorte a pergunta não é feita: `null`, e não `false`.
+    const gestora = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId, podeLerTodas: true },
+      { limite: 100 },
+    );
+    expect(gestora.itens.every((i) => i.naoAberta === null)).toBe(true);
+  });
+
+  it("compartilhar de novo, sem desfazer, não zera a abertura — item 88", async () => {
+    const id = await registrada("Tampa do hidrômetro solta");
+    await inserir(id, recebePessoaId);
+    await portas().ocorrencias.marcarCompartilhamentoAberto(id, recebePessoaId);
+
+    // `compartilharOcorrencia` devolve a linha que existe (`on conflict do nothing`, 87): nada zera.
+    await compartilharOcorrencia(
+      portas().ocorrencias,
+      { pessoaId, podeLerTodas: false },
+      { ocorrenciaId: id, pessoaId: recebePessoaId },
+    );
+
+    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
+      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
+      [id, recebePessoaId],
+    );
+    expect(linha!.aberto_em).toBeInstanceOf(Date);
+  });
+
+  it("revogar e readmitir não mexe na abertura — item 88", async () => {
+    const [ida] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Vizinha revogada ${SUFIXO}`],
+    );
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
+      [ida!.id, organizacaoId],
+    );
+    const id = await registrada("Sensor do portão desalinhado");
+    await inserir(id, ida!.id);
+    await portas().ocorrencias.marcarCompartilhamentoAberto(id, ida!.id);
+
+    // Revogar é `update` e não apaga linha nenhuma (item 84), então a abertura atravessa.
+    await consultaCrua(
+      `update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`,
+      [ida!.id, organizacaoId],
+    );
+    await consultaCrua(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [ida!.id, organizacaoId],
+    );
+
+    const pagina = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId: ida!.id, podeLerTodas: false },
+      { limite: 100 },
+    );
+    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
   });
 });

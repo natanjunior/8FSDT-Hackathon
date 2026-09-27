@@ -136,6 +136,10 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
+A listagem devolve também quantas ocorrências compartilhadas com quem pergunta ainda não foram
+abertas por ela, e, dentro do recorte das compartilhadas, se cada uma já foi. O número ignora os
+filtros, porque responde quantas esperam.
+
 ## Os recortes do painel
 
 O painel conta a mesma coleção de duas maneiras, e elas não somam. Por status, ele conta **tudo o que a
@@ -247,6 +251,9 @@ hora estão na referência.
   pedido de entrada, por código ou por link.
 - **Enviar contatos substitui a lista inteira**, e não há endereço próprio de contato.
 - **Um pedido de entrada recusado pode ser refeito**: a unicidade vale enquanto ele está pendente.
+- **Não há endereço para registrar que alguém abriu uma ocorrência.** A primeira abertura é estado de
+  quem lê, invisível para quem compartilhou, e a própria tela a grava. Nenhuma leitura da API tem efeito
+  colateral.
 
 ## O contrato não pode deixar de ser verdade
 

@@ -48,6 +48,7 @@ type LinhaDeContagens = {
   em_aberto: number;
   sem_responsavel: number;
   novas: number;
+  compartilhadas_nao_abertas: number;
 };
 
 /** As colunas da ocorrência mais o que o `join` traz. Fica junto do SQL, que é quem a produz. */
@@ -316,7 +317,8 @@ const SELECT_DOS_COMPARTILHAMENTOS = `
          c.por_pessoa_id,
          pp.nome  as por_nome,
          vp.papel as por_papel,
-         c.compartilhado_em
+         c.compartilhado_em,
+         c.aberto_em
     from compartilhamentos c
     join vinculos vc on vc.pessoa_id = c.com_pessoa_id
                     and vc.organizacao_id = c.organizacao_id
@@ -334,6 +336,7 @@ type LinhaDeCompartilhamento = {
   por_nome: string;
   por_papel: Papel;
   compartilhado_em: Date;
+  aberto_em: Date | null;
 };
 
 function montarCompartilhamento(linha: LinhaDeCompartilhamento): CompartilhamentoLido {
@@ -341,6 +344,8 @@ function montarCompartilhamento(linha: LinhaDeCompartilhamento): Compartilhament
     com: { pessoaId: linha.com_pessoa_id, nome: linha.com_nome, papel: linha.com_papel },
     por: { pessoaId: linha.por_pessoa_id, nome: linha.por_nome, papel: linha.por_papel },
     compartilhadoEm: linha.compartilhado_em.toISOString(),
+    // **Quem lê decide o que fazer com isto** (item 88): a projeção só o emite para quem recebeu.
+    abertoEm: linha.aberto_em === null ? null : linha.aberto_em.toISOString(),
   };
 }
 
@@ -540,6 +545,7 @@ type LinhaDeResumo = {
   avaliada: boolean;
   registrada_em: Date;
   atualizada_em: Date;
+  nao_aberta: boolean | null;
 };
 
 /**
@@ -710,7 +716,12 @@ function ordemDaPagina(ordenacao?: OrdenacaoDeOcorrencias): string {
   return `${CHAVE_DA_ORDEM[ordenacao.ordem]} ${sentido} nulls last, o.atualizada_em desc, o.id desc`;
 }
 
-const SELECT_DO_RESUMO = `
+/**
+ * **O argumento é a única coluna que depende de quem pergunta** (item 88). Ela chega como expressão SQL já
+ * pronta, montada por `listar`, porque é lá que os `$n` são numerados. Fora do recorte da aba a expressão é
+ * `null::boolean`: a pergunta não foi feita.
+ */
+const selectDoResumo = (naoAberta: string) => `
   select o.id,
          o.titulo,
          o.status,
@@ -731,7 +742,8 @@ const SELECT_DO_RESUMO = `
              and ax.organizacao_id = o.organizacao_id)::int as quantidade_de_anexos,
          (o.avaliacao_nota is not null) as avaliada,
          o.registrada_em,
-         o.atualizada_em
+         o.atualizada_em,
+         ${naoAberta} as nao_aberta
     from ocorrencias o
     join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
@@ -769,6 +781,8 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     // ordenado**, nunca o que é só projetado.
     quantidadeDeAnexos: linha.quantidade_de_anexos,
     avaliada: linha.avaliada,
+    // **`null` é "a pergunta não foi feita"** — fora do recorte da aba (item 88). Ver `portas.ts`.
+    naoAberta: linha.nao_aberta,
     // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
     motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
     registradaEm: linha.registrada_em.toISOString(),
@@ -1507,6 +1521,31 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
+     * A primeira abertura — item 88.
+     *
+     * **Uma instrução, e ela é o portão.** `aberto_em is null` faz a segunda chamada não escrever, e a
+     * ausência da linha faz a chamada de quem não recebeu não escrever: duas abas abrindo juntas terminam
+     * com a mesma linha, e ninguém precisa ler antes.
+     *
+     * **`now()` é o relógio do banco** (ADR-0016): dois relógios produzem duas verdades, e nenhum chamador
+     * precisa carimbar isto.
+     *
+     * **`$1` é a organização** (ADR-0003): uma ocorrência de outra organização não casa, e este arquivo não
+     * recebe o identificador para poder errar.
+     */
+    async marcarCompartilhamentoAberto(ocorrenciaId, comPessoaId) {
+      await consulta(
+        `update compartilhamentos
+            set aberto_em = now()
+          where organizacao_id = $1
+            and ocorrencia_id = $2::uuid
+            and com_pessoa_id = $3::uuid
+            and aberto_em is null`,
+        [ocorrenciaId, comPessoaId],
+      );
+    },
+
+    /**
      * A busca do painel de compartilhar — **parte de `vinculos`**, e casa o nome com a mesma regra do
      * título (`termosDoTitulo`): prefixo de palavra, sem acento, sem caixa, todos os termos.
      */
@@ -1588,14 +1627,27 @@ export function repositorioEscopadoDeOcorrencias(
         valores.push(filtro.autorPessoaId);
       }
 
-      // **A aba do item 87 troca o recorte da página**, e por isso ela vem no lugar do filtro de autor,
-      // nunca ao lado dele: quem pede a aba pede outro conjunto, e a Aplicação já tirou `autorPessoaId`.
+      /**
+       * **A aba do item 87 troca o recorte da página**, e por isso ela vem no lugar do filtro de autor,
+       * nunca ao lado dele: quem pede a aba pede outro conjunto, e a Aplicação já tirou `autorPessoaId`.
+       *
+       * **A aba e o selo saem do mesmo parâmetro** (item 88). A condição diz *"está compartilhada
+       * comigo"*; a coluna diz *"e eu ainda não abri"*. Os dois `exists` batem na chave primária
+       * `(ocorrencia_id, com_pessoa_id)`, então cada um é uma busca de índice por linha.
+       */
+      let naoAberta = "null::boolean";
       if (filtro.compartilhadaComPessoaId !== undefined) {
+        const dela = proximo();
+        valores.push(filtro.compartilhadaComPessoaId);
         condicoes.push(`exists (select 1 from compartilhamentos cf
                                  where cf.ocorrencia_id = o.id
                                    and cf.organizacao_id = o.organizacao_id
-                                   and cf.com_pessoa_id = ${proximo()}::uuid)`);
-        valores.push(filtro.compartilhadaComPessoaId);
+                                   and cf.com_pessoa_id = ${dela}::uuid)`);
+        naoAberta = `exists (select 1 from compartilhamentos cfv
+                              where cfv.ocorrencia_id = o.id
+                                and cfv.organizacao_id = o.organizacao_id
+                                and cfv.com_pessoa_id = ${dela}::uuid
+                                and cfv.aberto_em is null)`;
       }
 
       condicoes.push(`o.registrada_em <= ${proximo()}::timestamptz`);
@@ -1609,7 +1661,7 @@ export function repositorioEscopadoDeOcorrencias(
       valores.push(filtro.deslocamento);
 
       const linhas = await consulta<LinhaDeResumo>(
-        `${SELECT_DO_RESUMO}
+        `${selectDoResumo(naoAberta)}
            ${condicoes.map((condicao) => `and ${condicao}`).join("\n           ")}
          order by ${ordemDaPagina(filtro.ordenacao)}
          limit ${limite}::int offset ${deslocamento}::int`,
@@ -1620,7 +1672,7 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * As seis contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
+     * As sete contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
      * listagem aplica**.
      *
      * **Este é o ponto onde um erro vira furo de multi-tenant.** Um `COUNT` sem `autor_pessoa_id` vaza a
@@ -1628,9 +1680,10 @@ export function repositorioEscopadoDeOcorrencias(
      * número. É por isso que o `GET /dashboard` **não** foi reusado — o `SELECT_DO_BACKLOG_POR_STATUS`
      * conta a organização inteira, o que está correto lá (só o Gestor o alcança) e seria vazamento aqui.
      *
-     * **UMA consulta, seis números, uma varredura da partição.** O `where` carrega só a organização e a
+     * **UMA consulta, sete números, uma varredura da partição.** O `where` carrega só a organização e a
      * visibilidade; o corte e o recorte moram dentro de cada `FILTER`, porque `novas` olha para o outro
-     * lado do corte e não caberia num `where` compartilhado.
+     * lado do corte e não caberia num `where` compartilhado. **O sétimo não é `FILTER` de nada**: ele conta
+     * linhas de `compartilhamentos`, e o bloco dele explica por que.
      *
      * **A assimetria do recorte é deliberada, e não é descuido.** `totalFiltrado` e `novas` aplicam os
      * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `todas`, `minhas`, `emAberto` e
@@ -1701,6 +1754,33 @@ export function repositorioEscopadoDeOcorrencias(
         recorte.push(compartilhada);
       }
 
+      /**
+       * **O sétimo número, e ele não é um `FILTER` dos outros seis** (item 88). Os seis contam linhas de
+       * `ocorrencias`; este conta linhas de `compartilhamentos`, e um `FILTER` sobre a partição não
+       * alcançaria as que estão fora do corte. É subconsulta escalar, constante para a consulta: ela não
+       * referencia coluna de `o`, então vive no `select` de um agregado sem `group by`.
+       *
+       * **Ele ignora o corte e os filtros de propósito.** A pergunta é *"quantas esperam por você"*, e não
+       * *"quantas desta página"*: uma ocorrência compartilhada e registrada depois do corte continua
+       * esperando. É a mesma natureza dos quatro do painel, que existem para o leitor **decidir** o que
+       * pedir.
+       *
+       * **`com_pessoa_id`, nunca `por_pessoa_id`.** As duas pontas moram na mesma linha, e a errada faria
+       * quem compartilhou ver o contador de quem recebeu.
+       *
+       * **`$1` no `where` da subconsulta é o que impede o número de somar duas organizações.** A mesma
+       * Pessoa está nas duas, e a suíte de isolamento tem a entrada que prova.
+       */
+      let naoAbertas = "0";
+      if (filtro.naoAbertasDePessoaId !== undefined) {
+        const dela = proximo();
+        valores.push(filtro.naoAbertasDePessoaId);
+        naoAbertas = `(select count(*) from compartilhamentos cfn
+                        where cfn.organizacao_id = $1
+                          and cfn.com_pessoa_id = ${dela}::uuid
+                          and cfn.aberto_em is null)::int`;
+      }
+
       const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;
       const eVisivel = visibilidade.length === 0 ? "" : ` and ${visibilidade.join(" and ")}`;
       const ondeDeFora =
@@ -1725,7 +1805,8 @@ export function repositorioEscopadoDeOcorrencias(
                 count(*) filter (where ${corte} and ${naoTerminal}${doPainel})::int          as em_aberto,
                 count(*) filter (where ${corte} and ${naoTerminal}
                                    and ${semResponsavelVigente}${doPainel})::int             as sem_responsavel,
-                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas
+                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas,
+                ${naoAbertas}                                                                as compartilhadas_nao_abertas
            from ocorrencias o
           where o.organizacao_id = $1${ondeDeFora}
           ${condicoes.map((condicao) => `and ${condicao}`).join("\n          ")}`,
@@ -1736,7 +1817,15 @@ export function repositorioEscopadoDeOcorrencias(
       // `count(*)` sem `group by` sempre devolve uma linha, inclusive com zero linhas na tabela. O ramo
       // existe para o compilador, não para o banco.
       if (linha === undefined) {
-        return { totalFiltrado: 0, todas: 0, minhas: 0, emAberto: 0, semResponsavel: 0, novas: 0 };
+        return {
+          totalFiltrado: 0,
+          todas: 0,
+          minhas: 0,
+          emAberto: 0,
+          semResponsavel: 0,
+          novas: 0,
+          compartilhadasNaoAbertas: 0,
+        };
       }
 
       return {
@@ -1746,6 +1835,7 @@ export function repositorioEscopadoDeOcorrencias(
         emAberto: linha.em_aberto,
         semResponsavel: linha.sem_responsavel,
         novas: linha.novas,
+        compartilhadasNaoAbertas: linha.compartilhadas_nao_abertas,
       };
     },
 

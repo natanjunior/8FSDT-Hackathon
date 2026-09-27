@@ -382,13 +382,17 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   responsavel: null,
   quantidadeDeAnexos: 0,
   avaliada: false,
+  // `null` é *"a pergunta não foi feita"* — fora do recorte das compartilhadas (item 88).
+  naoAberta: null,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+  // **Quinze desde o item 88**, e o décimo quinto — `naoAberta` — só existe dentro do recorte das
+  // compartilhadas: fora dele a chave é ausente, e não `null`.
+  it("traz os quinze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
 
     expect(resumo.categoria).toStrictEqual({
@@ -453,7 +457,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, compartilhadasNaoAbertas: 0 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -494,7 +498,15 @@ describe("o envelope da página — item 14b", () => {
     expect(envelope.totalNoCorte).toBe(137);
     expect(envelope.saidasDesdeOCorte).toBe(3);
     expect(envelope.novasDesdeOCorte).toBe(5);
-    expect(envelope.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
+    // **A quinta chave entra na asserção fechada**, e não se troca por `toMatchObject`: é justamente o
+    // conjunto fechado de números do envelope que esta asserção existe para prender (item 88).
+    expect(envelope.contagens).toStrictEqual({
+      todas: 9,
+      minhas: 2,
+      emAberto: 7,
+      semResponsavel: 3,
+      compartilhadasNaoAbertas: 0,
+    });
   });
 
   it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {
@@ -4247,6 +4259,7 @@ describe("87 · a fronteira HTTP do compartilhamento", () => {
           com: { pessoaId: VIZINHA, nome: "Bia", papel: "solicitante" },
           por: { pessoaId: AUTORA_87, nome: "Ana", papel: "solicitante" },
           compartilhadoEm: "2026-09-26T12:00:00.000Z",
+          abertoEm: null,
         },
       ],
     };
@@ -4267,6 +4280,8 @@ describe("87 · a fronteira HTTP do compartilhamento", () => {
       tipo: "recebida",
       por: { nome: "Ana", papel: "solicitante" },
       compartilhadoEm: "2026-09-26T12:00:00.000Z",
+      // O quarto campo do ramo (item 88): a linha da fixture nasce com `abertoEm` nulo.
+      naoAberta: true,
     });
     // A lista não viaja para quem recebeu: ela nomeia outros vizinhos.
     expect(JSON.stringify(daVizinha)).not.toContain(VIZINHA);
@@ -4314,16 +4329,24 @@ describe("87 · a aba na URL e o vazio dela", () => {
  * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
  */
 describe("87.7 · o recorte de quem não tem ler_todas", () => {
-  it("sem ler_todas: Minhas e Compartilhadas, nesta ordem, sem número", () => {
+  // **Atualizado pelo item 88**, que deu número à terceira opção — e forma própria a ele, porque ele conta
+  // uma pendência e não um conjunto. *Minhas* continua sem número.
+  it("sem ler_todas: Minhas sem número, Compartilhadas com o das não vistas", () => {
     expect(opcoesDoRecorte(false)).toStrictEqual([
       { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
-      { valor: "compartilhadas", rotulo: "Compartilhadas comigo", contagem: null },
+      {
+        valor: "compartilhadas",
+        rotulo: "Compartilhadas comigo",
+        contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
+      },
     ]);
   });
 
-  it("com ler_todas: Todas e Minhas, com número, e sem a terceira", () => {
-    expect(opcoesDoRecorte(true).map((o) => o.valor)).toStrictEqual(["todas", "minhas"]);
-    expect(opcoesDoRecorte(true).every((o) => o.contagem !== null)).toBe(true);
+  it("com ler_todas: as duas de sempre, as duas com o total", () => {
+    expect(opcoesDoRecorte(true)).toStrictEqual([
+      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas", forma: "total" } },
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas", forma: "total" } },
+    ]);
   });
 
   it("o valor marcado sai do que o servidor aplicou", () => {
@@ -4404,5 +4427,156 @@ describe("87 · o painel de compartilhar, a metade conferível", () => {
     // Os dois ramos de sempre continuam intactos.
     expect(vazioDaConversa(true)).toContain("falar com os Gestores");
     expect(vazioDaConversa(false)).toContain("falar com o Solicitante");
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.2 · a abertura não decide nada sobre papel
+ * ============================================================================
+ *
+ * **A autorização é a própria linha do par.** Sem ela o `update` não acha nada, e uma leitura prévia só
+ * daria a quem chamasse a informação de que a ocorrência existe (contrato §6.3). Esta guarda impede que
+ * alguém acrescente essa leitura depois, por parecer mais seguro.
+ */
+describe("88.2 · a abertura não decide nada sobre papel", () => {
+  it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
+    const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
+    const inicio = fonte.indexOf("export async function registrarAberturaDoCompartilhamento(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
+
+    for (const proibido of ["porId", "podeLerOcorrencia", "pode(", "papel"]) {
+      expect(corpo, proibido).not.toContain(proibido);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.4 · a abertura é ação de servidor, e ela invalida a lista
+ * ============================================================================
+ *
+ * **Por que ação de servidor e não endereço do contrato.** O cache de cliente do Next reusa a entrada de
+ * T-03 em toda navegação de voltar; `router.refresh()` limpa só a rota atual, e `revalidatePath` num route
+ * handler não alcança a memória do navegador. Numa função de servidor ele alcança. De lambuja, nada grava
+ * durante *prefetch*.
+ */
+describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
+  const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
+
+  it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
+    const inicio = acoes.indexOf("export async function acaoDeRegistrarAbertura(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
+
+    expect(corpo).toContain("resolverEscopoParaTela");
+    expect(corpo).toContain('revalidatePath("/ocorrencias")');
+    // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
+    // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
+    expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
+  });
+
+  it("nenhuma rota de app/ grava a abertura", () => {
+    // A escrita mora num lugar só; um `route.ts` que a repetisse seria a segunda cópia.
+    const rotas = globSync("app/**/route.ts", { cwd: RAIZ });
+    expect(rotas.length).toBeGreaterThan(0);
+    for (const rota of rotas) {
+      expect(lerFonte(rota), rota).not.toContain("marcarCompartilhamentoAberto");
+      expect(lerFonte(rota), rota).not.toContain("registrarAberturaDoCompartilhamento");
+    }
+  });
+
+  it("o componente dispara uma vez e não desenha nada", () => {
+    const fonte = lerFonte("src/interface/componentes/registro-de-abertura.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte).toContain('"use client"');
+    expect(fonte).toContain("useEffect");
+    expect(fonte).toContain("return null");
+    // O guarda que impede a segunda chamada no mesmo ciclo de vida.
+    expect(fonte).toContain("useRef");
+  });
+
+  it("T-05 só o monta quando a leitura é a primeira", () => {
+    const pagina = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx").replace(/\r\n/gu, "\n");
+
+    expect(pagina).toContain("recebida.naoAberta");
+    expect(pagina).toContain("<RegistroDeAbertura");
+  });
+
+  it("só T-05 conta como abertura: a trilha e o anexo não", () => {
+    // Não conta como abertura a trilha em T-06, a miniatura ou o original do anexo, o
+    // `GET /api/ocorrencias/{id}`, nem o *prefetch* da linha da lista. Com um lugar só montando o
+    // componente, isso é verdade por construção — e este caso é o que impede a segunda montagem.
+    const montam = globSync("app/**/*.tsx", { cwd: RAIZ }).filter((caminho) =>
+      lerFonte(caminho).includes("<RegistroDeAbertura"),
+    );
+
+    expect(montam).toHaveLength(1);
+    // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
+    // o separador.
+    expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.6 · o número na opção, e o selo na linha
+ * ============================================================================
+ *
+ * **Por leitura de fonte, que é o idioma deste arquivo para o que vive em `.tsx`.** O produto não tem
+ * biblioteca de teste de componente; a jornada em tela é do ponta a ponta.
+ */
+describe("88.6 · o número na opção, e o selo na linha", () => {
+  it("zero não desenha pílula na forma das não vistas, e desenha na do total", () => {
+    const fonte = lerFonte("src/interface/componentes/recorte-da-lista.tsx").replace(/\r\n/gu, "\n");
+
+    // A regra *"zero é ausência"* vale só para a pendência: *Todas 0* continua sendo 0.
+    expect(fonte).toContain('forma === "total"');
+    expect(fonte).toContain("if (quantas === 0) return null;");
+    expect(fonte).toContain("CONTAGEM_DE_NAO_VISTAS");
+    expect(fonte).toContain("palavraDeNaoVistas");
+  });
+
+  it("o selo entra nos dois desenhos da lista, e nunca dentro do link do título", () => {
+    const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte.match(/<SeloDeNaoVista \/>/gu)).toHaveLength(2);
+
+    // O título é o `Link` com a camada que torna a linha clicável: um selo dentro dele entraria no nome do
+    // link. **A varredura é por TODOS os `Link` do arquivo**, e não pelo primeiro: `CAMADA_DO_TITULO`
+    // aparece antes no `import`, e fatiar a partir dele começaria o trecho fora de qualquer link.
+    const dentroDeLink = fonte.split("<Link").slice(1);
+    expect(dentroDeLink.length).toBeGreaterThan(0);
+    for (const depois of dentroDeLink) {
+      expect(depois.slice(0, depois.indexOf("</Link>"))).not.toContain("SeloDeNaoVista");
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.3 · a frase dos avisos e o contador dizem a mesma coisa
+ * ============================================================================
+ *
+ * **O único caso deste repositório que lê `docs/`**, e ele existe porque o critério 3 do item 88 é sobre uma
+ * frase de entregável: o contador e a limitação declarada não podem se contradizer.
+ */
+describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
+  const produto = lerFonte("docs/produto.md").replace(/\r\n/gu, "\n");
+
+  it("a frase larga saiu, e a precisa entrou", () => {
+    // **O contador é estado de uma lista que a pessoa abriu.** Enquanto ele existir, *"avisos automáticos
+    // de qualquer tipo"* alcança um número dentro dela, e o entregável passa a se contradizer. A frase nova
+    // nega o que de fato não existe: o aviso que chega sozinho.
+    expect(produto).not.toContain("avisos automáticos de qualquer tipo");
+    expect(produto).toContain("nenhum aviso que chegue sozinho");
+  });
+
+  it("e o que continua fora continua nomeado", () => {
+    // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
+    for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+      expect(produto, ausencia).toContain(ausencia);
+    }
   });
 });

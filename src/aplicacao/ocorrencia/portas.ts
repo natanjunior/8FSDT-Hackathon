@@ -27,6 +27,13 @@ export type CompartilhamentoLido = {
   com: PessoaComPapel;
   por: PessoaComPapel;
   compartilhadoEm: string;
+  /**
+   * Quando quem recebeu abriu esta ocorrência pela primeira vez, ou `null` (item 88).
+   *
+   * **Não sai no payload de quem compartilhou.** Recibo de leitura sobre um vizinho está fora do escopo;
+   * a projeção do detalhe só o emite para quem recebeu.
+   */
+  abertoEm: string | null;
 };
 
 /** Uma pessoa que pode receber, como o banco a devolve. A situação é decidida pela Aplicação. */
@@ -235,6 +242,13 @@ export type OcorrenciaResumoLida = {
    * tela.
    */
   avaliada: boolean;
+  /**
+   * Se quem pergunta ainda **não** abriu esta ocorrência compartilhada com ela (item 88).
+   *
+   * **`null` significa "a pergunta não foi feita"**, e não `false`: fora do recorte das compartilhadas a
+   * consulta não a faz, e um `false` ali afirmaria que a pessoa já viu.
+   */
+  naoAberta: boolean | null;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;
@@ -319,6 +333,12 @@ export type FiltroDeContagem = {
    * quatro números do painel continuam medindo o que mediam.
    */
   compartilhadaComPessoaIdDaPagina?: string;
+  /**
+   * Quem recebe, quando o número das não abertas é pedido (item 88). **Ausente é "não calcule"**, e o
+   * campo volta `0`: é o caso de quem tem `ocorrencia.ler_todas`, que não recebe compartilhamento e não
+   * tem a terceira opção no controle.
+   */
+  naoAbertasDePessoaId?: string;
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
@@ -330,7 +350,12 @@ export type FiltroDeContagem = {
   filtro?: FiltroDeOcorrencias;
 };
 
-/** As seis contagens, como o repositório as devolve. */
+/**
+ * As sete contagens, como o repositório as devolve.
+ *
+ * **A sétima não é um `FILTER` das outras seis** (item 88): as seis contam linhas de `ocorrencias`, e ela
+ * conta linhas de `compartilhamentos`.
+ */
 export type ContagensLidas = {
   /**
    * O tamanho do conjunto **filtrado**, no corte — o `total` do envelope e o insumo da compensação.
@@ -352,6 +377,8 @@ export type ContagensLidas = {
   semResponsavel: number;
   /** As que ficaram **fora** do corte — `registrada_em > ate`, sob o recorte da página. */
   novas: number;
+  /** Quantas linhas de `compartilhamentos` de quem pergunta estão sem abertura, nesta organização. */
+  compartilhadasNaoAbertas: number;
 };
 
 /**
@@ -700,6 +727,12 @@ export interface RepositorioEscopadoDeOcorrencias {
   /** Apaga a linha do par. **Sem desfecho**: a linha que não existe é o mesmo sucesso da que foi apagada. */
   desfazerCompartilhamento(ocorrenciaId: string, comPessoaId: string): Promise<void>;
   /**
+   * Marca a primeira abertura de uma ocorrência compartilhada (item 88). **Uma instrução, idempotente:**
+   * sem linha do par, ou com a linha já aberta, não faz nada e não erra. Duas abas abrindo juntas terminam
+   * com a mesma linha.
+   */
+  marcarCompartilhamentoAberto(ocorrenciaId: string, comPessoaId: string): Promise<void>;
+  /**
    * Quem, nesta organização, casa a busca e tem um dos papéis pedidos — com a marca de quem já recebeu.
    *
    * **`papeis` e `limite` descem ao SQL**, e não são aplicados depois: filtrar depois do `limit`
@@ -721,7 +754,7 @@ export interface RepositorioEscopadoDeOcorrencias {
    */
   listar(filtro: FiltroDeListagem): Promise<readonly OcorrenciaResumoLida[]>;
   /**
-   * As cinco contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
+   * As sete contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
    * (item 14b, critério 14b.6).
    *
    * Um `COUNT` sem `autor_pessoa_id` vaza a **existência** de ocorrências que o Solicitante não pode
