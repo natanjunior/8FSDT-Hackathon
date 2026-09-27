@@ -195,3 +195,21 @@ describe("o título de T-05 e T-06 vem da mesma leitura da página — spec 90.1
     expect(fonte).toMatch(/catch \{\s*return recuo;/u);
   });
 });
+
+describe("404 e erro em pt-BR — critérios 90.3 e 90.4", () => {
+  it("o 404 tem título de aba, a moldura com a marca e os dois caminhos", () => {
+    const fonte = ler("app/not-found.tsx");
+    expect(fonte).toContain("FRASES_DE_FALHA.inexistenteTitulo");
+    expect(fonte).toContain("MolduraDeConta");
+    expect(fonte).toContain('href="/"');
+    expect(fonte).toContain('href="/documentacao"');
+  });
+
+  it.each(["app/error.tsx", "app/(casca)/error.tsx"])("%s chama retry, nunca reset", (arquivo) => {
+    const fonte = semComentarios(ler(arquivo));
+    expect(fonte.startsWith('"use client"')).toBe(true);
+    expect(fonte).toContain("retry()");
+    expect(fonte).not.toMatch(/\breset\b/u);
+    expect(fonte).not.toMatch(/error\.(?:message|digest)/u);
+  });
+});
