@@ -19,8 +19,11 @@ import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/cha
  * pontos chegam já nela. Os rótulos de ponta chegam escritos por `duracaoEmTexto`, a mesma função que
  * escreve toda duração do produto.
  *
- * **`aria-hidden`, sem `accessibilityLayer`, sem legenda e sem animação**, pelas razões do gráfico do
- * fluxo. A alternativa textual é a tabela do `Ver dados`.
+ * **`aria-hidden`, sem legenda e sem animação**, pelas razões do gráfico do fluxo. A alternativa textual
+ * é a tabela do `Ver dados`.
+ *
+ * **`accessibilityLayer={false}` escrito à mão**, pela razão de `grafico-do-fluxo-mensal.tsx`: no
+ * Recharts 3 a camada vem ligada e torna o `svg` focável, e foco dentro de `aria-hidden` é defeito.
  */
 
 export type PontoDoTempo = { rotulo: string; mediana: number | null; p90: number | null };
@@ -65,7 +68,7 @@ export function GraficoDoTempoDeResolucao({
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart data={[...pontos]} margin={{ top: 24, right: 120, bottom: 0, left: 4 }}>
+      <LineChart accessibilityLayer={false} data={[...pontos]} margin={{ top: 24, right: 120, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis

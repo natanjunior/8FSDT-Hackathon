@@ -3,7 +3,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
+import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
+import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
 
 /**
  * **O guarda do foco de teclado — item 94.**
@@ -97,5 +103,94 @@ describe("a gaveta do celular — critério 94.7", () => {
     expect(semComentarios(ler(`${COMPONENTES}/compartilhamento-da-ocorrencia.tsx`))).toMatch(
       /<SheetHeader className="[^"]*pr-14/u,
     );
+  });
+});
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+describe("os sete gráficos não recebem foco — critério 94.4", () => {
+  beforeAll(() => {
+    // O `jsdom` não tem os dois; o Recharts e o `useIsMobile` pedem.
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    window.matchMedia ??= ((consulta: string) => ({
+      matches: false,
+      media: consulta,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    /**
+     * **O `jsdom` não faz leiaute, e devolve 0 × 0 em `getBoundingClientRect`.** O `ResponsiveContainer`
+     * do Recharts 3 mede o contêiner no primeiro efeito e guarda o que leu
+     * (`recharts/es6/component/ResponsiveContainer.js`); com zero ele **não renderiza o `svg`**, e o
+     * teste do critério 94.4 mediria uma árvore vazia. A medida abaixo é a `initialDimension` de
+     * `ui/chart.tsx`.
+     */
+    Element.prototype.getBoundingClientRect = function medida(this: Element): DOMRect {
+      const caixa = { x: 0, y: 0, width: 320, height: 200, top: 0, left: 0, right: 320, bottom: 200 };
+      return { ...caixa, toJSON: () => caixa } as DOMRect;
+    };
+  });
+
+  const CASOS = [
+    [
+      "barras",
+      createElement(GraficoDeBarras, {
+        barras: [
+          { chave: "a", rotulo: "Hidráulica", valor: 3, texto: "3" },
+          { chave: "b", rotulo: "Elétrica", valor: 1, texto: "1" },
+        ],
+        larguraDoRotulo: 120,
+      }),
+    ],
+    [
+      "fluxo mensal",
+      createElement(GraficoDoFluxoMensal, {
+        linhas: [
+          { mes: "2026-08", rotulo: "ago", parcial: false, registradas: 4, resolvidas: 2, canceladas: 1, saidas: 3, saldo: 1 },
+          { mes: "2026-09", rotulo: "set", parcial: true, registradas: 2, resolvidas: 1, canceladas: 0, saidas: 1, saldo: 1 },
+        ],
+      }),
+    ],
+    [
+      "tempo de resolução",
+      createElement(GraficoDoTempoDeResolucao, {
+        pontos: [
+          { rotulo: "ago", mediana: 2, p90: 5 },
+          { rotulo: "set", mediana: 3, p90: 6 },
+        ],
+        unidade: { divisor: 1, sufixo: "d" },
+        pontas: { mediana: "3 dias", p90: "6 dias" },
+      }),
+    ],
+  ] as const;
+
+  for (const [nome, elemento] of CASOS) {
+    it(`${nome}: nada focável dentro, e o contêiner segue aria-hidden`, async () => {
+      const conteiner = document.createElement("div");
+      document.body.append(conteiner);
+      const raiz = createRoot(conteiner);
+      await act(async () => raiz.render(elemento));
+      expect(conteiner.querySelector("[aria-hidden]"), nome).not.toBeNull();
+      expect(conteiner.querySelector("svg"), `${nome}: o Recharts não desenhou`).not.toBeNull();
+      expect(conteiner.querySelectorAll('[tabindex="0"], [role="application"]'), nome).toHaveLength(0);
+      act(() => raiz.unmount());
+      conteiner.remove();
+    });
+  }
+
+  it("os três desligam a camada à mão, e o comentário diz o padrão do Recharts 3", () => {
+    for (const arquivo of ["grafico-de-barras", "grafico-do-fluxo-mensal", "grafico-do-tempo-de-resolucao"]) {
+      const fonte = ler(`${COMPONENTES}/${arquivo}.tsx`);
+      expect(semComentarios(fonte), arquivo).toContain("accessibilityLayer={false}");
+      expect(fonte, arquivo).toMatch(/Recharts 3/u);
+    }
   });
 });

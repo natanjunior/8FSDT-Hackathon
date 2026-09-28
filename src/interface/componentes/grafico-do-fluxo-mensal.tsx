@@ -43,9 +43,13 @@ import {
  * **A animação está desligada.** O rótulo de ponta só desenha depois que a linha termina de animar, e o
  * ponta a ponta afirma rótulos: com animação, a asserção passaria a depender de tempo.
  *
- * **O gráfico é `aria-hidden`, e a informação vive na tabela do `Ver dados`** — compromisso A-5. Por isso
- * o `accessibilityLayer` dos exemplos do catálogo fica de fora: ele torna o gráfico focável pelo teclado, e
- * conteúdo focável dentro de `aria-hidden` é o defeito que o A-5 existe para não ter.
+ * **O gráfico é `aria-hidden`, e a informação vive na tabela do `Ver dados`** — compromisso A-5.
+ *
+ * **`accessibilityLayer={false}`, escrito, porque no Recharts 3 ele vem ligado.** O `CartesianChart` o
+ * liga por padrão (`recharts/es6/chart/CartesianChart.js:24`), e ligado ele põe `role="application"` e
+ * `tabIndex={0}` no `svg` (`RootSurface.js:40-51`). Não passar a propriedade deixava os sete gráficos do
+ * painel focáveis dentro de um contêiner `aria-hidden`, que é o defeito que o A-5 existe para não ter
+ * (achado D-01 da auditoria de 26/09/2026). A frase antiga, "fica de fora", descrevia o Recharts 2.
  */
 const CONFIGURACAO: ChartConfig = {
   registradas: { label: "Registradas", color: "var(--chart-1)" },
@@ -68,7 +72,7 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart data={[...linhas]} margin={{ top: 24, right: 132, bottom: 0, left: 4 }}>
+      <LineChart accessibilityLayer={false} data={[...linhas]} margin={{ top: 24, right: 132, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
