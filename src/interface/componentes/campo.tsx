@@ -266,6 +266,10 @@ export function RodapeDoFormulario({
    * da coluna. Os outros formulários continuam com o botão à direita.
    */
   larguraCheia?: boolean;
+  /**
+   * No celular empilha na ordem do documento, com a ação principal por último, embaixo, como é a última à
+   * direita na tela grande: o Tab segue a vista (item 94).
+   */
   children: ReactNode;
 }) {
   return (
@@ -282,7 +286,7 @@ export function RodapeDoFormulario({
           {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
         </p>
       )}
-      <div className={larguraCheia ? "flex flex-col gap-2.5" : "flex flex-col-reverse gap-2.5 sm:flex-row"}>
+      <div className={larguraCheia ? "flex flex-col gap-2.5" : "flex flex-col gap-2.5 sm:flex-row"}>
         {children}
       </div>
     </div>

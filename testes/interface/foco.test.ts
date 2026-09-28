@@ -194,3 +194,23 @@ describe("os sete gráficos não recebem foco — critério 94.4", () => {
     }
   });
 });
+
+describe("a ordem de foco segue a vista — critérios 94.5 e 94.8", () => {
+  it("a entrada de arquivo de T-04 sai da tabulação, e o rótulo continua ligado", () => {
+    const foto = semComentarios(ler(`${COMPONENTES}/controle-de-foto.tsx`));
+    expect(foto).toMatch(/<input\s+ref=\{entrada\}\s+id="foto"\s+type="file"[\s\S]*?tabIndex=\{-1\}/u);
+    expect(foto).toContain('<label htmlFor="foto" className="sr-only">');
+  });
+
+  it("nenhum rodapé empilha ao contrário no celular (resposta à P2)", () => {
+    for (const arquivo of [`${COMPONENTES}/campo.tsx`, `${UI}/dialog.tsx`, `${UI}/alert-dialog.tsx`]) {
+      expect(semComentarios(ler(arquivo)), arquivo).not.toContain("flex-col-reverse");
+    }
+  });
+
+  it("/organizacao/criar continua com o cartão primeiro no documento (resposta à P1)", () => {
+    expect(ler(`${COMPONENTES}/moldura-de-conta.tsx`)).toMatch(
+      /convite\.lado === "esquerda" \? "lg:order-3" : "lg:order-1"/u,
+    );
+  });
+});
