@@ -89,7 +89,7 @@ function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close {...{ [SAI_SEM_ACUSAR]: "" }} className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none">
+        <DialogPrimitive.Close {...{ [SAI_SEM_ACUSAR]: "" }} className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 disabled:pointer-events-none">
           <XIcon />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>
