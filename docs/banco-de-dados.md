@@ -33,10 +33,10 @@ as que não dependem de ninguém lembrar.
 
 ```mermaid
 erDiagram
-    direction TB
-    PESSOAS ||--o{ CONTATOS : "é alcançada por"
+    direction LR
+    PESSOAS ||--o{ CONTATOS : "contato de"
     PESSOAS ||--o{ VINCULOS : "tem"
-    PESSOAS ||--o{ PEDIDOS_DE_ENTRADA : "solicita"
+    PESSOAS ||--o{ PEDIDOS_DE_ENTRADA : "pede"
     ORGANIZACOES ||--o{ VINCULOS : "concede"
     ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
     ORGANIZACOES ||--o{ CATEGORIAS : "configura"
@@ -48,18 +48,18 @@ ocorrência ainda aponta para a categoria e para a área do desenho de cima:
 
 ```mermaid
 erDiagram
-    direction TB
+    direction LR
     OCORRENCIAS ||--|{ REGISTROS_TRANSICAO : "trilha"
     OCORRENCIAS ||--o{ ATRIBUICOES : "designa"
-    OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa em"
+    OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa"
     OCORRENCIAS ||--o{ ANEXOS : "evidencia"
     OCORRENCIAS ||--o{ COMPARTILHAMENTOS : "abre a"
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
-    CANAIS_CONVERSA ||--o{ MENSAGENS : "contém"
 ```
 
-A tabela do livro-caixa de autorizações de upload não aparece em nenhum dos dois: ela é global, ligada
-apenas à pessoa que pediu a credencial, e existe para conter abuso.
+As mensagens penduram no canal de conversa, e não na ocorrência. A tabela do livro-caixa de autorizações
+de upload não aparece em nenhum dos dois desenhos: ela é global, ligada apenas à pessoa que pediu a
+credencial, e existe para conter abuso.
 
 ## O escopo, garantido pelo esquema
 

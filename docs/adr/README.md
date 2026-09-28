@@ -23,8 +23,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0009](0009-documentacao-como-paginas-do-produto.md) | A documentação vira páginas do produto, sem deixar de ser markdown | Aceita |
 | [0010](0010-o-componente-de-grafico-entra-com-o-recharts.md) | O componente de gráfico do catálogo entra, e com ele o Recharts | Aceita |
 | [0011](0011-sonner-e-cmdk-entram-como-pacotes.md) | O aviso de retorno de ação e a busca em lista entram como pacotes instalados | Aceita |
-| [0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) | O teste de ponta a ponta cresce por jornada de validação, com teto | Parcialmente substituída pela 0013 |
-| [0013](0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) | O teto da suíte de ponta a ponta sobe para sete, e passa a ter origem medida | Aceita |
+| [0012](0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) | O teste de ponta a ponta cresce por jornada de validação, com teto medido | Aceita |
 | [0014](0014-o-campo-de-codigo-entra-com-o-input-otp.md) | O campo de código entra com o input-otp, em oito casas | Aceita |
 | [0015](0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md) | O seletor de faixa de datas entra com o react-day-picker | Aceita |
 | [0016](0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md) | O relógio de atualização das seis tabelas passa a ser escrito por gatilho do banco | Aceita |
