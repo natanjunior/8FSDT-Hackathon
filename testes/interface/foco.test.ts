@@ -247,3 +247,22 @@ describe("o link de salto — critério 94.6", () => {
     );
   });
 });
+
+describe("a documentação mostra o foco — critério 94.9", () => {
+  const css = ler("app/documentacao/documentacao.css");
+  const COPIAR = 'button[aria-label="Copiar o link desta seção"]';
+
+  it("o botão de copiar aparece com foco, com foco no cabeçalho, e sempre no toque", () => {
+    expect(css).toContain(`${COPIAR}:focus-visible`);
+    expect(css).toContain(`:is(h1, h2, h3, h4, h5, h6):focus-within > ${COPIAR}`);
+    expect(css.replace(/\r\n/gu, "\n")).toContain(`@media (hover: none) {\n  ${COPIAR} {\n    opacity: 1;`);
+  });
+
+  it("o gatilho do sumário ganha o contorno do produto, por dentro", () => {
+    expect(css).toMatch(/\[data-toc-popover-trigger\]:focus-visible [{]\s*outline: 2px solid var\(--accent\);\s*outline-offset: -2px;/u);
+  });
+
+  it("o nome do botão é o da tradução do projeto", () => {
+    expect(ler("src/interface/documentacao/traducoes.ts")).toContain('"Copiar o link desta seção"');
+  });
+});

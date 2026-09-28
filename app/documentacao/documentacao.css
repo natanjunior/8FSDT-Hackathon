@@ -110,3 +110,30 @@
 #nd-sidebar-mobile a[aria-label="GitHub"] {
   min-width: 2.75rem;
 }
+
+/* ----------------------------------------------------------------------------
+   Foco visível na moldura da documentação (item 94, critério 9)
+
+   O botão de copiar o link do cabeçalho é `opacity-0` e só sobe no `hover`:
+   com o teclado, o anel era desenhado num elemento invisível, e no toque ele
+   nunca aparecia. O gatilho do sumário no celular traz `outline-none` sem
+   substituto. As regras ficam fora de camada para vencer os utilitários do
+   Fumadocs, que moram em `@layer utilities`, e usam o nome em pt-BR que a
+   tradução do projeto dá ao botão.
+   ---------------------------------------------------------------------------- */
+
+button[aria-label="Copiar o link desta seção"]:focus-visible,
+:is(h1, h2, h3, h4, h5, h6):focus-within > button[aria-label="Copiar o link desta seção"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  button[aria-label="Copiar o link desta seção"] {
+    opacity: 1;
+  }
+}
+
+[data-toc-popover-trigger]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
