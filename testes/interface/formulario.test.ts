@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { redirect } from "next/navigation";
@@ -2489,5 +2489,47 @@ describe("88.5 · as palavras e as peças do contador", () => {
     expect(fonte).toContain('variant="outline"');
     expect(fonte).toContain("border-marca");
     expect(fonte).not.toContain("bg-marca");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 95 — o portão se declara por uma linha
+ * ============================================================================
+ *
+ * O código de saída não prova que o portão rodou: o mesmo `npm run verificar` devolve 1 ou 0 conforme o
+ * que vem depois dele na linha. A prova passou a ser a sentinela de `ferramentas/portao.mjs`, e ela só
+ * vale enquanto for a última etapa da corrente e enquanto ninguém mais a imprimir. É isso que este bloco
+ * prende.
+ */
+describe("o item 95 — o portão se declara por uma linha", () => {
+  const TRECHO = "lint, tipos, teste, docs e estilo rodaram";
+
+  /**
+   * Código executável de uma pasta, com o caminho lógico e separador `/`.
+   *
+   * O `isFile` não é zelo: `app/documentacao/api/referencia/swagger-ui-bundle.js` é uma **pasta** de rota,
+   * e sem ele o `ler` morre com `EISDIR`.
+   */
+  function codigoDe(pasta: string): string[] {
+    return readdirSync(RAIZ + pasta, { recursive: true, encoding: "utf8" })
+      .map((caminho) => `${pasta}/${caminho.replace(/\\/gu, "/")}`)
+      .filter((caminho) => /\.(?:m?[jt]s|tsx)$/u.test(caminho) && !caminho.includes("node_modules"))
+      .filter((caminho) => statSync(RAIZ + caminho).isFile())
+      .sort();
+  }
+
+  it("a sentinela é a última etapa do verificar", () => {
+    const pacote = JSON.parse(ler("package.json")) as { scripts: Record<string, string> };
+    const etapas = pacote.scripts["verificar"]!.split("&&").map((etapa) => etapa.trim());
+    expect(etapas.at(-1)).toBe("node ferramentas/portao.mjs");
+  });
+
+  it("a linha nomeia as cinco etapas, e só o script da sentinela a imprime", () => {
+    expect(ler("ferramentas/portao.mjs")).toContain(TRECHO);
+    const comOTrecho = ["ferramentas", "src", "app", "semente"]
+      .flatMap(codigoDe)
+      .filter((caminho) => ler(caminho).includes(TRECHO));
+    expect(comOTrecho).toStrictEqual(["ferramentas/portao.mjs"]);
   });
 });

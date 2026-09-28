@@ -27,7 +27,7 @@
     "verificar:site": "node ferramentas/verificadores/site.mjs",
     "verificar:estilo": "tsx ferramentas/conferir-estilo.mjs",
     "verificar:docs": "npm run verificar:mermaid && npm run verificar:openapi && npm run verificar:referencias && npm run verificar:tom",
-    "verificar": "npm run lint && npm run tipos && npm run teste && npm run verificar:docs && npm run verificar:estilo",
+    "verificar": "npm run lint && npm run tipos && npm run teste && npm run verificar:docs && npm run verificar:estilo && node ferramentas/portao.mjs",
     "migrar": "supabase db push",
     "migrar:local": "supabase db reset",
     "teste:integracao": "vitest run --project integracao",
