@@ -258,8 +258,10 @@ describe("a documentação mostra o foco — critério 94.9", () => {
     expect(css.replace(/\r\n/gu, "\n")).toContain(`@media (hover: none) {\n  ${COPIAR} {\n    opacity: 1;`);
   });
 
-  it("o gatilho do sumário ganha o contorno do produto, por dentro", () => {
-    expect(css).toMatch(/\[data-toc-popover-trigger\]:focus-visible [{]\s*outline: 2px solid var\(--accent\);\s*outline-offset: -2px;/u);
+  it("a moldura do Fumadocs devolve o contorno, e o gatilho do sumário o recebe por dentro", () => {
+    expect(css).toMatch(/#nd-docs-layout :focus-visible [{]\s*outline: 2px solid var\(--accent\);\s*outline-offset: 2px;/u);
+    expect(css).toMatch(/#nd-docs-layout \[data-toc-popover-trigger\]:focus-visible [{]\s*outline-offset: -2px;/u);
+    expect(css.indexOf("#nd-docs-layout [data-toc-popover-trigger]")).toBeGreaterThan(css.indexOf("#nd-docs-layout :focus-visible"));
   });
 
   it("o nome do botão é o da tradução do projeto", () => {

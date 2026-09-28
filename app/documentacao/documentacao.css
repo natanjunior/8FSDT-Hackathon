@@ -133,7 +133,17 @@ button[aria-label="Copiar o link desta seção"]:focus-visible,
   }
 }
 
-[data-toc-popover-trigger]:focus-visible {
+/* Toda peça da moldura do Fumadocs traz `focus-visible:outline-none` na própria classe, e isso apaga o
+   contorno que o `@layer base` do produto declara: medido na sonda de foco de 28/09/2026, que achou sem
+   anel o copiar do cabeçalho, o recolher do menu, o abrir a busca e o GitHub. A regra devolve o contorno
+   a tudo que recebe foco dentro da moldura; o *Pular para o conteúdo* mora fora dela e segue pela base. */
+#nd-docs-layout :focus-visible {
   outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* O gatilho do sumário ocupa a largura da barra, e o contorno de fora sairia dela: por dentro. Vem depois
+   da regra acima, e com o mesmo `id` na frente, para vencê-la sem `!important`. */
+#nd-docs-layout [data-toc-popover-trigger]:focus-visible {
   outline-offset: -2px;
 }

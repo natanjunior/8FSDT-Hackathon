@@ -53,6 +53,8 @@ export function CabecaQueOrdena({
         onClick={aoClicar}
         className={cn(
           "text-rotulo-coluna h-11 w-full justify-start gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
+          // A linha ocupa a altura inteira da célula, e a tabela rola: o contorno de fora seria cortado.
+          "focus-visible:-outline-offset-2",
           ativa ? "text-tinta" : "text-tinta-suave",
         )}
       >
