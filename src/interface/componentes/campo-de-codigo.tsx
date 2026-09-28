@@ -45,7 +45,7 @@ const GRUPO_DA_EXIBICAO = "flex min-w-0 flex-1";
 // catálogo perdeu as classes da variante escura na entrada (a divergência 2 de `ui/input-otp.tsx`), então
 // não há o que desfazer aqui: o token já troca sozinho.
 const CASA =
-  "border-linha bg-background text-tinta font-mono uppercase data-[active=true]:ring-marca/40 data-[active=true]:border-marca";
+  "border-linha bg-background text-tinta font-mono uppercase data-[active=true]:ring-marca data-[active=true]:border-marca";
 
 const CASA_DA_ENTRADA = "min-w-0 flex-1 h-[52px] sm:w-10 sm:flex-none md:w-12 md:h-14 text-titulo-bloco";
 

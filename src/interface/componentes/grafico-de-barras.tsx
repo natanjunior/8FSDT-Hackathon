@@ -31,8 +31,9 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * O quadro que tem `Ver dados` a dispensa (`listaParaLeitor={false}`): a tabela do modal é a alternativa
  * textual dele.
  *
- * **Sem `accessibilityLayer`**, pela razão de `grafico-do-fluxo-mensal.tsx`: ele torna o gráfico focável,
- * e foco dentro de `aria-hidden` é defeito. **Animação desligada**, porque o ponta a ponta lê rótulos.
+ * **`accessibilityLayer={false}` escrito à mão**, pela razão de `grafico-do-fluxo-mensal.tsx`: no
+ * Recharts 3 a camada vem ligada e torna o `svg` focável, e foco dentro de `aria-hidden` é defeito.
+ * **Animação desligada**, porque o ponta a ponta lê rótulos.
  */
 
 export type BarraDoGrafico = {
@@ -85,6 +86,7 @@ export function GraficoDeBarras({
         className="aspect-auto w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
       >
         <BarChart
+          accessibilityLayer={false}
           data={[...barras]}
           layout="vertical"
           margin={{ top: 4, right: maiorTexto * LARGURA_DO_CARACTERE + 16, bottom: 4, left: 0 }}

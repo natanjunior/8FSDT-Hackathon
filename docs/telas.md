@@ -237,9 +237,13 @@ celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás
 
 ## Acessibilidade
 
-Não há teste de acessibilidade neste projeto. O que existe é compromisso de construção, conferido a olho,
-e três deles não dependem de ferramenta: todo campo tem rótulo associado ao controle, nenhum alvo de toque
-é menor que cerca de 44 px no celular, e nada é comunicado só por cor — prioridade, estado e motivo de
+Três compromissos são presos por teste. O contraste do texto é medido contra os três fundos do tema, o
+contorno de foco do teclado não pode ser apagado por nenhum componente, e os gráficos do painel ficam fora
+da tabulação, porque a informação deles está na tabela ao lado. Toda tela da casca e da documentação começa
+com o link *Pular para o conteúdo*, visível quando recebe o foco.
+
+O resto é compromisso de construção, conferido a olho: todo campo tem rótulo associado ao controle, nenhum
+alvo de toque é menor que cerca de 44 px, e nada é comunicado só por cor. Prioridade, estado e motivo de
 pausa sempre carregam a palavra.
 
 O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está na

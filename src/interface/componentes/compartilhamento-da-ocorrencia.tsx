@@ -280,7 +280,9 @@ function PainelDeCompartilhar({
       {/* Tela cheia abaixo de `md`; painel de largura fixa a partir dele. As duas classes sobrescrevem o
           `w-3/4 sm:max-w-sm` do catálogo. */}
       <SheetContent side="right" className="w-full max-w-none gap-0 sm:max-w-none md:max-w-md">
-        <SheetHeader>
+        {/* A faixa do X, que passou a ter 44 px no item 94: sem ela, o botão de fechar cobre a primeira
+            linha da descrição. É o mesmo `pr-14` de `filtro-com-busca.tsx`. */}
+        <SheetHeader className="pr-14">
           <SheetTitle>Compartilhar</SheetTitle>
           <SheetDescription>
             Quem você escolher passa a ver esta ocorrência, sem poder mudar nada.

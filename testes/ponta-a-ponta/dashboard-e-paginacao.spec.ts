@@ -768,6 +768,17 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
   const [documentacaoSemSessao] = await Promise.all([anonimo.waitForEvent("page"), linkDaDocumentacao.click()]);
   await documentacaoSemSessao.waitForURL(/\/documentacao/u);
   await expect(documentacaoSemSessao).not.toHaveURL(/\/entrar/u);
+
+  // O salto da documentação (critério 94.6): primeiro Tab, e o Enter leva ao título do artigo.
+  // `bringToFront` porque ela é uma aba aberta por `target="_blank"`: sem o foco da janela, o `Tab` não
+  // move `document.activeElement` no Chromium.
+  await documentacaoSemSessao.bringToFront();
+  await documentacaoSemSessao.keyboard.press("Tab");
+  await expect(documentacaoSemSessao.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
+  await documentacaoSemSessao.keyboard.press("Enter");
+  await expect(documentacaoSemSessao.locator("#conteudo")).toBeFocused();
+  cobre(test.info(), "7.2 · 10", { criterio: "94.6" });
+
   await anonimo.close();
 
   // 2 · Com sessão: a barra lateral leva à mesma página
@@ -796,4 +807,74 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
     helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Documentação/u }),
   ).toHaveAttribute("target", "_blank");
   await contexto.close();
+});
+
+/**
+ * **O teclado no painel — item 94.**
+ *
+ * Três coisas que nenhum teste de unidade alcança, porque as três só existem no navegador: a ordem de
+ * tabulação depois do salto, a ausência de parada dentro de subárvore `aria-hidden`, e o foco que volta
+ * ao gatilho quando a gaveta do celular fecha.
+ *
+ * **Nenhum arquivo novo** (ADR-0013): a jornada é a do Gestor no painel, que é a deste arquivo.
+ */
+test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta do celular", async ({ browser }) => {
+  // 1 · Tela grande: o primeiro Tab é o salto, e ele leva ao conteúdo
+  const contexto = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const helena = await contexto.newPage();
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await helena.goto("/dashboard");
+
+  await helena.keyboard.press("Tab");
+  const salto = helena.getByRole("link", { name: "Pular para o conteúdo" });
+  await expect(salto).toBeFocused();
+  await expect(salto).toBeInViewport();
+  await helena.keyboard.press("Enter");
+  await expect(helena.locator("main#conteudo")).toBeFocused();
+  await helena.keyboard.press("Tab");
+  expect(await helena.evaluate(() => document.activeElement?.closest("#conteudo") !== null)).toBe(true);
+  cobre(test.info(), "7.2 · 10", { criterio: "94.6" });
+
+  // 2 · Nenhum elemento focável dentro de subárvore aria-hidden (D-01)
+  await expect(
+    helena.locator('[aria-hidden="true"] [tabindex="0"], [aria-hidden="true"] [role="application"]'),
+  ).toHaveCount(0);
+  cobre(test.info(), "7.2 · 10", { criterio: "94.4" });
+  await contexto.close();
+
+  // 3 · Celular: a gaveta mostra o X, e todo fechamento devolve o foco ao gatilho
+  const movel = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const celular = await movel.newPage();
+  await entrar(celular, HELENA);
+  await celular.waitForURL(/\/organizacao$/u);
+  await celular.getByRole("button", { name: RECANTO }).click();
+  await celular.waitForURL(/\/ocorrencias$/u);
+
+  const gatilho = celular.getByRole("button", { name: "Abrir navegação" });
+  await expect(gatilho).toHaveAttribute("aria-expanded", "false");
+  await expect(gatilho).toHaveAttribute("aria-controls", "navegacao-da-organizacao");
+
+  // Com a gaveta aberta o Radix marca o resto da página com `aria-hidden`, e uma consulta por papel
+  // deixa de achar o gatilho. Por atributo ele continua alcançável, e é assim que se lê o `aria-expanded`
+  // do estado aberto.
+  const gatilhoPorAtributo = celular.locator('[data-sidebar="trigger"]');
+  await gatilho.click();
+  await expect(gatilhoPorAtributo).toHaveAttribute("aria-expanded", "true");
+  const gaveta = celular.locator("#navegacao-da-organizacao");
+  await gaveta.getByRole("button", { name: "Fechar" }).click();
+  await expect(gatilho).toBeFocused();
+
+  await gatilho.click();
+  await celular.keyboard.press("Escape");
+  await expect(gatilho).toBeFocused();
+
+  await gatilho.click();
+  await gaveta.getByRole("link", { name: /^Dashboard/u }).click();
+  await celular.waitForURL(/\/dashboard$/u);
+  await expect(gatilho).toBeFocused();
+  cobre(test.info(), "7.2 · 10", { criterio: "94.7" });
+  await movel.close();
 });
