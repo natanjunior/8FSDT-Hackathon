@@ -2146,6 +2146,19 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "sm:w-10", "sm:flex-none", "md:w-12", "md:h-14"]));
   });
 
+  it("a exibição cede a largura e guarda a letra (critérios 93.1 e 93.4)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    const casa = /const CASA_DA_EXIBICAO =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    // A caixa divide a largura, e a largura fixa do catálogo (`w-9`) sai por `w-auto`: largura definida
+    // entra na largura mínima do conteúdo, e é ela que arrastava a grade de `/configuracao`.
+    expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "w-auto", "h-14", "text-titulo-pagina"]));
+    expect(casa).not.toContain("w-12");
+    const grupo = /const GRUPO_DA_EXIBICAO =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    expect(grupo).toEqual(expect.arrayContaining(["min-w-0", "flex-1"]));
+    // O teto é a largura natural: oito casas de 48 px e o vão de 14.
+    expect(fonte).toContain('containerClassName="w-full max-w-[24.875rem] gap-3.5 has-disabled:opacity-100"');
+  });
+
   it("o pedido de entrada usa o campo novo, com a ajuda e a conferência de oito", () => {
     const fonte = ler(PEDIDO_DE_ENTRADA);
     expect(fonte).toContain("<EntradaDeCodigo");
