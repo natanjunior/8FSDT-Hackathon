@@ -147,7 +147,8 @@ desenvolvimento, criado pelo próprio `npm run local`.
 ## O portão
 
 `npm run verificar` é o que quem implementa roda antes de abrir um pull request, e é o mesmo conjunto que
-a esteira roda a cada envio. Falha bloqueia a mesclagem.
+a esteira roda a cada envio. Falha bloqueia a mesclagem. A última etapa do portão imprime uma linha
+própria, que só aparece quando todas as anteriores chegaram ao fim, e é essa linha que o declara verde.
 
 Além dele, a esteira sobe a pilha inteira do zero num servidor limpo, roda o teste de integração contra um
 PostgreSQL de verdade, constrói a imagem, confere que ela não carrega segredo e, depois de publicar,
