@@ -17,6 +17,7 @@ import {
   registrarOcorrencia,
   SOLICITANTE_DO_AURORA,
 } from "./mundo";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -1024,11 +1025,6 @@ async function assentar(pagina: Page): Promise<void> {
   });
 }
 
-/** Quanto o documento rola na horizontal. Zero é o único valor aceito. */
-async function transbordo(pagina: Page): Promise<number> {
-  return pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-}
-
 /**
  * O primeiro `href` da tela que casa o padrão. **Falha dizendo o padrão**, em vez de navegar para
  * `/ocorrencias/undefined` e medir a tela de não encontrada.
@@ -1074,7 +1070,7 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
     expect(caixa).not.toBeNull();
     expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
 
-    expect(await transbordo(helena)).toBe(0);
+    expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
     const conteudo = await helena.evaluate(() => {
       const medir = (elemento: Element | null) =>
@@ -1107,7 +1103,7 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
   const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const helena = await contexto.newPage();
 
-  // **Helena é Gestor do Recanto**, o papel que alcança as onze telas, e o nome mais longo do mundo.
+  // **Helena é Gestor do Recanto**, o papel que alcança as doze telas, e o nome mais longo do mundo.
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await helena.getByRole("button", { name: RECANTO }).click();
@@ -1128,7 +1124,8 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
   await assentar(helena);
   const edicao = await primeiroHref(helena, new RegExp(`^/vinculos/${UUID}/editar$`, "u"));
 
-  // As onze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra.
+  // As doze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra. `/convidar` chegou
+  // com o item 86, depois de a lista do 92 ser escrita (achado A-1 do 93).
   const rotas = [
     "/ocorrencias",
     ocorrencia,
@@ -1137,6 +1134,7 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
     "/vinculos",
     "/vinculos/nova",
     edicao,
+    "/convidar",
     "/configuracao",
     "/configuracao/categorias",
     "/configuracao/areas",
@@ -1146,7 +1144,7 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
     await helena.goto(rota);
     await assentar(helena);
     // Suave: uma tela com transbordo não esconde as seguintes.
-    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toBe(0);
+    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toStrictEqual(SEM_TRANSBORDO);
   }
 
   await contexto.close();

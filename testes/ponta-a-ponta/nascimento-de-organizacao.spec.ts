@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 
 import { cobre } from "./cobertura";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -737,9 +738,7 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
   await expect(n.getByRole("heading", { name: ORG_CONVITE })).toBeVisible();
   await expect(n.getByLabel("Código da organização")).toBeDisabled();
-  expect(
-    await n.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
-  ).toBe(0);
+  expect(await transbordo(n)).toStrictEqual(SEM_TRANSBORDO);
   const criar = n.getByRole("link", { name: "Criar conta" });
   const caixa = await criar.boundingBox();
   expect((caixa?.y ?? 9999) + (caixa?.height ?? 0)).toBeLessThanOrEqual(640);
@@ -758,9 +757,7 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   // opção 3 da P1, e não tirar os campos.
   const botao = await pedir.boundingBox();
   expect((botao?.y ?? 9999) + (botao?.height ?? 0)).toBeLessThanOrEqual(640);
-  expect(
-    await n.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
-  ).toBe(0);
+  expect(await transbordo(n)).toStrictEqual(SEM_TRANSBORDO);
 
   // 6 · Pede, e a página refeita diz que o pedido espera o Gestor; sem organização, não há "Voltar para".
   await pedir.click();
