@@ -7,6 +7,7 @@ import type { Permissao } from "@/dominio/organizacao";
 import { BarraSuperior } from "@/interface/componentes/casca/barra-superior";
 import { Navegacao } from "@/interface/componentes/casca/navegacao";
 import { PeDaBarra } from "@/interface/componentes/casca/pe-da-barra";
+import { ID_DO_CONTEUDO, PularParaOConteudo } from "@/interface/componentes/pular-para-o-conteudo";
 import {
   Sidebar,
   SidebarContent,
@@ -61,6 +62,7 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
 
   return (
     <SidebarProvider open className="min-h-dvh flex-col">
+      <PularParaOConteudo />
       {/* **O e-mail vem da resolução, e não da projeção** (item 44i): ele serve ao cabeçalho do menu de
           pessoa, sempre para a própria pessoa, e continua fora de `ContextoProjetado`. */}
       <BarraSuperior
@@ -91,7 +93,12 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
           <PeDaBarra />
         </Sidebar>
 
-        <SidebarInset className="min-w-0 px-4 py-6 md:px-6">{children}</SidebarInset>
+        {/* **O destino do salto** (critério 94.6). `tabIndex={-1}` move o ponto de partida do Tab para cá,
+            e o contorno fica de fora: o `<main>` não é controle, e um anel em volta da página inteira
+            pareceria seleção. É a mesma exceção declarada da linha clicável (D-02). */}
+        <SidebarInset id={ID_DO_CONTEUDO} tabIndex={-1} className="min-w-0 px-4 py-6 outline-none md:px-6">
+          {children}
+        </SidebarInset>
       </div>
     </SidebarProvider>
   );

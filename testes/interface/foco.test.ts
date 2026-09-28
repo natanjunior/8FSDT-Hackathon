@@ -10,6 +10,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
+import { ID_DO_CONTEUDO, PularParaOConteudo } from "@/interface/componentes/pular-para-o-conteudo";
 
 /**
  * **O guarda do foco de teclado — item 94.**
@@ -211,6 +212,38 @@ describe("a ordem de foco segue a vista — critérios 94.5 e 94.8", () => {
   it("/organizacao/criar continua com o cartão primeiro no documento (resposta à P1)", () => {
     expect(ler(`${COMPONENTES}/moldura-de-conta.tsx`)).toMatch(
       /convite\.lado === "esquerda" \? "lg:order-3" : "lg:order-1"/u,
+    );
+  });
+});
+
+describe("o link de salto — critério 94.6", () => {
+  it("aponta para o conteúdo, e só aparece com foco", async () => {
+    const conteiner = document.createElement("div");
+    document.body.append(conteiner);
+    const raiz = createRoot(conteiner);
+    await act(async () => raiz.render(createElement(PularParaOConteudo)));
+    const link = conteiner.querySelector("a");
+    expect(link?.textContent).toBe("Pular para o conteúdo");
+    expect(link?.getAttribute("href")).toBe(`#${ID_DO_CONTEUDO}`);
+    expect(link?.className).toMatch(/\bsr-only\b/u);
+    expect(link?.className).toMatch(/\bfocus:not-sr-only\b/u);
+    expect(link?.className).toMatch(/\bfocus:min-h-11\b/u);
+    act(() => raiz.unmount());
+    conteiner.remove();
+  });
+
+  it("é o primeiro elemento da casca, e o destino é o <main> sem contorno", () => {
+    const casca = semComentarios(ler("app/(casca)/layout.tsx"));
+    expect(casca).toMatch(/<SidebarProvider[^>]*>\s*<PularParaOConteudo \/>/u);
+    expect(casca).toMatch(/<SidebarInset id=\{ID_DO_CONTEUDO\} tabIndex=\{-1\} className="[^"]*\boutline-none\b/u);
+  });
+
+  it("é o primeiro elemento da documentação, e o destino abre o artigo", () => {
+    expect(semComentarios(ler("app/documentacao/layout.tsx"))).toMatch(
+      /<RootProvider[\s\S]*?>\s*<PularParaOConteudo \/>\s*<DocsLayout/u,
+    );
+    expect(semComentarios(ler("app/documentacao/[[...slug]]/page.tsx"))).toMatch(
+      /<div id=\{ID_DO_CONTEUDO\} tabIndex=\{-1\} className="outline-none">\s*<DocsTitle>/u,
     );
   });
 });
