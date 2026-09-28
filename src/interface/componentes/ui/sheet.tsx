@@ -4,6 +4,7 @@ import * as React from "react"
 import { cn } from "@/interface/componentes/utilitarios"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
+import { Button } from "@/interface/componentes/ui/button"
 import { manterAbertoAoTocarNoAviso } from "@/interface/componentes/ui/sonner"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -87,9 +88,18 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
-            <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+          /* O X da casa (achado A1 do item 94): 44 px e nome em pt-BR, a mesma peça de
+             `filtro-com-busca.tsx`. O de fábrica tinha 16 px, dizia "Close" e apagava o contorno. */
+          <SheetPrimitive.Close asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Fechar"
+              className="text-tinta-suave absolute top-3.5 right-3 rounded-sm"
+            >
+              <XIcon aria-hidden="true" />
+            </Button>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>

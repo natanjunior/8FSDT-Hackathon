@@ -70,3 +70,32 @@ describe("o contorno da base volta a valer — critérios 94.1, 94.2 e 94.3", ()
     expect(ler(`${COMPONENTES}/linha-clicavel.ts`)).toContain("focus-visible:outline-none");
   });
 });
+
+describe("a gaveta do celular — critério 94.7", () => {
+  const sheet = semComentarios(ler(`${UI}/sheet.tsx`));
+  const sidebar = semComentarios(ler(`${UI}/sidebar.tsx`));
+
+  it("o X padrão é o botão de 44 px da casa, com nome em pt-BR", () => {
+    expect(sheet).toMatch(/<SheetPrimitive\.Close asChild>\s*<Button[^>]*size="icon"[^>]*aria-label="Fechar"/su);
+    expect(sheet).not.toContain(">Close<");
+  });
+
+  it("a gaveta deixa o X aparecer, e devolve o foco ao gatilho", () => {
+    expect(sidebar).not.toContain("[&>button]:hidden");
+    expect(sidebar).toMatch(
+      /onCloseAutoFocus=\{\(evento\) => \{\s*evento\.preventDefault\(\);?\s*document\.querySelector<HTMLElement>\('\[data-sidebar="trigger"\]'\)\?\.focus\(\)/u,
+    );
+  });
+
+  it("o gatilho diz se a gaveta está aberta, e qual ela é", () => {
+    expect(sidebar).toContain("aria-expanded={isMobile ? openMobile : undefined}");
+    expect(sidebar).toContain("aria-controls={isMobile ? ID_DA_GAVETA : undefined}");
+    expect(sidebar).toMatch(/id=\{ID_DA_GAVETA\}/u);
+  });
+
+  it("o compartilhar reserva a faixa do X, que agora tem 44 px", () => {
+    expect(semComentarios(ler(`${COMPONENTES}/compartilhamento-da-ocorrencia.tsx`))).toMatch(
+      /<SheetHeader className="[^"]*pr-14/u,
+    );
+  });
+});

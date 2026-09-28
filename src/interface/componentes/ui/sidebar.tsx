@@ -46,6 +46,9 @@ const SIDEBAR_WIDTH = "214px"
 const SIDEBAR_WIDTH_MOBILE = "214px"
 const SIDEBAR_WIDTH_ICON = "3rem"
 
+/** O `id` do conteúdo da gaveta do celular, que o gatilho nomeia em `aria-controls` (critério 94.7). */
+export const ID_DA_GAVETA = "navegacao-da-organizacao"
+
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
   open: boolean
@@ -187,22 +190,31 @@ function Sidebar({
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
+          id={ID_DA_GAVETA}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
             } as React.CSSProperties
           }
           side={side}
+          /* O gatilho mora fora do `Sheet` (na barra superior), então o Radix não sabe para onde devolver o
+             foco e ele caía no `<body>`. Vale para todo fechamento: X, Esc, cortina e escolha de item. */
+          onCloseAutoFocus={(evento) => {
+            evento.preventDefault();
+            document.querySelector<HTMLElement>('[data-sidebar="trigger"]')?.focus()
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Nesta organização</SheetTitle>
             <SheetDescription>A navegação das telas desta organização.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          {/* Os 56 px são a altura da barra superior no celular: o X fica na mesma linha do gatilho que
+              abriu a gaveta, e não sobre o primeiro item. */}
+          <div className="flex h-full w-full flex-col pt-14">{children}</div>
         </SheetContent>
       </Sheet>
     )
@@ -261,7 +273,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile, openMobile } = useSidebar()
 
   return (
     <Button
@@ -274,6 +286,8 @@ function SidebarTrigger({
         onClick?.(event)
         toggleSidebar()
       }}
+      aria-expanded={isMobile ? openMobile : undefined}
+      aria-controls={isMobile ? ID_DA_GAVETA : undefined}
       {...props}
     >
       <MenuIcon />
