@@ -17,6 +17,7 @@ import {
   registrarOcorrencia,
   SOLICITANTE_DO_AURORA,
 } from "./mundo";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -1024,11 +1025,6 @@ async function assentar(pagina: Page): Promise<void> {
   });
 }
 
-/** Quanto o documento rola na horizontal. Zero é o único valor aceito. */
-async function transbordo(pagina: Page): Promise<number> {
-  return pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-}
-
 /**
  * O primeiro `href` da tela que casa o padrão. **Falha dizendo o padrão**, em vez de navegar para
  * `/ocorrencias/undefined` e medir a tela de não encontrada.
@@ -1074,7 +1070,7 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
     expect(caixa).not.toBeNull();
     expect((caixa?.x ?? 0) + (caixa?.width ?? 0)).toBeLessThanOrEqual(largura);
 
-    expect(await transbordo(helena)).toBe(0);
+    expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
     const conteudo = await helena.evaluate(() => {
       const medir = (elemento: Element | null) =>
@@ -1107,7 +1103,7 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
   const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const helena = await contexto.newPage();
 
-  // **Helena é Gestor do Recanto**, o papel que alcança as onze telas, e o nome mais longo do mundo.
+  // **Helena é Gestor do Recanto**, o papel que alcança as doze telas, e o nome mais longo do mundo.
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await helena.getByRole("button", { name: RECANTO }).click();
@@ -1128,7 +1124,8 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
   await assentar(helena);
   const edicao = await primeiroHref(helena, new RegExp(`^/vinculos/${UUID}/editar$`, "u"));
 
-  // As onze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra.
+  // As doze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra. `/convidar` chegou
+  // com o item 86, depois de a lista do 92 ser escrita (achado A-1 do 93).
   const rotas = [
     "/ocorrencias",
     ocorrencia,
@@ -1137,6 +1134,7 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
     "/vinculos",
     "/vinculos/nova",
     edicao,
+    "/convidar",
     "/configuracao",
     "/configuracao/categorias",
     "/configuracao/areas",
@@ -1146,8 +1144,99 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
     await helena.goto(rota);
     await assentar(helena);
     // Suave: uma tela com transbordo não esconde as seguintes.
-    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toBe(0);
+    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toStrictEqual(SEM_TRANSBORDO);
   }
 
   await contexto.close();
+});
+
+/**
+ * **As casas do código na viewport, e a letra do mesmo tamanho** (critérios 93.1, 93.2 e 93.4). Cada casa
+ * fica entre 0 e a borda, não corta a própria letra, e a letra é o título de página em toda largura: é
+ * isso que diz que o conserto cedeu a caixa e não o código.
+ */
+async function casasDoCodigo(pagina: Page) {
+  return pagina.locator('[data-slot="input-otp-slot"]').evaluateAll((casas) =>
+    casas.map((casa) => {
+      const caixa = casa.getBoundingClientRect();
+      return {
+        dentro: caixa.left >= 0 && caixa.right <= document.documentElement.clientWidth + 0.5,
+        cortada: casa.scrollWidth > casa.clientWidth,
+        letra: getComputedStyle(casa).fontSize,
+      };
+    }),
+  );
+}
+
+test("o código da organização cabe no celular, nas três telas que o exibem (critério 93.1)", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const helena = await contexto.newPage();
+  const semSessao = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+
+  // **Helena é Gestor do Recanto**: alcança `/configuracao` e `/convidar`, e o código sai do link do convite.
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await helena.goto("/convidar");
+  await assentar(helena);
+  const link = (await helena.locator("code").first().innerText()).trim();
+  expect(link).toMatch(/\?e=[A-Z0-9]{8}$/u);
+  const codigo = link.slice(link.indexOf("?e=") + 3);
+
+  // As quatro do critério, e a de 768 px, onde a barra lateral aparece e passa a apertar a página (spec §3.2).
+  const larguras = [320, 360, 390, 414, 768];
+  const telas: ReadonlyArray<{ pagina: Page; rota: string; casca: boolean }> = [
+    { pagina: helena, rota: "/configuracao", casca: true },
+    { pagina: helena, rota: "/convidar", casca: true },
+    { pagina: semSessao, rota: `/convite/${codigo}`, casca: false },
+  ];
+
+  for (const largura of larguras) {
+    for (const { pagina, rota, casca } of telas) {
+      await pagina.setViewportSize({ width: largura, height: 844 });
+      await pagina.goto(rota);
+      await assentar(pagina);
+      const onde = `${rota} a ${largura} px`;
+
+      /**
+       * **A medida da página, nas telas da casca, começa em 360 px**, e o motivo é defeito de outra peça.
+       * A 320 px o grupo `ml-auto` da barra superior (`casca/barra-superior.tsx:30`, com o seletor de
+       * organização e o menu de pessoa) termina em 352 px e **o documento rola 32 px na horizontal**, nas
+       * duas rotas da casca, com o código já consertado. O item 92 mediu a barra só a 390 px, e nenhum
+       * critério aceito cobra 320 dela; o achado foi ao hub com o número medido.
+       *
+       * **As oito casas do código continuam medidas nas cinco larguras, esta inclusive** — é o que o
+       * critério 93.1 cobra, e é o que o conserto deste item entrega.
+       */
+      if (!casca || largura >= 360) {
+        expect.soft(await transbordo(pagina), `transbordo em ${onde}`).toStrictEqual(SEM_TRANSBORDO);
+      }
+
+      const casas = await casasDoCodigo(pagina);
+      expect.soft(casas, `casas em ${onde}`).toHaveLength(8);
+      for (const [indice, casa] of casas.entries()) {
+        expect.soft(casa, `casa ${indice + 1} em ${onde}`).toStrictEqual({
+          dentro: true,
+          cortada: false,
+          letra: "26px",
+        });
+      }
+    }
+
+    // **O critério 93.2 pelo nome**: a frase de apoio do código, em `/configuracao`, termina dentro da tela.
+    await helena.setViewportSize({ width: largura, height: 844 });
+    await helena.goto("/configuracao");
+    await assentar(helena);
+    const apoio = helena.getByText("É o código do cartaz do elevador.", { exact: false });
+    const caixa = await apoio.boundingBox();
+    expect
+      .soft((caixa?.x ?? 9999) + (caixa?.width ?? 0), `apoio de /configuracao a ${largura} px`)
+      .toBeLessThanOrEqual(largura);
+  }
+
+  await contexto.close();
+  await semSessao.context().close();
 });

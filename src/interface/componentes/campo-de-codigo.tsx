@@ -29,9 +29,17 @@ import { cn } from "@/interface/componentes/utilitarios";
  * cabem num celular de 360 px (F2 do plano), então abaixo de `sm` a casa divide a largura, e os 40 px valem
  * a partir de `sm`. A letra é o *título de bloco* (19 px) na entrada: 20 px não é papel do guia. Na
  * exibição é o *título de página*, porque ali o código é lido do outro lado da mesa (critério 44i.3).
+ *
+ * **A exibição cede de outro jeito, e o item 93 é o porquê.** Ela tinha 48 px em toda largura, e oito casas
+ * mais o vão dão 398 px: o código saía cortado a 360, 390 e 414 px, recortado pelo cartão e sem rolagem que
+ * o denunciasse. Agora a casa divide a largura do contêiner, com teto nos 398 naturais, **em qualquer
+ * largura de janela**: quem aperta a exibição é a célula da grade de `/configuracao` e a barra lateral, e
+ * não a janela. A letra e a altura não mudam, e é isso que mantém o código legível no cartaz.
  */
 
 const GRUPO = "flex flex-1 sm:flex-none";
+
+const GRUPO_DA_EXIBICAO = "flex min-w-0 flex-1";
 
 // `bg-background` é o `--ground` do guia, e no tema escuro a casa fica cava sobre o cartão. A peça do
 // catálogo perdeu as classes da variante escura na entrada (a divergência 2 de `ui/input-otp.tsx`), então
@@ -41,7 +49,9 @@ const CASA =
 
 const CASA_DA_ENTRADA = "min-w-0 flex-1 h-[52px] sm:w-10 sm:flex-none md:w-12 md:h-14 text-titulo-bloco";
 
-const CASA_DA_EXIBICAO = "h-14 w-12 text-titulo-pagina select-none";
+// `w-auto` desfaz o `w-9` do catálogo: largura definida conta na largura mínima do conteúdo, e é ela que
+// empurrava a grade de `/configuracao` para fora do cartão (critério 93.2).
+const CASA_DA_EXIBICAO = "min-w-0 flex-1 w-auto h-14 text-titulo-pagina select-none";
 
 export function EntradaDeCodigo({
   controle,
@@ -98,6 +108,10 @@ export function EntradaDeCodigo({
  * **A opacidade do catálogo sai**: o `input-otp` do shadcn apaga o desabilitado a 50%, e este código é para
  * ser lido de longe. O comprimento vem do código, pela mesma regra de `gruposDoCodigo`, para não perder
  * caractere se algum dia houver um código fora de oito (Review Focus 4).
+ *
+ * **O teto do contêiner é a largura natural** (8 × 48 + 14 = 398 px = 24,875 rem). Abaixo dele as casas
+ * dividem o que houver. Com código fora de oito, cada casa fica mais larga ou mais estreita que 48 px, e
+ * nenhum código gerado sai fora de oito (ADR-0014).
  */
 export function ExibicaoDeCodigo({ codigo, rotulo }: { codigo: string; rotulo: string }) {
   return (
@@ -106,10 +120,10 @@ export function ExibicaoDeCodigo({ codigo, rotulo }: { codigo: string; rotulo: s
       maxLength={codigo.length}
       disabled
       aria-label={rotulo}
-      containerClassName="gap-3.5 has-disabled:opacity-100"
+      containerClassName="w-full max-w-[24.875rem] gap-3.5 has-disabled:opacity-100"
     >
       {casasDosGrupos(codigo.length).map((grupo) => (
-        <InputOTPGroup key={grupo[0]}>
+        <InputOTPGroup key={grupo[0]} className={GRUPO_DA_EXIBICAO}>
           {grupo.map((indice) => (
             <InputOTPSlot key={indice} index={indice} className={cn(CASA, CASA_DA_EXIBICAO)} />
           ))}
