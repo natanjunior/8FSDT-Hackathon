@@ -23,10 +23,8 @@ As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integra�
 nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de sete arquivos, e cada
 arquivo declara quem é dono do mundo que ele usa. A regra anterior mandava que ela nunca crescesse, e o
 que a mudou foi medição: a [ADR-0012](adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) registra o
-número que a derrubou e o custo que ela cobra. O teto tem origem própria e sai de duas medições, o tempo
-da suíte e a taxa de reescrita, que a
-[ADR-0013](adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) define junto com a condição
-de parar de subir.
+número que a derrubou, o custo que ela cobra, e as duas medições de onde o teto sai — o tempo da suíte e
+a taxa de reescrita — junto com a condição de parar de subir.
 
 ## O que a suíte alcança
 

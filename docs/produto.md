@@ -72,9 +72,9 @@ O desenho da máquina, a tabela de transições permitidas e quem pode executar 
 ## O que o Gestor vê no painel
 
 Três números no topo, numa tela só: o que está em aberto agora, o saldo do período e a mais velha em
-aberto. Abaixo, sete quadros: entradas e saídas por mês, a idade do que está em aberto, o tempo de
-resolução, o que se repete, o que está em aberto por categoria, o total por estado e a satisfação. Cada
-quadro escreve a pergunta que responde.
+aberto. Abaixo, sete quadros, com o nome que aparece na tela: Entradas e saídas por mês, Em aberto por
+idade, Tempo de resolução, O que está voltando, Em aberto por categoria, Ocorrências por status e
+Satisfação. Cada quadro escreve a pergunta que responde.
 
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, se a fila
 cresce ou encolhe, e se quem abriu ficou satisfeito.**

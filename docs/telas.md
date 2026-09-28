@@ -40,46 +40,33 @@ que hoje é o caso do Encarregado.
 
 ```mermaid
 flowchart TB
-    CONTA["Criar conta<br/>Redefinir senha"]
+    CONVITE["Convite recebido"]
+    CONTA["Criar conta · Redefinir senha"]
     ENTRAR["Entrar"]
-    CTX{"Tem organização<br/>ativa?"}
+    CTX{"Tem organização ativa?"}
     ORG["Sem organização ativa"]
     LISTA["Ocorrências"]
-    NOVA["Registrar"]
     DETALHE["Ocorrência"]
+    NOVA["Registrar"]
     TRILHA["Trilha de auditoria"]
     MENU["Menu do cabeçalho"]
-    PAINEL["Painel"]
-    GENTE["Participantes"]
-    CONFIG["Configuração"]
-    MEUS["Meus dados"]
-    GRUPO["Grupo"]
-    CONVITE["Convite"]
-    CONVIDAR["Convidar pessoas"]
 
+    CONVITE --> CONTA
+    CONVITE --> ENTRAR
     CONTA --> ENTRAR
     ENTRAR --> CTX
     CTX -->|não| ORG
-    ORG --> LISTA
     CTX -->|sim| LISTA
+    ORG --> LISTA
     LISTA --> NOVA
     LISTA --> DETALHE
-    DETALHE --> TRILHA
     LISTA --> MENU
-    MENU --> PAINEL
-    MENU --> GENTE
-    MENU --> CONFIG
-    MENU --> MEUS
-    ENTRAR --> GRUPO
-    MENU --> GRUPO
-    CONVITE --> CONTA
-    CONVITE --> ENTRAR
-    CONVITE --> ORG
-    MENU --> CONVIDAR
+    DETALHE --> TRILHA
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
-moram. A configuração abre as categorias e as áreas.
+moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração — que
+abre as categorias e as áreas —, os Meus dados e a página do Grupo, que também responde sem sessão.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
