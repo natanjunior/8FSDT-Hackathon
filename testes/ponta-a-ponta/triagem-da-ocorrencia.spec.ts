@@ -1149,3 +1149,82 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
 
   await contexto.close();
 });
+
+/**
+ * **As casas do código na viewport, e a letra do mesmo tamanho** (critérios 93.1, 93.2 e 93.4). Cada casa
+ * fica entre 0 e a borda, não corta a própria letra, e a letra é o título de página em toda largura: é
+ * isso que diz que o conserto cedeu a caixa e não o código.
+ */
+async function casasDoCodigo(pagina: Page) {
+  return pagina.locator('[data-slot="input-otp-slot"]').evaluateAll((casas) =>
+    casas.map((casa) => {
+      const caixa = casa.getBoundingClientRect();
+      return {
+        dentro: caixa.left >= 0 && caixa.right <= document.documentElement.clientWidth + 0.5,
+        cortada: casa.scrollWidth > casa.clientWidth,
+        letra: getComputedStyle(casa).fontSize,
+      };
+    }),
+  );
+}
+
+test("o código da organização cabe no celular, nas três telas que o exibem (critério 93.1)", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const helena = await contexto.newPage();
+  const semSessao = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+
+  // **Helena é Gestor do Recanto**: alcança `/configuracao` e `/convidar`, e o código sai do link do convite.
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await helena.goto("/convidar");
+  await assentar(helena);
+  const link = (await helena.locator("code").first().innerText()).trim();
+  expect(link).toMatch(/\?e=[A-Z0-9]{8}$/u);
+  const codigo = link.slice(link.indexOf("?e=") + 3);
+
+  // As quatro do critério, e a de 768 px, onde a barra lateral aparece e passa a apertar a página (spec §3.2).
+  const larguras = [320, 360, 390, 414, 768];
+  const telas: ReadonlyArray<{ pagina: Page; rota: string }> = [
+    { pagina: helena, rota: "/configuracao" },
+    { pagina: helena, rota: "/convidar" },
+    { pagina: semSessao, rota: `/convite/${codigo}` },
+  ];
+
+  for (const largura of larguras) {
+    for (const { pagina, rota } of telas) {
+      await pagina.setViewportSize({ width: largura, height: 844 });
+      await pagina.goto(rota);
+      await assentar(pagina);
+      const onde = `${rota} a ${largura} px`;
+
+      expect.soft(await transbordo(pagina), `transbordo em ${onde}`).toStrictEqual(SEM_TRANSBORDO);
+
+      const casas = await casasDoCodigo(pagina);
+      expect.soft(casas, `casas em ${onde}`).toHaveLength(8);
+      for (const [indice, casa] of casas.entries()) {
+        expect.soft(casa, `casa ${indice + 1} em ${onde}`).toStrictEqual({
+          dentro: true,
+          cortada: false,
+          letra: "26px",
+        });
+      }
+    }
+
+    // **O critério 93.2 pelo nome**: a frase de apoio do código, em `/configuracao`, termina dentro da tela.
+    await helena.setViewportSize({ width: largura, height: 844 });
+    await helena.goto("/configuracao");
+    await assentar(helena);
+    const apoio = helena.getByText("É o código do cartaz do elevador.", { exact: false });
+    const caixa = await apoio.boundingBox();
+    expect
+      .soft((caixa?.x ?? 9999) + (caixa?.width ?? 0), `apoio de /configuracao a ${largura} px`)
+      .toBeLessThanOrEqual(largura);
+  }
+
+  await contexto.close();
+  await semSessao.context().close();
+});
