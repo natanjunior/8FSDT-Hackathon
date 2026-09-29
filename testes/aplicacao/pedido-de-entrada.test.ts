@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   CodigoPublicoNaoEncontrado,
   JaVinculado,
+  lerConvite,
   pedirEntrada,
   PedidoDeEntradaPendente,
+  type RepositorioDeConvites,
   type RepositorioDePedidosDeEntrada,
   type ResultadoDoPedidoDeEntrada,
 } from "@/aplicacao/organizacao";
@@ -150,5 +152,69 @@ describe("pedirEntrada", () => {
     );
 
     expect(recebidos[0]?.nome).toBe("Helena R. da Silva");
+  });
+});
+
+describe("lerConvite — o modelo de leitura da página do convite (item 86)", () => {
+  const JARDIM = { nome: "Condomínio Jardim das Acácias", codigoPublico: "K7M4QX2P" };
+
+  function convites(opcoes: { existe?: boolean; pendente?: boolean } = {}) {
+    const perguntas: Array<[string, string]> = [];
+    const porta: RepositorioDeConvites = {
+      async porCodigo(codigo) {
+        return opcoes.existe === false ? null : { ...JARDIM, codigoPublico: codigo };
+      },
+      async temPedidoPendente(pessoaId, codigo) {
+        perguntas.push([pessoaId, codigo]);
+        return opcoes.pendente === true;
+      },
+    };
+    return { porta, perguntas };
+  }
+
+  const QUEM = { pessoaId: "p-1", codigosComVinculoAtivo: [] as string[] };
+
+  it("sem sessão devolve nome, código e sem-sessao, e nada mais", async () => {
+    const { porta, perguntas } = convites();
+    const lido = await lerConvite({ convites: porta }, null, "K7M4QX2P");
+
+    expect(lido).toStrictEqual({ organizacao: JARDIM, situacao: "sem-sessao" });
+    expect(Object.keys(lido.organizacao).sort()).toStrictEqual(["codigoPublico", "nome"]);
+    // Sem sessão não há pessoa de quem perguntar pendência.
+    expect(perguntas).toStrictEqual([]);
+  });
+
+  it("código que não leva a lugar nenhum é CODIGO_PUBLICO_NAO_ENCONTRADO, com e sem sessão", async () => {
+    const { porta } = convites({ existe: false });
+    await expect(lerConvite({ convites: porta }, null, "K7M4QX2Q")).rejects.toBeInstanceOf(
+      CodigoPublicoNaoEncontrado,
+    );
+    await expect(lerConvite({ convites: porta }, QUEM, "K7M4QX2Q")).rejects.toBeInstanceOf(
+      CodigoPublicoNaoEncontrado,
+    );
+  });
+
+  it("quem tem vínculo ativo nela já participa, e a pendência nem é perguntada", async () => {
+    const { porta, perguntas } = convites({ pendente: true });
+    const lido = await lerConvite(
+      { convites: porta },
+      { pessoaId: "p-1", codigosComVinculoAtivo: ["OUTRA123", "K7M4QX2P"] },
+      "K7M4QX2P",
+    );
+    expect(lido.situacao).toBe("ja-participa");
+    expect(perguntas).toStrictEqual([]);
+  });
+
+  it("quem tem pedido pendente nela vê pedido-pendente, e a pergunta é sobre a própria pessoa", async () => {
+    const { porta, perguntas } = convites({ pendente: true });
+    const lido = await lerConvite({ convites: porta }, QUEM, "K7M4QX2P");
+    expect(lido.situacao).toBe("pedido-pendente");
+    expect(perguntas).toStrictEqual([["p-1", "K7M4QX2P"]]);
+  });
+
+  it("o resto pode pedir, inclusive quem teve o vínculo revogado (ele não está em codigosComVinculoAtivo)", async () => {
+    const { porta } = convites({ pendente: false });
+    const lido = await lerConvite({ convites: porta }, QUEM, "K7M4QX2P");
+    expect(lido.situacao).toBe("pode-pedir");
   });
 });

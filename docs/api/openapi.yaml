@@ -22,10 +22,12 @@ info:
        listagem de **vínculos**.
     4. **A trilha é só de leitura.** Não existe `POST`, `PATCH` nem `DELETE` de registro de transição —
        ele nasce como efeito de um comando.
-    5. **Quase nada é apagado, e a exceção é uma só.** Ocorrência não se apaga (cancela-se), categoria e
-       área não se apagam (desativam-se), mensagem não se apaga. O único `DELETE` do contrato é
-       `DELETE /vinculos/{pessoaId}`, que remove um vínculo **sem histórico** — e quem delimita a exceção
-       é o `ON DELETE RESTRICT` do esquema, que recusa apagar qualquer vínculo com linha dependente.
+    5. **Quase nada é apagado, e as exceções são duas.** Ocorrência não se apaga (cancela-se), categoria e
+       área não se apagam (desativam-se), mensagem não se apaga, registro de transição não se apaga.
+       `DELETE /vinculos/{pessoaId}` remove um vínculo **sem histórico**, e quem delimita a exceção é o
+       `ON DELETE RESTRICT` do esquema, que recusa apagar qualquer vínculo com linha dependente.
+       `DELETE /ocorrencias/{id}/compartilhamentos/{pessoaId}` desfaz um compartilhamento, que por decisão
+       não tem histórico: ele diz quem pode ler a ocorrência hoje, e desfazer é tirar isso.
 
     ## Antes de clicar em *Try it out*
 
@@ -79,6 +81,10 @@ tags:
       `ultimaTransicao` — o registro de auditoria recém-gravado.
   - name: Conversa
     description: O comentário (canal 1 — Gestores e Solicitante). Os canais 2 e 3 são evolução prevista.
+  - name: Compartilhamento
+    description: |
+      Abrir uma ocorrência, **só para leitura**, a outra pessoa da mesma organização. É dado, e não
+      permissão: quem recebe não ganha papel nenhum e não age sobre a ocorrência (ADR-0017).
   - name: Anexo
     description: |
       A **evidência** anexada a uma ocorrência: autorização de upload direto para o storage, e leitura por
@@ -467,6 +473,54 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /convites/{codigo}:
+    get:
+      tags: [Entrada na organização]
+      operationId: lerConvite
+      summary: Ler o convite de uma organização
+      description: |
+        O que a página do convite mostra: o nome e o código da organização, e a situação de quem abre.
+
+        **É a única operação que não exige sessão.** O código é a credencial, como no pedido de entrada:
+        ele já circula em cartaz e mensagem, e o que ele abre é o nome da organização. Sem sessão, a
+        resposta tem só o nome, o código e `situacao: sem-sessao`. Com sessão, a situação diz se a pessoa
+        já participa, se já tem pedido pendente ou se pode pedir. Quem teve o vínculo revogado pode pedir,
+        como qualquer pessoa.
+
+        Código que nunca foi sorteado e código de organização apagada têm a mesma resposta.
+      security:
+        - {}
+        - sessaoSupabase: []
+        - bearerSupabase: []
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{6,12}$" }
+      responses:
+        "200":
+          description: O convite.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Convite" }
+              example:
+                organizacao: { nome: "Condomínio Recanto Azul", codigoPublico: "RECANTO7" }
+                situacao: "sem-sessao"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "404":
+          description: Nenhuma organização com aquele código.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/codigo-publico-nao-encontrado"
+                title: "Código não encontrado"
+                status: 404
+                detail: "Nenhuma organização usa este código."
+                codigo: "CODIGO_PUBLICO_NAO_ENCONTRADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /pedidos-de-entrada/{pedidoId}/aprovar:
     post:
       tags: [Entrada na organização]
@@ -776,7 +830,8 @@ paths:
       summary: Remover um vínculo que ainda não tem histórico
       description: |
         Desfaz um vínculo criado com o **papel errado** — por aprovação de pedido de entrada ou por
-        cadastro direto. É o **único `DELETE` do contrato**, e a licença é estreita de propósito.
+        cadastro direto. É um dos **dois `DELETE` do contrato**, e a licença é estreita de propósito: o
+        outro desfaz um compartilhamento, que não tem histórico nenhum a preservar.
 
         **Só remove vínculo sem nenhuma linha dependente.** Se a pessoa já registrou ocorrência, foi
         responsável, escreveu mensagem ou autorou uma transição, a resposta é `409
@@ -850,8 +905,8 @@ paths:
         pessoa na trilha de auditoria, na linha do tempo e nas ocorrências que ela registrou.
 
         É o caminho para quem **tem** histórico, que `removerVinculo` recusa com `409
-        VINCULO_COM_HISTORICO`. Não é um segundo `DELETE`: a linha fica, e o único `DELETE` do contrato
-        continua sendo o de vínculo sem histórico.
+        VINCULO_COM_HISTORICO`. **A linha fica**: revogar é um `PATCH`, e por isso o compartilhamento que a
+        pessoa recebeu sobrevive à revogação e volta a valer na readmissão.
 
         **Não revoga o último Gestor**, pela mesma razão e com a mesma resposta do `DELETE`.
 
@@ -1544,6 +1599,16 @@ paths:
             `eu` restringe às ocorrências de que o chamador é autor. É o que dá ao Gestor a visão de
             Solicitante sem um segundo vínculo.
           schema: { type: string, enum: [eu] }
+        - name: compartilhadas
+          in: query
+          description: |
+            `comigo` troca o conjunto da página pelas ocorrências que foram compartilhadas com o chamador
+            — a aba *Compartilhadas comigo* (item 87). **Não se soma a `autor`**: as duas descrevem
+            conjuntos disjuntos, e pedir as duas é `400`.
+
+            **Não conta como filtro:** o vazio dela tem frase própria, e *Limpar filtros* não tira a
+            pessoa da aba.
+          schema: { type: string, enum: [comigo] }
         - name: titulo
           in: query
           description: |
@@ -1633,7 +1698,7 @@ paths:
                       Quantas foram registradas **depois** do corte e casam com o recorte aplicado.
                   contagens:
                     type: object
-                    required: [todas, minhas, emAberto, semResponsavel]
+                    required: [todas, minhas, emAberto, semResponsavel, compartilhadasNaoAbertas]
                     description: |
                       O painel. **Calculado sem os filtros de status, categoria e prioridade**: estes
                       números existem para o leitor decidir qual recorte pedir, e recalculá-los dentro do
@@ -1652,10 +1717,19 @@ paths:
                       semResponsavel:
                         type: integer
                         description: Sem responsável vigente **e** não terminal.
+                      compartilhadasNaoAbertas:
+                        type: integer
+                        description: |
+                          Quantas ocorrências compartilhadas com quem pergunta ainda **não** foram
+                          abertas por ela, nesta organização. Ignora o corte e os filtros: a pergunta é
+                          quantas esperam, e não quantas desta página. Vem `0` para quem pode ler todas,
+                          que não recebe compartilhamento.
                   visibilidadeAplicada:
                     type: string
-                    enum: [todas, apenas_minhas]
-                    description: O recorte que o servidor aplicou, para a interface poder dizê-lo ao usuário.
+                    enum: [todas, apenas_minhas, compartilhadas_comigo]
+                    description: |
+                      O recorte que o servidor aplicou, para a interface poder dizê-lo ao usuário.
+                      `compartilhadas_comigo` é a aba do item 87, e o conjunto dela **não** é o do autor.
               example:
                 visibilidadeAplicada: "todas"
                 total: 137
@@ -1665,7 +1739,7 @@ paths:
                 totalNoCorte: 140
                 saidasDesdeOCorte: 3
                 novasDesdeOCorte: 5
-                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12 }
+                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12, compartilhadasNaoAbertas: 0 }
                 itens:
                   - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
                     titulo: "Lâmpada queimada na garagem"
@@ -1958,6 +2032,182 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Comentario" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/compartilhamentos:
+    post:
+      tags: [Compartilhamento]
+      operationId: compartilharOcorrencia
+      summary: Abrir a ocorrência, só para leitura, a outra pessoa da organização
+      description: |
+        O autor e quem tem `ocorrencia.ler_todas` abrem uma ocorrência a outra pessoa da mesma
+        organização. Quem recebe **lê e não age**: nenhum comando, nenhuma mensagem, nenhum repasse.
+
+        **É dado, e não permissão.** Nada muda no papel de quem recebe, e não existe permissão
+        `ocorrencia.ler_compartilhada` — o que muda é a definição de *"ocorrência que eu posso ver"*, num
+        lugar só. Ver a ADR-0017.
+
+        **`201` quando a linha nasce, `200` quando ela já existia**, e as duas trazem a linha: duas abas
+        mandando o mesmo pedido terminam com uma linha e nenhuma vê erro.
+
+        **Estado da ocorrência não importa:** resolvida e cancelada continuam compartilháveis.
+
+        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+        *Permissão na porta: `ocorrencia.ler_propria`; a regra fina é sobre o recurso.*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pessoaId]
+              properties:
+                pessoaId:
+                  type: string
+                  format: uuid
+                  description: |
+                    Uma pessoa da lista de `GET /ocorrencias/{id}/candidatos-ao-compartilhamento`. Quem não
+                    tem vínculo ativo **nesta** organização responde `404` da ocorrência, e não `422`:
+                    confirmar que o identificador existe em outra organização é o vazamento que a §6.3
+                    existe para impedir.
+            example: { pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f" }
+      responses:
+        "200":
+          description: A ocorrência já estava compartilhada com esta pessoa. A linha devolvida é a que existe.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Compartilhamento" }
+        "201":
+          description: Compartilhada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Compartilhamento" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "422":
+          description: |
+            O destino existe nesta organização e não serve: já vê a ocorrência, ou está fora do alcance de
+            quem compartilha.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              examples:
+                jaVe:
+                  summary: Já vê a ocorrência
+                  value:
+                    type: "https://resolveai.app/erros/destinatario-invalido"
+                    title: "Não dá para compartilhar com esta pessoa"
+                    status: 422
+                    codigo: "DESTINATARIO_INVALIDO"
+                    detail: "Esta pessoa já vê esta ocorrência."
+                    erros: [{ campo: "pessoaId", codigo: "JA_VE_A_OCORRENCIA" }]
+                    traceId: "01JB8Z6K9T2M4N7Q"
+                foraDoAlcance:
+                  summary: Fora do alcance de quem compartilha
+                  value:
+                    type: "https://resolveai.app/erros/destinatario-invalido"
+                    title: "Não dá para compartilhar com esta pessoa"
+                    status: 422
+                    codigo: "DESTINATARIO_INVALIDO"
+                    detail: "Você só compartilha com quem pode registrar ocorrências."
+                    erros: [{ campo: "pessoaId", codigo: "FORA_DO_ALCANCE" }]
+                    traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/compartilhamentos/{pessoaId}:
+    delete:
+      tags: [Compartilhamento]
+      operationId: desfazerCompartilhamento
+      summary: Desfazer um compartilhamento
+      description: |
+        Quem compartilhou desfaz o seu; quem tem `ocorrencia.ler_todas` desfaz qualquer um. Quem recebeu
+        não desfaz e não repassa.
+
+        **`DELETE`, e não um comando.** O compartilhamento é um recurso com identidade — o par ocorrência e
+        pessoa — e desfazer apaga a linha. Não há histórico de compartilhamento: a regra *"a escrita é
+        comando"* vale para os comandos de domínio do agregado, e este não é um deles.
+
+        **`204` também quando a linha não existe**, pela mesma razão do `200` do `POST`: duas abas
+        desfazendo o mesmo não veem erro.
+
+        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "204":
+          description: Desfeito. A ocorrência sai da aba de quem recebia.
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /ocorrencias/{ocorrenciaId}/candidatos-ao-compartilhamento:
+    get:
+      tags: [Compartilhamento]
+      operationId: buscarCandidatosAoCompartilhamento
+      summary: Quem pode receber esta ocorrência
+      description: |
+        A busca do painel de compartilhar. **Parte do vínculo**, dentro da organização ativa: quem só
+        existe em outra organização não aparece.
+
+        **Traz nome e papel, e nada mais.** Sem contato — que é só para quem gere vínculos — e sem área,
+        que é a unidade de moradia de um vizinho.
+
+        **Quem já vê aparece marcado, em vez de sumir**, para a tela poder recusar dizendo por quê; quem
+        está fora do alcance de quem pergunta não aparece.
+
+        O mínimo de duas letras e o teto de vinte itens limitam, sem impedir, que um participante descubra
+        os nomes dos outros. Está declarado em `docs/seguranca.md`.
+
+        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+      parameters:
+        - $ref: "#/components/parameters/OcorrenciaId"
+        - name: busca
+          in: query
+          required: true
+          description: |
+            Casa por prefixo de palavra, sem acento e sem caixa, e todos os termos precisam casar — a
+            mesma regra do `titulo` de `GET /ocorrencias`.
+          schema: { type: string, minLength: 2, maxLength: 120 }
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: Até vinte pessoas, por nome.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/CandidatoAoCompartilhamento" }
+              example:
+                itens:
+                  - pessoaId: "9d3e2f81-0a1b-4c2d-8e3f-4a5b6c7d8e9f"
+                    nome: "Diego Fontes"
+                    papel: "solicitante"
+                    situacao: "disponivel"
+                    motivo: null
+                  - pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f"
+                    nome: "Marcos Vieira"
+                    papel: "gestor"
+                    situacao: "ja_ve"
+                    motivo: "le_todas"
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
@@ -3238,6 +3488,25 @@ components:
               type: integer
               description: Quantas áreas-semente a política criou junto com a organização.
 
+    Convite:
+      type: object
+      description: |
+        O convite lido pelo código. **São exatamente três campos, e nada mais** — não há identificador,
+        contagem, tipo nem pessoa, porque este corpo é entregue a quem não tem sessão.
+      required: [organizacao, situacao]
+      properties:
+        organizacao:
+          type: object
+          description: Só o nome e o código.
+          required: [nome, codigoPublico]
+          properties:
+            nome: { type: string }
+            codigoPublico: { type: string, pattern: "^[A-Z0-9]{6,12}$" }
+        situacao:
+          type: string
+          description: Decidida no servidor, para que a API e a página digam a mesma coisa.
+          enum: [sem-sessao, pode-pedir, ja-participa, pedido-pendente]
+
     PedidoDeEntrada:
       type: object
       required: [id, situacao, criadoEm]
@@ -3501,6 +3770,14 @@ components:
             *(Acrescentado em 30/08/2026: até esta data o schema declarava treze propriedades, e o produto
             já projetava a décima quarta desde o item 27. Item 21 da fila da frente de documentação.)*
           examples: [false, true]
+        naoAberta:
+          type: boolean
+          description: |
+            Presente apenas quando a listagem foi pedida com `compartilhadas=comigo`: diz se quem pergunta
+            ainda não abriu esta ocorrência. Fora desse recorte a pergunta não é feita, e o campo não vem.
+
+            A palavra é *aberta* aqui e na trilha; a tela escreve *vista*, porque *Aberta* é um status.
+          examples: [true, false]
         registradaEm: { type: string, format: date-time }
         atualizadaEm:
           type: string
@@ -3563,6 +3840,93 @@ components:
                 ausente** — o campo é `required`, e a tela que renderiza exatamente esta lista precisa
                 distinguir *"não há o que fazer"* de *"a lista não veio"*.
               items: { $ref: "#/components/schemas/Comando" }
+            compartilhamento:
+              description: |
+                O compartilhamento, com **duas faces** (item 87). Quem participa da ocorrência — o autor e
+                quem tem `ocorrencia.ler_todas` — recebe a lista de com quem ela está; quem a recebeu
+                compartilhada recebe só quem a compartilhou, porque a lista nomeia outros vizinhos e a
+                tela dele não a desenha.
+              oneOf:
+                - type: "null"
+                - type: object
+                  title: Gestão do compartilhamento
+                  required: [tipo, pessoas]
+                  properties:
+                    tipo: { type: string, enum: [gestao] }
+                    pessoas:
+                      type: array
+                      description: Do mais recente para o mais antigo. **Lista vazia**, nunca `null`.
+                      items: { $ref: "#/components/schemas/Compartilhamento" }
+                - type: object
+                  title: Recebida por compartilhamento
+                  required: [tipo, por, compartilhadoEm, naoAberta]
+                  properties:
+                    tipo: { type: string, enum: [recebida] }
+                    por:
+                      type: object
+                      required: [nome, papel]
+                      properties:
+                        nome: { type: string, maxLength: 120 }
+                        papel: { $ref: "#/components/schemas/PapelVinculo" }
+                    compartilhadoEm: { type: string, format: date-time }
+                    naoAberta:
+                      type: boolean
+                      description: |
+                        Se quem está lendo ainda não tinha aberto esta ocorrência. Só existe neste ramo:
+                        quem compartilhou não recebe recibo de leitura.
+
+    Compartilhamento:
+      type: object
+      description: |
+        Uma ocorrência aberta, só para leitura, a uma pessoa da mesma organização.
+
+        **`podeDesfazer` é sobre quem lê, e não sobre a linha:** quem compartilhou desfaz o seu, e quem tem
+        `ocorrencia.ler_todas` desfaz qualquer um. O autor que vê a linha do Gestor a vê sem a opção.
+
+        **Quem recebeu e teve o vínculo revogado não aparece na lista**, e a linha continua no banco: ela
+        fica sem efeito e volta a valer na readmissão. **Quem compartilhou continua nomeado mesmo
+        revogado**, como quem transicionou continua nomeado na trilha.
+      required: [com, por, compartilhadoEm, podeDesfazer]
+      properties:
+        com:
+          allOf:
+            - $ref: "#/components/schemas/PessoaReferencia"
+            - type: object
+              required: [papel]
+              properties:
+                papel: { $ref: "#/components/schemas/PapelVinculo" }
+        por:
+          allOf:
+            - $ref: "#/components/schemas/PessoaReferencia"
+            - type: object
+              required: [papel]
+              properties:
+                papel: { $ref: "#/components/schemas/PapelVinculo" }
+        compartilhadoEm: { type: string, format: date-time }
+        podeDesfazer: { type: boolean }
+
+    CandidatoAoCompartilhamento:
+      type: object
+      description: |
+        Uma pessoa na busca do painel de compartilhar. **Nome e papel, e nada mais** — sem contato e sem
+        área.
+      required: [pessoaId, nome, papel, situacao, motivo]
+      properties:
+        pessoaId: { type: string, format: uuid }
+        nome: { type: string, maxLength: 120 }
+        papel: { $ref: "#/components/schemas/PapelVinculo" }
+        situacao:
+          type: string
+          enum: [disponivel, ja_compartilhada, ja_ve]
+          description: |
+            `ja_ve` aparece desabilitada, com o motivo escrito; `ja_compartilhada` traz o desfazer ali
+            mesmo.
+        motivo:
+          description: Por que a pessoa já vê. Nulo fora de `ja_ve`.
+          oneOf:
+            - type: "null"
+            - type: string
+              enum: [le_todas, autor]
 
     RegistroDeTransicao:
       type: object

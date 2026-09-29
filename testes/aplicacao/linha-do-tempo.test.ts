@@ -70,7 +70,8 @@ beforeEach(() => {
   trilha = [];
   atribuicoes = [];
   mensagens = [];
-  ocorrencia = { autor: AUTORA } as unknown as OcorrenciaLida;
+  // `compartilhamentos` é obrigatória desde o item 87 (ver o mesmo comentário em `conversa.test.ts`).
+  ocorrencia = { autor: AUTORA, compartilhamentos: [] } as unknown as OcorrenciaLida;
 });
 
 describe("a intercalação", () => {

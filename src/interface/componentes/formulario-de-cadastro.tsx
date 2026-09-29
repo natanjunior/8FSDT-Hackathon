@@ -9,6 +9,7 @@ import { acaoDeCriarConta, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
+import { CLASSE_DO_CAMINHO } from "@/interface/componentes/moldura-de-conta";
 import {
   avisarErro,
   avisarSucesso,
@@ -23,6 +24,7 @@ import {
   EmptyTitle,
 } from "@/interface/componentes/ui/empty";
 import { Input } from "@/interface/componentes/ui/input";
+import { cn } from "@/interface/componentes/utilitarios";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
 
@@ -41,7 +43,7 @@ import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
  * `/`; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha dá o
  * aviso *"Não foi possível criar a conta"*.
  */
-export function FormularioDeCadastro() {
+export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
   const router = useRouter();
   const formulario = useFormularioTocado({
     campos: { nome: "nome", email: "email", senha: "senha" },
@@ -59,8 +61,8 @@ export function FormularioDeCadastro() {
       formulario.recomecar();
       if (proximo.concluido === true) {
         avisarSucesso("Conta criada");
-        // O shell resolve o destino: sem vínculo, T-02 face A (inventário, T-11).
-        router.replace("/");
+        // O destino já chega conferido pela página. Sem ele, o shell resolve: sem vínculo, T-02 face A.
+        router.replace(destino ?? "/");
       } else if (proximo.recusa !== undefined || proximo.erros !== undefined) {
         avisarErro("Não foi possível criar a conta");
       }
@@ -104,10 +106,7 @@ export function FormularioDeCadastro() {
               "Já tenho conta", abaixo do formulário; este é o de T-12, e é a metade que o 6a declarou como
               dívida do 6b (spec do 6a, §3.6). */}
           {estado.recusa === "CONTA_JA_EXISTE" && (
-            <Link
-              href="/redefinir-senha"
-              className="text-marca text-interface w-fit py-1 underline underline-offset-4"
-            >
+            <Link href="/redefinir-senha" className={cn(CLASSE_DO_CAMINHO, "w-fit")}>
               Esqueci a senha
             </Link>
           )}

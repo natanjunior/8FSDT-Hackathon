@@ -62,6 +62,7 @@ const repoDeOcorrencias = () =>
         status: agregado.status,
         prioridade: agregado.prioridade,
         categoria: { id: agregado.categoriaId, nome: "Problemas de iluminação", icone: "lightbulb" },
+        compartilhamentos: [],
         area: { id: agregado.areaId, nome: "Garagem", tipo: agregado.areaTipo },
         localizacaoComplemento: agregado.localizacaoComplemento,
         // **`anexos` é campo novo e OBRIGATÓRIO de `OcorrenciaLida`** — sem esta linha o `tsc` recusa

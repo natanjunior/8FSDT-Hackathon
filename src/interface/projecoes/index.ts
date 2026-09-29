@@ -1,6 +1,8 @@
 /** Superfície pública de `interface/projecoes` (ADR-0006, regra 3). */
 export { projetarContexto, type ContextoProjetado } from "./contexto";
 
+export { projetarConvite, type ConviteProjetado } from "./convite";
+
 export {
   projetarDashboard,
   type DashboardProjetado,
@@ -34,7 +36,9 @@ export {
   opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
+  projetarCandidato,
   projetarComentario,
+  projetarCompartilhamento,
   projetarEventoDaLinhaDoTempo,
   projetarOcorrenciaDetalhe,
   projetarOcorrenciaResumo,

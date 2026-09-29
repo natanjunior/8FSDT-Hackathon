@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -44,6 +45,7 @@ import {
   textoDoSaldo,
   textoDoValorDaCategoria,
 } from "@/interface/componentes/indicadores-do-painel";
+import { CAMADA_DO_TITULO, LINHA_CLICAVEL } from "@/interface/componentes/linha-clicavel";
 import { ModalDeDados } from "@/interface/componentes/modal-de-dados";
 import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
@@ -54,6 +56,7 @@ import {
   unidadeDoEixo,
   vereditoDoTempo,
 } from "@/interface/componentes/tempo-de-resolucao";
+import { cn } from "@/interface/componentes/utilitarios";
 import {
   consultaDe,
   FormatoInvalido,
@@ -103,6 +106,8 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  * Abaixo de `lg` os cartões viram faixa de três acima do quadro 1; abaixo de `sm`, tudo empilha.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function Dashboard({
   searchParams,
@@ -269,6 +274,7 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
     <CartaoDeIndicador
       rotulo="A mais velha em aberto"
+      clicavel={maisVelha !== undefined}
       valor={maisVelha === undefined ? "—" : dias(maisVelha.idadeEmDias)}
       segundoTermo={
         maisVelha === undefined ? (
@@ -276,7 +282,7 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
         ) : (
           <Link
             href={`/ocorrencias/${maisVelha.id}`}
-            className="text-marca break-words underline underline-offset-4"
+            className={cn("text-tinta-marca break-words underline underline-offset-4", CAMADA_DO_TITULO)}
           >
             {maisVelha.titulo}
           </Link>
@@ -338,7 +344,7 @@ function EntradasESaidas({
       <p className="text-tinta text-corpo">{vereditoDoFluxo(fluxo)}</p>
       <GraficoDoFluxoMensal linhas={fluxo} />
       {algumParcial ? (
-        <p className="text-tinta-fraca text-meta">{NOTA_DO_MES_PARCIAL}</p>
+        <p className="text-tinta-suave text-meta">{NOTA_DO_MES_PARCIAL}</p>
       ) : null}
     </Cartao>
   );
@@ -386,15 +392,18 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
     >
       <p className="text-tinta text-corpo">{vereditoDaIdade(faixas)}</p>
       {velhas.length > 0 ? (
-        <ol className="flex flex-col gap-2">
+        <ol className="flex flex-col">
           {velhas.map((ocorrencia) => (
             <li
               key={ocorrencia.id}
-              className="text-corpo flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+              className={cn(LINHA_CLICAVEL, "text-corpo flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1")}
             >
               <Link
                 href={`/ocorrencias/${ocorrencia.id}`}
-                className="text-marca min-w-0 flex-1 break-words underline underline-offset-4"
+                className={cn(
+                  "text-tinta-marca min-w-0 flex-1 break-words underline underline-offset-4",
+                  CAMADA_DO_TITULO,
+                )}
               >
                 {ocorrencia.titulo}
               </Link>
@@ -525,7 +534,7 @@ function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
             }))}
           />
           {restantes > 0 ? (
-            <p className="text-tinta-fraca text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
+            <p className="text-tinta-suave text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
           ) : null}
         </>
       )}
@@ -652,7 +661,7 @@ function PeriodoInvalido() {
       </p>
       <Link
         href="/dashboard"
-        className="text-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
+        className="text-tinta-marca text-interface inline-flex min-h-11 items-center underline underline-offset-4"
       >
         Ver os últimos 90 dias
       </Link>

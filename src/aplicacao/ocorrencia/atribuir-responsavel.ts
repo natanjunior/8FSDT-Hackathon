@@ -1,7 +1,7 @@
 import { comandoPermitido } from "@/dominio/ocorrencia";
 
 import { recusaDeTransicao, type ContextoDoComando } from "./comando";
-import { podeLerOcorrencia } from "./consultas";
+import { participaDaOcorrencia, recusaDeQuemNaoParticipa } from "./consultas";
 import { OcorrenciaNaoEncontrada, ResponsavelSemVinculoAtivo } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -57,15 +57,16 @@ export async function atribuirResponsavel(
   // nada — ele o repassa a `recusaDeTransicao`, que é quem monta `acoesDisponiveis`.
   const agregado = carregada.ocorrencia;
 
-  // **A conferência de visibilidade continua rodando, mesmo sendo hoje redundante** — quem tem
+  // **A conferência de participação continua rodando, mesmo sendo hoje redundante** — quem tem
   // `ocorrencia.atribuir` tem `ocorrencia.ler_todas` no mesmo papel. Amarrar a leitura à atribuição por
   // coincidência de mapa é o tipo de acoplamento que some quando o mapa muda (contrato §4.5).
   const quem = {
     pessoaId: ctx.pessoaId,
     podeLerTodas: ctx.permissoes.includes("ocorrencia.ler_todas"),
   };
-  if (!podeLerOcorrencia({ autor: { pessoaId: agregado.autorPessoaId } }, quem)) {
-    throw new OcorrenciaNaoEncontrada();
+  // Quem participa age; quem só recebeu leva `403`, e quem não alcança leva `404` (item 87).
+  if (!participaDaOcorrencia(agregado.autorPessoaId, quem)) {
+    throw await recusaDeQuemNaoParticipa(repositorio, entrada.ocorrenciaId, quem.pessoaId);
   }
 
   /**

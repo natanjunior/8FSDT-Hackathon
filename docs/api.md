@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 42 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 46 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -25,7 +25,7 @@ cliente, e entrada do cliente é superfície de ataque.
 O que se perde fica declarado: a URL deixa de ser autodescritiva. `/ocorrencias/{id}` não diz de quem é a
 ocorrência, e quem abre a referência precisa entender que há um contexto ativo antes de clicar.
 
-**Cinco operações rodam sem organização ativa**, e a lista é fechada:
+**Seis operações rodam sem organização ativa**, e a lista é fechada:
 
 | Operação | Por que fica fora |
 |---|---|
@@ -34,9 +34,12 @@ ocorrência, e quem abre a referência precisa entender que há um contexto ativ
 | criar uma organização | cria o escopo; não há quem aprove o primeiro Gestor |
 | pedir entrada numa organização | acontece antes de existir vínculo, e recebe o código público |
 | editar os próprios dados | a tabela de pessoas é global, e a escrita é da própria pessoa sobre si |
+| ler um convite | acontece antes de existir conta, e recebe o código público |
 
-Acrescentar uma sexta é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
-entrar é ler ou escrever tabela global pela chave da sessão.
+Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
+entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
+convite é a única que dispensa a sessão. A razão está na
+[ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
 
 ## A escrita é comando, e não campo
 
@@ -65,6 +68,10 @@ fora, que não existe transição sem registro: se o comando respondeu e não tr
 
 O custo fica declarado: a metade de escrita não é REST ortodoxa. A de leitura é, que é onde a uniformidade
 de recursos paga.
+
+**O compartilhamento fica fora do agregado e tem recurso próprio**, com `POST` para criar e `DELETE` para
+desfazer. Ele não muda estado da ocorrência e não grava trilha: diz apenas quem pode ler, e desfazer tira
+essa leitura.
 
 ## Quem pode o quê
 
@@ -128,6 +135,10 @@ vazia, e isso não é erro: é uma ocorrência terminal, ou alguém sem permiss�
 A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostra os campos crus, e a
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
+
+A listagem devolve também quantas ocorrências compartilhadas com quem pergunta ainda não foram
+abertas por ela, e, dentro do recorte das compartilhadas, se cada uma já foi. O número ignora os
+filtros, porque responde quantas esperam.
 
 ## Os recortes do painel
 
@@ -231,14 +242,18 @@ hora estão na referência.
 
 - **Não há endereço para listar pessoas.** A leitura de gente parte sempre do vínculo, porque a tabela de
   pessoas é global e não tem organização a filtrar. O contato é dado pessoal, e só aparece para quem tem
-  permissão de gerir vínculos.
+  permissão de gerir vínculos. A busca de quem pode receber uma ocorrência compartilhada devolve nome e
+  papel, parte do vínculo, exige duas letras, devolve no máximo vinte, e não traz contato.
 - **Não há edição de ocorrência.** Título, descrição, categoria e área são escritos uma vez; o que muda
   depois é estado, prioridade, responsável e solução aplicada.
 - **A foto entra no registro**, e não há endereço para anexá-la depois.
-- **Cadastrar alguém cria sempre uma pessoa nova**, sem procurar por e-mail. Reaproveitar cadastro
-  existente exigiria convite, que está fora desta versão.
+- **Cadastrar alguém cria sempre uma pessoa nova**, sem procurar por e-mail. Quem já tem conta entra pelo
+  pedido de entrada, por código ou por link.
 - **Enviar contatos substitui a lista inteira**, e não há endereço próprio de contato.
 - **Um pedido de entrada recusado pode ser refeito**: a unicidade vale enquanto ele está pendente.
+- **Não há endereço para registrar que alguém abriu uma ocorrência.** A primeira abertura é estado de
+  quem lê, invisível para quem compartilhou, e a própria tela a grava. Nenhuma leitura da API tem efeito
+  colateral.
 
 ## O contrato não pode deixar de ser verdade
 

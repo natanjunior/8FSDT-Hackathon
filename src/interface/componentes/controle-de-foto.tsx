@@ -258,13 +258,15 @@ export function ControleDeFoto({
       </label>
 
       {/* **A entrada de arquivo continua crua**, porque o catálogo não tem peça para ela — e o critério
-          G7 do guia não conta entrada. */}
+          G7 do guia não conta entrada. Ela fica fora da tabulação (critério 94.5): quem abre o seletor é o
+          botão visível, e uma parada invisível era um Tab sem destino. */}
       <input
         ref={entrada}
         id="foto"
         type="file"
         accept={ACEITOS}
         className="sr-only"
+        tabIndex={-1}
         onChange={(evento) => {
           const arquivo = evento.target.files?.[0];
           if (arquivo !== undefined) void escolher(arquivo);

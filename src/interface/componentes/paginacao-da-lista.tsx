@@ -80,6 +80,7 @@ export function PaginacaoDaLista({
           {pagina > 1 && (
             <PaginationItem>
               <PaginationPrevious
+                className="min-w-11"
                 href={enderecoDe(pagina - 1)}
                 onClick={(evento) => {
                   aoClicar(evento, pagina - 1);
@@ -113,6 +114,7 @@ export function PaginacaoDaLista({
           {pagina < totalDePaginas && (
             <PaginationItem>
               <PaginationNext
+                className="min-w-11"
                 href={enderecoDe(pagina + 1)}
                 onClick={(evento) => {
                   aoClicar(evento, pagina + 1);

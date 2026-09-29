@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -27,6 +28,8 @@ import { projetarArea } from "@/interface/projecoes";
  * fica na tela até ser fechado.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Áreas" };
 
 export default async function Areas() {
   const escopo = await resolverOuMandarParaPorta();

@@ -45,6 +45,7 @@ import nextTypescript from "eslint-config-next/typescript";
  * | *(sem número — não fala de camada)* `semOrganizacao` só nos cinco caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
  * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
+ * | *(sem número)* `semSessao` e `resolverConviteParaTela` só na rota e na página do convite | **sim** — `SEM_SESSAO` |
  *
  * E uma que **não é regra numerada da ADR-0006** — vem da §5.2 da `arquitetura.md`,
  * que é onde a inversão de dependência mora:
@@ -273,6 +274,28 @@ const ROTAS_DE_ARMAZENAMENTO = [
   "app/api/ocorrencias/[[]ocorrenciaId[]]/anexos/[[]anexoId[]]/route.ts",
 ];
 
+/**
+ * **A quarta lista fechada** (item 86, ADR-0018).
+ *
+ * `semSessao` e `resolverConviteParaTela` entregam a única porta que roda **sem sessão**: o nome e o
+ * código de uma organização a partir do código. Um segundo consumidor é um segundo lugar em que alguém
+ * sem conta lê o banco, e isso é ADR nova.
+ */
+const SEM_SESSAO = {
+  group: ["@/interface/http"],
+  importNames: ["semSessao", "resolverConviteParaTela"],
+  message:
+    "semSessao e resolverConviteParaTela são de GET /convites/{codigo} e da página /convite/{codigo}, e " +
+    "de mais nenhum arquivo: é a única leitura do produto sem sessão (ADR-0018). Acrescentar um terceiro " +
+    "consumidor é emenda de ADR, e passa por acrescentar o caminho em eslint.config.mjs.",
+};
+
+/** Os dois arquivos do convite. Os colchetes literais seguem a regra de `ROTAS_DE_ARMAZENAMENTO`. */
+const ARQUIVOS_SEM_SESSAO = [
+  "app/api/convites/[[]codigo[]]/route.ts",
+  "app/convite/[[]codigo[]]/page.tsx",
+];
+
 const proibir = (...grupos) => ["error", { patterns: grupos }];
 
 const configuracao = [
@@ -346,6 +369,7 @@ const configuracao = [
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
         ARMAZENAMENTO_DE_ANEXOS,
+        SEM_SESSAO,
       ),
     },
   },
@@ -465,6 +489,9 @@ const configuracao = [
         // Pela mesma razão, e é a terceira lista: nenhum destes cinco
         // reivindica nem lê anexo.
         ARMAZENAMENTO_DE_ANEXOS,
+        // E a quarta: os cinco resolvem a sessão antes de tudo, e nenhum deles
+        // roda sem ela.
+        SEM_SESSAO,
       ),
     },
   },
@@ -487,6 +514,8 @@ const configuracao = [
         // E mantém a terceira: emitir credencial de upload não dá o direito de
         // ler objeto, trocar etiqueta e assinar SAS de leitura.
         ARMAZENAMENTO_DE_ANEXOS,
+        // E a quarta: quem assina SAS exige sessão, e sempre exigiu.
+        SEM_SESSAO,
       ),
     },
   },
@@ -513,6 +542,29 @@ const configuracao = [
         // defeito que o bloco dos cinco foi escrito para impedir.
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
+        // E a quarta, pela mesma razão: os dois exigem sessão.
+        SEM_SESSAO,
+      ),
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // Os dois arquivos do convite, os únicos que rodam sem sessão (item 86).
+  // -------------------------------------------------------------------------
+  {
+    files: ARQUIVOS_SEM_SESSAO,
+    rules: {
+      "no-restricted-imports": proibir(
+        SDKS,
+        INFRAESTRUTURA,
+        COMPOSICAO,
+        SUPERFICIE_PUBLICA,
+        RELATIVO_PARA_FORA,
+        // Dispensam `SEM_SESSAO`, que é o que os define, e mantêm as outras três: nenhum dos dois está
+        // na lista da §4.4, nem emite credencial de upload, nem lê anexo.
+        SEM_ORGANIZACAO,
+        PORTAS_DE_ANEXO,
+        ARMAZENAMENTO_DE_ANEXOS,
       ),
     },
   },
@@ -530,6 +582,7 @@ const configuracao = [
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
         ARMAZENAMENTO_DE_ANEXOS,
+        SEM_SESSAO,
       ),
     },
   },
@@ -561,6 +614,7 @@ const configuracao = [
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
         ARMAZENAMENTO_DE_ANEXOS,
+        SEM_SESSAO,
       ),
     },
   },
@@ -591,6 +645,7 @@ const configuracao = [
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,
         ARMAZENAMENTO_DE_ANEXOS,
+        SEM_SESSAO,
       ),
     },
   },

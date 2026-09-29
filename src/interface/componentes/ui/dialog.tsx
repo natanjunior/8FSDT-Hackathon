@@ -89,7 +89,7 @@ function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close {...{ [SAI_SEM_ACUSAR]: "" }} className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none">
+        <DialogPrimitive.Close {...{ [SAI_SEM_ACUSAR]: "" }} className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 disabled:pointer-events-none">
           <XIcon />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>
@@ -112,7 +112,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+      className={cn("flex flex-col gap-2 sm:flex-row sm:justify-end", className)}
       {...props}
     />
   )

@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 
 import { cobre } from "./cobertura";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -669,4 +670,140 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(c.getByRole("alertdialog")).toHaveCount(0);
   await expect(linhaDe(c, PESSOA_PARA_REMOVER)).toHaveCount(0);
   cobre(test.info(), "6.3 · 11", { criterio: "10.4" });
+});
+
+/**
+ * ============================================================================
+ *  O convite por link (item 86)
+ * ============================================================================
+ *
+ * **Quatro pessoas, quatro janelas**, pelo mesmo motivo do teste acima: `G` funda e convida; `N` não tem
+ * conta e chega pelo link; `O` já usa outra organização e pede pelo link; e uma janela sem ninguém, que é
+ * quem abre um código que não existe. **Tudo nasce aqui**, com a marca do instante.
+ */
+test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organização e o Gestor que aprova", async ({
+  browser,
+}) => {
+  const NOME_G = "Gestora do Convite";
+  const EMAIL_G = `gestora-convite.${MARCA}@example.com`;
+  const NOME_N = "Novata do Convite";
+  const EMAIL_N = `novata-convite.${MARCA}@example.com`;
+  const NOME_O = "Vizinho de Outra Casa";
+  const EMAIL_O = `vizinho-convite.${MARCA}@example.com`;
+  const ORG_CONVITE = `Convite ${MARCA}`;
+  const ORG_DO_VIZINHO = `Casa do Vizinho ${MARCA}`;
+
+  const g = await (await browser.newContext()).newPage();
+  const contextoDeN = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  const n = await contextoDeN.newPage();
+  const contextoDeO = await browser.newContext();
+  const o = await contextoDeO.newPage();
+  const ninguem = await (await browser.newContext()).newPage();
+
+  // 1 · G funda e abre "Convidar pessoas" pelo menu (critério 86.1, a metade visível).
+  await criarConta(g, NOME_G, EMAIL_G);
+  await criarOrganizacao(g, ORG_CONVITE);
+  await g.getByRole("link", { name: "Convidar pessoas" }).click();
+  await g.waitForURL(/\/convidar$/u);
+  const link = (await g.locator("code").first().innerText()).trim();
+  expect(link).toMatch(/\/\?e=[A-Z0-9]{8}$/u);
+  const codigo = link.slice(link.indexOf("?e=") + 3);
+  await expect(g.getByRole("img", { name: `QR do link de convite para ${ORG_CONVITE}` })).toBeVisible();
+
+  // 2 · Quem já participa abre o próprio link.
+  await g.goto(`/?e=${codigo}`);
+  await g.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  await expect(g.getByRole("heading", { name: "Você já participa desta organização" })).toBeVisible();
+
+  // 3 · Código que não leva a lugar nenhum, sem sessão.
+  await ninguem.goto("/?e=ZZZZ2222");
+  await expect(ninguem.getByRole("heading", { name: "Convite não encontrado" })).toBeVisible();
+
+  // 3b · A rota, sem sessão: o corpo tem EXATAMENTE nome, código e situação (86.2), o inexistente é 404 e o
+  // malformado é 400. É o único teste que exercita `GET /convites/{codigo}` pela rota, e não pela estrada
+  // direta da página.
+  const lido = await ninguem.request.get(`/api/convites/${codigo}`);
+  expect(lido.status()).toBe(200);
+  expect(await lido.json()).toStrictEqual({
+    organizacao: { nome: ORG_CONVITE, codigoPublico: codigo },
+    situacao: "sem-sessao",
+  });
+  const inexistente = await ninguem.request.get("/api/convites/ZZZZ2222");
+  expect(inexistente.status()).toBe(404);
+  expect((await inexistente.json()).codigo).toBe("CODIGO_PUBLICO_NAO_ENCONTRADO");
+  expect((await ninguem.request.get("/api/convites/k7m4")).status()).toBe(400);
+
+  // 4 · Sem sessão, no celular: o ?e= vem antes da sessão (86.6) e a página cabe em 360 × 640 (86.7).
+  await n.goto(`/?e=${codigo}`);
+  await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  await expect(n.getByRole("heading", { name: ORG_CONVITE })).toBeVisible();
+  await expect(n.getByLabel("Código da organização")).toBeDisabled();
+  expect(await transbordo(n)).toStrictEqual(SEM_TRANSBORDO);
+  const criar = n.getByRole("link", { name: "Criar conta" });
+  const caixa = await criar.boundingBox();
+  expect((caixa?.y ?? 9999) + (caixa?.height ?? 0)).toBeLessThanOrEqual(640);
+
+  // 5 · Cria a conta pelo convite e volta sozinha para ele (86.4).
+  await criar.click();
+  await n.waitForURL(/\/criar-conta\?destino=/u);
+  await n.getByLabel("Seu nome").fill(NOME_N);
+  await n.getByLabel("E-mail").fill(EMAIL_N);
+  await n.getByLabel(/^Senha/u).fill(SENHA);
+  await n.getByRole("button", { name: "Criar conta" }).click();
+  await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  const pedir = n.getByRole("button", { name: "Pedir entrada" });
+  await expect(pedir).toBeVisible();
+  // Com os três campos da P1, o botão ainda cabe acima da dobra (86.7). Se falhar aqui, a volta é a
+  // opção 3 da P1, e não tirar os campos.
+  const botao = await pedir.boundingBox();
+  expect((botao?.y ?? 9999) + (botao?.height ?? 0)).toBeLessThanOrEqual(640);
+  expect(await transbordo(n)).toStrictEqual(SEM_TRANSBORDO);
+
+  // 6 · Pede, e a página refeita diz que o pedido espera o Gestor; sem organização, não há "Voltar para".
+  await pedir.click();
+  await expect(n.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+  await expect(n.getByRole("link", { name: /^Voltar para/u })).toHaveCount(0);
+  // Abrir de novo não cria segundo pedido: a mesma face.
+  await n.goto(`/?e=${codigo}`);
+  await expect(n.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+
+  // 7 · O vizinho, em outra organização, pede pelo link e continua nela (86.5).
+  await criarConta(o, NOME_O, EMAIL_O);
+  await criarOrganizacao(o, ORG_DO_VIZINHO);
+  const cookieAntes = (await contextoDeO.cookies()).find((c) => c.name === "resolveai_organizacao")
+    ?.value;
+  expect(cookieAntes).toBeDefined();
+  await o.goto(`/?e=${codigo}`);
+  await o.getByRole("button", { name: "Pedir entrada" }).click();
+  await expect(o.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+  const cookieDepois = (await contextoDeO.cookies()).find((c) => c.name === "resolveai_organizacao")
+    ?.value;
+  expect(cookieDepois).toBe(cookieAntes);
+  await o.getByRole("link", { name: `Voltar para ${ORG_DO_VIZINHO}` }).click();
+  await expect(o.getByRole("combobox", { name: /organização/iu })).toHaveText(ORG_DO_VIZINHO);
+
+  // 8 · Sair e entrar pelo convite também volta a ele, sem pedir por ela (86.4, a outra metade).
+  await contextoDeN.clearCookies();
+  await n.goto(`/convite/${codigo}`);
+  await n.getByRole("link", { name: "Entrar" }).click();
+  await n.getByLabel("E-mail").fill(EMAIL_N);
+  await n.getByLabel(/^Senha/u).fill(SENHA);
+  await n.getByRole("button", { name: "Entrar" }).click();
+  await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  await expect(n.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+
+  // 9 · G vê os dois pedidos em Participantes, aprova N como Solicitante, e N é recusada em /convidar (86.1).
+  await g.goto("/vinculos");
+  await responderOPedidoDe(g, NOME_N).click();
+  // Os localizadores do passo 5 do teste de cima, escopados ao diálogo.
+  const modalDoConvite = g.getByRole("dialog");
+  await modalDoConvite.getByRole("radio", { name: /^Solicitante/u }).check();
+  await modalDoConvite.getByRole("button", { name: "Aprovar como Solicitante" }).click();
+  await expect(g.getByRole("dialog")).toHaveCount(0);
+  await expect(linhaDe(g, NOME_O)).toBeVisible();
+
+  await n.goto("/convidar");
+  await expect(n.getByText("Seu papel nesta organização não dá acesso a esta página.")).toBeVisible();
+  await expect(n.locator("code")).toHaveCount(0);
+  await expect(n.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
 });

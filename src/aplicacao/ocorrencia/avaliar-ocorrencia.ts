@@ -6,7 +6,7 @@ import {
   recusaPorNaoSerOAutor,
   type ContextoDoComando,
 } from "./comando";
-import { podeLerOcorrencia } from "./consultas";
+import { participaDaOcorrencia, recusaDeQuemNaoParticipa } from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -64,7 +64,7 @@ export async function avaliarOcorrencia(
   const agregado = carregada.ocorrencia;
 
   /**
-   * **A conferência de visibilidade, e aqui ela NÃO é redundante** — como em `cancelar`, e ao contrário
+   * **A conferência de participação, e aqui ela NÃO é redundante** — como em `cancelar`, e ao contrário
    * dos comandos do Gestor. Quem tem `ocorrencia.avaliar` pode ser um Solicitante **sem** `ler_todas`:
    * ele tenta avaliar a ocorrência de outra pessoa e leva `404`, nunca `403`, e nunca a confirmação de
    * que ela existe (§6.3).
@@ -73,8 +73,9 @@ export async function avaliarOcorrencia(
     pessoaId: ctx.pessoaId,
     podeLerTodas: ctx.permissoes.includes("ocorrencia.ler_todas"),
   };
-  if (!podeLerOcorrencia({ autor: { pessoaId: agregado.autorPessoaId } }, quem)) {
-    throw new OcorrenciaNaoEncontrada();
+  // Quem participa age; quem só recebeu leva `403`, e quem não alcança leva `404` (item 87).
+  if (!participaDaOcorrencia(agregado.autorPessoaId, quem)) {
+    throw await recusaDeQuemNaoParticipa(repositorio, entrada.ocorrenciaId, quem.pessoaId);
   }
 
   // **O degrau que só o Gestor alcança.** Quem chega aqui pôde LER a ocorrência; se não é o autor, a

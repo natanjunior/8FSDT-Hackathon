@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
@@ -20,6 +21,8 @@ import { projetarArea } from "@/interface/projecoes";
  * (item 44j).
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Cadastrar pessoa sem conta" };
 
 export default async function CadastrarPessoaSemConta() {
   const escopo = await resolverOuMandarParaPorta();

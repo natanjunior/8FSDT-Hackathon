@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import type {
   PaginaDeOcorrencias,
 } from "@/aplicacao/ocorrencia";
 import { CategoriaNaoEncontrada } from "@/aplicacao/organizacao";
+import { PERMISSOES } from "@/dominio/organizacao";
 import { ErroDeDominio } from "@/dominio/erros";
 import {
   COMANDOS_IMPLEMENTADOS,
@@ -52,6 +53,7 @@ import {
   CorpoNaoSuportado,
   FormatoInvalido,
   lerCorpoOpcional,
+  lerBuscaDeCandidatosDaUrl,
   lerFiltroDeOcorrenciasDaUrl,
   lerLimiteDaUrl,
   lerOrdenacaoDeOcorrenciasDaUrl,
@@ -129,10 +131,24 @@ import {
   rotulosDeStatus,
   textoDaNota,
   vazioDaBarra,
+  faixaDeQuemRecebeu,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
 import { horaDoCorte, tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
+import {
+  aposCompartilhar,
+  aposDesfazer,
+  buscaProntaParaPedir,
+  motivoEscrito,
+  textoDoVazioDaBusca,
+  type CandidatoNaTela,
+} from "@/interface/componentes/busca-de-compartilhamento";
+import {
+  consultaDoRecorte,
+  opcoesDoRecorte,
+  valorDoRecorte,
+} from "@/interface/componentes/opcoes-do-recorte";
 import { estadoDaLista, TEXTO_DO_VAZIO, vazioDaLista } from "@/interface/componentes/vazio-da-lista";
 import {
   alteracaoDePrioridadeSchema,
@@ -366,13 +382,17 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   responsavel: null,
   quantidadeDeAnexos: 0,
   avaliada: false,
+  // `null` é *"a pergunta não foi feita"* — fora do recorte das compartilhadas (item 88).
+  naoAberta: null,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
 };
 
 describe("o OcorrenciaResumo projetado", () => {
-  it("traz os quatorze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
+  // **Quinze desde o item 88**, e o décimo quinto — `naoAberta` — só existe dentro do recorte das
+  // compartilhadas: fora dele a chave é ausente, e não `null`.
+  it("traz os quinze campos do contrato, e categoria SEM icone (critério 14.6)", () => {
     const resumo = projetarOcorrenciaResumo(RESUMO_LIDO, "solicitante");
 
     expect(resumo.categoria).toStrictEqual({
@@ -437,7 +457,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, compartilhadasNaoAbertas: 0 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -478,7 +498,15 @@ describe("o envelope da página — item 14b", () => {
     expect(envelope.totalNoCorte).toBe(137);
     expect(envelope.saidasDesdeOCorte).toBe(3);
     expect(envelope.novasDesdeOCorte).toBe(5);
-    expect(envelope.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
+    // **A quinta chave entra na asserção fechada**, e não se troca por `toMatchObject`: é justamente o
+    // conjunto fechado de números do envelope que esta asserção existe para prender (item 88).
+    expect(envelope.contagens).toStrictEqual({
+      todas: 9,
+      minhas: 2,
+      emAberto: 7,
+      semResponsavel: 3,
+      compartilhadasNaoAbertas: 0,
+    });
   });
 
   it("página vazia continua sendo 200 com [] — a lista existe, a página é que não", () => {
@@ -614,10 +642,11 @@ describe("os parâmetros de paginação de GET /ocorrencias — item 14b", () =>
 
 /**
  * **O critério 14.4 é sobre não trocar uma frase pela outra**, e a troca é uma decisão — não uma
- * redação. Por isso a decisão é uma função pura com os três ramos cobertos, mesmo com o terceiro só
- * ficando alcançável no item 15.
+ * redação. Por isso a decisão é uma função pura com os ramos cobertos, mesmo com o de filtro só ficando
+ * alcançável no item 15. O quarto ramo, da aba *Compartilhadas comigo*, nasceu no item 87 e tem os casos
+ * dele no `describe` da aba, mais abaixo.
  */
-describe("qual dos três vazios a tela mostra", () => {
+describe("qual dos vazios a tela mostra", () => {
   it("todas + sem filtro: a organização, com os dois convites", () => {
     expect(vazioDaLista("todas", false)).toBe("organizacao");
   });
@@ -633,9 +662,9 @@ describe("qual dos três vazios a tela mostra", () => {
     expect(vazioDaLista("apenas_minhas", true)).toBe("filtro");
   });
 
-  it("as três frases são diferentes entre si", () => {
+  it("as frases são diferentes entre si — são quatro desde o item 87", () => {
     const titulos = Object.values(TEXTO_DO_VAZIO).map((texto) => texto.titulo);
-    expect(new Set(titulos).size).toBe(3);
+    expect(new Set(titulos).size).toBe(4);
   });
 });
 
@@ -818,6 +847,7 @@ function umaOcorrenciaLidaCom(anexos: readonly AnexoLido[]): OcorrenciaLida {
     status: "aberta",
     prioridade: "normal",
     categoria: { ...RESUMO_LIDO.categoria, icone: "lightbulb" },
+    compartilhamentos: [],
     area: RESUMO_LIDO.area,
     localizacaoComplemento: null,
     anexos,
@@ -4151,5 +4181,402 @@ describe("a nota em estrelas — critério 76.5", () => {
     // O rótulo acessível é texto dentro do `<label>`, e não `aria-label`: é a mesma marcação do item 18.
     expect(modal).toContain('<span className="sr-only">{nomeDaNota(opcao.valor)}</span>');
     expect(existsSync(`${RAIZ}src/interface/componentes/ui/rating.tsx`)).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.2 · A leitura muda num lugar só, e nenhuma permissão nasce
+ * ============================================================================
+ *
+ * **O critério 2 do item 87 é sobre onde o conceito mora, e é por isso que o teste lê fonte.** Um teste
+ * de comportamento não distingue *"o compartilhamento entra na leitura num lugar"* de *"entra em sete"*:
+ * os dois passariam. O que ele prende é a estrutura, e a estrutura é o que a decisão protege.
+ */
+describe("87.2 · a leitura muda num lugar só, e nenhuma permissão nasce", () => {
+  // **O fim de linha é normalizado:** no clone Windows os `.ts` saem com CRLF, e procurar `"\n}\n"` cru
+  // devolveria -1.
+  const fonte = lerFonte("src/aplicacao/ocorrencia/consultas.ts").replace(/\r\n/gu, "\n");
+  const corpoDe = (nome: string) => {
+    const inicio = fonte.indexOf(`export function ${nome}(`);
+    const fim = fonte.indexOf("\n}\n", inicio);
+    expect(inicio, nome).toBeGreaterThanOrEqual(0);
+    expect(fim, nome).toBeGreaterThan(inicio);
+    return fonte.slice(inicio, fim);
+  };
+
+  it("o enum de permissões continua com dezoito, e nenhuma fala de compartilhar", () => {
+    expect(PERMISSOES).toHaveLength(18);
+    expect(PERMISSOES.some((p) => p.includes("compartilh"))).toBe(false);
+  });
+
+  it("o compartilhamento entra em podeLerOcorrencia e não em participaDaOcorrencia", () => {
+    expect(corpoDe("podeLerOcorrencia")).toMatch(/compartilhamentos/u);
+    expect(corpoDe("participaDaOcorrencia")).not.toMatch(/compartilh/u);
+  });
+
+  it("nenhuma rota repete a regra em linha", () => {
+    const rotas = globSync("app/**/*.{ts,tsx}", { cwd: RAIZ });
+    expect(rotas.length).toBeGreaterThan(0);
+    for (const rota of rotas) {
+      expect(lerFonte(rota), rota).not.toMatch(/autor\.pessoaId !== ctx\.pessoaId/u);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  87 · A fronteira HTTP do compartilhamento
+ * ============================================================================
+ */
+describe("87 · a fronteira HTTP do compartilhamento", () => {
+  it("a busca exige 2 letras depois de aparar, e recusa acima de 120", () => {
+    expect(() => lerBuscaDeCandidatosDaUrl(new URLSearchParams("busca=%20a%20"))).toThrow(
+      FormatoInvalido,
+    );
+    expect(lerBuscaDeCandidatosDaUrl(new URLSearchParams("busca=%20an%20"))).toBe("an");
+    expect(() =>
+      lerBuscaDeCandidatosDaUrl(new URLSearchParams(`busca=${"a".repeat(121)}`)),
+    ).toThrow(FormatoInvalido);
+  });
+
+  const AUTORA_87 = "00000000-0000-4000-8000-0000000000b1";
+  const VIZINHA = "00000000-0000-4000-8000-0000000000b2";
+  const SOLICITANTE_87 = [
+    "ocorrencia.registrar",
+    "ocorrencia.ler_propria",
+    "ocorrencia.comentar",
+    "ocorrencia.cancelar_propria",
+    "ocorrencia.avaliar",
+  ];
+
+  it("o detalhe dá a lista a quem participa, e só a faixa a quem recebeu", () => {
+    const lida: OcorrenciaLida = {
+      ...umaOcorrenciaLidaCom([]),
+      autor: { pessoaId: AUTORA_87, nome: "Ana" },
+      compartilhamentos: [
+        {
+          com: { pessoaId: VIZINHA, nome: "Bia", papel: "solicitante" },
+          por: { pessoaId: AUTORA_87, nome: "Ana", papel: "solicitante" },
+          compartilhadoEm: "2026-09-26T12:00:00.000Z",
+          abertoEm: null,
+        },
+      ],
+    };
+    const daAutora = projetarOcorrenciaDetalhe(lida, {
+      pessoaId: AUTORA_87,
+      permissoes: SOLICITANTE_87,
+    });
+    expect(daAutora.compartilhamento).toMatchObject({
+      tipo: "gestao",
+      pessoas: [{ podeDesfazer: true }],
+    });
+
+    const daVizinha = projetarOcorrenciaDetalhe(lida, {
+      pessoaId: VIZINHA,
+      permissoes: SOLICITANTE_87,
+    });
+    expect(daVizinha.compartilhamento).toStrictEqual({
+      tipo: "recebida",
+      por: { nome: "Ana", papel: "solicitante" },
+      compartilhadoEm: "2026-09-26T12:00:00.000Z",
+      // O quarto campo do ramo (item 88): a linha da fixture nasce com `abertoEm` nulo.
+      naoAberta: true,
+    });
+    // A lista não viaja para quem recebeu: ela nomeia outros vizinhos.
+    expect(JSON.stringify(daVizinha)).not.toContain(VIZINHA);
+    expect(daVizinha.acoesDisponiveis).toStrictEqual([]);
+  });
+});
+
+describe("87 · a aba na URL e o vazio dela", () => {
+  it("?compartilhadas=comigo vira o recorte; outro valor e a mistura com ?autor=eu são 400", () => {
+    expect(
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=comigo")),
+    ).toStrictEqual({ compartilhadasComigo: true });
+    expect(() =>
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=todas")),
+    ).toThrow(FormatoInvalido);
+    expect(() =>
+      lerFiltroDeOcorrenciasDaUrl(new URLSearchParams("compartilhadas=comigo&autor=eu")),
+    ).toThrow(FormatoInvalido);
+  });
+
+  it("a aba não conta como filtro, e Limpar filtros a preserva", () => {
+    expect(algumFiltroAplicado({ compartilhadasComigo: true })).toBe(false);
+    expect(semFiltros("compartilhadas=comigo&status=aberta&pagina=3").get("compartilhadas")).toBe(
+      "comigo",
+    );
+  });
+
+  it("o vazio da aba é o dela, e filtro aplicado continua ganhando", () => {
+    expect(vazioDaLista("compartilhadas_comigo", false)).toBe("compartilhadas");
+    expect(TEXTO_DO_VAZIO.compartilhadas).toStrictEqual({
+      titulo: "Nada foi compartilhado com você.",
+      corpo: null,
+    });
+    expect(vazioDaLista("compartilhadas_comigo", true)).toBe("filtro");
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.7 · O recorte de quem não tem `ler_todas`
+ * ============================================================================
+ *
+ * **O que estas funções existem para conferir é a decisão, e não a redação.** Qual conjunto de opções cada
+ * vínculo recebe, e o que cada escolha escreve na URL, são as duas coisas que o `.tsx` não tem como provar
+ * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
+ */
+describe("87.7 · o recorte de quem não tem ler_todas", () => {
+  // **Atualizado pelo item 88**, que deu número à terceira opção — e forma própria a ele, porque ele conta
+  // uma pendência e não um conjunto. *Minhas* continua sem número.
+  it("sem ler_todas: Minhas sem número, Compartilhadas com o das não vistas", () => {
+    expect(opcoesDoRecorte(false)).toStrictEqual([
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
+      {
+        valor: "compartilhadas",
+        rotulo: "Compartilhadas comigo",
+        contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
+      },
+    ]);
+  });
+
+  it("com ler_todas: as duas de sempre, as duas com o total", () => {
+    expect(opcoesDoRecorte(true)).toStrictEqual([
+      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas", forma: "total" } },
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas", forma: "total" } },
+    ]);
+  });
+
+  it("o valor marcado sai do que o servidor aplicou", () => {
+    expect(valorDoRecorte("todas")).toBe("todas");
+    expect(valorDoRecorte("apenas_minhas")).toBe("minhas");
+    expect(valorDoRecorte("compartilhadas_comigo")).toBe("compartilhadas");
+  });
+
+  it("trocar para compartilhadas liga o parâmetro e descarta a página; voltar o tira sem ligar autor", () => {
+    const ida = consultaDoRecorte(
+      "pagina=3&ate=x&totalNoCorte=9&status=aberta",
+      "compartilhadas",
+      false,
+    );
+    expect(ida.get("compartilhadas")).toBe("comigo");
+    expect(ida.has("pagina")).toBe(false);
+    expect(ida.has("ate")).toBe(false);
+    expect(ida.has("totalNoCorte")).toBe(false);
+    // O recorte de status sobrevive: trocar de aba não é limpar filtro.
+    expect(ida.get("status")).toBe("aberta");
+
+    const volta = consultaDoRecorte(ida.toString(), "minhas", false);
+    expect(volta.has("compartilhadas")).toBe(false);
+    expect(volta.has("autor")).toBe(false);
+  });
+
+  it("o Gestor em Minhas continua ligando ?autor=eu", () => {
+    expect(consultaDoRecorte("", "minhas", true).get("autor")).toBe("eu");
+    expect(consultaDoRecorte("autor=eu", "todas", true).has("autor")).toBe(false);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87 · O painel de compartilhar, a metade conferível
+ * ============================================================================
+ */
+describe("87 · o painel de compartilhar, a metade conferível", () => {
+  const item = (
+    situacao: CandidatoNaTela["situacao"],
+    motivo: CandidatoNaTela["motivo"] = null,
+  ): CandidatoNaTela => ({ pessoaId: "p", nome: "Ana", papel: "Solicitante", situacao, motivo });
+
+  it("só pede com 2 letras depois de aparar", () => {
+    expect(buscaProntaParaPedir(" a ")).toBe(false);
+    expect(buscaProntaParaPedir("an")).toBe(true);
+  });
+
+  it("quem já vê carrega o motivo escrito; os outros, nada", () => {
+    expect(motivoEscrito(item("ja_ve", "le_todas"))).toBe("Já vê todas as ocorrências.");
+    expect(motivoEscrito(item("ja_ve", "autor"))).toBe("Registrou esta ocorrência.");
+    expect(motivoEscrito(item("disponivel"))).toBeNull();
+    expect(motivoEscrito(item("ja_compartilhada"))).toBeNull();
+  });
+
+  it("compartilhar e desfazer trocam só a linha tocada", () => {
+    const lista = [item("disponivel"), { ...item("disponivel"), pessoaId: "q" }];
+    const depois = aposCompartilhar(lista, "p");
+    expect(depois.map((i) => i.situacao)).toStrictEqual(["ja_compartilhada", "disponivel"]);
+    expect(aposDesfazer(depois, "p")[0]!.situacao).toBe("disponivel");
+    expect(aposDesfazer(depois, "p")[1]!.situacao).toBe("disponivel");
+  });
+
+  it("o vazio diz o que fazer antes do mínimo, e que não achou depois", () => {
+    expect(textoDoVazioDaBusca("a")).toBe("Digite o nome de quem vai ver esta ocorrência.");
+    expect(textoDoVazioDaBusca("zz")).toBe("Ninguém com esse nome.");
+  });
+
+  it("a faixa de quem recebeu põe o papel depois do nome, com ponto médio", () => {
+    expect(faixaDeQuemRecebeu("Marcos Vieira", "Gestor")).toBe(
+      "Compartilhada com você por Marcos Vieira · Gestor.",
+    );
+  });
+
+  it("o vazio da conversa de quem não escreve não convida a escrever", () => {
+    expect(vazioDaConversa(true, false)).toBe("Nenhuma mensagem ainda.");
+    expect(vazioDaConversa(false, false)).toBe("Nenhuma mensagem ainda.");
+    // Os dois ramos de sempre continuam intactos.
+    expect(vazioDaConversa(true)).toContain("falar com os Gestores");
+    expect(vazioDaConversa(false)).toContain("falar com o Solicitante");
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.2 · a abertura não decide nada sobre papel
+ * ============================================================================
+ *
+ * **A autorização é a própria linha do par.** Sem ela o `update` não acha nada, e uma leitura prévia só
+ * daria a quem chamasse a informação de que a ocorrência existe (contrato §6.3). Esta guarda impede que
+ * alguém acrescente essa leitura depois, por parecer mais seguro.
+ */
+describe("88.2 · a abertura não decide nada sobre papel", () => {
+  it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
+    const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
+    const inicio = fonte.indexOf("export async function registrarAberturaDoCompartilhamento(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
+
+    for (const proibido of ["porId", "podeLerOcorrencia", "pode(", "papel"]) {
+      expect(corpo, proibido).not.toContain(proibido);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.4 · a abertura é ação de servidor, e ela invalida a lista
+ * ============================================================================
+ *
+ * **Por que ação de servidor e não endereço do contrato.** O cache de cliente do Next reusa a entrada de
+ * T-03 em toda navegação de voltar; `router.refresh()` limpa só a rota atual, e `revalidatePath` num route
+ * handler não alcança a memória do navegador. Numa função de servidor ele alcança. De lambuja, nada grava
+ * durante *prefetch*.
+ */
+describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
+  const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
+
+  it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
+    const inicio = acoes.indexOf("export async function acaoDeRegistrarAbertura(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
+
+    expect(corpo).toContain("resolverEscopoParaTela");
+    expect(corpo).toContain('revalidatePath("/ocorrencias")');
+    // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
+    // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
+    expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
+  });
+
+  it("nenhuma rota de app/ grava a abertura", () => {
+    // A escrita mora num lugar só; um `route.ts` que a repetisse seria a segunda cópia.
+    const rotas = globSync("app/**/route.ts", { cwd: RAIZ });
+    expect(rotas.length).toBeGreaterThan(0);
+    for (const rota of rotas) {
+      expect(lerFonte(rota), rota).not.toContain("marcarCompartilhamentoAberto");
+      expect(lerFonte(rota), rota).not.toContain("registrarAberturaDoCompartilhamento");
+    }
+  });
+
+  it("o componente dispara uma vez e não desenha nada", () => {
+    const fonte = lerFonte("src/interface/componentes/registro-de-abertura.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte).toContain('"use client"');
+    expect(fonte).toContain("useEffect");
+    expect(fonte).toContain("return null");
+    // O guarda que impede a segunda chamada no mesmo ciclo de vida.
+    expect(fonte).toContain("useRef");
+  });
+
+  it("T-05 só o monta quando a leitura é a primeira", () => {
+    const pagina = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx").replace(/\r\n/gu, "\n");
+
+    expect(pagina).toContain("recebida.naoAberta");
+    expect(pagina).toContain("<RegistroDeAbertura");
+  });
+
+  it("só T-05 conta como abertura: a trilha e o anexo não", () => {
+    // Não conta como abertura a trilha em T-06, a miniatura ou o original do anexo, o
+    // `GET /api/ocorrencias/{id}`, nem o *prefetch* da linha da lista. Com um lugar só montando o
+    // componente, isso é verdade por construção — e este caso é o que impede a segunda montagem.
+    const montam = globSync("app/**/*.tsx", { cwd: RAIZ }).filter((caminho) =>
+      lerFonte(caminho).includes("<RegistroDeAbertura"),
+    );
+
+    expect(montam).toHaveLength(1);
+    // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
+    // o separador.
+    expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.6 · o número na opção, e o selo na linha
+ * ============================================================================
+ *
+ * **Por leitura de fonte, que é o idioma deste arquivo para o que vive em `.tsx`.** O produto não tem
+ * biblioteca de teste de componente; a jornada em tela é do ponta a ponta.
+ */
+describe("88.6 · o número na opção, e o selo na linha", () => {
+  it("zero não desenha pílula na forma das não vistas, e desenha na do total", () => {
+    const fonte = lerFonte("src/interface/componentes/recorte-da-lista.tsx").replace(/\r\n/gu, "\n");
+
+    // A regra *"zero é ausência"* vale só para a pendência: *Todas 0* continua sendo 0.
+    expect(fonte).toContain('forma === "total"');
+    expect(fonte).toContain("if (quantas === 0) return null;");
+    expect(fonte).toContain("CONTAGEM_DE_NAO_VISTAS");
+    expect(fonte).toContain("palavraDeNaoVistas");
+  });
+
+  it("o selo entra nos dois desenhos da lista, e nunca dentro do link do título", () => {
+    const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx").replace(/\r\n/gu, "\n");
+
+    expect(fonte.match(/<SeloDeNaoVista \/>/gu)).toHaveLength(2);
+
+    // O título é o `Link` com a camada que torna a linha clicável: um selo dentro dele entraria no nome do
+    // link. **A varredura é por TODOS os `Link` do arquivo**, e não pelo primeiro: `CAMADA_DO_TITULO`
+    // aparece antes no `import`, e fatiar a partir dele começaria o trecho fora de qualquer link.
+    const dentroDeLink = fonte.split("<Link").slice(1);
+    expect(dentroDeLink.length).toBeGreaterThan(0);
+    for (const depois of dentroDeLink) {
+      expect(depois.slice(0, depois.indexOf("</Link>"))).not.toContain("SeloDeNaoVista");
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.3 · a frase dos avisos e o contador dizem a mesma coisa
+ * ============================================================================
+ *
+ * **O único caso deste repositório que lê `docs/`**, e ele existe porque o critério 3 do item 88 é sobre uma
+ * frase de entregável: o contador e a limitação declarada não podem se contradizer.
+ */
+describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
+  const produto = lerFonte("docs/produto.md").replace(/\r\n/gu, "\n");
+
+  it("a frase larga saiu, e a precisa entrou", () => {
+    // **O contador é estado de uma lista que a pessoa abriu.** Enquanto ele existir, *"avisos automáticos
+    // de qualquer tipo"* alcança um número dentro dela, e o entregável passa a se contradizer. A frase nova
+    // nega o que de fato não existe: o aviso que chega sozinho.
+    expect(produto).not.toContain("avisos automáticos de qualquer tipo");
+    expect(produto).toContain("nenhum aviso que chegue sozinho");
+  });
+
+  it("e o que continua fora continua nomeado", () => {
+    // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
+    for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+      expect(produto, ausencia).toContain(ausencia);
+    }
   });
 });

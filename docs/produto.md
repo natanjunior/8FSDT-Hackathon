@@ -72,9 +72,9 @@ O desenho da máquina, a tabela de transições permitidas e quem pode executar 
 ## O que o Gestor vê no painel
 
 Três números no topo, numa tela só: o que está em aberto agora, o saldo do período e a mais velha em
-aberto. Abaixo, sete quadros: entradas e saídas por mês, a idade do que está em aberto, o tempo de
-resolução, o que se repete, o que está em aberto por categoria, o total por estado e a satisfação. Cada
-quadro escreve a pergunta que responde.
+aberto. Abaixo, sete quadros, com o nome que aparece na tela: Entradas e saídas por mês, Em aberto por
+idade, Tempo de resolução, O que está voltando, Em aberto por categoria, Ocorrências por status e
+Satisfação. Cada quadro escreve a pergunta que responde.
 
 O que eles respondem é o que não se sabe hoje: **o que está parado, onde o problema se repete, se a fila
 cresce ou encolhe, e se quem abriu ficou satisfeito.**
@@ -100,16 +100,15 @@ acabou, e sem este quadro o painel melhoraria quando os casos difíceis fossem d
 
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
 conversa dentro da ocorrência, a avaliação, o painel de indicadores, o cadastro de categorias,
-áreas e pessoas, a entrada na organização por código com aprovação do Gestor, e várias organizações
-isoladas na mesma instalação.
+áreas e pessoas, a entrada na organização por código, por link ou por QR, sempre com aprovação do Gestor,
+o compartilhamento de uma ocorrência, só para leitura, com outra pessoa da organização, e várias
+organizações isoladas na mesma instalação.
 
 **Fora desta versão:**
 
 - acesso próprio do Encarregado, e com ele a leitura sem rede, o reporte de execução e a recusa de
   atribuição;
-- avisos automáticos de qualquer tipo — sem notificação, sem sino, sem alarme de ocorrência parada, sem
-  e-mail ou mensagem;
-- convite por link e página pública da organização;
+- nenhum aviso que chegue sozinho: sem sino, sem e-mail, sem mensagem, sem alarme de ocorrência parada;
 - filtros rápidos salvos;
 - aderir a uma ocorrência parecida em vez de abrir outra igual;
 - nota interna entre Gestores;

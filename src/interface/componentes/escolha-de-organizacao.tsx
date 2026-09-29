@@ -59,7 +59,7 @@ export function EscolhaDeOrganizacao({
               variant="ghost"
               disabled={trocando}
               onClick={() => void escolher(vinculo.organizacaoId)}
-              className="h-auto min-h-11 w-full justify-start rounded-none p-0 font-normal whitespace-normal focus-visible:ring-inset"
+              className="h-auto min-h-11 w-full justify-start rounded-none p-0 font-normal whitespace-normal focus-visible:-outline-offset-2"
             >
               <LinhaDeOrganizacao nome={vinculo.nome} apoio={rotuloDoPapel(vinculo.papel)} seta />
             </Button>

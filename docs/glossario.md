@@ -33,7 +33,8 @@ Atores são nomeados por função, e nunca por nome próprio.
 |---|---|---|
 | Organização | O condomínio, a empresa ou o bairro que usa o produto. É o limite de isolamento de dados | Área |
 | Organização ativa | A Organização pela qual a sessão está enxergando agora. Quem tem vários vínculos tem uma de cada vez, e trocar é operação explícita | Vínculo, que é o conjunto de todas |
-| Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | — |
+| Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | Convite, que é o link com o código dentro |
+| Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega |
 | Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa | Localização, que aponta para uma Área |
 | Localização | Onde dentro da Organização a ocorrência aconteceu: uma Área mais um complemento em texto | Geolocalização: não há mapa nem coordenada |
 | Categoria | A natureza da ocorrência: iluminação, vazamento, limpeza. Configurável por Organização | Prioridade: a categoria é o que é, a prioridade é quanto corre |
@@ -48,6 +49,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Solução aplicada | O registro do que foi feito para resolver, escrito pelo Gestor | Observação, que justifica uma mudança de estado |
 | Avaliação | A nota de 1 a 5 que o autor dá à resolução, depois de a ocorrência estar `Resolvida`. Não é um estado | `Em análise`, que é o estado em que o Gestor avalia a ocorrência |
 | Comentário | A conversa dentro da ocorrência, entre quem abriu e quem gere | Observação; Solução aplicada |
+| Compartilhamento | Abrir uma ocorrência, só para leitura, a uma pessoa da mesma organização. Quem recebe vê tudo e não age | Atribuição, que dá trabalho e não leitura; Permissão, que é do papel |
 
 ## O ciclo de vida
 

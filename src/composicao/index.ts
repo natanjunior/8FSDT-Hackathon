@@ -1,6 +1,7 @@
 import type { ArmazenamentoDeAnexos, PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
+import type { RepositorioDeConvites } from "@/aplicacao/organizacao";
 import {
   criarArmazenamentoDeAnexos,
   criarAutenticacao,
@@ -15,6 +16,7 @@ import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  repositorioDeConvites,
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDaOrganizacao,
@@ -114,6 +116,17 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // recebesse `escoparTransacao` daria a ele o poder de gravar sem que nada no tipo dissesse isso.
     dashboard: repositorioEscopadoDeDashboard(consulta),
   };
+}
+
+/**
+ * A porta do convite (item 86, ADR-0018).
+ *
+ * **Separada das globais e das escopadas, e a separação é a decisão.** As globais servem as cinco
+ * operações do §4.4, todas com sessão; o convite roda sem. Quem recebe esta porta não recebe mais nada:
+ * nem vínculos, nem pessoas, nem escrita.
+ */
+export function montarPortaDeConvites(): RepositorioDeConvites {
+  return repositorioDeConvites(criarConsulta());
 }
 
 /**

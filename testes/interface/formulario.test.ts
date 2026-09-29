@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { redirect } from "next/navigation";
@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
   avisarConclusao,
@@ -1742,12 +1744,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
       'className="text-destructive text-meta flex items-center gap-1.5"',
     );
     expect(ler("src/interface/componentes/modal.tsx")).toMatch(/RODAPE_DO_MODAL =[^;]*bg-background[^;]*border-t[^;]*px-6 py-3\.5/u);
-    expect(ler("src/interface/componentes/campo.tsx")).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
+    expect(ler("src/interface/componentes/campo.tsx")).toContain('"flex flex-col gap-2.5 sm:flex-row"');
   });
 
   it("a faixa do cartão é uma variante da cabeça, com o título em h2 no papel de rótulo (critério 44q.5)", () => {
     const fonte = ler("src/interface/componentes/cartao.tsx");
-    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-fraca font-mono uppercase"');
+    expect(fonte).toContain('export const TITULO_DA_FAIXA = "text-rotulo-coluna text-tinta-suave font-mono uppercase"');
     expect(fonte).toContain("export function FaixaDoCartao");
     expect(fonte).toContain("export function CorpoDoCartao");
   });
@@ -1839,7 +1841,10 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
     expect(lista).toContain('data-recuada={encerrada(item.status) ? "" : undefined}');
     expect(lista).toContain("group-data-[recuada]/linha:text-tinta-suave");
-    expect(lista).toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    // Item 89: o apoio da encerrada vestia a tinta fraca, que não passa 4,5:1, e agora veste a suave como o
+    // de qualquer linha. O que a distingue é o título, que desce de `--ink` a `--ink-soft`, e o selo.
+    expect(lista).not.toContain("group-data-[recuada]/linha:text-tinta-fraca");
+    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(2);
     // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
     expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
     // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
@@ -1886,8 +1891,8 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(ler("src/interface/componentes/formulario-de-pedido-de-entrada.tsx")).not.toContain("larguraCheia");
 
     const campo = ler("src/interface/componentes/campo.tsx");
-    // O ramo de sempre fica como estava (critério 44q.3 afirma a cadeia dele).
-    expect(campo).toContain('"flex flex-col-reverse gap-2.5 sm:flex-row"');
+    // O ramo de sempre empilha na ordem do DOM desde o item 94; o 44q.3 continua afirmando a cadeia.
+    expect(campo).toContain('"flex flex-col gap-2.5 sm:flex-row"');
     expect(campo).toContain('"flex flex-col gap-2.5"');
   });
 
@@ -1977,7 +1982,7 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
   it("o local leva MapPin, e nenhum emoji de local sobra no produto (troca 11)", () => {
     const ficha = ler("src/interface/componentes/ficha-de-local.tsx");
-    expect(ficha).toContain('<MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-fraca size-[15px] shrink-0" />');
+    expect(ficha).toContain('<MapPin aria-hidden="true" strokeWidth={1.9} className="text-tinta-suave size-[15px] shrink-0" />');
     expect(ficha).toContain("inline-flex items-center gap-1.5");
     const comEmoji = [...arquivosDe("src"), ...arquivosDe("app")].filter((caminho) => ler(caminho).includes("📍"));
     expect(comEmoji).toStrictEqual([]);
@@ -2141,6 +2146,19 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "sm:w-10", "sm:flex-none", "md:w-12", "md:h-14"]));
   });
 
+  it("a exibição cede a largura e guarda a letra (critérios 93.1 e 93.4)", () => {
+    const fonte = ler(CAMPO_DE_CODIGO);
+    const casa = /const CASA_DA_EXIBICAO =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    // A caixa divide a largura, e a largura fixa do catálogo (`w-9`) sai por `w-auto`: largura definida
+    // entra na largura mínima do conteúdo, e é ela que arrastava a grade de `/configuracao`.
+    expect(casa).toEqual(expect.arrayContaining(["min-w-0", "flex-1", "w-auto", "h-14", "text-titulo-pagina"]));
+    expect(casa).not.toContain("w-12");
+    const grupo = /const GRUPO_DA_EXIBICAO =\s*"([^"]+)"/u.exec(fonte)?.[1]?.split(" ") ?? [];
+    expect(grupo).toEqual(expect.arrayContaining(["min-w-0", "flex-1"]));
+    // O teto é a largura natural: oito casas de 48 px e o vão de 14.
+    expect(fonte).toContain('containerClassName="w-full max-w-[24.875rem] gap-3.5 has-disabled:opacity-100"');
+  });
+
   it("o pedido de entrada usa o campo novo, com a ajuda e a conferência de oito", () => {
     const fonte = ler(PEDIDO_DE_ENTRADA);
     expect(fonte).toContain("<EntradaDeCodigo");
@@ -2291,5 +2309,227 @@ describe("o alcance do 71 — o seletor de faixa de datas", () => {
     expect(fonte).toContain("<SeletorDePeriodo");
     // O aviso da troca fica onde estava, e o mecanismo não mudou (critério 71.3).
     expect(fonte).toContain("As datas estavam invertidas e foram trocadas.");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 91 — os 44 px nas seis peças que faltam
+ * ============================================================================
+ *
+ * **Guardas de fonte, e não de tela.** A medida de verdade é a sonda, fora do git; aqui fica o que
+ * impede cada peça de voltar ao tamanho de antes numa edição distraída.
+ */
+describe("o alcance do 91 — os 44 px", () => {
+  it("o gatilho do menu de pessoa é um círculo de 44 px com o avatar de 32 dentro (critério 91.1)", () => {
+    const fonte = ler("src/interface/componentes/casca/menu-de-pessoa.tsx");
+    const gatilho = fonte.slice(
+      fonte.indexOf("<DropdownMenuTrigger"),
+      fonte.indexOf("</DropdownMenuTrigger>"),
+    );
+    expect(gatilho).toMatch(/className="[^"]*\bsize-11\b[^"]*"/u);
+    expect(gatilho).toMatch(/className="[^"]*\brounded-full\b[^"]*"/u);
+    expect(gatilho).toMatch(/className="[^"]*\bjustify-center\b[^"]*"/u);
+    expect(gatilho).toContain('<Avatar className="size-8">');
+  });
+
+  it("o Ver dados não usa o tamanho pequeno do catálogo (critério 91.2)", () => {
+    const fonte = ler("src/interface/componentes/modal-de-dados.tsx");
+    const gatilho = fonte.slice(fonte.indexOf("<DialogTrigger"), fonte.indexOf("</DialogTrigger>"));
+    expect(gatilho).not.toMatch(/size="(?:sm|xs|icon-sm|icon-xs)"/u);
+    expect(gatilho).toContain("Ver dados");
+  });
+
+  it("nenhum caminho escrito à mão com py-1, e as telas de conta usam a constante (critério 91.3)", () => {
+    const arquivos = [
+      "app/entrar/page.tsx",
+      "app/criar-conta/page.tsx",
+      "app/redefinir-senha/page.tsx",
+      "app/definir-senha/page.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+    ];
+    for (const caminho of arquivos) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).not.toMatch(/py-1 underline underline-offset-4/u);
+      expect(fonte, caminho).toContain("CLASSE_DO_CAMINHO");
+    }
+    const usos = arquivos.reduce(
+      (soma, caminho) =>
+        soma + [...ler(caminho).matchAll(/\{CLASSE_DO_CAMINHO\}|cn\(CLASSE_DO_CAMINHO/gu)].length,
+      0,
+    );
+    expect(usos).toBe(7);
+
+    const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
+    expect(moldura).not.toContain("não se conserta aqui");
+    // O "Voltar" da face E media 37 px de largura com a constante antiga: o piso é dos dois lados.
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(moldura)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("min-w-11");
+    expect(classe.split(" ")).toContain("justify-center");
+  });
+
+  it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {
+    const fonte = ler("src/interface/componentes/barra-de-filtros.tsx");
+    // Por regex, e não por `indexOf`: o comentário logo acima do link também diz "Limpar filtros".
+    const limpar = /<Link(?:(?!<Link)[\s\S])*?>\s*Limpar filtros\s*<\/Link>/u.exec(fonte)?.[0] ?? "";
+    expect(limpar).not.toBe("");
+    expect(limpar).toMatch(/\binline-flex\b/u);
+    expect(limpar).toMatch(/\bmin-h-11\b/u);
+    expect(limpar).toMatch(/\bitems-center\b/u);
+    expect(limpar).not.toMatch(/\bpy-1\b/u);
+  });
+
+  it("o Sair tem largura mínima de 44 px e perdeu o px-0 (critério 91.5)", () => {
+    const fonte = ler("src/interface/componentes/moldura-de-conta.tsx");
+    // Por regex, e não por `indexOf("Sair\n")`: o repositório versiona `.tsx` com **CRLF** — o
+    // `.gitattributes` fixa LF só para `.md`, `.yaml`, `.yml`, `.html`, `.mmd`, `.json` e `.sh`. Com
+    // `Sair\r\n` no arquivo o `indexOf` devolve `-1`, e `slice(inicio, -1)` leria daqui até o
+    // fim do arquivo: o guarda passaria verde medindo outra coisa.
+    const sair = /export function CaminhoDeSair[\s\S]*?<\/Button>/u.exec(fonte)?.[0] ?? "";
+    expect(sair).not.toBe("");
+    expect(sair).toMatch(/\bmin-w-11\b/u);
+    expect(sair).not.toMatch(/\bpx-0\b/u);
+  });
+
+  it("o campo de busca do catálogo tem 44 px no invólucro e no campo (critério 91.6)", () => {
+    const fonte = ler("src/interface/componentes/ui/command.tsx");
+    const campo = fonte.slice(
+      fonte.indexOf("function CommandInput"),
+      fonte.indexOf("function CommandList"),
+    );
+    expect(campo).toMatch(/data-slot="command-input-wrapper" className="[^"]*\bh-11\b/u);
+    expect(campo).not.toMatch(/\bh-9\b|\bh-10\b/u);
+    expect(campo).toMatch(/"placeholder:text-muted-foreground flex h-11\b/u);
+  });
+
+  it("a moldura da documentação tem os cinco alvos do critério a 44 px (critério 91.7)", () => {
+    const fonte = ler("app/documentacao/documentacao.css");
+    for (const seletor of [
+      "#nd-subnav button",
+      "#nd-sidebar a",
+      "#nd-sidebar button",
+      "[data-search-full]",
+      "[data-toc-popover-trigger]",
+    ]) {
+      expect(fonte, seletor).toContain(seletor);
+    }
+    expect(fonte).toContain("min-height: 2.75rem");
+  });
+
+  it("Anterior e Próxima da paginação têm 44 px de largura mínima (P1 do 91)", () => {
+    const fonte = ler("src/interface/componentes/paginacao-da-lista.tsx");
+    expect(fonte).toMatch(/<PaginationPrevious[^>]*className="min-w-11"/su);
+    expect(fonte).toMatch(/<PaginationNext[^>]*className="min-w-11"/su);
+  });
+
+  it("o padrão de linha clicável mora num módulo de servidor, e as duas listas o usam (P2 do 91)", () => {
+    const modulo = ler("src/interface/componentes/linha-clicavel.ts");
+    expect(modulo).not.toContain('"use client"');
+    expect(modulo).toContain("export const LINHA_CLICAVEL");
+    expect(modulo).toContain("export const CAMADA_DO_TITULO");
+    expect(ler("src/interface/componentes/lista-de-ocorrencias.tsx")).toContain(
+      'from "./linha-clicavel"',
+    );
+
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    const lista = painel.slice(
+      painel.indexOf("velhas.length > 0 ?"),
+      painel.indexOf("<GraficoDeBarras", painel.indexOf("velhas.length > 0 ?")),
+    );
+    expect(lista).toMatch(/<ol className="flex flex-col">/u);
+    expect(lista).toMatch(/cn\(LINHA_CLICAVEL, "[^"]*\bmin-h-11\b/u);
+    expect(lista).toContain("CAMADA_DO_TITULO");
+  });
+
+  it("o cartão da mais velha é clicável só quando há uma mais velha (P1 do 91)", () => {
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    const cartao = painel.slice(
+      painel.indexOf('rotulo="A mais velha em aberto"') - 200,
+      painel.indexOf('rotulo="A mais velha em aberto"') + 900,
+    );
+    expect(cartao).toContain("clicavel={maisVelha !== undefined}");
+    expect(cartao).toContain("CAMADA_DO_TITULO");
+    const blocos = ler("src/interface/componentes/blocos-do-dashboard.tsx");
+    expect(blocos).toMatch(/clicavel\?: boolean/u);
+    expect(blocos).toContain("LINHA_CLICAVEL");
+  });
+});
+
+/**
+ * ============================================================================
+ *  88.5 · as palavras e as peças do contador
+ * ============================================================================
+ *
+ * **A tela diz *vista*; o banco, o código e o contrato dizem *aberta*** — item 88. O selo fica na mesma
+ * linha que o de status, e *Aberta · Não aberta* é contradição de leitura.
+ */
+describe("88.5 · as palavras e as peças do contador", () => {
+  it("a palavra do nome acessível concorda em número", () => {
+    expect(palavraDeNaoVistas(1)).toBe("não vista");
+    expect(palavraDeNaoVistas(0)).toBe("não vistas");
+    expect(palavraDeNaoVistas(3)).toBe("não vistas");
+  });
+
+  it("o selo carrega a palavra, e não só a cor — compromisso A-5", () => {
+    expect(SELO_NAO_VISTA).toBe("Não vista");
+  });
+
+  it("a pílula veste o preenchimento da marca, e não a tinta que o item 89 conserta", () => {
+    expect(CONTAGEM_DE_NAO_VISTAS).toContain("bg-marca");
+    expect(CONTAGEM_DE_NAO_VISTAS).toContain("text-marca-foreground");
+    // **`(?![\w-])`, e não a borda de palavra.** A borda casa entre `a` e `-`, então um padrão fechado
+    // por ela encontraria `text-marca-foreground` dentro da própria cadeia sob teste, e este caso
+    // reprovaria para sempre. O item 89 troca `text-marca` por `text-tinta-marca` em 21 arquivos, e é
+    // esta asserção que impede a pílula de entrar na troca.
+    expect(CONTAGEM_DE_NAO_VISTAS).not.toMatch(/\btext-marca(?![\w-])/u);
+  });
+
+  it("o selo da linha é de contorno: o cheio da linha é o status", () => {
+    const fonte = ler("src/interface/componentes/selo-de-nao-vista.tsx");
+    expect(fonte).toContain('variant="outline"');
+    expect(fonte).toContain("border-marca");
+    expect(fonte).not.toContain("bg-marca");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 95 — o portão se declara por uma linha
+ * ============================================================================
+ *
+ * O código de saída não prova que o portão rodou: o mesmo `npm run verificar` devolve 1 ou 0 conforme o
+ * que vem depois dele na linha. A prova passou a ser a sentinela de `ferramentas/portao.mjs`, e ela só
+ * vale enquanto for a última etapa da corrente e enquanto ninguém mais a imprimir. É isso que este bloco
+ * prende.
+ */
+describe("o item 95 — o portão se declara por uma linha", () => {
+  const TRECHO = "lint, tipos, teste, docs e estilo rodaram";
+
+  /**
+   * Código executável de uma pasta, com o caminho lógico e separador `/`.
+   *
+   * O `isFile` não é zelo: `app/documentacao/api/referencia/swagger-ui-bundle.js` é uma **pasta** de rota,
+   * e sem ele o `ler` morre com `EISDIR`.
+   */
+  function codigoDe(pasta: string): string[] {
+    return readdirSync(RAIZ + pasta, { recursive: true, encoding: "utf8" })
+      .map((caminho) => `${pasta}/${caminho.replace(/\\/gu, "/")}`)
+      .filter((caminho) => /\.(?:m?[jt]s|tsx)$/u.test(caminho) && !caminho.includes("node_modules"))
+      .filter((caminho) => statSync(RAIZ + caminho).isFile())
+      .sort();
+  }
+
+  it("a sentinela é a última etapa do verificar", () => {
+    const pacote = JSON.parse(ler("package.json")) as { scripts: Record<string, string> };
+    const etapas = pacote.scripts["verificar"]!.split("&&").map((etapa) => etapa.trim());
+    expect(etapas.at(-1)).toBe("node ferramentas/portao.mjs");
+  });
+
+  it("a linha nomeia as cinco etapas, e só o script da sentinela a imprime", () => {
+    expect(ler("ferramentas/portao.mjs")).toContain(TRECHO);
+    const comOTrecho = ["ferramentas", "src", "app", "semente"]
+      .flatMap(codigoDe)
+      .filter((caminho) => ler(caminho).includes(TRECHO));
+    expect(comOTrecho).toStrictEqual(["ferramentas/portao.mjs"]);
   });
 });

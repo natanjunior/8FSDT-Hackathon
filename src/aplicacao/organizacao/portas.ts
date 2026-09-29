@@ -320,6 +320,25 @@ export interface RepositorioGlobalDePedidosDeEntrada {
   daPessoa(pessoaId: string): Promise<PedidoDaPessoa[]>;
 }
 
+/** O que a página do convite pode saber de uma organização: o nome e o código, e mais nada. */
+export type OrganizacaoDoConvite = { nome: string; codigoPublico: string };
+
+/**
+ * **A porta da primeira operação sem sessão** (item 86, ADR-0018): `GET /convites/{codigo}`.
+ *
+ * **O tipo de retorno de `porCodigo` é a prova do critério 86.2.** Não há `id`, contagem, tipo nem pessoa
+ * no que ela devolve, e quem implementa seleciona só as duas colunas. Um campo a mais aqui é um campo a
+ * mais para qualquer pessoa sem conta.
+ *
+ * **`temPedidoPendente` só é chamada com sessão**, e a pessoa vem dela: é a pergunta *"eu já pedi para
+ * entrar nesta?"*, que o `GET /contexto` não responde porque os pedidos dele trazem só o nome da
+ * organização, e nome não é único.
+ */
+export interface RepositorioDeConvites {
+  porCodigo(codigoPublico: string): Promise<OrganizacaoDoConvite | null>;
+  temPedidoPendente(pessoaId: string, codigoPublico: string): Promise<boolean>;
+}
+
 // ---------------------------------------------------------------------------
 // A decisão do pedido — item 8 (D25)
 // ---------------------------------------------------------------------------

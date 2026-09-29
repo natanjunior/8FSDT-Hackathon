@@ -41,6 +41,10 @@ escopo. Nos dois casos a origem do identificador é declarada: o Código da Orga
 requisição, no primeiro, e a organização recém-criada, no segundo. A lista é fechada, e um terceiro caso
 exigiria alterar a [ADR-0003](adr/0003-isolamento-de-tenant-na-camada-de-aplicacao.md).
 
+Uma leitura acontece sem sessão nenhuma: a do convite por link. Ela devolve o nome e o código de uma
+organização a partir do código, e mais nada, e só dois arquivos podem chamá-la, o que uma regra de lint
+confere. A razão está na [ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
+
 A garantia é exercida por teste. Cada consulta escopada entra numa suíte compartilhada que pergunta sempre
 as mesmas três coisas, e as duas escritas de fora do funil têm caso próprio. O detalhe está em
 [Testes](testes.md).
@@ -65,7 +69,7 @@ e o mapa de papel para permissões é constante em código.
 
 | Papel | O que recebe |
 |---|---|
-| Solicitante | registrar, ler as próprias, comentar, cancelar a própria e avaliar |
+| Solicitante | registrar, ler as próprias e as compartilhadas com ele, comentar, cancelar a própria e avaliar |
 | Gestor | tudo do Solicitante, mais ler todas, triar, atribuir, conduzir o atendimento, cancelar qualquer uma, configurar a organização, gerir vínculos e ler o painel |
 | Encarregado | nenhuma permissão nesta versão |
 
@@ -103,7 +107,8 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 | O que | O controle |
 |---|---|
 | Alcance | foto, localização e contato só são legíveis dentro da organização do vínculo |
-| Leitura de ocorrência | o autor lê as próprias, e só quem tem permissão de ler todas lê as dos outros. Um Solicitante não alcança a ocorrência de um vizinho |
+| Leitura de ocorrência | o autor lê as próprias, quem tem permissão de ler todas lê as dos outros, e uma ocorrência compartilhada é lida, sem poder de ação, por quem a recebeu. Um Solicitante não alcança a ocorrência de um vizinho que não a compartilhou com ele |
+| Nomes de participantes | a busca de quem vai receber uma ocorrência devolve nome e papel, com mínimo de duas letras e teto de vinte, e não traz contato nem unidade. Ela limita, sem impedir, que um participante descubra os nomes dos outros |
 | Retenção | o histórico não expira, porque apagá-lo destruiria a exigência central do desafio |
 | Transporte | tudo por HTTPS, incluindo o envio direto da imagem ao armazenamento |
 

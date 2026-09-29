@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { EntradaDeCodigo } from "@/interface/componentes/campo-de-codigo";
+import { EntradaDeCodigo, ExibicaoDeCodigo } from "@/interface/componentes/campo-de-codigo";
 import { erroDoCodigo } from "@/interface/componentes/regras-do-codigo";
 import {
   avisarErro,
@@ -35,6 +35,8 @@ import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-
  * pendente a tela passa a mostrar a face B; com vínculo, o contexto ativa a organização e o shell manda
  * para `/`. É o que dispensa o nome da organização, que a resposta não carrega, e o botão *"entrar nela"*,
  * que é o item 7b.
+ *
+ * Desde o item 86 ele serve também a página do convite, com o código travado (`codigoFixo`).
  */
 
 /** Um vínculo que a Pessoa já tem — o insumo do reconhecimento do código (item 7b, §2.6). */
@@ -102,10 +104,16 @@ function lerErrosDeCampo(problema: unknown): Record<string, string> | null {
 }
 
 export function FormularioDePedidoDeEntrada({
+  codigoFixo,
   nome,
   variante = "primeira-entrada",
   vinculos = [],
 }: {
+  /**
+   * **O código que o convite já trouxe** (item 86). Com ele, o campo vira exibição travada e o valor vai
+   * escondido no envio; o resto do formulário não muda. Sem ele, é T-02 como sempre.
+   */
+  codigoFixo?: string;
   /** Pré-preenche o campo `nome`. **Só existe na variante `primeira-entrada`** — na outra o campo não é
    *  renderizado, porque a razão dele não existe (spec §2.5) e a Aplicação o ignora (critério 7b.8). */
   nome?: string;
@@ -260,7 +268,7 @@ export function FormularioDePedidoDeEntrada({
             onClick={() => {
               void entrarNela(reconhecido.organizacaoId);
             }}
-            className="text-marca underline underline-offset-4"
+            className="text-tinta-marca underline underline-offset-4"
           >
             Entrar nela
           </button>
@@ -278,7 +286,7 @@ export function FormularioDePedidoDeEntrada({
               <button
                 type="button"
                 onClick={() => router.refresh()}
-                className="text-marca underline underline-offset-4"
+                className="text-tinta-marca underline underline-offset-4"
               >
                 Atualizar esta tela
               </button>
@@ -295,22 +303,29 @@ export function FormularioDePedidoDeEntrada({
         className="flex flex-col gap-5"
         noValidate
       >
-        <Campo
-          id="codigo"
-          rotulo="Código da organização"
-          obrigatorio
-          ajuda="Está no cartaz do elevador ou na mensagem do grupo."
-          erro={formulario.erroDe("codigo", estado.erros)}
-        >
-          {(controle) => (
-            <EntradaDeCodigo
-              controle={controle}
-              name="codigo"
-              erro={formulario.erroDe("codigo", estado.erros) !== undefined}
-              ocupado={aguardando}
-            />
-          )}
-        </Campo>
+        {codigoFixo !== undefined ? (
+          <div className="flex flex-col gap-2">
+            <ExibicaoDeCodigo codigo={codigoFixo} rotulo="Código da organização" />
+            <input type="hidden" name="codigo" value={codigoFixo} />
+          </div>
+        ) : (
+          <Campo
+            id="codigo"
+            rotulo="Código da organização"
+            obrigatorio
+            ajuda="Está no cartaz do elevador ou na mensagem do grupo."
+            erro={formulario.erroDe("codigo", estado.erros)}
+          >
+            {(controle) => (
+              <EntradaDeCodigo
+                controle={controle}
+                name="codigo"
+                erro={formulario.erroDe("codigo", estado.erros) !== undefined}
+                ocupado={aguardando}
+              />
+            )}
+          </Campo>
+        )}
 
         {primeiraEntrada && (
           <>
@@ -354,7 +369,12 @@ export function FormularioDePedidoDeEntrada({
 
         {/* **A nota sai só onde todo campo é obrigatório** (critério 44o.11): na variante de outra
             organização sobra o código, e só ele. Na primeira entrada o telefone é opcional, e a nota fica. */}
-        <RodapeDoFormulario obrigatorios={1} todosObrigatorios={!primeiraEntrada}>
+        {/* Com o código travado não há campo obrigatório visível, e a nota sai: o rodapé só a desenha com
+            `obrigatorios > 0`. */}
+        <RodapeDoFormulario
+          obrigatorios={codigoFixo !== undefined ? 0 : 1}
+          todosObrigatorios={!primeiraEntrada}
+        >
           <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Pedir entrada"}

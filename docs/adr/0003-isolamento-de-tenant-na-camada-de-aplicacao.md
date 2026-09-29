@@ -5,7 +5,7 @@ description: "O escopo aplicado num ponto único da camada de aplicação, e RLS
 
 # ADR-0003 — Isolamento entre organizações na camada de aplicação; RLS como defesa em profundidade
 
-**Status:** Aceita · 18/08/2026
+**Status:** Aceita · 18/08/2026 · Parcialmente substituída pela [ADR-0018](0018-a-primeira-operacao-sem-sessao.md)
 
 ## Contexto
 

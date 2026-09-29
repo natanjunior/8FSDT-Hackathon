@@ -752,6 +752,50 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
   });
 
   /**
+   * **Quem só compartilhou uma ocorrência tem rastro — item 87, migração `015`.**
+   *
+   * `compartilhamentos.por_pessoa_id` é `on delete restrict`, porque a linha nomeia quem compartilhou na
+   * tela de quem olha a ocorrência. Sem ela na consulta, T-08 mostraria *remover* e o `DELETE` responderia
+   * `409`. **A outra ponta, `com_pessoa_id`, fica fora de propósito:** ela apaga em cascata, e o que a
+   * pessoa recebeu não é rastro.
+   */
+  it("quem só compartilhou uma ocorrência recebe historico; quem só recebeu, não", async () => {
+    // `encarregadoLimpo` mora no `describe` do `remover`; aqui o cadastro é o mesmo, em linha.
+    const limpo = async (nome: string): Promise<string> => {
+      const criado = await repositorio().cadastrar({ nome, papel: "encarregado", areaId: null, contatos: [] });
+      if (criado.desfecho !== "cadastrado") throw new Error(`cadastro falhou: ${criado.desfecho}`);
+      return criado.vinculo.pessoa.pessoaId;
+    };
+    const compartilhou = await limpo("Encarregado Que Compartilhou");
+    const recebeu = await limpo("Encarregado Que Recebeu");
+
+    const categorias = await consulta<{ id: string }>(
+      `insert into categorias (organizacao_id, nome, icone, ordem) values ($1, $2, 'wrench', 70) returning id`,
+      [idOrganizacao, `Categoria do 87 ${SUFIXO}`],
+    );
+    const [ocorrencia] = await consulta<{ id: string }>(
+      `insert into ocorrencias
+         (organizacao_id, autor_pessoa_id, categoria_id, area_id, area_tipo, titulo, descricao)
+       values ($1, $2, $3, $4, 'privativa', 'Infiltração no 302', 'A parede mancha desde ontem.')
+       returning id`,
+      [idOrganizacao, idGestora, categorias[0]!.id, AREA_ATIVA],
+    );
+    await consulta(
+      `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
+       values ($1, $2, $3, $4)`,
+      [idOrganizacao, ocorrencia!.id, recebeu, compartilhou],
+    );
+
+    const mapa = await repositorio().impedimentosDeRemocao();
+    expect(mapa.get(compartilhou)).toBe("historico");
+    expect(mapa.has(recebeu)).toBe(false);
+
+    // O esquema concorda com a consulta: `por` recusa no `delete`, e `com` apaga em cascata.
+    expect((await repositorio().remover(compartilhou)).desfecho).toBe("com-historico");
+    expect((await repositorio().remover(recebeu)).desfecho).toBe("removido");
+  });
+
+  /**
    * **A guarda contra deriva (spec §3.5 do item 10), e ela é um teste porque o risco é envelhecer em
    * silêncio.**
    *
@@ -767,10 +811,13 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * três `join`. **`autorizacoes_de_upload` NÃO está na lista**: a chave dela aponta para `pessoas (id)`,
    * e não bloqueia remoção de vínculo nenhum.
    *
+   * **`compartilhamentos.com_pessoa_id` está na lista e não no `tem_historico`: ela apaga em cascata, e o
+   * que a pessoa recebeu não é rastro (item 87).**
+   *
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as catorze que a consulta cobre, em nove tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as dezesseis que a consulta cobre, em dez tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -780,6 +827,8 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "atribuicoes.responsavel_pessoa_id",
       "categorias.atualizado_por_pessoa_id",
       "categorias.criado_por_pessoa_id",
+      "compartilhamentos.com_pessoa_id",
+      "compartilhamentos.por_pessoa_id",
       "mensagens.autor_pessoa_id",
       "ocorrencias.autor_pessoa_id",
       "organizacoes.atualizado_por_pessoa_id",
@@ -800,7 +849,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(9);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(10);
   });
 });
 

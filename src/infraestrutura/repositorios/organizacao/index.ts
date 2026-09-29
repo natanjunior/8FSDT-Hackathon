@@ -2,6 +2,7 @@
 export { repositorioGlobalDeVinculos } from "./vinculos-globais";
 export { repositorioEscopadoDeVinculos } from "./vinculos-escopados";
 export { repositorioDeOrganizacoes } from "./organizacoes";
+export { repositorioDeConvites } from "./convites";
 export { repositorioEscopadoDaOrganizacao } from "./organizacao-escopada";
 export { repositorioEscopadoDeCategorias } from "./categorias-escopadas";
 export { repositorioEscopadoDeAreas } from "./areas-escopadas";

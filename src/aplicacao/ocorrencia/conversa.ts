@@ -1,4 +1,10 @@
-import { LIMITE_PADRAO, podeLerOcorrencia, type QuemPergunta } from "./consultas";
+import {
+  LIMITE_PADRAO,
+  participaDaOcorrencia,
+  podeLerOcorrencia,
+  recusaDeQuemNaoParticipa,
+  type QuemPergunta,
+} from "./consultas";
 import { OcorrenciaNaoEncontrada } from "./erros";
 import type { ComentarioLido, CursorDeConversa, RepositorioEscopadoDeOcorrencias } from "./portas";
 
@@ -90,8 +96,10 @@ export async function enviarComentario(
 
   // **A autoria vem do agregado carregado**, e não de uma segunda leitura: `Ocorrencia` já a carrega, e
   // pedir `porId` só para conferir quem é o autor seria a terceira ida ao banco por mensagem enviada.
-  if (!podeLerOcorrencia({ autor: { pessoaId: carregada.ocorrencia.autorPessoaId } }, quem)) {
-    throw new OcorrenciaNaoEncontrada();
+  // Quem participa escreve; quem só recebeu leva `403`, e quem não alcança leva `404` (item 87). As
+  // mensagens continuam legíveis a quem recebeu — é `verComentarios`, logo acima, que as devolve.
+  if (!participaDaOcorrencia(carregada.ocorrencia.autorPessoaId, quem)) {
+    throw await recusaDeQuemNaoParticipa(repositorio, id, quem.pessoaId);
   }
 
   return repositorio.comentar(id, {

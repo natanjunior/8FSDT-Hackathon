@@ -23,10 +23,8 @@ As duas primeiras linhas crescem por caso, e é onde o volume vai. A de integra�
 nova, e não por arquivo. A de ponta a ponta cresce **por jornada**, com teto de sete arquivos, e cada
 arquivo declara quem é dono do mundo que ele usa. A regra anterior mandava que ela nunca crescesse, e o
 que a mudou foi medição: a [ADR-0012](adr/0012-o-teste-de-ponta-a-ponta-cresce-por-jornada.md) registra o
-número que a derrubou e o custo que ela cobra. O teto tem origem própria e sai de duas medições, o tempo
-da suíte e a taxa de reescrita, que a
-[ADR-0013](adr/0013-o-teto-da-suite-de-ponta-a-ponta-passa-a-ser-medido.md) define junto com a condição
-de parar de subir.
+número que a derrubou, o custo que ela cobra, e as duas medições de onde o teto sai — o tempo da suíte e
+a taxa de reescrita — junto com a condição de parar de subir.
 
 ## O que a suíte alcança
 
@@ -86,6 +84,9 @@ As duas escritas que acontecem fora do funil de escopo não são alcançadas por
 pergunta o que uma consulta devolve. São caso escrito à mão, e são duas para sempre, pela mesma lista
 fechada que [Segurança](seguranca.md) descreve.
 
+A leitura do convite, que roda sem sessão, também não é alcançada pela suíte, e também tem caso escrito à
+mão.
+
 ## O cenário de teste tem dono
 
 Há dois mundos de teste em duas linguagens: linhas de SQL na integração, e objetos em memória na camada de
@@ -144,7 +145,8 @@ desenvolvimento, criado pelo próprio `npm run local`.
 ## O portão
 
 `npm run verificar` é o que quem implementa roda antes de abrir um pull request, e é o mesmo conjunto que
-a esteira roda a cada envio. Falha bloqueia a mesclagem.
+a esteira roda a cada envio. Falha bloqueia a mesclagem. A última etapa do portão imprime uma linha
+própria, que só aparece quando todas as anteriores chegaram ao fim, e é essa linha que o declara verde.
 
 Além dele, a esteira sobe a pilha inteira do zero num servidor limpo, roda o teste de integração contra um
 PostgreSQL de verdade, constrói a imagem, confere que ela não carrega segredo e, depois de publicar,

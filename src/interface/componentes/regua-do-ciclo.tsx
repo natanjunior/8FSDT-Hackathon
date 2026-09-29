@@ -28,8 +28,8 @@ const MARCADOR: Readonly<Record<PassoDoCiclo["estado"], string>> = {
 const PALAVRA: Readonly<Record<PassoDoCiclo["estado"], string>> = {
   alcancado: "text-tinta-suave",
   atual: "text-tinta font-medium",
-  "por-alcancar": "text-tinta-fraca",
-  inalcancavel: "text-tinta-fraca line-through",
+  "por-alcancar": "text-tinta-suave",
+  inalcancavel: "text-tinta-suave line-through",
 };
 
 export function ReguaDoCiclo({
@@ -128,7 +128,7 @@ export function ReguaDoCiclo({
                   `sm`, sem largura, ela quebra para baixo em vez de espremer o nome. **Em monoespaçada**,
                   guia §3: a mono é para dado temporal, e o formato é o de `dataEHora`. */}
               {passo.em !== null && (
-                <span className="text-tinta-fraca text-meta flex items-baseline gap-2">
+                <span className="text-tinta-suave text-meta flex items-baseline gap-2">
                   <span className="font-mono tabular-nums">{passo.em}</span>
                   {passo.estado === "atual" && <span className="text-tinta-suave">agora</span>}
                 </span>

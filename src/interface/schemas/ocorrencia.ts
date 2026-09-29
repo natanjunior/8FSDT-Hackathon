@@ -133,6 +133,19 @@ export const atribuicaoDeResponsavelSchema = z.object({
 export type EntradaDeAtribuicaoDeResponsavel = z.infer<typeof atribuicaoDeResponsavelSchema>;
 
 /**
+ * O corpo de `POST /ocorrencias/{id}/compartilhamentos` — item 87.
+ *
+ * **Um campo, e é a pessoa com quem compartilhar.** Quem compartilhou vem do contexto da sessão, como
+ * `atribuidoPor`; e não há campo de permissão nem de prazo, porque o compartilhamento não concede poder
+ * nem expira.
+ */
+export const compartilhamentoSchema = z.object({
+  pessoaId: z.uuid("Escolha uma pessoa."),
+});
+
+export type EntradaDeCompartilhamento = z.infer<typeof compartilhamentoSchema>;
+
+/**
  * ============================================================================
  *  O campo `solucaoAplicada` — um teto, dois pisos, e a assimetria é do contrato
  * ============================================================================

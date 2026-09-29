@@ -53,16 +53,18 @@ export function CabecaQueOrdena({
         onClick={aoClicar}
         className={cn(
           "text-rotulo-coluna h-11 w-full justify-start gap-1.5 rounded-sm px-0 font-mono uppercase hover:bg-transparent",
-          ativa ? "text-tinta" : "text-tinta-fraca",
+          // A linha ocupa a altura inteira da célula, e a tabela rola: o contorno de fora seria cortado.
+          "focus-visible:-outline-offset-2",
+          ativa ? "text-tinta" : "text-tinta-suave",
         )}
       >
         {rotulo}
-        {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-marca size-3" />}
-        {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-marca size-3" />}
+        {sentido === "ascending" && <ArrowUp aria-hidden="true" className="text-tinta-marca size-3" />}
+        {sentido === "descending" && <ArrowDown aria-hidden="true" className="text-tinta-marca size-3" />}
         {sentido === "none" && (
           <ArrowUpDown
             aria-hidden="true"
-            className="text-tinta-fraca size-3 opacity-0 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
+            className="text-tinta-suave size-3 opacity-0 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
           />
         )}
       </Button>

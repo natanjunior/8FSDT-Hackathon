@@ -1,9 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeEntrada } from "@/interface/componentes/formulario-de-entrada";
-import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
-import { resolverParaTela } from "@/interface/http";
+import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { destinoSeguro, resolverParaTela } from "@/interface/http";
 
 /**
  * **T-01 · Entrar** — a única tela que qualquer pessoa alcança sem sessão, e o destino de qualquer
@@ -21,8 +22,13 @@ import { resolverParaTela } from "@/interface/http";
  *
  * **O pé leva à página do grupo e à documentação** (item 70), as duas públicas e em nova aba. Fica fora
  * dos caminhos debaixo do cartão, porque aqueles são sobre a conta e estes não.
+ *
+ * A guarda do `?destino=` é `destinoSeguro`, a mesma de `/criar-conta`, e o link para criar conta leva o
+ * destino junto (item 86).
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Entrar" };
 
 export default async function TelaDeEntrar({
   searchParams,
@@ -30,9 +36,10 @@ export default async function TelaDeEntrar({
   searchParams: Promise<{ destino?: string; confirmacao?: string }>;
 }) {
   const { destino, confirmacao } = await searchParams;
+  const volta = destinoSeguro(destino);
 
   // Quem já tem sessão não vê a porta. O shell resolve para onde ir.
-  if (await temSessao()) redirect(destino !== undefined && destino.startsWith("/") ? destino : "/");
+  if (await temSessao()) redirect(volta ?? "/");
 
   return (
     <MolduraDeConta
@@ -41,13 +48,15 @@ export default async function TelaDeEntrar({
       apresentacao
       caminhos={
         <>
-          <Link href="/criar-conta" className="text-marca text-interface py-1 underline underline-offset-4">
+          <Link
+            href={
+              volta === null ? "/criar-conta" : `/criar-conta?destino=${encodeURIComponent(volta)}`
+            }
+            className={CLASSE_DO_CAMINHO}
+          >
             Criar conta
           </Link>
-          <Link
-            href="/redefinir-senha"
-            className="text-marca text-interface py-1 underline underline-offset-4"
-          >
+          <Link href="/redefinir-senha" className={CLASSE_DO_CAMINHO}>
             Esqueci a senha
           </Link>
         </>
@@ -73,7 +82,7 @@ export default async function TelaDeEntrar({
       }
     >
       <FormularioDeEntrada
-        {...(destino !== undefined && destino.startsWith("/") ? { destino } : {})}
+        {...(volta !== null ? { destino: volta } : {})}
         {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
       />
     </MolduraDeConta>

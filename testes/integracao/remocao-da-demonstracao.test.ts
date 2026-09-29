@@ -68,6 +68,8 @@ function emailNovo(quem: string): string {
 type Fundada = {
   readonly organizacaoId: string;
   readonly codigoPublico: string;
+  /** A Fundadora, gestora e autora das ocorrências. Exposta desde o item 87, que compartilha uma delas. */
+  readonly pessoaId: string;
   readonly ocorrencias: readonly string[];
 };
 
@@ -151,7 +153,7 @@ async function fundar(nome: string, email: string | null, quantas: number): Prom
     ocorrencias.push(ocorrenciaId);
   }
 
-  return { organizacaoId, codigoPublico, ocorrencias };
+  return { organizacaoId, codigoPublico, pessoaId, ocorrencias };
 }
 
 /** Quantas linhas de `tabela` ainda carregam `organizacaoId`. */
@@ -263,6 +265,7 @@ describe("o gatilho da trilha: a porta nomeada, e só ela", () => {
 
 /** Todas as tabelas com `organizacao_id` que a remoção precisa esvaziar, mais as duas do fim. */
 const TABELAS_COM_ORGANIZACAO = [
+  "compartilhamentos",
   "mensagens",
   "canais_conversa",
   "anexos",
@@ -298,6 +301,25 @@ describe("a remoção da demonstração: nome e autoria, e nada além", () => {
   it("2.1 · apaga as duas organizações inteiras, com trilha, e mantém as contas", async () => {
     const recanto = await fundar(NOME_DA_ORGANIZACAO_A, emails[0], 3);
     const aurora = await fundar(NOME_DA_ORGANIZACAO_B, emails[1], 4);
+
+    // **Um compartilhamento no Recanto (item 87).** O mundo de `fundar` tem uma pessoa só por
+    // organização, então a vizinha nasce aqui — e sem esta linha a tabela nova nunca teria linha para a
+    // remoção esquecer.
+    const vizinha = (
+      await consulta<{ id: string }>(
+        `insert into pessoas (nome) values ('Vizinha da remoção') returning id`,
+      )
+    )[0]!.id;
+    await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+      vizinha,
+      recanto.organizacaoId,
+    ]);
+    await consulta(
+      `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
+       values ($1, $2, $3, $4)`,
+      [recanto.organizacaoId, recanto.ocorrencias[0], vizinha, recanto.pessoaId],
+    );
+    expect(await contar("compartilhamentos", recanto.organizacaoId)).toBe(1);
 
     const resultado = await apagarADemonstracao(emails);
 

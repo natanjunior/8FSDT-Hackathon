@@ -23,6 +23,7 @@ import { dataEHora } from "./datas";
 import { FichaDeLocal } from "./ficha-de-local";
 import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
+import { ACIMA_DA_CAMADA, CAMADA_DO_TITULO, LINHA_CLICAVEL } from "./linha-clicavel";
 import { useNavegacaoDaLista } from "./navegacao-da-lista";
 import {
   ariaSortNaLista,
@@ -34,36 +35,9 @@ import {
 } from "./ordenacao-das-ocorrencias";
 import { CELULA } from "./pecas-da-tabela";
 import { rotuloDePrioridade } from "./rotulos";
+import { SeloDeNaoVista } from "./selo-de-nao-vista";
 import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto } from "./tempo-relativo";
-
-/**
- * ============================================================================
- *  A linha inteira leva à ocorrência — item 67, critério 67.3
- * ============================================================================
- *
- * **Um link só por linha, e o alvo de teclado é o título.** Ele ganha uma camada que cobre a linha
- * inteira (`after:absolute after:inset-0`), e a linha vira `relative`. Assim o ponteiro clica em qualquer
- * lugar e chega à ocorrência, e o teclado continua com **uma parada por linha** — que é o que se perderia
- * embrulhando tudo num `<a>` com controles dentro, e o que se perderia de outro jeito pondo um link
- * invisível em cada célula.
- *
- * **O anel de foco é da linha, e não do título**, por `focus-within`: o que recebe o clique é a linha
- * toda, então é ela que precisa aparecer quando o título está focado.
- *
- * **O que fica POR CIMA vai em `relative z-10`:** o gatilho do cartão de Tempo. Sem isso a camada o
- * cobriria, e o cartão nunca abriria.
- */
-const LINHA_CLICAVEL =
-  "relative hover:bg-secondary focus-within:outline-2 focus-within:outline-marca focus-within:-outline-offset-2";
-
-/** A camada que cobre a linha. Vai no link do título, que é o alvo de teclado. */
-const CAMADA_DO_TITULO =
-  "after:absolute after:inset-0 after:content-[''] focus-visible:outline-none";
-
-/** **Por cima da camada** — o que precisa de clique próprio. */
-const ACIMA_DA_CAMADA = "relative z-10";
-
 
 /**
  * A prioridade **em selo de contorno, nos três níveis** — item 64. A palavra fica dentro do selo (guia
@@ -114,6 +88,9 @@ function encerrada(status: string): boolean {
  * |---|---|
  * | ≥ `md` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
  * | celular | linha de três andares, **sem categoria** — achado P-04 do 44c, aprovado pelo hub |
+ *
+ * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não vista* ao lado do status.**
+ * A faixa do celular passou a quebrar (`flex-wrap`) para caber com o status mais longo do Solicitante.
  *
  * **Até o item 76 havia um terceiro desenho**, o cartão alto do recorte A (44c), para *Minhas
  * ocorrências*. O 76 o tirou: o que muda entre os recortes é conteúdo, nunca estrutura. **O preço**, e
@@ -278,8 +255,12 @@ function LinhaDeTriagemNoCelular({
       data-recuada={encerrada(item.status) ? "" : undefined}
     >
       <span className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-2">
           <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+          {/* **`=== true`, e não `??`** — o campo é `boolean | undefined` na projeção, e `undefined`
+              significa *"a pergunta não foi feita"*. Em *Minhas* e em *Todas* nenhuma linha leva selo, por
+              construção. */}
+          {item.naoAberta === true && <SeloDeNaoVista />}
           {segundaLinha !== null && (
             <span className="text-meta text-tinta-suave">{segundaLinha}</span>
           )}
@@ -300,7 +281,7 @@ function LinhaDeTriagemNoCelular({
       >
         {item.titulo}
       </Link>
-      <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca flex flex-wrap items-center gap-1.5">
+      <span className="text-tinta-suave text-meta flex flex-wrap items-center gap-1.5">
         <FichaDeLocal nomeDaArea={item.area.nome} />·
         {item.responsavel === null ? (
           "sem responsável"
@@ -404,6 +385,7 @@ function TabelaDeTriagem({
               >
                 <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
+                  {item.naoAberta === true && <SeloDeNaoVista />}
                   {segundaLinha !== null && (
                     <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
                   )}
@@ -421,7 +403,7 @@ function TabelaDeTriagem({
                   >
                     {item.titulo}
                   </Link>
-                  <span className="text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca mt-0.5 flex items-center gap-1.5">
+                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
                     <IconeDeCategoria
                       nome={iconePorCategoria[item.categoria.id] ?? "tag"}
                       className="size-3.5 shrink-0"
@@ -440,7 +422,7 @@ function TabelaDeTriagem({
                 )}
                 <TableCell className={CELULA}>
                   {item.responsavel === null ? (
-                    <span className="text-tinta-fraca">—</span>
+                    <span className="text-tinta-suave">—</span>
                   ) : (
                     <FichaDePessoa nome={item.responsavel.nome} />
                   )}
@@ -448,7 +430,7 @@ function TabelaDeTriagem({
                 <TableCell
                   className={cn(
                     CELULA,
-                    "text-tinta-suave text-meta group-data-[recuada]/linha:text-tinta-fraca font-mono whitespace-nowrap tabular-nums",
+                    "text-tinta-suave text-meta font-mono whitespace-nowrap tabular-nums",
                   )}
                 >
                   <CartaoDeTempo

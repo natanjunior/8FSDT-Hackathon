@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -35,6 +36,8 @@ import { projetarContexto } from "@/interface/projecoes";
  * organização —, e o dono os separou em 20/09/2026.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Entrar em uma organização" };
 
 export default async function TelaSemOrganizacaoAtiva({
   searchParams,

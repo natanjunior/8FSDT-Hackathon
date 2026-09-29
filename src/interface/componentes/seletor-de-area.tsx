@@ -157,7 +157,7 @@ export function SeletorDeArea({
     >
       <MapPin aria-hidden="true" className="text-tinta-suave" />
       {escolhida === undefined ? (
-        <span className="text-tinta-fraca">{AREA.gatilhoVazio}</span>
+        <span className="text-tinta-suave">{AREA.gatilhoVazio}</span>
       ) : (
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className="truncate">{escolhida.nome}</span>

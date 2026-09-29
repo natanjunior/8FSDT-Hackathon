@@ -64,7 +64,7 @@ export function MenuDePessoa({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Conta de ${nomeDaPessoa}`}
-        className="inline-flex min-h-11 items-center gap-2"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full"
       >
         <Avatar className="size-8">
           <AvatarFallback>{iniciais}</AvatarFallback>

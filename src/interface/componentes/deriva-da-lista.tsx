@@ -73,7 +73,7 @@ export function DerivaDaLista({
         type="button"
         variant="link"
         onClick={atualizar}
-        className="text-marca text-meta min-h-11 px-0 underline underline-offset-4"
+        className="text-tinta-marca text-meta min-h-11 px-0 underline underline-offset-4"
       >
         Atualizar
       </Button>

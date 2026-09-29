@@ -55,3 +55,95 @@
     min-width: 40rem;
   }
 }
+
+/* ----------------------------------------------------------------------------
+   Alvo de 44 px na moldura
+
+   O produto promete 44 px em todo controle, em qualquer largura, e a moldura
+   da documentação é a mesma entrega (item 91). Cresce por altura mínima e por
+   largura mínima, nunca encolhendo coluna: a lateral e a barra do celular
+   ficam do tamanho que têm. O conteúdo do artigo não entra — link de texto, de
+   célula de tabela e âncora de título contam como texto, e a WCAG 2.5.8
+   dispensa o que é inline em texto corrido.
+
+   Seletor por id, e não por classe, porque as classes são utilitários do
+   Fumadocs e mudam de versão para versão; o id é o que o layout publica. Os
+   `aria-label` são os textos em pt-BR do projeto, e são o nome que a tela
+   mostra.
+
+   As medidas que originaram cada linha, na sonda de 27/09/2026: o título da
+   lateral 200 × 30, os links da lateral 236 × 36, o campo de busca 236 × 36,
+   o recolher e o GitHub 30 × 30, o trocar o tema 61 × 26, as âncoras do
+   sumário 251 × 26, a barra do celular 218 × 24 com dois botões de 34 × 34, e
+   o gatilho do sumário no celular 390 × 40.
+   ---------------------------------------------------------------------------- */
+
+#nd-subnav a,
+#nd-subnav button,
+#nd-sidebar a,
+#nd-sidebar button,
+#nd-sidebar-mobile a,
+#nd-sidebar-mobile button,
+[data-search],
+[data-search-full],
+[data-theme-toggle],
+[data-toc-popover-trigger] {
+  min-height: 2.75rem;
+}
+
+/* O sumário é `display: block`, e `min-height` num bloco deixa o texto no topo:
+   o `flex` centra sem mexer na largura da coluna. */
+#nd-toc a {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+}
+
+/* Os controles só de ícone: 30 × 30 e 34 × 34 crescem também na largura. Todos
+   já vêm com `justify-content: center`, então o ícone continua no meio. */
+[aria-label="Abrir a busca"],
+[aria-label="Abrir o menu lateral"],
+[aria-label="Recolher o menu lateral"],
+[aria-label="Expandir o menu lateral"],
+[aria-label="Trocar o tema"],
+#nd-sidebar a[aria-label="GitHub"],
+#nd-sidebar-mobile a[aria-label="GitHub"] {
+  min-width: 2.75rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Foco visível na moldura da documentação (item 94, critério 9)
+
+   O botão de copiar o link do cabeçalho é `opacity-0` e só sobe no `hover`:
+   com o teclado, o anel era desenhado num elemento invisível, e no toque ele
+   nunca aparecia. O gatilho do sumário no celular traz `outline-none` sem
+   substituto. As regras ficam fora de camada para vencer os utilitários do
+   Fumadocs, que moram em `@layer utilities`, e usam o nome em pt-BR que a
+   tradução do projeto dá ao botão.
+   ---------------------------------------------------------------------------- */
+
+button[aria-label="Copiar o link desta seção"]:focus-visible,
+:is(h1, h2, h3, h4, h5, h6):focus-within > button[aria-label="Copiar o link desta seção"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  button[aria-label="Copiar o link desta seção"] {
+    opacity: 1;
+  }
+}
+
+/* Toda peça da moldura do Fumadocs traz `focus-visible:outline-none` na própria classe, e isso apaga o
+   contorno que o `@layer base` do produto declara: medido na sonda de foco de 28/09/2026, que achou sem
+   anel o copiar do cabeçalho, o recolher do menu, o abrir a busca e o GitHub. A regra devolve o contorno
+   a tudo que recebe foco dentro da moldura; o *Pular para o conteúdo* mora fora dela e segue pela base. */
+#nd-docs-layout :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* O gatilho do sumário ocupa a largura da barra, e o contorno de fora sairia dela: por dentro. Vem depois
+   da regra acima, e com o mesmo `id` na frente, para vencê-la sem `!important`. */
+#nd-docs-layout [data-toc-popover-trigger]:focus-visible {
+  outline-offset: -2px;
+}

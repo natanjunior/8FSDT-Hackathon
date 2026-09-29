@@ -95,8 +95,10 @@
   --sunken: oklch(0.9367 0.0058 264.5315);
   --ink: oklch(0.2217 0.0126 264.2756);
   --ink-soft: oklch(0.4905 0.0298 270.7441);
-  /* NOSSO — o Meridian tem dois níveis de texto e nós temos três. Matiz dele,
-     croma entre o --muted-foreground e o --border. */
+  /* NOSSO — marca que não é texto: borda de rádio e de caixa, régua de
+     gráfico. Até o item 89 era o terceiro nível de texto, e medido não passa:
+     3,05:1 no claro e 2,57:1 no escuro, sobre --sunken. Texto usa --ink ou
+     --ink-soft; o tema.test.ts varre o código e reprova quem voltar. */
   --ink-faint: oklch(0.6178 0.0180 264.2756);
   --line: oklch(0.8525 0.0141 258.3489);
   /* Valor que o Meridian dava ao --sidebar-border: é "borda mais leve", e
@@ -110,6 +112,13 @@
   --accent: oklch(0.6031 0.1107 41.8526);
   /* O --accent do Meridian. O nome colide: lá é fundo, aqui é o par do fundo. */
   --accent-bg: oklch(0.9088 0.0196 252.8865);
+  /* A marca como TINTA de texto (item 89). O --accent segue fundo, com o
+     --marca-foreground por cima a 4,61:1, e como texto no claro ele dá 3,38:1
+     sobre --sunken. Não há valor que sirva aos dois papéis: onde a tinta
+     passa, a tinta escura por cima dela cai para 3,65:1. Mesmo croma e matiz,
+     luminosidade 0,53: 4,59:1 no pior dos três fundos. No escuro o --accent
+     serve aos dois papéis, e este token aponta para ele. */
+  --accent-ink: oklch(0.5300 0.1107 41.8526);
 
   /* ---- As cores de estado, desde o item 44q ------------------------------
      O selo separa os seis estados (critério 44q.10), e três deles pedem cor que o vocabulário não
@@ -217,6 +226,10 @@
    `testes/interface/tema.test.ts`, e por isso ele existe.
 
    Só cor. Tipografia e --radius ficam no :root.
+
+   O --destructive escuro é tinta E fundo (item 89): 4,59:1 como texto sobre
+   --sunken, e 6,07:1 sob o --destructive-foreground, que é escuro desde o
+   item 85. Um valor só serve aos dois papéis.
    ============================================================================ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -232,13 +245,14 @@
     /* --accent: o laranja do logo, #D17A4D (item 76). O claro fica: respostas.md P1. */
     --accent: oklch(0.6655 0.1241 47.0953);
     --accent-bg: oklch(0.2921 0.0350 252.3026);
+    --accent-ink: var(--accent);
     --ok: oklch(0.6451 0.0736 152.4322);
     --info: oklch(0.7194 0.0599 249.4577);
 
     --primary: oklch(0.6347 0.0756 254.6243);
     --primary-foreground: oklch(0.1808 0.0095 255.6419);
     --accent-foreground: oklch(0.8036 0.0477 249.4116);
-    --destructive: oklch(0.6097 0.1654 25.8411);
+    --destructive: oklch(0.6700 0.1654 25.8411);
     --destructive-foreground: oklch(0.1562 0.0257 25.5104);
 
     --chart-1: oklch(0.6203 0.1399 45.6654);
@@ -271,13 +285,14 @@
   --line-soft: oklch(0.2758 0.0182 262.1965);
   --accent: oklch(0.6655 0.1241 47.0953);
   --accent-bg: oklch(0.2921 0.0350 252.3026);
+  --accent-ink: var(--accent);
   --ok: oklch(0.6451 0.0736 152.4322);
   --info: oklch(0.7194 0.0599 249.4577);
 
   --primary: oklch(0.6347 0.0756 254.6243);
   --primary-foreground: oklch(0.1808 0.0095 255.6419);
   --accent-foreground: oklch(0.8036 0.0477 249.4116);
-  --destructive: oklch(0.6097 0.1654 25.8411);
+  --destructive: oklch(0.6700 0.1654 25.8411);
   --destructive-foreground: oklch(0.1562 0.0257 25.5104);
 
   --chart-1: oklch(0.6203 0.1399 45.6654);
@@ -322,6 +337,9 @@
   --line: oklch(0.6200 0.0100 260.0000);
   --line-soft: oklch(0.5200 0.0100 260.0000);
   --accent: oklch(0.7800 0.1200 47.0000);
+  /* A tinta da marca (item 89) com literal igual ao --accent: o bloco medido
+     lê oklch direto, e o guarda exige literal. É o motivo do --ring abaixo. */
+  --accent-ink: oklch(0.7800 0.1200 47.0000);
   --accent-bg: oklch(0.2200 0.0200 252.0000);
   --ok: oklch(0.8400 0.1000 152.0000);
   --info: oklch(0.8400 0.0700 249.0000);
@@ -437,6 +455,7 @@
   --text-rotulo-peca--letter-spacing: 0.02em;
 
   --color-marca: var(--accent);
+  --color-tinta-marca: var(--accent-ink);
   --color-marca-foreground: var(--marca-foreground);
   --color-superficie: var(--surface);
   --color-tinta: var(--ink);
@@ -453,7 +472,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {

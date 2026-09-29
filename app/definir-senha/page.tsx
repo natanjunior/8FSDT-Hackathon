@@ -1,9 +1,10 @@
 import { Link2Off } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeNovaSenha } from "@/interface/componentes/formulario-de-nova-senha";
-import { MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
+import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { buttonVariants } from "@/interface/componentes/ui/button";
 import {
   Empty,
@@ -32,6 +33,8 @@ import { armazenamentoDeRedefinicao } from "@/interface/http";
  */
 export const dynamic = "force-dynamic";
 
+export const metadata: Metadata = { title: "Definir nova senha" };
+
 export default async function TelaDeDefinirSenha({
   searchParams,
 }: {
@@ -44,7 +47,7 @@ export default async function TelaDeDefinirSenha({
       <MolduraDeConta
         titulo="Definir nova senha"
         caminhos={
-          <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+          <Link href="/entrar" className={CLASSE_DO_CAMINHO}>
             Voltar para entrar
           </Link>
         }
@@ -84,7 +87,7 @@ export default async function TelaDeDefinirSenha({
       titulo="Definir nova senha"
       contexto="Escolha a senha que você vai usar para entrar."
       caminhos={
-        <Link href="/entrar" className="text-marca text-interface py-1 underline underline-offset-4">
+        <Link href="/entrar" className={CLASSE_DO_CAMINHO}>
           Voltar para entrar
         </Link>
       }

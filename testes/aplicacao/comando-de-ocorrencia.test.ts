@@ -6,13 +6,18 @@ import {
   atribuirResponsavel,
   AvaliacaoExigeResolvida,
   avaliarOcorrencia,
+  buscarCandidatosAoCompartilhamento,
   cancelarOcorrencia,
+  CompartilhamentoDeOutraPessoa,
+  compartilharOcorrencia,
+  desfazerCompartilhamento,
   iniciarAtendimento,
   JaAvaliada,
   MotivoNaoPermitidoParaOPapel,
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
+  registrarAberturaDoCompartilhamento,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -20,7 +25,9 @@ import {
   retomarOcorrencia,
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
+  SoParaLeitura,
   TransicaoNaoPermitida,
+  type CompartilhamentoLido,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type RepositorioEscopadoDeOcorrencias,
@@ -31,6 +38,7 @@ import {
   type ResultadoDaTransicao,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia, RegistroDeTransicao, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import type { Papel } from "@/dominio/organizacao";
 
 /**
  * ============================================================================
@@ -158,6 +166,8 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
     prioridade: agregado.prioridade,
     categoria: { id: agregado.categoriaId, nome: "Problemas de iluminação", icone: "lightbulb" },
     area: { id: agregado.areaId, nome: "Garagem", tipo: agregado.areaTipo },
+    // Nenhum compartilhamento: quem age aqui é autor ou Gestor, e é o que estes casos medem (item 87).
+    compartilhamentos: [],
     localizacaoComplemento: agregado.localizacaoComplemento,
     anexos: [],
     autor,
@@ -228,6 +238,9 @@ function repositorio(opcoes: {
   /** Se a porta do item 27 devolve `conflito`. **Separada das outras três**, pela mesma razão: um
    *  sinalizador só faria um caso ligar o outro. */
   avaliacaoEmConflito?: boolean;
+  /** Com quem a ocorrência está compartilhada (item 87). Uma pessoa basta: o que se mede é o desfecho da
+   *  recusa, `403` em vez de `404`, e não a forma da lista. */
+  compartilhadaCom?: string;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -286,6 +299,16 @@ function repositorio(opcoes: {
         ? { desfecho: "conflito" }
         : { desfecho: "avaliada", ocorrencia: lidaDe(ocorrencia) };
     },
+    // **A porta que a recusa do item 87 consulta**, e só no caminho da recusa: quem não participa e
+    // recebeu leva `403`; quem não recebeu continua levando `404`.
+    compartilhamentoCom: async (_id: string, pessoaId: string) =>
+      opcoes.compartilhadaCom === pessoaId
+        ? {
+            com: { pessoaId, nome: "Vizinha", papel: "solicitante" as const },
+            por: { pessoaId: MORADORA, nome: "Moradora", papel: "solicitante" as const },
+            compartilhadoEm: "2026-09-26T12:00:00.000Z",
+          }
+        : null,
   } as unknown as RepositorioEscopadoDeOcorrencias;
 }
 
@@ -1762,5 +1785,261 @@ describe("avaliarOcorrencia", () => {
     ).catch((causa: unknown) => causa);
 
     expect(erro).toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.1 · Quem recebeu lê, e não age
+ * ============================================================================
+ *
+ * **A escada de `docs/api.md` (*Erros*) ganha um caso.** Quem recebeu a ocorrência compartilhada PODE
+ * LER, então a recusa dele é `403`; quem não alcança a ocorrência continua levando `404`, sem confirmar
+ * que ela existe. **É por isso que a leitura e a ação passaram a ser duas perguntas:** estender só
+ * `podeLerOcorrencia` deixaria quem recebeu cancelar a ocorrência de outra pessoa, porque
+ * `cancelarOcorrencia` não confere autoria depois do portão.
+ */
+describe("87.1 · quem recebeu lê, e não age", () => {
+  const VIZINHA = "00000000-0000-4000-8000-0000000000a7";
+
+  it("cancelar: quem recebeu leva 403, e não 404", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("aberta")], compartilhadaCom: VIZINHA });
+    await expect(
+      cancelarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, motivo: "resolvido_por_conta_propria", observacao: "já resolvi" },
+      ),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
+  });
+
+  it("cancelar: quem não recebeu continua levando 404", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("aberta")] });
+    await expect(
+      cancelarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, motivo: "resolvido_por_conta_propria", observacao: "já resolvi" },
+      ),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("avaliar: quem recebeu leva 403 da leitura, antes da regra de autoria", async () => {
+    const repo = repositorio({ cargas: [agregadoEm("resolvida")], compartilhadaCom: VIZINHA });
+    await expect(
+      avaliarOcorrencia(
+        repo,
+        { pessoaId: VIZINHA, permissoes: DO_SOLICITANTE },
+        { ocorrenciaId: ID, nota: 5 },
+      ),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
+  });
+});
+
+/**
+ * ============================================================================
+ *  87.3 · Compartilhar, desfazer e buscar
+ * ============================================================================
+ *
+ * **Dublê próprio, e não o `repositorio(opcoes)` deste arquivo.** Aquele é de comando e não guarda
+ * escrita; aqui o que se mede é o efeito de escrever e apagar linhas, então o mundo é um `Map`.
+ */
+describe("87.3 · compartilhar, desfazer e buscar", () => {
+  const AUTORA_87 = "00000000-0000-4000-8000-000000000001";
+  const GESTOR_87 = "00000000-0000-4000-8000-000000000002";
+  const VIZINHA = "00000000-0000-4000-8000-000000000003";
+  const ENCARREGADO = "00000000-0000-4000-8000-000000000004";
+  const OCORRENCIA = "00000000-0000-4000-8000-0000000000f1";
+  const PAPEIS_DO_MUNDO: Record<string, Papel> = {
+    [AUTORA_87]: "solicitante",
+    [GESTOR_87]: "gestor",
+    [VIZINHA]: "solicitante",
+    [ENCARREGADO]: "encarregado",
+  };
+
+  function mundo() {
+    const linhas = new Map<string, CompartilhamentoLido>();
+    const pessoa = (id: string) => ({ pessoaId: id, nome: id.slice(-1), papel: PAPEIS_DO_MUNDO[id]! });
+    const repo = {
+      porId: async (id: string) =>
+        id === OCORRENCIA
+          ? ({
+              id,
+              autor: { pessoaId: AUTORA_87, nome: "A" },
+              compartilhamentos: [...linhas.values()],
+            } as unknown as OcorrenciaLida)
+          : null,
+      compartilhamentoCom: async (_id: string, com: string) => linhas.get(com) ?? null,
+      destinatario: async (id: string) =>
+        id in PAPEIS_DO_MUNDO ? { papel: PAPEIS_DO_MUNDO[id]! } : null,
+      compartilhar: async (
+        _id: string,
+        d: { comPessoaId: string; porPessoaId: string; em: string },
+      ) => {
+        if (linhas.has(d.comPessoaId)) return { desfecho: "ja-existia" as const };
+        linhas.set(d.comPessoaId, {
+          com: pessoa(d.comPessoaId),
+          por: pessoa(d.porPessoaId),
+          compartilhadoEm: d.em,
+          // Linha nova é linha não aberta (item 88): nada zera nada, e `insert` já nasce nulo.
+          abertoEm: null,
+        });
+        return { desfecho: "criado" as const };
+      },
+      desfazerCompartilhamento: async (_id: string, com: string) => {
+        linhas.delete(com);
+      },
+      candidatosAoCompartilhamento: async (
+        _id: string,
+        b: { papeis: readonly Papel[]; exceto: string },
+      ) =>
+        Object.entries(PAPEIS_DO_MUNDO)
+          .filter(([id, papel]) => id !== b.exceto && b.papeis.includes(papel))
+          .map(([id, papel]) => ({ pessoaId: id, nome: id, papel, jaCompartilhada: linhas.has(id) })),
+    } as unknown as RepositorioEscopadoDeOcorrencias;
+    return { repo, linhas };
+  }
+
+  const autora = { pessoaId: AUTORA_87, podeLerTodas: false };
+  const gestor = { pessoaId: GESTOR_87, podeLerTodas: true };
+  const vizinha = { pessoaId: VIZINHA, podeLerTodas: false };
+
+  it("a autora compartilha com a vizinha; a segunda vez não cria outra linha e não dá erro", async () => {
+    const { repo, linhas } = mundo();
+    const primeira = await compartilharOcorrencia(repo, autora, {
+      ocorrenciaId: OCORRENCIA,
+      pessoaId: VIZINHA,
+    });
+    const segunda = await compartilharOcorrencia(repo, autora, {
+      ocorrenciaId: OCORRENCIA,
+      pessoaId: VIZINHA,
+    });
+    expect(primeira.criado).toBe(true);
+    expect(segunda.criado).toBe(false);
+    expect(linhas.size).toBe(1);
+  });
+
+  it("compartilhar com quem tem ler_todas, ou com a autora, é 422 JA_VE_A_OCORRENCIA", async () => {
+    const { repo } = mundo();
+    for (const [quem, destino] of [
+      [autora, GESTOR_87],
+      [gestor, AUTORA_87],
+    ] as const) {
+      await expect(
+        compartilharOcorrencia(repo, quem, { ocorrenciaId: OCORRENCIA, pessoaId: destino }),
+      ).rejects.toMatchObject({
+        codigo: "DESTINATARIO_INVALIDO",
+        extensoes: { erros: [{ campo: "pessoaId", codigo: "JA_VE_A_OCORRENCIA" }] },
+      });
+    }
+  });
+
+  it("a Solicitante não alcança o Encarregado (422 FORA_DO_ALCANCE); o Gestor alcança", async () => {
+    const { repo } = mundo();
+    await expect(
+      compartilharOcorrencia(repo, autora, { ocorrenciaId: OCORRENCIA, pessoaId: ENCARREGADO }),
+    ).rejects.toMatchObject({ extensoes: { erros: [{ codigo: "FORA_DO_ALCANCE" }] } });
+    const feito = await compartilharOcorrencia(repo, gestor, {
+      ocorrenciaId: OCORRENCIA,
+      pessoaId: ENCARREGADO,
+    });
+    expect(feito.criado).toBe(true);
+  });
+
+  it("destino desconhecido é 404 da ocorrência — critério 87.4", async () => {
+    const { repo } = mundo();
+    await expect(
+      compartilharOcorrencia(repo, autora, {
+        ocorrenciaId: OCORRENCIA,
+        pessoaId: "00000000-0000-4000-8000-0000000000ff",
+      }),
+    ).rejects.toBeInstanceOf(OcorrenciaNaoEncontrada);
+  });
+
+  it("quem recebeu não repassa: 403", async () => {
+    const { repo } = mundo();
+    await compartilharOcorrencia(repo, autora, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA });
+    await expect(
+      compartilharOcorrencia(repo, vizinha, { ocorrenciaId: OCORRENCIA, pessoaId: GESTOR_87 }),
+    ).rejects.toBeInstanceOf(SoParaLeitura);
+  });
+
+  it("a autora não desfaz o do Gestor; o Gestor desfaz o dela; desfazer o que não existe não é erro", async () => {
+    const { repo, linhas } = mundo();
+    await compartilharOcorrencia(repo, gestor, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA });
+    await expect(
+      desfazerCompartilhamento(repo, autora, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA }),
+    ).rejects.toBeInstanceOf(CompartilhamentoDeOutraPessoa);
+    linhas.clear();
+    await compartilharOcorrencia(repo, autora, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA });
+    await desfazerCompartilhamento(repo, gestor, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA });
+    expect(linhas.size).toBe(0);
+    await expect(
+      desfazerCompartilhamento(repo, gestor, { ocorrenciaId: OCORRENCIA, pessoaId: VIZINHA }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("a busca da autora não traz Encarregado nem ela mesma; o Gestor aparece como já vê", async () => {
+    const { repo } = mundo();
+    const itens = await buscarCandidatosAoCompartilhamento(repo, autora, {
+      ocorrenciaId: OCORRENCIA,
+      busca: "ab",
+    });
+    expect(itens.map((i) => i.pessoaId).sort()).toStrictEqual([GESTOR_87, VIZINHA].sort());
+    expect(itens.find((i) => i.pessoaId === GESTOR_87)).toMatchObject({
+      situacao: "ja_ve",
+      motivo: "le_todas",
+    });
+    expect(itens.find((i) => i.pessoaId === VIZINHA)).toMatchObject({
+      situacao: "disponivel",
+      motivo: null,
+    });
+  });
+
+  it("a busca do Gestor traz a autora como já vê, pelo motivo autor", async () => {
+    const { repo } = mundo();
+    const itens = await buscarCandidatosAoCompartilhamento(repo, gestor, {
+      ocorrenciaId: OCORRENCIA,
+      busca: "ab",
+    });
+    expect(itens.find((i) => i.pessoaId === AUTORA_87)).toMatchObject({
+      situacao: "ja_ve",
+      motivo: "autor",
+    });
+    expect(itens.some((i) => i.pessoaId === ENCARREGADO)).toBe(true);
+  });
+});
+
+/**
+ * ============================================================================
+ *  88 · registrar a abertura
+ * ============================================================================
+ *
+ * **O que esta camada prova:** que a função chama a porta com a ocorrência e com quem lê, e nada mais.
+ * A autorização é a própria linha do par: quem não recebeu não tem linha, e o `update` não acha nada.
+ * A metade que só o Postgres responde está em `testes/integracao/ocorrencia.test.ts`.
+ */
+describe("88 · registrar a abertura", () => {
+  it("chama a porta com a ocorrência e com quem lê, e nada mais", async () => {
+    const chamadas: Array<[string, string]> = [];
+    const repo = {
+      marcarCompartilhamentoAberto: async (ocorrenciaId: string, comPessoaId: string) => {
+        chamadas.push([ocorrenciaId, comPessoaId]);
+      },
+    };
+
+    await registrarAberturaDoCompartilhamento(repo, "oc-1", { pessoaId: "p-1" });
+
+    expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
+  });
+
+  it("não pede nada além da porta que escreve", async () => {
+    // **Se a função lesse a ocorrência antes de marcar**, este duplo — que só tem um método — quebraria.
+    // É a asserção de que a autorização não é uma leitura prévia, e sim a linha do par.
+    const repo = { marcarCompartilhamentoAberto: async () => undefined };
+
+    await expect(
+      registrarAberturaDoCompartilhamento(repo, "oc-2", { pessoaId: "p-2" }),
+    ).resolves.toBeUndefined();
   });
 });

@@ -30,6 +30,8 @@ let pedidosDeListagem: FiltroDeListagem[];
 let pedidosDeContagem: FiltroDeContagem[];
 /** O tamanho do conjunto filtrado que o duplo de `contar` declara. */
 let totalFiltrado: number;
+/** Quantas não abertas o duplo declara **quando a contagem é pedida** (item 88). */
+let compartilhadasNaoAbertas: number;
 /** O que o repositório devolve, na ordem — o teste corta pelo deslocamento e pelo limite, como o SQL. */
 let linhas: OcorrenciaResumoLida[];
 
@@ -45,6 +47,7 @@ function resumo(n: number): OcorrenciaResumoLida {
     responsavel: null,
     quantidadeDeAnexos: 0,
     avaliada: false,
+    naoAberta: null,
     motivoPausa: null,
     registradaEm: `2026-08-2${n}T13:02:11.000Z`,
     atualizadaEm: `2026-08-2${n}T13:02:11.000Z`,
@@ -61,7 +64,19 @@ const repositorio = () =>
     },
     contar: async (filtro: FiltroDeContagem) => {
       pedidosDeContagem.push(filtro);
-      return { totalFiltrado, todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, novas: 5 };
+      return {
+        totalFiltrado,
+        todas: 9,
+        minhas: 2,
+        emAberto: 7,
+        semResponsavel: 3,
+        novas: 5,
+        // **O duplo honra o contrato do campo** (item 88): sem `naoAbertasDePessoaId` o SQL não calcula a
+        // subconsulta e devolve `0`. Um duplo que devolvesse o número sempre faria o caso de quem tem
+        // `ler_todas` passar por acaso.
+        compartilhadasNaoAbertas:
+          filtro.naoAbertasDePessoaId === undefined ? 0 : compartilhadasNaoAbertas,
+      };
     },
   }) as unknown as RepositorioEscopadoDeOcorrencias;
 
@@ -69,6 +84,7 @@ beforeEach(() => {
   pedidosDeListagem = [];
   pedidosDeContagem = [];
   totalFiltrado = 3;
+  compartilhadasNaoAbertas = 0;
   linhas = [resumo(1), resumo(2), resumo(3)];
 });
 
@@ -287,7 +303,14 @@ describe("as contagens chegam ao envelope, e `novas` sai da porta de contagem", 
       podeLerTodas: true,
     });
 
-    expect(pagina.contagens).toStrictEqual({ todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 });
+    expect(pagina.contagens).toStrictEqual({
+      todas: 9,
+      minhas: 2,
+      emAberto: 7,
+      semResponsavel: 3,
+      // Quem tem `ler_todas` não recebe compartilhamento: o número não é calculado e vem `0` (item 88).
+      compartilhadasNaoAbertas: 0,
+    });
     expect(pagina.novasDesdeOCorte).toBe(5);
   });
 });
@@ -374,5 +397,111 @@ describe("o critério 67.5 — a ordenação vai para a página, e não para a c
     await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: true });
 
     expect(pedidosDeListagem[0]).not.toHaveProperty("ordenacao");
+  });
+});
+
+/**
+ * ============================================================================
+ *  87 · A aba Compartilhadas comigo
+ * ============================================================================
+ *
+ * **Dois riscos, e os dois moram aqui.** O primeiro: a aba tira o filtro de autor da página, e se o filtro
+ * de compartilhamento não entrar no lugar, a aba vira *"todas"* para um Solicitante. O segundo: o painel
+ * não pode afrouxar — `todas` medindo as compartilhadas faria o número que existe para escolher o recorte
+ * deixar de descrever o recorte.
+ */
+describe("87 · a aba Compartilhadas comigo", () => {
+  it("a Solicitante na aba: a página recorta por compartilhamento e NÃO por autor", async () => {
+    const pagina = await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true } },
+    );
+
+    expect(pedidosDeListagem[0]?.compartilhadaComPessoaId).toBe(ID_PESSOA);
+    expect(pedidosDeListagem[0]?.autorPessoaId).toBeUndefined();
+    expect(pagina.visibilidadeAplicada).toBe("compartilhadas_comigo");
+  });
+
+  it("o painel continua medindo só as próprias da Solicitante (a visibilidade não afrouxa)", async () => {
+    await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true } },
+    );
+
+    expect(pedidosDeContagem[0]?.autorPessoaId).toBe(ID_PESSOA);
+    expect(pedidosDeContagem[0]?.compartilhadaComPessoaIdDaPagina).toBe(ID_PESSOA);
+    expect(pedidosDeContagem[0]?.autorPessoaIdDaPagina).toBeUndefined();
+  });
+
+  it("sem a aba, nada muda", async () => {
+    const pagina = await listarOcorrencias(repositorio(), {
+      pessoaId: ID_PESSOA,
+      podeLerTodas: false,
+    });
+
+    expect(pedidosDeListagem[0]?.compartilhadaComPessoaId).toBeUndefined();
+    expect(pedidosDeContagem[0]?.compartilhadaComPessoaIdDaPagina).toBeUndefined();
+    expect(pagina.visibilidadeAplicada).toBe("apenas_minhas");
+  });
+
+  it("o Gestor na aba também recorta por compartilhamento, e o painel dele continua inteiro", async () => {
+    const pagina = await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: true },
+      { filtro: { compartilhadasComigo: true } },
+    );
+
+    expect(pedidosDeListagem[0]?.compartilhadaComPessoaId).toBe(ID_PESSOA);
+    expect(pedidosDeContagem[0]?.autorPessoaId).toBeUndefined();
+    expect(pagina.visibilidadeAplicada).toBe("compartilhadas_comigo");
+  });
+});
+
+/**
+ * ============================================================================
+ *  88 · o número das não abertas
+ * ============================================================================
+ *
+ * **O que só esta camada prova:** que o número é pedido de quem tem a aba e **não** de quem lê todas, e
+ * que ele atravessa a Aplicação sem ser recalculado. A subconsulta que o produz tem teste contra Postgres
+ * em `testes/integracao/ocorrencia.test.ts`.
+ */
+describe("88 · o número das não abertas", () => {
+  it("sem ler_todas, a contagem é pedida para quem pergunta — em Minhas também", async () => {
+    await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: false });
+
+    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBe(ID_PESSOA);
+  });
+
+  it("com ler_todas, a contagem não é pedida e o número vem zero", async () => {
+    compartilhadasNaoAbertas = 7;
+
+    const pagina = await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: true });
+
+    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBeUndefined();
+    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+  });
+
+  it("o número atravessa sem ser recalculado", async () => {
+    compartilhadasNaoAbertas = 3;
+
+    const pagina = await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: false });
+
+    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(3);
+  });
+
+  it("na aba, o número continua sendo pedido — ele não depende do recorte ativo", async () => {
+    compartilhadasNaoAbertas = 2;
+
+    const pagina = await listarOcorrencias(
+      repositorio(),
+      { pessoaId: ID_PESSOA, podeLerTodas: false },
+      { filtro: { compartilhadasComigo: true } },
+    );
+
+    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBe(ID_PESSOA);
+    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(2);
   });
 });

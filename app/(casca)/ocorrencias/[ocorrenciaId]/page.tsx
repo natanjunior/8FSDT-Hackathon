@@ -1,13 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   OcorrenciaNaoEncontrada,
-  podeLerOcorrencia,
   verComentarios,
   verLinhaDoTempo,
-  verOcorrencia,
   type EventoLido,
 } from "@/aplicacao/ocorrencia";
 import { listarVinculos } from "@/aplicacao/organizacao";
@@ -26,9 +25,12 @@ import {
 import { CICLO } from "@/interface/componentes/ciclo";
 import { ConversaDaOcorrencia } from "@/interface/componentes/conversa-da-ocorrencia";
 import { dataEHora } from "@/interface/componentes/datas";
+import { FalhaDoCartao } from "@/interface/componentes/falha-do-cartao";
 import { FichaDeLocal } from "@/interface/componentes/ficha-de-local";
 import { AvatarDePessoa, FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import { FotoAmpliavel } from "@/interface/componentes/foto-ampliavel";
+import { FRASES_DE_FALHA } from "@/interface/componentes/frases-de-falha";
+import { rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import {
   autoria,
   fraseDaAtribuicao,
@@ -36,6 +38,8 @@ import {
   fraseDaTransicao,
   partesDaAutoria,
 } from "@/interface/componentes/linha-do-tempo";
+import { CartaoDeCompartilhamento } from "@/interface/componentes/compartilhamento-da-ocorrencia";
+import { RegistroDeAbertura } from "@/interface/componentes/registro-de-abertura";
 import { ModalDeAtribuicao } from "@/interface/componentes/modal-de-atribuicao";
 import { ModalDeAvaliacao } from "@/interface/componentes/modal-de-avaliacao";
 import { ModalDeMotivo } from "@/interface/componentes/modal-de-motivo";
@@ -60,6 +64,7 @@ import {
   rotuloDePrioridade,
   rotuloDoCampoDeConversa,
   rotulosDeStatus,
+  faixaDeQuemRecebeu,
   vazioDaBarra,
   vazioDaConversa,
 } from "@/interface/componentes/rotulos";
@@ -67,9 +72,11 @@ import { buttonVariants } from "@/interface/componentes/ui/button";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import { cn } from "@/interface/componentes/utilitarios";
 import {
+  lerOcorrenciaDaTela,
   novoTraceId,
   registrarFalha,
   resolverEscopoParaTela,
+  tituloDeAbaDaOcorrencia,
 } from "@/interface/http";
 import {
   lenteDeRotulo,
@@ -101,6 +108,23 @@ import {
  * porque o filtro mora no endereço da lista.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * **A aba leva o título da ocorrência** (item 90, spec §4.3). Três abas abertas durante a demonstração é o
+ * cenário que a auditoria descreve, e `Ocorrência` três vezes não o resolve.
+ *
+ * **Sem ida a mais ao banco:** `lerOcorrenciaDaTela` é `cache()` do React, e a página abaixo chama a mesma
+ * função com o mesmo id. **Sem vazar existência:** a autorização é a mesma da página, e o que ela esconde
+ * sai como o recuo `Ocorrência`.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ocorrenciaId: string }>;
+}): Promise<Metadata> {
+  const { ocorrenciaId } = await params;
+  return { title: await tituloDeAbaDaOcorrencia(ocorrenciaId, "Ocorrência") };
+}
 
 /**
  * O papel **em palavra**, para descer por prop ao modal.
@@ -135,8 +159,9 @@ export default async function Ocorrencia({
   const { ocorrenciaId } = await params;
 
   /**
-   * **Montado uma vez, usado pelos dois caminhos que chamavam `notFound()`** — o erro do `verOcorrencia` e
-   * a recusa do `podeLerOcorrencia`. As duas causas dão a mesma resposta, de propósito (§6.3).
+   * **Montado uma vez, e desde o item 90 há um caminho só até ele:** o `null` de `lerOcorrenciaDaTela`,
+   * que já absorveu as três causas — não existe, é de outra organização, ou quem lê não pode. As três dão
+   * a mesma resposta, de propósito (§6.3).
    *
    * **`resolucao` sai de `escopo` para um `const`** porque a estreiteza de um `let` não sobrevive dentro
    * de uma função aninhada — e é ela que a arrow abaixo captura.
@@ -201,7 +226,9 @@ export default async function Ocorrencia({
    * recusar, esta função **retorna** e ninguém mais espera esta promessa — que vai rejeitar com a mesma
    * `OcorrenciaNaoEncontrada` e derrubaria o processo como rejeição não tratada. Anexar um tratador a
    * marca como tratada; **a promessa original continua rejeitando para o `<Suspense>`**, porque `catch`
-   * devolve uma promessa nova em vez de alterar esta.
+   * devolve uma promessa nova em vez de alterar esta. **E quem recebe essa rejeição é a `FalhaDoCartao`
+   * que envolve cada `<Suspense>`** (item 90): a falha fica no cartão que esperava o dado, e o relato, a
+   * régua do cabeçalho e o selo continuam na tela.
    */
   const linhaDoTempoPedida = verLinhaDoTempo(escopo.repos.ocorrencias, ocorrenciaId, quem);
   linhaDoTempoPedida.catch(() => undefined);
@@ -225,17 +252,15 @@ export default async function Ocorrencia({
   );
   conversaPedida.catch(() => undefined);
 
-  let lida;
-  try {
-    lida = await verOcorrencia(escopo.repos.ocorrencias, ocorrenciaId);
-  } catch (erro) {
-    // `404` indistinguível de "de outra organização" — §6.3. A tela não confirma existência, **e agora
-    // diz em qual organização você está**, que é a compensação que o contrato comprou (critério 28.3).
-    if (erro instanceof OcorrenciaNaoEncontrada) return naoEncontrada();
-    throw erro;
-  }
-
-  if (!podeLerOcorrencia(lida, quem)) return naoEncontrada();
+  /**
+   * **A mesma leitura que o `generateMetadata` fez**, pela função `cache()` do React (item 90): uma ida ao
+   * banco atende as duas. Ela já traz dentro o `podeLerOcorrencia`, então **inexistente, de outra
+   * organização e sem permissão chegam aqui como o mesmo `null`** — que é a indistinguibilidade da §6.3, e
+   * era o que os dois caminhos de antes construíam à mão. A tela **diz em qual organização você está**,
+   * que é a compensação que o contrato comprou (critério 28.3).
+   */
+  const lida = await lerOcorrenciaDaTela(ocorrenciaId);
+  if (lida === null) return naoEncontrada();
 
   const detalhe = projetarOcorrenciaDetalhe(lida, {
     pessoaId: escopo.ctx.pessoaId,
@@ -326,6 +351,15 @@ export default async function Ocorrencia({
    */
   const ehAutor = detalhe.autor.pessoaId === escopo.ctx.pessoaId;
 
+  /**
+   * **As duas faces do compartilhamento** (item 87), decididas pela projeção e não por permissão aqui.
+   * `recebida` é quem abriu a ocorrência porque alguém a compartilhou: ela lê tudo e não age. `participa`
+   * é o autor ou quem tem `ler_todas`, e é quem vê e gere a lista de com quem a ocorrência está.
+   */
+  const recebida =
+    detalhe.compartilhamento?.tipo === "recebida" ? detalhe.compartilhamento : null;
+  const participa = detalhe.compartilhamento?.tipo === "gestao";
+
   const candidatos: readonly Candidato[] = podeAtribuir
     ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
         pessoaId: lido.pessoa.pessoaId,
@@ -386,7 +420,19 @@ export default async function Ocorrencia({
    * `rotulos.ts`**, e a página não sabe o que é terminal — é a mesma disciplina do `acaoPrimaria`, e é o
    * que mantém `app/` sem `import` do Domínio desde o item 11.
    */
-  const vazio = renderizaveis.length === 0 ? vazioDaBarra(detalhe.status) : null;
+  /**
+   * **A faixa de quem recebeu entra pelo `vazio` do cabeçalho** (item 87), que já é `string | null` e já
+   * ocupa o lugar das ações: nada muda no componente.
+   *
+   * **E ela substitui `vazioDaBarra`, em vez de somar.** Aquela frase fala com o autor — *"Só os Gestores
+   * podem cancelar a partir daqui"* — e mentiria para quem recebeu, que não cancela em lugar nenhum.
+   */
+  const vazio =
+    recebida !== null
+      ? faixaDeQuemRecebeu(recebida.por.nome, rotuloDoPapel(recebida.por.papel))
+      : renderizaveis.length === 0
+        ? vazioDaBarra(detalhe.status)
+        : null;
 
   /**
    * **Comando com formulário se monta sozinho.** A barra recebe o nó pronto; ela não conhece comando
@@ -555,8 +601,24 @@ export default async function Ocorrencia({
       : {}),
   };
 
+  /**
+   * **O título fixo do bloco 3, montado uma vez e usado em três lugares** — a espera, o recuo da falha e
+   * o `id` que dá nome acessível à seção (item 90). Sem o `id` a seção perde o nome, então o recuo repete
+   * o mesmo `h2` do `fallback` em vez de trocá-lo por uma frase.
+   */
+  const tituloFixoDaLinhaDoTempo = (
+    <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
+      Linha do tempo
+    </h2>
+  );
+
   return (
     <div className="flex flex-col gap-6">
+      {/* **Item 88 — a primeira abertura.** Não desenha nada; grava, e invalida a lista para que o número
+          caia também na volta pelo botão do navegador. Monta só quando `naoAberta`, então a segunda visita
+          não chama nada. */}
+      {recebida !== null && recebida.naoAberta && <RegistroDeAbertura ocorrenciaId={detalhe.id} />}
+
       {/* **O caminho** (critério 66.3): o mesmo `CaminhoDaPagina` das telas de participante, com o título
           cortado em 40 caracteres e inteiro no `title`. */}
       <CaminhoDaPagina
@@ -619,18 +681,26 @@ export default async function Ocorrencia({
               selo mora no cabeçalho. Ela também carrega a segunda linha do motivo da pausa
               (`notaDaSaida`, critério 31.8), que morava naquele cartão. */}
           <section className="border-linha bg-superficie flex flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
-            <h2 className="text-tinta-fraca text-rotulo-coluna font-mono uppercase">
+            <h2 className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
               O ciclo
             </h2>
-            <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
-              <ReguaComDatas
-                eventos={linhaDoTempoPedida}
-                statusAtual={detalhe.status}
-                nomeDoStatus={nomeDoStatus}
-                notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
-                rotuloDaSaida={detalhe.statusRotulo}
-              />
-            </Suspense>
+            {/* **A régua depende da promessa da linha do tempo**, então ela cai com a mesma falha — e o
+                recuo é o trilho neutro mais a frase (item 90, critério 5). O estado atual continua dito
+                pelo selo do cabeçalho, que vem do detalhe e não desta promessa. */}
+            <FalhaDoCartao
+              frase={FRASES_DE_FALHA.regua}
+              antes={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}
+            >
+              <Suspense fallback={<EsqueletoDaRegua nomeDoStatus={nomeDoStatus} />}>
+                <ReguaComDatas
+                  eventos={linhaDoTempoPedida}
+                  statusAtual={detalhe.status}
+                  nomeDoStatus={nomeDoStatus}
+                  notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
+                  rotuloDaSaida={detalhe.statusRotulo}
+                />
+              </Suspense>
+            </FalhaDoCartao>
           </section>
 
           {/* **Bloco 1c · O resto da identidade**, com a faixa *Detalhes* (critério 44q.5). O `Cartao`
@@ -681,7 +751,7 @@ export default async function Ocorrencia({
                 <dt className="font-medium">Onde</dt>
                 <dd className="flex flex-col gap-0.5">
                   <FichaDeLocal nomeDaArea={detalhe.area.nome} />
-                  <span className="text-tinta-fraca text-meta">
+                  <span className="text-tinta-suave text-meta">
                     {detalhe.area.tipo === "comum" ? "área comum" : "unidade privativa"}
                     {detalhe.localizacaoComplemento !== null &&
                       ` — ${detalhe.localizacaoComplemento}`}
@@ -701,7 +771,7 @@ export default async function Ocorrencia({
                   {detalhe.responsavel === null ? (
                     /* **Nulo escreve *"sem responsável"***, que é a palavra que a lista já usa. Não se
                        inventa um terceiro texto. */
-                    <span className="text-tinta-fraca">sem responsável</span>
+                    <span className="text-tinta-suave">sem responsável</span>
                   ) : (
                     <FichaDePessoa nome={detalhe.responsavel.nome} />
                   )}
@@ -717,7 +787,7 @@ export default async function Ocorrencia({
                     tempo está bem abaixo. */}
                 <dt className="font-medium">Última mudança</dt>
                 <dd className="flex flex-col gap-1">
-                  <span className="text-tinta-fraca text-meta">
+                  <span className="text-tinta-suave text-meta">
                     {autoria(
                       detalhe.ultimaTransicao.autor.nome,
                       detalhe.ultimaTransicao.autor.pessoaId === escopo.ctx.pessoaId,
@@ -731,7 +801,7 @@ export default async function Ocorrencia({
                   )}
                   <a
                     href="#linha-do-tempo"
-                    className="text-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
+                    className="text-tinta-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
                   >
                     ver a linha do tempo →
                   </a>
@@ -739,6 +809,26 @@ export default async function Ocorrencia({
               </dl>
             </CorpoDoCartao>
           </Cartao>
+
+          {/* **Bloco 1d · Compartilhada com** (item 87). Só para quem participa: quem recebeu a ocorrência
+              não vê a lista, que nomeia outros vizinhos, e a projeção nem a manda para ele.
+
+              **O papel e a data descem em palavra e formatados**, montados aqui: quem formata é o
+              servidor, e é a mesma decisão dos rótulos de status. */}
+          {participa && detalhe.compartilhamento?.tipo === "gestao" && (
+            <CartaoDeCompartilhamento
+              ocorrenciaId={detalhe.id}
+              organizacaoId={organizacaoId}
+              pessoas={detalhe.compartilhamento.pessoas.map((pessoa) => ({
+                pessoaId: pessoa.com.pessoaId,
+                nome: pessoa.com.nome,
+                papel: rotuloDoPapel(pessoa.com.papel),
+                compartilhadoEm: dataEHora(pessoa.compartilhadoEm),
+                porNome: pessoa.por.nome,
+                podeDesfazer: pessoa.podeDesfazer,
+              }))}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
@@ -852,24 +942,25 @@ export default async function Ocorrencia({
                 </a>
               }
             >
-              <Suspense
-                fallback={
-                  <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-                    Linha do tempo
-                  </h2>
-                }
-              >
-                <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
-              </Suspense>
+              {/* **Sem frase no recuo, de propósito:** o título é o nome acessível da seção, e a frase
+                  da falha já está no corpo do mesmo cartão. Duas frases para uma falha só seriam duas
+                  falhas na leitura de quem usa leitor de tela. */}
+              <FalhaDoCartao frase={null} antes={tituloFixoDaLinhaDoTempo}>
+                <Suspense fallback={tituloFixoDaLinhaDoTempo}>
+                  <TituloDaLinhaDoTempo eventos={linhaDoTempoPedida} />
+                </Suspense>
+              </FalhaDoCartao>
             </FaixaDoCartao>
             <CorpoDoCartao>
-              <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
-                <LinhaDoTempo
-                  eventos={linhaDoTempoPedida}
-                  pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-                  lente={lente}
-                />
-              </Suspense>
+              <FalhaDoCartao frase={FRASES_DE_FALHA.linhaDoTempo}>
+                <Suspense fallback={<EsqueletoDaLinhaDoTempo />}>
+                  <LinhaDoTempo
+                    eventos={linhaDoTempoPedida}
+                    pessoaIdDeQuemLe={escopo.ctx.pessoaId}
+                    lente={lente}
+                  />
+                </Suspense>
+              </FalhaDoCartao>
             </CorpoDoCartao>
           </section>
 
@@ -881,9 +972,13 @@ export default async function Ocorrencia({
               primeiraPagina={conversaPedida}
               organizacaoId={organizacaoId}
               pessoaIdDeQuemLe={escopo.ctx.pessoaId}
-              vazio={vazioDaConversa(ehAutor)}
+              vazio={vazioDaConversa(ehAutor, recebida === null)}
               rotuloDoCampo={rotuloDoCampoDeConversa(ehAutor)}
               retorno={RETORNO_DA_MENSAGEM}
+              /* **Quem recebeu LÊ e não escreve** (item 87). A permissão `ocorrencia.comentar` acima não
+                 basta: quem recebeu a tem, e o `POST` da conversa a recusa com `403`. Um campo que sempre
+                 falha é pior que nenhum campo. */
+              podeEscrever={recebida === null}
             />
           )}
         </div>
@@ -965,8 +1060,8 @@ async function LinhaDoTempo({
                   return (
                     <span>
                       <span className="text-tinta font-medium">{quem}</span>
-                      <span className="text-tinta-fraca"> · </span>
-                      <span className="text-tinta-fraca font-mono tabular-nums">{quando}</span>
+                      <span className="text-tinta-suave"> · </span>
+                      <span className="text-tinta-suave font-mono tabular-nums">{quando}</span>
                     </span>
                   );
                 })()}
@@ -998,7 +1093,7 @@ async function TituloDaLinhaDoTempo({ eventos }: { eventos: Promise<readonly Eve
   const quantos = (await eventos).length;
   return (
     <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-      Linha do tempo <span className="text-tinta-fraca">{quantos}</span>
+      Linha do tempo <span className="text-tinta-suave">{quantos}</span>
     </h2>
   );
 }
@@ -1104,7 +1199,7 @@ function EsqueletoDaRegua({ nomeDoStatus }: { nomeDoStatus: (status: string) => 
             <span className="bg-linha-suave absolute top-4 bottom-0 left-[5px] w-px" />
           )}
           <span className="border-linha mt-1.5 size-[11px] shrink-0 rounded-full border bg-transparent" />
-          <span className="text-interface text-tinta-fraca">{nomeDoStatus(status)}</span>
+          <span className="text-interface text-tinta-suave">{nomeDoStatus(status)}</span>
         </div>
       ))}
     </div>

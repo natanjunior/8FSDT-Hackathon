@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezessete telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As dezenove telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezessete telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Dezenove telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezessete
+## As dezenove
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -18,12 +18,14 @@ ganha endereço próprio.
 | Redefinir senha | `/redefinir-senha` | *Esqueci a senha.* | qualquer pessoa, sem sessão |
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
-| Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
+| Convite | `/convite/{codigo}` | *Me mandaram este link. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
+| Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?*, *o que me mostraram?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
 | Trilha de auditoria | `/ocorrencias/{id}/auditoria` | *Prove o que aconteceu, campo por campo.* | quem pode ler aquela ocorrência |
 | Painel | `/dashboard` | *Está melhorando ou piorando?* | quem pode ler o painel |
 | Participantes | `/vinculos` | *Quem está aqui, e quem quer entrar?* | quem gere vínculos |
+| Convidar pessoas | `/convidar` | *Como eu chamo gente para cá?* | quem gere vínculos |
 | Configuração | `/configuracao` | *O que desta organização eu posso ajustar?* | quem configura a organização |
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
@@ -38,40 +40,44 @@ que hoje é o caso do Encarregado.
 
 ```mermaid
 flowchart TB
-    CONTA["Criar conta<br/>Redefinir senha"]
+    CONVITE["Convite recebido"]
+    CONTA["Criar conta · Redefinir senha"]
     ENTRAR["Entrar"]
-    CTX{"Tem organização<br/>ativa?"}
+    CTX{"Tem organização ativa?"}
     ORG["Sem organização ativa"]
     LISTA["Ocorrências"]
-    NOVA["Registrar"]
     DETALHE["Ocorrência"]
+    NOVA["Registrar"]
     TRILHA["Trilha de auditoria"]
     MENU["Menu do cabeçalho"]
-    PAINEL["Painel"]
-    GENTE["Participantes"]
-    CONFIG["Configuração"]
-    MEUS["Meus dados"]
-    GRUPO["Grupo"]
 
+    CONVITE --> CONTA
+    CONVITE --> ENTRAR
     CONTA --> ENTRAR
     ENTRAR --> CTX
     CTX -->|não| ORG
-    ORG --> LISTA
     CTX -->|sim| LISTA
+    ORG --> LISTA
     LISTA --> NOVA
     LISTA --> DETALHE
-    DETALHE --> TRILHA
     LISTA --> MENU
-    MENU --> PAINEL
-    MENU --> GENTE
-    MENU --> CONFIG
-    MENU --> MEUS
-    ENTRAR --> GRUPO
-    MENU --> GRUPO
+    DETALHE --> TRILHA
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
-moram. A configuração abre as categorias e as áreas.
+moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração — que
+abre as categorias e as áreas —, os Meus dados e a página do Grupo, que também responde sem sessão.
+
+Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
+ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
+escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*.
+
+A opção *Compartilhadas comigo* mostra quantas dessas ocorrências a pessoa ainda não abriu, e o número
+desaparece quando não há nenhuma. Na aba, cada linha que ela ainda não abriu é marcada com a palavra, ao
+lado do status. Nada é empurrado: o número só existe na lista que a pessoa abriu.
+
+O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
+conta ou entrar a devolve ao convite.
 
 A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
 pede sessão.
@@ -97,6 +103,16 @@ tem busca com as usadas recentemente no topo.
 **Ocorrência** é onde o trabalho acontece, e é o link que substitui a conversa em grupo. Os onze comandos
 do agregado moram nela: analisar, atribuir, iniciar atendimento, pausar, retomar, resolver, cancelar,
 alterar prioridade, registrar a solução, comentar e avaliar. Nenhum deles é uma tela.
+
+Nela mora também o compartilhamento, que não é comando. Quem registrou e os Gestores veem um cartão
+*Compartilhada com*, que lista quem recebeu, quem compartilhou e quando, com o desfazer só nas linhas que
+quem olha pode desfazer. O botão de compartilhar abre uma busca de pessoas: tela cheia no celular, painel
+lateral na tela grande. Tocar num nome compartilha na hora, uma pessoa por vez; quem já vê a ocorrência
+aparece na lista com o motivo escrito, e não é escolhível.
+
+Quem recebeu a ocorrência compartilhada vê o que o autor vê, e no lugar das ações do cabeçalho lê uma faixa
+com quem a compartilhou. Ela não tem botão de ação nenhum, não tem o cartão *Compartilhada com* e não tem o
+campo de mensagem — as mensagens continuam legíveis.
 
 Onze telas de comando produziriam um produto em que o Gestor sai da ocorrência para agir sobre ela e volta
 para ver o resultado — navegar em vez de trabalhar.
@@ -191,7 +207,8 @@ trabalho de quem senta para administrar.
 
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
-onde o polegar alcança.
+onde o polegar alcança. A exceção é a busca de pessoas para compartilhar, que abre em tela cheia no
+celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele.
 
 ## Os estados que não são telas
 
@@ -202,12 +219,18 @@ onde o polegar alcança.
 | Lista vazia | texto que diz o que fazer em seguida, e não uma área em branco |
 | Carregando | esqueleto do conteúdo, e não um indicador girando sobre o nada |
 | Erro | a frase em português que vem da resposta, com a ação que a pessoa pode tentar |
+| Endereço que não existe | página própria, com o caminho para a aplicação e para esta documentação |
+| Um bloco que não carregou | a falha fica naquele cartão, com a ação de tentar de novo, e o resto da tela continua |
 
 ## Acessibilidade
 
-Não há teste de acessibilidade neste projeto. O que existe é compromisso de construção, conferido a olho,
-e três deles não dependem de ferramenta: todo campo tem rótulo associado ao controle, nenhum alvo de toque
-é menor que cerca de 44 px no celular, e nada é comunicado só por cor — prioridade, estado e motivo de
+Três compromissos são presos por teste. O contraste do texto é medido contra os três fundos do tema, o
+contorno de foco do teclado não pode ser apagado por nenhum componente, e os gráficos do painel ficam fora
+da tabulação, porque a informação deles está na tabela ao lado. Toda tela da casca e da documentação começa
+com o link *Pular para o conteúdo*, visível quando recebe o foco.
+
+O resto é compromisso de construção, conferido a olho: todo campo tem rótulo associado ao controle, nenhum
+alvo de toque é menor que cerca de 44 px, e nada é comunicado só por cor. Prioridade, estado e motivo de
 pausa sempre carregam a palavra.
 
 O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está na
@@ -215,5 +238,5 @@ O piso vem da biblioteca de componentes, escolhida por isso, e a decisão está 
 
 ## Fora desta versão
 
-Não há tela para o Encarregado, nem tela de avisos, nem filtros salvos, nem página pública da organização.
+Não há tela para o Encarregado, nem tela de avisos, nem filtros salvos.
 O que cada ausência custa está em [O produto](produto.md).
