@@ -136,12 +136,12 @@ Depois: **<http://localhost:3000>**.
 > O nome do cookie de sessão sai do host da **URL do provedor**, que é variável do servidor, então ele não
 > muda com a origem pela qual o navegador chega. Em produção nada disto aparece: lá o transporte é HTTPS.
 
-⚠️ As portas locais do Supabase não são as padrão do CLI (`54391` para a API, `54392` para o banco). O
+⚠️ As portas locais do Supabase não são as padrão do CLI (`54691` para a API, `54692` para o banco). O
 Windows reserva faixas de porta para o Hyper-V, e na máquina onde isto foi escrito a faixa reservada cobria
 as nove portas padrão. O motivo e como conferir a sua estão no cabeçalho de `supabase/config.toml`.
 
 Sem Docker, para o laço curto de quem implementa: `npm run dev`, mas aí a URL do provedor é
-`http://127.0.0.1:54391` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
+`http://127.0.0.1:54691` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
 nome de host só**. E ele ocupa a `3000`: **deixe-o rodando e o `npm run local` não sobe.** O pré-voo diz isso
 de saída, em vez de deixar o Docker reclamar de `bind` quatro minutos depois.
 
