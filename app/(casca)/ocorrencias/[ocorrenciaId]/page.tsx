@@ -79,7 +79,6 @@ import {
   tituloDeAbaDaOcorrencia,
 } from "@/interface/http";
 import {
-  lenteDeRotulo,
   opcoesDeMotivoCancelamento,
   opcoesDeMotivoPausa,
   opcoesDePrioridade,
@@ -262,10 +261,11 @@ export default async function Ocorrencia({
   const lida = await lerOcorrenciaDaTela(ocorrenciaId);
   if (lida === null) return naoEncontrada();
 
-  const detalhe = projetarOcorrenciaDetalhe(lida, {
-    pessoaId: escopo.ctx.pessoaId,
-    permissoes: vinculo.permissoes,
-  });
+  const detalhe = projetarOcorrenciaDetalhe(
+    lida,
+    { pessoaId: escopo.ctx.pessoaId, permissoes: vinculo.permissoes },
+    escopo.lente,
+  );
 
   /**
    * **A tela renderiza exatamente `acoesDisponiveis`** — e o filtro por rótulo não é uma segunda regra:
@@ -290,10 +290,13 @@ export default async function Ocorrencia({
 
   /**
    * **A coluna que esta tela inteira fala** — item 31. Uma leitura, três consumidores: o `statusRotulo`
-   * do bloco 1a (que já vem projetado no detalhe, pela derivação de `QuemLe`), o mapa que desce até os
-   * modais, e a linha do tempo do bloco 3.
+   * do bloco 1a, o mapa que desce até os modais, e a linha do tempo do bloco 3.
+   *
+   * **Ela vem resolvida do escopo desde o item 100**, e não é mais derivada aqui: com os textos da
+   * organização a lente deixou de ser função pura das permissões, e quem a monta é um ponto só — uma
+   * leitura por requisição, no mesmo lugar em que o vínculo já é resolvido.
    */
-  const lente = lenteDeRotulo(vinculo.permissoes);
+  const lente = escopo.lente;
 
   // Os dois mapas descem prontos: o navegador não monta rótulo, e as duas colunas respondem perguntas
   // diferentes — ver `rotulos.ts`.

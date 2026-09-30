@@ -1444,6 +1444,63 @@ describe("a trilha de configuração não atravessa organizações — item 99",
 });
 
 /**
+ * **Os textos de quem abriu pela suíte da §7.1 — item 100.** Custo: uma entrada.
+ *
+ * Cada organização recebe **um texto diferente para o mesmo ponto do ciclo**, e a suíte compara o
+ * conjunto exato: é assim que o rótulo da organização A deixa de poder aparecer para o Solicitante da B.
+ */
+describe("os textos do Solicitante não atravessam organizações — item 100", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const configuracaoEm = (organizacaoId: string) =>
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  /**
+   * **A semente é obrigatória aqui, e não opcional como nas entradas de leitura pura.** `esperadas`
+   * compara conjunto exato: sem ela, os dois casos devolvem vazio dos dois lados e **passam sem provar
+   * nada**.
+   */
+  beforeAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      rotulos: { em_analise: "a síndica do Recanto está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      rotulos: { em_analise: "o síndico da Aurora está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  /**
+   * **A limpeza cobre as DUAS organizações, e não é zelo: é o que o último `describe` do arquivo
+   * afirma.** O caso *"organização nova nasce sem linha nenhuma"* lê Recanto, e Recanto só está vazia se
+   * esta entrada devolver o que semeou. Apagar **pela porta**, e não por `delete` direto: assim a trilha
+   * registra a volta, que é o que o critério 7 quer de toda mudança.
+   */
+  afterAll(async () => {
+    for (const organizacaoId of [idRecanto, idAurora]) {
+      await configuracaoEm(organizacaoId).alterar({
+        rotulos: { em_analise: null },
+        atualizadaPorPessoaId: idSindica,
+      });
+    }
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "os rótulos do Solicitante",
+    consultar: async (organizacaoId) =>
+      Object.entries(await configuracaoEm(organizacaoId).rotulosDoSolicitante()),
+    chaveDaLinha: ([estado, rotulo]) => `${estado}=${rotulo}`,
+    esperadas: {
+      emA: ["em_analise=a síndica do Recanto está vendo"],
+      emB: ["em_analise=o síndico da Aurora está vendo"],
+    },
+  });
+});
+
+/**
  * ============================================================================
  *  As escritas escopadas — itens 4a e 5
  * ============================================================================

@@ -66,7 +66,6 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
-  lenteDeRotulo,
   nomeDoStatus,
   opcoesDePrioridade,
   projetarPaginaDeOcorrencias,
@@ -147,7 +146,7 @@ export default async function Ocorrencias({
    * que troca o recorte para *"Minhas ocorrências"* continua lendo *"Aberta"* — permissão, nunca recorte
    * (critério 28.6, e §3.2 da spec do 31).
    */
-  const lente = lenteDeRotulo(vinculo.permissoes);
+  const lente = escopo.lente;
 
   const podeRegistrar = vinculo.pode("ocorrencia.registrar");
   const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");

@@ -42,7 +42,7 @@ export const POST = comContexto(
     corpo: alteracaoDePrioridadeSchema,
     recusar: recusarSemDestino,
   },
-  async ({ ctx, repos, corpo, parametros }) => {
+  async ({ ctx, repos, corpo, parametros, lente }) => {
     const lida = await alterarPrioridade(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é a
@@ -54,10 +54,11 @@ export const POST = comContexto(
       },
     );
 
-    return projetarOcorrenciaDetalhe(lida, {
-      pessoaId: ctx.pessoaId,
-      permissoes: ctx.vinculo.permissoes,
-    });
+    return projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+      lente,
+    );
   },
 );
 

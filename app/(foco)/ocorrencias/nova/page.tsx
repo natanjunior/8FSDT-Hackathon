@@ -24,7 +24,6 @@ import {
 } from "@/interface/componentes/ui/empty";
 import { cn } from "@/interface/componentes/utilitarios";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { lenteDeRotulo } from "@/interface/projecoes";
 
 /**
  * **T-04 · Registrar ocorrência** — *"Preciso avisar de um problema."*
@@ -133,7 +132,7 @@ export default async function RegistrarOcorrencia() {
   }
 
   /** Os quatro do ciclo, **na coluna de quem lê** (item 31). */
-  const rotulos = rotulosDeStatus(lenteDeRotulo(escopo.ctx.vinculo.permissoes));
+  const rotulos = rotulosDeStatus(escopo.lente);
   const passos = [rotulos.aberta, rotulos.em_analise, rotulos.em_atendimento, rotulos.resolvida];
 
   return (

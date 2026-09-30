@@ -13,7 +13,7 @@ import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
  */
 export const GET = comContexto(
   { exige: "ocorrencia.ler_propria" },
-  async ({ ctx, repos, parametros }) => {
+  async ({ ctx, repos, parametros, lente }) => {
     const lida = await verOcorrencia(repos.ocorrencias, parametros.ocorrenciaId ?? "");
 
     // O `escopo.md` §3.3 fixa a regra: *"na primeira entrega toda ocorrência é visível apenas ao autor e
@@ -29,10 +29,11 @@ export const GET = comContexto(
     };
     if (!podeLerOcorrencia(lida, quem)) throw new OcorrenciaNaoEncontrada();
 
-    return projetarOcorrenciaDetalhe(lida, {
-      pessoaId: ctx.pessoaId,
-      permissoes: ctx.vinculo.permissoes,
-    });
+    return projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+      lente,
+    );
   },
 );
 

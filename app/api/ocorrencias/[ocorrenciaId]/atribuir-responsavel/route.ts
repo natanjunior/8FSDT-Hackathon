@@ -38,7 +38,7 @@ export const POST = comContexto(
     corpo: atribuicaoDeResponsavelSchema,
     recusar: recusarSemDestino,
   },
-  async ({ ctx, repos, corpo, parametros }) => {
+  async ({ ctx, repos, corpo, parametros, lente }) => {
     const { ocorrencia, reatribuicao } = await atribuirResponsavel(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é a
@@ -51,10 +51,11 @@ export const POST = comContexto(
     );
 
     return {
-      ...projetarOcorrenciaDetalhe(ocorrencia, {
-        pessoaId: ctx.pessoaId,
-        permissoes: ctx.vinculo.permissoes,
-      }),
+      ...projetarOcorrenciaDetalhe(
+        ocorrencia,
+        { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+        lente,
+      ),
       reatribuicao,
     };
   },

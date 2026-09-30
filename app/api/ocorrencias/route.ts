@@ -10,7 +10,6 @@ import {
   resposta,
 } from "@/interface/http";
 import {
-  lenteDeRotulo,
   projetarOcorrenciaDetalhe,
   projetarPaginaDeOcorrencias,
 } from "@/interface/projecoes";
@@ -50,7 +49,7 @@ export const POST = comContexto(
     corpo: registroDeOcorrenciaSchema,
     recusar: recusarEscritosPeloServidor,
   },
-  async ({ ctx, repos, corpo }) => {
+  async ({ ctx, repos, corpo, lente }) => {
     const lida = await registrarOcorrencia(
       // **`repos` mais uma porta que não é repositório escopado.** `RepositoriosEscopados` continua sem
       // membro que não seja repositório escopado — quem junta as duas coisas é o anel externo, que é
@@ -61,10 +60,11 @@ export const POST = comContexto(
     );
 
     return resposta(
-      projetarOcorrenciaDetalhe(lida, {
-        pessoaId: ctx.pessoaId,
-        permissoes: ctx.vinculo.permissoes,
-      }),
+      projetarOcorrenciaDetalhe(
+        lida,
+        { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+        lente,
+      ),
       { status: 201, cabecalhos: { Location: `/api/ocorrencias/${lida.id}` } },
     );
   },
@@ -88,7 +88,7 @@ export const POST = comContexto(
  *
  * *Capacidades: listar todas da organização · `ENUNCIADO · aberto` (G1).*
  */
-export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx, repos, requisicao }) => {
+export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx, repos, requisicao, lente }) => {
   const consulta = new URL(requisicao.url).searchParams;
   const filtro = lerFiltroDeOcorrenciasDaUrl(consulta);
   // **A paginação é numerada sobre um instante de corte** desde o item 14b (09/09/2026): `pagina`, `ate`
@@ -109,8 +109,9 @@ export const GET = comContexto({ exige: "ocorrencia.ler_propria" }, async ({ ctx
   );
 
   // **A mesma permissão que decidiu o CONJUNTO decide a COLUNA** — `ocorrencia.ler_todas`, e é o
-  // predicado único do item 31. Nenhuma consulta a mais: `ctx.vinculo` já está na mão.
-  return projetarPaginaDeOcorrencias(pagina, lenteDeRotulo(ctx.vinculo.permissoes));
+  // predicado único do item 31. A lente vem resolvida do ponto único desde o item 100, que lhe deu os
+  // textos da organização: uma leitura por requisição, e nenhuma aqui.
+  return projetarPaginaDeOcorrencias(pagina, lente);
 });
 
 export const dynamic = "force-dynamic";
