@@ -18,6 +18,7 @@ import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraest
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  repositorioEscopadoDaConfiguracao,
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
@@ -1391,6 +1392,55 @@ describe("as consultas de configuração não atravessam organizações", () => 
 });
 
 /**
+ * **A trilha de configuração pela suíte da §7.1 — item 99.** Custo: uma entrada.
+ *
+ * Cada organização recebe **uma mudança diferente**, semeada aqui pelo próprio repositório, e a suíte
+ * compara o conjunto exato. `MudancaDeConfiguracaoLida` não expõe `organizacao_id` — modelo de leitura
+ * correto não expõe —, então não há terceiro caso.
+ */
+describe("a trilha de configuração não atravessa organizações — item 99", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const configuracaoEm = (organizacaoId: string) =>
+    repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, organizacaoId));
+
+  beforeAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      exigirSolucaoAoResolver: true,
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  // **As regras voltam ao padrão, e o rastro de última escrita de Recanto volta a nulo:** um caso
+  // adiante (item 46 · 47) espera `organizacoes.atualizado_por_pessoa_id` nulo em Recanto. Anular só
+  // essa coluna não dispara o gatilho da 017, que olha as colunas das regras.
+  afterAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      exigirSolucaoAoResolver: false,
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      atualizadaPorPessoaId: idSindica,
+    });
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /configuracao — as mudanças",
+    consultar: async (organizacaoId) => (await configuracaoEm(organizacaoId).ler()).mudancas,
+    chaveDaLinha: (m) => `${m.chave}:${m.valorAnterior}>${m.valorNovo}`,
+    esperadas: {
+      emA: ["exigir_solucao_ao_resolver:false>true"],
+      emB: ["limite_cancelamento_solicitante:em_analise>em_atendimento"],
+    },
+  });
+});
+
+/**
  * ============================================================================
  *  As escritas escopadas — itens 4a e 5
  * ============================================================================
@@ -1402,6 +1452,31 @@ describe("as consultas de configuração não atravessam organizações", () => 
  * que é exatamente o `404` idêntico ao de inexistente que a §6.3 do contrato exige.
  */
 describe("as escritas de configuração não atravessam organizações", () => {
+  it("mudar uma regra em Aurora não muda a regra nem a trilha de Recanto — item 99", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idAurora));
+    const emRecanto = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idRecanto));
+    const antesEmRecanto = await emRecanto.ler();
+
+    const depois = await emAurora.alterar({
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.regras.limiteDeCancelamentoDoSolicitante).toBe("em_atendimento");
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "limite_cancelamento_solicitante",
+      valorAnterior: "em_analise",
+      valorNovo: "em_atendimento",
+      autor: { pessoaId: idSindica },
+    });
+
+    expect(await emRecanto.ler()).toStrictEqual(antesEmRecanto);
+
+    await emAurora.alterar({
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
     const emRecanto = categoriasEm(idRecanto);
     const emAurora = categoriasEm(idAurora);

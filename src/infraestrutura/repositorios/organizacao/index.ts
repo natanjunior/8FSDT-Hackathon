@@ -4,6 +4,7 @@ export { repositorioEscopadoDeVinculos } from "./vinculos-escopados";
 export { repositorioDeOrganizacoes } from "./organizacoes";
 export { repositorioDeConvites } from "./convites";
 export { repositorioEscopadoDaOrganizacao } from "./organizacao-escopada";
+export { repositorioEscopadoDaConfiguracao } from "./configuracao-escopada";
 export { repositorioEscopadoDeCategorias } from "./categorias-escopadas";
 export { repositorioEscopadoDeAreas } from "./areas-escopadas";
 export {

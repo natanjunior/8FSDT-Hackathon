@@ -114,6 +114,47 @@ export interface RepositorioEscopadoDaOrganizacao {
   corrigir(correcao: CorrecaoDeOrganizacao): Promise<OrganizacaoLida>;
 }
 
+/** As duas chaves que a trilha de configuração conhece — os nomes das colunas, como o banco os grava. */
+export type ChaveDeConfiguracao = "exigir_solucao_ao_resolver" | "limite_cancelamento_solicitante";
+
+/** Uma linha da trilha de configuração (item 99, D30). */
+export type MudancaDeConfiguracaoLida = {
+  chave: ChaveDeConfiguracao;
+  /** Como o banco guarda: `"true"`/`"false"`, ou o nome do estado. A tela traduz. */
+  valorAnterior: string;
+  valorNovo: string;
+  autor: PessoaReferenciaDaConfiguracao;
+  ocorridaEm: string;
+};
+
+/** Quem mudou a regra, como toda leitura de gente devolve: sem contato, sem papel. */
+export type PessoaReferenciaDaConfiguracao = { pessoaId: string; nome: string };
+
+/** O que `GET /configuracao` devolve: as regras de agora e a história delas. */
+export type ConfiguracaoLida = {
+  regras: RegrasDaOrganizacao;
+  /** Da mais recente para a mais antiga. Lista vazia, nunca `null`. */
+  mudancas: readonly MudancaDeConfiguracaoLida[];
+};
+
+/** O que a porta de escrita recebe. **Campo ausente é *não mexa*.** */
+export type AlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /** Quem mudou. Vai para `atualizado_por_pessoa_id`, de onde o gatilho da migração 017 tira o autor. */
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * **A porta escopada da configuração** (item 99).
+ *
+ * Como a irmã de `organizacoes`, ela **não recebe** o identificador da organização: ele entra em `$1`
+ * pelo ponto único. **Ela também não escreve a trilha** — quem grava cada linha é o gatilho da migração
+ * 017, dentro da mesma instrução de `update`, com o valor anterior da linha travada.
+ */
+export interface RepositorioEscopadoDaConfiguracao {
+  ler(): Promise<ConfiguracaoLida>;
+  alterar(alteracao: AlteracaoDeConfiguracao): Promise<ConfiguracaoLida>;
+}
+
 /** O schema `Categoria` do contrato. `icone` **nunca vem nulo** — a coluna é `NOT NULL`. */
 export type CategoriaLida = {
   id: string;

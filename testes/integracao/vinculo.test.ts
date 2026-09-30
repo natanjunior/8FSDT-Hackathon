@@ -817,7 +817,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as dezesseis que a consulta cobre, em dez tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as dezessete que a consulta cobre, em onze tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -830,6 +830,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "compartilhamentos.com_pessoa_id",
       "compartilhamentos.por_pessoa_id",
       "mensagens.autor_pessoa_id",
+      "mudancas_de_configuracao.autor_pessoa_id",
       "ocorrencias.autor_pessoa_id",
       "organizacoes.atualizado_por_pessoa_id",
       "organizacoes.criada_por_pessoa_id",
@@ -849,7 +850,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(10);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(11);
   });
 });
 
