@@ -66,8 +66,8 @@ flowchart TB
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração, que mostra as
-regras do atendimento com cada mudança delas e abre as categorias e as áreas, os Meus dados e a página do
-Grupo, que também responde sem sessão.
+regras do atendimento, os textos que quem abriu lê e cada mudança delas, e abre as categorias e as áreas,
+os Meus dados e a página do Grupo, que também responde sem sessão.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
@@ -128,7 +128,8 @@ A lista pode vir vazia, e isso não é erro: é uma ocorrência terminal, ou alg
 sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
 
 O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
-abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
+abriu vê linguagem de gente, e a organização pode trocar esse texto na Configuração; quem gere vê o nome
+com que opera a máquina, que não muda.
 
 No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
 tela**: abaixo de um minuto ela escreve *menos de 1 min*, abaixo de uma hora escreve minutos, de uma a 48

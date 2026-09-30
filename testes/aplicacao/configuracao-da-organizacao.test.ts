@@ -470,33 +470,38 @@ const REGRAS: RegrasDaOrganizacao = {
   limiteDeCancelamentoDoSolicitante: "em_analise",
 };
 
+/**
+ * O duplo em memória da porta da configuração. **Ele guarda o que recebeu**, que é a única coisa que
+ * estes casos afirmam: a camada de Aplicação existe para que campo ausente não chegue à porta.
+ */
+function portaFalsa(recebidas: AlteracaoDeConfiguracao[]): RepositorioEscopadoDaConfiguracao {
+  const lida = { regras: REGRAS, rotulos: {}, mudancas: [] };
+  return {
+    ler: () => Promise.resolve(lida),
+    alterar: (alteracao) => {
+      recebidas.push(alteracao);
+      return Promise.resolve(lida);
+    },
+    rotulosDoSolicitante: () => Promise.resolve({}),
+  };
+}
+
 describe("alterarConfiguracao — item 99", () => {
   it("só o que veio vai à porta, e o autor é quem chamou", async () => {
     const recebidas: AlteracaoDeConfiguracao[] = [];
-    const porta: RepositorioEscopadoDaConfiguracao = {
-      ler: () => Promise.resolve({ regras: REGRAS, mudancas: [] }),
-      alterar: (alteracao) => {
-        recebidas.push(alteracao);
-        return Promise.resolve({ regras: REGRAS, mudancas: [] });
-      },
-    };
 
-    await alterarConfiguracao(porta, { exigirSolucaoAoResolver: true, porPessoaId: "p-1" });
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      exigirSolucaoAoResolver: true,
+      porPessoaId: "p-1",
+    });
 
     expect(recebidas).toStrictEqual([{ exigirSolucaoAoResolver: true, atualizadaPorPessoaId: "p-1" }]);
   });
 
   it("campo ausente não vai à porta — ausente é *não mexa*", async () => {
     const recebidas: AlteracaoDeConfiguracao[] = [];
-    const porta: RepositorioEscopadoDaConfiguracao = {
-      ler: () => Promise.resolve({ regras: REGRAS, mudancas: [] }),
-      alterar: (alteracao) => {
-        recebidas.push(alteracao);
-        return Promise.resolve({ regras: REGRAS, mudancas: [] });
-      },
-    };
 
-    await alterarConfiguracao(porta, {
+    await alterarConfiguracao(portaFalsa(recebidas), {
       limiteDeCancelamentoDoSolicitante: "em_atendimento",
       porPessoaId: "p-2",
     });
@@ -504,5 +509,30 @@ describe("alterarConfiguracao — item 99", () => {
     expect(recebidas).toStrictEqual([
       { limiteDeCancelamentoDoSolicitante: "em_atendimento", atualizadaPorPessoaId: "p-2" },
     ]);
+  });
+
+  it("os rótulos vão à porta como vieram, e o autor é quem chamou — item 100", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      rotulos: { pausada: "Parada, e a gente avisa", em_analise: null },
+      porPessoaId: "p-1",
+    });
+
+    expect(recebidas).toStrictEqual([
+      {
+        rotulos: { pausada: "Parada, e a gente avisa", em_analise: null },
+        atualizadaPorPessoaId: "p-1",
+      },
+    ]);
+  });
+
+  it("sem rótulos no comando, a chave não vai à porta", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      exigirSolucaoAoResolver: true,
+      porPessoaId: "p-1",
+    });
+    expect(recebidas[0]).not.toHaveProperty("rotulos");
   });
 });

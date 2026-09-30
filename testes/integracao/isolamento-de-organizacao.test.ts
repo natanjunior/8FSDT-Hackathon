@@ -1401,7 +1401,10 @@ describe("as consultas de configuração não atravessam organizações", () => 
 describe("a trilha de configuração não atravessa organizações — item 99", () => {
   const mundo = { a: () => idRecanto, b: () => idAurora };
   const configuracaoEm = (organizacaoId: string) =>
-    repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, organizacaoId));
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
 
   beforeAll(async () => {
     await configuracaoEm(idRecanto).alterar({
@@ -1441,6 +1444,63 @@ describe("a trilha de configuração não atravessa organizações — item 99",
 });
 
 /**
+ * **Os textos de quem abriu pela suíte da §7.1 — item 100.** Custo: uma entrada.
+ *
+ * Cada organização recebe **um texto diferente para o mesmo ponto do ciclo**, e a suíte compara o
+ * conjunto exato: é assim que o rótulo da organização A deixa de poder aparecer para o Solicitante da B.
+ */
+describe("os textos do Solicitante não atravessam organizações — item 100", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const configuracaoEm = (organizacaoId: string) =>
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  /**
+   * **A semente é obrigatória aqui, e não opcional como nas entradas de leitura pura.** `esperadas`
+   * compara conjunto exato: sem ela, os dois casos devolvem vazio dos dois lados e **passam sem provar
+   * nada**.
+   */
+  beforeAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      rotulos: { em_analise: "a síndica do Recanto está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      rotulos: { em_analise: "o síndico da Aurora está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  /**
+   * **A limpeza cobre as DUAS organizações, e não é zelo: é o que o último `describe` do arquivo
+   * afirma.** O caso *"organização nova nasce sem linha nenhuma"* lê Recanto, e Recanto só está vazia se
+   * esta entrada devolver o que semeou. Apagar **pela porta**, e não por `delete` direto: assim a trilha
+   * registra a volta, que é o que o critério 7 quer de toda mudança.
+   */
+  afterAll(async () => {
+    for (const organizacaoId of [idRecanto, idAurora]) {
+      await configuracaoEm(organizacaoId).alterar({
+        rotulos: { em_analise: null },
+        atualizadaPorPessoaId: idSindica,
+      });
+    }
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "os rótulos do Solicitante",
+    consultar: async (organizacaoId) =>
+      Object.entries(await configuracaoEm(organizacaoId).rotulosDoSolicitante()),
+    chaveDaLinha: ([estado, rotulo]) => `${estado}=${rotulo}`,
+    esperadas: {
+      emA: ["em_analise=a síndica do Recanto está vendo"],
+      emB: ["em_analise=o síndico da Aurora está vendo"],
+    },
+  });
+});
+
+/**
  * ============================================================================
  *  As escritas escopadas — itens 4a e 5
  * ============================================================================
@@ -1453,8 +1513,14 @@ describe("a trilha de configuração não atravessa organizações — item 99",
  */
 describe("as escritas de configuração não atravessam organizações", () => {
   it("mudar uma regra em Aurora não muda a regra nem a trilha de Recanto — item 99", async () => {
-    const emAurora = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idAurora));
-    const emRecanto = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idRecanto));
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
     const antesEmRecanto = await emRecanto.ler();
 
     const depois = await emAurora.alterar({
@@ -1475,6 +1541,50 @@ describe("as escritas de configuração não atravessam organizações", () => {
       limiteDeCancelamentoDoSolicitante: "em_analise",
       atualizadaPorPessoaId: idSindica,
     });
+  });
+
+  it("customizar um rótulo em Aurora não muda nada em Recanto — item 100", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const antesEmRecanto = await emRecanto.ler();
+
+    const depois = await emAurora.alterar({
+      rotulos: { em_analise: "o síndico está avaliando" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.rotulos).toStrictEqual({ em_analise: "o síndico está avaliando" });
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "",
+      valorNovo: "o síndico está avaliando",
+      autor: { pessoaId: idSindica },
+    });
+
+    expect(await emRecanto.ler()).toStrictEqual(antesEmRecanto);
+    expect(await emRecanto.rotulosDoSolicitante()).toStrictEqual({});
+
+    // **Apagar deixa linha** — o critério 7, e é a mudança que sem trilha sumiria sem sinal.
+    const apagado = await emAurora.alterar({
+      rotulos: { em_analise: null },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(apagado.rotulos).toStrictEqual({});
+    expect(apagado.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "o síndico está avaliando",
+      valorNovo: "",
+    });
+
+    // **Escrever o que já está lá não deixa rastro.**
+    const antes = (await emAurora.ler()).mudancas.length;
+    await emAurora.alterar({ rotulos: { em_analise: null }, atualizadaPorPessoaId: idSindica });
+    expect((await emAurora.ler()).mudancas).toHaveLength(antes);
   });
 
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
@@ -2274,6 +2384,104 @@ describe("a trilha de configuração no banco — item 99", () => {
     ).rejects.toThrow(/append-only/u);
     await expect(
       consulta(`delete from mudancas_de_configuracao where organizacao_id = $1`, [idAurora]),
+    ).rejects.toThrow(/append-only/u);
+  });
+});
+
+/**
+ * **Os rótulos de status no banco — item 100, critérios 1, 2, 5 e 7.**
+ *
+ * A tabela tem **três colunas e linha só quando customizado**: sem linha, vale o padrão, e é isso que o
+ * primeiro caso prende. Quem guarda *quem* e *quando* é `mudancas_de_configuracao`, e por isso não há
+ * coluna de autor aqui.
+ *
+ * **Este `describe` é o último do arquivo**, e os dois blocos anteriores que escrevem em
+ * `rotulos_de_status` devolvem a tabela ao estado em que a acharam. O primeiro caso afirma que Recanto
+ * não tem linha nenhuma; se a limpeza de qualquer um dos dois falhar, o que quebra é ele.
+ */
+describe("os rótulos de status no banco — item 100", () => {
+  const rotulosEm = (organizacaoId: string) =>
+    consulta<{ estado: string; rotulo: string }>(
+      `select estado::text as estado, rotulo from rotulos_de_status
+        where organizacao_id = $1 order by estado`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, estado: string, rotulo: string) =>
+    consulta(
+      `insert into rotulos_de_status (organizacao_id, estado, rotulo) values ($1, $2, $3)
+         on conflict (organizacao_id, estado) do update set rotulo = excluded.rotulo`,
+      [organizacaoId, estado, rotulo],
+    );
+
+  afterAll(async () => {
+    await consulta(`delete from rotulos_de_status where organizacao_id = $1`, [idAurora]);
+  });
+
+  it("organização nova nasce sem linha nenhuma — o critério 2", async () => {
+    expect(await rotulosEm(idRecanto)).toStrictEqual([]);
+  });
+
+  it("os seis estados do ciclo são aceitos, pausada inclusa — o critério 1", async () => {
+    for (const estado of [
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+      "cancelada",
+    ]) {
+      await definir(idAurora, estado, `texto de ${estado}`);
+    }
+    expect(await rotulosEm(idAurora)).toHaveLength(6);
+  });
+
+  it("um sétimo estado não existe — quem restringe é o tipo do ciclo, não um check à parte", async () => {
+    await expect(definir(idAurora, "arquivada", "texto")).rejects.toThrow(/status_ocorrencia/u);
+  });
+
+  it("o teto é 40, e o texto vai aparado — o critério 5", async () => {
+    await expect(definir(idAurora, "aberta", "x".repeat(41))).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", " com espaço na ponta ")).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", "")).rejects.toThrow(/rotulos_de_status_rotulo_ck/u);
+  });
+
+  it("a trilha aceita as seis chaves de rótulo, e só elas — o critério 7", async () => {
+    const trilhar = (chave: string, anterior: string, novo: string) =>
+      consulta(
+        `insert into mudancas_de_configuracao
+           (organizacao_id, chave, valor_anterior, valor_novo, autor_pessoa_id)
+         values ($1, $2, $3, $4, $5)`,
+        [idAurora, chave, anterior, novo, idSindica],
+      );
+
+    // **O padrão vai como texto vazio**, nas duas pontas: estrear um rótulo e apagá-lo.
+    await trilhar("rotulo_em_analise", "", "o síndico está avaliando");
+    await trilhar("rotulo_em_analise", "o síndico está avaliando", "");
+    await expect(trilhar("rotulo_inventado", "", "x")).rejects.toThrow(
+      /mudancas_de_configuracao_chave_ck/u,
+    );
+  });
+
+  it("a linha de rótulo na trilha também recusa update e delete", async () => {
+    await expect(
+      consulta(
+        `update mudancas_de_configuracao set valor_novo = 'x'
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
+    ).rejects.toThrow(/append-only/u);
+
+    await expect(
+      consulta(
+        `delete from mudancas_de_configuracao
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
     ).rejects.toThrow(/append-only/u);
   });
 });

@@ -1,3 +1,9 @@
+import {
+  ehChaveDeRotulo,
+  fraseDaMudancaDeRotulo,
+  type ChaveDeRotulo,
+} from "./rotulos-do-solicitante";
+
 /**
  * ============================================================================
  *  As regras da organização, na tela — item 99
@@ -13,7 +19,14 @@
  * navegador não atravessa a fronteira (ADR-0006).
  */
 
+/**
+ * **As chaves de regra**, que são as duas colunas de `organizacoes`. As seis chaves de texto de quem
+ * abriu moram em `rotulos-do-solicitante.ts`, e `ChaveDaTrilha` é a soma das duas metades: elas dividem
+ * a mesma pilha na tela e não dividem a forma do valor.
+ */
 export type ChaveDaTela = "exigir_solucao_ao_resolver" | "limite_cancelamento_solicitante";
+
+export type ChaveDaTrilha = ChaveDaTela | ChaveDeRotulo;
 
 export type Regras = {
   exigirSolucaoAoResolver: boolean;
@@ -51,13 +64,24 @@ export function valorEmPalavra(chave: ChaveDaTela, valor: string): "Sim" | "Não
   return valor === liga ? "Sim" : "Não";
 }
 
+/**
+ * A linha da pilha de *Mudanças de configuração*, qualquer que seja a chave.
+ *
+ * **As duas metades moram separadas** (item 100): a regra tem valor em palavra — *Sim* e *Não* —, e o
+ * texto de quem abre tem texto livre, que aparece entre aspas curvas. Quem escreve a frase do texto é
+ * `fraseDaMudancaDeRotulo`, ao lado dos outros textos do cartão dele.
+ */
 export function fraseDaMudanca(m: {
-  chave: ChaveDaTela;
+  chave: ChaveDaTrilha;
   valorAnterior: string;
   valorNovo: string;
 }): string {
-  return `${ROTULO_DA_REGRA[m.chave]}: de ${valorEmPalavra(m.chave, m.valorAnterior)} para ${valorEmPalavra(
-    m.chave,
+  if (ehChaveDeRotulo(m.chave)) {
+    return fraseDaMudancaDeRotulo({ ...m, chave: m.chave });
+  }
+  const chave = m.chave;
+  return `${ROTULO_DA_REGRA[chave]}: de ${valorEmPalavra(chave, m.valorAnterior)} para ${valorEmPalavra(
+    chave,
     m.valorNovo,
   )}`;
 }

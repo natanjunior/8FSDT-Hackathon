@@ -32,6 +32,7 @@ export {
   criarArea,
   criarCategoria,
   lerConfiguracao,
+  lerRotulosDoSolicitante,
   reordenarAreas,
   reordenarCategorias,
   type ComandoDeAlteracaoDeConfiguracao,
@@ -87,6 +88,7 @@ export type {
   PedidoDaPessoa,
   PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
+  PedidoDeRotulos,
   PosicaoNaLista,
   RegrasDaOrganizacao,
   Reordenacao,
@@ -112,5 +114,6 @@ export type {
   ResultadoDeCriacaoDeCategoria,
   ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
+  RotulosDoSolicitante,
   VinculoLido,
 } from "./portas";

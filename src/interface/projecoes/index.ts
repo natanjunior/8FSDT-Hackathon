@@ -31,7 +31,9 @@ export {
   decodificarCursor,
   decodificarCursorDeConversa,
   descricaoDoRecorte,
+  LENTE_DO_GESTOR,
   lenteDeRotulo,
+  lenteDoSolicitante,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
   nomeDoMotivoPausa,
@@ -50,6 +52,7 @@ export {
   projetarTransicao,
   rotuloDeMotivoPausa,
   rotuloDeStatus,
+  rotuloPadraoDoSolicitante,
   segundaLinhaDeMotivo,
   type ComentarioProjetado,
   type EventoDaLinhaDoTempoProjetado,
@@ -58,6 +61,7 @@ export {
   type PaginaDeComentariosProjetada,
   type PaginaDeOcorrenciasProjetada,
   type QuemLe,
+  type RotulosDaOrganizacao,
 } from "./ocorrencia";
 
 export {

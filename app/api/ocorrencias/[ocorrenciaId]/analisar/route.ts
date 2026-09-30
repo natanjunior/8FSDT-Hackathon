@@ -23,7 +23,7 @@ import { comandoComObservacaoSchema } from "@/interface/schemas";
  */
 export const POST = comContexto(
   { exige: "ocorrencia.analisar", corpo: comandoComObservacaoSchema, corpoOpcional: true },
-  async ({ ctx, repos, corpo, parametros }) => {
+  async ({ ctx, repos, corpo, parametros, lente }) => {
     const lida = await analisarOcorrencia(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é
@@ -34,10 +34,11 @@ export const POST = comContexto(
 
     // **A mesma projeção do `GET`**, e por isso a resposta do comando é indistinguível de reler a
     // ocorrência — inclusive em `acoesDisponiveis`, que é o que faz o botão sumir sozinho (critério 16.5).
-    return projetarOcorrenciaDetalhe(lida, {
-      pessoaId: ctx.pessoaId,
-      permissoes: ctx.vinculo.permissoes,
-    });
+    return projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+      lente,
+    );
   },
 );
 

@@ -80,6 +80,8 @@ const TABELAS_ESCOPADAS: readonly string[] = [
   // **Item 99:** aponta para `vinculos`; o gatilho append-only da 017 aceita o `delete` porque esta
   // transação ligou a porta nomeada, como a `registros_transicao` já faz desde a 013.
   "mudancas_de_configuracao",
+  // **Item 100:** aponta só para `organizacoes`; sai antes dela como todas as outras.
+  "rotulos_de_status",
   "categorias",
   "areas",
 ];

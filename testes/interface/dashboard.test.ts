@@ -12,6 +12,7 @@ import {
   rotuloDaFaixa,
 } from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
+import type { StatusOcorrencia } from "@/dominio/ocorrencia";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
@@ -54,7 +55,7 @@ import {
 } from "@/interface/componentes/tempo-de-resolucao";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
 import { cn } from "@/interface/componentes/utilitarios";
-import { projetarDashboard } from "@/interface/projecoes";
+import { nomeDoStatus, projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
 
@@ -332,6 +333,14 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
       "Resolvida",
       "Cancelada",
     ]);
+  });
+
+  it("o painel fala a coluna do Gestor, e não tem como ler rótulo de organização — item 100, critério 4", () => {
+    // `LENTE_DO_DASHBOARD` é `LENTE_DO_GESTOR`, que é o ramo SEM rótulos: não é escolha do corpo da
+    // função, é o tipo que não carrega o campo.
+    for (const linha of projetarDashboard(LIDO).backlogPorStatus) {
+      expect(linha.statusRotulo).toBe(nomeDoStatus(linha.status as StatusOcorrencia));
+    }
   });
 
   it("a área sai com os CINCO campos do schema Area, não com três", () => {

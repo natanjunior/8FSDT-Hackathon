@@ -1,6 +1,6 @@
 import { verLinhaDoTempo } from "@/aplicacao/ocorrencia";
 import { comContexto } from "@/interface/http";
-import { lenteDeRotulo, projetarEventoDaLinhaDoTempo } from "@/interface/projecoes";
+import { projetarEventoDaLinhaDoTempo } from "@/interface/projecoes";
 
 /**
  * **`GET /ocorrencias/{id}/linha-do-tempo`** — transições e atribuições intercaladas por instante, com o
@@ -26,16 +26,15 @@ import { lenteDeRotulo, projetarEventoDaLinhaDoTempo } from "@/interface/projeco
  */
 export const GET = comContexto(
   { exige: "ocorrencia.ler_propria" },
-  async ({ ctx, repos, parametros }) => {
+  async ({ ctx, repos, parametros, lente }) => {
     const eventos = await verLinhaDoTempo(repos.ocorrencias, parametros.ocorrenciaId ?? "", {
       pessoaId: ctx.pessoaId,
       podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas"),
     });
 
-    // **A lente é a MESMA permissão que decide o recorte, e é calculada uma vez** — critério 31.7. O
-    // Gestor lê "Aberta", "Em atendimento" e "Pausada" onde o Solicitante lê as frases dele.
-    const lente = lenteDeRotulo(ctx.vinculo.permissoes);
-
+    // **A lente é a MESMA permissão que decide o recorte, e vem resolvida do ponto único** — critério
+    // 31.7, e o item 100, que lhe deu os textos da organização. O Gestor lê "Aberta", "Em atendimento" e
+    // "Pausada" onde o Solicitante lê as frases dele.
     return { itens: eventos.map((evento) => projetarEventoDaLinhaDoTempo(evento, lente)) };
   },
 );

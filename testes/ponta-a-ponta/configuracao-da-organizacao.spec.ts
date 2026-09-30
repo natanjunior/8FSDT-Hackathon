@@ -297,6 +297,57 @@ test("a configuração da organização: nome repetido, desativar até a última
   });
   expect(devolvida.status()).toBe(200);
 
+  // -------------------------------------------------------------------------
+  // 0c · O texto que quem abre lê — critérios 100.1, 100.2, 100.5 e 100.7
+  // -------------------------------------------------------------------------
+  await page.reload();
+  const cartaoDosRotulos = page.getByRole("region", { name: "Como quem abre lê o status" });
+  // **Sem customização, o cartão mostra o padrão** — o critério 2 pelo lado da tela.
+  await expect(cartaoDosRotulos.getByText("Em execução")).toBeVisible();
+
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  const modalDosRotulos = page.getByRole("dialog");
+
+  // **Os seis pontos do ciclo estão na tela** — critério 1, e é a metade que o teste de unidade não
+  // alcança: a lista pode estar certa e o modal desenhar cinco campos.
+  await expect(modalDosRotulos.getByRole("textbox")).toHaveCount(6);
+
+  await modalDosRotulos.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDosRotulos.getByText("Altere um texto antes de salvar.")).toBeVisible();
+
+  await modalDosRotulos.getByLabel("Em análise").fill("o síndico está avaliando");
+  await modalDosRotulos.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDosRotulos).toBeHidden();
+  await expect(
+    page.getByText("Texto de Em análise: do padrão para “o síndico está avaliando”"),
+  ).toBeVisible();
+
+  // **O teto cabe no celular** — critério 5. A medida é com o teto de fato: quarenta caracteres LARGOS,
+  // porque é o pior caso do cartão, e um texto curto mediria a tela e não o teto.
+  const QUARENTA_LARGOS = "W".repeat(40);
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("dialog").getByLabel("Em atendimento").fill(QUARENTA_LARGOS);
+  await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.reload();
+  await expect(cartaoDosRotulos.getByText(QUARENTA_LARGOS)).toBeVisible();
+  expect(await transbordo(page)).toStrictEqual(SEM_TRANSBORDO);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.reload();
+
+  // Os dois voltam ao padrão, e a volta **também deixa linha** — o critério 7. O de quarenta largos
+  // porque a jornada segue, e o de Em análise porque é a linha de trilha que o caso afirma.
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("dialog").getByLabel("Em atendimento").fill("");
+  await page.getByRole("dialog").getByLabel("Em análise").fill("");
+  await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(
+    page.getByText("Texto de Em análise: de “o síndico está avaliando” para o padrão"),
+  ).toBeVisible();
+
 
   // -------------------------------------------------------------------------
   // 1 · O nome repetido é recusado, e nada é criado — metade do critério 4a.1

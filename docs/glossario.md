@@ -70,6 +70,19 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Trilha de auditoria | A sequência completa e imutável dos registros de transição de uma ocorrência | Linha do tempo |
 | Linha do tempo | A leitura que quem abriu consulta ao acompanhar: transições, atribuições e mensagens, em linguagem de gente | Trilha de auditoria, que é a fonte e mostra os campos crus |
 | Rótulo | O texto mostrado para um status, que depende de quem lê. Calculado no servidor | Os nomes dos estados, que não mudam |
+| Texto do Solicitante | O rótulo que a Organização definiu para um status. Vale só para quem abriu a ocorrência, e substitui o padrão | Nome do status, que é como o sistema o identifica e não muda |
+
+Quando a Organização define o texto de um status, ele substitui a frase desta tabela para quem abriu, e
+em `Pausada` substitui as quatro — o motivo passa a aparecer na linha de baixo.
+
+| Status | O que quem abriu lê |
+|---|---|
+| `Aberta` | Recebida — aguardando análise |
+| `Em análise` | Em análise |
+| `Em atendimento` | Em execução |
+| `Pausada` | Parada, e o motivo em seguida: *Parada — esperando você responder*, *Parada — esperando material chegar*, *Parada — esperando autorização*, *Parada — esperando um terceiro* |
+| `Resolvida` | Resolvida |
+| `Cancelada` | Cancelada |
 
 ## Medição
 

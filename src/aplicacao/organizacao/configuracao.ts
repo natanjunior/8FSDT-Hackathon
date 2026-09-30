@@ -14,11 +14,13 @@ import type {
   ConfiguracaoLida,
   OrganizacaoLida,
   PosicaoNaLista,
+  PedidoDeRotulos,
   RegrasDaOrganizacao,
   RepositorioEscopadoDaConfiguracao,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RotulosDoSolicitante,
 } from "./portas";
 
 /**
@@ -254,14 +256,20 @@ export function lerConfiguracao(
 }
 
 export type ComandoDeAlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /**
+   * Os textos que o Solicitante lê (item 100). **Já normalizados pela Interface**: `null` significa
+   * *volte ao padrão*, e quem sabe qual é o texto padrão é a projeção, não esta camada.
+   */
+  rotulos?: PedidoDeRotulos;
   /** Quem mudou — `ctx.pessoaId`. Vai para `atualizado_por_pessoa_id`, e o gatilho da 017 o copia. */
   porPessoaId: string;
 };
 
 /**
- * **Mudar as regras — item 99, `PATCH /configuracao`.** A trilha não é escrita aqui: é do gatilho da
- * migração 017, que lê o valor anterior da própria linha travada. Esta camada só garante que campo
- * ausente não vai à porta, porque ausente é *não mexa*.
+ * **Mudar as regras e os textos — itens 99 e 100, `PATCH /configuracao`.** A trilha da regra não é
+ * escrita aqui: é do gatilho da migração 017, que lê o valor anterior da própria linha travada. A do
+ * rótulo é da porta, na mesma transação da escrita. Esta camada só garante que campo ausente não vai à
+ * porta, porque ausente é *não mexa*.
  */
 export function alterarConfiguracao(
   configuracao: RepositorioEscopadoDaConfiguracao,
@@ -274,6 +282,21 @@ export function alterarConfiguracao(
     ...(comando.limiteDeCancelamentoDoSolicitante === undefined
       ? {}
       : { limiteDeCancelamentoDoSolicitante: comando.limiteDeCancelamentoDoSolicitante }),
+    ...(comando.rotulos === undefined ? {} : { rotulos: comando.rotulos }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
+}
+
+/**
+ * **Os rótulos da organização, sozinhos — item 100.** É a leitura que toda requisição escopada do
+ * Solicitante faz para montar a lente, e por isso ela não carrega a trilha nem as regras: seis linhas no
+ * máximo, pela chave primária.
+ *
+ * **Quem tem `ocorrencia.ler_todas` não chega aqui.** A lente do Gestor não tem rótulos — não é ramo que
+ * os ignora, é tipo que não os tem —, e quem resolve a lente não lê o banco nesse caso.
+ */
+export function lerRotulosDoSolicitante(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<RotulosDoSolicitante> {
+  return configuracao.rotulosDoSolicitante();
 }

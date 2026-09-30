@@ -16,6 +16,7 @@ import {
   registrarSolucaoAplicada,
   resolverOcorrencia,
   retomarOcorrencia,
+  verLinhaDoTempo,
   SolucaoObrigatoria,
   SomenteOGestorCancelaNesteEstado,
   verOcorrencia,
@@ -25,11 +26,19 @@ import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  repositorioEscopadoDaConfiguracao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
 } from "@/infraestrutura/repositorios/organizacao";
 import { casaPeloNome, termosDaBusca } from "@/interface/componentes/busca-de-candidatos";
-import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
+import {
+  LENTE_DO_GESTOR,
+  lenteDoSolicitante,
+  projetarEventoDaLinhaDoTempo,
+  projetarOcorrenciaDetalhe,
+  projetarOcorrenciaResumo,
+  segundaLinhaDeMotivo,
+} from "@/interface/projecoes";
 
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
@@ -2227,10 +2236,14 @@ describe("a resolução contra Postgres — item 26", () => {
     const id = await emAtendimento("O autor não resolve");
 
     const lida = await verOcorrencia(portas().ocorrencias, id);
-    const doAutor = projetarOcorrenciaDetalhe(lida, {
-      pessoaId,
-      permissoes: ["ocorrencia.ler_propria", "ocorrencia.cancelar_propria", "ocorrencia.avaliar"],
-    });
+    const doAutor = projetarOcorrenciaDetalhe(
+      lida,
+      {
+        pessoaId,
+        permissoes: ["ocorrencia.ler_propria", "ocorrencia.cancelar_propria", "ocorrencia.avaliar"],
+      },
+      lenteDoSolicitante({}),
+    );
 
     expect(doAutor.acoesDisponiveis).not.toContain("resolver");
     expect(doAutor.acoesDisponiveis).toStrictEqual([]);
@@ -3658,7 +3671,9 @@ describe("as regras da organização contra Postgres — item 99", () => {
     ).rejects.toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
 
     const lida = await verOcorrencia(portas().ocorrencias, id);
-    expect(projetarOcorrenciaDetalhe(lida, ctxDoSolicitante).acoesDisponiveis).toStrictEqual([]);
+    expect(
+      projetarOcorrenciaDetalhe(lida, ctxDoSolicitante, lenteDoSolicitante({})).acoesDisponiveis,
+    ).toStrictEqual([]);
   });
 });
 
@@ -4711,5 +4726,163 @@ describe("o compartilhamento no banco — item 87", () => {
       { limite: 100 },
     );
     expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+  });
+});
+
+/**
+ * ============================================================================
+ *  A separação entre o texto de quem abriu e o nome do ciclo — item 100
+ * ============================================================================
+ *
+ * **É o critério 4, e a spec exige a prova da separação, não só da customização.** Na mesma organização e
+ * com o mesmo rótulo customizado, o Solicitante lê o texto dela e o Gestor lê o nome do ciclo — na lista,
+ * no detalhe e na linha do tempo.
+ *
+ * **E é o critério 3 junto:** a transição é gravada ANTES da customização, e a linha do tempo mostra o
+ * texto novo na leitura seguinte, porque nenhum texto de rótulo está guardado em `registros_transicao`.
+ */
+describe("o texto da organização e o nome do ciclo — item 100, critérios 3 e 4", () => {
+  const DO_GESTOR = ["ocorrencia.ler_todas", "ocorrencia.analisar"];
+  const DO_SOLICITANTE = ["ocorrencia.ler_propria"];
+
+  const configuracao = () =>
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(criarConsulta(), organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  afterEach(async () => {
+    await configuracao().alterar({
+      rotulos: { em_analise: null, pausada: null },
+      atualizadaPorPessoaId: pessoaId,
+    });
+  });
+
+  async function emAnalise(titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId },
+      {
+        titulo,
+        descricao: "Semeada para o teste de rótulo.",
+        categoriaId,
+        areaId,
+        localizacaoComplemento: null,
+      },
+    );
+    await analisarOcorrencia(portas().ocorrencias, { pessoaId, permissoes: DO_GESTOR }, {
+      ocorrenciaId: lida.id,
+    });
+    return lida.id;
+  }
+
+  it("com o texto customizado, quem abriu lê o da organização e quem gere lê o do ciclo, inclusive no histórico antigo", async () => {
+    // **A transição vem antes da customização**, e é o que torna o critério 3 verificável.
+    const id = await emAnalise("Infiltração na garagem");
+
+    const depois = await configuracao().alterar({
+      rotulos: { em_analise: "o síndico está avaliando" },
+      atualizadaPorPessoaId: pessoaId,
+    });
+    expect(depois.rotulos).toStrictEqual({ em_analise: "o síndico está avaliando" });
+
+    const rotulos = await configuracao().rotulosDoSolicitante();
+    const lida = await verOcorrencia(portas().ocorrencias, id);
+
+    const daAutora = projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId, permissoes: DO_SOLICITANTE },
+      lenteDoSolicitante(rotulos),
+    );
+    const doGestor = projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId, permissoes: DO_GESTOR },
+      LENTE_DO_GESTOR,
+    );
+
+    expect(daAutora.statusRotulo).toBe("o síndico está avaliando");
+    expect(doGestor.statusRotulo).toBe("Em análise");
+
+    // **A lista, pelas duas lentes.**
+    const pagina = await listarOcorrencias(
+      portas().ocorrencias,
+      { pessoaId, podeLerTodas: false },
+      { limite: 100 },
+    );
+    const naLista = pagina.itens.find((uma) => uma.id === id);
+    expect(naLista).toBeDefined();
+    expect(projetarOcorrenciaResumo(naLista!, lenteDoSolicitante(rotulos)).statusRotulo).toBe(
+      "o síndico está avaliando",
+    );
+    expect(projetarOcorrenciaResumo(naLista!, LENTE_DO_GESTOR).statusRotulo).toBe("Em análise");
+
+    // **A linha do tempo, gravada antes da customização.**
+    const eventos = await verLinhaDoTempo(portas().ocorrencias, id, {
+      pessoaId,
+      podeLerTodas: true,
+    });
+    const ultimaDaAutora = eventos
+      .map((evento) => projetarEventoDaLinhaDoTempo(evento, lenteDoSolicitante(rotulos)))
+      .filter((evento) => evento.tipo === "transicao")
+      .at(-1);
+    const ultimaDoGestor = eventos
+      .map((evento) => projetarEventoDaLinhaDoTempo(evento, LENTE_DO_GESTOR))
+      .filter((evento) => evento.tipo === "transicao")
+      .at(-1);
+
+    expect(ultimaDaAutora).toMatchObject({ rotulo: "o síndico está avaliando" });
+    expect(ultimaDoGestor).toMatchObject({ rotulo: "Em análise" });
+  });
+
+  it("com pausada customizada, o selo mostra o texto e o motivo desce para a segunda linha", async () => {
+    const id = await emAnalise("Elevador social parado");
+    const ctx = {
+      pessoaId,
+      permissoes: [...DO_GESTOR, "ocorrencia.iniciar_atendimento", "ocorrencia.pausar"],
+    };
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: pessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await pausarOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      motivo: "aguardando_informacao_solicitante",
+      observacao: "Esperando a foto do quadro.",
+    });
+
+    await configuracao().alterar({
+      rotulos: { pausada: "Parada" },
+      atualizadaPorPessoaId: pessoaId,
+    });
+
+    const rotulos = await configuracao().rotulosDoSolicitante();
+    const lida = await verOcorrencia(portas().ocorrencias, id);
+    const daAutora = projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId, permissoes: DO_SOLICITANTE },
+      lenteDoSolicitante(rotulos),
+    );
+
+    expect(daAutora.statusRotulo).toBe("Parada");
+    // **O motivo não se perde**: com os dois textos divergindo, a segunda linha volta sozinha.
+    expect(segundaLinhaDeMotivo(daAutora.motivoPausa, daAutora.statusRotulo)).toBe(
+      "Parada — esperando você responder",
+    );
+  });
+
+  it("sem customização, o padrão continua — e o Gestor nunca vê o texto da organização", async () => {
+    const id = await emAnalise("Portão sem customização");
+    const lida = await verOcorrencia(portas().ocorrencias, id);
+
+    expect(
+      projetarOcorrenciaDetalhe(lida, { pessoaId, permissoes: DO_SOLICITANTE }, lenteDoSolicitante({}))
+        .statusRotulo,
+    ).toBe("Em análise");
+    expect(
+      projetarOcorrenciaDetalhe(lida, { pessoaId, permissoes: DO_GESTOR }, LENTE_DO_GESTOR)
+        .statusRotulo,
+    ).toBe("Em análise");
   });
 });

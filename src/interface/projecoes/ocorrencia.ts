@@ -88,10 +88,31 @@ const ROTULO_DE_STATUS: Readonly<Record<Exclude<StatusOcorrencia, "pausada">, st
  * (`Motivos.ts:69`) e de `opcoesDeMotivoCancelamento` logo acima: a projeção não obriga quem chama a
  * carregar o tipo do Domínio, e `Vinculo.permissoes` é atribuível sem conversão.
  */
-export type LenteDeRotulo = "solicitante" | "gestor";
+/**
+ * **Ela deixou de ser uma palavra no item 100.** O ramo do Gestor **não tem** os rótulos da organização:
+ * não é ramo que os ignora, é tipo que não os tem, e é isso que faz a separação entre o texto de quem
+ * abriu e o nome do ciclo ser estrutural em vez de disciplinada. Um campo opcional seria a forma de um
+ * sítio esquecer e mostrar o texto padrão sem teste nenhum falhar.
+ */
+export type LenteDeRotulo =
+  | { readonly leitor: "gestor" }
+  | { readonly leitor: "solicitante"; readonly rotulos: RotulosDaOrganizacao };
 
-export function lenteDeRotulo(permissoes: readonly string[]): LenteDeRotulo {
-  return permissoes.includes("ocorrencia.ler_todas") ? "gestor" : "solicitante";
+/** O que a organização customizou. Estado ausente é *"vale o padrão"* — não há linha para o padrão. */
+export type RotulosDaOrganizacao = Readonly<Partial<Record<StatusOcorrencia, string>>>;
+
+export const LENTE_DO_GESTOR: LenteDeRotulo = { leitor: "gestor" };
+
+/** A lente do Solicitante **não existe sem os rótulos**: é a assinatura que cobra, não o revisor. */
+export function lenteDoSolicitante(rotulos: RotulosDaOrganizacao): LenteDeRotulo {
+  return { leitor: "solicitante", rotulos };
+}
+
+export function lenteDeRotulo(
+  permissoes: readonly string[],
+  rotulos: RotulosDaOrganizacao,
+): LenteDeRotulo {
+  return permissoes.includes("ocorrencia.ler_todas") ? LENTE_DO_GESTOR : lenteDoSolicitante(rotulos);
 }
 
 /**
@@ -121,10 +142,33 @@ export function rotuloDeStatus(
   motivoPausa: MotivoPausa | null,
   lente: LenteDeRotulo,
 ): string {
-  if (lente === "gestor") return NOME_DO_STATUS[status];
+  if (lente.leitor === "gestor") return NOME_DO_STATUS[status];
+  // **O texto da organização vence o padrão** (item 100), e em `pausada` ele vence também as quatro
+  // frases por motivo: a tabela guarda um rótulo por estado, não um por motivo. O motivo não se perde
+  // onde a pessoa acompanha a ocorrência — `segundaLinhaDeMotivo`, logo abaixo, volta a aparecer
+  // justamente porque os dois textos passam a divergir, na lista e na nota da régua do ciclo.
+  const daOrganizacao = lente.rotulos[status];
+  if (daOrganizacao !== undefined) return daOrganizacao;
+  return rotuloPadraoDoSolicitante(status, motivoPausa);
+}
+
+/**
+ * **O texto que o Solicitante lê quando a organização não customizou nada.**
+ *
+ * É a única fonte do padrão: o ramo do Solicitante de `rotuloDeStatus` é esta função. Com o motivo,
+ * `pausada` traz uma das quatro frases; **sem ele, traz o rótulo seco** — e é esse que a tela de
+ * configuração mostra como *padrão*, que o campo do modal usa de sugestão, e que o `docs/glossario.md`
+ * publica.
+ */
+export function rotuloPadraoDoSolicitante(
+  status: StatusOcorrencia,
+  motivoPausa: MotivoPausa | null = null,
+): string {
   if (status !== "pausada") return ROTULO_DE_STATUS[status];
-  // Sem motivo não deveria acontecer — o `CHECK` do banco garante o par —, mas o rótulo não é o lugar
-  // de estourar: degrada para a palavra, que continua sendo texto e não cor (A-5).
+  // Sem motivo não deveria acontecer no detalhe de uma ocorrência pausada — o `CHECK` do banco garante o
+  // par —, mas o rótulo não é o lugar de estourar: degrada para a palavra, que continua sendo texto e
+  // não cor (A-5). É também o caso legítimo da tela de configuração, que fala do estado e não de uma
+  // ocorrência.
   return motivoPausa === null ? "Parada" : ROTULO_DE_PAUSA[motivoPausa];
 }
 
@@ -529,17 +573,19 @@ export type QuemLe = {
  * Hoje ela sai vazia porque `COMANDOS_IMPLEMENTADOS` está vazia, e vazia é **verdade sobre o produto de
  * hoje**: nenhum dos onze endpoints de comando foi construído.
  *
- * **A lente do rótulo é DERIVADA de `quemLe.permissoes`, e não passada.** É a assimetria deliberada do
- * item 31: onde `QuemLe` já chega, um terceiro argumento que é função pura do segundo convidaria os dois
- * a discordarem — e são **onze rotas de comando** mais `GET /ocorrencias/{id}`, `POST /ocorrencias` e
- * T-05 em que isso poderia acontecer. **Nenhuma delas mudou de assinatura por causa do 31.**
+ * **A lente do rótulo era DERIVADA de `quemLe.permissoes` até o item 100.** Era a assimetria deliberada
+ * do item 31: onde `QuemLe` já chegava, um terceiro argumento que era função pura do segundo convidaria
+ * os dois a discordarem. Com os rótulos da organização a lente **deixou de ser função pura das
+ * permissões** — ela precisa de uma leitura —, e passou a entrar por parâmetro, como já entrava no resumo
+ * e no evento da linha do tempo. Quem a monta é um ponto só, `comContexto`, e é de lá que os treze
+ * chamadores a recebem.
  */
-export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) {
+export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe, lente: LenteDeRotulo) {
   return {
     id: lida.id,
     titulo: lida.titulo,
     status: lida.status,
-    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lenteDeRotulo(quemLe.permissoes)),
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente),
     motivoPausa: lida.motivoPausa,
     prioridade: lida.prioridade,
     categoria: { id: lida.categoria.id, nome: lida.categoria.nome, icone: lida.categoria.icone },
