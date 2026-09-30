@@ -49,6 +49,11 @@ A garantia é exercida por teste. Cada consulta escopada entra numa suíte compa
 as mesmas três coisas, e as duas escritas de fora do funil têm caso próprio. O detalhe está em
 [Testes](testes.md).
 
+O navegador guarda uma coisa só desta aplicação: a casca que aparece enquanto o servidor inicia, que não
+tem nome de organização, de pessoa nem conteúdo nenhum. Página renderizada nunca entra no cache, porque
+levaria dado de uma organização para fora do ponto único, e a saída apaga o que houver. A razão está na
+[ADR-0020](adr/0020-o-navegador-guarda-so-a-casca.md).
+
 ## Quem entra
 
 Contas e sessões são do Supabase Auth, e o produto não guarda senha. O cadastro exige confirmação por

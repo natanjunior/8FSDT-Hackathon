@@ -101,6 +101,11 @@ janela custa um despertar, a partida a frio da primeira chamada, porque as segui
 contêiner dormir. Fora das duas, a escala a zero volta. Cada hora de janela custa cerca de 1% da franquia
 mensal de computação e 60 minutos de execução do Actions; a faixa custa um minuto de Actions a cada cinco.
 
+Quem volta à aplicação pelo mesmo navegador tem a outra metade. O trabalhador de serviço guarda uma casca
+sem dado nenhum e, quando a última resposta do servidor que ele viu tem mais de quatro minutos, a pinta na
+hora e a troca pela tela assim que o contêiner responde. A primeira visita num navegador ainda não tem
+trabalhador, e é a sonda que a cobre.
+
 O projeto de banco na franquia gratuita pausa depois de sete dias de inatividade, e uma pausa derruba a
 migração da entrega seguinte. A mitigação é uma consulta trivial agendada diariamente. Já foi semanal, e
 falhou: sete dias de janela contra sete dias de intervalo dão margem zero, e o agendador é de melhor
