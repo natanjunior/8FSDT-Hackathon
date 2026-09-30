@@ -93,7 +93,7 @@ O detalhe do modelo está em [Domínio e regras](dominio.md).
 | Tecnologia | O requisito que a justifica |
 |---|---|
 | Next.js com TypeScript | interface e API na mesma entrega, sem CORS nem tipos duplicados entre as duas |
-| Aplicação instalável | o registro em menos de um minuto pelo celular, que depende de a aplicação abrir do atalho na tela inicial |
+| Aplicação instalável, com trabalhador de serviço | o registro em menos de um minuto pelo celular, que depende de a aplicação abrir do atalho na tela inicial, e a volta a ela, que pinta uma casca guardada enquanto o contêiner inicia |
 | Rotas de API próprias, em Next.js | as APIs são entregável, e o mesmo servidor as serve à interface |
 | Supabase PostgreSQL | a auditabilidade exige gravar a transição e o registro na mesma transação |
 | Supabase Auth | contas e sessões são problema resolvido por terceiros, comprado em vez de construído |
@@ -103,6 +103,13 @@ O detalhe do modelo está em [Domínio e regras](dominio.md).
 | GitHub Actions e GitHub Container Registry | a esteira e o registro da imagem, no mesmo lugar onde o código mora |
 | Tailwind CSS com shadcn/ui | o risco de usabilidade: foco, teclado e leitores de tela corretos sem construí-los |
 | Vitest e Playwright | a máquina de estados testável em milissegundos, e o caminho crítico exercido num navegador |
+
+A partida a frio tem duas metades, cobertas por peças diferentes. A primeira visita depende de o contêiner
+já estar acordado, e é a sonda descrita em [Infraestrutura](infraestrutura.md) que o mantém assim nos dias
+em que alguém de fora vai abrir a aplicação. No retorno pelo mesmo navegador, o trabalhador de serviço
+pinta a casca guardada na hora e a troca pela tela quando o servidor responde. A espera pelo servidor
+continua a mesma; o que muda é a tela em que ela acontece
+([ADR-0020](adr/0020-o-navegador-guarda-so-a-casca.md)).
 
 Cada escolha tem alternativa rejeitada registrada nas
 [decisões de arquitetura](adr/), que são a leitura seguinte para quem quer o porquê.

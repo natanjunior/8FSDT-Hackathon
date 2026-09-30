@@ -221,6 +221,7 @@ celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás
 | Erro | a frase em português que vem da resposta, com a ação que a pessoa pode tentar |
 | Endereço que não existe | página própria, com o caminho para a aplicação e para esta documentação |
 | Um bloco que não carregou | a falha fica naquele cartão, com a ação de tentar de novo, e o resto da tela continua |
+| Abrindo depois de um tempo sem uso | a casca da aplicação na hora, com a marca e o esqueleto, e a tela no lugar dela assim que o servidor responde |
 
 ## Acessibilidade
 

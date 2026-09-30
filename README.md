@@ -22,6 +22,10 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
+Quem abre o endereço pela primeira vez depende de a aplicação já estar acordada, e uma sonda agendada a
+mantém assim nos dias em que alguém de fora vai abri-la. Quem volta pelo mesmo navegador vê a casca da
+aplicação na hora, enquanto o servidor inicia.
+
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
 privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado

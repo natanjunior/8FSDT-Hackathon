@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { FormularioDeEntrada } from "@/interface/componentes/formulario-de-entrada";
+import { LimpezaDaSaida } from "@/interface/componentes/limpeza-da-saida";
 import { CLASSE_DO_CAMINHO, MolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 import { destinoSeguro, resolverParaTela } from "@/interface/http";
 
@@ -42,50 +43,53 @@ export default async function TelaDeEntrar({
   if (await temSessao()) redirect(volta ?? "/");
 
   return (
-    <MolduraDeConta
-      titulo="Entrar"
-      contexto="Entre para ver e acompanhar as ocorrências."
-      apresentacao
-      caminhos={
-        <>
-          <Link
-            href={
-              volta === null ? "/criar-conta" : `/criar-conta?destino=${encodeURIComponent(volta)}`
-            }
-            className={CLASSE_DO_CAMINHO}
-          >
-            Criar conta
-          </Link>
-          <Link href="/redefinir-senha" className={CLASSE_DO_CAMINHO}>
-            Esqueci a senha
-          </Link>
-        </>
-      }
-      rodape={
-        <p className="text-meta text-tinta-suave flex items-center gap-2">
-          <Link
-            href="/grupo"
-            target="_blank" rel="noreferrer"
-            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
-          >
-            Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
-          </Link>
-          <span aria-hidden="true">·</span>
-          <Link
-            href="/documentacao"
-            target="_blank" rel="noreferrer"
-            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
-          >
-            Documentação<span className="sr-only">, abre em nova aba</span>
-          </Link>
-        </p>
-      }
-    >
-      <FormularioDeEntrada
-        {...(volta !== null ? { destino: volta } : {})}
-        {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
-      />
-    </MolduraDeConta>
+    <>
+      <LimpezaDaSaida />
+      <MolduraDeConta
+        titulo="Entrar"
+        contexto="Entre para ver e acompanhar as ocorrências."
+        apresentacao
+        caminhos={
+          <>
+            <Link
+              href={
+                volta === null ? "/criar-conta" : `/criar-conta?destino=${encodeURIComponent(volta)}`
+              }
+              className={CLASSE_DO_CAMINHO}
+            >
+              Criar conta
+            </Link>
+            <Link href="/redefinir-senha" className={CLASSE_DO_CAMINHO}>
+              Esqueci a senha
+            </Link>
+          </>
+        }
+        rodape={
+          <p className="text-meta text-tinta-suave flex items-center gap-2">
+            <Link
+              href="/grupo"
+              target="_blank" rel="noreferrer"
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+            >
+              Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link
+              href="/documentacao"
+              target="_blank" rel="noreferrer"
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+            >
+              Documentação<span className="sr-only">, abre em nova aba</span>
+            </Link>
+          </p>
+        }
+      >
+        <FormularioDeEntrada
+          {...(volta !== null ? { destino: volta } : {})}
+          {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
+        />
+      </MolduraDeConta>
+    </>
   );
 }
 
