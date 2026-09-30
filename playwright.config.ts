@@ -81,6 +81,13 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 20_000,
     navigationTimeout: 45_000,
+    /**
+     * **O trabalhador de serviço bloqueado por padrão** (item 98). As jornadas provam outra coisa, e uma
+     * casca intercalada numa navegação lenta da pilha local viraria recarga no meio de uma afirmação:
+     * vermelho que não é defeito, o que a ADR-0012 recusa. Só o teste do retorno, em
+     * `nascimento-de-organizacao.spec.ts`, abre contexto com `serviceWorkers: "allow"`.
+     */
+    serviceWorkers: "block",
   },
 
   /**

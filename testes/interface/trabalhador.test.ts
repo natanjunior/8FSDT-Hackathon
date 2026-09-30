@@ -406,3 +406,32 @@ describe("o trabalhador: versão nova e saída — critérios 98.3 e 98.4", () =
     expect(SCRIPT).toContain(JSON.stringify(versaoDoTrabalhador(CASCA)));
   });
 });
+
+describe("a fiação do trabalhador", () => {
+  it("a rota serve o script montado, como JavaScript e sem cache HTTP", () => {
+    const rota = ler("app/sw.js/route.ts");
+    // Por regex: a rota quebra a linha entre as duas chamadas, e o formatador pode mudar a quebra.
+    expect(rota).toMatch(/montarScriptDoTrabalhador\(\s*montarCasca\(/u);
+    expect(rota).toContain('"application/javascript; charset=utf-8"');
+    expect(rota).toContain('"cache-control": "no-cache"');
+    expect(rota).toContain('"public/marca/icone.svg"');
+  });
+
+  it("o registro só acontece em produção, com escopo raiz e sem cache HTTP do script", () => {
+    const registro = ler("src/interface/componentes/registro-do-trabalhador.tsx");
+    expect(registro.startsWith('"use client";')).toBe(true);
+    expect(registro).toContain('process.env.NODE_ENV !== "production"');
+    expect(registro).toContain('scope: "/"');
+    expect(registro).toContain('updateViaCache: "none"');
+  });
+
+  it("o casco monta o registro uma vez", () => {
+    expect(ler("app/layout.tsx").match(/<RegistroDoTrabalhador \/>/gu)).toHaveLength(1);
+  });
+
+  it("o ponta a ponta bloqueia o trabalhador por padrão, e só o retorno o libera", () => {
+    expect(ler("playwright.config.ts")).toContain('serviceWorkers: "block"');
+    const jornada = ler("testes/ponta-a-ponta/nascimento-de-organizacao.spec.ts");
+    expect(jornada.match(/serviceWorkers: "allow"/gu)).toHaveLength(1);
+  });
+});
