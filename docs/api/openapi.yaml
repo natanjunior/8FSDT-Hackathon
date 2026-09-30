@@ -1737,6 +1737,16 @@ paths:
             **Não conta como filtro:** o vazio dela tem frase própria, e *Limpar filtros* não tira a
             pessoa da aba.
           schema: { type: string, enum: [comigo] }
+        - name: parada
+          in: query
+          description: |
+            `sim` estreita às ocorrências sem atividade há mais dias do que a organização tolera — o
+            `diasParaParada` de `/configuracao`. Atividade é a última atualização da ocorrência:
+            transição, atribuição ou mensagem no canal.
+
+            **As pausadas e as que já terminaram nunca entram.** Combina com todos os outros filtros;
+            `status=resolvida&parada=sim` é conjunto vazio, e não erro.
+          schema: { type: string, enum: [sim] }
         - name: titulo
           in: query
           description: |
@@ -3920,7 +3930,7 @@ components:
     OcorrenciaResumo:
       type: object
       description: Como a ocorrência aparece na listagem.
-      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, quantidadeDeAnexos, avaliada, registradaEm, atualizadaEm]
+      required: [id, titulo, status, statusRotulo, motivoPausa, prioridade, categoria, area, autor, quantidadeDeAnexos, avaliada, paradaHaDias, registradaEm, atualizadaEm]
       properties:
         id: { type: string, format: uuid }
         titulo: { type: string }
@@ -4008,6 +4018,18 @@ components:
 
             A palavra é *aberta* aqui e na trilha; a tela escreve *vista*, porque *Aberta* é um status.
           examples: [true, false]
+        paradaHaDias:
+          type: [integer, "null"]
+          minimum: 1
+          description: |
+            Há quantos dias a ocorrência está parada, em dias inteiros contados da última atualização até
+            o instante de corte da página. `null` quando ela não está parada — porque terminou, porque
+            está pausada, ou porque a última atividade é mais recente que a tolerância da organização.
+
+            **Não confundir com a idade em aberto do painel**, que conta desde o registro e inclui o
+            período pausado. Uma ocorrência registrada há quarenta dias e comentada ontem é velha e não
+            está parada.
+          examples: [null, 9]
         registradaEm: { type: string, format: date-time }
         atualizadaEm:
           type: string
