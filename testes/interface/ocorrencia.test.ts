@@ -4625,8 +4625,9 @@ describe("88.6 · o número na opção, e o selo na linha", () => {
  *  88.3 · a frase dos avisos e o contador dizem a mesma coisa
  * ============================================================================
  *
- * **O único caso deste repositório que lê `docs/`**, e ele existe porque o critério 3 do item 88 é sobre uma
- * frase de entregável: o contador e a limitação declarada não podem se contradizer.
+ * **Um dos dois casos deste repositório que leem `docs/`**, e ele existe porque o critério 3 do item 88 é
+ * sobre uma frase de entregável: o contador e a limitação declarada não podem se contradizer. O outro é o
+ * do item 100, logo abaixo.
  */
 describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
   const produto = lerFonte("docs/produto.md").replace(/\r\n/gu, "\n");
@@ -4643,6 +4644,32 @@ describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
     // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
     for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
       expect(produto, ausencia).toContain(ausencia);
+    }
+  });
+});
+
+/**
+ * ============================================================================
+ *  100.9 · o glossário publica as frases padrão que o código escreve
+ * ============================================================================
+ *
+ * **O segundo caso deste repositório que lê `docs/`**, e ele existe porque os comentários de
+ * `projecoes/ocorrencia.ts` afirmam que as frases do Solicitante são *"transcritas do `glossario.md`"* —
+ * uma afirmação que, até o item 100, nada conferia. Com a tela de configuração mostrando os seis padrões
+ * ao Gestor, a documentação precisa dizer quais são.
+ */
+describe("100.9 · o glossário publica as frases padrão que o código escreve", () => {
+  const glossario = lerFonte("docs/glossario.md").replace(/\r\n/gu, "\n");
+
+  it("os seis pontos do ciclo têm o texto do Solicitante publicado", () => {
+    for (const status of STATUS) {
+      expect(glossario, status).toContain(rotuloPadraoDoSolicitante(status));
+    }
+  });
+
+  it("as quatro frases de pausa também", () => {
+    for (const motivo of MOTIVOS_DE_PAUSA) {
+      expect(glossario, motivo).toContain(rotuloDeMotivoPausa(motivo));
     }
   });
 });

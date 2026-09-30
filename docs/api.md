@@ -136,6 +136,10 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
+O rótulo do status é calculado no servidor e depende de quem lê. Quem abriu recebe o texto da
+organização, quando ela o definiu, e o padrão quando não; quem gere recebe sempre o nome com que o
+sistema opera.
+
 A listagem devolve também quantas ocorrências compartilhadas com quem pergunta ainda não foram
 abertas por ela, e, dentro do recorte das compartilhadas, se cada uma já foi. O número ignora os
 filtros, porque responde quantas esperam.

@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As dezesseis tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As dezessete tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, dezesseis tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, dezessete tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As dezesseis tabelas
+## As dezessete tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -23,6 +23,7 @@ as que não dependem de ninguém lembrar.
 | `ocorrencias` | o objeto central, com estado, prioridade, solução aplicada e avaliação |
 | `registros_transicao` | a trilha de auditoria: um registro por mudança de estado |
 | `mudancas_de_configuracao` | cada mudança de uma regra da organização, com o valor anterior, o novo, quem e quando |
+| `rotulos_de_status` | o texto com que quem abriu lê cada ponto do ciclo nesta organização, quando ela o customizou |
 | `atribuicoes` | quem é o responsável por uma ocorrência, e desde quando |
 | `canais_conversa` | o canal de mensagens de uma ocorrência |
 | `mensagens` | o texto trocado dentro de um canal |
@@ -118,6 +119,10 @@ As mudanças de configuração têm a mesma defesa, e uma diferença: quem as es
 `organizacoes`, que dispara quando uma regra muda de valor e copia o anterior da própria linha. Aqui não
 há observação a produzir, e a linha travada pelo `update` garante que duas mudanças seguidas registrem
 cada uma o valor que encontrou.
+
+Os textos de quem abriu entram na mesma trilha por outro caminho: eles moram em tabela própria, e quem
+grava a linha é a aplicação, dentro da mesma transação da escrita e com a linha da organização travada.
+É o que registra quem apagou um texto, informação que a linha apagada não carrega.
 
 ## O relógio de atualização é do banco
 
