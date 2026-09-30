@@ -15,6 +15,7 @@ import { EdicaoDosRotulos } from "@/interface/componentes/edicao-dos-rotulos";
 import {
   APOIO_DO_CARTAO_DE_REGRAS,
   APOIO_DO_LIMITE,
+  APOIO_DOS_DIAS,
   ROTULO_DA_REGRA,
   SEM_MUDANCAS,
   TITULO_DAS_MUDANCAS,
@@ -163,6 +164,7 @@ export default async function ConfiguracaoDaOrganizacao() {
                 regras={{
                   exigirSolucaoAoResolver: configuracao.exigirSolucaoAoResolver,
                   limiteDeCancelamentoDoSolicitante: configuracao.limiteDeCancelamentoDoSolicitante,
+                  diasParaParada: configuracao.diasParaParada,
                 }}
                 organizacaoId={ativo.organizacao.id}
               />
@@ -187,6 +189,15 @@ export default async function ConfiguracaoDaOrganizacao() {
                 )}
               </dd>
               <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DO_LIMITE}</dd>
+            </div>
+            {/* **A terceira regra** (item 101): quantos dias sem atividade até a ocorrência contar como
+                parada. O valor vai em palavra, com a unidade. */}
+            <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5">
+              <dt className={ROTULO}>{ROTULO_DA_REGRA.dias_para_parada}</dt>
+              <dd className="text-titulo-bloco text-tinta font-medium">
+                {valorEmPalavra("dias_para_parada", String(configuracao.diasParaParada))}
+              </dd>
+              <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DOS_DIAS}</dd>
             </div>
           </dl>
         </Cartao>

@@ -485,6 +485,30 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   });
 
   // -------------------------------------------------------------------------
+  // 8.1 · O filtro rápido *Paradas* — item 101, critérios 1 e 6
+  //
+  // **Um clique, e ele estreita o conjunto em vez de trocá-lo**: combina com o recorte e com os outros
+  // filtros, entra em *Limpar filtros*, e o estado mora na URL como o resto.
+  //
+  // **A prova é a ocorrência recém-registrada sumindo**: ela foi criada agora, então a última atividade
+  // dela é de segundos atrás e nenhuma tolerância da organização a alcança. Quantos dias cada linha
+  // parada mostra é medido pelos casos de integração, que fixam o corte da página.
+  // -------------------------------------------------------------------------
+  const paradas = marcos.getByRole("button", { name: "Paradas" });
+  await expect(paradas).toHaveAttribute("aria-pressed", "false");
+
+  await paradas.click();
+  await marcos.waitForURL(/[?&]parada=sim(&|$)/u);
+  await expect(paradas).toHaveAttribute("aria-pressed", "true");
+  await expect(marcos.getByRole("link", { name: TITULO_A })).toHaveCount(0);
+
+  await marcos.getByRole("link", { name: "Limpar filtros" }).first().click();
+  await marcos.waitForURL((url) => !url.searchParams.has("parada"));
+  await expect(paradas).toHaveAttribute("aria-pressed", "false");
+  await expect(marcos.getByRole("link", { name: TITULO_A })).toBeVisible();
+  expect(await contagensDoRecorte(marcos)).toEqual(contagensAntes);
+
+  // -------------------------------------------------------------------------
   // 9 · O filtro de categoria — a URL é o estado, e o chip carrega a palavra
   //
   // **O rótulo do chip é o sinal, e nunca um ponto colorido** (A-5): com um valor marcado ele passa a ser

@@ -422,6 +422,12 @@ export function descricaoDoRecorte(
     area: (id: string) => string | undefined;
     pessoa: (id: string) => string | undefined;
   },
+  /**
+   * Os dias da organização, ou `null` quando quem lê não lê configuração (item 101). Com `null` a
+   * cláusula perde o número e continua verdadeira — é melhor que um número inventado ou que omitir o
+   * recorte que está de fato aplicado.
+   */
+  diasParaParada: number | null,
 ): readonly string[] {
   const clausulas: string[] = [];
 
@@ -444,6 +450,18 @@ export function descricaoDoRecorte(
 
   // A ordem é a da barra, e ela começa no campo de texto.
   if (filtro.titulo !== undefined) clausulas.push(`Título com "${filtro.titulo}"`);
+
+  /**
+   * **É aqui que a tela diz que pausada não entra** (item 101), e é o único lugar: o botão da barra tem
+   * uma palavra só.
+   */
+  if (filtro.apenasParadas === true) {
+    clausulas.push(
+      diasParaParada === null
+        ? "Paradas, sem contar as pausadas"
+        : `Paradas há mais de ${String(diasParaParada)} dias, sem contar as pausadas`,
+    );
+  }
 
   if (filtro.status !== undefined) {
     clausulas.push(`Status: ${filtro.status.map(nomeDoStatus).join(", ")}`);
@@ -720,6 +738,12 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida, lente: Lent
      * pergunta não foi feita"*, e é o que `lista-de-ocorrencias.tsx` lê com `=== true`.
      */
     ...(lida.naoAberta === null ? {} : { naoAberta: lida.naoAberta }),
+    /**
+     * **Há quantos dias está parada, ou `null`** (item 101). Diferente de `naoAberta`, ele vem em toda
+     * resposta: a pergunta é sempre feita, e `null` é a resposta *"não está parada"*, não *"não
+     * perguntei"*.
+     */
+    paradaHaDias: lida.paradaHaDias,
     registradaEm: lida.registradaEm,
     atualizadaEm: lida.atualizadaEm,
   };

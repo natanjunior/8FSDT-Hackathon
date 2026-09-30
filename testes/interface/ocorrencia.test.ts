@@ -136,6 +136,7 @@ import {
   vazioDaBarra,
   faixaDeQuemRecebeu,
   vazioDaConversa,
+  fraseDaParada,
 } from "@/interface/componentes/rotulos";
 import { horaDoCorte, tempoCurto, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import { CAMPO_VAZIO, dataHoraComSegundos } from "@/interface/componentes/trilha-de-auditoria";
@@ -394,6 +395,7 @@ const RESUMO_LIDO: OcorrenciaResumoLida = {
   avaliada: false,
   // `null` é *"a pergunta não foi feita"* — fora do recorte das compartilhadas (item 88).
   naoAberta: null,
+  paradaHaDias: null,
   motivoPausa: null,
   registradaEm: "2026-08-20T13:02:11.000Z",
   atualizadaEm: "2026-08-20T14:10:00.000Z",
@@ -879,7 +881,11 @@ function umaOcorrenciaLidaCom(anexos: readonly AnexoLido[]): OcorrenciaLida {
     registradaEm: RESUMO_LIDO.registradaEm,
     atualizadaEm: RESUMO_LIDO.atualizadaEm,
     // **As regras da organização** (item 99), no padrão de toda organização nova.
-    regrasDaOrganizacao: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_analise" },
+    regrasDaOrganizacao: {
+      exigirSolucaoAoResolver: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      diasParaParada: 7,
+    },
   };
 }
 
@@ -1420,6 +1426,7 @@ describe("os puros da barra — o que Limpar filtros limpa, e o que ele mantém"
     ["titulo", "vaz"],
     ["areaId", AREA],
     ["responsavelPessoaId", PESSOA],
+    ["parada", "sim"],
   ])("%s está nos dois lados: liga o filtro e é apagado por Limpar", (parametro, valor) => {
     expect([...PARAMETROS_DE_FILTRO]).toContain(parametro);
     expect(algumFiltroAplicado(ler(`${parametro}=${valor}`))).toBe(true);
@@ -1845,30 +1852,30 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
   };
 
   it("sem filtro nenhum, não há o que descrever", () => {
-    expect(descricaoDoRecorte({}, nomes)).toStrictEqual([]);
+    expect(descricaoDoRecorte({}, nomes, null)).toStrictEqual([]);
   });
 
   it("cada dimensão vira uma cláusula com o MESMO rótulo do chip", () => {
-    expect(descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomes)).toStrictEqual([
+    expect(descricaoDoRecorte({ status: ["pausada"], prioridade: ["alta"] }, nomes, null)).toStrictEqual([
       "Status: Pausada",
       "Prioridade: Alta",
     ]);
   });
 
   it("dois valores na mesma dimensão viram uma cláusula só, com os dois", () => {
-    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomes)).toStrictEqual([
+    expect(descricaoDoRecorte({ status: ["aberta", "em_analise"] }, nomes, null)).toStrictEqual([
       "Status: Aberta, Em análise",
     ]);
   });
 
   it("categoria desconhecida não vira texto inventado", () => {
-    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomes)).toStrictEqual([
+    expect(descricaoDoRecorte({ categoriaId: ["c-9"] }, nomes, null)).toStrictEqual([
       "Categoria: 1 selecionado",
     ]);
   });
 
   it("só as minhas é uma cláusula como as outras", () => {
-    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes)).toStrictEqual(["Só as minhas"]);
+    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes, null)).toStrictEqual(["Só as minhas"]);
   });
 
   /** Os três do item 67, com os mesmos rótulos dos gatilhos da barra. */
@@ -1882,6 +1889,7 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
           responsavelPessoaId: ["p-1"],
         },
         nomes,
+        null,
       ),
     ).toStrictEqual([
       'Título com "vaz gar"',
@@ -1893,8 +1901,30 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
 
   it("área e responsável desconhecidos contam, como a categoria", () => {
     expect(
-      descricaoDoRecorte({ areaId: ["a-9"], responsavelPessoaId: ["p-8", "p-9"] }, nomes),
+      descricaoDoRecorte({ areaId: ["a-9"], responsavelPessoaId: ["p-8", "p-9"] }, nomes, null),
     ).toStrictEqual(["Área: 1 selecionado", "Responsável: 2 selecionados"]);
+  });
+
+  it("a cláusula de paradas vem com o número da organização — item 101", () => {
+    expect(descricaoDoRecorte({ apenasParadas: true }, nomes, 7)).toStrictEqual([
+      "Paradas há mais de 7 dias, sem contar as pausadas",
+    ]);
+  });
+
+  it("sem o número, para quem não lê configuração — item 101", () => {
+    expect(descricaoDoRecorte({ apenasParadas: true }, nomes, null)).toStrictEqual([
+      "Paradas, sem contar as pausadas",
+    ]);
+  });
+
+  it("vem logo depois do título, que é a ordem da barra — item 101", () => {
+    expect(
+      descricaoDoRecorte({ titulo: "vaz", apenasParadas: true, status: ["aberta"] }, nomes, 7),
+    ).toStrictEqual([
+      'Título com "vaz"',
+      "Paradas há mais de 7 dias, sem contar as pausadas",
+      "Status: Aberta",
+    ]);
   });
 });
 
@@ -4671,5 +4701,91 @@ describe("100.9 · o glossário publica as frases padrão que o código escreve"
     for (const motivo of MOTIVOS_DE_PAUSA) {
       expect(glossario, motivo).toContain(rotuloDeMotivoPausa(motivo));
     }
+  });
+});
+
+/**
+ * **A parada não inventa relógio nem lista — item 101, critérios 1 e 3.**
+ *
+ * A suíte não tem camada unitária para consulta de Infraestrutura (ADR-0008), e o que estas duas guardas
+ * prendem é o que um caso de integração não distingue: *como* a lista de estados foi escrita, e *qual*
+ * coluna mede o tempo. Um literal no SQL passaria em todos os casos de hoje e envelheceria em silêncio.
+ */
+describe("a parada não inventa relógio nem lista — item 101", () => {
+  const fonte = lerFonte("src/infraestrutura/repositorios/ocorrencia/ocorrencias-escopadas.ts");
+
+  it("os estados que podem parar saem de STATUS, e não de um literal no SQL", () => {
+    expect(fonte).toContain(
+      "const ESTADOS_QUE_PODEM_FICAR_PARADAS: readonly StatusOcorrencia[] = STATUS.filter(",
+    );
+    expect(fonte).not.toMatch(/'aberta'\s*,\s*'em_analise'/u);
+  });
+
+  it("o corte da parada mede a coluna de atualização, e não a trilha", () => {
+    const limite = fonte.slice(fonte.indexOf("const limiteDaParada"));
+    expect(limite.slice(0, 300)).toContain("dias_para_parada");
+    expect(limite.slice(0, 300)).not.toContain("registros_transicao");
+  });
+});
+
+/**
+ * **O parâmetro `parada` na borda — item 101, critério 1.**
+ *
+ * Um valor só, na gramática de `autor=eu` e `compartilhadas=comigo`. Outro valor é recusado, nunca
+ * ignorado: descartá-lo devolveria um conjunto que o cliente não pediu, em silêncio.
+ */
+describe("o parâmetro parada — item 101", () => {
+  it("parada=sim vira apenasParadas", () => {
+    expect(ler("parada=sim")).toStrictEqual({ apenasParadas: true });
+  });
+
+  it.each(["nao", "1", "Sim", "sim,sim"])("recusa ?parada=%s", (valor) => {
+    expect(() => ler(`parada=${valor}`)).toThrow(FormatoInvalido);
+  });
+
+  // **Vazio é ausência, como em `autor=` e `compartilhadas=`**: quem decide é `lerUnico`, e ele é o
+  // mesmo para os três parâmetros de valor único.
+  it("parada vazia é ausência, e não recusa", () => {
+    expect(ler("parada=")).toStrictEqual({});
+  });
+
+  it("combina com status, e o conjunto vazio é problema da consulta, não da borda", () => {
+    expect(ler("status=resolvida&parada=sim")).toStrictEqual({
+      status: ["resolvida"],
+      apenasParadas: true,
+    });
+  });
+
+  it("combina com autor=eu, ao contrário de compartilhadas", () => {
+    expect(ler("autor=eu&parada=sim")).toStrictEqual({ apenasDoAutor: true, apenasParadas: true });
+  });
+});
+
+/**
+ * **O texto do destaque de parada — item 101, critério 2.**
+ *
+ * A palavra carrega o sentido, e a cor só acompanha. O texto é curto porque cabe numa célula de tabela e
+ * num cartão de celular, e porque o lugar da explicação é o glossário, não a linha da lista.
+ */
+describe("o texto do destaque de parada — item 101", () => {
+  it("o plural", () => {
+    expect(fraseDaParada(9)).toBe("Parada há 9 dias");
+  });
+
+  it("o singular", () => {
+    expect(fraseDaParada(1)).toBe("Parada há 1 dia");
+  });
+
+  it("não parada é ausência de texto, e não texto vazio", () => {
+    expect(fraseDaParada(null)).toBeNull();
+  });
+});
+
+describe("o destaque veste o par medido, e não tinta de texto — item 101", () => {
+  const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx");
+
+  it("usa bg-atencao com text-marca-foreground, que tema.test.ts mede nos três modos", () => {
+    expect(fonte).toContain("bg-atencao text-marca-foreground");
+    expect(fonte).not.toContain("text-atencao");
   });
 });

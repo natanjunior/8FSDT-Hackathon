@@ -285,6 +285,40 @@ test("a configuração da organização: nome repetido, desativar até a última
   await page.reload();
   await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toHaveCount(1);
 
+  // -------------------------------------------------------------------------
+  // 0c · Os dias para parada — item 101, critérios 4 e 5
+  //
+  // **A tela recusa antes de enviar**, e é o cenário *"dias fora da faixa"*: 120 acende a frase no campo
+  // e nada vai ao servidor. Com 15, o cartão passa a dizer *"15 dias"* e a trilha guarda a mudança com a
+  // unidade nas duas pontas.
+  // -------------------------------------------------------------------------
+  await page
+    .getByRole("region", { name: "Regras do atendimento" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  const campoDosDias = modalDasRegras.getByLabel(
+    "Dias sem atividade até a ocorrência contar como parada",
+  );
+  await expect(modalDasRegras.getByText("De 1 a 90. Pausadas não contam.")).toBeVisible();
+
+  await campoDosDias.fill("120");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras.getByText("Use um número de 1 a 90.")).toBeVisible();
+  await expect(modalDasRegras).toBeVisible();
+
+  await campoDosDias.fill("15");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras).toBeHidden();
+  await expect(page.getByText("15 dias", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dias até contar como parada: de 7 dias para 15 dias")).toBeVisible();
+
+  // Volta ao padrão: os passos seguintes contam com a organização recém-fundada.
+  const diasDevolvidos = await page.request.patch("/api/configuracao", {
+    data: { diasParaParada: 7 },
+  });
+  expect(diasDevolvidos.status()).toBe(200);
+  await page.reload();
+
   // **Critério 99.8, medido:** a tela inteira cabe em 360 px, sem rolagem lateral.
   await page.setViewportSize({ width: 360, height: 740 });
   await page.reload();

@@ -200,6 +200,12 @@ export const rotulosDoSolicitanteSchema = z.partialRecord(
 export const alteracaoDeConfiguracaoSchema = z.object({
   exigirSolucaoAoResolver: z.boolean().optional(),
   limiteDeCancelamentoDoSolicitante: z.enum(LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE).optional(),
+  /**
+   * **A faixa é a do banco, escrita de novo aqui de propósito** (item 101). O `check` da migração 019 é
+   * a última linha; esta é a primeira, e é a que devolve `400` com o campo em vez de `500` com erro do
+   * Postgres. `int()` recusa `7.5`, que o `check` aceitaria depois de truncar.
+   */
+  diasParaParada: z.number().int().min(1).max(90).optional(),
   rotulosDoSolicitante: rotulosDoSolicitanteSchema.optional(),
 });
 

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { FiltroComBusca } from "@/interface/componentes/filtro-com-busca";
 import {
   comTitulo,
+  comValorUnico,
   PARAMETROS_DE_FILTRO,
   semFiltros,
   type OpcaoComBusca,
@@ -111,12 +112,32 @@ export function BarraDeFiltros({
     return bruto !== null && bruto !== "";
   });
 
+  const paradasLigado = atual.get("parada") === "sim";
+
   return (
     <div
       aria-busy={pendente}
       className="border-linha flex flex-wrap items-center gap-2 border-b px-4 py-3"
     >
       <CampoDoTitulo consultaAtual={consultaAtual} />
+
+      {/*
+        **O filtro rápido da D15, e é um clique** — item 101. Não é opção do recorte *Todas · Minhas*: o
+        recorte escolhe DE QUEM é o conjunto e as opções não coexistem; *paradas* estreita o conjunto e
+        combina com o resto, inclusive com *Minhas*. É filtro, e mora com os filtros.
+
+        **Uma palavra só, e sem contagem** (a spec §4): quem quer o número lê a frase do recorte.
+      */}
+      <button
+        type="button"
+        aria-pressed={paradasLigado}
+        className={chip(paradasLigado)}
+        onClick={() => {
+          navegar(comValorUnico(consultaAtual, "parada", paradasLigado ? null : "sim"));
+        }}
+      >
+        Paradas
+      </button>
 
       <MenuDeFiltro
         nome="Status"

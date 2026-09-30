@@ -1587,6 +1587,44 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect((await emAurora.ler()).mudancas).toHaveLength(antes);
   });
 
+  /**
+   * **Os dias para parada pela porta — item 101, critério 5.**
+   *
+   * A trilha da regra nova sai do mesmo gatilho das outras duas, e `lerRegras` é a leitura barata que
+   * T-03 faz: uma linha de `organizacoes`, **sem** `mudancas_de_configuracao`.
+   */
+  it("os dias para parada atravessam a porta, e lerRegras não carrega a trilha — item 101", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+
+    const antes = await emAurora.ler();
+    expect(antes.regras.diasParaParada).toBe(7);
+
+    const depois = await emAurora.alterar({
+      diasParaParada: 15,
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.regras.diasParaParada).toBe(15);
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "dias_para_parada",
+      valorAnterior: "7",
+      valorNovo: "15",
+      autor: { pessoaId: idSindica },
+    });
+
+    const regras = await emAurora.lerRegras();
+    expect(Object.keys(regras).sort()).toStrictEqual([
+      "diasParaParada",
+      "exigirSolucaoAoResolver",
+      "limiteDeCancelamentoDoSolicitante",
+    ]);
+    expect(regras.diasParaParada).toBe(15);
+
+    await emAurora.alterar({ diasParaParada: 7, atualizadaPorPessoaId: idSindica });
+  });
+
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
     const emRecanto = categoriasEm(idRecanto);
     const emAurora = categoriasEm(idAurora);
@@ -2483,5 +2521,119 @@ describe("os rótulos de status no banco — item 100", () => {
         [idAurora],
       ),
     ).rejects.toThrow(/append-only/u);
+  });
+});
+
+/**
+ * **A chave de "parada" no banco — item 101, critérios 5 e 6.**
+ *
+ * A faixa é do `check` da migração 019, e a linha da trilha é do mesmo gatilho do item 99, com a coluna
+ * nova acrescentada ao `after update of`. Os casos contam linhas **relativas** ao que já havia, então não
+ * dependem do que os blocos anteriores deixaram, e o `afterAll` devolve a chave ao padrão.
+ */
+describe("a chave de parada no banco — item 101", () => {
+  const mudancasDaChave = (organizacaoId: string) =>
+    consulta<{ valor_anterior: string; valor_novo: string; autor_pessoa_id: string }>(
+      `select valor_anterior, valor_novo, autor_pessoa_id
+         from mudancas_de_configuracao
+        where organizacao_id = $1 and chave = 'dias_para_parada'
+        order by ocorrida_em`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, dias: number) =>
+    consulta(`update organizacoes set dias_para_parada = $2, atualizado_por_pessoa_id = $3 where id = $1`, [
+      organizacaoId,
+      dias,
+      idSindica,
+    ]);
+
+  afterAll(async () => {
+    await definir(idAurora, 7);
+  });
+
+  it("organização nova nasce com 7 dias", async () => {
+    const [linha] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(linha).toStrictEqual({ dias: 7 });
+  });
+
+  it("mudar a chave grava uma linha na trilha, em texto, com o autor da instrução", async () => {
+    const antes = (await mudancasDaChave(idAurora)).length;
+    await definir(idAurora, 15);
+
+    const depois = await mudancasDaChave(idAurora);
+    expect(depois).toHaveLength(antes + 1);
+    expect(depois.at(-1)).toStrictEqual({
+      valor_anterior: "7",
+      valor_novo: "15",
+      autor_pessoa_id: idSindica,
+    });
+  });
+
+  it("gravar o valor que já está lá não deixa rastro", async () => {
+    await definir(idAurora, 15);
+    const antes = (await mudancasDaChave(idAurora)).length;
+    await definir(idAurora, 15);
+    expect(await mudancasDaChave(idAurora)).toHaveLength(antes);
+  });
+
+  it("o banco recusa 0 e 91, mesmo com a validação da aplicação na frente", async () => {
+    await expect(definir(idAurora, 0)).rejects.toThrow(/dias_para_parada/u);
+    await expect(definir(idAurora, 91)).rejects.toThrow(/dias_para_parada/u);
+  });
+
+  it("aceita as duas pontas da faixa", async () => {
+    await definir(idAurora, 1);
+    await definir(idAurora, 90);
+    const [linha] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idAurora],
+    );
+    expect(linha).toStrictEqual({ dias: 90 });
+  });
+
+  it("a chave de uma organização não decide o filtro da outra", async () => {
+    await definir(idAurora, 90);
+
+    const [recanto] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(recanto).toStrictEqual({ dias: 7 });
+
+    await definir(idAurora, 7);
+  });
+
+  it("mudar a chave sem autor é recusado, como as outras regras", async () => {
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+    await expect(
+      consulta(`update organizacoes set dias_para_parada = 30 where id = $1`, [idRecanto]),
+    ).rejects.toThrow(/sem autor/u);
+  });
+
+  it("a trilha das outras regras continua inteira — o gatilho foi refeito, não trocado", async () => {
+    const antes = await consulta<{ n: string }>(
+      `select count(*)::text as n from mudancas_de_configuracao where organizacao_id = $1`,
+      [idAurora],
+    );
+    await consulta(
+      `update organizacoes set exigir_solucao_ao_resolver = not exigir_solucao_ao_resolver,
+                               atualizado_por_pessoa_id = $2 where id = $1`,
+      [idAurora, idSindica],
+    );
+    const depois = await consulta<{ n: string }>(
+      `select count(*)::text as n from mudancas_de_configuracao where organizacao_id = $1`,
+      [idAurora],
+    );
+    expect(Number(depois[0]?.n)).toBe(Number(antes[0]?.n) + 1);
+
+    await consulta(
+      `update organizacoes set exigir_solucao_ao_resolver = not exigir_solucao_ao_resolver,
+                               atualizado_por_pessoa_id = $2 where id = $1`,
+      [idAurora, idSindica],
+    );
   });
 });

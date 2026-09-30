@@ -14,11 +14,13 @@ import {
   type VisibilidadeAplicada,
 } from "@/aplicacao/ocorrencia";
 import {
+  lerRegrasDaOrganizacao,
   listarAreas,
   listarCategorias,
   listarVinculos,
   type AreaLida,
   type CategoriaLida,
+  type RegrasDaOrganizacao,
   type VinculoLido,
 } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
@@ -202,6 +204,17 @@ export default async function Ocorrencias({
    * ela não há consulta e não há campo — o filtro de responsável simplesmente não existe na barra.
    */
   const areasPedidas = listarAreas(repos.areas);
+  /**
+   * **A regra da parada, e só ela** (item 101). `lerRegrasDaOrganizacao` é uma linha de `organizacoes`;
+   * `lerConfiguracao` traria a trilha inteira, com nome de quem mudou o quê, numa tela que o RNF5
+   * cronometra.
+   *
+   * **`null` para quem não lê configuração**: sem `ocorrencia.ler_todas` não há barra nem destaque, e a
+   * frase do recorte sai sem o número — continua verdadeira, e é melhor que um número inventado.
+   */
+  const regrasPedidas: Promise<RegrasDaOrganizacao | null> = podeLerTodas
+    ? lerRegrasDaOrganizacao(repos.configuracao)
+    : Promise.resolve(null);
   const podeGerirVinculos = vinculo.pode("vinculo.gerir");
   const participantesPedidos: Promise<readonly VinculoLido[] | null> = podeGerirVinculos
     ? listarVinculos(repos.vinculos)
@@ -259,6 +272,7 @@ export default async function Ocorrencias({
             categorias={categoriasPedidas}
             areas={areasPedidas}
             participantes={participantesPedidos}
+            regras={regrasPedidas}
             filtro={filtro}
             consultaAtual={consultaAtual}
             nomeDaOrganizacao={organizacao?.nome ?? null}
@@ -306,6 +320,7 @@ async function Lista({
   categorias,
   areas,
   participantes,
+  regras,
   filtro,
   consultaAtual,
   nomeDaOrganizacao,
@@ -323,6 +338,8 @@ async function Lista({
   areas: Promise<readonly AreaLida[]>;
   /** `null` quando quem lê não tem `vinculo.gerir` — e aí o filtro de responsável não aparece. */
   participantes: Promise<readonly VinculoLido[] | null>;
+  /** `null` quando quem lê não tem `ocorrencia.ler_todas` — item 101. */
+  regras: Promise<RegrasDaOrganizacao | null>;
   filtro: FiltroDeOcorrencias;
   consultaAtual: string;
   nomeDaOrganizacao: string | null;
@@ -336,12 +353,10 @@ async function Lista({
   podeConfigurar: boolean;
   mostrarPrioridade: boolean;
 }) {
-  const [resultado, listaDeCategorias, listaDeAreas, listaDeParticipantes] = await Promise.all([
-    pagina,
-    categorias,
-    areas,
-    participantes,
-  ]);
+  const [resultado, listaDeCategorias, listaDeAreas, listaDeParticipantes, regrasLidas] =
+    await Promise.all([pagina, categorias, areas, participantes, regras]);
+  /** Os dias da organização, ou `null` para quem não lê configuração — item 101. */
+  const diasParaParada = regrasLidas?.diasParaParada ?? null;
   const projetada = projetarPaginaDeOcorrencias(resultado, lente);
 
   /**
@@ -474,6 +489,7 @@ async function Lista({
             consultaAtual={consultaAtual}
             iconePorCategoria={iconePorCategoria}
             mostrarPrioridade={mostrarPrioridade}
+            mostrarParada={podeLerTodas}
             agora={instanteDoServidor()}
           />
         )}
@@ -488,6 +504,7 @@ async function Lista({
             filtro={filtro}
             nomeDaOrganizacao={nomeDaOrganizacao}
             nomesDoRecorte={nomesDoRecorte}
+            diasParaParada={diasParaParada}
             consultaAtual={consultaAtual}
             podeRegistrar={podeRegistrar}
             podeConfigurar={podeConfigurar}
@@ -550,6 +567,7 @@ function Vazio({
   filtro,
   nomeDaOrganizacao,
   nomesDoRecorte,
+  diasParaParada,
   consultaAtual,
   podeRegistrar,
   podeConfigurar,
@@ -562,6 +580,8 @@ function Vazio({
     area: (id: string) => string | undefined;
     pessoa: (id: string) => string | undefined;
   };
+  /** Os dias da organização, ou `null` para quem não lê configuração — item 101. */
+  diasParaParada: number | null;
   consultaAtual: string;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
@@ -584,7 +604,7 @@ function Vazio({
         {tipo === "filtro" && (
           <EmptyDescription className="text-corpo text-tinta-suave">
             {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
-            {descricaoDoRecorte(filtro, nomesDoRecorte).join(" · ")}.
+            {descricaoDoRecorte(filtro, nomesDoRecorte, diasParaParada).join(" · ")}.
           </EmptyDescription>
         )}
       </EmptyHeader>

@@ -201,6 +201,13 @@ como no tempo de resolução.
 em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
 sem mudar o formato da resposta.
 
+Há uma segunda régua, e ela responde outra pergunta. A idade conta desde o registro e não para nunca; a
+listagem conta também há quanto tempo ninguém mexe na ocorrência, e essa conta zera a cada atividade —
+transição, atribuição ou mensagem no canal. Uma ocorrência registrada há quarenta dias e comentada ontem é
+velha pela primeira régua e não está parada pela segunda. O limite em dias é regra de cada organização, e a
+listagem o lê na mesma consulta que devolve a página, então mudar a regra muda o recorte na leitura
+seguinte.
+
 ## As mais velhas em aberto
 
 A resposta aponta as ocorrências em aberto há mais tempo, no máximo cinco, da mais velha para a mais nova,

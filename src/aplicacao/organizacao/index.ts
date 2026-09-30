@@ -32,6 +32,7 @@ export {
   criarArea,
   criarCategoria,
   lerConfiguracao,
+  lerRegrasDaOrganizacao,
   lerRotulosDoSolicitante,
   reordenarAreas,
   reordenarCategorias,

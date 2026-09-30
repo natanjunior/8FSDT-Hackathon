@@ -60,6 +60,7 @@ import type { Papel } from "@/dominio/organizacao";
 const REGRAS_DE_HOJE: RegrasDaOrganizacao = {
   exigirSolucaoAoResolver: false,
   limiteDeCancelamentoDoSolicitante: "em_analise",
+  diasParaParada: 7,
 };
 
 const ID = "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8";

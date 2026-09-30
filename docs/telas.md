@@ -118,6 +118,11 @@ campo de mensagem — as mensagens continuam legíveis.
 Onze telas de comando produziriam um produto em que o Gestor sai da ocorrência para agir sobre ela e volta
 para ver o resultado — navegar em vez de trabalhar.
 
+A lista tem um filtro de um clique para o que está esperando: ele recorta pelas ocorrências em curso sem
+atividade há mais dias do que a organização tolera, e as que estão em espera com motivo não entram. Cada
+linha recortada diz há quantos dias está assim, e o mesmo aviso aparece fora do filtro, para quem só
+percorre a lista. Quantos dias a organização tolera é regra dela, de 1 a 90, e muda na Configuração.
+
 ## O que a tela desenha vem do servidor
 
 A resposta que traz uma ocorrência traz também **a lista de ações disponíveis para quem está lendo**, já

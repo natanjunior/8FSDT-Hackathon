@@ -43,6 +43,10 @@ import {
   fraseDaMudanca,
   regrasQueMudaram,
   valorEmPalavra,
+  APOIO_DOS_DIAS,
+  DIAS_FORA_DA_FAIXA,
+  ROTULO_DO_CAMPO_DE_DIAS,
+  diasValidos,
 } from "@/interface/componentes/regras-da-configuracao";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import {
@@ -781,7 +785,11 @@ describe("a normalização da rota — item 100", () => {
 describe("a projeção dos rótulos — item 100", () => {
   it("os seis estados sempre saem, com null onde vale o padrão", () => {
     const projetada = projetarConfiguracao({
-      regras: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_analise" },
+      regras: {
+        exigirSolucaoAoResolver: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
+        diasParaParada: 7,
+      },
       rotulos: { em_analise: "o síndico está avaliando" },
       mudancas: [],
     });
@@ -800,7 +808,11 @@ describe("a projeção dos rótulos — item 100", () => {
 describe("a projeção da configuração — item 99", () => {
   it("é plana, e as mudanças saem como a porta as leu", () => {
     const projetada = projetarConfiguracao({
-      regras: { exigirSolucaoAoResolver: true, limiteDeCancelamentoDoSolicitante: "em_analise" },
+      regras: {
+        exigirSolucaoAoResolver: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
+        diasParaParada: 7,
+      },
       rotulos: {},
       mudancas: [
         {
@@ -816,6 +828,7 @@ describe("a projeção da configuração — item 99", () => {
     expect(projetada).toStrictEqual({
       exigirSolucaoAoResolver: true,
       limiteDeCancelamentoDoSolicitante: "em_analise",
+      diasParaParada: 7,
       // **Os seis sempre saem** (item 100), com `null` onde vale o padrão.
       rotulosDoSolicitante: {
         aberta: null,
@@ -840,7 +853,11 @@ describe("a projeção da configuração — item 99", () => {
   it("sem mudança nenhuma, a lista é `[]` — nunca `null`", () => {
     expect(
       projetarConfiguracao({
-        regras: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_atendimento" },
+        regras: {
+          exigirSolucaoAoResolver: false,
+          limiteDeCancelamentoDoSolicitante: "em_atendimento",
+          diasParaParada: 7,
+        },
         rotulos: {},
         mudancas: [],
       }).mudancas,
@@ -890,6 +907,7 @@ describe("as palavras da configuração — item 99", () => {
     const atuais = {
       exigirSolucaoAoResolver: false,
       limiteDeCancelamentoDoSolicitante: "em_analise",
+      diasParaParada: 7,
     } as const;
     expect(regrasQueMudaram(atuais, atuais)).toStrictEqual({});
     expect(regrasQueMudaram(atuais, { ...atuais, exigirSolucaoAoResolver: true })).toStrictEqual({
@@ -898,6 +916,9 @@ describe("as palavras da configuração — item 99", () => {
     expect(
       regrasQueMudaram(atuais, { ...atuais, limiteDeCancelamentoDoSolicitante: "em_atendimento" }),
     ).toStrictEqual({ limiteDeCancelamentoDoSolicitante: "em_atendimento" });
+    expect(regrasQueMudaram(atuais, { ...atuais, diasParaParada: 15 })).toStrictEqual({
+      diasParaParada: 15,
+    });
   });
 
   it("a frase da trilha nomeia o ponto do ciclo e diz o padrão por extenso — item 100", () => {
@@ -949,5 +970,80 @@ describe("as palavras da configuração — item 99", () => {
       expect(frase.endsWith(".")).toBe(true);
       expect(frase).not.toMatch(/_/u);
     }
+  });
+});
+
+/**
+ * **A chave de parada na borda HTTP — item 101, critério 5.**
+ *
+ * A faixa está escrita em três lugares de propósito: aqui, no `check` da migração 019 e no campo de
+ * T-15. Cada uma protege de um lado diferente, e esta é a que devolve `400` com o campo em vez de `500`
+ * com erro do Postgres.
+ */
+describe("a chave de parada no corpo do PATCH — item 101", () => {
+  it("aceita as duas pontas da faixa", () => {
+    expect(alteracaoDeConfiguracaoSchema.parse({ diasParaParada: 1 })).toStrictEqual({
+      diasParaParada: 1,
+    });
+    expect(alteracaoDeConfiguracaoSchema.parse({ diasParaParada: 90 })).toStrictEqual({
+      diasParaParada: 90,
+    });
+  });
+
+  it.each([0, 91, 7.5, -1])("recusa %s", (valor) => {
+    expect(alteracaoDeConfiguracaoSchema.safeParse({ diasParaParada: valor }).success).toBe(false);
+  });
+
+  it("recusa texto, porque o corpo é JSON e o campo é número", () => {
+    expect(alteracaoDeConfiguracaoSchema.safeParse({ diasParaParada: "7" }).success).toBe(false);
+  });
+});
+
+/**
+ * **A regra de parada na trilha da tela — item 101.**
+ *
+ * A linha da trilha e o cartão usam **a mesma função de valor**: o cartão escreve *"7 dias"* e a trilha
+ * escreve *"de 7 dias para 15 dias"*. Num histórico em que as outras linhas dizem *Sim* e *Não*, um
+ * número nu seria a única linha sem unidade.
+ */
+describe("os dias para parada na trilha — item 101", () => {
+  it("o valor em palavra leva a unidade, no singular e no plural", () => {
+    expect(valorEmPalavra("dias_para_parada", "7")).toBe("7 dias");
+    expect(valorEmPalavra("dias_para_parada", "1")).toBe("1 dia");
+  });
+
+  it("a linha da trilha usa o rótulo curto e a unidade nas duas pontas", () => {
+    expect(fraseDaMudanca({ chave: "dias_para_parada", valorAnterior: "7", valorNovo: "15" })).toBe(
+      "Dias até contar como parada: de 7 dias para 15 dias",
+    );
+  });
+
+  it("as frases das duas regras do item 99 não mudaram", () => {
+    expect(
+      fraseDaMudanca({ chave: "exigir_solucao_ao_resolver", valorAnterior: "false", valorNovo: "true" }),
+    ).toBe("Exigir a solução ao resolver: de Não para Sim");
+  });
+});
+
+/**
+ * **O campo de dias em T-15 — item 101, o cenário *"dias fora da faixa"*.**
+ *
+ * A recusa acontece **antes de qualquer ida ao servidor**: a faixa está escrita aqui, no schema da borda
+ * e no `check` do banco, e cada uma protege de um lado diferente.
+ */
+describe("o campo dos dias para parada — item 101", () => {
+  it.each(["7", "1", "90"])("aceita %s", (bruto) => {
+    expect(diasValidos(bruto)).toBe(Number(bruto));
+  });
+
+  it.each(["0", "91", "", " ", "7,5", "7.5", "sete", "-1", "007a"])("recusa %s", (bruto) => {
+    expect(diasValidos(bruto)).toBeNull();
+  });
+
+  it("os textos do campo falam de dias e de pausadas, sem código dentro", () => {
+    expect(ROTULO_DO_CAMPO_DE_DIAS).toContain("parada");
+    expect(APOIO_DOS_DIAS).toBe("De 1 a 90. Pausadas não contam.");
+    expect(DIAS_FORA_DA_FAIXA.endsWith(".")).toBe(true);
+    for (const frase of [APOIO_DOS_DIAS, DIAS_FORA_DA_FAIXA]) expect(frase).not.toMatch(/_/u);
   });
 });

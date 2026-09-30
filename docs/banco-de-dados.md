@@ -120,6 +120,13 @@ As mudanças de configuração têm a mesma defesa, e uma diferença: quem as es
 há observação a produzir, e a linha travada pelo `update` garante que duas mudanças seguidas registrem
 cada uma o valor que encontrou.
 
+São três regras, uma coluna cada em `organizacoes`: se a solução aplicada é exigida ao resolver, até onde
+quem registrou cancela a própria ocorrência, e quantos dias sem atividade até a ocorrência contar como
+parada. A terceira é um inteiro com padrão 7, e o banco recusa fora da faixa de 1 a 90 — a aplicação recusa
+antes, com a mensagem no campo, e o `check` existe para quem chega por fora dela. A listagem lê essa coluna
+na mesma instrução que devolve a página, então não há valor guardado que possa ficar velho entre a mudança
+da regra e a leitura seguinte.
+
 Os textos de quem abriu entram na mesma trilha por outro caminho: eles moram em tabela própria, e quem
 grava a linha é a aplicação, dentro da mesma transação da escrita e com a linha da organização travada.
 É o que registra quem apagou um texto, informação que a linha apagada não carrega.

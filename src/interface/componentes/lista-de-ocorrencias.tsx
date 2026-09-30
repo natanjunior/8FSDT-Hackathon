@@ -34,7 +34,7 @@ import {
   type ColunaDaLista,
 } from "./ordenacao-das-ocorrencias";
 import { CELULA } from "./pecas-da-tabela";
-import { rotuloDePrioridade } from "./rotulos";
+import { fraseDaParada, rotuloDePrioridade } from "./rotulos";
 import { SeloDeNaoVista } from "./selo-de-nao-vista";
 import { SeloDeStatus } from "./selo-de-status";
 import { tempoCurto } from "./tempo-relativo";
@@ -137,6 +137,11 @@ type Props = {
    * campo que ele mesmo altera. Está como achado A-3 na spec.
    */
   mostrarPrioridade: boolean;
+  /**
+   * O destaque de parada aparece para quem tem `ocorrencia.ler_todas` — item 101. Para o Solicitante a
+   * linha do tempo já diz a última data, e o destaque é instrumento de quem cobra o atendimento.
+   */
+  mostrarParada: boolean;
   /** O instante da renderização no servidor. */
   agora: number;
 };
@@ -146,6 +151,7 @@ export function ListaDeOcorrencias({
   consultaAtual,
   iconePorCategoria,
   mostrarPrioridade,
+  mostrarParada,
   agora,
 }: Props) {
   // **Uma página inteira, lida direto** — item 14b. O componente deixou de acumular: cada página vem
@@ -160,7 +166,7 @@ export function ListaDeOcorrencias({
    */
   const destinoDoItem = (id: string) => `/ocorrencias/${id}`;
 
-  const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, agora };
+  const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, mostrarParada, agora };
 
   // **Uma forma nos dois recortes** (critério 76.3): o que muda entre *Todas* e *Minhas* é conteúdo,
   // nunca estrutura. A tabela a partir de `md`, a linha de três andares abaixo dele. O cartão em volta é
@@ -183,8 +189,30 @@ type PropsDoItem = {
   destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
+  mostrarParada: boolean;
   agora: number;
 };
+
+/**
+ * **A pílula de parada — item 101, critério 2.**
+ *
+ * **Em todo recorte, e não só dentro do filtro:** o filtro é a porta, o destaque é o sinal. O Gestor que
+ * abre *Todas* vê quais estão paradas sem precisar saber que o filtro existe.
+ *
+ * **O par de cores é `bg-atencao` com `text-marca-foreground`**, o mesmo do selo `pausada`, e o único par
+ * de atenção que `tema.test.ts` mede nos três modos — claro, escuro e alto contraste. Nenhuma tinta de
+ * texto do catálogo é de aviso, e inventar uma abriria frente de contraste que o item 89 fechou.
+ */
+function SeloDeParada({ dias }: { dias: number | null }) {
+  const frase = fraseDaParada(dias);
+  if (frase === null) return null;
+
+  return (
+    <Badge className="bg-atencao text-marca-foreground text-rotulo-peca border-transparent font-normal">
+      {frase}
+    </Badge>
+  );
+}
 
 /**
  * **O par de datas da coluna Tempo, escrito uma vez** — item 67.
@@ -243,6 +271,7 @@ function LinhaDeTriagemNoCelular({
   item,
   destinoDoItem,
   mostrarPrioridade,
+  mostrarParada,
   agora,
 }: PropsDoItem) {
   /** **A segunda metade só sai quando acrescenta informação** — critério 23.6. Até o item 31 o
@@ -261,6 +290,8 @@ function LinhaDeTriagemNoCelular({
               significa *"a pergunta não foi feita"*. Em *Minhas* e em *Todas* nenhuma linha leva selo, por
               construção. */}
           {item.naoAberta === true && <SeloDeNaoVista />}
+          {/* **Ao lado do selo de status**, que é onde o olho já procura sinal (item 101). */}
+          {mostrarParada && <SeloDeParada dias={item.paradaHaDias} />}
           {segundaLinha !== null && (
             <span className="text-meta text-tinta-suave">{segundaLinha}</span>
           )}
@@ -327,6 +358,7 @@ function TabelaDeTriagem({
   destinoDoItem,
   iconePorCategoria,
   mostrarPrioridade,
+  mostrarParada,
   agora,
 }: {
   itens: readonly OcorrenciaResumoProjetada[];
@@ -334,6 +366,7 @@ function TabelaDeTriagem({
   destinoDoItem: (id: string) => string;
   iconePorCategoria: Readonly<Record<string, string>>;
   mostrarPrioridade: boolean;
+  mostrarParada: boolean;
   agora: number;
 }) {
   const { navegar } = useNavegacaoDaLista();
@@ -439,6 +472,12 @@ function TabelaDeTriagem({
                     atualizadaEm={item.atualizadaEm}
                     agora={agora}
                   />
+                  {/* **Abaixo do par de datas**, na coluna que já fala de tempo (item 101). */}
+                  {mostrarParada && item.paradaHaDias !== null && (
+                    <span className="mt-1 block font-sans">
+                      <SeloDeParada dias={item.paradaHaDias} />
+                    </span>
+                  )}
                 </TableCell>
               </TableRow>
             );

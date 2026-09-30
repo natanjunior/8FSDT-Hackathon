@@ -48,6 +48,7 @@ function resumo(n: number): OcorrenciaResumoLida {
     quantidadeDeAnexos: 0,
     avaliada: false,
     naoAberta: null,
+    paradaHaDias: null,
     motivoPausa: null,
     registradaEm: `2026-08-2${n}T13:02:11.000Z`,
     atualizadaEm: `2026-08-2${n}T13:02:11.000Z`,

@@ -32,7 +32,7 @@ export function semPaginacao(atual: URLSearchParams): URLSearchParams {
 }
 
 /**
- * Os sete parâmetros de **recorte** que a tela escreve.
+ * Os oito parâmetros de **recorte** que a tela escreve.
  *
  * **A lista existe para ter UM lugar**: a barra usa-a para saber se algum filtro está ligado, e *"Limpar
  * filtros"* usa-a para saber o que apagar. Até o item 67 as duas coisas eram expressões escritas à mão em
@@ -50,9 +50,13 @@ export const PARAMETROS_DE_FILTRO = [
   "titulo",
   "areaId",
   "responsavelPessoaId",
+  // **`parada` é filtro, e não recorte de conjunto** (item 101): estreita o que já está na lista, entra
+  // em `algumFiltroAplicado` e sai com *Limpar filtros*. A lista não está na ordem da barra, e não
+  // precisa estar: ela serve a *"algum filtro está ligado?"* e a *"o que Limpar apaga"*.
+  "parada",
 ] as const;
 
-/** Apaga os sete recortes e a paginação. **Mantém a ordem.** */
+/** Apaga os oito recortes e a paginação. **Mantém a ordem.** */
 export function semFiltros(consultaAtual: string): URLSearchParams {
   const proximos = semPaginacao(new URLSearchParams(consultaAtual));
   for (const nome of PARAMETROS_DE_FILTRO) proximos.delete(nome);

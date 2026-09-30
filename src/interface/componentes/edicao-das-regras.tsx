@@ -4,21 +4,27 @@ import { Pencil } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
-import { ErroDoFormulario } from "@/interface/componentes/campo";
+import { Campo, ErroDoFormulario } from "@/interface/componentes/campo";
 import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import {
+  APOIO_DOS_DIAS,
   APOIO_DO_LIMITE,
   DESCRICAO_DAS_REGRAS,
+  DIAS_FORA_DA_FAIXA,
   REGRAS_SEM_MUDANCA,
   ROTULO_DA_REGRA,
+  ROTULO_DO_CAMPO_DE_DIAS,
   TITULO_DAS_REGRAS,
+  diasValidos,
   regrasQueMudaram,
   type Regras,
 } from "@/interface/componentes/regras-da-configuracao";
 import { mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
+import { Input } from "@/interface/componentes/ui/input";
 import { Switch } from "@/interface/componentes/ui/switch";
 import { useEnvioDoModal, type DesfechoDoEnvio } from "@/interface/ganchos/use-envio-do-modal";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -49,8 +55,17 @@ export function EdicaoDasRegras({
   organizacaoId: string;
 }) {
   const apoioDoLimiteId = useId();
+  const campoDosDiasId = useId();
   const [escolhidas, setEscolhidas] = useState<Regras>(regras);
+  // **O campo é texto, e não número**: `diasValidos` é quem decide o que vale, e um `number` no estado
+  // não saberia representar *"a pessoa apagou o campo"*.
+  const [dias, setDias] = useState(String(regras.diasParaParada));
   const [semMudanca, setSemMudanca] = useState(false);
+
+  const formulario = useFormularioTocado({
+    campos: { dias: campoDosDiasId },
+    erros: { dias: diasValidos(dias) === null ? DIAS_FORA_DA_FAIXA : undefined },
+  });
 
   async function enviar(): Promise<DesfechoDoEnvio<null>> {
     const resposta = await fetch("/api/configuracao", {
@@ -70,7 +85,9 @@ export function EdicaoDasRegras({
     tituloDaFalha: "Não foi possível salvar as regras",
     aoAbrir: () => {
       setEscolhidas(regras);
+      setDias(String(regras.diasParaParada));
       setSemMudanca(false);
+      formulario.recomecar();
     },
   });
 
@@ -82,6 +99,9 @@ export function EdicaoDasRegras({
   function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (envio.enviando) return;
+
+    // **Fora da faixa nada é enviado**, e a recusa acende no campo: é o cenário *"dias fora da faixa"*.
+    if (!formulario.tentarEnviar()) return;
 
     if (Object.keys(regrasQueMudaram(regras, escolhidas)).length === 0) {
       setSemMudanca(true);
@@ -151,6 +171,37 @@ export function EdicaoDasRegras({
           {APOIO_DO_LIMITE}
         </p>
       </div>
+
+      {/*
+        **Campo numérico, e não seletor:** noventa opções não cabem num menu, e quem configura tem um
+        número em mente. `inputMode="numeric"` traz o teclado certo no celular.
+      */}
+      <Campo
+        id={campoDosDiasId}
+        rotulo={ROTULO_DO_CAMPO_DE_DIAS}
+        ajuda={APOIO_DOS_DIAS}
+        erro={formulario.erroDe("dias")}
+      >
+        {(controle) => (
+          <Input
+            {...controle}
+            inputMode="numeric"
+            value={dias}
+            maxLength={3}
+            disabled={envio.enviando}
+            onChange={(evento) => {
+              const escolhido = evento.target.value;
+              setDias(escolhido);
+              setSemMudanca(false);
+              formulario.mudou("dias");
+              const valido = diasValidos(escolhido);
+              if (valido !== null) trocar({ diasParaParada: valido });
+            }}
+            onBlur={formulario.aoSair("dias")}
+            className="border-linha bg-background h-11 max-w-24"
+          />
+        )}
+      </Campo>
 
       {semMudanca && <ErroDoFormulario>{REGRAS_SEM_MUDANCA}</ErroDoFormulario>}
       {!semMudanca && envio.aviso !== null && <ErroDoFormulario>{envio.aviso}</ErroDoFormulario>}

@@ -35,6 +35,7 @@ export const PATCH = comContexto(
     if (
       corpo.exigirSolucaoAoResolver === undefined &&
       corpo.limiteDeCancelamentoDoSolicitante === undefined &&
+      corpo.diasParaParada === undefined &&
       corpo.rotulosDoSolicitante === undefined
     ) {
       throw new FormatoInvalido([
