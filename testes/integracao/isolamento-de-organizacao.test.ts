@@ -2277,3 +2277,101 @@ describe("a trilha de configuração no banco — item 99", () => {
     ).rejects.toThrow(/append-only/u);
   });
 });
+
+/**
+ * **Os rótulos de status no banco — item 100, critérios 1, 2, 5 e 7.**
+ *
+ * A tabela tem **três colunas e linha só quando customizado**: sem linha, vale o padrão, e é isso que o
+ * primeiro caso prende. Quem guarda *quem* e *quando* é `mudancas_de_configuracao`, e por isso não há
+ * coluna de autor aqui.
+ *
+ * **Este `describe` é o último do arquivo**, e os dois blocos anteriores que escrevem em
+ * `rotulos_de_status` devolvem a tabela ao estado em que a acharam. O primeiro caso afirma que Recanto
+ * não tem linha nenhuma; se a limpeza de qualquer um dos dois falhar, o que quebra é ele.
+ */
+describe("os rótulos de status no banco — item 100", () => {
+  const rotulosEm = (organizacaoId: string) =>
+    consulta<{ estado: string; rotulo: string }>(
+      `select estado::text as estado, rotulo from rotulos_de_status
+        where organizacao_id = $1 order by estado`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, estado: string, rotulo: string) =>
+    consulta(
+      `insert into rotulos_de_status (organizacao_id, estado, rotulo) values ($1, $2, $3)
+         on conflict (organizacao_id, estado) do update set rotulo = excluded.rotulo`,
+      [organizacaoId, estado, rotulo],
+    );
+
+  afterAll(async () => {
+    await consulta(`delete from rotulos_de_status where organizacao_id = $1`, [idAurora]);
+  });
+
+  it("organização nova nasce sem linha nenhuma — o critério 2", async () => {
+    expect(await rotulosEm(idRecanto)).toStrictEqual([]);
+  });
+
+  it("os seis estados do ciclo são aceitos, pausada inclusa — o critério 1", async () => {
+    for (const estado of [
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+      "cancelada",
+    ]) {
+      await definir(idAurora, estado, `texto de ${estado}`);
+    }
+    expect(await rotulosEm(idAurora)).toHaveLength(6);
+  });
+
+  it("um sétimo estado não existe — quem restringe é o tipo do ciclo, não um check à parte", async () => {
+    await expect(definir(idAurora, "arquivada", "texto")).rejects.toThrow(/status_ocorrencia/u);
+  });
+
+  it("o teto é 40, e o texto vai aparado — o critério 5", async () => {
+    await expect(definir(idAurora, "aberta", "x".repeat(41))).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", " com espaço na ponta ")).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", "")).rejects.toThrow(/rotulos_de_status_rotulo_ck/u);
+  });
+
+  it("a trilha aceita as seis chaves de rótulo, e só elas — o critério 7", async () => {
+    const trilhar = (chave: string, anterior: string, novo: string) =>
+      consulta(
+        `insert into mudancas_de_configuracao
+           (organizacao_id, chave, valor_anterior, valor_novo, autor_pessoa_id)
+         values ($1, $2, $3, $4, $5)`,
+        [idAurora, chave, anterior, novo, idSindica],
+      );
+
+    // **O padrão vai como texto vazio**, nas duas pontas: estrear um rótulo e apagá-lo.
+    await trilhar("rotulo_em_analise", "", "o síndico está avaliando");
+    await trilhar("rotulo_em_analise", "o síndico está avaliando", "");
+    await expect(trilhar("rotulo_inventado", "", "x")).rejects.toThrow(
+      /mudancas_de_configuracao_chave_ck/u,
+    );
+  });
+
+  it("a linha de rótulo na trilha também recusa update e delete", async () => {
+    await expect(
+      consulta(
+        `update mudancas_de_configuracao set valor_novo = 'x'
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
+    ).rejects.toThrow(/append-only/u);
+
+    await expect(
+      consulta(
+        `delete from mudancas_de_configuracao
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
+    ).rejects.toThrow(/append-only/u);
+  });
+});
