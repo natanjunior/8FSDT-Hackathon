@@ -309,7 +309,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   await campoDosDias.fill("15");
   await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDasRegras).toBeHidden();
-  await expect(page.getByText("15 dias")).toBeVisible();
+  await expect(page.getByText("15 dias", { exact: true })).toBeVisible();
   await expect(page.getByText("Dias até contar como parada: de 7 dias para 15 dias")).toBeVisible();
 
   // Volta ao padrão: os passos seguintes contam com a organização recém-fundada.
