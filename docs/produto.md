@@ -55,7 +55,8 @@ trabalho não acabou.
 O que governa esse caminho:
 
 - **Só o Gestor move a ocorrência adiante.** O Solicitante acompanha, comenta, avalia e cancela a própria
-  enquanto ninguém começou a atendê-la. Depois que o atendimento começa, cancelar é decisão do Gestor.
+  enquanto ninguém começou a atendê-la, que é o padrão. A organização pode estender esse limite até o
+  atendimento; depois dele, cancelar é decisão do Gestor.
 - **Pausar exige motivo**, escolhido numa lista curta: esperando resposta do Solicitante, esperando
   material, esperando autorização, esperando um terceiro. Retomar devolve a ocorrência ao estado em que ela
   estava antes da pausa.

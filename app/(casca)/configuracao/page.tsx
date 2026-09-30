@@ -4,14 +4,27 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarAreas, listarCategorias } from "@/aplicacao/organizacao";
+import { lerConfiguracao, listarAreas, listarCategorias } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
 import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
+import { dataEHora } from "@/interface/componentes/datas";
+import { EdicaoDasRegras } from "@/interface/componentes/edicao-das-regras";
 import { EdicaoDeNome } from "@/interface/componentes/edicao-de-nome";
+import {
+  APOIO_DO_CARTAO_DE_REGRAS,
+  APOIO_DO_LIMITE,
+  ROTULO_DA_REGRA,
+  SEM_MUDANCAS,
+  TITULO_DAS_MUDANCAS,
+  TITULO_DAS_REGRAS,
+  fraseDaMudanca,
+  valorEmPalavra,
+} from "@/interface/componentes/regras-da-configuracao";
 import { EDICAO_DE_NOME } from "@/interface/componentes/regras-do-nome";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
+import { projetarConfiguracao } from "@/interface/projecoes";
 
 /**
  * **T-15 · Configuração da organização** — *"O que desta organização eu posso ajustar?"*
@@ -35,6 +48,9 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * porque o denominador da contagem é o total. O nome e o código vêm do contexto que a página já
  * resolveu. O desfecho do salvamento é um aviso, que mora no layout raiz.
  *
+ * **Três cartões e uma pauta desde o item 99:** as regras moram entre a identidade e as listas porque
+ * dizem como a organização trabalha; as mudanças vão por último porque são história.
+ *
  * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório.
  */
 export const dynamic = "force-dynamic";
@@ -52,9 +68,10 @@ export default async function ConfiguracaoDaOrganizacao() {
     return <SemAcesso titulo="Configuração da organização" permissao="organizacao.configurar" />;
   }
 
-  const [categorias, areas] = await Promise.all([
+  const [categorias, areas, configuracao] = await Promise.all([
     listarCategorias(escopo.repos.categorias, { incluirInativas: true }),
     listarAreas(escopo.repos.areas, { incluirInativas: true }),
+    lerConfiguracao(escopo.repos.configuracao).then(projetarConfiguracao),
   ]);
 
   const ativo = escopo.resolucao.ativo;
@@ -67,7 +84,7 @@ export default async function ConfiguracaoDaOrganizacao() {
           título, e o `loading.tsx` também. */}
       <CabecalhoDaPagina
         titulo="Configuração da organização"
-        fato="A identidade desta organização e as duas listas do formulário de registro."
+        fato="A identidade desta organização, as regras do atendimento e as duas listas do formulário de registro."
       />
 
       {/* **Identidade primeiro, listas depois.** A pergunta da tela é *"o que desta organização eu posso
@@ -98,6 +115,48 @@ export default async function ConfiguracaoDaOrganizacao() {
             <div className="border-linha-suave flex flex-col gap-2.5 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
               <dt className={ROTULO}>Código da organização</dt>
               <CodigoDaOrganizacao codigo={ativo.organizacao.codigoPublico} />
+            </div>
+          </dl>
+        </Cartao>
+      )}
+
+      {/* **As regras entre a identidade e as listas** (item 99): quem a organização é, como ela
+          trabalha, e o que ela oferece no formulário — do geral para o particular. */}
+      {ativo !== null && (
+        <Cartao tituloId="regras">
+          <CabecaDoCartao
+            id="regras"
+            titulo={TITULO_DAS_REGRAS}
+            apoio={APOIO_DO_CARTAO_DE_REGRAS}
+            acao={
+              <EdicaoDasRegras
+                regras={{
+                  exigirSolucaoAoResolver: configuracao.exigirSolucaoAoResolver,
+                  limiteDeCancelamentoDoSolicitante: configuracao.limiteDeCancelamentoDoSolicitante,
+                }}
+                organizacaoId={ativo.organizacao.id}
+              />
+            }
+          />
+          <dl className="grid lg:grid-cols-2">
+            <div className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
+              <dt className={ROTULO}>{ROTULO_DA_REGRA.exigir_solucao_ao_resolver}</dt>
+              <dd className="text-titulo-bloco text-tinta font-medium">
+                {valorEmPalavra(
+                  "exigir_solucao_ao_resolver",
+                  String(configuracao.exigirSolucaoAoResolver),
+                )}
+              </dd>
+            </div>
+            <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
+              <dt className={ROTULO}>{ROTULO_DA_REGRA.limite_cancelamento_solicitante}</dt>
+              <dd className="text-titulo-bloco text-tinta font-medium">
+                {valorEmPalavra(
+                  "limite_cancelamento_solicitante",
+                  configuracao.limiteDeCancelamentoDoSolicitante,
+                )}
+              </dd>
+              <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DO_LIMITE}</dd>
             </div>
           </dl>
         </Cartao>
@@ -134,6 +193,35 @@ export default async function ConfiguracaoDaOrganizacao() {
           </li>
         </ul>
       </Cartao>
+      {/* **A história por último** (item 99). Cada mudança é uma pilha de duas linhas, e não uma tabela:
+          é o que a mantém legível em 360 px sem rolagem lateral (critério 99.8). */}
+      <Cartao tituloId="mudancas">
+        <CabecaDoCartao
+          id="mudancas"
+          titulo={TITULO_DAS_MUDANCAS}
+          apoio="Quem mudou uma regra, quando, e de que valor para qual."
+        />
+        {configuracao.mudancas.length === 0 ? (
+          <p className="text-interface text-tinta-suave p-[15px] md:px-6 md:py-5">{SEM_MUDANCAS}</p>
+        ) : (
+          <ul>
+            {configuracao.mudancas.map((mudanca) => (
+              <li
+                key={`${mudanca.chave}-${mudanca.ocorridaEm}`}
+                className="border-linha-suave flex flex-col gap-1 border-b p-[15px] last:border-b-0 md:px-6 md:py-5"
+              >
+                <span className="text-meta text-tinta-suave wrap-break-word">
+                  {mudanca.autor.nome} · {dataEHora(mudanca.ocorridaEm)}
+                </span>
+                <span className="text-interface text-tinta wrap-break-word">
+                  {fraseDaMudanca(mudanca)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Cartao>
+
     </div>
   );
 }

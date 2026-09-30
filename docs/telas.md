@@ -65,8 +65,9 @@ flowchart TB
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
-moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração — que
-abre as categorias e as áreas —, os Meus dados e a página do Grupo, que também responde sem sessão.
+moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração, que mostra as
+regras do atendimento com cada mudança delas e abre as categorias e as áreas, os Meus dados e a página do
+Grupo, que também responde sem sessão.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
@@ -201,9 +202,8 @@ mesma consulta, porque para um programa a ordem errada é defeito de quem chamou
 
 ## Celular primeiro, e o que muda na tela grande
 
-O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,
-a trilha de auditoria, os participantes e a configuração são desenhados para a tela grande, porque são
-trabalho de quem senta para administrar.
+Toda tela é desenhada para funcionar completa no celular e na tela grande, para qualquer papel. O registro,
+a leitura e a conversa nasceram no celular, porque é onde o morador está.
 
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é

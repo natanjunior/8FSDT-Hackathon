@@ -82,12 +82,14 @@ export {
 
 export {
   ICONES_DE_CATEGORIA,
+  alteracaoDeConfiguracaoSchema,
   correcaoDeAreaSchema,
   correcaoDeCategoriaSchema,
   criacaoDeAreaSchema,
   criacaoDeCategoriaSchema,
   iconeDeCategoria,
   reordenacaoSchema,
+  type EntradaDeAlteracaoDeConfiguracao,
   type EntradaDeCorrecaoDeArea,
   type EntradaDeCorrecaoDeCategoria,
   type EntradaDeCriacaoDeArea,

@@ -44,8 +44,11 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // enfeite: o `cascade` derruba as chaves que apontam PARA as outras tabelas,
   // e não a tabela nova. Sem ela, o segundo `aplicarEsquema` no mesmo banco
   // estoura em `relation "compartilhamentos" already exists`.
+  // **`mudancas_de_configuracao` entra pela mesma razão que `compartilhamentos`** (item 99): ela aponta
+  // para `organizacoes` e para `vinculos`, e o `cascade` derruba o que aponta para ela, não ela mesma.
   await consulta(
-    `drop table if exists compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
+    `drop table if exists mudancas_de_configuracao,
+                          compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
                           autorizacoes_de_upload,
                           registros_transicao, ocorrencias, contatos, pedidos_de_entrada, categorias,
                           areas, vinculos, organizacoes, pessoas cascade`,
@@ -71,6 +74,9 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // `create function registros_transicao_append_only ... already exists`. E são vários arquivos rodando
   // em série (`fileParallelism: false`) — o número deles esteve escrito aqui e envelheceu sozinho.
   await consulta(`drop function if exists registros_transicao_append_only() cascade`);
+  // As duas funções da 017 (item 99), pela mesma razão: `create function` sem `or replace`.
+  await consulta(`drop function if exists organizacoes_registra_mudanca_de_configuracao() cascade`);
+  await consulta(`drop function if exists mudancas_de_configuracao_append_only() cascade`);
   // **A `012` cria uma segunda função e NÃO precisa de linha aqui**, porque ela entra com
   // `create or replace`: reaplicar a migração sobre a função que sobreviveu ao `drop table` é no-op.
   // Os seis gatilhos dela dependem das tabelas e morrem no `cascade`, renascendo com a migração.

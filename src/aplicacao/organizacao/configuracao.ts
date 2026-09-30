@@ -11,8 +11,11 @@ import type {
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ConfiguracaoLida,
   OrganizacaoLida,
   PosicaoNaLista,
+  RegrasDaOrganizacao,
+  RepositorioEscopadoDaConfiguracao,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
@@ -238,4 +241,39 @@ function posicoesDaReordenacao(
 
   if (!ehPermutacao) throw new ListaDesatualizada();
   return normalizados.map((id, indice) => ({ id, ordem: indice + 1 }));
+}
+
+/**
+ * **Ler as regras e as mudanças — item 99, `GET /configuracao` e T-15.** Uma chamada, porque a tela
+ * precisa das duas coisas e o volume de mudanças é de dezenas de linhas por organização.
+ */
+export function lerConfiguracao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<ConfiguracaoLida> {
+  return configuracao.ler();
+}
+
+export type ComandoDeAlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /** Quem mudou — `ctx.pessoaId`. Vai para `atualizado_por_pessoa_id`, e o gatilho da 017 o copia. */
+  porPessoaId: string;
+};
+
+/**
+ * **Mudar as regras — item 99, `PATCH /configuracao`.** A trilha não é escrita aqui: é do gatilho da
+ * migração 017, que lê o valor anterior da própria linha travada. Esta camada só garante que campo
+ * ausente não vai à porta, porque ausente é *não mexa*.
+ */
+export function alterarConfiguracao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+  comando: ComandoDeAlteracaoDeConfiguracao,
+): Promise<ConfiguracaoLida> {
+  return configuracao.alterar({
+    ...(comando.exigirSolucaoAoResolver === undefined
+      ? {}
+      : { exigirSolucaoAoResolver: comando.exigirSolucaoAoResolver }),
+    ...(comando.limiteDeCancelamentoDoSolicitante === undefined
+      ? {}
+      : { limiteDeCancelamentoDoSolicitante: comando.limiteDeCancelamentoDoSolicitante }),
+    atualizadaPorPessoaId: comando.porPessoaId,
+  });
 }

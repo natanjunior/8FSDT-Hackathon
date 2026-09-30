@@ -5,8 +5,11 @@ import {
   PrioridadeImutavelEmEstadoTerminal,
   TransicaoNaoPermitida,
   type Comando,
+  type LimiteDeCancelamentoDoSolicitante,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
+
+import type { RegrasDaOrganizacao } from "@/aplicacao/organizacao";
 
 import {
   ResponsavelNaoAtribuido,
@@ -72,6 +75,8 @@ export type EstadoCarregado = {
   ocorrencia: EstadoDaOcorrencia;
   /** A invariante 9. Ver `PerguntaDeAcoes.temResponsavel`. */
   temResponsavel: boolean;
+  /** As regras da organização (item 99). Ver `OcorrenciaCarregada.regras`. */
+  regras: RegrasDaOrganizacao;
 };
 
 /**
@@ -86,18 +91,21 @@ export type EstadoCarregado = {
  *
  * **`temResponsavel` é o TERCEIRO argumento, e não sai do envelope**, porque é o que permite a
  * `recusaPorFaltaDeResponsavel` continuar forçando `false` — a assimetria que o comentário dela declara
- * e que existe para o corpo não se contradizer.
+ * e que existe para o corpo não se contradizer. **O limite de cancelamento é o quarto, pela mesma razão
+ * de forma** (item 99): quem só tem o estado na mão passa o valor que a organização diz, sem envelope.
  */
 function acoesQueRestam(
   ocorrencia: EstadoDaOcorrencia,
   ctx: ContextoDoComando,
   temResponsavel: boolean,
+  limiteDeCancelamentoDoSolicitante: LimiteDeCancelamentoDoSolicitante,
 ): readonly Comando[] {
   return comandosDisponiveis({
     status: ocorrencia.status,
     permissoes: ctx.permissoes,
     ehAutor: ocorrencia.autorPessoaId === ctx.pessoaId,
     temResponsavel,
+    limiteDeCancelamentoDoSolicitante,
     jaAvaliada: ocorrencia.avaliacao !== null,
   });
 }
@@ -120,7 +128,12 @@ export function recusaDeTransicao(
 ): TransicaoNaoPermitida {
   return new TransicaoNaoPermitida(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }
 
@@ -138,8 +151,12 @@ export function recusaDeTransicao(
 export function recusaPorFaltaDeResponsavel(
   ocorrencia: EstadoDaOcorrencia,
   ctx: ContextoDoComando,
+  limite: LimiteDeCancelamentoDoSolicitante,
 ): ResponsavelNaoAtribuido {
-  return new ResponsavelNaoAtribuido(ocorrencia.status, acoesQueRestam(ocorrencia, ctx, false));
+  return new ResponsavelNaoAtribuido(
+    ocorrencia.status,
+    acoesQueRestam(ocorrencia, ctx, false, limite),
+  );
 }
 
 /**
@@ -163,7 +180,12 @@ export function recusaPorPrioridadeImutavel(
 ): PrioridadeImutavelEmEstadoTerminal {
   return new PrioridadeImutavelEmEstadoTerminal(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }
 
@@ -192,7 +214,12 @@ export function recusaPorEstadoDeCancelamento(
 ): SomenteOGestorCancelaNesteEstado {
   return new SomenteOGestorCancelaNesteEstado(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }
 
@@ -212,7 +239,12 @@ export function recusaPorNaoSerOAutor(
 ): SomenteOAutorPodeAvaliar {
   return new SomenteOAutorPodeAvaliar(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }
 
@@ -223,7 +255,12 @@ export function recusaPorAvaliacaoExigeResolvida(
 ): AvaliacaoExigeResolvida {
   return new AvaliacaoExigeResolvida(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }
 
@@ -240,6 +277,11 @@ export function recusaPorJaAvaliada(
 ): JaAvaliada {
   return new JaAvaliada(
     carregada.ocorrencia.status,
-    acoesQueRestam(carregada.ocorrencia, ctx, carregada.temResponsavel),
+    acoesQueRestam(
+      carregada.ocorrencia,
+      ctx,
+      carregada.temResponsavel,
+      carregada.regras.limiteDeCancelamentoDoSolicitante,
+    ),
   );
 }

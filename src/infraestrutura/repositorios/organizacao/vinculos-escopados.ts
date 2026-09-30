@@ -337,7 +337,9 @@ export function repositorioEscopadoDeVinculos(
                                     or t.atualizado_por_pessoa_id = v.pessoa_id))
                  or exists (select 1 from compartilhamentos t
                              where t.organizacao_id = $1
-                               and t.por_pessoa_id = v.pessoa_id)) as tem_historico
+                               and t.por_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from mudancas_de_configuracao t
+                             where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)) as tem_historico
            from vinculos v
           where v.organizacao_id = $1
             and v.revogado_em is null`,

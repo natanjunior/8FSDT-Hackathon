@@ -506,6 +506,16 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   expect(recusa.status()).toBe(403);
   expect(((await recusa.json()) as { codigo?: string }).codigo).toBe("PERMISSAO_INSUFICIENTE");
 
+  // **O critério 99.7: quem não tem `organizacao.configurar` é recusado no servidor**, nos dois
+  // métodos, antes de o corpo ser lido — o mesmo `exige:` das outras rotas. Esconder a tela não basta.
+  for (const recusada of [
+    await helena.request.get("/api/configuracao"),
+    await helena.request.patch("/api/configuracao", { data: { exigirSolucaoAoResolver: true } }),
+  ]) {
+    expect(recusada.status()).toBe(403);
+    expect(((await recusada.json()) as { codigo?: string }).codigo).toBe("PERMISSAO_INSUFICIENTE");
+  }
+
   await contextoDeHelena.close();
   await contextoDeMarcos.close();
 });

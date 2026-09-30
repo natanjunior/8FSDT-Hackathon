@@ -1,5 +1,5 @@
 import {
-  ESTADOS_DE_CANCELAMENTO_DO_AUTOR,
+  estadosDeCancelamentoDoAutor,
   motivosPermitidos,
   transicaoPermitida,
   type MotivoCancelamento,
@@ -86,10 +86,11 @@ export async function cancelarOcorrencia(
   /** Derivado **uma vez**, e lido pelos dois degraus do meio. */
   const ehGestor = ctx.permissoes.includes("ocorrencia.cancelar_qualquer");
 
-  // **A metade de ESTADO do critério 18.3.** A lista é a mesma que `comandosDisponiveis` consulta para
-  // esconder o botão — duas listas divergiriam, e a divergência seria um botão que responde `403` no
-  // clique.
-  if (!ehGestor && !ESTADOS_DE_CANCELAMENTO_DO_AUTOR.includes(agregado.status)) {
+  // **A metade de ESTADO do critério 18.3, agora com o limite da organização** (item 99). A lista é a
+  // mesma derivação que `comandosDisponiveis` consulta para esconder o botão — duas listas divergiriam,
+  // e a divergência seria um botão que responde `403` no clique.
+  const doAutor = estadosDeCancelamentoDoAutor(carregada.regras.limiteDeCancelamentoDoSolicitante);
+  if (!ehGestor && !doAutor.includes(agregado.status)) {
     throw recusaPorEstadoDeCancelamento(carregada, ctx);
   }
 

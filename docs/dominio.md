@@ -57,9 +57,9 @@ Nenhuma outra transição existe. A tabela diz quem pode executar cada uma:
 | `Em análise` | `cancelar` | `Cancelada` | o autor, ou o Gestor |
 | `Em atendimento` | `pausar` | `Pausada` | Gestor, ou o responsável atribuído |
 | `Em atendimento` | `resolver` | `Resolvida` | Gestor |
-| `Em atendimento` | `cancelar` | `Cancelada` | Gestor |
+| `Em atendimento` | `cancelar` | `Cancelada` | Gestor; também o autor, se a organização estender o limite |
 | `Pausada` | `retomar` | o estado anterior à pausa | Gestor |
-| `Pausada` | `cancelar` | `Cancelada` | Gestor |
+| `Pausada` | `cancelar` | `Cancelada` | Gestor; também o autor, se a organização estender o limite |
 
 **Quatro comandos não transicionam**, e por isso não aparecem no diagrama: alterar a prioridade, atribuir o
 responsável, registrar a solução aplicada e avaliar. Cada um tem a sua própria regra de quando é aceito.
@@ -92,7 +92,7 @@ da conversa. Alteração de prioridade não aparece nela.
 |---|---|
 | De quais estados se pode cancelar? | De `Aberta`, `Em análise` e `Em atendimento`, e também de `Pausada`, que é uma espera dentro do atendimento |
 | A avaliação é um sexto estado? | Não. É uma ação do autor sobre uma ocorrência `Resolvida`, com nota de 1 a 5 e comentário opcional, aceita uma vez só |
-| Quem pode cancelar? | O autor cancela a própria enquanto ela não entrou em atendimento; o Gestor cancela qualquer uma, em qualquer estado não terminal |
+| Quem pode cancelar? | O autor cancela a própria enquanto ela não entrou em atendimento. A organização pode estender esse limite até o atendimento, e então ele cancela também em atendimento e em pausa. O Gestor cancela qualquer uma, em qualquer estado não terminal |
 | Quem é o responsável? | A pessoa com vínculo na organização a quem a ocorrência foi atribuída. O papel não restringe quem pode ser: o Gestor pode atribuir a si mesmo |
 | Reabrir existe? | Não. `Resolvida` e `Cancelada` são terminais, e problema que volta é ocorrência nova ligada à original |
 | Quais categorias existem? | As sete do desafio nascem com a organização, e o Gestor as edita. Categoria é configuração, não código |
@@ -128,7 +128,7 @@ ocorrência, e por isso são testáveis sem banco.
     exigi-lo.
 
 As duas últimas atravessam outra tabela no momento em que o comando roda, e por isso são garantidas pelo
-comando de aplicação, e não pela entidade.
+comando de aplicação, e não pela entidade. O limite de cancelamento do autor é lido do mesmo jeito.
 
 ## O modelo que saiu da descoberta
 

@@ -6,6 +6,7 @@ import {
   ListaDesatualizada,
   NomeDeAreaDuplicado,
   NomeDeCategoriaDuplicado,
+  alterarConfiguracao,
   corrigirArea,
   corrigirCategoria,
   corrigirOrganizacao,
@@ -13,11 +14,14 @@ import {
   criarCategoria,
   reordenarAreas,
   reordenarCategorias,
+  type AlteracaoDeConfiguracao,
   type AreaAtualizada,
   type AreaLida,
   type CategoriaLida,
   type CorrecaoDeOrganizacao,
   type OrganizacaoLida,
+  type RegrasDaOrganizacao,
+  type RepositorioEscopadoDaConfiguracao,
   type RepositorioEscopadoDaOrganizacao,
   type RepositorioEscopadoDeAreas,
   type RepositorioEscopadoDeCategorias,
@@ -457,5 +461,48 @@ describe("reordenarAreas — a mesma regra, na outra lista", () => {
       reordenarAreas(repositorio, { ids: [ID_A], porPessoaId: "pessoa-1" }),
     ).rejects.toBeInstanceOf(ListaDesatualizada);
     expect(gravadas).toStrictEqual([]);
+  });
+});
+
+/** As regras de toda organização nova (item 99). */
+const REGRAS: RegrasDaOrganizacao = {
+  exigirSolucaoAoResolver: false,
+  limiteDeCancelamentoDoSolicitante: "em_analise",
+};
+
+describe("alterarConfiguracao — item 99", () => {
+  it("só o que veio vai à porta, e o autor é quem chamou", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+    const porta: RepositorioEscopadoDaConfiguracao = {
+      ler: () => Promise.resolve({ regras: REGRAS, mudancas: [] }),
+      alterar: (alteracao) => {
+        recebidas.push(alteracao);
+        return Promise.resolve({ regras: REGRAS, mudancas: [] });
+      },
+    };
+
+    await alterarConfiguracao(porta, { exigirSolucaoAoResolver: true, porPessoaId: "p-1" });
+
+    expect(recebidas).toStrictEqual([{ exigirSolucaoAoResolver: true, atualizadaPorPessoaId: "p-1" }]);
+  });
+
+  it("campo ausente não vai à porta — ausente é *não mexa*", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+    const porta: RepositorioEscopadoDaConfiguracao = {
+      ler: () => Promise.resolve({ regras: REGRAS, mudancas: [] }),
+      alterar: (alteracao) => {
+        recebidas.push(alteracao);
+        return Promise.resolve({ regras: REGRAS, mudancas: [] });
+      },
+    };
+
+    await alterarConfiguracao(porta, {
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      porPessoaId: "p-2",
+    });
+
+    expect(recebidas).toStrictEqual([
+      { limiteDeCancelamentoDoSolicitante: "em_atendimento", atualizadaPorPessoaId: "p-2" },
+    ]);
   });
 });

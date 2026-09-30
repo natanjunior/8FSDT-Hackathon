@@ -77,6 +77,9 @@ const TABELAS_ESCOPADAS: readonly string[] = [
   "registros_transicao",
   "ocorrencias",
   "pedidos_de_entrada",
+  // **Item 99:** aponta para `vinculos`; o gatilho append-only da 017 aceita o `delete` porque esta
+  // transação ligou a porta nomeada, como a `registros_transicao` já faz desde a 013.
+  "mudancas_de_configuracao",
   "categorias",
   "areas",
 ];

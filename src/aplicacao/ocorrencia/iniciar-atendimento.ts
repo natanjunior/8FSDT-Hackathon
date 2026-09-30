@@ -70,7 +70,7 @@ export async function iniciarAtendimento(
   }
 
   // **A invariante 9, e ela é a única precondição de comando do contrato que não é sobre `status`.**
-  if (!carregada.temResponsavel) throw recusaPorFaltaDeResponsavel(agregado, ctx);
+  if (!carregada.temResponsavel) throw recusaPorFaltaDeResponsavel(agregado, ctx, carregada.regras.limiteDeCancelamentoDoSolicitante);
 
   const observacao = entrada.observacao?.trim();
 

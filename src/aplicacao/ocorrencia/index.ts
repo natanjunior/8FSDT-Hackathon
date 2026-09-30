@@ -11,6 +11,7 @@ export {
   ResponsavelSemVinculoAtivo,
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
+  SolucaoObrigatoria,
   SoParaLeitura,
   CompartilhamentoDeOutraPessoa,
   DestinatarioInvalido,
