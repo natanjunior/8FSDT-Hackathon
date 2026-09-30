@@ -14,12 +14,15 @@ import {
   JANELA_CONTRA_LACO_MS,
   LIMIAR_DE_FRIO_MS,
   MENSAGEM_DE_LIMPEZA,
+  PARAMETRO_DA_SAIDA,
+  PRAZO_DA_LIMPEZA_MS,
   PRAZO_DA_REDE_MS,
   PREFIXO_DO_CACHE,
   SONDA,
   URL_DA_CASCA,
   URL_DA_HORA,
 } from "@/interface/trabalhador/constantes";
+import { limparCachesDaOrigem } from "@/interface/trabalhador/limpeza";
 import { montarScriptDoTrabalhador, versaoDoTrabalhador } from "@/interface/trabalhador/script";
 
 const RAIZ = fileURLToPath(new URL("../../", import.meta.url));
@@ -433,5 +436,63 @@ describe("a fiação do trabalhador", () => {
     expect(ler("playwright.config.ts")).toContain('serviceWorkers: "block"');
     const jornada = ler("testes/ponta-a-ponta/nascimento-de-organizacao.spec.ts");
     expect(jornada.match(/serviceWorkers: "allow"/gu)).toHaveLength(1);
+  });
+});
+
+describe("a limpeza do lado da página — critério 98.3", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function cachesComSobra() {
+    const caches = new CachesFalsos();
+    void caches.open("resolve-ai-casca-x");
+    void caches.open("sobra");
+    return caches;
+  }
+
+  it("com trabalhador no controle, pede a ele e não apaga por conta própria", async () => {
+    const caches = cachesComSobra();
+    const postMessage = vi.fn((_dado: unknown, [porta]: MessagePort[]) => porta?.postMessage("limpo"));
+    vi.stubGlobal("caches", caches);
+    vi.stubGlobal("navigator", { serviceWorker: { controller: { postMessage } } });
+    await limparCachesDaOrigem();
+    expect(postMessage).toHaveBeenCalledWith({ tipo: MENSAGEM_DE_LIMPEZA }, [expect.anything()]);
+    expect(await caches.keys()).toHaveLength(2);
+  });
+
+  it("sem controlador, apaga direto", async () => {
+    const caches = cachesComSobra();
+    vi.stubGlobal("caches", caches);
+    vi.stubGlobal("navigator", { serviceWorker: { controller: null } });
+    await limparCachesDaOrigem();
+    expect(await caches.keys()).toStrictEqual([]);
+  });
+
+  it("controlador calado: depois do prazo, a página apaga ela mesma", async () => {
+    vi.useFakeTimers();
+    const caches = cachesComSobra();
+    vi.stubGlobal("caches", caches);
+    vi.stubGlobal("navigator", { serviceWorker: { controller: { postMessage: vi.fn() } } });
+    const feito = limparCachesDaOrigem();
+    await vi.advanceTimersByTimeAsync(PRAZO_DA_LIMPEZA_MS);
+    await feito;
+    expect(await caches.keys()).toStrictEqual([]);
+  });
+
+  it("navegador sem Cache Storage: não quebra", async () => {
+    vi.stubGlobal("caches", undefined);
+    vi.stubGlobal("navigator", {});
+    await expect(limparCachesDaOrigem()).resolves.toBeUndefined();
+  });
+
+  it("a saída redireciona com o sinal, e /entrar monta quem o lê", () => {
+    expect(ler("src/interface/acoes/index.ts")).toContain("redirect(`/entrar?${PARAMETRO_DA_SAIDA}=1`)");
+    expect(ler("app/entrar/page.tsx")).toContain("<LimpezaDaSaida />");
+    const componente = ler("src/interface/componentes/limpeza-da-saida.tsx");
+    expect(componente.startsWith('"use client";')).toBe(true);
+    expect(componente).toContain("window.location.replace(");
+    expect(PARAMETRO_DA_SAIDA).toBe("saiu");
   });
 });
