@@ -2100,3 +2100,105 @@ describe("renomear a Pessoa vale em todas as organizações — pessoas é globa
     expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
   });
 });
+
+/**
+ * **A trilha de configuração no banco — item 99, critérios 5 e 6.**
+ *
+ * A escrita é do gatilho `after update` da migração 017, e a imutabilidade é do segundo gatilho, com a
+ * mesma porta nomeada da 013. Os casos contam linhas **relativas** ao que já havia, e o bloco é o último
+ * do arquivo de propósito: as entradas de isolamento comparam o conjunto exato de mudanças de cada
+ * organização, e aqui se escreve em Aurora.
+ */
+describe("a trilha de configuração no banco — item 99", () => {
+  const mudancasEm = (organizacaoId: string) =>
+    consulta<{ chave: string; valor_anterior: string; valor_novo: string; autor_pessoa_id: string }>(
+      `select chave, valor_anterior, valor_novo, autor_pessoa_id
+         from mudancas_de_configuracao where organizacao_id = $1
+        order by ocorrida_em, chave`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, colunas: string) =>
+    consulta(`update organizacoes set ${colunas}, atualizado_por_pessoa_id = $2 where id = $1`, [
+      organizacaoId,
+      idSindica,
+    ]);
+
+  afterAll(async () => {
+    await definir(
+      idAurora,
+      "exigir_solucao_ao_resolver = false, limite_cancelamento_solicitante = 'em_analise'",
+    );
+  });
+
+  it("organização nova nasce com os valores de hoje", async () => {
+    const [linha] = await consulta<{ exigir: boolean; limite: string }>(
+      `select exigir_solucao_ao_resolver as exigir, limite_cancelamento_solicitante as limite
+         from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(linha).toStrictEqual({ exigir: false, limite: "em_analise" });
+  });
+
+  it("mudar uma regra grava uma linha, com o valor anterior do banco e o autor da instrução", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "exigir_solucao_ao_resolver = true");
+
+    const depois = await mudancasEm(idAurora);
+    expect(depois).toHaveLength(antes + 1);
+    expect(depois.at(-1)).toStrictEqual({
+      chave: "exigir_solucao_ao_resolver",
+      valor_anterior: "false",
+      valor_novo: "true",
+      autor_pessoa_id: idSindica,
+    });
+  });
+
+  it("dois Gestores na mesma chave: vale o último, e as duas mudanças ficam — o critério 6", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_atendimento'");
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_analise'");
+
+    const depois = (await mudancasEm(idAurora)).slice(antes);
+    expect(depois.map((m) => [m.valor_anterior, m.valor_novo])).toStrictEqual([
+      ["em_analise", "em_atendimento"],
+      ["em_atendimento", "em_analise"],
+    ]);
+  });
+
+  it("gravar o valor que já está lá não deixa rastro", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_analise'");
+    expect(await mudancasEm(idAurora)).toHaveLength(antes);
+  });
+
+  it("renomear a organização não é mudança de regra", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "nome = nome");
+    expect(await mudancasEm(idAurora)).toHaveLength(antes);
+  });
+
+  it("mudar regra sem autor é recusado", async () => {
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+    await expect(
+      consulta(`update organizacoes set exigir_solucao_ao_resolver = true where id = $1`, [idRecanto]),
+    ).rejects.toThrow(/sem autor/u);
+  });
+
+  it("o limite fora dos dois valores é recusado pelo banco", async () => {
+    await expect(definir(idAurora, "limite_cancelamento_solicitante = 'aberta'")).rejects.toThrow(
+      /organizacoes_limite_cancelamento_ck/u,
+    );
+  });
+
+  it("a trilha recusa update e delete — o critério 5", async () => {
+    await expect(
+      consulta(`update mudancas_de_configuracao set valor_novo = 'x' where organizacao_id = $1`, [
+        idAurora,
+      ]),
+    ).rejects.toThrow(/append-only/u);
+    await expect(
+      consulta(`delete from mudancas_de_configuracao where organizacao_id = $1`, [idAurora]),
+    ).rejects.toThrow(/append-only/u);
+  });
+});
