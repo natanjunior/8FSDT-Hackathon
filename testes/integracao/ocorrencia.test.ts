@@ -8,6 +8,7 @@ import {
   avaliarOcorrencia,
   cancelarOcorrencia,
   compartilharOcorrencia,
+  enviarComentario,
   iniciarAtendimento,
   listarOcorrencias,
   podeLerOcorrencia,
@@ -4884,5 +4885,239 @@ describe("o texto da organização e o nome do ciclo — item 100, critérios 3 
       projetarOcorrenciaDetalhe(lida, { pessoaId, permissoes: DO_GESTOR }, LENTE_DO_GESTOR)
         .statusRotulo,
     ).toBe("Em análise");
+  });
+});
+
+/**
+ * ============================================================================
+ *  A ocorrência parada — item 101, critérios 1 a 4 e 6
+ * ============================================================================
+ *
+ * O relógio é `ocorrencias.atualizada_em`, e o corte é o `ate` da página — o mesmo instante que corta
+ * `registrada_em`. Os casos fixam um `ate` explícito, para a borda do dia não depender do relógio da
+ * máquina que roda o teste.
+ */
+describe("a ocorrência parada — item 101", () => {
+  // **`cancelar_qualquer`, e não `cancelar`** — o comando tem duas permissões, e a de nome curto não
+  // existe (`Permissao.ts`).
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.pausar",
+    "ocorrencia.resolver",
+    "ocorrencia.cancelar_qualquer",
+  ];
+
+  const CORTE = new Date("2026-09-30T12:00:00.000Z");
+  const haDias = (dias: number, horas = 0) =>
+    new Date(CORTE.getTime() - dias * 24 * 60 * 60 * 1000 - horas * 60 * 60 * 1000).toISOString();
+
+  /**
+   * Registra e leva a ocorrência até `status`, com **todos** os comandos em `em` — é `ctx.agora` que
+   * decide o carimbo, e é o que a migração 012 garante.
+   *
+   * **A atribuição no meio do caminho não é enfeite: é a invariante 9.** `iniciarAtendimento` recusa sem
+   * responsável, então todo destino de `em_atendimento` em diante passa por `atribuirResponsavel` — com o
+   * mesmo `em`, para o carimbo final continuar sendo o do último comando.
+   */
+  async function ocorrenciaEm(
+    status: "aberta" | "em_analise" | "em_atendimento" | "pausada" | "resolvida" | "cancelada",
+    em: string,
+    titulo: string,
+  ): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR, agora: em };
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId, organizacaoId, agora: em },
+      { titulo, descricao: "Registrada para medir o relógio de atividade.", categoriaId, areaId },
+    );
+    const id = lida.id;
+
+    if (status === "aberta") return id;
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    if (status === "em_analise") return id;
+    if (status === "cancelada") {
+      await cancelarOcorrencia(portas().ocorrencias, ctx, {
+        ocorrenciaId: id,
+        motivo: "duplicada",
+        observacao: "Cancelada para o caso do terminal antigo.",
+      });
+      return id;
+    }
+
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: pessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em,
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    if (status === "em_atendimento") return id;
+    if (status === "pausada") {
+      await pausarOcorrencia(portas().ocorrencias, ctx, {
+        ocorrenciaId: id,
+        motivo: "aguardando_peca",
+        observacao: "Pausada para o caso da exclusão nominal.",
+      });
+      return id;
+    }
+
+    await resolverOcorrencia(portas().ocorrencias, ctx, {
+      ocorrenciaId: id,
+      solucaoAplicada: "Resolvida para o caso do terminal antigo.",
+    });
+    return id;
+  }
+
+  /** A chave da organização, mudada pelo caminho do banco — o mesmo `update` com autor. */
+  const definirDiasParaParada = (dias: number) =>
+    consultaCrua(
+      `update organizacoes set dias_para_parada = $2, atualizado_por_pessoa_id = $3 where id = $1`,
+      [organizacaoId, dias, pessoaId],
+    );
+
+  const paradas = (ate: Date) =>
+    portas().ocorrencias.listar({
+      ate: ate.toISOString(),
+      limite: 200,
+      deslocamento: 0,
+      filtro: { apenasParadas: true },
+    });
+
+  beforeAll(async () => {
+    await definirDiasParaParada(7);
+  });
+
+  afterAll(async () => {
+    await definirDiasParaParada(7);
+  });
+
+  it("uma em atendimento sem atividade há 9 dias aparece, e diz 9 dias", async () => {
+    const id = await ocorrenciaEm("em_atendimento", haDias(9), "Bomba do poço sem pressão");
+    const lista = await paradas(CORTE);
+    expect(lista.map((o) => o.id)).toContain(id);
+    expect(lista.find((o) => o.id === id)?.paradaHaDias).toBe(9);
+  });
+
+  it("a borda do dia: 6 dias e 23 horas não aparece; 7 em ponto e 7 e 3 horas aparecem dizendo 7", async () => {
+    const quase = await ocorrenciaEm("em_atendimento", haDias(6, 23), "Corrimão solto na escada B");
+    const exato = await ocorrenciaEm("em_atendimento", haDias(7), "Portão social batendo sozinho");
+    const passou = await ocorrenciaEm("em_atendimento", haDias(7, 3), "Interfone do bloco C mudo");
+
+    const lista = await paradas(CORTE);
+    const ids = lista.map((o) => o.id);
+    expect(ids).not.toContain(quase);
+    expect(ids).toContain(exato);
+    expect(ids).toContain(passou);
+    expect(lista.find((o) => o.id === exato)?.paradaHaDias).toBe(7);
+    expect(lista.find((o) => o.id === passou)?.paradaHaDias).toBe(7);
+  });
+
+  it("transição antiga com mensagem recente NÃO é parada — atividade, e não transição", async () => {
+    const id = await ocorrenciaEm("em_atendimento", haDias(30), "Luz do hall piscando à noite");
+    // **`enviarComentario` lê o próprio relógio**, então a mensagem cai em *agora* — bem depois do corte
+    // deste bloco. É por isso que o caso usa um corte no FUTURO da mensagem: sem ele, o corte fixo
+    // esconderia a atividade que o caso existe para provar.
+    await enviarComentario(
+      portas().ocorrencias,
+      id,
+      { pessoaId, podeLerTodas: true },
+      { texto: "E aí, alguma novidade?" },
+    );
+
+    const depoisDaMensagem = new Date(Date.now() + 60_000);
+    const lista = await paradas(depoisDaMensagem);
+    expect(lista.map((o) => o.id)).not.toContain(id);
+  });
+
+  it("atribuir também é atividade, e zera o relógio", async () => {
+    const id = await ocorrenciaEm("em_analise", haDias(30), "Vaga 7 com óleo no chão");
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: pessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: haDias(1),
+    });
+
+    const lista = await paradas(CORTE);
+    expect(lista.map((o) => o.id)).not.toContain(id);
+  });
+
+  it("os terminais nunca aparecem, por antigos que sejam, e voltam com paradaHaDias nulo", async () => {
+    const resolvida = await ocorrenciaEm("resolvida", haDias(60), "Fechadura da lavanderia trocada");
+    const cancelada = await ocorrenciaEm("cancelada", haDias(60), "Mudança marcada foi desmarcada");
+
+    const filtradas = await paradas(CORTE);
+    expect(filtradas.map((o) => o.id)).not.toContain(resolvida);
+    expect(filtradas.map((o) => o.id)).not.toContain(cancelada);
+
+    const todas = await portas().ocorrencias.listar({
+      ate: CORTE.toISOString(),
+      limite: 200,
+      deslocamento: 0,
+    });
+    expect(todas.find((o) => o.id === resolvida)?.paradaHaDias).toBeNull();
+    expect(todas.find((o) => o.id === cancelada)?.paradaHaDias).toBeNull();
+  });
+
+  it("pausada não conta, e a mesma idade em atendimento conta — o critério 4, nos dois sentidos", async () => {
+    const pausada = await ocorrenciaEm("pausada", haDias(30), "Elevador social esperando peça");
+    const atendendo = await ocorrenciaEm(
+      "em_atendimento",
+      haDias(30),
+      "Rejunte da piscina refeito pela metade",
+    );
+
+    const ids = (await paradas(CORTE)).map((o) => o.id);
+    expect(ids).not.toContain(pausada);
+    expect(ids).toContain(atendendo);
+  });
+
+  it("aberta e em análise antigas contam — é o caso mais útil do filtro", async () => {
+    const aberta = await ocorrenciaEm("aberta", haDias(20), "Sacada do 402 com infiltração");
+    const analise = await ocorrenciaEm("em_analise", haDias(20), "Grama alta perto do playground");
+
+    const ids = (await paradas(CORTE)).map((o) => o.id);
+    expect(ids).toContain(aberta);
+    expect(ids).toContain(analise);
+  });
+
+  it("mudar a chave muda o filtro na hora, porque ele é checado na leitura — critério 6", async () => {
+    const id = await ocorrenciaEm("em_atendimento", haDias(10), "Caixa de correio do 108 sem porta");
+    expect((await paradas(CORTE)).map((o) => o.id)).toContain(id);
+
+    await definirDiasParaParada(15);
+    expect((await paradas(CORTE)).map((o) => o.id)).not.toContain(id);
+
+    await definirDiasParaParada(7);
+  });
+
+  it("o corte da página é o instante de referência, e não o relógio", async () => {
+    const id = await ocorrenciaEm("em_atendimento", haDias(9), "Bomba de recalque desarmando");
+    const corteAntigo = new Date(CORTE.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+    expect((await paradas(corteAntigo)).map((o) => o.id)).not.toContain(id);
+  });
+
+  it("a ordem não muda com o filtro — o ciclo do 67 continua com um ponto de partida só", async () => {
+    const lista = await paradas(CORTE);
+    const instantes = lista.map((o) => Date.parse(o.atualizadaEm));
+    expect([...instantes].sort((a, b) => b - a)).toStrictEqual(instantes);
+  });
+
+  it("contar respeita o filtro: totalFiltrado cai, e os quatro do painel não", async () => {
+    const semFiltro = await portas().ocorrencias.contar({
+      ate: CORTE.toISOString(),
+      pessoaIdDeQuemPergunta: pessoaId,
+    });
+    const comFiltro = await portas().ocorrencias.contar({
+      ate: CORTE.toISOString(),
+      pessoaIdDeQuemPergunta: pessoaId,
+      filtro: { apenasParadas: true },
+    });
+
+    expect(comFiltro.totalFiltrado).toBeLessThan(semFiltro.totalFiltrado);
+    expect(comFiltro.todas).toBe(semFiltro.todas);
+    expect(comFiltro.emAberto).toBe(semFiltro.emAberto);
   });
 });

@@ -256,6 +256,14 @@ export type OcorrenciaResumoLida = {
    * consulta não a faz, e um `false` ali afirmaria que a pessoa já viu.
    */
   naoAberta: boolean | null;
+  /**
+   * **Há quantos dias a ocorrência está parada, ou `null`** — item 101. `null` quando ela não está: por
+   * estado (terminal ou `pausada`) ou por tempo.
+   *
+   * **Vem pronto do servidor, e a tela não recalcula a regra.** O número é o piso dos dias decorridos
+   * entre `atualizada_em` e o corte da página, medido pela chave da organização na mesma instrução.
+   */
+  paradaHaDias: number | null;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;
@@ -415,6 +423,15 @@ export type FiltroDeOcorrencias = {
    * nem em `PARAMETROS_DE_FILTRO`.
    */
   readonly compartilhadasComigo?: boolean;
+  /**
+   * **O filtro rápido *Paradas*** — item 101. Estreita o conjunto às ocorrências em que ninguém mexe há
+   * mais dias do que a organização tolera.
+   *
+   * **É filtro, e não recorte:** combina com todos os outros, entra em `algumFiltroAplicado` e em
+   * `PARAMETROS_DE_FILTRO`, e *Limpar filtros* o tira. `compartilhadasComigo` é o contrário disso, e o
+   * comentário dela diz por quê.
+   */
+  readonly apenasParadas?: boolean;
 };
 
 /**
