@@ -11,6 +11,7 @@ import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizac
 import { dataEHora } from "@/interface/componentes/datas";
 import { EdicaoDasRegras } from "@/interface/componentes/edicao-das-regras";
 import { EdicaoDeNome } from "@/interface/componentes/edicao-de-nome";
+import { EdicaoDosRotulos } from "@/interface/componentes/edicao-dos-rotulos";
 import {
   APOIO_DO_CARTAO_DE_REGRAS,
   APOIO_DO_LIMITE,
@@ -22,9 +23,17 @@ import {
   valorEmPalavra,
 } from "@/interface/componentes/regras-da-configuracao";
 import { EDICAO_DE_NOME } from "@/interface/componentes/regras-do-nome";
+import {
+  APOIO_DO_CARTAO_DE_ROTULOS,
+  ESTADOS_DO_CICLO,
+  MARCA_DO_PADRAO,
+  NOME_DO_CICLO,
+  TITULO_DOS_ROTULOS,
+  type EstadoDaTela,
+} from "@/interface/componentes/rotulos-do-solicitante";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarConfiguracao } from "@/interface/projecoes";
+import { projetarConfiguracao, rotuloPadraoDoSolicitante } from "@/interface/projecoes";
 
 /**
  * **T-15 · Configuração da organização** — *"O que desta organização eu posso ajustar?"*
@@ -48,8 +57,9 @@ import { projetarConfiguracao } from "@/interface/projecoes";
  * porque o denominador da contagem é o total. O nome e o código vêm do contexto que a página já
  * resolveu. O desfecho do salvamento é um aviso, que mora no layout raiz.
  *
- * **Três cartões e uma pauta desde o item 99:** as regras moram entre a identidade e as listas porque
- * dizem como a organização trabalha; as mudanças vão por último porque são história.
+ * **Quatro cartões e uma pauta desde o item 100, e a ordem é a mesma de sempre:** o que a organização é,
+ * como ela trabalha, como ela fala, e o que o formulário oferece. As mudanças vão por último porque são
+ * história — das regras e dos textos.
  *
  * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório.
  */
@@ -59,6 +69,26 @@ export const metadata: Metadata = { title: "Configuração da organização" };
 
 /** O rótulo de um item da lista de definição: o papel de rótulo de coluna do guia §3. */
 const ROTULO = "text-rotulo-coluna text-tinta-suave font-mono uppercase";
+
+/**
+ * **Os textos padrão descem prontos do servidor** (item 100). O navegador não monta rótulo, e é a mesma
+ * regra que faz os dois mapas de `rotulos.ts` descerem prontos para T-05.
+ */
+const PADROES_DO_SOLICITANTE = Object.fromEntries(
+  ESTADOS_DO_CICLO.map((estado) => [estado, rotuloPadraoDoSolicitante(estado)]),
+) as Record<EstadoDaTela, string>;
+
+/**
+ * O contrato traz os seis com `null` onde vale o padrão; o modal quer **só o customizado**, porque nele a
+ * ausência é o que distingue *"em branco"* de *"escrito"*.
+ */
+function rotulosCustomizados(
+  dosSeis: Readonly<Record<EstadoDaTela, string | null>>,
+): Readonly<Partial<Record<EstadoDaTela, string>>> {
+  return Object.fromEntries(
+    Object.entries(dosSeis).filter(([, texto]) => texto !== null),
+  ) as Readonly<Partial<Record<EstadoDaTela, string>>>;
+}
 
 export default async function ConfiguracaoDaOrganizacao() {
   const escopo = await resolverOuMandarParaPorta();
@@ -84,7 +114,7 @@ export default async function ConfiguracaoDaOrganizacao() {
           título, e o `loading.tsx` também. */}
       <CabecalhoDaPagina
         titulo="Configuração da organização"
-        fato="A identidade desta organização, as regras do atendimento e as duas listas do formulário de registro."
+        fato="A identidade desta organização, as regras do atendimento, os textos que quem abriu lê e as duas listas do formulário de registro."
       />
 
       {/* **Identidade primeiro, listas depois.** A pergunta da tela é *"o que desta organização eu posso
@@ -162,6 +192,51 @@ export default async function ConfiguracaoDaOrganizacao() {
         </Cartao>
       )}
 
+      {/* **Como ela fala, depois de como ela trabalha** (item 100): o texto de cada ponto do ciclo é
+          apresentação, e o nome interno não muda — é a D19. Em pilha no celular, duas colunas na tela
+          grande, como a identidade. */}
+      {ativo !== null && (
+        <Cartao tituloId="rotulos">
+          <CabecaDoCartao
+            id="rotulos"
+            titulo={TITULO_DOS_ROTULOS}
+            apoio={APOIO_DO_CARTAO_DE_ROTULOS}
+            acao={
+              <EdicaoDosRotulos
+                rotulos={rotulosCustomizados(configuracao.rotulosDoSolicitante)}
+                padroes={PADROES_DO_SOLICITANTE}
+                organizacaoId={ativo.organizacao.id}
+              />
+            }
+          />
+          <dl className="grid lg:grid-cols-2">
+            {ESTADOS_DO_CICLO.map((estado, indice) => {
+              const customizado = configuracao.rotulosDoSolicitante[estado];
+              return (
+                <div
+                  key={estado}
+                  /* **`min-w-0`, e é o que faz o critério 5 fechar em 360 px.** Item de grade nasce
+                     com `min-width: auto`, e um texto de quarenta caracteres sem espaço vira a largura
+                     mínima da coluna — a grade cresce e a página rola de lado. Com ele, o
+                     `wrap-break-word` do `<dd>` tem onde quebrar. */
+                  className={`border-linha-suave flex min-w-0 flex-col gap-2 p-[15px] md:px-6 md:py-5 ${
+                    indice === 0 ? "" : "border-t"
+                  } ${indice < 2 ? "lg:border-t-0" : ""} ${indice % 2 === 1 ? "lg:border-l" : ""}`}
+                >
+                  <dt className={ROTULO}>{NOME_DO_CICLO[estado]}</dt>
+                  <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">
+                    {customizado ?? PADROES_DO_SOLICITANTE[estado]}
+                  </dd>
+                  {customizado === null && (
+                    <dd className="text-meta text-tinta-suave">{MARCA_DO_PADRAO}</dd>
+                  )}
+                </div>
+              );
+            })}
+          </dl>
+        </Cartao>
+      )}
+
       <Cartao tituloId="listas">
         <CabecaDoCartao
           id="listas"
@@ -199,7 +274,7 @@ export default async function ConfiguracaoDaOrganizacao() {
         <CabecaDoCartao
           id="mudancas"
           titulo={TITULO_DAS_MUDANCAS}
-          apoio="Quem mudou uma regra, quando, e de que valor para qual."
+          apoio="Quem mudou o quê, quando, e de que valor para qual."
         />
         {configuracao.mudancas.length === 0 ? (
           <p className="text-interface text-tinta-suave p-[15px] md:px-6 md:py-5">{SEM_MUDANCAS}</p>
