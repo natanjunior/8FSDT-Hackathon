@@ -45,6 +45,11 @@ import {
   valorEmPalavra,
 } from "@/interface/componentes/regras-da-configuracao";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
+import {
+  ESTADOS_DO_CICLO,
+  NOME_DO_CICLO,
+  rotulosQueMudaram,
+} from "@/interface/componentes/rotulos-do-solicitante";
 import { problemaDe } from "@/interface/http";
 import { projetarConfiguracao } from "@/interface/projecoes";
 import {
@@ -716,6 +721,7 @@ describe("a projeção da configuração — item 99", () => {
   it("é plana, e as mudanças saem como a porta as leu", () => {
     const projetada = projetarConfiguracao({
       regras: { exigirSolucaoAoResolver: true, limiteDeCancelamentoDoSolicitante: "em_analise" },
+      rotulos: {},
       mudancas: [
         {
           chave: "exigir_solucao_ao_resolver",
@@ -746,6 +752,7 @@ describe("a projeção da configuração — item 99", () => {
     expect(
       projetarConfiguracao({
         regras: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_atendimento" },
+        rotulos: {},
         mudancas: [],
       }).mudancas,
     ).toStrictEqual([]);
@@ -802,6 +809,50 @@ describe("as palavras da configuração — item 99", () => {
     expect(
       regrasQueMudaram(atuais, { ...atuais, limiteDeCancelamentoDoSolicitante: "em_atendimento" }),
     ).toStrictEqual({ limiteDeCancelamentoDoSolicitante: "em_atendimento" });
+  });
+
+  it("a frase da trilha nomeia o ponto do ciclo e diz o padrão por extenso — item 100", () => {
+    expect(
+      fraseDaMudanca({
+        chave: "rotulo_em_analise",
+        valorAnterior: "",
+        valorNovo: "o síndico está avaliando",
+      }),
+    ).toBe("Texto de Em análise: do padrão para “o síndico está avaliando”");
+    expect(
+      fraseDaMudanca({
+        chave: "rotulo_em_analise",
+        valorAnterior: "o síndico está avaliando",
+        valorNovo: "",
+      }),
+    ).toBe("Texto de Em análise: de “o síndico está avaliando” para o padrão");
+    expect(
+      fraseDaMudanca({ chave: "rotulo_pausada", valorAnterior: "Parada", valorNovo: "Esperando" }),
+    ).toBe("Texto de Pausada: de “Parada” para “Esperando”");
+  });
+
+  it("só o texto que mudou vai no corpo; nada mudou é objeto vazio — item 100", () => {
+    const atuais = { em_analise: "a síndica está vendo" } as const;
+    expect(rotulosQueMudaram(atuais, atuais)).toStrictEqual({});
+    expect(rotulosQueMudaram(atuais, {})).toStrictEqual({ em_analise: null });
+    expect(rotulosQueMudaram({}, { pausada: "  Esperando  " })).toStrictEqual({ pausada: "Esperando" });
+  });
+
+  /**
+   * **O critério 1 é da tela, e é aqui que ele se prende.** *"Os seis estados aparecem para customizar"* —
+   * a migração prova que o banco os aceita, e isto prova que a lista que o modal desenha é a do ciclo
+   * inteiro, `pausada` inclusa, na ordem do caminho e não na do alfabeto.
+   */
+  it("os seis pontos do ciclo entram na tela, pausada inclusa, na ordem do caminho — o critério 1", () => {
+    expect(ESTADOS_DO_CICLO).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+      "cancelada",
+    ]);
+    expect(ESTADOS_DO_CICLO.every((estado) => NOME_DO_CICLO[estado].length > 0)).toBe(true);
   });
 
   it("as frases da tela terminam em ponto e não têm código dentro", () => {

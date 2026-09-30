@@ -46,8 +46,11 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // estoura em `relation "compartilhamentos" already exists`.
   // **`mudancas_de_configuracao` entra pela mesma razão que `compartilhamentos`** (item 99): ela aponta
   // para `organizacoes` e para `vinculos`, e o `cascade` derruba o que aponta para ela, não ela mesma.
+  // **`rotulos_de_status` entra pela mesma razão** (item 100), e com uma segunda: ela tem coluna do tipo
+  // `status_ocorrencia`, e sem derrubá-la o `drop type` logo abaixo recusa com *"other objects depend
+  // on it"*.
   await consulta(
-    `drop table if exists mudancas_de_configuracao,
+    `drop table if exists rotulos_de_status, mudancas_de_configuracao,
                           compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
                           autorizacoes_de_upload,
                           registros_transicao, ocorrencias, contatos, pedidos_de_entrada, categorias,

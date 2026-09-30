@@ -1,4 +1,4 @@
-import type { LimiteDeCancelamentoDoSolicitante } from "@/dominio/ocorrencia";
+import type { LimiteDeCancelamentoDoSolicitante, StatusOcorrencia } from "@/dominio/ocorrencia";
 import type {
   AreaSemente,
   CategoriaSemente,
@@ -114,8 +114,26 @@ export interface RepositorioEscopadoDaOrganizacao {
   corrigir(correcao: CorrecaoDeOrganizacao): Promise<OrganizacaoLida>;
 }
 
-/** As duas chaves que a trilha de configuração conhece — os nomes das colunas, como o banco os grava. */
-export type ChaveDeConfiguracao = "exigir_solucao_ao_resolver" | "limite_cancelamento_solicitante";
+/**
+ * As chaves que a trilha de configuração conhece. As duas primeiras são os nomes das colunas de
+ * `organizacoes`, como o banco os grava; as seis de rótulo (item 100) são `rotulo_` mais o estado.
+ */
+export type ChaveDeConfiguracao =
+  | "exigir_solucao_ao_resolver"
+  | "limite_cancelamento_solicitante"
+  | `rotulo_${StatusOcorrencia}`;
+
+/**
+ * **O que a organização customizou** (item 100). Estado ausente significa *"vale o padrão"*, e é a
+ * ausência que responde *"esta organização mexeu no texto?"* — não há linha para o padrão.
+ */
+export type RotulosDoSolicitante = Readonly<Partial<Record<StatusOcorrencia, string>>>;
+
+/**
+ * **O que a escrita pede** (item 100): `null` devolve ao padrão, e estado ausente é *não mexa*. São duas
+ * ausências diferentes, e por isso o `null` existe — sem ele não haveria como apagar um rótulo.
+ */
+export type PedidoDeRotulos = Readonly<Partial<Record<StatusOcorrencia, string | null>>>;
 
 /** Uma linha da trilha de configuração (item 99, D30). */
 export type MudancaDeConfiguracaoLida = {
@@ -130,15 +148,19 @@ export type MudancaDeConfiguracaoLida = {
 /** Quem mudou a regra, como toda leitura de gente devolve: sem contato, sem papel. */
 export type PessoaReferenciaDaConfiguracao = { pessoaId: string; nome: string };
 
-/** O que `GET /configuracao` devolve: as regras de agora e a história delas. */
+/** O que `GET /configuracao` devolve: as regras de agora, os textos de quem abriu, e a história das duas. */
 export type ConfiguracaoLida = {
   regras: RegrasDaOrganizacao;
+  /** Só os estados customizados (item 100). Objeto vazio quando a organização não mexeu em nenhum. */
+  rotulos: RotulosDoSolicitante;
   /** Da mais recente para a mais antiga. Lista vazia, nunca `null`. */
   mudancas: readonly MudancaDeConfiguracaoLida[];
 };
 
 /** O que a porta de escrita recebe. **Campo ausente é *não mexa*.** */
 export type AlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /** Item 100. Ausente é *não mexa em rótulo nenhum*; dentro dele, `null` devolve aquele ao padrão. */
+  rotulos?: PedidoDeRotulos;
   /** Quem mudou. Vai para `atualizado_por_pessoa_id`, de onde o gatilho da migração 017 tira o autor. */
   atualizadaPorPessoaId: string;
 };
@@ -147,12 +169,19 @@ export type AlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
  * **A porta escopada da configuração** (item 99).
  *
  * Como a irmã de `organizacoes`, ela **não recebe** o identificador da organização: ele entra em `$1`
- * pelo ponto único. **Ela também não escreve a trilha** — quem grava cada linha é o gatilho da migração
- * 017, dentro da mesma instrução de `update`, com o valor anterior da linha travada.
+ * pelo ponto único.
+ *
+ * **A trilha tem dois caminhos, e a diferença é quem sabe o valor anterior.** A mudança de regra é
+ * gravada pelo gatilho da migração 017, dentro da mesma instrução de `update`, com o valor anterior da
+ * linha travada. A mudança de rótulo é gravada pela implementação, na mesma transação da escrita: um
+ * gatilho na tabela dos rótulos não saberia **quem apagou** uma linha, porque a linha apagada carrega o
+ * autor da escrita anterior e o `delete` não traz autor nenhum (item 100).
  */
 export interface RepositorioEscopadoDaConfiguracao {
   ler(): Promise<ConfiguracaoLida>;
   alterar(alteracao: AlteracaoDeConfiguracao): Promise<ConfiguracaoLida>;
+  /** Só os rótulos — a leitura barata que toda requisição do Solicitante faz para montar a lente. */
+  rotulosDoSolicitante(): Promise<RotulosDoSolicitante>;
 }
 
 /** O schema `Categoria` do contrato. `icone` **nunca vem nulo** — a coluna é `NOT NULL`. */

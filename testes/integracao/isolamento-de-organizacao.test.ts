@@ -1401,7 +1401,10 @@ describe("as consultas de configuração não atravessam organizações", () => 
 describe("a trilha de configuração não atravessa organizações — item 99", () => {
   const mundo = { a: () => idRecanto, b: () => idAurora };
   const configuracaoEm = (organizacaoId: string) =>
-    repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, organizacaoId));
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
 
   beforeAll(async () => {
     await configuracaoEm(idRecanto).alterar({
@@ -1453,8 +1456,14 @@ describe("a trilha de configuração não atravessa organizações — item 99",
  */
 describe("as escritas de configuração não atravessam organizações", () => {
   it("mudar uma regra em Aurora não muda a regra nem a trilha de Recanto — item 99", async () => {
-    const emAurora = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idAurora));
-    const emRecanto = repositorioEscopadoDaConfiguracao(escoparConsulta(consulta, idRecanto));
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
     const antesEmRecanto = await emRecanto.ler();
 
     const depois = await emAurora.alterar({
@@ -1475,6 +1484,50 @@ describe("as escritas de configuração não atravessam organizações", () => {
       limiteDeCancelamentoDoSolicitante: "em_analise",
       atualizadaPorPessoaId: idSindica,
     });
+  });
+
+  it("customizar um rótulo em Aurora não muda nada em Recanto — item 100", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const antesEmRecanto = await emRecanto.ler();
+
+    const depois = await emAurora.alterar({
+      rotulos: { em_analise: "o síndico está avaliando" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.rotulos).toStrictEqual({ em_analise: "o síndico está avaliando" });
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "",
+      valorNovo: "o síndico está avaliando",
+      autor: { pessoaId: idSindica },
+    });
+
+    expect(await emRecanto.ler()).toStrictEqual(antesEmRecanto);
+    expect(await emRecanto.rotulosDoSolicitante()).toStrictEqual({});
+
+    // **Apagar deixa linha** — o critério 7, e é a mudança que sem trilha sumiria sem sinal.
+    const apagado = await emAurora.alterar({
+      rotulos: { em_analise: null },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(apagado.rotulos).toStrictEqual({});
+    expect(apagado.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "o síndico está avaliando",
+      valorNovo: "",
+    });
+
+    // **Escrever o que já está lá não deixa rastro.**
+    const antes = (await emAurora.ler()).mudancas.length;
+    await emAurora.alterar({ rotulos: { em_analise: null }, atualizadaPorPessoaId: idSindica });
+    expect((await emAurora.ler()).mudancas).toHaveLength(antes);
   });
 
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
