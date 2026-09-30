@@ -1,6 +1,7 @@
 import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
+import { SolucaoObrigatoria } from "@/aplicacao/ocorrencia";
 import { ListaDesatualizada } from "@/aplicacao/organizacao";
 import { ALFABETO_DO_CODIGO, CATEGORIAS_SEMENTE, ICONE_PADRAO } from "@/dominio/organizacao";
 import {
@@ -33,6 +34,16 @@ import {
   limparCodigo,
   PADRAO_DA_DIGITACAO,
 } from "@/interface/componentes/regras-do-codigo";
+import {
+  APOIO_DO_LIMITE,
+  MENSAGEM_DA_SOLUCAO_OBRIGATORIA,
+  REGRAS_SEM_MUDANCA,
+  SEM_MUDANCAS,
+  erroDaSolucaoObrigatoria,
+  fraseDaMudanca,
+  regrasQueMudaram,
+  valorEmPalavra,
+} from "@/interface/componentes/regras-da-configuracao";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import { problemaDe } from "@/interface/http";
 import { projetarConfiguracao } from "@/interface/projecoes";
@@ -738,5 +749,65 @@ describe("a projeção da configuração — item 99", () => {
         mudancas: [],
       }).mudancas,
     ).toStrictEqual([]);
+  });
+});
+
+describe("a solução obrigatória no modal — item 99", () => {
+  it("com a regra ligada, vazio e só espaços acendem a frase", () => {
+    expect(erroDaSolucaoObrigatoria("", true)).toBe(MENSAGEM_DA_SOLUCAO_OBRIGATORIA);
+    expect(erroDaSolucaoObrigatoria("   ", true)).toBe(MENSAGEM_DA_SOLUCAO_OBRIGATORIA);
+    expect(erroDaSolucaoObrigatoria("Trocada a lâmpada.", true)).toBeUndefined();
+  });
+
+  it("com a regra desligada, nada acende", () => {
+    expect(erroDaSolucaoObrigatoria("", false)).toBeUndefined();
+    expect(erroDaSolucaoObrigatoria("   ", false)).toBeUndefined();
+  });
+
+  it("a frase da tela é a do servidor, palavra por palavra", () => {
+    expect(MENSAGEM_DA_SOLUCAO_OBRIGATORIA).toBe(new SolucaoObrigatoria().detalhe);
+  });
+});
+
+describe("as palavras da configuração — item 99", () => {
+  it("os valores em palavra, nas duas chaves", () => {
+    expect(valorEmPalavra("exigir_solucao_ao_resolver", "true")).toBe("Sim");
+    expect(valorEmPalavra("exigir_solucao_ao_resolver", "false")).toBe("Não");
+    expect(valorEmPalavra("limite_cancelamento_solicitante", "em_atendimento")).toBe("Sim");
+    expect(valorEmPalavra("limite_cancelamento_solicitante", "em_analise")).toBe("Não");
+  });
+
+  it("a frase da mudança diz a regra e os dois valores", () => {
+    expect(
+      fraseDaMudanca({ chave: "exigir_solucao_ao_resolver", valorAnterior: "false", valorNovo: "true" }),
+    ).toBe("Exigir a solução ao resolver: de Não para Sim");
+    expect(
+      fraseDaMudanca({
+        chave: "limite_cancelamento_solicitante",
+        valorAnterior: "em_atendimento",
+        valorNovo: "em_analise",
+      }),
+    ).toBe("O Solicitante pode cancelar também em atendimento: de Sim para Não");
+  });
+
+  it("só o que mudou vai no corpo; nada mudou é objeto vazio", () => {
+    const atuais = {
+      exigirSolucaoAoResolver: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+    } as const;
+    expect(regrasQueMudaram(atuais, atuais)).toStrictEqual({});
+    expect(regrasQueMudaram(atuais, { ...atuais, exigirSolucaoAoResolver: true })).toStrictEqual({
+      exigirSolucaoAoResolver: true,
+    });
+    expect(
+      regrasQueMudaram(atuais, { ...atuais, limiteDeCancelamentoDoSolicitante: "em_atendimento" }),
+    ).toStrictEqual({ limiteDeCancelamentoDoSolicitante: "em_atendimento" });
+  });
+
+  it("as frases da tela terminam em ponto e não têm código dentro", () => {
+    for (const frase of [APOIO_DO_LIMITE, REGRAS_SEM_MUDANCA, SEM_MUDANCAS]) {
+      expect(frase.endsWith(".")).toBe(true);
+      expect(frase).not.toMatch(/_/u);
+    }
   });
 });

@@ -472,6 +472,9 @@ export default async function Ocorrencia({
         variante={primario === "resolver" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
+        // **A regra da organização** (item 99): o modelo de leitura a traz junto, e é ela que faz o
+        // campo de solução ser obrigatório antes do envio.
+        exigeSolucao={lida.regrasDaOrganizacao.exigirSolucaoAoResolver}
         retorno={RETORNO_DO_COMANDO.resolver}
       />
     ),
