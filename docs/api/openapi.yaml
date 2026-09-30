@@ -310,16 +310,16 @@ paths:
         **Só `nome` é editável.** O `codigoPublico` é gerado pelo servidor, não é aceito no corpo e **não
         é rotacionável nesta entrega**: código vazado produz um pedido de entrada aguardando aprovação,
         não acesso (D25). `logoCaminho` não tem mecanismo de storage e vira uma linha em `anexos` quando
-        entrar. O interruptor *exigir solução ao resolver* muda a máquina de estados e pede um `409` novo
-        em `/resolver` — é item ⬜.
+        entrar. As **regras do atendimento** têm recurso próprio, `/configuracao`, porque deixam rastro de
+        outra forma.
 
         **Sem `404`:** a organização é a da sessão e ela existe. **Sem `409` de nome duplicado:**
         `organizacoes` tem `UNIQUE (codigo_publico)` e nada sobre `nome` — duas organizações podem ter o
         mesmo nome, e é o código que as distingue.
 
         A alteração deixa rastro na forma **última escrita** — `atualizado_em` e
-        `atualizado_por_pessoa_id` —, a mesma de `categorias` e `areas`. Não há tabela de histórico de
-        configuração.
+        `atualizado_por_pessoa_id` —, a mesma de `categorias` e `areas`. O nome não entra na trilha de
+        configuração, que é só das regras (`/configuracao`).
 
         *Capacidade: corrigir o nome da organização · `NOSSO` (D25). Permissão: `organizacao.configurar`.*
         *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
@@ -345,6 +345,93 @@ paths:
                 id: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
                 nome: "Residencial Aurora"
                 codigoPublico: "AURORA42"
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /configuracao:
+    get:
+      tags: [Configuração]
+      operationId: lerConfiguracao
+      summary: As regras do atendimento e as mudanças delas
+      description: |
+        As **regras do atendimento** da organização da sessão, e a trilha de cada mudança delas — quem
+        mudou, quando, de que valor para qual. A organização vem da sessão, nunca da URL (§4.2).
+
+        A lista vem da mais recente para a mais antiga e **não pagina**: são duas regras que mudam
+        raramente, e o volume de uma organização é de dezenas de linhas.
+
+        **O Solicitante não lê a configuração.** O efeito dela chega a ele pronto, em `acoesDisponiveis`.
+
+        *Capacidade: configurar as regras do atendimento · `NOSSO` (D29, D30). Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: As regras de agora e a história delas.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Configuracao" }
+              example:
+                exigirSolucaoAoResolver: true
+                limiteDeCancelamentoDoSolicitante: "em_analise"
+                mudancas:
+                  - chave: "exigir_solucao_ao_resolver"
+                    valorAnterior: "false"
+                    valorNovo: "true"
+                    autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
+                    ocorridaEm: "2026-09-29T17:32:00Z"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+    patch:
+      tags: [Configuração]
+      operationId: alterarConfiguracao
+      summary: Mudar as regras do atendimento
+      description: |
+        Muda as regras da organização da sessão. Cada mudança de valor vira uma linha em `mudancas`,
+        escrita pelo banco na mesma instrução; gravar o valor que já está lá não deixa rastro. A trilha
+        **não aceita alteração nem remoção** (D30).
+
+        Com o limite em `em_atendimento`, o Solicitante autor cancela a própria também em `Em atendimento`
+        e em `Pausada`; `em_analise` é o padrão de toda organização, e é o valor da D12.2. O Gestor
+        cancela em qualquer estado não terminal, qualquer que seja o valor.
+
+        Com `exigirSolucaoAoResolver` ligado, resolver sem solução responde `422` (ver `/resolver`).
+
+        *Capacidade: configurar as regras do atendimento · `NOSSO` (D29, D30). Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                exigirSolucaoAoResolver: { type: boolean }
+                limiteDeCancelamentoDoSolicitante: { type: string, enum: [em_analise, em_atendimento] }
+            example: { exigirSolucaoAoResolver: true }
+      responses:
+        "200":
+          description: A configuração depois da mudança, com a trilha atualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Configuracao" }
+              example:
+                exigirSolucaoAoResolver: true
+                limiteDeCancelamentoDoSolicitante: "em_analise"
+                mudancas:
+                  - chave: "exigir_solucao_ao_resolver"
+                    valorAnterior: "false"
+                    valorNovo: "true"
+                    autor: { pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f", nome: "Síndica do Recanto Azul" }
+                    ocorridaEm: "2026-09-29T17:32:00Z"
         "400": { $ref: "#/components/responses/FormatoInvalido" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
@@ -2605,6 +2692,10 @@ paths:
         Aceita `solucaoAplicada` no mesmo corpo, para que o formulário induzido pela D22 seja uma
         requisição só. O registro de transição continua sendo **um**.
 
+        Se a organização exige a solução, resolver sem ela, no corpo ou já registrada, responde `422`
+        (`/configuracao`). Sem a regra ligada, que é o padrão, resolver sem solução continua respondendo
+        `200`.
+
         *Capacidade: resolver · `ENUNCIADO · literal` (F2). Comando: `Resolver`.
         Permissão: `ocorrencia.resolver` — **Gestor apenas**.*
       parameters:
@@ -2627,6 +2718,18 @@ paths:
         "403": { $ref: "#/components/responses/SemPermissao" }
         "404": { $ref: "#/components/responses/OcorrenciaNaoEncontrada" }
         "409": { $ref: "#/components/responses/TransicaoNaoPermitida" }
+        "422":
+          description: A organização exige a solução aplicada, e nenhuma foi informada nem registrada antes.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/solucao-obrigatoria"
+                title: "Solução obrigatória"
+                status: 422
+                detail: "Esta organização exige a solução aplicada para resolver."
+                codigo: "SOLUCAO_OBRIGATORIA"
+                traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /ocorrencias/{ocorrenciaId}/cancelar:
@@ -3487,6 +3590,41 @@ components:
             areasSemeadas:
               type: integer
               description: Quantas áreas-semente a política criou junto com a organização.
+
+    MudancaDeConfiguracao:
+      type: object
+      description: |
+        Uma mudança de regra da organização. **A trilha é append-only**: o banco recusa alteração e
+        remoção (D30). Os dois valores vão como texto, porque ali o dado é registro e não regra.
+      required: [chave, valorAnterior, valorNovo, autor, ocorridaEm]
+      properties:
+        chave:
+          type: string
+          enum: [exigir_solucao_ao_resolver, limite_cancelamento_solicitante]
+        valorAnterior: { type: string }
+        valorNovo: { type: string }
+        autor: { $ref: "#/components/schemas/PessoaReferencia" }
+        ocorridaEm: { type: string, format: date-time }
+
+    Configuracao:
+      type: object
+      description: |
+        As regras do atendimento da organização, e a trilha de cada mudança delas. A lista vem da mais
+        recente para a mais antiga, e é `[]` numa organização que nunca mudou regra nenhuma.
+      required: [exigirSolucaoAoResolver, limiteDeCancelamentoDoSolicitante, mudancas]
+      properties:
+        exigirSolucaoAoResolver:
+          type: boolean
+          description: Ligado, resolver sem a solução aplicada responde `422 SOLUCAO_OBRIGATORIA`.
+        limiteDeCancelamentoDoSolicitante:
+          type: string
+          enum: [em_analise, em_atendimento]
+          description: |
+            Até qual estado o Solicitante autor cancela a própria ocorrência (D29). Em `em_atendimento`,
+            inclui `Pausada`.
+        mudancas:
+          type: array
+          items: { $ref: "#/components/schemas/MudancaDeConfiguracao" }
 
     Convite:
       type: object

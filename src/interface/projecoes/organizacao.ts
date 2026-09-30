@@ -2,6 +2,8 @@ import type {
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ChaveDeConfiguracao,
+  ConfiguracaoLida,
   OrganizacaoCriada,
   OrganizacaoLida,
 } from "@/aplicacao/organizacao";
@@ -103,4 +105,40 @@ export type AreaAtualizadaProjetada = AreaProjetada & { ocorrenciasComTipoAnteri
  */
 export function projetarAreaAtualizada(area: AreaAtualizada): AreaAtualizadaProjetada {
   return { ...projetarArea(area), ocorrenciasComTipoAnterior: area.ocorrenciasComTipoAnterior };
+}
+
+/** Uma linha da trilha, como o contrato a publica (item 99). */
+export type MudancaDeConfiguracaoProjetada = {
+  chave: ChaveDeConfiguracao;
+  valorAnterior: string;
+  valorNovo: string;
+  autor: { pessoaId: string; nome: string };
+  ocorridaEm: string;
+};
+
+/**
+ * O schema `Configuracao` do contrato — o que `GET` e `PATCH /configuracao` devolvem (item 99).
+ *
+ * **A forma é plana**: `regras` é agrupamento da porta, e não sobe. Quem lê o JSON encontra as duas
+ * chaves ao lado das mudanças, que é como a tela as usa.
+ */
+export type ConfiguracaoProjetada = {
+  exigirSolucaoAoResolver: boolean;
+  limiteDeCancelamentoDoSolicitante: "em_analise" | "em_atendimento";
+  mudancas: readonly MudancaDeConfiguracaoProjetada[];
+};
+
+export function projetarConfiguracao(lida: ConfiguracaoLida): ConfiguracaoProjetada {
+  return {
+    exigirSolucaoAoResolver: lida.regras.exigirSolucaoAoResolver,
+    limiteDeCancelamentoDoSolicitante: lida.regras.limiteDeCancelamentoDoSolicitante,
+    // **Campo a campo, e nunca o objeto da porta inteiro**: a projeção escolhe o que sai.
+    mudancas: lida.mudancas.map((mudanca) => ({
+      chave: mudanca.chave,
+      valorAnterior: mudanca.valorAnterior,
+      valorNovo: mudanca.valorNovo,
+      autor: { pessoaId: mudanca.autor.pessoaId, nome: mudanca.autor.nome },
+      ocorridaEm: mudanca.ocorridaEm,
+    })),
+  };
 }

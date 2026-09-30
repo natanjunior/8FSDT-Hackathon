@@ -35,8 +35,10 @@ import {
 } from "@/interface/componentes/regras-do-codigo";
 import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-nome";
 import { problemaDe } from "@/interface/http";
+import { projetarConfiguracao } from "@/interface/projecoes";
 import {
   ICONES_DE_CATEGORIA,
+  alteracaoDeConfiguracaoSchema,
   correcaoDeAreaSchema,
   correcaoDeCategoriaSchema,
   correcaoDeOrganizacaoSchema,
@@ -660,5 +662,81 @@ describe("frases-da-configuracao — o texto das duas telas (item 44k)", () => {
     // O item 50 redigiu o `detail` desse código para esta tela: escrever frase própria o esconderia.
     expect(FRASES_DA_TELA.categorias.LISTA_DESATUALIZADA).toBeUndefined();
     expect(FRASES_DA_TELA.areas.LISTA_DESATUALIZADA).toBeUndefined();
+  });
+});
+
+/**
+ * ============================================================================
+ *  As regras da organização e a trilha delas — item 99
+ * ============================================================================
+ */
+
+describe("o corpo de PATCH /configuracao — item 99", () => {
+  it("aceita cada regra sozinha e as duas juntas", () => {
+    expect(alteracaoDeConfiguracaoSchema.safeParse({ exigirSolucaoAoResolver: true }).success).toBe(true);
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({ limiteDeCancelamentoDoSolicitante: "em_atendimento" })
+        .success,
+    ).toBe(true);
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({
+        exigirSolucaoAoResolver: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("recusa o limite fora dos dois valores — nunca restringe, nunca aponta para terminal", () => {
+    for (const limite of ["aberta", "resolvida", "pausada", ""]) {
+      expect(
+        alteracaoDeConfiguracaoSchema.safeParse({ limiteDeCancelamentoDoSolicitante: limite }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("recusa booleano em texto", () => {
+    expect(alteracaoDeConfiguracaoSchema.safeParse({ exigirSolucaoAoResolver: "true" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("a projeção da configuração — item 99", () => {
+  it("é plana, e as mudanças saem como a porta as leu", () => {
+    const projetada = projetarConfiguracao({
+      regras: { exigirSolucaoAoResolver: true, limiteDeCancelamentoDoSolicitante: "em_analise" },
+      mudancas: [
+        {
+          chave: "exigir_solucao_ao_resolver",
+          valorAnterior: "false",
+          valorNovo: "true",
+          autor: { pessoaId: "p-1", nome: "Cláudia" },
+          ocorridaEm: "2026-09-29T17:32:00.000Z",
+        },
+      ],
+    });
+
+    expect(projetada).toStrictEqual({
+      exigirSolucaoAoResolver: true,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      mudancas: [
+        {
+          chave: "exigir_solucao_ao_resolver",
+          valorAnterior: "false",
+          valorNovo: "true",
+          autor: { pessoaId: "p-1", nome: "Cláudia" },
+          ocorridaEm: "2026-09-29T17:32:00.000Z",
+        },
+      ],
+    });
+  });
+
+  it("sem mudança nenhuma, a lista é `[]` — nunca `null`", () => {
+    expect(
+      projetarConfiguracao({
+        regras: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_atendimento" },
+        mudancas: [],
+      }).mudancas,
+    ).toStrictEqual([]);
   });
 });

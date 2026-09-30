@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE } from "@/dominio/ocorrencia";
 import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
 
 /**
@@ -164,3 +165,17 @@ export type EntradaDeCorrecaoDeCategoria = z.infer<typeof correcaoDeCategoriaSch
 export type EntradaDeCriacaoDeArea = z.infer<typeof criacaoDeAreaSchema>;
 export type EntradaDeCorrecaoDeArea = z.infer<typeof correcaoDeAreaSchema>;
 export type EntradaDeReordenacao = z.infer<typeof reordenacaoSchema>;
+
+/**
+ * O corpo de `PATCH /configuracao` (item 99). **Os dois campos opcionais, e o vazio é recusado na rota**,
+ * como em `PATCH /organizacoes`: *"informe ao menos um campo"* é regra do endpoint.
+ *
+ * **O enum sai do Domínio**, e é o que impede o schema de ter uma segunda lista dos valores: o dia em que
+ * um terceiro limite existir, ele nasce lá e chega aqui sozinho.
+ */
+export const alteracaoDeConfiguracaoSchema = z.object({
+  exigirSolucaoAoResolver: z.boolean().optional(),
+  limiteDeCancelamentoDoSolicitante: z.enum(LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE).optional(),
+});
+
+export type EntradaDeAlteracaoDeConfiguracao = z.infer<typeof alteracaoDeConfiguracaoSchema>;
