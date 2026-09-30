@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobertura, cobre } from "./cobertura";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -253,6 +254,49 @@ test("a configuração da organização: nome repetido, desativar até a última
   // 0 · A conta e a organização próprias
   // -------------------------------------------------------------------------
   await organizacaoPropria(page, "jornada");
+  // -------------------------------------------------------------------------
+  // 0b · As regras do atendimento, e a mudança que fica — critérios 99.6 e 99.8
+  //
+  // **Antes de tudo que mexe nas listas**, porque a trilha começa vazia numa organização recém-fundada,
+  // e é essa frase que o cartão precisa mostrar no primeiro passo.
+  // -------------------------------------------------------------------------
+  await page.goto("/configuracao");
+  await expect(page.getByText("Nenhuma regra foi alterada desde a criação da organização.")).toBeVisible();
+
+  await page
+    .getByRole("region", { name: "Regras do atendimento" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  const modalDasRegras = page.getByRole("dialog");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras.getByText("Altere uma regra antes de salvar.")).toBeVisible();
+
+  await modalDasRegras.getByRole("switch", { name: "Exigir a solução ao resolver" }).click();
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras).toBeHidden();
+  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toBeVisible();
+
+  // **O mesmo `PATCH` direto ao servidor, com o mesmo valor: `200` e nenhuma linha a mais.** É o
+  // critério 99.6 pelo lado que a tela não alcança — gravar o que já está lá não é mudança.
+  const repetido = await page.request.patch("/api/configuracao", {
+    data: { exigirSolucaoAoResolver: true },
+  });
+  expect(repetido.status()).toBe(200);
+  await page.reload();
+  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toHaveCount(1);
+
+  // **Critério 99.8, medido:** a tela inteira cabe em 360 px, sem rolagem lateral.
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.reload();
+  expect(await transbordo(page)).toStrictEqual(SEM_TRANSBORDO);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // A regra volta ao padrão: os passos seguintes desta jornada contam com a organização recém-fundada.
+  const devolvida = await page.request.patch("/api/configuracao", {
+    data: { exigirSolucaoAoResolver: false },
+  });
+  expect(devolvida.status()).toBe(200);
+
 
   // -------------------------------------------------------------------------
   // 1 · O nome repetido é recusado, e nada é criado — metade do critério 4a.1
