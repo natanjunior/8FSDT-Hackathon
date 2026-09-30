@@ -668,3 +668,17 @@ export function textoDaNota(nota: number | null): string {
   const descricao = descricaoDaNota(nota);
   return descricao === null ? `${String(nota)} de 5` : `${String(nota)} de 5, ${descricao}`;
 }
+
+/**
+ * **O destaque da ocorrência parada** — item 101, e o sinal de envelhecimento da D16.
+ *
+ * **A palavra carrega o sentido**, e a cor só acompanha (A-5). O texto é curto porque cabe numa célula de
+ * tabela e num cartão de celular, e porque o lugar da explicação é o glossário, não a linha da lista.
+ *
+ * `null` é ausência de destaque, e não texto vazio: a ocorrência não está parada, por estado ou por
+ * tempo, e nada aparece na linha.
+ */
+export function fraseDaParada(dias: number | null): string | null {
+  if (dias === null) return null;
+  return `Parada há ${String(dias)} ${dias === 1 ? "dia" : "dias"}`;
+}
