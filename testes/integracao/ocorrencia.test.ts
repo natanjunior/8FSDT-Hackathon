@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import {
@@ -16,6 +16,8 @@ import {
   registrarSolucaoAplicada,
   resolverOcorrencia,
   retomarOcorrencia,
+  SolucaoObrigatoria,
+  SomenteOGestorCancelaNesteEstado,
   verOcorrencia,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
@@ -3491,6 +3493,172 @@ describe("o cancelamento contra Postgres — item 18", () => {
       [id],
     );
     expect(registros).toHaveLength(2);
+  });
+});
+
+describe("as regras da organização contra Postgres — item 99", () => {
+  /** As permissões do Gestor que este bloco usa. Lista, nunca papel (contrato §4.5). */
+  const DO_GESTOR = [
+    "ocorrencia.ler_todas",
+    "ocorrencia.analisar",
+    "ocorrencia.atribuir",
+    "ocorrencia.iniciar_atendimento",
+    "ocorrencia.registrar_solucao",
+    "ocorrencia.resolver",
+  ];
+  const DO_SOLICITANTE = [
+    "ocorrencia.registrar",
+    "ocorrencia.ler_propria",
+    "ocorrencia.cancelar_propria",
+  ];
+
+  let executorPessoaId: string;
+  let solicitanteId: string;
+  let ctxDoSolicitante: { pessoaId: string; permissoes: readonly string[] };
+
+  beforeAll(async () => {
+    const [executor] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Executor 99 ${SUFIXO}`],
+    );
+    executorPessoaId = executor!.id;
+    const [solicitante] = await consultaCrua<{ id: string }>(
+      `insert into pessoas (nome) values ($1) returning id`,
+      [`Solicitante 99 ${SUFIXO}`],
+    );
+    solicitanteId = solicitante!.id;
+    await consultaCrua(
+      `insert into vinculos (pessoa_id, organizacao_id, papel)
+       values ($1, $3, 'encarregado'), ($2, $3, 'solicitante')`,
+      [executorPessoaId, solicitanteId, organizacaoId],
+    );
+    ctxDoSolicitante = { pessoaId: solicitanteId, permissoes: DO_SOLICITANTE };
+  });
+
+  const regras = (colunas: string) =>
+    consultaCrua(`update organizacoes set ${colunas}, atualizado_por_pessoa_id = $2 where id = $1`, [
+      organizacaoId,
+      pessoaId,
+    ]);
+
+  // **O mundo deste arquivo é uma organização só**: o caso 25.4 resolve sem solução, e os blocos
+  // seguintes contam com o padrão. Toda regra ligada aqui volta ao padrão no fim do caso.
+  afterEach(async () => {
+    await regras("exigir_solucao_ao_resolver = false, limite_cancelamento_solicitante = 'em_analise'");
+  });
+
+  async function registradaPor(autor: string, titulo: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId: autor, organizacaoId },
+      { titulo, descricao: "Precisa acabar.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  async function levarAoAtendimento(id: string): Promise<string> {
+    const ctx = { pessoaId, permissoes: DO_GESTOR };
+    await analisarOcorrencia(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    await portas().ocorrencias.atribuirResponsavel(id, {
+      responsavelPessoaId: executorPessoaId,
+      atribuidoPorPessoaId: pessoaId,
+      em: new Date().toISOString(),
+    });
+    await iniciarAtendimento(portas().ocorrencias, ctx, { ocorrenciaId: id });
+    return id;
+  }
+
+  const emAtendimento = async (titulo: string) =>
+    levarAoAtendimento(await registradaPor(pessoaId, titulo));
+  const emAtendimentoDoSolicitante = async (titulo: string) =>
+    levarAoAtendimento(await registradaPor(solicitanteId, titulo));
+
+  const registrosDe = async (id: string) =>
+    (
+      await consultaCrua<{ n: number }>(
+        `select count(*)::int as n from registros_transicao where ocorrencia_id = $1`,
+        [id],
+      )
+    )[0]!.n;
+
+  const statusDe = async (id: string) =>
+    (await consultaCrua<{ status: string }>(`select status from ocorrencias where id = $1`, [id]))[0]!
+      .status;
+
+  it("regra ligada: a recusa não cria registro e a ocorrência continua em atendimento — critério 1", async () => {
+    const id = await emAtendimento("Lâmpada queimada no hall do bloco B");
+    const antes = await registrosDe(id);
+    await regras("exigir_solucao_ao_resolver = true");
+
+    await expect(
+      resolverOcorrencia(portas().ocorrencias, { pessoaId, permissoes: DO_GESTOR }, { ocorrenciaId: id }),
+    ).rejects.toBeInstanceOf(SolucaoObrigatoria);
+
+    expect(await statusDe(id)).toBe("em_atendimento");
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("regra ligada com a solução já gravada: resolve", async () => {
+    const id = await emAtendimento("Solução registrada antes");
+    await registrarSolucaoAplicada(
+      portas().ocorrencias,
+      { pessoaId, permissoes: DO_GESTOR },
+      { ocorrenciaId: id, solucaoAplicada: "Registrada antes da regra." },
+    );
+    await regras("exigir_solucao_ao_resolver = true");
+
+    const lida = await resolverOcorrencia(
+      portas().ocorrencias,
+      { pessoaId, permissoes: DO_GESTOR },
+      { ocorrenciaId: id },
+    );
+    expect(lida.status).toBe("resolvida");
+  });
+
+  it("ligar a regra não mexe em resolvida sem solução — critério 2", async () => {
+    const id = await emAtendimento("Resolvida antes da regra");
+    await resolverOcorrencia(
+      portas().ocorrencias,
+      { pessoaId, permissoes: DO_GESTOR },
+      { ocorrenciaId: id },
+    );
+    const antes = await registrosDe(id);
+
+    await regras("exigir_solucao_ao_resolver = true");
+
+    const [linha] = await consultaCrua<{ status: string; solucao_aplicada: string | null }>(
+      `select status, solucao_aplicada from ocorrencias where id = $1`,
+      [id],
+    );
+    expect(linha).toStrictEqual({ status: "resolvida", solucao_aplicada: null });
+    expect(await registrosDe(id)).toBe(antes);
+  });
+
+  it("limite estendido: o Solicitante autor cancela a própria em atendimento — critério 3", async () => {
+    const id = await emAtendimentoDoSolicitante("Portão da garagem travando");
+    await regras("limite_cancelamento_solicitante = 'em_atendimento'");
+
+    const lida = await cancelarOcorrencia(portas().ocorrencias, ctxDoSolicitante, {
+      ocorrenciaId: id,
+      motivo: "desistencia",
+      observacao: "O portão voltou a funcionar.",
+    });
+    expect(lida.status).toBe("cancelada");
+  });
+
+  it("limite padrão: o mesmo pedido leva 403, e a projeção não oferece cancelar", async () => {
+    const id = await emAtendimentoDoSolicitante("Portão no padrão");
+
+    await expect(
+      cancelarOcorrencia(portas().ocorrencias, ctxDoSolicitante, {
+        ocorrenciaId: id,
+        motivo: "desistencia",
+        observacao: "Tentando.",
+      }),
+    ).rejects.toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
+
+    const lida = await verOcorrencia(portas().ocorrencias, id);
+    expect(projetarOcorrenciaDetalhe(lida, ctxDoSolicitante).acoesDisponiveis).toStrictEqual([]);
   });
 });
 

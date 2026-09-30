@@ -573,6 +573,9 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe) 
       // o `left join lateral` que o preenche já é pago pelo `SELECT_DA_OCORRENCIA`. Nenhuma consulta a
       // mais para saber se o botão aparece.
       temResponsavel: lida.responsavel !== null,
+      // **A regra da organização** (item 99): o modelo de leitura a traz na mesma instrução, como traz o
+      // responsável. Sem ela, a barra do Solicitante autor mostraria o limite errado.
+      limiteDeCancelamentoDoSolicitante: lida.regrasDaOrganizacao.limiteDeCancelamentoDoSolicitante,
       jaAvaliada: lida.avaliacao !== null,
     }),
     /** O compartilhamento, com duas faces (item 87). Ver `projetarCompartilhamentoDoDetalhe`. */

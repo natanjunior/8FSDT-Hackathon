@@ -1,3 +1,4 @@
+import type { LimiteDeCancelamentoDoSolicitante } from "@/dominio/ocorrencia";
 import type {
   AreaSemente,
   CategoriaSemente,
@@ -69,6 +70,17 @@ export type OrganizacaoLida = {
   id: string;
   nome: string;
   codigoPublico: string;
+};
+
+/**
+ * **As regras da organização que mudam o comportamento de um comando** (item 99, D29 e a D22).
+ *
+ * Moram aqui porque são da organização; atravessam para `aplicacao/ocorrencia` pelo envelope de `carregar`
+ * e pelo modelo de leitura, e o agregado `Ocorrência` nunca as recebe (ADR-0001 intacta).
+ */
+export type RegrasDaOrganizacao = {
+  exigirSolucaoAoResolver: boolean;
+  limiteDeCancelamentoDoSolicitante: LimiteDeCancelamentoDoSolicitante;
 };
 
 /**

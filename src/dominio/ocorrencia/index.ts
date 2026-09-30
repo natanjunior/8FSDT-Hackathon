@@ -11,8 +11,11 @@ export {
 export {
   comandoPermitido,
   comandosDisponiveis,
-  ESTADOS_DE_CANCELAMENTO_DO_AUTOR,
+  estadosDeCancelamentoDoAutor,
+  LIMITE_DE_CANCELAMENTO_PADRAO,
+  LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE,
   transicaoPermitida,
+  type LimiteDeCancelamentoDoSolicitante,
   type PerguntaDeAcoes,
 } from "./MaquinaDeEstados";
 export {

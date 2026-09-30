@@ -20,6 +20,7 @@ import {
   RegistroDeTransicao,
   STATUS,
   TERMINAIS,
+  type LimiteDeCancelamentoDoSolicitante,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 import type { Papel } from "@/dominio/organizacao";
@@ -75,6 +76,10 @@ type LinhaDeOcorrencia = {
   avaliada_em: Date | null;
   registrada_em: Date;
   atualizada_em: Date;
+  /** **As regras da organização** (item 99), lidas na mesma instrução por sub-consulta. Não são dado da
+   *  ocorrência: sobem no campo `regrasDaOrganizacao` do modelo de leitura. */
+  exigir_solucao_ao_resolver: boolean;
+  limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
 };
 
 type LinhaDeTransicao = {
@@ -174,7 +179,11 @@ const SELECT_DA_OCORRENCIA = `
          o.avaliacao_comentario,
          o.avaliada_em,
          o.registrada_em,
-         o.atualizada_em
+         o.atualizada_em,
+         (select g.exigir_solucao_ao_resolver
+            from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
+         (select g.limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante
     from ocorrencias o
     join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
@@ -410,6 +419,10 @@ function montarOcorrencia(
     ultimaTransicao: ultima,
     registradaEm: linha.registrada_em.toISOString(),
     atualizadaEm: linha.atualizada_em.toISOString(),
+    regrasDaOrganizacao: {
+      exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
+      limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+    },
   };
 }
 
@@ -434,9 +447,11 @@ type LinhaDoAgregado = {
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
   avaliada_em: Date | null;
-  /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
-   *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
+  /** **Os campos desta linha que não são coluna de `ocorrencias`** — e não entram no agregado: eles
+   *  viajam ao lado dele, no envelope de `carregar` (item 22, invariante 9; item 99, invariante 10). */
   tem_responsavel: boolean;
+  exigir_solucao_ao_resolver: boolean;
+  limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
 };
 
 /**
@@ -475,7 +490,11 @@ const SELECT_DO_AGREGADO = `
                    from atribuicoes at
                   where at.ocorrencia_id = o.id
                     and at.organizacao_id = o.organizacao_id
-                    and at.encerrada_em is null) as tem_responsavel
+                    and at.encerrada_em is null) as tem_responsavel,
+         (select g.exigir_solucao_ao_resolver
+            from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
+         (select g.limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante
     from ocorrencias o
    where o.organizacao_id = $1 and o.id = $2`;
 
@@ -1066,7 +1085,14 @@ export function repositorioEscopadoDeOcorrencias(
       const trilha = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]);
       // **O fato sai da MESMA linha do agregado**, e morre aqui como coluna: o que sobe é o booleano
       // do envelope. `LinhaDoAgregado` não deixa este arquivo (item do DoD).
-      return { ocorrencia: montarAgregado(linha, trilha), temResponsavel: linha.tem_responsavel };
+      return {
+        ocorrencia: montarAgregado(linha, trilha),
+        temResponsavel: linha.tem_responsavel,
+        regras: {
+          exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
+          limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+        },
+      };
     },
 
     /**

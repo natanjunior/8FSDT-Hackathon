@@ -7,6 +7,8 @@ import {
   COMANDOS,
   comandosDisponiveis,
   COMANDOS_IMPLEMENTADOS,
+  estadosDeCancelamentoDoAutor,
+  LIMITE_DE_CANCELAMENTO_PADRAO,
   MOTIVOS_DE_CANCELAMENTO,
   MOTIVOS_DO_AUTOR,
   motivosPermitidos,
@@ -238,6 +240,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual([
       "analisar",
@@ -256,12 +259,14 @@ describe("comandosDisponiveis", () => {
       permissoes: TODAS,
       ehAutor: false,
       temResponsavel: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
     });
     const comResponsavel = comandosDisponiveis({
       status: "em_analise",
       permissoes: TODAS,
       ehAutor: false,
       temResponsavel: true,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
     });
 
     expect(semResponsavel).toStrictEqual([
@@ -290,6 +295,7 @@ describe("comandosDisponiveis", () => {
           permissoes: TODAS,
           ehAutor: false,
           temResponsavel: false,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
         }),
       ).toStrictEqual([]);
     }
@@ -306,6 +312,7 @@ describe("comandosDisponiveis", () => {
       permissoes: TODAS,
       ehAutor: false,
       temResponsavel: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise" as const,
       filtro: null,
     };
 
@@ -323,6 +330,7 @@ describe("comandosDisponiveis", () => {
       permissoes: ["ocorrencia.pausar", "ocorrencia.resolver", "ocorrencia.cancelar_qualquer"],
       ehAutor: false,
       temResponsavel: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
       filtro: null,
     });
 
@@ -336,6 +344,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.registrar", "ocorrencia.cancelar_propria"],
         ehAutor: true,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual(["cancelar"]);
@@ -348,6 +357,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.registrar", "ocorrencia.cancelar_propria"],
         ehAutor: false,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual([]);
@@ -360,6 +370,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: true,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual([]);
@@ -373,6 +384,7 @@ describe("comandosDisponiveis", () => {
           permissoes: ["ocorrencia.atribuir"],
           ehAutor: false,
           temResponsavel: false,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
           filtro: null,
         }),
       ).toStrictEqual([]);
@@ -382,7 +394,7 @@ describe("comandosDisponiveis", () => {
   it("registrar-solucao-aplicada só sai de em_atendimento e pausada", () => {
     const permissoes = ["ocorrencia.registrar_solucao"];
     const de = (status: "aberta" | "em_analise" | "em_atendimento" | "pausada" | "resolvida") =>
-      comandosDisponiveis({ status, permissoes, ehAutor: false, temResponsavel: false, filtro: null });
+      comandosDisponiveis({ status, permissoes, ehAutor: false, temResponsavel: false, limiteDeCancelamentoDoSolicitante: "em_analise", filtro: null });
 
     expect(de("em_atendimento")).toStrictEqual(["registrar-solucao-aplicada"]);
     expect(de("pausada")).toStrictEqual(["registrar-solucao-aplicada"]);
@@ -401,6 +413,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.registrar_solucao"],
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       });
 
     for (const status of ["aberta", "em_analise", "resolvida", "cancelada"] as const) {
@@ -409,7 +422,7 @@ describe("comandosDisponiveis", () => {
   });
 
   it("avaliar só em resolvida, só do autor, e some depois de avaliada (invariante 8)", () => {
-    const base = { permissoes: ["ocorrencia.avaliar"], temResponsavel: false, filtro: null };
+    const base = { permissoes: ["ocorrencia.avaliar"], temResponsavel: false, limiteDeCancelamentoDoSolicitante: "em_analise" as const, filtro: null };
 
     expect(comandosDisponiveis({ ...base, status: "resolvida", ehAutor: true })).toStrictEqual([
       "avaliar",
@@ -426,6 +439,7 @@ describe("comandosDisponiveis", () => {
       permissoes: ["ocorrencia.alterar_prioridade"],
       ehAutor: false,
       temResponsavel: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise" as const,
       filtro: null,
     };
 
@@ -448,6 +462,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual(["atribuir-responsavel", "alterar-prioridade", "cancelar"]);
@@ -460,6 +475,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual([
@@ -482,6 +498,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: true,
         temResponsavel: false,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       });
       const com = comandosDisponiveis({
@@ -489,6 +506,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       });
 
@@ -514,6 +532,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual([
       "atribuir-responsavel",
@@ -533,6 +552,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_propria", "ocorrencia.cancelar_propria", "ocorrencia.avaliar"],
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual([]);
   });
@@ -552,6 +572,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual([]);
 
@@ -561,6 +582,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual(["avaliar"]);
 
@@ -572,6 +594,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         jaAvaliada: true,
       }),
     ).toStrictEqual([]);
@@ -586,6 +609,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual(["avaliar"]);
@@ -597,6 +621,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_propria", "ocorrencia.avaliar"],
         ehAutor: true,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual(["avaliar"]);
 
@@ -607,6 +632,7 @@ describe("comandosDisponiveis", () => {
         permissoes: ["ocorrencia.ler_todas", "ocorrencia.avaliar"],
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual([]);
@@ -626,6 +652,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
       }),
     ).toStrictEqual([
       "atribuir-responsavel",
@@ -645,6 +672,7 @@ describe("comandosDisponiveis", () => {
         permissoes: TODAS,
         ehAutor: false,
         temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_analise",
         filtro: null,
       }),
     ).toStrictEqual([
@@ -683,6 +711,7 @@ describe("comandosDisponiveis", () => {
           permissoes: DO_AUTOR,
           ehAutor: true,
           temResponsavel: true,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
           filtro: null,
         }),
       ).toStrictEqual(["cancelar"]);
@@ -691,8 +720,8 @@ describe("comandosDisponiveis", () => {
 
   it("o autor NÃO recebe cancelar em em_atendimento nem em pausada — o critério 18.3", () => {
     // **É a metade que o `403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO` cobre no servidor**, e a lista é a
-    // mesma constante: `ESTADOS_DE_CANCELAMENTO_DO_AUTOR`. Duas listas divergiriam, e a divergência
-    // seria um botão que responde `403` no clique.
+    // mesma derivação: `estadosDeCancelamentoDoAutor`. No padrão da organização, o autor não cancela
+    // aqui. Duas listas divergiriam, e a divergência seria um botão que responde `403` no clique.
     for (const status of ["em_atendimento", "pausada"] as const) {
       expect(
         comandosDisponiveis({
@@ -700,6 +729,7 @@ describe("comandosDisponiveis", () => {
           permissoes: DO_AUTOR,
           ehAutor: true,
           temResponsavel: true,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
           filtro: null,
         }),
       ).toStrictEqual([]);
@@ -714,10 +744,62 @@ describe("comandosDisponiveis", () => {
           permissoes: ["ocorrencia.cancelar_qualquer"],
           ehAutor: false,
           temResponsavel: true,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
           filtro: null,
         }),
       ).toStrictEqual(["cancelar"]);
     }
+  });
+
+  it("com o limite estendido, o autor recebe cancelar em em_atendimento e em pausada — item 99", () => {
+    for (const status of ["em_atendimento", "pausada"] as const) {
+      expect(
+        comandosDisponiveis({
+          status,
+          permissoes: DO_AUTOR,
+          ehAutor: true,
+          temResponsavel: true,
+          limiteDeCancelamentoDoSolicitante: "em_atendimento",
+          filtro: null,
+        }),
+      ).toStrictEqual(["cancelar"]);
+    }
+  });
+
+  it("o limite estendido não alcança os terminais nem quem não é autor", () => {
+    for (const status of ["resolvida", "cancelada"] as const) {
+      expect(
+        comandosDisponiveis({
+          status,
+          permissoes: DO_AUTOR,
+          ehAutor: true,
+          temResponsavel: true,
+          limiteDeCancelamentoDoSolicitante: "em_atendimento",
+          filtro: null,
+        }),
+      ).not.toContain("cancelar");
+    }
+    expect(
+      comandosDisponiveis({
+        status: "em_atendimento",
+        permissoes: DO_AUTOR,
+        ehAutor: false,
+        temResponsavel: true,
+        limiteDeCancelamentoDoSolicitante: "em_atendimento",
+        filtro: null,
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it("a derivação dos estados do autor, nos dois valores", () => {
+    expect(estadosDeCancelamentoDoAutor("em_analise")).toStrictEqual(["aberta", "em_analise"]);
+    expect(estadosDeCancelamentoDoAutor("em_atendimento")).toStrictEqual([
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+    ]);
+    expect(LIMITE_DE_CANCELAMENTO_PADRAO).toBe("em_analise");
   });
 });
 

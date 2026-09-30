@@ -85,8 +85,42 @@ const PERMISSAO_DO_COMANDO: Readonly<Record<Comando, readonly string[]>> = {
  * `403`.** Não é novidade desta linha: `avaliar` já é assim — ausente por não ser o autor, recusado com
  * `403` —, e o `inventario-de-telas.md:1525` trata os dois códigos juntos, na mesma linha, como defeitos
  * que a lista cobre.
+ *
+ * **Desde o item 99 a lista depende da organização:** no padrão é a D12.2, a de todas as quatro fontes
+ * acima; estendida, é a D29, e o conjunto cresce sem nunca encolher.
  */
-export const ESTADOS_DE_CANCELAMENTO_DO_AUTOR: readonly StatusOcorrencia[] = ["aberta", "em_analise"];
+
+/** Os valores da regra *até onde o Solicitante cancela* (item 99, D29). Só estende: nunca restringe. */
+export const LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE = ["em_analise", "em_atendimento"] as const;
+
+export type LimiteDeCancelamentoDoSolicitante = (typeof LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE)[number];
+
+/** O valor da D12.2, e o que toda organização tem ao nascer. */
+export const LIMITE_DE_CANCELAMENTO_PADRAO: LimiteDeCancelamentoDoSolicitante = "em_analise";
+
+const DO_AUTOR_NO_PADRAO: readonly StatusOcorrencia[] = ["aberta", "em_analise"];
+
+/**
+ * **`pausada` entra com o limite estendido** (resposta P1 da spec do 99): a pausa é *"uma espera dentro do
+ * atendimento"*, e o motivo de pausa mais comum é esperar o próprio Solicitante.
+ */
+const DO_AUTOR_ESTENDIDO: readonly StatusOcorrencia[] = [
+  "aberta",
+  "em_analise",
+  "em_atendimento",
+  "pausada",
+];
+
+/**
+ * **Os estados de onde o Solicitante autor cancela a própria.** Função, e não constante, desde o item 99:
+ * o valor vem da organização. Os dois consumidores de antes continuam lendo **a mesma derivação** —
+ * `comandosDisponiveis`, que esconde o botão, e o comando de aplicação, que recusa com `403`.
+ */
+export function estadosDeCancelamentoDoAutor(
+  limite: LimiteDeCancelamentoDoSolicitante,
+): readonly StatusOcorrencia[] {
+  return limite === "em_atendimento" ? DO_AUTOR_ESTENDIDO : DO_AUTOR_NO_PADRAO;
+}
 
 /** `true` se o par (status, comando) está na tabela de transições. */
 export function transicaoPermitida(status: StatusOcorrencia, comando: Comando): boolean {
@@ -137,6 +171,12 @@ export type PerguntaDeAcoes = {
    * apura é a porta de escrita (`carregar`) ou o modelo de leitura (`OcorrenciaLida.responsavel`).
    */
   temResponsavel: boolean;
+  /**
+   * **A regra da organização para o cancelamento do autor** (item 99). Obrigatória, pela mesma razão de
+   * `temResponsavel`: com padrão, um chamador que esquecesse mostraria o botão errado sem teste nenhum
+   * falhar. Quem a apura é o envelope de `carregar` ou o modelo de leitura.
+   */
+  limiteDeCancelamentoDoSolicitante: LimiteDeCancelamentoDoSolicitante;
   /** A metade *"uma vez só"* da invariante 8. */
   jaAvaliada?: boolean;
   /**
@@ -195,7 +235,11 @@ export function comandosDisponiveis(pergunta: PerguntaDeAcoes): readonly Comando
     // **mesma** constante.
     if (comando === "cancelar" && !pergunta.permissoes.includes("ocorrencia.cancelar_qualquer")) {
       if (!pergunta.ehAutor) return false;
-      if (!ESTADOS_DE_CANCELAMENTO_DO_AUTOR.includes(pergunta.status)) return false;
+      if (
+        !estadosDeCancelamentoDoAutor(pergunta.limiteDeCancelamentoDoSolicitante).includes(pergunta.status)
+      ) {
+        return false;
+      }
     }
 
     return true;

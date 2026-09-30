@@ -81,6 +81,7 @@ export type {
   PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
   PosicaoNaLista,
+  RegrasDaOrganizacao,
   Reordenacao,
   RepositorioDeConvites,
   RepositorioDeOrganizacoes,

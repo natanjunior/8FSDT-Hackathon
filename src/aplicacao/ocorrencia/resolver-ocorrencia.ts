@@ -2,7 +2,7 @@ import { transicaoPermitida } from "@/dominio/ocorrencia";
 
 import { recusaDeTransicao, type ContextoDoComando } from "./comando";
 import { participaDaOcorrencia, recusaDeQuemNaoParticipa } from "./consultas";
-import { OcorrenciaNaoEncontrada } from "./erros";
+import { OcorrenciaNaoEncontrada, SolucaoObrigatoria } from "./erros";
 import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas";
 
 /**
@@ -14,17 +14,18 @@ import type { OcorrenciaLida, RepositorioEscopadoDeOcorrencias } from "./portas"
  * depois — `alterar-prioridade` cai pela invariante 7 e `registrar-solucao-aplicada` é recusado em
  * `resolvida` de propósito, *"porque a consequência é permanente"* (`arquitetura.md` §4).
  *
- * **São TRÊS recusas, e não quatro: `resolver` não tem precondição fora do `status`.** A invariante 9 é do
- * `iniciarAtendimento`; a invariante 10 diz o contrário de uma precondição — *"`resolver` **não** exige
- * solução aplicada; depende da configuração da `Organização`"* —, e o interruptor por organização é
- * evolução prevista: a coluna existe desde a migração `001` e o `PATCH /organizacoes` existe desde o item
- * 46 · 47, mas **o campo não entra no corpo dele**, e é isso que sustenta o critério 25.4.
+ * **São QUATRO recusas desde o item 99.** A invariante 9 é do `iniciarAtendimento`; a invariante 10 —
+ * *"`resolver` **não** exige solução aplicada; depende da configuração da `Organização`"* — deixou de ser
+ * evolução prevista: o interruptor chegou, lido do envelope de `carregar`, e a coluna que existia desde a
+ * migração `001` passou a ter quem a leia. Com a regra desligada, que é o valor de toda organização ao
+ * nascer, o critério 25.4 continua valendo palavra por palavra.
  *
  * ```
  * 403 (no comContexto, antes de ler o recurso)
  *  └─ 404 OCORRENCIA_NAO_ENCONTRADA       — não existe nesta organização, ou não é visível
  *      └─ 409 TRANSICAO_NAO_PERMITIDA     — status ≠ em_atendimento
- *          └─ escrita
+ *          └─ 422 SOLUCAO_OBRIGATORIA     — regra ligada e nenhuma solução
+ *              └─ escrita
  * ```
  *
  * **O critério 26.3 sai de graça, e é o ponto de o produto ter permissão como LISTA.**
@@ -71,6 +72,15 @@ export async function resolverOcorrencia(
 
   const observacao = entrada.observacao?.trim();
   const solucao = entrada.solucaoAplicada?.trim();
+
+  /**
+   * **A invariante 10 com a regra ligada** (item 99). Passa quem manda solução no corpo **ou** já tem
+   * solução gravada (`/registrar-solucao-aplicada`, item 25). Vem depois do `409` de estado: numa
+   * ocorrência que não está em atendimento, a resposta útil é onde ela está, não o que falta.
+   */
+  const temSolucao =
+    (solucao !== undefined && solucao !== "") || (agregado.solucaoAplicada ?? "").trim() !== "";
+  if (carregada.regras.exigirSolucaoAoResolver && !temSolucao) throw new SolucaoObrigatoria();
 
   const resolvida = agregado.resolver({
     // **O autor da transição é quem chamou.** Nunca vem do corpo, e não há campo para ele no schema.
