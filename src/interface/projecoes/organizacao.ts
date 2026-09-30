@@ -126,6 +126,8 @@ export type MudancaDeConfiguracaoProjetada = {
 export type ConfiguracaoProjetada = {
   exigirSolucaoAoResolver: boolean;
   limiteDeCancelamentoDoSolicitante: "em_analise" | "em_atendimento";
+  /** Quantos dias sem atividade até a ocorrência contar como parada (item 101). De 1 a 90. */
+  diasParaParada: number;
   /**
    * O texto que quem abriu lê em cada ponto do ciclo (item 100). **Os seis estados sempre presentes**,
    * com `null` onde vale o padrão: presença fixa é o que impede a tela de confundir *"não customizado"*
@@ -139,6 +141,7 @@ export function projetarConfiguracao(lida: ConfiguracaoLida): ConfiguracaoProjet
   return {
     exigirSolucaoAoResolver: lida.regras.exigirSolucaoAoResolver,
     limiteDeCancelamentoDoSolicitante: lida.regras.limiteDeCancelamentoDoSolicitante,
+    diasParaParada: lida.regras.diasParaParada,
     // **Montado sobre `STATUS`, e não sobre o que a porta trouxe**: a porta traz só o customizado, e a
     // tela precisa dos seis para desenhar a lista inteira.
     rotulosDoSolicitante: Object.fromEntries(

@@ -378,6 +378,7 @@ paths:
               example:
                 exigirSolucaoAoResolver: true
                 limiteDeCancelamentoDoSolicitante: "em_analise"
+                diasParaParada: 7
                 rotulosDoSolicitante:
                   aberta: null
                   em_analise: "o síndico está avaliando"
@@ -428,6 +429,13 @@ paths:
               properties:
                 exigirSolucaoAoResolver: { type: boolean }
                 limiteDeCancelamentoDoSolicitante: { type: string, enum: [em_analise, em_atendimento] }
+                diasParaParada:
+                  type: integer
+                  minimum: 1
+                  maximum: 90
+                  description: |
+                    Quantos dias sem atividade até a ocorrência contar como parada. Fora da faixa, ou não
+                    inteiro, é `400 VALOR_INVALIDO` antes do banco.
                 rotulosDoSolicitante:
                   type: object
                   minProperties: 1
@@ -451,6 +459,7 @@ paths:
               example:
                 exigirSolucaoAoResolver: true
                 limiteDeCancelamentoDoSolicitante: "em_analise"
+                diasParaParada: 7
                 rotulosDoSolicitante:
                   aberta: null
                   em_analise: "o síndico está avaliando"
@@ -3639,6 +3648,7 @@ components:
             [
               exigir_solucao_ao_resolver,
               limite_cancelamento_solicitante,
+              dias_para_parada,
               rotulo_aberta,
               rotulo_em_analise,
               rotulo_em_atendimento,
@@ -3657,7 +3667,13 @@ components:
         As regras do atendimento da organização, e a trilha de cada mudança delas. A lista vem da mais
         recente para a mais antiga, e é `[]` numa organização que nunca mudou regra nenhuma.
       required:
-        [exigirSolucaoAoResolver, limiteDeCancelamentoDoSolicitante, rotulosDoSolicitante, mudancas]
+        [
+          exigirSolucaoAoResolver,
+          limiteDeCancelamentoDoSolicitante,
+          diasParaParada,
+          rotulosDoSolicitante,
+          mudancas,
+        ]
       properties:
         exigirSolucaoAoResolver:
           type: boolean
@@ -3668,6 +3684,14 @@ components:
           description: |
             Até qual estado o Solicitante autor cancela a própria ocorrência (D29). Em `em_atendimento`,
             inclui `Pausada`.
+        diasParaParada:
+          type: integer
+          minimum: 1
+          maximum: 90
+          description: |
+            Quantos dias sem atividade até a ocorrência contar como parada. A atividade é a última
+            atualização da ocorrência — transição, atribuição ou mensagem no canal. As pausadas e as que
+            já terminaram não contam.
         rotulosDoSolicitante:
           $ref: "#/components/schemas/RotulosDoSolicitante"
         mudancas:

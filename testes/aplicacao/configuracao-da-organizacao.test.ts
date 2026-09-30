@@ -468,6 +468,7 @@ describe("reordenarAreas — a mesma regra, na outra lista", () => {
 const REGRAS: RegrasDaOrganizacao = {
   exigirSolucaoAoResolver: false,
   limiteDeCancelamentoDoSolicitante: "em_analise",
+  diasParaParada: 7,
 };
 
 /**
@@ -478,6 +479,7 @@ function portaFalsa(recebidas: AlteracaoDeConfiguracao[]): RepositorioEscopadoDa
   const lida = { regras: REGRAS, rotulos: {}, mudancas: [] };
   return {
     ler: () => Promise.resolve(lida),
+    lerRegras: () => Promise.resolve(REGRAS),
     alterar: (alteracao) => {
       recebidas.push(alteracao);
       return Promise.resolve(lida);

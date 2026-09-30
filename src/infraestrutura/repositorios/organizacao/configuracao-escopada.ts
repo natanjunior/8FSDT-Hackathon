@@ -3,6 +3,7 @@ import type {
   ChaveDeConfiguracao,
   ConfiguracaoLida,
   PedidoDeRotulos,
+  RegrasDaOrganizacao,
   RepositorioEscopadoDaConfiguracao,
   RotulosDoSolicitante,
 } from "@/aplicacao/organizacao";
@@ -35,16 +36,33 @@ export function repositorioEscopadoDaConfiguracao(
     return Object.fromEntries(linhas.map((linha) => [linha.estado, linha.rotulo]));
   }
 
-  async function lerCom(consultar: ConsultaEscopada): Promise<ConfiguracaoLida> {
+  /**
+   * **Uma linha de `organizacoes`, e nada de `mudancas_de_configuracao`** (item 101). É a leitura que
+   * T-03 faz em toda abertura da lista; a trilha é de T-15.
+   *
+   * **Ela e `lerCom` partilham o `select` e o mapeamento** de propósito: duas cópias divergem na
+   * primeira regra nova, e a regra nova é justamente o que este item acrescentou.
+   */
+  async function lerRegrasCom(consultar: ConsultaEscopada): Promise<RegrasDaOrganizacao> {
     const linhas = await consultar<LinhaDasRegras>(
-      `select exigir_solucao_ao_resolver, limite_cancelamento_solicitante
+      `select exigir_solucao_ao_resolver, limite_cancelamento_solicitante, dias_para_parada
          from organizacoes
         where id = $1`,
     );
-    const regras = linhas[0];
+    const linha = linhas[0];
     // **Zero linhas não é desfecho de domínio.** `$1` é a organização da sessão, e a sessão só existe
     // porque um vínculo dela foi lido. Sem linha, o banco está em outro estado.
-    if (regras === undefined) throw new Error("a organização da sessão não devolveu linha");
+    if (linha === undefined) throw new Error("a organização da sessão não devolveu linha");
+
+    return {
+      exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
+      limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+      diasParaParada: linha.dias_para_parada,
+    };
+  }
+
+  async function lerCom(consultar: ConsultaEscopada): Promise<ConfiguracaoLida> {
+    const regras = await lerRegrasCom(consultar);
 
     const mudancas = await consultar<LinhaDaMudanca>(
       `select m.chave, m.valor_anterior, m.valor_novo, m.ocorrida_em, m.autor_pessoa_id, p.nome as autor_nome
@@ -56,10 +74,7 @@ export function repositorioEscopadoDaConfiguracao(
     );
 
     return {
-      regras: {
-        exigirSolucaoAoResolver: regras.exigir_solucao_ao_resolver,
-        limiteDeCancelamentoDoSolicitante: regras.limite_cancelamento_solicitante,
-      },
+      regras,
       rotulos: await lerRotulos(consultar),
       mudancas: mudancas.map((m) => ({
         chave: m.chave,
@@ -73,6 +88,8 @@ export function repositorioEscopadoDaConfiguracao(
 
   return {
     ler: () => lerCom(consulta),
+
+    lerRegras: () => lerRegrasCom(consulta),
 
     rotulosDoSolicitante: () => lerRotulos(consulta),
 
@@ -94,6 +111,9 @@ export function repositorioEscopadoDaConfiguracao(
             alteracao.limiteDeCancelamentoDoSolicitante,
           )}::status_ocorrencia`,
         );
+      }
+      if (alteracao.diasParaParada !== undefined) {
+        atribuicoes.push(`dias_para_parada = ${marcador(alteracao.diasParaParada)}`);
       }
       const mudouRegra = atribuicoes.length > 0;
       atribuicoes.push(`atualizado_por_pessoa_id = ${marcador(alteracao.atualizadaPorPessoaId)}`);
@@ -169,6 +189,7 @@ async function aplicarRotulos(
 type LinhaDasRegras = {
   exigir_solucao_ao_resolver: boolean;
   limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
+  dias_para_parada: number;
 };
 
 type LinhaDoRotulo = {

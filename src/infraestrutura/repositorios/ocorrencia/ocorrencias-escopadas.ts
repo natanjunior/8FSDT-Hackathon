@@ -80,6 +80,7 @@ type LinhaDeOcorrencia = {
    *  ocorrência: sobem no campo `regrasDaOrganizacao` do modelo de leitura. */
   exigir_solucao_ao_resolver: boolean;
   limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
+  dias_para_parada: number;
 };
 
 type LinhaDeTransicao = {
@@ -183,7 +184,9 @@ const SELECT_DA_OCORRENCIA = `
          (select g.exigir_solucao_ao_resolver
             from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
          (select g.limite_cancelamento_solicitante
-            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante,
+         (select g.dias_para_parada
+            from organizacoes g where g.id = o.organizacao_id) as dias_para_parada
     from ocorrencias o
     join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
@@ -422,6 +425,7 @@ function montarOcorrencia(
     regrasDaOrganizacao: {
       exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
       limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+      diasParaParada: linha.dias_para_parada,
     },
   };
 }
@@ -452,6 +456,7 @@ type LinhaDoAgregado = {
   tem_responsavel: boolean;
   exigir_solucao_ao_resolver: boolean;
   limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
+  dias_para_parada: number;
 };
 
 /**
@@ -494,7 +499,9 @@ const SELECT_DO_AGREGADO = `
          (select g.exigir_solucao_ao_resolver
             from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
          (select g.limite_cancelamento_solicitante
-            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante,
+         (select g.dias_para_parada
+            from organizacoes g where g.id = o.organizacao_id) as dias_para_parada
     from ocorrencias o
    where o.organizacao_id = $1 and o.id = $2`;
 
@@ -1091,6 +1098,7 @@ export function repositorioEscopadoDeOcorrencias(
         regras: {
           exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
           limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+          diasParaParada: linha.dias_para_parada,
         },
       };
     },

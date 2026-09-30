@@ -1587,6 +1587,44 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect((await emAurora.ler()).mudancas).toHaveLength(antes);
   });
 
+  /**
+   * **Os dias para parada pela porta — item 101, critério 5.**
+   *
+   * A trilha da regra nova sai do mesmo gatilho das outras duas, e `lerRegras` é a leitura barata que
+   * T-03 faz: uma linha de `organizacoes`, **sem** `mudancas_de_configuracao`.
+   */
+  it("os dias para parada atravessam a porta, e lerRegras não carrega a trilha — item 101", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+
+    const antes = await emAurora.ler();
+    expect(antes.regras.diasParaParada).toBe(7);
+
+    const depois = await emAurora.alterar({
+      diasParaParada: 15,
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.regras.diasParaParada).toBe(15);
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "dias_para_parada",
+      valorAnterior: "7",
+      valorNovo: "15",
+      autor: { pessoaId: idSindica },
+    });
+
+    const regras = await emAurora.lerRegras();
+    expect(Object.keys(regras).sort()).toStrictEqual([
+      "diasParaParada",
+      "exigirSolucaoAoResolver",
+      "limiteDeCancelamentoDoSolicitante",
+    ]);
+    expect(regras.diasParaParada).toBe(15);
+
+    await emAurora.alterar({ diasParaParada: 7, atualizadaPorPessoaId: idSindica });
+  });
+
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
     const emRecanto = categoriasEm(idRecanto);
     const emAurora = categoriasEm(idAurora);

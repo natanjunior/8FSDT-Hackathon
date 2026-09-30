@@ -282,9 +282,23 @@ export function alterarConfiguracao(
     ...(comando.limiteDeCancelamentoDoSolicitante === undefined
       ? {}
       : { limiteDeCancelamentoDoSolicitante: comando.limiteDeCancelamentoDoSolicitante }),
+    ...(comando.diasParaParada === undefined ? {} : { diasParaParada: comando.diasParaParada }),
     ...(comando.rotulos === undefined ? {} : { rotulos: comando.rotulos }),
     atualizadaPorPessoaId: comando.porPessoaId,
   });
+}
+
+/**
+ * **As regras, sem a trilha** — item 101, e é a leitura de T-03.
+ *
+ * `lerConfiguracao` traz junto as mudanças, com nome de quem mudou o quê. T-03 é a tela mais aberta do
+ * produto e a que o RNF5 cronometra: ela precisa de **um número**, e pagar a trilha inteira por ele seria
+ * a segunda consulta mais cara do produto feita por engano. Quem precisa das duas coisas é T-15.
+ */
+export function lerRegrasDaOrganizacao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<RegrasDaOrganizacao> {
+  return configuracao.lerRegras();
 }
 
 /**

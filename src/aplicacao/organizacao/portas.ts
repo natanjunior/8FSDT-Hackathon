@@ -81,6 +81,14 @@ export type OrganizacaoLida = {
 export type RegrasDaOrganizacao = {
   exigirSolucaoAoResolver: boolean;
   limiteDeCancelamentoDoSolicitante: LimiteDeCancelamentoDoSolicitante;
+  /**
+   * **Quantos dias sem atividade até a ocorrência contar como parada** — item 101. De 1 a 90, padrão 7.
+   *
+   * **Obrigatório, como os outros dois**, e pela mesma razão: um opcional com padrão é a forma de um
+   * chamador esquecer sem nenhum teste falhar. **Nenhum comando o usa** — ele serve ao `GET`, ao
+   * `PATCH`, à tela e ao filtro da listagem, que o lê direto do banco na mesma instrução que lista.
+   */
+  diasParaParada: number;
 };
 
 /**
@@ -115,12 +123,13 @@ export interface RepositorioEscopadoDaOrganizacao {
 }
 
 /**
- * As chaves que a trilha de configuração conhece. As duas primeiras são os nomes das colunas de
+ * As chaves que a trilha de configuração conhece. As três primeiras são os nomes das colunas de
  * `organizacoes`, como o banco os grava; as seis de rótulo (item 100) são `rotulo_` mais o estado.
  */
 export type ChaveDeConfiguracao =
   | "exigir_solucao_ao_resolver"
   | "limite_cancelamento_solicitante"
+  | "dias_para_parada"
   | `rotulo_${StatusOcorrencia}`;
 
 /**
@@ -179,6 +188,8 @@ export type AlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
  */
 export interface RepositorioEscopadoDaConfiguracao {
   ler(): Promise<ConfiguracaoLida>;
+  /** Só as regras, sem a trilha — a leitura que T-03 faz em toda abertura da lista (item 101). */
+  lerRegras(): Promise<RegrasDaOrganizacao>;
   alterar(alteracao: AlteracaoDeConfiguracao): Promise<ConfiguracaoLida>;
   /** Só os rótulos — a leitura barata que toda requisição do Solicitante faz para montar a lente. */
   rotulosDoSolicitante(): Promise<RotulosDoSolicitante>;

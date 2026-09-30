@@ -879,7 +879,11 @@ function umaOcorrenciaLidaCom(anexos: readonly AnexoLido[]): OcorrenciaLida {
     registradaEm: RESUMO_LIDO.registradaEm,
     atualizadaEm: RESUMO_LIDO.atualizadaEm,
     // **As regras da organização** (item 99), no padrão de toda organização nova.
-    regrasDaOrganizacao: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_analise" },
+    regrasDaOrganizacao: {
+      exigirSolucaoAoResolver: false,
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      diasParaParada: 7,
+    },
   };
 }
 
