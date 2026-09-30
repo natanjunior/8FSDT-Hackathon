@@ -11,8 +11,13 @@
 #  inteiras, com o mesmo erro. As portas estão agora em 5469x. Confira a sua com:
 #    netsh interface ipv4 show excludedportrange protocol=tcp
 #
-#  Se colidir de novo, mova aqui e no `.env.local` — não há override por máquina
-#  neste arquivo, e é por isso que a decisão está escrita e não implícita.
+#  Se colidir de novo, mova nos SEIS lugares que nomeiam as portas — não há
+#  override por máquina neste arquivo, e é por isso que a decisão está escrita:
+#    1. este arquivo            4. `testes/ponta-a-ponta/recuperacao-de-senha.spec.ts` (a caixa de e-mail)
+#    2. `.env.local`            5. `testes/integracao/banco.test.ts` (as URLs de exemplo)
+#    3. `.env.example`          6. `ferramentas/verificadores/auth-publicado.mjs` (o comentário)
+#  e o aviso do `README.md`. Em 30/09/2026 o 4 foi esquecido, e o ponta a ponta da
+#  recuperação de senha caiu com a caixa inalcançável — não com erro de porta.
 # ============================================================================
 
 # For detailed configuration reference documentation, visit:

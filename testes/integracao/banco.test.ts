@@ -9,13 +9,13 @@ import { DATABASE_DE_TESTE, resolverBancoDeTeste } from "./banco";
  * **Puro de propósito:** a função recebe o ambiente como argumento em vez de ler `process.env`, e é isso
  * que torna estes casos executáveis no laço curto, sem Postgres e sem mexer em variável global.
  */
-const DESENVOLVIMENTO = "postgresql://postgres:postgres@host.docker.internal:54392/postgres";
+const DESENVOLVIMENTO = "postgresql://postgres:postgres@host.docker.internal:54692/postgres";
 
 describe("resolverBancoDeTeste", () => {
   it("deriva de BANCO_URL trocando só o database", () => {
     const alvo = resolverBancoDeTeste({ BANCO_URL: DESENVOLVIMENTO });
 
-    expect(alvo).toBe(`postgresql://postgres:postgres@host.docker.internal:54392/${DATABASE_DE_TESTE}`);
+    expect(alvo).toBe(`postgresql://postgres:postgres@host.docker.internal:54692/${DATABASE_DE_TESTE}`);
   });
 
   it("preserva senha com símbolo, porta não padrão e query string", () => {
@@ -37,14 +37,14 @@ describe("resolverBancoDeTeste", () => {
   it("recusa BANCO_URL_TESTE que aponta para o database de desenvolvimento, mesmo com outro nome de host", () => {
     expect(() =>
       resolverBancoDeTeste({
-        BANCO_URL_TESTE: "postgresql://postgres:postgres@127.0.0.1:54392/postgres",
+        BANCO_URL_TESTE: "postgresql://postgres:postgres@127.0.0.1:54692/postgres",
         BANCO_URL: DESENVOLVIMENTO,
       }),
     ).toThrow(/desenvolvimento/iu);
   });
 
   it("recusa quando BANCO_URL já é o próprio database de teste", () => {
-    const url = `postgresql://postgres:postgres@127.0.0.1:54392/${DATABASE_DE_TESTE}`;
+    const url = `postgresql://postgres:postgres@127.0.0.1:54692/${DATABASE_DE_TESTE}`;
 
     expect(() => resolverBancoDeTeste({ BANCO_URL: url })).toThrow(/desenvolvimento/iu);
   });
@@ -55,7 +55,7 @@ describe("resolverBancoDeTeste", () => {
 
   it("ignora variável presente e vazia, tratando-a como ausente", () => {
     expect(resolverBancoDeTeste({ BANCO_URL_TESTE: "   ", BANCO_URL: DESENVOLVIMENTO })).toBe(
-      `postgresql://postgres:postgres@host.docker.internal:54392/${DATABASE_DE_TESTE}`,
+      `postgresql://postgres:postgres@host.docker.internal:54692/${DATABASE_DE_TESTE}`,
     );
   });
 });

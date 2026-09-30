@@ -71,7 +71,7 @@ import { cobre } from "./cobertura";
 const ORIGEM = "http://127.0.0.1:3000";
 
 /** A caixa de e-mail local que `supabase start` sobe — a porta é a do bloco `[inbucket]` do config. */
-const CAIXA = "http://127.0.0.1:54394";
+const CAIXA = "http://127.0.0.1:54694";
 
 /** A marca do instante — é ela que faz a conta deste arquivo ser própria e a caixa ser só dela. */
 const MARCA = new Date().toISOString().replace(/[:.]/gu, "-").toLowerCase();
