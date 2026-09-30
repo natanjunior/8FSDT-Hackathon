@@ -1,5 +1,5 @@
 import { STATUS, type StatusOcorrencia } from "@/dominio/ocorrencia";
-import { nomeDoStatus } from "@/interface/projecoes";
+import { nomeDoStatus, rotuloPadraoDoSolicitante } from "@/interface/projecoes";
 
 /**
  * ============================================================================
@@ -99,4 +99,34 @@ export function fraseDaMudancaDeRotulo(m: {
   const de = m.valorAnterior === "" ? "do padrão" : `de “${m.valorAnterior}”`;
   const para = m.valorNovo === "" ? "para o padrão" : `para “${m.valorNovo}”`;
   return `Texto de ${NOME_DO_CICLO[estado]}: ${de} ${para}`;
+}
+
+/**
+ * **Texto igual ao padrão é padrão** (item 100). Quem digita *"Em análise"* no campo de `em_analise` não
+ * grava linha, e é o que mantém verdadeira a promessa de que sem customização não há linha nenhuma.
+ *
+ * **Mora na Interface, e não na Aplicação:** as frases padrão são texto de exibição e vivem nas projeções
+ * daqui; a Aplicação não as pode importar, e não deveria — para ela, rótulo é um texto qualquer.
+ *
+ * **O `trim` acontece aqui TAMBÉM, e não é repetição do schema.** O schema já apara o que chega por
+ * HTTP; esta função é pura e é chamada também de teste, e uma chamada com `"   "` tem de ver o padrão.
+ * Sem isto, ela devolveria `"   "`, que o banco recusaria pelo `check` da migração 018 — erro de
+ * servidor no lugar de um campo em branco.
+ */
+export function normalizarRotulos(
+  pedido: Readonly<Partial<Record<EstadoDaTela, string | null>>>,
+): Readonly<Partial<Record<EstadoDaTela, string | null>>> {
+  return Object.fromEntries(
+    Object.entries(pedido).map(([estado, texto]) => {
+      const aparado = texto === null ? null : texto.trim();
+      return [
+        estado,
+        aparado === null ||
+        aparado === "" ||
+        aparado === rotuloPadraoDoSolicitante(estado as EstadoDaTela)
+          ? null
+          : aparado,
+      ];
+    }),
+  );
 }

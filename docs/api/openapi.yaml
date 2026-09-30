@@ -355,10 +355,11 @@ paths:
     get:
       tags: [Configuração]
       operationId: lerConfiguracao
-      summary: As regras do atendimento e as mudanças delas
+      summary: As regras do atendimento, os textos de quem abriu, e as mudanças delas
       description: |
-        As **regras do atendimento** da organização da sessão, e a trilha de cada mudança delas — quem
-        mudou, quando, de que valor para qual. A organização vem da sessão, nunca da URL (§4.2).
+        As **regras do atendimento** da organização da sessão, o texto com que quem abriu lê cada ponto
+        do ciclo, e a trilha de cada mudança das duas coisas — quem mudou, quando, de que valor para
+        qual. A organização vem da sessão, nunca da URL (§4.2).
 
         A lista vem da mais recente para a mais antiga e **não pagina**: são duas regras que mudam
         raramente, e o volume de uma organização é de dezenas de linhas.
@@ -377,6 +378,13 @@ paths:
               example:
                 exigirSolucaoAoResolver: true
                 limiteDeCancelamentoDoSolicitante: "em_analise"
+                rotulosDoSolicitante:
+                  aberta: null
+                  em_analise: "o síndico está avaliando"
+                  em_atendimento: null
+                  pausada: null
+                  resolvida: null
+                  cancelada: null
                 mudancas:
                   - chave: "exigir_solucao_ao_resolver"
                     valorAnterior: "false"
@@ -391,7 +399,7 @@ paths:
     patch:
       tags: [Configuração]
       operationId: alterarConfiguracao
-      summary: Mudar as regras do atendimento
+      summary: Mudar as regras do atendimento e os textos de quem abriu
       description: |
         Muda as regras da organização da sessão. Cada mudança de valor vira uma linha em `mudancas`,
         escrita pelo banco na mesma instrução; gravar o valor que já está lá não deixa rastro. A trilha
@@ -402,6 +410,10 @@ paths:
         cancela em qualquer estado não terminal, qualquer que seja o valor.
 
         Com `exigirSolucaoAoResolver` ligado, resolver sem solução responde `422` (ver `/resolver`).
+
+        Cada texto que muda de valor vira uma linha em `mudancas`, com a chave `rotulo_` mais o ponto do
+        ciclo; o padrão aparece nela como texto vazio. Um texto igual ao padrão não é customização, e não
+        deixa rastro.
 
         *Capacidade: configurar as regras do atendimento · `NOSSO` (D29, D30). Permissão: `organizacao.configurar`.*
       parameters:
@@ -416,6 +428,19 @@ paths:
               properties:
                 exigirSolucaoAoResolver: { type: boolean }
                 limiteDeCancelamentoDoSolicitante: { type: string, enum: [em_analise, em_atendimento] }
+                rotulosDoSolicitante:
+                  type: object
+                  minProperties: 1
+                  description: |
+                    Mapa parcial do texto de quem abriu. Ponto do ciclo ausente **não é mexido**; `null`
+                    ou texto em branco devolve aquele ao padrão.
+                  properties:
+                    aberta: { type: [string, "null"], maxLength: 40 }
+                    em_analise: { type: [string, "null"], maxLength: 40 }
+                    em_atendimento: { type: [string, "null"], maxLength: 40 }
+                    pausada: { type: [string, "null"], maxLength: 40 }
+                    resolvida: { type: [string, "null"], maxLength: 40 }
+                    cancelada: { type: [string, "null"], maxLength: 40 }
             example: { exigirSolucaoAoResolver: true }
       responses:
         "200":
@@ -426,6 +451,13 @@ paths:
               example:
                 exigirSolucaoAoResolver: true
                 limiteDeCancelamentoDoSolicitante: "em_analise"
+                rotulosDoSolicitante:
+                  aberta: null
+                  em_analise: "o síndico está avaliando"
+                  em_atendimento: null
+                  pausada: null
+                  resolvida: null
+                  cancelada: null
                 mudancas:
                   - chave: "exigir_solucao_ao_resolver"
                     valorAnterior: "false"
@@ -3594,13 +3626,26 @@ components:
     MudancaDeConfiguracao:
       type: object
       description: |
-        Uma mudança de regra da organização. **A trilha é append-only**: o banco recusa alteração e
-        remoção (D30). Os dois valores vão como texto, porque ali o dado é registro e não regra.
+        Uma mudança de configuração da organização. **A trilha é append-only**: o banco recusa alteração
+        e remoção (D30). Os dois valores vão como texto, porque ali o dado é registro e não regra.
+
+        Nas chaves de texto, o padrão aparece como texto vazio nas duas pontas: um Gestor pode escrever
+        a palavra *padrão* como texto, e a trilha precisa distinguir as duas coisas.
       required: [chave, valorAnterior, valorNovo, autor, ocorridaEm]
       properties:
         chave:
           type: string
-          enum: [exigir_solucao_ao_resolver, limite_cancelamento_solicitante]
+          enum:
+            [
+              exigir_solucao_ao_resolver,
+              limite_cancelamento_solicitante,
+              rotulo_aberta,
+              rotulo_em_analise,
+              rotulo_em_atendimento,
+              rotulo_pausada,
+              rotulo_resolvida,
+              rotulo_cancelada,
+            ]
         valorAnterior: { type: string }
         valorNovo: { type: string }
         autor: { $ref: "#/components/schemas/PessoaReferencia" }
@@ -3611,7 +3656,8 @@ components:
       description: |
         As regras do atendimento da organização, e a trilha de cada mudança delas. A lista vem da mais
         recente para a mais antiga, e é `[]` numa organização que nunca mudou regra nenhuma.
-      required: [exigirSolucaoAoResolver, limiteDeCancelamentoDoSolicitante, mudancas]
+      required:
+        [exigirSolucaoAoResolver, limiteDeCancelamentoDoSolicitante, rotulosDoSolicitante, mudancas]
       properties:
         exigirSolucaoAoResolver:
           type: boolean
@@ -3622,9 +3668,28 @@ components:
           description: |
             Até qual estado o Solicitante autor cancela a própria ocorrência (D29). Em `em_atendimento`,
             inclui `Pausada`.
+        rotulosDoSolicitante:
+          $ref: "#/components/schemas/RotulosDoSolicitante"
         mudancas:
           type: array
           items: { $ref: "#/components/schemas/MudancaDeConfiguracao" }
+
+    RotulosDoSolicitante:
+      type: object
+      description: |
+        O texto com que o Solicitante lê cada ponto do ciclo nesta organização. `null` significa que vale
+        o padrão, e o padrão é o do glossário do projeto. O Gestor, o painel e o histórico oficial
+        continuam com o nome do ciclo.
+
+        Os seis vêm sempre, para que a tela não precise distinguir *não customizado* de *campo ausente*.
+      required: [aberta, em_analise, em_atendimento, pausada, resolvida, cancelada]
+      properties:
+        aberta: { type: [string, "null"], maxLength: 40 }
+        em_analise: { type: [string, "null"], maxLength: 40 }
+        em_atendimento: { type: [string, "null"], maxLength: 40 }
+        pausada: { type: [string, "null"], maxLength: 40 }
+        resolvida: { type: [string, "null"], maxLength: 40 }
+        cancelada: { type: [string, "null"], maxLength: 40 }
 
     Convite:
       type: object
@@ -3843,6 +3908,9 @@ components:
             vê "Em execução" onde o Gestor vê "Em atendimento". Em `pausada` o rótulo do Solicitante
             depende do motivo ("Parada — esperando material chegar"). Ficar no servidor mantém uma fonte só
             do texto; no cliente, cada cliente inventaria o seu.
+
+            Quando a organização customizou o texto daquele ponto do ciclo, é o texto dela que o
+            Solicitante recebe (ver `rotulosDoSolicitante` em `/configuracao`).
 
             A tabela de rótulos é propriedade do **glossário** do projeto, não deste contrato.
           examples: ["Em execução", "Parada — esperando você responder"]
@@ -4125,6 +4193,9 @@ components:
           description: |
             O status em linguagem de gente, conforme quem lê. Em `pausada` ele depende também do motivo:
             o Solicitante lê "Parada — esperando material chegar", o Gestor lê "Pausada".
+
+            Quando a organização customizou o texto daquele ponto do ciclo, é o texto dela que o
+            Solicitante recebe — inclusive nos eventos antigos, porque nada do texto é gravado aqui.
         statusAnterior:
           oneOf:
             - $ref: "#/components/schemas/StatusOcorrencia"

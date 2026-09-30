@@ -48,6 +48,7 @@ import { erroDoNome, NOME_SEM_MUDANCA } from "@/interface/componentes/regras-do-
 import {
   ESTADOS_DO_CICLO,
   NOME_DO_CICLO,
+  normalizarRotulos,
   rotulosQueMudaram,
 } from "@/interface/componentes/rotulos-do-solicitante";
 import { problemaDe } from "@/interface/http";
@@ -717,6 +718,85 @@ describe("o corpo de PATCH /configuracao — item 99", () => {
   });
 });
 
+describe("os rótulos no corpo de PATCH /configuracao — item 100", () => {
+  it("aceita um estado só, os seis, e o null que devolve ao padrão", () => {
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({
+        rotulosDoSolicitante: { em_analise: "o síndico está avaliando" },
+      }).success,
+    ).toBe(true);
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({ rotulosDoSolicitante: { pausada: null } }).success,
+    ).toBe(true);
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({
+        rotulosDoSolicitante: {
+          aberta: "a",
+          em_analise: "b",
+          em_atendimento: "c",
+          pausada: "d",
+          resolvida: "e",
+          cancelada: "f",
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("recusa estado que não é do ciclo", () => {
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({ rotulosDoSolicitante: { arquivada: "x" } }).success,
+    ).toBe(false);
+  });
+
+  it("apara, e o teto é 40 depois de aparar — o critério 5", () => {
+    const aceito = alteracaoDeConfiguracaoSchema.parse({
+      rotulosDoSolicitante: { aberta: `  ${"x".repeat(40)}  ` },
+    });
+    expect(aceito.rotulosDoSolicitante?.aberta).toHaveLength(40);
+    expect(
+      alteracaoDeConfiguracaoSchema.safeParse({ rotulosDoSolicitante: { aberta: "x".repeat(41) } })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("a normalização da rota — item 100", () => {
+  it("vazio e texto igual ao padrão viram o padrão, e é o critério 2", () => {
+    expect(
+      normalizarRotulos({ aberta: "   ", em_analise: "Em análise", pausada: "Parada" }),
+    ).toStrictEqual({ aberta: null, em_analise: null, pausada: null });
+  });
+
+  it("texto diferente do padrão passa inteiro", () => {
+    expect(normalizarRotulos({ em_analise: "o síndico está avaliando" })).toStrictEqual({
+      em_analise: "o síndico está avaliando",
+    });
+  });
+
+  it("o null explícito continua null — é o pedido de volta ao padrão", () => {
+    expect(normalizarRotulos({ resolvida: null })).toStrictEqual({ resolvida: null });
+  });
+});
+
+describe("a projeção dos rótulos — item 100", () => {
+  it("os seis estados sempre saem, com null onde vale o padrão", () => {
+    const projetada = projetarConfiguracao({
+      regras: { exigirSolucaoAoResolver: false, limiteDeCancelamentoDoSolicitante: "em_analise" },
+      rotulos: { em_analise: "o síndico está avaliando" },
+      mudancas: [],
+    });
+
+    expect(projetada.rotulosDoSolicitante).toStrictEqual({
+      aberta: null,
+      em_analise: "o síndico está avaliando",
+      em_atendimento: null,
+      pausada: null,
+      resolvida: null,
+      cancelada: null,
+    });
+  });
+});
+
 describe("a projeção da configuração — item 99", () => {
   it("é plana, e as mudanças saem como a porta as leu", () => {
     const projetada = projetarConfiguracao({
@@ -736,6 +816,15 @@ describe("a projeção da configuração — item 99", () => {
     expect(projetada).toStrictEqual({
       exigirSolucaoAoResolver: true,
       limiteDeCancelamentoDoSolicitante: "em_analise",
+      // **Os seis sempre saem** (item 100), com `null` onde vale o padrão.
+      rotulosDoSolicitante: {
+        aberta: null,
+        em_analise: null,
+        em_atendimento: null,
+        pausada: null,
+        resolvida: null,
+        cancelada: null,
+      },
       mudancas: [
         {
           chave: "exigir_solucao_ao_resolver",

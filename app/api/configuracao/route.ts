@@ -1,4 +1,5 @@
 import { alterarConfiguracao, lerConfiguracao } from "@/aplicacao/organizacao";
+import { normalizarRotulos } from "@/interface/componentes/rotulos-do-solicitante";
 import { FormatoInvalido, comContexto } from "@/interface/http";
 import { projetarConfiguracao } from "@/interface/projecoes";
 import { alteracaoDeConfiguracaoSchema } from "@/interface/schemas";
@@ -18,7 +19,7 @@ export const GET = comContexto({ exige: "organizacao.configurar" }, async ({ rep
 );
 
 /**
- * `PATCH /configuracao` — mudar as regras (item 99).
+ * `PATCH /configuracao` — mudar as regras (item 99) e os textos que quem abriu lê (item 100).
  *
  * **A trilha é escrita pelo gatilho da migração 017, dentro da mesma instrução**, com o valor anterior da
  * linha travada pelo `update`: é o que faz a segunda de duas escritas simultâneas registrar o valor que a
@@ -33,7 +34,8 @@ export const PATCH = comContexto(
   async ({ ctx, repos, corpo }) => {
     if (
       corpo.exigirSolucaoAoResolver === undefined &&
-      corpo.limiteDeCancelamentoDoSolicitante === undefined
+      corpo.limiteDeCancelamentoDoSolicitante === undefined &&
+      corpo.rotulosDoSolicitante === undefined
     ) {
       throw new FormatoInvalido([
         {
@@ -44,8 +46,17 @@ export const PATCH = comContexto(
       ]);
     }
 
+    const { rotulosDoSolicitante, ...regras } = corpo;
     return projetarConfiguracao(
-      await alterarConfiguracao(repos.configuracao, { ...corpo, porPessoaId: ctx.pessoaId }),
+      await alterarConfiguracao(repos.configuracao, {
+        ...regras,
+        // **Campo ausente não vira chave presente**: ausente é *não mexa*, e é a Aplicação que garante
+        // que isso não chega à porta — mas só se a chave não existir aqui.
+        ...(rotulosDoSolicitante === undefined
+          ? {}
+          : { rotulos: normalizarRotulos(rotulosDoSolicitante) }),
+        porPessoaId: ctx.pessoaId,
+      }),
     );
   },
 );

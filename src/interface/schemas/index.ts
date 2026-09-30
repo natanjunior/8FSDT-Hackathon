@@ -89,6 +89,8 @@ export {
   criacaoDeCategoriaSchema,
   iconeDeCategoria,
   reordenacaoSchema,
+  rotulosDoSolicitanteSchema,
+  TETO_DO_ROTULO_DO_SOLICITANTE,
   type EntradaDeAlteracaoDeConfiguracao,
   type EntradaDeCorrecaoDeArea,
   type EntradaDeCorrecaoDeCategoria,

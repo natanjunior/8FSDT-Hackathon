@@ -7,6 +7,7 @@ import type {
   OrganizacaoCriada,
   OrganizacaoLida,
 } from "@/aplicacao/organizacao";
+import { STATUS, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
 /**
  * As projeções dos schemas `Organizacao`, `Categoria` e `Area` do `openapi.yaml`.
@@ -125,6 +126,12 @@ export type MudancaDeConfiguracaoProjetada = {
 export type ConfiguracaoProjetada = {
   exigirSolucaoAoResolver: boolean;
   limiteDeCancelamentoDoSolicitante: "em_analise" | "em_atendimento";
+  /**
+   * O texto que quem abriu lê em cada ponto do ciclo (item 100). **Os seis estados sempre presentes**,
+   * com `null` onde vale o padrão: presença fixa é o que impede a tela de confundir *"não customizado"*
+   * com *"o campo não veio"*.
+   */
+  rotulosDoSolicitante: Readonly<Record<StatusOcorrencia, string | null>>;
   mudancas: readonly MudancaDeConfiguracaoProjetada[];
 };
 
@@ -132,6 +139,11 @@ export function projetarConfiguracao(lida: ConfiguracaoLida): ConfiguracaoProjet
   return {
     exigirSolucaoAoResolver: lida.regras.exigirSolucaoAoResolver,
     limiteDeCancelamentoDoSolicitante: lida.regras.limiteDeCancelamentoDoSolicitante,
+    // **Montado sobre `STATUS`, e não sobre o que a porta trouxe**: a porta traz só o customizado, e a
+    // tela precisa dos seis para desenhar a lista inteira.
+    rotulosDoSolicitante: Object.fromEntries(
+      STATUS.map((status) => [status, lida.rotulos[status] ?? null]),
+    ) as Record<StatusOcorrencia, string | null>,
     // **Campo a campo, e nunca o objeto da porta inteiro**: a projeção escolhe o que sai.
     mudancas: lida.mudancas.map((mudanca) => ({
       chave: mudanca.chave,
