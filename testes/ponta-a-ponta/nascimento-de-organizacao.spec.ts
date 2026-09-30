@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
+import {
+  FRASE_ABRINDO,
+  PREFIXO_DO_CACHE,
+  URL_DA_CASCA,
+  URL_DA_HORA,
+} from "@/interface/trabalhador/constantes";
 
 import { cobre } from "./cobertura";
 import { SEM_TRANSBORDO, transbordo } from "./transbordo";
@@ -99,6 +105,11 @@ const EMAIL_INEXISTENTE = `ninguem.${MARCA}@example.com`;
 
 const ORGANIZACAO_A = `Nascimento ${MARCA}`;
 const ORGANIZACAO_C = `Segunda Casa ${MARCA}`;
+
+/** Quem volta à aplicação — o ator do item 98, que nasce nesta corrida como os outros. */
+const NOME_R = "Quem Volta ao Nascimento";
+const EMAIL_R = `retorno.${MARCA}@example.com`;
+const ORGANIZACAO_R = `Retorno ${MARCA}`;
 
 /**
  * **O código inventado do critério 7a.1.**
@@ -806,4 +817,91 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await expect(n.getByText("Seu papel nesta organização não dá acesso a esta página.")).toBeVisible();
   await expect(n.locator("code")).toHaveCount(0);
   await expect(n.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
+});
+
+/**
+ * ============================================================================
+ *  O retorno: a casca guardada, e a saída que a apaga — item 98
+ * ============================================================================
+ *
+ * **O único contexto do ponta a ponta com o trabalhador de serviço liberado** (`playwright.config.ts`
+ * bloqueia por padrão). É a jornada de quem já usou a aplicação e volta a ela, e mora neste arquivo porque
+ * ele já sai e volta a entrar; o teto de arquivos da ADR-0012 fica como está.
+ *
+ * **"Faz mais de 4 minutos" é escrito, e não esperado**: a página grava uma hora antiga no Cache Storage,
+ * o que qualquer pessoa pode fazer apagando o armazenamento do site. **E a sonda da casca é segurada**
+ * pela rota do contexto, senão a casca trocaria pela tela antes de o teste a ver.
+ */
+test("o retorno: a casca guardada pinta sem esperar a rede, o cache só tem ela, e a saída o apaga", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext({ serviceWorkers: "allow" });
+  const r = await contexto.newPage();
+
+  await criarConta(r, NOME_R, EMAIL_R);
+  await criarOrganizacao(r, ORGANIZACAO_R);
+  await r.waitForFunction(() => navigator.serviceWorker.controller !== null);
+
+  // 1 · Percorre telas de dentro, que fazem página, RSC e API com o trabalhador no controle.
+  for (const caminho of ["/ocorrencias", "/vinculos", "/configuracao", "/meus-dados"]) {
+    await r.goto(caminho);
+    await expect(r.getByRole("combobox", { name: /organização/iu })).toHaveText(ORGANIZACAO_R);
+  }
+
+  // 2 · Critério 98.2: igualdade de conjunto, e não "contém a casca".
+  const guardado = async () =>
+    r.evaluate(async () => {
+      const nomes = await caches.keys();
+      const urls: string[] = [];
+      for (const nome of nomes) {
+        for (const pedido of await (await caches.open(nome)).keys())
+          urls.push(new URL(pedido.url).pathname);
+      }
+      return { nomes, urls: urls.sort() };
+    });
+  const antes = await guardado();
+  expect(antes.nomes).toHaveLength(1);
+  expect(antes.nomes[0]?.startsWith(PREFIXO_DO_CACHE)).toBe(true);
+  expect(antes.urls).toStrictEqual([URL_DA_CASCA, URL_DA_HORA].sort());
+
+  // 3 · Critério 98.1: com a última resposta antiga, a casca pinta sem esperar a rede, e não diz de quem é.
+  let soltarASonda: () => void = () => {};
+  const sondaPresa = new Promise<void>((soltar) => {
+    soltarASonda = soltar;
+  });
+  await contexto.route("**/robots.txt", async (rota) => {
+    await sondaPresa;
+    await rota.continue();
+  });
+  await r.evaluate(
+    async ({ prefixo, urlDaHora }) => {
+      const nome = (await caches.keys()).find((n) => n.startsWith(prefixo));
+      if (nome === undefined) throw new Error("o cache do trabalhador sumiu");
+      await (await caches.open(nome)).put(urlDaHora, new Response("0"));
+    },
+    { prefixo: PREFIXO_DO_CACHE, urlDaHora: URL_DA_HORA },
+  );
+  await r.goto("/ocorrencias");
+  await expect(r.getByRole("status")).toHaveText(FRASE_ABRINDO);
+  await expect(r.getByText(ORGANIZACAO_R)).toHaveCount(0);
+
+  // E troca sozinha pela tela quando a sonda responde.
+  soltarASonda();
+  await expect(r.getByRole("combobox", { name: /organização/iu })).toHaveText(ORGANIZACAO_R);
+  await contexto.unroute("**/robots.txt");
+
+  // 4 · Critério 98.3: a saída apaga, e o voltar não devolve nada do que se viu.
+  await r.getByRole("button", { name: `Conta de ${NOME_R}` }).click();
+  await r.getByRole("menuitem", { name: "Sair" }).click();
+  await r.waitForURL(/\/entrar$/u);
+  const depois = await guardado();
+  for (const url of depois.urls) expect([URL_DA_CASCA, URL_DA_HORA]).toContain(url);
+
+  await r.goBack();
+  await r.waitForLoadState("load");
+  await expect(r).toHaveURL(/\/entrar/u);
+  await expect(r.getByText(ORGANIZACAO_R)).toHaveCount(0);
+  await expect(r.getByText(NOME_R)).toHaveCount(0);
+
+  await contexto.close();
 });
