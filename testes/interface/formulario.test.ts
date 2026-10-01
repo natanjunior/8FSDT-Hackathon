@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
 import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
@@ -2604,5 +2605,24 @@ describe("o recibo de cada ação — item 103", () => {
     expect([...fonte.matchAll(/ORDEM_DO_CARTAO\[convite\.lado\]/gu)]).toHaveLength(2);
     expect([...fonte.matchAll(/ORDEM_DO_CONVITE\[convite\.lado\]/gu)]).toHaveLength(2);
     expect(fonte).not.toContain('convite.lado === "esquerda"');
+  });
+
+  it("só a linha apertada entra; as outras ficam inertes; nada em voo deixa todas livres (critério 103.1)", () => {
+    expect(situacaoDaLinha(null, "a")).toBe("livre");
+    expect(situacaoDaLinha("a", "a")).toBe("entrando");
+    expect(situacaoDaLinha("a", "b")).toBe("inerte");
+  });
+
+  it("a lista não usa disabled, ignora o segundo toque e solta a linha quando a navegação acaba (critério 103.1)", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    // `disabled` solta o foco no corpo do documento; `aria-disabled` não.
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-disabled={situacao !== \"livre\"}");
+    expect(fonte).toContain("aria-busy={situacao === \"entrando\"}");
+    expect(fonte).toContain("if (escolhida !== null) return;");
+    // A navegação numa transição: é o fim dela que devolve a lista, inclusive quando `/` desenha T-10 de novo.
+    expect(fonte).toContain("useTransition()");
+    expect(fonte).toMatch(/comecar\(\(\) => \{\s*router\.refresh\(\);\s*router\.replace\("\/"\);/u);
+    expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).toContain('"Entrando…"');
   });
 });

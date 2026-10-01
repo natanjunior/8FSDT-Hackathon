@@ -97,8 +97,19 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(
     helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
   ).toBeVisible();
+  // **O recibo da escolha** (critério 103.1): com o `PUT` retido, a linha apertada diz *Entrando…*, segura o
+  // foco e fica ocupada; a outra fica inerte, sem roubar o foco.
+  await helena.route("**/api/contexto/organizacao", async (rota) => {
+    await new Promise((pronto) => setTimeout(pronto, 1500));
+    await rota.continue();
+  });
   await helena.getByRole("button", { name: AURORA }).click();
+  const linhaApertada = helena.getByRole("button", { name: /Entrando…/u });
+  await expect(linhaApertada).toBeFocused();
+  await expect(linhaApertada).toHaveAttribute("aria-busy", "true");
+  await expect(helena.getByRole("button", { name: RECANTO })).toHaveAttribute("aria-disabled", "true");
   await helena.waitForURL(/\/ocorrencias$/u);
+  await helena.unroute("**/api/contexto/organizacao");
 
   // -------------------------------------------------------------------------
   // 2 · Helena registra a ocorrência marcada — T-04
