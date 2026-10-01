@@ -2564,6 +2564,20 @@ describe("o alcance do 91 — os 44 px", () => {
     expect(classe.split(" ")).toContain("justify-center");
   });
 
+  it("redefinir senha com sessão volta para Meus dados e já traz o e-mail (critério 106.12)", () => {
+    const pagina = ler("app/redefinir-senha/page.tsx");
+    expect(pagina).toContain('"/meus-dados"');
+    expect(pagina).toContain("Voltar para Meus dados");
+    expect(pagina).toContain("Voltar para entrar");
+    expect(pagina).toContain("emailInicial=");
+    // Uma saída só, com o destino escolhido: a contagem de `CLASSE_DO_CAMINHO` das telas de conta não muda.
+    expect(pagina.match(/CLASSE_DO_CAMINHO\}/gu) ?? []).toHaveLength(1);
+    expect(ler("src/interface/componentes/formulario-de-redefinicao.tsx")).toContain(
+      "defaultValue={emailInicial ?? undefined}",
+    );
+    expect(ler("app/(casca)/meus-dados/page.tsx")).toContain("Receber link para trocar a senha");
+  });
+
   it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {
     const fonte = ler("src/interface/componentes/barra-de-filtros.tsx");
     // Por regex, e não por `indexOf`: o comentário logo acima do link também diz "Limpar filtros".

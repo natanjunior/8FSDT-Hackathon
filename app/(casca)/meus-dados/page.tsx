@@ -88,7 +88,8 @@ export default async function MeusDados() {
               <span className="sr-only">oculta</span>
             </dd>
             {/* **Aponta, em vez de duplicar.** T-12 aceita quem tem sessão desde a D-6b-5, e é a única
-                porta de trocar a senha que o produto tem. */}
+                porta de trocar a senha que o produto tem. **O nome diz o que acontece** (critério
+                106.12): um e-mail com link, e não a troca aqui. */}
             <dd className="col-start-2 row-span-2 row-start-1">
               <Link
                 href="/redefinir-senha"
@@ -97,7 +98,7 @@ export default async function MeusDados() {
                   "border-linha text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4",
                 )}
               >
-                Redefinir senha
+                Receber link para trocar a senha
                 <ArrowRight aria-hidden="true" />
               </Link>
             </dd>
