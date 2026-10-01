@@ -19,10 +19,12 @@ import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
   corteDeTopo,
+  fraseDoDenominadorDasDuplas,
   fraseDoResto,
   rotuloDaDupla,
   SEM_DUPLA_RECORRENTE,
 } from "@/interface/componentes/duplas-recorrentes";
+import { tetoDoEixo } from "@/interface/componentes/teto-do-eixo";
 import {
   linhasDoFluxoMensal,
   mesParcial,
@@ -1054,5 +1056,33 @@ describe("o período do painel", () => {
 
     // O esqueleto acompanha: sem a caixa de 74 px, para o conteúdo não saltar ao chegar.
     expect(ler("app/(casca)/dashboard/loading.tsx")).not.toContain("h-[74px]");
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  O eixo das barras — item 110, critério 6
+ * ---------------------------------------------------------------------------
+ * Só os quadros 4 e 7 passam denominador; os quadros 2, 5 e 6 seguem com o domínio automático do
+ * Recharts, que nem passa por esta função. O teto nunca fica abaixo de uma barra nem em zero.
+ */
+describe("tetoDoEixo — o comprimento como parte de um todo", () => {
+  it("com denominador, o denominador: três votos de um, de dez resolvidas", () => {
+    expect(tetoDoEixo([1, 1, 1, 0, 0], 10)).toBe(10);
+  });
+
+  it("nunca abaixo da maior barra", () => {
+    expect(tetoDoEixo([5, 2], 3)).toBe(5);
+  });
+
+  it("nunca zero: nenhuma resolvida, as cinco barras a zero", () => {
+    expect(tetoDoEixo([0, 0, 0, 0, 0], 0)).toBe(1);
+    expect(tetoDoEixo([], 0)).toBe(1);
+  });
+});
+
+describe("fraseDoDenominadorDasDuplas — o todo do quadro 4, impresso", () => {
+  it("as registradas do período", () => {
+    expect(fraseDoDenominadorDasDuplas(117)).toBe("Parte das 117 registradas no período.");
   });
 });

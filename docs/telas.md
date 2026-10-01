@@ -187,7 +187,8 @@ durações dele aparecem uma a uma na tabela.
 
 O que está voltando mostra as duplas de área e categoria que se repetiram no período, da maior para a
 menor, as cinco primeiras e as que empatam com a quinta. O que passa disso vira uma frase, e o corte nunca
-separa um empate. Uma ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem
+separa um empate. Embaixo, o quadro diz de quantas ocorrências registradas no período as duplas são parte,
+e o comprimento de cada barra é essa parte. Uma ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem
 nenhuma, o quadro escreve o que vai aparecer ali.
 
 O quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as canceladas, na
@@ -201,8 +202,8 @@ período, o número grande fica num traço, nunca num zero, e a frase ao lado di
 tem e que nenhuma delas foi avaliada.
 
 No painel, o período se escolhe num controle único, que mostra o intervalo aplicado e abre um calendário
-com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho fica apagado quando o
-período já é o dele, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
+com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho do período aplicado
+aparece marcado, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
 de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
 mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 

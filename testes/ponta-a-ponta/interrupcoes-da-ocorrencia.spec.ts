@@ -294,7 +294,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // **A tela de Gestor aberta pelo endereço** — Parte 5, passo 7. É o `SemAcesso` do item 44h: título,
   // quem usa a tela, a recusa e a saída. **É beco**, e por isso a saída mora no conteúdo.
   await helena.goto("/dashboard");
-  await expect(helena.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(helena.getByRole("heading", { name: "Painel" })).toBeVisible();
   await expect(
     helena.getByText("Seu papel nesta organização não dá acesso a esta página."),
   ).toBeVisible();

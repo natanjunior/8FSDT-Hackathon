@@ -13,6 +13,8 @@
  * têm, ou na lista para leitor de tela que o `GraficoDeBarras` desenha junto, nos que não têm.
  */
 
+import { Badge } from "@/interface/componentes/ui/badge";
+
 import { LINHA_CLICAVEL } from "./linha-clicavel";
 import { cn } from "./utilitarios";
 
@@ -38,6 +40,10 @@ export { nomeCompletoDoMes, rotulosDosMeses } from "./fluxo-mensal";
  *
  * O raio, o respiro e a sombra são os do guia, e são o mesmo literal que T-05 usa em três seções: escrever
  * o mesmo desenho de duas formas é como as telas divergem.
+ *
+ * **O nome é título de bloco, e o escopo é selo dentro do `h2`** (item 110): quem navega por títulos
+ * ouve *no período* ou *agora* junto do nome, e é a parte que mais se confunde nesta tela. Os `{" "}`
+ * entre os três filhos são o nome acessível; sem eles a compilação emendava *mêsno período*.
  */
 export function Cartao({
   numero,
@@ -58,15 +64,18 @@ export function Cartao({
   return (
     <section className="border-linha bg-superficie flex min-w-0 flex-col gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="flex flex-wrap items-baseline gap-2">
-          <span className="text-tinta-suave text-rotulo-coluna font-mono uppercase">
-            {numero} · {titulo}
-          </span>
-          <span className="text-tinta-suave text-meta">{quando}</span>
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-tinta-suave text-interface font-mono tabular-nums">{numero} ·</span>{" "}
+          <span data-papel="titulo" className="text-tinta text-titulo-bloco">
+            {titulo}
+          </span>{" "}
+          <Badge variant="secondary" className="text-tinta-suave">
+            {quando}
+          </Badge>
         </h2>
         {acao ? <div className="ml-auto">{acao}</div> : null}
       </div>
-      <p className="text-tinta-suave text-corpo">{pergunta}</p>
+      <p className="text-tinta-suave text-meta">{pergunta}</p>
       {children}
     </section>
   );
@@ -81,6 +90,9 @@ export function Cartao({
  *
  * **Não é `section` e não tem `h2`**: o cartão não é quadro, não tem número, e assim o localizador de
  * quadros do ponta a ponta casa só os sete.
+ *
+ * **O rótulo dele continua em rótulo de coluna**: o cartão de indicador é um par de rótulo e valor, como
+ * célula de tabela, e não um bloco com cabeçalho (item 110, critério 3).
  */
 export function CartaoDeIndicador({
   rotulo,

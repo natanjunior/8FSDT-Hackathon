@@ -200,7 +200,7 @@ export function Navegacao({
                 <SidebarMenu>
                   <ItemDeNavegacao
                     destino="/dashboard"
-                    rotulo="Dashboard"
+                    rotulo="Painel"
                     Icone={ChartColumn}
                     caminho={caminho}
                     aoTocar={aoTocar}

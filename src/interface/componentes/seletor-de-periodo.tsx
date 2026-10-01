@@ -52,6 +52,9 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * indicador — o Aplicar diz *"Aplicando…"* —, os outros ficam `aria-disabled`, e o popover fecha quando os
  * números novos chegam. Fechar antes, com Esc ou toque fora, é permitido; o conteúdo continua recuado.
  *
+ * **O atalho do recorte aplicado aparece marcado**, com fundo cromo, tinta cheia e `aria-current`, e
+ * continua clicável: apertá-lo só fecha o painel (item 110, que substituiu o "apagado" do 71.2).
+ *
  * **O rótulo do gatilho só muda depois de aplicar.** Ele é escrito a partir de `periodo`, que vem do
  * servidor; a escolha pendente dentro do painel não o toca.
  *
@@ -146,28 +149,32 @@ export function SeletorDePeriodo({
       >
         <div className="flex flex-col md:flex-row">
           <div className="border-linha flex flex-wrap gap-1 border-b p-3 md:w-44 md:flex-col md:flex-nowrap md:border-r md:border-b-0">
-            {ATALHOS.map(({ chave, rotulo }) => (
-              <Button
-                key={chave}
-                type="button"
-                variant="ghost"
-                disabled={ehAFaixaAplicada(periodo, atalhos[chave])}
-                aria-disabled={pendente}
-                aria-busy={emEnvio === chave}
-                onClick={() => aplicar(atalhos[chave], chave)}
-                className={cn(
-                  "text-interface min-h-11 justify-start px-3 font-normal",
-                  // O apagado do catálogo é meia opacidade, que sobre a tinta fraca some. A tinta fraca já
-                  // diz "não faz nada", e ela está medida no tema.
-                  ehAFaixaAplicada(periodo, atalhos[chave])
-                    ? "text-tinta-suave disabled:opacity-100"
-                    : "text-tinta",
-                )}
-              >
-                {rotulo}
-                <IndicadorDeEnvio ativo={emEnvio === chave} />
-              </Button>
-            ))}
+            {ATALHOS.map(({ chave, rotulo }) => {
+              const aplicado = ehAFaixaAplicada(periodo, atalhos[chave]);
+              return (
+                <Button
+                  key={chave}
+                  type="button"
+                  variant="ghost"
+                  aria-current={aplicado ? "true" : undefined}
+                  aria-disabled={pendente}
+                  aria-busy={emEnvio === chave}
+                  // O aplicado só fecha: `aplicar` não navega para o recorte que já está aplicado
+                  // (`deveNavegar`, item 103), e reaplicá-lo escreveria `de` e `ate` no recorte padrão.
+                  onClick={() => aplicar(atalhos[chave], chave)}
+                  className={cn(
+                    "text-tinta text-interface min-h-11 justify-start px-3 font-normal",
+                    // Marcado como o item corrente da barra lateral: fundo cromo e tinta cheia (item 110).
+                    // Cinza sem clique lia-se como indisponível. O `hover` fica no cromo, senão o fundo do
+                    // `ghost` apagaria a marca na passagem do ponteiro.
+                    aplicado && "bg-secondary hover:bg-secondary font-medium",
+                  )}
+                >
+                  {rotulo}
+                  <IndicadorDeEnvio ativo={emEnvio === chave} />
+                </Button>
+              );
+            })}
           </div>
 
           <div className="flex flex-col">
