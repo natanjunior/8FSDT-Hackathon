@@ -1665,6 +1665,14 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain("<SelectItem");
   });
 
+  it("todo gatilho de seleção reage à passagem do ponteiro, e o da organização tem borda (critério 106.10)", () => {
+    // Ancorada na string do gatilho, que começa em `flex w-fit`: outra string adiante não pode responder.
+    expect(ler("src/interface/componentes/ui/select.tsx")).toMatch(
+      /data-slot="select-trigger"[\s\S]*?"flex w-fit [^"]*\bhover:bg-accent(?![-\w])/u,
+    );
+    expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toMatch(/\bborder-0\b/u);
+  });
+
   it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
     const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
 
