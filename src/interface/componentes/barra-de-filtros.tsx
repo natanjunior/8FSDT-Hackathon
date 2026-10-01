@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -197,16 +197,6 @@ export function BarraDeFiltros({
           Limpar filtros
         </Link>
       )}
-
-      {/*
-        A espera carrega palavra, não só opacidade. `role="status"` para quem usa leitor de tela saber que
-        a lista abaixo está sendo trocada — sem isso, a mudança é silenciosa.
-      */}
-      {pendente && (
-        <p role="status" className="text-meta text-tinta-suave w-full">
-          Atualizando a lista…
-        </p>
-      )}
     </div>
   );
 }
@@ -248,7 +238,7 @@ function MenuDeFiltro({
     <DropdownMenu>
       <DropdownMenuTrigger className={chip(ligado)} aria-pressed={ligado}>
         {rotuloDoChip(nome, opcoes, marcados)}
-        <span aria-hidden>▾</span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {opcoes.map((opcao) => (

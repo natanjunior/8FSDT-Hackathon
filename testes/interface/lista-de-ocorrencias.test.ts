@@ -7,6 +7,7 @@ import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
 import { ListaDeOcorrencias, ParDeDatas } from "@/interface/componentes/lista-de-ocorrencias";
 import type { OcorrenciaResumoProjetada } from "@/interface/projecoes";
 
@@ -186,5 +187,44 @@ describe("a tabela: o motivo desce, as colunas têm teto, e ela nasce em lg — 
     expect(conteiner.querySelector("ul")?.className).toContain("lg:hidden");
     expect(conteiner.querySelector("table")?.closest("div.hidden")?.className).toContain("lg:block");
     expect(conteiner.querySelector("ul")?.className).not.toContain("md:hidden");
+  });
+});
+
+describe("a espera vale para todo mundo, e não depende de movimento — critério 102.8", () => {
+  function cartao(faixa: ReactElement | undefined): void {
+    desenhar(createElement(CartaoDaLista, { faixa, children: createElement("p", null, "a lista") }));
+  }
+
+  it("com espera, o cartão diz Atualizando a lista…, com e sem barra de filtros", () => {
+    navegacao.pendente = true;
+    cartao(createElement("div", null, "barra"));
+    expect(conteiner.querySelector('[role="status"]')?.textContent).toBe("Atualizando a lista…");
+
+    cartao(undefined);
+    expect(conteiner.querySelector('[role="status"]')?.textContent).toBe("Atualizando a lista…");
+  });
+
+  it("sem espera, a região continua no DOM, vazia, para a próxima espera ser anunciada", () => {
+    navegacao.pendente = false;
+    cartao(undefined);
+    const regiao = conteiner.querySelector('[role="status"]');
+
+    expect(regiao).not.toBeNull();
+    expect(regiao?.textContent).toBe("");
+  });
+
+  it("a região fica fora do invólucro que recua, e a barra tem a forma parada", () => {
+    navegacao.pendente = true;
+    cartao(undefined);
+
+    expect(conteiner.querySelector('[role="status"]')?.closest(".opacity-60")).toBeNull();
+    const trecho = conteiner.querySelector(".animate-barra-de-progresso");
+    expect(trecho?.className).toContain("motion-reduce:animate-none");
+    expect(trecho?.className).toContain("motion-reduce:w-full");
+    expect(trecho?.className).toContain("motion-reduce:opacity-50");
+  });
+
+  it("a barra de filtros não tem mais a frase própria", () => {
+    expect(ler("src/interface/componentes/barra-de-filtros.tsx")).not.toContain("Atualizando a lista");
   });
 });

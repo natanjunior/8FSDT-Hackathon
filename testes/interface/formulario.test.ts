@@ -1850,7 +1850,14 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
     const cartao = ler("src/interface/componentes/cartao-da-lista.tsx");
-    expect(cartao).toMatch(/\{faixa\}\s*\n\s*<div\s+className=\{\s*pendente/u);
+    // Desde o item 102 a região de espera fica entre a faixa e o invólucro que recua. A ordem é o que
+    // importa: faixa, região, e só então o invólucro com `pendente`.
+    const faixa = cartao.indexOf("{faixa}");
+    const regiao = cartao.indexOf('role="status"');
+    const recuo = cartao.search(/<div\s+className=\{\s*pendente/u);
+    expect(faixa).toBeGreaterThan(-1);
+    expect(regiao).toBeGreaterThan(faixa);
+    expect(recuo).toBeGreaterThan(regiao);
     const pagina = ler("app/(casca)/ocorrencias/page.tsx");
     expect(pagina).toContain('<CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>');
   });
