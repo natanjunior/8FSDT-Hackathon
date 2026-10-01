@@ -215,16 +215,18 @@ function SeloDeParada({ dias }: { dias: number | null }) {
 }
 
 /**
- * **O par de datas da coluna Tempo, escrito uma vez** — item 67.
+ * **O par de datas, escrito uma vez** — item 67, nomeado no item 102.
  *
- * Registrada sempre; atualizada só quando difere, marcada por `↻`. O símbolo é `aria-hidden` e os dois
- * valores levam nome em `sr-only`, porque um glifo sozinho não diz o que mede.
+ * Registrada sempre; atualizada só quando difere (item 44p, critério 12). **Cada valor leva a palavra ao
+ * lado, na tela** (critério 102.1): a seta circular e os nomes em `sr-only` saíram, porque um glifo sozinho não dizia
+ * o que media e o nome só existia para quem usa leitor de tela. A coluna ordena pelo segundo valor, e sem
+ * nome a primeira coluna de números parecia fora de ordem (A-004).
  *
- * **Os três recortes usam esta peça desde o item 67.** Antes, o recorte A mostrava só o tempo de
- * registro, e com a ordem nova — por última atualização — uma lista que só mostra a data de registro
- * pareceria fora de ordem.
+ * **Empilhado (a tabela), é uma grade de duas colunas**: o valor alinhado à direita, em tinta, e a palavra à
+ * esquerda, em meta, para as palavras formarem uma coluna e os números se compararem pela unidade. **Em
+ * fileira (o celular, desde a P1 da spec)**, os dois pares separados pelo `·` da linha de meta, na tinta dela.
  */
-function ParDeDatas({
+export function ParDeDatas({
   registradaEm,
   atualizadaEm,
   agora,
@@ -233,26 +235,31 @@ function ParDeDatas({
   registradaEm: string;
   atualizadaEm: string;
   agora: number;
-  /** Na tabela as duas datas ficam uma sobre a outra; nos cartões, lado a lado. */
+  /** Na tabela as duas datas ficam uma sobre a outra; no celular, lado a lado. */
   empilhado?: boolean;
 }) {
   const mudou = registradaEm !== atualizadaEm;
-  const forma = empilhado ? "block" : undefined;
+
+  if (empilhado) {
+    const valor = "text-tinta group-data-[recuada]/linha:text-tinta-suave text-right";
+    return (
+      <span className="grid grid-cols-[auto_auto] justify-start gap-x-1.5">
+        <span className={valor}>{tempoCurto(registradaEm, agora)}</span>
+        <span>registrada</span>
+        {mudou && (
+          <>
+            <span className={valor}>{tempoCurto(atualizadaEm, agora)}</span>
+            <span>atualizada</span>
+          </>
+        )}
+      </span>
+    );
+  }
 
   return (
     <>
-      <span className={forma}>
-        <span className="sr-only">registrada </span>
-        {tempoCurto(registradaEm, agora)}
-      </span>
-      {mudou && (
-        <span className={forma}>
-          {!empilhado && " "}
-          <span aria-hidden="true">↻</span>
-          <span className="sr-only">, atualizada </span>{" "}
-          {tempoCurto(atualizadaEm, agora)}
-        </span>
-      )}
+      {tempoCurto(registradaEm, agora)} registrada
+      {mudou && <> · {tempoCurto(atualizadaEm, agora)} atualizada</>}
     </>
   );
 }
@@ -320,8 +327,8 @@ function LinhaDeTriagemNoCelular({
           <FichaDePessoa nome={item.responsavel.nome} />
         )}
         ·
-        {/* **No celular não há cartão** — `hover` não existe em toque, e o par já está aqui, por extenso
-            na linha de meta. */}
+        {/* **No celular não há cartão** — `hover` não existe em toque. O par vem com as palavras na linha de
+            meta (item 102, P1 da spec), que é o único lugar desta largura que diz o que cada número mede. */}
         <span className="font-mono tabular-nums">
           <ParDeDatas
             registradaEm={item.registradaEm}
@@ -342,13 +349,9 @@ function LinhaDeTriagemNoCelular({
  * de verdade*: numa tabela, uma linha **é** um registro, e duas `<tr>` por ocorrência mentem para quem
  * navega por leitor de tela.
  *
- * **`registradaEm` e `atualizadaEm` dividem a coluna TEMPO**, a segunda marcada por `↻` — o protótipo:
- * *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém faz de
- * relance"*.
- *
- * **A segunda metade só aparece quando há diferença** (item 44p, critério 12): numa ocorrência que
- * ninguém tocou os dois instantes são iguais, e o `↻` repetia o mesmo número. O símbolo é `aria-hidden` e
- * os dois valores levam nome em `sr-only` — um glifo sozinho não diz o que mede.
+ * **`registradaEm` e `atualizadaEm` dividem a coluna TEMPO**, cada uma com a palavra ao lado (item 102) — o
+ * protótipo: *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém
+ * faz de relance"*. **A segunda só aparece quando há diferença** (item 44p, critério 12).
  *
  * **Serve aos dois recortes desde o item 76.**
  */
@@ -496,7 +499,7 @@ function TabelaDeTriagem({
  *
  * **É atalho, e não o único caminho.** `hover` não existe em toque, então as duas datas continuam
  * legíveis na página da ocorrência, e o celular recebe o par direto na linha de meta. Sem o cartão, a
- * célula continua dizendo exatamente o que dizia, com os nomes em `sr-only`.
+ * célula continua dizendo o que cada número é: a palavra está ao lado dele (item 102).
  *
  * **O gatilho é ele mesmo um link para a ocorrência, fora da ordem de tabulação** (`tabIndex={-1}`).
  * Assim o ponteiro que para em cima dele abre o cartão, e o clique nele abre a ocorrência como no resto

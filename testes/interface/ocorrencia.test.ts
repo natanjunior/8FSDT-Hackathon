@@ -4873,6 +4873,13 @@ describe("o texto do destaque de parada — item 101", () => {
   });
 });
 
+describe("nenhum glifo de texto na lista — critério 102.9", () => {
+  it("o ↻ saiu da lista, e o ▾ saiu da barra", () => {
+    expect(lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx")).not.toContain("↻");
+    expect(lerFonte("src/interface/componentes/barra-de-filtros.tsx")).not.toContain("▾");
+  });
+});
+
 describe("o destaque veste o par medido, e não tinta de texto — item 101", () => {
   const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx");
 
