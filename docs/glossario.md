@@ -36,7 +36,8 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Mudança de configuração | Cada alteração de uma regra da Organização, com o valor anterior, o novo, quem mudou e quando. O banco não deixa alterá-la nem apagá-la | Trilha de auditoria, que é da ocorrência |
 | Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | Convite, que é o link com o código dentro |
 | Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega |
-| Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa | Localização, que aponta para uma Área |
+| QR da área | O QR colado no próprio lugar. Leva quem participa ao registro com a Área já escolhida, e quem não participa ao pedido de entrada. Carrega o Código da Organização | Convite, que leva só à Organização |
+| Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa, e um QR próprio | Localização, que aponta para uma Área |
 | Localização | Onde dentro da Organização a ocorrência aconteceu: uma Área mais um complemento em texto | Geolocalização: não há mapa nem coordenada |
 | Categoria | A natureza da ocorrência: iluminação, vazamento, limpeza. Configurável por Organização | Prioridade: a categoria é o que é, a prioridade é quanto corre |
 

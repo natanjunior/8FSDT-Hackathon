@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezenove telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As vinte telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezenove telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Vinte telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezenove
+## As vinte
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -18,7 +18,7 @@ ganha endereço próprio.
 | Redefinir senha | `/redefinir-senha` | *Esqueci a senha.* | qualquer pessoa, sem sessão |
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
-| Convite | `/convite/{codigo}` | *Me mandaram este link. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
+| Convite | `/convite/{codigo}` | *Me mandaram este link, ou li o QR de um lugar. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
 | Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?*, *o que me mostraram?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
@@ -29,6 +29,7 @@ ganha endereço próprio.
 | Configuração | `/configuracao` | *O que desta organização eu posso ajustar?* | quem configura a organização |
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
+| QR da área | `/configuracao/areas/{areaId}/qr` | *Como eu ponho o registro na parede?* | quem configura a organização |
 | Meus dados | `/meus-dados` | *O que é meu, e como eu entro?* | qualquer vínculo ativo |
 | Grupo | `/grupo` | *Quem fez isto?* | qualquer pessoa, sem sessão |
 | Vínculo sem permissões | — | *Entrei. Por que não consigo fazer nada?* | vínculo sem permissão nenhuma |
@@ -41,6 +42,7 @@ que hoje é o caso do Encarregado.
 ```mermaid
 flowchart TB
     CONVITE["Convite recebido"]
+    QRAREA["QR de uma área"]
     CONTA["Criar conta · Redefinir senha"]
     ENTRAR["Entrar"]
     CTX{"Tem organização ativa?"}
@@ -51,6 +53,8 @@ flowchart TB
     TRILHA["Trilha de auditoria"]
     MENU["Menu do cabeçalho"]
 
+    QRAREA --> CONVITE
+    CONVITE -->|participa| NOVA
     CONVITE --> CONTA
     CONVITE --> ENTRAR
     CONTA --> ENTRAR
@@ -80,6 +84,11 @@ lado do status. Nada é empurrado: o número só existe na lista que a pessoa ab
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
 
+O QR de uma área leva à mesma tela, com a área no endereço. Quem participa e já entrou cai direto no
+registro, com a área escolhida, e a organização ativa troca para a da área se for preciso. Quem não entrou
+vê o nome da organização, entra e volta sozinho ao registro. Quem não participa vai para o pedido de
+entrada.
+
 A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
 pede sessão.
 
@@ -100,6 +109,11 @@ as telas e fica guardada no navegador. A documentação tem o próprio interrupt
 confirmação, com foto, num celular em rede móvel — e o desenho inteiro dela serve a isso: a foto é o
 primeiro alvo, os campos de digitar vêm antes dos de escolher para evitar trocas de teclado, e a área
 tem busca com as usadas recentemente no topo.
+
+Pelo QR de uma área, ela já vem com a área escolhida, e a pessoa pode trocá-la: o tipo segue a
+área que ficar no fim. Se a área do QR foi desativada, ou não é desta organização, o campo abre vazio,
+com um aviso para escolher onde é, sem dizer qual dos dois casos é. Um QR com código que não leva a
+organização nenhuma mostra *QR não encontrado*.
 
 **Ocorrência** é onde o trabalho acontece, e é o link que substitui a conversa em grupo. Os onze comandos
 do agregado moram nela: analisar, atribuir, iniciar atendimento, pausar, retomar, resolver, cancelar,
