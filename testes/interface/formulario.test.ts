@@ -2210,6 +2210,13 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(foto).not.toMatch(/<button(\s|>|$)/mu);
   });
 
+  it("a miniatura pinta uma camada só, e o original fica para o diálogo (critério 106.2)", () => {
+    const foto = ler("src/interface/componentes/foto-ampliavel.tsx");
+    expect(foto).toContain("backgroundImage: `url(${miniaturaUrl ?? url})`");
+    // Duas camadas fazem o navegador buscar as duas, e a de cima cobre a de baixo (A-052).
+    expect(foto).not.toMatch(/url\(\$\{url\}\),\s*url\(/u);
+  });
+
   const ARQUIVOS_DO_66 = [
     "src/interface/componentes/cabecalho-da-ocorrencia.tsx",
     "src/interface/componentes/aviso-de-avaliacao.tsx",
