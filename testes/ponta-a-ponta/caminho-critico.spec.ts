@@ -498,16 +498,28 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     },
   ];
 
+  /**
+   * O valor de um campo do registro, pelo nome dele (critério 107.3). O nome é `dt` e o valor é `dd`, um par
+   * por `div` dentro do `dl`; o texto do `dt` é minúsculo no DOM, e a caixa alta é só CSS.
+   */
+  const valor = (item: Locator, nome: string): Locator =>
+    item
+      .locator("dl > div")
+      .filter({ has: helena.locator("dt", { hasText: new RegExp(`^${nome}$`, "u") }) })
+      .locator("dd");
+
   for (const [indice, registro] of esperado.entries()) {
     const item = trilha.getByRole("listitem").nth(indice);
 
-    await expect(item).toContainText(`novo status: ${registro.novo}`);
-    await expect(item).toContainText(`status anterior: ${registro.anterior}`);
-    await expect(item).toContainText(`autor: ${registro.autor}`);
-    await expect(item).toContainText(`observação: ${registro.observacao}`);
-    // O carimbo com segundos, com o separador da regra de data. **É um dos cinco campos do F5**, e a
-    // asserção é de forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
-    await expect(item).toContainText(/data e hora: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}/u);
+    // **Os cinco campos do F5, com nome e valor**, e nenhum a mais nestes quatro registros sem motivo.
+    await expect(item.locator("dl > div")).toHaveCount(5);
+    await expect(valor(item, "novo status")).toContainText(registro.novo);
+    await expect(valor(item, "status anterior")).toHaveText(registro.anterior);
+    await expect(valor(item, "autor")).toHaveText(registro.autor);
+    await expect(valor(item, "observação")).toHaveText(registro.observacao);
+    // O carimbo com segundos, com o separador da regra de data. A asserção é de forma: conferir o valor
+    // exato amarraria o teste ao relógio de quem o roda.
+    await expect(valor(item, "data e hora")).toHaveText(/^\d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}$/u);
   }
 
   cobre(test.info(), "4.5 · 77", {

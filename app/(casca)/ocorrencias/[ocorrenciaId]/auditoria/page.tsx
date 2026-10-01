@@ -258,7 +258,10 @@ function Trilha({
 
           <MarcadorDoStatus status={registro.statusNovo} />
 
-          <div className="flex min-w-0 flex-col gap-1 pt-0.5">
+          {/* **Lista de definição, um par por campo** (critério 107.3). Sem os dois-pontos, é o `dt`/`dd` que
+              mantém nome e valor ligados para quem usa leitor de tela. Abaixo de `sm` o par empilha, com
+              respiro menor dentro dele do que entre pares. */}
+          <dl className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5 sm:gap-1">
             <Campo nome="novo status">
               <SeloDeStatus status={registro.statusNovo} rotulo={nomes[registro.statusNovo] ?? registro.statusNovo} />
             </Campo>
@@ -282,10 +285,10 @@ function Trilha({
                 {nomeDoMotivoCancelamento(registro.motivoCancelamento)}
               </Campo>
             )}
-            <Campo nome="observação">
-              <span className="whitespace-pre-line">{registro.observacao ?? "sem observação"}</span>
+            <Campo nome="observação" prosa>
+              {registro.observacao ?? "sem observação"}
             </Campo>
-          </div>
+          </dl>
         </li>
       ))}
     </ol>
@@ -293,17 +296,35 @@ function Trilha({
 }
 
 /**
- * Uma linha `nome: valor` de um registro.
+ * Um par `nome · valor` de um registro.
  *
- * **O nome do campo SEMPRE aparece** — é o compromisso A-7 na forma nova, e é o que faz esta tela valer
- * como prova: *"prova sem rótulo de campo é afirmação"*. Em minúscula, porque são rótulos dentro de um
- * registro e não títulos de coluna.
+ * **O nome do campo SEMPRE aparece** — é o compromisso A-7, e é o que faz esta tela valer como prova:
+ * *"prova sem rótulo de campo é afirmação"*. Ele usa o papel que o guia reserva ao nome de campo na trilha, o
+ * rótulo de coluna (critério 107.3), numa coluna de 7,5rem acima de `sm`: os nomes formam uma coluna e os
+ * valores começam todos no mesmo ponto. O texto é minúsculo no código e a caixa alta vem do CSS, para o
+ * leitor de tela não soletrar.
+ *
+ * **Dado curto e prosa têm papéis diferentes** (critério 107.6). Status, autor, carimbo e motivo ficam em meta,
+ * peso médio. A observação é a única prosa livre da prova — é onde está o porquê — e sai em corpo, peso
+ * normal, com as quebras de quem escreveu e a medida de 68 caracteres (critério 107.5), como a mesma frase
+ * já sai na linha do tempo.
  */
-function Campo({ nome, children }: { nome: string; children: React.ReactNode }) {
+function Campo({
+  nome,
+  prosa = false,
+  children,
+}: {
+  nome: string;
+  prosa?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="text-tinta-suave text-meta flex flex-wrap items-baseline gap-x-1.5">
-      {nome}: <span className="text-tinta font-medium">{children}</span>
-    </span>
+    <div className="flex flex-col gap-0.5 sm:grid sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-baseline sm:gap-x-3">
+      <dt className="text-rotulo-coluna text-tinta-suave font-mono uppercase">{nome}</dt>
+      <dd className={prosa ? "text-tinta text-corpo max-w-[68ch] whitespace-pre-line" : "text-tinta text-meta font-medium"}>
+        {children}
+      </dd>
+    </div>
   );
 }
 

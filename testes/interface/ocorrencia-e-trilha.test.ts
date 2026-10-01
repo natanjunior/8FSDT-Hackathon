@@ -168,3 +168,25 @@ describe("item 107 · Analisar confirma (critério 107.4)", () => {
     expect(ler("src/interface/componentes/barra-de-acoes.tsx")).not.toContain("`analisar` é botão nu");
   });
 });
+
+describe("item 107 · a trilha (critérios 107.3, 107.5 e 107.6)", () => {
+  const trilha = () => ler("app/(casca)/ocorrencias/[ocorrenciaId]/auditoria/page.tsx");
+
+  it("cada registro é uma lista de definição, com o nome em rótulo de coluna e sem dois-pontos", () => {
+    const fonte = trilha();
+    expect(fonte).toContain("<dl ");
+    expect(fonte).toContain('<dt className="text-rotulo-coluna text-tinta-suave font-mono uppercase">');
+    expect(fonte).toContain("sm:grid-cols-[7.5rem_minmax(0,1fr)]");
+    expect(fonte).not.toContain("{nome}:");
+    // O comentário que justificava a caixa baixa saiu junto (critério 107.3).
+    expect(fonte).not.toContain("Em minúscula");
+  });
+
+  it("a observação é prosa: corpo, peso normal, quebras preservadas e 68 caracteres", () => {
+    const fonte = trilha();
+    expect(fonte).toContain('<Campo nome="observação" prosa>');
+    expect(fonte).toContain('"text-tinta text-corpo max-w-[68ch] whitespace-pre-line"');
+    // Dado curto continua em meta e médio (critério 107.6).
+    expect(fonte).toContain('"text-tinta text-meta font-medium"');
+  });
+});
