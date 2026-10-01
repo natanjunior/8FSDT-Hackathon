@@ -634,6 +634,17 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(tabela).toContain("<ContatoPorIcone");
     expect(tabela).not.toContain("maisContatos");
   });
+
+  it("o travessão de sem contato tem nome, e o recuo é só de quem tem botão (critério 106.14)", () => {
+    const contato = ler("src/interface/componentes/contato-por-icone.tsx");
+    expect(contato).toContain('<span aria-hidden="true" className="text-tinta-suave">');
+    expect(contato).toContain('<span className="sr-only">{TEXTOS_DA_TABELA.semContato}</span>');
+    expect(ler("src/interface/componentes/frases-de-participantes.ts")).toContain(
+      'semContato: "sem contato cadastrado"',
+    );
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).not.toContain('<div className="-ml-3">');
+  });
 });
 
 /**
@@ -826,6 +837,12 @@ describe("o alcance do 44k — as duas listas de ordem manual", () => {
     const crus = ALCANCE_DO_44K.filter((caminho) => /<input/u.test(ler(caminho)));
     expect(crus).toStrictEqual(["src/interface/componentes/icone-de-categoria.tsx"]);
   });
+
+  it("o seletor de ícone diz o escolhido e não explica a regra de design (critério 106.18)", () => {
+    const icone = ler("src/interface/componentes/icone-de-categoria.tsx");
+    expect(icone).toContain("Escolhido: <strong");
+    expect(icone).not.toMatch(/<\/strong>\.\s*O ícone fica/u);
+  });
 });
 
 const ALCANCE_DO_44L = [
@@ -965,6 +982,33 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     ].map((marca) => fonte.indexOf(marca));
     expect(posicoes.every((posicao) => posicao !== -1)).toBe(true);
     expect([...posicoes].sort((a, b) => a - b)).toStrictEqual(posicoes);
+  });
+
+  it("o controle de foto fica inerte durante o envio, como o seletor de área (critério 106.6)", () => {
+    expect(ler("src/interface/componentes/formulario-de-ocorrencia.tsx")).toMatch(
+      /<ControleDeFoto[^>]*\binerte=\{enviando\}/u,
+    );
+    // A entrada de arquivo, o alvo grande e os dois botões de ícone.
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle.match(/disabled=\{inerte\}/gu) ?? []).toHaveLength(4);
+  });
+
+  it("o alvo da foto encolhe a partir de lg e diz que é opcional (critério 106.8)", () => {
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle).toMatch(/\bborder-dashed py-7 lg:py-4\b/u);
+    expect(controle).toContain("{FOTO.vazioOpcional}");
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain('vazioOpcional: "(opcional)"');
+  });
+
+  it("o campo de busca do painel de área tem nome acessível (critério 106.7)", () => {
+    // Pelo `label` do `Command`, e não `aria-label` no campo: o `cmdk` impõe `aria-labelledby` ao campo,
+    // apontando para o rótulo dele, que fica vazio sem `label` (o precedente é `modal-de-atribuicao.tsx`).
+    const seletor = ler("src/interface/componentes/seletor-de-area.tsx");
+    expect(seletor).toMatch(/<Command\b[^>]*\blabel=\{AREA\.nomeDaBusca\}/u);
+    expect(seletor).not.toMatch(/<CommandInput[^>]*\baria-label=/u);
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain(
+      'nomeDaBusca: "Buscar área pelo nome"',
+    );
   });
 
   it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
@@ -1638,6 +1682,22 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain("<SelectItem");
   });
 
+  it("todo gatilho de seleção reage à passagem do ponteiro, e o da organização tem borda (critério 106.10)", () => {
+    // Ancorada na string do gatilho, que começa em `flex w-fit`: outra string adiante não pode responder.
+    expect(ler("src/interface/componentes/ui/select.tsx")).toMatch(
+      /data-slot="select-trigger"[\s\S]*?"flex w-fit [^"]*\bhover:bg-accent(?![-\w])/u,
+    );
+    expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toMatch(/\bborder-0\b/u);
+  });
+
+  it("a seta de ordenação aparece a 40% em repouso (critério 106.11)", () => {
+    const cabeca = ler("src/interface/componentes/cabeca-que-ordena.tsx");
+    expect(cabeca).toMatch(
+      /<ArrowUpDown[\s\S]*?className="[^"]*\bopacity-40\b[^"]*\bgroup-hover:opacity-100\b[^"]*\bgroup-has-focus-visible:opacity-100\b/u,
+    );
+    expect(cabeca).not.toMatch(/\bopacity-0\b/u);
+  });
+
   it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
     const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
 
@@ -2170,6 +2230,18 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     );
   });
 
+  it("a página de registrar tem caminho no topo, em toda face (critério 106.5)", () => {
+    const nova = ler("app/(foco)/ocorrencias/nova/page.tsx");
+    expect(nova).toContain('anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }}');
+    expect(nova).toContain('atual="Registrar ocorrência"');
+    // O caminho está nas faces que a página tem hoje, o vazio de configuração e o formulário, pelo
+    // `cabecalho` que as duas usam. É constante própria para a face do QR não encontrado, que o item 111
+    // acrescenta sem o cabeçalho de *Registrar ocorrência*, poder levar só ela.
+    expect(nova).toMatch(/const cabecalho = \(\s*<>\s*\{caminho\}/u);
+    expect(nova.match(/\{cabecalho\}/gu) ?? []).toHaveLength(2);
+    expect(ler("app/(foco)/ocorrencias/nova/loading.tsx")).toContain("-mb-2.5 flex h-11 items-center");
+  });
+
   it("o aviso de avaliação é a faixa do catálogo, e avaliar sai da barra (critérios 66.4 e 66.5)", () => {
     expect(existsSync(`${RAIZ}src/interface/componentes/ui/alert.tsx`)).toBe(true);
     const aviso = ler("src/interface/componentes/aviso-de-avaliacao.tsx");
@@ -2208,6 +2280,13 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(foto).not.toMatch(/<img[\s>]/u);
     // G7 do guia: nenhum controle cru fora de `ui/` — o gatilho é o `Button` do catálogo.
     expect(foto).not.toMatch(/<button(\s|>|$)/mu);
+  });
+
+  it("a miniatura pinta uma camada só, e o original fica para o diálogo (critério 106.2)", () => {
+    const foto = ler("src/interface/componentes/foto-ampliavel.tsx");
+    expect(foto).toContain("backgroundImage: `url(${miniaturaUrl ?? url})`");
+    // Duas camadas fazem o navegador buscar as duas, e a de cima cobre a de baixo (A-052).
+    expect(foto).not.toMatch(/url\(\$\{url\}\),\s*url\(/u);
   });
 
   const ARQUIVOS_DO_66 = [
@@ -2500,6 +2579,20 @@ describe("o alcance do 91 — os 44 px", () => {
     const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(moldura)?.[1] ?? "";
     expect(classe.split(" ")).toContain("min-w-11");
     expect(classe.split(" ")).toContain("justify-center");
+  });
+
+  it("redefinir senha com sessão volta para Meus dados e já traz o e-mail (critério 106.12)", () => {
+    const pagina = ler("app/redefinir-senha/page.tsx");
+    expect(pagina).toContain('"/meus-dados"');
+    expect(pagina).toContain("Voltar para Meus dados");
+    expect(pagina).toContain("Voltar para entrar");
+    expect(pagina).toContain("emailInicial=");
+    // Uma saída só, com o destino escolhido: a contagem de `CLASSE_DO_CAMINHO` das telas de conta não muda.
+    expect(pagina.match(/CLASSE_DO_CAMINHO\}/gu) ?? []).toHaveLength(1);
+    expect(ler("src/interface/componentes/formulario-de-redefinicao.tsx")).toContain(
+      "defaultValue={emailInicial ?? undefined}",
+    );
+    expect(ler("app/(casca)/meus-dados/page.tsx")).toContain("Receber link para trocar a senha");
   });
 
   it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {

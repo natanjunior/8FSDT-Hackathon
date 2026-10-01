@@ -22,6 +22,11 @@ import { cn } from "@/interface/componentes/utilitarios";
  * **Consumidores:** a barra superior, a moldura das telas fora da casca (três vezes) e a página do grupo.
  * Duas marcas diferentes para o mesmo produto é o defeito que este arquivo existe para impedir.
  *
+ * **A marca pinta cedo** (item 106, critério 4). Ela é o primeiro elemento de toda tela, e o padrão do
+ * `next/image` é carregamento adiado. `priority` está descontinuado no Next 16, e `preload` é
+ * desaconselhado quando a candidata muda com a largura da tela, que é o caso da barra: uma das duas
+ * imagens está sempre em `display: none`. Fica `loading="eager"` nas três.
+ *
  * **Componente de servidor.**
  */
 export function MarcaDoProduto({
@@ -39,6 +44,7 @@ export function MarcaDoProduto({
           alt="Resolve Aí"
           width={1412}
           height={1240}
+          loading="eager"
           className="h-5 w-auto md:hidden"
         />
         <Image
@@ -46,6 +52,7 @@ export function MarcaDoProduto({
           alt="Resolve Aí"
           width={3732}
           height={900}
+          loading="eager"
           className="hidden h-5 w-auto md:block"
         />
       </span>
@@ -58,6 +65,7 @@ export function MarcaDoProduto({
       alt="Resolve Aí"
       width={3732}
       height={900}
+      loading="eager"
       className={cn("h-8 w-auto", className)}
     />
   );

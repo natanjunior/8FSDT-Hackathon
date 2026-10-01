@@ -31,7 +31,7 @@ import type { OcorrenciaResumoProjetada } from "@/interface/projecoes";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const navegacao = vi.hoisted(() => ({ pendente: false }));
+const navegacao = vi.hoisted(() => ({ pendente: false, pedidas: [] as string[] }));
 
 vi.mock("next/link", async () => {
   const { createElement: criar } = await import("react");
@@ -42,7 +42,12 @@ vi.mock("next/link", async () => {
 });
 
 vi.mock("@/interface/componentes/navegacao-da-lista", () => ({
-  useNavegacaoDaLista: () => ({ navegar: () => undefined, pendente: navegacao.pendente }),
+  useNavegacaoDaLista: () => ({
+    navegar: (proximos: URLSearchParams) => {
+      navegacao.pedidas.push(proximos.toString());
+    },
+    pendente: navegacao.pendente,
+  }),
 }));
 
 /** A raiz sai de `dirname`, e não de `new URL`: o motivo está em `titulo-e-fronteira.test.ts:27-32`. */
@@ -57,6 +62,7 @@ let raiz: Root;
 
 beforeEach(() => {
   navegacao.pendente = false;
+  navegacao.pedidas = [];
   conteiner = document.createElement("div");
   document.body.appendChild(conteiner);
   raiz = createRoot(conteiner);
@@ -249,5 +255,26 @@ describe("o esqueleto tem a forma do que vai chegar — critérios 102.10 e 102.
 
     expect(celular?.className).toContain("lg:hidden");
     expect(celular?.children).toHaveLength(5);
+  });
+});
+
+describe("a lista é de servidor, e só a cabeça que ordena é cliente — critério 106.1", () => {
+  it("o arquivo da lista não pede o cliente, e a cabeça da lista pede", () => {
+    const lista = ler("src/interface/componentes/lista-de-ocorrencias.tsx");
+    expect(lista.startsWith('"use client"')).toBe(false);
+    expect(lista).not.toContain("useNavegacaoDaLista");
+    expect(ler("src/interface/componentes/cabeca-da-lista.tsx").startsWith('"use client";')).toBe(true);
+  });
+
+  it("clicar no cabeçalho ainda navega pela URL", async () => {
+    await desenharLista([item({})]);
+    const botao = conteiner.querySelector<HTMLButtonElement>("thead button");
+    expect(botao).not.toBeNull();
+
+    await act(async () => {
+      botao?.click();
+    });
+
+    expect(navegacao.pedidas).toHaveLength(1);
   });
 });

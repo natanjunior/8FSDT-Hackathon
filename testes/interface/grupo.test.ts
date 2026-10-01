@@ -158,7 +158,7 @@ describe("a barra lateral — critérios 70.5, 70.7, 76.1 e 76.2", () => {
     const grupo = pe.indexOf('endereco="/grupo"');
     expect(documentacao).toBeGreaterThan(0);
     expect(grupo).toBeGreaterThan(documentacao);
-    expect(pe).toContain('rotulo="Grupo 1"');
+    expect(pe).toContain('rotulo="Sobre o projeto"');
     expect(pe).toContain('rotulo="Documentação"');
     expect(pe).toMatch(/target="_blank"\s+rel="noreferrer"/u);
     expect(pe).toContain("onClick={aoTocar}");

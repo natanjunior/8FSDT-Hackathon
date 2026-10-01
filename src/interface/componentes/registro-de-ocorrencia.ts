@@ -228,6 +228,7 @@ export const DESCARTE = {
 
 export const FOTO = {
   vazioTitulo: "Adicionar foto",
+  vazioOpcional: "(opcional)",
   vazioApoio: "Tire na hora ou escolha da galeria.",
   preparando: "Preparando a foto…",
   subindoTitulo: "Enviando a foto",
@@ -265,6 +266,11 @@ export const AREA = {
   gatilhoVazio: "Busque ou escolha",
   tituloDoPainel: "Onde aconteceu?",
   busca: "Buscar pelo nome",
+  /**
+   * O nome do campo de busca (critério 106.7): o `placeholder` some quando a pessoa digita, e o nome
+   * não pode sumir junto.
+   */
+  nomeDaBusca: "Buscar área pelo nome",
   usadas: "Usadas por você",
   todas: "Todas as áreas",
   semResultado: "Nenhuma área com esse nome.",

@@ -69,8 +69,7 @@ import { SEM_TRANSBORDO, transbordo } from "./transbordo";
  * este teste afirma: a página não muda de endereço e `GET /vinculos` continua com dois contatos.
  *
  * **3 · O rodapé do seletor de ícone diz *"Escolhido:"*, e não *"Ícone:"*.** O passo 8 escreve a segunda
- * forma. A frase do produto nomeia o rótulo do desenho e continua com *"O ícone fica ao lado do nome,
- * nunca no lugar dele"*, que é o compromisso A-5 escrito onde a escolha acontece.
+ * forma. A frase do produto nomeia o rótulo do desenho.
  *
  * ---------------------------------------------------------------------------
  *  O que ele NÃO prova, e cada linha tem dono

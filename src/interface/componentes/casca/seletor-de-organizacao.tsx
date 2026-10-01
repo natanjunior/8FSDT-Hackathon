@@ -76,8 +76,10 @@ export function SeletorDeOrganizacao({
         aria-label="Organização"
         aria-busy={emVoo}
         aria-disabled={emVoo}
-        // Durante o voo a seta do catálogo — o último `svg` do gatilho — dá lugar ao indicador.
-        className={cn("min-h-11 max-w-[14rem] border-0 shadow-none", emVoo && "[&>svg:last-child]:hidden")}
+        // Durante o voo a seta do catálogo — o último `svg` do gatilho — dá lugar ao indicador. **Com a
+        // borda em repouso** (item 106, critério 10): sem ela, nada dizia que o nome da organização é um
+        // controle.
+        className={cn("min-h-11 max-w-[14rem] shadow-none", emVoo && "[&>svg:last-child]:hidden")}
       >
         <SelectValue />
         <IndicadorDeEnvio ativo={emVoo} />

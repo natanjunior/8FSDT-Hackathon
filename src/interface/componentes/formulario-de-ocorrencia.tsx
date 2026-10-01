@@ -365,6 +365,7 @@ export function FormularioDeOcorrencia({
             aoMudar={setAnexo}
             erro={erroDaFoto}
             organizacaoId={organizacaoId}
+            inerte={enviando}
           />
 
           <Campo

@@ -256,7 +256,8 @@ export function TabelaDeParticipantes({
                         <p className="text-meta text-tinta-suave">
                           {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
                         </p>
-                        <div className="-ml-3">
+                        {/* O recuo alinha o ícone de 44 px ao texto; sem botão, o traço já está alinhado. */}
+                        <div className={linha.telefones.length + linha.emails.length > 0 ? "-ml-3" : undefined}>
                           <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                         </div>
                         {linha.atualizadoTexto !== null && (

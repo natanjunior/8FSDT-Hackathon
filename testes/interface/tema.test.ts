@@ -344,6 +344,33 @@ function contraste(uma: Lab, outra: Lab): number {
   return (clara + 0.05) / (escura + 0.05);
 }
 
+/**
+ * A cor de um token num modo, resolvendo `var(--x)` no mesmo modo e caindo no claro quando o modo não o
+ * redeclara, que é a cascata. A mesma regra do `cor` do item 44q, de nível de arquivo (item 106).
+ */
+function corDoModo(cabecalho: string): (token: string) => Lab {
+  const claro = tokensDe(corpoDoBloco(":root {"));
+  const bloco = tokensDe(corpoDoBloco(cabecalho));
+  const cor = (token: string): Lab => {
+    const valor = bloco.get(token) ?? claro.get(token);
+    if (valor === undefined) throw new Error(`${token} não está declarado em ${cabecalho}`);
+    const apelido = /^var\((--[\w-]+)\)$/u.exec(valor);
+    return apelido?.[1] !== undefined ? cor(apelido[1]) : oklabDe(valor);
+  };
+  return cor;
+}
+
+const TRES_MODOS = [":root {", ':root[data-theme="dark"]', ':root[data-contraste="alto"]'] as const;
+
+describe("a régua do item marcado mede contra a barra — critério 106.9", () => {
+  // A régua encosta em dois fundos: o da barra, de um lado, e o do próprio item marcado, do outro.
+  it.each(TRES_MODOS)("%s: --accent passa 3:1 sobre --sidebar e sobre --sidebar-accent", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--accent"), cor("--sidebar"))).toBeGreaterThanOrEqual(3);
+    expect(contraste(cor("--accent"), cor("--sidebar-accent"))).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("app/globals.css — a paleta categórica de T-07, medida", () => {
   const SERIES = ["--chart-1", "--chart-2", "--chart-3", "--chart-4"] as const;
 
@@ -919,5 +946,23 @@ describe("o texto veste tinta que passa — item 89", () => {
     // Utilitário que o Tailwind não gera falha calado: o texto herda a cor do pai.
     const tema = tokensDe(corpoDoBloco("@theme inline {"));
     expect(tema.get("--color-tinta-marca")).toBe("var(--accent-ink)");
+  });
+});
+
+describe("as superfícies do navegador recebem o tema — critério 106.15", () => {
+  it("color-scheme é light no claro e dark nos dois escuros", () => {
+    expect(corpoDoBloco(":root {")).toMatch(/(^|;|\s)color-scheme:\s*light\s*;/u);
+    expect(corpoDoBloco(':root:not([data-theme="light"])')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+    expect(corpoDoBloco(':root[data-theme="dark"]')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+  });
+
+  it("a seleção usa o fundo azulado e a tinta, e o cursor de digitação a cor do foco", () => {
+    expect(CSS).toMatch(/::selection\s*\{[^}]*background-color:\s*var\(--accent-bg\)[^}]*color:\s*var\(--ink\)/u);
+    expect(CSS).toMatch(/caret-color:\s*var\(--accent\)/u);
+  });
+
+  it.each(TRES_MODOS)("%s: a tinta passa 4,5:1 sobre o fundo da seleção", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--ink"), cor("--accent-bg"))).toBeGreaterThanOrEqual(4.5);
   });
 });

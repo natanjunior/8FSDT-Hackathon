@@ -644,6 +644,43 @@ describe("as consultas de configuração não atravessam organizações", () => 
   });
 
   /**
+   * **A contagem de `/configuracao`** (critério 106.3). Ela não devolve linhas, então não cabe em
+   * `casosDeIsolamento`: a prova é que o número de cada organização é o tamanho da lista dela, que as
+   * duas entradas acima já provam escopada. Com o escopo furado, a contagem de A somaria a linha de B.
+   */
+  it("a contagem de categorias e de áreas é a da própria organização", async () => {
+    // **Assimétrico de propósito:** uma categoria inativa a mais, só em Aurora. Com uma categoria em cada
+    // organização, uma contagem lida da organização errada daria o mesmo número e passaria. A entrada
+    // semeia só o seu agregado, e inativa não aparece no `GET /categorias` das entradas acima.
+    // Antes e depois, e não números absolutos: outros blocos deste arquivo podem semear nas mesmas
+    // organizações.
+    const recantoAntes = await categoriasEm(idRecanto).contar();
+    const auroraAntes = await categoriasEm(idAurora).contar();
+    await consulta(
+      `insert into categorias (organizacao_id, nome, icone, ordem, ativa) values ($1, $2, 'tag', 99, false)`,
+      [idAurora, "Arquivada da Aurora"],
+    );
+    expect(await categoriasEm(idRecanto).contar()).toStrictEqual(recantoAntes);
+    expect(await categoriasEm(idAurora).contar()).toStrictEqual({
+      ativas: auroraAntes.ativas,
+      total: auroraAntes.total + 1,
+    });
+
+    for (const organizacaoId of [idRecanto, idAurora]) {
+      const categorias = await categoriasEm(organizacaoId).listar({ apenasAtivas: false });
+      expect(await categoriasEm(organizacaoId).contar()).toStrictEqual({
+        ativas: categorias.filter((c) => c.ativa).length,
+        total: categorias.length,
+      });
+      const areas = await areasEm(organizacaoId).listar({ apenasAtivas: false });
+      expect(await areasEm(organizacaoId).contar()).toStrictEqual({
+        ativas: areas.filter((a) => a.ativa).length,
+        total: areas.length,
+      });
+    }
+  });
+
+  /**
    * **A terceira consulta escopada desta suíte, e a primeira que não é de configuração.** Ela declara
    * `chaveDaLinha` pelo `id` do pedido, e não pelo nome da pessoa: é a **mesma** Pessoa nas duas
    * organizações, que é exatamente o cenário que detecta o vazamento.

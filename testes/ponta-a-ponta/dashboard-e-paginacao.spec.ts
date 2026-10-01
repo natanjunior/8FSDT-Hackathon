@@ -833,7 +833,7 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
   expect(await corpoDaBarra.evaluate((elemento) => elemento.scrollWidth - elemento.clientWidth)).toBe(0);
 
   // **Critério 76.2 — o grupo e a documentação moram no pé da barra**, num marco próprio.
-  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Grupo 1/u });
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Sobre o projeto/u });
   await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
   const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
   await grupoComSessao.waitForURL(/\/grupo$/u);

@@ -152,6 +152,7 @@ export const TEXTOS_DA_TABELA = {
   atualizacao: "Última atualização",
   atualizadoEm: "Atualizado em",
   semAlteracao: "sem alteração registrada",
+  semContato: "sem contato cadastrado",
   acoes: "Ações",
   seloDePedido: "pedido de entrada",
   seloSemConta: "sem conta",

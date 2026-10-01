@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Badge } from "@/interface/componentes/ui/badge";
 import {
@@ -18,21 +16,13 @@ import { cn } from "@/interface/componentes/utilitarios";
 import { segundaLinhaDeMotivo } from "@/interface/projecoes";
 import type { OcorrenciaResumoProjetada, PaginaDeOcorrenciasProjetada } from "@/interface/projecoes";
 
-import { CabecaQueOrdena } from "./cabeca-que-ordena";
+import { CabecaDaLista } from "./cabeca-da-lista";
 import { dataEHora } from "./datas";
 import { FichaDeLocal } from "./ficha-de-local";
 import { FichaDePessoa } from "./ficha-de-pessoa";
 import { IconeDeCategoria } from "./icone-de-categoria";
 import { ACIMA_DA_CAMADA, CAMADA_DO_TITULO, LINHA_CLICAVEL } from "./linha-clicavel";
-import { useNavegacaoDaLista } from "./navegacao-da-lista";
-import {
-  ariaSortNaLista,
-  consultaComOrdenacao,
-  lerOrdenacaoDaLista,
-  proximaNaLista,
-  rotuloNaLista,
-  type ColunaDaLista,
-} from "./ordenacao-das-ocorrencias";
+import type { ColunaDaLista } from "./ordenacao-das-ocorrencias";
 import { CELULA } from "./pecas-da-tabela";
 import { fraseDaParada, rotuloDePrioridade } from "./rotulos";
 import { SeloDeNaoVista } from "./selo-de-nao-vista";
@@ -113,6 +103,11 @@ function encerrada(status: string): boolean {
  * **só desenho** — recebe uma página inteira e a pinta, sem estado e sem `fetch`. O controle numerado, a
  * linha de deriva e o estado de *página além do fim* nasceram no item 44c, em peças próprias: aqui ficam
  * só as linhas.
+ * **Desde o item 106 ele é componente de servidor** (critério 106.1): o código dele deixa de ir para o
+ * pacote de JavaScript do navegador. O clique de ordenar é a única ilha, em `cabeca-da-lista.tsx`, e o
+ * cartão de tempo monta o `HoverCard` do catálogo, que já é ilha por conta própria. **O HTML ainda leva as
+ * duas formas**, porque a troca é por CSS: uma marcação só é o segundo passo do A-046, que este item não
+ * faz.
  *
  * **A ocorrência deixou de ser caixa e virou linha** — item 44c, guia §1: *"onde a tentação for pôr uma
  * caixa, ponha uma pauta"*. Quem desenha a borda, o raio e a sombra é o `CartaoDaLista`, que envolve
@@ -377,23 +372,12 @@ function TabelaDeTriagem({
   mostrarParada: boolean;
   agora: number;
 }) {
-  const { navegar } = useNavegacaoDaLista();
-  const ordem = lerOrdenacaoDaLista(new URLSearchParams(consultaAtual));
-
-  /**
-   * **Ordenar é navegação com `push`, e tira a página** — conjunto novo, corte novo. O estado vive na
-   * URL, como os filtros: um cabeçalho que guardasse ordem em estado local perderia a ordem no *Voltar*
-   * do navegador e a esconderia de quem copia o endereço.
-   */
   function cabeca(coluna: ColunaDaLista, rotulo: string, largura?: string) {
     return (
-      <CabecaQueOrdena
-        sentido={ariaSortNaLista(ordem, coluna)}
+      <CabecaDaLista
+        coluna={coluna}
         rotulo={rotulo}
-        nomeAcessivel={rotuloNaLista(ordem, coluna, rotulo)}
-        aoClicar={() => {
-          navegar(consultaComOrdenacao(consultaAtual, proximaNaLista(ordem, coluna)));
-        }}
+        consultaAtual={consultaAtual}
         {...(largura === undefined ? {} : { largura })}
       />
     );

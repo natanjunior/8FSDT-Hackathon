@@ -164,11 +164,12 @@ export function SeletorDeIcone({
           célula a célula, e A-6 proíbe que isso viva num tooltip.
 
           **Sem texto de reserva escrito à mão:** `valor` é `NomeDeIcone`, então o `find` acha sempre, e
-          repetir *"Etiqueta"* aqui criaria uma segunda fonte para um rótulo que já mora na constante. */}
+          repetir *"Etiqueta"* aqui criaria uma segunda fonte para um rótulo que já mora na constante.
+          **Só o escolhido** (item 106, critério 18): a frase que enunciava o compromisso A-5 saiu. A regra
+          é de quem desenha a tela, e quem usa a tela já a vê cumprida. */}
       {escolhido !== undefined && (
         <p className="text-tinta-suave text-meta">
-          Escolhido: <strong className="text-tinta font-medium">{escolhido.rotulo}</strong>. O ícone fica
-          ao lado do nome, nunca no lugar dele.
+          Escolhido: <strong className="text-tinta font-medium">{escolhido.rotulo}</strong>.
         </p>
       )}
     </GrupoDeEscolha>

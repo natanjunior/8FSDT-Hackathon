@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas, listarCategorias } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { DepoisDeRegistrar } from "@/interface/componentes/depois-de-registrar";
 import { FormularioDeOcorrencia } from "@/interface/componentes/formulario-de-ocorrencia";
 import {
@@ -78,12 +79,25 @@ export default async function RegistrarOcorrencia() {
   if (ativo === null) redirect("/organizacao");
 
   /**
+   * **O caminho no topo, em toda face** (critério 106.5): era a única página-formulário sem ele, e no
+   * celular a tela não tinha um único link. É a forma de um nível das duas páginas de participante.
+   * Constante própria porque a face do QR não encontrado, que o item 111 acrescenta, leva o caminho e não
+   * leva o cabeçalho.
+   */
+  const caminho = (
+    <CaminhoDaPagina anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }} atual="Registrar ocorrência" />
+  );
+
+  /**
    * **O subtítulo repete a organização, e T-04 é a única tela que faz isso.** No celular o seletor da
    * barra superior corta o nome, e registrar na organização errada é o erro que aquela barra existe para
    * evitar.
    */
   const cabecalho = (
-    <CabecalhoDaPagina titulo="Registrar ocorrência" fato={`Em ${ativo.organizacao.nome}.`} />
+    <>
+      {caminho}
+      <CabecalhoDaPagina titulo="Registrar ocorrência" fato={`Em ${ativo.organizacao.nome}.`} />
+    </>
   );
 
   const faltando: FaltaNoRegistro[] = [
