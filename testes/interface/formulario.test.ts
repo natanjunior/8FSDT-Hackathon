@@ -2170,6 +2170,18 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     );
   });
 
+  it("a página de registrar tem caminho no topo, em toda face (critério 106.5)", () => {
+    const nova = ler("app/(foco)/ocorrencias/nova/page.tsx");
+    expect(nova).toContain('anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }}');
+    expect(nova).toContain('atual="Registrar ocorrência"');
+    // O caminho está nas faces que a página tem hoje, o vazio de configuração e o formulário, pelo
+    // `cabecalho` que as duas usam. É constante própria para a face do QR não encontrado, que o item 111
+    // acrescenta sem o cabeçalho de *Registrar ocorrência*, poder levar só ela.
+    expect(nova).toMatch(/const cabecalho = \(\s*<>\s*\{caminho\}/u);
+    expect(nova.match(/\{cabecalho\}/gu) ?? []).toHaveLength(2);
+    expect(ler("app/(foco)/ocorrencias/nova/loading.tsx")).toContain("-mb-2.5 flex h-11 items-center");
+  });
+
   it("o aviso de avaliação é a faixa do catálogo, e avaliar sai da barra (critérios 66.4 e 66.5)", () => {
     expect(existsSync(`${RAIZ}src/interface/componentes/ui/alert.tsx`)).toBe(true);
     const aviso = ler("src/interface/componentes/aviso-de-avaliacao.tsx");
