@@ -37,6 +37,10 @@ function AvatarImage({
   )
 }
 
+/**
+ * **Neutro, no cromo** (item 105): as iniciais não precisam da cor da marca, e a ficha traz o nome ao
+ * lado. O laranja fica para a ação.
+ */
 function AvatarFallback({
   className,
   ...props
@@ -45,7 +49,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-marca text-rotulo-peca text-marca-foreground",
+        "flex size-full items-center justify-center rounded-full bg-secondary text-rotulo-peca text-tinta",
         className
       )}
       {...props}

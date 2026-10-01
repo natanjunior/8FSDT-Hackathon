@@ -1828,8 +1828,8 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
     expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
-    // A tinta do avatar é a da marca desde o item 64; o papel da escala é o que esta guarda afirma.
-    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-marca-foreground");
+    // A tinta do avatar é a tinta cheia desde o item 105; o papel da escala é o que esta guarda afirma.
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
     expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
   });
 
@@ -2120,19 +2120,21 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain("LayoutGrid");
   });
 
-  it("todo avatar é laranja, pela peça base, e ninguém a repinta de neutro (troca 12)", () => {
+  it("todo avatar é neutro, pela peça base, e ninguém o repinta (troca 12, desfeita no item 105)", () => {
+    // O dono decidiu em 23/09 o avatar laranja em todo lugar; o critério 105.3 o devolveu ao neutro,
+    // medido: onze círculos laranja na tela da ocorrência competiam com a ação principal.
     const base = ler("src/interface/componentes/ui/avatar.tsx");
-    expect(base).toContain("rounded-full bg-marca text-rotulo-peca text-marca-foreground");
-    expect(base).not.toContain("bg-muted text-rotulo-peca text-tinta");
-    // Nenhum chamador devolve o avatar ao neutro por classe. A página do grupo (item 70) é a exceção
-    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70, não repintura.
+    expect(base).toContain("rounded-full bg-secondary text-rotulo-peca text-tinta");
+    expect(base).not.toMatch(/AvatarFallback[\s\S]*?bg-marca[\s\S]*?function AvatarBadge/u);
+    // Nenhum chamador repinta o avatar por classe. A página do grupo (item 70) é a exceção
+    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70.
     const repintados = [...arquivosDe("src"), ...arquivosDe("app")].filter(
       (caminho) =>
         !caminho.endsWith("cartao-de-integrante.tsx") && /<AvatarFallback[^>]*className=/u.test(ler(caminho)),
     );
     expect(repintados).toStrictEqual([]);
-    // O portão de estilo mede a mesma tinta.
-    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--marca-foreground\)"/u);
+    // O portão de estilo mede a mesma tinta e o mesmo fundo.
+    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--ink\)"/u);
   });
 
   it("a tela de áreas monta o fato a partir da frase que o teste protege (troca 15)", () => {
