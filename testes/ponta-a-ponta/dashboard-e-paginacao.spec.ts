@@ -285,11 +285,17 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     await expect(painelDoPeriodo.getByRole("button", { name: atalho, exact: true })).toBeVisible();
   }
   await expect(painelDoPeriodo.getByRole("button", { name: "Aplicar", exact: true })).toBeVisible();
-  // No recorte padrão o atalho dos 90 dias não tem o que fazer, e por isso está desabilitado e fora da
-  // ordem de tabulação (critério 71.2). É o herdeiro direto da asserção que provava que ele não era link.
-  await expect(
-    painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }),
-  ).toBeDisabled();
+  // No recorte padrão o atalho dos 90 dias é o aplicado: marcado, e não desabilitado (item 110,
+  // critério 5, que substituiu o "apagado" do 71.2). Reclicá-lo só fecha o calendário, e o endereço não
+  // ganha `de` nem `ate`, como o bloco depois do Escape confere.
+  const noventa = painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true });
+  await expect(noventa).toBeEnabled();
+  await expect(noventa).toHaveAttribute("aria-current", "true");
+  for (const outro of ["últimos 7 dias", "últimos 30 dias", "este mês"]) {
+    await expect(
+      painelDoPeriodo.getByRole("button", { name: outro, exact: true }),
+    ).not.toHaveAttribute("aria-current");
+  }
 
   // Fechar sem aplicar não escreve no endereço: o recorte continua o padrão, sem `de` e sem `ate`.
   await helena.keyboard.press("Escape");
@@ -297,6 +303,14 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   const semRecorte = new URL(helena.url()).searchParams;
   expect(semRecorte.has("de")).toBe(false);
   expect(semRecorte.has("ate")).toBe(false);
+
+  // Reclicar o atalho aplicado fecha o calendário e não escreve no endereço (item 110, critério 5).
+  await seletorDePeriodo.click();
+  await painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }).click();
+  await expect(painelDoPeriodo).toBeHidden();
+  const depoisDeReclicar = new URL(helena.url()).searchParams;
+  expect(depoisDeReclicar.has("de")).toBe(false);
+  expect(depoisDeReclicar.has("ate")).toBe(false);
 
   // **O recibo do período** (critério 103.2). Com a resposta retida, o atalho apertado fica ocupado, o
   // popover continua aberto e o conteúdo recua; quando os números chegam, o popover fecha e o recuo sai.

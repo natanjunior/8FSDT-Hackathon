@@ -2417,8 +2417,10 @@ describe("o alcance do 71 — o seletor de faixa de datas", () => {
     expect(fonte).toContain("aria-label={nomeDaFaixa(periodo)}");
     expect(fonte).toContain("{rotuloDaFaixa(periodo)}");
     expect(fonte).toContain("disabled={!completa}");
-    // O atalho igual ao recorte não é alvo de toque que não faz nada.
-    expect(fonte).toContain("disabled={ehAFaixaAplicada(periodo, atalhos[chave])}");
+    // O atalho igual ao recorte aparece marcado e continua clicável (item 110, critério 5, que
+    // substituiu o "apagado" do 71.2): cinza sem clique lia-se como indisponível.
+    expect(fonte).toContain('aria-current={aplicado ? "true" : undefined}');
+    expect(fonte).not.toContain("disabled={ehAFaixaAplicada(");
     expect(fonte).not.toContain("atalhoCorrente");
   });
 
