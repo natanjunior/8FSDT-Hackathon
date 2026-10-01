@@ -43,6 +43,25 @@ export function generateStaticParams() {
 }
 
 /**
+ * **Endereço fora da lista é 404, e não página renderizada com status 200.**
+ *
+ * Medido em 01/10/2026, quando o `verificar:site` acusou o controle negativo:
+ * `/documentacao/pagina-que-nao-existe` devolvia **200** com o corpo da tela *"Página não encontrada"*.
+ * O `notFound()` acima rodava e a tela certa aparecia — o que não vinha era o status, porque com
+ * `dynamicParams` no padrão (`true`) a rota aceita qualquer slug e renderiza sob demanda, e nessa rota o
+ * resultado era servido como 200.
+ *
+ * O estrago não é de tela: **um link quebrado para dentro da documentação deixaria de ser detectável**.
+ * Rastreador, leitor de tela e o nosso próprio verificador leem o status, não o texto — e foi exatamente
+ * esse o controle que o `site.mjs` existe para exercer.
+ *
+ * Com `false`, só os endereços de `generateStaticParams` existem; qualquer outro cai no 404 do Next,
+ * antes de a rota rodar. É o que a documentação permite afirmar, porque ela é inteira conhecida em tempo
+ * de build — é a mesma razão que faz esta rota sobreviver ao `output: "standalone"`.
+ */
+export const dynamicParams = false;
+
+/**
  * O título da aba é o `title` do frontmatter, sob o modelo `"%s · Resolve Aí"` do layout raiz (item 90).
  *
  * **A porta de entrada é a exceção.** O `title` dela é o próprio nome do produto (item 109), e o modelo
