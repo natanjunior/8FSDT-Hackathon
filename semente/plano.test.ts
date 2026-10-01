@@ -525,3 +525,21 @@ describe("a ocorrência parada da demonstração — item 101, critério 7", () 
     expect(semMensagem).toStrictEqual([]);
   });
 });
+
+describe("a tela de Participantes da demonstração não abre com duas colunas vazias — critério 106.13", () => {
+  const plano = planoDaDemonstracao(new Date("2026-10-01T12:00:00Z"));
+  const daA = plano.vinculos.filter((v) => v.organizacao === "a" && v.como === "cadastro");
+
+  it("três pessoas de A têm contato, e uma continua sem contato e sem atualização", () => {
+    expect(daA.filter((v) => (v.contatos ?? []).length > 0)).toHaveLength(3);
+    // A tela também precisa mostrar o estado vazio das duas colunas (spec §3.13).
+    expect(daA.some((v) => (v.contatos ?? []).length === 0 && v.unidadeDepois !== true)).toBe(true);
+  });
+
+  it("duas pessoas de A têm a unidade corrigida depois de criadas, o que move o relógio", () => {
+    const corrigidas = daA.filter((v) => v.unidadeDepois === true);
+    expect(corrigidas).toHaveLength(2);
+    // Corrigir é pôr a unidade do plano: só faz sentido em quem tem unidade.
+    for (const vinculo of corrigidas) expect(vinculo.area).not.toBeNull();
+  });
+});

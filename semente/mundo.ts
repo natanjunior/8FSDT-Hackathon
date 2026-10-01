@@ -18,6 +18,7 @@ import {
 import {
   aprovarPedidoDeEntrada,
   cadastrarVinculo,
+  corrigirVinculo,
   criarArea,
   criarOrganizacao,
   listarAreas,
@@ -308,10 +309,22 @@ export async function semear(
     const cadastrado = await cadastrarVinculo(portasDe(vinculo.organizacao).vinculos, {
       nome: pessoa.nome,
       papel: vinculo.papel,
-      areaId: vinculo.area === null ? null : exigirArea(vinculo.organizacao, vinculo.area),
-      contatos: [],
+      areaId:
+        vinculo.area === null || vinculo.unidadeDepois === true
+          ? null
+          : exigirArea(vinculo.organizacao, vinculo.area),
+      contatos: vinculo.contatos ?? [],
     });
     pessoas.set(vinculo.pessoa, cadastrado.pessoa.pessoaId);
+
+    // **A segunda escrita, pelo comando** (critério 106.13): a unidade chega depois, e o relógio de
+    // atualização do vínculo anda. Só `contatos` não moveria nada (A-68b-6), e `INSERT` cru é proibido.
+    if (vinculo.unidadeDepois === true && vinculo.area !== null) {
+      await corrigirVinculo(portasDe(vinculo.organizacao).vinculos, {
+        pessoaId: cadastrado.pessoa.pessoaId,
+        areaId: exigirArea(vinculo.organizacao, vinculo.area),
+      });
+    }
   }
 
   const idDePessoa = (chave: string): string => {

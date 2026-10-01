@@ -13,6 +13,7 @@
  * `import type` é apagado na compilação, então o arquivo continua puro e continua rodando no laço curto.
  */
 
+import type { ContatoParaEscrita } from "@/aplicacao/organizacao";
 import type {
   MotivoCancelamento,
   MotivoPausa,
@@ -266,6 +267,18 @@ export type VinculoDoPlano = {
    * segundo vínculo (achado B-01 do backlog): `POST /vinculos` sempre cria Pessoa nova.
    */
   readonly como: "fundacao" | "cadastro" | "pedido";
+  /**
+   * Os contatos com que o vínculo nasce (item 106, critério 13). Ausente é *nenhum*, e é a maioria: a tela
+   * de Participantes precisa mostrar também o estado vazio.
+   */
+  readonly contatos?: readonly ContatoParaEscrita[];
+  /**
+   * **O vínculo nasce sem unidade e a recebe numa segunda escrita**, pelo comando de correção. É o único
+   * jeito de a coluna *Última atualização* ter data na demonstração: o relógio é carimbo de gatilho e só
+   * anda numa alteração em outra transação (item 68b). A unidade final é a de `area`, então o mundo
+   * termina igual.
+   */
+  readonly unidadeDepois?: true;
 };
 
 export type PassoDoRoteiro =
@@ -363,10 +376,28 @@ const VINCULOS: readonly VinculoDoPlano[] = [
   // **A Persona 1B, construída pelo único caminho que o produto tem.** Helena pede entrada em B com o
   // código público de B, e Marcos aprova como `solicitante`. Nenhum INSERT em `vinculos`.
   { pessoa: "helena", organizacao: "b", papel: "solicitante", area: null, como: "pedido" },
+  // **Beatriz fica sem contato e sem atualização** (critério 106.13): a tela também mostra o vazio.
   { pessoa: "beatriz", organizacao: "a", papel: "encarregado", area: null, como: "cadastro" },
-  { pessoa: "rafael", organizacao: "a", papel: "encarregado", area: null, como: "cadastro" },
-  { pessoa: "claudia", organizacao: "a", papel: "solicitante", area: "Apartamento 101", como: "cadastro" },
-  { pessoa: "jorge", organizacao: "a", papel: "solicitante", area: "Apartamento 302", como: "cadastro" },
+  {
+    pessoa: "rafael", organizacao: "a", papel: "encarregado", area: null, como: "cadastro",
+    contatos: [
+      { tipo: "telefone", valor: "+5511987650202", finalidade: "trabalho", temWhatsapp: true, observacao: null },
+    ],
+  },
+  {
+    pessoa: "claudia", organizacao: "a", papel: "solicitante", area: "Apartamento 101", como: "cadastro",
+    unidadeDepois: true,
+    contatos: [
+      { tipo: "email", valor: "claudia.meireles@example.com", finalidade: "pessoal", temWhatsapp: false, observacao: null },
+    ],
+  },
+  {
+    pessoa: "jorge", organizacao: "a", papel: "solicitante", area: "Apartamento 302", como: "cadastro",
+    unidadeDepois: true,
+    contatos: [
+      { tipo: "telefone", valor: "+5511987650303", finalidade: "pessoal", temWhatsapp: false, observacao: null },
+    ],
+  },
   { pessoa: "sonia", organizacao: "b", papel: "encarregado", area: null, como: "cadastro" },
   { pessoa: "diego", organizacao: "b", papel: "solicitante", area: "Sala 405", como: "cadastro" },
 ];
