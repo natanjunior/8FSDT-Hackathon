@@ -1494,6 +1494,24 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain("<Plus aria-hidden");
   });
 
+  it("no vazio, só o convite do centro é laranja, e ele não repete o Limpar da barra (critério 102.7)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx").replace(/\r\n/gu, "\n");
+
+    // O esconder é CSS sobre uma marca do vazio: o cabeçalho continua fora da fronteira de espera (14.7).
+    expect(fonte).toContain("group/pagina");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:invisible");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:hidden");
+    expect(fonte).toContain("data-vazio");
+
+    // Os dois botões de página com o ícone, como o do vazio: o `+` de texto saiu dos três.
+    expect([...fonte.matchAll(/<Plus aria-hidden="true" \/>/gu)]).toHaveLength(3);
+    expect(fonte).not.toMatch(/>\s*\+ Registrar/u);
+
+    // O vazio não oferece Limpar filtros: a faixa acima dele já oferece.
+    const vazio = fonte.slice(fonte.indexOf("function Vazio("), fonte.indexOf("function AlemDoFim("));
+    expect(vazio).not.toContain("Limpar filtros");
+  });
+
   it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
     // D3: a organização é condomínio, empresa **ou bairro**. É a terceira vez que a mesma correção se
     // aplica — a prancheta de Áreas e a coluna esquerda de T-01 do 44m foram as outras duas.
@@ -1933,12 +1951,11 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
     const registrar = conteudo.indexOf('href="/ocorrencias/nova"');
     const conferir = conteudo.indexOf('href="/configuracao/areas"');
-    // **O destino de *Limpar filtros* virou expressão no item 67**: ele mantém a ordem escolhida, então
-    // o endereço carrega a consulta sem os sete recortes, em vez do caminho limpo.
+    // **O vazio não oferece mais *Limpar filtros*** (item 102, critério 7): a faixa acima dele oferece.
     const limpar = conteudo.search(/href=\{`\/ocorrencias\?\$\{semFiltros/u);
     expect(registrar).toBeGreaterThan(-1);
     expect(registrar).toBeLessThan(conferir);
-    expect(registrar).toBeLessThan(limpar);
+    expect(limpar).toBe(-1);
 
     // A cor de cada um: o bloco de registrar em marca, os dois outros em contorno.
     expect(conteudo.slice(registrar, conferir)).toContain('variant: "marca"');

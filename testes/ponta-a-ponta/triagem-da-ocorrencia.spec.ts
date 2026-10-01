@@ -203,7 +203,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await helena.getByRole("button", { name: AURORA }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
 
-  await helena.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  await helena.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await helena.waitForURL(/\/ocorrencias\/nova$/u);
 
   // Os dois blocos, cada um uma seção com o próprio título — é o que faz quem navega por regiões achar
@@ -440,7 +440,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Categoria", exact: true })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Prioridade", exact: true })).toBeVisible();
-  await expect(marcos.getByRole("link", { name: "+ Registrar ocorrência" })).toBeVisible();
+  await expect(marcos.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u })).toBeVisible();
   cobre(test.info(), "4.2 · 10", {
     falta: "as três novas no topo da lista, com status Aberta e sem responsável",
   });

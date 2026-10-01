@@ -161,7 +161,9 @@ export async function registrarOcorrencia(
   titulo: string,
   descricao: string,
 ): Promise<string> {
-  await pagina.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  // **O nome perdeu o `+`** (item 102): o sinal virou ícone `aria-hidden`. A expressão casa o botão do
+  // cabeçalho na lista e o convite do centro no vazio, onde o do cabeçalho fica invisível.
+  await pagina.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await pagina.waitForURL(/\/ocorrencias\/nova$/u);
   await pagina.getByLabel("Título").fill(titulo);
   await pagina.getByLabel("Descrição").fill(descricao);

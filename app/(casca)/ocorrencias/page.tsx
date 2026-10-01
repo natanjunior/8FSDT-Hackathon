@@ -225,7 +225,7 @@ export default async function Ocorrencias({
     <NavegacaoDaLista>
       {/* **O respiro da barra fixa do celular.** Ela tem `py-3` mais um alvo de 44 px, e sem isto encobre
           o pé do cartão, onde a paginação mora. É o mesmo defeito que o critério 44d.1 conserta em T-05. */}
-      <div className="flex flex-col gap-6 pb-20 md:pb-0">
+      <div className="group/pagina flex flex-col gap-6 pb-20 md:pb-0">
         {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
             casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
             visível — só que uma vez, e não copiado em cada tela.
@@ -253,15 +253,21 @@ export default async function Ocorrencias({
               contagens={paginaPedida.then((pagina) => pagina.contagens)}
             />
 
+            {/* **No vazio ele fica invisível e guarda o lugar** (critério 102.7): o convite do centro é a
+                ação da tela, e duas ações em laranja dizem que nenhuma é a principal. `invisible`, e não
+                `hidden`, para o seletor de recorte não pular quando a lista chega vazia. Quem esconde é o
+                CSS (`:has()` sobre `data-vazio`), e não a consulta: o cabeçalho continua fora da fronteira
+                de espera (critério 14.7). */}
             {podeRegistrar && (
               <Link
                 href="/ocorrencias/nova"
                 className={cn(
                   buttonVariants({ variant: "marca" }),
-                  "hidden min-h-11 w-fit shrink-0 items-center rounded-sm px-4 text-interface md:inline-flex",
+                  "hidden min-h-11 w-fit shrink-0 items-center gap-2 rounded-sm px-4 text-interface md:inline-flex group-has-[[data-vazio]]/pagina:invisible",
                 )}
               >
-                + Registrar ocorrência
+                <Plus aria-hidden="true" />
+                Registrar ocorrência
               </Link>
             )}
           </div>
@@ -291,17 +297,19 @@ export default async function Ocorrencias({
 
         {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
             some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
-            reaproveitar quando a barra de filtros nascer. */}
+            reaproveitar quando a barra de filtros nascer. **No vazio ela sai de fato** (critério 102.7):
+            o convite do centro já é a ação, e o que sobraria aqui seria uma faixa vazia sobre o conteúdo. */}
         {podeRegistrar && (
-          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
+          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden group-has-[[data-vazio]]/pagina:hidden">
             <Link
               href="/ocorrencias/nova"
               className={cn(
                 buttonVariants({ variant: "marca" }),
-                "flex min-h-11 w-full items-center justify-center text-interface",
+                "flex min-h-11 w-full items-center justify-center gap-2 text-interface",
               )}
             >
-              + Registrar ocorrência
+              <Plus aria-hidden="true" />
+              Registrar ocorrência
             </Link>
           </div>
         )}
@@ -506,7 +514,6 @@ async function Lista({
             nomeDaOrganizacao={nomeDaOrganizacao}
             nomesDoRecorte={nomesDoRecorte}
             diasParaParada={diasParaParada}
-            consultaAtual={consultaAtual}
             podeRegistrar={podeRegistrar}
             podeConfigurar={podeConfigurar}
           />
@@ -569,7 +576,6 @@ function Vazio({
   nomeDaOrganizacao,
   nomesDoRecorte,
   diasParaParada,
-  consultaAtual,
   podeRegistrar,
   podeConfigurar,
 }: {
@@ -583,14 +589,13 @@ function Vazio({
   };
   /** Os dias da organização, ou `null` para quem não lê configuração — item 101. */
   diasParaParada: number | null;
-  consultaAtual: string;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
 }) {
   const texto = TEXTO_DO_VAZIO[tipo];
 
   return (
-    <Empty className="md:p-10">
+    <Empty data-vazio="" className="md:p-10">
       <EmptyHeader>
         <EmptyTitle className="text-titulo-bloco text-tinta">{texto.titulo}</EmptyTitle>
         {texto.corpo !== null && (
@@ -616,7 +621,10 @@ function Vazio({
           o 64 o convite principal do primeiro vazio era *Conferir as áreas*, porque a organização nasce com
           áreas-semente genéricas e é isso que primeiro quebra o registro do Solicitante. Ele continua
           oferecido, ao lado e em contorno: o dono decidiu a hierarquia pela ação da tela. Abaixo de `sm`
-          os dois empilham, principal em cima, na largura cheia. */}
+          os dois empilham, principal em cima, na largura cheia.
+
+          **O vazio de filtro não oferece a limpeza dos filtros** (critério 102.7): a faixa logo acima oferece,
+          a barra para quem tem `ler_todas` e a linha solta para quem chegou por link filtrado. */}
       <EmptyContent className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
         {podeRegistrar && (
           <Link
@@ -633,15 +641,6 @@ function Vazio({
             className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
           >
             Conferir as áreas
-          </Link>
-        )}
-        {/* **Limpar filtros mantém a ordem escolhida** (item 67), como o da barra. */}
-        {tipo === "filtro" && (
-          <Link
-            href={`/ocorrencias?${semFiltros(consultaAtual).toString()}`}
-            className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
-          >
-            Limpar filtros
           </Link>
         )}
       </EmptyContent>
