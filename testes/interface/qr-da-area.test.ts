@@ -280,6 +280,32 @@ describe("o registro com ?area=, na fonte (critérios 7 e 7b)", () => {
   });
 });
 
+describe("o QR da área para quem configura — critério 1 na fonte", () => {
+  const PAGINA = "app/(casca)/configuracao/areas/[areaId]/qr/page.tsx";
+
+  it("exige organizacao.configurar, e o QR só existe depois da recusa", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain('resolverEscopoParaTela("organizacao.configurar")');
+    expect(fonte).toContain('permissao="organizacao.configurar"');
+    const recusa = fonte.indexOf("<SemAcesso");
+    expect(fonte.indexOf("montarLinkDoQrDaArea(")).toBeGreaterThan(recusa);
+    expect(fonte.indexOf("<QrDoLink")).toBeGreaterThan(recusa);
+  });
+
+  it("lê pela porta escopada, com inativas, e área de fora é 404", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain("listarAreas(escopo.repos.areas, { incluirInativas: true })");
+    expect(fonte).toContain("notFound()");
+  });
+
+  it("cada linha da tabela de áreas leva ao QR, e a de categorias não", () => {
+    const tabela = ler("src/interface/componentes/tabela-de-areas.tsx");
+    expect(tabela).toContain("acaoExtra=");
+    expect(tabela).toContain("/configuracao/areas/${area.id}/qr");
+    expect(ler("src/interface/componentes/tabela-de-categorias.tsx")).not.toContain("acaoExtra");
+  });
+});
+
 describe("o critério 6, na fonte", () => {
   it("as listas fechadas do lint não ganharam linha", () => {
     const lint = ler("eslint.config.mjs");

@@ -97,6 +97,7 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
   resumoNoCelular,
   acaoDeEditar,
   acaoDeSituacao,
+  acaoExtra,
 }: {
   readonly lista: Lista;
   /** A lista inteira da organização, ativas e inativas, na ordem do Gestor. */
@@ -112,6 +113,8 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
   readonly resumoNoCelular: (item: T) => string;
   readonly acaoDeEditar: (item: T, idDoNome: string) => ReactNode;
   readonly acaoDeSituacao: (item: T, idDoNome: string, ehUltimaAtiva: boolean) => ReactNode;
+  /** Só T-14 (item 111): uma ação a mais, antes de *Editar*. O QR da área. */
+  readonly acaoExtra?: (item: T, idDoNome: string) => ReactNode;
 }): ReactElement {
   const textos = TEXTOS_DA_LISTA[lista];
   const prefixo = useId();
@@ -314,6 +317,7 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
                             rotulos={{ subir: TEXTOS_DA_TABELA.subir, descer: TEXTOS_DA_TABELA.descer }}
                             aoMover={ordem.mover}
                           />
+                          {acaoExtra?.(item, idDoNome)}
                           {acaoDeEditar(item, idDoNome)}
                           {acaoDeSituacao(item, idDoNome, ehUltimaAtiva)}
                         </span>

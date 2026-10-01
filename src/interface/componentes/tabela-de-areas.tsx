@@ -1,5 +1,8 @@
 "use client";
 
+import { QrCode } from "lucide-react";
+
+import { LinkDeIcone } from "@/interface/componentes/botao-de-icone";
 import {
   LEGENDA_DOS_TIPOS,
   TEXTOS_DA_TABELA,
@@ -51,6 +54,14 @@ export function TabelaDeAreas({
       resumoNoCelular={(area) =>
         `${rotuloDoTipo(area.tipo)} · ${area.ativa ? TEXTOS_DA_TABELA.ativa : TEXTOS_DA_TABELA.inativa}`
       }
+      acaoExtra={(area, idDoNome) => (
+        <LinkDeIcone
+          href={`/configuracao/areas/${area.id}/qr`}
+          rotulo="QR da área"
+          icone={<QrCode aria-hidden="true" />}
+          descritoPor={idDoNome}
+        />
+      )}
       acaoDeEditar={(area, idDoNome) => (
         <ModalDeArea
           modo="editar"
