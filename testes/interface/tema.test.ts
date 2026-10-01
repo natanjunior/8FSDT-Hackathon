@@ -948,3 +948,21 @@ describe("o texto veste tinta que passa — item 89", () => {
     expect(tema.get("--color-tinta-marca")).toBe("var(--accent-ink)");
   });
 });
+
+describe("as superfícies do navegador recebem o tema — critério 106.15", () => {
+  it("color-scheme é light no claro e dark nos dois escuros", () => {
+    expect(corpoDoBloco(":root {")).toMatch(/(^|;|\s)color-scheme:\s*light\s*;/u);
+    expect(corpoDoBloco(':root:not([data-theme="light"])')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+    expect(corpoDoBloco(':root[data-theme="dark"]')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+  });
+
+  it("a seleção usa o fundo azulado e a tinta, e o cursor de digitação a cor do foco", () => {
+    expect(CSS).toMatch(/::selection\s*\{[^}]*background-color:\s*var\(--accent-bg\)[^}]*color:\s*var\(--ink\)/u);
+    expect(CSS).toMatch(/caret-color:\s*var\(--accent\)/u);
+  });
+
+  it.each(TRES_MODOS)("%s: a tinta passa 4,5:1 sobre o fundo da seleção", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--ink"), cor("--accent-bg"))).toBeGreaterThanOrEqual(4.5);
+  });
+});
