@@ -233,7 +233,7 @@ export function acaoPrimaria(
  *  O que vai na barra e o que vai no menu — a regra do item 23
  * ============================================================================
  *
- * **Três renderizáveis ou mais → primário + *"Mais ações ▾"*; dois → dois botões.**
+ * **Três renderizáveis ou mais → primário + *"Mais ações"*; dois → dois botões.**
  *
  * **Não é contagem por gosto: é a largura.** Com três em 390 px, o mínimo de conteúdo soma **~365 px**
  * contra **~358 px** disponíveis — *"Iniciar atendimento"* (~178) + *"Atribuir"* (~87) + *"Pausar"*

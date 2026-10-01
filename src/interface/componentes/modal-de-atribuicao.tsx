@@ -102,7 +102,7 @@ export function ModalDeAtribuicao({
   organizacaoId: string;
   /**
    * **Três variantes desde o item 23:** `"menu"` renderiza o gatilho como `DropdownMenuItem`, porque
-   * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações ▾"*.
+   * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações"*.
    * Botão nu dentro do `DropdownMenuContent` é ARIA inválida e o menu perde a navegação por setas.
    */
   variante: "primario" | "secundario" | "menu";

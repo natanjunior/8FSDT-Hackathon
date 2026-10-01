@@ -363,7 +363,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect(helena.getByRole("button", { name: "Analisar" })).toHaveCount(0);
   await expect(helena.getByRole("button", { name: "Atribuir" })).toHaveCount(0);
-  await expect(helena.getByRole("button", { name: "Mais ações ▾" })).toHaveCount(0);
+  await expect(helena.getByRole("button", { name: "Mais ações", exact: true })).toHaveCount(0);
 
   // **A prioridade é a mesma linha com e sem o controle** (item 44p, critério 20): rótulo, valor, e nenhum
   // seletor — o Solicitante não tem `ocorrencia.alterar_prioridade` em desenho de papel nenhum.
@@ -612,7 +612,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByLabel(/^Escrever para o Solicitante/u)).toBeVisible();
 
   await expect(marcos.getByRole("button", { name: "Analisar" })).toBeVisible();
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Atribuir" })).toBeVisible();
   await expect(marcos.getByRole("menuitem", { name: "Cancelar" })).toBeVisible();
   await marcos.keyboard.press("Escape");
@@ -652,7 +652,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(seletorDePrioridade).toHaveText("Alta");
   await expect(desfazer(marcos)).toHaveCount(0);
   await expect(marcos.getByRole("button", { name: "Analisar" })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Mais ações ▾" })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Mais ações", exact: true })).toBeVisible();
   cobre(test.info(), "4.3 · 20", { criterio: "17.4" });
 
   // 11.2 · A linha nomeia os DOIS valores, e sobrevive ao repinte e a cinco segundos.
@@ -759,7 +759,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
 
   await expect(marcos.getByRole("button", { name: "Atribuir" })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toHaveCount(0);
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Pausar" })).toBeVisible();
   await expect(marcos.getByRole("menuitem", { name: "Cancelar" })).toBeVisible();
   await marcos.keyboard.press("Escape");
@@ -908,7 +908,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **A palavra sai do ESTADO, não da intenção de quem clica** — há responsável, então o menu diz
   // *Reatribuir*. E *Iniciar atendimento* passou a existir.
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toBeVisible();
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Reatribuir" })).toBeVisible();
   await marcos.keyboard.press("Escape");
   await expect(marcos.getByRole("menu")).toHaveCount(0);

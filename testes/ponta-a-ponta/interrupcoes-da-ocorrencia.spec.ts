@@ -178,7 +178,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   //
   // **O comando mora no menu, e isso é a conta de largura do item 23:** com quatro renderizáveis em
   // `em_atendimento` — *Reatribuir*, *Pausar*, *Resolver* e *Cancelar* — a barra guarda o destaque e
-  // manda o resto para *"Mais ações ▾"*.
+  // manda o resto para *"Mais ações"*.
   //
   // **A obrigatoriedade é afirmada pelo caminho que o produto tem hoje** — ver a divergência declarada no
   // cabeçalho. Clicar em *Pausar* com o formulário vazio **não envia**, mantém o diálogo aberto e acende

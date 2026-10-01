@@ -196,14 +196,14 @@ export async function analisar(pagina: Page, observacao?: string): Promise<void>
 }
 
 /**
- * Abre um comando que mora no menu *"Mais ações ▾"* da barra (item 23).
+ * Abre um comando que mora no menu *"Mais ações"* da barra (item 23).
  *
  * **O gatilho lá dentro é `menuitem`, e não `button`** — `ModalDeMotivo` e `ModalDeAtribuicao` trocam a
  * forma do gatilho pela variante `"menu"`, para o diálogo poder viver dentro do menu sem ser desmontado
  * no clique.
  */
 export async function abrirNoMenu(pagina: Page, rotulo: string): Promise<Locator> {
-  await pagina.getByRole("button", { name: "Mais ações ▾" }).click();
+  await pagina.getByRole("button", { name: "Mais ações", exact: true }).click();
   await pagina.getByRole("menuitem", { name: rotulo }).click();
   return pagina.getByRole("dialog");
 }

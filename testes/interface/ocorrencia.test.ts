@@ -2961,7 +2961,7 @@ describe("acoesDaBarra — o menu nasce no terceiro renderizável, e a conta é 
 
   it("pausada com TRÊS converge para o protótipo — Retomar em destaque, os outros dois no menu", () => {
     // **É a barra que o item 18 produz**, e é a conferência da §3.13 contra o protótipo
-    // (`telas.html:2236-2237` e `:2639-2641`): *Retomar* + *Mais ações ▾* no celular, e
+    // (`telas.html:2236-2237` e `:2639-2641`): *Retomar* + *Mais ações* no celular, e
     // *Retomar · Reatribuir · Cancelar* na tela grande.
     expect(
       acoesDaBarra("pausada", ["atribuir-responsavel", "retomar", "cancelar"]),

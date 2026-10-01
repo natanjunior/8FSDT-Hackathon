@@ -399,7 +399,7 @@ export default async function Ocorrencia({
    * `variant` do botão dentro da barra. Elas concordavam por sorte. Agora as duas leem o mesmo valor, e a
    * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos. `acaoPrimaria`
    * continua sendo a dona da tabela `ACAO_PRIMARIA`; `acoesDaBarra` a chama e acrescenta a conta de
-   * largura — **três renderizáveis ou mais → primário + *"Mais ações ▾"*** (item 23).
+   * largura — **três renderizáveis ou mais → primário + *"Mais ações"*** (item 23).
    *
    * **O R-08 morde aqui, e agora tem estado real que o prova:** em `em_analise` **sem** responsável,
    * `pausar` é permitido pela máquina de estados, e a derivação por `transicaoPermitida` — que o item
@@ -888,7 +888,7 @@ export default async function Ocorrencia({
               </h2>
             </FaixaDoCartao>
             <CorpoDoCartao>
-              <p className="text-tinta-suave text-corpo whitespace-pre-line">
+              <p className="text-tinta-suave text-corpo max-w-[68ch] whitespace-pre-line">
                 {detalhe.descricao}
               </p>
 
@@ -925,7 +925,7 @@ export default async function Ocorrencia({
                   </h2>
                 </FaixaDoCartao>
                 <CorpoDoCartao>
-                  <p className="text-tinta-suave text-corpo whitespace-pre-line">
+                  <p className="text-tinta-suave text-corpo max-w-[68ch] whitespace-pre-line">
                     {detalhe.solucaoAplicada}
                   </p>
                 </CorpoDoCartao>
@@ -1133,7 +1133,12 @@ async function TituloDaLinhaDoTempo({ eventos }: { eventos: Promise<readonly Eve
   const quantos = (await eventos).length;
   return (
     <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-      Linha do tempo <span className="text-tinta-suave">{quantos}</span>
+      {/* **O formato das mensagens, no cartão vizinho** (critério 107.7): o `·` é mudo, e o nome acessível
+          continua *"Linha do tempo 2"* — *Linha do tempo*, espaço, *2* —, que é o que o ponta a ponta afirma.
+          Sem o ponto, o número lia como numeração de seção. */}
+      Linha do tempo{" "}
+      <span aria-hidden="true">· </span>
+      <span className="text-tinta-suave">{quantos}</span>
     </h2>
   );
 }

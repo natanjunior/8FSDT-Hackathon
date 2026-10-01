@@ -190,3 +190,28 @@ describe("item 107 · a trilha (critérios 107.3, 107.5 e 107.6)", () => {
     expect(fonte).toContain('"text-tinta text-meta font-medium"');
   });
 });
+
+describe("item 107 · medida, contagem e ícone (critérios 107.5, 107.7 e 107.8)", () => {
+  const pagina = () => ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+
+  it("o relato e a solução aplicada têm medida de leitura", () => {
+    const fonte = pagina();
+    expect(fonte).toMatch(/max-w-\[68ch\] whitespace-pre-line">\s*\{detalhe\.descricao\}/u);
+    expect(fonte).toMatch(/max-w-\[68ch\] whitespace-pre-line">\s*\{detalhe\.solucaoAplicada\}/u);
+  });
+
+  it("a contagem da linha do tempo usa o separador mudo das mensagens", () => {
+    const fonte = pagina();
+    const inicio = fonte.indexOf("async function TituloDaLinhaDoTempo");
+    const titulo = fonte.slice(inicio, fonte.indexOf("</h2>", inicio));
+    expect(titulo).toContain('Linha do tempo{" "}');
+    expect(titulo).toContain('<span aria-hidden="true">· </span>');
+  });
+
+  it("Mais ações leva o ChevronDown, que gira quando o menu abre, e nenhum glifo", () => {
+    const barra = ler("src/interface/componentes/barra-de-acoes.tsx");
+    expect(barra).not.toContain("▾");
+    expect(barra).toContain("<ChevronDown");
+    expect(barra).toContain("group-data-[state=open]:rotate-180");
+  });
+});
