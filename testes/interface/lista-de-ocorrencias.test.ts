@@ -3,11 +3,12 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, type ComponentProps, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
+import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
 import { ListaDeOcorrencias, ParDeDatas } from "@/interface/componentes/lista-de-ocorrencias";
 import type { OcorrenciaResumoProjetada } from "@/interface/projecoes";
 
@@ -192,7 +193,9 @@ describe("a tabela: o motivo desce, as colunas têm teto, e ela nasce em lg — 
 
 describe("a espera vale para todo mundo, e não depende de movimento — critério 102.8", () => {
   function cartao(faixa: ReactElement | undefined): void {
-    desenhar(createElement(CartaoDaLista, { faixa, children: createElement("p", null, "a lista") }));
+    // O `children` vai como argumento, como o lint pede; a conversão é só para o tipo, que o exige nas props.
+    const props = { faixa } as ComponentProps<typeof CartaoDaLista>;
+    desenhar(createElement(CartaoDaLista, props, createElement("p", null, "a lista")));
   }
 
   it("com espera, o cartão diz Atualizando a lista…, com e sem barra de filtros", () => {
@@ -226,5 +229,25 @@ describe("a espera vale para todo mundo, e não depende de movimento — critér
 
   it("a barra de filtros não tem mais a frase própria", () => {
     expect(ler("src/interface/componentes/barra-de-filtros.tsx")).not.toContain("Atualizando a lista");
+  });
+});
+
+describe("o esqueleto tem a forma do que vai chegar — critérios 102.10 e 102.12", () => {
+  it("a partir de lg: cabeçalho e uma linha por item da página, cada uma com seis colunas", () => {
+    desenhar(createElement(EsqueletoDaLista, { linhas: 20 }));
+    const tabela = conteiner.querySelector("[data-esqueleto-tabela]");
+
+    expect(tabela?.className).toContain("hidden");
+    expect(tabela?.className).toContain("lg:block");
+    expect(tabela?.children).toHaveLength(21);
+    for (const linha of Array.from(tabela?.children ?? [])) expect(linha.children).toHaveLength(6);
+  });
+
+  it("abaixo de lg, os cinco blocos de hoje", () => {
+    desenhar(createElement(EsqueletoDaLista, { linhas: 20 }));
+    const celular = conteiner.querySelector("[data-esqueleto-celular]");
+
+    expect(celular?.className).toContain("lg:hidden");
+    expect(celular?.children).toHaveLength(5);
   });
 });

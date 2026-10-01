@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
+  LIMITE_PADRAO,
   listarOcorrencias,
   PAGINA_MAXIMA,
   type FiltroDeOcorrencias,
@@ -273,7 +274,7 @@ export default async function Ocorrencias({
           </div>
         </header>
 
-        <Suspense fallback={<EsqueletoDaLista />}>
+        <Suspense fallback={<EsqueletoDaLista linhas={LIMITE_PADRAO} />}>
           <Lista
             pagina={paginaPedida}
             categorias={categoriasPedidas}
