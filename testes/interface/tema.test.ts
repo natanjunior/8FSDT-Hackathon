@@ -479,6 +479,12 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
         }
       });
 
+      it("o cromo da opção marcada é o fundo afundado, e por isso o texto sobre ele já está medido (item 104)", () => {
+        // A opção marcada do filtro rápido veste `bg-secondary`, que é `--chrome`. Todo texto é medido sobre `--sunken`, e os dois
+        // são o mesmo valor nos dois modos; se um dia divergirem, esta guarda manda medir o cromo.
+        expect(hexDe(cor("--chrome"))).toBe(hexDe(cor("--sunken")));
+      });
+
       it("o texto de sucesso, de informação e o neutro passam em qualquer dos três fundos", () => {
         for (const token of ["--ok", "--info", "--ink-soft"]) {
           expect(piorFundo(cor(token)), token).toBeGreaterThanOrEqual(4.5);

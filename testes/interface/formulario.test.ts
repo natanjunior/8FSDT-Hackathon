@@ -1571,6 +1571,20 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(foto).not.toMatch(/\brounded-md\b/u);
   });
 
+  it("o filtro rápido não é caixa: régua embaixo, e a marcada em cromo (critério 104.9)", async () => {
+    const { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } = await import("@/interface/componentes/filtro-rapido");
+    expect(CAIXA_DO_FILTRO).not.toMatch(/\bbg-muted\b|\brounded-md\b|\bp-\[3px\]/u);
+    expect(CAIXA_DO_FILTRO).toMatch(/\bborder-b\b/u);
+    // A raiz do `ToggleGroup` traz `rounded-md` na base (`ui/toggle-group.tsx:39`); sem anular, a régua
+    // de baixo curvaria nas pontas.
+    expect(CAIXA_DO_FILTRO).toMatch(/\brounded-none\b/u);
+    expect(OPCAO_DO_FILTRO).toContain("data-[state=on]:bg-secondary");
+    expect(OPCAO_DO_FILTRO).not.toContain("data-[state=on]:shadow-sm");
+    expect(OPCAO_DO_FILTRO).toContain("group/opcao");
+    expect(CONTAGEM_DO_FILTRO).toContain("bg-secondary");
+    expect(CONTAGEM_DO_FILTRO).toContain("group-data-[state=on]/opcao:bg-background");
+  });
+
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
     const fonte = ler("app/(casca)/ocorrencias/page.tsx");
 

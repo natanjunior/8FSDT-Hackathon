@@ -27,6 +27,7 @@ import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { EmptyTitle } from "@/interface/componentes/ui/empty";
+import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
@@ -139,15 +140,36 @@ const PECAS = [
     esperado: { "border-top-left-radius": "6px", "padding-left": "13px", "min-height": "44px" },
   },
   {
+    id: "aba-marcada",
+    // Item 104, critério 9: a marcada veste o cromo, sem sombra.
+    html: () => `<button data-state="on" class="${OPCAO_DO_FILTRO}">Minhas ocorrências</button>`,
+    esperado: { "background-color": "token(--chrome)", "font-weight": "600", "box-shadow": "none" },
+  },
+  {
     id: "caixa-das-abas",
-    html: () => div(CAIXA_DO_FILTRO),
-    esperado: { "border-top-left-radius": "8px", "padding-top": "3px", gap: "3px" },
+    // Item 104, critério 9: sem caixa. Mede a raiz do primitivo, com a base dele, e não só a constante.
+    html: () =>
+      renderToStaticMarkup(
+        h(ToggleGroup, { type: "single", className: CAIXA_DO_FILTRO }, h(ToggleGroupItem, { value: "todas", className: OPCAO_DO_FILTRO }, "Todas")),
+      ),
+    seletor: "[data-slot=toggle-group]",
+    esperado: {
+      "border-top-left-radius": "0px",
+      "padding-top": "0px",
+      "border-bottom-width": "1px",
+      "background-color": "rgba(0, 0, 0, 0)",
+    },
   },
   {
     id: "contagem",
     html: () => `<span class="${CONTAGEM_DO_FILTRO}">12</span>`,
-    // (d): 11,5 e não 11 — o oitavo papel.
-    esperado: { "font-size": "11.5px", "padding-top": "1px", "padding-left": "7px" },
+    // (d): 11,5 e não 11 — o oitavo papel. Item 104: sobre o chão, a pílula veste o cromo.
+    esperado: {
+      "font-size": "11.5px",
+      "padding-top": "1px",
+      "padding-left": "7px",
+      "background-color": "token(--chrome)",
+    },
   },
   {
     id: "contagem-de-nao-vistas",
