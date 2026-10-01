@@ -133,7 +133,7 @@ export function SeletorDePeriodo({
           type="button"
           variant="outline"
           aria-label={nomeDaFaixa(periodo)}
-          className="border-linha bg-superficie text-tinta text-interface min-h-11 justify-start gap-2 px-3 font-mono font-normal"
+          className="border-linha text-tinta text-interface min-h-11 justify-start gap-2 px-3 font-mono font-normal"
         >
           <CalendarRange aria-hidden="true" className="size-[15px] shrink-0" />
           {rotuloDaFaixa(periodo)}

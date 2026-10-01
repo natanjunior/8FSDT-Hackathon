@@ -1523,6 +1523,27 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(ler("src/interface/componentes/lista-de-ordem-manual.tsx")).toMatch(/<EmptyTitle asChild[^>]*>\s*<h3>/u);
   });
 
+  it("o controle de contorno usa o fundo do chão, o raio de controle e um botão de limpar só (critérios 104.5, 104.7 e 104.11)", () => {
+    const barra = ler("src/interface/componentes/barra-de-filtros.tsx");
+    const chip = /function chip\([\s\S]*?\n\}/u.exec(barra)?.[0] ?? "";
+    expect(chip).toContain("bg-background");
+    expect(chip).not.toContain("bg-superficie");
+    expect(chip).toMatch(/\brounded-sm\b/u);
+    expect(chip).not.toMatch(/\brounded-md\b/u);
+
+    const busca = /<Input\s+type="search"[\s\S]*?\/>/u.exec(barra)?.[0] ?? "";
+    expect(busca).not.toContain("bg-superficie");
+    expect(busca).toContain("[&::-webkit-search-cancel-button]:appearance-none");
+
+    const gatilho = /role="combobox"[\s\S]*?\)\}/u.exec(ler("src/interface/componentes/filtro-com-busca.tsx"))?.[0] ?? "";
+    expect(gatilho).toContain("bg-background");
+    expect(gatilho).not.toContain("bg-superficie");
+    expect(gatilho).not.toMatch(/\brounded-md\b/u);
+
+    const periodo = /<PopoverTrigger asChild>[\s\S]*?<\/PopoverTrigger>/u.exec(ler("src/interface/componentes/seletor-de-periodo.tsx"))?.[0] ?? "";
+    expect(periodo).not.toContain("bg-superficie");
+  });
+
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
     const fonte = ler("app/(casca)/ocorrencias/page.tsx");
 
