@@ -283,6 +283,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
 
   await entrar(a, EMAIL_A, "senha-que-nao-e-a-dela");
   await expect(a.getByText("E-mail ou senha incorretos.")).toBeVisible();
+  // **A recusa não apaga o e-mail** (critério 103.6). A senha, sim.
+  await expect(a.getByLabel("E-mail")).toHaveValue(EMAIL_A);
+  await expect(a.getByLabel(/^Senha/u)).toHaveValue("");
 
   await entrar(a, EMAIL_INEXISTENTE, SENHA);
   await expect(a.getByText("E-mail ou senha incorretos.")).toBeVisible();
@@ -298,6 +301,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // A frase **e os dois caminhos** — é o que o critério 6a.4 cobra, e é o que a torna útil em vez de um
   // beco: entrar, logo abaixo, e recuperar a senha, aqui.
   await expect(a.getByText("Já existe uma conta com este e-mail. Entre em vez de criar.")).toBeVisible();
+  await expect(a.getByLabel("Seu nome")).toHaveValue(NOME_A);
+  await expect(a.getByLabel("E-mail")).toHaveValue(EMAIL_A);
+  await expect(a.getByLabel(/^Senha/u)).toHaveValue("");
   await expect(a.getByRole("link", { name: "Esqueci a senha" })).toBeVisible();
   await expect(a.getByRole("link", { name: "Já tenho conta" })).toBeVisible();
   cobre(test.info(), "2.1 · 6a · 4", { criterio: "6a.4" });

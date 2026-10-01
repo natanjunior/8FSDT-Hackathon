@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
 import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
 import { deveNavegar } from "@/interface/componentes/periodo-em-voo";
@@ -2665,5 +2665,33 @@ describe("o recibo de cada ação — item 103", () => {
     expect(pagina.indexOf("<PeriodoEmVoo>")).toBeLessThan(filtro);
     expect(filtro).toBeGreaterThan(-1);
     expect(conteudo).toBeGreaterThan(filtro);
+  });
+
+  it("o que não é senha volta ao formulário; a senha nunca volta (critério 103.6)", () => {
+    const dados = new FormData();
+    dados.set("nome", "Ana Souza");
+    dados.set("email", "ana@exemplo.com");
+    dados.set("senha", "segredo1");
+
+    expect(valoresPreservados(dados, ["email"])).toStrictEqual({ email: "ana@exemplo.com" });
+    expect(valoresPreservados(dados, ["nome", "email"])).toStrictEqual({
+      nome: "Ana Souza",
+      email: "ana@exemplo.com",
+    });
+    // Nem pedida por engano a senha volta.
+    expect(valoresPreservados(dados, ["email", "senha"])).toStrictEqual({ email: "ana@exemplo.com" });
+    // Campo ausente não vira texto vazio inventado.
+    expect(valoresPreservados(new FormData(), ["email"])).toStrictEqual({});
+  });
+
+  it("os dois formulários reaplicam o que não é senha (critério 103.6)", () => {
+    const entrada = ler("src/interface/componentes/formulario-de-entrada.tsx");
+    expect(entrada).toContain('valoresPreservados(dados, ["email"])');
+    expect(entrada).toContain("defaultValue={preservados.email}");
+    const cadastro = ler("src/interface/componentes/formulario-de-cadastro.tsx");
+    expect(cadastro).toContain('valoresPreservados(dados, ["nome", "email"])');
+    expect(cadastro).toContain("defaultValue={preservados.nome}");
+    expect(cadastro).toContain("defaultValue={preservados.email}");
+    for (const fonte of [entrada, cadastro]) expect(fonte).not.toContain("preservados.senha");
   });
 });
