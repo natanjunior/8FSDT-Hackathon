@@ -2,7 +2,7 @@
 
 import { CalendarRange } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { ptBR } from "react-day-picker/locale";
 
@@ -17,6 +17,8 @@ import {
   type ChaveDeAtalho,
   type Faixa,
 } from "@/interface/componentes/faixa-de-periodo";
+import { IndicadorDeEnvio } from "@/interface/componentes/campo";
+import { deveNavegar, usePeriodoEmVoo } from "@/interface/componentes/periodo-em-voo";
 import { Button } from "@/interface/componentes/ui/button";
 import { Calendar } from "@/interface/componentes/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/interface/componentes/ui/popover";
@@ -44,6 +46,11 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  *
  * **Não se reusa o `NavegacaoDaLista`.** Aquele provedor existe porque três peças de T-03 dividem um
  * estado de espera; aqui há uma peça só, e um contexto para um consumidor é cerimônia.
+ *
+ * **O recibo do Aplicar** (item 103, critério 2). A transição mora em `periodo-em-voo.tsx`, porque o
+ * conteúdo do painel também a lê. Durante o voo o popover continua aberto, o botão apertado mostra o
+ * indicador — o Aplicar diz *"Aplicando…"* —, os outros ficam `aria-disabled`, e o popover fecha quando os
+ * números novos chegam. Fechar antes, com Esc ou toque fora, é permitido; o conteúdo continua recuado.
  *
  * **O rótulo do gatilho só muda depois de aplicar.** Ele é escrito a partir de `periodo`, que vem do
  * servidor; a escolha pendente dentro do painel não o toca.
@@ -80,18 +87,36 @@ export function SeletorDePeriodo({
   const celular = useIsMobile();
   const router = useRouter();
   const caminho = usePathname();
-  const [, comecar] = useTransition();
+  const { pendente, comecar } = usePeriodoEmVoo();
   const [aberto, setAberto] = useState(false);
   const [escolha, setEscolha] = useState<DateRange | undefined>(undefined);
+  /** O botão apertado, enquanto o recorte dele viaja. É ele que mostra o envio (critério 103.2). */
+  const [emEnvio, setEmEnvio] = useState<ChaveDeAtalho | "aplicar" | null>(null);
+  const [pendenteAntes, setPendenteAntes] = useState(pendente);
+
+  // **O popover fecha quando os números chegaram, e não no toque** (item 103). Ajuste durante a
+  // renderização, e não efeito: é o fim da transição que fecha, e o fim é uma mudança de `pendente`.
+  if (pendente !== pendenteAntes) {
+    setPendenteAntes(pendente);
+    if (!pendente) {
+      setEmEnvio(null);
+      setAberto(false);
+    }
+  }
 
   const limites = limitesDoCalendario(periodo);
   const completa = escolha?.from !== undefined && escolha.to !== undefined;
 
-  function aplicar(faixa: Faixa) {
+  function aplicar(faixa: Faixa, origem: ChaveDeAtalho | "aplicar") {
+    if (pendente) return;
+    if (!deveNavegar(periodo, faixa)) {
+      setAberto(false);
+      return;
+    }
     const proximos = new URLSearchParams(consultaAtual);
     proximos.set("de", faixa.de);
     proximos.set("ate", faixa.ate);
-    setAberto(false);
+    setEmEnvio(origem);
     comecar(() => router.push(`${caminho}?${proximos.toString()}`));
   }
 
@@ -127,7 +152,9 @@ export function SeletorDePeriodo({
                 type="button"
                 variant="ghost"
                 disabled={ehAFaixaAplicada(periodo, atalhos[chave])}
-                onClick={() => aplicar(atalhos[chave])}
+                aria-disabled={pendente}
+                aria-busy={emEnvio === chave}
+                onClick={() => aplicar(atalhos[chave], chave)}
                 className={cn(
                   "text-interface min-h-11 justify-start px-3 font-normal",
                   // O apagado do catálogo é meia opacidade, que sobre a tinta fraca some. A tinta fraca já
@@ -138,6 +165,7 @@ export function SeletorDePeriodo({
                 )}
               >
                 {rotulo}
+                <IndicadorDeEnvio ativo={emEnvio === chave} />
               </Button>
             ))}
           </div>
@@ -162,15 +190,18 @@ export function SeletorDePeriodo({
                 type="button"
                 variant="outline"
                 disabled={!completa}
+                aria-disabled={pendente}
+                aria-busy={emEnvio === "aplicar"}
                 onClick={() => {
                   // A seleção nasce completa, semeada com o recorte. Ela fica sem faixa num caso só —
                   // clicar no único dia de uma faixa de um dia —, e aplicar aí inventaria as duas pontas.
                   if (escolha?.from === undefined || escolha.to === undefined) return;
-                  aplicar({ de: paraDia(escolha.from), ate: paraDia(escolha.to) });
+                  aplicar({ de: paraDia(escolha.from), ate: paraDia(escolha.to) }, "aplicar");
                 }}
                 className="border-linha text-tinta text-interface min-h-11 w-full px-4 md:w-auto"
               >
-                Aplicar
+                <IndicadorDeEnvio ativo={emEnvio === "aplicar"} />
+                {emEnvio === "aplicar" ? "Aplicando…" : "Aplicar"}
               </Button>
             </div>
           </div>

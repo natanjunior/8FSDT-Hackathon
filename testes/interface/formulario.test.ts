@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
 import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
+import { deveNavegar } from "@/interface/componentes/periodo-em-voo";
 import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
@@ -2635,5 +2636,34 @@ describe("o recibo de cada ação — item 103", () => {
     expect(fonte).toContain("<IndicadorDeEnvio ativo={emVoo} />");
     expect(fonte).toContain("if (emVoo || organizacaoId === organizacaoAtivaId) return;");
     expect(fonte).toContain("useTransition()");
+  });
+
+  it("aplicar o recorte já aplicado não navega, e por isso não fica esperando (critério 103.2)", () => {
+    const periodo = { de: "2026-07-01", ate: "2026-09-29" };
+    expect(deveNavegar(periodo, { de: "2026-07-01", ate: "2026-09-29" })).toBe(false);
+    expect(deveNavegar(periodo, { de: "2026-08-31", ate: "2026-09-29" })).toBe(true);
+  });
+
+  it("o seletor e o conteúdo dividem uma transição, e o conteúdo recua enquanto ela corre (critério 103.2)", () => {
+    const seletor = ler("src/interface/componentes/seletor-de-periodo.tsx");
+    expect(seletor).not.toContain("const [, comecar] = useTransition()");
+    expect(seletor).toContain("usePeriodoEmVoo()");
+    expect(seletor).toContain('"Aplicando…"');
+    expect(seletor).toContain("if (pendente) return;");
+    expect(seletor).not.toContain("useEffect");
+
+    const provedor = ler("src/interface/componentes/periodo-em-voo.tsx");
+    expect(provedor).toMatch(/^"use client";/u);
+    expect(provedor).toContain("aria-busy={pendente}");
+    expect(provedor).toContain("pointer-events-none opacity-60");
+
+    // O provedor envolve a página inteira, e o filtro fica FORA do conteúdo que recua. O fim de linha
+    // pode ser CRLF na cópia de trabalho do Windows, e por isso a abertura é procurada por expressão.
+    const pagina = ler("app/(casca)/dashboard/page.tsx");
+    const filtro = pagina.search(/<Periodo\r?\n/u);
+    const conteudo = pagina.indexOf("<ConteudoDoPainel>");
+    expect(pagina.indexOf("<PeriodoEmVoo>")).toBeLessThan(filtro);
+    expect(filtro).toBeGreaterThan(-1);
+    expect(conteudo).toBeGreaterThan(filtro);
   });
 });

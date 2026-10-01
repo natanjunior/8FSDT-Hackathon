@@ -298,6 +298,28 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(semRecorte.has("de")).toBe(false);
   expect(semRecorte.has("ate")).toBe(false);
 
+  // **O recibo do período** (critério 103.2). Com a resposta retida, o atalho apertado fica ocupado, o
+  // popover continua aberto e o conteúdo recua; quando os números chegam, o popover fecha e o recuo sai.
+  const RESPOSTA_DO_RECORTE = /\/dashboard\?.*\bde=/u;
+  await helena.route(RESPOSTA_DO_RECORTE, async (rota) => {
+    await new Promise((pronto) => setTimeout(pronto, 1500));
+    await rota.continue();
+  });
+  await seletorDePeriodo.click();
+  const trintaDias = painelDoPeriodo.getByRole("button", { name: "últimos 30 dias", exact: true });
+  await trintaDias.click();
+  await expect(trintaDias).toHaveAttribute("aria-busy", "true");
+  await expect(painelDoPeriodo).toBeVisible();
+  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(1);
+  await expect(painelDoPeriodo).toBeHidden();
+  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(0);
+  expect(new URL(helena.url()).searchParams.has("de")).toBe(true);
+  await helena.unroute(RESPOSTA_DO_RECORTE);
+
+  // O resto do teste lê o recorte padrão: voltar desfaz, porque o seletor escreve com `push`.
+  await helena.goBack();
+  await expect.poll(() => new URL(helena.url()).searchParams.has("de")).toBe(false);
+
   // -------------------------------------------------------------------------
   // 2.0 · A ordem dos sete quadros, e a pergunta de cada um (item 73, critérios 1 e 2)
   //
