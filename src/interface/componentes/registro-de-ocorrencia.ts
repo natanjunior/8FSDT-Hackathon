@@ -228,6 +228,7 @@ export const DESCARTE = {
 
 export const FOTO = {
   vazioTitulo: "Adicionar foto",
+  vazioOpcional: "(opcional)",
   vazioApoio: "Tire na hora ou escolha da galeria.",
   preparando: "Preparando a foto…",
   subindoTitulo: "Enviando a foto",

@@ -290,12 +290,17 @@ export function ControleDeFoto({
           disabled={inerte}
           variant="outline"
           onClick={() => entrada.current?.click()}
-          className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7"
+          className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7 lg:py-4"
         >
           <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-sm border">
             <ImagePlus aria-hidden="true" className="size-5" />
           </span>
-          <span className="text-interface text-tinta font-medium">{FOTO.vazioTitulo}</span>
+          {/* **A palavra *opcional* ao lado** (critério 106.8), na forma que o produto já usa em
+              *"Telefone (opcional)"*. Em tela grande o alvo encolhe: o Título, obrigatório, tem 44 px, e o
+              campo opcional não pode ser o maior da tela. No celular ele continua grande. */}
+          <span className="text-interface text-tinta font-medium">
+            {FOTO.vazioTitulo} <span className="text-tinta-suave font-normal">{FOTO.vazioOpcional}</span>
+          </span>
           <span className="text-meta text-tinta-suave font-normal">{FOTO.vazioApoio}</span>
         </Button>
       ) : (

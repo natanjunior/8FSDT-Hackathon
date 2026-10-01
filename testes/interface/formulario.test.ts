@@ -976,6 +976,13 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(controle.match(/disabled=\{inerte\}/gu) ?? []).toHaveLength(4);
   });
 
+  it("o alvo da foto encolhe a partir de lg e diz que é opcional (critério 106.8)", () => {
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle).toMatch(/\bborder-dashed py-7 lg:py-4\b/u);
+    expect(controle).toContain("{FOTO.vazioOpcional}");
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain('vazioOpcional: "(opcional)"');
+  });
+
   it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
     for (const caminho of ALCANCE_DO_44L) {
       const fonte = ler(caminho);
