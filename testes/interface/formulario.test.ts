@@ -2868,4 +2868,13 @@ describe("o 105 — o laranja volta a marcar uma coisa só", () => {
       expect(ler(`src/interface/componentes/${linha}.tsx`), linha).toContain("var(--chart-1)");
     }
   });
+
+  it("o Sair tem a forma do caminho e a tinta suave, e o resto dos caminhos segue na marca (critério 105.5)", () => {
+    const fonte = ler("src/interface/componentes/moldura-de-conta.tsx");
+    const sair = /export function CaminhoDeSair[\s\S]*?<\/Button>/u.exec(fonte)?.[0] ?? "";
+    expect(sair).toMatch(/cn\(CLASSE_DO_CAMINHO, "text-tinta-suave /u);
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("text-tinta-marca");
+    expect(classe.split(" ")).toContain("underline");
+  });
 });
