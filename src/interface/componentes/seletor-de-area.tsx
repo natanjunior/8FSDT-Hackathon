@@ -169,8 +169,13 @@ export function SeletorDeArea({
     </Button>
   );
 
+  /**
+   * **O nome do campo vem do `label` do `Command`** (critério 106.7): o `cmdk` liga o campo ao rótulo dele
+   * por `aria-labelledby`, e um `aria-label` no campo perderia para essa ligação. É a mesma saída do
+   * `modal-de-atribuicao.tsx`.
+   */
   const lista = (
-    <Command shouldFilter={false} className="bg-transparent">
+    <Command shouldFilter={false} label={AREA.nomeDaBusca} className="bg-transparent">
       <CommandInput
         value={busca}
         onValueChange={setBusca}

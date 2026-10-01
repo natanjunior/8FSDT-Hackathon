@@ -983,6 +983,17 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain('vazioOpcional: "(opcional)"');
   });
 
+  it("o campo de busca do painel de área tem nome acessível (critério 106.7)", () => {
+    // Pelo `label` do `Command`, e não `aria-label` no campo: o `cmdk` impõe `aria-labelledby` ao campo,
+    // apontando para o rótulo dele, que fica vazio sem `label` (o precedente é `modal-de-atribuicao.tsx`).
+    const seletor = ler("src/interface/componentes/seletor-de-area.tsx");
+    expect(seletor).toMatch(/<Command\b[^>]*\blabel=\{AREA\.nomeDaBusca\}/u);
+    expect(seletor).not.toMatch(/<CommandInput[^>]*\baria-label=/u);
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain(
+      'nomeDaBusca: "Buscar área pelo nome"',
+    );
+  });
+
   it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
     for (const caminho of ALCANCE_DO_44L) {
       const fonte = ler(caminho);
