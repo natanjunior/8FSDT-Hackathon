@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useNavegacaoDaLista } from "./navegacao-da-lista";
+import { cn } from "./utilitarios";
 
 /**
  * ============================================================================
@@ -20,6 +21,9 @@ import { useNavegacaoDaLista } from "./navegacao-da-lista";
  *
  * **A barra fina anima `transform`**, nunca `width`: as duas produzem a mesma imagem e só uma roda fora
  * da linha principal. É o guia §6.
+ *
+ * **A frase *Atualizando a lista…* é deste componente desde o item 102**, porque é ele que consome o
+ * `pendente`.
  */
 export function CartaoDaLista({ faixa, children }: { faixa?: ReactNode; children: ReactNode }) {
   const { pendente } = useNavegacaoDaLista();
@@ -29,9 +33,12 @@ export function CartaoDaLista({ faixa, children }: { faixa?: ReactNode; children
       aria-busy={pendente}
       className="border-linha bg-superficie relative overflow-hidden rounded-lg border shadow-sm"
     >
+      {/* **Sob movimento reduzido, a barra para inteira** (critério 102.8): faixa de largura cheia, em
+          opacidade reduzida, sem animação. A regra global de `globals.css` só encurtava o laço, e o trecho
+          ficava parado como um toco de um terço no canto, que lê como barra quebrada (A-049). */}
       {pendente && (
         <span aria-hidden className="bg-muted absolute inset-x-0 top-0 h-0.5 overflow-hidden">
-          <span className="bg-marca animate-barra-de-progresso block h-full w-1/3" />
+          <span className="bg-marca animate-barra-de-progresso block h-full w-1/3 motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
         </span>
       )}
 
@@ -39,6 +46,14 @@ export function CartaoDaLista({ faixa, children }: { faixa?: ReactNode; children
           que recua durante a espera: filtrar de novo enquanto a lista troca tem de continuar possível. A
           régua embaixo dela já é da própria barra (`barra-de-filtros.tsx`, `border-b`). */}
       {faixa}
+
+      {/* **A frase da espera mora aqui desde o item 102**, e não na barra: assim ela vale para quem não tem
+          barra, o Solicitante incluído. **A região existe sempre**, vazia sem espera: região viva montada
+          junto com o texto nem sempre é anunciada. Fora do invólucro que recua, para não esmaecer. */}
+      <p role="status" className={cn("text-meta text-tinta-suave", pendente ? "px-4 pt-3" : "sr-only")}>
+        {pendente ? "Atualizando a lista…" : ""}
+      </p>
+
       <div
         className={
           pendente ? "pointer-events-none opacity-60 transition-opacity" : "transition-opacity"

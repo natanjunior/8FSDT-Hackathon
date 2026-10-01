@@ -86,8 +86,13 @@ function encerrada(status: string): boolean {
  *
  * | Largura | Forma |
  * |---|---|
- * | ≥ `md` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
+ * | ≥ `lg` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
  * | celular | linha de três andares, **sem categoria** — achado P-04 do 44c, aprovado pelo hub |
+ *
+ * **A tabela nasce em `lg` desde o item 102** (P2 da spec). Em 768 px a barra lateral da casca fica aberta e
+ * o cartão tem 506 px, e as seis colunas com conteúdo real pedem perto de 800. Entre 768 e 1023 px vale a
+ * linha do celular, que serve a qualquer largura. O contêiner do `Table` do catálogo já rola na horizontal
+ * (`ui/table.tsx`), e é ele que segura o conteúdo extremo entre 1024 e ~1280 px.
  *
  * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não vista* ao lado do status.**
  * A faixa do celular passou a quebrar (`flex-wrap`) para caber com o status mais longo do Solicitante.
@@ -169,11 +174,11 @@ export function ListaDeOcorrencias({
   const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, mostrarParada, agora };
 
   // **Uma forma nos dois recortes** (critério 76.3): o que muda entre *Todas* e *Minhas* é conteúdo,
-  // nunca estrutura. A tabela a partir de `md`, a linha de três andares abaixo dele. O cartão em volta é
+  // nunca estrutura. A tabela a partir de `lg`, a linha de três andares abaixo dele. O cartão em volta é
   // `CartaoDaLista`, que envolve isto e é quem desenha a borda, o raio e a sombra.
   return (
     <>
-      <ul className="md:hidden">
+      <ul className="lg:hidden">
         {itens.map((item) => (
           <LinhaDeTriagemNoCelular key={item.id} item={item} {...comum} />
         ))}
@@ -215,16 +220,18 @@ function SeloDeParada({ dias }: { dias: number | null }) {
 }
 
 /**
- * **O par de datas da coluna Tempo, escrito uma vez** — item 67.
+ * **O par de datas, escrito uma vez** — item 67, nomeado no item 102.
  *
- * Registrada sempre; atualizada só quando difere, marcada por `↻`. O símbolo é `aria-hidden` e os dois
- * valores levam nome em `sr-only`, porque um glifo sozinho não diz o que mede.
+ * Registrada sempre; atualizada só quando difere (item 44p, critério 12). **Cada valor leva a palavra ao
+ * lado, na tela** (critério 102.1): a seta circular e os nomes em `sr-only` saíram, porque um glifo sozinho não dizia
+ * o que media e o nome só existia para quem usa leitor de tela. A coluna ordena pelo segundo valor, e sem
+ * nome a primeira coluna de números parecia fora de ordem (A-004).
  *
- * **Os três recortes usam esta peça desde o item 67.** Antes, o recorte A mostrava só o tempo de
- * registro, e com a ordem nova — por última atualização — uma lista que só mostra a data de registro
- * pareceria fora de ordem.
+ * **Empilhado (a tabela), é uma grade de duas colunas**: o valor alinhado à direita, em tinta, e a palavra à
+ * esquerda, em meta, para as palavras formarem uma coluna e os números se compararem pela unidade. **Em
+ * fileira (o celular, desde a P1 da spec)**, os dois pares separados pelo `·` da linha de meta, na tinta dela.
  */
-function ParDeDatas({
+export function ParDeDatas({
   registradaEm,
   atualizadaEm,
   agora,
@@ -233,26 +240,31 @@ function ParDeDatas({
   registradaEm: string;
   atualizadaEm: string;
   agora: number;
-  /** Na tabela as duas datas ficam uma sobre a outra; nos cartões, lado a lado. */
+  /** Na tabela as duas datas ficam uma sobre a outra; no celular, lado a lado. */
   empilhado?: boolean;
 }) {
   const mudou = registradaEm !== atualizadaEm;
-  const forma = empilhado ? "block" : undefined;
+
+  if (empilhado) {
+    const valor = "text-tinta group-data-[recuada]/linha:text-tinta-suave text-right";
+    return (
+      <span className="grid grid-cols-[auto_auto] justify-start gap-x-1.5">
+        <span className={valor}>{tempoCurto(registradaEm, agora)}</span>
+        <span>registrada</span>
+        {mudou && (
+          <>
+            <span className={valor}>{tempoCurto(atualizadaEm, agora)}</span>
+            <span>atualizada</span>
+          </>
+        )}
+      </span>
+    );
+  }
 
   return (
     <>
-      <span className={forma}>
-        <span className="sr-only">registrada </span>
-        {tempoCurto(registradaEm, agora)}
-      </span>
-      {mudou && (
-        <span className={forma}>
-          {!empilhado && " "}
-          <span aria-hidden="true">↻</span>
-          <span className="sr-only">, atualizada </span>{" "}
-          {tempoCurto(atualizadaEm, agora)}
-        </span>
-      )}
+      {tempoCurto(registradaEm, agora)} registrada
+      {mudou && <> · {tempoCurto(atualizadaEm, agora)} atualizada</>}
     </>
   );
 }
@@ -320,8 +332,8 @@ function LinhaDeTriagemNoCelular({
           <FichaDePessoa nome={item.responsavel.nome} />
         )}
         ·
-        {/* **No celular não há cartão** — `hover` não existe em toque, e o par já está aqui, por extenso
-            na linha de meta. */}
+        {/* **No celular não há cartão** — `hover` não existe em toque. O par vem com as palavras na linha de
+            meta (item 102, P1 da spec), que é o único lugar desta largura que diz o que cada número mede. */}
         <span className="font-mono tabular-nums">
           <ParDeDatas
             registradaEm={item.registradaEm}
@@ -342,13 +354,9 @@ function LinhaDeTriagemNoCelular({
  * de verdade*: numa tabela, uma linha **é** um registro, e duas `<tr>` por ocorrência mentem para quem
  * navega por leitor de tela.
  *
- * **`registradaEm` e `atualizadaEm` dividem a coluna TEMPO**, a segunda marcada por `↻` — o protótipo:
- * *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém faz de
- * relance"*.
- *
- * **A segunda metade só aparece quando há diferença** (item 44p, critério 12): numa ocorrência que
- * ninguém tocou os dois instantes são iguais, e o `↻` repetia o mesmo número. O símbolo é `aria-hidden` e
- * os dois valores levam nome em `sr-only` — um glifo sozinho não diz o que mede.
+ * **`registradaEm` e `atualizadaEm` dividem a coluna TEMPO**, cada uma com a palavra ao lado (item 102) — o
+ * protótipo: *"duas colunas de data numa tabela de triagem é uma coluna a mais para uma leitura que ninguém
+ * faz de relance"*. **A segunda só aparece quando há diferença** (item 44p, critério 12).
  *
  * **Serve aos dois recortes desde o item 76.**
  */
@@ -392,7 +400,7 @@ function TabelaDeTriagem({
   }
 
   return (
-    <div className="hidden md:block">
+    <div className="hidden lg:block">
       <Table>
         <TableHeader>
           <TableRow className="border-linha-suave hover:bg-transparent">
@@ -407,7 +415,8 @@ function TabelaDeTriagem({
         <TableBody>
           {itens.map((item) => {
             /* **A MESMA função dos outros dois recortes** — critério 23.6. Duas condições que precisam
-               concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */
+               concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`.
+               Desde o item 102 ela alimenta a linha de apoio do título, e não a célula de Status. */
             const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
             return (
@@ -419,9 +428,6 @@ function TabelaDeTriagem({
                 <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
                   {item.naoAberta === true && <SeloDeNaoVista />}
-                  {segundaLinha !== null && (
-                    <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
-                  )}
                 </TableCell>
                 {/* **O `whitespace-normal` desfaz o `whitespace-nowrap` que o `TableCell` do catálogo
                     traz.** O título é texto livre de até 120 caracteres; sem isto a tabela rolaria na
@@ -436,29 +442,45 @@ function TabelaDeTriagem({
                   >
                     {item.titulo}
                   </Link>
-                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
+                  {/* **A linha de apoio corre como texto**, e não como `flex` (item 102): em `flex`, categoria e
+                      motivo viravam duas colunas estreitas lado a lado dentro da célula. O ícone fica no
+                      começo, na altura da primeira linha. **O motivo vem depois da categoria e antes das
+                      fotos** (critério 102.2): ele diz o estado, e saiu da célula de Status para devolver a
+                      largura dela ao selo. */}
+                  <span className="text-tinta-suave text-meta mt-0.5 block">
                     <IconeDeCategoria
                       nome={iconePorCategoria[item.categoria.id] ?? "tag"}
-                      className="size-3.5 shrink-0"
+                      className="mr-1.5 inline size-3.5 align-[-2px]"
                     />
                     {item.categoria.nome}
+                    {segundaLinha !== null && ` · ${segundaLinha}`}
                     {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
                   </span>
                 </TableCell>
-                <TableCell className={CELULA}>
-                  <FichaDeLocal nomeDaArea={item.area.nome} />
+                {/* **Teto de 180 px e quebra** (critério 102.3). `Onde` e `Responsável` herdavam o
+                    `whitespace-nowrap` do `TableCell` do catálogo e nunca quebravam: com uma área de 41 letras
+                    e um nome de 37 elas tomavam 616 px e cortavam a coluna Tempo. **O teto é da caixa de
+                    dentro**, porque `max-width` numa célula de tabela automática não é garantido. `*:items-start`
+                    põe o pino e as iniciais na altura da primeira linha sem mexer nas fichas, que o celular
+                    também usa. */}
+                <TableCell className={cn(CELULA, "whitespace-normal")}>
+                  <span className="block max-w-[180px] *:items-start">
+                    <FichaDeLocal nomeDaArea={item.area.nome} />
+                  </span>
                 </TableCell>
                 {mostrarPrioridade && (
                   <TableCell className={CELULA}>
                     <PalavraDePrioridade prioridade={item.prioridade} />
                   </TableCell>
                 )}
-                <TableCell className={CELULA}>
-                  {item.responsavel === null ? (
-                    <span className="text-tinta-suave">—</span>
-                  ) : (
-                    <FichaDePessoa nome={item.responsavel.nome} />
-                  )}
+                <TableCell className={cn(CELULA, "whitespace-normal")}>
+                  <span className="block max-w-[180px] *:items-start">
+                    {item.responsavel === null ? (
+                      <span className="text-tinta-suave">—</span>
+                    ) : (
+                      <FichaDePessoa nome={item.responsavel.nome} />
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -496,7 +518,7 @@ function TabelaDeTriagem({
  *
  * **É atalho, e não o único caminho.** `hover` não existe em toque, então as duas datas continuam
  * legíveis na página da ocorrência, e o celular recebe o par direto na linha de meta. Sem o cartão, a
- * célula continua dizendo exatamente o que dizia, com os nomes em `sr-only`.
+ * célula continua dizendo o que cada número é: a palavra está ao lado dele (item 102).
  *
  * **O gatilho é ele mesmo um link para a ocorrência, fora da ordem de tabulação** (`tabIndex={-1}`).
  * Assim o ponteiro que para em cima dele abre o cartão, e o clique nele abre a ocorrência como no resto

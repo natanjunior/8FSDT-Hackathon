@@ -103,7 +103,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   // 2 · Helena registra a ocorrência marcada — T-04
   // -------------------------------------------------------------------------
-  await helena.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  await helena.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await helena.waitForURL(/\/ocorrencias\/nova$/u);
   await helena.getByLabel("Título").fill(TITULO);
   await helena

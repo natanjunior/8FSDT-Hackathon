@@ -12,7 +12,7 @@ import {
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
-import { decodificarCursorDeConversa } from "@/interface/projecoes";
+import { algumFiltroAlemDoAutor, decodificarCursorDeConversa } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -500,16 +500,8 @@ export function lerOrdenacaoDeOcorrenciasDaUrl(
  * **mesmo sem barra na tela**.
  */
 export function algumFiltroAplicado(filtro: FiltroDeOcorrencias): boolean {
-  return (
-    filtro.status !== undefined ||
-    filtro.categoriaId !== undefined ||
-    filtro.prioridade !== undefined ||
-    filtro.apenasDoAutor === true ||
-    filtro.titulo !== undefined ||
-    filtro.areaId !== undefined ||
-    filtro.responsavelPessoaId !== undefined ||
-    filtro.apenasParadas === true
-  );
+  // **As sete dimensões moram em `algumFiltroAlemDoAutor`** (item 102): uma lista só, mais o autor.
+  return algumFiltroAlemDoAutor(filtro) || filtro.apenasDoAutor === true;
 }
 
 /**

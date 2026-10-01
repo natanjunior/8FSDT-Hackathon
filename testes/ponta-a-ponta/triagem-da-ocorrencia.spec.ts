@@ -203,7 +203,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await helena.getByRole("button", { name: AURORA }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
 
-  await helena.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  await helena.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await helena.waitForURL(/\/ocorrencias\/nova$/u);
 
   // Os dois blocos, cada um uma seção com o próprio título — é o que faz quem navega por regiões achar
@@ -440,7 +440,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Categoria", exact: true })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Prioridade", exact: true })).toBeVisible();
-  await expect(marcos.getByRole("link", { name: "+ Registrar ocorrência" })).toBeVisible();
+  await expect(marcos.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u })).toBeVisible();
   cobre(test.info(), "4.2 · 10", {
     falta: "as três novas no topo da lista, com status Aberta e sem responsável",
   });
@@ -1263,4 +1263,144 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
 
   await contexto.close();
   await semSessao.context().close();
+});
+
+/**
+ * **O pior caso da lista, nas três larguras que importam** (critérios 102.4, 102.11 e 102.12).
+ *
+ * O texto é **injetado por DOM**, como na comparação que escolheu a V2: título de 150 caracteres
+ * (`TETO_DO_TITULO`), área de 41, pessoa de 37, o motivo mais longo, e o selo de parada com três algarismos. O
+ * layout é função do texto, e injetar não muda o mundo de teste.
+ *
+ * **Duas medidas, porque uma só dá verde falso** (C-1 do plano): o contêiner do `Table` do catálogo rola na
+ * horizontal, e `transbordo()` ignora quem rola. Em 1440 px a tabela tem de caber nele sem rolar; em 1024 ela
+ * pode rolar dentro dele, e o documento não; em 768 e em 390 vale a linha do celular, que não pode passar do
+ * cartão.
+ */
+const TITULO_LONGO =
+  "Infiltração no teto da garagem do subsolo 2 voltou depois da chuva de sábado e está pingando sobre as vagas 41 a 47, com poça embaixo do quadro de luz".slice(0, 150);
+const AREA_LONGA = "Estacionamento de visitantes do subsolo 2";
+const PESSOA_LONGA = "Maria Aparecida Gonçalves de Oliveira";
+const MOTIVO_LONGO = "Parada — esperando material chegar";
+
+async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo: number }> {
+  return pagina.evaluate(
+    ({ titulo, area, pessoa, motivo }) => {
+      const trocarTexto = (elemento: Element | null | undefined, texto: string) => {
+        if (!elemento) return;
+        const no = Array.from(elemento.childNodes).find(
+          (filho) => filho.nodeType === Node.TEXT_NODE && (filho.textContent ?? "").trim() !== "",
+        );
+        if (no) no.textContent = texto;
+      };
+
+      // A tabela (≥ lg) e a linha do celular: as duas formas estão no DOM, e as duas recebem o pior caso.
+      const linhas = Array.from(document.querySelectorAll("tbody tr")).filter(
+        (linha) => linha.querySelector("td:nth-child(5) [data-slot='avatar']") !== null,
+      );
+      const comSeloPrimeiro = [
+        ...linhas.filter((linha) => linha.textContent?.includes("Parada há")),
+        ...linhas.filter((linha) => !linha.textContent?.includes("Parada há")),
+      ].slice(0, 3);
+      let comSelo = 0;
+      for (const linha of comSeloPrimeiro) {
+        const celulas = linha.querySelectorAll("td");
+        const link = celulas[1]?.querySelector("a");
+        if (link) link.textContent = titulo;
+        const apoio = celulas[1]?.querySelector("span");
+        if (apoio) apoio.append(` · ${motivo}`);
+        trocarTexto(celulas[2]?.querySelector("span span"), area);
+        // O nome é o irmão do avatar: um seletor por profundidade casaria antes o `span` de dentro do avatar.
+        const nome = celulas[4]?.querySelector("[data-slot='avatar'] ~ span");
+        if (nome) nome.textContent = pessoa;
+        const tempos = celulas[5]?.querySelectorAll("span.text-right") ?? [];
+        for (const valor of Array.from(tempos)) valor.textContent = "150 d";
+        const selo = Array.from(celulas[5]?.querySelectorAll("[data-slot='badge']") ?? []).find((s) =>
+          s.textContent?.startsWith("Parada há"),
+        );
+        if (selo) {
+          selo.textContent = "Parada há 150 dias";
+          comSelo += 1;
+        }
+      }
+
+      for (const item of Array.from(document.querySelectorAll("main ul > li")).slice(0, 3)) {
+        const link = item.querySelector("a");
+        if (link) link.textContent = titulo;
+        // A linha de meta é o último filho do item, e a ficha do local é o primeiro filho dela. Um seletor por
+        // classe casaria antes o selo de prioridade, que também mora num `span.text-meta`.
+        trocarTexto(item.querySelector(":scope > span:last-child > span"), area);
+      }
+
+      return { linhas: comSeloPrimeiro.length, comSelo };
+    },
+    { titulo: TITULO_LONGO, area: AREA_LONGA, pessoa: PESSOA_LONGA, motivo: MOTIVO_LONGO },
+  );
+}
+
+/** Quanto a tabela passa do contêiner que a segura, e quantas células terminam além dele. */
+async function folgaDaTabela(pagina: Page): Promise<{ rola: number; alemDaBorda: number }> {
+  return pagina.locator("[data-slot='table-container']").evaluate((conteiner) => {
+    const borda = conteiner.getBoundingClientRect().right + 0.5;
+    const alem = Array.from(conteiner.querySelectorAll("th, td")).filter(
+      (celula) => celula.getBoundingClientRect().right > borda,
+    );
+    return { rola: conteiner.scrollWidth - conteiner.clientWidth, alemDaBorda: alem.length };
+  });
+}
+
+/** Quantos elementos da linha do celular terminam além da borda do cartão da lista. */
+async function alemDoCartao(pagina: Page): Promise<number> {
+  return pagina.locator("section[aria-busy]").evaluate((cartao) => {
+    const borda = cartao.getBoundingClientRect().right + 0.5;
+    return Array.from(cartao.querySelectorAll("ul *")).filter((elemento) => {
+      const caixa = elemento.getBoundingClientRect();
+      return caixa.width > 0 && caixa.right > borda;
+    }).length;
+  });
+}
+
+test("o pior caso não corta coluna nem rola o documento (critérios 102.4, 102.11 e 102.12)", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const helena = await contexto.newPage();
+
+  // **Helena é Gestor do Recanto**: vê as seis colunas, com Prioridade, e o selo de parada.
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+  await assentar(helena);
+
+  const injetado = await injetarPiorCaso(helena);
+  expect(injetado.linhas).toBe(3);
+  expect(injetado.comSelo, "o gêmeo da semente tem ocorrência parada no Recanto").toBeGreaterThan(0);
+
+  // 1440: a tabela cabe no contêiner, sem rolar e sem célula além da borda.
+  expect(await folgaDaTabela(helena)).toStrictEqual({ rola: 0, alemDaBorda: 0 });
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
+  // A coluna de Status voltou à largura do selo (critério 102.2): sem o motivo, menos de 180 px.
+  const status = await helena.locator("thead th").first().evaluate((th) => th.getBoundingClientRect().width);
+  expect(status).toBeLessThan(180);
+
+  // 1024: a tabela pode rolar dentro do contêiner; o documento não.
+  await helena.setViewportSize({ width: 1024, height: 900 });
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
+
+  // 768: a linha do celular, dentro do cartão, e o documento parado.
+  await helena.setViewportSize({ width: 768, height: 900 });
+  await expect(helena.locator("table")).toBeHidden();
+  expect(await alemDoCartao(helena)).toBe(0);
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
+
+  // 390: a linha do celular nomeia o tempo, e nenhum glifo sobrou (critérios 102.11 e 102.12).
+  await helena.setViewportSize({ width: 390, height: 844 });
+  const primeira = helena.locator("main ul > li").first();
+  await expect(primeira).toContainText("registrada");
+  await expect(primeira).not.toContainText("↻");
+  expect(await alemDoCartao(helena)).toBe(0);
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
+
+  await contexto.close();
 });

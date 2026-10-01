@@ -399,6 +399,29 @@ export function opcoesDePrioridade(): readonly { valor: string; rotulo: string }
 }
 
 /**
+ * **Tudo o que estreita a lista, menos o recorte do autor** — item 102, critério 5.
+ *
+ * `autor=eu` é o recorte *Minhas ocorrências*: ele escolhe **de quem** é o conjunto, e não estreita o que
+ * a pessoa já vê. Para escolher o vazio isso importa (A-003): sem esta separação, *Minhas* sem nenhuma
+ * ocorrência dizia *"Nenhuma ocorrência com estes filtros"* com a barra inteira desmarcada.
+ *
+ * **Mora aqui, e não em `interface/http`**, porque `vazio-da-lista.ts` a usa e chega ao navegador por
+ * `tabela-de-participantes.tsx`. **Uma lista só:** `algumFiltroAplicado` (`consulta-de-url.ts`) é esta mais
+ * o autor, e continua sendo o que *Limpar filtros* consulta, porque *Limpar* também tira o autor (item 67).
+ */
+export function algumFiltroAlemDoAutor(filtro: FiltroDeOcorrencias): boolean {
+  return (
+    filtro.status !== undefined ||
+    filtro.categoriaId !== undefined ||
+    filtro.prioridade !== undefined ||
+    filtro.titulo !== undefined ||
+    filtro.areaId !== undefined ||
+    filtro.responsavelPessoaId !== undefined ||
+    filtro.apenasParadas === true
+  );
+}
+
+/**
  * O recorte aplicado, em cláusulas — o subtítulo do **terceiro vazio** (critério 15.6).
  *
  * **A forma é mecânica de propósito, e diverge do exemplo que o critério ilustra.** O 15.6 mostra
@@ -414,6 +437,10 @@ export function opcoesDePrioridade(): readonly { valor: string; rotulo: string }
  *
  * **`nomeDaCategoria` devolve `undefined` para a categoria desativada que veio na URL** (§3.8 da spec), e
  * aí a cláusula conta em vez de nomear — nunca inventa nome.
+ *
+ * **O recorte do autor não é cláusula** (item 102, critério 6). *"Só as minhas"* era uma frase inteira
+ * dentro de uma lista de fragmentos e saía *"Em Condomínio Recanto Azul, com Só as minhas."*. Quem
+ * conhece a forma da frase é `fraseDoVazioDeFiltro`, logo abaixo.
  */
 export function descricaoDoRecorte(
   filtro: FiltroDeOcorrencias,
@@ -483,9 +510,31 @@ export function descricaoDoRecorte(
     clausulas.push(porIdentificador("Responsável", filtro.responsavelPessoaId, nomes.pessoa));
   }
 
-  if (filtro.apenasDoAutor === true) clausulas.push("Só as minhas");
-
   return clausulas;
+}
+
+/**
+ * A frase do terceiro vazio, inteira — item 102, critério 6.
+ *
+ * **O recorte do autor muda o começo, e não entra como cláusula.** *"Entre as suas ocorrências em …"* diz
+ * de quem é o conjunto antes de dizer como ele foi estreitado. Sem organização a frase perde o nome e
+ * continua verdadeira; sem cláusula, ela não pendura um *"com"*.
+ *
+ * **Função pura com teste**, pela mesma razão de `estadoDaLista`: trocar uma frase pela outra é o defeito.
+ */
+export function fraseDoVazioDeFiltro(entrada: {
+  apenasDoAutor: boolean;
+  nomeDaOrganizacao: string | null;
+  clausulas: readonly string[];
+}): string {
+  const onde = entrada.nomeDaOrganizacao === null ? "" : ` em ${entrada.nomeDaOrganizacao}`;
+  const como = entrada.clausulas.length === 0 ? "" : entrada.clausulas.join(" · ");
+
+  if (entrada.apenasDoAutor) {
+    return como === "" ? `Entre as suas ocorrências${onde}.` : `Entre as suas ocorrências${onde}, com ${como}.`;
+  }
+  if (entrada.nomeDaOrganizacao === null) return como === "" ? "." : `Com ${como}.`;
+  return como === "" ? `Em ${entrada.nomeDaOrganizacao}.` : `Em ${entrada.nomeDaOrganizacao}, com ${como}.`;
 }
 
 /** O schema `RegistroDeTransicao` do contrato. **`sequencia` não sai** — é ordem interna da trilha. */

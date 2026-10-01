@@ -1494,6 +1494,24 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain("<Plus aria-hidden");
   });
 
+  it("no vazio, só o convite do centro é laranja, e ele não repete o Limpar da barra (critério 102.7)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx").replace(/\r\n/gu, "\n");
+
+    // O esconder é CSS sobre uma marca do vazio: o cabeçalho continua fora da fronteira de espera (14.7).
+    expect(fonte).toContain("group/pagina");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:invisible");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:hidden");
+    expect(fonte).toContain("data-vazio");
+
+    // Os dois botões de página com o ícone, como o do vazio: o `+` de texto saiu dos três.
+    expect([...fonte.matchAll(/<Plus aria-hidden="true" \/>/gu)]).toHaveLength(3);
+    expect(fonte).not.toMatch(/>\s*\+ Registrar/u);
+
+    // O vazio não oferece Limpar filtros: a faixa acima dele já oferece.
+    const vazio = fonte.slice(fonte.indexOf("function Vazio("), fonte.indexOf("function AlemDoFim("));
+    expect(vazio).not.toContain("Limpar filtros");
+  });
+
   it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
     // D3: a organização é condomínio, empresa **ou bairro**. É a terceira vez que a mesma correção se
     // aplica — a prancheta de Áreas e a coluna esquerda de T-01 do 44m foram as outras duas.
@@ -1832,7 +1850,14 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
     const cartao = ler("src/interface/componentes/cartao-da-lista.tsx");
-    expect(cartao).toMatch(/\{faixa\}\s*\n\s*<div\s+className=\{\s*pendente/u);
+    // Desde o item 102 a região de espera fica entre a faixa e o invólucro que recua. A ordem é o que
+    // importa: faixa, região, e só então o invólucro com `pendente`.
+    const faixa = cartao.indexOf("{faixa}");
+    const regiao = cartao.indexOf('role="status"');
+    const recuo = cartao.search(/<div\s+className=\{\s*pendente/u);
+    expect(faixa).toBeGreaterThan(-1);
+    expect(regiao).toBeGreaterThan(faixa);
+    expect(recuo).toBeGreaterThan(regiao);
     const pagina = ler("app/(casca)/ocorrencias/page.tsx");
     expect(pagina).toContain('<CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>');
   });
@@ -1844,7 +1869,9 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     // Item 89: o apoio da encerrada vestia a tinta fraca, que não passa 4,5:1, e agora veste a suave como o
     // de qualquer linha. O que a distingue é o título, que desce de `--ink` a `--ink-soft`, e o selo.
     expect(lista).not.toContain("group-data-[recuada]/linha:text-tinta-fraca");
-    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(2);
+    // Desde o item 102 são três: os dois títulos e os valores do par de datas na tabela, que passaram a
+    // vestir `--ink` ao lado da palavra em meta, e descem com a linha como o título.
+    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(3);
     // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
     expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
     // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
@@ -1933,12 +1960,11 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
     const registrar = conteudo.indexOf('href="/ocorrencias/nova"');
     const conferir = conteudo.indexOf('href="/configuracao/areas"');
-    // **O destino de *Limpar filtros* virou expressão no item 67**: ele mantém a ordem escolhida, então
-    // o endereço carrega a consulta sem os sete recortes, em vez do caminho limpo.
+    // **O vazio não oferece mais *Limpar filtros*** (item 102, critério 7): a faixa acima dele oferece.
     const limpar = conteudo.search(/href=\{`\/ocorrencias\?\$\{semFiltros/u);
     expect(registrar).toBeGreaterThan(-1);
     expect(registrar).toBeLessThan(conferir);
-    expect(registrar).toBeLessThan(limpar);
+    expect(limpar).toBe(-1);
 
     // A cor de cada um: o bloco de registrar em marca, os dois outros em contorno.
     expect(conteudo.slice(registrar, conferir)).toContain('variant: "marca"');

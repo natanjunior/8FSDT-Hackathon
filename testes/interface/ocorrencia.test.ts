@@ -28,6 +28,7 @@ import {
   decodificarCursor,
   decodificarCursorDeConversa,
   descricaoDoRecorte,
+  fraseDoVazioDeFiltro,
   LENTE_DO_GESTOR,
   lenteDeRotulo,
   lenteDoSolicitante,
@@ -681,7 +682,7 @@ describe("qual dos vazios a tela mostra", () => {
 });
 
 describe("qual dos CINCO desfechos a lista mostra — critério 44c.3", () => {
-  const todas = { visibilidadeAplicada: "todas", algumFiltroAplicado: false } as const;
+  const todas = { visibilidadeAplicada: "todas", filtro: {} } as const;
 
   it("havendo item, é a lista, e nada mais é perguntado", () => {
     expect(estadoDaLista({ quantidade: 20, total: 137, ...todas })).toBe("lista");
@@ -702,7 +703,7 @@ describe("qual dos CINCO desfechos a lista mostra — critério 44c.3", () => {
         quantidade: 0,
         total: 12,
         visibilidadeAplicada: "todas",
-        algumFiltroAplicado: true,
+        filtro: { status: ["aberta"] },
       }),
     ).toBe("alem-do-fim");
   });
@@ -714,7 +715,7 @@ describe("qual dos CINCO desfechos a lista mostra — critério 44c.3", () => {
         quantidade: 0,
         total: 0,
         visibilidadeAplicada: "apenas_minhas",
-        algumFiltroAplicado: false,
+        filtro: {},
       }),
     ).toBe("solicitante");
     expect(
@@ -722,9 +723,61 @@ describe("qual dos CINCO desfechos a lista mostra — critério 44c.3", () => {
         quantidade: 0,
         total: 0,
         visibilidadeAplicada: "todas",
-        algumFiltroAplicado: true,
+        filtro: { status: ["aberta"] },
       }),
     ).toBe("filtro");
+  });
+
+  /**
+   * **O A-003, e é o critério 102.5.** `autor=eu` é o recorte *Minhas ocorrências*, e não filtro: um Gestor
+   * que clica *Minhas* e não tem nenhuma lê a frase do Solicitante, e não *"Nenhuma ocorrência com estes
+   * filtros"* com a barra inteira desmarcada.
+   */
+  it("só autor=eu não é filtro: o vazio é o do Solicitante (critério 102.5)", () => {
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 0,
+        visibilidadeAplicada: "apenas_minhas",
+        filtro: { apenasDoAutor: true },
+      }),
+    ).toBe("solicitante");
+  });
+
+  it("autor=eu com outro filtro continua no vazio de filtro", () => {
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 0,
+        visibilidadeAplicada: "apenas_minhas",
+        filtro: { apenasDoAutor: true, status: ["aberta"] },
+      }),
+    ).toBe("filtro");
+  });
+
+  it("autor=eu dentro da aba Compartilhadas comigo é o vazio da aba", () => {
+    expect(
+      estadoDaLista({
+        quantidade: 0,
+        total: 0,
+        visibilidadeAplicada: "compartilhadas_comigo",
+        filtro: { apenasDoAutor: true },
+      }),
+    ).toBe("compartilhadas");
+  });
+
+  it("paradas sozinho é filtro (item 101), e o autor não muda isso", () => {
+    expect(
+      estadoDaLista({ quantidade: 0, total: 0, ...todas, filtro: { apenasParadas: true } }),
+    ).toBe("filtro");
+  });
+
+  /**
+   * **`vazio-da-lista` chega ao navegador** por `tabela-de-participantes.tsx`, que é cliente. O barril de
+   * `@/interface/http` traz as portas de anexo e o armazenamento, e não pode vir junto (revisão do 102, R-1).
+   */
+  it("vazio-da-lista não importa @/interface/http", () => {
+    expect(lerFonte("src/interface/componentes/vazio-da-lista.ts")).not.toContain('"@/interface/http');
   });
 });
 
@@ -1874,8 +1927,11 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
     ]);
   });
 
-  it("só as minhas é uma cláusula como as outras", () => {
-    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes, null)).toStrictEqual(["Só as minhas"]);
+  it("o recorte do autor não é cláusula: quem monta a frase é a página (critério 102.6)", () => {
+    expect(descricaoDoRecorte({ apenasDoAutor: true }, nomes, null)).toStrictEqual([]);
+    expect(
+      descricaoDoRecorte({ apenasDoAutor: true, status: ["aberta"] }, nomes, null),
+    ).toStrictEqual(["Status: Aberta"]);
   });
 
   /** Os três do item 67, com os mesmos rótulos dos gatilhos da barra. */
@@ -1925,6 +1981,42 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
       "Paradas há mais de 7 dias, sem contar as pausadas",
       "Status: Aberta",
     ]);
+  });
+});
+
+describe("a frase do vazio de filtro — critério 102.6", () => {
+  const clausulas = ["Status: Aberta", "Prioridade: Alta"];
+
+  it("sem o recorte do autor, como antes", () => {
+    expect(
+      fraseDoVazioDeFiltro({ apenasDoAutor: false, nomeDaOrganizacao: "Condomínio Recanto Azul", clausulas }),
+    ).toBe("Em Condomínio Recanto Azul, com Status: Aberta · Prioridade: Alta.");
+    expect(fraseDoVazioDeFiltro({ apenasDoAutor: false, nomeDaOrganizacao: null, clausulas })).toBe(
+      "Com Status: Aberta · Prioridade: Alta.",
+    );
+  });
+
+  it("com o recorte do autor, a frase começa por ele", () => {
+    expect(
+      fraseDoVazioDeFiltro({ apenasDoAutor: true, nomeDaOrganizacao: "Condomínio Recanto Azul", clausulas }),
+    ).toBe("Entre as suas ocorrências em Condomínio Recanto Azul, com Status: Aberta · Prioridade: Alta.");
+    expect(fraseDoVazioDeFiltro({ apenasDoAutor: true, nomeDaOrganizacao: null, clausulas })).toBe(
+      "Entre as suas ocorrências, com Status: Aberta · Prioridade: Alta.",
+    );
+  });
+
+  it("nunca escreve a frase antiga, nem maiúscula no meio", () => {
+    for (const apenasDoAutor of [true, false]) {
+      const frase = fraseDoVazioDeFiltro({ apenasDoAutor, nomeDaOrganizacao: "X", clausulas: ["Status: Aberta"] });
+      expect(frase).not.toContain("Só as minhas");
+      expect(frase).not.toMatch(/, com [A-Z][a-z]+ as /u);
+    }
+  });
+
+  it("sem cláusula, a frase não pendura um ', com'", () => {
+    expect(fraseDoVazioDeFiltro({ apenasDoAutor: true, nomeDaOrganizacao: "X", clausulas: [] })).toBe(
+      "Entre as suas ocorrências em X.",
+    );
   });
 });
 
@@ -4778,6 +4870,13 @@ describe("o texto do destaque de parada — item 101", () => {
 
   it("não parada é ausência de texto, e não texto vazio", () => {
     expect(fraseDaParada(null)).toBeNull();
+  });
+});
+
+describe("nenhum glifo de texto na lista — critério 102.9", () => {
+  it("o ↻ saiu da lista, e o ▾ saiu da barra", () => {
+    expect(lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx")).not.toContain("↻");
+    expect(lerFonte("src/interface/componentes/barra-de-filtros.tsx")).not.toContain("▾");
   });
 });
 
