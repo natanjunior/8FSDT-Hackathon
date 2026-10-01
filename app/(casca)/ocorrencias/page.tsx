@@ -232,8 +232,12 @@ export default async function Ocorrencias({
             visível — só que uma vez, e não copiado em cada tela.
 
             **O título é fixo e o recorte é controle** — critério 44c.2. As palavras do recorte não saíram
-            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3. */}
-        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3.
+
+            **`md:flex-wrap` desde o item 102**: o ícone do botão acrescentou 24 px, e em 768 px, com a
+            barra lateral aberta, título, recorte e botão deixaram de caber numa linha. Medido pelo ponta a
+            ponta do pior caso: o grupo da direita terminava 23 px além da tela. */}
+        <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
 
           <div className="flex items-center gap-3">
