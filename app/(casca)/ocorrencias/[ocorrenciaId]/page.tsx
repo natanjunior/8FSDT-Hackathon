@@ -47,6 +47,7 @@ import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
+import { instanteDoServidor, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import {
   LINHA_DA_PRIORIDADE,
@@ -704,6 +705,7 @@ export default async function Ocorrencia({
                   nomeDoStatus={nomeDoStatus}
                   notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
                   rotuloDaSaida={detalhe.statusRotulo}
+                  agora={instanteDoServidor()}
                 />
               </Suspense>
             </FalhaDoCartao>
@@ -1152,12 +1154,15 @@ async function ReguaComDatas({
   nomeDoStatus,
   notaDaSaida,
   rotuloDaSaida,
+  agora,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   statusAtual: string;
   nomeDoStatus: (status: string) => string;
   notaDaSaida: string | null;
   rotuloDaSaida: string;
+  /** O instante do servidor, lido uma vez por requisição (`instanteDoServidor`) — o relógio da lista. */
+  agora: number;
 }) {
   /**
    * **Só transições entram**, já ordenadas da mais antiga para a mais recente, que é como a linha do
@@ -1169,7 +1174,13 @@ async function ReguaComDatas({
    */
   const transicoes = (await eventos).flatMap((evento) =>
     evento.tipo === "transicao"
-      ? [{ status: evento.transicao.statusNovo, em: dataEHora(evento.ocorridoEm) }]
+      ? [
+          {
+            status: evento.transicao.statusNovo,
+            em: dataEHora(evento.ocorridoEm),
+            decorrido: tempoRelativo(evento.ocorridoEm, agora),
+          },
+        ]
       : [],
   );
 

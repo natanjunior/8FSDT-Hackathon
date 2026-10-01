@@ -22,13 +22,20 @@
  */
 export const CICLO = ["aberta", "em_analise", "em_atendimento", "resolvida"] as const;
 
-/** Uma transição da linha do tempo, reduzida ao que a régua usa. `em` já vem em palavra. */
-export type TransicaoDoCiclo = { status: string; em: string };
+/**
+ * Uma transição da linha do tempo, reduzida ao que a régua usa. `em` já vem em palavra.
+ *
+ * **`decorrido` também vem pronto** (item 107) — *"há 30 dias"*, de `tempoRelativo` — e é **opcional** porque
+ * quem não tem relógio não o passa. Esta função continua sem formatar nada.
+ */
+export type TransicaoDoCiclo = { status: string; em: string; decorrido?: string };
 
 export type PassoDoCiclo = {
   status: string;
   /** `null` quando o passo não foi alcançado — e a ausência de data é o que diz isso. */
   em: string | null;
+  /** Há quanto tempo, a partir de `em`. `null` quando não há data ou quando quem chamou não mandou. */
+  decorrido: string | null;
   estado: "alcancado" | "atual" | "por-alcancar" | "inalcancavel";
 };
 
@@ -51,18 +58,23 @@ export function lerOCiclo(
   transicoes: readonly TransicaoDoCiclo[],
   statusAtual: string,
 ): LeituraDoCiclo {
-  const primeiraVez = new Map<string, string>();
+  const primeiraVez = new Map<string, TransicaoDoCiclo>();
   for (const transicao of transicoes) {
-    if (!primeiraVez.has(transicao.status)) primeiraVez.set(transicao.status, transicao.em);
+    if (!primeiraVez.has(transicao.status)) primeiraVez.set(transicao.status, transicao);
   }
 
   const cancelada = statusAtual === "cancelada";
 
   const passos = CICLO.map((status): PassoDoCiclo => {
-    const em = primeiraVez.get(status) ?? null;
+    const primeira = primeiraVez.get(status);
 
-    if (em !== null) {
-      return { status, em, estado: status === statusAtual ? "atual" : "alcancado" };
+    if (primeira !== undefined) {
+      return {
+        status,
+        em: primeira.em,
+        decorrido: primeira.decorrido ?? null,
+        estado: status === statusAtual ? "atual" : "alcancado",
+      };
     }
 
     // **O `atual` sem data existe por honestidade, e não deve acontecer:** a premissa P1 faz o registro
@@ -71,6 +83,7 @@ export function lerOCiclo(
     return {
       status,
       em: null,
+      decorrido: null,
       estado:
         status === statusAtual ? "atual" : cancelada ? "inalcancavel" : "por-alcancar",
     };

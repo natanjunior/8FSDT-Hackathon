@@ -1829,10 +1829,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     );
   });
 
-  it("a régua ganha o visto, a marca de agora e a data à direita (critério 44q.6)", () => {
+  it("a régua ganha o visto, o tempo decorrido e a data à direita (critérios 44q.6 e 107.2)", () => {
     const regua = ler("src/interface/componentes/regua-do-ciclo.tsx");
     expect(regua).toMatch(/passo\.estado === "alcancado" && \(\s*<Check aria-hidden/u);
-    expect(regua).toMatch(/passo\.estado === "atual" && <span[^>]*>agora<\/span>/u);
+    // A palavra *agora* saiu (critério 107.2): ao lado de uma data de semanas atrás, ela lia como recência.
+    expect(regua).not.toMatch(/>agora</u);
+    expect(regua).toContain('passo.estado === "atual" && passo.decorrido !== null');
     expect(regua).toContain("justify-between");
     // Os três marcadores e a ligação não mudaram (critério 44q.6).
     expect(regua).toContain('alcancado: "bg-tinta-suave border-tinta-suave"');
