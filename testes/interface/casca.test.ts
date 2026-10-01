@@ -237,7 +237,7 @@ const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> =
   "app/(casca)/convidar/page.tsx": ["Convidar pessoas", "vinculo.gerir"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
-  "app/(casca)/dashboard/page.tsx": ["Dashboard", "dashboard.ler"],
+  "app/(casca)/dashboard/page.tsx": ["Painel", "dashboard.ler"],
   "app/(casca)/vinculos/page.tsx": ["Participantes", "vinculo.gerir"],
   "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
   "app/(casca)/vinculos/[pessoaId]/editar/page.tsx": ["Editar participante", "vinculo.gerir"],

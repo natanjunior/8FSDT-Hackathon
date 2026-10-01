@@ -110,7 +110,7 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Painel" };
 
 export default async function Dashboard({
   searchParams,
@@ -130,7 +130,7 @@ export default async function Dashboard({
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") {
-    return <SemAcesso titulo="Dashboard" permissao="dashboard.ler" />;
+    return <SemAcesso titulo="Painel" permissao="dashboard.ler" />;
   }
 
   // **A janela é lida DEPOIS da sessão, e a ordem é o mapa de navegação, não gosto.** Quem chega sem
@@ -170,7 +170,7 @@ export default async function Dashboard({
         {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
             uma e já carrega o seletor da outra, e repeti-las aqui era a tela dizendo duas vezes o que a
             casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
-        <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
+        <h1 className="text-titulo-pagina text-tinta">Painel</h1>
 
         <Periodo
           periodo={dashboard.periodo}
@@ -679,7 +679,7 @@ function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
 function PeriodoInvalido() {
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-tinta text-titulo-pagina">Dashboard</h1>
+      <h1 className="text-tinta text-titulo-pagina">Painel</h1>
       <p role="alert" className="text-tinta text-corpo">
         O período pedido não é válido, e por isso a consulta não correu — os números abaixo não existem, e
         não são zeros.

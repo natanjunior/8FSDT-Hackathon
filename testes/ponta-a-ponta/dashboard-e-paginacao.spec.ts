@@ -262,9 +262,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // -------------------------------------------------------------------------
   // 2 · O dashboard, pelo menu da casca — passo 2 do roteiro
   // -------------------------------------------------------------------------
-  await helena.getByRole("link", { name: "Dashboard" }).click();
+  await helena.getByRole("link", { name: "Painel" }).click();
   await helena.waitForURL(/\/dashboard$/u);
-  await expect(helena.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
+  await expect(helena.getByRole("heading", { name: "Painel", level: 1 })).toBeVisible();
 
   // O seletor de período, com a janela padrão dos 90 dias já aplicada (critérios 32.1 e 71.1). O nome
   // acessível carrega o intervalo, e o rótulo visível é o mesmo texto (critério 71.4).
@@ -909,7 +909,7 @@ test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta 
   await expect(gatilho).toBeFocused();
 
   await gatilho.click();
-  await gaveta.getByRole("link", { name: /^Dashboard/u }).click();
+  await gaveta.getByRole("link", { name: /^Painel/u }).click();
   await celular.waitForURL(/\/dashboard$/u);
   await expect(gatilho).toBeFocused();
   cobre(test.info(), "7.2 · 10", { criterio: "94.7" });
