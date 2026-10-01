@@ -86,8 +86,13 @@ function encerrada(status: string): boolean {
  *
  * | Largura | Forma |
  * |---|---|
- * | ≥ `md` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
+ * | ≥ `lg` | tabela de cinco ou seis colunas — *Prioridade* segue **permissão**, nunca recorte (28.6) |
  * | celular | linha de três andares, **sem categoria** — achado P-04 do 44c, aprovado pelo hub |
+ *
+ * **A tabela nasce em `lg` desde o item 102** (P2 da spec). Em 768 px a barra lateral da casca fica aberta e
+ * o cartão tem 506 px, e as seis colunas com conteúdo real pedem perto de 800. Entre 768 e 1023 px vale a
+ * linha do celular, que serve a qualquer largura. O contêiner do `Table` do catálogo já rola na horizontal
+ * (`ui/table.tsx`), e é ele que segura o conteúdo extremo entre 1024 e ~1280 px.
  *
  * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não vista* ao lado do status.**
  * A faixa do celular passou a quebrar (`flex-wrap`) para caber com o status mais longo do Solicitante.
@@ -169,11 +174,11 @@ export function ListaDeOcorrencias({
   const comum = { destinoDoItem, iconePorCategoria, mostrarPrioridade, mostrarParada, agora };
 
   // **Uma forma nos dois recortes** (critério 76.3): o que muda entre *Todas* e *Minhas* é conteúdo,
-  // nunca estrutura. A tabela a partir de `md`, a linha de três andares abaixo dele. O cartão em volta é
+  // nunca estrutura. A tabela a partir de `lg`, a linha de três andares abaixo dele. O cartão em volta é
   // `CartaoDaLista`, que envolve isto e é quem desenha a borda, o raio e a sombra.
   return (
     <>
-      <ul className="md:hidden">
+      <ul className="lg:hidden">
         {itens.map((item) => (
           <LinhaDeTriagemNoCelular key={item.id} item={item} {...comum} />
         ))}
@@ -395,7 +400,7 @@ function TabelaDeTriagem({
   }
 
   return (
-    <div className="hidden md:block">
+    <div className="hidden lg:block">
       <Table>
         <TableHeader>
           <TableRow className="border-linha-suave hover:bg-transparent">
@@ -410,7 +415,8 @@ function TabelaDeTriagem({
         <TableBody>
           {itens.map((item) => {
             /* **A MESMA função dos outros dois recortes** — critério 23.6. Duas condições que precisam
-               concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`. */
+               concordar em dois lugares é o defeito que o item 22 consertou ao criar `acaoPrimaria`.
+               Desde o item 102 ela alimenta a linha de apoio do título, e não a célula de Status. */
             const segundaLinha = segundaLinhaDeMotivo(item.motivoPausa, item.statusRotulo);
 
             return (
@@ -422,9 +428,6 @@ function TabelaDeTriagem({
                 <TableCell className={CELULA}>
                   <SeloDeStatus status={item.status} rotulo={item.statusRotulo} />
                   {item.naoAberta === true && <SeloDeNaoVista />}
-                  {segundaLinha !== null && (
-                    <span className="text-meta text-tinta-suave mt-1 block">{segundaLinha}</span>
-                  )}
                 </TableCell>
                 {/* **O `whitespace-normal` desfaz o `whitespace-nowrap` que o `TableCell` do catálogo
                     traz.** O título é texto livre de até 120 caracteres; sem isto a tabela rolaria na
@@ -439,29 +442,45 @@ function TabelaDeTriagem({
                   >
                     {item.titulo}
                   </Link>
-                  <span className="text-tinta-suave text-meta mt-0.5 flex items-center gap-1.5">
+                  {/* **A linha de apoio corre como texto**, e não como `flex` (item 102): em `flex`, categoria e
+                      motivo viravam duas colunas estreitas lado a lado dentro da célula. O ícone fica no
+                      começo, na altura da primeira linha. **O motivo vem depois da categoria e antes das
+                      fotos** (critério 102.2): ele diz o estado, e saiu da célula de Status para devolver a
+                      largura dela ao selo. */}
+                  <span className="text-tinta-suave text-meta mt-0.5 block">
                     <IconeDeCategoria
                       nome={iconePorCategoria[item.categoria.id] ?? "tag"}
-                      className="size-3.5 shrink-0"
+                      className="mr-1.5 inline size-3.5 align-[-2px]"
                     />
                     {item.categoria.nome}
+                    {segundaLinha !== null && ` · ${segundaLinha}`}
                     {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
                   </span>
                 </TableCell>
-                <TableCell className={CELULA}>
-                  <FichaDeLocal nomeDaArea={item.area.nome} />
+                {/* **Teto de 180 px e quebra** (critério 102.3). `Onde` e `Responsável` herdavam o
+                    `whitespace-nowrap` do `TableCell` do catálogo e nunca quebravam: com uma área de 41 letras
+                    e um nome de 37 elas tomavam 616 px e cortavam a coluna Tempo. **O teto é da caixa de
+                    dentro**, porque `max-width` numa célula de tabela automática não é garantido. `*:items-start`
+                    põe o pino e as iniciais na altura da primeira linha sem mexer nas fichas, que o celular
+                    também usa. */}
+                <TableCell className={cn(CELULA, "whitespace-normal")}>
+                  <span className="block max-w-[180px] *:items-start">
+                    <FichaDeLocal nomeDaArea={item.area.nome} />
+                  </span>
                 </TableCell>
                 {mostrarPrioridade && (
                   <TableCell className={CELULA}>
                     <PalavraDePrioridade prioridade={item.prioridade} />
                   </TableCell>
                 )}
-                <TableCell className={CELULA}>
-                  {item.responsavel === null ? (
-                    <span className="text-tinta-suave">—</span>
-                  ) : (
-                    <FichaDePessoa nome={item.responsavel.nome} />
-                  )}
+                <TableCell className={cn(CELULA, "whitespace-normal")}>
+                  <span className="block max-w-[180px] *:items-start">
+                    {item.responsavel === null ? (
+                      <span className="text-tinta-suave">—</span>
+                    ) : (
+                      <FichaDePessoa nome={item.responsavel.nome} />
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell
                   className={cn(

@@ -1862,7 +1862,9 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     // Item 89: o apoio da encerrada vestia a tinta fraca, que não passa 4,5:1, e agora veste a suave como o
     // de qualquer linha. O que a distingue é o título, que desce de `--ink` a `--ink-soft`, e o selo.
     expect(lista).not.toContain("group-data-[recuada]/linha:text-tinta-fraca");
-    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(2);
+    // Desde o item 102 são três: os dois títulos e os valores do par de datas na tabela, que passaram a
+    // vestir `--ink` ao lado da palavra em meta, e descem com a linha como o título.
+    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(3);
     // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
     expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
     // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
