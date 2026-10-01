@@ -19,6 +19,7 @@ import {
   lerAreaDoEndereco,
   situacaoDaAreaInicial,
 } from "@/interface/componentes/qr-da-area";
+import { temAlgoEscrito, VALORES_VAZIOS } from "@/interface/componentes/registro-de-ocorrencia";
 import { linkDoQrDaArea } from "@/interface/http";
 
 /**
@@ -227,6 +228,55 @@ describe("a página do convite com ?area= — critérios 4, 5 e 6 na fonte", () 
     expect(face).toContain("<ReguaDoOu deitada");
     expect(face).toContain("Já tem conta?");
     expect(face.indexOf("Criar conta")).toBeLessThan(face.indexOf(">Entrar<"));
+  });
+});
+
+describe("temAlgoEscrito — Cancelar no registro aberto pelo QR", () => {
+  const inicial = { ...VALORES_VAZIOS, areaId: AREA };
+
+  it("a área do QR, sozinha, não é algo escrito", () => {
+    expect(temAlgoEscrito(inicial, false, inicial)).toBe(false);
+  });
+
+  it("trocar a área ou escrever é", () => {
+    expect(temAlgoEscrito({ ...inicial, areaId: "outra" }, false, inicial)).toBe(true);
+    expect(temAlgoEscrito({ ...inicial, titulo: "Lâmpada" }, false, inicial)).toBe(true);
+  });
+
+  it("sem inicial, compara com o vazio, como antes", () => {
+    expect(temAlgoEscrito(VALORES_VAZIOS, false)).toBe(false);
+    expect(temAlgoEscrito({ ...VALORES_VAZIOS, titulo: "   " }, false)).toBe(false);
+    expect(temAlgoEscrito(inicial, false)).toBe(true);
+  });
+});
+
+describe("o registro com ?area=, na fonte (critérios 7 e 7b)", () => {
+  const PAGINA = "app/(foco)/ocorrencias/nova/page.tsx";
+
+  it("a área é procurada dentro do funil escopado, depois da resolução, e com inativas só quando há área", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain("lerAreaDoEndereco(");
+    expect(fonte).toContain("incluirInativas: areaDoQr !== null");
+    expect(fonte.indexOf("situacaoDaAreaInicial(")).toBeGreaterThan(
+      fonte.indexOf('resolverEscopoParaTela("ocorrencia.registrar")'),
+    );
+    expect(fonte).toContain("listarAreas(escopo.repos.areas");
+  });
+
+  it("um aviso só para os casos que não abrem a área (7a)", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain('areaIndisponivel={daArea.tipo === "indisponivel"}');
+    expect(fonte).not.toContain("QR não encontrado");
+  });
+
+  it("o formulário recebe a área como valor inicial, e o tipo continua apurado no servidor", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    expect(formulario).toContain("areaInicial");
+    expect(formulario).toContain("TEXTOS_DO_QR.areaIndisponivel");
+    expect(formulario).toContain(
+      'temAlgoEscrito(valores, anexo.nome !== "vazio" && anexo.nome !== "falhou", inicial)',
+    );
+    expect(formulario).not.toMatch(/tipo:\s*area/u);
   });
 });
 

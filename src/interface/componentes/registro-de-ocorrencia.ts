@@ -128,10 +128,20 @@ export function errosDoRegistro(valores: ValoresDoRegistro): Readonly<Record<str
 /**
  * **A foto entra na conta, e não entrava:** escolher uma foto, esperar subir e cancelar descartava o
  * envio sem perguntar nada.
+ *
+ * **Compara com o que a tela abriu, e não com o vazio** (item 111): a área vinda do QR não é algo que a
+ * pessoa escreveu, e *Cancelar* sem tocar em nada não pergunta se ela quer descartar. Sem `inicial`, o
+ * aberto é o vazio, e a regra é a de antes: `vazio` apara antes de comparar.
  */
-export function temAlgoEscrito(valores: ValoresDoRegistro, comFoto: boolean): boolean {
+export function temAlgoEscrito(
+  valores: ValoresDoRegistro,
+  comFoto: boolean,
+  inicial: ValoresDoRegistro = VALORES_VAZIOS,
+): boolean {
   if (comFoto) return true;
-  return Object.values(valores).some((valor) => !vazio(valor));
+  return (Object.keys(valores) as (keyof ValoresDoRegistro)[]).some(
+    (campo) => valores[campo].trim() !== inicial[campo].trim(),
+  );
 }
 
 /**

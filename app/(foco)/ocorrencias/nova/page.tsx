@@ -9,6 +9,7 @@ import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { DepoisDeRegistrar } from "@/interface/componentes/depois-de-registrar";
 import { FormularioDeOcorrencia } from "@/interface/componentes/formulario-de-ocorrencia";
+import { lerAreaDoEndereco, situacaoDaAreaInicial } from "@/interface/componentes/qr-da-area";
 import {
   vazioDoRegistro,
   type FaltaNoRegistro,
@@ -36,7 +37,9 @@ import { resolverEscopoParaTela } from "@/interface/http";
  * interno custaria o salto HTTP — que na tela cronometrada é o salto que não cabe.
  *
  * **As duas listas vêm só com as ativas**, que é o padrão desta tela — ao contrário de T-09 e T-14, que
- * trazem as inativas porque é lá que se reativa.
+ * trazem as inativas porque é lá que se reativa. Salvo com `?area=`, quando as áreas vêm todas, para que a
+ * área do QR seja procurada entre elas (item 111). Ativa vem escolhida; desativada, inexistente ou de
+ * outra organização abre sem área, com um aviso só, que não diz qual dos casos é.
  *
  * **A segunda coluna da tela grande é conteúdo, não moldura** (item 44l). O painel *Depois de registrar*
  * nasce aqui, de servidor, e chega ao formulário por propriedade: é ele quem sabe quando o formulário
@@ -50,7 +53,12 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Registrar ocorrência" };
 
-export default async function RegistrarOcorrencia() {
+export default async function RegistrarOcorrencia({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const areaDoQr = lerAreaDoEndereco(await searchParams);
   let escopo;
   try {
     escopo = await resolverEscopoParaTela("ocorrencia.registrar");
@@ -62,10 +70,14 @@ export default async function RegistrarOcorrencia() {
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") redirect("/");
 
-  const [categorias, areas] = await Promise.all([
+  const [categorias, todasAsAreas] = await Promise.all([
     listarCategorias(escopo.repos.categorias, { incluirInativas: false }),
-    listarAreas(escopo.repos.areas, { incluirInativas: false }),
+    // **Com a área do QR, as inativas entram** (item 111): é a mesma leitura escopada, depois da troca de
+    // organização, e as ativas saem em memória. A área do endereço só é procurada aqui dentro.
+    listarAreas(escopo.repos.areas, { incluirInativas: areaDoQr !== null }),
   ]);
+  const areas = todasAsAreas.filter((area) => area.ativa);
+  const daArea = situacaoDaAreaInicial(todasAsAreas, areaDoQr);
 
   /**
    * **O nome da organização sai de `resolucao.ativo`**, como em T-15
@@ -81,8 +93,6 @@ export default async function RegistrarOcorrencia() {
   /**
    * **O caminho no topo, em toda face** (critério 106.5): era a única página-formulário sem ele, e no
    * celular a tela não tinha um único link. É a forma de um nível das duas páginas de participante.
-   * Constante própria porque a face do QR não encontrado, que o item 111 acrescenta, leva o caminho e não
-   * leva o cabeçalho.
    */
   const caminho = (
     <CaminhoDaPagina anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }} atual="Registrar ocorrência" />
@@ -157,6 +167,8 @@ export default async function RegistrarOcorrencia() {
         areas={areas.map((a) => ({ id: a.id, nome: a.nome, tipo: a.tipo }))}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
         painel={<DepoisDeRegistrar passos={passos} />}
+        areaInicial={daArea.tipo === "ativa" ? daArea.areaId : undefined}
+        areaIndisponivel={daArea.tipo === "indisponivel"}
       />
     </div>
   );
