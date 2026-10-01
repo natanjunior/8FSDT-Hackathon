@@ -1630,8 +1630,9 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
     // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
     // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    // **O item 103 cria seis**: a raiz, as quatro telas de conta e a tela de criar organização. São 18.
     const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
-    expect(esperas).toHaveLength(12);
+    expect(esperas).toHaveLength(18);
   });
 
   it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {
@@ -2557,5 +2558,51 @@ describe("o item 95 — o portão se declara por uma linha", () => {
       .flatMap(codigoDe)
       .filter((caminho) => ler(caminho).includes(TRECHO));
     expect(comOTrecho).toStrictEqual(["ferramentas/portao.mjs"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  O recibo de cada ação — item 103
+// ---------------------------------------------------------------------------
+
+/** A frase de espera de toda tela, copiada de `app/organizacao/loading.tsx`. */
+const FRASE_DE_ESPERA = "Acordando o servidor — a primeira abertura do dia é mais lenta.";
+
+describe("o recibo de cada ação — item 103", () => {
+  it("as quatro telas de conta e a raiz têm espera, com a frase de sempre (critério 103.4)", () => {
+    for (const caminho of [
+      "app/loading.tsx",
+      "app/entrar/loading.tsx",
+      "app/criar-conta/loading.tsx",
+      "app/redefinir-senha/loading.tsx",
+      "app/definir-senha/loading.tsx",
+    ]) {
+      expect(existsSync(RAIZ + caminho), caminho).toBe(true);
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("<EsperaDaMolduraDeConta");
+      expect(fonte, caminho).toContain(FRASE_DE_ESPERA);
+      expect(fonte, caminho).toContain('role="status"');
+      expect(fonte, caminho).toContain("[animation-delay:2s]");
+    }
+  });
+
+  it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
+    // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
+    expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
+    const criar = ler("app/organizacao/criar/loading.tsx");
+    expect(criar).toContain('convite={{ lado: "esquerda" }}');
+    expect(criar).toContain(FRASE_DE_ESPERA);
+    // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
+    expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
+    expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
+  });
+
+  it("a geometria das duas colunas é escrita uma vez, e a espera a usa (critério 103.5)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect([...fonte.matchAll(/className=\{COLUNA_COM_CONVITE\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/TRILHAS\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CARTAO\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CONVITE\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect(fonte).not.toContain('convite.lado === "esquerda"');
   });
 });
