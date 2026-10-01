@@ -90,6 +90,7 @@ export function ControleDeFoto({
   aoMudar,
   erro,
   organizacaoId,
+  inerte = false,
 }: {
   /** O formulário é quem guarda o estado do anexo — o controle apenas o anuncia. */
   aoMudar: (estado: EstadoDoAnexo) => void;
@@ -97,6 +98,11 @@ export function ControleDeFoto({
   erro?: string;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /**
+   * **Durante o envio, nada aqui responde** (critério 106.6), como os outros controles do formulário.
+   * O nome é o do `SeletorDeArea`, o vizinho que já fazia isso.
+   */
+  inerte?: boolean;
 }) {
   const [situacao, setSituacao] = useState<Situacao>({ nome: "vazio" });
   const entrada = useRef<HTMLInputElement>(null);
@@ -267,6 +273,7 @@ export function ControleDeFoto({
         accept={ACEITOS}
         className="sr-only"
         tabIndex={-1}
+        disabled={inerte}
         onChange={(evento) => {
           const arquivo = evento.target.files?.[0];
           if (arquivo !== undefined) void escolher(arquivo);
@@ -280,6 +287,7 @@ export function ControleDeFoto({
            não controles de linha. Exceção nomeada no guia, §4 (item 104, critério 7). */
         <Button
           type="button"
+          disabled={inerte}
           variant="outline"
           onClick={() => entrada.current?.click()}
           className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7"
@@ -340,11 +348,13 @@ export function ControleDeFoto({
             <span className="flex shrink-0 items-center gap-1.5">
               <BotaoDeIcone
                 rotulo={FOTO.trocar}
+                disabled={inerte}
                 icone={<RefreshCw aria-hidden="true" />}
                 onClick={() => entrada.current?.click()}
               />
               <BotaoDeIcone
                 rotulo={FOTO.remover}
+                disabled={inerte}
                 icone={<Trash2 aria-hidden="true" />}
                 onClick={limpar}
               />

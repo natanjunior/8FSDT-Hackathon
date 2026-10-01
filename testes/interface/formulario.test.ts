@@ -967,6 +967,15 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect([...posicoes].sort((a, b) => a - b)).toStrictEqual(posicoes);
   });
 
+  it("o controle de foto fica inerte durante o envio, como o seletor de área (critério 106.6)", () => {
+    expect(ler("src/interface/componentes/formulario-de-ocorrencia.tsx")).toMatch(
+      /<ControleDeFoto[^>]*\binerte=\{enviando\}/u,
+    );
+    // A entrada de arquivo, o alvo grande e os dois botões de ícone.
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle.match(/disabled=\{inerte\}/gu) ?? []).toHaveLength(4);
+  });
+
   it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
     for (const caminho of ALCANCE_DO_44L) {
       const fonte = ler(caminho);
