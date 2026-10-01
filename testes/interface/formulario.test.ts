@@ -634,6 +634,17 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(tabela).toContain("<ContatoPorIcone");
     expect(tabela).not.toContain("maisContatos");
   });
+
+  it("o travessão de sem contato tem nome, e o recuo é só de quem tem botão (critério 106.14)", () => {
+    const contato = ler("src/interface/componentes/contato-por-icone.tsx");
+    expect(contato).toContain('<span aria-hidden="true" className="text-tinta-suave">');
+    expect(contato).toContain('<span className="sr-only">{TEXTOS_DA_TABELA.semContato}</span>');
+    expect(ler("src/interface/componentes/frases-de-participantes.ts")).toContain(
+      'semContato: "sem contato cadastrado"',
+    );
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).not.toContain('<div className="-ml-3">');
+  });
 });
 
 /**
