@@ -1673,6 +1673,14 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toMatch(/\bborder-0\b/u);
   });
 
+  it("a seta de ordenação aparece a 40% em repouso (critério 106.11)", () => {
+    const cabeca = ler("src/interface/componentes/cabeca-que-ordena.tsx");
+    expect(cabeca).toMatch(
+      /<ArrowUpDown[\s\S]*?className="[^"]*\bopacity-40\b[^"]*\bgroup-hover:opacity-100\b[^"]*\bgroup-has-focus-visible:opacity-100\b/u,
+    );
+    expect(cabeca).not.toMatch(/\bopacity-0\b/u);
+  });
+
   it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
     const fonte = ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
 
