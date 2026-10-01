@@ -11,11 +11,16 @@ import type {
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ConfiguracaoLida,
   OrganizacaoLida,
   PosicaoNaLista,
+  PedidoDeRotulos,
+  RegrasDaOrganizacao,
+  RepositorioEscopadoDaConfiguracao,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RotulosDoSolicitante,
 } from "./portas";
 
 /**
@@ -238,4 +243,74 @@ function posicoesDaReordenacao(
 
   if (!ehPermutacao) throw new ListaDesatualizada();
   return normalizados.map((id, indice) => ({ id, ordem: indice + 1 }));
+}
+
+/**
+ * **Ler as regras e as mudanças — item 99, `GET /configuracao` e T-15.** Uma chamada, porque a tela
+ * precisa das duas coisas e o volume de mudanças é de dezenas de linhas por organização.
+ */
+export function lerConfiguracao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<ConfiguracaoLida> {
+  return configuracao.ler();
+}
+
+export type ComandoDeAlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /**
+   * Os textos que o Solicitante lê (item 100). **Já normalizados pela Interface**: `null` significa
+   * *volte ao padrão*, e quem sabe qual é o texto padrão é a projeção, não esta camada.
+   */
+  rotulos?: PedidoDeRotulos;
+  /** Quem mudou — `ctx.pessoaId`. Vai para `atualizado_por_pessoa_id`, e o gatilho da 017 o copia. */
+  porPessoaId: string;
+};
+
+/**
+ * **Mudar as regras e os textos — itens 99 e 100, `PATCH /configuracao`.** A trilha da regra não é
+ * escrita aqui: é do gatilho da migração 017, que lê o valor anterior da própria linha travada. A do
+ * rótulo é da porta, na mesma transação da escrita. Esta camada só garante que campo ausente não vai à
+ * porta, porque ausente é *não mexa*.
+ */
+export function alterarConfiguracao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+  comando: ComandoDeAlteracaoDeConfiguracao,
+): Promise<ConfiguracaoLida> {
+  return configuracao.alterar({
+    ...(comando.exigirSolucaoAoResolver === undefined
+      ? {}
+      : { exigirSolucaoAoResolver: comando.exigirSolucaoAoResolver }),
+    ...(comando.limiteDeCancelamentoDoSolicitante === undefined
+      ? {}
+      : { limiteDeCancelamentoDoSolicitante: comando.limiteDeCancelamentoDoSolicitante }),
+    ...(comando.diasParaParada === undefined ? {} : { diasParaParada: comando.diasParaParada }),
+    ...(comando.rotulos === undefined ? {} : { rotulos: comando.rotulos }),
+    atualizadaPorPessoaId: comando.porPessoaId,
+  });
+}
+
+/**
+ * **As regras, sem a trilha** — item 101, e é a leitura de T-03.
+ *
+ * `lerConfiguracao` traz junto as mudanças, com nome de quem mudou o quê. T-03 é a tela mais aberta do
+ * produto e a que o RNF5 cronometra: ela precisa de **um número**, e pagar a trilha inteira por ele seria
+ * a segunda consulta mais cara do produto feita por engano. Quem precisa das duas coisas é T-15.
+ */
+export function lerRegrasDaOrganizacao(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<RegrasDaOrganizacao> {
+  return configuracao.lerRegras();
+}
+
+/**
+ * **Os rótulos da organização, sozinhos — item 100.** É a leitura que toda requisição escopada do
+ * Solicitante faz para montar a lente, e por isso ela não carrega a trilha nem as regras: seis linhas no
+ * máximo, pela chave primária.
+ *
+ * **Quem tem `ocorrencia.ler_todas` não chega aqui.** A lente do Gestor não tem rótulos — não é ramo que
+ * os ignora, é tipo que não os tem —, e quem resolve a lente não lê o banco nesse caso.
+ */
+export function lerRotulosDoSolicitante(
+  configuracao: RepositorioEscopadoDaConfiguracao,
+): Promise<RotulosDoSolicitante> {
+  return configuracao.rotulosDoSolicitante();
 }

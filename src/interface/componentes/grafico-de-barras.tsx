@@ -5,14 +5,18 @@ import { Bar, BarChart, LabelList, Rectangle, XAxis, YAxis, type RectangleProps 
 import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/chart";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
+import { tetoDoEixo } from "./teto-do-eixo";
+
 /**
  * ============================================================================
  *  A barra horizontal de T-07 — cinco quadros, uma peça
  * ============================================================================
  *
  * **Bar horizontal do catálogo, com `LabelList`** (item 73): a idade, o que está voltando, a categoria, o
- * status e as notas. Toda barra é `--chart-1`, **nenhuma cor semântica**, e o valor vem escrito à direita
- * de cada barra, então a comparação não depende de ler comprimento.
+ * status e as notas. Toda barra é `--chart-4`, o cinza medido da paleta, **nenhuma cor semântica**, e o
+ * valor vem escrito à direita de cada barra, então a comparação não depende de ler comprimento. **Não é
+ * `--chart-1`** (item 105): o laranja da série tem a matiz da marca, e vinte barras dele faziam da cor da
+ * ação uma textura. O `--chart-1` fica nas duas linhas, onde precisa de identidade contra o `--chart-2`.
  *
  * **O que o Recharts 3 cobra, e a validação já mediu:** o `layout="vertical"` fica no `BarChart` e **não se
  * repete no `<Bar>`**, que é quebra documentada da v3; o eixo de valor é `XAxis type="number" hide`; e o
@@ -25,6 +29,9 @@ import { useIsMobile } from "@/interface/ganchos/use-mobile";
  * (`cartesian/Bar.js`, *"Filter out 0-dimension rectangles early"*). A forma é o `Rectangle` de sempre,
  * que não desenha nada com largura zero; o rótulo fica. Medido na captura de 24/09/2026: sem ela,
  * *Vazamentos*, *Nota 2* e *Nota 1* apareciam sem número.
+ *
+ * **O eixo vai de zero ao denominador quando o quadro o passa** (item 110): sem ele, o domínio do
+ * Recharts vai ao maior valor, e três notas de um voto desenhavam três barras cheias.
  *
  * **A lista para leitor de tela existe porque o SVG é `aria-hidden`.** Sem ela, quem não vê chegaria ao
  * quadro e ouviria só o título. Ela sai do **mesmo** array das barras, e por isso as duas não discordam.
@@ -46,7 +53,7 @@ export type BarraDoGrafico = {
   texto: string;
 };
 
-const CONFIGURACAO: ChartConfig = { valor: { label: "Quantidade", color: "var(--chart-1)" } };
+const CONFIGURACAO: ChartConfig = { valor: { label: "Quantidade", color: "var(--chart-4)" } };
 const ALTURA_DA_LINHA = 36;
 const ALTURA_DA_BARRA = 22;
 /** Largura média de um caractere do papel `meta`, em px — é o que reserva a margem do texto de valor. */
@@ -62,12 +69,18 @@ export function GraficoDeBarras({
   barras,
   larguraDoRotulo,
   listaParaLeitor = true,
+  denominador,
 }: {
   barras: readonly BarraDoGrafico[];
   /** Largura da coluna de rótulos, em px. */
   larguraDoRotulo: number;
   /** Sem `Ver dados`, o quadro precisa da lista para leitor de tela. Padrão: `true`. */
   listaParaLeitor?: boolean;
+  /**
+   * O todo de que cada barra é parte (item 110). Sem ele, o eixo vai ao maior valor. Os quadros 7 e 4 o
+   * passam; os quadros 2, 5 e 6 não, porque o critério 110.6 nomeia só os dois.
+   */
+  denominador?: number;
 }) {
   const celular = useIsMobile();
   const maiorTexto = Math.max(...barras.map((barra) => barra.texto.length), 1);
@@ -91,7 +104,13 @@ export function GraficoDeBarras({
           layout="vertical"
           margin={{ top: 4, right: maiorTexto * LARGURA_DO_CARACTERE + 16, bottom: 4, left: 0 }}
         >
-          <XAxis type="number" hide />
+          <XAxis
+            type="number"
+            hide
+            {...(denominador === undefined
+              ? {}
+              : { domain: [0, tetoDoEixo(barras.map((barra) => barra.valor), denominador)] })}
+          />
           <YAxis
             type="category"
             dataKey="rotulo"

@@ -1,4 +1,5 @@
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
+import type { RegrasDaOrganizacao } from "@/aplicacao/organizacao";
 import type { TipoDeAnexo } from "@/dominio/anexo";
 import type { Papel } from "@/dominio/organizacao";
 import type {
@@ -195,6 +196,12 @@ export type OcorrenciaLida = {
   ultimaTransicao: TransicaoLida;
   registradaEm: string;
   atualizadaEm: string;
+  /**
+   * **As regras da organização, lidas junto** (item 99). Não é dado da ocorrência, como `responsavel`
+   * também não é: é o fato de fora de que `acoesDisponiveis` precisa, e a página precisa dele para dizer
+   * que a solução é obrigatória. A projeção não o emite.
+   */
+  regrasDaOrganizacao: RegrasDaOrganizacao;
 };
 
 /**
@@ -249,6 +256,14 @@ export type OcorrenciaResumoLida = {
    * consulta não a faz, e um `false` ali afirmaria que a pessoa já viu.
    */
   naoAberta: boolean | null;
+  /**
+   * **Há quantos dias a ocorrência está parada, ou `null`** — item 101. `null` quando ela não está: por
+   * estado (terminal ou `pausada`) ou por tempo.
+   *
+   * **Vem pronto do servidor, e a tela não recalcula a regra.** O número é o piso dos dias decorridos
+   * entre `atualizada_em` e o corte da página, medido pela chave da organização na mesma instrução.
+   */
+  paradaHaDias: number | null;
   motivoPausa: MotivoPausa | null;
   registradaEm: string;
   atualizadaEm: string;
@@ -408,6 +423,15 @@ export type FiltroDeOcorrencias = {
    * nem em `PARAMETROS_DE_FILTRO`.
    */
   readonly compartilhadasComigo?: boolean;
+  /**
+   * **O filtro rápido *Paradas*** — item 101. Estreita o conjunto às ocorrências em que ninguém mexe há
+   * mais dias do que a organização tolera.
+   *
+   * **É filtro, e não recorte:** combina com todos os outros, entra em `algumFiltroAplicado` e em
+   * `PARAMETROS_DE_FILTRO`, e *Limpar filtros* o tira. `compartilhadasComigo` é o contrário disso, e o
+   * comentário dela diz por quê.
+   */
+  readonly apenasParadas?: boolean;
 };
 
 /**
@@ -564,14 +588,19 @@ export type ResultadoDaAvaliacao =
  * dentro do limite, contra a `arquitetura.md` §4 e contra a §3.1 da spec do item 19, que pôs a Atribuição
  * **fora** dele. Mudar o lado do limite é decisão de arquitetura, não de fatia.
  *
- * **O lugar já está pronto para o segundo fato do mesmo tipo:** a **invariante 10** — *"`resolver` não
- * exige solução aplicada; depende da configuração da `Organização`"* — é a próxima a precisar disto, e é
- * do item 26.
+ * **O segundo fato do mesmo tipo chegou no item 99, no campo `regras`:** a **invariante 10** — *"`resolver`
+ * não exige solução aplicada; depende da configuração da `Organização`"* — e o limite de cancelamento do
+ * Solicitante, que a D29 tornou regra da organização.
  */
 export type OcorrenciaCarregada = {
   ocorrencia: Ocorrencia;
   /** Há atribuição vigente? A invariante 9, apurada no **mesmo** `select` do agregado. */
   temResponsavel: boolean;
+  /**
+   * **As regras da organização — a invariante 10 e a D29** (item 99), no mesmo `select`. É o segundo fato
+   * do mesmo tipo que o comentário deste envelope previa.
+   */
+  regras: RegrasDaOrganizacao;
 };
 
 export interface RepositorioEscopadoDeOcorrencias {

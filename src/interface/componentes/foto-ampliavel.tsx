@@ -56,10 +56,10 @@ export function FotoAmpliavel({
             role="img"
             aria-label={nome}
             className="bg-superficie border-linha block h-56 w-full rounded-lg border bg-cover bg-center bg-no-repeat"
-            style={{
-              backgroundImage:
-                miniaturaUrl === null ? `url(${url})` : `url(${url}), url(${miniaturaUrl})`,
-            }}
+            // **Uma camada, e é a miniatura** (critério 106.2). Duas camadas faziam o navegador baixar o
+            // original e a miniatura, e a de cima cobria a de baixo. Sem miniatura, cai no original; o
+            // diálogo abaixo continua com o original. Sem elemento de imagem: seria o primeiro `eslint-disable`.
+            style={{ backgroundImage: `url(${miniaturaUrl ?? url})` }}
           />
           <span className="bg-superficie text-tinta border-linha text-meta absolute right-3 bottom-3 inline-flex min-h-11 items-center gap-1.5 rounded-sm border px-3 font-medium">
             <Maximize2 aria-hidden="true" strokeWidth={1.9} className="size-[15px]" />

@@ -43,8 +43,9 @@ export function CabecaQueOrdena({
 
   return (
     // `py-0`: o botão de ordenar já tem os 44 px do alvo de toque, e os 11 px do rótulo de coluna em
-    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q). `group`: a seta dupla só aparece
-    // com o ponteiro sobre o cabeçalho ou com o foco no botão (item 68a).
+    // volta dele fariam a linha de cabeçalho crescer para 66 (item 44q). `group`: a seta dupla fica a 40%
+    // em repouso, para a coluna se mostrar ordenável sem ponteiro, e sobe a 100% com o ponteiro ou o foco
+    // (itens 68a e 106).
     <TableHead aria-sort={sentido} className={cn(ROTULO_DE_COLUNA, "group py-0", largura)}>
       <Button
         type="button"
@@ -64,7 +65,7 @@ export function CabecaQueOrdena({
         {sentido === "none" && (
           <ArrowUpDown
             aria-hidden="true"
-            className="text-tinta-suave size-3 opacity-0 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
+            className="text-tinta-suave size-3 opacity-40 transition-opacity group-hover:opacity-100 group-has-focus-visible:opacity-100"
           />
         )}
       </Button>

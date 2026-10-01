@@ -161,7 +161,9 @@ export async function registrarOcorrencia(
   titulo: string,
   descricao: string,
 ): Promise<string> {
-  await pagina.getByRole("link", { name: "+ Registrar ocorrência" }).click();
+  // **O nome perdeu o `+`** (item 102): o sinal virou ícone `aria-hidden`. A expressão casa o botão do
+  // cabeçalho na lista e o convite do centro no vazio, onde o do cabeçalho fica invisível.
+  await pagina.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await pagina.waitForURL(/\/ocorrencias\/nova$/u);
   await pagina.getByLabel("Título").fill(titulo);
   await pagina.getByLabel("Descrição").fill(descricao);
@@ -180,14 +182,28 @@ export async function registrarOcorrencia(
 }
 
 /**
- * Abre um comando que mora no menu *"Mais ações ▾"* da barra (item 23).
+ * *Analisar*, que desde o item 107 abre o `ModalDeObservacao` em vez de gravar no clique.
+ *
+ * **Sem `observacao`, confirma com o campo vazio**, e o registro sai com `observacao: null` — que a trilha
+ * escreve como *"sem observação"*. **Espera o diálogo fechar**, que é o sinal de que o comando voltou.
+ */
+export async function analisar(pagina: Page, observacao?: string): Promise<void> {
+  await pagina.getByRole("button", { name: "Analisar" }).click();
+  const modal = pagina.getByRole("dialog", { name: "Analisar" });
+  if (observacao !== undefined) await modal.getByLabel("Observação (opcional)").fill(observacao);
+  await modal.getByRole("button", { name: "Analisar" }).click();
+  await expect(modal).toHaveCount(0);
+}
+
+/**
+ * Abre um comando que mora no menu *"Mais ações"* da barra (item 23).
  *
  * **O gatilho lá dentro é `menuitem`, e não `button`** — `ModalDeMotivo` e `ModalDeAtribuicao` trocam a
  * forma do gatilho pela variante `"menu"`, para o diálogo poder viver dentro do menu sem ser desmontado
  * no clique.
  */
 export async function abrirNoMenu(pagina: Page, rotulo: string): Promise<Locator> {
-  await pagina.getByRole("button", { name: "Mais ações ▾" }).click();
+  await pagina.getByRole("button", { name: "Mais ações", exact: true }).click();
   await pagina.getByRole("menuitem", { name: rotulo }).click();
   return pagina.getByRole("dialog");
 }

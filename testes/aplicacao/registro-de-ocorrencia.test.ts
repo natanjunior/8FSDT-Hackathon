@@ -85,6 +85,12 @@ const repoDeOcorrencias = () =>
         },
         registradaEm: agregado.registradaEm,
         atualizadaEm: agregado.registradaEm,
+        // **As regras da organização** (item 99), no padrão de toda organização nova.
+        regrasDaOrganizacao: {
+          exigirSolucaoAoResolver: false,
+          limiteDeCancelamentoDoSolicitante: "em_analise",
+          diasParaParada: 7,
+        },
       };
       return { desfecho: "registrada", ocorrencia };
     },

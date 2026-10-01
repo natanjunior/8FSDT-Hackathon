@@ -70,7 +70,7 @@ const CLASSE_DO_GRUPO =
   "p-0 [&_[cmdk-group-heading]]:text-tinta-suave [&_[cmdk-group-heading]]:text-rotulo-coluna [&_[cmdk-group-heading]]:px-0 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1";
 
 const CLASSE_DO_CANDIDATO =
-  "border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2";
+  "border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-sm border px-3 py-2";
 
 /** O campo do `cmdk` com a borda e a altura dos campos do produto (A-3). */
 const CLASSE_DA_BUSCA =
@@ -102,7 +102,7 @@ export function ModalDeAtribuicao({
   organizacaoId: string;
   /**
    * **Três variantes desde o item 23:** `"menu"` renderiza o gatilho como `DropdownMenuItem`, porque
-   * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações ▾"*.
+   * em `em_analise` com responsável e em `em_atendimento` a atribuição vai para o *"Mais ações"*.
    * Botão nu dentro do `DropdownMenuContent` é ARIA inválida e o menu perde a navegação por setas.
    */
   variante: "primario" | "secundario" | "menu";
@@ -319,7 +319,7 @@ export function ModalDeAtribuicao({
         {eu !== null && (
           <label
             htmlFor={`candidato-${eu.pessoaId}`}
-            className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 ${
+            className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 items-center gap-3 rounded-sm border px-3 py-2 ${
               euSouOResponsavel ? "opacity-60" : "cursor-pointer"
             }`}
           >

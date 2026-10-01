@@ -67,7 +67,7 @@ function InputOTPSlot({
          `:focus-visible` do `@layer base`: sem o anel da casa, o código ficaria sem indicador nenhum.
          O anel passou de `ring-[3px] ring-ring/50` para opacidade cheia (critério 94.2). */
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-sm shadow-xs transition-all first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive",
+        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-interface shadow-xs transition-all first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive",
         className
       )}
       {...props}

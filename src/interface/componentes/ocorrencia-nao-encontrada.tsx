@@ -51,7 +51,7 @@ export function OcorrenciaNaoEncontradaNaTela({
       */}
       <Link
         href="/ocorrencias"
-        className="border-linha text-tinta text-interface inline-flex min-h-11 w-full items-center justify-center rounded-md border px-4 font-medium"
+        className="border-linha text-tinta text-interface inline-flex min-h-11 w-full items-center justify-center rounded-sm border px-4 font-medium"
       >
         Voltar à lista
       </Link>

@@ -19,6 +19,7 @@ import {
   repositorioDeConvites,
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
+  repositorioEscopadoDaConfiguracao,
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
@@ -100,6 +101,14 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // **Só a consulta, e a ausência da transação é o desenho:** a correção do nome é uma instrução só, e
     // uma porta que recebesse `escoparTransacao` daria a ela atomicidade que ninguém pediu.
     organizacao: repositorioEscopadoDaOrganizacao(consulta),
+    // Recebe as **duas** formas de acesso desde o item 100: a consulta para a leitura, e a transação
+    // escopada para a escrita. A mudança de regra continua sendo uma instrução só, com o gatilho da 017
+    // gravando a trilha dentro dela; a mudança de rótulo escreve em duas tabelas — o texto e a linha da
+    // trilha —, e as duas têm de cair juntas.
+    configuracao: repositorioEscopadoDaConfiguracao(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
     // Recebe as **duas** formas de acesso: a consulta para a leitura, e a transação escopada para a
     // aprovação, que faz duas escritas num `COMMIT` só. As duas passam pelo mesmo `$1`.
     pedidosDeEntrada: repositorioEscopadoDePedidosDeEntrada(

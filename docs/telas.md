@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezenove telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As vinte telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezenove telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Vinte telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezenove
+## As vinte
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -18,7 +18,7 @@ ganha endereço próprio.
 | Redefinir senha | `/redefinir-senha` | *Esqueci a senha.* | qualquer pessoa, sem sessão |
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
-| Convite | `/convite/{codigo}` | *Me mandaram este link. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
+| Convite | `/convite/{codigo}` | *Me mandaram este link, ou li o QR de um lugar. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
 | Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?*, *o que me mostraram?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
@@ -29,6 +29,7 @@ ganha endereço próprio.
 | Configuração | `/configuracao` | *O que desta organização eu posso ajustar?* | quem configura a organização |
 | Categorias | `/configuracao/categorias` | *As categorias que o Solicitante escolhe estão certas?* | quem configura a organização |
 | Áreas | `/configuracao/areas` | *As áreas descrevem este lugar?* | quem configura a organização |
+| QR da área | `/configuracao/areas/{areaId}/qr` | *Como eu ponho o registro na parede?* | quem configura a organização |
 | Meus dados | `/meus-dados` | *O que é meu, e como eu entro?* | qualquer vínculo ativo |
 | Grupo | `/grupo` | *Quem fez isto?* | qualquer pessoa, sem sessão |
 | Vínculo sem permissões | — | *Entrei. Por que não consigo fazer nada?* | vínculo sem permissão nenhuma |
@@ -41,6 +42,7 @@ que hoje é o caso do Encarregado.
 ```mermaid
 flowchart TB
     CONVITE["Convite recebido"]
+    QRAREA["QR de uma área"]
     CONTA["Criar conta · Redefinir senha"]
     ENTRAR["Entrar"]
     CTX{"Tem organização ativa?"}
@@ -51,6 +53,8 @@ flowchart TB
     TRILHA["Trilha de auditoria"]
     MENU["Menu do cabeçalho"]
 
+    QRAREA --> CONVITE
+    CONVITE -->|participa| NOVA
     CONVITE --> CONTA
     CONVITE --> ENTRAR
     CONTA --> ENTRAR
@@ -65,8 +69,9 @@ flowchart TB
 ```
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
-moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração — que
-abre as categorias e as áreas —, os Meus dados e a página do Grupo, que também responde sem sessão.
+moram. Do menu do cabeçalho saem o Painel, os Participantes, o convite de pessoas, a Configuração, que mostra as
+regras do atendimento, os textos que quem abriu lê e cada mudança delas, e abre as categorias e as áreas,
+os Meus dados e a página do Grupo, que também responde sem sessão.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
@@ -78,6 +83,11 @@ lado do status. Nada é empurrado: o número só existe na lista que a pessoa ab
 
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
+
+O QR de uma área leva à mesma tela, com a área no endereço. Quem participa e já entrou cai direto no
+registro, com a área escolhida, e a organização ativa troca para a da área se for preciso. Quem não entrou
+vê o nome da organização, entra e volta sozinho ao registro. Quem não participa vai para o pedido de
+entrada.
 
 A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
 pede sessão.
@@ -100,6 +110,11 @@ confirmação, com foto, num celular em rede móvel — e o desenho inteiro dela
 primeiro alvo, os campos de digitar vêm antes dos de escolher para evitar trocas de teclado, e a área
 tem busca com as usadas recentemente no topo.
 
+Pelo QR de uma área, ela já vem com a área escolhida, e a pessoa pode trocá-la: o tipo segue a
+área que ficar no fim. Se a área do QR foi desativada, ou não é desta organização, o campo abre vazio,
+com um aviso para escolher onde é, sem dizer qual dos dois casos é. Um QR com código que não leva a
+organização nenhuma mostra *QR não encontrado*.
+
 **Ocorrência** é onde o trabalho acontece, e é o link que substitui a conversa em grupo. Os onze comandos
 do agregado moram nela: analisar, atribuir, iniciar atendimento, pausar, retomar, resolver, cancelar,
 alterar prioridade, registrar a solução, comentar e avaliar. Nenhum deles é uma tela.
@@ -117,6 +132,11 @@ campo de mensagem — as mensagens continuam legíveis.
 Onze telas de comando produziriam um produto em que o Gestor sai da ocorrência para agir sobre ela e volta
 para ver o resultado — navegar em vez de trabalhar.
 
+A lista tem um filtro de um clique para o que está esperando: ele recorta pelas ocorrências em curso sem
+atividade há mais dias do que a organização tolera, e as que estão em espera com motivo não entram. Cada
+linha recortada diz há quantos dias está assim, e o mesmo aviso aparece fora do filtro, para quem só
+percorre a lista. Quantos dias a organização tolera é regra dela, de 1 a 90, e muda na Configuração.
+
 ## O que a tela desenha vem do servidor
 
 A resposta que traz uma ocorrência traz também **a lista de ações disponíveis para quem está lendo**, já
@@ -127,7 +147,8 @@ A lista pode vir vazia, e isso não é erro: é uma ocorrência terminal, ou alg
 sobre ela. A tela mostra o histórico e não oferece ação nenhuma.
 
 O mesmo vale para os rótulos: o texto de cada estado é calculado no servidor e depende de quem lê. Quem
-abriu vê linguagem de gente; quem gere vê o nome com que opera a máquina.
+abriu vê linguagem de gente, e a organização pode trocar esse texto na Configuração; quem gere vê o nome
+com que opera a máquina, que não muda.
 
 No painel, a API devolve o tempo de resolução em horas, e **a unidade que se lê é escolha da
 tela**: abaixo de um minuto ela escreve *menos de 1 min*, abaixo de uma hora escreve minutos, de uma a 48
@@ -180,7 +201,8 @@ durações dele aparecem uma a uma na tabela.
 
 O que está voltando mostra as duplas de área e categoria que se repetiram no período, da maior para a
 menor, as cinco primeiras e as que empatam com a quinta. O que passa disso vira uma frase, e o corte nunca
-separa um empate. Uma ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem
+separa um empate. Embaixo, o quadro diz de quantas ocorrências registradas no período as duplas são parte,
+e o comprimento de cada barra é essa parte. Uma ocorrência não é recorrência, então a dupla só aparece da segunda em diante; sem
 nenhuma, o quadro escreve o que vai aparecer ali.
 
 O quadro por status conta todas as ocorrências da organização, inclusive as resolvidas e as canceladas, na
@@ -194,16 +216,15 @@ período, o número grande fica num traço, nunca num zero, e a frase ao lado di
 tem e que nenhuma delas foi avaliada.
 
 No painel, o período se escolhe num controle único, que mostra o intervalo aplicado e abre um calendário
-com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho fica apagado quando o
-período já é o dele, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
+com quatro atalhos de uso corrente: últimos 7, 30 e 90 dias, e este mês. O atalho do período aplicado
+aparece marcado, e o rótulo do controle só muda depois de aplicar. Se a data de início vier depois da
 de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
 mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 
 ## Celular primeiro, e o que muda na tela grande
 
-O registro, a leitura e a conversa são desenhados para o celular, porque é onde o morador está. O painel,
-a trilha de auditoria, os participantes e a configuração são desenhados para a tela grande, porque são
-trabalho de quem senta para administrar.
+Toda tela é desenhada para funcionar completa no celular e na tela grande, para qualquer papel. O registro,
+a leitura e a conversa nasceram no celular, porque é onde o morador está.
 
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
@@ -221,6 +242,7 @@ celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás
 | Erro | a frase em português que vem da resposta, com a ação que a pessoa pode tentar |
 | Endereço que não existe | página própria, com o caminho para a aplicação e para esta documentação |
 | Um bloco que não carregou | a falha fica naquele cartão, com a ação de tentar de novo, e o resto da tela continua |
+| Abrindo depois de um tempo sem uso | a casca da aplicação na hora, com a marca e o esqueleto, e a tela no lugar dela assim que o servidor responde |
 
 ## Acessibilidade
 

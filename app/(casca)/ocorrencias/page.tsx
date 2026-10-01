@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
+  LIMITE_PADRAO,
   listarOcorrencias,
   PAGINA_MAXIMA,
   type FiltroDeOcorrencias,
@@ -14,11 +15,13 @@ import {
   type VisibilidadeAplicada,
 } from "@/aplicacao/ocorrencia";
 import {
+  lerRegrasDaOrganizacao,
   listarAreas,
   listarCategorias,
   listarVinculos,
   type AreaLida,
   type CategoriaLida,
+  type RegrasDaOrganizacao,
   type VinculoLido,
 } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
@@ -66,7 +69,7 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
-  lenteDeRotulo,
+  fraseDoVazioDeFiltro,
   nomeDoStatus,
   opcoesDePrioridade,
   projetarPaginaDeOcorrencias,
@@ -147,7 +150,7 @@ export default async function Ocorrencias({
    * que troca o recorte para *"Minhas ocorrências"* continua lendo *"Aberta"* — permissão, nunca recorte
    * (critério 28.6, e §3.2 da spec do 31).
    */
-  const lente = lenteDeRotulo(vinculo.permissoes);
+  const lente = escopo.lente;
 
   const podeRegistrar = vinculo.pode("ocorrencia.registrar");
   const podeAlterarPrioridade = vinculo.pode("ocorrencia.alterar_prioridade");
@@ -203,6 +206,17 @@ export default async function Ocorrencias({
    * ela não há consulta e não há campo — o filtro de responsável simplesmente não existe na barra.
    */
   const areasPedidas = listarAreas(repos.areas);
+  /**
+   * **A regra da parada, e só ela** (item 101). `lerRegrasDaOrganizacao` é uma linha de `organizacoes`;
+   * `lerConfiguracao` traria a trilha inteira, com nome de quem mudou o quê, numa tela que o RNF5
+   * cronometra.
+   *
+   * **`null` para quem não lê configuração**: sem `ocorrencia.ler_todas` não há barra nem destaque, e a
+   * frase do recorte sai sem o número — continua verdadeira, e é melhor que um número inventado.
+   */
+  const regrasPedidas: Promise<RegrasDaOrganizacao | null> = podeLerTodas
+    ? lerRegrasDaOrganizacao(repos.configuracao)
+    : Promise.resolve(null);
   const podeGerirVinculos = vinculo.pode("vinculo.gerir");
   const participantesPedidos: Promise<readonly VinculoLido[] | null> = podeGerirVinculos
     ? listarVinculos(repos.vinculos)
@@ -212,14 +226,18 @@ export default async function Ocorrencias({
     <NavegacaoDaLista>
       {/* **O respiro da barra fixa do celular.** Ela tem `py-3` mais um alvo de 44 px, e sem isto encobre
           o pé do cartão, onde a paginação mora. É o mesmo defeito que o critério 44d.1 conserta em T-05. */}
-      <div className="flex flex-col gap-6 pb-20 md:pb-0">
+      <div className="group/pagina flex flex-col gap-6 pb-20 md:pb-0">
         {/* **A marca e o menu de organização saíram daqui** (item 44b): os dois moram na barra superior da
             casca, que toda tela de dentro herda. O nome da organização ativa continua permanentemente
             visível — só que uma vez, e não copiado em cada tela.
 
             **O título é fixo e o recorte é controle** — critério 44c.2. As palavras do recorte não saíram
-            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3. */}
-        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            da tela: elas mudaram de lugar, e são as mesmas do critério 14.3.
+
+            **`md:flex-wrap` desde o item 102**: o ícone do botão acrescentou 24 px, e em 768 px, com a
+            barra lateral aberta, título, recorte e botão deixaram de caber numa linha. Medido pelo ponta a
+            ponta do pior caso: o grupo da direita terminava 23 px além da tela. */}
+        <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
 
           <div className="flex items-center gap-3">
@@ -240,26 +258,33 @@ export default async function Ocorrencias({
               contagens={paginaPedida.then((pagina) => pagina.contagens)}
             />
 
+            {/* **No vazio ele fica invisível e guarda o lugar** (critério 102.7): o convite do centro é a
+                ação da tela, e duas ações em laranja dizem que nenhuma é a principal. `invisible`, e não
+                `hidden`, para o seletor de recorte não pular quando a lista chega vazia. Quem esconde é o
+                CSS (`:has()` sobre `data-vazio`), e não a consulta: o cabeçalho continua fora da fronteira
+                de espera (critério 14.7). */}
             {podeRegistrar && (
               <Link
                 href="/ocorrencias/nova"
                 className={cn(
                   buttonVariants({ variant: "marca" }),
-                  "hidden min-h-11 w-fit shrink-0 items-center rounded-sm px-4 text-interface md:inline-flex",
+                  "hidden min-h-11 w-fit shrink-0 items-center gap-2 rounded-sm px-4 text-interface md:inline-flex group-has-[[data-vazio]]/pagina:invisible",
                 )}
               >
-                + Registrar ocorrência
+                <Plus aria-hidden="true" />
+                Registrar ocorrência
               </Link>
             )}
           </div>
         </header>
 
-        <Suspense fallback={<EsqueletoDaLista />}>
+        <Suspense fallback={<EsqueletoDaLista linhas={LIMITE_PADRAO} />}>
           <Lista
             pagina={paginaPedida}
             categorias={categoriasPedidas}
             areas={areasPedidas}
             participantes={participantesPedidos}
+            regras={regrasPedidas}
             filtro={filtro}
             consultaAtual={consultaAtual}
             nomeDaOrganizacao={organizacao?.nome ?? null}
@@ -277,17 +302,19 @@ export default async function Ocorrencias({
 
         {/* **No celular o botão é fixo no rodapé**, porque *"a lista rola sem fim, e um botão que rola
             some"* (protótipo, D-2). Na tela grande ele está no topo — e é o lugar que o item 15 vai
-            reaproveitar quando a barra de filtros nascer. */}
+            reaproveitar quando a barra de filtros nascer. **No vazio ela sai de fato** (critério 102.7):
+            o convite do centro já é a ação, e o que sobraria aqui seria uma faixa vazia sobre o conteúdo. */}
         {podeRegistrar && (
-          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden">
+          <div className="border-linha bg-superficie fixed inset-x-0 bottom-0 border-t px-6 py-3 md:hidden group-has-[[data-vazio]]/pagina:hidden">
             <Link
               href="/ocorrencias/nova"
               className={cn(
                 buttonVariants({ variant: "marca" }),
-                "flex min-h-11 w-full items-center justify-center text-interface",
+                "flex min-h-11 w-full items-center justify-center gap-2 text-interface",
               )}
             >
-              + Registrar ocorrência
+              <Plus aria-hidden="true" />
+              Registrar ocorrência
             </Link>
           </div>
         )}
@@ -307,6 +334,7 @@ async function Lista({
   categorias,
   areas,
   participantes,
+  regras,
   filtro,
   consultaAtual,
   nomeDaOrganizacao,
@@ -324,6 +352,8 @@ async function Lista({
   areas: Promise<readonly AreaLida[]>;
   /** `null` quando quem lê não tem `vinculo.gerir` — e aí o filtro de responsável não aparece. */
   participantes: Promise<readonly VinculoLido[] | null>;
+  /** `null` quando quem lê não tem `ocorrencia.ler_todas` — item 101. */
+  regras: Promise<RegrasDaOrganizacao | null>;
   filtro: FiltroDeOcorrencias;
   consultaAtual: string;
   nomeDaOrganizacao: string | null;
@@ -337,12 +367,10 @@ async function Lista({
   podeConfigurar: boolean;
   mostrarPrioridade: boolean;
 }) {
-  const [resultado, listaDeCategorias, listaDeAreas, listaDeParticipantes] = await Promise.all([
-    pagina,
-    categorias,
-    areas,
-    participantes,
-  ]);
+  const [resultado, listaDeCategorias, listaDeAreas, listaDeParticipantes, regrasLidas] =
+    await Promise.all([pagina, categorias, areas, participantes, regras]);
+  /** Os dias da organização, ou `null` para quem não lê configuração — item 101. */
+  const diasParaParada = regrasLidas?.diasParaParada ?? null;
   const projetada = projetarPaginaDeOcorrencias(resultado, lente);
 
   /**
@@ -440,7 +468,7 @@ async function Lista({
     quantidade: projetada.itens.length,
     total: projetada.total,
     visibilidadeAplicada: projetada.visibilidadeAplicada,
-    algumFiltroAplicado: algumFiltroAplicado(filtro),
+    filtro,
   });
 
   return (
@@ -475,6 +503,7 @@ async function Lista({
             consultaAtual={consultaAtual}
             iconePorCategoria={iconePorCategoria}
             mostrarPrioridade={mostrarPrioridade}
+            mostrarParada={podeLerTodas}
             agora={instanteDoServidor()}
           />
         )}
@@ -489,7 +518,7 @@ async function Lista({
             filtro={filtro}
             nomeDaOrganizacao={nomeDaOrganizacao}
             nomesDoRecorte={nomesDoRecorte}
-            consultaAtual={consultaAtual}
+            diasParaParada={diasParaParada}
             podeRegistrar={podeRegistrar}
             podeConfigurar={podeConfigurar}
           />
@@ -521,17 +550,26 @@ async function Lista({
  */
 function FiltroInvalido() {
   return (
-    <div className="border-linha bg-superficie rounded-lg border px-4 py-10 text-center shadow-sm">
-      <h2 className="text-tinta text-titulo-bloco font-medium">Este link tem um filtro que não existe.</h2>
-      <p className="text-tinta-suave text-corpo mt-1">
-        Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
-      </p>
-      <Link
-        href="/ocorrencias"
-        className="text-tinta-marca text-interface mt-4 inline-block underline underline-offset-4"
-      >
-        Limpar filtros
-      </Link>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
+      <div className="border-linha bg-superficie rounded-lg border shadow-sm">
+        <Empty className="md:p-10">
+          <EmptyHeader>
+            <EmptyTitle className="text-titulo-bloco text-tinta">Este link tem um filtro que não existe.</EmptyTitle>
+            <EmptyDescription className="text-corpo text-tinta-suave">
+              Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              href="/ocorrencias"
+              className="text-tinta-marca text-interface underline underline-offset-4"
+            >
+              Limpar filtros
+            </Link>
+          </EmptyContent>
+        </Empty>
+      </div>
     </div>
   );
 }
@@ -551,7 +589,7 @@ function Vazio({
   filtro,
   nomeDaOrganizacao,
   nomesDoRecorte,
-  consultaAtual,
+  diasParaParada,
   podeRegistrar,
   podeConfigurar,
 }: {
@@ -563,14 +601,15 @@ function Vazio({
     area: (id: string) => string | undefined;
     pessoa: (id: string) => string | undefined;
   };
-  consultaAtual: string;
+  /** Os dias da organização, ou `null` para quem não lê configuração — item 101. */
+  diasParaParada: number | null;
   podeRegistrar: boolean;
   podeConfigurar: boolean;
 }) {
   const texto = TEXTO_DO_VAZIO[tipo];
 
   return (
-    <Empty className="md:p-10">
+    <Empty data-vazio="" className="md:p-10">
       <EmptyHeader>
         <EmptyTitle className="text-titulo-bloco text-tinta">{texto.titulo}</EmptyTitle>
         {texto.corpo !== null && (
@@ -579,13 +618,16 @@ function Vazio({
         {/*
           O subtítulo do **terceiro vazio** — critério 15.6. `corpo` é `null` para este tipo de propósito,
           esperando exatamente isto: o recorte em palavras, com os mesmos rótulos dos chips.
-          **`nomeDaOrganizacao` pode ser nulo**, e a frase sem o nome continua verdadeira; inventá-lo
-          seria pior.
+          **A forma da frase mora em `fraseDoVazioDeFiltro`** (item 102), que tem teste: ela sabe que
+          `nomeDaOrganizacao` pode ser nulo, e que o recorte do autor muda o começo em vez de virar cláusula.
         */}
         {tipo === "filtro" && (
           <EmptyDescription className="text-corpo text-tinta-suave">
-            {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
-            {descricaoDoRecorte(filtro, nomesDoRecorte).join(" · ")}.
+            {fraseDoVazioDeFiltro({
+              apenasDoAutor: filtro.apenasDoAutor === true,
+              nomeDaOrganizacao,
+              clausulas: descricaoDoRecorte(filtro, nomesDoRecorte, diasParaParada),
+            })}
           </EmptyDescription>
         )}
       </EmptyHeader>
@@ -593,7 +635,10 @@ function Vazio({
           o 64 o convite principal do primeiro vazio era *Conferir as áreas*, porque a organização nasce com
           áreas-semente genéricas e é isso que primeiro quebra o registro do Solicitante. Ele continua
           oferecido, ao lado e em contorno: o dono decidiu a hierarquia pela ação da tela. Abaixo de `sm`
-          os dois empilham, principal em cima, na largura cheia. */}
+          os dois empilham, principal em cima, na largura cheia.
+
+          **O vazio de filtro não oferece a limpeza dos filtros** (critério 102.7): a faixa logo acima oferece,
+          a barra para quem tem `ler_todas` e a linha solta para quem chegou por link filtrado. */}
       <EmptyContent className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:justify-center">
         {podeRegistrar && (
           <Link
@@ -610,15 +655,6 @@ function Vazio({
             className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
           >
             Conferir as áreas
-          </Link>
-        )}
-        {/* **Limpar filtros mantém a ordem escolhida** (item 67), como o da barra. */}
-        {tipo === "filtro" && (
-          <Link
-            href={`/ocorrencias?${semFiltros(consultaAtual).toString()}`}
-            className={cn(buttonVariants({ variant: "outline" }), "border-linha text-interface min-h-11 px-4")}
-          >
-            Limpar filtros
           </Link>
         )}
       </EmptyContent>

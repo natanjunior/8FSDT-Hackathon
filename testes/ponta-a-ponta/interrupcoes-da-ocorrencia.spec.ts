@@ -17,6 +17,7 @@ import {
   registrarOcorrencia,
   situacao,
   SOLICITANTE_DO_AURORA,
+  analisar,
 } from "./mundo";
 
 /**
@@ -154,7 +155,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // *Pausar* de ficar em destaque numa ocorrência que ninguém pegou.
   // -------------------------------------------------------------------------
   await esperarSituacao(marcos, "Aberta");
-  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await analisar(marcos);
   await esperarSituacao(marcos, "Em análise");
 
   await marcos.getByRole("button", { name: "Atribuir" }).click();
@@ -177,7 +178,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   //
   // **O comando mora no menu, e isso é a conta de largura do item 23:** com quatro renderizáveis em
   // `em_atendimento` — *Reatribuir*, *Pausar*, *Resolver* e *Cancelar* — a barra guarda o destaque e
-  // manda o resto para *"Mais ações ▾"*.
+  // manda o resto para *"Mais ações"*.
   //
   // **A obrigatoriedade é afirmada pelo caminho que o produto tem hoje** — ver a divergência declarada no
   // cabeçalho. Clicar em *Pausar* com o formulário vazio **não envia**, mantém o diálogo aberto e acende
@@ -232,6 +233,22 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
       "o passo Resolvida continuar apagado, e a marca da pausa estar ancorada no passo Em atendimento",
   });
 
+  // **A lista do Gestor, e as duas linhas que o passo 55 separa.** O motivo desce para a segunda linha e
+  // **nunca entra dentro da palavra**: um produto que escrevesse *"Pausada — esperando material chegar"*
+  // numa linha só passaria numa asserção de texto e falharia aqui, porque as duas são afirmadas em
+  // elementos diferentes da mesma linha da tabela.
+  await marcos.goto("/ocorrencias");
+  const linhaDeMarcos = marcos
+    .getByRole("row")
+    .filter({ has: marcos.getByRole("link", { name: TITULO }) });
+  await expect(linhaDeMarcos.getByText("Pausada", { exact: true })).toBeVisible();
+  await expect(linhaDeMarcos.getByText(O_QUE_O_SOLICITANTE_LE)).toBeVisible();
+  cobre(test.info(), "4.4 · 55", { criterio: "23.6, 31.6" });
+
+  // De volta à ocorrência: o percurso do Gestor continua nela, e a ida à lista foi uma visita.
+  await marcos.getByRole("link", { name: TITULO }).click();
+  await esperarSituacao(marcos, "Pausada");
+
   // -------------------------------------------------------------------------
   // 5 · O que o Solicitante lê — critérios 31.3, 31.6, 28.4 e a recusa de acesso
   //
@@ -277,7 +294,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // **A tela de Gestor aberta pelo endereço** — Parte 5, passo 7. É o `SemAcesso` do item 44h: título,
   // quem usa a tela, a recusa e a saída. **É beco**, e por isso a saída mora no conteúdo.
   await helena.goto("/dashboard");
-  await expect(helena.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(helena.getByRole("heading", { name: "Painel" })).toBeVisible();
   await expect(
     helena.getByText("Seu papel nesta organização não dá acesso a esta página."),
   ).toBeVisible();

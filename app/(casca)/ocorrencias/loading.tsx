@@ -1,3 +1,4 @@
+import { LIMITE_PADRAO } from "@/aplicacao/ocorrencia";
 import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
 
 /**
@@ -10,5 +11,5 @@ import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
  * esqueleto é o recorte, que depende de permissão, e a lista.
  */
 export default function Carregando() {
-  return <EsqueletoDaLista comCabecalhoDePagina />;
+  return <EsqueletoDaLista comCabecalhoDePagina linhas={LIMITE_PADRAO} />;
 }

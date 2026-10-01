@@ -2,6 +2,7 @@ import type { RepositorioEscopadoDeDashboard } from "@/aplicacao/dashboard";
 import type {
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
+  RepositorioEscopadoDaConfiguracao,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
@@ -166,6 +167,10 @@ export type RepositoriosEscopados = {
    * nenhuma além da que já está ativa.
    */
   organizacao: RepositorioEscopadoDaOrganizacao;
+  /**
+   * As regras da organização ativa e a trilha delas (item 99). Escopado como todos: o `where` é `$1`.
+   */
+  configuracao: RepositorioEscopadoDaConfiguracao;
   /**
    * Os pedidos **desta** organização, e as duas decisões. Escopado, ao contrário da escrita de
    * `POST /pedidos-de-entrada`: aquela roda antes de existir vínculo, esta acontece dentro de uma

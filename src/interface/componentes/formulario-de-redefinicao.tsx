@@ -37,7 +37,7 @@ import { errosDoSchema, pedirRedefinicaoSchema } from "@/interface/schemas";
  * *(A outra divergência que este cabeçalho declarava deixou de existir no item 44m: a face de sucesso
  * agora é um bloco cuja cabeça diz "Confira o seu e-mail", e o título da tela fica no cartão.)*
  */
-export function FormularioDeRedefinicao() {
+export function FormularioDeRedefinicao({ emailInicial = null }: { emailInicial?: string | null }) {
   const formulario = useFormularioTocado({
     campos: { email: "email" },
     validar: (dados) => errosDoSchema(pedirRedefinicaoSchema, { email: dados.get("email") }),
@@ -56,7 +56,8 @@ export function FormularioDeRedefinicao() {
   );
 
   // A face de sucesso **substitui** o formulário. Deixá-lo na tela convidaria a um segundo pedido, e o
-  // teto do provedor é de dois por hora. A saída é o "Voltar para entrar" da moldura, abaixo do cartão.
+  // teto do provedor é de dois por hora. A saída é a da moldura, abaixo do cartão: *Voltar para entrar*,
+  // ou *Voltar para Meus dados* para quem tem sessão (critério 106.12).
   if (estado.enviado === true) {
     return (
       <Empty className="px-2 py-8 md:px-2 md:py-8">
@@ -95,6 +96,7 @@ export function FormularioDeRedefinicao() {
             <Input
               {...controle}
               name="email"
+              defaultValue={emailInicial ?? undefined}
               type="email"
               autoComplete="email"
               inputMode="email"
@@ -105,9 +107,9 @@ export function FormularioDeRedefinicao() {
           )}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios larguraCheia>
           {/* O alvo é o piso do guia §4, 44 px — o mesmo das outras três telas de conta e de T-04. */}
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 w-full px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Enviar o link"}
           </Button>

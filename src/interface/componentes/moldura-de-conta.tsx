@@ -31,6 +31,13 @@ const TRILHAS = {
 } as const;
 
 /**
+ * **Em que trilha cada metade cai a partir de `lg`.** No documento o cartão vem sempre primeiro; o lado do
+ * convite só muda a ordem visual. A moldura e a espera leem daqui, para os dois desenharem a mesma fileira.
+ */
+const ORDEM_DO_CARTAO = { direita: "lg:order-1", esquerda: "lg:order-3" } as const;
+const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as const;
+
+/**
  * ============================================================================
  *  A moldura das telas fora da casca — itens 44m e 44o
  * ============================================================================
@@ -113,23 +120,13 @@ export function MolduraDeConta({
         <div className={COLUNA_COM_CONVITE}>
           <MarcaDoProduto className="self-center" />
           <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
-            <div
-              className={cn(
-                "flex w-full flex-col",
-                convite.lado === "esquerda" ? "lg:order-3" : "lg:order-1",
-              )}
-            >
+            <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
               <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
                 {children}
               </CartaoDaTela>
             </div>
             <ReguaDoOu />
-            <div
-              className={cn(
-                "flex w-full flex-col",
-                convite.lado === "esquerda" ? "lg:order-1" : "lg:order-3",
-              )}
-            >
+            <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
               {convite.conteudo}
             </div>
           </div>
@@ -187,24 +184,31 @@ function CartaoDaTela({
  * **A régua do "ou"** (item 65): horizontal no celular, entre o cartão e o convite; vertical a partir de
  * `lg`, do topo ao pé da fileira. É desenho, e por isso `aria-hidden`: a ordem de leitura já diz que são
  * duas saídas.
+ *
+ * **`deitada`** (item 111) é a mesma régua dentro de um cartão, entre dois botões: horizontal em qualquer
+ * largura. Uma régua só, para que o "ou" do QR e o do convite não pareçam outra coisa.
  */
-function ReguaDoOu() {
+export function ReguaDoOu({ deitada = false }: { deitada?: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="text-meta text-tinta-suave flex items-center gap-3 lg:order-2 lg:flex-col lg:self-stretch"
+      className={cn(
+        "text-meta text-tinta-suave flex items-center gap-3",
+        !deitada && "lg:order-2 lg:flex-col lg:self-stretch",
+      )}
     >
-      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+      <span className={cn("bg-linha h-px flex-1", !deitada && "lg:h-auto lg:w-px")} />
       <span>ou</span>
-      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+      <span className={cn("bg-linha h-px flex-1", !deitada && "lg:h-auto lg:w-px")} />
     </div>
   );
 }
 
 /**
- * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão. Uma só, para que
- * o "Sair" de T-02 e o "Voltar" da face E não pareçam coisas diferentes, e para que nenhuma tela de
- * credencial volte a escrevê-la à mão.
+ * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão — e que têm todos
+ * o mesmo desenho. **A forma é uma só**, para que o "Sair" de T-02 e o "Voltar" da face E não pareçam peças
+ * diferentes, e para que nenhuma tela de credencial volte a escrevê-la à mão. **A tinta não**: o *Sair* é
+ * a saída, e desce para a tinta suave (item 105), para o laranja ficar na decisão que a tela recebe.
  *
  * **`min-h-11` e `min-w-11` são o piso do guia §9** (44 px), e o piso vale nos dois lados: a sonda do
  * item 91 mediu o "Voltar" da face E em 37 px de largura, com a altura já certa. O `justify-center`
@@ -220,6 +224,9 @@ export const CLASSE_DO_CAMINHO =
  * **Botão dentro de formulário**, como o critério 44b.4 manteve no menu de pessoa: é ação que muda estado
  * no servidor, e não vira link. **É o `Button` do catálogo** (critério 44o.15): até o 44o eram dois
  * botões crus, um em cada página, e o critério 44p.5 os contava entre o que o 44o limparia.
+ *
+ * **Tinta suave, e não a da marca** (item 105): numa tela que existe para escolher onde trabalhar, a
+ * saída não pode ser a única coisa colorida.
  */
 export function CaminhoDeSair() {
   return (
@@ -227,7 +234,7 @@ export function CaminhoDeSair() {
       <Button
         type="submit"
         variant="link"
-        className={cn(CLASSE_DO_CAMINHO, "h-auto min-w-11 px-2 py-0 font-normal")}
+        className={cn(CLASSE_DO_CAMINHO, "text-tinta-suave h-auto min-w-11 px-2 py-0 font-normal")}
       >
         Sair
       </Button>
@@ -236,33 +243,90 @@ export function CaminhoDeSair() {
 }
 
 /**
- * **A espera das telas fora da casca.** O `loading.tsx` de T-02 a usa, e ela cobre também a tela de
- * criar organização, que é filha do mesmo segmento.
+ * **A espera das telas fora da casca.** Cada `loading.tsx` de conta, o de T-02, o da tela de criar
+ * organização e o da raiz a usam.
  *
- * **A mesma página e a mesma coluna da moldura**, pelas duas constantes do topo. A marca é de verdade —
- * guia §8: *"a casca e o cabeçalho não são esqueleto"* —, e o cartão é esqueleto, com o desenho do
- * `Cartao` e **sem a semântica dele**: uma região nomeada por um título que ainda não existe seria pior
- * que nenhuma. É o que `app/(casca)/configuracao/loading.tsx` já faz.
+ * **A mesma página, as mesmas colunas e a mesma fileira da moldura**, pelas constantes do topo. A marca e
+ * a apresentação são de verdade — guia §8: *"a casca e o cabeçalho não são esqueleto"* —, e o cartão e o
+ * convite são esqueleto, com o desenho e **sem a semântica**: uma região nomeada por um título que ainda
+ * não existe seria pior que nenhuma. É o que `app/(casca)/configuracao/loading.tsx` já faz.
+ *
+ * **As duas formas de duas colunas existem aqui pela mesma razão que existem na moldura** (item 103,
+ * critério 5): uma espera de coluna única sob uma tela de duas colunas faz o layout saltar no instante em
+ * que o servidor responde, depois da espera mais longa do produto. `apresentacao` é a de T-01; `convite`
+ * leva só o lado, porque o conteúdo do convite é da tela e o esqueleto dele é daqui.
  *
  * **O filho é a frase de espera**, que é da tela e não da moldura.
  */
-export function EsperaDaMolduraDeConta({ children }: { children?: ReactNode }) {
+export function EsperaDaMolduraDeConta({
+  apresentacao = false,
+  convite,
+  children,
+}: {
+  apresentacao?: boolean;
+  convite?: { lado: "direita" | "esquerda" };
+  children?: ReactNode;
+}) {
   return (
     <main className={PAGINA}>
-      <div className={COLUNA}>
-        <MarcaDoProduto className="self-center" />
-        <div
-          aria-hidden="true"
-          className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
-        >
-          <div className="bg-secondary h-7 w-[70%] animate-pulse rounded" />
-          <div className="bg-secondary h-4 w-[90%] animate-pulse rounded" />
-          <div className="bg-secondary h-11 animate-pulse rounded" />
-          <div className="bg-secondary h-11 w-[45%] self-end animate-pulse rounded" />
+      {apresentacao && <Apresentacao />}
+
+      {convite === undefined ? (
+        <div className={COLUNA}>
+          <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
+          <CartaoDeEspera />
+          {children}
         </div>
-        {children}
-      </div>
+      ) : (
+        <div className={COLUNA_COM_CONVITE}>
+          <MarcaDoProduto className="self-center" />
+          <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
+            <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
+              <CartaoDeEspera />
+            </div>
+            <ReguaDoOu />
+            <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
+              <ConviteDeEspera />
+            </div>
+          </div>
+          {children}
+        </div>
+      )}
     </main>
+  );
+}
+
+/** O cartão da tela, em esqueleto: título, linha de fato, um campo e um botão. */
+function CartaoDeEspera() {
+  return (
+    <div
+      aria-hidden="true"
+      className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
+    >
+      <div className="bg-secondary h-7 w-[70%] animate-pulse rounded" />
+      <div className="bg-secondary h-4 w-[90%] animate-pulse rounded" />
+      <div className="bg-secondary h-11 animate-pulse rounded" />
+      <div className="bg-secondary h-11 w-[45%] self-end animate-pulse rounded" />
+    </div>
+  );
+}
+
+/**
+ * A outra porta, em esqueleto, na forma de `ConviteDaOutraPorta`: título, frase, três itens e o botão de
+ * largura inteira. Sem cartão em volta, porque o convite não tem.
+ */
+function ConviteDeEspera() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-4">
+      <div className="bg-secondary h-6 w-[80%] animate-pulse rounded" />
+      <div className="bg-secondary h-4 w-[95%] animate-pulse rounded" />
+      <div className="flex flex-col gap-2.5">
+        <div className="bg-secondary h-4 w-[60%] animate-pulse rounded" />
+        <div className="bg-secondary h-4 w-[70%] animate-pulse rounded" />
+        <div className="bg-secondary h-4 w-[65%] animate-pulse rounded" />
+      </div>
+      <div className="bg-secondary h-11 animate-pulse rounded" />
+    </div>
   );
 }
 

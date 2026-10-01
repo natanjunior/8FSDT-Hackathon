@@ -34,8 +34,8 @@ import { relatar, RAIZ } from "./comum.mjs";
  * alternativa — `supabase config push` na esteira — foi recusada com
  * argumento, e o principal é medido: a CLI 2.101.0 tem **uma só** flag,
  * `--project-ref`. Não há `--only auth`. Empurrar publicaria o `config.toml`
- * **inteiro**, e este arquivo declara portas locais (`[api] port = 54391`,
- * `[db] port = 54392`), `major_version`, `[storage]`, `[inbucket]`,
+ * **inteiro**, e este arquivo declara portas locais (`[api] port = 54691`,
+ * `[db] port = 54692`), `major_version`, `[storage]`, `[inbucket]`,
  * `[studio]` — vinte e tantas afirmações sobre **a máquina de quem
  * desenvolve**. E `config push` não falha na divergência: ele a **apaga**.
  * Vermelho é informação; sobrescrever não é.

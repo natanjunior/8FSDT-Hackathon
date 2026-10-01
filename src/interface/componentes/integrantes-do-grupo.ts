@@ -21,11 +21,14 @@
  * 4,31:1 no escuro; na cheia, 3,28:1 no claro e 5,89:1 no escuro. `tema.test.ts` mede cada par na forma
  * declarada e exige 4,5:1, e é ele quem decide: trocar uma forma sem o teste passar não fecha.
  *
+ * **Nenhum integrante veste a marca** (item 105): numa grade de cinco iguais, o laranja lia como hierarquia,
+ * e é a cor da ação.
+ *
  * **As classes são escritas por inteiro**, nunca montadas por interpolação: o Tailwind só gera a classe que
  * encontra escrita no código-fonte.
  */
 
-export type CorDoAvatar = "marca" | "ok" | "atencao" | "info" | "tinta-suave";
+export type CorDoAvatar = "tinta" | "ok" | "atencao" | "info" | "tinta-suave";
 export type FormaDoAvatar = "clara" | "cheia";
 
 export interface Integrante {
@@ -38,9 +41,9 @@ export interface Integrante {
   readonly github?: string;
 }
 
-/** O token de cada cor em `app/globals.css`. `marca` é `--accent`: o nome do token é o do tema herdado. */
+/** O token de cada cor em `app/globals.css`. */
 export const TOKEN_DA_COR: Readonly<Record<CorDoAvatar, string>> = {
-  marca: "--accent",
+  tinta: "--ink",
   ok: "--ok",
   atencao: "--atencao",
   info: "--info",
@@ -52,8 +55,8 @@ export const INTEGRANTES: readonly Integrante[] = [
     nome: "Dario Lacerda",
     rm: "369195",
     iniciais: "DL",
-    cor: "marca",
-    forma: { claro: "cheia", escuro: "cheia" },
+    cor: "tinta",
+    forma: { claro: "clara", escuro: "clara" },
   },
   {
     nome: "Larissa Kramer",
@@ -91,14 +94,16 @@ export const INTEGRANTES: readonly Integrante[] = [
 
 const NO_CLARO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, string>>>> = {
   clara: {
-    marca: "bg-marca/12 text-tinta-marca",
+    tinta: "bg-tinta/12 text-tinta",
     ok: "bg-ok/12 text-ok",
     atencao: "bg-atencao/12 text-atencao",
     info: "bg-info/12 text-info",
     "tinta-suave": "bg-tinta-suave/12 text-tinta-suave",
   },
   cheia: {
-    marca: "bg-marca text-marca-foreground",
+    // Sem consumidor e sem medida: o tipo exige a chave, e o `tema.test.ts` mede só a forma declarada.
+    // A inicial é `superficie` porque o `--ink` inverte entre os temas.
+    tinta: "bg-tinta text-superficie",
     ok: "bg-ok text-marca-foreground",
     atencao: "bg-atencao text-marca-foreground",
     info: "bg-info text-marca-foreground",
@@ -108,14 +113,15 @@ const NO_CLARO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, stri
 
 const NO_ESCURO: Readonly<Record<FormaDoAvatar, Readonly<Record<CorDoAvatar, string>>>> = {
   clara: {
-    marca: "dark:bg-marca/12 dark:text-tinta-marca",
+    tinta: "dark:bg-tinta/12 dark:text-tinta",
     ok: "dark:bg-ok/12 dark:text-ok",
     atencao: "dark:bg-atencao/12 dark:text-atencao",
     info: "dark:bg-info/12 dark:text-info",
     "tinta-suave": "dark:bg-tinta-suave/12 dark:text-tinta-suave",
   },
   cheia: {
-    marca: "dark:bg-marca dark:text-marca-foreground",
+    // Sem consumidor e sem medida, como a do claro.
+    tinta: "dark:bg-tinta dark:text-superficie",
     ok: "dark:bg-ok dark:text-marca-foreground",
     atencao: "dark:bg-atencao dark:text-marca-foreground",
     info: "dark:bg-info dark:text-marca-foreground",

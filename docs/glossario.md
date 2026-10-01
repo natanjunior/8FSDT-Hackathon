@@ -33,9 +33,11 @@ Atores são nomeados por função, e nunca por nome próprio.
 |---|---|---|
 | Organização | O condomínio, a empresa ou o bairro que usa o produto. É o limite de isolamento de dados | Área |
 | Organização ativa | A Organização pela qual a sessão está enxergando agora. Quem tem vários vínculos tem uma de cada vez, e trocar é operação explícita | Vínculo, que é o conjunto de todas |
+| Mudança de configuração | Cada alteração de uma regra da Organização, com o valor anterior, o novo, quem mudou e quando. O banco não deixa alterá-la nem apagá-la | Trilha de auditoria, que é da ocorrência |
 | Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | Convite, que é o link com o código dentro |
 | Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega |
-| Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa | Localização, que aponta para uma Área |
+| QR da área | O QR colado no próprio lugar. Leva quem participa ao registro com a Área já escolhida, e quem não participa ao pedido de entrada. Carrega o Código da Organização | Convite, que leva só à Organização |
+| Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa, e um QR próprio | Localização, que aponta para uma Área |
 | Localização | Onde dentro da Organização a ocorrência aconteceu: uma Área mais um complemento em texto | Geolocalização: não há mapa nem coordenada |
 | Categoria | A natureza da ocorrência: iluminação, vazamento, limpeza. Configurável por Organização | Prioridade: a categoria é o que é, a prioridade é quanto corre |
 
@@ -59,7 +61,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | `Aberta` | Registrada e ainda não analisada | — |
 | `Em análise` | O Gestor está avaliando a ocorrência | Avaliação, que é do Solicitante |
 | `Em atendimento` | O trabalho está em execução | `Pausada` |
-| `Pausada` | Parada esperando alguém, com motivo obrigatório. Ao retomar, volta ao estado anterior | `Cancelada`, que é terminal |
+| `Pausada` | Em espera por alguém, com motivo obrigatório. Ao retomar, volta ao estado anterior | `Cancelada`, que é terminal; Ocorrência parada, que é medida de tempo |
 | `Resolvida` | O Gestor conferiu e declarou concluída. Terminal | `Cancelada` |
 | `Cancelada` | Encerrada sem solução, com motivo obrigatório. Terminal | `Resolvida` |
 | `Em aberto` | O conjunto dos quatro status não terminais: `Aberta`, `Em análise`, `Em atendimento` e `Pausada`. É o que o painel conta por categoria | `Aberta`, que é um dos quatro |
@@ -69,6 +71,19 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Trilha de auditoria | A sequência completa e imutável dos registros de transição de uma ocorrência | Linha do tempo |
 | Linha do tempo | A leitura que quem abriu consulta ao acompanhar: transições, atribuições e mensagens, em linguagem de gente | Trilha de auditoria, que é a fonte e mostra os campos crus |
 | Rótulo | O texto mostrado para um status, que depende de quem lê. Calculado no servidor | Os nomes dos estados, que não mudam |
+| Texto do Solicitante | O rótulo que a Organização definiu para um status. Vale só para quem abriu a ocorrência, e substitui o padrão | Nome do status, que é como o sistema o identifica e não muda |
+
+Quando a Organização define o texto de um status, ele substitui a frase desta tabela para quem abriu, e
+em `Pausada` substitui as quatro — o motivo passa a aparecer na linha de baixo.
+
+| Status | O que quem abriu lê |
+|---|---|
+| `Aberta` | Recebida — aguardando análise |
+| `Em análise` | Em análise |
+| `Em atendimento` | Em execução |
+| `Pausada` | Parada, e o motivo em seguida: *Parada — esperando você responder*, *Parada — esperando material chegar*, *Parada — esperando autorização*, *Parada — esperando um terceiro* |
+| `Resolvida` | Resolvida |
+| `Cancelada` | Cancelada |
 
 ## Medição
 
@@ -77,5 +92,6 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Tempo de resolução | Do registro até a resolução, em tempo de calendário, incluindo o período pausado | Tempo de trabalho, que descontaria as pausas e não é o que o painel mostra |
 | Mediana e p90 | Os dois números com que o painel resume o tempo de resolução de um mês: a mediana é o caso do meio, e o p90 é o décimo pior atendimento | Média, que a cauda longa dos casos arrastados puxa para cima do caso típico |
 | Idade em aberto | Há quanto tempo uma ocorrência que ainda não terminou está esperando, contada do registro e sem descontar pausa | Tempo de resolução, que só existe depois que a ocorrência acabou |
+| Ocorrência parada | Uma ocorrência ainda em curso em que ninguém mexe há mais dias do que a Organização tolera. A conta é do tempo desde a última atividade — transição, atribuição ou mensagem no canal —, e o número de dias é regra da Organização. As que estão em espera com motivo não entram | Idade em aberto, que conta desde o registro e não zera com atividade; `Pausada`, que é status |
 | Recorrência | O mesmo problema voltando no mesmo lugar dentro de um período. É o que distingue oito chamados avulsos de uma obra que falta | Volume, que diz onde há mais casos e não se são o mesmo caso |
 | Dupla recorrente | Um par de Área e Categoria com duas ocorrências ou mais no período. Uma só é um caso, não um padrão | Duplicidade, que é o mesmo problema relatado duas vezes |

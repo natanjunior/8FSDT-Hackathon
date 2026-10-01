@@ -71,7 +71,7 @@ import { cobre } from "./cobertura";
 const ORIGEM = "http://127.0.0.1:3000";
 
 /** A caixa de e-mail local que `supabase start` sobe — a porta é a do bloco `[inbucket]` do config. */
-const CAIXA = "http://127.0.0.1:54394";
+const CAIXA = "http://127.0.0.1:54694";
 
 /** A marca do instante — é ela que faz a conta deste arquivo ser própria e a caixa ser só dela. */
 const MARCA = new Date().toISOString().replace(/[:.]/gu, "-").toLowerCase();
@@ -124,6 +124,15 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
 
   await pagina.waitForURL(/\/organizacao$/u);
   await expect(pagina.getByRole("heading", { name: "Entrar em uma organização" })).toBeVisible();
+
+  // -------------------------------------------------------------------------
+  // 1b · Com sessão, T-12 já sabe quem é e volta para Meus dados — critério 106.12
+  // -------------------------------------------------------------------------
+  await pagina.goto(`${ORIGEM}/redefinir-senha`);
+  await expect(pagina.getByLabel("E-mail")).toHaveValue(EMAIL);
+  await expect(pagina.getByRole("link", { name: "Voltar para Meus dados" })).toHaveAttribute("href", "/meus-dados");
+  await expect(pagina.getByRole("link", { name: "Voltar para entrar" })).toHaveCount(0);
+  await pagina.goto(`${ORIGEM}/organizacao`);
 
   // -------------------------------------------------------------------------
   // 2 · Sai, e esquece a senha — o caminho de T-01 para T-12

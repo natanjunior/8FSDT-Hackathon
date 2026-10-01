@@ -1,6 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { IndicadorDeEnvio } from "@/interface/componentes/campo";
+
 /**
  * ============================================================================
  *  A lista de organizações — uma forma só, critério 44o.10
@@ -60,6 +62,18 @@ export function ListaDeOrganizacoes({ rotulo, children }: { rotulo?: string; chi
   );
 }
 
+/** Onde cada linha está enquanto uma troca está em voo (item 103, critério 1). */
+export type SituacaoDaLinha = "livre" | "entrando" | "inerte";
+
+/**
+ * **Só a linha apertada responde.** Sem troca em voo, todas estão livres; com uma, a escolhida está
+ * entrando e as outras estão inertes — que não aceitam toque, mas continuam aceitando foco.
+ */
+export function situacaoDaLinha(escolhida: string | null, organizacaoId: string): SituacaoDaLinha {
+  if (escolhida === null) return "livre";
+  return escolhida === organizacaoId ? "entrando" : "inerte";
+}
+
 /**
  * O conteúdo de uma linha: o nome no papel de título de linha, o apoio em meta, e a seta quando a linha
  * leva a algum lugar. **O respiro é da linha**, e não de quem a embrulha: assim a linha de pedido, que é
@@ -69,18 +83,26 @@ export function LinhaDeOrganizacao({
   nome,
   apoio,
   seta = false,
+  entrando = false,
 }: {
   nome: string;
   apoio: ReactNode;
   seta?: boolean;
+  /** A troca para esta organização está em voo: o apoio vira o verbo, e a seta vira o indicador. */
+  entrando?: boolean;
 }) {
   return (
     <span className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left">
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-titulo-linha text-tinta">{nome}</span>
-        <span className="text-meta text-tinta-suave font-normal">{apoio}</span>
+        <span className="text-meta text-tinta-suave font-normal">{entrando ? "Entrando…" : apoio}</span>
       </span>
-      {seta && <ChevronRight aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />}
+      {seta &&
+        (entrando ? (
+          <IndicadorDeEnvio ativo />
+        ) : (
+          <ChevronRight aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />
+        ))}
     </span>
   );
 }

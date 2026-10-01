@@ -110,8 +110,8 @@ const POR_PAGINA = 20;
  * aparece também no rodapé de outros. O nome acessível do `h2` começa pelo número, `2 · Em aberto por
  * idade`, e a âncora é o que separa um título de outro que o contenha.
  *
- * **O nome vai em expressão regular insensível a caixa** porque o título do quadro é `uppercase` por
- * CSS, e o que a página serve é *"Ocorrências por status"*.
+ * **O nome vai em expressão regular insensível a caixa**, que é folga barata: o título do quadro foi
+ * versal por CSS até o item 110, e hoje é título de bloco em caixa normal.
  */
 function quadro(pagina: Page, titulo: string): Locator {
   return pagina.locator("section").filter({
@@ -262,9 +262,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // -------------------------------------------------------------------------
   // 2 · O dashboard, pelo menu da casca — passo 2 do roteiro
   // -------------------------------------------------------------------------
-  await helena.getByRole("link", { name: "Dashboard" }).click();
+  await helena.getByRole("link", { name: "Painel" }).click();
   await helena.waitForURL(/\/dashboard$/u);
-  await expect(helena.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
+  await expect(helena.getByRole("heading", { name: "Painel", level: 1 })).toBeVisible();
 
   // O seletor de período, com a janela padrão dos 90 dias já aplicada (critérios 32.1 e 71.1). O nome
   // acessível carrega o intervalo, e o rótulo visível é o mesmo texto (critério 71.4).
@@ -285,11 +285,17 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
     await expect(painelDoPeriodo.getByRole("button", { name: atalho, exact: true })).toBeVisible();
   }
   await expect(painelDoPeriodo.getByRole("button", { name: "Aplicar", exact: true })).toBeVisible();
-  // No recorte padrão o atalho dos 90 dias não tem o que fazer, e por isso está desabilitado e fora da
-  // ordem de tabulação (critério 71.2). É o herdeiro direto da asserção que provava que ele não era link.
-  await expect(
-    painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }),
-  ).toBeDisabled();
+  // No recorte padrão o atalho dos 90 dias é o aplicado: marcado, e não desabilitado (item 110,
+  // critério 5, que substituiu o "apagado" do 71.2). Reclicá-lo só fecha o calendário, e o endereço não
+  // ganha `de` nem `ate`, como o bloco depois do Escape confere.
+  const noventa = painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true });
+  await expect(noventa).toBeEnabled();
+  await expect(noventa).toHaveAttribute("aria-current", "true");
+  for (const outro of ["últimos 7 dias", "últimos 30 dias", "este mês"]) {
+    await expect(
+      painelDoPeriodo.getByRole("button", { name: outro, exact: true }),
+    ).not.toHaveAttribute("aria-current");
+  }
 
   // Fechar sem aplicar não escreve no endereço: o recorte continua o padrão, sem `de` e sem `ate`.
   await helena.keyboard.press("Escape");
@@ -298,11 +304,42 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(semRecorte.has("de")).toBe(false);
   expect(semRecorte.has("ate")).toBe(false);
 
+  // Reclicar o atalho aplicado fecha o calendário e não escreve no endereço (item 110, critério 5).
+  await seletorDePeriodo.click();
+  await painelDoPeriodo.getByRole("button", { name: "últimos 90 dias", exact: true }).click();
+  await expect(painelDoPeriodo).toBeHidden();
+  const depoisDeReclicar = new URL(helena.url()).searchParams;
+  expect(depoisDeReclicar.has("de")).toBe(false);
+  expect(depoisDeReclicar.has("ate")).toBe(false);
+
+  // **O recibo do período** (critério 103.2). Com a resposta retida, o atalho apertado fica ocupado, o
+  // popover continua aberto e o conteúdo recua; quando os números chegam, o popover fecha e o recuo sai.
+  const RESPOSTA_DO_RECORTE = /\/dashboard\?.*\bde=/u;
+  await helena.route(RESPOSTA_DO_RECORTE, async (rota) => {
+    await new Promise((pronto) => setTimeout(pronto, 1500));
+    await rota.continue();
+  });
+  await seletorDePeriodo.click();
+  const trintaDias = painelDoPeriodo.getByRole("button", { name: "últimos 30 dias", exact: true });
+  await trintaDias.click();
+  await expect(trintaDias).toHaveAttribute("aria-busy", "true");
+  await expect(painelDoPeriodo).toBeVisible();
+  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(1);
+  await expect(painelDoPeriodo).toBeHidden();
+  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(0);
+  expect(new URL(helena.url()).searchParams.has("de")).toBe(true);
+  await helena.unroute(RESPOSTA_DO_RECORTE);
+
+  // O resto do teste lê o recorte padrão: voltar desfaz, porque o seletor escreve com `push`.
+  await helena.goBack();
+  await expect.poll(() => new URL(helena.url()).searchParams.has("de")).toBe(false);
+
   // -------------------------------------------------------------------------
   // 2.0 · A ordem dos sete quadros, e a pergunta de cada um (item 73, critérios 1 e 2)
   //
-  // **Os títulos lidos na ordem do documento**, por `textContent`: o título é `uppercase` por CSS, e o
-  // `innerText` o devolveria em caixa alta. A frase que o item 73 tirou da página não existe mais nela.
+  // **Os títulos lidos na ordem do documento**, por `textContent`, que lê o texto servido e não o
+  // desenhado (o título foi versal por CSS até o item 110, e continua valendo se voltar a ser). A frase
+  // que o item 73 tirou da página não existe mais nela.
   // -------------------------------------------------------------------------
   const titulosNaOrdem = await helena
     .locator("section h2")
@@ -796,7 +833,7 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
   expect(await corpoDaBarra.evaluate((elemento) => elemento.scrollWidth - elemento.clientWidth)).toBe(0);
 
   // **Critério 76.2 — o grupo e a documentação moram no pé da barra**, num marco próprio.
-  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Grupo 1/u });
+  const itemDoGrupo = helena.getByRole("navigation", { name: "Sobre o projeto" }).getByRole("link", { name: /^Sobre o projeto/u });
   await expect(itemDoGrupo).toHaveAttribute("target", "_blank");
   const [grupoComSessao] = await Promise.all([contexto.waitForEvent("page"), itemDoGrupo.click()]);
   await grupoComSessao.waitForURL(/\/grupo$/u);
@@ -872,7 +909,7 @@ test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta 
   await expect(gatilho).toBeFocused();
 
   await gatilho.click();
-  await gaveta.getByRole("link", { name: /^Dashboard/u }).click();
+  await gaveta.getByRole("link", { name: /^Painel/u }).click();
   await celular.waitForURL(/\/dashboard$/u);
   await expect(gatilho).toBeFocused();
   cobre(test.info(), "7.2 · 10", { criterio: "94.7" });

@@ -49,6 +49,7 @@ const DOCUMENTOS = new Set([
   "docs/adr/0017-o-compartilhamento-e-dado-e-nao-permissao.md",
   "docs/adr/0018-a-primeira-operacao-sem-sessao.md",
   "docs/adr/0019-o-qr-do-convite-entra-com-o-uqr.md",
+  "docs/adr/0020-o-navegador-guarda-so-a-casca.md",
   "docs/adr/README.md",
   "docs/api.md",
   "docs/atendimento-ao-enunciado.md",
@@ -397,17 +398,35 @@ if (foraDaLista.length > 0 || semArquivo.length > 0) {
 }
 
 /**
- * E a navegação, que é a terceira ponta.
+ * E a navegação, que é a terceira ponta, conferida nos dois sentidos.
  *
  * Um arquivo pode existir, estar na lista e mesmo assim não aparecer para ninguém, porque a barra lateral
  * sai de `meta.json` e não da pasta. Toda página de `docs/` tem de estar num `meta.json`, e o `README` de
  * cada pasta é a exceção, porque ele é o índice dela.
+ *
+ * **A entrada de link** (`[Início](/documentacao/README)`) é a forma do Fumadocs para um item com rótulo
+ * próprio, e é como a porta de entrada aparece na barra lateral (item 109): o `title` dela é o nome do
+ * produto, e o item se chama *Início*. Ela é traduzida para o arquivo de destino. Link para fora da
+ * documentação não é página e fica de fora.
+ *
+ * **E toda entrada tem de existir em disco.** Sem isto, uma entrada que não resolve, seja um nome com erro
+ * de digitação ou um link que se lê como nome de arquivo, entra no conjunto calada, e a nota abaixo afirma
+ * uma existência que ninguém conferiu.
  */
+const ENTRADA_DE_LINK = /^\[[^\]]+\]\((?<destino>[^)]+)\)$/u;
+const DENTRO_DA_DOCUMENTACAO = /^\/documentacao\/(?<caminho>.+)$/u;
+
 const naNavegacao = new Set();
 for (const pasta of ["docs", "docs/adr"]) {
   const meta = JSON.parse(ler(join(RAIZ, pasta, "meta.json")));
   for (const pagina of meta.pages ?? []) {
     if (pagina.startsWith("---")) continue;
+    const link = ENTRADA_DE_LINK.exec(pagina);
+    if (link) {
+      const dentro = DENTRO_DA_DOCUMENTACAO.exec(link.groups.destino);
+      if (dentro) naNavegacao.add(`docs/${dentro.groups.caminho}.md`);
+      continue;
+    }
     naNavegacao.add(pagina === "adr" ? "docs/adr" : `${pasta}/${pagina}.md`);
   }
 }
@@ -415,10 +434,15 @@ for (const pasta of ["docs", "docs/adr"]) {
 const invisiveis = encontrados.filter(
   (eu) => eu.startsWith("docs/") && !eu.endsWith("README.md") && !naNavegacao.has(eu),
 );
+const semDestino = [...naNavegacao].filter((eu) => eu !== "docs/adr" && !encontrados.includes(eu));
 
 if (invisiveis.length > 0) {
   falhas.push(`FORA DA NAVEGAÇÃO — existem e não aparecem na barra lateral: ${invisiveis.join(", ")}`);
-} else {
+}
+if (semDestino.length > 0) {
+  falhas.push(`NAVEGAÇÃO SEM DESTINO — estão num meta.json e não existem em disco: ${semDestino.join(", ")}`);
+}
+if (invisiveis.length === 0 && semDestino.length === 0) {
   notas.push(`as ${naNavegacao.size - 1} páginas da navegação existem em disco, e nenhuma página sobra`);
 }
 

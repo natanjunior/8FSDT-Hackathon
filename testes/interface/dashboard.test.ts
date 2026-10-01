@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { atalhosDaJanela } from "@/aplicacao/dashboard";
@@ -12,14 +14,17 @@ import {
   rotuloDaFaixa,
 } from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
+import type { StatusOcorrencia } from "@/dominio/ocorrencia";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
   corteDeTopo,
+  fraseDoDenominadorDasDuplas,
   fraseDoResto,
   rotuloDaDupla,
   SEM_DUPLA_RECORRENTE,
 } from "@/interface/componentes/duplas-recorrentes";
+import { tetoDoEixo } from "@/interface/componentes/teto-do-eixo";
 import {
   linhasDoFluxoMensal,
   mesParcial,
@@ -54,9 +59,12 @@ import {
 } from "@/interface/componentes/tempo-de-resolucao";
 import { FormatoInvalido, lerJanelaDoDashboardDaUrl, trocarJanelaInvertida } from "@/interface/http";
 import { cn } from "@/interface/componentes/utilitarios";
-import { projetarDashboard } from "@/interface/projecoes";
+import { nomeDoStatus, projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
+
+const RAIZ = fileURLToPath(new URL("../../", import.meta.url));
+const ler = (relativo: string): string => readFileSync(RAIZ + relativo, "utf8");
 
 describe("os dois parâmetros do dashboard, lidos da URL", () => {
   it("sem parâmetro nenhum, não decide nada — quem decide o padrão é a Aplicação", () => {
@@ -332,6 +340,14 @@ describe("a projeção do dashboard — o schema Dashboard do contrato", () => {
       "Resolvida",
       "Cancelada",
     ]);
+  });
+
+  it("o painel fala a coluna do Gestor, e não tem como ler rótulo de organização — item 100, critério 4", () => {
+    // `LENTE_DO_DASHBOARD` é `LENTE_DO_GESTOR`, que é o ramo SEM rótulos: não é escolha do corpo da
+    // função, é o tipo que não carrega o campo.
+    for (const linha of projetarDashboard(LIDO).backlogPorStatus) {
+      expect(linha.statusRotulo).toBe(nomeDoStatus(linha.status as StatusOcorrencia));
+    }
   });
 
   it("a área sai com os CINCO campos do schema Area, não com três", () => {
@@ -1026,5 +1042,47 @@ describe("a satisfação", () => {
 
   it("o rótulo da nota não é estrela", () => {
     expect(rotuloDaNota(5)).toBe("Nota 5");
+  });
+});
+
+describe("o período do painel", () => {
+  it("o período é linha sobre pauta, e não cartão (critério 104.6)", () => {
+    const pagina = ler("app/(casca)/dashboard/page.tsx");
+    // O fim é a chave sozinha na linha: a assinatura desestruturada também abre linha com `}`.
+    const periodo = /function Periodo\([\s\S]*?\n\}\r?\n/u.exec(pagina)?.[0] ?? "";
+    expect(periodo).not.toMatch(/\bbg-superficie\b|\bshadow-sm\b|\brounded-lg\b/u);
+    expect(periodo).toContain("border-linha-suave");
+    expect(periodo).toContain("border-b");
+
+    // O esqueleto acompanha: sem a caixa de 74 px, para o conteúdo não saltar ao chegar.
+    expect(ler("app/(casca)/dashboard/loading.tsx")).not.toContain("h-[74px]");
+  });
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ *  O eixo das barras — item 110, critério 6
+ * ---------------------------------------------------------------------------
+ * Só os quadros 4 e 7 passam denominador; os quadros 2, 5 e 6 seguem com o domínio automático do
+ * Recharts, que nem passa por esta função. O teto nunca fica abaixo de uma barra nem em zero.
+ */
+describe("tetoDoEixo — o comprimento como parte de um todo", () => {
+  it("com denominador, o denominador: três votos de um, de dez resolvidas", () => {
+    expect(tetoDoEixo([1, 1, 1, 0, 0], 10)).toBe(10);
+  });
+
+  it("nunca abaixo da maior barra", () => {
+    expect(tetoDoEixo([5, 2], 3)).toBe(5);
+  });
+
+  it("nunca zero: nenhuma resolvida, as cinco barras a zero", () => {
+    expect(tetoDoEixo([0, 0, 0, 0, 0], 0)).toBe(1);
+    expect(tetoDoEixo([], 0)).toBe(1);
+  });
+});
+
+describe("fraseDoDenominadorDasDuplas — o todo do quadro 4, impresso", () => {
+  it("as registradas do período", () => {
+    expect(fraseDoDenominadorDasDuplas(117)).toBe("Parte das 117 registradas no período.");
   });
 });

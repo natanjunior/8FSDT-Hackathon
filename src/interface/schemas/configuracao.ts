@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE, STATUS } from "@/dominio/ocorrencia";
 import { ICONE_PADRAO, TIPOS_DE_AREA } from "@/dominio/organizacao";
 
 /**
@@ -164,3 +165,48 @@ export type EntradaDeCorrecaoDeCategoria = z.infer<typeof correcaoDeCategoriaSch
 export type EntradaDeCriacaoDeArea = z.infer<typeof criacaoDeAreaSchema>;
 export type EntradaDeCorrecaoDeArea = z.infer<typeof correcaoDeAreaSchema>;
 export type EntradaDeReordenacao = z.infer<typeof reordenacaoSchema>;
+
+/**
+ * **O teto do texto de quem abriu** (item 100): quarenta caracteres **depois do `trim`**, a mesma medida
+ * do `check` da migração 018.
+ */
+export const TETO_DO_ROTULO_DO_SOLICITANTE = 40;
+
+/**
+ * O mapa parcial de textos de `PATCH /configuracao` (item 100). **Estado ausente é *não mexa*; `null` ou
+ * vazio devolve ao padrão.**
+ *
+ * O teto vale **depois do `trim`**, como em `nomeDeCategoria`, e a lista de estados sai do Domínio para o
+ * schema não ter uma segunda cópia dela. Um estado fora da lista é **recusado**, e não descartado em
+ * silêncio: quem digitou um nome errado precisa saber.
+ */
+export const rotulosDoSolicitanteSchema = z.partialRecord(
+  z.enum(STATUS),
+  z
+    .string()
+    .trim()
+    .max(TETO_DO_ROTULO_DO_SOLICITANTE, "O texto cabe em 40 caracteres.")
+    .nullable(),
+);
+
+/**
+ * O corpo de `PATCH /configuracao` (itens 99 e 100). **Os três campos opcionais, e o vazio é recusado na
+ * rota**,
+ * como em `PATCH /organizacoes`: *"informe ao menos um campo"* é regra do endpoint.
+ *
+ * **O enum sai do Domínio**, e é o que impede o schema de ter uma segunda lista dos valores: o dia em que
+ * um terceiro limite existir, ele nasce lá e chega aqui sozinho.
+ */
+export const alteracaoDeConfiguracaoSchema = z.object({
+  exigirSolucaoAoResolver: z.boolean().optional(),
+  limiteDeCancelamentoDoSolicitante: z.enum(LIMITES_DE_CANCELAMENTO_DO_SOLICITANTE).optional(),
+  /**
+   * **A faixa é a do banco, escrita de novo aqui de propósito** (item 101). O `check` da migração 019 é
+   * a última linha; esta é a primeira, e é a que devolve `400` com o campo em vez de `500` com erro do
+   * Postgres. `int()` recusa `7.5`, que o `check` aceitaria depois de truncar.
+   */
+  diasParaParada: z.number().int().min(1).max(90).optional(),
+  rotulosDoSolicitante: rotulosDoSolicitanteSchema.optional(),
+});
+
+export type EntradaDeAlteracaoDeConfiguracao = z.infer<typeof alteracaoDeConfiguracaoSchema>;

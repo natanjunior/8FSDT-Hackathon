@@ -17,6 +17,7 @@ import {
 import {
   CodigoPublicoNaoEncontrado,
   lerConvite,
+  lerRotulosDoSolicitante,
   type QuemAbreOConvite,
   type RepositorioDeConvites,
 } from "@/aplicacao/organizacao";
@@ -28,7 +29,13 @@ import {
 } from "@/composicao";
 import { PermissaoInsuficiente } from "@/dominio/erros";
 import { FORMATO_DO_CODIGO, type Permissao } from "@/dominio/organizacao";
-import { projetarConvite, type ConviteProjetado } from "@/interface/projecoes";
+import {
+  LENTE_DO_GESTOR,
+  lenteDoSolicitante,
+  projetarConvite,
+  type ConviteProjetado,
+  type LenteDeRotulo,
+} from "@/interface/projecoes";
 
 import {
   assinarOrganizacao,
@@ -118,6 +125,8 @@ export type EntradaEscopada<C> = {
   ctx: ContextoDaRequisicao;
   /** Já escopados. É o argumento que a ADR-0005 acrescentou a toda função de aplicação. */
   repos: RepositoriosEscopados;
+  /** A coluna que esta requisição inteira fala — resolvida uma vez, no ponto único (item 100). */
+  lente: LenteDeRotulo;
   corpo: C;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
@@ -187,6 +196,27 @@ type OpcoesSemOrganizacao<C> = { corpo?: ZodType<C> };
 // comContexto — os 36
 // ---------------------------------------------------------------------------
 
+/**
+ * **A lente de quem está falando, resolvida uma vez por requisição** (item 100).
+ *
+ * **O Gestor não custa leitura.** Quem tem `ocorrencia.ler_todas` lê o nome do ciclo, e a lente dele não
+ * tem rótulos — então não há o que buscar, e o curto-circuito é o tipo, não uma otimização.
+ *
+ * **Fica aqui, e não em `resolverContexto`.** Aquele roda com as portas globais, e os rótulos são da
+ * organização ativa: lê-los lá seria uma consulta escopada fora do escopo (ADR-0003). Este é o primeiro
+ * ponto da requisição em que o escopo já existe.
+ *
+ * **É `ctx.vinculo.pode` e não `lenteDeRotulo`** para não precisar dos rótulos antes de saber se eles
+ * são necessários. `lenteDeRotulo` continua existindo para quem já tem as duas coisas na mão.
+ */
+async function lenteDaRequisicao(
+  ctx: ContextoDaRequisicao,
+  repos: RepositoriosEscopados,
+): Promise<LenteDeRotulo> {
+  if (ctx.vinculo.pode("ocorrencia.ler_todas")) return LENTE_DO_GESTOR;
+  return lenteDoSolicitante(await lerRotulosDoSolicitante(repos.configuracao));
+}
+
 export function comContexto<C = undefined>(
   opcoes: OpcoesEscopadas<C>,
   manipulador: Manipulador<EntradaEscopada<C>>,
@@ -227,6 +257,7 @@ export function comContexto<C = undefined>(
       const resultado = await manipulador({
         ctx,
         repos,
+        lente: await lenteDaRequisicao(ctx, repos),
         corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar, opcoes.corpoOpcional === true),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
@@ -706,6 +737,8 @@ export type EscopoDaTela =
       situacao: "pronto";
       ctx: ContextoDaRequisicao;
       repos: RepositoriosEscopados;
+      /** A coluna que esta tela inteira fala — resolvida uma vez, no ponto único (item 100). */
+      lente: LenteDeRotulo;
       resolucao: ResolucaoDeContexto;
     }
   | { situacao: "sem-organizacao"; resolucao: ResolucaoDeContexto }
@@ -740,5 +773,6 @@ export async function resolverEscopoParaTela(
     return { situacao: "sem-permissao", ctx, resolucao };
   }
 
-  return { situacao: "pronto", ctx, repos: montarPortasEscopadas(ctx.vinculo.organizacaoId), resolucao };
+  const repos = montarPortasEscopadas(ctx.vinculo.organizacaoId);
+  return { situacao: "pronto", ctx, repos, lente: await lenteDaRequisicao(ctx, repos), resolucao };
 }

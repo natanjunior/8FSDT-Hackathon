@@ -34,7 +34,7 @@ export const POST = comContexto(
     corpo: comandoComObservacaoSchema,
     corpoOpcional: true,
   },
-  async ({ ctx, repos, corpo, parametros }) => {
+  async ({ ctx, repos, corpo, parametros, lente }) => {
     const lida = await retomarOcorrencia(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e
@@ -43,10 +43,11 @@ export const POST = comContexto(
       { ocorrenciaId: parametros["ocorrenciaId"] ?? "", observacao: corpo.observacao ?? null },
     );
 
-    return projetarOcorrenciaDetalhe(lida, {
-      pessoaId: ctx.pessoaId,
-      permissoes: ctx.vinculo.permissoes,
-    });
+    return projetarOcorrenciaDetalhe(
+      lida,
+      { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
+      lente,
+    );
   },
 );
 

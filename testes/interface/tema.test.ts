@@ -344,6 +344,33 @@ function contraste(uma: Lab, outra: Lab): number {
   return (clara + 0.05) / (escura + 0.05);
 }
 
+/**
+ * A cor de um token num modo, resolvendo `var(--x)` no mesmo modo e caindo no claro quando o modo não o
+ * redeclara, que é a cascata. A mesma regra do `cor` do item 44q, de nível de arquivo (item 106).
+ */
+function corDoModo(cabecalho: string): (token: string) => Lab {
+  const claro = tokensDe(corpoDoBloco(":root {"));
+  const bloco = tokensDe(corpoDoBloco(cabecalho));
+  const cor = (token: string): Lab => {
+    const valor = bloco.get(token) ?? claro.get(token);
+    if (valor === undefined) throw new Error(`${token} não está declarado em ${cabecalho}`);
+    const apelido = /^var\((--[\w-]+)\)$/u.exec(valor);
+    return apelido?.[1] !== undefined ? cor(apelido[1]) : oklabDe(valor);
+  };
+  return cor;
+}
+
+const TRES_MODOS = [":root {", ':root[data-theme="dark"]', ':root[data-contraste="alto"]'] as const;
+
+describe("a régua do item marcado mede contra a barra — critério 106.9", () => {
+  // A régua encosta em dois fundos: o da barra, de um lado, e o do próprio item marcado, do outro.
+  it.each(TRES_MODOS)("%s: --accent passa 3:1 sobre --sidebar e sobre --sidebar-accent", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--accent"), cor("--sidebar"))).toBeGreaterThanOrEqual(3);
+    expect(contraste(cor("--accent"), cor("--sidebar-accent"))).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("app/globals.css — a paleta categórica de T-07, medida", () => {
   const SERIES = ["--chart-1", "--chart-2", "--chart-3", "--chart-4"] as const;
 
@@ -479,6 +506,12 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
         }
       });
 
+      it("o cromo da opção marcada é o fundo afundado, e por isso o texto sobre ele já está medido (item 104)", () => {
+        // A opção marcada do filtro rápido veste `bg-secondary`, que é `--chrome`. Todo texto é medido sobre `--sunken`, e os dois
+        // são o mesmo valor nos dois modos; se um dia divergirem, esta guarda manda medir o cromo.
+        expect(hexDe(cor("--chrome"))).toBe(hexDe(cor("--sunken")));
+      });
+
       it("o texto de sucesso, de informação e o neutro passam em qualquer dos três fundos", () => {
         for (const token of ["--ok", "--info", "--ink-soft"]) {
           expect(piorFundo(cor(token)), token).toBeGreaterThanOrEqual(4.5);
@@ -540,7 +573,7 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
 
   const TINTAS = [
     "--ink", "--ink-soft", "--ink-faint", "--accent", "--destructive",
-    "--ok", "--info", "--primary", "--accent-foreground", "--accent-ink",
+    "--ok", "--info", "--accent-foreground", "--accent-ink",
   ];
   const FUNDOS = ["--ground", "--surface", "--chrome", "--sunken", "--accent-bg"];
   const SOLIDOS: ReadonlyArray<[string, string]> = [
@@ -549,7 +582,6 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
     ["--marca-foreground", "--ok"],
     ["--marca-foreground", "--info"],
     ["--marca-foreground", "--ink-soft"],
-    ["--primary-foreground", "--primary"],
     ["--destructive-foreground", "--destructive"],
     ["--surface", "--info"],
     // O selo *Em análise* cheio: `bg-tinta-suave text-superficie` (`selo-de-status.tsx:23`).
@@ -914,5 +946,23 @@ describe("o texto veste tinta que passa — item 89", () => {
     // Utilitário que o Tailwind não gera falha calado: o texto herda a cor do pai.
     const tema = tokensDe(corpoDoBloco("@theme inline {"));
     expect(tema.get("--color-tinta-marca")).toBe("var(--accent-ink)");
+  });
+});
+
+describe("as superfícies do navegador recebem o tema — critério 106.15", () => {
+  it("color-scheme é light no claro e dark nos dois escuros", () => {
+    expect(corpoDoBloco(":root {")).toMatch(/(^|;|\s)color-scheme:\s*light\s*;/u);
+    expect(corpoDoBloco(':root:not([data-theme="light"])')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+    expect(corpoDoBloco(':root[data-theme="dark"]')).toMatch(/(^|;|\s)color-scheme:\s*dark\s*;/u);
+  });
+
+  it("a seleção usa o fundo azulado e a tinta, e o cursor de digitação a cor do foco", () => {
+    expect(CSS).toMatch(/::selection\s*\{[^}]*background-color:\s*var\(--accent-bg\)[^}]*color:\s*var\(--ink\)/u);
+    expect(CSS).toMatch(/caret-color:\s*var\(--accent\)/u);
+  });
+
+  it.each(TRES_MODOS)("%s: a tinta passa 4,5:1 sobre o fundo da seleção", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--ink"), cor("--accent-bg"))).toBeGreaterThanOrEqual(4.5);
   });
 });

@@ -4,12 +4,16 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@/interface/componentes/utilitarios"
 
+/**
+ * **Sem variante `default`** (item 105): ela vestia o azul literal do tema de origem, e toda ação sem
+ * variante saía azul. O padrão é o contorno, que o guia chama de padrão das demais ações; a ação
+ * principal pede `marca` por escrito.
+ */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-sm text-sm font-medium whitespace-nowrap focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 active:scale-[0.97] transition-transform duration-(--tempo-pressao) ease-(--curva-pressao)",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-sm text-interface font-medium whitespace-nowrap focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 active:scale-[0.97] transition-transform duration-(--tempo-pressao) ease-(--curva-pressao)",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
         marca: "bg-marca text-marca-foreground font-semibold hover:bg-marca/90",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
@@ -19,11 +23,11 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-tinta-marca underline-offset-4 hover:underline",
       },
       size: {
         default: "min-h-11 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-sm px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-6 gap-1 rounded-sm px-2 text-meta has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1.5 rounded-sm px-3 has-[>svg]:px-2.5",
         lg: "h-10 rounded-sm px-6 has-[>svg]:px-4",
         icon: "size-11",
@@ -33,7 +37,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "outline",
       size: "default",
     },
   }
@@ -41,7 +45,7 @@ const buttonVariants = cva(
 
 function Button({
   className,
-  variant = "default",
+  variant = "outline",
   size = "default",
   asChild = false,
   ...props

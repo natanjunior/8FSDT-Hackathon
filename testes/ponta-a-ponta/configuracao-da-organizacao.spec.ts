@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobertura, cobre } from "./cobertura";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -68,8 +69,7 @@ import { cobertura, cobre } from "./cobertura";
  * este teste afirma: a página não muda de endereço e `GET /vinculos` continua com dois contatos.
  *
  * **3 · O rodapé do seletor de ícone diz *"Escolhido:"*, e não *"Ícone:"*.** O passo 8 escreve a segunda
- * forma. A frase do produto nomeia o rótulo do desenho e continua com *"O ícone fica ao lado do nome,
- * nunca no lugar dele"*, que é o compromisso A-5 escrito onde a escolha acontece.
+ * forma. A frase do produto nomeia o rótulo do desenho.
  *
  * ---------------------------------------------------------------------------
  *  O que ele NÃO prova, e cada linha tem dono
@@ -253,6 +253,134 @@ test("a configuração da organização: nome repetido, desativar até a última
   // 0 · A conta e a organização próprias
   // -------------------------------------------------------------------------
   await organizacaoPropria(page, "jornada");
+  // -------------------------------------------------------------------------
+  // 0b · As regras do atendimento, e a mudança que fica — critérios 99.6 e 99.8
+  //
+  // **Antes de tudo que mexe nas listas**, porque a trilha começa vazia numa organização recém-fundada,
+  // e é essa frase que o cartão precisa mostrar no primeiro passo.
+  // -------------------------------------------------------------------------
+  await page.goto("/configuracao");
+  await expect(page.getByText("Nenhuma regra foi alterada desde a criação da organização.")).toBeVisible();
+
+  await page
+    .getByRole("region", { name: "Regras do atendimento" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  const modalDasRegras = page.getByRole("dialog");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras.getByText("Altere uma regra antes de salvar.")).toBeVisible();
+
+  await modalDasRegras.getByRole("switch", { name: "Exigir a solução ao resolver" }).click();
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras).toBeHidden();
+  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toBeVisible();
+
+  // **O mesmo `PATCH` direto ao servidor, com o mesmo valor: `200` e nenhuma linha a mais.** É o
+  // critério 99.6 pelo lado que a tela não alcança — gravar o que já está lá não é mudança.
+  const repetido = await page.request.patch("/api/configuracao", {
+    data: { exigirSolucaoAoResolver: true },
+  });
+  expect(repetido.status()).toBe(200);
+  await page.reload();
+  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toHaveCount(1);
+
+  // -------------------------------------------------------------------------
+  // 0c · Os dias para parada — item 101, critérios 4 e 5
+  //
+  // **A tela recusa antes de enviar**, e é o cenário *"dias fora da faixa"*: 120 acende a frase no campo
+  // e nada vai ao servidor. Com 15, o cartão passa a dizer *"15 dias"* e a trilha guarda a mudança com a
+  // unidade nas duas pontas.
+  // -------------------------------------------------------------------------
+  await page
+    .getByRole("region", { name: "Regras do atendimento" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  const campoDosDias = modalDasRegras.getByLabel(
+    "Dias sem atividade até a ocorrência contar como parada",
+  );
+  await expect(modalDasRegras.getByText("De 1 a 90. Pausadas não contam.")).toBeVisible();
+
+  await campoDosDias.fill("120");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras.getByText("Use um número de 1 a 90.")).toBeVisible();
+  await expect(modalDasRegras).toBeVisible();
+
+  await campoDosDias.fill("15");
+  await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDasRegras).toBeHidden();
+  await expect(page.getByText("15 dias", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dias até contar como parada: de 7 dias para 15 dias")).toBeVisible();
+
+  // Volta ao padrão: os passos seguintes contam com a organização recém-fundada.
+  const diasDevolvidos = await page.request.patch("/api/configuracao", {
+    data: { diasParaParada: 7 },
+  });
+  expect(diasDevolvidos.status()).toBe(200);
+  await page.reload();
+
+  // **Critério 99.8, medido:** a tela inteira cabe em 360 px, sem rolagem lateral.
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.reload();
+  expect(await transbordo(page)).toStrictEqual(SEM_TRANSBORDO);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // A regra volta ao padrão: os passos seguintes desta jornada contam com a organização recém-fundada.
+  const devolvida = await page.request.patch("/api/configuracao", {
+    data: { exigirSolucaoAoResolver: false },
+  });
+  expect(devolvida.status()).toBe(200);
+
+  // -------------------------------------------------------------------------
+  // 0c · O texto que quem abre lê — critérios 100.1, 100.2, 100.5 e 100.7
+  // -------------------------------------------------------------------------
+  await page.reload();
+  const cartaoDosRotulos = page.getByRole("region", { name: "Como quem abre lê o status" });
+  // **Sem customização, o cartão mostra o padrão** — o critério 2 pelo lado da tela.
+  await expect(cartaoDosRotulos.getByText("Em execução")).toBeVisible();
+
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  const modalDosRotulos = page.getByRole("dialog");
+
+  // **Os seis pontos do ciclo estão na tela** — critério 1, e é a metade que o teste de unidade não
+  // alcança: a lista pode estar certa e o modal desenhar cinco campos.
+  await expect(modalDosRotulos.getByRole("textbox")).toHaveCount(6);
+
+  await modalDosRotulos.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDosRotulos.getByText("Altere um texto antes de salvar.")).toBeVisible();
+
+  await modalDosRotulos.getByLabel("Em análise").fill("o síndico está avaliando");
+  await modalDosRotulos.getByRole("button", { name: "Salvar" }).click();
+  await expect(modalDosRotulos).toBeHidden();
+  await expect(
+    page.getByText("Texto de Em análise: do padrão para “o síndico está avaliando”"),
+  ).toBeVisible();
+
+  // **O teto cabe no celular** — critério 5. A medida é com o teto de fato: quarenta caracteres LARGOS,
+  // porque é o pior caso do cartão, e um texto curto mediria a tela e não o teto.
+  const QUARENTA_LARGOS = "W".repeat(40);
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("dialog").getByLabel("Em atendimento").fill(QUARENTA_LARGOS);
+  await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.reload();
+  await expect(cartaoDosRotulos.getByText(QUARENTA_LARGOS)).toBeVisible();
+  expect(await transbordo(page)).toStrictEqual(SEM_TRANSBORDO);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.reload();
+
+  // Os dois voltam ao padrão, e a volta **também deixa linha** — o critério 7. O de quarenta largos
+  // porque a jornada segue, e o de Em análise porque é a linha de trilha que o caso afirma.
+  await cartaoDosRotulos.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("dialog").getByLabel("Em atendimento").fill("");
+  await page.getByRole("dialog").getByLabel("Em análise").fill("");
+  await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(
+    page.getByText("Texto de Em análise: de “o síndico está avaliando” para o padrão"),
+  ).toBeVisible();
+
 
   // -------------------------------------------------------------------------
   // 1 · O nome repetido é recusado, e nada é criado — metade do critério 4a.1

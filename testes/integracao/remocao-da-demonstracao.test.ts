@@ -273,6 +273,8 @@ const TABELAS_COM_ORGANIZACAO = [
   "registros_transicao",
   "ocorrencias",
   "pedidos_de_entrada",
+  "mudancas_de_configuracao",
+  "rotulos_de_status",
   "categorias",
   "areas",
   "vinculos",
@@ -400,6 +402,26 @@ describe("a remoção da demonstração: nome e autoria, e nada além", () => {
       `update organizacoes set atualizado_por_pessoa_id = criada_por_pessoa_id where id = $1`,
       [aurora.organizacaoId],
     );
+    // **E uma mudança de REGRA (item 99)**, que o gatilho da 017 transforma numa linha da trilha. Sem
+    // ela a tabela nova nunca teria linha nesta organização, e o `nadaSobrou` provaria zero contra zero.
+    await consulta(
+      `update organizacoes
+          set exigir_solucao_ao_resolver = true,
+              atualizado_por_pessoa_id = criada_por_pessoa_id
+        where id = $1`,
+      [aurora.organizacaoId],
+    );
+    expect(await contar("mudancas_de_configuracao", aurora.organizacaoId)).toBe(1);
+
+    // **E um rótulo customizado (item 100)**, pela mesma razão: sem linha, o `nadaSobrou` provaria zero
+    // contra zero na tabela nova. A linha da trilha que a customização deixa é escrita pela aplicação, e
+    // aqui basta a linha do rótulo — quem a apaga é a mesma remoção.
+    await consulta(
+      `insert into rotulos_de_status (organizacao_id, estado, rotulo)
+       values ($1, 'em_analise', 'o síndico está avaliando')`,
+      [aurora.organizacaoId],
+    );
+    expect(await contar("rotulos_de_status", aurora.organizacaoId)).toBe(1);
 
     expect((await apagarADemonstracao(emails)).organizacoes).toBe(1);
     await nadaSobrou(aurora.organizacaoId);

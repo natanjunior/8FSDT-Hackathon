@@ -5,11 +5,13 @@ import { useId, useState } from "react";
 import { Campo, ErroDoFormulario } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
 import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
+import { erroDaSolucaoObrigatoria } from "@/interface/componentes/regras-da-configuracao";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import { AVISO_DE_VISIBILIDADE } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * ============================================================================
@@ -24,9 +26,10 @@ import { useEnvioDoModal } from "@/interface/ganchos/use-envio-do-modal";
  * eliminá-la.
  *
  * **A ordem é `solucaoAplicada` primeiro, e ela é a indução da D22 inteira.** *"O formulário de resolver
- * abre com o campo em foco, e pular exige um clique a mais"* (contrato §8.4) é o **único** mecanismo que
- * existe até o interruptor por organização nascer — e o interruptor é ⬜. Invertida, a fatia entrega o
- * endpoint e perde a razão pela qual ele aceita o campo. **A ordem no DOM é a ordem de leitura** (A-2),
+ * abre com o campo em foco, e pular exige um clique a mais"* (contrato §8.4). **Desde o item 99 a indução
+ * deixou de ser o único mecanismo**: com a regra da organização ligada, o campo é obrigatório e o cliente
+ * recusa o vazio antes de enviar. Com ela desligada, que é o padrão, nada muda. Invertida, a fatia entrega
+ * o endpoint e perde a razão pela qual ele aceita o campo. **A ordem no DOM é a ordem de leitura** (A-2),
  * então o `autoFocus` não é atalho visual: é o primeiro campo mesmo.
  *
  * **O aviso de visibilidade fica só na `observacao`**, literal à restrição herdada nº 1 do inventário,
@@ -58,6 +61,7 @@ export function ModalDeResolucao({
   variante,
   rotulosDeStatus,
   organizacaoId,
+  exigeSolucao,
   retorno,
 }: {
   ocorrenciaId: string;
@@ -74,6 +78,11 @@ export function ModalDeResolucao({
   rotulosDeStatus: Readonly<Record<string, string>>;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /**
+   * **A regra da organização** (item 99), lida pela página do modelo de leitura. Ligada, o campo de
+   * solução passa a ser obrigatório e o cliente recusa o vazio antes de enviar.
+   */
+  exigeSolucao: boolean;
   /** Os títulos do aviso de sucesso e de falha, prontos (`RETORNO_DO_COMANDO`). */
   retorno: TextosDoRetorno;
 }) {
@@ -81,6 +90,13 @@ export function ModalDeResolucao({
   const campoObservacaoId = useId();
   const [solucao, setSolucao] = useState(solucaoAplicadaAtual ?? "");
   const [observacao, setObservacao] = useState("");
+
+  // **O campo é obrigatório só com a regra ligada** (item 99). Sem ela, a indução da D22 continua sendo
+  // o único mecanismo, e o critério 25.4 continua valendo.
+  const formulario = useFormularioTocado({
+    campos: { solucao: campoSolucaoId },
+    erros: { solucao: erroDaSolucaoObrigatoria(solucao, exigeSolucao) },
+  });
 
   const envio = useEnvioDoModal({
     enviar: () => {
@@ -116,6 +132,7 @@ export function ModalDeResolucao({
     aoAbrir: () => {
       setSolucao(solucaoAplicadaAtual ?? "");
       setObservacao("");
+      formulario.recomecar();
     },
   });
 
@@ -141,11 +158,12 @@ export function ModalDeResolucao({
          declarada no achado A-3 da spec para o hub confirmar ou trocar; trocá-la não muda uma linha de
          estrutura. */
       descricao="A ocorrência será encerrada. Não há como reabrir."
-      /* **Sem nota de obrigatório:** os dois campos são opcionais (D23, e o critério 25.4: resolver sem
-         solução responde `200`). A indução é o foco, nunca a trava. */
-      obrigatorios={0}
+      /* **A nota de obrigatório aparece só com a regra ligada** (item 99). No padrão, os dois campos são
+         opcionais (D23, e o critério 25.4: resolver sem solução responde `200`), e a indução é o foco. */
+      obrigatorios={exigeSolucao ? 1 : 0}
       aoEnviar={(evento) => {
         evento.preventDefault();
+        if (envio.enviando || !formulario.tentarEnviar()) return;
         void envio.confirmar();
       }}
       rodape={
@@ -159,15 +177,24 @@ export function ModalDeResolucao({
         </>
       }
     >
-      {/* **PRIMEIRO campo, em foco.** É a indução da D22, e é o único mecanismo que existe até o
-          interruptor por organização nascer. */}
-      <Campo id={campoSolucaoId} rotulo="Solução aplicada">
+      {/* **PRIMEIRO campo, em foco.** É a indução da D22; com a regra da organização ligada (item 99) ele
+          também é obrigatório. */}
+      <Campo
+        id={campoSolucaoId}
+        rotulo="Solução aplicada"
+        obrigatorio={exigeSolucao}
+        erro={formulario.erroDe("solucao", {})}
+      >
         {(controle) => (
           <Textarea
             {...controle}
             autoFocus
             value={solucao}
-            onChange={(evento) => setSolucao(evento.target.value)}
+            onChange={(evento) => {
+              setSolucao(evento.target.value);
+              formulario.mudou("solucao");
+            }}
+            onBlur={formulario.aoSair("solucao")}
             disabled={envio.enviando}
             rows={4}
             /* **O mesmo teto do `resolucaoSchema`** — 4000. Dois números divergiriam. */

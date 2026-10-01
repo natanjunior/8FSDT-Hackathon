@@ -192,6 +192,25 @@ export class MotivoNaoPermitidoParaOPapel extends ErroDeDominio {
 }
 
 /**
+ * `422 SOLUCAO_OBRIGATORIA` — a invariante 10 com a regra ligada (item 99, resposta P3).
+ *
+ * **`422`, e não `409`:** o que falta está no corpo, não no recurso — o mesmo pedido com a solução passa
+ * sem ninguém mexer na ocorrência. Um `409` listaria `resolver` em `acoesDisponiveis` no corpo que o
+ * recusa. O precedente é o `MOTIVO_NAO_PERMITIDO_PARA_O_PAPEL`, logo acima: valor do corpo recusado por um
+ * fato de contexto.
+ */
+export class SolucaoObrigatoria extends ErroDeDominio {
+  constructor() {
+    super(
+      "SOLUCAO_OBRIGATORIA",
+      "Solução obrigatória",
+      "Esta organização exige a solução aplicada para resolver.",
+      { erros: [{ campo: "solucaoAplicada", codigo: "SOLUCAO_OBRIGATORIA" }] },
+    );
+  }
+}
+
+/**
  * `403 SOMENTE_O_AUTOR_PODE_AVALIAR` — o critério **27.3**, e a **segunda** recusa do produto que
  * depende de quem chamou.
  *

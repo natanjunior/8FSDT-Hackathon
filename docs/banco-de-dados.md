@@ -1,27 +1,29 @@
 ---
 title: "Banco de dados"
-description: "As quinze tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As dezessete tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, quinze tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, dezessete tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As quinze tabelas
+## As dezessete tabelas
 
 | Tabela | O que guarda |
 |---|---|
 | `pessoas` | o ser humano no sistema: nome, e a ligação opcional com uma conta |
 | `contatos` | os telefones e e-mails de uma pessoa, com finalidade e ordem de tentativa |
-| `organizacoes` | o condomínio, a empresa ou o bairro, com o código público de entrada |
+| `organizacoes` | o condomínio, a empresa ou o bairro, com o código público de entrada, e as regras do atendimento |
 | `vinculos` | a ligação entre pessoa, organização e papel. É a chave do isolamento |
 | `pedidos_de_entrada` | quem apresentou o código e aguarda decisão do Gestor |
 | `categorias` | a natureza da ocorrência, configurável por organização |
 | `areas` | a subdivisão do lugar, comum ou privativa |
 | `ocorrencias` | o objeto central, com estado, prioridade, solução aplicada e avaliação |
 | `registros_transicao` | a trilha de auditoria: um registro por mudança de estado |
+| `mudancas_de_configuracao` | cada mudança de uma regra da organização, com o valor anterior, o novo, quem e quando |
+| `rotulos_de_status` | o texto com que quem abriu lê cada ponto do ciclo nesta organização, quando ela o customizou |
 | `atribuicoes` | quem é o responsável por uma ocorrência, e desde quando |
 | `canais_conversa` | o canal de mensagens de uma ocorrência |
 | `mensagens` | o texto trocado dentro de um canal |
@@ -112,6 +114,22 @@ quem executou o comando. Este gatilho não captura nada: ele apenas proíbe.
 
 Cada registro carrega uma `sequencia`, única por ocorrência, que é o que dá ordem estável à leitura sem
 depender do relógio.
+
+As mudanças de configuração têm a mesma defesa, e uma diferença: quem as escreve é um gatilho de
+`organizacoes`, que dispara quando uma regra muda de valor e copia o anterior da própria linha. Aqui não
+há observação a produzir, e a linha travada pelo `update` garante que duas mudanças seguidas registrem
+cada uma o valor que encontrou.
+
+São três regras, uma coluna cada em `organizacoes`: se a solução aplicada é exigida ao resolver, até onde
+quem registrou cancela a própria ocorrência, e quantos dias sem atividade até a ocorrência contar como
+parada. A terceira é um inteiro com padrão 7, e o banco recusa fora da faixa de 1 a 90 — a aplicação recusa
+antes, com a mensagem no campo, e o `check` existe para quem chega por fora dela. A listagem lê essa coluna
+na mesma instrução que devolve a página, então não há valor guardado que possa ficar velho entre a mudança
+da regra e a leitura seguinte.
+
+Os textos de quem abriu entram na mesma trilha por outro caminho: eles moram em tabela própria, e quem
+grava a linha é a aplicação, dentro da mesma transação da escrita e com a linha da organização travada.
+É o que registra quem apagou um texto, informação que a linha apagada não carrega.
 
 ## O relógio de atualização é do banco
 

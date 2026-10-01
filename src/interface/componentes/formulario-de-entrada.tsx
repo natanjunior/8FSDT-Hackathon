@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { acaoDeEntrar, type EstadoDoFormulario } from "@/interface/acoes";
-import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
@@ -43,8 +43,13 @@ export function FormularioDeEntrada({
       errosDoSchema(entrarSchema, { email: dados.get("email"), senha: dados.get("senha") }),
   });
 
+  // **O e-mail sobrevive à recusa** (item 103, critério 6): ele vira o valor inicial do campo antes de o
+  // React esvaziar o formulário, e o esvaziamento devolve o campo a ele. A senha volta vazia.
+  const [preservados, setPreservados] = useState<Readonly<Record<string, string>>>({});
+
   const [estado, agir, aguardando] = useActionState(
     async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
+      setPreservados(valoresPreservados(dados, ["email"]));
       const proximo = await chamarAcaoDeCredencial(acaoDeEntrar, anterior, dados);
       formulario.recomecar();
       if (proximo.recusa !== undefined || proximo.erros !== undefined) avisarErro("Não foi possível entrar");
@@ -75,6 +80,7 @@ export function FormularioDeEntrada({
           {(controle) => (
             <Input
               {...controle}
+              defaultValue={preservados.email}
               name="email"
               type="email"
               autoComplete="email"

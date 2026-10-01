@@ -3,10 +3,10 @@
 import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { acaoDeCriarConta, type EstadoDoFormulario } from "@/interface/acoes";
-import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import { CLASSE_DO_CAMINHO } from "@/interface/componentes/moldura-de-conta";
@@ -55,8 +55,13 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
       }),
   });
 
+  // **O nome e o e-mail sobrevivem à recusa** (item 103, critério 6): eles viram o valor inicial dos campos
+  // antes de o React esvaziar o formulário, e o esvaziamento devolve os campos a eles. A senha volta vazia.
+  const [preservados, setPreservados] = useState<Readonly<Record<string, string>>>({});
+
   const [estado, agir, aguardando] = useActionState(
     async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
+      setPreservados(valoresPreservados(dados, ["nome", "email"]));
       const proximo = await chamarAcaoDeCredencial(acaoDeCriarConta, anterior, dados);
       formulario.recomecar();
       if (proximo.concluido === true) {
@@ -131,6 +136,7 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
           {(controle) => (
             <Input
               {...controle}
+              defaultValue={preservados.nome}
               name="nome"
               type="text"
               maxLength={120}
@@ -145,6 +151,7 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
           {(controle) => (
             <Input
               {...controle}
+              defaultValue={preservados.email}
               name="email"
               type="email"
               autoComplete="email"

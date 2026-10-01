@@ -54,6 +54,18 @@ export const SEM_DUPLA_RECORRENTE =
   "Nenhuma dupla se repetiu no período. Aqui aparece a mesma categoria voltando na mesma área, " +
   "a partir da segunda vez.";
 
+/**
+ * O rodapé do quadro 4 — **o todo de que cada barra é parte** (item 110, critério 6, decidido em
+ * `respostas.md` P1). São as registradas do período, o mesmo `entraram` do cartão do saldo: as duplas
+ * contam pela mesma `registrada_em` na mesma janela, e área e categoria são obrigatórias, então nenhuma
+ * ocorrência fica de fora.
+ *
+ * **Sem singular a tratar**: a frase só aparece quando há dupla, e dupla exige ao menos duas.
+ */
+export function fraseDoDenominadorDasDuplas(entraram: number): string {
+  return `Parte das ${String(entraram)} registradas no período.`;
+}
+
 /** Quantas duplas o quadro mostra antes de cortar — **cinco**, e o critério 14 do item 73 pede o corte. */
 const DUPLAS_NO_TOPO = 5;
 

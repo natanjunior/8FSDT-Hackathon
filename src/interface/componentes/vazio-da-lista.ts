@@ -1,4 +1,5 @@
-import type { VisibilidadeAplicada } from "@/aplicacao/ocorrencia";
+import type { FiltroDeOcorrencias, VisibilidadeAplicada } from "@/aplicacao/ocorrencia";
+import { algumFiltroAlemDoAutor } from "@/interface/projecoes";
 
 /**
  * ============================================================================
@@ -79,13 +80,19 @@ export function estadoDaLista(entrada: {
   quantidade: number;
   total: number;
   visibilidadeAplicada: VisibilidadeAplicada;
-  algumFiltroAplicado: boolean;
+  /**
+   * **O filtro inteiro, e não um booleano** — item 102. A pergunta deixou de ser *"há filtro?"* e passou a
+   * ser *"há filtro além do recorte do autor?"*, e só quem tem o filtro sabe responder.
+   */
+  filtro: FiltroDeOcorrencias;
 }): EstadoDaLista {
   if (entrada.quantidade > 0) return "lista";
   // **`total` é o do recorte da página**, então esta comparação responde sobre a lista que está na tela,
   // e não sobre a organização.
   if (entrada.total > 0) return "alem-do-fim";
-  return vazioDaLista(entrada.visibilidadeAplicada, entrada.algumFiltroAplicado);
+  // **`autor=eu` sozinho cai na visibilidade, e não no filtro** (critério 102.5): a visibilidade dele já é
+  // `apenas_minhas`, e `vazioDaLista` devolve o vazio do Solicitante.
+  return vazioDaLista(entrada.visibilidadeAplicada, algumFiltroAlemDoAutor(entrada.filtro));
 }
 
 /** O texto do quarto estado. Os outros três continuam em `TEXTO_DO_VAZIO`, que é do item 14. */

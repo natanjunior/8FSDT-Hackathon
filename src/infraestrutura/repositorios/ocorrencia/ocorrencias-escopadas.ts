@@ -16,10 +16,12 @@ import type {
 import {
   Avaliacao,
   comandoPermitido,
+  ehTerminal,
   Ocorrencia,
   RegistroDeTransicao,
   STATUS,
   TERMINAIS,
+  type LimiteDeCancelamentoDoSolicitante,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 import type { Papel } from "@/dominio/organizacao";
@@ -75,6 +77,11 @@ type LinhaDeOcorrencia = {
   avaliada_em: Date | null;
   registrada_em: Date;
   atualizada_em: Date;
+  /** **As regras da organização** (item 99), lidas na mesma instrução por sub-consulta. Não são dado da
+   *  ocorrência: sobem no campo `regrasDaOrganizacao` do modelo de leitura. */
+  exigir_solucao_ao_resolver: boolean;
+  limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
+  dias_para_parada: number;
 };
 
 type LinhaDeTransicao = {
@@ -174,7 +181,13 @@ const SELECT_DA_OCORRENCIA = `
          o.avaliacao_comentario,
          o.avaliada_em,
          o.registrada_em,
-         o.atualizada_em
+         o.atualizada_em,
+         (select g.exigir_solucao_ao_resolver
+            from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
+         (select g.limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante,
+         (select g.dias_para_parada
+            from organizacoes g where g.id = o.organizacao_id) as dias_para_parada
     from ocorrencias o
     join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
@@ -410,6 +423,11 @@ function montarOcorrencia(
     ultimaTransicao: ultima,
     registradaEm: linha.registrada_em.toISOString(),
     atualizadaEm: linha.atualizada_em.toISOString(),
+    regrasDaOrganizacao: {
+      exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
+      limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+      diasParaParada: linha.dias_para_parada,
+    },
   };
 }
 
@@ -434,9 +452,12 @@ type LinhaDoAgregado = {
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
   avaliada_em: Date | null;
-  /** **O único campo desta linha que não é coluna de `ocorrencias`** — e não entra no agregado: ele
-   *  viaja ao lado dele, no envelope de `carregar` (item 22, invariante 9). */
+  /** **Os campos desta linha que não são coluna de `ocorrencias`** — e não entram no agregado: eles
+   *  viajam ao lado dele, no envelope de `carregar` (item 22, invariante 9; item 99, invariante 10). */
   tem_responsavel: boolean;
+  exigir_solucao_ao_resolver: boolean;
+  limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
+  dias_para_parada: number;
 };
 
 /**
@@ -475,7 +496,13 @@ const SELECT_DO_AGREGADO = `
                    from atribuicoes at
                   where at.ocorrencia_id = o.id
                     and at.organizacao_id = o.organizacao_id
-                    and at.encerrada_em is null) as tem_responsavel
+                    and at.encerrada_em is null) as tem_responsavel,
+         (select g.exigir_solucao_ao_resolver
+            from organizacoes g where g.id = o.organizacao_id) as exigir_solucao_ao_resolver,
+         (select g.limite_cancelamento_solicitante
+            from organizacoes g where g.id = o.organizacao_id) as limite_cancelamento_solicitante,
+         (select g.dias_para_parada
+            from organizacoes g where g.id = o.organizacao_id) as dias_para_parada
     from ocorrencias o
    where o.organizacao_id = $1 and o.id = $2`;
 
@@ -546,6 +573,7 @@ type LinhaDeResumo = {
   registrada_em: Date;
   atualizada_em: Date;
   nao_aberta: boolean | null;
+  parada_ha_dias: number | null;
 };
 
 /**
@@ -590,6 +618,8 @@ function condicoesDoRecorte(
   recorte: FiltroDeOcorrencias | undefined,
   proximo: () => string,
   valores: unknown[],
+  /** O `$n` do corte da página, reservado por quem chama antes de entrar aqui — item 101. */
+  ate: string,
 ): string[] {
   const condicoes: string[] = [];
 
@@ -625,8 +655,58 @@ function condicoesDoRecorte(
     valores.push(escaparParaRegex(termo));
   }
 
+  /**
+   * **A lista de estados é reservada AQUI DENTRO, e só quando a condição existe.** É o que todas as
+   * outras condições deste corpo já fazem, e aqui não é estilo: `escoparConsulta` entrega `valores` ao
+   * `pg` inteiro, e o Postgres conta os parâmetros pelo texto da consulta. Um `$n` empilhado que o SQL
+   * não menciona derruba o *bind*, e `contar` **não** projeta a coluna: fora do filtro ele não
+   * mencionaria nada.
+   */
+  if (recorte?.apenasParadas === true) {
+    const estados = proximo();
+    valores.push([...ESTADOS_QUE_PODEM_FICAR_PARADAS]);
+    condicoes.push(
+      `o.status = any(${estados}::status_ocorrencia[])
+                            and o.atualizada_em <= ${limiteDaParada(ate)}`,
+    );
+  }
+
   return condicoes;
 }
+
+/**
+ * ============================================================================
+ *  Os estados que podem estar PARADOS — item 101, critérios 3 e 4
+ * ============================================================================
+ *
+ * **Derivada do Domínio, e não escrita à mão.** Uma lista dos três nomes escrita no texto do SQL
+ * envelhece no dia em que o ciclo ganhar um sétimo estado, e envelhece **em silêncio**: o compilador não
+ * alcança string dentro de consulta. A lista é `STATUS` menos os terminais, menos `pausada`. Uma guarda
+ * de fonte em `testes/interface/ocorrencia.test.ts` recusa o literal.
+ *
+ * **`pausada` sai porque pausar é decisão explícita com motivo.** Uma pausa de trinta dias não é
+ * negligência, e quem retoma volta a um estado que conta — `retomar` carimba `atualizada_em`, então o
+ * relógio recomeça na retomada, e não na pausa. É a única exclusão nominal, e a tela a diz na frase do
+ * recorte.
+ */
+const ESTADOS_QUE_PODEM_FICAR_PARADAS: readonly StatusOcorrencia[] = STATUS.filter(
+  (status) => !ehTerminal(status) && status !== "pausada",
+);
+
+/**
+ * **O instante a partir do qual a ocorrência conta como parada, lido na MESMA instrução** — item 101.
+ *
+ * A chave sai de `organizacoes` pela organização do `$1`, e não da aplicação: não há valor guardado que
+ * possa ficar velho entre a mudança da regra e a próxima leitura, que é o critério 6 virando estrutura em
+ * vez de promessa. O Postgres avalia a subconsulta **uma vez por instrução**, então repeti-la na condição
+ * e na coluna projetada não custa segunda varredura.
+ *
+ * **O `ate` é o corte da página, e não `now()`** — o mesmo instante que corta `registrada_em`. Com ele uma
+ * ocorrência não cruza o limite entre a página 1 e a página 2 do mesmo corte.
+ */
+const limiteDaParada = (ate: string) =>
+  `${ate}::timestamptz - make_interval(days => (select og.dias_para_parada` +
+  ` from organizacoes og where og.id = $1))`;
 
 /**
  * ============================================================================
@@ -721,7 +801,7 @@ function ordemDaPagina(ordenacao?: OrdenacaoDeOcorrencias): string {
  * pronta, montada por `listar`, porque é lá que os `$n` são numerados. Fora do recorte da aba a expressão é
  * `null::boolean`: a pergunta não foi feita.
  */
-const selectDoResumo = (naoAberta: string) => `
+const selectDoResumo = (naoAberta: string, paradaHaDias: string) => `
   select o.id,
          o.titulo,
          o.status,
@@ -743,7 +823,8 @@ const selectDoResumo = (naoAberta: string) => `
          (o.avaliacao_nota is not null) as avaliada,
          o.registrada_em,
          o.atualizada_em,
-         ${naoAberta} as nao_aberta
+         ${naoAberta} as nao_aberta,
+         ${paradaHaDias} as parada_ha_dias
     from ocorrencias o
     join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
     join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
@@ -783,6 +864,16 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     avaliada: linha.avaliada,
     // **`null` é "a pergunta não foi feita"** — fora do recorte da aba (item 88). Ver `portas.ts`.
     naoAberta: linha.nao_aberta,
+    /**
+     * **`null` é "não está parada"**, por estado ou por tempo (item 101). O número é do banco, do mesmo
+     * `case` que decide o filtro — a tela não reaplica a regra, e por isso não há como as duas
+     * divergirem.
+     *
+     * **O `::int` do `floor` não é decoração:** `extract(epoch …)` devolve `numeric`, e o `pg` entrega
+     * `numeric` como **string**. Sem o *cast* o campo chegaria como `"9"` e o singular do destaque
+     * compararia texto com número.
+     */
+    paradaHaDias: linha.parada_ha_dias,
     // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
     motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
     registradaEm: linha.registrada_em.toISOString(),
@@ -1066,7 +1157,15 @@ export function repositorioEscopadoDeOcorrencias(
       const trilha = await consulta<LinhaDeTransicao>(SELECT_DA_TRILHA, [id]);
       // **O fato sai da MESMA linha do agregado**, e morre aqui como coluna: o que sobe é o booleano
       // do envelope. `LinhaDoAgregado` não deixa este arquivo (item do DoD).
-      return { ocorrencia: montarAgregado(linha, trilha), temResponsavel: linha.tem_responsavel };
+      return {
+        ocorrencia: montarAgregado(linha, trilha),
+        temResponsavel: linha.tem_responsavel,
+        regras: {
+          exigirSolucaoAoResolver: linha.exigir_solucao_ao_resolver,
+          limiteDeCancelamentoDoSolicitante: linha.limite_cancelamento_solicitante,
+          diasParaParada: linha.dias_para_parada,
+        },
+      };
     },
 
     /**
@@ -1650,10 +1749,25 @@ export function repositorioEscopadoDeOcorrencias(
                                 and cfv.aberto_em is null)`;
       }
 
-      condicoes.push(`o.registrada_em <= ${proximo()}::timestamptz`);
+      const ate = proximo();
       valores.push(filtro.ate);
+      condicoes.push(`o.registrada_em <= ${ate}::timestamptz`);
 
-      condicoes.push(...condicoesDoRecorte(filtro.filtro, proximo, valores));
+      // **A lista entra como parâmetro, e não interpolada** — é o que `TERMINAIS` e
+      // `ESTADOS_QUE_ADMITEM_ATRIBUICAO` já fazem neste arquivo. **Esta reserva é de `listar` e só dela**,
+      // e ela é incondicional porque a COLUNA sai em toda página, com filtro ou sem ele. Ligado o filtro,
+      // `condicoesDoRecorte` reserva a sua — dois `$n` com o mesmo array, e cada um mencionado no texto.
+      const estadosParados = proximo();
+      valores.push([...ESTADOS_QUE_PODEM_FICAR_PARADAS]);
+
+      const paradaHaDias = `case
+             when o.status = any(${estadosParados}::status_ocorrencia[])
+              and o.atualizada_em <= ${limiteDaParada(ate)}
+             then floor(extract(epoch from (${ate}::timestamptz - o.atualizada_em)) / 86400)::int
+             else null::int
+           end`;
+
+      condicoes.push(...condicoesDoRecorte(filtro.filtro, proximo, valores, ate));
 
       const limite = proximo();
       valores.push(filtro.limite);
@@ -1661,7 +1775,7 @@ export function repositorioEscopadoDeOcorrencias(
       valores.push(filtro.deslocamento);
 
       const linhas = await consulta<LinhaDeResumo>(
-        `${selectDoResumo(naoAberta)}
+        `${selectDoResumo(naoAberta, paradaHaDias)}
            ${condicoes.map((condicao) => `and ${condicao}`).join("\n           ")}
          order by ${ordemDaPagina(filtro.ordenacao)}
          limit ${limite}::int offset ${deslocamento}::int`,
@@ -1725,7 +1839,7 @@ export function repositorioEscopadoDeOcorrencias(
       const terminais = proximo();
       valores.push([...TERMINAIS]);
 
-      const recorte = condicoesDoRecorte(filtro.filtro, proximo, valores);
+      const recorte = condicoesDoRecorte(filtro.filtro, proximo, valores, ate);
 
       // **O recorte de autor DA PÁGINA entra aqui, e só aqui.** Ele acompanha os três de G2 em
       // `totalFiltrado` e em `novas`, e **não** entra no `where` de fora: o `where` carrega a

@@ -30,6 +30,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0017](0017-o-compartilhamento-e-dado-e-nao-permissao.md) | O compartilhamento de uma ocorrência é dado numa tabela fora do agregado, e não permissão nova | Aceita |
 | [0018](0018-a-primeira-operacao-sem-sessao.md) | O convite lê o nome da organização sem sessão, por uma porta que o lint fecha em dois arquivos | Aceita |
 | [0019](0019-o-qr-do-convite-entra-com-o-uqr.md) | O QR do convite entra com o uqr, desenhado no servidor | Aceita |
+| [0020](0020-o-navegador-guarda-so-a-casca.md) | O navegador guarda só a casca, e a saída a apaga | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

@@ -3,7 +3,7 @@
 import { Check, Copy, Mail, Phone } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 
-import { rotuloDoContato } from "@/interface/componentes/frases-de-participantes";
+import { rotuloDoContato, TEXTOS_DA_TABELA } from "@/interface/componentes/frases-de-participantes";
 import type { ContatoNaLinha } from "@/interface/componentes/linhas-de-participantes";
 import { Button } from "@/interface/componentes/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/interface/componentes/ui/popover";
@@ -33,7 +33,18 @@ export function ContatoPorIcone({
   telefones: readonly ContatoNaLinha[];
   emails: readonly ContatoNaLinha[];
 }) {
-  if (telefones.length === 0 && emails.length === 0) return <span className="text-tinta-suave">—</span>;
+  // **O traço é decorativo e o leitor de tela ouve a frase** (critério 106.14), como na célula vizinha de
+  // última atualização: um travessão sozinho é lido de jeito diferente em cada leitor.
+  if (telefones.length === 0 && emails.length === 0) {
+    return (
+      <>
+        <span aria-hidden="true" className="text-tinta-suave">
+          —
+        </span>
+        <span className="sr-only">{TEXTOS_DA_TABELA.semContato}</span>
+      </>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1.5">
       {telefones.length > 0 && (

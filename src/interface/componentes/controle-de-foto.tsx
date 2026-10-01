@@ -90,6 +90,7 @@ export function ControleDeFoto({
   aoMudar,
   erro,
   organizacaoId,
+  inerte = false,
 }: {
   /** O formulário é quem guarda o estado do anexo — o controle apenas o anuncia. */
   aoMudar: (estado: EstadoDoAnexo) => void;
@@ -97,6 +98,11 @@ export function ControleDeFoto({
   erro?: string;
   /** A organização com que a página renderizou — a afirmação da §4.3 (item 7b, critério 7b.6). */
   organizacaoId: string;
+  /**
+   * **Durante o envio, nada aqui responde** (critério 106.6), como os outros controles do formulário.
+   * O nome é o do `SeletorDeArea`, o vizinho que já fazia isso.
+   */
+  inerte?: boolean;
 }) {
   const [situacao, setSituacao] = useState<Situacao>({ nome: "vazio" });
   const entrada = useRef<HTMLInputElement>(null);
@@ -267,6 +273,7 @@ export function ControleDeFoto({
         accept={ACEITOS}
         className="sr-only"
         tabIndex={-1}
+        disabled={inerte}
         onChange={(evento) => {
           const arquivo = evento.target.files?.[0];
           if (arquivo !== undefined) void escolher(arquivo);
@@ -275,17 +282,25 @@ export function ControleDeFoto({
 
       {previa === null && situacao.nome !== "erro" ? (
         /* **O alvo grande, e ele é o `Button` do catálogo** (critério 6). A altura é própria: é o
-           primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira. */
+           primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira.
+           A zona de soltar e a ficha do arquivo têm o raio de cartão: são regiões que recebem conteúdo, e
+           não controles de linha. Exceção nomeada no guia, §4 (item 104, critério 7). */
         <Button
           type="button"
+          disabled={inerte}
           variant="outline"
           onClick={() => entrada.current?.click()}
-          className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7"
+          className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7 lg:py-4"
         >
-          <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-lg border">
+          <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-sm border">
             <ImagePlus aria-hidden="true" className="size-5" />
           </span>
-          <span className="text-interface text-tinta font-medium">{FOTO.vazioTitulo}</span>
+          {/* **A palavra *opcional* ao lado** (critério 106.8), na forma que o produto já usa em
+              *"Telefone (opcional)"*. Em tela grande o alvo encolhe: o Título, obrigatório, tem 44 px, e o
+              campo opcional não pode ser o maior da tela. No celular ele continua grande. */}
+          <span className="text-interface text-tinta font-medium">
+            {FOTO.vazioTitulo} <span className="text-tinta-suave font-normal">{FOTO.vazioOpcional}</span>
+          </span>
           <span className="text-meta text-tinta-suave font-normal">{FOTO.vazioApoio}</span>
         </Button>
       ) : (
@@ -304,7 +319,7 @@ export function ControleDeFoto({
             <div
               role="img"
               aria-label="A foto escolhida"
-              className="bg-background size-14 shrink-0 rounded-md bg-cover bg-center"
+              className="bg-background size-14 shrink-0 rounded-sm bg-cover bg-center"
               style={{ backgroundImage: `url(${previa})` }}
             />
           )}
@@ -338,11 +353,13 @@ export function ControleDeFoto({
             <span className="flex shrink-0 items-center gap-1.5">
               <BotaoDeIcone
                 rotulo={FOTO.trocar}
+                disabled={inerte}
                 icone={<RefreshCw aria-hidden="true" />}
                 onClick={() => entrada.current?.click()}
               />
               <BotaoDeIcone
                 rotulo={FOTO.remover}
+                disabled={inerte}
                 icone={<Trash2 aria-hidden="true" />}
                 onClick={limpar}
               />

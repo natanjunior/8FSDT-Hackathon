@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 46 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 48 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -40,6 +40,11 @@ Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O
 entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
 convite é a única que dispensa a sessão. A razão está na
 [ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
+
+O QR de cada área leva à mesma página do convite, com a área no endereço (`?area=`). Sem sessão, a página
+continua lendo só pelo código público, e mostra só o nome da organização. A área é lida depois do login,
+dentro do escopo da organização ativa, pela mesma leitura de áreas do registro. Nenhuma operação entra na
+lista acima por causa dele.
 
 ## A escrita é comando, e não campo
 
@@ -136,6 +141,10 @@ A trilha de auditoria e a linha do tempo partem dos mesmos fatos: a trilha mostr
 linha do tempo os apresenta em linguagem de gente, reunindo transições, atribuições e mensagens. Na
 listagem vai apenas a contagem de anexos; no detalhe, a lista.
 
+O rótulo do status é calculado no servidor e depende de quem lê. Quem abriu recebe o texto da
+organização, quando ela o definiu, e o padrão quando não; quem gere recebe sempre o nome com que o
+sistema opera.
+
 A listagem devolve também quantas ocorrências compartilhadas com quem pergunta ainda não foram
 abertas por ela, e, dentro do recorte das compartilhadas, se cada uma já foi. O número ignora os
 filtros, porque responde quantas esperam.
@@ -196,6 +205,13 @@ como no tempo de resolução.
 **As quatro faixas vêm sempre, mesmo a zero**, em ordem crescente, e cada uma publica os próprios limites
 em dias em vez de um nome. Os limites são escolha de quem opera, e publicá-los é o que permite trocá-los
 sem mudar o formato da resposta.
+
+Há uma segunda régua, e ela responde outra pergunta. A idade conta desde o registro e não para nunca; a
+listagem conta também há quanto tempo ninguém mexe na ocorrência, e essa conta zera a cada atividade —
+transição, atribuição ou mensagem no canal. Uma ocorrência registrada há quarenta dias e comentada ontem é
+velha pela primeira régua e não está parada pela segunda. O limite em dias é regra de cada organização, e a
+listagem o lê na mesma consulta que devolve a página, então mudar a regra muda o recorte na leitura
+seguinte.
 
 ## As mais velhas em aberto
 

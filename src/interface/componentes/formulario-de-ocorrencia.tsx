@@ -8,6 +8,7 @@ import { useState, type ReactNode } from "react";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { gravarAreaUsada } from "@/interface/componentes/areas-usadas";
 import {
+  Aviso,
   Campo,
   ErroDoFormulario,
   IndicadorDeEnvio,
@@ -15,6 +16,7 @@ import {
 } from "@/interface/componentes/campo";
 import { ControleDeFoto, type EstadoDoAnexo } from "@/interface/componentes/controle-de-foto";
 import { IconeDeCategoria } from "@/interface/componentes/icone-de-categoria";
+import { TEXTOS_DO_QR } from "@/interface/componentes/qr-da-area";
 import {
   AJUDA_DA_DESCRICAO,
   avisoDoRegistro,
@@ -140,7 +142,7 @@ function Bloco({
     <section
       aria-labelledby={id}
       className={cn(
-        "border-linha bg-superficie rounded-lg border p-4 shadow-sm",
+        "border-linha bg-superficie rounded-lg border p-[15px] shadow-sm",
         "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
         reguaEmCima && "lg:border-linha-suave lg:border-t lg:pt-5",
       )}
@@ -158,6 +160,8 @@ export function FormularioDeOcorrencia({
   areas,
   organizacaoId,
   painel,
+  areaInicial,
+  areaIndisponivel,
 }: {
   categorias: readonly CategoriaEscolhivel[];
   areas: readonly AreaEscolhivel[];
@@ -165,9 +169,18 @@ export function FormularioDeOcorrencia({
   organizacaoId: string;
   /** O painel *Depois de registrar*, montado no servidor. Ele some nos dois estados terminais. */
   painel: ReactNode;
+  /** A área do QR (item 111): valor inicial do campo, e nada mais. O tipo é apurado no servidor. */
+  areaInicial?: string | undefined;
+  /** O QR trouxe uma área que não está entre as ativas: o campo abre vazio, com o aviso. */
+  areaIndisponivel?: boolean;
 }) {
   const router = useRouter();
-  const [valores, setValores] = useState<ValoresDoRegistro>(VALORES_VAZIOS);
+  const [inicial] = useState<ValoresDoRegistro>(() => ({
+    ...VALORES_VAZIOS,
+    areaId: areaInicial ?? "",
+  }));
+  const [valores, setValores] = useState<ValoresDoRegistro>(inicial);
+  const [avisoDaArea, setAvisoDaArea] = useState(areaIndisponivel === true);
   const [enviando, setEnviando] = useState(false);
   const [errosDoServidor, setErrosDoServidor] = useState<Record<string, string | undefined>>({});
   const [falha, setFalha] = useState<string | null>(null);
@@ -306,7 +319,7 @@ export function FormularioDeOcorrencia({
   }
 
   function cancelar() {
-    if (temAlgoEscrito(valores, anexo.nome !== "vazio" && anexo.nome !== "falhou")) {
+    if (temAlgoEscrito(valores, anexo.nome !== "vazio" && anexo.nome !== "falhou", inicial)) {
       setPerguntandoDescarte(true);
       return;
     }
@@ -354,7 +367,7 @@ export function FormularioDeOcorrencia({
         noValidate
         className={cn(
           "flex flex-col gap-4",
-          "lg:border-linha lg:bg-superficie lg:gap-0 lg:rounded-lg lg:border lg:p-6 lg:shadow-sm",
+          "lg:border-linha lg:bg-superficie lg:gap-0 lg:rounded-lg lg:border lg:p-[18px] lg:shadow-sm",
         )}
       >
         <Bloco id="bloco-o-que" titulo={BLOCOS.oQue}>
@@ -365,6 +378,7 @@ export function FormularioDeOcorrencia({
             aoMudar={setAnexo}
             erro={erroDaFoto}
             organizacaoId={organizacaoId}
+            inerte={enviando}
           />
 
           <Campo
@@ -456,6 +470,7 @@ export function FormularioDeOcorrencia({
         {/* **O bloco "Onde"** — Localização é *"uma referência a uma Área mais um complemento em texto
             livre"* (glossário, D10). Um conceito, um bloco, um rótulo. */}
         <Bloco id="bloco-onde" titulo={BLOCOS.onde} reguaEmCima>
+          {avisoDaArea && <Aviso tom="nota">{TEXTOS_DO_QR.areaIndisponivel}</Aviso>}
           <div className="flex flex-col gap-4.5 lg:grid lg:grid-cols-2 lg:gap-4">
             <Campo
               id="areaId"
@@ -471,6 +486,7 @@ export function FormularioDeOcorrencia({
                   organizacaoId={organizacaoId}
                   inerte={enviando}
                   aoEscolher={(areaId) => {
+                    setAvisoDaArea(false);
                     mudar("areaId", areaId);
                   }}
                   aoSair={() => {

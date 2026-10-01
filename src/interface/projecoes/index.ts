@@ -13,11 +13,14 @@ export {
   projetarArea,
   projetarAreaAtualizada,
   projetarCategoria,
+  projetarConfiguracao,
   projetarOrganizacao,
   projetarOrganizacaoResumo,
   type AreaAtualizadaProjetada,
   type AreaProjetada,
   type CategoriaProjetada,
+  type ConfiguracaoProjetada,
+  type MudancaDeConfiguracaoProjetada,
   type OrganizacaoProjetada,
   type OrganizacaoResumoProjetada,
 } from "./organizacao";
@@ -27,8 +30,12 @@ export {
   codificarCursorDeConversa,
   decodificarCursor,
   decodificarCursorDeConversa,
+  algumFiltroAlemDoAutor,
   descricaoDoRecorte,
+  fraseDoVazioDeFiltro,
+  LENTE_DO_GESTOR,
   lenteDeRotulo,
+  lenteDoSolicitante,
   nomeDaPrioridade,
   nomeDoMotivoCancelamento,
   nomeDoMotivoPausa,
@@ -47,6 +54,7 @@ export {
   projetarTransicao,
   rotuloDeMotivoPausa,
   rotuloDeStatus,
+  rotuloPadraoDoSolicitante,
   segundaLinhaDeMotivo,
   type ComentarioProjetado,
   type EventoDaLinhaDoTempoProjetado,
@@ -55,6 +63,7 @@ export {
   type PaginaDeComentariosProjetada,
   type PaginaDeOcorrenciasProjetada,
   type QuemLe,
+  type RotulosDaOrganizacao,
 } from "./ocorrencia";
 
 export {

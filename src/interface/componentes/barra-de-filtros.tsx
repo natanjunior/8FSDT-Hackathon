@@ -1,12 +1,13 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { FiltroComBusca } from "@/interface/componentes/filtro-com-busca";
 import {
   comTitulo,
+  comValorUnico,
   PARAMETROS_DE_FILTRO,
   semFiltros,
   type OpcaoComBusca,
@@ -111,12 +112,32 @@ export function BarraDeFiltros({
     return bruto !== null && bruto !== "";
   });
 
+  const paradasLigado = atual.get("parada") === "sim";
+
   return (
     <div
       aria-busy={pendente}
       className="border-linha flex flex-wrap items-center gap-2 border-b px-4 py-3"
     >
       <CampoDoTitulo consultaAtual={consultaAtual} />
+
+      {/*
+        **O filtro rápido da D15, e é um clique** — item 101. Não é opção do recorte *Todas · Minhas*: o
+        recorte escolhe DE QUEM é o conjunto e as opções não coexistem; *paradas* estreita o conjunto e
+        combina com o resto, inclusive com *Minhas*. É filtro, e mora com os filtros.
+
+        **Uma palavra só, e sem contagem** (a spec §4): quem quer o número lê a frase do recorte.
+      */}
+      <button
+        type="button"
+        aria-pressed={paradasLigado}
+        className={chip(paradasLigado)}
+        onClick={() => {
+          navegar(comValorUnico(consultaAtual, "parada", paradasLigado ? null : "sim"));
+        }}
+      >
+        Paradas
+      </button>
 
       <MenuDeFiltro
         nome="Status"
@@ -176,16 +197,6 @@ export function BarraDeFiltros({
           Limpar filtros
         </Link>
       )}
-
-      {/*
-        A espera carrega palavra, não só opacidade. `role="status"` para quem usa leitor de tela saber que
-        a lista abaixo está sendo trocada — sem isso, a mudança é silenciosa.
-      */}
-      {pendente && (
-        <p role="status" className="text-meta text-tinta-suave w-full">
-          Atualizando a lista…
-        </p>
-      )}
     </div>
   );
 }
@@ -193,7 +204,7 @@ export function BarraDeFiltros({
 /** O `.chip` do protótipo: **44 px de alvo** (A-3), e o estado ligado com borda, peso e cor — nunca só cor. */
 function chip(ligado: boolean): string {
   return cn(
-    "border-linha bg-superficie text-tinta text-interface inline-flex h-11 items-center gap-1.5 rounded-md border px-3",
+    "border-linha bg-background text-tinta text-interface inline-flex h-11 items-center gap-1.5 rounded-sm border px-3",
     "focus-visible:outline-marca focus-visible:outline-2 focus-visible:outline-offset-2",
     ligado && "border-marca text-tinta-marca font-semibold",
   );
@@ -227,7 +238,7 @@ function MenuDeFiltro({
     <DropdownMenu>
       <DropdownMenuTrigger className={chip(ligado)} aria-pressed={ligado}>
         {rotuloDoChip(nome, opcoes, marcados)}
-        <span aria-hidden>▾</span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {opcoes.map((opcao) => (
@@ -318,6 +329,8 @@ function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
         aria-hidden="true"
         className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
       />
+      {/* O preflight do Tailwind 4 zera a decoração da busca e não o botão de cancelar; sem isto, Chrome e Safari
+          desenham um segundo ✕ ao lado do nosso (item 104, A-107). O `type="search"` fica pelo teclado do celular. */}
       <Input
         type="search"
         value={texto}
@@ -326,7 +339,7 @@ function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
         }}
         aria-label="Buscar pelo título"
         placeholder="Buscar pelo título"
-        className="border-linha bg-superficie text-interface text-tinta h-11 pr-11 pl-9"
+        className="border-linha text-interface text-tinta h-11 pr-11 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {texto !== "" && (
         <Button

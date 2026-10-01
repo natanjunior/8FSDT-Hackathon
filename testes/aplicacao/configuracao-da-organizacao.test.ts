@@ -6,6 +6,9 @@ import {
   ListaDesatualizada,
   NomeDeAreaDuplicado,
   NomeDeCategoriaDuplicado,
+  alterarConfiguracao,
+  contarAreas,
+  contarCategorias,
   corrigirArea,
   corrigirCategoria,
   corrigirOrganizacao,
@@ -13,11 +16,14 @@ import {
   criarCategoria,
   reordenarAreas,
   reordenarCategorias,
+  type AlteracaoDeConfiguracao,
   type AreaAtualizada,
   type AreaLida,
   type CategoriaLida,
   type CorrecaoDeOrganizacao,
   type OrganizacaoLida,
+  type RegrasDaOrganizacao,
+  type RepositorioEscopadoDaConfiguracao,
   type RepositorioEscopadoDaOrganizacao,
   type RepositorioEscopadoDeAreas,
   type RepositorioEscopadoDeCategorias,
@@ -65,6 +71,7 @@ function portaDeCategorias(
     recebido,
     porta: {
       listar: () => Promise.resolve([]),
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: (nova) => {
         recebido.criar = nova;
         return Promise.resolve(criacao);
@@ -90,6 +97,7 @@ function portaDeAreas(
     recebido,
     porta: {
       listar: () => Promise.resolve([]),
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: (nova) => {
         recebido.criar = nova;
         return Promise.resolve(criacao);
@@ -327,6 +335,7 @@ function portaQueReordena(desfecho: "reordenada" | "lista-desatualizada" = "reor
         listadas.push(opcoes);
         return Promise.resolve(CATEGORIAS_ATUAIS);
       },
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: () => Promise.reject(new Error("este duplo só reordena")),
       corrigir: () => Promise.reject(new Error("este duplo só reordena")),
       reordenar: (reordenacao) => {
@@ -423,6 +432,7 @@ describe("reordenarAreas — a mesma regra, na outra lista", () => {
       gravadas,
       repositorio: {
         listar: () => Promise.resolve(AREAS_ATUAIS),
+        contar: () => Promise.reject(new Error("este duplo não conta")),
         criar: () => Promise.reject(new Error("este duplo só reordena")),
         corrigir: () => Promise.reject(new Error("este duplo só reordena")),
         reordenar: (reordenacao) => {
@@ -457,5 +467,102 @@ describe("reordenarAreas — a mesma regra, na outra lista", () => {
       reordenarAreas(repositorio, { ids: [ID_A], porPessoaId: "pessoa-1" }),
     ).rejects.toBeInstanceOf(ListaDesatualizada);
     expect(gravadas).toStrictEqual([]);
+  });
+});
+
+/** As regras de toda organização nova (item 99). */
+const REGRAS: RegrasDaOrganizacao = {
+  exigirSolucaoAoResolver: false,
+  limiteDeCancelamentoDoSolicitante: "em_analise",
+  diasParaParada: 7,
+};
+
+/**
+ * O duplo em memória da porta da configuração. **Ele guarda o que recebeu**, que é a única coisa que
+ * estes casos afirmam: a camada de Aplicação existe para que campo ausente não chegue à porta.
+ */
+function portaFalsa(recebidas: AlteracaoDeConfiguracao[]): RepositorioEscopadoDaConfiguracao {
+  const lida = { regras: REGRAS, rotulos: {}, mudancas: [] };
+  return {
+    ler: () => Promise.resolve(lida),
+    lerRegras: () => Promise.resolve(REGRAS),
+    alterar: (alteracao) => {
+      recebidas.push(alteracao);
+      return Promise.resolve(lida);
+    },
+    rotulosDoSolicitante: () => Promise.resolve({}),
+  };
+}
+
+describe("alterarConfiguracao — item 99", () => {
+  it("só o que veio vai à porta, e o autor é quem chamou", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      exigirSolucaoAoResolver: true,
+      porPessoaId: "p-1",
+    });
+
+    expect(recebidas).toStrictEqual([{ exigirSolucaoAoResolver: true, atualizadaPorPessoaId: "p-1" }]);
+  });
+
+  it("campo ausente não vai à porta — ausente é *não mexa*", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      porPessoaId: "p-2",
+    });
+
+    expect(recebidas).toStrictEqual([
+      { limiteDeCancelamentoDoSolicitante: "em_atendimento", atualizadaPorPessoaId: "p-2" },
+    ]);
+  });
+
+  it("os rótulos vão à porta como vieram, e o autor é quem chamou — item 100", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      rotulos: { pausada: "Parada, e a gente avisa", em_analise: null },
+      porPessoaId: "p-1",
+    });
+
+    expect(recebidas).toStrictEqual([
+      {
+        rotulos: { pausada: "Parada, e a gente avisa", em_analise: null },
+        atualizadaPorPessoaId: "p-1",
+      },
+    ]);
+  });
+
+  it("sem rótulos no comando, a chave não vai à porta", async () => {
+    const recebidas: AlteracaoDeConfiguracao[] = [];
+    await alterarConfiguracao(portaFalsa(recebidas), {
+      exigirSolucaoAoResolver: true,
+      porPessoaId: "p-1",
+    });
+    expect(recebidas[0]).not.toHaveProperty("rotulos");
+  });
+});
+
+describe("contarCategorias e contarAreas — critério 106.3", () => {
+  it("devolvem a contagem da porta, sem ler a lista", async () => {
+    const categorias: RepositorioEscopadoDeCategorias = {
+      listar: () => Promise.reject(new Error("a contagem não lista")),
+      contar: () => Promise.resolve({ ativas: 7, total: 8 }),
+      criar: () => Promise.reject(new Error("não cria")),
+      corrigir: () => Promise.reject(new Error("não corrige")),
+      reordenar: () => Promise.reject(new Error("não reordena")),
+    };
+    const areas: RepositorioEscopadoDeAreas = {
+      listar: () => Promise.reject(new Error("a contagem não lista")),
+      contar: () => Promise.resolve({ ativas: 0, total: 0 }),
+      criar: () => Promise.reject(new Error("não cria")),
+      corrigir: () => Promise.reject(new Error("não corrige")),
+      reordenar: () => Promise.reject(new Error("não reordena")),
+    };
+
+    await expect(contarCategorias(categorias)).resolves.toStrictEqual({ ativas: 7, total: 8 });
+    await expect(contarAreas(areas)).resolves.toStrictEqual({ ativas: 0, total: 0 });
   });
 });

@@ -18,6 +18,7 @@ import { ConsultaSemEscopo, escoparConsulta, escoparTransacao } from "@/infraest
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  repositorioEscopadoDaConfiguracao,
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
@@ -640,6 +641,43 @@ describe("as consultas de configuração não atravessam organizações", () => 
       }),
     chaveDaLinha: (area) => area.nome,
     esperadas: { emA: ["Garagem do Recanto"], emB: ["Garagem da Aurora"] },
+  });
+
+  /**
+   * **A contagem de `/configuracao`** (critério 106.3). Ela não devolve linhas, então não cabe em
+   * `casosDeIsolamento`: a prova é que o número de cada organização é o tamanho da lista dela, que as
+   * duas entradas acima já provam escopada. Com o escopo furado, a contagem de A somaria a linha de B.
+   */
+  it("a contagem de categorias e de áreas é a da própria organização", async () => {
+    // **Assimétrico de propósito:** uma categoria inativa a mais, só em Aurora. Com uma categoria em cada
+    // organização, uma contagem lida da organização errada daria o mesmo número e passaria. A entrada
+    // semeia só o seu agregado, e inativa não aparece no `GET /categorias` das entradas acima.
+    // Antes e depois, e não números absolutos: outros blocos deste arquivo podem semear nas mesmas
+    // organizações.
+    const recantoAntes = await categoriasEm(idRecanto).contar();
+    const auroraAntes = await categoriasEm(idAurora).contar();
+    await consulta(
+      `insert into categorias (organizacao_id, nome, icone, ordem, ativa) values ($1, $2, 'tag', 99, false)`,
+      [idAurora, "Arquivada da Aurora"],
+    );
+    expect(await categoriasEm(idRecanto).contar()).toStrictEqual(recantoAntes);
+    expect(await categoriasEm(idAurora).contar()).toStrictEqual({
+      ativas: auroraAntes.ativas,
+      total: auroraAntes.total + 1,
+    });
+
+    for (const organizacaoId of [idRecanto, idAurora]) {
+      const categorias = await categoriasEm(organizacaoId).listar({ apenasAtivas: false });
+      expect(await categoriasEm(organizacaoId).contar()).toStrictEqual({
+        ativas: categorias.filter((c) => c.ativa).length,
+        total: categorias.length,
+      });
+      const areas = await areasEm(organizacaoId).listar({ apenasAtivas: false });
+      expect(await areasEm(organizacaoId).contar()).toStrictEqual({
+        ativas: areas.filter((a) => a.ativa).length,
+        total: areas.length,
+      });
+    }
   });
 
   /**
@@ -1391,6 +1429,115 @@ describe("as consultas de configuração não atravessam organizações", () => 
 });
 
 /**
+ * **A trilha de configuração pela suíte da §7.1 — item 99.** Custo: uma entrada.
+ *
+ * Cada organização recebe **uma mudança diferente**, semeada aqui pelo próprio repositório, e a suíte
+ * compara o conjunto exato. `MudancaDeConfiguracaoLida` não expõe `organizacao_id` — modelo de leitura
+ * correto não expõe —, então não há terceiro caso.
+ */
+describe("a trilha de configuração não atravessa organizações — item 99", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const configuracaoEm = (organizacaoId: string) =>
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  beforeAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      exigirSolucaoAoResolver: true,
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  // **As regras voltam ao padrão, e o rastro de última escrita de Recanto volta a nulo:** um caso
+  // adiante (item 46 · 47) espera `organizacoes.atualizado_por_pessoa_id` nulo em Recanto. Anular só
+  // essa coluna não dispara o gatilho da 017, que olha as colunas das regras.
+  afterAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      exigirSolucaoAoResolver: false,
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      atualizadaPorPessoaId: idSindica,
+    });
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /configuracao — as mudanças",
+    consultar: async (organizacaoId) => (await configuracaoEm(organizacaoId).ler()).mudancas,
+    chaveDaLinha: (m) => `${m.chave}:${m.valorAnterior}>${m.valorNovo}`,
+    esperadas: {
+      emA: ["exigir_solucao_ao_resolver:false>true"],
+      emB: ["limite_cancelamento_solicitante:em_analise>em_atendimento"],
+    },
+  });
+});
+
+/**
+ * **Os textos de quem abriu pela suíte da §7.1 — item 100.** Custo: uma entrada.
+ *
+ * Cada organização recebe **um texto diferente para o mesmo ponto do ciclo**, e a suíte compara o
+ * conjunto exato: é assim que o rótulo da organização A deixa de poder aparecer para o Solicitante da B.
+ */
+describe("os textos do Solicitante não atravessam organizações — item 100", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const configuracaoEm = (organizacaoId: string) =>
+    repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  /**
+   * **A semente é obrigatória aqui, e não opcional como nas entradas de leitura pura.** `esperadas`
+   * compara conjunto exato: sem ela, os dois casos devolvem vazio dos dois lados e **passam sem provar
+   * nada**.
+   */
+  beforeAll(async () => {
+    await configuracaoEm(idRecanto).alterar({
+      rotulos: { em_analise: "a síndica do Recanto está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    await configuracaoEm(idAurora).alterar({
+      rotulos: { em_analise: "o síndico da Aurora está vendo" },
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  /**
+   * **A limpeza cobre as DUAS organizações, e não é zelo: é o que o último `describe` do arquivo
+   * afirma.** O caso *"organização nova nasce sem linha nenhuma"* lê Recanto, e Recanto só está vazia se
+   * esta entrada devolver o que semeou. Apagar **pela porta**, e não por `delete` direto: assim a trilha
+   * registra a volta, que é o que o critério 7 quer de toda mudança.
+   */
+  afterAll(async () => {
+    for (const organizacaoId of [idRecanto, idAurora]) {
+      await configuracaoEm(organizacaoId).alterar({
+        rotulos: { em_analise: null },
+        atualizadaPorPessoaId: idSindica,
+      });
+    }
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "os rótulos do Solicitante",
+    consultar: async (organizacaoId) =>
+      Object.entries(await configuracaoEm(organizacaoId).rotulosDoSolicitante()),
+    chaveDaLinha: ([estado, rotulo]) => `${estado}=${rotulo}`,
+    esperadas: {
+      emA: ["em_analise=a síndica do Recanto está vendo"],
+      emB: ["em_analise=o síndico da Aurora está vendo"],
+    },
+  });
+});
+
+/**
  * ============================================================================
  *  As escritas escopadas — itens 4a e 5
  * ============================================================================
@@ -1402,6 +1549,119 @@ describe("as consultas de configuração não atravessam organizações", () => 
  * que é exatamente o `404` idêntico ao de inexistente que a §6.3 do contrato exige.
  */
 describe("as escritas de configuração não atravessam organizações", () => {
+  it("mudar uma regra em Aurora não muda a regra nem a trilha de Recanto — item 99", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const antesEmRecanto = await emRecanto.ler();
+
+    const depois = await emAurora.alterar({
+      limiteDeCancelamentoDoSolicitante: "em_atendimento",
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.regras.limiteDeCancelamentoDoSolicitante).toBe("em_atendimento");
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "limite_cancelamento_solicitante",
+      valorAnterior: "em_analise",
+      valorNovo: "em_atendimento",
+      autor: { pessoaId: idSindica },
+    });
+
+    expect(await emRecanto.ler()).toStrictEqual(antesEmRecanto);
+
+    await emAurora.alterar({
+      limiteDeCancelamentoDoSolicitante: "em_analise",
+      atualizadaPorPessoaId: idSindica,
+    });
+  });
+
+  it("customizar um rótulo em Aurora não muda nada em Recanto — item 100", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const antesEmRecanto = await emRecanto.ler();
+
+    const depois = await emAurora.alterar({
+      rotulos: { em_analise: "o síndico está avaliando" },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.rotulos).toStrictEqual({ em_analise: "o síndico está avaliando" });
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "",
+      valorNovo: "o síndico está avaliando",
+      autor: { pessoaId: idSindica },
+    });
+
+    expect(await emRecanto.ler()).toStrictEqual(antesEmRecanto);
+    expect(await emRecanto.rotulosDoSolicitante()).toStrictEqual({});
+
+    // **Apagar deixa linha** — o critério 7, e é a mudança que sem trilha sumiria sem sinal.
+    const apagado = await emAurora.alterar({
+      rotulos: { em_analise: null },
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(apagado.rotulos).toStrictEqual({});
+    expect(apagado.mudancas[0]).toMatchObject({
+      chave: "rotulo_em_analise",
+      valorAnterior: "o síndico está avaliando",
+      valorNovo: "",
+    });
+
+    // **Escrever o que já está lá não deixa rastro.**
+    const antes = (await emAurora.ler()).mudancas.length;
+    await emAurora.alterar({ rotulos: { em_analise: null }, atualizadaPorPessoaId: idSindica });
+    expect((await emAurora.ler()).mudancas).toHaveLength(antes);
+  });
+
+  /**
+   * **Os dias para parada pela porta — item 101, critério 5.**
+   *
+   * A trilha da regra nova sai do mesmo gatilho das outras duas, e `lerRegras` é a leitura barata que
+   * T-03 faz: uma linha de `organizacoes`, **sem** `mudancas_de_configuracao`.
+   */
+  it("os dias para parada atravessam a porta, e lerRegras não carrega a trilha — item 101", async () => {
+    const emAurora = repositorioEscopadoDaConfiguracao(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+
+    const antes = await emAurora.ler();
+    expect(antes.regras.diasParaParada).toBe(7);
+
+    const depois = await emAurora.alterar({
+      diasParaParada: 15,
+      atualizadaPorPessoaId: idSindica,
+    });
+    expect(depois.regras.diasParaParada).toBe(15);
+    expect(depois.mudancas[0]).toMatchObject({
+      chave: "dias_para_parada",
+      valorAnterior: "7",
+      valorNovo: "15",
+      autor: { pessoaId: idSindica },
+    });
+
+    const regras = await emAurora.lerRegras();
+    expect(Object.keys(regras).sort()).toStrictEqual([
+      "diasParaParada",
+      "exigirSolucaoAoResolver",
+      "limiteDeCancelamentoDoSolicitante",
+    ]);
+    expect(regras.diasParaParada).toBe(15);
+
+    await emAurora.alterar({ diasParaParada: 7, atualizadaPorPessoaId: idSindica });
+  });
+
   it("PATCH de categoria de outra organização não encontra a linha", async () => {
     const emRecanto = categoriasEm(idRecanto);
     const emAurora = categoriasEm(idAurora);
@@ -2098,5 +2358,319 @@ describe("renomear a Pessoa vale em todas as organizações — pessoas é globa
     // menciona. **A asserção é estrita de propósito**: com o gatilho, uma coluna de relógio que não anda
     // deixou de ser um esquecimento possível e passou a ser defeito do banco.
     expect(depois!.atualizado_em.getTime()).toBeGreaterThan(antes!.atualizado_em.getTime());
+  });
+});
+
+/**
+ * **A trilha de configuração no banco — item 99, critérios 5 e 6.**
+ *
+ * A escrita é do gatilho `after update` da migração 017, e a imutabilidade é do segundo gatilho, com a
+ * mesma porta nomeada da 013. Os casos contam linhas **relativas** ao que já havia, e o bloco é o último
+ * do arquivo de propósito: as entradas de isolamento comparam o conjunto exato de mudanças de cada
+ * organização, e aqui se escreve em Aurora.
+ */
+describe("a trilha de configuração no banco — item 99", () => {
+  const mudancasEm = (organizacaoId: string) =>
+    consulta<{ chave: string; valor_anterior: string; valor_novo: string; autor_pessoa_id: string }>(
+      `select chave, valor_anterior, valor_novo, autor_pessoa_id
+         from mudancas_de_configuracao where organizacao_id = $1
+        order by ocorrida_em, chave`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, colunas: string) =>
+    consulta(`update organizacoes set ${colunas}, atualizado_por_pessoa_id = $2 where id = $1`, [
+      organizacaoId,
+      idSindica,
+    ]);
+
+  afterAll(async () => {
+    await definir(
+      idAurora,
+      "exigir_solucao_ao_resolver = false, limite_cancelamento_solicitante = 'em_analise'",
+    );
+  });
+
+  it("organização nova nasce com os valores de hoje", async () => {
+    const [linha] = await consulta<{ exigir: boolean; limite: string }>(
+      `select exigir_solucao_ao_resolver as exigir, limite_cancelamento_solicitante as limite
+         from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(linha).toStrictEqual({ exigir: false, limite: "em_analise" });
+  });
+
+  it("mudar uma regra grava uma linha, com o valor anterior do banco e o autor da instrução", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "exigir_solucao_ao_resolver = true");
+
+    const depois = await mudancasEm(idAurora);
+    expect(depois).toHaveLength(antes + 1);
+    expect(depois.at(-1)).toStrictEqual({
+      chave: "exigir_solucao_ao_resolver",
+      valor_anterior: "false",
+      valor_novo: "true",
+      autor_pessoa_id: idSindica,
+    });
+  });
+
+  it("dois Gestores na mesma chave: vale o último, e as duas mudanças ficam — o critério 6", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_atendimento'");
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_analise'");
+
+    const depois = (await mudancasEm(idAurora)).slice(antes);
+    expect(depois.map((m) => [m.valor_anterior, m.valor_novo])).toStrictEqual([
+      ["em_analise", "em_atendimento"],
+      ["em_atendimento", "em_analise"],
+    ]);
+  });
+
+  it("gravar o valor que já está lá não deixa rastro", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "limite_cancelamento_solicitante = 'em_analise'");
+    expect(await mudancasEm(idAurora)).toHaveLength(antes);
+  });
+
+  it("renomear a organização não é mudança de regra", async () => {
+    const antes = (await mudancasEm(idAurora)).length;
+    await definir(idAurora, "nome = nome");
+    expect(await mudancasEm(idAurora)).toHaveLength(antes);
+  });
+
+  it("mudar regra sem autor é recusado", async () => {
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+    await expect(
+      consulta(`update organizacoes set exigir_solucao_ao_resolver = true where id = $1`, [idRecanto]),
+    ).rejects.toThrow(/sem autor/u);
+  });
+
+  it("o limite fora dos dois valores é recusado pelo banco", async () => {
+    await expect(definir(idAurora, "limite_cancelamento_solicitante = 'aberta'")).rejects.toThrow(
+      /organizacoes_limite_cancelamento_ck/u,
+    );
+  });
+
+  it("a trilha recusa update e delete — o critério 5", async () => {
+    await expect(
+      consulta(`update mudancas_de_configuracao set valor_novo = 'x' where organizacao_id = $1`, [
+        idAurora,
+      ]),
+    ).rejects.toThrow(/append-only/u);
+    await expect(
+      consulta(`delete from mudancas_de_configuracao where organizacao_id = $1`, [idAurora]),
+    ).rejects.toThrow(/append-only/u);
+  });
+});
+
+/**
+ * **Os rótulos de status no banco — item 100, critérios 1, 2, 5 e 7.**
+ *
+ * A tabela tem **três colunas e linha só quando customizado**: sem linha, vale o padrão, e é isso que o
+ * primeiro caso prende. Quem guarda *quem* e *quando* é `mudancas_de_configuracao`, e por isso não há
+ * coluna de autor aqui.
+ *
+ * **Este `describe` é o último do arquivo**, e os dois blocos anteriores que escrevem em
+ * `rotulos_de_status` devolvem a tabela ao estado em que a acharam. O primeiro caso afirma que Recanto
+ * não tem linha nenhuma; se a limpeza de qualquer um dos dois falhar, o que quebra é ele.
+ */
+describe("os rótulos de status no banco — item 100", () => {
+  const rotulosEm = (organizacaoId: string) =>
+    consulta<{ estado: string; rotulo: string }>(
+      `select estado::text as estado, rotulo from rotulos_de_status
+        where organizacao_id = $1 order by estado`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, estado: string, rotulo: string) =>
+    consulta(
+      `insert into rotulos_de_status (organizacao_id, estado, rotulo) values ($1, $2, $3)
+         on conflict (organizacao_id, estado) do update set rotulo = excluded.rotulo`,
+      [organizacaoId, estado, rotulo],
+    );
+
+  afterAll(async () => {
+    await consulta(`delete from rotulos_de_status where organizacao_id = $1`, [idAurora]);
+  });
+
+  it("organização nova nasce sem linha nenhuma — o critério 2", async () => {
+    expect(await rotulosEm(idRecanto)).toStrictEqual([]);
+  });
+
+  it("os seis estados do ciclo são aceitos, pausada inclusa — o critério 1", async () => {
+    for (const estado of [
+      "aberta",
+      "em_analise",
+      "em_atendimento",
+      "pausada",
+      "resolvida",
+      "cancelada",
+    ]) {
+      await definir(idAurora, estado, `texto de ${estado}`);
+    }
+    expect(await rotulosEm(idAurora)).toHaveLength(6);
+  });
+
+  it("um sétimo estado não existe — quem restringe é o tipo do ciclo, não um check à parte", async () => {
+    await expect(definir(idAurora, "arquivada", "texto")).rejects.toThrow(/status_ocorrencia/u);
+  });
+
+  it("o teto é 40, e o texto vai aparado — o critério 5", async () => {
+    await expect(definir(idAurora, "aberta", "x".repeat(41))).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", " com espaço na ponta ")).rejects.toThrow(
+      /rotulos_de_status_rotulo_ck/u,
+    );
+    await expect(definir(idAurora, "aberta", "")).rejects.toThrow(/rotulos_de_status_rotulo_ck/u);
+  });
+
+  it("a trilha aceita as seis chaves de rótulo, e só elas — o critério 7", async () => {
+    const trilhar = (chave: string, anterior: string, novo: string) =>
+      consulta(
+        `insert into mudancas_de_configuracao
+           (organizacao_id, chave, valor_anterior, valor_novo, autor_pessoa_id)
+         values ($1, $2, $3, $4, $5)`,
+        [idAurora, chave, anterior, novo, idSindica],
+      );
+
+    // **O padrão vai como texto vazio**, nas duas pontas: estrear um rótulo e apagá-lo.
+    await trilhar("rotulo_em_analise", "", "o síndico está avaliando");
+    await trilhar("rotulo_em_analise", "o síndico está avaliando", "");
+    await expect(trilhar("rotulo_inventado", "", "x")).rejects.toThrow(
+      /mudancas_de_configuracao_chave_ck/u,
+    );
+  });
+
+  it("a linha de rótulo na trilha também recusa update e delete", async () => {
+    await expect(
+      consulta(
+        `update mudancas_de_configuracao set valor_novo = 'x'
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
+    ).rejects.toThrow(/append-only/u);
+
+    await expect(
+      consulta(
+        `delete from mudancas_de_configuracao
+          where organizacao_id = $1 and chave = 'rotulo_em_analise'`,
+        [idAurora],
+      ),
+    ).rejects.toThrow(/append-only/u);
+  });
+});
+
+/**
+ * **A chave de "parada" no banco — item 101, critérios 5 e 6.**
+ *
+ * A faixa é do `check` da migração 019, e a linha da trilha é do mesmo gatilho do item 99, com a coluna
+ * nova acrescentada ao `after update of`. Os casos contam linhas **relativas** ao que já havia, então não
+ * dependem do que os blocos anteriores deixaram, e o `afterAll` devolve a chave ao padrão.
+ */
+describe("a chave de parada no banco — item 101", () => {
+  const mudancasDaChave = (organizacaoId: string) =>
+    consulta<{ valor_anterior: string; valor_novo: string; autor_pessoa_id: string }>(
+      `select valor_anterior, valor_novo, autor_pessoa_id
+         from mudancas_de_configuracao
+        where organizacao_id = $1 and chave = 'dias_para_parada'
+        order by ocorrida_em`,
+      [organizacaoId],
+    );
+
+  const definir = (organizacaoId: string, dias: number) =>
+    consulta(`update organizacoes set dias_para_parada = $2, atualizado_por_pessoa_id = $3 where id = $1`, [
+      organizacaoId,
+      dias,
+      idSindica,
+    ]);
+
+  afterAll(async () => {
+    await definir(idAurora, 7);
+  });
+
+  it("organização nova nasce com 7 dias", async () => {
+    const [linha] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(linha).toStrictEqual({ dias: 7 });
+  });
+
+  it("mudar a chave grava uma linha na trilha, em texto, com o autor da instrução", async () => {
+    const antes = (await mudancasDaChave(idAurora)).length;
+    await definir(idAurora, 15);
+
+    const depois = await mudancasDaChave(idAurora);
+    expect(depois).toHaveLength(antes + 1);
+    expect(depois.at(-1)).toStrictEqual({
+      valor_anterior: "7",
+      valor_novo: "15",
+      autor_pessoa_id: idSindica,
+    });
+  });
+
+  it("gravar o valor que já está lá não deixa rastro", async () => {
+    await definir(idAurora, 15);
+    const antes = (await mudancasDaChave(idAurora)).length;
+    await definir(idAurora, 15);
+    expect(await mudancasDaChave(idAurora)).toHaveLength(antes);
+  });
+
+  it("o banco recusa 0 e 91, mesmo com a validação da aplicação na frente", async () => {
+    await expect(definir(idAurora, 0)).rejects.toThrow(/dias_para_parada/u);
+    await expect(definir(idAurora, 91)).rejects.toThrow(/dias_para_parada/u);
+  });
+
+  it("aceita as duas pontas da faixa", async () => {
+    await definir(idAurora, 1);
+    await definir(idAurora, 90);
+    const [linha] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idAurora],
+    );
+    expect(linha).toStrictEqual({ dias: 90 });
+  });
+
+  it("a chave de uma organização não decide o filtro da outra", async () => {
+    await definir(idAurora, 90);
+
+    const [recanto] = await consulta<{ dias: number }>(
+      `select dias_para_parada as dias from organizacoes where id = $1`,
+      [idRecanto],
+    );
+    expect(recanto).toStrictEqual({ dias: 7 });
+
+    await definir(idAurora, 7);
+  });
+
+  it("mudar a chave sem autor é recusado, como as outras regras", async () => {
+    await consulta(`update organizacoes set atualizado_por_pessoa_id = null where id = $1`, [idRecanto]);
+    await expect(
+      consulta(`update organizacoes set dias_para_parada = 30 where id = $1`, [idRecanto]),
+    ).rejects.toThrow(/sem autor/u);
+  });
+
+  it("a trilha das outras regras continua inteira — o gatilho foi refeito, não trocado", async () => {
+    const antes = await consulta<{ n: string }>(
+      `select count(*)::text as n from mudancas_de_configuracao where organizacao_id = $1`,
+      [idAurora],
+    );
+    await consulta(
+      `update organizacoes set exigir_solucao_ao_resolver = not exigir_solucao_ao_resolver,
+                               atualizado_por_pessoa_id = $2 where id = $1`,
+      [idAurora, idSindica],
+    );
+    const depois = await consulta<{ n: string }>(
+      `select count(*)::text as n from mudancas_de_configuracao where organizacao_id = $1`,
+      [idAurora],
+    );
+    expect(Number(depois[0]?.n)).toBe(Number(antes[0]?.n) + 1);
+
+    await consulta(
+      `update organizacoes set exigir_solucao_ao_resolver = not exigir_solucao_ao_resolver,
+                               atualizado_por_pessoa_id = $2 where id = $1`,
+      [idAurora, idSindica],
+    );
   });
 });

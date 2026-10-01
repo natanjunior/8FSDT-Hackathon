@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
+import { deveNavegar } from "@/interface/componentes/periodo-em-voo";
 import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
@@ -632,6 +634,17 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(tabela).toContain("<ContatoPorIcone");
     expect(tabela).not.toContain("maisContatos");
   });
+
+  it("o travessão de sem contato tem nome, e o recuo é só de quem tem botão (critério 106.14)", () => {
+    const contato = ler("src/interface/componentes/contato-por-icone.tsx");
+    expect(contato).toContain('<span aria-hidden="true" className="text-tinta-suave">');
+    expect(contato).toContain('<span className="sr-only">{TEXTOS_DA_TABELA.semContato}</span>');
+    expect(ler("src/interface/componentes/frases-de-participantes.ts")).toContain(
+      'semContato: "sem contato cadastrado"',
+    );
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).not.toContain('<div className="-ml-3">');
+  });
 });
 
 /**
@@ -824,6 +837,12 @@ describe("o alcance do 44k — as duas listas de ordem manual", () => {
     const crus = ALCANCE_DO_44K.filter((caminho) => /<input/u.test(ler(caminho)));
     expect(crus).toStrictEqual(["src/interface/componentes/icone-de-categoria.tsx"]);
   });
+
+  it("o seletor de ícone diz o escolhido e não explica a regra de design (critério 106.18)", () => {
+    const icone = ler("src/interface/componentes/icone-de-categoria.tsx");
+    expect(icone).toContain("Escolhido: <strong");
+    expect(icone).not.toMatch(/<\/strong>\.\s*O ícone fica/u);
+  });
 });
 
 const ALCANCE_DO_44L = [
@@ -963,6 +982,33 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     ].map((marca) => fonte.indexOf(marca));
     expect(posicoes.every((posicao) => posicao !== -1)).toBe(true);
     expect([...posicoes].sort((a, b) => a - b)).toStrictEqual(posicoes);
+  });
+
+  it("o controle de foto fica inerte durante o envio, como o seletor de área (critério 106.6)", () => {
+    expect(ler("src/interface/componentes/formulario-de-ocorrencia.tsx")).toMatch(
+      /<ControleDeFoto[^>]*\binerte=\{enviando\}/u,
+    );
+    // A entrada de arquivo, o alvo grande e os dois botões de ícone.
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle.match(/disabled=\{inerte\}/gu) ?? []).toHaveLength(4);
+  });
+
+  it("o alvo da foto encolhe a partir de lg e diz que é opcional (critério 106.8)", () => {
+    const controle = ler("src/interface/componentes/controle-de-foto.tsx");
+    expect(controle).toMatch(/\bborder-dashed py-7 lg:py-4\b/u);
+    expect(controle).toContain("{FOTO.vazioOpcional}");
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain('vazioOpcional: "(opcional)"');
+  });
+
+  it("o campo de busca do painel de área tem nome acessível (critério 106.7)", () => {
+    // Pelo `label` do `Command`, e não `aria-label` no campo: o `cmdk` impõe `aria-labelledby` ao campo,
+    // apontando para o rótulo dele, que fica vazio sem `label` (o precedente é `modal-de-atribuicao.tsx`).
+    const seletor = ler("src/interface/componentes/seletor-de-area.tsx");
+    expect(seletor).toMatch(/<Command\b[^>]*\blabel=\{AREA\.nomeDaBusca\}/u);
+    expect(seletor).not.toMatch(/<CommandInput[^>]*\baria-label=/u);
+    expect(ler("src/interface/componentes/registro-de-ocorrencia.ts")).toContain(
+      'nomeDaBusca: "Buscar área pelo nome"',
+    );
   });
 
   it("a tela não repete a marca e não diz que outros moradores veem a ocorrência (critério 44l.12)", () => {
@@ -1451,21 +1497,7 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain('variant="ghost"');
   });
 
-  it("nenhum tamanho fora dos sete papéis, fora do catálogo (critério 44p.2)", () => {
-    // **O 44o é quem limpa o resto.** `app/organizacao/`, `app/page.tsx`, `menu-de-organizacao`,
-    // `formulario-de-pedido-de-entrada`, `formulario-de-nova-organizacao` e `moldura-de-tela` — que o
-    // plano dele APAGA — somam trinta ocorrências que não são deste item. Enquanto ele não mesclar, esta
-    // guarda seria vermelha por defeito alheio; por isso ela exclui o que é dele, por caminho, e o
-    // critério 44p.2 só fecha de verdade depois do merge do 44o.
-    const DO_44O = [
-      "app/organizacao/",
-      "app/page.tsx",
-      "src/interface/componentes/menu-de-organizacao.tsx",
-      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
-      "src/interface/componentes/formulario-de-nova-organizacao.tsx",
-      "src/interface/componentes/moldura-de-tela.tsx",
-    ];
-
+  it("nenhum tamanho fora dos oito papéis, fora do catálogo (critério 44p.2; item 104)", () => {
     // **`utilitarios.ts` sai da conta, e é o único que sai por mérito próprio.** `arquivosDe` lê `.ts`
     // junto de `.tsx`, e as quatro ocorrências dele são o comentário que explica por que o `cn` estendido
     // existe: *"o `text-sm` do catálogo — que está fora da escala — sobrevive"*. É o arquivo que declara a
@@ -1474,7 +1506,6 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     const achados = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")]
       .filter((caminho) => !caminho.startsWith("src/interface/componentes/ui/"))
       .filter((caminho) => caminho !== "src/interface/componentes/utilitarios.ts")
-      .filter((caminho) => !DO_44O.some((dele) => caminho.startsWith(dele)))
       .flatMap((caminho) =>
         [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
           (achado) => `${caminho}: ${achado[0]}`,
@@ -1482,6 +1513,120 @@ describe("o alcance do 44p — a validação do lote 11", () => {
       );
 
     expect(achados).toStrictEqual([]);
+  });
+
+  /**
+   * **Item 104, critérios 1 a 4 e resposta P2.** O catálogo é a origem de quase todo tamanho fora da
+   * escala que a sonda achou na tela: quem esquece de passar papel herda o `text-sm` da base. Esta guarda
+   * fecha a porta na base. Comentário de bloco e de linha sai antes da busca, como em
+   * `componentesQueDeclaram` do `tema.test.ts`: o cabeçalho de divergência de `command.tsx` cita a classe
+   * pelo nome, e é isso que o torna útil ao próximo `shadcn add`.
+   *
+   * `text-base` só vale ao lado de `md:text-corpo`: é o campo, que abaixo de 16 px faz o iOS ampliar a
+   * página ao focar.
+   */
+  it("nenhum tamanho fora dos oito papéis, dentro do catálogo (item 104)", () => {
+    const achados = arquivosDe("src/interface/componentes/ui")
+      .filter((caminho) => caminho.endsWith(".tsx"))
+      .flatMap((caminho) => {
+        const fonte = ler(caminho)
+          .replace(/\/\*[\s\S]*?\*\//gu, "")
+          .replace(/^\s*\/\/.*$/gmu, "");
+        const foraDaEscala = [...fonte.matchAll(/\btext-(?:xs|sm|lg|xl|2xl|3xl)\b/gu)].map((a) => a[0]);
+        const baseSemPar = [...fonte.matchAll(/\btext-base\b(?![^"]*\bmd:text-corpo\b)/gu)].map(() => "text-base sem md:text-corpo");
+        return [...foraDaEscala, ...baseSemPar].map((achado) => `${caminho}: ${achado}`);
+      });
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("a base de cada peça nomeada nos critérios 104.1 a 104.3 está no papel certo", () => {
+    expect(ler("src/interface/componentes/ui/button.tsx")).toMatch(/const buttonVariants = cva\(\s*"[^"]*\btext-interface\b/u);
+    for (const peca of ["input", "textarea"]) {
+      expect(ler(`src/interface/componentes/ui/${peca}.tsx`), peca).toMatch(/\btext-base\b[^"]*\bmd:text-corpo\b/u);
+    }
+    const comando = ler("src/interface/componentes/ui/command.tsx");
+    expect(comando).toMatch(/data-slot="command-input"[\s\S]*?\btext-base\b[^"]*\bmd:text-corpo\b/u);
+    expect(comando).toContain("[&_[cmdk-group-heading]]:text-rotulo-coluna");
+    expect(comando).toContain("[&_[cmdk-group-heading]]:font-mono");
+    expect(comando).toContain("[&_[cmdk-group-heading]]:uppercase");
+    expect(ler("src/interface/componentes/ui/select.tsx")).toMatch(/data-slot="select-trigger"[\s\S]*?"flex w-fit [^"]*\brounded-sm\b[^"]*\btext-interface\b/u);
+    expect(ler("src/interface/componentes/ui/empty.tsx")).toMatch(/data-slot="empty-title"[\s\S]*?\btext-titulo-bloco\b/u);
+  });
+
+  it("o título do vazio é `h2`, e os quatro desfechos de T-03 usam a mesma peça (critério 104.10)", () => {
+    const vazio = ler("src/interface/componentes/ui/empty.tsx");
+    expect(vazio).toMatch(/function EmptyTitle\([\s\S]*?asChild[\s\S]*?Slot\.Root : "h2"/u);
+
+    const lista = ler("app/(casca)/ocorrencias/page.tsx");
+    const filtroInvalido = /function FiltroInvalido\(\) \{[\s\S]*?\n\}/u.exec(lista)?.[0] ?? "";
+    expect(filtroInvalido).toContain("<EmptyTitle");
+    expect(filtroInvalido).toContain('<h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>');
+    expect(filtroInvalido).not.toMatch(/<h2[\s>]/u);
+
+    // A seção da lista de ordem manual já tem `h2` (`:185`); o vazio dentro dela é um nível abaixo.
+    expect(ler("src/interface/componentes/lista-de-ordem-manual.tsx")).toMatch(/<EmptyTitle asChild[^>]*>\s*<h3>/u);
+  });
+
+  it("o controle de contorno usa o fundo do chão, o raio de controle e um botão de limpar só (critérios 104.5, 104.7 e 104.11)", () => {
+    const barra = ler("src/interface/componentes/barra-de-filtros.tsx");
+    const chip = /function chip\([\s\S]*?\n\}/u.exec(barra)?.[0] ?? "";
+    expect(chip).toContain("bg-background");
+    expect(chip).not.toContain("bg-superficie");
+    expect(chip).toMatch(/\brounded-sm\b/u);
+    expect(chip).not.toMatch(/\brounded-md\b/u);
+
+    const busca = /<Input\s+type="search"[\s\S]*?\/>/u.exec(barra)?.[0] ?? "";
+    expect(busca).not.toContain("bg-superficie");
+    expect(busca).toContain("[&::-webkit-search-cancel-button]:appearance-none");
+
+    const gatilho = /role="combobox"[\s\S]*?\)\}/u.exec(ler("src/interface/componentes/filtro-com-busca.tsx"))?.[0] ?? "";
+    expect(gatilho).toContain("bg-background");
+    expect(gatilho).not.toContain("bg-superficie");
+    expect(gatilho).not.toMatch(/\brounded-md\b/u);
+
+    const periodo = /<PopoverTrigger asChild>[\s\S]*?<\/PopoverTrigger>/u.exec(ler("src/interface/componentes/seletor-de-periodo.tsx"))?.[0] ?? "";
+    expect(periodo).not.toContain("bg-superficie");
+  });
+
+  it("o respiro de cartão é 15 e 18, no conteúdo e no esqueleto (critério 104.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    // C-1: o bloco é cartão só abaixo de `lg`; em `lg` o cartão é o formulário.
+    expect(formulario).toMatch(/"border-linha bg-superficie rounded-lg border p-\[15px\] shadow-sm"/u);
+    expect(formulario).toContain("lg:p-[18px]");
+    expect(formulario).not.toMatch(/\b(?:lg:)?p-[456]\b/u);
+    expect(ler("src/interface/componentes/depois-de-registrar.tsx")).toContain("p-[15px] lg:p-[18px]");
+    expect(ler("app/(foco)/ocorrencias/nova/loading.tsx")).toContain("p-[15px] shadow-sm lg:p-[18px]");
+  });
+
+  it("controle de linha tem 6 px, e a região da foto é a exceção nomeada (critério 104.7)", () => {
+    for (const caminho of [
+      "src/interface/componentes/icone-de-categoria.tsx",
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/componentes/ocorrencia-nao-encontrada.tsx",
+      "src/interface/componentes/filtro-com-busca.tsx",
+    ]) {
+      expect(ler(caminho), caminho).not.toMatch(/\brounded-md\b/u);
+    }
+    const foto = ler("src/interface/componentes/controle-de-foto.tsx");
+    // A zona de soltar e a ficha do arquivo ficam em 10 px: são regiões (style-guide §4, exceção nomeada).
+    expect(foto.match(/\brounded-lg\b/gu) ?? []).toHaveLength(2);
+    expect(foto).not.toMatch(/\brounded-md\b/u);
+  });
+
+  it("o filtro rápido não é caixa: régua embaixo, e a marcada em cromo (critério 104.9)", async () => {
+    const { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } = await import("@/interface/componentes/filtro-rapido");
+    expect(CAIXA_DO_FILTRO).not.toMatch(/\bbg-muted\b|\brounded-md\b|\bp-\[3px\]/u);
+    expect(CAIXA_DO_FILTRO).toMatch(/\bborder-b\b/u);
+    // A raiz do `ToggleGroup` traz `rounded-md` na base (`ui/toggle-group.tsx:39`); sem anular, a régua
+    // de baixo curvaria nas pontas.
+    expect(CAIXA_DO_FILTRO).toMatch(/\brounded-none\b/u);
+    expect(OPCAO_DO_FILTRO).toContain("data-[state=on]:bg-secondary");
+    expect(OPCAO_DO_FILTRO).not.toContain("data-[state=on]:shadow-sm");
+    expect(OPCAO_DO_FILTRO).toContain("group/opcao");
+    expect(CONTAGEM_DO_FILTRO).toContain("bg-secondary");
+    expect(CONTAGEM_DO_FILTRO).toContain("group-data-[state=on]/opcao:bg-background");
   });
 
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
@@ -1492,6 +1637,24 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).not.toContain("inline-flex min-h-11 items-center rounded-sm border px-4");
     expect(fonte).not.toContain('"+ Registrar');
     expect(fonte).toContain("<Plus aria-hidden");
+  });
+
+  it("no vazio, só o convite do centro é laranja, e ele não repete o Limpar da barra (critério 102.7)", () => {
+    const fonte = ler("app/(casca)/ocorrencias/page.tsx").replace(/\r\n/gu, "\n");
+
+    // O esconder é CSS sobre uma marca do vazio: o cabeçalho continua fora da fronteira de espera (14.7).
+    expect(fonte).toContain("group/pagina");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:invisible");
+    expect(fonte).toContain("group-has-[[data-vazio]]/pagina:hidden");
+    expect(fonte).toContain("data-vazio");
+
+    // Os dois botões de página com o ícone, como o do vazio: o `+` de texto saiu dos três.
+    expect([...fonte.matchAll(/<Plus aria-hidden="true" \/>/gu)]).toHaveLength(3);
+    expect(fonte).not.toMatch(/>\s*\+ Registrar/u);
+
+    // O vazio não oferece Limpar filtros: a faixa acima dele já oferece.
+    const vazio = fonte.slice(fonte.indexOf("function Vazio("), fonte.indexOf("function AlemDoFim("));
+    expect(vazio).not.toContain("Limpar filtros");
   });
 
   it("o estado vazio não manda conferir se as áreas descrevem o prédio (critério 44p.14)", () => {
@@ -1517,6 +1680,22 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(/<select(\s|>)/u.test(fonte)).toBe(false);
     expect(fonte).toContain("<SelectTrigger");
     expect(fonte).toContain("<SelectItem");
+  });
+
+  it("todo gatilho de seleção reage à passagem do ponteiro, e o da organização tem borda (critério 106.10)", () => {
+    // Ancorada na string do gatilho, que começa em `flex w-fit`: outra string adiante não pode responder.
+    expect(ler("src/interface/componentes/ui/select.tsx")).toMatch(
+      /data-slot="select-trigger"[\s\S]*?"flex w-fit [^"]*\bhover:bg-accent(?![-\w])/u,
+    );
+    expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toMatch(/\bborder-0\b/u);
+  });
+
+  it("a seta de ordenação aparece a 40% em repouso (critério 106.11)", () => {
+    const cabeca = ler("src/interface/componentes/cabeca-que-ordena.tsx");
+    expect(cabeca).toMatch(
+      /<ArrowUpDown[\s\S]*?className="[^"]*\bopacity-40\b[^"]*\bgroup-hover:opacity-100\b[^"]*\bgroup-has-focus-visible:opacity-100\b/u,
+    );
+    expect(cabeca).not.toMatch(/\bopacity-0\b/u);
   });
 
   it("a prioridade tem uma forma só, com e sem o controle (critério 44p.20)", () => {
@@ -1612,8 +1791,10 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
     // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
     // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    // **O item 103 cria seis**: a raiz, as quatro telas de conta e a tela de criar organização. São 18.
     const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
-    expect(esperas).toHaveLength(12);
+    // **O item 111 cria a do QR da área**, que sem ela mostraria o esqueleto da tabela. São 19.
+    expect(esperas).toHaveLength(19);
   });
 
   it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {
@@ -1708,8 +1889,8 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
     expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
-    // A tinta do avatar é a da marca desde o item 64; o papel da escala é o que esta guarda afirma.
-    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-marca-foreground");
+    // A tinta do avatar é a tinta cheia desde o item 105; o papel da escala é o que esta guarda afirma.
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
     expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
   });
 
@@ -1808,10 +1989,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     );
   });
 
-  it("a régua ganha o visto, a marca de agora e a data à direita (critério 44q.6)", () => {
+  it("a régua ganha o visto, o tempo decorrido e a data à direita (critérios 44q.6 e 107.2)", () => {
     const regua = ler("src/interface/componentes/regua-do-ciclo.tsx");
     expect(regua).toMatch(/passo\.estado === "alcancado" && \(\s*<Check aria-hidden/u);
-    expect(regua).toMatch(/passo\.estado === "atual" && <span[^>]*>agora<\/span>/u);
+    // A palavra *agora* saiu (critério 107.2): ao lado de uma data de semanas atrás, ela lia como recência.
+    expect(regua).not.toMatch(/>agora</u);
+    expect(regua).toContain('passo.estado === "atual" && passo.decorrido !== null');
     expect(regua).toContain("justify-between");
     // Os três marcadores e a ligação não mudaram (critério 44q.6).
     expect(regua).toContain('alcancado: "bg-tinta-suave border-tinta-suave"');
@@ -1832,7 +2015,14 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("a barra de filtros é a primeira faixa do cartão da lista, fora do recuo da espera (critério 44q.9)", () => {
     const cartao = ler("src/interface/componentes/cartao-da-lista.tsx");
-    expect(cartao).toMatch(/\{faixa\}\s*\n\s*<div\s+className=\{\s*pendente/u);
+    // Desde o item 102 a região de espera fica entre a faixa e o invólucro que recua. A ordem é o que
+    // importa: faixa, região, e só então o invólucro com `pendente`.
+    const faixa = cartao.indexOf("{faixa}");
+    const regiao = cartao.indexOf('role="status"');
+    const recuo = cartao.search(/<div\s+className=\{\s*pendente/u);
+    expect(faixa).toBeGreaterThan(-1);
+    expect(regiao).toBeGreaterThan(faixa);
+    expect(recuo).toBeGreaterThan(regiao);
     const pagina = ler("app/(casca)/ocorrencias/page.tsx");
     expect(pagina).toContain('<CartaoDaLista faixa={estado !== "organizacao" ? barra : undefined}>');
   });
@@ -1844,7 +2034,9 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     // Item 89: o apoio da encerrada vestia a tinta fraca, que não passa 4,5:1, e agora veste a suave como o
     // de qualquer linha. O que a distingue é o título, que desce de `--ink` a `--ink-soft`, e o selo.
     expect(lista).not.toContain("group-data-[recuada]/linha:text-tinta-fraca");
-    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(2);
+    // Desde o item 102 são três: os dois títulos e os valores do par de datas na tabela, que passaram a
+    // vestir `--ink` ao lado da palavra em meta, e descem com a linha como o título.
+    expect(lista.match(/text-tinta group-data-\[recuada\]\/linha:text-tinta-suave/gu)).toHaveLength(3);
     // Recuo por tinta nomeada, nunca `opacity` na linha: a opacidade apagaria o selo e o convite.
     expect(lista).not.toMatch(/group-data-\[recuada\]\/linha:opacity/u);
     // A meta da linha de apoio segue a prancheta, `--ink-soft` (exceção c do critério 44q.14).
@@ -1933,12 +2125,11 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
 
     const registrar = conteudo.indexOf('href="/ocorrencias/nova"');
     const conferir = conteudo.indexOf('href="/configuracao/areas"');
-    // **O destino de *Limpar filtros* virou expressão no item 67**: ele mantém a ordem escolhida, então
-    // o endereço carrega a consulta sem os sete recortes, em vez do caminho limpo.
+    // **O vazio não oferece mais *Limpar filtros*** (item 102, critério 7): a faixa acima dele oferece.
     const limpar = conteudo.search(/href=\{`\/ocorrencias\?\$\{semFiltros/u);
     expect(registrar).toBeGreaterThan(-1);
     expect(registrar).toBeLessThan(conferir);
-    expect(registrar).toBeLessThan(limpar);
+    expect(limpar).toBe(-1);
 
     // A cor de cada um: o bloco de registrar em marca, os dois outros em contorno.
     expect(conteudo.slice(registrar, conferir)).toContain('variant: "marca"');
@@ -1990,19 +2181,21 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain("LayoutGrid");
   });
 
-  it("todo avatar é laranja, pela peça base, e ninguém a repinta de neutro (troca 12)", () => {
+  it("todo avatar é neutro, pela peça base, e ninguém o repinta (troca 12, desfeita no item 105)", () => {
+    // O dono decidiu em 23/09 o avatar laranja em todo lugar; o critério 105.3 o devolveu ao neutro,
+    // medido: onze círculos laranja na tela da ocorrência competiam com a ação principal.
     const base = ler("src/interface/componentes/ui/avatar.tsx");
-    expect(base).toContain("rounded-full bg-marca text-rotulo-peca text-marca-foreground");
-    expect(base).not.toContain("bg-muted text-rotulo-peca text-tinta");
-    // Nenhum chamador devolve o avatar ao neutro por classe. A página do grupo (item 70) é a exceção
-    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70, não repintura.
+    expect(base).toContain("rounded-full bg-secondary text-rotulo-peca text-tinta");
+    expect(base).not.toMatch(/AvatarFallback[\s\S]*?bg-marca[\s\S]*?function AvatarBadge/u);
+    // Nenhum chamador repinta o avatar por classe. A página do grupo (item 70) é a exceção
+    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70.
     const repintados = [...arquivosDe("src"), ...arquivosDe("app")].filter(
       (caminho) =>
         !caminho.endsWith("cartao-de-integrante.tsx") && /<AvatarFallback[^>]*className=/u.test(ler(caminho)),
     );
     expect(repintados).toStrictEqual([]);
-    // O portão de estilo mede a mesma tinta.
-    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--marca-foreground\)"/u);
+    // O portão de estilo mede a mesma tinta e o mesmo fundo.
+    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--ink\)"/u);
   });
 
   it("a tela de áreas monta o fato a partir da frase que o teste protege (troca 15)", () => {
@@ -2036,6 +2229,18 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(ler("app/(casca)/vinculos/nova/page.tsx")).toContain(
       'anterior={{ rotulo: "Participantes", href: "/vinculos" }}',
     );
+  });
+
+  it("a página de registrar tem caminho no topo, em toda face (critério 106.5)", () => {
+    const nova = ler("app/(foco)/ocorrencias/nova/page.tsx");
+    expect(nova).toContain('anterior={{ rotulo: "Ocorrências", href: "/ocorrencias" }}');
+    expect(nova).toContain('atual="Registrar ocorrência"');
+    // O caminho está nas faces que a página tem hoje, o vazio de configuração e o formulário, pelo
+    // `cabecalho` que as duas usam. É constante própria para a face do QR não encontrado, que o item 111
+    // acrescenta sem o cabeçalho de *Registrar ocorrência*, poder levar só ela.
+    expect(nova).toMatch(/const cabecalho = \(\s*<>\s*\{caminho\}/u);
+    expect(nova.match(/\{cabecalho\}/gu) ?? []).toHaveLength(2);
+    expect(ler("app/(foco)/ocorrencias/nova/loading.tsx")).toContain("-mb-2.5 flex h-11 items-center");
   });
 
   it("o aviso de avaliação é a faixa do catálogo, e avaliar sai da barra (critérios 66.4 e 66.5)", () => {
@@ -2078,6 +2283,13 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
     expect(foto).not.toMatch(/<button(\s|>|$)/mu);
   });
 
+  it("a miniatura pinta uma camada só, e o original fica para o diálogo (critério 106.2)", () => {
+    const foto = ler("src/interface/componentes/foto-ampliavel.tsx");
+    expect(foto).toContain("backgroundImage: `url(${miniaturaUrl ?? url})`");
+    // Duas camadas fazem o navegador buscar as duas, e a de cima cobre a de baixo (A-052).
+    expect(foto).not.toMatch(/url\(\$\{url\}\),\s*url\(/u);
+  });
+
   const ARQUIVOS_DO_66 = [
     "src/interface/componentes/cabecalho-da-ocorrencia.tsx",
     "src/interface/componentes/aviso-de-avaliacao.tsx",
@@ -2090,7 +2302,7 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
 
   it("nenhum tamanho fora dos sete papéis, e nenhuma primitiva de outra biblioteca (critério 66.4)", () => {
     const tamanhos = ARQUIVOS_DO_66.flatMap((caminho) =>
-      [...ler(caminho).matchAll(/text-(?:xs|sm|base|lg|xl|2xl)/gu)].map(
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
         (achado) => `${caminho}: ${achado[0]}`,
       ),
     );
@@ -2285,8 +2497,10 @@ describe("o alcance do 71 — o seletor de faixa de datas", () => {
     expect(fonte).toContain("aria-label={nomeDaFaixa(periodo)}");
     expect(fonte).toContain("{rotuloDaFaixa(periodo)}");
     expect(fonte).toContain("disabled={!completa}");
-    // O atalho igual ao recorte não é alvo de toque que não faz nada.
-    expect(fonte).toContain("disabled={ehAFaixaAplicada(periodo, atalhos[chave])}");
+    // O atalho igual ao recorte aparece marcado e continua clicável (item 110, critério 5, que
+    // substituiu o "apagado" do 71.2): cinza sem clique lia-se como indisponível.
+    expect(fonte).toContain('aria-current={aplicado ? "true" : undefined}');
+    expect(fonte).not.toContain("disabled={ehAFaixaAplicada(");
     expect(fonte).not.toContain("atalhoCorrente");
   });
 
@@ -2366,6 +2580,20 @@ describe("o alcance do 91 — os 44 px", () => {
     const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(moldura)?.[1] ?? "";
     expect(classe.split(" ")).toContain("min-w-11");
     expect(classe.split(" ")).toContain("justify-center");
+  });
+
+  it("redefinir senha com sessão volta para Meus dados e já traz o e-mail (critério 106.12)", () => {
+    const pagina = ler("app/redefinir-senha/page.tsx");
+    expect(pagina).toContain('"/meus-dados"');
+    expect(pagina).toContain("Voltar para Meus dados");
+    expect(pagina).toContain("Voltar para entrar");
+    expect(pagina).toContain("emailInicial=");
+    // Uma saída só, com o destino escolhido: a contagem de `CLASSE_DO_CAMINHO` das telas de conta não muda.
+    expect(pagina.match(/CLASSE_DO_CAMINHO\}/gu) ?? []).toHaveLength(1);
+    expect(ler("src/interface/componentes/formulario-de-redefinicao.tsx")).toContain(
+      "defaultValue={emailInicial ?? undefined}",
+    );
+    expect(ler("app/(casca)/meus-dados/page.tsx")).toContain("Receber link para trocar a senha");
   });
 
   it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {
@@ -2531,5 +2759,218 @@ describe("o item 95 — o portão se declara por uma linha", () => {
       .flatMap(codigoDe)
       .filter((caminho) => ler(caminho).includes(TRECHO));
     expect(comOTrecho).toStrictEqual(["ferramentas/portao.mjs"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  O recibo de cada ação — item 103
+// ---------------------------------------------------------------------------
+
+/** A frase de espera de toda tela, copiada de `app/organizacao/loading.tsx`. */
+const FRASE_DE_ESPERA = "Acordando o servidor — a primeira abertura do dia é mais lenta.";
+
+describe("o recibo de cada ação — item 103", () => {
+  it("as quatro telas de conta e a raiz têm espera, com a frase de sempre (critério 103.4)", () => {
+    for (const caminho of [
+      "app/loading.tsx",
+      "app/entrar/loading.tsx",
+      "app/criar-conta/loading.tsx",
+      "app/redefinir-senha/loading.tsx",
+      "app/definir-senha/loading.tsx",
+    ]) {
+      expect(existsSync(RAIZ + caminho), caminho).toBe(true);
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("<EsperaDaMolduraDeConta");
+      expect(fonte, caminho).toContain(FRASE_DE_ESPERA);
+      expect(fonte, caminho).toContain('role="status"');
+      expect(fonte, caminho).toContain("[animation-delay:2s]");
+    }
+  });
+
+  it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
+    // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
+    expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
+    const criar = ler("app/organizacao/criar/loading.tsx");
+    expect(criar).toContain('convite={{ lado: "esquerda" }}');
+    expect(criar).toContain(FRASE_DE_ESPERA);
+    // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
+    expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
+    expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
+  });
+
+  it("a geometria das duas colunas é escrita uma vez, e a espera a usa (critério 103.5)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect([...fonte.matchAll(/className=\{COLUNA_COM_CONVITE\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/TRILHAS\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CARTAO\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CONVITE\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect(fonte).not.toContain('convite.lado === "esquerda"');
+  });
+
+  it("só a linha apertada entra; as outras ficam inertes; nada em voo deixa todas livres (critério 103.1)", () => {
+    expect(situacaoDaLinha(null, "a")).toBe("livre");
+    expect(situacaoDaLinha("a", "a")).toBe("entrando");
+    expect(situacaoDaLinha("a", "b")).toBe("inerte");
+  });
+
+  it("a lista não usa disabled, ignora o segundo toque e solta a linha quando a navegação acaba (critério 103.1)", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    // `disabled` solta o foco no corpo do documento; `aria-disabled` não.
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-disabled={situacao !== \"livre\"}");
+    expect(fonte).toContain("aria-busy={situacao === \"entrando\"}");
+    expect(fonte).toContain("if (escolhida !== null) return;");
+    // A navegação numa transição: é o fim dela que devolve a lista, inclusive quando `/` desenha T-10 de novo.
+    expect(fonte).toContain("useTransition()");
+    expect(fonte).toMatch(/comecar\(\(\) => \{\s*router\.refresh\(\);\s*router\.replace\("\/"\);/u);
+    expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).toContain('"Entrando…"');
+  });
+
+  it("a troca pela barra mostra a frase do módulo, e não escreve nenhuma (critério 103.3)", () => {
+    const fonte = ler("src/interface/componentes/casca/seletor-de-organizacao.tsx");
+    expect(fonte).toContain("avisarErro(resultado.aviso)");
+    expect(fonte).not.toMatch(/avisarErro\("/u);
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-busy={emVoo}");
+    expect(fonte).toContain("<IndicadorDeEnvio ativo={emVoo} />");
+    expect(fonte).toContain("if (emVoo || organizacaoId === organizacaoAtivaId) return;");
+    expect(fonte).toContain("useTransition()");
+  });
+
+  it("aplicar o recorte já aplicado não navega, e por isso não fica esperando (critério 103.2)", () => {
+    const periodo = { de: "2026-07-01", ate: "2026-09-29" };
+    expect(deveNavegar(periodo, { de: "2026-07-01", ate: "2026-09-29" })).toBe(false);
+    expect(deveNavegar(periodo, { de: "2026-08-31", ate: "2026-09-29" })).toBe(true);
+  });
+
+  it("o seletor e o conteúdo dividem uma transição, e o conteúdo recua enquanto ela corre (critério 103.2)", () => {
+    const seletor = ler("src/interface/componentes/seletor-de-periodo.tsx");
+    expect(seletor).not.toContain("const [, comecar] = useTransition()");
+    expect(seletor).toContain("usePeriodoEmVoo()");
+    expect(seletor).toContain('"Aplicando…"');
+    expect(seletor).toContain("if (pendente) return;");
+    expect(seletor).not.toContain("useEffect");
+
+    const provedor = ler("src/interface/componentes/periodo-em-voo.tsx");
+    expect(provedor).toMatch(/^"use client";/u);
+    expect(provedor).toContain("aria-busy={pendente}");
+    expect(provedor).toContain("pointer-events-none opacity-60");
+
+    // O provedor envolve a página inteira, e o filtro fica FORA do conteúdo que recua. O fim de linha
+    // pode ser CRLF na cópia de trabalho do Windows, e por isso a abertura é procurada por expressão.
+    const pagina = ler("app/(casca)/dashboard/page.tsx");
+    const filtro = pagina.search(/<Periodo\r?\n/u);
+    const conteudo = pagina.indexOf("<ConteudoDoPainel>");
+    expect(pagina.indexOf("<PeriodoEmVoo>")).toBeLessThan(filtro);
+    expect(filtro).toBeGreaterThan(-1);
+    expect(conteudo).toBeGreaterThan(filtro);
+  });
+
+  it("o que não é senha volta ao formulário; a senha nunca volta (critério 103.6)", () => {
+    const dados = new FormData();
+    dados.set("nome", "Ana Souza");
+    dados.set("email", "ana@exemplo.com");
+    dados.set("senha", "segredo1");
+
+    expect(valoresPreservados(dados, ["email"])).toStrictEqual({ email: "ana@exemplo.com" });
+    expect(valoresPreservados(dados, ["nome", "email"])).toStrictEqual({
+      nome: "Ana Souza",
+      email: "ana@exemplo.com",
+    });
+    // Nem pedida por engano a senha volta.
+    expect(valoresPreservados(dados, ["email", "senha"])).toStrictEqual({ email: "ana@exemplo.com" });
+    // Campo ausente não vira texto vazio inventado.
+    expect(valoresPreservados(new FormData(), ["email"])).toStrictEqual({});
+  });
+
+  it("os dois formulários reaplicam o que não é senha (critério 103.6)", () => {
+    const entrada = ler("src/interface/componentes/formulario-de-entrada.tsx");
+    expect(entrada).toContain('valoresPreservados(dados, ["email"])');
+    expect(entrada).toContain("defaultValue={preservados.email}");
+    const cadastro = ler("src/interface/componentes/formulario-de-cadastro.tsx");
+    expect(cadastro).toContain('valoresPreservados(dados, ["nome", "email"])');
+    expect(cadastro).toContain("defaultValue={preservados.nome}");
+    expect(cadastro).toContain("defaultValue={preservados.email}");
+    for (const fonte of [entrada, cadastro]) expect(fonte).not.toContain("preservados.senha");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 105 — o laranja volta a marcar uma coisa só
+ * ============================================================================
+ *
+ * Guardas de fonte, no precedente dos itens 44g a 104. O `--primary` era o azul literal do tema de
+ * origem, e a variante padrão do `Button` o vestia: toda ação sem variante saía azul.
+ */
+/** A fonte sem comentário: as guardas do 105 perguntam o que o código pinta, e comentário não pinta nada. */
+function semComentario(fonte: string): string {
+  return fonte.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, "");
+}
+
+describe("o 105 — o laranja volta a marcar uma coisa só", () => {
+  it("as quatro ações principais fora da casca são o botão da marca, na largura do cartão (critério 105.1)", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toMatch(/<Button\s+type="submit"\s+variant="marca"[^>]*\bw-full\b/u);
+      expect(fonte, caminho).toMatch(/<RodapeDoFormulario[^>]*\blarguraCheia\b/u);
+    }
+    expect(ler("app/definir-senha/page.tsx")).toMatch(/buttonVariants\(\{\s*variant:\s*"marca"[^)]*\bw-full\b/u);
+    expect(ler("app/error.tsx")).toMatch(/<Button\s+type="button"\s+variant="marca"/u);
+  });
+
+  it("o Button não tem mais variante azul, e o padrão é o contorno (critério 105.2)", () => {
+    const botao = semComentario(ler("src/interface/componentes/ui/button.tsx"));
+    expect(botao).not.toMatch(/\bprimary\b/u);
+    expect(botao).toMatch(/defaultVariants:\s*\{\s*variant:\s*"outline"/u);
+    expect(botao).toMatch(/variant = "outline"/u);
+    expect(botao).toMatch(/link:\s*"text-tinta-marca /u);
+    expect(ler("src/interface/componentes/ui/alert-dialog.tsx")).not.toMatch(/variant = "default"/u);
+  });
+
+  it("nenhum arquivo do produto nem o tema falam de primary (critério 105.2)", () => {
+    // `sidebar-primary` é do vocabulário da barra lateral (item 44f) e resolve na marca; fica.
+    // `arquivosDe` só devolve `.ts` e `.tsx` (`:52-57`): o tema entra pelo nome.
+    const comPrimary = [...arquivosDe("src"), ...arquivosDe("app"), "app/globals.css"].filter((caminho) =>
+      /(?<!sidebar-)\bprimary\b/u.test(semComentario(ler(caminho))),
+    );
+    expect(comPrimary).toStrictEqual([]);
+  });
+
+  it("as pontas da faixa do calendário são o par medido do selo Em análise (respostas P3)", () => {
+    const calendario = ler("src/interface/componentes/ui/calendar.tsx");
+    for (const ponta of ["range-start", "range-end", "selected-single"]) {
+      expect(calendario, ponta).toContain(`data-[${ponta}=true]:bg-tinta-suave data-[${ponta}=true]:text-superficie`);
+    }
+  });
+
+  it("todo Badge sem variante traz o próprio fundo (critério 105.2)", () => {
+    const semFundo = [...arquivosDe("src"), ...arquivosDe("app")].flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<Badge\b(?![^>]*\bvariant=)[^>]*>/gu)]
+        .filter((m) => !/\bbg-|className=\{[A-Z_]+\}/u.test(m[0]))
+        .map(() => caminho),
+    );
+    expect(semFundo).toStrictEqual([]);
+  });
+
+  it("a barra de valor único é o cinza da paleta, e o laranja fica para as linhas (critério 105.4)", () => {
+    expect(ler("src/interface/componentes/grafico-de-barras.tsx")).toMatch(
+      /const CONFIGURACAO: ChartConfig = \{ valor: \{ label: "Quantidade", color: "var\(--chart-4\)" \} \};/u,
+    );
+    for (const linha of ["grafico-do-fluxo-mensal", "grafico-do-tempo-de-resolucao"]) {
+      expect(ler(`src/interface/componentes/${linha}.tsx`), linha).toContain("var(--chart-1)");
+    }
+  });
+
+  it("o Sair tem a forma do caminho e a tinta suave, e o resto dos caminhos segue na marca (critério 105.5)", () => {
+    const fonte = ler("src/interface/componentes/moldura-de-conta.tsx");
+    const sair = /export function CaminhoDeSair[\s\S]*?<\/Button>/u.exec(fonte)?.[0] ?? "";
+    expect(sair).toMatch(/cn\(CLASSE_DO_CAMINHO, "text-tinta-suave /u);
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("text-tinta-marca");
+    expect(classe.split(" ")).toContain("underline");
   });
 });

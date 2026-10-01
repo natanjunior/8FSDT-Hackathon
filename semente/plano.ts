@@ -13,6 +13,7 @@
  * `import type` é apagado na compilação, então o arquivo continua puro e continua rodando no laço curto.
  */
 
+import type { ContatoParaEscrita } from "@/aplicacao/organizacao";
 import type {
   MotivoCancelamento,
   MotivoPausa,
@@ -266,6 +267,18 @@ export type VinculoDoPlano = {
    * segundo vínculo (achado B-01 do backlog): `POST /vinculos` sempre cria Pessoa nova.
    */
   readonly como: "fundacao" | "cadastro" | "pedido";
+  /**
+   * Os contatos com que o vínculo nasce (item 106, critério 13). Ausente é *nenhum*, e é a maioria: a tela
+   * de Participantes precisa mostrar também o estado vazio.
+   */
+  readonly contatos?: readonly ContatoParaEscrita[];
+  /**
+   * **O vínculo nasce sem unidade e a recebe numa segunda escrita**, pelo comando de correção. É o único
+   * jeito de a coluna *Última atualização* ter data na demonstração: o relógio é carimbo de gatilho e só
+   * anda numa alteração em outra transação (item 68b). A unidade final é a de `area`, então o mundo
+   * termina igual.
+   */
+  readonly unidadeDepois?: true;
 };
 
 export type PassoDoRoteiro =
@@ -363,10 +376,28 @@ const VINCULOS: readonly VinculoDoPlano[] = [
   // **A Persona 1B, construída pelo único caminho que o produto tem.** Helena pede entrada em B com o
   // código público de B, e Marcos aprova como `solicitante`. Nenhum INSERT em `vinculos`.
   { pessoa: "helena", organizacao: "b", papel: "solicitante", area: null, como: "pedido" },
+  // **Beatriz fica sem contato e sem atualização** (critério 106.13): a tela também mostra o vazio.
   { pessoa: "beatriz", organizacao: "a", papel: "encarregado", area: null, como: "cadastro" },
-  { pessoa: "rafael", organizacao: "a", papel: "encarregado", area: null, como: "cadastro" },
-  { pessoa: "claudia", organizacao: "a", papel: "solicitante", area: "Apartamento 101", como: "cadastro" },
-  { pessoa: "jorge", organizacao: "a", papel: "solicitante", area: "Apartamento 302", como: "cadastro" },
+  {
+    pessoa: "rafael", organizacao: "a", papel: "encarregado", area: null, como: "cadastro",
+    contatos: [
+      { tipo: "telefone", valor: "+5511987650202", finalidade: "trabalho", temWhatsapp: true, observacao: null },
+    ],
+  },
+  {
+    pessoa: "claudia", organizacao: "a", papel: "solicitante", area: "Apartamento 101", como: "cadastro",
+    unidadeDepois: true,
+    contatos: [
+      { tipo: "email", valor: "claudia.meireles@example.com", finalidade: "pessoal", temWhatsapp: false, observacao: null },
+    ],
+  },
+  {
+    pessoa: "jorge", organizacao: "a", papel: "solicitante", area: "Apartamento 302", como: "cadastro",
+    unidadeDepois: true,
+    contatos: [
+      { tipo: "telefone", valor: "+5511987650303", finalidade: "pessoal", temWhatsapp: false, observacao: null },
+    ],
+  },
   { pessoa: "sonia", organizacao: "b", papel: "encarregado", area: null, como: "cadastro" },
   { pessoa: "diego", organizacao: "b", papel: "solicitante", area: "Sala 405", como: "cadastro" },
 ];
@@ -876,13 +907,87 @@ function gestorDe(organizacao: ChaveDeOrganizacao): string {
   return organizacao === "a" ? "helena" : "marcos";
 }
 
+
+/**
+ * ---------------------------------------------------------------------------
+ *  As ocorrências de relógio — item 101
+ * ---------------------------------------------------------------------------
+ *
+ * **Datadas por dias antes de `hoje`, e não por balde.** O filtro de paradas precisa de uma ocorrência
+ * com idade exata para o vídeo mostrar o recorte funcionando; um balde mensal não sabe dizer *"há nove
+ * dias"*, porque a idade dele muda com o dia em que a semente roda.
+ *
+ * **Todos os instantes cabem no MESMO mês**, e é o que mantém a invariante de `plano.test.ts`: uma
+ * ocorrência não atravessa o mês em que foi registrada. O roteiro inteiro cabe em duas horas e meia,
+ * então a história também fica boa — triada e atribuída de uma vez, e depois nada por nove dias, que é
+ * exatamente o que o filtro existe para achar.
+ *
+ * **Sem mensagem, e a receita não passa por `atribuir` depois do último instante** — senão o cenário
+ * dependeria de um detalhe invisível. A atribuição que o desfecho `em_atendimento` exige entra **dentro**
+ * do bloco, antes do último passo.
+ */
+type RascunhoAncorado = Omit<Rascunho, "distancia"> & {
+  /** Quantos dias antes de `hoje` cai o ÚLTIMO passo do roteiro. */
+  readonly paradaHaDias: number;
+};
+
+const RASCUNHOS_ANCORADOS: readonly RascunhoAncorado[] = [
+  {
+    chave: "p-01", organizacao: "a", paradaHaDias: 9,
+    titulo: "Bomba de recalque desarmando toda madrugada",
+    descricao:
+      "Desde a semana passada a bomba desarma por volta das três da manhã e a caixa da coluna dois amanhece " +
+      "vazia. Quem mora do décimo andar para cima fica sem água até alguém religar no quadro.",
+    categoria: EQUIPAMENTOS, area: "Garagem", complemento: "Casa de bombas, ao lado da vaga 20",
+    autor: "claudia", responsavel: "beatriz", prioridade: "alta",
+    solucao: "",
+    receita: { desfecho: "em_atendimento" },
+  },
+];
+
+/** Uma hora, na unidade que o arquivo já tem. */
+const UMA_HORA = 60 * UM_MINUTO;
+
+/**
+ * `quantos` instantes crescentes terminando **`paradaHaDias` dias e uma hora antes de `hoje`**.
+ *
+ * **A conta é de tempo decorrido, e não de dia de calendário, porque é assim que a leitura mede.** O
+ * destaque diz `floor((corte − atualizada_em) / 24 h)`. Ancorar numa hora fixa do dia `hoje − 9` daria
+ * um piso de **oito** dias sempre que `hoje` fosse mais cedo que essa hora.
+ *
+ * **A hora de folga é o que dá validade ao número por um dia inteiro.** Semeado às 10h, o decorrido nasce
+ * em 9 d 1 h e só vira 10 dias 23 horas depois — tempo de sobra para gravar. Sem ela, o piso viraria 10
+ * no primeiro minuto.
+ *
+ * **O bloco inteiro cabe num mês só**, que é a invariante que `plano.test.ts` cobra de toda ocorrência.
+ * Quando o recuo o faria atravessar a virada, ele desce inteiro para o fim do mês anterior. Isso só
+ * **acrescenta** horas ao decorrido, e o piso em dias não muda.
+ */
+function instantesAncorados(hoje: Date, quantos: number, paradaHaDias: number): readonly string[] {
+  const passo = EMPURRAO * UM_MINUTO;
+  const mesDe = (instante: number): string => new Date(instante).toISOString().slice(0, 7);
+
+  let fim = hoje.getTime() - paradaHaDias * UM_DIA - UMA_HORA;
+  if (mesDe(fim - (quantos - 1) * passo) !== mesDe(fim)) {
+    const virada = new Date(fim);
+    fim = Date.UTC(virada.getUTCFullYear(), virada.getUTCMonth(), 1) - UMA_HORA;
+  }
+
+  return Array.from({ length: quantos }, (_, indice) =>
+    new Date(fim - (quantos - 1 - indice) * passo).toISOString(),
+  );
+}
+
 /**
  * A ordem obrigatória, e ela é a da §8 da spec:
  * `registrar` → `analisar` → `atribuir` → `iniciar` → (`pausar` → `retomar`) → (`registrar-solucao`) →
  * `resolver` → `avaliar`. `iniciarAtendimento` exige responsável (invariante 9), e `cancelar` sai só das
  * três primeiras — aqui, das duas que `ESTADOS_DE_CANCELAMENTO_DO_AUTOR` também admite.
  */
-function moldesDoRoteiro(rascunho: Rascunho, indice: number): readonly Molde[] {
+function moldesDoRoteiro(
+  rascunho: Omit<Rascunho, "distancia">,
+  indice: number,
+): readonly Molde[] {
   const gestor = gestorDe(rascunho.organizacao);
   const { prioridade, receita } = rascunho;
   const moldes: Molde[] = [];
@@ -1015,6 +1120,40 @@ export function planoDaDemonstracao(hoje: Date, perfil: Perfil = PERFIL_DA_DEMON
       // ocorrências do mês corrente recebem mensagem, porque só nelas "agora" é a coisa certa.
       mensagem:
         rascunho.distancia === 0 ? exigir(rascunho.mensagem, `a mensagem de ${rascunho.chave}`) : null,
+    });
+  }
+
+  for (const [indice, rascunho] of RASCUNHOS_ANCORADOS.entries()) {
+    const moldes = moldesDoRoteiro(rascunho, RASCUNHOS.length + indice);
+    const instantes = instantesAncorados(hoje, moldes.length + 1, rascunho.paradaHaDias);
+    const registro = exigir(instantes[0], `o instante de registro de ${rascunho.chave}`);
+    const rotulo = registro.slice(0, 7);
+
+    // **O balde é o do mês do registro, e ele tem de existir.** Com nove dias de âncora e um roteiro de
+    // um dia, o registro cai sempre no mês corrente ou no anterior, e os dois têm balde — no dia 1,
+    // quando o mês corrente não nasce, nove dias atrás já é o mês anterior. Falhar alto se a conta mudar.
+    if (!baldes.some((balde) => balde.rotulo === rotulo)) {
+      throw new Error(`A ocorrência ancorada ${rascunho.chave} caiu no mês ${rotulo}, que não tem balde.`);
+    }
+
+    ocorrencias.push({
+      chave: rascunho.chave,
+      organizacao: rascunho.organizacao,
+      balde: rotulo,
+      titulo: rascunho.titulo,
+      descricao: rascunho.descricao,
+      categoria: rascunho.categoria,
+      area: rascunho.area,
+      localizacaoComplemento: rascunho.complemento,
+      autor: rascunho.autor,
+      registradaEm: registro,
+      roteiro: moldes.map((molde, passo) =>
+        molde(exigir(instantes[passo + 1], `o instante ${String(passo + 1)} de ${rascunho.chave}`)),
+      ),
+      statusFinal: rascunho.receita.desfecho,
+      // **Sem mensagem, e é o ponto da ocorrência:** `enviarComentario` carimba o relógio real, e uma
+      // mensagem aqui zeraria justamente o relógio que ela existe para mostrar parado.
+      mensagem: null,
     });
   }
 

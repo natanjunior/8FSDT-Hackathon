@@ -22,6 +22,10 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
+Quem abre o endereço pela primeira vez depende de a aplicação já estar acordada, e uma sonda agendada a
+mantém assim nos dias em que alguém de fora vai abri-la. Quem volta pelo mesmo navegador vê a casca da
+aplicação na hora, enquanto o servidor inicia.
+
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
 privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado
@@ -37,7 +41,7 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 |---|---|---|
 | A `Ocorrência`, com o ciclo de vida inteiro | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
 | **A superfície HTTP** | **46 operações em 38 caminhos** | [`docs/api/openapi.yaml`](docs/api/openapi.yaml), conferido contra o código por `npm run verificar:openapi` |
-| **As telas** | as **dezenove** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
+| **As telas** | as **vinte** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
 | **O esquema** | **14 tabelas**, em onze migrações | `supabase/migrations/` |
 | **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
 | **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | [[`.github/workflows/entrega.yml`](.github/workflows/entrega.yml)](.github/workflows/entrega.yml) |
@@ -132,12 +136,12 @@ Depois: **<http://localhost:3000>**.
 > O nome do cookie de sessão sai do host da **URL do provedor**, que é variável do servidor, então ele não
 > muda com a origem pela qual o navegador chega. Em produção nada disto aparece: lá o transporte é HTTPS.
 
-⚠️ As portas locais do Supabase não são as padrão do CLI (`54391` para a API, `54392` para o banco). O
+⚠️ As portas locais do Supabase não são as padrão do CLI (`54691` para a API, `54692` para o banco). O
 Windows reserva faixas de porta para o Hyper-V, e na máquina onde isto foi escrito a faixa reservada cobria
 as nove portas padrão. O motivo e como conferir a sua estão no cabeçalho de `supabase/config.toml`.
 
 Sem Docker, para o laço curto de quem implementa: `npm run dev`, mas aí a URL do provedor é
-`http://127.0.0.1:54391` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
+`http://127.0.0.1:54691` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
 nome de host só**. E ele ocupa a `3000`: **deixe-o rodando e o `npm run local` não sobe.** O pré-voo diz isso
 de saída, em vez de deixar o Docker reclamar de `bind` quatro minutos depois.
 

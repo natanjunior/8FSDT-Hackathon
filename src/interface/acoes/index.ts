@@ -30,6 +30,7 @@ import {
   mensagensPorCampo,
   pedirRedefinicaoSchema,
 } from "@/interface/schemas";
+import { PARAMETRO_DA_SAIDA } from "@/interface/trabalhador/constantes";
 
 /**
  * ============================================================================
@@ -185,10 +186,15 @@ export async function acaoDeDefinirSenha(
   return { concluido: true };
 }
 
-/** O link "Sair" de T-02 e do shell. */
+/**
+ * O link "Sair" de T-02 e do shell.
+ *
+ * **O `?saiu=1` é o sinal para `LimpezaDaSaida`**, em T-01, apagar os caches e trocar o documento
+ * (critério 98.3). Sem JavaScript o parâmetro é inofensivo: `/entrar` ignora o que não conhece.
+ */
 export async function acaoDeSair(): Promise<void> {
   await sair(montarCredenciais(await armazenamentoDeCookies()));
-  redirect("/entrar");
+  redirect(`/entrar?${PARAMETRO_DA_SAIDA}=1`);
 }
 
 /**

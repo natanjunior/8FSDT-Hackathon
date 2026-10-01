@@ -9,6 +9,7 @@ import {
   PERFIL_DE_TESTE,
   planoDaDemonstracao,
   reconhecimentoDo,
+  UM_DIA,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
 } from "./plano";
@@ -223,12 +224,13 @@ describe("planoDaDemonstracao", () => {
     const contar = (status: string): number =>
       ocorrencias.filter((o) => o.statusFinal === status).length;
 
-    expect(ocorrencias).toHaveLength(36);
-    expect(ocorrencias.filter((o) => o.organizacao === "a")).toHaveLength(24);
+    // **37, e não 36, desde o item 101**: a ocorrência ancorada da parada entra fora dos baldes.
+    expect(ocorrencias).toHaveLength(37);
+    expect(ocorrencias.filter((o) => o.organizacao === "a")).toHaveLength(25);
     expect(ocorrencias.filter((o) => o.organizacao === "b")).toHaveLength(12);
     expect(contar("aberta")).toBe(4);
     expect(contar("em_analise")).toBe(4);
-    expect(contar("em_atendimento")).toBe(5);
+    expect(contar("em_atendimento")).toBe(6);
     expect(contar("pausada")).toBe(4);
     expect(contar("resolvida")).toBe(14);
     expect(contar("cancelada")).toBe(5);
@@ -458,5 +460,86 @@ describe("os testes de ponta a ponta não alcançam a demonstração (item 63)",
     for (const texto of [...Object.values(PERFIL_DE_TESTE.contas), ...Object.values(PERFIL_DE_TESTE.organizacoes)]) {
       expect(comoLiteral(fonte, texto), texto).toBe(true);
     }
+  });
+});
+
+/**
+ * **A ocorrência parada da demonstração — item 101, critério 7.**
+ *
+ * A semente distribui os instantes por **balde mensal**, e um balde não sabe dizer *"há nove dias"*:
+ * rodada no dia 3 ou no dia 28, a mesma ocorrência de `M-0` fica com idades diferentes. O cenário do
+ * vídeo pede nove dias, então esta ocorrência é datada por tempo decorrido, e não por balde.
+ *
+ * **As outras três presenças já existiam e não precisam de nada**: as pausadas antigas de `M-2`, as
+ * terminais antigas de `M-3`, e as não terminais recentes, que recebem mensagem e por isso têm o relógio
+ * zerado.
+ */
+describe("a ocorrência parada da demonstração — item 101, critério 7", () => {
+  const ultimoInstante = (o: OcorrenciaDoPlano): number =>
+    Math.max(...instantesDe(o).map((i) => Date.parse(i)));
+  const diasAtras = (o: OcorrenciaDoPlano, hoje: Date): number =>
+    Math.floor((hoje.getTime() - ultimoInstante(o)) / UM_DIA);
+
+  for (const quando of [HOJE, NO_DIA_1, new Date("2026-08-10T09:00:00.000Z")]) {
+    const dia = quando.toISOString().slice(0, 10);
+
+    it(`tem uma em atendimento sem atividade há 9 dias, rodada em ${dia}`, () => {
+      const plano = planoDaDemonstracao(quando);
+      const paradas = plano.ocorrencias.filter(
+        (o) => o.statusFinal === "em_atendimento" && diasAtras(o, quando) === 9,
+      );
+
+      expect(paradas).toHaveLength(1);
+      expect(paradas[0]?.organizacao).toBe("a");
+      expect(paradas[0]?.mensagem).toBeNull();
+    });
+
+    it(`os cinco critérios continuam valendo, rodada em ${dia}`, () => {
+      conferirOsCincoCriterios(planoDaDemonstracao(quando), quando);
+    });
+  }
+
+  it("tem uma pausada antiga, que o filtro não pega", () => {
+    const plano = planoDaDemonstracao(HOJE);
+    const antigas = plano.ocorrencias.filter(
+      (o) => o.statusFinal === "pausada" && diasAtras(o, HOJE) > 14,
+    );
+    expect(antigas.length).toBeGreaterThan(0);
+  });
+
+  it("tem uma terminal antiga, que o filtro não pega por ser terminal", () => {
+    const plano = planoDaDemonstracao(HOJE);
+    const antigas = plano.ocorrencias.filter(
+      (o) =>
+        (o.statusFinal === "resolvida" || o.statusFinal === "cancelada") && diasAtras(o, HOJE) > 30,
+    );
+    expect(antigas.length).toBeGreaterThan(0);
+  });
+
+  it("toda ocorrência do mês corrente tem mensagem, e por isso nenhuma delas cai no filtro", () => {
+    const plano = planoDaDemonstracao(HOJE);
+    const mesCorrente = plano.baldes.at(-1)?.rotulo;
+    const semMensagem = plano.ocorrencias.filter(
+      (o) => o.balde === mesCorrente && o.mensagem === null && !o.chave.startsWith("p-"),
+    );
+    expect(semMensagem).toStrictEqual([]);
+  });
+});
+
+describe("a tela de Participantes da demonstração não abre com duas colunas vazias — critério 106.13", () => {
+  const plano = planoDaDemonstracao(new Date("2026-10-01T12:00:00Z"));
+  const daA = plano.vinculos.filter((v) => v.organizacao === "a" && v.como === "cadastro");
+
+  it("três pessoas de A têm contato, e uma continua sem contato e sem atualização", () => {
+    expect(daA.filter((v) => (v.contatos ?? []).length > 0)).toHaveLength(3);
+    // A tela também precisa mostrar o estado vazio das duas colunas (spec §3.13).
+    expect(daA.some((v) => (v.contatos ?? []).length === 0 && v.unidadeDepois !== true)).toBe(true);
+  });
+
+  it("duas pessoas de A têm a unidade corrigida depois de criadas, o que move o relógio", () => {
+    const corrigidas = daA.filter((v) => v.unidadeDepois === true);
+    expect(corrigidas).toHaveLength(2);
+    // Corrigir é pôr a unidade do plano: só faz sentido em quem tem unidade.
+    for (const vinculo of corrigidas) expect(vinculo.area).not.toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 /** Superfície pública do módulo `aplicacao/organizacao` (ADR-0006, regra 3). */
 export { criarOrganizacao } from "./criar-organizacao";
-export { listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
+export { contarAreas, contarCategorias, listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
 export { pedirEntrada, type ComandoDePedirEntrada } from "./pedir-entrada";
 export {
   lerConvite,
@@ -25,13 +25,18 @@ export {
   verVinculo,
 } from "./vinculos";
 export {
+  alterarConfiguracao,
   corrigirArea,
   corrigirCategoria,
   corrigirOrganizacao,
   criarArea,
   criarCategoria,
+  lerConfiguracao,
+  lerRegrasDaOrganizacao,
+  lerRotulosDoSolicitante,
   reordenarAreas,
   reordenarCategorias,
+  type ComandoDeAlteracaoDeConfiguracao,
   type ComandoDeCorrecaoDeArea,
   type ComandoDeCorrecaoDeCategoria,
   type ComandoDeCorrecaoDeOrganizacao,
@@ -59,9 +64,13 @@ export {
   VinculoNaoEncontrado,
 } from "./erros";
 export type {
+  AlteracaoDeConfiguracao,
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ChaveDeConfiguracao,
+  ConfiguracaoLida,
+  ContagemDaLista,
   ContatoLido,
   ContatoParaEscrita,
   CorrecaoDeArea,
@@ -70,6 +79,7 @@ export type {
   DadosDaCorrecao,
   DadosDoCadastro,
   ImpedimentoDeRemocao,
+  MudancaDeConfiguracaoLida,
   NovaArea,
   NovaCategoria,
   NovaOrganizacao,
@@ -80,11 +90,14 @@ export type {
   PedidoDaPessoa,
   PedidoDeEntradaLido,
   PedidoDeEntradaRegistrado,
+  PedidoDeRotulos,
   PosicaoNaLista,
+  RegrasDaOrganizacao,
   Reordenacao,
   RepositorioDeConvites,
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
+  RepositorioEscopadoDaConfiguracao,
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
@@ -103,5 +116,6 @@ export type {
   ResultadoDeCriacaoDeCategoria,
   ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
+  RotulosDoSolicitante,
   VinculoLido,
 } from "./portas";

@@ -12,7 +12,7 @@ import {
 } from "@/aplicacao/ocorrencia";
 import { ehPrioridade, ehStatusOcorrencia } from "@/dominio/ocorrencia";
 import { ehSituacaoDoPedido, type SituacaoDoPedido } from "@/dominio/organizacao";
-import { decodificarCursorDeConversa } from "@/interface/projecoes";
+import { algumFiltroAlemDoAutor, decodificarCursorDeConversa } from "@/interface/projecoes";
 
 import { FormatoInvalido } from "./problema";
 
@@ -388,6 +388,21 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ]);
   }
 
+  /**
+   * **`parada=sim` — item 101.** Um valor só, na gramática de `autor=eu` e `compartilhadas=comigo`.
+   * Outro valor é recusado, nunca ignorado: descartá-lo devolveria um conjunto que o cliente não pediu,
+   * em silêncio.
+   *
+   * **Combina com tudo**, inclusive com `status` e com `autor`. `status=resolvida&parada=sim` é conjunto
+   * vazio, e conjunto vazio é resposta, não erro.
+   */
+  const parada = lerUnico(parametros, "parada");
+  if (parada !== undefined && parada !== "sim") {
+    throw new FormatoInvalido([
+      { campo: "parada", codigo: "VALOR_INVALIDO", mensagem: 'O único valor é "sim".' },
+    ]);
+  }
+
   // Campo ausente é "não filtre por esta dimensão" — por isso o espalhamento condicional em vez de
   // `status: undefined`, que faria `toStrictEqual({})` falhar e, pior, esconderia a diferença.
   return {
@@ -399,6 +414,7 @@ export function lerFiltroDeOcorrenciasDaUrl(parametros: URLSearchParams): Filtro
     ...(areaId === undefined ? {} : { areaId }),
     ...(responsavelPessoaId === undefined ? {} : { responsavelPessoaId }),
     ...(compartilhadas === undefined ? {} : { compartilhadasComigo: true }),
+    ...(parada === undefined ? {} : { apenasParadas: true }),
   };
 }
 
@@ -471,7 +487,7 @@ export function lerOrdenacaoDeOcorrenciasDaUrl(
 }
 
 /**
- * Se **algum** dos sete está aplicado. **`ordem` não conta**: ela não recorta, e *"Limpar filtros"* a
+ * Se **algum** dos oito está aplicado. **`ordem` não conta**: ela não recorta, e *"Limpar filtros"* a
  * mantém.
  *
  * **`compartilhadas` também não conta, e a razão difere da de `ordem`** (item 87). O `?autor=eu` está
@@ -484,15 +500,8 @@ export function lerOrdenacaoDeOcorrenciasDaUrl(
  * **mesmo sem barra na tela**.
  */
 export function algumFiltroAplicado(filtro: FiltroDeOcorrencias): boolean {
-  return (
-    filtro.status !== undefined ||
-    filtro.categoriaId !== undefined ||
-    filtro.prioridade !== undefined ||
-    filtro.apenasDoAutor === true ||
-    filtro.titulo !== undefined ||
-    filtro.areaId !== undefined ||
-    filtro.responsavelPessoaId !== undefined
-  );
+  // **As sete dimensões moram em `algumFiltroAlemDoAutor`** (item 102): uma lista só, mais o autor.
+  return algumFiltroAlemDoAutor(filtro) || filtro.apenasDoAutor === true;
 }
 
 /**

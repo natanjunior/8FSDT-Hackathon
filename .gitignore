@@ -20,6 +20,8 @@ trabalho/
 CLAUDE.md
 # O travamento de versao das skills nasce junto com o .claude/, e sai pelo mesmo motivo.
 skills-lock.json
+# A configuração do detector de design do Impeccable, incluindo o que ele aprende a ignorar.
+.impeccable/
 # Contexto de produto e design do Impeccable: ferramenta de quem desenvolve, como o CLAUDE.md.
 PRODUCT.md
 DESIGN.md

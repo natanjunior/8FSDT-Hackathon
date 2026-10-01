@@ -193,6 +193,24 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     expect(fonte).toContain('aria-current={marcado ? "page" : undefined}');
   });
 
+  it("o item marcado ganha uma régua de 2 px na cor da marca, além do fundo (critério 106.9)", () => {
+    const sidebar = ler("src/interface/componentes/ui/sidebar.tsx");
+    const base = /const sidebarMenuButtonVariants = cva\(\s*"([^"]*)"/u.exec(sidebar)?.[1] ?? "";
+    const classes = base.split(/\s+/u);
+    for (const classe of [
+      "relative",
+      "before:absolute",
+      "before:inset-y-1.5",
+      "before:left-0",
+      "before:w-0.5",
+      "before:rounded-full",
+      "data-[active=true]:before:bg-marca",
+      "data-[active=true]:bg-sidebar-accent",
+    ]) {
+      expect(classes, classe).toContain(classe);
+    }
+  });
+
   it("a palavra anterior da contagem não sobra na casca", () => {
     const comAPalavra = arquivosDe("src/interface/componentes/casca").filter((caminho) =>
       ler(caminho).includes("aguardando"),
@@ -204,7 +222,24 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
+    // `pt-6` no grupo do painel é respiro vertical, no lugar da régua sem título (critério 106.16).
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0 pt-6", "p-0"]);
+  });
+
+  it("dentro de «Nesta organização» a régua só fica acima de grupo com título (critério 106.16)", () => {
+    const fonte = ler(NAVEGACAO);
+    // Até o `</nav>` do primeiro marco: a régua entre os dois marcos fica fora por construção, e ela
+    // separa marcos, não grupos (o caso do item 64 a guarda).
+    const marco = fonte.slice(
+      fonte.indexOf('<nav aria-label="Nesta organização"'),
+      fonte.lastIndexOf("</nav>", fonte.indexOf('<nav aria-label="Além desta organização"')),
+    );
+    const blocos = marco.split("<SidebarSeparator").slice(1);
+    expect(blocos.length).toBeGreaterThan(0);
+    for (const bloco of blocos) {
+      const grupo = bloco.slice(0, bloco.indexOf("</SidebarGroup>"));
+      expect(grupo).toContain("<SidebarGroupLabel");
+    }
   });
 
   it("Meus dados mora num segundo marco, fora de «Nesta organização», depois de uma régua (item 64)", () => {
@@ -226,7 +261,9 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
 });
 
 /**
- * As oito páginas que recusam sem redirecionar, com o título da face normal e a permissão.
+ * As nove páginas que recusam sem redirecionar, com o título da face normal e a permissão.
+ *
+ * **A nona é o QR da área** (item 111), debaixo de T-14 e com a mesma permissão.
  *
  * **Eram onze até o item 44k**, que apagou as quatro rotas próprias de criar e editar de T-09 e T-14: as
  * duas listas passaram a criar e editar em modal, e o estado sem acesso das duas telas ficou sendo a
@@ -237,14 +274,15 @@ const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> =
   "app/(casca)/convidar/page.tsx": ["Convidar pessoas", "vinculo.gerir"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
-  "app/(casca)/dashboard/page.tsx": ["Dashboard", "dashboard.ler"],
+  "app/(casca)/configuracao/areas/[areaId]/qr/page.tsx": ["QR da área", "organizacao.configurar"],
+  "app/(casca)/dashboard/page.tsx": ["Painel", "dashboard.ler"],
   "app/(casca)/vinculos/page.tsx": ["Participantes", "vinculo.gerir"],
   "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
   "app/(casca)/vinculos/[pessoaId]/editar/page.tsx": ["Editar participante", "vinculo.gerir"],
 };
 
 describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
-  it("as páginas da casca que recusam sem redirecionar são as oito", () => {
+  it("as páginas da casca que recusam sem redirecionar são as nove", () => {
     const recusam = arquivosDe("app/(casca)")
       .filter((caminho) => caminho.endsWith("/page.tsx"))
       .filter((caminho) =>

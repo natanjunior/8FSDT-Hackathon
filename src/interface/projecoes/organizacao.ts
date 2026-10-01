@@ -2,9 +2,12 @@ import type {
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
+  ChaveDeConfiguracao,
+  ConfiguracaoLida,
   OrganizacaoCriada,
   OrganizacaoLida,
 } from "@/aplicacao/organizacao";
+import { STATUS, type StatusOcorrencia } from "@/dominio/ocorrencia";
 
 /**
  * As projeções dos schemas `Organizacao`, `Categoria` e `Area` do `openapi.yaml`.
@@ -103,4 +106,54 @@ export type AreaAtualizadaProjetada = AreaProjetada & { ocorrenciasComTipoAnteri
  */
 export function projetarAreaAtualizada(area: AreaAtualizada): AreaAtualizadaProjetada {
   return { ...projetarArea(area), ocorrenciasComTipoAnterior: area.ocorrenciasComTipoAnterior };
+}
+
+/** Uma linha da trilha, como o contrato a publica (item 99). */
+export type MudancaDeConfiguracaoProjetada = {
+  chave: ChaveDeConfiguracao;
+  valorAnterior: string;
+  valorNovo: string;
+  autor: { pessoaId: string; nome: string };
+  ocorridaEm: string;
+};
+
+/**
+ * O schema `Configuracao` do contrato — o que `GET` e `PATCH /configuracao` devolvem (item 99).
+ *
+ * **A forma é plana**: `regras` é agrupamento da porta, e não sobe. Quem lê o JSON encontra as duas
+ * chaves ao lado das mudanças, que é como a tela as usa.
+ */
+export type ConfiguracaoProjetada = {
+  exigirSolucaoAoResolver: boolean;
+  limiteDeCancelamentoDoSolicitante: "em_analise" | "em_atendimento";
+  /** Quantos dias sem atividade até a ocorrência contar como parada (item 101). De 1 a 90. */
+  diasParaParada: number;
+  /**
+   * O texto que quem abriu lê em cada ponto do ciclo (item 100). **Os seis estados sempre presentes**,
+   * com `null` onde vale o padrão: presença fixa é o que impede a tela de confundir *"não customizado"*
+   * com *"o campo não veio"*.
+   */
+  rotulosDoSolicitante: Readonly<Record<StatusOcorrencia, string | null>>;
+  mudancas: readonly MudancaDeConfiguracaoProjetada[];
+};
+
+export function projetarConfiguracao(lida: ConfiguracaoLida): ConfiguracaoProjetada {
+  return {
+    exigirSolucaoAoResolver: lida.regras.exigirSolucaoAoResolver,
+    limiteDeCancelamentoDoSolicitante: lida.regras.limiteDeCancelamentoDoSolicitante,
+    diasParaParada: lida.regras.diasParaParada,
+    // **Montado sobre `STATUS`, e não sobre o que a porta trouxe**: a porta traz só o customizado, e a
+    // tela precisa dos seis para desenhar a lista inteira.
+    rotulosDoSolicitante: Object.fromEntries(
+      STATUS.map((status) => [status, lida.rotulos[status] ?? null]),
+    ) as Record<StatusOcorrencia, string | null>,
+    // **Campo a campo, e nunca o objeto da porta inteiro**: a projeção escolhe o que sai.
+    mudancas: lida.mudancas.map((mudanca) => ({
+      chave: mudanca.chave,
+      valorAnterior: mudanca.valorAnterior,
+      valorNovo: mudanca.valorNovo,
+      autor: { pessoaId: mudanca.autor.pessoaId, nome: mudanca.autor.nome },
+      ocorridaEm: mudanca.ocorridaEm,
+    })),
+  };
 }

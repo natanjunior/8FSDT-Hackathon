@@ -98,7 +98,7 @@ export function ModalDeMotivo({
   avisoDeVisibilidade: string;
   /**
    * **Três variantes, e a terceira é do item 23:** `"menu"` renderiza o gatilho como
-   * `DropdownMenuItem`, para o modal poder viver dentro do *"Mais ações ▾"*.
+   * `DropdownMenuItem`, para o modal poder viver dentro do *"Mais ações"*.
    */
   variante: "primario" | "secundario" | "menu";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */
@@ -229,7 +229,7 @@ export function ModalDeMotivo({
               /* **`items-start` só quando há descrição**, para o rádio alinhar com a PRIMEIRA linha em
                  vez de centralizar num bloco de duas. `min-h-11` continua nos dois casos, e o alvo de
                  toque cresce em vez de encolher (A-3). */
-              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 ${
+              className={`border-linha group-data-invalido:border-destructive/[75%] text-interface flex min-h-11 cursor-pointer gap-3 rounded-sm border px-3 ${
                 motivo.descricao === undefined ? "items-center py-2" : "items-start py-2.5"
               }`}
             >

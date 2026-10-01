@@ -233,7 +233,7 @@ export function acaoPrimaria(
  *  O que vai na barra e o que vai no menu — a regra do item 23
  * ============================================================================
  *
- * **Três renderizáveis ou mais → primário + *"Mais ações ▾"*; dois → dois botões.**
+ * **Três renderizáveis ou mais → primário + *"Mais ações"*; dois → dois botões.**
  *
  * **Não é contagem por gosto: é a largura.** Com três em 390 px, o mínimo de conteúdo soma **~365 px**
  * contra **~358 px** disponíveis — *"Iniciar atendimento"* (~178) + *"Atribuir"* (~87) + *"Pausar"*
@@ -667,4 +667,18 @@ export function textoDaNota(nota: number | null): string {
   if (nota === null) return "Escolha de 1 a 5";
   const descricao = descricaoDaNota(nota);
   return descricao === null ? `${String(nota)} de 5` : `${String(nota)} de 5, ${descricao}`;
+}
+
+/**
+ * **O destaque da ocorrência parada** — item 101, e o sinal de envelhecimento da D16.
+ *
+ * **A palavra carrega o sentido**, e a cor só acompanha (A-5). O texto é curto porque cabe numa célula de
+ * tabela e num cartão de celular, e porque o lugar da explicação é o glossário, não a linha da lista.
+ *
+ * `null` é ausência de destaque, e não texto vazio: a ocorrência não está parada, por estado ou por
+ * tempo, e nada aparece na linha.
+ */
+export function fraseDaParada(dias: number | null): string | null {
+  if (dias === null) return null;
+  return `Parada há ${String(dias)} ${dias === 1 ? "dia" : "dias"}`;
 }

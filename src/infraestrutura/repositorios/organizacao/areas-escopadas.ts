@@ -22,6 +22,16 @@ export function repositorioEscopadoDeAreas(
       return lerAreas(consulta, apenasAtivas);
     },
 
+    async contar() {
+      // **O `::int` não é decoração:** `count(*)` é `bigint`, e o `pg` o devolve como string.
+      const [linha] = await consulta<{ ativas: number; total: number }>(
+        `select count(*) filter (where ativa)::int as ativas, count(*)::int as total
+           from areas
+          where organizacao_id = $1`,
+      );
+      return { ativas: linha?.ativas ?? 0, total: linha?.total ?? 0 };
+    },
+
     async criar(nova) {
       try {
         // **`$4` nulo é a intenção *no fim*** (item 50, spec §4.3), calculada na própria instrução. Ver o

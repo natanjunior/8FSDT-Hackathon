@@ -7,11 +7,17 @@
 #  portas padrão do Supabase CLI (54321 a 54329), e o `supabase start` falha com
 #  "ports are not available … forbidden by its access permissions".
 #
-#  As portas foram movidas para 543 9x, fora daquela faixa. Confira a sua com:
+#  Em 30/09/2026 a faixa reservada mudou para 54324-54423 e engoliu as 5439x
+#  inteiras, com o mesmo erro. As portas estão agora em 5469x. Confira a sua com:
 #    netsh interface ipv4 show excludedportrange protocol=tcp
 #
-#  Se colidir de novo, mova aqui e no `.env.local` — não há override por máquina
-#  neste arquivo, e é por isso que a decisão está escrita e não implícita.
+#  Se colidir de novo, mova nos SEIS lugares que nomeiam as portas — não há
+#  override por máquina neste arquivo, e é por isso que a decisão está escrita:
+#    1. este arquivo            4. `testes/ponta-a-ponta/recuperacao-de-senha.spec.ts` (a caixa de e-mail)
+#    2. `.env.local`            5. `testes/integracao/banco.test.ts` (as URLs de exemplo)
+#    3. `.env.example`          6. `ferramentas/verificadores/auth-publicado.mjs` (o comentário)
+#  e o aviso do `README.md`. Em 30/09/2026 o 4 foi esquecido, e o ponta a ponta da
+#  recuperação de senha caiu com a caixa inalcançável — não com erro de porta.
 # ============================================================================
 
 # For detailed configuration reference documentation, visit:
@@ -23,7 +29,7 @@ project_id = "resolve-ai"
 [api]
 enabled = true
 # Port to use for the API URL.
-port = 54391
+port = 54691
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
 schemas = ["public", "graphql_public"]
@@ -42,9 +48,9 @@ enabled = false
 
 [db]
 # Port to use for the local database URL.
-port = 54392
+port = 54692
 # Port used by db diff command to initialize the shadow database.
-shadow_port = 54390
+shadow_port = 54690
 # Maximum amount of time to wait for health check when starting the local database.
 health_timeout = "2m"
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
@@ -54,7 +60,7 @@ major_version = 17
 [db.pooler]
 enabled = false
 # Port to use for the local connection pooler.
-port = 54399
+port = 54699
 # Specifies when a server connection can be reused by other clients.
 # Configure one of the supported pooler modes: `transaction`, `session`.
 pool_mode = "transaction"
@@ -105,7 +111,7 @@ enabled = false
 [studio]
 enabled = true
 # Port to use for Supabase Studio.
-port = 54393
+port = 54693
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
 # OpenAI API Key to use for Supabase AI in the Supabase Studio.
@@ -116,7 +122,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 [inbucket]
 enabled = true
 # Port to use for the email testing server web interface.
-port = 54394
+port = 54694
 # Uncomment to expose additional ports for testing user applications that send emails.
 # smtp_port = 54325
 # pop3_port = 54326
@@ -419,7 +425,7 @@ deno_version = 2
 
 [analytics]
 enabled = false
-port = 54397
+port = 54697
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 

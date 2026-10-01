@@ -1,6 +1,6 @@
 import type { DashboardLido } from "@/aplicacao/dashboard";
 
-import { rotuloDeStatus } from "./ocorrencia";
+import { LENTE_DO_GESTOR, rotuloDeStatus } from "./ocorrencia";
 import { projetarArea, type AreaProjetada } from "./organizacao";
 
 /**
@@ -82,8 +82,11 @@ export type DashboardProjetado = {
  *
  * **`null` no motivo, e não é perda:** o backlog por status conta linhas agrupadas, e a lista das mais
  * velhas não traz o motivo da pausa. Do lado do Gestor `pausada` é *"Pausada"* com ou sem ele.
+ *
+ * **O painel não tem como ler rótulo de organização** (item 100), e a garantia é do tipo: a lente do
+ * Gestor é o ramo que não carrega o campo dos rótulos, então não há corpo de função a conferir.
  */
-const LENTE_DO_DASHBOARD = "gestor" as const;
+const LENTE_DO_DASHBOARD = LENTE_DO_GESTOR;
 
 export function projetarDashboard(lido: DashboardLido): DashboardProjetado {
   return {

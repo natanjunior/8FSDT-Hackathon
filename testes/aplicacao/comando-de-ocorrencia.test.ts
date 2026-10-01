@@ -25,6 +25,7 @@ import {
   retomarOcorrencia,
   SomenteOAutorPodeAvaliar,
   SomenteOGestorCancelaNesteEstado,
+  SolucaoObrigatoria,
   SoParaLeitura,
   TransicaoNaoPermitida,
   type CompartilhamentoLido,
@@ -37,6 +38,7 @@ import {
   type ResultadoDaSolucaoAplicada,
   type ResultadoDaTransicao,
 } from "@/aplicacao/ocorrencia";
+import type { RegrasDaOrganizacao } from "@/aplicacao/organizacao";
 import { Ocorrencia, RegistroDeTransicao, type StatusOcorrencia } from "@/dominio/ocorrencia";
 import type { Papel } from "@/dominio/organizacao";
 
@@ -53,6 +55,13 @@ import type { Papel } from "@/dominio/organizacao";
  * prova e não uma encenação: se o comando parasse de atravessar o agregado, o `status` do que chega ao
  * duplo sumiria em vez de continuar certo por acidente.
  */
+
+/** As regras de toda organização nova (item 99): nada exigido, cancelamento do autor até `em_analise`. */
+const REGRAS_DE_HOJE: RegrasDaOrganizacao = {
+  exigirSolucaoAoResolver: false,
+  limiteDeCancelamentoDoSolicitante: "em_analise",
+  diasParaParada: 7,
+};
 
 const ID = "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8";
 const GESTOR = "9f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f";
@@ -204,6 +213,7 @@ function lidaDe(agregado: Ocorrencia): OcorrenciaLida {
     },
     registradaEm: agregado.registradaEm,
     atualizadaEm: ultima.ocorreuEm,
+    regrasDaOrganizacao: REGRAS_DE_HOJE,
   };
 }
 
@@ -241,6 +251,8 @@ function repositorio(opcoes: {
   /** Com quem a ocorrência está compartilhada (item 87). Uma pessoa basta: o que se mede é o desfecho da
    *  recusa, `403` em vez de `404`, e não a forma da lista. */
   compartilhadaCom?: string;
+  /** As regras da organização que o envelope carrega (item 99). Padrão: as de toda organização nova. */
+  regras?: Partial<RegrasDaOrganizacao>;
 }): RepositorioEscopadoDeOcorrencias {
   let chamada = 0;
   let ultimaCarga: Ocorrencia | null = null;
@@ -254,7 +266,11 @@ function repositorio(opcoes: {
       // **O duplo transcreve o envelope, como o repositório de verdade transcreve o agregado.**
       return carga === null
         ? null
-        : { ocorrencia: carga, temResponsavel: opcoes.temResponsavel ?? false };
+        : {
+            ocorrencia: carga,
+            temResponsavel: opcoes.temResponsavel ?? false,
+            regras: { ...REGRAS_DE_HOJE, ...opcoes.regras },
+          };
     },
     aplicarTransicao: async (_id: string, ocorrencia: Ocorrencia): Promise<ResultadoDaTransicao> => {
       aplicados.push(ocorrencia);
@@ -2041,5 +2057,89 @@ describe("88 · registrar a abertura", () => {
     await expect(
       registrarAberturaDoCompartilhamento(repo, "oc-2", { pessoaId: "p-2" }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("as regras da organização nos comandos — item 99", () => {
+  // **Locais a este bloco**, como os `ctx` dos blocos vizinhos: os de `cancelarOcorrencia` não são
+  // visíveis aqui. A autora de `agregadoEm` é a MORADORA, e `agregadoPausadoDe` a mantém (quem pausou
+  // foi o Gestor).
+  const ctxDoGestor = { pessoaId: GESTOR, permissoes: DO_GESTOR, agora: "2026-09-30T10:00:00.000Z" };
+  const ctxDoAutor = { pessoaId: MORADORA, permissoes: DO_SOLICITANTE, agora: "2026-09-30T10:00:00.000Z" };
+  const DO_AUTOR = { ocorrenciaId: ID, motivo: "desistencia" as const, observacao: "Resolvi sozinha." };
+
+  it("regra ligada: resolver sem solução é 422 SOLUCAO_OBRIGATORIA, no campo solucaoAplicada", async () => {
+    const erro = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")], regras: { exigirSolucaoAoResolver: true } }),
+      ctxDoGestor,
+      { ocorrenciaId: ID },
+    ).catch((causa: unknown) => causa);
+
+    expect(erro).toBeInstanceOf(SolucaoObrigatoria);
+    const recusa = erro as SolucaoObrigatoria;
+    expect(recusa.codigo).toBe("SOLUCAO_OBRIGATORIA");
+    expect(recusa.detalhe).toBe("Esta organização exige a solução aplicada para resolver.");
+    expect(recusa.extensoes["erros"]).toStrictEqual([
+      { campo: "solucaoAplicada", codigo: "SOLUCAO_OBRIGATORIA" },
+    ]);
+  });
+
+  it("regra ligada: solução só com espaços é o mesmo que nenhuma", async () => {
+    await expect(
+      resolverOcorrencia(
+        repositorio({ cargas: [agregadoEm("em_atendimento")], regras: { exigirSolucaoAoResolver: true } }),
+        ctxDoGestor,
+        { ocorrenciaId: ID, solucaoAplicada: "   " },
+      ),
+    ).rejects.toBeInstanceOf(SolucaoObrigatoria);
+  });
+
+  it("regra ligada: com a solução no corpo, resolve", async () => {
+    const lida = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")], regras: { exigirSolucaoAoResolver: true } }),
+      ctxDoGestor,
+      { ocorrenciaId: ID, solucaoAplicada: "Trocada a lâmpada." },
+    );
+    expect(lida.status).toBe("resolvida");
+  });
+
+  it("regra ligada: com a solução já gravada e o corpo vazio, resolve", async () => {
+    const comSolucao = agregadoEm("em_atendimento").registrarSolucaoAplicada({
+      solucaoAplicada: "Registrada antes.",
+    });
+    const lida = await resolverOcorrencia(
+      repositorio({ cargas: [comSolucao], regras: { exigirSolucaoAoResolver: true } }),
+      ctxDoGestor,
+      { ocorrenciaId: ID },
+    );
+    expect(lida.status).toBe("resolvida");
+  });
+
+  it("regra desligada: resolver sem solução continua 200 — o critério 25.4 de pé", async () => {
+    const lida = await resolverOcorrencia(
+      repositorio({ cargas: [agregadoEm("em_atendimento")] }),
+      ctxDoGestor,
+      { ocorrenciaId: ID },
+    );
+    expect(lida.status).toBe("resolvida");
+  });
+
+  it("limite estendido: o autor cancela em em_atendimento e em pausada", async () => {
+    for (const carga of [agregadoEm("em_atendimento"), agregadoPausadoDe("em_analise")]) {
+      const lida = await cancelarOcorrencia(
+        repositorio({ cargas: [carga], regras: { limiteDeCancelamentoDoSolicitante: "em_atendimento" } }),
+        ctxDoAutor,
+        DO_AUTOR,
+      );
+      expect(lida.status).toBe("cancelada");
+    }
+  });
+
+  it("limite padrão: o autor leva 403 nos mesmos dois estados", async () => {
+    for (const carga of [agregadoEm("em_atendimento"), agregadoPausadoDe("em_analise")]) {
+      await expect(
+        cancelarOcorrencia(repositorio({ cargas: [carga] }), ctxDoAutor, DO_AUTOR),
+      ).rejects.toBeInstanceOf(SomenteOGestorCancelaNesteEstado);
+    }
   });
 });

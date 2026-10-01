@@ -35,7 +35,9 @@ export function PeDaBarra() {
       <nav aria-label="Sobre o projeto" className="flex flex-col">
         <SidebarMenu>
           <ItemExterno endereco="/documentacao" rotulo="Documentação" Icone={BookOpen} aoTocar={aoTocar} />
-          <ItemExterno endereco="/grupo" rotulo="Grupo 1" Icone={GraduationCap} aoTocar={aoTocar} />
+          {/* *Sobre o projeto*, o nome do próprio marco (item 106, critério 17). *Grupo 1* é nome próprio e
+              continua onde é nome: o título de `/grupo` e o *Feito pelo Grupo 1* de `/entrar`. */}
+          <ItemExterno endereco="/grupo" rotulo="Sobre o projeto" Icone={GraduationCap} aoTocar={aoTocar} />
         </SidebarMenu>
       </nav>
     </SidebarFooter>

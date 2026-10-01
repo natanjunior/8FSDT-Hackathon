@@ -8,11 +8,15 @@
 export default function EsperandoORegistro() {
   return (
     <div className="flex flex-col gap-5.5">
+      {/* A altura do caminho, reservada: a página não pula quando ele chega (critério 106.5). */}
+      <div aria-hidden className="-mb-2.5 flex h-11 items-center">
+        <div className="bg-secondary h-4 w-44 animate-pulse rounded" />
+      </div>
       <h1 className="text-titulo-pagina text-tinta">Registrar ocorrência</h1>
 
       <div
         aria-hidden
-        className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
+        className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm lg:p-[18px]"
       >
         <div className="bg-secondary h-6 w-[30%] animate-pulse rounded" />
         <div className="bg-secondary h-11 animate-pulse rounded" />

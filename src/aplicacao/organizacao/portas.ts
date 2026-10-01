@@ -1,3 +1,4 @@
+import type { LimiteDeCancelamentoDoSolicitante, StatusOcorrencia } from "@/dominio/ocorrencia";
 import type {
   AreaSemente,
   CategoriaSemente,
@@ -72,6 +73,25 @@ export type OrganizacaoLida = {
 };
 
 /**
+ * **As regras da organização que mudam o comportamento de um comando** (item 99, D29 e a D22).
+ *
+ * Moram aqui porque são da organização; atravessam para `aplicacao/ocorrencia` pelo envelope de `carregar`
+ * e pelo modelo de leitura, e o agregado `Ocorrência` nunca as recebe (ADR-0001 intacta).
+ */
+export type RegrasDaOrganizacao = {
+  exigirSolucaoAoResolver: boolean;
+  limiteDeCancelamentoDoSolicitante: LimiteDeCancelamentoDoSolicitante;
+  /**
+   * **Quantos dias sem atividade até a ocorrência contar como parada** — item 101. De 1 a 90, padrão 7.
+   *
+   * **Obrigatório, como os outros dois**, e pela mesma razão: um opcional com padrão é a forma de um
+   * chamador esquecer sem nenhum teste falhar. **Nenhum comando o usa** — ele serve ao `GET`, ao
+   * `PATCH`, à tela e ao filtro da listagem, que o lê direto do banco na mesma instrução que lista.
+   */
+  diasParaParada: number;
+};
+
+/**
  * O que muda na organização ativa. **`nome` opcional, e é o que deixa o segundo campo ser aditivo**
  * (contrato §11) — com um campo só, obrigatório daria o mesmo resultado hoje e o dia da logo custaria
  * uma mudança de assinatura.
@@ -100,6 +120,79 @@ export type CorrecaoDeOrganizacao = {
  */
 export interface RepositorioEscopadoDaOrganizacao {
   corrigir(correcao: CorrecaoDeOrganizacao): Promise<OrganizacaoLida>;
+}
+
+/**
+ * As chaves que a trilha de configuração conhece. As três primeiras são os nomes das colunas de
+ * `organizacoes`, como o banco os grava; as seis de rótulo (item 100) são `rotulo_` mais o estado.
+ */
+export type ChaveDeConfiguracao =
+  | "exigir_solucao_ao_resolver"
+  | "limite_cancelamento_solicitante"
+  | "dias_para_parada"
+  | `rotulo_${StatusOcorrencia}`;
+
+/**
+ * **O que a organização customizou** (item 100). Estado ausente significa *"vale o padrão"*, e é a
+ * ausência que responde *"esta organização mexeu no texto?"* — não há linha para o padrão.
+ */
+export type RotulosDoSolicitante = Readonly<Partial<Record<StatusOcorrencia, string>>>;
+
+/**
+ * **O que a escrita pede** (item 100): `null` devolve ao padrão, e estado ausente é *não mexa*. São duas
+ * ausências diferentes, e por isso o `null` existe — sem ele não haveria como apagar um rótulo.
+ */
+export type PedidoDeRotulos = Readonly<Partial<Record<StatusOcorrencia, string | null>>>;
+
+/** Uma linha da trilha de configuração (item 99, D30). */
+export type MudancaDeConfiguracaoLida = {
+  chave: ChaveDeConfiguracao;
+  /** Como o banco guarda: `"true"`/`"false"`, ou o nome do estado. A tela traduz. */
+  valorAnterior: string;
+  valorNovo: string;
+  autor: PessoaReferenciaDaConfiguracao;
+  ocorridaEm: string;
+};
+
+/** Quem mudou a regra, como toda leitura de gente devolve: sem contato, sem papel. */
+export type PessoaReferenciaDaConfiguracao = { pessoaId: string; nome: string };
+
+/** O que `GET /configuracao` devolve: as regras de agora, os textos de quem abriu, e a história das duas. */
+export type ConfiguracaoLida = {
+  regras: RegrasDaOrganizacao;
+  /** Só os estados customizados (item 100). Objeto vazio quando a organização não mexeu em nenhum. */
+  rotulos: RotulosDoSolicitante;
+  /** Da mais recente para a mais antiga. Lista vazia, nunca `null`. */
+  mudancas: readonly MudancaDeConfiguracaoLida[];
+};
+
+/** O que a porta de escrita recebe. **Campo ausente é *não mexa*.** */
+export type AlteracaoDeConfiguracao = Partial<RegrasDaOrganizacao> & {
+  /** Item 100. Ausente é *não mexa em rótulo nenhum*; dentro dele, `null` devolve aquele ao padrão. */
+  rotulos?: PedidoDeRotulos;
+  /** Quem mudou. Vai para `atualizado_por_pessoa_id`, de onde o gatilho da migração 017 tira o autor. */
+  atualizadaPorPessoaId: string;
+};
+
+/**
+ * **A porta escopada da configuração** (item 99).
+ *
+ * Como a irmã de `organizacoes`, ela **não recebe** o identificador da organização: ele entra em `$1`
+ * pelo ponto único.
+ *
+ * **A trilha tem dois caminhos, e a diferença é quem sabe o valor anterior.** A mudança de regra é
+ * gravada pelo gatilho da migração 017, dentro da mesma instrução de `update`, com o valor anterior da
+ * linha travada. A mudança de rótulo é gravada pela implementação, na mesma transação da escrita: um
+ * gatilho na tabela dos rótulos não saberia **quem apagou** uma linha, porque a linha apagada carrega o
+ * autor da escrita anterior e o `delete` não traz autor nenhum (item 100).
+ */
+export interface RepositorioEscopadoDaConfiguracao {
+  ler(): Promise<ConfiguracaoLida>;
+  /** Só as regras, sem a trilha — a leitura que T-03 faz em toda abertura da lista (item 101). */
+  lerRegras(): Promise<RegrasDaOrganizacao>;
+  alterar(alteracao: AlteracaoDeConfiguracao): Promise<ConfiguracaoLida>;
+  /** Só os rótulos — a leitura barata que toda requisição do Solicitante faz para montar a lente. */
+  rotulosDoSolicitante(): Promise<RotulosDoSolicitante>;
 }
 
 /** O schema `Categoria` do contrato. `icone` **nunca vem nulo** — a coluna é `NOT NULL`. */
@@ -236,6 +329,12 @@ export type ResultadoDaReordenacao<L> =
   | { desfecho: "lista-desatualizada" };
 
 /**
+ * **Quantas há, e quantas delas estão ativas** — item 106, critério 3. É o que `/configuracao` imprime
+ * (*"7 ativas de 8"*), e ler as listas inteiras para isso era trazer cada linha só para contá-la.
+ */
+export type ContagemDaLista = { ativas: number; total: number };
+
+/**
  * As duas portas escopadas desta fatia. Nenhuma recebe o identificador da organização — ele está amarrado
  * ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é. É isso que torna
  * *"categoria de outra organização"* **inalcançável**, e é daí que sai o `404` idêntico ao de inexistente
@@ -243,6 +342,8 @@ export type ResultadoDaReordenacao<L> =
  */
 export interface RepositorioEscopadoDeCategorias {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly CategoriaLida[]>;
+  /** Numa consulta só: `count(*)` e `count(*) filter (where ativa)`. */
+  contar(): Promise<ContagemDaLista>;
   criar(nova: NovaCategoria): Promise<ResultadoDeCriacaoDeCategoria>;
   corrigir(correcao: CorrecaoDeCategoria): Promise<ResultadoDeCorrecaoDeCategoria>;
   /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */
@@ -251,6 +352,8 @@ export interface RepositorioEscopadoDeCategorias {
 
 export interface RepositorioEscopadoDeAreas {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly AreaLida[]>;
+  /** Numa consulta só: `count(*)` e `count(*) filter (where ativa)`. */
+  contar(): Promise<ContagemDaLista>;
   criar(nova: NovaArea): Promise<ResultadoDeCriacaoDeArea>;
   corrigir(correcao: CorrecaoDeArea): Promise<ResultadoDeCorrecaoDeArea>;
   /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */

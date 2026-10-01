@@ -35,7 +35,7 @@ export default function FalhaDaPagina({
         </Link>
       }
     >
-      <Button type="button" className="h-11 w-full font-medium" onClick={() => retry()}>
+      <Button type="button" variant="marca" className="h-11 w-full font-medium" onClick={() => retry()}>
         {FRASES_DE_FALHA.acao}
       </Button>
     </MolduraDeConta>

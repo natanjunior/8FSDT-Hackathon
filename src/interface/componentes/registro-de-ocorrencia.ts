@@ -128,10 +128,20 @@ export function errosDoRegistro(valores: ValoresDoRegistro): Readonly<Record<str
 /**
  * **A foto entra na conta, e não entrava:** escolher uma foto, esperar subir e cancelar descartava o
  * envio sem perguntar nada.
+ *
+ * **Compara com o que a tela abriu, e não com o vazio** (item 111): a área vinda do QR não é algo que a
+ * pessoa escreveu, e *Cancelar* sem tocar em nada não pergunta se ela quer descartar. Sem `inicial`, o
+ * aberto é o vazio, e a regra é a de antes: `vazio` apara antes de comparar.
  */
-export function temAlgoEscrito(valores: ValoresDoRegistro, comFoto: boolean): boolean {
+export function temAlgoEscrito(
+  valores: ValoresDoRegistro,
+  comFoto: boolean,
+  inicial: ValoresDoRegistro = VALORES_VAZIOS,
+): boolean {
   if (comFoto) return true;
-  return Object.values(valores).some((valor) => !vazio(valor));
+  return (Object.keys(valores) as (keyof ValoresDoRegistro)[]).some(
+    (campo) => valores[campo].trim() !== inicial[campo].trim(),
+  );
 }
 
 /**
@@ -228,6 +238,7 @@ export const DESCARTE = {
 
 export const FOTO = {
   vazioTitulo: "Adicionar foto",
+  vazioOpcional: "(opcional)",
   vazioApoio: "Tire na hora ou escolha da galeria.",
   preparando: "Preparando a foto…",
   subindoTitulo: "Enviando a foto",
@@ -265,6 +276,11 @@ export const AREA = {
   gatilhoVazio: "Busque ou escolha",
   tituloDoPainel: "Onde aconteceu?",
   busca: "Buscar pelo nome",
+  /**
+   * O nome do campo de busca (critério 106.7): o `placeholder` some quando a pessoa digita, e o nome
+   * não pode sumir junto.
+   */
+  nomeDaBusca: "Buscar área pelo nome",
   usadas: "Usadas por você",
   todas: "Todas as áreas",
   semResultado: "Nenhuma área com esse nome.",
