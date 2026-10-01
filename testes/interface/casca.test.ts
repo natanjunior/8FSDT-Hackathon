@@ -222,7 +222,24 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
+    // `pt-6` no grupo do painel é respiro vertical, no lugar da régua sem título (critério 106.16).
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0 pt-6", "p-0"]);
+  });
+
+  it("dentro de «Nesta organização» a régua só fica acima de grupo com título (critério 106.16)", () => {
+    const fonte = ler(NAVEGACAO);
+    // Até o `</nav>` do primeiro marco: a régua entre os dois marcos fica fora por construção, e ela
+    // separa marcos, não grupos (o caso do item 64 a guarda).
+    const marco = fonte.slice(
+      fonte.indexOf('<nav aria-label="Nesta organização"'),
+      fonte.lastIndexOf("</nav>", fonte.indexOf('<nav aria-label="Além desta organização"')),
+    );
+    const blocos = marco.split("<SidebarSeparator").slice(1);
+    expect(blocos.length).toBeGreaterThan(0);
+    for (const bloco of blocos) {
+      const grupo = bloco.slice(0, bloco.indexOf("</SidebarGroup>"));
+      expect(grupo).toContain("<SidebarGroupLabel");
+    }
   });
 
   it("Meus dados mora num segundo marco, fora de «Nesta organização», depois de uma régua (item 64)", () => {
