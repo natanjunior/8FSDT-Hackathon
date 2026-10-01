@@ -25,6 +25,9 @@ import { Badge, badgeVariants } from "@/interface/componentes/ui/badge";
 import { sidebarMenuButtonVariants } from "@/interface/componentes/ui/sidebar";
 import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
+import { Textarea } from "@/interface/componentes/ui/textarea";
+import { EmptyTitle } from "@/interface/componentes/ui/empty";
+import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
@@ -75,7 +78,7 @@ const PECAS = [
     id: "botao-principal",
     html: () => renderToStaticMarkup(h(Button, { variant: "marca" }, "Resolver")),
     // X-01: 44, e não os 40 da prancheta.
-    esperado: { "border-top-left-radius": "6px", "font-weight": "600", "min-height": "44px" },
+    esperado: { "border-top-left-radius": "6px", "font-weight": "600", "min-height": "44px", "font-size": "13.5px" },
   },
   {
     id: "botao-so-icone",
@@ -91,7 +94,26 @@ const PECAS = [
       "border-top-left-radius": "6px",
       "background-color": "token(--ground)",
       "box-shadow": "none",
+      "font-size": "14.5px",
     },
+  },
+  {
+    id: "area-de-texto",
+    // Item 104, critério 2: acima de `md` o que se digita tem o tamanho do que se lê depois.
+    html: () => renderToStaticMarkup(h(Textarea, { id: "area", defaultValue: "texto" })),
+    esperado: { "font-size": "14.5px", "border-top-left-radius": "6px" },
+  },
+  {
+    id: "botao-sem-papel",
+    // Item 104, critério 1: a chamada que não passa papel herda o da base, e a base é `interface`.
+    html: () => renderToStaticMarkup(h(Button, { variant: "outline" }, "Carregar mais")),
+    esperado: { "font-size": "13.5px" },
+  },
+  {
+    id: "titulo-do-vazio",
+    // Item 104, critério 3: sem `className`, o título do vazio já é título de bloco.
+    html: () => renderToStaticMarkup(h(EmptyTitle, null, "Nenhuma ocorrência ainda.")),
+    esperado: { "font-size": "19px", "font-weight": "600" },
   },
   {
     id: "cabecalho-de-coluna",
@@ -118,15 +140,36 @@ const PECAS = [
     esperado: { "border-top-left-radius": "6px", "padding-left": "13px", "min-height": "44px" },
   },
   {
+    id: "aba-marcada",
+    // Item 104, critério 9: a marcada veste o cromo, sem sombra.
+    html: () => `<button data-state="on" class="${OPCAO_DO_FILTRO}">Minhas ocorrências</button>`,
+    esperado: { "background-color": "token(--chrome)", "font-weight": "600", "box-shadow": "none" },
+  },
+  {
     id: "caixa-das-abas",
-    html: () => div(CAIXA_DO_FILTRO),
-    esperado: { "border-top-left-radius": "8px", "padding-top": "3px", gap: "3px" },
+    // Item 104, critério 9: sem caixa. Mede a raiz do primitivo, com a base dele, e não só a constante.
+    html: () =>
+      renderToStaticMarkup(
+        h(ToggleGroup, { type: "single", className: CAIXA_DO_FILTRO }, h(ToggleGroupItem, { value: "todas", className: OPCAO_DO_FILTRO }, "Todas")),
+      ),
+    seletor: "[data-slot=toggle-group]",
+    esperado: {
+      "border-top-left-radius": "0px",
+      "padding-top": "0px",
+      "border-bottom-width": "1px",
+      "background-color": "rgba(0, 0, 0, 0)",
+    },
   },
   {
     id: "contagem",
     html: () => `<span class="${CONTAGEM_DO_FILTRO}">12</span>`,
-    // (d): 11,5 e não 11 — o oitavo papel.
-    esperado: { "font-size": "11.5px", "padding-top": "1px", "padding-left": "7px" },
+    // (d): 11,5 e não 11 — o oitavo papel. Item 104: sobre o chão, a pílula veste o cromo.
+    esperado: {
+      "font-size": "11.5px",
+      "padding-top": "1px",
+      "padding-left": "7px",
+      "background-color": "token(--chrome)",
+    },
   },
   {
     id: "contagem-de-nao-vistas",

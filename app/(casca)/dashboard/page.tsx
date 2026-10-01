@@ -204,6 +204,9 @@ export default async function Dashboard({
  * **A faixa deixou de ser formulário no item 71**, e o cartão continua sendo o cartão: mesma borda, mesmo
  * respiro, e é a casa do aviso da troca. Refazer a moldura do painel é outro item.
  *
+ * **Sem cartão** (item 104, critério 6): um único filtro numa caixa deixava 1.100 px de vazio ao lado em
+ * 1440 px, e a Pauta Rule põe filtro fora da caixa. A régua embaixo separa a linha dos blocos.
+ *
  * **O que saiu, e não é regressão:** os dois campos de data nativos, os dois rótulos que os nomeavam e a
  * classe de esquema de cor que o item 69 pôs neles. Aquela classe existia para o navegador desenhar o
  * calendário **do sistema** no tema do campo; sem campo nativo não há calendário do sistema. Declarar o
@@ -231,7 +234,7 @@ function Periodo({
   trocada: boolean;
 }) {
   return (
-    <div className="border-linha bg-superficie flex flex-wrap items-center gap-3 rounded-lg border p-[15px] shadow-sm md:p-[18px]">
+    <div className="border-linha-suave flex flex-wrap items-center gap-3 border-b pb-4">
       <SeletorDePeriodo periodo={periodo} atalhos={atalhos} consultaAtual={consultaAtual} />
 
       {trocada ? (

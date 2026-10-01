@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { atalhosDaJanela } from "@/aplicacao/dashboard";
@@ -58,6 +60,9 @@ import { cn } from "@/interface/componentes/utilitarios";
 import { nomeDoStatus, projetarDashboard } from "@/interface/projecoes";
 
 const consulta = (bruto: string) => new URLSearchParams(bruto);
+
+const RAIZ = fileURLToPath(new URL("../../", import.meta.url));
+const ler = (relativo: string): string => readFileSync(RAIZ + relativo, "utf8");
 
 describe("os dois parâmetros do dashboard, lidos da URL", () => {
   it("sem parâmetro nenhum, não decide nada — quem decide o padrão é a Aplicação", () => {
@@ -1035,5 +1040,19 @@ describe("a satisfação", () => {
 
   it("o rótulo da nota não é estrela", () => {
     expect(rotuloDaNota(5)).toBe("Nota 5");
+  });
+});
+
+describe("o período do painel", () => {
+  it("o período é linha sobre pauta, e não cartão (critério 104.6)", () => {
+    const pagina = ler("app/(casca)/dashboard/page.tsx");
+    // O fim é a chave sozinha na linha: a assinatura desestruturada também abre linha com `}`.
+    const periodo = /function Periodo\([\s\S]*?\n\}\r?\n/u.exec(pagina)?.[0] ?? "";
+    expect(periodo).not.toMatch(/\bbg-superficie\b|\bshadow-sm\b|\brounded-lg\b/u);
+    expect(periodo).toContain("border-linha-suave");
+    expect(periodo).toContain("border-b");
+
+    // O esqueleto acompanha: sem a caixa de 74 px, para o conteúdo não saltar ao chegar.
+    expect(ler("app/(casca)/dashboard/loading.tsx")).not.toContain("h-[74px]");
   });
 });

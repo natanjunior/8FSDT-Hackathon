@@ -204,7 +204,7 @@ export function BarraDeFiltros({
 /** O `.chip` do protótipo: **44 px de alvo** (A-3), e o estado ligado com borda, peso e cor — nunca só cor. */
 function chip(ligado: boolean): string {
   return cn(
-    "border-linha bg-superficie text-tinta text-interface inline-flex h-11 items-center gap-1.5 rounded-md border px-3",
+    "border-linha bg-background text-tinta text-interface inline-flex h-11 items-center gap-1.5 rounded-sm border px-3",
     "focus-visible:outline-marca focus-visible:outline-2 focus-visible:outline-offset-2",
     ligado && "border-marca text-tinta-marca font-semibold",
   );
@@ -329,6 +329,8 @@ function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
         aria-hidden="true"
         className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
       />
+      {/* O preflight do Tailwind 4 zera a decoração da busca e não o botão de cancelar; sem isto, Chrome e Safari
+          desenham um segundo ✕ ao lado do nosso (item 104, A-107). O `type="search"` fica pelo teclado do celular. */}
       <Input
         type="search"
         value={texto}
@@ -337,7 +339,7 @@ function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
         }}
         aria-label="Buscar pelo título"
         placeholder="Buscar pelo título"
-        className="border-linha bg-superficie text-interface text-tinta h-11 pr-11 pl-9"
+        className="border-linha text-interface text-tinta h-11 pr-11 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {texto !== "" && (
         <Button

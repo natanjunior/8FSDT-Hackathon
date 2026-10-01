@@ -160,7 +160,7 @@ export function ModalDeAvaliacao({
                   key={opcao.valor}
                   htmlFor={id}
                   onMouseEnter={() => setSobre(opcao.valor)}
-                  className="flex size-11 cursor-pointer items-center justify-center rounded-md"
+                  className="flex size-11 cursor-pointer items-center justify-center rounded-sm"
                 >
                   <input
                     type="radio"

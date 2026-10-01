@@ -12,7 +12,7 @@ export default function EsperandoORegistro() {
 
       <div
         aria-hidden
-        className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm md:p-[18px]"
+        className="border-linha bg-superficie flex flex-col gap-4 rounded-lg border p-[15px] shadow-sm lg:p-[18px]"
       >
         <div className="bg-secondary h-6 w-[30%] animate-pulse rounded" />
         <div className="bg-secondary h-11 animate-pulse rounded" />
