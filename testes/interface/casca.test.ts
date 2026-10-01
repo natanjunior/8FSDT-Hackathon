@@ -193,6 +193,24 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     expect(fonte).toContain('aria-current={marcado ? "page" : undefined}');
   });
 
+  it("o item marcado ganha uma régua de 2 px na cor da marca, além do fundo (critério 106.9)", () => {
+    const sidebar = ler("src/interface/componentes/ui/sidebar.tsx");
+    const base = /const sidebarMenuButtonVariants = cva\(\s*"([^"]*)"/u.exec(sidebar)?.[1] ?? "";
+    const classes = base.split(/\s+/u);
+    for (const classe of [
+      "relative",
+      "before:absolute",
+      "before:inset-y-1.5",
+      "before:left-0",
+      "before:w-0.5",
+      "before:rounded-full",
+      "data-[active=true]:before:bg-marca",
+      "data-[active=true]:bg-sidebar-accent",
+    ]) {
+      expect(classes, classe).toContain(classe);
+    }
+  });
+
   it("a palavra anterior da contagem não sobra na casca", () => {
     const comAPalavra = arquivosDe("src/interface/componentes/casca").filter((caminho) =>
       ler(caminho).includes("aguardando"),

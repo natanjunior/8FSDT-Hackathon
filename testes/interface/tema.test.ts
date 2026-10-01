@@ -344,6 +344,33 @@ function contraste(uma: Lab, outra: Lab): number {
   return (clara + 0.05) / (escura + 0.05);
 }
 
+/**
+ * A cor de um token num modo, resolvendo `var(--x)` no mesmo modo e caindo no claro quando o modo não o
+ * redeclara, que é a cascata. A mesma regra do `cor` do item 44q, de nível de arquivo (item 106).
+ */
+function corDoModo(cabecalho: string): (token: string) => Lab {
+  const claro = tokensDe(corpoDoBloco(":root {"));
+  const bloco = tokensDe(corpoDoBloco(cabecalho));
+  const cor = (token: string): Lab => {
+    const valor = bloco.get(token) ?? claro.get(token);
+    if (valor === undefined) throw new Error(`${token} não está declarado em ${cabecalho}`);
+    const apelido = /^var\((--[\w-]+)\)$/u.exec(valor);
+    return apelido?.[1] !== undefined ? cor(apelido[1]) : oklabDe(valor);
+  };
+  return cor;
+}
+
+const TRES_MODOS = [":root {", ':root[data-theme="dark"]', ':root[data-contraste="alto"]'] as const;
+
+describe("a régua do item marcado mede contra a barra — critério 106.9", () => {
+  // A régua encosta em dois fundos: o da barra, de um lado, e o do próprio item marcado, do outro.
+  it.each(TRES_MODOS)("%s: --accent passa 3:1 sobre --sidebar e sobre --sidebar-accent", (cabecalho) => {
+    const cor = corDoModo(cabecalho);
+    expect(contraste(cor("--accent"), cor("--sidebar"))).toBeGreaterThanOrEqual(3);
+    expect(contraste(cor("--accent"), cor("--sidebar-accent"))).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("app/globals.css — a paleta categórica de T-07, medida", () => {
   const SERIES = ["--chart-1", "--chart-2", "--chart-3", "--chart-4"] as const;
 
