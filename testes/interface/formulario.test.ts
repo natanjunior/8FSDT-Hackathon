@@ -2796,3 +2796,40 @@ describe("o recibo de cada ação — item 103", () => {
     for (const fonte of [entrada, cadastro]) expect(fonte).not.toContain("preservados.senha");
   });
 });
+
+/**
+ * ============================================================================
+ *  Item 105 — o laranja volta a marcar uma coisa só
+ * ============================================================================
+ *
+ * Guardas de fonte, no precedente dos itens 44g a 104. O `--primary` era o azul literal do tema de
+ * origem, e a variante padrão do `Button` o vestia: toda ação sem variante saía azul.
+ */
+/** A fonte sem comentário: as guardas do 105 perguntam o que o código pinta, e comentário não pinta nada. */
+function semComentario(fonte: string): string {
+  return fonte.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, "");
+}
+
+describe("o 105 — o laranja volta a marcar uma coisa só", () => {
+  it("as quatro ações principais fora da casca são o botão da marca, na largura do cartão (critério 105.1)", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toMatch(/<Button\s+type="submit"\s+variant="marca"[^>]*\bw-full\b/u);
+      expect(fonte, caminho).toMatch(/<RodapeDoFormulario[^>]*\blarguraCheia\b/u);
+    }
+    expect(ler("app/definir-senha/page.tsx")).toMatch(/buttonVariants\(\{\s*variant:\s*"marca"[^)]*\bw-full\b/u);
+    expect(ler("app/error.tsx")).toMatch(/<Button\s+type="button"\s+variant="marca"/u);
+  });
+
+  it("o Button não tem mais variante azul, e o padrão é o contorno (critério 105.2)", () => {
+    const botao = semComentario(ler("src/interface/componentes/ui/button.tsx"));
+    expect(botao).not.toMatch(/\bprimary\b/u);
+    expect(botao).toMatch(/defaultVariants:\s*\{\s*variant:\s*"outline"/u);
+    expect(botao).toMatch(/variant = "outline"/u);
+    expect(botao).toMatch(/link:\s*"text-tinta-marca /u);
+    expect(ler("src/interface/componentes/ui/alert-dialog.tsx")).not.toMatch(/variant = "default"/u);
+  });
+});

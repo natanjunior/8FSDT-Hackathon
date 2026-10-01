@@ -68,7 +68,7 @@ export default async function TelaDeDefinirSenha({
           <EmptyContent>
             <Link
               href="/redefinir-senha"
-              className={buttonVariants({ className: "text-interface min-h-11 px-4" })}
+              className={buttonVariants({ variant: "marca", className: "text-interface min-h-11 w-full px-4" })}
             >
               Pedir um novo link
             </Link>
