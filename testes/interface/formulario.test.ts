@@ -837,6 +837,12 @@ describe("o alcance do 44k — as duas listas de ordem manual", () => {
     const crus = ALCANCE_DO_44K.filter((caminho) => /<input/u.test(ler(caminho)));
     expect(crus).toStrictEqual(["src/interface/componentes/icone-de-categoria.tsx"]);
   });
+
+  it("o seletor de ícone diz o escolhido e não explica a regra de design (critério 106.18)", () => {
+    const icone = ler("src/interface/componentes/icone-de-categoria.tsx");
+    expect(icone).toContain("Escolhido: <strong");
+    expect(icone).not.toMatch(/<\/strong>\.\s*O ícone fica/u);
+  });
 });
 
 const ALCANCE_DO_44L = [
