@@ -47,6 +47,7 @@ import {
 } from "@/interface/componentes/indicadores-do-painel";
 import { CAMADA_DO_TITULO, LINHA_CLICAVEL } from "@/interface/componentes/linha-clicavel";
 import { ModalDeDados } from "@/interface/componentes/modal-de-dados";
+import { ConteudoDoPainel, PeriodoEmVoo } from "@/interface/componentes/periodo-em-voo";
 import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
@@ -160,37 +161,42 @@ export default async function Dashboard({
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
-          uma e já carrega o seletor da outra, e repeti-las aqui era a tela dizendo duas vezes o que a
-          casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
-      <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
+    <PeriodoEmVoo>
+      <div className="flex flex-col gap-6">
+        {/* **A marca e o nome da organização saíram daqui** (item 44e): a barra superior da casca já pinta
+            uma e já carrega o seletor da outra, e repeti-las aqui era a tela dizendo duas vezes o que a
+            casca diz uma. Fica o título, como T-03 faz com *Ocorrências*. */}
+        <h1 className="text-titulo-pagina text-tinta">Dashboard</h1>
 
-      <Periodo
-        periodo={dashboard.periodo}
-        atalhos={atalhosDaJanela()}
-        consultaAtual={consultaNaOrdem.toString()}
-        trocada={trocada}
-      />
+        <Periodo
+          periodo={dashboard.periodo}
+          atalhos={atalhosDaJanela()}
+          consultaAtual={consultaNaOrdem.toString()}
+          trocada={trocada}
+        />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
-          <EmAbertoAgora dashboard={dashboard} />
-          <SaldoDoPeriodo fluxo={fluxo} />
-          <AMaisVelha dashboard={dashboard} />
-        </div>
-        <EntradasESaidas fluxo={fluxo} periodo={dashboard.periodo} />
+        {/* O que recua enquanto o período troca (item 103): tudo abaixo do filtro. */}
+        <ConteudoDoPainel>
+          <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
+              <EmAbertoAgora dashboard={dashboard} />
+              <SaldoDoPeriodo fluxo={fluxo} />
+              <AMaisVelha dashboard={dashboard} />
+            </div>
+            <EntradasESaidas fluxo={fluxo} periodo={dashboard.periodo} />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <EmAbertoPorIdade dashboard={dashboard} />
+            <TempoDeResolucao dashboard={dashboard} />
+            <OQueEstaVoltando dashboard={dashboard} />
+            <EmAbertoPorCategoria dashboard={dashboard} />
+            <OcorrenciasPorStatus dashboard={dashboard} />
+            <Satisfacao dashboard={dashboard} />
+          </div>
+        </ConteudoDoPainel>
       </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <EmAbertoPorIdade dashboard={dashboard} />
-        <TempoDeResolucao dashboard={dashboard} />
-        <OQueEstaVoltando dashboard={dashboard} />
-        <EmAbertoPorCategoria dashboard={dashboard} />
-        <OcorrenciasPorStatus dashboard={dashboard} />
-        <Satisfacao dashboard={dashboard} />
-      </div>
-    </div>
+    </PeriodoEmVoo>
   );
 }
 

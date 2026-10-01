@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
+import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
+import { deveNavegar } from "@/interface/componentes/periodo-em-voo";
 import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
@@ -1630,8 +1632,9 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // *"10 das 19 rotas"*, que é `develop` hoje, e o **44o cria a vigésima** — `app/organizacao/criar/`,
     // que é a tela nova de criar organização. Como este item mescla DEPOIS dele, um `toHaveLength(19)`
     // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
+    // **O item 103 cria seis**: a raiz, as quatro telas de conta e a tela de criar organização. São 18.
     const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
-    expect(esperas).toHaveLength(12);
+    expect(esperas).toHaveLength(18);
   });
 
   it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {
@@ -1826,10 +1829,12 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
     );
   });
 
-  it("a régua ganha o visto, a marca de agora e a data à direita (critério 44q.6)", () => {
+  it("a régua ganha o visto, o tempo decorrido e a data à direita (critérios 44q.6 e 107.2)", () => {
     const regua = ler("src/interface/componentes/regua-do-ciclo.tsx");
     expect(regua).toMatch(/passo\.estado === "alcancado" && \(\s*<Check aria-hidden/u);
-    expect(regua).toMatch(/passo\.estado === "atual" && <span[^>]*>agora<\/span>/u);
+    // A palavra *agora* saiu (critério 107.2): ao lado de uma data de semanas atrás, ela lia como recência.
+    expect(regua).not.toMatch(/>agora</u);
+    expect(regua).toContain('passo.estado === "atual" && passo.decorrido !== null');
     expect(regua).toContain("justify-between");
     // Os três marcadores e a ligação não mudaram (critério 44q.6).
     expect(regua).toContain('alcancado: "bg-tinta-suave border-tinta-suave"');
@@ -2557,5 +2562,138 @@ describe("o item 95 — o portão se declara por uma linha", () => {
       .flatMap(codigoDe)
       .filter((caminho) => ler(caminho).includes(TRECHO));
     expect(comOTrecho).toStrictEqual(["ferramentas/portao.mjs"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  O recibo de cada ação — item 103
+// ---------------------------------------------------------------------------
+
+/** A frase de espera de toda tela, copiada de `app/organizacao/loading.tsx`. */
+const FRASE_DE_ESPERA = "Acordando o servidor — a primeira abertura do dia é mais lenta.";
+
+describe("o recibo de cada ação — item 103", () => {
+  it("as quatro telas de conta e a raiz têm espera, com a frase de sempre (critério 103.4)", () => {
+    for (const caminho of [
+      "app/loading.tsx",
+      "app/entrar/loading.tsx",
+      "app/criar-conta/loading.tsx",
+      "app/redefinir-senha/loading.tsx",
+      "app/definir-senha/loading.tsx",
+    ]) {
+      expect(existsSync(RAIZ + caminho), caminho).toBe(true);
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toContain("<EsperaDaMolduraDeConta");
+      expect(fonte, caminho).toContain(FRASE_DE_ESPERA);
+      expect(fonte, caminho).toContain('role="status"');
+      expect(fonte, caminho).toContain("[animation-delay:2s]");
+    }
+  });
+
+  it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
+    // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
+    expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
+    const criar = ler("app/organizacao/criar/loading.tsx");
+    expect(criar).toContain('convite={{ lado: "esquerda" }}');
+    expect(criar).toContain(FRASE_DE_ESPERA);
+    // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
+    expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
+    expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
+  });
+
+  it("a geometria das duas colunas é escrita uma vez, e a espera a usa (critério 103.5)", () => {
+    const fonte = ler(MOLDURA_DE_CONTA);
+    expect([...fonte.matchAll(/className=\{COLUNA_COM_CONVITE\}/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/TRILHAS\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CARTAO\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect([...fonte.matchAll(/ORDEM_DO_CONVITE\[convite\.lado\]/gu)]).toHaveLength(2);
+    expect(fonte).not.toContain('convite.lado === "esquerda"');
+  });
+
+  it("só a linha apertada entra; as outras ficam inertes; nada em voo deixa todas livres (critério 103.1)", () => {
+    expect(situacaoDaLinha(null, "a")).toBe("livre");
+    expect(situacaoDaLinha("a", "a")).toBe("entrando");
+    expect(situacaoDaLinha("a", "b")).toBe("inerte");
+  });
+
+  it("a lista não usa disabled, ignora o segundo toque e solta a linha quando a navegação acaba (critério 103.1)", () => {
+    const fonte = ler(ESCOLHA_DE_ORGANIZACAO);
+    // `disabled` solta o foco no corpo do documento; `aria-disabled` não.
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-disabled={situacao !== \"livre\"}");
+    expect(fonte).toContain("aria-busy={situacao === \"entrando\"}");
+    expect(fonte).toContain("if (escolhida !== null) return;");
+    // A navegação numa transição: é o fim dela que devolve a lista, inclusive quando `/` desenha T-10 de novo.
+    expect(fonte).toContain("useTransition()");
+    expect(fonte).toMatch(/comecar\(\(\) => \{\s*router\.refresh\(\);\s*router\.replace\("\/"\);/u);
+    expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).toContain('"Entrando…"');
+  });
+
+  it("a troca pela barra mostra a frase do módulo, e não escreve nenhuma (critério 103.3)", () => {
+    const fonte = ler("src/interface/componentes/casca/seletor-de-organizacao.tsx");
+    expect(fonte).toContain("avisarErro(resultado.aviso)");
+    expect(fonte).not.toMatch(/avisarErro\("/u);
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-busy={emVoo}");
+    expect(fonte).toContain("<IndicadorDeEnvio ativo={emVoo} />");
+    expect(fonte).toContain("if (emVoo || organizacaoId === organizacaoAtivaId) return;");
+    expect(fonte).toContain("useTransition()");
+  });
+
+  it("aplicar o recorte já aplicado não navega, e por isso não fica esperando (critério 103.2)", () => {
+    const periodo = { de: "2026-07-01", ate: "2026-09-29" };
+    expect(deveNavegar(periodo, { de: "2026-07-01", ate: "2026-09-29" })).toBe(false);
+    expect(deveNavegar(periodo, { de: "2026-08-31", ate: "2026-09-29" })).toBe(true);
+  });
+
+  it("o seletor e o conteúdo dividem uma transição, e o conteúdo recua enquanto ela corre (critério 103.2)", () => {
+    const seletor = ler("src/interface/componentes/seletor-de-periodo.tsx");
+    expect(seletor).not.toContain("const [, comecar] = useTransition()");
+    expect(seletor).toContain("usePeriodoEmVoo()");
+    expect(seletor).toContain('"Aplicando…"');
+    expect(seletor).toContain("if (pendente) return;");
+    expect(seletor).not.toContain("useEffect");
+
+    const provedor = ler("src/interface/componentes/periodo-em-voo.tsx");
+    expect(provedor).toMatch(/^"use client";/u);
+    expect(provedor).toContain("aria-busy={pendente}");
+    expect(provedor).toContain("pointer-events-none opacity-60");
+
+    // O provedor envolve a página inteira, e o filtro fica FORA do conteúdo que recua. O fim de linha
+    // pode ser CRLF na cópia de trabalho do Windows, e por isso a abertura é procurada por expressão.
+    const pagina = ler("app/(casca)/dashboard/page.tsx");
+    const filtro = pagina.search(/<Periodo\r?\n/u);
+    const conteudo = pagina.indexOf("<ConteudoDoPainel>");
+    expect(pagina.indexOf("<PeriodoEmVoo>")).toBeLessThan(filtro);
+    expect(filtro).toBeGreaterThan(-1);
+    expect(conteudo).toBeGreaterThan(filtro);
+  });
+
+  it("o que não é senha volta ao formulário; a senha nunca volta (critério 103.6)", () => {
+    const dados = new FormData();
+    dados.set("nome", "Ana Souza");
+    dados.set("email", "ana@exemplo.com");
+    dados.set("senha", "segredo1");
+
+    expect(valoresPreservados(dados, ["email"])).toStrictEqual({ email: "ana@exemplo.com" });
+    expect(valoresPreservados(dados, ["nome", "email"])).toStrictEqual({
+      nome: "Ana Souza",
+      email: "ana@exemplo.com",
+    });
+    // Nem pedida por engano a senha volta.
+    expect(valoresPreservados(dados, ["email", "senha"])).toStrictEqual({ email: "ana@exemplo.com" });
+    // Campo ausente não vira texto vazio inventado.
+    expect(valoresPreservados(new FormData(), ["email"])).toStrictEqual({});
+  });
+
+  it("os dois formulários reaplicam o que não é senha (critério 103.6)", () => {
+    const entrada = ler("src/interface/componentes/formulario-de-entrada.tsx");
+    expect(entrada).toContain('valoresPreservados(dados, ["email"])');
+    expect(entrada).toContain("defaultValue={preservados.email}");
+    const cadastro = ler("src/interface/componentes/formulario-de-cadastro.tsx");
+    expect(cadastro).toContain('valoresPreservados(dados, ["nome", "email"])');
+    expect(cadastro).toContain("defaultValue={preservados.nome}");
+    expect(cadastro).toContain("defaultValue={preservados.email}");
+    for (const fonte of [entrada, cadastro]) expect(fonte).not.toContain("preservados.senha");
   });
 });

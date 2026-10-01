@@ -16,6 +16,7 @@ import {
   RECANTO,
   registrarOcorrencia,
   SOLICITANTE_DO_AURORA,
+  analisar,
 } from "./mundo";
 import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
@@ -122,6 +123,9 @@ const CICLO_DO_SOLICITANTE = [
 
 /** O carimbo de `dataEHora`: `dd/mm/aaaa · hh:mm`. Na régua ele só existe no passo alcançado. */
 const CARIMBO = /^\d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}$/u;
+
+/** O porquê de *Analisar*, que o modal do item 107 passou a aceitar (critério 107.4). */
+const OBSERVACAO_DA_ANALISE = "Vou olhar o quadro de luz amanhã cedo.";
 
 /** Os dois rótulos de tipo de área — `rotuloDoTipoDeArea`. Toda opção do seletor carrega um dos dois. */
 const TIPOS_DE_AREA = ["área comum", "unidade privativa"];
@@ -359,7 +363,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(helena.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect(helena.getByRole("button", { name: "Analisar" })).toHaveCount(0);
   await expect(helena.getByRole("button", { name: "Atribuir" })).toHaveCount(0);
-  await expect(helena.getByRole("button", { name: "Mais ações ▾" })).toHaveCount(0);
+  await expect(helena.getByRole("button", { name: "Mais ações", exact: true })).toHaveCount(0);
 
   // **A prioridade é a mesma linha com e sem o controle** (item 44p, critério 20): rótulo, valor, e nenhum
   // seletor — o Solicitante não tem `ocorrencia.alterar_prioridade` em desenho de papel nenhum.
@@ -608,7 +612,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(marcos.getByLabel(/^Escrever para o Solicitante/u)).toBeVisible();
 
   await expect(marcos.getByRole("button", { name: "Analisar" })).toBeVisible();
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Atribuir" })).toBeVisible();
   await expect(marcos.getByRole("menuitem", { name: "Cancelar" })).toBeVisible();
   await marcos.keyboard.press("Escape");
@@ -648,7 +652,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(seletorDePrioridade).toHaveText("Alta");
   await expect(desfazer(marcos)).toHaveCount(0);
   await expect(marcos.getByRole("button", { name: "Analisar" })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Mais ações ▾" })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Mais ações", exact: true })).toBeVisible();
   cobre(test.info(), "4.3 · 20", { criterio: "17.4" });
 
   // 11.2 · A linha nomeia os DOIS valores, e sobrevive ao repinte e a cinco segundos.
@@ -729,22 +733,33 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   cobre(test.info(), "4.3 · 28");
 
   // -------------------------------------------------------------------------
-  // 12 · Analisar — nenhuma janela, e a barra muda de forma
+  // 12 · Analisar — a confirmação, o porquê, e a barra muda de forma (critério 107.4)
   //
-  // ***Iniciar atendimento* ainda NÃO existe**, e a ausência é a invariante 9 na tela: em `em_analise` sem
-  // responsável a máquina não o oferece. É o R-08, e é o que impede *Pausar* de ficar em destaque numa
-  // ocorrência que ninguém pegou.
+  // **Desde o item 107, *Analisar* abre o `ModalDeObservacao`**, como as outras cinco transições. Fechar sem
+  // confirmar não grava nada: a situação continua *Aberta* e a linha do tempo continua com um item.
+  //
+  // ***Iniciar atendimento* ainda NÃO existe** depois, e a ausência é a invariante 9 na tela: em
+  // `em_analise` sem responsável a máquina não o oferece. É o R-08, e é o que impede *Pausar* de ficar em
+  // destaque numa ocorrência que ninguém pegou.
   // -------------------------------------------------------------------------
   await marcos.getByRole("button", { name: "Analisar" }).click();
-  await expect(marcos.getByRole("dialog")).toHaveCount(0);
+  const modalDeAnalise = marcos.getByRole("dialog", { name: "Analisar" });
+  await expect(modalDeAnalise.getByText("A ocorrência passa a Em análise.")).toBeVisible();
+  await marcos.keyboard.press("Escape");
+  await expect(modalDeAnalise).toHaveCount(0);
+  await esperarSituacao(marcos, "Aberta");
+  await expect(marcos.getByRole("heading", { name: "Linha do tempo 1" })).toBeVisible();
+
+  await analisar(marcos, OBSERVACAO_DA_ANALISE);
   await esperarSituacao(marcos, "Em análise");
   await expect(ciclo(marcos).getByText(CARIMBO)).toHaveCount(2);
   await expect(marcos.getByRole("heading", { name: "Linha do tempo 2" })).toBeVisible();
-  cobre(test.info(), "4.3 · 29", { falta: "o texto Em análise. no último item da linha do tempo" });
+  await expect(marcos.getByText(`Em análise. “${OBSERVACAO_DA_ANALISE}”`)).toBeVisible();
+  cobre(test.info(), "4.3 · 29", { criterio: "107.4" });
 
   await expect(marcos.getByRole("button", { name: "Atribuir" })).toBeVisible();
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toHaveCount(0);
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Pausar" })).toBeVisible();
   await expect(marcos.getByRole("menuitem", { name: "Cancelar" })).toBeVisible();
   await marcos.keyboard.press("Escape");
@@ -893,7 +908,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **A palavra sai do ESTADO, não da intenção de quem clica** — há responsável, então o menu diz
   // *Reatribuir*. E *Iniciar atendimento* passou a existir.
   await expect(marcos.getByRole("button", { name: "Iniciar atendimento" })).toBeVisible();
-  await marcos.getByRole("button", { name: "Mais ações ▾" }).click();
+  await marcos.getByRole("button", { name: "Mais ações", exact: true }).click();
   await expect(marcos.getByRole("menuitem", { name: "Reatribuir" })).toBeVisible();
   await marcos.keyboard.press("Escape");
   await expect(marcos.getByRole("menu")).toHaveCount(0);

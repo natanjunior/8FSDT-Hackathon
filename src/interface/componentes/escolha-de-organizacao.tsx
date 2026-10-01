@@ -1,17 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { Aviso } from "@/interface/componentes/campo";
 import { rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import {
   LinhaDeOrganizacao,
   ListaDeOrganizacoes,
+  situacaoDaLinha,
   type VinculoNoMenu,
 } from "@/interface/componentes/lista-de-organizacoes";
 import { trocarOrganizacao } from "@/interface/componentes/troca-de-organizacao";
 import { Button } from "@/interface/componentes/ui/button";
+import { cn } from "@/interface/componentes/utilitarios";
 
 /**
  * ============================================================================
@@ -35,6 +37,15 @@ import { Button } from "@/interface/componentes/ui/button";
  * usava, e o critério 44o.9 trocou o seletor pela lista. O caminho para a face E que o menu carregava
  * **não saiu junto** — mora em T-10 e no menu de pessoa (critério 44o.14).
  *
+ * **O recibo da troca é a linha apertada** (item 103, critério 1). Ela recebe `aria-busy`, o indicador no
+ * lugar da seta e *"Entrando…"* no lugar do papel; as outras ficam `aria-disabled` e recuadas. **Nenhuma
+ * recebe `disabled`**: o botão apertado `disabled` soltava o foco no corpo do documento, e quem usa
+ * teclado recomeçava do topo. O toque nas inertes é ignorado no `escolher`.
+ *
+ * **A navegação vai numa transição**, e é o fim dela que devolve a lista. Em T-10, trocar para outra
+ * organização sem permissão desenha T-10 de novo, sem desmontar este componente; sem a transição, a
+ * escolha ficaria presa e todas as linhas inertes para sempre.
+ *
  * **Acessibilidade:** alvo de 44 px (A-3), o papel vem **em palavra** (A-5).
  */
 export function EscolhaDeOrganizacao({
@@ -45,26 +56,40 @@ export function EscolhaDeOrganizacao({
   /** O rótulo da lista. A face D não tem — o título do cartão é a pergunta —; T-10 tem. */
   rotulo?: string;
 }) {
-  const { aviso, trocando, escolher } = useTroca();
+  const { aviso, escolhida, escolher } = useTroca();
 
   return (
     <>
       {aviso !== null && <Aviso>{aviso}</Aviso>}
 
       <ListaDeOrganizacoes rotulo={rotulo}>
-        {vinculos.map((vinculo) => (
-          <li key={vinculo.organizacaoId}>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={trocando}
-              onClick={() => void escolher(vinculo.organizacaoId)}
-              className="h-auto min-h-11 w-full justify-start rounded-none p-0 font-normal whitespace-normal focus-visible:-outline-offset-2"
-            >
-              <LinhaDeOrganizacao nome={vinculo.nome} apoio={rotuloDoPapel(vinculo.papel)} seta />
-            </Button>
-          </li>
-        ))}
+        {vinculos.map((vinculo) => {
+          const situacao = situacaoDaLinha(escolhida, vinculo.organizacaoId);
+          return (
+            <li key={vinculo.organizacaoId}>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-busy={situacao === "entrando"}
+                aria-disabled={situacao !== "livre"}
+                onClick={() => void escolher(vinculo.organizacaoId)}
+                className={cn(
+                  "h-auto min-h-11 w-full justify-start rounded-none p-0 font-normal whitespace-normal focus-visible:-outline-offset-2",
+                  // O recuo que o `disabled` dava, sem o `disabled`: a linha inerte não parece disponível.
+                  situacao === "inerte" && "opacity-50",
+                  situacao !== "livre" && "hover:bg-transparent",
+                )}
+              >
+                <LinhaDeOrganizacao
+                  nome={vinculo.nome}
+                  apoio={rotuloDoPapel(vinculo.papel)}
+                  entrando={situacao === "entrando"}
+                  seta
+                />
+              </Button>
+            </li>
+          );
+        })}
       </ListaDeOrganizacoes>
     </>
   );
@@ -74,25 +99,36 @@ export function EscolhaDeOrganizacao({
 function useTroca() {
   const router = useRouter();
   const [aviso, setAviso] = useState<string | null>(null);
-  const [trocando, setTrocando] = useState(false);
+  const [escolhida, setEscolhida] = useState<string | null>(null);
+  const [navegando, comecar] = useTransition();
+  const [navegandoAntes, setNavegandoAntes] = useState(navegando);
+
+  // A navegação acabou: a lista volta a ser escolhível. Ajuste durante a renderização, e não efeito.
+  if (navegando !== navegandoAntes) {
+    setNavegandoAntes(navegando);
+    if (!navegando) setEscolhida(null);
+  }
 
   async function escolher(organizacaoId: string) {
-    setTrocando(true);
+    if (escolhida !== null) return;
+    setEscolhida(organizacaoId);
     setAviso(null);
 
     const resultado = await trocarOrganizacao(organizacaoId);
 
     if (!resultado.ok) {
       setAviso(resultado.aviso);
-      setTrocando(false);
+      setEscolhida(null);
       return;
     }
 
     // `refresh` antes de `replace`: sem ele o cache do App Router serviria `/` com o contexto anterior, e a
     // pessoa veria a organização velha por uma renderização.
-    router.refresh();
-    router.replace("/");
+    comecar(() => {
+      router.refresh();
+      router.replace("/");
+    });
   }
 
-  return { aviso, trocando, escolher };
+  return { aviso, escolhida, escolher };
 }

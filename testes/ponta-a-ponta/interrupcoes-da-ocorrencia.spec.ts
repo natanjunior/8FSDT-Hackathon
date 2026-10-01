@@ -17,6 +17,7 @@ import {
   registrarOcorrencia,
   situacao,
   SOLICITANTE_DO_AURORA,
+  analisar,
 } from "./mundo";
 
 /**
@@ -154,7 +155,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // *Pausar* de ficar em destaque numa ocorrência que ninguém pegou.
   // -------------------------------------------------------------------------
   await esperarSituacao(marcos, "Aberta");
-  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await analisar(marcos);
   await esperarSituacao(marcos, "Em análise");
 
   await marcos.getByRole("button", { name: "Atribuir" }).click();
@@ -177,7 +178,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   //
   // **O comando mora no menu, e isso é a conta de largura do item 23:** com quatro renderizáveis em
   // `em_atendimento` — *Reatribuir*, *Pausar*, *Resolver* e *Cancelar* — a barra guarda o destaque e
-  // manda o resto para *"Mais ações ▾"*.
+  // manda o resto para *"Mais ações"*.
   //
   // **A obrigatoriedade é afirmada pelo caminho que o produto tem hoje** — ver a divergência declarada no
   // cabeçalho. Clicar em *Pausar* com o formulário vazio **não envia**, mantém o diálogo aberto e acende

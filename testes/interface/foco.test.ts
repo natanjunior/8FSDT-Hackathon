@@ -210,8 +210,10 @@ describe("a ordem de foco segue a vista — critérios 94.5 e 94.8", () => {
   });
 
   it("/organizacao/criar continua com o cartão primeiro no documento (resposta à P1)", () => {
-    expect(ler(`${COMPONENTES}/moldura-de-conta.tsx`)).toMatch(
-      /convite\.lado === "esquerda" \? "lg:order-3" : "lg:order-1"/u,
+    // Desde o item 103 a ordem mora em duas constantes que a moldura e a espera dividem: com o convite à
+    // esquerda, o cartão vai para a terceira trilha só a partir de `lg`, e continua primeiro no documento.
+    expect(ler(`${COMPONENTES}/moldura-de-conta.tsx`)).toContain(
+      'const ORDEM_DO_CARTAO = { direita: "lg:order-1", esquerda: "lg:order-3" } as const;',
     );
   });
 });

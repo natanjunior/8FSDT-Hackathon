@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Fragment, useState } from "react";
@@ -27,8 +28,9 @@ import {
  * pelo servidor a partir da máquina de estados — *"desabilitar exige a segunda cópia da máquina de
  * estados"* (`inventario-de-telas.md`), e é isso que este componente não faz.
  *
- * **`formularios` é a mudança do item 19.** `analisar` é botão nu; `atribuir-responsavel` precisa de um
- * modal, e os outros oito comandos precisam de modal, seletor ou campo. Em vez de a barra ganhar **um `if`
+ * **`formularios` é a mudança do item 19.** Desde o item 107 nenhum comando chega aqui sem nó:
+ * `analisar`, o último botão nu, ganhou o `ModalDeObservacao`. O ramo de disparo direto fica como contrato do
+ * componente (*"Ausente = botão de disparo direto"*), sem consumidor na tela. Em vez de a barra ganhar **um `if`
  * por comando** — oito ramos até o item 27 —, ela recebe, por comando, **ou o nó pronto ou nada**. Quem
  * monta o nó é a **página**, que é quem tem os candidatos e quem sabe qual ação é a primeira.
  *
@@ -132,7 +134,7 @@ export function BarraDeAcoes({
    */
   primario?: string | null;
   /**
-   * Os comandos que vão **dentro** do menu *"Mais ações ▾"*, decididos pela página com `acoesDaBarra`.
+   * Os comandos que vão **dentro** do menu *"Mais ações"*, decididos pela página com `acoesDaBarra`.
    * Vazio é o caso de um ou dois renderizáveis, e é o comportamento anterior — dois botões lado a lado.
    */
   emMenu?: readonly string[];
@@ -155,7 +157,7 @@ export function BarraDeAcoes({
     setEnviando(true);
     setAviso(null);
 
-    // **A tela envia `{}`** — este caminho é só dos comandos sem formulário, que é o botão nu (D23). O
+    // **A tela envia `{}`** — este caminho é só dos comandos sem formulário — nenhum desde o item 107. O
     // `corpoOpcional` do servidor existe para o cliente que NÃO é esta tela.
     const resultado = await executarComando(
       ocorrenciaId,
@@ -226,14 +228,22 @@ export function BarraDeAcoes({
             );
           })}
 
-          {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações ▾"*, nunca `⋯`.
+          {/* **O menu, e o rótulo carrega PALAVRA — A-5.** *"Mais ações"*, nunca `⋯`, e o indicador é o
+              `ChevronDown` do sistema de ícones (critério 107.8), que era o último glifo Unicode da superfície.
+              **Ele gira pelo pai**: quem publica `data-state` é o botão, que o `DropdownMenuTrigger` funde com
+              `asChild`, e o `group` leva o estado ao ícone. Sob movimento reduzido a regra global tira
+              `transform` da transição, e o ícone vira sem passar pelo meio.
               **`modal={false}` é o par do `onSelect` prevenido dos itens:** com `modal` ligado, o menu
               prende o foco e trava a rolagem, e o diálogo que abre por cima disputa as duas coisas. */}
           {emMenu.length > 0 && (
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" className="text-interface h-12 w-full md:w-auto">
-                  Mais ações ▾
+                <Button type="button" variant="outline" className="text-interface group h-12 w-full md:w-auto">
+                  Mais ações
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="transition-transform group-data-[state=open]:rotate-180"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               {/* **`Fragment`, e NÃO um `<div>` de embrulho**: o `DropdownMenuContent` publica

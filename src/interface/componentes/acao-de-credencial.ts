@@ -24,3 +24,27 @@ export async function chamarAcaoDeCredencial(
     return { recusa: "FALHA_DO_PROVEDOR" };
   }
 }
+
+/** Os campos que nunca voltam ao formulário depois de uma resposta, nem se alguém os pedir. */
+const NUNCA_VOLTAM: ReadonlySet<string> = new Set(["senha"]);
+
+/**
+ * **O que a pessoa digitou e não é senha, para voltar ao formulário depois da resposta** (item 103,
+ * critério 6). O React 19 esvazia o formulário com `action` ao fim da ação; os campos voltam ao valor
+ * inicial, e é esse valor que estes dados reescrevem.
+ *
+ * **Sai do `FormData` que a função da ação já recebe no navegador**, e nunca de eco do servidor: a senha não
+ * entra em estado nenhum.
+ */
+export function valoresPreservados(
+  dados: FormData,
+  campos: readonly string[],
+): Readonly<Record<string, string>> {
+  const valores: Record<string, string> = {};
+  for (const campo of campos) {
+    if (NUNCA_VOLTAM.has(campo)) continue;
+    const valor = dados.get(campo);
+    if (typeof valor === "string") valores[campo] = valor;
+  }
+  return valores;
+}

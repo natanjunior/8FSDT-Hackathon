@@ -47,6 +47,7 @@ import { ModalDeObservacao } from "@/interface/componentes/modal-de-observacao";
 import { ModalDeResolucao } from "@/interface/componentes/modal-de-resolucao";
 import { OcorrenciaNaoEncontradaNaTela } from "@/interface/componentes/ocorrencia-nao-encontrada";
 import { ReguaDoCiclo } from "@/interface/componentes/regua-do-ciclo";
+import { instanteDoServidor, tempoRelativo } from "@/interface/componentes/tempo-relativo";
 import type { TextosDoRetorno } from "@/interface/componentes/retorno-de-acao";
 import {
   LINHA_DA_PRIORIDADE,
@@ -398,7 +399,7 @@ export default async function Ocorrencia({
    * `variant` do botão dentro da barra. Elas concordavam por sorte. Agora as duas leem o mesmo valor, e a
    * regra mora em `rotulos.ts` — que é o módulo do que a tela sabe sobre comandos. `acaoPrimaria`
    * continua sendo a dona da tabela `ACAO_PRIMARIA`; `acoesDaBarra` a chama e acrescenta a conta de
-   * largura — **três renderizáveis ou mais → primário + *"Mais ações ▾"*** (item 23).
+   * largura — **três renderizáveis ou mais → primário + *"Mais ações"*** (item 23).
    *
    * **O R-08 morde aqui, e agora tem estado real que o prova:** em `em_analise` **sem** responsável,
    * `pausar` é permitido pela máquina de estados, e a derivação por `transicaoPermitida` — que o item
@@ -444,8 +445,40 @@ export default async function Ocorrencia({
    * **`iniciar-atendimento` entra SEMPRE, e `atribuir-responsavel` não.** A diferença é custo: o de
    * atribuição precisa da lista de candidatos, que é uma consulta a mais; este não precisa de nada. Quem
    * decide se algum deles **aparece** continua sendo `acoesDisponiveis`.
+   *
+   * **Desde o item 107 todo comando que chega à barra tem nó aqui**, e o ramo de botão nu da `BarraDeAcoes`
+   * não é alcançado pela tela.
    */
   const formularios = {
+    /**
+     * **O sexto modal, e o último comando que gravava no primeiro clique** (item 107, critério 4). Era botão
+     * nu desde o item 16 (critério 16.5, *"a ação de volume da triagem"*); o 107 desfez isso porque era a
+     * única transição da tela sem confirmação e sem lugar para o porquê — e a trilha imprimia *"sem
+     * observação"* por construção. A observação é opcional, que é a D23 de produto.
+     *
+     * **A descrição nomeia o destino, ao contrário da do `retomar`**: `analisar` só existe em `aberta` e só
+     * leva a `em_analise`, então a frase é sempre verdade. O nome vem de `nomeDoStatus`, a mesma lente da
+     * régua.
+     *
+     * **A ternária, e não `varianteDe`**, pela mesma razão do `retomar`: `ModalDeObservacao` não tem a
+     * variante `"menu"`, e não precisa — `analisar` é a `ACAO_PRIMARIA` do único estado em que aparece.
+     */
+    analisar: (
+      <ModalDeObservacao
+        ocorrenciaId={detalhe.id}
+        comando="analisar"
+        titulo="Analisar"
+        descricao={`A ocorrência passa a ${nomeDoStatus("em_analise")}.`}
+        rotuloDoGatilho="Analisar"
+        rotuloDoCampo="Observação (opcional)"
+        rotuloDeConfirmar="Analisar"
+        verboEnviando="Analisando…"
+        variante={primario === "analisar" ? "primario" : "secundario"}
+        rotulosDeStatus={rotulos}
+        organizacaoId={organizacaoId}
+        retorno={RETORNO_DO_COMANDO.analisar}
+      />
+    ),
     "iniciar-atendimento": (
       <ModalDeObservacao
         ocorrenciaId={detalhe.id}
@@ -704,6 +737,7 @@ export default async function Ocorrencia({
                   nomeDoStatus={nomeDoStatus}
                   notaDaSaida={segundaLinhaDeMotivo(detalhe.motivoPausa, detalhe.statusRotulo)}
                   rotuloDaSaida={detalhe.statusRotulo}
+                  agora={instanteDoServidor()}
                 />
               </Suspense>
             </FalhaDoCartao>
@@ -854,7 +888,7 @@ export default async function Ocorrencia({
               </h2>
             </FaixaDoCartao>
             <CorpoDoCartao>
-              <p className="text-tinta-suave text-corpo whitespace-pre-line">
+              <p className="text-tinta-suave text-corpo max-w-[68ch] whitespace-pre-line">
                 {detalhe.descricao}
               </p>
 
@@ -891,7 +925,7 @@ export default async function Ocorrencia({
                   </h2>
                 </FaixaDoCartao>
                 <CorpoDoCartao>
-                  <p className="text-tinta-suave text-corpo whitespace-pre-line">
+                  <p className="text-tinta-suave text-corpo max-w-[68ch] whitespace-pre-line">
                     {detalhe.solucaoAplicada}
                   </p>
                 </CorpoDoCartao>
@@ -1099,7 +1133,12 @@ async function TituloDaLinhaDoTempo({ eventos }: { eventos: Promise<readonly Eve
   const quantos = (await eventos).length;
   return (
     <h2 id="bloco-linha-do-tempo" className={TITULO_DA_FAIXA}>
-      Linha do tempo <span className="text-tinta-suave">{quantos}</span>
+      {/* **O formato das mensagens, no cartão vizinho** (critério 107.7): o `·` é mudo, e o nome acessível
+          continua *"Linha do tempo 2"* — *Linha do tempo*, espaço, *2* —, que é o que o ponta a ponta afirma.
+          Sem o ponto, o número lia como numeração de seção. */}
+      Linha do tempo{" "}
+      <span aria-hidden="true">· </span>
+      <span className="text-tinta-suave">{quantos}</span>
     </h2>
   );
 }
@@ -1152,12 +1191,15 @@ async function ReguaComDatas({
   nomeDoStatus,
   notaDaSaida,
   rotuloDaSaida,
+  agora,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   statusAtual: string;
   nomeDoStatus: (status: string) => string;
   notaDaSaida: string | null;
   rotuloDaSaida: string;
+  /** O instante do servidor, lido uma vez por requisição (`instanteDoServidor`) — o relógio da lista. */
+  agora: number;
 }) {
   /**
    * **Só transições entram**, já ordenadas da mais antiga para a mais recente, que é como a linha do
@@ -1169,7 +1211,13 @@ async function ReguaComDatas({
    */
   const transicoes = (await eventos).flatMap((evento) =>
     evento.tipo === "transicao"
-      ? [{ status: evento.transicao.statusNovo, em: dataEHora(evento.ocorridoEm) }]
+      ? [
+          {
+            status: evento.transicao.statusNovo,
+            em: dataEHora(evento.ocorridoEm),
+            decorrido: tempoRelativo(evento.ocorridoEm, agora),
+          },
+        ]
       : [],
   );
 

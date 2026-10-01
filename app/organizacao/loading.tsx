@@ -10,8 +10,8 @@ import { EsperaDaMolduraDeConta } from "@/interface/componentes/moldura-de-conta
  * **A frase espera ~2 s antes de aparecer**, com atraso de animação em CSS e sem JavaScript: nesta tela
  * não há JavaScript nosso rodando ainda — é justamente a espera pelo servidor.
  *
- * **A forma é a da moldura das telas fora da casca desde o 44o**, e vale para os dois filhos do segmento:
- * as cinco faces de T-02 e a tela de criar organização.
+ * **A forma é a da moldura das telas fora da casca desde o 44o.** Ela vale para as cinco faces de T-02; a
+ * tela de criar organização tem a sua desde o item 103, com o convite à esquerda.
  */
 export default function EsperandoOContexto() {
   return (

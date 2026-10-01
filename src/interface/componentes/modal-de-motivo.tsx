@@ -98,7 +98,7 @@ export function ModalDeMotivo({
   avisoDeVisibilidade: string;
   /**
    * **Três variantes, e a terceira é do item 23:** `"menu"` renderiza o gatilho como
-   * `DropdownMenuItem`, para o modal poder viver dentro do *"Mais ações ▾"*.
+   * `DropdownMenuItem`, para o modal poder viver dentro do *"Mais ações"*.
    */
   variante: "primario" | "secundario" | "menu";
   /** O mapa pronto, para a frase do `409`. O navegador não monta rótulo. */

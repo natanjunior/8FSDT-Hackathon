@@ -11,7 +11,7 @@ import { lerOCiclo, type PassoDoCiclo, type TransicaoDoCiclo } from "@/interface
  *
  * **A cor da marca NÃO entra**, nem no marcador do passo atual: o guia §2 a reserva para a ação
  * principal da tela, e a ação principal de T-05 é o comando do momento. O passo atual se distingue por
- * **peso, preenchimento e a data ao lado** — três coisas, nenhuma delas só cor —, e para quem lê por
+ * **peso, preenchimento e o tempo decorrido ao lado da data** — três coisas, nenhuma delas só cor —, e para quem lê por
  * leitor de tela o estado atual é publicado também por `aria-current="step"`.
  *
  * **Os nomes são os de quem lê.** Quem chama passa `nomeDoStatus` já com a lente aplicada (item 31):
@@ -124,13 +124,21 @@ export function ReguaDoCiclo({
                     tinha nenhuma fora do `line-through` visual. */}
                 {passo.estado === "inalcancavel" && <span className="sr-only"> (não alcançada)</span>}
               </span>
-              {/* **A data à direita, e o `agora` ao lado dela no passo atual** (critério 44q.6). Abaixo de
-                  `sm`, sem largura, ela quebra para baixo em vez de espremer o nome. **Em monoespaçada**,
-                  guia §3: a mono é para dado temporal, e o formato é o de `dataEHora`. */}
+              {/* **A data à direita, e o tempo decorrido ao lado dela no passo atual** (critério 107.2).
+                  Abaixo de `sm`, sem largura, ela quebra para baixo em vez de espremer o nome. **O carimbo
+                  em monoespaçada e num elemento só dele**, guia §3: a mono é para dado temporal, e o teste
+                  de ponta a ponta o acha por texto exato. A frase é de `tempoRelativo` e conta a partir do
+                  carimbo que vem antes dela — a primeira passagem, como a data. O `·` é mudo, como o da
+                  contagem das mensagens. */}
               {passo.em !== null && (
-                <span className="text-tinta-suave text-meta flex items-baseline gap-2">
+                <span className="text-tinta-suave text-meta flex flex-wrap items-baseline gap-x-2">
                   <span className="font-mono tabular-nums">{passo.em}</span>
-                  {passo.estado === "atual" && <span className="text-tinta-suave">agora</span>}
+                  {passo.estado === "atual" && passo.decorrido !== null && (
+                    <span>
+                      <span aria-hidden="true">· </span>
+                      {passo.decorrido}
+                    </span>
+                  )}
                 </span>
               )}
             </span>

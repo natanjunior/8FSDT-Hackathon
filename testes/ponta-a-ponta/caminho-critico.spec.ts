@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
-import { AURORA, ENCARREGADA_DO_AURORA, HELENA, MARCOS, RECANTO, SENHA } from "./mundo";
+import { analisar, AURORA, ENCARREGADA_DO_AURORA, HELENA, MARCOS, RECANTO, SENHA } from "./mundo";
 
 /**
  * ============================================================================
@@ -97,8 +97,19 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(
     helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
   ).toBeVisible();
+  // **O recibo da escolha** (critério 103.1): com o `PUT` retido, a linha apertada diz *Entrando…*, segura o
+  // foco e fica ocupada; a outra fica inerte, sem roubar o foco.
+  await helena.route("**/api/contexto/organizacao", async (rota) => {
+    await new Promise((pronto) => setTimeout(pronto, 1500));
+    await rota.continue();
+  });
   await helena.getByRole("button", { name: AURORA }).click();
+  const linhaApertada = helena.getByRole("button", { name: /Entrando…/u });
+  await expect(linhaApertada).toBeFocused();
+  await expect(linhaApertada).toHaveAttribute("aria-busy", "true");
+  await expect(helena.getByRole("button", { name: RECANTO })).toHaveAttribute("aria-disabled", "true");
   await helena.waitForURL(/\/ocorrencias$/u);
+  await helena.unroute("**/api/contexto/organizacao");
 
   // -------------------------------------------------------------------------
   // 2 · Helena registra a ocorrência marcada — T-04
@@ -187,6 +198,23 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
   await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
 
+  // **A troca recusada diz por quê** (critério 103.3). O `403` é forjado na rede, porque nenhum caminho
+  // honesto do mundo de teste o produz: Helena participa das duas. A frase é a que o módulo já escreve,
+  // e a pessoa continua onde estava, com o seletor utilizável — a troca de verdade vem logo abaixo.
+  await helena.route("**/api/contexto/organizacao", (rota) =>
+    rota.fulfill({
+      status: 403,
+      contentType: "application/problem+json",
+      body: JSON.stringify({ codigo: "SEM_VINCULO_NA_ORGANIZACAO", detail: "forjado no teste" }),
+    }),
+  );
+  await helena.getByRole("combobox", { name: /organização/iu }).click();
+  await helena.getByRole("option", { name: RECANTO }).click();
+  await expect(helena.getByText("Você não tem acesso a esta organização.")).toBeVisible();
+  await expect(helena).toHaveURL(/\/ocorrencias/u);
+  await expect(helena.getByRole("combobox", { name: /organização/iu })).toContainText(AURORA);
+  await helena.unroute("**/api/contexto/organizacao");
+
   await trocarDeOrganizacao(helena, RECANTO);
   // Critério 44c.2 — o recorte virou `toggle-group` de escolha única, então a palavra do 14.3 mora
   // numa opção marcada, e não mais num cabeçalho.
@@ -251,15 +279,15 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   // 5 · Analisar — `aberta` → `em_analise`
   //
-  // **Sem observação, e não é esquecimento:** `analisar` é botão nu em T-05 — não tem entrada no mapa
-  // `formularios` da página —, então pela interface ele grava `observacao: null`. Os dois registros com
-  // texto vêm dos passos 7 e 8.
+  // **Sem observação, e não é esquecimento:** o modal oferece o campo desde o item 107, e este passo o
+  // deixa vazio. Os dois registros com texto vêm dos passos 7 e 8; quem escreve a observação de *Analisar*
+  // é `triagem-da-ocorrencia.spec.ts`, passo 12.
   //
   // Os rótulos são os do Gestor (`lenteDeRotulo` → `NOME_DO_STATUS`): «Aberta», «Em análise»,
   // «Em atendimento», «Resolvida».
   // -------------------------------------------------------------------------
   await esperarSituacao(marcos, "Aberta");
-  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await analisar(marcos);
   await esperarSituacao(marcos, "Em análise");
   cobre(test.info(), "4.3 · 29", {
     criterio: "16",
@@ -470,16 +498,28 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     },
   ];
 
+  /**
+   * O valor de um campo do registro, pelo nome dele (critério 107.3). O nome é `dt` e o valor é `dd`, um par
+   * por `div` dentro do `dl`; o texto do `dt` é minúsculo no DOM, e a caixa alta é só CSS.
+   */
+  const valor = (item: Locator, nome: string): Locator =>
+    item
+      .locator("dl > div")
+      .filter({ has: helena.locator("dt", { hasText: new RegExp(`^${nome}$`, "u") }) })
+      .locator("dd");
+
   for (const [indice, registro] of esperado.entries()) {
     const item = trilha.getByRole("listitem").nth(indice);
 
-    await expect(item).toContainText(`novo status: ${registro.novo}`);
-    await expect(item).toContainText(`status anterior: ${registro.anterior}`);
-    await expect(item).toContainText(`autor: ${registro.autor}`);
-    await expect(item).toContainText(`observação: ${registro.observacao}`);
-    // O carimbo com segundos, com o separador da regra de data. **É um dos cinco campos do F5**, e a
-    // asserção é de forma: conferir o valor exato amarraria o teste ao relógio de quem o roda.
-    await expect(item).toContainText(/data e hora: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}/u);
+    // **Os cinco campos do F5, com nome e valor**, e nenhum a mais nestes quatro registros sem motivo.
+    await expect(item.locator("dl > div")).toHaveCount(5);
+    await expect(valor(item, "novo status")).toContainText(registro.novo);
+    await expect(valor(item, "status anterior")).toHaveText(registro.anterior);
+    await expect(valor(item, "autor")).toHaveText(registro.autor);
+    await expect(valor(item, "observação")).toHaveText(registro.observacao);
+    // O carimbo com segundos, com o separador da regra de data. A asserção é de forma: conferir o valor
+    // exato amarraria o teste ao relógio de quem o roda.
+    await expect(valor(item, "data e hora")).toHaveText(/^\d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}:\d{2}$/u);
   }
 
   cobre(test.info(), "4.5 · 77", {
