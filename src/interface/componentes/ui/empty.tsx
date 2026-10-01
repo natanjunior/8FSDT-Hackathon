@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
 import { cn } from "@/interface/componentes/utilitarios"
 
 function Empty({ className, ...props }: React.ComponentProps<"div">) {
@@ -57,9 +58,16 @@ function EmptyMedia({
   )
 }
 
-function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
+/* Divergência do catálogo (item 104, critério 10): o registro devolve `<div>`, e o vazio que ocupa a
+   região de conteúdo ficava sem título para quem navega por cabeçalhos. Um novo `shadcn add` desfaz. */
+function EmptyTitle({
+  className,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"h2"> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : "h2"
   return (
-    <div
+    <Comp
       data-slot="empty-title"
       className={cn("text-titulo-bloco tracking-tight", className)}
       {...props}

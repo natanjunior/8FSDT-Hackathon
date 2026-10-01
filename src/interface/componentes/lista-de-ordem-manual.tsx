@@ -337,7 +337,9 @@ function VazioDaTabela({ titulo, corpo }: { readonly titulo: string; readonly co
   return (
     <Empty className="md:p-10">
       <EmptyHeader>
-        <EmptyTitle className="text-titulo-bloco text-tinta">{titulo}</EmptyTitle>
+        <EmptyTitle asChild className="text-titulo-bloco text-tinta">
+          <h3>{titulo}</h3>
+        </EmptyTitle>
         {corpo !== undefined && (
           <EmptyDescription className="text-corpo text-tinta-suave">{corpo}</EmptyDescription>
         )}

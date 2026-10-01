@@ -1509,6 +1509,20 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(ler("src/interface/componentes/ui/empty.tsx")).toMatch(/data-slot="empty-title"[\s\S]*?\btext-titulo-bloco\b/u);
   });
 
+  it("o título do vazio é `h2`, e os quatro desfechos de T-03 usam a mesma peça (critério 104.10)", () => {
+    const vazio = ler("src/interface/componentes/ui/empty.tsx");
+    expect(vazio).toMatch(/function EmptyTitle\([\s\S]*?asChild[\s\S]*?Slot\.Root : "h2"/u);
+
+    const lista = ler("app/(casca)/ocorrencias/page.tsx");
+    const filtroInvalido = /function FiltroInvalido\(\) \{[\s\S]*?\n\}/u.exec(lista)?.[0] ?? "";
+    expect(filtroInvalido).toContain("<EmptyTitle");
+    expect(filtroInvalido).toContain('<h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>');
+    expect(filtroInvalido).not.toMatch(/<h2[\s>]/u);
+
+    // A seção da lista de ordem manual já tem `h2` (`:185`); o vazio dentro dela é um nível abaixo.
+    expect(ler("src/interface/componentes/lista-de-ordem-manual.tsx")).toMatch(/<EmptyTitle asChild[^>]*>\s*<h3>/u);
+  });
+
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
     const fonte = ler("app/(casca)/ocorrencias/page.tsx");
 

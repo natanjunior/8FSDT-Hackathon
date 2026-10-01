@@ -550,17 +550,26 @@ async function Lista({
  */
 function FiltroInvalido() {
   return (
-    <div className="border-linha bg-superficie rounded-lg border px-4 py-10 text-center shadow-sm">
-      <h2 className="text-tinta text-titulo-bloco font-medium">Este link tem um filtro que não existe.</h2>
-      <p className="text-tinta-suave text-corpo mt-1">
-        Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
-      </p>
-      <Link
-        href="/ocorrencias"
-        className="text-tinta-marca text-interface mt-4 inline-block underline underline-offset-4"
-      >
-        Limpar filtros
-      </Link>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
+      <div className="border-linha bg-superficie rounded-lg border shadow-sm">
+        <Empty className="md:p-10">
+          <EmptyHeader>
+            <EmptyTitle className="text-titulo-bloco text-tinta">Este link tem um filtro que não existe.</EmptyTitle>
+            <EmptyDescription className="text-corpo text-tinta-suave">
+              Ele pode ter sido editado, ou ter sido feito numa versão anterior do aplicativo.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              href="/ocorrencias"
+              className="text-tinta-marca text-interface underline underline-offset-4"
+            >
+              Limpar filtros
+            </Link>
+          </EmptyContent>
+        </Empty>
+      </div>
     </div>
   );
 }
