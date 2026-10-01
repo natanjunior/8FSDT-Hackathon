@@ -61,12 +61,13 @@ describe("os integrantes — critérios 70.2 e 70.3", () => {
     }
   });
 
-  it("a classe do avatar pinta nos dois temas, e usa `marca`, nunca `accent`", () => {
+  it("a classe do avatar pinta nos dois temas, e nenhuma veste a marca", () => {
     for (const integrante of INTEGRANTES) {
       const classe = classeDoAvatar(integrante);
       expect(classe).toMatch(/(?:^| )bg-/u);
       expect(classe).toMatch(/(?:^| )dark:bg-/u);
       expect(classe).not.toMatch(/accent/u);
+      expect(classe).not.toMatch(/bg-marca|tinta-marca/u);
     }
   });
 });
