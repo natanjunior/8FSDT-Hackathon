@@ -182,6 +182,20 @@ export async function registrarOcorrencia(
 }
 
 /**
+ * *Analisar*, que desde o item 107 abre o `ModalDeObservacao` em vez de gravar no clique.
+ *
+ * **Sem `observacao`, confirma com o campo vazio**, e o registro sai com `observacao: null` — que a trilha
+ * escreve como *"sem observação"*. **Espera o diálogo fechar**, que é o sinal de que o comando voltou.
+ */
+export async function analisar(pagina: Page, observacao?: string): Promise<void> {
+  await pagina.getByRole("button", { name: "Analisar" }).click();
+  const modal = pagina.getByRole("dialog", { name: "Analisar" });
+  if (observacao !== undefined) await modal.getByLabel("Observação (opcional)").fill(observacao);
+  await modal.getByRole("button", { name: "Analisar" }).click();
+  await expect(modal).toHaveCount(0);
+}
+
+/**
  * Abre um comando que mora no menu *"Mais ações ▾"* da barra (item 23).
  *
  * **O gatilho lá dentro é `menuitem`, e não `button`** — `ModalDeMotivo` e `ModalDeAtribuicao` trocam a

@@ -148,3 +148,23 @@ describe("item 107 · a régua mostra o tempo decorrido (critério 107.2)", () =
     expect(passo("Aberta").textContent?.trim().endsWith("09:15")).toBe(true);
   });
 });
+
+describe("item 107 · Analisar confirma (critério 107.4)", () => {
+  const pagina = () => ler("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx");
+
+  it("analisar tem nó no mapa formularios, com o ModalDeObservacao e observação opcional", () => {
+    const fonte = pagina();
+    const inicio = fonte.indexOf("    analisar: (");
+    expect(inicio).toBeGreaterThan(fonte.indexOf("const formularios = {"));
+    const no = fonte.slice(inicio, fonte.indexOf("),", inicio));
+    expect(no).toContain("<ModalDeObservacao");
+    expect(no).toContain('comando="analisar"');
+    expect(no).toContain('rotuloDoCampo="Observação (opcional)"');
+    expect(no).toContain('verboEnviando="Analisando…"');
+    expect(no).toContain("retorno={RETORNO_DO_COMANDO.analisar}");
+  });
+
+  it("a barra não diz mais que analisar é botão nu", () => {
+    expect(ler("src/interface/componentes/barra-de-acoes.tsx")).not.toContain("`analisar` é botão nu");
+  });
+});

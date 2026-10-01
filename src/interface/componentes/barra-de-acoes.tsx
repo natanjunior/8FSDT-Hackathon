@@ -27,8 +27,9 @@ import {
  * pelo servidor a partir da máquina de estados — *"desabilitar exige a segunda cópia da máquina de
  * estados"* (`inventario-de-telas.md`), e é isso que este componente não faz.
  *
- * **`formularios` é a mudança do item 19.** `analisar` é botão nu; `atribuir-responsavel` precisa de um
- * modal, e os outros oito comandos precisam de modal, seletor ou campo. Em vez de a barra ganhar **um `if`
+ * **`formularios` é a mudança do item 19.** Desde o item 107 nenhum comando chega aqui sem nó:
+ * `analisar`, o último botão nu, ganhou o `ModalDeObservacao`. O ramo de disparo direto fica como contrato do
+ * componente (*"Ausente = botão de disparo direto"*), sem consumidor na tela. Em vez de a barra ganhar **um `if`
  * por comando** — oito ramos até o item 27 —, ela recebe, por comando, **ou o nó pronto ou nada**. Quem
  * monta o nó é a **página**, que é quem tem os candidatos e quem sabe qual ação é a primeira.
  *
@@ -155,7 +156,7 @@ export function BarraDeAcoes({
     setEnviando(true);
     setAviso(null);
 
-    // **A tela envia `{}`** — este caminho é só dos comandos sem formulário, que é o botão nu (D23). O
+    // **A tela envia `{}`** — este caminho é só dos comandos sem formulário — nenhum desde o item 107. O
     // `corpoOpcional` do servidor existe para o cliente que NÃO é esta tela.
     const resultado = await executarComando(
       ocorrenciaId,

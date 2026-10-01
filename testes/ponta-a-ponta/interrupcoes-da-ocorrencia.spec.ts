@@ -17,6 +17,7 @@ import {
   registrarOcorrencia,
   situacao,
   SOLICITANTE_DO_AURORA,
+  analisar,
 } from "./mundo";
 
 /**
@@ -154,7 +155,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // *Pausar* de ficar em destaque numa ocorrência que ninguém pegou.
   // -------------------------------------------------------------------------
   await esperarSituacao(marcos, "Aberta");
-  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await analisar(marcos);
   await esperarSituacao(marcos, "Em análise");
 
   await marcos.getByRole("button", { name: "Atribuir" }).click();

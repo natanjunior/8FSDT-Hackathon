@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
-import { AURORA, ENCARREGADA_DO_AURORA, HELENA, MARCOS, RECANTO, SENHA } from "./mundo";
+import { analisar, AURORA, ENCARREGADA_DO_AURORA, HELENA, MARCOS, RECANTO, SENHA } from "./mundo";
 
 /**
  * ============================================================================
@@ -279,15 +279,15 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   // 5 · Analisar — `aberta` → `em_analise`
   //
-  // **Sem observação, e não é esquecimento:** `analisar` é botão nu em T-05 — não tem entrada no mapa
-  // `formularios` da página —, então pela interface ele grava `observacao: null`. Os dois registros com
-  // texto vêm dos passos 7 e 8.
+  // **Sem observação, e não é esquecimento:** o modal oferece o campo desde o item 107, e este passo o
+  // deixa vazio. Os dois registros com texto vêm dos passos 7 e 8; quem escreve a observação de *Analisar*
+  // é `triagem-da-ocorrencia.spec.ts`, passo 12.
   //
   // Os rótulos são os do Gestor (`lenteDeRotulo` → `NOME_DO_STATUS`): «Aberta», «Em análise»,
   // «Em atendimento», «Resolvida».
   // -------------------------------------------------------------------------
   await esperarSituacao(marcos, "Aberta");
-  await marcos.getByRole("button", { name: "Analisar" }).click();
+  await analisar(marcos);
   await esperarSituacao(marcos, "Em análise");
   cobre(test.info(), "4.3 · 29", {
     criterio: "16",
