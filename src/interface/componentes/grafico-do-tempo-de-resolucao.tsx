@@ -19,6 +19,10 @@ import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/cha
  * pontos chegam já nela. Os rótulos de ponta chegam escritos por `duracaoEmTexto`, a mesma função que
  * escreve toda duração do produto.
  *
+ * O texto vai em tinta e o ponto na cor da série (item 110): a cor da série passa a régua de objeto
+ * gráfico, 3:1, e reprova como texto. O texto anda `RECUO_DO_TEXTO` à direita do ponto, e a margem
+ * direita cresceu o mesmo tanto.
+ *
  * **`aria-hidden`, sem legenda e sem animação**, pelas razões do gráfico do fluxo. A alternativa textual
  * é a tabela do `Ver dados`.
  *
@@ -32,6 +36,9 @@ const CONFIGURACAO: ChartConfig = {
   p90: { label: "p90", color: "var(--chart-1)" },
   mediana: { label: "Mediana", color: "var(--chart-2)" },
 };
+
+/** A distância do ponto ao texto, em px: o `●` em `meta` tem cerca de 8 px, e o resto é respiro. */
+const RECUO_DO_TEXTO = 12;
 
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
@@ -68,7 +75,7 @@ export function GraficoDoTempoDeResolucao({
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart accessibilityLayer={false} data={[...pontos]} margin={{ top: 24, right: 120, bottom: 0, left: 4 }}>
+      <LineChart accessibilityLayer={false} data={[...pontos]} margin={{ top: 24, right: 120 + RECUO_DO_TEXTO, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis
@@ -91,12 +98,21 @@ export function GraficoDoTempoDeResolucao({
               dot={{ r: 3, fill: `var(--color-${serie.chave})`, strokeWidth: 0 }}
               isAnimationActive={false}
             >
+              {/* O ponto: objeto gráfico, na cor da série (3:1). É ele que diz qual linha é qual. */}
               <LabelList
                 position="right"
                 offset={16}
                 dy={serie.dy}
                 className="text-meta"
                 fill={`var(--color-${serie.chave})`}
+                valueAccessor={(_entrada, i) => (i === indice && texto !== null ? "●" : null)}
+              />
+              {/* O texto: tinta cheia (4,5:1). Na cor da série ele reprovava como texto no escuro (A-008). */}
+              <LabelList
+                position="right"
+                offset={16 + RECUO_DO_TEXTO}
+                dy={serie.dy}
+                className="fill-tinta text-meta"
                 valueAccessor={(_entrada, i) =>
                   i === indice && texto !== null ? `${serie.rotulo} ${texto}` : null
                 }

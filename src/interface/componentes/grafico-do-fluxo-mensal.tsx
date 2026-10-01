@@ -36,6 +36,10 @@ import {
  * direita comporta `Registradas` com três dígitos, e a de cima comporta o rótulo que sobe 12 px quando o
  * último mês é o maior valor do desenho (com 12 px de margem, `Registradas 8` saía cortado ao meio).
  *
+ * O texto vai em tinta e o ponto na cor da série (item 110): a cor da série passa a régua de objeto
+ * gráfico, 3:1, e reprova como texto. O texto anda `RECUO_DO_TEXTO` à direita do ponto, e a margem
+ * direita cresceu o mesmo tanto.
+ *
  * **Nenhuma cor semântica.** Verde para as saídas e vermelho para as registradas julgaria o número antes de
  * quem lê, e um mês de muitas registradas pode ser a organização finalmente usando o produto. As cores são
  * `--chart-1` e `--chart-2`, da paleta categórica que um teste mede.
@@ -62,6 +66,9 @@ const SERIES = [
   { chave: "saidas", rotulo: "Saíram", dy: 16 },
 ] as const;
 
+/** A distância do ponto ao texto, em px: o `●` em `meta` tem cerca de 8 px, e o resto é respiro. */
+const RECUO_DO_TEXTO = 12;
+
 export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxoMensal[] }) {
   const ultimo = linhas.length - 1;
   const final = linhas[ultimo];
@@ -72,7 +79,7 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
       config={CONFIGURACAO}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart accessibilityLayer={false} data={[...linhas]} margin={{ top: 24, right: 132, bottom: 0, left: 4 }}>
+      <LineChart accessibilityLayer={false} data={[...linhas]} margin={{ top: 24, right: 132 + RECUO_DO_TEXTO, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
@@ -88,13 +95,24 @@ export function GraficoDoFluxoMensal({ linhas }: { linhas: readonly LinhaDoFluxo
             activeDot={{ r: 5 }}
             isAnimationActive={false}
           >
-            {/* Sem `dataKey`: o valor sai do `valueAccessor`, e ele só escreve no último ponto. */}
+            {/* Sem `dataKey`: o valor sai do `valueAccessor`, e eles só escrevem no último ponto. */}
+            {/* O ponto: objeto gráfico, na cor da série (3:1). É ele que diz qual linha é qual. */}
             <LabelList
               position="right"
               offset={30}
               dy={serie.dy}
               className="text-meta"
               fill={`var(--color-${serie.chave})`}
+              valueAccessor={(_entrada, indice) =>
+                indice === ultimo && final !== undefined ? "●" : null
+              }
+            />
+            {/* O texto: tinta cheia (4,5:1). Na cor da série ele media 3,82:1 no escuro (A-008). */}
+            <LabelList
+              position="right"
+              offset={30 + RECUO_DO_TEXTO}
+              dy={serie.dy}
+              className="fill-tinta text-meta"
               valueAccessor={(_entrada, indice) =>
                 indice === ultimo && final !== undefined
                   ? `${serie.rotulo} ${String(final[serie.chave])}`
