@@ -13,6 +13,7 @@ import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
   corteDeTopo,
+  fraseDoDenominadorDasDuplas,
   fraseDoResto,
   SEM_DUPLA_RECORRENTE,
 } from "@/interface/componentes/duplas-recorrentes";
@@ -25,6 +26,7 @@ import {
   trechoDoMes,
   vereditoDoFluxo,
   type LinhaDoFluxoMensal,
+  type SaldoDoPeriodo as Saldo,
 } from "@/interface/componentes/fluxo-mensal";
 import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
@@ -159,6 +161,8 @@ export default async function Dashboard({
     dashboard.canceladasPorMes,
     dashboard.periodo,
   );
+  // E o saldo sai uma vez só, para o cartão e o rodapé do quadro 4 dizerem o mesmo *entraram* (item 110).
+  const saldo = saldoDoPeriodo(fluxo);
 
   return (
     <PeriodoEmVoo>
@@ -180,7 +184,7 @@ export default async function Dashboard({
           <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
               <EmAbertoAgora dashboard={dashboard} />
-              <SaldoDoPeriodo fluxo={fluxo} />
+              <SaldoDoPeriodo saldo={saldo} />
               <AMaisVelha dashboard={dashboard} />
             </div>
             <EntradasESaidas fluxo={fluxo} periodo={dashboard.periodo} />
@@ -189,7 +193,7 @@ export default async function Dashboard({
           <div className="grid gap-4 lg:grid-cols-2">
             <EmAbertoPorIdade dashboard={dashboard} />
             <TempoDeResolucao dashboard={dashboard} />
-            <OQueEstaVoltando dashboard={dashboard} />
+            <OQueEstaVoltando dashboard={dashboard} entraram={saldo.entraram} />
             <EmAbertoPorCategoria dashboard={dashboard} />
             <OcorrenciasPorStatus dashboard={dashboard} />
             <Satisfacao dashboard={dashboard} />
@@ -263,8 +267,7 @@ function EmAbertoAgora({ dashboard }: { dashboard: DashboardProjetado }) {
 }
 
 /** O segundo cartão: **o sinal sempre escrito**, e quanto entrou e saiu embaixo. Saiu é resolvida mais cancelada. */
-function SaldoDoPeriodo({ fluxo }: { fluxo: readonly LinhaDoFluxoMensal[] }) {
-  const saldo = saldoDoPeriodo(fluxo);
+function SaldoDoPeriodo({ saldo }: { saldo: Saldo }) {
   return (
     <CartaoDeIndicador
       rotulo="Saldo do período"
@@ -515,8 +518,16 @@ function TempoDeResolucao({ dashboard }: { dashboard: DashboardProjetado }) {
  *
  * **O rótulo quebra em duas linhas**, área em cima e categoria embaixo: truncar cortaria a metade que o
  * quadro existe para mostrar.
+ *
+ * O eixo vai até as registradas do período, e o rodapé as escreve (item 110).
  */
-function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
+function OQueEstaVoltando({
+  dashboard,
+  entraram,
+}: {
+  dashboard: DashboardProjetado;
+  entraram: number;
+}) {
   const { mostradas, restantes, maiorDasRestantes } = corteDeTopo(dashboard.duplasRecorrentes);
 
   return (
@@ -534,6 +545,7 @@ function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
         <>
           <GraficoDeBarras
             larguraDoRotulo={176}
+            denominador={entraram}
             barras={mostradas.map((dupla) => ({
               chave: chaveDaDupla(dupla),
               rotulo: dupla.area.nome,
@@ -545,6 +557,7 @@ function OQueEstaVoltando({ dashboard }: { dashboard: DashboardProjetado }) {
           {restantes > 0 ? (
             <p className="text-tinta-suave text-meta">{fraseDoResto(restantes, maiorDasRestantes)}</p>
           ) : null}
+          <p className="text-tinta-suave text-meta">{fraseDoDenominadorDasDuplas(entraram)}</p>
         </>
       )}
     </Cartao>
@@ -627,6 +640,8 @@ function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) 
  * avaliaram mal. **E a frase ao lado continua trazendo o denominador** — ela diz quantas resolvidas o
  * período tem e que nenhuma foi avaliada, o que é do item 81. **As cinco barras ficam, a zero**, pela
  * razão de 32.3: a estrutura ensina o que vai ser medido. Nota 5 em cima, como quem lê espera.
+ *
+ * O eixo das notas vai até as resolvidas, o mesmo denominador da frase (item 110).
  */
 function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
   const avaliacoes = dashboard.mediaDasAvaliacoes;
@@ -648,6 +663,7 @@ function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
       </div>
       <GraficoDeBarras
         larguraDoRotulo={72}
+        denominador={avaliacoes.resolvidas}
         barras={[...avaliacoes.distribuicao].reverse().map((nota) => ({
           chave: String(nota.nota),
           rotulo: rotuloDaNota(nota.nota),
