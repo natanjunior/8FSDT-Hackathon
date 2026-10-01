@@ -1,6 +1,6 @@
 /** Superfície pública do módulo `aplicacao/organizacao` (ADR-0006, regra 3). */
 export { criarOrganizacao } from "./criar-organizacao";
-export { listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
+export { contarAreas, contarCategorias, listarAreas, listarCategorias, listarPedidosDeEntrada } from "./consultas";
 export { pedirEntrada, type ComandoDePedirEntrada } from "./pedir-entrada";
 export {
   lerConvite,
@@ -70,6 +70,7 @@ export type {
   CategoriaLida,
   ChaveDeConfiguracao,
   ConfiguracaoLida,
+  ContagemDaLista,
   ContatoLido,
   ContatoParaEscrita,
   CorrecaoDeArea,

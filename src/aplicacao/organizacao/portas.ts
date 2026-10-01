@@ -329,6 +329,12 @@ export type ResultadoDaReordenacao<L> =
   | { desfecho: "lista-desatualizada" };
 
 /**
+ * **Quantas há, e quantas delas estão ativas** — item 106, critério 3. É o que `/configuracao` imprime
+ * (*"7 ativas de 8"*), e ler as listas inteiras para isso era trazer cada linha só para contá-la.
+ */
+export type ContagemDaLista = { ativas: number; total: number };
+
+/**
  * As duas portas escopadas desta fatia. Nenhuma recebe o identificador da organização — ele está amarrado
  * ao `$1` pelo ponto único (ADR-0003), e o repositório **não tem como saber** qual é. É isso que torna
  * *"categoria de outra organização"* **inalcançável**, e é daí que sai o `404` idêntico ao de inexistente
@@ -336,6 +342,8 @@ export type ResultadoDaReordenacao<L> =
  */
 export interface RepositorioEscopadoDeCategorias {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly CategoriaLida[]>;
+  /** Numa consulta só: `count(*)` e `count(*) filter (where ativa)`. */
+  contar(): Promise<ContagemDaLista>;
   criar(nova: NovaCategoria): Promise<ResultadoDeCriacaoDeCategoria>;
   corrigir(correcao: CorrecaoDeCategoria): Promise<ResultadoDeCorrecaoDeCategoria>;
   /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */
@@ -344,6 +352,8 @@ export interface RepositorioEscopadoDeCategorias {
 
 export interface RepositorioEscopadoDeAreas {
   listar(opcoes: { apenasAtivas: boolean }): Promise<readonly AreaLida[]>;
+  /** Numa consulta só: `count(*)` e `count(*) filter (where ativa)`. */
+  contar(): Promise<ContagemDaLista>;
   criar(nova: NovaArea): Promise<ResultadoDeCriacaoDeArea>;
   corrigir(correcao: CorrecaoDeArea): Promise<ResultadoDeCorrecaoDeArea>;
   /** Numa transação escopada: trava a lista, confere o conjunto, grava só o que mudou e relê. */

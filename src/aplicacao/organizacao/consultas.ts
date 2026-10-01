@@ -3,6 +3,7 @@ import type { SituacaoDoPedido } from "@/dominio/organizacao";
 import type {
   AreaLida,
   CategoriaLida,
+  ContagemDaLista,
   PedidoDeEntradaLido,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
@@ -30,6 +31,15 @@ export function listarAreas(
   filtro: { incluirInativas?: boolean } = {},
 ): Promise<readonly AreaLida[]> {
   return areas.listar({ apenasAtivas: filtro.incluirInativas !== true });
+}
+
+/** A contagem da configuração (critério 106.3): o denominador são todas, ativas e inativas. */
+export function contarCategorias(categorias: RepositorioEscopadoDeCategorias): Promise<ContagemDaLista> {
+  return categorias.contar();
+}
+
+export function contarAreas(areas: RepositorioEscopadoDeAreas): Promise<ContagemDaLista> {
+  return areas.contar();
 }
 
 /**

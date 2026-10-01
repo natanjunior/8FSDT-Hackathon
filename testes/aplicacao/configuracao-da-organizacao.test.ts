@@ -7,6 +7,8 @@ import {
   NomeDeAreaDuplicado,
   NomeDeCategoriaDuplicado,
   alterarConfiguracao,
+  contarAreas,
+  contarCategorias,
   corrigirArea,
   corrigirCategoria,
   corrigirOrganizacao,
@@ -69,6 +71,7 @@ function portaDeCategorias(
     recebido,
     porta: {
       listar: () => Promise.resolve([]),
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: (nova) => {
         recebido.criar = nova;
         return Promise.resolve(criacao);
@@ -94,6 +97,7 @@ function portaDeAreas(
     recebido,
     porta: {
       listar: () => Promise.resolve([]),
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: (nova) => {
         recebido.criar = nova;
         return Promise.resolve(criacao);
@@ -331,6 +335,7 @@ function portaQueReordena(desfecho: "reordenada" | "lista-desatualizada" = "reor
         listadas.push(opcoes);
         return Promise.resolve(CATEGORIAS_ATUAIS);
       },
+      contar: () => Promise.reject(new Error("este duplo não conta")),
       criar: () => Promise.reject(new Error("este duplo só reordena")),
       corrigir: () => Promise.reject(new Error("este duplo só reordena")),
       reordenar: (reordenacao) => {
@@ -427,6 +432,7 @@ describe("reordenarAreas — a mesma regra, na outra lista", () => {
       gravadas,
       repositorio: {
         listar: () => Promise.resolve(AREAS_ATUAIS),
+        contar: () => Promise.reject(new Error("este duplo não conta")),
         criar: () => Promise.reject(new Error("este duplo só reordena")),
         corrigir: () => Promise.reject(new Error("este duplo só reordena")),
         reordenar: (reordenacao) => {
@@ -536,5 +542,27 @@ describe("alterarConfiguracao — item 99", () => {
       porPessoaId: "p-1",
     });
     expect(recebidas[0]).not.toHaveProperty("rotulos");
+  });
+});
+
+describe("contarCategorias e contarAreas — critério 106.3", () => {
+  it("devolvem a contagem da porta, sem ler a lista", async () => {
+    const categorias: RepositorioEscopadoDeCategorias = {
+      listar: () => Promise.reject(new Error("a contagem não lista")),
+      contar: () => Promise.resolve({ ativas: 7, total: 8 }),
+      criar: () => Promise.reject(new Error("não cria")),
+      corrigir: () => Promise.reject(new Error("não corrige")),
+      reordenar: () => Promise.reject(new Error("não reordena")),
+    };
+    const areas: RepositorioEscopadoDeAreas = {
+      listar: () => Promise.reject(new Error("a contagem não lista")),
+      contar: () => Promise.resolve({ ativas: 0, total: 0 }),
+      criar: () => Promise.reject(new Error("não cria")),
+      corrigir: () => Promise.reject(new Error("não corrige")),
+      reordenar: () => Promise.reject(new Error("não reordena")),
+    };
+
+    await expect(contarCategorias(categorias)).resolves.toStrictEqual({ ativas: 7, total: 8 });
+    await expect(contarAreas(areas)).resolves.toStrictEqual({ ativas: 0, total: 0 });
   });
 });

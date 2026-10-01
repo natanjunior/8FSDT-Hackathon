@@ -24,6 +24,16 @@ export function repositorioEscopadoDeCategorias(
       return lerCategorias(consulta, apenasAtivas);
     },
 
+    async contar() {
+      // **O `::int` não é decoração:** `count(*)` é `bigint`, e o `pg` o devolve como string.
+      const [linha] = await consulta<{ ativas: number; total: number }>(
+        `select count(*) filter (where ativa)::int as ativas, count(*)::int as total
+           from categorias
+          where organizacao_id = $1`,
+      );
+      return { ativas: linha?.ativas ?? 0, total: linha?.total ?? 0 };
+    },
+
     async criar(nova) {
       try {
         // `atualizado_por_pessoa_id` fica **nulo na criação**, de propósito: a coluna é *"o último a

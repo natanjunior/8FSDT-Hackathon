@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { lerConfiguracao, listarAreas, listarCategorias } from "@/aplicacao/organizacao";
+import { contarAreas, contarCategorias, lerConfiguracao } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
 import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
@@ -54,9 +54,10 @@ import { projetarConfiguracao, rotuloPadraoDoSolicitante } from "@/interface/pro
  * **A contagem continua**, porque responde *"está configurado?"* de um relance, que é a pergunta que a
  * tela fundida respondia ao abrir. Ela carrega a palavra, nunca só o número (compromisso A-5).
  *
- * **As duas leituras são as mesmas que a tela fundida já disparava em paralelo**, e vêm com as inativas
- * porque o denominador da contagem é o total. O nome e o código vêm do contexto que a página já
- * resolveu. O desfecho do salvamento é um aviso, que mora no layout raiz.
+ * **As duas leituras são contagens** (item 106, critério 3): a tela imprime quatro números, e trazer cada
+ * linha para contá-la no servidor da aplicação era o custo sem motivo. O denominador continua sendo o
+ * total, ativas e inativas. O nome e o código vêm do contexto que a página já resolveu. O desfecho do
+ * salvamento é um aviso, que mora no layout raiz.
  *
  * **Quatro cartões e uma pauta desde o item 100, e a ordem é a mesma de sempre:** o que a organização é,
  * como ela trabalha, como ela fala, e o que o formulário oferece. As mudanças vão por último porque são
@@ -100,13 +101,12 @@ export default async function ConfiguracaoDaOrganizacao() {
   }
 
   const [categorias, areas, configuracao] = await Promise.all([
-    listarCategorias(escopo.repos.categorias, { incluirInativas: true }),
-    listarAreas(escopo.repos.areas, { incluirInativas: true }),
+    contarCategorias(escopo.repos.categorias),
+    contarAreas(escopo.repos.areas),
     lerConfiguracao(escopo.repos.configuracao).then(projetarConfiguracao),
   ]);
 
   const ativo = escopo.resolucao.ativo;
-  const ativas = (itens: readonly { ativa: boolean }[]) => itens.filter((i) => i.ativa).length;
 
   return (
     <div className="flex flex-col gap-5.5">
@@ -261,8 +261,8 @@ export default async function ConfiguracaoDaOrganizacao() {
               Icone={Tags}
               titulo="Categorias"
               descricao="A natureza da ocorrência."
-              ativas={ativas(categorias)}
-              total={categorias.length}
+              ativas={categorias.ativas}
+              total={categorias.total}
             />
           </li>
           <li>
@@ -273,8 +273,8 @@ export default async function ConfiguracaoDaOrganizacao() {
               Icone={LayoutGrid}
               titulo="Áreas"
               descricao="Onde, dentro desta organização, ela aconteceu."
-              ativas={ativas(areas)}
-              total={areas.length}
+              ativas={areas.ativas}
+              total={areas.total}
             />
           </li>
         </ul>
