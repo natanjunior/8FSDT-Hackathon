@@ -184,16 +184,22 @@ function CartaoDaTela({
  * **A régua do "ou"** (item 65): horizontal no celular, entre o cartão e o convite; vertical a partir de
  * `lg`, do topo ao pé da fileira. É desenho, e por isso `aria-hidden`: a ordem de leitura já diz que são
  * duas saídas.
+ *
+ * **`deitada`** (item 111) é a mesma régua dentro de um cartão, entre dois botões: horizontal em qualquer
+ * largura. Uma régua só, para que o "ou" do QR e o do convite não pareçam outra coisa.
  */
-function ReguaDoOu() {
+export function ReguaDoOu({ deitada = false }: { deitada?: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="text-meta text-tinta-suave flex items-center gap-3 lg:order-2 lg:flex-col lg:self-stretch"
+      className={cn(
+        "text-meta text-tinta-suave flex items-center gap-3",
+        !deitada && "lg:order-2 lg:flex-col lg:self-stretch",
+      )}
     >
-      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+      <span className={cn("bg-linha h-px flex-1", !deitada && "lg:h-auto lg:w-px")} />
       <span>ou</span>
-      <span className="bg-linha h-px flex-1 lg:h-auto lg:w-px" />
+      <span className={cn("bg-linha h-px flex-1", !deitada && "lg:h-auto lg:w-px")} />
     </div>
   );
 }

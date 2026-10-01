@@ -827,6 +827,174 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
 
 /**
  * ============================================================================
+ *  O QR na área (item 111)
+ * ============================================================================
+ *
+ * O mesmo caminho do convite, por outra porta: a etiqueta colada no lugar. Quatro janelas: a Gestora que
+ * gera o QR, a Solicitante que lê no celular (com e sem sessão, numa organização e noutra), quem não
+ * participa, e uma janela sem ninguém, que abre o QR adulterado.
+ */
+test("o QR na área: o Gestor gera, quem participa registra com a área, quem não participa pede entrada", async ({
+  browser,
+}) => {
+  const NOME_G = "Gestora do QR";
+  const EMAIL_G = `gestora-qr.${MARCA}@example.com`;
+  const NOME_S = "Solicitante do QR";
+  const EMAIL_S = `solicitante-qr.${MARCA}@example.com`;
+  const NOME_V = "Visitante do QR";
+  const EMAIL_V = `visitante-qr.${MARCA}@example.com`;
+  const ORG_QR = `Prédio do QR ${MARCA}`;
+  const ORG_DA_S = `Outra casa da Solicitante ${MARCA}`;
+  // A primeira área da semente (`Semente.ts`), que as duas organizações do teste trazem.
+  const primeiraArea = "Área comum";
+
+  const g = await (await browser.newContext()).newPage();
+  const contextoDeS = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  const s = await contextoDeS.newPage();
+  const v = await (await browser.newContext()).newPage();
+  const ninguem = await (await browser.newContext()).newPage();
+
+  // 1 · G funda; a semente traz "Área comum" e "Unidade". Abre o QR da primeira pela tabela (111.1).
+  await criarConta(g, NOME_G, EMAIL_G);
+  await criarOrganizacao(g, ORG_QR);
+  await g.goto("/configuracao/areas");
+  await g.getByRole("link", { name: "QR da área" }).first().click();
+  await g.waitForURL(/\/configuracao\/areas\/[0-9a-f-]{36}\/qr$/u);
+  const areaId = g.url().split("/").at(-2)!;
+  await expect(g.getByRole("img", { name: `QR da área ${primeiraArea} em ${ORG_QR}` })).toBeVisible();
+  const codigo = await lerCodigoPublico(g);
+  const link = `/convite/${codigo}?area=${areaId}`;
+
+  // 2 · S cria conta, cria a própria organização e pede entrada no prédio; G aprova como Solicitante.
+  await criarConta(s, NOME_S, EMAIL_S);
+  await criarOrganizacao(s, ORG_DA_S);
+  await s.goto(`/convite/${codigo}`);
+  await s.getByRole("button", { name: "Pedir entrada" }).click();
+  await expect(s.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+  await g.goto("/vinculos");
+  await responderOPedidoDe(g, NOME_S).click();
+  const modal = g.getByRole("dialog");
+  await modal.getByRole("radio", { name: /^Solicitante/u }).check();
+  await modal.getByRole("button", { name: "Aprovar como Solicitante" }).click();
+  await expect(g.getByRole("dialog")).toHaveCount(0);
+
+  // 3 · S está na própria organização e lê o QR: troca, com um Set-Cookie só, e cai no registro (111.3).
+  const respostaDaTroca = s.waitForResponse(
+    (r) => r.url().endsWith("/api/contexto/organizacao") && r.request().method() === "PUT",
+  );
+  await s.goto(link);
+  const troca = await respostaDaTroca;
+  expect(troca.status()).toBe(200);
+  const cookiesDaTroca = (await troca.headersArray()).filter(
+    (h) => h.name.toLowerCase() === "set-cookie" && h.value.startsWith("resolveai_organizacao="),
+  );
+  expect(cookiesDaTroca).toHaveLength(1);
+  await s.waitForURL(new RegExp(`/ocorrencias/nova\\?area=${areaId}$`, "u"));
+  await expect(s.getByText(`Em ${ORG_QR}.`)).toBeVisible();
+  await expect(s.getByRole("combobox", { name: /Área/u })).toContainText(primeiraArea);
+
+  // 4 · Já nela, lê de novo: registro direto, sem PUT (111.2). Cancelar sem escrever não pergunta nada.
+  let houvePut = false;
+  s.on("request", (r) => {
+    if (r.url().endsWith("/api/contexto/organizacao") && r.method() === "PUT") houvePut = true;
+  });
+  await s.goto(link);
+  await s.waitForURL(new RegExp(`/ocorrencias/nova\\?area=${areaId}$`, "u"));
+  expect(houvePut).toBe(false);
+  await s.getByRole("button", { name: "Cancelar" }).click();
+  // Sem nada escrito, Cancelar sai direto para a lista: a espera pela URL é a prova, e a contagem do
+  // diálogo confirma que ele não abriu no caminho.
+  await s.waitForURL(/\/ocorrencias$/u);
+  await expect(s.getByRole("alertdialog")).toHaveCount(0);
+
+  // 5 · Sem sessão, no celular: o nome da organização, os dois botões acima de 640, sem rolar de lado
+  //     (111.4, 111.9). Entrar volta sozinho ao registro com a área.
+  await contextoDeS.clearCookies();
+  await s.goto(link);
+  await expect(s.getByRole("heading", { name: ORG_QR })).toBeVisible();
+  await expect(s.getByText(primeiraArea, { exact: true })).toHaveCount(0);
+  expect(await transbordo(s)).toStrictEqual(SEM_TRANSBORDO);
+  for (const nome of ["Entrar", "Entrar na organização"]) {
+    const caixa = await s.getByRole("link", { name: nome, exact: true }).boundingBox();
+    expect((caixa?.y ?? 9999) + (caixa?.height ?? 0), nome).toBeLessThanOrEqual(640);
+  }
+  await s.getByRole("link", { name: "Entrar", exact: true }).click();
+  await s.getByLabel("E-mail").fill(EMAIL_S);
+  await s.getByLabel(/^Senha/u).fill(SENHA);
+  await s.getByRole("button", { name: "Entrar" }).click();
+  await s.waitForURL(new RegExp(`/ocorrencias/nova\\?area=${areaId}$`, "u"));
+  await expect(s.getByRole("combobox", { name: /Área/u })).toContainText(primeiraArea);
+
+  // 6 · Quem não participa: vai ao convite e pede; o registro não abre (111.5). E a recusa, além do desvio:
+  //     abrir o registro com a área do prédio, direto, não mostra o formulário.
+  await criarConta(v, NOME_V, EMAIL_V);
+  await v.goto(link);
+  await v.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  await v.getByRole("button", { name: "Pedir entrada" }).click();
+  await expect(v.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
+  await v.goto(link);
+  await v.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
+  await v.goto(`/ocorrencias/nova?area=${areaId}`);
+  await expect(v).not.toHaveURL(/\/ocorrencias\/nova/u);
+  // S tem duas organizações. Na outra, a área do prédio é de fora: o registro abre sem área, com o aviso
+  // de sempre, e nada diz de onde ela é (111.7, 7a e 7b).
+  await trocarPeloContrato(s, ORG_DA_S);
+  await s.goto(`/ocorrencias/nova?area=${areaId}`);
+  await expect(s.getByText(TEXTO_DA_AREA_INDISPONIVEL)).toBeVisible();
+  await expect(s.getByText(`Em ${ORG_DA_S}.`)).toBeVisible();
+  await expect(s.getByText(ORG_QR)).toHaveCount(0);
+  await expect(s.getByRole("combobox", { name: /Área/u })).not.toContainText(primeiraArea);
+
+  // 7 · O código que não leva a organização, ou a área fora do formato: QR não encontrado, com saída.
+  await ninguem.goto(`/convite/${codigo}?area=nao-e-uuid`);
+  await expect(ninguem.getByRole("heading", { name: "QR não encontrado" })).toBeVisible();
+  await expect(ninguem.getByRole("link", { name: "Ir para o início" })).toBeVisible();
+  await ninguem.goto(`/convite/${CODIGO_INVENTADO}?area=${areaId}`);
+  await expect(ninguem.getByRole("heading", { name: "QR não encontrado" })).toBeVisible();
+  //    Desativada: G desativa a área, S lê o QR e o registro abre sem área, com o mesmo aviso.
+  await desativarArea(g, primeiraArea);
+  await s.goto(link);
+  await s.waitForURL(new RegExp(`/ocorrencias/nova\\?area=${areaId}$`, "u"));
+  await expect(s.getByText(TEXTO_DA_AREA_INDISPONIVEL)).toBeVisible();
+
+  // 8 · S, Solicitante, é recusada no QR da área digitando o endereço (cenário "quem não configura").
+  await s.goto(`/configuracao/areas/${areaId}/qr`);
+  await expect(s.getByRole("img", { name: /^QR da área/u })).toHaveCount(0);
+});
+
+/** O aviso único do registro aberto por um QR cuja área não está entre as ativas (111.7a). */
+const TEXTO_DA_AREA_INDISPONIVEL = "Esta área não está mais disponível. Escolha onde é.";
+
+/**
+ * Troca a organização ativa pelo `PUT /contexto/organizacao`, o mesmo que o seletor chama. **Pelo
+ * contrato, e não pelo seletor**, porque este contexto está em 360 px e o seletor da barra superior muda
+ * de forma no celular (item 92). A troca pela tela não é o que este teste prova.
+ */
+async function trocarPeloContrato(pagina: Page, nome: string): Promise<void> {
+  const contexto = (await (await pagina.request.get("/api/contexto")).json()) as {
+    vinculos: { organizacaoId: string; nome: string }[];
+  };
+  const vinculo = contexto.vinculos.find((v) => v.nome === nome);
+  expect(vinculo, nome).toBeDefined();
+  const resposta = await pagina.request.put("/api/contexto/organizacao", {
+    data: { organizacaoId: vinculo!.organizacaoId },
+  });
+  expect(resposta.status()).toBe(200);
+}
+
+/** Desativa uma área pela ação de situação da linha dela, com a confirmação. */
+async function desativarArea(pagina: Page, nome: string): Promise<void> {
+  await pagina.goto("/configuracao/areas");
+  const linha = pagina.getByRole("row").filter({ hasText: nome });
+  await linha.getByRole("button", { name: "Desativar", exact: true }).click();
+  await pagina.getByRole("alertdialog").getByRole("button", { name: "Desativar", exact: true }).click();
+  await expect(pagina.getByRole("alertdialog")).toHaveCount(0);
+  // Pela linha, e não por `getByText("Inativa")`, que casa com a aba "Inativas" e passaria sem desativar.
+  await expect(pagina.getByRole("row").filter({ hasText: nome })).toContainText("Inativa");
+}
+
+/**
+ * ============================================================================
  *  O retorno: a casca guardada, e a saída que a apaga — item 98
  * ============================================================================
  *

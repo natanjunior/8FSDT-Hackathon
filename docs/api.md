@@ -41,6 +41,11 @@ entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código p
 convite é a única que dispensa a sessão. A razão está na
 [ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
 
+O QR de cada área leva à mesma página do convite, com a área no endereço (`?area=`). Sem sessão, a página
+continua lendo só pelo código público, e mostra só o nome da organização. A área é lida depois do login,
+dentro do escopo da organização ativa, pela mesma leitura de áreas do registro. Nenhuma operação entra na
+lista acima por causa dele.
+
 ## A escrita é comando, e não campo
 
 Todo comando de domínio é `POST /ocorrencias/{id}/<comando>`, com o caminho no imperativo e idêntico ao

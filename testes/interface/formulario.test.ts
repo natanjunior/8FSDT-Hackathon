@@ -1793,7 +1793,8 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // aqui ficaria vermelho por página alheia. Esperas: 10 hoje, 12 depois deste item, nas duas ordens.
     // **O item 103 cria seis**: a raiz, as quatro telas de conta e a tela de criar organização. São 18.
     const esperas = arquivosDe("app").filter((caminho) => caminho.endsWith("/loading.tsx"));
-    expect(esperas).toHaveLength(18);
+    // **O item 111 cria a do QR da área**, que sem ela mostraria o esqueleto da tabela. São 19.
+    expect(esperas).toHaveLength(19);
   });
 
   it("seis estados, seis selos, e a marca veste só a Aberta (critério 44q.10, que desfaz o 44p.21)", () => {

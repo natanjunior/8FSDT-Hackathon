@@ -40,3 +40,16 @@ export function linkDoConvite(origem: string, codigo: string): string {
 export async function montarLinkDoConvite(codigo: string): Promise<string> {
   return linkDoConvite(origemDoPedido(await headers()), codigo);
 }
+
+/**
+ * **O link do QR de uma área** (item 111): a página do convite, e não o `/?e=` curto. Ninguém digita o
+ * QR da área, e ir direto à página economiza o salto do despachante.
+ */
+export function linkDoQrDaArea(origem: string, codigo: string, areaId: string): string {
+  return `${origem}/convite/${encodeURIComponent(codigo)}?area=${encodeURIComponent(areaId)}`;
+}
+
+/** O link do QR da área, com a origem deste pedido, na forma de `montarLinkDoConvite`. */
+export async function montarLinkDoQrDaArea(codigo: string, areaId: string): Promise<string> {
+  return linkDoQrDaArea(origemDoPedido(await headers()), codigo, areaId);
+}
