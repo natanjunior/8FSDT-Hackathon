@@ -174,17 +174,16 @@
   /* ---- Contrato shadcn · literais do Meridian ----------------------------
      Cores para as quais o vocabulário não tem nome, e cada uma com um
      consumidor só. Nome de vocabulário para cor usada num lugar é indireção
-     que parece estrutura e não é. */
-  --primary: oklch(0.4833 0.0873 255.0550);
-  --primary-foreground: oklch(1.0000 0 0);
+     que parece estrutura e não é. O --primary saiu no item 105: era o azul
+     de toda ação sem variante, e o calendário era o último a usá-lo. O
+     --accent-foreground fica: é a tinta da passagem e do meio da faixa. */
   --accent-foreground: oklch(0.3448 0.0685 255.0266);
   --destructive: oklch(0.5237 0.1707 27.0455);
   --destructive-foreground: oklch(1.0000 0 0);
 
   /* A tinta da ação principal, sobre o laranja da marca. **Não inverte entre temas**, e é por isso
-     que não pode ser `var(--ink)` nem `var(--primary-foreground)`: os dois invertem, e no claro
-     dariam 4,23:1 e 4,07:1. Este mede **4,61:1 no claro e 6,64:1 no escuro**, convertendo o `oklch`
-     para luminância relativa. Um consumidor só — a variante `marca` do botão. Item 44d, critério 8. */
+     que não pode ser `var(--ink)`: ela inverte, e no claro daria 4,23:1. Este mede **4,61:1 no
+     claro e 6,64:1 no escuro**, convertendo o `oklch` para luminância relativa. Um consumidor só — a variante `marca` do botão. Item 44d, critério 8. */
   --marca-foreground: oklch(0.1808 0.0095 255.6419);
 
   /* ---- A paleta categórica, e o que sobrou do inventário ------------------
@@ -249,8 +248,6 @@
     --ok: oklch(0.6451 0.0736 152.4322);
     --info: oklch(0.7194 0.0599 249.4577);
 
-    --primary: oklch(0.6347 0.0756 254.6243);
-    --primary-foreground: oklch(0.1808 0.0095 255.6419);
     --accent-foreground: oklch(0.8036 0.0477 249.4116);
     --destructive: oklch(0.6700 0.1654 25.8411);
     --destructive-foreground: oklch(0.1562 0.0257 25.5104);
@@ -289,8 +286,6 @@
   --ok: oklch(0.6451 0.0736 152.4322);
   --info: oklch(0.7194 0.0599 249.4577);
 
-  --primary: oklch(0.6347 0.0756 254.6243);
-  --primary-foreground: oklch(0.1808 0.0095 255.6419);
   --accent-foreground: oklch(0.8036 0.0477 249.4116);
   --destructive: oklch(0.6700 0.1654 25.8411);
   --destructive-foreground: oklch(0.1562 0.0257 25.5104);
@@ -348,8 +343,6 @@
 
   /* O foco com valor próprio, igual à marca: o guarda do teste exige literal. */
   --ring: oklch(0.7800 0.1200 47.0000);
-  --primary: oklch(0.8400 0.0700 255.0000);
-  --primary-foreground: oklch(0.1800 0.0095 255.6419);
   --accent-foreground: oklch(0.9000 0.0400 249.0000);
   --destructive: oklch(0.7800 0.1200 25.0000);
   --destructive-foreground: oklch(0.1600 0.0250 25.5000);
@@ -382,8 +375,6 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

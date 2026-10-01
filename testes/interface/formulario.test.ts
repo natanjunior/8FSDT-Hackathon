@@ -2832,4 +2832,29 @@ describe("o 105 — o laranja volta a marcar uma coisa só", () => {
     expect(botao).toMatch(/link:\s*"text-tinta-marca /u);
     expect(ler("src/interface/componentes/ui/alert-dialog.tsx")).not.toMatch(/variant = "default"/u);
   });
+
+  it("nenhum arquivo do produto nem o tema falam de primary (critério 105.2)", () => {
+    // `sidebar-primary` é do vocabulário da barra lateral (item 44f) e resolve na marca; fica.
+    // `arquivosDe` só devolve `.ts` e `.tsx` (`:52-57`): o tema entra pelo nome.
+    const comPrimary = [...arquivosDe("src"), ...arquivosDe("app"), "app/globals.css"].filter((caminho) =>
+      /(?<!sidebar-)\bprimary\b/u.test(semComentario(ler(caminho))),
+    );
+    expect(comPrimary).toStrictEqual([]);
+  });
+
+  it("as pontas da faixa do calendário são o par medido do selo Em análise (respostas P3)", () => {
+    const calendario = ler("src/interface/componentes/ui/calendar.tsx");
+    for (const ponta of ["range-start", "range-end", "selected-single"]) {
+      expect(calendario, ponta).toContain(`data-[${ponta}=true]:bg-tinta-suave data-[${ponta}=true]:text-superficie`);
+    }
+  });
+
+  it("todo Badge sem variante traz o próprio fundo (critério 105.2)", () => {
+    const semFundo = [...arquivosDe("src"), ...arquivosDe("app")].flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<Badge\b(?![^>]*\bvariant=)[^>]*>/gu)]
+        .filter((m) => !/\bbg-|className=\{[A-Z_]+\}/u.test(m[0]))
+        .map(() => caminho),
+    );
+    expect(semFundo).toStrictEqual([]);
+  });
 });
