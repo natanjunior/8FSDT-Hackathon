@@ -275,14 +275,16 @@ export function ControleDeFoto({
 
       {previa === null && situacao.nome !== "erro" ? (
         /* **O alvo grande, e ele é o `Button` do catálogo** (critério 6). A altura é própria: é o
-           primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira. */
+           primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira.
+           A zona de soltar e a ficha do arquivo têm o raio de cartão: são regiões que recebem conteúdo, e
+           não controles de linha. Exceção nomeada no guia, §4 (item 104, critério 7). */
         <Button
           type="button"
           variant="outline"
           onClick={() => entrada.current?.click()}
           className="border-linha bg-background h-auto min-h-11 w-full flex-col items-center gap-1.5 rounded-lg border-dashed py-7"
         >
-          <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-lg border">
+          <span className="border-linha bg-superficie text-tinta-suave mb-0.5 flex size-11 items-center justify-center rounded-sm border">
             <ImagePlus aria-hidden="true" className="size-5" />
           </span>
           <span className="text-interface text-tinta font-medium">{FOTO.vazioTitulo}</span>
@@ -304,7 +306,7 @@ export function ControleDeFoto({
             <div
               role="img"
               aria-label="A foto escolhida"
-              className="bg-background size-14 shrink-0 rounded-md bg-cover bg-center"
+              className="bg-background size-14 shrink-0 rounded-sm bg-cover bg-center"
               style={{ backgroundImage: `url(${previa})` }}
             />
           )}

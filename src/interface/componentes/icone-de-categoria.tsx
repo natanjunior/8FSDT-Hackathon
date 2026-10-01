@@ -151,7 +151,7 @@ export function SeletorDeIcone({
             />
             <label
               htmlFor={`${prefixo}-icone-${icone.nome}`}
-              className="border-linha text-tinta-suave peer-checked:border-marca peer-checked:bg-accent peer-checked:text-tinta peer-focus-visible:ring-marca flex size-11 cursor-pointer items-center justify-center rounded-md border peer-focus-visible:ring-2"
+              className="border-linha text-tinta-suave peer-checked:border-marca peer-checked:bg-accent peer-checked:text-tinta peer-focus-visible:ring-marca flex size-11 cursor-pointer items-center justify-center rounded-sm border peer-focus-visible:ring-2"
             >
               <IconeDeCategoria nome={icone.nome} className="size-5" />
               <span className="sr-only">{icone.rotulo}</span>

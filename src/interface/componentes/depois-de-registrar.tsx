@@ -27,7 +27,7 @@ export function DepoisDeRegistrar({ passos }: { readonly passos: readonly string
   return (
     <aside
       aria-labelledby="depois-de-registrar"
-      className="border-linha bg-superficie rounded-lg border p-5 shadow-sm"
+      className="border-linha bg-superficie rounded-lg border p-[15px] lg:p-[18px] shadow-sm"
     >
       <h2
         id="depois-de-registrar"

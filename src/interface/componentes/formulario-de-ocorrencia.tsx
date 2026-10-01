@@ -140,7 +140,7 @@ function Bloco({
     <section
       aria-labelledby={id}
       className={cn(
-        "border-linha bg-superficie rounded-lg border p-4 shadow-sm",
+        "border-linha bg-superficie rounded-lg border p-[15px] shadow-sm",
         "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
         reguaEmCima && "lg:border-linha-suave lg:border-t lg:pt-5",
       )}
@@ -354,7 +354,7 @@ export function FormularioDeOcorrencia({
         noValidate
         className={cn(
           "flex flex-col gap-4",
-          "lg:border-linha lg:bg-superficie lg:gap-0 lg:rounded-lg lg:border lg:p-6 lg:shadow-sm",
+          "lg:border-linha lg:bg-superficie lg:gap-0 lg:rounded-lg lg:border lg:p-[18px] lg:shadow-sm",
         )}
       >
         <Bloco id="bloco-o-que" titulo={BLOCOS.oQue}>

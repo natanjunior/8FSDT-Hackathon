@@ -1544,6 +1544,33 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(periodo).not.toContain("bg-superficie");
   });
 
+  it("o respiro de cartão é 15 e 18, no conteúdo e no esqueleto (critério 104.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    // C-1: o bloco é cartão só abaixo de `lg`; em `lg` o cartão é o formulário.
+    expect(formulario).toMatch(/"border-linha bg-superficie rounded-lg border p-\[15px\] shadow-sm"/u);
+    expect(formulario).toContain("lg:p-[18px]");
+    expect(formulario).not.toMatch(/\b(?:lg:)?p-[456]\b/u);
+    expect(ler("src/interface/componentes/depois-de-registrar.tsx")).toContain("p-[15px] lg:p-[18px]");
+    expect(ler("app/(foco)/ocorrencias/nova/loading.tsx")).toContain("p-[15px] shadow-sm lg:p-[18px]");
+  });
+
+  it("controle de linha tem 6 px, e a região da foto é a exceção nomeada (critério 104.7)", () => {
+    for (const caminho of [
+      "src/interface/componentes/icone-de-categoria.tsx",
+      "src/interface/componentes/modal-de-atribuicao.tsx",
+      "src/interface/componentes/modal-de-motivo.tsx",
+      "src/interface/componentes/modal-de-avaliacao.tsx",
+      "src/interface/componentes/ocorrencia-nao-encontrada.tsx",
+      "src/interface/componentes/filtro-com-busca.tsx",
+    ]) {
+      expect(ler(caminho), caminho).not.toMatch(/\brounded-md\b/u);
+    }
+    const foto = ler("src/interface/componentes/controle-de-foto.tsx");
+    // A zona de soltar e a ficha do arquivo ficam em 10 px: são regiões (style-guide §4, exceção nomeada).
+    expect(foto.match(/\brounded-lg\b/gu) ?? []).toHaveLength(2);
+    expect(foto).not.toMatch(/\brounded-md\b/u);
+  });
+
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
     const fonte = ler("app/(casca)/ocorrencias/page.tsx");
 
