@@ -2859,4 +2859,13 @@ describe("o 105 — o laranja volta a marcar uma coisa só", () => {
     );
     expect(semFundo).toStrictEqual([]);
   });
+
+  it("a barra de valor único é o cinza da paleta, e o laranja fica para as linhas (critério 105.4)", () => {
+    expect(ler("src/interface/componentes/grafico-de-barras.tsx")).toMatch(
+      /const CONFIGURACAO: ChartConfig = \{ valor: \{ label: "Quantidade", color: "var\(--chart-4\)" \} \};/u,
+    );
+    for (const linha of ["grafico-do-fluxo-mensal", "grafico-do-tempo-de-resolucao"]) {
+      expect(ler(`src/interface/componentes/${linha}.tsx`), linha).toContain("var(--chart-1)");
+    }
+  });
 });

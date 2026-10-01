@@ -183,13 +183,15 @@
 
   /* A tinta da ação principal, sobre o laranja da marca. **Não inverte entre temas**, e é por isso
      que não pode ser `var(--ink)`: ela inverte, e no claro daria 4,23:1. Este mede **4,61:1 no
-     claro e 6,64:1 no escuro**, convertendo o `oklch` para luminância relativa. Um consumidor só — a variante `marca` do botão. Item 44d, critério 8. */
+     claro e 6,64:1 no escuro**, convertendo o `oklch` para luminância relativa. Um consumidor
+     só — a variante `marca` do botão. Item 44d, critério 8. */
   --marca-foreground: oklch(0.1808 0.0095 255.6419);
 
   /* ---- A paleta categórica, e o que sobrou do inventário ------------------
      O gráfico de T-07 se liga a var(--chart-1) e var(--chart-2) — duas linhas,
-     registradas e resolvidas, desde o item 57. Os --chart-3 e --chart-4 ficam
-     medidos e sem consumidor, como estavam antes do item 44e. Os valores
+     registradas e resolvidas, desde o item 57. O --chart-4 veste as barras de
+     valor único desde o item 105; o --chart-3 fica medido e sem consumidor.
+     Os valores
      do autor do tema não serviam como paleta categórica — --chart-3 tinha
      croma 0,06 e lia como cinza, e --chart-1 e --chart-3 ficavam a cinco graus
      de matiz um do outro. Estes foram medidos: croma acima de 0,10 nos três
