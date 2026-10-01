@@ -2625,4 +2625,15 @@ describe("o recibo de cada ação — item 103", () => {
     expect(fonte).toMatch(/comecar\(\(\) => \{\s*router\.refresh\(\);\s*router\.replace\("\/"\);/u);
     expect(ler("src/interface/componentes/lista-de-organizacoes.tsx")).toContain('"Entrando…"');
   });
+
+  it("a troca pela barra mostra a frase do módulo, e não escreve nenhuma (critério 103.3)", () => {
+    const fonte = ler("src/interface/componentes/casca/seletor-de-organizacao.tsx");
+    expect(fonte).toContain("avisarErro(resultado.aviso)");
+    expect(fonte).not.toMatch(/avisarErro\("/u);
+    expect(fonte).not.toMatch(/\sdisabled=\{/u);
+    expect(fonte).toContain("aria-busy={emVoo}");
+    expect(fonte).toContain("<IndicadorDeEnvio ativo={emVoo} />");
+    expect(fonte).toContain("if (emVoo || organizacaoId === organizacaoAtivaId) return;");
+    expect(fonte).toContain("useTransition()");
+  });
 });

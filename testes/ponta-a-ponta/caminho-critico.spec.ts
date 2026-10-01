@@ -198,6 +198,23 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
   await expect(helena.getByRole("link", { name: TITULO })).toBeVisible();
 
+  // **A troca recusada diz por quê** (critério 103.3). O `403` é forjado na rede, porque nenhum caminho
+  // honesto do mundo de teste o produz: Helena participa das duas. A frase é a que o módulo já escreve,
+  // e a pessoa continua onde estava, com o seletor utilizável — a troca de verdade vem logo abaixo.
+  await helena.route("**/api/contexto/organizacao", (rota) =>
+    rota.fulfill({
+      status: 403,
+      contentType: "application/problem+json",
+      body: JSON.stringify({ codigo: "SEM_VINCULO_NA_ORGANIZACAO", detail: "forjado no teste" }),
+    }),
+  );
+  await helena.getByRole("combobox", { name: /organização/iu }).click();
+  await helena.getByRole("option", { name: RECANTO }).click();
+  await expect(helena.getByText("Você não tem acesso a esta organização.")).toBeVisible();
+  await expect(helena).toHaveURL(/\/ocorrencias/u);
+  await expect(helena.getByRole("combobox", { name: /organização/iu })).toContainText(AURORA);
+  await helena.unroute("**/api/contexto/organizacao");
+
   await trocarDeOrganizacao(helena, RECANTO);
   // Critério 44c.2 — o recorte virou `toggle-group` de escolha única, então a palavra do 14.3 mora
   // numa opção marcada, e não mais num cabeçalho.
