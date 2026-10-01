@@ -25,6 +25,8 @@ import { Badge, badgeVariants } from "@/interface/componentes/ui/badge";
 import { sidebarMenuButtonVariants } from "@/interface/componentes/ui/sidebar";
 import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
+import { Textarea } from "@/interface/componentes/ui/textarea";
+import { EmptyTitle } from "@/interface/componentes/ui/empty";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
@@ -75,7 +77,7 @@ const PECAS = [
     id: "botao-principal",
     html: () => renderToStaticMarkup(h(Button, { variant: "marca" }, "Resolver")),
     // X-01: 44, e não os 40 da prancheta.
-    esperado: { "border-top-left-radius": "6px", "font-weight": "600", "min-height": "44px" },
+    esperado: { "border-top-left-radius": "6px", "font-weight": "600", "min-height": "44px", "font-size": "13.5px" },
   },
   {
     id: "botao-so-icone",
@@ -91,7 +93,26 @@ const PECAS = [
       "border-top-left-radius": "6px",
       "background-color": "token(--ground)",
       "box-shadow": "none",
+      "font-size": "14.5px",
     },
+  },
+  {
+    id: "area-de-texto",
+    // Item 104, critério 2: acima de `md` o que se digita tem o tamanho do que se lê depois.
+    html: () => renderToStaticMarkup(h(Textarea, { id: "area", defaultValue: "texto" })),
+    esperado: { "font-size": "14.5px", "border-top-left-radius": "6px" },
+  },
+  {
+    id: "botao-sem-papel",
+    // Item 104, critério 1: a chamada que não passa papel herda o da base, e a base é `interface`.
+    html: () => renderToStaticMarkup(h(Button, { variant: "outline" }, "Carregar mais")),
+    esperado: { "font-size": "13.5px" },
+  },
+  {
+    id: "titulo-do-vazio",
+    // Item 104, critério 3: sem `className`, o título do vazio já é título de bloco.
+    html: () => renderToStaticMarkup(h(EmptyTitle, null, "Nenhuma ocorrência ainda.")),
+    esperado: { "font-size": "19px", "font-weight": "600" },
   },
   {
     id: "cabecalho-de-coluna",

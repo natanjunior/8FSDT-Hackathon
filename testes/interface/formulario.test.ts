@@ -1453,21 +1453,7 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(fonte).toContain('variant="ghost"');
   });
 
-  it("nenhum tamanho fora dos sete papéis, fora do catálogo (critério 44p.2)", () => {
-    // **O 44o é quem limpa o resto.** `app/organizacao/`, `app/page.tsx`, `menu-de-organizacao`,
-    // `formulario-de-pedido-de-entrada`, `formulario-de-nova-organizacao` e `moldura-de-tela` — que o
-    // plano dele APAGA — somam trinta ocorrências que não são deste item. Enquanto ele não mesclar, esta
-    // guarda seria vermelha por defeito alheio; por isso ela exclui o que é dele, por caminho, e o
-    // critério 44p.2 só fecha de verdade depois do merge do 44o.
-    const DO_44O = [
-      "app/organizacao/",
-      "app/page.tsx",
-      "src/interface/componentes/menu-de-organizacao.tsx",
-      "src/interface/componentes/formulario-de-pedido-de-entrada.tsx",
-      "src/interface/componentes/formulario-de-nova-organizacao.tsx",
-      "src/interface/componentes/moldura-de-tela.tsx",
-    ];
-
+  it("nenhum tamanho fora dos oito papéis, fora do catálogo (critério 44p.2; item 104)", () => {
     // **`utilitarios.ts` sai da conta, e é o único que sai por mérito próprio.** `arquivosDe` lê `.ts`
     // junto de `.tsx`, e as quatro ocorrências dele são o comentário que explica por que o `cn` estendido
     // existe: *"o `text-sm` do catálogo — que está fora da escala — sobrevive"*. É o arquivo que declara a
@@ -1476,7 +1462,6 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     const achados = [...arquivosDe("app"), ...arquivosDe("src/interface/componentes")]
       .filter((caminho) => !caminho.startsWith("src/interface/componentes/ui/"))
       .filter((caminho) => caminho !== "src/interface/componentes/utilitarios.ts")
-      .filter((caminho) => !DO_44O.some((dele) => caminho.startsWith(dele)))
       .flatMap((caminho) =>
         [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/gu)].map(
           (achado) => `${caminho}: ${achado[0]}`,
@@ -1484,6 +1469,44 @@ describe("o alcance do 44p — a validação do lote 11", () => {
       );
 
     expect(achados).toStrictEqual([]);
+  });
+
+  /**
+   * **Item 104, critérios 1 a 4 e resposta P2.** O catálogo é a origem de quase todo tamanho fora da
+   * escala que a sonda achou na tela: quem esquece de passar papel herda o `text-sm` da base. Esta guarda
+   * fecha a porta na base. Comentário de bloco e de linha sai antes da busca, como em
+   * `componentesQueDeclaram` do `tema.test.ts`: o cabeçalho de divergência de `command.tsx` cita a classe
+   * pelo nome, e é isso que o torna útil ao próximo `shadcn add`.
+   *
+   * `text-base` só vale ao lado de `md:text-corpo`: é o campo, que abaixo de 16 px faz o iOS ampliar a
+   * página ao focar.
+   */
+  it("nenhum tamanho fora dos oito papéis, dentro do catálogo (item 104)", () => {
+    const achados = arquivosDe("src/interface/componentes/ui")
+      .filter((caminho) => caminho.endsWith(".tsx"))
+      .flatMap((caminho) => {
+        const fonte = ler(caminho)
+          .replace(/\/\*[\s\S]*?\*\//gu, "")
+          .replace(/^\s*\/\/.*$/gmu, "");
+        const foraDaEscala = [...fonte.matchAll(/\btext-(?:xs|sm|lg|xl|2xl|3xl)\b/gu)].map((a) => a[0]);
+        const baseSemPar = [...fonte.matchAll(/\btext-base\b(?![^"]*\bmd:text-corpo\b)/gu)].map(() => "text-base sem md:text-corpo");
+        return [...foraDaEscala, ...baseSemPar].map((achado) => `${caminho}: ${achado}`);
+      });
+    expect(achados).toStrictEqual([]);
+  });
+
+  it("a base de cada peça nomeada nos critérios 104.1 a 104.3 está no papel certo", () => {
+    expect(ler("src/interface/componentes/ui/button.tsx")).toMatch(/const buttonVariants = cva\(\s*"[^"]*\btext-interface\b/u);
+    for (const peca of ["input", "textarea"]) {
+      expect(ler(`src/interface/componentes/ui/${peca}.tsx`), peca).toMatch(/\btext-base\b[^"]*\bmd:text-corpo\b/u);
+    }
+    const comando = ler("src/interface/componentes/ui/command.tsx");
+    expect(comando).toMatch(/data-slot="command-input"[\s\S]*?\btext-base\b[^"]*\bmd:text-corpo\b/u);
+    expect(comando).toContain("[&_[cmdk-group-heading]]:text-rotulo-coluna");
+    expect(comando).toContain("[&_[cmdk-group-heading]]:font-mono");
+    expect(comando).toContain("[&_[cmdk-group-heading]]:uppercase");
+    expect(ler("src/interface/componentes/ui/select.tsx")).toMatch(/data-slot="select-trigger"[\s\S]*?"flex w-fit [^"]*\brounded-sm\b[^"]*\btext-interface\b/u);
+    expect(ler("src/interface/componentes/ui/empty.tsx")).toMatch(/data-slot="empty-title"[\s\S]*?\btext-titulo-bloco\b/u);
   });
 
   it("os vazios de T-03 usam o catálogo, e o `+` literal virou ícone (critério 44p.3)", () => {
@@ -2121,7 +2144,7 @@ describe("o item 66 — a página da ocorrência, remontada", () => {
 
   it("nenhum tamanho fora dos sete papéis, e nenhuma primitiva de outra biblioteca (critério 66.4)", () => {
     const tamanhos = ARQUIVOS_DO_66.flatMap((caminho) =>
-      [...ler(caminho).matchAll(/text-(?:xs|sm|base|lg|xl|2xl)/gu)].map(
+      [...ler(caminho).matchAll(/\btext-(?:xs|sm|base|lg|xl|2xl)\b/gu)].map(
         (achado) => `${caminho}: ${achado[0]}`,
       ),
     );

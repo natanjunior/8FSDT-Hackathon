@@ -31,7 +31,7 @@ function TooltipTrigger({
 
 /** Exportada para o portão de estilo, que não abre portal Radix (item 44q, critério 13). */
 export const CLASSE_DA_DICA =
-  "z-50 w-fit origin-(--radix-tooltip-content-transform-origin) animate-in rounded-sm bg-foreground px-2.25 py-1.25 text-xs font-medium text-balance text-background fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+  "z-50 w-fit origin-(--radix-tooltip-content-transform-origin) animate-in rounded-sm bg-foreground px-2.25 py-1.25 text-meta font-medium text-balance text-background fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
 
 function TooltipContent({
   className,
