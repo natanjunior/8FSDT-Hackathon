@@ -1828,8 +1828,8 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
 
   it("o selo, a contagem e o avatar estão no oitavo papel (critério 44q.3)", () => {
     expect(ler("src/interface/componentes/ui/badge.tsx")).toMatch(/rounded-sm [^"]*px-2\.25 [^"]*text-rotulo-peca/u);
-    // A tinta do avatar é a da marca desde o item 64; o papel da escala é o que esta guarda afirma.
-    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-marca-foreground");
+    // A tinta do avatar é a tinta cheia desde o item 105; o papel da escala é o que esta guarda afirma.
+    expect(ler("src/interface/componentes/ui/avatar.tsx")).toContain("text-rotulo-peca text-tinta");
     expect(ler("src/interface/componentes/filtro-rapido.ts")).toMatch(/CONTAGEM_DO_FILTRO =[^;]*text-rotulo-peca/u);
   });
 
@@ -2120,19 +2120,21 @@ describe("o alcance do 64 — a varredura de botão, ícone e rótulo", () => {
     expect(ler("src/interface/componentes/casca/navegacao.tsx")).toContain("LayoutGrid");
   });
 
-  it("todo avatar é laranja, pela peça base, e ninguém a repinta de neutro (troca 12)", () => {
+  it("todo avatar é neutro, pela peça base, e ninguém o repinta (troca 12, desfeita no item 105)", () => {
+    // O dono decidiu em 23/09 o avatar laranja em todo lugar; o critério 105.3 o devolveu ao neutro,
+    // medido: onze círculos laranja na tela da ocorrência competiam com a ação principal.
     const base = ler("src/interface/componentes/ui/avatar.tsx");
-    expect(base).toContain("rounded-full bg-marca text-rotulo-peca text-marca-foreground");
-    expect(base).not.toContain("bg-muted text-rotulo-peca text-tinta");
-    // Nenhum chamador devolve o avatar ao neutro por classe. A página do grupo (item 70) é a exceção
-    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70, não repintura.
+    expect(base).toContain("rounded-full bg-secondary text-rotulo-peca text-tinta");
+    expect(base).not.toMatch(/AvatarFallback[\s\S]*?bg-marca[\s\S]*?function AvatarBadge/u);
+    // Nenhum chamador repinta o avatar por classe. A página do grupo (item 70) é a exceção
+    // declarada: fica fora da casca, e a cor de cada integrante é decisão do 70.
     const repintados = [...arquivosDe("src"), ...arquivosDe("app")].filter(
       (caminho) =>
         !caminho.endsWith("cartao-de-integrante.tsx") && /<AvatarFallback[^>]*className=/u.test(ler(caminho)),
     );
     expect(repintados).toStrictEqual([]);
-    // O portão de estilo mede a mesma tinta.
-    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--marca-foreground\)"/u);
+    // O portão de estilo mede a mesma tinta e o mesmo fundo.
+    expect(ler("ferramentas/conferir-estilo.mjs")).toMatch(/id: "avatar"[\s\S]*?color: "token\(--ink\)"/u);
   });
 
   it("a tela de áreas monta o fato a partir da frase que o teste protege (troca 15)", () => {
@@ -2794,5 +2796,85 @@ describe("o recibo de cada ação — item 103", () => {
     expect(cadastro).toContain("defaultValue={preservados.nome}");
     expect(cadastro).toContain("defaultValue={preservados.email}");
     for (const fonte of [entrada, cadastro]) expect(fonte).not.toContain("preservados.senha");
+  });
+});
+
+/**
+ * ============================================================================
+ *  Item 105 — o laranja volta a marcar uma coisa só
+ * ============================================================================
+ *
+ * Guardas de fonte, no precedente dos itens 44g a 104. O `--primary` era o azul literal do tema de
+ * origem, e a variante padrão do `Button` o vestia: toda ação sem variante saía azul.
+ */
+/** A fonte sem comentário: as guardas do 105 perguntam o que o código pinta, e comentário não pinta nada. */
+function semComentario(fonte: string): string {
+  return fonte.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/^\s*\/\/.*$/gmu, "");
+}
+
+describe("o 105 — o laranja volta a marcar uma coisa só", () => {
+  it("as quatro ações principais fora da casca são o botão da marca, na largura do cartão (critério 105.1)", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]) {
+      const fonte = ler(caminho);
+      expect(fonte, caminho).toMatch(/<Button\s+type="submit"\s+variant="marca"[^>]*\bw-full\b/u);
+      expect(fonte, caminho).toMatch(/<RodapeDoFormulario[^>]*\blarguraCheia\b/u);
+    }
+    expect(ler("app/definir-senha/page.tsx")).toMatch(/buttonVariants\(\{\s*variant:\s*"marca"[^)]*\bw-full\b/u);
+    expect(ler("app/error.tsx")).toMatch(/<Button\s+type="button"\s+variant="marca"/u);
+  });
+
+  it("o Button não tem mais variante azul, e o padrão é o contorno (critério 105.2)", () => {
+    const botao = semComentario(ler("src/interface/componentes/ui/button.tsx"));
+    expect(botao).not.toMatch(/\bprimary\b/u);
+    expect(botao).toMatch(/defaultVariants:\s*\{\s*variant:\s*"outline"/u);
+    expect(botao).toMatch(/variant = "outline"/u);
+    expect(botao).toMatch(/link:\s*"text-tinta-marca /u);
+    expect(ler("src/interface/componentes/ui/alert-dialog.tsx")).not.toMatch(/variant = "default"/u);
+  });
+
+  it("nenhum arquivo do produto nem o tema falam de primary (critério 105.2)", () => {
+    // `sidebar-primary` é do vocabulário da barra lateral (item 44f) e resolve na marca; fica.
+    // `arquivosDe` só devolve `.ts` e `.tsx` (`:52-57`): o tema entra pelo nome.
+    const comPrimary = [...arquivosDe("src"), ...arquivosDe("app"), "app/globals.css"].filter((caminho) =>
+      /(?<!sidebar-)\bprimary\b/u.test(semComentario(ler(caminho))),
+    );
+    expect(comPrimary).toStrictEqual([]);
+  });
+
+  it("as pontas da faixa do calendário são o par medido do selo Em análise (respostas P3)", () => {
+    const calendario = ler("src/interface/componentes/ui/calendar.tsx");
+    for (const ponta of ["range-start", "range-end", "selected-single"]) {
+      expect(calendario, ponta).toContain(`data-[${ponta}=true]:bg-tinta-suave data-[${ponta}=true]:text-superficie`);
+    }
+  });
+
+  it("todo Badge sem variante traz o próprio fundo (critério 105.2)", () => {
+    const semFundo = [...arquivosDe("src"), ...arquivosDe("app")].flatMap((caminho) =>
+      [...ler(caminho).matchAll(/<Badge\b(?![^>]*\bvariant=)[^>]*>/gu)]
+        .filter((m) => !/\bbg-|className=\{[A-Z_]+\}/u.test(m[0]))
+        .map(() => caminho),
+    );
+    expect(semFundo).toStrictEqual([]);
+  });
+
+  it("a barra de valor único é o cinza da paleta, e o laranja fica para as linhas (critério 105.4)", () => {
+    expect(ler("src/interface/componentes/grafico-de-barras.tsx")).toMatch(
+      /const CONFIGURACAO: ChartConfig = \{ valor: \{ label: "Quantidade", color: "var\(--chart-4\)" \} \};/u,
+    );
+    for (const linha of ["grafico-do-fluxo-mensal", "grafico-do-tempo-de-resolucao"]) {
+      expect(ler(`src/interface/componentes/${linha}.tsx`), linha).toContain("var(--chart-1)");
+    }
+  });
+
+  it("o Sair tem a forma do caminho e a tinta suave, e o resto dos caminhos segue na marca (critério 105.5)", () => {
+    const fonte = ler("src/interface/componentes/moldura-de-conta.tsx");
+    const sair = /export function CaminhoDeSair[\s\S]*?<\/Button>/u.exec(fonte)?.[0] ?? "";
+    expect(sair).toMatch(/cn\(CLASSE_DO_CAMINHO, "text-tinta-suave /u);
+    const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toContain("text-tinta-marca");
+    expect(classe.split(" ")).toContain("underline");
   });
 });

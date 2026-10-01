@@ -42,10 +42,21 @@ export function generateStaticParams() {
   return source.generateParams();
 }
 
+/**
+ * O título da aba é o `title` do frontmatter, sob o modelo `"%s · Resolve Aí"` do layout raiz (item 90).
+ *
+ * **A porta de entrada é a exceção.** O `title` dela é o próprio nome do produto (item 109), e o modelo
+ * faria a aba dizer *"Resolve Aí · Resolve Aí"*. O `absolute` ignora o modelo, e a aba diz em que
+ * superfície a pessoa está.
+ */
 export async function generateMetadata({ params }: Parametros): Promise<Metadata> {
   const { slug } = await params;
   const pagina = source.getPage(slug);
   if (!pagina) notFound();
 
-  return { title: pagina.data.title, description: pagina.data.description };
+  const portaDeEntrada = slug?.length === 1 && slug[0] === "README";
+  return {
+    title: portaDeEntrada ? { absolute: "Documentação · Resolve Aí" } : pagina.data.title,
+    description: pagina.data.description,
+  };
 }

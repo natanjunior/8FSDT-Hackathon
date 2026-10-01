@@ -1,5 +1,5 @@
 ---
-title: "Início"
+title: "Resolve Aí"
 description: "O que é o Resolve Aí, para quem serve, e por onde começar a leitura — o caminho do produto e o caminho técnico."
 ---
 
@@ -10,9 +10,9 @@ registra um problema — uma lâmpada queimada, um vazamento, uma falta de limpe
 resolução. Quem responde pelo lugar vê tudo numa lista só, atribui responsável e fecha. Cada mudança de
 estado fica gravada com quem fez, quando e por quê.
 
-| | |
+| O que fazer | Onde |
 |---|---|
-| **Abrir a aplicação** | [ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io](https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io) |
+| **Abrir a aplicação** | [a aplicação publicada](https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io) |
 | **Ver o código** | [github.com/natanjunior/8FSDT-Hackathon](https://github.com/natanjunior/8FSDT-Hackathon) |
 | **Referência da API** | [a especificação executável, no Swagger](/documentacao/api/referencia) |
 
@@ -20,7 +20,7 @@ estado fica gravada com quem fez, quando e por quê.
 
 Para quem quer saber **o que o sistema faz**, sem entrar no como.
 
-| | |
+| O documento | O que ele responde |
 |---|---|
 | [O produto](produto.md) | O problema que ele resolve, quem usa, o que cada perfil faz, o ciclo de vida da ocorrência, e o que está e o que não está nesta versão |
 | [Glossário](glossario.md) | As palavras do negócio, uma definição cada |
@@ -29,7 +29,7 @@ Para quem quer saber **o que o sistema faz**, sem entrar no como.
 
 Para quem vai **manter, avaliar ou estender** a solução.
 
-| | |
+| O documento | O que ele responde |
 |---|---|
 | [Atendimento ao enunciado](atendimento-ao-enunciado.md) | Cada exigência do desafio, onde ela está descrita, o endereço que a realiza e a tela onde acontece |
 | [Visão geral da arquitetura](visao-geral-da-arquitetura.md) | O sistema no contexto, os blocos, a stack contra cada requisito, e a regra de dependência |

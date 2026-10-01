@@ -37,6 +37,10 @@ function AvatarImage({
   )
 }
 
+/**
+ * **Neutro, no cromo** (item 105): as iniciais não precisam da cor da marca, e a ficha traz o nome ao
+ * lado. O laranja fica para a ação.
+ */
 function AvatarFallback({
   className,
   ...props
@@ -45,7 +49,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-marca text-rotulo-peca text-marca-foreground",
+        "flex size-full items-center justify-center rounded-full bg-secondary text-rotulo-peca text-tinta",
         className
       )}
       {...props}
@@ -58,7 +62,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="avatar-badge"
       className={cn(
-        "absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background select-none",
+        "absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground ring-2 ring-background select-none",
         "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
         "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
         "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",

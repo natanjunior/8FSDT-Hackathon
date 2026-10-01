@@ -105,9 +105,9 @@ export function FormularioDeRedefinicao() {
           )}
         </Campo>
 
-        <RodapeDoFormulario obrigatorios={1} todosObrigatorios>
+        <RodapeDoFormulario obrigatorios={1} todosObrigatorios larguraCheia>
           {/* O alvo é o piso do guia §4, 44 px — o mesmo das outras três telas de conta e de T-04. */}
-          <Button type="submit" disabled={aguardando} className="text-interface min-h-11 px-4">
+          <Button type="submit" variant="marca" disabled={aguardando} className="text-interface min-h-11 w-full px-4">
             <IndicadorDeEnvio ativo={aguardando} />
             {aguardando ? "Enviando…" : "Enviar o link"}
           </Button>

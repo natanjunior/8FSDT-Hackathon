@@ -199,9 +199,10 @@ function ReguaDoOu() {
 }
 
 /**
- * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão. Uma só, para que
- * o "Sair" de T-02 e o "Voltar" da face E não pareçam coisas diferentes, e para que nenhuma tela de
- * credencial volte a escrevê-la à mão.
+ * **A classe dos caminhos secundários**, os que ficam abaixo do cartão — link ou botão — e que têm todos
+ * o mesmo desenho. **A forma é uma só**, para que o "Sair" de T-02 e o "Voltar" da face E não pareçam peças
+ * diferentes, e para que nenhuma tela de credencial volte a escrevê-la à mão. **A tinta não**: o *Sair* é
+ * a saída, e desce para a tinta suave (item 105), para o laranja ficar na decisão que a tela recebe.
  *
  * **`min-h-11` e `min-w-11` são o piso do guia §9** (44 px), e o piso vale nos dois lados: a sonda do
  * item 91 mediu o "Voltar" da face E em 37 px de largura, com a altura já certa. O `justify-center`
@@ -217,6 +218,9 @@ export const CLASSE_DO_CAMINHO =
  * **Botão dentro de formulário**, como o critério 44b.4 manteve no menu de pessoa: é ação que muda estado
  * no servidor, e não vira link. **É o `Button` do catálogo** (critério 44o.15): até o 44o eram dois
  * botões crus, um em cada página, e o critério 44p.5 os contava entre o que o 44o limparia.
+ *
+ * **Tinta suave, e não a da marca** (item 105): numa tela que existe para escolher onde trabalhar, a
+ * saída não pode ser a única coisa colorida.
  */
 export function CaminhoDeSair() {
   return (
@@ -224,7 +228,7 @@ export function CaminhoDeSair() {
       <Button
         type="submit"
         variant="link"
-        className={cn(CLASSE_DO_CAMINHO, "h-auto min-w-11 px-2 py-0 font-normal")}
+        className={cn(CLASSE_DO_CAMINHO, "text-tinta-suave h-auto min-w-11 px-2 py-0 font-normal")}
       >
         Sair
       </Button>

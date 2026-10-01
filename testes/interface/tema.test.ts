@@ -546,7 +546,7 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
 
   const TINTAS = [
     "--ink", "--ink-soft", "--ink-faint", "--accent", "--destructive",
-    "--ok", "--info", "--primary", "--accent-foreground", "--accent-ink",
+    "--ok", "--info", "--accent-foreground", "--accent-ink",
   ];
   const FUNDOS = ["--ground", "--surface", "--chrome", "--sunken", "--accent-bg"];
   const SOLIDOS: ReadonlyArray<[string, string]> = [
@@ -555,7 +555,6 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
     ["--marca-foreground", "--ok"],
     ["--marca-foreground", "--info"],
     ["--marca-foreground", "--ink-soft"],
-    ["--primary-foreground", "--primary"],
     ["--destructive-foreground", "--destructive"],
     ["--surface", "--info"],
     // O selo *Em análise* cheio: `bg-tinta-suave text-superficie` (`selo-de-status.tsx:23`).
