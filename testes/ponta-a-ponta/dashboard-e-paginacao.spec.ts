@@ -110,8 +110,8 @@ const POR_PAGINA = 20;
  * aparece também no rodapé de outros. O nome acessível do `h2` começa pelo número, `2 · Em aberto por
  * idade`, e a âncora é o que separa um título de outro que o contenha.
  *
- * **O nome vai em expressão regular insensível a caixa** porque o título do quadro é `uppercase` por
- * CSS, e o que a página serve é *"Ocorrências por status"*.
+ * **O nome vai em expressão regular insensível a caixa**, que é folga barata: o título do quadro foi
+ * versal por CSS até o item 110, e hoje é título de bloco em caixa normal.
  */
 function quadro(pagina: Page, titulo: string): Locator {
   return pagina.locator("section").filter({
@@ -323,8 +323,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   // -------------------------------------------------------------------------
   // 2.0 · A ordem dos sete quadros, e a pergunta de cada um (item 73, critérios 1 e 2)
   //
-  // **Os títulos lidos na ordem do documento**, por `textContent`: o título é `uppercase` por CSS, e o
-  // `innerText` o devolveria em caixa alta. A frase que o item 73 tirou da página não existe mais nela.
+  // **Os títulos lidos na ordem do documento**, por `textContent`, que lê o texto servido e não o
+  // desenhado (o título foi versal por CSS até o item 110, e continua valendo se voltar a ser). A frase
+  // que o item 73 tirou da página não existe mais nela.
   // -------------------------------------------------------------------------
   const titulosNaOrdem = await helena
     .locator("section h2")
