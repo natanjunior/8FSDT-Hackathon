@@ -68,6 +68,7 @@ import {
 } from "@/interface/http";
 import {
   descricaoDoRecorte,
+  fraseDoVazioDeFiltro,
   nomeDoStatus,
   opcoesDePrioridade,
   projetarPaginaDeOcorrencias,
@@ -454,7 +455,7 @@ async function Lista({
     quantidade: projetada.itens.length,
     total: projetada.total,
     visibilidadeAplicada: projetada.visibilidadeAplicada,
-    algumFiltroAplicado: algumFiltroAplicado(filtro),
+    filtro,
   });
 
   return (
@@ -598,13 +599,16 @@ function Vazio({
         {/*
           O subtítulo do **terceiro vazio** — critério 15.6. `corpo` é `null` para este tipo de propósito,
           esperando exatamente isto: o recorte em palavras, com os mesmos rótulos dos chips.
-          **`nomeDaOrganizacao` pode ser nulo**, e a frase sem o nome continua verdadeira; inventá-lo
-          seria pior.
+          **A forma da frase mora em `fraseDoVazioDeFiltro`** (item 102), que tem teste: ela sabe que
+          `nomeDaOrganizacao` pode ser nulo, e que o recorte do autor muda o começo em vez de virar cláusula.
         */}
         {tipo === "filtro" && (
           <EmptyDescription className="text-corpo text-tinta-suave">
-            {nomeDaOrganizacao === null ? "Com " : `Em ${nomeDaOrganizacao}, com `}
-            {descricaoDoRecorte(filtro, nomesDoRecorte, diasParaParada).join(" · ")}.
+            {fraseDoVazioDeFiltro({
+              apenasDoAutor: filtro.apenasDoAutor === true,
+              nomeDaOrganizacao,
+              clausulas: descricaoDoRecorte(filtro, nomesDoRecorte, diasParaParada),
+            })}
           </EmptyDescription>
         )}
       </EmptyHeader>
