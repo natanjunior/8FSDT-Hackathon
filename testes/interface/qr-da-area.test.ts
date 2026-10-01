@@ -179,6 +179,57 @@ describe("linkDoQrDaArea", () => {
   });
 });
 
+describe("a página do convite com ?area= — critérios 4, 5 e 6 na fonte", () => {
+  const PAGINA = "app/convite/[codigo]/page.tsx";
+  const faceDoQr = () => {
+    const fonte = ler(PAGINA);
+    return fonte.slice(fonte.indexOf("function FaceQrDaArea"), fonte.indexOf("function FaceQrNaoEncontrado"));
+  };
+
+  it("continua lendo só pela estrada direta do convite, e decide pelo destinoDoQr", () => {
+    const fonte = ler(PAGINA);
+    expect(fonte).toContain("resolverConviteParaTela(");
+    expect(fonte).not.toContain("resolverEscopoParaTela(");
+    expect(fonte).not.toContain("listarAreas(");
+    expect(fonte).toContain("destinoDoQr(");
+  });
+
+  it("a face do QR tem Entrar, o ou, o apoio e Entrar na organização, e não mostra o código", () => {
+    const face = faceDoQr();
+    expect(face).toContain("/entrar?destino=");
+    expect(face).toContain("<ReguaDoOu deitada");
+    expect(face).toContain("TEXTOS_DO_QR.semSessao.apoio");
+    expect(face).toContain("/convite/${");
+    expect(face).not.toContain("<ExibicaoDeCodigo");
+    expect(face).not.toContain("/criar-conta");
+    expect(face.indexOf("TEXTOS_DO_QR.semSessao.principal")).toBeLessThan(
+      face.indexOf("TEXTOS_DO_QR.semSessao.secundario"),
+    );
+  });
+
+  it("o destino do Entrar é esta mesma página com a área, e não o registro", () => {
+    const face = faceDoQr();
+    expect(face).toMatch(/encodeURIComponent\(`\/convite\/\$\{[^}]+\}\?area=\$\{[^}]+\}`\)/u);
+    expect(face).not.toContain("/ocorrencias/nova");
+  });
+
+  it("a troca chama o PUT de sempre, uma vez, e substitui o endereço", () => {
+    const troca = ler("src/interface/componentes/troca-pelo-qr.tsx");
+    expect(troca).toContain("trocarOrganizacao(");
+    expect(troca).toContain("useRef(");
+    expect(troca).toContain("router.replace(");
+    expect(troca).not.toContain("router.push(");
+  });
+
+  it("a face sem sessão do convite ganhou o ou e o apoio, e mantém Criar conta como principal (critério 8)", () => {
+    const fonte = ler(PAGINA);
+    const face = fonte.slice(fonte.indexOf("function FaceSemSessao"), fonte.indexOf("function FaceJaParticipa"));
+    expect(face).toContain("<ReguaDoOu deitada");
+    expect(face).toContain("Já tem conta?");
+    expect(face.indexOf("Criar conta")).toBeLessThan(face.indexOf(">Entrar<"));
+  });
+});
+
 describe("o critério 6, na fonte", () => {
   it("as listas fechadas do lint não ganharam linha", () => {
     const lint = ler("eslint.config.mjs");

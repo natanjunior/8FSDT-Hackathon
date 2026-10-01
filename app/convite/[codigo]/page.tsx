@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { ExibicaoDeCodigo } from "@/interface/componentes/campo-de-codigo";
 import { EscolhaDeOrganizacao } from "@/interface/componentes/escolha-de-organizacao";
@@ -8,7 +9,10 @@ import {
   CaminhoDeSair,
   CLASSE_DO_CAMINHO,
   MolduraDeConta,
+  ReguaDoOu,
 } from "@/interface/componentes/moldura-de-conta";
+import { destinoDoQr, lerAreaDoEndereco, TEXTOS_DO_QR } from "@/interface/componentes/qr-da-area";
+import { TrocaPeloQr } from "@/interface/componentes/troca-pelo-qr";
 import { Button } from "@/interface/componentes/ui/button";
 import { resolverConviteParaTela } from "@/interface/http";
 import {
@@ -41,16 +45,60 @@ import {
  * **O cookie de organização não muda por aqui** (critério 86.5). O pedido não escreve cookie, e a única
  * troca é a da face *Já participa*, que é ação explícita.
  *
+ * **Ela é também a porta do QR de cada área** (item 111), com `?area=`. É aqui porque é o único lugar que
+ * lê sem sessão, e o QR precisa do nome da organização para quem ainda não entrou. Com `?area=`, quem
+ * decide o destino é `destinoDoQr`; sem ele, a página é o convite de sempre. **A área não é lida aqui**, com
+ * ou sem sessão: só o formato dela. Quem decide se ela existe é o registro, dentro do escopo.
+ *
  * **A moldura tem uma prop chamada `convite`, e ela é outra coisa**: a coluna da outra porta do item 65.
  * Esta página não a usa. As duas palavras convivem, e o glossário fixa o sentido de *Convite*.
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Convite" };
+type Props = {
+  params: Promise<{ codigo: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function PaginaDoConvite({ params }: { params: Promise<{ codigo: string }> }) {
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  return { title: lerAreaDoEndereco(await searchParams) === null ? "Convite" : TEXTOS_DO_QR.tituloDaAba };
+}
+
+export default async function PaginaDoConvite({ params, searchParams }: Props) {
   const { codigo } = await params;
+  const areaId = lerAreaDoEndereco(await searchParams);
   const { resolucao, convite } = await resolverConviteParaTela(codigo);
+
+  if (areaId !== null) {
+    const destino = destinoDoQr({
+      convite:
+        convite === null
+          ? null
+          : { codigoPublico: convite.organizacao.codigoPublico, situacao: convite.situacao },
+      areaId,
+      ativaId: resolucao?.ativo?.organizacao.id ?? null,
+      vinculos: (resolucao?.vinculos ?? []).map((v) => ({
+        organizacaoId: v.organizacao.id,
+        codigoPublico: v.organizacao.codigoPublico,
+      })),
+    });
+
+    // `destinoDoQr` só devolve as outras saídas com o convite lido; o `convite === null` é para o tipo.
+    if (destino.tipo === "nao-encontrado" || convite === null) return <FaceQrNaoEncontrado />;
+    switch (destino.tipo) {
+      case "convite":
+      case "registro":
+        return redirect(destino.para);
+      case "sem-sessao":
+        return <FaceQrDaArea convite={convite} areaId={areaId} />;
+      case "trocar":
+        return (
+          <MolduraDeConta titulo={convite.organizacao.nome}>
+            <TrocaPeloQr organizacaoId={destino.organizacaoId} para={destino.para} />
+          </MolduraDeConta>
+        );
+    }
+  }
 
   if (convite === null) return <FaceNaoEncontrado />;
 
@@ -109,6 +157,8 @@ function FaceSemSessao({ convite }: { convite: ConviteProjetado }) {
         <Button asChild variant="marca" className="text-interface min-h-11 w-full">
           <Link href={`/criar-conta?destino=${volta}`}>Criar conta</Link>
         </Button>
+        <ReguaDoOu deitada />
+        <p className="text-tinta-suave text-interface">Já tem conta?</p>
         <Button asChild variant="outline" className="border-linha text-interface min-h-11 w-full">
           <Link href={`/entrar?destino=${volta}`}>Entrar</Link>
         </Button>
@@ -190,5 +240,45 @@ function FacePodePedir({
         />
       )}
     </MolduraDeConta>
+  );
+}
+
+/**
+ * **A face de quem leu o QR de uma área sem ter entrado** (item 111). Só o nome da organização: a área não
+ * é lida sem sessão. *Entrar* volta a esta mesma página com a área, e é ela que decide, com a sessão nova,
+ * entre registro, troca e convite. Voltar direto ao registro abriria a organização do cookie, que pode ser
+ * outra.
+ */
+function FaceQrDaArea({ convite, areaId }: { convite: ConviteProjetado; areaId: string }) {
+  const codigo = convite.organizacao.codigoPublico;
+  const volta = encodeURIComponent(`/convite/${codigo}?area=${areaId}`);
+  return (
+    <MolduraDeConta titulo={convite.organizacao.nome} contexto={TEXTOS_DO_QR.semSessao.contexto}>
+      <div className="flex flex-col gap-3">
+        <Button asChild variant="marca" className="text-interface min-h-11 w-full">
+          <Link href={`/entrar?destino=${volta}`}>{TEXTOS_DO_QR.semSessao.principal}</Link>
+        </Button>
+        <ReguaDoOu deitada />
+        <p className="text-tinta-suave text-interface">{TEXTOS_DO_QR.semSessao.apoio}</p>
+        <Button asChild variant="outline" className="border-linha text-interface min-h-11 w-full">
+          <Link href={`/convite/${codigo}`}>{TEXTOS_DO_QR.semSessao.secundario}</Link>
+        </Button>
+      </div>
+    </MolduraDeConta>
+  );
+}
+
+/** Código que não leva a organização, ou área fora do formato. Sem dizer qual dos dois. */
+function FaceQrNaoEncontrado() {
+  return (
+    <MolduraDeConta
+      titulo={TEXTOS_DO_QR.naoEncontrado.titulo}
+      contexto={TEXTOS_DO_QR.naoEncontrado.corpo}
+      caminhos={
+        <Link href="/" className={CLASSE_DO_CAMINHO}>
+          {TEXTOS_DO_QR.naoEncontrado.acao}
+        </Link>
+      }
+    />
   );
 }
