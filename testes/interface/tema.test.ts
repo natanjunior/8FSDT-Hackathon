@@ -15,6 +15,7 @@ import {
   SCRIPT_DO_TEMA,
   temaDoAtributo,
   temaDoCookie,
+  temaExibido,
 } from "@/interface/componentes/tema";
 import { vlibrasNaRota } from "@/interface/componentes/rota-do-vlibras";
 import { cn } from "@/interface/componentes/utilitarios";
@@ -964,5 +965,17 @@ describe("as superfícies do navegador recebem o tema — critério 106.15", () 
   it.each(TRES_MODOS)("%s: a tinta passa 4,5:1 sobre o fundo da seleção", (cabecalho) => {
     const cor = corDoModo(cabecalho);
     expect(contraste(cor("--ink"), cor("--accent-bg"))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("temaExibido — critério 114.3", () => {
+  it("com o contraste normal, é o tema guardado", () => {
+    expect(temaExibido("claro", "normal")).toBe("claro");
+    expect(temaExibido("escuro", "normal")).toBe("escuro");
+  });
+
+  it("com o contraste alto, é escuro, porque a paleta de contraste é de base escura", () => {
+    expect(temaExibido("claro", "alto")).toBe("escuro");
+    expect(temaExibido("escuro", "alto")).toBe("escuro");
   });
 });
