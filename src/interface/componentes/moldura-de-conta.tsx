@@ -110,31 +110,44 @@ const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as co
  * **Componente de servidor. Uma marca só por tela** (item 116, critério 13). Com a apresentação, a grade a
  * põe acima do cartão no celular e no alto da coluna da esquerda na tela grande.
  */
-export function MolduraDeConta({
-  titulo,
-  contexto,
-  apresentacao = false,
-  convite,
-  caminhos,
-  children,
-}: {
-  titulo: string;
-  contexto?: ReactNode;
+type CabecaDaMoldura =
+  | { titulo: string; contexto?: ReactNode; children?: ReactNode; cartao?: undefined }
   /**
-   * As quatro telas de credencial — T-01, T-11, T-12 e T-13 — ligam a segunda coluna a partir de `lg`
-   * (critérios 44m.8 e 116.1). Não se combina com `convite`.
+   * **O cartão pronto** (item 116, critério 8): para a tela cuja cabeça depende de um desfecho que só o
+   * cliente conhece. Hoje é só `/redefinir-senha`, que troca título e contexto quando o link sai.
    */
-  apresentacao?: boolean;
-  /**
-   * Só `/organizacao` (face A) e `/organizacao/criar` (item 65): a outra porta, ao lado do cartão a partir
-   * de `lg`. `lado` é onde ela fica na tela grande; no documento o cartão vem sempre primeiro.
-   */
-  convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };
-  caminhos?: ReactNode;
-  children?: ReactNode;
-}) {
-  // `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
-  const temCorpo = children !== undefined && children !== null && typeof children !== "boolean";
+  | { cartao: ReactNode; titulo?: undefined; contexto?: undefined; children?: undefined };
+
+// `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
+function haCorpo(children: ReactNode): boolean {
+  return children !== undefined && children !== null && typeof children !== "boolean";
+}
+
+export function MolduraDeConta(
+  props: CabecaDaMoldura & {
+    /**
+     * As quatro telas de credencial — T-01, T-11, T-12 e T-13 — ligam a segunda coluna a partir de `lg`
+     * (critérios 44m.8 e 116.1). Não se combina com `convite`.
+     */
+    apresentacao?: boolean;
+    /**
+     * Só `/organizacao` (face A) e `/organizacao/criar` (item 65): a outra porta, ao lado do cartão a partir
+     * de `lg`. `lado` é onde ela fica na tela grande; no documento o cartão vem sempre primeiro.
+     */
+    convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };
+    caminhos?: ReactNode;
+  },
+) {
+  const { apresentacao = false, convite, caminhos } = props;
+  // `titulo` é o que separa as duas formas: o cartão pronto não o tem.
+  const cartao =
+    props.titulo === undefined ? (
+      props.cartao
+    ) : (
+      <CartaoDaTela titulo={props.titulo} contexto={props.contexto} temCorpo={haCorpo(props.children)}>
+        {props.children}
+      </CartaoDaTela>
+    );
 
   return (
     <main className={PAGINA}>
@@ -147,18 +160,14 @@ export function MolduraDeConta({
             <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
             <Apresentacao />
             <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
-              <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
-                {children}
-              </CartaoDaTela>
+              {cartao}
               {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
             </div>
           </div>
         ) : (
           <div className={COLUNA}>
             <MarcaDoProduto className="self-center" />
-            <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
-              {children}
-            </CartaoDaTela>
+            {cartao}
             {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
           </div>
         )
@@ -167,9 +176,7 @@ export function MolduraDeConta({
           <MarcaDoProduto className="self-center" />
           <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
             <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
-              <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
-                {children}
-              </CartaoDaTela>
+              {cartao}
             </div>
             <ReguaDoOu />
             <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
@@ -190,7 +197,7 @@ export function MolduraDeConta({
  * mudar uma classe: o `h1` continua sendo o primeiro título do documento, porque o cartão vem antes do
  * convite na ordem de leitura, em qualquer largura.
  */
-function CartaoDaTela({
+export function CartaoDaTela({
   titulo,
   contexto,
   temCorpo,

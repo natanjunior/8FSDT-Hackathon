@@ -2820,6 +2820,20 @@ describe("o recibo de cada ação — item 103", () => {
     }
   });
 
+  it("a redefinição enviada troca o cabeçalho e mostra o endereço (critério 116.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-redefinicao.tsx");
+    expect(formulario).toContain("<CartaoDaTela");
+    expect(formulario).toContain('titulo="Confira o seu e-mail"');
+    expect(formulario).toContain("Se existe uma conta com");
+    expect(formulario).toContain("enviamos o link para ela. Confira também o spam.");
+    // O endereço quebra em qualquer ponto: um e-mail longo não empurra a página no celular.
+    expect(formulario).toMatch(/<strong className="[^"]*\bbreak-all\b[^"]*">\{enviadoPara\}<\/strong>/u);
+    // Sem o corpo antigo, que repetia o título com um envelope.
+    expect(formulario).not.toContain("<EmptyTitle");
+    expect(ler("app/redefinir-senha/page.tsx")).toContain("cartao={<FormularioDeRedefinicao");
+    expect(ler("src/interface/componentes/moldura-de-conta.tsx")).toContain("export function CartaoDaTela(");
+  });
+
   it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
     // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
     expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
