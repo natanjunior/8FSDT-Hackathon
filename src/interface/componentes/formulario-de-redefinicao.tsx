@@ -6,7 +6,7 @@ import { useActionState } from "react";
 import { acaoDePedirRedefinicao, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
-import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Empty,
@@ -47,9 +47,9 @@ export function FormularioDeRedefinicao({ emailInicial = null }: { emailInicial?
     async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
       const proximo = await chamarAcaoDeCredencial(acaoDePedirRedefinicao, anterior, dados);
       formulario.recomecar();
-      // **Sem aviso de sucesso:** a face "Confira o seu e-mail" é a resposta, e um aviso de "enviado"
-      // confirmaria que a conta existe, contra a doutrina da tela (spec do 44g, §4.8).
-      if (proximo.enviado !== true) avisarErro("Não foi possível enviar o link");
+      // **Nem aviso de sucesso nem de falha:** a face e a linha acima do formulário são a resposta
+      // (critério 116.9). Um aviso de "enviado" confirmaria que a conta existe, contra a doutrina da tela
+      // (spec do 44g, §4.8).
       return proximo;
     },
     {},

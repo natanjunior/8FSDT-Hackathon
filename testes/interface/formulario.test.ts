@@ -3020,3 +3020,18 @@ describe("o 105 — o laranja volta a marcar uma coisa só", () => {
     expect(classe.split(" ")).toContain("underline");
   });
 });
+
+describe("uma falha, uma mensagem — critério 116.9", () => {
+  it("as quatro telas de conta não dão aviso flutuante na falha, e os dois desfechos continuam", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]) {
+      expect(ler(caminho), caminho).not.toContain("avisarErro(");
+    }
+    expect(ler("src/interface/componentes/formulario-de-cadastro.tsx")).toContain('avisarSucesso("Conta criada")');
+    expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha alterada"');
+  });
+});

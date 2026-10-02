@@ -7,11 +7,7 @@ import { acaoDeDefinirSenha, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
-import {
-  avisarErro,
-  avisarSucesso,
-  MENSAGEM_GENERICA,
-} from "@/interface/componentes/retorno-de-acao";
+import { avisarSucesso, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 import { definirSenhaSchema, errosDoSchema } from "@/interface/schemas";
@@ -25,7 +21,7 @@ import { definirSenhaSchema, errosDoSchema } from "@/interface/schemas";
  *
  * **O retorno (guia §7, item 44g).** Com a senha gravada, sai o aviso *"Senha alterada"* e a tela segue
  * para T-01; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha
- * dá o aviso *"Não foi possível definir a senha"*.
+ * fica só na linha acima do formulário (item 116, critério 9).
  */
 export function FormularioDeNovaSenha() {
   const router = useRouter();
@@ -43,8 +39,6 @@ export function FormularioDeNovaSenha() {
         // **`replace`, e não `push`:** o botão voltar não pode reencontrar este formulário (6b.4). A
         // ação já limpou o cookie de recuperação, então a própria página também manda para T-01.
         router.replace("/entrar");
-      } else if (proximo.recusa !== undefined || proximo.erros !== undefined) {
-        avisarErro("Não foi possível definir a senha");
       }
       return proximo;
     },
