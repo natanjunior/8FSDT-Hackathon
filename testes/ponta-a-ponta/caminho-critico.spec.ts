@@ -97,6 +97,18 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await expect(
     helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
   ).toBeVisible();
+  // **A porta para uma terceira organização** (critério 116.11): a face E sem organização ativa, e de volta.
+  await helena.getByRole("link", { name: "Entrar em outra organização" }).click();
+  await helena.waitForURL(/\/organizacao\?entrar-em-outra=true$/u);
+  await expect(helena.getByRole("heading", { name: "Entrar em outra organização", level: 1 })).toBeVisible();
+  await expect(
+    helena.getByText("Pedir entrada em outra não tira você das organizações em que já participa."),
+  ).toBeVisible();
+  await helena.getByRole("link", { name: "Voltar" }).click();
+  await helena.waitForURL(/\/organizacao$/u);
+  await expect(
+    helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
+  ).toBeVisible();
   // **O recibo da escolha** (critério 103.1): com o `PUT` retido, a linha apertada diz *Entrando…*, segura o
   // foco e fica ocupada; a outra fica inerte, sem roubar o foco.
   await helena.route("**/api/contexto/organizacao", async (rota) => {

@@ -1351,17 +1351,21 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(fonte).toContain("<CaminhoDeSair />");
   });
 
-  it("a face E tem duas portas, e nenhuma é o seletor de organização (critério 44o.14)", () => {
+  it("a face E tem três portas, e nenhuma é o seletor de organização (critérios 44o.14 e 116.11)", () => {
     // **O achado A3 da spec:** desde o 44b o único produtor deste endereço era o menu de organização de
     // T-10, e só o Encarregado cai em T-10. Esta guarda impede que ele volte a ter uma porta só — ou
     // nenhuma.
     const produtores = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
       ler(caminho).includes("entrar-em-outra=true"),
     );
-    expect(produtores).toStrictEqual([
-      "app/page.tsx",
-      "src/interface/componentes/casca/menu-de-pessoa.tsx",
-    ]);
+    expect([...produtores].sort()).toStrictEqual(
+      ["app/organizacao/page.tsx", "app/page.tsx", "src/interface/componentes/casca/menu-de-pessoa.tsx"].sort(),
+    );
+    // A face D é de quem não tem organização ativa: a face E passa a recebê-la sem ela.
+    const pagina = ler("app/organizacao/page.tsx");
+    expect(pagina).toContain("querEntrarEmOutra && contexto.vinculos.length > 0");
+    expect(pagina).toContain("organizacaoAtiva={null}");
+    expect(pagina).toContain("Pedir entrada em outra não tira você das organizações em que já participa.");
     // O seletor é `select` pelo critério 44b.4, e uma opção que não é um valor desfaria aquela decisão.
     expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toContain(
       "Entrar em outra organização",
