@@ -6,24 +6,32 @@ import { redirect } from "next/navigation";
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import {
   listarAreas,
+  listarEtiquetas,
   listarImpedimentosDeRemocao,
   listarPedidosDeEntrada,
   listarResponsabilidadesEmAberto,
   listarVinculos,
 } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { usoPorEtiqueta } from "@/interface/componentes/etiquetas-de-participante";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import {
   SEM_PEDIDOS,
   palavraDeParticipantes,
   palavraDePedidos,
 } from "@/interface/componentes/frases-de-participantes";
+import { GerenciaDeEtiquetas } from "@/interface/componentes/gerencia-de-etiquetas";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { TabelaDeParticipantes } from "@/interface/componentes/tabela-de-participantes";
 import { buttonVariants } from "@/interface/componentes/ui/button";
 import { cn } from "@/interface/componentes/utilitarios";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@/interface/projecoes";
+import {
+  projetarArea,
+  projetarEtiqueta,
+  projetarPedidoDeEntradaDetalhe,
+  projetarVinculo,
+} from "@/interface/projecoes";
 
 /**
  * **T-08 · Participantes** — *"Quem está aqui, e quem quer entrar?"*
@@ -31,7 +39,7 @@ import { projetarArea, projetarPedidoDeEntradaDetalhe, projetarVinculo } from "@
  * **Uma tabela só** (item 44j): os pedidos pendentes são a parte acionável da lista de gente, e separá-los
  * produzia uma seção cuja resposta é *"nenhum pedido"* na maior parte das semanas.
  *
- * **A página lê e não decide.** As cinco leituras vão juntas, pela estrada direta (contrato §5); filtro,
+ * **A página lê e não decide.** As seis leituras vão juntas, pela estrada direta (contrato §5); filtro,
  * ordem, busca e página são do navegador, porque `GET /vinculos` devolve a lista inteira. **Ela não lê o
  * endereço**: quem o lê é a tabela, que também o escreve.
  *
@@ -56,13 +64,18 @@ export default async function Participantes() {
     return <SemAcesso titulo="Participantes" permissao="vinculo.gerir" />;
   }
 
-  const [pedidos, areas, vinculos, mapaDeImpedimentos, mapaDeResponsabilidades] = await Promise.all([
-    listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {}),
-    listarAreas(escopo.repos.areas),
-    listarVinculos(escopo.repos.vinculos),
-    listarImpedimentosDeRemocao(escopo.repos.vinculos),
-    listarResponsabilidadesEmAberto(escopo.repos.vinculos),
-  ]);
+  const [pedidos, areas, vinculos, mapaDeImpedimentos, mapaDeResponsabilidades, todasAsEtiquetas] =
+    await Promise.all([
+      listarPedidosDeEntrada(escopo.repos.pedidosDeEntrada, {}),
+      listarAreas(escopo.repos.areas),
+      listarVinculos(escopo.repos.vinculos),
+      listarImpedimentosDeRemocao(escopo.repos.vinculos),
+      listarResponsabilidadesEmAberto(escopo.repos.vinculos),
+      listarEtiquetas(escopo.repos.etiquetas),
+    ]);
+
+  const etiquetas = todasAsEtiquetas.map(projetarEtiqueta);
+  const vinculosProjetados = vinculos.map(projetarVinculo);
 
   // **`Map` → objeto simples na fronteira Server/Client.** O `Map` é a forma certa dentro do servidor —
   // `O(1)` por linha —, e um objeto é o que atravessa sem depender de capacidade de serialização que
@@ -78,27 +91,38 @@ export default async function Participantes() {
         titulo="Participantes"
         fato={<Fato participantes={vinculos.length} pedidos={pedidos.length} />}
         acao={
-          <Link
-            href="/vinculos/nova"
-            className={cn(
-              buttonVariants({ variant: "marca" }),
-              "text-interface min-h-11 rounded-sm px-4 font-semibold has-[>svg]:px-4",
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Sem etiqueta não há o que gerir: a primeira nasce no detalhe de um participante (item 115). */}
+            {etiquetas.length > 0 && (
+              <GerenciaDeEtiquetas
+                etiquetas={etiquetas}
+                uso={usoPorEtiqueta(vinculosProjetados)}
+                organizacaoId={escopo.ctx.vinculo.organizacaoId}
+              />
             )}
-          >
-            <UserPlus aria-hidden="true" />
-            Cadastrar pessoa sem conta
-          </Link>
+            <Link
+              href="/vinculos/nova"
+              className={cn(
+                buttonVariants({ variant: "marca" }),
+                "text-interface min-h-11 rounded-sm px-4 font-semibold has-[>svg]:px-4",
+              )}
+            >
+              <UserPlus aria-hidden="true" />
+              Cadastrar pessoa sem conta
+            </Link>
+          </div>
         }
       />
 
       <TabelaDeParticipantes
         pedidos={pedidos.map(projetarPedidoDeEntradaDetalhe)}
-        vinculos={vinculos.map(projetarVinculo)}
+        vinculos={vinculosProjetados}
         impedimentos={impedimentos}
         responsabilidades={responsabilidades}
         areas={areas.map(projetarArea)}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
         euPessoaId={escopo.ctx.pessoaId}
+        etiquetas={etiquetas}
       />
     </div>
   );
