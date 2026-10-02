@@ -10,11 +10,7 @@ import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componen
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
 import { CLASSE_DO_CAMINHO } from "@/interface/componentes/moldura-de-conta";
-import {
-  avisarErro,
-  avisarSucesso,
-  MENSAGEM_GENERICA,
-} from "@/interface/componentes/retorno-de-acao";
+import { avisarSucesso, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import {
   Empty,
@@ -40,8 +36,8 @@ import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
  * ela. O telefone tem casa, e é a casa certa: o campo opcional de `POST /pedidos-de-entrada`, em T-02.
  *
  * **O retorno (guia §7, item 44g).** Com a conta criada, sai o aviso *"Conta criada"* e a tela segue para
- * `/`; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha dá o
- * aviso *"Não foi possível criar a conta"*.
+ * `/`; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha fica
+ * só na linha acima do formulário (item 116, critério 9).
  */
 export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
   const router = useRouter();
@@ -68,8 +64,6 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
         avisarSucesso("Conta criada");
         // O destino já chega conferido pela página. Sem ele, o shell resolve: sem vínculo, T-02 face A.
         router.replace(destino ?? "/");
-      } else if (proximo.recusa !== undefined || proximo.erros !== undefined) {
-        avisarErro("Não foi possível criar a conta");
       }
       return proximo;
     },

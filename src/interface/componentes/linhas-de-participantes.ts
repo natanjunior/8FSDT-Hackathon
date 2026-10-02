@@ -1,4 +1,5 @@
 import { casaPeloNome, termosDaBusca } from "@/interface/componentes/busca-de-candidatos";
+import type { EtiquetaNaTela } from "@/interface/componentes/etiquetas-de-participante";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import {
   ROTULO_SEM_PAPEL,
@@ -49,9 +50,14 @@ export type Endereco = {
   readonly ordem: Coluna | null;
   readonly sentido: Sentido;
   readonly pagina: number;
+  /**
+   * `null` é *Todas*. Não é validado aqui: só a tabela sabe quais existem, e ela passa por
+   * `etiquetaVigente` (item 115).
+   */
+  readonly etiqueta: string | null;
 };
 
-export const ENDERECO_PADRAO: Endereco = { filtro: "todos", ...SEM_ORDENACAO, pagina: 1 };
+export const ENDERECO_PADRAO: Endereco = { filtro: "todos", ...SEM_ORDENACAO, pagina: 1, etiqueta: null };
 
 export const ROTULO_DO_FILTRO: Readonly<Record<Filtro, string>> = {
   todos: "Todos",
@@ -110,6 +116,8 @@ type Comum = {
   readonly atualizadoEm: string | null;
   /** O que a coluna escreve, ou `null` quando ela escreve o traço. */
   readonly atualizadoTexto: string | null;
+  /** Em ordem alfabética. Pedido não tem (não é vínculo). Item 115. */
+  readonly etiquetas: readonly EtiquetaNaTela[];
 };
 
 export type LinhaDePedido = Comum & { readonly tipo: "pedido"; readonly pedido: PedidoNaTabela };
@@ -171,6 +179,7 @@ export function linhaDoPedido(pedido: PedidoNaTabela): LinhaDePedido {
     // **Pedido pendente não foi alterado**: a coluna mostra o traço, como em vínculo nunca mexido.
     atualizadoEm: null,
     atualizadoTexto: null,
+    etiquetas: [],
   };
 }
 
@@ -191,6 +200,7 @@ export function linhaDoVinculo(vinculo: VinculoProjetado, contexto: ContextoDaTa
     atualizadoTexto: vinculo.atualizadoEm === null ? null : dataCurta(vinculo.atualizadoEm),
     ehVoce: vinculo.pessoa.pessoaId === contexto.euPessoaId,
     impedimento: contexto.impedimentos[vinculo.pessoa.pessoaId] ?? null,
+    etiquetas: vinculo.etiquetas,
   };
 }
 
@@ -351,6 +361,7 @@ export function lerEndereco(parametros: { get: (nome: string) => string | null }
     filtro: umDe(FILTROS, parametros.get("filtro"), "todos"),
     ...lerOrdenacao(parametros, COLUNAS_QUE_ORDENAM),
     pagina: Number.isInteger(pagina) && pagina >= 1 ? pagina : 1,
+    etiqueta: parametros.get("etiqueta") || null,
   };
 }
 
@@ -358,6 +369,7 @@ export function lerEndereco(parametros: { get: (nome: string) => string | null }
 export function escreverEndereco(endereco: Endereco): string {
   const consulta = new URLSearchParams();
   if (endereco.filtro !== "todos") consulta.set("filtro", endereco.filtro);
+  if (endereco.etiqueta !== null) consulta.set("etiqueta", endereco.etiqueta);
   escreverOrdenacao(consulta, endereco);
   if (endereco.pagina > 1) consulta.set("pagina", String(endereco.pagina));
   return consulta.toString();
@@ -366,6 +378,40 @@ export function escreverEndereco(endereco: Endereco): string {
 /** Conjunto novo, primeira página — a regra de T-03 (`semPaginacao`). */
 export function comFiltro(endereco: Endereco, filtro: Filtro): Endereco {
   return { ...endereco, filtro, pagina: 1 };
+}
+
+/** Conjunto novo, primeira página — a regra de `comFiltro`. */
+export function comEtiqueta(endereco: Endereco, etiqueta: string | null): Endereco {
+  return { ...endereco, etiqueta, pagina: 1 };
+}
+
+/**
+ * **Etiqueta que não existe mais vale *Todas*** (`respostas.md` P1). É o que acontece quando o Gestor apaga
+ * na gerência a etiqueta que está filtrando: a lista volta inteira, em vez de ficar vazia sem motivo.
+ */
+export function etiquetaVigente(etiqueta: string | null, todas: readonly EtiquetaNaTela[]): string | null {
+  return etiqueta !== null && todas.some((existente) => existente.id === etiqueta) ? etiqueta : null;
+}
+
+/** **Combina com o papel por E** (`respostas.md` P1). Pedido não tem etiqueta, e não pertence a nenhuma. */
+export function pertenceAEtiqueta(linha: LinhaDeParticipante, etiqueta: string | null): boolean {
+  if (etiqueta === null) return true;
+  return linha.etiquetas.some((existente) => existente.id === etiqueta);
+}
+
+/**
+ * **As contagens são do conjunto inteiro**, como as do papel (`contagensDoFiltro`): nenhuma régua segue a
+ * escolha da outra (`respostas.md` P1). `todas` é o total; etiqueta sem uso conta `0`.
+ */
+export function contagensDeEtiquetas(
+  linhas: readonly LinhaDeParticipante[],
+  todas: readonly EtiquetaNaTela[],
+): Readonly<Record<string, number>> {
+  const contagens: Record<string, number> = { todas: linhas.length };
+  for (const etiqueta of todas) {
+    contagens[etiqueta.id] = linhas.filter((linha) => pertenceAEtiqueta(linha, etiqueta.id)).length;
+  }
+  return contagens;
 }
 
 /** O ciclo de três estados (item 68a), e a página volta à primeira. */

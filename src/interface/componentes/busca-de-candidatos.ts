@@ -1,3 +1,6 @@
+import type { VinculoLido } from "@/aplicacao/organizacao";
+import type { EtiquetaNaTela } from "@/interface/componentes/etiquetas-de-participante";
+
 /**
  * ============================================================================
  *  A busca do modal de atribuição — a metade conferível do item 20
@@ -9,8 +12,8 @@
  * fatia inteira dependeria de conferência manual. É o precedente exato do `vazio-da-lista.ts`: *"uma
  * decisão … mora numa função com teste"*.
  *
- * **Nenhum `import`, e é de propósito.** O arquivo não conhece React, não conhece `next` e não conhece o
- * Domínio. Isso o torna o arquivo mais barato de conferir do repositório e o único que o item 10 pode
+ * **Nenhum `import` de valor, e é de propósito.** O arquivo não conhece React, não conhece `next` e não
+ * conhece o Domínio. Os dois `import type` do item 115 o compilador apaga. Isso o torna o arquivo mais barato de conferir do repositório e o único que o item 10 pode
  * reusar sem arrastar um `"use client"` junto (critério 10.6).
  *
  * ---------------------------------------------------------------------------
@@ -53,7 +56,27 @@ export type Candidato = {
   papel: string;
   /** A unidade, quando houver. É o que desempata homônimos. */
   area: string | null;
+  /**
+   * As etiquetas do participante (item 115), em ordem alfabética. Ao lado do nome, **sem filtro** (decisão 2
+   * do dono): a busca do modal continua casando só o nome.
+   */
+  etiquetas: readonly EtiquetaNaTela[];
 };
+
+/**
+ * **O candidato sai do `VinculoLido` da lista, e só dele** (critério 115.4): a escolha do responsável
+ * recebe as etiquetas da mesma `lerVinculos` que a lista e o detalhe. A palavra do papel chega pronta,
+ * porque quem a produz é a página (`PAPEL_EM_PALAVRA`).
+ */
+export function candidatoDoVinculo(lido: VinculoLido, papelEmPalavra: string): Candidato {
+  return {
+    pessoaId: lido.pessoa.pessoaId,
+    nome: lido.pessoa.nome,
+    papel: papelEmPalavra,
+    area: lido.area?.nome ?? null,
+    etiquetas: lido.etiquetas.map((etiqueta) => ({ id: etiqueta.id, nome: etiqueta.nome })),
+  };
+}
 
 /**
  * **A palavra que reparte os dois blocos, e ela vem de fora.** `PAPEL_EM_PALAVRA`

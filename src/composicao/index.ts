@@ -23,6 +23,7 @@ import {
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDePedidosDeEntrada,
@@ -90,6 +91,9 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
+    // Recebe as **duas** formas de acesso: a consulta para a lista e as escritas de uma instrução, e a
+    // transação escopada para atribuir, que trava o vínculo, cria ou acha a etiqueta e liga, num `COMMIT`.
+    etiquetas: repositorioEscopadoDeEtiquetas(consulta, escoparTransacao(criarTransacao(), organizacaoId)),
     // Recebem as **duas** formas de acesso desde o item 50: a consulta para a leitura e para as escritas de
     // uma instrução só, e a transação escopada para a reordenação, que trava a lista, confere o conjunto,
     // grava e relê num `COMMIT` só. As duas passam pelo mesmo `$1`.

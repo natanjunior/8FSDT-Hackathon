@@ -86,6 +86,16 @@ export function aplicarContraste(
 }
 
 /**
+ * **O tema que a tela pinta, e não o que o cookie guarda** (item 114, critério 3). Com o alto contraste
+ * ligado, `:root[data-contraste="alto"]` tem `color-scheme: dark` e a variante `dark` vale para ele
+ * (`app/globals.css:16-18`): o que se vê é escuro, e é isso que o item de tema anuncia. O tema guardado
+ * não é tocado, e volta quando o contraste sai.
+ */
+export function temaExibido(tema: Tema, contraste: Contraste): Tema {
+  return contraste === "alto" ? "escuro" : tema;
+}
+
+/**
  * O corpo do `<script>` do `<head>`. O `<html>` já vem com `data-theme="dark"` do servidor e sem
  * `data-contraste`; o script só age quando a escolha é claro, ou alto. **Um script para os dois**: uma
  * execução antes da primeira pintura. O `try` cobre o navegador que recusa acesso ao cookie: fica o padrão.

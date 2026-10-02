@@ -90,9 +90,11 @@ export function FormularioDeNovaOrganizacao() {
       // que o navegador aplica à History API, por exemplo) não pode virar mensagem de erro de criação —
       // a organização já foi criada com sucesso.
       router.refresh();
-      // Leva direto à lista de ocorrências, no estado vazio de organização nova — o critério 44o.4 manda
-      // que isso não mude. É lá que o convite a conferir as áreas semeadas mora.
-      router.push("/ocorrencias");
+      // **Leva a Convidar pessoas** (item 116, critério 7): a tela de criar promete um código para as
+      // pessoas pedirem entrada, e o passo seguinte de quem acabou de fundar uma organização vazia é
+      // chamar gente. `/convidar` tem o link, o QR e o código. Até o 116 o destino era a lista de
+      // ocorrências, pelo critério 44o.4; o convite a conferir as áreas continua no vazio dela.
+      router.push("/convidar");
     }
   }
 

@@ -145,6 +145,10 @@ export function fraseDoFatoDeEdicao(
 
 export const TEXTOS_DA_TABELA = {
   filtrar: "Filtrar participantes",
+  filtrarPorEtiqueta: "Filtrar por etiqueta",
+  todasAsEtiquetas: "Todas as etiquetas",
+  etiquetas: "Etiquetas",
+  vazioDaEtiqueta: "Ninguém com esta etiqueta neste recorte.",
   buscar: "Buscar pelo nome",
   exemploDaBusca: "Ex.: Beatriz",
   editar: "Editar participante",

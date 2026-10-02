@@ -14,7 +14,8 @@ import type { CategoriaProjetada } from "@/interface/projecoes";
  * marcador sem palavra que o compromisso A-5 proíbe, com um cabeçalho que não descreve o conteúdo. O
  * desenho já nasce `aria-hidden` dentro de `IconeDeCategoria`.
  *
- * **Abaixo de `md` a coluna da situação some**, e a palavra aparece na segunda linha da célula do nome.
+ * **Abaixo de `xl` a coluna da situação some**, e a palavra aparece na segunda linha da célula do nome.
+ * Abaixo de `md` as ações descem para a mesma célula (item 112).
  */
 export function TabelaDeCategorias({
   itens,

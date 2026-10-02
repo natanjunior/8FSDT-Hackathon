@@ -365,31 +365,47 @@ describe("o menu de pessoa — critério 7 do 44i", () => {
     expect(fonte).toContain("<LogOut");
   });
 
-  it("o tema e o contraste são dois `Toggle` do catálogo, entre «Entrar em outra organização» e o Sair (itens 72 e 85)", () => {
+  it("o grupo Aparência fica entre duas réguas, depois da conta e antes do Sair (critério 114.5)", () => {
     const menu = ler(MENU);
-    const pai = ler("src/interface/componentes/casca/itens-de-aparencia.tsx");
-
-    const entrar = menu.indexOf("Entrar em outra organização");
-    const aparencia = menu.indexOf("<ItensDeAparencia />");
+    // Pelo `href`, e não pelo rótulo: o rótulo aparece antes no comentário do topo (`:37`), e o
+    // `indexOf` pararia lá, deixando a régua nova sem guarda.
+    const entrar = menu.indexOf('href="/organizacao?entrar-em-outra=true"');
+    const reguaAntes = menu.indexOf("<DropdownMenuSeparator />", entrar);
+    const grupo = menu.indexOf("<GrupoDeAparencia />");
+    const reguaDepois = menu.indexOf("<DropdownMenuSeparator />", grupo);
     const sair = menu.indexOf("<form action={acaoDeSair}>");
     expect(entrar).toBeGreaterThan(-1);
-    expect(aparencia).toBeGreaterThan(entrar);
-    expect(sair).toBeGreaterThan(aparencia);
+    expect(reguaAntes).toBeGreaterThan(entrar);
+    expect(grupo).toBeGreaterThan(reguaAntes);
+    expect(reguaDepois).toBeGreaterThan(grupo);
+    expect(sair).toBeGreaterThan(reguaDepois);
+  });
 
-    // O tema vem antes do contraste.
-    expect(pai.indexOf("<ItemDeTema")).toBeGreaterThan(-1);
-    expect(pai.indexOf("<ItemDeContraste")).toBeGreaterThan(pai.indexOf("<ItemDeTema"));
-
-    // Os dois são item marcável, e não botão pressionado: `aria-pressed` não vale em item de menu.
+  it("as duas chaves são o item marcável do catálogo, sem fundo no ligado (critérios 114.1 e 114.4)", () => {
     for (const arquivo of ["item-de-tema.tsx", "item-de-contraste.tsx"]) {
       const item = ler(`src/interface/componentes/casca/${arquivo}`);
-      expect(item, arquivo).toContain("<Toggle");
-      expect(item, arquivo).toContain('role="menuitemcheckbox"');
-      expect(item, arquivo).toContain("aria-pressed={undefined}");
-      expect(item, arquivo).toContain("<DropdownMenuItem asChild");
+      expect(item, arquivo).toContain("<DropdownMenuCheckboxItem");
+      expect(item, arquivo).not.toContain("<Toggle");
+      expect(item, arquivo).not.toMatch(/data-\[state=(?:on|checked)\]:bg-/u);
+      expect(item, arquivo).toContain("min-h-11");
+      expect(item, arquivo).toContain("onSelect={(evento) => evento.preventDefault()}");
     }
-    expect(ler("src/interface/componentes/casca/item-de-contraste.tsx")).toContain("Alto contraste");
-    expect(ler("src/interface/componentes/casca/item-de-tema.tsx")).toContain("Tema escuro");
+    const tema = ler("src/interface/componentes/casca/item-de-tema.tsx");
+    // A razão do fundo apagado continua escrita, para a próxima leitura não achar que é esquecimento.
+    expect(tema).toContain("achado A-7");
+    // Inerte, e não desabilitado: `disabled` tira o item do teclado.
+    expect(tema).not.toMatch(/\sdisabled[=\s}]/u);
+    expect(tema).toContain("aria-disabled={inerte || undefined}");
+    expect(tema).toContain('textValue="Tema escuro"');
+  });
+
+  it("o grupo é titulado no papel de rótulo da barra lateral, e tem lugar para o terceiro (critérios 114.5 e 114.6)", () => {
+    const grupo = ler("src/interface/componentes/casca/itens-de-aparencia.tsx");
+    expect(grupo).toContain("<DropdownMenuGroup aria-labelledby={idDoRotulo}>");
+    expect(grupo).toMatch(/<DropdownMenuLabel[^>]*text-rotulo-coluna[^>]*font-mono[^>]*uppercase/u);
+    expect(grupo.indexOf("<ItemDeContraste")).toBeGreaterThan(grupo.indexOf("<ItemDeTema"));
+    // Por regex: os `.tsx` estão em CRLF na árvore de trabalho, e o comentário quebra a linha no meio.
+    expect(grupo).toMatch(/bloco\s+\*?\s*V-1/u);
   });
 
   it("os dois layouts que montam a barra superior passam o e-mail da sessão", () => {
@@ -448,5 +464,34 @@ describe("a palavra do condomínio — critério 31.5", () => {
         .filter((achado) => achado !== null),
     );
     expect(onde).toStrictEqual([]);
+  });
+});
+
+describe("o controle de aparência antes de entrar — critério 114.2", () => {
+  const MOLDURA = "src/interface/componentes/moldura-de-conta.tsx";
+  const CONTROLE = "src/interface/componentes/controle-de-aparencia.tsx";
+
+  it("a moldura e a espera montam o controle, uma vez cada", () => {
+    const moldura = ler(MOLDURA);
+    expect(moldura.match(/<ControleDeAparencia \/>/gu)).toHaveLength(2);
+    const molduraDaTela = moldura.slice(moldura.indexOf("export function MolduraDeConta"));
+    const espera = moldura.slice(moldura.indexOf("export function EsperaDaMolduraDeConta"));
+    expect(molduraDaTela.slice(0, molduraDaTela.indexOf("function CartaoDaTela"))).toContain(
+      "<ControleDeAparencia />",
+    );
+    expect(espera.slice(0, espera.indexOf("function CartaoDeEspera"))).toContain("<ControleDeAparencia />");
+  });
+
+  it("o gatilho tem a palavra, e o menu abre com o grupo", () => {
+    const controle = ler(CONTROLE);
+    expect(controle).toContain("Aparência");
+    expect(controle).toContain("<GrupoDeAparencia />");
+    expect(controle).toContain('align="end"');
+    expect(controle).toContain("min-h-11");
+  });
+
+  it("a documentação não o monta, e o motivo está escrito", () => {
+    expect(ler("app/documentacao/layout.tsx")).not.toContain("ControleDeAparencia");
+    expect(ler(CONTROLE)).toContain("/documentacao");
   });
 });

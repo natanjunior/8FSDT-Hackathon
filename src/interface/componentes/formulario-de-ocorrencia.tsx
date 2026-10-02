@@ -27,6 +27,7 @@ import {
   CODIGOS_DO_ANEXO,
   DESCARTE,
   errosDoRegistro,
+  fraseDoQueFalta,
   EXEMPLOS,
   FRASES_DO_SERVIDOR,
   JA_REGISTRADA,
@@ -182,6 +183,8 @@ export function FormularioDeOcorrencia({
   const [valores, setValores] = useState<ValoresDoRegistro>(inicial);
   const [avisoDaArea, setAvisoDaArea] = useState(areaIndisponivel === true);
   const [enviando, setEnviando] = useState(false);
+  /** Houve um envio tentado: só depois dele a frase de quanto falta aparece (critério 116.6). */
+  const [tentou, setTentou] = useState(false);
   const [errosDoServidor, setErrosDoServidor] = useState<Record<string, string | undefined>>({});
   const [falha, setFalha] = useState<string | null>(null);
   const [erroDaFoto, setErroDaFoto] = useState<string | undefined>(undefined);
@@ -204,6 +207,9 @@ export function FormularioDeOcorrencia({
 
   async function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    // A frase entra no mesmo render que marca os erros, e esse render é confirmado antes do foco
+    // (`tentarEnviar`, critério 116.6). Com o envio válido, ela fica vazia: não falta nada.
+    setTentou(true);
     if (!formulario.tentarEnviar(erros)) return;
 
     setEnviando(true);
@@ -531,7 +537,10 @@ export function FormularioDeOcorrencia({
             durante quase todo o registro. A partir de `lg` ele ganha a régua e o respiro do cartão,
             porque ali ele é o rodapé do cartão. */}
         <div className="lg:border-linha-suave mt-2 lg:mt-5 lg:border-t lg:pt-4">
-          <RodapeDoFormulario obrigatorios={4}>
+          <RodapeDoFormulario
+            obrigatorios={4}
+            faltando={tentou ? fraseDoQueFalta(Object.values(erros).filter((erro) => erro !== undefined).length) : null}
+          >
             <Button
               type="button"
               variant="outline"

@@ -31,16 +31,14 @@ export default async function TelaDeRedefinirSenha() {
 
   return (
     <MolduraDeConta
-      titulo="Redefinir senha"
-      contexto="Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova."
+      apresentacao
+      cartao={<FormularioDeRedefinicao emailInicial={sessao?.email ?? null} />}
       caminhos={
         <Link href={saida.href} className={CLASSE_DO_CAMINHO}>
           {saida.rotulo}
         </Link>
       }
-    >
-      <FormularioDeRedefinicao emailInicial={sessao?.email ?? null} />
-    </MolduraDeConta>
+    />
   );
 }
 

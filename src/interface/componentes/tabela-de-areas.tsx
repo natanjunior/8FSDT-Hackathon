@@ -23,8 +23,8 @@ import type { AreaProjetada } from "@/interface/projecoes";
  * compromisso A-6: o tipo decide quem enxerga a ocorrência registrada ali, e uma explicação que só
  * aparece com o ponteiro não existe no toque.
  *
- * **Abaixo de `md` as colunas *Tipo* e da situação somem**, e as duas palavras aparecem na segunda linha
- * da célula do nome.
+ * **Abaixo de `xl` a coluna *Tipo* some**, e a palavra aparece na segunda linha da célula do nome, junto da
+ * situação. Abaixo de `md` as ações descem para a mesma célula (item 112).
  */
 export function TabelaDeAreas({
   itens,
@@ -41,12 +41,12 @@ export function TabelaDeAreas({
       legenda={LEGENDA_DOS_TIPOS}
       colunasProprias={1}
       cabecalhosProprios={
-        <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-[180px] md:table-cell")}>
+        <TableHead className={cn(ROTULO_DE_COLUNA, "hidden w-[180px] xl:table-cell")}>
           {TEXTOS_DA_TABELA.tipo}
         </TableHead>
       }
       celulasProprias={(area) => (
-        <TableCell className={cn(CELULA, "hidden md:table-cell")}>
+        <TableCell className={cn(CELULA, "hidden xl:table-cell")}>
           {rotuloDoTipo(area.tipo)}
         </TableCell>
       )}

@@ -42,14 +42,15 @@ import { SEM_TRANSBORDO, transbordo } from "./transbordo";
  * dizendo *"a organização do Passo 2, com você como Gestor"*.
  *
  * ---------------------------------------------------------------------------
- *  Dois testes, e o segundo nasce marcado
+ *  Três testes, e o segundo nasce marcado
  * ---------------------------------------------------------------------------
  *
  * **O critério 4a.1 é o único desta jornada que o produto não cumpre**, e ele vive num `test.fixme`
  * próprio, com a razão escrita em cima dele. Pô-lo dentro da jornada faria um defeito de uma linha cegar
  * os outros oito critérios, que passam; apagá-lo esconderia o achado. O `fixme` não roda, então o teste
  * marcado **não custa segundo nenhum** enquanto o defeito existir, e volta a custar no dia em que alguém
- * o desmarcar.
+ * o desmarcar. O terceiro é o do item 112: as duas listas nas seis larguras, numa conta própria, porque a
+ * jornada termina com as categorias todas desativadas.
  *
  * ---------------------------------------------------------------------------
  *  Três divergências entre o roteiro e o produto, declaradas aqui
@@ -81,7 +82,7 @@ import { SEM_TRANSBORDO, transbordo } from "./transbordo";
  * | Arrastar pela alça, em T-09, T-14 e nos contatos | A alça só existe onde há ponteiro fino, e o que ela faz as setas fazem — que é a razão de as setas existirem (item 44j) |
  * | As outras seis sementes ficarem idênticas **pixel a pixel** depois da troca de ícone | O que se afirma é o desenho de cada uma, pela classe que o `lucide` escreve no `svg`, e o nome ao lado dele |
  * | A faixa do 5.2 na forma longa | Ela precisa de ocorrência já registrada na área, e este arquivo não registra nenhuma: a organização nasce e termina vazia |
- * | O recorte de celular das duas listas | O Playwright roda em 1280 px por decisão do `playwright.config.ts`, e a segunda linha da célula do nome é do M-3 |
+ * | A forma das duas listas em cada largura | Agora tem prova: o teste do item 112, nas seis larguras, sem mudar a viewport padrão do resto do arquivo |
  * | Reativar | O caminho de volta tem teste de unidade, e o que esta jornada cobra é o estado em que a desativação deixa as outras telas |
  */
 
@@ -125,6 +126,57 @@ const AREA_COMUM = "Área comum";
 const UNIDADE = "Unidade";
 
 /**
+ * **As seis larguras do item 112.** O critério nomeia 390, 768 e 1024; as outras três são a borda de cada
+ * ajuste: 360 é o menor celular do projeto, 1280 é onde `xl` devolve *Tipo* e *No formulário*, e 1440 é a
+ * tela grande de sempre.
+ */
+const LARGURAS_DO_112 = [360, 390, 768, 1024, 1280, 1440] as const;
+
+/** O teto do nome em cada lista (`frases-da-configuracao.ts`): o pior caso que a célula tem de quebrar. */
+const TETO_DO_NOME = { areas: 80, categorias: 60 } as const;
+
+/**
+ * **O nome da primeira linha no teto, injetado por DOM**, como o 102 faz com a lista de ocorrências: o
+ * leiaute é função do texto, e criar um item de 80 caracteres pela tela custaria um modal por largura.
+ * Troca só o último nó de texto do nome, para o ícone da categoria continuar ao lado.
+ */
+async function nomeNoTeto(pagina: Page, teto: number): Promise<void> {
+  await pagina.locator("tbody tr").first().locator("td span[id]").first().evaluate((nome, tamanho) => {
+    const caminhante = document.createTreeWalker(nome, NodeFilter.SHOW_TEXT);
+    let ultimo: Text | null = null;
+    for (let no = caminhante.nextNode(); no !== null; no = caminhante.nextNode()) ultimo = no as Text;
+    if (ultimo !== null) {
+      ultimo.data = "Estacionamento de visitantes do subsolo 2, ala norte, junto à rampa e ao portão"
+        .padEnd(tamanho, " x")
+        .slice(0, tamanho);
+    }
+  }, teto);
+}
+
+/**
+ * **Os controles visíveis de cada linha, e onde cada um termina.** O critério 112.1 diz *"nenhum controle
+ * cortado"*, e a medida de `transbordo()` diz isso pela borda. Esta diz pela contagem: cada linha tem os seus
+ * cinco (áreas) ou quatro (categorias) controles visíveis, nem mais, que seria a cópia escondida aparecendo,
+ * nem menos, que seria um controle sumido.
+ */
+async function controlesDasLinhas(pagina: Page) {
+  return pagina.locator("tbody tr:not([aria-hidden])").evaluateAll((linhas) =>
+    linhas.map((linha) => {
+      const visiveis = [...linha.querySelectorAll("a[href], button")].filter((controle) => {
+        const caixa = controle.getBoundingClientRect();
+        return caixa.width > 0 && caixa.height > 0;
+      });
+      return {
+        quantos: visiveis.length,
+        alemDaJanela: visiveis
+          .filter((controle) => controle.getBoundingClientRect().right > document.documentElement.clientWidth + 0.5)
+          .map((controle) => controle.getAttribute("aria-label") ?? "?"),
+      };
+    }),
+  );
+}
+
+/**
  * A conta e a organização deste teste, do zero — T-11 e a `/organizacao/criar` que o item 44o separou da
  * face A de T-02.
  *
@@ -150,7 +202,7 @@ async function organizacaoPropria(pagina: Page, sufixo: string): Promise<string>
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(organizacao);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/ocorrencias$/u);
+  await pagina.waitForURL(/\/convidar$/u);
 
   await expect(pagina.getByRole("combobox", { name: /organização/iu })).toHaveText(organizacao);
   return organizacao;
@@ -745,6 +797,74 @@ test("a configuração da organização: nome repetido, desativar até a última
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Ir para Categorias" })).toBeVisible();
   await expect(page.getByLabel("Título")).toHaveCount(0);
+});
+
+/**
+ * ============================================================================
+ *  As duas listas cabem em toda largura, com todo controle inteiro — item 112
+ * ============================================================================
+ *
+ * **A tabela de áreas media 507 px num contêiner de 356 a 390 px, e o botão de QR ficava atrás da rolagem.**
+ * Nenhuma medida acendia, porque nada passava da janela: é a terceira afirmação de `transbordo()`, e este
+ * teste é o vermelho dela antes do conserto (spec 112 §3.4).
+ *
+ * **Uma tabela só, em toda largura** (44k): abaixo de `md` as ações moram na célula do nome; de `md` em
+ * diante, na coluna própria. *Tipo* e *No formulário* só a partir de `xl`, e o resumo da célula do nome
+ * aparece sempre que elas não aparecem.
+ *
+ * **A pior linha de cada lista**: o nome no teto, e uma área desativada, cuja ação é *Reativar*, o rótulo
+ * mais longo da faixa.
+ */
+test("as duas listas cabem de 360 a 1440 px, com todo controle inteiro (critérios 112.1 e 112.2)", async ({
+  page,
+}) => {
+  await organizacaoPropria(page, "larguras");
+  await page.goto("/configuracao/areas");
+  await desativar(page, UNIDADE);
+
+  const listas = [
+    { rota: "/configuracao/areas", teto: TETO_DO_NOME.areas, controles: 5, colunasLargas: ["Tipo", "No formulário"] },
+    { rota: "/configuracao/categorias", teto: TETO_DO_NOME.categorias, controles: 4, colunasLargas: ["No formulário"] },
+  ] as const;
+
+  for (const { rota, teto, controles, colunasLargas } of listas) {
+    for (const largura of LARGURAS_DO_112) {
+      const onde = `${rota} a ${largura} px`;
+      await page.setViewportSize({ width: largura, height: 900 });
+      await page.goto(rota);
+      await expect(page.locator("tbody tr").first()).toBeVisible();
+      await nomeNoTeto(page, teto);
+      await page.evaluate(() => document.fonts.ready);
+
+      // Suave: uma largura que falha não esconde as seguintes.
+      expect.soft(await transbordo(page), `transbordo em ${onde}`).toStrictEqual(SEM_TRANSBORDO);
+      for (const [indice, linha] of (await controlesDasLinhas(page)).entries()) {
+        expect.soft(linha, `linha ${indice + 1} em ${onde}`).toStrictEqual({ quantos: controles, alemDaJanela: [] });
+      }
+
+      // A forma: onde moram as ações, e quais colunas aparecem.
+      const celulaDoNome = page.locator("tbody tr").first().getByRole("cell").nth(largura >= 768 ? 2 : 1);
+      await expect
+        .soft(celulaDoNome.getByRole("button", { name: "Editar" }), `ações na célula do nome em ${onde}`)
+        .toHaveCount(largura < 768 ? 1 : 0);
+      for (const coluna of colunasLargas) {
+        await expect
+          .soft(page.getByRole("columnheader", { name: coluna }), `coluna ${coluna} em ${onde}`)
+          .toBeVisible({ visible: largura >= 1280 });
+      }
+    }
+  }
+
+  // **Reordenar pelo celular, e o foco fica no botão que se vê** (foco da revisão 2). As duas cópias de
+  // `ControlesDeOrdem` rodam o efeito de foco; só a que recebeu o clique pode levá-lo.
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/configuracao/categorias");
+  const subiu = SEMENTES[2].nome;
+  await subirUmaPosicao(page, subiu, "/api/categorias/ordem");
+  await expect(naPosicao(page, 2)).toContainText(subiu);
+  const focado = page.locator(":focus");
+  await expect(focado).toBeVisible();
+  await expect(focado).toHaveAccessibleName(/^(Subir|Descer) uma posição$/u);
 });
 
 /**

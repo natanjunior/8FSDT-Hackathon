@@ -185,41 +185,46 @@ describe("a barra lateral — critérios 70.5, 70.7, 76.1 e 76.2", () => {
   });
 });
 
-describe("o pé de /entrar — critério 70.5", () => {
-  const ENTRAR = "app/entrar/page.tsx";
+describe("o pé da moldura — critérios 70.5, 116.2 e 116.4", () => {
   const MOLDURA = "src/interface/componentes/moldura-de-conta.tsx";
 
-  it("a moldura aceita um pé, fora da linha das colunas", () => {
+  it("a moldura desenha o pé sozinha, e nenhuma tela o passa", () => {
     const fonte = ler(MOLDURA);
-    expect(fonte).toContain("rodape?: ReactNode;");
-    expect(fonte).toMatch(/const PAGINA =\s*"relative /u);
-    expect(fonte).toContain('<footer className="absolute inset-x-0 bottom-0 flex justify-center">');
-  });
-
-  it("só T-01 passa o pé", () => {
-    // As outras seis que usam a moldura (`grep -rl MolduraDeConta app`).
+    expect(fonte).not.toContain("rodape?: ReactNode;");
+    // Na moldura e na espera: o pé não aparece depois, quando a tela chega.
+    expect(fonte.match(/<RodapeDaMoldura \/>/gu) ?? []).toHaveLength(2);
     const telas = [
+      "app/entrar/page.tsx",
       "app/criar-conta/page.tsx",
       "app/redefinir-senha/page.tsx",
       "app/definir-senha/page.tsx",
       "app/page.tsx",
       "app/organizacao/page.tsx",
       "app/organizacao/criar/page.tsx",
+      "app/convite/[codigo]/page.tsx",
     ];
     for (const caminho of telas) expect(ler(caminho), caminho).not.toContain("rodape=");
-    expect(ler(ENTRAR)).toContain("rodape=");
   });
 
   it("os dois links, na ordem, com o texto decidido, em nova aba, e o ponto mudo", () => {
-    const fonte = ler(ENTRAR);
+    const fonte = ler(MOLDURA);
     const grupo = fonte.indexOf('href="/grupo"');
     const documentacao = fonte.indexOf('href="/documentacao"');
     expect(grupo).toBeGreaterThan(0);
     expect(documentacao).toBeGreaterThan(grupo);
     expect(fonte).toContain("Feito pelo Grupo 1");
-    expect(fonte).not.toMatch(/Created by/iu);
     expect([...fonte.matchAll(/target="_blank" rel="noreferrer"/gu)]).toHaveLength(2);
     expect([...fonte.matchAll(/<span className="sr-only">, abre em nova aba<\/span>/gu)]).toHaveLength(2);
     expect(fonte).toContain('<span aria-hidden="true">·</span>');
+  });
+
+  it("os links parecem links sem passar o ponteiro, e o pé respira acima da barra do navegador", () => {
+    const fonte = ler(MOLDURA);
+    const classe = /const CLASSE_DO_LINK_DO_PE =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
+    expect(classe.split(" ")).toEqual(expect.arrayContaining(["underline", "text-tinta-marca", "min-h-11"]));
+    expect(classe).not.toContain("hover:underline");
+    expect(fonte).toContain("bottom-[max(1rem,env(safe-area-inset-bottom))]");
+    // O fundo da página reserva o pé: 44 px de alvo, o respiro de baixo e 16 px de folga.
+    expect(fonte).toContain("pb-[calc(max(1rem,env(safe-area-inset-bottom))+3.75rem)]");
   });
 });

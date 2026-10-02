@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { acaoDeEntrar, type EstadoDoFormulario } from "@/interface/acoes";
 import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
 import { Aviso, Campo, IndicadorDeEnvio, RodapeDoFormulario } from "@/interface/componentes/campo";
 import { EntradaDeSenha } from "@/interface/componentes/campo-de-senha";
-import { avisarErro, MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_GENERICA } from "@/interface/componentes/retorno-de-acao";
 import { Button } from "@/interface/componentes/ui/button";
 import { Input } from "@/interface/componentes/ui/input";
 import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
@@ -23,8 +24,9 @@ import { entrarSchema, errosDoSchema } from "@/interface/schemas";
  * produto (inventário, T-01).
  *
  * **O retorno (guia §7, item 44g).** Entrar não grava nada, e a chegada à tela seguinte é a resposta: não
- * há aviso de sucesso, e o servidor continua redirecionando. A falha dá o aviso *"Não foi possível
- * entrar"*, e a razão fica na linha acima do formulário. Os campos seguem a regra de formulário tocado,
+ * há aviso de sucesso, e o servidor continua redirecionando. A falha fica só na linha acima do
+ * formulário (item 116, critério 9): o aviso flutuante é do desfecho que tira a pessoa da tela, e duas
+ * regiões vivas para o mesmo evento falavam duas vezes. Os campos seguem a regra de formulário tocado,
  * com o mesmo schema que a ação confere.
  *
  * **Um estado dormente:** `confirmacao` e o ramo `EMAIL_NAO_CONFIRMADO` de `textoDaRecusa` só acontecem
@@ -33,9 +35,12 @@ import { entrarSchema, errosDoSchema } from "@/interface/schemas";
 export function FormularioDeEntrada({
   destino,
   confirmacao,
+  redefinicao,
 }: {
   destino?: string;
   confirmacao?: "confirmada" | "expirada";
+  /** Veio de `/definir-senha` sem recuperação em curso (item 116, critério 10). */
+  redefinicao?: "encerrada";
 }) {
   const formulario = useFormularioTocado({
     campos: { email: "email", senha: "senha" },
@@ -52,7 +57,6 @@ export function FormularioDeEntrada({
       setPreservados(valoresPreservados(dados, ["email"]));
       const proximo = await chamarAcaoDeCredencial(acaoDeEntrar, anterior, dados);
       formulario.recomecar();
-      if (proximo.recusa !== undefined || proximo.erros !== undefined) avisarErro("Não foi possível entrar");
       return proximo;
     },
     {},
@@ -63,6 +67,14 @@ export function FormularioDeEntrada({
       {confirmacao === "confirmada" && <Aviso tom="nota">Conta confirmada. Entre para continuar.</Aviso>}
       {confirmacao === "expirada" && (
         <Aviso>Este link expirou. Crie a conta de novo ou peça outro e-mail de confirmação.</Aviso>
+      )}
+      {redefinicao === "encerrada" && (
+        <Aviso tom="nota">
+          Este link de senha não vale mais.{" "}
+          <Link href="/redefinir-senha" className="text-tinta-marca underline underline-offset-4">
+            Pedir um novo link
+          </Link>
+        </Aviso>
       )}
       {estado.recusa !== undefined && <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>}
 

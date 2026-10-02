@@ -116,6 +116,16 @@ export class VinculoNaoEncontrado extends ErroDeDominio {
 }
 
 /**
+ * `404 ETIQUETA_NAO_ENCONTRADA` — a etiqueta não existe **nesta** organização (item 115). Etiqueta de outra
+ * organização responde igual, pela §6.3: o `where organizacao_id = $1` já a tirou da consulta.
+ */
+export class EtiquetaNaoEncontrada extends ErroDeDominio {
+  constructor() {
+    super("ETIQUETA_NAO_ENCONTRADA", "Etiqueta não encontrada", "Esta etiqueta não existe mais.");
+  }
+}
+
+/**
  * `409 PESSOA_COM_CONTA_NAO_EDITAVEL` — o cadastro de quem tem conta vale em **todas** as organizações.
  *
  * **A guarda nomeia campos, não o endpoint** (contrato §8.2, precisão de 22/08/2026): `nome` é da

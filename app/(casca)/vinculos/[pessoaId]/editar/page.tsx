@@ -3,14 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { Fragment } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarAreas, verVinculo } from "@/aplicacao/organizacao";
+import { listarAreas, listarEtiquetas, verVinculo } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
+import { CartaoDeEtiquetas } from "@/interface/componentes/cartao-de-etiquetas";
 import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vinculo";
 import { fatoDeEdicao } from "@/interface/componentes/frases-de-participantes";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarArea } from "@/interface/projecoes";
+import { projetarArea, projetarEtiqueta } from "@/interface/projecoes";
 
 /**
  * **T-08 · editar participante.**
@@ -42,9 +43,10 @@ export default async function EditarParticipante({
   // Leitura pela estrada direta (contrato §5) — **sem salto HTTP, e pela camada de Aplicação**, como
   // toda outra página. Com o repositório já escopado, um vínculo de outra organização é **inalcançável**,
   // e por isso o `notFound()` daqui é o mesmo `404` da §6.3.
-  const [vinculo, areas] = await Promise.all([
+  const [vinculo, areas, todasAsEtiquetas] = await Promise.all([
     verVinculo(escopo.repos.vinculos, pessoaId),
     listarAreas(escopo.repos.areas),
+    listarEtiquetas(escopo.repos.etiquetas),
   ]);
 
   if (vinculo === null) notFound();
@@ -68,6 +70,14 @@ export default async function EditarParticipante({
             <Fragment key={segmento.chave}>{segmento.texto}</Fragment>
           ),
         )}
+      />
+      {/* **Fora do formulário, e antes dele** (item 115): o cartão grava a cada gesto, o formulário no rodapé. */}
+      <CartaoDeEtiquetas
+        pessoaId={pessoaId}
+        nome={vinculo.pessoa.nome}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+        daPessoa={vinculo.etiquetas.map(projetarEtiqueta)}
+        todas={todasAsEtiquetas.map(projetarEtiqueta)}
       />
       <FormularioDeVinculo
         modo={{

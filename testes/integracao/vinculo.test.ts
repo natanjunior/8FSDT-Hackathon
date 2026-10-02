@@ -814,10 +814,13 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * **`compartilhamentos.com_pessoa_id` está na lista e não no `tem_historico`: ela apaga em cascata, e o
    * que a pessoa recebeu não é rastro (item 87).**
    *
+   * **`vinculos_etiquetas.pessoa_id` está na lista e não no `tem_historico`**, pela razão de
+   * `com_pessoa_id`: o que a pessoa recebeu não é rastro (item 115).
+   *
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as dezessete que a consulta cobre, em onze tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as dezenove que a consulta cobre, em doze tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -836,6 +839,8 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "organizacoes.criada_por_pessoa_id",
       "pedidos_de_entrada.decidido_por_pessoa_id",
       "registros_transicao.autor_pessoa_id",
+      "vinculos_etiquetas.atribuido_por_pessoa_id",
+      "vinculos_etiquetas.pessoa_id",
     ];
 
     const linhas = await consulta<{ par: string }>(
@@ -850,7 +855,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(11);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(12);
   });
 });
 

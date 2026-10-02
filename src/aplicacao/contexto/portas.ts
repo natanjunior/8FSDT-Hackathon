@@ -6,6 +6,7 @@ import type {
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDeEtiquetas,
   RepositorioEscopadoDePedidosDeEntrada,
   RepositorioEscopadoDeVinculos,
   RepositorioGlobalDePedidosDeEntrada,
@@ -159,6 +160,8 @@ export type PortasGlobais = {
 /** O que os outros 36 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */
 export type RepositoriosEscopados = {
   vinculos: RepositorioEscopadoDeVinculos;
+  /** As etiquetas dos participantes (item 115). Escopado como todos: o `where` é `$1`. */
+  etiquetas: RepositorioEscopadoDeEtiquetas;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
   /**

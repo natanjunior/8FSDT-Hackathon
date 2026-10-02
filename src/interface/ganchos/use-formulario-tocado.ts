@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FocusEvent, type FocusEventHandler, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 
 /**
  * ============================================================================
@@ -174,7 +175,11 @@ export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocad
   };
 
   const tentarEnviar = (atuais: ErrosDeCampo = erros): boolean => {
-    aplicar({ tipo: "tentou-enviar" });
+    // **O estado de erro vai para o DOM antes do foco** (critério 116.6). Sem isto o React confirma o
+    // estado só depois que o manipulador volta, e o foco chega a um campo que ainda não aponta para a
+    // mensagem: quem não vê a tela ouve só o rótulo. `flushSync` confirma tudo o que está pendente no
+    // evento, inclusive o `setErrosLidos` de `aoEnviarFormulario` e o que a tela marcou antes de chamar.
+    flushSync(() => aplicar({ tipo: "tentou-enviar" }));
     const primeiro = primeiroComProblema(nomes, atuais);
     if (primeiro === null) return true;
     focar(campos[primeiro]);
