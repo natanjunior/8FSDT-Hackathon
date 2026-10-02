@@ -1,59 +1,84 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { useId } from "react";
 
-import { DropdownMenuItem } from "@/interface/componentes/ui/dropdown-menu";
-import { Toggle } from "@/interface/componentes/ui/toggle";
+import { DropdownMenuCheckboxItem } from "@/interface/componentes/ui/dropdown-menu";
+import { cn } from "@/interface/componentes/utilitarios";
+
+/** A segunda linha do item com o alto contraste ligado (critério 114.4). */
+export const RAZAO_DO_TEMA_INERTE = "O alto contraste define as cores.";
 
 /**
- * **O controle de tema do menu da pessoa** (item 72).
+ * **O controle de tema do menu de aparência** (itens 72, 85 e 114).
  *
- * **É o `Toggle` do catálogo, e entra no menu como item.** O conteúdo do menu do Radix prende o Tab e as
- * setas só percorrem itens, então um `Toggle` solto ali dentro não seria alcançável por teclado. Como
- * filho de `DropdownMenuItem asChild`, ele ganha foco, setas e `Enter`; o `Enter` chega a ele como clique.
- *
- * **O papel é `menuitemcheckbox`, com `aria-checked`**, e o `aria-pressed` do `Toggle` é apagado:
- * `aria-pressed` não é atributo válido em item de menu. O rótulo é fixo e o leitor diz *"Tema escuro,
- * marcado"*, que é **em qual tema se está**, e não para onde o clique leva. O ícone também diz o tema
- * atual: lua no escuro, sol no claro.
+ * **É o `DropdownMenuCheckboxItem` do catálogo** (critério 114.1). O Radix dá o papel
+ * `menuitemcheckbox` e o `aria-checked`, e o catálogo reserva a coluna da esquerda (`pl-8`) para o visto.
+ * O leitor diz *"Tema escuro, marcado"*, que é **em qual tema se está**, e não para onde o clique leva.
  *
  * **O menu não fecha ao trocar** (`preventDefault` no `onSelect`): a pessoa vê a tela mudar e pode
  * desfazer sem reabrir.
  *
- * **O ligado fica sem fundo, e é divergência declarada da spec 4.2** (achado A-7). O `Toggle` pinta o
- * ligado com `data-[state=on]:bg-accent` e o item de menu pinta o foco com `focus:bg-accent`; com o escuro
- * por padrão, o item nasceria ligado e pareceria sempre focado, e quem navega pelas setas perderia onde
- * está. O estado se lê pelo ícone e pelo `aria-checked`; o foco continua com fundo mesmo ligado.
+ * **O ligado fica sem fundo, e é divergência declarada da spec 72 §4.2** (achado A-7). O item de menu
+ * pinta o foco com `focus:bg-accent`; se o ligado também pintasse fundo, com o escuro por padrão o item
+ * nasceria ligado e pareceria sempre focado, e quem navega pelas setas perderia onde está. Até o item 114
+ * o estado se lia só pelo ícone e pelo `aria-checked`; desde ele, **o visto separa marcado de focado**, e
+ * o fundo continua sendo só do foco.
  *
- * **Desabilitado com o alto contraste ligado** (item 85). O `disabled` vai nos dois: no item, para as
- * setas o pularem e o leitor dizer indisponível; no `Toggle`, para o clique não chegar. O `opacity-50` do
- * item desabilitado fica abaixo de 7:1 de propósito: controle inativo não tem piso de contraste, e é o
- * apagado que diz que ele não responde. O estado mora em `itens-de-aparencia.tsx`.
+ * **O ícone e o visto dizem o que a tela pinta** (critério 114.3): lua no escuro, sol no claro, e com o
+ * alto contraste ligado, lua e marcado, porque a paleta de contraste é escura. Quem calcula é
+ * `temaExibido`, em `tema.ts`; a escolha guardada no cookie não muda.
+ *
+ * **Inerte com o alto contraste ligado, e não desabilitado** (critério 114.4, `respostas.md` P1 da spec
+ * 114). `disabled` tiraria o item do foco móvel e da busca por digitação do Radix, e o leitor nunca
+ * chegaria nele. Vai `aria-disabled`: o item continua alcançável, o leitor diz *"indisponível"* e lê a
+ * razão pelo `aria-describedby`. **A trava mora no `onCheckedChange`**, porque o Radix o chama mesmo com o
+ * `preventDefault` do `onSelect`. O visto, o ícone e o rótulo se apagam; a razão não, porque quem a lê
+ * ligou o contraste para enxergar melhor. `textValue` fixa a busca por digitação no rótulo.
  */
 export function ItemDeTema({
   escuro,
-  desabilitado,
+  inerte,
   aoTrocar,
 }: {
+  /** O tema exibido, e não o guardado: com o alto contraste ligado, é `true`. */
   escuro: boolean;
-  /** Com o alto contraste ligado: o estado fica, e as setas pulam o item (item 85). */
-  desabilitado: boolean;
+  /** Com o alto contraste ligado: focável, anunciado como indisponível, e sem efeito. */
+  inerte: boolean;
   aoTrocar: (ligado: boolean) => void;
 }) {
+  const idDoRotulo = useId();
+  const idDaRazao = useId();
+
   return (
-    <DropdownMenuItem asChild disabled={desabilitado} onSelect={(evento) => evento.preventDefault()}>
-      <Toggle
-        role="menuitemcheckbox"
-        aria-checked={escuro}
-        aria-pressed={undefined}
-        pressed={escuro}
-        disabled={desabilitado}
-        onPressedChange={aoTrocar}
-        className="text-interface h-auto min-h-11 w-full justify-start px-2 py-1.5 font-normal hover:bg-accent hover:text-accent-foreground data-[state=on]:bg-transparent data-[state=on]:text-inherit data-[state=on]:focus:bg-accent data-[state=on]:focus:text-accent-foreground"
-      >
-        {escuro ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
-        Tema escuro
-      </Toggle>
-    </DropdownMenuItem>
+    <DropdownMenuCheckboxItem
+      checked={escuro}
+      textValue="Tema escuro"
+      aria-labelledby={idDoRotulo}
+      aria-disabled={inerte || undefined}
+      aria-describedby={inerte ? idDaRazao : undefined}
+      onSelect={(evento) => evento.preventDefault()}
+      onCheckedChange={(ligado) => {
+        if (!inerte) aoTrocar(ligado);
+      }}
+      // O primeiro `span` do item é a coluna do visto (`ui/dropdown-menu.tsx:111`).
+      className={cn("text-interface min-h-11", inerte && "[&>span:first-child]:opacity-50")}
+    >
+      <span className="flex flex-col gap-0.5">
+        <span className={cn("flex items-center gap-2", inerte && "opacity-50")}>
+          {escuro ? (
+            <Moon aria-hidden="true" className="text-muted-foreground" />
+          ) : (
+            <Sun aria-hidden="true" className="text-muted-foreground" />
+          )}
+          <span id={idDoRotulo}>Tema escuro</span>
+        </span>
+        {inerte && (
+          <span id={idDaRazao} className="text-meta text-tinta-suave">
+            {RAZAO_DO_TEMA_INERTE}
+          </span>
+        )}
+      </span>
+    </DropdownMenuCheckboxItem>
   );
 }

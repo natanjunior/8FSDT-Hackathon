@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { acaoDeSair } from "@/interface/acoes";
 import { Cartao } from "@/interface/componentes/cartao";
+import { ControleDeAparencia } from "@/interface/componentes/controle-de-aparencia";
 import { MarcaDoProduto } from "@/interface/componentes/marca";
 import { Button } from "@/interface/componentes/ui/button";
 import { cn } from "@/interface/componentes/utilitarios";
@@ -18,6 +19,13 @@ const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
 
 /** Com convite (item 65): a coluna de 420 px no celular, a fileira de 960 px a partir de `lg`. */
 const COLUNA_COM_CONVITE = "flex w-full max-w-[420px] flex-col items-center gap-8 lg:max-w-[960px]";
+
+/**
+ * **O canto do controle de aparência** (item 114): no alto à direita da página, espelho do pé de T-01,
+ * que fica embaixo. Em 390 px o alvo de 44 px cabe no respiro de 48 px de `PAGINA` sem encostar na
+ * marca; na T-01 de tela grande, a apresentação fica à esquerda e o canto direito está livre.
+ */
+const CANTO = "absolute top-1 right-1";
 
 /**
  * A fileira das duas portas. **Empilhada abaixo de `lg`**, na ordem do documento: cartão, "ou", convite
@@ -75,6 +83,10 @@ const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as co
  * cartão sem a lista (critério 44o.9). Sem conteúdo, o corpo do cartão não é desenhado, e a cabeça ganha
  * o respiro de baixo que o corpo daria.
  *
+ * **O controle de aparência fica no canto de cima** (item 114): é o único lugar de fora da casca onde se
+ * liga o alto contraste antes de entrar. Vem primeiro na ordem do documento, para quem precisa dele o
+ * alcançar no primeiro Tab, antes do formulário. `controle-de-aparencia.tsx` diz o resto.
+ *
  * **Componente de servidor.** A marca aparece duas vezes no `apresentacao`, uma escondida em cada
  * largura, porque ela troca de lugar: acima do cartão no celular, na coluna da esquerda na tela grande.
  */
@@ -106,6 +118,9 @@ export function MolduraDeConta({
 
   return (
     <main className={PAGINA}>
+      <div className={CANTO}>
+        <ControleDeAparencia />
+      </div>
       {apresentacao && <Apresentacao />}
 
       {convite === undefined ? (
@@ -246,9 +261,9 @@ export function CaminhoDeSair() {
  * **A espera das telas fora da casca.** Cada `loading.tsx` de conta, o de T-02, o da tela de criar
  * organização e o da raiz a usam.
  *
- * **A mesma página, as mesmas colunas e a mesma fileira da moldura**, pelas constantes do topo. A marca e
- * a apresentação são de verdade — guia §8: *"a casca e o cabeçalho não são esqueleto"* —, e o cartão e o
- * convite são esqueleto, com o desenho e **sem a semântica**: uma região nomeada por um título que ainda
+ * **A mesma página, as mesmas colunas e a mesma fileira da moldura**, pelas constantes do topo. A marca, a
+ * apresentação e o controle de aparência são de verdade — guia §8: *"a casca e o cabeçalho não são
+ * esqueleto"* —, o controle para o canto não saltar quando a tela chega. O cartão e o convite são esqueleto, com o desenho e **sem a semântica**: uma região nomeada por um título que ainda
  * não existe seria pior que nenhuma. É o que `app/(casca)/configuracao/loading.tsx` já faz.
  *
  * **As duas formas de duas colunas existem aqui pela mesma razão que existem na moldura** (item 103,
@@ -269,6 +284,9 @@ export function EsperaDaMolduraDeConta({
 }) {
   return (
     <main className={PAGINA}>
+      <div className={CANTO}>
+        <ControleDeAparencia />
+      </div>
       {apresentacao && <Apresentacao />}
 
       {convite === undefined ? (

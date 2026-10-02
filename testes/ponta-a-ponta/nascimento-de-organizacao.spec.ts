@@ -362,6 +362,79 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   cobre(test.info(), "2.2 · 4", { criterio: "3.1" });
 
   // -------------------------------------------------------------------------
+  // 3a · A aparência antes de entrar — critérios 114.2, 114.4, 114.7 e 114.8
+  //
+  // **B ainda não tem conta**, e é o único momento do arquivo em que uma tela de fora da casca está
+  // aberta sem sessão. O controle do canto abre o mesmo grupo do menu da pessoa. Sob movimento reduzido,
+  // o menu entra com a duração devolvida e sem geometria.
+  // -------------------------------------------------------------------------
+  await b.emulateMedia({ reducedMotion: "reduce" });
+  await b.goto("/entrar");
+  const controleDeAparencia = b.getByRole("button", { name: "Aparência" });
+  await controleDeAparencia.focus();
+  await b.keyboard.press("Enter");
+  const menuDaMoldura = b.getByRole("menu");
+  await expect(menuDaMoldura).toBeVisible();
+  await expect(b.getByRole("group", { name: "Aparência" })).toBeVisible();
+
+  const movimento = await menuDaMoldura.evaluate((menu) => {
+    const estilo = getComputedStyle(menu);
+    return {
+      duracao: estilo.animationDuration,
+      escala: estilo.getPropertyValue("--tw-enter-scale").trim(),
+      deslocamento: estilo.getPropertyValue("--tw-enter-translate-y").trim(),
+    };
+  });
+  expect(movimento).toEqual({ duracao: "0.15s", escala: "1", deslocamento: "0" });
+  await b.emulateMedia({ reducedMotion: null });
+
+  // Busca por digitação: «a» pousa no contraste, e o Enter o liga sem fechar o menu.
+  //
+  // **Uma letra por abertura do menu.** O Radix acumula o que se digita por um segundo
+  // (`@radix-ui/react-menu/dist/index.mjs:218`): um «t» logo depois do «a» viraria a busca «at», que não
+  // casa com nada, e o foco ficaria parado. Fechar e reabrir zera a busca, porque o conteúdo remonta.
+  await b.keyboard.press("a");
+  const contrasteNaMoldura = b.getByRole("menuitemcheckbox", { name: "Alto contraste" });
+  await expect(contrasteNaMoldura).toBeFocused();
+  await b.keyboard.press("Enter");
+  await expect(b.locator("html")).toHaveAttribute("data-contraste", "alto");
+  await expect(contrasteNaMoldura).toHaveAttribute("aria-checked", "true");
+  await b.keyboard.press("Escape");
+  await expect(menuDaMoldura).toHaveCount(0);
+
+  // Reaberto, o foco cai no primeiro item, que é o tema: a seta leva ao contraste, e o «t» volta ao
+  // tema, que continua no teclado, marcado, inerte e com a razão. (Digitar «t» já no tema não provaria
+  // nada: com uma letra só, o Radix pula o item atual.)
+  await controleDeAparencia.focus();
+  await b.keyboard.press("Enter");
+  await expect(menuDaMoldura).toBeVisible();
+  await b.keyboard.press("ArrowDown");
+  await expect(contrasteNaMoldura).toBeFocused();
+  await b.keyboard.press("t");
+  const temaNaMoldura = b.getByRole("menuitemcheckbox", { name: "Tema escuro" });
+  await expect(temaNaMoldura).toBeFocused();
+  await expect(temaNaMoldura).toHaveAttribute("aria-checked", "true");
+  await expect(temaNaMoldura).toHaveAttribute("aria-disabled", "true");
+  await expect(temaNaMoldura).toHaveAccessibleDescription("O alto contraste define as cores.");
+  // Enter no item inerte não muda nada: nem o atributo, nem o cookie.
+  await b.keyboard.press("Enter");
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")).toBeUndefined();
+
+  // Desligar devolve a página ao estado de partida, para o resto do arquivo. Pela seta, e não por «a»:
+  // o «t» de agora há pouco ainda está na busca.
+  await b.keyboard.press("ArrowDown");
+  await expect(contrasteNaMoldura).toBeFocused();
+  await b.keyboard.press("Enter");
+  await expect(b.locator("html")).not.toHaveAttribute("data-contraste");
+  await b.keyboard.press("Escape");
+  await expect(menuDaMoldura).toHaveCount(0);
+
+  // A documentação tem o interruptor dela, e não o nosso.
+  await b.goto("/documentacao");
+  await expect(b.getByRole("button", { name: "Aparência" })).toHaveCount(0);
+
+  // -------------------------------------------------------------------------
   // 4 · A conta de B, e o código inventado ANTES do verdadeiro — critérios 7a.1 e 7a.4
   //
   // **A ordem é obrigatória, e o roteiro a corrigiu por isso** (achado V-04): assim que existe pedido
@@ -550,7 +623,9 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   const gatilhoDeB = b.getByRole("button", { name: `Conta de ${NOME_B}` });
   await gatilhoDeB.focus();
   await b.keyboard.press("Enter");
-  const itemDeTema = b.getByRole("menuitemcheckbox", { name: "Tema escuro" });
+  // O grupo titulado (critério 114.5): o leitor diz o nome do grupo ao entrar nele.
+  await expect(b.getByRole("group", { name: "Aparência" })).toBeVisible();
+  const itemDeTema =b.getByRole("menuitemcheckbox", { name: "Tema escuro" });
   await expect(itemDeTema).toHaveAttribute("aria-checked", "true");
   await expect(itemDeTema).not.toHaveAttribute("aria-pressed");
   while (!(await itemDeTema.evaluate((elemento) => elemento === document.activeElement))) {
@@ -566,7 +641,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")?.value).toBe("claro");
 
   // **O alto contraste, pelo teclado** (critérios 85.1 e 85.3). Ele vence o tema: com o claro guardado,
-  // ligar o contraste escurece a página, e o *Tema escuro* fica desabilitado com o estado que tinha.
+  // ligar o contraste escurece a página, e o *Tema escuro* fica inerte, e marcado, porque a tela é escura.
   const itemDeContraste = b.getByRole("menuitemcheckbox", { name: "Alto contraste" });
   await expect(itemDeContraste).toHaveAttribute("aria-checked", "false");
   await b.keyboard.press("ArrowDown");
@@ -575,8 +650,18 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(itemDeContraste).toHaveAttribute("aria-checked", "true");
   await expect(b.locator("html")).toHaveAttribute("data-contraste", "alto");
   expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "contraste")?.value).toBe("alto");
-  await expect(itemDeTema).toHaveAttribute("aria-checked", "false");
+  // **O tema diz o que a tela pinta** (critério 114.3): com o contraste ligado, é escuro, mesmo com o
+  // claro guardado.
+  await expect(itemDeTema).toHaveAttribute("aria-checked", "true");
   await expect(itemDeTema).toHaveAttribute("aria-disabled", "true");
+  await expect(itemDeTema).toHaveAccessibleDescription("O alto contraste define as cores.");
+  // **Inerte, e não fora do teclado** (critério 114.4): a busca por digitação chega nele, e o Enter não
+  // troca o tema guardado.
+  await b.keyboard.press("t");
+  await expect(itemDeTema).toBeFocused();
+  await b.keyboard.press("Enter");
+  await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
+  expect((await contextoDeB.cookies()).find((cookie) => cookie.name === "tema")?.value).toBe("claro");
   expect(
     await b.evaluate(() => getComputedStyle(document.documentElement).colorScheme),
   ).toBe("dark");
@@ -593,6 +678,11 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   await expect(b.getByRole("menuitemcheckbox", { name: "Tema escuro" })).not.toHaveAttribute(
     "aria-disabled",
     "true",
+  );
+  // E o tema volta a dizer o guardado: sol, desmarcado.
+  await expect(b.getByRole("menuitemcheckbox", { name: "Tema escuro" })).toHaveAttribute(
+    "aria-checked",
+    "false",
   );
   expect(
     await b.evaluate(() => getComputedStyle(document.documentElement).colorScheme),
