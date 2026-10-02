@@ -11,6 +11,7 @@ import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
 import { ID_DO_CONTEUDO, PularParaOConteudo } from "@/interface/componentes/pular-para-o-conteudo";
+import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * **O guarda do foco de teclado — item 94.**
@@ -268,5 +269,40 @@ describe("a documentação mostra o foco — critério 94.9", () => {
 
   it("o nome do botão é o da tradução do projeto", () => {
     expect(ler("src/interface/documentacao/traducoes.ts")).toContain('"Copiar o link desta seção"');
+  });
+});
+
+describe("o foco da recusa chega com a descrição pronta — critério 116.6", () => {
+  function Formulario() {
+    const formulario = useFormularioTocado({ campos: { titulo: "titulo" }, erros: { titulo: "Escreva o título." } });
+    const erro = formulario.erroDe("titulo");
+    return createElement(
+      "form",
+      { onSubmit: (evento: { preventDefault: () => void }) => { evento.preventDefault(); formulario.tentarEnviar(); } },
+      createElement("input", { id: "titulo", "aria-describedby": erro === undefined ? undefined : "titulo-erro" }),
+      erro === undefined ? null : createElement("p", { id: "titulo-erro" }, erro),
+      createElement("button", { type: "submit" }, "Enviar"),
+    );
+  }
+
+  it("no instante do foco, o campo já aponta para a mensagem, e ela existe", async () => {
+    const elemento = document.createElement("div");
+    document.body.append(elemento);
+    const raiz = createRoot(elemento);
+    await act(async () => raiz.render(createElement(Formulario)));
+
+    let descricaoNoFoco: string | null = "não focou";
+    let mensagemNoFoco = false;
+    elemento.querySelector("#titulo")?.addEventListener("focus", (evento) => {
+      descricaoNoFoco = (evento.target as HTMLElement).getAttribute("aria-describedby");
+      mensagemNoFoco = document.getElementById("titulo-erro") !== null;
+    });
+
+    await act(async () => elemento.querySelector<HTMLButtonElement>("button")?.click());
+
+    expect(descricaoNoFoco).toBe("titulo-erro");
+    expect(mensagemNoFoco).toBe(true);
+    await act(async () => raiz.unmount());
+    elemento.remove();
   });
 });
