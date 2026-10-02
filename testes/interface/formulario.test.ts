@@ -955,6 +955,23 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(registro.indexOf("setTentou(true)")).toBeLessThan(registro.indexOf("formulario.tentarEnviar(erros)"));
   });
 
+  it("a foto recusada mantém o alvo grande, e a recusa é erro anunciado — critério 116.5", async () => {
+    const { recusaDaFoto } = await import("@/interface/componentes/controle-de-foto");
+    // Uma linha só: a recusa local, que é a mais nova, ganha do erro do POST.
+    expect(recusaDaFoto({ nome: "erro", mensagem: "Grande demais" }, "Do servidor")).toBe("Grande demais");
+    expect(recusaDaFoto({ nome: "vazio" }, "Do servidor")).toBe("Do servidor");
+    expect(recusaDaFoto({ nome: "vazio" }, undefined)).toBeUndefined();
+
+    const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
+    // O alvo grande aparece sempre que não há prévia, com recusa ou sem.
+    expect(fonte).toContain("{previa === null ? (");
+    expect(fonte).not.toContain('previa === null && situacao.nome !== "erro"');
+    // A recusa sai da ficha: a frase da ficha não leva mais a mensagem de erro.
+    expect(fonte).not.toContain("titulo: situacao.mensagem");
+    // E desce para a linha de erro, a única com `role="alert"` no arquivo.
+    expect(fonte.match(/role="alert"/gu) ?? []).toHaveLength(1);
+  });
+
   it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
     const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
     expect(fonte).toContain('role="status"');
