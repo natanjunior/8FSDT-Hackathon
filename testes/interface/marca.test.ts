@@ -112,16 +112,27 @@ describe("a marca na tela — critérios 76.7 e 76.8", () => {
     expect(new Set(alturas)).toStrictEqual(new Set(["5", "8"]));
   });
 
-  it("as três imagens pintam cedo, sem carregamento adiado (critério 106.4)", () => {
-    const imagens = ler(MARCA).match(/<Image\b[\s\S]*?\/>/gu) ?? [];
-    expect(imagens).toHaveLength(3);
-    for (const imagem of imagens) expect(imagem).toContain('loading="eager"');
+  it("a marca pinta cedo, sem carregamento adiado (critérios 106.4 e 116.12)", () => {
+    const fonte = ler(MARCA);
+    // A da página é uma `<Image>`; a da barra sai de `getImageProps`. Nenhuma é preguiçosa, e nenhuma usa
+    // o `priority` que o Next 16 descontinuou.
+    expect(fonte.match(/<Image\b[\s\S]*?\/>/gu) ?? []).toHaveLength(1);
+    // Uma na `<Image>` da página, uma no objeto comum das duas candidatas da barra.
+    expect(fonte.match(/loading: "eager"|loading="eager"/gu) ?? []).toHaveLength(2);
+    expect(fonte).not.toMatch(/\bpriority\b/u);
+    expect(fonte).not.toContain('loading="lazy"');
   });
 
-  it("na barra estreita é o ícone do R, e a partir de md é o logotipo", () => {
+  it("a barra é uma imagem só: o ícone do R no celular, o logotipo a partir de md (critério 116.13)", () => {
     const fonte = ler(MARCA);
-    expect(fonte).toMatch(/src="\/marca\/icone\.svg"[\s\S]*?className="[^"]*\bmd:hidden\b/u);
-    expect(fonte).toMatch(/src="\/marca\/logo\.svg"[\s\S]*?className="[^"]*\bhidden\b[^"]*\bmd:block\b/u);
+    expect(fonte).toContain("getImageProps");
+    expect(fonte.match(/<picture\b/gu) ?? []).toHaveLength(1);
+    expect(fonte.match(/<img\b/gu) ?? []).toHaveLength(1);
+    expect(fonte).toContain('media="(min-width: 768px)"');
+    expect(fonte).toContain('src: "/marca/icone.svg"');
+    expect(fonte).toContain('src: "/marca/logo.svg"');
+    // Nenhuma cópia escondida por largura.
+    expect(fonte).not.toMatch(/\bmd:hidden\b|\bmd:block\b/u);
     expect(ler("src/interface/componentes/casca/barra-superior.tsx")).toContain(
       '<MarcaDoProduto tamanho="barra" />',
     );
