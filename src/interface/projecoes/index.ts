@@ -75,4 +75,6 @@ export {
 
 export { projetarVinculo, type VinculoProjetado } from "./vinculo";
 
+export { projetarEtiqueta, type EtiquetaProjetada } from "./etiqueta";
+
 export { projetarAnexo, projetarAutorizacaoDeUpload, type AnexoProjetado } from "./anexo";

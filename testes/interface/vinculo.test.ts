@@ -151,6 +151,7 @@ function VINCULO(
     temConta: true,
     criadoEm: "2026-03-02T12:00:00.000Z",
     atualizadoEm: null,
+    etiquetas: [],
     ...resto,
   };
 }
@@ -322,11 +323,14 @@ describe("correcaoDeVinculoSchema — ausente e vazio são instruções diferent
  * desfazer é tirar isso. Nenhum dos dois toca as quatro coisas que o 10.5 nomeia. **O que a guarda pega é
  * o terceiro**, que chegaria sem ninguém decidir que ele podia existir.
  *
+ * **Quatro desde o item 115.** Os dois novos apagam uma etiqueta e tiram uma etiqueta de uma pessoa: rótulo
+ * de gestão, sem trilha, que nenhuma das quatro coisas do 10.5 alcança. A asserção continua fechada.
+ *
  * **Não é o mesmo que o portão do contrato:** aquele roda sobre o `openapi.yaml`, e este roda sobre o
  * **código**. O dia em que os dois discordarem é o dia em que alguém escreveu endpoint sem publicar.
  */
-describe("os DELETE do produto, e são dois", () => {
-  it("existem exatamente dois export const DELETE em app/api/, e a lista é a decidida", () => {
+describe("os DELETE do produto, e são quatro", () => {
+  it("existem exatamente quatro export const DELETE em app/api/, e a lista é a decidida", () => {
     const raiz = fileURLToPath(new URL("../../app/api/", import.meta.url));
 
     const rotas = readdirSync(raiz, { recursive: true, encoding: "utf8" })
@@ -337,7 +341,9 @@ describe("os DELETE do produto, e são dois", () => {
 
     expect(rotas.sort()).toStrictEqual(
       [
+        "etiquetas-de-participante/[etiquetaId]/route.ts",
         "ocorrencias/[ocorrenciaId]/compartilhamentos/[pessoaId]/route.ts",
+        "vinculos/[pessoaId]/etiquetas/[etiquetaId]/route.ts",
         "vinculos/[pessoaId]/route.ts",
       ].sort(),
     );
