@@ -21,8 +21,7 @@ import { destinoSeguro, resolverParaTela } from "@/interface/http";
  * sobrevive à navegação. Até o item 44g era uma faixa lida de um parâmetro do endereço; o guia §7 trocou a
  * faixa de desfecho pelo aviso.
  *
- * **O pé leva à página do grupo e à documentação** (item 70), as duas públicas e em nova aba. Fica fora
- * dos caminhos debaixo do cartão, porque aqueles são sobre a conta e estes não.
+ * O pé, com a página do grupo e a documentação, é da moldura desde o item 116.
  *
  * A guarda do `?destino=` é `destinoSeguro`, a mesma de `/criar-conta`, e o link para criar conta leva o
  * destino junto (item 86).
@@ -46,9 +45,9 @@ export default async function TelaDeEntrar({
     <>
       <LimpezaDaSaida />
       <MolduraDeConta
+        apresentacao
         titulo="Entrar"
         contexto="Entre para ver e acompanhar as ocorrências."
-        apresentacao
         caminhos={
           <>
             <Link
@@ -63,25 +62,6 @@ export default async function TelaDeEntrar({
               Esqueci a senha
             </Link>
           </>
-        }
-        rodape={
-          <p className="text-meta text-tinta-suave flex items-center gap-2">
-            <Link
-              href="/grupo"
-              target="_blank" rel="noreferrer"
-              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
-            >
-              Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
-            </Link>
-            <span aria-hidden="true">·</span>
-            <Link
-              href="/documentacao"
-              target="_blank" rel="noreferrer"
-              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
-            >
-              Documentação<span className="sr-only">, abre em nova aba</span>
-            </Link>
-          </p>
         }
       >
         <FormularioDeEntrada

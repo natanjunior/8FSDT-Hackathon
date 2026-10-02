@@ -2829,6 +2829,19 @@ describe("o recibo de cada ação — item 103", () => {
     // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
     expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
     expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
+    // **A apresentação vale para as quatro telas de conta** (critério 116.1), na tela e na espera.
+    for (const pasta of ["entrar", "criar-conta", "redefinir-senha", "definir-senha"]) {
+      expect(ler(`app/${pasta}/loading.tsx`), pasta).toContain("<EsperaDaMolduraDeConta apresentacao>");
+      const pagina = ler(`app/${pasta}/page.tsx`);
+      const molduras = pagina.match(/<MolduraDeConta\b[^>]*>/gu) ?? [];
+      expect(molduras.length, pasta).toBeGreaterThan(0);
+      for (const moldura of molduras) expect(moldura, pasta).toMatch(/\bapresentacao\b/u);
+    }
+    // **Uma marca só** (critério 116.13): a apresentação não desenha a dela, e nenhuma se esconde por largura.
+    const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
+    const apresentacao = moldura.slice(moldura.indexOf("function Apresentacao"));
+    expect(apresentacao).not.toContain("<MarcaDoProduto");
+    expect(moldura).not.toMatch(/<MarcaDoProduto[^>]*lg:hidden/u);
   });
 
   it("a geometria das duas colunas é escrita uma vez, e a espera a usa (critério 103.5)", () => {

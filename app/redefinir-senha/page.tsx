@@ -31,6 +31,7 @@ export default async function TelaDeRedefinirSenha() {
 
   return (
     <MolduraDeConta
+      apresentacao
       titulo="Redefinir senha"
       contexto="Informe o e-mail da sua conta. Enviamos um link para você criar uma senha nova."
       caminhos={

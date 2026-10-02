@@ -3,7 +3,7 @@ import { EsperaDaMolduraDeConta } from "@/interface/componentes/moldura-de-conta
 /** **A espera de T-12** (item 103, critério 4), com a frase e o atraso de `app/organizacao/loading.tsx`. */
 export default function EsperandoARedefinicao() {
   return (
-    <EsperaDaMolduraDeConta>
+    <EsperaDaMolduraDeConta apresentacao>
       <p
         role="status"
         className="text-tinta-suave text-interface animate-in fade-in text-center opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"

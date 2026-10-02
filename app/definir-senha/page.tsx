@@ -45,6 +45,7 @@ export default async function TelaDeDefinirSenha({
   if (estado === "expirado") {
     return (
       <MolduraDeConta
+        apresentacao
         titulo="Definir nova senha"
         caminhos={
           <Link href="/entrar" className={CLASSE_DO_CAMINHO}>
@@ -84,6 +85,7 @@ export default async function TelaDeDefinirSenha({
 
   return (
     <MolduraDeConta
+      apresentacao
       titulo="Definir nova senha"
       contexto="Escolha a senha que você vai usar para entrar."
       caminhos={

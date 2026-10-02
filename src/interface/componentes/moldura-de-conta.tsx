@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { acaoDeSair } from "@/interface/acoes";
@@ -9,10 +10,25 @@ import { cn } from "@/interface/componentes/utilitarios";
 
 const ID_DO_TITULO = "titulo-da-tela";
 
-/** A página: centrada nas duas direções, e em linha a partir de `lg` quando há apresentação. `relative`
- *  ancora o pé de T-01, que fica fora da linha. */
+/**
+ * A página: centrada nas duas direções. `relative` ancora o canto do controle de aparência e o pé.
+ *
+ * **O fundo reserva o pé** (critério 116.4): o pé é absoluto, e numa tela mais alta que o celular ele
+ * cairia em cima do último caminho. A reserva é o respiro do pé, os 44 px do alvo e 16 px de folga.
+ */
 const PAGINA =
-  "relative flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 py-12 lg:flex-row lg:gap-16";
+  "relative flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 pt-12 pb-[calc(max(1rem,env(safe-area-inset-bottom))+3.75rem)] lg:flex-row lg:gap-16";
+
+/**
+ * **Com apresentação, a página é uma grade de uma marca só** (critério 116.13). No celular, uma coluna:
+ * a marca, depois a coluna do cartão. A partir de `lg`, duas colunas de 420 px: à esquerda a marca e a
+ * frase, centradas na altura pelas duas linhas de `1fr`; à direita o cartão, ocupando as quatro linhas.
+ * É o mesmo desenho de antes, com a marca num lugar do documento em vez de dois. **Na tela grande a marca
+ * estica até os 420 px da coluna**, como esticava dentro da apresentação: o SVG se desenha centrado na
+ * caixa, e é esse o pixel que a comparação do critério 116.14 confere.
+ */
+const GRADE_DA_APRESENTACAO =
+  "grid w-full max-w-[420px] grid-cols-1 gap-5 lg:max-w-none lg:w-auto lg:grid-cols-[420px_420px] lg:grid-rows-[1fr_auto_auto_1fr] lg:gap-x-16 lg:gap-y-6";
 
 /** A coluna do cartão: 420 px a partir de `lg`, a largura toda abaixo disso (critério 44m.8). */
 const COLUNA = "flex w-full max-w-[420px] flex-col gap-5";
@@ -58,14 +74,18 @@ const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as co
  * **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela e a linha de fato; o
  * conteúdo, quando há; e os caminhos secundários fora do cartão, centrados.
  *
- * **O pé é de T-01 só** (item 70): os links para a página do grupo e para a documentação. Ele é absoluto,
- * no respiro de baixo da página, porque com a apresentação a página é uma linha, e um terceiro filho seria
- * uma terceira coluna.
+ * **O pé é de toda tela da moldura** (item 116), na moldura e na espera. Ele é absoluto, no respiro de
+ * baixo da página, que é reservado para ele.
  *
- * **Componente, e não grupo de rotas.** O critério 44m.8 dá a **T-01 sozinha** uma segunda coluna à
- * esquerda do cartão, e um layout de servidor recebe a página por um `children` só, sem saber qual rota
- * está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA` e
+ * **Componente, e não grupo de rotas.** Desde o item 116, **as quatro telas de credencial** têm uma
+ * segunda coluna à esquerda do cartão (critérios 44m.8 e 116.1), e as outras sete telas da moldura não a
+ * têm. Um layout de servidor recebe a página por um `children` só, sem saber qual rota está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA` e
  * `COLUNA`, e nenhum arquivo em `app/` a repete — nem a espera, que usa as mesmas duas constantes.
+ *
+ * **O salto vertical fica** (critério 116.3). A página centra nas duas direções, e as quatro telas de
+ * credencial têm cartões de alturas diferentes: entre `/entrar` e `/criar-conta` o cartão sobe ou desce
+ * cerca de 120 px. Alinhar pelo topo foi a variante recusada em 02/10/2026. O horizontal some, porque as
+ * quatro têm as mesmas duas colunas.
  *
  * **Desde o item 65 há uma segunda forma de duas colunas**: `/organizacao` (face A) e `/organizacao/criar`
  * recebem a outra porta ao lado do cartão, pela prop `convite`. As duas formas não se combinam — nenhuma
@@ -87,8 +107,8 @@ const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as co
  * liga o alto contraste antes de entrar. Vem primeiro na ordem do documento, para quem precisa dele o
  * alcançar no primeiro Tab, antes do formulário. `controle-de-aparencia.tsx` diz o resto.
  *
- * **Componente de servidor.** A marca aparece duas vezes no `apresentacao`, uma escondida em cada
- * largura, porque ela troca de lugar: acima do cartão no celular, na coluna da esquerda na tela grande.
+ * **Componente de servidor. Uma marca só por tela** (item 116, critério 13). Com a apresentação, a grade a
+ * põe acima do cartão no celular e no alto da coluna da esquerda na tela grande.
  */
 export function MolduraDeConta({
   titulo,
@@ -96,12 +116,14 @@ export function MolduraDeConta({
   apresentacao = false,
   convite,
   caminhos,
-  rodape,
   children,
 }: {
   titulo: string;
   contexto?: ReactNode;
-  /** Só T-01: liga a segunda coluna a partir de `lg` (critério 44m.8). */
+  /**
+   * As quatro telas de credencial — T-01, T-11, T-12 e T-13 — ligam a segunda coluna a partir de `lg`
+   * (critérios 44m.8 e 116.1). Não se combina com `convite`.
+   */
   apresentacao?: boolean;
   /**
    * Só `/organizacao` (face A) e `/organizacao/criar` (item 65): a outra porta, ao lado do cartão a partir
@@ -109,8 +131,6 @@ export function MolduraDeConta({
    */
   convite?: { lado: "direita" | "esquerda"; conteudo: ReactNode };
   caminhos?: ReactNode;
-  /** Só T-01: os links do pé da página, fora da linha das colunas (item 70). */
-  rodape?: ReactNode;
   children?: ReactNode;
 }) {
   // `false` é o que um `{condição && <X />}` devolve quando a condição falha — é o caso de T-10.
@@ -121,16 +141,27 @@ export function MolduraDeConta({
       <div className={CANTO}>
         <ControleDeAparencia />
       </div>
-      {apresentacao && <Apresentacao />}
-
       {convite === undefined ? (
-        <div className={COLUNA}>
-          <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
-          <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
-            {children}
-          </CartaoDaTela>
-          {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
-        </div>
+        apresentacao ? (
+          <div className={GRADE_DA_APRESENTACAO}>
+            <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
+            <Apresentacao />
+            <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+              <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
+                {children}
+              </CartaoDaTela>
+              {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
+            </div>
+          </div>
+        ) : (
+          <div className={COLUNA}>
+            <MarcaDoProduto className="self-center" />
+            <CartaoDaTela titulo={titulo} contexto={contexto} temCorpo={temCorpo}>
+              {children}
+            </CartaoDaTela>
+            {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
+          </div>
+        )
       ) : (
         <div className={COLUNA_COM_CONVITE}>
           <MarcaDoProduto className="self-center" />
@@ -149,9 +180,7 @@ export function MolduraDeConta({
         </div>
       )}
 
-      {rodape !== undefined && (
-        <footer className="absolute inset-x-0 bottom-0 flex justify-center">{rodape}</footer>
-      )}
+      <RodapeDaMoldura />
     </main>
   );
 }
@@ -232,6 +261,34 @@ export function ReguaDoOu({ deitada = false }: { deitada?: boolean }) {
 export const CLASSE_DO_CAMINHO =
   "text-tinta-marca text-interface inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4";
 
+/** Os dois links do pé: sublinhados em repouso, porque no toque não há `hover` (critério 116.4). */
+const CLASSE_DO_LINK_DO_PE =
+  "text-meta text-tinta-marca inline-flex min-h-11 items-center underline underline-offset-4";
+
+/**
+ * **O pé de toda tela da moldura** (critério 116.2): a página do grupo e a documentação, as duas públicas
+ * e em nova aba. Até o item 116 só `/entrar` o tinha, escrito à mão, e a porta da documentação não tem
+ * motivo para existir só ali. *"Grupo 1"* é nome próprio no crédito (item 106).
+ *
+ * **Absoluto, e acima da barra do navegador**: com a apresentação a página é uma linha, e um terceiro
+ * filho seria uma terceira coluna. O respiro de baixo é o maior entre 16 px e a área segura do aparelho.
+ */
+function RodapeDaMoldura() {
+  return (
+    <footer className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex justify-center">
+      <p className="text-meta text-tinta-suave flex items-center gap-2">
+        <Link href="/grupo" target="_blank" rel="noreferrer" className={CLASSE_DO_LINK_DO_PE}>
+          Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/documentacao" target="_blank" rel="noreferrer" className={CLASSE_DO_LINK_DO_PE}>
+          Documentação<span className="sr-only">, abre em nova aba</span>
+        </Link>
+      </p>
+    </footer>
+  );
+}
+
 /**
  * **O "Sair" das telas fora da casca** — as quatro primeiras faces de T-02, T-10 e, desde o item 65, a
  * tela de criar organização.
@@ -262,13 +319,14 @@ export function CaminhoDeSair() {
  * organização e o da raiz a usam.
  *
  * **A mesma página, as mesmas colunas e a mesma fileira da moldura**, pelas constantes do topo. A marca, a
- * apresentação e o controle de aparência são de verdade — guia §8: *"a casca e o cabeçalho não são
- * esqueleto"* —, o controle para o canto não saltar quando a tela chega. O cartão e o convite são esqueleto, com o desenho e **sem a semântica**: uma região nomeada por um título que ainda
+ * apresentação, o controle de aparência e o pé são de verdade — guia §8: *"a casca e o cabeçalho não são
+ * esqueleto"* —, o controle e o pé para não saltarem quando a tela chega. O cartão e o convite são esqueleto, com o desenho e **sem a semântica**: uma região nomeada por um título que ainda
  * não existe seria pior que nenhuma. É o que `app/(casca)/configuracao/loading.tsx` já faz.
  *
  * **As duas formas de duas colunas existem aqui pela mesma razão que existem na moldura** (item 103,
  * critério 5): uma espera de coluna única sob uma tela de duas colunas faz o layout saltar no instante em
- * que o servidor responde, depois da espera mais longa do produto. `apresentacao` é a de T-01; `convite`
+ * que o servidor responde, depois da espera mais longa do produto. `apresentacao` é a das quatro telas de
+ * credencial; `convite`
  * leva só o lado, porque o conteúdo do convite é da tela e o esqueleto dele é daqui.
  *
  * **O filho é a frase de espera**, que é da tela e não da moldura.
@@ -287,14 +345,23 @@ export function EsperaDaMolduraDeConta({
       <div className={CANTO}>
         <ControleDeAparencia />
       </div>
-      {apresentacao && <Apresentacao />}
-
       {convite === undefined ? (
-        <div className={COLUNA}>
-          <MarcaDoProduto className={cn("self-center", apresentacao && "lg:hidden")} />
-          <CartaoDeEspera />
-          {children}
-        </div>
+        apresentacao ? (
+          <div className={GRADE_DA_APRESENTACAO}>
+            <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
+            <Apresentacao />
+            <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+              <CartaoDeEspera />
+              {children}
+            </div>
+          </div>
+        ) : (
+          <div className={COLUNA}>
+            <MarcaDoProduto className="self-center" />
+            <CartaoDeEspera />
+            {children}
+          </div>
+        )
       ) : (
         <div className={COLUNA_COM_CONVITE}>
           <MarcaDoProduto className="self-center" />
@@ -310,6 +377,8 @@ export function EsperaDaMolduraDeConta({
           {children}
         </div>
       )}
+
+      <RodapeDaMoldura />
     </main>
   );
 }
@@ -349,8 +418,9 @@ function ConviteDeEspera() {
 }
 
 /**
- * A coluna da esquerda de T-01, na tela grande (critério 44m.8): a marca, a frase da direção, e a pauta ao
- * fundo.
+ * A coluna da esquerda das quatro telas de credencial, na tela grande (critérios 44m.8 e 116.1): a frase
+ * da direção, e a pauta ao fundo. **A marca não é desenhada aqui desde o item 116**: a grade a posiciona,
+ * e o documento tem uma só.
  *
  * **A pauta é desenho, não imagem.** O período é de **22 px**, que é a entrelinha do papel de corpo — é o
  * que amarra o fundo à escala em vez de a um número escolhido à mão. Ela é decoração: `aria-hidden`, sem
@@ -359,17 +429,22 @@ function ConviteDeEspera() {
  */
 function Apresentacao() {
   return (
-    <div className="relative hidden max-w-[420px] flex-col gap-6 lg:flex">
+    <>
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-x-6 -inset-y-8 -z-10"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(to bottom, transparent 0, transparent 21px, var(--line-soft) 21px, var(--line-soft) 22px)",
-        }}
-      />
-      <MarcaDoProduto />
-      <p className="text-titulo-bloco text-tinta">O livro de ocorrências da sua organização, aberto para quem cuida.</p>
-    </div>
+        className="pointer-events-none relative hidden lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:block"
+      >
+        <div
+          className="absolute -inset-x-6 -inset-y-8 -z-10"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, transparent 0, transparent 21px, var(--line-soft) 21px, var(--line-soft) 22px)",
+          }}
+        />
+      </div>
+      <p className="text-titulo-bloco text-tinta hidden lg:col-start-1 lg:row-start-3 lg:block">
+        O livro de ocorrências da sua organização, aberto para quem cuida.
+      </p>
+    </>
   );
 }
