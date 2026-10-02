@@ -17,6 +17,9 @@ import { destinoSeguro, resolverParaTela } from "@/interface/http";
  * **`?confirmacao=` é dormente.** Ele só chega aqui vindo de `/confirmar-conta`, que nada alcança nesta
  * entrega (Q-T9 fechada em 22/08/2026). O parâmetro fica, e é inofensivo: valor desconhecido é ignorado.
  *
+ * **O `?redefinicao=encerrada` vem de `/definir-senha`** sem recuperação em curso (item 116). Valor
+ * desconhecido é ignorado, como o do `?confirmacao=`.
+ *
  * **Quem acabou de trocar a senha em T-13 chega aqui com o aviso de sucesso**, que mora no layout raiz e
  * sobrevive à navegação. Até o item 44g era uma faixa lida de um parâmetro do endereço; o guia §7 trocou a
  * faixa de desfecho pelo aviso.
@@ -33,9 +36,9 @@ export const metadata: Metadata = { title: "Entrar" };
 export default async function TelaDeEntrar({
   searchParams,
 }: {
-  searchParams: Promise<{ destino?: string; confirmacao?: string }>;
+  searchParams: Promise<{ destino?: string; confirmacao?: string; redefinicao?: string }>;
 }) {
-  const { destino, confirmacao } = await searchParams;
+  const { destino, confirmacao, redefinicao } = await searchParams;
   const volta = destinoSeguro(destino);
 
   // Quem já tem sessão não vê a porta. O shell resolve para onde ir.
@@ -67,6 +70,7 @@ export default async function TelaDeEntrar({
         <FormularioDeEntrada
           {...(volta !== null ? { destino: volta } : {})}
           {...(confirmacao === "confirmada" || confirmacao === "expirada" ? { confirmacao } : {})}
+          {...(redefinicao === "encerrada" ? { redefinicao } : {})}
         />
       </MolduraDeConta>
     </>

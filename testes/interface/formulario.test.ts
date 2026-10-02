@@ -2834,6 +2834,27 @@ describe("o recibo de cada ação — item 103", () => {
     expect(ler("src/interface/componentes/moldura-de-conta.tsx")).toContain("export function CartaoDaTela(");
   });
 
+  it("/definir-senha sem recuperação diz por que mandou para a porta, e o fim feliz não (critério 116.10)", () => {
+    const pagina = ler("app/definir-senha/page.tsx");
+    expect(pagina).toContain('"/entrar?redefinicao=encerrada"');
+    expect(pagina).toContain("concluiuAgora()");
+    expect(pagina).not.toMatch(/redirect\("\/entrar"\);/u);
+
+    const pote = ler("src/interface/http/redefinicao-de-senha.ts");
+    // A marca mora fora do prefixo: com ele, `emCurso()` a leria como recuperação em curso.
+    expect(pote).toContain('const MARCA_DE_CONCLUSAO = "resolveai_senha_alterada"');
+    expect("resolveai_senha_alterada".startsWith("resolveai_redefinicao_")).toBe(false);
+
+    const entrada = ler("src/interface/componentes/formulario-de-entrada.tsx");
+    expect(entrada).toContain("Este link de senha não vale mais.");
+    expect(entrada).toContain('href="/redefinir-senha"');
+    expect(entrada).toContain("Pedir um novo link");
+
+    const acoes = ler("src/interface/acoes/index.ts");
+    const definir = acoes.slice(acoes.indexOf("export async function acaoDeDefinirSenha"));
+    expect(definir.slice(0, definir.indexOf("return { concluido: true }"))).toContain("armazenamento.concluir()");
+  });
+
   it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
     // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
     expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");

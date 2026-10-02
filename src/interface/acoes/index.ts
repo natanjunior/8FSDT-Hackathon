@@ -182,7 +182,9 @@ export async function acaoDeDefinirSenha(
     return { recusa: resultado.recusa };
   }
 
-  armazenamento.limpar();
+  // A marca de conclusão, e não só a limpeza (item 116): a página re-renderizada nesta mesma resposta lê
+  // a marca e manda para a porta de sempre, e não para o aviso de link encerrado.
+  armazenamento.concluir();
   return { concluido: true };
 }
 

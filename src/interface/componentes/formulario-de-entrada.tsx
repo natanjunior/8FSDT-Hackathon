@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { acaoDeEntrar, type EstadoDoFormulario } from "@/interface/acoes";
@@ -34,9 +35,12 @@ import { entrarSchema, errosDoSchema } from "@/interface/schemas";
 export function FormularioDeEntrada({
   destino,
   confirmacao,
+  redefinicao,
 }: {
   destino?: string;
   confirmacao?: "confirmada" | "expirada";
+  /** Veio de `/definir-senha` sem recuperação em curso (item 116, critério 10). */
+  redefinicao?: "encerrada";
 }) {
   const formulario = useFormularioTocado({
     campos: { email: "email", senha: "senha" },
@@ -63,6 +67,14 @@ export function FormularioDeEntrada({
       {confirmacao === "confirmada" && <Aviso tom="nota">Conta confirmada. Entre para continuar.</Aviso>}
       {confirmacao === "expirada" && (
         <Aviso>Este link expirou. Crie a conta de novo ou peça outro e-mail de confirmação.</Aviso>
+      )}
+      {redefinicao === "encerrada" && (
+        <Aviso tom="nota">
+          Este link de senha não vale mais.{" "}
+          <Link href="/redefinir-senha" className="text-tinta-marca underline underline-offset-4">
+            Pedir um novo link
+          </Link>
+        </Aviso>
       )}
       {estado.recusa !== undefined && <Aviso>{textoDaRecusa(estado.recusa)}</Aviso>}
 

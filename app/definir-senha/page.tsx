@@ -79,9 +79,14 @@ export default async function TelaDeDefinirSenha({
     );
   }
 
-  // Sem recuperação em curso não há formulário a mostrar: ou o token já foi gasto, ou o endereço foi
-  // digitado à mão. Nos dois casos o destino é a porta.
-  if (!(await armazenamentoDeRedefinicao()).emCurso()) redirect("/entrar");
+  // **Sem recuperação em curso**, ou o token já foi gasto, ou o endereço foi digitado à mão. A porta diz
+  // isso (critério 116.10), a não ser que a senha tenha acabado de ser trocada: a ação apaga o pote, e o
+  // Next renderiza esta página de novo na mesma resposta. Nesse caso a porta é a de sempre, e o aviso é
+  // o "Senha alterada", que já está a caminho.
+  const armazenamento = await armazenamentoDeRedefinicao();
+  if (!armazenamento.emCurso()) {
+    redirect(armazenamento.concluiuAgora() ? "/entrar" : "/entrar?redefinicao=encerrada");
+  }
 
   return (
     <MolduraDeConta

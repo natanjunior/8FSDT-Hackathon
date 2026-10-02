@@ -145,6 +145,14 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   await pagina.getByRole("button", { name: "Sair" }).click();
   await pagina.waitForURL(/\/entrar$/u);
 
+  // **Sem recuperação em curso, a porta diz por quê** (critério 116.10).
+  await pagina.goto(`${ORIGEM}/definir-senha`);
+  await pagina.waitForURL(/\/entrar\?redefinicao=encerrada$/u);
+  await expect(pagina.getByText("Este link de senha não vale mais.")).toBeVisible();
+  await pagina.getByRole("link", { name: "Pedir um novo link" }).click();
+  await pagina.waitForURL(/\/redefinir-senha$/u);
+  await pagina.goto(`${ORIGEM}/entrar`);
+
   await pagina.getByRole("link", { name: "Esqueci a senha" }).click();
   await pagina.waitForURL(/\/redefinir-senha$/u);
 
@@ -270,6 +278,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
 
   await pagina.goto(`${ORIGEM}/definir-senha`);
   await pagina.waitForURL(/\/entrar$/u);
+  await expect(pagina.getByText("Este link de senha não vale mais.")).toHaveCount(0);
   cobre(test.info(), "2.3 · 5", { criterio: "6b.4" });
 
   // -------------------------------------------------------------------------

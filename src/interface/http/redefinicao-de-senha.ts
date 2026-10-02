@@ -35,6 +35,16 @@ export const PREFIXO_DE_REDEFINICAO = "resolveai_redefinicao_";
  */
 const VALIDADE_EM_SEGUNDOS = 15 * 60;
 
+/**
+ * **A marca de que a senha acabou de ser trocada** (item 116). Quando a ação apaga o pote, o Next
+ * renderiza de novo `/definir-senha` na mesma resposta, e a página, sem recuperação em curso, mandaria
+ * para o aviso de link encerrado junto do "Senha alterada". A marca diz à página que o fim foi feliz.
+ * **Fora do prefixo**, porque `emCurso()` lê tudo o que começa com ele. Um minuto basta para a resposta
+ * da ação e para o botão voltar logo depois.
+ */
+const MARCA_DE_CONCLUSAO = "resolveai_senha_alterada";
+const VALIDADE_DA_MARCA_EM_SEGUNDOS = 60;
+
 const OPCOES_DO_COOKIE = {
   httpOnly: true,
   sameSite: "lax",
@@ -58,14 +68,23 @@ export function somenteDeRedefinicao(
  * O pote paralelo.
  *
  * **A tela de T-13 só chama `emCurso()`**, que lê. Escrever cookie em Server Component em renderização não
- * é possível, e por isso `definir` e `limpar` só são chamados da rota de aterrissagem e da ação.
+ * é possível, e por isso `definir`, `limpar` e `concluir` só são chamados da rota de aterrissagem e da
+ * ação.
  */
 export async function armazenamentoDeRedefinicao(): Promise<
-  ArmazenamentoDeCookies & { emCurso(): boolean; limpar(): void }
+  ArmazenamentoDeCookies & { emCurso(): boolean; limpar(): void; concluir(): void; concluiuAgora(): boolean }
 > {
   const pote = await cookies();
 
   const todosOsBrutos = () => pote.getAll().map((c) => ({ name: c.name, value: c.value }));
+
+  const limpar = () => {
+    for (const cookie of todosOsBrutos()) {
+      if (cookie.name.startsWith(PREFIXO_DE_REDEFINICAO)) {
+        pote.set(cookie.name, "", { ...OPCOES_DO_COOKIE, maxAge: 0 });
+      }
+    }
+  };
 
   return {
     todos: () => somenteDeRedefinicao(todosOsBrutos()),
@@ -85,13 +104,14 @@ export async function armazenamentoDeRedefinicao(): Promise<
         (cookie) => cookie.name.startsWith(PREFIXO_DE_REDEFINICAO) && cookie.value !== "",
       ),
 
-    limpar: () => {
-      for (const cookie of todosOsBrutos()) {
-        if (cookie.name.startsWith(PREFIXO_DE_REDEFINICAO)) {
-          pote.set(cookie.name, "", { ...OPCOES_DO_COOKIE, maxAge: 0 });
-        }
-      }
+    limpar,
+
+    concluir: () => {
+      limpar();
+      pote.set(MARCA_DE_CONCLUSAO, "1", { ...OPCOES_DO_COOKIE, maxAge: VALIDADE_DA_MARCA_EM_SEGUNDOS });
     },
+
+    concluiuAgora: () => pote.get(MARCA_DE_CONCLUSAO)?.value === "1",
   };
 }
 
