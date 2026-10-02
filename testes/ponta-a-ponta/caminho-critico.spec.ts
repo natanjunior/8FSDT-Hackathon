@@ -116,6 +116,10 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   // -------------------------------------------------------------------------
   await helena.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u }).click();
   await helena.waitForURL(/\/ocorrencias\/nova$/u);
+  // **O envio vazio diz quanto falta, e o foco vai ao primeiro campo** (critério 116.6).
+  await helena.getByRole("button", { name: "Registrar ocorrência" }).click();
+  await expect(helena.getByRole("alert").filter({ hasText: "Faltam 4 campos." })).toBeVisible();
+  await expect(helena.getByLabel(/^Título/u)).toBeFocused();
   await helena.getByLabel("Título").fill(TITULO);
   await helena
     .getByLabel("Descrição")

@@ -250,6 +250,7 @@ export function RodapeDoFormulario({
   obrigatorios,
   todosObrigatorios = false,
   larguraCheia = false,
+  faltando,
   children,
 }: {
   obrigatorios: number;
@@ -267,6 +268,12 @@ export function RodapeDoFormulario({
    */
   larguraCheia?: boolean;
   /**
+   * **A frase viva da recusa** (critério 116.6). Passada, a região existe desde o primeiro render, vazia
+   * com `null`, e é `alert`: o texto que entra depois de um envio recusado é anunciado antes de o foco
+   * chegar ao campo. Só T-04 a passa; os outros formulários têm um ou dois campos.
+   */
+  faltando?: string | null;
+  /**
    * No celular empilha na ordem do documento, com a ação principal por último, embaixo, como é a última à
    * direita na tela grande: o Tab segue a vista (item 94).
    */
@@ -278,14 +285,28 @@ export function RodapeDoFormulario({
         larguraCheia ? "flex flex-col gap-3" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end"
       }
     >
-      {obrigatorios > 0 && !todosObrigatorios && (
-        <p className="text-tinta-suave text-meta sm:mr-auto">
-          <span aria-hidden="true" className="text-destructive">
-            *
-          </span>{" "}
-          {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
-        </p>
-      )}
+      {(obrigatorios > 0 && !todosObrigatorios) || faltando !== undefined ? (
+        <div className="flex flex-col gap-1 sm:mr-auto">
+          {obrigatorios > 0 && !todosObrigatorios && (
+            <p className="text-tinta-suave text-meta">
+              <span aria-hidden="true" className="text-destructive">
+                *
+              </span>{" "}
+              {obrigatorios === 1 ? "campo obrigatório" : "campos obrigatórios"}
+            </p>
+          )}
+          {faltando !== undefined && (
+            <p role="alert" className="text-destructive text-meta flex items-center gap-1.5 empty:hidden">
+              {faltando !== null && (
+                <>
+                  <CircleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span>{faltando}</span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      ) : null}
       <div className={larguraCheia ? "flex flex-col gap-2.5" : "flex flex-col gap-2.5 sm:flex-row"}>
         {children}
       </div>

@@ -939,6 +939,22 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(ler("src/interface/componentes/ui/dialog.tsx").match(/\{\.\.\.\{ \[SAI_SEM_ACUSAR\]: "" \}\}/gu)).toHaveLength(1);
   });
 
+  it("o envio recusado diz quantos campos faltam, numa região que já existe — critério 116.6", async () => {
+    const { fraseDoQueFalta } = await import("@/interface/componentes/registro-de-ocorrencia");
+    expect(fraseDoQueFalta(0)).toBeNull();
+    expect(fraseDoQueFalta(1)).toBe("Falta 1 campo.");
+    expect(fraseDoQueFalta(4)).toBe("Faltam 4 campos.");
+
+    const campo = ler("src/interface/componentes/campo.tsx");
+    // A região nasce com o rodapé, vazia, e é alerta: a inserção do texto é anunciada.
+    expect(campo).toMatch(/faltando !== undefined && \(\s*<p role="alert"/u);
+
+    const registro = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    expect(registro).toContain("faltando={tentou ? fraseDoQueFalta(");
+    // A marca da tentativa vem antes de `tentarEnviar`, que a confirma junto com os erros, antes do foco.
+    expect(registro.indexOf("setTentou(true)")).toBeLessThan(registro.indexOf("formulario.tentarEnviar(erros)"));
+  });
+
   it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
     const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
     expect(fonte).toContain('role="status"');

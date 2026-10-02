@@ -126,6 +126,15 @@ export function errosDoRegistro(valores: ValoresDoRegistro): Readonly<Record<str
 }
 
 /**
+ * **Quantos campos faltam, depois de um envio recusado** (critério 116.6). Todo erro do registro é campo
+ * vazio, então "faltar" é exato. `null` com zero: a região continua montada, e vazia.
+ */
+export function fraseDoQueFalta(quantos: number): string | null {
+  if (quantos === 0) return null;
+  return quantos === 1 ? "Falta 1 campo." : `Faltam ${String(quantos)} campos.`;
+}
+
+/**
  * **A foto entra na conta, e não entrava:** escolher uma foto, esperar subir e cancelar descartava o
  * envio sem perguntar nada.
  *
