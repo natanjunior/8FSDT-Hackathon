@@ -24,6 +24,7 @@ export {
   revogarVinculo,
   verVinculo,
 } from "./vinculos";
+export { apagarEtiqueta, atribuirEtiqueta, listarEtiquetas, tirarEtiqueta } from "./etiquetas";
 export {
   alterarConfiguracao,
   corrigirArea,
@@ -51,6 +52,7 @@ export {
   CodigoPublicoEmUso,
   CodigoPublicoNaoEncontrado,
   ContatoDuplicado,
+  EtiquetaNaoEncontrada,
   JaVinculado,
   ListaDesatualizada,
   NomeDeAreaDuplicado,
