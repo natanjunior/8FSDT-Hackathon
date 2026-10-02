@@ -165,14 +165,17 @@ async function entrar(pagina: Page, email: string, senha: string): Promise<void>
 /**
  * Funda a organização pela tela própria — a `/organizacao/criar` que o item 44o separou da face A.
  *
- * O destino é T-03 no estado vazio, e **o critério 44o.4 manda que isso não mude**.
+ * O destino é Convidar pessoas, desde o item 116 (critério 7).
  */
 async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
   await pagina.getByRole("link", { name: "Criar uma organização" }).click();
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(nome);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/ocorrencias$/u);
+  await pagina.waitForURL(/\/convidar$/u);
+  // **A criação entrega o código que a tela prometeu** (critério 116.7).
+  await expect(pagina.getByRole("heading", { name: "Convidar pessoas", level: 1 })).toBeVisible();
+  await expect(pagina.getByRole("button", { name: "Copiar o código" })).toBeVisible();
 }
 
 /**
