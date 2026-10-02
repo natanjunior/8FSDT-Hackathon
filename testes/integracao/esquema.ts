@@ -49,8 +49,11 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // **`rotulos_de_status` entra pela mesma razão** (item 100), e com uma segunda: ela tem coluna do tipo
   // `status_ocorrencia`, e sem derrubá-la o `drop type` logo abaixo recusa com *"other objects depend
   // on it"*.
+  // **`vinculos_etiquetas` e `etiquetas_participante` entram pela mesma razão** (item 115): apontam
+  // para `vinculos` e para `organizacoes`, e o `cascade` não derruba quem aponta.
   await consulta(
-    `drop table if exists rotulos_de_status, mudancas_de_configuracao,
+    `drop table if exists vinculos_etiquetas, etiquetas_participante,
+                          rotulos_de_status, mudancas_de_configuracao,
                           compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
                           autorizacoes_de_upload,
                           registros_transicao, ocorrencias, contatos, pedidos_de_entrada, categorias,
