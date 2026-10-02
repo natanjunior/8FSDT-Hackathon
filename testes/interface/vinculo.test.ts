@@ -44,10 +44,13 @@ import {
   ENDERECO_PADRAO,
   VAZIO_DO_FILTRO,
   ariaSort,
+  comEtiqueta,
   comFiltro,
   comOrdem,
+  contagensDeEtiquetas,
   contagensDoFiltro,
   escreverEndereco,
+  etiquetaVigente,
   estadoDaTabela,
   faixaDaPagina,
   filtrarPeloNome,
@@ -58,6 +61,7 @@ import {
   naPagina,
   ordenarLinhas,
   paginar,
+  pertenceAEtiqueta,
   pertenceAoFiltro,
   type Filtro,
   type LinhaDeParticipante,
@@ -1178,12 +1182,63 @@ describe("a paginação de vinte (critério 3)", () => {
   });
 });
 
+describe("o filtro por etiqueta (critério 5; respostas.md P1)", () => {
+  const ETIQUETAS = [
+    { id: "e1", nome: "Eletricista" },
+    { id: "e2", nome: "Pintor" },
+  ];
+
+  it("o endereço guarda a etiqueta, e o padrão não aparece", () => {
+    const endereco = lerEndereco(new URLSearchParams("etiqueta=e1&pagina=3"));
+    expect(endereco.etiqueta).toBe("e1");
+    expect(escreverEndereco(comEtiqueta(endereco, null))).toBe("");
+    expect(escreverEndereco(comEtiqueta(ENDERECO_PADRAO, "e2"))).toBe("etiqueta=e2");
+  });
+
+  it("escolher etiqueta volta à primeira página", () => {
+    expect(comEtiqueta({ ...ENDERECO_PADRAO, pagina: 4 }, "e1").pagina).toBe(1);
+  });
+
+  it("id que não existe mais vale Todas", () => {
+    expect(etiquetaVigente("apagada", ETIQUETAS)).toBeNull();
+    expect(etiquetaVigente("e2", ETIQUETAS)).toBe("e2");
+  });
+
+  const COM_ETIQUETA = montarLinhas({
+    pedidos: [PEDIDO("q1", "Paulo Mendes")],
+    vinculos: [
+      VINCULO("p1", "Beatriz Nunes", "encarregado", { etiquetas: [ETIQUETAS[0]!] }),
+      VINCULO("p2", "Cláudia Meireles", "solicitante"),
+    ],
+    ...CONTEXTO,
+  });
+
+  it("sem etiqueta toda linha pertence; com uma, só o vínculo que a tem; pedido nunca", () => {
+    expect(COM_ETIQUETA.every((linha) => pertenceAEtiqueta(linha, null))).toBe(true);
+    expect(COM_ETIQUETA.filter((linha) => pertenceAEtiqueta(linha, "e1")).map((linha) => linha.chave)).toStrictEqual([
+      "vinculo:p1",
+    ]);
+    const pedido = COM_ETIQUETA.find((linha) => linha.tipo === "pedido")!;
+    expect(pertenceAEtiqueta(pedido, "e1")).toBe(false);
+  });
+
+  it("as contagens são do conjunto inteiro, e etiqueta sem uso conta zero", () => {
+    expect(contagensDeEtiquetas(COM_ETIQUETA, ETIQUETAS)).toStrictEqual({ todas: 3, e1: 1, e2: 0 });
+  });
+});
+
 describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
   const ler = (consulta: string) => lerEndereco(new URLSearchParams(consulta));
 
   it("sem nada, o padrão: Todos, sem ordenação, primeira página", () => {
     expect(ler("")).toStrictEqual(ENDERECO_PADRAO);
-    expect(ENDERECO_PADRAO).toStrictEqual({ filtro: "todos", ordem: null, sentido: "crescente", pagina: 1 });
+    expect(ENDERECO_PADRAO).toStrictEqual({
+      filtro: "todos",
+      ordem: null,
+      sentido: "crescente",
+      pagina: 1,
+      etiqueta: null,
+    });
     // Um endereço guardado só com o sentido abre na ordem inicial.
     expect(ler("sentido=decrescente")).toStrictEqual(ENDERECO_PADRAO);
   });
@@ -1194,6 +1249,7 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
       ordem: "atualizacao",
       sentido: "decrescente",
       pagina: 2,
+      etiqueta: null,
     });
   });
 
@@ -1204,9 +1260,9 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
 
   it("escreve só o que não é padrão, e a coluna sempre que há ordem — inclusive Pessoa", () => {
     expect(escreverEndereco(ENDERECO_PADRAO)).toBe("");
-    expect(escreverEndereco({ filtro: "pedidos", ordem: "pessoa", sentido: "decrescente", pagina: 1 })).toBe(
-      "filtro=pedidos&ordem=pessoa&sentido=decrescente",
-    );
+    expect(
+      escreverEndereco({ filtro: "pedidos", ordem: "pessoa", sentido: "decrescente", pagina: 1, etiqueta: null }),
+    ).toBe("filtro=pedidos&ordem=pessoa&sentido=decrescente");
     expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "pessoa" })).toBe("ordem=pessoa");
     expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "unidade", pagina: 3 })).toBe("ordem=unidade&pagina=3");
   });
