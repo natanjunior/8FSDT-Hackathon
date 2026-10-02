@@ -503,6 +503,9 @@ export type PedidoDeEntradaLido = {
   decididoPor: { pessoaId: string; nome: string } | null;
 };
 
+/** Uma etiqueta de participante desta organização (item 115). Só `id` e `nome`: não há ícone, ordem nem estado. */
+export type EtiquetaLida = { id: string; nome: string };
+
 /**
  * O schema `Vinculo` do contrato — **um objeto de leitura declarado, nunca a linha de `vinculos`**
  * (ADR-0005, parte 3). `organizacao_id` e `revogado_em` existem no esquema e não aparecem aqui. O
@@ -524,6 +527,12 @@ export type VinculoLido = {
    * e a tela mostra um traço — nunca a data de entrada.
    */
   atualizadoEm: string | null;
+  /**
+   * As etiquetas deste participante, **em ordem alfabética** (item 115). Lista vazia quando não há
+   * nenhuma, **nunca `null`**. Vem da mesma `lerVinculos` que lista e detalhe usam, e é por isso que a
+   * escolha do responsável a recebe sem consulta própria (critério 115.4).
+   */
+  etiquetas: readonly EtiquetaLida[];
 };
 
 /** O que `POST /vinculos` recebe, já conferido pelo schema. */
@@ -678,6 +687,32 @@ export interface RepositorioEscopadoDeVinculos {
    * atribuição vigente — e o Gestor não as acharia de outro jeito (`respostas.md` P2 do item 84).
    */
   responsabilidadesEmAberto(): Promise<ReadonlyMap<string, number>>;
+}
+
+export type ResultadoDaAtribuicaoDeEtiqueta =
+  | { desfecho: "atribuida"; etiqueta: EtiquetaLida; criada: boolean }
+  | { desfecho: "ja-tinha"; etiqueta: EtiquetaLida }
+  | { desfecho: "nao-encontrado" };
+
+export type ResultadoDaRetiradaDeEtiqueta =
+  | { desfecho: "tirada" }
+  | { desfecho: "vinculo-nao-encontrado" }
+  | { desfecho: "etiqueta-nao-encontrada" };
+
+export type ResultadoDoApagarEtiqueta = { desfecho: "apagada" } | { desfecho: "nao-encontrada" };
+
+/**
+ * **A porta escopada das etiquetas dos participantes** — item 115.
+ *
+ * Quatro operações, todas sob `vinculo.gerir` na porta de entrada. **Desfecho, não exceção**, pela
+ * doutrina das outras portas de organização: são traduções de garantias do banco — o índice único em
+ * ICU, a chave composta, o `where organizacao_id = $1` do escopo.
+ */
+export interface RepositorioEscopadoDeEtiquetas {
+  listar(): Promise<readonly EtiquetaLida[]>;
+  atribuir(dados: { pessoaId: string; nome: string; porPessoaId: string }): Promise<ResultadoDaAtribuicaoDeEtiqueta>;
+  tirar(dados: { pessoaId: string; etiquetaId: string }): Promise<ResultadoDaRetiradaDeEtiqueta>;
+  apagar(etiquetaId: string): Promise<ResultadoDoApagarEtiqueta>;
 }
 
 /**

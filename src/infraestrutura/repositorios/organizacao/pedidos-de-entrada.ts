@@ -444,6 +444,9 @@ async function lerVinculoCriado(
     // **A aprovação pode devolver valor**, e não nulo: quando o Gestor corrige o nome no ato, o relógio
     // da Pessoa anda, e a coluna passa a dizer a verdade — aquele cadastro foi mexido agora.
     atualizadoEm: linha.atualizado_em === null ? null : linha.atualizado_em.toISOString(),
+    // **Sempre vazio, e não por economia de consulta.** Vínculo novo não tem etiqueta, e o readmitido teve
+    // as dele apagadas pela revogação (item 115). Ler aqui confirmaria o que o esquema já garante.
+    etiquetas: [],
   };
 }
 

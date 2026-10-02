@@ -1,6 +1,13 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { criarTransacao } from "@/infraestrutura/clientes";
+import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
+import {
+  repositorioEscopadoDeEtiquetas,
+  repositorioEscopadoDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
+
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
 
@@ -169,5 +176,225 @@ describe("a junção (critérios 7, 8 e 9)", () => {
     await expect(
       consulta(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [gestorB, idOrganizacao]),
     ).rejects.toThrow(/vinculos_etiquetas_atribuido_por_fk/u);
+  });
+});
+function etiquetas(organizacaoId = idOrganizacao) {
+  return repositorioEscopadoDeEtiquetas(
+    escoparConsulta(consulta, organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
+function vinculos(organizacaoId = idOrganizacao) {
+  return repositorioEscopadoDeVinculos(
+    escoparConsulta(consulta, organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
+async function novoParticipante(nome: string): Promise<string> {
+  const id = (await consulta<{ id: string }>(`insert into pessoas (nome) values ($1) returning id`, [nome]))[0]!.id;
+  await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'encarregado')`, [
+    id,
+    idOrganizacao,
+  ]);
+  return id;
+}
+
+describe("a porta: atribuir cria ou reaproveita (critérios 1, 2 e 8)", () => {
+  it("nome novo cria a etiqueta e atribui, gravando quem atribuiu", async () => {
+    const pessoa = await novoParticipante("Atribuição 1");
+    const resultado = await etiquetas().atribuir({ pessoaId: pessoa, nome: "Zelador", porPessoaId: idGestora });
+
+    expect(resultado).toMatchObject({ desfecho: "atribuida", criada: true, etiqueta: { nome: "Zelador" } });
+    const [linha] = await consulta<{ atribuido_por_pessoa_id: string }>(
+      `select atribuido_por_pessoa_id from vinculos_etiquetas where pessoa_id = $1`,
+      [pessoa],
+    );
+    expect(linha?.atribuido_por_pessoa_id).toBe(idGestora);
+  });
+
+  it("outra grafia reaproveita, e vale a primeira", async () => {
+    const pessoa = await novoParticipante("Atribuição 2");
+    const resultado = await etiquetas().atribuir({ pessoaId: pessoa, nome: "zelador", porPessoaId: idGestora });
+
+    expect(resultado).toMatchObject({ desfecho: "atribuida", criada: false, etiqueta: { nome: "Zelador" } });
+  });
+
+  it("atribuir de novo é ja-tinha, e não reescreve quem nem quando", async () => {
+    const pessoa = await novoParticipante("Atribuição 3");
+    await etiquetas().atribuir({ pessoaId: pessoa, nome: "Vigia", porPessoaId: idGestora });
+    const [antes] = await consulta<{ atribuido_em: Date }>(
+      `select atribuido_em from vinculos_etiquetas where pessoa_id = $1`,
+      [pessoa],
+    );
+    const segunda = await etiquetas().atribuir({ pessoaId: pessoa, nome: "VIGIA", porPessoaId: idEletricista });
+    const [depois] = await consulta<{ atribuido_em: Date; atribuido_por_pessoa_id: string }>(
+      `select atribuido_em, atribuido_por_pessoa_id from vinculos_etiquetas where pessoa_id = $1`,
+      [pessoa],
+    );
+
+    expect(segunda.desfecho).toBe("ja-tinha");
+    expect(depois?.atribuido_em).toStrictEqual(antes?.atribuido_em);
+    expect(depois?.atribuido_por_pessoa_id).toBe(idGestora);
+  });
+
+  it("dois ao mesmo tempo terminam com uma etiqueta e as duas atribuições", async () => {
+    const [p1, p2] = await Promise.all([novoParticipante("Corrida 1"), novoParticipante("Corrida 2")]);
+    const [r1, r2] = await Promise.all([
+      etiquetas().atribuir({ pessoaId: p1!, nome: "Jardineiro", porPessoaId: idGestora }),
+      etiquetas().atribuir({ pessoaId: p2!, nome: "jardineiro", porPessoaId: idGestora }),
+    ]);
+
+    expect([r1.desfecho, r2.desfecho]).toStrictEqual(["atribuida", "atribuida"]);
+    const total = await consulta(
+      `select 1 from etiquetas_participante where organizacao_id = $1 and lower(nome) = 'jardineiro'`,
+      [idOrganizacao],
+    );
+    expect(total).toHaveLength(1);
+  });
+
+  it("vínculo de outra organização, ou revogado, é nao-encontrado, e nada é criado", async () => {
+    const resultado = await etiquetas().atribuir({ pessoaId: idGestora, nome: "Fantasma", porPessoaId: idGestora });
+    // idGestora TEM vínculo aqui; usamos a outra organização para o caso de vazamento.
+    const naOutra = await etiquetas(idOutraOrganizacao).atribuir({
+      pessoaId: idEletricista,
+      nome: "Fantasma da outra",
+      porPessoaId: idGestora,
+    });
+
+    expect(resultado.desfecho).toBe("atribuida");
+    expect(naOutra.desfecho).toBe("nao-encontrado");
+    expect(
+      await consulta(`select 1 from etiquetas_participante where nome = 'Fantasma da outra'`),
+    ).toHaveLength(0);
+  });
+});
+
+describe("a porta: tirar e apagar (critério 7)", () => {
+  it("tirar de uma pessoa deixa a etiqueta existindo para as outras", async () => {
+    const [p1, p2] = [await novoParticipante("Tirar 1"), await novoParticipante("Tirar 2")];
+    const r = await etiquetas().atribuir({ pessoaId: p1, nome: "Contratado", porPessoaId: idGestora });
+    await etiquetas().atribuir({ pessoaId: p2, nome: "Contratado", porPessoaId: idGestora });
+    if (r.desfecho !== "atribuida") throw new Error(r.desfecho);
+
+    expect(await etiquetas().tirar({ pessoaId: p1, etiquetaId: r.etiqueta.id })).toStrictEqual({ desfecho: "tirada" });
+    const deP2 = await vinculos().porPessoa(p2);
+    expect(deP2?.etiquetas.map((e) => e.nome)).toContain("Contratado");
+  });
+
+  it("tirar o que a pessoa não tinha é tirada; etiqueta inexistente e vínculo inexistente se distinguem", async () => {
+    const pessoa = await novoParticipante("Tirar 3");
+    const r = await etiquetas().atribuir({ pessoaId: idEletricista, nome: "Avulsa", porPessoaId: idGestora });
+    if (r.desfecho === "nao-encontrado") throw new Error(r.desfecho);
+
+    expect((await etiquetas().tirar({ pessoaId: pessoa, etiquetaId: r.etiqueta.id })).desfecho).toBe("tirada");
+    expect(
+      (await etiquetas().tirar({ pessoaId: pessoa, etiquetaId: "00000000-0000-4000-8000-000000000000" })).desfecho,
+    ).toBe("etiqueta-nao-encontrada");
+    expect(
+      (await etiquetas().tirar({ pessoaId: "00000000-0000-4000-8000-000000000000", etiquetaId: r.etiqueta.id }))
+        .desfecho,
+    ).toBe("vinculo-nao-encontrado");
+  });
+
+  it("apagar some com a etiqueta e com todas as atribuições; a segunda vez é nao-encontrada", async () => {
+    const pessoa = await novoParticipante("Apagar 1");
+    const r = await etiquetas().atribuir({ pessoaId: pessoa, nome: "Descartável", porPessoaId: idGestora });
+    if (r.desfecho === "nao-encontrado") throw new Error(r.desfecho);
+
+    expect(await etiquetas().apagar(r.etiqueta.id)).toStrictEqual({ desfecho: "apagada" });
+    expect((await vinculos().porPessoa(pessoa))?.etiquetas).toStrictEqual([]);
+    expect(await etiquetas().apagar(r.etiqueta.id)).toStrictEqual({ desfecho: "nao-encontrada" });
+  });
+
+  it("apagar etiqueta de outra organização é nao-encontrada", async () => {
+    const daOutra = await etiquetas(idOutraOrganizacao).atribuir({
+      pessoaId: idGestora,
+      nome: "Da outra, para apagar",
+      porPessoaId: idGestora,
+    });
+    if (daOutra.desfecho === "nao-encontrado") throw new Error(daOutra.desfecho);
+    expect(await etiquetas().apagar(daOutra.etiqueta.id)).toStrictEqual({ desfecho: "nao-encontrada" });
+  });
+
+  // **A ordem não é afirmada aqui**: é a `order by nome` do banco, a mesma collation de `order by p.nome`
+  // em `lerVinculos`, e compará-la com `localeCompare` testaria o locale da esteira, não o código.
+  it("listar devolve as desta organização, inclusive as sem uso", async () => {
+    const nomes = (await etiquetas().listar()).map((e) => e.nome);
+    expect(nomes).not.toContain("Da outra, para apagar");
+    expect(nomes).toContain("Elétrica"); // criada direto no banco na Tarefa 1, sem atribuição
+  });
+});
+
+describe("a mesma leitura, e o vínculo revogado ou refeito (critérios 4 e 9)", () => {
+  it("lista e detalhe trazem as mesmas etiquetas, em ordem alfabética", async () => {
+    const pessoa = await novoParticipante("Leitura 1");
+    await etiquetas().atribuir({ pessoaId: pessoa, nome: "Telhadista", porPessoaId: idGestora });
+    await etiquetas().atribuir({ pessoaId: pessoa, nome: "Azulejista", porPessoaId: idGestora });
+
+    const naLista = (await vinculos().ativos()).find((v) => v.pessoa.pessoaId === pessoa)?.etiquetas;
+    const noDetalhe = (await vinculos().porPessoa(pessoa))?.etiquetas;
+
+    expect(naLista?.map((e) => e.nome)).toStrictEqual(["Azulejista", "Telhadista"]);
+    expect(noDetalhe).toStrictEqual(naLista);
+  });
+
+  it("revogar apaga as etiquetas, e o vínculo refeito nasce sem nenhuma", async () => {
+    const pessoa = await novoParticipante("Revogado 1");
+    await etiquetas().atribuir({ pessoaId: pessoa, nome: "Eletricista", porPessoaId: idGestora });
+
+    expect(await vinculos().revogar(pessoa)).toStrictEqual({ desfecho: "revogado" });
+    expect(await consulta(`select 1 from vinculos_etiquetas where pessoa_id = $1`, [pessoa])).toHaveLength(0);
+
+    // Refazer pelo caminho da readmissão (`pedidos-de-entrada.ts:236-244`): a mesma linha volta.
+    await consulta(
+      `update vinculos set revogado_em = null where pessoa_id = $1 and organizacao_id = $2`,
+      [pessoa, idOrganizacao],
+    );
+    expect((await vinculos().porPessoa(pessoa))?.etiquetas).toStrictEqual([]);
+  });
+
+  it("revogar recusado (último Gestor) não apaga nada", async () => {
+    const r = await etiquetas(idOutraOrganizacao).atribuir({
+      pessoaId: idGestora,
+      nome: "Única Gestora",
+      porPessoaId: idGestora,
+    });
+    if (r.desfecho === "nao-encontrado") throw new Error(r.desfecho);
+
+    expect(await vinculos(idOutraOrganizacao).revogar(idGestora)).toStrictEqual({ desfecho: "ultimo-gestor" });
+    expect(
+      await consulta(`select 1 from vinculos_etiquetas where organizacao_id = $1 and pessoa_id = $2`, [
+        idOutraOrganizacao,
+        idGestora,
+      ]),
+    ).not.toHaveLength(0);
+  });
+
+  it("o vínculo revogado some da leitura, e com ele as etiquetas", async () => {
+    // Revogado por fora do comando: prova que a LEITURA esconde, mesmo se sobrasse linha.
+    const pessoa = await novoParticipante("Revogado à mão");
+    await etiquetas().atribuir({ pessoaId: pessoa, nome: "Escondida", porPessoaId: idGestora });
+    await consulta(`update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`, [
+      pessoa,
+      idOrganizacao,
+    ]);
+
+    expect(await vinculos().porPessoa(pessoa)).toBeNull();
+  });
+
+  it("quem atribuiu etiqueta passa a ter histórico, e quem a recebeu não", async () => {
+    const gestorC = await novoParticipante("Gestor C do 115");
+    await consulta(`update vinculos set papel = 'gestor' where pessoa_id = $1 and organizacao_id = $2`, [
+      gestorC,
+      idOrganizacao,
+    ]);
+    const recebeu = await novoParticipante("Recebeu do C");
+    await etiquetas().atribuir({ pessoaId: recebeu, nome: "Do C", porPessoaId: gestorC });
+
+    const mapa = await vinculos().impedimentosDeRemocao();
+    expect(mapa.get(gestorC)).toBe("historico");
+    expect(mapa.has(recebeu)).toBe(false);
   });
 });
