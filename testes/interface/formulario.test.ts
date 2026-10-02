@@ -806,6 +806,21 @@ describe("o alcance do 44k — as duas listas de ordem manual", () => {
     expect(fonte).not.toMatch(/<VagaDeArrasto\b/u);
   });
 
+  it("uma tabela só em toda largura, e as ações descem para a célula do nome abaixo de md (item 112)", () => {
+    const fonte = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+    // 44k: a pauta seria o segundo mecanismo de mover. O hub recusou também a segunda `<tr>` por item.
+    expect(fonte).not.toMatch(/<ul\b|<li\b/u);
+    // As mesmas ações, escritas uma vez e desenhadas duas: na célula do nome e na coluna própria.
+    expect(fonte.match(/\{acoesDaLinha\(/gu)).toHaveLength(2);
+    expect(fonte).toContain('"hidden px-3.5 py-1.5 text-right md:table-cell"');
+    // *No formulário* e o selo nascem em `xl`, e o resumo aparece sempre que eles não aparecem.
+    expect(fonte).toContain('"hidden w-[160px] xl:table-cell"');
+    expect(fonte).toContain("text-meta text-tinta-suave block xl:hidden");
+    // A Ordem em 48 px, o remédio declarado do 44k.
+    expect(fonte).not.toContain("w-[72px]");
+    expect(ler("src/interface/componentes/tabela-de-areas.tsx")).toContain('"hidden w-[180px] xl:table-cell"');
+  });
+
   it("a ordem manual não trouxe dependência nova (critério 44k.2)", () => {
     for (const caminho of [
       "src/interface/componentes/lista-de-ordem-manual.tsx",
