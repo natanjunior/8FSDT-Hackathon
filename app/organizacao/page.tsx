@@ -26,9 +26,9 @@ import { projetarContexto } from "@/interface/projecoes";
  * **As quatro primeiras são para quem não tem organização ativa.** A face **C** (pedido recusado) é
  * alcançável desde o item 8, que é quem produz `situacao: "recusado"`.
  *
- * **A quinta é a face E, e é o avesso das outras: ela só existe COM organização ativa** (item 7b). O que
- * ela entrega é o caminho que faltava para a Persona 1B: pedir entrada em outra organização **sem sair da
- * que se está**.
+ * **A quinta é a face E, e é o avesso das outras: ela existe COM organização ativa** (item 7b) e, desde o
+ * item 116, também sem ela, para quem tem vínculo. O que ela entrega é o caminho que faltava para a
+ * Persona 1B: pedir entrada em outra organização **sem sair da que se está**.
  *
  * **Desde o item 44o as cinco estão na moldura das telas fora da casca**, e **criar organização saiu
  * daqui**: virou a tela `/organizacao/criar`, alcançada pela outra porta da face A. Até o
@@ -68,6 +68,14 @@ export default async function TelaSemOrganizacaoAtiva({
       );
     }
     redirect("/");
+  }
+
+  // **Sem organização ativa, a face E também existe** (item 116, critério 11), para quem tem vínculo: é a
+  // porta da face D, a de quem participa de duas ou mais e ainda não escolheu. Sem vínculo nenhum o
+  // parâmetro continua ignorado — a face A já tem o formulário do código, e as faces B e C têm razão
+  // própria para não o oferecer.
+  if (querEntrarEmOutra && contexto.vinculos.length > 0) {
+    return <FaceE organizacaoAtiva={null} vinculos={contexto.vinculos} pedidos={contexto.pedidosDeEntrada} />;
   }
 
   // **Pendente ganha de tudo — para quem não tem vínculo nenhum.** Quem tem pedido em andamento não deve
@@ -216,6 +224,9 @@ function FaceC({ nome, organizacao }: { nome: string; organizacao: string }) {
  * vínculos e um pedido pendente não cai na face B, então esta é a única tela em que ele ainda pode ser
  * visto antes de entrar em alguma organização — e é por isso que *"a resposta aparece aqui"* é
  * literalmente verdade.
+ *
+ * **A porta para uma terceira organização** (item 116): a mesma de T-10 e do menu da pessoa, e a face E a
+ * recebe sem organização ativa.
  */
 function FaceD({
   vinculos,
@@ -228,7 +239,14 @@ function FaceD({
     <MolduraDeConta
       titulo="Em qual organização você quer trabalhar?"
       contexto="Dá para trocar depois, pelo nome no alto da tela."
-      caminhos={<CaminhoDeSair />}
+      caminhos={
+        <>
+          <Link href="/organizacao?entrar-em-outra=true" className={CLASSE_DO_CAMINHO}>
+            Entrar em outra organização
+          </Link>
+          <CaminhoDeSair />
+        </>
+      }
     >
       <EscolhaDeOrganizacao vinculos={vinculos} />
 
@@ -263,6 +281,9 @@ function FaceD({
  * **O formulário NÃO some quando há pedido pendente**, e é a diferença explícita para a face A: o banco
  * permite um pedido pendente **por organização**, e a síndica que administra três prédios pede aos três.
  *
+ * **Existe também sem organização ativa** desde o item 116, vinda da face D: a linha de fato não tem nome
+ * a citar, e o *Voltar* vai para `/organizacao`, que devolve a escolha.
+ *
  * **O *Voltar* vai para `/`, e não para `/ocorrencias`.** `/` é o losango: ele reresolve o contexto e
  * despacha. Mandar para T-03 trancaria o Encarregado, que não tem T-03 — e é justamente ele que chega
  * aqui pelo caminho de T-10.
@@ -272,7 +293,7 @@ function FaceE({
   vinculos,
   pedidos,
 }: {
-  organizacaoAtiva: { id: string; nome: string; codigoPublico: string };
+  organizacaoAtiva: { nome: string } | null;
   vinculos: ReadonlyArray<{ organizacaoId: string; nome: string; papel: string; codigoPublico: string }>;
   pedidos: ReadonlyArray<{ id: string; organizacao: { nome: string }; situacao: string; criadoEm: string }>;
 }) {
@@ -280,14 +301,19 @@ function FaceE({
     <MolduraDeConta
       titulo="Entrar em outra organização"
       contexto={
-        // É a frase que o critério 7b.1 exige em palavras: *"o vínculo em A não é tocado"*.
-        <>
-          Você continua em <NomeDaOrganizacao>{organizacaoAtiva.nome}</NomeDaOrganizacao>. Pedir entrada em
-          outra não tira você daqui.
-        </>
+        organizacaoAtiva === null ? (
+          "Pedir entrada em outra não tira você das organizações em que já participa."
+        ) : (
+          // É a frase que o critério 7b.1 exige em palavras: *"o vínculo em A não é tocado"*.
+          <>
+            Você continua em <NomeDaOrganizacao>{organizacaoAtiva.nome}</NomeDaOrganizacao>. Pedir entrada em
+            outra não tira você daqui.
+          </>
+        )
       }
       caminhos={
-        <Link href="/" className={CLASSE_DO_CAMINHO}>
+        // Sem organização ativa, `/` devolveria a `/organizacao` de qualquer jeito; o caminho é direto.
+        <Link href={organizacaoAtiva === null ? "/organizacao" : "/"} className={CLASSE_DO_CAMINHO}>
           Voltar
         </Link>
       }

@@ -22,12 +22,14 @@ info:
        listagem de **vínculos**.
     4. **A trilha é só de leitura.** Não existe `POST`, `PATCH` nem `DELETE` de registro de transição —
        ele nasce como efeito de um comando.
-    5. **Quase nada é apagado, e as exceções são duas.** Ocorrência não se apaga (cancela-se), categoria e
+    5. **Quase nada é apagado, e as exceções são quatro.** Ocorrência não se apaga (cancela-se), categoria e
        área não se apagam (desativam-se), mensagem não se apaga, registro de transição não se apaga.
        `DELETE /vinculos/{pessoaId}` remove um vínculo **sem histórico**, e quem delimita a exceção é o
        `ON DELETE RESTRICT` do esquema, que recusa apagar qualquer vínculo com linha dependente.
        `DELETE /ocorrencias/{id}/compartilhamentos/{pessoaId}` desfaz um compartilhamento, que por decisão
        não tem histórico: ele diz quem pode ler a ocorrência hoje, e desfazer é tirar isso.
+       `DELETE /etiquetas-de-participante/{etiquetaId}` e `DELETE /vinculos/{pessoaId}/etiquetas/{etiquetaId}`
+       apagam um rótulo de gestão, que não tem histórico.
 
     ## Antes de clicar em *Try it out*
 
@@ -809,6 +811,8 @@ paths:
                     temConta: false
                     criadoEm: "2026-08-20T12:05:00Z"
                     atualizadoEm: null
+                    etiquetas:
+                      - { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }
                   - pessoa:
                       pessoaId: "8f14e45f-ceea-467a-9f1e-3a1b2c4d5e6f"
                       nome: "Síndica do Recanto Azul"
@@ -818,6 +822,7 @@ paths:
                     temConta: true
                     criadoEm: "2026-08-20T12:00:00Z"
                     atualizadoEm: "2026-09-18T09:30:00Z"
+                    etiquetas: []
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
@@ -958,8 +963,8 @@ paths:
       summary: Remover um vínculo que ainda não tem histórico
       description: |
         Desfaz um vínculo criado com o **papel errado** — por aprovação de pedido de entrada ou por
-        cadastro direto. É um dos **dois `DELETE` do contrato**, e a licença é estreita de propósito: o
-        outro desfaz um compartilhamento, que não tem histórico nenhum a preservar.
+        cadastro direto. É um dos **quatro `DELETE` do contrato**, e a licença é estreita de propósito: os
+        outros desfazem um compartilhamento ou apagam uma etiqueta, que não têm histórico nenhum a preservar.
 
         **Só remove vínculo sem nenhuma linha dependente.** Se a pessoa já registrou ocorrência, foi
         responsável, escreveu mensagem ou autorou uma transição, a resposta é `409
@@ -1036,6 +1041,9 @@ paths:
         VINCULO_COM_HISTORICO`. **A linha fica**: revogar é um `PATCH`, e por isso o compartilhamento que a
         pessoa recebeu sobrevive à revogação e volta a valer na readmissão.
 
+        **As etiquetas saem.** Ao contrário do compartilhamento, o vínculo readmitido volta sem nenhuma
+        etiqueta.
+
         **Não revoga o último Gestor**, pela mesma razão e com a mesma resposta do `DELETE`.
 
         **Revogado não é definitivo.** Quem tem conta pode pedir entrada de novo; aprovado o pedido, o
@@ -1071,6 +1079,140 @@ paths:
                 detail: "Aprove outra pessoa como Gestor antes de remover este vínculo."
                 codigo: "ULTIMO_GESTOR"
                 traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /etiquetas-de-participante:
+    get:
+      tags: [Vínculos]
+      operationId: listarEtiquetasDeParticipante
+      summary: As etiquetas de participante da organização
+      description: |
+        Todas as etiquetas desta organização, em ordem alfabética e inclusive as que ninguém tem. É o que o
+        autocompletar sugere e o que a gerência lista.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      responses:
+        "200":
+          description: As etiquetas da organização.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itens]
+                properties:
+                  itens:
+                    type: array
+                    items: { $ref: "#/components/schemas/EtiquetaDeParticipante" }
+              example:
+                itens:
+                  - { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /etiquetas-de-participante/{etiquetaId}:
+    delete:
+      tags: [Vínculos]
+      operationId: apagarEtiquetaDeParticipante
+      summary: Apagar uma etiqueta
+      description: |
+        Apaga a etiqueta, e ela sai de todas as pessoas que a tinham. Não há renomear nem fundir.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/EtiquetaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "204":
+          description: Etiqueta apagada.
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: A etiqueta não existe nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/etiqueta-nao-encontrada", title: "Etiqueta não encontrada", status: 404, codigo: "ETIQUETA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/etiquetas:
+    post:
+      tags: [Vínculos]
+      operationId: atribuirEtiqueta
+      summary: Etiquetar um participante
+      description: |
+        Dá uma etiqueta a um participante. Se a grafia é nova, a etiqueta nasce aqui; se já existe uma igual
+        sem distinguir maiúscula, ela é reaproveitada e vale a grafia da primeira vez. Acento conta.
+
+        `201` quando a pessoa ganhou a etiqueta agora. `200` quando já a tinha, e então quem atribuiu e
+        quando continuam os da primeira vez.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 30, description: "Aparado antes de contar." }
+            example: { nome: "Eletricista" }
+      responses:
+        "201":
+          description: A pessoa ganhou a etiqueta.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: true }
+        "200":
+          description: A pessoa já tinha a etiqueta. Nada mudou.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: false }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/etiquetas/{etiquetaId}:
+    delete:
+      tags: [Vínculos]
+      operationId: tirarEtiqueta
+      summary: Tirar uma etiqueta de um participante
+      description: |
+        Tira a etiqueta desta pessoa. A etiqueta continua existindo para as outras. Tirar o que a pessoa não
+        tinha é `204`, como tirar de novo.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/EtiquetaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "204":
+          description: A pessoa não tem mais a etiqueta.
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa (`VINCULO_NAO_ENCONTRADO`), ou a etiqueta não existe nesta organização (`ETIQUETA_NAO_ENCONTRADA`).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/etiqueta-nao-encontrada", title: "Etiqueta não encontrada", status: 404, codigo: "ETIQUETA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /categorias:
@@ -3109,6 +3251,11 @@ components:
       required: true
       description: A Pessoa é endereçada **através do vínculo**, dentro da organização ativa. Não existe endereço global de Pessoa.
       schema: { type: string, format: uuid }
+    EtiquetaId:
+      name: etiquetaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     CategoriaId:
       name: categoriaId
       in: path
@@ -3775,7 +3922,7 @@ components:
     Vinculo:
       type: object
       description: A ligação entre uma Pessoa, um Papel e uma Organização. É a ponte entre o global e o escopado.
-      required: [pessoa, papel, temConta, criadoEm, atualizadoEm]
+      required: [pessoa, papel, temConta, criadoEm, atualizadoEm, etiquetas]
       properties:
         pessoa: { $ref: "#/components/schemas/PessoaComContato" }
         papel: { $ref: "#/components/schemas/PapelVinculo" }
@@ -3808,6 +3955,29 @@ components:
 
             **O relógio da Pessoa é global.** Quem troca o próprio nome move esta data em toda
             organização onde participa, e a resposta não diz quem mexeu.
+        etiquetas:
+          type: array
+          description: Em ordem alfabética. Lista vazia quando não há nenhuma.
+          items: { $ref: "#/components/schemas/EtiquetaDeParticipante" }
+
+    EtiquetaDeParticipante:
+      type: object
+      description: |
+        Rótulo livre que o Gestor dá a um participante. Não é Papel, que define permissão, nem Categoria,
+        que tipifica a ocorrência. Só aparece para quem gere vínculos.
+      required: [id, nome]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string, minLength: 1, maxLength: 30 }
+
+    AtribuicaoDeEtiqueta:
+      type: object
+      required: [etiqueta, criada]
+      properties:
+        etiqueta: { $ref: "#/components/schemas/EtiquetaDeParticipante" }
+        criada:
+          type: boolean
+          description: "`true` quando a etiqueta nasceu nesta chamada; `false` quando foi reaproveitada."
 
     IconeCategoria:
       type: string

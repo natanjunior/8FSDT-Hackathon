@@ -267,6 +267,8 @@ hora estão na referência.
   pedido de entrada, por código ou por link.
 - **Enviar contatos substitui a lista inteira**, e não há endereço próprio de contato.
 - **Um pedido de entrada recusado pode ser refeito**: a unicidade vale enquanto ele está pendente.
+- **A etiqueta de participante só aparece para quem gere vínculos.** Ela desce com a lista de participantes
+  e com a escolha do responsável, e nenhuma resposta de ocorrência a carrega.
 - **Não há endereço para registrar que alguém abriu uma ocorrência.** A primeira abertura é estado de
   quem lê, invisível para quem compartilhou, e a própria tela a grava. Nenhuma leitura da API tem efeito
   colateral.

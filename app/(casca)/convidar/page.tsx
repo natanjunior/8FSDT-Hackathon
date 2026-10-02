@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
-import { ExibicaoDeCodigo } from "@/interface/componentes/campo-de-codigo";
 import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
+import { CodigoComCopia } from "@/interface/componentes/codigo-da-organizacao";
 import { LinkDoConvite } from "@/interface/componentes/link-do-convite";
 import { QrDoLink } from "@/interface/componentes/qr";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
@@ -61,7 +61,7 @@ export default async function ConvidarPessoas() {
       <Cartao tituloId="codigo">
         <CabecaDoCartao id="codigo" titulo="Código da organização" apoio="Quem preferir pode digitá-lo." />
         <div className="p-[15px] md:px-6 md:py-5">
-          <ExibicaoDeCodigo codigo={organizacao.codigoPublico} rotulo="Código da organização" />
+          <CodigoComCopia codigo={organizacao.codigoPublico} />
         </div>
       </Cartao>
     </div>

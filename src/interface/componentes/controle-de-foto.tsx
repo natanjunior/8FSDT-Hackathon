@@ -54,12 +54,20 @@ import {
  * local, `aria-hidden`, parada sob movimento reduzido. **O que o compromisso A-5 exige é a palavra, e ela
  * está lá** — *"Enviando a foto"* mais *"Você pode continuar escrevendo."*
  */
-type Situacao =
+export type Situacao =
   | { nome: "vazio" }
   | { nome: "comprimindo" }
   | { nome: "enviando"; previa: string }
   | { nome: "pronta"; previa: string }
   | { nome: "erro"; mensagem: string };
+
+/**
+ * **A recusa que a tela mostra, uma só** (critério 116.5). A local é a mais nova — veio da escolha que a
+ * pessoa acabou de fazer — e ganha do erro que o `POST` devolveu sobre a foto.
+ */
+export function recusaDaFoto(situacao: Situacao, doServidor: string | undefined): string | undefined {
+  return situacao.nome === "erro" ? situacao.mensagem : doServidor;
+}
 
 const ACEITOS = "image/*";
 
@@ -243,6 +251,7 @@ export function ControleDeFoto({
 
   const subindo = situacao.nome === "comprimindo" || situacao.nome === "enviando";
   const previa = "previa" in situacao ? situacao.previa : null;
+  const recusa = recusaDaFoto(situacao, erro);
 
   const palavra =
     situacao.nome === "comprimindo"
@@ -251,9 +260,7 @@ export function ControleDeFoto({
         ? { titulo: FOTO.subindoTitulo, apoio: FOTO.subindoApoio }
         : situacao.nome === "pronta"
           ? { titulo: FOTO.prontaTitulo, apoio: FOTO.prontaApoio }
-          : situacao.nome === "erro"
-            ? { titulo: situacao.mensagem, apoio: "" }
-            : null;
+          : null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -280,7 +287,7 @@ export function ControleDeFoto({
         }}
       />
 
-      {previa === null && situacao.nome !== "erro" ? (
+      {previa === null ? (
         /* **O alvo grande, e ele é o `Button` do catálogo** (critério 6). A altura é própria: é o
            primeiro alvo da tela, e a prancheta o desenha ocupando a largura inteira.
            A zona de soltar e a ficha do arquivo têm o raio de cartão: são regiões que recebem conteúdo, e
@@ -336,7 +343,7 @@ export function ControleDeFoto({
                 <div className="bg-marca h-full w-2/5 rounded-full motion-safe:animate-pulse" />
               </div>
             ) : null}
-            {palavra !== null && palavra.apoio !== "" && (
+            {palavra !== null && (
               <p className="text-meta text-tinta-suave">{palavra.apoio}</p>
             )}
           </div>
@@ -368,12 +375,13 @@ export function ControleDeFoto({
         </div>
       )}
 
-      {erro !== undefined && (
-        /* **A-5: texto, nunca só cor.** E fica logo abaixo do campo, porque com o teclado aberto sobra
-           metade da tela e o campo, o rótulo e o erro têm de caber juntos acima dele (achado P-02). */
+      {recusa !== undefined && (
+        /* **A-5: texto, nunca só cor**, e logo abaixo do alvo, porque com o teclado aberto sobra metade da
+           tela (achado P-02). **A recusa local mora aqui desde o item 116**: antes ela tomava o lugar do
+           alvo grande, em tinta normal, numa região `status` que nascia junto com o texto e não falava. */
         <p role="alert" className="text-destructive text-meta flex items-center gap-1.5 font-medium">
           <CircleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
-          <span>{erro}</span>
+          <span>{recusa}</span>
         </p>
       )}
     </div>

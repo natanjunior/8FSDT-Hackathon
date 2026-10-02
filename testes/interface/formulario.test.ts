@@ -939,6 +939,39 @@ describe("o alcance do 44l — T-04 com a área que se busca", () => {
     expect(ler("src/interface/componentes/ui/dialog.tsx").match(/\{\.\.\.\{ \[SAI_SEM_ACUSAR\]: "" \}\}/gu)).toHaveLength(1);
   });
 
+  it("o envio recusado diz quantos campos faltam, numa região que já existe — critério 116.6", async () => {
+    const { fraseDoQueFalta } = await import("@/interface/componentes/registro-de-ocorrencia");
+    expect(fraseDoQueFalta(0)).toBeNull();
+    expect(fraseDoQueFalta(1)).toBe("Falta 1 campo.");
+    expect(fraseDoQueFalta(4)).toBe("Faltam 4 campos.");
+
+    const campo = ler("src/interface/componentes/campo.tsx");
+    // A região nasce com o rodapé, vazia, e é alerta: a inserção do texto é anunciada.
+    expect(campo).toMatch(/faltando !== undefined && \(\s*<p role="alert"/u);
+
+    const registro = ler("src/interface/componentes/formulario-de-ocorrencia.tsx");
+    expect(registro).toContain("faltando={tentou ? fraseDoQueFalta(");
+    // A marca da tentativa vem antes de `tentarEnviar`, que a confirma junto com os erros, antes do foco.
+    expect(registro.indexOf("setTentou(true)")).toBeLessThan(registro.indexOf("formulario.tentarEnviar(erros)"));
+  });
+
+  it("a foto recusada mantém o alvo grande, e a recusa é erro anunciado — critério 116.5", async () => {
+    const { recusaDaFoto } = await import("@/interface/componentes/controle-de-foto");
+    // Uma linha só: a recusa local, que é a mais nova, ganha do erro do POST.
+    expect(recusaDaFoto({ nome: "erro", mensagem: "Grande demais" }, "Do servidor")).toBe("Grande demais");
+    expect(recusaDaFoto({ nome: "vazio" }, "Do servidor")).toBe("Do servidor");
+    expect(recusaDaFoto({ nome: "vazio" }, undefined)).toBeUndefined();
+
+    const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
+    // O alvo grande aparece sempre que não há prévia, com recusa ou sem.
+    expect(fonte).toContain("{previa === null ? (");
+    expect(fonte).not.toContain('previa === null && situacao.nome !== "erro"');
+    // A recusa sai da ficha: a frase da ficha não leva mais a mensagem de erro.
+    expect(fonte).not.toContain("titulo: situacao.mensagem");
+    // E desce para a linha de erro, a única com `role="alert"` no arquivo.
+    expect(fonte.match(/role="alert"/gu) ?? []).toHaveLength(1);
+  });
+
   it("a foto mantém a palavra junto da barra — compromisso A-5 (critério 44l.2)", () => {
     const fonte = ler("src/interface/componentes/controle-de-foto.tsx");
     expect(fonte).toContain('role="status"');
@@ -1318,17 +1351,21 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(fonte).toContain("<CaminhoDeSair />");
   });
 
-  it("a face E tem duas portas, e nenhuma é o seletor de organização (critério 44o.14)", () => {
+  it("a face E tem três portas, e nenhuma é o seletor de organização (critérios 44o.14 e 116.11)", () => {
     // **O achado A3 da spec:** desde o 44b o único produtor deste endereço era o menu de organização de
     // T-10, e só o Encarregado cai em T-10. Esta guarda impede que ele volte a ter uma porta só — ou
     // nenhuma.
     const produtores = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
       ler(caminho).includes("entrar-em-outra=true"),
     );
-    expect(produtores).toStrictEqual([
-      "app/page.tsx",
-      "src/interface/componentes/casca/menu-de-pessoa.tsx",
-    ]);
+    expect([...produtores].sort()).toStrictEqual(
+      ["app/organizacao/page.tsx", "app/page.tsx", "src/interface/componentes/casca/menu-de-pessoa.tsx"].sort(),
+    );
+    // A face D é de quem não tem organização ativa: a face E passa a recebê-la sem ela.
+    const pagina = ler("app/organizacao/page.tsx");
+    expect(pagina).toContain("querEntrarEmOutra && contexto.vinculos.length > 0");
+    expect(pagina).toContain("organizacaoAtiva={null}");
+    expect(pagina).toContain("Pedir entrada em outra não tira você das organizações em que já participa.");
     // O seletor é `select` pelo critério 44b.4, e uma opção que não é um valor desfaria aquela decisão.
     expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toContain(
       "Entrar em outra organização",
@@ -2386,8 +2423,9 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).toContain('<ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />');
     expect(fonte).toContain("Selecione e copie:");
     expect(fonte).not.toContain("Selecione o código e copie.");
-    // O `select-all` existe uma vez, e é o do texto que só aparece na falha.
-    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(1);
+    // O `select-all` existe uma vez por peça, e é o do texto que só aparece na falha: a de T-15 e, desde o
+    // item 116, a `CodigoComCopia` de `/convidar`.
+    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(2);
     expect(fonte).not.toContain("gruposDoCodigo");
   });
 
@@ -2787,6 +2825,41 @@ describe("o recibo de cada ação — item 103", () => {
     }
   });
 
+  it("a redefinição enviada troca o cabeçalho e mostra o endereço (critério 116.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-redefinicao.tsx");
+    expect(formulario).toContain("<CartaoDaTela");
+    expect(formulario).toContain('titulo="Confira o seu e-mail"');
+    expect(formulario).toContain("Se existe uma conta com");
+    expect(formulario).toContain("enviamos o link para ela. Confira também o spam.");
+    // O endereço quebra em qualquer ponto: um e-mail longo não empurra a página no celular.
+    expect(formulario).toMatch(/<strong className="[^"]*\bbreak-all\b[^"]*">\{enviadoPara\}<\/strong>/u);
+    // Sem o corpo antigo, que repetia o título com um envelope.
+    expect(formulario).not.toContain("<EmptyTitle");
+    expect(ler("app/redefinir-senha/page.tsx")).toContain("cartao={<FormularioDeRedefinicao");
+    expect(ler("src/interface/componentes/moldura-de-conta.tsx")).toContain("export function CartaoDaTela(");
+  });
+
+  it("/definir-senha sem recuperação diz por que mandou para a porta, e o fim feliz não (critério 116.10)", () => {
+    const pagina = ler("app/definir-senha/page.tsx");
+    expect(pagina).toContain('"/entrar?redefinicao=encerrada"');
+    expect(pagina).toContain("concluiuAgora()");
+    expect(pagina).not.toMatch(/redirect\("\/entrar"\);/u);
+
+    const pote = ler("src/interface/http/redefinicao-de-senha.ts");
+    // A marca mora fora do prefixo: com ele, `emCurso()` a leria como recuperação em curso.
+    expect(pote).toContain('const MARCA_DE_CONCLUSAO = "resolveai_senha_alterada"');
+    expect("resolveai_senha_alterada".startsWith("resolveai_redefinicao_")).toBe(false);
+
+    const entrada = ler("src/interface/componentes/formulario-de-entrada.tsx");
+    expect(entrada).toContain("Este link de senha não vale mais.");
+    expect(entrada).toContain('href="/redefinir-senha"');
+    expect(entrada).toContain("Pedir um novo link");
+
+    const acoes = ler("src/interface/acoes/index.ts");
+    const definir = acoes.slice(acoes.indexOf("export async function acaoDeDefinirSenha"));
+    expect(definir.slice(0, definir.indexOf("return { concluido: true }"))).toContain("armazenamento.concluir()");
+  });
+
   it("cada espera nasce na forma da tela que vem (critério 103.5)", () => {
     // T-01 tem a coluna de apresentação a partir de `lg`; a tela de criar tem o convite à esquerda.
     expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
@@ -2796,6 +2869,19 @@ describe("o recibo de cada ação — item 103", () => {
     // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
     expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
     expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
+    // **A apresentação vale para as quatro telas de conta** (critério 116.1), na tela e na espera.
+    for (const pasta of ["entrar", "criar-conta", "redefinir-senha", "definir-senha"]) {
+      expect(ler(`app/${pasta}/loading.tsx`), pasta).toContain("<EsperaDaMolduraDeConta apresentacao>");
+      const pagina = ler(`app/${pasta}/page.tsx`);
+      const molduras = pagina.match(/<MolduraDeConta\b[^>]*>/gu) ?? [];
+      expect(molduras.length, pasta).toBeGreaterThan(0);
+      for (const moldura of molduras) expect(moldura, pasta).toMatch(/\bapresentacao\b/u);
+    }
+    // **Uma marca só** (critério 116.13): a apresentação não desenha a dela, e nenhuma se esconde por largura.
+    const moldura = ler("src/interface/componentes/moldura-de-conta.tsx");
+    const apresentacao = moldura.slice(moldura.indexOf("function Apresentacao"));
+    expect(apresentacao).not.toContain("<MarcaDoProduto");
+    expect(moldura).not.toMatch(/<MarcaDoProduto[^>]*lg:hidden/u);
   });
 
   it("a geometria das duas colunas é escrita uma vez, e a espera a usa (critério 103.5)", () => {
@@ -2972,5 +3058,20 @@ describe("o 105 — o laranja volta a marcar uma coisa só", () => {
     const classe = /export const CLASSE_DO_CAMINHO =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
     expect(classe.split(" ")).toContain("text-tinta-marca");
     expect(classe.split(" ")).toContain("underline");
+  });
+});
+
+describe("uma falha, uma mensagem — critério 116.9", () => {
+  it("as quatro telas de conta não dão aviso flutuante na falha, e os dois desfechos continuam", () => {
+    for (const caminho of [
+      "src/interface/componentes/formulario-de-entrada.tsx",
+      "src/interface/componentes/formulario-de-cadastro.tsx",
+      "src/interface/componentes/formulario-de-redefinicao.tsx",
+      "src/interface/componentes/formulario-de-nova-senha.tsx",
+    ]) {
+      expect(ler(caminho), caminho).not.toContain("avisarErro(");
+    }
+    expect(ler("src/interface/componentes/formulario-de-cadastro.tsx")).toContain('avisarSucesso("Conta criada")');
+    expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha alterada"');
   });
 });

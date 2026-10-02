@@ -106,4 +106,6 @@ export {
   type EntradaDePedidoDeAutorizacao,
 } from "./anexo";
 
+export { atribuicaoDeEtiquetaSchema, type EntradaDeAtribuicaoDeEtiqueta } from "./etiqueta";
+
 export { errosDoSchema, mensagensPorCampo } from "./violacoes";

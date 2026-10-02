@@ -11,6 +11,7 @@ import {
 } from "@/interface/componentes/busca-de-candidatos";
 import { ErroDoFormulario, GrupoDeEscolha } from "@/interface/componentes/campo";
 import { executarComando } from "@/interface/componentes/comando-de-ocorrencia";
+import { EtiquetasNaLinha } from "@/interface/componentes/etiquetas-na-linha";
 import { BotaoDeCancelar, BotaoDeConfirmar, Modal } from "@/interface/componentes/modal";
 import { palavrasDaAtribuicao } from "@/interface/componentes/rotulos";
 import { Button } from "@/interface/componentes/ui/button";
@@ -205,8 +206,12 @@ export function ModalDeAtribuicao({
               className={CLASSE_DO_CANDIDATO}
             >
               <span className="flex min-w-0 flex-1 flex-col">
-                {/* **Nome por extenso** — abreviar não está autorizado em documento nenhum (R-12). */}
-                <span className="text-tinta font-medium">{pessoa.nome}</span>
+                {/* **Nome por extenso** — abreviar não está autorizado em documento nenhum (R-12). As etiquetas
+                    vêm depois dele, na mesma linha, e a busca não as casa (item 115). */}
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-tinta font-medium">{pessoa.nome}</span>
+                  <EtiquetasNaLinha etiquetas={pessoa.etiquetas} />
+                </span>
                 <span className="text-tinta-suave text-meta">
                   {pessoa.papel}
                   {pessoa.area !== null && ` · ${pessoa.area}`}
@@ -344,6 +349,7 @@ export function ModalDeAtribuicao({
                 {eu.area !== null && ` · ${eu.area}`}
                 {euSouOResponsavel && " · Responsável atual"}
               </span>
+              <EtiquetasNaLinha etiquetas={eu.etiquetas} />
             </span>
           </label>
         )}

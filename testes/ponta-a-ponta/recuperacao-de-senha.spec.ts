@@ -92,9 +92,11 @@ const SENHA_NOVA = "ResolveAi!2026-depois";
 /**
  * A frase da face de sucesso de T-12. **É a mesma para conta que existe e para conta que não existe**, e
  * essa identidade é o critério 6b.1: uma tela que diferenciasse os dois casos seria um verificador de
- * quem tem conta no produto, operável por qualquer um, sem sessão.
+ * quem tem conta no produto, operável por qualquer um, sem sessão. **Ela leva o endereço desde o item 116**
+ * (critério 8), para quem errou a digitação conferir, e a forma continua a mesma nos dois casos.
  */
-const FRASE_DO_ENVIO = "Se existe uma conta com este e-mail, o link foi enviado. Confira também o spam.";
+const fraseDoEnvio = (email: string) =>
+  `Se existe uma conta com ${email}, enviamos o link para ela. Confira também o spam.`;
 
 interface ResumoDaCaixa {
   readonly messages: ReadonlyArray<{ readonly ID: string }>;
@@ -143,6 +145,14 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   await pagina.getByRole("button", { name: "Sair" }).click();
   await pagina.waitForURL(/\/entrar$/u);
 
+  // **Sem recuperação em curso, a porta diz por quê** (critério 116.10).
+  await pagina.goto(`${ORIGEM}/definir-senha`);
+  await pagina.waitForURL(/\/entrar\?redefinicao=encerrada$/u);
+  await expect(pagina.getByText("Este link de senha não vale mais.")).toBeVisible();
+  await pagina.getByRole("link", { name: "Pedir um novo link" }).click();
+  await pagina.waitForURL(/\/redefinir-senha$/u);
+  await pagina.goto(`${ORIGEM}/entrar`);
+
   await pagina.getByRole("link", { name: "Esqueci a senha" }).click();
   await pagina.waitForURL(/\/redefinir-senha$/u);
 
@@ -150,8 +160,10 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   await pagina.getByRole("button", { name: "Enviar o link" }).click();
 
   // A face de sucesso **substitui** o formulário, e a frase é a que o critério cobra.
-  await expect(pagina.getByText("Confira o seu e-mail")).toBeVisible();
-  await expect(pagina.getByText(FRASE_DO_ENVIO)).toBeVisible();
+  await expect(pagina.getByRole("heading", { name: "Confira o seu e-mail", level: 1 })).toBeVisible();
+  await expect(pagina.getByText(EMAIL)).toBeVisible();
+  await expect(pagina.getByRole("heading", { name: "Redefinir senha" })).toHaveCount(0);
+  await expect(pagina.getByText(fraseDoEnvio(EMAIL))).toBeVisible();
   cobre(test.info(), "2.3 · 1");
 
   // -------------------------------------------------------------------------
@@ -164,8 +176,10 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   await pagina.getByLabel("E-mail").fill(EMAIL_INEXISTENTE);
   await pagina.getByRole("button", { name: "Enviar o link" }).click();
 
-  await expect(pagina.getByText("Confira o seu e-mail")).toBeVisible();
-  await expect(pagina.getByText(FRASE_DO_ENVIO)).toBeVisible();
+  await expect(pagina.getByRole("heading", { name: "Confira o seu e-mail", level: 1 })).toBeVisible();
+  await expect(pagina.getByText(EMAIL_INEXISTENTE)).toBeVisible();
+  await expect(pagina.getByRole("heading", { name: "Redefinir senha" })).toHaveCount(0);
+  await expect(pagina.getByText(fraseDoEnvio(EMAIL_INEXISTENTE))).toBeVisible();
 
   // **E a caixa do endereço inexistente continua vazia.** Sem esta linha, a asserção acima provaria só
   // que as duas telas dizem a mesma coisa — e não que o produto de fato não mandou nada para um
@@ -264,6 +278,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
 
   await pagina.goto(`${ORIGEM}/definir-senha`);
   await pagina.waitForURL(/\/entrar$/u);
+  await expect(pagina.getByText("Este link de senha não vale mais.")).toHaveCount(0);
   cobre(test.info(), "2.3 · 5", { criterio: "6b.4" });
 
   // -------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 /** Superfície pública de `infraestrutura/repositorios/organizacao` (ADR-0006, regra 3). */
 export { repositorioGlobalDeVinculos } from "./vinculos-globais";
 export { repositorioEscopadoDeVinculos } from "./vinculos-escopados";
+export { repositorioEscopadoDeEtiquetas } from "./etiquetas-escopadas";
 export { repositorioDeOrganizacoes } from "./organizacoes";
 export { repositorioDeConvites } from "./convites";
 export { repositorioEscopadoDaOrganizacao } from "./organizacao-escopada";

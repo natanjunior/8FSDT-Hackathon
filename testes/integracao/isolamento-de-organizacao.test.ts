@@ -22,6 +22,7 @@ import {
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDeVinculos,
@@ -612,6 +613,22 @@ async function semear(): Promise<void> {
   );
   idPedidoRecanto = pedidos.find((p) => p.organizacao_id === idRecanto)!.id;
   idPedidoAurora = pedidos.find((p) => p.organizacao_id === idAurora)!.id;
+
+  // **Item 115.** A síndica tem vínculo nas duas, e recebe uma etiqueta em cada uma. Se a terceira
+  // consulta de `lerVinculos` partisse da junção sem `organizacao_id`, a etiqueta de Recanto apareceria
+  // nela em Aurora.
+  const etiquetasSemeadas = await consulta<{ id: string; organizacao_id: string }>(
+    `insert into etiquetas_participante (organizacao_id, nome) values ($1, $2), ($3, $4)
+     returning id, organizacao_id`,
+    [idRecanto, "Síndica do Recanto", idAurora, "Síndica da Aurora"],
+  );
+  for (const etiqueta of etiquetasSemeadas) {
+    await consulta(
+      `insert into vinculos_etiquetas (pessoa_id, organizacao_id, etiqueta_id, atribuido_por_pessoa_id)
+            values ($1, $2, $3, $1)`,
+      [idSindica, etiqueta.organizacao_id, etiqueta.id],
+    );
+  }
 }
 
 /**
@@ -734,6 +751,31 @@ describe("as consultas de configuração não atravessam organizações", () => 
         return [idSindica];
       },
     },
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "GET /etiquetas-de-participante",
+    consultar: (organizacaoId) =>
+      repositorioEscopadoDeEtiquetas(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      ).listar(),
+    chaveDaLinha: (etiqueta) => etiqueta.nome,
+    esperadas: { emA: ["Síndica do Recanto"], emB: ["Síndica da Aurora"] },
+  });
+
+  /** **As etiquetas que descem com `GET /vinculos`** — a terceira consulta de `lerVinculos` (item 115). */
+  casosDeIsolamento(mundo, {
+    nome: "etiquetas em GET /vinculos",
+    consultar: async (organizacaoId) =>
+      (
+        await repositorioEscopadoDeVinculos(
+          escoparConsulta(consulta, organizacaoId),
+          escoparTransacao(criarTransacao(), organizacaoId),
+        ).ativos()
+      ).flatMap((vinculo) => vinculo.etiquetas.map((etiqueta) => ({ pessoaId: vinculo.pessoa.pessoaId, ...etiqueta }))),
+    chaveDaLinha: (linha) => linha.nome,
+    esperadas: { emA: ["Síndica do Recanto"], emB: ["Síndica da Aurora"] },
   });
 
   /**

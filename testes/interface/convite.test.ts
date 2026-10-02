@@ -158,3 +158,22 @@ describe("a tela do Gestor — critério 86.1 na fonte", () => {
     expect(fonte).toContain('rotulo="Convidar pessoas"');
   });
 });
+
+describe("o código no desfecho da criação — critério 116.7", () => {
+  it("criar a organização leva a Convidar pessoas, com o aviso", () => {
+    const fonte = ler("src/interface/componentes/formulario-de-nova-organizacao.tsx");
+    expect(fonte).toContain('router.push("/convidar")');
+    expect(fonte).not.toContain('router.push("/ocorrencias")');
+    expect(fonte).toContain('avisarSucesso("Organização criada")');
+  });
+
+  it("o cartão do código se copia, e os dois botões dizem o que copiam", () => {
+    const pagina = ler("app/(casca)/convidar/page.tsx");
+    expect(pagina).toContain("<CodigoComCopia codigo={organizacao.codigoPublico} />");
+    const codigo = ler("src/interface/componentes/codigo-da-organizacao.tsx");
+    expect(codigo).toContain('<span className="sr-only"> o código</span>');
+    expect(codigo).toContain("useCopiar(codigo)");
+    const link = ler("src/interface/componentes/link-do-convite.tsx");
+    expect(link).toContain('<span className="sr-only"> o link</span>');
+  });
+});

@@ -44,10 +44,13 @@ import {
   ENDERECO_PADRAO,
   VAZIO_DO_FILTRO,
   ariaSort,
+  comEtiqueta,
   comFiltro,
   comOrdem,
+  contagensDeEtiquetas,
   contagensDoFiltro,
   escreverEndereco,
+  etiquetaVigente,
   estadoDaTabela,
   faixaDaPagina,
   filtrarPeloNome,
@@ -58,6 +61,7 @@ import {
   naPagina,
   ordenarLinhas,
   paginar,
+  pertenceAEtiqueta,
   pertenceAoFiltro,
   type Filtro,
   type LinhaDeParticipante,
@@ -151,6 +155,7 @@ function VINCULO(
     temConta: true,
     criadoEm: "2026-03-02T12:00:00.000Z",
     atualizadoEm: null,
+    etiquetas: [],
     ...resto,
   };
 }
@@ -322,11 +327,14 @@ describe("correcaoDeVinculoSchema — ausente e vazio são instruções diferent
  * desfazer é tirar isso. Nenhum dos dois toca as quatro coisas que o 10.5 nomeia. **O que a guarda pega é
  * o terceiro**, que chegaria sem ninguém decidir que ele podia existir.
  *
+ * **Quatro desde o item 115.** Os dois novos apagam uma etiqueta e tiram uma etiqueta de uma pessoa: rótulo
+ * de gestão, sem trilha, que nenhuma das quatro coisas do 10.5 alcança. A asserção continua fechada.
+ *
  * **Não é o mesmo que o portão do contrato:** aquele roda sobre o `openapi.yaml`, e este roda sobre o
  * **código**. O dia em que os dois discordarem é o dia em que alguém escreveu endpoint sem publicar.
  */
-describe("os DELETE do produto, e são dois", () => {
-  it("existem exatamente dois export const DELETE em app/api/, e a lista é a decidida", () => {
+describe("os DELETE do produto, e são quatro", () => {
+  it("existem exatamente quatro export const DELETE em app/api/, e a lista é a decidida", () => {
     const raiz = fileURLToPath(new URL("../../app/api/", import.meta.url));
 
     const rotas = readdirSync(raiz, { recursive: true, encoding: "utf8" })
@@ -337,7 +345,9 @@ describe("os DELETE do produto, e são dois", () => {
 
     expect(rotas.sort()).toStrictEqual(
       [
+        "etiquetas-de-participante/[etiquetaId]/route.ts",
         "ocorrencias/[ocorrenciaId]/compartilhamentos/[pessoaId]/route.ts",
+        "vinculos/[pessoaId]/etiquetas/[etiquetaId]/route.ts",
         "vinculos/[pessoaId]/route.ts",
       ].sort(),
     );
@@ -403,11 +413,11 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
 });
 
 describe("razaoDoImpedimento — a razão que o aviso mostra", () => {
-  it("a razão do histórico COMEÇA PELO NOME, fala em rastro e enumera as cinco famílias — nunca só três", () => {
+  it("a razão do histórico COMEÇA PELO NOME, fala em rastro e enumera as seis famílias — nunca só três", () => {
     const razao = razaoDoImpedimento("Helena Rocha", "historico");
 
     expect(razao.startsWith("Helena Rocha já deixou rastro nesta organização")).toBe(true);
-    expect(razao).toContain("ocorrência, mensagem, atribuição, decisão de entrada ou configuração");
+    expect(razao).toContain("ocorrência, mensagem, atribuição, etiqueta, decisão de entrada ou configuração");
     expect(razao).not.toContain("registrou ocorrências");
   });
 
@@ -1172,12 +1182,63 @@ describe("a paginação de vinte (critério 3)", () => {
   });
 });
 
+describe("o filtro por etiqueta (critério 5; respostas.md P1)", () => {
+  const ETIQUETAS = [
+    { id: "e1", nome: "Eletricista" },
+    { id: "e2", nome: "Pintor" },
+  ];
+
+  it("o endereço guarda a etiqueta, e o padrão não aparece", () => {
+    const endereco = lerEndereco(new URLSearchParams("etiqueta=e1&pagina=3"));
+    expect(endereco.etiqueta).toBe("e1");
+    expect(escreverEndereco(comEtiqueta(endereco, null))).toBe("");
+    expect(escreverEndereco(comEtiqueta(ENDERECO_PADRAO, "e2"))).toBe("etiqueta=e2");
+  });
+
+  it("escolher etiqueta volta à primeira página", () => {
+    expect(comEtiqueta({ ...ENDERECO_PADRAO, pagina: 4 }, "e1").pagina).toBe(1);
+  });
+
+  it("id que não existe mais vale Todas", () => {
+    expect(etiquetaVigente("apagada", ETIQUETAS)).toBeNull();
+    expect(etiquetaVigente("e2", ETIQUETAS)).toBe("e2");
+  });
+
+  const COM_ETIQUETA = montarLinhas({
+    pedidos: [PEDIDO("q1", "Paulo Mendes")],
+    vinculos: [
+      VINCULO("p1", "Beatriz Nunes", "encarregado", { etiquetas: [ETIQUETAS[0]!] }),
+      VINCULO("p2", "Cláudia Meireles", "solicitante"),
+    ],
+    ...CONTEXTO,
+  });
+
+  it("sem etiqueta toda linha pertence; com uma, só o vínculo que a tem; pedido nunca", () => {
+    expect(COM_ETIQUETA.every((linha) => pertenceAEtiqueta(linha, null))).toBe(true);
+    expect(COM_ETIQUETA.filter((linha) => pertenceAEtiqueta(linha, "e1")).map((linha) => linha.chave)).toStrictEqual([
+      "vinculo:p1",
+    ]);
+    const pedido = COM_ETIQUETA.find((linha) => linha.tipo === "pedido")!;
+    expect(pertenceAEtiqueta(pedido, "e1")).toBe(false);
+  });
+
+  it("as contagens são do conjunto inteiro, e etiqueta sem uso conta zero", () => {
+    expect(contagensDeEtiquetas(COM_ETIQUETA, ETIQUETAS)).toStrictEqual({ todas: 3, e1: 1, e2: 0 });
+  });
+});
+
 describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
   const ler = (consulta: string) => lerEndereco(new URLSearchParams(consulta));
 
   it("sem nada, o padrão: Todos, sem ordenação, primeira página", () => {
     expect(ler("")).toStrictEqual(ENDERECO_PADRAO);
-    expect(ENDERECO_PADRAO).toStrictEqual({ filtro: "todos", ordem: null, sentido: "crescente", pagina: 1 });
+    expect(ENDERECO_PADRAO).toStrictEqual({
+      filtro: "todos",
+      ordem: null,
+      sentido: "crescente",
+      pagina: 1,
+      etiqueta: null,
+    });
     // Um endereço guardado só com o sentido abre na ordem inicial.
     expect(ler("sentido=decrescente")).toStrictEqual(ENDERECO_PADRAO);
   });
@@ -1188,6 +1249,7 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
       ordem: "atualizacao",
       sentido: "decrescente",
       pagina: 2,
+      etiqueta: null,
     });
   });
 
@@ -1198,9 +1260,9 @@ describe("o endereço guarda filtro, ordem e página (critério 3)", () => {
 
   it("escreve só o que não é padrão, e a coluna sempre que há ordem — inclusive Pessoa", () => {
     expect(escreverEndereco(ENDERECO_PADRAO)).toBe("");
-    expect(escreverEndereco({ filtro: "pedidos", ordem: "pessoa", sentido: "decrescente", pagina: 1 })).toBe(
-      "filtro=pedidos&ordem=pessoa&sentido=decrescente",
-    );
+    expect(
+      escreverEndereco({ filtro: "pedidos", ordem: "pessoa", sentido: "decrescente", pagina: 1, etiqueta: null }),
+    ).toBe("filtro=pedidos&ordem=pessoa&sentido=decrescente");
     expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "pessoa" })).toBe("ordem=pessoa");
     expect(escreverEndereco({ ...ENDERECO_PADRAO, ordem: "unidade", pagina: 3 })).toBe("ordem=unidade&pagina=3");
   });

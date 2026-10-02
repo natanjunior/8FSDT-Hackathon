@@ -8,6 +8,8 @@ import { CONTORNO_DE_ACAO, LinkDeIcone } from "@/interface/componentes/botao-de-
 import { CabecaQueOrdena } from "@/interface/componentes/cabeca-que-ordena";
 import { ContatoPorIcone } from "@/interface/componentes/contato-por-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
+import type { EtiquetaNaTela } from "@/interface/componentes/etiquetas-de-participante";
+import { EtiquetasNaLinha } from "@/interface/componentes/etiquetas-na-linha";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import {
   CAIXA_DO_FILTRO,
@@ -22,11 +24,14 @@ import {
   TEXTO_DA_BUSCA_VAZIA,
   VAZIO_DO_FILTRO,
   ariaSort,
+  comEtiqueta,
   comFiltro,
   comOrdem,
+  contagensDeEtiquetas,
   contagensDoFiltro,
   escreverEndereco,
   estadoDaTabela,
+  etiquetaVigente,
   faixaDaPagina,
   filtrarPeloNome,
   lerEndereco,
@@ -34,6 +39,7 @@ import {
   naPagina,
   ordenarLinhas,
   paginar,
+  pertenceAEtiqueta,
   pertenceAoFiltro,
   type Coluna,
   type Endereco,
@@ -118,6 +124,7 @@ export function TabelaDeParticipantes({
   areas,
   organizacaoId,
   euPessoaId,
+  etiquetas,
 }: {
   pedidos: readonly PedidoNaTabela[];
   vinculos: readonly VinculoProjetado[];
@@ -128,6 +135,8 @@ export function TabelaDeParticipantes({
   areas: ReadonlyArray<{ id: string; nome: string }>;
   organizacaoId: string;
   euPessoaId: string;
+  /** Todas as etiquetas desta organização, inclusive as sem uso: são as opções da segunda régua (item 115). */
+  etiquetas: readonly EtiquetaNaTela[];
 }) {
   const caminho = usePathname();
   const endereco = lerEndereco(useSearchParams());
@@ -135,9 +144,13 @@ export function TabelaDeParticipantes({
   const prefixo = useId();
   const idDoFiltro = `${prefixo}-filtro`;
 
+  const etiqueta = etiquetaVigente(endereco.etiqueta, etiquetas);
   const linhas = montarLinhas({ pedidos, vinculos, euPessoaId, impedimentos });
   const contagens = contagensDoFiltro(linhas);
-  const noFiltro = linhas.filter((linha) => pertenceAoFiltro(linha, endereco.filtro));
+  const contagensDaEtiqueta = contagensDeEtiquetas(linhas, etiquetas);
+  const noFiltro = linhas.filter(
+    (linha) => pertenceAoFiltro(linha, endereco.filtro) && pertenceAEtiqueta(linha, etiqueta),
+  );
   const encontradas = filtrarPeloNome(noFiltro, busca);
   const ordenadas = ordenarLinhas(encontradas, endereco.ordem, endereco.sentido);
   const pagina = paginar(ordenadas, endereco.pagina);
@@ -168,27 +181,63 @@ export function TabelaDeParticipantes({
   }
 
   const acoes = { areas, organizacaoId, responsabilidades, aoSair: focarFiltro };
-  const vazio = VAZIO_DO_FILTRO[endereco.filtro];
+  // Com etiqueta escolhida, o vazio do papel ("Nenhum Gestor nesta organização") seria falso: há Gestor,
+  // só não com esta etiqueta (item 115).
+  const vazio =
+    etiqueta === null
+      ? VAZIO_DO_FILTRO[endereco.filtro]
+      : { titulo: TEXTOS_DA_TABELA.vazioDaEtiqueta, corpo: null };
 
   return (
     <div className="flex flex-col gap-5.5">
-      <ToggleGroup
-        id={idDoFiltro}
-        type="single"
-        spacing={1}
-        value={endereco.filtro}
-        aria-label={TEXTOS_DA_TABELA.filtrar}
-        onValueChange={(escolhido) => {
-          // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
-          const filtro = FILTROS.find((valor) => valor === escolhido);
-          if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
-        }}
-        className={CAIXA_DO_FILTRO}
-      >
-        {FILTROS.map((filtro) => (
-          <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
-        ))}
-      </ToggleGroup>
+      {/* **As duas réguas num grupo só, com 8 px entre elas** (item 115). São um filtro de duas perguntas,
+          e o respiro de 22 px da página as leria como dois blocos soltos; sem respiro nenhum, as caixas se
+          tocariam. Não há precedente no código para duas réguas empilhadas. */}
+      <div className="flex flex-col gap-2">
+        <ToggleGroup
+          id={idDoFiltro}
+          type="single"
+          spacing={1}
+          value={endereco.filtro}
+          aria-label={TEXTOS_DA_TABELA.filtrar}
+          onValueChange={(escolhido) => {
+            // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
+            const filtro = FILTROS.find((valor) => valor === escolhido);
+            if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
+          }}
+          className={CAIXA_DO_FILTRO}
+        >
+          {FILTROS.map((filtro) => (
+            <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
+          ))}
+        </ToggleGroup>
+
+        {etiquetas.length > 0 && (
+          <ToggleGroup
+            type="single"
+            spacing={1}
+            value={etiqueta ?? "todas"}
+            aria-label={TEXTOS_DA_TABELA.filtrarPorEtiqueta}
+            onValueChange={(escolhido) => {
+              // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
+              if (escolhido === "") return;
+              escrever(comEtiqueta(endereco, escolhido === "todas" ? null : escolhido));
+            }}
+            className={CAIXA_DO_FILTRO}
+          >
+            <ToggleGroupItem value="todas" className={OPCAO_DO_FILTRO}>
+              {TEXTOS_DA_TABELA.todasAsEtiquetas}
+              <span className={CONTAGEM_DO_FILTRO}>{contagensDaEtiqueta["todas"]}</span>
+            </ToggleGroupItem>
+            {etiquetas.map((opcao) => (
+              <ToggleGroupItem key={opcao.id} value={opcao.id} className={OPCAO_DO_FILTRO}>
+                {opcao.nome}
+                <span className={CONTAGEM_DO_FILTRO}>{contagensDaEtiqueta[opcao.id] ?? 0}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+      </div>
 
       <div className="border-linha bg-superficie overflow-hidden rounded-lg border shadow-sm">
         <div className="border-linha-suave flex flex-col gap-1.5 border-b px-4 py-3 md:flex-row md:items-center md:gap-3">
@@ -256,6 +305,7 @@ export function TabelaDeParticipantes({
                         <p className="text-meta text-tinta-suave">
                           {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
                         </p>
+                        <EtiquetasNaLinha etiquetas={linha.etiquetas} />
                         {/* O recuo alinha o ícone de 44 px ao texto; sem botão, o traço já está alinhado. */}
                         <div className={linha.telefones.length + linha.emails.length > 0 ? "-ml-3" : undefined}>
                           <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
@@ -292,6 +342,11 @@ export function TabelaDeParticipantes({
                           aoOrdenar={escrever}
                           largura="w-[150px]"
                         />
+                        {etiquetas.length > 0 && (
+                          <TableHead className={cn(ROTULO_DE_COLUNA, "w-[180px]")}>
+                            {TEXTOS_DA_TABELA.etiquetas}
+                          </TableHead>
+                        )}
                         <TableHead className={cn(ROTULO_DE_COLUNA, "w-[120px]")}>Contato</TableHead>
                         <CabecaDaTabela
                           coluna="atualizacao"
@@ -325,6 +380,11 @@ export function TabelaDeParticipantes({
                             )}
                           </TableCell>
                           <TableCell className={CELULA}>{linha.unidade ?? <Traco />}</TableCell>
+                          {etiquetas.length > 0 && (
+                            <TableCell className={cn(CELULA, "max-w-[180px]")}>
+                              <EtiquetasNaLinha etiquetas={linha.etiquetas} />
+                            </TableCell>
+                          )}
                           <TableCell className="px-3.5 py-1.5">
                             <ContatoPorIcone nome={linha.nome} telefones={linha.telefones} emails={linha.emails} />
                           </TableCell>

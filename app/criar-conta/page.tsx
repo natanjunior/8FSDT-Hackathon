@@ -28,6 +28,7 @@ export default async function TelaDeCriarConta({
 
   return (
     <MolduraDeConta
+      apresentacao
       titulo="Criar conta"
       contexto="Uma conta só serve para todas as organizações de que você participar."
       caminhos={

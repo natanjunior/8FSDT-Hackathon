@@ -2,6 +2,7 @@ import type {
   ContatoParaEscrita,
   DadosDaCorrecao,
   DadosDoCadastro,
+  EtiquetaLida,
   ImpedimentoDeRemocao,
   RepositorioEscopadoDeVinculos,
   ResultadoDaCorrecao,
@@ -262,7 +263,14 @@ export function repositorioEscopadoDeVinculos(
           [pessoaId],
         );
 
-        if (revogados.length > 0) return { desfecho: "revogado" };
+        if (revogados.length > 0) {
+          // **O vínculo refeito nasce sem etiqueta** (critério 115.9). A linha de `vinculos` sobrevive à
+          // revogação e é ela que a readmissão reativa (`pedidos-de-entrada.ts`), então a limpeza tem de
+          // ser escrita aqui. Só depois do `update` que revogou: nos outros dois desfechos nada se apaga.
+          // Vão junto os `atribuido_por` destas linhas — a responsabilidade vale enquanto o vínculo dura.
+          await dentro(`delete from vinculos_etiquetas where organizacao_id = $1 and pessoa_id = $2`, [pessoaId]);
+          return { desfecho: "revogado" };
+        }
 
         // Zero linhas, duas causas — o mesmo movimento do `remover`.
         const restantes = await dentro<{ papel: string }>(
@@ -279,9 +287,10 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os onze `exists` cobrem as DEZ tabelas** que apontam para `vinculos (pessoa_id, organizacao_id)`,
-      // por dezesseis colunas: `atribuicoes`, `categorias`, `organizacoes` e `compartilhamentos` com duas, e
-      // `areas` com três. O último `exists` é o do último Gestor. A lista não sai da prosa do contrato, que
+      // **Os doze `exists` do `tem_historico` cobrem as DOZE tabelas** que apontam para
+      // `vinculos (pessoa_id, organizacao_id)`, por dezessete colunas: `atribuicoes`, `categorias` e
+      // `organizacoes` com duas, `areas` com três, e as outras oito com uma. O `exists` de fora é o do
+      // último Gestor. A lista não sai da prosa do contrato, que
       // nomeia quatro: sai do esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia
       // em que uma tabela nova entrar sem passar por aqui.
       //
@@ -289,6 +298,9 @@ export function repositorioEscopadoDeVinculos(
       // aparece nomeado na tela de quem olha a ocorrência — e a chave é `on delete restrict`;
       // `com_pessoa_id` apaga em cascata, porque o que a pessoa recebeu não é rastro, e uma remoção não
       // precisa ser recusada por causa dele.
+      //
+      // **`vinculos_etiquetas` tem duas pontas e só uma entra aqui** (item 115), pela razão de
+      // `compartilhamentos`: quem atribuiu é rastro e a chave é `restrict`; quem recebeu apaga em cascata.
       //
       // **`organizacoes` passou a ter duas colunas em 16/09/2026** (item 46 · 47): quem corrige o nome da
       // organização deixa rastro em `atualizado_por_pessoa_id`, com FK `on delete restrict`. Sem esta
@@ -339,7 +351,9 @@ export function repositorioEscopadoDeVinculos(
                              where t.organizacao_id = $1
                                and t.por_pessoa_id = v.pessoa_id)
                  or exists (select 1 from mudancas_de_configuracao t
-                             where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)) as tem_historico
+                             where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from vinculos_etiquetas t
+                             where t.organizacao_id = $1 and t.atribuido_por_pessoa_id = v.pessoa_id)) as tem_historico
            from vinculos v
           where v.organizacao_id = $1
             and v.revogado_em is null`,
@@ -424,7 +438,7 @@ async function distinguirRecusa(
 }
 
 /**
- * A leitura, em **duas** consultas para N pessoas — nunca duas por pessoa.
+ * A leitura, em **três** consultas para N pessoas — nunca três por pessoa.
  *
  * `pessoaId` nulo é *"todos"*. O parâmetro entra sempre, e o `is null` do `where` é o que permite uma
  * consulta só servir a lista e o item: duas versões do mesmo SQL divergiriam na primeira alteração, e a
@@ -516,6 +530,30 @@ async function lerVinculos(
     porPessoa.set(contato.pessoa_id, lista);
   }
 
+  // **A terceira consulta, no molde da de contatos** (item 115): parte de `vinculos`, com o mesmo filtro
+  // de revogado e o mesmo `$2` opcional, e por isso a lista, o detalhe e os candidatos a responsável
+  // recebem as etiquetas desta mesma leitura (critério 115.4). Vínculo revogado não aparece — o ramo
+  // *revogado* do critério 115.9 é este `where`.
+  const etiquetas = await consulta<{ pessoa_id: string; id: string; nome: string }>(
+    `select ve.pessoa_id, e.id, e.nome
+       from vinculos v
+       join vinculos_etiquetas ve
+         on ve.pessoa_id = v.pessoa_id and ve.organizacao_id = v.organizacao_id
+       join etiquetas_participante e
+         on e.id = ve.etiqueta_id and e.organizacao_id = ve.organizacao_id
+      where v.organizacao_id = $1
+        and v.revogado_em is null
+        and ($2::uuid is null or v.pessoa_id = $2::uuid)
+      order by ve.pessoa_id, e.nome`,
+    [pessoaId],
+  );
+  const etiquetasPorPessoa = new Map<string, EtiquetaLida[]>();
+  for (const etiqueta of etiquetas) {
+    const lista = etiquetasPorPessoa.get(etiqueta.pessoa_id) ?? [];
+    lista.push({ id: etiqueta.id, nome: etiqueta.nome });
+    etiquetasPorPessoa.set(etiqueta.pessoa_id, lista);
+  }
+
   return linhas.map((linha): VinculoLido => {
     if (!ehPapel(linha.papel)) {
       // O tipo `papel_vinculo` do banco e o do domínio saíram da mesma decisão (D4, D27). Se divergirem,
@@ -544,6 +582,7 @@ async function lerVinculos(
       temConta: linha.tem_conta,
       criadoEm: linha.criado_em.toISOString(),
       atualizadoEm: linha.atualizado_em === null ? null : linha.atualizado_em.toISOString(),
+      etiquetas: etiquetasPorPessoa.get(linha.pessoa_id) ?? [],
     };
   });
 }

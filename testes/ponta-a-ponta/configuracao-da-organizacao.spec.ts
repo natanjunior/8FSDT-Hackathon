@@ -150,7 +150,7 @@ async function organizacaoPropria(pagina: Page, sufixo: string): Promise<string>
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(organizacao);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/ocorrencias$/u);
+  await pagina.waitForURL(/\/convidar$/u);
 
   await expect(pagina.getByRole("combobox", { name: /organização/iu })).toHaveText(organizacao);
   return organizacao;

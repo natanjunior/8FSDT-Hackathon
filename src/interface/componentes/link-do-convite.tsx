@@ -24,6 +24,7 @@ export function LinkDoConvite({ link }: { link: string }) {
         >
           {desfecho === "copiado" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
           {desfecho === "copiado" ? "Copiado" : "Copiar"}
+          <span className="sr-only"> o link</span>
         </Button>
       </div>
       <p role="status" aria-live="polite" className="text-meta text-tinta-suave max-w-115">

@@ -12,7 +12,7 @@ import {
 import { listarVinculos } from "@/aplicacao/organizacao";
 import { AvisoDeAvaliacao } from "@/interface/componentes/aviso-de-avaliacao";
 import { BarraDeAcoes } from "@/interface/componentes/barra-de-acoes";
-import type { Candidato } from "@/interface/componentes/busca-de-candidatos";
+import { candidatoDoVinculo, type Candidato } from "@/interface/componentes/busca-de-candidatos";
 import { CabecalhoDaOcorrencia } from "@/interface/componentes/cabecalho-da-ocorrencia";
 import { CampoDeSolucaoAplicada } from "@/interface/componentes/campo-de-solucao-aplicada";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
@@ -365,14 +365,11 @@ export default async function Ocorrencia({
   const participa = detalhe.compartilhamento?.tipo === "gestao";
 
   const candidatos: readonly Candidato[] = podeAtribuir
-    ? (await listarVinculos(escopo.repos.vinculos)).map((lido) => ({
-        pessoaId: lido.pessoa.pessoaId,
-        nome: lido.pessoa.nome,
+    ? (await listarVinculos(escopo.repos.vinculos)).map((lido) =>
         // **A palavra, montada aqui.** O navegador não monta rótulo, e `contatos[]` não desce: é dado
         // pessoal sob o RNF10, e a projeção estreita é o que impede o telefone de todo mundo de viajar.
-        papel: PAPEL_EM_PALAVRA[lido.papel] ?? lido.papel,
-        area: lido.area?.nome ?? null,
-      }))
+        candidatoDoVinculo(lido, PAPEL_EM_PALAVRA[lido.papel] ?? lido.papel),
+      )
     : [];
 
   /**

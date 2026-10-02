@@ -1,5 +1,7 @@
 import type { VinculoLido } from "@/aplicacao/organizacao";
 
+import { projetarEtiqueta, type EtiquetaProjetada } from "./etiqueta";
+
 /**
  * A projeção do schema `Vinculo` — o que a aprovação devolve.
  *
@@ -39,6 +41,8 @@ export type VinculoProjetado = {
   criadoEm: string;
   /** A **maior** entre o relógio da Pessoa e o do Vínculo. `null` é *nenhuma alteração registrada*. */
   atualizadoEm: string | null;
+  /** Em ordem alfabética. Só desce em resposta guardada por `vinculo.gerir` (item 115). */
+  etiquetas: readonly EtiquetaProjetada[];
 };
 
 export function projetarVinculo(vinculo: VinculoLido): VinculoProjetado {
@@ -55,5 +59,6 @@ export function projetarVinculo(vinculo: VinculoLido): VinculoProjetado {
     temConta: vinculo.temConta,
     criadoEm: vinculo.criadoEm,
     atualizadoEm: vinculo.atualizadoEm,
+    etiquetas: vinculo.etiquetas.map(projetarEtiqueta),
   };
 }

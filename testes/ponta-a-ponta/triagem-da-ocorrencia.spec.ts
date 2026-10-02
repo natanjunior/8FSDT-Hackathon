@@ -1190,6 +1190,54 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
 });
 
 /**
+ * **As etiquetas, do detalhe à lista, e a lista cabendo em 360 px** (critérios 115.1, 115.4, 115.5 e
+ * 115.10). Helena etiqueta o primeiro participante com quatro etiquetas, criando as que faltarem, e a lista
+ * mostra duas e "+2" sem rolar de lado.
+ *
+ * **Acrescenta ao mundo, nunca altera** (`docs/testes.md`, O cenário de teste tem dono): etiquetar de novo
+ * reaproveita, então a segunda corrida termina no mesmo estado. Os nomes levam o sufixo do teste para não
+ * se confundirem com etiqueta de outro caso.
+ */
+test("as etiquetas nascem no detalhe, aparecem na lista e cabem em 360 px (item 115)", async ({ browser }) => {
+  const contexto = await browser.newContext({ viewport: { width: 360, height: 800 } });
+  const helena = await contexto.newPage();
+
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  await helena.goto("/vinculos");
+  await assentar(helena);
+  const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  const edicao = await primeiroHref(helena, new RegExp(`^/vinculos/${UUID}/editar$`, "u"));
+  await helena.goto(edicao);
+  await assentar(helena);
+
+  const NOMES = ["Azulejista 115", "Bombeiro 115", "Carpinteiro 115", "Datilógrafa 115"];
+  for (const nome of NOMES) {
+    const cartao = helena.getByRole("region", { name: "Etiquetas" });
+    if (await cartao.getByText(nome, { exact: true }).isVisible()) continue;
+    await helena.getByRole("button", { name: "Adicionar", exact: true }).click();
+    await helena.getByRole("combobox", { name: "Etiqueta" }).fill(nome);
+    await helena.getByRole("option", { name: new RegExp(`^(Criar “)?${nome}”?$`, "u") }).click();
+    await expect(helena.getByText(`${nome} adicionada`)).toBeVisible();
+    await helena.keyboard.press("Escape");
+  }
+
+  await helena.goto("/vinculos");
+  await assentar(helena);
+  await expect(helena.getByText("+2").first()).toBeVisible();
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
+
+  // O filtro: uma etiqueta por vez, no endereço.
+  await helena.getByRole("radio", { name: /Azulejista 115/u }).click();
+  await expect(helena).toHaveURL(/etiqueta=/u);
+
+  await contexto.close();
+});
+
+/**
  * **As casas do código na viewport, e a letra do mesmo tamanho** (critérios 93.1, 93.2 e 93.4). Cada casa
  * fica entre 0 e a borda, não corta a própria letra, e a letra é o título de página em toda largura: é
  * isso que diz que o conserto cedeu a caixa e não o código.

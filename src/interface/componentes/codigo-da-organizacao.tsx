@@ -71,3 +71,42 @@ export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
     </>
   );
 }
+
+/**
+ * **O código com o botão de copiar, sem a lista de definição de T-15** (item 116, critério 7). É o
+ * cartão do código de `/convidar`, a tela a que a criação da organização leva. O mecanismo e a regra de
+ * falha são os de `CodigoDaOrganizacao`: sem área de transferência, o código aparece selecionado, e o
+ * botão nunca diz *Copiado* sem ter copiado. **O nome do botão diz o que ele copia**, porque a página tem
+ * outro *Copiar*, o do link.
+ */
+export function CodigoComCopia({ codigo }: { codigo: string }) {
+  const { desfecho, copiar, copiaManual } = useCopiar(codigo);
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-center gap-3">
+        <ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />
+        <Button
+          type="button"
+          variant="outline"
+          className="border-linha text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4"
+          onClick={() => void copiar()}
+        >
+          {desfecho === "copiado" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          {desfecho === "copiado" ? "Copiado" : "Copiar"}
+          <span className="sr-only"> o código</span>
+        </Button>
+      </div>
+      <p role="status" aria-live="polite" className="text-meta text-tinta-suave max-w-115">
+        {desfecho === "selecione" && (
+          <>
+            Selecione e copie:{" "}
+            <span ref={copiaManual} className="text-tinta font-mono select-all">
+              {codigo}
+            </span>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
