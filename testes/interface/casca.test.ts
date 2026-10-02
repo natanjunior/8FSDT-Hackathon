@@ -466,3 +466,32 @@ describe("a palavra do condomínio — critério 31.5", () => {
     expect(onde).toStrictEqual([]);
   });
 });
+
+describe("o controle de aparência antes de entrar — critério 114.2", () => {
+  const MOLDURA = "src/interface/componentes/moldura-de-conta.tsx";
+  const CONTROLE = "src/interface/componentes/controle-de-aparencia.tsx";
+
+  it("a moldura e a espera montam o controle, uma vez cada", () => {
+    const moldura = ler(MOLDURA);
+    expect(moldura.match(/<ControleDeAparencia \/>/gu)).toHaveLength(2);
+    const molduraDaTela = moldura.slice(moldura.indexOf("export function MolduraDeConta"));
+    const espera = moldura.slice(moldura.indexOf("export function EsperaDaMolduraDeConta"));
+    expect(molduraDaTela.slice(0, molduraDaTela.indexOf("function CartaoDaTela"))).toContain(
+      "<ControleDeAparencia />",
+    );
+    expect(espera.slice(0, espera.indexOf("function CartaoDeEspera"))).toContain("<ControleDeAparencia />");
+  });
+
+  it("o gatilho tem a palavra, e o menu abre com o grupo", () => {
+    const controle = ler(CONTROLE);
+    expect(controle).toContain("Aparência");
+    expect(controle).toContain("<GrupoDeAparencia />");
+    expect(controle).toContain('align="end"');
+    expect(controle).toContain("min-h-11");
+  });
+
+  it("a documentação não o monta, e o motivo está escrito", () => {
+    expect(ler("app/documentacao/layout.tsx")).not.toContain("ControleDeAparencia");
+    expect(ler(CONTROLE)).toContain("/documentacao");
+  });
+});
