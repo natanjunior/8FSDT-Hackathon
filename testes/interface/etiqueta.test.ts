@@ -14,6 +14,7 @@ import {
   tituloDoApagar,
   usoPorEtiqueta,
 } from "@/interface/componentes/etiquetas-de-participante";
+import { candidatoDoVinculo } from "@/interface/componentes/busca-de-candidatos";
 import { projetarVinculo } from "@/interface/projecoes";
 import { atribuicaoDeEtiquetaSchema } from "@/interface/schemas";
 
@@ -138,5 +139,38 @@ describe("apagar mostra quantas (critério 7)", () => {
     expect(textoDoApagar(6)).toBe("Está em 6 pessoas e sai de todas.");
     expect(textoDoApagar(1)).toBe("Está em 1 pessoa e sai dela.");
     expect(textoDoApagar(0)).toBe("Não está em ninguém.");
+  });
+});
+
+describe("a escolha do responsável lê as etiquetas da mesma leitura (critério 4)", () => {
+  it("o candidato carrega as etiquetas do VinculoLido, sem outra fonte", () => {
+    const candidato = candidatoDoVinculo(
+      {
+        pessoa: { pessoaId: "p", nome: "Sebastião", contatos: [] },
+        papel: "encarregado",
+        area: null,
+        temConta: false,
+        criadoEm: "2026-10-02T12:00:00.000Z",
+        atualizadoEm: null,
+        etiquetas: [{ id: "1", nome: "Encanador" }],
+      },
+      "Encarregado",
+    );
+    expect(candidato).toStrictEqual({
+      pessoaId: "p",
+      nome: "Sebastião",
+      papel: "Encarregado",
+      area: null,
+      etiquetas: [{ id: "1", nome: "Encanador" }],
+    });
+  });
+
+  it("a página só monta candidatos para quem gere vínculos — a guarda já existe (crítica C-2)", () => {
+    const fonte = readFileSync(
+      fileURLToPath(new URL("../../app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(fonte).toMatch(/const podeAtribuir =[\s\S]{0,200}vinculo\.pode\("vinculo\.gerir"\)/u);
+    expect(fonte).toContain("candidatoDoVinculo(");
   });
 });

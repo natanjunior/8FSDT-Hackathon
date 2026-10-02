@@ -3808,6 +3808,7 @@ describe("o critério 20.6 — normalizar, casar por prefixo de palavra e repart
     nome,
     papel,
     area: null,
+    etiquetas: [],
   });
 
   const HELENA = candidato("p-1", "Helena Prado", "Gestor");
