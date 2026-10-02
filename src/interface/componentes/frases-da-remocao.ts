@@ -118,7 +118,7 @@ export function razaoDoImpedimento(nome: string, impedimento: ImpedimentoNaTela)
   if (impedimento === "ultimo-gestor") {
     return "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.";
   }
-  return `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga.`;
+  return `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, etiqueta, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga.`;
 }
 
 /**

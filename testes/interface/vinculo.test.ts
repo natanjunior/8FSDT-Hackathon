@@ -413,11 +413,11 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
 });
 
 describe("razaoDoImpedimento — a razão que o aviso mostra", () => {
-  it("a razão do histórico COMEÇA PELO NOME, fala em rastro e enumera as cinco famílias — nunca só três", () => {
+  it("a razão do histórico COMEÇA PELO NOME, fala em rastro e enumera as seis famílias — nunca só três", () => {
     const razao = razaoDoImpedimento("Helena Rocha", "historico");
 
     expect(razao.startsWith("Helena Rocha já deixou rastro nesta organização")).toBe(true);
-    expect(razao).toContain("ocorrência, mensagem, atribuição, decisão de entrada ou configuração");
+    expect(razao).toContain("ocorrência, mensagem, atribuição, etiqueta, decisão de entrada ou configuração");
     expect(razao).not.toContain("registrou ocorrências");
   });
 

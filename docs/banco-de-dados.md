@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As dezessete tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As dezenove tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, dezessete tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, dezenove tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As dezessete tabelas
+## As dezenove tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -29,6 +29,8 @@ as que não dependem de ninguém lembrar.
 | `mensagens` | o texto trocado dentro de um canal |
 | `anexos` | a imagem reivindicada por uma ocorrência, com a miniatura |
 | `compartilhamentos` | quem, além do autor e dos Gestores, pode ler uma ocorrência |
+| `etiquetas_participante` | os rótulos livres que o Gestor dá aos participantes, uma lista por organização |
+| `vinculos_etiquetas` | quais etiquetas cada participante tem, quem atribuiu e quando |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
 
 **Quem é quem, e onde.** A metade que responde antes de existir ocorrência:
@@ -43,6 +45,8 @@ erDiagram
     ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
     ORGANIZACOES ||--o{ CATEGORIAS : "configura"
     ORGANIZACOES ||--o{ AREAS : "configura"
+    ORGANIZACOES ||--o{ ETIQUETAS_PARTICIPANTE : "configura"
+    VINCULOS ||--o{ VINCULOS_ETIQUETAS : "recebe"
 ```
 
 **A ocorrência, e o que gira em volta dela.** Todas as tabelas abaixo são escopadas à organização, e a
@@ -171,12 +175,14 @@ Não há índice criado por precaução. Cada um existe porque uma consulta da a
 | ocorrências por organização e status | a fila de triagem, que é o filtro mais usado do Gestor |
 | ocorrências por organização e autor | a lista de quem abriu, que é a tela inicial do Solicitante |
 | registros por organização e data | a trilha e o tempo de resolução do painel |
+| etiqueta por nome, única por organização, sem distinguir maiúscula | impede duas etiquetas com a mesma grafia; acento conta |
 | atribuição vigente, única por ocorrência | garante que não existam dois responsáveis ao mesmo tempo |
 | canal por tipo, único por ocorrência | garante um canal de cada tipo por ocorrência |
 | compartilhamentos por organização e quem recebe | a aba *Compartilhadas comigo* do Solicitante |
 | pedido pendente, único por pessoa e organização | impede dois pedidos abertos, e permite refazer um recusado |
 
-Os três últimos são índices únicos parciais: eles não aceleram uma consulta, garantem uma regra.
+Os três últimos são índices únicos parciais: eles não aceleram uma consulta, garantem uma regra. O da
+etiqueta também garante uma regra, mas é único sobre uma expressão, e não parcial.
 
 ## As duas pontas do compartilhamento
 
@@ -196,6 +202,25 @@ A tabela tem uma coluna de leitura, `aberto_em`: quando quem recebeu abriu a oco
 vez, e nulo antes disso. É estado por linha, e não uma data única de última visita: desfazer e refazer o
 compartilhamento devolve a ocorrência à contagem sem nenhuma escrita a mais. Fora dela a tabela não tem
 estado e não tem trilha: desfazer apaga a linha.
+
+## As etiquetas dos participantes
+
+Uma etiqueta é um rótulo livre que o Gestor dá a um participante, como eletricista ou contratado. Ela
+pertence ao vínculo, porque a chave é do vínculo: `vinculos` não tem coluna `id`, e a junção carrega o par
+pessoa e organização inteiro, pelo mesmo padrão de chave composta do resto do esquema. Uma etiqueta de uma
+organização não se liga ao vínculo de outra, e o banco recusa a linha antes de qualquer código opinar.
+
+As duas pontas que apontam para `vinculos` repetem a lógica do compartilhamento. Quem recebeu a etiqueta
+apaga em cascata, porque receber não é rastro. Quem atribuiu fica gravado com a data, a chave recusa a
+remoção, e é isso que sustenta a regra de que a responsabilidade por uma etiqueta é de quem a deu.
+
+Revogar o vínculo apaga as etiquetas da pessoa. Ao contrário do compartilhamento, o vínculo readmitido
+volta sem nenhuma: a linha de `vinculos` sobrevive à revogação, e a limpeza é escrita no comando de
+revogar.
+
+A unicidade do nome desce a caixa pela colação ICU, e não pela do banco. Na colação `C`, uma letra
+acentuada maiúscula não desceria, e duas grafias da mesma palavra virariam duas etiquetas. Acento continua
+contando: ICU muda a caixa, não tira o acento.
 
 ## As contas ficam fora
 

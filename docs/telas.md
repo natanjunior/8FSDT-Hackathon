@@ -223,6 +223,21 @@ aparece marcado, e o rótulo do controle só muda depois de aplicar. Se a data d
 de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
 mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 
+## As etiquetas dos participantes
+
+Quem gere participantes pode dar a cada um etiquetas livres, como eletricista ou contratado. A lista de
+participantes ganha a coluna Etiquetas, que mostra as duas primeiras em ordem alfabética e um *+N* com as
+demais; no celular, a mesma regra vale numa linha abaixo do papel, e a lista não rola de lado. A coluna só
+aparece quando a organização tem alguma etiqueta.
+
+Abaixo do filtro por papel entra uma segunda régua, por etiqueta, com uma etiqueta por vez e o estado no
+endereço. As duas se combinam, e as contagens de cada uma são da lista inteira. O botão Etiquetas do
+cabeçalho abre um painel que só apaga, e a confirmação diz em quantas pessoas a etiqueta está.
+
+No detalhe do participante, o cartão Etiquetas fica fora do formulário, antes dele, e grava a cada gesto:
+escolher uma sugestão ou escrever uma nova acrescenta, e o botão ao lado de cada uma a tira. Na escolha do
+responsável de uma ocorrência, as etiquetas aparecem ao lado do nome, sem filtro.
+
 ## Celular primeiro, e o que muda na tela grande
 
 Toda tela é desenhada para funcionar completa no celular e na tela grande, para qualquer papel. O registro,
@@ -231,7 +246,8 @@ a leitura e a conversa nasceram no celular, porque é onde o morador está.
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
 onde o polegar alcança. A exceção é a busca de pessoas para compartilhar, que abre em tela cheia no
-celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele.
+celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele. O painel de etiquetar
+um participante segue a mesma exceção, pela mesma razão.
 
 ## Os estados que não são telas
 
