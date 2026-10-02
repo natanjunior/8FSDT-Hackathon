@@ -174,3 +174,54 @@ describe("a escolha do responsável lê as etiquetas da mesma leitura (critério
     expect(fonte).toContain("candidatoDoVinculo(");
   });
 });
+
+/**
+ * **A etiqueta de participante nunca aparece numa ocorrência** (critério 115.11), provado de dois lados.
+ *
+ * O contrato: nenhum schema alcançável pelas operações de `/ocorrencias` chega a `EtiquetaDeParticipante`.
+ * O código: nenhum arquivo do repositório de ocorrência menciona as duas tabelas. A lista de ocorrências
+ * terá a dela, com outro nome; esta é a dos participantes.
+ *
+ * **A escolha do responsável não conta**: ela mora na página da ocorrência, mas é lista de PESSOAS, lida de
+ * `lerVinculos`, e o critério 4 a exige.
+ */
+describe("a lista é por recurso (critério 11)", () => {
+  const especificacao = parse(
+    readFileSync(fileURLToPath(new URL("../../docs/api/openapi.yaml", import.meta.url)), "utf8"),
+  ) as { paths: Record<string, unknown>; components: { schemas: Record<string, unknown> } };
+
+  function refsAlcancaveis(no: unknown, vistos = new Set<string>()): Set<string> {
+    if (Array.isArray(no)) {
+      for (const item of no) refsAlcancaveis(item, vistos);
+    } else if (no !== null && typeof no === "object") {
+      for (const [chave, valor] of Object.entries(no)) {
+        if (chave === "$ref" && typeof valor === "string" && valor.startsWith("#/components/schemas/")) {
+          const nome = valor.slice("#/components/schemas/".length);
+          if (!vistos.has(nome)) {
+            vistos.add(nome);
+            refsAlcancaveis(especificacao.components.schemas[nome], vistos);
+          }
+        } else {
+          refsAlcancaveis(valor, vistos);
+        }
+      }
+    }
+    return vistos;
+  }
+
+  it("nenhuma operação de /ocorrencias alcança EtiquetaDeParticipante", () => {
+    const daOcorrencia = Object.entries(especificacao.paths).filter(([caminho]) => caminho.startsWith("/ocorrencias"));
+    expect(daOcorrencia.length).toBeGreaterThan(0);
+    for (const [caminho, operacoes] of daOcorrencia) {
+      expect(refsAlcancaveis(operacoes).has("EtiquetaDeParticipante"), caminho).toBe(false);
+    }
+  });
+
+  it("o repositório de ocorrência não lê as tabelas de etiqueta", () => {
+    const pasta = fileURLToPath(new URL("../../src/infraestrutura/repositorios/ocorrencia/", import.meta.url));
+    for (const arquivo of readdirSync(pasta)) {
+      const fonte = readFileSync(`${pasta}${arquivo}`, "utf8");
+      expect(fonte, arquivo).not.toMatch(/etiquetas_participante|vinculos_etiquetas/u);
+    }
+  });
+});
