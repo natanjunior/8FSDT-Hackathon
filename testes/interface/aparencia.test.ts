@@ -1,4 +1,8 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -131,5 +135,38 @@ describe("o tema com o contraste alto — critérios 114.3 e 114.4", () => {
     const tema = chave("Tema escuro");
     const rotulo = document.getElementById(tema.getAttribute("aria-labelledby") ?? "");
     expect(rotulo?.textContent).toBe("Tema escuro");
+  });
+});
+
+describe("o esmaecer sob movimento reduzido — critério 114.7", () => {
+  // Pelo caminho, como o `foco.test.ts`: no `jsdom`, `new URL(…, import.meta.url)` não é `file:`.
+  const raiz = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const css = readFileSync(join(raiz, "app", "globals.css"), "utf8");
+  const inicio = css.indexOf("@media (prefers-reduced-motion: reduce)");
+  const bloco = css.slice(inicio, css.indexOf("@keyframes barra-de-progresso"));
+
+  it("o corte global de duração fica (apuração 5: spin e caret não têm guarda própria)", () => {
+    expect(inicio).toBeGreaterThan(-1);
+    expect(bloco).toContain("animation-duration: 0.01ms !important;");
+  });
+
+  it("a exceção alcança só a entrada e a saída do catálogo, e devolve a duração", () => {
+    expect(bloco).toMatch(/\[class\*="animate-in"\],\s*\[class\*="animate-out"\]\s*\{/u);
+    expect(bloco).toContain(
+      "animation-duration: var(--tw-animation-duration, var(--tw-duration, 150ms)) !important;",
+    );
+    expect(bloco).not.toMatch(/accordion|collapsible|spin|caret|pulse|barra-de-progresso/u);
+  });
+
+  it("zera a geometria das dez variáveis, no valor neutro de cada uma, e deixa a opacidade", () => {
+    for (const lado of ["enter", "exit"]) {
+      expect(bloco).toContain(`--tw-${lado}-translate-x: 0 !important;`);
+      expect(bloco).toContain(`--tw-${lado}-translate-y: 0 !important;`);
+      // Escala neutra é 1: 0 faria a sobreposição crescer do nada (plano 114 §0, imprecisão 1).
+      expect(bloco).toContain(`--tw-${lado}-scale: 1 !important;`);
+      expect(bloco).toContain(`--tw-${lado}-rotate: 0 !important;`);
+      expect(bloco).toContain(`--tw-${lado}-blur: 0 !important;`);
+      expect(bloco).not.toContain(`--tw-${lado}-opacity`);
+    }
   });
 });
