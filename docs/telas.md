@@ -84,13 +84,17 @@ lado do status. Nada é empurrado: o número só existe na lista que a pessoa ab
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
 
+Quem cria uma organização chega a Convidar pessoas, com o código, o link e o QR, porque o passo
+seguinte é chamar gente. Quem participa de mais de uma e ainda não escolheu pode pedir entrada em outra
+direto da escolha.
+
 O QR de uma área leva à mesma tela, com a área no endereço. Quem participa e já entrou cai direto no
 registro, com a área escolhida, e a organização ativa troca para a da área se for preciso. Quem não entrou
 vê o nome da organização, entra e volta sozinho ao registro. Quem não participa vai para o pedido de
 entrada.
 
-A página do grupo e a documentação abrem em nova aba, a partir de Entrar e do menu, e nenhuma das duas
-pede sessão.
+A página do grupo e a documentação abrem em nova aba, a partir do pé de toda tela de entrada e do
+menu, e nenhuma das duas pede sessão.
 
 No menu do cabeçalho, **cada item só existe para quem tem a permissão correspondente** — por isso, na
 navegação normal, ninguém esbarra numa recusa de permissão. Ela acontece por link recebido de fora, e tem
