@@ -638,6 +638,33 @@ describe("o sino — item 117", () => {
     expect(vazia).not.toContain("<h3");
   });
 
+  it("no celular a lista sobe de baixo, pela gaveta do catálogo, e sem pacote novo (critério 118.5)", () => {
+    const fonte = ler("src/interface/componentes/casca/sino.tsx");
+    // A largura vem do mesmo gancho da barra lateral, no mesmo limiar `md`.
+    expect(fonte).toContain("useIsMobile()");
+    expect(fonte).toContain('<SheetContent side="bottom"');
+    // **Uma raiz só**, como no `modal.tsx`: o `Dialog` com o `DialogTrigger` fica, e só o conteúdo troca.
+    // É o que faz girar o aparelho com a lista aberta não perder o estado, que mora no `Sino`.
+    expect(fonte.match(/<Dialog open=\{aberto\}/gu)).toHaveLength(1);
+    expect(fonte.match(/<DialogTrigger asChild>/gu)).toHaveLength(1);
+    // E o `Popover` continua sendo a forma de tela grande.
+    expect(fonte).toContain("<PopoverContent");
+    // O título é obrigatório: dele sai o nome acessível que o ponta a ponta localiza, e o `pr-14` o
+    // mantém fora do X que a folha desenha.
+    expect(fonte).toMatch(/<DialogTitle[^>]*pr-14[^>]*>Avisos<\/DialogTitle>/u);
+    // Só o corpo rola; o título fica fora da rolagem, como nos nove modais da família.
+    expect(fonte).toContain('<div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>');
+    // A forma da gaveta vem do `modal.tsx`, e não de uma segunda cópia da cadeia.
+    expect(fonte).toContain("CONTEUDO_DO_SHEET");
+    expect(fonte).toContain("max-h-[85dvh]");
+    // Nem o `drawer` do shadcn nem o `vaul`: a decisão do dono de 03/10.
+    expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
+    // Sem `w-screen` e sem `h-dvh`: a folha de `side="bottom"` já é `inset-x-0`, e era o `100vw` que
+    // criava a rolagem lateral que o critério 8 proíbe.
+    expect(fonte).not.toContain("w-screen");
+    expect(fonte).not.toContain("h-dvh");
+  });
+
   it("a barra põe o sino entre o seletor e o menu de pessoa", () => {
     const fonte = ler("src/interface/componentes/casca/barra-superior.tsx");
     const seletor = fonte.indexOf("<SeletorDeOrganizacao");

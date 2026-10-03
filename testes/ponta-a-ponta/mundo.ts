@@ -243,7 +243,10 @@ export async function naoLidasNoSino(pagina: Page): Promise<number> {
 }
 
 /**
- * A lista aberta: o `Popover` na tela grande, o `Dialog` no celular.
+ * A lista aberta: o `Popover` na tela grande, a gaveta de baixo no celular (item 118).
+ *
+ * **O papel continua `dialog` nas duas formas**, porque `SheetContent` é `Dialog.Content` do `radix-ui`
+ * e o nome sai do `DialogTitle` *Avisos*. É por isso que um localizador só serve para as duas.
  *
  * **Idempotente.** Depois de *Marcar como lida*, a ação de servidor revalida a casca e o componente de
  * cliente **guarda o estado aberto**; clicar no botão de novo o fecharia.

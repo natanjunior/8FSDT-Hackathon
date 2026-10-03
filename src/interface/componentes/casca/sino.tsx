@@ -11,10 +11,13 @@ import {
   type LinhaDoSino,
   type SinoNaTela,
 } from "@/interface/componentes/sino";
+import { CONTEUDO_DO_SHEET } from "@/interface/componentes/modal";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Button } from "@/interface/componentes/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/interface/componentes/ui/dialog";
+import { Dialog, DialogTitle, DialogTrigger } from "@/interface/componentes/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/interface/componentes/ui/popover";
+import { SheetContent } from "@/interface/componentes/ui/sheet";
+import { cn } from "@/interface/componentes/utilitarios";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
 /** As duas ações de servidor, que chegam do layout: o componente não importa `@/interface/acoes`. */
@@ -34,16 +37,34 @@ export const CLASSE_DA_PILULA =
   "bg-marca text-marca-foreground pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center border-transparent px-1 font-mono tabular-nums";
 
 /**
+ * **A gaveta de baixo, pelas classes do `modal.tsx`** (guia §7): fundo de superfície, régua, cantos de
+ * cima arredondados, coluna com `overflow-hidden`, e o tempo e a curva do guia §6 pelos tokens
+ * `--tempo-gaveta` e `--curva-gaveta`. **O teto é o do `CONTEUDO_DO_DIALOG`, 85 dvh, e não os 90 do sheet
+ * do modal:** a lista é o único conteúdo da gaveta, e o pedaço de tela que sobra acima dela é o que diz
+ * que a página continua ali atrás.
+ */
+export const CLASSE_DA_GAVETA = cn(CONTEUDO_DO_SHEET, "max-h-[85dvh]");
+
+/**
  * ============================================================================
- *  O sino da barra superior — item 117
+ *  O sino da barra superior — itens 117 e 118
  * ============================================================================
  *
  * **O número vem do banco, e a casca não espera por ele**: o layout desenha este componente com
  * `sino={null}` no `Suspense` e o número chega depois, como a contagem de pedidos. Nunca esqueleto.
  *
  * **A lista vem junto, e abre por cima da tela em que a pessoa está** (spec §3.11): `Popover` a partir de
- * `md`, `Dialog` de tela cheia abaixo. Fechar devolve o foco ao botão, e `Esc` fecha nas duas formas — é o
- * padrão dos dois primitivos, e nada aqui o desliga. **Abrir o sino não grava nada.**
+ * `md`, **gaveta de baixo abaixo** — `SheetContent side="bottom"`, decisão do dono em 03/10/2026, no lugar
+ * do `Dialog` de tela cheia.
+ *
+ * **Uma raiz só, e é a montagem do `modal.tsx`.** `Sheet` e `Dialog` são o mesmo primitivo do `radix-ui`
+ * (`sheet.tsx:6`), então a raiz é um `Dialog` e só o conteúdo troca; a largura vem do `useIsMobile`, o
+ * mesmo gancho da barra lateral, no mesmo limiar de 768 px. **Quem guarda a abertura é o `Sino`**, e não o
+ * conteúdo: girar o aparelho com a lista aberta troca a peça e a lista continua aberta.
+ *
+ * **O `drawer` do shadcn fica fora**: seria dependência nova, na variante Base UI, para fazer o que a peça
+ * do catálogo já faz. Fechar devolve o foco ao botão, e `Esc` fecha nas três formas — é o padrão dos
+ * primitivos, e nada aqui o desliga. **Abrir o sino não grava nada.**
  */
 export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoSino }) {
   const [aberto, setAberto] = useState(false);
@@ -79,12 +100,12 @@ export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoS
     return (
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogTrigger asChild>{botao}</DialogTrigger>
-        {/* **Sem `w-screen`**: `100vw` conta a barra de rolagem vertical onde ela ocupa espaço, e criaria a
-            rolagem lateral que o critério proíbe. A folha do catálogo já é `inset-x-0`. */}
-        <DialogContent className="top-0 h-dvh content-start gap-0 overflow-x-hidden overflow-y-auto rounded-none p-0">
-          <DialogTitle className="px-4 pt-4 pb-2">Avisos</DialogTitle>
-          {lista}
-        </DialogContent>
+        <SheetContent side="bottom" className={CLASSE_DA_GAVETA}>
+          {/* `pr-14` para o título não passar por baixo do X de 44 px que a folha do catálogo desenha. */}
+          <DialogTitle className="shrink-0 px-4 pt-4 pr-14 pb-2">Avisos</DialogTitle>
+          {/* Só o corpo rola: o título e o X ficam fora da rolagem, como nos nove modais da família. */}
+          <div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>
+        </SheetContent>
       </Dialog>
     );
   }

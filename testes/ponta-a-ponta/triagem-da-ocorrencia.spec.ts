@@ -1142,7 +1142,7 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
 /**
  * **A 360 px a medida passou a incluir o sino** (critério 117.11). A pílula é `absolute`, então o número de
  * não lidas não muda a largura da barra; quem cede é o seletor. Ao fim de cada largura, a medida repete
- * com a lista do sino aberta, que no celular ocupa a tela inteira.
+ * com a lista do sino aberta, que no celular sobe de baixo, numa gaveta.
  */
 test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (critérios 92.2 e 117.11)", async ({
   browser,
