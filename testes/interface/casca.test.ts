@@ -233,24 +233,38 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    // `pt-6` no grupo do painel é respiro vertical, no lugar da régua sem título (critério 106.16).
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0 pt-6", "p-0"]);
+    // O `pt-6` do grupo do painel saiu no item 118: a régua é o que separa agora, e os dois juntos
+    // dariam respiro dobrado.
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
   });
 
-  it("dentro de «Nesta organização» a régua só fica acima de grupo com título (critério 106.16)", () => {
+  it("dentro de «Nesta organização» cada régua abre um assunto: o grupo titulado e o Painel (item 118)", () => {
     const fonte = ler(NAVEGACAO);
     // Até o `</nav>` do primeiro marco: a régua entre os dois marcos fica fora por construção, e ela
-    // separa marcos, não grupos (o caso do item 64 a guarda).
+    // separa marcos, não assuntos (o caso do item 64 a guarda).
     const marco = fonte.slice(
       fonte.indexOf('<nav aria-label="Nesta organização"'),
       fonte.lastIndexOf("</nav>", fonte.indexOf('<nav aria-label="Além desta organização"')),
     );
+    // **A régua separa assunto, e o título é do grupo que tem nome — não condição da régua.** São duas:
+    // a do grupo titulado `ORGANIZAÇÃO` e a do `Painel`, que é o outro assunto.
     const blocos = marco.split("<SidebarSeparator").slice(1);
-    expect(blocos.length).toBeGreaterThan(0);
-    for (const bloco of blocos) {
-      const grupo = bloco.slice(0, bloco.indexOf("</SidebarGroup>"));
-      expect(grupo).toContain("<SidebarGroupLabel");
-    }
+    expect(blocos).toHaveLength(2);
+    const daOrganizacao = blocos[0]!.slice(0, blocos[0]!.indexOf("</SidebarGroup>"));
+    expect(daOrganizacao).toContain("<SidebarGroupLabel");
+    const doPainel = blocos[1]!.slice(0, blocos[1]!.indexOf("</SidebarGroup>"));
+    expect(doPainel).toContain('destino="/dashboard"');
+    // E sem título inventado para um bloco de um item só, que o leitor de tela anunciaria a cada passagem.
+    expect(doPainel).not.toContain("<SidebarGroupLabel");
+  });
+
+  it("a régua do Painel fica dentro da condição, e não sobra pendurada para quem não o vê (item 118)", () => {
+    const fonte = ler(NAVEGACAO);
+    const painel = fonte.indexOf('destino="/dashboard"');
+    const condicao = fonte.lastIndexOf("{podeVerDashboard && (", painel);
+    expect(condicao).toBeGreaterThan(-1);
+    // `dashboard.ler` é permissão de Gestor: sem ela, nem o Painel nem a régua acima dele existem.
+    expect(fonte.slice(condicao, painel)).toContain("<SidebarSeparator");
   });
 
   it("Meus dados mora num segundo marco, fora de «Nesta organização», depois de uma régua (item 64)", () => {
