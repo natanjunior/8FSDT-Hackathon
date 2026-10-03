@@ -6,10 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { chamarAcaoDeCredencial, valoresPreservados } from "@/interface/componentes/acao-de-credencial";
-import { CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
 import { situacaoDaLinha } from "@/interface/componentes/lista-de-organizacoes";
 import { deveNavegar } from "@/interface/componentes/periodo-em-voo";
-import { palavraDeNaoVistas, SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
+import { SELO_NAO_VISTA } from "@/interface/componentes/rotulos";
 import {
   avisarAtencao,
   avisarConclusao,
@@ -2745,24 +2744,8 @@ describe("o alcance do 91 — os 44 px", () => {
  * linha que o de status, e *Aberta · Não aberta* é contradição de leitura.
  */
 describe("88.5 · as palavras e as peças do contador", () => {
-  it("a palavra do nome acessível concorda em número", () => {
-    expect(palavraDeNaoVistas(1)).toBe("não vista");
-    expect(palavraDeNaoVistas(0)).toBe("não vistas");
-    expect(palavraDeNaoVistas(3)).toBe("não vistas");
-  });
-
   it("o selo carrega a palavra, e não só a cor — compromisso A-5", () => {
     expect(SELO_NAO_VISTA).toBe("Não vista");
-  });
-
-  it("a pílula veste o preenchimento da marca, e não a tinta que o item 89 conserta", () => {
-    expect(CONTAGEM_DE_NAO_VISTAS).toContain("bg-marca");
-    expect(CONTAGEM_DE_NAO_VISTAS).toContain("text-marca-foreground");
-    // **`(?![\w-])`, e não a borda de palavra.** A borda casa entre `a` e `-`, então um padrão fechado
-    // por ela encontraria `text-marca-foreground` dentro da própria cadeia sob teste, e este caso
-    // reprovaria para sempre. O item 89 troca `text-marca` por `text-tinta-marca` em 21 arquivos, e é
-    // esta asserção que impede a pílula de entrar na troca.
-    expect(CONTAGEM_DE_NAO_VISTAS).not.toMatch(/\btext-marca(?![\w-])/u);
   });
 
   it("o selo da linha é de contorno: o cheio da linha é o status", () => {

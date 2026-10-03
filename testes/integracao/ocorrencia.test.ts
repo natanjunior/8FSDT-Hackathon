@@ -4644,47 +4644,6 @@ describe("o compartilhamento no banco — item 87", () => {
     expect(recebida!.abertoEm).toBeNull();
   });
 
-  it("a contagem conta os nulos de quem recebe, e ignora o resto — item 88", async () => {
-    const [nova] = await consultaCrua<{ id: string }>(
-      `insert into pessoas (nome) values ($1) returning id`,
-      [`Vizinha do contador ${SUFIXO}`],
-    );
-    await consultaCrua(
-      `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
-      [nova!.id, organizacaoId],
-    );
-    const a = await registrada("Fiação exposta no hall");
-    const b = await registrada("Vazamento no subsolo");
-    const c = await registrada("Lâmpada do elevador");
-    await inserir(a, nova!.id);
-    await inserir(b, nova!.id);
-    await inserir(c, recebePessoaId); // outra pessoa: não conta para `nova`
-
-    const quem = { pessoaId: nova!.id, podeLerTodas: false };
-    const antes = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(antes.contagens.compartilhadasNaoAbertas).toBe(2);
-
-    await portas().ocorrencias.registrarLeitura(a, nova!.id);
-    const depois = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(depois.contagens.compartilhadasNaoAbertas).toBe(1);
-
-    // Idempotente: a segunda chamada não muda nada, e não erra.
-    await portas().ocorrencias.registrarLeitura(a, nova!.id);
-    const terceira = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(terceira.contagens.compartilhadasNaoAbertas).toBe(1);
-  });
-
-  it("quem compartilhou não vê o contador de quem recebeu — item 88", async () => {
-    // `pessoaId` é o autor e o `por_pessoa_id` de todas as linhas deste `describe`. Filtrar pela ponta
-    // errada faria quem compartilhou ver o contador de quem recebeu.
-    const pagina = await listarOcorrencias(
-      portas().ocorrencias,
-      { pessoaId, podeLerTodas: false },
-      { limite: 100 },
-    );
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
-  });
-
   it("ler sem linha do par não cria compartilhamento e não erra — itens 88 e 117", async () => {
     // Ocorrência que existe, pessoa da organização que não recebeu: desde o item 117 a leitura grava para
     // quem abre, recebida ou não, e o par continua sem linha.
@@ -4773,12 +4732,9 @@ describe("o compartilhamento no banco — item 87", () => {
       [ida!.id, organizacaoId],
     );
 
-    const pagina = await listarOcorrencias(
-      portas().ocorrencias,
-      { pessoaId: ida!.id, podeLerTodas: false },
-      { limite: 100 },
-    );
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+    // Desde o item 117 o número saiu da lista; o que atravessa é a leitura, e com ela a abertura.
+    const lida = await portas().ocorrencias.porId(id);
+    expect(lida!.compartilhamentos.find((c) => c.com.pessoaId === ida!.id)!.abertoEm).not.toBeNull();
   });
 });
 

@@ -380,12 +380,6 @@ export type FiltroDeContagem = {
    * quatro números do painel continuam medindo o que mediam.
    */
   compartilhadaComPessoaIdDaPagina?: string;
-  /**
-   * Quem recebe, quando o número das não abertas é pedido (item 88). **Ausente é "não calcule"**, e o
-   * campo volta `0`: é o caso de quem tem `ocorrencia.ler_todas`, que não recebe compartilhamento e não
-   * tem a terceira opção no controle.
-   */
-  naoAbertasDePessoaId?: string;
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
@@ -398,10 +392,8 @@ export type FiltroDeContagem = {
 };
 
 /**
- * As sete contagens, como o repositório as devolve.
- *
- * **A sétima não é um `FILTER` das outras seis** (item 88): as seis contam linhas de `ocorrencias`, e ela
- * conta linhas de `compartilhamentos`.
+ * As seis contagens, como o repositório as devolve. **O número das não vistas do item 88 saiu no 117**: é
+ * o do sino.
  */
 export type ContagensLidas = {
   /**
@@ -424,8 +416,6 @@ export type ContagensLidas = {
   semResponsavel: number;
   /** As que ficaram **fora** do corte — `registrada_em > ate`, sob o recorte da página. */
   novas: number;
-  /** Quantas linhas de `compartilhamentos` de quem pergunta estão sem abertura, nesta organização. */
-  compartilhadasNaoAbertas: number;
 };
 
 /**
@@ -818,7 +808,7 @@ export interface RepositorioEscopadoDeOcorrencias {
    */
   sino(pergunta: PerguntaDoSino): Promise<SinoLido>;
   /**
-   * As sete contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
+   * As seis contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
    * (item 14b, critério 14b.6).
    *
    * Um `COUNT` sem `autor_pessoa_id` vaza a **existência** de ocorrências que o Solicitante não pode

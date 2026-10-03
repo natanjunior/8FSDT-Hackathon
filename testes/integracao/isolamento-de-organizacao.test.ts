@@ -1370,15 +1370,13 @@ describe("as consultas de configuração não atravessam organizações", () => 
       // Sem o recorte de autor, a organização inteira é contada — é o COUNT ingênuo, e ele existe.
       expect(semRecorte.totalFiltrado).toBeGreaterThan(comVisibilidade.totalFiltrado);
 
-      // **Com ele, nenhum dos SETE números passa de 2** — nem `emAberto`, nem `semResponsavel`.
+      // **Com ele, nenhum dos SEIS números passa de 2** — nem `emAberto`, nem `semResponsavel`.
       expect(comVisibilidade.totalFiltrado).toBe(2);
       expect(comVisibilidade.todas).toBe(2);
       expect(comVisibilidade.minhas).toBe(2);
       expect(comVisibilidade.emAberto).toBe(2);
       expect(comVisibilidade.semResponsavel).toBe(2);
       expect(comVisibilidade.novas).toBe(0);
-      // O sétimo (item 88) não foi pedido: sem `naoAbertasDePessoaId` a subconsulta não roda e vem `0`.
-      expect(comVisibilidade.compartilhadasNaoAbertas).toBe(0);
     });
 
     it("as contagens de A não enxergam B — nem por um número", async () => {
@@ -1408,64 +1406,6 @@ describe("as consultas de configuração não atravessam organizações", () => 
       expect(emB.totalFiltrado).toBe(listadasEmB.length);
       // E os dois lados não são o mesmo conjunto — sem isto o caso passaria por vacuidade.
       expect(emA.totalFiltrado).toBeGreaterThan(emB.totalFiltrado);
-    });
-
-    /**
-     * **A entrada de isolamento do item 88.** A mesma Pessoa recebe um compartilhamento em cada
-     * organização; sem o `organizacao_id` no `where` da subconsulta, os dois lados viriam 2.
-     *
-     * **Os `insert` são crus, e em Aurora o par `com`/`por` é a mesma Pessoa** — a Aplicação recusa isso,
-     * e o esquema não: ela é a única com vínculo lá. O que está sob teste é o `where` da contagem, não a
-     * regra de quem pode compartilhar com quem.
-     */
-    it("88 · o contador de não abertas conta só a organização ativa", async () => {
-      const [daAurora] = await consulta<{ id: string }>(
-        `insert into ocorrencias
-           (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id)
-         select $1, c.id, a.id, 'comum', $2, $3, $4
-           from categorias c, areas a
-          where c.organizacao_id = $1 and a.organizacao_id = $1
-          limit 1
-        returning id`,
-        [idAurora, `Grelha da Aurora ${SUFIXO}`, "Semeada para o item 88.", idSindica],
-      );
-      const [deRecanto] = await consulta<{ id: string }>(
-        `select id from ocorrencias where organizacao_id = $1 and autor_pessoa_id = $2 limit 1`,
-        [idRecanto, idMoradora],
-      );
-
-      await consulta(
-        `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
-         values ($1, $2, $3, $4)`,
-        [idRecanto, deRecanto!.id, idSindica, idMoradora],
-      );
-      await consulta(
-        `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
-         values ($1, $2, $3, $3)`,
-        [idAurora, daAurora!.id, idSindica],
-      );
-
-      const emRecanto = await portasDe(idRecanto).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idSindica,
-        naoAbertasDePessoaId: idSindica,
-        ate: NO_FUTURO,
-      });
-      const emAurora = await portasDe(idAurora).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idSindica,
-        naoAbertasDePessoaId: idSindica,
-        ate: NO_FUTURO,
-      });
-
-      expect(emRecanto.compartilhadasNaoAbertas).toBe(1);
-      expect(emAurora.compartilhadasNaoAbertas).toBe(1);
-
-      // E a outra ponta: quem compartilhou não é contada.
-      const daMoradora = await portasDe(idRecanto).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idMoradora,
-        naoAbertasDePessoaId: idMoradora,
-        ate: NO_FUTURO,
-      });
-      expect(daMoradora.compartilhadasNaoAbertas).toBe(0);
     });
   });
 });
@@ -2723,7 +2663,8 @@ describe("a chave de parada no banco — item 101", () => {
  * ============================================================================
  *
  * **No fim do arquivo, e não por `casosDeIsolamento`**, pela razão do 14b.6: a suíte compara o conjunto
- * exato, e o sino da síndica em Recanto já tem linhas de outros casos do arquivo. **E não toca no mundo da
+ * exato, e o sino da síndica em Recanto, Gestora lá, tem *Nova ocorrência* de toda ocorrência que os
+ * outros casos do arquivo semeiam. **E não toca no mundo da
  * suíte:** o que semeia é uma ocorrência nova em Recanto, registrada pela moradora, que a síndica, Gestora
  * de Recanto, recebe como *Nova ocorrência*.
  *

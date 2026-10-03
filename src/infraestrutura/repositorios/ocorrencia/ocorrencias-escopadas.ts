@@ -52,7 +52,6 @@ type LinhaDeContagens = {
   em_aberto: number;
   sem_responsavel: number;
   novas: number;
-  compartilhadas_nao_abertas: number;
 };
 
 /** As colunas da ocorrência mais o que o `join` traz. Fica junto do SQL, que é quem a produz. */
@@ -1972,7 +1971,7 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * As sete contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
+     * As seis contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
      * listagem aplica**.
      *
      * **Este é o ponto onde um erro vira furo de multi-tenant.** Um `COUNT` sem `autor_pessoa_id` vaza a
@@ -1980,10 +1979,10 @@ export function repositorioEscopadoDeOcorrencias(
      * número. É por isso que o `GET /dashboard` **não** foi reusado — o `SELECT_DO_BACKLOG_POR_STATUS`
      * conta a organização inteira, o que está correto lá (só o Gestor o alcança) e seria vazamento aqui.
      *
-     * **UMA consulta, sete números, uma varredura da partição.** O `where` carrega só a organização e a
+     * **UMA consulta, seis números, uma varredura da partição.** O `where` carrega só a organização e a
      * visibilidade; o corte e o recorte moram dentro de cada `FILTER`, porque `novas` olha para o outro
-     * lado do corte e não caberia num `where` compartilhado. **O sétimo não é `FILTER` de nada**: ele conta
-     * linhas de `compartilhamentos`, e o bloco dele explica por que.
+     * lado do corte e não caberia num `where` compartilhado. O sétimo, o das não vistas do item 88, saiu
+     * no item 117: o número é o do sino.
      *
      * **A assimetria do recorte é deliberada, e não é descuido.** `totalFiltrado` e `novas` aplicam os
      * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `todas`, `minhas`, `emAberto` e
@@ -2054,37 +2053,6 @@ export function repositorioEscopadoDeOcorrencias(
         recorte.push(compartilhada);
       }
 
-      /**
-       * **O sétimo número, e ele não é um `FILTER` dos outros seis** (item 88). Os seis contam linhas de
-       * `ocorrencias`; este conta linhas de `compartilhamentos`, e um `FILTER` sobre a partição não
-       * alcançaria as que estão fora do corte. É subconsulta escalar, constante para a consulta: ela não
-       * referencia coluna de `o`, então vive no `select` de um agregado sem `group by`.
-       *
-       * **Ele ignora o corte e os filtros de propósito.** A pergunta é *"quantas esperam por você"*, e não
-       * *"quantas desta página"*: uma ocorrência compartilhada e registrada depois do corte continua
-       * esperando. É a mesma natureza dos quatro do painel, que existem para o leitor **decidir** o que
-       * pedir.
-       *
-       * **`com_pessoa_id`, nunca `por_pessoa_id`.** As duas pontas moram na mesma linha, e a errada faria
-       * quem compartilhou ver o contador de quem recebeu.
-       *
-       * **`$1` no `where` da subconsulta é o que impede o número de somar duas organizações.** A mesma
-       * Pessoa está nas duas, e a suíte de isolamento tem a entrada que prova.
-       */
-      let naoAbertas = "0";
-      if (filtro.naoAbertasDePessoaId !== undefined) {
-        const dela = proximo();
-        valores.push(filtro.naoAbertasDePessoaId);
-        naoAbertas = `(select count(*) from compartilhamentos cfn
-                        where cfn.organizacao_id = $1
-                          and cfn.com_pessoa_id = ${dela}::uuid
-                          and not exists (select 1 from leituras_de_ocorrencia len
-                                           where len.organizacao_id = cfn.organizacao_id
-                                             and len.ocorrencia_id  = cfn.ocorrencia_id
-                                             and len.pessoa_id      = cfn.com_pessoa_id
-                                             and len.lido_ate >= cfn.compartilhado_em))::int`;
-      }
-
       const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;
       const eVisivel = visibilidade.length === 0 ? "" : ` and ${visibilidade.join(" and ")}`;
       const ondeDeFora =
@@ -2109,8 +2077,7 @@ export function repositorioEscopadoDeOcorrencias(
                 count(*) filter (where ${corte} and ${naoTerminal}${doPainel})::int          as em_aberto,
                 count(*) filter (where ${corte} and ${naoTerminal}
                                    and ${semResponsavelVigente}${doPainel})::int             as sem_responsavel,
-                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas,
-                ${naoAbertas}                                                                as compartilhadas_nao_abertas
+                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas
            from ocorrencias o
           where o.organizacao_id = $1${ondeDeFora}
           ${condicoes.map((condicao) => `and ${condicao}`).join("\n          ")}`,
@@ -2128,7 +2095,6 @@ export function repositorioEscopadoDeOcorrencias(
           emAberto: 0,
           semResponsavel: 0,
           novas: 0,
-          compartilhadasNaoAbertas: 0,
         };
       }
 
@@ -2139,7 +2105,6 @@ export function repositorioEscopadoDeOcorrencias(
         emAberto: linha.em_aberto,
         semResponsavel: linha.sem_responsavel,
         novas: linha.novas,
-        compartilhadasNaoAbertas: linha.compartilhadas_nao_abertas,
       };
     },
 

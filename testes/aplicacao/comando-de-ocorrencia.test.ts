@@ -17,7 +17,9 @@ import {
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
+  marcarComoNaoLida,
   registrarLeitura,
+  verSino,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -31,6 +33,7 @@ import {
   type CompartilhamentoLido,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
+  type PerguntaDoSino,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
   type ResultadoDaAvaliacao,
@@ -2057,6 +2060,44 @@ describe("88 · registrar a abertura", () => {
     await expect(
       registrarLeitura(repo, "oc-2", { pessoaId: "p-2" }),
     ).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * ============================================================================
+ *  117 · o sino
+ * ============================================================================
+ *
+ * **O que esta camada prova:** que quem olha vira a pergunta certa. A regra de destinatários é da consulta,
+ * e tem teste contra Postgres em `testes/integracao/ocorrencia.test.ts`.
+ */
+describe("o sino — item 117", () => {
+  const AGORA = new Date("2026-10-03T12:00:00.000Z");
+
+  it("pergunta com a janela de 30 dias, o limite, o papel e a leitura", async () => {
+    const perguntas: PerguntaDoSino[] = [];
+    const repo = { sino: async (p: PerguntaDoSino) => (perguntas.push(p), { novidades: [], naoLidas: 0 }) };
+    await verSino(repo, { pessoaId: "g-1", permissoes: ["ocorrencia.ler_todas"], papel: "gestor" }, AGORA);
+    expect(perguntas).toStrictEqual([
+      { pessoaId: "g-1", podeLerTodas: true, ehGestor: true, desde: "2026-09-03T12:00:00.000Z", limite: 50 },
+    ]);
+  });
+
+  it("o Solicitante não liga a criação nem a responsabilidade", async () => {
+    const perguntas: PerguntaDoSino[] = [];
+    const repo = { sino: async (p: PerguntaDoSino) => (perguntas.push(p), { novidades: [], naoLidas: 0 }) };
+    await verSino(repo, { pessoaId: "s-1", permissoes: ["ocorrencia.ler_propria"], papel: "solicitante" }, AGORA);
+    expect(perguntas[0]).toMatchObject({ podeLerTodas: false, ehGestor: false });
+  });
+
+  it("marcar como não lida desfaz a leitura de quem pediu, e só dela", async () => {
+    const chamadas: [string, string][] = [];
+    await marcarComoNaoLida(
+      { desfazerLeitura: async (o, p) => void chamadas.push([o, p]) },
+      "oc-1",
+      { pessoaId: "p-1" },
+    );
+    expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
   });
 });
 

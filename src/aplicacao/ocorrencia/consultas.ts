@@ -284,12 +284,6 @@ export type ContagensDoPainel = {
   minhas: number;
   emAberto: number;
   semResponsavel: number;
-  /**
-   * Quantas ocorrências compartilhadas com quem pergunta ainda não foram abertas por ela (item 88).
-   *
-   * **Vem `0` para quem tem `ocorrencia.ler_todas`**, que não recebe compartilhamento e não tem a aba.
-   */
-  compartilhadasNaoAbertas: number;
 };
 
 /**
@@ -410,20 +404,6 @@ export async function listarOcorrencias(
   const visibilidadeDoPainel = quem.podeLerTodas ? undefined : quem.pessoaId;
 
   /**
-   * **O número das não abertas só é pedido de quem tem a aba** (item 88). Quem tem `ler_todas` não recebe
-   * compartilhamento e o controle dele não tem a terceira opção: calcular custaria uma subconsulta para
-   * alimentar um número que nenhuma tela desenha.
-   *
-   * **E ele não depende do recorte ativo.** O campo vem em *Minhas* também, porque é ali que ele avisa que
-   * há algo do outro lado — é o único lugar em que a pessoa descobre o que recebeu sem que nada chegue
-   * sozinho até ela.
-   *
-   * **Zero, e não ausente, para quem lê todas.** Um campo que existe para uns e some para outros obrigaria
-   * o cliente a perguntar se ele veio.
-   */
-  const naoAbertasDePessoaId = quem.podeLerTodas ? undefined : quem.pessoaId;
-
-  /**
    * **E o `total` viaja com o recorte DA PÁGINA, não com o do painel.**
    *
    * O `total` saiu da consulta da página e virou o quinto `FILTER` da do painel, e com a mudança ele
@@ -438,7 +418,6 @@ export async function listarOcorrencias(
     ...(compartilhadaComPessoaId === undefined
       ? {}
       : { compartilhadaComPessoaIdDaPagina: compartilhadaComPessoaId }),
-    ...(naoAbertasDePessoaId === undefined ? {} : { naoAbertasDePessoaId }),
     pessoaIdDeQuemPergunta: quem.pessoaId,
     ate,
     ...(pagina.filtro === undefined ? {} : { filtro: pagina.filtro }),
@@ -485,7 +464,6 @@ export async function listarOcorrencias(
       minhas: contagens.minhas,
       emAberto: contagens.emAberto,
       semResponsavel: contagens.semResponsavel,
-      compartilhadasNaoAbertas: contagens.compartilhadasNaoAbertas,
     },
     visibilidadeAplicada:
       compartilhadaComPessoaId !== undefined

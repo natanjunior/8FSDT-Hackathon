@@ -470,7 +470,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, compartilhadasNaoAbertas: 0 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -518,7 +518,6 @@ describe("o envelope da página — item 14b", () => {
       minhas: 2,
       emAberto: 7,
       semResponsavel: 3,
-      compartilhadasNaoAbertas: 0,
     });
   });
 
@@ -4518,23 +4517,19 @@ describe("87 · a aba na URL e o vazio dela", () => {
  * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
  */
 describe("87.7 · o recorte de quem não tem ler_todas", () => {
-  // **Atualizado pelo item 88**, que deu número à terceira opção — e forma própria a ele, porque ele conta
-  // uma pendência e não um conjunto. *Minhas* continua sem número.
-  it("sem ler_todas: Minhas sem número, Compartilhadas com o das não vistas", () => {
+  // **Atualizado pelo item 117**: o número das não vistas que o item 88 pôs na terceira opção passou a ser
+  // o do sino. *Minhas* continua sem número.
+  it("sem ler_todas: nenhuma das duas opções tem número — item 117", () => {
     expect(opcoesDoRecorte(false)).toStrictEqual([
       { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
-      {
-        valor: "compartilhadas",
-        rotulo: "Compartilhadas comigo",
-        contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
-      },
+      { valor: "compartilhadas", rotulo: "Compartilhadas comigo", contagem: null },
     ]);
   });
 
   it("com ler_todas: as duas de sempre, as duas com o total", () => {
     expect(opcoesDoRecorte(true)).toStrictEqual([
-      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas", forma: "total" } },
-      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas", forma: "total" } },
+      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas" } },
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas" } },
     ]);
   });
 
@@ -4630,7 +4625,7 @@ describe("87 · o painel de compartilhar, a metade conferível", () => {
  */
 describe("88.2 · a abertura não decide nada sobre papel", () => {
   it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
-    const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
+    const fonte = lerFonte("src/aplicacao/ocorrencia/sino.ts").replace(/\r\n/gu, "\n");
     const inicio = fonte.indexOf("export async function registrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
@@ -4718,16 +4713,6 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
  * biblioteca de teste de componente; a jornada em tela é do ponta a ponta.
  */
 describe("88.6 · o número na opção, e o selo na linha", () => {
-  it("zero não desenha pílula na forma das não vistas, e desenha na do total", () => {
-    const fonte = lerFonte("src/interface/componentes/recorte-da-lista.tsx").replace(/\r\n/gu, "\n");
-
-    // A regra *"zero é ausência"* vale só para a pendência: *Todas 0* continua sendo 0.
-    expect(fonte).toContain('forma === "total"');
-    expect(fonte).toContain("if (quantas === 0) return null;");
-    expect(fonte).toContain("CONTAGEM_DE_NAO_VISTAS");
-    expect(fonte).toContain("palavraDeNaoVistas");
-  });
-
   it("o selo entra nos dois desenhos da lista, e nunca dentro do link do título", () => {
     const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx").replace(/\r\n/gu, "\n");
 

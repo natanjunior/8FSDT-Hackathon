@@ -144,17 +144,3 @@ export async function buscarCandidatosAoCompartilhamento(
     return { pessoaId: linha.pessoaId, nome: linha.nome, papel: linha.papel, situacao, motivo };
   });
 }
-
-/**
- * A leitura de quem abre — itens 88 e 117. **Abrir T-05 grava a leitura de quem abriu, recebida ou não.**
- *
- * **Não confere nada, e a ausência é a autorização.** A instrução só acha ocorrência desta organização, e
- * não diz se ela existe (contrato §6.3). **Não depende de papel nem de permissão.**
- */
-export async function registrarLeitura(
-  repositorio: Pick<RepositorioEscopadoDeOcorrencias, "registrarLeitura">,
-  ocorrenciaId: string,
-  quem: { pessoaId: string },
-): Promise<void> {
-  await repositorio.registrarLeitura(ocorrenciaId, quem.pessoaId);
-}

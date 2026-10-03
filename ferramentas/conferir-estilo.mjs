@@ -32,7 +32,7 @@ import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
-import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO, CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
 import { SeloDeNaoVista } from "@/interface/componentes/selo-de-nao-vista";
 
 // O `postcss` não é dependência declarada do projeto; é do `@tailwindcss/postcss`, e é por ele que se
@@ -169,16 +169,6 @@ const PECAS = [
       "padding-top": "1px",
       "padding-left": "7px",
       "background-color": "token(--chrome)",
-    },
-  },
-  {
-    id: "contagem-de-nao-vistas",
-    // Item 88: a pendência veste o preenchimento da marca, e o par está medido em `tema.test.ts`. Aqui o
-    // que se prende é que a peça usa ESTES dois tokens, e não um vizinho parecido.
-    html: () => `<span class="${cn(badgeVariants({}), CONTAGEM_DE_NAO_VISTAS)}">3</span>`,
-    esperado: {
-      "background-color": "token(--accent)",
-      color: "token(--marca-foreground)",
     },
   },
   {
