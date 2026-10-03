@@ -2716,3 +2716,73 @@ describe("a chave de parada no banco — item 101", () => {
     );
   });
 });
+
+/**
+ * ============================================================================
+ *  O sino não atravessa organizações — item 117, critérios 9 e 10
+ * ============================================================================
+ *
+ * **No fim do arquivo, e não por `casosDeIsolamento`**, pela razão do 14b.6: a suíte compara o conjunto
+ * exato, e o sino da síndica em Recanto já tem linhas de outros casos do arquivo. **E não toca no mundo da
+ * suíte:** o que semeia é uma ocorrência nova em Recanto, registrada pela moradora, que a síndica, Gestora
+ * de Recanto, recebe como *Nova ocorrência*.
+ *
+ * **A prova em Aurora é fraca pelo lado do conteúdo, e está dita:** o mundo não tem, em Aurora, ninguém
+ * além da síndica. O que o caso prova é que o laço da criação, ligado, não traz a ocorrência de Recanto.
+ */
+describe("o sino não atravessa organizações — item 117", () => {
+  let novaEmRecanto: string;
+
+  beforeAll(async () => {
+    const portas = portasDe(idRecanto);
+    const [categoria] = await portas.categorias.listar({ apenasAtivas: true });
+    const [area] = await portas.areas.listar({ apenasAtivas: true });
+    novaEmRecanto = (
+      await registrarOcorrencia(
+        portas,
+        { pessoaId: idMoradora, organizacaoId: idRecanto },
+        {
+          titulo: "Portão da garagem travando",
+          descricao: "Do sino.",
+          categoriaId: categoria!.id,
+          areaId: area!.id,
+          localizacaoComplemento: null,
+        },
+      )
+    ).id;
+  });
+
+  // **Gestor e leitura de todas ligados nas DUAS chamadas**, de propósito: em Aurora a síndica é
+  // Solicitante, e com o laço da criação desligado um `$1` perdido nele não apareceria.
+  const sinoDaSindica = (organizacaoId: string) =>
+    portasDe(organizacaoId).ocorrencias.sino({
+      pessoaId: idSindica,
+      podeLerTodas: true,
+      ehGestor: true,
+      desde: "2000-01-01T00:00:00.000Z",
+      limite: 500,
+    });
+
+  const idsDe = async (organizacaoId: string) =>
+    new Set(
+      (await consulta<{ id: string }>(`select id from ocorrencias where organizacao_id = $1`, [organizacaoId])).map(
+        (linha) => linha.id,
+      ),
+    );
+
+  it("em Recanto, a ocorrência nova da moradora está no sino da síndica", async () => {
+    const sino = await sinoDaSindica(idRecanto);
+    expect(sino.novidades.map((n) => n.ocorrenciaId)).toContain(novaEmRecanto);
+  });
+
+  it("em Aurora, nenhuma linha é de ocorrência de Recanto, e toda linha é de Aurora", async () => {
+    const [deRecanto, deAurora] = await Promise.all([idsDe(idRecanto), idsDe(idAurora)]);
+    const sino = await sinoDaSindica(idAurora);
+    for (const novidade of sino.novidades) {
+      expect(deRecanto.has(novidade.ocorrenciaId), novidade.ocorrenciaId).toBe(false);
+      expect(deAurora.has(novidade.ocorrenciaId), novidade.ocorrenciaId).toBe(true);
+    }
+    // O número também: ele sai da mesma instrução, e um `$1` perdido no `count` o inflaria.
+    expect(sino.naoLidas).toBe(sino.novidades.filter((n) => n.naoLida).length);
+  });
+});

@@ -53,11 +53,13 @@ export {
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
   type MotivoEncerramentoDeAtribuicao,
+  type NovidadeLida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type OrdenacaoDeOcorrencias,
   type PaginaDeMensagens,
+  type PerguntaDoSino,
   type PessoaComPapel,
   type PessoaReferencia,
   type PortasDoRegistro,
@@ -69,6 +71,8 @@ export {
   type ResultadoDaTransicao,
   type ResultadoDoCompartilhamento,
   type ResultadoDoRegistro,
+  type SinoLido,
+  type TipoDeNovidade,
   type TransicaoLida,
 } from "./portas";
 export { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";

@@ -15,6 +15,38 @@ import type {
 /** Como uma Pessoa aparece **dentro** de um recurso escopado. Nunca traz contato (contrato §4.6). */
 export type PessoaReferencia = { pessoaId: string; nome: string };
 
+/** Os cinco tipos de novidade do sino (spec do item 117, §3.1). */
+export type TipoDeNovidade = "criacao" | "status" | "comentario" | "atribuicao" | "compartilhamento";
+
+/** Uma linha do sino: a novidade mais recente de outra pessoa numa ocorrência ligada a quem pergunta. */
+export type NovidadeLida = {
+  ocorrenciaId: string;
+  titulo: string;
+  tipo: TipoDeNovidade;
+  /** ISO 8601. */
+  em: string;
+  por: PessoaReferencia;
+  /** Só em `status`. */
+  statusNovo: StatusOcorrencia | null;
+  motivoPausa: MotivoPausa | null;
+  /** Em `atribuicao`, o novo responsável; em `compartilhamento`, quem recebeu. */
+  alvo: PessoaReferencia | null;
+  naoLida: boolean;
+};
+
+export type SinoLido = { novidades: readonly NovidadeLida[]; naoLidas: number };
+
+export type PerguntaDoSino = {
+  pessoaId: string;
+  /** Liga o laço de responsável: responsável sem leitura não vê (spec §3.2). */
+  podeLerTodas: boolean;
+  /** Papel `gestor`: liga o laço da criação (decisão 3). */
+  ehGestor: boolean;
+  /** ISO 8601 — o início da janela de 30 dias. */
+  desde: string;
+  limite: number;
+};
+
 /** Uma pessoa dentro do compartilhamento: a referência de sempre, mais o papel NESTA organização. */
 export type PessoaComPapel = PessoaReferencia & { papel: Papel };
 
@@ -780,6 +812,11 @@ export interface RepositorioEscopadoDeOcorrencias {
    * uma linha a mais: o `total` responde.
    */
   listar(filtro: FiltroDeListagem): Promise<readonly OcorrenciaResumoLida[]>;
+  /**
+   * O sino de quem pergunta (item 117): as linhas e o total de não lidas **numa instrução só**, para os
+   * dois nunca discordarem (critério 4). O total conta todas; as linhas param em `limite`.
+   */
+  sino(pergunta: PerguntaDoSino): Promise<SinoLido>;
   /**
    * As sete contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
    * (item 14b, critério 14b.6).
